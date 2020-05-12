@@ -1,6 +1,7 @@
 // This file is Copyright (c) 2017 Florent Kermarrec <florent@enjoy-digital.fr>
 // This file is Copyright (c) 2019 Kees Jongenburger <kees.jongenburger@gmail.com>
 // This file is Copyright (c) 2018 bunnie <bunnie@kosagi.com>
+// This file is Copyright (c) 2020 Antmicro <www.antmicro.com>
 // License: BSD
 
 #include <stdio.h>
@@ -18,10 +19,30 @@
 
 #define SDCARD_DEBUG
 
-/* clocking */
+#define CHECK_LOOPS_PRINT_THRESHOLD 1000000
+
+#define REPEATED_MSG(cnt, thr, fmt, ...) do { \
+			const int _cnt = (cnt); \
+			if((_cnt) >= (thr)) { \
+				if((_cnt) > (thr)) { \
+					printf("\033[1A\033[1G"); \
+				} \
+				printf(fmt "\033[0m\033[K\n", ## __VA_ARGS__); \
+			} \
+		} while(0);
+
+#define BLOCK_SIZE 512
+#define NO_RESPONSE 0xFF
+
+#define SDCARD_RESPONSE_SIZE 5
+unsigned int sdcard_response[SDCARD_RESPONSE_SIZE];
+
+volatile char *SDREAD = (char*)(SDREAD_BASE);
+volatile char *SDWRITE = (char*)(SDWRITE_BASE);
 
 #ifdef CSR_SDCLK_CMD_DATA_ADDR
 
+/* clocking */
 static void sdclk_dcm_write(int cmd, int data)
 {
 	int word;
@@ -70,13 +91,13 @@ void sdclk_set_clk(unsigned int freq) {
 	while(!(sdclk_status_read() & CLKGEN_STATUS_LOCKED));
 }
 
-#elif CSR_SDCLK_MMCM_DRP_WRITE_ADDR
+#elif CSR_MMCM_DRP_WRITE_ADDR
 
 static void sdclk_mmcm_write(unsigned int adr, unsigned int data) {
-	sdclk_mmcm_drp_adr_write(adr);
-	sdclk_mmcm_drp_dat_w_write(data);
-	sdclk_mmcm_drp_write_write(1);
-	while(!sdclk_mmcm_drp_drdy_read());
+	mmcm_drp_adr_write(adr);
+	mmcm_drp_dat_w_write(data);
+	mmcm_drp_write_write(1);
+	while(!mmcm_drp_drdy_read());
 }
 
 
@@ -157,40 +178,41 @@ static unsigned int sdtimer_get(void)
 	return sdtimer_value_read();
 }
 
-unsigned int sdcard_response[4];
 
 int sdcard_wait_cmd_done(void) {
+	unsigned check_counter = 0;
 	unsigned int cmdevt;
 	while (1) {
 		cmdevt = sdcore_cmdevt_read();
-#ifdef SDCARD_DEBUG
-		printf("cmdevt: %08x\n", cmdevt);
-#endif
+		REPEATED_MSG(++check_counter, CHECK_LOOPS_PRINT_THRESHOLD,
+					 "\033[36m  cmdevt: %08x (check #%d)",
+					 cmdevt, check_counter);
+		if(check_counter > CHECK_LOOPS_PRINT_THRESHOLD) {
+			putchar('\n');
+			return NO_RESPONSE; //If we reach threshold, and cmdevt didn't return valid status, return NO_RESPONSE
+		}
 		if (cmdevt & 0x1) {
-			if (cmdevt & 0x4) {
-#ifdef SDCARD_DEBUG
-				printf("cmdevt: SD_TIMEOUT\n");
-#endif
+			if (cmdevt & 0x4)
 				return SD_TIMEOUT;
-			}
-			else if (cmdevt & 0x8) {
-#ifdef SDCARD_DEBUG
-				printf("cmdevt: SD_CRCERROR\n");
+			else if (cmdevt & 0x8)
 				return SD_CRCERROR;
-#endif
-			}
 			return SD_OK;
 		}
 	}
 }
 
 int sdcard_wait_data_done(void) {
+	unsigned check_counter = 0;
 	unsigned int dataevt;
 	while (1) {
 		dataevt = sdcore_dataevt_read();
-#ifdef SDCARD_DEBUG
-		printf("dataevt: %08x\n", dataevt);
-#endif
+		REPEATED_MSG(++check_counter, CHECK_LOOPS_PRINT_THRESHOLD,
+					 "\033[36m  dataevt: %08x (check #%d)",
+					 dataevt, check_counter);
+		if(check_counter > CHECK_LOOPS_PRINT_THRESHOLD) {
+			putchar('\n');
+			return NO_RESPONSE; //If we reach threshold, and cmdevt didn't return valid status, return NO_RESPONSE
+		}
 		if (dataevt & 0x1) {
 			if (dataevt & 0x4)
 				return SD_TIMEOUT;
@@ -202,19 +224,68 @@ int sdcard_wait_data_done(void) {
 }
 
 int sdcard_wait_response(void) {
-	int status = sdcard_wait_cmd_done();
+        int i, j;
+	int status;
 
-	csr_rd_buf_uint32(CSR_SDCORE_RESPONSE_ADDR, sdcard_response, 4);
+	status = sdcard_wait_cmd_done();
+
+#if CONFIG_CSR_DATA_WIDTH == 8
+	unsigned int r;
+
+	// LSB is located at RESPONSE_ADDR + (RESPONSE_SIZE - 1) * 4
+	int offset;
+	for(i = 0; i < SDCARD_RESPONSE_SIZE; i++) {
+	  r = 0;
+	  for(j = 0; j < 4; j++) {
+	    // SD card response consists of 17 bytes
+	    // scattered accross 5 32-bit CSRs.
+	    // In a configuration with CONFIG_CSR_DATA_WIDTH == 8
+	    // this means we need to do 17 32-bit reads
+	    // and group bytes as described below:
+	    // sdcard_response | CSR_SDCORE_RESPONSE_ADDR
+	    // offset          | offsets
+	    // ------------------------------------------
+	    //               0 | [           0 ]
+	    //               1 | [  4  8 12 16 ]
+	    //               2 | [ 20 23 28 32 ]
+	    //               3 | [ 36 40 44 48 ]
+	    //               4 | [ 52 56 60 64 ]
+	    // ------------------------------------------
+	    //                   |          ^  |
+	    //                   +--- u32 --|--+
+	    //                              LS byte
+	    offset = 4 * ((CSR_SDCORE_RESPONSE_SIZE - 1) - j - i * 4);
+	    if(offset >= 0) {
+              // Read response and move it by 'j' bytes
+	      r |= ((csr_read_simple(CSR_SDCORE_RESPONSE_ADDR + offset) & 0xFF) << (j * 8));
+	    }
+	  }
+	  sdcard_response[(SDCARD_RESPONSE_SIZE - 1) - i] = r;  // NOTE: this is "backwards" but sticking with this because it's compatible with CSR32
+	}
+#else
+	volatile unsigned int *buffer = (unsigned int *)CSR_SDCORE_RESPONSE_ADDR;
+
+	for(i = 0; i < SDCARD_RESPONSE_SIZE; i++) {
+		sdcard_response[i] = buffer[i];
+	}
+#endif
+
 #ifdef SDCARD_DEBUG
-	printf("sdcard_response = [%08x, %08x, %08x, %08x];\n",
-		sdcard_response[0], sdcard_response[1],
-		sdcard_response[2], sdcard_response[3]);
+	for(i = 0; i < SDCARD_RESPONSE_SIZE; i++) {
+		printf("%08x ", sdcard_response[i]);
+	}
+	printf("\n");
 #endif
 
 	return status;
 }
 
 /* commands */
+#if CONFIG_CSR_DATA_WIDTH == 8
+#define  CSR8_CMD_FIX  	sdcore_issue_cmd_write(1)
+#else
+#define  CSR8_CMD_FIX
+#endif
 
 void sdcard_go_idle(void) {
 #ifdef SDCARD_DEBUG
@@ -222,15 +293,18 @@ void sdcard_go_idle(void) {
 #endif
 	sdcore_argument_write(0x00000000);
 	sdcore_command_write((0 << 8) | SDCARD_CTRL_RESPONSE_NONE);
+	CSR8_CMD_FIX;
 }
 
 int sdcard_send_ext_csd(void) {
+	unsigned int arg;
+	arg = 0x000001aa;
 #ifdef SDCARD_DEBUG
-	printf("CMD8: SEND_EXT_CSD\n");
+	printf("CMD8: SEND_EXT_CSD, arg: 0x%08x\n", arg);
 #endif
-	sdcore_argument_write(0x000001aa);
-	sdcore_command_write((8 << 8) | SDCARD_CTRL_RESPONSE_NONE);
-	busy_wait(1);
+	sdcore_argument_write(arg);
+	sdcore_command_write((8 << 8) | SDCARD_CTRL_RESPONSE_SHORT);
+	CSR8_CMD_FIX;
 	return sdcard_wait_response();
 }
 
@@ -240,23 +314,23 @@ int sdcard_app_cmd(int rca) {
 #endif
 	sdcore_argument_write(rca << 16);
 	sdcore_command_write((55 << 8) | SDCARD_CTRL_RESPONSE_SHORT);
-	busy_wait(1);
+	CSR8_CMD_FIX;
 	return sdcard_wait_response();
 }
 
 int sdcard_app_send_op_cond(int hcs, int s18r) {
 	unsigned int arg;
-#ifdef SDCARD_DEBUG
-	printf("ACMD41: APP_SEND_OP_COND\n");
-#endif
 	arg = 0x10ff8000;
 	if (hcs)
 		arg |= 0x60000000;
 	if (s18r)
 		arg |= 0x01000000;
+#ifdef SDCARD_DEBUG
+	printf("ACMD41: APP_SEND_OP_COND, arg: %08x\n", arg);
+#endif
 	sdcore_argument_write(arg);
 	sdcore_command_write((41 << 8) | SDCARD_CTRL_RESPONSE_SHORT);
-	busy_wait(1);
+	CSR8_CMD_FIX;
 	return sdcard_wait_response();
 }
 
@@ -266,7 +340,7 @@ int sdcard_all_send_cid(void) {
 #endif
 	sdcore_argument_write(0x00000000);
 	sdcore_command_write((2 << 8) | SDCARD_CTRL_RESPONSE_LONG);
-	busy_wait(1);
+	CSR8_CMD_FIX;
 	return sdcard_wait_response();
 }
 
@@ -276,7 +350,7 @@ int sdcard_set_relative_address(void) {
 #endif
 	sdcore_argument_write(0x00000000);
 	sdcore_command_write((3 << 8) | SDCARD_CTRL_RESPONSE_SHORT);
-	busy_wait(1);
+	CSR8_CMD_FIX;
 	return sdcard_wait_response();
 }
 
@@ -286,7 +360,7 @@ int sdcard_send_cid(unsigned int rca) {
 #endif
 	sdcore_argument_write(rca << 16);
 	sdcore_command_write((10 << 8) | SDCARD_CTRL_RESPONSE_LONG);
-	busy_wait(1);
+	CSR8_CMD_FIX;
 	return sdcard_wait_response();
 }
 
@@ -296,7 +370,7 @@ int sdcard_send_csd(unsigned int rca) {
 #endif
 	sdcore_argument_write(rca << 16);
 	sdcore_command_write((9 << 8) | SDCARD_CTRL_RESPONSE_LONG);
-	busy_wait(1);
+	CSR8_CMD_FIX;
 	return sdcard_wait_response();
 }
 
@@ -306,7 +380,7 @@ int sdcard_select_card(unsigned int rca) {
 #endif
 	sdcore_argument_write(rca << 16);
 	sdcore_command_write((7 << 8) | SDCARD_CTRL_RESPONSE_SHORT);
-	busy_wait(1);
+	CSR8_CMD_FIX;
 	return sdcard_wait_response();
 }
 
@@ -316,7 +390,7 @@ int sdcard_app_set_bus_width(void) {
 #endif
 	sdcore_argument_write(0x00000002);
 	sdcore_command_write((6 << 8) | SDCARD_CTRL_RESPONSE_SHORT);
-	busy_wait(1);
+	CSR8_CMD_FIX;
 	return sdcard_wait_response();
 }
 
@@ -335,9 +409,8 @@ int sdcard_switch(unsigned int mode, unsigned int group, unsigned int value, uns
 	sdcore_blockcount_write(1);
 	sdcore_command_write((6 << 8) | SDCARD_CTRL_RESPONSE_SHORT |
 						 (SDCARD_CTRL_DATA_TRANSFER_READ << 5));
-	busy_wait(1);
+	CSR8_CMD_FIX;
 	sdcard_wait_response();
-	busy_wait(1);
 	return sdcard_wait_data_done();
 }
 
@@ -350,9 +423,8 @@ int sdcard_app_send_scr(void) {
 	sdcore_blockcount_write(1);
 	sdcore_command_write((51 << 8) | SDCARD_CTRL_RESPONSE_SHORT |
 						 (SDCARD_CTRL_DATA_TRANSFER_READ << 5));
-	busy_wait(1);
+	CSR8_CMD_FIX;
 	sdcard_wait_response();
-	busy_wait(1);
 	return sdcard_wait_data_done();
 }
 
@@ -363,7 +435,7 @@ int sdcard_app_set_blocklen(unsigned int blocklen) {
 #endif
 	sdcore_argument_write(blocklen);
 	sdcore_command_write((16 << 8) | SDCARD_CTRL_RESPONSE_SHORT);
-	busy_wait(1);
+	CSR8_CMD_FIX;
 	return sdcard_wait_response();
 }
 
@@ -374,10 +446,11 @@ int sdcard_write_single_block(unsigned int blockaddr) {
 	int cmd_response = -1;
 	while (cmd_response != SD_OK) {
 		sdcore_argument_write(blockaddr);
-		sdcore_blocksize_write(512);
+		sdcore_blocksize_write(BLOCK_SIZE);
 		sdcore_blockcount_write(1);
 		sdcore_command_write((24 << 8) | SDCARD_CTRL_RESPONSE_SHORT |
 							 (SDCARD_CTRL_DATA_TRANSFER_WRITE << 5));
+		CSR8_CMD_FIX;
 		cmd_response = sdcard_wait_response();
 	}
 	return cmd_response;
@@ -390,10 +463,11 @@ int sdcard_write_multiple_block(unsigned int blockaddr, unsigned int blockcnt) {
 	int cmd_response = -1;
 	while (cmd_response != SD_OK) {
 		sdcore_argument_write(blockaddr);
-		sdcore_blocksize_write(512);
+		sdcore_blocksize_write(BLOCK_SIZE);
 		sdcore_blockcount_write(blockcnt);
 		sdcore_command_write((25 << 8) | SDCARD_CTRL_RESPONSE_SHORT |
 							 (SDCARD_CTRL_DATA_TRANSFER_WRITE << 5));
+		CSR8_CMD_FIX;
 		cmd_response = sdcard_wait_response();
 	}
 	return cmd_response;
@@ -406,10 +480,11 @@ int sdcard_read_single_block(unsigned int blockaddr) {
 int cmd_response = -1;
 	while (cmd_response != SD_OK) {
 		sdcore_argument_write(blockaddr);
-		sdcore_blocksize_write(512);
+		sdcore_blocksize_write(BLOCK_SIZE);
 		sdcore_blockcount_write(1);
 		sdcore_command_write((17 << 8) | SDCARD_CTRL_RESPONSE_SHORT |
 							 (SDCARD_CTRL_DATA_TRANSFER_READ << 5));
+		CSR8_CMD_FIX;
 		cmd_response = sdcard_wait_response();
 	}
 	return sdcard_wait_data_done();
@@ -422,10 +497,11 @@ int sdcard_read_multiple_block(unsigned int blockaddr, unsigned int blockcnt) {
 int cmd_response = -1;
 	while (cmd_response != SD_OK) {
 		sdcore_argument_write(blockaddr);
-		sdcore_blocksize_write(512);
+		sdcore_blocksize_write(BLOCK_SIZE);
 		sdcore_blockcount_write(blockcnt);
 		sdcore_command_write((18 << 8) | SDCARD_CTRL_RESPONSE_SHORT |
 							 (SDCARD_CTRL_DATA_TRANSFER_READ << 5));
+		CSR8_CMD_FIX;
 		cmd_response = sdcard_wait_response();
 	}
 	return cmd_response;
@@ -437,7 +513,7 @@ int sdcard_stop_transmission(void) {
 #endif
 	sdcore_argument_write(0x0000000);
 	sdcore_command_write((12 << 8) | SDCARD_CTRL_RESPONSE_SHORT);
-	busy_wait(1);
+	CSR8_CMD_FIX;
 	return sdcard_wait_response();
 }
 
@@ -447,7 +523,7 @@ int sdcard_send_status(unsigned int rca) {
 #endif
 	sdcore_argument_write(rca << 16);
 	sdcore_command_write((13 << 8) | SDCARD_CTRL_RESPONSE_SHORT);
-	busy_wait(1);
+	CSR8_CMD_FIX;
 	return sdcard_wait_response();
 }
 
@@ -457,7 +533,7 @@ int sdcard_set_block_count(unsigned int blockcnt) {
 #endif
 	sdcore_argument_write(blockcnt);
 	sdcore_command_write((23 << 8) | SDCARD_CTRL_RESPONSE_SHORT);
-	busy_wait(1);
+	CSR8_CMD_FIX;
 	return sdcard_wait_response();
 }
 
@@ -467,65 +543,100 @@ void sdcard_decode_cid(void) {
 		"Manufacturer ID: 0x%x\n"
 		"Application ID 0x%x\n"
 		"Product name: %c%c%c%c%c\n",
-			sdcard_response[0],
 			sdcard_response[1],
 			sdcard_response[2],
 			sdcard_response[3],
+			sdcard_response[4],
 
-			(sdcard_response[0] >> 16) & 0xffff,
+			(sdcard_response[1] >> 16) & 0xffff,
 
-			sdcard_response[0] & 0xffff,
+			sdcard_response[1] & 0xffff,
 
-			(sdcard_response[1] >> 24) & 0xff,
-			(sdcard_response[1] >> 16) & 0xff,
-			(sdcard_response[1] >>  8) & 0xff,
-			(sdcard_response[1] >>  0) & 0xff,
-			(sdcard_response[2] >> 24) & 0xff
+			(sdcard_response[2] >> 24) & 0xff,
+			(sdcard_response[2] >> 16) & 0xff,
+			(sdcard_response[2] >>  8) & 0xff,
+			(sdcard_response[2] >>  0) & 0xff,
+			(sdcard_response[3] >> 24) & 0xff
 		);
+	int crc = sdcard_response[4] & 0x000000FF;
+	int month = (sdcard_response[4] & 0x00000F00) >> 8;
+	int year = (sdcard_response[4] & 0x000FF000) >> 12;
+	int psn = ((sdcard_response[4] & 0xFF000000) >> 24) | ((sdcard_response[3] & 0x00FFFFFF) << 8);
+	printf( "CRC: %02x\n", crc);
+	printf( "Production date(m/yy): %d/%d\n", month, year);
+	printf( "PSN: %08x\n", psn);
+	printf( "OID: %c%c\n", (sdcard_response[1] & 0x00FF0000) >> 16, (sdcard_response[1] & 0x0000FF00) >> 8);
 }
 
 void sdcard_decode_csd(void) {
 	/* FIXME: only support CSR structure version 2.0 */
+
+	int size = ((sdcard_response[3] & 0xFFFF0000) >> 16) + ((sdcard_response[2] & 0x000000FF) << 16) + 1;
 	printf(
 		"CSD Register: 0x%x%08x%08x%08x\n"
 		"Max data transfer rate: %d MB/s\n"
 		"Max read block length: %d bytes\n"
 		"Device size: %d GB\n",
-			sdcard_response[0],
 			sdcard_response[1],
 			sdcard_response[2],
 			sdcard_response[3],
+			sdcard_response[4],
 
 			(sdcard_response[1] >> 24) & 0xff,
 
-			(1 << ((sdcard_response[1] >> 8) & 0xf)),
+			(1 << ((sdcard_response[2] >> 16) & 0xf)),
 
-			((sdcard_response[2] >> 8) & 0x3fffff)*512/(1024*1024)
+			size * BLOCK_SIZE / (1024 * 1024)
 	);
 }
 
 /* bist */
 
-void sdcard_bist_generator_start(unsigned int blockcnt) {
-	bist_generator_reset_write(1);
-	bist_generator_count_write(blockcnt);
-	bist_generator_start_write(1);
+#ifdef CSR_SDDATAWRITER_BASE
+void sdcard_sddatawriter_start(void) {
+	sddatawriter_reset_write(1);
+	sddatawriter_start_write(1);
 }
 
-void sdcard_bist_generator_wait(void) {
-	while((bist_generator_done_read() & 0x1) == 0);
+int sdcard_sddatawriter_wait(void) {
+	unsigned check_counter = 0;
+	unsigned done = 0;
+	while(!done) {
+		done = sddatawriter_done_read();
+		REPEATED_MSG(++check_counter, CHECK_LOOPS_PRINT_THRESHOLD,
+					 "\033[36m  sddatawriter_done_read: %08x (check #%d)",
+					 done, ++check_counter);
+		if(check_counter > CHECK_LOOPS_PRINT_THRESHOLD) {
+			putchar('\n');
+			return NO_RESPONSE; //If we reach threshold, and cmdevt didn't return valid status, return NO_RESPONSE
+		}
+	}
+	return 0;
+}
+#endif
+
+#ifdef CSR_SDDATAREADER_BASE
+void sdcard_sddatareader_start(void) {
+	sddatareader_reset_write(1);
+	sddatareader_start_write(1);
 }
 
-
-void sdcard_bist_checker_start(unsigned int blockcnt) {
-	bist_checker_reset_write(1);
-	bist_checker_count_write(blockcnt);
-	bist_checker_start_write(1);
+int sdcard_sddatareader_wait(void) {
+	unsigned check_counter = 0;
+	unsigned done = 0;
+	while((done & 1) == 0) {
+		done = sddatareader_done_read();
+		REPEATED_MSG(++check_counter, CHECK_LOOPS_PRINT_THRESHOLD,
+					 "\033[36m  sddatareader_done_read: %08x (check #%d)",
+					 done, check_counter);
+		if(check_counter > CHECK_LOOPS_PRINT_THRESHOLD) {
+			putchar('\n');
+			return NO_RESPONSE; //If we reach threshold, and cmdevt didn't return valid status, return NO_RESPONSE
+		}
+	}
+	return 0;
 }
-
-void sdcard_bist_checker_wait(void) {
-	while((bist_checker_done_read() & 0x1) == 0);
-}
+#endif
 
 /* user */
 
@@ -542,13 +653,26 @@ int sdcard_init(void) {
 	sdcard_go_idle();
 	busy_wait(1);
 	sdcard_send_ext_csd();
+#ifdef SDCARD_DEBUG
+	printf("Accepted voltage: ");
+	if(sdcard_response[4] & 0x0)
+		printf("Not defined\n");
+	else if(sdcard_response[4] >> 8 & 0x1)
+		printf("2.7-3.6V\n");
+	else if(sdcard_response[4] >> 12 & 0x1)
+		printf("Reserved\n");
+	else if(sdcard_response[4] >> 16 & 0x1)
+		printf("Reserved\n");
+	else
+		printf("Invalid response\n");
+#endif
 
 	/* wait for card to be ready */
 	/* FIXME: 1.8v support */
 	for(;;) {
 		sdcard_app_cmd(0);
 		sdcard_app_send_op_cond(1, 0);
-		if (sdcard_response[3] & 0x80000000) {
+		if (sdcard_response[4] & 0x80000000) {
 			break;
 		}
 		busy_wait(1);
@@ -562,7 +686,7 @@ int sdcard_init(void) {
 
 	/* set relative card address */
 	sdcard_set_relative_address();
-	rca = (sdcard_response[3] >> 16) & 0xffff;
+	rca = (sdcard_response[4] >> 16) & 0xffff;
 
 	/* set cid */
 	sdcard_send_cid(rca);
@@ -595,66 +719,195 @@ int sdcard_init(void) {
 	sdcard_app_send_scr();
 
 	/* set block length */
-	sdcard_app_set_blocklen(512);
+	sdcard_app_set_blocklen(BLOCK_SIZE);
 
 	return 0;
 }
 
-int sdcard_test(unsigned int loops) {
-	unsigned int i;
-	unsigned int length;
-	unsigned int blocks;
-	unsigned int start;
-	unsigned int end;
-	unsigned int errors = 0;
-	unsigned long write_speed, read_speed;
+void hexdump(volatile const char *buf, size_t len)
+{
+    enum {
+        BYTES_PER_ROW = 16,
+        BYTES_PER_GROUP = 4,
+        ADDR_COL_1 = 1,
+        HEX_COL_1 = ADDR_COL_1 + 7,
+        CHAR_COL_1 = HEX_COL_1 + 3 * BYTES_PER_ROW
+                     + (BYTES_PER_ROW/BYTES_PER_GROUP) + 1,
+    };
 
-	sdcore_cmdtimeout_write(1<<19);
-	sdcore_datatimeout_write(1<<19);
+    int i;
+    unsigned char c;
+    int printable = 0;
+    unsigned column, hex_column, char_column;
+    char cstr[] = ".";
 
-	sdtimer_init();
+    // Erase line
+    printf("\033[2K");
 
-	length = 4*1024*1024;
-	blocks = length/512;
+    for(i = 0; i < len; ++i) {
+        c = cstr[0] = buf[i];
+        printable = (c >= ' ' && c < 127);
+        column = i % BYTES_PER_ROW;
+        hex_column = HEX_COL_1 + 3 * column + (column/BYTES_PER_GROUP);
+        char_column = CHAR_COL_1 + column + (column/BYTES_PER_GROUP);
 
-	for(i=0; i<loops; i++) {
-		/* write */
-		start = sdtimer_get();
-		sdcard_set_block_count(blocks);
-		sdcard_bist_generator_start(blocks);
-		sdcard_write_multiple_block(i, blocks);
-		sdcard_bist_generator_wait();
-		sdcard_stop_transmission();
-		end = sdtimer_get();
-		write_speed = length*(CONFIG_CLOCK_FREQUENCY/100000)/((start - end)/100000);
+        if(column == 0) {
+            printf("\033[33m%04x\033[0m", i);
+        }
 
-		/* delay FIXME */
-		busy_wait(200);
-
-		/* read */
-		start = sdtimer_get();
-		sdcard_set_block_count(blocks);
-		sdcard_bist_checker_start(blocks);
-		sdcard_read_multiple_block(i, blocks);
-		sdcard_bist_checker_wait();
-		end = sdtimer_get();
-		read_speed = length*(CONFIG_CLOCK_FREQUENCY/100000)/((start - end)/100000);
-
-		/* errors */
-		errors = bist_checker_errors_read();
-
-		/* infos */
-		if ((i%8) == 0)
-			printf("LOOP WRITE_SPEED  READ_SPEED ERRORS\n");
-		printf("%4d %6d MB/s %6d MB/s %6d\n",
-			i,
-			write_speed/(1024*1024),
-			read_speed/(1024*1024),
-			errors
-		);
-	}
-
-	return errors;
+        printf("\033[%uG""%02x"
+               "\033[%uG""%s""%s"
+               "\033[0m%s",
+               hex_column, c,
+               char_column, printable ? "\033[40m" : "\033[90m",
+               printable ? cstr : ".",
+               (column == BYTES_PER_ROW - 1 || i == len - 1) ? "\n" : "");
+    }
+    printf("\n");
 }
 
+void sdcard_test_write(unsigned block, const char *data)
+{
+#ifdef CSR_SDDATAWRITER_BASE
+	const char *c = data;
+	int i;
+	for(i = 0; i < BLOCK_SIZE; i++) {
+		SDWRITE[i] = *c;
+		if(*(++c) == 0) {
+			c = data;
+		}
+	}
+
+	printf("SDWRITE:\n");
+	hexdump(SDWRITE, BLOCK_SIZE);
+
+	sdcard_set_block_count(1);
+	sdcard_sddatawriter_start();
+	sdcard_write_single_block(block * BLOCK_SIZE);
+	sdcard_sddatawriter_wait();
+	sdcard_stop_transmission();
+#else
+	printf("Writer core not present\n");
+#endif
+}
+
+void sdcard_test_read(unsigned block)
+{
+#ifdef CSR_SDDATAREADER_BASE
+	int i;
+	for(i = 0; i < sizeof(SDREAD); ++i) {
+		SDREAD[i] = 0;
+	}
+	printf("SDREAD (0x%08x) before read:\n", SDREAD);
+	hexdump(SDREAD, BLOCK_SIZE);
+
+	sdcard_set_block_count(1);
+	sdcard_sddatareader_start();
+	sdcard_read_single_block(block * BLOCK_SIZE);
+	sdcard_sddatareader_wait();
+
+	printf("SDREAD (0x%08x) after read:\n", SDREAD);
+	hexdump(SDREAD, BLOCK_SIZE);
+#else
+	printf("Reader core not present\n");
+#endif
+}
+
+int sdcard_test(unsigned int count)
+{
+#if defined(CSR_SDDATAREADER_BASE) && defined(CSR_SDDATAWRITER_BASE)
+	srand(0);
+	int i, j, status;
+	int crcerrors = 0;
+	int timeouterrors = 0;
+	int repeat = 0;
+
+	sdcore_datawcrcclear_write(1);
+
+	for(i = 0; i < count; i = repeat ? i : i + 1) {
+		REPEATED_MSG(i, 0, "\033[96mWriting block %d (%d/%d); crc errors: %d; timeouts: %d; datawcrc: %u",
+					 i, i + 1, count, crcerrors, timeouterrors, sdcore_datawcrcerrors_read());
+		if(!repeat) {
+			for(j = 0; j < BLOCK_SIZE; ++j) {
+				unsigned number = rand();
+				SDWRITE[j] = number & 0xFF;
+			}
+		} else {
+			busy_wait(1);
+		}
+		repeat = 0;
+
+		sdcard_set_block_count(1);
+		sdcard_sddatawriter_start();
+		status = sdcard_write_single_block(i * BLOCK_SIZE);
+		if (status == SD_CRCERROR) {
+			++crcerrors;
+		} else if (status == SD_TIMEOUT) {
+			++timeouterrors;
+		}
+		if (status != SD_OK) {
+			REPEATED_MSG(1, 0, "\033[31m  Repeating\n");
+			repeat = 1;
+		}
+		status = sdcard_sddatawriter_wait();
+		if (status != 0) {
+			REPEATED_MSG(1, 0, "\033[31m  Repeating\n");
+			repeat = 1;
+		}
+		sdcard_stop_transmission();
+	}
+	REPEATED_MSG(i, 0, "\033[39;1mWriting crc errors: %d; timeouts: %d; datawcrc: %u",
+				 crcerrors, timeouterrors, sdcore_datawcrcerrors_read());
+
+	srand(0);
+	int errors = 0;
+	int errorsblk = 0;
+	crcerrors = 0;
+	timeouterrors = 0;
+	for(i = 0; i < count; i = repeat ? i : i + 1) {
+		REPEATED_MSG(i, 0, "\033[96mReading and checking block %d (%d/%d); errors: %d in %d blocks; crc errors: %d; timeouts: %d",
+					 i, i + 1, count, errors, errorsblk, crcerrors, timeouterrors);
+
+	        repeat = 0;
+		sdcard_set_block_count(1);
+		sdcard_sddatareader_start();
+		status = sdcard_read_single_block(i * BLOCK_SIZE);
+		if (status == SD_CRCERROR) {
+			++crcerrors;
+		} else if (status == SD_TIMEOUT) {
+			++timeouterrors;
+		}
+		if (status != SD_OK) {
+			REPEATED_MSG(1, 0, "\033[31m  Repeating\n");
+			repeat = 1;
+			continue;
+		}
+		status = sdcard_sddatareader_wait();
+		if (status != 0) {
+			REPEATED_MSG(1, 0, "\033[31m  Repeating\n");
+			repeat = 1;
+			continue;
+		}
+
+		int ok = 1;
+		for(j = 0; j < BLOCK_SIZE; ++j) {
+			unsigned number = rand();
+
+			if(SDREAD[j] != (number & 0xFF)) {
+				++errors;
+				ok = 0;
+			}
+		}
+		if(!ok) {
+			REPEATED_MSG(0, 0, "\033[31m  Block check failed\n");
+			++errorsblk;
+		}
+	}
+	REPEATED_MSG(i, 0, "\033[39;1mReading errors: %d in %d blocks; crc errors: %d; timeouts: %d",
+				 errors, errorsblk, crcerrors, timeouterrors);
+#else
+	printf("Reader and/or writer core not present\n");
+#endif
+	return 0;
+}
 #endif /* CSR_SDCORE_BASE */

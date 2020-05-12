@@ -5,7 +5,7 @@
  * purpose with or without fee is hereby granted.
  */
 
-#include "picorv32-extraops.S"
+#include "extraops.S"
 
 /*
  * Interrupt vector.

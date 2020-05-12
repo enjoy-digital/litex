@@ -17,14 +17,16 @@ class OpenOCD(GenericProgrammer):
         self.config = config
 
     def load_bitstream(self, bitstream):
+        config = self.find_config()
         script = "; ".join([
             "init",
             "pld load 0 {{{}}}".format(bitstream),
             "exit",
         ])
-        subprocess.call(["openocd", "-f", self.config, "-c", script])
+        subprocess.call(["openocd", "-f", config, "-c", script])
 
     def flash(self, address, data, set_qe=False):
+        config      = self.find_config()
         flash_proxy = self.find_flash_proxy()
         script = "; ".join([
             "init",
@@ -34,7 +36,7 @@ class OpenOCD(GenericProgrammer):
             "fpga_program",
             "exit"
         ])
-        subprocess.call(["openocd", "-f", self.config, "-c", script])
+        subprocess.call(["openocd", "-f", config, "-c", script])
 
 
     def stream(self, port=20000):

@@ -3,7 +3,7 @@
 
 from litex.build.generic_platform import *
 from litex.build.xilinx import XilinxPlatform
-from litex.build.xilinx.programmer import FpgaProg
+from litex.build.xilinx.programmer import XC3SProg
 
 # IOs ----------------------------------------------------------------------------------------------
 
@@ -136,4 +136,9 @@ class Platform(XilinxPlatform):
         XilinxPlatform.__init__(self, device+"-3-ftg256", _io, _connectors)
 
     def create_programmer(self):
-        return FpgaProg()
+        return XC3SProg(cable="ftdi")
+
+    def do_finalize(self, fragment):
+        XilinxPlatform.do_finalize(self, fragment)
+        self.add_period_constraint(self.lookup_request("clk32", loose=True), 1e9/32e6)
+        self.add_period_constraint(self.lookup_request("clk50", loose=True), 1e9/50e6)

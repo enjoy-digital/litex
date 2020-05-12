@@ -46,7 +46,7 @@ static inline long int labs(long int x)
 	return x > 0 ? x : -x;
 }
 
-unsigned long strtoul(const char *nptr, char **endptr, int base);
+unsigned long strtoul(const char *nptr, char **endptr, unsigned int base);
 long strtol(const char *nptr, char **endptr, int base);
 double strtod(const char *str, char **endptr);
 

@@ -90,8 +90,15 @@ void sdcard_bist_checker_start(unsigned int blockcnt);
 void sdcard_bist_checker_wait(void);
 
 /* user */
+void hexdump(volatile const char *buf, size_t len);
 
 int sdcard_init(void);
+void sdcard_test_write(unsigned block, const char *data);
+void sdcard_test_read(unsigned block);
+void sdcard_sddatawriter_start(void);
+void sdcard_sddatareader_start(void);
+int sdcard_sddatawriter_wait(void);
+int sdcard_sddatareader_wait(void);
 int sdcard_test(unsigned int loops);
 
 #endif /* CSR_SDCORE_BASE */

@@ -17,11 +17,13 @@ CPU_VARIANTS = ["standard", "linux"]
 
 class MOR1KX(CPU):
     name                 = "mor1kx"
+    human_name           = "MOR1KX"
     data_width           = 32
     endianness           = "big"
     gcc_triple           = "or1k-elf"
     clang_triple         = "or1k-linux"
     linker_output_format = "elf32-or1k"
+    nop                  = "l.nop"
     io_regions           = {0x80000000: 0x80000000} # origin, length
 
     @property

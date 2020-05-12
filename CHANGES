@@ -1,3 +1,22 @@
+[> 2020.XX, planned for July 2020
+---------------------------------
+
+	[> Issues resolved
+	------------------
+	- Fix flush_cpu_icache on VexRiscv.
+
+	[> Added Features
+	------------------
+	- BIOS history, autocomplete.
+	- Pluggable CPUs.
+	- Add nMigen dependency.
+	- Properly integrate Minerva CPU.
+
+	[> API changes/Deprecation
+	--------------------------
+	- NA
+
+
 [> 2020.04, released April 28th, 2020
 -------------------------------------
 

@@ -17,6 +17,7 @@ current_path = os.path.abspath(os.curdir)
 repos = [
     # HDL
     ("migen",        ("https://github.com/m-labs/",        True,  True)),
+    ("nmigen",       ("https://github.com/nmigen/",        True,  True)),
 
     # LiteX SoC builder
     ("pythondata-software-compiler_rt", ("https://github.com/litex-hub/",     False, True)),
@@ -45,6 +46,8 @@ repos = [
     ("pythondata-cpu-serv",        ("https://github.com/litex-hub/", False, True)),
     ("pythondata-cpu-vexriscv",    ("https://github.com/litex-hub/", False, True)),
     ("pythondata-cpu-rocket",      ("https://github.com/litex-hub/", False, True)),
+    ("pythondata-cpu-minerva",     ("https://github.com/litex-hub/", False, True)),
+    ("pythondata-cpu-microwatt",   ("https://github.com/litex-hub/", False, True)),
 ]
 
 repos = OrderedDict(repos)

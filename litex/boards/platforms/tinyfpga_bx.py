@@ -67,3 +67,7 @@ class Platform(LatticePlatform):
 
     def create_programmer(self):
         return TinyProgProgrammer()
+
+    def do_finalize(self, fragment):
+        LatticePlatform.do_finalize(self, fragment)
+        self.add_period_constraint(self.lookup_request("clk16", loose=True), 1e9/16e6)
