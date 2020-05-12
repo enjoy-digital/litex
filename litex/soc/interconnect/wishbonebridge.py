@@ -17,7 +17,7 @@ class WishboneStreamingBridge(Module):
         "read": 0x02
     }
 
-    def __init__(self, phy, clk_freq):
+    def __init__(self, phy, clk_freq, pipeline_addr=False):
         self.wishbone = wishbone.Interface()
 
         # # #
@@ -104,24 +104,45 @@ class WishboneStreamingBridge(Module):
                 )
             )
         )
-        fsm.act("RECEIVE_DATA",
-            If(phy.source.valid,
-                rx_data_ce.eq(1),
-                byte_counter_ce.eq(1),
-                If(byte_counter == 3,
-                    NextState("SYNCWAIT"),
-                    byte_counter_reset.eq(1)
+        # pipeline the address to shorten CSR critical path, at expense of ~32 registers
+        # useful for SoCs with a lot of CSRs, where the address decode drives critical path on timing closure
+        if pipeline_addr:
+            fsm.act("RECEIVE_DATA",
+                If(phy.source.valid,
+                    rx_data_ce.eq(1),
+                    byte_counter_ce.eq(1),
+                    If(byte_counter == 3,
+                        NextState("SYNCWAIT"),
+                        byte_counter_reset.eq(1)
+                    )
                 )
             )
-        )
-        self.sync += [
-            self.wishbone.adr.eq(address + word_counter),
-            self.wishbone.dat_w.eq(data),
-            self.wishbone.sel.eq(2**len(self.wishbone.sel) - 1)
-        ]
-        fsm.act("SYNCWAIT",
-            NextState("WRITE_DATA")
-        )
+            self.sync += [
+                self.wishbone.adr.eq(address + word_counter),
+                self.wishbone.sel.eq(2**len(self.wishbone.sel) - 1)
+            ]
+            self.comb += [
+                self.wishbone.dat_w.eq(data),
+            ]
+            fsm.act("SYNCWAIT",
+                NextState("WRITE_DATA")
+            )
+        else: # default option, preferred for small devices like ICE40, which can't afford the extra registers
+            fsm.act("RECEIVE_DATA",
+                If(phy.source.valid,
+                    rx_data_ce.eq(1),
+                    byte_counter_ce.eq(1),
+                    If(byte_counter == 3,
+                        NextState("WRITE_DATA"),
+                        byte_counter_reset.eq(1)
+                    )
+                )
+            )
+            self.comb += [
+                self.wishbone.dat_w.eq(data),
+                self.wishbone.adr.eq(address + word_counter),
+                self.wishbone.sel.eq(2 ** len(self.wishbone.sel) - 1)
+            ]
         fsm.act("WRITE_DATA",
             self.wishbone.stb.eq(1),
             self.wishbone.we.eq(1),

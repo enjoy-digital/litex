@@ -240,9 +240,9 @@ class UART(Module, AutoCSR, UARTInterface):
         ]
 
 class UARTWishboneBridge(WishboneStreamingBridge):
-    def __init__(self, pads, clk_freq, baudrate=115200):
+    def __init__(self, pads, clk_freq, baudrate=115200, pipeline_addr=False):
         self.submodules.phy = RS232PHY(pads, clk_freq, baudrate)
-        WishboneStreamingBridge.__init__(self, self.phy, clk_freq)
+        WishboneStreamingBridge.__init__(self, self.phy, clk_freq, pipeline_addr=pipeline_addr)
 
 # UART Multiplexer ---------------------------------------------------------------------------------
 
