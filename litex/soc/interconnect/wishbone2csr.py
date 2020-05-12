@@ -10,12 +10,14 @@ from litex.soc.interconnect import csr_bus, wishbone
 
 class WB2CSR(Module):
     def __init__(self, bus_wishbone=None, bus_csr=None):
-        if bus_csr is None:
-            bus_csr = csr_bus.Interface()
         self.csr = bus_csr
-        if bus_wishbone is None:
-            bus_wishbone = wishbone.Interface(adr_width=bus_csr.address_width)
+        if self.csr is None:
+            # If no CSR bus provided, create it with default parameters.
+            self.csr = csr_bus.Interface()
         self.wishbone = bus_wishbone
+        if self.wishbone is None:
+            # If no Wishbone bus provided, create it with default parameters.
+            self.wishbone = wishbone.Interface()
 
         # # #
 

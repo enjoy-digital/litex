@@ -781,15 +781,9 @@ class SoC(Module):
         for n, (origin, size) in enumerate(self.cpu.io_regions.items()):
             self.bus.add_region("io{}".format(n), SoCIORegion(origin=origin, size=size, cached=False))
         self.mem_map.update(self.cpu.mem_map) # FIXME
-
-        # We don't want the CSR alignemnt reduced from 64-bit to 32-bit on
-        # a standalone system with a 64-bit WB and no CPU.
-        # Should we instead only update alignment if the CPU is *bigger*
-        # than the CSR ?
-        if name != "None":
-            self.csr.update_alignment(self.cpu.data_width)
         # Add Bus Masters/CSR/IRQs
         if not isinstance(self.cpu, cpu.CPUNone):
+            self.csr.update_alignment(self.cpu.data_width)
             if reset_address is None:
                 reset_address = self.mem_map["rom"]
             self.cpu.set_reset_address(reset_address)
@@ -830,14 +824,7 @@ class SoC(Module):
         # SoC Bus Interconnect ---------------------------------------------------------------------
         bus_masters = self.bus.masters.values()
         bus_slaves  = [(self.bus.regions[n].decoder(self.bus), s) for n, s in self.bus.slaves.items()]
-        # One master and one slave, use a point to point interconnect, this is useful for
-        # generating standalone components such as LiteDRAM whose external control
-        # interface is a wishbone.
-        if len(bus_masters) == 1 and len(bus_slaves) == 1:
-            self.submodules.bus_interconnect = wishbone.InterconnectPointToPoint(
-                master = list(bus_masters)[0],
-                slave  = list(self.bus.slaves.values())[0])
-        elif len(bus_masters) and len(bus_slaves):
+        if len(bus_masters) and len(bus_slaves):
             self.submodules.bus_interconnect = wishbone.InterconnectShared(
                 masters        = bus_masters,
                 slaves         = bus_slaves,
@@ -1010,7 +997,7 @@ class LiteXSoC(SoC):
         self.bus.add_master(name="uartbone", master=self.uartbone.wishbone)
 
     # Add SDRAM ------------------------------------------------------------------------------------
-    def add_sdram(self, name, phy, module, origin, size=None,
+    def add_sdram(self, name, phy, module, origin, size=None, with_soc_interconnect=True,
         l2_cache_size           = 8192,
         l2_cache_min_data_width = 128,
         l2_cache_reverse        = True,
@@ -1032,6 +1019,8 @@ class LiteXSoC(SoC):
             **kwargs)
         self.csr.add("sdram")
 
+        if not with_soc_interconnect: return
+
         # Compute/Check SDRAM size
         sdram_size = 2**(module.geom_settings.bankbits +
                          module.geom_settings.rowbits +
@@ -1040,8 +1029,7 @@ class LiteXSoC(SoC):
             sdram_size = min(sdram_size, size)
 
         # Add SDRAM region
-        if self.cpu_type is not None:
-            self.bus.add_region("main_ram", SoCRegion(origin=origin, size=sdram_size))
+        self.bus.add_region("main_ram", SoCRegion(origin=origin, size=sdram_size))
 
         # SoC [<--> L2 Cache] <--> LiteDRAM --------------------------------------------------------
         if len(self.cpu.memory_buses):
@@ -1092,7 +1080,7 @@ class LiteXSoC(SoC):
                     # Else raise Error.
                     else:
                         raise NotImplementedError
-        elif self.cpu_type is not None:
+        else:
             # When CPU has no direct memory interface, create a Wishbone Slave interface to LiteDRAM.
 
             # Request a LiteDRAM native port.

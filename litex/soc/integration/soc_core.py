@@ -128,7 +128,7 @@ class SoCCore(LiteXSoC):
         # Parameters management --------------------------------------------------------------------
         cpu_type          = None if cpu_type == "None" else cpu_type
         cpu_reset_address = None if cpu_reset_address == "None" else cpu_reset_address
-        cpu_variant = cpu.check_format_cpu_variant(cpu_variant)
+        cpu_variant       = cpu.check_format_cpu_variant(cpu_variant)
 
         self.cpu_type                   = cpu_type
         self.cpu_variant                = cpu_variant
@@ -184,10 +184,8 @@ class SoCCore(LiteXSoC):
         if with_timer:
             self.add_timer(name="timer0")
 
-        # Add CSR bridge. Potentially override CSR base
-        if csr_base is not None:
-            self.mem_map["csr"] = csr_base;
-        self.add_csr_bridge(self.mem_map["csr"])
+        # Add CSR bridge
+        self.add_csr_bridge(self.mem_map["csr"] if csr_base is None else csr_base)
 
     # Methods --------------------------------------------------------------------------------------
 
