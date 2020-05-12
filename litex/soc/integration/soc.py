@@ -781,7 +781,13 @@ class SoC(Module):
         for n, (origin, size) in enumerate(self.cpu.io_regions.items()):
             self.bus.add_region("io{}".format(n), SoCIORegion(origin=origin, size=size, cached=False))
         self.mem_map.update(self.cpu.mem_map) # FIXME
-        self.csr.update_alignment(self.cpu.data_width)
+
+        # We don't want the CSR alignemnt reduced from 64-bit to 32-bit on
+        # a standalone system with a 64-bit WB and no CPU.
+        # Should we instead only update alignment if the CPU is *bigger*
+        # than the CSR ?
+        if name != "None":
+            self.csr.update_alignment(self.cpu.data_width)
         # Add Bus Masters/CSR/IRQs
         if not isinstance(self.cpu, cpu.CPUNone):
             if reset_address is None:
