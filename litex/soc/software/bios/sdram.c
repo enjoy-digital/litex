@@ -191,6 +191,13 @@ void sdrwlon(void)
 	sdram_dfii_pi0_address_write(DDRX_MR1 | (1 << 7));
 	sdram_dfii_pi0_baddress_write(1);
 	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
+
+#ifdef SDRAM_PHY_DDR4_RDIMM
+	sdram_dfii_pi0_address_write((DDRX_MR1 | (1 << 7)) ^ 0x2BF8) ;
+	sdram_dfii_pi0_baddress_write(1 ^ 0xF);
+	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
+#endif
+
 	ddrphy_wlevel_en_write(1);
 }
 
@@ -199,6 +206,13 @@ void sdrwloff(void)
 	sdram_dfii_pi0_address_write(DDRX_MR1);
 	sdram_dfii_pi0_baddress_write(1);
 	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
+
+#ifdef SDRAM_PHY_DDR4_RDIMM
+	sdram_dfii_pi0_address_write(DDRX_MR1 ^ 0x2BF8);
+	sdram_dfii_pi0_baddress_write(1 ^ 0xF);
+	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
+#endif
+
 	ddrphy_wlevel_en_write(0);
 }
 
@@ -903,7 +917,7 @@ static void memspeed(void)
 	end = timer0_value_read();
 	read_speed = (8*MEMTEST_DATA_SIZE*(CONFIG_CLOCK_FREQUENCY/1000000))/(start - end);
 
-	printf("Memspeed Writes: %dMbps Reads: %dMbps\n", write_speed, read_speed);
+	printf("Memspeed Writes: %ldMbps Reads: %ldMbps\n", write_speed, read_speed);
 }
 
 int memtest(void)

@@ -282,7 +282,8 @@ class SoCBusHandler(Module):
         return is_io
 
     # Add Master/Slave -----------------------------------------------------------------------------
-    def add_adapter(self, name, interface):
+    def add_adapter(self, name, interface, direction="m2s"):
+        assert direction in ["m2s", "s2m"]
         if interface.data_width != self.data_width:
             self.logger.info("{} Bus {} from {}-bit to {}-bit.".format(
                 colorer(name),
@@ -290,7 +291,11 @@ class SoCBusHandler(Module):
                 colorer(interface.data_width),
                 colorer(self.data_width)))
             new_interface = wishbone.Interface(data_width=self.data_width)
-            self.submodules += wishbone.Converter(interface, new_interface)
+            if direction == "m2s":
+                converter = wishbone.Converter(master=interface, slave=new_interface)
+            if direction == "s2m":
+                converter = wishbone.Converter(master=new_interface, slave=interface)
+            self.submodules += converter
             return new_interface
         else:
             return interface
@@ -304,7 +309,7 @@ class SoCBusHandler(Module):
                 colorer("already declared", color="red")))
             self.logger.error(self)
             raise
-        master = self.add_adapter(name, master)
+        master = self.add_adapter(name, master, "m2s")
         self.masters[name] = master
         self.logger.info("{} {} as Bus Master.".format(
             colorer(name,    color="underline"),
@@ -336,7 +341,7 @@ class SoCBusHandler(Module):
                 colorer("already declared", color="red")))
             self.logger.error(self)
             raise
-        slave = self.add_adapter(name, slave)
+        slave = self.add_adapter(name, slave, "s2m")
         self.slaves[name] = slave
         self.logger.info("{} {} as Bus Slave.".format(
             colorer(name, color="underline"),
@@ -753,8 +758,8 @@ class SoC(Module):
     def add_csr_bridge(self, origin):
         self.submodules.csr_bridge = wishbone2csr.WB2CSR(
             bus_csr       = csr_bus.Interface(
-            address_width = self.csr.address_width,
-            data_width    = self.csr.data_width))
+                address_width = self.csr.address_width,
+                data_width    = self.csr.data_width))
         csr_size   = 2**(self.csr.address_width + 2)
         csr_region = SoCRegion(origin=origin, size=csr_size, cached=False)
         self.bus.add_slave("csr", self.csr_bridge.wishbone, csr_region)
@@ -926,13 +931,9 @@ class LiteXSoC(SoC):
             if name == "stub":
                 self.comb += self.uart.sink.ready.eq(1)
 
-        # Bridge
-        elif name in ["bridge"]:
-            self.submodules.uart = uart.UARTWishboneBridge(
-                pads     = self.platform.request("serial"),
-                clk_freq = self.sys_clk_freq,
-                baudrate = baudrate)
-            self.bus.add_master(name="uart_bridge", master=self.uart.wishbone)
+        # UARTBone / Bridge
+        elif name in ["uartbone", "bridge"]:
+            self.add_uartbone(baudrate=baudrate)
 
         # Crossover
         elif name in ["crossover"]:
@@ -985,6 +986,15 @@ class LiteXSoC(SoC):
             self.irq.add("uart", use_loc_if_exists=True)
         else:
             self.add_constant("UART_POLLING")
+
+    # Add UARTbone ---------------------------------------------------------------------------------
+    def add_uartbone(self, name="serial", baudrate=115200):
+        from litex.soc.cores import uart
+        self.submodules.uartbone = uart.UARTBone(
+            pads     = self.platform.request(name),
+            clk_freq = self.sys_clk_freq,
+            baudrate = baudrate)
+        self.bus.add_master(name="uartbone", master=self.uartbone.wishbone)
 
     # Add SDRAM ------------------------------------------------------------------------------------
     def add_sdram(self, name, phy, module, origin, size=None,
@@ -1133,7 +1143,7 @@ class LiteXSoC(SoC):
             eth_tx_clk)
 
     # Add Etherbone --------------------------------------------------------------------------------
-    def add_etherbone(self, name="etherbone", phy=None,
+    def add_etherbone(self, name="etherbone", phy=None, clock_domain=None,
         mac_address = 0x10e2d5000000,
         ip_address  = "192.168.1.50",
         udp_port    = 1234):
@@ -1146,9 +1156,21 @@ class LiteXSoC(SoC):
             mac_address = mac_address,
             ip_address  = ip_address,
             clk_freq    = self.clk_freq)
+        if clock_domain is not None: # FIXME: Could probably be avoided.
+            ethcore = ClockDomainsRenamer("eth_tx")(ethcore)
         self.submodules += ethcore
+
+        # Clock domain renaming
+        if clock_domain is not None: # FIXME: Could probably be avoided.
+            self.clock_domains.cd_etherbone = ClockDomain("etherbone")
+            self.comb += self.cd_etherbone.clk.eq(ClockSignal(clock_domain))
+            self.comb += self.cd_etherbone.rst.eq(ResetSignal(clock_domain))
+            clock_domain = "etherbone"
+        else:
+            clock_domain = "sys"
+
         # Etherbone
-        etherbone = LiteEthEtherbone(ethcore.udp, udp_port)
+        etherbone = LiteEthEtherbone(ethcore.udp, udp_port, cd=clock_domain)
         setattr(self.submodules, name, etherbone)
         self.add_wb_master(etherbone.wishbone.bus)
         # Timing constraints
@@ -1168,10 +1190,10 @@ class LiteXSoC(SoC):
     # Add SPI Flash --------------------------------------------------------------------------------
     def add_spi_flash(self, name="spiflash", mode="4x", dummy_cycles=None, clk_freq=None):
         assert dummy_cycles is not None                 # FIXME: Get dummy_cycles from SPI Flash
-        assert mode in ["4x"]                           # FIXME: Add 1x support.
+        assert mode in ["1x", "4x"]
         if clk_freq is None: clk_freq = self.clk_freq/2 # FIXME: Get max clk_freq from SPI Flash
         spiflash = SpiFlash(
-            pads         = self.platform.request(name + mode),
+            pads         = self.platform.request(name if mode == "1x" else name + mode),
             dummy        = dummy_cycles,
             div          = ceil(self.clk_freq/clk_freq),
             with_bitbang = True,
