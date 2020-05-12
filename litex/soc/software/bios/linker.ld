@@ -8,6 +8,12 @@ SECTIONS
 	.text :
 	{
 		_ftext = .;
+                /* Make sure crt0 files come first, and they, and the isr */
+                /* don't get disposed of by greedy optimisation */
+                *crt0*(.text)
+                KEEP(*crt0*(.text))
+                KEEP(*(.text.isr))
+
 		*(.text .stub .text.* .gnu.linkonce.t.*)
 		_etext = .;
 	} > rom
