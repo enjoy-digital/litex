@@ -118,7 +118,7 @@ _build_template = [
     "yosys -l {build_name}.rpt {build_name}.ys",
     "nextpnr-ecp5 --json {build_name}.json --lpf {build_name}.lpf --textcfg {build_name}.config  \
     --{architecture} --package {package} --speed {speed_grade} {timefailarg} {ignoreloops} --seed {seed}",
-    "ecppack {build_name}.config --svf {build_name}.svf --bit {build_name}.bit"
+    "ecppack {build_name}.config --svf {build_name}.svf --bit {build_name}.bit --bootaddr {bootaddr}"
 ]
 
 def _build_script(source, build_template, build_name, architecture, package, speed_grade, timingstrict, ignoreloops, bootaddr, seed):
