@@ -149,7 +149,7 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_onl
 
     addr_str = "CSR_{}_ADDR".format(reg_name.upper())
     size_str = "CSR_{}_SIZE".format(reg_name.upper())
-    r += "#define {} {}L\n".format(addr_str, hex(reg_base))
+    r += "#define {} (CSR_BASE + {}L)\n".format(addr_str, hex(reg_base))
     r += "#define {} {}\n".format(size_str, nwords)
 
     size = nwords*busword//8
@@ -169,13 +169,13 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_onl
     if with_access_functions:
         r += "static inline {} {}_read(void) {{\n".format(ctype, reg_name)
         if nwords > 1:
-            r += "\t{} r = csr_read_simple({}L);\n".format(ctype, hex(reg_base))
+            r += "\t{} r = csr_read_simple(CSR_BASE + {}L);\n".format(ctype, hex(reg_base))
             for sub in range(1, nwords):
                 r += "\tr <<= {};\n".format(busword)
-                r += "\tr |= csr_read_simple({}L);\n".format(hex(reg_base+sub*stride))
+                r += "\tr |= csr_read_simple(CSR_BASE + {}L);\n".format(hex(reg_base+sub*stride))
             r += "\treturn r;\n}\n"
         else:
-            r += "\treturn csr_read_simple({}L);\n}}\n".format(hex(reg_base))
+            r += "\treturn csr_read_simple(CSR_BASE + {}L);\n}}\n".format(hex(reg_base))
 
         if not read_only:
             r += "static inline void {}_write({} v) {{\n".format(reg_name, ctype)
@@ -185,7 +185,7 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_onl
                     v_shift = "v >> {}".format(shift)
                 else:
                     v_shift = "v"
-                r += "\tcsr_write_simple({}, {}L);\n".format(v_shift, hex(reg_base+sub*stride))
+                r += "\tcsr_write_simple({}, CSR_BASE + {}L);\n".format(v_shift, hex(reg_base+sub*stride))
             r += "}\n"
     return r
 
@@ -204,10 +204,14 @@ def get_csr_header(regions, constants, with_access_functions=True):
         r += "#else /* ! CSR_ACCESSORS_DEFINED */\n"
         r += "#include <hw/common.h>\n"
         r += "#endif /* ! CSR_ACCESSORS_DEFINED */\n"
+    csr_base = regions[next(iter(regions))].origin
+    r += "#ifndef CSR_BASE\n"
+    r += "#define CSR_BASE {}L\n".format(hex(csr_base))
+    r += "#endif\n"
     for name, region in regions.items():
-        origin = region.origin
+        origin = region.origin - csr_base
         r += "\n/* "+name+" */\n"
-        r += "#define CSR_"+name.upper()+"_BASE "+hex(origin)+"L\n"
+        r += "#define CSR_"+name.upper()+"_BASE (CSR_BASE + "+hex(origin)+"L)\n"
         if not isinstance(region.obj, Memory):
             for csr in region.obj:
                 nr = (csr.size + region.busword - 1)//region.busword
