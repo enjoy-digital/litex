@@ -43,7 +43,7 @@ static void fw(int nb_params, char **params)
 	if (nb_params == 2) {
 		count = 1;
 	} else {
-		count = strtoul(count, &c, 0);
+		count = strtoul(params[2], &c, 0);
 		if (*c != 0) {
 			printf("Incorrect count");
 			return;
