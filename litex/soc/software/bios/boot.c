@@ -399,7 +399,7 @@ static unsigned int check_image_in_flash(unsigned int base_address)
 	return length;
 }
 
-#if defined(MAIN_RAM_BASE) && defined(CONFIG_CPU_TYPE_VEXRISCV) && defined(FLASH_BOOT_ADDRESS)
+#if defined(MAIN_RAM_BASE) && defined(FLASH_BOOT_ADDRESS)
 static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned int ram_address)
 {
 	unsigned int length;
@@ -469,7 +469,7 @@ void flashboot(void)
 	}
 #endif
 
-	printf("Booting from flash addr 0x%08x...\n", FLASH_BOOT_ADDRESS);
+	printf("Booting from flash...\n");
 	length = check_image_in_flash(FLASH_BOOT_ADDRESS);
 	if(!length)
 		return;
