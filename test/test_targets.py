@@ -138,7 +138,7 @@ litex/boards/targets/simple.py litex.boards.platforms.{p} \
 """.format(p=p)
                 subprocess.check_call(cmd, shell=True)
 
-    def test_cpu_none(self):
+    def test_z_cpu_none(self): # FIXME: workaround to execute it last.
         from litex.boards.targets.arty import BaseSoC
         errors = build_test([BaseSoC(cpu_type=None)])
         self.assertEqual(errors, 0)
