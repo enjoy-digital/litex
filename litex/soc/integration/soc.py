@@ -824,7 +824,18 @@ class SoC(Module):
         # SoC Bus Interconnect ---------------------------------------------------------------------
         bus_masters = self.bus.masters.values()
         bus_slaves  = [(self.bus.regions[n].decoder(self.bus), s) for n, s in self.bus.slaves.items()]
-        if len(bus_masters) and len(bus_slaves):
+
+        use_p2p = False
+        if len(bus_masters) == 1 and len(bus_slaves) == 1:
+            n = list(self.bus.slaves)[0]
+            if self.bus.regions[n].origin == 0:
+                use_p2p = True
+
+        if use_p2p:
+            self.submodules.bus_interconnect = wishbone.InterconnectPointToPoint(
+                master = list(bus_masters)[0],
+                slave  = list(self.bus.slaves.values())[0])
+        elif len(bus_masters) and len(bus_slaves):
             self.submodules.bus_interconnect = wishbone.InterconnectShared(
                 masters        = bus_masters,
                 slaves         = bus_slaves,
