@@ -28,6 +28,7 @@ class CPUNone(CPU):
     io_regions           = {0x00000000: 0x100000000} # origin, length
     periph_buses         = []
     memory_buses         = []
+    mem_map              = {"csr": 0x00000000}
 
 CPU_GCC_TRIPLE_RISCV32 = (
     "riscv64-unknown-elf",
