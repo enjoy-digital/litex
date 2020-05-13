@@ -2,6 +2,7 @@
 #define __HW_COMMON_H
 
 #include <stdint.h>
+#include <system.h>
 
 /* To overwrite CSR subregister accessors, define extern, non-inlined versions
  * of csr_[read|write]_simple(), and define CSR_ACCESSORS_DEFINED.
@@ -34,12 +35,15 @@
  * #endif
  */
 
-/* CSR data width (subreg. width) in bytes, for direct comparson to sizeof() */
-#define CSR_DW_BYTES (CONFIG_CSR_DATA_WIDTH/8)
-
 /* CSR subregisters (a.k.a. "simple CSRs") are embedded inside native CPU-word
  * aligned locations: */
-#define MMPTR(a) (*((volatile unsigned long *)(a)))
+#if CONFIG_CSR_DATA_WIDTH == 32
+#define MMPTR(a) (*((volatile unsigned int *)(a)))
+#elif CONFIG_CSR_DATA_WIDTH == 8
+#define MMPTR(a) (*((volatile unsigned char *)(a)))
+#else
+#error Unsupported CSR data width
+#endif
 
 static inline void csr_write_simple(unsigned long v, unsigned long a)
 {
@@ -50,6 +54,16 @@ static inline unsigned long csr_read_simple(unsigned long a)
 {
 	return MMPTR(a);
 }
+
+#endif /* ! __ASSEMBLER__ */
+
+#endif /* ! CSR_ACCESSORS_DEFINED */
+
+/* CSR data width (subreg. width) in bytes, for direct comparson to sizeof() */
+#define CSR_DW_BYTES     (CONFIG_CSR_DATA_WIDTH/8)
+#define CSR_OFFSET_BYTES (CONFIG_CSR_ALIGNMENT/8)
+
+#ifndef __ASSEMBLER__
 
 /* Number of subregs required for various total byte sizes, by subreg width:
  * NOTE: 1, 2, 4, and 8 bytes represent uint[8|16|32|64]_t C types; However,
@@ -70,64 +84,67 @@ static inline int num_subregs(int csr_bytes)
 }
 
 /* Read a CSR of size 'csr_bytes' located at address 'a'. */
-static inline uint64_t _csr_rd(volatile unsigned long *a, int csr_bytes)
+static inline uint64_t _csr_rd(unsigned long a, int csr_bytes)
 {
-	uint64_t r = a[0];
+	uint64_t r = csr_read_simple(a);
 	for (int i = 1; i < num_subregs(csr_bytes); i++) {
 		r <<= CONFIG_CSR_DATA_WIDTH;
-		r |= a[i];
+		a += CSR_OFFSET_BYTES;
+		r |= csr_read_simple(a);
 	}
 	return r;
 }
 
 /* Write value 'v' to a CSR of size 'csr_bytes' located at address 'a'. */
-static inline void _csr_wr(volatile unsigned long *a, uint64_t v, int csr_bytes)
+static inline void _csr_wr(unsigned long a, uint64_t v, int csr_bytes)
 {
 	int ns = num_subregs(csr_bytes);
-	for (int i = 0; i < ns; i++)
-		a[i] = v >> (CONFIG_CSR_DATA_WIDTH * (ns - 1 - i));
+	for (int i = 0; i < ns; i++) {
+		csr_write_simple(v >> (CONFIG_CSR_DATA_WIDTH * (ns - 1 - i)), a);
+		a += CSR_OFFSET_BYTES;
+	}
 }
 
 // FIXME: - should we provide 24, 40, 48, and 56 bit csr_[rd|wr] methods?
 
 static inline uint8_t csr_rd_uint8(unsigned long a)
 {
-	return _csr_rd((volatile unsigned long *)a, sizeof(uint8_t));
+	return _csr_rd(a, sizeof(uint8_t));
 }
 
 static inline void csr_wr_uint8(uint8_t v, unsigned long a)
 {
-	_csr_wr((volatile unsigned long *)a, v, sizeof(uint8_t));
+	_csr_wr(a, v, sizeof(uint8_t));
 }
 
 static inline uint16_t csr_rd_uint16(unsigned long a)
 {
-	return _csr_rd((volatile unsigned long *)a, sizeof(uint16_t));
+	return _csr_rd(a, sizeof(uint16_t));
 }
 
 static inline void csr_wr_uint16(uint16_t v, unsigned long a)
 {
-	_csr_wr((volatile unsigned long *)a, v, sizeof(uint16_t));
+	_csr_wr(a, v, sizeof(uint16_t));
 }
 
 static inline uint32_t csr_rd_uint32(unsigned long a)
 {
-	return _csr_rd((volatile unsigned long *)a, sizeof(uint32_t));
+	return _csr_rd(a, sizeof(uint32_t));
 }
 
 static inline void csr_wr_uint32(uint32_t v, unsigned long a)
 {
-	_csr_wr((volatile unsigned long *)a, v, sizeof(uint32_t));
+	_csr_wr(a, v, sizeof(uint32_t));
 }
 
 static inline uint64_t csr_rd_uint64(unsigned long a)
 {
-	return _csr_rd((volatile unsigned long *)a, sizeof(uint64_t));
+	return _csr_rd(a, sizeof(uint64_t));
 }
 
 static inline void csr_wr_uint64(uint64_t v, unsigned long a)
 {
-	_csr_wr((volatile unsigned long *)a, v, sizeof(uint64_t));
+	_csr_wr(a, v, sizeof(uint64_t));
 }
 
 /* Read a CSR located at address 'a' into an array 'buf' of 'cnt' elements.
@@ -145,25 +162,25 @@ static inline void csr_wr_uint64(uint64_t v, unsigned long a)
 #define _csr_rd_buf(a, buf, cnt) \
 { \
 	int i, j, nsubs, n_sub_elem; \
-	volatile unsigned long *addr = (volatile unsigned long *)(a); \
 	uint64_t r; \
 	if (sizeof(buf[0]) >= CSR_DW_BYTES) { \
 		/* one or more subregisters per element */ \
 		for (i = 0; i < cnt; i++) { \
-			buf[i] = _csr_rd(addr, sizeof(buf[0])); \
-			addr += num_subregs(sizeof(buf[0])); \
+			buf[i] = _csr_rd(a, sizeof(buf[0])); \
+			a += CSR_OFFSET_BYTES * num_subregs(sizeof(buf[0])); \
 		} \
 	} else { \
 		/* multiple elements per subregister (2, 4, or 8) */ \
 		nsubs = num_subregs(sizeof(buf[0]) * cnt); \
 		n_sub_elem = CSR_DW_BYTES / sizeof(buf[0]); \
 		for (i = 0; i < nsubs; i++) { \
-			r = addr[i]; \
+			r = csr_read_simple(a);		\
 			for (j = n_sub_elem - 1; j >= 0; j--) { \
 				if (i * n_sub_elem + j < cnt) \
 					buf[i * n_sub_elem + j] = r; \
 				r >>= sizeof(buf[0]) * 8; \
 			} \
+			a += CSR_OFFSET_BYTES;	\
 		} \
 	} \
 }
@@ -176,13 +193,12 @@ static inline void csr_wr_uint64(uint64_t v, unsigned long a)
 #define _csr_wr_buf(a, buf, cnt) \
 { \
 	int i, j, nsubs, n_sub_elem; \
-	volatile unsigned long *addr = (volatile unsigned long *)(a); \
 	uint64_t v; \
 	if (sizeof(buf[0]) >= CSR_DW_BYTES) { \
 		/* one or more subregisters per element */ \
 		for (i = 0; i < cnt; i++) { \
-			_csr_wr(addr, buf[i], sizeof(buf[0])); \
-			addr += num_subregs(sizeof(buf[0])); \
+			_csr_wr(a, buf[i], sizeof(buf[0])); \
+			a += CSR_OFFSET_BYTES * num_subregs(sizeof(buf[0])); \
 		} \
 	} else { \
 		/* multiple elements per subregister (2, 4, or 8) */ \
@@ -196,7 +212,8 @@ static inline void csr_wr_uint64(uint64_t v, unsigned long a)
 				v <<= sizeof(buf[0]) * 8; \
 				v |= buf[i * n_sub_elem + j]; \
 			} \
-			addr[i] = v; \
+			csr_write_simple(v, a); \
+			a += CSR_OFFSET_BYTES;	\
 		} \
 	} \
 }
@@ -251,7 +268,5 @@ static inline void csr_wr_buf_uint64(unsigned long a,
 #pragma GCC diagnostic pop
 
 #endif /* ! __ASSEMBLER__ */
-
-#endif /* ! CSR_ACCESSORS_DEFINED */
 
 #endif /* __HW_COMMON_H */

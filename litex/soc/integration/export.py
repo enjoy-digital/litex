@@ -198,10 +198,8 @@ def get_csr_header(regions, constants, with_access_functions=True):
     r += "#ifndef __GENERATED_CSR_H\n#define __GENERATED_CSR_H\n"
     if with_access_functions:
         r += "#include <stdint.h>\n"
-        r += "#ifdef CSR_ACCESSORS_DEFINED\n"
-        r += "extern void csr_write_simple(unsigned long v, unsigned long a);\n"
-        r += "extern unsigned long csr_read_simple(unsigned long a);\n"
-        r += "#else /* ! CSR_ACCESSORS_DEFINED */\n"
+        r += "#include <system.h>\n"
+        r += "#ifndef CSR_ACCESSORS_DEFINED\n"
         r += "#include <hw/common.h>\n"
         r += "#endif /* ! CSR_ACCESSORS_DEFINED */\n"
     csr_base = regions[next(iter(regions))].origin
