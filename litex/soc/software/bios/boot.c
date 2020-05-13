@@ -399,7 +399,7 @@ static unsigned int check_image_in_flash(unsigned int base_address)
 	return length;
 }
 
-#if defined(MAIN_RAM_BASE) && defined(CONFIG_CPU_TYPE_VEXRISCV) && defined(CONFIG_CPU_VARIANT_LINUX)
+#if defined(MAIN_RAM_BASE) && defined(CONFIG_CPU_TYPE_VEXRISCV) && defined(FLASH_BOOT_ADDRESS)
 static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned int ram_address)
 {
 	unsigned int length;
@@ -408,7 +408,7 @@ static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned int
 	if(length > 0) {
 		printf("Copying %d bytes from 0x%08x to 0x%08x...\n", length, flash_address, ram_address);
 		// skip length and crc
-		memcpy((void *)ram_address, (void *)flash_address + 8, length);
+		memcpy((void *)ram_address, (unsigned int *)(flash_address + 2 * sizeof(unsigned int)), length);
 		return 1;
 	}
 
@@ -432,9 +432,9 @@ static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned int
 void flashboot(void)
 {
 	unsigned int length;
+	unsigned int result;
 
 #if defined(MAIN_RAM_BASE) && defined(CONFIG_CPU_TYPE_VEXRISCV) && defined(CONFIG_CPU_VARIANT_LINUX)
-	unsigned int result;
 
 	printf("Loading Image from flash...\n");
 	result = copy_image_from_flash_to_ram(
@@ -469,15 +469,15 @@ void flashboot(void)
 	}
 #endif
 
-	printf("Booting from flash...\n");
+	printf("Booting from flash addr 0x%08x...\n", FLASH_BOOT_ADDRESS);
 	length = check_image_in_flash(FLASH_BOOT_ADDRESS);
 	if(!length)
 		return;
 
 #ifdef MAIN_RAM_BASE
-	printf("Loading %d bytes from flash...\n", length);
-	// skip length and crc
-	memcpy((void *)MAIN_RAM_BASE, (unsigned int *)(FLASH_BOOT_ADDRESS + 2 * sizeof(unsigned int)), length);
+	result = copy_image_from_flash_to_ram(FLASH_BOOT_ADDRESS, MAIN_RAM_BASE);
+	if(!result)
+		return;
 #endif
 
 	boot(0, 0, 0, FIRMWARE_BASE_ADDRESS);
