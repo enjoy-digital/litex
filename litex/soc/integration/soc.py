@@ -822,27 +822,27 @@ class SoC(Module):
         self.logger.info(colorer("-"*80, color="bright"))
 
         # SoC Bus Interconnect ---------------------------------------------------------------------
-        bus_masters = self.bus.masters.values()
-        bus_slaves  = [(self.bus.regions[n].decoder(self.bus), s) for n, s in self.bus.slaves.items()]
-
-        use_p2p = False
-        if len(bus_masters) == 1 and len(bus_slaves) == 1:
-            n = list(self.bus.slaves)[0]
-            if self.bus.regions[n].origin == 0:
-                use_p2p = True
-
-        if use_p2p:
-            self.submodules.bus_interconnect = wishbone.InterconnectPointToPoint(
-                master = list(bus_masters)[0],
-                slave  = list(self.bus.slaves.values())[0])
-        elif len(bus_masters) and len(bus_slaves):
-            self.submodules.bus_interconnect = wishbone.InterconnectShared(
-                masters        = bus_masters,
-                slaves         = bus_slaves,
-                register       = True,
-                timeout_cycles = self.bus.timeout)
-            if hasattr(self, "ctrl") and self.bus.timeout is not None:
-                self.comb += self.ctrl.bus_error.eq(self.bus_interconnect.timeout.error)
+        if len(self.bus.masters) and len(self.bus.slaves):
+            # If 1 bus_master, 1 bus_slave and no address translation, use InterconnectPointToPoint.
+            if ((len(self.bus.masters) == 1)  and
+                (len(self.bus.slaves)  == 1)  and
+                (next(iter(self.bus.regions.values())).origin == 0)):
+                self.submodules.bus_interconnect = wishbone.InterconnectPointToPoint(
+                    master = next(iter(self.bus.masters.values())),
+                    slave  = next(iter(self.bus.slaves.values())))
+            # Otherwise, use InterconnectShared.
+            else:
+                self.submodules.bus_interconnect = wishbone.InterconnectShared(
+                    masters        = self.bus.masters.values(),
+                    slaves         = [(self.bus.regions[n].decoder(self.bus), s) for n, s in self.bus.slaves.items()],
+                    register       = True,
+                    timeout_cycles = self.bus.timeout)
+                if hasattr(self, "ctrl") and self.bus.timeout is not None:
+                    self.comb += self.ctrl.bus_error.eq(self.bus_interconnect.timeout.error)
+            self.bus.logger.info("Interconnect: {} ({} <-> {}).".format(
+                colorer(self.bus_interconnect.__class__.__name__),
+                colorer(len(self.bus.masters)),
+                colorer(len(self.bus.slaves))))
 
         # SoC CSR Interconnect ---------------------------------------------------------------------
         self.submodules.csr_bankarray = csr_bus.CSRBankArray(self,
