@@ -58,6 +58,20 @@ crt_init:
   la a0, trap_entry
   csrw mtvec, a0
 
+#ifdef EXECUTE_IN_PLACE
+  /* Load DATA */
+  la t0, _erodata
+  la t1, _fdata
+  la t2, _edata
+3:
+  lw t3, 0(t0)
+  sw t3, 0(t1)
+  /* _edata is aligned to 16 bytes. Use word-xfers. */
+  addi t0, t0, 4
+  addi t1, t1, 4
+  bltu t1, t2, 3b
+#endif
+
 bss_init:
   la a0, _fbss
   la a1, _ebss

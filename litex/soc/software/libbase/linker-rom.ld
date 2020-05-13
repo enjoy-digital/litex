@@ -40,13 +40,12 @@ SECTIONS
 		*(.rodata1)
                 . = ALIGN(4);
 		_erodata = .;
-                _sidata = _erodata;
 	} > rom
 
-	.data : AT ( _sidata )
+	.data : AT ( _erodata )
 	{
 		. = ALIGN(4);
-		_sdata = .;
+		_fdata = .;
 		*(.data .data.* .gnu.linkonce.d.*)
 		*(.data1)
 		*(.sdata .sdata* .eh_frame* .gnu.linkonce.s.*)
