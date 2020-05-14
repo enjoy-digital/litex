@@ -7,6 +7,13 @@
 
 	[> Added Features
 	------------------
+	- Use InterconnectPointToPoint when 1 master,1 slave and no address translation.
+	- Improve WishboneBridge.
+	- Improve Diamond constraints.
+	- Add LedChaser on boards.
+	- Speedup Memtest using an LFSR.
+	- Add Microwatt CPU support.
+	- Improve boards's programmers.
 	- BIOS history, autocomplete.
 	- Pluggable CPUs.
 	- Add nMigen dependency.
@@ -14,7 +21,7 @@
 
 	[> API changes/Deprecation
 	--------------------------
-	- NA
+	- Add --build --load arguments to targets.
 
 
 [> 2020.04, released April 28th, 2020
