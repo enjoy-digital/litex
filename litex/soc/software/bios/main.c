@@ -11,6 +11,7 @@
 // This file is Copyright (c) 2018 Sergiusz Bazanski <q3k@q3k.org>
 // This file is Copyright (c) 2016 Tim 'mithro' Ansell <mithro@mithis.com>
 // This file is Copyright (c) 2020 Franck Jullien <franck.jullien@gmail.com>
+// This file is Copyright (c) 2020 Antmicro <www.antmicro.com>
 
 // License: BSD
 
@@ -43,6 +44,7 @@
 
 #include "sdram.h"
 #include "sdcard.h"
+#include "spi.h"
 #include "boot.h"
 #include "readline.h"
 #include "helpers.h"
@@ -132,6 +134,9 @@ int main(int i, char **c)
 	if (sdr_ok !=1)
 		printf("Memory initialization failed\n");
 	printf("\n");
+#endif
+#ifdef CSR_SPI_BASE
+	spi_autoconfig();
 #endif
 
 	if(sdr_ok) {

@@ -24,6 +24,7 @@ OBJECTS = isr.o			\
 	  cmd_mem_access.o	\
 	  cmd_sdcard.o		\
 	  cmd_spi_flash.o	\
+	  spi.o			\
 
 ifneq "$(or $(TERM_NO_COMPLETE),$(TERM_MINI))" ""
 CFLAGS += -DTERM_NO_COMPLETE
