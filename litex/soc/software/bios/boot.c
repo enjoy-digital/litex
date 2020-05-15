@@ -217,7 +217,7 @@ int serialboot(void)
 				break;
 			}
 			case SFL_CMD_REBOOT:
-#ifdef CSR_CTRL_BASE
+#ifdef CSR_CTRL_RESET_ADDR
 				uart_write(SFL_ACK_SUCCESS);
 				ctrl_reset_write(1);
 #endif

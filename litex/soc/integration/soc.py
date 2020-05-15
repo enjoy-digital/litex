@@ -611,30 +611,49 @@ class SoCIRQHandler(SoCLocHandler):
 # SoCController ------------------------------------------------------------------------------------
 
 class SoCController(Module, AutoCSR):
-    def __init__(self):
-        self._reset      = CSRStorage(1, description="""
-            Write a ``1`` to this register to reset the SoC.""")
-        self._scratch    = CSRStorage(32, reset=0x12345678, description="""
-            Use this register as a scratch space to verify that software read/write accesses
-            to the Wishbone/CSR bus are working correctly. The initial reset value of 0x1234578
-            can be used to verify endianness.""")
-        self._bus_errors = CSRStatus(32, description="""
-            Total number of Wishbone bus errors (timeouts) since last reset.""")
+    def __init__(self,
+        with_reset    = True,
+        with_scratch  = True,
+        with_errors   = True,
+        with_uptime   = False):
+
+        if with_reset:
+            self._reset = CSRStorage(1, description="""Write a ``1`` to this register to reset the SoC.""")
+        if with_scratch:
+            self._scratch = CSRStorage(32, reset=0x12345678, description="""
+                Use this register as a scratch space to verify that software read/write accesses
+                to the Wishbone/CSR bus are working correctly. The initial reset value of 0x1234578
+                can be used to verify endianness.""")
+        if with_errors:
+            self._bus_errors = CSRStatus(32, description="Total number of Wishbone bus errors (timeouts) since start.")
+
+        if with_uptime:
+            self._uptime_latch = CSRStorage(description="Write a ``1`` to latch current uptime to ``time`` register.")
+            self._uptime       = CSRStatus(64, description="Latched uptime since start (in ``sys_clk`` cycles).")
 
         # # #
 
         # Reset
-        self.reset = Signal()
-        self.comb += self.reset.eq(self._reset.re)
+        if with_reset:
+            self.reset = Signal()
+            self.comb += self.reset.eq(self._reset.re)
 
-        # Bus errors
-        self.bus_error = Signal()
-        bus_errors     = Signal(32)
-        self.sync += \
-            If(bus_errors != (2**len(bus_errors)-1),
-                If(self.bus_error, bus_errors.eq(bus_errors + 1))
-            )
-        self.comb += self._bus_errors.status.eq(bus_errors)
+        # Errors
+        if with_errors:
+            self.bus_error = Signal()
+            bus_errors     = Signal(32)
+            self.sync += [
+                If(bus_errors != (2**len(bus_errors)-1),
+                    If(self.bus_error, bus_errors.eq(bus_errors + 1))
+                )
+            ]
+            self.comb += self._bus_errors.status.eq(bus_errors)
+
+        # Uptime
+        if with_uptime:
+            uptime = Signal(64, reset_less=True)
+            self.sync += uptime.eq(uptime + 1)
+            self.sync += If(self._uptime_latch.re, self._uptime.status.eq(uptime))
 
 # SoC ----------------------------------------------------------------------------------------------
 
@@ -736,9 +755,9 @@ class SoC(Module):
             self.add_constant(name, value)
 
     # SoC Main Components --------------------------------------------------------------------------
-    def add_controller(self, name="ctrl"):
+    def add_controller(self, name="ctrl", **kwargs):
         self.check_if_exists(name)
-        setattr(self.submodules, name, SoCController())
+        setattr(self.submodules, name, SoCController(**kwargs))
         self.csr.add(name, use_loc_if_exists=True)
 
     def add_ram(self, name, origin, size, contents=[], mode="rw"):
@@ -794,8 +813,11 @@ class SoC(Module):
                 for name, loc in self.cpu.interrupts.items():
                     self.irq.add(name, loc)
                 self.add_config("CPU_HAS_INTERRUPT")
+
+
             if hasattr(self, "ctrl"):
-                self.comb += self.cpu.reset.eq(self.ctrl.reset)
+                if hasattr(self.ctrl, "reset"):
+                    self.comb += self.cpu.reset.eq(self.ctrl.reset)
             self.add_config("CPU_RESET_ADDR", reset_address)
         # Add constants
         self.add_config("CPU_TYPE",    str(name))
@@ -838,7 +860,8 @@ class SoC(Module):
                     register       = True,
                     timeout_cycles = self.bus.timeout)
                 if hasattr(self, "ctrl") and self.bus.timeout is not None:
-                    self.comb += self.ctrl.bus_error.eq(self.bus_interconnect.timeout.error)
+                    if hasattr(self.ctrl, "bus_error"):
+                        self.comb += self.ctrl.bus_error.eq(self.bus_interconnect.timeout.error)
             self.bus.logger.info("Interconnect: {} ({} <-> {}).".format(
                 colorer(self.bus_interconnect.__class__.__name__),
                 colorer(len(self.bus.masters)),

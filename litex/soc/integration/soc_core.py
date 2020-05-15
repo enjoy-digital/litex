@@ -97,6 +97,7 @@ class SoCCore(LiteXSoC):
         with_timer               = True,
         # Controller parameters
         with_ctrl                = True,
+        ctrl_uptime              = False,
         # Others
         **kwargs):
 
@@ -146,7 +147,7 @@ class SoCCore(LiteXSoC):
 
         # Add SoCController
         if with_ctrl:
-            self.add_controller("ctrl")
+            self.add_controller("ctrl", with_uptime=ctrl_uptime)
 
         # Add CPU
         self.add_cpu(

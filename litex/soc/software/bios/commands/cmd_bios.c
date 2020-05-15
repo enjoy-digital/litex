@@ -61,7 +61,7 @@ define_command(ident, ident_helper, "Display identifier", SYSTEM_CMDS);
  * Reboot the system
  *
  */
-#ifdef CSR_CTRL_BASE
+#ifdef CSR_CTRL_RESET_ADDR
 static void reboot(int nb_params, char **params)
 {
 	ctrl_reset_write(1);
