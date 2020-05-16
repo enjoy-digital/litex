@@ -628,8 +628,8 @@ class SoCController(Module, AutoCSR):
             self._bus_errors = CSRStatus(32, description="Total number of Wishbone bus errors (timeouts) since start.")
 
         if with_uptime:
-            self._uptime_latch = CSRStorage(description="Write a ``1`` to latch current uptime to ``time`` register.")
-            self._uptime       = CSRStatus(64, description="Latched uptime since start (in ``sys_clk`` cycles).")
+            self._uptime_latch = CSRStorage(description="Write a ``1`` to latch current Uptime to ``uptime`` register.")
+            self._uptime       = CSRStatus(64, description="Latched Uptime since power-up (in ``sys_clk`` cycles).")
 
         # # #
 
