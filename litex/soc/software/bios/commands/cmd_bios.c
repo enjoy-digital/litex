@@ -42,7 +42,7 @@ define_command(help, help_handler, "Print this help", MISC_CMDS);
 /**
  * Command "ident"
  *
- * Print SoC identyifier if available
+ * Identifier of the system
  *
  */
 static void ident_helper(int nb_params, char **params)
@@ -53,7 +53,7 @@ static void ident_helper(int nb_params, char **params)
 	printf("Ident: %s", *buffer ? buffer : "-");
 }
 
-define_command(ident, ident_helper, "Display identifier", SYSTEM_CMDS);
+define_command(ident, ident_helper, "Identifier of the system", SYSTEM_CMDS);
 
 /**
  * Command "reboot"
@@ -67,7 +67,29 @@ static void reboot(int nb_params, char **params)
 	ctrl_reset_write(1);
 }
 
-define_command(reboot, reboot, "Reset processor", SYSTEM_CMDS);
+define_command(reboot, reboot, "Reboot the system", SYSTEM_CMDS);
+#endif
+
+/**
+ * Command "uptime"
+ *
+ * Uptime of the system
+ *
+ */
+#ifdef CSR_CTRL_UPTIME_ADDR
+static void uptime(int nb_params, char **params)
+{
+	unsigned long uptime;
+
+	ctrl_uptime_latch_write(1);
+	uptime = ctrl_uptime_read();
+	printf("Uptime: %ld sys_clk cycles / %ld seconds",
+		uptime,
+		uptime/CONFIG_CLOCK_FREQUENCY
+	);
+}
+
+define_command(uptime, uptime, "Uptime of the system since power-up", SYSTEM_CMDS);
 #endif
 
 /**
