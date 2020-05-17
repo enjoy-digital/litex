@@ -614,8 +614,7 @@ class SoCController(Module, AutoCSR):
     def __init__(self,
         with_reset    = True,
         with_scratch  = True,
-        with_errors   = True,
-        with_uptime   = False):
+        with_errors   = True):
 
         if with_reset:
             self._reset = CSRStorage(1, description="""Write a ``1`` to this register to reset the SoC.""")
@@ -626,10 +625,6 @@ class SoCController(Module, AutoCSR):
                 can be used to verify endianness.""")
         if with_errors:
             self._bus_errors = CSRStatus(32, description="Total number of Wishbone bus errors (timeouts) since start.")
-
-        if with_uptime:
-            self._uptime_latch = CSRStorage(description="Write a ``1`` to latch current Uptime to ``uptime`` register.")
-            self._uptime       = CSRStatus(64, description="Latched Uptime since power-up (in ``sys_clk`` cycles).")
 
         # # #
 
@@ -648,12 +643,6 @@ class SoCController(Module, AutoCSR):
                 )
             ]
             self.comb += self._bus_errors.status.eq(bus_errors)
-
-        # Uptime
-        if with_uptime:
-            uptime = Signal(64, reset_less=True)
-            self.sync += uptime.eq(uptime + 1)
-            self.sync += If(self._uptime_latch.re, self._uptime.status.eq(uptime))
 
 # SoC ----------------------------------------------------------------------------------------------
 

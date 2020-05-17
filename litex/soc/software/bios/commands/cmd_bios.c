@@ -76,13 +76,13 @@ define_command(reboot, reboot, "Reboot the system", SYSTEM_CMDS);
  * Uptime of the system
  *
  */
-#ifdef CSR_CTRL_UPTIME_ADDR
+#ifdef CSR_TIMER0_UPTIME_CYCLES_ADDR
 static void uptime(int nb_params, char **params)
 {
 	unsigned long uptime;
 
-	ctrl_uptime_latch_write(1);
-	uptime = ctrl_uptime_read();
+	timer0_uptime_latch_write(1);
+	uptime = timer0_uptime_cycles_read();
 	printf("Uptime: %ld sys_clk cycles / %ld seconds",
 		uptime,
 		uptime/CONFIG_CLOCK_FREQUENCY

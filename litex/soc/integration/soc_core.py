@@ -95,9 +95,9 @@ class SoCCore(LiteXSoC):
         uart_fifo_depth          = 16,
         # Timer parameters
         with_timer               = True,
+        timer_uptime             = False,
         # Controller parameters
         with_ctrl                = True,
-        ctrl_uptime              = False,
         # Others
         **kwargs):
 
@@ -147,7 +147,7 @@ class SoCCore(LiteXSoC):
 
         # Add SoCController
         if with_ctrl:
-            self.add_controller("ctrl", with_uptime=ctrl_uptime)
+            self.add_controller("ctrl")
 
         # Add CPU
         self.add_cpu(
@@ -183,6 +183,8 @@ class SoCCore(LiteXSoC):
         # Add Timer
         if with_timer:
             self.add_timer(name="timer0")
+            if timer_uptime:
+                self.timer0.add_uptime()
 
         # Add CSR bridge
         self.add_csr_bridge(self.mem_map["csr"])

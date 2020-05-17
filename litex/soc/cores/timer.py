@@ -82,3 +82,13 @@ class Timer(Module, AutoCSR, ModuleDoc):
             If(self._update_value.re, self._value.status.eq(value))
         ]
         self.comb += self.ev.zero.trigger.eq(value != 0)
+
+    def add_uptime(self, width=64):
+        self._uptime_latch  = CSRStorage(description="Write a ``1`` to latch current Uptime cycles to ``uptime_cycles`` register.")
+        self._uptime_cycles = CSRStatus(width, description="Latched Uptime since power-up (in ``sys_clk`` cycles).")
+
+        # # #
+
+        uptime_cycles = Signal(width, reset_less=True)
+        self.sync += uptime_cycles.eq(uptime_cycles + 1)
+        self.sync += If(self._uptime_latch.re, self._uptime_cycles.status.eq(uptime_cycles))
