@@ -11,7 +11,6 @@ CFLAGS += -DTFTP_SERVER_PORT=$(TFTP_SERVER_PORT)
 endif
 
 OBJECTS = isr.o			\
-	  sdram.o			\
 	  sdcard.o			\
 	  main.o			\
 	  boot-helper.o		\
@@ -59,15 +58,20 @@ endif
 bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 
 
-%.elf: ../libbase/crt0-ctr.o ../libliteeth/libliteeth.a ../libbase/libbase-nofloat.a ../libcompiler_rt/libcompiler_rt.a
+%.elf: ../libbase/crt0-ctr.o \
+	../libcompiler_rt/libcompiler_rt.a \
+	../libbase/libbase-nofloat.a \
+	../liblitedram/liblitedram.a \
+	../libliteeth/libliteeth.a
 	$(LD) $(LDFLAGS) -T $(BIOS_DIRECTORY)/linker.ld -N -o $@ \
 		../libbase/crt0-ctr.o \
 		$(OBJECTS) \
-		-L../libliteeth \
-		-L../libbase \
 		-L../libcompiler_rt \
+		-L../libbase \
+		-L../liblitedram \
+		-L../libliteeth \
 		$(BP_LIBS) \
-		-lliteeth -lbase-nofloat -lcompiler_rt \
+		-lcompiler_rt -lbase-nofloat -llitedram -lliteeth \
 		$(BP_FLAGS)
 
 ifneq ($(OS),Windows_NT)

@@ -50,6 +50,7 @@ INCLUDES = -I$(SOC_DIRECTORY)/software/include/base \
            -I$(SOC_DIRECTORY)/common \
            -I$(BUILDINC_DIRECTORY) \
            -I$(CPU_DIRECTORY) \
+           -I$(SOC_DIRECTORY)/software/liblitedram \
            -I$(SOC_DIRECTORY)/software/libliteeth
 COMMONFLAGS = $(DEPFLAGS) -Os $(CPUFLAGS) -g3 -fomit-frame-pointer -Wall -fno-builtin -nostdinc $(INCLUDES)
 CFLAGS = $(COMMONFLAGS) -fexceptions -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes
