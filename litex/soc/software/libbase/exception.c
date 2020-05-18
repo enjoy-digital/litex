@@ -6,8 +6,6 @@ void isr(void);
 
 #ifdef __or1k__
 
-#include <hw/flags.h>
-
 #define EXTERNAL_IRQ 0x8
 
 static void emerg_printf(const char *fmt, ...)

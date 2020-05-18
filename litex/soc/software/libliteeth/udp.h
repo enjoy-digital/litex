@@ -1,6 +1,9 @@
 #ifndef __UDP_H
 #define __UDP_H
 
+#define ETHMAC_EV_SRAM_WRITER	0x1
+#define ETHMAC_EV_SRAM_READER	0x1
+
 #define IPTOINT(a, b, c, d) ((a << 24)|(b << 16)|(c << 8)|d)
 
 #define UDP_BUFSIZE (5*1532)

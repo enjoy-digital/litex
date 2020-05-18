@@ -14,7 +14,6 @@
 #include <inet.h>
 #include <system.h>
 #include <crc.h>
-#include <hw/flags.h>
 
 #include "udp.h"
 
