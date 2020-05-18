@@ -497,7 +497,7 @@ void romboot(void)
 
 // SPI HARDWARE BITBANG
 #ifdef CSR_SPISDCARD_BASE
-#include <spisdcard.h>
+#include "spisdcard.h"
 
 void spisdcardboot(void)
 {
