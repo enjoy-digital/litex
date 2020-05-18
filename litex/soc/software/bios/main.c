@@ -38,7 +38,7 @@
 #endif
 
 #ifdef CSR_ETHPHY_MDIO_W_ADDR
-#include <mdio.h>
+#include "mdio.h"
 #endif
 
 #include "sdram.h"
