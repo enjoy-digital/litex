@@ -19,11 +19,11 @@ OBJECTS = isr.o			\
 	  helpers.o			\
 	  cmd_bios.o		\
 	  cmd_boot.o		\
-	  cmd_dram.o		\
+	  cmd_litedram.o	\
 	  cmd_liteeth.o		\
 	  cmd_mem.o	        \
-	  cmd_sdcard.o		\
-	  cmd_spi_flash.o	\
+	  cmd_litesdcard.o	\
+	  cmd_spiflash.o	\
 
 ifneq "$(or $(TERM_NO_COMPLETE),$(TERM_MINI))" ""
 CFLAGS += -DTERM_NO_COMPLETE

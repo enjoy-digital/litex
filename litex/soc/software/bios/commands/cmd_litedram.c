@@ -25,7 +25,7 @@ static void sdrrow_handler(int nb_params, char **params)
 		sdrrow(0);
 		printf("Precharged");
 	}
-	
+
 	row = strtoul(params[0], &c, 0);
 	if (*c != 0) {
 		printf("Incorrect row");
