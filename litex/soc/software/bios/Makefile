@@ -85,7 +85,7 @@ endif
 %.o: $(BIOS_DIRECTORY)/%.c
 	$(compile)
 
-%.o: $(BIOS_DIRECTORY)/commands/%.c
+%.o: $(BIOS_DIRECTORY)/cmds/%.c
 	$(compile)
 
 %.o: $(BIOS_DIRECTORY)/%.S

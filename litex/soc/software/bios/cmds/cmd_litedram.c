@@ -36,7 +36,7 @@ static void sdrrow_handler(int nb_params, char **params)
 	sdrrow(row);
 	printf("Activated row %d", row);
 }
-define_command(sdrrow, sdrrow_handler, "Precharge/Activate row", DRAM_CMDS);
+define_command(sdrrow, sdrrow_handler, "Precharge/Activate row", LITEDRAM_CMDS);
 #endif
 
 /**
@@ -46,7 +46,7 @@ define_command(sdrrow, sdrrow_handler, "Precharge/Activate row", DRAM_CMDS);
  *
  */
 #ifdef CSR_SDRAM_BASE
-define_command(sdrsw, sdrsw, "Gives SDRAM control to SW", DRAM_CMDS);
+define_command(sdrsw, sdrsw, "Gives SDRAM control to SW", LITEDRAM_CMDS);
 #endif
 
 /**
@@ -56,7 +56,7 @@ define_command(sdrsw, sdrsw, "Gives SDRAM control to SW", DRAM_CMDS);
  *
  */
 #ifdef CSR_SDRAM_BASE
-define_command(sdrhw, sdrhw, "Gives SDRAM control to HW", DRAM_CMDS);
+define_command(sdrhw, sdrhw, "Gives SDRAM control to HW", LITEDRAM_CMDS);
 #endif
 
 /**
@@ -71,7 +71,7 @@ static void sdrrdbuf_handler(int nb_params, char **params)
 	sdrrdbuf(-1);
 }
 
-define_command(sdrrdbuf, sdrrdbuf_handler, "Dump SDRAM read buffer", DRAM_CMDS);
+define_command(sdrrdbuf, sdrrdbuf_handler, "Dump SDRAM read buffer", LITEDRAM_CMDS);
 #endif
 
 /**
@@ -111,7 +111,7 @@ static void sdrrd_handler(int nb_params, char **params)
 	sdrrd(addr, dq);
 }
 
-define_command(sdrrd, sdrrd_handler, "Read SDRAM data", DRAM_CMDS);
+define_command(sdrrd, sdrrd_handler, "Read SDRAM data", LITEDRAM_CMDS);
 #endif
 
 /**
@@ -140,7 +140,7 @@ static void sdrrderr_handler(int nb_params, char **params)
 	sdrrderr(count);
 }
 
-define_command(sdrrderr, sdrrderr_handler, "Print SDRAM read errors", DRAM_CMDS);
+define_command(sdrrderr, sdrrderr_handler, "Print SDRAM read errors", LITEDRAM_CMDS);
 #endif
 
 /**
@@ -169,7 +169,7 @@ static void sdrwr_handler(int nb_params, char **params)
 	sdrwr(addr);
 }
 
-define_command(sdrwr, sdrwr_handler, "Write SDRAM test data", DRAM_CMDS);
+define_command(sdrwr, sdrwr_handler, "Write SDRAM test data", LITEDRAM_CMDS);
 #endif
 
 /**
@@ -179,7 +179,7 @@ define_command(sdrwr, sdrwr_handler, "Write SDRAM test data", DRAM_CMDS);
  *
  */
 #if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE)
-define_command(sdrinit, sdrinit, "Start SDRAM initialisation", DRAM_CMDS);
+define_command(sdrinit, sdrinit, "Start SDRAM initialisation", LITEDRAM_CMDS);
 #endif
 
 /**
@@ -189,7 +189,7 @@ define_command(sdrinit, sdrinit, "Start SDRAM initialisation", DRAM_CMDS);
  *
  */
 #if defined(CSR_DDRPHY_BASE) && defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) && defined(CSR_SDRAM_BASE)
-define_command(sdrwlon, sdrwlon, "Enable write leveling", DRAM_CMDS);
+define_command(sdrwlon, sdrwlon, "Enable write leveling", LITEDRAM_CMDS);
 #endif
 
 /**
@@ -199,7 +199,7 @@ define_command(sdrwlon, sdrwlon, "Enable write leveling", DRAM_CMDS);
  *
  */
 #if defined(CSR_DDRPHY_BASE) && defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) && defined(CSR_SDRAM_BASE)
-define_command(sdrwloff, sdrwloff, "Disable write leveling", DRAM_CMDS);
+define_command(sdrwloff, sdrwloff, "Disable write leveling", LITEDRAM_CMDS);
 #endif
 
 /**
@@ -209,7 +209,7 @@ define_command(sdrwloff, sdrwloff, "Disable write leveling", DRAM_CMDS);
  *
  */
 #if defined(CSR_DDRPHY_BASE) && defined(CSR_SDRAM_BASE)
-define_command(sdrlevel, sdrlevel, "Perform read/write leveling", DRAM_CMDS);
+define_command(sdrlevel, sdrlevel, "Perform read/write leveling", LITEDRAM_CMDS);
 #endif
 
 /**
@@ -219,5 +219,5 @@ define_command(sdrlevel, sdrlevel, "Perform read/write leveling", DRAM_CMDS);
  *
  */
 #ifdef CSR_SDRAM_BASE
-define_command(memtest, memtest, "Run a memory test", DRAM_CMDS);
+define_command(memtest, memtest, "Run a memory test", LITEDRAM_CMDS);
 #endif
