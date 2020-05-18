@@ -21,8 +21,8 @@
 #include <generated/soc.h>
 
 #ifdef CSR_ETHMAC_BASE
-#include <net/microudp.h>
-#include <net/tftp.h>
+#include <udp.h>
+#include <tftp.h>
 #endif
 
 #ifdef CSR_SPIFLASH_BASE
@@ -340,7 +340,7 @@ void netboot(void)
 
 	ip = IPTOINT(REMOTEIP1, REMOTEIP2, REMOTEIP3, REMOTEIP4);
 
-	microudp_start(macadr, IPTOINT(LOCALIP1, LOCALIP2, LOCALIP3, LOCALIP4));
+	udp_start(macadr, IPTOINT(LOCALIP1, LOCALIP2, LOCALIP3, LOCALIP4));
 
 	tftp_port = TFTP_SERVER_PORT;
 	printf("Fetching from: UDP/%d\n", tftp_port);

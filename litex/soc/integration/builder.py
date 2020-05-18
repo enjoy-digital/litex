@@ -25,7 +25,7 @@ __all__ = ["soc_software_packages", "soc_directory",
 soc_software_packages = [
     "libcompiler_rt",
     "libbase",
-    "libnet",
+    "libliteeth",
     "bios"
 ]
 

@@ -59,15 +59,15 @@ endif
 bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 
 
-%.elf: ../libbase/crt0-ctr.o ../libnet/libnet.a ../libbase/libbase-nofloat.a ../libcompiler_rt/libcompiler_rt.a
+%.elf: ../libbase/crt0-ctr.o ../libliteeth/libliteeth.a ../libbase/libbase-nofloat.a ../libcompiler_rt/libcompiler_rt.a
 	$(LD) $(LDFLAGS) -T $(BIOS_DIRECTORY)/linker.ld -N -o $@ \
 		../libbase/crt0-ctr.o \
 		$(OBJECTS) \
-		-L../libnet \
+		-L../libliteeth \
 		-L../libbase \
 		-L../libcompiler_rt \
 		$(BP_LIBS) \
-		-lnet -lbase-nofloat -lcompiler_rt \
+		-lliteeth -lbase-nofloat -lcompiler_rt \
 		$(BP_FLAGS)
 
 ifneq ($(OS),Windows_NT)
