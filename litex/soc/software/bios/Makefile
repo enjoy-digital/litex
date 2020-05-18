@@ -20,7 +20,7 @@ OBJECTS = isr.o			\
 	  cmd_bios.o		\
 	  cmd_boot.o		\
 	  cmd_dram.o		\
-	  cmd_mdio.o		\
+	  cmd_liteeth.o		\
 	  cmd_mem.o	        \
 	  cmd_sdcard.o		\
 	  cmd_spi_flash.o	\
