@@ -51,7 +51,8 @@ INCLUDES = -I$(SOC_DIRECTORY)/software/include/base \
            -I$(BUILDINC_DIRECTORY) \
            -I$(CPU_DIRECTORY) \
            -I$(SOC_DIRECTORY)/software/liblitedram \
-           -I$(SOC_DIRECTORY)/software/libliteeth
+           -I$(SOC_DIRECTORY)/software/libliteeth \
+           -I$(SOC_DIRECTORY)/software/liblitesdcard
 COMMONFLAGS = $(DEPFLAGS) -Os $(CPUFLAGS) -g3 -fomit-frame-pointer -Wall -fno-builtin -nostdinc $(INCLUDES)
 CFLAGS = $(COMMONFLAGS) -fexceptions -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes
 CXXFLAGS = $(COMMONFLAGS) -std=c++11 -I$(SOC_DIRECTORY)/software/include/basec++ -fexceptions -fno-rtti -ffreestanding

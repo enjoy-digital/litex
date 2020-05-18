@@ -5,9 +5,10 @@
 
 #include <generated/csr.h>
 
+#include "sdcard.h"
+
 #include "../command.h"
 #include "../helpers.h"
-#include "../sdcard.h"
 
 /**
  * Command "sdclk"

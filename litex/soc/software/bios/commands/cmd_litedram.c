@@ -5,9 +5,10 @@
 
 #include <generated/csr.h>
 
+#include "sdram.h"
+
 #include "../command.h"
 #include "../helpers.h"
-#include "../sdram.h"
 
 /**
  * Command "sdrrow"

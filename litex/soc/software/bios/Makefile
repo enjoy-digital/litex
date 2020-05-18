@@ -11,18 +11,17 @@ CFLAGS += -DTFTP_SERVER_PORT=$(TFTP_SERVER_PORT)
 endif
 
 OBJECTS = isr.o			\
-	  sdcard.o			\
-	  main.o			\
 	  boot-helper.o		\
 	  boot.o			\
 	  helpers.o			\
 	  cmd_bios.o		\
+	  cmd_mem.o			\
 	  cmd_boot.o		\
+	  cmd_spiflash.o	\
 	  cmd_litedram.o	\
 	  cmd_liteeth.o		\
-	  cmd_mem.o	        \
-	  cmd_litesdcard.o	\
-	  cmd_spiflash.o	\
+	  cmd_litesdcard.o  \
+	  main.o
 
 ifneq "$(or $(TERM_NO_COMPLETE),$(TERM_MINI))" ""
 CFLAGS += -DTERM_NO_COMPLETE
@@ -62,7 +61,8 @@ bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 	../libcompiler_rt/libcompiler_rt.a \
 	../libbase/libbase-nofloat.a \
 	../liblitedram/liblitedram.a \
-	../libliteeth/libliteeth.a
+	../libliteeth/libliteeth.a \
+	../liblitesdcard/liblitesdcard.a
 	$(LD) $(LDFLAGS) -T $(BIOS_DIRECTORY)/linker.ld -N -o $@ \
 		../libbase/crt0-ctr.o \
 		$(OBJECTS) \
@@ -70,8 +70,9 @@ bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 		-L../libbase \
 		-L../liblitedram \
 		-L../libliteeth \
+		-L../liblitesdcard \
 		$(BP_LIBS) \
-		-lcompiler_rt -lbase-nofloat -llitedram -lliteeth \
+		-lcompiler_rt -lbase-nofloat -llitedram -lliteeth -llitesdcard \
 		$(BP_FLAGS)
 
 ifneq ($(OS),Windows_NT)
