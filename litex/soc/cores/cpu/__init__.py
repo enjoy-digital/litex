@@ -57,6 +57,7 @@ from litex.soc.cores.cpu.minerva import Minerva
 from litex.soc.cores.cpu.vexriscv import VexRiscv
 from litex.soc.cores.cpu.rocket import RocketRV64
 from litex.soc.cores.cpu.blackparrot import BlackParrotRV64
+from litex.soc.cores.cpu.cv32e40p import CV32E40P
 
 CPUS = {
     # None
@@ -76,6 +77,7 @@ CPUS = {
     "picorv32"    : PicoRV32,
     "minerva"     : Minerva,
     "vexriscv"    : VexRiscv,
+    "cv32e40p"    : CV32E40P,
 
     # RISC-V 64-bit
     "rocket"      : RocketRV64,
