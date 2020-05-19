@@ -72,7 +72,7 @@ bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 		-L../libliteeth \
 		-L../liblitesdcard \
 		$(BP_LIBS) \
-		-lcompiler_rt -lbase-nofloat -llitedram -lliteeth -llitesdcard \
+		-lcompiler_rt -llitedram -lliteeth -llitesdcard -lbase-nofloat \
 		$(BP_FLAGS)
 
 ifneq ($(OS),Windows_NT)
