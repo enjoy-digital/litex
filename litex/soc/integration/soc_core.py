@@ -128,7 +128,7 @@ class SoCCore(LiteXSoC):
         # Parameters management --------------------------------------------------------------------
         cpu_type          = None if cpu_type == "None" else cpu_type
         cpu_reset_address = None if cpu_reset_address == "None" else cpu_reset_address
-        cpu_variant       = cpu.check_format_cpu_variant(cpu_variant)
+        cpu_variant       = cpu.check_format_cpu_variant(cpu_variant) if cpu_cls is None else cpu_variant
 
         self.cpu_type                   = cpu_type
         self.cpu_variant                = cpu_variant
