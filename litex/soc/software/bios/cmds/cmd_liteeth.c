@@ -5,7 +5,7 @@
 
 #include <generated/csr.h>
 
-#include <base/mdio.h>
+#include "mdio.h"
 
 #include "../command.h"
 #include "../helpers.h"
@@ -50,7 +50,7 @@ static void mdiow(int nb_params, char **params)
 	mdio_write(phyadr2, reg2, val2);
 }
 
-define_command(mdiow, mdiow, "Write MDIO register", MDIO_CMDS);
+define_command(mdiow, mdiow, "Write MDIO register", LITEETH_CMDS);
 #endif
 
 /**
@@ -88,7 +88,7 @@ static void mdior(int nb_params, char **params)
 	printf("Reg %d: 0x%04x", reg2, val);
 }
 
-define_command(mdior, mdior, "Read MDIO register", MDIO_CMDS);
+define_command(mdior, mdior, "Read MDIO register", LITEETH_CMDS);
 #endif
 
 /**
@@ -130,5 +130,5 @@ static void mdiod(int nb_params, char **params)
 	}
 }
 
-define_command(mdiod, mdiod, "Dump MDIO registers", MDIO_CMDS);
+define_command(mdiod, mdiod, "Dump MDIO registers", LITEETH_CMDS);
 #endif

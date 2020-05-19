@@ -30,7 +30,7 @@
 #include <generated/git.h>
 
 #ifdef CSR_ETHMAC_BASE
-#include <net/microudp.h>
+#include "udp.h"
 #endif
 
 #ifdef CSR_SPIFLASH_BASE
@@ -38,7 +38,7 @@
 #endif
 
 #ifdef CSR_ETHPHY_MDIO_W_ADDR
-#include <mdio.h>
+#include "mdio.h"
 #endif
 
 #include "sdram.h"

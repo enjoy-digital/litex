@@ -10,8 +10,8 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <net/microudp.h>
-#include <net/tftp.h>
+#include "udp.h"
+#include "tftp.h"
 
 /* Local TFTP client port (arbitrary) */
 #define PORT_IN		7642
@@ -99,9 +99,9 @@ static void rx_callback(uint32_t src_ip, uint16_t src_port,
 		if(length < BLOCK_SIZE)
 			transfer_finished = 1;
 
-		packet_data = microudp_get_tx_buffer();
+		packet_data = udp_get_tx_buffer();
 		length = format_ack(packet_data, block);
-		microudp_send(PORT_IN, src_port, length);
+		udp_send(PORT_IN, src_port, length);
 	}
 	if(opcode == TFTP_ERROR) { /* Error */
 		total_length = -1;
@@ -118,10 +118,10 @@ int tftp_get(uint32_t ip, uint16_t server_port, const char *filename,
 	int length_before;
 	int spin = 0;
 
-	if(!microudp_arp_resolve(ip))
+	if(!udp_arp_resolve(ip))
 		return -1;
 
-	microudp_set_callback(rx_callback);
+	udp_set_callback(rx_callback);
 
 	dst_buffer = buffer;
 
@@ -129,17 +129,17 @@ int tftp_get(uint32_t ip, uint16_t server_port, const char *filename,
 	transfer_finished = 0;
 	tries = 5;
 	while(1) {
-		packet_data = microudp_get_tx_buffer();
+		packet_data = udp_get_tx_buffer();
 		len = format_request(packet_data, TFTP_RRQ, filename);
-		microudp_send(PORT_IN, server_port, len);
+		udp_send(PORT_IN, server_port, len);
 		for(i=0;i<2000000;i++) {
-			microudp_service();
+			udp_service();
 			if((total_length > 0) || transfer_finished) break;
 		}
 		if((total_length > 0) || transfer_finished) break;
 		tries--;
 		if(tries == 0) {
-			microudp_set_callback(NULL);
+			udp_set_callback(NULL);
 			return -1;
 		}
 	}
@@ -156,13 +156,13 @@ int tftp_get(uint32_t ip, uint16_t server_port, const char *filename,
 			}
 		}
 		if(i-- == 0) {
-			microudp_set_callback(NULL);
+			udp_set_callback(NULL);
 			return -1;
 		}
-		microudp_service();
+		udp_service();
 	}
 
-	microudp_set_callback(NULL);
+	udp_set_callback(NULL);
 
 	return total_length;
 }
@@ -175,23 +175,23 @@ int tftp_put(uint32_t ip, uint16_t server_port, const char *filename,
 	int i;
 	int block = 0, sent = 0;
 
-	if(!microudp_arp_resolve(ip))
+	if(!udp_arp_resolve(ip))
 		return -1;
 
-	microudp_set_callback(rx_callback);
+	udp_set_callback(rx_callback);
 
-	packet_data = microudp_get_tx_buffer();
+	packet_data = udp_get_tx_buffer();
 
 	total_length = 0;
 	transfer_finished = 0;
 	tries = 5;
 	while(1) {
-		packet_data = microudp_get_tx_buffer();
+		packet_data = udp_get_tx_buffer();
 		len = format_request(packet_data, TFTP_WRQ, filename);
-		microudp_send(PORT_IN, server_port, len);
+		udp_send(PORT_IN, server_port, len);
 		for(i=0;i<2000000;i++) {
 			last_ack = -1;
-			microudp_service();
+			udp_service();
 			if(last_ack == block)
 				goto send_data;
 			if(transfer_finished)
@@ -208,11 +208,11 @@ send_data:
 		send = sent+BLOCK_SIZE > size ? size-sent : BLOCK_SIZE;
 		tries = 5;
 		while(1) {
-			packet_data = microudp_get_tx_buffer();
+			packet_data = udp_get_tx_buffer();
 			len = format_data(packet_data, block, buffer, send);
-			microudp_send(PORT_IN, data_port, len);
+			udp_send(PORT_IN, data_port, len);
 			for(i=0;i<12000000;i++) {
-				microudp_service();
+				udp_service();
 				if(transfer_finished)
 					goto fail;
 				if(last_ack == block)
@@ -226,11 +226,11 @@ next:
 		buffer += send;
 	} while (send == BLOCK_SIZE);
 
-	microudp_set_callback(NULL);
+	udp_set_callback(NULL);
 
 	return sent;
 
 fail:
-	microudp_set_callback(NULL);
+	udp_set_callback(NULL);
 	return -1;
 }

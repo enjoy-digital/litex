@@ -17,7 +17,6 @@
 #include <generated/sdram_phy.h>
 #endif
 #include <generated/mem.h>
-#include <hw/flags.h>
 #include <system.h>
 
 #include "sdram.h"

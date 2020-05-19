@@ -14,12 +14,11 @@
 #include <inet.h>
 #include <system.h>
 #include <crc.h>
-#include <hw/flags.h>
 
-#include <net/microudp.h>
+#include "udp.h"
 
-//#define DEBUG_MICROUDP_TX
-//#define DEBUG_MICROUDP_RX
+//#define DEBUG_UDP_TX
+//#define DEBUG_UDP_RX
 
 #define ETHERTYPE_ARP 0x0806
 #define ETHERTYPE_IP  0x0800
@@ -145,7 +144,7 @@ static void send_packet(void)
 	txlen += 4;
 #endif
 
-#ifdef DEBUG_MICROUDP_TX
+#ifdef DEBUG_LITEETH_UDP_TX
 	int j;
 	printf(">>>> txlen : %d\n", txlen);
 	for(j=0;j<txlen;j++)
@@ -217,7 +216,7 @@ static void process_arp(void)
 
 static const unsigned char broadcast[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
-int microudp_arp_resolve(unsigned int ip)
+int udp_arp_resolve(unsigned int ip)
 {
 	struct arp_frame *arp;
 	int i;
@@ -256,7 +255,7 @@ int microudp_arp_resolve(unsigned int ip)
 
 		/* Do we get a reply ? */
 		for(timeout=0;timeout<100000;timeout++) {
-			microudp_service();
+			udp_service();
 			for(i=0;i<6;i++)
 				if(cached_mac[i]) return 1;
 		}
@@ -288,7 +287,7 @@ static unsigned short ip_checksum(unsigned int r, void *buffer, unsigned int len
 	return r;
 }
 
-void *microudp_get_tx_buffer(void)
+void *udp_get_tx_buffer(void)
 {
 	return txbuffer->frame.contents.udp.payload;
 }
@@ -301,7 +300,7 @@ struct pseudo_header {
 	unsigned short length;
 } __attribute__((packed));
 
-int microudp_send(unsigned short src_port, unsigned short dst_port, unsigned int length)
+int udp_send(unsigned short src_port, unsigned short dst_port, unsigned int length)
 {
 	struct pseudo_header h;
 	unsigned int r;
@@ -373,7 +372,7 @@ static void process_ip(void)
 			    udp_ip->payload, ntohs(udp_ip->udp.length)-sizeof(struct udp_header));
 }
 
-void microudp_set_callback(udp_callback callback)
+void udp_set_callback(udp_callback callback)
 {
 	rx_callback = callback;
 }
@@ -382,7 +381,7 @@ static void process_frame(void)
 {
 	flush_cpu_dcache();
 
-#ifdef DEBUG_MICROUDP_RX
+#ifdef DEBUG_LITEETH_UDP_RX
 	int j;
 	printf("<<< rxlen : %d\n", rxlen);
 	for(j=0;j<rxlen;j++)
@@ -414,7 +413,7 @@ static void process_frame(void)
 	else if(ntohs(rxbuffer->frame.eth_header.ethertype) == ETHERTYPE_IP) process_ip();
 }
 
-void microudp_start(const unsigned char *macaddr, unsigned int ip)
+void udp_start(const unsigned char *macaddr, unsigned int ip)
 {
 	int i;
 	ethmac_sram_reader_ev_pending_write(ETHMAC_EV_SRAM_READER);
@@ -437,7 +436,7 @@ void microudp_start(const unsigned char *macaddr, unsigned int ip)
 	rx_callback = (udp_callback)0;
 }
 
-void microudp_service(void)
+void udp_service(void)
 {
 	if(ethmac_sram_writer_ev_pending_read() & ETHMAC_EV_SRAM_WRITER) {
 		rxslot = ethmac_sram_writer_slot_read();

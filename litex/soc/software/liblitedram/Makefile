@@ -1,17 +1,17 @@
 include ../include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
-OBJECTS=microudp.o tftp.o
+OBJECTS=sdram.o
 
-all: libnet.a
+all: liblitedram.a
 
-libnet.a: $(OBJECTS)
-	$(AR) crs libnet.a $(OBJECTS)
+liblitedram.a: $(OBJECTS)
+	$(AR) crs liblitedram.a $(OBJECTS)
 
 # pull in dependency info for *existing* .o files
 -include $(OBJECTS:.o=.d)
 
-%.o: $(LIBNET_DIRECTORY)/%.c
+%.o: $(LIBLITEDRAM_DIRECTORY)/%.c
 	$(compile)
 
 %.o: %.S
@@ -20,4 +20,4 @@ libnet.a: $(OBJECTS)
 .PHONY: all clean
 
 clean:
-	$(RM) $(OBJECTS) libnet.a .*~ *~
+	$(RM) $(OBJECTS) liblitedram.a .*~ *~

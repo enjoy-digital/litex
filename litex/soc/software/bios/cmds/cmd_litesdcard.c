@@ -5,9 +5,10 @@
 
 #include <generated/csr.h>
 
+#include "sdcard.h"
+
 #include "../command.h"
 #include "../helpers.h"
-#include "../sdcard.h"
 
 /**
  * Command "sdclk"
@@ -42,7 +43,7 @@ struct command_struct cmd_sdclk =
 	.help = "SDCard set clk frequency (Mhz)",
 };
 
-define_command(sdclk, sdclk, "SDCard set clk frequency (Mhz)", SD_CMDS);
+define_command(sdclk, sdclk, "SDCard set clk frequency (Mhz)", LITESDCARD_CMDS);
 #endif
 
 /**
@@ -52,7 +53,7 @@ define_command(sdclk, sdclk, "SDCard set clk frequency (Mhz)", SD_CMDS);
  *
  */
 #ifdef CSR_SDCORE_BASE
-define_command(sdinit, sdcard_init, "SDCard initialization", SD_CMDS);
+define_command(sdinit, sdcard_init, "SDCard initialization", LITESDCARD_CMDS);
 #endif
 
 /**
@@ -81,7 +82,7 @@ static void sdtest(int nb_params, char **params)
 	sdcard_test(blocks);
 }
 
-define_command(sdtest, sdtest, "SDCard test", SD_CMDS);
+define_command(sdtest, sdtest, "SDCard test", LITESDCARD_CMDS);
 #endif
 
 /**
@@ -110,7 +111,7 @@ static void sdtestread(int nb_params, char **params)
 	sdcard_test_read(block);
 }
 
-define_command(sdtestread, sdtestread, "SDCard test read", SD_CMDS);
+define_command(sdtestread, sdtestread, "SDCard test read", LITESDCARD_CMDS);
 #endif
 
 /**
@@ -139,5 +140,5 @@ static void sdtestwrite(int nb_params, char **params)
 	sdcard_test_write(block, params[1]);
 }
 
-define_command(sdtestwrite, sdtestwrite, "SDCard test write", SD_CMDS);
+define_command(sdtestwrite, sdtestwrite, "SDCard test write", LITESDCARD_CMDS);
 #endif

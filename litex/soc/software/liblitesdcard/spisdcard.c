@@ -26,7 +26,7 @@
 
 #ifdef CSR_SPISDCARD_BASE
 // Import prototypes for the functions
-#include <spisdcard.h>
+#include "spisdcard.h"
 
 // SPI
 //      cs line - high to indicate DESELECT
