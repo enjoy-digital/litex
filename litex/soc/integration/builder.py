@@ -55,9 +55,8 @@ class Builder:
         bios_options     = None):
         self.soc = soc
 
-        # From Python doc: makedirs() will become confused if the path
-        # elements to create include '..'
-        self.output_dir    = os.path.abspath(output_dir    or "soc_{}_{}".format(soc.__class__.__name__.lower(), soc.platform.name))
+        # From Python doc: makedirs() will become confused if the path elements to create include '..'
+        self.output_dir    = os.path.abspath(output_dir    or os.path.join("build", soc.platform.name))
         self.gateware_dir  = os.path.abspath(gateware_dir  or os.path.join(self.output_dir,   "gateware"))
         self.software_dir  = os.path.abspath(software_dir  or os.path.join(self.output_dir,   "software"))
         self.include_dir   = os.path.abspath(include_dir   or os.path.join(self.software_dir, "include"))
