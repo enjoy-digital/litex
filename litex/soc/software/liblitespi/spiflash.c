@@ -83,7 +83,7 @@ void spiflash_init(void)
 	if (ret < 0)
 		return;
 #if (USER_DEFINED_DUMMY_BITS > 0)
-	spi_dummy_bits_setup(USER_DEFINED_DUMMY_BITS);
+	spiflash_dummy_bits_setup(USER_DEFINED_DUMMY_BITS);
 #endif
 }
 
