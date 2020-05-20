@@ -4,12 +4,13 @@ import os
 import sys
 import subprocess
 import shutil
+import hashlib
 from collections import OrderedDict
 
+import requests
 import urllib.request
 
 current_path = os.path.abspath(os.curdir)
-
 
 # Repositories -------------------------------------------------------------------------------------
 
@@ -96,7 +97,26 @@ if len(sys.argv) < 2:
     print("- update")
     print("- install (add --user to install to user directory)")
     print("- gcc")
+    print("- dev (dev mode, disable automatic litex_setup.py update)")
     exit()
+
+# Check/Update litex_setup.py
+
+litex_setup_url = "https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py"
+current_sha1 = hashlib.sha1(open(os.path.realpath(__file__)).read().encode("utf-8")).hexdigest()
+print("[checking litex_setup.py]...")
+try:
+    r = requests.get(litex_setup_url)
+    if r.status_code != 404:
+        upstream_sha1 = hashlib.sha1(r.content).hexdigest()
+        if current_sha1 != upstream_sha1:
+            if "dev" not in sys.argv[1:]:
+                print("[updating litex_setup.py]...")
+                with open(os.path.realpath(__file__), "wb") as f:
+                    f.write(r.content)
+                os.execl(sys.executable, sys.executable, *sys.argv)
+except:
+    pass
 
 # Repositories cloning
 if "init" in sys.argv[1:]:
@@ -124,6 +144,7 @@ if "update" in sys.argv[1:]:
         # update
         print("[updating " + name + "]...")
         os.chdir(os.path.join(current_path, name))
+        subprocess.check_call("git checkout master", shell=True)
         subprocess.check_call("git pull --ff-only", shell=True)
         if sha1 is not None:
             os.chdir(os.path.join(current_path, name))
