@@ -29,6 +29,7 @@ jobs:
 install:
   # Get Migen / LiteX / Cores
   - cd ~/
+  - pip3 install requests
   - cp $TRAVIS_BUILD_DIR/litex_setup.py .
   - python3 litex_setup.py init install
   # Install the LiteX version being tested
