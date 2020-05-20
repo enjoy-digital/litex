@@ -63,8 +63,6 @@ int spiflash_freq_init(void)
 	return 0;
 }
 
-#endif
-
 void spiflash_dummy_bits_setup(unsigned int dummy_bits)
 {
 	spiflash_mmap_dummy_bits_write((uint32_t)dummy_bits);
@@ -87,3 +85,4 @@ void spiflash_init(void)
 #endif
 }
 
+#endif
