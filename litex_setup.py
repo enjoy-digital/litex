@@ -7,7 +7,6 @@ import shutil
 import hashlib
 from collections import OrderedDict
 
-import requests
 import urllib.request
 
 current_path = os.path.abspath(os.curdir)
@@ -106,6 +105,7 @@ litex_setup_url = "https://raw.githubusercontent.com/enjoy-digital/litex/master/
 current_sha1 = hashlib.sha1(open(os.path.realpath(__file__)).read().encode("utf-8")).hexdigest()
 print("[checking litex_setup.py]...")
 try:
+    import requests
     r = requests.get(litex_setup_url)
     if r.status_code != 404:
         upstream_sha1 = hashlib.sha1(r.content).hexdigest()
