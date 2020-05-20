@@ -50,7 +50,7 @@ int litex_sim_load_ext_modules(struct ext_module_list_s **mlist)
   tinydir_file file;
   dylib_ref lib;
   int (*litex_sim_ext_module_init)(int (*reg)(struct ext_module_s *));
-  char name[100];
+  char name[300];
   if (tinydir_open(&dir, "./modules/") == -1)
   {
     ret = RC_ERROR;
@@ -122,7 +122,7 @@ int litex_sim_find_ext_module(struct ext_module_list_s *first, char *name , stru
   if(!first || !name || !found)
   {
     ret = RC_INVARG;
-    eprintf("Invalid first:%s arg:%s found:%p\n", first, name, found);
+    eprintf("Invalid first:%s arg:%s found:%p\n", first->module->name, name, found);
     goto out;
   }
 
@@ -144,7 +144,7 @@ int litex_sim_find_module(struct module_s *first, char *name , struct module_s *
   if(!first || !name || !found)
   {
     ret = RC_INVARG;
-    eprintf("Invalid first:%s arg:%s found:%p\n", first, name, found);
+    eprintf("Invalid first:%s arg:%s found:%p\n", first->name, name, found);
     goto out;
   }
 

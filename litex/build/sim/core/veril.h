@@ -17,6 +17,7 @@ void litex_sim_eval(void *vdut);
 void litex_sim_init_tracer(void *vdut);
 void litex_sim_tracer_dump();
 int litex_sim_got_finish();
+void litex_sim_init_cmdargs(int argc, char *argv[]);
 #if VM_COVERAGE
 void litex_sim_coverage_dump();
 #endif
