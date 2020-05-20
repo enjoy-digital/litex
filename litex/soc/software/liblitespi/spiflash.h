@@ -11,8 +11,8 @@ typedef enum {
 	SPI_MODE_MASTER = 1,
 } spi_mode;
 
-int spi_frequency_test(void);
-void spi_dummy_bits_setup(unsigned int dummy_bits);
-void spi_autoconfig(void);
+int spiflash_freq_init(void);
+void spiflash_dummy_bits_setup(unsigned int dummy_bits);
+void spiflash_init(void);
 
 #endif /* __LITESPI_FLASH_H */

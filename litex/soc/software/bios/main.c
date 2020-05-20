@@ -131,9 +131,9 @@ int main(int i, char **c)
 		printf("Memory initialization failed\n");
 	printf("\n");
 #endif
-//#ifdef CSR_SPI_BASE
-//	spi_autoconfig();
-//#endif
+#ifdef CSR_SPIFLASH_MMAP_BASE
+	spiflash_init();
+#endif
 
 	if(sdr_ok) {
 		printf("--============== \e[1mBoot\e[0m ==================--\n");

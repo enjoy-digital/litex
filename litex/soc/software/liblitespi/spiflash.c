@@ -12,25 +12,25 @@
 
 #include "spiflash.h"
 
-#ifdef SPIXIP_BASE
+#ifdef CSR_SPIFLASH_MMAP_BASE
 
 #define DEBUG	0
 #define USER_DEFINED_DUMMY_BITS	0
 
 static spi_mode spi_get_mode(void)
 {
-	return (spi_mode)spi_cfg_read();
+	return (spi_mode)spiflash_mmap_cfg_read();
 }
 
 static void spi_set_mode(spi_mode mode)
 {
-	spi_cfg_write((unsigned char)mode);
+	spiflash_mmap_cfg_write((unsigned char)mode);
 }
 
-int spi_frequency_test(void)
+int spiflash_freq_init(void)
 {
-	unsigned int lowest_div = spi_clk_divisor_read();
-	unsigned int crc = crc32((unsigned char *)SPIXIP_BASE, SPI_FLASH_BLOCK_SIZE);
+	unsigned int lowest_div = spiflash_mmap_clk_divisor_read();
+	unsigned int crc = crc32((unsigned char *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE);
 	unsigned int crc_test = crc;
 
 #if DEBUG
@@ -43,42 +43,45 @@ int spi_frequency_test(void)
 
 	/* Check if block is erased (filled with 0xFF) */
 	if(crc == CRC32_ERASED_FLASH) {
-		printf("Block of size %d, started on address 0x%x is erased. Cannot proceed with SPI frequency test.\n\r", SPI_FLASH_BLOCK_SIZE, SPIXIP_BASE);
+		printf("Block of size %d, started on address 0x%x is erased. Cannot proceed with SPI frequency test.\n\r", SPI_FLASH_BLOCK_SIZE, SPIFLASH_BASE);
 		return -1;
 	}
 
 	for(int i = lowest_div; (crc == crc_test) && (i >= 0); i--) {
 		lowest_div = i;
-		spi_clk_divisor_write((uint32_t)i);
-		crc_test = crc32((unsigned char *)SPIXIP_BASE, SPI_FLASH_BLOCK_SIZE);
+		spiflash_mmap_clk_divisor_write((uint32_t)i);
+		crc_test = crc32((unsigned char *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE);
 #if DEBUG
 		printf("[DIV: %d] %08x\n\r", i, crc_test);
 #endif
 	}
 	lowest_div++;
-	printf("Maximum available frequency: %d Hz\n\r", (spi_sys_clk_freq_read()/(2*(1 + lowest_div))));
+	printf("SPIFlash freq configured to %d MHz\n", (spiflash_mmap_sys_clk_freq_read()/(2*(1 + lowest_div)))/1000000);
 
-	return lowest_div;
+	spiflash_mmap_clk_divisor_write(lowest_div);
+
+	return 0;
 }
 
 #endif
 
-void spi_dummy_bits_setup(unsigned int dummy_bits)
+void spiflash_dummy_bits_setup(unsigned int dummy_bits)
 {
-	spi_dummy_bits_write((uint32_t)dummy_bits);
+	spiflash_mmap_dummy_bits_write((uint32_t)dummy_bits);
 #if DEBUG
 	printf("Dummy bits set to: %d\n\r", spi_dummy_bits_read());
 #endif
 }
 
-void spi_autoconfig(void)
+void spiflash_init(void)
 {
-	int ret = spi_frequency_test();
-	if(ret < 0) {
+	int ret;
+
+	printf("Initializing SPIFlash...\n");
+
+	ret = spiflash_freq_init();
+	if (ret < 0)
 		return;
-	} else {
-		spi_clk_divisor_write((uint32_t)ret);
-	}
 #if (USER_DEFINED_DUMMY_BITS > 0)
 	spi_dummy_bits_setup(USER_DEFINED_DUMMY_BITS);
 #endif
