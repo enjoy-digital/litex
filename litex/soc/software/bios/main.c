@@ -44,7 +44,7 @@
 
 #include "sdram.h"
 #include "sdcard.h"
-#include "spi.h"
+//#include "spi.h"
 #include "boot.h"
 #include "readline.h"
 #include "helpers.h"
@@ -135,9 +135,9 @@ int main(int i, char **c)
 		printf("Memory initialization failed\n");
 	printf("\n");
 #endif
-#ifdef CSR_SPI_BASE
-	spi_autoconfig();
-#endif
+//#ifdef CSR_SPI_BASE
+//	spi_autoconfig();
+//#endif
 
 	if(sdr_ok) {
 		printf("--============== \e[1mBoot\e[0m ==================--\n");

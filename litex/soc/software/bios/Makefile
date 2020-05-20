@@ -62,6 +62,7 @@ bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 	../libbase/libbase-nofloat.a \
 	../liblitedram/liblitedram.a \
 	../libliteeth/libliteeth.a \
+	../liblitespi/liblitespi.a \
 	../liblitesdcard/liblitesdcard.a
 	$(LD) $(LDFLAGS) -T $(BIOS_DIRECTORY)/linker.ld -N -o $@ \
 		../libbase/crt0-ctr.o \
@@ -70,9 +71,10 @@ bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 		-L../libbase \
 		-L../liblitedram \
 		-L../libliteeth \
+		-L../liblitespi \
 		-L../liblitesdcard \
 		$(BP_LIBS) \
-		-lcompiler_rt -llitedram -lliteeth -llitesdcard -lbase-nofloat \
+		-lcompiler_rt -llitedram -lliteeth -llitespi -llitesdcard -lbase-nofloat \
 		$(BP_FLAGS)
 
 ifneq ($(OS),Windows_NT)

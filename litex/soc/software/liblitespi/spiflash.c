@@ -8,10 +8,11 @@
 
 #include <generated/csr.h>
 #include <generated/mem.h>
-#include <hw/flags.h>
 #include <system.h>
 
-#include "spi.h"
+#include "spiflash.h"
+
+#ifdef SPIXIP_BASE
 
 #define DEBUG	0
 #define USER_DEFINED_DUMMY_BITS	0
@@ -59,6 +60,8 @@ int spi_frequency_test(void)
 
 	return lowest_div;
 }
+
+#endif
 
 void spi_dummy_bits_setup(unsigned int dummy_bits)
 {

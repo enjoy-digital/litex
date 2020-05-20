@@ -1,5 +1,5 @@
-#ifndef __SPI_H
-#define __SPI_H
+#ifndef __LITESPI_FLASH_H
+#define __LITESPI_FLASH_H
 
 #include <generated/csr.h>
 
@@ -15,4 +15,4 @@ int spi_frequency_test(void);
 void spi_dummy_bits_setup(unsigned int dummy_bits);
 void spi_autoconfig(void);
 
-#endif /* __SPI_H */
+#endif /* __LITESPI_FLASH_H */

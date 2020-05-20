@@ -27,6 +27,7 @@ soc_software_packages = [
     "libbase",
     "liblitedram",
     "libliteeth",
+    "liblitespi",
     "liblitesdcard",
     "bios"
 ]
