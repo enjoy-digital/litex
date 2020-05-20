@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <generated/csr.h>
+
 #include "../command.h"
 #include "../helpers.h"
 

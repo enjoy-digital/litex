@@ -5,7 +5,7 @@
 
 #include <generated/csr.h>
 
-#include "sdram.h"
+#include <liblitedram/sdram.h>
 
 #include "../command.h"
 #include "../helpers.h"

@@ -2,11 +2,11 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-
 #include <id.h>
-#include <generated/csr.h>
 #include <crc.h>
 #include <system.h>
+
+#include <generated/csr.h>
 
 #include "../command.h"
 #include "../helpers.h"

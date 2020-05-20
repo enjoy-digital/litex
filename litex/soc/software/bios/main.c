@@ -25,30 +25,26 @@
 #include <irq.h>
 #include <crc.h>
 
+#include "boot.h"
+#include "readline.h"
+#include "helpers.h"
+#include "command.h"
+
 #include <generated/csr.h>
 #include <generated/soc.h>
 #include <generated/mem.h>
 #include <generated/git.h>
 
-#ifdef CSR_ETHMAC_BASE
-#include "udp.h"
-#endif
-
-#ifdef CSR_SPIFLASH_BASE
 #include <spiflash.h>
-#endif
 
-#ifdef CSR_ETHPHY_MDIO_W_ADDR
-#include "mdio.h"
-#endif
+#include <liblitedram/sdram.h>
 
-#include "sdram.h"
-#include "sdcard.h"
-//#include "spi.h"
-#include "boot.h"
-#include "readline.h"
-#include "helpers.h"
-#include "command.h"
+#include <libliteeth/udp.h>
+#include <libliteeth/mdio.h>
+
+#include <liblitespi/spiflash.h>
+
+#include <liblitesdcard/sdcard.h>
 
 static void boot_sequence(void)
 {

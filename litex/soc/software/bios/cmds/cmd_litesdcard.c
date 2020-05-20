@@ -5,7 +5,7 @@
 
 #include <generated/csr.h>
 
-#include "sdcard.h"
+#include <liblitesdcard/sdcard.h>
 
 #include "../command.h"
 #include "../helpers.h"

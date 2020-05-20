@@ -5,7 +5,7 @@
 
 #include <generated/csr.h>
 
-#include "mdio.h"
+#include <libliteeth/mdio.h>
 
 #include "../command.h"
 #include "../helpers.h"

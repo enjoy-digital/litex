@@ -20,17 +20,15 @@
 #include <generated/csr.h>
 #include <generated/soc.h>
 
-#ifdef CSR_ETHMAC_BASE
-#include <udp.h>
-#include <tftp.h>
-#endif
-
-#ifdef CSR_SPIFLASH_BASE
-#include <spiflash.h>
-#endif
-
 #include "sfl.h"
 #include "boot.h"
+
+#include <spiflash.h>
+
+#include <libliteeth/udp.h>
+#include <libliteeth/tftp.h>
+
+#include <liblitesdcard/spisdcard.h>
 
 extern void boot_helper(unsigned long r1, unsigned long r2, unsigned long r3, unsigned long addr);
 
@@ -497,7 +495,6 @@ void romboot(void)
 
 // SPI HARDWARE BITBANG
 #ifdef CSR_SPISDCARD_BASE
-#include "spisdcard.h"
 
 void spisdcardboot(void)
 {
