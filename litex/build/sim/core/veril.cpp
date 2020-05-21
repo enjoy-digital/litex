@@ -44,10 +44,14 @@ extern "C" void litex_sim_init_tracer(void *vdut, long start, long end)
   Verilated::traceEverOn(true);
 #ifdef TRACE_FST
       tfp = new VerilatedFstC;
+      tfp->set_time_unit("1ps");
+      tfp->set_time_resolution("1ps");
       dut->trace(tfp, 99);
       tfp->open("dut.fst");
 #else
       tfp = new VerilatedVcdC;
+      tfp->set_time_unit("1ps");
+      tfp->set_time_resolution("1ps");
       dut->trace(tfp, 99);
       tfp->open("dut.vcd");
 #endif
