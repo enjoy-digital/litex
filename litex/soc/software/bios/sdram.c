@@ -29,7 +29,8 @@
 
 __attribute__((unused)) static void cdelay(int i)
 {
-	while(i > 0) {
+	long long ii = i /10;
+	while(ii > 0) {
 #if defined (__lm32__)
 		__asm__ volatile("nop");
 #elif defined (__or1k__)
@@ -53,7 +54,7 @@ __attribute__((unused)) static void cdelay(int i)
 #else
 #error Unsupported architecture
 #endif
-		i--;
+		ii--;
 	}
 }
 
@@ -73,7 +74,9 @@ void sdrsw(void)
 
 void sdrhw(void)
 {
+	debug_helper_set_tag("sdrhw");
 	sdram_dfii_control_write(DFII_CONTROL_SEL);
+	debug_helper_set_tag("");
 	printf("SDRAM now under hardware control\n");
 }
 
@@ -821,14 +824,22 @@ static int memtest_bus(void)
 
 	errors = 0;
 
+	printf("> memtest bus\n");
+	debug_helper_set_tag("memt_bus wr10");
 	for(i=0;i<MEMTEST_BUS_SIZE/4;i++) {
+		debug_helper_arg_write(i);
 		array[i] = ONEZERO;
 	}
+	debug_helper_set_tag("");
+	debug_helper_arg_write(~0);
+
 	flush_cpu_dcache();
 #ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
 #endif
+	debug_helper_set_tag("memt_bus rd10");
 	for(i=0;i<MEMTEST_BUS_SIZE/4;i++) {
+		debug_helper_arg_write(i);
 		rdata = array[i];
 		if(rdata != ONEZERO) {
 			errors++;
@@ -837,15 +848,24 @@ static int memtest_bus(void)
 #endif
 		}
 	}
+	debug_helper_set_tag("");
+	debug_helper_arg_write(~0);
 
+	debug_helper_set_tag("memt_bus wr01");
 	for(i=0;i<MEMTEST_BUS_SIZE/4;i++) {
+		debug_helper_arg_write(i);
 		array[i] = ZEROONE;
 	}
+	debug_helper_set_tag("");
+	debug_helper_arg_write(~0);
+
 	flush_cpu_dcache();
 #ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
 #endif
+	debug_helper_set_tag("memt_bus rd01");
 	for(i=0;i<MEMTEST_BUS_SIZE/4;i++) {
+		debug_helper_arg_write(i);
 		rdata = array[i];
 		if(rdata != ZEROONE) {
 			errors++;
@@ -854,6 +874,8 @@ static int memtest_bus(void)
 #endif
 		}
 	}
+	debug_helper_set_tag("");
+	debug_helper_arg_write(~0);
 
 	return errors;
 }
@@ -875,17 +897,23 @@ static int memtest_data(void)
 	errors = 0;
 	seed_32 = 0;
 
+	debug_helper_set_tag("memt_data wr");
 	for(i=0;i<MEMTEST_DATA_SIZE/4;i++) {
+		debug_helper_arg_write(i);
 		seed_32 = seed_to_data_32(seed_32, MEMTEST_DATA_RANDOM);
 		array[i] = seed_32;
 	}
+	debug_helper_set_tag("");
+	debug_helper_arg_write(~0);
 
 	seed_32 = 0;
 	flush_cpu_dcache();
 #ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
 #endif
+	debug_helper_set_tag("memt_data rd");
 	for(i=0;i<MEMTEST_DATA_SIZE/4;i++) {
+		debug_helper_arg_write(i);
 		seed_32 = seed_to_data_32(seed_32, MEMTEST_DATA_RANDOM);
 		rdata = array[i];
 		if(rdata != seed_32) {
@@ -895,6 +923,8 @@ static int memtest_data(void)
 #endif
 		}
 	}
+	debug_helper_set_tag("");
+	debug_helper_arg_write(~0);
 
 	return errors;
 }
@@ -915,17 +945,23 @@ static int memtest_addr(void)
 	errors = 0;
 	seed_16 = 0;
 
+	debug_helper_set_tag("memt_addr wr");
 	for(i=0;i<MEMTEST_ADDR_SIZE/4;i++) {
+		debug_helper_arg_write(i);
 		seed_16 = seed_to_data_16(seed_16, MEMTEST_ADDR_RANDOM);
 		array[(unsigned int) seed_16] = i;
 	}
+	debug_helper_set_tag("");
+	debug_helper_arg_write(~0);
 
 	seed_16 = 0;
 	flush_cpu_dcache();
 #ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
 #endif
+	debug_helper_set_tag("memt_addr rd");
 	for(i=0;i<MEMTEST_ADDR_SIZE/4;i++) {
+		debug_helper_arg_write(i);
 		seed_16 = seed_to_data_16(seed_16, MEMTEST_ADDR_RANDOM);
 		rdata = array[(unsigned int) seed_16];
 		if(rdata != i) {
@@ -935,6 +971,8 @@ static int memtest_addr(void)
 #endif
 		}
 	}
+	debug_helper_set_tag("");
+	debug_helper_arg_write(~0);
 
 	return errors;
 }
@@ -987,6 +1025,67 @@ static void memspeed(void)
 int memtest(void)
 {
 	int bus_errors, data_errors, addr_errors;
+
+	volatile unsigned int *array = (unsigned int *)MAIN_RAM_BASE;
+	int i;
+	static const unsigned int v[] = {
+		0x89abcdef,
+		0x11111111,
+		0x22222222,
+		0x01234567,
+		0x55555555,
+	};
+
+	unsigned int rv;
+
+	printf("---\n");
+
+	debug_helper_set_tag("mt pre wr flush");
+	flush_cpu_dcache();
+#ifdef CONFIG_L2_SIZE
+	flush_l2_cache();
+#endif
+
+	// debug_helper_set_tag("memtest rd0");
+	// for(i = 0; i < 4; ++i) {
+	// 	debug_helper_arg_write(i);
+	// 	rv = array[i];
+	// 	debug_helper_arg_write(~0);
+	// 	printf("rd %08x\n", rv);
+	// }
+	// debug_helper_set_tag("");
+
+	printf("---\n");
+
+	debug_helper_set_tag("mt wr");
+	for(i = 0; i < sizeof(v)/sizeof(v[0]); ++i) {
+		printf("wr %08x\n", v[i]);
+		debug_helper_arg_write(i);
+		array[i] = v[i];
+		debug_helper_arg_write(~0);
+	}
+	debug_helper_set_tag("");
+
+	printf("---\n");
+
+	debug_helper_set_tag("mt post wr flush");
+	flush_cpu_dcache();
+#ifdef CONFIG_L2_SIZE
+	flush_l2_cache();
+#endif
+
+	printf("---\n");
+
+	debug_helper_set_tag("mt rd");
+	for(i = 0; i < sizeof(v)/sizeof(v[0]); ++i) {
+		debug_helper_arg_write(i);
+		rv = array[i];
+		debug_helper_arg_write(~0);
+		printf("rd %08x\n", rv);
+	}
+	debug_helper_set_tag("");
+
+	return 0;
 
 	bus_errors = memtest_bus();
 	if(bus_errors != 0)
@@ -1097,7 +1196,9 @@ int sdrinit(void)
 	ddrctrl_init_error_write(0);
 #endif
 
+	debug_helper_set_tag("init");
 	init_sequence();
+	debug_helper_set_tag("");
 #ifdef CSR_DDRPHY_BASE
 #ifdef DDRPHY_CMD_DELAY
 	ddrphy_cdly(DDRPHY_CMD_DELAY);
@@ -1118,8 +1219,10 @@ int sdrinit(void)
 		ddrctrl_init_done_write(1);
 		ddrctrl_init_error_write(1);
 #endif
+		debug_helper_finish_write(1);
 		return 0;
 	}
+	debug_helper_finish_write(1);
 #ifdef CSR_DDRCTRL_BASE
 	ddrctrl_init_done_write(1);
 #endif

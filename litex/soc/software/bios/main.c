@@ -622,58 +622,56 @@ int main(int i, char **c)
 #endif
 	uart_init();
 
-	printf("\n");
-	printf("\e[1m        __   _ __      _  __\e[0m\n");
-	printf("\e[1m       / /  (_) /____ | |/_/\e[0m\n");
-	printf("\e[1m      / /__/ / __/ -_)>  <\e[0m\n");
-	printf("\e[1m     /____/_/\\__/\\__/_/|_|\e[0m\n");
-	printf("\e[1m   Build your hardware, easily!\e[0m\n");
-	printf("\n");
-	printf(" (c) Copyright 2012-2020 Enjoy-Digital\n");
-	printf(" (c) Copyright 2007-2015 M-Labs\n");
-	printf("\n");
-	printf(" BIOS built on "__DATE__" "__TIME__"\n");
-	crcbios();
-	printf("\n");
-	printf(" Migen git sha1: "MIGEN_GIT_SHA1"\n");
-	printf(" LiteX git sha1: "LITEX_GIT_SHA1"\n");
-	printf("\n");
-	printf("--=============== \e[1mSoC\e[0m ==================--\n");
-	printf("\e[1mCPU\e[0m:       ");
-#ifdef __lm32__
-	printf("LM32");
-#elif __or1k__
-	printf("MOR1KX");
-#elif __picorv32__
-	printf("PicoRV32");
-#elif __vexriscv__
-	printf("VexRiscv");
-#elif __minerva__
-	printf("Minerva");
-#elif __rocket__
-	printf("RocketRV64[imac]");
-#elif __blackparrot__
-        printf("BlackParrotRV64[ia]");
-#elif __serv__
-	printf("SERV");
-#else
-	printf("Unknown");
-#endif
-	printf(" @ %dMHz\n", CONFIG_CLOCK_FREQUENCY/1000000);
-	printf("\e[1mROM\e[0m:       %dKB\n", ROM_SIZE/1024);
-	printf("\e[1mSRAM\e[0m:      %dKB\n", SRAM_SIZE/1024);
-#ifdef CONFIG_L2_SIZE
-	printf("\e[1mL2\e[0m:        %dKB\n", CONFIG_L2_SIZE/1024);
-#endif
-#ifdef MAIN_RAM_SIZE
-	printf("\e[1mMAIN-RAM\e[0m:  %dKB\n", MAIN_RAM_SIZE/1024);
-#endif
-	printf("\n");
+	// printf("\n");
+	// printf("\e[1m        __   _ __      _  __\e[0m\n");
+	// printf("\e[1m       / /  (_) /____ | |/_/\e[0m\n");
+	// printf("\e[1m      / /__/ / __/ -_)>  <\e[0m\n");
+	// printf("\e[1m     /____/_/\\__/\\__/_/|_|\e[0m\n");
+	// printf("\e[1m   Build your hardware, easily!\e[0m\n");
+	// printf("\n");
+	// printf(" (c) Copyright 2012-2020 Enjoy-Digital\n");
+	// printf(" (c) Copyright 2007-2015 M-Labs\n");
+	// printf("\n");
+	// printf(" BIOS built on "__DATE__" "__TIME__"\n");
+	// crcbios();
+	// printf("\n");
+	// printf(" Migen git sha1: "MIGEN_GIT_SHA1"\n");
+	// printf(" LiteX git sha1: "LITEX_GIT_SHA1"\n");
+// 	printf("\n");
+// 	printf("--=============== \e[1mSoC\e[0m ==================--\n");
+// 	printf("\e[1mCPU\e[0m:       ");
+// #ifdef __lm32__
+// 	printf("LM32");
+// #elif __or1k__
+// 	printf("MOR1KX");
+// #elif __picorv32__
+// 	printf("PicoRV32");
+// #elif __vexriscv__
+// 	printf("VexRiscv");
+// #elif __minerva__
+// 	printf("Minerva");
+// #elif __rocket__
+// 	printf("RocketRV64[imac]");
+// #elif __blackparrot__
+//         printf("BlackParrotRV64[ia]");
+// #else
+// 	printf("Unknown");
+// #endif
+// 	printf(" @ %dMHz\n", CONFIG_CLOCK_FREQUENCY/1000000);
+// 	printf("\e[1mROM\e[0m:       %dKB\n", ROM_SIZE/1024);
+// 	printf("\e[1mSRAM\e[0m:      %dKB\n", SRAM_SIZE/1024);
+// #ifdef CONFIG_L2_SIZE
+// 	printf("\e[1mL2\e[0m:        %dKB\n", CONFIG_L2_SIZE/1024);
+// #endif
+// #ifdef MAIN_RAM_SIZE
+// 	printf("\e[1mMAIN-RAM\e[0m:  %dKB\n", MAIN_RAM_SIZE/1024);
+// #endif
+// 	printf("\n");
 
         sdr_ok = 1;
 
 #if defined(CSR_ETHMAC_BASE) || defined(CSR_SDRAM_BASE)
-    printf("--========== \e[1mInitialization\e[0m ============--\n");
+    // printf("--========== \e[1mInitialization\e[0m ============--\n");
 #ifdef CSR_ETHMAC_BASE
 	eth_init();
 #endif

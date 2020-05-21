@@ -12,6 +12,8 @@
 #include <generated/mem.h>
 #include <generated/csr.h>
 
+#include <stdio.h>
+
 void flush_cpu_icache(void)
 {
 #if defined (__lm32__)
@@ -126,10 +128,18 @@ void flush_cpu_dcache(void)
 #ifdef CONFIG_L2_SIZE
 void flush_l2_cache(void)
 {
+	#if CONFIG_L2_SIZE > 0
 	unsigned int i;
+	debug_helper_set_tag("L2-flush");
 	for(i=0;i<2*CONFIG_L2_SIZE/4;i++) {
+		debug_helper_arg_write(i);
+		printf("  > %d/%d          \r", i, 2*CONFIG_L2_SIZE/4);
 		((volatile unsigned int *) MAIN_RAM_BASE)[i];
 	}
+	printf("\r  > %d/%d\n", CONFIG_L2_SIZE/4, CONFIG_L2_SIZE/4);
+	debug_helper_set_tag("");
+	debug_helper_arg_write(~0);
+	#endif
 }
 #endif
 
