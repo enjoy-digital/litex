@@ -221,3 +221,56 @@ define_command(sdrlevel, sdrlevel, "Perform read/write leveling", LITEDRAM_CMDS)
 #ifdef CSR_SDRAM_BASE
 define_command(memtest, memtest, "Run a memory test", LITEDRAM_CMDS);
 #endif
+
+
+/**
+ * Command "spdread"
+ *
+ * Read contents of SPD EEPROM memory.
+ * SPD address is defined by the pins A0, A1, A2.
+ *
+ */
+#ifdef CSR_I2C_BASE
+static void spdread_handler(int nb_params, char **params)
+{
+	unsigned char buf[256];
+	unsigned int spdaddr;
+	int length = sizeof(buf);
+	char *c;
+
+	if (nb_params < 1) {
+		printf("spdread <spdaddr> [<length>]");
+		return;
+	}
+
+	spdaddr = strtoul(params[0], &c, 0);
+	if (*c != 0) {
+		printf("Incorrect address");
+		return;
+	}
+	if (spdaddr > 0b111) {
+		printf("SPD EEPROM max address is 0b111 (defined by A0, A1, A2 pins)");
+		return;
+	}
+
+	if (nb_params > 1) {
+		length = strtoul(params[1], &c, 0);
+		if (*c != 0) {
+			printf("Incorrect address");
+			return;
+		}
+		if (length > sizeof(buf)) {
+			printf("Max length is %d", sizeof(buf));
+			return;
+		}
+	}
+
+	if (!spdread(spdaddr, 0, buf, length)) {
+		printf("Error when reading SPD EEPROM");
+		return;
+	}
+
+	dump_bytes((unsigned int *) buf, length, 0);
+}
+define_command(spdread, spdread_handler, "Read SPD EEPROM", LITEDRAM_CMDS);
+#endif
