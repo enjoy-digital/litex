@@ -34,10 +34,20 @@ from liteeth.common import *
 
 from litescope import LiteScopeAnalyzer
 
+from litedram.modulemodel import SDRAMModuleModel
+from litedram.phy.genericddr3phy import GenericDDR3PHY
+from litedram.core import ControllerSettings
+from litedram.modules import MT41K64M16
+
 # IOs ----------------------------------------------------------------------------------------------
 
 _io = [
     ("sys_clk", 0, Pins(1)),
+    ("dram_clk", 0,
+        Subsignal("full_clk",   Pins(1)),
+        Subsignal("half_a_clk", Pins(1)),
+        Subsignal("half_b_clk", Pins(1)),
+    ),
     ("sys_rst", 0, Pins(1)),
     ("serial", 0,
         Subsignal("source_valid", Pins(1)),
@@ -148,6 +158,41 @@ def get_sdram_phy_settings(memtype, data_width, clk_freq):
         **sdram_phy_settings,
     )
 
+class SimCRG(CRG):
+    def __init__(self, platform):
+        clk = platform.request("sys_clk") 
+        dram_clk = platform.request("dram_clk")
+
+        super().__init__(clk=clk, rst=0)
+
+        self.sdram_half_a = dram_clk.half_a_clk
+        self.sdram_half_b = dram_clk.half_b_clk
+
+        self.clock_domains.cd_sdram_half = ClockDomain()
+        self.comb += self.cd_sdram_half.clk.eq(self.sdram_half_a)
+
+        self.clock_domains.cd_sdram_full = ClockDomain()
+        self.comb += self.cd_sdram_full.clk.eq(dram_clk.full_clk)
+
+        self.clock_domains.cd_sdram_full_wr = ClockDomain()
+        self.clock_domains.cd_sdram_full_rd = ClockDomain()
+        self.clk4x_wr_strb = Signal()
+        self.clk4x_rd_strb = Signal()
+
+        pll_lckd = Signal()
+
+        # sdram_full
+        self.specials += Instance("BUFPLL", name="sdram_full_bufpll",
+                                  p_DIVIDE=4,
+                                  i_PLLIN=self.cd_sdram_full.clk, i_GCLK=self.cd_sys.clk,
+                                  i_LOCKED=pll_lckd,
+                                  o_IOCLK=self.cd_sdram_full_wr.clk,
+                                  o_SERDESSTROBE=self.clk4x_wr_strb)
+        self.comb += [
+            self.cd_sdram_full_rd.clk.eq(self.cd_sdram_full_wr.clk),
+            self.clk4x_rd_strb.eq(self.clk4x_wr_strb)
+        ]
+
 # Simulation SoC -----------------------------------------------------------------------------------
 
 class SimSoC(SoCSDRAM):
@@ -163,14 +208,14 @@ class SimSoC(SoCSDRAM):
         etherbone_mac_address = 0x10e2d5000001,
         etherbone_ip_address  = "192.168.1.51",
         with_analyzer         = False,
-        sdram_module          = "MT48LC16M16",
+        sdram_module          = "MT41K64M16",
         sdram_init            = [],
         sdram_data_width      = 32,
         sdram_spd_data        = None,
         sdram_verbosity       = 0,
         **kwargs):
         platform     = Platform()
-        sys_clk_freq = int(1e6)
+        sys_clk_freq = int(200e6)
 
         # SoCSDRAM ---------------------------------------------------------------------------------
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
@@ -178,34 +223,39 @@ class SimSoC(SoCSDRAM):
             l2_reverse          = False,
             **kwargs)
         # CRG --------------------------------------------------------------------------------------
-        self.submodules.crg = CRG(platform.request("sys_clk"))
+        self.submodules.crg = SimCRG(platform)
 
         # SDRAM ------------------------------------------------------------------------------------
+
+        self.submodules.sdram_module_model = SDRAMModuleModel(platform)
         if with_sdram:
-            sdram_clk_freq   = int(100e6) # FIXME: use 100MHz timings
-            if sdram_spd_data is None:
-                sdram_module_cls = getattr(litedram_modules, sdram_module)
-                sdram_rate       = "1:{}".format(sdram_module_nphases[sdram_module_cls.memtype])
-                sdram_module     = sdram_module_cls(sdram_clk_freq, sdram_rate)
-            else:
-                sdram_module = litedram_modules.SDRAMModule.from_spd_data(sdram_spd_data, sdram_clk_freq)
-            phy_settings     = get_sdram_phy_settings(
-                memtype    = sdram_module.memtype,
-                data_width = sdram_data_width,
-                clk_freq   = sdram_clk_freq)
-            self.submodules.sdrphy = SDRAMPHYModel(
-                module    = sdram_module,
-                settings  = phy_settings,
-                clk_freq  = sdram_clk_freq,
-                verbosity = sdram_verbosity,
-                init      = sdram_init)
-            self.register_sdram(
-                self.sdrphy,
-                sdram_module.geom_settings,
-                sdram_module.timing_settings)
+            self.comb += self.sdram_module_model.clk_p.eq(self.crg.sdram_half_b)
+            self.comb += self.sdram_module_model.clk_n.eq(~self.crg.sdram_half_b)
+
+            sdram_clk_freq   = int(400e6)
+            sdram_module = MT41K64M16(sdram_clk_freq, "1:2")
+
+            self.submodules.ddrphy = GenericDDR3PHY(
+                self.sdram_module_model,
+                "DDR3",
+                rd_bitslip=0,
+                wr_bitslip=4,
+                platform=platform)
+            controller_settings = ControllerSettings(with_bandwidth=True)
+            self.register_sdram(self.ddrphy,
+                                sdram_module.geom_settings,
+                                sdram_module.timing_settings,
+                                controller_settings=controller_settings)
+
+            self.comb += [
+                self.ddrphy.clk4x_wr_strb.eq(self.crg.clk4x_wr_strb),
+                self.ddrphy.clk4x_rd_strb.eq(self.crg.clk4x_rd_strb),
+            ]
+
             # Reduce memtest size for simulation speedup
-            self.add_constant("MEMTEST_DATA_SIZE", 8*1024)
-            self.add_constant("MEMTEST_ADDR_SIZE", 8*1024)
+            self.add_constant("MEMTEST_BUS_SIZE",  128)
+            self.add_constant("MEMTEST_DATA_SIZE", 128)
+            self.add_constant("MEMTEST_ADDR_SIZE", 128)
 
         #assert not (with_ethernet and with_etherbone)
 
@@ -295,7 +345,7 @@ def main():
     parser.add_argument("--rom-init",             default=None,            help="rom_init file")
     parser.add_argument("--ram-init",             default=None,            help="ram_init file")
     parser.add_argument("--with-sdram",           action="store_true",     help="Enable SDRAM support")
-    parser.add_argument("--sdram-module",         default="MT48LC16M16",   help="Select SDRAM chip")
+    parser.add_argument("--sdram-module",         default="MT41K64M16",    help="Select SDRAM chip")
     parser.add_argument("--sdram-data-width",     default=32,              help="Set SDRAM chip data width")
     parser.add_argument("--sdram-init",           default=None,            help="SDRAM init file")
     parser.add_argument("--sdram-from-spd-data",  default=None,            help="Generate SDRAM module based on SPD data from file")
