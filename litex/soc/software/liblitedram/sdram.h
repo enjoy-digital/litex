@@ -2,6 +2,7 @@
 #define __SDRAM_H
 
 #include <generated/csr.h>
+#include "spd.h"
 
 void sdrsw(void);
 void sdrhw(void);
