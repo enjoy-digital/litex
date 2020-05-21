@@ -190,6 +190,7 @@ static void cb(int sock, short which, void *arg)
       if(!s->tickfirst)
 	s->module->tick(s->session);
     }
+    litex_sim_increment_time();
 
     if (litex_sim_got_finish()) {
         event_base_loopbreak(base);

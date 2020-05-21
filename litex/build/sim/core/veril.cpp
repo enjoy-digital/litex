@@ -18,11 +18,17 @@ VerilatedVcdC* tfp;
 #endif
 long tfp_start;
 long tfp_end;
+vluint64_t main_time;
 
 extern "C" void litex_sim_eval(void *vdut)
 {
   Vdut *dut = (Vdut*)vdut;
   dut->eval();
+}
+
+extern "C" void litex_sim_increment_time()
+{
+  main_time += 1;
 }
 
 extern "C" void litex_sim_init_cmdargs(int argc, char *argv[])
@@ -73,7 +79,6 @@ extern "C" void litex_sim_coverage_dump()
 }
 #endif
 
-vluint64_t main_time = 0;
 double sc_time_stamp()
 {
   return main_time;
