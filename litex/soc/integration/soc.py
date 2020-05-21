@@ -931,6 +931,8 @@ class SoC(Module):
 
     # SoC build ------------------------------------------------------------------------------------
     def build(self, *args, **kwargs):
+        self.build_name = kwargs.pop("build_name", self.platform.name)
+        kwargs.update({"build_name": self.build_name})
         return self.platform.build(self, *args, **kwargs)
 
 # LiteXSoC -----------------------------------------------------------------------------------------
