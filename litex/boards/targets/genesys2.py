@@ -14,6 +14,7 @@ from litex.soc.cores.clock import *
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
+from litex.soc.cores.led import LedChaser
 
 from litedram.modules import MT41J256M16
 from litedram.phy import s7ddrphy
@@ -85,6 +86,12 @@ class BaseSoC(SoCCore):
             self.add_csr("ethphy")
             self.add_etherbone(phy=self.ethphy)
 
+        # Leds -------------------------------------------------------------------------------------
+        self.submodules.leds = LedChaser(
+            pads         = Cat(*[platform.request("user_led", i) for i in range(8)]),
+            sys_clk_freq = sys_clk_freq)
+        self.add_csr("leds")
+
 # Build --------------------------------------------------------------------------------------------
 
 def main():
@@ -105,7 +112,7 @@ def main():
 
     if args.load:
         prog = soc.platform.create_programmer()
-        prog.load_bitstream(os.path.join(builder.gateware_dir, "top.bit"))
+        prog.load_bitstream(os.path.join(builder.gateware_dir, soc.build_name + ".bit"))
 
 if __name__ == "__main__":
     main()

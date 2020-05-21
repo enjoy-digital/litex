@@ -145,6 +145,16 @@ _io = [
     ),
 ]
 
+_sdcard_pmod_io = [ # https://store.digilentinc.com/pmod-microsd-microsd-card-slot/
+    ("sdcard", 0,
+        Subsignal("data", Pins("D15 J17 J18 E15")),
+        Subsignal("cmd", Pins("E16")),
+        Subsignal("clk", Pins("C15")),
+        Subsignal("cd", Pins("K15")),
+        IOStandard("LVCMOS33"), Misc("SLEW=FAST")
+    ),
+]
+
 # Connectors ---------------------------------------------------------------------------------------
 
 _connectors = [

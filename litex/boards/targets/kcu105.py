@@ -14,6 +14,7 @@ from litex.soc.cores.clock import *
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
+from litex.soc.cores.led import LedChaser
 
 from litedram.modules import EDY4016A
 from litedram.phy import usddrphy
@@ -88,6 +89,12 @@ class BaseSoC(SoCCore):
             self.platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-1753]")
             self.add_ethernet(phy=self.ethphy)
 
+        # Leds -------------------------------------------------------------------------------------
+        self.submodules.leds = LedChaser(
+            pads         = Cat(*[platform.request("user_led", i) for i in range(8)]),
+            sys_clk_freq = sys_clk_freq)
+        self.add_csr("leds")
+
 # Build --------------------------------------------------------------------------------------------
 
 def main():
@@ -105,7 +112,7 @@ def main():
 
     if args.load:
         prog = soc.platform.create_programmer()
-        prog.load_bitstream(os.path.join(builder.gateware_dir, "top.bit"))
+        prog.load_bitstream(os.path.join(builder.gateware_dir, soc.build_name + ".bit"))
 
 if __name__ == "__main__":
     main()

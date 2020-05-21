@@ -130,7 +130,7 @@ def main():
 
     if args.load:
         prog = soc.platform.create_programmer()
-        prog.load_bitstream(os.path.join(builder.gateware_dir, "top.bin"))
+        prog.load_bitstream(os.path.join(builder.gateware_dir, soc.build_name + ".bin"))
 
     if args.flash:
         flash(args.bios_flash_offset)
