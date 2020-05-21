@@ -5,6 +5,21 @@
 extern "C" {
 #endif
 
+#include <generated/csr.h>
+#ifdef CSR_DEBUG_HELPER_TAG_SIZE
+static void debug_helper_set_tag(const char *tag) {
+	char val[CSR_DEBUG_HELPER_TAG_SIZE] = {0};
+	int i;
+	for(i = 0; i < CSR_DEBUG_HELPER_TAG_SIZE && tag[i] != 0; ++i) {
+		val[i] = tag[i];
+	}
+	csr_wr_buf_uint8(CSR_DEBUG_HELPER_TAG_ADDR, val, CSR_DEBUG_HELPER_TAG_SIZE);
+}
+#else
+#define debug_helper_set_tag(x)
+#define debug_helper_arg_write(x)
+#endif
+
 void flush_cpu_icache(void);
 void flush_cpu_dcache(void);
 void flush_l2_cache(void);

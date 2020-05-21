@@ -39,6 +39,13 @@ from litedram.phy.genericddr3phy import GenericDDR3PHY
 from litedram.core import ControllerSettings
 from litedram.modules import MT41K64M16
 
+class DebugHelper(Module, AutoCSR):
+    def __init__(self):
+        self.tag = CSRStorage(128, atomic_write=True)
+        self.arg = CSRStorage(32, atomic_write=True, reset=0xFFFFFFFF)
+        self.finish = CSR()
+        self.sync += If(self.finish.re, Finish())
+
 # IOs ----------------------------------------------------------------------------------------------
 
 _io = [
@@ -334,6 +341,9 @@ class SimSoC(SoCSDRAM):
                 clock_domain = "sys",
                 csr_csv      = "analyzer.csv")
             self.add_csr("analyzer")
+        
+        self.submodules.debug_helper = DebugHelper()
+        self.add_csr("debug_helper")
 
 # Build --------------------------------------------------------------------------------------------
 
