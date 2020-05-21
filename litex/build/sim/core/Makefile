@@ -41,7 +41,7 @@ sim: $(OBJS_SIM) | mkdir
 		$(if $(THREADS), --threads $(THREADS),) \
 		-CFLAGS "$(CFLAGS) -I$(SRC_DIR)" \
 		-LDFLAGS "$(LDFLAGS)" \
-		--trace \
+		$(if $(TRACE), --trace,) \
 		$(if $(TRACE_FST), --trace-fst,) \
 		$(if $(COVERAGE), --coverage,) \
 		--unroll-count 256 \

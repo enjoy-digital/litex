@@ -5,6 +5,7 @@
 #include <string.h>
 #include "Vdut.h"
 #include "verilated.h"
+#if VM_TRACE
 #ifdef TRACE_FST
 #include "verilated_fst_c.h"
 #else
@@ -16,8 +17,9 @@ VerilatedFstC* tfp;
 #else
 VerilatedVcdC* tfp;
 #endif
-long tfp_start;
-long tfp_end;
+vluint64_t tfp_start;
+vluint64_t tfp_end;
+#endif
 vluint64_t main_time;
 
 extern "C" void litex_sim_eval(void *vdut)
@@ -38,9 +40,10 @@ extern "C" void litex_sim_init_cmdargs(int argc, char *argv[])
 
 extern "C" void litex_sim_init_tracer(void *vdut, long start, long end)
 {
+#if VM_TRACE
   Vdut *dut = (Vdut*)vdut;
   tfp_start = start;
-  tfp_end = end;
+  tfp_end = end >= 0 ? end : UINT64_MAX;
   Verilated::traceEverOn(true);
 #ifdef TRACE_FST
       tfp = new VerilatedFstC;
@@ -55,20 +58,15 @@ extern "C" void litex_sim_init_tracer(void *vdut, long start, long end)
       dut->trace(tfp, 99);
       tfp->open("dut.vcd");
 #endif
+#endif
 }
 
 extern "C" void litex_sim_tracer_dump()
 {
-  static unsigned int ticks=0;
-  int dump = 1;
-  if (ticks < tfp_start)
-      dump = 0;
-  if (tfp_end != -1)
-      if (ticks > tfp_end)
-          dump = 0;
-  if (dump)
-      tfp->dump(ticks);
-  ticks++;
+#if VM_TRACE
+  if (tfp_start <= main_time && main_time <= tfp_end)
+    tfp->dump(main_time);
+#endif
 }
 
 extern "C" int litex_sim_got_finish()

@@ -119,19 +119,20 @@ def _generate_sim_config(config):
     tools.write_to_file("sim_config.js", content)
 
 
-def _build_sim(build_name, sources, threads, coverage, opt_level="O3", trace_fst=False):
+def _build_sim(build_name, sources, threads, coverage, opt_level="O3", trace=False, trace_fst=False):
     makefile = os.path.join(core_directory, 'Makefile')
     cc_srcs = []
     for filename, language, library in sources:
         cc_srcs.append("--cc " + filename + " ")
     build_script_contents = """\
 rm -rf obj_dir/
-make -C . -f {} {} {} {} {} {}
+make -C . -f {} {} {} {} {} {} {}
 """.format(makefile,
     "CC_SRCS=\"{}\"".format("".join(cc_srcs)),
     "THREADS={}".format(threads) if int(threads) > 1 else "",
     "COVERAGE=1" if coverage else "",
     "OPT_LEVEL={}".format(opt_level),
+    "TRACE=1" if trace else "",
     "TRACE_FST=1" if trace_fst else "",
     )
     build_script_file = "build_" + build_name + ".sh"
@@ -203,7 +204,7 @@ class SimVerilatorToolchain:
                 _generate_sim_config(sim_config)
 
             # build
-            _build_sim(build_name, platform.sources, threads, coverage, opt_level, trace_fst)
+            _build_sim(build_name, platform.sources, threads, coverage, opt_level, trace, trace_fst)
 
         # run
         if run:
