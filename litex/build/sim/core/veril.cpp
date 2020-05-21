@@ -28,7 +28,7 @@ extern "C" void litex_sim_eval(void *vdut)
 
 extern "C" void litex_sim_increment_time()
 {
-  main_time += 1;
+  main_time += 125; // ps
 }
 
 extern "C" void litex_sim_init_cmdargs(int argc, char *argv[])

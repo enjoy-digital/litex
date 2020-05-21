@@ -24,7 +24,7 @@ class SimConfig():
         return new
 
     def add_clocker(self, clk):
-        self.add_module("clocker", [], clocks=clk, tickfirst=True)
+        self.add_module("clocker", [], clocks=[clk, "dram_clk"], tickfirst=True)
 
     def add_module(self, name, interfaces, clocks=None, args=None, tickfirst=False):
         interfaces = self._format_interfaces(interfaces)
