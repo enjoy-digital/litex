@@ -18,6 +18,7 @@ struct session_s {
   char *rx_valid;
   char *rx_ready;
   char *sys_clk;
+  char sys_clk_last;
   struct event *ev;
   char databuf[2048];
   int data_start;
@@ -138,8 +139,10 @@ static int serial2console_add_pads(void *sess, struct pad_list_s *plist)
     litex_sim_module_pads_get(pads, "source_ready", (void**)&s->tx_ready);
   }
 
-  if(!strcmp(plist->name, "sys_clk"))
+  if(!strcmp(plist->name, "sys_clk")) {
     litex_sim_module_pads_get(pads, "sys_clk", (void**) &s->sys_clk);
+    s->sys_clk_last = 0;
+  }
 
 out:
   return ret;
@@ -148,9 +151,11 @@ out:
 static int serial2console_tick(void *sess) {
   struct session_s *s = (struct session_s*)sess;
 
-  if(*s->sys_clk == 0) {
+  if(!(*s->sys_clk != 0 && s->sys_clk_last == 0)) {
+    s->sys_clk_last = *s->sys_clk;
     return RC_OK;
   }
+  s->sys_clk_last = *s->sys_clk;
 
   *s->tx_ready = 1;
   if(*s->tx_valid) {
