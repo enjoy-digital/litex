@@ -10,8 +10,8 @@ from litex.build.sim import common, verilator
 
 
 class SimPlatform(GenericPlatform):
-    def __init__(self, *args, toolchain="verilator", **kwargs):
-        GenericPlatform.__init__(self, *args, **kwargs)
+    def __init__(self, *args, name="sim", toolchain="verilator", **kwargs):
+        GenericPlatform.__init__(self, *args, name=name, **kwargs)
         self.sim_requested = []
         if toolchain == "verilator":
             self.toolchain = verilator.SimVerilatorToolchain()

@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "Vdut.h"
+#include "Vsim.h"
 #include "verilated.h"
 #ifdef TRACE_FST
 #include "verilated_fst_c.h"
@@ -19,10 +19,10 @@ VerilatedVcdC* tfp;
 long tfp_start;
 long tfp_end;
 
-extern "C" void litex_sim_eval(void *vdut)
+extern "C" void litex_sim_eval(void *vsim)
 {
-  Vdut *dut = (Vdut*)vdut;
-  dut->eval();
+  Vsim *sim = (Vsim*)vsim;
+  sim->eval();
 }
 
 extern "C" void litex_sim_init_cmdargs(int argc, char *argv[])
@@ -30,20 +30,20 @@ extern "C" void litex_sim_init_cmdargs(int argc, char *argv[])
   Verilated::commandArgs(argc, argv);
 }
 
-extern "C" void litex_sim_init_tracer(void *vdut, long start, long end)
+extern "C" void litex_sim_init_tracer(void *vsim, long start, long end)
 {
-  Vdut *dut = (Vdut*)vdut;
+  Vsim *sim = (Vsim*)vsim;
   tfp_start = start;
   tfp_end = end;
   Verilated::traceEverOn(true);
 #ifdef TRACE_FST
       tfp = new VerilatedFstC;
-      dut->trace(tfp, 99);
-      tfp->open("dut.fst");
+      sim->trace(tfp, 99);
+      tfp->open("sim.fst");
 #else
       tfp = new VerilatedVcdC;
-      dut->trace(tfp, 99);
-      tfp->open("dut.vcd");
+      sim->trace(tfp, 99);
+      tfp->open("sim.vcd");
 #endif
 }
 
@@ -69,7 +69,7 @@ extern "C" int litex_sim_got_finish()
 #if VM_COVERAGE
 extern "C" void litex_sim_coverage_dump()
 {
-  VerilatedCov::write("dut.cov");
+  VerilatedCov::write("sim.cov");
 }
 #endif
 

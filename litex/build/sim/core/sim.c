@@ -34,7 +34,7 @@ struct session_list_s {
 struct session_list_s *sesslist=NULL;
 struct event_base *base=NULL;
 
-static int litex_sim_initialize_all(void **dut, void *base)
+static int litex_sim_initialize_all(void **sim, void *base)
 {
   struct module_s *ml=NULL;
   struct module_s *mli=NULL;
@@ -44,7 +44,7 @@ static int litex_sim_initialize_all(void **dut, void *base)
   struct pad_list_s *plist=NULL;
   struct pad_list_s *pplist=NULL;
   struct session_list_s *slist=NULL;
-  void *vdut=NULL;
+  void *vsim=NULL;
   int i;
   int ret = RC_OK;
 
@@ -69,7 +69,7 @@ static int litex_sim_initialize_all(void **dut, void *base)
     goto out;
   }
   /* Init generated */
-  litex_sim_init(&vdut);
+  litex_sim_init(&vsim);
 
   /* Get pads from generated */
   ret = litex_sim_pads_get_list(&plist);
@@ -134,7 +134,7 @@ static int litex_sim_initialize_all(void **dut, void *base)
       }
     }
   }
-  *dut = vdut;
+  *sim = vsim;
 out:
   return ret;
 }
@@ -170,7 +170,7 @@ struct event *ev;
 static void cb(int sock, short which, void *arg)
 {
   struct session_list_s *s;
-  void *vdut=arg;
+  void *vsim=arg;
   struct timeval tv;
   tv.tv_sec = 0;
   tv.tv_usec = 0;
@@ -183,7 +183,7 @@ static void cb(int sock, short which, void *arg)
       if(s->tickfirst)
 	s->module->tick(s->session);
     }
-    litex_sim_eval(vdut);
+    litex_sim_eval(vsim);
     litex_sim_dump();
     for(s = sesslist; s; s=s->next)
     {
@@ -205,7 +205,7 @@ static void cb(int sock, short which, void *arg)
 
 int main(int argc, char *argv[])
 {
-  void *vdut=NULL;
+  void *vsim=NULL;
   struct timeval tv;
 
   int ret;
@@ -225,7 +225,7 @@ int main(int argc, char *argv[])
   }
 
   litex_sim_init_cmdargs(argc, argv);
-  if(RC_OK != (ret = litex_sim_initialize_all(&vdut, base)))
+  if(RC_OK != (ret = litex_sim_initialize_all(&vsim, base)))
   {
     goto out;
   }
@@ -237,7 +237,7 @@ int main(int argc, char *argv[])
 
   tv.tv_sec = 0;
   tv.tv_usec = 0;
-  ev = event_new(base, -1, EV_PERSIST, cb, vdut);
+  ev = event_new(base, -1, EV_PERSIST, cb, vsim);
   event_add(ev, &tv);
   event_base_dispatch(base);
 #if VM_COVERAGE

@@ -12,7 +12,7 @@ else
 endif
 
 
-CC_SRCS ?= "--cc dut.v"
+CC_SRCS ?= "--cc sim.v"
 
 SRC_DIR ?= .
 INC_DIR ?= .
@@ -21,7 +21,7 @@ export OBJ_DIR = $(abspath obj_dir)
 
 SRCS_SIM_ABSPATH = $(wildcard $(SRC_DIR)/*.c)
 SRCS_SIM = $(notdir $(SRCS_SIM_ABSPATH))
-SRCS_SIM_CPP = dut_init.cpp $(SRC_DIR)/veril.cpp
+SRCS_SIM_CPP = sim_init.cpp $(SRC_DIR)/veril.cpp
 OBJS_SIM = $(SRCS_SIM:.c=.o)
 
 all: modules sim
@@ -34,10 +34,10 @@ $(OBJS_SIM): %.o: $(SRC_DIR)/%.c | mkdir
 
 .PHONY: sim
 sim: $(OBJS_SIM) | mkdir
-	verilator -Wno-fatal -O3 $(CC_SRCS) --top-module dut --exe \
+	verilator -Wno-fatal -O3 $(CC_SRCS) --top-module sim --exe \
 		-DPRINTF_COND=0 \
 		$(SRCS_SIM_CPP) $(OBJS_SIM) \
-		--top-module dut \
+		--top-module sim \
 		$(if $(THREADS), --threads $(THREADS),) \
 		-CFLAGS "$(CFLAGS) -I$(SRC_DIR)" \
 		-LDFLAGS "$(LDFLAGS)" \
@@ -48,7 +48,7 @@ sim: $(OBJS_SIM) | mkdir
 		$(INC_DIR) \
 		-Wno-BLKANDNBLK \
 		-Wno-WIDTH
-	make -j -C $(OBJ_DIR) -f Vdut.mk Vdut
+	make -j -C $(OBJ_DIR) -f Vsim.mk Vsim
 
 .PHONY: modules
 modules:

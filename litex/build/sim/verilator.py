@@ -45,14 +45,14 @@ void litex_sim_init(void **out);
 
 #endif /* __SIM_CORE_H_ */
 """
-    tools.write_to_file("dut_header.h", content)
+    tools.write_to_file("sim_header.h", content)
 
 
 def _generate_sim_cpp_struct(name, index, siglist):
     content = ''
 
     for i, (signame, sigbits, sigfname) in enumerate(siglist):
-        content += '    {}{}[{}].signal = &dut->{};\n'.format(name, index, i, sigfname)
+        content += '    {}{}[{}].signal = &sim->{};\n'.format(name, index, i, sigfname)
 
     idx_int = 0 if not index else int(index)
     content += '    litex_sim_register_pads({}{}, (char*)"{}", {});\n\n'.format(name, index, name, idx_int)
@@ -65,11 +65,11 @@ def _generate_sim_cpp(platform, trace=False, trace_start=0, trace_end=-1):
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "Vdut.h"
+#include "Vsim.h"
 #include <verilated.h>
-#include "dut_header.h"
+#include "sim_header.h"
 
-extern "C" void litex_sim_init_tracer(void *vdut, long start, long end);
+extern "C" void litex_sim_init_tracer(void *vsim, long start, long end);
 extern "C" void litex_sim_tracer_dump();
 
 extern "C" void litex_sim_dump()
@@ -84,21 +84,21 @@ extern "C" void litex_sim_dump()
 
 extern "C" void litex_sim_init(void **out)
 {{
-    Vdut *dut;
+    Vsim *sim;
 
-    dut = new Vdut;
+    sim = new Vsim;
 
-    litex_sim_init_tracer(dut, {}, {});
+    litex_sim_init_tracer(sim, {}, {});
 
 """.format(trace_start, trace_end)
     for args in platform.sim_requested:
         content += _generate_sim_cpp_struct(*args)
 
     content += """\
-    *out=dut;
+    *out=sim;
 }
 """
-    tools.write_to_file("dut_init.cpp", content)
+    tools.write_to_file("sim_init.cpp", content)
 
 
 def _generate_sim_variables(include_paths):
@@ -153,7 +153,7 @@ def _compile_sim(build_name, verbose):
 
 def _run_sim(build_name, as_root=False):
     run_script_contents = "sudo " if as_root else ""
-    run_script_contents += "obj_dir/Vdut"
+    run_script_contents += "obj_dir/Vsim"
     run_script_file = "run_" + build_name + ".sh"
     tools.write_to_file(run_script_file, run_script_contents, force_unix=True)
     if sys.platform != "win32":
@@ -170,7 +170,7 @@ def _run_sim(build_name, as_root=False):
 
 
 class SimVerilatorToolchain:
-    def build(self, platform, fragment, build_dir="build", build_name="dut",
+    def build(self, platform, fragment, build_dir="build", build_name="sim",
             serial="console", build=True, run=True, threads=1,
             verbose=True, sim_config=None, coverage=False, opt_level="O0",
             trace=False, trace_fst=False, trace_start=0, trace_end=-1):
