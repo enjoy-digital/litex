@@ -62,6 +62,41 @@ void isr(void)
 		*((unsigned int *)PLIC_CLAIM) = claim;
 	}
 }
+#elif defined(__cv32e40p__)
+
+#define FIRQ_OFFSET 16
+#define IRQ_MASK 0x7FFFFFFF
+#define INVINST 2
+#define ECALL 11
+#define RISCV_TEST
+
+void isr(void)
+{
+    unsigned int cause = csrr(mcause) & IRQ_MASK;
+
+    if (csrr(mcause) & 0x80000000) {
+#ifndef UART_POLLING
+        if (cause == (UART_INTERRUPT+FIRQ_OFFSET)){
+            uart_isr();
+        }
+#endif
+    } else {
+#ifdef RISCV_TEST
+        int gp;
+        asm volatile ("mv %0, gp" : "=r"(gp));
+        printf("E %d\n", cause);
+        if (cause == INVINST) {
+            printf("Inv Instr\n");
+            for(;;);
+        }
+        if (cause == ECALL) {
+            printf("Ecall (gp: %d)\n", gp);
+            csrw(mepc, csrr(mepc)+4);
+        }
+#endif
+    }
+}
+
 #else
 void isr(void)
 {
