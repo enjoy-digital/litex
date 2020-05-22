@@ -18,9 +18,9 @@ def build_test(socs):
     errors = 0
     for soc in socs:
         os.system("rm -rf build")
-        builder = Builder(soc, output_dir="./build", compile_software=False, compile_gateware=False)
+        builder = Builder(soc, compile_software=False, compile_gateware=False)
         builder.build()
-        errors += not os.path.isfile("./build/gateware/top.v")
+        errors += not os.path.isfile("build/{build_name}/gateware/{build_name}.v".format(build_name=soc.build_name))
     os.system("rm -rf build")
     return errors
 
