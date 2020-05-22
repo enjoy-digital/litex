@@ -118,8 +118,10 @@ def get_mem_header(regions):
     r = generated_banner("//")
     r += "#ifndef __GENERATED_MEM_H\n#define __GENERATED_MEM_H\n\n"
     for name, region in regions.items():
+        r += "#ifndef {name}\n".format(name=name.upper())
         r += "#define {name}_BASE 0x{base:08x}L\n#define {name}_SIZE 0x{size:08x}\n\n".format(
             name=name.upper(), base=region.origin, size=region.length)
+        r += "#endif\n"
     r += "#endif\n"
     return r
 

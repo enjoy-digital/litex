@@ -136,8 +136,11 @@ class Builder:
             export.get_soc_header(self.soc.constants))
         write_to_file(
             os.path.join(self.generated_dir, "csr.h"),
-            export.get_csr_header(self.soc.csr_regions,
-                                         self.soc.constants)
+            export.get_csr_header(
+                regions   = self.soc.csr_regions,
+                constants = self.soc.constants,
+                csr_base  = self.soc.mem_regions['csr'].origin
+            )
         )
         write_to_file(
             os.path.join(self.generated_dir, "git.h"),
