@@ -29,10 +29,12 @@
 
 __attribute__((unused)) static void cdelay(int i)
 {
+#ifndef CONFIG_SIM_DISABLE_DELAYS
 	while(i > 0) {
 		__asm__ volatile(CONFIG_CPU_NOP);
 		i--;
 	}
+#endif
 }
 
 #ifdef CSR_SDRAM_BASE
