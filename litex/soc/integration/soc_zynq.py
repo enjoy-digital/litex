@@ -214,5 +214,6 @@ class SoCZynq(SoCCore):
     def generate_software_header(self, filename):
         csr_header = get_csr_header(self.csr_regions,
                                     self.constants,
+                                    self.mem_regions['csr'].origin,
                                     with_access_functions=False)
         tools.write_to_file(filename, csr_header)
