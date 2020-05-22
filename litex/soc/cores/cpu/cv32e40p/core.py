@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+# This file is Copyright (c) 2019 Antmicro <www.antmicro.com>
+# License: BSD
 
 import os
 import re
@@ -15,48 +16,48 @@ from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 CPU_VARIANTS = ["standard", "full"]
 
 GCC_FLAGS = {
-    #                               /-------- Base ISA
-    #                               |/------- Hardware Multiply + Divide
-    #                               ||/----- Atomics
-    #                               |||/---- Compressed ISA
-    #                               ||||/--- Single-Precision Floating-Point
-    #                               |||||/-- Double-Precision Floating-Point
-    #                               imacfd
-    "standard":         "-march=rv32imc    -mabi=ilp32 ",
-    "full":             "-march=rv32imfc   -mabi=ilp32 ",
+    #                       /-------- Base ISA
+    #                       |/------- Hardware Multiply + Divide
+    #                       ||/----- Atomics
+    #                       |||/---- Compressed ISA
+    #                       ||||/--- Single-Precision Floating-Point
+    #                       |||||/-- Double-Precision Floating-Point
+    #                       imacfd
+    "standard": "-march=rv32imc    -mabi=ilp32 ",
+    "full":     "-march=rv32imfc   -mabi=ilp32 ",
 }
 
 obi_layout = [
-    ("req", 1),
-    ("gnt", 1),
-    ("addr", 32),
-    ("we", 1),
-    ("be", 4),
+    ("req",    1),
+    ("gnt",    1),
+    ("addr",  32),
+    ("we",     1),
+    ("be",     4),
     ("wdata", 32),
     ("rvalid", 1),
     ("rdata", 32),
 ]
 
 apb_layout = [
-    ("paddr", 32),
+    ("paddr",  32),
     ("pwdata", 32),
-    ("pwrite", 1),
-    ("psel", 1),
+    ("pwrite",  1),
+    ("psel",    1),
     ("penable", 1),
     ("prdata", 32),
-    ("pready", 1),
+    ("pready",  1),
     ("pslverr", 1),
 ]
 
 trace_layout = [
-    ("ivalid", 1),
+    ("ivalid",     1),
     ("iexception", 1),
-    ("interrupt", 1),
-    ("cause", 5),
-    ("tval", 32),
-    ("priv", 3),
-    ("iaddr", 32),
-    ("instr", 32),
+    ("interrupt",  1),
+    ("cause",      5),
+    ("tval",      32),
+    ("priv",       3),
+    ("iaddr",     32),
+    ("instr",     32),
     ("compressed", 1),
 ]
 
@@ -75,8 +76,8 @@ def add_manifest_sources(platform, manifest):
 class OBI2Wishbone(Module):
     def __init__(self, obi, wb):
         dat_r_d = Signal().like(wb.dat_r)
-        addr_d = Signal().like(obi.addr)
-        ack_d = Signal()
+        addr_d  = Signal().like(obi.addr)
+        ack_d   = Signal()
 
         self.sync += [
             dat_r_d.eq(wb.dat_r),
@@ -113,7 +114,7 @@ class Wishbone2OBI(Module):
         self.comb += [
             obi.we.eq(wb.we),
             obi.be.eq(wb.sel),
-            obi.addr.eq(Cat(0, 0, wb.adr)),
+            obi.addr.eq(Cat(Signal(2), wb.adr)),
             obi.wdata.eq(wb.dat_w),
             wb.dat_r.eq(obi.rdata),
         ]
@@ -133,7 +134,7 @@ class Wishbone2APB(Module):
         )
 
         self.comb += [
-            apb.paddr.eq(Cat(0, 0, wb.adr)),
+            apb.paddr.eq(Cat(Signal(2), wb.adr)),
             apb.pwrite.eq(wb.we),
             apb.psel.eq(1),
             apb.pwdata.eq(wb.dat_w),
@@ -195,32 +196,33 @@ class TraceDebugger(Module):
         self.submodules.bus_conv = Wishbone2APB(self.bus, apb)
 
         self.trace_params = dict(
-            i_clk_i=ClockSignal(),
-            i_rst_ni=~ResetSignal(),
-            i_test_mode_i=0,
+            # clk / rst
+            i_clk_i               = ClockSignal(),
+            i_rst_ni              = ~ResetSignal(),
+            i_test_mode_i         = 0,
             # cpu interface
-            i_ivalid_i=trace_if.ivalid,
-            i_iexception_i=trace_if.iexception,
-            i_interrupt_i=trace_if.interrupt,
-            i_cause_i=trace_if.cause,
-            i_tval_i=trace_if.tval,
-            i_priv_i=trace_if.priv,
-            i_iaddr_i=trace_if.iaddr,
-            i_instr_i=trace_if.instr,
-            i_compressed_i=trace_if.compressed,
+            i_ivalid_i            = trace_if.ivalid,
+            i_iexception_i        = trace_if.iexception,
+            i_interrupt_i         = trace_if.interrupt,
+            i_cause_i             = trace_if.cause,
+            i_tval_i              = trace_if.tval,
+            i_priv_i              = trace_if.priv,
+            i_iaddr_i             = trace_if.iaddr,
+            i_instr_i             = trace_if.instr,
+            i_compressed_i        = trace_if.compressed,
             # apb interface
-            i_paddr_i=apb.paddr,
-            i_pwdata_i=apb.pwdata,
-            i_pwrite_i=apb.pwrite,
-            i_psel_i=apb.psel,
-            i_penable_i=apb.penable,
-            o_prdata_o=apb.prdata,
-            o_pready_o=apb.pready,
-            o_pslverr_o=apb.pslverr,
+            i_paddr_i             = apb.paddr,
+            i_pwdata_i            = apb.pwdata,
+            i_pwrite_i            = apb.pwrite,
+            i_psel_i              = apb.psel,
+            i_penable_i           = apb.penable,
+            o_prdata_o            = apb.prdata,
+            o_pready_o            = apb.pready,
+            o_pslverr_o           = apb.pslverr,
             # data output
-            o_packet_word_o=source.data,
-            o_packet_word_valid_o=source.valid,
-            i_grant_i=source.ready,
+            o_packet_word_o       = source.data,
+            o_packet_word_valid_o = source.valid,
+            i_grant_i             = source.ready,
         )
         self.specials += Instance("trace_debugger", **self.trace_params)
 
@@ -230,13 +232,16 @@ class TraceDebugger(Module):
 
 class DebugModule(Module):
     jtag_layout = [
-        ("tck", 1),
-        ("tms", 1),
+        ("tck",  1),
+        ("tms",  1),
         ("trst", 1),
-        ("tdi", 1),
-        ("tdo", 1),
+        ("tdi",  1),
+        ("tdo",  1),
     ]
     def __init__(self, pads=None):
+        if pads is None:
+            pads = Record(self.jtag_layout)
+        self.pads = pads
         self.dmbus = wishbone.Interface()
         self.sbbus = wishbone.Interface()
         dmbus = Record(obi_layout)
@@ -246,47 +251,42 @@ class DebugModule(Module):
         self.submodules.dmbus_conv = Wishbone2OBI(self.dmbus, dmbus)
 
         self.debug_req = Signal()
-        self.ndmreset = Signal()
+        self.ndmreset  = Signal()
 
-        tdo_i = Signal()
-        tdo_o = Signal()
+        tdo_i  = Signal()
+        tdo_o  = Signal()
         tdo_oe = Signal()
-
-        if pads is None:
-            pads = Record(self.jtag_layout)
-
-        self.pads = pads
 
         self.specials += Tristate(pads.tdo, tdo_o, tdo_oe, tdo_i)
 
         self.dm_params = dict(
-            i_clk=ClockSignal(),
-            i_rst_n=~ResetSignal(),
-            o_ndmreset=self.ndmreset,
-            o_debug_req=self.debug_req,
+            i_clk       = ClockSignal(),
+            i_rst_n     = ~ResetSignal(),
+            o_ndmreset  = self.ndmreset,
+            o_debug_req = self.debug_req,
             # slave bus
-            i_dm_req=dmbus.req,
-            i_dm_we=dmbus.we,
-            i_dm_addr=dmbus.addr,
-            i_dm_be=dmbus.be,
-            i_dm_wdata=dmbus.wdata,
-            o_dm_rdata=dmbus.rdata,
+            i_dm_req    = dmbus.req,
+            i_dm_we     = dmbus.we,
+            i_dm_addr   = dmbus.addr,
+            i_dm_be     = dmbus.be,
+            i_dm_wdata  = dmbus.wdata,
+            o_dm_rdata  = dmbus.rdata,
             # master bus
-            o_sb_req=sbbus.req,
-            o_sb_addr=sbbus.addr,
-            o_sb_we=sbbus.we,
-            o_sb_wdata=sbbus.wdata,
-            o_sb_be=sbbus.be,
-            i_sb_gnt=sbbus.gnt,
-            i_sb_rvalid=sbbus.rvalid,
-            i_sb_rdata=sbbus.rdata,
+            o_sb_req    = sbbus.req,
+            o_sb_addr   = sbbus.addr,
+            o_sb_we     = sbbus.we,
+            o_sb_wdata  = sbbus.wdata,
+            o_sb_be     = sbbus.be,
+            i_sb_gnt    = sbbus.gnt,
+            i_sb_rvalid = sbbus.rvalid,
+            i_sb_rdata  = sbbus.rdata,
             # jtag
-            i_tck=pads.tck,
-            i_tms=pads.tms,
-            i_trst_n=pads.trst,
-            i_tdi=pads.tdi,
-            o_tdo=tdo_o,
-            o_tdo_oe=tdo_oe,
+            i_tck       = pads.tck,
+            i_tms       = pads.tms,
+            i_trst_n    = pads.trst,
+            i_tdi       = pads.tdi,
+            o_tdo       = tdo_o,
+            o_tdo_oe    = tdo_oe,
         )
 
         self.comb += [
@@ -343,42 +343,42 @@ class CV32E40P(CPU):
         ]
 
         self.cpu_params = dict(
-            i_clk_i=ClockSignal(),
-            i_rst_ni=~ResetSignal(),
-            i_clock_en_i=1,
-            i_test_en_i=0,
-            i_fregfile_disable_i=0,
-            i_core_id_i=0,
-            i_cluster_id_i=0,
+            i_clk_i              = ClockSignal(),
+            i_rst_ni             = ~ResetSignal(),
+            i_clock_en_i         = 1,
+            i_test_en_i          = 0,
+            i_fregfile_disable_i = 0,
+            i_core_id_i          = 0,
+            i_cluster_id_i       = 0,
             # ibus
-            o_instr_req_o=ibus.req,
-            i_instr_gnt_i=ibus.gnt,
-            i_instr_rvalid_i=ibus.rvalid,
-            o_instr_addr_o=ibus.addr,
-            i_instr_rdata_i=ibus.rdata,
+            o_instr_req_o        = ibus.req,
+            i_instr_gnt_i        = ibus.gnt,
+            i_instr_rvalid_i     = ibus.rvalid,
+            o_instr_addr_o       = ibus.addr,
+            i_instr_rdata_i      = ibus.rdata,
             # dbus
-            o_data_req_o=dbus.req,
-            i_data_gnt_i=dbus.gnt,
-            i_data_rvalid_i=dbus.rvalid,
-            o_data_we_o=dbus.we,
-            o_data_be_o=dbus.be,
-            o_data_addr_o=dbus.addr,
-            o_data_wdata_o=dbus.wdata,
-            i_data_rdata_i=dbus.rdata,
+            o_data_req_o         = dbus.req,
+            i_data_gnt_i         = dbus.gnt,
+            i_data_rvalid_i      = dbus.rvalid,
+            o_data_we_o          = dbus.we,
+            o_data_be_o          = dbus.be,
+            o_data_addr_o        = dbus.addr,
+            o_data_wdata_o       = dbus.wdata,
+            i_data_rdata_i       = dbus.rdata,
             # apu
-            i_apu_master_gnt_i=0,
-            i_apu_master_valid_i=0,
-            # irq
-            i_irq_sec_i=0,
-            i_irq_software_i=0,
-            i_irq_external_i=0,
-            i_irq_fast_i=self.interrupt,
-            i_irq_nmi_i=0,
-            i_irq_fastx_i=0,
+            i_apu_master_gnt_i   = 0,
+            i_apu_master_valid_i = 0,
+            # ir q
+            i_irq_sec_i          = 0,
+            i_irq_software_i     = 0,
+            i_irq_external_i     = 0,
+            i_irq_fast_i         = self.interrupt,
+            i_irq_nmi_i          = 0,
+            i_irq_fastx_i        = 0,
             # debug
-            i_debug_req_i=0,
+            i_debug_req_i        = 0,
             # cpu control
-            i_fetch_enable_i=1,
+            i_fetch_enable_i     = 1,
         )
 
         # add verilog sources
@@ -396,15 +396,15 @@ class CV32E40P(CPU):
         trace_if = trace.trace_if
 
         self.cpu_params.update(
-            o_ivalid_o=trace_if.ivalid,
-            o_iexception_o=trace_if.iexception,
-            o_interrupt_o=trace_if.interrupt,
-            o_cause_o=trace_if.cause,
-            o_tval_o=trace_if.tval,
-            o_priv_o=trace_if.priv,
-            o_iaddr_o=trace_if.iaddr,
-            o_instr_o=trace_if.instr,
-            o_compressed_o=trace_if.compressed,
+            o_ivalid_o     = trace_if.ivalid,
+            o_iexception_o = trace_if.iexception,
+            o_interrupt_o  = trace_if.interrupt,
+            o_cause_o      = trace_if.cause,
+            o_tval_o       = trace_if.tval,
+            o_priv_o       = trace_if.priv,
+            o_iaddr_o      = trace_if.iaddr,
+            o_instr_o      = trace_if.instr,
+            o_compressed_o = trace_if.compressed,
         )
 
     def set_reset_address(self, reset_address):
