@@ -374,7 +374,7 @@ def _run_yosys(device, sources, vincpaths, build_name):
         ys_contents += "read_{}{} {}\n".format(language, incflags, filename)
 
     ys_contents += """\
-hierarchy -top top
+hierarchy -top {build_name}
 
 # FIXME: Are these needed?
 # proc; memory; opt; fsm; opt
@@ -401,7 +401,7 @@ log
 select -list a:async_reg=true
 setattr -set keep 1 a:async_reg=true
 
-synth_xilinx -top top
+synth_xilinx -top {build_name}
 
 write_edif -pvector bra -attrprop {build_name}.edif
 """.format(build_name=build_name)
