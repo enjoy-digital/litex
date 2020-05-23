@@ -22,10 +22,6 @@ from litex.soc.interconnect import wishbone
 from litex.soc.interconnect import wishbone2csr
 from litex.soc.interconnect import axi
 
-# TODO:
-# - replace raise with exit on logging error.
-# - cleanup SoCCSRRegion
-
 logging.basicConfig(level=logging.INFO)
 
 # Helpers ------------------------------------------------------------------------------------------
