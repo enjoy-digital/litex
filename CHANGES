@@ -7,12 +7,13 @@
 
 	[> Added Features
 	------------------
+	- Add CV32E40P CPU support (ex RI5CY).
 	- Use InterconnectPointToPoint when 1 master,1 slave and no address translation.
 	- Improve WishboneBridge.
 	- Improve Diamond constraints.
 	- Add LedChaser on boards.
 	- Speedup Memtest using an LFSR.
-	- Add Microwatt CPU support.
+	- Add Microwatt CPU support (with GHDL-Yosys-plugin support for FOSS toolchains).
 	- Improve boards's programmers.
 	- BIOS history, autocomplete.
 	- Pluggable CPUs.
