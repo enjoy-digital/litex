@@ -99,8 +99,7 @@ class RS232PHYTX(Module):
             If(self.sink.valid & ~tx_busy & ~self.sink.ready,
                 tx_reg.eq(self.sink.data),
                 tx_bitcount.eq(0),
-                tx_busy.eq(1),
-                pads.tx.eq(0)
+                tx_busy.eq(1)
             ).Elif(uart_clk_txen & tx_busy,
                 tx_bitcount.eq(tx_bitcount + 1),
                 If(tx_bitcount == 8,
@@ -112,6 +111,10 @@ class RS232PHYTX(Module):
                 ).Else(
                     pads.tx.eq(tx_reg[0]),
                     tx_reg.eq(Cat(tx_reg[1:], 0))
+                )
+            ).Elif(tx_busy,
+                If(tx_bitcount == 0,
+                    pads.tx.eq(0)
                 )
             )
         ]
@@ -235,7 +238,7 @@ class UART(Module, AutoCSR, UARTInterface):
             self._rxempty.status.eq(~rx_fifo.source.valid),
             self._rxtx.w.eq(rx_fifo.source.data),
             rx_fifo.source.ready.eq(self.ev.rx.clear | (rx_fifo_rx_we & self._rxtx.we)),
-            # Generate RX IRQ when tx_fifo becomes non-empty
+            # Generate RX IRQ when rx_fifo becomes non-empty
             self.ev.rx.trigger.eq(~rx_fifo.source.valid)
         ]
 
