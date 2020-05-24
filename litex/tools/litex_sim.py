@@ -316,7 +316,6 @@ def main():
     builder_kwargs = builder_argdict(args)
 
     sim_config = SimConfig(default_clk="sys_clk")
-    sim_config.add_module("serial2console", "serial")
 
     # Configuration --------------------------------------------------------------------------------
 
@@ -324,7 +323,9 @@ def main():
     if "cpu_type" in soc_kwargs:
         if soc_kwargs["cpu_type"] in ["mor1kx", "lm32"]:
             cpu_endianness = "big"
-    soc_kwargs["uart_name"] = "sim"
+    if soc_kwargs["uart_name"] == "serial":
+        soc_kwargs["uart_name"] = "sim"
+        sim_config.add_module("serial2console", "serial")
     if args.rom_init:
         soc_kwargs["integrated_rom_init"] = get_mem_data(args.rom_init, cpu_endianness)
     if not args.with_sdram:
