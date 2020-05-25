@@ -85,9 +85,9 @@ proc jtagstream_drain {tap tx chunk_rx max_rx} {
         lassign [jtagstream_poll $tap "" $chunk_rx] rxi readable writable
         append rx $rxi
     }
-    if {!$writable} {
-        echo "write overflow"
-    }
+    #if {!$writable} {
+    #    echo "write overflow"
+    #}
     return $rx
 }
 
@@ -140,4 +140,5 @@ proc jtagstream_serve {tap port} {
             "jtagstream_serve $_CHIPNAME.tap {:d}".format(port),
             "exit",
         ])
-        subprocess.call(["openocd", "-f", self.config, "-f", "stream.cfg", "-c", script])
+        config = self.find_config()
+        subprocess.call(["openocd", "-f", config, "-f", "stream.cfg", "-c", script])
