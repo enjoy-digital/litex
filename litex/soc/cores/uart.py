@@ -99,7 +99,8 @@ class RS232PHYTX(Module):
             If(self.sink.valid & ~tx_busy & ~self.sink.ready,
                 tx_reg.eq(self.sink.data),
                 tx_bitcount.eq(0),
-                tx_busy.eq(1)
+                tx_busy.eq(1),
+                pads.tx.eq(0)
             ).Elif(uart_clk_txen & tx_busy,
                 tx_bitcount.eq(tx_bitcount + 1),
                 If(tx_bitcount == 8,
@@ -112,17 +113,13 @@ class RS232PHYTX(Module):
                     pads.tx.eq(tx_reg[0]),
                     tx_reg.eq(Cat(tx_reg[1:], 0))
                 )
-            ).Elif(tx_busy,
-                If(tx_bitcount == 0,
-                    pads.tx.eq(0)
-                )
             )
         ]
         self.sync += [
                 If(tx_busy,
                     Cat(phase_accumulator_tx, uart_clk_txen).eq(phase_accumulator_tx + tuning_word)
                 ).Else(
-                    Cat(phase_accumulator_tx, uart_clk_txen).eq(0)
+                    Cat(phase_accumulator_tx, uart_clk_txen).eq(tuning_word)
                 )
         ]
 
