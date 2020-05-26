@@ -773,13 +773,19 @@ class SoC(Module):
 
     def add_cpu(self, name="vexriscv", variant="standard", cls=None, reset_address=None):
         if name not in cpu.CPUS.keys():
-            self.logger.error("{} CPU {}, supporteds: {}".format(
+            self.logger.error("{} CPU {}, supporteds: {}.".format(
                 colorer(name),
                 colorer("not supported", color="red"),
                 colorer(", ".join(cpu.CPUS.keys()))))
             raise
         # Add CPU
         cpu_cls = cls if cls is not None else cpu.CPUS[name]
+        if variant not in cpu_cls.variants:
+            self.logger.error("{} CPU variant {}, supporteds: {}.".format(
+                colorer(variant),
+                colorer("not supported", color="red"),
+                colorer(", ".join(cpu_cls.variants))))
+            raise
         self.submodules.cpu = cpu_cls(self.platform, variant)
         # Update SoC with CPU constraints
         for n, (origin, size) in enumerate(self.cpu.io_regions.items()):

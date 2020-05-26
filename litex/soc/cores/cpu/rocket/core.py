@@ -67,6 +67,7 @@ AXI_DATA_WIDTHS = {
 class RocketRV64(CPU):
     name                 = "rocket"
     human_name           = "RocketRV64[imac]"
+    variants             = CPU_VARIANTS
     data_width           = 64
     endianness           = "little"
     gcc_triple           = CPU_GCC_TRIPLE_RISCV64
@@ -93,8 +94,6 @@ class RocketRV64(CPU):
         return flags
 
     def __init__(self, platform, variant="standard"):
-        assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
-
         self.platform  = platform
         self.variant   = variant
 

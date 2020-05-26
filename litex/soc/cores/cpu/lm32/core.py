@@ -19,6 +19,7 @@ CPU_VARIANTS = ["minimal", "lite", "standard"]
 class LM32(CPU):
     name                 = "lm32"
     human_name           = "LM32"
+    variants             = CPU_VARIANTS
     data_width           = 32
     endianness           = "big"
     gcc_triple           = "lm32-elf"
@@ -36,7 +37,6 @@ class LM32(CPU):
         return flags
 
     def __init__(self, platform, variant="standard"):
-        assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()

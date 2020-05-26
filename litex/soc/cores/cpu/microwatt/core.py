@@ -17,6 +17,7 @@ CPU_VARIANTS = ["standard", "standard+ghdl"]
 class Microwatt(CPU):
     name                 = "microwatt"
     human_name           = "Microwatt"
+    variants             = CPU_VARIANTS
     data_width           = 64
     endianness           = "little"
     gcc_triple           = ("powerpc64le-linux", "powerpc64le-linux-gnu")
@@ -44,7 +45,6 @@ class Microwatt(CPU):
         return flags
 
     def __init__(self, platform, variant="standard"):
-        assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()

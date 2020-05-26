@@ -48,6 +48,7 @@ GCC_FLAGS = {
 class BlackParrotRV64(CPU):
     name                 = "blackparrot"
     human_name           = "BlackParrotRV64[ia]"
+    variants             = CPU_VARIANTS
     data_width           = 64
     endianness           = "little"
     gcc_triple           = CPU_GCC_TRIPLE_RISCV64
@@ -73,8 +74,6 @@ class BlackParrotRV64(CPU):
         return flags
 
     def __init__(self, platform, variant="standard"):
-        assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
-
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
@@ -108,7 +107,7 @@ class BlackParrotRV64(CPU):
             )
 
            # add verilog sources
-        try:  
+        try:
             os.environ["BP"]
             os.environ["LITEX"]
             self.add_sources(platform, variant)
@@ -145,14 +144,14 @@ class BlackParrotRV64(CPU):
                     a = os.popen('echo '+ str(dir_))
                     dir_start = a.read()
                     vdir = dir_start[:-1] + line[s2:-1]
-                    platform.add_verilog_include_path(vdir)  
+                    platform.add_verilog_include_path(vdir)
                 elif (temp[0]=='$') :
                     s2 = line.find('/')
                     dir_ = line[0:s2]
                     a = os.popen('echo '+ str(dir_))
                     dir_start = a.read()
                     vdir = dir_start[:-1]+ line[s2:-1]
-                    platform.add_source(vdir, "systemverilog") 
+                    platform.add_source(vdir, "systemverilog")
                 elif (temp[0] == '/'):
                     assert("No support for absolute path for now")
 

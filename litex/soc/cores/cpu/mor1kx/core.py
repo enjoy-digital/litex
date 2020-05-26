@@ -18,6 +18,7 @@ CPU_VARIANTS = ["standard", "linux"]
 class MOR1KX(CPU):
     name                 = "mor1kx"
     human_name           = "MOR1KX"
+    variants             = CPU_VARIANTS
     data_width           = 32
     endianness           = "big"
     gcc_triple           = "or1k-elf"
@@ -65,7 +66,6 @@ class MOR1KX(CPU):
         return {"nmi": 0}
 
     def __init__(self, platform, variant="standard"):
-        assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()

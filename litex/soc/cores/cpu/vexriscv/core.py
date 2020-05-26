@@ -81,6 +81,7 @@ class VexRiscvTimer(Module, AutoCSR):
 class VexRiscv(CPU, AutoCSR):
     name                 = "vexriscv"
     human_name           = "VexRiscv"
+    variants             = CPU_VARIANTS
     data_width           = 32
     endianness           = "little"
     gcc_triple           = CPU_GCC_TRIPLE_RISCV32
@@ -104,7 +105,6 @@ class VexRiscv(CPU, AutoCSR):
         return flags
 
     def __init__(self, platform, variant="standard"):
-        assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
         self.platform         = platform
         self.variant          = variant
         self.external_variant = None

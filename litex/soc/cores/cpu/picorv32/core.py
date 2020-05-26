@@ -34,6 +34,7 @@ GCC_FLAGS = {
 class PicoRV32(CPU):
     name                 = "picorv32"
     human_name           = "PicoRV32"
+    variants             = CPU_VARIANTS
     data_width           = 32
     endianness           = "little"
     gcc_triple           = CPU_GCC_TRIPLE_RISCV64
@@ -57,7 +58,6 @@ class PicoRV32(CPU):
         }
 
     def __init__(self, platform, variant="standard"):
-        assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
         self.platform     = platform
         self.variant      = variant
         self.trap         = Signal()
