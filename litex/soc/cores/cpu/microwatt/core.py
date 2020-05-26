@@ -11,7 +11,7 @@ from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU
 
 
-CPU_VARIANTS = ["standard"]
+CPU_VARIANTS = ["standard", "standard+ghdl"]
 
 
 class Microwatt(CPU):
@@ -94,7 +94,7 @@ class Microwatt(CPU):
         )
 
         # add vhdl sources
-        self.add_sources(platform)
+        self.add_sources(platform, use_ghdl_yosys_plugin="ghdl" in self.variant)
 
     def set_reset_address(self, reset_address):
         assert not hasattr(self, "reset_address")

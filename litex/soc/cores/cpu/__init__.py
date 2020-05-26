@@ -97,7 +97,7 @@ CPU_VARIANTS = {
     "linuxd" :    [],
     "linuxq" :    [],
 }
-CPU_VARIANTS_EXTENSIONS = ["debug", "no-dsp"]
+CPU_VARIANTS_EXTENSIONS = ["debug", "no-dsp", "ghdl"]
 
 class InvalidCPUVariantError(ValueError):
     def __init__(self, variant):
