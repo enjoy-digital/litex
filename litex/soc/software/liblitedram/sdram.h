@@ -2,7 +2,7 @@
 #define __SDRAM_H
 
 #include <generated/csr.h>
-#include "spd.h"
+#include "i2c.h"
 
 void sdrsw(void);
 void sdrhw(void);
