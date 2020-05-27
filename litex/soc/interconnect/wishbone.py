@@ -213,8 +213,7 @@ class Crossbar(Module):
 class DownConverter(Module):
     """DownConverter
 
-    This module splits Wishbone accesses from a master interface to a smaller
-    slave interface.
+    This module splits Wishbone accesses from a master interface to a smaller slave interface.
 
     Writes:
         Writes from master are splitted N writes to the slave. Access is acked when the last
@@ -227,30 +226,20 @@ class DownConverter(Module):
     """
     def __init__(self, master, slave):
         dw_from = len(master.dat_r)
-        dw_to = len(slave.dat_w)
-        ratio = dw_from//dw_to
+        dw_to   = len(slave.dat_w)
+        ratio   = dw_from//dw_to
 
         # # #
 
-        read = Signal()
-        write = Signal()
-
         counter = Signal(max=ratio)
-        counter_reset = Signal()
-        counter_ce = Signal()
-        self.sync += \
-            If(counter_reset,
-                counter.eq(0)
-            ).Elif(counter_ce,
-                counter.eq(counter + 1)
-            )
-        counter_done = Signal()
-        self.comb += counter_done.eq(counter == ratio-1)
 
-        # Main FSM
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        # Control Path
+        fsm = FSM(reset_state="IDLE")
+        fsm = ResetInserter()(fsm)
+        self.submodules.fsm = fsm
+        self.comb += fsm.reset.eq(~master.cyc)
         fsm.act("IDLE",
-            counter_reset.eq(1),
+            NextValue(counter, 0),
             If(master.stb & master.cyc,
                 If(master.we,
                     NextState("WRITE")
@@ -260,65 +249,49 @@ class DownConverter(Module):
             )
         )
         fsm.act("WRITE",
-            write.eq(1),
+            slave.adr.eq(Cat(counter, master.adr)),
             slave.we.eq(1),
             slave.cyc.eq(1),
             If(master.stb & master.cyc,
                 slave.stb.eq(1),
                 If(slave.ack,
-                    counter_ce.eq(1),
-                    If(counter_done,
+                    NextValue(counter, counter + 1),
+                    If(counter == (ratio - 1),
                         master.ack.eq(1),
                         NextState("IDLE")
                     )
                 )
-            ).Elif(~master.cyc,
-                NextState("IDLE")
             )
         )
         fsm.act("READ",
-            read.eq(1),
+            slave.adr.eq(Cat(counter, master.adr)),
             slave.cyc.eq(1),
             If(master.stb & master.cyc,
                 slave.stb.eq(1),
                 If(slave.ack,
-                    counter_ce.eq(1),
-                    If(counter_done,
+                    NextValue(counter, counter + 1),
+                    If(counter == (ratio - 1),
                         master.ack.eq(1),
                         NextState("IDLE")
                     )
                 )
-            ).Elif(~master.cyc,
-                NextState("IDLE")
             )
         )
 
-        # Address
-        self.comb += [
-            If(counter_done,
-                slave.cti.eq(7) # indicate end of burst
-            ).Else(
-                slave.cti.eq(2)
-            ),
-            slave.adr.eq(Cat(counter, master.adr))
-        ]
-
-        # Datapath
+        # Write Datapath
         cases = {}
         for i in range(ratio):
             cases[i] = [
-                slave.sel.eq(master.sel[i*dw_to//8:(i+1)*dw_to]),
-                slave.dat_w.eq(master.dat_w[i*dw_to:(i+1)*dw_to])
+                slave.sel.eq(master.sel[i*dw_to//8:]),
+                slave.dat_w.eq(master.dat_w[i*dw_to:]),
             ]
         self.comb += Case(counter, cases)
 
+        # Read Datapath
+        dat_r = Signal(dw_from, reset_less=True)
+        self.comb += master.dat_r.eq(Cat(dat_r[dw_to:], slave.dat_r))
+        self.sync += If(slave.ack, dat_r.eq(master.dat_r))
 
-        cached_data = Signal(dw_from, reset_less=True)
-        self.comb += master.dat_r.eq(Cat(cached_data[dw_to:], slave.dat_r))
-        self.sync += \
-            If(read & counter_ce,
-                cached_data.eq(master.dat_r)
-            )
 
 class Converter(Module):
     """Converter
