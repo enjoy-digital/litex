@@ -1,5 +1,5 @@
 # This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2018 Tim 'mithro' Ansell <me@mith.ro>
 # License: BSD
 
@@ -10,11 +10,12 @@ from migen import *
 from migen.genlib import roundrobin
 from migen.genlib.record import *
 from migen.genlib.misc import split, displacer, chooser, WaitTimer
-from migen.genlib.fsm import FSM, NextState
 
-from litex.soc.interconnect import csr
 from litex.build.generic_platform import *
 
+from litex.soc.interconnect import csr
+
+# Wishbone Definition ------------------------------------------------------------------------------
 
 _layout = [
     ("adr",    "adr_width", DIR_M_TO_S),
@@ -97,6 +98,26 @@ class Interface(Record):
                     r.append(sig.eq(pad))
         return r
 
+# Wishbone Timeout ---------------------------------------------------------------------------------
+
+class Timeout(Module):
+    def __init__(self, master, cycles):
+        self.error = Signal()
+
+        # # #
+
+        timer = WaitTimer(int(cycles))
+        self.submodules += timer
+        self.comb += [
+            timer.wait.eq(master.stb & master.cyc & ~master.ack),
+            If(timer.done,
+                master.dat_r.eq((2**len(master.dat_w))-1),
+                master.ack.eq(1),
+                self.error.eq(1)
+            )
+        ]
+
+# Wishbone Interconnect ----------------------------------------------------------------------------
 
 class InterconnectPointToPoint(Module):
     def __init__(self, master, slave):
@@ -170,24 +191,6 @@ class Decoder(Module):
         self.comb += master.dat_r.eq(reduce(or_, masked))
 
 
-class Timeout(Module):
-    def __init__(self, master, cycles):
-        self.error = Signal()
-
-        # # #
-
-        timer = WaitTimer(int(cycles))
-        self.submodules += timer
-        self.comb += [
-            timer.wait.eq(master.stb & master.cyc & ~master.ack),
-            If(timer.done,
-                master.dat_r.eq((2**len(master.dat_w))-1),
-                master.ack.eq(1),
-                self.error.eq(1)
-            )
-        ]
-
-
 class InterconnectShared(Module):
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
         shared = Interface()
@@ -209,6 +212,7 @@ class Crossbar(Module):
         for column, bus in zip(zip(*access), busses):
             self.submodules += Arbiter(column, bus)
 
+# Wishbone Data Width Converter --------------------------------------------------------------------
 
 class DownConverter(Module):
     """DownConverter
@@ -316,6 +320,49 @@ class Converter(Module):
         else:
             self.comb += master.connect(slave)
 
+# Wishbone SRAM ------------------------------------------------------------------------------------
+
+class SRAM(Module):
+    def __init__(self, mem_or_size, read_only=None, init=None, bus=None):
+        if bus is None:
+            bus = Interface()
+        self.bus = bus
+        bus_data_width = len(self.bus.dat_r)
+        if isinstance(mem_or_size, Memory):
+            assert(mem_or_size.width <= bus_data_width)
+            self.mem = mem_or_size
+        else:
+            self.mem = Memory(bus_data_width, mem_or_size//(bus_data_width//8), init=init)
+        if read_only is None:
+            if hasattr(self.mem, "bus_read_only"):
+                read_only = self.mem.bus_read_only
+            else:
+                read_only = False
+
+        ###
+
+        # memory
+        port = self.mem.get_port(write_capable=not read_only, we_granularity=8,
+            mode=READ_FIRST if read_only else WRITE_FIRST)
+        self.specials += self.mem, port
+        # generate write enable signal
+        if not read_only:
+            self.comb += [port.we[i].eq(self.bus.cyc & self.bus.stb & self.bus.we & self.bus.sel[i])
+                for i in range(bus_data_width//8)]
+        # address and data
+        self.comb += [
+            port.adr.eq(self.bus.adr[:len(port.adr)]),
+            self.bus.dat_r.eq(port.dat_r)
+        ]
+        if not read_only:
+            self.comb += port.dat_w.eq(self.bus.dat_w),
+        # generate ack
+        self.sync += [
+            self.bus.ack.eq(0),
+            If(self.bus.cyc & self.bus.stb & ~self.bus.ack, self.bus.ack.eq(1))
+        ]
+
+# Wishbone Cache -----------------------------------------------------------------------------------
 
 class Cache(Module):
     """Cache
@@ -471,47 +518,7 @@ class Cache(Module):
             )
         )
 
-
-class SRAM(Module):
-    def __init__(self, mem_or_size, read_only=None, init=None, bus=None):
-        if bus is None:
-            bus = Interface()
-        self.bus = bus
-        bus_data_width = len(self.bus.dat_r)
-        if isinstance(mem_or_size, Memory):
-            assert(mem_or_size.width <= bus_data_width)
-            self.mem = mem_or_size
-        else:
-            self.mem = Memory(bus_data_width, mem_or_size//(bus_data_width//8), init=init)
-        if read_only is None:
-            if hasattr(self.mem, "bus_read_only"):
-                read_only = self.mem.bus_read_only
-            else:
-                read_only = False
-
-        ###
-
-        # memory
-        port = self.mem.get_port(write_capable=not read_only, we_granularity=8,
-            mode=READ_FIRST if read_only else WRITE_FIRST)
-        self.specials += self.mem, port
-        # generate write enable signal
-        if not read_only:
-            self.comb += [port.we[i].eq(self.bus.cyc & self.bus.stb & self.bus.we & self.bus.sel[i])
-                for i in range(bus_data_width//8)]
-        # address and data
-        self.comb += [
-            port.adr.eq(self.bus.adr[:len(port.adr)]),
-            self.bus.dat_r.eq(port.dat_r)
-        ]
-        if not read_only:
-            self.comb += port.dat_w.eq(self.bus.dat_w),
-        # generate ack
-        self.sync += [
-            self.bus.ack.eq(0),
-            If(self.bus.cyc & self.bus.stb & ~self.bus.ack, self.bus.ack.eq(1))
-        ]
-
+# Wishbone CSRBank ---------------------------------------------------------------------------------
 
 class CSRBank(csr.GenericBank):
     def __init__(self, description, bus=None):
