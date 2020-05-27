@@ -19,7 +19,6 @@ from litex.soc.cores.spi import SPIMaster
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import csr_bus
 from litex.soc.interconnect import wishbone
-from litex.soc.interconnect import wishbone2csr
 from litex.soc.interconnect import axi
 
 logging.basicConfig(level=logging.INFO)
@@ -760,10 +759,10 @@ class SoC(Module):
         self.add_ram(name, origin, size, contents, mode="r")
 
     def add_csr_bridge(self, origin):
-        self.submodules.csr_bridge = wishbone2csr.WB2CSR(
+        self.submodules.csr_bridge = wishbone.Wishbone2CSR(
             bus_csr       = csr_bus.Interface(
-                address_width = self.csr.address_width,
-                data_width    = self.csr.data_width))
+            address_width = self.csr.address_width,
+            data_width    = self.csr.data_width))
         csr_size   = 2**(self.csr.address_width + 2)
         csr_region = SoCRegion(origin=origin, size=csr_size, cached=False)
         self.bus.add_slave("csr", self.csr_bridge.wishbone, csr_region)
