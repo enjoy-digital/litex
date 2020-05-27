@@ -10,14 +10,18 @@ import pty
 import threading
 import telnetlib
 import time
+import argparse
 
 from litex.build.openocd import OpenOCD
 
-telnet_port = 20000
+parser = argparse.ArgumentParser(description="LiteX JTAG UART bridge tool")
+parser.add_argument("--config", default="openocd_xc7_ft2232.cfg", help="OpenOCD config file")
+parser.add_argument("--telnet-port", default="20000", help="OpenOCD telnet port")
+args = parser.parse_args()
 
 def openocd_jtag_telnet():
-	prog = OpenOCD("openocd_xc7_ft2232.cfg")
-	prog.stream(telnet_port)
+	prog = OpenOCD(args.config)
+	prog.stream(int(args.telnet_port))
 
 m, s = pty.openpty()
 print("LiteX JTAG UART created: {}".format(os.ttyname(s)))
@@ -27,7 +31,7 @@ openocd_jtag_telnet_thread.start()
 
 time.sleep(1)
 
-t = telnetlib.Telnet("localhost", telnet_port)
+t = telnetlib.Telnet("localhost", int(args.telnet_port))
 
 def pty2telnet(m):
     while True:
