@@ -20,6 +20,7 @@ from litex.soc.integration.builder import *
 from litex.soc.integration.soc import *
 
 from litedram import modules as litedram_modules
+from litedram.modules import parse_spd_hexdump
 from litedram.common import *
 from litedram.phy.model import SDRAMPHYModel
 
@@ -305,7 +306,7 @@ def main():
     parser.add_argument("--sdram-module",         default="MT48LC16M16",   help="Select SDRAM chip")
     parser.add_argument("--sdram-data-width",     default=32,              help="Set SDRAM chip data width")
     parser.add_argument("--sdram-init",           default=None,            help="SDRAM init file")
-    parser.add_argument("--sdram-from-spd-data",  default=None,            help="Generate SDRAM module based on SPD data from file")
+    parser.add_argument("--sdram-from-spd-dump",  default=None,            help="Generate SDRAM module based on data from SPD EEPROM dump")
     parser.add_argument("--sdram-verbosity",      default=0,               help="Set SDRAM checker verbosity")
     parser.add_argument("--with-ethernet",        action="store_true",     help="Enable Ethernet support")
     parser.add_argument("--with-etherbone",       action="store_true",     help="Enable Etherbone support")
@@ -345,9 +346,8 @@ def main():
         soc_kwargs["sdram_module"]             = args.sdram_module
         soc_kwargs["sdram_data_width"]         = int(args.sdram_data_width)
         soc_kwargs["sdram_verbosity"]          = int(args.sdram_verbosity)
-        if args.sdram_from_spd_data:
-            with open(args.sdram_from_spd_data, "rb") as f:
-                soc_kwargs["sdram_spd_data"] = [int(b) for b in f.read()]
+        if args.sdram_from_spd_dump:
+            soc_kwargs["sdram_spd_data"] = parse_spd_hexdump(args.sdram_from_spd_dump)
 
     if args.with_ethernet or args.with_etherbone:
         sim_config.add_module("ethernet", "eth", args={"interface": "tap0", "ip": args.remote_ip})
