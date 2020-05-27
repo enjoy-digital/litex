@@ -7,6 +7,7 @@
 
 	[> Added Features
 	------------------
+	- JTAG UART with uart_name=jtag_uart (validated on Spartan6, 7-Series, Ultrascale(+)).
 	- Add CV32E40P CPU support (ex RI5CY).
 	- Use InterconnectPointToPoint when 1 master,1 slave and no address translation.
 	- Improve WishboneBridge.
