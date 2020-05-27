@@ -14,6 +14,7 @@ from litex.build.sim import SimPlatform
 from litex.build.sim.config import SimConfig
 
 from litex.soc.integration.common import *
+from litex.soc.integration.soc_core import *
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
 from litex.soc.integration.soc import *
@@ -150,11 +151,11 @@ def get_sdram_phy_settings(memtype, data_width, clk_freq):
 
 # Simulation SoC -----------------------------------------------------------------------------------
 
-class SimSoC(SoCSDRAM):
+class SimSoC(SoCCore):
     mem_map = {
         "ethmac": 0xb0000000,
     }
-    mem_map.update(SoCSDRAM.mem_map)
+    mem_map.update(SoCCore.mem_map)
 
     def __init__(self,
         with_sdram            = False,
@@ -172,17 +173,18 @@ class SimSoC(SoCSDRAM):
         platform     = Platform()
         sys_clk_freq = int(1e6)
 
-        # SoCSDRAM ---------------------------------------------------------------------------------
-        SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
-            ident               = "LiteX Simulation", ident_version=True,
-            l2_reverse          = False,
+        # SoCCore ----------------------------------------------------------------------------------
+        SoCCore.__init__(self, platform, clk_freq=sys_clk_freq,
+            ident         = "LiteX Simulation",
+            ident_version = True,
             **kwargs)
+
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = CRG(platform.request("sys_clk"))
 
         # SDRAM ------------------------------------------------------------------------------------
         if with_sdram:
-            sdram_clk_freq   = int(100e6) # FIXME: use 100MHz timings
+            sdram_clk_freq = int(100e6) # FIXME: use 100MHz timings
             if sdram_spd_data is None:
                 sdram_module_cls = getattr(litedram_modules, sdram_module)
                 sdram_rate       = "1:{}".format(sdram_module_nphases[sdram_module_cls.memtype])
@@ -199,10 +201,15 @@ class SimSoC(SoCSDRAM):
                 clk_freq  = sdram_clk_freq,
                 verbosity = sdram_verbosity,
                 init      = sdram_init)
-            self.register_sdram(
-                self.sdrphy,
-                sdram_module.geom_settings,
-                sdram_module.timing_settings)
+            self.add_sdram("sdram",
+                phy                     = self.sdrphy,
+                module                  = sdram_module,
+                origin                  = self.mem_map["main_ram"],
+                size                    = kwargs.get("max_sdram_size", 0x40000000),
+                l2_cache_size           = kwargs.get("l2_size", 8192),
+                l2_cache_min_data_width = kwargs.get("min_l2_data_width", 128),
+                l2_cache_reverse        = False
+            )
             # Reduce memtest size for simulation speedup
             self.add_constant("MEMTEST_DATA_SIZE", 8*1024)
             self.add_constant("MEMTEST_ADDR_SIZE", 8*1024)
