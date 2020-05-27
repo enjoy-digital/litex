@@ -173,7 +173,8 @@ class SimVerilatorToolchain:
     def build(self, platform, fragment, build_dir="build", build_name="sim",
             serial="console", build=True, run=True, threads=1,
             verbose=True, sim_config=None, coverage=False, opt_level="O0",
-            trace=False, trace_fst=False, trace_start=0, trace_end=-1):
+            trace=False, trace_fst=False, trace_start=0, trace_end=-1,
+            regular_comb=False):
 
         # create build directory
         os.makedirs(build_dir, exist_ok=True)
@@ -187,7 +188,7 @@ class SimVerilatorToolchain:
 
             # generate top module
             top_output = platform.get_verilog(fragment,
-                name=build_name, dummy_signal=False, regular_comb=False, blocking_assign=True)
+                name=build_name, dummy_signal=False, regular_comb=regular_comb, blocking_assign=True)
             named_sc, named_pc = platform.resolve_signals(top_output.ns)
             top_file = build_name + ".v"
             top_output.write(top_file)
