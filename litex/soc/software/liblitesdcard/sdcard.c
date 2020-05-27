@@ -90,13 +90,13 @@ void sdclk_set_clk(unsigned int freq) {
 	while(!(sdclk_status_read() & CLKGEN_STATUS_LOCKED));
 }
 
-#elif CSR_MMCM_DRP_WRITE_ADDR
+#elif CSR_SDCLK_MMCM_DRP_WRITE_ADDR
 
 static void sdclk_mmcm_write(unsigned int adr, unsigned int data) {
-	mmcm_drp_adr_write(adr);
-	mmcm_drp_dat_w_write(data);
-	mmcm_drp_write_write(1);
-	while(!mmcm_drp_drdy_read());
+	sdclk_mmcm_drp_adr_write(adr);
+	sdclk_mmcm_drp_dat_w_write(data);
+	sdclk_mmcm_drp_write_write(1);
+	while(!sdclk_mmcm_drp_drdy_read());
 }
 
 
