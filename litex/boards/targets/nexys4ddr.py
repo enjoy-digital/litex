@@ -21,14 +21,6 @@ from litedram.phy import s7ddrphy
 
 from liteeth.phy.rmii import LiteEthPHYRMII
 
-from litesdcard.phy import SDPHY
-from litesdcard.clocker import SDClockerS7
-from litesdcard.core import SDCore
-from litesdcard.bist import BISTBlockGenerator, BISTBlockChecker
-from litesdcard.data import SDDataReader, SDDataWriter
-from litex.soc.cores.timer import Timer
-from litex.soc.interconnect import wishbone
-
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(Module):
@@ -99,56 +91,6 @@ class BaseSoC(SoCCore):
             sys_clk_freq = sys_clk_freq)
         self.add_csr("leds")
 
-    def add_sdcard(self, memory_size=512, memory_width=32):
-        sdcard_pads = self.platform.request("sdcard")
-        if hasattr(sdcard_pads, "rst"):
-            self.comb += sdcard_pads.rst.eq(0)
-        self.submodules.sdclk = SDClockerS7(sys_clk_freq=self.sys_clk_freq)
-        self.submodules.sdphy = SDPHY(sdcard_pads, self.platform.device)
-        self.submodules.sdcore = SDCore(self.sdphy, csr_data_width=self.csr_data_width)
-        self.submodules.sdtimer = Timer()
-        self.add_csr("sdclk")
-        self.add_csr("sdphy")
-        self.add_csr("sdcore")
-        self.add_csr("sdtimer")
-
-        # SD Card data reader
-
-        sdread_mem = Memory(memory_width, memory_size//4)
-        sdread_sram = FullMemoryWE()(wishbone.SRAM(sdread_mem, read_only=True))
-        self.submodules += sdread_sram
-
-        self.add_wb_slave(self.mem_map["sdread"], sdread_sram.bus, memory_size)
-        self.add_memory_region("sdread", self.mem_map["sdread"], memory_size)
-
-        sdread_port = sdread_sram.mem.get_port(write_capable=True);
-        self.specials += sdread_port
-        self.submodules.sddatareader = SDDataReader(port=sdread_port, endianness=self.cpu.endianness)
-        self.add_csr("sddatareader")
-        self.comb += self.sdcore.source.connect(self.sddatareader.sink),
-
-        # SD Card data writer
-
-        sdwrite_mem = Memory(memory_width, memory_size//4)
-        sdwrite_sram = FullMemoryWE()(wishbone.SRAM(sdwrite_mem, read_only=False))
-        self.submodules += sdwrite_sram
-
-        self.add_wb_slave(self.mem_map["sdwrite"], sdwrite_sram.bus, memory_size)
-        self.add_memory_region("sdwrite", self.mem_map["sdwrite"], memory_size)
-
-        sdwrite_port = sdwrite_sram.mem.get_port(write_capable=False, async_read=True, mode=READ_FIRST);
-        self.specials += sdwrite_port
-        self.submodules.sddatawriter = SDDataWriter(port=sdwrite_port, endianness=self.cpu.endianness)
-        self.add_csr("sddatawriter")
-        self.comb += self.sddatawriter.source.connect(self.sdcore.sink),
-
-        self.platform.add_period_constraint(self.sdclk.cd_sd.clk, period_ns(self.sys_clk_freq))
-        self.platform.add_period_constraint(self.sdclk.cd_sd_fb.clk, period_ns(self.sys_clk_freq))
-        self.platform.add_false_path_constraints(
-            self.crg.cd_sys.clk,
-            self.sdclk.cd_sd.clk,
-            self.sdclk.cd_sd_fb.clk)
-
 # Build --------------------------------------------------------------------------------------------
 
 def main():
@@ -166,11 +108,10 @@ def main():
     soc = BaseSoC(sys_clk_freq=int(float(args.sys_clk_freq)),
         with_ethernet=args.with_ethernet,
         **soc_sdram_argdict(args))
+    assert not (args.with_spi_sdcard and args.with_spi_sdcard)
     if args.with_spi_sdcard:
         soc.add_spi_sdcard()
     if args.with_sdcard:
-        if args.with_spi_sdcard:
-            raise ValueError("'--with-spi-sdcard' and '--with-sdcard' are mutually exclusive!")
         soc.add_sdcard()
     builder = Builder(soc, **builder_argdict(args))
     builder.build(run=args.build)
