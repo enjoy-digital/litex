@@ -17,6 +17,7 @@ CPU_VARIANTS = ["standard"]
 class SERV(CPU):
     name                 = "serv"
     human_name           = "SERV"
+    variants             = CPU_VARIANTS
     data_width           = 32
     endianness           = "little"
     gcc_triple           = CPU_GCC_TRIPLE_RISCV32
