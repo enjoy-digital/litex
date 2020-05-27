@@ -22,6 +22,7 @@ from migen.util.misc import xdir
 from litex.soc.interconnect import csr
 from litex.soc.interconnect.csr import CSRStorage
 
+# CSR Definition -----------------------------------------------------------------------------------
 
 _layout = [
     ("adr",  "address_width", DIR_M_TO_S),
@@ -61,6 +62,7 @@ class Interface(Record):
         yield
         return (yield self.dat_r)
 
+# CSR Interconnect ---------------------------------------------------------------------------------
 
 class Interconnect(Module):
     def __init__(self, master, slaves):
@@ -79,6 +81,7 @@ class InterconnectShared(Module):
             self.comb += masters[i].dat_r.eq(intermediate.dat_r)
         self.comb += intermediate.connect(*slaves)
 
+# CSR SRAM -----------------------------------------------------------------------------------------
 
 class SRAM(Module):
     def __init__(self, mem_or_size, address, read_only=None, init=None, bus=None, paging=0x800, soc_bus_data_width=32):
@@ -163,6 +166,7 @@ class SRAM(Module):
         else:
             return [self._page]
 
+# CSR Bank -----------------------------------------------------------------------------------------
 
 class CSRBank(csr.GenericBank):
     def __init__(self, description, address=0, bus=None, paging=0x800, soc_bus_data_width=32):
