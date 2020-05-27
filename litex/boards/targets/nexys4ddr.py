@@ -47,10 +47,6 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    mem_map = {**SoCCore.mem_map, **{
-            "sdread":       0x80002000, # len: 0x200
-            "sdwrite":      0x80002200, # len: 0x200
-        }}
     def __init__(self, sys_clk_freq=int(75e6), with_ethernet=False, **kwargs):
         platform = nexys4ddr.Platform()
 

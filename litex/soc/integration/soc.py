@@ -1243,14 +1243,16 @@ class LiteXSoC(SoC):
         self.add_csr(name)
 
     # Add SDCard -----------------------------------------------------------------------------------
-    def add_sdcard(self, name="sdcard", memory_size=512, memory_width=32):
+    def add_sdcard(self, name="sdcard"):
         assert self.platform.device[:3] == "xc7" # FIXME: Only supports 7-Series for now.
+
         # Imports
         from litesdcard.phy import SDPHY
         from litesdcard.clocker import SDClockerS7
         from litesdcard.core import SDCore
         from litesdcard.bist import BISTBlockGenerator, BISTBlockChecker
         from litesdcard.data import SDDataReader, SDDataWriter
+
         # Core
         sdcard_pads = self.platform.request(name)
         if hasattr(sdcard_pads, "rst"):
@@ -1265,26 +1267,22 @@ class LiteXSoC(SoC):
         self.add_csr("sdtimer")
 
         # SD Card Data Reader
-        sdread_mem  = Memory(memory_width, memory_size//4)
+        sdread_mem  = Memory(32, 512//4)
         sdread_sram = FullMemoryWE()(wishbone.SRAM(sdread_mem, read_only=True))
         self.submodules += sdread_sram
-
-        self.add_wb_slave(self.mem_map["sdread"], sdread_sram.bus, memory_size)
-        self.add_memory_region("sdread", self.mem_map["sdread"], memory_size)
+        self.bus.add_slave("sdread", sdread_sram.bus, SoCRegion(size=512, cached=False))
 
         sdread_port = sdread_sram.mem.get_port(write_capable=True);
         self.specials += sdread_port
         self.submodules.sddatareader = SDDataReader(port=sdread_port, endianness=self.cpu.endianness)
         self.add_csr("sddatareader")
-        self.comb += self.sdcore.source.connect(self.sddatareader.sink),
+        self.comb += self.sdcore.source.connect(self.sddatareader.sink)
 
         # SD Card Data Writer
-        sdwrite_mem  = Memory(memory_width, memory_size//4)
+        sdwrite_mem  = Memory(32, 512//4)
         sdwrite_sram = FullMemoryWE()(wishbone.SRAM(sdwrite_mem, read_only=False))
         self.submodules += sdwrite_sram
-
-        self.add_wb_slave(self.mem_map["sdwrite"], sdwrite_sram.bus, memory_size)
-        self.add_memory_region("sdwrite", self.mem_map["sdwrite"], memory_size)
+        self.bus.add_slave("sdwrite", sdwrite_sram.bus, SoCRegion(size=512, cached=False))
 
         sdwrite_port = sdwrite_sram.mem.get_port(write_capable=False, async_read=True, mode=READ_FIRST);
         self.specials += sdwrite_port
@@ -1292,6 +1290,7 @@ class LiteXSoC(SoC):
         self.add_csr("sddatawriter")
         self.comb += self.sddatawriter.source.connect(self.sdcore.sink),
 
+        # Timing constraints
         self.platform.add_period_constraint(self.sdclk.cd_sd.clk,    1e9/self.sys_clk_freq)
         self.platform.add_period_constraint(self.sdclk.cd_sd_fb.clk, 1e9/self.sys_clk_freq)
         self.platform.add_false_path_constraints(
