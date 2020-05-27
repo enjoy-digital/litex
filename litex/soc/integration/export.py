@@ -190,7 +190,7 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_onl
     return r
 
 
-def get_csr_header(regions, constants, with_access_functions=True):
+def get_csr_header(regions, constants, csr_base=None, with_access_functions=True):
     alignment = constants.get("CONFIG_CSR_ALIGNMENT", 32)
     r = generated_banner("//")
     if with_access_functions: # FIXME
@@ -202,7 +202,7 @@ def get_csr_header(regions, constants, with_access_functions=True):
         r += "#ifndef CSR_ACCESSORS_DEFINED\n"
         r += "#include <hw/common.h>\n"
         r += "#endif /* ! CSR_ACCESSORS_DEFINED */\n"
-    csr_base = regions[next(iter(regions))].origin
+    csr_base = csr_base if csr_base is not None else regions[next(iter(regions))].origin
     r += "#ifndef CSR_BASE\n"
     r += "#define CSR_BASE {}L\n".format(hex(csr_base))
     r += "#endif\n"
