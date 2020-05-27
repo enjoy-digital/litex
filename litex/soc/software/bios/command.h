@@ -15,6 +15,7 @@
 #define MEM_CMDS		3
 #define BOOT_CMDS		3
 #define SPIFLASH_CMDS	4
+#define I2C_CMDS		4
 #define LITEDRAM_CMDS	4
 #define LITEETH_CMDS	5
 #define LITESDCARD_CMDS	7
