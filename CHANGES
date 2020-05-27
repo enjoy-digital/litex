@@ -24,7 +24,10 @@
 	[> API changes/Deprecation
 	--------------------------
 	- Add --build --load arguments to targets.
-
+	- Deprecate soc.interconnect.wishbone.UpConverter (will be rewritten if useful).
+	- Deprecate soc.interconnect.wishbone.CSRBank (Does not seem to be used by anyone).
+	- Move soc.interconnect.wishbone2csr.WB2CSR to soc.interconnect.wishbone.Wishbone2CSR.
+	- Move soc.interconnect.wishbonebridge.WishboneStreamingBridge to soc.cores.uart.Stream2Wishbone.
 
 [> 2020.04, released April 28th, 2020
 -------------------------------------
