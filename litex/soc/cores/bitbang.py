@@ -30,8 +30,9 @@ class I2CMaster(Module, AutoCSR):
             CSRField("sda", size=1, offset=0)],
             name="r")
 
-        # # #
+        self.connect(pads)
 
+    def connect(self, pads):
         _sda_w  = Signal()
         _sda_oe = Signal()
         _sda_r  = Signal()
@@ -43,6 +44,32 @@ class I2CMaster(Module, AutoCSR):
         ]
         self.specials += Tristate(pads.sda, _sda_w, _sda_oe, _sda_r)
 
+
+class I2CMasterSim(I2CMaster):
+    """I2C Master Bit-Banging for Verilator simulation
+
+    Uses separate pads for SDA IN/OUT as Verilator does not support tristate pins well.
+    """
+    pads_layout = [("scl", 1), ("sda_in", 1), ("sda_out", 1)]
+
+    def connect(self, pads):
+        _sda_w  = Signal()
+        _sda_oe = Signal()
+        _sda_r  = Signal()
+        _sda_in = Signal()
+
+        self.comb += [
+            pads.scl.eq(self._w.fields.scl),
+            _sda_oe.eq( self._w.fields.oe),
+            _sda_w.eq(  self._w.fields.sda),
+            If(_sda_oe,
+                pads.sda_out.eq(_sda_w),
+                self._r.fields.sda.eq(_sda_w),
+            ).Else(
+                pads.sda_out.eq(1),
+                self._r.fields.sda.eq(pads.sda_in),
+            )
+        ]
 
 # SPI Master Bit-Banging ---------------------------------------------------------------------------
 
