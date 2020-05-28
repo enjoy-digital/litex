@@ -18,6 +18,7 @@ from litex.soc.integration.soc_core import *
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
 from litex.soc.integration.soc import *
+from litex.soc.cores.bitbang import *
 
 from litedram import modules as litedram_modules
 from litedram.modules import parse_spd_hexdump
@@ -62,6 +63,11 @@ _io = [
         Subsignal("sink_valid",   Pins(1)),
         Subsignal("sink_ready",   Pins(1)),
         Subsignal("sink_data",    Pins(8)),
+    ),
+    ("i2c", 0,
+        Subsignal("scl",     Pins(1)),
+        Subsignal("sda_out", Pins(1)),
+        Subsignal("sda_in",  Pins(1)),
     ),
 ]
 
@@ -170,6 +176,7 @@ class SimSoC(SoCCore):
         sdram_data_width      = 32,
         sdram_spd_data        = None,
         sdram_verbosity       = 0,
+        with_i2c              = False,
         **kwargs):
         platform     = Platform()
         sys_clk_freq = int(1e6)
@@ -293,6 +300,12 @@ class SimSoC(SoCCore):
                 csr_csv      = "analyzer.csv")
             self.add_csr("analyzer")
 
+        # I2C --------------------------------------------------------------------------------------
+        if with_i2c:
+            pads = platform.request("i2c", 0)
+            self.submodules.i2c = I2CMasterSim(pads)
+            self.add_csr("i2c")
+
 # Build --------------------------------------------------------------------------------------------
 
 def main():
@@ -313,6 +326,7 @@ def main():
     parser.add_argument("--local-ip",             default="192.168.1.50",  help="Local IP address of SoC (default=192.168.1.50)")
     parser.add_argument("--remote-ip",            default="192.168.1.100", help="Remote IP address of TFTP server (default=192.168.1.100)")
     parser.add_argument("--with-analyzer",        action="store_true",     help="Enable Analyzer support")
+    parser.add_argument("--with-i2c",             action="store_true",     help="Enable I2C support")
     parser.add_argument("--trace",                action="store_true",     help="Enable Tracing")
     parser.add_argument("--trace-fst",            action="store_true",     help="Enable FST tracing (default=VCD)")
     parser.add_argument("--trace-start",          default=0,               help="Cycle to start tracing")
@@ -352,12 +366,16 @@ def main():
     if args.with_ethernet or args.with_etherbone:
         sim_config.add_module("ethernet", "eth", args={"interface": "tap0", "ip": args.remote_ip})
 
+    if args.with_i2c:
+        sim_config.add_module("spdeeprom", "i2c")
+
     # SoC ------------------------------------------------------------------------------------------
     soc = SimSoC(
         with_sdram     = args.with_sdram,
         with_ethernet  = args.with_ethernet,
         with_etherbone = args.with_etherbone,
         with_analyzer  = args.with_analyzer,
+        with_i2c       = args.with_i2c,
         sdram_init     = [] if args.sdram_init is None else get_mem_data(args.sdram_init, cpu_endianness),
         **soc_kwargs)
     if args.ram_init is not None:
