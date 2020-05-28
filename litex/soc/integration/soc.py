@@ -644,7 +644,6 @@ class SoCController(Module, AutoCSR):
 class SoC(Module):
     mem_map = {}
     def __init__(self, platform, sys_clk_freq,
-
         bus_standard         = "wishbone",
         bus_data_width       = 32,
         bus_address_width    = 32,
@@ -856,6 +855,9 @@ class SoC(Module):
                 colorer(self.bus_interconnect.__class__.__name__),
                 colorer(len(self.bus.masters)),
                 colorer(len(self.bus.slaves))))
+        self.add_constant("CONFIG_BUS_STANDARD",      self.bus.standard.upper())
+        self.add_constant("CONFIG_BUS_DATA_WIDTH",    self.bus.data_width)
+        self.add_constant("CONFIG_BUS_ADDRESS_WIDTH", self.bus.address_width)
 
         # SoC CSR Interconnect ---------------------------------------------------------------------
         self.submodules.csr_bankarray = csr_bus.CSRBankArray(self,

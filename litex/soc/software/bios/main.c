@@ -103,13 +103,20 @@ int main(int i, char **c)
 	printf("\e[1mCPU\e[0m:       %s @ %dMHz\n",
 		CONFIG_CPU_HUMAN_NAME,
 		CONFIG_CLOCK_FREQUENCY/1000000);
-	printf("\e[1mROM\e[0m:       %dKB\n", ROM_SIZE/1024);
-	printf("\e[1mSRAM\e[0m:      %dKB\n", SRAM_SIZE/1024);
+	printf("\e[1mBUS\e[0m:       %s %d-bit / %dGiB\n",
+		CONFIG_BUS_STANDARD,
+		CONFIG_BUS_DATA_WIDTH,
+		(1 << (CONFIG_BUS_ADDRESS_WIDTH - 30)));
+	printf("\e[1mCSR\e[0m:       %d-bit / %d-bit aligned\n",
+		CONFIG_CSR_DATA_WIDTH,
+		CONFIG_CSR_ALIGNMENT);
+	printf("\e[1mROM\e[0m:       %dKiB\n", ROM_SIZE/1024);
+	printf("\e[1mSRAM\e[0m:      %dKiB\n", SRAM_SIZE/1024);
 #ifdef CONFIG_L2_SIZE
-	printf("\e[1mL2\e[0m:        %dKB\n", CONFIG_L2_SIZE/1024);
+	printf("\e[1mL2\e[0m:        %dKiB\n", CONFIG_L2_SIZE/1024);
 #endif
 #ifdef MAIN_RAM_SIZE
-	printf("\e[1mMAIN-RAM\e[0m:  %dKB\n", MAIN_RAM_SIZE/1024);
+	printf("\e[1mMAIN-RAM\e[0m:  %dKiB\n", MAIN_RAM_SIZE/1024);
 #endif
 	printf("\n");
 
