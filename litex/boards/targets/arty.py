@@ -79,21 +79,16 @@ class BaseSoC(SoCCore):
                 l2_cache_reverse        = True
             )
 
-        # Ethernet ---------------------------------------------------------------------------------
-        if with_ethernet:
+        # Ethernet / Etherbone ---------------------------------------------------------------------
+        if with_ethernet or with_etherbone:
             self.submodules.ethphy = LiteEthPHYMII(
                 clock_pads = self.platform.request("eth_clocks"),
                 pads       = self.platform.request("eth"))
             self.add_csr("ethphy")
-            self.add_ethernet(phy=self.ethphy)
-
-        # Etherbone --------------------------------------------------------------------------------
-        if with_etherbone:
-            self.submodules.ethphy = LiteEthPHYMII(
-                clock_pads = self.platform.request("eth_clocks"),
-                pads       = self.platform.request("eth"))
-            self.add_csr("ethphy")
-            self.add_etherbone(phy=self.ethphy)
+            if with_ethernet:
+                self.add_ethernet(phy=self.ethphy)
+            if with_etherbone:
+                self.add_etherbone(phy=self.ethphy)
 
         # Leds -------------------------------------------------------------------------------------
         self.submodules.leds = LedChaser(
