@@ -37,12 +37,12 @@
 
 /* CSR subregisters (a.k.a. "simple CSRs") are embedded inside native CPU-word
  * aligned locations: */
-#if CONFIG_CSR_DATA_WIDTH == 32
-#define MMPTR(a) (*((volatile unsigned int *)(a)))
-#elif CONFIG_CSR_DATA_WIDTH == 8
-#define MMPTR(a) (*((volatile unsigned char *)(a)))
+#if CONFIG_CSR_ALIGNMENT == 32
+#define MMPTR(a) (*((volatile uint32_t *)(a)))
+#elif CONFIG_CSR_ALIGNMENT == 64
+#define MMPTR(a) (*((volatile uint64_t *)(a)))
 #else
-#error Unsupported CSR data width
+#error Unsupported CSR alignment
 #endif
 
 static inline void csr_write_simple(unsigned long v, unsigned long a)
