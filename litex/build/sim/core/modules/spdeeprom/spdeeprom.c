@@ -123,7 +123,7 @@ static int spdeeprom_new(void **sess, char *args)
     spd_file = fopen(spd_filename, "r");
   }
   if (spd_filename != NULL && spd_file != NULL) {
-    DBG("[spdeeprom] loading EEPROM contents from file: %s\n", spd_filename);
+    printf("[spdeeprom] loading EEPROM contents from file: %s\n", spd_filename);
     spdeeprom_from_file(s, spd_file);
     fclose(spd_file);
   } else {  // fill in the memory with some data
@@ -389,7 +389,7 @@ static void spdeeprom_from_file(struct session_s *s, FILE *file)
     if ((n_read = getline(&line, &bufsize, file)) < 0) {
       break;
     }
-    byte = strtoul(line, &c, 0);
+    byte = strtoul(line, &c, 16);
     if (c == line) {
       DBG("[spdeeprom] Incorrect value at line %d\n", i);
     } else {
