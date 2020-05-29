@@ -97,8 +97,8 @@ def main():
     soc_sdram_args(parser)
     parser.add_argument("--sys-clk-freq",  default=75e6,          help="System clock frequency (default=75MHz)")
     parser.add_argument("--with-ethernet", action="store_true",   help="Enable Ethernet support")
-    parser.add_argument("--with-spi-sdcard", action="store_true", help="enable SPI-mode SDCard support")
-    parser.add_argument("--with-sdcard", action="store_true",     help="enable SDCard support")
+    parser.add_argument("--with-spi-sdcard", action="store_true", help="Enable SPI-mode SDCard support")
+    parser.add_argument("--with-sdcard", action="store_true",     help="Enable SDCard support")
     args = parser.parse_args()
 
     soc = BaseSoC(sys_clk_freq=int(float(args.sys_clk_freq)),
