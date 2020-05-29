@@ -1274,7 +1274,7 @@ class LiteXSoC(SoC):
         else:
             self.submodules.sdclk = SDClockerS7(sys_clk_freq=self.sys_clk_freq)
         self.submodules.sdphy   = SDPHY(sdcard_pads, self.platform.device)
-        self.submodules.sdcore  = SDCore(self.sdphy, csr_data_width=self.csr_data_width)
+        self.submodules.sdcore  = SDCore(self.sdphy)
         self.submodules.sdtimer = Timer()
         self.add_csr("sdclk")
         self.add_csr("sdphy")
