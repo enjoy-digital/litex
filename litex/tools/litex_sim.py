@@ -177,6 +177,7 @@ class SimSoC(SoCCore):
         sdram_spd_data        = None,
         sdram_verbosity       = 0,
         with_i2c              = False,
+        with_sdcard           = False,
         **kwargs):
         platform     = Platform()
         sys_clk_freq = int(1e6)
@@ -306,6 +307,10 @@ class SimSoC(SoCCore):
             self.submodules.i2c = I2CMasterSim(pads)
             self.add_csr("i2c")
 
+        # SDCard -----------------------------------------------------------------------------------
+        if with_sdcard:
+            self.add_sdcard("sdcard", with_emulator=True)
+
 # Build --------------------------------------------------------------------------------------------
 
 def main():
@@ -327,6 +332,7 @@ def main():
     parser.add_argument("--remote-ip",            default="192.168.1.100", help="Remote IP address of TFTP server (default=192.168.1.100)")
     parser.add_argument("--with-analyzer",        action="store_true",     help="Enable Analyzer support")
     parser.add_argument("--with-i2c",             action="store_true",     help="Enable I2C support")
+    parser.add_argument("--with-sdcard",          action="store_true",     help="Enable SDCard support")
     parser.add_argument("--trace",                action="store_true",     help="Enable Tracing")
     parser.add_argument("--trace-fst",            action="store_true",     help="Enable FST tracing (default=VCD)")
     parser.add_argument("--trace-start",          default=0,               help="Cycle to start tracing")
@@ -376,6 +382,7 @@ def main():
         with_etherbone = args.with_etherbone,
         with_analyzer  = args.with_analyzer,
         with_i2c       = args.with_i2c,
+        with_sdcard    = args.with_sdcard,
         sdram_init     = [] if args.sdram_init is None else get_mem_data(args.sdram_init, cpu_endianness),
         **soc_kwargs)
     if args.ram_init is not None:

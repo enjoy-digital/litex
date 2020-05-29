@@ -1245,9 +1245,7 @@ class LiteXSoC(SoC):
         self.add_csr(name)
 
     # Add SDCard -----------------------------------------------------------------------------------
-    def add_sdcard(self, name="sdcard"):
-        assert self.platform.device[:3] == "xc7" # FIXME: Only supports 7-Series for now.
-
+    def add_sdcard(self, name="sdcard", with_emulator=False):
         # Imports
         from litesdcard.phy import SDPHY
         from litesdcard.clocker import SDClockerS7
@@ -1255,11 +1253,26 @@ class LiteXSoC(SoC):
         from litesdcard.bist import BISTBlockGenerator, BISTBlockChecker
         from litesdcard.data import SDDataReader, SDDataWriter
 
+        # Emulator
+        if with_emulator:
+            from litesdcard.emulator import SDEmulator, _sdemulator_pads
+            sdcard_pads = _sdemulator_pads()
+            self.submodules.sdemulator = SDEmulator(self.platform, sdcard_pads)
+            self.add_csr("sdemulator")
+        else:
+            assert self.platform.device[:3] == "xc7" # FIXME: Only supports 7-Series for now.
+            sdcard_pads = self.platform.request(name)
+
         # Core
-        sdcard_pads = self.platform.request(name)
         if hasattr(sdcard_pads, "rst"):
             self.comb += sdcard_pads.rst.eq(0)
-        self.submodules.sdclk   = SDClockerS7(sys_clk_freq=self.sys_clk_freq)
+        if with_emulator:
+            self.clock_domains.cd_sd    = ClockDomain("sd")
+            self.clock_domains.cd_sd_fb = ClockDomain("sd_fb")
+            self.comb += self.cd_sd.clk.eq(ClockSignal())
+            self.comb += self.cd_sd_fb.clk.eq(ClockSignal())
+        else:
+            self.submodules.sdclk = SDClockerS7(sys_clk_freq=self.sys_clk_freq)
         self.submodules.sdphy   = SDPHY(sdcard_pads, self.platform.device)
         self.submodules.sdcore  = SDCore(self.sdphy, csr_data_width=self.csr_data_width)
         self.submodules.sdtimer = Timer()
@@ -1293,9 +1306,10 @@ class LiteXSoC(SoC):
         self.comb += self.sddatawriter.source.connect(self.sdcore.sink),
 
         # Timing constraints
-        self.platform.add_period_constraint(self.sdclk.cd_sd.clk,    1e9/self.sys_clk_freq)
-        self.platform.add_period_constraint(self.sdclk.cd_sd_fb.clk, 1e9/self.sys_clk_freq)
-        self.platform.add_false_path_constraints(
-            self.crg.cd_sys.clk,
-            self.sdclk.cd_sd.clk,
-            self.sdclk.cd_sd_fb.clk)
+        if not with_emulator:
+            self.platform.add_period_constraint(self.sdclk.cd_sd.clk,    1e9/self.sys_clk_freq)
+            self.platform.add_period_constraint(self.sdclk.cd_sd_fb.clk, 1e9/self.sys_clk_freq)
+            self.platform.add_false_path_constraints(
+                self.crg.cd_sys.clk,
+                self.sdclk.cd_sd.clk,
+                self.sdclk.cd_sd_fb.clk)
