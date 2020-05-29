@@ -3,8 +3,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 
 #include <generated/csr.h>
+#include <generated/mem.h>
 #include <i2c.h>
 
 #include <liblitedram/sdram.h>
@@ -272,6 +274,19 @@ static void spdread_handler(int nb_params, char **params)
 	}
 
 	dump_bytes((unsigned int *) buf, len, 0);
+
+#ifdef SPD_BASE
+	{
+		int cmp_result;
+		cmp_result = memcmp(buf, (void *) SPD_BASE, SPD_SIZE);
+		if (cmp_result == 0) {
+			printf("Memory conents matches the data used for gateware generation\n");
+		} else {
+			printf("\nWARNING: memory differs from the data used during gateware generation:\n");
+			dump_bytes((void *) SPD_BASE, SPD_SIZE, 0);
+		}
+	}
+#endif
 }
 define_command(spdread, spdread_handler, "Read SPD EEPROM", LITEDRAM_CMDS);
 #endif
