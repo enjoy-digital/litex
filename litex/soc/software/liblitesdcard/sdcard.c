@@ -723,47 +723,7 @@ int sdcard_init(void) {
 	return 0;
 }
 
-void hexdump(volatile const char *buf, size_t len)
-{
-    enum {
-        BYTES_PER_ROW = 16,
-        BYTES_PER_GROUP = 4,
-        ADDR_COL_1 = 1,
-        HEX_COL_1 = ADDR_COL_1 + 7,
-        CHAR_COL_1 = HEX_COL_1 + 3 * BYTES_PER_ROW
-                     + (BYTES_PER_ROW/BYTES_PER_GROUP) + 1,
-    };
-
-    int i;
-    unsigned char c;
-    int printable = 0;
-    unsigned column, hex_column, char_column;
-    char cstr[] = ".";
-
-    // Erase line
-    printf("\033[2K");
-
-    for(i = 0; i < len; ++i) {
-        c = cstr[0] = buf[i];
-        printable = (c >= ' ' && c < 127);
-        column = i % BYTES_PER_ROW;
-        hex_column = HEX_COL_1 + 3 * column + (column/BYTES_PER_GROUP);
-        char_column = CHAR_COL_1 + column + (column/BYTES_PER_GROUP);
-
-        if(column == 0) {
-            printf("\033[33m%04x\033[0m", i);
-        }
-
-        printf("\033[%uG""%02x"
-               "\033[%uG""%s""%s"
-               "\033[0m%s",
-               hex_column, c,
-               char_column, printable ? "\033[40m" : "\033[90m",
-               printable ? cstr : ".",
-               (column == BYTES_PER_ROW - 1 || i == len - 1) ? "\n" : "");
-    }
-    printf("\n");
-}
+extern void dump_bytes(unsigned int *ptr, int count, unsigned long addr);
 
 void sdcard_test_write(unsigned block, const char *data)
 {
@@ -778,7 +738,7 @@ void sdcard_test_write(unsigned block, const char *data)
 	}
 
 	printf("SDWRITE:\n");
-	hexdump(SDWRITE, BLOCK_SIZE);
+	dump_bytes((unsigned int *)SDWRITE_BASE, BLOCK_SIZE, (unsigned long) SDWRITE_BASE);
 
 	sdcard_set_block_count(1);
 	sdcard_sddatawriter_start();
@@ -798,7 +758,7 @@ void sdcard_test_read(unsigned block)
 		SDREAD[i] = 0;
 	}
 	printf("SDREAD (0x%08x) before read:\n", SDREAD);
-	hexdump(SDREAD, BLOCK_SIZE);
+	dump_bytes((unsigned int *)SDREAD_BASE, BLOCK_SIZE, (unsigned long) SDREAD_BASE);
 
 	sdcard_set_block_count(1);
 	sdcard_sddatareader_start();
@@ -806,7 +766,7 @@ void sdcard_test_read(unsigned block)
 	sdcard_sddatareader_wait();
 
 	printf("SDREAD (0x%08x) after read:\n", SDREAD);
-	hexdump(SDREAD, BLOCK_SIZE);
+	dump_bytes((unsigned int *)SDREAD_BASE, BLOCK_SIZE, (unsigned long) SDREAD_BASE);
 #else
 	printf("Reader core not present\n");
 #endif
