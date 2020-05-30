@@ -33,7 +33,7 @@
 #define BLOCK_SIZE 512
 #define NO_RESPONSE 0xFF
 
-#define SDCARD_RESPONSE_SIZE 5
+#define SDCARD_RESPONSE_SIZE 4
 unsigned int sdcard_response[SDCARD_RESPONSE_SIZE];
 
 volatile char *SDREAD = (char*)(SDREAD_BASE);
@@ -223,51 +223,12 @@ int sdcard_wait_data_done(void) {
 }
 
 int sdcard_wait_response(void) {
-        int i, j;
-	int status;
+	int i, status;
 
 	status = sdcard_wait_cmd_done();
 
-#if CONFIG_CSR_DATA_WIDTH == 8
-	unsigned int r;
-
-	// LSB is located at RESPONSE_ADDR + (RESPONSE_SIZE - 1) * 4
-	int offset;
-	for(i = 0; i < SDCARD_RESPONSE_SIZE; i++) {
-	  r = 0;
-	  for(j = 0; j < 4; j++) {
-	    // SD card response consists of 17 bytes
-	    // scattered accross 5 32-bit CSRs.
-	    // In a configuration with CONFIG_CSR_DATA_WIDTH == 8
-	    // this means we need to do 17 32-bit reads
-	    // and group bytes as described below:
-	    // sdcard_response | CSR_SDCORE_RESPONSE_ADDR
-	    // offset          | offsets
-	    // ------------------------------------------
-	    //               0 | [           0 ]
-	    //               1 | [  4  8 12 16 ]
-	    //               2 | [ 20 23 28 32 ]
-	    //               3 | [ 36 40 44 48 ]
-	    //               4 | [ 52 56 60 64 ]
-	    // ------------------------------------------
-	    //                   |          ^  |
-	    //                   +--- u32 --|--+
-	    //                              LS byte
-	    offset = 4 * ((CSR_SDCORE_RESPONSE_SIZE - 1) - j - i * 4);
-	    if(offset >= 0) {
-              // Read response and move it by 'j' bytes
-	      r |= ((csr_read_simple(CSR_SDCORE_RESPONSE_ADDR + offset) & 0xFF) << (j * 8));
-	    }
-	  }
-	  sdcard_response[(SDCARD_RESPONSE_SIZE - 1) - i] = r;  // NOTE: this is "backwards" but sticking with this because it's compatible with CSR32
-	}
-#else
-	volatile unsigned int *buffer = (unsigned int *)CSR_SDCORE_RESPONSE_ADDR;
-
-	for(i = 0; i < SDCARD_RESPONSE_SIZE; i++) {
-		sdcard_response[i] = buffer[i];
-	}
-#endif
+	csr_rd_buf_uint32(CSR_SDCORE_RESPONSE_ADDR,
+			  sdcard_response, SDCARD_RESPONSE_SIZE);
 
 #ifdef SDCARD_DEBUG
 	for(i = 0; i < SDCARD_RESPONSE_SIZE; i++) {
@@ -537,48 +498,48 @@ void sdcard_decode_cid(void) {
 		"Manufacturer ID: 0x%x\n"
 		"Application ID 0x%x\n"
 		"Product name: %c%c%c%c%c\n",
+			sdcard_response[0],
 			sdcard_response[1],
 			sdcard_response[2],
 			sdcard_response[3],
-			sdcard_response[4],
 
-			(sdcard_response[1] >> 16) & 0xffff,
+			(sdcard_response[0] >> 16) & 0xffff,
 
-			sdcard_response[1] & 0xffff,
+			sdcard_response[0] & 0xffff,
 
-			(sdcard_response[2] >> 24) & 0xff,
-			(sdcard_response[2] >> 16) & 0xff,
-			(sdcard_response[2] >>  8) & 0xff,
-			(sdcard_response[2] >>  0) & 0xff,
-			(sdcard_response[3] >> 24) & 0xff
+			(sdcard_response[1] >> 24) & 0xff,
+			(sdcard_response[1] >> 16) & 0xff,
+			(sdcard_response[1] >>  8) & 0xff,
+			(sdcard_response[1] >>  0) & 0xff,
+			(sdcard_response[2] >> 24) & 0xff
 		);
-	int crc = sdcard_response[4] & 0x000000FF;
-	int month = (sdcard_response[4] & 0x00000F00) >> 8;
-	int year = (sdcard_response[4] & 0x000FF000) >> 12;
-	int psn = ((sdcard_response[4] & 0xFF000000) >> 24) | ((sdcard_response[3] & 0x00FFFFFF) << 8);
+	int crc = sdcard_response[3] & 0x000000FF;
+	int month = (sdcard_response[3] & 0x00000F00) >> 8;
+	int year = (sdcard_response[3] & 0x000FF000) >> 12;
+	int psn = ((sdcard_response[3] & 0xFF000000) >> 24) | ((sdcard_response[2] & 0x00FFFFFF) << 8);
 	printf( "CRC: %02x\n", crc);
 	printf( "Production date(m/yy): %d/%d\n", month, year);
 	printf( "PSN: %08x\n", psn);
-	printf( "OID: %c%c\n", (sdcard_response[1] & 0x00FF0000) >> 16, (sdcard_response[1] & 0x0000FF00) >> 8);
+	printf( "OID: %c%c\n", (sdcard_response[0] & 0x00FF0000) >> 16, (sdcard_response[0] & 0x0000FF00) >> 8);
 }
 
 void sdcard_decode_csd(void) {
 	/* FIXME: only support CSR structure version 2.0 */
 
-	int size = ((sdcard_response[3] & 0xFFFF0000) >> 16) + ((sdcard_response[2] & 0x000000FF) << 16) + 1;
+	int size = ((sdcard_response[2] & 0xFFFF0000) >> 16) + ((sdcard_response[1] & 0x000000FF) << 16) + 1;
 	printf(
 		"CSD Register: 0x%x%08x%08x%08x\n"
 		"Max data transfer rate: %d MB/s\n"
 		"Max read block length: %d bytes\n"
 		"Device size: %d GB\n",
+			sdcard_response[0],
 			sdcard_response[1],
 			sdcard_response[2],
 			sdcard_response[3],
-			sdcard_response[4],
 
-			(sdcard_response[1] >> 24) & 0xff,
+			(sdcard_response[0] >> 24) & 0xff,
 
-			(1 << ((sdcard_response[2] >> 16) & 0xf)),
+			(1 << ((sdcard_response[1] >> 16) & 0xf)),
 
 			size * BLOCK_SIZE / (1024 * 1024)
 	);
@@ -649,13 +610,13 @@ int sdcard_init(void) {
 	sdcard_send_ext_csd();
 #ifdef SDCARD_DEBUG
 	printf("Accepted voltage: ");
-	if(sdcard_response[4] & 0x0)
+	if(sdcard_response[3] & 0x0)
 		printf("Not defined\n");
-	else if(sdcard_response[4] >> 8 & 0x1)
+	else if(sdcard_response[3] >> 8 & 0x1)
 		printf("2.7-3.6V\n");
-	else if(sdcard_response[4] >> 12 & 0x1)
+	else if(sdcard_response[3] >> 12 & 0x1)
 		printf("Reserved\n");
-	else if(sdcard_response[4] >> 16 & 0x1)
+	else if(sdcard_response[3] >> 16 & 0x1)
 		printf("Reserved\n");
 	else
 		printf("Invalid response\n");
@@ -666,7 +627,7 @@ int sdcard_init(void) {
 	for(;;) {
 		sdcard_app_cmd(0);
 		sdcard_app_send_op_cond(1, 0);
-		if (sdcard_response[4] & 0x80000000) {
+		if (sdcard_response[3] & 0x80000000) {
 			break;
 		}
 		busy_wait(1);
@@ -680,7 +641,7 @@ int sdcard_init(void) {
 
 	/* set relative card address */
 	sdcard_set_relative_address();
-	rca = (sdcard_response[4] >> 16) & 0xffff;
+	rca = (sdcard_response[3] >> 16) & 0xffff;
 
 	/* set cid */
 	sdcard_send_cid(rca);
