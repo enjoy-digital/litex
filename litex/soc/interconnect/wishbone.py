@@ -387,7 +387,7 @@ class Wishbone2CSR(Module):
         fsm.act("WRITE-READ",
             If(self.wishbone.cyc & self.wishbone.stb,
                 self.csr.adr.eq(self.wishbone.adr),
-                self.csr.we.eq(self.wishbone.we),
+                self.csr.we.eq(self.wishbone.we & (self.wishbone.sel != 0)),
                 NextState("ACK")
             )
         )
