@@ -73,6 +73,13 @@ class TestTargets(unittest.TestCase):
         ])
         self.assertEqual(errors, 0)
 
+    def test_arty_symbiflow(self):
+        from litex.boards.targets.arty_symbiflow import BaseSoC
+        errors = build_test([
+            BaseSoC(**test_kwargs)
+        ])
+        self.assertEqual(errors, 0)
+
     # Kintex-7
     def test_genesys2(self):
         from litex.boards.targets.genesys2 import BaseSoC
@@ -112,21 +119,21 @@ class TestTargets(unittest.TestCase):
     def test_simple(self):
         platforms = []
         # Xilinx
-        platforms += ["minispartan6"]                              # Spartan6
-        platforms += ["arty", "netv2", "nexys4ddr", "nexys_video"] # Artix7
-        platforms += ["kc705", "genesys2"]                         # Kintex7
-        platforms += ["kcu105"]                                    # Kintex Ultrascale
+        platforms += ["minispartan6"]                                                # Spartan6
+        platforms += ["arty", "netv2", "nexys4ddr", "nexys_video", "arty_symbiflow"] # Artix7
+        platforms += ["kc705", "genesys2"]                                           # Kintex7
+        platforms += ["kcu105"]                                                      # Kintex Ultrascale
 
         # Altera/Intel
-        platforms += ["de0nano"]                                   # Cyclone4
+        platforms += ["de0nano"]                                                     # Cyclone4
 
         # Lattice
-        platforms += ["tinyfpga_bx"]                               # iCE40
-        platforms += ["machxo3"]                                   # MachXO3
-        platforms += ["versa_ecp5", "ulx3s"]                       # ECP5
+        platforms += ["tinyfpga_bx"]                                                 # iCE40
+        platforms += ["machxo3"]                                                     # MachXO3
+        platforms += ["versa_ecp5", "ulx3s"]                                         # ECP5
 
         # Microsemi
-        platforms += ["avalanche"]                                 # PolarFire
+        platforms += ["avalanche"]                                                   # PolarFire
 
         for p in platforms:
             with self.subTest(platform=p):
