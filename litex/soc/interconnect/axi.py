@@ -365,6 +365,7 @@ class AXILite2Wishbone(Module):
             wishbone.stb.eq(1),
             wishbone.cyc.eq(1),
             wishbone.adr.eq(_r_addr[wishbone_adr_shift:]),
+            wishbone.sel.eq(2**len(wishbone.sel) - 1),
             If(wishbone.ack,
                 axi_lite.ar.ready.eq(1),
                 NextValue(_data, wishbone.dat_r),
