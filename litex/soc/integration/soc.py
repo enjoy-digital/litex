@@ -1030,6 +1030,26 @@ class LiteXSoC(SoC):
             **kwargs)
         self.csr.add("sdram")
 
+        # Save SPD data to be able to verify it at runtime
+        if hasattr(module, "_spd_data"):
+            # pack the data into words of bus width
+            bytes_per_word = self.bus.data_width // 8
+            mem = [0] * ceil(len(module._spd_data) / bytes_per_word)
+            for i in range(len(mem)):
+                for offset in range(bytes_per_word):
+                    mem[i] <<= 8
+                    if self.cpu.endianness == "little":
+                        offset = bytes_per_word - 1 - offset
+                    spd_byte = i * bytes_per_word + offset
+                    if spd_byte < len(module._spd_data):
+                        mem[i] |= module._spd_data[spd_byte]
+            self.add_rom(
+                name="spd",
+                origin=self.mem_map.get("spd", None),
+                size=len(module._spd_data),
+                contents=mem,
+            )
+
         if not with_soc_interconnect: return
 
         # Compute/Check SDRAM size
