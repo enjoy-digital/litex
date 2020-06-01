@@ -107,9 +107,8 @@ int main(int i, char **c)
 		CONFIG_BUS_STANDARD,
 		CONFIG_BUS_DATA_WIDTH,
 		(1 << (CONFIG_BUS_ADDRESS_WIDTH - 30)));
-	printf("\e[1mCSR\e[0m:       %d-bit data - %d-bit aligned\n",
-		CONFIG_CSR_DATA_WIDTH,
-		CONFIG_CSR_ALIGNMENT);
+	printf("\e[1mCSR\e[0m:       %d-bit data\n",
+		CONFIG_CSR_DATA_WIDTH);
 	printf("\e[1mROM\e[0m:       %dKiB\n", ROM_SIZE/1024);
 	printf("\e[1mSRAM\e[0m:      %dKiB\n", SRAM_SIZE/1024);
 #ifdef CONFIG_L2_SIZE

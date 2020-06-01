@@ -82,7 +82,6 @@ class SoCCore(LiteXSoC):
         integrated_main_ram_init = [],
         # CSR parameters
         csr_data_width           = 8,
-        csr_alignment            = 32,
         csr_address_width        = 14,
         csr_paging               = 0x800,
         # Identifier parameters
@@ -111,7 +110,6 @@ class SoCCore(LiteXSoC):
 
             csr_data_width       = csr_data_width,
             csr_address_width    = csr_address_width,
-            csr_alignment        = csr_alignment,
             csr_paging           = csr_paging,
             csr_reserved_csrs    = self.csr_map,
 

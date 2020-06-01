@@ -437,7 +437,7 @@ class SoCLocHandler(Module):
 class SoCCSRHandler(SoCLocHandler):
     supported_data_width    = [8, 32]
     supported_address_width = [14+i for i in range(4)]
-    supported_alignment     = [32, 64]
+    supported_alignment     = [32]
     supported_paging        = [0x800*2**i for i in range(4)]
 
     # Creation -------------------------------------------------------------------------------------
@@ -504,21 +504,6 @@ class SoCCSRHandler(SoCLocHandler):
             self.add(name, n)
 
         self.logger.info("CSR Handler {}.".format(colorer("created", color="green")))
-
-    # Update CSR Alignment ----------------------------------------------------------------------------
-    def update_alignment(self, alignment):
-        # Check Alignment
-        if alignment not in self.supported_alignment:
-            self.logger.error("Unsupported {}: {} supporteds: {:s}".format(
-                colorer("Alignment", color="red"),
-                colorer(alignment),
-                colorer(", ".join(str(x) for x in self.supported_alignment))))
-            raise
-        self.logger.info("Alignment {} from {}-bit to {}-bit.".format(
-            colorer("updated", color="cyan"),
-            colorer(self.alignment),
-            colorer(alignment)))
-        self.alignment = alignment
 
     # Add Master -----------------------------------------------------------------------------------
     def add_master(self, name=None, master=None):
@@ -652,7 +637,6 @@ class SoC(Module):
 
         csr_data_width       = 32,
         csr_address_width    = 14,
-        csr_alignment        = 32,
         csr_paging           = 0x800,
         csr_reserved_csrs    = {},
 
@@ -692,7 +676,7 @@ class SoC(Module):
         self.submodules.csr = SoCCSRHandler(
             data_width    = csr_data_width,
             address_width = csr_address_width,
-            alignment     = csr_alignment,
+            alignment     = 32,
             paging        = csr_paging,
             reserved_csrs = csr_reserved_csrs,
         )
@@ -791,7 +775,6 @@ class SoC(Module):
         self.mem_map.update(self.cpu.mem_map) # FIXME
         # Add Bus Masters/CSR/IRQs
         if not isinstance(self.cpu, cpu.CPUNone):
-            self.csr.update_alignment(self.cpu.data_width)
             if reset_address is None:
                 reset_address = self.mem_map["rom"]
             self.cpu.set_reset_address(reset_address)

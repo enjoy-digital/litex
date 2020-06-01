@@ -20,30 +20,13 @@
  * (base) address. */
 
 #include <generated/soc.h>
-#if !defined(CONFIG_CSR_ALIGNMENT) || !defined(CONFIG_CSR_DATA_WIDTH)
-#error csr alignment and data-width MUST be set before including this file!
+#if !defined(CONFIG_CSR_DATA_WIDTH)
+#error CSR_DATA_WIDTH MUST be set before including this file!
 #endif
 
-#if CONFIG_CSR_DATA_WIDTH > CONFIG_CSR_ALIGNMENT
-#error invalid CONFIG_CSR_DATA_WIDTH (must not exceed CONFIG_CSR_ALIGNMENT)!
-#endif
-
-/* FIXME: preprocessor can't evaluate 'sizeof()' operator, is there a better
- * way to implement the following assertion?
- * #if sizeof(unsigned long) != CONFIG_CSR_ALIGNMENT/8
- * #error invalid CONFIG_CSR_ALIGNMENT (must match native CPU word size)!
- * #endif
- */
-
-/* CSR subregisters (a.k.a. "simple CSRs") are embedded inside native CPU-word
+/* CSR subregisters (a.k.a. "simple CSRs") are embedded inside uint32_t
  * aligned locations: */
-#if CONFIG_CSR_ALIGNMENT == 32
 #define MMPTR(a) (*((volatile uint32_t *)(a)))
-#elif CONFIG_CSR_ALIGNMENT == 64
-#define MMPTR(a) (*((volatile uint64_t *)(a)))
-#else
-#error Unsupported CSR alignment
-#endif
 
 static inline void csr_write_simple(unsigned long v, unsigned long a)
 {
@@ -61,7 +44,7 @@ static inline unsigned long csr_read_simple(unsigned long a)
 
 /* CSR data width (subreg. width) in bytes, for direct comparson to sizeof() */
 #define CSR_DW_BYTES     (CONFIG_CSR_DATA_WIDTH/8)
-#define CSR_OFFSET_BYTES (CONFIG_CSR_ALIGNMENT/8)
+#define CSR_OFFSET_BYTES 4
 
 #ifndef __ASSEMBLER__
 
