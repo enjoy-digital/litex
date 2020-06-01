@@ -995,7 +995,6 @@ int _write_level_cdly_scan = 1;
 int sdrlevel(void)
 {
 	int module;
-	sdrsw();
 
 	for(module=0; module<SDRAM_PHY_MODULES; module++) {
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
@@ -1033,7 +1032,7 @@ int sdrinit(void)
 	ddrctrl_init_done_write(0);
 	ddrctrl_init_error_write(0);
 #endif
-
+	sdrsw();
 	init_sequence();
 #ifdef CSR_DDRPHY_BASE
 #ifdef DDRPHY_CMD_DELAY
