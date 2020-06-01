@@ -878,12 +878,13 @@ static int memtest_addr(void)
 
 static void memspeed(void)
 {
-	volatile unsigned int *array = (unsigned int *)MAIN_RAM_BASE;
+	volatile unsigned long *array = (unsigned long *)MAIN_RAM_BASE;
 	int i;
 	unsigned int start, end;
 	unsigned long write_speed;
 	unsigned long read_speed;
-	__attribute__((unused)) unsigned int data;
+	__attribute__((unused)) unsigned long data;
+	const unsigned int sz = sizeof(unsigned long);
 
 	/* init timer */
 	timer0_en_write(0);
@@ -894,7 +895,7 @@ static void memspeed(void)
 	/* write speed */
 	timer0_update_value_write(1);
 	start = timer0_value_read();
-	for(i=0;i<MEMTEST_DATA_SIZE/4;i++) {
+	for(i=0;i<MEMTEST_DATA_SIZE/sz;i++) {
 		array[i] = i;
 	}
 	timer0_update_value_write(1);
@@ -911,7 +912,7 @@ static void memspeed(void)
 	timer0_en_write(1);
 	timer0_update_value_write(1);
 	start = timer0_value_read();
-	for(i=0;i<MEMTEST_DATA_SIZE/4;i++) {
+	for(i=0;i<MEMTEST_DATA_SIZE/sz;i++) {
 		data = array[i];
 	}
 	timer0_update_value_write(1);
