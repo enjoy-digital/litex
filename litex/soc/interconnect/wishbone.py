@@ -245,34 +245,19 @@ class DownConverter(Module):
         fsm.act("IDLE",
             NextValue(counter, 0),
             If(master.stb & master.cyc,
-                If(master.we,
-                    NextState("WRITE")
-                ).Else(
-                    NextState("READ")
-                )
+                NextState("CONVERT"),
             )
         )
-        fsm.act("WRITE",
+        fsm.act("CONVERT",
             slave.adr.eq(Cat(counter, master.adr)),
-            slave.we.eq(1),
-            slave.cyc.eq(1),
+            Case(counter, {i: slave.sel.eq(master.sel[i*dw_to//8:]) for i in range(ratio)}),
             If(master.stb & master.cyc,
-                slave.stb.eq(1),
-                If(slave.ack,
-                    NextValue(counter, counter + 1),
-                    If(counter == (ratio - 1),
-                        master.ack.eq(1),
-                        NextState("IDLE")
-                    )
-                )
-            )
-        )
-        fsm.act("READ",
-            slave.adr.eq(Cat(counter, master.adr)),
-            slave.cyc.eq(1),
-            If(master.stb & master.cyc,
-                slave.stb.eq(1),
-                If(slave.ack,
+                If(slave.sel != 0,
+                    slave.we.eq(master.we),
+                    slave.cyc.eq(1),
+                    slave.stb.eq(1),
+                ),
+                If(slave.ack | (slave.sel == 0),
                     NextValue(counter, counter + 1),
                     If(counter == (ratio - 1),
                         master.ack.eq(1),
@@ -283,13 +268,7 @@ class DownConverter(Module):
         )
 
         # Write Datapath
-        cases = {}
-        for i in range(ratio):
-            cases[i] = [
-                slave.sel.eq(master.sel[i*dw_to//8:]),
-                slave.dat_w.eq(master.dat_w[i*dw_to:]),
-            ]
-        self.comb += Case(counter, cases)
+        self.comb += Case(counter, {i: slave.dat_w.eq(master.dat_w[i*dw_to:]) for i in range(ratio)})
 
         # Read Datapath
         dat_r = Signal(dw_from, reset_less=True)
