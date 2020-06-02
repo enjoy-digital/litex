@@ -163,7 +163,13 @@ class SymbiflowToolchain:
 
     def _check_properties(self, platform):
         if not self.symbiflow_device:
-            raise ValueError(f"symbiflow_device is not specified")
+            try:
+                self.symbiflow_device = {
+                    # FIXME: fine for now since only a few devices are supported, do more clever device re-mapping.
+                    "xc7a35ticsg324-1L" : "xc7a50t_test",
+                }[platform.device]
+            except KeyError:
+                raise ValueError(f"symbiflow_device is not specified")
         if not self.bitstream_device:
             try:
                 self.bitstream_device = {
