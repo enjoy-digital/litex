@@ -72,6 +72,9 @@ class BaseSoC(SoCCore):
         platform = arty.Platform(toolchain=toolchain)
 
         # SoCCore ----------------------------------------------------------------------------------
+        if toolchain == "symbiflow":
+            sys_clk_freq=int(60e6)
+
         SoCCore.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
 
         # CRG --------------------------------------------------------------------------------------
