@@ -278,6 +278,7 @@ class GenericPlatform:
         self.verilog_include_paths = []
         self.output_dir = None
         self.finalized = False
+        self.use_default_clk = False
 
     def request(self, *args, **kwargs):
         return self.constraint_manager.request(*args, **kwargs)
@@ -313,6 +314,7 @@ class GenericPlatform:
                     "No default clock and no clock domain defined")
             crg = CRG(self.request(self.default_clk_name))
             fragment += crg.get_fragment()
+            self.user_default_clk = True
 
         self.do_finalize(fragment, *args, **kwargs)
         self.finalized = True
@@ -320,7 +322,7 @@ class GenericPlatform:
     def do_finalize(self, fragment, *args, **kwargs):
         """overload this and e.g. add_platform_command()'s after the modules
         had their say"""
-        if hasattr(self, "default_clk_period"):
+        if self.use_default_clk:
             try:
                 self.add_period_constraint(
                     self.lookup_request(self.default_clk_name),
