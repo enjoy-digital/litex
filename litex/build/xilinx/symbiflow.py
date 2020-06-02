@@ -1,5 +1,5 @@
-# This file is Copyright (c) 2014-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2020 Antmicro <www.antmicro.com>
+# This file is Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # License: BSD
 
 import os
@@ -13,65 +13,17 @@ from migen.fhdl.structure import _Fragment, wrap, Constant
 from migen.fhdl.specials import Instance
 
 from litex.build.generic_platform import *
+from litex.build.xilinx.vivado import _xdc_separator, _format_xdc, _build_xdc
 from litex.build import tools
 
 
 def _unwrap(value):
     return value.value if isinstance(value, Constant) else value
 
-# Constraints (.xdc) -------------------------------------------------------------------------------
-
-def _xdc_separator(msg):
-    r =  "#"*80 + "\n"
-    r += "# " + msg + "\n"
-    r += "#"*80 + "\n"
-    return r
-
-
-def _format_xdc_constraint(c):
-    if isinstance(c, Pins):
-        return "set_property LOC " + c.identifiers[0]
-    elif isinstance(c, IOStandard):
-        return "set_property IOSTANDARD " + c.name
-    elif isinstance(c, Drive):
-        return "set_property DRIVE " + str(c.strength)
-    elif isinstance(c, Misc):
-        return "set_property " + c.misc.replace("=", " ")
-    elif isinstance(c, Inverted):
-        return None
-    else:
-        raise ValueError("unknown constraint {}".format(c))
-
-
-def _format_xdc(signame, resname, *constraints):
-    fmt_c = [_format_xdc_constraint(c) for c in constraints]
-    fmt_r = resname[0] + ":" + str(resname[1])
-    if resname[2] is not None:
-        fmt_r += "." + resname[2]
-    r = "# {}\n".format(fmt_r)
-    for c in fmt_c:
-        if c is not None:
-            r += c + " [get_ports {" + signame + "}]\n"
-    r += "\n"
-    return r
-
-
-def _build_xdc(named_sc):
-    r = ""
-    for sig, pins, others, resname in named_sc:
-        if len(pins) > 1:
-            for i, p in enumerate(pins):
-                r += _format_xdc(sig + "[" + str(i) + "]", resname, Pins(p), *others)
-        elif pins:
-            r += _format_xdc(sig, resname, Pins(pins[0]), *others)
-        else:
-            r += _format_xdc(sig, resname, *others)
-    return r
-
-# PCF ----------------------------------------------------------------------------------------------
+# Constraints (.pcf) -------------------------------------------------------------------------------
 
 def _build_pcf(named_sc):
-    r = ""
+    r = _xdc_separator("Design constraints")
     current_resname = ""
     for sig, pins, _, resname in named_sc:
         if current_resname != resname[0]:
@@ -86,7 +38,7 @@ def _build_pcf(named_sc):
             r += f"set_io {sig} {Pins(pins[0]).identifiers[0]}\n"
     return r
 
-# SDC ----------------------------------------------------------------------------------------------
+# Constraints (.sdc) -------------------------------------------------------------------------------
 
 def _build_sdc(named_pc):
     return "\n".join(named_pc) if named_pc else ""
@@ -287,7 +239,7 @@ class SymbiflowToolchain:
         )
 
         # Generate design constraints
-        tools.write_to_file(build_name + ".xdc", _build_xdc(named_sc))
+        tools.write_to_file(build_name + ".xdc", _build_xdc(named_sc, False))
         tools.write_to_file(build_name + ".pcf", _build_pcf(named_sc))
         tools.write_to_file(build_name + ".sdc", _build_sdc(named_pc))
 

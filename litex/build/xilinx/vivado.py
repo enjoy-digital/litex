@@ -43,7 +43,7 @@ def _format_xdc(signame, resname, *constraints):
     r = "# {}\n".format(fmt_r)
     for c in fmt_c:
         if c is not None:
-            r += c + " [get_ports " + signame + "]\n"
+            r += c + " [get_ports {" + signame + "}]\n"
     r += "\n"
     return r
 
@@ -58,8 +58,8 @@ def _build_xdc(named_sc, named_pc):
             r += _format_xdc(sig, resname, Pins(pins[0]), *others)
         else:
             r += _format_xdc(sig, resname, *others)
-    r += _xdc_separator("Design constraints")
     if named_pc:
+        r += _xdc_separator("Design constraints")
         r += "\n" + "\n\n".join(named_pc)
     return r
 
