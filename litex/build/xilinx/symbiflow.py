@@ -130,7 +130,7 @@ class SymbiflowToolchain:
             except KeyError:
                 raise ValueError(f"Unsupported device: {platform.device}")
 
-    def _generate_makefile(self, platform, build_name):
+    def _generate_makefile(self, platform, build_name, has_sdc):
         Var = _MakefileGenerator.Var
         Rule = _MakefileGenerator.Rule
 
@@ -144,7 +144,7 @@ class SymbiflowToolchain:
             Var("VERILOG", [f for f,language,_ in platform.sources if language in ["verilog", "system_verilog"]]),
             Var("MEM_INIT", [f"{name}" for name in os.listdir() if name.endswith(".init")]),
             Var("PCF", f"{build_name}.pcf"),
-            Var("SDC", f"{build_name}.sdc"),
+            Var("SDC", f"{build_name}.sdc" if has_sdc else ""),
             Var("XDC", f"{build_name}.xdc"),
             Var("ARTIFACTS", [
                     "$(TOP).eblif", "$(TOP).frames", "$(TOP).ioplace", "$(TOP).net",
@@ -158,13 +158,13 @@ class SymbiflowToolchain:
                     "synth -t $(TOP) -v $(VERILOG) -d $(BITSTREAM_DEVICE) -p $(PARTNAME) -x $(XDC) > /dev/null"
                 ]),
             Rule("$(TOP).net", ["$(TOP).eblif", "$(SDC)"], commands=[
-                    "pack -e $(TOP).eblif -d $(DEVICE) -s $(SDC) > /dev/null"
+                    "pack -e $(TOP).eblif -d $(DEVICE) $(if $(SDC),-s $(SDC)) > /dev/null"
                 ]),
             Rule("$(TOP).place", ["$(TOP).net", "$(PCF)"], commands=[
-                    "place -e $(TOP).eblif -d $(DEVICE) -p $(PCF) -n $(TOP).net -P $(PARTNAME) -s $(SDC) > /dev/null"
+                    "place -e $(TOP).eblif -d $(DEVICE) -p $(PCF) -n $(TOP).net -P $(PARTNAME) $(if $(SDC),-s $(SDC)) > /dev/null"
                 ]),
             Rule("$(TOP).route", ["$(TOP).place"], commands=[
-                    "route -e $(TOP).eblif -d $(DEVICE) -s $(SDC) > /dev/null"
+                    "route -e $(TOP).eblif -d $(DEVICE) $(if $(SDC),-s $(SDC)) > /dev/null"
                 ]),
             Rule("$(TOP).fasm", ["$(TOP).route"], commands=[
                     "write_fasm -e $(TOP).eblif -d $(DEVICE) > /dev/null"
@@ -233,15 +233,18 @@ class SymbiflowToolchain:
         v_output.write(v_file)
         platform.add_source(v_file)
 
-        self._generate_makefile(
-            platform   = platform,
-            build_name = build_name
-        )
-
         # Generate design constraints
         tools.write_to_file(build_name + ".xdc", _build_xdc(named_sc, False))
         tools.write_to_file(build_name + ".pcf", _build_pcf(named_sc))
-        tools.write_to_file(build_name + ".sdc", _build_sdc(named_pc))
+        sdc = _build_sdc(named_pc)
+        if sdc:
+            tools.write_to_file(build_name + ".sdc", sdc)
+
+        self._generate_makefile(
+            platform   = platform,
+            build_name = build_name,
+            has_sdc    = bool(sdc)
+        )
 
         if run:
             _run_make()
