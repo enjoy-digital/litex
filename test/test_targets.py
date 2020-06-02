@@ -74,9 +74,9 @@ class TestTargets(unittest.TestCase):
         self.assertEqual(errors, 0)
 
     def test_arty_symbiflow(self):
-        from litex.boards.targets.arty_symbiflow import BaseSoC
+        from litex.boards.targets.arty import BaseSoC
         errors = build_test([
-            BaseSoC(**test_kwargs)
+            BaseSoC(toolchain="symbiflow", **test_kwargs)
         ])
         self.assertEqual(errors, 0)
 

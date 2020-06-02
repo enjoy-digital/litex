@@ -68,7 +68,7 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, toolchain, sys_clk_freq=int(100e6), with_ethernet=False, with_etherbone=False, **kwargs):
+    def __init__(self, toolchain="vivado", sys_clk_freq=int(100e6), with_ethernet=False, with_etherbone=False, **kwargs):
         platform = arty.Platform(toolchain=toolchain)
 
         # SoCCore ----------------------------------------------------------------------------------
