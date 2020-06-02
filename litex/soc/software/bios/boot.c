@@ -233,7 +233,7 @@ int serialboot(void)
 	return 1;
 }
 
-#if defined(CONFIG_CPU_TYPE_VEXRISCV) && defined(CONFIG_CPU_VARIANT_LINUX)
+#if defined(CONFIG_CPU_VARIANT_LINUX)
 
 #ifndef KERNEL_IMAGE_RAM_OFFSET
 #define KERNEL_IMAGE_RAM_OFFSET 0x00000000
@@ -286,6 +286,35 @@ const char *filename, char *buffer)
 
 static const unsigned char macadr[6] = {0x10, 0xe2, 0xd5, 0x00, 0x00, 0x00};
 
+#if defined(CONFIG_CPU_TYPE_MOR1KX) && defined(CONFIG_CPU_VARIANT_LINUX)
+static int try_get_kernel_rootfs_dtb(unsigned int ip, unsigned short tftp_port)
+{
+	unsigned long tftp_dst_addr;
+	int size;
+
+	tftp_dst_addr = MAIN_RAM_BASE + KERNEL_IMAGE_RAM_OFFSET;
+	size = tftp_get_v(ip, tftp_port, "Image", (void *)tftp_dst_addr);
+	if (size <= 0) {
+		printf("Network boot failed\n");
+		return 0;
+	}
+
+	tftp_dst_addr = MAIN_RAM_BASE + DEVICE_TREE_IMAGE_RAM_OFFSET;
+	size = tftp_get_v(ip, tftp_port, "mor1kx.dtb", (void *)tftp_dst_addr);
+	if(size <= 0) {
+		printf("No mor1kx.dtb found\n");
+		return 0;
+	}
+
+	tftp_dst_addr = MAIN_RAM_BASE + ROOTFS_IMAGE_RAM_OFFSET;
+	size = tftp_get_v(ip, tftp_port, "rootfs.cpio", (void *)tftp_dst_addr);
+	if(size <= 0) {
+		printf("No rootfs.cpio found (optional)\n");
+	}
+
+	return 1;
+}
+#endif
 
 #if defined(CONFIG_CPU_TYPE_VEXRISCV) && defined(CONFIG_CPU_VARIANT_LINUX)
 static int try_get_kernel_rootfs_dtb_emulator(unsigned int ip, unsigned short tftp_port)
@@ -351,6 +380,16 @@ void netboot(void)
 	}
 	printf("Unable to download Linux images, falling back to boot.bin\n");
 #endif
+
+#if defined(CONFIG_CPU_TYPE_MOR1KX) && defined(CONFIG_CPU_VARIANT_LINUX)
+	if(try_get_kernel_rootfs_dtb(ip, tftp_port))
+	{
+		boot(MAIN_RAM_BASE + DEVICE_TREE_IMAGE_RAM_OFFSET, 0, 0, MAIN_RAM_BASE);
+		return;
+	}
+	printf("Unable to download Linux images, falling back to boot.bin\n");
+#endif
+
 	tftp_dst_addr = MAIN_RAM_BASE;
 	size = tftp_get_v(ip, tftp_port, "boot.bin", (void *)tftp_dst_addr);
 	if (size <= 0) {
