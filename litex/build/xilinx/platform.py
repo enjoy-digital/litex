@@ -5,7 +5,7 @@
 import os
 
 from litex.build.generic_platform import GenericPlatform
-from litex.build.xilinx import common, vivado, ise
+from litex.build.xilinx import common, vivado, ise, symbiflow
 
 # XilinxPlatform -----------------------------------------------------------------------------------
 
@@ -20,6 +20,8 @@ class XilinxPlatform(GenericPlatform):
             self.toolchain = ise.XilinxISEToolchain()
         elif toolchain == "vivado":
             self.toolchain = vivado.XilinxVivadoToolchain()
+        elif toolchain == "symbiflow":
+            self.toolchain = symbiflow.SymbiflowToolchain()
         else:
             raise ValueError("Unknown toolchain")
 
