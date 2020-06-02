@@ -7,19 +7,20 @@
 
 	[> Added Features
 	------------------
-	- JTAG UART with uart_name=jtag_uart (validated on Spartan6, 7-Series, Ultrascale(+)).
-	- Add CV32E40P CPU support (ex RI5CY).
-	- Use InterconnectPointToPoint when 1 master,1 slave and no address translation.
+	- Properly integrate Minerva CPU.
+	- Add nMigen dependency.
+	- Pluggable CPUs.
+	- BIOS history, autocomplete.
+	- Improve boards's programmers.
+	- Add Microwatt CPU support (with GHDL-Yosys-plugin support for FOSS toolchains).
+	- Speedup Memtest using an LFSR.
+	- Add LedChaser on boards.
 	- Improve WishboneBridge.
 	- Improve Diamond constraints.
-	- Add LedChaser on boards.
-	- Speedup Memtest using an LFSR.
-	- Add Microwatt CPU support (with GHDL-Yosys-plugin support for FOSS toolchains).
-	- Improve boards's programmers.
-	- BIOS history, autocomplete.
-	- Pluggable CPUs.
-	- Add nMigen dependency.
-	- Properly integrate Minerva CPU.
+	- Use InterconnectPointToPoint when 1 master,1 slave and no address translation.
+	- Add CV32E40P CPU support (ex RI5CY).
+	- JTAG UART with uart_name=jtag_uart (validated on Spartan6, 7-Series, Ultrascale(+)).
+	- Add Symbiflow experimental support on Arty.
 
 	[> API changes/Deprecation
 	--------------------------
@@ -28,6 +29,7 @@
 	- Deprecate soc.interconnect.wishbone.CSRBank (Does not seem to be used by anyone).
 	- Move soc.interconnect.wishbone2csr.WB2CSR to soc.interconnect.wishbone.Wishbone2CSR.
 	- Move soc.interconnect.wishbonebridge.WishboneStreamingBridge to soc.cores.uart.Stream2Wishbone.
+	- Rename --gateware-toolchain target parameter to --toolchain.
 
 [> 2020.04, released April 28th, 2020
 -------------------------------------
