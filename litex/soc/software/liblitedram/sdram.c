@@ -996,6 +996,7 @@ int _write_level_cdly_scan = 1;
 int sdrlevel(void)
 {
 	int module;
+	sdrsw();
 
 	for(module=0; module<SDRAM_PHY_MODULES; module++) {
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
