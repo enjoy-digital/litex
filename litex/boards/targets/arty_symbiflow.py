@@ -9,7 +9,7 @@ import argparse
 
 from migen import *
 
-from litex.boards.platforms import arty_symbiflow
+from litex.boards.platforms import arty
 from litex.build.xilinx.symbiflow import symbiflow_build_args, symbiflow_build_argdict
 
 from litex.soc.cores.clock import *
@@ -22,10 +22,10 @@ from litex.soc.cores.led import LedChaser
 
 class _CRG(Module):
     def __init__(self, platform, sys_clk_freq):
-        self.clock_domains.cd_sys       = ClockDomain()
+        self.clock_domains.cd_sys = ClockDomain()
 
         clk100_ibuf = Signal()
-        clk100_buf = Signal()
+        clk100_buf  = Signal()
         self.specials += Instance("IBUF", i_I=platform.request("clk100"), o_O=clk100_ibuf)
         self.specials += Instance("BUFG", i_I=clk100_ibuf, o_O=clk100_buf)
 
@@ -34,15 +34,15 @@ class _CRG(Module):
         pll.register_clkin(clk100_buf, 100e6)
         pll.create_clkout(self.cd_sys, sys_clk_freq)
 
-        platform.add_period_constraint(clk100_buf, 1e9/100e6, 0)
-        platform.add_period_constraint(self.cd_sys.clk, 1e9/sys_clk_freq, 0)
+        platform.add_period_constraint(clk100_buf, 1e9/100e6)
+        platform.add_period_constraint(self.cd_sys.clk, 1e9/sys_clk_freq)
         platform.add_false_path_constraints(clk100_buf, self.cd_sys.clk)
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
     def __init__(self, sys_clk_freq=int(60e6), with_ethernet=False, with_etherbone=False, **kwargs):
-        platform = arty_symbiflow.Platform()
+        platform = arty.Platform(toolchain="symbiflow")
 
         # SoCCore ----------------------------------------------------------------------------------
         SoCCore.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
