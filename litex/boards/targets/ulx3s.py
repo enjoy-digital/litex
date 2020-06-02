@@ -102,7 +102,7 @@ def main():
     parser = argparse.ArgumentParser(description="LiteX SoC on ULX3S")
     parser.add_argument("--build", action="store_true", help="Build bitstream")
     parser.add_argument("--load",  action="store_true", help="Load bitstream")
-    parser.add_argument("--gateware-toolchain", dest="toolchain", default="trellis",   help="Gateware toolchain to use, trellis (default) or diamond")
+    parser.add_argument("--toolchain", default="trellis",   help="Gateware toolchain to use, trellis (default) or diamond")
     parser.add_argument("--device",             dest="device",    default="LFE5U-45F", help="FPGA device, ULX3S can be populated with LFE5U-45F (default) or LFE5U-85F")
     parser.add_argument("--sys-clk-freq", default=50e6,          help="System clock frequency (default=50MHz)")
     parser.add_argument("--sdram-module", default="MT48LC16M16", help="SDRAM module: MT48LC16M16, AS4C32M16 or AS4C16M16 (default=MT48LC16M16)")

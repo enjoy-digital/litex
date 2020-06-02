@@ -119,7 +119,7 @@ def main():
     parser = argparse.ArgumentParser(description="LiteX SoC on Versa ECP5")
     parser.add_argument("--build", action="store_true", help="Build bitstream")
     parser.add_argument("--load",  action="store_true", help="Load bitstream")
-    parser.add_argument("--gateware-toolchain", dest="toolchain", default="trellis", help="Gateware toolchain to use, trellis (default) or diamond")
+    parser.add_argument("--toolchain", default="trellis", help="Gateware toolchain to use, trellis (default) or diamond")
     builder_args(parser)
     soc_sdram_args(parser)
     trellis_args(parser)
