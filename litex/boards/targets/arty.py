@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 # This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2020 Antmicro <www.antmicro.com>
 # License: BSD
 
 import os
@@ -25,7 +26,7 @@ from liteeth.phy.mii import LiteEthPHYMII
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(Module):
-    def __init__(self, platform, sys_clk_freq):
+    def __init__(self, platform, sys_clk_freq, toolchain):
         self.clock_domains.cd_sys       = ClockDomain()
         self.clock_domains.cd_sys2x     = ClockDomain(reset_less=True)
         self.clock_domains.cd_sys4x     = ClockDomain(reset_less=True)
@@ -35,34 +36,49 @@ class _CRG(Module):
 
         # # #
 
-        self.submodules.pll = pll = S7PLL(speedgrade=-1)
-        self.comb += pll.reset.eq(~platform.request("cpu_reset"))
-        pll.register_clkin(platform.request("clk100"), 100e6)
-        pll.create_clkout(self.cd_sys,       sys_clk_freq)
-        pll.create_clkout(self.cd_sys2x,     2*sys_clk_freq)
-        pll.create_clkout(self.cd_sys4x,     4*sys_clk_freq)
-        pll.create_clkout(self.cd_sys4x_dqs, 4*sys_clk_freq, phase=90)
-        pll.create_clkout(self.cd_clk200,    200e6)
-        pll.create_clkout(self.cd_eth,       25e6)
+        if toolchain == "vivado":
+            self.submodules.pll = pll = S7PLL(speedgrade=-1)
+            self.comb += pll.reset.eq(~platform.request("cpu_reset"))
+            pll.register_clkin(platform.request("clk100"), 100e6)
+            pll.create_clkout(self.cd_sys,       sys_clk_freq)
+            pll.create_clkout(self.cd_sys2x,     2*sys_clk_freq)
+            pll.create_clkout(self.cd_sys4x,     4*sys_clk_freq)
+            pll.create_clkout(self.cd_sys4x_dqs, 4*sys_clk_freq, phase=90)
+            pll.create_clkout(self.cd_clk200,    200e6)
+            pll.create_clkout(self.cd_eth,       25e6)
 
-        self.submodules.idelayctrl = S7IDELAYCTRL(self.cd_clk200)
+            self.submodules.idelayctrl = S7IDELAYCTRL(self.cd_clk200)
 
-        self.comb += platform.request("eth_ref_clk").eq(self.cd_eth.clk)
+            self.comb += platform.request("eth_ref_clk").eq(self.cd_eth.clk)
+        elif toolchain == "symbiflow": # FIXME
+            clk100_ibuf = Signal()
+            clk100_buf  = Signal()
+            self.specials += Instance("IBUF", i_I=platform.request("clk100"), o_O=clk100_ibuf)
+            self.specials += Instance("BUFG", i_I=clk100_ibuf, o_O=clk100_buf)
+
+            self.submodules.pll = pll = S7PLL(speedgrade=-1)
+            self.comb += pll.reset.eq(~platform.request("cpu_reset"))
+            pll.register_clkin(clk100_buf, 100e6)
+            pll.create_clkout(self.cd_sys, sys_clk_freq)
+
+            platform.add_period_constraint(clk100_buf, 1e9/100e6)
+            platform.add_period_constraint(self.cd_sys.clk, 1e9/sys_clk_freq)
+            platform.add_false_path_constraints(clk100_buf, self.cd_sys.clk)
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, sys_clk_freq=int(100e6), with_ethernet=False, with_etherbone=False, **kwargs):
-        platform = arty.Platform()
+    def __init__(self, toolchain, sys_clk_freq=int(100e6), with_ethernet=False, with_etherbone=False, **kwargs):
+        platform = arty.Platform(toolchain=toolchain)
 
         # SoCCore ----------------------------------------------------------------------------------
         SoCCore.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
 
         # CRG --------------------------------------------------------------------------------------
-        self.submodules.crg = _CRG(platform, sys_clk_freq)
+        self.submodules.crg = _CRG(platform, sys_clk_freq, toolchain)
 
         # DDR3 SDRAM -------------------------------------------------------------------------------
-        if not self.integrated_main_ram_size:
+        if not self.integrated_main_ram_size and toolchain != "symbiflow": # FIXME
             self.submodules.ddrphy = s7ddrphy.A7DDRPHY(platform.request("ddram"),
                 memtype        = "DDR3",
                 nphases        = 4,
@@ -102,6 +118,7 @@ def main():
     parser = argparse.ArgumentParser(description="LiteX SoC on Arty A7")
     parser.add_argument("--build", action="store_true", help="Build bitstream")
     parser.add_argument("--load",  action="store_true", help="Load bitstream")
+    parser.add_argument("--toolchain", default="vivado", help="Gateware toolchain to use, vivado (default) or symbiflow")
     builder_args(parser)
     soc_sdram_args(parser)
     vivado_build_args(parser)
@@ -110,10 +127,11 @@ def main():
     args = parser.parse_args()
 
     assert not (args.with_ethernet and args.with_etherbone)
-    soc = BaseSoC(with_ethernet=args.with_ethernet, with_etherbone=args.with_etherbone,
+    soc = BaseSoC(args.toolchain, with_ethernet=args.with_ethernet, with_etherbone=args.with_etherbone,
         **soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
-    builder.build(**vivado_build_argdict(args), run=args.build)
+    builder_kwargs = vivado_build_argdict(args) if args.toolchain == "vivado" else {}
+    builder.build(**builder_kwargs, run=args.build)
 
     if args.load:
         prog = soc.platform.create_programmer()
