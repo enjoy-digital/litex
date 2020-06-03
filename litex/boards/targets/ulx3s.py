@@ -32,6 +32,7 @@ class _CRG(Module):
     def __init__(self, platform, sys_clk_freq, with_usb_pll=False):
         self.clock_domains.cd_sys    = ClockDomain()
         self.clock_domains.cd_sys_ps = ClockDomain(reset_less=True)
+        self.clock_domains.cd_clk10  = ClockDomain() # FIXME: for initial LiteSDCard tests.
 
         # # #
 
@@ -45,7 +46,9 @@ class _CRG(Module):
         pll.register_clkin(clk25, 25e6)
         pll.create_clkout(self.cd_sys,    sys_clk_freq)
         pll.create_clkout(self.cd_sys_ps, sys_clk_freq, phase=90)
-        self.specials += AsyncResetSynchronizer(self.cd_sys, ~pll.locked | rst)
+        pll.create_clkout(self.cd_clk10, 10e6)
+        self.specials += AsyncResetSynchronizer(self.cd_sys,   ~pll.locked | rst)
+        self.specials += AsyncResetSynchronizer(self.cd_clk10, ~pll.locked | rst)
 
         # USB PLL
         if with_usb_pll:
@@ -104,8 +107,10 @@ def main():
     parser.add_argument("--load",  action="store_true", help="Load bitstream")
     parser.add_argument("--toolchain", default="trellis",   help="Gateware toolchain to use, trellis (default) or diamond")
     parser.add_argument("--device",             dest="device",    default="LFE5U-45F", help="FPGA device, ULX3S can be populated with LFE5U-45F (default) or LFE5U-85F")
-    parser.add_argument("--sys-clk-freq", default=50e6,          help="System clock frequency (default=50MHz)")
-    parser.add_argument("--sdram-module", default="MT48LC16M16", help="SDRAM module: MT48LC16M16, AS4C32M16 or AS4C16M16 (default=MT48LC16M16)")
+    parser.add_argument("--sys-clk-freq", default=50e6,           help="System clock frequency (default=50MHz)")
+    parser.add_argument("--sdram-module", default="MT48LC16M16",  help="SDRAM module: MT48LC16M16, AS4C32M16 or AS4C16M16 (default=MT48LC16M16)")
+    parser.add_argument("--with-spi-sdcard", action="store_true", help="Enable SPI-mode SDCard support")
+    parser.add_argument("--with-sdcard", action="store_true",     help="Enable SDCard support")
     builder_args(parser)
     soc_sdram_args(parser)
     trellis_args(parser)
@@ -115,6 +120,11 @@ def main():
         sys_clk_freq=int(float(args.sys_clk_freq)),
         sdram_module_cls=args.sdram_module,
         **soc_sdram_argdict(args))
+    assert not (args.with_spi_sdcard and args.with_sdcard)
+    if args.with_spi_sdcard:
+        soc.add_spi_sdcard()
+    if args.with_sdcard:
+        soc.add_sdcard()
     builder = Builder(soc, **builder_argdict(args))
     builder_kargs = trellis_argdict(args) if args.toolchain == "trellis" else {}
     builder.build(**builder_kargs, run=args.build)

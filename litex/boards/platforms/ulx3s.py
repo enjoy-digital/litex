@@ -34,6 +34,13 @@ _io = [
         IOStandard("LVCMOS33"),
     ),
 
+    ("sdcard", 0,
+        Subsignal("clk",  Pins("J1")),
+        Subsignal("cmd",  Pins("J3"), Misc("PULLMODE=UP")),
+        Subsignal("data", Pins("K2 K1 H2 H1"), Misc("PULLMODE=UP")),
+        IOStandard("LVCMOS33"), Misc("SLEW=FAST")
+    ),
+
     ("sdram_clock", 0, Pins("F19"),
         Misc("PULLMODE=NONE"),
         Misc("DRIVE=4"),
