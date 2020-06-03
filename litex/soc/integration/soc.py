@@ -1251,31 +1251,29 @@ class LiteXSoC(SoC):
     def add_sdcard(self, name="sdcard", with_emulator=False):
         # Imports
         from litesdcard.phy import SDPHY
-        from litesdcard.clocker import SDClockerS7
         from litesdcard.core import SDCore
-        from litesdcard.bist import BISTBlockGenerator, BISTBlockChecker
         from litesdcard.data import SDDataReader, SDDataWriter
 
-        # Emulator
+        # Emulator / Pads
         if with_emulator:
             from litesdcard.emulator import SDEmulator, _sdemulator_pads
             sdcard_pads = _sdemulator_pads()
             self.submodules.sdemulator = SDEmulator(self.platform, sdcard_pads)
             self.add_csr("sdemulator")
         else:
-            assert self.platform.device[:3] == "xc7" # FIXME: Only supports 7-Series for now.
             sdcard_pads = self.platform.request(name)
+
+        # Clocking
+        if self.platform.device[:3] == "xc7":
+            from litesdcard.clocker import SDClockerS7
+            self.submodules.sdclk = SDClockerS7(sys_clk_freq=self.sys_clk_freq)
+            self.add_csr("sdclk")
 
         # Core
         if hasattr(sdcard_pads, "rst"):
             self.comb += sdcard_pads.rst.eq(0)
-        if with_emulator:
-            pass
-        else:
-            self.submodules.sdclk = SDClockerS7(sys_clk_freq=self.sys_clk_freq)
         self.submodules.sdphy   = SDPHY(sdcard_pads, self.platform.device)
         self.submodules.sdcore  = SDCore(self.sdphy)
-        self.add_csr("sdclk")
         self.add_csr("sdphy")
         self.add_csr("sdcore")
 
