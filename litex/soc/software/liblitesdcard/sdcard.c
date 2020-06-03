@@ -163,21 +163,6 @@ void sdclk_set_clk(unsigned int freq) {
 
 /* command utils */
 
-static void sdtimer_init(void)
-{
-	sdtimer_en_write(0);
-	sdtimer_load_write(0xffffffff);
-	sdtimer_reload_write(0xffffffff);
-	sdtimer_en_write(1);
-}
-
-static unsigned int sdtimer_get(void)
-{
-	sdtimer_update_value_write(1);
-	return sdtimer_value_read();
-}
-
-
 int sdcard_wait_cmd_done(void) {
 	unsigned check_counter = 0;
 	unsigned int cmdevt;
@@ -601,8 +586,6 @@ int sdcard_init(void) {
         /* initialize SD driver parameters */
 	sdcore_cmdtimeout_write(1<<19);
 	sdcore_datatimeout_write(1<<19);
-
-	sdtimer_init();
 
 	/* reset card */
 	sdcard_go_idle();
