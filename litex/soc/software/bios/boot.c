@@ -29,6 +29,7 @@
 #include <libliteeth/tftp.h>
 
 #include <liblitesdcard/spisdcard.h>
+#include <liblitesdcard/sdcard.h>
 
 extern void boot_helper(unsigned long r1, unsigned long r2, unsigned long r3, unsigned long addr);
 
@@ -532,16 +533,22 @@ void romboot(void)
 }
 #endif
 
-// SPI HARDWARE BITBANG
-#ifdef CSR_SPISDCARD_BASE
+#if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCORE_BASE)
 
-void spisdcardboot(void)
+void sdcardboot(void)
 {
-	printf("SD Card via SPI Initialising\n");
+	printf("Booting from SDCard...\n");
+    #ifdef CSR_SPISDCARD_BASE
+    printf("Initializing SDCard in SPI-Mode...\n");
 	if(spi_sdcard_goidle() == 0) {
 		printf("SD Card Timeout\n");
 		return;
 	}
+	#endif
+	#ifdef CSR_SDCORE_BASE
+	    printf("Initializing SDCard in SD-Mode...\n");
+		sdcard_init(); // FIXME : check returned value
+	#endif
 
 	if(spi_sdcard_readMBR() == 0) {
 		printf("SD Card MBR Timeout\n");

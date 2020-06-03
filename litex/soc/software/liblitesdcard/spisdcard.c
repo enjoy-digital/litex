@@ -459,6 +459,7 @@ uint8_t spi_sdcard_readMBR(void)
         divider=2;
     printf("Reclocking from %dKHz to %dKHz\n\n", CONFIG_CLOCK_FREQUENCY/(int)spisdcard_clk_divider_read()/1000, CONFIG_CLOCK_FREQUENCY/divider/1000);
     spisdcard_clk_divider_write(divider);
+#endif
 
     // Read in FAT16 File Allocation Table, array of 16bit unsinged integers
     // Calculate Storage from TOP of MAIN RAM
@@ -473,7 +474,6 @@ uint8_t spi_sdcard_readMBR(void)
             return FAILURE;
         }
     }
-#endif
 
     // Read in FAT16 Root Directory
     // Calculate Storage from TOP of MAIN RAM

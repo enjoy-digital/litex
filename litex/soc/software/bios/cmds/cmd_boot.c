@@ -16,7 +16,7 @@
  *
  */
 #ifdef FLASH_BOOT_ADDRESS
-define_command(flashboot, flashboot, "Boot from flash", BOOT_CMDS);
+define_command(flashboot, flashboot, "Boot from Flash", BOOT_CMDS);
 #endif
 
 /**
@@ -26,7 +26,7 @@ define_command(flashboot, flashboot, "Boot from flash", BOOT_CMDS);
  *
  */
 #ifdef ROM_BOOT_ADDRESS
-define_command(romboot, romboot, "Boot from embedded rom", BOOT_CMDS);
+define_command(romboot, romboot, "Boot from ROM", BOOT_CMDS);
 #endif
 
 /**
@@ -35,7 +35,7 @@ define_command(romboot, romboot, "Boot from embedded rom", BOOT_CMDS);
  * Boot software from serial interface
  *
  */
-define_command(serialboot, serialboot, "Boot via SFL", BOOT_CMDS);
+define_command(serialboot, serialboot, "Boot from Serial (SFL)", BOOT_CMDS);
 
 /**
  * Command "netboot"
@@ -44,7 +44,7 @@ define_command(serialboot, serialboot, "Boot via SFL", BOOT_CMDS);
  *
  */
 #ifdef CSR_ETHMAC_BASE
-define_command(netboot, netboot, "Boot via TFTP", BOOT_CMDS);
+define_command(netboot, netboot, "Boot via Ethernet (TFTP)", BOOT_CMDS);
 #endif
 
 /**
@@ -53,7 +53,7 @@ define_command(netboot, netboot, "Boot via TFTP", BOOT_CMDS);
  * Boot software from SDcard
  *
  */
-#ifdef CSR_SPISDCARD_BASE
-define_command(spisdcardboot, spisdcardboot, "Boot from SDCard via SPI hardware bitbang", BOOT_CMDS);
+#if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCORE_BASE)
+define_command(sdcardboot, sdcardboot, "Boot from SDCard", BOOT_CMDS);
 #endif
 

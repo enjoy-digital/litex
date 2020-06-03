@@ -108,6 +108,10 @@ int sdcard_sddatawriter_wait(void);
 int sdcard_sddatareader_wait(void);
 int sdcard_test(unsigned int blocks);
 
+/* FAT16 (FIXME: avoid duplication with spisdcard) */
+uint8_t spi_sdcard_readMBR(void);
+uint8_t spi_sdcard_readFile(char *, char *, unsigned long);
+
 #endif /* CSR_SDCORE_BASE */
 
 #endif /* __SDCARD_H */
