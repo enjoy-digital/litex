@@ -1268,10 +1268,9 @@ class LiteXSoC(SoC):
             from litesdcard.clocker import SDClockerS7
             self.submodules.sdclk = SDClockerS7(sys_clk_freq=self.sys_clk_freq)
             self.add_csr("sdclk")
-
-        if self.platform.device[:5] == "LFE5U":
-            from litesdcard.clocker import SDClockerECP5
-            self.submodules.sdclk = SDClockerECP5()
+        else:
+            from litesdcard.clocker import SDClockerGen
+            self.submodules.sdclk = SDClockerGen()
             self.add_csr("sdclk")
 
         # Core
