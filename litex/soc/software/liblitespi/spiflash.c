@@ -12,7 +12,7 @@
 
 #include "spiflash.h"
 
-#ifdef CSR_SPIFLASH_MMAP_BASE
+#if defined(CSR_SPIFLASH_PHY_BASE) && defined(CSR_SPIFLASH_MMAP_BASE)
 
 #define DEBUG	0
 #define USER_DEFINED_DUMMY_BITS	0
@@ -29,7 +29,7 @@ static void spi_set_mode(spi_mode mode)
 
 int spiflash_freq_init(void)
 {
-	unsigned int lowest_div = spiflash_mmap_clk_divisor_read();
+	unsigned int lowest_div = spiflash_phy_clk_divisor_read();
 	unsigned int crc = crc32((unsigned char *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE);
 	unsigned int crc_test = crc;
 
@@ -49,7 +49,7 @@ int spiflash_freq_init(void)
 
 	for(int i = lowest_div; (crc == crc_test) && (i >= 0); i--) {
 		lowest_div = i;
-		spiflash_mmap_clk_divisor_write((uint32_t)i);
+		spiflash_phy_clk_divisor_write((uint32_t)i);
 		crc_test = crc32((unsigned char *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE);
 #if DEBUG
 		printf("[DIV: %d] %08x\n\r", i, crc_test);
@@ -58,14 +58,14 @@ int spiflash_freq_init(void)
 	lowest_div++;
 	printf("SPIFlash freq configured to %d MHz\n", (spiflash_mmap_sys_clk_freq_read()/(2*(1 + lowest_div)))/1000000);
 
-	spiflash_mmap_clk_divisor_write(lowest_div);
+	spiflash_phy_clk_divisor_write(lowest_div);
 
 	return 0;
 }
 
 void spiflash_dummy_bits_setup(unsigned int dummy_bits)
 {
-	spiflash_mmap_dummy_bits_write((uint32_t)dummy_bits);
+	spiflash_phy_dummy_bits_write((uint32_t)dummy_bits);
 #if DEBUG
 	printf("Dummy bits set to: %d\n\r", spi_dummy_bits_read());
 #endif
