@@ -1,4 +1,4 @@
-// This file is Copyright (c) 2017 Florent Kermarrec <florent@enjoy-digital.fr>
+// This file is Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 // This file is Copyright (c) 2019 Kees Jongenburger <kees.jongenburger@gmail.com>
 // This file is Copyright (c) 2018 bunnie <bunnie@kosagi.com>
 // This file is Copyright (c) 2020 Antmicro <www.antmicro.com>
@@ -14,34 +14,19 @@
 
 #include "sdcard.h"
 
+//#define SDCARD_DEBUG
+
 #ifdef CSR_SDCORE_BASE
 
-#define SDCARD_DEBUG
+unsigned int sdcard_response[SD_RESPONSE_SIZE/4];
 
-#define CHECK_LOOPS_PRINT_THRESHOLD 1000000
+volatile char *sdread_buf  = (char*)(SDREAD_BASE);
+volatile char *sdwrite_buf = (char*)(SDWRITE_BASE);
 
-#define REPEATED_MSG(cnt, thr, fmt, ...) do { \
-			const int _cnt = (cnt); \
-			if((_cnt) >= (thr)) { \
-				if((_cnt) > (thr)) { \
-					printf("\033[1A\033[1G"); \
-				} \
-				printf(fmt "\033[0m\033[K\n", ## __VA_ARGS__); \
-			} \
-		} while(0);
-
-#define BLOCK_SIZE 512
-#define NO_RESPONSE 0xFF
-
-#define SDCARD_RESPONSE_SIZE 4
-unsigned int sdcard_response[SDCARD_RESPONSE_SIZE];
-
-volatile char *SDREAD = (char*)(SDREAD_BASE);
-volatile char *SDWRITE = (char*)(SDWRITE_BASE);
+/* clocking */
 
 #ifdef CSR_SDCLK_CMD_DATA_ADDR
 
-/* clocking */
 static void sdclk_dcm_write(int cmd, int data)
 {
 	int word;
@@ -82,6 +67,7 @@ static void sdclk_get_config(unsigned int freq, unsigned int *best_m, unsigned i
 void sdclk_set_clk(unsigned int freq) {
 	unsigned int clk_m, clk_d;
 
+	printf("Setting SDCard clk freq to %dMHz\n", freq);
 	sdclk_get_config(100*freq, &clk_m, &clk_d);
 	sdclk_dcm_write(0x1, clk_d-1);
 	sdclk_dcm_write(0x3, clk_m-1);
@@ -149,6 +135,7 @@ static void sdclk_get_config(unsigned int freq, unsigned int *best_m, unsigned i
 void sdclk_set_clk(unsigned int freq) {
 	unsigned int clk_m, clk_d;
 
+	printf("Setting SDCard clk freq to %dMHz\n", freq);
 	sdclk_get_config(1000*freq, &clk_m, &clk_d);
 	sdclk_set_config(clk_m, clk_d);
 }
@@ -156,7 +143,7 @@ void sdclk_set_clk(unsigned int freq) {
 #else
 
 void sdclk_set_clk(unsigned int freq) {
-	printf("Unimplemented!\n");
+	printf("No SDClocker, returning.\n");
 }
 
 #endif
@@ -164,39 +151,39 @@ void sdclk_set_clk(unsigned int freq) {
 /* command utils */
 
 int sdcard_wait_cmd_done(void) {
-	unsigned check_counter = 0;
 	unsigned int cmdevt;
 	while (1) {
 		cmdevt = sdcore_cmdevt_read();
-		REPEATED_MSG(++check_counter, CHECK_LOOPS_PRINT_THRESHOLD,
-					 "\033[36m  cmdevt: %08x (check #%d)",
-					 cmdevt, check_counter);
-		if(check_counter > CHECK_LOOPS_PRINT_THRESHOLD) {
-			putchar('\n');
-			return NO_RESPONSE; //If we reach threshold, and cmdevt didn't return valid status, return NO_RESPONSE
-		}
+		busy_wait(1); /* FIXME */
+#ifdef SDCARD_DEBUG
+		printf("cmdevt: %08x\n", cmdevt);
+#endif
 		if (cmdevt & 0x1) {
-			if (cmdevt & 0x4)
+			if (cmdevt & 0x4) {
+#ifdef SDCARD_DEBUG
+				printf("cmdevt: SD_TIMEOUT\n");
+#endif
 				return SD_TIMEOUT;
-			else if (cmdevt & 0x8)
+			}
+			else if (cmdevt & 0x8) {
+#ifdef SDCARD_DEBUG
+				printf("cmdevt: SD_CRCERROR\n");
 				return SD_CRCERROR;
+#endif
+			}
 			return SD_OK;
 		}
 	}
 }
 
 int sdcard_wait_data_done(void) {
-	unsigned check_counter = 0;
 	unsigned int dataevt;
 	while (1) {
 		dataevt = sdcore_dataevt_read();
-		REPEATED_MSG(++check_counter, CHECK_LOOPS_PRINT_THRESHOLD,
-					 "\033[36m  dataevt: %08x (check #%d)",
-					 dataevt, check_counter);
-		if(check_counter > CHECK_LOOPS_PRINT_THRESHOLD) {
-			putchar('\n');
-			return NO_RESPONSE; //If we reach threshold, and cmdevt didn't return valid status, return NO_RESPONSE
-		}
+		busy_wait(1); /* FIXME */
+#ifdef SDCARD_DEBUG
+		printf("dataevt: %08x\n", dataevt);
+#endif
 		if (dataevt & 0x1) {
 			if (dataevt & 0x4)
 				return SD_TIMEOUT;
@@ -208,15 +195,18 @@ int sdcard_wait_data_done(void) {
 }
 
 int sdcard_wait_response(void) {
-	int i, status;
+#ifdef SDCARD_DEBUG
+	int i;
+#endif
+	int status;
 
 	status = sdcard_wait_cmd_done();
 
 	csr_rd_buf_uint32(CSR_SDCORE_RESPONSE_ADDR,
-			  sdcard_response, SDCARD_RESPONSE_SIZE);
+			  sdcard_response, SD_RESPONSE_SIZE/4);
 
 #ifdef SDCARD_DEBUG
-	for(i = 0; i < SDCARD_RESPONSE_SIZE; i++) {
+	for(i = 0; i < SD_RESPONSE_SIZE/4; i++) {
 		printf("%08x ", sdcard_response[i]);
 	}
 	printf("\n");
@@ -386,7 +376,7 @@ int sdcard_write_single_block(unsigned int blockaddr) {
 	int cmd_response = -1;
 	while (cmd_response != SD_OK) {
 		sdcore_argument_write(blockaddr);
-		sdcore_blocksize_write(BLOCK_SIZE);
+		sdcore_blocksize_write(SD_BLOCK_SIZE);
 		sdcore_blockcount_write(1);
 		sdcore_command_write((24 << 8) | SDCARD_CTRL_RESPONSE_SHORT |
 							 (SDCARD_CTRL_DATA_TRANSFER_WRITE << 5));
@@ -403,7 +393,7 @@ int sdcard_write_multiple_block(unsigned int blockaddr, unsigned int blockcnt) {
 	int cmd_response = -1;
 	while (cmd_response != SD_OK) {
 		sdcore_argument_write(blockaddr);
-		sdcore_blocksize_write(BLOCK_SIZE);
+		sdcore_blocksize_write(SD_BLOCK_SIZE);
 		sdcore_blockcount_write(blockcnt);
 		sdcore_command_write((25 << 8) | SDCARD_CTRL_RESPONSE_SHORT |
 							 (SDCARD_CTRL_DATA_TRANSFER_WRITE << 5));
@@ -420,7 +410,7 @@ int sdcard_read_single_block(unsigned int blockaddr) {
 int cmd_response = -1;
 	while (cmd_response != SD_OK) {
 		sdcore_argument_write(blockaddr);
-		sdcore_blocksize_write(BLOCK_SIZE);
+		sdcore_blocksize_write(SD_BLOCK_SIZE);
 		sdcore_blockcount_write(1);
 		sdcore_command_write((17 << 8) | SDCARD_CTRL_RESPONSE_SHORT |
 							 (SDCARD_CTRL_DATA_TRANSFER_READ << 5));
@@ -437,7 +427,7 @@ int sdcard_read_multiple_block(unsigned int blockaddr, unsigned int blockcnt) {
 int cmd_response = -1;
 	while (cmd_response != SD_OK) {
 		sdcore_argument_write(blockaddr);
-		sdcore_blocksize_write(BLOCK_SIZE);
+		sdcore_blocksize_write(SD_BLOCK_SIZE);
 		sdcore_blockcount_write(blockcnt);
 		sdcore_command_write((18 << 8) | SDCARD_CTRL_RESPONSE_SHORT |
 							 (SDCARD_CTRL_DATA_TRANSFER_READ << 5));
@@ -526,30 +516,23 @@ void sdcard_decode_csd(void) {
 
 			(1 << ((sdcard_response[1] >> 16) & 0xf)),
 
-			size * BLOCK_SIZE / (1024 * 1024)
+			size * SD_BLOCK_SIZE / (1024 * 1024)
 	);
 }
 
-/* bist */
+/* writer / reader */
 
 #ifdef CSR_SDDATAWRITER_BASE
+
 void sdcard_sddatawriter_start(void) {
 	sddatawriter_reset_write(1);
 	sddatawriter_start_write(1);
 }
 
 int sdcard_sddatawriter_wait(void) {
-	unsigned check_counter = 0;
 	unsigned done = 0;
 	while(!done) {
 		done = sddatawriter_done_read();
-		REPEATED_MSG(++check_counter, CHECK_LOOPS_PRINT_THRESHOLD,
-					 "\033[36m  sddatawriter_done_read: %08x (check #%d)",
-					 done, ++check_counter);
-		if(check_counter > CHECK_LOOPS_PRINT_THRESHOLD) {
-			putchar('\n');
-			return NO_RESPONSE; //If we reach threshold, and cmdevt didn't return valid status, return NO_RESPONSE
-		}
 	}
 	return 0;
 }
@@ -562,17 +545,9 @@ void sdcard_sddatareader_start(void) {
 }
 
 int sdcard_sddatareader_wait(void) {
-	unsigned check_counter = 0;
 	unsigned done = 0;
 	while((done & 1) == 0) {
 		done = sddatareader_done_read();
-		REPEATED_MSG(++check_counter, CHECK_LOOPS_PRINT_THRESHOLD,
-					 "\033[36m  sddatareader_done_read: %08x (check #%d)",
-					 done, check_counter);
-		if(check_counter > CHECK_LOOPS_PRINT_THRESHOLD) {
-			putchar('\n');
-			return NO_RESPONSE; //If we reach threshold, and cmdevt didn't return valid status, return NO_RESPONSE
-		}
 	}
 	return 0;
 }
@@ -581,9 +556,9 @@ int sdcard_sddatareader_wait(void) {
 /* user */
 
 int sdcard_init(void) {
-        unsigned short rca;
+    unsigned short rca;
 
-        /* initialize SD driver parameters */
+    /* initialize SD driver parameters */
 	sdcore_cmdtimeout_write(1<<19);
 	sdcore_datatimeout_write(1<<19);
 
@@ -591,20 +566,6 @@ int sdcard_init(void) {
 	sdcard_go_idle();
 	busy_wait(1);
 	sdcard_send_ext_csd();
-#ifdef SDCARD_DEBUG
-	printf("Accepted voltage: ");
-	if(sdcard_response[3] & 0x0)
-		printf("Not defined\n");
-	else if(sdcard_response[3] >> 8 & 0x1)
-		printf("2.7-3.6V\n");
-	else if(sdcard_response[3] >> 12 & 0x1)
-		printf("Reserved\n");
-	else if(sdcard_response[3] >> 16 & 0x1)
-		printf("Reserved\n");
-	else
-		printf("Invalid response\n");
-#endif
-
 	/* wait for card to be ready */
 	/* FIXME: 1.8v support */
 	for(;;) {
@@ -618,9 +579,7 @@ int sdcard_init(void) {
 
 	/* send identification */
 	sdcard_all_send_cid();
-#ifdef SDCARD_DEBUG
 	sdcard_decode_cid();
-#endif
 
 	/* set relative card address */
 	sdcard_set_relative_address();
@@ -657,154 +616,95 @@ int sdcard_init(void) {
 	sdcard_app_send_scr();
 
 	/* set block length */
-	sdcard_app_set_blocklen(BLOCK_SIZE);
+	sdcard_app_set_blocklen(SD_BLOCK_SIZE);
 
 	return 0;
 }
 
 extern void dump_bytes(unsigned int *ptr, int count, unsigned long addr);
 
-void sdcard_test_write(unsigned block, const char *data)
+void sdcard_write(unsigned block, const char *data, char silent)
 {
 #ifdef CSR_SDDATAWRITER_BASE
 	const char *c = data;
 	int i;
-	for(i = 0; i < BLOCK_SIZE; i++) {
-		SDWRITE[i] = *c;
-		if(*(++c) == 0) {
-			c = data;
+
+	if (data != NULL) {
+		for(i=0; i<SD_BLOCK_SIZE; i++) {
+			sdwrite_buf[i] = *c;
+			if(*(++c) == 0) {
+				c = data;
+			}
 		}
 	}
+	if (silent == 0) {
+		printf("Writing SD block %d from mem:\n", block);
+		dump_bytes((unsigned int *)SDWRITE_BASE, SD_BLOCK_SIZE, (unsigned long) SDWRITE_BASE);
+	}
 
-	printf("SDWRITE:\n");
-	dump_bytes((unsigned int *)SDWRITE_BASE, BLOCK_SIZE, (unsigned long) SDWRITE_BASE);
-
+	sdcore_datawcrcclear_write(1);
 	sdcard_set_block_count(1);
 	sdcard_sddatawriter_start();
-	sdcard_write_single_block(block * BLOCK_SIZE);
+	sdcard_write_single_block(block * SD_BLOCK_SIZE);
 	sdcard_sddatawriter_wait();
 	sdcard_stop_transmission();
 #else
-	printf("Writer core not present\n");
+	printf("No SDWriter, returning.\n");
 #endif
 }
 
-void sdcard_test_read(unsigned block)
+void sdcard_read(unsigned block, char silent)
 {
 #ifdef CSR_SDDATAREADER_BASE
 	int i;
-	for(i = 0; i < sizeof(SDREAD); ++i) {
-		SDREAD[i] = 0;
+	for(i = 0; i < sizeof(sdread_buf); ++i) {
+		sdread_buf[i] = 0;
 	}
-	printf("SDREAD (0x%08x) before read:\n", SDREAD);
-	dump_bytes((unsigned int *)SDREAD_BASE, BLOCK_SIZE, (unsigned long) SDREAD_BASE);
+	if (silent == 0)
+		printf("Reading SD block %d from mem:\n", block);
 
 	sdcard_set_block_count(1);
 	sdcard_sddatareader_start();
-	sdcard_read_single_block(block * BLOCK_SIZE);
+	sdcard_read_single_block(block * SD_BLOCK_SIZE);
 	sdcard_sddatareader_wait();
 
-	printf("SDREAD (0x%08x) after read:\n", SDREAD);
-	dump_bytes((unsigned int *)SDREAD_BASE, BLOCK_SIZE, (unsigned long) SDREAD_BASE);
+	if (silent == 0)
+		dump_bytes((unsigned int *)SDREAD_BASE, SD_BLOCK_SIZE, (unsigned long) SDREAD_BASE);
 #else
-	printf("Reader core not present\n");
+	printf("No SDReader, returning.\n");
 #endif
 }
 
-int sdcard_test(unsigned int count)
+int sdcard_test(unsigned int blocks)
 {
 #if defined(CSR_SDDATAREADER_BASE) && defined(CSR_SDDATAWRITER_BASE)
-	srand(0);
-	int i, j, status;
-	int crcerrors = 0;
-	int timeouterrors = 0;
-	int repeat = 0;
+	int i, j;
+	int errors;
 
-	sdcore_datawcrcclear_write(1);
+	printf("Test SDCard on %d blocks...\n", blocks);
+	errors = 0;
+	for(i=0; i<blocks; i=i+1) {
+		/* fill write mem */
+		srand(0);
+		for(j=0; j<SD_BLOCK_SIZE; j++)
+			sdwrite_buf[j] = (rand() + i) & 0xff;
+		/* write block from write mem */
+		sdcard_write(i, NULL, 0);
 
-	for(i = 0; i < count; i = repeat ? i : i + 1) {
-		REPEATED_MSG(i, 0, "\033[96mWriting block %d (%d/%d); crc errors: %d; timeouts: %d; datawcrc: %u",
-					 i, i + 1, count, crcerrors, timeouterrors, sdcore_datawcrcerrors_read());
-		if(!repeat) {
-			for(j = 0; j < BLOCK_SIZE; ++j) {
-				unsigned number = rand();
-				SDWRITE[j] = number & 0xFF;
-			}
-		} else {
-			busy_wait(1);
-		}
-		repeat = 0;
+		busy_wait(100); /* FIXME */
 
-		sdcard_set_block_count(1);
-		sdcard_sddatawriter_start();
-		status = sdcard_write_single_block(i * BLOCK_SIZE);
-		if (status == SD_CRCERROR) {
-			++crcerrors;
-		} else if (status == SD_TIMEOUT) {
-			++timeouterrors;
-		}
-		if (status != SD_OK) {
-			REPEATED_MSG(1, 0, "\033[31m  Repeating\n");
-			repeat = 1;
-		}
-		status = sdcard_sddatawriter_wait();
-		if (status != 0) {
-			REPEATED_MSG(1, 0, "\033[31m  Repeating\n");
-			repeat = 1;
-		}
-		sdcard_stop_transmission();
+		/* read block to read mem */
+		sdcard_read(i, 0);
+		/* check read mem */
+		srand(0);
+		for(j=0; j<SD_BLOCK_SIZE; j++)
+			if (sdread_buf[j] != ((rand() + i) & 0xff))
+				errors++;
 	}
-	REPEATED_MSG(i, 0, "\033[39;1mWriting crc errors: %d; timeouts: %d; datawcrc: %u",
-				 crcerrors, timeouterrors, sdcore_datawcrcerrors_read());
-
-	srand(0);
-	int errors = 0;
-	int errorsblk = 0;
-	crcerrors = 0;
-	timeouterrors = 0;
-	for(i = 0; i < count; i = repeat ? i : i + 1) {
-		REPEATED_MSG(i, 0, "\033[96mReading and checking block %d (%d/%d); errors: %d in %d blocks; crc errors: %d; timeouts: %d",
-					 i, i + 1, count, errors, errorsblk, crcerrors, timeouterrors);
-
-	        repeat = 0;
-		sdcard_set_block_count(1);
-		sdcard_sddatareader_start();
-		status = sdcard_read_single_block(i * BLOCK_SIZE);
-		if (status == SD_CRCERROR) {
-			++crcerrors;
-		} else if (status == SD_TIMEOUT) {
-			++timeouterrors;
-		}
-		if (status != SD_OK) {
-			REPEATED_MSG(1, 0, "\033[31m  Repeating\n");
-			repeat = 1;
-			continue;
-		}
-		status = sdcard_sddatareader_wait();
-		if (status != 0) {
-			REPEATED_MSG(1, 0, "\033[31m  Repeating\n");
-			repeat = 1;
-			continue;
-		}
-
-		int ok = 1;
-		for(j = 0; j < BLOCK_SIZE; ++j) {
-			unsigned number = rand();
-
-			if(SDREAD[j] != (number & 0xFF)) {
-				++errors;
-				ok = 0;
-			}
-		}
-		if(!ok) {
-			REPEATED_MSG(0, 0, "\033[31m  Block check failed\n");
-			++errorsblk;
-		}
-	}
-	REPEATED_MSG(i, 0, "\033[39;1mReading errors: %d in %d blocks; crc errors: %d; timeouts: %d",
-				 errors, errorsblk, crcerrors, timeouterrors);
+	printf("Errors: %d\n", errors);
+	return errors;
 #else
-	printf("Reader and/or writer core not present\n");
+	printf("No SDWriter or SDReader, returning.\n");
 #endif
 	return 0;
 }

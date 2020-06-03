@@ -56,6 +56,66 @@ define_command(sdclk, sdclk, "Set SDCard clk freq (Mhz)", LITESDCARD_CMDS);
 define_command(sdinit, sdcard_init, "Initialize SDCard", LITESDCARD_CMDS);
 #endif
 
+
+/**
+ * Command "sdread"
+ *
+ * Perform SDcard block read
+ *
+ */
+#ifdef CSR_SDCORE_BASE
+static void sdread(int nb_params, char **params)
+{
+	unsigned int block;
+	char *c;
+
+	if (nb_params < 1) {
+		printf("sdread <block>");
+		return;
+	}
+
+	block = strtoul(params[0], &c, 0);
+	if (*c != 0) {
+		printf("Incorrect block number");
+		return;
+	}
+
+	sdcard_read(block, 0);
+}
+
+define_command(sdread, sdread, "Read SDCard block", LITESDCARD_CMDS);
+#endif
+
+/**
+ * Command "sdwrite"
+ *
+ * Perform SDcard block write
+ *
+ */
+#ifdef CSR_SDCORE_BASE
+static void sdwrite(int nb_params, char **params)
+{
+	unsigned int block;
+	char *c;
+
+	if (nb_params < 2) {
+		printf("sdwrite <block> <str>");
+		return;
+	}
+
+	block = strtoul(params[0], &c, 0);
+	if (*c != 0) {
+		printf("Incorrect block number");
+		return;
+	}
+
+	sdcard_write(block, params[1], 0);
+}
+
+define_command(sdwrite, sdwrite, "Write SDCard block", LITESDCARD_CMDS);
+#endif
+
+
 /**
  * Command "sdtest"
  *
@@ -83,62 +143,4 @@ static void sdtest(int nb_params, char **params)
 }
 
 define_command(sdtest, sdtest, "Test SDCard Write & Read on N blocks", LITESDCARD_CMDS);
-#endif
-
-/**
- * Command "sdtestread"
- *
- * Perform SDcard read test
- *
- */
-#ifdef CSR_SDCORE_BASE
-static void sdtestread(int nb_params, char **params)
-{
-	unsigned int block;
-	char *c;
-
-	if (nb_params < 1) {
-		printf("sdread <block>");
-		return;
-	}
-
-	block = strtoul(params[0], &c, 0);
-	if (*c != 0) {
-		printf("Incorrect block number");
-		return;
-	}
-
-	sdcard_test_read(block);
-}
-
-define_command(sdtestread, sdtestread, "Test SDCard Read on block N", LITESDCARD_CMDS);
-#endif
-
-/**
- * Command "sdtestwrite"
- *
- * Perform SDcard write test
- *
- */
-#ifdef CSR_SDCORE_BASE
-static void sdtestwrite(int nb_params, char **params)
-{
-	unsigned int block;
-	char *c;
-
-	if (nb_params < 2) {
-		printf("sdtestwrite <block> <str>");
-		return;
-	}
-
-	block = strtoul(params[0], &c, 0);
-	if (*c != 0) {
-		printf("Incorrect block number");
-		return;
-	}
-
-	sdcard_test_write(block, params[1]);
-}
-
-define_command(sdtestwrite, sdtestwrite, "Test SDCard Write on block N", LITESDCARD_CMDS);
 #endif

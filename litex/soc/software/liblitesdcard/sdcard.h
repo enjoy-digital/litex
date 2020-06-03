@@ -12,6 +12,9 @@
 
 #ifdef CSR_SDCORE_BASE
 
+#define SD_BLOCK_SIZE 512
+#define SD_RESPONSE_SIZE 128
+
 #define SD_OK         0
 #define SD_CRCERROR   1
 #define SD_TIMEOUT    2
@@ -97,13 +100,13 @@ void sdcard_bist_checker_wait(void);
 void hexdump(volatile const char *buf, size_t len);
 
 int sdcard_init(void);
-void sdcard_test_write(unsigned block, const char *data);
-void sdcard_test_read(unsigned block);
+void sdcard_write(unsigned block, const char *data, char silent);
+void sdcard_read(unsigned block, char silent);
 void sdcard_sddatawriter_start(void);
 void sdcard_sddatareader_start(void);
 int sdcard_sddatawriter_wait(void);
 int sdcard_sddatareader_wait(void);
-int sdcard_test(unsigned int loops);
+int sdcard_test(unsigned int blocks);
 
 #endif /* CSR_SDCORE_BASE */
 
