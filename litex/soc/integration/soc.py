@@ -1278,11 +1278,9 @@ class LiteXSoC(SoC):
             self.submodules.sdclk = SDClockerS7(sys_clk_freq=self.sys_clk_freq)
         self.submodules.sdphy   = SDPHY(sdcard_pads, self.platform.device)
         self.submodules.sdcore  = SDCore(self.sdphy)
-        self.submodules.sdtimer = Timer()
         self.add_csr("sdclk")
         self.add_csr("sdphy")
         self.add_csr("sdcore")
-        self.add_csr("sdtimer")
 
         # SD Card Data Reader
         sdread_mem  = Memory(32, 512//4)
