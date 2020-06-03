@@ -30,6 +30,7 @@
 
 #include <liblitesdcard/spisdcard.h>
 #include <liblitesdcard/sdcard.h>
+#include <liblitesdcard/fat16.h>
 
 extern void boot_helper(unsigned long r1, unsigned long r2, unsigned long r3, unsigned long addr);
 
@@ -550,7 +551,7 @@ void sdcardboot(void)
 		sdcard_init(); // FIXME : check returned value
 	#endif
 
-	if(spi_sdcard_readMBR() == 0) {
+	if(sdcard_readMBR() == 0) {
 		printf("SD Card MBR Timeout\n");
 		return;
 	}
@@ -558,20 +559,16 @@ void sdcardboot(void)
 	unsigned int result;
 
 #if defined(CONFIG_CPU_TYPE_VEXRISCV) && defined(CONFIG_CPU_VARIANT_LINUX)
-	result = spi_sdcard_readFile("IMAGE", "",
-				MAIN_RAM_BASE + KERNEL_IMAGE_RAM_OFFSET);
+	result = sdcard_readFile("IMAGE", "", MAIN_RAM_BASE + KERNEL_IMAGE_RAM_OFFSET);
 
 	if(result)
-		result &= spi_sdcard_readFile("ROOTFS~1", "CPI",
-				MAIN_RAM_BASE + ROOTFS_IMAGE_RAM_OFFSET);
+		result &= sdcard_readFile("ROOTFS~1", "CPI", MAIN_RAM_BASE + ROOTFS_IMAGE_RAM_OFFSET);
 
 	if(result)
-		result &= spi_sdcard_readFile("RV32", "DTB",
-				MAIN_RAM_BASE + DEVICE_TREE_IMAGE_RAM_OFFSET);
+		result &= sdcard_readFile("RV32", "DTB", MAIN_RAM_BASE + DEVICE_TREE_IMAGE_RAM_OFFSET);
 
 	if(result)
-		result &= spi_sdcard_readFile("EMULATOR", "BIN",
-				MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
+		result &= sdcard_readFile("EMULATOR", "BIN", MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
 
 	if(result) {
 		boot(0, 0, 0, MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
@@ -579,7 +576,7 @@ void sdcardboot(void)
 	}
 #endif
 
-	result = spi_sdcard_readFile("BOOT", "BIN", MAIN_RAM_BASE);
+	result = sdcard_readFile("BOOT", "BIN", MAIN_RAM_BASE);
 	if(result)
 		boot(0, 0, 0, MAIN_RAM_BASE);
 	else
