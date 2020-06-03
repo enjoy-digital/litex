@@ -14,7 +14,7 @@
 
 #include "sdcard.h"
 
-//#define SDCARD_DEBUG
+#define SDCARD_DEBUG
 
 #ifdef CSR_SDCORE_BASE
 
@@ -154,7 +154,7 @@ int sdcard_wait_cmd_done(void) {
 	unsigned int cmdevt;
 	while (1) {
 		cmdevt = sdcore_cmdevt_read();
-		busy_wait(1); /* FIXME */
+		busy_wait(5); /* FIXME */
 #ifdef SDCARD_DEBUG
 		printf("cmdevt: %08x\n", cmdevt);
 #endif
@@ -180,7 +180,7 @@ int sdcard_wait_data_done(void) {
 	unsigned int dataevt;
 	while (1) {
 		dataevt = sdcore_dataevt_read();
-		busy_wait(1); /* FIXME */
+		busy_wait(5); /* FIXME */
 #ifdef SDCARD_DEBUG
 		printf("dataevt: %08x\n", dataevt);
 #endif
@@ -202,8 +202,7 @@ int sdcard_wait_response(void) {
 
 	status = sdcard_wait_cmd_done();
 
-	csr_rd_buf_uint32(CSR_SDCORE_RESPONSE_ADDR,
-			  sdcard_response, SD_RESPONSE_SIZE/4);
+	csr_rd_buf_uint32(CSR_SDCORE_RESPONSE_ADDR, sdcard_response, SD_RESPONSE_SIZE/4);
 
 #ifdef SDCARD_DEBUG
 	for(i = 0; i < SD_RESPONSE_SIZE/4; i++) {

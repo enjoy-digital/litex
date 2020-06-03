@@ -13,7 +13,7 @@
 #ifdef CSR_SDCORE_BASE
 
 #define SD_BLOCK_SIZE 512
-#define SD_RESPONSE_SIZE 128
+#define SD_RESPONSE_SIZE 16
 
 #define SD_OK         0
 #define SD_CRCERROR   1
