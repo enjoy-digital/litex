@@ -1270,10 +1270,7 @@ class LiteXSoC(SoC):
         if hasattr(sdcard_pads, "rst"):
             self.comb += sdcard_pads.rst.eq(0)
         if with_emulator:
-            self.clock_domains.cd_sd    = ClockDomain("sd")
-            self.clock_domains.cd_sd_fb = ClockDomain("sd_fb")
-            self.comb += self.cd_sd.clk.eq(ClockSignal())
-            self.comb += self.cd_sd_fb.clk.eq(ClockSignal())
+            pass
         else:
             self.submodules.sdclk = SDClockerS7(sys_clk_freq=self.sys_clk_freq)
         self.submodules.sdphy   = SDPHY(sdcard_pads, self.platform.device)
