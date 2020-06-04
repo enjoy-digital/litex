@@ -1,3 +1,6 @@
+// This file is Copyright (c) 2020 Rob Shelton <rob.s.ng15@googlemail.com>
+// License: BSD
+//
 // SD CARD code for loading files from a FAT16 formatted partition into memory
 
 #include <generated/csr.h>

@@ -1,3 +1,6 @@
+// This file is Copyright (c) 2020 Rob Shelton <rob.s.ng15@googlemail.com>
+// License: BSD
+
 #ifndef __SPISDCARD_H
 #define __SPISDCARD_H
 

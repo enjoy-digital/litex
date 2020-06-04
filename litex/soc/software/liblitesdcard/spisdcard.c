@@ -1,3 +1,6 @@
+// This file is Copyright (c) 2020 Rob Shelton <rob.s.ng15@googlemail.com>
+// License: BSD
+//
 // SD CARD bitbanging code for loading files from a FAT16 forrmatted partition into memory
 //
 // Code is known to work on a de10nano with MiSTer SDRAM and IO Boards - IO Board has a secondary SD CARD interface connected to GPIO pins
