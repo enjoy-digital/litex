@@ -713,34 +713,16 @@ int sdcard_test(unsigned int blocks)
 	return 0;
 }
 
-// Return values
-#define SUCCESS         0x01
-#define FAILURE         0x00
-
-// READSECTOR
-//      Read a 512 byte sector from the SD CARD
-//      Given SECTORNUMBER and memory STORAGE
-//
-//      Sequence
-//          Send CMD17 - Read Block
-//          Command Sequence is DUMMY=0xff CMD17=0x51 SECTORNUMBER (32bit UNSIGNED as bits 32-25,24-17, 16-9, 8-1) CRC=0xff
-//          Wait for SD CARD to send 0x00 indicating SD CARD is processing
-//          Wait for SD CARD to send 0xfe indicating SD CARD BLOCK START
-//          Read 512 bytes
-//          Read 8 DUMMY bytes
-//      Return 0 success, 1 failure
-//
-//      Details from https://openlabpro.com/guide/interfacing-microcontrollers-with-sd-card/ section "Read/Write SD Card"
 uint8_t readSector(uint32_t sectorNumber, uint8_t *storage)
 {
 	int n;
 
-	// FIXME: handle errors, svoid recopy.
+	// FIXME: handle errors, avoid recopy.
 
 	sdcard_read(sectorNumber, 1);
 	 for(n=0; n<SD_BLOCK_SIZE; n++)
         storage[n] = sdread_buf[n];
-    return SUCCESS;
+    return 1;
 }
 
 #endif /* CSR_SDCORE_BASE */
