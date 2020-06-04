@@ -100,8 +100,8 @@ void sdcard_bist_checker_wait(void);
 void hexdump(volatile const char *buf, size_t len);
 
 int sdcard_init(void);
-void sdcard_write(unsigned block, const char *data, char silent);
-void sdcard_read(unsigned block, char silent);
+void sdcard_write(unsigned int addr, const char *data, char silent);
+void sdcard_read(unsigned int addr, char silent);
 void sdcard_sddatawriter_start(void);
 void sdcard_sddatareader_start(void);
 int sdcard_sddatawriter_wait(void);

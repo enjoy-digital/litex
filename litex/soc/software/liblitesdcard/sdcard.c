@@ -15,6 +15,7 @@
 #include "sdcard.h"
 
 #define SDCARD_DEBUG
+#define SDCARD_WAIT_WORKAROUND
 
 #ifdef CSR_SDCORE_BASE
 
@@ -154,7 +155,9 @@ int sdcard_wait_cmd_done(void) {
 	unsigned int cmdevt;
 	while (1) {
 		cmdevt = sdcore_cmdevt_read();
+#ifdef SDCARD_WAIT_WORKAROUND
 		busy_wait(5); /* FIXME */
+#endif
 #ifdef SDCARD_DEBUG
 		printf("cmdevt: %08x\n", cmdevt);
 #endif
@@ -180,7 +183,9 @@ int sdcard_wait_data_done(void) {
 	unsigned int dataevt;
 	while (1) {
 		dataevt = sdcore_dataevt_read();
+#ifdef SDCARD_WAIT_WORKAROUND
 		busy_wait(5); /* FIXME */
+#endif
 #ifdef SDCARD_DEBUG
 		printf("dataevt: %08x\n", dataevt);
 #endif
@@ -622,7 +627,7 @@ int sdcard_init(void) {
 
 extern void dump_bytes(unsigned int *ptr, int count, unsigned long addr);
 
-void sdcard_write(unsigned block, const char *data, char silent)
+void sdcard_write(unsigned int addr, const char *data, char silent)
 {
 #ifdef CSR_SDDATAWRITER_BASE
 	const char *c = data;
@@ -637,14 +642,14 @@ void sdcard_write(unsigned block, const char *data, char silent)
 		}
 	}
 	if (silent == 0) {
-		printf("Writing SD block %d from mem:\n", block);
+		printf("Writing SD block %d from mem:\n", addr/SD_BLOCK_SIZE);
 		dump_bytes((unsigned int *)SDWRITE_BASE, SD_BLOCK_SIZE, (unsigned long) SDWRITE_BASE);
 	}
 
 	sdcore_datawcrcclear_write(1);
 	sdcard_set_block_count(1);
 	sdcard_sddatawriter_start();
-	sdcard_write_single_block(block * SD_BLOCK_SIZE);
+	sdcard_write_single_block(addr);
 	sdcard_sddatawriter_wait();
 	sdcard_stop_transmission();
 #else
@@ -652,7 +657,7 @@ void sdcard_write(unsigned block, const char *data, char silent)
 #endif
 }
 
-void sdcard_read(unsigned block, char silent)
+void sdcard_read(unsigned int addr, char silent)
 {
 #ifdef CSR_SDDATAREADER_BASE
 	int i;
@@ -660,11 +665,11 @@ void sdcard_read(unsigned block, char silent)
 		sdread_buf[i] = 0;
 	}
 	if (silent == 0)
-		printf("Reading SD block %d from mem:\n", block);
+		printf("Reading SD block %d from mem:\n", addr/SD_BLOCK_SIZE);
 
 	sdcard_set_block_count(1);
 	sdcard_sddatareader_start();
-	sdcard_read_single_block(block * SD_BLOCK_SIZE);
+	sdcard_read_single_block(addr);
 	sdcard_sddatareader_wait();
 
 	if (silent == 0)
@@ -688,12 +693,12 @@ int sdcard_test(unsigned int blocks)
 		for(j=0; j<SD_BLOCK_SIZE; j++)
 			sdwrite_buf[j] = (rand() + i) & 0xff;
 		/* write block from write mem */
-		sdcard_write(i, NULL, 0);
+		sdcard_write(i*SD_BLOCK_SIZE, NULL, 0);
 
 		busy_wait(100); /* FIXME */
 
 		/* read block to read mem */
-		sdcard_read(i, 0);
+		sdcard_read(i*SD_BLOCK_SIZE, 0);
 		/* check read mem */
 		srand(0);
 		for(j=0; j<SD_BLOCK_SIZE; j++)
@@ -730,12 +735,11 @@ uint8_t readSector(uint32_t sectorNumber, uint8_t *storage)
 {
 	int n;
 
-	// FIXME: handle errors.
+	// FIXME: handle errors, svoid recopy.
 
 	sdcard_read(sectorNumber, 1);
-	 for(n=0; n<512; n++)
+	 for(n=0; n<SD_BLOCK_SIZE; n++)
         storage[n] = sdread_buf[n];
-
     return SUCCESS;
 }
 

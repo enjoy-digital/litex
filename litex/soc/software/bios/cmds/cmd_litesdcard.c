@@ -80,7 +80,7 @@ static void sdread(int nb_params, char **params)
 		return;
 	}
 
-	sdcard_read(block, 0);
+	sdcard_read(block*SD_BLOCK_SIZE, 0);
 }
 
 define_command(sdread, sdread, "Read SDCard block", LITESDCARD_CMDS);
@@ -109,7 +109,7 @@ static void sdwrite(int nb_params, char **params)
 		return;
 	}
 
-	sdcard_write(block, params[1], 0);
+	sdcard_write(block*SD_BLOCK_SIZE, params[1], 0);
 }
 
 define_command(sdwrite, sdwrite, "Write SDCard block", LITESDCARD_CMDS);
