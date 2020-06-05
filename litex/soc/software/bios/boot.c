@@ -538,37 +538,43 @@ void romboot(void)
 
 void sdcardboot(void)
 {
-	printf("Booting from SDCard...\n");
-    #ifdef CSR_SPISDCARD_BASE
-    printf("Initializing SDCard in SPI-Mode...\n");
-	if(spi_sdcard_goidle() == 0) {
-		printf("SD Card Timeout\n");
-		return;
-	}
-	#endif
-	#ifdef CSR_SDCORE_BASE
-	    printf("Initializing SDCard in SD-Mode...\n");
-		sdcard_init(); // FIXME : check returned value
-	#endif
-
-	if(sdcard_readMBR() == 0) {
-		printf("SD Card MBR Timeout\n");
-		return;
-	}
-
 	unsigned int result;
 
+	printf("Booting from SDCard...\n");
+
+	/* Initialize SDCard */
+#ifdef CSR_SPISDCARD_BASE
+	printf("Initializing SDCard in SPI-Mode...\n");
+	result = spisdcard_init();
+#endif
+#ifdef CSR_SDCORE_BASE
+	printf("Initializing SDCard in SD-Mode...\n");
+	result = sdcard_init();
+#endif
+	if (result == 0) {
+		printf("SDCard initialization failed.\n");
+		return;
+	}
+
+	/* Read MBR */
+	result = fat16_read_mbr();
+	if (result == 0) {
+		printf("SDCard MBR read failed.\n");
+		return;
+	}
+
+	/* Copy files to RAM */
 #if defined(CONFIG_CPU_TYPE_VEXRISCV) && defined(CONFIG_CPU_VARIANT_LINUX)
-	result = sdcard_readFile("IMAGE", "", MAIN_RAM_BASE + KERNEL_IMAGE_RAM_OFFSET);
+	result = fat16_read_file("IMAGE", "", MAIN_RAM_BASE + KERNEL_IMAGE_RAM_OFFSET);
 
 	if(result)
-		result &= sdcard_readFile("ROOTFS~1", "CPI", MAIN_RAM_BASE + ROOTFS_IMAGE_RAM_OFFSET);
+		result &= fat16_read_file("ROOTFS~1", "CPI", MAIN_RAM_BASE + ROOTFS_IMAGE_RAM_OFFSET);
 
 	if(result)
-		result &= sdcard_readFile("RV32", "DTB", MAIN_RAM_BASE + DEVICE_TREE_IMAGE_RAM_OFFSET);
+		result &= fat16_read_file("RV32", "DTB", MAIN_RAM_BASE + DEVICE_TREE_IMAGE_RAM_OFFSET);
 
 	if(result)
-		result &= sdcard_readFile("EMULATOR", "BIN", MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
+		result &= fat16_read_file("EMULATOR", "BIN", MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
 
 	if(result) {
 		boot(0, 0, 0, MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
@@ -576,10 +582,10 @@ void sdcardboot(void)
 	}
 #endif
 
-	result = sdcard_readFile("BOOT", "BIN", MAIN_RAM_BASE);
+	result = fat16_read_file("BOOT", "BIN", MAIN_RAM_BASE);
 	if(result)
 		boot(0, 0, 0, MAIN_RAM_BASE);
 	else
-		printf("SD Card SPI boot failed\n");
+		printf("SDCard boot failed\n");
 }
 #endif

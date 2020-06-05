@@ -108,7 +108,7 @@ int sdcard_sddatawriter_wait(void);
 int sdcard_sddatareader_wait(void);
 int sdcard_test(unsigned int blocks);
 
-uint8_t readSector(uint32_t sectorNumber, uint8_t *storage);
+uint8_t sdcard_read_block(uint32_t addr, uint8_t *buf);
 
 #endif /* CSR_SDCORE_BASE */
 

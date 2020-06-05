@@ -622,7 +622,7 @@ int sdcard_init(void) {
 	/* set block length */
 	sdcard_app_set_blocklen(SD_BLOCK_SIZE);
 
-	return 0;
+	return 1;
 }
 
 extern void dump_bytes(unsigned int *ptr, int count, unsigned long addr);
@@ -713,15 +713,14 @@ int sdcard_test(unsigned int blocks)
 	return 0;
 }
 
-uint8_t readSector(uint32_t sectorNumber, uint8_t *storage)
-{
+uint8_t sdcard_read_block(uint32_t addr, uint8_t *buf) {
 	int n;
 
 	// FIXME: handle errors, avoid recopy.
 
-	sdcard_read(sectorNumber, 1);
+	sdcard_read(addr, 1);
 	 for(n=0; n<SD_BLOCK_SIZE; n++)
-        storage[n] = sdread_buf[n];
+        buf[n] = sdread_buf[n];
     return 1;
 }
 

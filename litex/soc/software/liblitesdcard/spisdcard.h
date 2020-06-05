@@ -1,4 +1,5 @@
 // This file is Copyright (c) 2020 Rob Shelton <rob.s.ng15@googlemail.com>
+// This file is Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
 // License: BSD
 
 #ifndef __SPISDCARD_H
@@ -8,14 +9,8 @@
 
 #ifdef CSR_SPISDCARD_BASE
 
-#define USE_SPISCARD_RECLOCKING
-
-int spi_sdcard_init(uint32_t device);
-int spi_sdcard_read_sector(uint32_t device, uint32_t lba,uint_least8_t *buf);
-
-uint8_t spi_sdcard_goidle(void);
-
-uint8_t readSector(uint32_t sectorNumber, uint8_t *storage);
+uint8_t spisdcard_init(void);
+uint8_t spisdcard_read_block(uint32_t addr, uint8_t *buf);
 
 #endif /* CSR_SPISDCARD_BASE */
 

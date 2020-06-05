@@ -24,6 +24,14 @@
 
 #if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCORE_BASE)
 
+#if defined(CSR_SPISDCARD_BASE)
+#define read_block spisdcard_read_block
+#endif
+
+#if defined(CSR_SDCORE_BASE)
+#define read_block sdcard_read_block
+#endif
+
 // FAT16 Specific code starts here
 // Details from https://codeandlife.com/2012/04/02/simple-fat-and-sd-tutorial-part-1/
 
@@ -102,13 +110,13 @@ uint8_t sdCardSector[512];
 //      Return 0 success, 1 failure
 //
 // Details from https://codeandlife.com/2012/04/02/simple-fat-and-sd-tutorial-part-1/
-uint8_t sdcard_readMBR(void)
+uint8_t fat16_read_mbr(void)
 {
     int i, n;
 
     // Read Sector 0x00000000
     printf("Reading MBR\n");
-    if( readSector(0x00000000, sdCardSector)==SUCCESS ) {
+    if( read_block(0x00000000, sdCardSector)==SUCCESS ) {
         // Copy Partition 1 Entry from byte 0x1be
         // FIXME should check 0x55 0xaa at end of sector
         memcpy(&sdCardPartition, &sdCardSector[0x1be], sizeof(PartitionTable));
@@ -135,7 +143,7 @@ uint8_t sdcard_readMBR(void)
 
     // Read Parition 1 Boot Sector - Found from Partion Table
     printf("\nRead FAT16 Boot Sector\n");
-    if( readSector(sdCardPartition.start_sector, sdCardSector)==SUCCESS ) {
+    if( read_block(sdCardPartition.start_sector, sdCardSector)==SUCCESS ) {
         memcpy(&sdCardFatBootSector, &sdCardSector, sizeof(Fat16BootSector));
     }
     else {
@@ -181,19 +189,6 @@ uint8_t sdcard_readMBR(void)
         return FAILURE;
     }
 
-#ifdef USE_SPISCARD_RECLOCKING
-    // Reclock the card
-    // Calculate 16MHz as an integer divider from the CONFIG_CLOCK_FREQUENCY
-    // Add 1 as will be rounded down
-    // Always ensure divider is at least 2 - half the processor speed
-    int divider;
-    divider = (int)(CONFIG_CLOCK_FREQUENCY/(16e6)) + 1;
-    if( divider<2 )
-        divider=2;
-    printf("Reclocking from %dKHz to %dKHz\n\n", CONFIG_CLOCK_FREQUENCY/(int)spisdcard_clk_divider_read()/1000, CONFIG_CLOCK_FREQUENCY/divider/1000);
-    spisdcard_clk_divider_write(divider);
-#endif
-
     // Read in FAT16 File Allocation Table, array of 16bit unsinged integers
     // Calculate Storage from TOP of MAIN RAM
     sdCardFatTable = (uint16_t *)(MAIN_RAM_BASE+MAIN_RAM_SIZE-sdCardFatBootSector.sector_size*sdCardFatBootSector.fat_size_sectors);
@@ -202,7 +197,7 @@ uint8_t sdcard_readMBR(void)
     // Calculate Start of FAT16 File Allocation Table (start of partition plus reserved sectors)
     fatSectorStart=sdCardPartition.start_sector+sdCardFatBootSector.reserved_sectors;
     for(n=0; n<sdCardFatBootSector.fat_size_sectors; n++) {
-        if( readSector(fatSectorStart+n, (uint8_t *)((uint8_t*)sdCardFatTable)+sdCardFatBootSector.sector_size*n)==FAILURE ) {
+        if( read_block(fatSectorStart+n, (uint8_t *)((uint8_t*)sdCardFatTable)+sdCardFatBootSector.sector_size*n)==FAILURE ) {
             printf("Error reading FAT16 table - sector %d\n",n);
             return FAILURE;
         }
@@ -216,7 +211,7 @@ uint8_t sdcard_readMBR(void)
     // Calculate Start of FAT ROOT DIRECTORY (start of partition plues reserved sectors plus size of File Allocation Table(s))
     rootDirSectorStart=sdCardPartition.start_sector+sdCardFatBootSector.reserved_sectors+sdCardFatBootSector.number_of_fats*sdCardFatBootSector.fat_size_sectors;
     for(n=0; n<sdCardFatBootSector.root_dir_entries*sizeof(Fat16Entry)/sdCardFatBootSector.sector_size; n++) {
-        if( readSector(rootDirSectorStart+n, (uint8_t *)(sdCardFatBootSector.sector_size*n+(uint8_t *)(sdCardFat16RootDir)))==FAILURE ) {
+        if( read_block(rootDirSectorStart+n, (uint8_t *)(sdCardFatBootSector.sector_size*n+(uint8_t *)(sdCardFat16RootDir)))==FAILURE ) {
             printf("Error reading Root Dir - sector %d\n",n);
             return FAILURE;
         }
@@ -258,7 +253,7 @@ uint8_t sdcard_readMBR(void)
 //      Return 0 success, 1 failure
 //
 // Details from https://codeandlife.com/2012/04/02/simple-fat-and-sd-tutorial-part-1/
-uint8_t sdcard_readFile(char *filename, char *ext, unsigned long address)
+uint8_t fat16_read_file(char *filename, char *ext, unsigned long address)
 {
     int i, n, sector;
     uint16_t fileClusterStart;
@@ -311,14 +306,14 @@ uint8_t sdcard_readFile(char *filename, char *ext, unsigned long address)
             // If whole sector to be read, read directly into memory
             // Otherwise, read to sdCardSector buffer and transfer appropriate number of bytes
             if(bytesRemaining>sdCardFatBootSector.sector_size) {
-                if( readSector(clusterSectorStart+sector,(uint8_t *)address) == FAILURE ) {
+                if( read_block(clusterSectorStart+sector,(uint8_t *)address) == FAILURE ) {
                     printf("\nRead Error\n");
                     return FAILURE;
                 }
                 bytesRemaining=bytesRemaining-sdCardFatBootSector.sector_size;
                 address=address+sdCardFatBootSector.sector_size;
             } else {
-                if( readSector(clusterSectorStart+sector,sdCardSector) == FAILURE ) {
+                if( read_block(clusterSectorStart+sector,sdCardSector) == FAILURE ) {
                     printf("\nRead Error\n");
                     return FAILURE;
                 }
