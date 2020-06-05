@@ -583,8 +583,8 @@ void sdcardboot(void)
 
 	/* Copy files to RAM */
 #if defined(CONFIG_CPU_TYPE_VEXRISCV) && defined(CONFIG_CPU_VARIANT_LINUX)
-	f_mount(&FatFs, "", 0);
 	printf("Loading Linux images from SDCard to RAM...\n");
+	f_mount(&FatFs, "", 0);
 	result = copy_image_from_sdcard_to_ram("rv32.dtb", MAIN_RAM_BASE + DEVICE_TREE_IMAGE_RAM_OFFSET);
 	if (result)
 		result &= copy_image_from_sdcard_to_ram("emulator.bin", MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
@@ -597,7 +597,9 @@ void sdcardboot(void)
 		boot(0, 0, 0, MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
 	printf("Unable to load all Linux images, falling back to boot.bin...\n");
 #endif
+	f_mount(&FatFs, "", 0);
 	result = copy_image_from_sdcard_to_ram("boot.bin", MAIN_RAM_BASE);
+	f_mount(0, "", 0);
 	if(result)
 		boot(0, 0, 0, MAIN_RAM_BASE);
 	else

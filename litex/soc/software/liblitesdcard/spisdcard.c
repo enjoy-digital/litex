@@ -224,37 +224,6 @@ int rcvr_datablock (    /* 1:OK, 0:Failed */
 }
 
 
-
-/*-----------------------------------------------------------------------*/
-/* Send a data packet to the card                                        */
-/*-----------------------------------------------------------------------*/
-
-static
-int xmit_datablock (    /* 1:OK, 0:Failed */
-    const BYTE *buff,   /* 512 byte data block to be transmitted */
-    BYTE token          /* Data/Stop token */
-)
-{
-    BYTE d[2];
-
-
-    if (!wait_ready()) return 0;
-
-    d[0] = token;
-    xmit_mmc(d, 1);             /* Xmit a token */
-    if (token != 0xFD) {        /* Is it data token? */
-        xmit_mmc(buff, 512);    /* Xmit the 512 byte data block to MMC */
-        rcvr_mmc(d, 2);         /* Xmit dummy CRC (0xFF,0xFF) */
-        rcvr_mmc(d, 1);         /* Receive data response */
-        if ((d[0] & 0x1F) != 0x05)  /* If not accepted, return with error */
-            return 0;
-    }
-
-    return 1;
-}
-
-
-
 /*-----------------------------------------------------------------------*/
 /* Send a command packet to the card                                     */
 /*-----------------------------------------------------------------------*/
@@ -414,57 +383,6 @@ DRESULT disk_read (
 
     return count ? RES_ERROR : RES_OK;
 }
-
-/*-----------------------------------------------------------------------*/
-/* Miscellaneous Functions                                               */
-/*-----------------------------------------------------------------------*/
-
-DRESULT disk_ioctl (
-    BYTE drv,       /* Physical drive nmuber (0) */
-    BYTE ctrl,      /* Control code */
-    void *buff      /* Buffer to send/receive control data */
-)
-{
-    DRESULT res;
-    BYTE n, csd[16];
-    DWORD cs;
-
-    //FIXME if (disk_status(drv) & STA_NOINIT) return RES_NOTRDY;   /* Check if card is in the socket */
-
-    res = RES_ERROR;
-    switch (ctrl) {
-        case CTRL_SYNC :        /* Make sure that no pending write process */
-            if (select()) res = RES_OK;
-            break;
-
-        case GET_SECTOR_COUNT : /* Get number of sectors on the disk (DWORD) */
-            if ((send_cmd(CMD9, 0) == 0) && rcvr_datablock(csd, 16)) {
-                if ((csd[0] >> 6) == 1) {   /* SDC ver 2.00 */
-                    cs = csd[9] + ((WORD)csd[8] << 8) + ((DWORD)(csd[7] & 63) << 16) + 1;
-                    *(LBA_t*)buff = cs << 10;
-                } else {                    /* SDC ver 1.XX or MMC */
-                    n = (csd[5] & 15) + ((csd[10] & 128) >> 7) + ((csd[9] & 3) << 1) + 2;
-                    cs = (csd[8] >> 6) + ((WORD)csd[7] << 2) + ((WORD)(csd[6] & 3) << 10) + 1;
-                    *(LBA_t*)buff = cs << (n - 9);
-                }
-                res = RES_OK;
-            }
-            break;
-
-        case GET_BLOCK_SIZE :   /* Get erase block size in unit of sector (DWORD) */
-            *(DWORD*)buff = 128;
-            res = RES_OK;
-            break;
-
-        default:
-            res = RES_PARERR;
-    }
-
-    deselect();
-
-    return res;
-}
-
 
 /*-----------------------------------------------------------------------*/
 /* LiteX's BIOS                                                          */
