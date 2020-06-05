@@ -21,6 +21,7 @@
 	- Add CV32E40P CPU support (ex RI5CY).
 	- JTAG UART with uart_name=jtag_uart (validated on Spartan6, 7-Series, Ultrascale(+)).
 	- Add Symbiflow experimental support on Arty.
+	- Add SDCard boot from FAT/exFAT filesystems with FatFs.
 
 	[> API changes/Deprecation
 	--------------------------

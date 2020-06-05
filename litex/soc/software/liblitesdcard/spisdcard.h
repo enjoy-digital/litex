@@ -1,5 +1,5 @@
-// This file is Copyright (c) 2020 Rob Shelton <rob.s.ng15@googlemail.com>
 // This file is Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
+// This file is Copyright (c) 2020 Rob Shelton <rob.s.ng15@googlemail.com>
 // License: BSD
 
 #ifndef __SPISDCARD_H

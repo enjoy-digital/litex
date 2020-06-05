@@ -43,7 +43,6 @@
 static void spi_set_clk_freq(uint32_t clk_freq) {
     uint32_t divider;
     divider = CONFIG_CLOCK_FREQUENCY/clk_freq + 1;
-    printf("divider: %d\n", divider);
     if (divider >= 65535) /* 16-bit hardware divider */
         divider = 65535;
     if (divider <= 2)     /* At least half CPU speed */
@@ -415,45 +414,6 @@ DRESULT disk_read (
 
     return count ? RES_ERROR : RES_OK;
 }
-
-/*-----------------------------------------------------------------------*/
-/* Write Sector(s)                                                       */
-/*-----------------------------------------------------------------------*/
-
-DRESULT disk_write (
-    BYTE drv,           /* Physical drive nmuber (0) */
-    const BYTE *buff,   /* Pointer to the data to be written */
-    LBA_t sector,       /* Start sector number (LBA) */
-    UINT count          /* Sector count (1..128) */
-)
-{
-    DWORD sect = (DWORD)sector;
-
-
-    //FIXME if (disk_status(drv) & STA_NOINIT) return RES_NOTRDY;
-    if (!(CardType & CT_BLOCK)) sect *= 512;    /* Convert LBA to byte address if needed */
-
-    if (count == 1) {   /* Single block write */
-        if ((send_cmd(CMD24, sect) == 0)    /* WRITE_BLOCK */
-            && xmit_datablock(buff, 0xFE))
-            count = 0;
-    }
-    else {              /* Multiple block write */
-        if (CardType & CT_SDC) send_cmd(ACMD23, count);
-        if (send_cmd(CMD25, sect) == 0) {   /* WRITE_MULTIPLE_BLOCK */
-            do {
-                if (!xmit_datablock(buff, 0xFC)) break;
-                buff += 512;
-            } while (--count);
-            if (!xmit_datablock(0, 0xFD))   /* STOP_TRAN token */
-                count = 1;
-        }
-    }
-    deselect();
-
-    return count ? RES_ERROR : RES_OK;
-}
-
 
 /*-----------------------------------------------------------------------*/
 /* Miscellaneous Functions                                               */

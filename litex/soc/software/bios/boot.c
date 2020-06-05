@@ -30,7 +30,7 @@
 
 #include <liblitesdcard/spisdcard.h>
 #include <liblitesdcard/sdcard.h>
-#include <liblitesdcard/fat16.h>
+#include <liblitesdcard/ff.h>
 
 extern void boot_helper(unsigned long r1, unsigned long r2, unsigned long r3, unsigned long addr);
 
@@ -536,8 +536,33 @@ void romboot(void)
 
 #if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCORE_BASE)
 
+static int copy_image_from_sdcard_to_ram(const char * filename, unsigned int ram_address)
+{
+	FRESULT fr;
+	FIL file;
+	UINT br;
+	UINT offset;
+
+	fr = f_open(&file, filename, FA_READ);
+	if (fr == FR_OK){
+		printf("Copying %d bytes from %s to 0x%08x...\n", f_size(&file), filename, ram_address);
+		offset = 0;
+		for (;;) {
+			fr = f_read(&file, (void *) ram_address + offset, 512, &br);
+			if (br == 0) break;
+			offset += br;
+		}
+	} else {
+		printf("%s file not found.\n", filename);
+		return 0;
+	}
+	f_close(&file);
+	return 1;
+}
+
 void sdcardboot(void)
 {
+	FATFS FatFs;
 	unsigned int result;
 
 	printf("Booting from SDCard...\n");
@@ -556,36 +581,26 @@ void sdcardboot(void)
 		return;
 	}
 
-	/* Read MBR */
-	result = fat16_read_mbr();
-	if (result == 0) {
-		printf("SDCard MBR read failed.\n");
-		return;
-	}
-
 	/* Copy files to RAM */
 #if defined(CONFIG_CPU_TYPE_VEXRISCV) && defined(CONFIG_CPU_VARIANT_LINUX)
-	result = fat16_read_file("IMAGE", "", MAIN_RAM_BASE + KERNEL_IMAGE_RAM_OFFSET);
-
-	if(result)
-		result &= fat16_read_file("ROOTFS~1", "CPI", MAIN_RAM_BASE + ROOTFS_IMAGE_RAM_OFFSET);
-
-	if(result)
-		result &= fat16_read_file("RV32", "DTB", MAIN_RAM_BASE + DEVICE_TREE_IMAGE_RAM_OFFSET);
-
-	if(result)
-		result &= fat16_read_file("EMULATOR", "BIN", MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
-
-	if(result) {
+	f_mount(&FatFs, "", 0);
+	printf("Loading Linux images from SDCard to RAM...\n");
+	result = copy_image_from_sdcard_to_ram("rv32.dtb", MAIN_RAM_BASE + DEVICE_TREE_IMAGE_RAM_OFFSET);
+	if (result)
+		result &= copy_image_from_sdcard_to_ram("emulator.bin", MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
+	if (result)
+		result &= copy_image_from_sdcard_to_ram("Image", MAIN_RAM_BASE + KERNEL_IMAGE_RAM_OFFSET);
+	if (result)
+		result &= copy_image_from_sdcard_to_ram("ROOTFS", MAIN_RAM_BASE + ROOTFS_IMAGE_RAM_OFFSET); /* FIXME should be rootfs.cpio */
+	f_mount(0, "", 0);
+	if (result)
 		boot(0, 0, 0, MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
-		return;
-	}
+	printf("Unable to load all Linux images, falling back to boot.bin...\n");
 #endif
-
-	result = fat16_read_file("BOOT", "BIN", MAIN_RAM_BASE);
+	result = copy_image_from_sdcard_to_ram("boot.bin", MAIN_RAM_BASE);
 	if(result)
 		boot(0, 0, 0, MAIN_RAM_BASE);
 	else
-		printf("SDCard boot failed\n");
+		printf("SDCard boot failed.\n");
 }
 #endif
