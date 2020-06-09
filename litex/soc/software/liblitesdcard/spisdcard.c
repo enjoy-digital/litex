@@ -18,14 +18,18 @@
 
 #ifdef CSR_SPISDCARD_BASE
 
-#define SDCARD_DEBUG
+#define SPISDCARD_DEBUG
+
+#ifndef SPISDCARD_CLK_FREQ_INIT
+#define SPISDCARD_CLK_FREQ_INIT 400000
+#endif
+#ifndef SPISDCARD_CLK_FREQ
+#define SPISDCARD_CLK_FREQ 10000000
+#endif
 
 /*-----------------------------------------------------------------------*/
 /* SPI Master low-level functions                                        */
 /*-----------------------------------------------------------------------*/
-
-#define SPI_CLK_FREQ_INIT          400000
-#define SPI_CLK_FREQ_OPERATIONAL 10000000
 
 static void spi_set_clk_freq(uint32_t clk_freq) {
     uint32_t divider;
@@ -34,7 +38,7 @@ static void spi_set_clk_freq(uint32_t clk_freq) {
         divider = 65535;
     if (divider <= 2)     /* At least half CPU speed */
         divider = 2;
-#ifdef SDCARD_DEBUG
+#ifdef SPISDCARD_DEBUG
     printf("Setting SDCard clk freq to ");
     if (clk_freq > 1000000)
         printf("%d MHz\n", (CONFIG_CLOCK_FREQUENCY/divider)/1000000);
@@ -197,7 +201,7 @@ uint8_t spisdcard_init(void) {
     uint16_t timeout;
 
     /* Set SPI clk freq to initialization frequency */
-    spi_set_clk_freq(SPI_CLK_FREQ_INIT);
+    spi_set_clk_freq(SPISDCARD_CLK_FREQ_INIT);
 
     /* Wait 10ms */
     busy_wait(10);
@@ -227,7 +231,7 @@ uint8_t spisdcard_init(void) {
         return 0;
 
     /* Set SPI clk freq to operational frequency */
-    spi_set_clk_freq(SPI_CLK_FREQ_OPERATIONAL);
+    spi_set_clk_freq(SPISDCARD_CLK_FREQ);
 
     return 1;
 }
