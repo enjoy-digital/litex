@@ -18,13 +18,13 @@
 
 #ifdef CSR_SPISDCARD_BASE
 
-#define SPISDCARD_DEBUG
+//#define SPISDCARD_DEBUG
 
 #ifndef SPISDCARD_CLK_FREQ_INIT
-#define SPISDCARD_CLK_FREQ_INIT 400000
+#define SPISDCARD_CLK_FREQ_INIT 200000
 #endif
 #ifndef SPISDCARD_CLK_FREQ
-#define SPISDCARD_CLK_FREQ 10000000
+#define SPISDCARD_CLK_FREQ 25000000
 #endif
 
 /*-----------------------------------------------------------------------*/
@@ -63,14 +63,14 @@ static uint8_t spi_xfer(uint8_t byte) {
 /* SDCard Select/Deselect functions                                      */
 /*-----------------------------------------------------------------------*/
 
-static void spisdcarddeselect(void) {
+static void spisdcard_deselect(void) {
     /* Set SPI CS High */
     spisdcard_cs_write(SPI_CS_HIGH);
     /* Generate 8 dummy clocks */
     spi_xfer(0xff);
 }
 
-static int spisdcardselect(void) {
+static int spisdcard_select(void) {
     uint16_t timeout;
 
     /* Set SPI CS Low */
@@ -89,7 +89,7 @@ static int spisdcardselect(void) {
     }
 
     /* Deselect card on error */
-    spisdcarddeselect();
+    spisdcard_deselect();
 
     return 0;
 }
@@ -158,8 +158,8 @@ static uint8_t spisdcardsend_cmd(uint8_t cmd, uint32_t arg)
 
     /* Select the card and wait for it, except for CMD12: STOP_TRANSMISSION */
     if (cmd != CMD12) {
-        spisdcarddeselect();
-        if (spisdcardselect() == 0)
+        spisdcard_deselect();
+        if (spisdcard_select() == 0)
             return 0xff;
     }
 
@@ -203,15 +203,21 @@ uint8_t spisdcard_init(void) {
     /* Set SPI clk freq to initialization frequency */
     spi_set_clk_freq(SPISDCARD_CLK_FREQ_INIT);
 
-    /* Wait 10ms */
-    busy_wait(10);
+    timeout = 1000;
+    while (timeout) {
+        /* Set SDCard in SPI Mode (generate 80 dummy clocks) */
+        spisdcard_cs_write(SPI_CS_HIGH);
+        for (i=0; i<10; i++)
+            spi_xfer(0xff);
+        spisdcard_cs_write(SPI_CS_LOW);
 
-    /* Set SDCard in SPI Mode (generate 80 dummy clocks) */
-    for (i=0; i<10; i++)
-        spi_xfer(0xff);
+        /* Set SDCard in Idle state */
+        if (spisdcardsend_cmd(CMD0, 0) == 0x1)
+            break;
 
-    /* Set SDCard in Idle state */
-    if (spisdcardsend_cmd(CMD0, 0) != 0x1)
+        timeout--;
+    }
+    if (timeout == 0)
         return 0;
 
     /* Set SDCard voltages, only supported by ver2.00+ SDCards */
@@ -253,7 +259,7 @@ DSTATUS disk_initialize(uint8_t drv) {
     if (drv) return RES_NOTRDY;
 
     r = spisdcard_init();
-    spisdcarddeselect();
+    spisdcard_deselect();
 
     spisdcardstatus = r ? 0 : STA_NOINIT;
     return spisdcardstatus;
@@ -275,7 +281,7 @@ DRESULT disk_read(uint8_t drv, uint8_t *buf, uint32_t sector, uint32_t count) {
         if (cmd == CMD18)
             spisdcardsend_cmd(CMD12, 0); /* STOP_TRANSMISSION */
     }
-    spisdcarddeselect();
+    spisdcard_deselect();
 
     if (count)
         return RES_ERROR;
