@@ -12,6 +12,8 @@
 #include <generated/mem.h>
 #include <system.h>
 
+#include "fat/ff.h"
+#include "fat/diskio.h"
 #include "sdcard.h"
 
 #define SDCARD_DEBUG
@@ -560,9 +562,9 @@ int sdcard_sddatareader_wait(void) {
 /* user */
 
 int sdcard_init(void) {
-    unsigned short rca;
+	unsigned short rca;
 
-    /* initialize SD driver parameters */
+	/* initialize SD driver parameters */
 	sdcore_cmdtimeout_write(1<<19);
 	sdcore_datatimeout_write(1<<19);
 
@@ -713,15 +715,36 @@ int sdcard_test(unsigned int blocks)
 	return 0;
 }
 
-uint8_t sdcard_read_block(uint32_t addr, uint8_t *buf) {
-	int n;
+/*-----------------------------------------------------------------------*/
+/* SDCard FatFs disk functions                                           */
+/*-----------------------------------------------------------------------*/
 
-	// FIXME: handle errors, avoid recopy.
+static DSTATUS spisdcardstatus = STA_NOINIT;
 
-	sdcard_read(addr, 1);
-	 for(n=0; n<SD_BLOCK_SIZE; n++)
-        buf[n] = sdread_buf[n];
-    return 1;
+DSTATUS disk_status(uint8_t drv) {
+	if (drv) return STA_NOINIT;
+	return spisdcardstatus;
+}
+
+DSTATUS disk_initialize(uint8_t drv) {
+	uint8_t r;
+
+	if (drv) return RES_NOTRDY;
+
+	r = sdcard_init();
+
+	spisdcardstatus = r ? 0 : STA_NOINIT;
+	return spisdcardstatus;
+}
+
+DRESULT disk_read(uint8_t drv, uint8_t *buf, uint32_t sector, uint32_t count) {
+	while (count) {
+		sdcard_read(sector, 1);
+		memcpy((char*) buf, (char*) sdread_buf, SD_BLOCK_SIZE);
+		buf += SD_BLOCK_SIZE;
+		count--;
+	}
+	return RES_OK;
 }
 
 #endif /* CSR_SDCORE_BASE */
