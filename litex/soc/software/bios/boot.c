@@ -547,11 +547,16 @@ static int copy_image_from_sdcard_to_ram(const char * filename, unsigned int ram
 	if (fr == FR_OK){
 		printf("Copying %d bytes from %s to 0x%08x...\n", f_size(&file), filename, ram_address);
 		offset = 0;
+		init_progression_bar(f_size(&file));
 		for (;;) {
 			fr = f_read(&file, (void *) ram_address + offset, 512, &br);
 			if (br == 0) break;
 			offset += br;
+			if (offset%(512*128) == 0)
+				show_progress(offset);
 		}
+		show_progress(offset);
+		printf("\n");
 	} else {
 		printf("%s file not found.\n", filename);
 		return 0;
