@@ -14,6 +14,9 @@ liblitesdcard.a: $(OBJECTS)
 %.o: $(LIBLITESDCARD_DIRECTORY)/%.c
 	$(compile)
 
+%.o: $(LIBLITESDCARD_DIRECTORY)/fat/%.c
+	$(compile)
+
 %.o: %.S
 	$(assemble)
 

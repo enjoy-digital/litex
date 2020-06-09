@@ -30,7 +30,7 @@
 
 #include <liblitesdcard/spisdcard.h>
 #include <liblitesdcard/sdcard.h>
-#include <liblitesdcard/ff.h>
+#include <liblitesdcard/fat/ff.h>
 
 extern void boot_helper(unsigned long r1, unsigned long r2, unsigned long r3, unsigned long addr);
 

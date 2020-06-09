@@ -12,8 +12,8 @@
 #include <generated/mem.h>
 #include <system.h>
 
-#include "ff.h"
-#include "diskio.h"
+#include "fat/ff.h"
+#include "fat/diskio.h"
 #include "spisdcard.h"
 
 #ifdef CSR_SPISDCARD_BASE
