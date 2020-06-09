@@ -591,7 +591,7 @@ void sdcardboot(void)
 	if (result)
 		result &= copy_image_from_sdcard_to_ram("Image", MAIN_RAM_BASE + KERNEL_IMAGE_RAM_OFFSET);
 	if (result)
-		result &= copy_image_from_sdcard_to_ram("ROOTFS", MAIN_RAM_BASE + ROOTFS_IMAGE_RAM_OFFSET); /* FIXME should be rootfs.cpio */
+		result &= copy_image_from_sdcard_to_ram("rootfs.cpio", MAIN_RAM_BASE + ROOTFS_IMAGE_RAM_OFFSET);
 	f_mount(0, "", 0);
 	if (result)
 		boot(0, 0, 0, MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);

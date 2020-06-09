@@ -1,7 +1,7 @@
 include ../include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
-OBJECTS=ff.o sdcard.o spisdcard.o
+OBJECTS=ffunicode.o ff.o sdcard.o spisdcard.o
 
 all: liblitesdcard.a
 
