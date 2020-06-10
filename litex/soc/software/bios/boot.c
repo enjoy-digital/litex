@@ -563,11 +563,10 @@ static int copy_image_from_sdcard_to_ram(const char * filename, unsigned int ram
 		init_progression_bar(f_size(&file));
 		offset = 0;
 		for (;;) {
-			fr = f_read(&file, (void *) ram_address + offset, 512, &br);
+			fr = f_read(&file, (void *) ram_address + offset,  0x8000, &br);
 			if (br == 0) break;
 			offset += br;
-			if (offset%(512*128) == 0)
-				show_progress(offset);
+			show_progress(offset);
 		}
 		show_progress(offset);
 		printf("\n");
