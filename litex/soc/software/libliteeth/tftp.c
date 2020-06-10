@@ -10,6 +10,8 @@
 #include <stdint.h>
 #include <string.h>
 
+#include <progress.h>
+
 #include "udp.h"
 #include "tftp.h"
 
@@ -116,7 +118,6 @@ int tftp_get(uint32_t ip, uint16_t server_port, const char *filename,
 	int tries;
 	int i;
 	int length_before;
-	int spin = 0;
 
 	if(!udp_arp_resolve(ip))
 		return -1;
@@ -146,14 +147,13 @@ int tftp_get(uint32_t ip, uint16_t server_port, const char *filename,
 
 	i = 12000000;
 	length_before = total_length;
+	init_progression_bar(0);
 	while(!transfer_finished) {
 		if(length_before != total_length) {
 			i = 12000000;
 			length_before = total_length;
-			if ((total_length & 0x7fff) == 0) { // every 32K
-				putchar("|/-\\"[spin++ % 4]);
-				putchar('\b');
-			}
+			if ((total_length & (0x8000 - 1)) == 0)
+				show_progress(-1);
 		}
 		if(i-- == 0) {
 			udp_set_callback(NULL);
