@@ -631,6 +631,29 @@ void sdcardboot(void)
 		boot(0, 0, 0, MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
 	printf("Unable to load all Linux images, falling back to boot.bin...\n");
 #endif
+
+#if defined(CONFIG_CPU_TYPE_VEXRISCV) && \
+	(defined(CONFIG_CPU_VARIANT_1C)   || \
+	 defined(CONFIG_CPU_VARIANT_2C)   || \
+	 defined(CONFIG_CPU_VARIANT_4C)   || \
+	 defined(CONFIG_CPU_VARIANT_8C)   || \
+	 defined(CONFIG_CPU_VARIANT_MP1C) || \
+	 defined(CONFIG_CPU_VARIANT_MP2C) || \
+	 defined(CONFIG_CPU_VARIANT_MP4C) || \
+	 defined(CONFIG_CPU_VARIANT_MP8C))
+	printf("Loading Linux images from SDCard to RAM...\n");
+	result = copy_image_from_sdcard_to_ram("Image", 0x40000000);
+	if (result)
+		result &= copy_image_from_sdcard_to_ram("dtb", 0x40ef0000);
+	if (result)
+		result &= copy_image_from_sdcard_to_ram("rootfs.cpio", 0x41000000);
+	if (result)
+		result &= copy_image_from_sdcard_to_ram("fw_jump.bin", 0x40f00000);
+	if (result)
+		boot(0, 0, 0, 0x40f00000);
+	printf("Unable to load all Linux images, falling back to boot.bin...\n");
+#endif
+
 	result = copy_image_from_sdcard_to_ram("boot.bin", MAIN_RAM_BASE);
 	if(result)
 		boot(0, 0, 0, MAIN_RAM_BASE);
