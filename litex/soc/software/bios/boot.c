@@ -33,6 +33,9 @@
 #include <liblitesdcard/sdcard.h>
 #include <liblitesdcard/fat/ff.h>
 
+#define max(x, y) (((x) > (y)) ? (x) : (y))
+#define min(x, y) (((x) < (y)) ? (x) : (y))
+
 extern void boot_helper(unsigned long r1, unsigned long r2, unsigned long r3, unsigned long addr);
 
 static void __attribute__((noreturn)) boot(unsigned long r1, unsigned long r2, unsigned long r3, unsigned long addr)
@@ -407,7 +410,7 @@ void netboot(void)
 
 #ifdef FLASH_BOOT_ADDRESS
 
-/* On systems with exernal SDRAM we copy out of the SPI flash into the SDRAM
+/* On systems with external SDRAM we copy out of the SPI flash into the SDRAM
    before running, as it is faster.  If we have no SDRAM then we have to
    execute directly out of the SPI flash. */
 #ifdef MAIN_RAM_BASE
@@ -419,9 +422,9 @@ void netboot(void)
 
 static unsigned int check_image_in_flash(unsigned int base_address)
 {
-	unsigned int length;
-	unsigned int crc;
-	unsigned int got_crc;
+	uint32_t length;
+	uint32_t crc;
+	uint32_t got_crc;
 
 	length = MMPTR(base_address);
 	if((length < 32) || (length > 16*1024*1024)) {
@@ -442,13 +445,23 @@ static unsigned int check_image_in_flash(unsigned int base_address)
 #if defined(MAIN_RAM_BASE) && defined(FLASH_BOOT_ADDRESS)
 static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned int ram_address)
 {
-	unsigned int length;
+	uint32_t length;
+	uint32_t offset;
 
 	length = check_image_in_flash(flash_address);
 	if(length > 0) {
 		printf("Copying %d bytes from 0x%08x to 0x%08x...\n", length, flash_address, ram_address);
-		// skip length and crc
-		memcpy((void *)ram_address, (unsigned int *)(flash_address + 2 * sizeof(unsigned int)), length);
+		offset = 0;
+		while (length > 0) {
+			uint32_t chunk_length;
+			chunk_length = min(length, 0x8000); /* 32KB chunks */
+			memcpy((void *) ram_address + offset, (void*) flash_address + offset + 8, chunk_length);
+			offset += chunk_length;
+			length -= chunk_length;
+			show_progress(offset);
+		}
+		show_progress(offset);
+		printf("\n");
 		return 1;
 	}
 
@@ -471,8 +484,8 @@ static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned int
 
 void flashboot(void)
 {
-	unsigned int length;
-	unsigned int result;
+	uint32_t length;
+	uint32_t result;
 
 #if defined(MAIN_RAM_BASE) && defined(CONFIG_CPU_TYPE_VEXRISCV) && defined(CONFIG_CPU_VARIANT_LINUX)
 
@@ -541,14 +554,14 @@ static int copy_image_from_sdcard_to_ram(const char * filename, unsigned int ram
 {
 	FRESULT fr;
 	FIL file;
-	UINT br;
-	UINT offset;
+	uint32_t br;
+	uint32_t offset;
 
 	fr = f_open(&file, filename, FA_READ);
 	if (fr == FR_OK){
 		printf("Copying %d bytes from %s to 0x%08x...\n", f_size(&file), filename, ram_address);
-		offset = 0;
 		init_progression_bar(f_size(&file));
+		offset = 0;
 		for (;;) {
 			fr = f_read(&file, (void *) ram_address + offset, 512, &br);
 			if (br == 0) break;
@@ -569,7 +582,7 @@ static int copy_image_from_sdcard_to_ram(const char * filename, unsigned int ram
 void sdcardboot(void)
 {
 	FATFS FatFs;
-	unsigned int result;
+	uint32_t result;
 
 	printf("Booting from SDCard...\n");
 
