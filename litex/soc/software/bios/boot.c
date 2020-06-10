@@ -554,34 +554,51 @@ void romboot(void)
 static int copy_image_from_sdcard_to_ram(const char * filename, unsigned int ram_address)
 {
 	FRESULT fr;
+	FATFS fs;
 	FIL file;
 	uint32_t br;
 	uint32_t offset;
+	uint32_t length;
 
+	fr = f_mount(&fs, "", 1);
+	if (fr != FR_OK)
+		return 0;
 	fr = f_open(&file, filename, FA_READ);
-	if (fr == FR_OK){
-		printf("Copying %d bytes from %s to 0x%08x...\n", f_size(&file), filename, ram_address);
-		init_progression_bar(f_size(&file));
-		offset = 0;
-		for (;;) {
-			fr = f_read(&file, (void *) ram_address + offset,  0x8000, &br);
-			if (br == 0) break;
-			offset += br;
-			show_progress(offset);
-		}
-		show_progress(offset);
-		printf("\n");
-	} else {
+	if (fr != FR_OK) {
 		printf("%s file not found.\n", filename);
+		f_mount(0, "", 0);
 		return 0;
 	}
+
+	length = f_size(&file);
+	printf("Copying %d bytes from %s to 0x%08x...\n", length, filename, ram_address);
+	init_progression_bar(length);
+	offset = 0;
+	for (;;) {
+		fr = f_read(&file, (void*) ram_address + offset,  0x8000, &br);
+		if (fr != FR_OK) {
+			printf("file read error.\n");
+			f_close(&file);
+			f_mount(0, "", 0);
+			return 0;
+		}
+		if (br == 0)
+			break;
+		offset += br;
+		show_progress(offset);
+	}
+	show_progress(offset);
+	printf("\n");
+
 	f_close(&file);
+	f_mount(0, "", 0);
+
 	return 1;
 }
 
 void sdcardboot(void)
 {
-	FATFS FatFs;
+
 	uint32_t result;
 
 	printf("Booting from SDCard...\n");
@@ -603,7 +620,6 @@ void sdcardboot(void)
 	/* Copy files to RAM */
 #if defined(CONFIG_CPU_TYPE_VEXRISCV) && defined(CONFIG_CPU_VARIANT_LINUX)
 	printf("Loading Linux images from SDCard to RAM...\n");
-	f_mount(&FatFs, "", 0);
 	result = copy_image_from_sdcard_to_ram("rv32.dtb", MAIN_RAM_BASE + DEVICE_TREE_IMAGE_RAM_OFFSET);
 	if (result)
 		result &= copy_image_from_sdcard_to_ram("emulator.bin", MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
@@ -611,14 +627,11 @@ void sdcardboot(void)
 		result &= copy_image_from_sdcard_to_ram("Image", MAIN_RAM_BASE + KERNEL_IMAGE_RAM_OFFSET);
 	if (result)
 		result &= copy_image_from_sdcard_to_ram("rootfs.cpio", MAIN_RAM_BASE + ROOTFS_IMAGE_RAM_OFFSET);
-	f_mount(0, "", 0);
 	if (result)
 		boot(0, 0, 0, MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
 	printf("Unable to load all Linux images, falling back to boot.bin...\n");
 #endif
-	f_mount(&FatFs, "", 0);
 	result = copy_image_from_sdcard_to_ram("boot.bin", MAIN_RAM_BASE);
-	f_mount(0, "", 0);
 	if(result)
 		boot(0, 0, 0, MAIN_RAM_BASE);
 	else
