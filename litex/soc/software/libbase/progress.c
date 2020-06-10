@@ -25,7 +25,7 @@
 #include <progress.h>
 
 #define FILESIZE_MAX    100000000
-#define HASHES_PER_LINE	65
+#define HASHES_PER_LINE	60
 
 static int printed;
 static int progress_max;
@@ -48,7 +48,7 @@ void show_progress(int now)
 
 	while (printed < now) {
 		if (!(printed % HASHES_PER_LINE) && printed)
-			printf("\n\t");
+			printf("\n");
 		printf("#");
 		printed++;
 	}
@@ -60,7 +60,7 @@ void init_progression_bar(int max)
 	progress_max = max;
 	spin = 0;
 	if (progress_max && progress_max != FILESIZE_MAX)
-		printf("\t[%*s]\r\t[", HASHES_PER_LINE, "");
+		printf("[%*s]\r[", HASHES_PER_LINE, "");
 	else
-		printf("\t");
+		printf("");
 }
