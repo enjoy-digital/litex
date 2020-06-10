@@ -1238,11 +1238,11 @@ class LiteXSoC(SoC):
         self.add_csr(name)
 
     # Add SPI SDCard -------------------------------------------------------------------------------
-    def add_spi_sdcard(self, name="spisdcard", clk_freq=400e3):
+    def add_spi_sdcard(self, name="spisdcard", spi_clk_freq=400e3):
         pads = self.platform.request(name)
         if hasattr(pads, "rst"):
             self.comb += pads.rst.eq(0)
-        spisdcard = SPIMaster(pads, 8, self.sys_clk_freq, 400e3)
+        spisdcard = SPIMaster(pads, 32, self.sys_clk_freq, spi_clk_freq, mode="aligned")
         spisdcard.add_clk_divider()
         setattr(self.submodules, name, spisdcard)
         self.add_csr(name)

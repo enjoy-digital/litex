@@ -21,7 +21,7 @@
 //#define SPISDCARD_DEBUG
 
 #ifndef SPISDCARD_CLK_FREQ_INIT
-#define SPISDCARD_CLK_FREQ_INIT 200000
+#define SPISDCARD_CLK_FREQ_INIT 400000
 #endif
 #ifndef SPISDCARD_CLK_FREQ
 #define SPISDCARD_CLK_FREQ 25000000
@@ -125,6 +125,7 @@ static void busy_wait_us(unsigned int us)
 }
 
 static uint8_t spisdcardreceive_block(uint8_t *buf) {
+    uint8_t i;
     uint32_t timeout;
 
     /* Wait 100ms for a start of block */
@@ -139,7 +140,18 @@ static uint8_t spisdcardreceive_block(uint8_t *buf) {
         return 0;
 
     /* Receive block */
-    spisdcardread_bytes(buf, 512);
+    spisdcard_mosi_write(0xffffffff);
+    for (i=0; i<128; i++) {
+        uint32_t word;
+        spisdcard_control_write(32*SPI_LENGTH | SPI_START);
+        while(spisdcard_status_read() != SPI_DONE);
+        word = spisdcard_miso_read();
+        buf[0] = (word >> 24) & 0xff;
+        buf[1] = (word >> 16) & 0xff;
+        buf[2] = (word >>  8) & 0xff;
+        buf[3] = (word >>  0) & 0xff;
+        buf += 4;
+    }
 
     /* Discard CRC */
     spi_xfer(0xff);
