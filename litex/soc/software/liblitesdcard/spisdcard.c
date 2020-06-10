@@ -60,7 +60,7 @@ static uint8_t spi_xfer(uint8_t byte) {
 }
 
 /*-----------------------------------------------------------------------*/
-/* SDCard Select/Deselect functions                                      */
+/* SPI SDCard Select/Deselect functions                                  */
 /*-----------------------------------------------------------------------*/
 
 static void spisdcard_deselect(void) {
@@ -95,7 +95,7 @@ static int spisdcard_select(void) {
 }
 
 /*-----------------------------------------------------------------------*/
-/* SDCard bytes Xfer functions                                           */
+/* SPI SDCard bytes Xfer functions                                       */
 /*-----------------------------------------------------------------------*/
 
 static void spisdcardwrite_bytes(uint8_t* buf, uint16_t n) {
@@ -111,7 +111,7 @@ static void spisdcardread_bytes(uint8_t* buf, uint16_t n) {
 }
 
 /*-----------------------------------------------------------------------*/
-/* SDCard block Xfer functions                                          */
+/* SPI SDCard blocks Xfer functions                                      */
 /*-----------------------------------------------------------------------*/
 
 static uint8_t spisdcardreceive_block(uint8_t *buf) {
@@ -139,7 +139,7 @@ static uint8_t spisdcardreceive_block(uint8_t *buf) {
 }
 
 /*-----------------------------------------------------------------------*/
-/* SDCard Command functions                                              */
+/* SPI SDCard Command functions                                          */
 /*-----------------------------------------------------------------------*/
 
 static uint8_t spisdcardsend_cmd(uint8_t cmd, uint32_t arg)
@@ -192,7 +192,7 @@ static uint8_t spisdcardsend_cmd(uint8_t cmd, uint32_t arg)
 }
 
 /*-----------------------------------------------------------------------*/
-/* SDCard Initialization functions                                       */
+/* SPI SDCard Initialization functions                                   */
 /*-----------------------------------------------------------------------*/
 
 uint8_t spisdcard_init(void) {
@@ -243,7 +243,7 @@ uint8_t spisdcard_init(void) {
 }
 
 /*-----------------------------------------------------------------------*/
-/* SDCard FatFs disk functions                                           */
+/* SPI SDCard FatFs functions                                            */
 /*-----------------------------------------------------------------------*/
 
 static DSTATUS spisdcardstatus = STA_NOINIT;

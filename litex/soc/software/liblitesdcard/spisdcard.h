@@ -20,7 +20,7 @@
 #define SPI_LENGTH  (1 << 8)
 
 /*-----------------------------------------------------------------------*/
-/* SDCard SPI Commands                                                   */
+/* SPI SDCard Commands                                                   */
 /*-----------------------------------------------------------------------*/
 
 #define CMD0    (0)         /* GO_IDLE_STATE */
@@ -45,10 +45,11 @@
 #define CMD55   (55)        /* APP_CMD */
 #define CMD58   (58)        /* READ_OCR */
 
-
+/*-----------------------------------------------------------------------*/
+/* SPI SDCard User functions                                             */
+/*-----------------------------------------------------------------------*/
 
 uint8_t spisdcard_init(void);
-uint8_t spisdcard_read_block(uint32_t addr, uint8_t *buf);
 
 #endif /* CSR_SPISDCARD_BASE */
 
