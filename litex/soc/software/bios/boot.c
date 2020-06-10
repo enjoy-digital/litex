@@ -452,6 +452,7 @@ static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned int
 	if(length > 0) {
 		printf("Copying %d bytes from 0x%08x to 0x%08x...\n", length, flash_address, ram_address);
 		offset = 0;
+		init_progression_bar(length);
 		while (length > 0) {
 			uint32_t chunk_length;
 			chunk_length = min(length, 0x8000); /* 32KB chunks */
