@@ -114,15 +114,25 @@ static void spisdcardread_bytes(uint8_t* buf, uint16_t n) {
 /* SPI SDCard blocks Xfer functions                                      */
 /*-----------------------------------------------------------------------*/
 
+static void busy_wait_us(unsigned int us)
+{
+    timer0_en_write(0);
+    timer0_reload_write(0);
+    timer0_load_write(CONFIG_CLOCK_FREQUENCY/1000000*us);
+    timer0_en_write(1);
+    timer0_update_value_write(1);
+    while(timer0_value_read()) timer0_update_value_write(1);
+}
+
 static uint8_t spisdcardreceive_block(uint8_t *buf) {
-    uint16_t timeout;
+    uint32_t timeout;
 
     /* Wait 100ms for a start of block */
-    timeout = 100;
+    timeout = 100000;
     while(timeout > 0) {
         if (spi_xfer(0xff) == 0xfe)
             break;
-        busy_wait(1);
+        busy_wait_us(1);
         timeout--;
     }
     if (timeout == 0)
