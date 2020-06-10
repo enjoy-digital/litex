@@ -59,7 +59,7 @@ architecture rtl of microwatt_wrapper is
     signal wishbone_data_in  : wishbone_slave_out;
     signal wishbone_data_out : wishbone_master_out;
 
-    signal xics_in : XicsToExecute1Type;
+    signal core_ext_irq 	     : std_ulogic;
 
 begin
 
@@ -87,8 +87,8 @@ begin
     wishbone_data_sel      <= wishbone_data_out.sel;
     wishbone_data_we       <= wishbone_data_out.we;
 
-    -- xics_in mapping
-    xics_in.irq <= '0';
+    -- core_ext_irq mapping
+    core_ext_irq <= '0';
 
     microwatt_core : entity work.core
         generic map (
@@ -114,7 +114,7 @@ begin
             dmi_wr            => dmi_wr,
             dmi_ack           => dmi_ack,
 
-            xics_in           => xics_in,
+            ext_irq           => core_ext_irq,
 
             terminated_out    => terminated_out
         );
