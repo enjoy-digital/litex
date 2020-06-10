@@ -23,6 +23,7 @@
 #include "sfl.h"
 #include "boot.h"
 
+#include <progress.h>
 #include <spiflash.h>
 
 #include <libliteeth/udp.h>
