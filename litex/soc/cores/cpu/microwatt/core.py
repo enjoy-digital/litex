@@ -151,6 +151,9 @@ class Microwatt(CPU):
             # Writeback
             "writeback.vhdl",
 
+            # MMU
+            "mmu.vhdl",
+
             # Core
             "core_debug.vhdl",
             "core.vhdl",
