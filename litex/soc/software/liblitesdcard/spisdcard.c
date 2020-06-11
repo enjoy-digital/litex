@@ -24,7 +24,7 @@
 #define SPISDCARD_CLK_FREQ_INIT 400000
 #endif
 #ifndef SPISDCARD_CLK_FREQ
-#define SPISDCARD_CLK_FREQ 25000000
+#define SPISDCARD_CLK_FREQ 16000000
 #endif
 
 /*-----------------------------------------------------------------------*/
