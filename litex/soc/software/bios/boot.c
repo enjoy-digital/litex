@@ -241,23 +241,6 @@ int serialboot(void)
 	return 1;
 }
 
-#if defined(CONFIG_CPU_VARIANT_LINUX)
-
-#ifndef KERNEL_IMAGE_RAM_OFFSET
-#define KERNEL_IMAGE_RAM_OFFSET 0x00000000
-#endif
-#ifndef ROOTFS_IMAGE_RAM_OFFSET
-#define ROOTFS_IMAGE_RAM_OFFSET 0x00800000
-#endif
-#ifndef DEVICE_TREE_IMAGE_RAM_OFFSET
-#define DEVICE_TREE_IMAGE_RAM_OFFSET 0x01000000
-#endif
-#ifndef EMULATOR_IMAGE_RAM_OFFSET
-#define EMULATOR_IMAGE_RAM_OFFSET 0x01100000
-#endif
-
-#endif
-
 #ifdef CSR_ETHMAC_BASE
 
 #ifndef LOCALIP1
@@ -274,138 +257,100 @@ int serialboot(void)
 #define REMOTEIP4 100
 #endif
 
-#define DEFAULT_TFTP_SERVER_PORT 69  /* IANA well known port: UDP/69 */
 #ifndef TFTP_SERVER_PORT
-#define TFTP_SERVER_PORT DEFAULT_TFTP_SERVER_PORT
+#define TFTP_SERVER_PORT 69
 #endif
-
-static int tftp_get_v(unsigned int ip, unsigned short server_port,
-const char *filename, char *buffer)
-{
-	int r;
-
-	r = tftp_get(ip, server_port, filename, buffer);
-	if(r > 0)
-		printf("Downloaded %d bytes from %s over TFTP to 0x%08x\n", r, filename, buffer);
-	else
-		printf("Unable to download %s over TFTP\n", filename);
-	return r;
-}
 
 static const unsigned char macadr[6] = {0x10, 0xe2, 0xd5, 0x00, 0x00, 0x00};
 
-#if defined(CONFIG_CPU_TYPE_MOR1KX) && defined(CONFIG_CPU_VARIANT_LINUX)
-static int try_get_kernel_rootfs_dtb(unsigned int ip, unsigned short tftp_port)
+static int copy_file_from_tftp_to_ram(unsigned int ip, unsigned short server_port,
+const char *filename, char *buffer)
 {
-	unsigned long tftp_dst_addr;
 	int size;
-
-	tftp_dst_addr = MAIN_RAM_BASE + KERNEL_IMAGE_RAM_OFFSET;
-	size = tftp_get_v(ip, tftp_port, "Image", (void *)tftp_dst_addr);
-	if (size <= 0) {
-		printf("Network boot failed\n");
-		return 0;
-	}
-
-	tftp_dst_addr = MAIN_RAM_BASE + DEVICE_TREE_IMAGE_RAM_OFFSET;
-	size = tftp_get_v(ip, tftp_port, "mor1kx.dtb", (void *)tftp_dst_addr);
-	if(size <= 0) {
-		printf("No mor1kx.dtb found\n");
-		return 0;
-	}
-
-	tftp_dst_addr = MAIN_RAM_BASE + ROOTFS_IMAGE_RAM_OFFSET;
-	size = tftp_get_v(ip, tftp_port, "rootfs.cpio", (void *)tftp_dst_addr);
-	if(size <= 0) {
-		printf("No rootfs.cpio found (optional)\n");
-	}
-
-	return 1;
+	printf("Copying %s to 0x%08x... ", filename, buffer);
+	size = tftp_get(ip, server_port, filename, buffer);
+	if(size > 0)
+		printf("(%d bytes)", size);
+	printf("\n");
+	return size;
 }
-#endif
 
-#if defined(CONFIG_CPU_TYPE_VEXRISCV) && defined(CONFIG_CPU_VARIANT_LINUX)
-static int try_get_kernel_rootfs_dtb_emulator(unsigned int ip, unsigned short tftp_port)
+static void netboot_from_json(const char * filename, unsigned int ip, unsigned short tftp_port)
 {
-	unsigned long tftp_dst_addr;
 	int size;
+	uint8_t i;
+	uint8_t count;
 
-	tftp_dst_addr = MAIN_RAM_BASE + KERNEL_IMAGE_RAM_OFFSET;
-	size = tftp_get_v(ip, tftp_port, "Image", (void *)tftp_dst_addr);
-	if (size <= 0) {
-		printf("Network boot failed\n");
-		return 0;
+	/* FIXME: modify/increase if too limiting */
+	char json_buffer[256];
+	char image_filename[32];
+	char image_address[32];
+	uint8_t image_found;
+
+	/* Read JSON file */
+	size = tftp_get(ip, tftp_port, filename, json_buffer);
+	if (size <= 0)
+		return;
+
+	/* Parse JSON file */
+	jsmntok_t t[16];
+	jsmn_parser p;
+	jsmn_init(&p);
+	image_found = 0;
+	count = jsmn_parse(&p, json_buffer, strlen(json_buffer), t, sizeof(t)/sizeof(*t));
+	for (i=0; i<count-1; i++) {
+		/* Images are JSON strings with 1 children */
+		if ((t[i].type == JSMN_STRING) && (t[i].size == 1)) {
+			/* Get Image filename */
+			memset(image_filename, 0, sizeof(image_filename));
+			memcpy(image_filename, json_buffer+t[i].start,   t[i].end   - t[i].start);
+			/* Get Image address */
+			memset(image_address,  0, sizeof(image_address));
+			memcpy(image_address,  json_buffer+t[i+1].start, t[i+1].end - t[i+1].start);
+			/* Copy Image from Network to address */
+			size = copy_file_from_tftp_to_ram(ip, tftp_port, image_filename, (void *)strtoul(image_address, NULL, 0));
+			if (size <= 0)
+				return;
+			image_found = 1;
+		}
 	}
 
-	tftp_dst_addr = MAIN_RAM_BASE + ROOTFS_IMAGE_RAM_OFFSET;
-	size = tftp_get_v(ip, tftp_port, "rootfs.cpio", (void *)tftp_dst_addr);
-	if(size <= 0) {
-		printf("No rootfs.cpio found\n");
-		return 0;
-	}
-
-	tftp_dst_addr = MAIN_RAM_BASE + DEVICE_TREE_IMAGE_RAM_OFFSET;
-	size = tftp_get_v(ip, tftp_port, "rv32.dtb", (void *)tftp_dst_addr);
-	if(size <= 0) {
-		printf("No rv32.dtb found\n");
-		return 0;
-	}
-
-	tftp_dst_addr =  MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET;
-	size = tftp_get_v(ip, tftp_port, "emulator.bin", (void *)tftp_dst_addr);
-	if(size <= 0) {
-		printf("No emulator.bin found\n");
-		return 0;
-	}
-
-	return 1;
+	/* Boot to last Image address */
+	if (image_found)
+		boot(0, 0, 0, strtoul(image_address, NULL, 0));
 }
-#endif
+
+static void netboot_from_bin(const char * filename, unsigned int ip, unsigned short tftp_port)
+{
+	int size;
+	size = copy_file_from_tftp_to_ram(ip, tftp_port, filename, (void *)MAIN_RAM_BASE);
+	if (size <= 0)
+		return;
+	boot(0, 0, 0, MAIN_RAM_BASE);
+}
 
 void netboot(void)
 {
-	int size;
 	unsigned int ip;
-	unsigned long tftp_dst_addr;
-	unsigned short tftp_port;
+
 
 	printf("Booting from network...\n");
 	printf("Local IP : %d.%d.%d.%d\n", LOCALIP1, LOCALIP2, LOCALIP3, LOCALIP4);
 	printf("Remote IP: %d.%d.%d.%d\n", REMOTEIP1, REMOTEIP2, REMOTEIP3, REMOTEIP4);
 
 	ip = IPTOINT(REMOTEIP1, REMOTEIP2, REMOTEIP3, REMOTEIP4);
-
 	udp_start(macadr, IPTOINT(LOCALIP1, LOCALIP2, LOCALIP3, LOCALIP4));
 
-	tftp_port = TFTP_SERVER_PORT;
-	printf("Fetching from: UDP/%d\n", tftp_port);
+	/* Boot from boot.json */
+	printf("Booting from boot.json...\n");
+	netboot_from_json("boot.json", ip, TFTP_SERVER_PORT);
 
-#if defined(CONFIG_CPU_TYPE_VEXRISCV) && defined(CONFIG_CPU_VARIANT_LINUX)
-	if(try_get_kernel_rootfs_dtb_emulator(ip, tftp_port))
-	{
-		boot(0, 0, 0, MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
-		return;
-	}
-	printf("Unable to download Linux images, falling back to boot.bin\n");
-#endif
+	/* Boot from boot.bin */
+	printf("Booting from boot.bin...\n");
+	netboot_from_bin("boot.bin", ip, TFTP_SERVER_PORT);
 
-#if defined(CONFIG_CPU_TYPE_MOR1KX) && defined(CONFIG_CPU_VARIANT_LINUX)
-	if(try_get_kernel_rootfs_dtb(ip, tftp_port))
-	{
-		boot(MAIN_RAM_BASE + DEVICE_TREE_IMAGE_RAM_OFFSET, 0, 0, MAIN_RAM_BASE);
-		return;
-	}
-	printf("Unable to download Linux images, falling back to boot.bin\n");
-#endif
-
-	tftp_dst_addr = MAIN_RAM_BASE;
-	size = tftp_get_v(ip, tftp_port, "boot.bin", (void *)tftp_dst_addr);
-	if (size <= 0) {
-		printf("Network boot failed\n");
-		return;
-	}
-
-	boot(0, 0, 0, MAIN_RAM_BASE);
+	/* Boot failed if we are here... */
+	printf("Network boot failed.\n");
 }
 
 #endif
@@ -470,6 +415,19 @@ static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned int
 
 	return 0;
 }
+#endif
+
+#ifndef KERNEL_IMAGE_RAM_OFFSET
+#define KERNEL_IMAGE_RAM_OFFSET 0x00000000
+#endif
+#ifndef ROOTFS_IMAGE_RAM_OFFSET
+#define ROOTFS_IMAGE_RAM_OFFSET 0x00800000
+#endif
+#ifndef DEVICE_TREE_IMAGE_RAM_OFFSET
+#define DEVICE_TREE_IMAGE_RAM_OFFSET 0x01000000
+#endif
+#ifndef EMULATOR_IMAGE_RAM_OFFSET
+#define EMULATOR_IMAGE_RAM_OFFSET 0x01100000
 #endif
 
 #ifndef KERNEL_IMAGE_FLASH_OFFSET
