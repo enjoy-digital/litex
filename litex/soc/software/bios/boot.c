@@ -9,6 +9,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <console.h>
 #include <uart.h>
 #include <system.h>
@@ -22,6 +23,7 @@
 
 #include "sfl.h"
 #include "boot.h"
+#include "jsmn.h"
 
 #include <progress.h>
 #include <spiflash.h>
@@ -109,7 +111,7 @@ static uint32_t get_uint32(unsigned char* data)
 	return ((uint32_t) data[0] << 24) |
 		   ((uint32_t) data[1] << 16) |
 		   ((uint32_t) data[2] << 8) |
-		    (uint32_t) data[3];
+			(uint32_t) data[3];
 }
 
 #define MAX_FAILED 5
@@ -551,7 +553,7 @@ void romboot(void)
 
 #if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCORE_BASE)
 
-static int copy_image_from_sdcard_to_ram(const char * filename, unsigned int ram_address)
+static int copy_file_from_sdcard_to_ram(const char * filename, unsigned int ram_address)
 {
 	FRESULT fr;
 	FATFS fs;
@@ -596,11 +598,79 @@ static int copy_image_from_sdcard_to_ram(const char * filename, unsigned int ram
 	return 1;
 }
 
-void sdcardboot(void)
+static void sdcardboot_from_json(const char * filename)
 {
+	FRESULT fr;
+	FATFS fs;
+	FIL file;
 
+	uint8_t i;
+	uint8_t count;
+	uint32_t length;
 	uint32_t result;
 
+	/* FIXME: modify/increase if too limiting */
+	char json_buffer[256];
+	char image_filename[32];
+	char image_address[32];
+	uint8_t image_found;
+
+	/* Read JSON file */
+	fr = f_mount(&fs, "", 1);
+	if (fr != FR_OK)
+		return;
+	fr = f_open(&file, filename, FA_READ);
+	if (fr != FR_OK) {
+		printf("%s file not found.\n", filename);
+		f_mount(0, "", 0);
+		return;
+	}
+
+	fr = f_read(&file, json_buffer, sizeof(json_buffer), &length);
+
+	/* Close JSON file */
+	f_close(&file);
+	f_mount(0, "", 0);
+
+	/* Parse JSON file */
+	jsmntok_t t[16];
+	jsmn_parser p;
+	jsmn_init(&p);
+	image_found = 0;
+	count = jsmn_parse(&p, json_buffer, strlen(json_buffer), t, sizeof(t)/sizeof(*t));
+	for (i=0; i<count-1; i++) {
+		/* Images are JSON strings with 1 children */
+		if ((t[i].type == JSMN_STRING) && (t[i].size == 1)) {
+			/* Get Image filename */
+			memset(image_filename, 0, sizeof(image_filename));
+			memcpy(image_filename, json_buffer+t[i].start,   t[i].end   - t[i].start);
+			/* Get Image address */
+			memset(image_address,  0, sizeof(image_address));
+			memcpy(image_address,  json_buffer+t[i+1].start, t[i+1].end - t[i+1].start);
+			/* Copy Image from SDCard to address */
+			result = copy_file_from_sdcard_to_ram(image_filename, strtoul(image_address, NULL, 0));
+			if (result == 0)
+				return;
+			image_found = 1;
+		}
+	}
+
+	/* Boot to last Image address */
+	if (image_found)
+		boot(0, 0, 0, strtoul(image_address, NULL, 0));
+}
+
+static void sdcardboot_from_bin(const char * filename)
+{
+	uint32_t result;
+	result = copy_file_from_sdcard_to_ram(filename, MAIN_RAM_BASE);
+	if (result == 0)
+		return;
+	boot(0, 0, 0, MAIN_RAM_BASE);
+}
+
+void sdcardboot(void)
+{
 #ifdef CSR_SPISDCARD_BASE
 	printf("Booting from SDCard in SPI-Mode...\n");
 #endif
@@ -608,47 +678,15 @@ void sdcardboot(void)
 	printf("Booting from SDCard in SD-Mode...\n");
 #endif
 
-	/* Copy files to RAM */
-#if defined(CONFIG_CPU_TYPE_VEXRISCV) && defined(CONFIG_CPU_VARIANT_LINUX)
-	printf("Loading Linux images from SDCard to RAM...\n");
-	result = copy_image_from_sdcard_to_ram("rv32.dtb", MAIN_RAM_BASE + DEVICE_TREE_IMAGE_RAM_OFFSET);
-	if (result)
-		result &= copy_image_from_sdcard_to_ram("emulator.bin", MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
-	if (result)
-		result &= copy_image_from_sdcard_to_ram("Image", MAIN_RAM_BASE + KERNEL_IMAGE_RAM_OFFSET);
-	if (result)
-		result &= copy_image_from_sdcard_to_ram("rootfs.cpio", MAIN_RAM_BASE + ROOTFS_IMAGE_RAM_OFFSET);
-	if (result)
-		boot(0, 0, 0, MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
-	printf("Unable to load all Linux images, falling back to boot.bin...\n");
-#endif
+	/* Boot from boot.json */
+	printf("Booting from boot.json...\n");
+	sdcardboot_from_json("boot.json");
 
-#if defined(CONFIG_CPU_TYPE_VEXRISCV) && \
-	(defined(CONFIG_CPU_VARIANT_1C)   || \
-	 defined(CONFIG_CPU_VARIANT_2C)   || \
-	 defined(CONFIG_CPU_VARIANT_4C)   || \
-	 defined(CONFIG_CPU_VARIANT_8C)   || \
-	 defined(CONFIG_CPU_VARIANT_MP1C) || \
-	 defined(CONFIG_CPU_VARIANT_MP2C) || \
-	 defined(CONFIG_CPU_VARIANT_MP4C) || \
-	 defined(CONFIG_CPU_VARIANT_MP8C))
-	printf("Loading Linux images from SDCard to RAM...\n");
-	result = copy_image_from_sdcard_to_ram("Image", 0x40000000);
-	if (result)
-		result &= copy_image_from_sdcard_to_ram("dtb", 0x40ef0000);
-	if (result)
-		result &= copy_image_from_sdcard_to_ram("rootfs.cpio", 0x41000000);
-	if (result)
-		result &= copy_image_from_sdcard_to_ram("fw_jump.bin", 0x40f00000);
-	if (result)
-		boot(0, 0, 0, 0x40f00000);
-	printf("Unable to load all Linux images, falling back to boot.bin...\n");
-#endif
+	/* Boot from boot.bin */
+	printf("Booting from boot.bin...\n");
+	sdcardboot_from_bin("boot.bin");
 
-	result = copy_image_from_sdcard_to_ram("boot.bin", MAIN_RAM_BASE);
-	if(result)
-		boot(0, 0, 0, MAIN_RAM_BASE);
-	else
-		printf("SDCard boot failed.\n");
+	/* Boot failed if we are here... */
+	printf("SDCard boot failed.\n");
 }
 #endif
