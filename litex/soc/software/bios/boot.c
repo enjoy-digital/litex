@@ -601,21 +601,12 @@ void sdcardboot(void)
 
 	uint32_t result;
 
-	printf("Booting from SDCard...\n");
-
-	/* Initialize SDCard */
 #ifdef CSR_SPISDCARD_BASE
-	printf("Initializing SDCard in SPI-Mode...\n");
-	result = spisdcard_init();
+	printf("Booting from SDCard in SPI-Mode...\n");
 #endif
 #ifdef CSR_SDCORE_BASE
-	printf("Initializing SDCard in SD-Mode...\n");
-	result = sdcard_init();
+	printf("Booting from SDCard in SD-Mode...\n");
 #endif
-	if (result == 0) {
-		printf("SDCard initialization failed.\n");
-		return;
-	}
 
 	/* Copy files to RAM */
 #if defined(CONFIG_CPU_TYPE_VEXRISCV) && defined(CONFIG_CPU_VARIANT_LINUX)
