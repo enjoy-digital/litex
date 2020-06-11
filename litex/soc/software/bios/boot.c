@@ -392,16 +392,6 @@ void netboot(void)
 
 #ifdef FLASH_BOOT_ADDRESS
 
-/* On systems with external SDRAM we copy out of the SPI flash into the SDRAM
-   before running, as it is faster.  If we have no SDRAM then we have to
-   execute directly out of the SPI flash. */
-#ifdef MAIN_RAM_BASE
-#define FIRMWARE_BASE_ADDRESS MAIN_RAM_BASE
-#else
-/* Firmware code starts after (a) length and (b) CRC -- both unsigned ints */
-#define FIRMWARE_BASE_ADDRESS (FLASH_BOOT_ADDRESS + 2 * sizeof(unsigned int))
-#endif
-
 static unsigned int check_image_in_flash(unsigned int base_address)
 {
 	uint32_t length;
@@ -452,71 +442,10 @@ static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned int
 }
 #endif
 
-#ifndef KERNEL_IMAGE_RAM_OFFSET
-#define KERNEL_IMAGE_RAM_OFFSET 0x00000000
-#endif
-#ifndef ROOTFS_IMAGE_RAM_OFFSET
-#define ROOTFS_IMAGE_RAM_OFFSET 0x00800000
-#endif
-#ifndef DEVICE_TREE_IMAGE_RAM_OFFSET
-#define DEVICE_TREE_IMAGE_RAM_OFFSET 0x01000000
-#endif
-#ifndef EMULATOR_IMAGE_RAM_OFFSET
-#define EMULATOR_IMAGE_RAM_OFFSET 0x01100000
-#endif
-
-#ifndef KERNEL_IMAGE_FLASH_OFFSET
-	#define KERNEL_IMAGE_FLASH_OFFSET      0x00000000 //  0MB
-#endif
-#ifndef ROOTFS_IMAGE_FLASH_OFFSET
-	#define ROOTFS_IMAGE_FLASH_OFFSET      0x00500000 //  5MB
-#endif
-#ifndef DEVICE_TREE_IMAGE_FLASH_OFFSET
-	#define DEVICE_TREE_IMAGE_FLASH_OFFSET 0x00D00000 // 13MB
-#endif
-#ifndef EMULATOR_IMAGE_FLASH_OFFSET
-	#define EMULATOR_IMAGE_FLASH_OFFSET    0x00E00000 // 14MB
-#endif
-
 void flashboot(void)
 {
 	uint32_t length;
 	uint32_t result;
-
-#if defined(MAIN_RAM_BASE) && defined(CONFIG_CPU_TYPE_VEXRISCV) && defined(CONFIG_CPU_VARIANT_LINUX)
-
-	printf("Loading Image from flash...\n");
-	result = copy_image_from_flash_to_ram(
-		(FLASH_BOOT_ADDRESS + KERNEL_IMAGE_FLASH_OFFSET),
-		(MAIN_RAM_BASE + KERNEL_IMAGE_RAM_OFFSET));
-
-
-	if(result) {
-		printf("Loading rootfs.cpio from flash...\n");
-		result &= copy_image_from_flash_to_ram(
-			(FLASH_BOOT_ADDRESS + ROOTFS_IMAGE_FLASH_OFFSET),
-			(MAIN_RAM_BASE + ROOTFS_IMAGE_RAM_OFFSET));
-	}
-
-	if(result) {
-		printf("Loading rv32.dtb from flash...\n");
-		result &= copy_image_from_flash_to_ram(
-			(FLASH_BOOT_ADDRESS + DEVICE_TREE_IMAGE_FLASH_OFFSET),
-			(MAIN_RAM_BASE + DEVICE_TREE_IMAGE_RAM_OFFSET));
-	}
-
-	if(result) {
-		printf("Loading emulator.bin from flash...\n");
-		result &= copy_image_from_flash_to_ram(
-			(FLASH_BOOT_ADDRESS + EMULATOR_IMAGE_FLASH_OFFSET),
-			(MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET));
-	}
-
-	if(result) {
-		boot(0, 0, 0, MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
-		return;
-	}
-#endif
 
 	printf("Booting from flash...\n");
 	length = check_image_in_flash(FLASH_BOOT_ADDRESS);
@@ -524,13 +453,19 @@ void flashboot(void)
 		return;
 
 #ifdef MAIN_RAM_BASE
+	/* When Main RAM is available, copy the code from the Flash and execute it
+	from Main RAM since faster */
 	result = copy_image_from_flash_to_ram(FLASH_BOOT_ADDRESS, MAIN_RAM_BASE);
 	if(!result)
 		return;
+	boot(0, 0, 0, MAIN_RAM_BASE);
+#else
+	/* When Main RAM is not available, execute the code directly from Flash (XIP).
+       The code starts after (a) length and (b) CRC -- both uint32_t */
+	boot(0, 0, 0, (FLASH_BOOT_ADDRESS + 2 * sizeof(uint32_t)));
 #endif
-
-	boot(0, 0, 0, FIRMWARE_BASE_ADDRESS);
 }
+
 #endif
 
 /*-----------------------------------------------------------------------*/
