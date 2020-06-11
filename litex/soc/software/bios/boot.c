@@ -1,5 +1,5 @@
+// This file is Copyright (c) 2014-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 // This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
-// This file is Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 // This file is Copyright (c) 2018 Ewen McNeill <ewen@naos.co.nz>
 // This file is Copyright (c) 2018 Felix Held <felix-github@felixheld.de>
 // This file is Copyright (c) 2019 Gabriel L. Somlo <gsomlo@gmail.com>
@@ -35,8 +35,16 @@
 #include <liblitesdcard/sdcard.h>
 #include <liblitesdcard/fat/ff.h>
 
+/*-----------------------------------------------------------------------*/
+/* Helpers                                                               */
+/*-----------------------------------------------------------------------*/
+
 #define max(x, y) (((x) > (y)) ? (x) : (y))
 #define min(x, y) (((x) < (y)) ? (x) : (y))
+
+/*-----------------------------------------------------------------------*/
+/* Boot                                                                  */
+/*-----------------------------------------------------------------------*/
 
 extern void boot_helper(unsigned long r1, unsigned long r2, unsigned long r3, unsigned long addr);
 
@@ -72,6 +80,25 @@ enum {
 	ACK_CANCELLED,
 	ACK_OK
 };
+
+/*-----------------------------------------------------------------------*/
+/* ROM Boot                                                              */
+/*-----------------------------------------------------------------------*/
+
+#ifdef ROM_BOOT_ADDRESS
+/* When firmware is small enough, it can be interesting to run code from an
+   embedded blockram memory (faster and not impacted by memory controller
+   activity). Define ROM_BOOT_ADDRESS for that and initialize the blockram
+   with the firmware data. */
+void romboot(void)
+{
+	boot(0, 0, 0, ROM_BOOT_ADDRESS);
+}
+#endif
+
+/*-----------------------------------------------------------------------*/
+/* Serial Boot                                                           */
+/*-----------------------------------------------------------------------*/
 
 static int check_ack(void)
 {
@@ -241,6 +268,10 @@ int serialboot(void)
 	return 1;
 }
 
+/*-----------------------------------------------------------------------*/
+/* Ethernet Boot                                                         */
+/*-----------------------------------------------------------------------*/
+
 #ifdef CSR_ETHMAC_BASE
 
 #ifndef LOCALIP1
@@ -354,6 +385,10 @@ void netboot(void)
 }
 
 #endif
+
+/*-----------------------------------------------------------------------*/
+/* Flash Boot                                                            */
+/*-----------------------------------------------------------------------*/
 
 #ifdef FLASH_BOOT_ADDRESS
 
@@ -498,16 +533,9 @@ void flashboot(void)
 }
 #endif
 
-#ifdef ROM_BOOT_ADDRESS
-/* When firmware is small enough, it can be interesting to run code from an
-   embedded blockram memory (faster and not impacted by memory controller
-   activity). Define ROM_BOOT_ADDRESS for that and initialize the blockram
-   with the firmware data. */
-void romboot(void)
-{
-	boot(0, 0, 0, ROM_BOOT_ADDRESS);
-}
-#endif
+/*-----------------------------------------------------------------------*/
+/* SDCard Boot                                                           */
+/*-----------------------------------------------------------------------*/
 
 #if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCORE_BASE)
 
