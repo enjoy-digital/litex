@@ -86,10 +86,11 @@ enum {
 /*-----------------------------------------------------------------------*/
 
 #ifdef ROM_BOOT_ADDRESS
-/* When firmware is small enough, it can be interesting to run code from an
-   embedded blockram memory (faster and not impacted by memory controller
-   activity). Define ROM_BOOT_ADDRESS for that and initialize the blockram
-   with the firmware data. */
+/* Running the application code from ROM is the fastest way to execute code
+   and could be interesting when the code is small enough, on large devices
+   where many blockrams are available or simply when the execution speed is
+   critical. Defining ROM_BOOT_ADDRESS in the SoC will make the BIOS jump to
+   it at boot. */
 void romboot(void)
 {
 	boot(0, 0, 0, ROM_BOOT_ADDRESS);
