@@ -99,7 +99,7 @@ static int spdeeprom_start()
 
 static int spdeeprom_new(void **sess, char *args)
 {
-  int ret=RC_OK;
+  int ret = RC_OK;
   int i;
   char *spd_filename;
   FILE *spd_file;
@@ -403,7 +403,7 @@ static void spdeeprom_from_file(struct session_s *s, FILE *file)
 
 static int litex_sim_module_pads_get(struct pad_s *pads, char *name, void **signal)
 {
-  int ret;
+  int ret = RC_OK;
   void *sig=NULL;
   int i;
 

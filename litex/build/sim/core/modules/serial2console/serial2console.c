@@ -27,7 +27,7 @@ struct session_s {
 struct event_base *base;
 static int litex_sim_module_pads_get(struct pad_s *pads, char *name, void **signal)
 {
-  int ret;
+  int ret = RC_OK;
   void *sig = NULL;
   int i;
 
@@ -95,7 +95,7 @@ static void event_handler(int fd, short event, void *arg)
 
 static int serial2console_new(void **sess, char *args)
 {
-  int ret=RC_OK;
+  int ret = RC_OK;
   struct timeval tv = {1, 0};
   struct session_s *s = NULL;
 
