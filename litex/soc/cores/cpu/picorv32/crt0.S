@@ -194,9 +194,8 @@ _crt0:
   la t1, _irq_mask
   sw t0, 0(t1)
 
-#ifdef EXECUTE_IN_PLACE
   /* Load DATA */
-  la t0, _erodata
+  la t0, _fdata_rom
   la t1, _fdata
   la t2, _edata
 3:
@@ -206,7 +205,6 @@ _crt0:
   addi t0, t0, 4
   addi t1, t1, 4
   bltu t1, t2, 3b
-#endif
 
   /* Clear BSS */
   la t0, _fbss

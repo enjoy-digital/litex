@@ -57,6 +57,19 @@ crt_init:
   la a0, trap_entry
   csrw mtvec, a0
 
+data_init:
+  la a0, _fdata
+  la a1, _edata
+  la a2, _fdata_rom
+data_loop:
+  beq a0,a1,data_done
+  ld a3,0(a2)
+  sd a3,0(a0)
+  add a0,a0,8
+  add a2,a2,8
+  j data_loop
+data_done:
+
 bss_init:
   la a0, _fbss
   la a1, _ebss

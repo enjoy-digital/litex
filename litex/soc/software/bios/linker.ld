@@ -53,7 +53,7 @@ SECTIONS
 		FILL(0);
 		. = ALIGN(8);
 		_edata = .;
-	} > rom
+	} > sram AT > rom
 
 	.bss :
 	{
@@ -78,3 +78,6 @@ SECTIONS
 }
 
 PROVIDE(_fstack = ORIGIN(sram) + LENGTH(sram) - 8);
+
+PROVIDE(_fdata_rom = LOADADDR(.data));
+PROVIDE(_edata_rom = LOADADDR(.data) + SIZEOF(.data));
