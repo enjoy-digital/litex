@@ -719,22 +719,17 @@ int sdcard_test(unsigned int blocks)
 /* SDCard FatFs disk functions                                           */
 /*-----------------------------------------------------------------------*/
 
-static DSTATUS spisdcardstatus = STA_NOINIT;
+static DSTATUS sdcardstatus = STA_NOINIT;
 
 DSTATUS disk_status(uint8_t drv) {
 	if (drv) return STA_NOINIT;
-	return spisdcardstatus;
+	return sdcardstatus;
 }
 
 DSTATUS disk_initialize(uint8_t drv) {
-	uint8_t r;
-
-	if (drv) return RES_NOTRDY;
-
-	r = sdcard_init();
-
-	spisdcardstatus = r ? 0 : STA_NOINIT;
-	return spisdcardstatus;
+	if (drv) return STA_NOINIT;
+	sdcardstatus = sdcard_init() ? 0 : STA_NOINIT;
+	return sdcardstatus;
 }
 
 DRESULT disk_read(uint8_t drv, uint8_t *buf, uint32_t sector, uint32_t count) {
