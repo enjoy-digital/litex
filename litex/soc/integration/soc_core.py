@@ -75,7 +75,7 @@ class SoCCore(LiteXSoC):
         integrated_rom_size      = 0,
         integrated_rom_init      = [],
         # SRAM parameters
-        integrated_sram_size     = 0x1000,
+        integrated_sram_size     = 0x2000,
         integrated_sram_init     = [],
         # MAIN_RAM parameters
         integrated_main_ram_size = 0,
@@ -264,8 +264,8 @@ def soc_core_args(parser):
     parser.add_argument("--integrated-rom-file", default=None, type=str,
                         help="integrated (BIOS) ROM binary file")
     # SRAM parameters
-    parser.add_argument("--integrated-sram-size", default=0x1000, type=auto_int,
-                        help="size/enable the integrated SRAM (default=4KB)")
+    parser.add_argument("--integrated-sram-size", default=0x2000, type=auto_int,
+                        help="size/enable the integrated SRAM (default=8KB)")
     # MAIN_RAM parameters
     parser.add_argument("--integrated-main-ram-size", default=None, type=auto_int,
                         help="size/enable the integrated main RAM")
