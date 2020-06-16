@@ -415,7 +415,7 @@ static unsigned int check_image_in_flash(unsigned int base_address)
 }
 
 #if defined(MAIN_RAM_BASE) && defined(FLASH_BOOT_ADDRESS)
-static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned int ram_address)
+static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned long ram_address)
 {
 	uint32_t length;
 	uint32_t offset;
@@ -474,7 +474,7 @@ void flashboot(void)
 
 #if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCORE_BASE)
 
-static int copy_file_from_sdcard_to_ram(const char * filename, unsigned int ram_address)
+static int copy_file_from_sdcard_to_ram(const char * filename, unsigned long ram_address)
 {
 	FRESULT fr;
 	FATFS fs;
