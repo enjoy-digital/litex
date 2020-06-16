@@ -62,7 +62,7 @@ out:
 
 static int litex_sim_module_pads_get( struct pad_s *pads, char *name, void **signal)
 {
-  int ret;
+  int ret = RC_OK;
   void *sig = NULL;
   int i;
 
@@ -186,7 +186,7 @@ out:
 
 static int serial2tcp_add_pads(void *sess, struct pad_list_s *plist)
 {
-  int ret=RC_OK;
+  int ret = RC_OK;
   struct session_s *s=(struct session_s*)sess;
   struct pad_s *pads;
   if(!sess || !plist) {

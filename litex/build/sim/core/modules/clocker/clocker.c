@@ -10,7 +10,7 @@ struct session_s {
 
 static int litex_sim_module_pads_get( struct pad_s *pads, char *name, void **signal)
 {
-  int ret;
+  int ret = RC_OK;
   void *sig=NULL;
   int i;
 
@@ -42,7 +42,7 @@ static int clocker_start()
 
 static int clocker_new(void **sess, char *args)
 {
-  int ret=RC_OK;
+  int ret = RC_OK;
 
   struct session_s *s=NULL;
 
