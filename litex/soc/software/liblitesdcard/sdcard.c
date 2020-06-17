@@ -728,7 +728,8 @@ DSTATUS disk_status(uint8_t drv) {
 
 DSTATUS disk_initialize(uint8_t drv) {
 	if (drv) return STA_NOINIT;
-	sdcardstatus = sdcard_init() ? 0 : STA_NOINIT;
+	if (sdcardstatus)
+		sdcardstatus = sdcard_init() ? 0 : STA_NOINIT;
 	return sdcardstatus;
 }
 
