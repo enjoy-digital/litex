@@ -252,7 +252,7 @@ class XilinxVivadoToolchain:
         tcl.append("quit")
         tools.write_to_file(build_name + ".tcl", "\n".join(tcl))
 
-    def _build_clock_constraints(self, platform):
+    def _process_constraints(self, platform):
         platform.add_platform_command(_xdc_separator("Clock constraints"))
         for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
             platform.add_platform_command(
@@ -266,11 +266,7 @@ class XilinxVivadoToolchain:
                 "-group [get_clocks -include_generated_clocks -of [get_nets {to}]] "
                 "-asynchronous",
                 from_=from_, to=to)
-        # Make sure add_*_constraint cannot be used again
-        del self.clocks
-        del self.false_paths
 
-    def _build_false_path_constraints(self, platform):
         platform.add_platform_command(_xdc_separator("False path constraints"))
         # The asynchronous input to a MultiReg is a false path
         platform.add_platform_command(
@@ -292,15 +288,16 @@ class XilinxVivadoToolchain:
                 "-of_objects [get_cells -hierarchical -filter {{ars_ff2 == TRUE}}]]"
         )
 
+        # Make sure add_*_constraint cannot be used again
+        del self.clocks
+        del self.false_paths
 
     def build(self, platform, fragment, build_dir, build_name, run,
             synth_mode = "vivado",
             enable_xpm = False,
             **kwargs):
-
         # Generate timing constraints
-        self._build_clock_constraints(platform)
-        self._build_false_path_constraints(platform)
+        self._process_constraints(platform)
 
         # Generate verilog
         v_output = platform.get_verilog(fragment, name=build_name, **kwargs)

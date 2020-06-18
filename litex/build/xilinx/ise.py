@@ -11,6 +11,7 @@
 import os
 import subprocess
 import sys
+import math
 
 from migen.fhdl.structure import _Fragment
 
@@ -182,9 +183,38 @@ class XilinxISEToolchain:
         self.bitgen_opt   = "-g Binary:Yes -w"
         self.ise_commands = ""
 
+        self.clocks      = dict()
+        self.false_paths = set()
+
+    def _process_constraints(self, platform):
+        # ISE is broken and you must use *separate* TNM_NET objects for period
+        # constraints and other constraints otherwise it will be unable to trace
+        # them through clock objects like DCM and PLL objects.
+        for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
+            platform.add_platform_command(
+                """
+NET "{clk}" TNM_NET = "PRD{clk}";
+TIMESPEC "TS{clk}" = PERIOD "PRD{clk}" """ + str(period) + """ ns HIGH 50%;
+""",
+                clk=clk,
+                )
+
+        for from_, to in sorted(self.false_paths,
+                                key=lambda x: (x[0].duid, x[1].duid)):
+            platform.add_platform_command(
+                """
+NET "{from_}" TNM_NET = "TIG{from_}";
+NET "{to}" TNM_NET = "TIG{to}";
+TIMESPEC "TS{from_}TO{to}" = FROM "TIG{from_}" TO "TIG{to}" TIG;
+""",
+                from_=from_,
+                to=to,
+                )
+
     def build(self, platform, fragment, build_dir, build_name, run,
             mode = "xst",
             **kwargs):
+        self._process_constraints(platform)
 
         if mode in ["xst", "yosys", "cpld"]:
             # Generate verilog
@@ -224,26 +254,14 @@ class XilinxISEToolchain:
 
         return vns
 
-    # ISE is broken and you must use *separate* TNM_NET objects for period
-    # constraints and other constraints otherwise it will be unable to trace
-    # them through clock objects like DCM and PLL objects.
-
     def add_period_constraint(self, platform, clk, period):
-        platform.add_platform_command(
-            """
-NET "{clk}" TNM_NET = "PRD{clk}";
-TIMESPEC "TS{clk}" = PERIOD "PRD{clk}" """ + str(period) + """ ns HIGH 50%;
-""",
-            clk=clk,
-            )
+        period = math.floor(period*1e3)/1e3 # round to lowest picosecond
+        if clk in self.clocks:
+            if period != self.clocks[clk]:
+                raise ValueError("Clock already constrained to {:.2f}ns, new constraint to {:.2f}ns"
+                    .format(self.clocks[clk], period))
+        self.clocks[clk] = period
 
     def add_false_path_constraint(self, platform, from_, to):
-        platform.add_platform_command(
-            """
-NET "{from_}" TNM_NET = "TIG{from_}";
-NET "{to}" TNM_NET = "TIG{to}";
-TIMESPEC "TS{from_}TO{to}" = FROM "TIG{from_}" TO "TIG{to}" TIG;
-""",
-            from_=from_,
-            to=to,
-            )
+        if (to, from_) not in self.false_paths:
+            self.false_paths.add((from_, to))

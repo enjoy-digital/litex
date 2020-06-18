@@ -184,7 +184,7 @@ class SymbiflowToolchain:
 
         tools.write_to_file("Makefile", makefile.generate())
 
-    def _build_clock_constraints(self, platform):
+    def _process_constraints(self, platform):
         for clk, (period, phase) in sorted(self.clocks.items(), key=lambda x: x[0].duid):
             rising_edge = math.floor(period/360.0 * phase * 1e3)/1e3
             falling_edge = math.floor(((rising_edge + period/2) % period) * 1.e3)/1e3
@@ -216,7 +216,7 @@ class SymbiflowToolchain:
                 self._fix_instance(instance)
 
         # Generate timing constraints
-        self._build_clock_constraints(platform)
+        self._process_constraints(platform)
 
         # Generate verilog
         v_output = platform.get_verilog(fragment, name=build_name, **kwargs)
