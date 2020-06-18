@@ -4,6 +4,8 @@
 
 import os
 
+from migen.fhdl.structure import _Fragment
+
 from litex.build.generic_platform import GenericPlatform
 from litex.build.xilinx import common, vivado, ise, symbiflow
 
@@ -46,13 +48,31 @@ class XilinxPlatform(GenericPlatform):
     def get_edif(self, fragment, **kwargs):
         return GenericPlatform.get_edif(self, fragment, "UNISIMS", "Xilinx", self.device, **kwargs)
 
-    def build(self, *args, **kwargs):
-        return self.toolchain.build(self, *args, **kwargs)
+    def build(self, fragment, build_dir="build", build_name="top", run=True, *args, **kwargs):
+        # Create build directory
+        os.makedirs(build_dir, exist_ok=True)
+        cwd = os.getcwd()
+        os.chdir(build_dir)
+
+        # Finalize design
+        if not isinstance(fragment, _Fragment):
+            fragment = fragment.get_fragment()
+        self.finalize(fragment)
+
+        # Run toolchain
+        vns = None
+        try:
+            vns = self.toolchain.build(self, fragment, build_dir, build_name, run, *args, **kwargs)
+        finally:
+            os.chdir(cwd)
+
+        return vns
 
     def add_period_constraint(self, clk, period):
         if clk is None: return
         if hasattr(clk, "p"):
             clk = clk.p
+        clk.attr.add("keep")
         self.toolchain.add_period_constraint(self, clk, period)
 
     def add_false_path_constraint(self, from_, to):
@@ -60,4 +80,6 @@ class XilinxPlatform(GenericPlatform):
             from_ = from_.p
         if hasattr(to, "p"):
             to = to.p
+        from_.attr.add("keep")
+        to.attr.add("keep")
         self.toolchain.add_false_path_constraint(self, from_, to)

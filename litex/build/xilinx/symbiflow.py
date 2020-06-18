@@ -204,24 +204,11 @@ class SymbiflowToolchain:
                 if isinstance(item, Instance.Parameter) and re.fullmatch("CLKOUT[0-9]_(PHASE|DUTY_CYCLE)", item.name):
                     item.value = wrap(math.floor(_unwrap(item.value) * 1000))
 
-    def build(self, platform, fragment,
-        build_dir  = "build",
-        build_name = "top",
-        run        = True,
-        enable_xpm = False,
-        **kwargs):
+    def build(self, platform, fragment, build_dir, build_name, run,
+            enable_xpm = False,
+            **kwargs):
 
         self._check_properties(platform)
-
-        # Create build directory
-        os.makedirs(build_dir, exist_ok=True)
-        cwd = os.getcwd()
-        os.chdir(build_dir)
-
-        # Finalize design
-        if not isinstance(fragment, _Fragment):
-            fragment = fragment.get_fragment()
-        platform.finalize(fragment)
 
         # Symbiflow-specific fixes
         for instance in fragment.specials:
@@ -251,12 +238,9 @@ class SymbiflowToolchain:
         if run:
             _run_make()
 
-        os.chdir(cwd)
-
         return v_output.ns
 
     def add_period_constraint(self, platform, clk, period, phase=0):
-        clk.attr.add("keep")
         phase  = math.floor(phase % 360.0 * 1e3)/1e3
         period = math.floor(period*1e3)/1e3 # round to lowest picosecond
         if clk in self.clocks:
@@ -271,8 +255,6 @@ class SymbiflowToolchain:
     def add_false_path_constraint(self, platform, from_, to):
         if (from_, to) in self.false_paths or (to, from_) in self.false_paths:
             return
-        from_.attr.add("keep")
-        to.attr.add("keep")
         self.false_paths.add((from_, to))
 
 

@@ -182,62 +182,45 @@ class XilinxISEToolchain:
         self.bitgen_opt   = "-g Binary:Yes -w"
         self.ise_commands = ""
 
-    def build(self, platform, fragment,
-        build_dir      = "build",
-        build_name     = "top",
-        run            = True,
-        mode           = "xst",
-        **kwargs):
+    def build(self, platform, fragment, build_dir, build_name, run,
+            mode = "xst",
+            **kwargs):
 
-        # Create build directory
-        os.makedirs(build_dir, exist_ok=True)
-        cwd = os.getcwd()
-        os.chdir(build_dir)
+        if mode in ["xst", "yosys", "cpld"]:
+            # Generate verilog
+            v_output = platform.get_verilog(fragment, name=build_name, **kwargs)
+            vns = v_output.ns
+            named_sc, named_pc = platform.resolve_signals(vns)
+            v_file = build_name + ".v"
+            v_output.write(v_file)
+            platform.add_source(v_file)
 
-        # Finalize design
-        if not isinstance(fragment, _Fragment):
-            fragment = fragment.get_fragment()
-        platform.finalize(fragment)
-
-        vns = None
-        try:
-            if mode in ["xst", "yosys", "cpld"]:
-                # Generate verilog
-                v_output = platform.get_verilog(fragment, name=build_name, **kwargs)
-                vns = v_output.ns
-                named_sc, named_pc = platform.resolve_signals(vns)
-                v_file = build_name + ".v"
-                v_output.write(v_file)
-                platform.add_source(v_file)
-
-                # Generate design project (.xst)
-                if mode in ["xst", "cpld"]:
-                    _build_xst(platform.device, platform.sources, platform.verilog_include_paths, build_name, self.xst_opt)
-                    isemode = mode
-                else:
-                    # Run Yosys
-                    if run:
-                        _run_yosys(platform.device, platform.sources, platform.verilog_include_paths, build_name)
-                    isemode = "edif"
-                    self.ngdbuild_opt += "-p " + platform.device
-
-            if mode in ["edif"]:
-                # Generate edif
-                e_output = platform.get_edif(fragment)
-                vns = e_output.ns
-                named_sc, named_pc = platform.resolve_signals(vns)
-                e_file = build_name + ".edif"
-                e_output.write(e_file)
+            # Generate design project (.xst)
+            if mode in ["xst", "cpld"]:
+                _build_xst(platform.device, platform.sources, platform.verilog_include_paths, build_name, self.xst_opt)
+                isemode = mode
+            else:
+                # Run Yosys
+                if run:
+                    _run_yosys(platform.device, platform.sources, platform.verilog_include_paths, build_name)
                 isemode = "edif"
+                self.ngdbuild_opt += "-p " + platform.device
 
-            # Generate design constraints (.ucf)
-            tools.write_to_file(build_name + ".ucf", _build_ucf(named_sc, named_pc))
+        if mode in ["edif"]:
+            # Generate edif
+            e_output = platform.get_edif(fragment)
+            vns = e_output.ns
+            named_sc, named_pc = platform.resolve_signals(vns)
+            e_file = build_name + ".edif"
+            e_output.write(e_file)
+            isemode = "edif"
 
-            # Run ISE
-            if run:
-                _run_ise(build_name, isemode, self.ngdbuild_opt, self, platform)
-        finally:
-            os.chdir(cwd)
+        # Generate design constraints (.ucf)
+        tools.write_to_file(build_name + ".ucf", _build_ucf(named_sc, named_pc))
+
+        # Run ISE
+        if run:
+            _run_ise(build_name, isemode, self.ngdbuild_opt, self, platform)
 
         return vns
 
@@ -246,7 +229,6 @@ class XilinxISEToolchain:
     # them through clock objects like DCM and PLL objects.
 
     def add_period_constraint(self, platform, clk, period):
-        clk.attr.add("keep")
         platform.add_platform_command(
             """
 NET "{clk}" TNM_NET = "PRD{clk}";
@@ -256,8 +238,6 @@ TIMESPEC "TS{clk}" = PERIOD "PRD{clk}" """ + str(period) + """ ns HIGH 50%;
             )
 
     def add_false_path_constraint(self, platform, from_, to):
-        from_.attr.add("keep")
-        to.attr.add("keep")
         platform.add_platform_command(
             """
 NET "{from_}" TNM_NET = "TIG{from_}";
