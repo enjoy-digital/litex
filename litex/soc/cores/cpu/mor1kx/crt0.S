@@ -153,6 +153,25 @@ _crt0:
     l.movhi    r1, hi(_fstack)
     l.ori     r1, r1, lo(_fstack)
 
+    /* Init DATA */
+    l.movhi   r14,hi(_fdata_rom)
+    l.ori     r14,r14,lo(_fdata_rom)
+    l.movhi   r18,hi(_fdata)
+    l.ori     r18,r18,lo(_fdata)
+    l.movhi   r20,hi(_edata)
+    l.ori     r20,r20,lo(_edata)
+.copyDATA:
+    l.sfeq    r18,r20
+    l.bf      .doneDATA
+     l.nop
+    l.lwz     r3,0(r14)
+    l.sw      0(r18),r3
+    l.addi    r14,r14,4
+    l.addi    r18,r18,4
+    l.j       .copyDATA
+     l.nop
+.doneDATA:
+
     /* Clear BSS */
     l.movhi    r21, hi(_fbss)
     l.ori     r21, r21, lo(_fbss)
