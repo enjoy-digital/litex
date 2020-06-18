@@ -277,8 +277,10 @@ DSTATUS disk_status(uint8_t drv) {
 
 DSTATUS disk_initialize(uint8_t drv) {
     if (drv) return STA_NOINIT;
-    spisdcardstatus = spisdcard_init() ? 0 : STA_NOINIT;
-    spisdcard_deselect();
+    if (spisdcardstatus) {
+        spisdcardstatus = spisdcard_init() ? 0 : STA_NOINIT;
+        spisdcard_deselect();
+    }
     return spisdcardstatus;
 }
 
