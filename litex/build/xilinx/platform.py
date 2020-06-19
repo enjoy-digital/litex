@@ -83,3 +83,17 @@ class XilinxPlatform(GenericPlatform):
         from_.attr.add("keep")
         to.attr.add("keep")
         self.toolchain.add_false_path_constraint(self, from_, to)
+
+
+# XilinxPlatform arguments --------------------------------------------------------------------------
+
+def xilinx_platform_args(parser):
+    pass
+
+def xilinx_platform_argdict(args):
+    r = {}
+    return r
+
+def xilinx_platform_build_argdict(args):
+    r = {}
+    return r

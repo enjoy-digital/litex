@@ -4,6 +4,8 @@
 
 from litex.build.generic_platform import *
 from litex.build.xilinx import XilinxPlatform
+from litex.build.xilinx.platform import xilinx_platform_args, xilinx_platform_argdict, xilinx_platform_build_argdict
+from litex.build.xilinx.vivado import vivado_build_args, vivado_build_argdict
 from litex.build.openocd import OpenOCD
 
 # IOs ----------------------------------------------------------------------------------------------
@@ -266,12 +268,12 @@ class Platform(XilinxPlatform):
     default_clk_name   = "clk100"
     default_clk_period = 1e9/100e6
 
-    def __init__(self, variant="a7-35", toolchain="vivado"):
+    def __init__(self, variant="a7-35", toolchain="vivado", **kwargs):
         device = {
             "a7-35":  "xc7a35ticsg324-1L",
             "a7-100": "xc7a100tcsg324-1"
         }[variant]
-        XilinxPlatform.__init__(self, device, _io, _connectors, toolchain=toolchain)
+        XilinxPlatform.__init__(self, device, _io, _connectors, toolchain=toolchain, **kwargs)
         self.toolchain.bitstream_commands = \
             ["set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]"]
         self.toolchain.additional_commands = \
@@ -289,3 +291,23 @@ class Platform(XilinxPlatform):
         from litex.build.xilinx import symbiflow
         if not isinstance(self.toolchain, symbiflow.SymbiflowToolchain): # FIXME
             self.add_period_constraint(self.lookup_request("clk100", loose=True), 1e9/100e6)
+
+def platform_args(parser):
+    platform_group = parser.add_argument_group('Platform options')
+    xilinx_platform_args(platform_group)
+    platform_group.add_argument("--toolchain", default="vivado", help="Gateware toolchain to use, vivado (default) or symbiflow")
+    vivado_group = parser.add_argument_group('Vivado toolchain options')
+    vivado_build_args(vivado_group)
+
+def platform_argdict(args):
+    r = xilinx_platform_argdict(args)
+    r.update({
+        "toolchain": args.toolchain
+    })
+    return r
+
+def platform_build_argdict(args):
+    r = xilinx_platform_build_argdict(args)
+    if args.toolchain == "vivado":
+        r.update(vivado_build_argdict(args))
+    return r
