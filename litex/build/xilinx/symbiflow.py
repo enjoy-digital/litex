@@ -204,8 +204,7 @@ class SymbiflowToolchain:
                 if isinstance(item, Instance.Parameter) and re.fullmatch("CLKOUT[0-9]_(PHASE|DUTY_CYCLE)", item.name):
                     item.value = wrap(math.floor(_unwrap(item.value) * 1000))
 
-    def build(self, platform, fragment, build_dir, build_name, run,
-            enable_xpm = False,
+    def build(self, platform, fragment, build_dir, build_name, run, verilog_args = {},
             **kwargs):
 
         self._check_properties(platform)
@@ -219,7 +218,7 @@ class SymbiflowToolchain:
         self._process_constraints(platform)
 
         # Generate verilog
-        v_output = platform.get_verilog(fragment, name=build_name, **kwargs)
+        v_output = platform.get_verilog(fragment, name=build_name, **verilog_args)
         named_sc, named_pc = platform.resolve_signals(v_output.ns)
         v_file = build_name + ".v"
         v_output.write(v_file)

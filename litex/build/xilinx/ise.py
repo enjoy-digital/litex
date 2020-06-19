@@ -211,14 +211,13 @@ TIMESPEC "TS{from_}TO{to}" = FROM "TIG{from_}" TO "TIG{to}" TIG;
                 to=to,
                 )
 
-    def build(self, platform, fragment, build_dir, build_name, run,
-            mode = "xst",
-            **kwargs):
+    def build(self, platform, fragment, build_dir, build_name, run, verilog_args={},
+            mode = "xst"):
         self._process_constraints(platform)
 
         if mode in ["xst", "yosys", "cpld"]:
             # Generate verilog
-            v_output = platform.get_verilog(fragment, name=build_name, **kwargs)
+            v_output = platform.get_verilog(fragment, name=build_name, **verilog_args)
             vns = v_output.ns
             named_sc, named_pc = platform.resolve_signals(vns)
             v_file = build_name + ".v"

@@ -292,15 +292,14 @@ class XilinxVivadoToolchain:
         del self.clocks
         del self.false_paths
 
-    def build(self, platform, fragment, build_dir, build_name, run,
+    def build(self, platform, fragment, build_dir, build_name, run, verilog_args = {},
             synth_mode = "vivado",
-            enable_xpm = False,
-            **kwargs):
+            enable_xpm = False):
         # Generate timing constraints
         self._process_constraints(platform)
 
         # Generate verilog
-        v_output = platform.get_verilog(fragment, name=build_name, **kwargs)
+        v_output = platform.get_verilog(fragment, name=build_name, **verilog_args)
         named_sc, named_pc = platform.resolve_signals(v_output.ns)
         v_file = build_name + ".v"
         v_output.write(v_file)

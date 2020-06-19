@@ -48,7 +48,7 @@ class XilinxPlatform(GenericPlatform):
     def get_edif(self, fragment, **kwargs):
         return GenericPlatform.get_edif(self, fragment, "UNISIMS", "Xilinx", self.device, **kwargs)
 
-    def build(self, fragment, build_dir="build", build_name="top", run=True, *args, **kwargs):
+    def build(self, fragment, build_dir="build", build_name="top", run=True, verilog_args={}, **kwargs):
         # Create build directory
         os.makedirs(build_dir, exist_ok=True)
         cwd = os.getcwd()
@@ -59,10 +59,35 @@ class XilinxPlatform(GenericPlatform):
             fragment = fragment.get_fragment()
         self.finalize(fragment)
 
+        tool_args = kwargs
+        # FIXME: This is used for backward compatibility and can be removed in the future
+        if len(verilog_args) == 0:
+            verilog_args = {}
+            tool_args = {}
+            # Keyword arguments accepted by self.get_verilog()
+            get_verilog_allowed_keys = [
+                "special_overrides",
+                "name",
+                "special_overrides",
+                "attr_translate",
+                "create_clock_domains",
+                "display_run",
+                "reg_initialization",
+                "dummy_signal",
+                "blocking_assign",
+                "regular_comb"
+            ]
+            for k,v in kwargs.items():
+                if k in get_verilog_allowed_keys:
+                    # raise TypeError(f"Argument {k} must be passed through verilog_args dictionary")
+                    verilog_args[k] = v
+                else:
+                    tool_args[k] = v
+
         # Run toolchain
         vns = None
         try:
-            vns = self.toolchain.build(self, fragment, build_dir, build_name, run, *args, **kwargs)
+            vns = self.toolchain.build(self, fragment, build_dir, build_name, run, verilog_args=verilog_args, **tool_args)
         finally:
             os.chdir(cwd)
 
