@@ -1,5 +1,6 @@
 # This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
 # This file is Copyright (c) 2015-2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2020 Antmicro <www.antmicro.com>
 # License: BSD
 
 import os
@@ -8,6 +9,10 @@ from migen.fhdl.structure import _Fragment
 
 from litex.build.generic_platform import GenericPlatform
 from litex.build.xilinx import common, vivado, ise, symbiflow
+try:
+    from litex.build import edalize
+except:
+    pass
 
 # XilinxPlatform -----------------------------------------------------------------------------------
 
@@ -44,21 +49,24 @@ class XilinxPlatform(GenericPlatform):
         }
     }
 
-    def __init__(self, *args, toolchain="ise", **kwargs):
+    def __init__(self, *args, toolchain="ise", use_edalize=False, **kwargs):
         GenericPlatform.__init__(self, *args, **kwargs)
         self.edifs = set()
         self.ips   = {}
 
         self.toolchain_name = toolchain
 
-        if toolchain == "ise":
-            self.toolchain = ise.XilinxISEToolchain()
-        elif toolchain == "vivado":
-            self.toolchain = vivado.XilinxVivadoToolchain()
-        elif toolchain == "symbiflow":
-            self.toolchain = symbiflow.SymbiflowToolchain()
+        if use_edalize:
+            self.toolchain = edalize.EdalizeToolchain(toolchain=toolchain)
         else:
-            raise ValueError("Unknown toolchain")
+            if toolchain == "ise":
+                self.toolchain = ise.XilinxISEToolchain()
+            elif toolchain == "vivado":
+                self.toolchain = vivado.XilinxVivadoToolchain()
+            elif toolchain == "symbiflow":
+                self.toolchain = symbiflow.SymbiflowToolchain()
+            else:
+                raise ValueError("Unknown toolchain")
 
     def add_edif(self, filename):
         self.edifs.add((os.path.abspath(filename)))
@@ -146,10 +154,14 @@ class XilinxPlatform(GenericPlatform):
 # XilinxPlatform arguments --------------------------------------------------------------------------
 
 def xilinx_platform_args(parser):
-    pass
+    if "edalize" in globals():
+        parser.add_argument("--use-edalize", action="store_true", help="Use Edalize toolchain backend")
 
 def xilinx_platform_argdict(args):
     r = {}
+    r.update({
+        "use_edalize": args.use_edalize
+    })
     return r
 
 def xilinx_platform_build_argdict(args):
