@@ -165,16 +165,6 @@ bitgen {bitgen_opt} {build_name}.ncd {build_name}.bit{fail_stmt}
 # XilinxISEToolchain --------------------------------------------------------------------------------
 
 class XilinxISEToolchain:
-    attr_translate = {
-        "keep":             ("keep", "true"),
-        "no_retiming":      ("register_balancing", "no"),
-        "async_reg":        None,
-        "mr_ff":            None,
-        "ars_ff1":          None,
-        "ars_ff2":          None,
-        "no_shreg_extract": ("shreg_extract", "no")
-    }
-
     def __init__(self):
         self.xst_opt = "-ifmt MIXED\n-use_new_parser yes\n-opt_mode SPEED\n-register_balancing yes"
         self.map_opt = "-ol high -w"

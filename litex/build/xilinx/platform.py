@@ -14,10 +14,43 @@ from litex.build.xilinx import common, vivado, ise, symbiflow
 class XilinxPlatform(GenericPlatform):
     bitstream_ext = ".bit"
 
+    attr_translations = {
+        "ise": {
+            "keep":             ("keep", "true"),
+            "no_retiming":      ("register_balancing", "no"),
+            "async_reg":        None,
+            "mr_ff":            None,
+            "ars_ff1":          None,
+            "ars_ff2":          None,
+            "no_shreg_extract": ("shreg_extract", "no")
+        },
+        "vivado": {
+            "keep":            ("dont_touch", "true"),
+            "no_retiming":     ("dont_touch", "true"),
+            "async_reg":       ("async_reg",  "true"),
+            "mr_ff":           ("mr_ff",      "true"), # user-defined attribute
+            "ars_ff1":         ("ars_ff1",    "true"), # user-defined attribute
+            "ars_ff2":         ("ars_ff2",    "true"), # user-defined attribute
+            "no_shreg_extract": None
+        },
+        "symbiflow": {
+            "keep":            ("dont_touch", "true"),
+            "no_retiming":     ("dont_touch", "true"),
+            "async_reg":       ("async_reg",  "true"),
+            "mr_ff":           ("mr_ff",      "true"), # user-defined attribute
+            "ars_ff1":         ("ars_ff1",    "true"), # user-defined attribute
+            "ars_ff2":         ("ars_ff2",    "true"), # user-defined attribute
+            "no_shreg_extract": None
+        }
+    }
+
     def __init__(self, *args, toolchain="ise", **kwargs):
         GenericPlatform.__init__(self, *args, **kwargs)
         self.edifs = set()
         self.ips   = {}
+
+        self.toolchain_name = toolchain
+
         if toolchain == "ise":
             self.toolchain = ise.XilinxISEToolchain()
         elif toolchain == "vivado":
@@ -43,7 +76,7 @@ class XilinxPlatform(GenericPlatform):
             so.update(common.xilinx_us_special_overrides)
         so.update(special_overrides)
         return GenericPlatform.get_verilog(self, *args, special_overrides=so,
-            attr_translate=self.toolchain.attr_translate, **kwargs)
+            attr_translate=self.attr_translations[self.toolchain_name], **kwargs)
 
     def get_edif(self, fragment, **kwargs):
         return GenericPlatform.get_edif(self, fragment, "UNISIMS", "Xilinx", self.device, **kwargs)

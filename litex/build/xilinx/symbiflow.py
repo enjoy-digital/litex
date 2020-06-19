@@ -97,16 +97,6 @@ def _run_make():
 # SymbiflowToolchain -------------------------------------------------------------------------------
 
 class SymbiflowToolchain:
-    attr_translate = {
-        "keep":            ("dont_touch", "true"),
-        "no_retiming":     ("dont_touch", "true"),
-        "async_reg":       ("async_reg",  "true"),
-        "mr_ff":           ("mr_ff",      "true"), # user-defined attribute
-        "ars_ff1":         ("ars_ff1",    "true"), # user-defined attribute
-        "ars_ff2":         ("ars_ff2",    "true"), # user-defined attribute
-        "no_shreg_extract": None
-    }
-
     def __init__(self):
         self.clocks = dict()
         self.false_paths = set()
