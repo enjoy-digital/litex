@@ -80,6 +80,13 @@ class TestTargets(unittest.TestCase):
         ])
         self.assertEqual(errors, 0)
 
+    def test_arty_edalize_vivado(self):
+        from litex.boards.targets.arty import BaseSoC
+        errors = build_test([
+            BaseSoC(toolchain="vivado", platform_args={"use_edalize": True}, **test_kwargs)
+        ])
+        self.assertEqual(errors, 0)
+
     # Kintex-7
     def test_genesys2(self):
         from litex.boards.targets.genesys2 import BaseSoC
