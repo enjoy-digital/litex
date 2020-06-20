@@ -226,13 +226,12 @@ class SimSoC(SoCCore):
         #assert not (with_ethernet and with_etherbone)
 
         if with_ethernet and with_etherbone:
-            dw = 8
             etherbone_ip_address = convert_ip(etherbone_ip_address)
             # Ethernet PHY
             self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth", 0))
             self.add_csr("ethphy")
             # Ethernet MAC
-            self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=dw,
+            self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=8,
                 interface  = "hybrid",
                 endianness = self.cpu.endianness,
                 hw_mac     = etherbone_mac_address)
@@ -243,10 +242,10 @@ class SimSoC(SoCCore):
             self.add_csr("ethmac")
             self.add_interrupt("ethmac")
             # HW ethernet
-            self.submodules.arp = LiteEthARP(self.ethmac, etherbone_mac_address, etherbone_ip_address, sys_clk_freq, dw=dw)
-            self.submodules.ip = LiteEthIP(self.ethmac, etherbone_mac_address, etherbone_ip_address, self.arp.table, dw=dw)
-            self.submodules.icmp = LiteEthICMP(self.ip, etherbone_ip_address, dw=dw)
-            self.submodules.udp = LiteEthUDP(self.ip, etherbone_ip_address, dw=dw)
+            self.submodules.arp  = LiteEthARP(self.ethmac, etherbone_mac_address, etherbone_ip_address, sys_clk_freq, dw=8)
+            self.submodules.ip   = LiteEthIP(self.ethmac, etherbone_mac_address, etherbone_ip_address, self.arp.table, dw=8)
+            self.submodules.icmp = LiteEthICMP(self.ip, etherbone_ip_address, dw=8)
+            self.submodules.udp  = LiteEthUDP(self.ip, etherbone_ip_address, dw=8)
             # Etherbone
             self.submodules.etherbone = LiteEthEtherbone(self.udp, 1234, mode="master")
             self.add_wb_master(self.etherbone.wishbone.bus)
