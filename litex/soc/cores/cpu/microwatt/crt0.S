@@ -76,9 +76,11 @@ _start:
 	bdnz	0b
 1:
 	/* setup stack */
-	ld	%r1,_fstack@got(%r2)
-	bl	main
-	b	.
+	LOAD_IMM64(%r1, _fstack - 0x100)
+	LOAD_IMM64(%r12, main)
+	mtctr	%r12,
+	bctrl
+	b .
 
 #define EXCEPTION(nr)		\
 	.=  nr;      \
