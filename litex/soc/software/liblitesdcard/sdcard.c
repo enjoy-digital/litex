@@ -16,7 +16,7 @@
 #include "fat/diskio.h"
 #include "sdcard.h"
 
-#define SDCARD_DEBUG
+//#define SDCARD_DEBUG
 #define SDCARD_WAIT_WORKAROUND
 
 #ifdef CSR_SDCORE_BASE
@@ -153,12 +153,22 @@ void sdclk_set_clk(unsigned int freq) {
 
 /* command utils */
 
+static void busy_wait_us(unsigned int us)
+{
+    timer0_en_write(0);
+    timer0_reload_write(0);
+    timer0_load_write(CONFIG_CLOCK_FREQUENCY/1000000*us);
+    timer0_en_write(1);
+    timer0_update_value_write(1);
+    while(timer0_value_read()) timer0_update_value_write(1);
+}
+
 int sdcard_wait_cmd_done(void) {
 	unsigned int cmdevt;
 	while (1) {
 		cmdevt = sdcore_cmdevt_read();
 #ifdef SDCARD_WAIT_WORKAROUND
-		busy_wait(5); /* FIXME */
+		busy_wait_us(40); /* FIXME */
 #endif
 #ifdef SDCARD_DEBUG
 		printf("cmdevt: %08x\n", cmdevt);
@@ -186,7 +196,7 @@ int sdcard_wait_data_done(void) {
 	while (1) {
 		dataevt = sdcore_dataevt_read();
 #ifdef SDCARD_WAIT_WORKAROUND
-		busy_wait(5); /* FIXME */
+		busy_wait_us(1); /* FIXME */
 #endif
 #ifdef SDCARD_DEBUG
 		printf("dataevt: %08x\n", dataevt);
@@ -672,6 +682,7 @@ void sdcard_read(unsigned int addr, char silent)
 	sdcard_set_block_count(1);
 	sdcard_sddatareader_start();
 	sdcard_read_single_block(addr);
+	flush_cpu_dcache(); /* FIXME */
 	sdcard_sddatareader_wait();
 
 	if (silent == 0)
@@ -734,11 +745,13 @@ DSTATUS disk_initialize(uint8_t drv) {
 }
 
 DRESULT disk_read(uint8_t drv, uint8_t *buf, uint32_t sector, uint32_t count) {
+	uint32_t i = 0;
 	while (count) {
-		sdcard_read(sector, 1);
+		sdcard_read(sector + i, 1);
 		memcpy((char*) buf, (char*) sdread_buf, SD_BLOCK_SIZE);
 		buf += SD_BLOCK_SIZE;
 		count--;
+		i++;
 	}
 	return RES_OK;
 }
