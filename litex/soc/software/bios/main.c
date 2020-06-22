@@ -55,8 +55,7 @@ static void boot_sequence(void)
 #ifdef ROM_BOOT_ADDRESS
 		romboot();
 #endif
-//#if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCORE_BASE)
-#if defined(CSR_SPISDCARD_BASE) // FIXME
+#if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCORE_BASE)
 		sdcardboot();
 #endif
 #ifdef CSR_ETHMAC_BASE
