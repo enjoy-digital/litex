@@ -25,6 +25,7 @@ SECTIONS
 		*(.rodata .rodata.* .gnu.linkonce.r.*)
 		*(.rodata1)
 		*(.got .got.*)
+		*(.toc .toc.*)
 
 		/* Make sure the file is aligned on disk as well
 		   as in memory; CRC calculation requires that. */
