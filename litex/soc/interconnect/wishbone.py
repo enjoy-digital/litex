@@ -235,6 +235,7 @@ class DownConverter(Module):
 
         # # #
 
+        skip    = Signal()
         counter = Signal(max=ratio)
 
         # Control Path
@@ -252,12 +253,11 @@ class DownConverter(Module):
             slave.adr.eq(Cat(counter, master.adr)),
             Case(counter, {i: slave.sel.eq(master.sel[i*dw_to//8:]) for i in range(ratio)}),
             If(master.stb & master.cyc,
-                If(slave.sel != 0,
-                    slave.we.eq(master.we),
-                    slave.cyc.eq(1),
-                    slave.stb.eq(1),
-                ),
-                If(slave.ack | (slave.sel == 0),
+                skip.eq(slave.sel == 0),
+                slave.we.eq(master.we),
+                slave.cyc.eq(~skip),
+                slave.stb.eq(~skip),
+                If(slave.ack | skip,
                     NextValue(counter, counter + 1),
                     If(counter == (ratio - 1),
                         master.ack.eq(1),
@@ -273,7 +273,7 @@ class DownConverter(Module):
         # Read Datapath
         dat_r = Signal(dw_from, reset_less=True)
         self.comb += master.dat_r.eq(Cat(dat_r[dw_to:], slave.dat_r))
-        self.sync += If(slave.ack, dat_r.eq(master.dat_r))
+        self.sync += If(slave.ack | skip, dat_r.eq(master.dat_r))
 
 
 class Converter(Module):
