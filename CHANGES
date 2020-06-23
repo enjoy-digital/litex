@@ -4,6 +4,7 @@
 	[> Issues resolved
 	------------------
 	- Fix flush_cpu_icache on VexRiscv.
+	- Fix `.data` section placed in rom (#566)
 
 	[> Added Features
 	------------------
@@ -23,6 +24,7 @@
 	- Add Symbiflow experimental support on Arty.
 	- Add SDCard boot from FAT/exFAT filesystems with FatFs.
 	- Simplify boot with boot.json configuration file.
+	- Revert to a single crt0 (avoid ctr/xip variants).
 
 	[> API changes/Deprecation
 	--------------------------
