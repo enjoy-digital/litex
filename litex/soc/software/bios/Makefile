@@ -58,7 +58,7 @@ endif
 bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 
 
-%.elf: ../libbase/crt0-ctr.o \
+%.elf: ../libbase/crt0.o \
 	../libcompiler_rt/libcompiler_rt.a \
 	../libbase/libbase-nofloat.a \
 	../liblitedram/liblitedram.a \
@@ -66,7 +66,7 @@ bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 	../liblitespi/liblitespi.a \
 	../liblitesdcard/liblitesdcard.a
 	$(LD) $(LDFLAGS) -T $(BIOS_DIRECTORY)/linker.ld -N -o $@ \
-		../libbase/crt0-ctr.o \
+		../libbase/crt0.o \
 		$(OBJECTS) \
 		-L../libcompiler_rt \
 		-L../libbase \

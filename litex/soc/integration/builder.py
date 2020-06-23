@@ -91,20 +91,6 @@ class Builder:
 
             for k, v in export.get_cpu_mak(self.soc.cpu, self.compile_software):
                 define(k, v)
-            # Distinguish between LiteX and MiSoC.
-            define("LITEX", "1")
-            # Distinguish between applications running from main RAM and
-            # flash for user-provided software packages.
-            exec_profiles = {
-                "COPY_TO_MAIN_RAM" : "0",
-                "EXECUTE_IN_PLACE" : "0"
-            }
-            if "main_ram" in self.soc.mem_regions.keys():
-                exec_profiles["COPY_TO_MAIN_RAM"] = "1"
-            else:
-                exec_profiles["EXECUTE_IN_PLACE"] = "1"
-            for k, v in exec_profiles.items():
-                define(k, v)
             define(
                 "COMPILER_RT_DIRECTORY",
                 get_data_mod("software", "compiler_rt").data_location)
