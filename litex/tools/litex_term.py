@@ -224,7 +224,7 @@ class LiteXTerm:
             current_address += len(frame_data)
             position += len(frame_data)
             remaining -= len(frame_data)
-            time.sleep(1e-4) # FIXME: small delay needed with FT245 FIFO ("usb_fifo"), understand why.
+            time.sleep(1e-5) # Inter-frame delay for fast UARTs (ex: FT245).
         end = time.time()
         elapsed = end - start
         f.close()
