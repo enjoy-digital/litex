@@ -178,14 +178,10 @@ def _get_uart_fifo(depth, sink_cd="sys", source_cd="sys"):
         return stream.SyncFIFO([("data", 8)], depth, buffered=True)
 
 def UARTPHY(pads, clk_freq, baudrate):
-    # FT245 async FIFO mode (baudrate ignored)
+    # FT245 Asynchronous FIFO mode (baudrate ignored)
     if hasattr(pads, "rd_n") and hasattr(pads, "wr_n"):
         from litex.soc.cores.usb_fifo import FT245PHYAsynchronous
         return FT245PHYAsynchronous(pads, clk_freq)
-    # FT245 sync FIFO mode (baudrate ignored)
-    if hasattr(pads, "rd_n") and hasattr(pads, "wr_n") and hasattr(pads, "oe_n"):
-        from litex.soc.cores.usb_fifo import FT245PHYSynchronous
-        return FT245PHYSynchronous(pads, clk_freq)
     # RS232
     else:
         return  RS232PHY(pads, clk_freq, baudrate)
