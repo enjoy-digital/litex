@@ -134,7 +134,7 @@ class Platform(XilinxPlatform):
         XilinxPlatform.__init__(self, "xc7k325t-ffg900-2", _io, _connectors, toolchain="vivado")
 
     def create_programmer(self):
-        return OpenOCD("openocd_xc7_ft2232.cfg", "bscan_spi_xc7a325t.bit")
+        return OpenOCD("openocd_genesys2.cfg", "bscan_spi_xc7a325t.bit")
 
     def do_finalize(self, fragment):
         XilinxPlatform.do_finalize(self, fragment)
