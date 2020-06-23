@@ -124,10 +124,19 @@ _io = [
 
      # sdcard
      ("sdcard", 0,
-        Subsignal("data", Pins("L15 L16 K14 M13"), Misc("PULLUP True")),
-        Subsignal("cmd",  Pins("L13"), Misc("PULLUP True")),
         Subsignal("clk",  Pins("K18")),
+        Subsignal("cmd",  Pins("L13"), Misc("PULLUP True")),
+        Subsignal("data", Pins("L15 L16 K14 M13"), Misc("PULLUP True")),
         IOStandard("LVCMOS33"), Misc("SLEW=FAST")
+    ),
+
+    ("spisdcard", 0,
+        Subsignal("clk",  Pins("K18")),
+        Subsignal("cs_n", Pins("M13")),
+        Subsignal("mosi", Pins("L13"), Misc("PULLUP")),
+        Subsignal("miso", Pins("L15"), Misc("PULLUP")),
+        Misc("SLEW=FAST"),
+        IOStandard("LVCMOS33")
     ),
 
     # hdmi in
