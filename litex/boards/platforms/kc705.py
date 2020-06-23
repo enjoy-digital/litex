@@ -72,20 +72,22 @@ _io = [
         IOStandard("LVCMOS25")
     ),
 
-    ("mmc", 0,
-        Subsignal("wp",  Pins("Y21")),
-        Subsignal("det", Pins("AA21")),
-        Subsignal("cmd", Pins("AB22")),
+    ("sdcard", 0,
         Subsignal("clk", Pins("AB23")),
-        Subsignal("dat", Pins("AC20 AA23 AA22 AC21")),
-        IOStandard("LVCMOS25")),
+        Subsignal("cmd", Pins("AB22"), Misc("PULLUP True")),
+        Subsignal("data", Pins("AC20 AA23 AA22 AC21"), Misc("PULLUP True")),
+        Misc("SLEW=FAST"),
+        IOStandard("LVCMOS25")
+    ),
 
-    ("mmc_spi", 0,
-        Subsignal("miso", Pins("AC20"), Misc("PULLUP")),
+    ("spisdcard", 0,
         Subsignal("clk",  Pins("AB23")),
-        Subsignal("mosi", Pins("AB22")),
         Subsignal("cs_n", Pins("AC21")),
-        IOStandard("LVCMOS25")),
+        Subsignal("mosi", Pins("AB22"), Misc("PULLUP")),
+        Subsignal("miso", Pins("AC20"), Misc("PULLUP")),
+        Misc("SLEW=FAST"),
+        IOStandard("LVCMOS25")
+    ),
 
     ("lcd", 0,
         Subsignal("db", Pins("AA13 AA10 AA11 Y10")),
