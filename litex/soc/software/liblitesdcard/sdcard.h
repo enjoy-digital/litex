@@ -12,7 +12,6 @@
 
 #ifdef CSR_SDCORE_BASE
 
-#define SD_BLOCK_SIZE 512
 #define SD_RESPONSE_SIZE 16
 
 #define SD_OK         0
@@ -53,17 +52,17 @@
 #define SDCARD_CTRL_RESPONSE_SHORT 1
 #define SDCARD_CTRL_RESPONSE_LONG  2
 
-/* clocking */
-
-void sdclk_set_clk(unsigned int freq);
-
-/* command utils */
+/*-----------------------------------------------------------------------*/
+/* SDCard command helpers                                                */
+/*-----------------------------------------------------------------------*/
 
 int sdcard_wait_cmd_done(void);
 int sdcard_wait_data_done(void);
 int sdcard_wait_response(void);
 
-/* commands */
+/*-----------------------------------------------------------------------*/
+/* SDCard commands functions                                             */
+/*-----------------------------------------------------------------------*/
 
 void sdcard_go_idle(void);
 int sdcard_send_ext_csd(void);
@@ -89,24 +88,14 @@ int sdcard_stop_transmission(void);
 int sdcard_send_status(unsigned int rca);
 int sdcard_set_block_count(unsigned int blockcnt);
 
-/* bist */
+/*-----------------------------------------------------------------------*/
+/* SDCard user functions                                                 */
+/*-----------------------------------------------------------------------*/
 
-void sdcard_bist_generator_start(unsigned int blockcnt);
-void sdcard_bist_generator_wait(void);
-void sdcard_bist_checker_start(unsigned int blockcnt);
-void sdcard_bist_checker_wait(void);
-
-/* user */
-void hexdump(volatile const char *buf, size_t len);
-
+void sdcard_set_clk(uint32_t freq);
 int sdcard_init(void);
-void sdcard_write(unsigned int addr, const char *data, char silent);
-void sdcard_read(unsigned int addr, char silent);
-void sdcard_sddatawriter_start(void);
-void sdcard_sddatareader_start(void);
-int sdcard_sddatawriter_wait(void);
-int sdcard_sddatareader_wait(void);
-int sdcard_test(unsigned int blocks);
+void sdcard_read(uint32_t sector, uint32_t count, uint8_t* buf);
+void sdcard_write(uint32_t sector, uint32_t count, uint8_t* buf);
 
 #endif /* CSR_SDCORE_BASE */
 

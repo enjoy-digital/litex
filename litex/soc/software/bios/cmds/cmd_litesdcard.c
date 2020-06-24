@@ -33,7 +33,7 @@ static void sdclk(int nb_params, char **params)
 		return;
 	}
 
-	sdclk_set_clk(frequ);
+	sdcard_set_clk(frequ);
 }
 
 struct command_struct cmd_sdclk =
@@ -68,6 +68,7 @@ static void sdread(int nb_params, char **params)
 {
 	unsigned int block;
 	char *c;
+	uint8_t buf[512];
 
 	if (nb_params < 1) {
 		printf("sdread <block>");
@@ -80,7 +81,8 @@ static void sdread(int nb_params, char **params)
 		return;
 	}
 
-	sdcard_read(block*SD_BLOCK_SIZE, 0);
+	sdcard_read(block*512, 1, buf);
+	dump_bytes((uint32_t *)buf, 512, (unsigned long) buf);
 }
 
 define_command(sdread, sdread, "Read SDCard block", LITESDCARD_CMDS);
@@ -95,6 +97,8 @@ define_command(sdread, sdread, "Read SDCard block", LITESDCARD_CMDS);
 #ifdef CSR_SDCORE_BASE
 static void sdwrite(int nb_params, char **params)
 {
+	int i;
+	uint8_t buf[512];
 	unsigned int block;
 	char *c;
 
@@ -109,38 +113,18 @@ static void sdwrite(int nb_params, char **params)
 		return;
 	}
 
-	sdcard_write(block*SD_BLOCK_SIZE, params[1], 0);
+	c = params[1];
+	if (params[1] != NULL) {
+		for(i=0; i<512; i++) {
+			buf[i] = *c;
+			if(*(++c) == 0) {
+				c = params[1];
+			}
+		}
+	}
+	dump_bytes((uint32_t *)buf, 512, (unsigned long) buf);
+	sdcard_write(block*512, 1, buf);
 }
 
 define_command(sdwrite, sdwrite, "Write SDCard block", LITESDCARD_CMDS);
-#endif
-
-
-/**
- * Command "sdtest"
- *
- * Perform SDcard read/write tests
- *
- */
-#ifdef CSR_SDCORE_BASE
-static void sdtest(int nb_params, char **params)
-{
-	unsigned int blocks;
-	char *c;
-
-	if (nb_params < 1) {
-		printf("sdtest <blocks>");
-		return;
-	}
-
-	blocks = strtoul(params[0], &c, 0);
-	if (*c != 0) {
-		printf("Incorrect number of blocks");
-		return;
-	}
-
-	sdcard_test(blocks);
-}
-
-define_command(sdtest, sdtest, "Test SDCard Write & Read on N blocks", LITESDCARD_CMDS);
 #endif
