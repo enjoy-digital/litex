@@ -18,6 +18,7 @@ from litex.soc.cores.spi import SPIMaster
 
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import csr_bus
+from litex.soc.interconnect import stream
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect import axi
 
@@ -1252,7 +1253,7 @@ class LiteXSoC(SoC):
         # Imports
         from litesdcard.phy import SDPHY
         from litesdcard.core import SDCore
-        from litesdcard.data import SDDataReader, SDDataWriter
+        from litex.soc.cores.dma import WishboneDMAWriter, WishboneDMAReader
 
         # Emulator / Pads
         if with_emulator:
@@ -1282,28 +1283,22 @@ class LiteXSoC(SoC):
         self.add_csr("sdcore")
 
         # SD Card Data Reader
-        sdread_mem  = Memory(32, 512//4)
-        sdread_sram = FullMemoryWE()(wishbone.SRAM(sdread_mem, read_only=True))
-        self.submodules += sdread_sram
-        self.bus.add_slave("sdread", sdread_sram.bus, SoCRegion(size=512, cached=False))
-
-        sdread_port = sdread_sram.mem.get_port(write_capable=True);
-        self.specials += sdread_port
-        self.submodules.sddatareader = SDDataReader(port=sdread_port, endianness=self.cpu.endianness)
-        self.add_csr("sddatareader")
-        self.comb += self.sdcore.source.connect(self.sddatareader.sink)
+        sdreader_bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.address_width)
+        self.submodules.sdreader = WishboneDMAWriter(sdreader_bus, with_csr=True, endianness=self.cpu.endianness)
+        self.bus.add_master("sdreader", master=sdreader_bus)
+        self.add_csr("sdreader")
+        self.submodules.sdreader_fifo = stream.SyncFIFO([("data", self.bus.data_width)], 512//(self.bus.data_width//8))
+        self.comb += self.sdcore.source.connect(self.sdreader_fifo.sink)
+        self.comb += self.sdreader_fifo.source.connect(self.sdreader.sink)
 
         # SD Card Data Writer
-        sdwrite_mem  = Memory(32, 512//4)
-        sdwrite_sram = FullMemoryWE()(wishbone.SRAM(sdwrite_mem, read_only=False))
-        self.submodules += sdwrite_sram
-        self.bus.add_slave("sdwrite", sdwrite_sram.bus, SoCRegion(size=512, cached=False))
-
-        sdwrite_port = sdwrite_sram.mem.get_port(write_capable=False, async_read=True, mode=READ_FIRST);
-        self.specials += sdwrite_port
-        self.submodules.sddatawriter = SDDataWriter(port=sdwrite_port, endianness=self.cpu.endianness)
-        self.add_csr("sddatawriter")
-        self.comb += self.sddatawriter.source.connect(self.sdcore.sink),
+        sdwriter_bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.address_width)
+        self.submodules.sdwriter = WishboneDMAReader(sdwriter_bus, with_csr=True, endianness=self.cpu.endianness)
+        self.bus.add_master("sdwriter", master=sdwriter_bus)
+        self.add_csr("sdwriter")
+        self.submodules.sdwriter_fifo = stream.SyncFIFO([("data", self.bus.data_width)], 512//(self.bus.data_width//8))
+        self.comb += self.sdwriter.source.connect(self.sdwriter_fifo.sink)
+        self.comb += self.sdwriter_fifo.source.connect(self.sdcore.sink)
 
         # Timing constraints
         if not with_emulator:
