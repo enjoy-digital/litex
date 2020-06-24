@@ -217,16 +217,6 @@ define_command(sdrlevel, sdrlevel, "Perform read/write leveling", LITEDRAM_CMDS)
 #endif
 
 /**
- * Command "memtest"
- *
- * Run a memory test
- *
- */
-#ifdef CSR_SDRAM_BASE
-define_command(memtest, memtest, "Run a memory test", LITEDRAM_CMDS);
-#endif
-
-/**
  * Command "spdread"
  *
  * Read contents of SPD EEPROM memory.

@@ -12,6 +12,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <memtest.h>
+#include <lfsr.h>
 
 #ifdef CSR_SDRAM_BASE
 #include <generated/sdram_phy.h>
@@ -20,11 +22,13 @@
 #include <system.h>
 
 #include "sdram.h"
-#include "lfsr.h"
 
 // FIXME(hack): If we don't have main ram, just target the sram instead.
 #ifndef MAIN_RAM_BASE
 #define MAIN_RAM_BASE SRAM_BASE
+#endif
+#ifndef MAIN_RAM_SIZE
+#define MAIN_RAM_SIZE SRAM_SIZE
 #endif
 
 __attribute__((unused)) static void cdelay(int i)
@@ -725,227 +729,8 @@ static void read_level(int module)
 
 #endif /* CSR_SDRAM_BASE */
 
-static unsigned int seed_to_data_32(unsigned int seed, int random)
-{
-	if (random)
-		return lfsr(32, seed);
-	else
-		return seed + 1;
-}
 
-static unsigned short seed_to_data_16(unsigned short seed, int random)
-{
-	if (random)
-		return lfsr(16, seed);
-	else
-		return seed + 1;
-}
 
-#define ONEZERO 0xAAAAAAAA
-#define ZEROONE 0x55555555
-
-#ifndef MEMTEST_BUS_SIZE
-#define MEMTEST_BUS_SIZE (512)
-#endif
-
-//#define MEMTEST_BUS_DEBUG
-
-static int memtest_bus(void)
-{
-	volatile unsigned int *array = (unsigned int *)MAIN_RAM_BASE;
-	int i, errors;
-	unsigned int rdata;
-
-	errors = 0;
-
-	for(i=0;i<MEMTEST_BUS_SIZE/4;i++) {
-		array[i] = ONEZERO;
-	}
-	flush_cpu_dcache();
-#ifdef CONFIG_L2_SIZE
-	flush_l2_cache();
-#endif
-	for(i=0;i<MEMTEST_BUS_SIZE/4;i++) {
-		rdata = array[i];
-		if(rdata != ONEZERO) {
-			errors++;
-#ifdef MEMTEST_BUS_DEBUG
-			printf("[bus: 0x%0x]: 0x%08x vs 0x%08x\n", i, rdata, ONEZERO);
-#endif
-		}
-	}
-
-	for(i=0;i<MEMTEST_BUS_SIZE/4;i++) {
-		array[i] = ZEROONE;
-	}
-	flush_cpu_dcache();
-#ifdef CONFIG_L2_SIZE
-	flush_l2_cache();
-#endif
-	for(i=0;i<MEMTEST_BUS_SIZE/4;i++) {
-		rdata = array[i];
-		if(rdata != ZEROONE) {
-			errors++;
-#ifdef MEMTEST_BUS_DEBUG
-			printf("[bus 0x%0x]: 0x%08x vs 0x%08x\n", i, rdata, ZEROONE);
-#endif
-		}
-	}
-
-	return errors;
-}
-
-#ifndef MEMTEST_DATA_SIZE
-#define MEMTEST_DATA_SIZE (2*1024*1024)
-#endif
-#define MEMTEST_DATA_RANDOM 1
-
-//#define MEMTEST_DATA_DEBUG
-
-static int memtest_data(void)
-{
-	volatile unsigned int *array = (unsigned int *)MAIN_RAM_BASE;
-	int i, errors;
-	unsigned int seed_32;
-	unsigned int rdata;
-
-	errors = 0;
-	seed_32 = 1;
-
-	for(i=0;i<MEMTEST_DATA_SIZE/4;i++) {
-		seed_32 = seed_to_data_32(seed_32, MEMTEST_DATA_RANDOM);
-		array[i] = seed_32;
-	}
-
-	seed_32 = 1;
-	flush_cpu_dcache();
-#ifdef CONFIG_L2_SIZE
-	flush_l2_cache();
-#endif
-	for(i=0;i<MEMTEST_DATA_SIZE/4;i++) {
-		seed_32 = seed_to_data_32(seed_32, MEMTEST_DATA_RANDOM);
-		rdata = array[i];
-		if(rdata != seed_32) {
-			errors++;
-#ifdef MEMTEST_DATA_DEBUG
-			printf("[data 0x%0x]: 0x%08x vs 0x%08x\n", i, rdata, seed_32);
-#endif
-		}
-	}
-
-	return errors;
-}
-#ifndef MEMTEST_ADDR_SIZE
-#define MEMTEST_ADDR_SIZE (32*1024)
-#endif
-#define MEMTEST_ADDR_RANDOM 0
-
-//#define MEMTEST_ADDR_DEBUG
-
-static int memtest_addr(void)
-{
-	volatile unsigned int *array = (unsigned int *)MAIN_RAM_BASE;
-	int i, errors;
-	unsigned short seed_16;
-	unsigned short rdata;
-
-	errors = 0;
-	seed_16 = 1;
-
-	for(i=0;i<MEMTEST_ADDR_SIZE/4;i++) {
-		seed_16 = seed_to_data_16(seed_16, MEMTEST_ADDR_RANDOM);
-		array[(unsigned int) seed_16] = i;
-	}
-
-	seed_16 = 1;
-	flush_cpu_dcache();
-#ifdef CONFIG_L2_SIZE
-	flush_l2_cache();
-#endif
-	for(i=0;i<MEMTEST_ADDR_SIZE/4;i++) {
-		seed_16 = seed_to_data_16(seed_16, MEMTEST_ADDR_RANDOM);
-		rdata = array[(unsigned int) seed_16];
-		if(rdata != i) {
-			errors++;
-#ifdef MEMTEST_ADDR_DEBUG
-			printf("[addr 0x%0x]: 0x%08x vs 0x%08x\n", i, rdata, i);
-#endif
-		}
-	}
-
-	return errors;
-}
-
-static void memspeed(void)
-{
-	volatile unsigned long *array = (unsigned long *)MAIN_RAM_BASE;
-	int i;
-	unsigned int start, end;
-	unsigned long write_speed;
-	unsigned long read_speed;
-	__attribute__((unused)) unsigned long data;
-	const unsigned int sz = sizeof(unsigned long);
-
-	/* init timer */
-	timer0_en_write(0);
-	timer0_reload_write(0);
-	timer0_load_write(0xffffffff);
-	timer0_en_write(1);
-
-	/* write speed */
-	timer0_update_value_write(1);
-	start = timer0_value_read();
-	for(i=0;i<MEMTEST_DATA_SIZE/sz;i++) {
-		array[i] = i;
-	}
-	timer0_update_value_write(1);
-	end = timer0_value_read();
-	write_speed = (8*MEMTEST_DATA_SIZE*(CONFIG_CLOCK_FREQUENCY/1000000))/(start - end);
-
-	/* flush CPU and L2 caches */
-	flush_cpu_dcache();
-#ifdef CONFIG_L2_SIZE
-	flush_l2_cache();
-#endif
-
-	/* read speed */
-	timer0_en_write(1);
-	timer0_update_value_write(1);
-	start = timer0_value_read();
-	for(i=0;i<MEMTEST_DATA_SIZE/sz;i++) {
-		data = array[i];
-	}
-	timer0_update_value_write(1);
-	end = timer0_value_read();
-	read_speed = (8*MEMTEST_DATA_SIZE*(CONFIG_CLOCK_FREQUENCY/1000000))/(start - end);
-
-	printf("Memspeed Writes: %ldMbps Reads: %ldMbps\n", write_speed, read_speed);
-}
-
-int memtest(void)
-{
-	int bus_errors, data_errors, addr_errors;
-
-	bus_errors = memtest_bus();
-	if(bus_errors != 0)
-		printf("Memtest bus failed: %d/%d errors\n", bus_errors, 2*128);
-
-	data_errors = memtest_data();
-	if(data_errors != 0)
-		printf("Memtest data failed: %d/%d errors\n", data_errors, MEMTEST_DATA_SIZE/4);
-
-	addr_errors = memtest_addr();
-	if(addr_errors != 0)
-		printf("Memtest addr failed: %d/%d errors\n", addr_errors, MEMTEST_ADDR_SIZE/4);
-
-	if(bus_errors + data_errors + addr_errors != 0)
-		return 0;
-	else {
-		printf("Memtest OK\n");
-		memspeed();
-		return 1;
-	}
-}
 
 #ifdef CSR_SDRAM_BASE
 
@@ -1051,7 +836,7 @@ int sdrinit(void)
 #endif
 #endif
 	sdrhw();
-	if(!memtest()) {
+	if(!memtest((unsigned int *) MAIN_RAM_BASE, MAIN_RAM_SIZE)) {
 #ifdef CSR_DDRCTRL_BASE
 		ddrctrl_init_done_write(1);
 		ddrctrl_init_error_write(1);
