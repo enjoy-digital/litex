@@ -278,6 +278,56 @@ class S6DCM(XilinxClocking):
         )
         self.specials += Instance("DCM_CLKGEN", **self.params)
 
+    def expose_drp(self):
+        self._cmd_data      = CSRStorage(10)
+        self._send_cmd_data = CSR()
+        self._send_go       = CSR()
+        self._status        = CSRStatus(4)
+
+        progdata = Signal()
+        progen   = Signal()
+        progdone = Signal()
+        locked   = Signal()
+
+        self.params.update(
+            i_PROGCLK         = ClockSignal(),
+            i_PROGDATA        = progdata,
+            i_PROGEN          = progen,
+            o_PROGDONE        = progdone
+        )
+
+        remaining_bits = Signal(max=11)
+        transmitting   = Signal()
+        self.comb += transmitting.eq(remaining_bits != 0)
+        sr = Signal(10)
+        self.sync += [
+            If(self._send_cmd_data.re,
+                remaining_bits.eq(10),
+                sr.eq(self._cmd_data.storage)
+            ).Elif(transmitting,
+                remaining_bits.eq(remaining_bits - 1),
+                sr.eq(sr[1:])
+            )
+        ]
+        self.comb += [
+            progdata.eq(transmitting & sr[0]),
+            progen.eq(transmitting | self._send_go.re)
+        ]
+
+        # Enforce gap between commands
+        busy_counter = Signal(max=14)
+        busy         = Signal()
+        self.comb += busy.eq(busy_counter != 0)
+        self.sync += If(self._send_cmd_data.re,
+                busy_counter.eq(13)
+            ).Elif(busy,
+                busy_counter.eq(busy_counter - 1)
+            )
+
+        self.comb += self._status.status.eq(Cat(busy, progdone, self.locked))
+
+        self.logger.info("Exposing DRP interface.")
+
 # Xilinx / 7-Series --------------------------------------------------------------------------------
 
 class S7PLL(XilinxClocking):
