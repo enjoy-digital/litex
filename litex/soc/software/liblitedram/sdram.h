@@ -17,8 +17,6 @@ int write_level(void);
 
 int sdrlevel(void);
 
-int memtest_silent(void);
-int memtest(void);
 int sdrinit(void);
 
 #if defined(DDRPHY_CMD_DELAY) || defined(USDDRPHY_DEBUG)

@@ -17,7 +17,8 @@ OBJECTS = exception.o \
 	strcasecmp.o      \
 	i2c.o             \
 	div64.o           \
-	progress.o
+	progress.o        \
+	memtest.o
 
 all: crt0.o libbase.a libbase-nofloat.a
 
