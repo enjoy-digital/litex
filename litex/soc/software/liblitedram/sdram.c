@@ -23,14 +23,6 @@
 
 #include "sdram.h"
 
-// FIXME(hack): If we don't have main ram, just target the sram instead.
-#ifndef MAIN_RAM_BASE
-#define MAIN_RAM_BASE SRAM_BASE
-#endif
-#ifndef MAIN_RAM_SIZE
-#define MAIN_RAM_SIZE SRAM_SIZE
-#endif
-
 __attribute__((unused)) static void cdelay(int i)
 {
 #ifndef CONFIG_SIM_DISABLE_DELAYS
