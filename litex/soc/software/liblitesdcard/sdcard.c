@@ -416,10 +416,6 @@ void sdcard_decode_csd(void) {
 /* SDCard user functions                                                 */
 /*-----------------------------------------------------------------------*/
 
-void sdcard_set_clk(uint32_t freq) {
-	printf("No SDClocker, returning.\n");
-}
-
 int sdcard_init(void) {
 	unsigned short rca;
 

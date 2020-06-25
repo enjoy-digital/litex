@@ -92,7 +92,6 @@ int sdcard_set_block_count(unsigned int blockcnt);
 /* SDCard user functions                                                 */
 /*-----------------------------------------------------------------------*/
 
-void sdcard_set_clk(uint32_t freq);
 int sdcard_init(void);
 void sdcard_read(uint32_t sector, uint32_t count, uint8_t* buf);
 void sdcard_write(uint32_t sector, uint32_t count, uint8_t* buf);

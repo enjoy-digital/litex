@@ -11,42 +11,6 @@
 #include "../helpers.h"
 
 /**
- * Command "sdclk"
- *
- * Configure SDcard clock frequency
- *
- */
-#ifdef CSR_SDCORE_BASE
-static void sdclk(int nb_params, char **params)
-{
-	unsigned int frequ;
-	char *c;
-
-	if (nb_params < 1) {
-		printf("sdclk <freq>");
-		return;
-	}
-
-	frequ = strtoul(params[0], &c, 0);
-	if (*c != 0) {
-		printf("Incorrect freq");
-		return;
-	}
-
-	sdcard_set_clk(frequ);
-}
-
-struct command_struct cmd_sdclk =
-{
-	.func = sdclk,
-	.name = "sdclk",
-	.help = "Set SDCard clk freq (Mhz)",
-};
-
-define_command(sdclk, sdclk, "Set SDCard clk freq (Mhz)", LITESDCARD_CMDS);
-#endif
-
-/**
  * Command "sdinit"
  *
  * Initialize SDcard
