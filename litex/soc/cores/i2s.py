@@ -495,7 +495,7 @@ class S7I2S(Module, AutoCSR, AutoDoc):
                 p_DEVICE              = "7SERIES",
                 p_FIFO_SIZE           = "18Kb",
                 p_DATA_WIDTH          = fifo_data_width,
-                p_ALMOST_EMPTY_OFFSET = fifo_depth,
+                p_ALMOST_EMPTY_OFFSET = (512 - fifo_depth),
                 p_ALMOST_FULL_OFFSET  = 8,
                 p_DO_REG              = 0,
                 i_CLK         = ClockSignal(),
