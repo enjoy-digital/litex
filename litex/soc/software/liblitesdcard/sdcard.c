@@ -484,25 +484,22 @@ int sdcard_init(void) {
 
 void sdcard_read(uint32_t sector, uint32_t count, uint8_t* buf)
 {
-	uint32_t i;
-	for (i=0; i<count; i++) {
-		/* Initialize DMA Writer */
-		sdreader_enable_write(0);
-		sdreader_base_write((uint32_t) buf);
-		sdreader_length_write(512);
-		sdreader_enable_write(1);
+	/* Initialize DMA Writer */
+	sdreader_enable_write(0);
+	sdreader_base_write((uint32_t) buf);
+	sdreader_length_write(512*count);
+	sdreader_enable_write(1);
 
-		/* Read Single Block from SDCard */
-		sdcard_set_block_count(1);
+	/* Read Block(s) from SDCard */
+	sdcard_set_block_count(count);
+	if (count > 0)
+		sdcard_read_multiple_block(sector, count);
+	else
 		sdcard_read_single_block(sector);
 
-		/* Wait for DMA Writer to complete */
-		while ((sdreader_done_read() & 0x1) == 0);
+	/* Wait for DMA Writer to complete */
+	while ((sdreader_done_read() & 0x1) == 0);
 
-		/* Update buf/sector */
-		buf    += 512;
-		sector += 1;
-	}
 	flush_cpu_dcache(); /* FIXME */
 }
 
