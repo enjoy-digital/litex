@@ -2,8 +2,9 @@
 
 #include <stdio.h>
 #include <lfsr.h>
-
 #include <system.h>
+#include <progress.h>
+
 #include <generated/soc.h>
 #include <generated/csr.h>
 
@@ -127,16 +128,22 @@ int memtest_data(unsigned int *addr, unsigned long size, int random)
 	errors = 0;
 	seed_32 = 1;
 
+	init_progression_bar(size/4);
 	for(i = 0; i < size/4; i++) {
 		seed_32 = seed_to_data_32(seed_32, random);
 		array[i] = seed_32;
+		if (i%0x8000 == 0)
+			show_progress(i);
 	}
+	show_progress(i);
+	printf("\n");
 
 	seed_32 = 1;
 	flush_cpu_dcache();
 #ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
 #endif
+	init_progression_bar(size/4);
 	for(i = 0; i < size/4; i++) {
 		seed_32 = seed_to_data_32(seed_32, random);
 		rdata = array[i];
@@ -146,7 +153,11 @@ int memtest_data(unsigned int *addr, unsigned long size, int random)
 			printf("[data 0x%0x]: 0x%08x vs 0x%08x\n", i, rdata, seed_32);
 #endif
 		}
+		if (i%0x8000 == 0)
+			show_progress(i);
 	}
+	show_progress(i);
+	printf("\n");
 
 	return errors;
 }
@@ -160,6 +171,8 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only)
 	unsigned long read_speed;
 	__attribute__((unused)) unsigned long data;
 	const unsigned int sz = sizeof(unsigned long);
+
+	printf("Memspeed at 0x%08x...\n", addr);
 
 	/* init timer */
 	timer0_en_write(0);
@@ -178,6 +191,7 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only)
 		end = timer0_value_read();
 		write_speed = (8*size*(CONFIG_CLOCK_FREQUENCY/1000000))/(start - end);
 	}
+	printf("Writes: %ld Mbps\n", write_speed);
 
 	/* flush CPU and L2 caches */
 	flush_cpu_dcache();
@@ -195,8 +209,9 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only)
 	timer0_update_value_write(1);
 	end = timer0_value_read();
 	read_speed = (8*size*(CONFIG_CLOCK_FREQUENCY/1000000))/(start - end);
+	printf("Reads:  %ld Mbps\n", read_speed);
 
-	printf("Memspeed Writes: %ldMbps Reads: %ldMbps\n", write_speed, read_speed);
+
 }
 
 int memtest(unsigned int *addr, unsigned long maxsize)
@@ -206,20 +221,19 @@ int memtest(unsigned int *addr, unsigned long maxsize)
 	unsigned long addr_size = MEMTEST_ADDR_SIZE < maxsize ? MEMTEST_ADDR_SIZE : maxsize;
 	unsigned long data_size = MEMTEST_DATA_SIZE < maxsize ? MEMTEST_DATA_SIZE : maxsize;
 
-	bus_errors = memtest_bus(addr, bus_size);
-	if(bus_errors != 0)
-		printf("Memtest bus failed: %d/%d errors\n", bus_errors, bus_size/4);
+	printf("Memtest at 0x%08x...\n", addr);
 
+	bus_errors  = memtest_bus(addr, bus_size);
 	addr_errors = memtest_addr(addr, addr_size, MEMTEST_ADDR_RANDOM);
-	if(addr_errors != 0)
-		printf("Memtest addr failed: %d/%d errors\n", addr_errors, addr_size/4);
-
 	data_errors = memtest_data(addr, data_size, MEMTEST_DATA_RANDOM);
-	if(data_errors != 0)
-		printf("Memtest data failed: %d/%d errors\n", data_errors, data_size/4);
 
-	if(bus_errors + addr_errors + data_errors != 0)
+	if(bus_errors + addr_errors + data_errors != 0) {
+		printf("- bus errors:  %d/%d\n", bus_errors,  bus_size/4);
+		printf("- addr errors: %d/%d\n", addr_errors, addr_size/4);
+		printf("- data errors: %d/%d\n", data_errors, data_size/4);
+		printf("Memtest KO\n");
 		return 0;
+	}
 	else {
 		printf("Memtest OK\n");
 		memspeed(addr, data_size, false);
