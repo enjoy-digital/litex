@@ -42,7 +42,7 @@ int sdcard_wait_cmd_done(void) {
 	while (1) {
 		cmdevt = sdcore_cmdevt_read();
 #ifdef SDCARD_WAIT_WORKAROUND
-		busy_wait_us(40); /* FIXME */
+		busy_wait_us(100); /* FIXME */
 #endif
 #ifdef SDCARD_DEBUG
 		printf("cmdevt: %08x\n", cmdevt);
@@ -70,7 +70,7 @@ int sdcard_wait_data_done(void) {
 	while (1) {
 		dataevt = sdcore_dataevt_read();
 #ifdef SDCARD_WAIT_WORKAROUND
-		busy_wait_us(1); /* FIXME */
+		busy_wait_us(100); /* FIXME */
 #endif
 #ifdef SDCARD_DEBUG
 		printf("dataevt: %08x\n", dataevt);
@@ -420,8 +420,7 @@ int sdcard_init(void) {
 	unsigned short rca;
 
 	/* initialize SD driver parameters */
-	sdcore_cmdtimeout_write(1<<19);
-	sdcore_datatimeout_write(1<<19);
+	sdcore_timeout_write(1<<19);
 
 	/* reset card */
 	sdcard_go_idle();
