@@ -1264,16 +1264,6 @@ class LiteXSoC(SoC):
         else:
             sdcard_pads = self.platform.request(name)
 
-        # Clocking
-        if self.platform.device[:3] == "xc7":
-            from litesdcard.clocker import SDClockerS7
-            self.submodules.sdclk = SDClockerS7(sys_clk_freq=self.sys_clk_freq)
-            self.add_csr("sdclk")
-        else:
-            from litesdcard.clocker import SDClockerGen
-            self.submodules.sdclk = SDClockerGen()
-            self.add_csr("sdclk")
-
         # Core
         if hasattr(sdcard_pads, "rst"):
             self.comb += sdcard_pads.rst.eq(0)
@@ -1302,9 +1292,4 @@ class LiteXSoC(SoC):
 
         # Timing constraints
         if not with_emulator:
-            self.platform.add_period_constraint(self.sdclk.cd_sd.clk,    1e9/self.sys_clk_freq)
-            self.platform.add_period_constraint(self.sdclk.cd_sd_fb.clk, 1e9/self.sys_clk_freq)
-            self.platform.add_false_path_constraints(
-                self.crg.cd_sys.clk,
-                self.sdclk.cd_sd.clk,
-                self.sdclk.cd_sd_fb.clk)
+            self.platform.add_false_path_constraints(self.crg.cd_sys.clk, self.crg.cd_sdcard.clk)
