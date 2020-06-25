@@ -25,7 +25,7 @@
 #include <progress.h>
 
 #define FILESIZE_MAX    100000000
-#define HASHES_PER_LINE	60
+#define HASHES_PER_LINE	40
 
 static int printed;
 static int progress_max;
