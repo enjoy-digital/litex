@@ -440,8 +440,9 @@ int sdcard_init(void) {
 
 	/* send identification */
 	sdcard_all_send_cid();
+#ifdef SDCARD_DEBUG
 	sdcard_decode_cid();
-
+#endif
 	/* set relative card address */
 	sdcard_set_relative_address();
 	rca = (sdcard_response[3] >> 16) & 0xffff;
