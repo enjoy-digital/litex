@@ -19,8 +19,4 @@ int sdrlevel(void);
 
 int sdrinit(void);
 
-#if defined(DDRPHY_CMD_DELAY) || defined(USDDRPHY_DEBUG)
-void ddrphy_cdly(unsigned int delay);
-#endif
-
 #endif /* __SDRAM_H */

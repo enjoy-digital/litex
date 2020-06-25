@@ -164,24 +164,6 @@ void sdrwr(unsigned int addr)
 
 #ifdef CSR_DDRPHY_BASE
 
-#if defined(DDRPHY_CMD_DELAY)
-void ddrphy_cdly(unsigned int delay) {
-	printf("Setting clk/cmd delay to %d taps\n", delay);
-#if CSR_DDRPHY_EN_VTC_ADDR
-	ddrphy_en_vtc_write(0);
-#endif
-	ddrphy_cdly_rst_write(1);
-	while (delay > 0) {
-		ddrphy_cdly_inc_write(1);
-		cdelay(1000);
-		delay--;
-	}
-#if CSR_DDRPHY_EN_VTC_ADDR
-	ddrphy_en_vtc_write(1);
-#endif
-}
-#endif
-
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
 void sdrwlon(void)
 {
@@ -814,9 +796,6 @@ int sdrinit(void)
 	sdrsw();
 	init_sequence();
 #ifdef CSR_DDRPHY_BASE
-#ifdef DDRPHY_CMD_DELAY
-	ddrphy_cdly(DDRPHY_CMD_DELAY);
-#endif
 #if CSR_DDRPHY_EN_VTC_ADDR
 	ddrphy_en_vtc_write(0);
 #endif
