@@ -423,7 +423,7 @@ static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned lon
 
 	length = check_image_in_flash(flash_address);
 	if(length > 0) {
-		printf("Copying %d bytes from 0x%08x to 0x%08x...\n", length, flash_address, ram_address);
+		printf("Copying 0x%08x to 0x%08x (%d bytes)...\n", flash_address, ram_address, length);
 		offset = 0;
 		init_progression_bar(length);
 		while (length > 0) {
@@ -495,7 +495,7 @@ static int copy_file_from_sdcard_to_ram(const char * filename, unsigned long ram
 	}
 
 	length = f_size(&file);
-	printf("Copying %d bytes from %s to 0x%08x...\n", length, filename, ram_address);
+	printf("Copying %s to 0x%08x (%d bytes)...\n", filename, ram_address, length);
 	init_progression_bar(length);
 	offset = 0;
 	for (;;) {
