@@ -141,9 +141,13 @@ class AXILiteInterface:
 # AXI Stream Definition ----------------------------------------------------------------------------
 
 class AXIStreamInterface(stream.Endpoint):
-    def __init__(self, data_width=32):
+    def __init__(self, data_width=32, user_width=0):
         self.data_width = data_width
-        stream.Endpoint.__init__(self, [("data", data_width)])
+        self.user_width = user_width
+        axi_layout = [("data", data_width)]
+        if self.user_width:
+            axi_layout += [("user", user_width)]
+        stream.Endpoint.__init__(self, axi_layout)
 
     def get_ios(self, bus_name="axi"):
         subsignals = [
@@ -152,6 +156,8 @@ class AXIStreamInterface(stream.Endpoint):
             Subsignal("tready", Pins(1)),
             Subsignal("tdata",  Pins(self.data_width)),
         ]
+        if self.user_width:
+            subsignals += [Subsignal("tuser", Pins(self.user_width))]
         ios = [(bus_name , 0) + tuple(subsignals)]
         return ios
 
@@ -163,11 +169,15 @@ class AXIStreamInterface(stream.Endpoint):
             r.append(self.ready.eq(pads.tready))
             r.append(pads.tlast.eq(self.last))
             r.append(pads.tdata.eq(self.data))
+            if self.user_width:
+                r.append(pads.tuser.eq(self.user))
         if mode == "slave":
             r.append(self.valid.eq(pads.tvalid))
             r.append(pads.tready.eq(self.ready))
             r.append(self.last.eq(pads.tlast))
             r.append(self.data.eq(pads.tdata))
+            if self.user_width:
+                r.append(self.user.eq(pads.tuser))
         return r
 
 # AXI Bursts to Beats ------------------------------------------------------------------------------
