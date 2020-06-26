@@ -517,7 +517,6 @@ void sdcard_write(uint32_t sector, uint32_t count, uint8_t* buf)
 		while ((sdwriter_done_read() & 0x1) == 0);
 
 		/* Write Single Block to SDCard */
-		sdcore_datawcrcclear_write(1);
 		sdcard_set_block_count(1);
 		sdcard_write_single_block(sector);
 
