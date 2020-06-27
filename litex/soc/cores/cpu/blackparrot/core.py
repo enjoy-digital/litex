@@ -42,7 +42,7 @@ CPU_VARIANTS = {
 }
 
 GCC_FLAGS = {
-    "standard": "-march=rv64ia -mabi=lp64 -O0  ",
+    "standard": "-march=rv64ima -mabi=lp64 ",
 }
 
 class BlackParrotRV64(CPU):
@@ -125,9 +125,9 @@ class BlackParrotRV64(CPU):
 
     @staticmethod
     def add_sources(platform, variant="standard"):
-        vdir = get_data_mod("cpu", "blackparrot").data_location
+        vdir = os.path.abspath(os.path.dirname(__file__))
         bp_litex_dir = os.path.join(vdir,"bp_litex")
-        simulation = 0
+        simulation = 1
         if (simulation == 1):
             filename= os.path.join(bp_litex_dir,"flist.verilator")
         else:
