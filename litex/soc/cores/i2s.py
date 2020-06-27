@@ -16,13 +16,17 @@ class I2S_FORMAT(Enum):
     I2S_LEFT_JUSTIFIED = 2
 
 class S7I2S(Module, AutoCSR, AutoDoc):
-    def __init__(self, pads, fifo_depth=256, master=False, concatenate_channels=True, sample_width=16, frame_format=I2S_FORMAT.I2S_LEFT_JUSTIFIED, lrck_ref_freq=100e6, lrck_freq=44100, bits_per_channel=28):
+    def __init__(self, pads, fifo_depth=256, controller=False, master=False, concatenate_channels=True, sample_width=16, frame_format=I2S_FORMAT.I2S_LEFT_JUSTIFIED, lrck_ref_freq=100e6, lrck_freq=44100, bits_per_channel=28):
+        if master == True:
+            print("Master/slave terminology deprecated, please use controller/peripheral. Please see http://oshwa.org/a-resolution-to-redefine-spi-signal-names.")
+            controller = True
+
         self.intro = ModuleDoc("""Intro
 
-        I2S master/slave creates a master/slave audio interface instance depending on a configured master variable. 
+        I2S controller/peripheral creates a controller/peripheral audio interface instance depending on a configured controller variable. 
         Tx and Rx interfaces are inferred based upon the presence or absence of the respective pins in the "pads" argument.
         
-        When device is configured as master you can manipulate LRCK and SCLK signals using below variables.
+        When device is configured as controller you can manipulate LRCK and SCLK signals using below variables.
         
         - lrck_ref_freq - is a reference signal that is required to achive desired LRCK and SCLK frequencies.
                          Have be the same as your sys_clk.
@@ -31,8 +35,8 @@ class S7I2S(Module, AutoCSR, AutoDoc):
         - bits_per_channel - defines SCLK frequency. Mind you, that based on sys_clk frequency, 
                          the requested amount of bits per channel may vary from configured.
         
-        When device is configured as slave I2S interface, sampling rate and framing is set by the
-        programming of the audio CODEC chip. A slave configuration defers the
+        When device is configured as peripheral I2S interface, sampling rate and framing is set by the
+        programming of the audio CODEC chip. A peripheral configuration defers the
         generation of audio clocks to the CODEC, which has PLLs specialized to generate the correct
         frequencies for audio sampling rates.
 
@@ -163,7 +167,7 @@ class S7I2S(Module, AutoCSR, AutoDoc):
         ]
 
 
-        if master == True:
+        if controller == True:
             if bits_per_channel < sample_width and frame_format == I2S_FORMAT.I2S_STANDARD:
                 bits_per_channel = sample_width + 1
                 print("I2S warning: bits per channel can't be smaller than sample_width. Setting bits per channel to {}".format(sample_width + 1))
