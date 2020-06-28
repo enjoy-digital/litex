@@ -23,8 +23,8 @@ module ExampleBlackParrotSystem
    // Tracing parameters
    , parameter calc_trace_p                = 0
    , parameter cce_trace_p                 = 0
-   , parameter cmt_trace_p                 = 1
-   , parameter dram_trace_p                = 1
+   , parameter cmt_trace_p                 = 0
+   , parameter dram_trace_p                = 0
    , parameter npc_trace_p                 = 0
    , parameter icache_trace_p              = 0
    , parameter dcache_trace_p              = 0
