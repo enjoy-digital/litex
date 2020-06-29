@@ -1,10 +1,6 @@
 include ../include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
-ifeq ($(CPU),blackparrot)
-BP_LIBS =  -L$(BP_LITEX_SOFTWARE)
-BP_FLAGS = -lgcc
-endif
 # Permit TFTP_SERVER_PORT override from shell environment / command line
 ifdef TFTP_SERVER_PORT
 CFLAGS += -DTFTP_SERVER_PORT=$(TFTP_SERVER_PORT)
@@ -74,9 +70,7 @@ bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 		-L../libliteeth \
 		-L../liblitespi \
 		-L../liblitesdcard \
-		$(BP_LIBS) \
-		-llitedram -lliteeth -llitespi -llitesdcard -lbase-nofloat -lcompiler_rt \
-		$(BP_FLAGS)
+		-lcompiler_rt -llitedram -lliteeth -llitespi -llitesdcard -lbase-nofloat 
 
 ifneq ($(OS),Windows_NT)
 	chmod -x $@
