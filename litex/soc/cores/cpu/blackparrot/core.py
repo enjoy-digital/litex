@@ -46,7 +46,7 @@ GCC_FLAGS = {
 
 class BlackParrotRV64(CPU):
     name                 = "blackparrot"
-    human_name           = "BlackParrotRV64[ia]"
+    human_name           = "BlackParrotRV64[ima]"
     variants             = CPU_VARIANTS
     data_width           = 64
     endianness           = "little"
