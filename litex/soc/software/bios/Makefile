@@ -70,7 +70,7 @@ bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 		-L../libliteeth \
 		-L../liblitespi \
 		-L../liblitesdcard \
-		-lcompiler_rt -llitedram -lliteeth -llitespi -llitesdcard -lbase-nofloat 
+		-llitedram -lliteeth -llitespi -llitesdcard -lbase-nofloat -lcompiler_rt
 
 ifneq ($(OS),Windows_NT)
 	chmod -x $@
