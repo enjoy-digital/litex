@@ -24,7 +24,10 @@ class BaseSoC(SoCCore):
         sys_clk_freq = int(1e9/platform.default_clk_period)
 
         # SoCCore ----------------------------------------------------------------------------------
-        SoCCore.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
+        SoCCore.__init__(self, platform, sys_clk_freq,
+            ident          = "LiteX Simple SoC",
+            ident_version  = True,
+            **kwargs)
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = CRG(platform.request(platform.default_clk_name))
@@ -47,7 +50,7 @@ def main():
     soc_core_args(parser)
     parser.add_argument("--with-ethernet", action="store_true", help="Enable Ethernet support")
     parser.add_argument("platform",                             help="Module name of the platform to build for")
-    parser.add_argument("--toolchain", default=None,  help="FPGA gateware toolchain used for build")
+    parser.add_argument("--toolchain", default=None,   help="FPGA gateware toolchain used for build")
     args = parser.parse_args()
 
     platform_module = importlib.import_module(args.platform)

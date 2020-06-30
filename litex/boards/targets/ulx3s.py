@@ -74,7 +74,10 @@ class BaseSoC(SoCCore):
         platform = ulx3s.Platform(device=device, toolchain=toolchain)
 
         # SoCCore ----------------------------------------------------------------------------------
-        SoCCore.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
+        SoCCore.__init__(self, platform, sys_clk_freq,
+            ident          = "LiteX SoC on ULX3S",
+            ident_version  = True,
+            **kwargs)
 
         # CRG --------------------------------------------------------------------------------------
         with_usb_pll = kwargs.get("uart_name", None) == "usb_acm"

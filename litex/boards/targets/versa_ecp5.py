@@ -37,7 +37,8 @@ class _CRG(Module):
 
         # # #
 
-        self.stop = Signal()
+        self.stop  = Signal()
+        self.reset = Signal()
 
         # Clk / Rst
         clk100 = platform.request("clk100")
@@ -46,7 +47,7 @@ class _CRG(Module):
         # Power on reset
         por_count = Signal(16, reset=2**16-1)
         por_done  = Signal()
-        self.comb += self.cd_por.clk.eq(ClockSignal())
+        self.comb += self.cd_por.clk.eq(clk100)
         self.comb += por_done.eq(por_count == 0)
         self.sync.por += If(~por_done, por_count.eq(por_count - 1))
 
@@ -64,20 +65,28 @@ class _CRG(Module):
                 p_DIV     = "2.0",
                 i_ALIGNWD = 0,
                 i_CLKI    = self.cd_sys2x.clk,
-                i_RST     = self.cd_sys2x.rst,
+                i_RST     = self.reset,
                 o_CDIVX   = self.cd_sys.clk),
-            AsyncResetSynchronizer(self.cd_init, ~por_done | ~pll.locked | ~rst_n),
-            AsyncResetSynchronizer(self.cd_sys,  ~por_done | ~pll.locked | ~rst_n)
+            AsyncResetSynchronizer(self.cd_init,   ~por_done | ~pll.locked | ~rst_n),
+            AsyncResetSynchronizer(self.cd_sys,    ~por_done | ~pll.locked | ~rst_n | self.reset),
+            AsyncResetSynchronizer(self.cd_sys2x,  ~por_done | ~pll.locked | ~rst_n | self.reset),
         ]
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, sys_clk_freq=int(75e6), with_ethernet=False, toolchain="trellis", **kwargs):
-        platform = versa_ecp5.Platform(toolchain=toolchain)
+    def __init__(self, sys_clk_freq=int(75e6), device="LFE5UM5G", with_ethernet=False, toolchain="trellis", **kwargs):
+        platform = versa_ecp5.Platform(toolchain=toolchain, device=device)
+
+        # FIXME: adapt integrated rom size for Microwatt
+        if kwargs.get("cpu_type", None) == "microwatt":
+            kwargs["integrated_rom_size"] = 0xb000 if with_ethernet else 0x9000
 
         # SoCCore -----------------------------------------_----------------------------------------
-        SoCCore.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
+        SoCCore.__init__(self, platform, sys_clk_freq,
+            ident          = "LiteX SoC on Versa ECP5",
+            ident_version  = True,
+            **kwargs)
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = _CRG(platform, sys_clk_freq)
@@ -89,6 +98,7 @@ class BaseSoC(SoCCore):
                 sys_clk_freq=sys_clk_freq)
             self.add_csr("ddrphy")
             self.comb += self.crg.stop.eq(self.ddrphy.init.stop)
+            self.comb += self.crg.reset.eq(self.ddrphy.init.reset)
             self.add_sdram("sdram",
                 phy                     = self.ddrphy,
                 module                  = MT41K64M16(sys_clk_freq, "1:2"),
@@ -123,11 +133,16 @@ def main():
     builder_args(parser)
     soc_sdram_args(parser)
     trellis_args(parser)
-    parser.add_argument("--sys-clk-freq",  default=75e6,        help="System clock frequency (default=75MHz)")
-    parser.add_argument("--with-ethernet", action="store_true", help="Enable Ethernet support")
+    parser.add_argument("--sys-clk-freq",  default=75e6,         help="System clock frequency (default=75MHz)")
+    parser.add_argument("--device",        default="LFE5UM5G",   help="ECP5 device (LFE5UM5G (default) or LFE5UM)")
+    parser.add_argument("--with-ethernet", action="store_true",  help="Enable Ethernet support")
     args = parser.parse_args()
 
-    soc = BaseSoC(sys_clk_freq=int(float(args.sys_clk_freq)), with_ethernet=args.with_ethernet, toolchain=args.toolchain, **soc_sdram_argdict(args))
+    soc = BaseSoC(sys_clk_freq=int(float(args.sys_clk_freq)),
+        device        = args.device,
+        with_ethernet = args.with_ethernet,
+        toolchain     = args.toolchain,
+        **soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder_kargs = trellis_argdict(args) if args.toolchain == "trellis" else {}
     builder.build(**builder_kargs, run=args.build)

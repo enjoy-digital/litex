@@ -75,7 +75,10 @@ class BaseSoC(SoCCore):
         if toolchain == "symbiflow":
             sys_clk_freq=int(60e6)
 
-        SoCCore.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
+        SoCCore.__init__(self, platform, sys_clk_freq,
+            ident          = "LiteX SoC on Arty A7",
+            ident_version  = True,
+            **kwargs)
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = _CRG(platform, sys_clk_freq, toolchain)
