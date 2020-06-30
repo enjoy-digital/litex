@@ -13,10 +13,11 @@ import argparse
 from litex import RemoteClient
 
 parser = argparse.ArgumentParser(description="LiteX Crossover UART bridge tool")
-parser.add_argument("--base-address", default=0, help="Wishbone Bridge base address")
+parser.add_argument("--host",         default="localhost",  help="Host IP address")
+parser.add_argument("--base-address", default="0x00000000", help="Wishbone base address")
 args = parser.parse_args()
 
-wb = RemoteClient(base_address=int(args.base_address, 0))
+wb = RemoteClient(host=args.host, base_address=int(args.base_address, 0))
 wb.open()
 
 # # #
