@@ -45,6 +45,9 @@ sim: $(OBJS_SIM) | mkdir
 		$(if $(TRACE_FST), --trace-fst,) \
 		$(if $(COVERAGE), --coverage,) \
 		--unroll-count 256 \
+		--output-split 5000 \
+		--output-split-cfuncs 500 \
+		--output-split-ctrace 500 \
 		$(INC_DIR) \
 		-Wno-BLKANDNBLK \
 		-Wno-WIDTH
