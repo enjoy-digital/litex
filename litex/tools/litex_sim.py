@@ -19,6 +19,7 @@ from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
 from litex.soc.integration.soc import *
 from litex.soc.cores.bitbang import *
+from litex.soc.cores.cpu import CPUS
 
 from litedram import modules as litedram_modules
 from litedram.modules import parse_spd_hexdump
@@ -346,19 +347,16 @@ def main():
 
     # Configuration --------------------------------------------------------------------------------
 
-    cpu_endianness = "little"
-    if "cpu_type" in soc_kwargs:
-        if soc_kwargs["cpu_type"] in ["mor1kx", "lm32"]:
-            cpu_endianness = "big"
+    cpu = CPUS[soc_kwargs.get("cpu_type", "vexriscv")]
     if soc_kwargs["uart_name"] == "serial":
         soc_kwargs["uart_name"] = "sim"
         sim_config.add_module("serial2console", "serial")
     if args.rom_init:
-        soc_kwargs["integrated_rom_init"] = get_mem_data(args.rom_init, cpu_endianness)
+        soc_kwargs["integrated_rom_init"] = get_mem_data(args.rom_init, cpu.endianness)
     if not args.with_sdram:
         soc_kwargs["integrated_main_ram_size"] = 0x10000000 # 256 MB
         if args.ram_init is not None:
-            soc_kwargs["integrated_main_ram_init"] = get_mem_data(args.ram_init, cpu_endianness)
+            soc_kwargs["integrated_main_ram_init"] = get_mem_data(args.ram_init, cpu.endianness)
     else:
         assert args.ram_init is None
         soc_kwargs["integrated_main_ram_size"] = 0x0
@@ -382,7 +380,7 @@ def main():
         with_analyzer  = args.with_analyzer,
         with_i2c       = args.with_i2c,
         with_sdcard    = args.with_sdcard,
-        sdram_init     = [] if args.sdram_init is None else get_mem_data(args.sdram_init, cpu_endianness),
+        sdram_init     = [] if args.sdram_init is None else get_mem_data(args.sdram_init, cpu.endianness),
         **soc_kwargs)
     if args.ram_init is not None:
         soc.add_constant("ROM_BOOT_ADDRESS", 0x40000000)
