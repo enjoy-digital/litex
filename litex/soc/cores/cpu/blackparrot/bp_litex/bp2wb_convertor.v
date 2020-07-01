@@ -97,14 +97,14 @@ module bp2wb_convertor
         set_stb <= 0;
         v_li <=0;
       end
-      else if (v_li)
-      begin
-        if (mem_resp_yumi_i)
+//      else if (v_li)
+//      begin
+      else if (mem_resp_yumi_i)
         begin
           v_li <= 0;
           ack_ctr <= 0;
         end
-      end
+//      end
       else if (mem_cmd_v_i)
       begin
         //data_li <= 0;
