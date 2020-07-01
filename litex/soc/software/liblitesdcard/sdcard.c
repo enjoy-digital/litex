@@ -19,6 +19,8 @@
 //#define SDCARD_DEBUG
 #define SDCARD_WAIT_WORKAROUND
 
+#define SDCARD_MULTIPLE_BLOCK_SUPPORT
+
 #ifdef CSR_SDCORE_BASE
 
 unsigned int sdcard_response[SD_RESPONSE_SIZE/4];
@@ -491,11 +493,16 @@ void sdcard_read(uint32_t sector, uint32_t count, uint8_t* buf)
 	sdreader_enable_write(1);
 
 	/* Read Block(s) from SDCard */
+#ifdef SDCARD_MULTIPLE_BLOCK_SUPPORT
 	sdcard_set_block_count(count);
-	if (count > 0)
-		sdcard_read_multiple_block(sector, count);
-	else
+	sdcard_read_multiple_block(sector, count);
+#else
+	while (count) {
 		sdcard_read_single_block(sector);
+		sector += 1;
+		count  -= 1;
+	}
+#endif
 
 	/* Wait for DMA Writer to complete */
 	while ((sdreader_done_read() & 0x1) == 0);
@@ -517,7 +524,9 @@ void sdcard_write(uint32_t sector, uint32_t count, uint8_t* buf)
 		while ((sdwriter_done_read() & 0x1) == 0);
 
 		/* Write Single Block to SDCard */
+#ifdef SDCARD_MULTIPLE_BLOCK_SUPPORT
 		sdcard_set_block_count(1);
+#endif
 		sdcard_write_single_block(sector);
 
 		/* Update buf/sector */
