@@ -1257,10 +1257,9 @@ class LiteXSoC(SoC):
 
         # Emulator / Pads
         if with_emulator:
-            from litesdcard.emulator import SDEmulator, _sdemulator_pads
-            sdcard_pads = _sdemulator_pads()
-            self.submodules.sdemulator = SDEmulator(self.platform, sdcard_pads)
-            self.add_csr("sdemulator")
+            from litesdcard.emulator import SDEmulator
+            self.submodules.sdemulator = SDEmulator(self.platform)
+            sdcard_pads = self.sdemulator.pads
         else:
             sdcard_pads = self.platform.request(name)
 
