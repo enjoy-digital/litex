@@ -1291,4 +1291,4 @@ class LiteXSoC(SoC):
 
         # Timing constraints
         if not with_emulator:
-            self.platform.add_false_path_constraints(self.crg.cd_sys.clk, self.crg.cd_sdcard.clk)
+            self.platform.add_false_path_constraints(self.crg.cd_sys.clk, self.crg.cd_sd.clk)

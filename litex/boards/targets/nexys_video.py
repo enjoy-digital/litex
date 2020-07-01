@@ -30,7 +30,7 @@ class _CRG(Module):
         self.clock_domains.cd_sys4x_dqs = ClockDomain(reset_less=True)
         self.clock_domains.cd_clk200    = ClockDomain()
         self.clock_domains.cd_clk100    = ClockDomain()
-        self.clock_domains.cd_sdcard    = ClockDomain()
+        self.clock_domains.cd_sd        = ClockDomain()
 
         # # #
 
@@ -42,7 +42,7 @@ class _CRG(Module):
         pll.create_clkout(self.cd_sys4x_dqs, 4*sys_clk_freq, phase=90)
         pll.create_clkout(self.cd_clk200,    200e6)
         pll.create_clkout(self.cd_clk100,    100e6)
-        pll.create_clkout(self.cd_sdcard,    10e6)
+        pll.create_clkout(self.cd_sd,        10e6)
 
         self.submodules.idelayctrl = S7IDELAYCTRL(self.cd_clk200)
 
