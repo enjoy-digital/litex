@@ -1177,7 +1177,7 @@ class LiteXSoC(SoC):
             eth_tx_clk)
 
     # Add Etherbone --------------------------------------------------------------------------------
-    def add_etherbone(self, name="etherbone", phy=None, clock_domain=None,
+    def add_etherbone(self, name="etherbone", phy=None,
         mac_address = 0x10e2d5000000,
         ip_address  = "192.168.1.50",
         udp_port    = 1234):
@@ -1190,21 +1190,16 @@ class LiteXSoC(SoC):
             mac_address = mac_address,
             ip_address  = ip_address,
             clk_freq    = self.clk_freq)
-        if clock_domain is not None: # FIXME: Could probably be avoided.
-            ethcore = ClockDomainsRenamer("eth_tx")(ethcore)
+        ethcore = ClockDomainsRenamer("eth_tx")(ethcore)
         self.submodules += ethcore
 
         # Clock domain renaming
-        if clock_domain is not None: # FIXME: Could probably be avoided.
-            self.clock_domains.cd_etherbone = ClockDomain("etherbone")
-            self.comb += self.cd_etherbone.clk.eq(ClockSignal(clock_domain))
-            self.comb += self.cd_etherbone.rst.eq(ResetSignal(clock_domain))
-            clock_domain = "etherbone"
-        else:
-            clock_domain = "sys"
+        self.clock_domains.cd_etherbone = ClockDomain("etherbone")
+        self.comb += self.cd_etherbone.clk.eq(ClockSignal("sys"))
+        self.comb += self.cd_etherbone.rst.eq(ResetSignal("sys"))
 
         # Etherbone
-        etherbone = LiteEthEtherbone(ethcore.udp, udp_port, cd=clock_domain)
+        etherbone = LiteEthEtherbone(ethcore.udp, udp_port, cd="etherbone")
         setattr(self.submodules, name, etherbone)
         self.add_wb_master(etherbone.wishbone.bus)
         # Timing constraints
