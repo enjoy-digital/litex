@@ -33,7 +33,7 @@ def set_reset_less(field):
             s.reset_less = True
 
 class EndpointDescription:
-    def __init__(self, payload_layout, param_layout=[]):
+    def __init__(self, payload_layout=[], param_layout=[]):
         self.payload_layout = payload_layout
         self.param_layout   = param_layout
 
@@ -59,7 +59,7 @@ class EndpointDescription:
 
 
 class Endpoint(Record):
-    def __init__(self, description_or_layout, name=None, **kwargs):
+    def __init__(self, description_or_layout=[], name=None, **kwargs):
         if isinstance(description_or_layout, EndpointDescription):
             self.description = description_or_layout
         else:
