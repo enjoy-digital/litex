@@ -235,6 +235,23 @@ class AsyncFIFO(_FIFOWrapper):
             layout     = layout,
             depth      = depth)
 
+# ClockDomainCrossing ------------------------------------------------------------------------------
+
+class ClockDomainCrossing(Module):
+    def __init__(self, layout, cd_from="sys", cd_to="sys"):
+        self.sink   = Endpoint(layout)
+        self.source = Endpoint(layout)
+        # # #
+
+        if cd_from == cd_to:
+            self.comb += self.sink.connect(self.source)
+        else:
+            cdc = AsyncFIFO(layout)
+            cdc = ClockDomainsRenamer({"write": cd_from, "read": cd_to})(cdc)
+            self.submodules += cdc
+            self.comb += self.sink.connect(cdc.sink)
+            self.comb += cdc.source.connect(self.source)
+
 # Mux/Demux ----------------------------------------------------------------------------------------
 
 class Multiplexer(Module):
