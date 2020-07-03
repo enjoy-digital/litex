@@ -1283,7 +1283,3 @@ class LiteXSoC(SoC):
         self.submodules.sdwriter_fifo = stream.SyncFIFO([("data", self.bus.data_width)], 512//(self.bus.data_width//8))
         self.comb += self.sdwriter.source.connect(self.sdwriter_fifo.sink)
         self.comb += self.sdwriter_fifo.source.connect(self.sdcore.sink)
-
-        # Timing constraints
-        if not with_emulator:
-            self.platform.add_false_path_constraints(self.crg.cd_sys.clk, self.crg.cd_sd.clk)

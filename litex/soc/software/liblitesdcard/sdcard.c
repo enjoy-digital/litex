@@ -102,6 +102,31 @@ int sdcard_wait_response(void) {
 }
 
 /*-----------------------------------------------------------------------*/
+/* SDCard clocker functions                                              */
+/*-----------------------------------------------------------------------*/
+
+static uint32_t log2(uint32_t x)
+{
+  uint32_t r = 0 ;
+  while(x >>= 1) r++;
+  return r;
+}
+
+static void sdcard_set_clk_freq(uint32_t clk_freq) {
+    uint32_t divider;
+    divider = CONFIG_CLOCK_FREQUENCY/clk_freq + 1;
+    divider = (1 << log2(divider));
+//#ifdef SDCARD_DEBUG
+    printf("Setting SDCard clk freq to ");
+    if (clk_freq > 1000000)
+        printf("%d MHz\n", (CONFIG_CLOCK_FREQUENCY/divider)/1000000);
+    else
+        printf("%d KHz\n", (CONFIG_CLOCK_FREQUENCY/divider)/1000);
+//#endif
+    sdphy_clocker_divider_write(divider);
+}
+
+/*-----------------------------------------------------------------------*/
 /* SDCard commands functions                                             */
 /*-----------------------------------------------------------------------*/
 
@@ -414,6 +439,9 @@ void sdcard_decode_csd(void) {
 
 int sdcard_init(void) {
 	unsigned short rca;
+
+	/* initialize freq */
+	sdcard_set_clk_freq(16000000);
 
 	/* initialize card */
 	sdphy_init_initialize_write(1);
