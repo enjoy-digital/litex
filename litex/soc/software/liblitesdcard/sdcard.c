@@ -421,9 +421,6 @@ void sdcard_decode_csd(void) {
 int sdcard_init(void) {
 	unsigned short rca;
 
-	/* initialize SD driver parameters */
-	sdcore_timeout_write(1<<19);
-
 	/* reset card */
 	sdcard_go_idle();
 	busy_wait(1);

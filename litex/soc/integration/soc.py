@@ -1261,7 +1261,7 @@ class LiteXSoC(SoC):
         # Core
         if hasattr(sdcard_pads, "rst"):
             self.comb += sdcard_pads.rst.eq(0)
-        self.submodules.sdphy   = SDPHY(sdcard_pads, self.platform.device)
+        self.submodules.sdphy   = SDPHY(sdcard_pads, self.platform.device, self.clk_freq)
         self.submodules.sdcore  = SDCore(self.sdphy)
         self.add_csr("sdphy")
         self.add_csr("sdcore")
