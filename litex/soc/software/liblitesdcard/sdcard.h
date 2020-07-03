@@ -12,7 +12,7 @@
 
 #ifdef CSR_SDCORE_BASE
 
-#define SD_RESPONSE_SIZE 16
+#define SD_CMD_RESPONSE_SIZE 16
 
 #define SD_OK         0
 #define SD_CRCERROR   1
