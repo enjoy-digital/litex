@@ -17,9 +17,7 @@
 #include "sdcard.h"
 
 //#define SDCARD_DEBUG
-#define SDCARD_WAIT_WORKAROUND
-
-#define SDCARD_MULTIPLE_BLOCK_SUPPORT
+//#define SDCARD_CMD23_SUPPORT
 
 #ifdef CSR_SDCORE_BASE
 
@@ -43,9 +41,7 @@ int sdcard_wait_cmd_done(void) {
 	unsigned int cmdevt;
 	while (1) {
 		cmdevt = sdcore_cmdevt_read();
-#ifdef SDCARD_WAIT_WORKAROUND
-		busy_wait_us(100); /* FIXME */
-#endif
+		busy_wait_us(1);
 #ifdef SDCARD_DEBUG
 		printf("cmdevt: %08x\n", cmdevt);
 #endif
@@ -71,9 +67,7 @@ int sdcard_wait_data_done(void) {
 	unsigned int dataevt;
 	while (1) {
 		dataevt = sdcore_dataevt_read();
-#ifdef SDCARD_WAIT_WORKAROUND
-		busy_wait_us(100); /* FIXME */
-#endif
+		busy_wait_us(1);
 #ifdef SDCARD_DEBUG
 		printf("dataevt: %08x\n", dataevt);
 #endif
@@ -490,19 +484,15 @@ void sdcard_read(uint32_t sector, uint32_t count, uint8_t* buf)
 	sdreader_enable_write(1);
 
 	/* Read Block(s) from SDCard */
-#ifdef SDCARD_MULTIPLE_BLOCK_SUPPORT
-	sdcard_set_block_count(count);
-	sdcard_read_multiple_block(sector, count);
-#else
-	while (count) {
-		sdcard_read_single_block(sector);
-		sector += 1;
-		count  -= 1;
-	}
+#ifdef SDCARD_CMD23_SUPPORT
+sdcard_set_block_count(count);
 #endif
+	sdcard_read_multiple_block(sector, count);
 
 	/* Wait for DMA Writer to complete */
 	while ((sdreader_done_read() & 0x1) == 0);
+
+	sdcard_stop_transmission();
 
 	flush_cpu_dcache(); /* FIXME */
 }
@@ -521,10 +511,12 @@ void sdcard_write(uint32_t sector, uint32_t count, uint8_t* buf)
 		while ((sdwriter_done_read() & 0x1) == 0);
 
 		/* Write Single Block to SDCard */
-#ifdef SDCARD_MULTIPLE_BLOCK_SUPPORT
+#ifndef SDCARD_CMD23_SUPPORT
 		sdcard_set_block_count(1);
 #endif
 		sdcard_write_single_block(sector);
+
+		sdcard_stop_transmission();
 
 		/* Update buf/sector */
 		buf    += 512;
