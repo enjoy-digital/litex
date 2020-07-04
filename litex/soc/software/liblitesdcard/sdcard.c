@@ -55,8 +55,8 @@ int sdcard_wait_cmd_done(void) {
 			else if (cmdevt & 0x8) {
 #ifdef SDCARD_DEBUG
 				printf("cmdevt: SD_CRCERROR\n");
-				return SD_CRCERROR;
 #endif
+				return SD_CRCERROR;
 			}
 			return SD_OK;
 		}
