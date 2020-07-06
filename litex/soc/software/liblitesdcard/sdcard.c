@@ -448,7 +448,7 @@ void sdcard_decode_csd(void) {
 
 int sdcard_init(void) {
 	unsigned short rca;
-    uint16_t timeout;
+	uint16_t timeout;
 
 	/* initialize freq */
 	sdcard_set_clk_freq(16000000);
@@ -462,15 +462,13 @@ int sdcard_init(void) {
 	busy_wait(1);
 	sdcard_send_ext_csd();
 	/* wait for card to be ready */
-	timeout = 10;
-	while (timeout) {
+	for (timeout = 128; timeout > 0; timeout--) {
 		sdcard_app_cmd(0);
 		sdcard_app_send_op_cond(1, 0);
 		if (sdcard_response[3] & 0x80000000) {
 			break;
 		}
-		busy_wait(1);
-		timeout--;
+		busy_wait(10);
 	}
 	if (timeout == 0)
 		return 0;
