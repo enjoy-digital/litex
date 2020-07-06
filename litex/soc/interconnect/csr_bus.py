@@ -120,15 +120,11 @@ class SRAM(Module):
         sel_r = Signal()
         self.sync += sel_r.eq(sel)
         self.comb += sel.eq(self.bus.adr[log2_int(aligned_paging):] == address)
-        if bus.alignment == 64:
-            self.comb += If(self.bus.adr[0], sel.eq(0))
-
-        adr_shift = log2_int(bus.alignment//32)
 
         if word_bits:
-            word_index = Signal(word_bits, reset_less=True)
+            word_index    = Signal(word_bits, reset_less=True)
             word_expanded = Signal(csrw_per_memw*data_width)
-            self.sync += word_index.eq(self.bus.adr[adr_shift:adr_shift+word_bits])
+            self.sync += word_index.eq(self.bus.adr[:word_bits])
             self.comb += [
                 word_expanded.eq(port.dat_r),
                 If(sel_r,
@@ -139,11 +135,11 @@ class SRAM(Module):
                 wregs = []
                 for i in range(csrw_per_memw-1):
                     wreg = Signal(data_width, reset_less=True)
-                    self.sync += If(sel & self.bus.we & (self.bus.adr[adr_shift:adr_shift+word_bits] == i), wreg.eq(self.bus.dat_w))
+                    self.sync += If(sel & self.bus.we & (self.bus.adr[:word_bits] == i), wreg.eq(self.bus.dat_w))
                     wregs.append(wreg)
                 memword_chunks = [self.bus.dat_w] + list(reversed(wregs))
                 self.comb += [
-                    port.we.eq(sel & self.bus.we & (self.bus.adr[adr_shift:adr_shift+word_bits] == csrw_per_memw - 1)),
+                    port.we.eq(sel & self.bus.we & (self.bus.adr[:word_bits] == csrw_per_memw - 1)),
                     port.dat_w.eq(Cat(*memword_chunks))
                 ]
         else:
@@ -155,10 +151,10 @@ class SRAM(Module):
                 ]
 
         if self._page is None:
-            self.comb += port.adr.eq(self.bus.adr[adr_shift+word_bits:adr_shift+word_bits+len(port.adr)])
+            self.comb += port.adr.eq(self.bus.adr[word_bits:word_bits+len(port.adr)])
         else:
             pv = self._page.storage
-            self.comb += port.adr.eq(Cat(self.bus.adr[adr_shift+word_bits:adr_shift+word_bits+len(port.adr)-len(pv)], pv))
+            self.comb += port.adr.eq(Cat(self.bus.adr[word_bits:word_bits+len(port.adr)-len(pv)], pv))
 
     def get_csrs(self):
         if self._page is None:
@@ -181,26 +177,22 @@ class CSRBank(csr.GenericBank):
 
         sel = Signal()
         self.comb += sel.eq(self.bus.adr[log2_int(aligned_paging):] == address)
-        if bus.alignment == 64:
-            self.comb += If(self.bus.adr[0], sel.eq(0))
-
-        adr_shift = log2_int(bus.alignment//soc_bus_data_width)
 
         for i, c in enumerate(self.simple_csrs):
             self.comb += [
                 c.r.eq(self.bus.dat_w[:c.size]),
                 c.re.eq(sel & \
                     self.bus.we & \
-                    (self.bus.adr[adr_shift:adr_shift+self.decode_bits] == i)),
+                    (self.bus.adr[:self.decode_bits] == i)),
                 c.we.eq(sel & \
                     ~self.bus.we & \
-                    (self.bus.adr[adr_shift:adr_shift+self.decode_bits] == i)),
+                    (self.bus.adr[:self.decode_bits] == i)),
             ]
 
         brcases = dict((i, self.bus.dat_r.eq(c.w)) for i, c in enumerate(self.simple_csrs))
         self.sync += [
             self.bus.dat_r.eq(0),
-            If(sel, Case(self.bus.adr[adr_shift:adr_shift+self.decode_bits], brcases))
+            If(sel, Case(self.bus.adr[:self.decode_bits], brcases))
         ]
 
 
