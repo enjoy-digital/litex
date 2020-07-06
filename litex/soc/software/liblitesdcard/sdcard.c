@@ -448,6 +448,7 @@ void sdcard_decode_csd(void) {
 
 int sdcard_init(void) {
 	unsigned short rca;
+    uint16_t timeout;
 
 	/* initialize freq */
 	sdcard_set_clk_freq(16000000);
@@ -461,15 +462,18 @@ int sdcard_init(void) {
 	busy_wait(1);
 	sdcard_send_ext_csd();
 	/* wait for card to be ready */
-	/* FIXME: 1.8v support */
-	for(;;) {
+	timeout = 10;
+	while (timeout) {
 		sdcard_app_cmd(0);
 		sdcard_app_send_op_cond(1, 0);
 		if (sdcard_response[3] & 0x80000000) {
 			break;
 		}
 		busy_wait(1);
+		timeout--;
 	}
+	if (timeout == 0)
+		return 0;
 
 	/* send identification */
 	sdcard_all_send_cid();
