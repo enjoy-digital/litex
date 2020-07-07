@@ -562,7 +562,9 @@ sdcard_set_block_count(count);
 
 	/* Flush CPU caches */
 	flush_cpu_dcache();
+#ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
+#endif
 }
 
 void sdcard_write(uint32_t sector, uint32_t count, uint8_t* buf)

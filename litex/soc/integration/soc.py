@@ -1244,23 +1244,24 @@ class LiteXSoC(SoC):
         self.add_csr(name)
 
     # Add SDCard -----------------------------------------------------------------------------------
-    def add_sdcard(self, name="sdcard", with_emulator=False):
+    def add_sdcard(self, name="sdcard", use_emulator=False):
         # Imports
+        from litesdcard.emulator import SDEmulator
         from litesdcard.phy import SDPHY
         from litesdcard.core import SDCore
         from litesdcard.frontend.dma import SDBlock2MemDMA, SDMem2BlockDMA
 
         # Emulator / Pads
-        if with_emulator:
-            from litesdcard.emulator import SDEmulator
-            self.submodules.sdemulator = SDEmulator(self.platform)
-            sdcard_pads = self.sdemulator.pads
+        if use_emulator:
+            sdemulator = SDEmulator(self.platform)
+            self.submodules += sdemulator
+            sdcard_pads = sdemulator.pads
         else:
             sdcard_pads = self.platform.request(name)
 
         # Core
-        self.submodules.sdphy   = SDPHY(sdcard_pads, self.platform.device, self.clk_freq)
-        self.submodules.sdcore  = SDCore(self.sdphy)
+        self.submodules.sdphy  = SDPHY(sdcard_pads, self.platform.device, self.clk_freq)
+        self.submodules.sdcore = SDCore(self.sdphy)
         self.add_csr("sdphy")
         self.add_csr("sdcore")
 

@@ -309,7 +309,7 @@ class SimSoC(SoCCore):
 
         # SDCard -----------------------------------------------------------------------------------
         if with_sdcard:
-            self.add_sdcard("sdcard", with_emulator=True)
+            self.add_sdcard("sdcard", use_emulator=True)
 
 # Build --------------------------------------------------------------------------------------------
 
