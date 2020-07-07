@@ -81,8 +81,8 @@ class InferedSDRTristate(Module):
         _o  = Signal()
         _oe = Signal()
         _i  = Signal()
-        self.specials += SDROutput(o, _o)
-        self.specials += SDRInput(_i, i)
+        self.specials += SDROutput(o, _o, clk)
+        self.specials += SDRInput(_i, i, clk)
         self.submodules += InferedSDRIO(oe, _oe, clk, clk_domain)
         self.specials += Tristate(io, _o, _oe, _i)
 
