@@ -16,10 +16,14 @@
 #include "fat/diskio.h"
 #include "sdcard.h"
 
+#ifdef CSR_SDCORE_BASE
+
 //#define SDCARD_DEBUG
 //#define SDCARD_CMD23_SUPPORT
 
-#ifdef CSR_SDCORE_BASE
+#ifndef SDCARD_CLK_FREQ
+#define SDCARD_CLK_FREQ 16000000
+#endif
 
 unsigned int sdcard_response[SD_CMD_RESPONSE_SIZE/4];
 
@@ -133,13 +137,14 @@ static void sdcard_set_clk_freq(uint32_t clk_freq) {
 /* SDCard commands functions                                             */
 /*-----------------------------------------------------------------------*/
 
-void sdcard_go_idle(void) {
+int sdcard_go_idle(void) {
 #ifdef SDCARD_DEBUG
 	printf("CMD0: GO_IDLE\n");
 #endif
 	sdcore_cmd_argument_write(0x00000000);
 	sdcore_cmd_command_write((0 << 8) | SDCARD_CTRL_RESPONSE_NONE);
 	sdcore_cmd_send_write(1);
+	return sdcard_wait_response();
 }
 
 int sdcard_send_ext_csd(void) {
@@ -164,13 +169,11 @@ int sdcard_app_cmd(int rca) {
 	return sdcard_wait_response();
 }
 
-int sdcard_app_send_op_cond(int hcs, int s18r) {
+int sdcard_app_send_op_cond(int hcs) {
 	unsigned int arg;
 	arg = 0x10ff8000;
 	if (hcs)
 		arg |= 0x60000000;
-	if (s18r)
-		arg |= 0x01000000;
 #ifdef SDCARD_DEBUG
 	printf("ACMD41: APP_SEND_OP_COND, arg: %08x\n", arg);
 #endif
@@ -240,7 +243,7 @@ int sdcard_app_set_bus_width(void) {
 	return sdcard_wait_response();
 }
 
-int sdcard_switch(unsigned int mode, unsigned int group, unsigned int value, unsigned int dstaddr) {
+int sdcard_switch(unsigned int mode, unsigned int group, unsigned int value) {
 	unsigned int arg;
 
 #ifdef SDCARD_DEBUG
@@ -450,70 +453,90 @@ int sdcard_init(void) {
 	unsigned short rca;
 	uint16_t timeout;
 
-	/* initialize freq */
-	sdcard_set_clk_freq(16000000);
-
-	/* initialize card */
-	sdphy_init_initialize_write(1);
+	/* Set SD clk freq to operational frequency */
+	sdcard_set_clk_freq(SDCARD_CLK_FREQ);
 	busy_wait(1);
 
-	/* reset card */
-	sdcard_go_idle();
-	busy_wait(1);
-	sdcard_send_ext_csd();
-	/* wait for card to be ready */
-	for (timeout = 128; timeout > 0; timeout--) {
-		sdcard_app_cmd(0);
-		sdcard_app_send_op_cond(1, 0);
-		if (sdcard_response[3] & 0x80000000) {
+	for (timeout=1000; timeout>0; timeout--) {
+		/* Set SDCard in SPI Mode (generate 80 dummy clocks) */
+		sdphy_init_initialize_write(1);
+		busy_wait(1);
+
+		/* Set SDCard in Idle state */
+		if (sdcard_go_idle() == SD_OK)
 			break;
-		}
-		busy_wait(10);
+		busy_wait(1);
 	}
 	if (timeout == 0)
 		return 0;
 
-	/* send identification */
-	sdcard_all_send_cid();
+	/* Set SDCard voltages, only supported by ver2.00+ SDCards */
+	if (sdcard_send_ext_csd() != SD_OK)
+		return 0;
+
+	/* Set SDCard in Operational state */
+	for (timeout=1000; timeout>0; timeout--) {
+		sdcard_app_cmd(0);
+		if (sdcard_app_send_op_cond(1) != SD_OK)
+			break;
+		busy_wait(1);
+	}
+	if (timeout == 0)
+		return 0;
+
+	/* Send identification */
+	if (sdcard_all_send_cid() != SD_OK)
+		return 0;
 #ifdef SDCARD_DEBUG
 	sdcard_decode_cid();
 #endif
-	/* set relative card address */
-	sdcard_set_relative_address();
+	/* Set Relative Card Address (RCA) */
+	if (sdcard_set_relative_address() != SD_OK)
+		return 0;
 	rca = (sdcard_response[3] >> 16) & 0xffff;
 
-	/* set cid */
-	sdcard_send_cid(rca);
+	/* Set CID */
+	if (sdcard_send_cid(rca) != SD_OK)
+		return 0;
 #ifdef SDCARD_DEBUG
 	/* FIXME: add cid decoding (optional) */
 #endif
 
-	/* set csd */
-	sdcard_send_csd(rca);
+	/* Set CSD */
+	if (sdcard_send_csd(rca) != SD_OK)
+		return 0;
 #ifdef SDCARD_DEBUG
 	sdcard_decode_csd();
 #endif
 
-	/* select card */
-	sdcard_select_card(rca);
+	/* Select card */
+	if (sdcard_select_card(rca) != SD_OK)
+		return 0;
 
-	/* set bus width */
-	sdcard_app_cmd(rca);
-	sdcard_app_set_bus_width();
+	/* Set bus width */
+	if (sdcard_app_cmd(rca) != SD_OK)
+		return 0;
+	if(sdcard_app_set_bus_width() != SD_OK)
+		return 0;
 
-	/* switch speed */
-	sdcard_switch(SD_SWITCH_SWITCH, SD_GROUP_ACCESSMODE, SD_SPEED_SDR104, SRAM_BASE);
+	/* Switch speed */
+	if (sdcard_switch(SD_SWITCH_SWITCH, SD_GROUP_ACCESSMODE, SD_SPEED_SDR50) != SD_OK)
+		return 0;
 
-	/* switch driver strength */
-	sdcard_switch(SD_SWITCH_SWITCH, SD_GROUP_DRIVERSTRENGTH, SD_DRIVER_STRENGTH_D, SRAM_BASE);
+	/* Switch driver strength */
+	if (sdcard_switch(SD_SWITCH_SWITCH, SD_GROUP_DRIVERSTRENGTH, SD_DRIVER_STRENGTH_D) != SD_OK)
+		return 0;
 
-	/* send scr */
+	/* Send SCR */
 	/* FIXME: add scr decoding (optional) */
-	sdcard_app_cmd(rca);
-	sdcard_app_send_scr();
+	if (sdcard_app_cmd(rca) != SD_OK)
+		return 0;
+	if (sdcard_app_send_scr() != SD_OK)
+		return 0;
 
-	/* set block length */
-	sdcard_app_set_blocklen(512);
+	/* Set block length */
+	if (sdcard_app_set_blocklen(512) != SD_OK)
+		return 0;
 
 	return 1;
 }
@@ -537,7 +560,9 @@ sdcard_set_block_count(count);
 
 	sdcard_stop_transmission();
 
-	flush_cpu_dcache(); /* FIXME */
+	/* Flush CPU caches */
+	flush_cpu_dcache();
+	flush_l2_cache();
 }
 
 void sdcard_write(uint32_t sector, uint32_t count, uint8_t* buf)
