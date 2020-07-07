@@ -1248,7 +1248,7 @@ class LiteXSoC(SoC):
         # Imports
         from litesdcard.phy import SDPHY
         from litesdcard.core import SDCore
-        from litex.soc.cores.dma import WishboneDMAWriter, WishboneDMAReader
+        from litesdcard.frontend.dma import SDBlock2MemDMA, SDMem2BlockDMA
 
         # Emulator / Pads
         if with_emulator:
@@ -1266,20 +1266,16 @@ class LiteXSoC(SoC):
         self.add_csr("sdphy")
         self.add_csr("sdcore")
 
-        # SD Card Data Reader
-        sdreader_bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.address_width)
-        self.submodules.sdreader = WishboneDMAWriter(sdreader_bus, with_csr=True, endianness=self.cpu.endianness)
-        self.bus.add_master("sdreader", master=sdreader_bus)
-        self.add_csr("sdreader")
-        self.submodules.sdreader_fifo = stream.SyncFIFO([("data", self.bus.data_width)], 512//(self.bus.data_width//8))
-        self.comb += self.sdcore.source.connect(self.sdreader_fifo.sink)
-        self.comb += self.sdreader_fifo.source.connect(self.sdreader.sink)
+        # Block2Mem DMA
+        bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.address_width)
+        self.submodules.sdblock2mem = SDBlock2MemDMA(bus=bus, endianness=self.cpu.endianness)
+        self.comb += self.sdcore.source.connect(self.sdblock2mem.sink)
+        self.bus.add_master("sdblock2mem", master=bus)
+        self.add_csr("sdblock2mem")
 
-        # SD Card Data Writer
-        sdwriter_bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.address_width)
-        self.submodules.sdwriter = WishboneDMAReader(sdwriter_bus, with_csr=True, endianness=self.cpu.endianness)
-        self.bus.add_master("sdwriter", master=sdwriter_bus)
-        self.add_csr("sdwriter")
-        self.submodules.sdwriter_fifo = stream.SyncFIFO([("data", self.bus.data_width)], 512//(self.bus.data_width//8))
-        self.comb += self.sdwriter.source.connect(self.sdwriter_fifo.sink)
-        self.comb += self.sdwriter_fifo.source.connect(self.sdcore.sink)
+        # Mem2Block DMA
+        bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.address_width)
+        self.submodules.sdmem2block = SDMem2BlockDMA(bus=bus, endianness=self.cpu.endianness)
+        self.comb += self.sdmem2block.source.connect(self.sdcore.sink)
+        self.bus.add_master("sdmem2block", master=bus)
+        self.add_csr("sdmem2block")

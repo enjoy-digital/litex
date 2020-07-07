@@ -521,10 +521,10 @@ int sdcard_init(void) {
 void sdcard_read(uint32_t sector, uint32_t count, uint8_t* buf)
 {
 	/* Initialize DMA Writer */
-	sdreader_enable_write(0);
-	sdreader_base_write((uint32_t) buf);
-	sdreader_length_write(512*count);
-	sdreader_enable_write(1);
+	sdblock2mem_dma_enable_write(0);
+	sdblock2mem_dma_base_write((uint32_t) buf);
+	sdblock2mem_dma_length_write(512*count);
+	sdblock2mem_dma_enable_write(1);
 
 	/* Read Block(s) from SDCard */
 #ifdef SDCARD_CMD23_SUPPORT
@@ -533,7 +533,7 @@ sdcard_set_block_count(count);
 	sdcard_read_multiple_block(sector, count);
 
 	/* Wait for DMA Writer to complete */
-	while ((sdreader_done_read() & 0x1) == 0);
+	while ((sdblock2mem_dma_done_read() & 0x1) == 0);
 
 	sdcard_stop_transmission();
 
@@ -544,13 +544,13 @@ void sdcard_write(uint32_t sector, uint32_t count, uint8_t* buf)
 {
 	while (count--) {
 		/* Initialize DMA Reader */
-		sdwriter_enable_write(0);
-		sdwriter_base_write((uint32_t) buf);
-		sdwriter_length_write(512);
-		sdwriter_enable_write(1);
+		sdmem2block_dma_enable_write(0);
+		sdmem2block_dma_base_write((uint32_t) buf);
+		sdmem2block_dma_length_write(512);
+		sdmem2block_dma_enable_write(1);
 
 		/* Wait for DMA Reader to complete */
-		while ((sdwriter_done_read() & 0x1) == 0);
+		while ((sdmem2block_dma_done_read() & 0x1) == 0);
 
 		/* Write Single Block to SDCard */
 #ifndef SDCARD_CMD23_SUPPORT
