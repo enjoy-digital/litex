@@ -164,7 +164,7 @@ int memtest_data(unsigned int *addr, unsigned long size, int random)
 
 void memspeed(unsigned int *addr, unsigned long size, bool read_only)
 {
-	volatile unsigned int *array = addr;
+	volatile unsigned long *array = (unsigned long *)addr;
 	int i;
 	unsigned int start, end;
 	unsigned long write_speed = 0;
