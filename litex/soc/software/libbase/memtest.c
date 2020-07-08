@@ -172,7 +172,7 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only)
 	__attribute__((unused)) unsigned long data;
 	const unsigned int sz = sizeof(unsigned long);
 
-	printf("Memspeed at 0x%08x...\n", addr);
+	printf("Memspeed at 0x%p...\n", addr);
 
 	/* init timer */
 	timer0_en_write(0);
@@ -221,16 +221,16 @@ int memtest(unsigned int *addr, unsigned long maxsize)
 	unsigned long addr_size = MEMTEST_ADDR_SIZE < maxsize ? MEMTEST_ADDR_SIZE : maxsize;
 	unsigned long data_size = MEMTEST_DATA_SIZE < maxsize ? MEMTEST_DATA_SIZE : maxsize;
 
-	printf("Memtest at 0x%08x...\n", addr);
+	printf("Memtest at 0x%p...\n", addr);
 
 	bus_errors  = memtest_bus(addr, bus_size);
 	addr_errors = memtest_addr(addr, addr_size, MEMTEST_ADDR_RANDOM);
 	data_errors = memtest_data(addr, data_size, MEMTEST_DATA_RANDOM);
 
 	if(bus_errors + addr_errors + data_errors != 0) {
-		printf("- bus errors:  %d/%d\n", bus_errors,  2*bus_size/4);
-		printf("- addr errors: %d/%d\n", addr_errors, addr_size/4);
-		printf("- data errors: %d/%d\n", data_errors, data_size/4);
+		printf("- bus errors:  %d/%ld\n", bus_errors,  2*bus_size/4);
+		printf("- addr errors: %d/%ld\n", addr_errors, addr_size/4);
+		printf("- data errors: %d/%ld\n", data_errors, data_size/4);
 		printf("Memtest KO\n");
 		return 0;
 	}
