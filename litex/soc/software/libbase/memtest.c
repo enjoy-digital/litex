@@ -185,7 +185,7 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only)
 		timer0_update_value_write(1);
 		start = timer0_value_read();
 		for(i = 0; i < size/sz; i++) {
-			array[i] = i;
+			array[i] = -1ul;
 		}
 		timer0_update_value_write(1);
 		end = timer0_value_read();
