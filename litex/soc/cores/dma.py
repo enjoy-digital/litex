@@ -39,7 +39,7 @@ class WishboneDMAReader(Module, AutoCSR):
     def __init__(self, bus, endianness="little", with_csr=False):
         assert isinstance(bus, wishbone.Interface)
         self.bus    = bus
-        self.sink   = sink   = stream.Endpoint([("address", bus.adr_width)])
+        self.sink   = sink   = stream.Endpoint([("address", bus.adr_width, ("last", 1))])
         self.source = source = stream.Endpoint([("data",    bus.data_width)])
 
         # # #
@@ -60,6 +60,7 @@ class WishboneDMAReader(Module, AutoCSR):
         )
         fsm.act("SOURCE-WRITE",
             source.valid.eq(1),
+            source.last.eq(sink.last),
             source.data.eq(data),
             If(source.ready,
                 sink.ready.eq(1),
@@ -99,10 +100,11 @@ class WishboneDMAReader(Module, AutoCSR):
         )
         fsm.act("RUN",
             self.sink.valid.eq(1),
+            self.sink.last.eq(offset == (length - 1)),
             self.sink.address.eq(base + offset),
             If(self.sink.ready,
                 NextValue(offset, offset + 1),
-                If(offset == (length - 1),
+                If(self.sink.last,
                     If(self._loop.storage,
                         NextValue(offset, 0)
                     ).Else(
