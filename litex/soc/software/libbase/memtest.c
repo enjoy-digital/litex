@@ -164,7 +164,7 @@ int memtest_data(unsigned int *addr, unsigned long size, int random)
 
 void memspeed(unsigned int *addr, unsigned long size, bool read_only)
 {
-	volatile unsigned int *array = addr;
+	volatile unsigned long *array = (unsigned long *)addr;
 	int i;
 	unsigned int start, end;
 	unsigned long write_speed = 0;
@@ -172,7 +172,7 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only)
 	__attribute__((unused)) unsigned long data;
 	const unsigned int sz = sizeof(unsigned long);
 
-	printf("Memspeed at 0x%08x...\n", addr);
+	printf("Memspeed at 0x%p...\n", addr);
 
 	/* init timer */
 	timer0_en_write(0);
@@ -185,7 +185,7 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only)
 		timer0_update_value_write(1);
 		start = timer0_value_read();
 		for(i = 0; i < size/sz; i++) {
-			array[i] = i;
+			array[i] = -1ul;
 		}
 		timer0_update_value_write(1);
 		end = timer0_value_read();
@@ -221,16 +221,16 @@ int memtest(unsigned int *addr, unsigned long maxsize)
 	unsigned long addr_size = MEMTEST_ADDR_SIZE < maxsize ? MEMTEST_ADDR_SIZE : maxsize;
 	unsigned long data_size = MEMTEST_DATA_SIZE < maxsize ? MEMTEST_DATA_SIZE : maxsize;
 
-	printf("Memtest at 0x%08x...\n", addr);
+	printf("Memtest at 0x%p...\n", addr);
 
 	bus_errors  = memtest_bus(addr, bus_size);
 	addr_errors = memtest_addr(addr, addr_size, MEMTEST_ADDR_RANDOM);
 	data_errors = memtest_data(addr, data_size, MEMTEST_DATA_RANDOM);
 
 	if(bus_errors + addr_errors + data_errors != 0) {
-		printf("- bus errors:  %d/%d\n", bus_errors,  2*bus_size/4);
-		printf("- addr errors: %d/%d\n", addr_errors, addr_size/4);
-		printf("- data errors: %d/%d\n", data_errors, data_size/4);
+		printf("- bus errors:  %d/%ld\n", bus_errors,  2*bus_size/4);
+		printf("- addr errors: %d/%ld\n", addr_errors, addr_size/4);
+		printf("- data errors: %d/%ld\n", data_errors, data_size/4);
 		printf("Memtest KO\n");
 		return 0;
 	}
