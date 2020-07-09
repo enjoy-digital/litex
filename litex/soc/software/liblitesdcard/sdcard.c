@@ -32,6 +32,13 @@
 unsigned int sdcard_response[SD_CMD_RESPONSE_SIZE/4];
 
 /*-----------------------------------------------------------------------*/
+/* Helpers                                                               */
+/*-----------------------------------------------------------------------*/
+
+#define max(x, y) (((x) > (y)) ? (x) : (y))
+#define min(x, y) (((x) < (y)) ? (x) : (y))
+
+/*-----------------------------------------------------------------------*/
 /* SDCard command helpers                                                */
 /*-----------------------------------------------------------------------*/
 
@@ -124,6 +131,8 @@ static void sdcard_set_clk_freq(uint32_t clk_freq) {
     uint32_t divider;
     divider = CONFIG_CLOCK_FREQUENCY/clk_freq + 1;
     divider = (1 << log2(divider));
+    divider = max(divider,   2);
+    divider = min(divider, 128);
 #ifdef SDCARD_DEBUG
     printf("Setting SDCard clk freq to ");
     if (clk_freq > 1000000)
