@@ -555,6 +555,8 @@ int sdcard_init(void) {
 	return 1;
 }
 
+#ifdef CSR_SDBLOCK2MEM_BASE
+
 void sdcard_read(uint32_t sector, uint32_t count, uint8_t* buf)
 {
 	/* Initialize DMA Writer */
@@ -581,6 +583,10 @@ sdcard_set_block_count(count);
 #endif
 }
 
+#endif
+
+#ifdef CSR_SDMEM2BLOCK_BASE
+
 void sdcard_write(uint32_t sector, uint32_t count, uint8_t* buf)
 {
 	while (count--) {
@@ -606,6 +612,7 @@ void sdcard_write(uint32_t sector, uint32_t count, uint8_t* buf)
 		sector += 1;
 	}
 }
+#endif
 
 /*-----------------------------------------------------------------------*/
 /* SDCard FatFs disk functions                                           */

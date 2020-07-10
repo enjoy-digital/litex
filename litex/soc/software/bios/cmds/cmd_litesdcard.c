@@ -27,7 +27,7 @@ define_command(sdinit, sdcard_init, "Initialize SDCard", LITESDCARD_CMDS);
  * Perform SDcard block read
  *
  */
-#ifdef CSR_SDCORE_BASE
+#ifdef CSR_SDBLOCK2MEM_BASE
 static void sdread(int nb_params, char **params)
 {
 	unsigned int block;
@@ -58,7 +58,7 @@ define_command(sdread, sdread, "Read SDCard block", LITESDCARD_CMDS);
  * Perform SDcard block write
  *
  */
-#ifdef CSR_SDCORE_BASE
+#ifdef CSR_SDMEM2BLOCK_BASE
 static void sdwrite(int nb_params, char **params)
 {
 	int i;

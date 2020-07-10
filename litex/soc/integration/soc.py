@@ -1244,7 +1244,8 @@ class LiteXSoC(SoC):
         self.add_csr(name)
 
     # Add SDCard -----------------------------------------------------------------------------------
-    def add_sdcard(self, name="sdcard", use_emulator=False):
+    def add_sdcard(self, name="sdcard", mode="read+write", use_emulator=False):
+        assert mode in ["read", "write", "read+write"]
         # Imports
         from litesdcard.emulator import SDEmulator
         from litesdcard.phy import SDPHY
@@ -1266,15 +1267,17 @@ class LiteXSoC(SoC):
         self.add_csr("sdcore")
 
         # Block2Mem DMA
-        bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.address_width)
-        self.submodules.sdblock2mem = SDBlock2MemDMA(bus=bus, endianness=self.cpu.endianness)
-        self.comb += self.sdcore.source.connect(self.sdblock2mem.sink)
-        self.bus.add_master("sdblock2mem", master=bus)
-        self.add_csr("sdblock2mem")
+        if "read" in mode:
+            bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.address_width)
+            self.submodules.sdblock2mem = SDBlock2MemDMA(bus=bus, endianness=self.cpu.endianness)
+            self.comb += self.sdcore.source.connect(self.sdblock2mem.sink)
+            self.bus.add_master("sdblock2mem", master=bus)
+            self.add_csr("sdblock2mem")
 
         # Mem2Block DMA
-        bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.address_width)
-        self.submodules.sdmem2block = SDMem2BlockDMA(bus=bus, endianness=self.cpu.endianness)
-        self.comb += self.sdmem2block.source.connect(self.sdcore.sink)
-        self.bus.add_master("sdmem2block", master=bus)
-        self.add_csr("sdmem2block")
+        if "write" in mode:
+            bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.address_width)
+            self.submodules.sdmem2block = SDMem2BlockDMA(bus=bus, endianness=self.cpu.endianness)
+            self.comb += self.sdmem2block.source.connect(self.sdcore.sink)
+            self.bus.add_master("sdmem2block", master=bus)
+            self.add_csr("sdmem2block")
