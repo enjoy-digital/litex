@@ -26,6 +26,7 @@ class CPU(Module):
 class CPUNone(CPU):
     variants             = ["standard"]
     data_width           = 32
+    endianness           = "little"
     reset_address        = 0x00000000
     io_regions           = {0x00000000: 0x100000000} # origin, length
     periph_buses         = []
