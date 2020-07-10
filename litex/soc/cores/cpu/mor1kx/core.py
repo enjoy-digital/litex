@@ -47,7 +47,6 @@ class MOR1KX(CPU):
     def gcc_flags(self):
         flags =  "-mhard-mul "
         flags += "-mhard-div "
-        flags += "-mror "
         flags += "-D__mor1kx__ "
         return flags
 
@@ -55,7 +54,6 @@ class MOR1KX(CPU):
     def clang_flags(self):
         flags =  "-mhard-mul "
         flags += "-mhard-div "
-        flags += "-mror "
         flags += "-mffl1 "
         flags += "-maddc "
         flags += "-D__mor1kx__ "
