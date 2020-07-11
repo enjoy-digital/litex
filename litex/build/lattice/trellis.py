@@ -262,6 +262,6 @@ def trellis_argdict(args):
         "timingstrict": args.nextpnr_timingstrict,
         "ignoreloops":  args.nextpnr_ignoreloops,
         "bootaddr":     args.ecppack_bootaddr,
-        "spimode":      args.ecppack_spimdoe,
+        "spimode":      args.ecppack_spimode,
         "seed":         args.nextpnr_seed,
     }
