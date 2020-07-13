@@ -118,7 +118,7 @@ _build_template = [
     "yosys -l {build_name}.rpt {build_name}.ys",
     "nextpnr-ecp5 --json {build_name}.json --lpf {build_name}.lpf --textcfg {build_name}.config  \
     --{architecture} --package {package} --speed {speed_grade} {timefailarg} {ignoreloops} --seed {seed}",
-    "ecppack {build_name}.config --svf {build_name}.svf --bit {build_name}.bit --bootaddr {bootaddr} --spimode {spimode}"
+    "ecppack {build_name}.config --svf {build_name}.svf --bit {build_name}.bit --bootaddr {bootaddr} {spimode}"
 ]
 
 def _build_script(source, build_template, build_name, architecture, package, speed_grade, timingstrict, ignoreloops, bootaddr, seed, spimode):
@@ -143,7 +143,7 @@ def _build_script(source, build_template, build_name, architecture, package, spe
             bootaddr        = bootaddr,
             fail_stmt       = fail_stmt,
             seed            = seed,
-            spimode         = spimode)
+            spimode         = "" if spimode is None else "--spimode {}".format(spimode))
 
     script_file = "build_" + build_name + script_ext
     tools.write_to_file(script_file, script_contents, force_unix=False)
@@ -191,7 +191,7 @@ class LatticeTrellisToolchain:
         ignoreloops    = False,
         bootaddr       = 0,
         seed           = 1,
-        spimode        = "fast-read",
+        spimode        = None,
         **kwargs):
 
         # Create build directory
@@ -251,7 +251,7 @@ def trellis_args(parser):
                         help="ignore combinational loops in timing analysis, i.e. pass '--ignore-loops' to nextpnr")
     parser.add_argument("--ecppack-bootaddr", default=0,
                         help="Set boot address for next image, i.e. pass '--bootaddr xxx' to ecppack")
-    parser.add_argument("--ecppack-spimode", default="fast-read",
+    parser.add_argument("--ecppack-spimode", default=None,
                         help="Set slave SPI programming mode")
     parser.add_argument("--nextpnr-seed", default=1, type=int,
                         help="seed to pass to nextpnr")
