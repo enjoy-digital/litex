@@ -280,6 +280,21 @@ class SoCBusHandler(Module):
     # Add Master/Slave -----------------------------------------------------------------------------
     def add_adapter(self, name, interface, direction="m2s"):
         assert direction in ["m2s", "s2m"]
+
+        if isinstance(interface, axi.AXILiteInterface):
+            self.logger.info("{} Bus {} from {} to {}.".format(
+                colorer(name),
+                colorer("converted", color="cyan"),
+                colorer("AXILite"),
+                colorer("Wishbone")))
+            new_interface = wishbone.Interface(data_width=interface.data_width)
+            if direction == "m2s":
+                converter = axi.AXILite2Wishbone(axi_lite=interface, wishbone=new_interface)
+            elif direction == "s2m":
+                converter = axi.Wishbone2AXILite(wishbone=new_interface, axi_lite=interface)
+            self.submodules += converter
+            interface = new_interface
+
         if interface.data_width != self.data_width:
             self.logger.info("{} Bus {} from {}-bit to {}-bit.".format(
                 colorer(name),
