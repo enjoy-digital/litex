@@ -494,3 +494,74 @@ class Wishbone2AXILite(Module):
             wishbone.err.eq(1),
             NextState("IDLE")
         )
+
+# AXILite to CSR -----------------------------------------------------------------------------------
+
+class AXILite2CSR(Module):
+    def __init__(self, axi_lite=None, csr=None):
+        if axi_lite is None:
+            axi_lite = AXILiteInterface()
+        if csr is None:
+            csr = csr.bus.Interface()
+
+        self.axi_lite = axi_lite
+        self.csr = csr
+
+        adr_shift = log2_int(self.axi_lite.data_width//8)
+        rdata = Signal.like(self.csr.dat_r)
+        do_read = Signal()
+        do_write = Signal()
+        last_was_read = Signal()
+
+        # # #
+
+        self.submodules.fsm = fsm = FSM()
+        fsm.act("IDLE",
+            # if last access was a read, do a write, and vice versa
+            If(self.axi_lite.aw.valid & self.axi_lite.ar.valid,
+                do_write.eq(last_was_read),
+                do_read.eq(~last_was_read),
+            ).Else(
+                do_write.eq(self.axi_lite.aw.valid),
+                do_read.eq(self.axi_lite.ar.valid),
+            ),
+            If(do_write,
+                NextValue(last_was_read, 0),
+                NextState("DO-WRITE"),
+            ).Elif(do_read,
+                self.csr.adr.eq(self.axi_lite.ar.addr[adr_shift:]),
+                self.csr.we.eq(0),
+                NextValue(last_was_read, 1),
+                NextState("DO-READ"),
+            )
+        )
+        fsm.act("DO-READ",
+            self.axi_lite.ar.ready.eq(1),
+            NextValue(rdata, self.csr.dat_r),
+            NextState("SEND-READ-RESPONSE"),
+        )
+        fsm.act("SEND-READ-RESPONSE",
+            self.axi_lite.r.valid.eq(1),
+            self.axi_lite.r.resp.eq(RESP_OKAY),
+            self.axi_lite.r.data.eq(rdata),
+            If(self.axi_lite.r.ready,
+                NextState("IDLE")
+            )
+        )
+        fsm.act("DO-WRITE",
+            self.csr.adr.eq(self.axi_lite.aw.addr[adr_shift:]),
+            self.csr.dat_w.eq(self.axi_lite.w.data),
+            If(self.axi_lite.w.valid,
+                self.csr.we.eq(1 & (self.axi_lite.w.strb != 0)),
+                self.axi_lite.aw.ready.eq(1),
+                self.axi_lite.w.ready.eq(1),
+                NextState("SEND-WRITE-RESPONSE")
+            )
+        )
+        fsm.act("SEND-WRITE-RESPONSE",
+            self.axi_lite.b.valid.eq(1),
+            self.axi_lite.b.resp.eq(RESP_OKAY),
+            If(self.axi_lite.b.ready,
+                NextState("IDLE")
+            )
+        )
