@@ -676,3 +676,22 @@ class AXILiteSRAM(Module):
                                        port_we=port.we if not read_only else None)
         self.submodules.fsm = fsm
         self.comb += comb
+
+# AXILite Data Width Converter ---------------------------------------------------------------------
+
+class AXILiteConverter(Module):
+    """AXILite data width converter"""
+    def __init__(self, master, slave):
+        self.master = master
+        self.slave = slave
+
+        # # #
+
+        dw_from = len(master.r.data)
+        dw_to = len(slave.r.data)
+        if dw_from > dw_to:
+            raise NotImplementedError
+        elif dw_from < dw_to:
+            raise NotImplementedError
+        else:
+            self.comb += master.connect(slave)
