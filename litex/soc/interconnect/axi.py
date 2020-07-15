@@ -497,6 +497,69 @@ class Wishbone2AXILite(Module):
 
 # AXILite to CSR -----------------------------------------------------------------------------------
 
+def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=None):
+    """Connection of AXILite to simple bus with 1-cycle latency, such as CSR bus or Memory port"""
+    bus_data_width = axi_lite.data_width
+    adr_shift = log2_int(bus_data_width//8)
+    do_read = Signal()
+    do_write = Signal()
+    last_was_read = Signal()
+
+    comb = []
+    if port_dat_w is not None:
+        comb.append(port_dat_w.eq(axi_lite.w.data))
+    if port_we is not None:
+        if len(port_we) > 1:
+            for i in range(bus_data_width//8):
+                comb.append(port_we[i].eq(axi_lite.w.valid & axi_lite.w.ready & axi_lite.w.strb[i]))
+        else:
+            comb.append(port_we.eq(axi_lite.w.valid & axi_lite.w.ready & (axi_lite.w.strb != 0)))
+
+    fsm = FSM()
+    fsm.act("START-TRANSACTION",
+        # If the last access was a read, do a write, and vice versa
+        If(axi_lite.aw.valid & axi_lite.ar.valid,
+            do_write.eq(last_was_read),
+            do_read.eq(~last_was_read),
+        ).Else(
+            do_write.eq(axi_lite.aw.valid),
+            do_read.eq(axi_lite.ar.valid),
+        ),
+        # Start reading/writing immediately not to waste a cycle
+        If(do_write,
+            port_adr.eq(axi_lite.aw.addr[adr_shift:]),
+            If(axi_lite.w.valid,
+                axi_lite.aw.ready.eq(1),
+                axi_lite.w.ready.eq(1),
+                NextState("SEND-WRITE-RESPONSE")
+            )
+        ).Elif(do_read,
+            port_adr.eq(axi_lite.ar.addr[adr_shift:]),
+            axi_lite.ar.ready.eq(1),
+            NextState("SEND-READ-RESPONSE"),
+        )
+    )
+    fsm.act("SEND-READ-RESPONSE",
+        NextValue(last_was_read, 1),
+        # As long as we have correct address port.dat_r will be valid
+        port_adr.eq(axi_lite.ar.addr[adr_shift:]),
+        axi_lite.r.data.eq(port_dat_r),
+        axi_lite.r.resp.eq(RESP_OKAY),
+        axi_lite.r.valid.eq(1),
+        If(axi_lite.r.ready,
+            NextState("START-TRANSACTION")
+        )
+    )
+    fsm.act("SEND-WRITE-RESPONSE",
+        NextValue(last_was_read, 0),
+        axi_lite.b.valid.eq(1),
+        axi_lite.b.resp.eq(RESP_OKAY),
+        If(axi_lite.b.ready,
+            NextState("START-TRANSACTION")
+        )
+    )
+    return fsm, comb
+
 class AXILite2CSR(Module):
     def __init__(self, axi_lite=None, csr=None):
         if axi_lite is None:
@@ -507,64 +570,11 @@ class AXILite2CSR(Module):
         self.axi_lite = axi_lite
         self.csr = csr
 
-        adr_shift = log2_int(self.axi_lite.data_width//8)
-        rdata = Signal.like(self.csr.dat_r)
-        do_read = Signal()
-        do_write = Signal()
-        last_was_read = Signal()
-
-        # # #
-
-        self.submodules.fsm = fsm = FSM()
-        fsm.act("IDLE",
-            # if last access was a read, do a write, and vice versa
-            If(self.axi_lite.aw.valid & self.axi_lite.ar.valid,
-                do_write.eq(last_was_read),
-                do_read.eq(~last_was_read),
-            ).Else(
-                do_write.eq(self.axi_lite.aw.valid),
-                do_read.eq(self.axi_lite.ar.valid),
-            ),
-            If(do_write,
-                NextValue(last_was_read, 0),
-                NextState("DO-WRITE"),
-            ).Elif(do_read,
-                self.csr.adr.eq(self.axi_lite.ar.addr[adr_shift:]),
-                self.csr.we.eq(0),
-                NextValue(last_was_read, 1),
-                NextState("DO-READ"),
-            )
-        )
-        fsm.act("DO-READ",
-            self.axi_lite.ar.ready.eq(1),
-            NextValue(rdata, self.csr.dat_r),
-            NextState("SEND-READ-RESPONSE"),
-        )
-        fsm.act("SEND-READ-RESPONSE",
-            self.axi_lite.r.valid.eq(1),
-            self.axi_lite.r.resp.eq(RESP_OKAY),
-            self.axi_lite.r.data.eq(rdata),
-            If(self.axi_lite.r.ready,
-                NextState("IDLE")
-            )
-        )
-        fsm.act("DO-WRITE",
-            self.csr.adr.eq(self.axi_lite.aw.addr[adr_shift:]),
-            self.csr.dat_w.eq(self.axi_lite.w.data),
-            If(self.axi_lite.w.valid,
-                self.csr.we.eq(1 & (self.axi_lite.w.strb != 0)),
-                self.axi_lite.aw.ready.eq(1),
-                self.axi_lite.w.ready.eq(1),
-                NextState("SEND-WRITE-RESPONSE")
-            )
-        )
-        fsm.act("SEND-WRITE-RESPONSE",
-            self.axi_lite.b.valid.eq(1),
-            self.axi_lite.b.resp.eq(RESP_OKAY),
-            If(self.axi_lite.b.ready,
-                NextState("IDLE")
-            )
-        )
+        fsm, comb = axi_lite_to_simple(self.axi_lite,
+                                       port_adr=self.csr.adr, port_dat_r=self.csr.dat_r,
+                                       port_dat_w=self.csr.dat_w, port_we=self.csr.we)
+        self.submodules.fsm = fsm
+        self.comb += comb
 
 # AXILite SRAM -------------------------------------------------------------------------------------
 
@@ -600,57 +610,10 @@ class AXILiteSRAM(Module):
             self.comb += [port.we[i].eq(self.bus.w.valid & self.bus.w.ready & self.bus.w.strb[i])
                 for i in range(bus_data_width//8)]
 
-        # Access logic
-        adr_shift = log2_int(self.bus.data_width//8)
-        rdata = Signal.like(port.dat_r)
-        do_read = Signal()
-        do_write = Signal()
-        last_was_read = Signal()
-
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
-        fsm.act("IDLE",
-            # if last access was a read, do a write, and vice versa
-            If(self.bus.aw.valid & self.bus.ar.valid,
-                do_write.eq(last_was_read),
-                do_read.eq(~last_was_read),
-            ).Else(
-                do_write.eq(self.bus.aw.valid),
-                do_read.eq(self.bus.ar.valid),
-            ),
-            If(do_write,
-                NextValue(last_was_read, 0),
-                NextState("DO-WRITE"),
-            ).Elif(do_read,
-                port.adr.eq(self.bus.ar.addr[adr_shift:]),
-                NextValue(last_was_read, 1),
-                NextState("DO-READ"),
-            )
-        )
-        fsm.act("DO-READ",
-            self.bus.ar.ready.eq(1),
-            NextValue(rdata, port.dat_r),
-            NextState("SEND-READ-RESPONSE"),
-        )
-        fsm.act("SEND-READ-RESPONSE",
-            self.bus.r.valid.eq(1),
-            self.bus.r.resp.eq(RESP_OKAY),
-            self.bus.r.data.eq(rdata),
-            If(self.bus.r.ready,
-                NextState("IDLE")
-            )
-        )
-        fsm.act("DO-WRITE",
-            port.adr.eq(self.bus.aw.addr[adr_shift:]),
-            If(self.bus.w.valid,
-                self.bus.aw.ready.eq(1),
-                self.bus.w.ready.eq(1),
-                NextState("SEND-WRITE-RESPONSE")
-            )
-        )
-        fsm.act("SEND-WRITE-RESPONSE",
-            self.bus.b.valid.eq(1),
-            self.bus.b.resp.eq(RESP_OKAY),
-            If(self.bus.b.ready,
-                NextState("IDLE")
-            )
-        )
+        # Transaction logic
+        fsm, comb = axi_lite_to_simple(self.bus,
+                                       port_adr=port.adr, port_dat_r=port.dat_r,
+                                       port_dat_w=port.dat_w if not read_only else None,
+                                       port_we=port.we if not read_only else None)
+        self.submodules.fsm = fsm
+        self.comb += comb
