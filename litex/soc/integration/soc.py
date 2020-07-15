@@ -743,19 +743,28 @@ class SoC(Module):
         setattr(self.submodules, name, SoCController(**kwargs))
         self.csr.add(name, use_loc_if_exists=True)
 
-    def add_ram(self, name, origin, size, contents=[], mode="rw"):
-        ram_bus = wishbone.Interface(data_width=self.bus.data_width)
-        ram     = wishbone.SRAM(size, bus=ram_bus, init=contents, read_only=(mode == "r"))
+    def add_ram(self, name, origin, size, contents=[], mode="rw", bus=None):
+        if bus is None:
+            bus = wishbone.Interface(data_width=self.bus.data_width)
+
+        if isinstance(bus, wishbone.Interface):
+            ram = wishbone.SRAM(size, bus=bus, init=contents, read_only=(mode == "r"))
+        elif isinstance(bus, axi.AXILiteInterface):
+            ram = axi.AXILiteSRAM(size, bus=bus, init=contents, read_only=(mode == "r"))
+        else:
+            raise TypeError(bus)
+
         self.bus.add_slave(name, ram.bus, SoCRegion(origin=origin, size=size, mode=mode))
         self.check_if_exists(name)
-        self.logger.info("RAM {} {} {}.".format(
+        self.logger.info("{} RAM {} {} {}.".format(
+            colorer("Wishbone" if isinstance(bus, wishbone.Interface) else "AXILite"),
             colorer(name),
             colorer("added", color="green"),
             self.bus.regions[name]))
         setattr(self.submodules, name, ram)
 
-    def add_rom(self, name, origin, size, contents=[]):
-        self.add_ram(name, origin, size, contents, mode="r")
+    def add_rom(self, name, origin, size, contents=[], bus=None):
+        self.add_ram(name, origin, size, contents, mode="r", bus=bus)
 
     def add_csr_bridge(self, origin):
         self.submodules.csr_bridge = wishbone.Wishbone2CSR(
