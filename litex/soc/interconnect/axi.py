@@ -138,6 +138,42 @@ class AXILiteInterface:
                     r.append(pad.eq(sig))
         return r
 
+    def write(self, addr, data, strb=None):
+        if strb is None:
+            strb = 2**len(self.w.strb) - 1
+        yield self.aw.valid.eq(1)
+        yield self.aw.addr.eq(addr)
+        yield self.w.data.eq(data)
+        yield self.w.valid.eq(1)
+        yield self.w.strb.eq(strb)
+        yield
+        while not (yield self.aw.ready):
+            yield
+        while not (yield self.w.ready):
+            yield
+        while not (yield self.b.valid):
+            yield
+        yield self.b.ready.eq(1)
+        resp = (yield self.b.resp)
+        yield
+        yield self.b.ready.eq(0)
+        return resp
+
+    def read(self, addr):
+        yield self.ar.valid.eq(1)
+        yield self.ar.addr.eq(addr)
+        yield
+        while not (yield self.ar.ready):
+            yield
+        while not (yield self.r.valid):
+            yield
+        yield self.r.ready.eq(1)
+        data = (yield self.r.data)
+        resp = (yield self.r.resp)
+        yield
+        yield self.r.ready.eq(0)
+        return (data, resp)
+
 # AXI Stream Definition ----------------------------------------------------------------------------
 
 class AXIStreamInterface(stream.Endpoint):

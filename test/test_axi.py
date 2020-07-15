@@ -7,7 +7,7 @@ import random
 from migen import *
 
 from litex.soc.interconnect.axi import *
-from litex.soc.interconnect import wishbone
+from litex.soc.interconnect import wishbone, csr_bus
 
 # Software Models ----------------------------------------------------------------------------------
 
@@ -358,5 +358,84 @@ class TestAXI(unittest.TestCase):
                     dut.errors += 1
 
         dut = DUT()
-        run_simulation(dut, [generator(dut)], vcd_name="toto.vcd")
+        run_simulation(dut, [generator(dut)])
+        self.assertEqual(dut.errors, 0)
+
+    def test_axilite2csr(self):
+        @passive
+        def csr_mem_handler(csr, mem):
+            while True:
+                adr = (yield csr.adr)
+                yield csr.dat_r.eq(mem[adr])
+                if (yield csr.we):
+                    mem[adr] = (yield csr.dat_w)
+                yield
+
+        class DUT(Module):
+            def __init__(self):
+                self.axi_lite = AXILiteInterface()
+                self.csr = csr_bus.Interface()
+                self.submodules.axilite2csr = AXILite2CSR(self.axi_lite, self.csr)
+                self.errors = 0
+
+        prng = random.Random(42)
+        mem_ref = [prng.randrange(255) for i in range(100)]
+
+        def generator(dut):
+            dut.errors = 0
+
+            for adr, ref in enumerate(mem_ref):
+                adr = adr << 2
+                data, resp = (yield from dut.axi_lite.read(adr))
+                self.assertEqual(resp, 0b00)
+                if data != ref:
+                    dut.errors += 1
+
+            write_data = [prng.randrange(255) for _ in mem_ref]
+
+            for adr, wdata in enumerate(write_data):
+                adr = adr << 2
+                resp = (yield from dut.axi_lite.write(adr, wdata))
+                self.assertEqual(resp, 0b00)
+                rdata, resp = (yield from dut.axi_lite.read(adr))
+                self.assertEqual(resp, 0b00)
+                if rdata != wdata:
+                    dut.errors += 1
+
+        dut = DUT()
+        mem = [v for v in mem_ref]
+        run_simulation(dut, [generator(dut), csr_mem_handler(dut.csr, mem)])
+        self.assertEqual(dut.errors, 0)
+
+    def test_axilite_sram(self):
+        class DUT(Module):
+            def __init__(self, size, init):
+                self.axi_lite = AXILiteInterface()
+                self.submodules.sram = AXILiteSRAM(size, init=init, bus=self.axi_lite)
+                self.errors = 0
+
+        def generator(dut, ref_init):
+            for adr, ref in enumerate(ref_init):
+                adr = adr << 2
+                data, resp = (yield from dut.axi_lite.read(adr))
+                self.assertEqual(resp, 0b00)
+                if data != ref:
+                    dut.errors += 1
+
+            write_data = [prng.randrange(255) for _ in ref_init]
+
+            for adr, wdata in enumerate(write_data):
+                adr = adr << 2
+                resp = (yield from dut.axi_lite.write(adr, wdata))
+                self.assertEqual(resp, 0b00)
+                rdata, resp = (yield from dut.axi_lite.read(adr))
+                self.assertEqual(resp, 0b00)
+                if rdata != wdata:
+                    dut.errors += 1
+
+        prng = random.Random(42)
+        init = [prng.randrange(2**32) for i in range(100)]
+
+        dut = DUT(size=len(init)*4, init=[v for v in init])
+        run_simulation(dut, [generator(dut, init)])
         self.assertEqual(dut.errors, 0)
