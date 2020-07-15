@@ -55,6 +55,23 @@ def r_description(data_width, id_width):
         ("id",   id_width)
     ]
 
+def _connect_axi(master, slave):
+    channel_modes = {
+        "aw": "master",
+        "w" : "master",
+        "b" : "slave",
+        "ar": "master",
+        "r" : "slave",
+    }
+    r = []
+    for channel, mode in channel_modes.items():
+        if mode == "master":
+            m, s = getattr(master, channel), getattr(slave, channel)
+        else:
+            s, m = getattr(master, channel), getattr(slave, channel)
+        r.extend(m.connect(s))
+    return r
+
 class AXIInterface:
     def __init__(self, data_width=32, address_width=32, id_width=1, clock_domain="sys"):
         self.data_width    = data_width
@@ -67,6 +84,9 @@ class AXIInterface:
         self.b  = stream.Endpoint(b_description(id_width))
         self.ar = stream.Endpoint(ax_description(address_width, id_width))
         self.r  = stream.Endpoint(r_description(data_width, id_width))
+
+    def connect(self, slave):
+        return _connect_axi(self, slave)
 
 # AXI Lite Definition ------------------------------------------------------------------------------
 
@@ -137,6 +157,9 @@ class AXILiteInterface:
                 else:
                     r.append(pad.eq(sig))
         return r
+
+    def connect(self, slave):
+        return _connect_axi(self, slave)
 
     def write(self, addr, data, strb=None):
         if strb is None:
