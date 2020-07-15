@@ -160,22 +160,22 @@ class SymbiflowToolchain:
 
             Rule("all", ["$(TOP).bit"], phony=True),
             Rule("$(TOP).eblif", ["$(VERILOG)", "$(MEM_INIT)", "$(XDC)"], commands=[
-                    "synth -t $(TOP) -v $(VERILOG) -d $(BITSTREAM_DEVICE) -p $(PARTNAME) -x $(XDC) > /dev/null"
+                    "symbiflow_synth -t $(TOP) -v $(VERILOG) -d $(BITSTREAM_DEVICE) -p $(PARTNAME) -x $(XDC) > /dev/null"
                 ]),
             Rule("$(TOP).net", ["$(TOP).eblif", "$(SDC)"], commands=[
-                    "pack -e $(TOP).eblif -d $(DEVICE) -s $(SDC) > /dev/null"
+                    "symbiflow_pack -e $(TOP).eblif -d $(DEVICE) -s $(SDC) > /dev/null"
                 ]),
             Rule("$(TOP).place", ["$(TOP).net", "$(PCF)"], commands=[
-                    "place -e $(TOP).eblif -d $(DEVICE) -p $(PCF) -n $(TOP).net -P $(PARTNAME) -s $(SDC) > /dev/null"
+                    "symbiflow_place -e $(TOP).eblif -d $(DEVICE) -p $(PCF) -n $(TOP).net -P $(PARTNAME) -s $(SDC) > /dev/null"
                 ]),
             Rule("$(TOP).route", ["$(TOP).place"], commands=[
-                    "route -e $(TOP).eblif -d $(DEVICE) -s $(SDC) > /dev/null"
+                    "symbiflow_route -e $(TOP).eblif -d $(DEVICE) -s $(SDC) > /dev/null"
                 ]),
             Rule("$(TOP).fasm", ["$(TOP).route"], commands=[
-                    "write_fasm -e $(TOP).eblif -d $(DEVICE) > /dev/null"
+                    "symbiflow_write_fasm -e $(TOP).eblif -d $(DEVICE) > /dev/null"
                 ]),
             Rule("$(TOP).bit", ["$(TOP).fasm"], commands=[
-                    "write_bitstream -d $(BITSTREAM_DEVICE) -f $(TOP).fasm -p $(PARTNAME) -b $(TOP).bit > /dev/null"
+                    "symbiflow_write_bitstream -d $(BITSTREAM_DEVICE) -f $(TOP).fasm -p $(PARTNAME) -b $(TOP).bit > /dev/null"
                 ]),
             Rule("clean", phony=True, commands=[
                     "rm -f $(ARTIFACTS)"
