@@ -696,6 +696,7 @@ class AXILiteDownConverter(Module):
         last_was_read = Signal()
         aw_ready      = Signal()
         w_ready       = Signal()
+        resp          = Signal.like(master.b.resp)
 
         # Slave address counter
         master_align = log2_int(master.data_width//8)
@@ -708,7 +709,7 @@ class AXILiteDownConverter(Module):
             slave.aw.addr.eq(Cat(addr_counter, master.aw.addr[master_align:])),
             Case(counter, {i: slave.w.data.eq(master.w.data[i*dw_to:]) for i in range(ratio)}),
             Case(counter, {i: slave.w.strb.eq(master.w.strb[i*dw_to//8:]) for i in range(ratio)}),
-            master.b.resp.eq(RESP_OKAY),  # FIXME: error handling?
+            master.b.resp.eq(resp),
         ]
 
         # Read path
@@ -719,7 +720,7 @@ class AXILiteDownConverter(Module):
         # address, resp
         self.comb += [
             slave.ar.addr.eq(Cat(addr_counter, master.ar.addr[master_align:])),
-            master.r.resp.eq(RESP_OKAY),  # FIXME: error handling?
+            master.r.resp.eq(resp),
         ]
 
         # Control Path
@@ -730,6 +731,7 @@ class AXILiteDownConverter(Module):
 
         fsm.act("IDLE",
             NextValue(counter, 0),
+            NextValue(resp, RESP_OKAY),
             # If the last access was a read, do a write, and vice versa
             If(master.aw.valid & master.ar.valid,
                 do_write.eq(last_was_read),
@@ -778,6 +780,10 @@ class AXILiteDownConverter(Module):
             NextValue(w_ready, 0),
             If(slave.b.valid,
                 slave.b.ready.eq(1),
+                # Any errors is sticky, so the first one is always sent
+                If((resp == RESP_OKAY) & (slave.b.resp != RESP_OKAY),
+                    NextValue(resp, slave.b.resp)
+                ),
                 If(counter == (ratio - 1),
                     master.aw.ready.eq(1),
                     master.w.ready.eq(1),
@@ -806,6 +812,10 @@ class AXILiteDownConverter(Module):
         )
         fsm.act("READ-RESPONSE-SLAVE",
             If(slave.r.valid,
+                # Any errors is sticky, so the first one is always sent
+                If((resp == RESP_OKAY) & (slave.b.resp != RESP_OKAY),
+                    NextValue(resp, slave.b.resp)
+                ),
                 # On last word acknowledge ar and hold slave.r.valid until we get master.r.ready
                 If(counter == (ratio - 1),
                     master.ar.ready.eq(1),
@@ -837,10 +847,8 @@ class AXILiteConverter(Module):
         dw_from = len(master.r.data)
         dw_to = len(slave.r.data)
         if dw_from > dw_to:
-            print("AXILiteConverter (Down): {} -> {}".format(master.data_width, slave.data_width))
             self.submodules += AXILiteDownConverter(master, slave)
         elif dw_from < dw_to:
-            print("AXILiteConverter (Up): {} -> {}".format(master.data_width, slave.data_width))
-            raise NotImplementedError
+            raise NotImplementedError("AXILiteUpConverter")
         else:
             self.comb += master.connect(slave)
