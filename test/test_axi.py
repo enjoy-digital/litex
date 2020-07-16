@@ -51,7 +51,7 @@ class Write(Access):
 class Read(Access):
     pass
 
-# Tests --------------------------------------------------------------------------------------------
+# TestAXI ------------------------------------------------------------------------------------------
 
 class TestAXI(unittest.TestCase):
     def test_burst2beat(self):
@@ -327,6 +327,71 @@ class TestAXI(unittest.TestCase):
             r_ready_random  = 90
         )
 
+# TestAXILite --------------------------------------------------------------------------------------
+
+class AXILiteChecker:
+    def __init__(self, latency=None, rdata_generator=None):
+        self.latency = latency or (lambda: 0)
+        self.rdata_generator = rdata_generator or (lambda adr: 0xbaadc0de)
+        self.writes = []
+        self.reads = []
+
+    def delay(self):
+        for _ in range(self.latency()):
+            yield
+
+    def handle_write(self, axi_lite):
+        while not (yield axi_lite.aw.valid):
+            yield
+        yield from self.delay()
+        addr = (yield axi_lite.aw.addr)
+        yield axi_lite.aw.ready.eq(1)
+        yield
+        yield axi_lite.aw.ready.eq(0)
+        while not (yield axi_lite.w.valid):
+            yield
+        yield from self.delay()
+        data = (yield axi_lite.w.data)
+        strb = (yield axi_lite.w.strb)
+        yield axi_lite.w.ready.eq(1)
+        yield
+        yield axi_lite.w.ready.eq(0)
+        yield axi_lite.b.valid.eq(1)
+        yield axi_lite.b.resp.eq(RESP_OKAY)
+        yield
+        while not (yield axi_lite.b.ready):
+            yield
+        yield axi_lite.b.valid.eq(0)
+        self.writes.append((addr, data, strb))
+
+    def handle_read(self, axi_lite):
+        while not (yield axi_lite.ar.valid):
+            yield
+        yield from self.delay()
+        addr = (yield axi_lite.ar.addr)
+        yield axi_lite.ar.ready.eq(1)
+        yield
+        yield axi_lite.ar.ready.eq(0)
+        data = self.rdata_generator(addr)
+        yield axi_lite.r.valid.eq(1)
+        yield axi_lite.r.resp.eq(RESP_OKAY)
+        yield axi_lite.r.data.eq(data)
+        yield
+        while not (yield axi_lite.r.ready):
+            yield
+        yield axi_lite.r.valid.eq(0)
+        self.reads.append((addr, data))
+
+    @passive
+    def handler(self, axi_lite):
+        while True:
+            if (yield axi_lite.aw.valid):
+                yield from self.handle_write(axi_lite)
+            if (yield axi_lite.ar.valid):
+                yield from self.handle_read(axi_lite)
+            yield
+
+class TestAXILite(unittest.TestCase):
     def test_wishbone2axi2wishbone(self):
         class DUT(Module):
             def __init__(self):
@@ -439,3 +504,136 @@ class TestAXI(unittest.TestCase):
         dut = DUT(size=len(init)*4, init=[v for v in init])
         run_simulation(dut, [generator(dut, init)])
         self.assertEqual(dut.errors, 0)
+
+    def converter_test(self, width_from, width_to,
+                       write_pattern=None, write_expected=None,
+                       read_pattern=None, read_expected=None):
+        assert not (write_pattern is None and read_pattern is None)
+
+        if write_pattern is None:
+            write_pattern = []
+            write_expected = []
+        elif len(write_pattern[0]) == 2:
+            # add w.strb
+            write_pattern = [(adr, data, 2**(width_from//8)-1) for adr, data in write_pattern]
+
+        if read_pattern is None:
+            read_pattern = []
+            read_expected = []
+
+        class DUT(Module):
+            def __init__(self, width_from, width_to):
+                self.master = AXILiteInterface(data_width=width_from)
+                self.slave = AXILiteInterface(data_width=width_to)
+                self.submodules.converter = AXILiteConverter(self.master, self.slave)
+
+        def generator(axi_lite):
+            for addr, data, strb in write_pattern or []:
+                resp = (yield from axi_lite.write(addr, data, strb))
+                self.assertEqual(resp, RESP_OKAY)
+            for _ in range(16):
+                yield
+
+            for addr, refdata in read_pattern or []:
+                data, resp = (yield from axi_lite.read(addr))
+                self.assertEqual(resp, RESP_OKAY)
+                self.assertEqual(data, refdata)
+            for _ in range(4):
+                yield
+
+        def rdata_generator(adr):
+            for a, v in read_expected:
+                if a == adr:
+                    return v
+            return 0xbaadc0de
+
+        _latency = 0
+        def latency():
+            nonlocal _latency
+            _latency = (_latency + 1) % 3
+            return _latency
+
+        dut = DUT(width_from=width_from, width_to=width_to)
+        checker = AXILiteChecker(latency, rdata_generator)
+        run_simulation(dut, [generator(dut.master), checker.handler(dut.slave)], vcd_name='sim.vcd')
+        self.assertEqual(checker.writes, write_expected)
+        self.assertEqual(checker.reads, read_expected)
+
+    def test_axilite_down_converter_32to16(self):
+        write_pattern = [
+            (0x00000000, 0x22221111),
+            (0x00000004, 0x44443333),
+            (0x00000008, 0x66665555),
+            (0x00000100, 0x88887777),
+        ]
+        write_expected = [
+            (0x00000000, 0x1111, 0b11),
+            (0x00000002, 0x2222, 0b11),
+            (0x00000004, 0x3333, 0b11),
+            (0x00000006, 0x4444, 0b11),
+            (0x00000008, 0x5555, 0b11),
+            (0x0000000a, 0x6666, 0b11),
+            (0x00000100, 0x7777, 0b11),
+            (0x00000102, 0x8888, 0b11),
+        ]
+        read_pattern = write_pattern
+        read_expected = [(adr, data) for (adr, data, _) in write_expected]
+        self.converter_test(width_from=32, width_to=16,
+                            write_pattern=write_pattern, write_expected=write_expected,
+                            read_pattern=read_pattern, read_expected=read_expected)
+
+    def test_axilite_down_converter_32to8(self):
+        write_pattern = [
+            (0x00000000, 0x44332211),
+            (0x00000004, 0x88776655),
+        ]
+        write_expected = [
+            (0x00000000, 0x11, 0b1),
+            (0x00000001, 0x22, 0b1),
+            (0x00000002, 0x33, 0b1),
+            (0x00000003, 0x44, 0b1),
+            (0x00000004, 0x55, 0b1),
+            (0x00000005, 0x66, 0b1),
+            (0x00000006, 0x77, 0b1),
+            (0x00000007, 0x88, 0b1),
+        ]
+        read_pattern = write_pattern
+        read_expected = [(adr, data) for (adr, data, _) in write_expected]
+        self.converter_test(width_from=32, width_to=8,
+                            write_pattern=write_pattern, write_expected=write_expected,
+                            read_pattern=read_pattern, read_expected=read_expected)
+
+    def test_axilite_down_converter_64to32(self):
+        write_pattern = [
+            (0x00000000, 0x2222222211111111),
+            (0x00000008, 0x4444444433333333),
+        ]
+        write_expected = [
+            (0x00000000, 0x11111111, 0b1111),
+            (0x00000004, 0x22222222, 0b1111),
+            (0x00000008, 0x33333333, 0b1111),
+            (0x0000000c, 0x44444444, 0b1111),
+        ]
+        read_pattern = write_pattern
+        read_expected = [(adr, data) for (adr, data, _) in write_expected]
+        self.converter_test(width_from=64, width_to=32,
+                            write_pattern=write_pattern, write_expected=write_expected,
+                            read_pattern=read_pattern, read_expected=read_expected)
+
+    def test_axilite_down_converter_strb(self):
+        write_pattern = [
+            (0x00000000, 0x22221111, 0b1100),
+            (0x00000004, 0x44443333, 0b1111),
+            (0x00000008, 0x66665555, 0b1011),
+            (0x00000100, 0x88887777, 0b0011),
+        ]
+        write_expected = [
+            (0x00000002, 0x2222, 0b11),
+            (0x00000004, 0x3333, 0b11),
+            (0x00000006, 0x4444, 0b11),
+            (0x00000008, 0x5555, 0b11),
+            (0x0000000a, 0x6666, 0b10),
+            (0x00000100, 0x7777, 0b11),
+        ]
+        self.converter_test(width_from=32, width_to=16,
+                            write_pattern=write_pattern, write_expected=write_expected)
