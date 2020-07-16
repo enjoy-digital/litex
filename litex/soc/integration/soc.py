@@ -280,21 +280,46 @@ class SoCBusHandler(Module):
     # Add Master/Slave -----------------------------------------------------------------------------
     def add_adapter(self, name, interface, direction="m2s"):
         assert direction in ["m2s", "s2m"]
-        if interface.data_width != self.data_width:
-            self.logger.info("{} Bus {} from {}-bit to {}-bit.".format(
-                colorer(name),
-                colorer("converted", color="cyan"),
-                colorer(interface.data_width),
-                colorer(self.data_width)))
+
+        if isinstance(interface, wishbone.Interface):
             new_interface = wishbone.Interface(data_width=self.data_width)
             if direction == "m2s":
                 converter = wishbone.Converter(master=interface, slave=new_interface)
             if direction == "s2m":
                 converter = wishbone.Converter(master=new_interface, slave=interface)
             self.submodules += converter
-            return new_interface
+        elif isinstance(interface, axi.AXILiteInterface):
+            # Data width conversion
+            intermediate = axi.AXILiteInterface(data_width=self.data_width)
+            if direction == "m2s":
+                converter = axi.AXILiteConverter(master=interface, slave=intermediate)
+            if direction == "s2m":
+                converter = axi.AXILiteConverter(master=intermediate, slave=interface)
+            self.submodules += converter
+            # Bus type conversion
+            new_interface = wishbone.Interface(data_width=self.data_width)
+            if direction == "m2s":
+                converter = axi.AXILite2Wishbone(axi_lite=intermediate, wishbone=new_interface)
+            elif direction == "s2m":
+                converter = axi.Wishbone2AXILite(wishbone=new_interface, axi_lite=intermediate)
+            self.submodules += converter
         else:
-            return interface
+            raise TypeError(interface)
+
+        fmt = "{name} Bus {converted} from {frombus} {frombits}-bit to {tobus} {tobits}-bit."
+        frombus  = "Wishbone" if isinstance(interface, wishbone.Interface) else "AXILite"
+        tobus    = "Wishbone" if isinstance(new_interface, wishbone.Interface) else "AXILite"
+        frombits = interface.data_width
+        tobits   = new_interface.data_width
+        if frombus != tobus or frombits != tobits:
+            self.logger.info(fmt.format(
+                name      = colorer(name),
+                converted = colorer("converted", color="cyan"),
+                frombus   = colorer("Wishbone" if isinstance(interface, wishbone.Interface) else "AXILite"),
+                frombits  = colorer(interface.data_width),
+                tobus     = colorer("Wishbone" if isinstance(new_interface, wishbone.Interface) else "AXILite"),
+                tobits    = colorer(new_interface.data_width)))
+        return new_interface
 
     def add_master(self, name=None, master=None):
         if name is None:
