@@ -156,7 +156,7 @@ int serialboot(void)
 	printf("Booting from serial...\n");
 	printf("Press Q or ESC to abort boot completely.\n");
 
-	/* send the serialboot "magic" request to Host */
+	/* Send the serialboot "magic" request to Host */
 	c = str;
 	while(*c) {
 		uart_write(*c);
@@ -171,7 +171,7 @@ int serialboot(void)
 		printf("Cancelled\n");
 		return 0;
 	}
-	/* assume ACK_OK */
+	/* Assume ACK_OK */
 
 	failed = 0;
 	while(1) {
@@ -239,7 +239,7 @@ int serialboot(void)
 				addr = get_uint32(&frame.payload[0]);
 
 				for (i = 4; i < frame.payload_length; i++) {
-					// erase page at sector boundaries before writing
+					/* Erase page at sector boundaries before writing */
 					if ((addr & (SPIFLASH_SECTOR_SIZE - 1)) == 0) {
 						erase_flash_sector(addr);
 					}
@@ -314,10 +314,17 @@ static void netboot_from_json(const char * filename, unsigned int ip, unsigned s
 	uint8_t count;
 
 	/* FIXME: modify/increase if too limiting */
-	char json_buffer[256];
-	char image_filename[32];
-	char image_address[32];
-	uint8_t image_found;
+	char json_buffer[1024];
+	char json_name[32];
+	char json_value[32];
+
+	unsigned long boot_r1 = 0;
+	unsigned long boot_r2 = 0;
+	unsigned long boot_r3 = 0;
+	unsigned long boot_addr = 0;
+
+	uint8_t image_found = 0;
+	uint8_t boot_addr_found = 0;
 
 	/* Read JSON file */
 	size = tftp_get(ip, tftp_port, filename, json_buffer);
@@ -325,31 +332,55 @@ static void netboot_from_json(const char * filename, unsigned int ip, unsigned s
 		return;
 
 	/* Parse JSON file */
-	jsmntok_t t[16];
+	jsmntok_t t[32];
 	jsmn_parser p;
 	jsmn_init(&p);
-	image_found = 0;
 	count = jsmn_parse(&p, json_buffer, strlen(json_buffer), t, sizeof(t)/sizeof(*t));
 	for (i=0; i<count-1; i++) {
-		/* Images are JSON strings with 1 children */
+		memset(json_name,   0, sizeof(json_name));
+		memset(json_value,  0, sizeof(json_value));
+		/* Elements are JSON strings with 1 children */
 		if ((t[i].type == JSMN_STRING) && (t[i].size == 1)) {
-			/* Get Image filename */
-			memset(image_filename, 0, sizeof(image_filename));
-			memcpy(image_filename, json_buffer+t[i].start,   t[i].end   - t[i].start);
-			/* Get Image address */
-			memset(image_address,  0, sizeof(image_address));
-			memcpy(image_address,  json_buffer+t[i+1].start, t[i+1].end - t[i+1].start);
+			/* Get Element's filename */
+			memcpy(json_name, json_buffer + t[i].start, t[i].end - t[i].start);
+			/* Get Element's address */
+			memcpy(json_value, json_buffer + t[i+1].start, t[i+1].end - t[i+1].start);
+			/* Skip bootargs (optional) */
+			if (strncmp(json_name, "bootargs", 8) == 0) {
+				continue;
+			}
+			/* Get boot addr (optional) */
+			else if (strncmp(json_name, "addr", 4) == 0) {
+				boot_addr = strtoul(json_value, NULL, 0);
+				boot_addr_found = 1;
+			}
+			/* Get boot r1 (optional) */
+			else if (strncmp(json_name, "r1", 2) == 0) {
+				memcpy(json_name, json_buffer + t[i].start, t[i].end - t[i].start);
+				boot_r1 = strtoul(json_value, NULL, 0);
+			}
+			/* Get boot r2 (optional) */
+			else if (strncmp(json_name, "r2", 2) == 0) {
+				boot_r2 = strtoul(json_value, NULL, 0);
+			}
+			/* Get boot r3 (optional) */
+			else if (strncmp(json_name, "r3", 2) == 0) {
+				boot_r3 = strtoul(json_value, NULL, 0);
 			/* Copy Image from Network to address */
-			size = copy_file_from_tftp_to_ram(ip, tftp_port, image_filename, (void *)strtoul(image_address, NULL, 0));
-			if (size <= 0)
-				return;
-			image_found = 1;
+			} else {
+				size = copy_file_from_tftp_to_ram(ip, tftp_port, json_name, (void *)strtoul(json_value, NULL, 0));
+				if (size <= 0)
+					return;
+				image_found = 1;
+				if (boot_addr_found == 0) /* Boot to last Image address if no bootargs.addr specified */
+					boot_addr = strtoul(json_value, NULL, 0);
+			}
 		}
 	}
 
-	/* Boot to last Image address */
+	/* Boot */
 	if (image_found)
-		boot(0, 0, 0, strtoul(image_address, NULL, 0));
+		boot(boot_r1, boot_r2, boot_r3, boot_addr);
 }
 
 static void netboot_from_bin(const char * filename, unsigned int ip, unsigned short tftp_port)
@@ -532,10 +563,17 @@ static void sdcardboot_from_json(const char * filename)
 	uint32_t result;
 
 	/* FIXME: modify/increase if too limiting */
-	char json_buffer[256];
-	char image_filename[32];
-	char image_address[32];
-	uint8_t image_found;
+	char json_buffer[1024];
+	char json_name[32];
+	char json_value[32];
+
+	unsigned long boot_r1 = 0;
+	unsigned long boot_r2 = 0;
+	unsigned long boot_r3 = 0;
+	unsigned long boot_addr = 0;
+
+	uint8_t image_found = 0;
+	uint8_t boot_addr_found = 0;
 
 	/* Read JSON file */
 	fr = f_mount(&fs, "", 1);
@@ -555,31 +593,55 @@ static void sdcardboot_from_json(const char * filename)
 	f_mount(0, "", 0);
 
 	/* Parse JSON file */
-	jsmntok_t t[16];
+	jsmntok_t t[32];
 	jsmn_parser p;
 	jsmn_init(&p);
-	image_found = 0;
 	count = jsmn_parse(&p, json_buffer, strlen(json_buffer), t, sizeof(t)/sizeof(*t));
 	for (i=0; i<count-1; i++) {
-		/* Images are JSON strings with 1 children */
+		memset(json_name,   0, sizeof(json_name));
+		memset(json_value,  0, sizeof(json_value));
+		/* Elements are JSON strings with 1 children */
 		if ((t[i].type == JSMN_STRING) && (t[i].size == 1)) {
-			/* Get Image filename */
-			memset(image_filename, 0, sizeof(image_filename));
-			memcpy(image_filename, json_buffer+t[i].start,   t[i].end   - t[i].start);
-			/* Get Image address */
-			memset(image_address,  0, sizeof(image_address));
-			memcpy(image_address,  json_buffer+t[i+1].start, t[i+1].end - t[i+1].start);
+			/* Get Element's filename */
+			memcpy(json_name, json_buffer + t[i].start, t[i].end - t[i].start);
+			/* Get Element's address */
+			memcpy(json_value, json_buffer + t[i+1].start, t[i+1].end - t[i+1].start);
+			/* Skip bootargs (optional) */
+			if (strncmp(json_name, "bootargs", 8) == 0) {
+				continue;
+			}
+			/* Get boot addr (optional) */
+			else if (strncmp(json_name, "addr", 4) == 0) {
+				boot_addr = strtoul(json_value, NULL, 0);
+				boot_addr_found = 1;
+			}
+			/* Get boot r1 (optional) */
+			else if (strncmp(json_name, "r1", 2) == 0) {
+				memcpy(json_name, json_buffer + t[i].start, t[i].end - t[i].start);
+				boot_r1 = strtoul(json_value, NULL, 0);
+			}
+			/* Get boot r2 (optional) */
+			else if (strncmp(json_name, "r2", 2) == 0) {
+				boot_r2 = strtoul(json_value, NULL, 0);
+			}
+			/* Get boot r3 (optional) */
+			else if (strncmp(json_name, "r3", 2) == 0) {
+				boot_r3 = strtoul(json_value, NULL, 0);
 			/* Copy Image from SDCard to address */
-			result = copy_file_from_sdcard_to_ram(image_filename, strtoul(image_address, NULL, 0));
-			if (result == 0)
-				return;
-			image_found = 1;
+			} else {
+				result = copy_file_from_sdcard_to_ram(json_name, strtoul(json_value, NULL, 0));
+				if (result == 0)
+					return;
+				image_found = 1;
+				if (boot_addr_found == 0) /* Boot to last Image address if no bootargs.addr specified */
+					boot_addr = strtoul(json_value, NULL, 0);
+			}
 		}
 	}
 
-	/* Boot to last Image address */
+	/* Boot */
 	if (image_found)
-		boot(0, 0, 0, strtoul(image_address, NULL, 0));
+		boot(boot_r1, boot_r2, boot_r3, boot_addr);
 }
 
 static void sdcardboot_from_bin(const char * filename)
