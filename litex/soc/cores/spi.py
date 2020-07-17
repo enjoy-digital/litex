@@ -113,7 +113,7 @@ class SPIMaster(Module, AutoCSR):
 
         # Master In Slave Out (MISO) capture (captured on spi_clk rising edge) --------------------
         miso      = Signal()
-        miso_data = self.miso
+        miso_data = Signal(data_width)
         self.sync += [
             If(clk_rise & shift,
                 If(self.loopback,
@@ -124,7 +124,8 @@ class SPIMaster(Module, AutoCSR):
             ),
             If(clk_fall & shift,
                 miso_data.eq(Cat(miso, miso_data))
-            )
+            ),
+            If(self.done, self.miso.eq(miso_data)),
         ]
 
     def add_csr(self, with_cs=True, with_loopback=True):
