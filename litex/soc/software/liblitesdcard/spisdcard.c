@@ -35,7 +35,7 @@
 #define min(x, y) (((x) < (y)) ? (x) : (y))
 
 /*-----------------------------------------------------------------------*/
-/* SPI Master low-level functions                                        */
+/* SPI SDCard clocker functions                                          */
 /*-----------------------------------------------------------------------*/
 
 static void spi_set_clk_freq(uint32_t clk_freq) {
@@ -52,6 +52,10 @@ static void spi_set_clk_freq(uint32_t clk_freq) {
 #endif
     spisdcard_clk_divider_write(divider);
 }
+
+/*-----------------------------------------------------------------------*/
+/* SPI SDCard low-level functions                                        */
+/*----------------------------------------------------------------------*/
 
 static uint8_t spi_xfer(uint8_t byte) {
     /* Write byte on MOSI */
