@@ -333,8 +333,8 @@ class AXILiteChecker:
     def __init__(self, latency=None, rdata_generator=None):
         self.latency = latency or (lambda: 0)
         self.rdata_generator = rdata_generator or (lambda adr: 0xbaadc0de)
-        self.writes = []
-        self.reads = []
+        self.writes = []  # (addr, data, strb)
+        self.reads = []  # (addr, data)
 
     def delay(self):
         for _ in range(self.latency()):
@@ -555,7 +555,7 @@ class TestAXILite(unittest.TestCase):
 
         dut = DUT(width_from=width_from, width_to=width_to)
         checker = AXILiteChecker(latency, rdata_generator)
-        run_simulation(dut, [generator(dut.master), checker.handler(dut.slave)], vcd_name='sim.vcd')
+        run_simulation(dut, [generator(dut.master), checker.handler(dut.slave)])
         self.assertEqual(checker.writes, write_expected)
         self.assertEqual(checker.reads, read_expected)
 
@@ -637,3 +637,92 @@ class TestAXILite(unittest.TestCase):
         ]
         self.converter_test(width_from=32, width_to=16,
                             write_pattern=write_pattern, write_expected=write_expected)
+
+    def axilite_pattern_generator(self, axi_lite, pattern):
+        for rw, addr, data in pattern:
+            assert rw in ["w", "r"]
+            if rw == "w":
+                resp = (yield from axi_lite.write(addr, data, 2**len(axi_lite.w.strb) - 1))
+                self.assertEqual(resp, RESP_OKAY)
+            else:
+                rdata, resp = (yield from axi_lite.read(addr))
+                self.assertEqual(resp, RESP_OKAY)
+                self.assertEqual(rdata, data)
+        for _ in range(16):
+            yield
+
+    def test_axilite_interconnect_p2p(self):
+        class DUT(Module):
+            def __init__(self):
+                self.master = master = AXILiteInterface()
+                self.slave  = slave  = AXILiteInterface()
+                self.submodules.interconnect = AXILiteInterconnectPointToPoint(master, slave)
+
+        pattern = [
+            ("w", 0x00000004, 0x11111111),
+            ("w", 0x0000000c, 0x22222222),
+            ("r", 0x00000010, 0x33333333),
+            ("r", 0x00000018, 0x44444444),
+        ]
+
+        def rdata_generator(adr):
+            for rw, a, v in pattern:
+                if rw == "r" and a == adr:
+                    return v
+            return 0xbaadc0de
+
+        dut = DUT()
+        checker = AXILiteChecker(rdata_generator=rdata_generator)
+        generators = [
+            self.axilite_pattern_generator(dut.master, pattern),
+            checker.handler(dut.slave),
+        ]
+        run_simulation(dut, generators)
+        self.assertEqual(checker.writes, [(addr, data, 0b1111) for rw, addr, data in pattern if rw == "w"])
+        self.assertEqual(checker.reads, [(addr, data) for rw, addr, data in pattern if rw == "r"])
+
+    def test_axilite_timeout(self):
+        class DUT(Module):
+            def __init__(self):
+                self.master = master = AXILiteInterface()
+                self.slave  = slave  = AXILiteInterface()
+                self.submodules.interconnect = AXILiteInterconnectPointToPoint(master, slave)
+                self.submodules.timeout = AXILiteTimeout(master, 16)
+
+        @passive
+        def timeout(ticks):
+            for _ in range(ticks):
+                yield
+            raise TimeoutError("Timeout after %d ticks" % ticks)
+
+        def generator(axi_lite):
+            resp = (yield from axi_lite.write(0x00001000, 0x11111111))
+            self.assertEqual(resp, RESP_OKAY)
+            resp = (yield from axi_lite.write(0x00002000, 0x22222222))
+            self.assertEqual(resp, RESP_SLVERR)
+            data, resp = (yield from axi_lite.read(0x00003000))
+            self.assertEqual(resp, RESP_SLVERR)
+            self.assertEqual(data, 0xffffffff)
+            yield
+
+        def checker(axi_lite):
+            for _ in range(16):
+                yield
+            yield axi_lite.aw.ready.eq(1)
+            yield axi_lite.w.ready.eq(1)
+            yield
+            yield axi_lite.aw.ready.eq(0)
+            yield axi_lite.w.ready.eq(0)
+            yield axi_lite.b.valid.eq(1)
+            yield
+            while not (yield axi_lite.b.ready):
+                yield
+            yield axi_lite.b.valid.eq(0)
+
+        dut = DUT()
+        generators = [
+            generator(dut.master),
+            checker(dut.slave),
+            timeout(300),
+        ]
+        run_simulation(dut, generators, vcd_name='sim.vcd')

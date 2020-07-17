@@ -5,9 +5,13 @@
 """AXI4 Full/Lite support for LiteX"""
 
 from migen import *
+from migen.genlib import roundrobin
+from migen.genlib.misc import split, displacer, chooser, WaitTimer
 
 from litex.soc.interconnect import stream
 from litex.build.generic_platform import *
+
+from litex.soc.interconnect import csr_bus
 
 # AXI Definition -----------------------------------------------------------------------------------
 
@@ -72,6 +76,24 @@ def _connect_axi(master, slave):
         r.extend(m.connect(s))
     return r
 
+def _axi_layout_flat(axi):
+    # yields tuples (channel, name, direction)
+    def get_dir(channel, direction):
+        if channel in ["b", "r"]:
+            return {DIR_M_TO_S: DIR_S_TO_M, DIR_S_TO_M: DIR_M_TO_S}[direction]
+        return direction
+    for ch in ["aw", "w", "b", "ar", "r"]:
+        channel = getattr(axi, ch)
+        for group in channel.layout:
+            if len(group) == 3:
+                name, _, direction = group
+                yield ch, name, get_dir(ch, direction)
+            else:
+                _, subgroups = group
+                for subgroup in subgroups:
+                    name, _, direction = subgroup
+                    yield ch, name, get_dir(ch, direction)
+
 class AXIInterface:
     def __init__(self, data_width=32, address_width=32, id_width=1, clock_domain="sys"):
         self.data_width    = data_width
@@ -87,6 +109,9 @@ class AXIInterface:
 
     def connect(self, slave):
         return _connect_axi(self, slave)
+
+    def layout_flat(self):
+        return list(_axi_layout_flat(self))
 
 # AXI Lite Definition ------------------------------------------------------------------------------
 
@@ -160,6 +185,9 @@ class AXILiteInterface:
 
     def connect(self, slave):
         return _connect_axi(self, slave)
+
+    def layout_flat(self):
+        return list(_axi_layout_flat(self))
 
     def write(self, addr, data, strb=None):
         if strb is None:
@@ -621,14 +649,14 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=
     return fsm, comb
 
 class AXILite2CSR(Module):
-    def __init__(self, axi_lite=None, csr=None):
+    def __init__(self, axi_lite=None, bus_csr=None):
         if axi_lite is None:
             axi_lite = AXILiteInterface()
-        if csr is None:
-            csr = csr.bus.Interface()
+        if bus_csr is None:
+            bus_csr = csr_bus.Interface()
 
         self.axi_lite = axi_lite
-        self.csr = csr
+        self.csr = bus_csr
 
         fsm, comb = axi_lite_to_simple(self.axi_lite,
                                        port_adr=self.csr.adr, port_dat_r=self.csr.dat_r,
@@ -852,3 +880,59 @@ class AXILiteConverter(Module):
             raise NotImplementedError("AXILiteUpConverter")
         else:
             self.comb += master.connect(slave)
+
+# AXILite Timeout ----------------------------------------------------------------------------------
+
+class AXILiteTimeout(Module):
+    """Protect master against slave timeouts (master _has_ to respond correctly)"""
+    def __init__(self, master, cycles):
+        self.error = Signal()
+
+        # # #
+
+        timer = WaitTimer(int(cycles))
+        self.submodules += timer
+        is_write = Signal()
+        is_read  = Signal()
+
+        self.submodules.fsm = fsm = FSM()
+        fsm.act("WAIT",
+            is_write.eq((master.aw.valid & ~master.aw.ready) | (master.w.valid & ~master.w.ready)),
+            is_read.eq(master.ar.valid & ~master.ar.ready),
+            timer.wait.eq(is_write | is_read),
+            # done is updated in `sync`, so we must make sure that `ready` has not been issued
+            # by slave during that single cycle, by checking `timer.wait`
+            If(timer.done & timer.wait,
+                self.error.eq(1),
+                If(is_write,
+                    NextState("RESPOND-WRITE")
+                ).Else(
+                    NextState("RESPOND-READ")
+                )
+            )
+        )
+        fsm.act("RESPOND-WRITE",
+            master.aw.ready.eq(master.aw.valid),
+            master.w.ready.eq(master.w.valid),
+            master.b.valid.eq(~master.aw.valid & ~master.w.valid),
+            master.b.resp.eq(RESP_SLVERR),
+            If(master.b.valid & master.b.ready,
+                NextState("WAIT")
+            )
+        )
+        fsm.act("RESPOND-READ",
+            master.ar.ready.eq(master.ar.valid),
+            master.r.valid.eq(~master.ar.valid),
+            master.r.resp.eq(RESP_SLVERR),
+            master.r.data.eq(2**len(master.r.data) - 1),
+            If(master.r.valid & master.r.ready,
+                NextState("WAIT")
+            )
+        )
+
+# AXILite Interconnect -----------------------------------------------------------------------------
+
+class AXILiteInterconnectPointToPoint(Module):
+    def __init__(self, master, slave):
+        self.comb += master.connect(slave)
+
