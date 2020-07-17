@@ -41,6 +41,7 @@ class SPIMaster(Module, AutoCSR):
 
         # # #
 
+        done  = Signal()
         bits  = Signal(8)
         xfer  = Signal()
         shift = Signal()
@@ -64,7 +65,7 @@ class SPIMaster(Module, AutoCSR):
         # Control FSM ------------------------------------------------------------------------------
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
-            self.done.eq(1),
+            done.eq(1),
             If(self.start,
                 NextValue(bits, 0),
                 NextState("WAIT-CLK-FALL")
@@ -91,6 +92,7 @@ class SPIMaster(Module, AutoCSR):
             shift.eq(1),
             self.irq.eq(1)
         )
+        self.sync += self.done.eq(done & ~self.start)
 
         # Chip Select generation -------------------------------------------------------------------
         if hasattr(pads, "cs_n"):
@@ -125,7 +127,7 @@ class SPIMaster(Module, AutoCSR):
             If(clk_fall & shift,
                 miso_data.eq(Cat(miso, miso_data))
             ),
-            If(self.done, self.miso.eq(miso_data)),
+            If(done, self.miso.eq(miso_data)),
         ]
 
     def add_csr(self, with_cs=True, with_loopback=True):
