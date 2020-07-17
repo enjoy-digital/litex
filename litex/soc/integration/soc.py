@@ -780,13 +780,18 @@ class SoC(Module):
         self.add_ram(name, origin, size, contents, mode="r")
 
     def add_csr_bridge(self, origin):
-        self.submodules.csr_bridge = wishbone.Wishbone2CSR(
+        csr_bridge_cls = {
+            "wishbone": wishbone.Wishbone2CSR,
+            "axi-lite": axi.AXILite2CSR,
+        }[self.bus.standard]
+        self.submodules.csr_bridge = csr_bridge_cls(
             bus_csr       = csr_bus.Interface(
             address_width = self.csr.address_width,
             data_width    = self.csr.data_width))
         csr_size   = 2**(self.csr.address_width + 2)
         csr_region = SoCRegion(origin=origin, size=csr_size, cached=False)
-        self.bus.add_slave("csr", self.csr_bridge.wishbone, csr_region)
+        bus = getattr(self.csr_bridge, self.bus.standard.replace('-', '_'))
+        self.bus.add_slave("csr", bus, csr_region)
         self.csr.add_master(name="bridge", master=self.csr_bridge.csr)
         self.add_config("CSR_DATA_WIDTH", self.csr.data_width)
         self.add_config("CSR_ALIGNMENT",  self.csr.alignment)
@@ -853,18 +858,27 @@ class SoC(Module):
         self.logger.info(self.irq)
         self.logger.info(colorer("-"*80, color="bright"))
 
+        interconnect_p2p_cls = {
+            "wishbone": wishbone.InterconnectPointToPoint,
+            "axi-lite": axi.AXILiteInterconnectPointToPoint,
+        }[self.bus.standard]
+        interconnect_shared_cls = {
+            "wishbone": wishbone.InterconnectShared,
+            "axi-lite": axi.AXILiteInterconnectShared,
+        }[self.bus.standard]
+
         # SoC Bus Interconnect ---------------------------------------------------------------------
         if len(self.bus.masters) and len(self.bus.slaves):
             # If 1 bus_master, 1 bus_slave and no address translation, use InterconnectPointToPoint.
             if ((len(self.bus.masters) == 1)  and
                 (len(self.bus.slaves)  == 1)  and
                 (next(iter(self.bus.regions.values())).origin == 0)):
-                self.submodules.bus_interconnect = wishbone.InterconnectPointToPoint(
+                self.submodules.bus_interconnect = interconnect_p2p_cls(
                     master = next(iter(self.bus.masters.values())),
                     slave  = next(iter(self.bus.slaves.values())))
             # Otherwise, use InterconnectShared.
             else:
-                self.submodules.bus_interconnect = wishbone.InterconnectShared(
+                self.submodules.bus_interconnect = interconnect_shared_cls(
                     masters        = self.bus.masters.values(),
                     slaves         = [(self.bus.regions[n].decoder(self.bus), s) for n, s in self.bus.slaves.items()],
                     register       = True,
