@@ -1263,7 +1263,7 @@ class LiteXSoC(SoC):
         pads = self.platform.request(name)
         if hasattr(pads, "rst"):
             self.comb += pads.rst.eq(0)
-        spisdcard = SPIMaster(pads, 32, self.sys_clk_freq, spi_clk_freq, mode="aligned")
+        spisdcard = SPIMaster(pads, 8, self.sys_clk_freq, spi_clk_freq)
         spisdcard.add_clk_divider()
         setattr(self.submodules, name, spisdcard)
         self.add_csr(name)
