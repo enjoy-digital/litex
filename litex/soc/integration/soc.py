@@ -101,7 +101,7 @@ class SoCCSRRegion:
 # SoCBusHandler ------------------------------------------------------------------------------------
 
 class SoCBusHandler(Module):
-    supported_standard      = ["wishbone"]
+    supported_standard      = ["wishbone", "axi-lite"]
     supported_data_width    = [32, 64]
     supported_address_width = [32]
 
@@ -281,48 +281,57 @@ class SoCBusHandler(Module):
     def add_adapter(self, name, interface, direction="m2s"):
         assert direction in ["m2s", "s2m"]
 
-        if isinstance(interface, wishbone.Interface):
-            if interface.data_width != self.data_width:
-                new_interface = wishbone.Interface(data_width=self.data_width)
-                if direction == "m2s":
-                    converter = wishbone.Converter(master=interface, slave=new_interface)
-                if direction == "s2m":
-                    converter = wishbone.Converter(master=new_interface, slave=interface)
-                self.submodules += converter
-            else:
-                new_interface = interface
-        elif isinstance(interface, axi.AXILiteInterface):
-            # Data width conversion
-            intermediate = axi.AXILiteInterface(data_width=self.data_width)
+        # Data width conversion
+        if interface.data_width != self.data_width:
+            interface_cls = type(interface)
+            converter_cls = {
+                wishbone.Interface:   wishbone.Converter,
+                axi.AXILiteInterface: axi.AXILiteConverter,
+            }[interface_cls]
+            converted_interface = interface_cls(data_width=self.data_width)
             if direction == "m2s":
-                converter = axi.AXILiteConverter(master=interface, slave=intermediate)
-            if direction == "s2m":
-                converter = axi.AXILiteConverter(master=intermediate, slave=interface)
-            self.submodules += converter
-            # Bus type conversion
-            new_interface = wishbone.Interface(data_width=self.data_width)
-            if direction == "m2s":
-                converter = axi.AXILite2Wishbone(axi_lite=intermediate, wishbone=new_interface)
+                master, slave = interface, converted_interface
             elif direction == "s2m":
-                converter = axi.Wishbone2AXILite(wishbone=new_interface, axi_lite=intermediate)
+                master, slave = converted_interface, interface
+            converter = converter_cls(master=master, slave=slave)
             self.submodules += converter
         else:
-            raise TypeError(interface)
+            converted_interface = interface
 
-        fmt = "{name} Bus {converted} from {frombus} {frombits}-bit to {tobus} {tobits}-bit."
-        frombus  = "Wishbone" if isinstance(interface, wishbone.Interface) else "AXILite"
-        tobus    = "Wishbone" if isinstance(new_interface, wishbone.Interface) else "AXILite"
-        frombits = interface.data_width
-        tobits   = new_interface.data_width
-        if frombus != tobus or frombits != tobits:
+        # Wishbone <-> AXILite bridging
+        main_bus_cls = {
+            "wishbone": wishbone.Interface,
+            "axi-lite": axi.AXILiteInterface,
+        }[self.standard]
+        if isinstance(converted_interface, main_bus_cls):
+            bridged_interface = converted_interface
+        else:
+            bridged_interface = main_bus_cls(data_width=self.data_width)
+            if direction == "m2s":
+                master, slave = converted_interface, bridged_interface
+            elif direction == "s2m":
+                master, slave = bridged_interface, converted_interface
+            bridge_cls = {
+                (wishbone.Interface, axi.AXILiteInterface): axi.Wishbone2AXILite,
+                (axi.AXILiteInterface, wishbone.Interface): axi.AXILite2Wishbone,
+            }[type(master), type(slave)]
+            bridge = bridge_cls(master, slave)
+            self.submodules += bridge
+
+        if type(interface) != type(bridged_interface) or interface.data_width != bridged_interface.data_width:
+            fmt = "{name} Bus {converted} from {frombus} {frombits}-bit to {tobus} {tobits}-bit."
+            bus_names = {
+                wishbone.Interface:   "Wishbone",
+                axi.AXILiteInterface: "AXI Lite",
+            }
             self.logger.info(fmt.format(
                 name      = colorer(name),
                 converted = colorer("converted", color="cyan"),
-                frombus   = colorer("Wishbone" if isinstance(interface, wishbone.Interface) else "AXILite"),
+                frombus   = colorer(bus_names[type(interface)]),
                 frombits  = colorer(interface.data_width),
-                tobus     = colorer("Wishbone" if isinstance(new_interface, wishbone.Interface) else "AXILite"),
-                tobits    = colorer(new_interface.data_width)))
-        return new_interface
+                tobus     = colorer(bus_names[type(bridged_interface)]),
+                tobits    = colorer(bridged_interface.data_width)))
+        return bridged_interface
 
     def add_master(self, name=None, master=None):
         if name is None:
