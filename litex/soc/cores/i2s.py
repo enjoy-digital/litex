@@ -283,10 +283,12 @@ class S7I2S(Module, AutoCSR, AutoDoc):
                 o_WRERR       = rx_wrerr,
             )
             self.comb += [  # Wire up the status signals and interrupts
+                self.rx_stat.fields.overflow.eq(rx_wrerr),
                 self.rx_stat.fields.underflow.eq(rx_rderr),
                 self.rx_stat.fields.dataready.eq(rx_almostfull),
                 self.rx_stat.fields.wrcount.eq(rx_wrcount),
                 self.rx_stat.fields.rdcount.eq(rx_rdcount),
+                self.rx_stat.fields.empty.eq(rx_empty),
                 self.ev.rx_ready.trigger.eq(rx_almostfull),
                 self.ev.rx_error.trigger.eq(rx_wrerr | rx_rderr),
             ]
