@@ -24,7 +24,7 @@
 #define SPISDCARD_CLK_FREQ_INIT 400000
 #endif
 #ifndef SPISDCARD_CLK_FREQ
-#define SPISDCARD_CLK_FREQ 12500000
+#define SPISDCARD_CLK_FREQ 20000000
 #endif
 
 /*-----------------------------------------------------------------------*/
@@ -40,7 +40,7 @@
 
 static void spi_set_clk_freq(uint32_t clk_freq) {
     uint32_t divider;
-    divider = CONFIG_CLOCK_FREQUENCY/clk_freq;
+    divider = CONFIG_CLOCK_FREQUENCY/clk_freq + 1;
     divider = max(divider,     2);
     divider = min(divider,   256);
 #ifdef SPISDCARD_DEBUG
@@ -135,7 +135,6 @@ static void busy_wait_us(unsigned int us)
 
 static uint8_t spisdcardreceive_block(uint8_t *buf) {
     uint16_t i;
-    uint8_t done;
     uint32_t timeout;
 
     /* Wait 100ms for a start of block */
@@ -151,18 +150,10 @@ static uint8_t spisdcardreceive_block(uint8_t *buf) {
 
     /* Receive block */
     spisdcard_mosi_write(0xff);
-    i = 0;
-    for (;;) {
-        done = spisdcard_status_read() & SPI_DONE;
-        if (done) {
-            spisdcard_control_write(8*SPI_LENGTH | SPI_START);
-            *buf = spisdcard_miso_read();
-            if (i == 512)
-                break;
-            if (i != 0)
-                buf++;
-            i++;
-        }
+    for (i=0; i<512; i++) {
+        spisdcard_control_write(8*SPI_LENGTH | SPI_START);
+        while (spisdcard_status_read() != SPI_DONE);
+        *buf++ = spisdcard_miso_read();
     }
 
     /* Discard CRC */
