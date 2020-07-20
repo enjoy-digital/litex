@@ -16,6 +16,7 @@ class TestSPI(unittest.TestCase):
     def test_spi_master_xfer_loopback_32b_32b(self):
         def generator(dut):
             yield dut.loopback.eq(1)
+            yield dut.clk_divider.eq(2)
             yield dut.mosi.eq(0xdeadbeef)
             yield dut.length.eq(32)
             yield dut.start.eq(1)
@@ -24,7 +25,8 @@ class TestSPI(unittest.TestCase):
             yield
             while (yield dut.done) == 0:
                 yield
-            self.assertEqual((yield dut.miso), 0xdeadbeef)
+            yield
+            self.assertEqual(hex((yield dut.miso)), hex(0xdeadbeef))
 
         dut = SPIMaster(pads=None, data_width=32, sys_clk_freq=100e6, spi_clk_freq=5e6, with_csr=False)
         run_simulation(dut, generator(dut))
@@ -40,7 +42,8 @@ class TestSPI(unittest.TestCase):
             yield
             while (yield dut.done) == 0:
                 yield
-            self.assertEqual((yield dut.miso), 0xbeef)
+            yield
+            self.assertEqual(hex((yield dut.miso)), hex(0xbeef))
 
         dut = SPIMaster(pads=None, data_width=32, sys_clk_freq=100e6, spi_clk_freq=5e6, with_csr=False, mode="aligned")
         run_simulation(dut, generator(dut))
@@ -59,6 +62,8 @@ class TestSPI(unittest.TestCase):
                 self.submodules.slave  = SPISlave(pads, data_width=32)
 
         def master_generator(dut):
+            for i in range(8):
+                yield
             yield dut.master.mosi.eq(0xdeadbeef)
             yield dut.master.length.eq(32)
             yield dut.master.start.eq(1)
@@ -67,15 +72,19 @@ class TestSPI(unittest.TestCase):
             yield
             while (yield dut.master.done) == 0:
                 yield
-            self.assertEqual((yield dut.master.miso), 0x12345678)
+            yield
+            self.assertEqual(hex((yield dut.master.miso)), hex(0x12345678))
 
         def slave_generator(dut):
+            for i in range(8):
+                yield
             yield dut.slave.miso.eq(0x12345678)
             while (yield dut.slave.start) == 0:
                 yield
             while (yield dut.slave.done) == 0:
                 yield
-            self.assertEqual((yield dut.slave.mosi), 0xdeadbeef)
+            yield
+            self.assertEqual(hex((yield dut.slave.mosi)), hex(0xdeadbeef))
             self.assertEqual((yield dut.slave.length), 32)
 
         dut = DUT()
