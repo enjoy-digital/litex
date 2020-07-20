@@ -936,15 +936,40 @@ class AXILiteInterconnectPointToPoint(Module):
     def __init__(self, master, slave):
         self.comb += master.connect(slave)
 
+
+class AXILiteRequestCounter(Module):
+    def __init__(self, request, response, max_requests=256):
+        self.counter = counter = Signal(max=max_requests)
+        self.full = full = Signal()
+        self.empty = empty = Signal()
+        self.stall = stall = Signal()
+
+        self.comb += [
+            full.eq(counter == max_requests - 1),
+            empty.eq(counter == 0),
+            stall.eq(request & full),
+        ]
+
+        self.sync += [
+            If(request & response,
+                counter.eq(counter)
+            ).Elif(request & ~full,
+                counter.eq(counter + 1)
+            ).Elif(response & ~empty,
+                counter.eq(counter - 1)
+            ),
+        ]
+
 class AXILiteArbiter(Module):
     """AXI Lite arbiter
 
     Arbitrate between master interfaces and connect one to the target.
-    Arbitration is done separately for write and read channels.
+    New master will not be selected until all requests have been responded to.
+    Arbitration for write and read channels is done separately.
     """
     def __init__(self, masters, target):
-        self.submodules.rr_write = roundrobin.RoundRobin(len(masters))
-        self.submodules.rr_read = roundrobin.RoundRobin(len(masters))
+        self.submodules.rr_write = roundrobin.RoundRobin(len(masters), roundrobin.SP_CE)
+        self.submodules.rr_read = roundrobin.RoundRobin(len(masters), roundrobin.SP_CE)
 
         def get_sig(interface, channel, name):
             return getattr(getattr(interface, channel), name)
@@ -968,9 +993,23 @@ class AXILiteArbiter(Module):
                     else:
                         self.comb += dest.eq(source)
 
+        # allow to change rr.grant only after all requests from a master have been responded to
+        self.submodules.wr_counter = wr_counter = AXILiteRequestCounter(
+            request=target.aw.valid & target.aw.ready, response=target.b.valid & target.b.ready)
+        self.submodules.rd_counter = rd_counter = AXILiteRequestCounter(
+            request=target.ar.valid & target.ar.ready, response=target.r.valid & target.r.ready)
+
+        # switch to next request only if there are no responses pending
+        self.comb += [
+            self.rr_write.ce.eq(~(target.aw.valid | target.w.valid | target.b.valid) & wr_counter.empty),
+            self.rr_read.ce.eq(~(target.ar.valid | target.r.valid) & rd_counter.empty),
+        ]
+
         # connect bus requests to round-robin selectors
-        self.comb += self.rr_write.request.eq(Cat(*[m.aw.valid | m.w.valid | m.b.valid for m in masters]))
-        self.comb += self.rr_read.request.eq(Cat(*[m.ar.valid | m.r.valid for m in masters]))
+        self.comb += [
+            self.rr_write.request.eq(Cat(*[m.aw.valid | m.w.valid | m.b.valid for m in masters])),
+            self.rr_read.request.eq(Cat(*[m.ar.valid | m.r.valid for m in masters])),
+        ]
 
 class AXILiteDecoder(Module):
     # slaves is a list of pairs:

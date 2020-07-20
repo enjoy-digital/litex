@@ -330,32 +330,34 @@ class TestAXI(unittest.TestCase):
 # TestAXILite --------------------------------------------------------------------------------------
 
 class AXILiteChecker:
-    def __init__(self, latency=None, rdata_generator=None):
-        self.latency = latency or (lambda: 0)
+    def __init__(self, ready_latency=None, response_latency=None, rdata_generator=None):
+        self.ready_latency = ready_latency or (lambda: 0)
+        self.response_latency = response_latency or (lambda: 0)
         self.rdata_generator = rdata_generator or (lambda adr: 0xbaadc0de)
         self.writes = []  # (addr, data, strb)
         self.reads = []  # (addr, data)
 
-    def delay(self):
-        for _ in range(self.latency()):
+    def delay(self, latency):
+        for _ in range(latency()):
             yield
 
     def handle_write(self, axi_lite):
         while not (yield axi_lite.aw.valid):
             yield
-        yield from self.delay()
+        yield from self.delay(self.ready_latency)
         addr = (yield axi_lite.aw.addr)
         yield axi_lite.aw.ready.eq(1)
         yield
         yield axi_lite.aw.ready.eq(0)
         while not (yield axi_lite.w.valid):
             yield
-        yield from self.delay()
+        yield from self.delay(self.ready_latency)
         data = (yield axi_lite.w.data)
         strb = (yield axi_lite.w.strb)
         yield axi_lite.w.ready.eq(1)
         yield
         yield axi_lite.w.ready.eq(0)
+        yield from self.delay(self.response_latency)
         yield axi_lite.b.valid.eq(1)
         yield axi_lite.b.resp.eq(RESP_OKAY)
         yield
@@ -367,11 +369,12 @@ class AXILiteChecker:
     def handle_read(self, axi_lite):
         while not (yield axi_lite.ar.valid):
             yield
-        yield from self.delay()
+        yield from self.delay(self.ready_latency)
         addr = (yield axi_lite.ar.addr)
         yield axi_lite.ar.ready.eq(1)
         yield
         yield axi_lite.ar.ready.eq(0)
+        yield from self.delay(self.response_latency)
         data = self.rdata_generator(addr)
         yield axi_lite.r.valid.eq(1)
         yield axi_lite.r.resp.eq(RESP_OKAY)
@@ -560,7 +563,7 @@ class TestAXILite(unittest.TestCase):
             return _latency
 
         dut = DUT(width_from=width_from, width_to=width_to)
-        checker = AXILiteChecker(latency, rdata_generator)
+        checker = AXILiteChecker(ready_latency=latency, rdata_generator=rdata_generator)
         run_simulation(dut, [generator(dut.master), checker.handler(dut.slave)])
         self.assertEqual(checker.writes, write_expected)
         self.assertEqual(checker.reads, read_expected)
@@ -644,6 +647,9 @@ class TestAXILite(unittest.TestCase):
         self.converter_test(width_from=32, width_to=16,
                             write_pattern=write_pattern, write_expected=write_expected)
 
+# TestAXILiteInterconnet ---------------------------------------------------------------------------
+
+class TestAXILiteInterconnect(unittest.TestCase):
     def axilite_pattern_generator(self, axi_lite, pattern):
         for rw, addr, data in pattern:
             assert rw in ["w", "r"]
@@ -657,7 +663,7 @@ class TestAXILite(unittest.TestCase):
         for _ in range(16):
             yield
 
-    def test_axilite_interconnect_p2p(self):
+    def test_interconnect_p2p(self):
         class DUT(Module):
             def __init__(self):
                 self.master = master = AXILiteInterface()
@@ -687,7 +693,7 @@ class TestAXILite(unittest.TestCase):
         self.assertEqual(checker.writes, [(addr, data, 0b1111) for rw, addr, data in pattern if rw == "w"])
         self.assertEqual(checker.reads, [(addr, data) for rw, addr, data in pattern if rw == "r"])
 
-    def test_axilite_timeout(self):
+    def test_timeout(self):
         class DUT(Module):
             def __init__(self):
                 self.master = master = AXILiteInterface()
@@ -727,7 +733,7 @@ class TestAXILite(unittest.TestCase):
         ]
         run_simulation(dut, generators)
 
-    def test_axilite_arbiter(self):
+    def test_arbiter_order(self):
         class DUT(Module):
             def __init__(self, n_masters):
                 self.masters = [AXILiteInterface() for _ in range(n_masters)]
@@ -759,7 +765,7 @@ class TestAXILite(unittest.TestCase):
             checker = AXILiteChecker()
             generators = [generator(i, master, delay=0) for i, master in enumerate(dut.masters)]
             generators += [timeout(300), checker.handler(dut.slave)]
-            run_simulation(dut, generators, vcd_name='sim.vcd')
+            run_simulation(dut, generators)
             order = [0, 1, 2, 3, 100, 101, 102, 103, 200, 201, 202, 203]
             self.assertEqual([addr for addr, data, strb in checker.writes], order)
             self.assertEqual([addr for addr, data in checker.reads], order)
@@ -768,6 +774,55 @@ class TestAXILite(unittest.TestCase):
         with self.subTest(delay=1):
             dut = DUT(n_masters)
             checker = AXILiteChecker()
+            generators = [generator(i, master, delay=1) for i, master in enumerate(dut.masters)]
+            generators += [timeout(300), checker.handler(dut.slave)]
+            run_simulation(dut, generators, vcd_name='sim.vcd')
+            order = [0, 100, 200, 1, 101, 201, 2, 102, 202, 3, 103, 203]
+            self.assertEqual([addr for addr, data, strb in checker.writes], order)
+            self.assertEqual([addr for addr, data in checker.reads], order)
+
+    def test_arbiter_holds_grant_until_response(self):
+        class DUT(Module):
+            def __init__(self, n_masters):
+                self.masters = [AXILiteInterface() for _ in range(n_masters)]
+                self.slave   = AXILiteInterface()
+                self.submodules.arbiter = AXILiteArbiter(self.masters, self.slave)
+
+        def generator(n, axi_lite, delay=0):
+            def gen(i):
+                return 100*n + i
+
+            for i in range(4):
+                resp = (yield from axi_lite.write(gen(i), gen(i)))
+                self.assertEqual(resp, RESP_OKAY)
+                for _ in range(delay):
+                    yield
+            for i in range(4):
+                data, resp = (yield from axi_lite.read(gen(i)))
+                self.assertEqual(resp, RESP_OKAY)
+                for _ in range(delay):
+                    yield
+            for _ in range(8):
+                yield
+
+
+        n_masters = 3
+
+        # with no delay each master will do all transfers at once
+        with self.subTest(delay=0):
+            dut = DUT(n_masters)
+            checker = AXILiteChecker(response_latency=lambda: 3)
+            generators = [generator(i, master, delay=0) for i, master in enumerate(dut.masters)]
+            generators += [timeout(300), checker.handler(dut.slave)]
+            run_simulation(dut, generators)
+            order = [0, 1, 2, 3, 100, 101, 102, 103, 200, 201, 202, 203]
+            self.assertEqual([addr for addr, data, strb in checker.writes], order)
+            self.assertEqual([addr for addr, data in checker.reads], order)
+
+        # with some delay, the round-robin arbiter will iterate over masters
+        with self.subTest(delay=1):
+            dut = DUT(n_masters)
+            checker = AXILiteChecker(response_latency=lambda: 3)
             generators = [generator(i, master, delay=1) for i, master in enumerate(dut.masters)]
             generators += [timeout(300), checker.handler(dut.slave)]
             run_simulation(dut, generators, vcd_name='sim.vcd')
