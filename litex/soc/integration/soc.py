@@ -282,12 +282,15 @@ class SoCBusHandler(Module):
         assert direction in ["m2s", "s2m"]
 
         if isinstance(interface, wishbone.Interface):
-            new_interface = wishbone.Interface(data_width=self.data_width)
-            if direction == "m2s":
-                converter = wishbone.Converter(master=interface, slave=new_interface)
-            if direction == "s2m":
-                converter = wishbone.Converter(master=new_interface, slave=interface)
-            self.submodules += converter
+            if interface.data_width != self.data_width:
+                new_interface = wishbone.Interface(data_width=self.data_width)
+                if direction == "m2s":
+                    converter = wishbone.Converter(master=interface, slave=new_interface)
+                if direction == "s2m":
+                    converter = wishbone.Converter(master=new_interface, slave=interface)
+                self.submodules += converter
+            else:
+                new_interface = interface
         elif isinstance(interface, axi.AXILiteInterface):
             # Data width conversion
             intermediate = axi.AXILiteInterface(data_width=self.data_width)
