@@ -100,7 +100,7 @@ class SRAM(Module):
         page_bits = log2_int((mem.depth*csrw_per_memw + aligned_paging - 1)//aligned_paging, False)
         if page_bits:
             self._page = CSRStorage(page_bits, name=mem.name_override + "_page")
-            printf("WARNING: SRAM CSR memory will requires paged access.")
+            print("WARNING: SRAM CSR memory will require paged access.")
         else:
             self._page = None
         if read_only is None:
