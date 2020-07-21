@@ -1299,7 +1299,10 @@ class LiteXSoC(SoC):
             bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.address_width)
             self.submodules.sdblock2mem = SDBlock2MemDMA(bus=bus, endianness=self.cpu.endianness)
             self.comb += self.sdcore.source.connect(self.sdblock2mem.sink)
-            self.bus.add_master("sdblock2mem", master=bus)
+            if hasattr(self.cpu, "dmabus"): # FIXME: VexRiscv SMP / DMA test.
+                self.submodules += wishbone.Converter(bus, self.cpu.dmabus)
+            else:
+                self.bus.add_master("sdblock2mem", master=bus)
             self.add_csr("sdblock2mem")
 
         # Mem2Block DMA
