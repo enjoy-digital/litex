@@ -342,6 +342,7 @@ class AXILiteChecker:
             yield
 
     def handle_write(self, axi_lite):
+        # aw
         while not (yield axi_lite.aw.valid):
             yield
         yield from self.delay(self.ready_latency)
@@ -352,12 +353,14 @@ class AXILiteChecker:
         while not (yield axi_lite.w.valid):
             yield
         yield from self.delay(self.ready_latency)
+        # w
         data = (yield axi_lite.w.data)
         strb = (yield axi_lite.w.strb)
         yield axi_lite.w.ready.eq(1)
         yield
         yield axi_lite.w.ready.eq(0)
         yield from self.delay(self.response_latency)
+        # b
         yield axi_lite.b.valid.eq(1)
         yield axi_lite.b.resp.eq(RESP_OKAY)
         yield
@@ -367,6 +370,7 @@ class AXILiteChecker:
         self.writes.append((addr, data, strb))
 
     def handle_read(self, axi_lite):
+        # ar
         while not (yield axi_lite.ar.valid):
             yield
         yield from self.delay(self.ready_latency)
@@ -375,6 +379,7 @@ class AXILiteChecker:
         yield
         yield axi_lite.ar.ready.eq(0)
         yield from self.delay(self.response_latency)
+        # r
         data = self.rdata_generator(addr)
         yield axi_lite.r.valid.eq(1)
         yield axi_lite.r.resp.eq(RESP_OKAY)
@@ -383,6 +388,7 @@ class AXILiteChecker:
         while not (yield axi_lite.r.ready):
             yield
         yield axi_lite.r.valid.eq(0)
+        yield axi_lite.r.data.eq(0)
         self.reads.append((addr, data))
 
     @passive
@@ -650,7 +656,7 @@ class TestAXILite(unittest.TestCase):
 # TestAXILiteInterconnet ---------------------------------------------------------------------------
 
 class TestAXILiteInterconnect(unittest.TestCase):
-    def axilite_pattern_generator(self, axi_lite, pattern):
+    def axilite_pattern_generator(self, axi_lite, pattern, delay=0):
         for rw, addr, data in pattern:
             assert rw in ["w", "r"]
             if rw == "w":
@@ -660,6 +666,8 @@ class TestAXILiteInterconnect(unittest.TestCase):
                 rdata, resp = (yield from axi_lite.read(addr))
                 self.assertEqual(resp, RESP_OKAY)
                 self.assertEqual(rdata, data)
+            for _ in range(delay):
+                yield
         for _ in range(16):
             yield
 
@@ -776,7 +784,7 @@ class TestAXILiteInterconnect(unittest.TestCase):
             checker = AXILiteChecker()
             generators = [generator(i, master, delay=1) for i, master in enumerate(dut.masters)]
             generators += [timeout(300), checker.handler(dut.slave)]
-            run_simulation(dut, generators, vcd_name='sim.vcd')
+            run_simulation(dut, generators)
             order = [0, 100, 200, 1, 101, 201, 2, 102, 202, 3, 103, 203]
             self.assertEqual([addr for addr, data, strb in checker.writes], order)
             self.assertEqual([addr for addr, data in checker.reads], order)
@@ -805,7 +813,6 @@ class TestAXILiteInterconnect(unittest.TestCase):
             for _ in range(8):
                 yield
 
-
         n_masters = 3
 
         # with no delay each master will do all transfers at once
@@ -825,7 +832,117 @@ class TestAXILiteInterconnect(unittest.TestCase):
             checker = AXILiteChecker(response_latency=lambda: 3)
             generators = [generator(i, master, delay=1) for i, master in enumerate(dut.masters)]
             generators += [timeout(300), checker.handler(dut.slave)]
-            run_simulation(dut, generators, vcd_name='sim.vcd')
+            run_simulation(dut, generators)
             order = [0, 100, 200, 1, 101, 201, 2, 102, 202, 3, 103, 203]
             self.assertEqual([addr for addr, data, strb in checker.writes], order)
             self.assertEqual([addr for addr, data in checker.reads], order)
+
+    def decoder_test(self, n_slaves, pattern, generator_delay=0):
+        class DUT(Module):
+            def __init__(self, decoders):
+                self.master = AXILiteInterface()
+                self.slaves = [AXILiteInterface() for _ in range(len(decoders))]
+                slaves = list(zip(decoders, self.slaves))
+                self.submodules.decoder = AXILiteDecoder(self.master, slaves)
+
+        def decoder(i):
+            # bytes to 32-bit words aligned
+            size   = (0x100) >> 2
+            origin = (0x100 * i) >> 2
+            return lambda a: (a[log2_int(size):] == (origin >> log2_int(size)))
+
+        def rdata_generator(adr):
+            for rw, a, v in pattern:
+                if rw == "r" and a == adr:
+                    return v
+            return 0xbaadc0de
+
+        dut = DUT([decoder(i) for i in range(n_slaves)])
+        checkers = [AXILiteChecker(rdata_generator=rdata_generator) for _ in dut.slaves]
+
+        generators = [self.axilite_pattern_generator(dut.master, pattern, delay=generator_delay)]
+        generators += [checker.handler(slave) for (slave, checker) in zip(dut.slaves, checkers)]
+        generators += [timeout(300)]
+        run_simulation(dut, generators, vcd_name='sim.vcd')
+
+        return checkers
+
+    def test_decoder_write(self):
+        for delay in [0, 1, 0]:
+            with self.subTest(delay=delay):
+                slaves = self.decoder_test(n_slaves=3, pattern=[
+                    ("w", 0x010, 1),
+                    ("w", 0x110, 2),
+                    ("w", 0x210, 3),
+                    ("w", 0x011, 1),
+                    ("w", 0x012, 1),
+                    ("w", 0x111, 2),
+                    ("w", 0x112, 2),
+                    ("w", 0x211, 3),
+                    ("w", 0x212, 3),
+                ], generator_delay=delay)
+
+                def addr(checker_list):
+                    return [entry[0] for entry in checker_list]
+
+                self.assertEqual(addr(slaves[0].writes), [0x010, 0x011, 0x012])
+                self.assertEqual(addr(slaves[1].writes), [0x110, 0x111, 0x112])
+                self.assertEqual(addr(slaves[2].writes), [0x210, 0x211, 0x212])
+                for slave in slaves:
+                    self.assertEqual(slave.reads, [])
+
+    def test_decoder_read(self):
+        for delay in [0, 1]:
+            with self.subTest(delay=delay):
+                slaves = self.decoder_test(n_slaves=3, pattern=[
+                    ("r", 0x010, 1),
+                    ("r", 0x110, 2),
+                    ("r", 0x210, 3),
+                    ("r", 0x011, 1),
+                    ("r", 0x012, 1),
+                    ("r", 0x111, 2),
+                    ("r", 0x112, 2),
+                    ("r", 0x211, 3),
+                    ("r", 0x212, 3),
+                ], generator_delay=delay)
+
+                def addr(checker_list):
+                    return [entry[0] for entry in checker_list]
+
+                self.assertEqual(addr(slaves[0].reads), [0x010, 0x011, 0x012])
+                self.assertEqual(addr(slaves[1].reads), [0x110, 0x111, 0x112])
+                self.assertEqual(addr(slaves[2].reads), [0x210, 0x211, 0x212])
+                for slave in slaves:
+                    self.assertEqual(slave.writes, [])
+
+    def test_decoder_read_write(self):
+        for delay in [0, 1]:
+            with self.subTest(delay=delay):
+                slaves = self.decoder_test(n_slaves=3, pattern=[
+                    ("w", 0x010, 1),
+                    ("w", 0x110, 2),
+                    ("r", 0x111, 2),
+                    ("r", 0x011, 1),
+                    ("r", 0x211, 3),
+                    ("w", 0x210, 3),
+                ], generator_delay=delay)
+
+                def addr(checker_list):
+                    return [entry[0] for entry in checker_list]
+
+                self.assertEqual(addr(slaves[0].writes), [0x010])
+                self.assertEqual(addr(slaves[0].reads),  [0x011])
+                self.assertEqual(addr(slaves[1].writes), [0x110])
+                self.assertEqual(addr(slaves[1].reads),  [0x111])
+                self.assertEqual(addr(slaves[2].writes), [0x210])
+                self.assertEqual(addr(slaves[2].reads),  [0x211])
+
+    def test_decoder_stall(self):
+        with self.assertRaises(TimeoutError):
+            self.decoder_test(n_slaves=3, pattern=[
+                ("w", 0x300, 1),
+            ])
+        with self.assertRaises(TimeoutError):
+            self.decoder_test(n_slaves=3, pattern=[
+                ("r", 0x300, 1),
+            ])
