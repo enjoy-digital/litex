@@ -3,6 +3,8 @@
 # This file is Copyright (c) 2018 Tim 'mithro' Ansell <me@mith.ro>
 # License: BSD
 
+from math import log2
+
 from functools import reduce
 from operator import or_
 
@@ -229,7 +231,7 @@ class DownConverter(Module):
 
     """
     def __init__(self, master, slave):
-        dw_from = len(master.dat_r)
+        dw_from = len(master.dat_w)
         dw_to   = len(slave.dat_w)
         ratio   = dw_from//dw_to
 
@@ -275,6 +277,25 @@ class DownConverter(Module):
         self.comb += master.dat_r.eq(Cat(dat_r[dw_to:], slave.dat_r))
         self.sync += If(slave.ack | skip, dat_r.eq(master.dat_r))
 
+class UpConverter(Module):
+    """UpConverter"""
+    def __init__(self, master, slave):
+        dw_from = len(master.dat_w)
+        dw_to   = len(slave.dat_w)
+        ratio   = dw_to//dw_from
+
+        # # #
+
+        self.comb += master.connect(slave, omit={"adr", "sel", "dat_w", "dat_r"})
+        cases = {}
+        for i in range(ratio):
+            cases[i] = [
+                slave.adr.eq(master.adr[int(log2(ratio)):]),
+                slave.sel[i*dw_from//8:(i+1)*dw_from//8].eq(2**(dw_from//8) - 1),
+                slave.dat_w[i*dw_from:(i+1)*dw_from].eq(master.dat_w),
+                master.dat_r.eq(slave.dat_r[i*dw_from:(i+1)*dw_from]),
+        ]
+        self.comb += Case(master.adr[:int(log2(ratio))], cases)
 
 class Converter(Module):
     """Converter
@@ -295,7 +316,8 @@ class Converter(Module):
             downconverter = DownConverter(master, slave)
             self.submodules += downconverter
         elif dw_from < dw_to:
-            raise NotImplementedError
+            upconverter = UpConverter(master, slave)
+            self.submodules += upconverter
         else:
             self.comb += master.connect(slave)
 
