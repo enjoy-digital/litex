@@ -972,9 +972,10 @@ class TestAXILiteInterconnect(unittest.TestCase):
                 ("r", 0x300, 1),
             ])
 
-    def interconnect_shared_test(self, master_patterns, slave_decoders,
+    def interconnect_test(self, master_patterns, slave_decoders,
                                  master_delay=0, slave_ready_latency=0, slave_response_latency=0,
-                                 disconnected_slaves=None, timeout=300, **kwargs):
+                                 disconnected_slaves=None, timeout=300, interconnect=AXILiteInterconnectShared,
+                                 **kwargs):
         # number of masters/slaves is defined by the number of patterns/decoders
         # master_patterns: list of patterns per master, pattern = list(tuple(rw, addr, data))
         # slave_decoders: list of address decoders per slave
@@ -985,7 +986,7 @@ class TestAXILiteInterconnect(unittest.TestCase):
                 self.masters = [AXILiteInterface(name="master") for _ in range(n_masters)]
                 self.slaves  = [AXILiteInterface(name="slave") for _ in range(len(decoders))]
                 slaves = list(zip(decoders, self.slaves))
-                self.submodules.interconnect = AXILiteInterconnectShared(self.masters, slaves, **kwargs)
+                self.submodules.interconnect = interconnect(self.masters, slaves, **kwargs)
 
         class ReadDataGenerator:
             # Generates data based on decoded addresses and data defined in master_patterns
@@ -1031,8 +1032,8 @@ class TestAXILiteInterconnect(unittest.TestCase):
         ]
         slave_decoders = [self.address_decoder(i) for i in range(3)]
 
-        generators, checkers = self.interconnect_shared_test(master_patterns, slave_decoders,
-                                                             master_delay=1)
+        generators, checkers = self.interconnect_test(master_patterns, slave_decoders,
+                                                      master_delay=1)
 
         for gen in generators:
             self.assertEqual(gen.errors, 0)
@@ -1047,7 +1048,7 @@ class TestAXILiteInterconnect(unittest.TestCase):
         self.assertEqual(addr(checkers[1].reads), [])
         self.assertEqual(addr(checkers[2].reads), [])
 
-    def interconnect_shared_stress_test(self, timeout=1000, **kwargs):
+    def interconnect_stress_test(self, timeout=1000, **kwargs):
         prng = random.Random(42)
 
         n_masters = 3
@@ -1072,8 +1073,8 @@ class TestAXILiteInterconnect(unittest.TestCase):
         slave_decoders_py = [self.address_decoder(i, size=slave_region_size, python=True)
                              for i in range(n_slaves)]
 
-        generators, checkers = self.interconnect_shared_test(master_patterns, slave_decoders,
-                                                             timeout=timeout, **kwargs)
+        generators, checkers = self.interconnect_test(master_patterns, slave_decoders,
+                                                      timeout=timeout, **kwargs)
 
         for gen in generators:
             read_errors = ["  0x{:08x} vs 0x{:08x}".format(v, ref) for v, ref in gen.read_errors]
@@ -1091,28 +1092,44 @@ class TestAXILiteInterconnect(unittest.TestCase):
                 self.assertNotEqual(decoder(addr >> 2), 0)
 
     def test_interconnect_shared_stress_no_delay(self):
-        self.interconnect_shared_stress_test(timeout=1000,
-                                             master_delay=0,
-                                             slave_ready_latency=0,
-                                             slave_response_latency=0)
+        self.interconnect_stress_test(timeout=1000,
+                                      master_delay=0,
+                                      slave_ready_latency=0,
+                                      slave_response_latency=0)
 
     def test_interconnect_shared_stress_rand_short(self):
         prng = random.Random(42)
         rand = lambda: prng.randrange(4)
-        self.interconnect_shared_stress_test(timeout=2000,
-                                             master_delay=rand,
-                                             slave_ready_latency=rand,
-                                             slave_response_latency=rand)
+        self.interconnect_stress_test(timeout=2000,
+                                      master_delay=rand,
+                                      slave_ready_latency=rand,
+                                      slave_response_latency=rand)
 
     def test_interconnect_shared_stress_rand_long(self):
         prng = random.Random(42)
         rand = lambda: prng.randrange(16)
-        self.interconnect_shared_stress_test(timeout=4000,
-                                             master_delay=rand,
-                                             slave_ready_latency=rand,
-                                             slave_response_latency=rand)
+        self.interconnect_stress_test(timeout=4000,
+                                      master_delay=rand,
+                                      slave_ready_latency=rand,
+                                      slave_response_latency=rand)
 
     def test_interconnect_shared_stress_timeout(self):
-        self.interconnect_shared_stress_test(timeout=4000,
-                                             disconnected_slaves=[1],
-                                             timeout_cycles=50)
+        self.interconnect_stress_test(timeout=4000,
+                                      disconnected_slaves=[1],
+                                      timeout_cycles=50)
+
+    def test_crossbar_stress_no_delay(self):
+        self.interconnect_stress_test(timeout=1000,
+                                      master_delay=0,
+                                      slave_ready_latency=0,
+                                      slave_response_latency=0,
+                                      interconnect=AXILiteCrossbar)
+
+    def test_crossbar_stress_rand(self):
+        prng = random.Random(42)
+        rand = lambda: prng.randrange(4)
+        self.interconnect_stress_test(timeout=2000,
+                                      master_delay=rand,
+                                      slave_ready_latency=rand,
+                                      slave_response_latency=rand,
+                                      interconnect=AXILiteCrossbar)
