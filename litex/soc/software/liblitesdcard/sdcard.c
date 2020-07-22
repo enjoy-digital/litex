@@ -132,7 +132,7 @@ static void sdcard_set_clk_freq(uint32_t clk_freq) {
     divider = CONFIG_CLOCK_FREQUENCY/clk_freq + 1;
     divider = (1 << log2(divider));
     divider = max(divider,   2);
-    divider = min(divider, 128);
+    divider = min(divider, 256);
 #ifdef SDCARD_DEBUG
     printf("Setting SDCard clk freq to ");
     if (clk_freq > 1000000)
