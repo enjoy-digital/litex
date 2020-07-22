@@ -251,6 +251,17 @@ class SoCCore(LiteXSoC):
 # SoCCore arguments --------------------------------------------------------------------------------
 
 def soc_core_args(parser):
+    # Bus parameters
+    parser.add_argument("--bus-standard", default="wishbone",
+                        help="select bus standard: {}, (default=wishbone)".format(
+                            ", ".join(SoCBusHandler.supported_standard)))
+    parser.add_argument("--bus-data-width", default=32, type=auto_int,
+                        help="Bus data width (default=32)")
+    parser.add_argument("--bus-address-width", default=32, type=auto_int,
+                        help="Bus address width (default=32)")
+    parser.add_argument("--bus-timeout", default=1e6, type=float,
+                        help="Bus timeout in cycles (default=1e6)")
+
     # CPU parameters
     parser.add_argument("--cpu-type", default=None,
                         help="select CPU: {}, (default=vexriscv)".format(", ".join(iter(cpu.CPUS.keys()))))

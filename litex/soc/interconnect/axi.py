@@ -5,9 +5,13 @@
 """AXI4 Full/Lite support for LiteX"""
 
 from migen import *
+from migen.genlib import roundrobin
+from migen.genlib.misc import split, displacer, chooser, WaitTimer
 
 from litex.soc.interconnect import stream
 from litex.build.generic_platform import *
+
+from litex.soc.interconnect import csr_bus
 
 # AXI Definition -----------------------------------------------------------------------------------
 
@@ -72,6 +76,24 @@ def _connect_axi(master, slave):
         r.extend(m.connect(s))
     return r
 
+def _axi_layout_flat(axi):
+    # yields tuples (channel, name, direction)
+    def get_dir(channel, direction):
+        if channel in ["b", "r"]:
+            return {DIR_M_TO_S: DIR_S_TO_M, DIR_S_TO_M: DIR_M_TO_S}[direction]
+        return direction
+    for ch in ["aw", "w", "b", "ar", "r"]:
+        channel = getattr(axi, ch)
+        for group in channel.layout:
+            if len(group) == 3:
+                name, _, direction = group
+                yield ch, name, get_dir(ch, direction)
+            else:
+                _, subgroups = group
+                for subgroup in subgroups:
+                    name, _, direction = subgroup
+                    yield ch, name, get_dir(ch, direction)
+
 class AXIInterface:
     def __init__(self, data_width=32, address_width=32, id_width=1, clock_domain="sys"):
         self.data_width    = data_width
@@ -87,6 +109,9 @@ class AXIInterface:
 
     def connect(self, slave):
         return _connect_axi(self, slave)
+
+    def layout_flat(self):
+        return list(_axi_layout_flat(self))
 
 # AXI Lite Definition ------------------------------------------------------------------------------
 
@@ -109,16 +134,16 @@ def r_lite_description(data_width):
     ]
 
 class AXILiteInterface:
-    def __init__(self, data_width=32, address_width=32, clock_domain="sys"):
+    def __init__(self, data_width=32, address_width=32, clock_domain="sys", name=None):
         self.data_width    = data_width
         self.address_width = address_width
         self.clock_domain  = clock_domain
 
-        self.aw = stream.Endpoint(ax_lite_description(address_width))
-        self.w  = stream.Endpoint(w_lite_description(data_width))
-        self.b  = stream.Endpoint(b_lite_description())
-        self.ar = stream.Endpoint(ax_lite_description(address_width))
-        self.r  = stream.Endpoint(r_lite_description(data_width))
+        self.aw = stream.Endpoint(ax_lite_description(address_width), name=name)
+        self.w  = stream.Endpoint(w_lite_description(data_width), name=name)
+        self.b  = stream.Endpoint(b_lite_description(), name=name)
+        self.ar = stream.Endpoint(ax_lite_description(address_width), name=name)
+        self.r  = stream.Endpoint(r_lite_description(data_width), name=name)
 
     def get_ios(self, bus_name="wb"):
         subsignals = []
@@ -161,9 +186,13 @@ class AXILiteInterface:
     def connect(self, slave):
         return _connect_axi(self, slave)
 
+    def layout_flat(self):
+        return list(_axi_layout_flat(self))
+
     def write(self, addr, data, strb=None):
         if strb is None:
             strb = 2**len(self.w.strb) - 1
+        # aw + w
         yield self.aw.valid.eq(1)
         yield self.aw.addr.eq(addr)
         yield self.w.data.eq(data)
@@ -173,9 +202,12 @@ class AXILiteInterface:
         while not (yield self.aw.ready):
             yield
         yield self.aw.valid.eq(0)
+        yield self.aw.addr.eq(0)
         while not (yield self.w.ready):
             yield
         yield self.w.valid.eq(0)
+        yield self.w.strb.eq(0)
+        # b
         yield self.b.ready.eq(1)
         while not (yield self.b.valid):
             yield
@@ -184,12 +216,14 @@ class AXILiteInterface:
         return resp
 
     def read(self, addr):
+        # ar
         yield self.ar.valid.eq(1)
         yield self.ar.addr.eq(addr)
         yield
         while not (yield self.ar.ready):
             yield
         yield self.ar.valid.eq(0)
+        # r
         yield self.r.ready.eq(1)
         while not (yield self.r.valid):
             yield
@@ -621,14 +655,14 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=
     return fsm, comb
 
 class AXILite2CSR(Module):
-    def __init__(self, axi_lite=None, csr=None):
+    def __init__(self, axi_lite=None, bus_csr=None):
         if axi_lite is None:
             axi_lite = AXILiteInterface()
-        if csr is None:
-            csr = csr.bus.Interface()
+        if bus_csr is None:
+            bus_csr = csr_bus.Interface()
 
         self.axi_lite = axi_lite
-        self.csr = csr
+        self.csr = bus_csr
 
         fsm, comb = axi_lite_to_simple(self.axi_lite,
                                        port_adr=self.csr.adr, port_dat_r=self.csr.dat_r,
@@ -852,3 +886,269 @@ class AXILiteConverter(Module):
             raise NotImplementedError("AXILiteUpConverter")
         else:
             self.comb += master.connect(slave)
+
+# AXILite Timeout ----------------------------------------------------------------------------------
+
+class AXILiteTimeout(Module):
+    """Protect master against slave timeouts (master _has_ to respond correctly)"""
+    def __init__(self, master, cycles):
+        self.error = Signal()
+        wr_error   = Signal()
+        rd_error   = Signal()
+
+        # # #
+
+        self.comb += self.error.eq(wr_error | rd_error)
+
+        wr_timer = WaitTimer(int(cycles))
+        rd_timer = WaitTimer(int(cycles))
+        self.submodules += wr_timer, rd_timer
+
+        def channel_fsm(timer, wait_cond, error, response):
+            fsm = FSM(reset_state="WAIT")
+            fsm.act("WAIT",
+                timer.wait.eq(wait_cond),
+                # done is updated in `sync`, so we must make sure that `ready` has not been issued
+                # by slave during that single cycle, by checking `timer.wait`
+                If(timer.done & timer.wait,
+                    error.eq(1),
+                    NextState("RESPOND")
+                )
+            )
+            fsm.act("RESPOND", *response)
+            return fsm
+
+        self.submodules.wr_fsm = channel_fsm(
+            timer     = wr_timer,
+            wait_cond = (master.aw.valid & ~master.aw.ready) | (master.w.valid & ~master.w.ready),
+            error     = wr_error,
+            response  = [
+                master.aw.ready.eq(master.aw.valid),
+                master.w.ready.eq(master.w.valid),
+                master.b.valid.eq(~master.aw.valid & ~master.w.valid),
+                master.b.resp.eq(RESP_SLVERR),
+                If(master.b.valid & master.b.ready,
+                    NextState("WAIT")
+                )
+            ])
+
+        self.submodules.rd_fsm = channel_fsm(
+            timer     = rd_timer,
+            wait_cond = master.ar.valid & ~master.ar.ready,
+            error     = rd_error,
+            response  = [
+                master.ar.ready.eq(master.ar.valid),
+                master.r.valid.eq(~master.ar.valid),
+                master.r.resp.eq(RESP_SLVERR),
+                master.r.data.eq(2**len(master.r.data) - 1),
+                If(master.r.valid & master.r.ready,
+                    NextState("WAIT")
+                )
+            ])
+
+# AXILite Interconnect -----------------------------------------------------------------------------
+
+class AXILiteInterconnectPointToPoint(Module):
+    def __init__(self, master, slave):
+        self.comb += master.connect(slave)
+
+
+class AXILiteRequestCounter(Module):
+    def __init__(self, request, response, max_requests=256):
+        self.counter = counter = Signal(max=max_requests)
+        self.full = full = Signal()
+        self.empty = empty = Signal()
+        self.stall = stall = Signal()
+        self.ready = self.empty
+
+        self.comb += [
+            full.eq(counter == max_requests - 1),
+            empty.eq(counter == 0),
+            stall.eq(request & full),
+        ]
+
+        self.sync += [
+            If(request & response,
+                counter.eq(counter)
+            ).Elif(request & ~full,
+                counter.eq(counter + 1)
+            ).Elif(response & ~empty,
+                counter.eq(counter - 1)
+            ),
+        ]
+
+class AXILiteArbiter(Module):
+    """AXI Lite arbiter
+
+    Arbitrate between master interfaces and connect one to the target.
+    New master will not be selected until all requests have been responded to.
+    Arbitration for write and read channels is done separately.
+    """
+    def __init__(self, masters, target):
+        self.submodules.rr_write = roundrobin.RoundRobin(len(masters), roundrobin.SP_CE)
+        self.submodules.rr_read = roundrobin.RoundRobin(len(masters), roundrobin.SP_CE)
+
+        def get_sig(interface, channel, name):
+            return getattr(getattr(interface, channel), name)
+
+        # mux master->slave signals
+        for channel, name, direction in target.layout_flat():
+            rr = self.rr_write if channel in ["aw", "w", "b"] else self.rr_read
+            if direction == DIR_M_TO_S:
+                choices = Array(get_sig(m, channel, name) for m in masters)
+                self.comb += get_sig(target, channel, name).eq(choices[rr.grant])
+
+        # connect slave->master signals
+        for channel, name, direction in target.layout_flat():
+            rr = self.rr_write if channel in ["aw", "w", "b"] else self.rr_read
+            if direction == DIR_S_TO_M:
+                source = get_sig(target, channel, name)
+                for i, m in enumerate(masters):
+                    dest = get_sig(m, channel, name)
+                    if name == "ready":
+                        self.comb += dest.eq(source & (rr.grant == i))
+                    else:
+                        self.comb += dest.eq(source)
+
+        # allow to change rr.grant only after all requests from a master have been responded to
+        self.submodules.wr_lock = wr_lock = AXILiteRequestCounter(
+            request=target.aw.valid & target.aw.ready, response=target.b.valid & target.b.ready)
+        self.submodules.rd_lock = rd_lock = AXILiteRequestCounter(
+            request=target.ar.valid & target.ar.ready, response=target.r.valid & target.r.ready)
+
+        # switch to next request only if there are no responses pending
+        self.comb += [
+            self.rr_write.ce.eq(~(target.aw.valid | target.w.valid | target.b.valid) & wr_lock.ready),
+            self.rr_read.ce.eq(~(target.ar.valid | target.r.valid) & rd_lock.ready),
+        ]
+
+        # connect bus requests to round-robin selectors
+        self.comb += [
+            self.rr_write.request.eq(Cat(*[m.aw.valid | m.w.valid | m.b.valid for m in masters])),
+            self.rr_read.request.eq(Cat(*[m.ar.valid | m.r.valid for m in masters])),
+        ]
+
+class AXILiteDecoder(Module):
+    _doc_slaves = """
+    slaves: [(decoder, slave), ...]
+        List of slaves with address decoders, where `decoder` is a function:
+            decoder(Signal(address_width - log2(data_width//8))) -> Signal(1)
+        that returns 1 when the slave is selected and 0 otherwise.
+    """.strip()
+
+    __doc__ = """AXI Lite decoder
+
+    Decode master access to particular slave based on its decoder function.
+
+    {slaves}
+    """.format(slaves=_doc_slaves)
+
+    def __init__(self, master, slaves, register=False):
+        # TODO: unused register argument
+        addr_shift = log2_int(master.data_width//8)
+
+        channels = {
+            "write": {"aw", "w", "b"},
+            "read":  {"ar", "r"},
+        }
+        # reverse mapping: directions[channel] -> "write"/"read"
+        directions = {ch: d for d, chs in channels.items() for ch in chs}
+
+        def new_slave_sel():
+            return {"write": Signal(len(slaves)), "read":  Signal(len(slaves))}
+
+        slave_sel_dec = new_slave_sel()
+        slave_sel_reg = new_slave_sel()
+        slave_sel     = new_slave_sel()
+
+        # we need to hold the slave selected until all responses come back
+        # TODO: we could reuse arbiter counters
+        locks = {
+            "write": AXILiteRequestCounter(
+                request=master.aw.valid & master.aw.ready,
+                response=master.b.valid & master.b.ready),
+            "read": AXILiteRequestCounter(
+                request=master.ar.valid & master.ar.ready,
+                response=master.r.valid & master.r.ready),
+        }
+        self.submodules += locks.values()
+
+        def get_sig(interface, channel, name):
+            return getattr(getattr(interface, channel), name)
+
+        # # #
+
+        # decode slave addresses
+        for i, (decoder, bus) in enumerate(slaves):
+            self.comb += [
+                slave_sel_dec["write"][i].eq(decoder(master.aw.addr[addr_shift:])),
+                slave_sel_dec["read"][i].eq(decoder(master.ar.addr[addr_shift:])),
+            ]
+
+        # change the current selection only when we've got all responses
+        for channel in locks.keys():
+            self.sync += If(locks[channel].ready, slave_sel_reg[channel].eq(slave_sel_dec[channel]))
+        # we have to cut the delaying select
+        for ch, final in slave_sel.items():
+            self.comb += If(locks[ch].ready,
+                             final.eq(slave_sel_dec[ch])
+                         ).Else(
+                             final.eq(slave_sel_reg[ch])
+                         )
+
+        # connect master->slaves signals except valid/ready
+        for i, (_, slave) in enumerate(slaves):
+            for channel, name, direction in master.layout_flat():
+                if direction == DIR_M_TO_S:
+                    src = get_sig(master, channel, name)
+                    dst = get_sig(slave, channel, name)
+                    # mask master control signals depending on slave selection
+                    if name in ["valid", "ready"]:
+                        src = src & slave_sel[directions[channel]][i]
+                    self.comb += dst.eq(src)
+
+        # connect slave->master signals masking not selected slaves
+        for channel, name, direction in master.layout_flat():
+            if direction == DIR_S_TO_M:
+                dst = get_sig(master, channel, name)
+                masked = []
+                for i, (_, slave) in enumerate(slaves):
+                    src = get_sig(slave, channel, name)
+                    # mask depending on channel
+                    mask = Replicate(slave_sel[directions[channel]][i], len(dst))
+                    masked.append(src & mask)
+                self.comb += dst.eq(reduce(or_, masked))
+
+class AXILiteInterconnectShared(Module):
+    __doc__ = """AXI Lite shared interconnect
+
+    {slaves}
+    """.format(slaves=AXILiteDecoder._doc_slaves)
+
+    def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
+        # TODO: data width
+        shared = AXILiteInterface()
+        self.submodules.arbiter = AXILiteArbiter(masters, shared)
+        self.submodules.decoder = AXILiteDecoder(shared, slaves)
+        if timeout_cycles is not None:
+            self.submodules.timeout = AXILiteTimeout(shared, timeout_cycles)
+
+class AXILiteCrossbar(Module):
+    __doc__ = """AXI Lite crossbar
+
+    MxN crossbar for M masters and N slaves.
+
+    {slaves}
+    """.format(slaves=AXILiteDecoder._doc_slaves)
+
+    def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
+        matches, busses = zip(*slaves)
+        access_m_s = [[AXILiteInterface() for j in slaves] for i in masters]  # a[master][slave]
+        access_s_m = list(zip(*access_m_s))  # a[slave][master]
+        # decode each master into its access row
+        for slaves, master in zip(access_m_s, masters):
+            slaves = list(zip(matches, slaves))
+            self.submodules += AXILiteDecoder(master, slaves, register)
+        # arbitrate each access column onto its slave
+        for masters, bus in zip(access_s_m, busses):
+            self.submodules += AXILiteArbiter(masters, bus)
