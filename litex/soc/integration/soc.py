@@ -766,8 +766,16 @@ class SoC(Module):
         self.csr.add(name, use_loc_if_exists=True)
 
     def add_ram(self, name, origin, size, contents=[], mode="rw"):
-        ram_bus = wishbone.Interface(data_width=self.bus.data_width)
-        ram     = wishbone.SRAM(size, bus=ram_bus, init=contents, read_only=(mode == "r"))
+        ram_cls = {
+            "wishbone": wishbone.SRAM,
+            "axi-lite": axi.AXILiteSRAM,
+        }[self.bus.standard]
+        interface_cls = {
+            "wishbone": wishbone.Interface,
+            "axi-lite": axi.AXILiteInterface,
+        }[self.bus.standard]
+        ram_bus = interface_cls(data_width=self.bus.data_width)
+        ram     = ram_cls(size, bus=ram_bus, init=contents, read_only=(mode == "r"))
         self.bus.add_slave(name, ram.bus, SoCRegion(origin=origin, size=size, mode=mode))
         self.check_if_exists(name)
         self.logger.info("RAM {} {} {}.".format(
