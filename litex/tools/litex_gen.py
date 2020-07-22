@@ -17,6 +17,7 @@ from litex.soc.interconnect import axi
 from litex.soc.cores.pwm import PWM
 from litex.soc.cores.gpio import GPIOTristate
 from litex.soc.cores.spi import SPIMaster, SPISlave
+from litex.soc.cores.clock import S7MMCM
 
 # Platform -----------------------------------------------------------------------------------------
 
@@ -43,6 +44,7 @@ class LiteXCore(SoCMini):
     SoCMini.mem_map["csr"] = 0x00000000
     def __init__(self, sys_clk_freq=int(100e6),
         with_pwm        = False,
+        with_mmcm       = False,
         with_gpio       = False, gpio_width=32,
         with_spi_master = False, spi_master_data_width=8, spi_master_clk_freq=8e6,
         **kwargs):
@@ -64,6 +66,35 @@ class LiteXCore(SoCMini):
         # SoCMini ----------------------------------------------------------------------------------
         print(kwargs)
         SoCMini.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
+
+        # MMCM
+        if with_mmcm:
+            platform.add_extension([
+                ("clkgen", 0,
+                    Subsignal("ref", Pins(1)),
+                    Subsignal("out0", Pins(1)),
+                    Subsignal("out1", Pins(1)),
+                    Subsignal("locked", Pins(1)),
+                )
+            ])
+            
+            self.clock_domains.cd_out0 = ClockDomain(reset_less=True)
+            self.clock_domains.cd_out1 = ClockDomain(reset_less=True)
+            self.submodules.mmcm = mmcm = S7MMCM()
+            mmcm.expose_drp()
+            self.add_csr("mmcm")
+
+            clkgen = platform.request("clkgen")
+
+            mmcm.register_clkin(clkgen.ref, 100e6)
+            mmcm.create_clkout(self.cd_out0, 148.5e6, with_reset=False)
+            mmcm.create_clkout(self.cd_out1, 742.5e6, with_reset=False)
+
+            self.comb += [
+                clkgen.out0.eq(self.cd_out0.clk),
+                clkgen.out1.eq(self.cd_out1.clk),
+                clkgen.locked.eq(mmcm.locked),
+            ]
 
         # SPI Master
         if with_spi_master:
@@ -128,6 +159,7 @@ def soc_argdict(args):
     for arg in [
         "bus",
         "with_pwm",
+        "with_mmcm",
         "with_uart",
         "uart_fifo_depth",
         "with_ctrl",
@@ -152,6 +184,7 @@ def main():
 
     # Cores
     parser.add_argument("--with-pwm",              action="store_true",   help="Add PWM core")
+    parser.add_argument("--with-mmcm",             action="store_true",   help="Add MMCM (Xilinx 7-series) core")
     parser.add_argument("--with-uart",             action="store_true",   help="Add UART core")
     parser.add_argument("--uart-fifo-depth",       default=16, type=int,  help="UART FIFO depth (default=16)")
     parser.add_argument("--with-ctrl",             action="store_true",   help="Add bus controller core")
