@@ -134,16 +134,16 @@ def r_lite_description(data_width):
     ]
 
 class AXILiteInterface:
-    def __init__(self, data_width=32, address_width=32, clock_domain="sys"):
+    def __init__(self, data_width=32, address_width=32, clock_domain="sys", name=None):
         self.data_width    = data_width
         self.address_width = address_width
         self.clock_domain  = clock_domain
 
-        self.aw = stream.Endpoint(ax_lite_description(address_width))
-        self.w  = stream.Endpoint(w_lite_description(data_width))
-        self.b  = stream.Endpoint(b_lite_description())
-        self.ar = stream.Endpoint(ax_lite_description(address_width))
-        self.r  = stream.Endpoint(r_lite_description(data_width))
+        self.aw = stream.Endpoint(ax_lite_description(address_width), name=name)
+        self.w  = stream.Endpoint(w_lite_description(data_width), name=name)
+        self.b  = stream.Endpoint(b_lite_description(), name=name)
+        self.ar = stream.Endpoint(ax_lite_description(address_width), name=name)
+        self.r  = stream.Endpoint(r_lite_description(data_width), name=name)
 
     def get_ios(self, bus_name="wb"):
         subsignals = []
@@ -1116,11 +1116,11 @@ class AXILiteInterconnectShared(Module):
     {slaves}
     """.format(slaves=AXILiteDecoder._doc_slaves)
 
-    def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
+    def __init__(self, masters, slaves, timeout_cycles=1e6):
         # TODO: data width
         shared = AXILiteInterface()
         self.submodules.arbiter = AXILiteArbiter(masters, shared)
-        self.submodules.decoder = AXILiteDecoder(shared, slaves, register)
+        self.submodules.decoder = AXILiteDecoder(shared, slaves)
         if timeout_cycles is not None:
             self.submodules.timeout = AXILiteTimeout(shared, timeout_cycles)
 
@@ -1132,7 +1132,7 @@ class AXILiteCrossbar(Module):
     {slaves}
     """.format(slaves=AXILiteDecoder._doc_slaves)
 
-    def __init__(self, masters, slaves, register=False):
+    def __init__(self, masters, slaves, timeout_cycles=1e6):
         matches, busses = zip(*slaves)
         access_m_s = [[AXILiteInterface() for j in slaves] for i in masters]  # a[master][slave]
         access_s_m = list(zip(*access_m_s))  # a[slave][master]
