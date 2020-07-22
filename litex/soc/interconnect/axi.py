@@ -1043,7 +1043,8 @@ class AXILiteDecoder(Module):
     {slaves}
     """.format(slaves=_doc_slaves)
 
-    def __init__(self, master, slaves):
+    def __init__(self, master, slaves, register=False):
+        # TODO: unused register argument
         addr_shift = log2_int(master.data_width//8)
 
         channels = {
@@ -1124,7 +1125,7 @@ class AXILiteInterconnectShared(Module):
     {slaves}
     """.format(slaves=AXILiteDecoder._doc_slaves)
 
-    def __init__(self, masters, slaves, timeout_cycles=1e6):
+    def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
         # TODO: data width
         shared = AXILiteInterface()
         self.submodules.arbiter = AXILiteArbiter(masters, shared)
@@ -1140,7 +1141,7 @@ class AXILiteCrossbar(Module):
     {slaves}
     """.format(slaves=AXILiteDecoder._doc_slaves)
 
-    def __init__(self, masters, slaves, timeout_cycles=1e6):
+    def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
         matches, busses = zip(*slaves)
         access_m_s = [[AXILiteInterface() for j in slaves] for i in masters]  # a[master][slave]
         access_s_m = list(zip(*access_m_s))  # a[slave][master]
