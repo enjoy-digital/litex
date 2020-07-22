@@ -448,6 +448,10 @@ _connectors = [
     ("LPC", {
         "GBTCLK0_M2C_P" : "N8",
         "GBTCLK0_M2C_N" : "N7",
+        "DP0_C2M_P"     : "F2",
+        "DP0_C2M_N"     : "F1",
+        "DP0_M2C_P"     : "F6",
+        "DP0_M2C_N"     : "F5",
         "LA01_CC_P"     : "AE23",
         "LA01_CC_N"     : "AF23",
         "LA05_P"        : "AG22",

@@ -145,6 +145,25 @@ _io = [
     ),
 ]
 
+_i2s_pmod_io = [
+    # I2S PMOD on JD:
+    # - https://store.digilentinc.com/pmod-i2s2-stereo-audio-input-and-output/
+    ("i2s_rx_mclk", 0, Pins("E2"), IOStandard("LVCMOS33")),
+    ("i2s_rx", 0,
+        Subsignal("clk", Pins("H2")),
+        Subsignal("sync", Pins("D2")),
+        Subsignal("rx", Pins("G2")),
+        IOStandard("LVCMOS33"),
+    ),
+    ("i2s_tx_mclk", 0, Pins("D4"), IOStandard("LVCMOS33")),
+    ("i2s_tx", 0,
+        Subsignal("clk",Pins("F4")),
+        Subsignal("sync", Pins("D3")),
+        Subsignal("tx", Pins("F3")),
+        IOStandard("LVCMOS33"),
+    ),
+]
+
 _sdcard_pmod_io = [
     # SDCard PMOD on JD:
     # - https://store.digilentinc.com/pmod-microsd-microsd-card-slot/
@@ -158,8 +177,8 @@ _sdcard_pmod_io = [
         IOStandard("LVCMOS33"),
     ),
     ("sdcard", 0,
-        Subsignal("data", Pins("F4 E2 D2 D4")),
-        Subsignal("cmd", Pins("D3")),
+        Subsignal("data", Pins("F4 E2 D2 D4"), Misc("PULLUP True")),
+        Subsignal("cmd", Pins("D3"), Misc("PULLUP True")),
         Subsignal("clk", Pins("F3")),
         Subsignal("cd", Pins("H2")),
         Misc("SLEW=FAST"),

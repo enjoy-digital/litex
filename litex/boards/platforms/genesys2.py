@@ -145,6 +145,7 @@ class Platform(XilinxPlatform):
 
     def __init__(self):
         XilinxPlatform.__init__(self, "xc7k325t-ffg900-2", _io, _connectors, toolchain="vivado")
+        self.add_platform_command("set_property INTERNAL_VREF 0.750 [get_iobanks 34]")
 
     def create_programmer(self):
         return OpenOCD("openocd_genesys2.cfg", "bscan_spi_xc7a325t.bit")
