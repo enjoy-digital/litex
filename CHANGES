@@ -22,9 +22,11 @@
 	- Add CV32E40P CPU support (ex RI5CY).
 	- JTAG UART with uart_name=jtag_uart (validated on Spartan6, 7-Series, Ultrascale(+)).
 	- Add Symbiflow experimental support on Arty.
-	- Add SDCard boot from FAT/exFAT filesystems with FatFs.
+	- Add SDCard (SPI and SD modes) boot from FAT/exFAT filesystems with FatFs.
 	- Simplify boot with boot.json configuration file.
 	- Revert to a single crt0 (avoid ctr/xip variants).
+	- Add otional DMA bus for Cache Coherency on CPU(s) with DMA/Cache Coherency interface.
+	- Add AXI-Lite bus standard support.
 
 	[> API changes/Deprecation
 	--------------------------
