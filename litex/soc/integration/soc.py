@@ -106,8 +106,8 @@ class SoCBusHandler(Module):
     supported_address_width = [32]
 
     # Creation -------------------------------------------------------------------------------------
-    def __init__(self, standard, data_width=32, address_width=32, timeout=1e6, reserved_regions={}):
-        self.logger = logging.getLogger("SoCBusHandler")
+    def __init__(self, name="SoCBusHandler", standard="wishbone", data_width=32, address_width=32, timeout=1e6, reserved_regions={}):
+        self.logger = logging.getLogger(name)
         self.logger.info("Creating Bus Handler...")
 
         # Check Standard
@@ -130,7 +130,7 @@ class SoCBusHandler(Module):
         if address_width not in self.supported_address_width:
             self.logger.error("Unsupported {} {}, supporteds: {:s}".format(
                 colorer("Address Width", color="red"),
-                colorer(data_width),
+                colorer(address_width),
                 colorer(", ".join(str(x) for x in self.supported_address_width))))
             raise
 
@@ -815,7 +815,18 @@ class SoC(Module):
                     self.irq.add(name, loc)
                 self.add_config("CPU_HAS_INTERRUPT")
 
+            # Create optional DMA Bus (for Cache Coherence)
+            if hasattr(self.cpu, "dma_bus"):
+                self.submodules.dma_bus = SoCBusHandler(
+                    name             = "SoCDMABusHandler",
+                    standard         = "wishbone",
+                    data_width       = self.bus.data_width,
+                )
+                dma_bus = wishbone.Interface(data_width=self.bus.data_width)
+                self.dma_bus.add_slave("dma", slave=dma_bus, region=SoCRegion(origin=0x00000000, size=0x80000000)) # FIXME: size
+                self.submodules += wishbone.Converter(dma_bus, self.cpu.dma_bus)
 
+            # Connect SoCController's reset to CPU reset
             if hasattr(self, "ctrl"):
                 if hasattr(self.ctrl, "reset"):
                     self.comb += self.cpu.reset.eq(self.ctrl.reset)
@@ -840,6 +851,8 @@ class SoC(Module):
         self.logger.info(colorer("Finalized SoC:"))
         self.logger.info(colorer("-"*80, color="bright"))
         self.logger.info(self.bus)
+        if hasattr(self, "dma_bus"):
+            self.logger.info(self.dma_bus)
         self.logger.info(self.csr)
         self.logger.info(self.irq)
         self.logger.info(colorer("-"*80, color="bright"))
@@ -870,6 +883,28 @@ class SoC(Module):
         self.add_constant("CONFIG_BUS_STANDARD",      self.bus.standard.upper())
         self.add_constant("CONFIG_BUS_DATA_WIDTH",    self.bus.data_width)
         self.add_constant("CONFIG_BUS_ADDRESS_WIDTH", self.bus.address_width)
+
+        # SoC DMA Bus Interconnect (Cache Coherence) -----------------------------------------------
+        if hasattr(self, "dma_bus"):
+            if len(self.dma_bus.masters) and len(self.dma_bus.slaves):
+                # If 1 bus_master, 1 bus_slave and no address translation, use InterconnectPointToPoint.
+                if ((len(self.dma_bus.masters) == 1)  and
+                    (len(self.dma_bus.slaves)  == 1)  and
+                    (next(iter(self.dma_bus.regions.values())).origin == 0)):
+                    self.submodules.bus_interconnect = wishbone.InterconnectPointToPoint(
+                        master = next(iter(self.dma_bus.masters.values())),
+                        slave  = next(iter(self.dma_bus.slaves.values())))
+                # Otherwise, use InterconnectShared.
+                else:
+                    self.submodules.dma_bus_interconnect = wishbone.InterconnectShared(
+                        masters        = self.dma_bus.masters.values(),
+                        slaves         = [(self.dma_bus.regions[n].decoder(self.dma_bus), s) for n, s in self.dma_bus.slaves.items()],
+                        register       = True)
+            self.bus.logger.info("DMA Interconnect: {} ({} <-> {}).".format(
+                colorer(self.dma_bus_interconnect.__class__.__name__),
+                colorer(len(self.dma_bus.masters)),
+                colorer(len(self.dma_bus.slaves))))
+            self.add_constant("CONFIG_CPU_HAS_DMA_BUS")
 
         # SoC CSR Interconnect ---------------------------------------------------------------------
         self.submodules.csr_bankarray = csr_bus.CSRBankArray(self,
@@ -1299,10 +1334,8 @@ class LiteXSoC(SoC):
             bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.address_width)
             self.submodules.sdblock2mem = SDBlock2MemDMA(bus=bus, endianness=self.cpu.endianness)
             self.comb += self.sdcore.source.connect(self.sdblock2mem.sink)
-            if hasattr(self.cpu, "dmabus"): # FIXME: VexRiscv SMP / DMA test.
-                self.submodules += wishbone.Converter(bus, self.cpu.dmabus)
-            else:
-                self.bus.add_master("sdblock2mem", master=bus)
+            dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
+            dma_bus.add_master("sdblock2mem", master=bus)
             self.add_csr("sdblock2mem")
 
         # Mem2Block DMA
@@ -1310,5 +1343,6 @@ class LiteXSoC(SoC):
             bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.address_width)
             self.submodules.sdmem2block = SDMem2BlockDMA(bus=bus, endianness=self.cpu.endianness)
             self.comb += self.sdmem2block.source.connect(self.sdcore.sink)
-            self.bus.add_master("sdmem2block", master=bus)
+            dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
+            dma_bus.add_master("sdmem2block", master=bus)
             self.add_csr("sdmem2block")

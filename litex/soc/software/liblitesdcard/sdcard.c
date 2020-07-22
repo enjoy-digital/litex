@@ -576,10 +576,12 @@ sdcard_set_block_count(count);
 
 	sdcard_stop_transmission();
 
+#ifndef CONFIG_CPU_HAS_DMA_BUS
 	/* Flush CPU caches */
 	flush_cpu_dcache();
 #ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
+#endif
 #endif
 }
 
