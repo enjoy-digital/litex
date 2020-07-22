@@ -974,10 +974,12 @@ class TestAXILiteInterconnect(unittest.TestCase):
 
     def interconnect_shared_test(self, master_patterns, slave_decoders,
                                  master_delay=0, slave_ready_latency=0, slave_response_latency=0,
-                                 timeout=300, **kwargs):
+                                 disconnected_slaves=None, timeout=300, **kwargs):
         # number of masters/slaves is defined by the number of patterns/decoders
         # master_patterns: list of patterns per master, pattern = list(tuple(rw, addr, data))
         # slave_decoders: list of address decoders per slave
+        # delay/latency: control the speed of masters/slaves
+        # disconnected_slaves: list of slave numbers that shouldn't respond to any transactions
         class DUT(Module):
             def __init__(self, n_masters, decoders, **kwargs):
                 self.masters = [AXILiteInterface(name="master") for _ in range(n_masters)]
@@ -1013,9 +1015,11 @@ class TestAXILiteInterconnect(unittest.TestCase):
 
         # run simulator
         generators = [gen.handler() for gen in pattern_generators]
-        generators += [checker.handler(slave) for (slave, checker) in zip(dut.slaves, checkers)]
+        generators += [checker.handler(slave)
+                       for i, (slave, checker) in enumerate(zip(dut.slaves, checkers))
+                       if i not in (disconnected_slaves or [])]
         generators += [timeout_generator(timeout)]
-        run_simulation(dut, generators)
+        run_simulation(dut, generators, vcd_name='sim.vcd')
 
         return pattern_generators, checkers
 
@@ -1075,7 +1079,10 @@ class TestAXILiteInterconnect(unittest.TestCase):
             read_errors = ["  0x{:08x} vs 0x{:08x}".format(v, ref) for v, ref in gen.read_errors]
             msg = "\ngen.resp_errors = {}\ngen.read_errors = \n{}".format(
                 gen.resp_errors, "\n".join(read_errors))
-            self.assertEqual(gen.errors, 0, msg=msg)
+            if not kwargs.get("disconnected_slaves", None):
+                self.assertEqual(gen.errors, 0, msg=msg)
+            else:  # when some slaves are disconnected we should have some errors
+                self.assertNotEqual(gen.errors, 0, msg=msg)
 
         # make sure all the accesses at slave side are in correct address region
         for i_slave, (checker, decoder) in enumerate(zip(checkers, slave_decoders_py)):
@@ -1104,3 +1111,8 @@ class TestAXILiteInterconnect(unittest.TestCase):
                                              master_delay=rand,
                                              slave_ready_latency=rand,
                                              slave_response_latency=rand)
+
+    def test_interconnect_shared_stress_timeout(self):
+        self.interconnect_shared_stress_test(timeout=4000,
+                                             disconnected_slaves=[1],
+                                             timeout_cycles=50)

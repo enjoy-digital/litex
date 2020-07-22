@@ -893,48 +893,58 @@ class AXILiteTimeout(Module):
     """Protect master against slave timeouts (master _has_ to respond correctly)"""
     def __init__(self, master, cycles):
         self.error = Signal()
+        wr_error   = Signal()
+        rd_error   = Signal()
 
         # # #
 
-        timer = WaitTimer(int(cycles))
-        self.submodules += timer
-        is_write = Signal()
-        is_read  = Signal()
+        self.comb += self.error.eq(wr_error | rd_error)
 
-        self.submodules.fsm = fsm = FSM()
-        fsm.act("WAIT",
-            is_write.eq((master.aw.valid & ~master.aw.ready) | (master.w.valid & ~master.w.ready)),
-            is_read.eq(master.ar.valid & ~master.ar.ready),
-            timer.wait.eq(is_write | is_read),
-            # done is updated in `sync`, so we must make sure that `ready` has not been issued
-            # by slave during that single cycle, by checking `timer.wait`
-            If(timer.done & timer.wait,
-                self.error.eq(1),
-                If(is_write,
-                    NextState("RESPOND-WRITE")
-                ).Else(
-                    NextState("RESPOND-READ")
+        wr_timer = WaitTimer(int(cycles))
+        rd_timer = WaitTimer(int(cycles))
+        self.submodules += wr_timer, rd_timer
+
+        def channel_fsm(timer, wait_cond, error, response):
+            fsm = FSM(reset_state="WAIT")
+            fsm.act("WAIT",
+                timer.wait.eq(wait_cond),
+                # done is updated in `sync`, so we must make sure that `ready` has not been issued
+                # by slave during that single cycle, by checking `timer.wait`
+                If(timer.done & timer.wait,
+                    error.eq(1),
+                    NextState("RESPOND")
                 )
             )
-        )
-        fsm.act("RESPOND-WRITE",
-            master.aw.ready.eq(master.aw.valid),
-            master.w.ready.eq(master.w.valid),
-            master.b.valid.eq(~master.aw.valid & ~master.w.valid),
-            master.b.resp.eq(RESP_SLVERR),
-            If(master.b.valid & master.b.ready,
-                NextState("WAIT")
-            )
-        )
-        fsm.act("RESPOND-READ",
-            master.ar.ready.eq(master.ar.valid),
-            master.r.valid.eq(~master.ar.valid),
-            master.r.resp.eq(RESP_SLVERR),
-            master.r.data.eq(2**len(master.r.data) - 1),
-            If(master.r.valid & master.r.ready,
-                NextState("WAIT")
-            )
-        )
+            fsm.act("RESPOND", *response)
+            return fsm
+
+        self.submodules.wr_fsm = channel_fsm(
+            timer     = wr_timer,
+            wait_cond = (master.aw.valid & ~master.aw.ready) | (master.w.valid & ~master.w.ready),
+            error     = wr_error,
+            response  = [
+                master.aw.ready.eq(master.aw.valid),
+                master.w.ready.eq(master.w.valid),
+                master.b.valid.eq(~master.aw.valid & ~master.w.valid),
+                master.b.resp.eq(RESP_SLVERR),
+                If(master.b.valid & master.b.ready,
+                    NextState("WAIT")
+                )
+            ])
+
+        self.submodules.rd_fsm = channel_fsm(
+            timer     = rd_timer,
+            wait_cond = master.ar.valid & ~master.ar.ready,
+            error     = rd_error,
+            response  = [
+                master.ar.ready.eq(master.ar.valid),
+                master.r.valid.eq(~master.ar.valid),
+                master.r.resp.eq(RESP_SLVERR),
+                master.r.data.eq(2**len(master.r.data) - 1),
+                If(master.r.valid & master.r.ready,
+                    NextState("WAIT")
+                )
+            ])
 
 # AXILite Interconnect -----------------------------------------------------------------------------
 
@@ -1051,8 +1061,6 @@ class AXILiteDecoder(Module):
         slave_sel     = new_slave_sel()
 
         # we need to hold the slave selected until all responses come back
-        # TODO: check if this will break Timeout if a slave does not respond?
-        # should probably work correctly as it uses master signals
         # TODO: we could reuse arbiter counters
         locks = {
             "write": AXILiteRequestCounter(
