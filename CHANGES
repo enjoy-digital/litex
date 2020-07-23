@@ -36,6 +36,7 @@
 	- Move soc.interconnect.wishbone2csr.WB2CSR to soc.interconnect.wishbone.Wishbone2CSR.
 	- Move soc.interconnect.wishbonebridge.WishboneStreamingBridge to soc.cores.uart.Stream2Wishbone.
 	- Rename --gateware-toolchain target parameter to --toolchain.
+	- Integrate Zynq's PS7 as a regular CPU (zynq7000) and deprecate SoCZynq.
 
 [> 2020.04, released April 28th, 2020
 -------------------------------------
