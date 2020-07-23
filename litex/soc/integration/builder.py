@@ -17,9 +17,15 @@ import shutil
 from litex import get_data_mod
 from litex.build.tools import write_to_file
 from litex.soc.integration import export, soc_core
+from litex.soc.cores import cpu
 
-__all__ = ["soc_software_packages", "soc_directory",
-           "Builder", "builder_args", "builder_argdict"]
+__all__ = [
+    "soc_software_packages",
+    "soc_directory",
+    "Builder",
+    "builder_args",
+    "builder_argdict"
+]
 
 
 soc_software_packages = [
@@ -84,7 +90,7 @@ class Builder:
         os.makedirs(self.include_dir, exist_ok=True)
         os.makedirs(self.generated_dir, exist_ok=True)
 
-        if self.soc.cpu_type is not None:
+        if self.soc.cpu_type not in [None, "zynq7000"]:
             variables_contents = []
             def define(k, v):
                 variables_contents.append("{}={}\n".format(k, _makefile_escape(v)))

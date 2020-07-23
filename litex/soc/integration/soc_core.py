@@ -131,6 +131,8 @@ class SoCCore(LiteXSoC):
         self.cpu_variant                = cpu_variant
         self.cpu_cls                    = cpu_cls
 
+        if cpu_type in [None, "zynq7000"]:
+            integrated_rom_size = 0
         self.integrated_rom_size        = integrated_rom_size
         self.integrated_rom_initialized = integrated_rom_init != []
         self.integrated_sram_size       = integrated_sram_size

@@ -825,7 +825,7 @@ class SoC(Module):
             self.bus.add_region("io{}".format(n), SoCIORegion(origin=origin, size=size, cached=False))
         self.mem_map.update(self.cpu.mem_map) # FIXME
         # Add Bus Masters/CSR/IRQs
-        if not isinstance(self.cpu, cpu.CPUNone):
+        if not isinstance(self.cpu, (cpu.CPUNone, cpu.Zynq7000)):
             if reset_address is None:
                 reset_address = self.mem_map["rom"]
             self.cpu.set_reset_address(reset_address)
@@ -972,7 +972,7 @@ class SoC(Module):
             self.add_constant(name + "_" + constant.name, constant.value.value)
 
         # SoC CPU Check ----------------------------------------------------------------------------
-        if not isinstance(self.cpu, cpu.CPUNone):
+        if not isinstance(self.cpu, (cpu.CPUNone, cpu.Zynq7000)):
             if "sram" not in self.bus.regions.keys():
                 self.logger.error("CPU needs {} Region to be {} as Bus or Linker Region.".format(
                     colorer("sram"),
