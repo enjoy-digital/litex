@@ -24,14 +24,18 @@ from litex.soc.integration.builder import *
 from litex.soc.cores.led import LedChaser
 
 from litedram import modules as litedram_modules
-from litedram.phy import GENSDRPHY
+from litedram.phy import GENSDRPHY, HalfRateGENSDRPHY
 
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(Module):
-    def __init__(self, platform, sys_clk_freq, with_usb_pll=False):
+    def __init__(self, platform, sys_clk_freq, with_usb_pll=False, sdram_rate="1:1"):
         self.clock_domains.cd_sys    = ClockDomain()
-        self.clock_domains.cd_sys_ps = ClockDomain(reset_less=True)
+        if sdram_rate == "1:2":
+            self.clock_domains.cd_sys2x    = ClockDomain()
+            self.clock_domains.cd_sys2x_ps = ClockDomain(reset_less=True)
+        else:
+            self.clock_domains.cd_sys_ps = ClockDomain(reset_less=True)
 
         # # #
 
@@ -44,7 +48,11 @@ class _CRG(Module):
         self.comb += pll.reset.eq(rst)
         pll.register_clkin(clk25, 25e6)
         pll.create_clkout(self.cd_sys,    sys_clk_freq)
-        pll.create_clkout(self.cd_sys_ps, sys_clk_freq, phase=90)
+        if sdram_rate == "1:2":
+            pll.create_clkout(self.cd_sys2x,    2*sys_clk_freq)
+            pll.create_clkout(self.cd_sys2x_ps, 2*sys_clk_freq, phase=90)
+        else:
+           pll.create_clkout(self.cd_sys_ps, sys_clk_freq, phase=90)
         self.specials += AsyncResetSynchronizer(self.cd_sys, ~pll.locked | rst)
 
         # USB PLL
@@ -57,7 +65,8 @@ class _CRG(Module):
             usb_pll.create_clkout(self.cd_usb_48, 48e6, margin=0)
 
         # SDRAM clock
-        self.specials += DDROutput(1, 0, platform.request("sdram_clock"), ClockSignal("sys_ps"))
+        sdram_clk = ClockSignal("sys2x_ps" if sdram_rate == "1:2" else "sys_ps")
+        self.specials += DDROutput(1, 0, platform.request("sdram_clock"), sdram_clk)
 
         # Prevent ESP32 from resetting FPGA
         self.comb += platform.request("wifi_gpio0").eq(1)
@@ -66,7 +75,7 @@ class _CRG(Module):
 
 class BaseSoC(SoCCore):
     def __init__(self, device="LFE5U-45F", toolchain="trellis",
-        sys_clk_freq=int(50e6), sdram_module_cls="MT48LC16M16", **kwargs):
+        sys_clk_freq=int(50e6), sdram_module_cls="MT48LC16M16", sdram_rate="1:1", **kwargs):
 
         platform = ulx3s.Platform(device=device, toolchain=toolchain)
 
@@ -78,14 +87,15 @@ class BaseSoC(SoCCore):
 
         # CRG --------------------------------------------------------------------------------------
         with_usb_pll = kwargs.get("uart_name", None) == "usb_acm"
-        self.submodules.crg = _CRG(platform, sys_clk_freq, with_usb_pll)
+        self.submodules.crg = _CRG(platform, sys_clk_freq, with_usb_pll, sdram_rate=sdram_rate)
 
         # SDR SDRAM --------------------------------------------------------------------------------
         if not self.integrated_main_ram_size:
-            self.submodules.sdrphy = GENSDRPHY(platform.request("sdram"))
+            sdrphy_cls = HalfRateGENSDRPHY if sdram_rate == "1:2" else GENSDRPHY
+            self.submodules.sdrphy = sdrphy_cls(platform.request("sdram"))
             self.add_sdram("sdram",
                 phy                     = self.sdrphy,
-                module                  = getattr(litedram_modules, sdram_module_cls)(sys_clk_freq, "1:1"),
+                module                  = getattr(litedram_modules, sdram_module_cls)(sys_clk_freq, sdram_rate),
                 origin                  = self.mem_map["main_ram"],
                 size                    = kwargs.get("max_sdram_size", 0x40000000),
                 l2_cache_size           = kwargs.get("l2_size", 8192),
@@ -111,14 +121,16 @@ def main():
     parser.add_argument("--sdram-module", default="MT48LC16M16",  help="SDRAM module: MT48LC16M16, AS4C32M16 or AS4C16M16 (default=MT48LC16M16)")
     parser.add_argument("--with-spi-sdcard", action="store_true", help="Enable SPI-mode SDCard support")
     parser.add_argument("--with-sdcard", action="store_true",     help="Enable SDCard support")
+    parser.add_argument("--sdram-rate",  default="1:1", help="SDRAM Rate 1:1 Full Rate (default), 1:2 Half Rate")
     builder_args(parser)
     soc_sdram_args(parser)
     trellis_args(parser)
     args = parser.parse_args()
 
     soc = BaseSoC(device=args.device, toolchain=args.toolchain,
-        sys_clk_freq=int(float(args.sys_clk_freq)),
-        sdram_module_cls=args.sdram_module,
+        sys_clk_freq     = int(float(args.sys_clk_freq)),
+        sdram_module_cls = args.sdram_module,
+        sdram_rate       = args.sdram_rate,
         **soc_sdram_argdict(args))
     assert not (args.with_spi_sdcard and args.with_sdcard)
     if args.with_spi_sdcard:

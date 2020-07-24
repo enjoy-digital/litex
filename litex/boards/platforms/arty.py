@@ -145,47 +145,6 @@ _io = [
     ),
 ]
 
-_i2s_pmod_io = [
-    # I2S PMOD on JD:
-    # - https://store.digilentinc.com/pmod-i2s2-stereo-audio-input-and-output/
-    ("i2s_rx_mclk", 0, Pins("E2"), IOStandard("LVCMOS33")),
-    ("i2s_rx", 0,
-        Subsignal("clk", Pins("H2")),
-        Subsignal("sync", Pins("D2")),
-        Subsignal("rx", Pins("G2")),
-        IOStandard("LVCMOS33"),
-    ),
-    ("i2s_tx_mclk", 0, Pins("D4"), IOStandard("LVCMOS33")),
-    ("i2s_tx", 0,
-        Subsignal("clk",Pins("F4")),
-        Subsignal("sync", Pins("D3")),
-        Subsignal("tx", Pins("F3")),
-        IOStandard("LVCMOS33"),
-    ),
-]
-
-_sdcard_pmod_io = [
-    # SDCard PMOD on JD:
-    # - https://store.digilentinc.com/pmod-microsd-microsd-card-slot/
-    # - https://github.com/antmicro/arty-expansion-board
-    ("spisdcard", 0,
-        Subsignal("clk",  Pins("F3")),
-        Subsignal("mosi", Pins("D3"), Misc("PULLUP True")),
-        Subsignal("cs_n", Pins("D4"), Misc("PULLUP True")),
-        Subsignal("miso", Pins("F4"), Misc("PULLUP True")),
-        Misc("SLEW=FAST"),
-        IOStandard("LVCMOS33"),
-    ),
-    ("sdcard", 0,
-        Subsignal("data", Pins("F4 E2 D2 D4"), Misc("PULLUP True")),
-        Subsignal("cmd", Pins("D3"), Misc("PULLUP True")),
-        Subsignal("clk", Pins("F3")),
-        Subsignal("cd", Pins("H2")),
-        Misc("SLEW=FAST"),
-        IOStandard("LVCMOS33"),
-    ),
-]
-
 # Connectors ---------------------------------------------------------------------------------------
 
 _connectors = [
@@ -278,6 +237,64 @@ _connectors = [
         "isns0v95_n" : "A15",
         } ),
 ]
+
+# PMODS --------------------------------------------------------------------------------------------
+
+def usb_pmod_io(pmod):
+    return [
+        # USB-UART PMOD: https://store.digilentinc.com/pmod-usbuart-usb-to-uart-interface/
+        ("usb_uart", 0,
+            Subsignal("tx", Pins(f"{pmod}:1")),
+            Subsignal("rx", Pins(f"{pmod}:2")),
+            IOStandard("LVCMOS33")
+        ),
+    ]
+_usb_uart_pmod_io = usb_pmod_io("pmoda") # USB-UART PMOD on JA.
+
+
+def i2s_pmod_io(pmod):
+    return [
+        # I2S PMOD: https://store.digilentinc.com/pmod-i2s2-stereo-audio-input-and-output/
+        ("i2s_rx_mclk", 0, Pins(f"{pmod}:4"), IOStandard("LVCMOS33")),
+        ("i2s_rx", 0,
+            Subsignal("clk", Pins(f"{pmod}:6")),
+            Subsignal("sync", Pins(f"{pmod}:5")),
+            Subsignal("rx", Pins(f"{pmod}:7")),
+            IOStandard("LVCMOS33"),
+        ),
+        ("i2s_tx_mclk", 0, Pins(f"{pmod}:0"), IOStandard("LVCMOS33")),
+        ("i2s_tx", 0,
+            Subsignal("clk",Pins(f"{pmod}:2")),
+            Subsignal("sync", Pins(f"{pmod}:1")),
+            Subsignal("tx", Pins(f"{pmod}:3")),
+            IOStandard("LVCMOS33"),
+        ),
+    ]
+_i2s_pmod_io = i2s_pmod_io("pmodd") # I2S PMOD on JD.
+
+def sdcard_pmod_io(pmod):
+    return [
+        # SDCard PMOD:
+        # - https://store.digilentinc.com/pmod-microsd-microsd-card-slot/
+        # - https://github.com/antmicro/arty-expansion-board
+        ("spisdcard", 0,
+            Subsignal("clk",  Pins(f"{pmod}:3")),
+            Subsignal("mosi", Pins(f"{pmod}:1"), Misc("PULLUP True")),
+            Subsignal("cs_n", Pins(f"{pmod}:0"), Misc("PULLUP True")),
+            Subsignal("miso", Pins(f"{pmod}:2"), Misc("PULLUP True")),
+            Misc("SLEW=FAST"),
+            IOStandard("LVCMOS33"),
+        ),
+        ("sdcard", 0,
+            Subsignal("data", Pins(f"{pmod}:2 {pmod}:4 {pmod}:5 {pmod}:0"), Misc("PULLUP True")),
+            Subsignal("cmd",  Pins(f"{pmod}:1"), Misc("PULLUP True")),
+            Subsignal("clk",  Pins(f"{pmod}:3")),
+            Subsignal("cd",   Pins(f"{pmod}:6")),
+            Misc("SLEW=FAST"),
+            IOStandard("LVCMOS33"),
+        ),
+]
+_sdcard_pmod_io = sdcard_pmod_io("pmodd") # SDCARD PMOD on JD.
 
 # Platform -----------------------------------------------------------------------------------------
 
