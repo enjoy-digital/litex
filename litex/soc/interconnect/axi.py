@@ -59,7 +59,7 @@ def r_description(data_width, id_width):
         ("id",   id_width)
     ]
 
-def _connect_axi(master, slave):
+def _connect_axi(master, slave, keep=None, omit=None):
     channel_modes = {
         "aw": "master",
         "w" : "master",
@@ -73,7 +73,7 @@ def _connect_axi(master, slave):
             m, s = getattr(master, channel), getattr(slave, channel)
         else:
             s, m = getattr(master, channel), getattr(slave, channel)
-        r.extend(m.connect(s))
+        r.extend(m.connect(s, keep=keep, omit=omit))
     return r
 
 def _axi_layout_flat(axi):
@@ -107,8 +107,8 @@ class AXIInterface:
         self.ar = stream.Endpoint(ax_description(address_width, id_width))
         self.r  = stream.Endpoint(r_description(data_width, id_width))
 
-    def connect(self, slave):
-        return _connect_axi(self, slave)
+    def connect(self, slave, **kwargs):
+        return _connect_axi(self, slave, **kwargs)
 
     def layout_flat(self):
         return list(_axi_layout_flat(self))
@@ -183,8 +183,8 @@ class AXILiteInterface:
                     r.append(pad.eq(sig))
         return r
 
-    def connect(self, slave):
-        return _connect_axi(self, slave)
+    def connect(self, slave, **kwargs):
+        return _connect_axi(self, slave, **kwargs)
 
     def layout_flat(self):
         return list(_axi_layout_flat(self))
@@ -893,6 +893,64 @@ class AXILiteDownConverter(Module):
         self.submodules.write = _AXILiteDownConverterWrite(master, slave)
         self.submodules.read  = _AXILiteDownConverterRead(master, slave)
 
+class AXILiteUpConverter(Module):
+    # TODO: we could try joining multiple master accesses into single slave access
+    # would reuqire checking if address changes and a way to flush on single access
+    def __init__(self, master, slave):
+        assert isinstance(master, AXILiteInterface) and isinstance(slave, AXILiteInterface)
+        dw_from      = len(master.r.data)
+        dw_to        = len(slave.r.data)
+        ratio        = dw_to//dw_from
+        master_align = log2_int(master.data_width//8)
+        slave_align  = log2_int(slave.data_width//8)
+
+        wr_word   = Signal(log2_int(ratio))
+        rd_word   = Signal(log2_int(ratio))
+        wr_word_r = Signal(log2_int(ratio))
+        rd_word_r = Signal(log2_int(ratio))
+
+        # # #
+
+        self.comb += master.connect(slave, omit={"addr", "strb", "data"})
+
+        # Address
+        self.comb += [
+            slave.aw.addr[slave_align:].eq(master.aw.addr[slave_align:]),
+            slave.ar.addr[slave_align:].eq(master.ar.addr[slave_align:]),
+        ]
+
+        # Data path
+        wr_cases, rd_cases = {}, {}
+        for i in range(ratio):
+            strb_from = i     * dw_from//8
+            strb_to   = (i+1) * dw_from//8
+            data_from = i     * dw_from
+            data_to   = (i+1) * dw_from
+            wr_cases[i] = [
+                slave.w.strb[strb_from:strb_to].eq(master.w.strb),
+                slave.w.data[data_from:data_to].eq(master.w.data),
+            ]
+            rd_cases[i] = [
+                master.r.data.eq(slave.r.data[data_from:data_to]),
+            ]
+
+        # Switch current word based on the last valid master address
+        self.sync += If(master.aw.valid, wr_word_r.eq(wr_word))
+        self.sync += If(master.ar.valid, rd_word_r.eq(rd_word))
+        self.comb += [
+            Case(master.aw.valid, {
+                0: wr_word.eq(wr_word_r),
+                1: wr_word.eq(master.aw.addr[master_align:slave_align]),
+            }),
+            Case(master.ar.valid, {
+                0: rd_word.eq(rd_word_r),
+                1: rd_word.eq(master.ar.addr[master_align:slave_align]),
+            }),
+        ]
+
+        self.comb += Case(wr_word, wr_cases)
+        self.comb += Case(rd_word, rd_cases)
+
 class AXILiteConverter(Module):
     """AXILite data width converter"""
     def __init__(self, master, slave):
@@ -906,7 +964,7 @@ class AXILiteConverter(Module):
         if dw_from > dw_to:
             self.submodules += AXILiteDownConverter(master, slave)
         elif dw_from < dw_to:
-            raise NotImplementedError("AXILiteUpConverter")
+            self.submodules += AXILiteUpConverter(master, slave)
         else:
             self.comb += master.connect(slave)
 
