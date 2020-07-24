@@ -125,6 +125,21 @@ register listings. You can add additional modules by passing an array to
     generate_docs("build/documentation", sphinx_extensions=['sphinx.ext.mathjax'])
 ```
 
+You may need to pass additional configuration to `conf.py`. In this case, pass it
+as `sphinx_extra_config`. For example:
+
+```python
+    generate_docs("build/documentation",
+            sphinx_extensions=['sphinx_math_dollar', 'sphinx.ext.mathjax'],
+            sphinx_extra_config=r"""
+   mathjax_config = {
+       'tex2jax': {
+           'inlineMath': [ ["\\(","\\)"] ],
+           'displayMath': [["\\[","\\]"] ],
+       },
+   }""")
+```
+
 By default, `socdoc` unconditionally overwrites all files in the output
 directory, including the sphinx `conf.py` file. To disable this feature
 so you can customize your own `conf.py` file, pass `from_scratch=False`:
