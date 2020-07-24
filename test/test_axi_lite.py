@@ -96,6 +96,21 @@ class AXILiteChecker:
                 yield from self.handle_read(axi_lite)
             yield
 
+    @passive
+    def _write_handler(self, axi_lite):
+        while True:
+            yield from self.handle_write(axi_lite)
+            yield
+
+    @passive
+    def _read_handler(self, axi_lite):
+        while True:
+            yield from self.handle_read(axi_lite)
+            yield
+
+    def parallel_handlers(self, axi_lite):
+        return self._write_handler(axi_lite), self._read_handler(axi_lite)
+
 class AXILitePatternGenerator:
     def __init__(self, axi_lite, pattern, delay=0):
         # patter: (rw, addr, data)
@@ -241,7 +256,7 @@ class TestAXILite(unittest.TestCase):
         run_simulation(dut, [generator(dut, init)])
         self.assertEqual(dut.errors, 0)
 
-    def converter_test(self, width_from, width_to,
+    def converter_test(self, width_from, width_to, parallel_rw=False,
                        write_pattern=None, write_expected=None,
                        read_pattern=None, read_expected=None):
         assert not (write_pattern is None and read_pattern is None)
@@ -263,19 +278,30 @@ class TestAXILite(unittest.TestCase):
                 self.slave = AXILiteInterface(data_width=width_to)
                 self.submodules.converter = AXILiteConverter(self.master, self.slave)
 
-        def generator(axi_lite):
+        prng = random.Random(42)
+
+        def write_generator(axi_lite):
             for addr, data, strb in write_pattern or []:
                 resp = (yield from axi_lite.write(addr, data, strb))
                 self.assertEqual(resp, RESP_OKAY)
+                for _ in range(prng.randrange(3)):
+                    yield
             for _ in range(16):
                 yield
 
+        def read_generator(axi_lite):
             for addr, refdata in read_pattern or []:
                 data, resp = (yield from axi_lite.read(addr))
                 self.assertEqual(resp, RESP_OKAY)
                 self.assertEqual(data, refdata)
+                for _ in range(prng.randrange(3)):
+                    yield
             for _ in range(4):
                 yield
+
+        def sequential_generator(axi_lite):
+            yield from write_generator(axi_lite)
+            yield from read_generator(axi_lite)
 
         def rdata_generator(adr):
             for a, v in read_expected:
@@ -291,7 +317,12 @@ class TestAXILite(unittest.TestCase):
 
         dut = DUT(width_from=width_from, width_to=width_to)
         checker = AXILiteChecker(ready_latency=latency, rdata_generator=rdata_generator)
-        run_simulation(dut, [generator(dut.master), checker.handler(dut.slave)])
+        if parallel_rw:
+            generators = [write_generator(dut.master), read_generator(dut.master)]
+        else:
+            generators = [sequential_generator(dut.master)]
+        generators += checker.parallel_handlers(dut.slave)
+        run_simulation(dut, generators)
         self.assertEqual(checker.writes, write_expected)
         self.assertEqual(checker.reads, read_expected)
 
@@ -314,9 +345,11 @@ class TestAXILite(unittest.TestCase):
         ]
         read_pattern = write_pattern
         read_expected = [(adr, data) for (adr, data, _) in write_expected]
-        self.converter_test(width_from=32, width_to=16,
-                            write_pattern=write_pattern, write_expected=write_expected,
-                            read_pattern=read_pattern, read_expected=read_expected)
+        for parallel in [False, True]:
+            with self.subTest(parallel=parallel):
+                self.converter_test(width_from=32, width_to=16, parallel_rw=parallel,
+                                    write_pattern=write_pattern, write_expected=write_expected,
+                                    read_pattern=read_pattern, read_expected=read_expected)
 
     def test_axilite_down_converter_32to8(self):
         write_pattern = [
@@ -335,9 +368,11 @@ class TestAXILite(unittest.TestCase):
         ]
         read_pattern = write_pattern
         read_expected = [(adr, data) for (adr, data, _) in write_expected]
-        self.converter_test(width_from=32, width_to=8,
-                            write_pattern=write_pattern, write_expected=write_expected,
-                            read_pattern=read_pattern, read_expected=read_expected)
+        for parallel in [False, True]:
+            with self.subTest(parallel=parallel):
+                self.converter_test(width_from=32, width_to=8, parallel_rw=parallel,
+                                    write_pattern=write_pattern, write_expected=write_expected,
+                                    read_pattern=read_pattern, read_expected=read_expected)
 
     def test_axilite_down_converter_64to32(self):
         write_pattern = [
@@ -352,9 +387,11 @@ class TestAXILite(unittest.TestCase):
         ]
         read_pattern = write_pattern
         read_expected = [(adr, data) for (adr, data, _) in write_expected]
-        self.converter_test(width_from=64, width_to=32,
-                            write_pattern=write_pattern, write_expected=write_expected,
-                            read_pattern=read_pattern, read_expected=read_expected)
+        for parallel in [False, True]:
+            with self.subTest(parallel=parallel):
+                self.converter_test(width_from=64, width_to=32, parallel_rw=parallel,
+                                    write_pattern=write_pattern, write_expected=write_expected,
+                                    read_pattern=read_pattern, read_expected=read_expected)
 
     def test_axilite_down_converter_strb(self):
         write_pattern = [
@@ -372,6 +409,82 @@ class TestAXILite(unittest.TestCase):
             (0x00000100, 0x7777, 0b11),
         ]
         self.converter_test(width_from=32, width_to=16,
+                            write_pattern=write_pattern, write_expected=write_expected)
+
+    def test_axilite_up_converter_16to32(self):
+        write_pattern = [
+            (0x00000000, 0x1111),
+            (0x00000002, 0x2222),
+            (0x00000006, 0x3333),
+            (0x00000004, 0x4444),
+            (0x00000102, 0x5555),
+        ]
+        write_expected = [
+            (0x00000000, 0x00001111, 0b0011),
+            (0x00000000, 0x22220000, 0b1100),
+            (0x00000004, 0x33330000, 0b1100),
+            (0x00000004, 0x00004444, 0b0011),
+            (0x00000100, 0x55550000, 0b1100),
+        ]
+        read_pattern = write_pattern
+        read_expected = [
+            (0x00000000, 0x22221111),
+            (0x00000000, 0x22221111),
+            (0x00000004, 0x33334444),
+            (0x00000004, 0x33334444),
+            (0x00000100, 0x55550000),
+        ]
+        for parallel in [False, True]:
+            with self.subTest(parallel=parallel):
+                self.converter_test(width_from=16, width_to=32, parallel_rw=parallel,
+                                    write_pattern=write_pattern, write_expected=write_expected,
+                                    read_pattern=read_pattern, read_expected=read_expected)
+
+    def test_axilite_up_converter_8to32(self):
+        write_pattern = [
+            (0x00000000, 0x11),
+            (0x00000001, 0x22),
+            (0x00000003, 0x33),
+            (0x00000002, 0x44),
+            (0x00000101, 0x55),
+        ]
+        write_expected = [
+            (0x00000000, 0x00000011, 0b0001),
+            (0x00000000, 0x00002200, 0b0010),
+            (0x00000000, 0x33000000, 0b1000),
+            (0x00000000, 0x00440000, 0b0100),
+            (0x00000100, 0x00005500, 0b0010),
+        ]
+        read_pattern = write_pattern
+        read_expected = [
+            (0x00000000, 0x33442211),
+            (0x00000000, 0x33442211),
+            (0x00000000, 0x33442211),
+            (0x00000000, 0x33442211),
+            (0x00000100, 0x00005500),
+        ]
+        for parallel in [False, True]:
+            with self.subTest(parallel=parallel):
+                self.converter_test(width_from=8, width_to=32, parallel_rw=parallel,
+                                    write_pattern=write_pattern, write_expected=write_expected,
+                                    read_pattern=read_pattern, read_expected=read_expected)
+
+    def test_axilite_up_converter_strb(self):
+        write_pattern = [
+            (0x00000000, 0x1111, 0b10),
+            (0x00000002, 0x2222, 0b11),
+            (0x00000006, 0x3333, 0b11),
+            (0x00000004, 0x4444, 0b01),
+            (0x00000102, 0x5555, 0b01),
+        ]
+        write_expected = [
+            (0x00000000, 0x00001111, 0b0010),
+            (0x00000000, 0x22220000, 0b1100),
+            (0x00000004, 0x33330000, 0b1100),
+            (0x00000004, 0x00004444, 0b0001),
+            (0x00000100, 0x55550000, 0b0100),
+        ]
+        self.converter_test(width_from=16, width_to=32,
                             write_pattern=write_pattern, write_expected=write_expected)
 
 # TestAXILiteInterconnet ---------------------------------------------------------------------------
@@ -705,7 +818,7 @@ class TestAXILiteInterconnect(unittest.TestCase):
                        for i, (slave, checker) in enumerate(zip(dut.slaves, checkers))
                        if i not in (disconnected_slaves or [])]
         generators += [timeout_generator(timeout)]
-        run_simulation(dut, generators, vcd_name='sim.vcd')
+        run_simulation(dut, generators)
 
         return pattern_generators, checkers
 

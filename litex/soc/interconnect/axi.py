@@ -59,7 +59,7 @@ def r_description(data_width, id_width):
         ("id",   id_width)
     ]
 
-def _connect_axi(master, slave):
+def _connect_axi(master, slave, keep=None, omit=None):
     channel_modes = {
         "aw": "master",
         "w" : "master",
@@ -73,7 +73,7 @@ def _connect_axi(master, slave):
             m, s = getattr(master, channel), getattr(slave, channel)
         else:
             s, m = getattr(master, channel), getattr(slave, channel)
-        r.extend(m.connect(s))
+        r.extend(m.connect(s, keep=keep, omit=omit))
     return r
 
 def _axi_layout_flat(axi):
@@ -107,8 +107,8 @@ class AXIInterface:
         self.ar = stream.Endpoint(ax_description(address_width, id_width))
         self.r  = stream.Endpoint(r_description(data_width, id_width))
 
-    def connect(self, slave):
-        return _connect_axi(self, slave)
+    def connect(self, slave, **kwargs):
+        return _connect_axi(self, slave, **kwargs)
 
     def layout_flat(self):
         return list(_axi_layout_flat(self))
@@ -183,8 +183,8 @@ class AXILiteInterface:
                     r.append(pad.eq(sig))
         return r
 
-    def connect(self, slave):
-        return _connect_axi(self, slave)
+    def connect(self, slave, **kwargs):
+        return _connect_axi(self, slave, **kwargs)
 
     def layout_flat(self):
         return list(_axi_layout_flat(self))
@@ -714,31 +714,28 @@ class AXILiteSRAM(Module):
 
 # AXILite Data Width Converter ---------------------------------------------------------------------
 
-class AXILiteDownConverter(Module):
+class _AXILiteDownConverterWrite(Module):
     def __init__(self, master, slave):
         assert isinstance(master, AXILiteInterface) and isinstance(slave, AXILiteInterface)
-        dw_from = len(master.r.data)
-        dw_to   = len(slave.r.data)
-        ratio   = dw_from//dw_to
+        dw_from      = len(master.w.data)
+        dw_to        = len(slave.w.data)
+        ratio        = dw_from//dw_to
+        master_align = log2_int(master.data_width//8)
+        slave_align  = log2_int(slave.data_width//8)
+
+        skip         = Signal()
+        counter      = Signal(max=ratio)
+        aw_ready     = Signal()
+        w_ready      = Signal()
+        resp         = Signal.like(master.b.resp)
+        addr_counter = Signal(master_align)
 
         # # #
 
-        skip          = Signal()
-        counter       = Signal(max=ratio)
-        do_read       = Signal()
-        do_write      = Signal()
-        last_was_read = Signal()
-        aw_ready      = Signal()
-        w_ready       = Signal()
-        resp          = Signal.like(master.b.resp)
-
         # Slave address counter
-        master_align = log2_int(master.data_width//8)
-        slave_align = log2_int(slave.data_width//8)
-        addr_counter = Signal(master_align)
         self.comb += addr_counter[slave_align:].eq(counter)
 
-        # Write path
+        # Data path
         self.comb += [
             slave.aw.addr.eq(Cat(addr_counter, master.aw.addr[master_align:])),
             Case(counter, {i: slave.w.data.eq(master.w.data[i*dw_to:]) for i in range(ratio)}),
@@ -746,46 +743,23 @@ class AXILiteDownConverter(Module):
             master.b.resp.eq(resp),
         ]
 
-        # Read path
-        # shift the data word
-        r_data = Signal(dw_from, reset_less=True)
-        self.sync += If(slave.r.ready, r_data.eq(master.r.data))
-        self.comb += master.r.data.eq(Cat(r_data[dw_to:], slave.r.data))
-        # address, resp
-        self.comb += [
-            slave.ar.addr.eq(Cat(addr_counter, master.ar.addr[master_align:])),
-            master.r.resp.eq(resp),
-        ]
-
         # Control Path
         fsm = FSM(reset_state="IDLE")
         fsm = ResetInserter()(fsm)
         self.submodules.fsm = fsm
-        self.comb += fsm.reset.eq(~(master.aw.valid | master.ar.valid))
+        # Reset the converter state if master breaks a request, we can do that as
+        # aw.valid and w.valid are kept high in CONVERT and RESPOND-SLAVE, and
+        # acknowledged only when moving to RESPOND-MASTER, and then b.valid is 1
+        self.comb += fsm.reset.eq(~((master.aw.valid | master.w.valid) | master.b.valid))
 
         fsm.act("IDLE",
             NextValue(counter, 0),
             NextValue(resp, RESP_OKAY),
-            # If the last access was a read, do a write, and vice versa
-            If(master.aw.valid & master.ar.valid,
-                do_write.eq(last_was_read),
-                do_read.eq(~last_was_read),
-            ).Else(
-                do_write.eq(master.aw.valid),
-                do_read.eq(master.ar.valid),
-            ),
-            # Start reading/writing immediately not to waste a cycle
-            If(do_write & master.w.valid,
-                NextValue(last_was_read, 0),
-                NextState("WRITE")
-            ).Elif(do_read,
-                NextValue(last_was_read, 1),
-                NextState("READ")
+            If(master.aw.valid & master.w.valid,
+                NextState("CONVERT")
             )
         )
-
-        # Write conversion
-        fsm.act("WRITE",
+        fsm.act("CONVERT",
             skip.eq(slave.w.strb == 0),
             slave.aw.valid.eq(~skip & ~aw_ready),
             slave.w.valid.eq(~skip & ~w_ready),
@@ -802,33 +776,33 @@ class AXILiteDownConverter(Module):
                 If(counter == (ratio - 1),
                     master.aw.ready.eq(1),
                     master.w.ready.eq(1),
-                    NextState("WRITE-RESPONSE-MASTER")
+                    NextState("RESPOND-MASTER")
                 )
             # Write current word and wait for write response
             ).Elif((slave.aw.ready | aw_ready) & (slave.w.ready | w_ready),
-                NextState("WRITE-RESPONSE-SLAVE")
+                NextState("RESPOND-SLAVE")
             )
         )
-        fsm.act("WRITE-RESPONSE-SLAVE",
+        fsm.act("RESPOND-SLAVE",
             NextValue(aw_ready, 0),
             NextValue(w_ready, 0),
             If(slave.b.valid,
                 slave.b.ready.eq(1),
-                # Any errors is sticky, so the first one is always sent
+                # Errors are sticky, so the first one is always sent
                 If((resp == RESP_OKAY) & (slave.b.resp != RESP_OKAY),
                     NextValue(resp, slave.b.resp)
                 ),
                 If(counter == (ratio - 1),
                     master.aw.ready.eq(1),
                     master.w.ready.eq(1),
-                    NextState("WRITE-RESPONSE-MASTER")
+                    NextState("RESPOND-MASTER")
                 ).Else(
                     NextValue(counter, counter + 1),
-                    NextState("WRITE")
+                    NextState("CONVERT")
                 )
             )
         )
-        fsm.act("WRITE-RESPONSE-MASTER",
+        fsm.act("RESPOND-MASTER",
             NextValue(aw_ready, 0),
             NextValue(w_ready, 0),
             master.b.valid.eq(1),
@@ -837,38 +811,145 @@ class AXILiteDownConverter(Module):
             )
         )
 
-        # Read conversion
-        fsm.act("READ",
-            slave.ar.valid.eq(1),
-            If(slave.ar.ready,
-                NextState("READ-RESPONSE-SLAVE")
+class _AXILiteDownConverterRead(Module):
+    def __init__(self, master, slave):
+        assert isinstance(master, AXILiteInterface) and isinstance(slave, AXILiteInterface)
+        dw_from      = len(master.r.data)
+        dw_to        = len(slave.r.data)
+        ratio        = dw_from//dw_to
+        master_align = log2_int(master.data_width//8)
+        slave_align  = log2_int(slave.data_width//8)
+
+        skip         = Signal()
+        counter      = Signal(max=ratio)
+        resp         = Signal.like(master.r.resp)
+        addr_counter = Signal(master_align)
+
+        # # #
+
+        # Slave address counter
+        self.comb += addr_counter[slave_align:].eq(counter)
+
+        # Data path
+        # shift the data word
+        r_data = Signal(dw_from, reset_less=True)
+        self.sync += If(slave.r.ready, r_data.eq(master.r.data))
+        self.comb += master.r.data.eq(Cat(r_data[dw_to:], slave.r.data))
+        # address, resp
+        self.comb += [
+            slave.ar.addr.eq(Cat(addr_counter, master.ar.addr[master_align:])),
+            master.r.resp.eq(resp),
+        ]
+
+        # Control Path
+        fsm = FSM(reset_state="IDLE")
+        fsm = ResetInserter()(fsm)
+        self.submodules.fsm = fsm
+        # Reset the converter state if master breaks a request, we can do that as
+        # ar.valid is high in CONVERT and RESPOND-SLAVE, and r.valid in RESPOND-MASTER
+        self.comb += fsm.reset.eq(~(master.ar.valid | master.r.valid))
+
+        fsm.act("IDLE",
+            NextValue(counter, 0),
+            NextValue(resp, RESP_OKAY),
+            If(master.ar.valid,
+                NextState("CONVERT")
             )
         )
-        fsm.act("READ-RESPONSE-SLAVE",
+        fsm.act("CONVERT",
+            slave.ar.valid.eq(1),
+            If(slave.ar.ready,
+                NextState("RESPOND-SLAVE")
+            )
+        )
+        fsm.act("RESPOND-SLAVE",
             If(slave.r.valid,
-                # Any errors is sticky, so the first one is always sent
-                If((resp == RESP_OKAY) & (slave.b.resp != RESP_OKAY),
-                    NextValue(resp, slave.b.resp)
+                # Errors are sticky, so the first one is always sent
+                If((resp == RESP_OKAY) & (slave.r.resp != RESP_OKAY),
+                    NextValue(resp, slave.r.resp)
                 ),
                 # On last word acknowledge ar and hold slave.r.valid until we get master.r.ready
                 If(counter == (ratio - 1),
                     master.ar.ready.eq(1),
-                    NextState("READ-RESPONSE-MASTER")
+                    NextState("RESPOND-MASTER")
                 # Acknowledge the response and continue conversion
                 ).Else(
                     slave.r.ready.eq(1),
                     NextValue(counter, counter + 1),
-                    NextState("READ")
+                    NextState("CONVERT")
                 )
             )
         )
-        fsm.act("READ-RESPONSE-MASTER",
+        fsm.act("RESPOND-MASTER",
             master.r.valid.eq(1),
             If(master.r.ready,
                 slave.r.ready.eq(1),
                 NextState("IDLE")
             )
         )
+
+class AXILiteDownConverter(Module):
+    def __init__(self, master, slave):
+        self.submodules.write = _AXILiteDownConverterWrite(master, slave)
+        self.submodules.read  = _AXILiteDownConverterRead(master, slave)
+
+class AXILiteUpConverter(Module):
+    # TODO: we could try joining multiple master accesses into single slave access
+    # would reuqire checking if address changes and a way to flush on single access
+    def __init__(self, master, slave):
+        assert isinstance(master, AXILiteInterface) and isinstance(slave, AXILiteInterface)
+        dw_from      = len(master.r.data)
+        dw_to        = len(slave.r.data)
+        ratio        = dw_to//dw_from
+        master_align = log2_int(master.data_width//8)
+        slave_align  = log2_int(slave.data_width//8)
+
+        wr_word   = Signal(log2_int(ratio))
+        rd_word   = Signal(log2_int(ratio))
+        wr_word_r = Signal(log2_int(ratio))
+        rd_word_r = Signal(log2_int(ratio))
+
+        # # #
+
+        self.comb += master.connect(slave, omit={"addr", "strb", "data"})
+
+        # Address
+        self.comb += [
+            slave.aw.addr[slave_align:].eq(master.aw.addr[slave_align:]),
+            slave.ar.addr[slave_align:].eq(master.ar.addr[slave_align:]),
+        ]
+
+        # Data path
+        wr_cases, rd_cases = {}, {}
+        for i in range(ratio):
+            strb_from = i     * dw_from//8
+            strb_to   = (i+1) * dw_from//8
+            data_from = i     * dw_from
+            data_to   = (i+1) * dw_from
+            wr_cases[i] = [
+                slave.w.strb[strb_from:strb_to].eq(master.w.strb),
+                slave.w.data[data_from:data_to].eq(master.w.data),
+            ]
+            rd_cases[i] = [
+                master.r.data.eq(slave.r.data[data_from:data_to]),
+            ]
+
+        # Switch current word based on the last valid master address
+        self.sync += If(master.aw.valid, wr_word_r.eq(wr_word))
+        self.sync += If(master.ar.valid, rd_word_r.eq(rd_word))
+        self.comb += [
+            Case(master.aw.valid, {
+                0: wr_word.eq(wr_word_r),
+                1: wr_word.eq(master.aw.addr[master_align:slave_align]),
+            }),
+            Case(master.ar.valid, {
+                0: rd_word.eq(rd_word_r),
+                1: rd_word.eq(master.ar.addr[master_align:slave_align]),
+            }),
+        ]
+
+        self.comb += Case(wr_word, wr_cases)
+        self.comb += Case(rd_word, rd_cases)
 
 class AXILiteConverter(Module):
     """AXILite data width converter"""
@@ -883,7 +964,7 @@ class AXILiteConverter(Module):
         if dw_from > dw_to:
             self.submodules += AXILiteDownConverter(master, slave)
         elif dw_from < dw_to:
-            raise NotImplementedError("AXILiteUpConverter")
+            self.submodules += AXILiteUpConverter(master, slave)
         else:
             self.comb += master.connect(slave)
 
@@ -948,12 +1029,7 @@ class AXILiteTimeout(Module):
 
 # AXILite Interconnect -----------------------------------------------------------------------------
 
-class AXILiteInterconnectPointToPoint(Module):
-    def __init__(self, master, slave):
-        self.comb += master.connect(slave)
-
-
-class AXILiteRequestCounter(Module):
+class _AXILiteRequestCounter(Module):
     def __init__(self, request, response, max_requests=256):
         self.counter = counter = Signal(max=max_requests)
         self.full = full = Signal()
@@ -976,6 +1052,10 @@ class AXILiteRequestCounter(Module):
                 counter.eq(counter - 1)
             ),
         ]
+
+class AXILiteInterconnectPointToPoint(Module):
+    def __init__(self, master, slave):
+        self.comb += master.connect(slave)
 
 class AXILiteArbiter(Module):
     """AXI Lite arbiter
@@ -1011,9 +1091,9 @@ class AXILiteArbiter(Module):
                         self.comb += dest.eq(source)
 
         # allow to change rr.grant only after all requests from a master have been responded to
-        self.submodules.wr_lock = wr_lock = AXILiteRequestCounter(
+        self.submodules.wr_lock = wr_lock = _AXILiteRequestCounter(
             request=target.aw.valid & target.aw.ready, response=target.b.valid & target.b.ready)
-        self.submodules.rd_lock = rd_lock = AXILiteRequestCounter(
+        self.submodules.rd_lock = rd_lock = _AXILiteRequestCounter(
             request=target.ar.valid & target.ar.ready, response=target.r.valid & target.r.ready)
 
         # switch to next request only if there are no responses pending
@@ -1064,10 +1144,10 @@ class AXILiteDecoder(Module):
         # we need to hold the slave selected until all responses come back
         # TODO: we could reuse arbiter counters
         locks = {
-            "write": AXILiteRequestCounter(
+            "write": _AXILiteRequestCounter(
                 request=master.aw.valid & master.aw.ready,
                 response=master.b.valid & master.b.ready),
-            "read": AXILiteRequestCounter(
+            "read": _AXILiteRequestCounter(
                 request=master.ar.valid & master.ar.ready,
                 response=master.r.valid & master.r.ready),
         }
