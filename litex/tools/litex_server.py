@@ -15,6 +15,22 @@ import threading
 from litex.tools.remote.etherbone import EtherbonePacket, EtherboneRecord, EtherboneWrites
 from litex.tools.remote.etherbone import EtherboneIPC
 
+# Merges sequential reads:
+# input:  list of addresses
+# output: list of (start_addr, read_size)
+# example: [0x0, 0x4, 0x10, 0x14] -> [(0x0,2), (0x10,2)]
+def _read_merger(addrs):
+    addr_start = addrs[0]
+    num_reads  = 1
+    for addr in addrs[1:]:
+        if addr_start+4*num_reads != addr:
+            yield (addr_start, num_reads)
+            addr_start = addr
+            num_reads   = 1
+        else:
+            num_reads += 1
+    yield (addr_start, num_reads)
+
 
 class RemoteServer(EtherboneIPC):
     def __init__(self, comm, bind_ip, bind_port=1234):
@@ -74,8 +90,12 @@ class RemoteServer(EtherboneIPC):
                     # handle reads
                     if record.reads != None:
                         reads = []
-                        for addr in record.reads.get_addrs():
-                            reads.append(self.comm.read(addr))
+                        if "CommUART" == self.comm.__class__.__name__:
+                            for base_addr, num_reads in _read_merger(record.reads.get_addrs()):
+                                reads += self.comm.read(base_addr, num_reads)
+                        else:
+                            for addr in record.reads.get_addrs():
+                                reads.append(self.comm.read(addr))
 
                         record = EtherboneRecord()
                         record.writes = EtherboneWrites(datas=reads)
