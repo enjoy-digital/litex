@@ -1285,7 +1285,7 @@ class LiteXSoC(SoC):
             ip_address  = ip_address,
             clk_freq    = self.clk_freq)
         ethcore = ClockDomainsRenamer("eth_tx")(ethcore)
-        self.submodules += ethcore
+        self.submodules.ethcore = ethcore
 
         # Clock domain renaming
         self.clock_domains.cd_etherbone = ClockDomain("etherbone")
