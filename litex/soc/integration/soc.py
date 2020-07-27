@@ -922,7 +922,7 @@ class SoC(Module):
                 if ((len(self.dma_bus.masters) == 1)  and
                     (len(self.dma_bus.slaves)  == 1)  and
                     (next(iter(self.dma_bus.regions.values())).origin == 0)):
-                    self.submodules.bus_interconnect = wishbone.InterconnectPointToPoint(
+                    self.submodules.dma_bus_interconnect = wishbone.InterconnectPointToPoint(
                         master = next(iter(self.dma_bus.masters.values())),
                         slave  = next(iter(self.dma_bus.slaves.values())))
                 # Otherwise, use InterconnectShared.
@@ -931,10 +931,10 @@ class SoC(Module):
                         masters        = self.dma_bus.masters.values(),
                         slaves         = [(self.dma_bus.regions[n].decoder(self.dma_bus), s) for n, s in self.dma_bus.slaves.items()],
                         register       = True)
-            self.bus.logger.info("DMA Interconnect: {} ({} <-> {}).".format(
-                colorer(self.dma_bus_interconnect.__class__.__name__),
-                colorer(len(self.dma_bus.masters)),
-                colorer(len(self.dma_bus.slaves))))
+                self.bus.logger.info("DMA Interconnect: {} ({} <-> {}).".format(
+                    colorer(self.dma_bus_interconnect.__class__.__name__),
+                    colorer(len(self.dma_bus.masters)),
+                    colorer(len(self.dma_bus.slaves))))
             self.add_constant("CONFIG_CPU_HAS_DMA_BUS")
 
         # SoC CSR Interconnect ---------------------------------------------------------------------
