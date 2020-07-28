@@ -70,6 +70,7 @@ from litex.soc.cores.cpu.serv import SERV
 from litex.soc.cores.cpu.picorv32 import PicoRV32
 from litex.soc.cores.cpu.minerva import Minerva
 from litex.soc.cores.cpu.vexriscv import VexRiscv
+from litex.soc.cores.cpu.vexriscv_smp import VexRiscvSMP
 from litex.soc.cores.cpu.cv32e40p import CV32E40P
 
 # RISC-V (64-bit)
@@ -98,6 +99,7 @@ CPUS = {
     "picorv32"    : PicoRV32,
     "minerva"     : Minerva,
     "vexriscv"    : VexRiscv,
+    "vexriscv_smp": VexRiscvSMP,
     "cv32e40p"    : CV32E40P,
 
     # RISC-V (64-bit)
