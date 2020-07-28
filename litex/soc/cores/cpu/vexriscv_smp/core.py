@@ -36,27 +36,38 @@ class VexRiscvSMP(CPU):
     io_regions           = {0x80000000: 0x80000000} # origin, length
 
     cpu_count   = 1
-    dcache_size = 8192
-    icache_size = 8192
-    dcache_ways = 2
-    icache_ways = 2
+    dcache_size = 4096
+    icache_size = 4096
+    dcache_ways = 1
+    icache_ways = 1
     coherent_dma   = False
-    litedram_width = 128
-    dbus_width     = 64
-    ibus_width     = 64
+    litedram_width = 32
+    dcache_width   = 32
+    icache_width   = 32
 
     @staticmethod
     def args_fill(parser):
         parser.add_argument("--cpu-count",   default=1,    help="")
-        parser.add_argument("--dcache-size", default=8192, help="")
-        parser.add_argument("--dcache-ways", default=2,    help="")
-        parser.add_argument("--icache-size", default=8192, help="")
-        parser.add_argument("--icache-ways", default=2,    help="")
+        parser.add_argument("--default-bus-width", default=None,    help="Used as default value for L1 i$/d$ and litedram data width")
+        parser.add_argument("--litedram-width", default=None,    help="")
+        parser.add_argument("--dcache-width", default=None,    help="L1 data cache bus width")
+        parser.add_argument("--icache-width", default=None,    help="L1 instruction cache bus width")
+        parser.add_argument("--dcache-size", default=4096, help="L1 data cache size in byte per CPU")
+        parser.add_argument("--dcache-ways", default=1,    help="L1 data cache ways per CPU")
+        parser.add_argument("--icache-size", default=4096, help="L1 instruction cache size in byte per CPU")
+        parser.add_argument("--icache-ways", default=1,    help="L1 instruction cache ways per CPU")
 
 
     @staticmethod
     def args_read(args):
         VexRiscvSMP.cpu_count   = args.cpu_count
+        if(args.default_bus_width):
+            VexRiscvSMP.litedram_width = int(args.default_bus_width)
+            VexRiscvSMP.dcache_width = args.default_bus_width
+            VexRiscvSMP.icache_width = args.default_bus_width
+        if(args.litedram_width): VexRiscvSMP.litedram_width = int(args.litedram_width)
+        if(args.dcache_width): VexRiscvSMP.dcache_width = args.dcache_width
+        if(args.icache_width): VexRiscvSMP.icache_width = args.icache_width
         VexRiscvSMP.dcache_size = args.dcache_size
         VexRiscvSMP.icache_size = args.icache_size
         VexRiscvSMP.dcache_ways = args.dcache_ways
@@ -81,27 +92,45 @@ class VexRiscvSMP(CPU):
 
     @staticmethod
     def generate_cluster_name():
-        VexRiscvSMP.cluster_name     = f"VexRiscvLitexSmpCluster_Cc{VexRiscvSMP.cpu_count}_Iw{VexRiscvSMP.ibus_width}Is{VexRiscvSMP.icache_size}Iy{VexRiscvSMP.icache_ways}_Dw{VexRiscvSMP.dbus_width}Ds{VexRiscvSMP.dcache_size}Dy{VexRiscvSMP.dcache_ways}_Ldw{VexRiscvSMP.litedram_width}{'_Cdma' if VexRiscvSMP.coherent_dma else ''}"
+        VexRiscvSMP.cluster_name     = f"VexRiscvLitexSmpCluster_Cc{VexRiscvSMP.cpu_count}_Iw{VexRiscvSMP.icache_width}Is{VexRiscvSMP.icache_size}Iy{VexRiscvSMP.icache_ways}_Dw{VexRiscvSMP.dcache_width}Ds{VexRiscvSMP.dcache_size}Dy{VexRiscvSMP.dcache_ways}_Ldw{VexRiscvSMP.litedram_width}{'_Cdma' if VexRiscvSMP.coherent_dma else ''}"
 
     @staticmethod
     def generate_default_configs():
-        VexRiscvSMP.ibus_width     = 64
-        VexRiscvSMP.dbus_width     = 64
-        VexRiscvSMP.dcache_size    = 8192
-        VexRiscvSMP.icache_size    = 8192
-        VexRiscvSMP.dcache_ways    = 2
-        VexRiscvSMP.icache_ways    = 2
-        VexRiscvSMP.litedram_width = 128
 
-        VexRiscvSMP.coherent_dma   = True
-        for core_count in [1,2,4]:
-            VexRiscvSMP.cpu_count      = core_count
+        # Single cores
+        for data_width in [32, 64]:
+            # Light config
+            VexRiscvSMP.litedram_width = data_width
+            VexRiscvSMP.icache_width   = data_width
+            VexRiscvSMP.dcache_width   = data_width
+            VexRiscvSMP.dcache_size    = 4096
+            VexRiscvSMP.icache_size    = 4096
+            VexRiscvSMP.dcache_ways    = 1
+            VexRiscvSMP.icache_ways    = 1
+            VexRiscvSMP.coherent_dma   = False
+            VexRiscvSMP.cpu_count      = 1
+
+            # without DMA
+            VexRiscvSMP.coherent_dma   = False
             VexRiscvSMP.generate_cluster_name()
             VexRiscvSMP.generate_netlist()
 
-        VexRiscvSMP.coherent_dma   = False
-        for core_count in [1]:
-            VexRiscvSMP.cpu_count      = core_count
+            # with DMA
+            VexRiscvSMP.coherent_dma   = True
+            VexRiscvSMP.generate_cluster_name()
+            VexRiscvSMP.generate_netlist()
+
+        # Multi cores
+        for core_count in [2,4]:
+            VexRiscvSMP.litedram_width = 64
+            VexRiscvSMP.icache_width = 64
+            VexRiscvSMP.dcache_width = 64
+            VexRiscvSMP.dcache_size = 8192
+            VexRiscvSMP.icache_size = 8192
+            VexRiscvSMP.dcache_ways = 2
+            VexRiscvSMP.icache_ways = 2
+            VexRiscvSMP.coherent_dma = True
+            VexRiscvSMP.cpu_count = core_count
             VexRiscvSMP.generate_cluster_name()
             VexRiscvSMP.generate_netlist()
 
@@ -114,8 +143,8 @@ class VexRiscvSMP(CPU):
         gen_args = []
         if(VexRiscvSMP.coherent_dma) : gen_args.append("--coherent-dma")
         gen_args.append(f"--cpu-count={VexRiscvSMP.cpu_count}")
-        gen_args.append(f"--ibus-width={VexRiscvSMP.ibus_width}")
-        gen_args.append(f"--dbus-width={VexRiscvSMP.dbus_width}")
+        gen_args.append(f"--ibus-width={VexRiscvSMP.icache_width}")
+        gen_args.append(f"--dbus-width={VexRiscvSMP.dcache_width}")
         gen_args.append(f"--dcache-size={VexRiscvSMP.dcache_size}")
         gen_args.append(f"--icache-size={VexRiscvSMP.icache_size}")
         gen_args.append(f"--dcache-ways={VexRiscvSMP.dcache_ways}")
@@ -202,7 +231,7 @@ class VexRiscvSMP(CPU):
         )
 
         if self.coherent_dma:
-            self.dma_bus = dma_bus = wishbone.Interface(data_width=64)
+            self.dma_bus = dma_bus = wishbone.Interface(data_width=VexRiscvSMP.dcache_width)
 
             dma_bus_stall   = Signal()
             dma_bus_inhibit = Signal()
@@ -263,8 +292,8 @@ class VexRiscvSMP(CPU):
                     "i_io_dMem_{}_rdata_payload_data".format(n) : dbus.rdata.data,
                 })
         else:
-            ibus = LiteDRAMNativePort(mode="both", address_width=32, data_width=128)
-            dbus = LiteDRAMNativePort(mode="both", address_width=32, data_width=128)
+            ibus = LiteDRAMNativePort(mode="both", address_width=32, data_width=VexRiscvSMP.litedram_width)
+            dbus = LiteDRAMNativePort(mode="both", address_width=32, data_width=VexRiscvSMP.litedram_width)
             self.memory_buses.append(ibus)
             self.memory_buses.append(dbus)
             self.cpu_params.update(
