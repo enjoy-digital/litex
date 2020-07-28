@@ -12,10 +12,7 @@ from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr import *
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 
-from litedram.common import LiteDRAMNativePort
-
 import os
-import os.path
 
 
 CPU_VARIANTS = {
@@ -257,6 +254,7 @@ class VexRiscvSMP(CPU):
                 )
             ]
 
+        from litedram.common import LiteDRAMNativePort
         if "mp" in variant:
             ncpus = int(variant[-2]) # FIXME
             for n in range(ncpus):

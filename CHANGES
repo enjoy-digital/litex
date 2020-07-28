@@ -27,6 +27,7 @@
 	- Revert to a single crt0 (avoid ctr/xip variants).
 	- Add otional DMA bus for Cache Coherency on CPU(s) with DMA/Cache Coherency interface.
 	- Add AXI-Lite bus standard support.
+	- Add VexRiscv SMP CPU support.
 
 	[> API changes/Deprecation
 	--------------------------
