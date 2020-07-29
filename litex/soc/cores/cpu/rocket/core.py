@@ -93,7 +93,7 @@ class RocketRV64(CPU):
         flags += "-D__rocket__ "
         return flags
 
-    def __init__(self, platform, variant="standard"):
+    def __init__(self, platform, variant="standard", use_memory_bus=True):
         self.platform  = platform
         self.variant   = variant
 
@@ -105,10 +105,15 @@ class RocketRV64(CPU):
         self.mem_axi   =  mem_axi = axi.AXIInterface(data_width= mem_dw, address_width=32, id_width=4)
         self.mmio_axi  = mmio_axi = axi.AXIInterface(data_width=mmio_dw, address_width=32, id_width=4)
 
+        self.mem_wb    = mem_wb  = wishbone.Interface(data_width=mem_dw,  adr_width=32-log2_int(mem_dw//8))
         self.mmio_wb   = mmio_wb = wishbone.Interface(data_width=mmio_dw, adr_width=32-log2_int(mmio_dw//8))
 
         self.periph_buses = [mmio_wb]
-        self.memory_buses = [mem_axi]
+        self.memory_buses = []
+        if use_memory_bus:
+            self.memory_buses.append(self.mem_axi)
+        else:
+            self.periph_buses.append(self.mem_wb)
 
         # # #
 
@@ -225,10 +230,14 @@ class RocketRV64(CPU):
 
         # adapt axi interfaces to wishbone
         # NOTE: AXI2Wishbone FSMs must be reset with the CPU!
-        mmio_a2w = ResetInserter()(axi.AXI2Wishbone(mmio_axi, mmio_wb,
-                                                    base_address=0))
+        mmio_a2w = ResetInserter()(axi.AXI2Wishbone(mmio_axi, mmio_wb, base_address=0))
         self.comb += mmio_a2w.reset.eq(ResetSignal() | self.reset)
         self.submodules += mmio_a2w
+
+        if not use_memory_bus:
+            mem_a2w = ResetInserter()(axi.AXI2Wishbone(mem_axi, mem_wb, base_address=0))
+            self.comb += mem_a2w.reset.eq(ResetSignal() | self.reset)
+            self.submodules += mem_a2w
 
         # add verilog sources
         self.add_sources(platform, variant)
