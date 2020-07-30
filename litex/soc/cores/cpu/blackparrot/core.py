@@ -37,12 +37,11 @@ from litex.soc.interconnect import axi
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV64
 
-CPU_VARIANTS = {
-    "standard": "freechips.rocketchip.system.LitexConfig",
-}
+CPU_VARIANTS = ["standard", "sim"]
 
 GCC_FLAGS = {
     "standard": "-march=rv64ima -mabi=lp64 ",
+    "sim":      "-march=rv64ima -mabi=lp64 ",
 }
 
 class BlackParrotRV64(CPU):
@@ -60,7 +59,6 @@ class BlackParrotRV64(CPU):
     def mem_map(self):
         return {
             "csr"      : 0x50000000,
-#            "ethmac"   : 0x55000000,
             "rom"      : 0x70000000,
             "sram"     : 0x71000000,
             "main_ram" : 0x80000000,
@@ -77,41 +75,36 @@ class BlackParrotRV64(CPU):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
-#        self.interrupt    = Signal(4)
         self.idbus        = idbus = wishbone.Interface(data_width=64, adr_width=37)
         self.periph_buses = [idbus]
         self.memory_buses = []
-#        self.buses     = [wbn]
 
         self.cpu_params = dict(
-            # clock, reset
+            # Clock / Reset
             i_clk_i = ClockSignal(),
             i_reset_i = ResetSignal() | self.reset,
 
-            # irq
-            #i_interrupts = self.interrupt,
-
-            #wishbone
-            i_wbm_dat_i = idbus.dat_r,
-            o_wbm_dat_o = idbus.dat_w,
-            i_wbm_ack_i = idbus.ack,
-            i_wbm_err_i = idbus.err,
+            # Wishbone (I/D)
+            i_wbm_dat_i  = idbus.dat_r,
+            o_wbm_dat_o  = idbus.dat_w,
+            i_wbm_ack_i  = idbus.ack,
+            i_wbm_err_i  = idbus.err,
             #i_wbm_rty_i = 0,
-            o_wbm_adr_o = idbus.adr,
-            o_wbm_stb_o = idbus.stb,
-            o_wbm_cyc_o = idbus.cyc,
-            o_wbm_sel_o = idbus.sel,
-            o_wbm_we_o = idbus.we,
-            o_wbm_cti_o = idbus.cti,
-            o_wbm_bte_o = idbus.bte,
-            )
+            o_wbm_adr_o  = idbus.adr,
+            o_wbm_stb_o  = idbus.stb,
+            o_wbm_cyc_o  = idbus.cyc,
+            o_wbm_sel_o  = idbus.sel,
+            o_wbm_we_o   = idbus.we,
+            o_wbm_cti_o  = idbus.cti,
+            o_wbm_bte_o  = idbus.bte,
+        )
 
-           # add verilog sources
+        # Add verilog sources
         try:
             os.environ["BP"]
             os.environ["LITEX"]
             self.add_sources(platform, variant)
-        except KeyError:
+        except:
             RED = '\033[91m'
             print(RED + "Please set environment variables first, refer to readme file under litex/soc/cores/cpu/blackparrot for details!")
             sys.exit(1)
@@ -120,18 +113,16 @@ class BlackParrotRV64(CPU):
     def set_reset_address(self, reset_address):
         assert not hasattr(self, "reset_address")
         self.reset_address = reset_address
-        #FIXME: set reset addr to 0x70000000
-        #assert reset_address == 0x00000000, "cpu_reset_addr hardcoded to 0x00000000!"
+        assert reset_address == 0x70000000, "cpu_reset_addr hardcoded to 7x00000000!"
 
     @staticmethod
     def add_sources(platform, variant="standard"):
         vdir = os.path.abspath(os.path.dirname(__file__))
         bp_litex_dir = os.path.join(vdir,"bp_litex")
-        simulation = 1
-        if (simulation == 1):
-            filename= os.path.join(bp_litex_dir,"flist.verilator")
-        else:
-            filename= os.path.join(bp_litex_dir,"flist.fpga")
+        filename = os.path.join(bp_litex_dir, {
+            "standard": "flist.fpga",
+            "sim"     : "flist.verilator"
+        }[variant])
         with open(filename) as openfileobject:
             for line in openfileobject:
                 temp = line
@@ -158,5 +149,3 @@ class BlackParrotRV64(CPU):
     def do_finalize(self):
         assert hasattr(self, "reset_address")
         self.specials += Instance("ExampleBlackParrotSystem", **self.cpu_params)
-
-
