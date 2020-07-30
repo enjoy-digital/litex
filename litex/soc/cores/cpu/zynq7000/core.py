@@ -24,6 +24,10 @@ class Zynq7000(CPU):
     nop                  = "nop"
     io_regions           = {0x00000000: 0x100000000} # origin, length
 
+    @property
+    def mem_map(self):
+        return {"csr": 0x00000000}
+
     def __init__(self, platform, variant):
         self.platform       = platform
         self.reset          = Signal()
