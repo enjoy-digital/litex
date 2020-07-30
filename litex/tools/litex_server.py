@@ -15,21 +15,26 @@ import threading
 from litex.tools.remote.etherbone import EtherbonePacket, EtherboneRecord, EtherboneWrites
 from litex.tools.remote.etherbone import EtherboneIPC
 
-# Merges sequential reads:
-# input:  list of addresses
-# output: list of (start_addr, read_size)
-# example: [0x0, 0x4, 0x10, 0x14] -> [(0x0,2), (0x10,2)]
-def _read_merger(addrs):
-    addr_start = addrs[0]
-    num_reads  = 1
-    for addr in addrs[1:]:
-        if addr_start+4*num_reads != addr:
-            yield (addr_start, num_reads)
-            addr_start = addr
-            num_reads   = 1
-        else:
-            num_reads += 1
-    yield (addr_start, num_reads)
+def _read_merger(addrs, max_count=256):
+    """Sequential reads merger
+
+    Take a list of read addresses as input and merge the sequential reads in (base, count) tuples:
+    Example: [0x0, 0x4, 0x10, 0x14] input  will return [(0x0,2), (0x10,2)].
+
+    This is useful for UARTBone/Etherbone where command/response roundtrip delay is responsible for
+    most of the access delay and allows minimizing number of commands by grouping them in UARTBone
+    packets.
+    """
+    base  = None
+    count = 0
+    for addr in addrs:
+        if (addr - (4*count) != base) or (count == max_count):
+            if base is not None:
+                yield (base, count)
+            base  = addr
+            count = 0
+        count += 1
+    yield (base, count)
 
 
 class RemoteServer(EtherboneIPC):
@@ -91,8 +96,8 @@ class RemoteServer(EtherboneIPC):
                     if record.reads != None:
                         reads = []
                         if "CommUART" == self.comm.__class__.__name__:
-                            for base_addr, num_reads in _read_merger(record.reads.get_addrs()):
-                                reads += self.comm.read(base_addr, num_reads)
+                            for addr, count in _read_merger(record.reads.get_addrs(), max_count=256):
+                                reads += self.comm.read(addr, count)
                         else:
                             for addr in record.reads.get_addrs():
                                 reads.append(self.comm.read(addr))
