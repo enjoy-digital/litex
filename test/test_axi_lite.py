@@ -177,6 +177,55 @@ class TestAXILite(unittest.TestCase):
         run_simulation(dut, [generator(dut)])
         self.assertEqual(dut.errors, 0)
 
+    def test_axilite2axi2mem(self):
+        class DUT(Module):
+            def __init__(self, mem_bus="wishbone"):
+                self.axi_lite = AXILiteInterface()
+
+                axi = AXIInterface()
+                self.submodules.axil2axi = AXILite2AXI(self.axi_lite, axi)
+
+                interface_cls, converter_cls, sram_cls = {
+                    "wishbone": (wishbone.Interface, AXI2Wishbone, wishbone.SRAM),
+                    "axi_lite": (AXILiteInterface,   AXI2AXILite,  AXILiteSRAM),
+                }[mem_bus]
+
+                bus = interface_cls()
+                self.submodules += converter_cls(axi, bus)
+                sram = sram_cls(1024, init=[0x12345678, 0xa55aa55a])
+                self.submodules += sram
+                self.comb += bus.connect(sram.bus)
+
+        def generator(axi_lite, datas, resps):
+            data, resp = (yield from axi_lite.read(0x00))
+            resps.append((resp, RESP_OKAY))
+            datas.append((data, 0x12345678))
+            data, resp = (yield from axi_lite.read(0x04))
+            resps.append((resp, RESP_OKAY))
+            datas.append((data, 0xa55aa55a))
+            for i in range(32):
+                resp = (yield from axi_lite.write(4*i, i))
+                resps.append((resp, RESP_OKAY))
+            for i in range(32):
+                data, resp = (yield from axi_lite.read(4*i))
+                resps.append((resp, RESP_OKAY))
+                datas.append((data, i))
+
+        for mem_bus in ["wishbone", "axi_lite"]:
+            with self.subTest(mem_bus=mem_bus):
+                # to have more verbose error messages store errors in list((actual, expected))
+                datas = []
+                resps = []
+
+                def actual_expected(results):  # split into (list(actual), list(expected))
+                    return list(zip(*results))
+
+                dut = DUT(mem_bus)
+                run_simulation(dut, [generator(dut.axi_lite, datas, resps)])
+                self.assertEqual(*actual_expected(resps))
+                msg = "\n".join("0x{:08x} vs 0x{:08x}".format(actual, expected) for actual, expected in datas)
+                self.assertEqual(*actual_expected(datas), msg="actual vs expected:\n" + msg)
+
     def test_axilite2csr(self):
         @passive
         def csr_mem_handler(csr, mem):
