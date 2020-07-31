@@ -3,12 +3,17 @@
 
 #include <csr-defs.h>
 
+#include <generated/soc.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 __attribute__((unused)) static void flush_cpu_icache(void)
 {
+#if defined(CONFIG_CPU_VARIANT_MIN)
+  /* No instruction cache */
+#else
   asm volatile(
     ".word(0x100F)\n"
     "nop\n"
@@ -17,18 +22,21 @@ __attribute__((unused)) static void flush_cpu_icache(void)
     "nop\n"
     "nop\n"
   );
+#endif
 }
 
 __attribute__((unused)) static void flush_cpu_dcache(void)
 {
+#if defined(CONFIG_CPU_VARIANT_MIN) || defined(CONFIG_CPU_VARIANT_LITE)
+  /* No data cache */
+#else
   asm volatile(".word(0x500F)\n");
+#endif
 }
 
 void flush_l2_cache(void);
 
 void busy_wait(unsigned int ms);
-
-#include <csr-defs.h>
 
 #define csrr(reg) ({ unsigned long __tmp; \
   asm volatile ("csrr %0, " #reg : "=r"(__tmp)); \
