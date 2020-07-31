@@ -107,6 +107,7 @@ class VexRiscv(CPU, AutoCSR):
     def __init__(self, platform, variant="standard"):
         self.platform         = platform
         self.variant          = variant
+        self.human_name       = CPU_VARIANTS.get(variant, "VexRiscv")
         self.external_variant = None
         self.reset            = Signal()
         self.interrupt        = Signal(32)
