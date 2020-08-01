@@ -649,6 +649,15 @@ class Wishbone2AXILite(Module):
             NextState("IDLE")
         )
 
+# Wishbone to AXI ----------------------------------------------------------------------------------
+
+class Wishbone2AXI(Module):
+    def __init__(self, wishbone, axi, base_address=0x00000000):
+        axi_lite          = AXILiteInterface(axi.data_width, axi.address_width)
+        wishbone2axi_lite = Wishbone2AXILite(wishbone, axi_lite, base_address)
+        axi_lite2axi      = AXILite2AXI(axi_lite, axi)
+        self.submodules += wishbone2axi_lite, axi_lite2axi
+
 # AXILite to CSR -----------------------------------------------------------------------------------
 
 def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=None):
