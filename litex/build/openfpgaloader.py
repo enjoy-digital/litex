@@ -15,6 +15,4 @@ class OpenFPGALoader(GenericProgrammer):
         self.board = board
 
     def load_bitstream(self, bitstream_file):
-        print(["openFPGALoader", "--board", self.board, bitstream_file])
         subprocess.call(["openFPGALoader", "--board", self.board, bitstream_file])
-        print("done")
