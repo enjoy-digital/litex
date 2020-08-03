@@ -3,14 +3,12 @@
 # License: BSD
 
 import json
+import math
 
 class SimConfig():
-    def __init__(self, default_clk=None, timebase_ps=1):
+    def __init__(self, timebase_ps=None):
         self.modules = []
-        self.default_clk = default_clk
-        self.timebase = timebase_ps
-        if default_clk:
-            self.add_clocker(default_clk)
+        self.timebase_ps = timebase_ps
 
     def _format_interfaces(self, interfaces):
         if not isinstance(interfaces, list):
@@ -25,17 +23,32 @@ class SimConfig():
         return new
 
     def _format_timebase(self):
-        return {"timebase": int(self.timebase)}
+        timebase_ps = self.timebase_ps
+        if timebase_ps is None:
+            timebase_ps = self._get_timebase_ps()
+        return {"timebase": int(timebase_ps)}
 
-    def add_clocker(self, clk):
-        self.add_module("clocker", [], clocks=clk, tickfirst=True)
+    def _get_timebase_ps(self):
+        clockers = [m for m in self.modules if m["module"] == "clocker"]
+        periods_ps = [1e12 / m["args"]["freq_hz"] for m in clockers]
+        # timebase is half of the shortest period
+        for p in periods_ps:
+            assert round(p/2) == int(p//2), "Period cannot be represented: {}".format(p)
+        half_period = [int(p//2) for p in periods_ps]
+        # find greatest common denominator
+        gcd = half_period[0]
+        for p in half_period[1:]:
+            gcd = math.gcd(gcd, p)
+        assert gcd >= 1
+        return gcd
 
-    def add_module(self, name, interfaces, clocks=None, args=None, tickfirst=False):
+    def add_clocker(self, clk, freq_hz, phase_deg=0):
+        args = {"freq_hz": freq_hz, "phase_deg": phase_deg}
+        self.add_module("clocker", [], clocks=clk, tickfirst=True, args=args)
+
+    def add_module(self, name, interfaces, clocks="sys_clk", args=None, tickfirst=False):
         interfaces = self._format_interfaces(interfaces)
-        if clocks:
-            interfaces += self._format_interfaces(clocks)
-        else:
-            interfaces += [self.default_clk]
+        interfaces += self._format_interfaces(clocks)
         newmod = {
             "module": name,
             "interface": interfaces,
@@ -53,5 +66,7 @@ class SimConfig():
         return False
 
     def get_json(self):
+        assert "clocker" in (m["module"] for m in self.modules), \
+            "No simulation clocker found! Use sim_config.add_clocker() to define one or more clockers."
         config = self.modules + [self._format_timebase()]
         return json.dumps(config, indent=4)

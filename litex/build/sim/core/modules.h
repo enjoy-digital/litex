@@ -26,7 +26,7 @@ struct ext_module_s {
   int (*new_sess)(void **, char *);
   int (*add_pads)(void *, struct pad_list_s *);
   int (*close)(void*);
-  int (*tick)(void*);
+  int (*tick)(void*, uint64_t);
 };
 
 struct ext_module_list_s {

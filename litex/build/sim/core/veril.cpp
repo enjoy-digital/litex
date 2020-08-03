@@ -27,8 +27,9 @@ extern "C" void litex_sim_eval(void *vsim)
   sim->eval();
 }
 
-extern "C" void litex_sim_increment_time(unsigned long dt_ps) {
+extern "C" uint64_t litex_sim_increment_time(unsigned long dt_ps) {
     main_time += dt_ps;
+    return main_time;
 }
 
 extern "C" void litex_sim_init_cmdargs(int argc, char *argv[])

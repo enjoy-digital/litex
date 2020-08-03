@@ -343,9 +343,9 @@ def main():
     soc_kwargs     = soc_sdram_argdict(args)
     builder_kwargs = builder_argdict(args)
 
-    # timebase is half of the period of main simulation clock
     sys_clk_freq = int(1e6)
-    sim_config = SimConfig(default_clk="sys_clk", timebase_ps=(1/sys_clk_freq / 2) * 1e12)
+    sim_config = SimConfig()
+    sim_config.add_clocker("sys_clk", freq_hz=sys_clk_freq)
 
     # Configuration --------------------------------------------------------------------------------
 

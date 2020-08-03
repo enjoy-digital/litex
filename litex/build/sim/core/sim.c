@@ -32,6 +32,7 @@ struct session_list_s {
 };
 
 uint64_t timebase_ps = 1;
+uint64_t sim_time_ps = 0;
 struct session_list_s *sesslist=NULL;
 struct event_base *base=NULL;
 
@@ -182,17 +183,19 @@ static void cb(int sock, short which, void *arg)
     for(s = sesslist; s; s=s->next)
     {
       if(s->tickfirst)
-	s->module->tick(s->session);
+        s->module->tick(s->session, sim_time_ps);
     }
+
     litex_sim_eval(vsim);
     litex_sim_dump();
+
     for(s = sesslist; s; s=s->next)
     {
       if(!s->tickfirst)
-	s->module->tick(s->session);
+        s->module->tick(s->session, sim_time_ps);
     }
 
-    litex_sim_increment_time(timebase_ps);
+    sim_time_ps = litex_sim_increment_time(timebase_ps);
 
     if (litex_sim_got_finish()) {
         event_base_loopbreak(base);
