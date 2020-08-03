@@ -5,9 +5,10 @@
 import json
 
 class SimConfig():
-    def __init__(self, default_clk=None):
+    def __init__(self, default_clk=None, timebase_ps=1):
         self.modules = []
         self.default_clk = default_clk
+        self.timebase = timebase_ps
         if default_clk:
             self.add_clocker(default_clk)
 
@@ -22,6 +23,9 @@ class SimConfig():
                 obj = {"name": name, "index": index}
             new.append(obj)
         return new
+
+    def _format_timebase(self):
+        return {"timebase": int(self.timebase)}
 
     def add_clocker(self, clk):
         self.add_module("clocker", [], clocks=clk, tickfirst=True)
@@ -49,4 +53,5 @@ class SimConfig():
         return False
 
     def get_json(self):
-        return json.dumps(self.modules, indent=4)
+        config = self.modules + [self._format_timebase()]
+        return json.dumps(config, indent=4)

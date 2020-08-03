@@ -3,6 +3,7 @@
 #ifndef __MODULE_H_
 #define __MODULE_H_
 
+#include <stdint.h>
 #include "pads.h"
 
 struct interface_s {
@@ -33,7 +34,7 @@ struct ext_module_list_s {
   struct ext_module_list_s *next;
 };
 
-int litex_sim_file_to_module_list(char *filename, struct module_s **mod);
+int litex_sim_file_parse(char *filename, struct module_s **mod, uint64_t *timebase);
 int litex_sim_load_ext_modules(struct ext_module_list_s **mlist);
 int litex_sim_find_ext_module(struct ext_module_list_s *first, char *name , struct ext_module_list_s **found);
 
