@@ -845,7 +845,7 @@ class SoC(Module):
                     data_width       = self.bus.data_width,
                 )
                 dma_bus = wishbone.Interface(data_width=self.bus.data_width)
-                self.dma_bus.add_slave("dma", slave=dma_bus, region=SoCRegion(origin=0x00000000, size=0x80000000)) # FIXME: size
+                self.dma_bus.add_slave("dma", slave=dma_bus, region=SoCRegion(origin=0x00000000, size=0x100000000)) # FIXME: covers lower 4GB only
                 self.submodules += wishbone.Converter(dma_bus, self.cpu.dma_bus)
 
             # Connect SoCController's reset to CPU reset
