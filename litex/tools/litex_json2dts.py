@@ -176,7 +176,7 @@ def generate_dts(d):
 
     for name in ["rgb_led_r0", "rgb_led_g0", "rgb_led_b0"]:
         if name in d["csr_bases"]:
-    	
+
                 dts += """
                 {pwm_name}: pwm@{pwm_csr_base:x} {{
                         compatible = "litex,pwm";
@@ -357,7 +357,7 @@ def generate_dts(d):
     # ICAPBitstream ------------------------------------------------------------------------------------
 
     if "icap_bit" in d["csr_bases"]:
-        
+
         dts += """
                 fpga0: icap@{icap_csr_base:x} {{
                         compatible = "litex,fpga-icap";
@@ -448,7 +448,7 @@ def generate_dts(d):
                 };"""
 
     # SDCARD -------------------------------------------------------------------------------------------
-     
+
     if "sdcore" in d["csr_bases"]:
 
         dts += """
@@ -510,8 +510,7 @@ def generate_dts(d):
     return dts
 
 
-if __name__ == "__main__":
-
+def main():
     parser = argparse.ArgumentParser(description="LiteX's CSR JSON to Linux DTS generator")
     parser.add_argument("csr_json", help="CSR JSON file")
     args = parser.parse_args()
@@ -519,3 +518,7 @@ if __name__ == "__main__":
     d = json.load(open(args.csr_json))
 
     print(generate_dts(d))
+
+
+if __name__ == "__main__":
+    main()

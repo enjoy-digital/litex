@@ -43,6 +43,7 @@ setup(
             "litex_sim=litex.tools.litex_sim:main",
             "litex_read_verilog=litex.tools.litex_read_verilog:main",
             "litex_simple=litex.boards.targets.simple:main",
+            "litex_json2dts=litex.tools.litex_json2dts:main",
             # short names
             "lxterm=litex.tools.litex_term:main",
             "lxserver=litex.tools.litex_server:main",
