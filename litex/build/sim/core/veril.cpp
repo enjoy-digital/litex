@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include "Vsim.h"
 #include "verilated.h"
 #ifdef TRACE_FST
@@ -16,13 +17,15 @@ VerilatedFstC* tfp;
 #else
 VerilatedVcdC* tfp;
 #endif
-long tfp_start;
-long tfp_end;
+uint64_t tfp_start;
+uint64_t tfp_end;
+uint64_t main_time = 0;
 
-extern "C" void litex_sim_eval(void *vsim)
+extern "C" void litex_sim_eval(void *vsim, uint64_t time_ps)
 {
   Vsim *sim = (Vsim*)vsim;
   sim->eval();
+  main_time = time_ps;
 }
 
 extern "C" void litex_sim_init_cmdargs(int argc, char *argv[])
@@ -34,7 +37,7 @@ extern "C" void litex_sim_init_tracer(void *vsim, long start, long end)
 {
   Vsim *sim = (Vsim*)vsim;
   tfp_start = start;
-  tfp_end = end;
+  tfp_end = end >= 0 ? end : UINT64_MAX;
   Verilated::traceEverOn(true);
 #ifdef TRACE_FST
       tfp = new VerilatedFstC;
@@ -45,20 +48,15 @@ extern "C" void litex_sim_init_tracer(void *vsim, long start, long end)
       sim->trace(tfp, 99);
       tfp->open("sim.vcd");
 #endif
+  tfp->set_time_unit("1ps");
+  tfp->set_time_resolution("1ps");
 }
 
 extern "C" void litex_sim_tracer_dump()
 {
-  static unsigned int ticks=0;
-  int dump = 1;
-  if (ticks < tfp_start)
-      dump = 0;
-  if (tfp_end != -1)
-      if (ticks > tfp_end)
-          dump = 0;
-  if (dump)
-      tfp->dump(ticks);
-  ticks++;
+  if (tfp_start <= main_time && main_time <= tfp_end) {
+    tfp->dump(main_time);
+  }
 }
 
 extern "C" int litex_sim_got_finish()
@@ -73,7 +71,6 @@ extern "C" void litex_sim_coverage_dump()
 }
 #endif
 
-vluint64_t main_time = 0;
 double sc_time_stamp()
 {
   return main_time;

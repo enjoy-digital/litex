@@ -31,6 +31,8 @@ struct session_list_s {
   struct session_list_s *next;
 };
 
+uint64_t timebase_ps = 1;
+uint64_t sim_time_ps = 0;
 struct session_list_s *sesslist=NULL;
 struct event_base *base=NULL;
 
@@ -63,7 +65,7 @@ static int litex_sim_initialize_all(void **sim, void *base)
   }
 
   /* Load configuration */
-  ret = litex_sim_file_to_module_list("sim_config.js", &ml);
+  ret = litex_sim_file_parse("sim_config.js", &ml, &timebase_ps);
   if(RC_OK != ret)
   {
     goto out;
@@ -181,15 +183,19 @@ static void cb(int sock, short which, void *arg)
     for(s = sesslist; s; s=s->next)
     {
       if(s->tickfirst)
-	s->module->tick(s->session);
+        s->module->tick(s->session, sim_time_ps);
     }
-    litex_sim_eval(vsim);
+
+    litex_sim_eval(vsim, sim_time_ps);
     litex_sim_dump();
+
     for(s = sesslist; s; s=s->next)
     {
       if(!s->tickfirst)
-	s->module->tick(s->session);
+        s->module->tick(s->session, sim_time_ps);
     }
+
+    sim_time_ps += timebase_ps;
 
     if (litex_sim_got_finish()) {
         event_base_loopbreak(base);
