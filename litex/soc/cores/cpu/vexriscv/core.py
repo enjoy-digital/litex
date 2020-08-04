@@ -104,15 +104,19 @@ class VexRiscv(CPU, AutoCSR):
         flags += " -D__vexriscv__"
         return flags
 
-    def __init__(self, platform, variant="standard"):
+    def __init__(self, platform, variant="standard", extended_addressing=False):
         self.platform         = platform
         self.variant          = variant
         self.human_name       = CPU_VARIANTS.get(variant, "VexRiscv")
         self.external_variant = None
         self.reset            = Signal()
         self.interrupt        = Signal(32)
-        self.ibus             = ibus = wishbone.Interface()
-        self.dbus             = dbus = wishbone.Interface()
+        if extended_addressing:
+            self.ibus = ibus = wishbone.Interface(adr_width=31)
+            self.dbus = dbus = wishbone.Interface(adr_width=31)
+        else:
+            self.ibus = ibus = wishbone.Interface()
+            self.dbus = dbus = wishbone.Interface()
         self.periph_buses     = [ibus, dbus]
         self.memory_buses     = []
 
