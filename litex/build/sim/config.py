@@ -6,9 +6,8 @@ import json
 import math
 
 class SimConfig():
-    def __init__(self, timebase_ps=None):
+    def __init__(self):
         self.modules = []
-        self.timebase_ps = timebase_ps
 
     def _format_interfaces(self, interfaces):
         if not isinstance(interfaces, list):
@@ -23,24 +22,9 @@ class SimConfig():
         return new
 
     def _format_timebase(self):
-        timebase_ps = self.timebase_ps
-        if timebase_ps is None:
-            timebase_ps = self._get_timebase_ps()
-        return {"timebase": int(timebase_ps)}
-
-    def _get_timebase_ps(self):
         clockers = [m for m in self.modules if m["module"] == "clocker"]
-        periods_ps = [1e12 / m["args"]["freq_hz"] for m in clockers]
-        # timebase is half of the shortest period
-        for p in periods_ps:
-            assert round(p/2) == int(p//2), "Period cannot be represented: {}".format(p)
-        half_period = [int(p//2) for p in periods_ps]
-        # find greatest common denominator
-        gcd = half_period[0]
-        for p in half_period[1:]:
-            gcd = math.gcd(gcd, p)
-        assert gcd >= 1
-        return gcd
+        timebase_ps = _calculate_timebase_ps(clockers)
+        return {"timebase": int(timebase_ps)}
 
     def add_clocker(self, clk, freq_hz, phase_deg=0):
         args = {"freq_hz": freq_hz, "phase_deg": phase_deg}
@@ -70,3 +54,49 @@ class SimConfig():
             "No simulation clocker found! Use sim_config.add_clocker() to define one or more clockers."
         config = self.modules + [self._format_timebase()]
         return json.dumps(config, indent=4)
+
+def _calculate_timebase_ps(clockers):
+    """Calculate timebase for a list of clocker modules
+
+    Clock edges happen at time instants:
+        t(n) = n * T/2 + P/360 * T
+    where: T - clock period, P - clock phase [deg]
+    We must be able to represent clock edges with the timebase B:
+        t(n) mod B = 0, for all n
+    In this function checks that:
+        ((T/2) mod B = 0) AND ((P/360 * T) mod B = 0)
+
+    Currently we allow only for integer periods (in ps), which it's quite restrictive.
+    """
+    # convert to picoseconds, 1ps is our finest timebase for dumping simulation data
+    periods_ps = [1e12 / c["args"]["freq_hz"] for c in clockers]
+    phase_shifts_ps = [p * c["args"]["phase_deg"]/360 for c, p in zip(clockers, periods_ps)]
+
+    # calculate timebase as greatest common denominator
+    timebase_ps = None
+    for period, phase_shift in zip(periods_ps, phase_shifts_ps):
+        if timebase_ps is None:
+            timebase_ps = int(period/2)
+        timebase_ps = math.gcd(timebase_ps, int(period/2))
+        timebase_ps = math.gcd(timebase_ps, int(phase_shift))
+
+    # check correctness
+    for clocker, period, phase_shift in zip(clockers, periods_ps, phase_shifts_ps):
+        def error(description):
+            return f"""
+SimConfig:
+{description}:
+  timebase = {timebase_ps}ps, period = {period}ps, phase_shift = {phase_shift}ps,
+  clocker[args] = {clocker["args"]}
+Adjust clock definitions so that integer multiple of 1ps can be used as a timebase.
+            """.strip()
+
+        assert int(period) == period, error("Non-integer period")
+        assert int(phase_shift) == phase_shift, error("Non-integer phase_shift")
+
+        assert (period/2 % timebase_ps) == 0, \
+            error("Could not find an integer timebase for period")
+        assert (phase_shift % timebase_ps) == 0, \
+            error("Could not find an integer timebase for phase shift")
+
+    return timebase_ps

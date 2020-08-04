@@ -6,7 +6,8 @@
 #include "modules.h"
 
 struct session_s {
-  char *sys_clk;
+  char *clk;
+  char *name;
   uint32_t freq_hz;
   uint16_t phase_deg;
 };
@@ -79,8 +80,6 @@ static int clocker_parse_args(struct session_s *s, const char *args)
     fprintf(stderr, "[clocker] \"phase_deg\" must be in range [0, 360)\n");
     goto out;
   }
-
-  printf("[clocker] freq_hz=%u, phase_deg=%u\n", s->freq_hz, s->phase_deg);
 out:
   if(args_json) json_object_put(args_json);
   return ret;
@@ -128,12 +127,14 @@ static int clocker_add_pads(void *sess, struct pad_list_s *plist)
   }
   pads = plist->pads;
 
-  if(!strcmp(plist->name, "sys_clk")) {
-    litex_sim_module_pads_get(pads, "sys_clk", (void**)&s->sys_clk);
+  ret = litex_sim_module_pads_get(pads, plist->name, (void**)&s->clk);
+  if (ret != RC_OK) {
+    goto out;
   }
 
-  *s->sys_clk=0;
-
+  s->name = plist->name;
+  *s->clk=0;
+  printf("[clocker] %s: freq_hz=%u, phase_deg=%u\n", s->name, s->freq_hz, s->phase_deg);
 out:
   return ret;
 }
@@ -149,9 +150,9 @@ static int clocker_tick(void *sess, uint64_t time_ps)
   // phase-shifted time relative to start of current period
   uint64_t rel_time_ps = (time_ps - phase_shift_ps) % period_ps;
   if (rel_time_ps < (period_ps/2)) {
-    *s->sys_clk = 1;
+    *s->clk = 1;
   } else {
-    *s->sys_clk = 0;
+    *s->clk = 0;
   }
 
   return 0;

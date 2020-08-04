@@ -186,7 +186,7 @@ static void cb(int sock, short which, void *arg)
         s->module->tick(s->session, sim_time_ps);
     }
 
-    litex_sim_eval(vsim);
+    litex_sim_eval(vsim, sim_time_ps);
     litex_sim_dump();
 
     for(s = sesslist; s; s=s->next)
@@ -195,7 +195,7 @@ static void cb(int sock, short which, void *arg)
         s->module->tick(s->session, sim_time_ps);
     }
 
-    sim_time_ps = litex_sim_increment_time(timebase_ps);
+    sim_time_ps += timebase_ps;
 
     if (litex_sim_got_finish()) {
         event_base_loopbreak(base);

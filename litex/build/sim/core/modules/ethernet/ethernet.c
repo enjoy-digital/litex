@@ -200,14 +200,16 @@ out:
   return ret;
 }
 
-static int ethernet_tick(void *sess)
+static int ethernet_tick(void *sess, uint64_t time_ps)
 {
+  static struct clk_edge_t edge;
   char c;
   struct session_s *s = (struct session_s*)sess;
   struct eth_packet_s *pep;
 
-  if(*s->sys_clk == 0)
+  if(!clk_pos_edge(&edge, *s->sys_clk)) {
     return RC_OK;
+  }
 
   *s->tx_ready = 1;
   if(*s->tx_valid == 1) {

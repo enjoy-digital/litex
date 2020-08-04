@@ -65,7 +65,7 @@ struct session_s {
 static int spdeeprom_start();
 static int spdeeprom_new(void **sess, char *args);
 static int spdeeprom_add_pads(void *sess, struct pad_list_s *plist);
-static int spdeeprom_tick(void *sess);
+static int spdeeprom_tick(void *sess, uint64_t time_ps);
 // EEPROM simulation
 static void fsm_tick(struct session_s *s);
 static enum SerialState state_serial_next(struct session_s *s);
@@ -162,15 +162,16 @@ out:
   return ret;
 }
 
-static int spdeeprom_tick(void *sess)
+static int spdeeprom_tick(void *sess, uint64_t time_ps)
 {
+  static struct clk_edge_t edge;
   struct session_s *s = (struct session_s*) sess;
 
   if (s->sda_in == 0 || s->sda_out == 0 || s->scl == 0) {
       return RC_OK;
   }
 
-  if(*s->sys_clk == 0) {
+  if(!clk_pos_edge(&edge, *s->sys_clk)) {
     return RC_OK;
   }
 

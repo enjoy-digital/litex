@@ -21,15 +21,11 @@ uint64_t tfp_start;
 uint64_t tfp_end;
 uint64_t main_time = 0;
 
-extern "C" void litex_sim_eval(void *vsim)
+extern "C" void litex_sim_eval(void *vsim, uint64_t time_ps)
 {
   Vsim *sim = (Vsim*)vsim;
   sim->eval();
-}
-
-extern "C" uint64_t litex_sim_increment_time(unsigned long dt_ps) {
-    main_time += dt_ps;
-    return main_time;
+  main_time = time_ps;
 }
 
 extern "C" void litex_sim_init_cmdargs(int argc, char *argv[])

@@ -7,17 +7,15 @@
 
 #ifdef __cplusplus
 extern "C" void litex_sim_init_cmdargs(int argc, char *argv[]);
-extern "C" void litex_sim_eval(void *vsim);
-extern "C" uint64_t litex_sim_increment_time(unsigned long dt_ps);
-extern "C" void litex_sim_init_tracer(void *vsim, long start, long end)
+extern "C" void litex_sim_eval(void *vsim, uint64_t time_ps);
+extern "C" void litex_sim_init_tracer(void *vsim, long start, long end);
 extern "C" void litex_sim_tracer_dump();
 extern "C" int litex_sim_got_finish();
 #if VM_COVERAGE
 extern "C" void litex_sim_coverage_dump();
 #endif
 #else
-void litex_sim_eval(void *vsim);
-uint64_t litex_sim_increment_time(unsigned long dt_ps);
+void litex_sim_eval(void *vsim, uint64_t time_ps);
 void litex_sim_init_tracer(void *vsim);
 void litex_sim_tracer_dump();
 int litex_sim_got_finish();
