@@ -237,7 +237,7 @@ class TestAXI(unittest.TestCase):
         class DUT(Module):
             def __init__(self):
                 self.axi      = AXIInterface(data_width=32, address_width=32, id_width=8)
-                self.wishbone = wishbone.Interface(data_width=32)
+                self.wishbone = wishbone.Interface(data_width=32, adr_width=30)
 
                 axi2wishbone = AXI2Wishbone(self.axi, self.wishbone)
                 self.submodules += axi2wishbone
