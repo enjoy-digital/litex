@@ -6,8 +6,10 @@ import json
 import math
 
 class SimConfig():
-    def __init__(self):
+    def __init__(self, default_clk=None, default_clk_freq=int(1e6)):
         self.modules = []
+        if default_clk is not None:
+            self.add_clocker(default_clk, default_clk_freq)
 
     def _format_interfaces(self, interfaces):
         if not isinstance(interfaces, list):
