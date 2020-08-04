@@ -73,6 +73,8 @@ class SoCRegion:
             self.logger.error("Origin needs to be aligned on size:")
             self.logger.error(self)
             raise
+        if (origin == 0) and (size == 2**bus.address_width):
+            return lambda a : True
         origin >>= int(log2(bus.data_width//8)) # bytes to words aligned
         size   >>= int(log2(bus.data_width//8)) # bytes to words aligned
         return lambda a: (a[log2_int(size):] == (origin >> log2_int(size)))
@@ -843,6 +845,7 @@ class SoC(Module):
                     name             = "SoCDMABusHandler",
                     standard         = "wishbone",
                     data_width       = self.bus.data_width,
+                    address_width    = self.bus.address_width,
                 )
                 dma_bus = wishbone.Interface(data_width=self.bus.data_width)
                 self.dma_bus.add_slave("dma", slave=dma_bus, region=SoCRegion(origin=0x00000000, size=0x100000000)) # FIXME: covers lower 4GB only
