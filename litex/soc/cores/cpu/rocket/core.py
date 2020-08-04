@@ -93,7 +93,7 @@ class RocketRV64(CPU):
         flags += "-D__rocket__ "
         return flags
 
-    def __init__(self, platform, variant="standard", use_memory_bus=True):
+    def __init__(self, platform, variant="standard"):
         self.platform  = platform
         self.variant   = variant
 
@@ -102,18 +102,16 @@ class RocketRV64(CPU):
 
         mem_dw, mmio_dw = AXI_DATA_WIDTHS[self.variant]
 
-        self.mem_axi   =  mem_axi = axi.AXIInterface(data_width= mem_dw, address_width=32, id_width=4)
+        self.mem_axi   =  mem_axi = axi.AXIInterface(data_width=mem_dw,  address_width=32, id_width=4)
         self.mmio_axi  = mmio_axi = axi.AXIInterface(data_width=mmio_dw, address_width=32, id_width=4)
+        self.l2fb_axi  = l2fb_axi = axi.AXIInterface(data_width=mmio_dw, address_width=32, id_width=4)
 
-        self.mem_wb    = mem_wb  = wishbone.Interface(data_width=mem_dw,  adr_width=32-log2_int(mem_dw//8))
         self.mmio_wb   = mmio_wb = wishbone.Interface(data_width=mmio_dw, adr_width=32-log2_int(mmio_dw//8))
+        self.l2fb_wb   = l2fb_wb = wishbone.Interface(data_width=mmio_dw, adr_width=32-log2_int(mmio_dw//8))
 
+        self.memory_buses = [mem_axi]
         self.periph_buses = [mmio_wb]
-        self.memory_buses = []
-        if use_memory_bus:
-            self.memory_buses.append(self.mem_axi)
-        else:
-            self.periph_buses.append(self.mem_wb)
+        self.dma_bus      =  l2fb_wb
 
         # # #
 
@@ -123,6 +121,9 @@ class RocketRV64(CPU):
             i_reset=ResetSignal() | self.reset,
 
             # debug (ignored)
+            #i_resetctrl_hartIsInReset_0           = 0,
+            i_debug_clock                          = 0,
+            i_debug_reset                          = 0,
             #o_debug_clockeddmi_dmi_req_ready      = ,
             i_debug_clockeddmi_dmi_req_valid       = 0,
             i_debug_clockeddmi_dmi_req_bits_addr   = 0,
@@ -136,7 +137,7 @@ class RocketRV64(CPU):
             i_debug_clockeddmi_dmiReset            = 0,
             #o_debug_ndreset                       = ,
             #o_debug_dmactive                      = ,
-
+            i_debug_dmactiveAck                    = 0,
 
             # irq
             i_interrupts=self.interrupt,
@@ -226,6 +227,49 @@ class RocketRV64(CPU):
             i_mmio_axi4_0_r_bits_data   = mmio_axi.r.data,
             i_mmio_axi4_0_r_bits_resp   = mmio_axi.r.resp,
             i_mmio_axi4_0_r_bits_last   = mmio_axi.r.last,
+
+            # axi l2fb (slave, for e.g., DMA)
+            o_l2_frontend_bus_axi4_0_aw_ready      = l2fb_axi.aw.ready,
+            i_l2_frontend_bus_axi4_0_aw_valid      = l2fb_axi.aw.valid,
+            i_l2_frontend_bus_axi4_0_aw_bits_id    = l2fb_axi.aw.id,
+            i_l2_frontend_bus_axi4_0_aw_bits_addr  = l2fb_axi.aw.addr,
+            i_l2_frontend_bus_axi4_0_aw_bits_len   = l2fb_axi.aw.len,
+            i_l2_frontend_bus_axi4_0_aw_bits_size  = l2fb_axi.aw.size,
+            i_l2_frontend_bus_axi4_0_aw_bits_burst = l2fb_axi.aw.burst,
+            i_l2_frontend_bus_axi4_0_aw_bits_lock  = l2fb_axi.aw.lock,
+            i_l2_frontend_bus_axi4_0_aw_bits_cache = l2fb_axi.aw.cache,
+            i_l2_frontend_bus_axi4_0_aw_bits_prot  = l2fb_axi.aw.prot,
+            i_l2_frontend_bus_axi4_0_aw_bits_qos   = l2fb_axi.aw.qos,
+
+            o_l2_frontend_bus_axi4_0_w_ready       = l2fb_axi.w.ready,
+            i_l2_frontend_bus_axi4_0_w_valid       = l2fb_axi.w.valid,
+            i_l2_frontend_bus_axi4_0_w_bits_data   = l2fb_axi.w.data,
+            i_l2_frontend_bus_axi4_0_w_bits_strb   = l2fb_axi.w.strb,
+            i_l2_frontend_bus_axi4_0_w_bits_last   = l2fb_axi.w.last,
+
+            i_l2_frontend_bus_axi4_0_b_ready       = l2fb_axi.b.ready,
+            o_l2_frontend_bus_axi4_0_b_valid       = l2fb_axi.b.valid,
+            o_l2_frontend_bus_axi4_0_b_bits_id     = l2fb_axi.b.id,
+            o_l2_frontend_bus_axi4_0_b_bits_resp   = l2fb_axi.b.resp,
+
+            o_l2_frontend_bus_axi4_0_ar_ready      = l2fb_axi.ar.ready,
+            i_l2_frontend_bus_axi4_0_ar_valid      = l2fb_axi.ar.valid,
+            i_l2_frontend_bus_axi4_0_ar_bits_id    = l2fb_axi.ar.id,
+            i_l2_frontend_bus_axi4_0_ar_bits_addr  = l2fb_axi.ar.addr,
+            i_l2_frontend_bus_axi4_0_ar_bits_len   = l2fb_axi.ar.len,
+            i_l2_frontend_bus_axi4_0_ar_bits_size  = l2fb_axi.ar.size,
+            i_l2_frontend_bus_axi4_0_ar_bits_burst = l2fb_axi.ar.burst,
+            i_l2_frontend_bus_axi4_0_ar_bits_lock  = l2fb_axi.ar.lock,
+            i_l2_frontend_bus_axi4_0_ar_bits_cache = l2fb_axi.ar.cache,
+            i_l2_frontend_bus_axi4_0_ar_bits_prot  = l2fb_axi.ar.prot,
+            i_l2_frontend_bus_axi4_0_ar_bits_qos   = l2fb_axi.ar.qos,
+
+            i_l2_frontend_bus_axi4_0_r_ready       = l2fb_axi.r.ready,
+            o_l2_frontend_bus_axi4_0_r_valid       = l2fb_axi.r.valid,
+            o_l2_frontend_bus_axi4_0_r_bits_id     = l2fb_axi.r.id,
+            o_l2_frontend_bus_axi4_0_r_bits_data   = l2fb_axi.r.data,
+            o_l2_frontend_bus_axi4_0_r_bits_resp   = l2fb_axi.r.resp,
+            o_l2_frontend_bus_axi4_0_r_bits_last   = l2fb_axi.r.last,
         )
 
         # adapt axi interfaces to wishbone
@@ -234,10 +278,9 @@ class RocketRV64(CPU):
         self.comb += mmio_a2w.reset.eq(ResetSignal() | self.reset)
         self.submodules += mmio_a2w
 
-        if not use_memory_bus:
-            mem_a2w = ResetInserter()(axi.AXI2Wishbone(mem_axi, mem_wb, base_address=0))
-            self.comb += mem_a2w.reset.eq(ResetSignal() | self.reset)
-            self.submodules += mem_a2w
+        l2fb_a2w = ResetInserter()(axi.Wishbone2AXI(l2fb_wb, l2fb_axi, base_address=0))
+        self.comb += l2fb_a2w.reset.eq(ResetSignal() | self.reset)
+        self.submodules += l2fb_a2w
 
         # add verilog sources
         self.add_sources(platform, variant)

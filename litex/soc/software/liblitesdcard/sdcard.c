@@ -26,7 +26,7 @@
 #endif
 
 #ifndef SDCARD_CLK_FREQ
-#define SDCARD_CLK_FREQ 50000000
+#define SDCARD_CLK_FREQ 25000000
 #endif
 
 unsigned int sdcard_response[SD_CMD_RESPONSE_SIZE/4];

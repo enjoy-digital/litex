@@ -496,7 +496,8 @@ class AXILite2Wishbone(Module):
     def __init__(self, axi_lite, wishbone, base_address=0x00000000):
         wishbone_adr_shift = log2_int(axi_lite.data_width//8)
         assert axi_lite.data_width    == len(wishbone.dat_r)
-        assert axi_lite.address_width == len(wishbone.adr) + wishbone_adr_shift
+        assert axi_lite.address_width == len(wishbone.adr) + wishbone_adr_shift, "axi_addr_w={}; len_wb_adr={}; wb_adr_shift={};".format(axi_lite.address_width, len(wishbone.adr), wishbone_adr_shift)
+        print("####\n#### axi_addr_w={}; len_wb_adr={}; wb_adr_shift={};\n####".format(axi_lite.address_width, len(wishbone.adr), wishbone_adr_shift))
 
         _data         = Signal(axi_lite.data_width)
         _r_addr       = Signal(axi_lite.address_width)
@@ -580,7 +581,8 @@ class Wishbone2AXILite(Module):
     def __init__(self, wishbone, axi_lite, base_address=0x00000000):
         wishbone_adr_shift = log2_int(axi_lite.data_width//8)
         assert axi_lite.data_width    == len(wishbone.dat_r)
-        assert axi_lite.address_width == len(wishbone.adr) + wishbone_adr_shift
+        assert axi_lite.address_width == len(wishbone.adr) + wishbone_adr_shift, "axi_addr_w={}; len_wb_adr={}; wb_adr_shift={};".format(axi_lite.address_width, len(wishbone.adr), wishbone_adr_shift)
+        print("####\n#### axi_addr_w={}; len_wb_adr={}; wb_adr_shift={};\n####".format(axi_lite.address_width, len(wishbone.adr), wishbone_adr_shift))
 
         _cmd_done  = Signal()
         _data_done = Signal()
@@ -648,6 +650,15 @@ class Wishbone2AXILite(Module):
             wishbone.err.eq(1),
             NextState("IDLE")
         )
+
+# Wishbone to AXI ----------------------------------------------------------------------------------
+
+class Wishbone2AXI(Module):
+    def __init__(self, wishbone, axi, base_address=0x00000000):
+        axi_lite          = AXILiteInterface(axi.data_width, axi.address_width)
+        wishbone2axi_lite = Wishbone2AXILite(wishbone, axi_lite, base_address)
+        axi_lite2axi      = AXILite2AXI(axi_lite, axi)
+        self.submodules += wishbone2axi_lite, axi_lite2axi
 
 # AXILite to CSR -----------------------------------------------------------------------------------
 
