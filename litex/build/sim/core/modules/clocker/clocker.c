@@ -66,8 +66,8 @@ static int clocker_parse_args(struct session_s *s, const char *args)
     goto out;
   }
 
-  s->freq_hz = json_object_get_uint64(freq_json);
-  s->phase_deg = json_object_get_uint64(phase_json);
+  s->freq_hz = json_object_get_int64(freq_json);
+  s->phase_deg = json_object_get_int64(phase_json);
 
   if (s->freq_hz == 0) {
     ret = RC_JSERROR;

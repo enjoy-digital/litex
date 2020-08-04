@@ -345,7 +345,7 @@ static int json_get_timebase(json_object *obj, uint64_t *timebase)
       goto out;
     }
 
-    _timebase = json_object_get_uint64(json_timebase);
+    _timebase = json_object_get_int64(json_timebase);
     if (_timebase == 0)
     {
       ret=RC_JSERROR;
