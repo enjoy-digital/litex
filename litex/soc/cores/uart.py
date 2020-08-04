@@ -201,6 +201,9 @@ class UART(Module, AutoCSR, UARTInterface):
         self.ev.rx = EventSourceProcess()
         self.ev.finalize()
 
+        self._txempty = CSRStatus()
+        self._rxfull  = CSRStatus()
+
         # # #
 
         UARTInterface.__init__(self)
@@ -220,6 +223,7 @@ class UART(Module, AutoCSR, UARTInterface):
             tx_fifo.sink.valid.eq(self._rxtx.re),
             tx_fifo.sink.data.eq(self._rxtx.r),
             self._txfull.status.eq(~tx_fifo.sink.ready),
+            self._txempty.status.eq(~tx_fifo.source.valid),
             tx_fifo.source.connect(self.source),
             # Generate TX IRQ when tx_fifo becomes non-full
             self.ev.tx.trigger.eq(~tx_fifo.sink.ready)
@@ -232,6 +236,7 @@ class UART(Module, AutoCSR, UARTInterface):
         self.comb += [
             self.sink.connect(rx_fifo.sink),
             self._rxempty.status.eq(~rx_fifo.source.valid),
+            self._rxfull.status.eq(~rx_fifo.sink.ready),
             self._rxtx.w.eq(rx_fifo.source.data),
             rx_fifo.source.ready.eq(self.ev.rx.clear | (rx_fifo_rx_we & self._rxtx.we)),
             # Generate RX IRQ when rx_fifo becomes non-empty
