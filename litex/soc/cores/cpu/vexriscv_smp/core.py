@@ -56,7 +56,7 @@ class VexRiscvSMP(CPU):
     @staticmethod
     def args_read(args):
         VexRiscvSMP.cpu_count = args.cpu_count
-        if args.cpu_count != 1:
+        if int(args.cpu_count) != 1:
             VexRiscvSMP.icache_width = 64
             VexRiscvSMP.dcache_width = 64
             VexRiscvSMP.dcache_size  = 8192
@@ -64,12 +64,12 @@ class VexRiscvSMP(CPU):
             VexRiscvSMP.dcache_ways  = 2
             VexRiscvSMP.icache_ways  = 2
             VexRiscvSMP.coherent_dma = True
-        if(args.dcache_width): VexRiscvSMP.dcache_width = args.dcache_width
-        if(args.icache_width): VexRiscvSMP.icache_width = args.icache_width
-        if(args.icache_width): VexRiscvSMP.dcache_size  = args.dcache_size
-        if(args.icache_width): VexRiscvSMP.icache_size  = args.icache_size
-        if(args.icache_width): VexRiscvSMP.dcache_ways  = args.dcache_ways
-        if(args.icache_width): VexRiscvSMP.icache_ways  = args.icache_ways
+        if(args.dcache_width): VexRiscvSMP.dcache_width = int(args.dcache_width)
+        if(args.icache_width): VexRiscvSMP.icache_width = int(args.icache_width)
+        if(args.icache_width): VexRiscvSMP.dcache_size  = int(args.dcache_size)
+        if(args.icache_width): VexRiscvSMP.icache_size  = int(args.icache_size)
+        if(args.icache_width): VexRiscvSMP.dcache_ways  = int(args.dcache_ways)
+        if(args.icache_width): VexRiscvSMP.icache_ways  = int(args.icache_ways)
 
     @property
     def mem_map(self):
