@@ -163,7 +163,7 @@ class SRAM(Module):
 # CSR Bank -----------------------------------------------------------------------------------------
 
 class CSRBank(csr.GenericBank):
-    def __init__(self, description, address=0, bus=None, paging=0x800, soc_bus_data_width=32):
+    def __init__(self, description, address=0, bus=None, paging=0x800, ordering="big", soc_bus_data_width=32):
         if bus is None:
             bus = Interface()
         self.bus = bus
@@ -171,7 +171,11 @@ class CSRBank(csr.GenericBank):
 
         # # #
 
-        csr.GenericBank.__init__(self, description, len(self.bus.dat_w))
+        csr.GenericBank.__init__(self,
+            description = description,
+            busword     = len(self.bus.dat_w),
+            ordering    = ordering,
+        )
 
         sel = Signal()
         self.comb += sel.eq(self.bus.adr[log2_int(aligned_paging):] == address)
@@ -201,10 +205,11 @@ class CSRBank(csr.GenericBank):
 # address_map is called exactly once for each object at each call to
 # scan(), so it can have side effects.
 class CSRBankArray(Module):
-    def __init__(self, source, address_map, *ifargs, paging=0x800, soc_bus_data_width=32, **ifkwargs):
+    def __init__(self, source, address_map, *ifargs, paging=0x800, ordering="big", soc_bus_data_width=32, **ifkwargs):
         self.source             = source
         self.address_map        = address_map
         self.paging             = paging
+        self.ordering           = ordering
         self.soc_bus_data_width = soc_bus_data_width
         self.scan(ifargs, ifkwargs)
 
@@ -246,6 +251,7 @@ class CSRBankArray(Module):
                 rmap = CSRBank(csrs, mapaddr,
                     bus                = bank_bus,
                     paging             = self.paging,
+                    ordering           = self.ordering,
                     soc_bus_data_width = self.soc_bus_data_width)
                 self.submodules += rmap
                 self.banks.append((name, csrs, mapaddr, rmap))

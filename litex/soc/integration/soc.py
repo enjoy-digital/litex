@@ -479,9 +479,10 @@ class SoCCSRHandler(SoCLocHandler):
     supported_address_width = [14+i for i in range(4)]
     supported_alignment     = [32]
     supported_paging        = [0x800*2**i for i in range(4)]
+    supported_ordering      = ["big", "little"]
 
     # Creation -------------------------------------------------------------------------------------
-    def __init__(self, data_width=32, address_width=14, alignment=32, paging=0x800, reserved_csrs={}):
+    def __init__(self, data_width=32, address_width=14, alignment=32, paging=0x800, ordering="big", reserved_csrs={}):
         SoCLocHandler.__init__(self, "CSR", n_locs=alignment//8*(2**address_width)//paging)
         self.logger = logging.getLogger("SoCCSRHandler")
         self.logger.info("Creating CSR Handler...")
@@ -524,18 +525,28 @@ class SoCCSRHandler(SoCLocHandler):
                 colorer(", ".join("0x{:x}".format(x) for x in self.supported_paging))))
             raise
 
+        # Check Ordering
+        if ordering not in self.supported_ordering:
+            self.logger.error("Unsupported {} {}, supporteds: {:s}".format(
+                colorer("Ordering", color="red"),
+                colorer("{}".format(paging)),
+                colorer(", ".join("{}".format(x) for x in self.supported_ordering))))
+            raise
+
         # Create CSR Handler
         self.data_width    = data_width
         self.address_width = address_width
         self.alignment     = alignment
         self.paging        = paging
+        self.ordering      = ordering
         self.masters       = {}
         self.regions       = {}
-        self.logger.info("{}-bit CSR Bus, {}-bit Aligned, {}KiB Address Space, {}B Paging (Up to {} Locations).".format(
+        self.logger.info("{}-bit CSR Bus, {}-bit Aligned, {}KiB Address Space, {}B Paging, {} Ordering (Up to {} Locations).".format(
             colorer(self.data_width),
             colorer(self.alignment),
             colorer(2**self.address_width/2**10),
             colorer(self.paging),
+            colorer(self.ordering),
             colorer(self.n_locs)))
 
         # Adding reserved CSRs
@@ -586,11 +597,12 @@ class SoCCSRHandler(SoCLocHandler):
 
     # Str ------------------------------------------------------------------------------------------
     def __str__(self):
-        r = "{}-bit CSR Bus, {}-bit Aligned, {}KiB Address Space, {}B Paging (Up to {} Locations).\n".format(
+        r = "{}-bit CSR Bus, {}-bit Aligned, {}KiB Address Space, {}B Paging, {} Ordering (Up to {} Locations).\n".format(
             colorer(self.data_width),
             colorer(self.alignment),
             colorer(2**self.address_width/2**10),
             colorer(self.paging),
+            colorer(self.ordering),
             colorer(self.n_locs))
         r += SoCLocHandler.__str__(self)
         r = r[:-1]
@@ -678,6 +690,7 @@ class SoC(Module):
         csr_data_width       = 32,
         csr_address_width    = 14,
         csr_paging           = 0x800,
+        csr_ordering         = "big",
         csr_reserved_csrs    = {},
 
         irq_n_irqs           = 32,
@@ -718,6 +731,7 @@ class SoC(Module):
             address_width = csr_address_width,
             alignment     = 32,
             paging        = csr_paging,
+            ordering      = csr_ordering,
             reserved_csrs = csr_reserved_csrs,
         )
 
@@ -947,6 +961,7 @@ class SoC(Module):
             address_width      = self.csr.address_width,
             alignment          = self.csr.alignment,
             paging             = self.csr.paging,
+            ordering           = self.csr.ordering,
             soc_bus_data_width = self.bus.data_width)
         if len(self.csr.masters):
             self.submodules.csr_interconnect = csr_bus.InterconnectShared(

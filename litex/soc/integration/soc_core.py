@@ -84,6 +84,7 @@ class SoCCore(LiteXSoC):
         csr_data_width           = 8,
         csr_address_width        = 14,
         csr_paging               = 0x800,
+        csr_ordering             = "big",
         # Identifier parameters
         ident                    = "",
         ident_version            = False,
@@ -111,6 +112,7 @@ class SoCCore(LiteXSoC):
             csr_data_width       = csr_data_width,
             csr_address_width    = csr_address_width,
             csr_paging           = csr_paging,
+            csr_ordering         = csr_ordering,
             csr_reserved_csrs    = self.csr_map,
 
             irq_n_irqs           = 32,
@@ -289,6 +291,9 @@ def soc_core_args(parser):
                         help="CSR bus address-width")
     parser.add_argument("--csr-paging", default=0x800, type=auto_int,
                         help="CSR bus paging")
+    parser.add_argument("--csr-ordering", default="big",
+                        help="CSR registers ordering (default=big)")
+
     # Identifier parameters
     parser.add_argument("--ident", default=None, type=str,
                         help="SoC identifier (default=\"\"")

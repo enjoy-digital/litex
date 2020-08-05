@@ -295,9 +295,9 @@ class CSRStatus(_CompoundCSR):
         for field in fields:
             self.comb += self.status[field.offset:field.offset + field.size].eq(getattr(self.fields, field.name))
 
-    def do_finalize(self, busword):
+    def do_finalize(self, busword, ordering):
         nwords = (self.size + busword - 1)//busword
-        for i in reversed(range(nwords)):
+        for i in reversed(range(nwords)) if ordering == "big" else range(nwords):
             nbits = min(self.size - i*busword, busword)
             sc    = CSR(nbits, self.name + str(i) if nwords > 1 else self.name)
             self.comb += sc.w.eq(self.status[i*busword:i*busword+nbits])
@@ -384,11 +384,11 @@ class CSRStorage(_CompoundCSR):
             else:
                 self.comb += field_assign
 
-    def do_finalize(self, busword):
+    def do_finalize(self, busword, ordering):
         nwords = (self.size + busword - 1)//busword
         if nwords > 1 and self.atomic_write:
             backstore = Signal(self.size - busword, name=self.name + "_backstore")
-        for i in reversed(range(nwords)):
+        for i in reversed(range(nwords)) if ordering == "big" else range(nwords):
             nbits = min(self.size - i*busword, busword)
             sc    = CSR(nbits, self.name + str(i) if nwords else self.name)
             self.simple_csrs.append(sc)
@@ -479,7 +479,8 @@ class AutoCSR:
 
 
 class GenericBank(Module):
-    def __init__(self, description, busword):
+    def __init__(self, description, busword, ordering="big"):
+        assert ordering in ["big", "little"]
         # Turn description into simple CSRs and claim ownership of compound CSR modules
         self.simple_csrs = []
         for c in description:
@@ -487,7 +488,7 @@ class GenericBank(Module):
                 assert c.size <= busword
                 self.simple_csrs.append(c)
             else:
-                c.finalize(busword)
+                c.finalize(busword, ordering)
                 self.simple_csrs += c.get_simple_csrs()
                 self.submodules  += c
         self.decode_bits = bits_for(len(self.simple_csrs)-1)
