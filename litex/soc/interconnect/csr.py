@@ -290,8 +290,8 @@ class CSRStatus(_CompoundCSR):
             reset = self.fields.get_reset()
         _CompoundCSR.__init__(self, size, name)
         self.description = description
-        self.status = Signal(self.size, reset=reset)
-        self.we = Signal()
+        self.status      = Signal(self.size, reset=reset)
+        self.we          = Signal()
         for field in fields:
             self.comb += self.status[field.offset:field.offset + field.size].eq(getattr(self.fields, field.name))
 
@@ -299,7 +299,7 @@ class CSRStatus(_CompoundCSR):
         nwords = (self.size + busword - 1)//busword
         for i in reversed(range(nwords)):
             nbits = min(self.size - i*busword, busword)
-            sc = CSR(nbits, self.name + str(i) if nwords > 1 else self.name)
+            sc    = CSR(nbits, self.name + str(i) if nwords > 1 else self.name)
             self.comb += sc.w.eq(self.status[i*busword:i*busword+nbits])
             self.simple_csrs.append(sc)
         self.comb += self.we.eq(sc.we)
@@ -369,12 +369,12 @@ class CSRStorage(_CompoundCSR):
             size  = self.fields.get_size()
             reset = self.fields.get_reset()
         _CompoundCSR.__init__(self, size, name)
-        self.description = description
-        self.storage = Signal(self.size, reset=reset, reset_less=reset_less)
+        self.description  = description
+        self.storage      = Signal(self.size, reset=reset, reset_less=reset_less)
         self.atomic_write = atomic_write
-        self.re = Signal()
+        self.re           = Signal()
         if write_from_dev:
-            self.we = Signal()
+            self.we    = Signal()
             self.dat_w = Signal(self.size)
             self.sync += If(self.we, self.storage.eq(self.dat_w))
         for field in [*fields]:
@@ -390,7 +390,7 @@ class CSRStorage(_CompoundCSR):
             backstore = Signal(self.size - busword, name=self.name + "_backstore")
         for i in reversed(range(nwords)):
             nbits = min(self.size - i*busword, busword)
-            sc = CSR(nbits, self.name + str(i) if nwords else self.name)
+            sc    = CSR(nbits, self.name + str(i) if nwords else self.name)
             self.simple_csrs.append(sc)
             lo = i*busword
             hi = lo+nbits
@@ -473,8 +473,8 @@ class AutoCSR:
     they will be called by the``AutoCSR`` methods and their CSR and memories added to the lists returned,
     with the child objects' names as prefixes.
     """
-    get_memories = _make_gatherer("get_memories", Memory, memprefix)
-    get_csrs = _make_gatherer("get_csrs", _CSRBase, csrprefix)
+    get_memories  = _make_gatherer("get_memories", Memory, memprefix)
+    get_csrs      = _make_gatherer("get_csrs", _CSRBase, csrprefix)
     get_constants = _make_gatherer("get_constants", CSRConstant, csrprefix)
 
 
@@ -489,5 +489,5 @@ class GenericBank(Module):
             else:
                 c.finalize(busword)
                 self.simple_csrs += c.get_simple_csrs()
-                self.submodules += c
+                self.submodules  += c
         self.decode_bits = bits_for(len(self.simple_csrs)-1)
