@@ -32,11 +32,11 @@ class VexRiscvSMP(CPU):
     nop                  = "nop"
     io_regions           = {0x80000000: 0x80000000} # origin, length
 
-    cpu_count   = 1
-    dcache_size = 4096
-    icache_size = 4096
-    dcache_ways = 1
-    icache_ways = 1
+    cpu_count      = 1
+    dcache_size    = 4096
+    icache_size    = 4096
+    dcache_ways    = 1
+    icache_ways    = 1
     coherent_dma   = False
     litedram_width = 32
     dcache_width   = 32
@@ -44,57 +44,68 @@ class VexRiscvSMP(CPU):
 
     @staticmethod
     def args_fill(parser):
-        parser.add_argument("--cpu-count",   default=1,    help="")
-        parser.add_argument("--dcache-width", default=None,    help="L1 data cache bus width")
-        parser.add_argument("--icache-width", default=None,    help="L1 instruction cache bus width")
-        parser.add_argument("--dcache-size", default=None, help="L1 data cache size in byte per CPU")
-        parser.add_argument("--dcache-ways", default=None,    help="L1 data cache ways per CPU")
-        parser.add_argument("--icache-size", default=None, help="L1 instruction cache size in byte per CPU")
-        parser.add_argument("--icache-ways", default=None,    help="L1 instruction cache ways per CPU")
+        parser.add_argument("--cpu-count",    default=1,    help="")
+        parser.add_argument("--dcache-width", default=None, help="L1 data cache bus width")
+        parser.add_argument("--icache-width", default=None, help="L1 instruction cache bus width")
+        parser.add_argument("--dcache-size",  default=None, help="L1 data cache size in byte per CPU")
+        parser.add_argument("--dcache-ways",  default=None, help="L1 data cache ways per CPU")
+        parser.add_argument("--icache-size",  default=None, help="L1 instruction cache size in byte per CPU")
+        parser.add_argument("--icache-ways",  default=None, help="L1 instruction cache ways per CPU")
 
 
     @staticmethod
     def args_read(args):
-        VexRiscvSMP.cpu_count   = args.cpu_count
+        VexRiscvSMP.cpu_count = args.cpu_count
         if args.cpu_count != 1:
             VexRiscvSMP.icache_width = 64
             VexRiscvSMP.dcache_width = 64
-            VexRiscvSMP.dcache_size = 8192
-            VexRiscvSMP.icache_size = 8192
-            VexRiscvSMP.dcache_ways = 2
-            VexRiscvSMP.icache_ways = 2
+            VexRiscvSMP.dcache_size  = 8192
+            VexRiscvSMP.icache_size  = 8192
+            VexRiscvSMP.dcache_ways  = 2
+            VexRiscvSMP.icache_ways  = 2
             VexRiscvSMP.coherent_dma = True
         if(args.dcache_width): VexRiscvSMP.dcache_width = args.dcache_width
         if(args.icache_width): VexRiscvSMP.icache_width = args.icache_width
-        if(args.icache_width): VexRiscvSMP.dcache_size = args.dcache_size
-        if(args.icache_width): VexRiscvSMP.icache_size = args.icache_size
-        if(args.icache_width): VexRiscvSMP.dcache_ways = args.dcache_ways
-        if(args.icache_width): VexRiscvSMP.icache_ways = args.icache_ways
+        if(args.icache_width): VexRiscvSMP.dcache_size  = args.dcache_size
+        if(args.icache_width): VexRiscvSMP.icache_size  = args.icache_size
+        if(args.icache_width): VexRiscvSMP.dcache_ways  = args.dcache_ways
+        if(args.icache_width): VexRiscvSMP.icache_ways  = args.icache_ways
 
     @property
     def mem_map(self):
         return {
-            "rom":          0x00000000,
-            "sram":         0x10000000,
-            "main_ram":     0x40000000,
-            "csr":          0xf0000000,
-            "clint":        0xf0010000,
+            "rom":      0x00000000,
+            "sram":     0x10000000,
+            "main_ram": 0x40000000,
+            "csr":      0xf0000000,
+            "clint":    0xf0010000,
         }
 
     @property
     def gcc_flags(self):
-        flags =  " -march=rv32ima     -mabi=ilp32"
+        flags =  " -march=rv32ima -mabi=ilp32"
         flags += " -D__vexriscv__"
         flags += " -DUART_POLLING"
         return flags
 
     @staticmethod
     def generate_cluster_name():
-        VexRiscvSMP.cluster_name = f"VexRiscvLitexSmpCluster_Cc{VexRiscvSMP.cpu_count}_Iw{VexRiscvSMP.icache_width}Is{VexRiscvSMP.icache_size}Iy{VexRiscvSMP.icache_ways}_Dw{VexRiscvSMP.dcache_width}Ds{VexRiscvSMP.dcache_size}Dy{VexRiscvSMP.dcache_ways}_Ldw{VexRiscvSMP.litedram_width}{'_Cdma' if VexRiscvSMP.coherent_dma else ''}"
+        VexRiscvSMP.cluster_name = f"VexRiscvLitexSmpCluster_" \
+        f"Cc{VexRiscvSMP.cpu_count}"    \
+        "_" \
+        f"Iw{VexRiscvSMP.icache_width}" \
+        f"Is{VexRiscvSMP.icache_size}"  \
+        f"Iy{VexRiscvSMP.icache_ways}"  \
+        "_" \
+        f"Dw{VexRiscvSMP.dcache_width}" \
+        f"Ds{VexRiscvSMP.dcache_size}"  \
+        f"Dy{VexRiscvSMP.dcache_ways}"  \
+        "_" \
+        f"Ldw{VexRiscvSMP.litedram_width}" \
+        f"{'_Cdma' if VexRiscvSMP.coherent_dma else ''}"
 
     @staticmethod
     def generate_default_configs():
-
         # Single cores
         for data_width in [16, 32, 64, 128]:
             VexRiscvSMP.litedram_width = data_width
@@ -103,23 +114,23 @@ class VexRiscvSMP(CPU):
             VexRiscvSMP.coherent_dma   = False
             VexRiscvSMP.cpu_count      = 1
 
-            # low cache amount
+            # Low cache amount
             VexRiscvSMP.dcache_size    = 4096
             VexRiscvSMP.icache_size    = 4096
             VexRiscvSMP.dcache_ways    = 1
             VexRiscvSMP.icache_ways    = 1
 
-            # without DMA
+            # Without DMA
             VexRiscvSMP.coherent_dma   = False
             VexRiscvSMP.generate_cluster_name()
             VexRiscvSMP.generate_netlist()
 
-            # with DMA
+            # With DMA
             VexRiscvSMP.coherent_dma   = True
             VexRiscvSMP.generate_cluster_name()
             VexRiscvSMP.generate_netlist()
 
-            # high cache amount
+            # High cache amount
             VexRiscvSMP.dcache_size    = 8192
             VexRiscvSMP.icache_size    = 8192
             VexRiscvSMP.dcache_ways    = 2
@@ -127,12 +138,12 @@ class VexRiscvSMP(CPU):
             VexRiscvSMP.icache_width   = 32 if data_width < 64 else 64
             VexRiscvSMP.dcache_width   = 32 if data_width < 64 else 64
 
-            # without DMA
+            # Without DMA
             VexRiscvSMP.coherent_dma = False
             VexRiscvSMP.generate_cluster_name()
             VexRiscvSMP.generate_netlist()
 
-            # with DMA
+            # With DMA
             VexRiscvSMP.coherent_dma = True
             VexRiscvSMP.generate_cluster_name()
             VexRiscvSMP.generate_netlist()
@@ -140,25 +151,24 @@ class VexRiscvSMP(CPU):
         # Multi cores
         for core_count in [2,4]:
             VexRiscvSMP.litedram_width = 128
-            VexRiscvSMP.icache_width = 64
-            VexRiscvSMP.dcache_width = 64
-            VexRiscvSMP.dcache_size = 8192
-            VexRiscvSMP.icache_size = 8192
-            VexRiscvSMP.dcache_ways = 2
-            VexRiscvSMP.icache_ways = 2
-            VexRiscvSMP.coherent_dma = True
-            VexRiscvSMP.cpu_count = core_count
+            VexRiscvSMP.icache_width   = 64
+            VexRiscvSMP.dcache_width   = 64
+            VexRiscvSMP.dcache_size    = 8192
+            VexRiscvSMP.icache_size    = 8192
+            VexRiscvSMP.dcache_ways    = 2
+            VexRiscvSMP.icache_ways    = 2
+            VexRiscvSMP.coherent_dma   = True
+            VexRiscvSMP.cpu_count      = core_count
             VexRiscvSMP.generate_cluster_name()
             VexRiscvSMP.generate_netlist()
-
 
     @staticmethod
     def generate_netlist():
         print(f"Generating cluster netlist")
         vdir = get_data_mod("cpu", "vexriscv_smp").data_location
-
         gen_args = []
-        if(VexRiscvSMP.coherent_dma) : gen_args.append("--coherent-dma")
+        if(VexRiscvSMP.coherent_dma):
+            gen_args.append("--coherent-dma")
         gen_args.append(f"--cpu-count={VexRiscvSMP.cpu_count}")
         gen_args.append(f"--ibus-width={VexRiscvSMP.icache_width}")
         gen_args.append(f"--dbus-width={VexRiscvSMP.dcache_width}")
@@ -245,8 +255,6 @@ class VexRiscvSMP(CPU):
             i_plicWishbone_DAT_MOSI  = plicbus.dat_w
         )
 
-
-
     def set_reset_address(self, reset_address):
         assert not hasattr(self, "reset_address")
         self.reset_address = reset_address
@@ -261,17 +269,14 @@ class VexRiscvSMP(CPU):
         platform.add_source(os.path.join(vdir, "RamXilinx.v"), "verilog")
         platform.add_source(os.path.join(vdir,  self.cluster_name + ".v"), "verilog")
 
-
     def add_memory_buses(self, address_width, data_width):
         VexRiscvSMP.litedram_width = data_width
 
         VexRiscvSMP.generate_cluster_name()
-        if self.coherent_dma:
+        if VexRiscvSMP.coherent_dma:
             self.dma_bus = dma_bus = wishbone.Interface(data_width=VexRiscvSMP.dcache_width)
-
             dma_bus_stall   = Signal()
             dma_bus_inhibit = Signal()
-
             self.cpu_params.update(
                 i_dma_wishbone_CYC      = dma_bus.cyc,
                 i_dma_wishbone_STB      = dma_bus.stb & ~dma_bus_inhibit,
@@ -283,7 +288,6 @@ class VexRiscvSMP(CPU):
                 i_dma_wishbone_DAT_MOSI = dma_bus.dat_w,
                 o_dma_wishbone_STALL    = dma_bus_stall
             )
-
             self.sync += [
                 If(dma_bus.stb & dma_bus.cyc & ~dma_bus_stall,
                     dma_bus_inhibit.eq(1),
