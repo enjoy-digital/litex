@@ -1182,7 +1182,7 @@ class LiteXSoC(SoC):
                 data_width    = self.sdram.crossbar.controller.data_width
             )
 
-        # SoC [<--> L2 Cache] <--> LiteDRAM --------------------------------------------------------
+        # Connect CPU's direct memory buses to LiteDRAM --------------------------------------------
         if len(self.cpu.memory_buses):
             # When CPU has at least a direct memory bus, connect them directly to LiteDRAM.
             for mem_bus in self.cpu.memory_buses:
@@ -1231,9 +1231,15 @@ class LiteXSoC(SoC):
                     # Else raise Error.
                     else:
                         raise NotImplementedError
-        else:
-            # When CPU has no direct memory interface, create a Wishbone Slave interface to LiteDRAM.
 
+        # Connect Main bus to LiteDRAM (with optional L2 Cache) ------------------------------------
+        connect_main_bus_to_dram = (
+            # No memory buses.
+            (not len(self.cpu.memory_buses)) or
+            # Memory buses but no DMA bus.
+            (len(self.cpu.memory_buses) and not hasattr(self.cpu, "dma_bus"))
+        )
+        if connect_main_bus_to_dram:
             # Request a LiteDRAM native port.
             port = self.sdram.crossbar.get_port()
             port.data_width = 2**int(log2(port.data_width)) # Round to nearest power of 2.
@@ -1248,7 +1254,7 @@ class LiteXSoC(SoC):
                 l2_cache_size = max(l2_cache_size, int(2*port.data_width/8)) # Use minimal size if lower
                 l2_cache_size = 2**int(log2(l2_cache_size))                  # Round to nearest power of 2
                 l2_cache_data_width = max(port.data_width, l2_cache_min_data_width)
-                l2_cache            = wishbone.Cache(
+                l2_cache = wishbone.Cache(
                     cachesize = l2_cache_size//4,
                     master    = wb_sdram,
                     slave     = wishbone.Interface(l2_cache_data_width),
@@ -1258,12 +1264,14 @@ class LiteXSoC(SoC):
                 self.submodules.l2_cache = l2_cache
                 litedram_wb = self.l2_cache.slave
             else:
-                litedram_wb     = wishbone.Interface(port.data_width)
+                litedram_wb = wishbone.Interface(port.data_width)
                 self.submodules += wishbone.Converter(wb_sdram, litedram_wb)
             self.add_config("L2_SIZE", l2_cache_size)
 
             # Wishbone Slave <--> LiteDRAM bridge
-            self.submodules.wishbone_bridge = LiteDRAMWishbone2Native(litedram_wb, port,
+            self.submodules.wishbone_bridge = LiteDRAMWishbone2Native(
+                wishbone     = litedram_wb,
+                port         = port,
                 base_address = self.bus.regions["main_ram"].origin)
 
     # Add Ethernet ---------------------------------------------------------------------------------
