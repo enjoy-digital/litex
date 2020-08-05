@@ -228,7 +228,8 @@ class SyncFIFO(_FIFOWrapper):
 
 
 class AsyncFIFO(_FIFOWrapper):
-    def __init__(self, layout, depth=4, buffered=False):
+    def __init__(self, layout, depth=None, buffered=False):
+        depth = 4 if depth is None else depth
         assert depth >= 4
         _FIFOWrapper.__init__(self,
             fifo_class = fifo.AsyncFIFOBuffered if buffered else fifo.AsyncFIFO,
@@ -238,7 +239,7 @@ class AsyncFIFO(_FIFOWrapper):
 # ClockDomainCrossing ------------------------------------------------------------------------------
 
 class ClockDomainCrossing(Module):
-    def __init__(self, layout, cd_from="sys", cd_to="sys"):
+    def __init__(self, layout, cd_from="sys", cd_to="sys", depth=None):
         self.sink   = Endpoint(layout)
         self.source = Endpoint(layout)
         # # #
@@ -246,7 +247,7 @@ class ClockDomainCrossing(Module):
         if cd_from == cd_to:
             self.comb += self.sink.connect(self.source)
         else:
-            cdc = AsyncFIFO(layout)
+            cdc = AsyncFIFO(layout, depth)
             cdc = ClockDomainsRenamer({"write": cd_from, "read": cd_to})(cdc)
             self.submodules += cdc
             self.comb += self.sink.connect(cdc.sink)
