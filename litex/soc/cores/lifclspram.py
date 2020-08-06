@@ -9,11 +9,7 @@ from litex.soc.interconnect import wishbone
 kB = 1024
 
 """
-LIFCL Crosslink-NX family-specific Wishbone interface to the Single Port RAM (SPRAM) primitives.
-Because it is single port, this module is meant to be used as the CPU's RAM region,
-leaving block RAM free for other use.
-
-Example: To get a 32-bit data bus, we must width-cascade 8 4-bit SPRAMs.
+RAM comprised of 2KByte 1Kx18 bit wide BRAMS
 
 """
 
@@ -26,34 +22,33 @@ class LIFCLSPRAM(Module):
         assert width in [16, 32, 64]
         if width == 16:
             #assert size in [32*kB, 64*kB, 128*kB]
-            depth_cascading = size//(128*kB)
-            width_cascading = 8
+            depth_cascading = size//(2*kB)
+            width_cascading = 1
         if width == 32:
             #assert size in [64*kB, 128*kB]
-            depth_cascading = size//(256*kB)
-            width_cascading = 16
+            depth_cascading = size//(4*kB)
+            width_cascading = 2
         if width == 64:
             #assert size in [128*kB]
-            depth_cascading = size//(512*kB)
-            width_cascading = 32
+            depth_cascading = size//(8*kB)
+            width_cascading = 4
 
         for d in range(depth_cascading):
             for w in range(width_cascading):
-                datain = Signal(4)
-                dataout = Signal(4)
+                datain = Signal(16)
+                dataout = Signal(16)
                 wren = Signal()
                 self.comb += [
-                    datain.eq(self.bus.dat_w[4*w:4*(w+1)]),
-                    If(self.bus.adr[12:12+log2_int(depth_cascading)+1] == d,
+                    datain.eq(self.bus.dat_w[16*w:16*(w+1)]),
+                    If(self.bus.adr[10:10+log2_int(depth_cascading)+1] == d,
                         wren.eq(self.bus.we & self.bus.stb & self.bus.cyc & self.bus.sel[w//2] ),
-                        self.bus.dat_r[4*w:4*(w+1)].eq(dataout)
+                        self.bus.dat_r[16*w:16*(w+1)].eq(dataout)
                     ),
                 ]
-                self.specials += Instance("SB_SPRAM256KA",
-                    p_DATA_WIDTH="X4",
-                    i_AD=Cat(self.bus.adr[:12],1,1),
+                self.specials += Instance("SP16K",
+                    i_AD=Cat(self.bus.adr[:10], 1, 1, 1, 1),
                     i_DI=datain,
-                    i_WREN=wren,
+                    i_WE=wren,
                     i_CS=0b000,
                     i_CLK=ClockSignal("sys"),
                     o_DO=dataout
