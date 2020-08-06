@@ -5,7 +5,7 @@
 
 import os
 
-from migen.fhdl.structure import Signal
+from migen.fhdl.structure import Signal, Cat
 from migen.genlib.record import Record
 
 from litex.gen.fhdl import verilog
@@ -210,6 +210,17 @@ class ConstraintManager:
         self.matched.append((resource, obj))
         return obj
 
+    def request_all(self, name):
+        r = []
+        while True:
+            try:
+                r.append(self.request(name, len(r)))
+            except ConstraintError:
+                break
+        if not len(r):
+            raise ValueError
+        return Cat(r)
+
     def lookup_request(self, name, number=None, loose=False):
         subname = None
         if ":" in name: name, subname = name.split(":")
@@ -287,6 +298,9 @@ class GenericPlatform:
 
     def request(self, *args, **kwargs):
         return self.constraint_manager.request(*args, **kwargs)
+
+    def request_all(self, *args, **kwargs):
+        return self.constraint_manager.request_all(*args, **kwargs)
 
     def lookup_request(self, *args, **kwargs):
         return self.constraint_manager.lookup_request(*args, **kwargs)
