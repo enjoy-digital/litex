@@ -1313,7 +1313,7 @@ class LiteXSoC(SoC):
         from liteeth.frontend.etherbone import LiteEthEtherbone
         # Core
         ethcore = LiteEthUDPIPCore(
-            phy         = self.ethphy,
+            phy         = phy,
             mac_address = mac_address,
             ip_address  = ip_address,
             clk_freq    = self.clk_freq)
