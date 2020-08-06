@@ -1,4 +1,5 @@
 # This file is Copyright (c) 2019-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2020 Gwenhael Goavec-Merou <gwenhael.goavec-merou@trabucayre.com>
 # License: BSD
 
 import os
@@ -80,41 +81,38 @@ class Zynq7000(CPU):
             o_FCLK_CLK0          = ClockSignal("ps7"),
             o_FCLK_RESET0_N      = ps7_rst_n
         )
+        self.specials += AsyncResetSynchronizer(self.cd_ps7, ~ps7_rst_n)
 
-        # Enet0 mdio
-        try:
-            ps7_enet0_mdio_pads = platform.request("ps7_enet0_mdio")
-            self.cpu_params.update(dict(
+        # Enet0 mdio -------------------------------------------------------------------------------
+        ps7_enet0_mdio_pads = platform.request("ps7_enet0_mdio", loose=True)
+        if ps7_enet0_mdio_pads is not None:
+            self.cpu_params.update(
                 o_ENET0_MDIO_MDC = ps7_enet0_mdio_pads.mdc,
                 i_ENET0_MDIO_I   = ps7_enet0_mdio_pads.i,
                 o_ENET0_MDIO_O   = ps7_enet0_mdio_pads.o,
                 o_ENET0_MDIO_T   = ps7_enet0_mdio_pads.t
-            ))
-        except:
-            pass
+            )
 
-        # Enet0
-        try:
-            ps7_enet0_pads = platform.request("ps7_enet0")
-            self.cpu_params.update(dict(
-                o_ENET0_GMII_TX_EN  = ps7_enet0_pads.tx_en,
-                o_ENET0_GMII_TX_ER  = ps7_enet0_pads.tx_er,
-                o_ENET0_GMII_TXD    = ps7_enet0_pads.txd,
-                i_ENET0_GMII_COL    = ps7_enet0_pads.col,
-                i_ENET0_GMII_CRS    = ps7_enet0_pads.crs,
-                i_ENET0_GMII_RX_CLK = ps7_enet0_pads.rx_clk,
-                i_ENET0_GMII_RX_DV  = ps7_enet0_pads.rx_dv,
-                i_ENET0_GMII_RX_ER  = ps7_enet0_pads.rx_er,
-                i_ENET0_GMII_TX_CLK = ps7_enet0_pads.tx_clk,
-                i_ENET0_GMII_RXD    = ps7_enet0_pads.rxd
-            ))
-        except:
-            pass
+        # Enet0 ------------------------------------------------------------------------------------
+        ps7_enet0_pads = platform.request("ps7_enet0", loose=True)
+        if ps7_enet0_pads is not None:
+            self.cpu_params.update(
+                    o_ENET0_GMII_TX_EN  = ps7_enet0_pads.tx_en,
+                    o_ENET0_GMII_TX_ER  = ps7_enet0_pads.tx_er,
+                    o_ENET0_GMII_TXD    = ps7_enet0_pads.txd,
+                    i_ENET0_GMII_COL    = ps7_enet0_pads.col,
+                    i_ENET0_GMII_CRS    = ps7_enet0_pads.crs,
+                    i_ENET0_GMII_RX_CLK = ps7_enet0_pads.rx_clk,
+                    i_ENET0_GMII_RX_DV  = ps7_enet0_pads.rx_dv,
+                    i_ENET0_GMII_RX_ER  = ps7_enet0_pads.rx_er,
+                    i_ENET0_GMII_TX_CLK = ps7_enet0_pads.tx_clk,
+                    i_ENET0_GMII_RXD    = ps7_enet0_pads.rxd
+                )
 
-        # SDIO0
-        try:
-            ps7_sdio0_pads = platform.request("ps7_sdio0")
-            self.cpu_params.update(dict(
+        # SDIO0 ------------------------------------------------------------------------------------
+        ps7_sdio0_pads = platform.request("ps7_sdio0", loose=True)
+        if ps7_sdio0_pads is not None:
+            self.cpu_params.update(
                 o_SDIO0_CLK     = ps7_sdio0_pads.clk,
                 i_SDIO0_CLK_FB  = ps7_sdio0_pads.clk_fb,
                 o_SDIO0_CMD_O   = ps7_sdio0_pads.cmd_o,
@@ -126,29 +124,17 @@ class Zynq7000(CPU):
                 o_SDIO0_LED     = ps7_sdio0_pads.led,
                 o_SDIO0_BUSPOW  = ps7_sdio0_pads.buspow,
                 o_SDIO0_BUSVOLT = ps7_sdio0_pads.busvolt,
-            ))
-        except:
-            pass
+            )
 
-        # SDIO0_CD
-        try:
-            ps7_sdio0_cd_pads = platform.request("ps7_sdio0_cd")
-            self.cpu_params.update(dict(
-                i_SDIO0_CDN = ps7_sdio0_cd_pads.cdn
-            ))
-        except:
-            pass
+        # SDIO0_CD ---------------------------------------------------------------------------------
+        ps7_sdio0_cd_pads = platform.request("ps7_sdio0_cd", loose=True)
+        if ps7_sdio0_cd_pads is not None:
+            self.cpu_params.update(i_SDIO0_CDN = ps7_sdio0_cd_pads.cdn)
 
-        # SDIO0_WP
-        try:
-            ps7_sdio0_wp_pads = platform.request("ps7_sdio0_wp")
-            self.cpu_params.update(dict(
-                i_SDIO0_WP  = ps7_sdio0_wp_pads.wp
-            ))
-        except:
-            pass
-
-        self.specials += AsyncResetSynchronizer(self.cd_ps7, ~ps7_rst_n)
+        # SDIO0_WP ---------------------------------------------------------------------------------
+        ps7_sdio0_wp_pads = platform.request("ps7_sdio0_wp", loose=True)
+        if ps7_sdio0_wp_pads is not None:
+            self.cpu_params.update(i_SDIO0_WP = ps7_sdio0_wp_pads.wp)
 
     def set_ps7_xci(self, ps7_xci):
         self.ps7_xci = ps7_xci
