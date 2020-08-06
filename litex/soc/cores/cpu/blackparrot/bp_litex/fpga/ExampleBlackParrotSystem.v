@@ -213,6 +213,7 @@ bp_cce_mmio_cfg_loader
     ,.inst_ram_els_p(num_cce_instr_ram_els_p)
     ,.skip_ram_init_p(skip_init_p)
     ,.clear_freeze_p(!load_nbf_p)
+    ,.cce_ucode_filename_p("/tmp/cce_ucode.mem")
     )
   cfg_loader
   (.clk_i(clk_i)
@@ -229,6 +230,7 @@ bp_cce_mmio_cfg_loader
    ,.io_resp_ready_o(cfg_resp_ready_lo)
 
    ,.done_o(cfg_done_lo)
+ 
   );
 
 // CFG and NBF are mutex, so we can just use fixed arbitration here
