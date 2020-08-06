@@ -82,11 +82,14 @@ class PlatformInfo:
         return "{}({})".format(self.__class__.__name__, repr(self.info))
 
 
-def _lookup(description, name, number):
+def _lookup(description, name, number, loose=True):
     for resource in description:
         if resource[0] == name and (number is None or resource[1] == number):
             return resource
-    raise ConstraintError("Resource not found: {}:{}".format(name, number))
+    if loose:
+        return None
+    else:
+        raise ConstraintError("Resource not found: {}:{}".format(name, number))
 
 
 def _resource_type(resource):
@@ -178,8 +181,10 @@ class ConstraintManager:
     def add_extension(self, io):
         self.available.extend(io)
 
-    def request(self, name, number=None):
-        resource = _lookup(self.available, name, number)
+    def request(self, name, number=None, loose=False):
+        resource = _lookup(self.available, name, number, loose)
+        if resource is None:
+            return None
         rt, ri = _resource_type(resource)
         if number is None:
             resource_name = name
