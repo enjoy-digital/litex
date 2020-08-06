@@ -73,12 +73,6 @@ class Zynq7000(CPU):
             io_DDR_VRN           = ps7_ddram_pads.vrn,
             io_DDR_VRP           = ps7_ddram_pads.vrp,
 
-            # Ethernet
-            i_ENET0_MDIO_I       = 0,
-
-            # SDIO0
-            i_SDIO0_WP           = 0,
-
             # USB0
             i_USB0_VBUS_PWRFAULT = 0,
 
@@ -86,6 +80,74 @@ class Zynq7000(CPU):
             o_FCLK_CLK0          = ClockSignal("ps7"),
             o_FCLK_RESET0_N      = ps7_rst_n
         )
+
+        # Enet0 mdio
+        try:
+            ps7_enet0_mdio_pads = platform.request("ps7_enet0_mdio")
+            self.cpu_params.update(dict(
+                o_ENET0_MDIO_MDC = ps7_enet0_mdio_pads.mdc,
+                i_ENET0_MDIO_I   = ps7_enet0_mdio_pads.i,
+                o_ENET0_MDIO_O   = ps7_enet0_mdio_pads.o,
+                o_ENET0_MDIO_T   = ps7_enet0_mdio_pads.t
+            ))
+        except:
+            pass
+
+        # Enet0
+        try:
+            ps7_enet0_pads = platform.request("ps7_enet0")
+            self.cpu_params.update(dict(
+                o_ENET0_GMII_TX_EN  = ps7_enet0_pads.tx_en,
+                o_ENET0_GMII_TX_ER  = ps7_enet0_pads.tx_er,
+                o_ENET0_GMII_TXD    = ps7_enet0_pads.txd,
+                i_ENET0_GMII_COL    = ps7_enet0_pads.col,
+                i_ENET0_GMII_CRS    = ps7_enet0_pads.crs,
+                i_ENET0_GMII_RX_CLK = ps7_enet0_pads.rx_clk,
+                i_ENET0_GMII_RX_DV  = ps7_enet0_pads.rx_dv,
+                i_ENET0_GMII_RX_ER  = ps7_enet0_pads.rx_er,
+                i_ENET0_GMII_TX_CLK = ps7_enet0_pads.tx_clk,
+                i_ENET0_GMII_RXD    = ps7_enet0_pads.rxd
+            ))
+        except:
+            pass
+
+        # SDIO0
+        try:
+            ps7_sdio0_pads = platform.request("ps7_sdio0")
+            self.cpu_params.update(dict(
+                o_SDIO0_CLK     = ps7_sdio0_pads.clk,
+                i_SDIO0_CLK_FB  = ps7_sdio0_pads.clk_fb,
+                o_SDIO0_CMD_O   = ps7_sdio0_pads.cmd_o,
+                i_SDIO0_CMD_I   = ps7_sdio0_pads.cmd_i,
+                o_SDIO0_CMD_T   = ps7_sdio0_pads.cmd_t,
+                o_SDIO0_DATA_O  = ps7_sdio0_pads.data_o,
+                i_SDIO0_DATA_I  = ps7_sdio0_pads.data_i,
+                o_SDIO0_DATA_T  = ps7_sdio0_pads.data_t,
+                o_SDIO0_LED     = ps7_sdio0_pads.led,
+                o_SDIO0_BUSPOW  = ps7_sdio0_pads.buspow,
+                o_SDIO0_BUSVOLT = ps7_sdio0_pads.busvolt,
+            ))
+        except:
+            pass
+
+        # SDIO0_CD
+        try:
+            ps7_sdio0_cd_pads = platform.request("ps7_sdio0_cd")
+            self.cpu_params.update(dict(
+                i_SDIO0_CDN = ps7_sdio0_cd_pads.cdn
+            ))
+        except:
+            pass
+
+        # SDIO0_WP
+        try:
+            ps7_sdio0_wp_pads = platform.request("ps7_sdio0_wp")
+            self.cpu_params.update(dict(
+                i_SDIO0_WP  = ps7_sdio0_wp_pads.wp
+            ))
+        except:
+            pass
+
         self.specials += AsyncResetSynchronizer(self.cd_ps7, ~ps7_rst_n)
 
     def set_ps7_xci(self, ps7_xci):
