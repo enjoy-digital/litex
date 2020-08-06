@@ -23,47 +23,49 @@ from litex.build.lattice import common
 def _produces_jedec(device):
     return device.startswith("LCMX")
 
-# Constraints (.lpf) -------------------------------------------------------------------------------
+# Constraints (.ldc) -------------------------------------------------------------------------------
 
 def _format_constraint(c):
     if isinstance(c, Pins):
-        return ("LOCATE COMP ", " SITE " + "\"" + c.identifiers[0] + "\"")
+        return ("ldc_set_location -site {" + c.identifiers[0] + "} [get_ports ","]")
     elif isinstance(c, IOStandard):
-        return ("IOBUF PORT ", " IO_TYPE=" + c.name)
+        return ("ldc_set_port -iobuf {IO_TYPE="+c.name+"} [get_ports ", "]")
     elif isinstance(c, Misc):
-        return ("IOBUF PORT ", " " + c.misc)
+        return ("IOBUF PORT ", " " + c.misc) # TODO
 
 
-def _format_lpf(signame, pin, others, resname):
+def _format_ldc(signame, pin, others, resname):
     fmt_c = [_format_constraint(c) for c in ([Pins(pin)] + others)]
-    lpf = []
+    ldc = []
     for pre, suf in fmt_c:
-        lpf.append(pre + "\"" + signame + "\"" + suf + ";")
-    return "\n".join(lpf)
+        ldc.append(pre + signame + suf + ";")
+    return "\n".join(ldc)
 
 
-def _build_lpf(named_sc, named_pc, clocks, vns, build_name):
-    lpf = []
-    lpf.append("BLOCK RESETPATHS;")
-    lpf.append("BLOCK ASYNCPATHS;")
+def _build_pdc(named_sc, named_pc, clocks, vns, build_name):
+    pdc = []
+    #pdc.append("BLOCK RESETPATHS;") #TODO Don't think these are needed with Radiant, trying to double check
+    #pdc.append("BLOCK ASYNCPATHS;") #TODO
     for sig, pins, others, resname in named_sc:
         if len(pins) > 1:
             for i, p in enumerate(pins):
-                lpf.append(_format_lpf(sig + "[" + str(i) + "]", p, others, resname))
+                pdc.append(_format_ldc(sig + "[" + str(i) + "]", p, others, resname))
         else:
-            lpf.append(_format_lpf(sig, pins[0], others, resname))
+            pdc.append(_format_ldc(sig, pins[0], others, resname))
     if named_pc:
-        lpf.append("\n".join(named_pc))
+        pdc.append("\n".join(named_pc))
 
-    # Note: .lpf is only used post-synthesis, Synplify constraints clocks by default to 200MHz.
+    # Note: .pdc is only used post-synthesis, Synplify constraints clocks by default to 200MHz.
     for clk, period in clocks.items():
         clk_name = vns.get_name(clk)
-        lpf.append("FREQUENCY {} \"{}\" {} MHz;".format(
-            "PORT" if clk_name in [name for name, _, _, _ in named_sc] else "NET",
+        pdc.append("create_clock -period {} -name {} [{} {}];".format(
+            str(period),
             clk_name,
-            str(1e3/period)))
+            "get_ports" if clk_name in [name for name, _, _, _ in named_sc] else "get_nets",
+            clk_name
+            ))
 
-    tools.write_to_file(build_name + ".lpf", "\n".join(lpf))
+    tools.write_to_file(build_name + ".pdc", "\n".join(pdc))
 
 # Project (.tcl) -----------------------------------------------------------------------------------
 
@@ -87,6 +89,8 @@ def _build_tcl(device, sources, vincpaths, build_name):
     # Add sources
     for filename, language, library in sources:
         tcl.append("prj_add_source \"{}\" -work {}".format(tcl_path(filename), library))
+
+    tcl.append("prj_add_source \"{}\" -work {}".format(build_name + ".pdc", library)) #TODO Fix path for this file.
 
     # Set top level
     tcl.append("prj_set_impl_opt top \"{}\"".format(build_name))
@@ -164,7 +168,7 @@ def _check_timing(build_name):
         limit = 1e-8
         setup = m.group(2)
         hold  = m.group(4)
-        # If there were no freq constraints in lpf, ratings will be dashed.
+        # If there were no freq constraints in ldc, ratings will be dashed.
         # results will likely be terribly unreliable, so bail
         assert not setup == hold == "-", "No timing constraints were provided"
         setup, hold = map(float, (setup, hold))
@@ -220,8 +224,8 @@ class LatticeRadiantToolchain:
         v_output.write(v_file)
         platform.add_source(v_file)
 
-        # Generate design constraints file (.lpf)
-        _build_lpf(named_sc, named_pc, self.clocks, v_output.ns, build_name)
+        # Generate design constraints file (.ldc)
+        _build_pdc(named_sc, named_pc, self.clocks, v_output.ns, build_name)
 
         # Generate design script file (.tcl)
         _build_tcl(platform.device, platform.sources, platform.verilog_include_paths, build_name)

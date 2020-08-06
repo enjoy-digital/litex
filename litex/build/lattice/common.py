@@ -148,15 +148,17 @@ class LatticeLIFCLsyncResetSynchronizerImpl(Module):
     def __init__(self, cd, async_reset):
         rst1 = Signal()
         self.specials += [
-            Instance("FD1S3BX",
+            Instance("FD1P3BX",
                 i_D  = 0,
                 i_PD = async_reset,
                 i_CK = cd.clk,
+                i_SP = 1,
                 o_Q  = rst1),
-            Instance("FD1S3BX",
+            Instance("FD1P3BX",
                 i_D  = rst1,
                 i_PD = async_reset,
                 i_CK = cd.clk,
+                i_SP = 1,
                 o_Q  = cd.rst)
         ]
 
