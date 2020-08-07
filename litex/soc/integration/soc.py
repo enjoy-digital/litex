@@ -828,6 +828,11 @@ class SoC(Module):
                 colorer(", ".join(cpu.CPUS.keys()))))
             raise
         # Add CPU
+        if name == "external" and cls is None:
+            self.logger.error("{} CPU requires {} to be specified.".format(
+                colorer(name),
+                colorer("cpu_cls", color="red")))
+            raise
         cpu_cls = cls if cls is not None else cpu.CPUS[name]
         if variant not in cpu_cls.variants:
             self.logger.error("{} CPU variant {}, supporteds: {}.".format(

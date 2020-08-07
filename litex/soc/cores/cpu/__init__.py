@@ -85,6 +85,9 @@ CPUS = {
     # None
     "None"        : CPUNone,
 
+    # External (CPU class provided externally by design/user)
+    "external"    : None,
+
     # LM32
     "lm32"        : LM32,
 
