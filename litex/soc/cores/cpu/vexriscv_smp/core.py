@@ -259,24 +259,6 @@ class VexRiscvSMP(CPU):
             i_plicWishbone_DAT_MOSI  = plicbus.dat_w
         )
 
-    def set_reset_address(self, reset_address):
-        assert not hasattr(self, "reset_address")
-        self.reset_address = reset_address
-        assert reset_address == 0x00000000
-
-    def add_sources(self, platform):
-        vdir = get_data_mod("cpu", "vexriscv_smp").data_location
-        print(f"VexRiscv cluster : {self.cluster_name}")
-        if not path.exists(os.path.join(vdir, self.cluster_name + ".v")):
-            self.generate_netlist()
-
-        platform.add_source(os.path.join(vdir, "RamXilinx.v"), "verilog")
-        platform.add_source(os.path.join(vdir,  self.cluster_name + ".v"), "verilog")
-
-    def add_memory_buses(self, address_width, data_width):
-        VexRiscvSMP.litedram_width = data_width
-
-        VexRiscvSMP.generate_cluster_name()
         if VexRiscvSMP.coherent_dma:
             self.dma_bus = dma_bus = wishbone.Interface(data_width=VexRiscvSMP.dcache_width)
             dma_bus_stall   = Signal()
@@ -300,6 +282,25 @@ class VexRiscvSMP(CPU):
                    dma_bus_inhibit.eq(0)
                 )
             ]
+
+    def set_reset_address(self, reset_address):
+        assert not hasattr(self, "reset_address")
+        self.reset_address = reset_address
+        assert reset_address == 0x00000000
+
+    def add_sources(self, platform):
+        vdir = get_data_mod("cpu", "vexriscv_smp").data_location
+        print(f"VexRiscv cluster : {self.cluster_name}")
+        if not path.exists(os.path.join(vdir, self.cluster_name + ".v")):
+            self.generate_netlist()
+
+        platform.add_source(os.path.join(vdir, "RamXilinx.v"), "verilog")
+        platform.add_source(os.path.join(vdir,  self.cluster_name + ".v"), "verilog")
+
+    def add_memory_buses(self, address_width, data_width):
+        VexRiscvSMP.litedram_width = data_width
+
+        VexRiscvSMP.generate_cluster_name()
 
         from litedram.common import LiteDRAMNativePort
         ibus = LiteDRAMNativePort(mode="both", address_width=32, data_width=VexRiscvSMP.litedram_width)
