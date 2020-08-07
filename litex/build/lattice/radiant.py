@@ -69,7 +69,7 @@ def _build_pdc(named_sc, named_pc, clocks, vns, build_name):
 
 # Project (.tcl) -----------------------------------------------------------------------------------
 
-def _build_tcl(device, sources, vincpaths, build_name):
+def _build_tcl(device, sources, vincpaths, build_name, pdc_file):
     tcl = []
     # Create project
     tcl.append(" ".join([
@@ -90,7 +90,7 @@ def _build_tcl(device, sources, vincpaths, build_name):
     for filename, language, library in sources:
         tcl.append("prj_add_source \"{}\" -work {}".format(tcl_path(filename), library))
 
-    tcl.append("prj_add_source \"{}\" -work {}".format(build_name + ".pdc", library)) #TODO Fix path for this file.
+    tcl.append("prj_add_source \"{}\" -work {}".format(tcl_path(pdc_file), library))
 
     # Set top level
     tcl.append("prj_set_impl_opt top \"{}\"".format(build_name))
@@ -224,11 +224,12 @@ class LatticeRadiantToolchain:
         v_output.write(v_file)
         platform.add_source(v_file)
 
-        # Generate design constraints file (.ldc)
+        # Generate design constraints file (.pdc)
         _build_pdc(named_sc, named_pc, self.clocks, v_output.ns, build_name)
+        pdc_file = build_dir + "\\" + build_name + ".pdc"
 
         # Generate design script file (.tcl)
-        _build_tcl(platform.device, platform.sources, platform.verilog_include_paths, build_name)
+        _build_tcl(platform.device, platform.sources, platform.verilog_include_paths, build_name, pdc_file)
 
         # Generate build script
         script = _build_script(build_name, platform.device)

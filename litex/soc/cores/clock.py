@@ -752,110 +752,73 @@ class ECP5PLL(Module):
         self.specials += Instance("EHXPLLL", **self.params)
 
 # Lattice / CrossLink-NX -----------------------------------------------------------------------------------
-
-class CrossLinkNXPLL(Module):
-    nclkouts_max    = 3
-    clki_div_range  = (1, 128+1)
-    clkfb_div_range = (1, 128+1)
-    clko_div_range  = (1, 128+1)
-    clki_freq_range = (    8e6,  400e6)
-    clko_freq_range = (3.125e6,  400e6)
-    vco_freq_range  = (  400e6,  800e6)
+# TODO LF Clock, I2C Clck, Lots of undocumented ports on the OSC primitive
+# NOTE This clock has +/- 15% accuracy
+class CrossLinkNXOSCA(Module):
+    nclkouts_max = 2
+    clk_hf_div_range = (1, 256)
+    clk_hf_freq_range = (1.76, 450e6)
+    clk_hf_freq = 450e6
 
     def __init__(self):
-        self.logger = logging.getLogger("CrossLinkNXPLL")
-        self.logger.info("Creating CrossLinkNXPLL.")
-        self.reset      = Signal()
-        self.locked     = Signal()
-        self.clkin_freq = None
-        self.vcxo_freq  = None
+        self.logger = logging.getLogger("CrossLinkNXOSCA")
+        self.logger.info("Creating CrossLinkNXOSCA.")
+
         self.nclkouts   = 0
         self.clkouts    = {}
         self.config     = {}
         self.params     = {}
 
-    def register_clkin(self, clkin, freq):
-        (clki_freq_min, clki_freq_max) = self.clki_freq_range
-        assert freq >= clki_freq_min
-        assert freq <= clki_freq_max
-        self.clkin = Signal()
-        if isinstance(clkin, (Signal, ClockSignal)):
-            self.comb += self.clkin.eq(clkin)
-        else:
-            raise ValueError
-        self.clkin_freq = freq
-        register_clkin_log(self.logger, clkin, freq)
-
-    def create_clkout(self, cd, freq, phase=0, margin=1e-2):
-        (clko_freq_min, clko_freq_max) = self.clko_freq_range
+    def create_clkout(self, cd, freq, margin=.05):
+        (clko_freq_min, clko_freq_max) = self.clk_hf_freq_range
         assert freq >= clko_freq_min
         assert freq <= clko_freq_max
         assert self.nclkouts < self.nclkouts_max
         clkout = Signal()
-        self.clkouts[self.nclkouts] = (clkout, freq, phase, margin)
+        self.clkouts[self.nclkouts] = (clkout, freq, margin)
         self.comb += cd.clk.eq(clkout)
         create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
         self.nclkouts += 1
 
     def compute_config(self):
         config = {}
-        for clki_div in range(*self.clki_div_range):
-            config["clki_div"] = clki_div
-            for clkfb_div in range(*self.clkfb_div_range):
-                all_valid = True
-                vco_freq = self.clkin_freq/clki_div*clkfb_div*1 # clkos3_div=1
-                (vco_freq_min, vco_freq_max) = self.vco_freq_range
-                if vco_freq >= vco_freq_min and vco_freq <= vco_freq_max:
-                    for n, (clk, f, p, m) in sorted(self.clkouts.items()):
-                        valid = False
-                        for d in range(*self.clko_div_range):
-                            clk_freq = vco_freq/d
-                            if abs(clk_freq - f) <= f*m:
-                                config["clko{}_freq".format(n)]  = clk_freq
-                                config["clko{}_div".format(n)]   = d
-                                config["clko{}_phase".format(n)] = p
-                                valid = True
-                                break
-                        if not valid:
-                            all_valid = False
-                else:
-                    all_valid = False
-                if all_valid:
-                    config["vco"] = vco_freq
-                    config["clkfb_div"] = clkfb_div
-                    compute_config_log(self.logger, config)
-                    return config
-        raise ValueError("No PLL config found")
+
+        all_valid = True
+        for n, (clk, f, m) in sorted(self.clkouts.items()):
+            valid = False
+            for d in range(*self.clk_hf_div_range):
+                clk_freq = self.clk_hf_freq/d
+                if abs(clk_freq - f) <= f*m:
+                    config["clko{}_freq".format(n)]  = clk_freq
+                    config["clko{}_div".format(n)]   = str(d)
+                    valid = True
+                    break
+            if not valid:
+                all_valid = False
+
+        if all_valid:
+            compute_config_log(self.logger, config)
+            return config
+
+        raise ValueError("No OSC config found")
+
 
     def do_finalize(self):
         config = self.compute_config()
-        clkfb  = Signal()
         self.params.update(
-            attr=[
-                ("FREQUENCY_PIN_CLKI",     str(self.clkin_freq/1e6)),
-                ("ICP_CURRENT",            "6"),
-                ("LPF_RESISTOR",          "16"),
-                ("MFG_ENABLE_FILTEROPAMP", "1"),
-                ("MFG_GMCREF_SEL",         "2")],
-            i_RST           = self.reset,
-            i_CLKI          = self.clkin,
-            o_LOCK          = self.locked,
-            p_FEEDBK_PATH   = "INT_OS3", # CLKOS3 reserved for feedback with div=1.
-            p_CLKOS3_ENABLE = "ENABLED",
-            p_CLKOS3_DIV    = 1,
-            p_CLKFB_DIV     = config["clkfb_div"],
-            p_CLKI_DIV      = config["clki_div"],
+            p_HF_OSC_EN = "ENABLED",
         )
-        for n, (clk, f, p, m) in sorted(self.clkouts.items()):
-            n_to_l = {0: "P", 1: "S", 2: "S2"}
-            div    = config["clko{}_div".format(n)]
-            cphase = int(p*(div + 1)/360 + div)
-            self.params["p_CLKO{}_ENABLE".format(n_to_l[n])] = "ENABLED"
-            self.params["p_CLKO{}_DIV".format(n_to_l[n])]    = div
-            self.params["p_CLKO{}_FPHASE".format(n_to_l[n])] = 0
-            self.params["p_CLKO{}_CPHASE".format(n_to_l[n])] = cphase
-            self.params["o_CLKO{}".format(n_to_l[n])]        = clk
-        self.specials += Instance("PLL", **self.params)
+        for n, (clk, f, m) in sorted(self.clkouts.items()):
+            n_to_l_div = {0: "HF_CLK", 1: "HF_SED_SEC"}
+            n_to_l_en = {0: "HFOUT", 1: "HFSDSC"}
+            n_to_l_out = {0: "HFCLK", 1: "HFSDSC"}
+
+            div = config["clko{}_div".format(n)]
+
+            self.params["i_{}EN".format(n_to_l_en[n])] = 0b1
+            self.params["p_{}_DIV".format(n_to_l_div[n])]    = div
+            self.params["o_{}OUT".format(n_to_l_out[n])]        = clk
+        self.specials += Instance("OSCA", **self.params)
 
 # Intel / Generic ---------------------------------------------------------------------------------
 
