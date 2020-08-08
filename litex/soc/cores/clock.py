@@ -734,7 +734,7 @@ class ECP5PLL(Module):
             i_RST           = self.reset,
             i_CLKI          = self.clkin,
             o_LOCK          = self.locked,
-            p_FBK_MODE   = "INT_OS3", # CLKOS3 reserved for feedback with div=1.
+            p_FEEDBK_PATH   = "INT_OS3", # CLKOS3 reserved for feedback with div=1.
             p_CLKOS3_ENABLE = "ENABLED",
             p_CLKOS3_DIV    = 1,
             p_CLKFB_DIV     = config["clkfb_div"],

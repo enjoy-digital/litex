@@ -49,7 +49,7 @@ class LIFCLLRAM(Module):
                     i_DI=datain,
                     i_WE=wren,
                     i_CS=0b1,
-                    i_CLK=ClockSignal("sys"),
+                    i_CLK=ClockSignal(),
                     o_DO=dataout
                 )
 
