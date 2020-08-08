@@ -3,7 +3,7 @@
 # License: BSD
 
 from litex.build.generic_platform import GenericPlatform
-from litex.build.lattice import common, diamond, icestorm, trellis
+from litex.build.lattice import common, diamond, icestorm, trellis, radiant
 
 # LatticePlatform ----------------------------------------------------------------------------------
 
@@ -19,6 +19,8 @@ class LatticePlatform(GenericPlatform):
         elif toolchain == "icestorm":
             self.bitstream_ext = ".bin"
             self.toolchain = icestorm.LatticeIceStormToolchain()
+        elif toolchain == "radiant":
+            self.toolchain = radiant.LatticeRadiantToolchain()
         else:
             raise ValueError("Unknown toolchain")
 

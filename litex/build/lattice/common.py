@@ -141,6 +141,111 @@ lattice_ecp5_trellis_special_overrides = {
     DDROutput:              LatticeECP5DDROutput
 }
 
+
+# LIFCL AsyncResetSynchronizer ----------------------------------------------------------------------
+
+class LatticeLIFCLsyncResetSynchronizerImpl(Module):
+    def __init__(self, cd, async_reset):
+        rst1 = Signal()
+        self.specials += [
+            Instance("FD1P3BX",
+                i_D  = 0,
+                i_PD = async_reset,
+                i_CK = cd.clk,
+                i_SP = 1,
+                o_Q  = rst1),
+            Instance("FD1P3BX",
+                i_D  = rst1,
+                i_PD = async_reset,
+                i_CK = cd.clk,
+                i_SP = 1,
+                o_Q  = cd.rst)
+        ]
+
+
+class LatticeLIFCLAsyncResetSynchronizer:
+    @staticmethod
+    def lower(dr):
+        return LatticeLIFCLsyncResetSynchronizerImpl(dr.cd, dr.async_reset)
+
+
+# LIFCL SDR Input -----------------------------------------------------------------------------------
+
+class LatticeLIFCLSDRInputImpl(Module):
+    def __init__(self, i, o, clk):
+        self.specials += Instance("IFD1P3BX",
+            i_SCLK = clk,
+            i_PD   = 0,
+            i_SP   = 1,
+            i_D    = i,
+            o_Q    = o,
+        )
+
+class LatticeLIFCLSDRInput:
+    @staticmethod
+    def lower(dr):
+        return LatticeLIFCLSDRInputImpl(dr.i, dr.o, dr.clk)
+
+# LIFCL SDR Output ----------------------------------------------------------------------------------
+
+class LatticeLIFCLSDROutputImpl(Module):
+    def __init__(self, i, o, clk):
+        self.specials += Instance("OFD1P3BX",
+            i_SCLK = clk,
+            i_PD   = 0,
+            i_SP   = 1,
+            i_D    = i,
+            o_Q    = o,
+        )
+
+class LatticeLIFCLSDROutput:
+    @staticmethod
+    def lower(dr):
+        return LatticeLIFCLSDROutputImpl(dr.i, dr.o, dr.clk)
+
+# LIFCL DDR Input -----------------------------------------------------------------------------------
+
+class LatticeLIFCLDDRInputImpl(Module):
+    def __init__(self, i, o1, o2, clk):
+        self.specials += Instance("IDDRX1",
+            i_SCLK = clk,
+            i_D    = i,
+            o_Q0   = o1,
+            o_Q1   = o2,
+        )
+
+class LatticeLIFCLDDRInput:
+    @staticmethod
+    def lower(dr):
+        return LatticeLIFCLDDRInputImpl(dr.i, dr.o1, dr.o2, dr.clk)
+
+# LIFCL DDR Output ----------------------------------------------------------------------------------
+
+class LatticeLIFCLDDROutputImpl(Module):
+    def __init__(self, i1, i2, o, clk):
+        self.specials += Instance("ODDRX1",
+            i_SCLK = clk,
+            i_D0   = i1,
+            i_D1   = i2,
+            o_Q    = o,
+        )
+
+class LatticeLIFCLDDROutput:
+    @staticmethod
+    def lower(dr):
+        return LatticeLIFCLDDROutputImpl(dr.i1, dr.i2, dr.o, dr.clk)
+
+# LIFCL Special Overrides ---------------------------------------------------------------------------
+
+lattice_lifcl_special_overrides = {
+    AsyncResetSynchronizer: LatticeLIFCLAsyncResetSynchronizer,
+    SDRInput:               LatticeLIFCLSDRInput,
+    SDROutput:              LatticeLIFCLSDROutput,
+    DDRInput:               LatticeLIFCLDDRInput,
+    DDROutput:              LatticeLIFCLDDROutput,
+}
+
+
 # iCE40 AsyncResetSynchronizer ----------------------------------------------------------------------
 
 class LatticeiCE40AsyncResetSynchronizerImpl(Module):
