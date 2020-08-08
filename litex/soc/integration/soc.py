@@ -482,7 +482,7 @@ class SoCCSRHandler(SoCLocHandler):
     supported_ordering      = ["big", "little"]
 
     # Creation -------------------------------------------------------------------------------------
-    def __init__(self, data_width=32, address_width=14, alignment=32, paging=0x800, ordering="big", reserved_csrs={}):
+    def __init__(self, data_width=32, address_width=14, alignment=32, paging=0x1000, ordering="big", reserved_csrs={}):
         SoCLocHandler.__init__(self, "CSR", n_locs=alignment//8*(2**address_width)//paging)
         self.logger = logging.getLogger("SoCCSRHandler")
         self.logger.info("Creating CSR Handler...")
@@ -689,7 +689,7 @@ class SoC(Module):
 
         csr_data_width       = 32,
         csr_address_width    = 14,
-        csr_paging           = 0x800,
+        csr_paging           = 0x1000,
         csr_ordering         = "big",
         csr_reserved_csrs    = {},
 

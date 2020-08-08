@@ -84,7 +84,7 @@ class InterconnectShared(Module):
 # CSR SRAM -----------------------------------------------------------------------------------------
 
 class SRAM(Module):
-    def __init__(self, mem_or_size, address, read_only=None, init=None, bus=None, paging=0x800, soc_bus_data_width=32):
+    def __init__(self, mem_or_size, address, read_only=None, init=None, bus=None, paging=0x1000, soc_bus_data_width=32):
         if bus is None:
             bus = Interface()
         self.bus = bus
@@ -163,7 +163,7 @@ class SRAM(Module):
 # CSR Bank -----------------------------------------------------------------------------------------
 
 class CSRBank(csr.GenericBank):
-    def __init__(self, description, address=0, bus=None, paging=0x800, ordering="big", soc_bus_data_width=32):
+    def __init__(self, description, address=0, bus=None, paging=0x1000, ordering="big", soc_bus_data_width=32):
         if bus is None:
             bus = Interface()
         self.bus = bus
@@ -205,7 +205,7 @@ class CSRBank(csr.GenericBank):
 # address_map is called exactly once for each object at each call to
 # scan(), so it can have side effects.
 class CSRBankArray(Module):
-    def __init__(self, source, address_map, *ifargs, paging=0x800, ordering="big", soc_bus_data_width=32, **ifkwargs):
+    def __init__(self, source, address_map, *ifargs, paging=0x1000, ordering="big", soc_bus_data_width=32, **ifkwargs):
         self.source             = source
         self.address_map        = address_map
         self.paging             = paging

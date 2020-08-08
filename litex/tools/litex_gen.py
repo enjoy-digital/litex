@@ -196,9 +196,9 @@ def main():
     parser.add_argument("--gpio-width",            default=32,  type=int, help="GPIO signals width")
 
     # CSR settings
-    parser.add_argument("--csr-data-width",    default=8,     type=int, help="CSR bus data-width (8 or 32, default=8)")
-    parser.add_argument("--csr-address-width", default=14,    type=int, help="CSR bus address-width")
-    parser.add_argument("--csr-paging",        default=0x800, type=int, help="CSR bus paging")
+    parser.add_argument("--csr-data-width",    default=8,      type=int, help="CSR bus data-width (8 or 32, default=8)")
+    parser.add_argument("--csr-address-width", default=14,     type=int, help="CSR bus address-width")
+    parser.add_argument("--csr-paging",        default=0x1000, type=int, help="CSR bus paging")
 
     args = parser.parse_args()
 
