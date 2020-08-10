@@ -36,11 +36,13 @@ class LIFCLLRAM(Module):
             for w in range(width_cascading):
                 datain = Signal(32)
                 dataout = Signal(32)
+                cs = Signal()
                 wren = Signal()
                 self.comb += [
+                    cs.eq(self.bus.adr[14:14+log2_int(depth_cascading)+1] == d),
+                    wren.eq(self.bus.we & self.bus.stb & self.bus.cyc),
                     datain.eq(self.bus.dat_w[32*w:32*(w+1)]),
-                    If(self.bus.adr[14:14+log2_int(depth_cascading)+1] == d,
-                        wren.eq(self.bus.we & self.bus.stb & self.bus.cyc),
+                    If(cs,
                         self.bus.dat_r[32*w:32*(w+1)].eq(dataout)
                     ),
                 ]
@@ -49,8 +51,8 @@ class LIFCLLRAM(Module):
                     i_AD=self.bus.adr[:14],
                     i_DI=datain,
                     i_WE=wren,
-                    i_CS=0b1,
-                    i_BYTEEN_N=Replicate(0,4), #TODO
+                    i_CS=cs,
+                    i_BYTEEN_N=self.bus.sel[4*w:4*(w+1)]^0x0F,
                     i_CE=0b1,
                     i_CLK=ClockSignal(),
                     o_DO=dataout
