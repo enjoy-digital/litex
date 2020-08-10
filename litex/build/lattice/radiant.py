@@ -44,8 +44,7 @@ def _format_ldc(signame, pin, others, resname):
 
 def _build_pdc(named_sc, named_pc, clocks, vns, build_name):
     pdc = []
-    #pdc.append("BLOCK RESETPATHS;") #TODO Don't think these are needed with Radiant, trying to double check
-    #pdc.append("BLOCK ASYNCPATHS;") #TODO
+
     for sig, pins, others, resname in named_sc:
         if len(pins) > 1:
             for i, p in enumerate(pins):

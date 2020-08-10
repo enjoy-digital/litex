@@ -756,7 +756,7 @@ class ECP5PLL(Module):
 # NOTE This clock has +/- 15% accuracy
 class CrossLinkNXOSCA(Module):
     nclkouts_max = 2
-    clk_hf_div_range = (1, 256)
+    clk_hf_div_range = (0, 255)
     clk_hf_freq_range = (1.76, 450e6)
     clk_hf_freq = 450e6
 
@@ -787,7 +787,7 @@ class CrossLinkNXOSCA(Module):
         for n, (clk, f, m) in sorted(self.clkouts.items()):
             valid = False
             for d in range(*self.clk_hf_div_range):
-                clk_freq = self.clk_hf_freq/d
+                clk_freq = self.clk_hf_freq/(d+1)
                 if abs(clk_freq - f) <= f*m:
                     config["clko{}_freq".format(n)]  = clk_freq
                     config["clko{}_div".format(n)]   = str(d)
@@ -815,9 +815,10 @@ class CrossLinkNXOSCA(Module):
 
             div = config["clko{}_div".format(n)]
 
-            self.params["i_{}EN".format(n_to_l_en[n])] = 0b1
-            self.params["p_{}_DIV".format(n_to_l_div[n])]    = div
-            self.params["o_{}OUT".format(n_to_l_out[n])]        = clk
+            self.params["i_{}EN".format(n_to_l_en[n])]      = 0b1
+            self.params["p_{}_DIV".format(n_to_l_div[n])]   = div
+            self.params["o_{}OUT".format(n_to_l_out[n])]    = clk
+            self.params["i_HFSDSCEN"] = len(self.clkouts.items()) > 1
         self.specials += Instance("OSCA", **self.params)
 
 # Intel / Generic ---------------------------------------------------------------------------------

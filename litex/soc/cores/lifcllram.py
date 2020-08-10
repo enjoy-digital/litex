@@ -48,13 +48,15 @@ class LIFCLLRAM(Module):
                 ]
                 self.specials += Instance("SP512K",
                     p_ECC_BYTE_SEL = "BYTE_EN",
-                    i_AD=self.bus.adr[:14],
                     i_DI=datain,
+                    i_AD=self.bus.adr[:14],
+                    i_CLK=ClockSignal(),
+                    i_CE=0b1,
                     i_WE=wren,
                     i_CS=cs,
+                    i_RSTOUT=0b0,
+                    i_CEOUT=0b0,
                     i_BYTEEN_N=self.bus.sel[4*w:4*(w+1)]^0x0F,
-                    i_CE=0b1,
-                    i_CLK=ClockSignal(),
                     o_DO=dataout
                 )
 
