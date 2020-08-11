@@ -116,7 +116,7 @@ int main(int i, char **c)
 #endif
 #ifdef MAIN_RAM_SIZE
 #ifdef CSR_SDRAM_BASE
-	printf("\e[1mSDRAM\e[0m:\t\t%dKiB %d-bit @ %dMHz\n",
+	printf("\e[1mSDRAM\e[0m:\t\t%dKiB %d-bit @ %dMbps/pin\n",
 		MAIN_RAM_SIZE/1024,
 		sdrdatabits(),
 		sdrfreq()/1000000);
