@@ -18,10 +18,6 @@ from litex.build.generic_platform import *
 from litex.build import tools
 from litex.build.lattice import common
 
-# Helpers ------------------------------------------------------------------------------------------
-
-def _produces_jedec(device):
-    return device.startswith("LCMX")
 
 # Constraints (.ldc) -------------------------------------------------------------------------------
 
@@ -31,14 +27,14 @@ def _format_constraint(c):
     elif isinstance(c, IOStandard):
         return ("ldc_set_port -iobuf {IO_TYPE="+c.name+"} [get_ports ", "]")
     elif isinstance(c, Misc):
-        return ("IOBUF PORT ", " " + c.misc) # TODO
+        return ("ldc_set_port -iobuf {"+c.misc+"} [get_ports ", "]" )
 
 
 def _format_ldc(signame, pin, others, resname):
     fmt_c = [_format_constraint(c) for c in ([Pins(pin)] + others)]
     ldc = []
     for pre, suf in fmt_c:
-        ldc.append(pre + signame + suf + ";")
+        ldc.append(pre + signame + suf)
     return "\n".join(ldc)
 
 
@@ -102,8 +98,6 @@ def _build_tcl(device, sources, vincpaths, build_name, pdc_file):
     tcl.append("prj_run Map -impl impl")
     tcl.append("prj_run PAR -impl impl")
     tcl.append("prj_run Export -impl impl -task Bitgen")
-    if _produces_jedec(device):
-        tcl.append("prj_run Export -impl impl -task Jedecgen")
 
     # Close project
     tcl.append("prj_close")
@@ -130,14 +124,12 @@ def _build_script(build_name, device):
         tool = tool,
         tcl_script = build_name + ".tcl",
         fail_stmt  = fail_stmt)
-    for ext in (".bit", ".jed"):
-        if ext == ".jed" and not _produces_jedec(device):
-            continue
-        script_contents += "{copy_stmt} {radiant_product} {migen_product} {fail_stmt}\n".format(
-            copy_stmt       = copy_stmt,
-            fail_stmt       = fail_stmt,
-            radiant_product = os.path.join("impl", build_name + "_impl" + ext),
-            migen_product   = build_name + ext)
+
+    script_contents += "{copy_stmt} {radiant_product} {migen_product} {fail_stmt}\n".format(
+        copy_stmt       = copy_stmt,
+        fail_stmt       = fail_stmt,
+        radiant_product = os.path.join("impl", build_name + "_impl.bit"),
+        migen_product   = build_name + ".bit")
 
     build_script_file = "build_" + build_name + script_ext
     tools.write_to_file(build_script_file, script_contents, force_unix=False)

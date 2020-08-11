@@ -56,7 +56,7 @@ class LIFCLLRAM(Module):
                     i_CS=cs,
                     i_RSTOUT=0b0,
                     i_CEOUT=0b0,
-                    i_BYTEEN_N=self.bus.sel[4*w:4*(w+1)]^0x0F,
+                    i_BYTEEN_N=~self.bus.sel[4*w:4*(w+1)],
                     o_DO=dataout
                 )
 
