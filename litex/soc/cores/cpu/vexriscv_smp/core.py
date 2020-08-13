@@ -70,10 +70,10 @@ class VexRiscvSMP(CPU):
         if(args.without_coherent_dma): VexRiscvSMP.coherent_dma = bool(False)
         if(args.dcache_width): VexRiscvSMP.dcache_width = int(args.dcache_width)
         if(args.icache_width): VexRiscvSMP.icache_width = int(args.icache_width)
-        if(args.icache_width): VexRiscvSMP.dcache_size  = int(args.dcache_size)
-        if(args.icache_width): VexRiscvSMP.icache_size  = int(args.icache_size)
-        if(args.icache_width): VexRiscvSMP.dcache_ways  = int(args.dcache_ways)
-        if(args.icache_width): VexRiscvSMP.icache_ways  = int(args.icache_ways)
+        if(args.dcache_size): VexRiscvSMP.dcache_size  = int(args.dcache_size)
+        if(args.icache_size): VexRiscvSMP.icache_size  = int(args.icache_size)
+        if(args.dcache_ways): VexRiscvSMP.dcache_ways  = int(args.dcache_ways)
+        if(args.icache_ways): VexRiscvSMP.icache_ways  = int(args.icache_ways)
 
     @property
     def mem_map(self):
