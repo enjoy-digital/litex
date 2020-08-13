@@ -43,47 +43,39 @@ unsigned int sdcard_response[SD_CMD_RESPONSE_SIZE/4];
 /*-----------------------------------------------------------------------*/
 
 int sdcard_wait_cmd_done(void) {
-	unsigned int cmdevt;
-	while (1) {
-		cmdevt = sdcore_cmd_event_read();
+	unsigned int event;
+	for (;;) {
+		event = sdcore_cmd_event_read();
+#ifdef SDCARD_DEBUG
+		printf("cmdevt: %08x\n", event);
+#endif
+		if (event & 0x1)
+			break;
 		busy_wait_us(1);
-#ifdef SDCARD_DEBUG
-		printf("cmdevt: %08x\n", cmdevt);
-#endif
-		if (cmdevt & 0x1) {
-			if (cmdevt & 0x4) {
-#ifdef SDCARD_DEBUG
-				printf("cmdevt: SD_TIMEOUT\n");
-#endif
-				return SD_TIMEOUT;
-			}
-			else if (cmdevt & 0x8) {
-#ifdef SDCARD_DEBUG
-				printf("cmdevt: SD_CRCERROR\n");
-#endif
-				return SD_CRCERROR;
-			}
-			return SD_OK;
-		}
 	}
+	if (event & 0x4)
+		return SD_TIMEOUT;
+	if (event & 0x8)
+		return SD_CRCERROR;
+	return SD_OK;
 }
 
 int sdcard_wait_data_done(void) {
-	unsigned int dataevt;
-	while (1) {
-		dataevt = sdcore_data_event_read();
-		busy_wait_us(1);
+	unsigned int event;
+	for (;;) {
+		event = sdcore_data_event_read();
 #ifdef SDCARD_DEBUG
-		printf("dataevt: %08x\n", dataevt);
+		printf("dataevt: %08x\n", event);
 #endif
-		if (dataevt & 0x1) {
-			if (dataevt & 0x4)
-				return SD_TIMEOUT;
-			else if (dataevt & 0x8)
-				return SD_CRCERROR;
-			return SD_OK;
-		}
+		if (event & 0x1)
+			break;
+		busy_wait_us(1);
 	}
+	if (event & 0x4)
+		return SD_TIMEOUT;
+	else if (event & 0x8)
+		return SD_CRCERROR;
+	return SD_OK;
 }
 
 int sdcard_wait_response(void) {
@@ -94,7 +86,8 @@ int sdcard_wait_response(void) {
 
 	status = sdcard_wait_cmd_done();
 
-	csr_rd_buf_uint32(CSR_SDCORE_CMD_RESPONSE_ADDR, sdcard_response, SD_CMD_RESPONSE_SIZE/4);
+	csr_rd_buf_uint32(CSR_SDCORE_CMD_RESPONSE_ADDR, sdcard_response,
+			  SD_CMD_RESPONSE_SIZE/4);
 
 #ifdef SDCARD_DEBUG
 	for(i = 0; i < SD_CMD_RESPONSE_SIZE/4; i++) {
@@ -112,25 +105,26 @@ int sdcard_wait_response(void) {
 
 static uint32_t log2(uint32_t x)
 {
-  uint32_t r = 0 ;
-  while(x >>= 1) r++;
-  return r;
+	uint32_t r = 0;
+	while(x >>= 1)
+		r++;
+	return r;
 }
 
 static void sdcard_set_clk_freq(uint32_t clk_freq) {
-    uint32_t divider;
-    divider = CONFIG_CLOCK_FREQUENCY/clk_freq + 1;
-    divider = (1 << log2(divider));
-    divider = max(divider,   2);
-    divider = min(divider, 256);
+	uint32_t divider;
+	divider = CONFIG_CLOCK_FREQUENCY/clk_freq + 1;
+	divider = (1 << log2(divider));
+	divider = max(divider,   2);
+	divider = min(divider, 256);
 #ifdef SDCARD_DEBUG
-    printf("Setting SDCard clk freq to ");
-    if (clk_freq > 1000000)
-        printf("%d MHz\n", (CONFIG_CLOCK_FREQUENCY/divider)/1000000);
-    else
-        printf("%d KHz\n", (CONFIG_CLOCK_FREQUENCY/divider)/1000);
+	printf("Setting SDCard clk freq to ");
+	if (clk_freq > 1000000)
+		printf("%d MHz\n", (CONFIG_CLOCK_FREQUENCY/divider)/1000000);
+	else
+		printf("%d KHz\n", (CONFIG_CLOCK_FREQUENCY/divider)/1000);
 #endif
-    sdphy_clocker_divider_write(divider);
+	sdphy_clocker_divider_write(divider);
 }
 
 /*-----------------------------------------------------------------------*/
@@ -392,6 +386,7 @@ int sdcard_set_block_count(unsigned int blockcnt) {
 	return sdcard_wait_response();
 }
 
+#ifdef SDCARD_DEBUG
 void sdcard_decode_cid(void) {
 	printf(
 		"CID Register: 0x%08x%08x%08x%08x\n"
@@ -422,6 +417,7 @@ void sdcard_decode_cid(void) {
 	printf( "PSN: %08x\n", psn);
 	printf( "OID: %c%c\n", (sdcard_response[0] & 0x00FF0000) >> 16, (sdcard_response[0] & 0x0000FF00) >> 8);
 }
+#endif
 
 void sdcard_decode_csd(void) {
 	/* FIXME: only support CSR structure version 2.0 */
@@ -557,7 +553,7 @@ void sdcard_read(uint32_t sector, uint32_t count, uint8_t* buf)
 
 	/* Read Block(s) from SDCard */
 #ifdef SDCARD_CMD23_SUPPORT
-sdcard_set_block_count(count);
+	sdcard_set_block_count(count);
 #endif
 	sdcard_read_multiple_block(sector, count);
 
