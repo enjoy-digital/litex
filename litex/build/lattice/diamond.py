@@ -122,7 +122,7 @@ def _build_script(build_name, device):
         copy_stmt = "cp"
         fail_stmt = ""
 
-    script_contents += "pnmainc {tcl_script}{fail_stmt}\n".format(
+    script_contents += "diamondc {tcl_script}{fail_stmt}\n".format(
         tcl_script = build_name + ".tcl",
         fail_stmt  = fail_stmt)
     for ext in (".bit", ".jed"):
