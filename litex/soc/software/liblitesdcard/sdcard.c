@@ -42,16 +42,6 @@ unsigned int sdcard_response[SD_CMD_RESPONSE_SIZE/4];
 /* SDCard command helpers                                                */
 /*-----------------------------------------------------------------------*/
 
-static void busy_wait_us(unsigned int us)
-{
-    timer0_en_write(0);
-    timer0_reload_write(0);
-    timer0_load_write(CONFIG_CLOCK_FREQUENCY/1000000*us);
-    timer0_en_write(1);
-    timer0_update_value_write(1);
-    while(timer0_value_read()) timer0_update_value_write(1);
-}
-
 int sdcard_wait_cmd_done(void) {
 	unsigned int cmdevt;
 	while (1) {
