@@ -187,9 +187,6 @@ class SoCCore(LiteXSoC):
             if timer_uptime:
                 self.timer0.add_uptime()
 
-        # Add CSR bridge
-        self.add_csr_bridge(self.mem_map["csr"])
-
     # Methods --------------------------------------------------------------------------------------
 
     def add_interrupt(self, interrupt_name, interrupt_id=None, use_loc_if_exists=False):

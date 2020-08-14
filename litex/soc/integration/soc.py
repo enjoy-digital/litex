@@ -803,7 +803,7 @@ class SoC(Module):
     def add_rom(self, name, origin, size, contents=[]):
         self.add_ram(name, origin, size, contents, mode="r")
 
-    def add_csr_bridge(self, origin):
+    def add_csr_bridge(self, origin, register=False):
         csr_bridge_cls = {
             "wishbone": wishbone.Wishbone2CSR,
             "axi-lite": axi.AXILite2CSR,
@@ -811,7 +811,8 @@ class SoC(Module):
         self.submodules.csr_bridge = csr_bridge_cls(
             bus_csr       = csr_bus.Interface(
             address_width = self.csr.address_width,
-            data_width    = self.csr.data_width))
+            data_width    = self.csr.data_width),
+            register = register)
         csr_size   = 2**(self.csr.address_width + 2)
         csr_region = SoCRegion(origin=origin, size=csr_size, cached=False)
         bus = getattr(self.csr_bridge, self.bus.standard.replace('-', '_'))
@@ -909,6 +910,10 @@ class SoC(Module):
             "wishbone": wishbone.InterconnectShared,
             "axi-lite": axi.AXILiteInterconnectShared,
         }[self.bus.standard]
+
+        # SoC CSR bridge ---------------------------------------------------------------------------
+        # FIXME: for now, use registered CSR bridge when SDRAM is present; find the best compromise.
+        self.add_csr_bridge(self.mem_map["csr"], register=hasattr(self, "sdram"))
 
         # SoC Bus Interconnect ---------------------------------------------------------------------
         if len(self.bus.masters) and len(self.bus.slaves):
