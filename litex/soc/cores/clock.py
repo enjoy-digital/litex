@@ -752,7 +752,6 @@ class ECP5PLL(Module):
         self.specials += Instance("EHXPLLL", **self.params)
 
 # Lattice / CrossLink-NX -----------------------------------------------------------------------------------
-# TODO LF Clock, I2C Clck, Lots of undocumented ports on the OSC primitive
 # NOTE This clock has +/- 15% accuracy
 class CrossLinkNXOSCA(Module):
     nclkouts_max = 2
@@ -764,61 +763,75 @@ class CrossLinkNXOSCA(Module):
         self.logger = logging.getLogger("CrossLinkNXOSCA")
         self.logger.info("Creating CrossLinkNXOSCA.")
 
-        self.nclkouts   = 0
-        self.clkouts    = {}
-        self.config     = {}
-        self.params     = {}
+        self.hf_clk_out    = {}
+        self.hfsdc_clk_out = {}
+        self.lf_clk_out    = None
+        self.params        = {}
 
-    def create_clkout(self, cd, freq, margin=.05):
+    def create_hf_clk(self, cd, freq, margin=.05):
+        """450 - 1.7 Mhz Clk"""
         (clko_freq_min, clko_freq_max) = self.clk_hf_freq_range
         assert freq >= clko_freq_min
         assert freq <= clko_freq_max
-        assert self.nclkouts < self.nclkouts_max
         clkout = Signal()
-        self.clkouts[self.nclkouts] = (clkout, freq, margin)
+        self.hf_clk_out = (clkout, freq, margin)
         self.comb += cd.clk.eq(clkout)
-        create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
-        self.nclkouts += 1
+        create_clkout_log(self.logger, cd.name, freq, margin, -1)
 
-    def compute_config(self):
+
+    def create_hfsdc_clk(self, cd, freq, margin=.05):
+        """450 - 1.7 Mhz Clk. Can only be connected to the SEDC_CLK port of CONFIG_CLKRST_CORE"""
+        (clko_freq_min, clko_freq_max) = self.clk_hf_freq_range
+        assert freq >= clko_freq_min
+        assert freq <= clko_freq_max
+        clkout = Signal()
+        self.hfsdc_clk_out = (clkout, freq, margin)
+        self.comb += cd.clk.eq(clkout)
+        create_clkout_log(self.logger, cd.name, freq, margin, -1)
+
+    def create_lf_clk(self, cd):
+        """128 kHz Clock"""
+        clkout = Signal()
+        self.lf_clk_out = (clkout)
+        self.comb += cd.clk.eq(clkout)
+        create_clkout_log(self.logger, cd.name, 128e3, 19e3, -1)
+
+
+    def compute_divisor(self, freq, margin):
         config = {}
 
-        all_valid = True
-        for n, (clk, f, m) in sorted(self.clkouts.items()):
-            valid = False
-            for d in range(*self.clk_hf_div_range):
-                clk_freq = self.clk_hf_freq/(d+1)
-                if abs(clk_freq - f) <= f*m:
-                    config["clko{}_freq".format(n)]  = clk_freq
-                    config["clko{}_div".format(n)]   = str(d)
-                    valid = True
-                    break
-            if not valid:
-                all_valid = False
+        for divisor in range(*self.clk_hf_div_range):
+            clk_freq = self.clk_hf_freq/(divisor+1)
+            if abs(clk_freq - freq) <= freq*margin:
+                config["freq"]  = clk_freq
+                config["div"]   = str(divisor)
+                break
 
-        if all_valid:
+        if config:
             compute_config_log(self.logger, config)
-            return config
+            return config["div"]
 
-        raise ValueError("No OSC config found")
+        raise ValueError("Bad OSC freq.")
 
 
     def do_finalize(self):
-        config = self.compute_config()
-        self.params.update(
-            p_HF_OSC_EN = "ENABLED",
-        )
-        for n, (clk, f, m) in sorted(self.clkouts.items()):
-            n_to_l_div = {0: "HF_CLK", 1: "HF_SED_SEC"}
-            n_to_l_en = {0: "HFOUT", 1: "HFSDSC"}
-            n_to_l_out = {0: "HFCLK", 1: "HFSDSC"}
+        if self.hf_clk_out:
+            divisor = self.compute_divisor(self.hf_clk_out[1], self.hf_clk_out[2])
+            self.params["i_HFOUTEN"]      = 0b1
+            self.params["p_HF_CLK_DIV"]   = divisor
+            self.params["o_HFCLKOUT"]     = self.hf_clk_out[0]
+            self.params["p_HF_OSC_EN"]    = "ENABLED"
 
-            div = config["clko{}_div".format(n)]
+        if self.hfsdc_clk_out:
+            divisor = self.compute_divisor(self.hfsdc_clk_out[1], self.hfsdc_clk_out[2])
+            self.params["i_HFSDSCEN"]        = 0b1
+            self.params["p_HF_SED_SEC_DIV"]  = divisor
+            self.params["o_HFSDCOUT"]        = self.hfsdc_clk_out[0]
 
-            self.params["i_{}EN".format(n_to_l_en[n])]      = 0b1
-            self.params["p_{}_DIV".format(n_to_l_div[n])]   = div
-            self.params["o_{}OUT".format(n_to_l_out[n])]    = clk
-            self.params["i_HFSDSCEN"] = len(self.clkouts.items()) > 1
+        if self.lf_clk_out is not None:
+            self.params["o_LFCLKOUT"] = self.lf_clk_out[0]
+            self.params["p_LF_OUTPUT_EN"] = "ENABLED"
+        
         self.specials += Instance("OSCA", **self.params)
 
 # Intel / Generic ---------------------------------------------------------------------------------
