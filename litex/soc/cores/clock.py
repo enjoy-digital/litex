@@ -836,13 +836,15 @@ class CrossLinkNXOSCA(Module):
 
 
 class NEXUSPLL(Module):
-    nclkouts_max    = 5
-    clki_div_range  = (1, 128+1)
-    clkfb_div_range = (1, 128+1)
-    clko_div_range  = (1, 128+1)
-    clki_freq_range = (    10e6,  500e6)
-    clko_freq_range = ( 6.25e6,  800e6) # TODO There's a descripency between the datasheet & the IP Core generator of 6.25 vs 6.35. Need to ask Lattice or figure out if the math works out one way or another
-    vco_freq_range  = (  800e6,  1600e6)
+    nclkouts_max        = 5
+    clki_div_range      = ( 1, 128+1)
+    clkfb_div_range     = ( 1, 128+1)
+    clko_div_range      = ( 1, 128+1)
+    clki_freq_range     = ( 10e6,   500e6)
+    clko_freq_range     = ( 6.25e6, 800e6) # TODO There's a descripency between the datasheet & the IP Core generator of 6.25 vs 6.35. Need to ask Lattice or figure out if the math works out one way or another
+    vco_in_freq_range   = ( 10e6,   500e6)
+    vco_out_freq_range  = ( 800e6,  1600e6)
+
 
     def __init__(self):
         self.logger = logging.getLogger("NEXUSPLL")
@@ -886,7 +888,7 @@ class NEXUSPLL(Module):
             for clkfb_div in range(*self.clkfb_div_range):
                 all_valid = True
                 vco_freq = self.clkin_freq/clki_div*clkfb_div
-                (vco_freq_min, vco_freq_max) = self.vco_freq_range
+                (vco_freq_min, vco_freq_max) = self.vco_out_freq_range
                 if vco_freq >= vco_freq_min and vco_freq <= vco_freq_max:
                     for n, (clk, f, p, m) in sorted(self.clkouts.items()):
                         valid = False
@@ -909,57 +911,67 @@ class NEXUSPLL(Module):
                     return config
         raise ValueError("No PLL config found")
 
+    def calculate_analog_parameters(self, clki_freq, fb_freq, bw_factor = 5):
+        config = {}
+        # These were generated with 12 Mhz input & 24 Mhz output. FB divider = 2, Output divider = 34
+        config["p_CSET"]              = "64P"
+        config["p_CRIPPLE"]         = "1P"
+        config["p_V2I_PP_RES"]      = "9P3K"
+        config["p_IPP_SEL"]         = "0b0001"
+        config["p_IPP_CTRL"]        = "0b1000"
+        config["p_BW_CTL_BIAS"]     = "0b1101"
+        config["p_IPI_CMP"]         = "0b0001"
+
+        return config
+
+
+    # TODO: Documentation requires that the PLL be in standby for at least 1 ms on startup
     def do_finalize(self):
         config = self.compute_config()
         clkfb  = Signal()
 
         self.params.update(
-            attr=[
-                ],
+            p_V2I_PP_ICTRL      = "0b11111", # Hard coded in all reference files
+            p_IPI_CMPN          = "0b0011", # Hard coded in all reference files
 
-            # TODO: No clue how to derive these values to tune the PLL, maybe generate a LUT?
-            # These were generated with 12 Mhz input & 24 Mhz output. FB divider = 2, Output divider = 34
-            p_V2I_PP_ICTRL      = "0b11111",
-            p_KP_VCO            = "0b00011",
-            p_CSET              = "64P",
-            p_CRIPPLE           = "1P",
-            p_IPP_CTRL          = "0b1000",
-            p_IPP_SEL           = "0b0001",
-            p_BW_CTL_BIAS       = "0b1101",
-            p_IPI_CMPN          = "0b0011",
-            p_IPI_CMP           = "0b0001",
-            p_V2I_PP_RES        = "9P3K",
-            p_V2I_KVCO_SEL      = "60",
-            p_V2I_1V_EN         = "ENABLED",
+            p_V2I_1V_EN         = "ENABLED", # Enabled = 1V (Default in references, but not the primitive), Disabled = 0.9V
+            p_V2I_KVCO_SEL      = "60", # 85 if (VOLTAGE == 0.9V) else 60
+            p_KP_VCO            = "0b00011", # 0b11001 if (VOLTAGE == 0.9V) else 0b00011
 
             p_PLLPD_N           = "USED",
-
             p_REF_MMD_IN        = "0b00000001", # Divider for the input clock
 
             i_PLLRESET          = self.reset,
             i_REFCK             = self.clkin,
             o_LOCK              = self.locked,
 
-            p_SEL_FBK           = "DIVF", # CLKOS5 reserved for feedback with div=1.
+            # Use CLKOS5 & divider for feedback
+            p_SEL_FBK           = "FBKCLK5",
             p_ENCLK_CLKOS5      = "ENABLED",
-            p_DIVF              = "0", # Actual value - 1 = paramater value
+            p_DIVF              = str(config["clkfb_div"]-1), # str(Actual value - 1)
             p_CLKMUX_FB         = "CMUX_CLKOS5",
             i_FBKCK             = clkfb,
-            o_INTFBKOS5         = clkfb,
+            o_CLKOS5            = clkfb,
 
+            # Set feedback divider to 1
             p_FBK_INTEGER_MODE  = "ENABLED",
             p_FBK_MASK          = "0b00000000",
-            p_FBK_MMD_DIG       = str(config["clkfb_div"]),
+            p_FBK_MMD_DIG       = "1",
         )
+
+        analog_params = self.calculate_analog_parameters(self.clkin_freq, self.clkin_freq * config["clkfb_div"])
+        self.params.update(analog_params)
+
         for n, (clk, f, p, m) in sorted(self.clkouts.items()):
             n_to_l = {0: "P", 1: "S", 2: "S2", 3:"S3", 4:"S4"}
             div    = config["clko{}_div".format(n)]
-            #cphase = int(p*(div + 1)/360 + div)
+            phase = int((1+p/360) * div)
+            letter = chr(n+65)
             self.params["p_ENCLK_CLKO{}".format(n_to_l[n])] = "ENABLED"
-            self.params["p_DIV{}".format(chr(n+65))]    = str(div-1)
-            #self.params["p_CLKO{}_FPHASE".format(n_to_l[n])] = 0 #TODO
-            #self.params["p_CLKO{}_CPHASE".format(n_to_l[n])] = cphase #TODO
-            self.params["o_CLKO{}".format(n_to_l[n])]        = clk
+            self.params["p_DIV{}".format(letter)] = str(div-1)
+            self.params["p_PHI{}".format(letter)] = "0"
+            self.params["p_DEL{}".format(letter)] = str(phase - 1)
+            self.params["o_CLKO{}".format(n_to_l[n])] = clk
         self.specials += Instance("PLL", **self.params)
 
 # Intel / Generic ---------------------------------------------------------------------------------
