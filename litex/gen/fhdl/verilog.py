@@ -143,7 +143,7 @@ def _printnode(ns, at, level, node, target_filter=None):
         else:
             assignment = " <= "
         return "\t"*level + _printexpr(ns, node.l)[0] + assignment + _printexpr(ns, node.r)[0] + ";\n"
-    elif isinstance(node, collections.Iterable):
+    elif isinstance(node, collections.abc.Iterable):
         return "".join(_printnode(ns, at, level, n, target_filter) for n in node)
     elif isinstance(node, If):
         r = "\t"*level + "if (" + _printexpr(ns, node.cond)[0] + ") begin\n"
