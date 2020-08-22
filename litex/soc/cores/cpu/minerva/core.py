@@ -100,8 +100,10 @@ class Minerva(CPU):
             cli_params.append("--with-dcache")
         if with_muldiv:
             cli_params.append("--with-muldiv")
+        cli_params.append("generate")
+        cli_params.append("--type=v")
         sdir = get_data_mod("cpu", "minerva").data_location
-        if subprocess.call(["python3", os.path.join(sdir, "cli.py"), *cli_params, "generate"],
+        if subprocess.call(["python3", os.path.join(sdir, "cli.py"), *cli_params],
             stdout=open(verilog_filename, "w")):
             raise OSError("Unable to elaborate Minerva CPU, please check your nMigen/Yosys install")
 
