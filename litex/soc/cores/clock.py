@@ -913,8 +913,8 @@ class NEXUSPLL(Module):
 
     def calculate_analog_parameters(self, clki_freq, fb_freq, bw_factor = 5):
         config = {}
-        # These were generated with 12 Mhz input & 24 Mhz output. FB divider = 2, Output divider = 34
-        config["p_CSET"]              = "64P"
+        # These were generated with 12 Mhz input & 24 Mhz output. VCO = 816 Mhz. FB divider = 2, Output divider = 34
+        config["p_CSET"]            = "64P"
         config["p_CRIPPLE"]         = "1P"
         config["p_V2I_PP_RES"]      = "9P3K"
         config["p_IPP_SEL"]         = "0b0001"
