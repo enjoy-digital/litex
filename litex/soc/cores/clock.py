@@ -751,17 +751,17 @@ class ECP5PLL(Module):
             self.params["o_CLKO{}".format(n_to_l[n])]        = clk
         self.specials += Instance("EHXPLLL", **self.params)
 
-# Lattice / CrossLink-NX -----------------------------------------------------------------------------------
+# Lattice / Nexus -----------------------------------------------------------------------------------
 # NOTE This clock has +/- 15% accuracy
-class CrossLinkNXOSCA(Module):
+class NexusOSCA(Module):
     nclkouts_max = 2
     clk_hf_div_range = (0, 255)
     clk_hf_freq_range = (1.76, 450e6)
     clk_hf_freq = 450e6
 
     def __init__(self):
-        self.logger = logging.getLogger("CrossLinkNXOSCA")
-        self.logger.info("Creating CrossLinkNXOSCA.")
+        self.logger = logging.getLogger("NexusOSCA")
+        self.logger.info("Creating NexusOSCA.")
 
         self.hf_clk_out    = {}
         self.hfsdc_clk_out = {}
@@ -777,7 +777,6 @@ class CrossLinkNXOSCA(Module):
         self.hf_clk_out = (clkout, freq, margin)
         self.comb += cd.clk.eq(clkout)
         create_clkout_log(self.logger, cd.name, freq, margin, -1)
-
 
     def create_hfsdc_clk(self, cd, freq, margin=.05):
         """450 - 1.7 Mhz Clk. Can only be connected to the SEDC_CLK port of CONFIG_CLKRST_CORE"""
@@ -796,7 +795,6 @@ class CrossLinkNXOSCA(Module):
         self.comb += cd.clk.eq(clkout)
         create_clkout_log(self.logger, cd.name, 128e3, 19e3, -1)
 
-
     def compute_divisor(self, freq, margin):
         config = {}
 
@@ -812,7 +810,6 @@ class CrossLinkNXOSCA(Module):
             return config["div"]
 
         raise ValueError("Bad OSC freq.")
-
 
     def do_finalize(self):
         if self.hf_clk_out:

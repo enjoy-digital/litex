@@ -9,7 +9,7 @@ from litex.soc.interconnect import wishbone
 kB = 1024
 
 """
-Crosslink-NX family-specific Wishbone interface to the LRAM primitive.
+Nexus family-specific Wishbone interface to the LRAM primitive.
 
 Each LRAM is 64kBytes arranged in 32 bit wide words.
 
@@ -17,12 +17,12 @@ Note that this memory is dual port, but we only use a single port in this
 instantiation.
 """
 
-class LIFCLLRAM(Module):
+class NexusLRAM(Module):
     def __init__(self, width=32, size=128*kB):
         self.bus = wishbone.Interface(width)
         assert width in [32, 64]
 
-        # TODO: allow larger sizes to support Crosslink/NX-17
+        # TODO: allow larger sizes to support Crosslink/NX-17 & Certus
         if width == 32:
             assert size in [64*kB, 128*kB]
             depth_cascading = size//(64*kB)
