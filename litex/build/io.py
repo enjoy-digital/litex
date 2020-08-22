@@ -64,7 +64,7 @@ class SDRIO(Special):
 
     @staticmethod
     def lower(dr):
-        return InferedSDRIO(dr.i, dr.o, dr.clk, dr.clk_domain)
+        return InferedSDRIO(dr.i, dr.o, dr.clk)
 
 
 class SDRInput(SDRIO):  pass
