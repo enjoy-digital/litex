@@ -469,6 +469,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
 
         wrendiv  = Signal()
         wrendiv2 = Signal()
+        rx_fifo_rst_pipe = Signal()
         self.specials += [
             # This next pair of async-clear flip flops creates a write-enable gate that (a) ignores
             # the first two DQS strobes (as they are pipe-filling) and (b) alternates with the correct
@@ -510,11 +511,12 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
                 i_RDEN        = rx_rden,
                 i_WRCLK       = dqs_iobuf,
                 i_WREN        = wrendiv & wrendiv2,
-                i_RST         = rx_fifo_rst,
+                i_RST         = rx_fifo_rst_pipe, #rx_fifo_rst,
             )
         ]
         self.sync.dqs += opi_di.eq(self.di)
         self.comb += opi_fifo_wd.eq(Cat(opi_di, self.di))
+        self.sync += rx_fifo_rst_pipe.eq(rx_fifo_rst) # add one pipe register to help relax this timing path. It is critical so it must be timed, but one extra cycle is OK.
 
         #---------  OPI Rx Phy machine ------------------------------
         self.submodules.rxphy = rxphy = FSM(reset_state="IDLE")
