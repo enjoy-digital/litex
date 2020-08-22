@@ -287,11 +287,11 @@ class AXIBurst2Beat(Module):
         beat_offset = Signal(8 + 4)
         beat_wrap   = Signal(8 + 4)
 
-        # compute parameters
+        # Compute parameters
         self.comb += beat_size.eq(1 << ax_burst.size)
         self.comb += beat_wrap.eq(ax_burst.len << ax_burst.size)
 
-        # combinatorial logic
+        # Combinatorial logic
         self.comb += [
             ax_beat.valid.eq(ax_burst.valid | ~ax_beat.first),
             ax_beat.first.eq(beat_count == 0),
@@ -305,7 +305,7 @@ class AXIBurst2Beat(Module):
             )
         ]
 
-        # synchronous logic
+        # Synchronous logic
         self.sync += [
             If(ax_beat.valid & ax_beat.ready,
                 If(ax_beat.last,
@@ -374,7 +374,7 @@ class AXI2AXILite(Module):
             )
         )
         fsm.act("READ",
-            # cmd
+            # ar (read command)
             axi_lite.ar.valid.eq(ax_beat.valid & ~_cmd_done),
             axi_lite.ar.addr.eq(ax_beat.addr),
             ax_beat.ready.eq(axi_lite.ar.ready & ~_cmd_done),
@@ -384,23 +384,23 @@ class AXI2AXILite(Module):
                     NextValue(_cmd_done, 1)
                 )
             ),
-            # data
+            # r (read data & response)
             axi.r.valid.eq(axi_lite.r.valid),
             axi.r.last.eq(_cmd_done),
             axi.r.resp.eq(RESP_OKAY),
             axi.r.id.eq(ax_beat.id),
             axi.r.data.eq(axi_lite.r.data),
             axi_lite.r.ready.eq(axi.r.ready),
-            # exit
+            # Exit
             If(axi.r.valid & axi.r.last & axi.r.ready,
                 ax_beat.ready.eq(1),
                 NextState("IDLE")
             )
         )
-        # always accept write responses
+        # Always accept write responses.
         self.comb += axi_lite.b.ready.eq(1)
         fsm.act("WRITE",
-            # cmd
+            # aw (write command)
             axi_lite.aw.valid.eq(ax_beat.valid & ~_cmd_done),
             axi_lite.aw.addr.eq(ax_beat.addr),
             ax_beat.ready.eq(axi_lite.aw.ready & ~_cmd_done),
@@ -410,12 +410,12 @@ class AXI2AXILite(Module):
                     NextValue(_cmd_done, 1)
                 )
             ),
-            # data
+            # w (write data)
             axi_lite.w.valid.eq(axi.w.valid),
             axi_lite.w.data.eq(axi.w.data),
             axi_lite.w.strb.eq(axi.w.strb),
             axi.w.ready.eq(axi_lite.w.ready),
-            # exit
+            # Exit
             If(axi.w.valid & axi.w.last & axi.w.ready,
                 NextState("WRITE-RESP")
             )
@@ -441,8 +441,8 @@ class AXILite2AXI(Module):
 
         # n bytes, encoded as log2(n)
         burst_size = log2_int(axi.data_width // 8)
-        # burst type has no meaning as we use burst length of 1, but AXI slaves may require
-        # certain type of bursts, so it is probably safest to use INCR in general
+        # Burst type has no meaning as we use burst length of 1, but AXI slaves may require certain
+        # type of bursts, so it is probably safest to use INCR in general.
         burst_type = {
             "FIXED": 0b00,
             "INCR":  0b01,
@@ -450,6 +450,7 @@ class AXILite2AXI(Module):
         }[burst_type]
 
         self.comb += [
+            # aw (write command)
             axi.aw.valid.eq(axi_lite.aw.valid),
             axi_lite.aw.ready.eq(axi.aw.ready),
             axi.aw.addr.eq(axi_lite.aw.addr),
@@ -462,16 +463,19 @@ class AXILite2AXI(Module):
             axi.aw.qos.eq(0),
             axi.aw.id.eq(write_id),
 
+            # w (write data)
             axi.w.valid.eq(axi_lite.w.valid),
             axi_lite.w.ready.eq(axi.w.ready),
             axi.w.data.eq(axi_lite.w.data),
             axi.w.strb.eq(axi_lite.w.strb),
             axi.w.last.eq(1),
 
+            # b (write response)
             axi_lite.b.valid.eq(axi.b.valid),
             axi_lite.b.resp.eq(axi.b.resp),
             axi.b.ready.eq(axi_lite.b.ready),
 
+            # ar (read command)
             axi.ar.valid.eq(axi_lite.ar.valid),
             axi_lite.ar.ready.eq(axi.ar.ready),
             axi.ar.addr.eq(axi_lite.ar.addr),
@@ -484,6 +488,7 @@ class AXILite2AXI(Module):
             axi.ar.qos.eq(0),
             axi.ar.id.eq(read_id),
 
+            # r (read response & data)
             axi_lite.r.valid.eq(axi.r.valid),
             axi_lite.r.resp.eq(axi.r.resp),
             axi_lite.r.data.eq(axi.r.data),
@@ -600,20 +605,20 @@ class Wishbone2AXILite(Module):
             )
         )
         fsm.act("WRITE",
-            # cmd
+            # aw (write command)
             axi_lite.aw.valid.eq(~_cmd_done),
             axi_lite.aw.addr[wishbone_adr_shift:].eq(_addr),
             If(axi_lite.aw.valid & axi_lite.aw.ready,
                 NextValue(_cmd_done, 1)
             ),
-            # data
+            # w (write data)
             axi_lite.w.valid.eq(~_data_done),
             axi_lite.w.data.eq(wishbone.dat_w),
             axi_lite.w.strb.eq(wishbone.sel),
             If(axi_lite.w.valid & axi_lite.w.ready,
                 NextValue(_data_done, 1),
             ),
-            # resp
+            # b (write response)
             axi_lite.b.ready.eq(_cmd_done & _data_done),
             If(axi_lite.b.valid & axi_lite.b.ready,
                 If(axi_lite.b.resp == RESP_OKAY,
@@ -625,13 +630,13 @@ class Wishbone2AXILite(Module):
             )
         )
         fsm.act("READ",
-            # cmd
+            # ar (read command)
             axi_lite.ar.valid.eq(~_cmd_done),
             axi_lite.ar.addr[wishbone_adr_shift:].eq(_addr),
             If(axi_lite.ar.valid & axi_lite.ar.ready,
                 NextValue(_cmd_done, 1)
             ),
-            # data & resp
+            # r (read data & response)
             axi_lite.r.ready.eq(_cmd_done),
             If(axi_lite.r.valid & axi_lite.r.ready,
                 If(axi_lite.r.resp == RESP_OKAY,
@@ -649,15 +654,24 @@ class Wishbone2AXILite(Module):
             NextState("IDLE")
         )
 
+# Wishbone to AXI ----------------------------------------------------------------------------------
+
+class Wishbone2AXI(Module):
+    def __init__(self, wishbone, axi, base_address=0x00000000):
+        axi_lite          = AXILiteInterface(axi.data_width, axi.address_width)
+        wishbone2axi_lite = Wishbone2AXILite(wishbone, axi_lite, base_address)
+        axi_lite2axi      = AXILite2AXI(axi_lite, axi)
+        self.submodules += wishbone2axi_lite, axi_lite2axi
+
 # AXILite to CSR -----------------------------------------------------------------------------------
 
 def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=None):
     """Connection of AXILite to simple bus with 1-cycle latency, such as CSR bus or Memory port"""
     bus_data_width = axi_lite.data_width
-    adr_shift = log2_int(bus_data_width//8)
-    do_read = Signal()
-    do_write = Signal()
-    last_was_read = Signal()
+    adr_shift      = log2_int(bus_data_width//8)
+    do_read        = Signal()
+    do_write       = Signal()
+    last_was_read  = Signal()
 
     comb = []
     if port_dat_w is not None:
@@ -671,7 +685,7 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=
 
     fsm = FSM()
     fsm.act("START-TRANSACTION",
-        # If the last access was a read, do a write, and vice versa
+        # If the last access was a read, do a write, and vice versa.
         If(axi_lite.aw.valid & axi_lite.ar.valid,
             do_write.eq(last_was_read),
             do_read.eq(~last_was_read),
@@ -679,7 +693,7 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=
             do_write.eq(axi_lite.aw.valid),
             do_read.eq(axi_lite.ar.valid),
         ),
-        # Start reading/writing immediately not to waste a cycle
+        # Start reading/writing immediately not to waste a cycle.
         If(do_write,
             port_adr.eq(axi_lite.aw.addr[adr_shift:]),
             If(axi_lite.w.valid,
@@ -695,7 +709,7 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=
     )
     fsm.act("SEND-READ-RESPONSE",
         NextValue(last_was_read, 1),
-        # As long as we have correct address port.dat_r will be valid
+        # As long as we have correct address port.dat_r will be valid.
         port_adr.eq(axi_lite.ar.addr[adr_shift:]),
         axi_lite.r.data.eq(port_dat_r),
         axi_lite.r.resp.eq(RESP_OKAY),
@@ -722,11 +736,14 @@ class AXILite2CSR(Module):
             bus_csr = csr_bus.Interface()
 
         self.axi_lite = axi_lite
-        self.csr = bus_csr
+        self.csr      = bus_csr
 
-        fsm, comb = axi_lite_to_simple(self.axi_lite,
-                                       port_adr=self.csr.adr, port_dat_r=self.csr.dat_r,
-                                       port_dat_w=self.csr.dat_w, port_we=self.csr.we)
+        fsm, comb = axi_lite_to_simple(
+            axi_lite   = self.axi_lite,
+            port_adr   = self.csr.adr,
+            port_dat_r = self.csr.dat_r,
+            port_dat_w = self.csr.dat_w,
+            port_we    = self.csr.we)
         self.submodules.fsm = fsm
         self.comb += comb
 
@@ -751,7 +768,7 @@ class AXILiteSRAM(Module):
             else:
                 read_only = False
 
-        ###
+        # # #
 
         # Create memory port
         port = self.mem.get_port(write_capable=not read_only, we_granularity=8,
@@ -765,10 +782,12 @@ class AXILiteSRAM(Module):
                 for i in range(bus_data_width//8)]
 
         # Transaction logic
-        fsm, comb = axi_lite_to_simple(self.bus,
-                                       port_adr=port.adr, port_dat_r=port.dat_r,
-                                       port_dat_w=port.dat_w if not read_only else None,
-                                       port_we=port.we if not read_only else None)
+        fsm, comb = axi_lite_to_simple(
+            axi_lite   = self.bus,
+            port_adr   = port.adr,
+            port_dat_r = port.dat_r,
+            port_dat_w = port.dat_w if not read_only else None,
+            port_we    = port.we if not read_only else None)
         self.submodules.fsm = fsm
         self.comb += comb
 
@@ -809,7 +828,7 @@ class _AXILiteDownConverterWrite(Module):
         self.submodules.fsm = fsm
         # Reset the converter state if master breaks a request, we can do that as
         # aw.valid and w.valid are kept high in CONVERT and RESPOND-SLAVE, and
-        # acknowledged only when moving to RESPOND-MASTER, and then b.valid is 1
+        # acknowledged only when moving to RESPOND-MASTER, and then b.valid is 1.
         self.comb += fsm.reset.eq(~((master.aw.valid | master.w.valid) | master.b.valid))
 
         fsm.act("IDLE",
@@ -829,16 +848,16 @@ class _AXILiteDownConverterWrite(Module):
             If(slave.w.ready,
                 NextValue(w_ready, 1)
             ),
-            # When skipping, we just increment the counter
+            # When skipping, we just increment the counter.
             If(skip,
                 NextValue(counter, counter + 1),
-                # Corner-case: when the last word is being skipped, we must send the response
+                # Corner-case: when the last word is being skipped, we must send the response.
                 If(counter == (ratio - 1),
                     master.aw.ready.eq(1),
                     master.w.ready.eq(1),
                     NextState("RESPOND-MASTER")
                 )
-            # Write current word and wait for write response
+            # Write current word and wait for write response.
             ).Elif((slave.aw.ready | aw_ready) & (slave.w.ready | w_ready),
                 NextState("RESPOND-SLAVE")
             )
@@ -848,7 +867,7 @@ class _AXILiteDownConverterWrite(Module):
             NextValue(w_ready, 0),
             If(slave.b.valid,
                 slave.b.ready.eq(1),
-                # Errors are sticky, so the first one is always sent
+                # Errors are sticky, so the first one is always sent.
                 If((resp == RESP_OKAY) & (slave.b.resp != RESP_OKAY),
                     NextValue(resp, slave.b.resp)
                 ),
@@ -891,11 +910,11 @@ class _AXILiteDownConverterRead(Module):
         self.comb += addr_counter[slave_align:].eq(counter)
 
         # Data path
-        # shift the data word
+        # Shift the data word
         r_data = Signal(dw_from, reset_less=True)
         self.sync += If(slave.r.ready, r_data.eq(master.r.data))
         self.comb += master.r.data.eq(Cat(r_data[dw_to:], slave.r.data))
-        # address, resp
+        # Connect address, resp
         self.comb += [
             slave.ar.addr.eq(Cat(addr_counter, master.ar.addr[master_align:])),
             master.r.resp.eq(resp),
@@ -906,7 +925,7 @@ class _AXILiteDownConverterRead(Module):
         fsm = ResetInserter()(fsm)
         self.submodules.fsm = fsm
         # Reset the converter state if master breaks a request, we can do that as
-        # ar.valid is high in CONVERT and RESPOND-SLAVE, and r.valid in RESPOND-MASTER
+        # ar.valid is high in CONVERT and RESPOND-SLAVE, and r.valid in RESPOND-MASTER.
         self.comb += fsm.reset.eq(~(master.ar.valid | master.r.valid))
 
         fsm.act("IDLE",
@@ -924,15 +943,15 @@ class _AXILiteDownConverterRead(Module):
         )
         fsm.act("RESPOND-SLAVE",
             If(slave.r.valid,
-                # Errors are sticky, so the first one is always sent
+                # Errors are sticky, so the first one is always sent.
                 If((resp == RESP_OKAY) & (slave.r.resp != RESP_OKAY),
                     NextValue(resp, slave.r.resp)
                 ),
-                # On last word acknowledge ar and hold slave.r.valid until we get master.r.ready
+                # On last word acknowledge ar and hold slave.r.valid until we get master.r.ready.
                 If(counter == (ratio - 1),
                     master.ar.ready.eq(1),
                     NextState("RESPOND-MASTER")
-                # Acknowledge the response and continue conversion
+                # Acknowledge the response and continue conversion.
                 ).Else(
                     slave.r.ready.eq(1),
                     NextValue(counter, counter + 1),
@@ -954,8 +973,8 @@ class AXILiteDownConverter(Module):
         self.submodules.read  = _AXILiteDownConverterRead(master, slave)
 
 class AXILiteUpConverter(Module):
-    # TODO: we could try joining multiple master accesses into single slave access
-    # would reuqire checking if address changes and a way to flush on single access
+    # TODO: we could try joining multiple master accesses into single slave access would require
+    # checking if address changes and a way to flush on single access
     def __init__(self, master, slave):
         assert isinstance(master, AXILiteInterface) and isinstance(slave, AXILiteInterface)
         dw_from      = len(master.r.data)
@@ -994,7 +1013,7 @@ class AXILiteUpConverter(Module):
                 master.r.data.eq(slave.r.data[data_from:data_to]),
             ]
 
-        # Switch current word based on the last valid master address
+        # Switch current word based on the last valid master address.
         self.sync += If(master.aw.valid, wr_word_r.eq(wr_word))
         self.sync += If(master.ar.valid, rd_word_r.eq(rd_word))
         self.comb += [
@@ -1020,10 +1039,12 @@ class AXILiteConverter(Module):
         # # #
 
         dw_from = len(master.r.data)
-        dw_to = len(slave.r.data)
-        if dw_from > dw_to:
+        dw_to   = len(slave.r.data)
+        ratio   = dw_from/dw_to
+
+        if ratio > 1:
             self.submodules += AXILiteDownConverter(master, slave)
-        elif dw_from < dw_to:
+        elif ratio < 1:
             self.submodules += AXILiteUpConverter(master, slave)
         else:
             self.comb += master.connect(slave)
@@ -1050,7 +1071,7 @@ class AXILiteTimeout(Module):
             fsm.act("WAIT",
                 timer.wait.eq(wait_cond),
                 # done is updated in `sync`, so we must make sure that `ready` has not been issued
-                # by slave during that single cycle, by checking `timer.wait`
+                # by slave during that single cycle, by checking `timer.wait`.
                 If(timer.done & timer.wait,
                     error.eq(1),
                     NextState("RESPOND")
@@ -1120,9 +1141,9 @@ class AXILiteInterconnectPointToPoint(Module):
 class AXILiteArbiter(Module):
     """AXI Lite arbiter
 
-    Arbitrate between master interfaces and connect one to the target.
-    New master will not be selected until all requests have been responded to.
-    Arbitration for write and read channels is done separately.
+    Arbitrate between master interfaces and connect one to the target. New master will not be
+    selected until all requests have been responded to. Arbitration for write and read channels is
+    done separately.
     """
     def __init__(self, masters, target):
         self.submodules.rr_write = roundrobin.RoundRobin(len(masters), roundrobin.SP_CE)
@@ -1131,14 +1152,14 @@ class AXILiteArbiter(Module):
         def get_sig(interface, channel, name):
             return getattr(getattr(interface, channel), name)
 
-        # mux master->slave signals
+        # Mux master->slave signals
         for channel, name, direction in target.layout_flat():
             rr = self.rr_write if channel in ["aw", "w", "b"] else self.rr_read
             if direction == DIR_M_TO_S:
                 choices = Array(get_sig(m, channel, name) for m in masters)
                 self.comb += get_sig(target, channel, name).eq(choices[rr.grant])
 
-        # connect slave->master signals
+        # Connect slave->master signals
         for channel, name, direction in target.layout_flat():
             rr = self.rr_write if channel in ["aw", "w", "b"] else self.rr_read
             if direction == DIR_S_TO_M:
@@ -1150,39 +1171,34 @@ class AXILiteArbiter(Module):
                     else:
                         self.comb += dest.eq(source)
 
-        # allow to change rr.grant only after all requests from a master have been responded to
+        # Allow to change rr.grant only after all requests from a master have been responded to.
         self.submodules.wr_lock = wr_lock = _AXILiteRequestCounter(
             request=target.aw.valid & target.aw.ready, response=target.b.valid & target.b.ready)
         self.submodules.rd_lock = rd_lock = _AXILiteRequestCounter(
             request=target.ar.valid & target.ar.ready, response=target.r.valid & target.r.ready)
 
-        # switch to next request only if there are no responses pending
+        # Switch to next request only if there are no responses pending.
         self.comb += [
             self.rr_write.ce.eq(~(target.aw.valid | target.w.valid | target.b.valid) & wr_lock.ready),
             self.rr_read.ce.eq(~(target.ar.valid | target.r.valid) & rd_lock.ready),
         ]
 
-        # connect bus requests to round-robin selectors
+        # Connect bus requests to round-robin selectors.
         self.comb += [
             self.rr_write.request.eq(Cat(*[m.aw.valid | m.w.valid | m.b.valid for m in masters])),
             self.rr_read.request.eq(Cat(*[m.ar.valid | m.r.valid for m in masters])),
         ]
 
 class AXILiteDecoder(Module):
-    _doc_slaves = """
+    """AXI Lite decoder
+
+    Decode master access to particular slave based on its decoder function.
+
     slaves: [(decoder, slave), ...]
         List of slaves with address decoders, where `decoder` is a function:
             decoder(Signal(address_width - log2(data_width//8))) -> Signal(1)
         that returns 1 when the slave is selected and 0 otherwise.
-    """.strip()
-
-    __doc__ = """AXI Lite decoder
-
-    Decode master access to particular slave based on its decoder function.
-
-    {slaves}
-    """.format(slaves=_doc_slaves)
-
+    """
     def __init__(self, master, slaves, register=False):
         # TODO: unused register argument
         addr_shift = log2_int(master.data_width//8)
@@ -1191,7 +1207,7 @@ class AXILiteDecoder(Module):
             "write": {"aw", "w", "b"},
             "read":  {"ar", "r"},
         }
-        # reverse mapping: directions[channel] -> "write"/"read"
+        # Reverse mapping: directions[channel] -> "write"/"read".
         directions = {ch: d for d, chs in channels.items() for ch in chs}
 
         def new_slave_sel():
@@ -1201,7 +1217,7 @@ class AXILiteDecoder(Module):
         slave_sel_reg = new_slave_sel()
         slave_sel     = new_slave_sel()
 
-        # we need to hold the slave selected until all responses come back
+        # We need to hold the slave selected until all responses come back.
         # TODO: we could reuse arbiter counters
         locks = {
             "write": _AXILiteRequestCounter(
@@ -1218,17 +1234,17 @@ class AXILiteDecoder(Module):
 
         # # #
 
-        # decode slave addresses
+        # Decode slave addresses.
         for i, (decoder, bus) in enumerate(slaves):
             self.comb += [
                 slave_sel_dec["write"][i].eq(decoder(master.aw.addr[addr_shift:])),
                 slave_sel_dec["read"][i].eq(decoder(master.ar.addr[addr_shift:])),
             ]
 
-        # change the current selection only when we've got all responses
+        # Dhange the current selection only when we've got all responses.
         for channel in locks.keys():
             self.sync += If(locks[channel].ready, slave_sel_reg[channel].eq(slave_sel_dec[channel]))
-        # we have to cut the delaying select
+        # We have to cut the delaying select.
         for ch, final in slave_sel.items():
             self.comb += If(locks[ch].ready,
                              final.eq(slave_sel_dec[ch])
@@ -1236,35 +1252,31 @@ class AXILiteDecoder(Module):
                              final.eq(slave_sel_reg[ch])
                          )
 
-        # connect master->slaves signals except valid/ready
+        # Connect master->slaves signals except valid/ready.
         for i, (_, slave) in enumerate(slaves):
             for channel, name, direction in master.layout_flat():
                 if direction == DIR_M_TO_S:
                     src = get_sig(master, channel, name)
                     dst = get_sig(slave, channel, name)
-                    # mask master control signals depending on slave selection
+                    # Mask master control signals depending on slave selection.
                     if name in ["valid", "ready"]:
                         src = src & slave_sel[directions[channel]][i]
                     self.comb += dst.eq(src)
 
-        # connect slave->master signals masking not selected slaves
+        # Connect slave->master signals masking not selected slaves.
         for channel, name, direction in master.layout_flat():
             if direction == DIR_S_TO_M:
                 dst = get_sig(master, channel, name)
                 masked = []
                 for i, (_, slave) in enumerate(slaves):
                     src = get_sig(slave, channel, name)
-                    # mask depending on channel
+                    # Mask depending on channel.
                     mask = Replicate(slave_sel[directions[channel]][i], len(dst))
                     masked.append(src & mask)
                 self.comb += dst.eq(reduce(or_, masked))
 
 class AXILiteInterconnectShared(Module):
-    __doc__ = """AXI Lite shared interconnect
-
-    {slaves}
-    """.format(slaves=AXILiteDecoder._doc_slaves)
-
+    """AXI Lite shared interconnect"""
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
         # TODO: data width
         shared = AXILiteInterface()
@@ -1274,21 +1286,18 @@ class AXILiteInterconnectShared(Module):
             self.submodules.timeout = AXILiteTimeout(shared, timeout_cycles)
 
 class AXILiteCrossbar(Module):
-    __doc__ = """AXI Lite crossbar
+    """AXI Lite crossbar
 
     MxN crossbar for M masters and N slaves.
-
-    {slaves}
-    """.format(slaves=AXILiteDecoder._doc_slaves)
-
+    """
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
         matches, busses = zip(*slaves)
         access_m_s = [[AXILiteInterface() for j in slaves] for i in masters]  # a[master][slave]
         access_s_m = list(zip(*access_m_s))  # a[slave][master]
-        # decode each master into its access row
+        # Decode each master into its access row.
         for slaves, master in zip(access_m_s, masters):
             slaves = list(zip(matches, slaves))
             self.submodules += AXILiteDecoder(master, slaves, register)
-        # arbitrate each access column onto its slave
+        # Arbitrate each access column onto its slave.
         for masters, bus in zip(access_s_m, busses):
             self.submodules += AXILiteArbiter(masters, bus)

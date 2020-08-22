@@ -42,6 +42,14 @@ __attribute__((unused)) static void cdelay(int i)
 
 #define DFII_PIX_DATA_BYTES DFII_PIX_DATA_SIZE*CSR_DATA_BYTES
 
+int sdrdatabits(void) {
+	return SDRAM_PHY_DATABITS;
+}
+
+int sdrfreq(void) {
+	return SDRAM_PHY_XDR*SDRAM_PHY_PHASES*CONFIG_CLOCK_FREQUENCY;
+}
+
 void sdrsw(void)
 {
 	sdram_dfii_control_write(DFII_CONTROL_CKE|DFII_CONTROL_ODT|DFII_CONTROL_RESET_N);

@@ -146,12 +146,12 @@ class TestAXILite(unittest.TestCase):
     def test_wishbone2axi2wishbone(self):
         class DUT(Module):
             def __init__(self):
-                self.wishbone = wishbone.Interface(data_width=32)
+                self.wishbone = wishbone.Interface(data_width=32, adr_width=30)
 
                 # # #
 
                 axi = AXILiteInterface(data_width=32, address_width=32)
-                wb  = wishbone.Interface(data_width=32)
+                wb  = wishbone.Interface(data_width=32, adr_width=30)
 
                 wishbone2axi = Wishbone2AXILite(self.wishbone, axi)
                 axi2wishbone = AXILite2Wishbone(axi, wb)
@@ -190,7 +190,8 @@ class TestAXILite(unittest.TestCase):
                     "axi_lite": (AXILiteInterface,   AXI2AXILite,  AXILiteSRAM),
                 }[mem_bus]
 
-                bus = interface_cls()
+                bus_kwargs = {"adr_width" : 30} if mem_bus == "wishbone" else {}
+                bus = interface_cls(**bus_kwargs)
                 self.submodules += converter_cls(axi, bus)
                 sram = sram_cls(1024, init=[0x12345678, 0xa55aa55a])
                 self.submodules += sram

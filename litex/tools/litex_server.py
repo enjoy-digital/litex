@@ -15,26 +15,26 @@ import threading
 from litex.tools.remote.etherbone import EtherbonePacket, EtherboneRecord, EtherboneWrites
 from litex.tools.remote.etherbone import EtherboneIPC
 
-def _read_merger(addrs, max_count=256):
+def _read_merger(addrs, max_length=256):
     """Sequential reads merger
 
-    Take a list of read addresses as input and merge the sequential reads in (base, count) tuples:
+    Take a list of read addresses as input and merge the sequential reads in (base, length) tuples:
     Example: [0x0, 0x4, 0x10, 0x14] input  will return [(0x0,2), (0x10,2)].
 
     This is useful for UARTBone/Etherbone where command/response roundtrip delay is responsible for
     most of the access delay and allows minimizing number of commands by grouping them in UARTBone
     packets.
     """
-    base  = None
-    count = 0
+    base   = None
+    length = 0
     for addr in addrs:
-        if (addr - (4*count) != base) or (count == max_count):
+        if (addr - (4*length) != base) or (length == max_length):
             if base is not None:
-                yield (base, count)
+                yield (base, length)
             base  = addr
-            count = 0
-        count += 1
-    yield (base, count)
+            length = 0
+        length += 1
+    yield (base, length)
 
 
 class RemoteServer(EtherboneIPC):
@@ -94,13 +94,13 @@ class RemoteServer(EtherboneIPC):
 
                     # handle reads
                     if record.reads != None:
+                        max_length = {
+                            "CommUART": 256,
+                            "CommUDP":    4,
+                        }.get(self.comm.__class__.__name__, 1)
                         reads = []
-                        if "CommUART" == self.comm.__class__.__name__:
-                            for addr, count in _read_merger(record.reads.get_addrs(), max_count=256):
-                                reads += self.comm.read(addr, count)
-                        else:
-                            for addr in record.reads.get_addrs():
-                                reads.append(self.comm.read(addr))
+                        for addr, length in _read_merger(record.reads.get_addrs(), max_length=max_length):
+                            reads += self.comm.read(addr, length)
 
                         record = EtherboneRecord()
                         record.writes = EtherboneWrites(datas=reads)

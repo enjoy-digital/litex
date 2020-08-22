@@ -366,7 +366,7 @@ class SRAM(Module):
 # Wishbone To CSR ----------------------------------------------------------------------------------
 
 class Wishbone2CSR(Module):
-    def __init__(self, bus_wishbone=None, bus_csr=None):
+    def __init__(self, bus_wishbone=None, bus_csr=None, register=True):
         self.csr = bus_csr
         if self.csr is None:
             # If no CSR bus provided, create it with default parameters.
@@ -378,24 +378,43 @@ class Wishbone2CSR(Module):
 
         # # #
 
-        self.comb += [
-            self.csr.dat_w.eq(self.wishbone.dat_w),
-            self.wishbone.dat_r.eq(self.csr.dat_r)
-        ]
-
-        fsm = FSM(reset_state="WRITE-READ")
-        self.submodules += fsm
-        fsm.act("WRITE-READ",
-            If(self.wishbone.cyc & self.wishbone.stb,
-                self.csr.adr.eq(self.wishbone.adr),
-                self.csr.we.eq(self.wishbone.we & (self.wishbone.sel != 0)),
+        if register:
+            fsm = FSM(reset_state="IDLE")
+            self.submodules += fsm
+            fsm.act("IDLE",
+                NextValue(self.csr.dat_w, self.wishbone.dat_w),
+                If(self.wishbone.cyc & self.wishbone.stb,
+                    NextValue(self.csr.adr, self.wishbone.adr),
+                    NextValue(self.csr.we, self.wishbone.we & (self.wishbone.sel != 0)),
+                    NextState("WRITE-READ")
+                )
+            )
+            fsm.act("WRITE-READ",
+                NextValue(self.csr.adr, 0),
+                NextValue(self.csr.we, 0),
                 NextState("ACK")
             )
-        )
-        fsm.act("ACK",
-            self.wishbone.ack.eq(1),
-            NextState("WRITE-READ")
-        )
+            fsm.act("ACK",
+                self.wishbone.ack.eq(1),
+                self.wishbone.dat_r.eq(self.csr.dat_r),
+                NextState("IDLE")
+            )
+        else:
+            fsm = FSM(reset_state="WRITE-READ")
+            self.submodules += fsm
+            fsm.act("WRITE-READ",
+                self.csr.dat_w.eq(self.wishbone.dat_w),
+                If(self.wishbone.cyc & self.wishbone.stb,
+                    self.csr.adr.eq(self.wishbone.adr),
+                    self.csr.we.eq(self.wishbone.we & (self.wishbone.sel != 0)),
+                    NextState("ACK")
+                )
+            )
+            fsm.act("ACK",
+                self.wishbone.ack.eq(1),
+                self.wishbone.dat_r.eq(self.csr.dat_r),
+                NextState("WRITE-READ")
+            )
 
 # Wishbone Cache -----------------------------------------------------------------------------------
 

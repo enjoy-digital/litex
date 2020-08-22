@@ -3,6 +3,9 @@
 
 #include <generated/csr.h>
 
+int sdrdatabits(void);
+int sdrfreq(void);
+
 void sdrsw(void);
 void sdrhw(void);
 void sdrrow(unsigned int row);

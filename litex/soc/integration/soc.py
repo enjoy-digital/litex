@@ -73,6 +73,8 @@ class SoCRegion:
             self.logger.error("Origin needs to be aligned on size:")
             self.logger.error(self)
             raise
+        if (origin == 0) and (size == 2**bus.address_width):
+            return lambda a : True
         origin >>= int(log2(bus.data_width//8)) # bytes to words aligned
         size   >>= int(log2(bus.data_width//8)) # bytes to words aligned
         return lambda a: (a[log2_int(size):] == (origin >> log2_int(size)))
@@ -477,9 +479,10 @@ class SoCCSRHandler(SoCLocHandler):
     supported_address_width = [14+i for i in range(4)]
     supported_alignment     = [32]
     supported_paging        = [0x800*2**i for i in range(4)]
+    supported_ordering      = ["big", "little"]
 
     # Creation -------------------------------------------------------------------------------------
-    def __init__(self, data_width=32, address_width=14, alignment=32, paging=0x800, reserved_csrs={}):
+    def __init__(self, data_width=32, address_width=14, alignment=32, paging=0x800, ordering="big", reserved_csrs={}):
         SoCLocHandler.__init__(self, "CSR", n_locs=alignment//8*(2**address_width)//paging)
         self.logger = logging.getLogger("SoCCSRHandler")
         self.logger.info("Creating CSR Handler...")
@@ -522,18 +525,28 @@ class SoCCSRHandler(SoCLocHandler):
                 colorer(", ".join("0x{:x}".format(x) for x in self.supported_paging))))
             raise
 
+        # Check Ordering
+        if ordering not in self.supported_ordering:
+            self.logger.error("Unsupported {} {}, supporteds: {:s}".format(
+                colorer("Ordering", color="red"),
+                colorer("{}".format(paging)),
+                colorer(", ".join("{}".format(x) for x in self.supported_ordering))))
+            raise
+
         # Create CSR Handler
         self.data_width    = data_width
         self.address_width = address_width
         self.alignment     = alignment
         self.paging        = paging
+        self.ordering      = ordering
         self.masters       = {}
         self.regions       = {}
-        self.logger.info("{}-bit CSR Bus, {}-bit Aligned, {}KiB Address Space, {}B Paging (Up to {} Locations).".format(
+        self.logger.info("{}-bit CSR Bus, {}-bit Aligned, {}KiB Address Space, {}B Paging, {} Ordering (Up to {} Locations).".format(
             colorer(self.data_width),
             colorer(self.alignment),
             colorer(2**self.address_width/2**10),
             colorer(self.paging),
+            colorer(self.ordering),
             colorer(self.n_locs)))
 
         # Adding reserved CSRs
@@ -584,11 +597,12 @@ class SoCCSRHandler(SoCLocHandler):
 
     # Str ------------------------------------------------------------------------------------------
     def __str__(self):
-        r = "{}-bit CSR Bus, {}-bit Aligned, {}KiB Address Space, {}B Paging (Up to {} Locations).\n".format(
+        r = "{}-bit CSR Bus, {}-bit Aligned, {}KiB Address Space, {}B Paging, {} Ordering (Up to {} Locations).\n".format(
             colorer(self.data_width),
             colorer(self.alignment),
             colorer(2**self.address_width/2**10),
             colorer(self.paging),
+            colorer(self.ordering),
             colorer(self.n_locs))
         r += SoCLocHandler.__str__(self)
         r = r[:-1]
@@ -676,6 +690,7 @@ class SoC(Module):
         csr_data_width       = 32,
         csr_address_width    = 14,
         csr_paging           = 0x800,
+        csr_ordering         = "big",
         csr_reserved_csrs    = {},
 
         irq_n_irqs           = 32,
@@ -716,6 +731,7 @@ class SoC(Module):
             address_width = csr_address_width,
             alignment     = 32,
             paging        = csr_paging,
+            ordering      = csr_ordering,
             reserved_csrs = csr_reserved_csrs,
         )
 
@@ -787,7 +803,7 @@ class SoC(Module):
     def add_rom(self, name, origin, size, contents=[]):
         self.add_ram(name, origin, size, contents, mode="r")
 
-    def add_csr_bridge(self, origin):
+    def add_csr_bridge(self, origin, register=False):
         csr_bridge_cls = {
             "wishbone": wishbone.Wishbone2CSR,
             "axi-lite": axi.AXILite2CSR,
@@ -795,7 +811,8 @@ class SoC(Module):
         self.submodules.csr_bridge = csr_bridge_cls(
             bus_csr       = csr_bus.Interface(
             address_width = self.csr.address_width,
-            data_width    = self.csr.data_width))
+            data_width    = self.csr.data_width),
+            register = register)
         csr_size   = 2**(self.csr.address_width + 2)
         csr_region = SoCRegion(origin=origin, size=csr_size, cached=False)
         bus = getattr(self.csr_bridge, self.bus.standard.replace('-', '_'))
@@ -812,6 +829,11 @@ class SoC(Module):
                 colorer(", ".join(cpu.CPUS.keys()))))
             raise
         # Add CPU
+        if name == "external" and cls is None:
+            self.logger.error("{} CPU requires {} to be specified.".format(
+                colorer(name),
+                colorer("cpu_cls", color="red")))
+            raise
         cpu_cls = cls if cls is not None else cpu.CPUS[name]
         if variant not in cpu_cls.variants:
             self.logger.error("{} CPU variant {}, supporteds: {}.".format(
@@ -843,9 +865,10 @@ class SoC(Module):
                     name             = "SoCDMABusHandler",
                     standard         = "wishbone",
                     data_width       = self.bus.data_width,
+                    address_width    = self.bus.address_width,
                 )
                 dma_bus = wishbone.Interface(data_width=self.bus.data_width)
-                self.dma_bus.add_slave("dma", slave=dma_bus, region=SoCRegion(origin=0x00000000, size=0x80000000)) # FIXME: size
+                self.dma_bus.add_slave("dma", slave=dma_bus, region=SoCRegion(origin=0x00000000, size=0x100000000)) # FIXME: covers lower 4GB only
                 self.submodules += wishbone.Converter(dma_bus, self.cpu.dma_bus)
 
             # Connect SoCController's reset to CPU reset
@@ -887,6 +910,10 @@ class SoC(Module):
             "wishbone": wishbone.InterconnectShared,
             "axi-lite": axi.AXILiteInterconnectShared,
         }[self.bus.standard]
+
+        # SoC CSR bridge ---------------------------------------------------------------------------
+        # FIXME: for now, use registered CSR bridge when SDRAM is present; find the best compromise.
+        self.add_csr_bridge(self.mem_map["csr"], register=hasattr(self, "sdram"))
 
         # SoC Bus Interconnect ---------------------------------------------------------------------
         if len(self.bus.masters) and len(self.bus.slaves):
@@ -944,6 +971,7 @@ class SoC(Module):
             address_width      = self.csr.address_width,
             alignment          = self.csr.alignment,
             paging             = self.csr.paging,
+            ordering           = self.csr.ordering,
             soc_bus_data_width = self.bus.data_width)
         if len(self.csr.masters):
             self.submodules.csr_interconnect = csr_bus.InterconnectShared(
@@ -1164,7 +1192,7 @@ class LiteXSoC(SoC):
                 data_width    = self.sdram.crossbar.controller.data_width
             )
 
-        # SoC [<--> L2 Cache] <--> LiteDRAM --------------------------------------------------------
+        # Connect CPU's direct memory buses to LiteDRAM --------------------------------------------
         if len(self.cpu.memory_buses):
             # When CPU has at least a direct memory bus, connect them directly to LiteDRAM.
             for mem_bus in self.cpu.memory_buses:
@@ -1213,9 +1241,15 @@ class LiteXSoC(SoC):
                     # Else raise Error.
                     else:
                         raise NotImplementedError
-        else:
-            # When CPU has no direct memory interface, create a Wishbone Slave interface to LiteDRAM.
 
+        # Connect Main bus to LiteDRAM (with optional L2 Cache) ------------------------------------
+        connect_main_bus_to_dram = (
+            # No memory buses.
+            (not len(self.cpu.memory_buses)) or
+            # Memory buses but no DMA bus.
+            (len(self.cpu.memory_buses) and not hasattr(self.cpu, "dma_bus"))
+        )
+        if connect_main_bus_to_dram:
             # Request a LiteDRAM native port.
             port = self.sdram.crossbar.get_port()
             port.data_width = 2**int(log2(port.data_width)) # Round to nearest power of 2.
@@ -1230,7 +1264,7 @@ class LiteXSoC(SoC):
                 l2_cache_size = max(l2_cache_size, int(2*port.data_width/8)) # Use minimal size if lower
                 l2_cache_size = 2**int(log2(l2_cache_size))                  # Round to nearest power of 2
                 l2_cache_data_width = max(port.data_width, l2_cache_min_data_width)
-                l2_cache            = wishbone.Cache(
+                l2_cache = wishbone.Cache(
                     cachesize = l2_cache_size//4,
                     master    = wb_sdram,
                     slave     = wishbone.Interface(l2_cache_data_width),
@@ -1240,12 +1274,14 @@ class LiteXSoC(SoC):
                 self.submodules.l2_cache = l2_cache
                 litedram_wb = self.l2_cache.slave
             else:
-                litedram_wb     = wishbone.Interface(port.data_width)
+                litedram_wb = wishbone.Interface(port.data_width)
                 self.submodules += wishbone.Converter(wb_sdram, litedram_wb)
             self.add_config("L2_SIZE", l2_cache_size)
 
             # Wishbone Slave <--> LiteDRAM bridge
-            self.submodules.wishbone_bridge = LiteDRAMWishbone2Native(litedram_wb, port,
+            self.submodules.wishbone_bridge = LiteDRAMWishbone2Native(
+                wishbone     = litedram_wb,
+                port         = port,
                 base_address = self.bus.regions["main_ram"].origin)
 
     # Add Ethernet ---------------------------------------------------------------------------------
@@ -1287,7 +1323,7 @@ class LiteXSoC(SoC):
         from liteeth.frontend.etherbone import LiteEthEtherbone
         # Core
         ethcore = LiteEthUDPIPCore(
-            phy         = self.ethphy,
+            phy         = phy,
             mac_address = mac_address,
             ip_address  = ip_address,
             clk_freq    = self.clk_freq)

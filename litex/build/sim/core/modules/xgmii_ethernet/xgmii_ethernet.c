@@ -233,12 +233,13 @@ unsigned int g_mask = 0xff;
 unsigned int g_idle = 0x07070707;
 #endif
 
-static int xgmii_ethernet_tick(void *sess)
+static int xgmii_ethernet_tick(void *sess, uint64_t time_ps)
 {
+  static struct clk_edge_t edge;
   struct session_s *s = (struct session_s*)sess;
   struct eth_packet_s *pep;
 
-  if(*s->sys_clk == 0) {
+  if(!clk_pos_edge(&edge, *s->sys_clk)) {
     s->preamble=0;
     return RC_OK;
   }

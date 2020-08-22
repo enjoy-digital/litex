@@ -249,7 +249,7 @@ def usb_pmod_io(pmod):
             IOStandard("LVCMOS33")
         ),
     ]
-_usb_uart_pmod_io = usb_pmod_io("pmoda") # USB-UART PMOD on JA.
+_usb_uart_pmod_io = usb_pmod_io("pmodb") # USB-UART PMOD on JB.
 
 
 def i2s_pmod_io(pmod):
@@ -270,7 +270,7 @@ def i2s_pmod_io(pmod):
             IOStandard("LVCMOS33"),
         ),
     ]
-_i2s_pmod_io = i2s_pmod_io("pmodd") # I2S PMOD on JD.
+_i2s_pmod_io = i2s_pmod_io("pmoda") # I2S PMOD on JA.
 
 def sdcard_pmod_io(pmod):
     return [
