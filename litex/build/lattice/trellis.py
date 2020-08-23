@@ -57,7 +57,7 @@ _yosys_template = [
     "{read_files}",
     "verilog_defaults -pop",
     "attrmap -tocase keep -imap keep=\"true\" keep=1 -imap keep=\"false\" keep=0 -remove keep=0",
-    "synth_ecp5 -abc9 {nwl} -json {build_name}.json -top {build_name}",
+    "synth_ecp5 {nwl} {abc} -json {build_name}.json -top {build_name}",
 ]
 
 def _yosys_import_sources(platform):
@@ -70,12 +70,13 @@ def _yosys_import_sources(platform):
             language, includes, filename))
     return "\n".join(reads)
 
-def _build_yosys(template, platform, nowidelut, build_name):
+def _build_yosys(template, platform, nowidelut, abc9, build_name):
     ys = []
     for l in template:
         ys.append(l.format(
             build_name = build_name,
             nwl        = "-nowidelut" if nowidelut else "",
+            abc        = "-abc9" if abc9 else "",
             read_files = _yosys_import_sources(platform)
         ))
     tools.write_to_file(build_name + ".ys", "\n".join(ys))
@@ -190,6 +191,7 @@ class LatticeTrellisToolchain:
         build_name     = "top",
         run            = True,
         nowidelut      = False,
+        abc9           = False,
         timingstrict   = False,
         ignoreloops    = False,
         bootaddr       = 0,
@@ -218,7 +220,7 @@ class LatticeTrellisToolchain:
         _build_lpf(named_sc, named_pc, build_name)
 
         # Generate Yosys script
-        _build_yosys(self.yosys_template, platform, nowidelut, build_name)
+        _build_yosys(self.yosys_template, platform, nowidelut, abc9, build_name)
 
         # Translate device to Nextpnr architecture/package/speed_grade
         (family, size, speed_grade, package) = nextpnr_ecp5_parse_device(platform.device)
@@ -248,6 +250,8 @@ class LatticeTrellisToolchain:
 def trellis_args(parser):
     parser.add_argument("--yosys-nowidelut", action="store_true",
                         help="pass '-nowidelut' to yosys synth_ecp5")
+    parser.add_argument("--yosys-abc9", action="store_true",
+                        help="pass '-abc9' to yosys synth_ecp5")
     parser.add_argument("--nextpnr-timingstrict", action="store_true",
                         help="fail if timing not met, i.e., do NOT pass '--timing-allow-fail' to nextpnr")
     parser.add_argument("--nextpnr-ignoreloops", action="store_true",
@@ -262,6 +266,7 @@ def trellis_args(parser):
 def trellis_argdict(args):
     return {
         "nowidelut":    args.yosys_nowidelut,
+        "abc9":         args.yosys_abc9,
         "timingstrict": args.nextpnr_timingstrict,
         "ignoreloops":  args.nextpnr_ignoreloops,
         "bootaddr":     args.ecppack_bootaddr,
