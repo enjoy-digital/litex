@@ -1,7 +1,10 @@
-# This file is Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2017 William D. Jones <thor0505@comcast.net>
-# This file is Copyright (c) 2019 David Shah <dave@ds0.me>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017 William D. Jones <thor0505@comcast.net>
+# Copyright (c) 2019 David Shah <dave@ds0.me>
+# SPDX-License-Identifier: BSD-2-Clause
 
 from migen.fhdl.module import Module
 from migen.fhdl.specials import Instance, Tristate

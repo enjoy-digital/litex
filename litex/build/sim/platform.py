@@ -1,6 +1,9 @@
-# This file is Copyright (c) 2015-2018 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2017 Pierre-Olivier Vauboin <po@lambdaconcept>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015-2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017 Pierre-Olivier Vauboin <po@lambdaconcept>
+# SPDX-License-Identifier: BSD-2-Clause
 
 from migen.fhdl.structure import Signal
 from migen.genlib.record import Record

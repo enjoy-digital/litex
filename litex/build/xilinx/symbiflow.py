@@ -1,6 +1,9 @@
-# This file is Copyright (c) 2020 Antmicro <www.antmicro.com>
-# This file is Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2020 Antmicro <www.antmicro.com>
+# Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 import subprocess
