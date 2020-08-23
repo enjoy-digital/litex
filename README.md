@@ -5,6 +5,7 @@
 ```
 [![](https://travis-ci.com/enjoy-digital/litex.svg?branch=master)](https://travis-ci.com/enjoy-digital/litex)
 ![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fenjoy-digital%2Flitex.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fenjoy-digital%2Flitex?ref=badge_shield)
 
 > **Note:** In release 2020.04, LiteX switched to Python modules instead of Git submodules. Existing users will have to reinstall LiteX following the [installation guide](https://github.com/enjoy-digital/litex/wiki/Installation#litex-installation-guide).
 
@@ -157,3 +158,7 @@ projects created around/with LiteX can be found at https://github.com/litex-hub.
 
 # Contact
 E-mail: florent@enjoy-digital.fr
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fenjoy-digital%2Flitex.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fenjoy-digital%2Flitex?ref=badge_large)
