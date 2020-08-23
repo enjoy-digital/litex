@@ -1,5 +1,8 @@
-# This file is Copyright (c) 2015 Matt O'Gorman <mog@rldn.net>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015 Matt O'Gorman <mog@rldn.net>
+# SPDX-License-Identifier: BSD-2-Clause
 
 from litex.build.generic_platform import *
 from litex.build.xilinx import XilinxPlatform
