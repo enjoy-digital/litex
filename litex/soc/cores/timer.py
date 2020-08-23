@@ -1,7 +1,10 @@
-# This file is Copyright (c) 2013-2015 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2019 Sean Cross <sean@xobs.io>
-# This file is Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2013-2015 Sebastien Bourdeauducq <sb@m-labs.hk>
+# Copyright (c) 2019 Sean Cross <sean@xobs.io>
+# Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 
 from migen import *

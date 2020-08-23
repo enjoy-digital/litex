@@ -1,3 +1,6 @@
+#
+# This file is part of LiteX.
+#
 # This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
 # This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2018-2019 Antmicro <www.antmicro.com>
@@ -6,7 +9,7 @@
 # This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
 # This file is Copyright (c) 2020 Xiretza <xiretza@xiretza.xyz>
 # This file is Copyright (c) 2020 Piotr Esden-Tempski <piotr@esden.net>
-# License: BSD
+# SPDX-License-Identifier: BSD-2-Clause
 
 
 import os

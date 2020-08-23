@@ -1,3 +1,6 @@
+#
+# This file is part of LiteX.
+#
 # This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
 # This file is Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2018 Dolu1990 <charles.papon.90@gmail.com>
@@ -11,7 +14,7 @@
 # This file is Copyright (c) 2015 whitequark <whitequark@whitequark.org>
 # This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
 # This file is Copyright (c) 2020 Piotr Esden-Tempski <piotr@esden.net>
-# License: BSD
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 import json

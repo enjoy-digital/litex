@@ -1,6 +1,9 @@
-# This file is Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2020 Greg Davill <greg.davill@gmail.com>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2020 Greg Davill <greg.davill@gmail.com>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 

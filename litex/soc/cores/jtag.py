@@ -1,7 +1,10 @@
-# This file is Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2019 Antti Lukats <antti.lukats@gmail.com>
-# This file is Copyright (c) 2017 Robert Jordens <jordens@gmail.com>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2019 Antti Lukats <antti.lukats@gmail.com>
+# Copyright (c) 2017 Robert Jordens <jordens@gmail.com>
+# SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
 from migen.genlib.cdc import AsyncResetSynchronizer

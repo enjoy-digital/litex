@@ -1,9 +1,12 @@
-# This file is Copyright (c) 2013-2015 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2017-2019 Tim 'mithro' Ansell <me@mith.ro>
-# This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
-# This file is Copyright (c) 2019 Antmicro <www.antmicro.com>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2013-2015 Sebastien Bourdeauducq <sb@m-labs.hk>
+# Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2019 Tim 'mithro' Ansell <me@mith.ro>
+# Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
+# Copyright (c) 2019 Antmicro <www.antmicro.com>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 

@@ -1,6 +1,9 @@
-# This file is Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2017-2018 Tim 'mithro' Ansell <me@mith.ro>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2018 Tim 'mithro' Ansell <me@mith.ro>
+# SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
 

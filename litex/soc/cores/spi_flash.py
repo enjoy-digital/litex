@@ -1,10 +1,12 @@
-# This file is Copyright (c) 2014 Yann Sionneau <ys@m-labs.hk>
-# This file is Copyright (c) 2014-2018 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2013-2014 Robert Jordens <jordens@gmail.com>
-# This file is Copyright (c) 2015-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2020 Antmicro <www.antmicro.com>
-
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2014 Yann Sionneau <ys@m-labs.hk>
+# Copyright (c) 2014-2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2013-2014 Robert Jordens <jordens@gmail.com>
+# Copyright (c) 2015-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
+# Copyright (c) 2020 Antmicro <www.antmicro.com>
+# SPDX-License-Identifier: BSD-2-Clause
 
 
 from migen import *

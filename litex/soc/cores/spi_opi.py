@@ -1,5 +1,8 @@
-# This file is Copyright (c) 2020 bunnie <bunnie@kosagi.com>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2020 bunnie <bunnie@kosagi.com>
+# SPDX-License-Identifier: BSD-2-Clause
 
 from migen.genlib.cdc import MultiReg
 

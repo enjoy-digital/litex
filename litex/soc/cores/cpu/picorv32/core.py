@@ -1,11 +1,12 @@
-# This file is Copyright (c) 2016-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2018 Sergiusz Bazanski <q3k@q3k.org>
-# This file is Copyright (c) 2019 Antmicro <www.antmicro.com>
-# This file is Copyright (c) 2019 Tim 'mithro' Ansell <me@mith.ro>
-# This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
-# License: BSD
-
-#!/usr/bin/env python3
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2016-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2018 Sergiusz Bazanski <q3k@q3k.org>
+# Copyright (c) 2019 Antmicro <www.antmicro.com>
+# Copyright (c) 2019 Tim 'mithro' Ansell <me@mith.ro>
+# Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 

@@ -1,7 +1,10 @@
+#
+# This file is part of LiteX.
+#
 # This file is Copyright (c) 2014-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
 # This file is Copyright (c) 2019 Gabriel L. Somlo <somlo@cmu.edu>
-# License: BSD
+# SPDX-License-Identifier: BSD-2-Clause
 
 import logging
 import time

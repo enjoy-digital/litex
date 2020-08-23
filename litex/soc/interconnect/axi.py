@@ -1,6 +1,9 @@
-# This file is Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2020 Antmicro <www.antmicro.com>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2020 Antmicro <www.antmicro.com>
+# SPDX-License-Identifier: BSD-2-Clause
 
 """AXI4 Full/Lite support for LiteX"""
 

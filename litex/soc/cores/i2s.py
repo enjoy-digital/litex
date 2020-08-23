@@ -1,6 +1,9 @@
-# This file is Copyright (c) 2020 bunnie <bunnie@kosagi.com>
-# This file is Copyright (c) 2020 Antmicro <www.antmicro.com>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2020 bunnie <bunnie@kosagi.com>
+# Copyright (c) 2020 Antmicro <www.antmicro.com>
+# SPDX-License-Identifier: BSD-2-Clause
 
 from migen.genlib.cdc import MultiReg
 
@@ -23,30 +26,30 @@ class S7I2S(Module, AutoCSR, AutoDoc):
 
         self.intro = ModuleDoc("""Intro
 
-        I2S controller/peripheral creates a controller/peripheral audio interface instance depending on a configured controller variable. 
+        I2S controller/peripheral creates a controller/peripheral audio interface instance depending on a configured controller variable.
         Tx and Rx interfaces are inferred based upon the presence or absence of the respective pins in the "pads" argument.
-        
+
         When device is configured as controller you can manipulate LRCK and SCLK signals using below variables.
-        
+
         - lrck_ref_freq - is a reference signal that is required to achive desired LRCK and SCLK frequencies.
                          Have be the same as your sys_clk.
-        - lrck_freq - this variable defines requested LRCK frequency. Mind you, that based on sys_clk frequency, 
+        - lrck_freq - this variable defines requested LRCK frequency. Mind you, that based on sys_clk frequency,
                          configured value will be more or less acurate.
-        - bits_per_channel - defines SCLK frequency. Mind you, that based on sys_clk frequency, 
+        - bits_per_channel - defines SCLK frequency. Mind you, that based on sys_clk frequency,
                          the requested amount of bits per channel may vary from configured.
-        
+
         When device is configured as peripheral I2S interface, sampling rate and framing is set by the
         programming of the audio CODEC chip. A peripheral configuration defers the
         generation of audio clocks to the CODEC, which has PLLs specialized to generate the correct
         frequencies for audio sampling rates.
 
         I2S core supports two formats: standard and left-justified.
-        
-        - Standard format requires a device to receive and send data with one bit offset for both channels. 
+
+        - Standard format requires a device to receive and send data with one bit offset for both channels.
             Left channel begins with low signal on LRCK.
         - Left justified format requires from device to receive and send data without any bit offset for both channels.
             Left channel begins with high signal on LRCK.
-    
+
         Sample width can be any of 1 to 32 bits.
 
         When sample_width is less than or equal to 16-bit and concatenate_channels is enabled,
@@ -108,7 +111,7 @@ class S7I2S(Module, AutoCSR, AutoDoc):
 
         - Data is updated on the falling edge
         - Data is sampled on the rising edge
-        - Words are MSB-to-LSB,  
+        - Words are MSB-to-LSB,
         - Sync is an input or output based on configure mode,
         - Sync can be longer than the wordlen, extra bits are just ignored
         - Tx is data to the codec (SDI pin on LM49352)
@@ -134,7 +137,7 @@ class S7I2S(Module, AutoCSR, AutoDoc):
         if hasattr(pads, 'rx'):
             rx_pin = Signal()
             self.specials += MultiReg(pads.rx, rx_pin)
-        
+
         fifo_data_width = sample_width
         if concatenate_channels:
             if sample_width <= 16:
@@ -318,7 +321,7 @@ class S7I2S(Module, AutoCSR, AutoDoc):
             rx_cnt_width = math.ceil(math.log(fifo_data_width,2))
             rx_cnt = Signal(rx_cnt_width)
             rx_delay_cnt = Signal()
-            rx_delay_val = 1 if frame_format == I2S_FORMAT.I2S_STANDARD else 0 
+            rx_delay_val = 1 if frame_format == I2S_FORMAT.I2S_STANDARD else 0
 
             self.submodules.rxi2s = rxi2s = FSM(reset_state="IDLE")
             rxi2s.act("IDLE",
@@ -529,7 +532,7 @@ class S7I2S(Module, AutoCSR, AutoDoc):
             ]
             self.sync += [
                 # This is the bus responder -- need to check how this interacts with uncached memory
-                # region 
+                # region
                 If(bus.cyc & bus.stb & bus.we & ~bus.ack,
                    If(~tx_full,
                       tx_wr_d.eq(bus.dat_w),
