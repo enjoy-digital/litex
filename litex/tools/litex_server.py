@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
-# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2019 Sean Cross <sean@xobs.io>
-# This file is Copyright (c) 2018 Felix Held <felix-github@felixheld.de>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2019 Sean Cross <sean@xobs.io>
+# Copyright (c) 2018 Felix Held <felix-github@felixheld.de>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import argparse
 

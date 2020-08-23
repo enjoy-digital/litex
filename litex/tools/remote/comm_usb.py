@@ -1,5 +1,8 @@
-# This file is Copyright (c) 2019 Sean Cross <sean@xobs.io>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2019 Sean Cross <sean@xobs.io>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import usb.core
 import time
