@@ -17,6 +17,8 @@ def generate_dts(d):
     kB = 1024
     mB = kB*1024
 
+    cpu_name = d["constants"]["config_cpu_human_name"]
+
     aliases = {}
 
     # Header -------------------------------------------------------------------------------------------
@@ -27,8 +29,6 @@ def generate_dts(d):
 / {
         #address-cells = <1>;
         #size-cells    = <1>;
-        compatible = "enjoy-digital,litex-vexriscv-soclinux";
-        model = "VexRiscv SoCLinux";
 
 """
 
@@ -48,34 +48,55 @@ def generate_dts(d):
 
     # CPU ----------------------------------------------------------------------------------------------
 
-    dts += """
-        cpus {{
-                #address-cells = <1>;
-                #size-cells    = <0>;
-                timebase-frequency = <{sys_clk_freq}>;
-                cpu@0 {{
-                        clock-frequency = <0x0>;
-                        compatible = "spinalhdl,vexriscv", "sifive,rocket0", "riscv";
-                        d-cache-block-size = <0x40>;
-                        d-cache-sets = <0x40>;
-                        d-cache-size = <0x8000>;
-                        d-tlb-sets = <0x1>;
-                        d-tlb-size = <0x20>;
-                        device_type = "cpu";
-                        i-cache-block-size = <0x40>;
-                        i-cache-sets = <0x40>;
-                        i-cache-size = <0x8000>;
-                        i-tlb-sets = <0x1>;
-                        i-tlb-size = <0x20>;
-                        mmu-type = "riscv,sv32";
-                        reg = <0x0>;
-                        riscv,isa = "rv32ima";
-                        sifive,itim = <0x1>;
-                        status = "okay";
-                        tlb-split;
-                }};
-        }};
+    if cpu_name == "vexriscv_linux":
+
+        dts += """
+            cpus {{
+                    #address-cells = <1>;
+                    #size-cells    = <0>;
+                    timebase-frequency = <{sys_clk_freq}>;
+                    cpu@0 {{
+                            clock-frequency = <0x0>;
+                            compatible = "spinalhdl,vexriscv", "sifive,rocket0", "riscv";
+                            d-cache-block-size = <0x40>;
+                            d-cache-sets = <0x40>;
+                            d-cache-size = <0x8000>;
+                            d-tlb-sets = <0x1>;
+                            d-tlb-size = <0x20>;
+                            device_type = "cpu";
+                            i-cache-block-size = <0x40>;
+                            i-cache-sets = <0x40>;
+                            i-cache-size = <0x8000>;
+                            i-tlb-sets = <0x1>;
+                            i-tlb-size = <0x20>;
+                            mmu-type = "riscv,sv32";
+                            reg = <0x0>;
+                            riscv,isa = "rv32ima";
+                            sifive,itim = <0x1>;
+                            status = "okay";
+                            tlb-split;
+                    }};
+            }};
 """.format(sys_clk_freq=int(50e6) if "sim" in d["constants"] else d["constants"]["config_clock_frequency"])
+
+    elif cpu_name == "mor1kx":
+
+        dts += """
+            cpus {{
+                    #address-cells = <1>;
+                    #size-cells = <0>;
+                    cpu@0 {{
+                            compatible = "opencores,or1200-rtlsvn481";
+                            reg = <0>;
+                            clock-frequency = <{sys_clk_freq}>;
+                    }};
+            }};
+""".format(sys_clk_freq=d["constants"]["config_clock_frequency"])
+
+    else:
+
+        raise Exception("ERROR: unsupported CPU type {}".format(cpu_name))
+
 
     # Memory -------------------------------------------------------------------------------------------
 
@@ -113,14 +134,21 @@ def generate_dts(d):
 
     # Interrupt controller -----------------------------------------------------------------------------
 
+    if cpu_name == "vexriscv_linux":
+        irq_controller_compatible = "vexriscv,intc0"
+    elif cpu_name == "mor1kx":
+        irq_controller_compatible = "opencores,or1k-pic"
+    else:
+        raise Exception("Unsupported CPU type: {}".format(cpu_name))
+
     dts += """
-                intc0: interrupt-controller {
+                intc0: interrupt-controller {{
                         interrupt-controller;
                         #interrupt-cells = <1>;
-                        compatible = "vexriscv,intc0";
+                        compatible = "{compatible}";
                         status = "okay";
-                };
-"""
+                }};
+""".format(compatible=irq_controller_compatible)
 
     # SoC Controller -----------------------------------------------------------------------------------
 
