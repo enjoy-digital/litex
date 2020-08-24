@@ -3,7 +3,7 @@
 #
 # Copyright (c) 2018-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2019 Michael Betz <michibetz@gmail.com>
-# Copyright (c) 2020 Piense <piense@gmail.com>
+# Copyright (c) 2020 David Corrigan <davidcorrigan714@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 """Clock Abstraction Modules"""

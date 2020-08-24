@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2020 Piense <piense@gmail.com>
+# Copyright (c) 2020 David Corrigan <davidcorrigan714@gmail.com>
 # Copyright (c) 2019 William D. Jones <thor0505@comcast.net>
 # Copyright (c) 2019 Tim 'mithro' Ansell <me@mith.ro>
 # Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>

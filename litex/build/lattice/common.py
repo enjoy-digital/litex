@@ -4,7 +4,7 @@
 # Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2017 William D. Jones <thor0505@comcast.net>
 # Copyright (c) 2019 David Shah <dave@ds0.me>
-# Copyright (c) 2020 Piense <piense@gmail.com>
+# Copyright (c) 2020 David Corrigan <davidcorrigan714@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen.fhdl.module import Module
