@@ -47,7 +47,7 @@ class _CRG(Module):
         pll.create_clkout(self.cd_sys,    sys_clk_freq)
         if sdram_rate == "1:2":
             pll.create_clkout(self.cd_sys2x,    2*sys_clk_freq)
-            pll.create_clkout(self.cd_sys2x_ps, 2*sys_clk_freq, phase=90)
+            pll.create_clkout(self.cd_sys2x_ps, 2*sys_clk_freq, phase=180)  # Idealy 90° but needs to be increased.
         else:
             pll.create_clkout(self.cd_sys_ps, sys_clk_freq, phase=90)
 
