@@ -71,6 +71,7 @@ class SoCCore(LiteXSoC):
         cpu_cls                  = None,
         # ROM parameters
         integrated_rom_size      = 0,
+        integrated_rom_mode      = "r",
         integrated_rom_init      = [],
         # SRAM parameters
         integrated_sram_size     = 0x2000,
@@ -161,7 +162,7 @@ class SoCCore(LiteXSoC):
 
         # Add integrated ROM
         if integrated_rom_size:
-            self.add_rom("rom", self.cpu.reset_address, integrated_rom_size, integrated_rom_init)
+            self.add_rom("rom", self.cpu.reset_address, integrated_rom_size, integrated_rom_init, integrated_rom_mode)
 
         # Add integrated SRAM
         if integrated_sram_size:

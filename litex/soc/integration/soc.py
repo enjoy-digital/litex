@@ -803,8 +803,8 @@ class SoC(Module):
             self.bus.regions[name]))
         setattr(self.submodules, name, ram)
 
-    def add_rom(self, name, origin, size, contents=[]):
-        self.add_ram(name, origin, size, contents, mode="r")
+    def add_rom(self, name, origin, size, contents=[], mode="r"):
+        self.add_ram(name, origin, size, contents, mode=mode)
 
     def add_csr_bridge(self, origin, register=False):
         csr_bridge_cls = {
@@ -1170,10 +1170,10 @@ class LiteXSoC(SoC):
                     if spd_byte < len(module._spd_data):
                         mem[i] |= module._spd_data[spd_byte]
             self.add_rom(
-                name="spd",
-                origin=self.mem_map.get("spd", None),
-                size=len(module._spd_data),
-                contents=mem,
+                name     = "spd",
+                origin   = self.mem_map.get("spd", None),
+                size     = len(module._spd_data),
+                contents = mem,
             )
 
         if not with_soc_interconnect: return
