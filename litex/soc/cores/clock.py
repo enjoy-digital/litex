@@ -740,13 +740,15 @@ class ECP5PLL(Module):
             p_FEEDBK_PATH   = "INT_OS3", # CLKOS3 reserved for feedback with div=1.
             p_CLKOS3_ENABLE = "ENABLED",
             p_CLKOS3_DIV    = 1,
+            p_CLKOS3_FPHASE = 0,
+            p_CLKOS3_CPHASE = 23,
             p_CLKFB_DIV     = config["clkfb_div"],
             p_CLKI_DIV      = config["clki_div"],
         )
         for n, (clk, f, p, m) in sorted(self.clkouts.items()):
             n_to_l = {0: "P", 1: "S", 2: "S2"}
             div    = config["clko{}_div".format(n)]
-            cphase = int(p*(div + 1)/360 + div)
+            cphase = int(p*(div + 1)/360 + div - 1)
             self.params["p_CLKO{}_ENABLE".format(n_to_l[n])] = "ENABLED"
             self.params["p_CLKO{}_DIV".format(n_to_l[n])]    = div
             self.params["p_CLKO{}_FPHASE".format(n_to_l[n])] = 0
