@@ -815,7 +815,7 @@ class SoC(Module):
             bus_csr       = csr_bus.Interface(
             address_width = self.csr.address_width,
             data_width    = self.csr.data_width),
-            register = register)
+            register      = register)
         csr_size   = 2**(self.csr.address_width + 2)
         csr_region = SoCRegion(origin=origin, size=csr_size, cached=False)
         bus = getattr(self.csr_bridge, self.bus.standard.replace('-', '_'))

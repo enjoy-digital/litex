@@ -732,7 +732,8 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=
     return fsm, comb
 
 class AXILite2CSR(Module):
-    def __init__(self, axi_lite=None, bus_csr=None):
+    def __init__(self, axi_lite=None, bus_csr=None, register=False):
+        # TODO: unused register argument
         if axi_lite is None:
             axi_lite = AXILiteInterface()
         if bus_csr is None:
