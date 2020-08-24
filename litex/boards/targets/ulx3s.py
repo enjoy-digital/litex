@@ -25,6 +25,8 @@ from litex.soc.integration.soc_core import *
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
 from litex.soc.cores.led import LedChaser
+from litex.soc.cores.spi import SPIMaster
+from litex.soc.cores.gpio import GPIOOut
 
 from litedram import modules as litedram_modules
 from litedram.phy import GENSDRPHY, HalfRateGENSDRPHY
@@ -53,7 +55,7 @@ class _CRG(Module):
         pll.create_clkout(self.cd_sys,    sys_clk_freq)
         if sdram_rate == "1:2":
             pll.create_clkout(self.cd_sys2x,    2*sys_clk_freq)
-            pll.create_clkout(self.cd_sys2x_ps, 2*sys_clk_freq, phase=90)
+            pll.create_clkout(self.cd_sys2x_ps, 2*sys_clk_freq, phase=180) # Idealy 90° but needs to be increased.
         else:
            pll.create_clkout(self.cd_sys_ps, sys_clk_freq, phase=90)
         self.specials += AsyncResetSynchronizer(self.cd_sys, ~pll.locked | rst)
@@ -112,6 +114,16 @@ class BaseSoC(SoCCore):
             sys_clk_freq = sys_clk_freq)
         self.add_csr("leds")
 
+    def add_oled(self):
+        pads = self.platform.request("oled_spi")
+        pads.miso = Signal()
+        self.submodules.oled_spi = SPIMaster(pads, 8, self.sys_clk_freq, 8e6)
+        self.oled_spi.add_clk_divider()
+        self.add_csr("oled_spi")
+
+        self.submodules.oled_ctl = GPIOOut(self.platform.request("oled_ctl"))
+        self.add_csr("oled_ctl")
+
 # Build --------------------------------------------------------------------------------------------
 
 def main():
@@ -124,6 +136,7 @@ def main():
     parser.add_argument("--sdram-module", default="MT48LC16M16",  help="SDRAM module: MT48LC16M16, AS4C32M16 or AS4C16M16 (default=MT48LC16M16)")
     parser.add_argument("--with-spi-sdcard", action="store_true", help="Enable SPI-mode SDCard support")
     parser.add_argument("--with-sdcard", action="store_true",     help="Enable SDCard support")
+    parser.add_argument("--with-oled", action="store_true",     help="Enable SDD1331 OLED support")
     parser.add_argument("--sdram-rate",  default="1:1", help="SDRAM Rate 1:1 Full Rate (default), 1:2 Half Rate")
     builder_args(parser)
     soc_sdram_args(parser)
@@ -140,6 +153,9 @@ def main():
         soc.add_spi_sdcard()
     if args.with_sdcard:
         soc.add_sdcard()
+    if args.with_oled:
+        soc.add_oled()
+
     builder = Builder(soc, **builder_argdict(args))
     builder_kargs = trellis_argdict(args) if args.toolchain == "trellis" else {}
     builder.build(**builder_kargs, run=args.build)
