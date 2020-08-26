@@ -20,6 +20,34 @@
 define_command(sdinit, sdcard_init, "Initialize SDCard", LITESDCARD_CMDS);
 #endif
 
+/**
+ * Command "sdfreq"
+ *
+ * Set SDcard clock frequency
+ *
+ */
+#ifdef CSR_SDCORE_BASE
+static void sdfreq(int nb_params, char **params)
+{
+	unsigned int freq;
+	char *c;
+
+	if (nb_params < 1) {
+		printf("sdfreq <freq>");
+		return;
+	}
+
+	freq = strtoul(params[0], &c, 0);
+	if (*c != 0) {
+		printf("Incorrect freq");
+		return;
+	}
+
+	sdcard_set_clk_freq(freq);
+}
+
+define_command(sdfreq, sdfreq, "Set SDCard clock freq", LITESDCARD_CMDS);
+#endif
 
 /**
  * Command "sdread"

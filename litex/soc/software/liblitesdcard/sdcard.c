@@ -96,7 +96,7 @@ static uint32_t log2(uint32_t x)
 	return r;
 }
 
-static void sdcard_set_clk_freq(uint32_t clk_freq) {
+void sdcard_set_clk_freq(uint32_t clk_freq) {
 	uint32_t divider;
 	divider = CONFIG_CLOCK_FREQUENCY/clk_freq + 1;
 	divider = (1 << log2(divider));
