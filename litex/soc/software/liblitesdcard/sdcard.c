@@ -508,11 +508,8 @@ void sdcard_write(uint32_t sector, uint32_t count, uint8_t* buf)
 		sdmem2block_dma_length_write(512);
 		sdmem2block_dma_enable_write(1);
 
-		/* Wait for DMA Reader to complete */
-		while ((sdmem2block_dma_done_read() & 0x1) == 0);
-
 		/* Write Single Block to SDCard */
-#ifndef SDCARD_CMD23_SUPPORT
+#ifdef SDCARD_CMD23_SUPPORT
 		sdcard_set_block_count(1);
 #endif
 		sdcard_write_single_block(sector);
