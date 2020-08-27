@@ -73,7 +73,7 @@ static void sdread(int nb_params, char **params)
 		return;
 	}
 
-	sdcard_read(block*512, 1, buf);
+	sdcard_read(block, 1, buf);
 	dump_bytes((uint32_t *)buf, 512, (unsigned long) buf);
 }
 
@@ -115,7 +115,7 @@ static void sdwrite(int nb_params, char **params)
 		}
 	}
 	dump_bytes((uint32_t *)buf, 512, (unsigned long) buf);
-	sdcard_write(block*512, 1, buf);
+	sdcard_write(block, 1, buf);
 }
 
 define_command(sdwrite, sdwrite, "Write SDCard block", LITESDCARD_CMDS);
