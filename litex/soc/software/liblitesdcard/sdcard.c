@@ -53,7 +53,7 @@ int sdcard_wait_cmd_done(void) {
 #endif
 		if (event & 0x1)
 			break;
-		busy_wait_us(1);
+		busy_wait_us(100); /* FIXME: adjust */
 	}
 #ifdef SDCARD_DEBUG
 	csr_rd_buf_uint32(CSR_SDCORE_CMD_RESPONSE_ADDR,
@@ -76,7 +76,7 @@ int sdcard_wait_data_done(void) {
 #endif
 		if (event & 0x1)
 			break;
-		busy_wait_us(1);
+		busy_wait_us(100); /* FIXME: adjust */
 	}
 	if (event & 0x4)
 		return SD_TIMEOUT;
