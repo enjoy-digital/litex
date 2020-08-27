@@ -1,4 +1,5 @@
 // This file is Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+// This file is Copyright (c) 2019-2020 Gabriel L. Somlo <gsomlo@gmail.com>
 // This file is Copyright (c) 2019 Kees Jongenburger <kees.jongenburger@gmail.com>
 // This file is Copyright (c) 2018 bunnie <bunnie@kosagi.com>
 // This file is Copyright (c) 2020 Antmicro <www.antmicro.com>
@@ -208,8 +209,8 @@ int sdcard_switch(unsigned int mode, unsigned int group, unsigned int value) {
 	sdcore_block_length_write(64);
 	sdcore_block_count_write(1);
 	return sdcard_send_command(arg, 6,
-				   (SDCARD_CTRL_DATA_TRANSFER_READ << 5) |
-				   SDCARD_CTRL_RESPONSE_SHORT);
+		(SDCARD_CTRL_DATA_TRANSFER_READ << 5) |
+		SDCARD_CTRL_RESPONSE_SHORT);
 }
 
 int sdcard_app_send_scr(void) {
@@ -219,8 +220,8 @@ int sdcard_app_send_scr(void) {
 	sdcore_block_length_write(8);
 	sdcore_block_count_write(1);
 	return sdcard_send_command(0, 51,
-				   (SDCARD_CTRL_DATA_TRANSFER_READ << 5) |
-				   SDCARD_CTRL_RESPONSE_SHORT);
+		(SDCARD_CTRL_DATA_TRANSFER_READ << 5) |
+		SDCARD_CTRL_RESPONSE_SHORT);
 }
 
 int sdcard_app_set_blocklen(unsigned int blocklen) {
@@ -234,12 +235,11 @@ int sdcard_write_single_block(unsigned int blockaddr) {
 #ifdef SDCARD_DEBUG
 	printf("CMD24: WRITE_SINGLE_BLOCK\n");
 #endif
-	do {
-		sdcore_block_length_write(512);
-		sdcore_block_count_write(1);
-	} while (sdcard_send_command(blockaddr, 24,
-				     (SDCARD_CTRL_DATA_TRANSFER_WRITE << 5) |
-				     SDCARD_CTRL_RESPONSE_SHORT) != SD_OK);
+	sdcore_block_length_write(512);
+	sdcore_block_count_write(1);
+	while (sdcard_send_command(blockaddr, 24,
+	    (SDCARD_CTRL_DATA_TRANSFER_WRITE << 5) |
+	    SDCARD_CTRL_RESPONSE_SHORT) != SD_OK);
 	return SD_OK;
 }
 
@@ -247,12 +247,11 @@ int sdcard_write_multiple_block(unsigned int blockaddr, unsigned int blockcnt) {
 #ifdef SDCARD_DEBUG
 	printf("CMD25: WRITE_MULTIPLE_BLOCK\n");
 #endif
-	do {
-		sdcore_block_length_write(512);
-		sdcore_block_count_write(blockcnt);
-	} while (sdcard_send_command(blockaddr, 25,
-				     (SDCARD_CTRL_DATA_TRANSFER_WRITE << 5) |
-				     SDCARD_CTRL_RESPONSE_SHORT) != SD_OK);
+	sdcore_block_length_write(512);
+	sdcore_block_count_write(blockcnt);
+	while (sdcard_send_command(blockaddr, 25,
+	    (SDCARD_CTRL_DATA_TRANSFER_WRITE << 5) |
+	    SDCARD_CTRL_RESPONSE_SHORT) != SD_OK);
 	return SD_OK;
 }
 
@@ -260,12 +259,11 @@ int sdcard_read_single_block(unsigned int blockaddr) {
 #ifdef SDCARD_DEBUG
 	printf("CMD17: READ_SINGLE_BLOCK\n");
 #endif
-	do {
-		sdcore_block_length_write(512);
-		sdcore_block_count_write(1);
-	} while (sdcard_send_command(blockaddr, 17,
-				     (SDCARD_CTRL_DATA_TRANSFER_READ << 5) |
-				     SDCARD_CTRL_RESPONSE_SHORT) != SD_OK);
+	sdcore_block_length_write(512);
+	sdcore_block_count_write(1);
+	while (sdcard_send_command(blockaddr, 17,
+	    (SDCARD_CTRL_DATA_TRANSFER_READ << 5) |
+	    SDCARD_CTRL_RESPONSE_SHORT) != SD_OK);
 	return sdcard_wait_data_done();
 }
 
@@ -273,13 +271,12 @@ int sdcard_read_multiple_block(unsigned int blockaddr, unsigned int blockcnt) {
 #ifdef SDCARD_DEBUG
 	printf("CMD18: READ_MULTIPLE_BLOCK\n");
 #endif
-	do {
-		sdcore_block_length_write(512);
-		sdcore_block_count_write(blockcnt);
-	} while (sdcard_send_command(blockaddr, 18,
-				     (SDCARD_CTRL_DATA_TRANSFER_READ << 5) |
-				     SDCARD_CTRL_RESPONSE_SHORT) != SD_OK);
-	return SD_OK; // FIXME(gls): why not `sdcard_wait_data_done` like single
+	sdcore_block_length_write(512);
+	sdcore_block_count_write(blockcnt);
+	while (sdcard_send_command(blockaddr, 18,
+	    (SDCARD_CTRL_DATA_TRANSFER_READ << 5) |
+	    SDCARD_CTRL_RESPONSE_SHORT) != SD_OK);
+	return sdcard_wait_data_done();
 }
 
 int sdcard_stop_transmission(void) {
