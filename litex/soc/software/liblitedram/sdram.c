@@ -798,6 +798,12 @@ int sdrinit(void)
 {
 	printf("Initializing DRAM @0x%08x...\n", MAIN_RAM_BASE);
 
+#if CSR_DDRPHY_RST_ADDR
+	ddrphy_rst_write(1);
+	cdelay(100);
+	ddrphy_rst_write(0);
+#endif
+
 #ifdef CSR_DDRCTRL_BASE
 	ddrctrl_init_done_write(0);
 	ddrctrl_init_error_write(0);
