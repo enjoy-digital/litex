@@ -3,23 +3,30 @@
 #
 # Copyright (c) 2015-2018 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2017 Pierre-Olivier Vauboin <po@lambdaconcept>
+# This file is Copyright (c) 2020 Antmicro <www.antmicro.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
-from migen.fhdl.structure import Signal
+from migen.fhdl.structure import Signal, If, Finish
+from migen.fhdl.module import Module
 from migen.genlib.record import Record
 
-from litex.build.generic_platform import GenericPlatform
+from litex.build.generic_platform import GenericPlatform, Pins
 from litex.build.sim import common, verilator
+from litex.soc.interconnect.csr import AutoCSR, CSR, CSRStorage
 
 
 class SimPlatform(GenericPlatform):
-    def __init__(self, *args, name="sim", toolchain="verilator", **kwargs):
-        GenericPlatform.__init__(self, *args, name=name, **kwargs)
+    def __init__(self, device, io, name="sim", toolchain="verilator", **kwargs):
+        if "sim_trace" not in (iface[0] for iface in io):
+            io.append(("sim_trace", 0, Pins(1)))
+        GenericPlatform.__init__(self, device, io, name=name, **kwargs)
         self.sim_requested = []
         if toolchain == "verilator":
             self.toolchain = verilator.SimVerilatorToolchain()
         else:
             raise ValueError("Unknown toolchain")
+        # we must always request the sim_trace signal
+        self.trace = self.request("sim_trace")
 
     def request(self, name, number=None):
         index = ""
@@ -46,3 +53,38 @@ class SimPlatform(GenericPlatform):
     def build(self, *args, **kwargs):
         return self.toolchain.build(self, *args, **kwargs)
 
+    def add_debug(self, module, reset=0):
+        module.submodules.sim_trace = SimTrace(self.trace, reset=reset)
+        module.submodules.sim_marker = SimMarker()
+        module.submodules.sim_finish = SimFinish()
+        module.add_csr("sim_trace")
+        module.add_csr("sim_marker")
+        module.add_csr("sim_finish")
+        self.trace = None
+
+# Sim debug modules --------------------------------------------------------------------------------
+
+class SimTrace(Module, AutoCSR):
+    """Start/stop simulation tracing from software/gateware"""
+    def __init__(self, pin, reset=0):
+        # set from software/gateware
+        self.enable = CSRStorage(reset=reset)
+        # used by simulator to start/stop dump
+        self.comb += pin.eq(self.enable.storage)
+
+class SimMarker(Module, AutoCSR):
+    """Set simulation markers from software/gateware
+
+    This is useful when analysing trace dumps. Change the marker value from
+    software/gateware, and then check the *_marker_storage signal in GTKWave.
+    """
+    def __init__(self, size=8):
+        # set from software
+        self.marker = CSRStorage(size)
+
+class SimFinish(Module, AutoCSR):
+    """Finish simulation from software"""
+    def __init__(self):
+        # set from software
+        self.finish = CSR()
+        self.sync += If(self.finish.re, Finish())

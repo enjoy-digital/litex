@@ -18,7 +18,8 @@ OBJECTS = exception.o \
 	i2c.o             \
 	div64.o           \
 	progress.o        \
-	memtest.o
+	memtest.o         \
+	sim_debug.o
 
 all: crt0.o libbase.a libbase-nofloat.a
 

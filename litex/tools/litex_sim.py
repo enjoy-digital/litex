@@ -182,6 +182,7 @@ class SimSoC(SoCCore):
         sdram_verbosity       = 0,
         with_i2c              = False,
         with_sdcard           = False,
+        sim_debug             = False,
         **kwargs):
         platform     = Platform()
         sys_clk_freq = int(1e6)
@@ -314,6 +315,10 @@ class SimSoC(SoCCore):
         if with_sdcard:
             self.add_sdcard("sdcard", use_emulator=True)
 
+        # Simulatio debugging ----------------------------------------------------------------------
+        if sim_debug:
+            platform.add_debug(self)
+
 # Build --------------------------------------------------------------------------------------------
 
 def main():
@@ -341,6 +346,7 @@ def main():
     parser.add_argument("--trace-start",          default=0,               help="Cycle to start tracing")
     parser.add_argument("--trace-end",            default=-1,              help="Cycle to end tracing")
     parser.add_argument("--opt-level",            default="O3",            help="Compilation optimization level")
+    parser.add_argument("--sim-debug",            action="store_true",     help="Add simulation debugging modules")
     args = parser.parse_args()
 
     soc_kwargs     = soc_sdram_argdict(args)
@@ -385,6 +391,7 @@ def main():
         with_analyzer  = args.with_analyzer,
         with_i2c       = args.with_i2c,
         with_sdcard    = args.with_sdcard,
+        sim_debug      = args.sim_debug,
         sdram_init     = [] if args.sdram_init is None else get_mem_data(args.sdram_init, cpu.endianness),
         **soc_kwargs)
     if args.ram_init is not None:
