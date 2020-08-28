@@ -249,17 +249,22 @@ class UART(Module, AutoCSR, UARTInterface):
 
 # UART Bone ----------------------------------------------------------------------------------------
 
-CMD_WRITE = 0x01
-CMD_READ  = 0x02
+CMD_WRITE_BURST_INCR  = 0x01
+CMD_READ_BURST_INCR   = 0x02
+CMD_WRITE_BURST_FIXED = 0x03
+CMD_READ_BURST_FIXED  = 0x04
 
 class Stream2Wishbone(Module):
-    def __init__(self, phy, clk_freq, data_width=32, address_width=32):
+    def __init__(self, phy=None, clk_freq=None, data_width=32, address_width=32):
+        self.sink   = sink   = stream.Endpoint([("data", 8)]) if phy is None else phy.source
+        self.source = source = stream.Endpoint([("data", 8)]) if phy is None else phy.sink
         self.wishbone = wishbone.Interface()
-        self.comb += phy.source.ready.eq(1) # Always accept incoming stream.
+        self.comb += sink.ready.eq(1) # Always accept incoming stream.
 
         # # #
 
         cmd         = Signal(8,                        reset_less=True)
+        incr        = Signal()
         length      = Signal(8,                        reset_less=True)
         address     = Signal(address_width,            reset_less=True)
         data        = Signal(data_width,               reset_less=True)
@@ -277,25 +282,27 @@ class Stream2Wishbone(Module):
         fsm.act("RECEIVE-CMD",
             NextValue(bytes_count, 0),
             NextValue(words_count, 0),
-            If(phy.source.valid,
-                NextValue(cmd, phy.source.data),
+            If(sink.valid,
+                NextValue(cmd, sink.data),
                 NextState("RECEIVE-LENGTH")
             )
         )
         fsm.act("RECEIVE-LENGTH",
-            If(phy.source.valid,
-                NextValue(length, phy.source.data),
+            If(sink.valid,
+                NextValue(length, sink.data),
                 NextState("RECEIVE-ADDRESS")
             )
         )
         fsm.act("RECEIVE-ADDRESS",
-            If(phy.source.valid,
-                NextValue(address, Cat(phy.source.data, address)),
+            If(sink.valid,
+                NextValue(address, Cat(sink.data, address)),
                 NextValue(bytes_count, bytes_count + 1),
                 If(bytes_count_done,
-                    If(cmd == CMD_WRITE,
+                    If((cmd == CMD_WRITE_BURST_INCR) | (cmd == CMD_WRITE_BURST_FIXED),
+                        NextValue(incr, cmd == CMD_WRITE_BURST_INCR),
                         NextState("RECEIVE-DATA")
-                    ).Elif(cmd == CMD_READ,
+                    ).Elif((cmd == CMD_READ_BURST_INCR) | (cmd == CMD_READ_BURST_FIXED),
+                        NextValue(incr, cmd == CMD_READ_BURST_INCR),
                         NextState("READ-DATA")
                     ).Else(
                         NextState("RECEIVE-CMD")
@@ -304,8 +311,8 @@ class Stream2Wishbone(Module):
             )
         )
         fsm.act("RECEIVE-DATA",
-            If(phy.source.valid,
-                NextValue(data, Cat(phy.source.data, data)),
+            If(sink.valid,
+                NextValue(data, Cat(sink.data, data)),
                 NextValue(bytes_count, bytes_count + 1),
                 If(bytes_count_done,
                     NextState("WRITE-DATA")
@@ -323,7 +330,7 @@ class Stream2Wishbone(Module):
             self.wishbone.cyc.eq(1),
             If(self.wishbone.ack,
                 NextValue(words_count, words_count + 1),
-                NextValue(address, address + 1),
+                NextValue(address, address + incr),
                 If(words_count_done,
                     NextState("RECEIVE-CMD")
                 ).Else(
@@ -342,15 +349,15 @@ class Stream2Wishbone(Module):
         )
         cases = {}
         for i, n in enumerate(reversed(range(data_width//8))):
-            cases[i] = phy.sink.data.eq(data[8*n:])
+            cases[i] = source.data.eq(data[8*n:])
         self.comb += Case(bytes_count, cases)
         fsm.act("SEND-DATA",
-            phy.sink.valid.eq(1),
-            If(phy.sink.ready,
+            source.valid.eq(1),
+            If(source.ready,
                 NextValue(bytes_count, bytes_count + 1),
                 If(bytes_count_done,
                     NextValue(words_count, words_count + 1),
-                    NextValue(address, address + 1),
+                    NextValue(address, address + incr),
                     If(words_count_done,
                         NextState("RECEIVE-CMD")
                     ).Else(
@@ -359,9 +366,9 @@ class Stream2Wishbone(Module):
                 )
             )
         )
-        self.comb += phy.sink.last.eq(bytes_count_done & words_count_done)
-        if hasattr(phy.sink, "length"):
-            self.comb += phy.sink.length.eq((data_width//8)*length)
+        self.comb += source.last.eq(bytes_count_done & words_count_done)
+        if hasattr(source, "length"):
+            self.comb += source.length.eq((data_width//8)*length)
 
 
 class UARTBone(Stream2Wishbone):

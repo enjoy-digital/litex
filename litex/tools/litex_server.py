@@ -18,27 +18,51 @@ import threading
 from litex.tools.remote.etherbone import EtherbonePacket, EtherboneRecord, EtherboneWrites
 from litex.tools.remote.etherbone import EtherboneIPC
 
-def _read_merger(addrs, max_length=256):
+def _read_merger(addrs, max_length=256, bursts=["incr", "fixed"]):
     """Sequential reads merger
 
-    Take a list of read addresses as input and merge the sequential reads in (base, length) tuples:
-    Example: [0x0, 0x4, 0x10, 0x14] input  will return [(0x0,2), (0x10,2)].
+    Take a list of read addresses as input and merge the sequential/fixed reads in (base, length, burst) tuples:
+    Example: [0x0, 0x4, 0x10, 0x14, 0x20, 0x20] input  will return [(0x0,2, "incr"), (0x10,2, "incr"), (0x20,2, "fixed")].
 
     This is useful for UARTBone/Etherbone where command/response roundtrip delay is responsible for
     most of the access delay and allows minimizing number of commands by grouping them in UARTBone
     packets.
     """
-    base   = None
-    length = 0
-    for addr in addrs:
-        if (addr - (4*length) != base) or (length == max_length):
-            if base is not None:
-                yield (base, length)
-            base  = addr
-            length = 0
-        length += 1
-    yield (base, length)
+    assert "incr" in bursts
+    burst_base   = addrs[0]
+    burst_length = 1
+    burst_type   = "incr"
+    for addr in addrs[1:]:
+        merged = False
+        # Try to merge to a "fixed" burst if supported
+        if ("fixed" in bursts):
+            # If current burst matches
+            if (burst_type in [None, "fixed"]) or (burst_length == 1):
+                # If addr matches
+                if (addr == burst_base):
+                    if (burst_length != max_length):
+                        burst_type   = "fixed"
+                        burst_length += 1
+                        merged       = True
 
+        # Try to merge to an "incr" burst if supported
+        if ("incr" in bursts):
+            # If current burst matches
+            if (burst_type in [None, "incr"]) or (burst_length == 1):
+                # If addr matches
+                if (addr == burst_base + (4 * burst_length)):
+                    if (burst_length != max_length):
+                        burst_type   = "incr"
+                        burst_length += 1
+                        merged       = True
+
+        # Generate current burst if addr has not able to merge
+        if not merged:
+            yield (burst_base, burst_length, burst_type)
+            burst_base   = addr
+            burst_length = 1
+            burst_type   = "incr"
+    yield (burst_base, burst_length, burst_type)
 
 class RemoteServer(EtherboneIPC):
     def __init__(self, comm, bind_ip, bind_port=1234):
@@ -101,9 +125,14 @@ class RemoteServer(EtherboneIPC):
                             "CommUART": 256,
                             "CommUDP":    4,
                         }.get(self.comm.__class__.__name__, 1)
+                        bursts = {
+                            "CommUART": ["incr", "fixed"]
+                        }.get(self.comm.__class__.__name__, ["incr"])
                         reads = []
-                        for addr, length in _read_merger(record.reads.get_addrs(), max_length=max_length):
-                            reads += self.comm.read(addr, length)
+                        for addr, length, burst in _read_merger(record.reads.get_addrs(),
+                            max_length  = max_length,
+                            bursts      = bursts):
+                            reads += self.comm.read(addr, length, burst)
 
                         record = EtherboneRecord()
                         record.writes = EtherboneWrites(datas=reads)

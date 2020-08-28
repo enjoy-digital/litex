@@ -36,11 +36,12 @@ class RemoteClient(EtherboneIPC, CSRBuilder):
         self.socket.close()
         del self.socket
 
-    def read(self, addr, length=None):
+    def read(self, addr, length=None, burst="incr"):
         length_int = 1 if length is None else length
         # prepare packet
         record = EtherboneRecord()
-        record.reads = EtherboneReads(addrs=[self.base_address + addr + 4*j for j in range(length_int)])
+        incr = (burst == "incr")
+        record.reads = EtherboneReads(addrs=[self.base_address + addr + 4*incr*j for j in range(length_int)])
         record.rcount = len(record.reads)
 
         # send packet

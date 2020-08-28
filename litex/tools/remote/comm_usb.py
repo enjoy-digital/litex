@@ -90,7 +90,8 @@ class CommUSB:
             return
         del self.dev
 
-    def read(self, addr, length=None):
+    def read(self, addr, length=None, burst="incr"):
+        assert burst == "incr"
         data = []
         length_int = 1 if length is None else length
         for i in range(length_int):

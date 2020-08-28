@@ -29,7 +29,8 @@ class CommUDP:
         self.socket.close()
         del self.socket
 
-    def read(self, addr, length=None):
+    def read(self, addr, length=None, burst="incr"):
+        assert burst == "incr"
         length_int = 1 if length is None else length
         record = EtherboneRecord()
         record.reads = EtherboneReads(addrs=[addr+4*j for j in range(length_int)])
