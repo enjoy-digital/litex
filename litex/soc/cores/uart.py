@@ -40,8 +40,8 @@ class RS232PHYRX(Module):
 
         # # #
 
-        uart_clk_rxen        = Signal()
-        phase_accumulator_rx = Signal(32, reset_less=True)
+        rx_clken    = Signal()
+        rx_clkphase = Signal(32, reset_less=True)
 
         rx          = Signal()
         rx_r        = Signal()
@@ -60,7 +60,7 @@ class RS232PHYRX(Module):
                     rx_bitcount.eq(0),
                 )
             ).Else(
-                If(uart_clk_rxen,
+                If(rx_clken,
                     rx_bitcount.eq(rx_bitcount + 1),
                     If(rx_bitcount == 0,
                         If(rx,  # verify start bit
@@ -78,12 +78,13 @@ class RS232PHYRX(Module):
                 )
             )
         ]
-        self.sync += \
-                If(rx_busy,
-                    Cat(phase_accumulator_rx, uart_clk_rxen).eq(phase_accumulator_rx + tuning_word)
-                ).Else(
-                    Cat(phase_accumulator_rx, uart_clk_rxen).eq(2**31)
-                )
+        self.sync += [
+            If(rx_busy,
+                Cat(rx_clkphase, rx_clken).eq(rx_clkphase + tuning_word)
+            ).Else(
+                Cat(rx_clkphase, rx_clken).eq(2**31)
+            )
+        ]
 
 
 class RS232PHYTX(Module):
@@ -92,8 +93,8 @@ class RS232PHYTX(Module):
 
         # # #
 
-        uart_clk_txen        = Signal()
-        phase_accumulator_tx = Signal(32, reset_less=True)
+        tx_clken    = Signal()
+        tx_clkphase = Signal(32, reset_less=True)
 
         pads.tx.reset = 1
 
@@ -107,7 +108,7 @@ class RS232PHYTX(Module):
                 tx_bitcount.eq(0),
                 tx_busy.eq(1),
                 pads.tx.eq(0)
-            ).Elif(uart_clk_txen & tx_busy,
+            ).Elif(tx_clken & tx_busy,
                 tx_bitcount.eq(tx_bitcount + 1),
                 If(tx_bitcount == 8,
                     pads.tx.eq(1)
@@ -122,11 +123,11 @@ class RS232PHYTX(Module):
             )
         ]
         self.sync += [
-                If(tx_busy,
-                    Cat(phase_accumulator_tx, uart_clk_txen).eq(phase_accumulator_tx + tuning_word)
-                ).Else(
-                    Cat(phase_accumulator_tx, uart_clk_txen).eq(tuning_word)
-                )
+            If(tx_busy,
+                Cat(tx_clkphase, tx_clken).eq(tx_clkphase + tuning_word)
+            ).Else(
+                Cat(tx_clkphase, tx_clken).eq(tuning_word)
+            )
         ]
 
 
@@ -191,10 +192,10 @@ def UARTPHY(pads, clk_freq, baudrate):
 
 class UART(Module, AutoCSR, UARTInterface):
     def __init__(self, phy=None,
-                 tx_fifo_depth = 16,
-                 rx_fifo_depth = 16,
-                 rx_fifo_rx_we = False,
-                 phy_cd        = "sys"):
+            tx_fifo_depth = 16,
+            rx_fifo_depth = 16,
+            rx_fifo_rx_we = False,
+            phy_cd        = "sys"):
         self._rxtx    = CSR(8)
         self._txfull  = CSRStatus()
         self._rxempty = CSRStatus()
