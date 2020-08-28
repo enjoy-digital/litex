@@ -1125,12 +1125,13 @@ class LiteXSoC(SoC):
             self.add_constant("UART_POLLING")
 
     # Add UARTbone ---------------------------------------------------------------------------------
-    def add_uartbone(self, name="serial", baudrate=115200):
+    def add_uartbone(self, name="serial", clk_freq=None, baudrate=115200, cd="sys"):
         from litex.soc.cores import uart
         self.submodules.uartbone = uart.UARTBone(
             pads     = self.platform.request(name),
-            clk_freq = self.sys_clk_freq,
-            baudrate = baudrate)
+            clk_freq = clk_freq if clk_freq is not None else self.sys_clk_freq,
+            baudrate = baudrate,
+            cd       = cd)
         self.bus.add_master(name="uartbone", master=self.uartbone.wishbone)
 
     # Add SDRAM ------------------------------------------------------------------------------------

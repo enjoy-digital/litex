@@ -365,9 +365,19 @@ class Stream2Wishbone(Module):
 
 
 class UARTBone(Stream2Wishbone):
-    def __init__(self, pads, clk_freq, baudrate=115200):
-        self.submodules.phy = RS232PHY(pads, clk_freq, baudrate)
-        Stream2Wishbone.__init__(self, self.phy, clk_freq)
+    def __init__(self, pads, clk_freq, baudrate=115200, cd="sys"):
+        if cd == "sys":
+            self.submodules.phy = RS232PHY(pads, clk_freq, baudrate)
+            Stream2Wishbone.__init__(self, self.phy, clk_freq=clk_freq)
+        else:
+            self.submodules.phy = ClockDomainsRenamer(cd)(RS232PHY(pads, clk_freq, baudrate))
+            self.submodules.tx_cdc = stream.ClockDomainCrossing([("data", 8)], cd_from="sys", cd_to=cd)
+            self.submodules.rx_cdc = stream.ClockDomainCrossing([("data", 8)], cd_from=cd,    cd_to="sys")
+            self.comb += self.phy.source.connect(self.rx_cdc.sink)
+            self.comb += self.tx_cdc.source.connect(self.phy.sink)
+            Stream2Wishbone.__init__(self, clk_freq=clk_freq)
+            self.comb += self.rx_cdc.source.connect(self.sink)
+            self.comb += self.source.connect(self.tx_cdc.sink)
 
 class UARTWishboneBridge(UARTBone): pass
 
