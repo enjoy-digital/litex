@@ -241,10 +241,11 @@ class AXIStreamInterface(stream.Endpoint):
     def __init__(self, data_width=32, user_width=0):
         self.data_width = data_width
         self.user_width = user_width
-        axi_layout = [("data", data_width)]
+        payload_layout = [("data", data_width)]
+        param_layout   = []
         if self.user_width:
-            axi_layout += [("user", user_width)]
-        stream.Endpoint.__init__(self, axi_layout)
+            param_layout += [("user", user_width)]
+        stream.Endpoint.__init__(self, stream.EndpointDescription(payload_layout, param_layout))
 
     def get_ios(self, bus_name="axi"):
         subsignals = [
