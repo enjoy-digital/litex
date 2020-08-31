@@ -1155,7 +1155,7 @@ class LiteXSoC(SoC):
             timing_settings = module.timing_settings,
             clk_freq        = self.sys_clk_freq,
             **kwargs)
-        self.csr.add("sdram")
+        self.csr.add("sdram", use_loc_if_exists=True)
 
         # Save SPD data to be able to verify it at runtime
         if hasattr(module, "_spd_data"):
@@ -1301,7 +1301,7 @@ class LiteXSoC(SoC):
         setattr(self.submodules, name, ethmac)
         ethmac_region = SoCRegion(origin=self.mem_map.get(name, None), size=0x2000, cached=False)
         self.bus.add_slave(name=name, slave=ethmac.bus, region=ethmac_region)
-        self.add_csr(name)
+        self.csr.add(name, use_loc_if_exists=True)
         self.add_interrupt(name)
         # Timing constraints
         if hasattr(phy, "crg"):
@@ -1372,7 +1372,7 @@ class LiteXSoC(SoC):
         setattr(self.submodules, name, spiflash)
         self.add_memory_region(name, self.mem_map[name], 0x1000000) # FIXME: Get size from SPI Flash
         self.add_wb_slave(self.mem_map[name], spiflash.bus)
-        self.add_csr(name)
+        self.csr.add(name, use_loc_if_exists=True)
 
     # Add SPI SDCard -------------------------------------------------------------------------------
     def add_spi_sdcard(self, name="spisdcard", spi_clk_freq=400e3):
@@ -1382,7 +1382,7 @@ class LiteXSoC(SoC):
         spisdcard = SPIMaster(pads, 8, self.sys_clk_freq, spi_clk_freq)
         spisdcard.add_clk_divider()
         setattr(self.submodules, name, spisdcard)
-        self.add_csr(name)
+        self.csr.add(name, use_loc_if_exists=True)
 
     # Add SDCard -----------------------------------------------------------------------------------
     def add_sdcard(self, name="sdcard", mode="read+write", use_emulator=False):
@@ -1404,8 +1404,8 @@ class LiteXSoC(SoC):
         # Core
         self.submodules.sdphy  = SDPHY(sdcard_pads, self.platform.device, self.clk_freq)
         self.submodules.sdcore = SDCore(self.sdphy)
-        self.add_csr("sdphy")
-        self.add_csr("sdcore")
+        self.csr.add("sdphy", use_loc_if_exists=True)
+        self.csr.add("sdcore", use_loc_if_exists=True)
 
         # Block2Mem DMA
         if "read" in mode:
@@ -1414,7 +1414,7 @@ class LiteXSoC(SoC):
             self.comb += self.sdcore.source.connect(self.sdblock2mem.sink)
             dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
             dma_bus.add_master("sdblock2mem", master=bus)
-            self.add_csr("sdblock2mem")
+            self.csr.add("sdblock2mem", use_loc_if_exists=True)
 
         # Mem2Block DMA
         if "write" in mode:
@@ -1423,4 +1423,4 @@ class LiteXSoC(SoC):
             self.comb += self.sdmem2block.source.connect(self.sdcore.sink)
             dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
             dma_bus.add_master("sdmem2block", master=bus)
-            self.add_csr("sdmem2block")
+            self.csr.add("sdmem2block", use_loc_if_exists=True)
