@@ -62,7 +62,7 @@ class Builder:
         csr_csv          = None,
         csr_svd          = None,
         memory_x         = None,
-        bios_options     = None):
+        bios_options     = []):
         self.soc = soc
 
         # From Python doc: makedirs() will become confused if the path elements to create include '..'
@@ -74,11 +74,11 @@ class Builder:
 
         self.compile_software = compile_software
         self.compile_gateware = compile_gateware
-        self.csr_csv  = csr_csv
-        self.csr_json = csr_json
-        self.csr_svd  = csr_svd
-        self.memory_x = memory_x
-        self.bios_options = bios_options
+        self.csr_csv          = csr_csv
+        self.csr_json         = csr_json
+        self.csr_svd          = csr_svd
+        self.memory_x         = memory_x
+        self.bios_options     = bios_options
 
         self.software_packages = []
         for name in soc_software_packages:
@@ -109,9 +109,9 @@ class Builder:
             for name, src_dir in self.software_packages:
                 define(name.upper() + "_DIRECTORY", src_dir)
 
-            if self.bios_options is not None:
-                for option in self.bios_options:
-                    define(option, "1")
+            for bios_option in self.bios_options:
+                assert option in ["TERM_NO_HIST", "TERM_MINI", "TERM_NO_COMPLETE"]
+                define(option, "1")
 
             write_to_file(
                 os.path.join(self.generated_dir, "variables.mak"),
