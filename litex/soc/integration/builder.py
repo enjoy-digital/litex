@@ -110,8 +110,8 @@ class Builder:
                 define(name.upper() + "_DIRECTORY", src_dir)
 
             for bios_option in self.bios_options:
-                assert option in ["TERM_NO_HIST", "TERM_MINI", "TERM_NO_COMPLETE"]
-                define(option, "1")
+                assert bios_option in ["TERM_NO_HIST", "TERM_MINI", "TERM_NO_COMPLETE"]
+                define(bios_option, "1")
 
             write_to_file(
                 os.path.join(self.generated_dir, "variables.mak"),
