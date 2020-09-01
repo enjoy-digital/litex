@@ -584,13 +584,15 @@ class iCE40PLL(Module):
         self.clkin_freq = freq
         register_clkin_log(self.logger, clkin, freq)
 
-    def create_clkout(self, cd, freq, margin=1e-2):
+    def create_clkout(self, cd, freq, margin=1e-2, with_reset=True):
         (clko_freq_min, clko_freq_max) = self.clko_freq_range
         assert freq >= clko_freq_min
         assert freq <= clko_freq_max
         assert self.nclkouts < self.nclkouts_max
         clkout = Signal()
         self.clkouts[self.nclkouts] = (clkout, freq, 0, margin)
+        if with_reset:
+            self.specials += AsyncResetSynchronizer(cd, ~self.locked | self.reset)
         self.comb += cd.clk.eq(clkout)
         create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
         self.nclkouts += 1
@@ -684,13 +686,15 @@ class ECP5PLL(Module):
         self.clkin_freq = freq
         register_clkin_log(self.logger, clkin, freq)
 
-    def create_clkout(self, cd, freq, phase=0, margin=1e-2):
+    def create_clkout(self, cd, freq, phase=0, margin=1e-2, with_reset=True):
         (clko_freq_min, clko_freq_max) = self.clko_freq_range
         assert freq >= clko_freq_min
         assert freq <= clko_freq_max
         assert self.nclkouts < self.nclkouts_max
         clkout = Signal()
         self.clkouts[self.nclkouts] = (clkout, freq, phase, margin)
+        if with_reset:
+            self.specials += AsyncResetSynchronizer(cd, ~self.locked | self.reset)
         self.comb += cd.clk.eq(clkout)
         create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
         self.nclkouts += 1
