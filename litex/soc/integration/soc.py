@@ -1370,8 +1370,8 @@ class LiteXSoC(SoC):
             endianness   = self.cpu.endianness)
         spiflash.add_clk_primitive(self.platform.device)
         setattr(self.submodules, name, spiflash)
-        self.add_memory_region(name, self.mem_map[name], 0x1000000) # FIXME: Get size from SPI Flash
-        self.add_wb_slave(self.mem_map[name], spiflash.bus)
+        spiflash_region = SoCRegion(origin=self.mem_map.get(name, None), size=0x1000000) # FIXME: Get size from SPI Flash
+        self.bus.add_slave(name=name, slave=spiflash.bus, region=spiflash_region)
         self.csr.add(name, use_loc_if_exists=True)
 
     # Add SPI SDCard -------------------------------------------------------------------------------
