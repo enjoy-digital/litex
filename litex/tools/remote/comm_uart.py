@@ -79,7 +79,7 @@ class CommUART:
                 "fixed": CMD_WRITE_BURST_FIXED,
             }[burst]
             self._write([cmd, size])
-            self._write(list(((addr+offset)//4).to_bytes(4, byteorder="big")))
+            self._write(list(((addr//4 + offset).to_bytes(4, byteorder="big"))))
             for i, value in enumerate(data[offset:offset+size]):
                 self._write(list(value.to_bytes(4, byteorder="big")))
                 if self.debug:
