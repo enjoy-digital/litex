@@ -55,6 +55,21 @@ class TestClock(unittest.TestCase):
             mmcm.create_clkout(ClockDomain("clkout{}".format(i)), 200e6)
         mmcm.compute_config()
 
+    # Xilinx / Ultrascale Plus
+    def test_usppll(self):
+        pll = USPPLL()
+        pll.register_clkin(Signal(), 100e6)
+        for i in range(pll.nclkouts_max):
+            pll.create_clkout(ClockDomain("clkout{}".format(i)), 200e6)
+        pll.compute_config()
+
+    def test_uspmmcm(self):
+        mmcm = USPMMCM()
+        mmcm.register_clkin(Signal(), 100e6)
+        for i in range(mmcm.nclkouts_max):
+            mmcm.create_clkout(ClockDomain("clkout{}".format(i)), 200e6)
+        mmcm.compute_config()
+
     # Lattice / iCE40
     def test_ice40pll(self):
         pll = USMMCM()
