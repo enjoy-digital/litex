@@ -841,4 +841,66 @@ int sdrinit(void)
 	return 1;
 }
 
+#define MPR0_SEL (0 << 0)
+#define MPR1_SEL (1 << 0)
+#define MPR2_SEL (2 << 0)
+#define MPR3_SEL (3 << 0)
+
+#define MPR_ENABLE (1 << 2)
+
+#define MPR_READ_SERIAL    (0 << 11)
+#define MPR_READ_PARALLEL  (1 << 11)
+#define MPR_READ_STAGGERED (2 << 11)
+
+void sdrmrwr(char reg, int value) {
+	sdram_dfii_pi0_address_write(value);
+	sdram_dfii_pi0_baddress_write(reg);
+	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
+}
+
+void sdrmpron(char mpr)
+{
+	sdrmrwr(3, MPR_READ_SERIAL | MPR_ENABLE | mpr);
+}
+
+void sdrmproff(void)
+{
+	sdrmrwr(3, 0);
+}
+
+void sdrmpr(void)
+{
+	int module, phase;
+	printf("Read SDRAM MPR...\n");
+
+	/* rst phy */
+	for(module=0; module<SDRAM_PHY_MODULES; module++) {
+#ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
+		write_delay_rst(module);
+#endif
+		read_delay_rst(module);
+		read_bitslip_rst(module);
+	}
+
+	/* software control */
+	sdrsw();
+
+	printf("Reads with MPR0 (0b01010101) enabled...\n");
+	sdrmpron(MPR0_SEL);
+	command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
+	cdelay(15);
+	for (module=0; module < SDRAM_PHY_MODULES; module++) {
+		printf("m%d: ", module);
+		for(phase=0; phase<SDRAM_PHY_PHASES; phase++) {
+			printf("%d", MMPTR(sdram_dfii_pix_rddata_addr[phase]+4*(SDRAM_PHY_MODULES-module-1)) & 0x1);
+			printf("%d", MMPTR(sdram_dfii_pix_rddata_addr[phase]+4*(2*SDRAM_PHY_MODULES-module-1)) & 0x1);
+		}
+		printf("\n");
+	}
+	sdrmproff();
+
+	/* hardware control */
+	sdrhw();
+}
+
 #endif

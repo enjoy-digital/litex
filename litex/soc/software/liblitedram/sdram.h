@@ -23,4 +23,9 @@ int sdrlevel(void);
 void sdrcal(void);
 int sdrinit(void);
 
+void sdrmrwr(char reg, int value);
+void sdrmpron(char mpr);
+void sdrmproff(void);
+void sdrmpr(void);
+
 #endif /* __SDRAM_H */
