@@ -794,6 +794,22 @@ int sdrlevel(void)
 }
 #endif
 
+void sdrcal(void)
+{
+#ifdef CSR_DDRPHY_BASE
+#if CSR_DDRPHY_EN_VTC_ADDR
+	ddrphy_en_vtc_write(0);
+#endif
+#if defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) || defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
+	sdrlevel();
+#endif
+#if CSR_DDRPHY_EN_VTC_ADDR
+	ddrphy_en_vtc_write(1);
+#endif
+#endif
+	sdrhw();
+}
+
 int sdrinit(void)
 {
 	printf("Initializing DRAM @0x%08x...\n", MAIN_RAM_BASE);
@@ -810,18 +826,7 @@ int sdrinit(void)
 #endif
 	sdrsw();
 	init_sequence();
-#ifdef CSR_DDRPHY_BASE
-#if CSR_DDRPHY_EN_VTC_ADDR
-	ddrphy_en_vtc_write(0);
-#endif
-#if defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) || defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
-	sdrlevel();
-#endif
-#if CSR_DDRPHY_EN_VTC_ADDR
-	ddrphy_en_vtc_write(1);
-#endif
-#endif
-	sdrhw();
+	sdrcal();
 	if(!memtest((unsigned int *) MAIN_RAM_BASE, MAIN_RAM_SIZE)) {
 #ifdef CSR_DDRCTRL_BASE
 		ddrctrl_init_done_write(1);

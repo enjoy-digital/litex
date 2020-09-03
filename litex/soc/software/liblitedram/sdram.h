@@ -20,6 +20,7 @@ int write_level(void);
 
 int sdrlevel(void);
 
+void sdrcal(void);
 int sdrinit(void);
 
 #endif /* __SDRAM_H */
