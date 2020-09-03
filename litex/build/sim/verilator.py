@@ -173,43 +173,58 @@ def _run_sim(build_name, as_root=False):
 
 
 class SimVerilatorToolchain:
-    def build(self, platform, fragment, build_dir="build", build_name="sim",
-            serial="console", build=True, run=True, threads=1,
-            verbose=True, sim_config=None, coverage=False, opt_level="O0",
-            trace=False, trace_fst=False, trace_start=0, trace_end=-1,
-            regular_comb=False):
+    def build(self, platform, fragment,
+            build_dir    = "build",
+            build_name   = "sim",
+            serial       = "console",
+            build        = True,
+            run          = True,
+            threads      = 1,
+            verbose      = True,
+            sim_config   = None,
+            coverage     = False,
+            opt_level    = "O0",
+            trace        = False,
+            trace_fst    = False,
+            trace_start  = 0,
+            trace_end    = -1,
+            regular_comb = False):
 
-        # create build directory
+        # Create build directory
         os.makedirs(build_dir, exist_ok=True)
+        cwd = os.getcwd()
         os.chdir(build_dir)
 
         if build:
-            # finalize design
+            # Finalize design
             if not isinstance(fragment, _Fragment):
                 fragment = fragment.get_fragment()
             platform.finalize(fragment)
 
-            # generate top module
-            top_output = platform.get_verilog(fragment,
-                name=build_name, dummy_signal=False, regular_comb=regular_comb, blocking_assign=True)
-            named_sc, named_pc = platform.resolve_signals(top_output.ns)
-            top_file = build_name + ".v"
-            top_output.write(top_file)
-            platform.add_source(top_file)
+            # Generate verilog
+            v_output = platform.get_verilog(fragment,
+                name            = build_name,
+                dummy_signal    = False,
+                regular_comb    = regular_comb,
+                blocking_assign = True)
+            named_sc, named_pc = platform.resolve_signals(v_output.ns)
+            v_file = build_name + ".v"
+            v_output.write(v_file)
+            platform.add_source(v_file)
 
-            # generate cpp header/main/variables
+            # Generate cpp header/main/variables
             _generate_sim_h(platform)
             _generate_sim_cpp(platform, trace, trace_start, trace_end)
             _generate_sim_variables(platform.verilog_include_paths)
 
-            # generate sim config
+            # Generate sim config
             if sim_config:
                 _generate_sim_config(sim_config)
 
-            # build
+            # Build
             _build_sim(build_name, platform.sources, threads, coverage, opt_level, trace_fst)
 
-        # run
+        # Run
         if run:
             _compile_sim(build_name, verbose)
             run_as_root = False
@@ -219,7 +234,7 @@ class SimVerilatorToolchain:
                 run_as_root = True
             _run_sim(build_name, as_root=run_as_root)
 
-        os.chdir("../../")
+        os.chdir(cwd)
 
         if build:
-            return top_output.ns
+            return v_output.ns
