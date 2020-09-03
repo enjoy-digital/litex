@@ -24,6 +24,8 @@
 
 #include "sdram.h"
 
+#ifdef CSR_SDRAM_BASE
+
 __attribute__((unused)) static void cdelay(int i)
 {
 #ifndef CONFIG_SIM_DISABLE_DELAYS
@@ -34,7 +36,9 @@ __attribute__((unused)) static void cdelay(int i)
 #endif
 }
 
-#ifdef CSR_SDRAM_BASE
+/*-----------------------------------------------------------------------*/
+/* Constants                                                             */
+/*-----------------------------------------------------------------------*/
 
 #define DFII_ADDR_SHIFT CONFIG_CSR_ALIGNMENT/8
 
@@ -50,6 +54,10 @@ int sdrfreq(void) {
 	return SDRAM_PHY_XDR*SDRAM_PHY_PHASES*CONFIG_CLOCK_FREQUENCY;
 }
 
+/*-----------------------------------------------------------------------*/
+/* Software/Hardware Control                                             */
+/*-----------------------------------------------------------------------*/
+
 void sdrsw(void)
 {
 	sdram_dfii_control_write(DFII_CONTROL_CKE|DFII_CONTROL_ODT|DFII_CONTROL_RESET_N);
@@ -61,6 +69,10 @@ void sdrhw(void)
 	sdram_dfii_control_write(DFII_CONTROL_SEL);
 	printf("SDRAM now under hardware control\n");
 }
+
+/*-----------------------------------------------------------------------*/
+/* Manual Control                                                        */
+/*-----------------------------------------------------------------------*/
 
 void sdrrow(unsigned int row)
 {
@@ -172,6 +184,10 @@ void sdrwr(unsigned int addr)
 }
 
 #ifdef CSR_DDRPHY_BASE
+
+/*-----------------------------------------------------------------------*/
+/* Write Leveling                                                        */
+/*-----------------------------------------------------------------------*/
 
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
 void sdrwlon(void)
@@ -443,8 +459,11 @@ int write_level(void)
 	return best_cdly >= 0;
 }
 
-
 #endif /*  SDRAM_PHY_WRITE_LEVELING_CAPABLE */
+
+/*-----------------------------------------------------------------------*/
+/* Read Leveling                                                         */
+/*-----------------------------------------------------------------------*/
 
 static void read_delay_rst(int module) {
 	/* sel module */
@@ -582,7 +601,7 @@ static int read_level_scan(int module, int bitslip)
 	return score;
 }
 
-static void read_level(int module)
+void read_level(int module)
 {
 	unsigned int prv;
 	unsigned char prs[SDRAM_PHY_PHASES][DFII_PIX_DATA_BYTES];
@@ -712,9 +731,6 @@ static void read_level(int module)
 
 #endif /* CSR_SDRAM_BASE */
 
-
-
-
 #ifdef CSR_SDRAM_BASE
 
 #if defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) || defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
@@ -759,6 +775,10 @@ static void read_leveling(void)
 	}
 }
 
+/*-----------------------------------------------------------------------*/
+/* Leveling                                                              */
+/*-----------------------------------------------------------------------*/
+
 int _write_level_cdly_scan = 1;
 
 int sdrlevel(void)
@@ -794,6 +814,10 @@ int sdrlevel(void)
 }
 #endif
 
+/*-----------------------------------------------------------------------*/
+/* Calibration                                                           */
+/*-----------------------------------------------------------------------*/
+
 void sdrcal(void)
 {
 #ifdef CSR_DDRPHY_BASE
@@ -809,6 +833,10 @@ void sdrcal(void)
 #endif
 	sdrhw();
 }
+
+/*-----------------------------------------------------------------------*/
+/* Initialization                                                        */
+/*-----------------------------------------------------------------------*/
 
 int sdrinit(void)
 {
@@ -840,6 +868,10 @@ int sdrinit(void)
 
 	return 1;
 }
+
+/*-----------------------------------------------------------------------*/
+/* MPR access                                                            */
+/*-----------------------------------------------------------------------*/
 
 #define MPR0_SEL (0 << 0)
 #define MPR1_SEL (1 << 0)
