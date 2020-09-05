@@ -873,6 +873,8 @@ int sdrinit(void)
 /* MPR access                                                            */
 /*-----------------------------------------------------------------------*/
 
+#ifdef SDRAM_PHY_MODULES
+
 #define MPR0_SEL (0 << 0)
 #define MPR1_SEL (1 << 0)
 #define MPR2_SEL (2 << 0)
@@ -934,5 +936,7 @@ void sdrmpr(void)
 	/* hardware control */
 	sdrhw();
 }
+
+#endif
 
 #endif
