@@ -333,12 +333,15 @@ static int write_level_scan(int *delays, int loops, int show)
 				}
 			}
 		}
+
+		/* rst delay */
+		write_delay_rst(i);
+
 		/* succeed only if the start of a 1s window has been found */
 		if (one_window_best_count > 0 && one_window_best_start > 0) {
 			delays[i] = one_window_best_start;
 
 			/* configure write delay */
-			write_delay_rst(i);
 			for(j=0; j<delays[i]; j++)
 				write_delay_inc(i);
 		}
