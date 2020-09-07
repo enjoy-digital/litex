@@ -56,7 +56,7 @@ extern "C" void litex_sim_init_tracer(void *vsim, long start, long end)
 
 extern "C" void litex_sim_tracer_dump()
 {
-  static int last_enabled = -1;
+  static int last_enabled = 0;
   bool dump_enabled = true;
 
   if (g_sim != nullptr) {
