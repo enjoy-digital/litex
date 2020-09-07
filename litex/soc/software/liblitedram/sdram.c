@@ -409,6 +409,7 @@ int write_level(void)
 	int cdly_range_end;
 	int cdly_range_step;
 
+#ifndef SDRAM_PHY_CMD_DELAY
 	printf("Command/Clk scan:\n");
 
 	/* Center write leveling by varying cdly. Searching through all possible
@@ -440,8 +441,11 @@ int write_level(void)
 		cdly_range_step /= 4;
 	}
 	printf("| best: %d\n", best_cdly);
-
-	/* if we found any working delay then set it */
+#else
+	best_cdly = SDRAM_PHY_CMD_DELAY;
+#endif
+	printf("Forcing Command/Clk delay to %d taps.\n", best_cdly);
+	/* set working or forced delay */
 	if (best_cdly >= 0) {
 		ddrphy_cdly_rst_write(1);
 		for (int i = 0; i < best_cdly; ++i) {
