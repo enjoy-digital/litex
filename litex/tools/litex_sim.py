@@ -182,6 +182,8 @@ class SimSoC(SoCCore):
         sdram_verbosity       = 0,
         with_i2c              = False,
         with_sdcard           = False,
+        sim_debug             = False,
+        trace_reset_on        = False,
         **kwargs):
         platform     = Platform()
         sys_clk_freq = int(1e6)
@@ -314,6 +316,12 @@ class SimSoC(SoCCore):
         if with_sdcard:
             self.add_sdcard("sdcard", use_emulator=True)
 
+        # Simulatio debugging ----------------------------------------------------------------------
+        if sim_debug:
+            platform.add_debug(self, reset=1 if trace_reset_on else 0)
+        else:
+            self.comb += platform.trace.eq(1)
+
 # Build --------------------------------------------------------------------------------------------
 
 def main():
@@ -338,9 +346,10 @@ def main():
     parser.add_argument("--with-sdcard",          action="store_true",     help="Enable SDCard support")
     parser.add_argument("--trace",                action="store_true",     help="Enable Tracing")
     parser.add_argument("--trace-fst",            action="store_true",     help="Enable FST tracing (default=VCD)")
-    parser.add_argument("--trace-start",          default=0,               help="Cycle to start tracing")
-    parser.add_argument("--trace-end",            default=-1,              help="Cycle to end tracing")
+    parser.add_argument("--trace-start",          default="0",             help="Time to start tracing (ps)")
+    parser.add_argument("--trace-end",            default="-1",            help="Time to end tracing (ps)")
     parser.add_argument("--opt-level",            default="O3",            help="Compilation optimization level")
+    parser.add_argument("--sim-debug",            action="store_true",     help="Add simulation debugging modules")
     args = parser.parse_args()
 
     soc_kwargs     = soc_sdram_argdict(args)
@@ -377,6 +386,9 @@ def main():
     if args.with_i2c:
         sim_config.add_module("spdeeprom", "i2c")
 
+    trace_start = int(float(args.trace_start))
+    trace_end = int(float(args.trace_end))
+
     # SoC ------------------------------------------------------------------------------------------
     soc = SimSoC(
         with_sdram     = args.with_sdram,
@@ -385,6 +397,8 @@ def main():
         with_analyzer  = args.with_analyzer,
         with_i2c       = args.with_i2c,
         with_sdcard    = args.with_sdcard,
+        sim_debug      = args.sim_debug,
+        trace_reset_on = trace_start > 0 or trace_end > 0,
         sdram_init     = [] if args.sdram_init is None else get_mem_data(args.sdram_init, cpu.endianness),
         **soc_kwargs)
     if args.ram_init is not None:
@@ -409,8 +423,8 @@ def main():
             opt_level   = args.opt_level,
             trace       = args.trace,
             trace_fst   = args.trace_fst,
-            trace_start = int(args.trace_start),
-            trace_end   = int(args.trace_end)
+            trace_start = trace_start,
+            trace_end   = trace_end
         )
         if args.with_analyzer:
             soc.analyzer.export_csv(vns, "analyzer.csv")

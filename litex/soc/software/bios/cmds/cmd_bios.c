@@ -5,6 +5,7 @@
 #include <id.h>
 #include <crc.h>
 #include <system.h>
+#include <sim_debug.h>
 
 #include <generated/csr.h>
 
@@ -145,3 +146,46 @@ define_command(flush_cpu_dcache, flush_cpu_dcache, "Flush CPU data cache", CACHE
 define_command(flush_l2_cache, flush_l2_cache, "Flush L2 cache", CACHE_CMDS);
 #endif
 
+
+/**
+ * Command "trace"
+ *
+ * Start/stop simulation trace dump.
+ *
+ */
+#ifdef CSR_SIM_TRACE_BASE
+static void cmd_sim_trace(int nb_params, char **params)
+{
+  sim_trace(!sim_trace_enable_read());
+}
+define_command(trace, cmd_sim_trace, "Toggle simulation tracing", MISC_CMDS);
+#endif
+
+/**
+ * Command "finish"
+ *
+ * Finish simulation.
+ *
+ */
+#ifdef CSR_SIM_FINISH_BASE
+static void cmd_sim_finish(int nb_params, char **params)
+{
+  sim_finish();
+}
+define_command(finish, cmd_sim_finish, "Finish simulation", MISC_CMDS);
+#endif
+
+/**
+ * Command "mark"
+ *
+ * Set a debug marker value
+ *
+ */
+#ifdef CSR_SIM_MARKER_BASE
+static void cmd_sim_mark(int nb_params, char **params)
+{
+  // cannot use param[1] as it is not a const string
+  sim_mark(NULL);
+}
+define_command(mark, cmd_sim_mark, "Set a debug simulation marker", MISC_CMDS);
+#endif
