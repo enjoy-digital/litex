@@ -464,7 +464,7 @@ int sdcard_init(void) {
 
 #ifdef CSR_SDBLOCK2MEM_BASE
 
-void sdcard_read(uint32_t sector, uint32_t count, uint8_t* buf)
+void sdcard_read(uint32_t block, uint32_t count, uint8_t* buf)
 {
 	/* Initialize DMA Writer */
 	sdblock2mem_dma_enable_write(0);
@@ -476,7 +476,7 @@ void sdcard_read(uint32_t sector, uint32_t count, uint8_t* buf)
 #ifdef SDCARD_CMD23_SUPPORT
 	sdcard_set_block_count(count);
 #endif
-	sdcard_read_multiple_block(sector, count);
+	sdcard_read_multiple_block(block, count);
 
 	/* Wait for DMA Writer to complete */
 	while ((sdblock2mem_dma_done_read() & 0x1) == 0);
@@ -496,7 +496,7 @@ void sdcard_read(uint32_t sector, uint32_t count, uint8_t* buf)
 
 #ifdef CSR_SDMEM2BLOCK_BASE
 
-void sdcard_write(uint32_t sector, uint32_t count, uint8_t* buf)
+void sdcard_write(uint32_t block, uint32_t count, uint8_t* buf)
 {
 	while (count--) {
 		/* Initialize DMA Reader */
@@ -509,13 +509,13 @@ void sdcard_write(uint32_t sector, uint32_t count, uint8_t* buf)
 #ifdef SDCARD_CMD23_SUPPORT
 		sdcard_set_block_count(1);
 #endif
-		sdcard_write_single_block(sector);
+		sdcard_write_single_block(block);
 
 		sdcard_stop_transmission();
 
-		/* Update buf/sector */
-		buf    += 512;
-		sector += 1;
+		/* Update buf/block */
+		buf   += 512;
+		block += 1;
 	}
 }
 #endif
@@ -538,8 +538,8 @@ DSTATUS disk_initialize(uint8_t drv) {
 	return sdcardstatus;
 }
 
-DRESULT disk_read(uint8_t drv, uint8_t *buf, uint32_t sector, uint32_t count) {
-	sdcard_read(sector, count, buf);
+DRESULT disk_read(uint8_t drv, uint8_t *buf, uint32_t block, uint32_t count) {
+	sdcard_read(block, count, buf);
 	return RES_OK;
 }
 
