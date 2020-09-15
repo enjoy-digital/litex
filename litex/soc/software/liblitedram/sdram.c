@@ -337,16 +337,27 @@ static int write_level_scan(int *delays, int loops, int show)
 		/* rst delay */
 		write_delay_rst(i);
 
+		/* use forced delay if configured */
+		if (sdrwl_delays[i] >= 0) {
+			delays[i] = sdrwl_delays[i];
+
+			/* configure write delay */
+			for(j=0; j<delays[i]; j++)
+				write_delay_inc(i);
 		/* succeed only if the start of a 1s window has been found */
-		if (one_window_best_count > 0 && one_window_best_start > 0) {
+		} else if (one_window_best_count > 0 && one_window_best_start > 0) {
 			delays[i] = one_window_best_start;
 
 			/* configure write delay */
 			for(j=0; j<delays[i]; j++)
 				write_delay_inc(i);
 		}
-		if (show)
-			printf(" delay: %02d\n", delays[i]);
+		if (show) {
+			if (delays[i] == -1)
+				printf(" delay: -\n");
+			else
+				printf(" delay: %02d\n", delays[i]);
+		}
 	}
 
 	sdrwloff();
@@ -847,6 +858,9 @@ void sdrcal(void)
 
 int sdrinit(void)
 {
+	int i;
+	for (i=0; i<16; i++) sdrwl_delays[i] = -1; /* disabled forced delays */
+
 	printf("Initializing DRAM @0x%08x...\n", MAIN_RAM_BASE);
 
 #if CSR_DDRPHY_RST_ADDR
