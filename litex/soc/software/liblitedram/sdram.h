@@ -31,8 +31,6 @@ void sdrwr(unsigned int addr);
 /* Write Leveling                                                        */
 /*-----------------------------------------------------------------------*/
 
-int sdrwl_delays[16];
-
 void sdrwlon(void);
 void sdrwloff(void);
 int write_level(void);

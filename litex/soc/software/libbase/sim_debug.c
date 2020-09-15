@@ -6,8 +6,10 @@
 // 0 is used as no marker
 #define MAX_N_MARKERS (255 - 1)
 
+#ifdef CSR_SIM_MARKER_BASE
 static int n_markers = 0;
 static const char *markers[MAX_N_MARKERS] = {0};
+#endif
 
 void sim_mark(const char *text) {
 #ifdef CSR_SIM_MARKER_BASE

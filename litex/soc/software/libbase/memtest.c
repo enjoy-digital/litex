@@ -147,9 +147,9 @@ int memtest_data(unsigned int *addr, unsigned long size, int random)
 		seed_32 = seed_to_data_32(seed_32, random);
 		array[i] = seed_32;
 		if (i%0x8000 == 0)
-			memtest_data_progress("  Write:", (unsigned int)addr, 4*i, size);
+			memtest_data_progress("  Write:", (unsigned long)addr, 4*i, size);
 	}
-	memtest_data_progress("  Write:", (unsigned int)addr, 4*i, size);
+	memtest_data_progress("  Write:", (unsigned long)addr, 4*i, size);
 	printf("\n");
 
 	seed_32 = 1;
@@ -167,9 +167,9 @@ int memtest_data(unsigned int *addr, unsigned long size, int random)
 #endif
 		}
 		if (i%0x8000 == 0)
-			memtest_data_progress("  Read: ", (unsigned int)addr, 4*i, size);
+			memtest_data_progress("  Read: ", (unsigned long)addr, 4*i, size);
 	}
-	memtest_data_progress("  Read: ", (unsigned int)addr, 4*i, size);
+	memtest_data_progress("  Read: ", (unsigned long)addr, 4*i, size);
 	printf("\n");
 
 	return errors;
