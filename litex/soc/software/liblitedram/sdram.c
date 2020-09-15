@@ -876,8 +876,9 @@ int sdrinit(void)
 
 #if CSR_DDRPHY_RST_ADDR
 	ddrphy_rst_write(1);
-	cdelay(100);
+	cdelay(1000);
 	ddrphy_rst_write(0);
+	cdelay(1000);
 #endif
 
 #ifdef CSR_DDRCTRL_BASE
