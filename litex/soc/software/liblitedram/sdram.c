@@ -58,16 +58,27 @@ int sdrfreq(void) {
 /* Software/Hardware Control                                             */
 /*-----------------------------------------------------------------------*/
 
+#define DFII_CONTROL_SOFTWARE (DFII_CONTROL_CKE|DFII_CONTROL_ODT|DFII_CONTROL_RESET_N)
+#define DFII_CONTROL_HARDWARE (DFII_CONTROL_SEL)
+
 void sdrsw(void)
 {
-	sdram_dfii_control_write(DFII_CONTROL_CKE|DFII_CONTROL_ODT|DFII_CONTROL_RESET_N);
-	printf("SDRAM now under software control\n");
+	unsigned int previous;
+	previous = sdram_dfii_control_read();
+	if (previous != DFII_CONTROL_SOFTWARE) {
+		sdram_dfii_control_write(DFII_CONTROL_SOFTWARE);
+		printf("Switching SDRAM to software control.\n");
+	}
 }
 
 void sdrhw(void)
 {
-	sdram_dfii_control_write(DFII_CONTROL_SEL);
-	printf("SDRAM now under hardware control\n");
+	unsigned int previous;
+	previous = sdram_dfii_control_read();
+	if (previous != DFII_CONTROL_HARDWARE) {
+		sdram_dfii_control_write(DFII_CONTROL_HARDWARE);
+		printf("Switching SDRAM to hardware control.\n");
+	}
 }
 
 /*-----------------------------------------------------------------------*/
@@ -274,7 +285,7 @@ static int write_level_scan(int *delays, int loops, int show)
 	cdelay(100);
 	for(i=0;i<SDRAM_PHY_MODULES;i++) {
 		if (show)
-			printf("m%d: |", i);
+			printf("  m%d: |", i);
 
 		/* rst delay */
 		write_delay_rst(i);
@@ -424,7 +435,7 @@ int write_level(void)
 	int cdly_range_step;
 
 #ifndef SDRAM_PHY_CMD_DELAY
-	printf("Command/Clk scan:\n");
+	printf("  Cmd/Clk scan:\n");
 
 	/* Center write leveling by varying cdly. Searching through all possible
 	 * values is slow, but we can use a simple optimization method of iterativly
@@ -436,7 +447,7 @@ int write_level(void)
 	else
 		cdly_range_step = 1;
 	while (cdly_range_step > 0) {
-		printf("|");
+		printf("  |");
 		write_level_cdly_range(&best_error, &best_cdly,
 				cdly_range_start, cdly_range_end, cdly_range_step);
 
@@ -458,7 +469,7 @@ int write_level(void)
 #else
 	best_cdly = SDRAM_PHY_CMD_DELAY;
 #endif
-	printf("Forcing Command/Clk delay to %d taps.\n", best_cdly);
+	printf("  Setting Cmd/Clk delay to %d taps.\n", best_cdly);
 	/* set working or forced delay */
 	if (best_cdly >= 0) {
 		ddrphy_cdly_rst_write(1);
@@ -468,7 +479,7 @@ int write_level(void)
 		}
 	}
 
-	printf("Data scan:\n");
+	printf("  Data scan:\n");
 
 	/* re-run write leveling the final time */
 	if (!write_level_scan(delays, 128, 1))
@@ -577,7 +588,7 @@ static int read_level_scan(int module, int bitslip)
 	sdram_dfii_pird_baddress_write(0);
 	score = 0;
 
-	printf("m%d, b%02d: |", module, bitslip);
+	printf("  m%d, b%d: |", module, bitslip);
 	read_delay_rst(module);
 	for(i=0;i<SDRAM_PHY_DELAYS;i++) {
 		int working = 1;
@@ -782,7 +793,7 @@ static void read_leveling(void)
 		}
 
 		/* select best read window */
-		printf("best: m%d, b%02d ", module, best_bitslip);
+		printf("  best: m%d, b%02d ", module, best_bitslip);
 		read_bitslip_rst(module);
 		for (bitslip=0; bitslip<best_bitslip; bitslip++)
 			read_bitslip_inc(module);
@@ -861,7 +872,7 @@ int sdrinit(void)
 	int i;
 	for (i=0; i<16; i++) sdrwl_delays[i] = -1; /* disabled forced delays */
 
-	printf("Initializing DRAM @0x%08x...\n", MAIN_RAM_BASE);
+	printf("Initializing SDRAM @0x%08x...\n", MAIN_RAM_BASE);
 
 #if CSR_DDRPHY_RST_ADDR
 	ddrphy_rst_write(1);
