@@ -15,23 +15,56 @@
 #include "../helpers.h"
 
 /**
- * Command "sdrinit"
+ * Command "sdram_init"
  *
- * Start SDRAM initialisation
+ * Initialize SDRAM (Init + Calibration)
  *
  */
 #if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE)
-define_command(sdrinit, sdrinit, "Start SDRAM initialisation", LITEDRAM_CMDS);
+define_command(sdram_init, sdram_init, "Initialize SDRAM (Init + Calibration)", LITEDRAM_CMDS);
 #endif
 
 /**
- * Command "sdrlevel"
+ * Command "sdram_calibration"
  *
- * Perform read/write leveling
+ * Calibrate SDRAM
  *
  */
-#if defined(CSR_DDRPHY_BASE) && defined(CSR_SDRAM_BASE)
-define_command(sdrlevel, sdrlevel, "Perform read/write leveling", LITEDRAM_CMDS);
+#if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE)
+define_command(sdram_cal, sdram_calibration, "Calibrate SDRAM", LITEDRAM_CMDS);
+#endif
+
+/**
+ * Command "sdram_mrw"
+ *
+ * Write SDRAM Mode Register
+ *
+ */
+#if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE)
+static void sdram_mrw_handler(int nb_params, char **params)
+{
+	char *c;
+	uint8_t reg;
+	uint16_t value;
+
+	if (nb_params < 2) {
+		printf("sdram_mrw <reg> <value>");
+		return;
+	}
+	reg = strtoul(params[0], &c, 0);
+	if (*c != 0) {
+		printf("Incorrect reg");
+		return;
+	}
+	value = strtoul(params[1], &c, 0);
+	if (*c != 0) {
+		printf("Incorrect value");
+		return;
+	}
+	printf("Writing 0x%04x to MR%d", value, reg);
+	sdram_mode_register_write(reg, value);
+}
+define_command(sdram_mrw, sdram_mrw_handler, "Write SDRAM Mode Register", LITEDRAM_CMDS);
 #endif
 
 /**
