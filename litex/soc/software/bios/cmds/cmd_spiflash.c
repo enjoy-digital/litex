@@ -15,7 +15,7 @@
  *
  */
 #if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
-static void fw(int nb_params, char **params)
+static void fw_handler(int nb_params, char **params)
 {
 	char *c;
 	unsigned int addr;
@@ -54,7 +54,7 @@ static void fw(int nb_params, char **params)
 		write_to_flash(addr + i * 4, (unsigned char *)&value, 4);
 }
 
-define_command(fw, fw, "Write to flash", SPIFLASH_CMDS);
+define_command(fw, fw_handler, "Write to flash", SPIFLASH_CMDS);
 #endif
 
 /**
@@ -64,12 +64,12 @@ define_command(fw, fw, "Write to flash", SPIFLASH_CMDS);
  *
  */
 #if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
-static void fe(int nb_params, char **params)
+static void fe_handler(int nb_params, char **params)
 {
 	erase_flash();
 	printf("Flash erased\n");
 }
 
-define_command(fe, fe, "Erase whole flash", SPIFLASH_CMDS);
+define_command(fe, fe_handler, "Erase whole flash", SPIFLASH_CMDS);
 #endif
 

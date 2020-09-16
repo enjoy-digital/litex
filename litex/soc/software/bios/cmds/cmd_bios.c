@@ -46,7 +46,7 @@ define_command(help, help_handler, "Print this help", MISC_CMDS);
  * Identifier of the system
  *
  */
-static void ident_helper(int nb_params, char **params)
+static void ident_handler(int nb_params, char **params)
 {
 	char buffer[IDENT_SIZE];
 
@@ -54,7 +54,7 @@ static void ident_helper(int nb_params, char **params)
 	printf("Ident: %s", *buffer ? buffer : "-");
 }
 
-define_command(ident, ident_helper, "Identifier of the system", SYSTEM_CMDS);
+define_command(ident, ident_handler, "Identifier of the system", SYSTEM_CMDS);
 
 /**
  * Command "reboot"
@@ -63,12 +63,12 @@ define_command(ident, ident_helper, "Identifier of the system", SYSTEM_CMDS);
  *
  */
 #ifdef CSR_CTRL_RESET_ADDR
-static void reboot(int nb_params, char **params)
+static void reboot_handler(int nb_params, char **params)
 {
 	ctrl_reset_write(1);
 }
 
-define_command(reboot, reboot, "Reboot the system", SYSTEM_CMDS);
+define_command(reboot, reboot_handler, "Reboot the system", SYSTEM_CMDS);
 #endif
 
 /**
@@ -78,7 +78,7 @@ define_command(reboot, reboot, "Reboot the system", SYSTEM_CMDS);
  *
  */
 #ifdef CSR_TIMER0_UPTIME_CYCLES_ADDR
-static void uptime(int nb_params, char **params)
+static void uptime_handler(int nb_params, char **params)
 {
 	unsigned long uptime;
 
@@ -90,7 +90,7 @@ static void uptime(int nb_params, char **params)
 	);
 }
 
-define_command(uptime, uptime, "Uptime of the system since power-up", SYSTEM_CMDS);
+define_command(uptime, uptime_handler, "Uptime of the system since power-up", SYSTEM_CMDS);
 #endif
 
 /**
@@ -99,7 +99,7 @@ define_command(uptime, uptime, "Uptime of the system since power-up", SYSTEM_CMD
  * Compute CRC32 over an address range
  *
  */
-static void crc(int nb_params, char **params)
+static void crc_handler(int nb_params, char **params)
 {
 	char *c;
 	unsigned int addr;
@@ -125,7 +125,7 @@ static void crc(int nb_params, char **params)
 	printf("CRC32: %08x", crc32((unsigned char *)addr, length));
 }
 
-define_command(crc, crc, "Compute CRC32 of a part of the address space", MISC_CMDS);
+define_command(crc, crc_handler, "Compute CRC32 of a part of the address space", MISC_CMDS);
 
 /**
  * Command "flush_cpu_dcache"
@@ -154,11 +154,11 @@ define_command(flush_l2_cache, flush_l2_cache, "Flush L2 cache", CACHE_CMDS);
  *
  */
 #ifdef CSR_SIM_TRACE_BASE
-static void cmd_sim_trace(int nb_params, char **params)
+static void cmd_sim_trace_handler(int nb_params, char **params)
 {
   sim_trace(!sim_trace_enable_read());
 }
-define_command(trace, cmd_sim_trace, "Toggle simulation tracing", MISC_CMDS);
+define_command(trace, cmd_sim_trace_handler, "Toggle simulation tracing", MISC_CMDS);
 #endif
 
 /**
@@ -168,11 +168,11 @@ define_command(trace, cmd_sim_trace, "Toggle simulation tracing", MISC_CMDS);
  *
  */
 #ifdef CSR_SIM_FINISH_BASE
-static void cmd_sim_finish(int nb_params, char **params)
+static void cmd_sim_finish_handler(int nb_params, char **params)
 {
   sim_finish();
 }
-define_command(finish, cmd_sim_finish, "Finish simulation", MISC_CMDS);
+define_command(finish, cmd_sim_finish_handler, "Finish simulation", MISC_CMDS);
 #endif
 
 /**
@@ -182,10 +182,10 @@ define_command(finish, cmd_sim_finish, "Finish simulation", MISC_CMDS);
  *
  */
 #ifdef CSR_SIM_MARKER_BASE
-static void cmd_sim_mark(int nb_params, char **params)
+static void cmd_sim_mark_handler(int nb_params, char **params)
 {
   // cannot use param[1] as it is not a const string
   sim_mark(NULL);
 }
-define_command(mark, cmd_sim_mark, "Set a debug simulation marker", MISC_CMDS);
+define_command(mark, cmd_sim_mark_handler, "Set a debug simulation marker", MISC_CMDS);
 #endif

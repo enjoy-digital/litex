@@ -15,7 +15,7 @@
  * Memory read
  *
  */
-static void mem_read(int nb_params, char **params)
+static void mem_read_handler(int nb_params, char **params)
 {
 	char *c;
 	unsigned int *addr;
@@ -43,7 +43,7 @@ static void mem_read(int nb_params, char **params)
 	dump_bytes(addr, length, (unsigned long)addr);
 }
 
-define_command(mem_read, mem_read, "Read address space", MEM_CMDS);
+define_command(mem_read, mem_read_handler, "Read address space", MEM_CMDS);
 
 /**
  * Command "mem_write"
@@ -51,7 +51,7 @@ define_command(mem_read, mem_read, "Read address space", MEM_CMDS);
  * Memory write
  *
  */
-static void mem_write(int nb_params, char **params)
+static void mem_write_handler(int nb_params, char **params)
 {
 	char *c;
 	unsigned int *addr;
@@ -90,7 +90,7 @@ static void mem_write(int nb_params, char **params)
 		*addr++ = value;
 }
 
-define_command(mem_write, mem_write, "Write address space", MEM_CMDS);
+define_command(mem_write, mem_write_handler, "Write address space", MEM_CMDS);
 
 /**
  * Command "mem_copy"
@@ -98,7 +98,7 @@ define_command(mem_write, mem_write, "Write address space", MEM_CMDS);
  * Memory copy
  *
  */
-static void mem_copy(int nb_params, char **params)
+static void mem_copy_handler(int nb_params, char **params)
 {
 	char *c;
 	unsigned int *dstaddr;
@@ -137,7 +137,7 @@ static void mem_copy(int nb_params, char **params)
 		*dstaddr++ = *srcaddr++;
 }
 
-define_command(mem_copy, mem_copy, "Copy address space", MEM_CMDS);
+define_command(mem_copy, mem_copy_handler, "Copy address space", MEM_CMDS);
 
 /**
  * Command "mem_test"
@@ -145,7 +145,7 @@ define_command(mem_copy, mem_copy, "Copy address space", MEM_CMDS);
  * Memory Test
  *
  */
-static void mem_test(int nb_params, char **params)
+static void mem_test_handler(int nb_params, char **params)
 {
 	char *c;
 	unsigned int *addr;
@@ -173,7 +173,7 @@ static void mem_test(int nb_params, char **params)
 
 	memtest(addr, maxsize);
 }
-define_command(mem_test, mem_test, "Test memory access", MEM_CMDS);
+define_command(mem_test, mem_test_handler, "Test memory access", MEM_CMDS);
 
 /**
  * Command "mem_speed"
@@ -181,7 +181,7 @@ define_command(mem_test, mem_test, "Test memory access", MEM_CMDS);
  * Memory Speed
  *
  */
-static void mem_speed(int nb_params, char **params)
+static void mem_speed_handler(int nb_params, char **params)
 {
 	char *c;
 	unsigned int *addr;
@@ -215,4 +215,4 @@ static void mem_speed(int nb_params, char **params)
 
 	memspeed(addr, size, read_only);
 }
-define_command(mem_speed, mem_speed, "Test memory speed", MEM_CMDS);
+define_command(mem_speed, mem_speed_handler, "Test memory speed", MEM_CMDS);

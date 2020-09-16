@@ -17,7 +17,7 @@
  *
  */
 #ifdef CSR_ETHPHY_MDIO_W_ADDR
-static void mdiow(int nb_params, char **params)
+static void mdiow_handler(int nb_params, char **params)
 {
 	char *c;
 	unsigned int phyadr2;
@@ -50,7 +50,7 @@ static void mdiow(int nb_params, char **params)
 	mdio_write(phyadr2, reg2, val2);
 }
 
-define_command(mdiow, mdiow, "Write MDIO register", LITEETH_CMDS);
+define_command(mdiow, mdiow_handler, "Write MDIO register", LITEETH_CMDS);
 #endif
 
 /**
@@ -60,7 +60,7 @@ define_command(mdiow, mdiow, "Write MDIO register", LITEETH_CMDS);
  *
  */
 #ifdef CSR_ETHPHY_MDIO_W_ADDR
-static void mdior(int nb_params, char **params)
+static void mdior_handler(int nb_params, char **params)
 {
 	char *c;
 	unsigned int phyadr2;
@@ -88,7 +88,7 @@ static void mdior(int nb_params, char **params)
 	printf("Reg %d: 0x%04x", reg2, val);
 }
 
-define_command(mdior, mdior, "Read MDIO register", LITEETH_CMDS);
+define_command(mdior, mdior_handler, "Read MDIO register", LITEETH_CMDS);
 #endif
 
 /**
@@ -98,7 +98,7 @@ define_command(mdior, mdior, "Read MDIO register", LITEETH_CMDS);
  *
  */
 #ifdef CSR_ETHPHY_MDIO_W_ADDR
-static void mdiod(int nb_params, char **params)
+static void mdiod_handler(int nb_params, char **params)
 {
 	char *c;
 	unsigned int phyadr;
@@ -130,5 +130,5 @@ static void mdiod(int nb_params, char **params)
 	}
 }
 
-define_command(mdiod, mdiod, "Dump MDIO registers", LITEETH_CMDS);
+define_command(mdiod, mdiod_handler, "Dump MDIO registers", LITEETH_CMDS);
 #endif
