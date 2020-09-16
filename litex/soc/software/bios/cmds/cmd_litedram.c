@@ -68,7 +68,7 @@ define_command(sdram_mrw, sdram_mrw_handler, "Write SDRAM Mode Register", LITEDR
 #endif
 
 /**
- * Command "spdread"
+ * Command "sdram_spd"
  *
  * Read contents of SPD EEPROM memory.
  * SPD address is a 3-bit address defined by the pins A0, A1, A2.
@@ -78,7 +78,7 @@ define_command(sdram_mrw, sdram_mrw_handler, "Write SDRAM Mode Register", LITEDR
 #define SPD_RW_PREAMBLE    0b1010
 #define SPD_RW_ADDR(a210)  ((SPD_RW_PREAMBLE << 3) | ((a210) & 0b111))
 
-static void spdread_handler(int nb_params, char **params)
+static void sdram_spd_handler(int nb_params, char **params)
 {
 	char *c;
 	unsigned char spdaddr;
@@ -87,7 +87,7 @@ static void spdread_handler(int nb_params, char **params)
 	bool send_stop = true;
 
 	if (nb_params < 1) {
-		printf("spdread <spdaddr> [<send_stop>]");
+		printf("sdram_spd <spdaddr> [<send_stop>]");
 		return;
 	}
 
@@ -129,5 +129,5 @@ static void spdread_handler(int nb_params, char **params)
 	}
 #endif
 }
-define_command(spdread, spdread_handler, "Read SPD EEPROM", LITEDRAM_CMDS);
+define_command(sdram_spd, sdram_spd_handler, "Read SDRAM SPD EEPROM", LITEDRAM_CMDS);
 #endif
