@@ -18,16 +18,6 @@ void sdrsw(void);
 void sdrhw(void);
 
 /*-----------------------------------------------------------------------*/
-/* Manual Control                                                        */
-/*-----------------------------------------------------------------------*/
-
-void sdrrow(unsigned int row);
-void sdrrdbuf(int dq);
-void sdrrd(unsigned int addr, int dq);
-void sdrrderr(int count);
-void sdrwr(unsigned int addr);
-
-/*-----------------------------------------------------------------------*/
 /* Write Leveling                                                        */
 /*-----------------------------------------------------------------------*/
 
