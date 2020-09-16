@@ -16,8 +16,12 @@ class I2CMaster(Module, AutoCSR):
 
     Provides the minimal hardware to do software I2C Master bit banging.
 
-    On the same write CSRStorage (_w), software can control SCL (I2C_SCL), SDA direction and value
-    (I2C_OE, I2C_W). Software get back SDA value with the read CSRStatus (_r).
+    On the same write CSRStorage (_w), software can control 
+    - SCL (I2C_SCL),
+    - SDA direction (I2C_OE) and
+    - value (I2C_W).
+
+    Software get back SDA value with the read CSRStatus (_r).
     """
     pads_layout = [("scl", 1), ("sda", 1)]
     def __init__(self, pads=None):
@@ -46,6 +50,29 @@ class I2CMaster(Module, AutoCSR):
             self._r.fields.sda.eq(_sda_r),
         ]
         self.specials += Tristate(pads.sda, _sda_w, _sda_oe, _sda_r)
+
+
+class I2CMasterOpenDrain(I2CMaster):
+    """I2CMaster Bit-Banging with standard I2C bus and pull-ups.
+
+    Same as I2C Master but allows SCL and SDA to be pulled up instead of
+    driving them both high and low.
+    """
+    def connect(self, pads):
+        _scl_triple = TSTriple(1)
+        self.specials += _scl_triple.get_tristate(pads.scl)
+        self.comb += [
+            _scl_triple.oe.eq(~self._w.fields.scl),
+            _scl_triple.o.eq(0),
+        ]
+
+        _sda_triple = TSTriple(1)
+        self.specials += _sda_triple.get_tristate(pads.sda)
+        self.comb += [
+            _sda_triple.oe.eq(self._w.fields.oe & ~self._w.fields.sda),
+            _sda_triple.o.eq(0),
+            self._r.fields.sda.eq(_sda_triple.i),
+        ]
 
 
 class I2CMasterSim(I2CMaster):
