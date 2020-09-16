@@ -11,29 +11,29 @@
 #include "../helpers.h"
 
 /**
- * Command "sdinit"
+ * Command "sdcard_init"
  *
  * Initialize SDcard
  *
  */
 #ifdef CSR_SDCORE_BASE
-define_command(sdinit, sdcard_init, "Initialize SDCard", LITESDCARD_CMDS);
+define_command(sdcard_init, sdcard_init, "Initialize SDCard", LITESDCARD_CMDS);
 #endif
 
 /**
- * Command "sdfreq"
+ * Command "sdcard_freq"
  *
  * Set SDcard clock frequency
  *
  */
 #ifdef CSR_SDCORE_BASE
-static void sdfreq(int nb_params, char **params)
+static void sdcard_freq_handler(int nb_params, char **params)
 {
 	unsigned int freq;
 	char *c;
 
 	if (nb_params < 1) {
-		printf("sdfreq <freq>");
+		printf("sdcard_freq <freq>");
 		return;
 	}
 
@@ -46,24 +46,24 @@ static void sdfreq(int nb_params, char **params)
 	sdcard_set_clk_freq(freq);
 }
 
-define_command(sdfreq, sdfreq, "Set SDCard clock freq", LITESDCARD_CMDS);
+define_command(sdcard_freq, sdcard_freq_handler, "Set SDCard clock freq", LITESDCARD_CMDS);
 #endif
 
 /**
- * Command "sdread"
+ * Command "sdcard_read"
  *
  * Perform SDcard block read
  *
  */
 #ifdef CSR_SDBLOCK2MEM_BASE
-static void sdread(int nb_params, char **params)
+static void sdcard_read_handler(int nb_params, char **params)
 {
 	unsigned int block;
 	char *c;
 	uint8_t buf[512];
 
 	if (nb_params < 1) {
-		printf("sdread <block>");
+		printf("sdcard_read <block>");
 		return;
 	}
 
@@ -77,7 +77,7 @@ static void sdread(int nb_params, char **params)
 	dump_bytes((uint32_t *)buf, 512, (unsigned long) buf);
 }
 
-define_command(sdread, sdread, "Read SDCard block", LITESDCARD_CMDS);
+define_command(sdcard_read, sdcard_read_handler, "Read SDCard block", LITESDCARD_CMDS);
 #endif
 
 /**
@@ -87,7 +87,7 @@ define_command(sdread, sdread, "Read SDCard block", LITESDCARD_CMDS);
  *
  */
 #ifdef CSR_SDMEM2BLOCK_BASE
-static void sdwrite(int nb_params, char **params)
+static void sdcard_write_handler(int nb_params, char **params)
 {
 	int i;
 	uint8_t buf[512];
@@ -95,7 +95,7 @@ static void sdwrite(int nb_params, char **params)
 	char *c;
 
 	if (nb_params < 2) {
-		printf("sdwrite <block> <str>");
+		printf("sdcard_write <block> <str>");
 		return;
 	}
 
@@ -118,5 +118,5 @@ static void sdwrite(int nb_params, char **params)
 	sdcard_write(block, 1, buf);
 }
 
-define_command(sdwrite, sdwrite, "Write SDCard block", LITESDCARD_CMDS);
+define_command(sdcard_write, sdcard_write_handler, "Write SDCard block", LITESDCARD_CMDS);
 #endif
