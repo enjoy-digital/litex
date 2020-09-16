@@ -11,13 +11,13 @@
 #include "../helpers.h"
 
 /**
- * Command "mdiow"
+ * Command "mdio_write"
  *
  * Write MDIO register
  *
  */
 #ifdef CSR_ETHPHY_MDIO_W_ADDR
-static void mdiow_handler(int nb_params, char **params)
+static void mdio_write_handler(int nb_params, char **params)
 {
 	char *c;
 	unsigned int phyadr2;
@@ -25,7 +25,7 @@ static void mdiow_handler(int nb_params, char **params)
 	unsigned int val2;
 
 	if (nb_params < 3) {
-		printf("mdiow <phyadr> <reg> <value>");
+		printf("mdio_write <phyadr> <reg> <value>");
 		return;
 	}
 
@@ -50,17 +50,17 @@ static void mdiow_handler(int nb_params, char **params)
 	mdio_write(phyadr2, reg2, val2);
 }
 
-define_command(mdiow, mdiow_handler, "Write MDIO register", LITEETH_CMDS);
+define_command(mdio_write, mdio_write_handler, "Write MDIO register", LITEETH_CMDS);
 #endif
 
 /**
- * Command "mdior"
+ * Command "mdio_read"
  *
  * Read MDIO register
  *
  */
 #ifdef CSR_ETHPHY_MDIO_W_ADDR
-static void mdior_handler(int nb_params, char **params)
+static void mdio_read_handler(int nb_params, char **params)
 {
 	char *c;
 	unsigned int phyadr2;
@@ -88,17 +88,17 @@ static void mdior_handler(int nb_params, char **params)
 	printf("Reg %d: 0x%04x", reg2, val);
 }
 
-define_command(mdior, mdior_handler, "Read MDIO register", LITEETH_CMDS);
+define_command(mdio_read, mdio_read_handler, "Read MDIO register", LITEETH_CMDS);
 #endif
 
 /**
- * Command "mdiod"
+ * Command "mdio_dump"
  *
  * Dump MDIO registers
  *
  */
 #ifdef CSR_ETHPHY_MDIO_W_ADDR
-static void mdiod_handler(int nb_params, char **params)
+static void mdio_dump_handler(int nb_params, char **params)
 {
 	char *c;
 	unsigned int phyadr;
@@ -130,5 +130,5 @@ static void mdiod_handler(int nb_params, char **params)
 	}
 }
 
-define_command(mdiod, mdiod_handler, "Dump MDIO registers", LITEETH_CMDS);
+define_command(mdio_dump, mdio_dump_handler, "Dump MDIO registers", LITEETH_CMDS);
 #endif
