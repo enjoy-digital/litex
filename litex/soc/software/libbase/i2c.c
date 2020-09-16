@@ -134,9 +134,9 @@ void i2c_reset(void)
  * First writes the memory starting address, then reads the data:
  *   START WR(slaveaddr) WR(addr) STOP START WR(slaveaddr) RD(data) RD(data) ... STOP
  * Some chips require that after transmiting the address, there will be no STOP in between:
- *   START WR(slaveaddr) WR(addr) START WR(slaveaddr) RD(data) RD(data) ... STOP
+ *   START WR(slaveaddr) WR(addr) START WR(slaveaddr) ... RD(data) RD(data) ... STOP
  */
-bool i2c_read(unsigned char slave_addr, unsigned char addr, unsigned char *data, unsigned int len, bool send_stop)
+bool i2c_readn(unsigned char slave_addr, unsigned char *addr, int addr_len, unsigned char *data, unsigned int len, bool send_stop)
 {
 	int i;
 
@@ -146,9 +146,11 @@ bool i2c_read(unsigned char slave_addr, unsigned char addr, unsigned char *data,
 		i2c_stop();
 		return false;
 	}
-	if(!i2c_transmit_byte(addr)) {
-		i2c_stop();
-		return false;
+	for (i = 0; i < addr_len; ++i) {
+		if(!i2c_transmit_byte(addr[i])) {
+			i2c_stop();
+			return false;
+		}
 	}
 
 	if (send_stop) {
@@ -169,13 +171,24 @@ bool i2c_read(unsigned char slave_addr, unsigned char addr, unsigned char *data,
 	return true;
 }
 
+bool i2c_read(unsigned char slave_addr, unsigned char addr, unsigned char *data, unsigned int len, bool send_stop) 
+{
+	return i2c_readn(slave_addr, &addr, 1, data, len, send_stop);
+}
+
+bool i2c_read2(unsigned char slave_addr, unsigned short addr, unsigned char *data, unsigned int len, bool send_stop) 
+{
+	unsigned char addr_buf[2] = {addr >> 8, addr & 0xff}; // big endian
+	return i2c_readn(slave_addr, addr_buf, 2, data, len, send_stop);
+}
+
 /*
  * Write slave memory over I2C starting at given address
  *
  * First writes the memory starting address, then writes the data:
- *   START WR(slaveaddr) WR(addr) WR(data) WR(data) ... STOP
+ *   START WR(slaveaddr) WR(addr) ... WR(data) WR(data) ... STOP
  */
-bool i2c_write(unsigned char slave_addr, unsigned char addr, const unsigned char *data, unsigned int len)
+bool i2c_writen(unsigned char slave_addr, unsigned char *addr, int addr_len, const unsigned char *data, unsigned int len)
 {
 	int i;
 
@@ -185,9 +198,11 @@ bool i2c_write(unsigned char slave_addr, unsigned char addr, const unsigned char
 		i2c_stop();
 		return false;
 	}
-	if(!i2c_transmit_byte(addr)) {
-		i2c_stop();
-		return false;
+	for (i = 0; i < addr_len; ++i) {
+		if(!i2c_transmit_byte(addr[i])) {
+			i2c_stop();
+			return false;
+		}
 	}
 	for (i = 0; i < len; ++i) {
 		if(!i2c_transmit_byte(data[i])) {
@@ -199,6 +214,17 @@ bool i2c_write(unsigned char slave_addr, unsigned char addr, const unsigned char
 	i2c_stop();
 
 	return true;
+}
+
+bool i2c_write(unsigned char slave_addr, unsigned char addr, const unsigned char *data, unsigned int len)
+{
+	return i2c_writen(slave_addr, &addr, 1, data, len);
+}
+
+bool i2c_write2(unsigned char slave_addr, unsigned short addr, const unsigned char *data, unsigned int len)
+{
+	unsigned char addr_buf[2] = {addr >> 8, addr & 0xff}; // big endian
+	return i2c_writen(slave_addr, addr_buf, 2, data, len);
 }
 
 #endif /* CSR_I2C_BASE */
