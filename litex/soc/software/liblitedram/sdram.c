@@ -91,7 +91,7 @@ void sdrhw(void)
 
 int sdrwl_delays[16];
 
-void sdrwlon(void)
+static void sdrwlon(void)
 {
 	sdram_dfii_pi0_address_write(DDRX_MR1 | (1 << 7));
 	sdram_dfii_pi0_baddress_write(1);
@@ -106,7 +106,7 @@ void sdrwlon(void)
 	ddrphy_wlevel_en_write(1);
 }
 
-void sdrwloff(void)
+static void sdrwloff(void)
 {
 	sdram_dfii_pi0_address_write(DDRX_MR1);
 	sdram_dfii_pi0_baddress_write(1);

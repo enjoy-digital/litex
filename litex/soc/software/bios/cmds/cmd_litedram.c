@@ -25,26 +25,6 @@ define_command(sdrinit, sdrinit, "Start SDRAM initialisation", LITEDRAM_CMDS);
 #endif
 
 /**
- * Command "sdrwlon"
- *
- * Write leveling ON
- *
- */
-#if defined(CSR_DDRPHY_BASE) && defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) && defined(CSR_SDRAM_BASE)
-define_command(sdrwlon, sdrwlon, "Enable write leveling", LITEDRAM_CMDS);
-#endif
-
-/**
- * Command "sdrwloff"
- *
- * Write leveling OFF
- *
- */
-#if defined(CSR_DDRPHY_BASE) && defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) && defined(CSR_SDRAM_BASE)
-define_command(sdrwloff, sdrwloff, "Disable write leveling", LITEDRAM_CMDS);
-#endif
-
-/**
  * Command "sdrlevel"
  *
  * Perform read/write leveling
