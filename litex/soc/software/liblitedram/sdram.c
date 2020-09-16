@@ -201,6 +201,9 @@ void sdrwr(unsigned int addr)
 /*-----------------------------------------------------------------------*/
 
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
+
+int sdrwl_delays[16];
+
 void sdrwlon(void)
 {
 	sdram_dfii_pi0_address_write(DDRX_MR1 | (1 << 7));
@@ -866,13 +869,13 @@ void sdrcal(void)
 /*-----------------------------------------------------------------------*/
 /* Initialization                                                        */
 /*-----------------------------------------------------------------------*/
-int sdrwl_delays[16];
 
 int sdrinit(void)
 {
+#ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
 	int i;
-	for (i=0; i<16; i++) sdrwl_delays[i] = -1; /* disabled forced delays */
-
+	for (i=0; i<16; i++) sdrwl_delays[i] = -1; /* disable forced delays */
+#endif
 	printf("Initializing SDRAM @0x%08x...\n", MAIN_RAM_BASE);
 
 #if CSR_DDRPHY_RST_ADDR
