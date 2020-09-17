@@ -47,6 +47,7 @@ static void mdio_write_handler(int nb_params, char **params)
 		return;
 	}
 
+	printf("MDIO write @0x%x: 0x%02x 0x%04x\n", phyadr2, reg2, val2);
 	mdio_write(phyadr2, reg2, val2);
 }
 
@@ -84,8 +85,9 @@ static void mdio_read_handler(int nb_params, char **params)
 		return;
 	}
 
+	printf("MDIO read @0x%x:\n", phyadr2);
 	val = mdio_read(phyadr2, reg2);
-	printf("Reg %d: 0x%04x", reg2, val);
+	printf("0x%02x 0x%04x", reg2, val);
 }
 
 define_command(mdio_read, mdio_read_handler, "Read MDIO register", LITEETH_CMDS);
@@ -126,7 +128,7 @@ static void mdio_dump_handler(int nb_params, char **params)
 	printf("MDIO dump @0x%x:\n", phyadr);
 	for (i = 0; i < count; i++) {
 		val = mdio_read(phyadr, i);
-		printf("reg %d: 0x%04x", i, val);
+		printf("0x%02x 0x%04x\n", i, val);
 	}
 }
 
