@@ -10,6 +10,21 @@
 #include "../boot.h"
 
 /**
+ * Command "reboot"
+ *
+ * Reboot the system
+ *
+ */
+#ifdef CSR_CTRL_RESET_ADDR
+static void reboot_handler(int nb_params, char **params)
+{
+	ctrl_reset_write(1);
+}
+
+define_command(reboot, reboot_handler, "Reboot",  BOOT_CMDS);
+#endif
+
+/**
  * Command "flashboot"
  *
  * Boot software from flash

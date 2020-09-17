@@ -38,7 +38,7 @@ static void help_handler(int nb_params, char **params)
 	}
 }
 
-define_command(help, help_handler, "Print this help", MISC_CMDS);
+define_command(help, help_handler, "Print this help", SYSTEM_CMDS);
 
 /**
  * Command "ident"
@@ -55,21 +55,6 @@ static void ident_handler(int nb_params, char **params)
 }
 
 define_command(ident, ident_handler, "Identifier of the system", SYSTEM_CMDS);
-
-/**
- * Command "reboot"
- *
- * Reboot the system
- *
- */
-#ifdef CSR_CTRL_RESET_ADDR
-static void reboot_handler(int nb_params, char **params)
-{
-	ctrl_reset_write(1);
-}
-
-define_command(reboot, reboot_handler, "Reboot the system", SYSTEM_CMDS);
-#endif
 
 /**
  * Command "uptime"
@@ -125,7 +110,7 @@ static void crc_handler(int nb_params, char **params)
 	printf("CRC32: %08x", crc32((unsigned char *)addr, length));
 }
 
-define_command(crc, crc_handler, "Compute CRC32 of a part of the address space", MISC_CMDS);
+define_command(crc, crc_handler, "Compute CRC32 of a part of the address space", SYSTEM_CMDS);
 
 /**
  * Command "flush_cpu_dcache"
@@ -134,7 +119,7 @@ define_command(crc, crc_handler, "Compute CRC32 of a part of the address space",
  *
  */
 
-define_command(flush_cpu_dcache, flush_cpu_dcache, "Flush CPU data cache", CACHE_CMDS);
+define_command(flush_cpu_dcache, flush_cpu_dcache, "Flush CPU data cache", SYSTEM_CMDS);
 
 /**
  * Command "flush_l2_cache"
@@ -143,7 +128,7 @@ define_command(flush_cpu_dcache, flush_cpu_dcache, "Flush CPU data cache", CACHE
  *
  */
 #ifdef CONFIG_L2_SIZE
-define_command(flush_l2_cache, flush_l2_cache, "Flush L2 cache", CACHE_CMDS);
+define_command(flush_l2_cache, flush_l2_cache, "Flush L2 cache", SYSTEM_CMDS);
 #endif
 
 
@@ -158,7 +143,7 @@ static void cmd_sim_trace_handler(int nb_params, char **params)
 {
   sim_trace(!sim_trace_enable_read());
 }
-define_command(trace, cmd_sim_trace_handler, "Toggle simulation tracing", MISC_CMDS);
+define_command(trace, cmd_sim_trace_handler, "Toggle simulation tracing", SYSTEM_CMDS);
 #endif
 
 /**
@@ -172,7 +157,7 @@ static void cmd_sim_finish_handler(int nb_params, char **params)
 {
   sim_finish();
 }
-define_command(finish, cmd_sim_finish_handler, "Finish simulation", MISC_CMDS);
+define_command(finish, cmd_sim_finish_handler, "Finish simulation", SYSTEM_CMDS);
 #endif
 
 /**
@@ -187,5 +172,5 @@ static void cmd_sim_mark_handler(int nb_params, char **params)
   // cannot use param[1] as it is not a const string
   sim_mark(NULL);
 }
-define_command(mark, cmd_sim_mark_handler, "Set a debug simulation marker", MISC_CMDS);
+define_command(mark, cmd_sim_mark_handler, "Set a debug simulation marker", SYSTEM_CMDS);
 #endif
