@@ -128,7 +128,7 @@ static void sdram_write_leveling_off(void)
 }
 
 static void sdram_write_leveling_rst_delay(int module) {
-#ifdef SDRAM_PHY_sdram_write_leveling_REINIT
+#ifdef SDRAM_PHY_WRITE_LEVELING_REINIT
 	int i;
 #endif
 
@@ -138,7 +138,7 @@ static void sdram_write_leveling_rst_delay(int module) {
 	/* rst delay */
 	ddrphy_wdly_dq_rst_write(1);
 	ddrphy_wdly_dqs_rst_write(1);
-#ifdef SDRAM_PHY_sdram_write_leveling_REINIT
+#ifdef SDRAM_PHY_WRITE_LEVELING_REINIT
 	for(i=0; i<ddrphy_half_sys8x_taps_read(); i++)
 		ddrphy_wdly_dqs_inc_write(1);
 #endif
