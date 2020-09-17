@@ -64,7 +64,7 @@ int sdcard_wait_response(void);
 /* SDCard clocker functions                                              */
 /*-----------------------------------------------------------------------*/
 
-void sdcard_set_clk_freq(uint32_t clk_freq);
+void sdcard_set_clk_freq(uint32_t clk_freq, int show);
 
 /*-----------------------------------------------------------------------*/
 /* SDCard commands functions                                             */

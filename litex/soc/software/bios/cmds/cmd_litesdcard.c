@@ -17,7 +17,16 @@
  *
  */
 #ifdef CSR_SDCORE_BASE
-define_command(sdcard_init, sdcard_init, "Initialize SDCard", LITESDCARD_CMDS);
+static void sdcard_init_handler(int nb_params, char **params)
+{
+	printf("Initialize SDCard... ");
+	if (sdcard_init())
+		printf("Successful.\n");
+	else
+		printf("Failed.\n");
+}
+
+define_command(sdcard_init, sdcard_init_handler, "Initialize SDCard", LITESDCARD_CMDS);
 #endif
 
 /**
@@ -42,8 +51,7 @@ static void sdcard_freq_handler(int nb_params, char **params)
 		printf("Incorrect freq");
 		return;
 	}
-
-	sdcard_set_clk_freq(freq);
+	sdcard_set_clk_freq(freq, 1);
 }
 
 define_command(sdcard_freq, sdcard_freq_handler, "Set SDCard clock freq", LITESDCARD_CMDS);
