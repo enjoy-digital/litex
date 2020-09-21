@@ -95,7 +95,8 @@ void sdram_mode_register_write(char reg, int value) {
 
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
 
-int sdrwl_delays[16];
+int _sdram_write_leveling_cmd_scan = 1;
+int _sdram_write_leveling_cmd_delays[16];
 
 static void sdram_write_leveling_on(void)
 {
@@ -125,6 +126,42 @@ static void sdram_write_leveling_off(void)
 #endif
 
 	ddrphy_wlevel_en_write(0);
+}
+
+void sdram_write_leveling_rst_cmd_delay(int show) {
+	_sdram_write_leveling_cmd_scan = 1;
+	if (show)
+		printf("Reseting Cmd delay\n");
+}
+
+void sdram_write_leveling_force_cmd_delay(int taps, int show) {
+	_sdram_write_leveling_cmd_scan = 0;
+#if CSR_DDRPHY_EN_VTC_ADDR
+	ddrphy_en_vtc_write(0);
+#endif
+	ddrphy_cdly_rst_write(1);
+	while (taps > 0) {
+		ddrphy_cdly_inc_write(1);
+		cdelay(1000);
+		taps--;
+	}
+#if CSR_DDRPHY_EN_VTC_ADDR
+	ddrphy_en_vtc_write(1);
+#endif
+	if (show)
+		printf("Forcing Cmd delay to %d taps\n", taps);
+}
+
+void sdram_write_leveling_rst_dat_delay(int module, int show) {
+	_sdram_write_leveling_cmd_delays[module] = -1;
+	if (show)
+		printf("Reseting Dat delay of module %d\n", module);
+}
+
+void sdram_write_leveling_force_dat_delay(int module, int taps, int show) {
+	_sdram_write_leveling_cmd_delays[module] = taps;
+	if (show)
+		printf("Forcing Dat delay of module %d to %d taps\n", module, taps);
 }
 
 static void sdram_write_leveling_rst_delay(int module) {
@@ -244,8 +281,8 @@ static int sdram_write_leveling_scan(int *delays, int loops, int show)
 		sdram_write_leveling_rst_delay(i);
 
 		/* use forced delay if configured */
-		if (sdrwl_delays[i] >= 0) {
-			delays[i] = sdrwl_delays[i];
+		if (_sdram_write_leveling_cmd_delays[i] >= 0) {
+			delays[i] = _sdram_write_leveling_cmd_delays[i];
 
 			/* configure write delay */
 			for(j=0; j<delays[i]; j++)
@@ -698,8 +735,6 @@ void sdram_read_leveling(void)
 /* Leveling                                                              */
 /*-----------------------------------------------------------------------*/
 
-int _sdram_write_leveling_cdly_scan = 1;
-
 int sdram_leveling(void)
 {
 	int module;
@@ -715,7 +750,7 @@ int sdram_leveling(void)
 
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
 	printf("Write leveling:\n");
-	if (_sdram_write_leveling_cdly_scan) {
+	if (_sdram_write_leveling_cmd_scan) {
 		sdram_write_leveling();
 	} else {
 		/* use only the current cdly */
@@ -764,7 +799,8 @@ int sdram_init(void)
 {
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
 	int i;
-	for (i=0; i<16; i++) sdrwl_delays[i] = -1; /* disable forced delays */
+	sdram_write_leveling_rst_cmd_delay(0);
+	for (i=0; i<16; i++) sdram_write_leveling_rst_dat_delay(i, 0);
 #endif
 	printf("Initializing SDRAM @0x%08x...\n", MAIN_RAM_BASE);
 	sdram_software_control_on();

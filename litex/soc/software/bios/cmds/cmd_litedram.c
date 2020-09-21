@@ -34,21 +34,124 @@ define_command(sdram_init, sdram_init, "Initialize SDRAM (Init + Calibration)", 
 define_command(sdram_cal, sdram_calibration, "Calibrate SDRAM", LITEDRAM_CMDS);
 #endif
 
+#ifdef CSR_DDRPHY_CDLY_RST_ADDR
+
 /**
- * Command "sdram_mrw"
+ * Command "sdram_rst_cmd_delay"
+ *
+ * Reset write leveling Cmd delay
+ *
+ */
+#if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE)
+static void sdram_rst_cmd_delay_handler(int nb_params, char **params)
+{
+	sdram_write_leveling_rst_cmd_delay(1);
+}
+define_command(sdram_rst_cmd_delay, sdram_rst_cmd_delay_handler, "Reset write leveling Cmd delay", LITEDRAM_CMDS);
+#endif
+
+/**
+ * Command "sdram_force_cmd_delay"
+ *
+ * Force write leveling Cmd delay
+ *
+ */
+#if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE)
+static void sdram_force_cmd_delay_handler(int nb_params, char **params)
+{
+	char *c;
+	int taps;
+	if (nb_params < 1) {
+		printf("sdram_force_cmd_delay <taps>");
+		return;
+	}
+	taps = strtoul(params[0], &c, 0);
+	if (*c != 0) {
+		printf("Incorrect taps");
+		return;
+	}
+	sdram_write_leveling_force_cmd_delay(taps, 1);
+}
+define_command(sdram_force_cmd_delay, sdram_force_cmd_delay_handler, "Force write leveling Cmd delay", LITEDRAM_CMDS);
+#endif
+
+#endif
+
+#ifdef CSR_DDRPHY_WDLY_DQ_RST_ADDR
+
+/**
+ * Command "sdram_rst_dat_delay"
+ *
+ * Reset write leveling Dat delay
+ *
+ */
+#if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE)
+static void sdram_rst_dat_delay_handler(int nb_params, char **params)
+{
+	char *c;
+	int module;
+	if (nb_params < 1) {
+		printf("sdram_rst_dat_delay <module>");
+		return;
+	}
+	module = strtoul(params[0], &c, 0);
+	if (*c != 0) {
+		printf("Incorrect module");
+		return;
+	}
+	sdram_write_leveling_rst_dat_delay(module, 1);
+}
+define_command(sdram_rst_dat_delay, sdram_rst_dat_delay_handler, "Reset write leveling Dat delay", LITEDRAM_CMDS);
+#endif
+
+/**
+ * Command "sdram_force_dat_delay"
+ *
+ * Force write leveling Dat delay
+ *
+ */
+#if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE)
+static void sdram_force_dat_delay_handler(int nb_params, char **params)
+{
+	char *c;
+	int module;
+	int taps;
+	if (nb_params < 2) {
+		printf("sdram_force_dat_delay <module> <taps>");
+		return;
+	}
+	module = strtoul(params[0], &c, 0);
+	if (*c != 0) {
+		printf("Incorrect module");
+		return;
+	}
+	taps = strtoul(params[1], &c, 0);
+	if (*c != 0) {
+		printf("Incorrect taps");
+		return;
+	}
+	sdram_write_leveling_force_dat_delay(module, taps, 1);
+}
+define_command(sdram_force_dat_delay, sdram_force_dat_delay_handler, "Reset write leveling Dat delay", LITEDRAM_CMDS);
+#endif
+
+#endif
+
+/**
+ * Command "sdram_mr_write"
  *
  * Write SDRAM Mode Register
  *
  */
 #if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE)
-static void sdram_mrw_handler(int nb_params, char **params)
+static void sdram_mr_write_handler(int nb_params, char **params)
 {
 	char *c;
 	uint8_t reg;
 	uint16_t value;
 
 	if (nb_params < 2) {
-		printf("sdram_mrw <reg> <value>");
+		printf("sdram_mr_write <reg> <value>");
 		return;
 	}
 	reg = strtoul(params[0], &c, 0);
@@ -64,7 +167,7 @@ static void sdram_mrw_handler(int nb_params, char **params)
 	printf("Writing 0x%04x to MR%d", value, reg);
 	sdram_mode_register_write(reg, value);
 }
-define_command(sdram_mrw, sdram_mrw_handler, "Write SDRAM Mode Register", LITEDRAM_CMDS);
+define_command(sdram_mr_write, sdram_mr_write_handler, "Write SDRAM Mode Register", LITEDRAM_CMDS);
 #endif
 
 /**

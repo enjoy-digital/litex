@@ -29,7 +29,7 @@ static void help_handler(int nb_params, char **params)
 		not_empty = 0;
 		for (cmd = __bios_cmd_start; cmd != __bios_cmd_end; cmd++) {
 			if ((*cmd)->group == i) {
-				printf("%-16s - %s\n", (*cmd)->name, (*cmd)->help ? (*cmd)->help : "-");
+				printf("%-24s - %s\n", (*cmd)->name, (*cmd)->help ? (*cmd)->help : "-");
 				not_empty = 1;
 			}
 		}
