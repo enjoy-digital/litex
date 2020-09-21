@@ -34,7 +34,7 @@ define_command(sdram_init, sdram_init, "Initialize SDRAM (Init + Calibration)", 
 define_command(sdram_cal, sdram_calibration, "Calibrate SDRAM", LITEDRAM_CMDS);
 #endif
 
-#ifdef CSR_DDRPHY_CDLY_RST_ADDR
+#if defined(CSR_DDRPHY_CDLY_RST_ADDR) && defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE)
 
 /**
  * Command "sdram_rst_cmd_delay"
