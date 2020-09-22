@@ -89,29 +89,34 @@ int sdcard_wait_data_done(void) {
 /* SDCard clocker functions                                              */
 /*-----------------------------------------------------------------------*/
 
-static uint32_t log2(uint32_t x)
-{
-	uint32_t r = 0;
-	while(x >>= 1)
-		r++;
+/* round up to closest power-of-two */
+static inline uint32_t pow2_round_up(uint32_t r) {
+	r--;
+	r |= r >>  1;
+	r |= r >>  2;
+	r |= r >>  4;
+	r |= r >>  8;
+	r |= r >> 16;
+	r++;
 	return r;
 }
 
 void sdcard_set_clk_freq(uint32_t clk_freq, int show) {
 	uint32_t divider;
-	divider = CONFIG_CLOCK_FREQUENCY/clk_freq + 1;
-	divider = (1 << log2(divider));
-	divider = max(divider,   2);
-	divider = min(divider, 256);
+	divider = clk_freq ? CONFIG_CLOCK_FREQUENCY/clk_freq : 256;
+	divider = pow2_round_up(divider);
+	divider = min(max(divider, 2), 256);
 #ifdef SDCARD_DEBUG
 	show = 1;
 #endif
 	if (show) {
+		/* this is the *effective* new clk_freq */
+		clk_freq = CONFIG_CLOCK_FREQUENCY/divider;
 		printf("Setting SDCard clk freq to ");
 		if (clk_freq > 1000000)
-			printf("%d MHz\n", (CONFIG_CLOCK_FREQUENCY/divider)/1000000);
+			printf("%d MHz\n", clk_freq/1000000);
 		else
-			printf("%d KHz\n", (CONFIG_CLOCK_FREQUENCY/divider)/1000);
+			printf("%d KHz\n", clk_freq/1000);
 	}
 	sdphy_clocker_divider_write(divider);
 }
