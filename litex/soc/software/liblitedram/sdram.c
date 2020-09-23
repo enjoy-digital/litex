@@ -96,7 +96,7 @@ void sdram_mode_register_write(char reg, int value) {
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
 
 int _sdram_write_leveling_cmd_scan = 1;
-int _sdram_write_leveling_cmd_delays[16];
+int _sdram_write_leveling_dat_delays[16];
 
 static void sdram_write_leveling_on(void)
 {
@@ -153,13 +153,13 @@ void sdram_write_leveling_force_cmd_delay(int taps, int show) {
 }
 
 void sdram_write_leveling_rst_dat_delay(int module, int show) {
-	_sdram_write_leveling_cmd_delays[module] = -1;
+	_sdram_write_leveling_dat_delays[module] = -1;
 	if (show)
 		printf("Reseting Dat delay of module %d\n", module);
 }
 
 void sdram_write_leveling_force_dat_delay(int module, int taps, int show) {
-	_sdram_write_leveling_cmd_delays[module] = taps;
+	_sdram_write_leveling_dat_delays[module] = taps;
 	if (show)
 		printf("Forcing Dat delay of module %d to %d taps\n", module, taps);
 }
@@ -281,8 +281,8 @@ static int sdram_write_leveling_scan(int *delays, int loops, int show)
 		sdram_write_leveling_rst_delay(i);
 
 		/* use forced delay if configured */
-		if (_sdram_write_leveling_cmd_delays[i] >= 0) {
-			delays[i] = _sdram_write_leveling_cmd_delays[i];
+		if (_sdram_write_leveling_dat_delays[i] >= 0) {
+			delays[i] = _sdram_write_leveling_dat_delays[i];
 
 			/* configure write delay */
 			for(j=0; j<delays[i]; j++)
