@@ -139,6 +139,8 @@ void sdram_write_leveling_force_cmd_delay(int taps, int show) {
 #if CSR_DDRPHY_EN_VTC_ADDR
 	ddrphy_en_vtc_write(0);
 #endif
+	if (show)
+		printf("Forcing Cmd delay to %d taps\n", taps);
 	ddrphy_cdly_rst_write(1);
 	while (taps > 0) {
 		ddrphy_cdly_inc_write(1);
@@ -148,8 +150,6 @@ void sdram_write_leveling_force_cmd_delay(int taps, int show) {
 #if CSR_DDRPHY_EN_VTC_ADDR
 	ddrphy_en_vtc_write(1);
 #endif
-	if (show)
-		printf("Forcing Cmd delay to %d taps\n", taps);
 }
 
 void sdram_write_leveling_rst_dat_delay(int module, int show) {
