@@ -164,8 +164,10 @@ static void sdram_mr_write_handler(int nb_params, char **params)
 		printf("Incorrect value");
 		return;
 	}
-	printf("Writing 0x%04x to MR%d", value, reg);
+	sdram_software_control_on();
+	printf("Writing 0x%04x to MR%d\n", value, reg);
 	sdram_mode_register_write(reg, value);
+	sdram_software_control_off();
 }
 define_command(sdram_mr_write, sdram_mr_write_handler, "Write SDRAM Mode Register", LITEDRAM_CMDS);
 #endif
