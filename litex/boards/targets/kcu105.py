@@ -32,6 +32,7 @@ class _CRG(Module):
         self.clock_domains.cd_sys4x  = ClockDomain(reset_less=True)
         self.clock_domains.cd_pll4x  = ClockDomain(reset_less=True)
         self.clock_domains.cd_clk200 = ClockDomain()
+        self.clock_domains.cd_eth    = ClockDomain()
 
         # # #
 
@@ -40,6 +41,7 @@ class _CRG(Module):
         pll.register_clkin(platform.request("clk125"), 125e6)
         pll.create_clkout(self.cd_pll4x, sys_clk_freq*4, buf=None, with_reset=False)
         pll.create_clkout(self.cd_clk200, 200e6, with_reset=False)
+        pll.create_clkout(self.cd_eth,    200e6)
 
         self.specials += [
             Instance("BUFGCE_DIV", name="main_bufgce_div",
@@ -87,7 +89,7 @@ class BaseSoC(SoCCore):
 
         # Ethernet / Etherbone ---------------------------------------------------------------------
         if with_ethernet or with_etherbone:
-            self.submodules.ethphy = KU_1000BASEX(self.crg.cd_clk200.clk,
+            self.submodules.ethphy = KU_1000BASEX(self.crg.cd_eth.clk,
                 data_pads    = self.platform.request("sfp", 0),
                 sys_clk_freq = self.clk_freq)
             self.add_csr("ethphy")
