@@ -15,8 +15,13 @@ from litex.build.gowin import common, gowin
 class GowinPlatform(GenericPlatform):
     bitstream_ext = ".fs"
 
-    def __init__(self, *args, toolchain="gowin", **kwargs):
-        GenericPlatform.__init__(self, *args, **kwargs)
+    def __init__(self, device, *args, toolchain="gowin", devicename=None, **kwargs):
+        GenericPlatform.__init__(self, device, *args, **kwargs)
+        if not devicename:
+            idx = device.find('-')
+            likely_name = f"{device[:idx]}-{device[idx+3]}"
+            raise ValueError(f"devicename not provided, maybe {likely_name}?")
+        self.devicename = devicename
         if toolchain == "gowin":
             self.toolchain = gowin.GowinToolchain()
         elif toolchain == "apicula":
@@ -27,8 +32,7 @@ class GowinPlatform(GenericPlatform):
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
         so = dict(common.gowin_special_overrides)
         so.update(special_overrides)
-        return GenericPlatform.get_verilog(self, *args, special_overrides=so,
-            attr_translate=self.toolchain.attr_translate, **kwargs)
+        return GenericPlatform.get_verilog(self, *args, special_overrides=so, **kwargs)
 
     def build(self, *args, **kwargs):
         return self.toolchain.build(self, *args, **kwargs)

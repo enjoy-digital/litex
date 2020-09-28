@@ -99,7 +99,7 @@ class GowinToolchain():
 
         # Generate TCL build script
         script = _build_script(
-            name                    = platform.name,
+            name                    = platform.devicename,
             partnumber              = platform.device,
             files                   = platform.sources,
             options                 = self.options)
