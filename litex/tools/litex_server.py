@@ -223,6 +223,12 @@ def main():
             exit()
         if "/sys/bus/pci/devices" not in pcie_bar:
             pcie_bar = f"/sys/bus/pci/devices/0000:{args.pcie_bar}/resource0"
+        # Enable PCIe device is not already enabled.
+        enable = open(pcie_bar.replace("resource0", "enable"), "r+")
+        if enable.read(1) == "0":
+            enable.seek(0)
+            enable.write("1")
+        enable.close()
         print("[CommPCIe] bar: {} / ".format(pcie_bar), end="")
         comm = CommPCIe(pcie_bar)
     elif args.usb:
