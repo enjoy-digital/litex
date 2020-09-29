@@ -25,13 +25,19 @@ define_command(sdram_init, sdram_init, "Initialize SDRAM (Init + Calibration)", 
 #endif
 
 /**
- * Command "sdram_calibration"
+ * Command "sdram_cal"
  *
  * Calibrate SDRAM
  *
  */
 #if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE)
-define_command(sdram_cal, sdram_calibration, "Calibrate SDRAM", LITEDRAM_CMDS);
+static void sdram_cal_handler(int nb_params, char **params)
+{
+	sdram_software_control_on();
+	sdram_leveling();
+	sdram_software_control_off();
+}
+define_command(sdram_cal, sdram_cal_handler, "Calibrate SDRAM", LITEDRAM_CMDS);
 #endif
 
 #ifdef CSR_DDRPHY_CDLY_RST_ADDR
@@ -45,7 +51,9 @@ define_command(sdram_cal, sdram_calibration, "Calibrate SDRAM", LITEDRAM_CMDS);
 #if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE)
 static void sdram_rst_cmd_delay_handler(int nb_params, char **params)
 {
+	sdram_software_control_on();
 	sdram_write_leveling_rst_cmd_delay(1);
+	sdram_software_control_off();
 }
 define_command(sdram_rst_cmd_delay, sdram_rst_cmd_delay_handler, "Reset write leveling Cmd delay", LITEDRAM_CMDS);
 #endif
@@ -70,7 +78,9 @@ static void sdram_force_cmd_delay_handler(int nb_params, char **params)
 		printf("Incorrect taps");
 		return;
 	}
+	sdram_software_control_on();
 	sdram_write_leveling_force_cmd_delay(taps, 1);
+	sdram_software_control_off();
 }
 define_command(sdram_force_cmd_delay, sdram_force_cmd_delay_handler, "Force write leveling Cmd delay", LITEDRAM_CMDS);
 #endif
@@ -99,7 +109,9 @@ static void sdram_rst_dat_delay_handler(int nb_params, char **params)
 		printf("Incorrect module");
 		return;
 	}
+	sdram_software_control_on();
 	sdram_write_leveling_rst_dat_delay(module, 1);
+	sdram_software_control_off();
 }
 define_command(sdram_rst_dat_delay, sdram_rst_dat_delay_handler, "Reset write leveling Dat delay", LITEDRAM_CMDS);
 #endif
@@ -130,7 +142,9 @@ static void sdram_force_dat_delay_handler(int nb_params, char **params)
 		printf("Incorrect taps");
 		return;
 	}
+	sdram_software_control_on();
 	sdram_write_leveling_force_dat_delay(module, taps, 1);
+	sdram_software_control_off();
 }
 define_command(sdram_force_dat_delay, sdram_force_dat_delay_handler, "Reset write leveling Dat delay", LITEDRAM_CMDS);
 #endif

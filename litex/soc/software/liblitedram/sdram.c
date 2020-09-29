@@ -61,20 +61,31 @@ void sdram_software_control_on(void)
 {
 	unsigned int previous;
 	previous = sdram_dfii_control_read();
+	/* Switch DFII to software control */
 	if (previous != DFII_CONTROL_SOFTWARE) {
 		sdram_dfii_control_write(DFII_CONTROL_SOFTWARE);
 		printf("Switching SDRAM to software control.\n");
 	}
+
+#if CSR_DDRPHY_EN_VTC_ADDR
+	/* Disable Voltage/Temperature compensation */
+	ddrphy_en_vtc_write(0);
+#endif
 }
 
 void sdram_software_control_off(void)
 {
 	unsigned int previous;
 	previous = sdram_dfii_control_read();
+	/* Switch DFII to hardware control */
 	if (previous != DFII_CONTROL_HARDWARE) {
 		sdram_dfii_control_write(DFII_CONTROL_HARDWARE);
 		printf("Switching SDRAM to hardware control.\n");
 	}
+#if CSR_DDRPHY_EN_VTC_ADDR
+	/* Enable Voltage/Temperature compensation */
+	ddrphy_en_vtc_write(1);
+#endif
 }
 
 /*-----------------------------------------------------------------------*/
@@ -136,9 +147,6 @@ void sdram_write_leveling_rst_cmd_delay(int show) {
 
 void sdram_write_leveling_force_cmd_delay(int taps, int show) {
 	_sdram_write_leveling_cmd_scan = 0;
-#if CSR_DDRPHY_EN_VTC_ADDR
-	ddrphy_en_vtc_write(0);
-#endif
 	if (show)
 		printf("Forcing Cmd delay to %d taps\n", taps);
 	ddrphy_cdly_rst_write(1);
@@ -147,9 +155,6 @@ void sdram_write_leveling_force_cmd_delay(int taps, int show) {
 		cdelay(1000);
 		taps--;
 	}
-#if CSR_DDRPHY_EN_VTC_ADDR
-	ddrphy_en_vtc_write(1);
-#endif
 }
 
 void sdram_write_leveling_rst_dat_delay(int module, int show) {
@@ -771,27 +776,6 @@ int sdram_leveling(void)
 #endif
 
 /*-----------------------------------------------------------------------*/
-/* Calibration                                                           */
-/*-----------------------------------------------------------------------*/
-
-void sdram_calibration(void)
-{
-	sdram_software_control_on();
-#ifdef CSR_DDRPHY_BASE
-#if CSR_DDRPHY_EN_VTC_ADDR
-	ddrphy_en_vtc_write(0);
-#endif
-#if defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) || defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
-	sdram_leveling();
-#endif
-#if CSR_DDRPHY_EN_VTC_ADDR
-	ddrphy_en_vtc_write(1);
-#endif
-#endif
-	sdram_software_control_off();
-}
-
-/*-----------------------------------------------------------------------*/
 /* Initialization                                                        */
 /*-----------------------------------------------------------------------*/
 
@@ -816,7 +800,7 @@ int sdram_init(void)
 	ddrctrl_init_error_write(0);
 #endif
 	init_sequence();
-	sdram_calibration();
+	sdram_leveling();
 	sdram_software_control_off();
 	if(!memtest((unsigned int *) MAIN_RAM_BASE, MAIN_RAM_SIZE)) {
 #ifdef CSR_DDRCTRL_BASE
