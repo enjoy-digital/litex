@@ -218,11 +218,13 @@ def main():
     elif args.pcie:
         from litex.tools.remote.comm_pcie import CommPCIe
         pcie_bar = args.pcie_bar
-        if args.pcie_bar is None:
+        if pcie_bar is None:
             print("Need to speficy --pcie-bar, exiting.")
             exit()
-        print("[CommPCIe] bar: {} / ".format(args.pcie_bar), end="")
-        comm = CommPCIe(args.pcie_bar)
+        if "/sys/bus/pci/devices" not in pcie_bar:
+            pcie_bar = f"/sys/bus/pci/devices/0000:{args.pcie_bar}/resource0"
+        print("[CommPCIe] bar: {} / ".format(pcie_bar), end="")
+        comm = CommPCIe(pcie_bar)
     elif args.usb:
         from litex.tools.remote.comm_usb import CommUSB
         if args.usb_pid is None and args.usb_vid is None:
