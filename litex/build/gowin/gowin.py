@@ -62,10 +62,6 @@ class GowinToolchain():
     def __init__(self):
         self.options = {}
 
-    def attr_translate(*args):
-        print(args)
-        pass
-
     def build(self, platform, fragment,
         build_dir      = "build",
         build_name     = "top",
@@ -90,7 +86,7 @@ class GowinToolchain():
         platform.add_source(v_file)
         
         if platform.verilog_include_paths:
-            self.options['includ_path'] = '{' + ';'.join(platform.verilog_include_paths) + '}'
+            self.options['include_path'] = '{' + ';'.join(platform.verilog_include_paths) + '}'
 
         # Generate constraints file (.cst)
         _build_cst(
