@@ -5,6 +5,7 @@
 # Copyright (c) 2016 Tim 'mithro' Ansell <mithro@mithis.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import os
 import socket
 
 from litex.tools.remote.etherbone import EtherbonePacket, EtherboneRecord
@@ -14,11 +15,16 @@ from litex.tools.remote.csr_builder import CSRBuilder
 
 
 class RemoteClient(EtherboneIPC, CSRBuilder):
-    def __init__(self, host="localhost", port=1234, base_address=0, csr_csv="csr.csv", csr_data_width=None, debug=False):
+    def __init__(self, host="localhost", port=1234, base_address=0, csr_csv=None, csr_data_width=None, debug=False):
+        # If csr_csv set to None and local csr.csv file exists, use it.
+        if csr_csv is None and os.path.exists("csr.csv"):
+            csr_csv = "csr.csv"
+        # If valid csr_csv file found, build the CSRs.
         if csr_csv is not None:
             CSRBuilder.__init__(self, self, csr_csv, csr_data_width)
-        else:
-            assert csr_data_width is not None
+        # Else if csr_data_width set to None, force to csr_data_width 32-bit.
+        elif csr_data_width is None:
+            csr_data_width = 32
         self.host         = host
         self.port         = port
         self.base_address = base_address
