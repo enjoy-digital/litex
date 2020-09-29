@@ -59,6 +59,19 @@ def _build_script(name, partnumber, files, options):
         f.write(tcl)
 
 class GowinToolchain():
+
+    attr_translate = {
+        "keep":             None,
+        "no_retiming":      None,
+        "async_reg":        None,
+        "mr_ff":            None,
+        "mr_false_path":    None,
+        "ars_ff1":          None,
+        "ars_ff2":          None,
+        "ars_false_path":   None,
+        "no_shreg_extract": None
+    }
+
     def __init__(self):
         self.options = {}
 
