@@ -106,7 +106,8 @@ void sdram_mode_register_write(char reg, int value) {
 
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
 
-int _sdram_write_leveling_cmd_scan = 1;
+int _sdram_write_leveling_cmd_scan  = 1;
+int _sdram_write_leveling_cmd_delay = 0;
 int _sdram_write_leveling_dat_delays[16];
 
 static void sdram_write_leveling_on(void)
@@ -146,7 +147,8 @@ void sdram_write_leveling_rst_cmd_delay(int show) {
 }
 
 void sdram_write_leveling_force_cmd_delay(int taps, int show) {
-	_sdram_write_leveling_cmd_scan = 0;
+	_sdram_write_leveling_cmd_scan  = 0;
+	_sdram_write_leveling_cmd_delay = taps;
 	if (show)
 		printf("Forcing Cmd delay to %d taps\n", taps);
 	ddrphy_cdly_rst_write(1);
@@ -371,41 +373,42 @@ int sdram_write_leveling(void)
 	int cdly_range_end;
 	int cdly_range_step;
 
-#ifndef SDRAM_PHY_CMD_DELAY
-	printf("  Cmd/Clk scan:\n");
 
-	/* Center write leveling by varying cdly. Searching through all possible
-	 * values is slow, but we can use a simple optimization method of iterativly
-	 * scanning smaller ranges with decreasing step */
-	cdly_range_start = 0;
-	cdly_range_end = SDRAM_PHY_DELAYS;
-	if (SDRAM_PHY_DELAYS > 32)
-		cdly_range_step = SDRAM_PHY_DELAYS/8;
-	else
-		cdly_range_step = 1;
-	while (cdly_range_step > 0) {
-		printf("  |");
-		sdram_write_leveling_find_cmd_delay(&best_error, &best_cdly,
-				cdly_range_start, cdly_range_end, cdly_range_step);
+	if (_sdram_write_leveling_cmd_scan) {
+		printf("  Cmd/Clk scan:\n");
 
-		/* small optimization - stop if we have zero error */
-		if (best_error == 0)
-			break;
+		/* Center write leveling by varying cdly. Searching through all possible
+		 * values is slow, but we can use a simple optimization method of iterativly
+		 * scanning smaller ranges with decreasing step */
+		cdly_range_start = 0;
+		cdly_range_end = SDRAM_PHY_DELAYS;
+		if (SDRAM_PHY_DELAYS > 32)
+			cdly_range_step = SDRAM_PHY_DELAYS/8;
+		else
+			cdly_range_step = 1;
+		while (cdly_range_step > 0) {
+			printf("  |");
+			sdram_write_leveling_find_cmd_delay(&best_error, &best_cdly,
+					cdly_range_start, cdly_range_end, cdly_range_step);
 
-		/* use best result as the middle of next range */
-		cdly_range_start = best_cdly - cdly_range_step;
-		cdly_range_end = best_cdly + cdly_range_step + 1;
-		if (cdly_range_start < 0)
-			cdly_range_start = 0;
-		if (cdly_range_end > 512)
-			cdly_range_end = 512;
+			/* small optimization - stop if we have zero error */
+			if (best_error == 0)
+				break;
 
-		cdly_range_step /= 4;
+			/* use best result as the middle of next range */
+			cdly_range_start = best_cdly - cdly_range_step;
+			cdly_range_end = best_cdly + cdly_range_step + 1;
+			if (cdly_range_start < 0)
+				cdly_range_start = 0;
+			if (cdly_range_end > 512)
+				cdly_range_end = 512;
+
+			cdly_range_step /= 4;
+		}
+		printf("| best: %d\n", best_cdly);
+	} else {
+		best_cdly = _sdram_write_leveling_cmd_delay;
 	}
-	printf("| best: %d\n", best_cdly);
-#else
-	best_cdly = SDRAM_PHY_CMD_DELAY;
-#endif
 	printf("  Setting Cmd/Clk delay to %d taps.\n", best_cdly);
 	/* set working or forced delay */
 	if (best_cdly >= 0) {
@@ -755,13 +758,7 @@ int sdram_leveling(void)
 
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
 	printf("Write leveling:\n");
-	if (_sdram_write_leveling_cmd_scan) {
-		sdram_write_leveling();
-	} else {
-		/* use only the current cdly */
-		int delays[SDRAM_PHY_MODULES];
-		sdram_write_leveling_scan(delays, 128, 1);
-	}
+	sdram_write_leveling();
 #endif
 
 #ifdef SDRAM_PHY_READ_LEVELING_CAPABLE
@@ -785,6 +782,10 @@ int sdram_init(void)
 	int i;
 	sdram_write_leveling_rst_cmd_delay(0);
 	for (i=0; i<16; i++) sdram_write_leveling_rst_dat_delay(i, 0);
+#endif
+#ifdef SDRAM_PHY_CMD_DELAY
+	_sdram_write_leveling_cmd_scan  = 0;
+	_sdram_write_leveling_cmd_delay = SDRAM_PHY_CMD_DELAY;
 #endif
 	printf("Initializing SDRAM @0x%08x...\n", MAIN_RAM_BASE);
 	sdram_software_control_on();
