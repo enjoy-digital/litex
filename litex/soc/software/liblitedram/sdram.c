@@ -40,6 +40,8 @@ __attribute__((unused)) static void cdelay(int i)
 /* Constants                                                             */
 /*-----------------------------------------------------------------------*/
 
+#define SDRAM_TEST_SIZE (2*1024*1024)
+
 #define DFII_PIX_DATA_BYTES DFII_PIX_DATA_SIZE*CONFIG_CSR_DATA_WIDTH/8
 
 int sdram_get_databits(void) {
@@ -928,13 +930,14 @@ int sdram_init(void)
 	sdram_leveling();
 #endif
 	sdram_software_control_off();
-	if(!memtest((unsigned int *) MAIN_RAM_BASE, MAIN_RAM_SIZE)) {
+	if(!memtest((unsigned int *) MAIN_RAM_BASE, SDRAM_TEST_SIZE)) {
 #ifdef CSR_DDRCTRL_BASE
 		ddrctrl_init_done_write(1);
 		ddrctrl_init_error_write(1);
 #endif
 		return 0;
 	}
+	memspeed((unsigned int *) MAIN_RAM_BASE, SDRAM_TEST_SIZE, false);
 #ifdef CSR_DDRCTRL_BASE
 	ddrctrl_init_done_write(1);
 #endif
