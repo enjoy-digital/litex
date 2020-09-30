@@ -316,7 +316,7 @@ class SimSoC(SoCCore):
         if with_sdcard:
             self.add_sdcard("sdcard", use_emulator=True)
 
-        # Simulatio debugging ----------------------------------------------------------------------
+        # Simulation debugging ----------------------------------------------------------------------
         if sim_debug:
             platform.add_debug(self, reset=1 if trace_reset_on else 0)
         else:
@@ -324,8 +324,7 @@ class SimSoC(SoCCore):
 
 # Build --------------------------------------------------------------------------------------------
 
-def main():
-    parser = argparse.ArgumentParser(description="Generic LiteX SoC Simulation")
+def add_sim_args(parser):
     builder_args(parser)
     soc_sdram_args(parser)
     parser.add_argument("--threads",              default=1,               help="Set number of threads (default=1)")
@@ -349,7 +348,14 @@ def main():
     parser.add_argument("--trace-start",          default="0",             help="Time to start tracing (ps)")
     parser.add_argument("--trace-end",            default="-1",            help="Time to end tracing (ps)")
     parser.add_argument("--opt-level",            default="O3",            help="Compilation optimization level")
-    parser.add_argument("--sim-debug",            action="store_true",     help="Add simulation debugging modules")
+
+# Build --------------------------------------------------------------------------------------------
+
+def main():
+    parser = argparse.ArgumentParser(description="Generic LiteX SoC Simulation")
+    add_sim_args(parser)
+    parser.add_argument("--sim-debug", action="store_true",     help="Add simulation debugging modules")
+
     args = parser.parse_args()
 
     soc_kwargs     = soc_sdram_argdict(args)
