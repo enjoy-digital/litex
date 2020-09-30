@@ -54,6 +54,22 @@ int sdram_get_freq(void) {
 	return SDRAM_PHY_XDR*SDRAM_PHY_PHASES*CONFIG_CLOCK_FREQUENCY;
 }
 
+int sdram_get_cl(void) {
+#ifdef SDRAM_PHY_CL
+	return SDRAM_PHY_CL;
+#else
+	return -1;
+#endif
+}
+
+int sdram_get_cwl(void) {
+#ifdef SDRAM_PHY_CWL
+	return SDRAM_PHY_CWL;
+#else
+	return -1;
+#endif
+}
+
 /*-----------------------------------------------------------------------*/
 /* DFII                                                                  */
 /*-----------------------------------------------------------------------*/
