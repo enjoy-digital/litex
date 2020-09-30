@@ -22,9 +22,6 @@
 #define MEMTEST_BUS_SIZE (512)
 #endif
 
-#ifndef MEMTEST_DATA_SIZE
-#define MEMTEST_DATA_SIZE (2*1024*1024)
-#endif
 #define MEMTEST_DATA_RANDOM 1
 
 #ifndef MEMTEST_ADDR_SIZE
@@ -230,7 +227,7 @@ int memtest(unsigned int *addr, unsigned long maxsize)
 	int bus_errors, data_errors, addr_errors;
 	unsigned long bus_size  = MEMTEST_BUS_SIZE < maxsize ? MEMTEST_BUS_SIZE : maxsize;
 	unsigned long addr_size = MEMTEST_ADDR_SIZE < maxsize ? MEMTEST_ADDR_SIZE : maxsize;
-	unsigned long data_size = MEMTEST_DATA_SIZE < maxsize ? MEMTEST_DATA_SIZE : maxsize;
+	unsigned long data_size = maxsize;
 
 	printf("Memtest at 0x%p...\n", addr);
 
@@ -245,9 +242,6 @@ int memtest(unsigned int *addr, unsigned long maxsize)
 		printf("Memtest KO\n");
 		return 0;
 	}
-	else {
-		printf("Memtest OK\n");
-		memspeed(addr, data_size, false);
-		return 1;
-	}
+	printf("Memtest OK\n");
+	return 1;
 }
