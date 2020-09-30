@@ -1,6 +1,10 @@
-# This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2015 Yann Sionneau <ys@m-labs.hk>
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
+# Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2015 Yann Sionneau <ys@m-labs.hk>
+# SPDX-License-Identifier: BSD-2-Clause
 
 from litex.build.generic_platform import *
 from litex.build.xilinx import XilinxPlatform
@@ -72,20 +76,22 @@ _io = [
         IOStandard("LVCMOS25")
     ),
 
-    ("mmc", 0,
-        Subsignal("wp",  Pins("Y21")),
-        Subsignal("det", Pins("AA21")),
-        Subsignal("cmd", Pins("AB22")),
+    ("sdcard", 0,
         Subsignal("clk", Pins("AB23")),
-        Subsignal("dat", Pins("AC20 AA23 AA22 AC21")),
-        IOStandard("LVCMOS25")),
+        Subsignal("cmd", Pins("AB22"), Misc("PULLUP True")),
+        Subsignal("data", Pins("AC20 AA23 AA22 AC21"), Misc("PULLUP True")),
+        Misc("SLEW=FAST"),
+        IOStandard("LVCMOS25")
+    ),
 
-    ("mmc_spi", 0,
-        Subsignal("miso", Pins("AC20"), Misc("PULLUP")),
+    ("spisdcard", 0,
         Subsignal("clk",  Pins("AB23")),
-        Subsignal("mosi", Pins("AB22")),
         Subsignal("cs_n", Pins("AC21")),
-        IOStandard("LVCMOS25")),
+        Subsignal("mosi", Pins("AB22"), Misc("PULLUP")),
+        Subsignal("miso", Pins("AC20"), Misc("PULLUP")),
+        Misc("SLEW=FAST"),
+        IOStandard("LVCMOS25")
+    ),
 
     ("lcd", 0,
         Subsignal("db", Pins("AA13 AA10 AA11 Y10")),
@@ -446,6 +452,10 @@ _connectors = [
     ("LPC", {
         "GBTCLK0_M2C_P" : "N8",
         "GBTCLK0_M2C_N" : "N7",
+        "DP0_C2M_P"     : "F2",
+        "DP0_C2M_N"     : "F1",
+        "DP0_M2C_P"     : "F6",
+        "DP0_M2C_N"     : "F5",
         "LA01_CC_P"     : "AE23",
         "LA01_CC_N"     : "AF23",
         "LA05_P"        : "AG22",

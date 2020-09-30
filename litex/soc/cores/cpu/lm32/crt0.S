@@ -112,10 +112,9 @@ _crt0:
 	mvhi    sp, hi(_fstack)
 	ori     sp, sp, lo(_fstack)
 
-#ifdef EXECUTE_IN_PLACE
 	/* Load DATA */
-	mvhi    r1, hi(_erodata)
-	ori     r1, r1, lo(_erodata)
+	mvhi    r1, hi(_fdata_rom)
+	ori     r1, r1, lo(_fdata_rom)
 	mvhi    r2, hi(_fdata)
 	ori     r2, r2, lo(_fdata)
 	mvhi    r3, hi(_edata)
@@ -128,7 +127,6 @@ _crt0:
 	addi    r1, r1, 4
 	addi    r2, r2, 4
 	bi     .moveDATA
-#endif
 
 .doBSS:
 	/* Clear BSS */

@@ -1,5 +1,8 @@
-# This file is Copyright (c) 2019-2020 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2019-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import math
 
@@ -41,93 +44,98 @@ class SPIMaster(Module, AutoCSR):
 
         # # #
 
-        bits  = Signal(8)
-        xfer  = Signal()
-        shift = Signal()
+        clk_enable = Signal()
+        cs_enable  = Signal()
+        count      = Signal(max=data_width)
+        mosi_latch = Signal()
+        miso_latch = Signal()
 
         # Clock generation -------------------------------------------------------------------------
         clk_divider = Signal(16)
         clk_rise    = Signal()
         clk_fall    = Signal()
+        self.comb += clk_rise.eq(clk_divider == (self.clk_divider[1:] - 1))
+        self.comb += clk_fall.eq(clk_divider == (self.clk_divider     - 1))
         self.sync += [
-            If(clk_rise, pads.clk.eq(xfer)),
-            If(clk_fall, pads.clk.eq(0)),
-            If(clk_fall,
-                clk_divider.eq(0)
-            ).Else(
-                clk_divider.eq(clk_divider + 1)
+            clk_divider.eq(clk_divider + 1),
+            If(clk_rise,
+                pads.clk.eq(clk_enable),
+            ).Elif(clk_fall,
+                clk_divider.eq(0),
+                pads.clk.eq(0),
             )
         ]
-        self.comb += clk_rise.eq(clk_divider == (self.clk_divider[1:] - 1))
-        self.comb += clk_fall.eq(clk_divider == (self.clk_divider - 1))
 
         # Control FSM ------------------------------------------------------------------------------
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             self.done.eq(1),
             If(self.start,
-                NextValue(bits, 0),
-                NextState("WAIT-CLK-FALL")
+                self.done.eq(0),
+                mosi_latch.eq(1),
+                NextState("START")
             )
         )
-        fsm.act("WAIT-CLK-FALL",
+        fsm.act("START",
+            NextValue(count, 0),
             If(clk_fall,
-                NextState("XFER")
+                cs_enable.eq(1),
+                NextState("RUN")
             )
         )
-        fsm.act("XFER",
-            If(bits == self.length,
-                NextState("END")
-            ).Elif(clk_fall,
-                NextValue(bits, bits + 1)
-            ),
-            xfer.eq(1),
-            shift.eq(1)
+        fsm.act("RUN",
+            clk_enable.eq(1),
+            cs_enable.eq(1),
+            If(clk_fall,
+                NextValue(count, count + 1),
+                If(count == (self.length - 1),
+                    NextState("STOP")
+                )
+            )
         )
-        fsm.act("END",
+        fsm.act("STOP",
+            cs_enable.eq(1),
             If(clk_rise,
+                miso_latch.eq(1),
+                self.irq.eq(1),
                 NextState("IDLE")
-            ),
-            shift.eq(1),
-            self.irq.eq(1)
+            )
         )
 
         # Chip Select generation -------------------------------------------------------------------
         if hasattr(pads, "cs_n"):
             for i in range(len(pads.cs_n)):
-                self.comb += pads.cs_n[i].eq(~self.cs[i] | ~xfer)
+                self.sync += pads.cs_n[i].eq(~self.cs[i] | ~cs_enable)
 
         # Master Out Slave In (MOSI) generation (generated on spi_clk falling edge) ----------------
-        mosi_data = Array(self.mosi[i] for i in range(data_width))
-        mosi_bit  = Signal(max=data_width)
+        mosi_data  = Signal(data_width)
+        mosi_array = Array(mosi_data[i] for i in range(data_width))
+        mosi_sel   = Signal(max=data_width)
         self.sync += [
-            If(self.start,
-                mosi_bit.eq(self.length - 1 if mode == "aligned" else data_width - 1),
-            ).Elif(clk_rise & shift,
-                mosi_bit.eq(mosi_bit - 1)
+            If(mosi_latch,
+                mosi_data.eq(self.mosi),
+                mosi_sel.eq((self.length-1) if mode == "aligned" else (data_width-1)),
+            ).Elif(clk_fall,
+                If(cs_enable, pads.mosi.eq(mosi_array[mosi_sel])),
+                mosi_sel.eq(mosi_sel - 1)
             ),
-            If(clk_fall,
-                pads.mosi.eq(mosi_data[mosi_bit])
-            )
         ]
 
         # Master In Slave Out (MISO) capture (captured on spi_clk rising edge) --------------------
         miso      = Signal()
-        miso_data = self.miso
+        miso_data = Signal(data_width)
         self.sync += [
-            If(clk_rise & shift,
+            If(clk_rise,
                 If(self.loopback,
-                    miso.eq(pads.mosi)
+                    miso_data.eq(Cat(pads.mosi, miso_data))
                 ).Else(
-                    miso.eq(pads.miso)
+                    miso_data.eq(Cat(pads.miso, miso_data))
                 )
-            ),
-            If(clk_fall & shift,
-                miso_data.eq(Cat(miso, miso_data))
             )
         ]
+        self.sync += If(miso_latch, self.miso.eq(miso_data))
 
-    def add_csr(self):
+    def add_csr(self, with_cs=True, with_loopback=True):
         self._control  = CSRStorage(fields=[
             CSRField("start",  size=1, offset=0, pulse=True, description="Write ``1`` to start SPI Xfer"),
             CSRField("length", size=8, offset=8, description="SPI Xfer length (in bits).")
@@ -137,21 +145,21 @@ class SPIMaster(Module, AutoCSR):
         ], description="SPI Status.")
         self._mosi     = CSRStorage(self.data_width, reset_less=True, description="SPI MOSI data (MSB-first serialization).")
         self._miso     = CSRStatus(self.data_width,  description="SPI MISO data (MSB-first de-serialization).")
-        self._cs       = CSRStorage(fields=[
-            CSRField("sel", len(self.cs), reset=1, description="Write ``1`` to corresponding bit to enable Xfer for chip.")
-        ], description="SPI Chip Select.")
-        self._loopback = CSRStorage(description="SPI loopback mode.\n\n Write ``1`` to enable MOSI to MISO internal loopback.")
-
         self.comb += [
             self.start.eq(self._control.fields.start),
             self.length.eq(self._control.fields.length),
             self.mosi.eq(self._mosi.storage),
-            self.cs.eq(self._cs.storage),
-            self.loopback.eq(self._loopback.storage),
-
             self._status.fields.done.eq(self.done),
             self._miso.status.eq(self.miso),
         ]
+        if with_cs:
+            self._cs       = CSRStorage(fields=[
+                CSRField("sel", len(self.cs), reset=1, description="Write ``1`` to corresponding bit to enable Xfer for chip.")
+            ], description="SPI Chip Select.")
+            self.comb += self.cs.eq(self._cs.storage)
+        if with_loopback:
+            self._loopback = CSRStorage(description="SPI loopback mode.\n\n Write ``1`` to enable MOSI to MISO internal loopback.")
+            self.comb += self.loopback.eq(self._loopback.storage)
 
     def add_clk_divider(self):
         self._clk_divider = CSRStorage(16, description="SPI Clk Divider.", reset=self.clk_divider.reset)

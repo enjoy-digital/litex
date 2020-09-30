@@ -6,7 +6,7 @@ void isr(void);
 
 #ifdef __or1k__
 
-#include <hw/flags.h>
+#include <base/uart.h>
 
 #define EXTERNAL_IRQ 0x8
 

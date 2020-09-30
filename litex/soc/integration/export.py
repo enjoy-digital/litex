@@ -1,3 +1,6 @@
+#
+# This file is part of LiteX.
+#
 # This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
 # This file is Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2018 Dolu1990 <charles.papon.90@gmail.com>
@@ -11,7 +14,7 @@
 # This file is Copyright (c) 2015 whitequark <whitequark@whitequark.org>
 # This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
 # This file is Copyright (c) 2020 Piotr Esden-Tempski <piotr@esden.net>
-# License: BSD
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 import json
@@ -118,8 +121,10 @@ def get_mem_header(regions):
     r = generated_banner("//")
     r += "#ifndef __GENERATED_MEM_H\n#define __GENERATED_MEM_H\n\n"
     for name, region in regions.items():
+        r += "#ifndef {name}\n".format(name=name.upper())
         r += "#define {name}_BASE 0x{base:08x}L\n#define {name}_SIZE 0x{size:08x}\n\n".format(
             name=name.upper(), base=region.origin, size=region.length)
+        r += "#endif\n"
     r += "#endif\n"
     return r
 
@@ -149,7 +154,7 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_onl
 
     addr_str = "CSR_{}_ADDR".format(reg_name.upper())
     size_str = "CSR_{}_SIZE".format(reg_name.upper())
-    r += "#define {} {}L\n".format(addr_str, hex(reg_base))
+    r += "#define {} (CSR_BASE + {}L)\n".format(addr_str, hex(reg_base))
     r += "#define {} {}\n".format(size_str, nwords)
 
     size = nwords*busword//8
@@ -169,13 +174,13 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_onl
     if with_access_functions:
         r += "static inline {} {}_read(void) {{\n".format(ctype, reg_name)
         if nwords > 1:
-            r += "\t{} r = csr_read_simple({}L);\n".format(ctype, hex(reg_base))
+            r += "\t{} r = csr_read_simple(CSR_BASE + {}L);\n".format(ctype, hex(reg_base))
             for sub in range(1, nwords):
                 r += "\tr <<= {};\n".format(busword)
-                r += "\tr |= csr_read_simple({}L);\n".format(hex(reg_base+sub*stride))
+                r += "\tr |= csr_read_simple(CSR_BASE + {}L);\n".format(hex(reg_base+sub*stride))
             r += "\treturn r;\n}\n"
         else:
-            r += "\treturn csr_read_simple({}L);\n}}\n".format(hex(reg_base))
+            r += "\treturn csr_read_simple(CSR_BASE + {}L);\n}}\n".format(hex(reg_base))
 
         if not read_only:
             r += "static inline void {}_write({} v) {{\n".format(reg_name, ctype)
@@ -185,12 +190,12 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_onl
                     v_shift = "v >> {}".format(shift)
                 else:
                     v_shift = "v"
-                r += "\tcsr_write_simple({}, {}L);\n".format(v_shift, hex(reg_base+sub*stride))
+                r += "\tcsr_write_simple({}, CSR_BASE + {}L);\n".format(v_shift, hex(reg_base+sub*stride))
             r += "}\n"
     return r
 
 
-def get_csr_header(regions, constants, with_access_functions=True):
+def get_csr_header(regions, constants, csr_base=None, with_access_functions=True):
     alignment = constants.get("CONFIG_CSR_ALIGNMENT", 32)
     r = generated_banner("//")
     if with_access_functions: # FIXME
@@ -198,16 +203,18 @@ def get_csr_header(regions, constants, with_access_functions=True):
     r += "#ifndef __GENERATED_CSR_H\n#define __GENERATED_CSR_H\n"
     if with_access_functions:
         r += "#include <stdint.h>\n"
-        r += "#ifdef CSR_ACCESSORS_DEFINED\n"
-        r += "extern void csr_write_simple(unsigned long v, unsigned long a);\n"
-        r += "extern unsigned long csr_read_simple(unsigned long a);\n"
-        r += "#else /* ! CSR_ACCESSORS_DEFINED */\n"
+        r += "#include <system.h>\n"
+        r += "#ifndef CSR_ACCESSORS_DEFINED\n"
         r += "#include <hw/common.h>\n"
         r += "#endif /* ! CSR_ACCESSORS_DEFINED */\n"
+    csr_base = csr_base if csr_base is not None else regions[next(iter(regions))].origin
+    r += "#ifndef CSR_BASE\n"
+    r += "#define CSR_BASE {}L\n".format(hex(csr_base))
+    r += "#endif\n"
     for name, region in regions.items():
-        origin = region.origin
+        origin = region.origin - csr_base
         r += "\n/* "+name+" */\n"
-        r += "#define CSR_"+name.upper()+"_BASE "+hex(origin)+"L\n"
+        r += "#define CSR_"+name.upper()+"_BASE (CSR_BASE + "+hex(origin)+"L)\n"
         if not isinstance(region.obj, Memory):
             for csr in region.obj:
                 nr = (csr.size + region.busword - 1)//region.busword

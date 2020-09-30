@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 
-# This file is Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 import argparse
@@ -24,7 +27,10 @@ class BaseSoC(SoCCore):
         sys_clk_freq = int(1e9/platform.default_clk_period)
 
         # SoCCore ----------------------------------------------------------------------------------
-        SoCCore.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
+        SoCCore.__init__(self, platform, sys_clk_freq,
+            ident          = "LiteX Simple SoC",
+            ident_version  = True,
+            **kwargs)
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = CRG(platform.request(platform.default_clk_name))
@@ -47,12 +53,12 @@ def main():
     soc_core_args(parser)
     parser.add_argument("--with-ethernet", action="store_true", help="Enable Ethernet support")
     parser.add_argument("platform",                             help="Module name of the platform to build for")
-    parser.add_argument("--gateware-toolchain", default=None,   help="FPGA gateware toolchain used for build")
+    parser.add_argument("--toolchain", default=None,   help="FPGA gateware toolchain used for build")
     args = parser.parse_args()
 
     platform_module = importlib.import_module(args.platform)
-    if args.gateware_toolchain is not None:
-        platform = platform_module.Platform(toolchain=args.gateware_toolchain)
+    if args.toolchain is not None:
+        platform = platform_module.Platform(toolchain=args.toolchain)
     else:
         platform = platform_module.Platform()
     soc = BaseSoC(platform, with_ethernet=args.with_ethernet, **soc_core_argdict(args))

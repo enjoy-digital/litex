@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 
-# This file is Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 import argparse
@@ -14,17 +17,12 @@ from litex.soc.cores.clock import *
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
+from litex.soc.cores.led import LedChaser
 
 from litedram.modules import MT47H64M16
 from litedram.phy import s7ddrphy
 
 from liteeth.phy.rmii import LiteEthPHYRMII
-
-from litesdcard.phy import SDPHY
-from litesdcard.clocker import SDClockerS7
-from litesdcard.core import SDCore
-from litesdcard.bist import BISTBlockGenerator, BISTBlockChecker
-from litex.soc.cores.timer import Timer
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -56,7 +54,10 @@ class BaseSoC(SoCCore):
         platform = nexys4ddr.Platform()
 
         # SoCCore ----------------------------------_-----------------------------------------------
-        SoCCore.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
+        SoCCore.__init__(self, platform, sys_clk_freq,
+            ident          = "LiteX SoC on Nexys4DDR",
+            ident_version  = True,
+            **kwargs)
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = _CRG(platform, sys_clk_freq)
@@ -86,33 +87,11 @@ class BaseSoC(SoCCore):
             self.add_csr("ethphy")
             self.add_ethernet(phy=self.ethphy)
 
-    def add_sdcard(self):
-        sdcard_pads = self.platform.request("sdcard")
-        if hasattr(sdcard_pads, "rst"):
-            self.comb += sdcard_pads.rst.eq(0)
-        self.submodules.sdclk = SDClockerS7(sys_clk_freq=self.sys_clk_freq)
-        self.submodules.sdphy = SDPHY(sdcard_pads, self.platform.device)
-        self.submodules.sdcore = SDCore(self.sdphy)
-        self.submodules.sdtimer = Timer()
-        self.add_csr("sdclk")
-        self.add_csr("sdphy")
-        self.add_csr("sdcore")
-        self.add_csr("sdtimer")
-
-        self.submodules.bist_generator = BISTBlockGenerator(random=True)
-        self.submodules.bist_checker = BISTBlockChecker(random=True)
-        self.add_csr("bist_generator")
-        self.add_csr("bist_checker")
-        self.comb += [
-            self.sdcore.source.connect(self.bist_checker.sink),
-            self.bist_generator.source.connect(self.sdcore.sink)
-        ]
-        self.platform.add_period_constraint(self.sdclk.cd_sd.clk, period_ns(self.sys_clk_freq))
-        self.platform.add_period_constraint(self.sdclk.cd_sd_fb.clk, period_ns(self.sys_clk_freq))
-        self.platform.add_false_path_constraints(
-            self.crg.cd_sys.clk,
-            self.sdclk.cd_sd.clk,
-            self.sdclk.cd_sd_fb.clk)
+        # Leds -------------------------------------------------------------------------------------
+        self.submodules.leds = LedChaser(
+            pads         = platform.request_all("user_led"),
+            sys_clk_freq = sys_clk_freq)
+        self.add_csr("leds")
 
 # Build --------------------------------------------------------------------------------------------
 
@@ -124,25 +103,24 @@ def main():
     soc_sdram_args(parser)
     parser.add_argument("--sys-clk-freq",  default=75e6,          help="System clock frequency (default=75MHz)")
     parser.add_argument("--with-ethernet", action="store_true",   help="Enable Ethernet support")
-    parser.add_argument("--with-spi-sdcard", action="store_true", help="enable SPI-mode SDCard support")
-    parser.add_argument("--with-sdcard", action="store_true",     help="enable SDCard support")
+    parser.add_argument("--with-spi-sdcard", action="store_true", help="Enable SPI-mode SDCard support")
+    parser.add_argument("--with-sdcard", action="store_true",     help="Enable SDCard support")
     args = parser.parse_args()
 
     soc = BaseSoC(sys_clk_freq=int(float(args.sys_clk_freq)),
         with_ethernet=args.with_ethernet,
         **soc_sdram_argdict(args))
+    assert not (args.with_spi_sdcard and args.with_sdcard)
     if args.with_spi_sdcard:
         soc.add_spi_sdcard()
     if args.with_sdcard:
-        if args.with_spi_sdcard:
-            raise ValueError("'--with-spi-sdcard' and '--with-sdcard' are mutually exclusive!")
         soc.add_sdcard()
     builder = Builder(soc, **builder_argdict(args))
     builder.build(run=args.build)
 
     if args.load:
         prog = soc.platform.create_programmer()
-        prog.load_bitstream(os.path.join(builder.gateware_dir, "top.bit"))
+        prog.load_bitstream(os.path.join(builder.gateware_dir, soc.build_name + ".bit"))
 
 if __name__ == "__main__":
     main()

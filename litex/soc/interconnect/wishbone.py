@@ -1,7 +1,12 @@
-# This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2018 Tim 'mithro' Ansell <me@mith.ro>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
+# Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2018 Tim 'mithro' Ansell <me@mith.ro>
+# SPDX-License-Identifier: BSD-2-Clause
+
+from math import log2
 
 from functools import reduce
 from operator import or_
@@ -10,13 +15,12 @@ from migen import *
 from migen.genlib import roundrobin
 from migen.genlib.record import *
 from migen.genlib.misc import split, displacer, chooser, WaitTimer
-from migen.genlib.fsm import FSM, NextState
 
-from litex.soc.interconnect import csr
 from litex.build.generic_platform import *
 
-# TODO: rewrite without FlipFlop
+from litex.soc.interconnect import csr, csr_bus
 
+# Wishbone Definition ------------------------------------------------------------------------------
 
 _layout = [
     ("adr",    "adr_width", DIR_M_TO_S),
@@ -99,6 +103,26 @@ class Interface(Record):
                     r.append(sig.eq(pad))
         return r
 
+# Wishbone Timeout ---------------------------------------------------------------------------------
+
+class Timeout(Module):
+    def __init__(self, master, cycles):
+        self.error = Signal()
+
+        # # #
+
+        timer = WaitTimer(int(cycles))
+        self.submodules += timer
+        self.comb += [
+            timer.wait.eq(master.stb & master.cyc & ~master.ack),
+            If(timer.done,
+                master.dat_r.eq((2**len(master.dat_w))-1),
+                master.ack.eq(1),
+                self.error.eq(1)
+            )
+        ]
+
+# Wishbone Interconnect ----------------------------------------------------------------------------
 
 class InterconnectPointToPoint(Module):
     def __init__(self, master, slave):
@@ -172,24 +196,6 @@ class Decoder(Module):
         self.comb += master.dat_r.eq(reduce(or_, masked))
 
 
-class Timeout(Module):
-    def __init__(self, master, cycles):
-        self.error = Signal()
-
-        # # #
-
-        timer = WaitTimer(int(cycles))
-        self.submodules += timer
-        self.comb += [
-            timer.wait.eq(master.stb & master.cyc & ~master.ack),
-            If(timer.done,
-                master.dat_r.eq((2**len(master.dat_w))-1),
-                master.ack.eq(1),
-                self.error.eq(1)
-            )
-        ]
-
-
 class InterconnectShared(Module):
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
         shared = Interface()
@@ -211,12 +217,12 @@ class Crossbar(Module):
         for column, bus in zip(zip(*access), busses):
             self.submodules += Arbiter(column, bus)
 
+# Wishbone Data Width Converter --------------------------------------------------------------------
 
 class DownConverter(Module):
     """DownConverter
 
-    This module splits Wishbone accesses from a master interface to a smaller
-    slave interface.
+    This module splits Wishbone accesses from a master interface to a smaller slave interface.
 
     Writes:
         Writes from master are splitted N writes to the slave. Access is acked when the last
@@ -228,271 +234,71 @@ class DownConverter(Module):
 
     """
     def __init__(self, master, slave):
-        dw_from = len(master.dat_r)
-        dw_to = len(slave.dat_w)
-        ratio = dw_from//dw_to
+        dw_from = len(master.dat_w)
+        dw_to   = len(slave.dat_w)
+        ratio   = dw_from//dw_to
 
         # # #
 
-        read = Signal()
-        write = Signal()
-
+        skip    = Signal()
         counter = Signal(max=ratio)
-        counter_reset = Signal()
-        counter_ce = Signal()
-        self.sync += \
-            If(counter_reset,
-                counter.eq(0)
-            ).Elif(counter_ce,
-                counter.eq(counter + 1)
-            )
-        counter_done = Signal()
-        self.comb += counter_done.eq(counter == ratio-1)
 
-        # Main FSM
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        # Control Path
+        fsm = FSM(reset_state="IDLE")
+        fsm = ResetInserter()(fsm)
+        self.submodules.fsm = fsm
+        self.comb += fsm.reset.eq(~master.cyc)
         fsm.act("IDLE",
-            counter_reset.eq(1),
+            NextValue(counter, 0),
             If(master.stb & master.cyc,
-                If(master.we,
-                    NextState("WRITE")
-                ).Else(
-                    NextState("READ")
-                )
+                NextState("CONVERT"),
             )
         )
-        fsm.act("WRITE",
-            write.eq(1),
-            slave.we.eq(1),
-            slave.cyc.eq(1),
+        fsm.act("CONVERT",
+            slave.adr.eq(Cat(counter, master.adr)),
+            Case(counter, {i: slave.sel.eq(master.sel[i*dw_to//8:]) for i in range(ratio)}),
             If(master.stb & master.cyc,
-                slave.stb.eq(1),
-                If(slave.ack,
-                    counter_ce.eq(1),
-                    If(counter_done,
+                skip.eq(slave.sel == 0),
+                slave.we.eq(master.we),
+                slave.cyc.eq(~skip),
+                slave.stb.eq(~skip),
+                If(slave.ack | skip,
+                    NextValue(counter, counter + 1),
+                    If(counter == (ratio - 1),
                         master.ack.eq(1),
                         NextState("IDLE")
                     )
                 )
-            ).Elif(~master.cyc,
-                NextState("IDLE")
-            )
-        )
-        fsm.act("READ",
-            read.eq(1),
-            slave.cyc.eq(1),
-            If(master.stb & master.cyc,
-                slave.stb.eq(1),
-                If(slave.ack,
-                    counter_ce.eq(1),
-                    If(counter_done,
-                        master.ack.eq(1),
-                        NextState("IDLE")
-                    )
-                )
-            ).Elif(~master.cyc,
-                NextState("IDLE")
             )
         )
 
-        # Address
-        self.comb += [
-            If(counter_done,
-                slave.cti.eq(7) # indicate end of burst
-            ).Else(
-                slave.cti.eq(2)
-            ),
-            slave.adr.eq(Cat(counter, master.adr))
-        ]
+        # Write Datapath
+        self.comb += Case(counter, {i: slave.dat_w.eq(master.dat_w[i*dw_to:]) for i in range(ratio)})
 
-        # Datapath
+        # Read Datapath
+        dat_r = Signal(dw_from, reset_less=True)
+        self.comb += master.dat_r.eq(Cat(dat_r[dw_to:], slave.dat_r))
+        self.sync += If(slave.ack | skip, dat_r.eq(master.dat_r))
+
+class UpConverter(Module):
+    """UpConverter"""
+    def __init__(self, master, slave):
+        dw_from = len(master.dat_w)
+        dw_to   = len(slave.dat_w)
+        ratio   = dw_to//dw_from
+
+        # # #
+
+        self.comb += master.connect(slave, omit={"adr", "sel", "dat_w", "dat_r"})
         cases = {}
         for i in range(ratio):
             cases[i] = [
-                slave.sel.eq(master.sel[i*dw_to//8:(i+1)*dw_to]),
-                slave.dat_w.eq(master.dat_w[i*dw_to:(i+1)*dw_to])
-            ]
-        self.comb += Case(counter, cases)
-
-
-        cached_data = Signal(dw_from, reset_less=True)
-        self.comb += master.dat_r.eq(Cat(cached_data[dw_to:], slave.dat_r))
-        self.sync += \
-            If(read & counter_ce,
-                cached_data.eq(master.dat_r)
-            )
-
-
-@ResetInserter()
-@CEInserter()
-class FlipFlop(Module):
-    def __init__(self, *args, **kwargs):
-        self.d = Signal(*args, **kwargs)
-        self.q = Signal(*args, **kwargs)
-        self.sync += self.q.eq(self.d)
-
-
-class UpConverter(Module):
-    """UpConverter
-
-    This module up-converts wishbone accesses and bursts from a master interface
-    to a wider slave interface. This allows efficient use wishbone bursts.
-
-    Writes:
-        Wishbone writes are cached before being written to the slave. Access to
-        the slave is done at the end of a burst or when address reach end of burst
-        addressing.
-
-    Reads:
-        Cache is refilled only at the beginning of each burst, the subsequent
-        reads of a burst use the cached data.
-
-    """
-    def __init__(self, master, slave):
-        dw_from = len(master.dat_r)
-        dw_to = len(slave.dat_w)
-        ratio = dw_to//dw_from
-        ratiobits = log2_int(ratio)
-
-        # # #
-
-        write = Signal()
-        evict = Signal()
-        refill = Signal()
-        read = Signal()
-
-        address = FlipFlop(30)
-        self.submodules += address
-        self.comb += address.d.eq(master.adr)
-
-        counter = Signal(max=ratio)
-        counter_ce = Signal()
-        counter_reset = Signal()
-        self.sync += \
-            If(counter_reset,
-                counter.eq(0)
-            ).Elif(counter_ce,
-                counter.eq(counter + 1)
-            )
-        counter_offset = Signal(max=ratio)
-        counter_done = Signal()
-        self.comb += [
-            counter_offset.eq(address.q),
-            counter_done.eq((counter + counter_offset) == ratio-1)
+                slave.adr.eq(master.adr[int(log2(ratio)):]),
+                slave.sel[i*dw_from//8:(i+1)*dw_from//8].eq(2**(dw_from//8) - 1),
+                slave.dat_w[i*dw_from:(i+1)*dw_from].eq(master.dat_w),
+                master.dat_r.eq(slave.dat_r[i*dw_from:(i+1)*dw_from]),
         ]
-
-        cached_data = Signal(dw_to)
-        cached_sel = Signal(dw_to//8)
-
-        end_of_burst = Signal()
-        self.comb += end_of_burst.eq(~master.cyc |
-                                     (master.stb & master.cyc & master.ack & ((master.cti == 7) | counter_done)))
-
-
-        need_refill = FlipFlop(reset=1)
-        self.submodules += need_refill
-        self.comb += [
-            need_refill.reset.eq(end_of_burst),
-            need_refill.d.eq(0)
-        ]
-
-        # Main FSM
-        self.submodules.fsm = fsm = FSM()
-        fsm.act("IDLE",
-            counter_reset.eq(1),
-            If(master.stb & master.cyc,
-                address.ce.eq(1),
-                If(master.we,
-                    NextState("WRITE")
-                ).Else(
-                    If(need_refill.q,
-                        NextState("REFILL")
-                    ).Else(
-                        NextState("READ")
-                    )
-                )
-            )
-        )
-        fsm.act("WRITE",
-            If(master.stb & master.cyc,
-                write.eq(1),
-                counter_ce.eq(1),
-                master.ack.eq(1),
-                If(counter_done,
-                    NextState("EVICT")
-                )
-            ).Elif(~master.cyc,
-                NextState("EVICT")
-            )
-        )
-        fsm.act("EVICT",
-            evict.eq(1),
-            slave.stb.eq(1),
-            slave.we.eq(1),
-            slave.cyc.eq(1),
-            slave.dat_w.eq(cached_data),
-            slave.sel.eq(cached_sel),
-            If(slave.ack,
-                NextState("IDLE")
-            )
-        )
-        fsm.act("REFILL",
-            refill.eq(1),
-            slave.stb.eq(1),
-            slave.cyc.eq(1),
-            If(slave.ack,
-                need_refill.ce.eq(1),
-                NextState("READ")
-            )
-        )
-        fsm.act("READ",
-            read.eq(1),
-            If(master.stb & master.cyc,
-                master.ack.eq(1)
-            ),
-            NextState("IDLE")
-        )
-
-        # Address
-        self.comb += [
-            slave.cti.eq(7), # we are not able to generate bursts since up-converting
-            slave.adr.eq(address.q[ratiobits:])
-        ]
-
-        # Datapath
-        cached_datas = [FlipFlop(dw_from) for i in range(ratio)]
-        cached_sels = [FlipFlop(dw_from//8) for i in range(ratio)]
-        self.submodules += cached_datas, cached_sels
-
-        cases = {}
-        for i in range(ratio):
-            write_sel = Signal()
-            cases[i] = write_sel.eq(1)
-            self.comb += [
-                cached_sels[i].reset.eq(counter_reset),
-                If(write,
-                    cached_datas[i].d.eq(master.dat_w),
-                ).Else(
-                    cached_datas[i].d.eq(slave.dat_r[dw_from*i:dw_from*(i+1)])
-                ),
-                cached_sels[i].d.eq(master.sel),
-                If((write & write_sel) | refill,
-                    cached_datas[i].ce.eq(1),
-                    cached_sels[i].ce.eq(1)
-                )
-            ]
-        self.comb += Case(counter + counter_offset, cases)
-
-        cases = {}
-        for i in range(ratio):
-            cases[i] = master.dat_r.eq(cached_datas[i].q)
-        self.comb += Case(address.q[:ratiobits], cases)
-
-        self.comb += [
-            cached_data.eq(Cat([cached_data.q for cached_data in cached_datas])),
-            cached_sel.eq(Cat([cached_sel.q for cached_sel in cached_sels]))
-        ]
-
+        self.comb += Case(master.adr[:int(log2(ratio))], cases)
 
 class Converter(Module):
     """Converter
@@ -518,6 +324,102 @@ class Converter(Module):
         else:
             self.comb += master.connect(slave)
 
+# Wishbone SRAM ------------------------------------------------------------------------------------
+
+class SRAM(Module):
+    def __init__(self, mem_or_size, read_only=None, init=None, bus=None):
+        if bus is None:
+            bus = Interface()
+        self.bus = bus
+        bus_data_width = len(self.bus.dat_r)
+        if isinstance(mem_or_size, Memory):
+            assert(mem_or_size.width <= bus_data_width)
+            self.mem = mem_or_size
+        else:
+            self.mem = Memory(bus_data_width, mem_or_size//(bus_data_width//8), init=init)
+        if read_only is None:
+            if hasattr(self.mem, "bus_read_only"):
+                read_only = self.mem.bus_read_only
+            else:
+                read_only = False
+
+        ###
+
+        # memory
+        port = self.mem.get_port(write_capable=not read_only, we_granularity=8,
+            mode=READ_FIRST if read_only else WRITE_FIRST)
+        self.specials += self.mem, port
+        # generate write enable signal
+        if not read_only:
+            self.comb += [port.we[i].eq(self.bus.cyc & self.bus.stb & self.bus.we & self.bus.sel[i])
+                for i in range(bus_data_width//8)]
+        # address and data
+        self.comb += [
+            port.adr.eq(self.bus.adr[:len(port.adr)]),
+            self.bus.dat_r.eq(port.dat_r)
+        ]
+        if not read_only:
+            self.comb += port.dat_w.eq(self.bus.dat_w),
+        # generate ack
+        self.sync += [
+            self.bus.ack.eq(0),
+            If(self.bus.cyc & self.bus.stb & ~self.bus.ack, self.bus.ack.eq(1))
+        ]
+
+# Wishbone To CSR ----------------------------------------------------------------------------------
+
+class Wishbone2CSR(Module):
+    def __init__(self, bus_wishbone=None, bus_csr=None, register=True):
+        self.csr = bus_csr
+        if self.csr is None:
+            # If no CSR bus provided, create it with default parameters.
+            self.csr = csr_bus.Interface()
+        self.wishbone = bus_wishbone
+        if self.wishbone is None:
+            # If no Wishbone bus provided, create it with default parameters.
+            self.wishbone = Interface()
+
+        # # #
+
+        if register:
+            fsm = FSM(reset_state="IDLE")
+            self.submodules += fsm
+            fsm.act("IDLE",
+                NextValue(self.csr.dat_w, self.wishbone.dat_w),
+                If(self.wishbone.cyc & self.wishbone.stb,
+                    NextValue(self.csr.adr, self.wishbone.adr),
+                    NextValue(self.csr.we, self.wishbone.we & (self.wishbone.sel != 0)),
+                    NextState("WRITE-READ")
+                )
+            )
+            fsm.act("WRITE-READ",
+                NextValue(self.csr.adr, 0),
+                NextValue(self.csr.we, 0),
+                NextState("ACK")
+            )
+            fsm.act("ACK",
+                self.wishbone.ack.eq(1),
+                self.wishbone.dat_r.eq(self.csr.dat_r),
+                NextState("IDLE")
+            )
+        else:
+            fsm = FSM(reset_state="WRITE-READ")
+            self.submodules += fsm
+            fsm.act("WRITE-READ",
+                self.csr.dat_w.eq(self.wishbone.dat_w),
+                If(self.wishbone.cyc & self.wishbone.stb,
+                    self.csr.adr.eq(self.wishbone.adr),
+                    self.csr.we.eq(self.wishbone.we & (self.wishbone.sel != 0)),
+                    NextState("ACK")
+                )
+            )
+            fsm.act("ACK",
+                self.wishbone.ack.eq(1),
+                self.wishbone.dat_r.eq(self.csr.dat_r),
+                NextState("WRITE-READ")
+            )
+
+# Wishbone Cache -----------------------------------------------------------------------------------
 
 class Cache(Module):
     """Cache
@@ -672,68 +574,3 @@ class Cache(Module):
                 )
             )
         )
-
-
-class SRAM(Module):
-    def __init__(self, mem_or_size, read_only=None, init=None, bus=None):
-        if bus is None:
-            bus = Interface()
-        self.bus = bus
-        bus_data_width = len(self.bus.dat_r)
-        if isinstance(mem_or_size, Memory):
-            assert(mem_or_size.width <= bus_data_width)
-            self.mem = mem_or_size
-        else:
-            self.mem = Memory(bus_data_width, mem_or_size//(bus_data_width//8), init=init)
-        if read_only is None:
-            if hasattr(self.mem, "bus_read_only"):
-                read_only = self.mem.bus_read_only
-            else:
-                read_only = False
-
-        ###
-
-        # memory
-        port = self.mem.get_port(write_capable=not read_only, we_granularity=8,
-            mode=READ_FIRST if read_only else WRITE_FIRST)
-        self.specials += self.mem, port
-        # generate write enable signal
-        if not read_only:
-            self.comb += [port.we[i].eq(self.bus.cyc & self.bus.stb & self.bus.we & self.bus.sel[i])
-                for i in range(bus_data_width//8)]
-        # address and data
-        self.comb += [
-            port.adr.eq(self.bus.adr[:len(port.adr)]),
-            self.bus.dat_r.eq(port.dat_r)
-        ]
-        if not read_only:
-            self.comb += port.dat_w.eq(self.bus.dat_w),
-        # generate ack
-        self.sync += [
-            self.bus.ack.eq(0),
-            If(self.bus.cyc & self.bus.stb & ~self.bus.ack, self.bus.ack.eq(1))
-        ]
-
-
-class CSRBank(csr.GenericBank):
-    def __init__(self, description, bus=None):
-        if bus is None:
-            bus = Interface()
-        self.bus = bus
-
-        ###
-
-        csr.GenericBank.__init__(self, description, len(self.bus.dat_w))
-
-        for i, c in enumerate(self.simple_csrs):
-            self.comb += [
-                c.r.eq(self.bus.dat_w[:c.size]),
-                c.re.eq(self.bus.cyc & self.bus.stb & ~self.bus.ack & self.bus.we & \
-                    (self.bus.adr[:self.decode_bits] == i))
-            ]
-
-        brcases = dict((i, self.bus.dat_r.eq(c.w)) for i, c in enumerate(self.simple_csrs))
-        self.sync += [
-            Case(self.bus.adr[:self.decode_bits], brcases),
-            If(bus.ack, bus.ack.eq(0)).Elif(bus.cyc & bus.stb, bus.ack.eq(1))
-        ]

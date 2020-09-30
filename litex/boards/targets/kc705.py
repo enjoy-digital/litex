@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
-# This file is Copyright (c) 2014-2015 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2014-2015 Yann Sionneau <ys@m-labs.hk>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2014-2015 Sebastien Bourdeauducq <sb@m-labs.hk>
+# Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2014-2015 Yann Sionneau <ys@m-labs.hk>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 import argparse
@@ -16,6 +19,7 @@ from litex.soc.cores.clock import *
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
+from litex.soc.cores.led import LedChaser
 
 from litedram.modules import MT8JTF12864
 from litedram.phy import s7ddrphy
@@ -48,7 +52,10 @@ class BaseSoC(SoCCore):
         platform = kc705.Platform()
 
         # SoCCore ----------------------------------------------------------------------------------
-        SoCCore.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
+        SoCCore.__init__(self, platform, sys_clk_freq,
+            ident          = "LiteX SoC on KC705",
+            ident_version  = True,
+            **kwargs)
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = _CRG(platform, sys_clk_freq)
@@ -80,6 +87,12 @@ class BaseSoC(SoCCore):
             self.add_csr("ethphy")
             self.add_ethernet(phy=self.ethphy)
 
+        # Leds -------------------------------------------------------------------------------------
+        self.submodules.leds = LedChaser(
+            pads         = platform.request_all("user_led"),
+            sys_clk_freq = sys_clk_freq)
+        self.add_csr("leds")
+
 # Build --------------------------------------------------------------------------------------------
 
 def main():
@@ -97,7 +110,7 @@ def main():
 
     if args.load:
         prog = soc.platform.create_programmer()
-        prog.load_bitstream(os.path.join(builder.gateware_dir, "top.bit"))
+        prog.load_bitstream(os.path.join(builder.gateware_dir, soc.build_name + ".bit"))
 
 if __name__ == "__main__":
     main()

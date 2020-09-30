@@ -1,8 +1,10 @@
+#
+# This file is part of Migen and has been adapted/modified for LiteX.
+#
 # This file is Copyright (c) 2015-2016 Sebastien Bourdeauducq <sb@m-labs.hk>
 # This file is Copyright (c) 2018 whitequark <whitequark@whitequark.org>
 # This file is Copyright (c) 2018 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
-
+# SPDX-License-Identifier: BSD-2-Clause
 
 from itertools import count
 import tempfile

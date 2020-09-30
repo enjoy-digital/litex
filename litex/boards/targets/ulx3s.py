@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 
-# This file is Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2018 David Shah <dave@ds0.me>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2018 David Shah <dave@ds0.me>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 import argparse
@@ -21,16 +24,23 @@ from litex.soc.cores.clock import *
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
+from litex.soc.cores.led import LedChaser
+from litex.soc.cores.spi import SPIMaster
+from litex.soc.cores.gpio import GPIOOut
 
 from litedram import modules as litedram_modules
-from litedram.phy import GENSDRPHY
+from litedram.phy import GENSDRPHY, HalfRateGENSDRPHY
 
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(Module):
-    def __init__(self, platform, sys_clk_freq, with_usb_pll=False):
+    def __init__(self, platform, sys_clk_freq, with_usb_pll=False, sdram_rate="1:1"):
         self.clock_domains.cd_sys    = ClockDomain()
-        self.clock_domains.cd_sys_ps = ClockDomain(reset_less=True)
+        if sdram_rate == "1:2":
+            self.clock_domains.cd_sys2x    = ClockDomain()
+            self.clock_domains.cd_sys2x_ps = ClockDomain(reset_less=True)
+        else:
+            self.clock_domains.cd_sys_ps = ClockDomain(reset_less=True)
 
         # # #
 
@@ -43,7 +53,11 @@ class _CRG(Module):
         self.comb += pll.reset.eq(rst)
         pll.register_clkin(clk25, 25e6)
         pll.create_clkout(self.cd_sys,    sys_clk_freq)
-        pll.create_clkout(self.cd_sys_ps, sys_clk_freq, phase=90)
+        if sdram_rate == "1:2":
+            pll.create_clkout(self.cd_sys2x,    2*sys_clk_freq)
+            pll.create_clkout(self.cd_sys2x_ps, 2*sys_clk_freq, phase=180) # Idealy 90° but needs to be increased.
+        else:
+           pll.create_clkout(self.cd_sys_ps, sys_clk_freq, phase=90)
         self.specials += AsyncResetSynchronizer(self.cd_sys, ~pll.locked | rst)
 
         # USB PLL
@@ -56,7 +70,8 @@ class _CRG(Module):
             usb_pll.create_clkout(self.cd_usb_48, 48e6, margin=0)
 
         # SDRAM clock
-        self.specials += DDROutput(1, 0, platform.request("sdram_clock"), ClockSignal("sys_ps"))
+        sdram_clk = ClockSignal("sys2x_ps" if sdram_rate == "1:2" else "sys_ps")
+        self.specials += DDROutput(1, 0, platform.request("sdram_clock"), sdram_clk)
 
         # Prevent ESP32 from resetting FPGA
         self.comb += platform.request("wifi_gpio0").eq(1)
@@ -65,23 +80,27 @@ class _CRG(Module):
 
 class BaseSoC(SoCCore):
     def __init__(self, device="LFE5U-45F", toolchain="trellis",
-        sys_clk_freq=int(50e6), sdram_module_cls="MT48LC16M16", **kwargs):
+        sys_clk_freq=int(50e6), sdram_module_cls="MT48LC16M16", sdram_rate="1:1", **kwargs):
 
         platform = ulx3s.Platform(device=device, toolchain=toolchain)
 
         # SoCCore ----------------------------------------------------------------------------------
-        SoCCore.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
+        SoCCore.__init__(self, platform, sys_clk_freq,
+            ident          = "LiteX SoC on ULX3S",
+            ident_version  = True,
+            **kwargs)
 
         # CRG --------------------------------------------------------------------------------------
         with_usb_pll = kwargs.get("uart_name", None) == "usb_acm"
-        self.submodules.crg = _CRG(platform, sys_clk_freq, with_usb_pll)
+        self.submodules.crg = _CRG(platform, sys_clk_freq, with_usb_pll, sdram_rate=sdram_rate)
 
         # SDR SDRAM --------------------------------------------------------------------------------
         if not self.integrated_main_ram_size:
-            self.submodules.sdrphy = GENSDRPHY(platform.request("sdram"))
+            sdrphy_cls = HalfRateGENSDRPHY if sdram_rate == "1:2" else GENSDRPHY
+            self.submodules.sdrphy = sdrphy_cls(platform.request("sdram"))
             self.add_sdram("sdram",
                 phy                     = self.sdrphy,
-                module                  = getattr(litedram_modules, sdram_module_cls)(sys_clk_freq, "1:1"),
+                module                  = getattr(litedram_modules, sdram_module_cls)(sys_clk_freq, sdram_rate),
                 origin                  = self.mem_map["main_ram"],
                 size                    = kwargs.get("max_sdram_size", 0x40000000),
                 l2_cache_size           = kwargs.get("l2_size", 8192),
@@ -89,32 +108,61 @@ class BaseSoC(SoCCore):
                 l2_cache_reverse        = True
             )
 
+        # Leds -------------------------------------------------------------------------------------
+        self.submodules.leds = LedChaser(
+            pads         = platform.request_all("user_led"),
+            sys_clk_freq = sys_clk_freq)
+        self.add_csr("leds")
+
+    def add_oled(self):
+        pads = self.platform.request("oled_spi")
+        pads.miso = Signal()
+        self.submodules.oled_spi = SPIMaster(pads, 8, self.sys_clk_freq, 8e6)
+        self.oled_spi.add_clk_divider()
+        self.add_csr("oled_spi")
+
+        self.submodules.oled_ctl = GPIOOut(self.platform.request("oled_ctl"))
+        self.add_csr("oled_ctl")
+
 # Build --------------------------------------------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(description="LiteX SoC on ULX3S")
     parser.add_argument("--build", action="store_true", help="Build bitstream")
     parser.add_argument("--load",  action="store_true", help="Load bitstream")
-    parser.add_argument("--gateware-toolchain", dest="toolchain", default="trellis",   help="Gateware toolchain to use, trellis (default) or diamond")
+    parser.add_argument("--toolchain", default="trellis",   help="Gateware toolchain to use, trellis (default) or diamond")
     parser.add_argument("--device",             dest="device",    default="LFE5U-45F", help="FPGA device, ULX3S can be populated with LFE5U-45F (default) or LFE5U-85F")
-    parser.add_argument("--sys-clk-freq", default=50e6,          help="System clock frequency (default=50MHz)")
-    parser.add_argument("--sdram-module", default="MT48LC16M16", help="SDRAM module: MT48LC16M16, AS4C32M16 or AS4C16M16 (default=MT48LC16M16)")
+    parser.add_argument("--sys-clk-freq", default=50e6,           help="System clock frequency (default=50MHz)")
+    parser.add_argument("--sdram-module", default="MT48LC16M16",  help="SDRAM module: MT48LC16M16, AS4C32M16 or AS4C16M16 (default=MT48LC16M16)")
+    parser.add_argument("--with-spi-sdcard", action="store_true", help="Enable SPI-mode SDCard support")
+    parser.add_argument("--with-sdcard", action="store_true",     help="Enable SDCard support")
+    parser.add_argument("--with-oled", action="store_true",     help="Enable SDD1331 OLED support")
+    parser.add_argument("--sdram-rate",  default="1:1", help="SDRAM Rate 1:1 Full Rate (default), 1:2 Half Rate")
     builder_args(parser)
     soc_sdram_args(parser)
     trellis_args(parser)
     args = parser.parse_args()
 
     soc = BaseSoC(device=args.device, toolchain=args.toolchain,
-        sys_clk_freq=int(float(args.sys_clk_freq)),
-        sdram_module_cls=args.sdram_module,
+        sys_clk_freq     = int(float(args.sys_clk_freq)),
+        sdram_module_cls = args.sdram_module,
+        sdram_rate       = args.sdram_rate,
         **soc_sdram_argdict(args))
+    assert not (args.with_spi_sdcard and args.with_sdcard)
+    if args.with_spi_sdcard:
+        soc.add_spi_sdcard()
+    if args.with_sdcard:
+        soc.add_sdcard()
+    if args.with_oled:
+        soc.add_oled()
+
     builder = Builder(soc, **builder_argdict(args))
     builder_kargs = trellis_argdict(args) if args.toolchain == "trellis" else {}
     builder.build(**builder_kargs, run=args.build)
 
     if args.load:
         prog = soc.platform.create_programmer()
-        prog.load_bitstream(os.path.join(builder.gateware_dir, "top.svf"))
+        prog.load_bitstream(os.path.join(builder.gateware_dir, soc.build_name + ".svf"))
 
 if __name__ == "__main__":
     main()

@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
-# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2019 Sean Cross <sean@xobs.io>
-# This file is Copyright (c) 2018 Felix Held <felix-github@felixheld.de>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2019 Sean Cross <sean@xobs.io>
+# Copyright (c) 2018 Felix Held <felix-github@felixheld.de>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import argparse
 
@@ -15,6 +18,51 @@ import threading
 from litex.tools.remote.etherbone import EtherbonePacket, EtherboneRecord, EtherboneWrites
 from litex.tools.remote.etherbone import EtherboneIPC
 
+def _read_merger(addrs, max_length=256, bursts=["incr", "fixed"]):
+    """Sequential reads merger
+
+    Take a list of read addresses as input and merge the sequential/fixed reads in (base, length, burst) tuples:
+    Example: [0x0, 0x4, 0x10, 0x14, 0x20, 0x20] input  will return [(0x0,2, "incr"), (0x10,2, "incr"), (0x20,2, "fixed")].
+
+    This is useful for UARTBone/Etherbone where command/response roundtrip delay is responsible for
+    most of the access delay and allows minimizing number of commands by grouping them in UARTBone
+    packets.
+    """
+    assert "incr" in bursts
+    burst_base   = addrs[0]
+    burst_length = 1
+    burst_type   = "incr"
+    for addr in addrs[1:]:
+        merged = False
+        # Try to merge to a "fixed" burst if supported
+        if ("fixed" in bursts):
+            # If current burst matches
+            if (burst_type in [None, "fixed"]) or (burst_length == 1):
+                # If addr matches
+                if (addr == burst_base):
+                    if (burst_length != max_length):
+                        burst_type   = "fixed"
+                        burst_length += 1
+                        merged       = True
+
+        # Try to merge to an "incr" burst if supported
+        if ("incr" in bursts):
+            # If current burst matches
+            if (burst_type in [None, "incr"]) or (burst_length == 1):
+                # If addr matches
+                if (addr == burst_base + (4 * burst_length)):
+                    if (burst_length != max_length):
+                        burst_type   = "incr"
+                        burst_length += 1
+                        merged       = True
+
+        # Generate current burst if addr has not able to merge
+        if not merged:
+            yield (burst_base, burst_length, burst_type)
+            burst_base   = addr
+            burst_length = 1
+            burst_type   = "incr"
+    yield (burst_base, burst_length, burst_type)
 
 class RemoteServer(EtherboneIPC):
     def __init__(self, comm, bind_ip, bind_port=1234):
@@ -26,13 +74,11 @@ class RemoteServer(EtherboneIPC):
     def open(self):
         if hasattr(self, "socket"):
             return
-        socket_flags = 0
-        if hasattr(socket, "SO_REUSEADDR"):
-            socket_flags = socket_flags | socket.SO_REUSEADDR
-        if hasattr(socket, "SO_REUSEPORT"):
-            socket_flags = socket_flags | socket.SO_REUSEPORT
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.setsockopt(socket.SOL_SOCKET, socket_flags, 1)
+        if hasattr(socket, "SO_REUSEADDR"):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        if hasattr(socket, "SO_REUSEPORT"):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         self.socket.bind((self.bind_ip, self.bind_port))
         print("tcp port: {:d}".format(self.bind_port))
         self.socket.listen(1)
@@ -75,9 +121,18 @@ class RemoteServer(EtherboneIPC):
 
                     # handle reads
                     if record.reads != None:
+                        max_length = {
+                            "CommUART": 256,
+                            "CommUDP":    4,
+                        }.get(self.comm.__class__.__name__, 1)
+                        bursts = {
+                            "CommUART": ["incr", "fixed"]
+                        }.get(self.comm.__class__.__name__, ["incr"])
                         reads = []
-                        for addr in record.reads.get_addrs():
-                            reads.append(self.comm.read(addr))
+                        for addr, length, burst in _read_merger(record.reads.get_addrs(),
+                            max_length  = max_length,
+                            bursts      = bursts):
+                            reads += self.comm.read(addr, length, burst)
 
                         record = EtherboneRecord()
                         record.writes = EtherboneWrites(datas=reads)
@@ -163,11 +218,19 @@ def main():
     elif args.pcie:
         from litex.tools.remote.comm_pcie import CommPCIe
         pcie_bar = args.pcie_bar
-        if args.pcie_bar is None:
+        if pcie_bar is None:
             print("Need to speficy --pcie-bar, exiting.")
             exit()
-        print("[CommPCIe] bar: {} / ".format(args.pcie_bar), end="")
-        comm = CommPCIe(args.pcie_bar)
+        if "/sys/bus/pci/devices" not in pcie_bar:
+            pcie_bar = f"/sys/bus/pci/devices/0000:{args.pcie_bar}/resource0"
+        # Enable PCIe device is not already enabled.
+        enable = open(pcie_bar.replace("resource0", "enable"), "r+")
+        if enable.read(1) == "0":
+            enable.seek(0)
+            enable.write("1")
+        enable.close()
+        print("[CommPCIe] bar: {} / ".format(pcie_bar), end="")
+        comm = CommPCIe(pcie_bar)
     elif args.usb:
         from litex.tools.remote.comm_usb import CommUSB
         if args.usb_pid is None and args.usb_vid is None:

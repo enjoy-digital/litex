@@ -1,60 +1,41 @@
 # BlackParrot in LiteX
 
 
-## Getting Started
+## Prerequisites and Installing
 
-TODO: modify getting started [Getting Started (Full)](GETTING_STARTED.md)
+Please visit https://github.com/scanakci/linux-on-litex-blackparrot for the detailed setup instructions and linux boot-up process.
 
-### Prerequisites
+## Set necessary environment variables for BlackParrot
 
-```
-BP sources (https://github.com/litex-hub/pythondata-cpu-blackparrot)
-RISC-V toolchain built for IA architecture (prebuilt binaries provided by LiteX works fine)
-Verilator (tested with Verilator 4.031)
-```
-
-### Installing
+Running BP in LiteX requires setting some environment variables. Please add the following lines to your bashrc to set them up.
 
 ```
-https://github.com/litex-hub/pythondata-cpu-blackparrot is required to run BP in LiteX. 
-source ./setEnvironment.sh #should be sourced each time you open a terminal or just add this line to bashrc
+pushd .
+cd  PATH/TO/LITEX/litex/soc/cores/cpu/blackparrot
+source ./setEnvironment.sh
+popd
 ```
 
 ## Running BIOS 
+
+[![asciicast](https://asciinema.org/a/326077.svg)](https://asciinema.org/a/326077)
 
 ### Simulation
 ```
 cd $LITEX/litex/tools
 ./litex_sim.py --cpu-type blackparrot --cpu-variant standard --output-dir build/BP_Trial
 ```
-[![asciicast](https://asciinema.org/a/326077.svg)](https://asciinema.org/a/326077)
-
-### FPGA
-```
-Coming soon!
-```
-
-## Running Linux 
-
-
-### Simulation
-```
-Modify litex_sim.py by replacing soc.add_constant("ROM_BOOT_ADDRESS", 0x40000000) with soc.add_constant("ROM_BOOT_ADDRESS", 0x80000000)
-
-./litex_sim.py --cpu-type blackparrot --cpu-variant standard --integrated-rom-size 40960 --output-dir build/BP_newversion_linux_ram/ --threads 4 --ram-init build/tests/boot.bin.uart.simu.trial
-
-TODO: add prebuilt bbl files into python-data repository
-
-```
 
 ### FPGA
 
+Generate the bitstream 'top.bit' under build/BP_trial/gateware folder
 ```
-Coming soon!
+$LITEX/litex/boards/genesys2.py --cpu-type blackparrot --cpu-variant standard --output-dir $PWD/build/BP_Trial --integrated-rom-size 51200 --build  
 ```
+In another terminal, launch LiteX terminal.
+```
+sudo $LITEX/litex/tools/litex_term.py /dev/ttyUSBX 
+```
+Load the FPGA bitstream top.bit to your FPGA (you can use vivado hardware manager)
 
-
-
-
-
-
+This step will execute LiteX BIOS.

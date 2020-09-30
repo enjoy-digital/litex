@@ -1,8 +1,10 @@
-# This file is Copyright (c) 2014-2015 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2015 Robert Jordens <jordens@gmail.com>
-
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2014-2015 Sebastien Bourdeauducq <sb@m-labs.hk>
+# Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2015 Robert Jordens <jordens@gmail.com>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 import sys

@@ -1,6 +1,9 @@
-# This file is Copyright (c) 2018 Jean-François Nguyen <jf@lambdaconcept.fr>
-# This file is Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2018 Jean-François Nguyen <jf@lambdaconcept.fr>
+# Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 import subprocess
@@ -17,6 +20,7 @@ CPU_VARIANTS = ["standard"]
 class Minerva(CPU):
     name                 = "minerva"
     human_name           = "Minerva"
+    variants             = CPU_VARIANTS
     data_width           = 32
     endianness           = "little"
     gcc_triple           = CPU_GCC_TRIPLE_RISCV32
@@ -32,7 +36,6 @@ class Minerva(CPU):
         return flags
 
     def __init__(self, platform, variant="standard"):
-        assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
@@ -100,8 +103,10 @@ class Minerva(CPU):
             cli_params.append("--with-dcache")
         if with_muldiv:
             cli_params.append("--with-muldiv")
+        cli_params.append("generate")
+        cli_params.append("--type=v")
         sdir = get_data_mod("cpu", "minerva").data_location
-        if subprocess.call(["python3", os.path.join(sdir, "cli.py"), *cli_params, "generate"],
+        if subprocess.call(["python3", os.path.join(sdir, "cli.py"), *cli_params],
             stdout=open(verilog_filename, "w")):
             raise OSError("Unable to elaborate Minerva CPU, please check your nMigen/Yosys install")
 

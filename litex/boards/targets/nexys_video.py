@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 
-# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 import argparse
@@ -14,6 +17,7 @@ from litex.soc.cores.clock import *
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
+from litex.soc.cores.led import LedChaser
 
 from litedram.modules import MT41K256M16
 from litedram.phy import s7ddrphy
@@ -50,7 +54,10 @@ class BaseSoC(SoCCore):
         platform = nexys_video.Platform()
 
         # SoCCore ----------------------------------------------------------------------------------
-        SoCCore.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
+        SoCCore.__init__(self, platform, sys_clk_freq,
+            ident          = "LiteX SoC on Nexys Video",
+            ident_version  = True,
+            **kwargs)
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = _CRG(platform, sys_clk_freq)
@@ -80,6 +87,12 @@ class BaseSoC(SoCCore):
             self.add_csr("ethphy")
             self.add_ethernet(phy=self.ethphy)
 
+        # Leds -------------------------------------------------------------------------------------
+        self.submodules.leds = LedChaser(
+            pads         = platform.request_all("user_led"),
+            sys_clk_freq = sys_clk_freq)
+        self.add_csr("leds")
+
 # Build --------------------------------------------------------------------------------------------
 
 def main():
@@ -89,15 +102,22 @@ def main():
     builder_args(parser)
     soc_sdram_args(parser)
     parser.add_argument("--with-ethernet", action="store_true", help="Enable Ethernet support")
+    parser.add_argument("--with-spi-sdcard", action="store_true", help="Enable SPI-mode SDCard support")
+    parser.add_argument("--with-sdcard", action="store_true",     help="Enable SDCard support")
     args = parser.parse_args()
 
     soc = BaseSoC(with_ethernet=args.with_ethernet, **soc_sdram_argdict(args))
+    assert not (args.with_spi_sdcard and args.with_sdcard)
+    if args.with_spi_sdcard:
+        soc.add_spi_sdcard()
+    if args.with_sdcard:
+        soc.add_sdcard()
     builder = Builder(soc, **builder_argdict(args))
     builder.build(run=args.build)
 
     if args.load:
         prog = soc.platform.create_programmer()
-        prog.load_bitstream(os.path.join(builder.gateware_dir, "top.bit"))
+        prog.load_bitstream(os.path.join(builder.gateware_dir, soc.build_name + ".bit"))
 
 if __name__ == "__main__":
     main()

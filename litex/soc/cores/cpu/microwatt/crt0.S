@@ -41,11 +41,44 @@
 _start:
 	FIXUP_ENDIAN
 
+	/* Grab our own address */
+	bcl	20,31,$+4
+0:	mflr	%r12
+
+	/* Get our TOC */
+	addis	%r2,%r12,(.TOC.-0b)@h
+	addi	%r2,%r2,(.TOC.-0b)@l
+
+	/* Copy data from ROM to SRAM */
+	ld	%r3,_fdata@got(%r2)
+	ld	%r4,_edata@got(%r2)
+	ld	%r5,_fdata_rom@got(%r2)
+	subf	%r6,%r3,%r4
+	srdi.	%r6,%r6,3
+	beq	1f
+	li	%r10,0
+	mtctr	%r6
+0:	ldx	%r0,%r10,%r5
+	stdx	%r0,%r10,%r3
+	addi	%r10,%r10,8
+	bdnz	0b
+1:
+	/* Clear BSS */
+	ld	%r3,_fbss@got(%r2)
+	ld	%r4,_ebss@got(%r2)
+	subf	%r6,%r3,%r4
+	srdi.	%r6,%r6,3
+	beq	1f
+	li	%r0,0
+	subi	%r3,%r3,8
+	mtctr	%r6
+0:	stdu	%r0,8(%r3)
+	bdnz	0b
+1:
 	/* setup stack */
-	LOAD_IMM64(%r1, _fstack - 0x100)
-	LOAD_IMM64(%r12, main)
-	mtctr	%r12,
-	bctrl
+	ld	%r1,_fstack@got(%r2)
+	subi  %r1,%r1,0x100
+	bl	main
 	b .
 
 #define EXCEPTION(nr)		\

@@ -1,10 +1,15 @@
-# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2017-2018 Sergiusz Bazanski <q3k@q3k.org>
-# This file is Copyright (c) 2017 William D. Jones <thor0505@comcast.net>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2018 Sergiusz Bazanski <q3k@q3k.org>
+# Copyright (c) 2017 William D. Jones <thor0505@comcast.net>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
+import re
 import sys
+import math
 import subprocess
 import shutil
 
@@ -40,7 +45,7 @@ def _format_lpf(signame, pin, others, resname):
     return "\n".join(lpf)
 
 
-def _build_lpf(named_sc, named_pc, build_name):
+def _build_lpf(named_sc, named_pc, clocks, vns, build_name):
     lpf = []
     lpf.append("BLOCK RESETPATHS;")
     lpf.append("BLOCK ASYNCPATHS;")
@@ -51,7 +56,16 @@ def _build_lpf(named_sc, named_pc, build_name):
         else:
             lpf.append(_format_lpf(sig, pins[0], others, resname))
     if named_pc:
-        lpf.append("\n\n".join(named_pc))
+        lpf.append("\n".join(named_pc))
+
+    # Note: .lpf is only used post-synthesis, Synplify constraints clocks by default to 200MHz.
+    for clk, period in clocks.items():
+        clk_name = vns.get_name(clk)
+        lpf.append("FREQUENCY {} \"{}\" {} MHz;".format(
+            "PORT" if clk_name in [name for name, _, _, _ in named_sc] else "NET",
+            clk_name,
+            str(1e3/period)))
+
     tools.write_to_file(build_name + ".lpf", "\n".join(lpf))
 
 # Project (.tcl) -----------------------------------------------------------------------------------
@@ -67,13 +81,15 @@ def _build_tcl(device, sources, vincpaths, build_name):
         "-synthesis \"synplify\""
     ]))
 
+    def tcl_path(path): return path.replace("\\", "/")
+
     # Add include paths
-    vincpath = ';'.join(map(lambda x: x.replace('\\', '/'), vincpaths))
+    vincpath = ";".join(map(lambda x: tcl_path(x), vincpaths))
     tcl.append("prj_impl option {include path} {\"" + vincpath + "\"}")
 
     # Add sources
     for filename, language, library in sources:
-        tcl.append("prj_src add \"" + filename.replace("\\", "/") + "\" -work " + library)
+        tcl.append("prj_src add \"{}\" -work {}".format(tcl_path(filename), library))
 
     # Set top level
     tcl.append("prj_impl option top \"{}\"".format(build_name))
@@ -89,6 +105,10 @@ def _build_tcl(device, sources, vincpaths, build_name):
     tcl.append("prj_run Export -impl impl -task Bitgen")
     if _produces_jedec(device):
         tcl.append("prj_run Export -impl impl -task Jedecgen")
+
+    # Close project
+    tcl.append("prj_project close")
+
     tools.write_to_file(build_name + ".tcl", "\n".join(tcl))
 
 # Script -------------------------------------------------------------------------------------------
@@ -105,7 +125,7 @@ def _build_script(build_name, device):
         copy_stmt = "cp"
         fail_stmt = ""
 
-    script_contents += "pnmainc {tcl_script}{fail_stmt}\n".format(
+    script_contents += "diamondc {tcl_script}{fail_stmt}\n".format(
         tcl_script = build_name + ".tcl",
         fail_stmt  = fail_stmt)
     for ext in (".bit", ".jed"):
@@ -130,6 +150,34 @@ def _run_script(script):
     if subprocess.call(shell + [script]) != 0:
         raise OSError("Subprocess failed")
 
+def _check_timing(build_name):
+    lines = open("impl/{}_impl.par".format(build_name), "r").readlines()
+    runs = [None, None]
+    for i in range(len(lines)-1):
+        if lines[i].startswith("Level/") and lines[i+1].startswith("Cost "):
+            runs[0] = i + 2
+        if lines[i].startswith("* : Design saved.") and runs[0] is not None:
+            runs[1] = i
+            break
+    assert all(map(lambda x: x is not None, runs))
+
+    p = re.compile(r"(^\s*\S+\s+\*?\s+[0-9]+\s+)(\S+)(\s+\S+\s+)(\S+)(\s+.*)")
+    for l in lines[runs[0]:runs[1]]:
+        m = p.match(l)
+        if m is None: continue
+        limit = 1e-8
+        setup = m.group(2)
+        hold  = m.group(4)
+        # If there were no freq constraints in lpf, ratings will be dashed.
+        # results will likely be terribly unreliable, so bail
+        assert not setup == hold == "-", "No timing constraints were provided"
+        setup, hold = map(float, (setup, hold))
+        if setup > limit and hold > limit:
+            # At least one run met timing
+            # XXX is this necessarily the run from which outputs will be used?
+            return
+    raise Exception("Failed to meet timing")
+
 # LatticeDiamondToolchain --------------------------------------------------------------------------
 
 class LatticeDiamondToolchain:
@@ -149,12 +197,14 @@ class LatticeDiamondToolchain:
     special_overrides = common.lattice_ecp5_special_overrides
 
     def __init__(self):
+        self.clocks      = {}
         self.false_paths = set() # FIXME: use it
 
     def build(self, platform, fragment,
         build_dir      = "build",
         build_name     = "top",
         run            = True,
+        timingstrict   = True,
         **kwargs):
 
         # Create build directory
@@ -175,7 +225,7 @@ class LatticeDiamondToolchain:
         platform.add_source(v_file)
 
         # Generate design constraints file (.lpf)
-        _build_lpf(named_sc, named_pc, build_name)
+        _build_lpf(named_sc, named_pc, self.clocks, v_output.ns, build_name)
 
         # Generate design script file (.tcl)
         _build_tcl(platform.device, platform.sources, platform.verilog_include_paths, build_name)
@@ -186,6 +236,8 @@ class LatticeDiamondToolchain:
         # Run
         if run:
             _run_script(script)
+            if timingstrict:
+                _check_timing(build_name)
 
         os.chdir(cwd)
 
@@ -193,9 +245,12 @@ class LatticeDiamondToolchain:
 
     def add_period_constraint(self, platform, clk, period):
         clk.attr.add("keep")
-        # TODO: handle differential clk
-        platform.add_platform_command("""FREQUENCY PORT "{clk}" {freq} MHz;""".format(
-            freq=str(float(1/period)*1000), clk="{clk}"), clk=clk)
+        period = math.floor(period*1e3)/1e3 # round to lowest picosecond
+        if clk in self.clocks:
+            if period != self.clocks[clk]:
+                raise ValueError("Clock already constrained to {:.2f}ns, new constraint to {:.2f}ns"
+                    .format(self.clocks[clk], period))
+        self.clocks[clk] = period
 
     def add_false_path_constraint(self, platform, from_, to):
         from_.attr.add("keep")

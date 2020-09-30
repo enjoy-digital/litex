@@ -1,8 +1,11 @@
-# This file is Copyright (c) 2014-2015 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2014-2020 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2016-2018 Robert Jordens <jordens@gmail.com>
-# This file is Copyright (c) 2015 William D. Jones <thor0505@comcast.net>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2014-2015 Sebastien Bourdeauducq <sb@m-labs.hk>
+# Copyright (c) 2014-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2016-2018 Robert Jordens <jordens@gmail.com>
+# Copyright (c) 2015 William D. Jones <thor0505@comcast.net>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 import sys
@@ -374,7 +377,7 @@ def _run_yosys(device, sources, vincpaths, build_name):
         ys_contents += "read_{}{} {}\n".format(language, incflags, filename)
 
     ys_contents += """\
-hierarchy -top top
+hierarchy -top {build_name}
 
 # FIXME: Are these needed?
 # proc; memory; opt; fsm; opt
@@ -401,7 +404,7 @@ log
 select -list a:async_reg=true
 setattr -set keep 1 a:async_reg=true
 
-synth_xilinx -top top
+synth_xilinx -top {build_name}
 
 write_edif -pvector bra -attrprop {build_name}.edif
 """.format(build_name=build_name)

@@ -1,5 +1,8 @@
-# This file is Copyright (c) 2015-2018 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015-2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import math
 
@@ -36,28 +39,31 @@ def anti_starvation(module, timeout):
 
 class FT245PHYSynchronous(Module):
     def __init__(self, pads, clk_freq,
-                 fifo_depth=32,
-                 read_time=128,
-                 write_time=128):
+                 fifo_depth = 8,
+                 read_time  = 128,
+                 write_time = 128):
         dw = len(pads.data)
 
         # read fifo (FTDI --> SoC)
-        read_fifo = ClockDomainsRenamer({"write": "usb", "read": "sys"})(stream.AsyncFIFO(phy_description(dw), fifo_depth))
-        read_buffer = ClockDomainsRenamer("usb")(stream.SyncFIFO(phy_description(dw), 4))
+        read_fifo   = stream.AsyncFIFO(phy_description(dw), fifo_depth)
+        read_fifo   = ClockDomainsRenamer({"write": "usb", "read": "sys"})(read_fifo)
+        read_buffer = stream.SyncFIFO(phy_description(dw), 4)
+        read_buffer = ClockDomainsRenamer("usb")(read_buffer)
         self.comb += read_buffer.source.connect(read_fifo.sink)
+        self.submodules += read_fifo, read_buffer
 
         # write fifo (SoC --> FTDI)
-        write_fifo = ClockDomainsRenamer({"write": "sys", "read": "usb"})(stream.AsyncFIFO(phy_description(dw), fifo_depth))
-
-        self.submodules += read_fifo, read_buffer, write_fifo
+        write_fifo = stream.AsyncFIFO(phy_description(dw), fifo_depth)
+        write_fifo = ClockDomainsRenamer({"write": "sys", "read": "usb"})(write_fifo)
+        self.submodules += write_fifo
 
         # sink / source interfaces
-        self.sink = write_fifo.sink
+        self.sink   = write_fifo.sink
         self.source = read_fifo.source
 
         # read / write arbitration
         wants_write = Signal()
-        wants_read = Signal()
+        wants_read  = Signal()
 
         txe_n = Signal()
         rxf_n = Signal()
@@ -69,7 +75,7 @@ class FT245PHYSynchronous(Module):
             wants_read.eq(~rxf_n & read_fifo.sink.ready),
         ]
 
-        read_time_en, max_read_time = anti_starvation(self, read_time)
+        read_time_en,  max_read_time  = anti_starvation(self, read_time)
         write_time_en, max_write_time = anti_starvation(self, write_time)
 
         data_w_accepted = Signal(reset=1)
@@ -102,8 +108,8 @@ class FT245PHYSynchronous(Module):
         )
 
         # databus tristate
-        data_w = Signal(dw)
-        data_r = Signal(dw)
+        data_w  = Signal(dw)
+        data_r  = Signal(dw)
         data_oe = Signal()
         self.specials += Tristate(pads.data, data_w, data_oe, data_r)
 
@@ -119,7 +125,6 @@ class FT245PHYSynchronous(Module):
                 pads.oe_n.eq(0),
                 pads.rd_n.eq(~wants_read),
                 pads.wr_n.eq(1)
-
             ).Elif(fsm.ongoing("WRITE"),
                 data_oe.eq(1),
 
@@ -128,7 +133,6 @@ class FT245PHYSynchronous(Module):
                 pads.wr_n.eq(~wants_write),
 
                 data_w_accepted.eq(~txe_n)
-
             ).Else(
                 data_oe.eq(1),
 
@@ -136,20 +140,20 @@ class FT245PHYSynchronous(Module):
                 pads.rd_n.eq(1),
                 pads.wr_n.eq(1)
             ),
-                read_buffer.sink.valid.eq(~pads.rd_n & ~rxf_n),
-                read_buffer.sink.data.eq(data_r),
-                If(~txe_n & data_w_accepted,
-                    data_w.eq(write_fifo.source.data)
-                )
+            read_buffer.sink.valid.eq(~pads.rd_n & ~rxf_n),
+            read_buffer.sink.data.eq(data_r),
+            If(~txe_n & data_w_accepted,
+                data_w.eq(write_fifo.source.data)
+            )
         ]
 
 # FT245 Asynchronous FIFO Mode ---------------------------------------------------------------------
 
 class FT245PHYAsynchronous(Module):
     def __init__(self, pads, clk_freq,
-                 fifo_depth=32,
-                 read_time=128,
-                 write_time=128):
+                 fifo_depth = 8,
+                 read_time  = 128,
+                 write_time = 128):
         dw = len(pads.data)
         self.clk_freq = clk_freq
 
@@ -169,12 +173,12 @@ class FT245PHYAsynchronous(Module):
         self.submodules += read_fifo, write_fifo
 
         # sink / source interfaces
-        self.sink = write_fifo.sink
+        self.sink   = write_fifo.sink
         self.source = read_fifo.source
 
         # read / write arbitration
         wants_write = Signal()
-        wants_read = Signal()
+        wants_read  = Signal()
 
         txe_n = Signal()
         rxf_n = Signal()
@@ -189,7 +193,7 @@ class FT245PHYAsynchronous(Module):
             wants_read.eq(~rxf_n & read_fifo.sink.ready),
         ]
 
-        read_time_en, max_read_time = anti_starvation(self, read_time)
+        read_time_en,  max_read_time  = anti_starvation(self, read_time)
         write_time_en, max_write_time = anti_starvation(self, write_time)
 
         fsm = FSM(reset_state="READ")
@@ -225,15 +229,14 @@ class FT245PHYAsynchronous(Module):
         )
 
         # databus tristate
-        data_w = Signal(dw)
+        data_w       = Signal(dw)
         data_r_async = Signal(dw)
-        data_r = Signal(dw)
-        data_oe = Signal()
+        data_r       = Signal(dw)
+        data_oe      = Signal()
         self.specials += [
             Tristate(pads.data, data_w, data_oe, data_r_async),
             MultiReg(data_r_async, data_r)
         ]
-
 
         # read actions
         pads.rd_n.reset = 1
@@ -241,18 +244,9 @@ class FT245PHYAsynchronous(Module):
         read_fsm = FSM(reset_state="IDLE")
         self.submodules += read_fsm
         read_counter = Signal(8)
-        read_counter_reset = Signal()
-        read_counter_ce = Signal()
-        self.sync += \
-            If(read_counter_reset,
-                read_counter.eq(0)
-            ).Elif(read_counter_ce,
-                read_counter.eq(read_counter + 1)
-            )
-
         read_fsm.act("IDLE",
             read_done.eq(1),
-            read_counter_reset.eq(1),
+            NextValue(read_counter, 0),
             If(fsm.ongoing("READ") & wants_read,
                 If(~commuting,
                     NextState("PULSE_RD_N")
@@ -261,8 +255,8 @@ class FT245PHYAsynchronous(Module):
         )
         read_fsm.act("PULSE_RD_N",
             pads.rd_n.eq(0),
-            read_counter_ce.eq(1),
-            If(read_counter == max((tRD-1), (tRDDataSetup + tMultiReg -1)),
+            NextValue(read_counter, read_counter + 1),
+            If(read_counter == max(tRD-1, tRDDataSetup + tMultiReg -1),
                 NextState("ACQUIRE_DATA")
             )
         )
@@ -283,18 +277,9 @@ class FT245PHYAsynchronous(Module):
         write_fsm = FSM(reset_state="IDLE")
         self.submodules += write_fsm
         write_counter = Signal(8)
-        write_counter_reset = Signal()
-        write_counter_ce = Signal()
-        self.sync += \
-            If(write_counter_reset,
-                write_counter.eq(0)
-            ).Elif(write_counter_ce,
-                write_counter.eq(write_counter + 1)
-            )
-
         write_fsm.act("IDLE",
             write_done.eq(1),
-            write_counter_reset.eq(1),
+            NextValue(write_counter, 0),
             If(fsm.ongoing("WRITE") & wants_write,
                 If(~commuting,
                     NextState("SET_DATA")
@@ -304,9 +289,9 @@ class FT245PHYAsynchronous(Module):
         write_fsm.act("SET_DATA",
             data_oe.eq(1),
             data_w.eq(write_fifo.source.data),
-            write_counter_ce.eq(1),
+            NextValue(write_counter, write_counter + 1),
             If(write_counter == (tWRDataSetup-1),
-                write_counter_reset.eq(1),
+                NextValue(write_counter, 0),
                 NextState("PULSE_WR_N")
             )
         )
@@ -314,7 +299,7 @@ class FT245PHYAsynchronous(Module):
             data_oe.eq(1),
             data_w.eq(write_fifo.source.data),
             pads.wr_n.eq(0),
-            write_counter_ce.eq(1),
+            NextValue(write_counter, write_counter + 1),
             If(write_counter == (tWR-1),
                 NextState("WAIT_TXE_N")
             )
@@ -327,7 +312,7 @@ class FT245PHYAsynchronous(Module):
         )
 
     def ns(self, t, margin=True):
-        clk_period_ns = 1000000000/self.clk_freq
+        clk_period_ns = 1e9/self.clk_freq
         if margin:
             t += clk_period_ns/2
         return math.ceil(t/clk_period_ns)
@@ -336,7 +321,7 @@ class FT245PHYAsynchronous(Module):
 
 def FT245PHY(pads, *args, **kwargs):
     # autodetect PHY
-    if hasattr(pads, "oe_n"):
+    if hasattr(pads, "clkout"):
         return FT245PHYSynchronous(pads, *args, **kwargs)
     else:
         return FT245PHYAsynchronous(pads, *args, **kwargs)

@@ -1,17 +1,23 @@
-# This file is Copyright (c) 2014 Yann Sionneau <ys@m-labs.hk>
-# This file is Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2018 Tim 'mithro' Ansell <me@mith.ro>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2014 Yann Sionneau <ys@m-labs.hk>
+# Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
+# Copyright (c) 2018 Tim 'mithro' Ansell <me@mith.ro>
+# SPDX-License-Identifier: BSD-2-Clause
+
+from math import log2
 
 from migen import *
 from migen.genlib.record import Record
 from migen.genlib.cdc import MultiReg
+from migen.genlib.misc import WaitTimer
 
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect.csr_eventmanager import *
+from litex.soc.interconnect import wishbone
 from litex.soc.interconnect import stream
-from litex.soc.interconnect.wishbonebridge import WishboneStreamingBridge
 
 # Common -------------------------------------------------------------------------------------------
 
@@ -34,8 +40,8 @@ class RS232PHYRX(Module):
 
         # # #
 
-        uart_clk_rxen        = Signal()
-        phase_accumulator_rx = Signal(32, reset_less=True)
+        rx_clken    = Signal()
+        rx_clkphase = Signal(32, reset_less=True)
 
         rx          = Signal()
         rx_r        = Signal()
@@ -54,7 +60,7 @@ class RS232PHYRX(Module):
                     rx_bitcount.eq(0),
                 )
             ).Else(
-                If(uart_clk_rxen,
+                If(rx_clken,
                     rx_bitcount.eq(rx_bitcount + 1),
                     If(rx_bitcount == 0,
                         If(rx,  # verify start bit
@@ -72,12 +78,13 @@ class RS232PHYRX(Module):
                 )
             )
         ]
-        self.sync += \
-                If(rx_busy,
-                    Cat(phase_accumulator_rx, uart_clk_rxen).eq(phase_accumulator_rx + tuning_word)
-                ).Else(
-                    Cat(phase_accumulator_rx, uart_clk_rxen).eq(2**31)
-                )
+        self.sync += [
+            If(rx_busy,
+                Cat(rx_clkphase, rx_clken).eq(rx_clkphase + tuning_word)
+            ).Else(
+                Cat(rx_clkphase, rx_clken).eq(2**31)
+            )
+        ]
 
 
 class RS232PHYTX(Module):
@@ -86,8 +93,8 @@ class RS232PHYTX(Module):
 
         # # #
 
-        uart_clk_txen        = Signal()
-        phase_accumulator_tx = Signal(32, reset_less=True)
+        tx_clken    = Signal()
+        tx_clkphase = Signal(32, reset_less=True)
 
         pads.tx.reset = 1
 
@@ -101,7 +108,7 @@ class RS232PHYTX(Module):
                 tx_bitcount.eq(0),
                 tx_busy.eq(1),
                 pads.tx.eq(0)
-            ).Elif(uart_clk_txen & tx_busy,
+            ).Elif(tx_clken & tx_busy,
                 tx_bitcount.eq(tx_bitcount + 1),
                 If(tx_bitcount == 8,
                     pads.tx.eq(1)
@@ -116,11 +123,11 @@ class RS232PHYTX(Module):
             )
         ]
         self.sync += [
-                If(tx_busy,
-                    Cat(phase_accumulator_tx, uart_clk_txen).eq(phase_accumulator_tx + tuning_word)
-                ).Else(
-                    Cat(phase_accumulator_tx, uart_clk_txen).eq(0)
-                )
+            If(tx_busy,
+                Cat(tx_clkphase, tx_clken).eq(tx_clkphase + tuning_word)
+            ).Else(
+                Cat(tx_clkphase, tx_clken).eq(tuning_word)
+            )
         ]
 
 
@@ -175,24 +182,20 @@ def _get_uart_fifo(depth, sink_cd="sys", source_cd="sys"):
         return stream.SyncFIFO([("data", 8)], depth, buffered=True)
 
 def UARTPHY(pads, clk_freq, baudrate):
-    # FT245 async FIFO mode (baudrate ignored)
+    # FT245 Asynchronous FIFO mode (baudrate ignored)
     if hasattr(pads, "rd_n") and hasattr(pads, "wr_n"):
         from litex.soc.cores.usb_fifo import FT245PHYAsynchronous
         return FT245PHYAsynchronous(pads, clk_freq)
-    # FT245 sync FIFO mode (baudrate ignored)
-    if hasattr(pads, "rd_n") and hasattr(pads, "wr_n") and hasattr(pads, "oe_n"):
-        from litex.soc.cores.usb_fifo import FT245PHYSynchronous
-        return FT245PHYSynchronous(pads, clk_freq)
     # RS232
     else:
         return  RS232PHY(pads, clk_freq, baudrate)
 
 class UART(Module, AutoCSR, UARTInterface):
     def __init__(self, phy=None,
-                 tx_fifo_depth = 16,
-                 rx_fifo_depth = 16,
-                 rx_fifo_rx_we = False,
-                 phy_cd        = "sys"):
+            tx_fifo_depth = 16,
+            rx_fifo_depth = 16,
+            rx_fifo_rx_we = False,
+            phy_cd        = "sys"):
         self._rxtx    = CSR(8)
         self._txfull  = CSRStatus()
         self._rxempty = CSRStatus()
@@ -201,6 +204,9 @@ class UART(Module, AutoCSR, UARTInterface):
         self.ev.tx = EventSourceProcess()
         self.ev.rx = EventSourceProcess()
         self.ev.finalize()
+
+        self._txempty = CSRStatus()
+        self._rxfull  = CSRStatus()
 
         # # #
 
@@ -221,6 +227,7 @@ class UART(Module, AutoCSR, UARTInterface):
             tx_fifo.sink.valid.eq(self._rxtx.re),
             tx_fifo.sink.data.eq(self._rxtx.r),
             self._txfull.status.eq(~tx_fifo.sink.ready),
+            self._txempty.status.eq(~tx_fifo.source.valid),
             tx_fifo.source.connect(self.source),
             # Generate TX IRQ when tx_fifo becomes non-full
             self.ev.tx.trigger.eq(~tx_fifo.sink.ready)
@@ -233,16 +240,151 @@ class UART(Module, AutoCSR, UARTInterface):
         self.comb += [
             self.sink.connect(rx_fifo.sink),
             self._rxempty.status.eq(~rx_fifo.source.valid),
+            self._rxfull.status.eq(~rx_fifo.sink.ready),
             self._rxtx.w.eq(rx_fifo.source.data),
             rx_fifo.source.ready.eq(self.ev.rx.clear | (rx_fifo_rx_we & self._rxtx.we)),
-            # Generate RX IRQ when tx_fifo becomes non-empty
+            # Generate RX IRQ when rx_fifo becomes non-empty
             self.ev.rx.trigger.eq(~rx_fifo.source.valid)
         ]
 
-class UARTBone(WishboneStreamingBridge):
-    def __init__(self, pads, clk_freq, baudrate=115200):
-        self.submodules.phy = RS232PHY(pads, clk_freq, baudrate)
-        WishboneStreamingBridge.__init__(self, self.phy, clk_freq)
+# UART Bone ----------------------------------------------------------------------------------------
+
+CMD_WRITE_BURST_INCR  = 0x01
+CMD_READ_BURST_INCR   = 0x02
+CMD_WRITE_BURST_FIXED = 0x03
+CMD_READ_BURST_FIXED  = 0x04
+
+class Stream2Wishbone(Module):
+    def __init__(self, phy=None, clk_freq=None, data_width=32, address_width=32):
+        self.sink   = sink   = stream.Endpoint([("data", 8)]) if phy is None else phy.source
+        self.source = source = stream.Endpoint([("data", 8)]) if phy is None else phy.sink
+        self.wishbone = wishbone.Interface()
+        self.comb += sink.ready.eq(1) # Always accept incoming stream.
+
+        # # #
+
+        cmd         = Signal(8,                        reset_less=True)
+        incr        = Signal()
+        length      = Signal(8,                        reset_less=True)
+        address     = Signal(address_width,            reset_less=True)
+        data        = Signal(data_width,               reset_less=True)
+        bytes_count = Signal(int(log2(data_width//8)), reset_less=True)
+        words_count = Signal(8,                        reset_less=True)
+
+        bytes_count_done  = (bytes_count == (data_width//8 - 1))
+        words_count_done  = (words_count == (length - 1))
+
+        fsm   = ResetInserter()(FSM(reset_state="RECEIVE-CMD"))
+        timer = WaitTimer(int(100e-3*clk_freq))
+        self.comb += timer.wait.eq(~fsm.ongoing("RECEIVE-CMD"))
+        self.submodules += fsm, timer
+        self.comb += fsm.reset.eq(timer.done)
+        fsm.act("RECEIVE-CMD",
+            NextValue(bytes_count, 0),
+            NextValue(words_count, 0),
+            If(sink.valid,
+                NextValue(cmd, sink.data),
+                NextState("RECEIVE-LENGTH")
+            )
+        )
+        fsm.act("RECEIVE-LENGTH",
+            If(sink.valid,
+                NextValue(length, sink.data),
+                NextState("RECEIVE-ADDRESS")
+            )
+        )
+        fsm.act("RECEIVE-ADDRESS",
+            If(sink.valid,
+                NextValue(address, Cat(sink.data, address)),
+                NextValue(bytes_count, bytes_count + 1),
+                If(bytes_count_done,
+                    If((cmd == CMD_WRITE_BURST_INCR) | (cmd == CMD_WRITE_BURST_FIXED),
+                        NextValue(incr, cmd == CMD_WRITE_BURST_INCR),
+                        NextState("RECEIVE-DATA")
+                    ).Elif((cmd == CMD_READ_BURST_INCR) | (cmd == CMD_READ_BURST_FIXED),
+                        NextValue(incr, cmd == CMD_READ_BURST_INCR),
+                        NextState("READ-DATA")
+                    ).Else(
+                        NextState("RECEIVE-CMD")
+                    )
+                )
+            )
+        )
+        fsm.act("RECEIVE-DATA",
+            If(sink.valid,
+                NextValue(data, Cat(sink.data, data)),
+                NextValue(bytes_count, bytes_count + 1),
+                If(bytes_count_done,
+                    NextState("WRITE-DATA")
+                )
+            )
+        )
+        self.comb += [
+            self.wishbone.adr.eq(address),
+            self.wishbone.dat_w.eq(data),
+            self.wishbone.sel.eq(2**(data_width//8) - 1)
+        ]
+        fsm.act("WRITE-DATA",
+            self.wishbone.stb.eq(1),
+            self.wishbone.we.eq(1),
+            self.wishbone.cyc.eq(1),
+            If(self.wishbone.ack,
+                NextValue(words_count, words_count + 1),
+                NextValue(address, address + incr),
+                If(words_count_done,
+                    NextState("RECEIVE-CMD")
+                ).Else(
+                    NextState("RECEIVE-DATA")
+                )
+            )
+        )
+        fsm.act("READ-DATA",
+            self.wishbone.stb.eq(1),
+            self.wishbone.we.eq(0),
+            self.wishbone.cyc.eq(1),
+            If(self.wishbone.ack,
+                NextValue(data, self.wishbone.dat_r),
+                NextState("SEND-DATA")
+            )
+        )
+        cases = {}
+        for i, n in enumerate(reversed(range(data_width//8))):
+            cases[i] = source.data.eq(data[8*n:])
+        self.comb += Case(bytes_count, cases)
+        fsm.act("SEND-DATA",
+            source.valid.eq(1),
+            If(source.ready,
+                NextValue(bytes_count, bytes_count + 1),
+                If(bytes_count_done,
+                    NextValue(words_count, words_count + 1),
+                    NextValue(address, address + incr),
+                    If(words_count_done,
+                        NextState("RECEIVE-CMD")
+                    ).Else(
+                        NextState("READ-DATA")
+                    )
+                )
+            )
+        )
+        self.comb += source.last.eq(bytes_count_done & words_count_done)
+        if hasattr(source, "length"):
+            self.comb += source.length.eq((data_width//8)*length)
+
+
+class UARTBone(Stream2Wishbone):
+    def __init__(self, pads, clk_freq, baudrate=115200, cd="sys"):
+        if cd == "sys":
+            self.submodules.phy = RS232PHY(pads, clk_freq, baudrate)
+            Stream2Wishbone.__init__(self, self.phy, clk_freq=clk_freq)
+        else:
+            self.submodules.phy = ClockDomainsRenamer(cd)(RS232PHY(pads, clk_freq, baudrate))
+            self.submodules.tx_cdc = stream.ClockDomainCrossing([("data", 8)], cd_from="sys", cd_to=cd)
+            self.submodules.rx_cdc = stream.ClockDomainCrossing([("data", 8)], cd_from=cd,    cd_to="sys")
+            self.comb += self.phy.source.connect(self.rx_cdc.sink)
+            self.comb += self.tx_cdc.source.connect(self.phy.sink)
+            Stream2Wishbone.__init__(self, clk_freq=clk_freq)
+            self.comb += self.rx_cdc.source.connect(self.sink)
+            self.comb += self.source.connect(self.tx_cdc.sink)
 
 class UARTWishboneBridge(UARTBone): pass
 

@@ -1,29 +1,24 @@
 include ../include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
-ifeq ($(CPU),blackparrot)
-BP_LIBS =  -L$(BP_LITEX_SOFTWARE)
-BP_FLAGS = -lgcc
-endif
 # Permit TFTP_SERVER_PORT override from shell environment / command line
 ifdef TFTP_SERVER_PORT
 CFLAGS += -DTFTP_SERVER_PORT=$(TFTP_SERVER_PORT)
 endif
 
 OBJECTS = isr.o			\
-	  sdram.o			\
-	  sdcard.o			\
-	  main.o			\
 	  boot-helper.o		\
 	  boot.o			\
 	  helpers.o			\
 	  cmd_bios.o		\
+	  cmd_mem.o			\
 	  cmd_boot.o		\
-	  cmd_dram.o		\
-	  cmd_mdio.o		\
-	  cmd_mem_access.o	\
-	  cmd_sdcard.o		\
-	  cmd_spi_flash.o	\
+	  cmd_i2c.o			\
+	  cmd_spiflash.o	\
+	  cmd_litedram.o	\
+	  cmd_liteeth.o		\
+	  cmd_litesdcard.o  \
+	  main.o
 
 ifneq "$(or $(TERM_NO_COMPLETE),$(TERM_MINI))" ""
 CFLAGS += -DTERM_NO_COMPLETE
@@ -59,16 +54,23 @@ endif
 bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 
 
-%.elf: ../libbase/crt0-ctr.o ../libnet/libnet.a ../libbase/libbase-nofloat.a ../libcompiler_rt/libcompiler_rt.a
+%.elf: ../libbase/crt0.o \
+	../libcompiler_rt/libcompiler_rt.a \
+	../libbase/libbase-nofloat.a \
+	../liblitedram/liblitedram.a \
+	../libliteeth/libliteeth.a \
+	../liblitespi/liblitespi.a \
+	../liblitesdcard/liblitesdcard.a
 	$(LD) $(LDFLAGS) -T $(BIOS_DIRECTORY)/linker.ld -N -o $@ \
-		../libbase/crt0-ctr.o \
+		../libbase/crt0.o \
 		$(OBJECTS) \
-		-L../libnet \
-		-L../libbase \
 		-L../libcompiler_rt \
-		$(BP_LIBS) \
-		-lnet -lbase-nofloat -lcompiler_rt \
-		$(BP_FLAGS)
+		-L../libbase \
+		-L../liblitedram \
+		-L../libliteeth \
+		-L../liblitespi \
+		-L../liblitesdcard \
+		-llitedram -lliteeth -llitespi -llitesdcard -lbase-nofloat -lcompiler_rt
 
 ifneq ($(OS),Windows_NT)
 	chmod -x $@
@@ -80,7 +82,7 @@ endif
 %.o: $(BIOS_DIRECTORY)/%.c
 	$(compile)
 
-%.o: $(BIOS_DIRECTORY)/commands/%.c
+%.o: $(BIOS_DIRECTORY)/cmds/%.c
 	$(compile)
 
 %.o: $(BIOS_DIRECTORY)/%.S

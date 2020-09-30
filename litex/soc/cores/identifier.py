@@ -1,5 +1,8 @@
-# This file is Copyright (c) 2013-2015 Sebastien Bourdeauducq <sb@m-labs.hk>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2013-2015 Sebastien Bourdeauducq <sb@m-labs.hk>
+# SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
 

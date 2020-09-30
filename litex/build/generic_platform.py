@@ -1,11 +1,14 @@
-# This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2015 Yann Sionneau <ys@m-labs.hk>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
+# Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2015 Yann Sionneau <ys@m-labs.hk>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 
-from migen.fhdl.structure import Signal
+from migen.fhdl.structure import Signal, Cat
 from migen.genlib.record import Record
 
 from litex.gen.fhdl import verilog
@@ -82,11 +85,14 @@ class PlatformInfo:
         return "{}({})".format(self.__class__.__name__, repr(self.info))
 
 
-def _lookup(description, name, number):
+def _lookup(description, name, number, loose=True):
     for resource in description:
         if resource[0] == name and (number is None or resource[1] == number):
             return resource
-    raise ConstraintError("Resource not found: {}:{}".format(name, number))
+    if loose:
+        return None
+    else:
+        raise ConstraintError("Resource not found: {}:{}".format(name, number))
 
 
 def _resource_type(resource):
@@ -178,8 +184,10 @@ class ConstraintManager:
     def add_extension(self, io):
         self.available.extend(io)
 
-    def request(self, name, number=None):
-        resource = _lookup(self.available, name, number)
+    def request(self, name, number=None, loose=False):
+        resource = _lookup(self.available, name, number, loose)
+        if resource is None:
+            return None
         rt, ri = _resource_type(resource)
         if number is None:
             resource_name = name
@@ -204,6 +212,17 @@ class ConstraintManager:
         self.available.remove(resource)
         self.matched.append((resource, obj))
         return obj
+
+    def request_all(self, name):
+        r = []
+        while True:
+            try:
+                r.append(self.request(name, len(r)))
+            except ConstraintError:
+                break
+        if not len(r):
+            raise ValueError
+        return Cat(r)
 
     def lookup_request(self, name, number=None, loose=False):
         subname = None
@@ -278,9 +297,13 @@ class GenericPlatform:
         self.verilog_include_paths = []
         self.output_dir = None
         self.finalized = False
+        self.use_default_clk = False
 
     def request(self, *args, **kwargs):
         return self.constraint_manager.request(*args, **kwargs)
+
+    def request_all(self, *args, **kwargs):
+        return self.constraint_manager.request_all(*args, **kwargs)
 
     def lookup_request(self, *args, **kwargs):
         return self.constraint_manager.lookup_request(*args, **kwargs)
@@ -313,6 +336,7 @@ class GenericPlatform:
                     "No default clock and no clock domain defined")
             crg = CRG(self.request(self.default_clk_name))
             fragment += crg.get_fragment()
+            self.user_default_clk = True
 
         self.do_finalize(fragment, *args, **kwargs)
         self.finalized = True
@@ -320,7 +344,7 @@ class GenericPlatform:
     def do_finalize(self, fragment, *args, **kwargs):
         """overload this and e.g. add_platform_command()'s after the modules
         had their say"""
-        if hasattr(self, "default_clk_period"):
+        if self.use_default_clk:
             try:
                 self.add_period_constraint(
                     self.lookup_request(self.default_clk_name),

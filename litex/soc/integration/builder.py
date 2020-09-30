@@ -1,3 +1,6 @@
+#
+# This file is part of LiteX.
+#
 # This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
 # This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2018-2019 Antmicro <www.antmicro.com>
@@ -6,7 +9,7 @@
 # This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
 # This file is Copyright (c) 2020 Xiretza <xiretza@xiretza.xyz>
 # This file is Copyright (c) 2020 Piotr Esden-Tempski <piotr@esden.net>
-# License: BSD
+# SPDX-License-Identifier: BSD-2-Clause
 
 
 import os
@@ -17,15 +20,24 @@ import shutil
 from litex import get_data_mod
 from litex.build.tools import write_to_file
 from litex.soc.integration import export, soc_core
+from litex.soc.cores import cpu
 
-__all__ = ["soc_software_packages", "soc_directory",
-           "Builder", "builder_args", "builder_argdict"]
+__all__ = [
+    "soc_software_packages",
+    "soc_directory",
+    "Builder",
+    "builder_args",
+    "builder_argdict"
+]
 
 
 soc_software_packages = [
     "libcompiler_rt",
     "libbase",
-    "libnet",
+    "liblitedram",
+    "libliteeth",
+    "liblitespi",
+    "liblitesdcard",
     "bios"
 ]
 
@@ -50,12 +62,11 @@ class Builder:
         csr_csv          = None,
         csr_svd          = None,
         memory_x         = None,
-        bios_options     = None):
+        bios_options     = []):
         self.soc = soc
 
-        # From Python doc: makedirs() will become confused if the path
-        # elements to create include '..'
-        self.output_dir    = os.path.abspath(output_dir    or "soc_{}_{}".format(soc.__class__.__name__.lower(), soc.platform.name))
+        # From Python doc: makedirs() will become confused if the path elements to create include '..'
+        self.output_dir    = os.path.abspath(output_dir    or os.path.join("build", soc.platform.name))
         self.gateware_dir  = os.path.abspath(gateware_dir  or os.path.join(self.output_dir,   "gateware"))
         self.software_dir  = os.path.abspath(software_dir  or os.path.join(self.output_dir,   "software"))
         self.include_dir   = os.path.abspath(include_dir   or os.path.join(self.software_dir, "include"))
@@ -63,11 +74,11 @@ class Builder:
 
         self.compile_software = compile_software
         self.compile_gateware = compile_gateware
-        self.csr_csv  = csr_csv
-        self.csr_json = csr_json
-        self.csr_svd  = csr_svd
-        self.memory_x = memory_x
-        self.bios_options = bios_options
+        self.csr_csv          = csr_csv
+        self.csr_json         = csr_json
+        self.csr_svd          = csr_svd
+        self.memory_x         = memory_x
+        self.bios_options     = bios_options
 
         self.software_packages = []
         for name in soc_software_packages:
@@ -82,26 +93,12 @@ class Builder:
         os.makedirs(self.include_dir, exist_ok=True)
         os.makedirs(self.generated_dir, exist_ok=True)
 
-        if self.soc.cpu_type is not None:
+        if self.soc.cpu_type not in [None, "zynq7000"]:
             variables_contents = []
             def define(k, v):
                 variables_contents.append("{}={}\n".format(k, _makefile_escape(v)))
 
             for k, v in export.get_cpu_mak(self.soc.cpu, self.compile_software):
-                define(k, v)
-            # Distinguish between LiteX and MiSoC.
-            define("LITEX", "1")
-            # Distinguish between applications running from main RAM and
-            # flash for user-provided software packages.
-            exec_profiles = {
-                "COPY_TO_MAIN_RAM" : "0",
-                "EXECUTE_IN_PLACE" : "0"
-            }
-            if "main_ram" in self.soc.mem_regions.keys():
-                exec_profiles["COPY_TO_MAIN_RAM"] = "1"
-            else:
-                exec_profiles["EXECUTE_IN_PLACE"] = "1"
-            for k, v in exec_profiles.items():
                 define(k, v)
             define(
                 "COMPILER_RT_DIRECTORY",
@@ -112,9 +109,9 @@ class Builder:
             for name, src_dir in self.software_packages:
                 define(name.upper() + "_DIRECTORY", src_dir)
 
-            if self.bios_options is not None:
-                for option in self.bios_options:
-                    define(option, "1")
+            for bios_option in self.bios_options:
+                assert bios_option in ["TERM_NO_HIST", "TERM_MINI", "TERM_NO_COMPLETE"]
+                define(bios_option, "1")
 
             write_to_file(
                 os.path.join(self.generated_dir, "variables.mak"),
@@ -134,8 +131,11 @@ class Builder:
             export.get_soc_header(self.soc.constants))
         write_to_file(
             os.path.join(self.generated_dir, "csr.h"),
-            export.get_csr_header(self.soc.csr_regions,
-                                         self.soc.constants)
+            export.get_csr_header(
+                regions   = self.soc.csr_regions,
+                constants = self.soc.constants,
+                csr_base  = self.soc.mem_regions['csr'].origin
+            )
         )
         write_to_file(
             os.path.join(self.generated_dir, "git.h"),

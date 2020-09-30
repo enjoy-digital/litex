@@ -1,11 +1,14 @@
-# This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2015-2018 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
+# Copyright (c) 2015-2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 
 from litex.build.generic_platform import GenericPlatform
-from litex.build.xilinx import common, vivado, ise
+from litex.build.xilinx import common, vivado, ise, symbiflow
 
 # XilinxPlatform -----------------------------------------------------------------------------------
 
@@ -20,6 +23,8 @@ class XilinxPlatform(GenericPlatform):
             self.toolchain = ise.XilinxISEToolchain()
         elif toolchain == "vivado":
             self.toolchain = vivado.XilinxVivadoToolchain()
+        elif toolchain == "symbiflow":
+            self.toolchain = symbiflow.SymbiflowToolchain()
         else:
             raise ValueError("Unknown toolchain")
 

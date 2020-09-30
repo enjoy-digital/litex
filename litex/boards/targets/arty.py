@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 
-# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2020 Antmicro <www.antmicro.com>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 import argparse
@@ -15,6 +19,7 @@ from litex.soc.cores.clock import *
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
+from litex.soc.cores.led import LedChaser
 
 from litedram.modules import MT41K128M16
 from litedram.phy import s7ddrphy
@@ -24,9 +29,8 @@ from liteeth.phy.mii import LiteEthPHYMII
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(Module):
-    def __init__(self, platform, sys_clk_freq):
+    def __init__(self, platform, sys_clk_freq, toolchain):
         self.clock_domains.cd_sys       = ClockDomain()
-        self.clock_domains.cd_sys2x     = ClockDomain(reset_less=True)
         self.clock_domains.cd_sys4x     = ClockDomain(reset_less=True)
         self.clock_domains.cd_sys4x_dqs = ClockDomain(reset_less=True)
         self.clock_domains.cd_clk200    = ClockDomain()
@@ -34,39 +38,58 @@ class _CRG(Module):
 
         # # #
 
-        self.submodules.pll = pll = S7PLL(speedgrade=-1)
-        self.comb += pll.reset.eq(~platform.request("cpu_reset"))
-        pll.register_clkin(platform.request("clk100"), 100e6)
-        pll.create_clkout(self.cd_sys,       sys_clk_freq)
-        pll.create_clkout(self.cd_sys2x,     2*sys_clk_freq)
-        pll.create_clkout(self.cd_sys4x,     4*sys_clk_freq)
-        pll.create_clkout(self.cd_sys4x_dqs, 4*sys_clk_freq, phase=90)
-        pll.create_clkout(self.cd_clk200,    200e6)
-        pll.create_clkout(self.cd_eth,       25e6)
+        if toolchain == "vivado":
+            self.submodules.pll = pll = S7PLL(speedgrade=-1)
+            self.comb += pll.reset.eq(~platform.request("cpu_reset"))
+            pll.register_clkin(platform.request("clk100"), 100e6)
+            pll.create_clkout(self.cd_sys,       sys_clk_freq)
+            pll.create_clkout(self.cd_sys4x,     4*sys_clk_freq)
+            pll.create_clkout(self.cd_sys4x_dqs, 4*sys_clk_freq, phase=90)
+            pll.create_clkout(self.cd_clk200,    200e6)
+            pll.create_clkout(self.cd_eth,       25e6)
 
-        self.submodules.idelayctrl = S7IDELAYCTRL(self.cd_clk200)
+            self.submodules.idelayctrl = S7IDELAYCTRL(self.cd_clk200)
 
-        self.comb += platform.request("eth_ref_clk").eq(self.cd_eth.clk)
+            self.comb += platform.request("eth_ref_clk").eq(self.cd_eth.clk)
+        elif toolchain == "symbiflow": # FIXME
+            clk100_ibuf = Signal()
+            clk100_buf  = Signal()
+            self.specials += Instance("IBUF", i_I=platform.request("clk100"), o_O=clk100_ibuf)
+            self.specials += Instance("BUFG", i_I=clk100_ibuf, o_O=clk100_buf)
+
+            self.submodules.pll = pll = S7PLL(speedgrade=-1)
+            self.comb += pll.reset.eq(~platform.request("cpu_reset"))
+            pll.register_clkin(clk100_buf, 100e6)
+            pll.create_clkout(self.cd_sys, sys_clk_freq)
+
+            platform.add_period_constraint(clk100_buf, 1e9/100e6)
+            platform.add_period_constraint(self.cd_sys.clk, 1e9/sys_clk_freq)
+            platform.add_false_path_constraints(clk100_buf, self.cd_sys.clk)
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, sys_clk_freq=int(100e6), with_ethernet=False, with_etherbone=False, **kwargs):
-        platform = arty.Platform()
+    def __init__(self, toolchain="vivado", sys_clk_freq=int(100e6), with_ethernet=False, with_etherbone=False, **kwargs):
+        platform = arty.Platform(toolchain=toolchain)
 
         # SoCCore ----------------------------------------------------------------------------------
-        SoCCore.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
+        if toolchain == "symbiflow":
+            sys_clk_freq=int(60e6)
+
+        SoCCore.__init__(self, platform, sys_clk_freq,
+            ident          = "LiteX SoC on Arty A7",
+            ident_version  = True,
+            **kwargs)
 
         # CRG --------------------------------------------------------------------------------------
-        self.submodules.crg = _CRG(platform, sys_clk_freq)
+        self.submodules.crg = _CRG(platform, sys_clk_freq, toolchain)
 
         # DDR3 SDRAM -------------------------------------------------------------------------------
-        if not self.integrated_main_ram_size:
+        if not self.integrated_main_ram_size and toolchain != "symbiflow": # FIXME
             self.submodules.ddrphy = s7ddrphy.A7DDRPHY(platform.request("ddram"),
                 memtype        = "DDR3",
                 nphases        = 4,
-                sys_clk_freq   = sys_clk_freq,
-                interface_type = "MEMORY")
+                sys_clk_freq   = sys_clk_freq)
             self.add_csr("ddrphy")
             self.add_sdram("sdram",
                 phy                     = self.ddrphy,
@@ -78,21 +101,22 @@ class BaseSoC(SoCCore):
                 l2_cache_reverse        = True
             )
 
-        # Ethernet ---------------------------------------------------------------------------------
-        if with_ethernet:
+        # Ethernet / Etherbone ---------------------------------------------------------------------
+        if with_ethernet or with_etherbone:
             self.submodules.ethphy = LiteEthPHYMII(
                 clock_pads = self.platform.request("eth_clocks"),
                 pads       = self.platform.request("eth"))
             self.add_csr("ethphy")
-            self.add_ethernet(phy=self.ethphy)
+            if with_ethernet:
+                self.add_ethernet(phy=self.ethphy)
+            if with_etherbone:
+                self.add_etherbone(phy=self.ethphy)
 
-        # Etherbone --------------------------------------------------------------------------------
-        if with_etherbone:
-            self.submodules.ethphy = LiteEthPHYMII(
-                clock_pads = self.platform.request("eth_clocks"),
-                pads       = self.platform.request("eth"))
-            self.add_csr("ethphy")
-            self.add_etherbone(phy=self.ethphy)
+        # Leds -------------------------------------------------------------------------------------
+        self.submodules.leds = LedChaser(
+            pads         = platform.request_all("user_led"),
+            sys_clk_freq = sys_clk_freq)
+        self.add_csr("leds")
 
 # Build --------------------------------------------------------------------------------------------
 
@@ -100,22 +124,32 @@ def main():
     parser = argparse.ArgumentParser(description="LiteX SoC on Arty A7")
     parser.add_argument("--build", action="store_true", help="Build bitstream")
     parser.add_argument("--load",  action="store_true", help="Load bitstream")
+    parser.add_argument("--toolchain", default="vivado", help="Gateware toolchain to use, vivado (default) or symbiflow")
     builder_args(parser)
     soc_sdram_args(parser)
     vivado_build_args(parser)
-    parser.add_argument("--with-ethernet",  action="store_true", help="Enable Ethernet support")
-    parser.add_argument("--with-etherbone", action="store_true", help="Enable Etherbone support")
+    parser.add_argument("--with-ethernet",   action="store_true", help="Enable Ethernet support")
+    parser.add_argument("--with-etherbone",  action="store_true", help="Enable Etherbone support")
+    parser.add_argument("--with-spi-sdcard", action="store_true", help="Enable SPI-mode SDCard support")
+    parser.add_argument("--with-sdcard",     action="store_true", help="Enable SDCard support")
     args = parser.parse_args()
 
     assert not (args.with_ethernet and args.with_etherbone)
-    soc = BaseSoC(with_ethernet=args.with_ethernet, with_etherbone=args.with_etherbone,
+    soc = BaseSoC(args.toolchain, with_ethernet=args.with_ethernet, with_etherbone=args.with_etherbone,
         **soc_sdram_argdict(args))
+    assert not (args.with_spi_sdcard and args.with_sdcard)
+    soc.platform.add_extension(arty._sdcard_pmod_io)
+    if args.with_spi_sdcard:
+        soc.add_spi_sdcard()
+    if args.with_sdcard:
+        soc.add_sdcard()
     builder = Builder(soc, **builder_argdict(args))
-    builder.build(**vivado_build_argdict(args), run=args.build)
+    builder_kwargs = vivado_build_argdict(args) if args.toolchain == "vivado" else {}
+    builder.build(**builder_kwargs, run=args.build)
 
     if args.load:
         prog = soc.platform.create_programmer()
-        prog.load_bitstream(os.path.join(builder.gateware_dir, "top.bit"))
+        prog.load_bitstream(os.path.join(builder.gateware_dir, soc.build_name + ".bit"))
 
 if __name__ == "__main__":
     main()

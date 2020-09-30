@@ -1,6 +1,9 @@
-# This file is Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2020 Greg Davill <greg.davill@gmail.com>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2020 Greg Davill <greg.davill@gmail.com>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 
@@ -17,6 +20,7 @@ CPU_VARIANTS = ["standard"]
 class SERV(CPU):
     name                 = "serv"
     human_name           = "SERV"
+    variants             = CPU_VARIANTS
     data_width           = 32
     endianness           = "little"
     gcc_triple           = CPU_GCC_TRIPLE_RISCV32
@@ -32,7 +36,6 @@ class SERV(CPU):
         return flags
 
     def __init__(self, platform, variant="standard"):
-        assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()

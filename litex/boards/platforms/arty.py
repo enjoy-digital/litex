@@ -1,6 +1,9 @@
-# This file is Copyright (c) 2015 Yann Sionneau <yann.sionneau@gmail.com>
-# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015 Yann Sionneau <yann.sionneau@gmail.com>
+# Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 from litex.build.generic_platform import *
 from litex.build.xilinx import XilinxPlatform
@@ -238,24 +241,83 @@ _connectors = [
         } ),
 ]
 
+# PMODS --------------------------------------------------------------------------------------------
+
+def usb_pmod_io(pmod):
+    return [
+        # USB-UART PMOD: https://store.digilentinc.com/pmod-usbuart-usb-to-uart-interface/
+        ("usb_uart", 0,
+            Subsignal("tx", Pins(f"{pmod}:1")),
+            Subsignal("rx", Pins(f"{pmod}:2")),
+            IOStandard("LVCMOS33")
+        ),
+    ]
+_usb_uart_pmod_io = usb_pmod_io("pmodb") # USB-UART PMOD on JB.
+
+
+def i2s_pmod_io(pmod):
+    return [
+        # I2S PMOD: https://store.digilentinc.com/pmod-i2s2-stereo-audio-input-and-output/
+        ("i2s_rx_mclk", 0, Pins(f"{pmod}:4"), IOStandard("LVCMOS33")),
+        ("i2s_rx", 0,
+            Subsignal("clk", Pins(f"{pmod}:6")),
+            Subsignal("sync", Pins(f"{pmod}:5")),
+            Subsignal("rx", Pins(f"{pmod}:7")),
+            IOStandard("LVCMOS33"),
+        ),
+        ("i2s_tx_mclk", 0, Pins(f"{pmod}:0"), IOStandard("LVCMOS33")),
+        ("i2s_tx", 0,
+            Subsignal("clk",Pins(f"{pmod}:2")),
+            Subsignal("sync", Pins(f"{pmod}:1")),
+            Subsignal("tx", Pins(f"{pmod}:3")),
+            IOStandard("LVCMOS33"),
+        ),
+    ]
+_i2s_pmod_io = i2s_pmod_io("pmoda") # I2S PMOD on JA.
+
+def sdcard_pmod_io(pmod):
+    return [
+        # SDCard PMOD:
+        # - https://store.digilentinc.com/pmod-microsd-microsd-card-slot/
+        # - https://github.com/antmicro/arty-expansion-board
+        ("spisdcard", 0,
+            Subsignal("clk",  Pins(f"{pmod}:3")),
+            Subsignal("mosi", Pins(f"{pmod}:1"), Misc("PULLUP True")),
+            Subsignal("cs_n", Pins(f"{pmod}:0"), Misc("PULLUP True")),
+            Subsignal("miso", Pins(f"{pmod}:2"), Misc("PULLUP True")),
+            Misc("SLEW=FAST"),
+            IOStandard("LVCMOS33"),
+        ),
+        ("sdcard", 0,
+            Subsignal("data", Pins(f"{pmod}:2 {pmod}:4 {pmod}:5 {pmod}:0"), Misc("PULLUP True")),
+            Subsignal("cmd",  Pins(f"{pmod}:1"), Misc("PULLUP True")),
+            Subsignal("clk",  Pins(f"{pmod}:3")),
+            Subsignal("cd",   Pins(f"{pmod}:6")),
+            Misc("SLEW=FAST"),
+            IOStandard("LVCMOS33"),
+        ),
+]
+_sdcard_pmod_io = sdcard_pmod_io("pmodd") # SDCARD PMOD on JD.
+
 # Platform -----------------------------------------------------------------------------------------
 
 class Platform(XilinxPlatform):
     default_clk_name   = "clk100"
     default_clk_period = 1e9/100e6
 
-    def __init__(self, variant="a7-35"):
+    def __init__(self, variant="a7-35", toolchain="vivado"):
         device = {
             "a7-35":  "xc7a35ticsg324-1L",
             "a7-100": "xc7a100tcsg324-1"
         }[variant]
-        XilinxPlatform.__init__(self, device, _io, _connectors, toolchain="vivado")
+        XilinxPlatform.__init__(self, device, _io, _connectors, toolchain=toolchain)
         self.toolchain.bitstream_commands = \
             ["set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]"]
         self.toolchain.additional_commands = \
             ["write_cfgmem -force -format bin -interface spix4 -size 16 "
              "-loadbit \"up 0x0 {build_name}.bit\" -file {build_name}.bin"]
-        self.add_platform_command("set_property INTERNAL_VREF 0.675 [get_iobanks 34]")
+        if toolchain == "vivado": # FIXME
+            self.add_platform_command("set_property INTERNAL_VREF 0.675 [get_iobanks 34]")
 
     def create_programmer(self):
         bscan_spi = "bscan_spi_xc7a100t.bit" if "xc7a100t" in self.device else "bscan_spi_xc7a35t.bit"
@@ -263,4 +325,6 @@ class Platform(XilinxPlatform):
 
     def do_finalize(self, fragment):
         XilinxPlatform.do_finalize(self, fragment)
-        self.add_period_constraint(self.lookup_request("clk100", loose=True), 1e9/100e6)
+        from litex.build.xilinx import symbiflow
+        if not isinstance(self.toolchain, symbiflow.SymbiflowToolchain): # FIXME
+            self.add_period_constraint(self.lookup_request("clk100", loose=True), 1e9/100e6)

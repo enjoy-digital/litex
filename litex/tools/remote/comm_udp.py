@@ -1,6 +1,9 @@
-# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2016 Tim 'mithro' Ansell <mithro@mithis.com>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2016 Tim 'mithro' Ansell <mithro@mithis.com>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import socket
 
@@ -26,7 +29,8 @@ class CommUDP:
         self.socket.close()
         del self.socket
 
-    def read(self, addr, length=None):
+    def read(self, addr, length=None, burst="incr"):
+        assert burst == "incr"
         length_int = 1 if length is None else length
         record = EtherboneRecord()
         record.reads = EtherboneReads(addrs=[addr+4*j for j in range(length_int)])

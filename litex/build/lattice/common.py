@@ -1,7 +1,11 @@
-# This file is Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2017 William D. Jones <thor0505@comcast.net>
-# This file is Copyright (c) 2019 David Shah <dave@ds0.me>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017 William D. Jones <thor0505@comcast.net>
+# Copyright (c) 2019 David Shah <dave@ds0.me>
+# Copyright (c) 2020 David Corrigan <davidcorrigan714@gmail.com>
+# SPDX-License-Identifier: BSD-2-Clause
 
 from migen.fhdl.module import Module
 from migen.fhdl.specials import Instance, Tristate
@@ -141,7 +145,111 @@ lattice_ecp5_trellis_special_overrides = {
     DDROutput:              LatticeECP5DDROutput
 }
 
-# iCE40 AsyncResetSynchronizer ----------------------------------------------------------------------
+
+# NX AsyncResetSynchronizer ------------------------------------------------------------------------
+
+class LatticeNXsyncResetSynchronizerImpl(Module):
+    def __init__(self, cd, async_reset):
+        rst1 = Signal()
+        self.specials += [
+            Instance("FD1P3BX",
+                i_D  = 0,
+                i_PD = async_reset,
+                i_CK = cd.clk,
+                i_SP = 1,
+                o_Q  = rst1),
+            Instance("FD1P3BX",
+                i_D  = rst1,
+                i_PD = async_reset,
+                i_CK = cd.clk,
+                i_SP = 1,
+                o_Q  = cd.rst)
+        ]
+
+
+class LatticeNXAsyncResetSynchronizer:
+    @staticmethod
+    def lower(dr):
+        return LatticeNXsyncResetSynchronizerImpl(dr.cd, dr.async_reset)
+
+
+# NX SDR Input -------------------------------------------------------------------------------------
+
+class LatticeNXSDRInputImpl(Module):
+    def __init__(self, i, o, clk):
+        self.specials += Instance("IFD1P3BX",
+            i_SCLK = clk,
+            i_PD   = 0,
+            i_SP   = 1,
+            i_D    = i,
+            o_Q    = o,
+        )
+
+class LatticeNXSDRInput:
+    @staticmethod
+    def lower(dr):
+        return LatticeNXSDRInputImpl(dr.i, dr.o, dr.clk)
+
+# NX SDR Output ------------------------------------------------------------------------------------
+
+class LatticeNXSDROutputImpl(Module):
+    def __init__(self, i, o, clk):
+        self.specials += Instance("OFD1P3BX",
+            i_SCLK = clk,
+            i_PD   = 0,
+            i_SP   = 1,
+            i_D    = i,
+            o_Q    = o,
+        )
+
+class LatticeNXSDROutput:
+    @staticmethod
+    def lower(dr):
+        return LatticeNXSDROutputImpl(dr.i, dr.o, dr.clk)
+
+# NX DDR Input -------------------------------------------------------------------------------------
+
+class LatticeNXDDRInputImpl(Module):
+    def __init__(self, i, o1, o2, clk):
+        self.specials += Instance("IDDRX1",
+            i_SCLK = clk,
+            i_D    = i,
+            o_Q0   = o1,
+            o_Q1   = o2,
+        )
+
+class LatticeNXDDRInput:
+    @staticmethod
+    def lower(dr):
+        return LatticeNXDDRInputImpl(dr.i, dr.o1, dr.o2, dr.clk)
+
+# NX DDR Output ------------------------------------------------------------------------------------
+
+class LatticeNXDDROutputImpl(Module):
+    def __init__(self, i1, i2, o, clk):
+        self.specials += Instance("ODDRX1",
+            i_SCLK = clk,
+            i_D0   = i1,
+            i_D1   = i2,
+            o_Q    = o,
+        )
+
+class LatticeNXDDROutput:
+    @staticmethod
+    def lower(dr):
+        return LatticeNXDDROutputImpl(dr.i1, dr.i2, dr.o, dr.clk)
+
+# NX Special Overrides -----------------------------------------------------------------------------
+
+lattice_NX_special_overrides = {
+    AsyncResetSynchronizer: LatticeNXAsyncResetSynchronizer,
+    SDRInput:               LatticeNXSDRInput,
+    SDROutput:              LatticeNXSDROutput,
+    DDRInput:               LatticeNXDDRInput,
+    DDROutput:              LatticeNXDDROutput,
+}
+
+# iCE40 AsyncResetSynchronizer ---------------------------------------------------------------------
 
 class LatticeiCE40AsyncResetSynchronizerImpl(Module):
     def __init__(self, cd, async_reset):

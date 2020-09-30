@@ -1,12 +1,14 @@
-# This file is Copyright (c) 2018 Dolu1990 <charles.papon.90@gmail.com>
-# This file is Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2018-2019 Sean Cross <sean@xobs.io>
-# This file is Copyright (c) 2019 Tim 'mithro' Ansell <me@mith.ro>
-# This file is Copyright (c) 2019 David Shah <dave@ds0.me>
-# This file is Copyright (c) 2019 Antmicro <www.antmicro.com>
-# This file is Copyright (c) 2019 Kurt Kiefer <kekiefer@gmail.com>
-
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2018 Dolu1990 <charles.papon.90@gmail.com>
+# Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2018-2019 Sean Cross <sean@xobs.io>
+# Copyright (c) 2019 Tim 'mithro' Ansell <me@mith.ro>
+# Copyright (c) 2019 David Shah <dave@ds0.me>
+# Copyright (c) 2019 Antmicro <www.antmicro.com>
+# Copyright (c) 2019 Kurt Kiefer <kekiefer@gmail.com>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 
@@ -25,6 +27,8 @@ CPU_VARIANTS = {
     "lite+debug":       "VexRiscv_LiteDebug",
     "standard":         "VexRiscv",
     "standard+debug":   "VexRiscv_Debug",
+    "imac":             "VexRiscv_IMAC",
+    "imac+debug":       "VexRiscv_IMACDebug",
     "full":             "VexRiscv_Full",
     "full+debug":       "VexRiscv_FullDebug",
     "linux":            "VexRiscv_Linux",
@@ -47,6 +51,8 @@ GCC_FLAGS = {
     "lite+debug":       "-march=rv32i      -mabi=ilp32",
     "standard":         "-march=rv32im     -mabi=ilp32",
     "standard+debug":   "-march=rv32im     -mabi=ilp32",
+    "imac":             "-march=rv32imac   -mabi=ilp32",
+    "imac+debug":       "-march=rv32imac   -mabi=ilp32",
     "full":             "-march=rv32im     -mabi=ilp32",
     "full+debug":       "-march=rv32im     -mabi=ilp32",
     "linux":            "-march=rv32ima    -mabi=ilp32",
@@ -77,6 +83,7 @@ class VexRiscvTimer(Module, AutoCSR):
 class VexRiscv(CPU, AutoCSR):
     name                 = "vexriscv"
     human_name           = "VexRiscv"
+    variants             = CPU_VARIANTS
     data_width           = 32
     endianness           = "little"
     gcc_triple           = CPU_GCC_TRIPLE_RISCV32
@@ -100,9 +107,9 @@ class VexRiscv(CPU, AutoCSR):
         return flags
 
     def __init__(self, platform, variant="standard"):
-        assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
         self.platform         = platform
         self.variant          = variant
+        self.human_name       = CPU_VARIANTS.get(variant, "VexRiscv")
         self.external_variant = None
         self.reset            = Signal()
         self.interrupt        = Signal(32)

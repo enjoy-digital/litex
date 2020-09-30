@@ -1,5 +1,8 @@
-# This file is Copyright (c) 2019 Sean Cross <sean@xobs.io>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2019 Sean Cross <sean@xobs.io>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import usb.core
 import time
@@ -87,7 +90,8 @@ class CommUSB:
             return
         del self.dev
 
-    def read(self, addr, length=None):
+    def read(self, addr, length=None, burst="incr"):
+        assert burst == "incr"
         data = []
         length_int = 1 if length is None else length
         for i in range(length_int):

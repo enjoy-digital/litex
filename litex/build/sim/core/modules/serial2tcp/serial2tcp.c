@@ -62,7 +62,7 @@ out:
 
 static int litex_sim_module_pads_get( struct pad_s *pads, char *name, void **signal)
 {
-  int ret;
+  int ret = RC_OK;
   void *sig = NULL;
   int i;
 
@@ -186,7 +186,7 @@ out:
 
 static int serial2tcp_add_pads(void *sess, struct pad_list_s *plist)
 {
-  int ret=RC_OK;
+  int ret = RC_OK;
   struct session_s *s=(struct session_s*)sess;
   struct pad_s *pads;
   if(!sess || !plist) {
@@ -210,14 +210,16 @@ out:
   return ret;
 
 }
-static int serial2tcp_tick(void *sess)
+static int serial2tcp_tick(void *sess, uint64_t time_ps)
 {
+  static struct clk_edge_t edge;
   char c;
   int ret = RC_OK;
 
   struct session_s *s = (struct session_s*)sess;
-  if(*s->sys_clk == 0)
+  if(!clk_pos_edge(&edge, *s->sys_clk)) {
     return RC_OK;
+  }
 
   *s->tx_ready = 1;
   if(s->fd && *s->tx_valid) {

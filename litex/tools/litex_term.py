@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
-# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2016 whitequark <whitequark@whitequark.org>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
+# Copyright (c) 2016 whitequark <whitequark@whitequark.org>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import sys
 import signal
@@ -224,7 +227,7 @@ class LiteXTerm:
             current_address += len(frame_data)
             position += len(frame_data)
             remaining -= len(frame_data)
-            time.sleep(1e-4) # FIXME: small delay needed with FT245 FIFO ("usb_fifo"), understand why.
+            time.sleep(1e-5) # Inter-frame delay for fast UARTs (ex: FT245).
         end = time.time()
         elapsed = end - start
         f.close()
@@ -349,7 +352,7 @@ def _get_args():
     parser.add_argument("--serial-boot", default=False, action='store_true',
                         help="automatically initiate serial boot")
     parser.add_argument("--kernel", default=None, help="kernel image")
-    parser.add_argument("--kernel-adr", default="0x40000000", help="kernel address")
+    parser.add_argument("--kernel-adr", default="0x40000000", help="kernel address (or flash offset with --flash)")
     parser.add_argument("--images", default=None, help="json description of the images to load to memory")
     parser.add_argument("--no-crc", default=False, action='store_true', help="disable CRC check (speedup serialboot)")
     parser.add_argument("--flash", default=False, action='store_true', help="flash data with serialboot command")

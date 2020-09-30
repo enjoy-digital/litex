@@ -1,5 +1,8 @@
-# This file is Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 from litex.build.generic_platform import *
 from litex.build.xilinx import XilinxPlatform, VivadoProgrammer
@@ -42,6 +45,36 @@ _io = [
     ("serial", 0,
         Subsignal("tx", Pins("Y23")),
         Subsignal("rx", Pins("Y20")),
+        IOStandard("LVCMOS33")
+    ),
+
+    ("usb_fifo", 0, # Can be used when FT2232H's Channel A configured to ASYNC FIFO 245 mode
+        Subsignal("data",  Pins("AD27 W27 W28 W29 Y29 Y28 AA28 AA26")),
+        Subsignal("rxf_n", Pins("AB29")),
+        Subsignal("txe_n", Pins("AA25")),
+        Subsignal("rd_n",  Pins("AB25")),
+        Subsignal("wr_n",  Pins("AC27")),
+        Subsignal("siwua", Pins("AB28")),
+        Subsignal("oe_n",  Pins("AC30")),
+        Misc("SLEW=FAST"),
+        Drive(8),
+        IOStandard("LVCMOS33"),
+    ),
+
+    ("sdcard", 0,
+        Subsignal("clk", Pins("R28")),
+        Subsignal("cmd", Pins("R29"), Misc("PULLUP True")),
+        Subsignal("data", Pins("R26 R30 P29 T30"), Misc("PULLUP True")),
+        Misc("SLEW=FAST"),
+        IOStandard("LVCMOS33")
+    ),
+
+    ("spisdcard", 0,
+        Subsignal("clk",  Pins("R28")),
+        Subsignal("cs_n", Pins("T30")),
+        Subsignal("mosi", Pins("R29"), Misc("PULLUP")),
+        Subsignal("miso", Pins("R26"), Misc("PULLUP")),
+        Misc("SLEW=FAST"),
         IOStandard("LVCMOS33")
     ),
 
@@ -115,9 +148,10 @@ class Platform(XilinxPlatform):
 
     def __init__(self):
         XilinxPlatform.__init__(self, "xc7k325t-ffg900-2", _io, _connectors, toolchain="vivado")
+        self.add_platform_command("set_property INTERNAL_VREF 0.750 [get_iobanks 34]")
 
     def create_programmer(self):
-        return OpenOCD("openocd_xc7_ft2232.cfg", "bscan_spi_xc7a325t.bit")
+        return OpenOCD("openocd_genesys2.cfg", "bscan_spi_xc7a325t.bit")
 
     def do_finalize(self, fragment):
         XilinxPlatform.do_finalize(self, fragment)

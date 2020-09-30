@@ -1,5 +1,8 @@
-# This file is Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2019-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 """Avalon support for LiteX"""
 
@@ -19,7 +22,7 @@ from litex.soc.interconnect import stream
 class Native2AvalonST(Module):
     """Native LiteX's stream to Avalon-ST stream"""
     def __init__(self, layout, latency=2):
-        self.sink = sink = stream.Endpoint(layout)
+        self.sink   = sink   = stream.Endpoint(layout)
         self.source = source = stream.Endpoint(layout)
 
         # # #
@@ -38,15 +41,13 @@ class Native2AvalonST(Module):
 class AvalonST2Native(Module):
     """Avalon-ST Stream to native LiteX's stream"""
     def __init__(self, layout, latency=2):
-        self.sink = sink = stream.Endpoint(layout)
+        self.sink   = sink   = stream.Endpoint(layout)
         self.source = source = stream.Endpoint(layout)
 
         # # #
 
-        buf = stream.SyncFIFO(layout, max(latency, 4))
+        buf = stream.SyncFIFO(layout, latency)
         self.submodules += buf
-        self.comb += [
-            sink.connect(buf.sink, omit={"ready"}),
-            sink.ready.eq(source.ready),
-            buf.source.connect(source)
-        ]
+        self.comb += sink.connect(buf.sink, omit={"ready"})
+        self.comb += sink.ready.eq(source.ready)
+        self.comb += buf.source.connect(source)

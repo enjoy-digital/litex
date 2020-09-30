@@ -1,3 +1,6 @@
+#
+# This file is part of LiteX.
+#
 # This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
 # This file is Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2018 Dolu1990 <charles.papon.90@gmail.com>
@@ -10,12 +13,7 @@
 # This file is Copyright (c) 2018-2017 Tim 'mithro' Ansell <me@mith.ro>
 # This file is Copyright (c) 2015 whitequark <whitequark@whitequark.org>
 # This file is Copyright (c) 2014 Yann Sionneau <ys@m-labs.hk>
-# License: BSD
-
-####################################################################################################
-#       DISCLAIMER: Provides retro-compatibility layer for existing SoCCore based designs.
-#     Most of the SoC code has been refactored/improved and is now located in integration/soc.py
-####################################################################################################
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 import inspect
@@ -61,6 +59,11 @@ class SoCCore(LiteXSoC):
     }
 
     def __init__(self, platform, clk_freq,
+        # Bus parameters
+        bus_standard             = "wishbone",
+        bus_data_width           = 32,
+        bus_address_width        = 32,
+        bus_timeout              = 1e6,
         # CPU parameters
         cpu_type                 = "vexriscv",
         cpu_reset_address        = None,
@@ -68,18 +71,19 @@ class SoCCore(LiteXSoC):
         cpu_cls                  = None,
         # ROM parameters
         integrated_rom_size      = 0,
+        integrated_rom_mode      = "r",
         integrated_rom_init      = [],
         # SRAM parameters
-        integrated_sram_size     = 0x1000,
+        integrated_sram_size     = 0x2000,
         integrated_sram_init     = [],
         # MAIN_RAM parameters
         integrated_main_ram_size = 0,
         integrated_main_ram_init = [],
         # CSR parameters
         csr_data_width           = 8,
-        csr_alignment            = 32,
         csr_address_width        = 14,
         csr_paging               = 0x800,
+        csr_ordering             = "big",
         # Identifier parameters
         ident                    = "",
         ident_version            = False,
@@ -90,26 +94,24 @@ class SoCCore(LiteXSoC):
         uart_fifo_depth          = 16,
         # Timer parameters
         with_timer               = True,
+        timer_uptime             = False,
         # Controller parameters
         with_ctrl                = True,
-        # Wishbone parameters
-        with_wishbone            = True,
-        wishbone_timeout_cycles  = 1e6,
         # Others
         **kwargs):
 
         # New LiteXSoC class ----------------------------------------------------------------------------
         LiteXSoC.__init__(self, platform, clk_freq,
-            bus_standard         = "wishbone",
-            bus_data_width       = 32,
-            bus_address_width    = 32,
-            bus_timeout          = wishbone_timeout_cycles,
+            bus_standard         = bus_standard,
+            bus_data_width       = bus_data_width,
+            bus_address_width    = bus_address_width,
+            bus_timeout          = bus_timeout,
             bus_reserved_regions = {},
 
             csr_data_width       = csr_data_width,
             csr_address_width    = csr_address_width,
-            csr_alignment        = csr_alignment,
             csr_paging           = csr_paging,
+            csr_ordering         = csr_ordering,
             csr_reserved_csrs    = self.csr_map,
 
             irq_n_irqs           = 32,
@@ -125,24 +127,19 @@ class SoCCore(LiteXSoC):
         # Parameters management --------------------------------------------------------------------
         cpu_type          = None if cpu_type == "None" else cpu_type
         cpu_reset_address = None if cpu_reset_address == "None" else cpu_reset_address
-        cpu_variant = cpu.check_format_cpu_variant(cpu_variant)
-
-        if not with_wishbone:
-            self.mem_map["csr"]  = 0x00000000
 
         self.cpu_type                   = cpu_type
         self.cpu_variant                = cpu_variant
         self.cpu_cls                    = cpu_cls
 
+        if cpu_type in [None, "zynq7000"]:
+            integrated_rom_size = 0
         self.integrated_rom_size        = integrated_rom_size
         self.integrated_rom_initialized = integrated_rom_init != []
         self.integrated_sram_size       = integrated_sram_size
         self.integrated_main_ram_size   = integrated_main_ram_size
 
         self.csr_data_width             = csr_data_width
-
-        self.with_wishbone              = with_wishbone
-        self.wishbone_timeout_cycles    = wishbone_timeout_cycles
 
         self.wb_slaves = {}
 
@@ -165,7 +162,7 @@ class SoCCore(LiteXSoC):
 
         # Add integrated ROM
         if integrated_rom_size:
-            self.add_rom("rom", self.cpu.reset_address, integrated_rom_size, integrated_rom_init)
+            self.add_rom("rom", self.cpu.reset_address, integrated_rom_size, integrated_rom_init, integrated_rom_mode)
 
         # Add integrated SRAM
         if integrated_sram_size:
@@ -186,10 +183,8 @@ class SoCCore(LiteXSoC):
         # Add Timer
         if with_timer:
             self.add_timer(name="timer0")
-
-        # Add Wishbone to CSR bridge
-        if with_wishbone:
-            self.add_csr_bridge(self.mem_map["csr"])
+            if timer_uptime:
+                self.timer0.add_uptime()
 
     # Methods --------------------------------------------------------------------------------------
 
@@ -256,6 +251,17 @@ class SoCCore(LiteXSoC):
 # SoCCore arguments --------------------------------------------------------------------------------
 
 def soc_core_args(parser):
+    # Bus parameters
+    parser.add_argument("--bus-standard", default="wishbone",
+                        help="select bus standard: {}, (default=wishbone)".format(
+                            ", ".join(SoCBusHandler.supported_standard)))
+    parser.add_argument("--bus-data-width", default=32, type=auto_int,
+                        help="Bus data width (default=32)")
+    parser.add_argument("--bus-address-width", default=32, type=auto_int,
+                        help="Bus address width (default=32)")
+    parser.add_argument("--bus-timeout", default=1e6, type=float,
+                        help="Bus timeout in cycles (default=1e6)")
+
     # CPU parameters
     parser.add_argument("--cpu-type", default=None,
                         help="select CPU: {}, (default=vexriscv)".format(", ".join(iter(cpu.CPUS.keys()))))
@@ -269,8 +275,8 @@ def soc_core_args(parser):
     parser.add_argument("--integrated-rom-file", default=None, type=str,
                         help="integrated (BIOS) ROM binary file")
     # SRAM parameters
-    parser.add_argument("--integrated-sram-size", default=0x1000, type=auto_int,
-                        help="size/enable the integrated SRAM (default=4KB)")
+    parser.add_argument("--integrated-sram-size", default=0x2000, type=auto_int,
+                        help="size/enable the integrated SRAM (default=8KB)")
     # MAIN_RAM parameters
     parser.add_argument("--integrated-main-ram-size", default=None, type=auto_int,
                         help="size/enable the integrated main RAM")
@@ -281,6 +287,9 @@ def soc_core_args(parser):
                         help="CSR bus address-width")
     parser.add_argument("--csr-paging", default=0x800, type=auto_int,
                         help="CSR bus paging")
+    parser.add_argument("--csr-ordering", default="big",
+                        help="CSR registers ordering (default=big)")
+
     # Identifier parameters
     parser.add_argument("--ident", default=None, type=str,
                         help="SoC identifier (default=\"\"")

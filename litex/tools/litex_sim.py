@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
-# This file is Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2020 Antmicro <www.antmicro.com>
-# This file is Copyright (c) 2017 Pierre-Olivier Vauboin <po@lambdaconcept>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2020 Antmicro <www.antmicro.com>
+# Copyright (c) 2017 Pierre-Olivier Vauboin <po@lambdaconcept>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import argparse
 
@@ -14,11 +17,15 @@ from litex.build.sim import SimPlatform
 from litex.build.sim.config import SimConfig
 
 from litex.soc.integration.common import *
+from litex.soc.integration.soc_core import *
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
 from litex.soc.integration.soc import *
+from litex.soc.cores.bitbang import *
+from litex.soc.cores.cpu import CPUS
 
 from litedram import modules as litedram_modules
+from litedram.modules import parse_spd_hexdump
 from litedram.common import *
 from litedram.phy.model import SDRAMPHYModel
 
@@ -60,6 +67,11 @@ _io = [
         Subsignal("sink_valid",   Pins(1)),
         Subsignal("sink_ready",   Pins(1)),
         Subsignal("sink_data",    Pins(8)),
+    ),
+    ("i2c", 0,
+        Subsignal("scl",     Pins(1)),
+        Subsignal("sda_out", Pins(1)),
+        Subsignal("sda_in",  Pins(1)),
     ),
 ]
 
@@ -150,11 +162,11 @@ def get_sdram_phy_settings(memtype, data_width, clk_freq):
 
 # Simulation SoC -----------------------------------------------------------------------------------
 
-class SimSoC(SoCSDRAM):
+class SimSoC(SoCCore):
     mem_map = {
         "ethmac": 0xb0000000,
     }
-    mem_map.update(SoCSDRAM.mem_map)
+    mem_map.update(SoCCore.mem_map)
 
     def __init__(self,
         with_sdram            = False,
@@ -168,21 +180,26 @@ class SimSoC(SoCSDRAM):
         sdram_data_width      = 32,
         sdram_spd_data        = None,
         sdram_verbosity       = 0,
+        with_i2c              = False,
+        with_sdcard           = False,
+        sim_debug             = False,
+        trace_reset_on        = False,
         **kwargs):
         platform     = Platform()
         sys_clk_freq = int(1e6)
 
-        # SoCSDRAM ---------------------------------------------------------------------------------
-        SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
-            ident               = "LiteX Simulation", ident_version=True,
-            l2_reverse          = False,
+        # SoCCore ----------------------------------------------------------------------------------
+        SoCCore.__init__(self, platform, clk_freq=sys_clk_freq,
+            ident         = "LiteX Simulation",
+            ident_version = True,
             **kwargs)
+
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = CRG(platform.request("sys_clk"))
 
         # SDRAM ------------------------------------------------------------------------------------
         if with_sdram:
-            sdram_clk_freq   = int(100e6) # FIXME: use 100MHz timings
+            sdram_clk_freq = int(100e6) # FIXME: use 100MHz timings
             if sdram_spd_data is None:
                 sdram_module_cls = getattr(litedram_modules, sdram_module)
                 sdram_rate       = "1:{}".format(sdram_module_nphases[sdram_module_cls.memtype])
@@ -199,10 +216,15 @@ class SimSoC(SoCSDRAM):
                 clk_freq  = sdram_clk_freq,
                 verbosity = sdram_verbosity,
                 init      = sdram_init)
-            self.register_sdram(
-                self.sdrphy,
-                sdram_module.geom_settings,
-                sdram_module.timing_settings)
+            self.add_sdram("sdram",
+                phy                     = self.sdrphy,
+                module                  = sdram_module,
+                origin                  = self.mem_map["main_ram"],
+                size                    = kwargs.get("max_sdram_size", 0x40000000),
+                l2_cache_size           = kwargs.get("l2_size", 8192),
+                l2_cache_min_data_width = kwargs.get("min_l2_data_width", 128),
+                l2_cache_reverse        = False
+            )
             # Reduce memtest size for simulation speedup
             self.add_constant("MEMTEST_DATA_SIZE", 8*1024)
             self.add_constant("MEMTEST_ADDR_SIZE", 8*1024)
@@ -210,13 +232,12 @@ class SimSoC(SoCSDRAM):
         #assert not (with_ethernet and with_etherbone)
 
         if with_ethernet and with_etherbone:
-            dw = 8
             etherbone_ip_address = convert_ip(etherbone_ip_address)
             # Ethernet PHY
             self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth", 0))
             self.add_csr("ethphy")
             # Ethernet MAC
-            self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=dw,
+            self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=8,
                 interface  = "hybrid",
                 endianness = self.cpu.endianness,
                 hw_mac     = etherbone_mac_address)
@@ -227,10 +248,10 @@ class SimSoC(SoCSDRAM):
             self.add_csr("ethmac")
             self.add_interrupt("ethmac")
             # HW ethernet
-            self.submodules.arp = LiteEthARP(self.ethmac, etherbone_mac_address, etherbone_ip_address, sys_clk_freq, dw=dw)
-            self.submodules.ip = LiteEthIP(self.ethmac, etherbone_mac_address, etherbone_ip_address, self.arp.table, dw=dw)
-            self.submodules.icmp = LiteEthICMP(self.ip, etherbone_ip_address, dw=dw)
-            self.submodules.udp = LiteEthUDP(self.ip, etherbone_ip_address, dw=dw)
+            self.submodules.arp  = LiteEthARP(self.ethmac, etherbone_mac_address, etherbone_ip_address, sys_clk_freq, dw=8)
+            self.submodules.ip   = LiteEthIP(self.ethmac, etherbone_mac_address, etherbone_ip_address, self.arp.table, dw=8)
+            self.submodules.icmp = LiteEthICMP(self.ip, etherbone_ip_address, dw=8)
+            self.submodules.udp  = LiteEthUDP(self.ip, etherbone_ip_address, dw=8)
             # Etherbone
             self.submodules.etherbone = LiteEthEtherbone(self.udp, 1234, mode="master")
             self.add_wb_master(self.etherbone.wishbone.bus)
@@ -285,6 +306,22 @@ class SimSoC(SoCSDRAM):
                 csr_csv      = "analyzer.csv")
             self.add_csr("analyzer")
 
+        # I2C --------------------------------------------------------------------------------------
+        if with_i2c:
+            pads = platform.request("i2c", 0)
+            self.submodules.i2c = I2CMasterSim(pads)
+            self.add_csr("i2c")
+
+        # SDCard -----------------------------------------------------------------------------------
+        if with_sdcard:
+            self.add_sdcard("sdcard", use_emulator=True)
+
+        # Simulatio debugging ----------------------------------------------------------------------
+        if sim_debug:
+            platform.add_debug(self, reset=1 if trace_reset_on else 0)
+        else:
+            self.comb += platform.trace.eq(1)
+
 # Build --------------------------------------------------------------------------------------------
 
 def main():
@@ -298,51 +335,59 @@ def main():
     parser.add_argument("--sdram-module",         default="MT48LC16M16",   help="Select SDRAM chip")
     parser.add_argument("--sdram-data-width",     default=32,              help="Set SDRAM chip data width")
     parser.add_argument("--sdram-init",           default=None,            help="SDRAM init file")
-    parser.add_argument("--sdram-from-spd-data",  default=None,            help="Generate SDRAM module based on SPD data from file")
+    parser.add_argument("--sdram-from-spd-dump",  default=None,            help="Generate SDRAM module based on data from SPD EEPROM dump")
     parser.add_argument("--sdram-verbosity",      default=0,               help="Set SDRAM checker verbosity")
     parser.add_argument("--with-ethernet",        action="store_true",     help="Enable Ethernet support")
     parser.add_argument("--with-etherbone",       action="store_true",     help="Enable Etherbone support")
     parser.add_argument("--local-ip",             default="192.168.1.50",  help="Local IP address of SoC (default=192.168.1.50)")
     parser.add_argument("--remote-ip",            default="192.168.1.100", help="Remote IP address of TFTP server (default=192.168.1.100)")
     parser.add_argument("--with-analyzer",        action="store_true",     help="Enable Analyzer support")
+    parser.add_argument("--with-i2c",             action="store_true",     help="Enable I2C support")
+    parser.add_argument("--with-sdcard",          action="store_true",     help="Enable SDCard support")
     parser.add_argument("--trace",                action="store_true",     help="Enable Tracing")
     parser.add_argument("--trace-fst",            action="store_true",     help="Enable FST tracing (default=VCD)")
-    parser.add_argument("--trace-start",          default=0,               help="Cycle to start tracing")
-    parser.add_argument("--trace-end",            default=-1,              help="Cycle to end tracing")
+    parser.add_argument("--trace-start",          default="0",             help="Time to start tracing (ps)")
+    parser.add_argument("--trace-end",            default="-1",            help="Time to end tracing (ps)")
     parser.add_argument("--opt-level",            default="O3",            help="Compilation optimization level")
+    parser.add_argument("--sim-debug",            action="store_true",     help="Add simulation debugging modules")
     args = parser.parse_args()
 
     soc_kwargs     = soc_sdram_argdict(args)
     builder_kwargs = builder_argdict(args)
 
-    sim_config = SimConfig(default_clk="sys_clk")
-    sim_config.add_module("serial2console", "serial")
+    sys_clk_freq = int(1e6)
+    sim_config = SimConfig()
+    sim_config.add_clocker("sys_clk", freq_hz=sys_clk_freq)
 
     # Configuration --------------------------------------------------------------------------------
 
-    cpu_endianness = "little"
-    if "cpu_type" in soc_kwargs:
-        if soc_kwargs["cpu_type"] in ["mor1kx", "lm32"]:
-            cpu_endianness = "big"
-    soc_kwargs["uart_name"] = "sim"
+    cpu = CPUS[soc_kwargs.get("cpu_type", "vexriscv")]
+    if soc_kwargs["uart_name"] == "serial":
+        soc_kwargs["uart_name"] = "sim"
+        sim_config.add_module("serial2console", "serial")
     if args.rom_init:
-        soc_kwargs["integrated_rom_init"] = get_mem_data(args.rom_init, cpu_endianness)
+        soc_kwargs["integrated_rom_init"] = get_mem_data(args.rom_init, cpu.endianness)
     if not args.with_sdram:
         soc_kwargs["integrated_main_ram_size"] = 0x10000000 # 256 MB
         if args.ram_init is not None:
-            soc_kwargs["integrated_main_ram_init"] = get_mem_data(args.ram_init, cpu_endianness)
+            soc_kwargs["integrated_main_ram_init"] = get_mem_data(args.ram_init, cpu.endianness)
     else:
         assert args.ram_init is None
         soc_kwargs["integrated_main_ram_size"] = 0x0
         soc_kwargs["sdram_module"]             = args.sdram_module
         soc_kwargs["sdram_data_width"]         = int(args.sdram_data_width)
         soc_kwargs["sdram_verbosity"]          = int(args.sdram_verbosity)
-        if args.sdram_from_spd_data:
-            with open(args.sdram_from_spd_data, "rb") as f:
-                soc_kwargs["sdram_spd_data"] = [int(b) for b in f.read()]
+        if args.sdram_from_spd_dump:
+            soc_kwargs["sdram_spd_data"] = parse_spd_hexdump(args.sdram_from_spd_dump)
 
     if args.with_ethernet or args.with_etherbone:
         sim_config.add_module("ethernet", "eth", args={"interface": "tap0", "ip": args.remote_ip})
+
+    if args.with_i2c:
+        sim_config.add_module("spdeeprom", "i2c")
+
+    trace_start = int(float(args.trace_start))
+    trace_end = int(float(args.trace_end))
 
     # SoC ------------------------------------------------------------------------------------------
     soc = SimSoC(
@@ -350,7 +395,11 @@ def main():
         with_ethernet  = args.with_ethernet,
         with_etherbone = args.with_etherbone,
         with_analyzer  = args.with_analyzer,
-        sdram_init     = [] if args.sdram_init is None else get_mem_data(args.sdram_init, cpu_endianness),
+        with_i2c       = args.with_i2c,
+        with_sdcard    = args.with_sdcard,
+        sim_debug      = args.sim_debug,
+        trace_reset_on = trace_start > 0 or trace_end > 0,
+        sdram_init     = [] if args.sdram_init is None else get_mem_data(args.sdram_init, cpu.endianness),
         **soc_kwargs)
     if args.ram_init is not None:
         soc.add_constant("ROM_BOOT_ADDRESS", 0x40000000)
@@ -363,21 +412,22 @@ def main():
     # Build/Run ------------------------------------------------------------------------------------
     builder_kwargs["csr_csv"] = "csr.csv"
     builder = Builder(soc, **builder_kwargs)
-    vns = builder.build(run=False, threads=args.threads, sim_config=sim_config,
-        opt_level   = args.opt_level,
-        trace       = args.trace,
-        trace_fst   = args.trace_fst,
-        trace_start = int(args.trace_start),
-        trace_end   = int(args.trace_end))
-    if args.with_analyzer:
-        soc.analyzer.export_csv(vns, "analyzer.csv")
-    builder.build(build=False, threads=args.threads, sim_config=sim_config,
-        opt_level   = args.opt_level,
-        trace       = args.trace,
-        trace_fst   = args.trace,
-        trace_start = int(args.trace_start),
-        trace_end   = int(args.trace_end)
-    )
+    for i in range(2):
+        build = (i == 0)
+        run   = (i == 1)
+        vns = builder.build(
+            build       = build,
+            run         = run,
+            threads     = args.threads,
+            sim_config  = sim_config,
+            opt_level   = args.opt_level,
+            trace       = args.trace,
+            trace_fst   = args.trace_fst,
+            trace_start = trace_start,
+            trace_end   = trace_end
+        )
+        if args.with_analyzer:
+            soc.analyzer.export_csv(vns, "analyzer.csv")
 
 if __name__ == "__main__":
     main()

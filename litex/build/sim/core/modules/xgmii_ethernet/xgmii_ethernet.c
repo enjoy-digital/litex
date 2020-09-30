@@ -96,7 +96,7 @@ out:
 
 static int litex_sim_module_pads_get(struct pad_s *pads, char *name, void **signal)
 {
-  int ret;
+  int ret = RC_OK;
   void *sig = NULL;
   int i;
 
@@ -199,7 +199,7 @@ out:
 
 static int xgmii_ethernet_add_pads(void *sess, struct pad_list_s *plist)
 {
-  int ret=RC_OK;
+  int ret = RC_OK;
   struct session_s *s = (struct session_s*)sess;
   struct pad_s *pads;
   if(!sess || !plist) {
@@ -233,12 +233,13 @@ unsigned int g_mask = 0xff;
 unsigned int g_idle = 0x07070707;
 #endif
 
-static int xgmii_ethernet_tick(void *sess)
+static int xgmii_ethernet_tick(void *sess, uint64_t time_ps)
 {
+  static struct clk_edge_t edge;
   struct session_s *s = (struct session_s*)sess;
   struct eth_packet_s *pep;
 
-  if(*s->sys_clk == 0) {
+  if(!clk_pos_edge(&edge, *s->sys_clk)) {
     s->preamble=0;
     return RC_OK;
   }
@@ -358,7 +359,6 @@ static int xgmii_ethernet_tick(void *sess)
       printf("Received: %ld\n", s->ethpack->len );
       for(int i=0; i< s->ethpack->len;) {
 	printf("%02x ", s->inbuf[i++] & 0xff);
-	if (i%8 == 0 && i > 0);
       }
       printf("\n");
       s->inlen = s->ethpack->len;

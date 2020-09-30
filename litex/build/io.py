@@ -1,6 +1,9 @@
-# This file is Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
+# SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
 from migen.fhdl.specials import Special, Tristate
@@ -43,12 +46,10 @@ class DifferentialOutput(Special):
 # SDR Input/Output ---------------------------------------------------------------------------------
 
 class InferedSDRIO(Module):
-    def __init__(self, i, o, clk, clk_domain):
-        if clk_domain is None:
-            raise NotImplementedError("Attempted to use an InferedSDRIO but no clk_domain specified.")
-        sync = getattr(self.sync, clk_domain)
-        sync += o.eq(i)
-
+    def __init__(self, i, o, clk):
+        self.clock_domains.cd_sdrio = ClockDomain(reset_less=True)
+        self.comb += self.cd_sdrio.clk.eq(clk)
+        self.sync.sdrio += o.eq(i)
 
 class SDRIO(Special):
     def __init__(self, i, o, clk=ClockSignal()):
@@ -66,7 +67,7 @@ class SDRIO(Special):
 
     @staticmethod
     def lower(dr):
-        return InferedSDRIO(dr.i, dr.o, dr.clk, dr.clk_domain)
+        return InferedSDRIO(dr.i, dr.o, dr.clk)
 
 
 class SDRInput(SDRIO):  pass
@@ -75,15 +76,13 @@ class SDROutput(SDRIO): pass
 # SDR Tristate -------------------------------------------------------------------------------------
 
 class InferedSDRTristate(Module):
-    def __init__(self, io, o, oe, i, clk, clk_domain):
-        if clk_domain is None:
-            raise NotImplementedError("Attempted to use an SDRTristate but no clk_domain specified.")
+    def __init__(self, io, o, oe, i, clk):
         _o  = Signal()
         _oe = Signal()
         _i  = Signal()
-        self.specials += SDROutput(o, _o)
-        self.specials += SDRInput(_i, i)
-        self.submodules += InferedSDRIO(oe, _oe, clk, clk_domain)
+        self.specials += SDROutput(o, _o, clk)
+        self.specials += SDRInput(_i, i, clk)
+        self.submodules += InferedSDRIO(oe, _oe, clk)
         self.specials += Tristate(io, _o, _oe, _i)
 
 class SDRTristate(Special):
@@ -95,7 +94,6 @@ class SDRTristate(Special):
         self.oe           = wrap(oe)
         self.i            = wrap(i)
         self.clk          = wrap(clk)
-        self.clk_domain   = None if not hasattr(clk, "cd") else clk.cd
 
     def iter_expressions(self):
         yield self, "io",  SPECIAL_INOUT
@@ -106,7 +104,7 @@ class SDRTristate(Special):
 
     @staticmethod
     def lower(dr):
-        return InferedSDRTristate(dr.io, dr.o, dr.oe, dr.i, dr.clk, dr.clk_domain)
+        return InferedSDRTristate(dr.io, dr.o, dr.oe, dr.i, dr.clk)
 
 # DDR Input/Output ---------------------------------------------------------------------------------
 

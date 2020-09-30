@@ -3,7 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "Vdut.h"
+#include <stdint.h>
+#include "Vsim.h"
 #include "verilated.h"
 #ifdef TRACE_FST
 #include "verilated_fst_c.h"
@@ -16,13 +17,16 @@ VerilatedFstC* tfp;
 #else
 VerilatedVcdC* tfp;
 #endif
-long tfp_start;
-long tfp_end;
+uint64_t tfp_start;
+uint64_t tfp_end;
+uint64_t main_time = 0;
+Vsim *g_sim = nullptr;
 
-extern "C" void litex_sim_eval(void *vdut)
+extern "C" void litex_sim_eval(void *vsim, uint64_t time_ps)
 {
-  Vdut *dut = (Vdut*)vdut;
-  dut->eval();
+  Vsim *sim = (Vsim*)vsim;
+  sim->eval();
+  main_time = time_ps;
 }
 
 extern "C" void litex_sim_init_cmdargs(int argc, char *argv[])
@@ -30,35 +34,46 @@ extern "C" void litex_sim_init_cmdargs(int argc, char *argv[])
   Verilated::commandArgs(argc, argv);
 }
 
-extern "C" void litex_sim_init_tracer(void *vdut, long start, long end)
+extern "C" void litex_sim_init_tracer(void *vsim, long start, long end)
 {
-  Vdut *dut = (Vdut*)vdut;
+  Vsim *sim = (Vsim*)vsim;
   tfp_start = start;
-  tfp_end = end;
+  tfp_end = end >= 0 ? end : UINT64_MAX;
   Verilated::traceEverOn(true);
 #ifdef TRACE_FST
       tfp = new VerilatedFstC;
-      dut->trace(tfp, 99);
-      tfp->open("dut.fst");
+      sim->trace(tfp, 99);
+      tfp->open("sim.fst");
 #else
       tfp = new VerilatedVcdC;
-      dut->trace(tfp, 99);
-      tfp->open("dut.vcd");
+      sim->trace(tfp, 99);
+      tfp->open("sim.vcd");
 #endif
+  tfp->set_time_unit("1ps");
+  tfp->set_time_resolution("1ps");
+  g_sim = sim;
 }
 
 extern "C" void litex_sim_tracer_dump()
 {
-  static unsigned int ticks=0;
-  int dump = 1;
-  if (ticks < tfp_start)
-      dump = 0;
-  if (tfp_end != -1)
-      if (ticks > tfp_end)
-          dump = 0;
-  if (dump)
-      tfp->dump(ticks);
-  ticks++;
+  static int last_enabled = 0;
+  bool dump_enabled = true;
+
+  if (g_sim != nullptr) {
+    dump_enabled = g_sim->sim_trace != 0 ? true : false;
+    if (last_enabled == 0 && dump_enabled) {
+      printf("<DUMP ON>");
+      fflush(stdout);
+    } else if (last_enabled == 1 && !dump_enabled) {
+      printf("<DUMP OFF>");
+      fflush(stdout);
+    }
+    last_enabled = (int) dump_enabled;
+  }
+
+  if (dump_enabled && tfp_start <= main_time && main_time <= tfp_end) {
+    tfp->dump(main_time);
+  }
 }
 
 extern "C" int litex_sim_got_finish()
@@ -69,11 +84,10 @@ extern "C" int litex_sim_got_finish()
 #if VM_COVERAGE
 extern "C" void litex_sim_coverage_dump()
 {
-  VerilatedCov::write("dut.cov");
+  VerilatedCov::write("sim.cov");
 }
 #endif
 
-vluint64_t main_time = 0;
 double sc_time_stamp()
 {
   return main_time;

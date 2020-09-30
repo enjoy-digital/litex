@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 
-# This file is Copyright (c) 2019 Sean Cross <sean@xobs.io>
-# This file is Copyright (c) 2018 David Shah <dave@ds0.me>
-# This file is Copyright (c) 2020 Piotr Esden-Tempski <piotr@esden.net>
-# This file is Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2019 Sean Cross <sean@xobs.io>
+# Copyright (c) 2018 David Shah <dave@ds0.me>
+# Copyright (c) 2020 Piotr Esden-Tempski <piotr@esden.net>
+# Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 # The iCEBreaker is the first open source iCE40 FPGA development board designed for teachers and
 # students: https://www.crowdsupply.com/1bitsquared/icebreaker-fpga
@@ -80,7 +83,10 @@ class BaseSoC(SoCCore):
         kwargs["cpu_reset_address"] = self.mem_map["spiflash"] + bios_flash_offset
 
         # SoCCore ----------------------------------------------------------------------------------
-        SoCCore.__init__(self, platform, sys_clk_freq, **kwargs)
+        SoCCore.__init__(self, platform, sys_clk_freq,
+            ident          = "LiteX SoC on iCEBreaker",
+            ident_version  = True,
+            **kwargs)
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = _CRG(platform, sys_clk_freq)
@@ -130,7 +136,7 @@ def main():
 
     if args.load:
         prog = soc.platform.create_programmer()
-        prog.load_bitstream(os.path.join(builder.gateware_dir, "top.bin"))
+        prog.load_bitstream(os.path.join(builder.gateware_dir, soc.build_name + ".bin"))
 
     if args.flash:
         flash(args.bios_flash_offset)

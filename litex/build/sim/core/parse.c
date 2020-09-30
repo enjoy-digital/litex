@@ -228,11 +228,10 @@ static int json_to_module_list(json_object *obj, struct module_s **mod)
   for(i = 0; i < n; i++)
   {
     tobj = json_object_array_get_idx(obj, i);
+
     if(!json_object_object_get_ex(tobj, "module", &name))
     {
-      ret=RC_JSERROR;
-      eprintf("expected \"module\" in object (%s)\n", json_object_to_json_string(tobj));
-      goto out;
+      continue;
     }
 
     if(!json_object_object_get_ex(tobj, "interface", &interface))
@@ -288,6 +287,14 @@ static int json_to_module_list(json_object *obj, struct module_s **mod)
       m->tickfirst = json_object_get_boolean(tickfirst);
     }
   }
+
+  if (!m)
+  {
+      ret = RC_JSERROR;
+      eprintf("No modules found in config file:\n%s\n", json_object_to_json_string(obj));
+      goto out;
+  }
+
   *mod = first;
   first=NULL;
 
@@ -299,7 +306,68 @@ out:
   return ret;
 }
 
-int litex_sim_file_to_module_list(char *filename, struct module_s **mod)
+static int json_get_timebase(json_object *obj, uint64_t *timebase)
+{
+  json_object *tobj;
+  int ret=RC_OK;
+  int i, n;
+  uint64_t _timebase = 0;
+  json_object *json_timebase;
+
+  if(!obj || !timebase)
+  {
+    ret = RC_INVARG;
+    eprintf("Wrong arguments\n");
+    goto out;
+  }
+
+  if(!json_object_is_type(obj, json_type_array))
+  {
+    ret=RC_JSERROR;
+    eprintf("Config file must be an array\n");
+    goto out;
+  }
+
+  n = json_object_array_length(obj);
+  for(i = 0; i < n; i++)
+  {
+    tobj = json_object_array_get_idx(obj, i);
+
+    if(!json_object_object_get_ex(tobj, "timebase", &json_timebase))
+    {
+      continue;
+    }
+
+    if (_timebase != 0)
+    {
+      ret=RC_JSERROR;
+      eprintf("\"timebase\" found multiple times: in object (%s)\n", json_object_to_json_string(tobj));
+      goto out;
+    }
+
+    _timebase = json_object_get_int64(json_timebase);
+    if (_timebase == 0)
+    {
+      ret=RC_JSERROR;
+      eprintf("\"timebase\" cannot be zero: in object (%s)\n", json_object_to_json_string(tobj));
+      goto out;
+    }
+  }
+
+  if (_timebase == 0)
+  {
+    ret=RC_JSERROR;
+    eprintf("No \"timebase\" found in config:\n%s\n", json_object_to_json_string(obj));
+    goto out;
+  }
+  *timebase = _timebase;
+
+out:
+  return ret;
+}
+
+
+int litex_sim_file_parse(char *filename, struct module_s **mod, uint64_t *timebase)
 {
   struct module_s *m=NULL;
   json_object *obj=NULL;
@@ -313,6 +381,12 @@ int litex_sim_file_to_module_list(char *filename, struct module_s **mod)
   }
 
   ret = file_to_js(filename, &obj);
+  if(RC_OK != ret)
+  {
+    goto out;
+  }
+
+  ret = json_get_timebase(obj, timebase);
   if(RC_OK != ret)
   {
     goto out;

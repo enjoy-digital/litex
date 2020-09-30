@@ -1,11 +1,12 @@
-# This file is Copyright (c) 2016-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2018 Sergiusz Bazanski <q3k@q3k.org>
-# This file is Copyright (c) 2019 Antmicro <www.antmicro.com>
-# This file is Copyright (c) 2019 Tim 'mithro' Ansell <me@mith.ro>
-# This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
-# License: BSD
-
-#!/usr/bin/env python3
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2016-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2018 Sergiusz Bazanski <q3k@q3k.org>
+# Copyright (c) 2019 Antmicro <www.antmicro.com>
+# Copyright (c) 2019 Tim 'mithro' Ansell <me@mith.ro>
+# Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 
@@ -34,6 +35,7 @@ GCC_FLAGS = {
 class PicoRV32(CPU):
     name                 = "picorv32"
     human_name           = "PicoRV32"
+    variants             = CPU_VARIANTS
     data_width           = 32
     endianness           = "little"
     gcc_triple           = CPU_GCC_TRIPLE_RISCV64
@@ -57,7 +59,6 @@ class PicoRV32(CPU):
         }
 
     def __init__(self, platform, variant="standard"):
-        assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
         self.platform     = platform
         self.variant      = variant
         self.trap         = Signal()

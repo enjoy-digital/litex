@@ -1,5 +1,8 @@
-# This file is Copyright (c) 2020 bunnie <bunnie@kosagi.com>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2020 bunnie <bunnie@kosagi.com>
+# SPDX-License-Identifier: BSD-2-Clause
 
 from migen.genlib.cdc import MultiReg
 
@@ -14,7 +17,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         dq_delay_taps  = 31,
         sclk_name      = "SCLK_ODDR",
         iddr_name      = "SPI_IDDR",
-        miso_name      = "MISO_FDRE",
+        cipo_name      = "CIPO_FDRE",
         sim            = False,
         spiread        = False,
         prefetch_lines = 1):
@@ -100,8 +103,8 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         self.di = Signal(16) # OPI data from SPI
         self.tx = Signal()   # When asserted OPI is transmitting data to SPI, otherwise, receiving
 
-        self.mosi = Signal() # SPI data to SPI
-        self.miso = Signal() # SPI data from SPI
+        self.copi = Signal() # SPI data to SPI
+        self.cipo = Signal() # SPI data from SPI
 
         # Delay programming API
         self.delay_config = CSRStorage(fields=[
@@ -125,7 +128,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         self.comb += self.di.eq(Cat(di_fall, di_rise))
 
         # OPI DDR registers
-        dq = TSTriple(7) # dq[0] is special because it is also MOSI
+        dq = TSTriple(7) # dq[0] is special because it is also copi
         dq_delayed = Signal(8)
         self.specials += dq.get_tristate(pads.dq[1:])
         for i in range(1, 8):
@@ -198,19 +201,19 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
             )
         # SPI SDR register
         self.specials += [
-            Instance("FDRE", name="{}".format(miso_name),
+            Instance("FDRE", name="{}".format(cipo_name),
                 i_C  = ~ClockSignal("spinor"),
                 i_CE = 1,
                 i_R  = 0,
-                o_Q  = self.miso,
+                o_Q  = self.cipo,
                 i_D  = dq_delayed[1],
             )
         ]
 
-        # bit 0 (MOSI) is special-cased to handle SPI mode
-        dq_mosi = TSTriple(1) # this has similar structure but an independent "oe" signal
-        self.specials += dq_mosi.get_tristate(pads.dq[0])
-        do_mux_rise = Signal() # mux signal for mosi/dq select of bit 0
+        # bit 0 (copi) is special-cased to handle SPI mode
+        dq_copi = TSTriple(1) # this has similar structure but an independent "oe" signal
+        self.specials += dq_copi.get_tristate(pads.dq[0])
+        do_mux_rise = Signal() # mux signal for copi/dq select of bit 0
         do_mux_fall = Signal()
         self.specials += [
             Instance("ODDR",
@@ -221,7 +224,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
                 i_CE = 1,
                 i_D1 = do_mux_rise,
                 i_D2 = do_mux_fall,
-                o_Q  = dq_mosi.o,
+                o_Q  = dq_copi.o,
             ),
             Instance("IDDR",
                 p_DDR_CLK_EDGE="SAME_EDGE_PIPELINED",
@@ -253,11 +256,11 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
                 i_CE         = 0,
                 i_LD         = self.delay_update,
                 i_CNTVALUEIN = self.delay_config.fields.d,
-                i_IDATAIN    = dq_mosi.i,
+                i_IDATAIN    = dq_copi.i,
                 o_DATAOUT    = dq_delayed[0],
             ),
         else:
-            self.comb += dq_delayed[0].eq(dq_mosi.i)
+            self.comb += dq_delayed[0].eq(dq_copi.i)
 
         # Wire up SCLK interface
         clk_en = Signal()
@@ -430,11 +433,11 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         # Tristate mux
         self.sync += [
             dq.oe.eq(~spi_mode & self.tx),
-            dq_mosi.oe.eq(spi_mode | self.tx),
+            dq_copi.oe.eq(spi_mode | self.tx),
         ]
         # Data out mux (no data in mux, as we can just sample data in all the time without harm)
-        self.comb += do_mux_rise.eq(~spi_mode & do_rise[0] | spi_mode & self.mosi)
-        self.comb += do_mux_fall.eq(~spi_mode & do_fall[0] | spi_mode & self.mosi)
+        self.comb += do_mux_rise.eq(~spi_mode & do_rise[0] | spi_mode & self.copi)
+        self.comb += do_mux_fall.eq(~spi_mode & do_fall[0] | spi_mode & self.copi)
 
         # Indicates if the current "req" requires dummy cycles to be appended (used for both OPI/SPI)
         has_dummy = Signal()
@@ -469,6 +472,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
 
         wrendiv  = Signal()
         wrendiv2 = Signal()
+        rx_fifo_rst_pipe = Signal()
         self.specials += [
             # This next pair of async-clear flip flops creates a write-enable gate that (a) ignores
             # the first two DQS strobes (as they are pipe-filling) and (b) alternates with the correct
@@ -510,11 +514,12 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
                 i_RDEN        = rx_rden,
                 i_WRCLK       = dqs_iobuf,
                 i_WREN        = wrendiv & wrendiv2,
-                i_RST         = rx_fifo_rst,
+                i_RST         = rx_fifo_rst_pipe, #rx_fifo_rst,
             )
         ]
         self.sync.dqs += opi_di.eq(self.di)
         self.comb += opi_fifo_wd.eq(Cat(opi_di, self.di))
+        self.sync += rx_fifo_rst_pipe.eq(rx_fifo_rst) # add one pipe register to help relax this timing path. It is critical so it must be timed, but one extra cycle is OK.
 
         #---------  OPI Rx Phy machine ------------------------------
         self.submodules.rxphy = rxphy = FSM(reset_state="IDLE")
@@ -746,7 +751,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         # internal signals are:
         # selection - spi_mode
         # OPI - self.do(16), self.di(16), self.tx
-        # SPI - self.mosi, self.miso
+        # SPI - self.copi, self.cipo
         # cs_n - both
         # ecs_n - OPI
         # clk_en - both
@@ -758,15 +763,15 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         spi_di_load  = Signal() # spi_do load is pipelined back one cycle using this mechanism
         spi_di_load2 = Signal()
         spi_ack_pipe = Signal()
-        # Pipelining is required the MISO path is very slow (IOB->fabric FD), and a falling-edge
+        # Pipelining is required the cipo path is very slow (IOB->fabric FD), and a falling-edge
         # retiming reg is used to meet timing
         self.sync += [
             spi_di_load2.eq(spi_di_load),
-            If(spi_di_load2, spi_di.eq(Cat(self.miso, spi_si[:-1]))).Else(spi_di.eq(spi_di)),
+            If(spi_di_load2, spi_di.eq(Cat(self.cipo, spi_si[:-1]))).Else(spi_di.eq(spi_di)),
             spi_ack.eq(spi_ack_pipe),
         ]
-        self.comb += self.mosi.eq(spi_so[7])
-        self.sync += spi_si.eq(Cat(self.miso, spi_si[:-1]))
+        self.comb += self.copi.eq(spi_so[7])
+        self.sync += spi_si.eq(Cat(self.cipo, spi_si[:-1]))
         self.submodules.spiphy = spiphy = FSM(reset_state="RESET")
         spiphy.act("RESET",
             If(spi_req,
@@ -1056,7 +1061,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
                         NextValue(spi_req, 0),
                         If(spi_ack,
                             # Protect these in a spi_mode mux to prevent excess inference of logic to
-                            # handle otherwise implicit dual-master situation
+                            # handle otherwise implicit dual-controller situation
                             If(spi_mode,
                                 NextValue(bus.dat_r, Cat(d_to_wb[8:],spi_di)),
                                 NextValue(bus.ack, 1),

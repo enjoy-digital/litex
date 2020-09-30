@@ -1,7 +1,10 @@
-# This file is Copyright (c) 2014-2015 Robert Jordens <jordens@gmail.com>
-# This file is Copyright (c) 2019 bunnie <bunnie@kosagi.com>
-# This file is Copyright (c) 2019-2020 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2014-2015 Robert Jordens <jordens@gmail.com>
+# Copyright (c) 2019 bunnie <bunnie@kosagi.com>
+# Copyright (c) 2019-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
 

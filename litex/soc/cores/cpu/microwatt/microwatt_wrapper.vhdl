@@ -1,5 +1,8 @@
--- This file is Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
--- License: BSD
+--
+-- This file is part of LiteX.
+--
+-- Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
+-- SPDX-License-Identifier: BSD-2-Clause
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -59,6 +62,8 @@ architecture rtl of microwatt_wrapper is
     signal wishbone_data_in  : wishbone_slave_out;
     signal wishbone_data_out : wishbone_master_out;
 
+    signal core_ext_irq 	     : std_ulogic;
+
 begin
 
     -- wishbone_insn mapping
@@ -85,6 +90,9 @@ begin
     wishbone_data_sel      <= wishbone_data_out.sel;
     wishbone_data_we       <= wishbone_data_out.we;
 
+    -- core_ext_irq mapping
+    core_ext_irq <= '0';
+
     microwatt_core : entity work.core
         generic map (
             SIM             => SIM,
@@ -93,6 +101,8 @@ begin
         port map (
             clk               => clk,
             rst               => rst,
+
+            alt_reset         => '0',
 
             wishbone_insn_in  => wishbone_insn_in,
             wishbone_insn_out => wishbone_insn_out,
@@ -106,6 +116,8 @@ begin
             dmi_req           => dmi_req,
             dmi_wr            => dmi_wr,
             dmi_ack           => dmi_ack,
+
+            ext_irq           => core_ext_irq,
 
             terminated_out    => terminated_out
         );

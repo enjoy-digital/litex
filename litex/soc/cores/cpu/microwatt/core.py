@@ -1,6 +1,9 @@
-# This file is Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2019 Benjamin Herrenschmidt <benh@ozlabs.org>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2019 Benjamin Herrenschmidt <benh@ozlabs.org>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 
@@ -11,12 +14,13 @@ from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU
 
 
-CPU_VARIANTS = ["standard"]
+CPU_VARIANTS = ["standard", "standard+ghdl"]
 
 
 class Microwatt(CPU):
     name                 = "microwatt"
     human_name           = "Microwatt"
+    variants             = CPU_VARIANTS
     data_width           = 64
     endianness           = "little"
     gcc_triple           = ("powerpc64le-linux", "powerpc64le-linux-gnu")
@@ -39,11 +43,12 @@ class Microwatt(CPU):
         flags += "-mno-altivec "
         flags += "-mlittle-endian "
         flags += "-mstrict-align "
+        flags += "-fno-stack-protector "
+        flags += "-mcmodel=small "
         flags += "-D__microwatt__ "
         return flags
 
     def __init__(self, platform, variant="standard"):
-        assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
@@ -93,7 +98,7 @@ class Microwatt(CPU):
         )
 
         # add vhdl sources
-        self.add_sources(platform)
+        self.add_sources(platform, use_ghdl_yosys_plugin="ghdl" in self.variant)
 
     def set_reset_address(self, reset_address):
         assert not hasattr(self, "reset_address")
@@ -101,9 +106,8 @@ class Microwatt(CPU):
         assert reset_address == 0x00000000
 
     @staticmethod
-    def add_sources(platform):
-        sdir = get_data_mod("cpu", "microwatt").data_location
-        platform.add_sources(sdir,
+    def add_sources(platform, use_ghdl_yosys_plugin=False):
+        sources = [
             # Common / Types / Helpers
             "decode_types.vhdl",
             "wishbone_types.vhdl",
@@ -151,11 +155,33 @@ class Microwatt(CPU):
             # Writeback
             "writeback.vhdl",
 
+            # MMU
+            "mmu.vhdl",
+
             # Core
             "core_debug.vhdl",
             "core.vhdl",
-        )
-        platform.add_source(os.path.join(os.path.dirname(__file__), "microwatt_wrapper.vhdl"))
+        ]
+        sdir = get_data_mod("cpu", "microwatt").data_location
+        cdir = os.path.dirname(__file__)
+        if use_ghdl_yosys_plugin:
+            from litex.build import tools
+            import subprocess
+            ys = []
+            ys.append("ghdl --ieee=synopsys -fexplicit -frelaxed-rules --std=08 \\")
+            for source in sources:
+                ys.append(os.path.join(sdir, source) + " \\")
+            ys.append(os.path.join(os.path.dirname(__file__), "microwatt_wrapper.vhdl") + " \\")
+            ys.append("-e microwatt_wrapper")
+            ys.append("chformal -assert -remove")
+            ys.append("write_verilog {}".format(os.path.join(cdir, "microwatt.v")))
+            tools.write_to_file(os.path.join(cdir, "microwatt.ys"), "\n".join(ys))
+            if subprocess.call(["yosys", "-q", "-m", "ghdl", os.path.join(cdir, "microwatt.ys")]):
+                raise OSError("Unable to convert Microwatt CPU to verilog, please check your GHDL-Yosys-plugin install")
+            platform.add_source(os.path.join(cdir, "microwatt.v"))
+        else:
+            platform.add_sources(sdir, *sources)
+            platform.add_source(os.path.join(os.path.dirname(__file__), "microwatt_wrapper.vhdl"))
 
     def do_finalize(self):
         self.specials += Instance("microwatt_wrapper", **self.cpu_params)

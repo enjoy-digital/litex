@@ -1,5 +1,8 @@
-# This file is Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 from litex.build.generic_platform import *
 from litex.build.xilinx import XilinxPlatform, VivadoProgrammer
@@ -76,6 +79,23 @@ _io = [
     ("spiflash", 1,  # clock needs to be accessed through primitive
         Subsignal("cs_n", Pins("G26")),
         Subsignal("dq",   Pins("M20 L20 R21 R22")),
+        IOStandard("LVCMOS18")
+    ),
+
+    ("sdcard", 0,
+        Subsignal("clk", Pins("AL10")),
+        Subsignal("cmd", Pins("AD9"), Misc("PULLUP True")),
+        Subsignal("data", Pins("AP9 AN9 AH9 AH8"), Misc("PULLUP True")),
+        Misc("SLEW=FAST"),
+        IOStandard("LVCMOS18")
+    ),
+
+    ("spisdcard", 0,
+        Subsignal("clk",  Pins("AL10")),
+        Subsignal("cs_n", Pins("AH8")),
+        Subsignal("mosi", Pins("AD9"), Misc("PULLUP")),
+        Subsignal("miso", Pins("AP9"), Misc("PULLUP")),
+        Misc("SLEW=FAST"),
         IOStandard("LVCMOS18")
     ),
 

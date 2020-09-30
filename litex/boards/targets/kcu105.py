@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 
-# This file is Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 import argparse
@@ -14,6 +17,7 @@ from litex.soc.cores.clock import *
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
+from litex.soc.cores.led import LedChaser
 
 from litedram.modules import EDY4016A
 from litedram.phy import usddrphy
@@ -28,6 +32,7 @@ class _CRG(Module):
         self.clock_domains.cd_sys4x  = ClockDomain(reset_less=True)
         self.clock_domains.cd_pll4x  = ClockDomain(reset_less=True)
         self.clock_domains.cd_clk200 = ClockDomain()
+        self.clock_domains.cd_eth    = ClockDomain()
 
         # # #
 
@@ -36,6 +41,7 @@ class _CRG(Module):
         pll.register_clkin(platform.request("clk125"), 125e6)
         pll.create_clkout(self.cd_pll4x, sys_clk_freq*4, buf=None, with_reset=False)
         pll.create_clkout(self.cd_clk200, 200e6, with_reset=False)
+        pll.create_clkout(self.cd_eth,    200e6)
 
         self.specials += [
             Instance("BUFGCE_DIV", name="main_bufgce_div",
@@ -51,11 +57,14 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, sys_clk_freq=int(125e6), with_ethernet=False, **kwargs):
+    def __init__(self, sys_clk_freq=int(125e6), with_ethernet=False, with_etherbone=False, **kwargs):
         platform = kcu105.Platform()
 
         # SoCCore ----------------------------------------------------------------------------------
-        SoCCore.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
+        SoCCore.__init__(self, platform, sys_clk_freq,
+            ident          = "LiteX SoC on KCU105",
+            ident_version  = True,
+            **kwargs)
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = _CRG(platform, sys_clk_freq)
@@ -78,15 +87,24 @@ class BaseSoC(SoCCore):
                 l2_cache_reverse        = True
             )
 
-        # Ethernet ---------------------------------------------------------------------------------
-        if with_ethernet:
-            self.submodules.ethphy = KU_1000BASEX(self.crg.cd_clk200.clk,
+        # Ethernet / Etherbone ---------------------------------------------------------------------
+        if with_ethernet or with_etherbone:
+            self.submodules.ethphy = KU_1000BASEX(self.crg.cd_eth.clk,
                 data_pads    = self.platform.request("sfp", 0),
                 sys_clk_freq = self.clk_freq)
             self.add_csr("ethphy")
             self.comb += self.platform.request("sfp_tx_disable_n", 0).eq(1)
             self.platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-1753]")
-            self.add_ethernet(phy=self.ethphy)
+            if with_ethernet:
+                self.add_ethernet(phy=self.ethphy)
+            if with_etherbone:
+                self.add_etherbone(phy=self.ethphy)
+
+        # Leds -------------------------------------------------------------------------------------
+        self.submodules.leds = LedChaser(
+            pads         = platform.request_all("user_led"),
+            sys_clk_freq = sys_clk_freq)
+        self.add_csr("leds")
 
 # Build --------------------------------------------------------------------------------------------
 
@@ -96,16 +114,19 @@ def main():
     parser.add_argument("--load",  action="store_true", help="Load bitstream")
     builder_args(parser)
     soc_sdram_args(parser)
-    parser.add_argument("--with-ethernet", action="store_true", help="Enable Ethernet support")
+    parser.add_argument("--with-ethernet",  action="store_true", help="Enable Ethernet support")
+    parser.add_argument("--with-etherbone", action="store_true", help="Enable Etherbone support")
     args = parser.parse_args()
 
-    soc = BaseSoC(with_ethernet=args.with_ethernet, **soc_sdram_argdict(args))
+    assert not (args.with_ethernet and args.with_etherbone)
+    soc = BaseSoC(with_ethernet=args.with_ethernet, with_etherbone=args.with_etherbone,
+        **soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.build(run=args.build)
 
     if args.load:
         prog = soc.platform.create_programmer()
-        prog.load_bitstream(os.path.join(builder.gateware_dir, "top.bit"))
+        prog.load_bitstream(os.path.join(builder.gateware_dir, soc.build_name + ".bit"))
 
 if __name__ == "__main__":
     main()

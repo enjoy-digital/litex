@@ -1,9 +1,12 @@
-# This file is Copyright (c) 2013-2015 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2017-2019 Tim 'mithro' Ansell <me@mith.ro>
-# This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
-# This file is Copyright (c) 2019 Antmicro <www.antmicro.com>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2013-2015 Sebastien Bourdeauducq <sb@m-labs.hk>
+# Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2019 Tim 'mithro' Ansell <me@mith.ro>
+# Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
+# Copyright (c) 2019 Antmicro <www.antmicro.com>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 
@@ -19,6 +22,7 @@ CPU_VARIANTS = ["minimal", "lite", "standard"]
 class LM32(CPU):
     name                 = "lm32"
     human_name           = "LM32"
+    variants             = CPU_VARIANTS
     data_width           = 32
     endianness           = "big"
     gcc_triple           = "lm32-elf"
@@ -36,7 +40,6 @@ class LM32(CPU):
         return flags
 
     def __init__(self, platform, variant="standard"):
-        assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
@@ -121,12 +124,13 @@ class LM32(CPU):
             "lm32_itlb.v",
             "lm32_dtlb.v")
         platform.add_verilog_include_path(os.path.join(vdir, "rtl"))
+        cdir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "verilog")
         if variant == "minimal":
-            platform.add_verilog_include_path(os.path.join(vdir, "config_minimal"))
+            platform.add_verilog_include_path(os.path.join(cdir, "config_minimal"))
         elif variant == "lite":
-            platform.add_verilog_include_path(os.path.join(vdir, "config_lite"))
+            platform.add_verilog_include_path(os.path.join(cdir, "config_lite"))
         elif variant == "standard":
-            platform.add_verilog_include_path(os.path.join(vdir, "config"))
+            platform.add_verilog_include_path(os.path.join(cdir, "config"))
         else:
             raise TypeError("Unknown variant {}".format(variant))
 

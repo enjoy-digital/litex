@@ -1,5 +1,8 @@
-# This file is Copyright (c) 2020 Piotr Esden-Tempski <piotr@esden.net>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2020 Piotr Esden-Tempski <piotr@esden.net>
+# SPDX-License-Identifier: BSD-2-Clause
 
 # iCEBreaker FPGA:
 # - Crowd Supply campaign: https://www.crowdsupply.com/1bitsquared/icebreaker

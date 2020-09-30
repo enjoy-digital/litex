@@ -11,7 +11,7 @@
 #include "helpers.h"
 #include "command.h"
 
-extern unsigned int _ftext, _edata;
+extern unsigned int _ftext, _edata_rom;
 
 #define NUMBER_OF_BYTES_ON_A_LINE 16
 void dump_bytes(unsigned int *ptr, int count, unsigned long addr)
@@ -59,14 +59,14 @@ void crcbios(void)
 	unsigned int actual_crc;
 
 	/*
-	 * _edata is located right after the end of the flat
+	 * _edata_rom is located right after the end of the flat
 	 * binary image. The CRC tool writes the 32-bit CRC here.
-	 * We also use the address of _edata to know the length
+	 * We also use the address of _edata_rom to know the length
 	 * of our code.
 	 */
 	offset_bios = (unsigned long)&_ftext;
-	expected_crc = _edata;
-	length = (unsigned long)&_edata - offset_bios;
+	expected_crc = _edata_rom;
+	length = (unsigned long)&_edata_rom - offset_bios;
 	actual_crc = crc32((unsigned char *)offset_bios, length);
 	if (expected_crc == actual_crc)
 		printf(" BIOS CRC passed (%08x)\n", actual_crc);

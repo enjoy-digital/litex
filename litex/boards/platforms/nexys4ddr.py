@@ -1,5 +1,8 @@
-# This file is Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 from litex.build.generic_platform import *
 from litex.build.xilinx import XilinxPlatform, VivadoProgrammer
@@ -73,6 +76,7 @@ _io = [
         Subsignal("data", Pins("C2 E1 F1 D2"), Misc("PULLUP True")),
         Subsignal("cmd",  Pins("C1"),          Misc("PULLUP True")),
         Subsignal("clk",  Pins("B1")),
+        Subsignal("cd",   Pins("A1")),
         Misc("SLEW=FAST"),
         IOStandard("LVCMOS33"),
     ),
