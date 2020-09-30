@@ -35,12 +35,12 @@ def _read_merger(addrs, max_length=256, bursts=["incr", "fixed"]):
     for addr in addrs[1:]:
         merged = False
         # Try to merge to a "fixed" burst if supported
-        if ("fixed" in bursts):
+        if "fixed" in bursts:
             # If current burst matches
-            if (burst_type in [None, "fixed"]) or (burst_length == 1):
+            if burst_type in [None, "fixed"] or burst_length == 1:
                 # If addr matches
-                if (addr == burst_base):
-                    if (burst_length != max_length):
+                if addr == burst_base:
+                    if burst_length < max_length:
                         burst_type   = "fixed"
                         burst_length += 1
                         merged       = True
@@ -51,18 +51,18 @@ def _read_merger(addrs, max_length=256, bursts=["incr", "fixed"]):
             if (burst_type in [None, "incr"]) or (burst_length == 1):
                 # If addr matches
                 if (addr == burst_base + (4 * burst_length)):
-                    if (burst_length != max_length):
+                    if burst_length < max_length:
                         burst_type   = "incr"
                         burst_length += 1
                         merged       = True
 
         # Generate current burst if addr has not able to merge
         if not merged:
-            yield (burst_base, burst_length, burst_type)
+            yield burst_base, burst_length, burst_type
             burst_base   = addr
             burst_length = 1
             burst_type   = "incr"
-    yield (burst_base, burst_length, burst_type)
+    yield burst_base, burst_length, burst_type
 
 class RemoteServer(EtherboneIPC):
     def __init__(self, comm, bind_ip, bind_port=1234):
@@ -123,7 +123,7 @@ class RemoteServer(EtherboneIPC):
                     if record.reads != None:
                         max_length = {
                             "CommUART": 256,
-                            "CommUDP":    4,
+                            "CommUDP":   8,
                         }.get(self.comm.__class__.__name__, 1)
                         bursts = {
                             "CommUART": ["incr", "fixed"]
@@ -132,6 +132,7 @@ class RemoteServer(EtherboneIPC):
                         for addr, length, burst in _read_merger(record.reads.get_addrs(),
                             max_length  = max_length,
                             bursts      = bursts):
+                            print(addr, length, burst)
                             reads += self.comm.read(addr, length, burst)
 
                         record = EtherboneRecord()
@@ -165,6 +166,8 @@ def main():
                         help="Host bind address")
     parser.add_argument("--bind-port", default=1234,
                         help="Host bind port")
+    parser.add_argument("--debug", action="store_true",
+                        help="Turn on debug for comm")
 
     # UART arguments
     parser.add_argument("--uart", action="store_true",
@@ -208,7 +211,7 @@ def main():
         uart_port = args.uart_port
         uart_baudrate = int(float(args.uart_baudrate))
         print("[CommUART] port: {} / baudrate: {} / ".format(uart_port, uart_baudrate), end="")
-        comm = CommUART(uart_port, uart_baudrate)
+        comm = CommUART(uart_port, uart_baudrate, args.debug)
     elif args.udp:
         from litex.tools.remote.comm_udp import CommUDP
         udp_ip = args.udp_ip

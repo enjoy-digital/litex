@@ -348,13 +348,13 @@ def add_sim_args(parser):
     parser.add_argument("--trace-start",          default="0",             help="Time to start tracing (ps)")
     parser.add_argument("--trace-end",            default="-1",            help="Time to end tracing (ps)")
     parser.add_argument("--opt-level",            default="O3",            help="Compilation optimization level")
+    parser.add_argument("--sim-debug",            action="store_true",     help="Add simulation debugging modules")
 
 # Build --------------------------------------------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(description="Generic LiteX SoC Simulation")
     add_sim_args(parser)
-    parser.add_argument("--sim-debug", action="store_true",     help="Add simulation debugging modules")
 
     args = parser.parse_args()
 
