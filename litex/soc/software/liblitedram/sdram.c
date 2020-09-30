@@ -801,7 +801,9 @@ int sdram_init(void)
 	ddrctrl_init_error_write(0);
 #endif
 	init_sequence();
+#if defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) || defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
 	sdram_leveling();
+#endif
 	sdram_software_control_off();
 	if(!memtest((unsigned int *) MAIN_RAM_BASE, MAIN_RAM_SIZE)) {
 #ifdef CSR_DDRCTRL_BASE
