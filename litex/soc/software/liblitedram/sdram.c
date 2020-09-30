@@ -51,6 +51,120 @@ int sdram_get_freq(void) {
 }
 
 /*-----------------------------------------------------------------------*/
+/* DFII                                                                  */
+/*-----------------------------------------------------------------------*/
+
+#ifdef CSR_DDRPHY_BASE
+
+static unsigned char sdram_dfii_get_rdphase(void) {
+#ifdef CSR_DDRPHY_RDPHASE_ADDR
+	return ddrphy_rdphase_read();
+#else
+	return SDRAM_PHY_RDPHASE;
+#endif
+}
+
+static unsigned char sdram_dfii_get_wrphase(void) {
+#ifdef CSR_DDRPHY_WRPHASE_ADDR
+	return ddrphy_wrphase_read();
+#else
+	return SDRAM_PHY_WRPHASE;
+#endif
+}
+
+static void sdram_dfii_pix_address_write(unsigned char phase, unsigned int value) {
+	switch (phase) {
+#if (SDRAM_PHY_PHASES > 2)
+	case 3:
+		sdram_dfii_pi3_address_write(value);
+		break;
+	case 2:
+		sdram_dfii_pi2_address_write(value);
+		break;
+#endif
+#if (SDRAM_PHY_PHASES > 1)
+	case 1:
+		sdram_dfii_pi1_address_write(value);
+		break;
+#endif
+	default:
+		sdram_dfii_pi0_address_write(value);
+	}
+}
+
+static void sdram_dfii_pird_address_write(unsigned int value) {
+	unsigned char rdphase = sdram_dfii_get_rdphase();
+	sdram_dfii_pix_address_write(rdphase, value);
+}
+
+static void sdram_dfii_piwr_address_write(unsigned int value) {
+	unsigned char wrphase = sdram_dfii_get_wrphase();
+	sdram_dfii_pix_address_write(wrphase, value);
+}
+
+static void sdram_dfii_pix_baddress_write(unsigned char phase, unsigned int value) {
+	switch (phase) {
+#if (SDRAM_PHY_PHASES > 2)
+	case 3:
+		sdram_dfii_pi3_baddress_write(value);
+		break;
+	case 2:
+		sdram_dfii_pi2_baddress_write(value);
+		break;
+#endif
+#if (SDRAM_PHY_PHASES > 1)
+	case 1:
+		sdram_dfii_pi1_baddress_write(value);
+		break;
+#endif
+	default:
+		sdram_dfii_pi0_baddress_write(value);
+	}
+}
+
+static void sdram_dfii_pird_baddress_write(unsigned int value) {
+	unsigned char rdphase = sdram_dfii_get_rdphase();
+	sdram_dfii_pix_baddress_write(rdphase, value);
+}
+
+static void sdram_dfii_piwr_baddress_write(unsigned int value) {
+	unsigned char wrphase = sdram_dfii_get_wrphase();
+	sdram_dfii_pix_baddress_write(wrphase, value);
+}
+
+static void command_px(unsigned char phase, unsigned int value) {
+	switch (phase) {
+#if (SDRAM_PHY_PHASES > 2)
+	case 3:
+		command_p3(value);
+		break;
+	case 2:
+		command_p2(value);
+		break;
+#endif
+#if (SDRAM_PHY_PHASES > 1)
+	case 1:
+		command_p1(value);
+		break;
+#endif
+	default:
+		command_p0(value);
+	}
+}
+
+static void command_prd(unsigned int value) {
+	unsigned char rdphase = sdram_dfii_get_rdphase();
+	command_px(rdphase, value);
+}
+
+static void command_pwr(unsigned int value) {
+	unsigned char wrphase = sdram_dfii_get_wrphase();
+	command_px(wrphase, value);
+}
+
+#endif
+
+/*-----------------------------------------------------------------------*/
 /* Software/Hardware Control                                             */
 /*-----------------------------------------------------------------------*/
 
@@ -778,11 +892,20 @@ int sdram_leveling(void)
 
 int sdram_init(void)
 {
+	/* Reset Cmd/Dat delays */
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
 	int i;
 	sdram_write_leveling_rst_cmd_delay(0);
 	for (i=0; i<16; i++) sdram_write_leveling_rst_dat_delay(i, 0);
 #endif
+	/* Reset Read/Write phases */
+#ifdef CSR_DDRPHY_RDPHASE_ADDR
+	ddrphy_rdphase_write(SDRAM_PHY_RDPHASE);
+#endif
+#ifdef CSR_DDRPHY_WRPHASE_ADDR
+	ddrphy_wrphase_write(SDRAM_PHY_WRPHASE);
+#endif
+	/* Set Cmd delay if enforced at build time */
 #ifdef SDRAM_PHY_CMD_DELAY
 	_sdram_write_leveling_cmd_scan  = 0;
 	_sdram_write_leveling_cmd_delay = SDRAM_PHY_CMD_DELAY;

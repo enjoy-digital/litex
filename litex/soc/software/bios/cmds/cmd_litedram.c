@@ -40,6 +40,58 @@ static void sdram_cal_handler(int nb_params, char **params)
 define_command(sdram_cal, sdram_cal_handler, "Calibrate SDRAM", LITEDRAM_CMDS);
 #endif
 
+#ifdef CSR_DDRPHY_RDPHASE_ADDR
+/**
+ * Command "sdram_force_rdphase"
+ *
+ * Force read phase
+ *
+ */
+static void sdram_force_rdphase_handler(int nb_params, char **params)
+{
+	char *c;
+	int phase;
+	if (nb_params < 1) {
+		printf("sdram_force_rdphase <phase>");
+		return;
+	}
+	phase = strtoul(params[0], &c, 0);
+	if (*c != 0) {
+		printf("Incorrect phase");
+		return;
+	}
+	printf("Forcing read phase to %d\n", phase);
+	ddrphy_rdphase_write(phase);
+}
+define_command(sdram_force_rdphase, sdram_force_rdphase_handler, "Force read phase", LITEDRAM_CMDS);
+#endif
+
+#ifdef CSR_DDRPHY_WRPHASE_ADDR
+/**
+ * Command "sdram_force_wrphase"
+ *
+ * Force write phase
+ *
+ */
+static void sdram_force_wrphase_handler(int nb_params, char **params)
+{
+	char *c;
+	int phase;
+	if (nb_params < 1) {
+		printf("sdram_force_wrphase <phase>");
+		return;
+	}
+	phase = strtoul(params[0], &c, 0);
+	if (*c != 0) {
+		printf("Incorrect phase");
+		return;
+	}
+	printf("Forcing write phase to %d\n", phase);
+	ddrphy_wrphase_write(phase);
+}
+define_command(sdram_force_wrphase, sdram_force_wrphase_handler, "Force write phase", LITEDRAM_CMDS);
+#endif
+
 #ifdef CSR_DDRPHY_CDLY_RST_ADDR
 
 /**
@@ -113,7 +165,7 @@ static void sdram_rst_dat_delay_handler(int nb_params, char **params)
 	sdram_write_leveling_rst_dat_delay(module, 1);
 	sdram_software_control_off();
 }
-define_command(sdram_rst_dat_delay, sdram_rst_dat_delay_handler, "Reset write leveling Dat delay", LITEDRAM_CMDS);
+define_command(sdram_rst_dat_delay, sdram_rst_dat_delay_handler, "Force write leveling Dat delay", LITEDRAM_CMDS);
 #endif
 
 /**
