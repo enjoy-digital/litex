@@ -324,7 +324,7 @@ class SimSoC(SoCCore):
 
 # Build --------------------------------------------------------------------------------------------
 
-def add_sim_args(parser):
+def sim_args(parser):
     builder_args(parser)
     soc_sdram_args(parser)
     parser.add_argument("--threads",              default=1,               help="Set number of threads (default=1)")
@@ -350,12 +350,9 @@ def add_sim_args(parser):
     parser.add_argument("--opt-level",            default="O3",            help="Compilation optimization level")
     parser.add_argument("--sim-debug",            action="store_true",     help="Add simulation debugging modules")
 
-# Build --------------------------------------------------------------------------------------------
-
 def main():
     parser = argparse.ArgumentParser(description="Generic LiteX SoC Simulation")
-    add_sim_args(parser)
-
+    sim_args(parser)
     args = parser.parse_args()
 
     soc_kwargs     = soc_sdram_argdict(args)
