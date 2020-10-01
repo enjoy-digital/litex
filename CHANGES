@@ -1,4 +1,34 @@
-[> 2020.XX, planned for July 2020
+[> 2020.XX, planned for December 2020
+---------------------------------
+
+	[> Issues resolved
+	------------------
+	- fix SDCard writes.
+	- fix crt0 .data initialize on SERV/Minerva.
+
+	[> Added Features
+	------------------
+	- Wishbone2CSR: add registered version and use it on system with SDRAM.
+	- litex_json2dts: add Mor1kx DTS generation support.
+	- Build: add initial Radiant support for NX FPGA family.
+	- SoC: allow ROM to be optionally writable (for contents overwrite over UARTBone/Etherbone).
+	- LiteSDCard: improve BIOS support.
+	- UARTBone: add clock domain support.
+	- Clocking: uniformize reset on iCE40PLL/ECP5PLL.
+	- LiteDRAM: improve calibration and add BIOS debug commands.
+	- Clocking: add initial Ultrascale+ support.
+	- Sim: Allow dynamic enable/disable of tracing.
+	- BIOS: improve memtest and report.
+	- BIOS: rename/reorganize commands.
+	- litex_server: simplify usage with PCIe and add debug parameter.
+	- LitePCIe: add Ultrascale(+) support up to Gen3 X16.
+
+	[> API changes/Deprecation
+	--------------------------
+	- BIOS: commands have been renamed/reorganized.
+	- LiteDRAM: rdcmdphase/wrcmdphase no longer exposed.
+
+[> 2020.08, planned for July 2020
 ---------------------------------
 
 	[> Issues resolved
