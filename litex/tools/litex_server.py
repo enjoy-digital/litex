@@ -165,6 +165,8 @@ def main():
                         help="Host bind address")
     parser.add_argument("--bind-port", default=1234,
                         help="Host bind port")
+    parser.add_argument("--debug", action="store_true",
+                        help="Turn on debug for comm")
 
     # UART arguments
     parser.add_argument("--uart", action="store_true",
@@ -208,13 +210,13 @@ def main():
         uart_port = args.uart_port
         uart_baudrate = int(float(args.uart_baudrate))
         print("[CommUART] port: {} / baudrate: {} / ".format(uart_port, uart_baudrate), end="")
-        comm = CommUART(uart_port, uart_baudrate)
+        comm = CommUART(uart_port, uart_baudrate, args.debug)
     elif args.udp:
         from litex.tools.remote.comm_udp import CommUDP
         udp_ip = args.udp_ip
         udp_port = int(args.udp_port)
         print("[CommUDP] ip: {} / port: {} / ".format(udp_ip, udp_port), end="")
-        comm = CommUDP(udp_ip, udp_port)
+        comm = CommUDP(udp_ip, udp_port, args.debug)
     elif args.pcie:
         from litex.tools.remote.comm_pcie import CommPCIe
         pcie_bar = args.pcie_bar
@@ -230,7 +232,7 @@ def main():
             enable.write("1")
         enable.close()
         print("[CommPCIe] bar: {} / ".format(pcie_bar), end="")
-        comm = CommPCIe(pcie_bar)
+        comm = CommPCIe(pcie_bar, args.debug)
     elif args.usb:
         from litex.tools.remote.comm_usb import CommUSB
         if args.usb_pid is None and args.usb_vid is None:
@@ -243,7 +245,7 @@ def main():
         vid = args.usb_vid
         if vid is not None:
             vid = int(vid, base=0)
-        comm = CommUSB(vid=vid, pid=pid, max_retries=args.usb_max_retries)
+        comm = CommUSB(vid=vid, pid=pid, max_retries=args.usb_max_retries, debug=args.debug)
     else:
         parser.print_help()
         exit()
