@@ -99,8 +99,6 @@ def get_sdram_phy_settings(memtype, data_width, clk_freq):
         # Settings from gensdrphy
         rdphase       = 0
         wrphase       = 0
-        rdcmdphase    = 0
-        wrcmdphase    = 0
         cl            = 2
         cwl           = None
         read_latency  = 4
@@ -109,43 +107,39 @@ def get_sdram_phy_settings(memtype, data_width, clk_freq):
         # Settings from s6ddrphy
         rdphase       = 0
         wrphase       = 1
-        rdcmdphase    = 1
-        wrcmdphase    = 0
         cl            = 3
         cwl           = None
         read_latency  = 5
         write_latency = 0
     elif memtype in ["DDR2", "DDR3"]:
         # Settings from s7ddrphy
-        tck                 = 2/(2*nphases*clk_freq)
-        cmd_latency         = 0
-        cl, cwl             = get_cl_cw(memtype, tck)
-        cl_sys_latency      = get_sys_latency(nphases, cl)
-        cwl                 = cwl + cmd_latency
-        cwl_sys_latency     = get_sys_latency(nphases, cwl)
-        rdcmdphase, rdphase = get_sys_phases(nphases, cl_sys_latency, cl)
-        wrcmdphase, wrphase = get_sys_phases(nphases, cwl_sys_latency, cwl)
-        read_latency        = 2 + cl_sys_latency + 2 + 3
-        write_latency       = cwl_sys_latency
+        tck             = 2/(2*nphases*clk_freq)
+        cmd_latency     = 0
+        cl, cwl         = get_cl_cw(memtype, tck)
+        cl_sys_latency  = get_sys_latency(nphases, cl)
+        cwl             = cwl + cmd_latency
+        cwl_sys_latency = get_sys_latency(nphases, cwl)
+        rdphase         = get_sys_phase(nphases, cl_sys_latency, cl)
+        wrphase         = get_sys_phase(nphases, cwl_sys_latency, cwl)
+        read_latency    = 2 + cl_sys_latency + 2 + 3
+        write_latency   = cwl_sys_latency
     elif memtype == "DDR4":
         # Settings from usddrphy
-        tck                 = 2/(2*nphases*clk_freq)
-        cmd_latency         = 0
-        cl, cwl             = get_cl_cw(memtype, tck)
-        cl_sys_latency      = get_sys_latency(nphases, cl)
-        cwl                 = cwl + cmd_latency
-        cwl_sys_latency     = get_sys_latency(nphases, cwl)
-        rdcmdphase, rdphase = get_sys_phases(nphases, cl_sys_latency, cl)
-        wrcmdphase, wrphase = get_sys_phases(nphases, cwl_sys_latency, cwl)
-        read_latency        = 2 + cl_sys_latency + 1 + 3
-        write_latency       = cwl_sys_latency
+        tck             = 2/(2*nphases*clk_freq)
+        cmd_latency     = 0
+        cl, cwl         = get_cl_cw(memtype, tck)
+        cl_sys_latency  = get_sys_latency(nphases, cl)
+        cwl             = cwl + cmd_latency
+        cwl_sys_latency = get_sys_latency(nphases, cwl)
+        rdphase         = get_sys_phase(nphases, cl_sys_latency, cl)
+        wrphase         = get_sys_phase(nphases, cwl_sys_latency, cwl)
+        read_latency    = 2 + cl_sys_latency + 1 + 3
+        write_latency   = cwl_sys_latency
 
     sdram_phy_settings = {
         "nphases":       nphases,
         "rdphase":       rdphase,
         "wrphase":       wrphase,
-        "rdcmdphase":    rdcmdphase,
-        "wrcmdphase":    wrcmdphase,
         "cl":            cl,
         "cwl":           cwl,
         "read_latency":  read_latency,
