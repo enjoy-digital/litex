@@ -203,8 +203,8 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only)
 		timer0_update_value_write(1);
 		end = timer0_value_read();
 		write_speed = (size*(CONFIG_CLOCK_FREQUENCY/1000000))/(start - end);
+		printf("  Write: %ldMiB/s\n", write_speed);
 	}
-	printf("  Write: %ldMiB/s\n", write_speed);
 
 	/* flush CPU and L2 caches */
 	flush_cpu_dcache();
