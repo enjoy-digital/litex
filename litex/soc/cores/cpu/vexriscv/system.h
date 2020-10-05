@@ -11,7 +11,7 @@ extern "C" {
 
 __attribute__((unused)) static void flush_cpu_icache(void)
 {
-#if defined(CONFIG_CPU_VARIANT_MIN)
+#if defined(CONFIG_CPU_VARIANT_MINIMAL)
   /* No instruction cache */
 #else
   asm volatile(
@@ -27,7 +27,7 @@ __attribute__((unused)) static void flush_cpu_icache(void)
 
 __attribute__((unused)) static void flush_cpu_dcache(void)
 {
-#if defined(CONFIG_CPU_VARIANT_MIN) || defined(CONFIG_CPU_VARIANT_LITE)
+#if defined(CONFIG_CPU_VARIANT_MINIMAL) || defined(CONFIG_CPU_VARIANT_LITE)
   /* No data cache */
 #else
   asm volatile(".word(0x500F)\n");
