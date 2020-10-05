@@ -17,5 +17,8 @@ class OpenFPGALoader(GenericProgrammer):
     def __init__(self, board):
         self.board = board
 
-    def load_bitstream(self, bitstream_file):
-        subprocess.call(["openFPGALoader", "--board", self.board, bitstream_file])
+    def load_bitstream(self, bitstream_file, flash=False):
+        cmd = ["openFPGALoader", "--board", self.board, "--bitstream", bitstream_file]
+        if flash:
+            cmd.append("--write-flash")
+        subprocess.call(cmd)
