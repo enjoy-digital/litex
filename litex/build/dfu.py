@@ -21,4 +21,4 @@ class DFUProg(GenericProgrammer):
     def load_bitstream(self, bitstream_file):
         subprocess.call(["cp", bitstream_file, bitstream_file + ".dfu"])
         subprocess.call(["dfu-suffix", "-v", self.vid, "-p", self.pid, "-a", bitstream_file + ".dfu"])
-        subprocess.call(["dfu-util", "--download", bitstream_file + ".dfu"])
+        subprocess.call(["dfu-util", "--download", bitstream_file + ".dfu", "-R"])
