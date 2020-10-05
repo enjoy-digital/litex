@@ -11,6 +11,22 @@
 #include "../helpers.h"
 
 /**
+ * Command "sdcard_detect"
+ *
+ * Detect SDcard
+ *
+ */
+#ifdef CSR_SDPHY_BASE
+static void sdcard_detect_handler(int nb_params, char **params)
+{
+	uint8_t cd = sdphy_card_detect_read();
+	printf("SDCard %sinserted.\n", cd ? "not " : "");
+}
+
+define_command(sdcard_detect, sdcard_detect_handler, "Detect SDCard", LITESDCARD_CMDS);
+#endif
+
+/**
  * Command "sdcard_init"
  *
  * Initialize SDcard
