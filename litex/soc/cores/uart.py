@@ -259,7 +259,6 @@ class Stream2Wishbone(Module):
         self.sink   = sink   = stream.Endpoint([("data", 8)]) if phy is None else phy.source
         self.source = source = stream.Endpoint([("data", 8)]) if phy is None else phy.sink
         self.wishbone = wishbone.Interface()
-        self.comb += sink.ready.eq(1) # Always accept incoming stream.
 
         # # #
 
@@ -280,6 +279,7 @@ class Stream2Wishbone(Module):
         self.submodules += fsm, timer
         self.comb += fsm.reset.eq(timer.done)
         fsm.act("RECEIVE-CMD",
+            sink.ready.eq(1),
             NextValue(bytes_count, 0),
             NextValue(words_count, 0),
             If(sink.valid,
@@ -288,12 +288,14 @@ class Stream2Wishbone(Module):
             )
         )
         fsm.act("RECEIVE-LENGTH",
+            sink.ready.eq(1),
             If(sink.valid,
                 NextValue(length, sink.data),
                 NextState("RECEIVE-ADDRESS")
             )
         )
         fsm.act("RECEIVE-ADDRESS",
+            sink.ready.eq(1),
             If(sink.valid,
                 NextValue(address, Cat(sink.data, address)),
                 NextValue(bytes_count, bytes_count + 1),
@@ -311,6 +313,7 @@ class Stream2Wishbone(Module):
             )
         )
         fsm.act("RECEIVE-DATA",
+            sink.ready.eq(1),
             If(sink.valid,
                 NextValue(data, Cat(sink.data, data)),
                 NextValue(bytes_count, bytes_count + 1),
@@ -325,6 +328,7 @@ class Stream2Wishbone(Module):
             self.wishbone.sel.eq(2**(data_width//8) - 1)
         ]
         fsm.act("WRITE-DATA",
+            sink.ready.eq(0),
             self.wishbone.stb.eq(1),
             self.wishbone.we.eq(1),
             self.wishbone.cyc.eq(1),
@@ -339,6 +343,7 @@ class Stream2Wishbone(Module):
             )
         )
         fsm.act("READ-DATA",
+            sink.ready.eq(0),
             self.wishbone.stb.eq(1),
             self.wishbone.we.eq(0),
             self.wishbone.cyc.eq(1),
@@ -352,6 +357,7 @@ class Stream2Wishbone(Module):
             cases[i] = source.data.eq(data[8*n:])
         self.comb += Case(bytes_count, cases)
         fsm.act("SEND-DATA",
+            sink.ready.eq(0),
             source.valid.eq(1),
             If(source.ready,
                 NextValue(bytes_count, bytes_count + 1),
