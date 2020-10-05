@@ -123,6 +123,7 @@ class SymbiflowToolchain:
                 self.symbiflow_device = {
                     # FIXME: fine for now since only a few devices are supported, do more clever device re-mapping.
                     "xc7a35ticsg324-1L" : "xc7a50t_test",
+                    "xc7a100tcsg324-1" : "xc7a100t_test",
                 }[platform.device]
             except KeyError:
                 raise ValueError(f"symbiflow_device is not specified")
@@ -136,6 +137,7 @@ class SymbiflowToolchain:
         # FIXME: prjxray-db doesn't have xc7a35ticsg324-1L - use closest replacement
         self._partname = {
             "xc7a35ticsg324-1L" : "xc7a35tcsg324-1",
+            "xc7a100tcsg324-1" : "xc7a100tcsg324-1",
         }.get(platform.device, platform.device)
 
     def _generate_makefile(self, platform, build_name):
