@@ -24,7 +24,7 @@ class ModuleDoc(DUID):
     first section of your class' module documentation
     2. Add a :obj:`ModuleDoc` object to your class and inherit from :obj:`AutoDoc`.
 
-    If you inherit from :obj:`ModuleDoc`, then there is no need to call ``__init__()``
+    If you inherit from :obj:`ModuleDoc`, you still need to call ``ModuleDoc.__init__(self)``.
 
     Synopsis
     --------
