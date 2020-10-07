@@ -80,7 +80,7 @@ class SoCCore(LiteXSoC):
         integrated_main_ram_size = 0,
         integrated_main_ram_init = [],
         # CSR parameters
-        csr_data_width           = 8,
+        csr_data_width           = 32,
         csr_address_width        = 14,
         csr_paging               = 0x800,
         csr_ordering             = "big",
@@ -282,7 +282,7 @@ def soc_core_args(parser):
                         help="size/enable the integrated main RAM")
     # CSR parameters
     parser.add_argument("--csr-data-width", default=None, type=auto_int,
-                        help="CSR bus data-width (8 or 32, default=8)")
+                        help="CSR bus data-width (8 or 32, default=32)")
     parser.add_argument("--csr-address-width", default=14, type=auto_int,
                         help="CSR bus address-width")
     parser.add_argument("--csr-paging", default=0x800, type=auto_int,

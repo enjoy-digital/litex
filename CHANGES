@@ -27,6 +27,7 @@
 	--------------------------
 	- BIOS: commands have been renamed/reorganized.
 	- LiteDRAM: rdcmdphase/wrcmdphase no longer exposed.
+	- CSR: change default csr_data_width from 8 to 32.
 
 [> 2020.08, planned for July 2020
 ---------------------------------

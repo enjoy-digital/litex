@@ -63,7 +63,7 @@ class DocumentedCSR:
             f.description = self.trim(f.description)
 
 class DocumentedCSRRegion:
-    def __init__(self, name, region, module=None, submodules=[], csr_data_width=8):
+    def __init__(self, name, region, module=None, submodules=[], csr_data_width=32):
         self.name            = name
         self.origin          = region.origin
         self.busword         = region.busword
