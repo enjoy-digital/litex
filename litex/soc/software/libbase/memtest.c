@@ -130,6 +130,18 @@ static void memtest_data_progress(const char * header, unsigned int offset, unsi
 		printf( "%s 0x%x-0x%x (%d/%dGiB)\r", header, offset, offset + addr, addr/GIB, size/GIB);
 }
 
+
+static void memtest_data_speed(unsigned long speed) {
+	if (speed < KIB)
+		printf("%luB/s", speed);
+	else if (speed < MIB)
+		printf("%luKiB/s", speed/KIB);
+	else if (speed < GIB)
+		printf("%luMiB/s", speed/MIB);
+	else
+		printf("%luGiB/s", speed/GIB);
+}
+
 int memtest_data(unsigned int *addr, unsigned long size, int random)
 {
 	volatile unsigned int *array = addr;
@@ -202,7 +214,9 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only)
 		uint64_t numerator   = ((uint64_t)size)*((uint64_t)CONFIG_CLOCK_FREQUENCY);
 		uint64_t denominator = ((uint64_t)start - (uint64_t)end);
 		write_speed = numerator/denominator;
-		printf("  Write speed: %lub/s\n", write_speed);
+		printf("  Write speed: ");
+		memtest_data_speed(write_speed);
+		printf("\n");
 	}
 
 	/* flush CPU and L2 caches */
@@ -223,7 +237,9 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only)
 	uint64_t numerator = ((uint64_t)size)*((uint64_t)CONFIG_CLOCK_FREQUENCY);
 	uint64_t denominator = ((uint64_t)start - (uint64_t)end);
 	read_speed = numerator/denominator;
-	printf("  Read speed:  %lub/s\n", read_speed);
+	printf("   Read speed: ");
+	memtest_data_speed(read_speed);
+	printf("\n");
 }
 
 int memtest(unsigned int *addr, unsigned long maxsize)
