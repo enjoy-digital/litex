@@ -133,8 +133,9 @@ class SpiFlashDualQuad(SpiFlashCommon, AutoCSR):
         self.specials.dq1 = Tristate(pads.dq[1], o=dq.o[1], i=dq.i[1], oe=dq.oe)
         if spi_width > 2:
             # Keep DQ2,DQ3 as outputs during bitbang, this ensures they activate ~WP or ~HOLD functions
-            self.specials.dq2 = Tristate(pads.dq[2], o=dq.o[2], i=dq.i[2], oe=(dq.oe | self.bitbang_en.storage))
-            self.specials.dq3 = Tristate(pads.dq[3], o=dq.o[3], i=dq.i[3], oe=(dq.oe | self.bitbang_en.storage))
+            bitbang_en = 0 if not with_bitbang else self.bitbang_en.storage
+            self.specials.dq2 = Tristate(pads.dq[2], o=dq.o[2], i=dq.i[2], oe=(dq.oe | bitbang_en))
+            self.specials.dq3 = Tristate(pads.dq[3], o=dq.o[3], i=dq.i[3], oe=(dq.oe | bitbang_en))
 
         sr = Signal(max(cmd_width, addr_width, wbone_width))
         if endianness == "big":
