@@ -176,13 +176,13 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only)
 {
 	volatile unsigned long *array = (unsigned long *)addr;
 	int i;
-	unsigned int start, end;
+	uint32_t start, end;
 	unsigned long write_speed = 0;
 	unsigned long read_speed;
 	__attribute__((unused)) unsigned long data;
 	const unsigned int sz = sizeof(unsigned long);
 
-	printf("Memspeed at 0x%p...\n", addr);
+	printf("Memspeed at 0x%p size 0x%x (%u read or write operations), read_only? %s...\n", addr, size, (size/sz), read_only?"true":"false");
 
 	/* init timer */
 	timer0_en_write(0);
@@ -199,9 +199,11 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only)
 		}
 		timer0_update_value_write(1);
 		end = timer0_value_read();
-		write_speed = (size*(CONFIG_CLOCK_FREQUENCY/1000000))/(start - end);
+		uint64_t numerator = ((uint64_t)size)*((uint64_t)CONFIG_CLOCK_FREQUENCY);
+		uint64_t denominator = ((uint64_t)start - (uint64_t)end);
+		write_speed = numerator/denominator;
+		printf("  Write speed: %lub/s\n", write_speed);
 	}
-	printf("  Write: %ldMiB/s\n", write_speed);
 
 	/* flush CPU and L2 caches */
 	flush_cpu_dcache();
@@ -218,8 +220,10 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only)
 	}
 	timer0_update_value_write(1);
 	end = timer0_value_read();
-	read_speed = (size*(CONFIG_CLOCK_FREQUENCY/1000000))/(start - end);
-	printf("  Read:  %ldMiB/s\n", read_speed);
+	uint64_t numerator = ((uint64_t)size)*((uint64_t)CONFIG_CLOCK_FREQUENCY);
+	uint64_t denominator = ((uint64_t)start - (uint64_t)end);
+	read_speed = numerator/denominator;
+	printf("  Read speed:  %lub/s\n", read_speed);
 }
 
 int memtest(unsigned int *addr, unsigned long maxsize)
@@ -229,7 +233,7 @@ int memtest(unsigned int *addr, unsigned long maxsize)
 	unsigned long addr_size = MEMTEST_ADDR_SIZE < maxsize ? MEMTEST_ADDR_SIZE : maxsize;
 	unsigned long data_size = maxsize;
 
-	printf("Memtest at 0x%p...\n", addr);
+	printf("Memtest at 0x%p size 0x%x...\n", addr, maxsize);
 
 	bus_errors  = memtest_bus(addr, bus_size);
 	addr_errors = memtest_addr(addr, addr_size, MEMTEST_ADDR_RANDOM);
