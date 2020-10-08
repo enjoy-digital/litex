@@ -243,6 +243,7 @@ void sdram_mode_register_write(char reg, int value) {
 int _sdram_write_leveling_cmd_scan  = 1;
 int _sdram_write_leveling_cmd_delay = 0;
 int _sdram_write_leveling_dat_delays[16];
+int _sdram_write_leveling_bitslips[16];
 
 static void sdram_write_leveling_on(void)
 {
@@ -303,6 +304,18 @@ void sdram_write_leveling_force_dat_delay(int module, int taps, int show) {
 	_sdram_write_leveling_dat_delays[module] = taps;
 	if (show)
 		printf("Forcing Dat delay of module %d to %d taps\n", module, taps);
+}
+
+void sdram_write_leveling_rst_bitslip(int module, int show) {
+	_sdram_write_leveling_bitslips[module] = -1;
+	if (show)
+		printf("Reseting Bitslip of module %d\n", module);
+}
+
+void sdram_write_leveling_force_bitslip(int module, int bitslip, int show) {
+	_sdram_write_leveling_bitslips[module] = bitslip;
+	if (show)
+		printf("Forcing Bitslip of module %d to %d\n", module, bitslip);
 }
 
 static void sdram_write_leveling_rst_delay(int module) {
@@ -506,7 +519,24 @@ int sdram_write_leveling(void)
 	int cdly_range_start;
 	int cdly_range_end;
 	int cdly_range_step;
+	int i, j;
 
+
+	/* Configure write bitslips */
+	for (i=0; i<16; i++) {
+		/* sel module */
+		ddrphy_dly_sel_write(1 << i);
+		/* rst bitslip */
+		ddrphy_wdly_dq_bitslip_rst_write(1);
+		/* set bitslip */
+		if (_sdram_write_leveling_bitslips[i] >= 0) {
+			for (j=0; j<_sdram_write_leveling_bitslips[i]; j++) {
+				ddrphy_wdly_dq_bitslip_write(1);
+			}
+		}
+		/* unsel module */
+		ddrphy_dly_sel_write(0);
+	}
 
 	if (_sdram_write_leveling_cmd_scan) {
 		printf("  Cmd/Clk scan:\n");
@@ -580,7 +610,7 @@ static void sdram_read_leveling_rst_delay(int module) {
 
 #ifdef SDRAM_PHY_ECP5DDRPHY
 	/* Sync all DQSBUFM's, By toggling all dly_sel (DQSBUFM.PAUSE) lines. */
-	ddrphy_dly_sel_write(0xFF);
+	ddrphy_dly_sel_write(0xff);
 	ddrphy_dly_sel_write(0);
 #endif
 }
@@ -597,7 +627,7 @@ static void sdram_read_leveling_inc_delay(int module) {
 
 #ifdef SDRAM_PHY_ECP5DDRPHY
 	/* Sync all DQSBUFM's, By toggling all dly_sel (DQSBUFM.PAUSE) lines. */
-	ddrphy_dly_sel_write(0xFF);
+	ddrphy_dly_sel_write(0xff);
 	ddrphy_dly_sel_write(0);
 #endif
 }
@@ -607,7 +637,7 @@ static void sdram_read_leveling_rst_bitslip(char m)
 	/* sel module */
 	ddrphy_dly_sel_write(1 << m);
 
-	/* inc delay */
+	/* rst delay */
 	ddrphy_rdly_dq_bitslip_rst_write(1);
 
 	/* unsel module */
@@ -675,9 +705,9 @@ static int sdram_read_leveling_scan_module(int module, int bitslip)
 		command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
 		cdelay(15);
 		for(p=0;p<SDRAM_PHY_PHASES;p++) {
-			/* read back test pattern */
+			/* Read back test pattern */
 			csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr[p], tst, DFII_PIX_DATA_BYTES);
-			/* verify bytes matching current 'module' */
+			/* Verify bytes matching current 'module' */
 			if (prs[p][  SDRAM_PHY_MODULES-1-module] != tst[  SDRAM_PHY_MODULES-1-module] ||
 			    prs[p][2*SDRAM_PHY_MODULES-1-module] != tst[2*SDRAM_PHY_MODULES-1-module])
 				working = 0;
@@ -749,9 +779,9 @@ static void sdram_read_leveling_module(int module)
 		cdelay(15);
 		working = 1;
 		for(p=0;p<SDRAM_PHY_PHASES;p++) {
-			/* read back test pattern */
+			/* Read back test pattern */
 			csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr[p], tst, DFII_PIX_DATA_BYTES);
-			/* verify bytes matching current 'module' */
+			/* Verify bytes matching current 'module' */
 			if (prs[p][  SDRAM_PHY_MODULES-1-module] != tst[  SDRAM_PHY_MODULES-1-module] ||
 			    prs[p][2*SDRAM_PHY_MODULES-1-module] != tst[2*SDRAM_PHY_MODULES-1-module])
 				working = 0;
@@ -917,6 +947,7 @@ int sdram_init(void)
 	int i;
 	sdram_write_leveling_rst_cmd_delay(0);
 	for (i=0; i<16; i++) sdram_write_leveling_rst_dat_delay(i, 0);
+	for (i=0; i<16; i++) sdram_write_leveling_rst_bitslip(i, 0);
 #endif
 	/* Reset Read/Write phases */
 #ifdef CSR_DDRPHY_RDPHASE_ADDR
