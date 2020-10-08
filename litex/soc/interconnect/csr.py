@@ -295,6 +295,7 @@ class CSRStatus(_CompoundCSR):
         self.description = description
         self.status      = Signal(self.size, reset=reset)
         self.we          = Signal()
+        self.re          = Signal()
         for field in fields:
             self.comb += self.status[field.offset:field.offset + field.size].eq(getattr(self.fields, field.name))
 
@@ -306,6 +307,7 @@ class CSRStatus(_CompoundCSR):
             self.comb += sc.w.eq(self.status[i*busword:i*busword+nbits])
             self.simple_csrs.append(sc)
         self.comb += self.we.eq(sc.we)
+        self.comb += self.re.eq(sc.re)
 
     def read(self):
         """Read method for simulation."""
