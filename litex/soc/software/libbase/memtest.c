@@ -118,28 +118,27 @@ int memtest_addr(unsigned int *addr, unsigned long size, int random)
 	return errors;
 }
 
-static void memtest_data_progress(const char * header, unsigned int offset, unsigned int addr, unsigned int size)
-{
+static void print_size(unsigned long size) {
 	if (size < KIB)
-		printf( "%s 0x%x-0x%x (%d/%dB)\r", header, offset, offset + addr, addr, size);
+		printf("%luB", size);
 	else if (size < MIB)
-		printf( "%s 0x%x-0x%x (%d/%dKiB)\r", header, offset, offset + addr, addr/KIB, size/KIB);
+		printf("%luKiB", size/KIB);
 	else if (size < GIB)
-		printf( "%s 0x%x-0x%x (%d/%dMiB)\r", header, offset, offset + addr, addr/MIB, size/MIB);
+		printf("%luMiB", size/MIB);
 	else
-		printf( "%s 0x%x-0x%x (%d/%dGiB)\r", header, offset, offset + addr, addr/GIB, size/GIB);
+		printf("%luGiB", size/GIB);
 }
 
+static void print_speed(unsigned long speed) {
+	print_size(speed);
+	printf("/s");
+}
 
-static void memtest_data_speed(unsigned long speed) {
-	if (speed < KIB)
-		printf("%luB/s", speed);
-	else if (speed < MIB)
-		printf("%luKiB/s", speed/KIB);
-	else if (speed < GIB)
-		printf("%luMiB/s", speed/MIB);
-	else
-		printf("%luGiB/s", speed/GIB);
+static void print_progress(const char * header, unsigned int offset, unsigned int addr)
+{
+	printf("%s 0x%x-0x%x ", header, offset, offset + addr);
+	print_size(addr);
+	printf("   \r");
 }
 
 int memtest_data(unsigned int *addr, unsigned long size, int random)
@@ -156,9 +155,9 @@ int memtest_data(unsigned int *addr, unsigned long size, int random)
 		seed_32 = seed_to_data_32(seed_32, random);
 		array[i] = seed_32;
 		if (i%0x8000 == 0)
-			memtest_data_progress("  Write:", (unsigned long)addr, 4*i, size);
+			print_progress("  Write:", (unsigned long)addr, 4*i);
 	}
-	memtest_data_progress("  Write:", (unsigned long)addr, 4*i, size);
+	print_progress("  Write:", (unsigned long)addr, 4*i);
 	printf("\n");
 
 	seed_32 = 1;
@@ -176,9 +175,9 @@ int memtest_data(unsigned int *addr, unsigned long size, int random)
 #endif
 		}
 		if (i%0x8000 == 0)
-			memtest_data_progress("  Read: ", (unsigned long)addr, 4*i, size);
+			print_progress("   Read:", (unsigned long)addr, 4*i);
 	}
-	memtest_data_progress("  Read: ", (unsigned long)addr, 4*i, size);
+	print_progress("   Read:", (unsigned long)addr, 4*i);
 	printf("\n");
 
 	return errors;
@@ -194,7 +193,9 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only)
 	__attribute__((unused)) unsigned long data;
 	const unsigned int sz = sizeof(unsigned long);
 
-	printf("Memspeed at 0x%p...\n", addr);
+	printf("Memspeed at 0x%p (", addr);
+	print_size(size);
+	printf(")...\n");
 
 	/* init timer */
 	timer0_en_write(0);
@@ -215,7 +216,7 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only)
 		uint64_t denominator = ((uint64_t)start - (uint64_t)end);
 		write_speed = numerator/denominator;
 		printf("  Write speed: ");
-		memtest_data_speed(write_speed);
+		print_speed(write_speed);
 		printf("\n");
 	}
 
@@ -234,11 +235,11 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only)
 	}
 	timer0_update_value_write(1);
 	end = timer0_value_read();
-	uint64_t numerator = ((uint64_t)size)*((uint64_t)CONFIG_CLOCK_FREQUENCY);
+	uint64_t numerator   = ((uint64_t)size)*((uint64_t)CONFIG_CLOCK_FREQUENCY);
 	uint64_t denominator = ((uint64_t)start - (uint64_t)end);
 	read_speed = numerator/denominator;
 	printf("   Read speed: ");
-	memtest_data_speed(read_speed);
+	print_speed(read_speed);
 	printf("\n");
 }
 
@@ -249,7 +250,9 @@ int memtest(unsigned int *addr, unsigned long maxsize)
 	unsigned long addr_size = MEMTEST_ADDR_SIZE < maxsize ? MEMTEST_ADDR_SIZE : maxsize;
 	unsigned long data_size = maxsize;
 
-	printf("Memtest at 0x%p...\n", addr);
+	printf("Memtest at 0x%p (", addr);
+	print_size(data_size);
+	printf(")...\n");
 
 	bus_errors  = memtest_bus(addr, bus_size);
 	addr_errors = memtest_addr(addr, addr_size, MEMTEST_ADDR_RANDOM);
