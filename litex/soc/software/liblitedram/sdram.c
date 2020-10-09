@@ -519,24 +519,6 @@ int sdram_write_leveling(void)
 	int cdly_range_start;
 	int cdly_range_end;
 	int cdly_range_step;
-	int i, j;
-
-
-	/* Configure write bitslips */
-	for (i=0; i<16; i++) {
-		/* sel module */
-		ddrphy_dly_sel_write(1 << i);
-		/* rst bitslip */
-		ddrphy_wdly_dq_bitslip_rst_write(1);
-		/* set bitslip */
-		if (_sdram_write_leveling_bitslips[i] >= 0) {
-			for (j=0; j<_sdram_write_leveling_bitslips[i]; j++) {
-				ddrphy_wdly_dq_bitslip_write(1);
-			}
-		}
-		/* unsel module */
-		ddrphy_dly_sel_write(0);
-	}
 
 	if (_sdram_write_leveling_cmd_scan) {
 		printf("  Cmd/Clk scan:\n");
@@ -721,7 +703,7 @@ static int sdram_write_read_check_test_pattern(int module, unsigned int seed) {
 	return 1;
 }
 
-static int sdram_read_leveling_scan_module(int module, int bitslip)
+static int sdram_read_leveling_scan_module(int module, int bitslip, int show)
 {
 	int i;
 	int score;
@@ -731,22 +713,24 @@ static int sdram_read_leveling_scan_module(int module, int bitslip)
 
     /* Check test pattern for each delay value */
 	score = 0;
-	printf("  m%d, b%d: |", module, bitslip);
+	if (show)
+		printf("  m%d, b%d: |", module, bitslip);
 	sdram_read_leveling_rst_delay(module);
 	for(i=0;i<SDRAM_PHY_DELAYS;i++) {
 		int working;
-		int show = 1;
+		int _show = show;
 #if SDRAM_PHY_DELAYS > 32
-		show = (i%16 == 0);
+		_show = (i%16 == 0) & show;
 #endif
 		working = sdram_write_read_check_test_pattern(module, 42);
 		working &= sdram_write_read_check_test_pattern(module, 43);
-		if (show)
+		if (_show)
 			printf("%d", working);
 		score += working;
 		sdram_read_leveling_inc_delay(module);
 	}
-	printf("| ");
+	if (show)
+		printf("| ");
 
 	/* Precharge */
 	sdram_precharge_test_row();
@@ -839,7 +823,7 @@ void sdram_read_leveling(void)
 		best_bitslip = 0;
 		for(bitslip=0; bitslip<SDRAM_PHY_BITSLIPS; bitslip++) {
 			/* Compute score */
-			score = sdram_read_leveling_scan_module(module, bitslip);
+			score = sdram_read_leveling_scan_module(module, bitslip, 1);
 			sdram_read_leveling_module(module);
 			printf("\n");
 			if (score > best_score) {
@@ -866,6 +850,66 @@ void sdram_read_leveling(void)
 }
 
 /*-----------------------------------------------------------------------*/
+/* Write latency calibration                                             */
+/*-----------------------------------------------------------------------*/
+
+static void sdram_write_latency_calibration(void) {
+	int i;
+	int module;
+	int bitslip;
+	int score;
+	int best_score;
+	int best_bitslip;
+
+	for(module=0; module<SDRAM_PHY_MODULES; module++) {
+		/* Scan possible write windows */
+		best_score   = 0;
+		best_bitslip = 0;
+		for(bitslip=0; bitslip<SDRAM_PHY_BITSLIPS; bitslip++) {
+			score = 0;
+			/* sel module */
+			ddrphy_dly_sel_write(1 << module);
+			/* rst bitslip */
+			ddrphy_wdly_dq_bitslip_rst_write(1);
+			for (i=0; i<bitslip; i++) {
+				ddrphy_wdly_dq_bitslip_write(1);
+			}
+			/* unsel module */
+			ddrphy_dly_sel_write(0);
+			score = 0;
+			sdram_read_leveling_rst_bitslip(module);
+			for(i=0; i<SDRAM_PHY_BITSLIPS; i++) {
+				/* Compute score */
+				score += sdram_read_leveling_scan_module(module, i, 0);
+				/* Increment bitslip */
+				sdram_read_leveling_inc_bitslip(module);
+			}
+			if (score > best_score) {
+				best_bitslip = bitslip;
+				best_score = score;
+			}
+		}
+
+		if (_sdram_write_leveling_bitslips[module] < 0)
+			bitslip = best_bitslip;
+		else
+			bitslip = _sdram_write_leveling_bitslips[module];
+		printf("m%d:%d ", module, bitslip);
+
+		/* Select best write window */
+		ddrphy_dly_sel_write(1 << module);
+		/* rst bitslip */
+		ddrphy_wdly_dq_bitslip_rst_write(1);
+		for (i=0; i<bitslip; i++) {
+			ddrphy_wdly_dq_bitslip_write(1);
+		}
+		/* unsel module */
+		ddrphy_dly_sel_write(0);
+	}
+	printf("\n");
+}
+
+/*-----------------------------------------------------------------------*/
 /* Leveling                                                              */
 /*-----------------------------------------------------------------------*/
 
@@ -886,6 +930,9 @@ int sdram_leveling(void)
 	printf("Write leveling:\n");
 	sdram_write_leveling();
 #endif
+
+	printf("Write latency calibration:\n");
+	sdram_write_latency_calibration();
 
 #ifdef SDRAM_PHY_READ_LEVELING_CAPABLE
 	printf("Read leveling:\n");
