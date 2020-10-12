@@ -398,7 +398,10 @@ class GenericPlatform:
         for command, sigs in self.constraint_manager.signal_command:
             resolved_sigs = []
             for signal in sigs:
-                resolved_sigs.append(vns.get_name(signal))
+                rname = vns.get_name(signal)
+                if signal.nbits > 1:
+                    rname += '*'
+                resolved_sigs.append(rname)
 
             frags = command.split('@')
 
