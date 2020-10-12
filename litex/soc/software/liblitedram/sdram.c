@@ -668,6 +668,9 @@ static int sdram_write_read_check_test_pattern(int module, unsigned int seed) {
 		}
 	}
 
+	/* Activate */
+	sdram_activate_test_row();
+
 	/* Write pseudo-random sequence */
 	for(p=0;p<SDRAM_PHY_PHASES;p++)
 		csr_wr_buf_uint8(sdram_dfii_pix_wrdata_addr[p], prs[p], DFII_PIX_DATA_BYTES);
@@ -685,6 +688,9 @@ static int sdram_write_read_check_test_pattern(int module, unsigned int seed) {
 	sdram_dfii_pird_baddress_write(0);
 	command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
 	cdelay(15);
+
+	/* Precharge */
+	sdram_precharge_test_row();
 
 	for(p=0;p<SDRAM_PHY_PHASES;p++) {
 		/* Read back test pattern */
@@ -708,9 +714,6 @@ static int sdram_read_leveling_scan_module(int module, int bitslip, int show)
 	int i;
 	int score;
 
-	/* Activate */
-	sdram_activate_test_row();
-
     /* Check test pattern for each delay value */
 	score = 0;
 	if (show)
@@ -722,8 +725,8 @@ static int sdram_read_leveling_scan_module(int module, int bitslip, int show)
 #if SDRAM_PHY_DELAYS > 32
 		_show = (i%16 == 0) & show;
 #endif
-		working = sdram_write_read_check_test_pattern(module, 42);
-		working &= sdram_write_read_check_test_pattern(module, 43);
+		working  = sdram_write_read_check_test_pattern(module, 42);
+		working &= sdram_write_read_check_test_pattern(module, 84);
 		if (_show)
 			printf("%d", working);
 		score += working;
@@ -731,9 +734,6 @@ static int sdram_read_leveling_scan_module(int module, int bitslip, int show)
 	}
 	if (show)
 		printf("| ");
-
-	/* Precharge */
-	sdram_precharge_test_row();
 
 	return score;
 }
@@ -746,15 +746,12 @@ static void sdram_read_leveling_module(int module)
 
 	printf("delays: ");
 
-	/* Activate */
-	sdram_activate_test_row();
-
 	/* Find smallest working delay */
 	delay = 0;
 	sdram_read_leveling_rst_delay(module);
 	while(1) {
 		working  = sdram_write_read_check_test_pattern(module, 42);
-		working &= sdram_write_read_check_test_pattern(module, 43);
+		working &= sdram_write_read_check_test_pattern(module, 84);
 		if(working)
 			break;
 		delay++;
@@ -778,7 +775,7 @@ static void sdram_read_leveling_module(int module)
 	/* Find largest working delay */
 	while(1) {
 		working  = sdram_write_read_check_test_pattern(module, 42);
-		working &= sdram_write_read_check_test_pattern(module, 43);
+		working &= sdram_write_read_check_test_pattern(module, 84);
 		if(!working)
 			break;
 		delay++;
@@ -797,9 +794,6 @@ static void sdram_read_leveling_module(int module)
 	sdram_read_leveling_rst_delay(module);
 	for(i=0;i<(delay_min+delay_max)/2;i++)
 		sdram_read_leveling_inc_delay(module);
-
-	/* Precharge */
-	sdram_precharge_test_row();
 }
 #endif /* CSR_DDRPHY_BASE */
 
