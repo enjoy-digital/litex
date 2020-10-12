@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <memtest.h>
 
 #include <generated/csr.h>
 #include <generated/mem.h>
@@ -38,6 +39,20 @@ static void sdram_cal_handler(int nb_params, char **params)
 	sdram_software_control_off();
 }
 define_command(sdram_cal, sdram_cal_handler, "Calibrate SDRAM", LITEDRAM_CMDS);
+#endif
+
+/**
+ * Command "sdram_test"
+ *
+ * Test SDRAM
+ *
+ */
+#if defined(CSR_SDRAM_BASE)
+static void sdram_test_handler(int nb_params, char **params)
+{
+	memtest((unsigned int *)MAIN_RAM_BASE, MAIN_RAM_SIZE/32);
+}
+define_command(sdram_test, sdram_test_handler, "Test SDRAM", LITEDRAM_CMDS);
 #endif
 
 #ifdef CSR_DDRPHY_RDPHASE_ADDR
