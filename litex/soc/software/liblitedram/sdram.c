@@ -1,5 +1,5 @@
-// This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
 // This file is Copyright (c) 2013-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+// This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
 // This file is Copyright (c) 2018 Chris Ballance <chris.ballance@physics.ox.ac.uk>
 // This file is Copyright (c) 2018 Dolu1990 <charles.papon.90@gmail.com>
 // This file is Copyright (c) 2019 Gabriel L. Somlo <gsomlo@gmail.com>
@@ -238,6 +238,8 @@ void sdram_mode_register_write(char reg, int value) {
 /* Write Leveling                                                        */
 /*-----------------------------------------------------------------------*/
 
+int _sdram_write_leveling_bitslips[16];
+
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
 
 int _sdram_write_leveling_cmd_scan  = 1;
@@ -303,6 +305,18 @@ void sdram_write_leveling_force_dat_delay(int module, int taps, int show) {
 	_sdram_write_leveling_dat_delays[module] = taps;
 	if (show)
 		printf("Forcing Dat delay of module %d to %d taps\n", module, taps);
+}
+
+void sdram_write_leveling_rst_bitslip(int module, int show) {
+	_sdram_write_leveling_bitslips[module] = -1;
+	if (show)
+		printf("Reseting Bitslip of module %d\n", module);
+}
+
+void sdram_write_leveling_force_bitslip(int module, int bitslip, int show) {
+	_sdram_write_leveling_bitslips[module] = bitslip;
+	if (show)
+		printf("Forcing Bitslip of module %d to %d\n", module, bitslip);
 }
 
 static void sdram_write_leveling_rst_delay(int module) {
@@ -507,7 +521,6 @@ int sdram_write_leveling(void)
 	int cdly_range_end;
 	int cdly_range_step;
 
-
 	if (_sdram_write_leveling_cmd_scan) {
 		printf("  Cmd/Clk scan:\n");
 
@@ -580,7 +593,7 @@ static void sdram_read_leveling_rst_delay(int module) {
 
 #ifdef SDRAM_PHY_ECP5DDRPHY
 	/* Sync all DQSBUFM's, By toggling all dly_sel (DQSBUFM.PAUSE) lines. */
-	ddrphy_dly_sel_write(0xFF);
+	ddrphy_dly_sel_write(0xff);
 	ddrphy_dly_sel_write(0);
 #endif
 }
@@ -597,7 +610,7 @@ static void sdram_read_leveling_inc_delay(int module) {
 
 #ifdef SDRAM_PHY_ECP5DDRPHY
 	/* Sync all DQSBUFM's, By toggling all dly_sel (DQSBUFM.PAUSE) lines. */
-	ddrphy_dly_sel_write(0xFF);
+	ddrphy_dly_sel_write(0xff);
 	ddrphy_dly_sel_write(0);
 #endif
 }
@@ -607,7 +620,7 @@ static void sdram_read_leveling_rst_bitslip(char m)
 	/* sel module */
 	ddrphy_dly_sel_write(1 << m);
 
-	/* inc delay */
+	/* rst delay */
 	ddrphy_rdly_dq_bitslip_rst_write(1);
 
 	/* unsel module */
@@ -627,139 +640,119 @@ static void sdram_read_leveling_inc_bitslip(char m)
 	ddrphy_dly_sel_write(0);
 }
 
-static int sdram_read_leveling_scan_module(int module, int bitslip)
-{
-	unsigned int prv;
-	unsigned char prs[SDRAM_PHY_PHASES][DFII_PIX_DATA_BYTES];
-	unsigned char tst[DFII_PIX_DATA_BYTES];
-	int p, i;
-	int score;
-
-	/* Generate pseudo-random sequence */
-	prv = 42;
-	for(p=0;p<SDRAM_PHY_PHASES;p++)
-		for(i=0;i<DFII_PIX_DATA_BYTES;i++) {
-			prv = lfsr(32, prv);
-			prs[p][i] = prv;
-		}
-
-	/* Activate */
+static void sdram_activate_test_row(void) {
 	sdram_dfii_pi0_address_write(0);
 	sdram_dfii_pi0_baddress_write(0);
 	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CS);
 	cdelay(15);
+}
 
-	/* Write test pattern */
+static void sdram_precharge_test_row(void) {
+	sdram_dfii_pi0_address_write(0);
+	sdram_dfii_pi0_baddress_write(0);
+	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
+	cdelay(15);
+}
+
+static int sdram_write_read_check_test_pattern(int module, unsigned int seed) {
+	int p, i;
+	unsigned int prv;
+	unsigned char tst[DFII_PIX_DATA_BYTES];
+	unsigned char prs[SDRAM_PHY_PHASES][DFII_PIX_DATA_BYTES];
+
+	/* Generate pseudo-random sequence */
+	prv = seed;
+	for(p=0;p<SDRAM_PHY_PHASES;p++) {
+		for(i=0;i<DFII_PIX_DATA_BYTES;i++) {
+			prv = lfsr(32, prv);
+			prs[p][i] = prv;
+		}
+	}
+
+	/* Activate */
+	sdram_activate_test_row();
+
+	/* Write pseudo-random sequence */
 	for(p=0;p<SDRAM_PHY_PHASES;p++)
 		csr_wr_buf_uint8(sdram_dfii_pix_wrdata_addr[p], prs[p], DFII_PIX_DATA_BYTES);
 	sdram_dfii_piwr_address_write(0);
 	sdram_dfii_piwr_baddress_write(0);
 	command_pwr(DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS|DFII_COMMAND_WRDATA);
+	cdelay(15);
 
-	/* Calibrate each DQ in turn */
+#ifdef SDRAM_PHY_ECP5DDRPHY
+	ddrphy_burstdet_clr_write(1);
+#endif
+
+	/* Read/Check pseudo-random sequence */
 	sdram_dfii_pird_address_write(0);
 	sdram_dfii_pird_baddress_write(0);
-	score = 0;
+	command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
+	cdelay(15);
 
-	printf("  m%d, b%d: |", module, bitslip);
+	/* Precharge */
+	sdram_precharge_test_row();
+
+	for(p=0;p<SDRAM_PHY_PHASES;p++) {
+		/* Read back test pattern */
+		csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr[p], tst, DFII_PIX_DATA_BYTES);
+		/* Verify bytes matching current 'module' */
+		if (prs[p][  SDRAM_PHY_MODULES-1-module] != tst[  SDRAM_PHY_MODULES-1-module] ||
+		    prs[p][2*SDRAM_PHY_MODULES-1-module] != tst[2*SDRAM_PHY_MODULES-1-module])
+			return 0;
+	}
+
+#ifdef SDRAM_PHY_ECP5DDRPHY
+	if (((ddrphy_burstdet_seen_read() >> module) & 0x1) != 1)
+		return 0;
+#endif
+
+	return 1;
+}
+
+static int sdram_read_leveling_scan_module(int module, int bitslip, int show)
+{
+	int i;
+	int score;
+
+    /* Check test pattern for each delay value */
+	score = 0;
+	if (show)
+		printf("  m%d, b%d: |", module, bitslip);
 	sdram_read_leveling_rst_delay(module);
 	for(i=0;i<SDRAM_PHY_DELAYS;i++) {
-		int working = 1;
-		int show = 1;
+		int working;
+		int _show = show;
 #if SDRAM_PHY_DELAYS > 32
-		show = (i%16 == 0);
+		_show = (i%16 == 0) & show;
 #endif
-#ifdef SDRAM_PHY_ECP5DDRPHY
-		ddrphy_burstdet_clr_write(1);
-#endif
-		command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
-		cdelay(15);
-		for(p=0;p<SDRAM_PHY_PHASES;p++) {
-			/* read back test pattern */
-			csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr[p], tst, DFII_PIX_DATA_BYTES);
-			/* verify bytes matching current 'module' */
-			if (prs[p][  SDRAM_PHY_MODULES-1-module] != tst[  SDRAM_PHY_MODULES-1-module] ||
-			    prs[p][2*SDRAM_PHY_MODULES-1-module] != tst[2*SDRAM_PHY_MODULES-1-module])
-				working = 0;
-		}
-#ifdef SDRAM_PHY_ECP5DDRPHY
-		if (((ddrphy_burstdet_seen_read() >> module) & 0x1) != 1)
-			working = 0;
-#endif
-		if (show)
+		working  = sdram_write_read_check_test_pattern(module, 42);
+		working &= sdram_write_read_check_test_pattern(module, 84);
+		if (_show)
 			printf("%d", working);
 		score += working;
 		sdram_read_leveling_inc_delay(module);
 	}
-	printf("| ");
-
-	/* Precharge */
-	sdram_dfii_pi0_address_write(0);
-	sdram_dfii_pi0_baddress_write(0);
-	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
-	cdelay(15);
+	if (show)
+		printf("| ");
 
 	return score;
 }
 
 static void sdram_read_leveling_module(int module)
 {
-	unsigned int prv;
-	unsigned char prs[SDRAM_PHY_PHASES][DFII_PIX_DATA_BYTES];
-	unsigned char tst[DFII_PIX_DATA_BYTES];
-	int p, i;
+	int i;
 	int working;
 	int delay, delay_min, delay_max;
 
 	printf("delays: ");
 
-	/* Generate pseudo-random sequence */
-	prv = 42;
-	for(p=0;p<SDRAM_PHY_PHASES;p++)
-		for(i=0;i<DFII_PIX_DATA_BYTES;i++) {
-			prv = lfsr(32, prv);
-			prs[p][i] = prv;
-		}
-
-	/* Activate */
-	sdram_dfii_pi0_address_write(0);
-	sdram_dfii_pi0_baddress_write(0);
-	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CS);
-	cdelay(15);
-
-	/* Write test pattern */
-	for(p=0;p<SDRAM_PHY_PHASES;p++)
-		csr_wr_buf_uint8(sdram_dfii_pix_wrdata_addr[p], prs[p], DFII_PIX_DATA_BYTES);
-	sdram_dfii_piwr_address_write(0);
-	sdram_dfii_piwr_baddress_write(0);
-	command_pwr(DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS|DFII_COMMAND_WRDATA);
-
-	/* Calibrate each DQ in turn */
-	sdram_dfii_pird_address_write(0);
-	sdram_dfii_pird_baddress_write(0);
-
 	/* Find smallest working delay */
 	delay = 0;
 	sdram_read_leveling_rst_delay(module);
 	while(1) {
-#ifdef SDRAM_PHY_ECP5DDRPHY
-		ddrphy_burstdet_clr_write(1);
-#endif
-		command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
-		cdelay(15);
-		working = 1;
-		for(p=0;p<SDRAM_PHY_PHASES;p++) {
-			/* read back test pattern */
-			csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr[p], tst, DFII_PIX_DATA_BYTES);
-			/* verify bytes matching current 'module' */
-			if (prs[p][  SDRAM_PHY_MODULES-1-module] != tst[  SDRAM_PHY_MODULES-1-module] ||
-			    prs[p][2*SDRAM_PHY_MODULES-1-module] != tst[2*SDRAM_PHY_MODULES-1-module])
-				working = 0;
-		}
-#ifdef SDRAM_PHY_ECP5DDRPHY
-		if (((ddrphy_burstdet_seen_read() >> module) & 0x1) != 1)
-			working = 0;
-#endif
+		working  = sdram_write_read_check_test_pattern(module, 42);
+		working &= sdram_write_read_check_test_pattern(module, 84);
 		if(working)
 			break;
 		delay++;
@@ -782,24 +775,8 @@ static void sdram_read_leveling_module(int module)
 
 	/* Find largest working delay */
 	while(1) {
-#ifdef SDRAM_PHY_ECP5DDRPHY
-		ddrphy_burstdet_clr_write(1);
-#endif
-		command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
-		cdelay(15);
-		working = 1;
-		for(p=0;p<SDRAM_PHY_PHASES;p++) {
-			/* read back test pattern */
-			csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr[p], tst, DFII_PIX_DATA_BYTES);
-			/* verify bytes matching current 'module' */
-			if (prs[p][  SDRAM_PHY_MODULES-1-module] != tst[  SDRAM_PHY_MODULES-1-module] ||
-			    prs[p][2*SDRAM_PHY_MODULES-1-module] != tst[2*SDRAM_PHY_MODULES-1-module])
-				working = 0;
-		}
-#ifdef SDRAM_PHY_ECP5DDRPHY
-		if (((ddrphy_burstdet_seen_read() >> module) & 0x1) != 1)
-			working = 0;
-#endif
+		working  = sdram_write_read_check_test_pattern(module, 42);
+		working &= sdram_write_read_check_test_pattern(module, 84);
 		if(!working)
 			break;
 		delay++;
@@ -818,12 +795,6 @@ static void sdram_read_leveling_module(int module)
 	sdram_read_leveling_rst_delay(module);
 	for(i=0;i<(delay_min+delay_max)/2;i++)
 		sdram_read_leveling_inc_delay(module);
-
-	/* Precharge */
-	sdram_dfii_pi0_address_write(0);
-	sdram_dfii_pi0_baddress_write(0);
-	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
-	cdelay(15);
 }
 #endif /* CSR_DDRPHY_BASE */
 
@@ -842,36 +813,100 @@ void sdram_read_leveling(void)
 	int best_bitslip;
 
 	for(module=0; module<SDRAM_PHY_MODULES; module++) {
-		/* scan possible read windows */
+		/* Scan possible read windows */
 		best_score = 0;
 		best_bitslip = 0;
 		for(bitslip=0; bitslip<SDRAM_PHY_BITSLIPS; bitslip++) {
-			/* compute score */
-			score = sdram_read_leveling_scan_module(module, bitslip);
+			/* Compute score */
+			score = sdram_read_leveling_scan_module(module, bitslip, 1);
 			sdram_read_leveling_module(module);
 			printf("\n");
 			if (score > best_score) {
 				best_bitslip = bitslip;
 				best_score = score;
 			}
-			/* exit */
+			/* Exit */
 			if (bitslip == SDRAM_PHY_BITSLIPS-1)
 				break;
-			/* increment bitslip */
+			/* Increment bitslip */
 			sdram_read_leveling_inc_bitslip(module);
 		}
 
-		/* select best read window */
+		/* Select best read window */
 		printf("  best: m%d, b%02d ", module, best_bitslip);
 		sdram_read_leveling_rst_bitslip(module);
 		for (bitslip=0; bitslip<best_bitslip; bitslip++)
 			sdram_read_leveling_inc_bitslip(module);
 
-		/* re-do leveling on best read window*/
+		/* Re-do leveling on best read window*/
 		sdram_read_leveling_module(module);
 		printf("\n");
 	}
 }
+
+/*-----------------------------------------------------------------------*/
+/* Write latency calibration                                             */
+/*-----------------------------------------------------------------------*/
+
+#ifdef SDRAM_PHY_WRITE_LATENCY_CALIBRATION_CAPABLE
+
+static void sdram_write_latency_calibration(void) {
+	int i;
+	int module;
+	int bitslip;
+	int score;
+	int best_score;
+	int best_bitslip;
+
+	for(module=0; module<SDRAM_PHY_MODULES; module++) {
+		/* Scan possible write windows */
+		best_score   = 0;
+		best_bitslip = 0;
+		for(bitslip=0; bitslip<SDRAM_PHY_BITSLIPS; bitslip+=2) { /* +2 for tCK steps */
+			score = 0;
+			/* sel module */
+			ddrphy_dly_sel_write(1 << module);
+			/* rst bitslip */
+			ddrphy_wdly_dq_bitslip_rst_write(1);
+			for (i=0; i<bitslip; i++) {
+				ddrphy_wdly_dq_bitslip_write(1);
+			}
+			/* unsel module */
+			ddrphy_dly_sel_write(0);
+			score = 0;
+			sdram_read_leveling_rst_bitslip(module);
+			for(i=0; i<SDRAM_PHY_BITSLIPS; i++) {
+				/* Compute score */
+				score += sdram_read_leveling_scan_module(module, i, 0);
+				/* Increment bitslip */
+				sdram_read_leveling_inc_bitslip(module);
+			}
+			if (score > best_score) {
+				best_bitslip = bitslip;
+				best_score = score;
+			}
+		}
+
+		if (_sdram_write_leveling_bitslips[module] < 0)
+			bitslip = best_bitslip;
+		else
+			bitslip = _sdram_write_leveling_bitslips[module];
+		printf("m%d:%d ", module, bitslip);
+
+		/* Select best write window */
+		ddrphy_dly_sel_write(1 << module);
+		/* rst bitslip */
+		ddrphy_wdly_dq_bitslip_rst_write(1);
+		for (i=0; i<bitslip; i++) {
+			ddrphy_wdly_dq_bitslip_write(1);
+		}
+		/* unsel module */
+		ddrphy_dly_sel_write(0);
+	}
+	printf("\n");
+}
+
+#endif
 
 /*-----------------------------------------------------------------------*/
 /* Leveling                                                              */
@@ -893,6 +928,11 @@ int sdram_leveling(void)
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
 	printf("Write leveling:\n");
 	sdram_write_leveling();
+#endif
+
+#ifdef SDRAM_PHY_WRITE_LATENCY_CALIBRATION_CAPABLE
+	printf("Write latency calibration:\n");
+	sdram_write_latency_calibration();
 #endif
 
 #ifdef SDRAM_PHY_READ_LEVELING_CAPABLE
@@ -917,6 +957,7 @@ int sdram_init(void)
 	int i;
 	sdram_write_leveling_rst_cmd_delay(0);
 	for (i=0; i<16; i++) sdram_write_leveling_rst_dat_delay(i, 0);
+	for (i=0; i<16; i++) sdram_write_leveling_rst_bitslip(i, 0);
 #endif
 	/* Reset Read/Write phases */
 #ifdef CSR_DDRPHY_RDPHASE_ADDR

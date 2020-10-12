@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <memtest.h>
 
 #include <generated/csr.h>
 #include <generated/mem.h>
@@ -38,6 +39,20 @@ static void sdram_cal_handler(int nb_params, char **params)
 	sdram_software_control_off();
 }
 define_command(sdram_cal, sdram_cal_handler, "Calibrate SDRAM", LITEDRAM_CMDS);
+#endif
+
+/**
+ * Command "sdram_test"
+ *
+ * Test SDRAM
+ *
+ */
+#if defined(CSR_SDRAM_BASE)
+static void sdram_test_handler(int nb_params, char **params)
+{
+	memtest((unsigned int *)MAIN_RAM_BASE, MAIN_RAM_SIZE/32);
+}
+define_command(sdram_test, sdram_test_handler, "Test SDRAM", LITEDRAM_CMDS);
 #endif
 
 #ifdef CSR_DDRPHY_RDPHASE_ADDR
@@ -165,7 +180,7 @@ static void sdram_rst_dat_delay_handler(int nb_params, char **params)
 	sdram_write_leveling_rst_dat_delay(module, 1);
 	sdram_software_control_off();
 }
-define_command(sdram_rst_dat_delay, sdram_rst_dat_delay_handler, "Force write leveling Dat delay", LITEDRAM_CMDS);
+define_command(sdram_rst_dat_delay, sdram_rst_dat_delay_handler, "Reset write leveling Dat delay", LITEDRAM_CMDS);
 #endif
 
 /**
@@ -198,7 +213,67 @@ static void sdram_force_dat_delay_handler(int nb_params, char **params)
 	sdram_write_leveling_force_dat_delay(module, taps, 1);
 	sdram_software_control_off();
 }
-define_command(sdram_force_dat_delay, sdram_force_dat_delay_handler, "Reset write leveling Dat delay", LITEDRAM_CMDS);
+define_command(sdram_force_dat_delay, sdram_force_dat_delay_handler, "Force write leveling Dat delay", LITEDRAM_CMDS);
+#endif
+
+/**
+ * Command "sdram_rst_bitslip"
+ *
+ * Reset write leveling Bitslip
+ *
+ */
+#if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE)
+static void sdram_rst_bitslip_handler(int nb_params, char **params)
+{
+	char *c;
+	int module;
+	if (nb_params < 1) {
+		printf("sdram_rst_bitslip <module>");
+		return;
+	}
+	module = strtoul(params[0], &c, 0);
+	if (*c != 0) {
+		printf("Incorrect module");
+		return;
+	}
+	sdram_software_control_on();
+	sdram_write_leveling_rst_bitslip(module, 1);
+	sdram_software_control_off();
+}
+define_command(sdram_rst_bitslip, sdram_rst_bitslip_handler, "Reset write leveling Bitslip", LITEDRAM_CMDS);
+#endif
+
+/**
+ * Command "sdram_force_bitslip"
+ *
+ * Force write leveling Bitslip
+ *
+ */
+#if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE)
+static void sdram_force_bitslip_handler(int nb_params, char **params)
+{
+	char *c;
+	int module;
+	int bitslip;
+	if (nb_params < 2) {
+		printf("sdram_force_bitslip <module> <bitslip>");
+		return;
+	}
+	module = strtoul(params[0], &c, 0);
+	if (*c != 0) {
+		printf("Incorrect module");
+		return;
+	}
+	bitslip = strtoul(params[1], &c, 0);
+	if (*c != 0) {
+		printf("Incorrect bitslip");
+		return;
+	}
+	sdram_software_control_on();
+	sdram_write_leveling_force_bitslip(module, bitslip, 1);
+	sdram_software_control_off();
+}
+define_command(sdram_force_bitslip, sdram_force_bitslip_handler, "Force write leveling Bitslip", LITEDRAM_CMDS);
 #endif
 
 #endif
