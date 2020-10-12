@@ -431,9 +431,15 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         opi_clk_en = Signal()
         self.sync += clk_en.eq(~spi_mode & opi_clk_en | spi_mode & spi_clk_en)
         # Tristate mux
+        self.dq_oe_xdc = Signal()
+        self.dq_copi_oe_xdc = Signal()
         self.sync += [
-            dq.oe.eq(~spi_mode & self.tx),
-            dq_copi.oe.eq(spi_mode | self.tx),
+            self.dq_oe_xdc.eq(~spi_mode & self.tx),
+            self.dq_copi_oe_xdc.eq(spi_mode | self.tx),
+        ]
+        self.comb += [
+            dq.oe.eq(self.dq_oe_xdc),
+            dq_copi.oe.eq(self.dq_copi_oe_xdc),
         ]
         # Data out mux (no data in mux, as we can just sample data in all the time without harm)
         self.comb += do_mux_rise.eq(~spi_mode & do_rise[0] | spi_mode & self.copi)
