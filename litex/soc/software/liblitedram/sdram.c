@@ -238,12 +238,13 @@ void sdram_mode_register_write(char reg, int value) {
 /* Write Leveling                                                        */
 /*-----------------------------------------------------------------------*/
 
+int _sdram_write_leveling_bitslips[16];
+
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
 
 int _sdram_write_leveling_cmd_scan  = 1;
 int _sdram_write_leveling_cmd_delay = 0;
 int _sdram_write_leveling_dat_delays[16];
-int _sdram_write_leveling_bitslips[16];
 
 static void sdram_write_leveling_on(void)
 {
@@ -847,6 +848,8 @@ void sdram_read_leveling(void)
 /* Write latency calibration                                             */
 /*-----------------------------------------------------------------------*/
 
+#ifdef SDRAM_PHY_WRITE_LATENCY_CALIBRATION_CAPABLE
+
 static void sdram_write_latency_calibration(void) {
 	int i;
 	int module;
@@ -903,6 +906,8 @@ static void sdram_write_latency_calibration(void) {
 	printf("\n");
 }
 
+#endif
+
 /*-----------------------------------------------------------------------*/
 /* Leveling                                                              */
 /*-----------------------------------------------------------------------*/
@@ -925,8 +930,10 @@ int sdram_leveling(void)
 	sdram_write_leveling();
 #endif
 
+#ifdef SDRAM_PHY_WRITE_LATENCY_CALIBRATION_CAPABLE
 	printf("Write latency calibration:\n");
 	sdram_write_latency_calibration();
+#endif
 
 #ifdef SDRAM_PHY_READ_LEVELING_CAPABLE
 	printf("Read leveling:\n");
