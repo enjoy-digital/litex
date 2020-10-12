@@ -190,7 +190,7 @@ class CSRField(Signal):
     """
 
     def __init__(self, name, size=1, offset=None, reset=0, description=None, pulse=False, access=None, values=None):
-        assert access is None or (access in CSRAccess.values())
+        assert access is None or (access in CSRAccess)
         self.name        = name
         self.size        = size
         self.offset      = offset
