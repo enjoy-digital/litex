@@ -865,7 +865,7 @@ static void sdram_write_latency_calibration(void) {
 		/* Scan possible write windows */
 		best_score   = 0;
 		best_bitslip = 0;
-		for(bitslip=0; bitslip<SDRAM_PHY_BITSLIPS; bitslip++) {
+		for(bitslip=0; bitslip<SDRAM_PHY_BITSLIPS; bitslip+=2) { /* +2 for tCK steps */
 			score = 0;
 			/* sel module */
 			ddrphy_dly_sel_write(1 << module);
