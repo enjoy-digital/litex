@@ -320,7 +320,6 @@ class XilinxVivadoToolchain:
 
         # Generate verilog
         v_output = platform.get_verilog(fragment, name=build_name, **kwargs)
-        xdc_list = platform.resolve_signal_commands(v_output.ns)
         named_sc, named_pc = platform.resolve_signals(v_output.ns)
         v_file = build_name + ".v"
         v_output.write(v_file)
@@ -335,7 +334,7 @@ class XilinxVivadoToolchain:
         )
 
         # Generate design constraints (.xdc)
-        tools.write_to_file(build_name + ".xdc", _build_xdc(named_sc, named_pc) + xdc_list)
+        tools.write_to_file(build_name + ".xdc", _build_xdc(named_sc, named_pc))
 
         # Run
         if run:

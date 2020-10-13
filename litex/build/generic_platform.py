@@ -179,7 +179,6 @@ class ConstraintManager:
         self.available = list(io)
         self.matched = []
         self.platform_commands = []
-        self.signal_command = []
         self.connector_manager = ConnectorManager(connectors)
 
     def add_extension(self, io):
@@ -243,9 +242,6 @@ class ConstraintManager:
 
     def add_platform_command(self, command, **signals):
         self.platform_commands.append((command, signals))
-
-    def add_signal_command(self, command, *signals):
-        self.signal_command.append((command, signals))
 
     def get_io_signals(self):
         r = set()
@@ -327,9 +323,6 @@ class GenericPlatform:
     def add_platform_command(self, *args, **kwargs):
         return self.constraint_manager.add_platform_command(*args, **kwargs)
 
-    def add_signal_command(self, command, *signals):
-        return self.constraint_manager.add_signal_command(command, *signals)
-
     def add_extension(self, *args, **kwargs):
         return self.constraint_manager.add_extension(*args, **kwargs)
 
@@ -392,32 +385,6 @@ class GenericPlatform:
 
     def add_verilog_include_path(self, path):
         self.verilog_include_paths.append(os.path.abspath(path))
-
-    def resolve_signal_commands(self, vns):
-        xdc_output = '\n\n################################################################################\n#  Resolved signal XDCs\n################################################################################\n\n'
-        for command, sigs in self.constraint_manager.signal_command:
-            resolved_sigs = []
-            for signal in sigs:
-                rname = vns.get_name(signal)
-                if signal.nbits > 1:
-                    rname += '*'
-                resolved_sigs.append(rname)
-
-            frags = command.split('@')
-
-            xdc = ''
-            index = 0
-            for frag in frags:
-                xdc = xdc + frag
-                if index < len(resolved_sigs):
-                    xdc = xdc + resolved_sigs[index]
-                else:
-                    break
-                index = index + 1
-
-            xdc_output = xdc_output + xdc + '\n'
-
-        return xdc_output
 
     def resolve_signals(self, vns):
         # resolve signal names in constraints
