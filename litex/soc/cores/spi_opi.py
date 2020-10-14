@@ -128,7 +128,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         self.comb += self.di.eq(Cat(di_fall, di_rise))
 
         # OPI DDR registers
-        dq = TSTriple(7) # dq[0] is special because it is also copi
+        self.dq = dq = TSTriple(7) # dq[0] is special because it is also copi
         dq_delayed = Signal(8)
         self.specials += dq.get_tristate(pads.dq[1:])
         for i in range(1, 8):
@@ -211,7 +211,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         ]
 
         # bit 0 (copi) is special-cased to handle SPI mode
-        dq_copi = TSTriple(1) # this has similar structure but an independent "oe" signal
+        self.dq_copi = dq_copi = TSTriple(1) # this has similar structure but an independent "oe" signal
         self.specials += dq_copi.get_tristate(pads.dq[0])
         do_mux_rise = Signal() # mux signal for copi/dq select of bit 0
         do_mux_fall = Signal()
