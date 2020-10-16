@@ -1,4 +1,5 @@
 /* Copyright 2013-2014 IBM Corp.
+ * Copyright 2020 Raptor Engineering, LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -81,9 +82,26 @@ _start:
 	bl	main
 	b .
 
-#define EXCEPTION(nr)		\
-	.=  nr;      \
+#define REDZONE_SIZE    (512)
+#define REG_SAVE_SIZE	((32 + 5)*8)
+#define STACK_FRAME_C_MINIMAL   64
+
+#define SAVE_NIA	(32*8)
+#define SAVE_LR		(33*8)
+#define SAVE_CTR	(34*8)
+#define SAVE_CR		(35*8)
+#define SAVE_SRR1	(36*8)
+
+#define EXCEPTION(nr)	\
+	.=  nr;		\
 	b	.
+
+#define FORWARD_EXCEPTION(nr)					\
+	. = nr;							\
+	stdu	%r1,-(REG_SAVE_SIZE+REDZONE_SIZE)(%r1);		\
+	std	%r0,   1*8(%r1);				\
+	LOAD_IMM64(%r0, nr);					\
+	b	__isr
 
 	/* More exception stubs */
 	EXCEPTION(0x100)
@@ -92,11 +110,11 @@ _start:
 	EXCEPTION(0x380)
 	EXCEPTION(0x400)
 	EXCEPTION(0x480)
-	EXCEPTION(0x500)
+	FORWARD_EXCEPTION(0x500)
 	EXCEPTION(0x600)
 	EXCEPTION(0x700)
 	EXCEPTION(0x800)
-	EXCEPTION(0x900)
+	FORWARD_EXCEPTION(0x900)
 	EXCEPTION(0x980)
 	EXCEPTION(0xa00)
 	EXCEPTION(0xb00)
@@ -122,5 +140,130 @@ _start:
 	EXCEPTION(0x1600)
 #endif
 
+//  Exception handler
+__isr:
+/*
+ * Assume where we are coming from has a stack and can save there.
+ * We save the full register set. Since we are calling out to C, we
+ * could just save the ABI volatile registers
+ */
+/*
+ * The first two lines below are executed in the exception handler, so that r0
+ * can be used to store the origin exception vector
+ */
+//	stdu	%r1,-(REG_SAVE_SIZE+REDZONE_SIZE)(%r1)
+//	std	%r0,   1*8(%r1)
+//	std	%r1,   1*8(%r1)
+	std	%r2,   2*8(%r1)
+	std	%r3,   3*8(%r1)
+	std	%r4,   4*8(%r1)
+	std	%r5,   5*8(%r1)
+	std	%r6,   6*8(%r1)
+	std	%r7,   7*8(%r1)
+	std	%r8,   8*8(%r1)
+	std	%r9,   9*8(%r1)
+	std	%r10, 10*8(%r1)
+	std	%r11, 11*8(%r1)
+	std	%r12, 12*8(%r1)
+	std	%r13, 13*8(%r1)
+	std	%r14, 14*8(%r1)
+	std	%r15, 15*8(%r1)
+	std	%r16, 16*8(%r1)
+	std	%r17, 17*8(%r1)
+	std	%r18, 18*8(%r1)
+	std	%r19, 19*8(%r1)
+	std	%r20, 20*8(%r1)
+	std	%r21, 21*8(%r1)
+	std	%r22, 22*8(%r1)
+	std	%r23, 23*8(%r1)
+	std	%r24, 24*8(%r1)
+	std	%r25, 25*8(%r1)
+	std	%r26, 26*8(%r1)
+	std	%r27, 27*8(%r1)
+	std	%r28, 28*8(%r1)
+	std	%r29, 29*8(%r1)
+	std	%r30, 30*8(%r1)
+	std	%r31, 31*8(%r1)
+	mr	%r10, %r0
+	mfsrr0	%r0
+	std	%r0,  SAVE_NIA(%r1)
+	mflr	%r0
+	std	%r0,  SAVE_LR(%r1)
+	mfctr	%r0
+	std	%r0,  SAVE_CTR(%r1)
+	mfcr	%r0
+	std	%r0,  SAVE_CR(%r1)
+	mfsrr1	%r0
+	std	%r0,  SAVE_SRR1(%r1)
+
+	stdu	%r1,-STACK_FRAME_C_MINIMAL(%r1)
+
+	/* Load IRQ handler address from SRAM */
+	LOAD_IMM64(%r3, __isr_address)
+	ld	%r3,   0(%r3)
+
+	mtctr	%r3,
+	mr	%r3, %r10
+	bctrl
+	nop
+	ld	%r1, 0(%r1)
+
+	ld	%r0,   1*8(%r1)
+//	ld	%r1,   1*8(%r1) // do this at rfid
+	ld	%r2,   2*8(%r1)
+//	ld	%r3,   3*8(%r1) // do this at rfid
+	ld	%r4,   4*8(%r1)
+	ld	%r5,   5*8(%r1)
+	ld	%r6,   6*8(%r1)
+	ld	%r7,   7*8(%r1)
+	ld	%r8,   8*8(%r1)
+	ld	%r9,   9*8(%r1)
+	ld	%r10, 10*8(%r1)
+	ld	%r11, 11*8(%r1)
+	ld	%r12, 12*8(%r1)
+	ld	%r13, 13*8(%r1)
+	ld	%r14, 14*8(%r1)
+	ld	%r15, 15*8(%r1)
+	ld	%r16, 16*8(%r1)
+	ld	%r17, 17*8(%r1)
+	ld	%r18, 18*8(%r1)
+	ld	%r19, 19*8(%r1)
+	ld	%r20, 20*8(%r1)
+	ld	%r21, 21*8(%r1)
+	ld	%r22, 22*8(%r1)
+	ld	%r23, 23*8(%r1)
+	ld	%r24, 24*8(%r1)
+	ld	%r25, 25*8(%r1)
+	ld	%r26, 26*8(%r1)
+	ld	%r27, 27*8(%r1)
+	ld	%r28, 28*8(%r1)
+	ld	%r29, 29*8(%r1)
+	ld	%r30, 30*8(%r1)
+	ld	%r31, 31*8(%r1)
+
+	ld	%r3, SAVE_LR(%r1)
+	mtlr	%r3
+	ld	%r3, SAVE_CTR(%r1)
+	mtctr	%r3
+	ld	%r3, SAVE_CR(%r1)
+	mtcr	%r3
+	ld	%r3, SAVE_SRR1(%r1)
+	mtsrr1	%r3
+	ld	%r3, SAVE_NIA(%r1)
+	mtsrr0	%r3
+
+	/* restore %r3 */
+	ld	%r3, 3*8(%r1)
+
+	/* do final fixup r1 */
+	ld	%r1, 0*8(%r1)
+
+	rfid
+
 	.text
 
+	.globl __isr_address
+	.data
+	.align 8
+__isr_address:
+	.long isr
