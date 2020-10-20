@@ -2,6 +2,7 @@
 -- This file is part of LiteX.
 --
 -- Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
+-- Copyright (c) 2020 Raptor Engineering, LLC <sales@raptorengineering.com>
 -- SPDX-License-Identifier: BSD-2-Clause
 
 library ieee;
@@ -50,6 +51,8 @@ entity microwatt_wrapper is
         dmi_wr   : in  std_ulogic;
         dmi_ack  : out std_ulogic;
 
+        core_ext_irq : in std_ulogic;
+
         terminated_out  : out std_logic
         );
 end microwatt_wrapper;
@@ -61,8 +64,6 @@ architecture rtl of microwatt_wrapper is
 
     signal wishbone_data_in  : wishbone_slave_out;
     signal wishbone_data_out : wishbone_master_out;
-
-    signal core_ext_irq 	     : std_ulogic;
 
 begin
 
@@ -89,9 +90,6 @@ begin
     wishbone_data_stb      <= wishbone_data_out.stb;
     wishbone_data_sel      <= wishbone_data_out.sel;
     wishbone_data_we       <= wishbone_data_out.we;
-
-    -- core_ext_irq mapping
-    core_ext_irq <= '0';
 
     microwatt_core : entity work.core
         generic map (

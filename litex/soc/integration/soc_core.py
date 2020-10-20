@@ -7,6 +7,7 @@
 # This file is Copyright (c) 2019 Gabriel L. Somlo <gsomlo@gmail.com>
 # This file is Copyright (c) 2019 Ilia Sergachev <ilia.sergachev@protonmail.ch>
 # This file is Copyright (c) 2018 Jean-François Nguyen <jf@lambdaconcept.fr>
+# This file is Copyright (c) 2020 Raptor Engineering, LLC <sales@raptorengineering.com>
 # This file is Copyright (c) 2015 Robert Jordens <jordens@gmail.com>
 # This file is Copyright (c) 2018 Sean Cross <sean@xobs.io>
 # This file is Copyright (c) 2018 Stafford Horne <shorne@gmail.com>
@@ -84,6 +85,8 @@ class SoCCore(LiteXSoC):
         csr_address_width        = 14,
         csr_paging               = 0x800,
         csr_ordering             = "big",
+        # Interrupt parameters
+        irq_n_irqs               = 32,
         # Identifier parameters
         ident                    = "",
         ident_version            = False,
@@ -114,7 +117,7 @@ class SoCCore(LiteXSoC):
             csr_ordering         = csr_ordering,
             csr_reserved_csrs    = self.csr_map,
 
-            irq_n_irqs           = 32,
+            irq_n_irqs           = irq_n_irqs,
             irq_reserved_irqs    = {},
         )
 
