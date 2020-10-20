@@ -22,6 +22,50 @@ from litex.build.generic_platform import *
 from litex.build import tools
 from litex.build.lattice import common
 
+# Mixed Radiant+Yosys support
+
+def _run_yosys(device, sources, vincpaths, build_name):
+    ys_contents = ""
+    incflags = ""
+    for path in vincpaths:
+        incflags += " -I" + path
+    for filename, language, library in sources:
+        assert language != "vhdl"
+        ys_contents += "read_{}{} {}\n".format(language, incflags, filename)
+
+    ys_contents += """\
+hierarchy -top {build_name}
+
+# Map keep to keep=1 for yosys
+log
+log XX. Converting (* keep = "xxxx" *) attribute for Yosys
+log
+attrmap -tocase keep -imap keep="true" keep=1 -imap keep="false" keep=0 -remove keep=0
+select -list a:keep=1
+
+# Add keep=1 for yosys to objects which have dont_touch="true" attribute.
+log
+log XX. Converting (* dont_touch = "true" *) attribute for Yosys
+log
+select -list a:dont_touch=true
+setattr -set keep 1 a:dont_touch=true
+
+# Convert (* async_reg = "true" *) to async registers for Yosys.
+# (* async_reg = "true", dont_touch = "true" *) reg xilinxmultiregimpl0_regs1 = 1'd0;
+log
+log XX. Converting (* async_reg = "true" *) attribute to async registers for Yosys
+log
+select -list a:async_reg=true
+setattr -set keep 1 a:async_reg=true
+
+synth_nexus -top {build_name} -vm {build_name}_yosys.vm
+""".format(build_name=build_name)
+
+    ys_name = build_name + ".ys"
+    tools.write_to_file(ys_name, ys_contents)
+    r = subprocess.call(["yosys", ys_name])
+    if r != 0:
+        raise OSError("Subprocess failed")
 
 # Constraints (.ldc) -------------------------------------------------------------------------------
 
@@ -68,7 +112,7 @@ def _build_pdc(named_sc, named_pc, clocks, vns, build_name):
 
 # Project (.tcl) -----------------------------------------------------------------------------------
 
-def _build_tcl(device, sources, vincpaths, build_name, pdc_file):
+def _build_tcl(device, sources, vincpaths, build_name, pdc_file, synth_mode):
     tcl = []
     # Create project
     tcl.append(" ".join([
@@ -86,8 +130,17 @@ def _build_tcl(device, sources, vincpaths, build_name, pdc_file):
     tcl.append("prj_set_impl_opt {include path} {\"" + vincpath + "\"}")
 
     # Add sources
-    for filename, language, library in sources:
-        tcl.append("prj_add_source \"{}\" -work {}".format(tcl_path(filename), library))
+    if synth_mode == "yosys":
+        # NOTE: it is seemingly impossible to skip synthesis using the Tcl flow
+        # so we give Synplify the structural netlist from Yosys which it won't actually touch
+        # The other option is to call the low level Radiant commands starting from 'map'
+        # with the structural netlist from Yosys, but this would be harder to do in a cross
+        # platform way.
+        tcl.append("prj_add_source \"{}_yosys.vm\" -work work".format(build_name))
+        library = "work"
+    else:
+        for filename, language, library in sources:
+            tcl.append("prj_add_source \"{}\" -work {}".format(tcl_path(filename), library))
 
     tcl.append("prj_add_source \"{}\" -work {}".format(tcl_path(pdc_file), library))
 
@@ -203,6 +256,7 @@ class LatticeRadiantToolchain:
         build_name     = "top",
         run            = True,
         timingstrict   = True,
+        synth_mode     = "radiant",
         **kwargs):
 
         # Create build directory
@@ -227,13 +281,15 @@ class LatticeRadiantToolchain:
         pdc_file = build_dir + "\\" + build_name + ".pdc"
 
         # Generate design script file (.tcl)
-        _build_tcl(platform.device, platform.sources, platform.verilog_include_paths, build_name, pdc_file)
+        _build_tcl(platform.device, platform.sources, platform.verilog_include_paths, build_name, pdc_file, synth_mode)
 
         # Generate build script
         script = _build_script(build_name, platform.device)
 
         # Run
         if run:
+            if synth_mode == "yosys":
+                _run_yosys(platform.device, platform.sources, platform.verilog_include_paths, build_name)
             _run_script(script)
             if timingstrict:
                 _check_timing(build_name)
@@ -256,3 +312,10 @@ class LatticeRadiantToolchain:
         to.attr.add("keep")
         if (to, from_) not in self.false_paths:
             self.false_paths.add((from_, to))
+
+def radiant_build_args(parser):
+    parser.add_argument("--synth-mode", default="vivado", help="synthesis mode (synplify or yosys, default=synplify)")
+
+
+def radiant_build_argdict(args):
+    return {"synth_mode": args.synth_mode}
