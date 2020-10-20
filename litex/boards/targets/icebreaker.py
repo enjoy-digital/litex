@@ -29,7 +29,9 @@ from litex.soc.cores.up5kspram import Up5kSPRAM
 from litex.soc.cores.spi_flash import SpiFlash
 from litex.soc.cores.clock import iCE40PLL
 from litex.soc.integration.soc_core import *
+from litex.soc.integration.soc import SoCRegion
 from litex.soc.integration.builder import *
+from litex.soc.cores.led import LedChaser
 
 kB = 1024
 mB = 1024*kB
@@ -39,41 +41,37 @@ mB = 1024*kB
 class _CRG(Module):
     def __init__(self, platform, sys_clk_freq):
         self.clock_domains.cd_sys = ClockDomain()
-        self.clock_domains.cd_por = ClockDomain()
+        self.clock_domains.cd_por = ClockDomain(reset_less=True)
 
         # # #
 
-        # Clocking
+        # Clk/Rst
         clk12 = platform.request("clk12")
         rst_n = platform.request("user_btn_n")
-        if sys_clk_freq == 12e6:
-            self.comb += self.cd_sys.clk.eq(clk12)
-        else:
-            self.submodules.pll = pll = iCE40PLL(primitive="SB_PLL40_PAD")
-            pll.register_clkin(clk12, 12e6)
-            pll.create_clkout(self.cd_sys, sys_clk_freq)
-        platform.add_period_constraint(self.cd_sys.clk, 1e9/sys_clk_freq)
 
         # Power On Reset
-        por_cycles  = 4096
-        por_counter = Signal(log2_int(por_cycles), reset=por_cycles-1)
-        self.comb += self.cd_por.clk.eq(self.cd_sys.clk)
-        platform.add_period_constraint(self.cd_por.clk, 1e9/sys_clk_freq)
-        self.sync.por += If(por_counter != 0, por_counter.eq(por_counter - 1))
-        self.specials += AsyncResetSynchronizer(self.cd_por, ~rst_n)
-        self.specials += AsyncResetSynchronizer(self.cd_sys, (por_counter != 0))
+        por_count = Signal(16, reset=2**16-1)
+        por_done  = Signal()
+        self.comb += self.cd_por.clk.eq(ClockSignal())
+        self.comb += por_done.eq(por_count == 0)
+        self.sync.por += If(~por_done, por_count.eq(por_count - 1))
+
+        # PLL
+        self.submodules.pll = pll = iCE40PLL(primitive="SB_PLL40_PAD")
+        self.comb += pll.reset.eq(~rst_n)
+        pll.register_clkin(clk12, 12e6)
+        pll.create_clkout(self.cd_sys, sys_clk_freq, with_reset=False)
+        self.specials += AsyncResetSynchronizer(self.cd_sys, ~por_done | ~pll.locked)
+        platform.add_period_constraint(self.cd_sys.clk, 1e9/sys_clk_freq)
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    SoCCore.mem_map = {
-        "sram":             0x10000000,
-        "spiflash":         0x20000000,
-        "csr":              0xf0000000,
-    }
+    mem_map = {**SoCCore.mem_map, **{"spiflash": 0x80000000}}
     def __init__(self, bios_flash_offset, **kwargs):
         sys_clk_freq = int(24e6)
         platform     = icebreaker.Platform()
+        platform.add_extension(icebreaker.break_off_pmod)
 
         # Disable Integrated ROM/SRAM since too large for iCE40 and UP5K has specific SPRAM.
         kwargs["integrated_sram_size"] = 0
@@ -92,30 +90,32 @@ class BaseSoC(SoCCore):
         self.submodules.crg = _CRG(platform, sys_clk_freq)
 
         # 128KB SPRAM (used as SRAM) ---------------------------------------------------------------
-        self.submodules.spram = Up5kSPRAM(size=64*kB)
-        self.register_mem("sram", self.mem_map["sram"], self.spram.bus, 64*kB)
+        self.submodules.spram = Up5kSPRAM(size=128*kB)
+        self.bus.add_slave("sram", self.spram.bus, SoCRegion(size=128*kB))
 
         # SPI Flash --------------------------------------------------------------------------------
-        self.submodules.spiflash = SpiFlash(platform.request("spiflash4x"), dummy=6, endianness="little")
-        self.register_mem("spiflash", self.mem_map["spiflash"], self.spiflash.bus, size=16*mB)
-        self.add_csr("spiflash")
+        self.add_spi_flash(mode="1x", dummy_cycles=8)
 
         # Add ROM linker region --------------------------------------------------------------------
-        self.add_memory_region("rom", self.mem_map["spiflash"] + bios_flash_offset, 32*kB, type="cached+linker")
+        self.bus.add_region("rom", SoCRegion(
+            origin = self.mem_map["spiflash"] + bios_flash_offset,
+            size   = 32*kB,
+            linker = True)
+        )
 
         # Leds -------------------------------------------------------------------------------------
-        counter = Signal(32)
-        self.sync += counter.eq(counter + 1)
-        self.comb += platform.request("user_ledr_n").eq(counter[26])
-        self.comb += platform.request("user_ledg_n").eq(~counter[26])
+        self.submodules.leds = LedChaser(
+            pads         = platform.request_all("user_led"),
+            sys_clk_freq = sys_clk_freq)
+        self.add_csr("leds")
 
 # Flash --------------------------------------------------------------------------------------------
 
 def flash(bios_flash_offset):
     from litex.build.lattice.programmer import IceStormProgrammer
     prog = IceStormProgrammer()
-    prog.flash(bios_flash_offset, "soc_basesoc_icebreaker/software/bios/bios.bin")
-    prog.flash(0x00000000,        "soc_basesoc_icebreaker/gateware/top.bin")
+    prog.flash(bios_flash_offset, "build/icebreaker/software/bios/bios.bin")
+    prog.flash(0x00000000,        "build/icebreaker/gateware/icebreaker.bin")
     exit()
 
 # Build --------------------------------------------------------------------------------------------
