@@ -92,7 +92,7 @@ def _build_pdc(named_sc, named_pc, clocks, vns, build_name):
     for sig, pins, others, resname in named_sc:
         if len(pins) > 1:
             for i, p in enumerate(pins):
-                pdc.append(_format_ldc(sig + "[" + str(i) + "]", p, others, resname))
+                pdc.append(_format_ldc("{" + sig + "[" + str(i) + "]}", p, others, resname))
         else:
             pdc.append(_format_ldc(sig, pins[0], others, resname))
     if named_pc:
