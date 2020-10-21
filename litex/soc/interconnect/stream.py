@@ -568,6 +568,30 @@ class Gearbox(Module):
         else:
             self.comb += source.data.eq(o_data[::-1])
 
+# Shifter ------------------------------------------------------------------------------------------
+
+class Shifter(PipelinedActor):
+    def __init__(self, dw):
+        self.shift  = Signal(max=dw)
+        self.sink   = sink   = Endpoint([("data", dw)])
+        self.source = source = Endpoint([("data", dw)])
+        PipelinedActor.__init__(self, latency=2)
+
+        # # #
+
+        # Accumulate current/last sink.data.
+        r = Signal(2*dw)
+        self.sync += If(self.pipe_ce,
+            r[0:dw].eq(r[dw:]),
+            r[dw:].eq(sink.data)
+        )
+
+        # Select output data based on shift.
+        cases = {}
+        for i in range(dw):
+            cases[i] = self.source.data.eq(r[i:dw+i])
+        self.comb += Case(self.shift, cases)
+
 # Monitor ------------------------------------------------------------------------------------------
 
 class Monitor(Module, AutoCSR):
