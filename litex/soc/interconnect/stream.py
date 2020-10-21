@@ -571,8 +571,8 @@ class Gearbox(Module):
 # Shifter ------------------------------------------------------------------------------------------
 
 class Shifter(PipelinedActor):
-    def __init__(self, dw):
-        self.shift  = Signal(max=dw)
+    def __init__(self, dw, shift=None):
+        self.shift  = Signal(max=dw) if shift is None else shift
         self.sink   = sink   = Endpoint([("data", dw)])
         self.source = source = Endpoint([("data", dw)])
         PipelinedActor.__init__(self, latency=2)
@@ -582,7 +582,7 @@ class Shifter(PipelinedActor):
         # Accumulate current/last sink.data.
         r = Signal(2*dw)
         self.sync += If(self.pipe_ce,
-            r[0:dw].eq(r[dw:]),
+            r[:dw].eq(r[dw:]),
             r[dw:].eq(sink.data)
         )
 
