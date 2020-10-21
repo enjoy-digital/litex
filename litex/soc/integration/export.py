@@ -347,9 +347,9 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
         interrupts[csr] = irq
 
     documented_regions = []
-    for name, region in soc.csr.regions.items():
+    for region_name, region in soc.csr.regions.items():
         documented_regions.append(DocumentedCSRRegion(
-            name           = name,
+            name           = region_name,
             region         = region,
             csr_data_width = soc.csr.data_width)
         )
