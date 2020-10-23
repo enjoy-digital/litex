@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2019-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
@@ -75,6 +75,10 @@ class ICAP(Module, AutoCSR):
                     i_I     = Cat(*[_i[8*i:8*(i+1)][::-1] for i in range(4)]),
                 )
             ]
+
+        # CSR
+        if with_csr:
+            self.add_csr()
 
     def add_csr(self):
         self._addr = CSRStorage(5,  reset_less=True, description="ICAP Write Address.")
