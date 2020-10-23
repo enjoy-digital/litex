@@ -70,7 +70,7 @@ class Endpoint(Record):
         Record.__init__(self, self.description.get_full_layout(), name, **kwargs)
         set_reset_less(self.first)
         set_reset_less(self.last)
-        set_reset_less(self.payload)
+        #set_reset_less(self.payload) # FIXME: cause issues with LiteSATA, understand why and uncomment.
         set_reset_less(self.param)
 
     def __getattr__(self, name):
