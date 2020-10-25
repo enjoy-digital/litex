@@ -537,7 +537,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
                     NextValue(rx_fifo_rst, 1)
                 ).Elif(opi_rx_run,
                     NextValue(rx_wren, 1),
-                    If((bus.cyc & bus.stb & ~bus.we) & ((bus.cti == 2) |
+                    If((bus.cyc & bus.stb & ~bus.we) & ((bus.cti == 2) | (bus.cti == 0) |
                        ((bus.cti == 7) & ~bus.ack) ), # handle case of non-pipelined read, ack is late
                         If(~rx_empty,
                             NextValue(bus.dat_r, opi_fifo_rd),
@@ -576,7 +576,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         tx_almostfull = Signal()
         self.sync += tx_almostfull.eq(rx_almostfull) # sync the rx_almostfull signal into the local clock domain
         txphy_bus = Signal()
-        self.sync += txphy_bus.eq(bus.cyc & bus.stb & ~bus.we & (bus.cti == 2))
+        self.sync += txphy_bus.eq(bus.cyc & bus.stb & ~bus.we & ((bus.cti == 2) | (bus.cti == 0)))
         tx_resetcycle = Signal()
 
         self.submodules.txphy = txphy = FSM(reset_state="RESET")
@@ -636,7 +636,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         )
         txphy.act("TX_FILL",
             If(tx_run,
-                If(((~txphy_bus & (bus.cyc & bus.stb & ~bus.we & (bus.cti == 2))) &
+                If(((~txphy_bus & (bus.cyc & bus.stb & ~bus.we & ((bus.cti == 2) | (bus.cti == 0)) )) &
                    (opi_addr[2:] != bus.adr)) | tx_resetcycle,
                     # Tt's a new bus cycle, and the requested address is not equal to the current
                     # read buffer address
@@ -705,7 +705,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
                #   - then run the command
                # - Else wait until a bus cycle, and once it happens, put the system into run mode
                If(bus.cyc & bus.stb,
-                    If(~bus.we & (bus.cti ==2),
+                    If(~bus.we & ((bus.cti == 2) | (bus.cti == 0)),
                         NextState("TX_RUN")
                     ).Else(
                         # Handle other cases here, e.g. what do we do if we get a write? probably
@@ -862,7 +862,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
                             NextValue(addr_updated, 1),
                             NextValue(spi_cs_n, 1), # raise CS in anticipation of a new address cycle
                             NextState("SPI_READ_32_CS"),
-                        ).Elif( (rom_addr[2:] == bus.adr) | (~new_cycle & bus.cti == 2),
+                        ).Elif( (rom_addr[2:] == bus.adr) | (~new_cycle & ((bus.cti == 2) | (bus.cti == 0)) ),
                             NextValue(mac_count, 3),  # get another beat of 4 bytes at the next address
                             NextState("SPI_READ_32")
                         ).Else(
