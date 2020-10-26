@@ -17,7 +17,8 @@
 #define LITEDRAM_CMDS	5
 #define LITEETH_CMDS	6
 #define LITESDCARD_CMDS	7
-#define NB_OF_GROUPS	8
+#define LITESATA_CMDS	8
+#define NB_OF_GROUPS	9
 
 typedef void (*cmd_handler)(int nb_params, char **params);
 
