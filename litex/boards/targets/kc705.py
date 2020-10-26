@@ -48,7 +48,7 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, sys_clk_freq=int(125e6), with_ethernet=False, **kwargs):
+    def __init__(self, sys_clk_freq=int(150e6), with_ethernet=False, with_sata=False, **kwargs):
         platform = kc705.Platform()
 
         # SoCCore ----------------------------------------------------------------------------------
@@ -86,6 +86,64 @@ class BaseSoC(SoCCore):
             self.add_csr("ethphy")
             self.add_ethernet(phy=self.ethphy)
 
+        # SATA (Experimental) ----------------------------------------------------------------------
+        if with_sata:
+            from litex.build.generic_platform import Subsignal, Pins
+            from litex.soc.interconnect import wishbone
+            from litesata.phy import LiteSATAPHY
+            from litesata.core import LiteSATACore
+            from litesata.frontend.arbitration import LiteSATACrossbar
+            from litesata.frontend.dma import LiteSATABlock2MemDMA
+
+            # IOs
+            _sata_io = [
+                # SFP 2 SATA Adapter / https://shop.trenz-electronic.de/en/TE0424-01-SFP-2-SATA-Adapter
+                ("sfp", 0,
+                    Subsignal("txp", Pins("H2")),
+                    Subsignal("txn", Pins("H1")),
+                    Subsignal("rxp", Pins("G4")),
+                    Subsignal("rxn", Pins("G3")),
+                ),
+            ]
+            platform.add_extension(_sata_io)
+
+            # RefClk, Generate 150MHz from PLL.
+            self.clock_domains.cd_sata_refclk = ClockDomain()
+            self.crg.pll.create_clkout(self.cd_sata_refclk, 150e6)
+            sata_refclk = ClockSignal("sata_refclk")
+            platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-52]")
+
+            # PHY
+            self.submodules.sata_phy = LiteSATAPHY(platform.device,
+                refclk     = sata_refclk,
+                pads       = platform.request("sfp"),
+                gen        = "gen1",
+                clk_freq   = sys_clk_freq,
+                data_width = 16)
+
+            # Core
+            self.submodules.sata_core = LiteSATACore(self.sata_phy)
+
+            # Crossbar
+            self.submodules.sata_crossbar = LiteSATACrossbar(self.sata_core)
+
+            # Block2Mem DMA
+            bus =  wishbone.Interface(data_width=32, adr_width=32)
+            self.submodules.sata_block2mem = LiteSATABlock2MemDMA(
+                user_port  = self.sata_crossbar.get_port(),
+                bus        = bus,
+                endianness = self.cpu.endianness)
+            self.bus.add_master("sata_block2mem", master=bus)
+            self.add_csr("sata_block2mem")
+
+            # Timing constraints
+            platform.add_period_constraint(self.sata_phy.crg.cd_sata_tx.clk, 1e9/75e6)
+            platform.add_period_constraint(self.sata_phy.crg.cd_sata_tx.clk, 1e9/75e6)
+            self.platform.add_false_path_constraints(
+                self.crg.cd_sys.clk,
+                self.sata_phy.crg.cd_sata_tx.clk,
+                self.sata_phy.crg.cd_sata_tx.clk)
+
         # Leds -------------------------------------------------------------------------------------
         self.submodules.leds = LedChaser(
             pads         = platform.request_all("user_led"),
@@ -101,9 +159,10 @@ def main():
     builder_args(parser)
     soc_sdram_args(parser)
     parser.add_argument("--with-ethernet", action="store_true", help="Enable Ethernet support")
+    parser.add_argument("--with-sata",     action="store_true", help="Enable SATA support (over SFP2SATA)")
     args = parser.parse_args()
 
-    soc = BaseSoC(with_ethernet=args.with_ethernet, **soc_sdram_argdict(args))
+    soc = BaseSoC(with_ethernet=args.with_ethernet, with_sata=args.with_sata, **soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.build(run=args.build)
 
