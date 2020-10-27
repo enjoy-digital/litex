@@ -842,6 +842,6 @@ void sataboot(void)
 	sataboot_from_bin("boot.bin");
 
 	/* Boot failed if we are here... */
-	printf("SDCard boot failed.\n");
+	printf("SATA boot failed.\n");
 }
 #endif

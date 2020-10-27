@@ -20,14 +20,14 @@
 /*-----------------------------------------------------------------------*/
 
 int sata_init(void) {
-	return 1;
+	return 1; /* FIXME: TODO. */
 }
 
 void sata_read(uint32_t block, uint32_t count, uint8_t* buf)
 {
 	uint32_t i;
 	for (i=0; i<count; i++) {
-		sata_block2mem_base_write((uint64_t) buf + i*512);
+		sata_block2mem_base_write(((uint32_t) buf) + i*512);
 		sata_block2mem_sector_write(block + i);
 		sata_block2mem_start_write(1);
 		while ((sata_block2mem_done_read() & 0x1) == 0);
