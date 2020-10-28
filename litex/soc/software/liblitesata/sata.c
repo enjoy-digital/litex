@@ -20,7 +20,22 @@
 /*-----------------------------------------------------------------------*/
 
 int sata_init(void) {
-	return 1; /* FIXME: TODO. */
+	uint16_t timeout;
+
+	for (timeout=10; timeout>0; timeout--) {
+		/* Initialize SATA PHY */
+		sata_phy_enable_write(0);
+		sata_phy_enable_write(1);
+
+		/* Wait for 10ms */
+		busy_wait(10);
+
+		/* Check SATA PHY status */
+		if (sata_phy_status_read() & 0x1)
+			return 1;
+	}
+
+	return 0;
 }
 
 void sata_read(uint32_t block, uint32_t count, uint8_t* buf)
