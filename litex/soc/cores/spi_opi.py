@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen.genlib.cdc import MultiReg
+from migen.genlib.fifo import SyncFIFOBuffered
 
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr_eventmanager import *
@@ -413,12 +414,22 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         self.command = CSRStorage(description="Write individual bits to issue special commands to SPI; setting multiple bits at once leads to undefined behavior.",
             fields=[
                 CSRField("wakeup",       size=1, description="Sequence through init & wakeup routine"),
-                CSRField("sector_erase", size=1, description="Erase a sector"),
+                CSRField("exec_cmd", size=1, description="Writing a `1` executes a manual command", pulse=True),
+                CSRField("cmd_code", size=8, description="Manual command code (first 8 bits, e.g. PP4B is 0x12)"),
+                CSRField("has_arg", size=1, description="When set, transmits the value of `cmd_arg` as the argument to the command"),
+                # CSRField("write_cmd", size=1, description="When `1`, `data_bytes` are written from page FIFO; when `0`, up to 4 STR `data_bytes` are read into readback CSR"),
+                CSRField("dummy_cycles", size=5, description="Number of dummy cycles for manual command; 0 implies a write, >0 implies read"),
+                CSRField("data_bytes", size=8, description="Number of data bytes"),
             ])
-        self.sector = CSRStorage(description="Sector to erase",
+        self.cmd_arg = CSRStorage(description="Command argument",
             fields=[
-                CSRField("sector", size=32, description="Sector to erase")
+                CSRField("cmd_arg", size=32, description="Argument to manual command")
             ])
+        self.cmd_rbk_data = CSRStatus(description = "Readback data from commands",
+            fields=[
+                CSRField("cmd_rbk_data", size=32, description="Data read back from a cmd_code that has `write_code` set to 0"),
+            ]
+        )
         self.status = CSRStatus(description="Interface status",
             fields=[
                 CSRField("wip", size=1, description="Operation in progress (write or erease)")
@@ -520,16 +531,34 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         self.sync.dqs += opi_di.eq(self.di)
         self.comb += opi_fifo_wd.eq(Cat(opi_di, self.di))
         self.sync += rx_fifo_rst_pipe.eq(rx_fifo_rst) # add one pipe register to help relax this timing path. It is critical so it must be timed, but one extra cycle is OK.
+        rbk_data = Signal(32)
+        self.sync += rbk_data.eq(opi_fifo_wd) # buffer for capture to CSR on command cycles
+        bus_ack_r = Signal()
+        bus_ack_w = Signal()
+
+        #---------  Page write data responder -----------------------
+        self.submodules.txwr_fifo = SyncFIFOBuffered(width=16, depth=256)
+        got_wb_wr = Signal()
+        got_wb_wr_r = Signal()
+        self.comb += [
+            self.txwr_fifo.din.eq(bus.dat_r[:16]), # lower 16 bits only used
+            got_wb_wr.eq(bus.cyc & bus.stb & bus.we),
+            bus.ack.eq(bus_ack_r | bus_ack_w),
+        ]
+        self.sync += [
+            got_wb_wr_r.eq(got_wb_wr),
+            self.txwr_fifo.we.eq(got_wb_wr & ~got_wb_wr_r),
+            bus_ack_w.eq(got_wb_wr),
+        ]
 
         #---------  OPI Rx Phy machine ------------------------------
         self.submodules.rxphy = rxphy = FSM(reset_state="IDLE")
-        cti_pipe = Signal(3)
         rxphy_cnt = Signal(3)
         rxphy.act("IDLE",
             If(spi_mode,
                 NextState("IDLE"),
             ).Else(
-                NextValue(bus.ack, 0),
+                NextValue(bus_ack_r, 0),
                 If(opi_reset_rx_req,
                     NextState("WAIT_RESET"),
                     NextValue(rxphy_cnt, 6),
@@ -543,7 +572,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
                             NextValue(bus.dat_r, opi_fifo_rd),
                             rx_rden.eq(1),
                             NextValue(opi_addr, opi_addr + 4),
-                            NextValue(bus.ack, 1)
+                            NextValue(bus_ack_r, 1)
                         )
                     )
                 )
@@ -569,6 +598,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         txcmd_clken = Signal()
         txphy_oe    = Signal()
         txcmd_oe    = Signal()
+        txwr_cnt = Signal(8)
         self.sync += opi_cs_n.eq( (tx_run & txphy_cs_n) | (~tx_run & txcmd_cs_n) )
         self.comb += If( tx_run, self.do.eq(txphy_do) ).Else( self.do.eq(txcmd_do) )
         self.comb += opi_clk_en.eq( (tx_run & txphy_clken) | (~tx_run & txcmd_clken) )
@@ -579,15 +609,30 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         self.sync += txphy_bus.eq(bus.cyc & bus.stb & ~bus.we & ((bus.cti == 2) | (bus.cti == 0)))
         tx_resetcycle = Signal()
 
+        cmd_req = Signal()
+        cmd_ack = Signal()
+        self.sync += [
+            If(self.command.fields.exec_cmd,
+                cmd_req.eq(1),
+            ).Elif(cmd_ack,
+                cmd_req.eq(0),
+            ).Else(
+                cmd_req.eq(cmd_req)
+            )
+        ]
+        cmd_run = Signal()
+        cmd_done = Signal()
+
         self.submodules.txphy = txphy = FSM(reset_state="RESET")
         txphy.act("RESET",
             NextValue(opi_rx_run, 0),
             NextValue(txphy_oe, 0),
             NextValue(txphy_cs_n, 1),
             NextValue(txphy_clken, 0),
+            NextValue(cmd_done, 0),
             # guarantee that the first state we go to out of reset is a four-cycle burst
             NextValue(txphy_cnt, 4),
-            If(tx_run & ~spi_mode,
+            If( (tx_run | cmd_run) & ~spi_mode,
                 NextState("TX_SETUP")
             )
         )
@@ -603,7 +648,11 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
             )
         )
         txphy.act("TX_CMD_CS_DELAY",  # meet setup timing for CS-to-clock
-            NextState("TX_CMD")
+            If( tx_run,
+               NextState("TX_CMD")
+            ).Elif( cmd_run,
+                NextState("TX_MAN_CMD")
+            )
         )
         txphy.act("TX_CMD",
             NextValue(txphy_do, 0xEE11),
@@ -672,6 +721,82 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
                 NextValue(txphy_clken, 1),
             )
         )
+        txphy.act("TX_MAN_CMD",
+            NextValue(txphy_do, Cat(~self.command.fields.cmd_code, self.command.fields.cmd_code)),
+            NextValue(txphy_clken, 1),
+            If(self.command.fields.has_arg,
+                NextState("TX_ARGHI")
+            ).Elif(self.command.fields.dummy_cycles > 0, # implies a read
+                NextValue(txphy_cnt, self.command.fields.dummy_cycles - 1),
+                NextState("TX_MAN_DUMMY")
+            ).Elif(self.command.fields.data_bytes > 0,  # write is implied if dummy cycles is 0
+                NextValue(txwr_cnt, self.command.fields.data_bytes),
+                NextState("TX_WRDATA")
+            ).Else( # simple command with no data or readback
+                NextState("RESET"),
+                NextValue(cmd_done, 1),
+            )
+        )
+        txphy.act("TX_ARGHI",
+            NextValue(txphy_do, self.cmd_arg.fields.cmd_arg[16:]),
+            NextState("TX_ARGLO")
+        )
+        txphy.act("TX_ARGLO",
+            NextValue(txphy_do, self.cmd_arg.fields.cmd_arg[:16]),
+            If(self.command.fields.dummy_cycles > 0,
+               NextValue(txphy_cnt, self.command.fields.dummy_cycles - 1),
+               NextState("TX_MAN_DUMMY")
+            ).Else(# self.command.fields.write_cmd,  # write is implied if dummy cycles is 0
+                NextValue(txwr_cnt, self.command.fields.data_bytes),
+                NextState("TX_WRDATA")
+            )
+        )
+        txphy.act("TX_MAN_DUMMY",
+            NextValue(txphy_oe, 0),
+            NextValue(txphy_do, 0),
+            NextValue(txphy_cnt, txphy_cnt - 1),
+            If(txphy_cnt == 0,
+                NextValue(opi_rx_run, 1),
+                # always a readback after a dummy cycle
+                NextValue(txphy_cnt, self.command.fields.data_bytes[:4] - 1), # ignore upper bits
+                NextState("TX_MAN_RBK"),
+            )
+        )
+        txphy.act("TX_MAN_RBK",
+            If(txphy_cnt == 0,
+                NextValue(txphy_clken, 1),
+                NextValue(opi_reset_rx_req, 1),
+                NextState("TX_RESET_RX"),
+                NextValue(self.cmd_rbk_data.fields.cmd_rbk_data, rbk_data),
+                NextValue(cmd_done, 1), # done with readback
+            ).Else(
+                NextValue(txphy_cnt, txphy_cnt - 1),
+            )
+        )
+        txphy.act("TX_WRDATA",
+            If(txwr_cnt == 0,
+                NextState("TX_WR_RESET"),
+            ).Else(
+                NextValue(txwr_cnt, txwr_cnt - 1),
+                NextValue(txphy_do, self.txwr_fifo.dout),
+                self.txwr_fifo.re.eq(1),
+            )
+        )
+        txphy.act("TX_WR_RESET",
+            NextValue(opi_rx_run, 0),
+            NextValue(txphy_oe, 0),
+            NextValue(txphy_cs_n, 1),
+            NextValue(txphy_clken, 0),
+            NextValue(cmd_done, 0),
+            # drain any excess values in the page FIFO
+            If(self.txwr_fifo.readable,
+                self.txwr_fifo.re.eq(1),
+            ).Else(
+                NextState("RESET"),
+                NextValue(cmd_done, 1),
+            )
+        )
+
 
         #---------  OPI CMD machine ------------------------------
         self.submodules.opicmd = opicmd = FSM(reset_state="RESET")
@@ -679,6 +804,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
             NextValue(txcmd_do, 0),
             NextValue(txcmd_oe, 0),
             NextValue(tx_run, 0),
+            NextValue(cmd_run, 0),
             NextValue(txcmd_cs_n, 1),
             If(~spi_mode,
                 NextState("IDLE")
@@ -711,14 +837,14 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
                         # Handle other cases here, e.g. what do we do if we get a write? probably
                         # should just ACK it without doing anything so the CPU doesn't freeze...
                     )
-               ).Elif(self.command.re,
+               ).Elif(cmd_req,
                     NextState("DISPATCH_CMD"),
                )
             )
         )
         opicmd.act("TX_RUN",
             NextValue(tx_run, 1),
-            If(self.command.re, # Respond to commands
+            If(cmd_req, # Respond to commands
                 NextState("WAIT_DISPATCH")
             )
         )
@@ -730,14 +856,13 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
             )
         )
         opicmd.act("DISPATCH_CMD",
-            If(self.command.fields.sector_erase,
-                NextState("DO_SECTOR_ERASE")
+            cmd_ack.eq(1), # clear the command dispatch pulse cache
+            If(cmd_done,
+                NextValue(cmd_run, 0),
+                NextState("TX_RUN"),
             ).Else(
-                NextState("IDLE")
+                NextValue(cmd_run, 1),
             )
-        )
-        opicmd.act("DO_SECTOR_ERASE",
-            # Placeholder
         )
 
         # MAC/PHY abstraction for the SPI machine
@@ -850,12 +975,12 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
                 NextValue(mac_count, 0),
                 NextState("WAKEUP_PRE"),
                 NextValue(new_cycle, 1),
-                If(spi_mode, NextValue(bus.ack, 0)),
+                If(spi_mode, NextValue(bus_ack_r, 0)),
         )
         if spiread:
             mac.act("IDLE",
                 If(spi_mode, # This machine stays in idle once spi_mode is dropped
-                    NextValue(bus.ack, 0),
+                    NextValue(bus_ack_r, 0),
                     If((bus.cyc == 1) & (bus.stb == 1) & (bus.we == 0) & (bus.cti != 7), # read cycle requested, not end-of-burst
                         If( (rom_addr[2:] != bus.adr) & new_cycle,
                             NextValue(rom_addr, Cat(Signal(2, reset=0), bus.adr)),
@@ -1064,7 +1189,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
                             # handle otherwise implicit dual-controller situation
                             If(spi_mode,
                                 NextValue(bus.dat_r, Cat(d_to_wb[8:],spi_di)),
-                                NextValue(bus.ack, 1),
+                                NextValue(bus_ack_r, 1),
                            ),
                            NextValue(rom_addr, rom_addr + 1),
                            NextState("IDLE")
