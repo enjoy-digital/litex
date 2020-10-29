@@ -1,17 +1,17 @@
 include ../include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
-OBJECTS=sdcard.o spisdcard.o
+OBJECTS=ffunicode.o ff.o
 
-all: liblitesdcard.a
+all: libfatfs.a
 
-liblitesdcard.a: $(OBJECTS)
-	$(AR) crs liblitesdcard.a $(OBJECTS)
+libfatfs.a: $(OBJECTS)
+	$(AR) crs libfatfs.a $(OBJECTS)
 
 # pull in dependency info for *existing* .o files
 -include $(OBJECTS:.o=.d)
 
-%.o: $(LIBLITESDCARD_DIRECTORY)/%.c
+%.o: $(LIBFATFS_DIRECTORY)/%.c
 	$(compile)
 
 %.o: %.S
@@ -20,4 +20,4 @@ liblitesdcard.a: $(OBJECTS)
 .PHONY: all clean
 
 clean:
-	$(RM) $(OBJECTS) liblitesdcard.a .*~ *~
+	$(RM) $(OBJECTS) libfatfs.a .*~ *~

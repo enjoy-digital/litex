@@ -34,7 +34,7 @@
 #include <liblitesdcard/spisdcard.h>
 #include <liblitesdcard/sdcard.h>
 #include <liblitesata/sata.h>
-#include <liblitesdcard/fat/ff.h>
+#include <libfatfs/ff.h>
 
 /*-----------------------------------------------------------------------*/
 /* Helpers                                                               */

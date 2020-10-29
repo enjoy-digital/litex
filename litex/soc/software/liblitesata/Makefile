@@ -1,7 +1,7 @@
 include ../include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
-OBJECTS=ffunicode.o ff.o sata.o
+OBJECTS=sata.o
 
 all: liblitesata.a
 
@@ -12,9 +12,6 @@ liblitesata.a: $(OBJECTS)
 -include $(OBJECTS:.o=.d)
 
 %.o: $(LIBLITESATA_DIRECTORY)/%.c
-	$(compile)
-
-%.o: $(LIBLITESATA_DIRECTORY)/fat/%.c
 	$(compile)
 
 %.o: %.S

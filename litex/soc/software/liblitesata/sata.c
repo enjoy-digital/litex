@@ -9,8 +9,8 @@
 #include <generated/mem.h>
 #include <system.h>
 
-#include "fat/ff.h"
-#include "fat/diskio.h"
+#include <libfatfs/ff.h>
+#include <libfatfs/diskio.h>
 #include "sata.h"
 
 #ifdef CSR_SATA_BLOCK2MEM_BASE

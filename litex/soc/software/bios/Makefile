@@ -61,6 +61,7 @@ bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 	../liblitedram/liblitedram.a \
 	../libliteeth/libliteeth.a \
 	../liblitespi/liblitespi.a \
+	../libfatfs/libfatfs.a \
 	../liblitesdcard/liblitesdcard.a \
 	../liblitesata/liblitesata.a
 	$(LD) $(LDFLAGS) -T $(BIOS_DIRECTORY)/linker.ld -N -o $@ \
@@ -71,9 +72,10 @@ bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 		-L../liblitedram \
 		-L../libliteeth \
 		-L../liblitespi \
+		-L../libfatfs \
 		-L../liblitesdcard \
 		-L../liblitesata \
-		-llitedram -lliteeth -llitespi -llitesdcard -llitesata -lbase-nofloat -lcompiler_rt
+		-llitedram -lliteeth -llitespi -lfatfs -llitesdcard -llitesata -lbase-nofloat -lcompiler_rt
 
 ifneq ($(OS),Windows_NT)
 	chmod -x $@
