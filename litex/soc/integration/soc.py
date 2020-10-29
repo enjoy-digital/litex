@@ -1440,7 +1440,7 @@ class LiteXSoC(SoC):
             "gen3": 300e6,
         }
         sata_clk_freq = sata_clk_freqs[phy.gen]
-        assert self.clk_freq >= sata_clk_freq
+        assert self.clk_freq >= sata_clk_freq/2 # FIXME: /2 for 16-bit data-width, add support for 32-bit.
 
         # Core
         self.submodules.sata_core = LiteSATACore(phy)
