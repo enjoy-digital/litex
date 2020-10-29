@@ -65,7 +65,24 @@ define_command(sdram_test, sdram_test_handler, "Test SDRAM", LITEDRAM_CMDS);
 #if defined(CSR_SDRAM_GENERATOR_BASE) && defined(CSR_SDRAM_CHECKER_BASE)
 static void sdram_bist_handler(int nb_params, char **params)
 {
-	sdram_bist(128, 0);
+	char *c;
+	int burst_length;
+	int random;
+	if (nb_params < 2) {
+		printf("sdram_bist <burst_length> <random>");
+		return;
+	}
+	burst_length = strtoul(params[0], &c, 0);
+	if (*c != 0) {
+		printf("Incorrect burst_length");
+		return;
+	}
+	random = strtoul(params[1], &c, 0);
+	if (*c != 0) {
+		printf("Incorrect random");
+		return;
+	}
+	sdram_bist(burst_length, random);
 }
 define_command(sdram_bist, sdram_bist_handler, "Run SDRAM Build-In Self-Test", LITEDRAM_CMDS);
 #endif

@@ -15,11 +15,11 @@
 #define SDRAM_TEST_BASE 0x00000000
 #define SDRAM_TEST_DATA_BYTES (CSR_SDRAM_DFII_PI0_RDDATA_SIZE*4)
 
-uint64_t wr_ticks;
-uint64_t wr_length;
-uint64_t rd_ticks;
-uint64_t rd_length;
-uint64_t rd_errors;
+uint32_t wr_ticks;
+uint32_t wr_length;
+uint32_t rd_ticks;
+uint32_t rd_length;
+uint32_t rd_errors;
 
 __attribute__((unused)) static void cdelay(int i)
 {
@@ -61,6 +61,7 @@ static uint32_t pseudo_random_bases[128] = {
 	0x000ea9a1,0x00222753,0x002b8ade,0x000e4757,
 	0x00259169,0x0037a663,0x00143e83,0x003a139e,
 	0x00006a57,0x0021b6bb,0x0016de10,0x000d9ede,
+	0x00263370,0x001975eb,0x0013903c,0x002fdc68,
 	0x0014ada3,0x000012bd,0x00297df2,0x003e8aa1,
 	0x00027e36,0x000e51ae,0x002e7627,0x00275c9f,
 };
@@ -120,20 +121,24 @@ static void sdram_bist_loop(uint32_t loop, uint32_t burst_length, uint32_t rando
 		/* Get read results */
 		rd_ticks  += sdram_checker_ticks_read();
 		rd_errors += sdram_checker_errors_read();
+		rd_length += length;
 	}
 }
 
-static uint64_t compute_speed(uint64_t length, uint64_t ticks) {
-	uint64_t speed;
-	speed = (8*length*CONFIG_CLOCK_FREQUENCY)/ticks;
+static uint32_t compute_speed_mibs(uint32_t length, uint32_t ticks) {
+	uint32_t speed;
+	//printf("(%lu, %lu)", length, ticks);
+	speed = length*(CONFIG_CLOCK_FREQUENCY/(1024*1024))/ticks;
 	return speed;
 }
 
 void sdram_bist(uint32_t burst_length, uint32_t random)
 {
 	uint32_t i;
-	uint64_t total_length;
-	uint64_t total_errors;
+	uint32_t total_length;
+	uint32_t total_errors;
+
+	printf("Starting SDRAM BIST with burst_length=%d and random=%d\n", burst_length, random);
 
 	i = 0;
 	total_length = 0;
@@ -147,16 +152,18 @@ void sdram_bist(uint32_t burst_length, uint32_t random)
 		sdram_bist_loop(i, burst_length, random);
 
 		/* Results */
-		if (i%1000 == 0)
-			printf("WR-SPEED(Mbps) RD-SPEED(Mbps)  TESTED(MiB)      ERRORS\n");
+		if (i%1000 == 0) {
+			printf("WR-SPEED(MiB/s) RD-SPEED(MiB/s)  TESTED(MiB)       ERRORS\n");
+		}
 		if (i%100 == 100-1) {
-			printf("%14lld %14lld %11lld %12lld\n",
-			compute_speed(wr_length, wr_ticks),
-			compute_speed(rd_length, rd_ticks),
+			printf("%15u %15u %12u %12u\n",
+			compute_speed_mibs(wr_length, wr_ticks),
+			compute_speed_mibs(rd_length, rd_ticks),
 			total_length/(1024*1024),
 			total_errors);
 			total_length += wr_length;
 			total_errors += rd_errors;
+
 			/* Clear length/ticks/errors */
 			wr_length = 0;
 			wr_ticks  = 0;
