@@ -13,11 +13,11 @@
 #include <libfatfs/diskio.h>
 #include "sata.h"
 
-#ifdef CSR_SATA_SECTOR2MEM_BASE
-
 /*-----------------------------------------------------------------------*/
 /* SATA user functions                                                   */
 /*-----------------------------------------------------------------------*/
+
+#ifdef CSR_SATA_PHY_BASE
 
 int sata_init(void) {
 	uint16_t timeout;
@@ -38,16 +38,20 @@ int sata_init(void) {
 	return 0;
 }
 
-void sata_read(uint32_t block, uint32_t count, uint8_t* buf)
+#endif
+
+#ifdef CSR_SATA_SECTOR2MEM_BASE
+
+void sata_read(uint32_t sector, uint32_t count, uint8_t* buf)
 {
 	uint32_t i;
 
-	/* Read blocks */
+	/* Write sectors */
 	for (i=0; i<count; i++) {
 		uint8_t done = 0;
 		while (done == 0) {
 			sata_sector2mem_base_write((uint64_t) buf);
-			sata_sector2mem_sector_write(block + i);
+			sata_sector2mem_sector_write(sector + i);
 			sata_sector2mem_start_write(1);
 			while ((sata_sector2mem_done_read() & 0x1) == 0);
 			done = ((sata_sector2mem_error_read() & 0x1) == 0);
@@ -65,9 +69,36 @@ void sata_read(uint32_t block, uint32_t count, uint8_t* buf)
 #endif
 }
 
+#endif
+
+#ifdef CSR_SATA_MEM2SECTOR_BASE
+
+void sata_write(uint32_t sector, uint32_t count, uint8_t* buf)
+{
+	uint32_t i;
+
+	/* Write sectors */
+	for (i=0; i<count; i++) {
+		uint8_t done = 0;
+		while (done == 0) {
+			sata_mem2sector_base_write((uint64_t) buf);
+			sata_mem2sector_sector_write(sector + i);
+			sata_mem2sector_start_write(1);
+			while ((sata_sector2mem_done_read() & 0x1) == 0);
+			done = ((sata_sector2mem_error_read() & 0x1) == 0);
+			busy_wait_us(10);
+		}
+		buf += 512;
+	}
+}
+
+#endif
+
 /*-----------------------------------------------------------------------*/
 /* SATA FatFs disk functions                                             */
 /*-----------------------------------------------------------------------*/
+
+#ifdef CSR_SATA_SECTOR2MEM_BASE
 
 static DSTATUS satastatus = STA_NOINIT;
 
@@ -83,8 +114,8 @@ DSTATUS disk_initialize(uint8_t drv) {
 	return satastatus;
 }
 
-DRESULT disk_read(uint8_t drv, uint8_t *buf, uint32_t block, uint32_t count) {
-	sata_read(block, count, buf);
+DRESULT disk_read(uint8_t drv, uint8_t *buf, uint32_t sector, uint32_t count) {
+	sata_read(sector, count, buf);
 	return RES_OK;
 }
 

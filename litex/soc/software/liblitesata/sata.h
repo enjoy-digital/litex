@@ -6,15 +6,26 @@
 
 #include <generated/csr.h>
 
-#ifdef CSR_SATA_SECTOR2MEM_BASE
-
 /*-----------------------------------------------------------------------*/
 /* SATA user functions                                                   */
 /*-----------------------------------------------------------------------*/
 
+#ifdef CSR_SATA_PHY_BASE
+
 int sata_init(void);
+
+#endif
+
+#ifdef CSR_SATA_SECTOR2MEM_BASE
+
 void sata_read(uint32_t sector, uint32_t count, uint8_t* buf);
 
-#endif /* CSR_SATA_BASE */
+#endif
+
+#ifdef CSR_SATA_MEM2SECTOR_BASE
+
+void sata_write(uint32_t sector, uint32_t count, uint8_t* buf);
+
+#endif
 
 #endif /* __SATA_H */
