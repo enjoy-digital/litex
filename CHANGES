@@ -22,6 +22,8 @@
 	- BIOS: rename/reorganize commands.
 	- litex_server: simplify usage with PCIe and add debug parameter.
 	- LitePCIe: add Ultrascale(+) support up to Gen3 X16.
+	- LiteSATA: add BIOS/Boot integration.
+	- Add litex_cli to provides common RemoteClient functions: get identifier, dump regs, etc...
 
 	[> API changes/Deprecation
 	--------------------------
