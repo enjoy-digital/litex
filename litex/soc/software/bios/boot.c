@@ -680,7 +680,7 @@ void sdcardboot(void)
 /* SATA Boot                                                             */
 /*-----------------------------------------------------------------------*/
 
-#if defined(CSR_SATA_BLOCK2MEM_BASE)
+#if defined(CSR_SATA_SECTOR2MEM_BASE)
 
 static int copy_file_from_sata_to_ram(const char * filename, unsigned long ram_address)
 {

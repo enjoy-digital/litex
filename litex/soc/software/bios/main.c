@@ -59,7 +59,7 @@ static void boot_sequence(void)
 #if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCORE_BASE)
 		sdcardboot();
 #endif
-#if defined(CSR_SATA_BLOCK2MEM_BASE)
+#if defined(CSR_SATA_SECTOR2MEM_BASE)
 		sataboot();
 #endif
 #ifdef CSR_ETHMAC_BASE

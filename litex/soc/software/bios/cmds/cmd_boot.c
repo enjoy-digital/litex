@@ -78,7 +78,7 @@ define_command(sdcardboot, sdcardboot, "Boot from SDCard", BOOT_CMDS);
  * Boot software from SATA
  *
  */
-#if defined(CSR_SATA_BLOCK2MEM_BASE)
+#if defined(CSR_SATA_SECTOR2MEM_BASE)
 define_command(sataboot, sataboot, "Boot from SATA", BOOT_CMDS);
 #endif
 

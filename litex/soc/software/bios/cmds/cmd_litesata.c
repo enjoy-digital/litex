@@ -16,7 +16,7 @@
  * Perform SATA block read
  *
  */
-#ifdef CSR_SATA_BLOCK2MEM_BASE
+#ifdef CSR_SATA_SECTOR2MEM_BASE
 static void sata_read_handler(int nb_params, char **params)
 {
 	unsigned int block;

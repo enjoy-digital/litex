@@ -6,7 +6,7 @@
 
 #include <generated/csr.h>
 
-#ifdef CSR_SATA_BLOCK2MEM_BASE
+#ifdef CSR_SATA_SECTOR2MEM_BASE
 
 /*-----------------------------------------------------------------------*/
 /* SATA user functions                                                   */

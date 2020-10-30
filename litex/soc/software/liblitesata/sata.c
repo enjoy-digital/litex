@@ -13,7 +13,7 @@
 #include <libfatfs/diskio.h>
 #include "sata.h"
 
-#ifdef CSR_SATA_BLOCK2MEM_BASE
+#ifdef CSR_SATA_SECTOR2MEM_BASE
 
 /*-----------------------------------------------------------------------*/
 /* SATA user functions                                                   */
@@ -46,11 +46,11 @@ void sata_read(uint32_t block, uint32_t count, uint8_t* buf)
 	for (i=0; i<count; i++) {
 		uint8_t done = 0;
 		while (done == 0) {
-			sata_block2mem_base_write((uint64_t) buf);
-			sata_block2mem_sector_write(block + i);
-			sata_block2mem_start_write(1);
-			while ((sata_block2mem_done_read() & 0x1) == 0);
-			done = ((sata_block2mem_error_read() & 0x1) == 0);
+			sata_sector2mem_base_write((uint64_t) buf);
+			sata_sector2mem_sector_write(block + i);
+			sata_sector2mem_start_write(1);
+			while ((sata_sector2mem_done_read() & 0x1) == 0);
+			done = ((sata_sector2mem_error_read() & 0x1) == 0);
 			busy_wait_us(10);
 		}
 		buf += 512;
@@ -88,4 +88,4 @@ DRESULT disk_read(uint8_t drv, uint8_t *buf, uint32_t block, uint32_t count) {
 	return RES_OK;
 }
 
-#endif /* CSR_SATA_BLOCK2MEM_BASE */
+#endif /* CSR_SATA_SECTOR2MEM_BASE */
