@@ -1462,7 +1462,7 @@ class LiteXSoC(SoC):
         # Mem2Sector DMA
         if "write" in mode:
             bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.address_width)
-            self.submodules.sata_sector2mem = LiteSATAMem2SectorDMA(
+            self.submodules.sata_mem2sector = LiteSATAMem2SectorDMA(
                bus        = bus,
                port       = self.sata_crossbar.get_port(),
                endianness = self.cpu.endianness)
