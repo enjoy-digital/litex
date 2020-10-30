@@ -1426,14 +1426,14 @@ class LiteXSoC(SoC):
             self.csr.add("sdmem2block", use_loc_if_exists=True)
 
     # Add SATA -------------------------------------------------------------------------------------
-    def add_sata(self, name="sata", phy=None, mode="read"):
+    def add_sata(self, name="sata", phy=None, mode="read+write"):
         # Imports
         from litesata.core import LiteSATACore
         from litesata.frontend.arbitration import LiteSATACrossbar
-        from litesata.frontend.dma import LiteSATASector2MemDMA
+        from litesata.frontend.dma import LiteSATASector2MemDMA, LiteSATAMem2SectorDMA
 
         # Checks
-        assert mode in ["read"]
+        assert mode in ["read", "write", "read+write"]
         sata_clk_freqs = {
             "gen1":  75e6,
             "gen2": 150e6,
@@ -1458,6 +1458,17 @@ class LiteXSoC(SoC):
             dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
             dma_bus.add_master("sata_sector2mem", master=bus)
             self.csr.add("sata_sector2mem", use_loc_if_exists=True)
+
+        # Mem2Sector DMA
+        if "write" in mode:
+            bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.address_width)
+            self.submodules.sata_sector2mem = LiteSATAMem2SectorDMA(
+               bus        = bus,
+               port       = self.sata_crossbar.get_port(),
+               endianness = self.cpu.endianness)
+            dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
+            dma_bus.add_master("sata_mem2sector", master=bus)
+            self.csr.add("sata_mem2sector", use_loc_if_exists=True)
 
         # Timing constraints
         self.platform.add_period_constraint(self.sata_phy.crg.cd_sata_tx.clk, 1e9/sata_clk_freq)
