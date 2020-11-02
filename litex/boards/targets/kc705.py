@@ -48,7 +48,7 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, sys_clk_freq=int(150e6), with_ethernet=False, with_sata=False, **kwargs):
+    def __init__(self, sys_clk_freq=int(125e6), with_ethernet=False, with_sata=False, **kwargs):
         platform = kc705.Platform()
 
         # SoCCore ----------------------------------------------------------------------------------
