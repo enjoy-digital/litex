@@ -86,7 +86,7 @@ class BaseSoC(SoCCore):
             self.add_csr("ethphy")
             self.add_ethernet(phy=self.ethphy)
 
-        # SATA (Experimental) ----------------------------------------------------------------------
+        # SATA -------------------------------------------------------------------------------------
         if with_sata:
             from litex.build.generic_platform import Subsignal, Pins
             from litesata.phy import LiteSATAPHY
