@@ -22,17 +22,18 @@
 int sata_init(void) {
 	uint16_t timeout;
 
+
 	for (timeout=10; timeout>0; timeout--) {
-		/* Initialize SATA PHY */
+		/* Check SATA PHY status */
+		if (sata_phy_status_read() & 0x1)
+			return 1;
+
+		/* Reset SATA PHY */
 		sata_phy_enable_write(0);
 		sata_phy_enable_write(1);
 
 		/* Wait for 10ms */
 		busy_wait(10);
-
-		/* Check SATA PHY status */
-		if (sata_phy_status_read() & 0x1)
-			return 1;
 	}
 
 	return 0;
