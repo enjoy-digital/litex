@@ -14,14 +14,68 @@ from litex.soc.integration.doc import AutoDoc, ModuleDoc
 
 
 class S7SPIOPI(Module, AutoCSR, AutoDoc):
-    def __init__(self, pads,
-        dq_delay_taps  = 31,
+    def __init__(self, platform, padgroup_name,
+        dq_delay_taps  = 0,
         sclk_name      = "SCLK_ODDR",
         iddr_name      = "SPI_IDDR",
         cipo_name      = "CIPO_FDRE",
         sim            = False,
         spiread        = False,
         prefetch_lines = 1):
+
+        pads = platform.request(padgroup_name)
+        self.dq = dq = TSTriple(7) # dq[0] is special because it is also copi
+        self.dq_copi = dq_copi = TSTriple(1) # this has similar structure but an independent "oe" signal
+
+        # reminder to self: the {{ and }} overloading is because Python treats these as special in strings, so {{ -> { in actual constraint
+        # NOTE: ECSn is deliberately not constrained -- it's more or less async (0-10ns delay on the signal, only meant to line up with "block" region
+
+        # constrain DQS-to-DQ input DDR delays
+        platform.add_platform_command("create_clock -name spidqs -period 10 [get_ports {}_dqs]".format(padgroup_name))
+        platform.add_platform_command("set_input_delay -clock spidqs -max 0.6 [get_ports {{" + padgroup_name + "_dq[*]}}]")
+        platform.add_platform_command("set_input_delay -clock spidqs -min 4.4 [get_ports {{" + padgroup_name + "_dq[*]}}]")
+        platform.add_platform_command(
+            "set_input_delay -clock spidqs -max 0.6 [get_ports {{" + padgroup_name + "_dq[*]}}] -clock_fall -add_delay")
+        platform.add_platform_command(
+            "set_input_delay -clock spidqs -min 4.4 [get_ports {{" + padgroup_name + "_dq[*]}}] -clock_fall -add_delay")
+
+        # derive clock for SCLK - clock-forwarded from DDR see Xilinx answer 62488 use case #4
+        platform.add_platform_command(
+            "create_generated_clock -name spiclk_out -multiply_by 1 -source [get_pins {}/Q] [get_ports {}_sclk]".format(
+                sclk_name, padgroup_name))
+
+        # constrain CIPO SDR delay -- WARNING: -max is 'actually' 5.0ns, but design can't meet timing @ 5.0 tPD from SPIROM. There is some margin in the timing closure tho, so 4.5ns is probably going to work....
+        platform.add_platform_command(
+            "set_input_delay -clock [get_clocks spiclk_out] -clock_fall -max 4.5 [get_ports {}_dq[1]]".format(padgroup_name))
+        platform.add_platform_command(
+            "set_input_delay -clock [get_clocks spiclk_out] -clock_fall -min 1 [get_ports {}_dq[1]]".format(padgroup_name))
+        # corresponding false path on CIPO DDR input when clocking SDR data
+        platform.add_platform_command(
+            "set_false_path -from [get_clocks spiclk_out] -to [get_pin {}/D ]".format(iddr_name + "1"))
+        # corresponding false path on CIPO SDR input from DQS strobe, only if the cipo path is used
+        if spiread:
+            platform.add_platform_command(
+                "set_false_path -from [get_clocks spidqs] -to [get_pin {}/D ]".format(cipo_name))
+
+        # constrain CLK-to-DQ output DDR delays; copi uses the same rules
+        platform.add_platform_command(
+            "set_output_delay -clock [get_clocks spiclk_out] -max 1 [get_ports {{" + padgroup_name + "_dq[*]}}]")
+        platform.add_platform_command(
+            "set_output_delay -clock [get_clocks spiclk_out] -min -1 [get_ports {{" + padgroup_name + "_dq[*]}}]")
+        platform.add_platform_command(
+            "set_output_delay -clock [get_clocks spiclk_out] -max 1 [get_ports {{" + padgroup_name + "_dq[*]}}] -clock_fall -add_delay")
+        platform.add_platform_command(
+            "set_output_delay -clock [get_clocks spiclk_out] -min -1 [get_ports {{" + padgroup_name + "_dq[*]}}] -clock_fall -add_delay")
+        # constrain CLK-to-CS output delay. NOTE: timings require one dummy cycle insertion between CS and SCLK (de)activations. Not possible to meet timing for DQ & single-cycle CS due to longer tS/tH reqs for CS
+        platform.add_platform_command(
+            "set_output_delay -clock [get_clocks spiclk_out] -min -1 [get_ports {}_cs_n]".format(padgroup_name))  # -3 in reality
+        platform.add_platform_command(
+            "set_output_delay -clock [get_clocks spiclk_out] -max 1 [get_ports {}_cs_n]".format(padgroup_name))  # 4.5 in reality
+        # unconstrain OE path - we have like 10+ dummy cycles to turn the bus on wr->rd, and 2+ cycles to turn on end of read
+        platform.add_platform_command("set_false_path -through [ get_pins {net}_reg/Q ]", net=dq.oe)
+        platform.add_platform_command("set_false_path -through [ get_pins {net}_reg/Q ]",
+            net=dq_copi.oe)
+
         self.intro = ModuleDoc("""Intro
 
         SpiOpi implements a dual-mode SPI or OPI interface. OPI is an octal (8-bit) wide variant of
@@ -78,8 +132,16 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         dq_delay_taps probably doesn't need to be adjusted; it can be tweaked for timing closure. The
         delays can also be adjusted at runtime.
         """)
-        if prefetch_lines > 63:
-            prefetch_lines = 63
+
+        if sim == False:
+            idelay_name = "IDELAYE2"
+            bufr_name = "BUFG" # we actually want a slightly slower buffer here...
+        else:
+            idelay_name = "IDELAYE2_SIM"
+            bufr_name = "BUFR_SIM"
+
+        if prefetch_lines > 62:
+            prefetch_lines = 62
 
         self.spi_mode = spi_mode = Signal(reset=1) # When reset is asserted, force into spi mode
         cs_n = Signal(reset=1) # Make sure CS is sane on reset, too
@@ -95,7 +157,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         self.clock_domains.cd_dqs = ClockDomain(reset_less=True)
         self.comb += self.cd_dqs.clk.eq(dqs_iobuf)
         self.specials += [
-            Instance("BUFR", i_I=pads.dqs, o_O=dqs_iobuf),
+            Instance(bufr_name, i_I=pads.dqs, o_O=dqs_iobuf),
         ]
 
         # DQ connections -------------------------------------------------------------------------
@@ -109,14 +171,21 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
 
         # Delay programming API
         self.delay_config = CSRStorage(fields=[
-            CSRField("d",    size=5, description="Delay amount; each increment is 78ps", reset=31),
+            CSRField("d",    size=5, description="Delay amount; each increment is 78ps", reset=dq_delay_taps),
             CSRField("load", size=1, description="Force delay taps to delay_d"),
         ])
         self.delay_status = CSRStatus(fields=[
             CSRField("q", size=5, description="Readback of current delay amount, useful if inc/ce is used to set"),
         ])
         self.delay_update  = Signal()
-        self.hw_delay_load = Signal()
+        self.hw_delay_load = Signal(reset=1) # latch in the initial value on reset
+        reset_counter = Signal(4, reset=15)
+        self.sync += \
+            If(reset_counter != 0,
+                reset_counter.eq(reset_counter - 1)
+            ).Else(
+                self.hw_delay_load.eq(0)
+            )
         self.sync += self.delay_update.eq(self.hw_delay_load | self.delay_config.fields.load)
 
         # Break system API into rising/falling edge samples
@@ -129,7 +198,6 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         self.comb += self.di.eq(Cat(di_fall, di_rise))
 
         # OPI DDR registers
-        self.dq = dq = TSTriple(7) # dq[0] is special because it is also copi
         dq_delayed = Signal(8)
         self.specials += dq.get_tristate(pads.dq[1:])
         for i in range(1, 8):
@@ -143,53 +211,53 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
                 i_D2 = do_fall[i],
                 o_Q  = dq.o[i-1],
             )
-            if sim == False:
-                if i == 1: # Only wire up o_CNTVALUEOUT for one instance
-                    self.specials += Instance("IDELAYE2",
-                        p_DELAY_SRC             = "IDATAIN",
-                        p_SIGNAL_PATTERN        = "DATA",
-                        p_CINVCTRL_SEL          = "FALSE",
-                        p_HIGH_PERFORMANCE_MODE = "FALSE",
-                        p_REFCLK_FREQUENCY      = 200.0,
-                        p_PIPE_SEL              = "FALSE",
-                        p_IDELAY_VALUE          = dq_delay_taps,
-                        p_IDELAY_TYPE           = delay_type,
+            if i == 1: # Only wire up o_CNTVALUEOUT for one instance
+                self.specials += Instance(idelay_name,
+                    p_DELAY_SRC             = "IDATAIN",
+                    p_SIGNAL_PATTERN        = "DATA",
+                    p_CINVCTRL_SEL          = "FALSE",
+                    p_HIGH_PERFORMANCE_MODE = "FALSE",
+                    p_REFCLK_FREQUENCY      = 200.0,
+                    p_PIPE_SEL              = "FALSE",
+                    p_IDELAY_VALUE          = dq_delay_taps,
+                    p_IDELAY_TYPE           = delay_type,
 
-                        i_C           = ClockSignal(),
-                        i_CINVCTRL    = 0,
-                        i_REGRST      = 0,
-                        i_LDPIPEEN    = 0,
-                        i_INC         = 0,
-                        i_CE          = 0,
-                        i_LD          = self.delay_update,
-                        i_CNTVALUEIN  = self.delay_config.fields.d,
-                        o_CNTVALUEOUT = self.delay_status.fields.q,
-                        i_IDATAIN     = dq.i[i-1],
-                        o_DATAOUT     = dq_delayed[i],
-                    ),
-                else: # Don't wire up o_CNTVALUEOUT for others
-                    self.specials += Instance("IDELAYE2",
-                        p_DELAY_SRC             = "IDATAIN",
-                        p_SIGNAL_PATTERN        = "DATA",
-                        p_CINVCTRL_SEL          = "FALSE",
-                        p_HIGH_PERFORMANCE_MODE = "FALSE",
-                        p_REFCLK_FREQUENCY      = 200.0,
-                        p_PIPE_SEL              = "FALSE",
-                        p_IDELAY_VALUE          = dq_delay_taps,
-                        p_IDELAY_TYPE           = delay_type,
-                        i_C          = ClockSignal(),
-                        i_CINVCTRL   = 0,
-                        i_REGRST     = 0,
-                        i_LDPIPEEN   = 0 ,
-                        i_INC        = 0,
-                        i_CE         = 0,
-                        i_LD         = self.delay_update,
-                        i_CNTVALUEIN = self.delay_config.fields.d,
-                        i_IDATAIN    = dq.i[i-1],
-                        o_DATAOUT    = dq_delayed[i],
-                  ),
-            else:
-                self.comb += dq_delayed[i].eq(dq.i[i-1])
+                    i_C           = ClockSignal(),
+                    i_CINVCTRL    = 0,
+                    i_REGRST      = 0,
+                    i_LDPIPEEN    = 0,
+                    i_INC         = 0,
+                    i_CE          = 0,
+                    i_LD          = self.delay_update,
+                    i_CNTVALUEIN  = self.delay_config.fields.d,
+                    o_CNTVALUEOUT = self.delay_status.fields.q,
+                    i_IDATAIN     = dq.i[i-1],
+                    o_DATAOUT     = dq_delayed[i],
+                    i_DATAIN=0,
+                ),
+            else: # Don't wire up o_CNTVALUEOUT for others
+                self.specials += Instance(idelay_name,
+                    p_DELAY_SRC             = "IDATAIN",
+                    p_SIGNAL_PATTERN        = "DATA",
+                    p_CINVCTRL_SEL          = "FALSE",
+                    p_HIGH_PERFORMANCE_MODE = "FALSE",
+                    p_REFCLK_FREQUENCY      = 200.0,
+                    p_PIPE_SEL              = "FALSE",
+                    p_IDELAY_VALUE          = dq_delay_taps,
+                    p_IDELAY_TYPE           = delay_type,
+                    i_C          = ClockSignal(),
+                    i_CINVCTRL   = 0,
+                    i_REGRST     = 0,
+                    i_LDPIPEEN   = 0 ,
+                    i_INC        = 0,
+                    i_CE         = 0,
+                    i_LD         = self.delay_update,
+                    i_CNTVALUEIN = self.delay_config.fields.d,
+                    i_IDATAIN    = dq.i[i-1],
+                    o_DATAOUT    = dq_delayed[i],
+                    i_DATAIN=0,
+                ),
+
             self.specials += Instance("IDDR", name="{}{}".format(iddr_name, str(i)),
                 p_DDR_CLK_EDGE = "SAME_EDGE_PIPELINED",
                 i_C  = dqs_iobuf,
@@ -212,7 +280,6 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         ]
 
         # bit 0 (copi) is special-cased to handle SPI mode
-        self.dq_copi = dq_copi = TSTriple(1) # this has similar structure but an independent "oe" signal
         self.specials += dq_copi.get_tristate(pads.dq[0])
         do_mux_rise = Signal() # mux signal for copi/dq select of bit 0
         do_mux_fall = Signal()
@@ -238,30 +305,28 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
                 i_D  = dq_delayed[0],
             ),
         ]
-        if sim == False:
-            self.specials += Instance("IDELAYE2",
-                p_DELAY_SRC             = "IDATAIN",
-                p_SIGNAL_PATTERN        = "DATA",
-                p_CINVCTRL_SEL          = "FALSE",
-                p_HIGH_PERFORMANCE_MODE = "FALSE",
-                p_REFCLK_FREQUENCY      = 200.0,
-                p_PIPE_SEL              = "FALSE",
-                p_IDELAY_VALUE          = dq_delay_taps,
-                p_IDELAY_TYPE           = delay_type,
+        self.specials += Instance(idelay_name,
+            p_DELAY_SRC             = "IDATAIN",
+            p_SIGNAL_PATTERN        = "DATA",
+            p_CINVCTRL_SEL          = "FALSE",
+            p_HIGH_PERFORMANCE_MODE = "FALSE",
+            p_REFCLK_FREQUENCY      = 200.0,
+            p_PIPE_SEL              = "FALSE",
+            p_IDELAY_VALUE          = dq_delay_taps,
+            p_IDELAY_TYPE           = delay_type,
 
-                i_C          = ClockSignal(),
-                i_CINVCTRL   = 0,
-                i_REGRST     = 0,
-                i_LDPIPEEN   = 0,
-                i_INC        = 0,
-                i_CE         = 0,
-                i_LD         = self.delay_update,
-                i_CNTVALUEIN = self.delay_config.fields.d,
-                i_IDATAIN    = dq_copi.i,
-                o_DATAOUT    = dq_delayed[0],
-            ),
-        else:
-            self.comb += dq_delayed[0].eq(dq_copi.i)
+            i_C          = ClockSignal(),
+            i_CINVCTRL   = 0,
+            i_REGRST     = 0,
+            i_LDPIPEEN   = 0,
+            i_INC        = 0,
+            i_CE         = 0,
+            i_LD         = self.delay_update,
+            i_CNTVALUEIN = self.delay_config.fields.d,
+            i_IDATAIN    = dq_copi.i,
+            o_DATAOUT    = dq_delayed[0],
+            i_DATAIN=0,
+        ),
 
         # Wire up SCLK interface
         clk_en = Signal()
@@ -414,12 +479,13 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         self.command = CSRStorage(description="Write individual bits to issue special commands to SPI; setting multiple bits at once leads to undefined behavior.",
             fields=[
                 CSRField("wakeup",       size=1, description="Sequence through init & wakeup routine"),
-                CSRField("exec_cmd", size=1, description="Writing a `1` executes a manual command", pulse=True),
-                CSRField("cmd_code", size=8, description="Manual command code (first 8 bits, e.g. PP4B is 0x12)"),
-                CSRField("has_arg", size=1, description="When set, transmits the value of `cmd_arg` as the argument to the command"),
+                CSRField("exec_cmd",     size=1, description="Writing a `1` executes a manual command", pulse=True),
+                CSRField("cmd_code",     size=8, description="Manual command code (first 8 bits, e.g. PP4B is 0x12)"),
+                CSRField("has_arg",      size=1, description="When set, transmits the value of `cmd_arg` as the argument to the command"),
                 # CSRField("write_cmd", size=1, description="When `1`, `data_bytes` are written from page FIFO; when `0`, up to 4 STR `data_bytes` are read into readback CSR"),
                 CSRField("dummy_cycles", size=5, description="Number of dummy cycles for manual command; 0 implies a write, >0 implies read"),
-                CSRField("data_bytes", size=8, description="Number of data bytes"),
+                CSRField("data_words",   size=7, description="Number of data words (2x bytes)"),
+                CSRField("lock_reads",   size=1, description="When set, locks out read operations (recommended when doing programming)"),
             ])
         self.cmd_arg = CSRStorage(description="Command argument",
             fields=[
@@ -434,6 +500,11 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
             fields=[
                 CSRField("wip", size=1, description="Operation in progress (write or erease)")
             ])
+        self.wdata = CSRStorage(description="Page data to write to FLASH",
+            fields = [
+                CSRField("wdata", size=16, description="16-bit wide write data presented to FLASH, committed to a 128-entry deep FIFO")
+            ]
+        )
         # TODO: implement ECC detailed register readback, CRC checking
 
         # PHY machine mux --------------------------------------------------------------------------
@@ -484,6 +555,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         wrendiv  = Signal()
         wrendiv2 = Signal()
         rx_fifo_rst_pipe = Signal()
+        cmd_run = Signal()
         self.specials += [
             # This next pair of async-clear flip flops creates a write-enable gate that (a) ignores
             # the first two DQS strobes (as they are pipe-filling) and (b) alternates with the correct
@@ -493,14 +565,14 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
                 i_D   = ~wrendiv,
                 o_Q   = wrendiv,
                 i_CE  = 1,
-                i_CLR = ~rx_wren,
+                i_CLR = ~(rx_wren & ~cmd_run),
             ),
             Instance("FDCE", name="FDCE_WREN",
                 i_C   = dqs_iobuf,
                 i_D   = ~wrendiv2,
                 o_Q   = wrendiv2,
                 i_CE  = wrendiv & ~wrendiv2,
-                i_CLR = ~rx_wren,
+                i_CLR = ~(rx_wren & ~cmd_run),
             ),
             # Direct FIFO primitive is more resource-efficient and faster than migen primitive.
             Instance("FIFO_DUALCLOCK_MACRO",
@@ -509,7 +581,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
                 p_DATA_WIDTH              = 32,
                 p_FIRST_WORD_FALL_THROUGH = "TRUE",
                 p_ALMOST_EMPTY_OFFSET     = 6,
-                p_ALMOST_FULL_OFFSET      = (511 - (8*prefetch_lines)),
+                p_ALMOST_FULL_OFFSET      = (511 - (8*prefetch_lines + 8)),  # a few extra entries needed to meet DRC...
 
                 o_ALMOSTEMPTY = rx_almostempty,
                 o_ALMOSTFULL  = rx_almostfull,
@@ -537,7 +609,8 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         bus_ack_w = Signal()
 
         #---------  Page write data responder -----------------------
-        self.submodules.txwr_fifo = SyncFIFOBuffered(width=16, depth=256)
+        self.submodules.txwr_fifo = SyncFIFOBuffered(width=16, depth=128)
+        """
         got_wb_wr = Signal()
         got_wb_wr_r = Signal()
         self.comb += [
@@ -549,6 +622,11 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
             got_wb_wr_r.eq(got_wb_wr),
             self.txwr_fifo.we.eq(got_wb_wr & ~got_wb_wr_r),
             bus_ack_w.eq(got_wb_wr),
+        ]"""
+        self.comb += bus.ack.eq(bus_ack_r)
+        self.sync += [
+            self.txwr_fifo.we.eq(self.wdata.re),
+            self.txwr_fifo.din.eq(self.wdata.fields.wdata),
         ]
 
         #---------  OPI Rx Phy machine ------------------------------
@@ -590,25 +668,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
 
 
         # TxPHY machine: OPI -------------------------------------------------------------------------
-        txphy_cnt   = Signal(4)
-        tx_run      = Signal()
-        txphy_cs_n  = Signal(reset=1)
-        txcmd_cs_n  = Signal(reset=1)
-        txphy_clken = Signal()
-        txcmd_clken = Signal()
-        txphy_oe    = Signal()
-        txcmd_oe    = Signal()
-        txwr_cnt = Signal(8)
-        self.sync += opi_cs_n.eq( (tx_run & txphy_cs_n) | (~tx_run & txcmd_cs_n) )
-        self.comb += If( tx_run, self.do.eq(txphy_do) ).Else( self.do.eq(txcmd_do) )
-        self.comb += opi_clk_en.eq( (tx_run & txphy_clken) | (~tx_run & txcmd_clken) )
-        self.comb += self.tx.eq( (tx_run & txphy_oe) | (~tx_run & txcmd_oe) )
-        tx_almostfull = Signal()
-        self.sync += tx_almostfull.eq(rx_almostfull) # sync the rx_almostfull signal into the local clock domain
-        txphy_bus = Signal()
-        self.sync += txphy_bus.eq(bus.cyc & bus.stb & ~bus.we & ((bus.cti == 2) | (bus.cti == 0)))
-        tx_resetcycle = Signal()
-
+        run_is_hot = Signal() # indicates that the receive FIFO is hot and needs a reset before going into a cmd
         cmd_req = Signal()
         cmd_ack = Signal()
         self.sync += [
@@ -620,8 +680,39 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
                 cmd_req.eq(cmd_req)
             )
         ]
-        cmd_run = Signal()
         cmd_done = Signal()
+        wip_state = Signal()
+        self.comb += self.status.fields.wip.eq(wip_state | cmd_req) # need combinational loop-back to repsond to fast WIP inquiries
+        self.sync += [
+            If(cmd_done,
+                wip_state.eq(0),
+            ).Elif(cmd_run | cmd_req | cmd_done, # lock out writing through the entire life cycle
+                wip_state.eq(1)
+            ).Else(
+                wip_state.eq(wip_state)
+            )
+        ]
+
+        txphy_cnt   = Signal(4)
+        tx_run      = Signal()
+        txphy_cs_n  = Signal(reset=1)
+        txcmd_cs_n  = Signal(reset=1)
+        txphy_clken = Signal()
+        txcmd_clken = Signal()
+        txphy_oe    = Signal()
+        txcmd_oe    = Signal()
+        txwr_cnt = Signal(8)
+        tx_run_d = Signal()
+        self.sync += tx_run_d.eq(tx_run)
+        self.sync += opi_cs_n.eq( (tx_run_d & txphy_cs_n) | (~tx_run_d & ~cmd_run & txcmd_cs_n) | (cmd_run & txphy_cs_n) )
+        self.comb += If( tx_run | cmd_run, self.do.eq(txphy_do) ).Else( self.do.eq(txcmd_do) )
+        self.comb += opi_clk_en.eq( (tx_run & txphy_clken) | (~tx_run & txcmd_clken) | (cmd_run & txphy_clken) )
+        self.comb += self.tx.eq( (tx_run & txphy_oe) | (~tx_run & txcmd_oe) | (cmd_run & txphy_oe) )
+        tx_almostfull = Signal()
+        self.sync += tx_almostfull.eq(rx_almostfull) # sync the rx_almostfull signal into the local clock domain
+        txphy_bus = Signal()
+        self.sync += txphy_bus.eq(bus.cyc & bus.stb & ~bus.we & ((bus.cti == 2) | (bus.cti == 0)))
+        tx_resetcycle = Signal()
 
         self.submodules.txphy = txphy = FSM(reset_state="RESET")
         txphy.act("RESET",
@@ -632,8 +723,17 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
             NextValue(cmd_done, 0),
             # guarantee that the first state we go to out of reset is a four-cycle burst
             NextValue(txphy_cnt, 4),
-            If( (tx_run | cmd_run) & ~spi_mode,
+            If( tx_run & ~spi_mode,
                 NextState("TX_SETUP")
+            ).Elif( cmd_run & ~spi_mode & ~cmd_done,  # have to look at cmd_done because of delay from done-to-clear of run
+                If(run_is_hot,
+                    NextValue(txphy_clken, 1),
+                    NextValue(opi_reset_rx_req, 1),
+                    NextValue(txphy_cs_n, 0),
+                    NextState("TX_RESET_BEFORE_CMD"),
+                ).Else(
+                    NextState("TX_SETUP_CMD")
+                )
             )
         )
         txphy.act("TX_SETUP",
@@ -650,8 +750,6 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         txphy.act("TX_CMD_CS_DELAY",  # meet setup timing for CS-to-clock
             If( tx_run,
                NextState("TX_CMD")
-            ).Elif( cmd_run,
-                NextState("TX_MAN_CMD")
             )
         )
         txphy.act("TX_CMD",
@@ -721,6 +819,31 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
                 NextValue(txphy_clken, 1),
             )
         )
+        # issue a Rx FIFO reset before going into command mode
+        txphy.act("TX_RESET_BEFORE_CMD",
+            NextValue(txphy_clken, 1),
+            NextValue(opi_reset_rx_req, 0),
+            If(opi_reset_rx_ack,
+                NextValue(txphy_clken, 0),
+                NextState("TX_SETUP_CMD")
+            )
+        )
+        # mirror setup here because once we count down the delay, it must be atomic to this FSM path
+        # and we need the full 40ns of CS delay every time we go down this path!
+        txphy.act("TX_SETUP_CMD",
+            NextValue(opi_rx_run, 0),
+            NextValue(txphy_cnt, txphy_cnt - 1),
+            If( txphy_cnt > 0,
+                NextValue(txphy_cs_n, 1)
+            ).Else(
+                NextValue(txphy_cs_n, 0),
+                NextValue(txphy_oe, 1),
+                NextState("TX_CMD_MAN_CS_DELAY")
+            )
+        )
+        txphy.act("TX_CMD_MAN_CS_DELAY",
+            NextState("TX_MAN_CMD")
+        ),
         txphy.act("TX_MAN_CMD",
             NextValue(txphy_do, Cat(~self.command.fields.cmd_code, self.command.fields.cmd_code)),
             NextValue(txphy_clken, 1),
@@ -729,12 +852,11 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
             ).Elif(self.command.fields.dummy_cycles > 0, # implies a read
                 NextValue(txphy_cnt, self.command.fields.dummy_cycles - 1),
                 NextState("TX_MAN_DUMMY")
-            ).Elif(self.command.fields.data_bytes > 0,  # write is implied if dummy cycles is 0
-                NextValue(txwr_cnt, self.command.fields.data_bytes),
+            ).Elif(self.command.fields.data_words > 0,  # write is implied if dummy cycles is 0
+                NextValue(txwr_cnt, self.command.fields.data_words),
                 NextState("TX_WRDATA")
             ).Else( # simple command with no data or readback
-                NextState("RESET"),
-                NextValue(cmd_done, 1),
+                NextState("TX_WR_RESET"),
             )
         )
         txphy.act("TX_ARGHI",
@@ -747,7 +869,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
                NextValue(txphy_cnt, self.command.fields.dummy_cycles - 1),
                NextState("TX_MAN_DUMMY")
             ).Else(# self.command.fields.write_cmd,  # write is implied if dummy cycles is 0
-                NextValue(txwr_cnt, self.command.fields.data_bytes),
+                NextValue(txwr_cnt, self.command.fields.data_words - 1),
                 NextState("TX_WRDATA")
             )
         )
@@ -756,19 +878,25 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
             NextValue(txphy_do, 0),
             NextValue(txphy_cnt, txphy_cnt - 1),
             If(txphy_cnt == 0,
-                NextValue(opi_rx_run, 1),
                 # always a readback after a dummy cycle
-                NextValue(txphy_cnt, self.command.fields.data_bytes[:4] - 1), # ignore upper bits
+                # ignore upper bits, and note that +1 cycle is added because we have to pump DQS a dummy cycle to push data through the rbk pipe
+                # the SEEPROM mostly handles the extra pump OK.
+                NextValue(txphy_cnt, self.command.fields.data_words[:4] - 1 + 1),
                 NextState("TX_MAN_RBK"),
             )
         )
         txphy.act("TX_MAN_RBK",
             If(txphy_cnt == 0,
-                NextValue(txphy_clken, 1),
-                NextValue(opi_reset_rx_req, 1),
-                NextState("TX_RESET_RX"),
+                NextState("TX_MAN_RBK_WAIT"),
+                NextValue(txphy_cnt, 4),
+            ).Else(
+                NextValue(txphy_cnt, txphy_cnt - 1),
+            )
+        )
+        txphy.act("TX_MAN_RBK_WAIT", # need to wait some cycles for the readback data to return from the device before latching it
+            If(txphy_cnt == 0,
                 NextValue(self.cmd_rbk_data.fields.cmd_rbk_data, rbk_data),
-                NextValue(cmd_done, 1), # done with readback
+                NextState("TX_WR_RESET"),
             ).Else(
                 NextValue(txphy_cnt, txphy_cnt - 1),
             )
@@ -783,11 +911,8 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
             )
         )
         txphy.act("TX_WR_RESET",
-            NextValue(opi_rx_run, 0),
             NextValue(txphy_oe, 0),
-            NextValue(txphy_cs_n, 1),
             NextValue(txphy_clken, 0),
-            NextValue(cmd_done, 0),
             # drain any excess values in the page FIFO
             If(self.txwr_fifo.readable,
                 self.txwr_fifo.re.eq(1),
@@ -806,6 +931,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
             NextValue(tx_run, 0),
             NextValue(cmd_run, 0),
             NextValue(txcmd_cs_n, 1),
+            NextValue(run_is_hot, 0),
             If(~spi_mode,
                 NextState("IDLE")
             ).Else(
@@ -830,8 +956,12 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
                #   - if so, wait until the current bus cycle is done, then de-assert tx_run
                #   - then run the command
                # - Else wait until a bus cycle, and once it happens, put the system into run mode
-               If(bus.cyc & bus.stb,
+               If(bus.cyc & bus.stb & ~self.command.fields.lock_reads,
                     If(~bus.we & ((bus.cti == 2) | (bus.cti == 0)),
+                        If(~run_is_hot,
+                            NextValue(opi_addr, Cat(Signal(2), bus.adr)),
+                        ),
+                        NextValue(run_is_hot, 1),
                         NextState("TX_RUN")
                     ).Else(
                         # Handle other cases here, e.g. what do we do if we get a write? probably
@@ -844,7 +974,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         )
         opicmd.act("TX_RUN",
             NextValue(tx_run, 1),
-            If(cmd_req, # Respond to commands
+            If(cmd_req | self.command.fields.lock_reads, # Respond to commands
                 NextState("WAIT_DISPATCH")
             )
         )
@@ -852,19 +982,26 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         opicmd.act("WAIT_DISPATCH",
             If( ~(bus.cyc & bus.stb),
                 NextValue(tx_run, 0),
+                NextValue(cmd_run, 1),
                 NextState("DISPATCH_CMD")
             )
         )
         opicmd.act("DISPATCH_CMD",
             cmd_ack.eq(1), # clear the command dispatch pulse cache
             If(cmd_done,
+                NextValue(run_is_hot, 0),
                 NextValue(cmd_run, 0),
-                NextState("TX_RUN"),
+                NextValue(tx_run, 0),
+                NextState("IDLE"),
             ).Else(
                 NextValue(cmd_run, 1),
             )
         )
 
+        ############################################################################################
+        ############################################################################################
+        ############################################################################################
+        ############################################################################################
         # MAC/PHY abstraction for the SPI machine
         spi_req = Signal()
         spi_ack = Signal()
