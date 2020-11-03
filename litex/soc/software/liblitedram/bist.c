@@ -66,7 +66,7 @@ static uint32_t pseudo_random_bases[128] = {
 	0x00027e36,0x000e51ae,0x002e7627,0x00275c9f,
 };
 
-static void sdram_bist_loop(uint32_t loop, uint32_t burst_length, uint32_t random) {
+void sdram_bist_loop(uint32_t loop, uint32_t burst_length, uint32_t random) {
 	int i;
 	uint32_t base;
 	uint32_t length;
