@@ -11,9 +11,11 @@ from litex.build.lattice.programmer import LatticeProgrammer
 # IOs ----------------------------------------------------------------------------------------------
 
 _io = [
+    # Clk / Rst
     ("clk12", 0, Pins("C8"), IOStandard("LVCMOS33")),
     ("rst_n", 0, Pins("B3"), IOStandard("LVCMOS33")),
 
+    # Leds
     ("user_led", 0, Pins("H11"), IOStandard("LVCMOS33")),
     ("user_led", 1, Pins("J13"), IOStandard("LVCMOS33")),
     ("user_led", 2, Pins("J11"), IOStandard("LVCMOS33")),
@@ -23,11 +25,13 @@ _io = [
     ("user_led", 6, Pins("N15"), IOStandard("LVCMOS33")),
     ("user_led", 7, Pins("P16"), IOStandard("LVCMOS33")),
 
+    # Switches
     ("user_dip_btn", 0, Pins("N2"), IOStandard("LVCMOS33")),
     ("user_dip_btn", 1, Pins("P1"), IOStandard("LVCMOS33")),
     ("user_dip_btn", 2, Pins("M3"), IOStandard("LVCMOS33")),
     ("user_dip_btn", 3, Pins("N1"), IOStandard("LVCMOS33")),
 
+    # Serial
     ("serial", 0,
         Subsignal("tx", Pins("C11"), IOStandard("LVCMOS33")),
         Subsignal("rx", Pins("A11"), IOStandard("LVCMOS33")),

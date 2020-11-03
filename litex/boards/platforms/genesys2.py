@@ -11,6 +11,14 @@ from litex.build.openocd import OpenOCD
 # IOs ----------------------------------------------------------------------------------------------
 
 _io = [
+    # Clk / Rst
+   ("clk200", 0,
+        Subsignal("p", Pins("AD12"), IOStandard("LVDS")),
+        Subsignal("n", Pins("AD11"), IOStandard("LVDS"))
+    ),
+    ("cpu_reset_n", 0, Pins("R19"), IOStandard("LVCMOS33")),
+
+    # Leds
     ("user_led", 0, Pins("T28"), IOStandard("LVCMOS33")),
     ("user_led", 1, Pins("V19"), IOStandard("LVCMOS33")),
     ("user_led", 2, Pins("U30"), IOStandard("LVCMOS33")),
@@ -20,14 +28,14 @@ _io = [
     ("user_led", 6, Pins("W24"), IOStandard("LVCMOS33")),
     ("user_led", 7, Pins("W23"), IOStandard("LVCMOS33")),
 
-    ("cpu_reset_n", 0, Pins("R19"), IOStandard("LVCMOS33")),
-
+    # Buttons
     ("user_btn_c", 0, Pins("E18"), IOStandard("LVCMOS33")),
     ("user_btn_d", 0, Pins("M19"), IOStandard("LVCMOS33")),
     ("user_btn_l", 0, Pins("M20"), IOStandard("LVCMOS33")),
     ("user_btn_r", 0, Pins("C19"), IOStandard("LVCMOS33")),
     ("user_btn_u", 0, Pins("B19"), IOStandard("LVCMOS33")),
 
+    # Switches
     ("user_sw", 0, Pins("G19"), IOStandard("LVCMOS12")),
     ("user_sw", 1, Pins("G25"), IOStandard("LVCMOS12")),
     ("user_sw", 2, Pins("H24"), IOStandard("LVCMOS12")),
@@ -37,17 +45,14 @@ _io = [
     ("user_sw", 6, Pins("P26"), IOStandard("LVCMOS33")),
     ("user_sw", 7, Pins("P27"), IOStandard("LVCMOS33")),
 
-    ("clk200", 0,
-        Subsignal("p", Pins("AD12"), IOStandard("LVDS")),
-        Subsignal("n", Pins("AD11"), IOStandard("LVDS"))
-    ),
-
+    # Serial
     ("serial", 0,
         Subsignal("tx", Pins("Y23")),
         Subsignal("rx", Pins("Y20")),
         IOStandard("LVCMOS33")
     ),
 
+    # USB FIFO
     ("usb_fifo", 0, # Can be used when FT2232H's Channel A configured to ASYNC FIFO 245 mode
         Subsignal("data",  Pins("AD27 W27 W28 W29 Y29 Y28 AA28 AA26")),
         Subsignal("rxf_n", Pins("AB29")),
@@ -61,14 +66,7 @@ _io = [
         IOStandard("LVCMOS33"),
     ),
 
-    ("sdcard", 0,
-        Subsignal("clk", Pins("R28")),
-        Subsignal("cmd", Pins("R29"), Misc("PULLUP True")),
-        Subsignal("data", Pins("R26 R30 P29 T30"), Misc("PULLUP True")),
-        Misc("SLEW=FAST"),
-        IOStandard("LVCMOS33")
-    ),
-
+    # SDCard
     ("spisdcard", 0,
         Subsignal("clk",  Pins("R28")),
         Subsignal("cs_n", Pins("T30")),
@@ -77,7 +75,16 @@ _io = [
         Misc("SLEW=FAST"),
         IOStandard("LVCMOS33")
     ),
+    ("sdcard", 0,
+        Subsignal("clk", Pins("R28")),
+        Subsignal("cmd", Pins("R29"), Misc("PULLUP True")),
+        Subsignal("data", Pins("R26 R30 P29 T30"), Misc("PULLUP True")),
+        Misc("SLEW=FAST"),
+        IOStandard("LVCMOS33")
+    ),
 
+
+    # DDR3 SDRAM
     ("ddram", 0,
         Subsignal("a", Pins(
             "AC12 AE8 AD8 AC10 AD9  AA13 AA10 AA11",
@@ -109,6 +116,7 @@ _io = [
         Misc("VCCAUX_IO=HIGH")
     ),
 
+    # RGMII Ethernet
     ("eth_clocks", 0,
         Subsignal("tx", Pins("AE10")),
         Subsignal("rx", Pins("AG10")),

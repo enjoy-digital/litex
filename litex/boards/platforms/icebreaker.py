@@ -16,19 +16,27 @@ from litex.build.lattice.programmer import IceStormProgrammer
 # IOs ----------------------------------------------------------------------------------------------
 
 _io = [
+    # Clk / Rst
+    ("clk12", 0, Pins("35"), IOStandard("LVCMOS33"))
+
+    # Leds
     ("user_led_n",    0, Pins("11"), IOStandard("LVCMOS33")),
     ("user_led_n",    1, Pins("37"), IOStandard("LVCMOS33")),
-    # Color-specific aliases
-    ("user_ledr_n",   0, Pins("11"), IOStandard("LVCMOS33")),
-    ("user_ledg_n",   0, Pins("37"), IOStandard("LVCMOS33")),
+
+    ("user_ledr_n",   0, Pins("11"), IOStandard("LVCMOS33")), # Color-specific alias
+    ("user_ledg_n",   0, Pins("37"), IOStandard("LVCMOS33")), # Color-specific alias
+
+    # Button
     ("user_btn_n",    0, Pins("10"), IOStandard("LVCMOS33")),
 
+    # Serial
     ("serial", 0,
         Subsignal("rx", Pins("6")),
         Subsignal("tx", Pins("9"), Misc("PULLUP")),
         IOStandard("LVCMOS33")
     ),
 
+    # SPIFlash
     ("spiflash", 0,
         Subsignal("cs_n", Pins("16"), IOStandard("LVCMOS33")),
         Subsignal("clk",  Pins("15"), IOStandard("LVCMOS33")),
@@ -37,14 +45,11 @@ _io = [
         Subsignal("wp",   Pins("12"), IOStandard("LVCMOS33")),
         Subsignal("hold", Pins("13"), IOStandard("LVCMOS33")),
     ),
-
     ("spiflash4x", 0,
         Subsignal("cs_n", Pins("16"), IOStandard("LVCMOS33")),
         Subsignal("clk",  Pins("15"), IOStandard("LVCMOS33")),
         Subsignal("dq",   Pins("14 17 12 13"), IOStandard("LVCMOS33")),
     ),
-
-    ("clk12", 0, Pins("35"), IOStandard("LVCMOS33"))
 ]
 
 # Connectors ---------------------------------------------------------------------------------------

@@ -11,10 +11,11 @@ from litex.build.openocd import OpenOCD
 # IOs ----------------------------------------------------------------------------------------------
 
 _io = [
+    # Clk / Rst
     ("clk100", 0, Pins("R4"), IOStandard("LVCMOS33")),
-
     ("cpu_reset", 0, Pins("G4"), IOStandard("LVCMOS15")),
 
+    # Leds
     ("user_led", 0, Pins("T14"), IOStandard("LVCMOS25")),
     ("user_led", 1, Pins("T15"), IOStandard("LVCMOS25")),
     ("user_led", 2, Pins("T16"), IOStandard("LVCMOS25")),
@@ -24,6 +25,7 @@ _io = [
     ("user_led", 6, Pins("W15"), IOStandard("LVCMOS25")),
     ("user_led", 7, Pins("Y13"), IOStandard("LVCMOS25")),
 
+    # Switches
     ("user_sw", 0, Pins("E22"), IOStandard("LVCMOS25")),
     ("user_sw", 1, Pins("F21"), IOStandard("LVCMOS25")),
     ("user_sw", 2, Pins("G21"), IOStandard("LVCMOS25")),
@@ -33,7 +35,7 @@ _io = [
     ("user_sw", 6, Pins("K13"), IOStandard("LVCMOS25")),
     ("user_sw", 7, Pins("M17"), IOStandard("LVCMOS25")),
 
-
+    # Buttons
     ("user_btn", 0, Pins("B22"), IOStandard("LVCMOS25")),
     ("user_btn", 1, Pins("D22"), IOStandard("LVCMOS25")),
     ("user_btn", 2, Pins("C22"), IOStandard("LVCMOS25")),
@@ -41,8 +43,7 @@ _io = [
     ("user_btn", 4, Pins("F15"), IOStandard("LVCMOS25")),
     ("user_btn", 5, Pins("G4"),  IOStandard("LVCMOS25")),
 
-    ("vadj", 0, Pins("AA13 AB17"), IOStandard("LVCMOS25")),
-
+    # OLED
     ("oled", 0,
         Subsignal("dc",   Pins("W22")),
         Subsignal("res",  Pins("U21")),
@@ -53,12 +54,14 @@ _io = [
         IOStandard("LVCMOS33")
     ),
 
+    # Serial
     ("serial", 0,
         Subsignal("tx", Pins("AA19")),
         Subsignal("rx", Pins("V18")),
         IOStandard("LVCMOS33"),
     ),
 
+    # USB FIFO
     ("usb_fifo", 0, # Can be used when FT2232H's Channel A configured to ASYNC FIFO 245 mode
         Subsignal("data",  Pins("U20 P14 P15 U17 R17 P16 R18 N14")),
         Subsignal("rxf_n", Pins("N17")),
@@ -72,6 +75,7 @@ _io = [
         IOStandard("LVCMOS33"),
     ),
 
+    # SDCard
     ("spisdcard", 0,
         Subsignal("rst",  Pins("V20")),
         Subsignal("clk",  Pins("W19")),
@@ -91,6 +95,7 @@ _io = [
         IOStandard("LVCMOS33"),
     ),
 
+    # DDR3 SDRAM
     ("ddram", 0,
         Subsignal("a", Pins(
             "M2 M5 M3 M1 L6 P1 N3 N2",
@@ -116,6 +121,7 @@ _io = [
         Misc("SLEW=FAST"),
     ),
 
+    # MII Ethernet
     ("eth_clocks", 0,
         Subsignal("tx", Pins("AA14")),
         Subsignal("rx", Pins("V13")),
@@ -133,6 +139,7 @@ _io = [
         IOStandard("LVCMOS25")
     ),
 
+    # HDMI In
     ("hdmi_in", 0,
         Subsignal("clk_p",   Pins("V4"),   IOStandard("TMDS_33")),
         Subsignal("clk_n",   Pins("W4"),   IOStandard("TMDS_33")),
@@ -149,6 +156,7 @@ _io = [
         Subsignal("txen",    Pins("R3"),   IOStandard("LVCMOS33")), # FIXME
     ),
 
+    # HDMI Out
     ("hdmi_out", 0,
         Subsignal("clk_p",   Pins("T1"),   IOStandard("TMDS_33")),
         Subsignal("clk_n",   Pins("U1"),   IOStandard("TMDS_33")),
@@ -163,6 +171,9 @@ _io = [
         Subsignal("cec",     Pins("AA4"),  IOStandard("LVCMOS33")), # FIXME
         Subsignal("hdp",     Pins("AB13"), IOStandard("LVCMOS25")), # FIXME
     ),
+
+    # Others
+    ("vadj", 0, Pins("AA13 AB17"), IOStandard("LVCMOS25")),
 ]
 
 # Connectors ---------------------------------------------------------------------------------------

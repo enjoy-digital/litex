@@ -11,8 +11,10 @@ from litex.build.altera.programmer import USBBlaster
 # IOs ----------------------------------------------------------------------------------------------
 
 _io = [
+    # Clk
     ("clk50", 0, Pins("R8"), IOStandard("3.3-V LVTTL")),
 
+    # Leds
     ("user_led", 0, Pins("A15"), IOStandard("3.3-V LVTTL")),
     ("user_led", 1, Pins("A13"), IOStandard("3.3-V LVTTL")),
     ("user_led", 2, Pins("B13"), IOStandard("3.3-V LVTTL")),
@@ -22,14 +24,17 @@ _io = [
     ("user_led", 6, Pins("B1"),  IOStandard("3.3-V LVTTL")),
     ("user_led", 7, Pins("L3"),  IOStandard("3.3-V LVTTL")),
 
+    # Button
     ("key", 0, Pins("J15"), IOStandard("3.3-V LVTTL")),
     ("key", 1, Pins("E1"),  IOStandard("3.3-V LVTTL")),
 
+    # Switches
     ("sw", 0, Pins("M1"),  IOStandard("3.3-V LVTTL")),
     ("sw", 1, Pins("T8"),  IOStandard("3.3-V LVTTL")),
     ("sw", 2, Pins("B9"),  IOStandard("3.3-V LVTTL")),
     ("sw", 3, Pins("M15"), IOStandard("3.3-V LVTTL")),
 
+    # Serial
     ("serial", 0,
         # Compatible with cheap FT232 based cables (ex: Gaoominy 6Pin Ftdi Ft232Rl Ft232)
         # GND on JP1 Pin 12.
@@ -37,6 +42,7 @@ _io = [
         Subsignal("rx", Pins("B4"), IOStandard("3.3-V LVTTL"))  # GPIO_05 (JP1 Pin 8)
     ),
 
+    # SDR SDRAM
     ("sdram_clock", 0, Pins("R4"), IOStandard("3.3-V LVTTL")),
     ("sdram", 0,
         Subsignal("a",     Pins(
@@ -55,6 +61,7 @@ _io = [
         IOStandard("3.3-V LVTTL")
     ),
 
+    # ECPS
     ("epcs", 0,
         Subsignal("data0", Pins("H2")),
         Subsignal("dclk",  Pins("H1")),
@@ -63,18 +70,21 @@ _io = [
         IOStandard("3.3-V LVTTL")
     ),
 
+    # I2C
     ("i2c", 0,
         Subsignal("sclk", Pins("F2")),
         Subsignal("sdat", Pins("F1")),
         IOStandard("3.3-V LVTTL")
     ),
 
-    ("g_sensor", 0,
+    # Accelerometer
+    ("acc", 0,
         Subsignal("cs_n", Pins("G5")),
         Subsignal("int",  Pins("M2")),
         IOStandard("3.3-V LVTTL")
     ),
 
+    # ADC
     ("adc", 0,
         Subsignal("cs_n",  Pins("A10")),
         Subsignal("saddr", Pins("B10")),
@@ -83,6 +93,7 @@ _io = [
         IOStandard("3.3-V LVTTL")
     ),
 
+    # GPIOs
     ("gpio_0", 0, Pins(
         "D3 C3  A2  A3  B3  B4  A4  B5",
         "A5 D5  B6  A6  B7  D6  A7  C6",

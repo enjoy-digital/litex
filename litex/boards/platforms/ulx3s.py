@@ -11,9 +11,11 @@ from litex.build.lattice.programmer import UJProg
 # IOs ----------------------------------------------------------------------------------------------
 
 _io_common = [
+    # Clk / Rst
     ("clk25", 0, Pins("G2"), IOStandard("LVCMOS33")),
     ("rst",   0, Pins("R1"), IOStandard("LVCMOS33")),
 
+    # Leds
     ("user_led", 0, Pins("B2"), IOStandard("LVCMOS33")),
     ("user_led", 1, Pins("C2"), IOStandard("LVCMOS33")),
     ("user_led", 2, Pins("C1"), IOStandard("LVCMOS33")),
@@ -23,11 +25,13 @@ _io_common = [
     ("user_led", 6, Pins("E1"), IOStandard("LVCMOS33")),
     ("user_led", 7, Pins("H3"), IOStandard("LVCMOS33")),
 
+    # Serial
     ("serial", 0,
         Subsignal("tx", Pins("L4"), IOStandard("LVCMOS33")),
         Subsignal("rx", Pins("M1"), IOStandard("LVCMOS33"))
     ),
 
+    # SDR SDRAM
     ("sdram_clock", 0, Pins("F19"), IOStandard("LVCMOS33")),
     ("sdram", 0,
         Subsignal("a",     Pins(
@@ -47,11 +51,7 @@ _io_common = [
         Misc("SLEWRATE=FAST"),
     ),
 
-    ("wifi_gpio0", 0, Pins("L2"), IOStandard("LVCMOS33")),
-
-    ("ext0p", 0, Pins("B11"), IOStandard("LVCMOS33")),
-    ("ext1p", 0, Pins("A10"), IOStandard("LVCMOS33")),
-
+    # GPIOs
     ("gpio", 0,
         Subsignal("p", Pins("B11")),
         Subsignal("n", Pins("C11")),
@@ -73,12 +73,15 @@ _io_common = [
         IOStandard("LVCMOS33")
     ),
 
+    # USB
     ("usb", 0,
         Subsignal("d_p", Pins("D15")),
         Subsignal("d_n", Pins("E15")),
         Subsignal("pullup", Pins("B12 C12")),
         IOStandard("LVCMOS33")
     ),
+
+    # OLED
     ("oled_spi", 0,
         Subsignal("clk",  Pins("P4")),
         Subsignal("mosi", Pins("P3")),
@@ -90,9 +93,15 @@ _io_common = [
         Subsignal("csn",  Pins("N2")),
         IOStandard("LVCMOS33"),
     ),
+
+    # Others
+    ("wifi_gpio0", 0, Pins("L2"), IOStandard("LVCMOS33")),
+    ("ext0p", 0, Pins("B11"), IOStandard("LVCMOS33")),
+    ("ext1p", 0, Pins("A10"), IOStandard("LVCMOS33")),
 ]
 
 _io_1_7 = [
+    # SDCard
     ("spisdcard", 0,
         Subsignal("clk",  Pins("J1")),
         Subsignal("mosi", Pins("J3"), Misc("PULLMODE=UP")),
@@ -101,7 +110,6 @@ _io_1_7 = [
         Misc("SLEWRATE=FAST"),
         IOStandard("LVCMOS33"),
     ),
-
     ("sdcard", 0,
         Subsignal("clk",  Pins("J1")),
         Subsignal("cmd",  Pins("J3"), Misc("PULLMODE=UP")),
@@ -112,6 +120,7 @@ _io_1_7 = [
 ]
 
 _io_2_0 = [
+    # SDCard
     ("spisdcard", 0,
         Subsignal("clk",  Pins("H2")),
         Subsignal("mosi", Pins("J1"), Misc("PULLMODE=UP")),
@@ -120,7 +129,6 @@ _io_2_0 = [
         Misc("SLEWRATE=FAST"),
         IOStandard("LVCMOS33"),
     ),
-
     ("sdcard", 0,
         Subsignal("clk",  Pins("H2")),
         Subsignal("cmd",  Pins("J1"), Misc("PULLMODE=UP")),
@@ -139,7 +147,7 @@ class Platform(LatticePlatform):
     default_clk_period = 1e9/25e6
 
     def __init__(self, device="LFE5U-45F", revision="2.0", **kwargs):
-        assert device in ["LFE5U-25F", "LFE5U-45F", "LFE5U-85F"]
+        assert device in ["LFE5U-12F", "LFE5U-25F", "LFE5U-45F", "LFE5U-85F"]
         assert revision in ["1.7", "2.0"]
         _io = _io_common + {"1.7": _io_1_7, "2.0": _io_2_0}[revision]
         LatticePlatform.__init__(self, device + "-6BG381C", _io, **kwargs)
