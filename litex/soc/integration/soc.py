@@ -914,6 +914,12 @@ class SoC(Module):
             "axi-lite": axi.AXILiteInterconnectShared,
         }[self.bus.standard]
 
+        # SoC Reset --------------------------------------------------------------------------------
+        # Connect SoCController's reset to CRG's reset if presents.
+        if hasattr(self, "ctrl") and hasattr(self, "crg"):
+            if hasattr(self.ctrl, "_reset") and hasattr(self.crg, "rst"):
+                self.comb += self.crg.rst.eq(self.ctrl._reset.re)
+
         # SoC CSR bridge ---------------------------------------------------------------------------
         # FIXME: for now, use registered CSR bridge when SDRAM is present; find the best compromise.
         self.add_csr_bridge(self.mem_map["csr"], register=hasattr(self, "sdram"))
