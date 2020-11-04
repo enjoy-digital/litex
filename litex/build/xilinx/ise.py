@@ -163,7 +163,7 @@ bitgen {bitgen_opt} {build_name}.ncd {build_name}.bit{fail_stmt}
 
     if which("ise") is None:
         msg = "Unable to find or source ISE toolchain, please either:\n"
-        msg += "- Source ISE's settings manually."
+        msg += "- Source ISE's settings manually.\n"
         msg += "- Or set LITEX_ISE_VIVADO environment variant to ISE's settings path.\n"
         msg += "- Or add ISE toolchain to your $PATH."
         raise OSError(msg)

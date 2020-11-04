@@ -92,7 +92,7 @@ def _run_script(script):
 
     if which("vivado") is None:
         msg = "Unable to find or source Vivado toolchain, please either:\n"
-        msg += "- Source Vivado's settings manually."
+        msg += "- Source Vivado's settings manually.\n"
         msg += "- Or set LITEX_ENV_VIVADO environment variant to Vivado's settings path.\n"
         msg += "- Or add Vivado toolchain to your $PATH."
         raise OSError(msg)
