@@ -35,6 +35,7 @@ from litedram.phy import GENSDRPHY, HalfRateGENSDRPHY
 
 class _CRG(Module):
     def __init__(self, platform, sys_clk_freq, with_usb_pll=False, sdram_rate="1:1"):
+        self.rst = Signal()
         self.clock_domains.cd_sys    = ClockDomain()
         if sdram_rate == "1:2":
             self.clock_domains.cd_sys2x    = ClockDomain()
@@ -50,7 +51,7 @@ class _CRG(Module):
 
         # PLL
         self.submodules.pll = pll = ECP5PLL()
-        self.comb += pll.reset.eq(rst)
+        self.comb += pll.reset.eq(rst | self.rst)
         pll.register_clkin(clk25, 25e6)
         pll.create_clkout(self.cd_sys,    sys_clk_freq)
         if sdram_rate == "1:2":
@@ -62,7 +63,7 @@ class _CRG(Module):
         # USB PLL
         if with_usb_pll:
             self.submodules.usb_pll = usb_pll = ECP5PLL()
-            self.comb += usb_pll.reset.eq(rst)
+            self.comb += usb_pll.reset.eq(rst | self.rst)
             usb_pll.register_clkin(clk25, 25e6)
             self.clock_domains.cd_usb_12 = ClockDomain()
             self.clock_domains.cd_usb_48 = ClockDomain()

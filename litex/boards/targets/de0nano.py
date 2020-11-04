@@ -29,6 +29,7 @@ from litedram.phy import GENSDRPHY, HalfRateGENSDRPHY
 
 class _CRG(Module):
     def __init__(self, platform, sys_clk_freq, sdram_rate="1:1"):
+        self.rst = Signal()
         self.clock_domains.cd_sys    = ClockDomain()
         if sdram_rate == "1:2":
             self.clock_domains.cd_sys2x    = ClockDomain()
@@ -43,6 +44,7 @@ class _CRG(Module):
 
         # PLL
         self.submodules.pll = pll = CycloneIVPLL(speedgrade="-6")
+        self.comb += pll.reset.eq(self.rst)
         pll.register_clkin(clk50, 50e6)
         pll.create_clkout(self.cd_sys,    sys_clk_freq)
         if sdram_rate == "1:2":

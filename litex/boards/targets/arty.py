@@ -30,25 +30,26 @@ from liteeth.phy.mii import LiteEthPHYMII
 
 class _CRG(Module):
     def __init__(self, platform, sys_clk_freq, toolchain):
+        self.rst = Signal()
         self.clock_domains.cd_sys       = ClockDomain()
         self.clock_domains.cd_sys4x     = ClockDomain(reset_less=True)
         self.clock_domains.cd_sys4x_dqs = ClockDomain(reset_less=True)
-        self.clock_domains.cd_clk200    = ClockDomain()
+        self.clock_domains.cd_idelay    = ClockDomain()
         self.clock_domains.cd_eth       = ClockDomain()
 
         # # #
 
         if toolchain == "vivado":
             self.submodules.pll = pll = S7PLL(speedgrade=-1)
-            self.comb += pll.reset.eq(~platform.request("cpu_reset"))
+            self.comb += pll.reset.eq(~platform.request("cpu_reset") | self.rst)
             pll.register_clkin(platform.request("clk100"), 100e6)
             pll.create_clkout(self.cd_sys,       sys_clk_freq)
             pll.create_clkout(self.cd_sys4x,     4*sys_clk_freq)
             pll.create_clkout(self.cd_sys4x_dqs, 4*sys_clk_freq, phase=90)
-            pll.create_clkout(self.cd_clk200,    200e6)
+            pll.create_clkout(self.cd_idelay,    200e6)
             pll.create_clkout(self.cd_eth,       25e6)
 
-            self.submodules.idelayctrl = S7IDELAYCTRL(self.cd_clk200)
+            self.submodules.idelayctrl = S7IDELAYCTRL(self.cd_idelay)
 
             self.comb += platform.request("eth_ref_clk").eq(self.cd_eth.clk)
         elif toolchain == "symbiflow": # FIXME
@@ -58,7 +59,7 @@ class _CRG(Module):
             self.specials += Instance("BUFG", i_I=clk100_ibuf, o_O=clk100_buf)
 
             self.submodules.pll = pll = S7PLL(speedgrade=-1)
-            self.comb += pll.reset.eq(~platform.request("cpu_reset"))
+            self.comb += pll.reset.eq(~platform.request("cpu_reset") | self.rst)
             pll.register_clkin(clk100_buf, 100e6)
             pll.create_clkout(self.cd_sys, sys_clk_freq)
 
