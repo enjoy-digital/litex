@@ -13,6 +13,7 @@ import sys
 import math
 import subprocess
 import shutil
+from shutil import which
 
 from migen.fhdl.structure import _Fragment
 
@@ -63,8 +64,13 @@ synth_nexus -top {build_name} -vm {build_name}_yosys.vm
 
     ys_name = build_name + ".ys"
     tools.write_to_file(ys_name, ys_contents)
-    r = subprocess.call(["yosys", ys_name])
-    if r != 0:
+
+    if which("yosys") is None:
+        msg = "Unable to find Yosys toolchain, please:\n"
+        msg += "- Add Yosys toolchain to your $PATH."
+        raise OSError(msg)
+
+    if subprocess.call(["yosys", ys_name]) != 0:
         raise OSError("Subprocess failed")
 
 # Constraints (.ldc) -------------------------------------------------------------------------------
@@ -195,11 +201,18 @@ def _build_script(build_name, device):
 def _run_script(script):
     if sys.platform in ("win32", "cygwin"):
         shell = ["cmd", "/c"]
+        tool  = "pnmainc"
     else:
         shell = ["bash"]
+        tool  = "radiantc"
+
+    if which(tool) is None:
+        msg = "Unable to find Radiant toolchain, please:\n"
+        msg += "- Add Radiant toolchain to your $PATH."
+        raise OSError(msg)
 
     if subprocess.call(shell + [script]) != 0:
-        raise OSError("Subprocess failed")
+        raise OSError("Error occured during Radiant's script execution.")
 
 def _check_timing(build_name):
     lines = open("impl/{}_impl.par".format(build_name), "r").readlines()

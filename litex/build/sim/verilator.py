@@ -8,6 +8,7 @@
 import os
 import sys
 import subprocess
+from shutil import which
 
 from migen.fhdl.structure import _Fragment
 from litex import get_data_mod
@@ -226,6 +227,11 @@ class SimVerilatorToolchain:
 
         # Run
         if run:
+            if which("verilator") is None:
+                msg = "Unable to find Verilator toolchain, please either:\n"
+                msg += "- Install Verilator.\n"
+                msg += "- Add Verilator toolchain to your $PATH."
+                raise OSError(msg)
             _compile_sim(build_name, verbose)
             run_as_root = False
             if sim_config.has_module("ethernet"):
