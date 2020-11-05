@@ -11,8 +11,6 @@ def get_data_mod(data_type, data_name):
         dm = l['dm']
         return dm
     except ImportError as e:
-        data_type = data_type.replace("_", "-")
-        data_name = data_name.replace("_", "-")
         raise ImportError("""\
 pythondata-{dt}-{dn} module not installed! Unable to use {dn} {dt}.
 {e}
