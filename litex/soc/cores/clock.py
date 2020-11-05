@@ -98,7 +98,7 @@ class XilinxClocking(Module, AutoCSR):
         clkout = Signal()
         self.clkouts[self.nclkouts] = (clkout, freq, phase, margin)
         if with_reset:
-            self.specials += AsyncResetSynchronizer(cd, ~self.locked | self.reset)
+            self.specials += AsyncResetSynchronizer(cd, ~self.locked)
         if buf is None:
             self.comb += cd.clk.eq(clkout)
         else:
@@ -193,8 +193,15 @@ class XilinxClocking(Module, AutoCSR):
         self.comb += self.drp_locked.status.eq(self.locked)
         self.logger.info("Exposing DRP interface.")
 
+    def add_reset_delay(self, cycles):
+        for i in range(cycles):
+            reset = Signal()
+            self.specials += Instance("FD", i_C=self.clkin, i_D=self.reset, o_Q=reset)
+            self.reset = reset
+
     def do_finalize(self):
         assert hasattr(self, "clkin")
+        self.add_reset_delay(cycles=8) # Prevents interlock when reset driven from sys_clk.
 
 # Xilinx / Spartan6 --------------------------------------------------------------------------------
 
@@ -679,7 +686,7 @@ class iCE40PLL(Module):
         clkout = Signal()
         self.clkouts[self.nclkouts] = (clkout, freq, 0, margin)
         if with_reset:
-            self.specials += AsyncResetSynchronizer(cd, ~self.locked | self.reset)
+            self.specials += AsyncResetSynchronizer(cd, ~self.locked)
         self.comb += cd.clk.eq(clkout)
         create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
         self.nclkouts += 1
@@ -781,7 +788,7 @@ class ECP5PLL(Module):
         clkout = Signal()
         self.clkouts[self.nclkouts] = (clkout, freq, phase, margin)
         if with_reset:
-            self.specials += AsyncResetSynchronizer(cd, ~self.locked | self.reset)
+            self.specials += AsyncResetSynchronizer(cd, ~self.locked)
         self.comb += cd.clk.eq(clkout)
         create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
         self.nclkouts += 1
@@ -958,7 +965,7 @@ class IntelClocking(Module, AutoCSR):
         clkout = Signal()
         self.clkouts[self.nclkouts] = (clkout, freq, phase, margin)
         if with_reset:
-            self.specials += AsyncResetSynchronizer(cd, ~self.locked | self.reset)
+            self.specials += AsyncResetSynchronizer(cd, ~self.locked)
         self.comb += cd.clk.eq(clkout)
         create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
         self.nclkouts += 1
