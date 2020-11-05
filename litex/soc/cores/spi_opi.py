@@ -484,7 +484,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
                 CSRField("has_arg",      size=1, description="When set, transmits the value of `cmd_arg` as the argument to the command"),
                 # CSRField("write_cmd", size=1, description="When `1`, `data_bytes` are written from page FIFO; when `0`, up to 4 STR `data_bytes` are read into readback CSR"),
                 CSRField("dummy_cycles", size=5, description="Number of dummy cycles for manual command; 0 implies a write, >0 implies read"),
-                CSRField("data_words",   size=7, description="Number of data words (2x bytes)"),
+                CSRField("data_words",   size=8, description="Number of data words (2x bytes)"),
                 CSRField("lock_reads",   size=1, description="When set, locks out read operations (recommended when doing programming)"),
             ])
         self.cmd_arg = CSRStorage(description="Command argument",
@@ -610,23 +610,36 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
 
         #---------  Page write data responder -----------------------
         self.submodules.txwr_fifo = SyncFIFOBuffered(width=16, depth=128)
-        """
-        got_wb_wr = Signal()
-        got_wb_wr_r = Signal()
+        self.submodules.pgwr = pgwr = FSM(reset_state="IDLE")
+        pgwr.act("IDLE",
+            If(self.wdata.re,
+                self.txwr_fifo.we.eq(1),
+                self.txwr_fifo.din.eq(self.wdata.fields.wdata)
+            ).Elif(bus.cyc & bus.stb & bus.we,
+                self.txwr_fifo.din.eq(bus.dat_w[:16]),  # lower 16 bits first
+                self.txwr_fifo.we.eq(1),
+                NextState("HIWORD")
+            ).Else(
+                self.txwr_fifo.we.eq(0),
+                bus_ack_w.eq(0)
+            )
+        )
+        pgwr.act("HIWORD",
+            self.txwr_fifo.din.eq(bus.dat_w[16:]),  # top 16 next
+            self.txwr_fifo.we.eq(1),
+            bus_ack_w.eq(1),
+            NextState("WAIT_DONE")
+        )
+        pgwr.act("WAIT_DONE",
+            If( ~(bus.cyc & bus.stb & bus.we),
+                NextState("IDLE"),
+                bus_ack_w.eq(0),
+            ).Else(
+                bus_ack_w.eq(1),
+            )
+        )
         self.comb += [
-            self.txwr_fifo.din.eq(bus.dat_r[:16]), # lower 16 bits only used
-            got_wb_wr.eq(bus.cyc & bus.stb & bus.we),
             bus.ack.eq(bus_ack_r | bus_ack_w),
-        ]
-        self.sync += [
-            got_wb_wr_r.eq(got_wb_wr),
-            self.txwr_fifo.we.eq(got_wb_wr & ~got_wb_wr_r),
-            bus_ack_w.eq(got_wb_wr),
-        ]"""
-        self.comb += bus.ack.eq(bus_ack_r)
-        self.sync += [
-            self.txwr_fifo.we.eq(self.wdata.re),
-            self.txwr_fifo.din.eq(self.wdata.fields.wdata),
         ]
 
         #---------  OPI Rx Phy machine ------------------------------
@@ -868,9 +881,11 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
             If(self.command.fields.dummy_cycles > 0,
                NextValue(txphy_cnt, self.command.fields.dummy_cycles - 1),
                NextState("TX_MAN_DUMMY")
-            ).Else(# self.command.fields.write_cmd,  # write is implied if dummy cycles is 0
+            ).Elif(self.command.fields.data_words > 0, # self.command.fields.write_cmd,  # write is implied if dummy cycles is 0 and data exists
                 NextValue(txwr_cnt, self.command.fields.data_words - 1),
                 NextState("TX_WRDATA")
+            ).Else(
+                NextState("TX_WR_RESET")
             )
         )
         txphy.act("TX_MAN_DUMMY",
