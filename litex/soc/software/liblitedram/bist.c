@@ -84,6 +84,7 @@ void sdram_bist_loop(uint32_t loop, uint32_t burst_length, uint32_t random) {
 			sdram_generator_reset_write(0);
 			sdram_generator_random_write(1); /* Random data */
 			sdram_generator_base_write(base);
+			sdram_generator_end_write(base + length);
 			sdram_generator_length_write(length);
 			cdelay(100);
 		}
@@ -94,6 +95,7 @@ void sdram_bist_loop(uint32_t loop, uint32_t burst_length, uint32_t random) {
 		sdram_checker_reset_write(0);
 		sdram_checker_random_write(1); /* Random data */
 		sdram_checker_base_write(base);
+		sdram_checker_end_write(base + length);
 		sdram_checker_length_write(length);
 		cdelay(100);
 		/* Wait write */
@@ -113,6 +115,7 @@ void sdram_bist_loop(uint32_t loop, uint32_t burst_length, uint32_t random) {
 			sdram_generator_reset_write(0);
 			sdram_generator_random_write(1); /* Random data */
 			sdram_generator_base_write(base);
+			sdram_generator_end_write(base + length);
 			sdram_generator_length_write(length);
 			cdelay(100);
 		}
