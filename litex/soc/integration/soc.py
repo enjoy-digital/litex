@@ -1141,7 +1141,7 @@ class LiteXSoC(SoC):
         self.bus.add_master(name="uartbone", master=self.uartbone.wishbone)
 
     # Add SDRAM ------------------------------------------------------------------------------------
-    def add_sdram(self, name, phy, module, origin, size=None, with_soc_interconnect=True,
+    def add_sdram(self, name, phy, module, origin, size=None, with_bist=False, with_soc_interconnect=True,
         l2_cache_size           = 8192,
         l2_cache_min_data_width = 128,
         l2_cache_reverse        = True,
@@ -1153,6 +1153,7 @@ class LiteXSoC(SoC):
         from litedram.core import LiteDRAMCore
         from litedram.frontend.wishbone import LiteDRAMWishbone2Native
         from litedram.frontend.axi import LiteDRAMAXI2Native
+        from litedram.frontend.bist import  LiteDRAMBISTGenerator, LiteDRAMBISTChecker
 
         # LiteDRAM core
         self.submodules.sdram = LiteDRAMCore(
@@ -1182,6 +1183,13 @@ class LiteXSoC(SoC):
                 size     = len(module._spd_data),
                 contents = mem,
             )
+
+        # LiteDRAM BIST
+        if with_bist:
+            self.submodules.sdram_generator = LiteDRAMBISTGenerator(self.sdram.crossbar.get_port())
+            self.add_csr("sdram_generator")
+            self.submodules.sdram_checker = LiteDRAMBISTChecker(self.sdram.crossbar.get_port())
+            self.add_csr("sdram_checker")
 
         if not with_soc_interconnect: return
 
@@ -1293,6 +1301,7 @@ class LiteXSoC(SoC):
                 wishbone     = litedram_wb,
                 port         = port,
                 base_address = self.bus.regions["main_ram"].origin)
+
 
     # Add Ethernet ---------------------------------------------------------------------------------
     def add_ethernet(self, name="ethmac", phy=None):
