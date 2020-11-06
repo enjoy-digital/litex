@@ -502,7 +502,10 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
             ])
         self.wdata = CSRStorage(description="Page data to write to FLASH",
             fields = [
-                CSRField("wdata", size=16, description="16-bit wide write data presented to FLASH, committed to a 128-entry deep FIFO")
+                CSRField("wdata", size=16, description="""16-bit wide write data presented to FLASH, committed to a 128-entry deep FIFO. 
+                Writes to this register are not cached; note that writes to the SPINOR address space are also committed 
+                to the FIFO, but this space is cached by the CPU, and therefore not guaranteed to be coherent or in order. 
+                The direct wishbone-write address space is provisioned for e.g. USB bus masters that don't have caching.""")
             ]
         )
         # TODO: implement ECC detailed register readback, CRC checking
@@ -918,6 +921,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         )
         txphy.act("TX_WRDATA",
             If(txwr_cnt == 0,
+                NextValue(txphy_do, self.txwr_fifo.dout),
                 NextState("TX_WR_RESET"),
             ).Else(
                 NextValue(txwr_cnt, txwr_cnt - 1),
