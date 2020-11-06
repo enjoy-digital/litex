@@ -281,6 +281,7 @@ class SimSoC(SoCCore):
         # Analyzer ---------------------------------------------------------------------------------
         if with_analyzer:
             analyzer_signals = [
+                # IBus (could also just added as self.cpu.ibus)
                 self.cpu.ibus.stb,
                 self.cpu.ibus.cyc,
                 self.cpu.ibus.adr,
@@ -289,6 +290,15 @@ class SimSoC(SoCCore):
                 self.cpu.ibus.sel,
                 self.cpu.ibus.dat_w,
                 self.cpu.ibus.dat_r,
+                # DBus (could also just added as self.cpu.dbus)
+                self.cpu.dbus.stb,
+                self.cpu.dbus.cyc,
+                self.cpu.dbus.adr,
+                self.cpu.dbus.we,
+                self.cpu.dbus.ack,
+                self.cpu.dbus.sel,
+                self.cpu.dbus.dat_w,
+                self.cpu.dbus.dat_r,
             ]
             self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals,
                 depth        = 512,
