@@ -123,7 +123,7 @@ class RemoteServer(EtherboneIPC):
                     if record.reads != None:
                         max_length = {
                             "CommUART": 256,
-                            "CommUDP":    4,
+                            "CommUDP":    1,
                         }.get(self.comm.__class__.__name__, 1)
                         bursts = {
                             "CommUART": ["incr", "fixed"]
