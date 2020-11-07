@@ -14,19 +14,13 @@ from math import log, log10, exp, pi
 from cmath import phase
 
 from migen import *
-from migen.genlib.resetsync import AsyncResetSynchronizer
-
-from litex.build.io import DifferentialInput
 
 from litex.soc.cores.clock import register_clkin_log, create_clkout_log, compute_config_log
-
-from litex.soc.integration.soc import colorer
-from litex.soc.interconnect.csr import *
 
 logging.basicConfig(level=logging.INFO)
 
 io_i2 = namedtuple('io_i2',['io', 'i2', 'IPP_CTRL', 'BW_CTL_BIAS', 'IPP_SEL'])
-nexus_pll_param_permutation = namedtuple("nexus_pll_param_permutation",[
+nx_pll_param_permutation = namedtuple("nx_pll_param_permutation",[
                                 "C1","C2","C3","C4","C5","C6",
                                 "IPP_CTRL","BW_CTL_BIAS","IPP_SEL","CSET","CRIPPLE","V2I_PP_RES","IPI_CMP"])
 
@@ -42,8 +36,8 @@ class NXPLL(Module):
     instance_num        = 0
 
     def __init__(self, name = None):
-        self.logger = logging.getLogger("NEXUSPLL")
-        self.logger.info("Creating NEXUSPLL.")
+        self.logger = logging.getLogger("NXPLL")
+        self.logger.info("Creating NXPLL.")
         self.params     = {}
         self.reset      = Signal()
         self.locked     = Signal()
@@ -325,7 +319,7 @@ class NXPLL(Module):
                         F = V2I_PP_RES*CRIPPLE
                         G = k3
 
-                        self.transfer_func_coefficients.append( nexus_pll_param_permutation(
+                        self.transfer_func_coefficients.append( nx_pll_param_permutation(
                             A*B*F+E*C, # C1
                             A*(F*(G+1)+B)+E*D, # C2
                             A*(G+1), # C3
