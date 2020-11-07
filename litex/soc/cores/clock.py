@@ -7,8 +7,6 @@
 import math
 import logging
 
-from litex.soc.cores.clock_nexus import NexusPLLAnalogParameters
-
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
@@ -753,17 +751,17 @@ class ECP5PLL(Module):
             self.params["o_CLKO{}".format(n_to_l[n])]        = clk
         self.specials += Instance("EHXPLLL", **self.params)
 
-# Lattice / Nexus -----------------------------------------------------------------------------------
+# Lattice / NX -------------------------------------------------------------------------------------
 # NOTE This clock has +/- 15% accuracy
-class NexusOSCA(Module):
+class NXOSCA(Module):
     nclkouts_max = 2
     clk_hf_div_range = (0, 255)
     clk_hf_freq_range = (1.76, 450e6)
     clk_hf_freq = 450e6
 
     def __init__(self):
-        self.logger = logging.getLogger("NexusOSCA")
-        self.logger.info("Creating NexusOSCA.")
+        self.logger = logging.getLogger("NXOSCA")
+        self.logger.info("Creating NXOSCA.")
 
         self.hf_clk_out    = {}
         self.hfsdc_clk_out = {}
@@ -830,151 +828,8 @@ class NexusOSCA(Module):
         if self.lf_clk_out is not None:
             self.params["o_LFCLKOUT"] = self.lf_clk_out[0]
             self.params["p_LF_OUTPUT_EN"] = "ENABLED"
-        
+
         self.specials += Instance("OSCA", **self.params)
-
-
-class NEXUSPLL(Module):
-    nclkouts_max        = 5
-    clki_div_range      = ( 1, 128+1)
-    clkfb_div_range     = ( 1, 128+1)
-    clko_div_range      = ( 1, 128+1)
-    clki_freq_range     = ( 10e6,   500e6)
-    clko_freq_range     = ( 6.25e6, 800e6)
-    vco_in_freq_range   = ( 10e6,   500e6)
-    vco_out_freq_range  = ( 800e6,  1600e6)
-    instance_num        = 0
-
-    def __init__(self, name = None):
-        self.logger = logging.getLogger("NEXUSPLL")
-        self.logger.info("Creating NEXUSPLL.")
-        self.params     = {}
-        self.reset      = Signal()
-        self.locked     = Signal()
-        self.params["o_LOCK"] = self.locked
-        self.clkin_freq = None
-        self.vcxo_freq  = None
-        self.nclkouts   = 0
-        self.clkouts    = {}
-        self.config     = {}
-        self.name       = name
-
-    def register_clkin(self, clkin, freq):
-        (clki_freq_min, clki_freq_max) = self.clki_freq_range
-        assert freq >= clki_freq_min
-        assert freq <= clki_freq_max
-        self.clkin = Signal()
-        if isinstance(clkin, (Signal, ClockSignal)):
-            self.comb += self.clkin.eq(clkin)
-        else:
-            raise ValueError
-        self.clkin_freq = freq
-        register_clkin_log(self.logger, clkin, freq)
-
-    def create_clkout(self, cd, freq, phase=0, margin=1e-2):
-        (clko_freq_min, clko_freq_max) = self.clko_freq_range
-        assert freq >= clko_freq_min
-        assert freq <= clko_freq_max
-        assert self.nclkouts < self.nclkouts_max
-        self.clkouts[self.nclkouts] = (cd.clk, freq, phase, margin)
-        create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
-        self.nclkouts += 1
-
-    def compute_config(self):
-        config = {}
-        for clki_div in range(*self.clki_div_range):
-            config["clki_div"] = clki_div
-            for clkfb_div in range(*self.clkfb_div_range):
-                all_valid = True
-                vco_freq = self.clkin_freq/clki_div*clkfb_div
-                (vco_freq_min, vco_freq_max) = self.vco_out_freq_range
-                if vco_freq >= vco_freq_min and vco_freq <= vco_freq_max:
-                    for n, (clk, f, p, m) in sorted(self.clkouts.items()):
-                        valid = False
-                        for d in range(*self.clko_div_range):
-                            clk_freq = vco_freq/d
-                            if abs(clk_freq - f) <= f*m:
-                                config["clko{}_freq".format(n)]  = clk_freq
-                                config["clko{}_div".format(n)]   = d
-                                config["clko{}_phase".format(n)] = p
-                                valid = True
-                                break
-                        if not valid:
-                            all_valid = False
-                else:
-                    all_valid = False
-                if all_valid:
-                    config["vco"] = vco_freq
-                    config["clkfb_div"] = clkfb_div
-                    compute_config_log(self.logger, config)
-                    return config
-        raise ValueError("No PLL config found")
-
-    def calculate_analog_parameters(self, clki_freq, fb_div, bw_factor = 5):
-        config = {}
-
-        analog_params = NexusPLLAnalogParameters()
-        params = analog_params.calc_optimal_params(clki_freq, fb_div, 1, bw_factor)
-        config["p_CSET"]            = params["CSET"]
-        config["p_CRIPPLE"]         = params["CRIPPLE"]
-        config["p_V2I_PP_RES"]      = params["V2I_PP_RES"]
-        config["p_IPP_SEL"]         = params["IPP_SEL"]
-        config["p_IPP_CTRL"]        = params["IPP_CTRL"]
-        config["p_BW_CTL_BIAS"]     = params["BW_CTL_BIAS"]
-        config["p_IPI_CMP"]         = params["IPI_CMP"]
-
-        return config
-
-    def do_finalize(self):
-        config = self.compute_config()
-        clkfb  = Signal()
-
-        self.params.update(
-            p_V2I_PP_ICTRL      = "0b11111", # Hard coded in all reference files
-            p_IPI_CMPN          = "0b0011", # Hard coded in all reference files
-
-            p_V2I_1V_EN         = "ENABLED", # Enabled = 1V (Default in references, but not the primitive), Disabled = 0.9V
-            p_V2I_KVCO_SEL      = "60", # if (VOLTAGE == 0.9V) 85 else 60
-            p_KP_VCO            = "0b00011", # if (VOLTAGE == 0.9V) 0b11001 else 0b00011
-
-            p_PLLPD_N           = "USED",
-            p_REF_INTEGER_MODE  = "ENABLED", # Ref manual has a discrepency so lets always set this value just in case
-            p_REF_MMD_DIG       = "1", # Divider for the input clock, ie 'M'
-
-            i_PLLRESET          = self.reset,
-            i_REFCK             = self.clkin,
-            o_LOCK              = self.locked,
-
-            # Use CLKOS5 & divider for feedback
-            p_SEL_FBK           = "FBKCLK5",
-            p_ENCLK_CLKOS5      = "ENABLED",
-            p_DIVF              = str(config["clkfb_div"]-1), # str(Actual value - 1)
-            p_DELF              = str(config["clkfb_div"]-1),
-            p_CLKMUX_FB         = "CMUX_CLKOS5",
-            i_FBKCK             = clkfb,
-            o_CLKOS5            = clkfb,
-
-            # Set feedback divider to 1
-            p_FBK_INTEGER_MODE  = "ENABLED",
-            p_FBK_MASK          = "0b00000000",
-            p_FBK_MMD_DIG       = "1",
-        )
-
-        analog_params = self.calculate_analog_parameters(self.clkin_freq, config["clkfb_div"])
-        self.params.update(analog_params)
-
-        for n, (clk, f, p, m) in sorted(self.clkouts.items()):
-            n_to_l = {0: "P", 1: "S", 2: "S2", 3:"S3", 4:"S4"}
-            div    = config["clko{}_div".format(n)]
-            phase = int((1+p/360) * div)
-            letter = chr(n+65)
-            self.params["p_ENCLK_CLKO{}".format(n_to_l[n])] = "ENABLED"
-            self.params["p_DIV{}".format(letter)] = str(div-1)
-            self.params["p_PHI{}".format(letter)] = "0"
-            self.params["p_DEL{}".format(letter)] = str(phase - 1)
-            self.params["o_CLKO{}".format(n_to_l[n])] = clk
-
-        self.specials += Instance("PLL", name = self.name, **self.params)
 
 # Intel / Generic ---------------------------------------------------------------------------------
 
