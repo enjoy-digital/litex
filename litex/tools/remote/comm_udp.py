@@ -18,13 +18,13 @@ class CommUDP:
         self.debug = debug
 
     def open(self):
-        if hasattr(self, "tx_socket"):
+        if hasattr(self, "socket"):
             return
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.bind(("", self.port))
 
     def close(self):
-        if not hasattr(self, "tx_socket"):
+        if not hasattr(self, "socket"):
             return
         self.socket.close()
         del self.socket
