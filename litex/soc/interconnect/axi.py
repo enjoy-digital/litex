@@ -1,6 +1,9 @@
-# This file is Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2020 Antmicro <www.antmicro.com>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2020 Antmicro <www.antmicro.com>
+# SPDX-License-Identifier: BSD-2-Clause
 
 """AXI4 Full/Lite support for LiteX"""
 
@@ -238,10 +241,11 @@ class AXIStreamInterface(stream.Endpoint):
     def __init__(self, data_width=32, user_width=0):
         self.data_width = data_width
         self.user_width = user_width
-        axi_layout = [("data", data_width)]
+        payload_layout = [("data", data_width)]
+        param_layout   = []
         if self.user_width:
-            axi_layout += [("user", user_width)]
-        stream.Endpoint.__init__(self, axi_layout)
+            param_layout += [("user", user_width)]
+        stream.Endpoint.__init__(self, stream.EndpointDescription(payload_layout, param_layout))
 
     def get_ios(self, bus_name="axi"):
         subsignals = [
@@ -729,7 +733,8 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=
     return fsm, comb
 
 class AXILite2CSR(Module):
-    def __init__(self, axi_lite=None, bus_csr=None):
+    def __init__(self, axi_lite=None, bus_csr=None, register=False):
+        # TODO: unused register argument
         if axi_lite is None:
             axi_lite = AXILiteInterface()
         if bus_csr is None:

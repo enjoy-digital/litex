@@ -9,13 +9,13 @@
 #include "../helpers.h"
 
 /**
- * Command "fw"
+ * Command "flash_write"
  *
  * Write data from a memory buffer to SPI flash
  *
  */
 #if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
-static void fw(int nb_params, char **params)
+static void flash_write_handler(int nb_params, char **params)
 {
 	char *c;
 	unsigned int addr;
@@ -24,7 +24,7 @@ static void fw(int nb_params, char **params)
 	unsigned int i;
 
 	if (nb_params < 2) {
-		printf("fw <offset> <value> [count]");
+		printf("flash_write <offset> <value> [count]");
 		return;
 	}
 
@@ -54,22 +54,22 @@ static void fw(int nb_params, char **params)
 		write_to_flash(addr + i * 4, (unsigned char *)&value, 4);
 }
 
-define_command(fw, fw, "Write to flash", SPIFLASH_CMDS);
+define_command(flash_write, flash_write_handler, "Write to flash", SPIFLASH_CMDS);
 #endif
 
 /**
- * Command "fe"
+ * Command "flash_erase"
  *
  * Flash erase
  *
  */
 #if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
-static void fe(int nb_params, char **params)
+static void flash_erase_handler(int nb_params, char **params)
 {
 	erase_flash();
 	printf("Flash erased\n");
 }
 
-define_command(fe, fe, "Erase whole flash", SPIFLASH_CMDS);
+define_command(flash_erase, flash_erase_handler, "Erase whole flash", SPIFLASH_CMDS);
 #endif
 

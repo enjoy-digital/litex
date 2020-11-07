@@ -1,6 +1,9 @@
-# This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
-# This file is Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
+# Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 from litex.build.generic_platform import *
 from litex.build.lattice import LatticePlatform
@@ -9,8 +12,13 @@ from litex.build.lattice.programmer import TinyProgProgrammer
 # IOs ----------------------------------------------------------------------------------------------
 
 _io = [
+    # Clk / Rst
+    ("clk16", 0, Pins("B2"), IOStandard("LVCMOS33")),
+
+    # Leds
     ("user_led", 0, Pins("B3"), IOStandard("LVCMOS33")),
 
+    # USB
     ("usb", 0,
         Subsignal("d_p", Pins("B4")),
         Subsignal("d_n", Pins("A4")),
@@ -18,6 +26,7 @@ _io = [
         IOStandard("LVCMOS33")
     ),
 
+    # SPIFlash
     ("spiflash", 0,
         Subsignal("cs_n", Pins("F7"), IOStandard("LVCMOS33")),
         Subsignal("clk",  Pins("G7"), IOStandard("LVCMOS33")),
@@ -26,14 +35,11 @@ _io = [
         Subsignal("wp",   Pins("H4"), IOStandard("LVCMOS33")),
         Subsignal("hold", Pins("J8"), IOStandard("LVCMOS33"))
     ),
-
     ("spiflash4x", 0,
         Subsignal("cs_n", Pins("F7"), IOStandard("LVCMOS33")),
         Subsignal("clk",  Pins("G7"), IOStandard("LVCMOS33")),
         Subsignal("dq",   Pins("G6 H7 H4 J8"), IOStandard("LVCMOS33"))
     ),
-
-    ("clk16", 0, Pins("B2"), IOStandard("LVCMOS33"))
 ]
 
 # Connectors ---------------------------------------------------------------------------------------

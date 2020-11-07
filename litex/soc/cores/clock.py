@@ -1,6 +1,10 @@
-# This file is Copyright (c) 2018-2020 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2019 Michael Betz <michibetz@gmail.com>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2018-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2019 Michael Betz <michibetz@gmail.com>
+# Copyright (c) 2020 David Corrigan <davidcorrigan714@gmail.com>
+# SPDX-License-Identifier: BSD-2-Clause
 
 """Clock Abstraction Modules"""
 
@@ -94,7 +98,7 @@ class XilinxClocking(Module, AutoCSR):
         clkout = Signal()
         self.clkouts[self.nclkouts] = (clkout, freq, phase, margin)
         if with_reset:
-            self.specials += AsyncResetSynchronizer(cd, ~self.locked | self.reset)
+            self.specials += AsyncResetSynchronizer(cd, ~self.locked)
         if buf is None:
             self.comb += cd.clk.eq(clkout)
         else:
@@ -189,8 +193,15 @@ class XilinxClocking(Module, AutoCSR):
         self.comb += self.drp_locked.status.eq(self.locked)
         self.logger.info("Exposing DRP interface.")
 
+    def add_reset_delay(self, cycles):
+        for i in range(cycles):
+            reset = Signal()
+            self.specials += Instance("FD", i_C=self.clkin, i_D=self.reset, o_Q=reset)
+            self.reset = reset
+
     def do_finalize(self):
         assert hasattr(self, "clkin")
+        self.add_reset_delay(cycles=8) # Prevents interlock when reset driven from sys_clk.
 
 # Xilinx / Spartan6 --------------------------------------------------------------------------------
 
@@ -468,7 +479,7 @@ class USMMCM(XilinxClocking):
 
     def __init__(self, speedgrade=-1):
         self.logger = logging.getLogger("USMMCM")
-        self.logger.info("Creating UMMCM, {}.".format(colorer("speedgrade {}".format(speedgrade))))
+        self.logger.info("Creating USMMCM, {}.".format(colorer("speedgrade {}".format(speedgrade))))
         XilinxClocking.__init__(self)
         self.divclk_divide_range = (1, 106+1)
         self.clkin_freq_range = {
@@ -539,6 +550,93 @@ class USIDELAYCTRL(Module):
             AsyncResetSynchronizer(self.cd_ic, ic_reset)
         ]
 
+
+# Xilinx / Ultrascale Plus -------------------------------------------------------------------------
+
+# TODO:
+# - use Ultrascale Plus primitives instead of 7-Series' ones. (Vivado recognize and convert them).
+
+class USPPLL(XilinxClocking):
+    nclkouts_max = 6
+
+    def __init__(self, speedgrade=-1):
+        self.logger = logging.getLogger("USPPLL")
+        self.logger.info("Creating USPPLL, {}.".format(colorer("speedgrade {}".format(speedgrade))))
+        XilinxClocking.__init__(self)
+        self.divclk_divide_range = (1, 56+1)
+        self.clkin_freq_range = {
+            -1: (70e6,  800e6),
+            -2: (70e6,  933e6),
+            -3: (70e6, 1066e6),
+        }[speedgrade]
+        self.vco_freq_range = {
+            -1: (750e6, 1500e6),
+            -2: (750e6, 1500e6),
+            -3: (750e6, 1500e6),
+        }[speedgrade]
+
+    def do_finalize(self):
+        XilinxClocking.do_finalize(self)
+        config = self.compute_config()
+        pll_fb = Signal()
+        self.params.update(
+            p_STARTUP_WAIT="FALSE", o_LOCKED=self.locked, i_RST=self.reset,
+
+            # VCO
+            p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=1e9/self.clkin_freq,
+            p_CLKFBOUT_MULT=config["clkfbout_mult"], p_DIVCLK_DIVIDE=config["divclk_divide"],
+            i_CLKIN1=self.clkin, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
+        )
+        for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+            self.params["p_CLKOUT{}_DIVIDE".format(n)] = config["clkout{}_divide".format(n)]
+            self.params["p_CLKOUT{}_PHASE".format(n)]  = config["clkout{}_phase".format(n)]
+            self.params["o_CLKOUT{}".format(n)]        = clk
+        self.specials += Instance("PLLE2_ADV", **self.params)
+
+
+class USPMMCM(XilinxClocking):
+    nclkouts_max = 7
+
+    def __init__(self, speedgrade=-1):
+        self.logger = logging.getLogger("USPMMCM")
+        self.logger.info("Creating USPMMCM, {}.".format(colorer("speedgrade {}".format(speedgrade))))
+        XilinxClocking.__init__(self)
+        self.divclk_divide_range = (1, 106+1)
+        self.clkin_freq_range = {
+            -1: (10e6,  800e6),
+            -2: (10e6,  933e6),
+            -3: (10e6, 1066e6),
+        }[speedgrade]
+        self.vco_freq_range = {
+            -1: (800e6, 1600e6),
+            -2: (800e6, 1600e6),
+            -3: (800e6, 1600e6),
+        }[speedgrade]
+
+    def do_finalize(self):
+        XilinxClocking.do_finalize(self)
+        config = self.compute_config()
+        mmcm_fb = Signal()
+        self.params.update(
+            p_BANDWIDTH="OPTIMIZED", o_LOCKED=self.locked, i_RST=self.reset,
+
+            # VCO
+            p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=1e9/self.clkin_freq,
+            p_CLKFBOUT_MULT_F=config["clkfbout_mult"], p_DIVCLK_DIVIDE=config["divclk_divide"],
+            i_CLKIN1=self.clkin, i_CLKFBIN=mmcm_fb, o_CLKFBOUT=mmcm_fb,
+        )
+        for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+            if n == 0:
+                self.params["p_CLKOUT{}_DIVIDE_F".format(n)] = config["clkout{}_divide".format(n)]
+            else:
+                self.params["p_CLKOUT{}_DIVIDE".format(n)] = config["clkout{}_divide".format(n)]
+            self.params["p_CLKOUT{}_PHASE".format(n)] = config["clkout{}_phase".format(n)]
+            self.params["o_CLKOUT{}".format(n)]       = clk
+        self.specials += Instance("MMCME2_ADV", **self.params)
+
+
+class USPIDELAYCTRL(USIDELAYCTRL): pass
+
 # Lattice / iCE40 ----------------------------------------------------------------------------------
 
 # TODO:
@@ -580,13 +678,15 @@ class iCE40PLL(Module):
         self.clkin_freq = freq
         register_clkin_log(self.logger, clkin, freq)
 
-    def create_clkout(self, cd, freq, margin=1e-2):
+    def create_clkout(self, cd, freq, margin=1e-2, with_reset=True):
         (clko_freq_min, clko_freq_max) = self.clko_freq_range
         assert freq >= clko_freq_min
         assert freq <= clko_freq_max
         assert self.nclkouts < self.nclkouts_max
         clkout = Signal()
         self.clkouts[self.nclkouts] = (clkout, freq, 0, margin)
+        if with_reset:
+            self.specials += AsyncResetSynchronizer(cd, ~self.locked)
         self.comb += cd.clk.eq(clkout)
         create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
         self.nclkouts += 1
@@ -680,13 +780,15 @@ class ECP5PLL(Module):
         self.clkin_freq = freq
         register_clkin_log(self.logger, clkin, freq)
 
-    def create_clkout(self, cd, freq, phase=0, margin=1e-2):
+    def create_clkout(self, cd, freq, phase=0, margin=1e-2, with_reset=True):
         (clko_freq_min, clko_freq_max) = self.clko_freq_range
         assert freq >= clko_freq_min
         assert freq <= clko_freq_max
         assert self.nclkouts < self.nclkouts_max
         clkout = Signal()
         self.clkouts[self.nclkouts] = (clkout, freq, phase, margin)
+        if with_reset:
+            self.specials += AsyncResetSynchronizer(cd, ~self.locked)
         self.comb += cd.clk.eq(clkout)
         create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
         self.nclkouts += 1
@@ -737,13 +839,15 @@ class ECP5PLL(Module):
             p_FEEDBK_PATH   = "INT_OS3", # CLKOS3 reserved for feedback with div=1.
             p_CLKOS3_ENABLE = "ENABLED",
             p_CLKOS3_DIV    = 1,
+            p_CLKOS3_FPHASE = 0,
+            p_CLKOS3_CPHASE = 23,
             p_CLKFB_DIV     = config["clkfb_div"],
             p_CLKI_DIV      = config["clki_div"],
         )
         for n, (clk, f, p, m) in sorted(self.clkouts.items()):
             n_to_l = {0: "P", 1: "S", 2: "S2"}
             div    = config["clko{}_div".format(n)]
-            cphase = int(p*(div + 1)/360 + div)
+            cphase = int(p*(div + 1)/360 + div - 1)
             self.params["p_CLKO{}_ENABLE".format(n_to_l[n])] = "ENABLED"
             self.params["p_CLKO{}_DIV".format(n_to_l[n])]    = div
             self.params["p_CLKO{}_FPHASE".format(n_to_l[n])] = 0
@@ -861,7 +965,7 @@ class IntelClocking(Module, AutoCSR):
         clkout = Signal()
         self.clkouts[self.nclkouts] = (clkout, freq, phase, margin)
         if with_reset:
-            self.specials += AsyncResetSynchronizer(cd, ~self.locked | self.reset)
+            self.specials += AsyncResetSynchronizer(cd, ~self.locked)
         self.comb += cd.clk.eq(clkout)
         create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
         self.nclkouts += 1

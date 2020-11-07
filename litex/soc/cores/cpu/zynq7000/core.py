@@ -1,6 +1,9 @@
-# This file is Copyright (c) 2019-2020 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2020 Gwenhael Goavec-Merou <gwenhael.goavec-merou@trabucayre.com>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2019-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2020 Gwenhael Goavec-Merou <gwenhael.goavec-merou@trabucayre.com>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 
@@ -212,7 +215,7 @@ class Zynq7000(CPU):
         assert len(self.axi_hp_slaves) < 4
         n       = len(self.axi_hp_slaves)
         axi_hpn = axi.AXIInterface(data_width=64, address_width=32, id_width=6)
-        self.axi_hp_masters.append(axi_hpn)
+        self.axi_hp_slaves.append(axi_hpn)
         self.cpu_params.update({
             # AXI HP0 clk
             f"i_S_AXI_HP{n}_ACLK"    : ClockSignal("ps7"),

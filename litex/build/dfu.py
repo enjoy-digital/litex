@@ -1,5 +1,8 @@
-# This file is Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import subprocess
 
@@ -18,4 +21,4 @@ class DFUProg(GenericProgrammer):
     def load_bitstream(self, bitstream_file):
         subprocess.call(["cp", bitstream_file, bitstream_file + ".dfu"])
         subprocess.call(["dfu-suffix", "-v", self.vid, "-p", self.pid, "-a", bitstream_file + ".dfu"])
-        subprocess.call(["dfu-util", "--download", bitstream_file + ".dfu"])
+        subprocess.call(["dfu-util", "--download", bitstream_file + ".dfu", "-R"])

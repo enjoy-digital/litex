@@ -10,19 +10,19 @@
 #include "../helpers.h"
 
 /**
- * Command "mr"
+ * Command "mem_read"
  *
  * Memory read
  *
  */
-static void mr(int nb_params, char **params)
+static void mem_read_handler(int nb_params, char **params)
 {
 	char *c;
 	unsigned int *addr;
 	unsigned int length;
 
 	if (nb_params < 1) {
-		printf("mr <address> [length]");
+		printf("mem_read <address> [length]");
 		return;
 	}
 	addr = (unsigned int *)strtoul(params[0], &c, 0);
@@ -43,15 +43,15 @@ static void mr(int nb_params, char **params)
 	dump_bytes(addr, length, (unsigned long)addr);
 }
 
-define_command(mr, mr, "Read address space", MEM_CMDS);
+define_command(mem_read, mem_read_handler, "Read address space", MEM_CMDS);
 
 /**
- * Command "mw"
+ * Command "mem_write"
  *
  * Memory write
  *
  */
-static void mw(int nb_params, char **params)
+static void mem_write_handler(int nb_params, char **params)
 {
 	char *c;
 	unsigned int *addr;
@@ -60,7 +60,7 @@ static void mw(int nb_params, char **params)
 	unsigned int i;
 
 	if (nb_params < 2) {
-		printf("mw <address> <value> [count]");
+		printf("mem_write <address> <value> [count]");
 		return;
 	}
 
@@ -90,15 +90,15 @@ static void mw(int nb_params, char **params)
 		*addr++ = value;
 }
 
-define_command(mw, mw, "Write address space", MEM_CMDS);
+define_command(mem_write, mem_write_handler, "Write address space", MEM_CMDS);
 
 /**
- * Command "mc"
+ * Command "mem_copy"
  *
  * Memory copy
  *
  */
-static void mc(int nb_params, char **params)
+static void mem_copy_handler(int nb_params, char **params)
 {
 	char *c;
 	unsigned int *dstaddr;
@@ -107,7 +107,7 @@ static void mc(int nb_params, char **params)
 	unsigned int i;
 
 	if (nb_params < 2) {
-		printf("mc <dst> <src> [count]");
+		printf("mem_copy <dst> <src> [count]");
 		return;
 	}
 
@@ -137,22 +137,22 @@ static void mc(int nb_params, char **params)
 		*dstaddr++ = *srcaddr++;
 }
 
-define_command(mc, mc, "Copy address space", MEM_CMDS);
+define_command(mem_copy, mem_copy_handler, "Copy address space", MEM_CMDS);
 
 /**
- * Command "memtest"
+ * Command "mem_test"
  *
- * Run a memory test
+ * Memory Test
  *
  */
-static void memtest_handler(int nb_params, char **params)
+static void mem_test_handler(int nb_params, char **params)
 {
 	char *c;
 	unsigned int *addr;
 	unsigned long maxsize = ~0uL;
 
 	if (nb_params < 1) {
-		printf("memtest <addr> [<maxsize>]");
+		printf("mem_test <addr> [<maxsize>]");
 		return;
 	}
 
@@ -165,7 +165,7 @@ static void memtest_handler(int nb_params, char **params)
 	if (nb_params >= 2) {
 		maxsize = strtoul(params[1], &c, 0);
 		if (*c != 0) {
-			printf("Incorrect max size");
+			printf("Incorrect size");
 			return;
 		}
 
@@ -173,15 +173,15 @@ static void memtest_handler(int nb_params, char **params)
 
 	memtest(addr, maxsize);
 }
-define_command(memtest, memtest_handler, "Run a memory test", MEM_CMDS);
+define_command(mem_test, mem_test_handler, "Test memory access", MEM_CMDS);
 
 /**
- * Command "memspeed"
+ * Command "mem_speed"
  *
- * Run a memory speed test
+ * Memory Speed
  *
  */
-static void memspeed_handler(int nb_params, char **params)
+static void mem_speed_handler(int nb_params, char **params)
 {
 	char *c;
 	unsigned int *addr;
@@ -189,7 +189,7 @@ static void memspeed_handler(int nb_params, char **params)
 	bool read_only = false;
 
 	if (nb_params < 1) {
-		printf("memspeed <addr> <size> [<readonly>]");
+		printf("mem_speed <addr> <size> [<readonly>]");
 		return;
 	}
 
@@ -215,98 +215,4 @@ static void memspeed_handler(int nb_params, char **params)
 
 	memspeed(addr, size, read_only);
 }
-define_command(memspeed, memspeed_handler, "Run a memory speed test", MEM_CMDS);
-
-#ifdef CSR_DEBUG_PRINTER
-/**
- * Command "csrprint"
- *
- * Print CSR values
- *
- */
-static void csrprint(int nb_params, char **params)
-{
-    print_csrs();
-}
-define_command(csrprint, csrprint, "Print CSR values", MEM_CMDS);
-#endif
-
-
-#ifdef CSR_WB_SOFTCONTROL_BASE
-static void wbr(int nb_params, char **params)
-{
-	char *c;
-	unsigned int *addr;
-	unsigned int length;
-    unsigned int i;
-
-	if (nb_params < 1) {
-		printf("mr <address> [length]");
-		return;
-	}
-	addr = (unsigned int *)strtoul(params[0], &c, 0);
-	if (*c != 0) {
-		printf("Incorrect address");
-		return;
-	}
-	if (nb_params == 1) {
-		length = 4;
-	} else {
-		length = strtoul(params[1], &c, 0);
-		if(*c != 0) {
-			printf("\nIncorrect length");
-			return;
-		}
-	}
-
-    for (i = 0; i < length; ++i) {
-        wb_softcontrol_adr_write((unsigned long)(addr + i));
-        wb_softcontrol_read_write(1);
-        printf("0x%08x: 0x%08x\n", (unsigned long)(addr + i), wb_softcontrol_data_read());
-    }
-}
-define_command(wbr, wbr, "Read using softcontrol wishbone controller", MEM_CMDS);
-
-static void wbw(int nb_params, char **params)
-{
-	char *c;
-	unsigned int *addr;
-	unsigned int value;
-	unsigned int count;
-	unsigned int i;
-
-	if (nb_params < 2) {
-		printf("mw <address> <value> [count]");
-		return;
-	}
-
-	addr = (unsigned int *)strtoul(params[0], &c, 0);
-	if (*c != 0) {
-		printf("Incorrect address");
-		return;
-	}
-
-	value = strtoul(params[1], &c, 0);
-	if(*c != 0) {
-		printf("Incorrect value");
-		return;
-	}
-
-	if (nb_params == 2) {
-		count = 1;
-	} else {
-		count = strtoul(params[2], &c, 0);
-		if(*c != 0) {
-			printf("Incorrect count");
-			return;
-		}
-	}
-
-    wb_softcontrol_data_write(value);
-	for (i = 0; i < count; i++) {
-        wb_softcontrol_adr_write((unsigned long)(addr + i));
-        wb_softcontrol_write_write(1);
-    }
-}
-define_command(wbw, wbw, "Write using softcontrol wishbone controller", MEM_CMDS);
-#endif
+define_command(mem_speed, mem_speed_handler, "Test memory speed", MEM_CMDS);

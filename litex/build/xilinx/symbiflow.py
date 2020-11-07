@@ -1,6 +1,9 @@
-# This file is Copyright (c) 2020 Antmicro <www.antmicro.com>
-# This file is Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2020 Antmicro <www.antmicro.com>
+# Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 import subprocess
@@ -8,6 +11,7 @@ import sys
 import math
 from typing import NamedTuple, Union, List
 import re
+from shutil import which
 
 from migen.fhdl.structure import _Fragment, wrap, Constant
 from migen.fhdl.specials import Instance
@@ -91,8 +95,13 @@ class _MakefileGenerator:
 
 
 def _run_make():
-    if tools.subprocess_call_filtered("make", []) != 0:
-        raise OSError("Subprocess failed")
+    if which("symbiflow_synth") is None:
+        msg = "Unable to find Symbiflow toolchain, please:\n"
+        msg += "- Add Symbiflow toolchain to your $PATH."
+        raise OSError(msg)
+
+    if tools.subprocess_call_filtered(shell + [script], common.colors) != 0:
+        raise OSError("Error occured during Symbiflow's script execution.")
 
 # SymbiflowToolchain -------------------------------------------------------------------------------
 
@@ -120,6 +129,7 @@ class SymbiflowToolchain:
                 self.symbiflow_device = {
                     # FIXME: fine for now since only a few devices are supported, do more clever device re-mapping.
                     "xc7a35ticsg324-1L" : "xc7a50t_test",
+                    "xc7a100tcsg324-1" : "xc7a100t_test",
                 }[platform.device]
             except KeyError:
                 raise ValueError(f"symbiflow_device is not specified")
@@ -133,6 +143,7 @@ class SymbiflowToolchain:
         # FIXME: prjxray-db doesn't have xc7a35ticsg324-1L - use closest replacement
         self._partname = {
             "xc7a35ticsg324-1L" : "xc7a35tcsg324-1",
+            "xc7a100tcsg324-1" : "xc7a100tcsg324-1",
         }.get(platform.device, platform.device)
 
     def _generate_makefile(self, platform, build_name):

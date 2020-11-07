@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 
-# This file is Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 import argparse
@@ -25,25 +28,27 @@ from liteeth.phy.rmii import LiteEthPHYRMII
 
 class _CRG(Module):
     def __init__(self, platform, sys_clk_freq):
+        self.rst = Signal()
         self.clock_domains.cd_sys       = ClockDomain()
         self.clock_domains.cd_sys4x     = ClockDomain(reset_less=True)
         self.clock_domains.cd_sys4x_dqs = ClockDomain(reset_less=True)
-        self.clock_domains.cd_clk200    = ClockDomain()
+        self.clock_domains.cd_idelay    = ClockDomain()
         self.clock_domains.cd_clk100    = ClockDomain()
         self.clock_domains.cd_eth       = ClockDomain()
 
         # # #
 
         self.submodules.pll = pll = S7PLL(speedgrade=-1)
+        self.comb += pll.reset.eq(self.rst)
         pll.register_clkin(platform.request("clk50"), 50e6)
         pll.create_clkout(self.cd_sys,       sys_clk_freq)
         pll.create_clkout(self.cd_sys4x,     4*sys_clk_freq)
         pll.create_clkout(self.cd_sys4x_dqs, 4*sys_clk_freq, phase=90)
-        pll.create_clkout(self.cd_clk200,    200e6)
+        pll.create_clkout(self.cd_idelay,    200e6)
         pll.create_clkout(self.cd_clk100,    100e6)
         pll.create_clkout(self.cd_eth,       50e6)
 
-        self.submodules.idelayctrl = S7IDELAYCTRL(self.cd_clk200)
+        self.submodules.idelayctrl = S7IDELAYCTRL(self.cd_idelay)
 
 # BaseSoC ------------------------------------------------------------------------------------------
 

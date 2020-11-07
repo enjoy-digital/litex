@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
-# This file is Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2020 Antmicro <www.antmicro.com>
-# This file is Copyright (c) 2017 Pierre-Olivier Vauboin <po@lambdaconcept>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2020 Antmicro <www.antmicro.com>
+# Copyright (c) 2017 Pierre-Olivier Vauboin <po@lambdaconcept>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import argparse
 
@@ -96,8 +99,6 @@ def get_sdram_phy_settings(memtype, data_width, clk_freq):
         # Settings from gensdrphy
         rdphase       = 0
         wrphase       = 0
-        rdcmdphase    = 0
-        wrcmdphase    = 0
         cl            = 2
         cwl           = None
         read_latency  = 4
@@ -106,43 +107,35 @@ def get_sdram_phy_settings(memtype, data_width, clk_freq):
         # Settings from s6ddrphy
         rdphase       = 0
         wrphase       = 1
-        rdcmdphase    = 1
-        wrcmdphase    = 0
         cl            = 3
         cwl           = None
         read_latency  = 5
         write_latency = 0
     elif memtype in ["DDR2", "DDR3"]:
         # Settings from s7ddrphy
-        tck                 = 2/(2*nphases*clk_freq)
-        cmd_latency         = 0
-        cl, cwl             = get_cl_cw(memtype, tck)
-        cl_sys_latency      = get_sys_latency(nphases, cl)
-        cwl                 = cwl + cmd_latency
-        cwl_sys_latency     = get_sys_latency(nphases, cwl)
-        rdcmdphase, rdphase = get_sys_phases(nphases, cl_sys_latency, cl)
-        wrcmdphase, wrphase = get_sys_phases(nphases, cwl_sys_latency, cwl)
-        read_latency        = 2 + cl_sys_latency + 2 + 3
-        write_latency       = cwl_sys_latency
+        tck             = 2/(2*nphases*clk_freq)
+        cl, cwl         = get_cl_cw(memtype, tck)
+        cl_sys_latency  = get_sys_latency(nphases, cl)
+        cwl_sys_latency = get_sys_latency(nphases, cwl)
+        rdphase         = get_sys_phase(nphases, cl_sys_latency, cl)
+        wrphase         = get_sys_phase(nphases, cwl_sys_latency, cwl)
+        read_latency    = cl_sys_latency + 6
+        write_latency   = cwl_sys_latency - 1
     elif memtype == "DDR4":
         # Settings from usddrphy
-        tck                 = 2/(2*nphases*clk_freq)
-        cmd_latency         = 0
-        cl, cwl             = get_cl_cw(memtype, tck)
-        cl_sys_latency      = get_sys_latency(nphases, cl)
-        cwl                 = cwl + cmd_latency
-        cwl_sys_latency     = get_sys_latency(nphases, cwl)
-        rdcmdphase, rdphase = get_sys_phases(nphases, cl_sys_latency, cl)
-        wrcmdphase, wrphase = get_sys_phases(nphases, cwl_sys_latency, cwl)
-        read_latency        = 2 + cl_sys_latency + 1 + 3
-        write_latency       = cwl_sys_latency
+        tck             = 2/(2*nphases*clk_freq)
+        cl, cwl         = get_cl_cw(memtype, tck)
+        cl_sys_latency  = get_sys_latency(nphases, cl)
+        cwl_sys_latency = get_sys_latency(nphases, cwl)
+        rdphase         = get_sys_phase(nphases, cl_sys_latency, cl)
+        wrphase         = get_sys_phase(nphases, cwl_sys_latency, cwl)
+        read_latency    = cl_sys_latency + 5
+        write_latency   = cwl_sys_latency - 1
 
     sdram_phy_settings = {
         "nphases":       nphases,
         "rdphase":       rdphase,
         "wrphase":       wrphase,
-        "rdcmdphase":    rdcmdphase,
-        "wrcmdphase":    wrcmdphase,
         "cl":            cl,
         "cwl":           cwl,
         "read_latency":  read_latency,
@@ -179,6 +172,8 @@ class SimSoC(SoCCore):
         sdram_verbosity       = 0,
         with_i2c              = False,
         with_sdcard           = False,
+        sim_debug             = False,
+        trace_reset_on        = False,
         **kwargs):
         platform     = Platform()
         sys_clk_freq = int(1e6)
@@ -286,6 +281,7 @@ class SimSoC(SoCCore):
         # Analyzer ---------------------------------------------------------------------------------
         if with_analyzer:
             analyzer_signals = [
+                # IBus (could also just added as self.cpu.ibus)
                 self.cpu.ibus.stb,
                 self.cpu.ibus.cyc,
                 self.cpu.ibus.adr,
@@ -294,6 +290,15 @@ class SimSoC(SoCCore):
                 self.cpu.ibus.sel,
                 self.cpu.ibus.dat_w,
                 self.cpu.ibus.dat_r,
+                # DBus (could also just added as self.cpu.dbus)
+                self.cpu.dbus.stb,
+                self.cpu.dbus.cyc,
+                self.cpu.dbus.adr,
+                self.cpu.dbus.we,
+                self.cpu.dbus.ack,
+                self.cpu.dbus.sel,
+                self.cpu.dbus.dat_w,
+                self.cpu.dbus.dat_r,
             ]
             self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals,
                 depth        = 512,
@@ -311,10 +316,15 @@ class SimSoC(SoCCore):
         if with_sdcard:
             self.add_sdcard("sdcard", use_emulator=True)
 
+        # Simulation debugging ----------------------------------------------------------------------
+        if sim_debug:
+            platform.add_debug(self, reset=1 if trace_reset_on else 0)
+        else:
+            self.comb += platform.trace.eq(1)
+
 # Build --------------------------------------------------------------------------------------------
 
-def main():
-    parser = argparse.ArgumentParser(description="Generic LiteX SoC Simulation")
+def sim_args(parser):
     builder_args(parser)
     soc_sdram_args(parser)
     parser.add_argument("--threads",              default=1,               help="Set number of threads (default=1)")
@@ -335,9 +345,14 @@ def main():
     parser.add_argument("--with-sdcard",          action="store_true",     help="Enable SDCard support")
     parser.add_argument("--trace",                action="store_true",     help="Enable Tracing")
     parser.add_argument("--trace-fst",            action="store_true",     help="Enable FST tracing (default=VCD)")
-    parser.add_argument("--trace-start",          default=0,               help="Cycle to start tracing")
-    parser.add_argument("--trace-end",            default=-1,              help="Cycle to end tracing")
+    parser.add_argument("--trace-start",          default="0",             help="Time to start tracing (ps)")
+    parser.add_argument("--trace-end",            default="-1",            help="Time to end tracing (ps)")
     parser.add_argument("--opt-level",            default="O3",            help="Compilation optimization level")
+    parser.add_argument("--sim-debug",            action="store_true",     help="Add simulation debugging modules")
+
+def main():
+    parser = argparse.ArgumentParser(description="Generic LiteX SoC Simulation")
+    sim_args(parser)
     args = parser.parse_args()
 
     soc_kwargs     = soc_sdram_argdict(args)
@@ -374,6 +389,9 @@ def main():
     if args.with_i2c:
         sim_config.add_module("spdeeprom", "i2c")
 
+    trace_start = int(float(args.trace_start))
+    trace_end = int(float(args.trace_end))
+
     # SoC ------------------------------------------------------------------------------------------
     soc = SimSoC(
         with_sdram     = args.with_sdram,
@@ -382,6 +400,8 @@ def main():
         with_analyzer  = args.with_analyzer,
         with_i2c       = args.with_i2c,
         with_sdcard    = args.with_sdcard,
+        sim_debug      = args.sim_debug,
+        trace_reset_on = trace_start > 0 or trace_end > 0,
         sdram_init     = [] if args.sdram_init is None else get_mem_data(args.sdram_init, cpu.endianness),
         **soc_kwargs)
     if args.ram_init is not None:
@@ -395,21 +415,22 @@ def main():
     # Build/Run ------------------------------------------------------------------------------------
     builder_kwargs["csr_csv"] = "csr.csv"
     builder = Builder(soc, **builder_kwargs)
-    vns = builder.build(run=False, threads=args.threads, sim_config=sim_config,
-        opt_level   = args.opt_level,
-        trace       = args.trace,
-        trace_fst   = args.trace_fst,
-        trace_start = int(args.trace_start),
-        trace_end   = int(args.trace_end))
-    if args.with_analyzer:
-        soc.analyzer.export_csv(vns, "analyzer.csv")
-    builder.build(build=False, threads=args.threads, sim_config=sim_config,
-        opt_level   = args.opt_level,
-        trace       = args.trace,
-        trace_fst   = args.trace,
-        trace_start = int(args.trace_start),
-        trace_end   = int(args.trace_end)
-    )
+    for i in range(2):
+        build = (i == 0)
+        run   = (i == 1)
+        vns = builder.build(
+            build       = build,
+            run         = run,
+            threads     = args.threads,
+            sim_config  = sim_config,
+            opt_level   = args.opt_level,
+            trace       = args.trace,
+            trace_fst   = args.trace_fst,
+            trace_start = trace_start,
+            trace_end   = trace_end
+        )
+        if args.with_analyzer:
+            soc.analyzer.export_csv(vns, "analyzer.csv")
 
 if __name__ == "__main__":
     main()

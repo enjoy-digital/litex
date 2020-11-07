@@ -1,3 +1,6 @@
+#
+# This file is part of LiteX.
+#
 # This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
 # This file is Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2018 Dolu1990 <charles.papon.90@gmail.com>
@@ -11,7 +14,7 @@
 # This file is Copyright (c) 2015 whitequark <whitequark@whitequark.org>
 # This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
 # This file is Copyright (c) 2020 Piotr Esden-Tempski <piotr@esden.net>
-# License: BSD
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 import json
@@ -344,9 +347,9 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
         interrupts[csr] = irq
 
     documented_regions = []
-    for name, region in soc.csr.regions.items():
+    for region_name, region in soc.csr.regions.items():
         documented_regions.append(DocumentedCSRRegion(
-            name           = name,
+            name           = region_name,
             region         = region,
             csr_data_width = soc.csr.data_width)
         )
@@ -425,6 +428,17 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
             svd.append('            </interrupt>')
         svd.append('        </peripheral>')
     svd.append('    </peripherals>')
+    if len(soc.mem_regions) > 0:
+        svd.append('    <vendorExtensions>')
+        svd.append('        <memoryRegions>')
+        for region_name, region in soc.mem_regions.items():
+            svd.append('            <memoryRegion>')
+            svd.append('                <name>{}</name>'.format(region_name.upper()))
+            svd.append('                <baseAddress>0x{:08X}</baseAddress>'.format(region.origin))
+            svd.append('                <size>0x{:08X}</size>'.format(region.size))
+            svd.append('            </memoryRegion>')
+        svd.append('        </memoryRegions>')
+        svd.append('    </vendorExtensions>')
     svd.append('</device>')
     return "\n".join(svd)
 

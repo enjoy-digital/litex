@@ -1,5 +1,8 @@
-# This file is Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 from litex.build.generic_platform import *
 from litex.build.lattice import LatticePlatform
@@ -7,10 +10,12 @@ from litex.build.lattice.programmer import UJProg
 
 # IOs ----------------------------------------------------------------------------------------------
 
-_io = [
+_io_common = [
+    # Clk / Rst
     ("clk25", 0, Pins("G2"), IOStandard("LVCMOS33")),
     ("rst",   0, Pins("R1"), IOStandard("LVCMOS33")),
 
+    # Leds
     ("user_led", 0, Pins("B2"), IOStandard("LVCMOS33")),
     ("user_led", 1, Pins("C2"), IOStandard("LVCMOS33")),
     ("user_led", 2, Pins("C1"), IOStandard("LVCMOS33")),
@@ -20,34 +25,14 @@ _io = [
     ("user_led", 6, Pins("E1"), IOStandard("LVCMOS33")),
     ("user_led", 7, Pins("H3"), IOStandard("LVCMOS33")),
 
+    # Serial
     ("serial", 0,
         Subsignal("tx", Pins("L4"), IOStandard("LVCMOS33")),
         Subsignal("rx", Pins("M1"), IOStandard("LVCMOS33"))
     ),
 
-    ("spisdcard", 0,
-        Subsignal("clk",  Pins("J1")),
-        Subsignal("mosi", Pins("J3"), Misc("PULLMODE=UP")),
-        Subsignal("cs_n", Pins("H1"), Misc("PULLMODE=UP")),
-        Subsignal("miso", Pins("K2"), Misc("PULLMODE=UP")),
-        Misc("SLEWRATE=FAST"),
-        IOStandard("LVCMOS33"),
-    ),
-
-    ("sdcard", 0,
-        Subsignal("clk",  Pins("J1")),
-        Subsignal("cmd",  Pins("J3"), Misc("PULLMODE=UP")),
-        Subsignal("data", Pins("K2 K1 H2 H1"), Misc("PULLMODE=UP")),
-        Misc("SLEWRATE=FAST"),
-        IOStandard("LVCMOS33"),
-    ),
-
-    ("sdram_clock", 0, Pins("F19"),
-        Misc("PULLMODE=NONE"),
-        Misc("DRIVE=4"),
-        Misc("SLEWRATE=FAST"),
-        IOStandard("LVCMOS33")
-    ),
+    # SDR SDRAM
+    ("sdram_clock", 0, Pins("F19"), IOStandard("LVCMOS33")),
     ("sdram", 0,
         Subsignal("a",     Pins(
             "M20 M19 L20 L19 K20 K19 K18 J20",
@@ -62,17 +47,11 @@ _io = [
         Subsignal("cke",   Pins("F20")),
         Subsignal("ba",    Pins("P19 N20")),
         Subsignal("dm",    Pins("U19 E20")),
-        Misc("PULLMODE=NONE"),
-        Misc("DRIVE=4"),
-        Misc("SLEWRATE=FAST"),
         IOStandard("LVCMOS33"),
+        Misc("SLEWRATE=FAST"),
     ),
 
-    ("wifi_gpio0", 0, Pins("L2"), IOStandard("LVCMOS33")),
-
-    ("ext0p", 0, Pins("B11"), IOStandard("LVCMOS33")),
-    ("ext1p", 0, Pins("A10"), IOStandard("LVCMOS33")),
-
+    # GPIOs
     ("gpio", 0,
         Subsignal("p", Pins("B11")),
         Subsignal("n", Pins("C11")),
@@ -94,11 +73,70 @@ _io = [
         IOStandard("LVCMOS33")
     ),
 
+    # USB
     ("usb", 0,
         Subsignal("d_p", Pins("D15")),
         Subsignal("d_n", Pins("E15")),
         Subsignal("pullup", Pins("B12 C12")),
         IOStandard("LVCMOS33")
+    ),
+
+    # OLED
+    ("oled_spi", 0,
+        Subsignal("clk",  Pins("P4")),
+        Subsignal("mosi", Pins("P3")),
+        IOStandard("LVCMOS33"),
+    ),
+    ("oled_ctl", 0,
+        Subsignal("dc",   Pins("P1")),
+        Subsignal("resn", Pins("P2")),
+        Subsignal("csn",  Pins("N2")),
+        IOStandard("LVCMOS33"),
+    ),
+
+    # Others
+    ("wifi_gpio0", 0, Pins("L2"), IOStandard("LVCMOS33")),
+    ("ext0p", 0, Pins("B11"), IOStandard("LVCMOS33")),
+    ("ext1p", 0, Pins("A10"), IOStandard("LVCMOS33")),
+]
+
+_io_1_7 = [
+    # SDCard
+    ("spisdcard", 0,
+        Subsignal("clk",  Pins("J1")),
+        Subsignal("mosi", Pins("J3"), Misc("PULLMODE=UP")),
+        Subsignal("cs_n", Pins("H1"), Misc("PULLMODE=UP")),
+        Subsignal("miso", Pins("K2"), Misc("PULLMODE=UP")),
+        Misc("SLEWRATE=FAST"),
+        IOStandard("LVCMOS33"),
+    ),
+    ("sdcard", 0,
+        Subsignal("clk",  Pins("J1")),
+        Subsignal("cmd",  Pins("J3"), Misc("PULLMODE=UP")),
+        Subsignal("data", Pins("K2 K1 H2 H1"), Misc("PULLMODE=UP")),
+        Misc("SLEWRATE=FAST"),
+        IOStandard("LVCMOS33"),
+    ),
+]
+
+_io_2_0 = [
+    # SDCard
+    ("spisdcard", 0,
+        Subsignal("clk",  Pins("H2")),
+        Subsignal("mosi", Pins("J1"), Misc("PULLMODE=UP")),
+        Subsignal("cs_n", Pins("K2"), Misc("PULLMODE=UP")),
+        Subsignal("miso", Pins("J3"), Misc("PULLMODE=UP")),
+        Misc("SLEWRATE=FAST"),
+        IOStandard("LVCMOS33"),
+    ),
+    ("sdcard", 0,
+        Subsignal("clk",  Pins("H2")),
+        Subsignal("cmd",  Pins("J1"), Misc("PULLMODE=UP")),
+        Subsignal("data", Pins("J3 H1 K1 K2"), Misc("PULLMODE=UP")),
+        Subsignal("cd", Pins("N5")),
+        Subsignal("wp", Pins("P5")),
+        Misc("SLEWRATE=FAST"),
+        IOStandard("LVCMOS33"),
     ),
 ]
 
@@ -108,8 +146,10 @@ class Platform(LatticePlatform):
     default_clk_name   = "clk25"
     default_clk_period = 1e9/25e6
 
-    def __init__(self, device="LFE5U-45F", **kwargs):
-        assert device in ["LFE5U-25F", "LFE5U-45F", "LFE5U-85F"]
+    def __init__(self, device="LFE5U-45F", revision="2.0", **kwargs):
+        assert device in ["LFE5U-12F", "LFE5U-25F", "LFE5U-45F", "LFE5U-85F"]
+        assert revision in ["1.7", "2.0"]
+        _io = _io_common + {"1.7": _io_1_7, "2.0": _io_2_0}[revision]
         LatticePlatform.__init__(self, device + "-6BG381C", _io, **kwargs)
 
     def create_programmer(self):

@@ -1,7 +1,10 @@
-# This file is Copyright (c) 2015-2017 Robert Jordens <jordens@gmail.com>
-# This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015-2017 Robert Jordens <jordens@gmail.com>
+# Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
+# Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import subprocess
 

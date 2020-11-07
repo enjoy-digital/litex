@@ -1,6 +1,9 @@
-# This file is Copyright (c) 2017 Sergiusz Bazanski <q3k@q3k.org>
-# This file is Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2017 Sergiusz Bazanski <q3k@q3k.org>
+# Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 from litex.build.generic_platform import *
 from litex.build.lattice import LatticePlatform
@@ -9,9 +12,11 @@ from litex.build.lattice.programmer import OpenOCDJTAGProgrammer
 # IOs ----------------------------------------------------------------------------------------------
 
 _io = [
+    # Clk / Rst
     ("clk100", 0, Pins("P3"), IOStandard("LVDS")),
     ("rst_n",  0, Pins("T1"), IOStandard("LVCMOS33")),
 
+    # Leds
     ("user_led", 0, Pins("E16"), IOStandard("LVCMOS25")),
     ("user_led", 1, Pins("D17"), IOStandard("LVCMOS25")),
     ("user_led", 2, Pins("D18"), IOStandard("LVCMOS25")),
@@ -21,6 +26,7 @@ _io = [
     ("user_led", 6, Pins("E17"), IOStandard("LVCMOS25")),
     ("user_led", 7, Pins("F16"), IOStandard("LVCMOS25")),
 
+    # Switches
     ("user_dip_btn", 0, Pins("H2"),  IOStandard("LVCMOS15")),
     ("user_dip_btn", 1, Pins("K3"),  IOStandard("LVCMOS15")),
     ("user_dip_btn", 2, Pins("G3"),  IOStandard("LVCMOS15")),
@@ -30,11 +36,13 @@ _io = [
     ("user_dip_btn", 6, Pins("K19"), IOStandard("LVCMOS25")),
     ("user_dip_btn", 7, Pins("K20"), IOStandard("LVCMOS25")),
 
+    # Serial
     ("serial", 0,
         Subsignal("rx", Pins("C11"), IOStandard("LVCMOS33")),
         Subsignal("tx", Pins("A11"), IOStandard("LVCMOS33")),
     ),
 
+    # SPIFlash
     ("spiflash", 0, # clock needs to be accessed through USRMCLK
         Subsignal("cs_n", Pins("R2")),
         Subsignal("mosi", Pins("W2")),
@@ -43,13 +51,14 @@ _io = [
         Subsignal("hold", Pins("W1")),
         IOStandard("LVCMOS33"),
     ),
-
     ("spiflash4x", 0, # clock needs to be accessed through USRMCLK
         Subsignal("cs_n", Pins("R2")),
         Subsignal("dq",   Pins("W2 V2 Y2 W1")),
         IOStandard("LVCMOS33")
     ),
 
+
+    # DDR3 SDRAM
     ("ddram", 0,
         Subsignal("a", Pins(
             "P2 C4 E5 F5 B3 F4 B5 E4",
@@ -76,6 +85,7 @@ _io = [
         Misc("SLEWRATE=FAST"),
     ),
 
+    # RGMII Ethernet
     ("eth_clocks", 0,
         Subsignal("tx", Pins("P19")),
         Subsignal("rx", Pins("L20")),
@@ -91,7 +101,6 @@ _io = [
         Subsignal("tx_data", Pins("N19 N20 P18 P20")),
         IOStandard("LVCMOS25")
     ),
-
     ("eth_clocks", 1,
         Subsignal("tx", Pins("C20")),
         Subsignal("rx", Pins("J19")),
@@ -108,12 +117,7 @@ _io = [
         IOStandard("LVCMOS25")
     ),
 
-    ("ext_clk", 0,
-        Subsignal("p", Pins("A4")),
-        Subsignal("n", Pins("A5")),
-        IOStandard("LVDS")
-    ),
-
+    # PCIe
     ("pcie_x1", 0,
         Subsignal("clk_p", Pins("Y11")),
         Subsignal("clk_n", Pins("Y12")),
@@ -124,6 +128,14 @@ _io = [
         Subsignal("perst", Pins("A6"), IOStandard("LVCMOS33")),
     ),
 
+    # External Clock
+    ("ext_clk", 0,
+        Subsignal("p", Pins("A4")),
+        Subsignal("n", Pins("A5")),
+        IOStandard("LVDS")
+    ),
+
+    # Ref Clock
     ("refclk_en",    0, Pins("C12"), IOStandard("LVCMOS33")),
     ("refclk_rst_n", 0, Pins("R1"),  IOStandard("LVCMOS33")),
     ("refclk", 0,
@@ -135,6 +147,7 @@ _io = [
         Subsignal("n", Pins("W20")),
     ),
 
+    # SMA
     ("sma_tx", 0,
         Subsignal("p", Pins("W8")),
         Subsignal("n", Pins("W9")),
@@ -145,6 +158,7 @@ _io = [
     ),
 ]
 
+# ECP5-hat extension (https://github.com/daveshah1/ecp5-hat) ---------------------------------------
 
 _ecp5_soc_hat_io = [
     ("sdram_clock", 0, Pins("E14"), IOStandard("LVCMOS33")),

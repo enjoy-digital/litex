@@ -11,31 +11,83 @@
 #include "../helpers.h"
 
 /**
- * Command "sdinit"
+ * Command "sdcard_detect"
+ *
+ * Detect SDcard
+ *
+ */
+#ifdef CSR_SDPHY_BASE
+static void sdcard_detect_handler(int nb_params, char **params)
+{
+	uint8_t cd = sdphy_card_detect_read();
+	printf("SDCard %sinserted.\n", cd ? "not " : "");
+}
+
+define_command(sdcard_detect, sdcard_detect_handler, "Detect SDCard", LITESDCARD_CMDS);
+#endif
+
+/**
+ * Command "sdcard_init"
  *
  * Initialize SDcard
  *
  */
 #ifdef CSR_SDCORE_BASE
-define_command(sdinit, sdcard_init, "Initialize SDCard", LITESDCARD_CMDS);
+static void sdcard_init_handler(int nb_params, char **params)
+{
+	printf("Initialize SDCard... ");
+	if (sdcard_init())
+		printf("Successful.\n");
+	else
+		printf("Failed.\n");
+}
+
+define_command(sdcard_init, sdcard_init_handler, "Initialize SDCard", LITESDCARD_CMDS);
 #endif
 
+/**
+ * Command "sdcard_freq"
+ *
+ * Set SDcard clock frequency
+ *
+ */
+#ifdef CSR_SDCORE_BASE
+static void sdcard_freq_handler(int nb_params, char **params)
+{
+	unsigned int freq;
+	char *c;
+
+	if (nb_params < 1) {
+		printf("sdcard_freq <freq>");
+		return;
+	}
+
+	freq = strtoul(params[0], &c, 0);
+	if (*c != 0) {
+		printf("Incorrect freq");
+		return;
+	}
+	sdcard_set_clk_freq(freq, 1);
+}
+
+define_command(sdcard_freq, sdcard_freq_handler, "Set SDCard clock freq", LITESDCARD_CMDS);
+#endif
 
 /**
- * Command "sdread"
+ * Command "sdcard_read"
  *
  * Perform SDcard block read
  *
  */
 #ifdef CSR_SDBLOCK2MEM_BASE
-static void sdread(int nb_params, char **params)
+static void sdcard_read_handler(int nb_params, char **params)
 {
 	unsigned int block;
 	char *c;
 	uint8_t buf[512];
 
 	if (nb_params < 1) {
-		printf("sdread <block>");
+		printf("sdcard_read <block>");
 		return;
 	}
 
@@ -45,11 +97,11 @@ static void sdread(int nb_params, char **params)
 		return;
 	}
 
-	sdcard_read(block*512, 1, buf);
+	sdcard_read(block, 1, buf);
 	dump_bytes((uint32_t *)buf, 512, (unsigned long) buf);
 }
 
-define_command(sdread, sdread, "Read SDCard block", LITESDCARD_CMDS);
+define_command(sdcard_read, sdcard_read_handler, "Read SDCard block", LITESDCARD_CMDS);
 #endif
 
 /**
@@ -59,7 +111,7 @@ define_command(sdread, sdread, "Read SDCard block", LITESDCARD_CMDS);
  *
  */
 #ifdef CSR_SDMEM2BLOCK_BASE
-static void sdwrite(int nb_params, char **params)
+static void sdcard_write_handler(int nb_params, char **params)
 {
 	int i;
 	uint8_t buf[512];
@@ -67,7 +119,7 @@ static void sdwrite(int nb_params, char **params)
 	char *c;
 
 	if (nb_params < 2) {
-		printf("sdwrite <block> <str>");
+		printf("sdcard_write <block> <str>");
 		return;
 	}
 
@@ -87,8 +139,8 @@ static void sdwrite(int nb_params, char **params)
 		}
 	}
 	dump_bytes((uint32_t *)buf, 512, (unsigned long) buf);
-	sdcard_write(block*512, 1, buf);
+	sdcard_write(block, 1, buf);
 }
 
-define_command(sdwrite, sdwrite, "Write SDCard block", LITESDCARD_CMDS);
+define_command(sdcard_write, sdcard_write_handler, "Write SDCard block", LITESDCARD_CMDS);
 #endif

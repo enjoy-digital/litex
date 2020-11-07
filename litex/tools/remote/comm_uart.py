@@ -1,15 +1,18 @@
-# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import serial
 import struct
 
+CMD_WRITE_BURST_INCR  = 0x01
+CMD_READ_BURST_INCR   = 0x02
+CMD_WRITE_BURST_FIXED = 0x03
+CMD_READ_BURST_FIXED  = 0x04
 
 class CommUART:
-    msg_type = {
-        "write": 0x01,
-        "read":  0x02
-    }
     def __init__(self, port, baudrate=115200, debug=False):
         self.port = port
         self.baudrate = str(baudrate)
@@ -45,11 +48,15 @@ class CommUART:
         if self.port.inWaiting() > 0:
             self.port.read(self.port.inWaiting())
 
-    def read(self, addr, length=None):
+    def read(self, addr, length=None, burst="incr"):
         self._flush()
         data = []
         length_int = 1 if length is None else length
-        self._write([self.msg_type["read"], length_int])
+        cmd = {
+            "incr" : CMD_READ_BURST_INCR,
+            "fixed": CMD_READ_BURST_FIXED,
+        }[burst]
+        self._write([cmd, length_int])
         self._write(list((addr//4).to_bytes(4, byteorder="big")))
         for i in range(length_int):
             value = int.from_bytes(self._read(4), "big")
@@ -60,15 +67,19 @@ class CommUART:
             data.append(value)
         return data
 
-    def write(self, addr, data):
+    def write(self, addr, data, burst="incr"):
         self._flush()
         data = data if isinstance(data, list) else [data]
         length = len(data)
         offset = 0
         while length:
             size = min(length, 8)
-            self._write([self.msg_type["write"], size])
-            self._write(list(((addr+offset)//4).to_bytes(4, byteorder="big")))
+            cmd = {
+                "incr" : CMD_WRITE_BURST_INCR,
+                "fixed": CMD_WRITE_BURST_FIXED,
+            }[burst]
+            self._write([cmd, size])
+            self._write(list(((addr//4 + offset).to_bytes(4, byteorder="big"))))
             for i, value in enumerate(data[offset:offset+size]):
                 self._write(list(value.to_bytes(4, byteorder="big")))
                 if self.debug:

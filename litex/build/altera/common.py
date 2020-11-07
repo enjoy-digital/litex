@@ -1,6 +1,9 @@
-# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2019 vytautasb <v.buitvydas@limemicro.com>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2019 vytautasb <v.buitvydas@limemicro.com>
+# SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
 from migen.fhdl.module import Module

@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
-# This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2014 Yann Sionneau <ys@m-labs.hk>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
+# Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2014 Yann Sionneau <ys@m-labs.hk>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 import argparse
@@ -29,6 +32,7 @@ from litedram.phy import GENSDRPHY, HalfRateGENSDRPHY
 
 class _CRG(Module):
     def __init__(self, platform, sys_clk_freq, sdram_rate="1:1"):
+        self.rst = Signal()
         self.clock_domains.cd_sys    = ClockDomain()
         if sdram_rate == "1:2":
             self.clock_domains.cd_sys2x    = ClockDomain()
@@ -43,6 +47,7 @@ class _CRG(Module):
 
         # PLL
         self.submodules.pll = pll = S6PLL(speedgrade=-1)
+        self.comb += pll.reset.eq(self.rst)
         pll.register_clkin(clk32, 32e6)
         pll.create_clkout(self.cd_sys, sys_clk_freq)
         if sdram_rate == "1:2":

@@ -1,5 +1,8 @@
-# This file is Copyright (c) 2020 Sean Cross <sean@xobs.io>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2020 Sean Cross <sean@xobs.io>
+# SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
 from migen.util.misc import xdir
@@ -60,7 +63,7 @@ class DocumentedCSR:
             f.description = self.trim(f.description)
 
 class DocumentedCSRRegion:
-    def __init__(self, name, region, module=None, submodules=[], csr_data_width=8):
+    def __init__(self, name, region, module=None, submodules=[], csr_data_width=32):
         self.name            = name
         self.origin          = region.origin
         self.busword         = region.busword

@@ -45,6 +45,7 @@
 #include <liblitespi/spiflash.h>
 
 #include <liblitesdcard/sdcard.h>
+#include <liblitesata/sata.h>
 
 static void boot_sequence(void)
 {
@@ -57,6 +58,9 @@ static void boot_sequence(void)
 #endif
 #if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCORE_BASE)
 		sdcardboot();
+#endif
+#if defined(CSR_SATA_SECTOR2MEM_BASE)
+		sataboot();
 #endif
 #ifdef CSR_ETHMAC_BASE
 #ifdef CSR_ETHPHY_MODE_DETECTION_MODE_ADDR
@@ -116,10 +120,15 @@ int main(int i, char **c)
 #endif
 #ifdef MAIN_RAM_SIZE
 #ifdef CSR_SDRAM_BASE
-	printf("\e[1mSDRAM\e[0m:\t\t%dKiB %d-bit @ %dMbps/pin\n",
+	printf("\e[1mSDRAM\e[0m:\t\t%dKiB %d-bit @ %dMT/s ",
 		MAIN_RAM_SIZE/1024,
-		sdrdatabits(),
-		sdrfreq()/1000000);
+		sdram_get_databits(),
+		sdram_get_freq()/1000000);
+	printf("(CL-%d",
+		sdram_get_cl());
+	if (sdram_get_cwl() != -1)
+		printf(" CWL-%d", sdram_get_cwl());
+	printf(")\n");
 #else
 	printf("\e[1mMAIN-RAM\e[0m:\t%dKiB \n", MAIN_RAM_SIZE/1024);
 #endif
@@ -134,7 +143,7 @@ int main(int i, char **c)
 	eth_init();
 #endif
 #ifdef CSR_SDRAM_BASE
-	sdr_ok = sdrinit();
+	sdr_ok = sdram_init();
 #else
 #ifdef MAIN_RAM_TEST
 	sdr_ok = memtest();

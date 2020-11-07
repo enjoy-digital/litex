@@ -1,7 +1,10 @@
-# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2017-2018 Sergiusz Bazanski <q3k@q3k.org>
-# This file is Copyright (c) 2017 William D. Jones <thor0505@comcast.net>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2018 Sergiusz Bazanski <q3k@q3k.org>
+# Copyright (c) 2017 William D. Jones <thor0505@comcast.net>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 import re
@@ -9,6 +12,7 @@ import sys
 import math
 import subprocess
 import shutil
+from shutil import which
 
 from migen.fhdl.structure import _Fragment
 
@@ -144,8 +148,13 @@ def _run_script(script):
     else:
         shell = ["bash"]
 
+    if which("diamondc") is None:
+        msg = "Unable to find Diamond toolchain, please:\n"
+        msg += "- Add Diamond toolchain to your $PATH.\n"
+        raise OSError(msg)
+
     if subprocess.call(shell + [script]) != 0:
-        raise OSError("Subprocess failed")
+        raise OSError("Error occured during Diamond's script execution.")
 
 def _check_timing(build_name):
     lines = open("impl/{}_impl.par".format(build_name), "r").readlines()

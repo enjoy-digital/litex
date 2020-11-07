@@ -1,16 +1,19 @@
-# This file is Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2014-2015 Robert Jordens <jordens@gmail.com>
-# This file is Copyright (c) 2014-2015 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2017 bunnie <bunnie@kosagi.com>
-# This file is Copyright (c) 2018-2017 Tim 'mithro' Ansell <me@mith.ro>
-# This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
-# This file is Copyright (c) 2019 Larry Doolittle <ldoolitt@recycle.lbl.gov>
-
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2014-2015 Robert Jordens <jordens@gmail.com>
+# Copyright (c) 2014-2015 Sebastien Bourdeauducq <sb@m-labs.hk>
+# Copyright (c) 2017 bunnie <bunnie@kosagi.com>
+# Copyright (c) 2018-2017 Tim 'mithro' Ansell <me@mith.ro>
+# Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
+# Copyright (c) 2019 Larry Doolittle <ldoolitt@recycle.lbl.gov>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 import subprocess
 import sys
+from shutil import which
 
 from migen.fhdl.structure import _Fragment
 
@@ -157,9 +160,16 @@ bitgen {bitgen_opt} {build_name}.ncd {build_name}.bit{fail_stmt}
     build_script_file = "build_" + build_name + script_ext
     tools.write_to_file(build_script_file, build_script_contents, force_unix=False)
     command = shell + [build_script_file]
-    r = tools.subprocess_call_filtered(command, common.colors)
-    if r != 0:
-        raise OSError("Subprocess failed")
+
+    if which("ise") is None:
+        msg = "Unable to find or source ISE toolchain, please either:\n"
+        msg += "- Source ISE's settings manually.\n"
+        msg += "- Or set LITEX_ISE_VIVADO environment variant to ISE's settings path.\n"
+        msg += "- Or add ISE toolchain to your $PATH."
+        raise OSError(msg)
+
+    if tools.subprocess_call_filtered(command, common.colors) != 0:
+        raise OSError("Error occured during ISE's script execution.")
 
 # XilinxISEToolchain --------------------------------------------------------------------------------
 

@@ -12,30 +12,30 @@
 
 
 /**
- * Command "i2creset"
+ * Command "i2c_reset"
  *
  * Reset I2C line state in case a slave locks the line.
  *
  */
 #ifdef CSR_I2C_BASE
-define_command(i2creset, i2c_reset, "Reset I2C line state", I2C_CMDS);
+define_command(i2c_reset, i2c_reset, "Reset I2C line state", I2C_CMDS);
 #endif
 
 /**
- * Command "i2cwr"
+ * Command "i2c_write"
  *
  * Write I2C slave memory using 7-bit slave address and 8-bit memory address.
  *
  */
 #ifdef CSR_I2C_BASE
-static void i2cwr_handler(int nb_params, char **params)
+static void i2c_write_handler(int nb_params, char **params)
 {
 	int i;
 	char *c;
 	unsigned char write_params[32];  // also indirectly limited by CMD_LINE_BUFFER_SIZE
 
 	if (nb_params < 2) {
-		printf("i2cwr <slaveaddr7bit> <addr> [<data>, ...]");
+		printf("i2c_write <slaveaddr7bit> <addr> [<data>, ...]");
 		return;
 	}
 
@@ -57,7 +57,7 @@ static void i2cwr_handler(int nb_params, char **params)
 		return;
 	}
 }
-define_command(i2cwr, i2cwr_handler, "Write over I2C", I2C_CMDS);
+define_command(i2c_write, i2c_write_handler, "Write over I2C", I2C_CMDS);
 #endif
 
 /**
@@ -67,7 +67,7 @@ define_command(i2cwr, i2cwr_handler, "Write over I2C", I2C_CMDS);
  *
  */
 #ifdef CSR_I2C_BASE
-static void i2crd_handler(int nb_params, char **params)
+static void i2c_read_handler(int nb_params, char **params)
 {
 	char *c;
 	int len;
@@ -76,7 +76,7 @@ static void i2crd_handler(int nb_params, char **params)
 	bool send_stop = true;
 
 	if (nb_params < 3) {
-		printf("i2crd <slaveaddr7bit> <addr> <len> [<send_stop>]");
+		printf("i2c_read <slaveaddr7bit> <addr> <len> [<send_stop>]");
 		return;
 	}
 
@@ -117,5 +117,5 @@ static void i2crd_handler(int nb_params, char **params)
 
 	dump_bytes((unsigned int *) buf, len, addr);
 }
-define_command(i2crd, i2crd_handler, "Read over I2C", I2C_CMDS);
+define_command(i2c_read, i2c_read_handler, "Read over I2C", I2C_CMDS);
 #endif

@@ -18,6 +18,7 @@ OBJECTS = isr.o			\
 	  cmd_litedram.o	\
 	  cmd_liteeth.o		\
 	  cmd_litesdcard.o  \
+	  cmd_litesata.o    \
 	  main.o
 
 ifneq "$(or $(TERM_NO_COMPLETE),$(TERM_MINI))" ""
@@ -60,7 +61,9 @@ bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 	../liblitedram/liblitedram.a \
 	../libliteeth/libliteeth.a \
 	../liblitespi/liblitespi.a \
-	../liblitesdcard/liblitesdcard.a
+	../libfatfs/libfatfs.a \
+	../liblitesdcard/liblitesdcard.a \
+	../liblitesata/liblitesata.a
 	$(LD) $(LDFLAGS) -T $(BIOS_DIRECTORY)/linker.ld -N -o $@ \
 		../libbase/crt0.o \
 		$(OBJECTS) \
@@ -69,8 +72,10 @@ bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 		-L../liblitedram \
 		-L../libliteeth \
 		-L../liblitespi \
+		-L../libfatfs \
 		-L../liblitesdcard \
-		-llitedram -lliteeth -llitespi -llitesdcard -lbase-nofloat -lcompiler_rt
+		-L../liblitesata \
+		-llitedram -lliteeth -llitespi -lfatfs -llitesdcard -llitesata -lbase-nofloat -lcompiler_rt
 
 ifneq ($(OS),Windows_NT)
 	chmod -x $@

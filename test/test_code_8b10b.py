@@ -1,6 +1,9 @@
-# This file is Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2016-2017 Sebastien Bourdeauducq <sb@m-labs.hk>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2016-2017 Sebastien Bourdeauducq <sb@m-labs.hk>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import unittest
 import random
@@ -334,3 +337,58 @@ class TestCode8B10B(unittest.TestCase):
     def test_roundtrip(self):
         self.assertEqual(self.input_sequence,
                          decode_sequence(self.output_sequence))
+
+    def test_stream(self):
+        def data_generator(dut, endpoint, datas, commas, rand=True):
+            prng = random.Random(42)
+            for i, (data, comma) in enumerate(zip(datas, commas)):
+                if rand:
+                    while prng.randrange(4):
+                        yield
+                yield endpoint.valid.eq(1)
+                yield endpoint.d.eq(data)
+                yield endpoint.k.eq(comma)
+                yield
+                while (yield endpoint.ready) == 0:
+                    yield
+                yield endpoint.valid.eq(0)
+
+        def data_checker(dut, endpoint, datas, commas, rand=True):
+                prng = random.Random(42)
+                dut.errors = 0
+                for i, (data_ref, comma_ref) in enumerate(zip(datas, commas)):
+                    yield endpoint.ready.eq(1)
+                    yield
+                    while (yield endpoint.valid) == 0:
+                        yield
+                    data  = (yield endpoint.d)
+                    comma = (yield endpoint.k)
+                    #print("data:  0x{:08x} vs 0x{:08x}".format(data, data_ref))
+                    #print("comma: 0b{:04b} vs 0b{:04b}".format(comma, comma_ref))
+                    if data != data_ref:
+                        dut.errors += 1
+                    if comma != comma_ref:
+                        dut.errors += 1
+                    yield endpoint.ready.eq(0)
+                    if rand:
+                        while prng.randrange(4):
+                            yield
+
+
+        class DUT(Module):
+            def __init__(self):
+                self.submodules.encoder = code_8b10b.StreamEncoder(nwords=4)
+                self.submodules.decoder = code_8b10b.StreamDecoder(nwords=4)
+                self.comb += self.encoder.source.connect(self.decoder.sink)
+
+
+        prng   = random.Random(42)
+        dut    = DUT()
+        datas  = [prng.randrange(2**32) for i in range(128)]
+        commas = [0 for i in range(128)]
+        generators = [
+            data_generator(dut, dut.encoder.sink, datas, commas),
+            data_checker(dut, dut.decoder.source, datas, commas)
+        ]
+        run_simulation(dut, generators)
+        self.assertEqual(dut.errors, 0)

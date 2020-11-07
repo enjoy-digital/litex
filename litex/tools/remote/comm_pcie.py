@@ -1,5 +1,8 @@
-# This file is Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 import ctypes
@@ -23,7 +26,8 @@ class CommPCIe:
         del self.file
         self.mmap.close()
 
-    def read(self, addr, length=None):
+    def read(self, addr, length=None, burst="incr"):
+        assert burst == "incr"
         data = []
         length_int = 1 if length is None else length
         for i in range(length_int):

@@ -11,13 +11,13 @@
 #include "../helpers.h"
 
 /**
- * Command "mdiow"
+ * Command "mdio_write"
  *
  * Write MDIO register
  *
  */
 #ifdef CSR_ETHPHY_MDIO_W_ADDR
-static void mdiow(int nb_params, char **params)
+static void mdio_write_handler(int nb_params, char **params)
 {
 	char *c;
 	unsigned int phyadr2;
@@ -25,7 +25,7 @@ static void mdiow(int nb_params, char **params)
 	unsigned int val2;
 
 	if (nb_params < 3) {
-		printf("mdiow <phyadr> <reg> <value>");
+		printf("mdio_write <phyadr> <reg> <value>");
 		return;
 	}
 
@@ -47,20 +47,21 @@ static void mdiow(int nb_params, char **params)
 		return;
 	}
 
+	printf("MDIO write @0x%x: 0x%02x 0x%04x\n", phyadr2, reg2, val2);
 	mdio_write(phyadr2, reg2, val2);
 }
 
-define_command(mdiow, mdiow, "Write MDIO register", LITEETH_CMDS);
+define_command(mdio_write, mdio_write_handler, "Write MDIO register", LITEETH_CMDS);
 #endif
 
 /**
- * Command "mdior"
+ * Command "mdio_read"
  *
  * Read MDIO register
  *
  */
 #ifdef CSR_ETHPHY_MDIO_W_ADDR
-static void mdior(int nb_params, char **params)
+static void mdio_read_handler(int nb_params, char **params)
 {
 	char *c;
 	unsigned int phyadr2;
@@ -84,21 +85,22 @@ static void mdior(int nb_params, char **params)
 		return;
 	}
 
+	printf("MDIO read @0x%x:\n", phyadr2);
 	val = mdio_read(phyadr2, reg2);
-	printf("Reg %d: 0x%04x", reg2, val);
+	printf("0x%02x 0x%04x", reg2, val);
 }
 
-define_command(mdior, mdior, "Read MDIO register", LITEETH_CMDS);
+define_command(mdio_read, mdio_read_handler, "Read MDIO register", LITEETH_CMDS);
 #endif
 
 /**
- * Command "mdiod"
+ * Command "mdio_dump"
  *
  * Dump MDIO registers
  *
  */
 #ifdef CSR_ETHPHY_MDIO_W_ADDR
-static void mdiod(int nb_params, char **params)
+static void mdio_dump_handler(int nb_params, char **params)
 {
 	char *c;
 	unsigned int phyadr;
@@ -126,9 +128,9 @@ static void mdiod(int nb_params, char **params)
 	printf("MDIO dump @0x%x:\n", phyadr);
 	for (i = 0; i < count; i++) {
 		val = mdio_read(phyadr, i);
-		printf("reg %d: 0x%04x", i, val);
+		printf("0x%02x 0x%04x\n", i, val);
 	}
 }
 
-define_command(mdiod, mdiod, "Dump MDIO registers", LITEETH_CMDS);
+define_command(mdio_dump, mdio_dump_handler, "Dump MDIO registers", LITEETH_CMDS);
 #endif

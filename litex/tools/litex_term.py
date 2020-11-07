@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
-# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2016 whitequark <whitequark@whitequark.org>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
+# Copyright (c) 2016 whitequark <whitequark@whitequark.org>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import sys
 import signal

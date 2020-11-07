@@ -20,6 +20,7 @@ VerilatedVcdC* tfp;
 uint64_t tfp_start;
 uint64_t tfp_end;
 uint64_t main_time = 0;
+Vsim *g_sim = nullptr;
 
 extern "C" void litex_sim_eval(void *vsim, uint64_t time_ps)
 {
@@ -50,11 +51,27 @@ extern "C" void litex_sim_init_tracer(void *vsim, long start, long end)
 #endif
   tfp->set_time_unit("1ps");
   tfp->set_time_resolution("1ps");
+  g_sim = sim;
 }
 
 extern "C" void litex_sim_tracer_dump()
 {
-  if (tfp_start <= main_time && main_time <= tfp_end) {
+  static int last_enabled = 0;
+  bool dump_enabled = true;
+
+  if (g_sim != nullptr) {
+    dump_enabled = g_sim->sim_trace != 0 ? true : false;
+    if (last_enabled == 0 && dump_enabled) {
+      printf("<DUMP ON>");
+      fflush(stdout);
+    } else if (last_enabled == 1 && !dump_enabled) {
+      printf("<DUMP OFF>");
+      fflush(stdout);
+    }
+    last_enabled = (int) dump_enabled;
+  }
+
+  if (dump_enabled && tfp_start <= main_time && main_time <= tfp_end) {
     tfp->dump(main_time);
   }
 }

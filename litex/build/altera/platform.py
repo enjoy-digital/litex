@@ -1,6 +1,9 @@
-# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2019 msloniewski <marcin.sloniewski@gmail.com>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2019 msloniewski <marcin.sloniewski@gmail.com>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 

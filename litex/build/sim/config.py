@@ -1,6 +1,9 @@
-# This file is Copyright (c) 2017 Pierre-Olivier Vauboin <po@lambdaconcept>
-# This file is Copyright (c) 2018 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2017 Pierre-Olivier Vauboin <po@lambdaconcept>
+# Copyright (c) 2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import json
 import math

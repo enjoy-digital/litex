@@ -1,5 +1,8 @@
+#
+# This file is part of LiteX.
+#
 # This file is Copyright (c) 2018 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+# SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
 

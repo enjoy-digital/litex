@@ -10,6 +10,21 @@
 #include "../boot.h"
 
 /**
+ * Command "reboot"
+ *
+ * Reboot the system
+ *
+ */
+#ifdef CSR_CTRL_RESET_ADDR
+static void reboot_handler(int nb_params, char **params)
+{
+	ctrl_reset_write(1);
+}
+
+define_command(reboot, reboot_handler, "Reboot",  BOOT_CMDS);
+#endif
+
+/**
  * Command "flashboot"
  *
  * Boot software from flash
@@ -55,5 +70,15 @@ define_command(netboot, netboot, "Boot via Ethernet (TFTP)", BOOT_CMDS);
  */
 #if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCORE_BASE)
 define_command(sdcardboot, sdcardboot, "Boot from SDCard", BOOT_CMDS);
+#endif
+
+/**
+ * Command "sataboot"
+ *
+ * Boot software from SATA
+ *
+ */
+#if defined(CSR_SATA_SECTOR2MEM_BASE)
+define_command(sataboot, sataboot, "Boot from SATA", BOOT_CMDS);
 #endif
 

@@ -1,3 +1,6 @@
+#
+# This file is part of LiteX.
+#
 # This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
 # This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2018-2019 Antmicro <www.antmicro.com>
@@ -6,7 +9,7 @@
 # This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
 # This file is Copyright (c) 2020 Xiretza <xiretza@xiretza.xyz>
 # This file is Copyright (c) 2020 Piotr Esden-Tempski <piotr@esden.net>
-# License: BSD
+# SPDX-License-Identifier: BSD-2-Clause
 
 
 import os
@@ -34,7 +37,9 @@ soc_software_packages = [
     "liblitedram",
     "libliteeth",
     "liblitespi",
+    "libfatfs",
     "liblitesdcard",
+    "liblitesata",
     "bios"
 ]
 
@@ -59,7 +64,7 @@ class Builder:
         csr_csv          = None,
         csr_svd          = None,
         memory_x         = None,
-        bios_options     = None):
+        bios_options     = []):
         self.soc = soc
 
         # From Python doc: makedirs() will become confused if the path elements to create include '..'
@@ -71,11 +76,11 @@ class Builder:
 
         self.compile_software = compile_software
         self.compile_gateware = compile_gateware
-        self.csr_csv  = csr_csv
-        self.csr_json = csr_json
-        self.csr_svd  = csr_svd
-        self.memory_x = memory_x
-        self.bios_options = bios_options
+        self.csr_csv          = csr_csv
+        self.csr_json         = csr_json
+        self.csr_svd          = csr_svd
+        self.memory_x         = memory_x
+        self.bios_options     = bios_options
 
         self.software_packages = []
         for name in soc_software_packages:
@@ -106,9 +111,9 @@ class Builder:
             for name, src_dir in self.software_packages:
                 define(name.upper() + "_DIRECTORY", src_dir)
 
-            if self.bios_options is not None:
-                for option in self.bios_options:
-                    define(option, "1")
+            for bios_option in self.bios_options:
+                assert bios_option in ["TERM_NO_HIST", "TERM_MINI", "TERM_NO_COMPLETE"]
+                define(bios_option, "1")
 
             write_to_file(
                 os.path.join(self.generated_dir, "variables.mak"),

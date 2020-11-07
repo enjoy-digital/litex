@@ -35,6 +35,18 @@ int litex_sim_module_get_args( char *args, char *arg, char **val)
   char *value = NULL;
   int r;
 
+  if(!arg) {
+    fprintf(stderr, "litex_sim_module_get_args(): `arg` (requested .json key) is NULL!\n");
+    ret=RC_JSERROR;
+    goto out;
+  }
+
+  if(!args) {
+    fprintf(stderr, "missing key in .json file: %s\n", arg);
+    ret=RC_JSERROR;
+    goto out;
+  }
+
   jsobj = json_tokener_parse(args);
   if(NULL==jsobj) {
     fprintf(stderr, "Error parsing json arg: %s \n", args);
@@ -97,10 +109,19 @@ void read_handler(int fd, short event, void *arg)
   struct session_s *s = (struct session_s*)arg;
   char buffer[1024];
   ssize_t read_len;
-
-  int i;
+  int i, ret;
 
   read_len = read(fd, buffer, 1024);
+  if (read_len == 0) {
+    // Received EOF, remote has closed the connection
+    ret = event_del(s->ev);
+    if (ret != 0) {
+      eprintf("read_handler(): Error removing event %d!\n", event);
+      return;
+    }
+    event_free(s->ev);
+    s->ev = NULL;
+  }
   for(i = 0; i < read_len; i++)
   {
     s->databuf[(s->data_start +  s->datalen ) % 2048] = buffer[i];
@@ -128,7 +149,7 @@ static void
 accept_error_cb(struct evconnlistener *listener, void *ctx)
 {
   struct event_base *base = evconnlistener_get_base(listener);
-  eprintf("ERRROR\n");
+  eprintf("ERROR\n");
 
   event_base_loopexit(base, NULL);
 }
@@ -146,7 +167,6 @@ static int serial2tcp_new(void **sess, char *args)
     ret = RC_INVARG;
     goto out;
   }
-
   ret = litex_sim_module_get_args(args, "port", &cport);
   if(RC_OK != ret)
     goto out;
@@ -233,10 +253,13 @@ static int serial2tcp_tick(void *sess, uint64_t time_ps)
 
   *s->rx_valid=0;
   if(s->datalen) {
-    *s->rx=s->databuf[s->data_start];
-    s->data_start = (s->data_start + 1) % 2048;
-    s->datalen--;
+    c = s->databuf[s->data_start];
+    *s->rx = c;
     *s->rx_valid=1;
+    if (*s->rx_ready) {
+      s->data_start = (s->data_start + 1) % 2048;
+      s->datalen--;
+    }
   }
 
 out:

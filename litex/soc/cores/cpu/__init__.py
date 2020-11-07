@@ -1,6 +1,9 @@
-# This file is Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2017-2018 Tim 'mithro' Ansell <me@mith.ro>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2018 Tim 'mithro' Ansell <me@mith.ro>
+# SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
 
@@ -35,21 +38,24 @@ class CPUNone(CPU):
 
 CPU_GCC_TRIPLE_RISCV32 = (
     "riscv64-unknown-elf",
+    "riscv64-unknown-linux-gnu",
     "riscv32-unknown-elf",
+    "riscv32-unknown-linux-gnu",
     "riscv64-elf",
     "riscv32-elf",
     "riscv-none-embed",
     "riscv64-linux",
-    "riscv64-linux-gnu-gcc",
+    "riscv64-linux-gnu",
     "riscv-sifive-elf",
     "riscv64-none-elf",
 )
 
 CPU_GCC_TRIPLE_RISCV64 = (
     "riscv64-unknown-elf",
+    "riscv64-unknown-linux-gnu",
     "riscv64-elf",
     "riscv64-linux",
-    "riscv64-linux-gnu-gcc",
+    "riscv64-linux-gnu",
     "riscv-sifive-elf",
     "riscv64-none-elf",
 )

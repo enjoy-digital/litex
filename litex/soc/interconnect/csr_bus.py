@@ -1,7 +1,10 @@
-# This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2015-2018 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2016-2019 Tim 'mithro' Ansell <me@mith.ro>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
+# Copyright (c) 2015-2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2016-2019 Tim 'mithro' Ansell <me@mith.ro>
+# SPDX-License-Identifier: BSD-2-Clause
 
 """
 CSR-2 bus

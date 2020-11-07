@@ -10,6 +10,9 @@ from collections import OrderedDict
 import urllib.request
 
 current_path = os.path.abspath(os.curdir)
+# Check location (is litex_setup.py executed inside a cloned LiteX repository or alongside?)
+if os.path.exists(".gitignore"):
+    current_path = os.path.join(current_path, "../")
 
 # Repositories -------------------------------------------------------------------------------------
 

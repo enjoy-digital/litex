@@ -1,6 +1,9 @@
-# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2019 Vamsi K Vytla <vkvytla@lbl.gov>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2019 Vamsi K Vytla <vkvytla@lbl.gov>
+# SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
 from migen.genlib.roundrobin import *

@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 
-# This file is Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 import argparse
@@ -25,18 +28,21 @@ from liteeth.phy.ku_1000basex import KU_1000BASEX
 
 class _CRG(Module):
     def __init__(self, platform, sys_clk_freq):
+        self.rst = Signal()
         self.clock_domains.cd_sys    = ClockDomain()
         self.clock_domains.cd_sys4x  = ClockDomain(reset_less=True)
         self.clock_domains.cd_pll4x  = ClockDomain(reset_less=True)
-        self.clock_domains.cd_clk200 = ClockDomain()
+        self.clock_domains.cd_idelay = ClockDomain()
+        self.clock_domains.cd_eth    = ClockDomain()
 
         # # #
 
         self.submodules.pll = pll = USMMCM(speedgrade=-2)
-        self.comb += pll.reset.eq(platform.request("cpu_reset"))
+        self.comb += pll.reset.eq(platform.request("cpu_reset") | self.rst)
         pll.register_clkin(platform.request("clk125"), 125e6)
         pll.create_clkout(self.cd_pll4x, sys_clk_freq*4, buf=None, with_reset=False)
-        pll.create_clkout(self.cd_clk200, 200e6, with_reset=False)
+        pll.create_clkout(self.cd_idelay, 200e6, with_reset=False)
+        pll.create_clkout(self.cd_eth,    200e6)
 
         self.specials += [
             Instance("BUFGCE_DIV", name="main_bufgce_div",
@@ -44,15 +50,15 @@ class _CRG(Module):
                 i_CE=1, i_I=self.cd_pll4x.clk, o_O=self.cd_sys.clk),
             Instance("BUFGCE", name="main_bufgce",
                 i_CE=1, i_I=self.cd_pll4x.clk, o_O=self.cd_sys4x.clk),
-            AsyncResetSynchronizer(self.cd_clk200, ~pll.locked),
+            AsyncResetSynchronizer(self.cd_idelay, ~pll.locked),
         ]
 
-        self.submodules.idelayctrl = USIDELAYCTRL(cd_ref=self.cd_clk200, cd_sys=self.cd_sys)
+        self.submodules.idelayctrl = USIDELAYCTRL(cd_ref=self.cd_idelay, cd_sys=self.cd_sys)
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, sys_clk_freq=int(125e6), with_ethernet=False, **kwargs):
+    def __init__(self, sys_clk_freq=int(125e6), with_ethernet=False, with_etherbone=False, **kwargs):
         platform = kcu105.Platform()
 
         # SoCCore ----------------------------------------------------------------------------------
@@ -69,8 +75,7 @@ class BaseSoC(SoCCore):
             self.submodules.ddrphy = usddrphy.USDDRPHY(platform.request("ddram"),
                 memtype          = "DDR4",
                 sys_clk_freq     = sys_clk_freq,
-                iodelay_clk_freq = 200e6,
-                cmd_latency      = 1)
+                iodelay_clk_freq = 200e6)
             self.add_csr("ddrphy")
             self.add_sdram("sdram",
                 phy                     = self.ddrphy,
@@ -82,15 +87,18 @@ class BaseSoC(SoCCore):
                 l2_cache_reverse        = True
             )
 
-        # Ethernet ---------------------------------------------------------------------------------
-        if with_ethernet:
-            self.submodules.ethphy = KU_1000BASEX(self.crg.cd_clk200.clk,
+        # Ethernet / Etherbone ---------------------------------------------------------------------
+        if with_ethernet or with_etherbone:
+            self.submodules.ethphy = KU_1000BASEX(self.crg.cd_eth.clk,
                 data_pads    = self.platform.request("sfp", 0),
                 sys_clk_freq = self.clk_freq)
             self.add_csr("ethphy")
             self.comb += self.platform.request("sfp_tx_disable_n", 0).eq(1)
             self.platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-1753]")
-            self.add_ethernet(phy=self.ethphy)
+            if with_ethernet:
+                self.add_ethernet(phy=self.ethphy)
+            if with_etherbone:
+                self.add_etherbone(phy=self.ethphy)
 
         # Leds -------------------------------------------------------------------------------------
         self.submodules.leds = LedChaser(
@@ -106,10 +114,13 @@ def main():
     parser.add_argument("--load",  action="store_true", help="Load bitstream")
     builder_args(parser)
     soc_sdram_args(parser)
-    parser.add_argument("--with-ethernet", action="store_true", help="Enable Ethernet support")
+    parser.add_argument("--with-ethernet",  action="store_true", help="Enable Ethernet support")
+    parser.add_argument("--with-etherbone", action="store_true", help="Enable Etherbone support")
     args = parser.parse_args()
 
-    soc = BaseSoC(with_ethernet=args.with_ethernet, **soc_sdram_argdict(args))
+    assert not (args.with_ethernet and args.with_etherbone)
+    soc = BaseSoC(with_ethernet=args.with_ethernet, with_etherbone=args.with_etherbone,
+        **soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.build(run=args.build)
 

@@ -1,11 +1,15 @@
-# This file is Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2018-2019 David Shah <dave@ds0.me>
-# This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2018-2019 David Shah <dave@ds0.me>
+# Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 import subprocess
 import sys
+from shutil import which
 
 from migen.fhdl.structure import _Fragment
 
@@ -157,8 +161,13 @@ def _run_script(script):
     else:
         shell = ["bash"]
 
+    if which("yosys") is None or which("nextpnr-ecp5") is None:
+        msg = "Unable to find Yosys/Nextpnr toolchain, please:\n"
+        msg += "- Add Yosys/Nextpnr toolchain to your $PATH."
+        raise OSError(msg)
+
     if subprocess.call(shell + [script]) != 0:
-        raise OSError("Subprocess failed")
+        raise OSError("Error occured during Yosys/Nextpnr's script execution.")
 
 # LatticeTrellisToolchain --------------------------------------------------------------------------
 

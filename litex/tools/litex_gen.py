@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 
-# This file is Copyright (c) 2020 Antmicro <www.antmicro.com>
-# This file is Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2020 Antmicro <www.antmicro.com>
+# Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import argparse
 
@@ -77,7 +81,7 @@ class LiteXCore(SoCMini):
                     Subsignal("locked", Pins(1)),
                 )
             ])
-            
+
             self.clock_domains.cd_out0 = ClockDomain(reset_less=True)
             self.clock_domains.cd_out1 = ClockDomain(reset_less=True)
             self.submodules.mmcm = mmcm = S7MMCM()
