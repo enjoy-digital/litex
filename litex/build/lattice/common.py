@@ -1,7 +1,11 @@
-# This file is Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2017 William D. Jones <thor0505@comcast.net>
-# This file is Copyright (c) 2019 David Shah <dave@ds0.me>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017 William D. Jones <thor0505@comcast.net>
+# Copyright (c) 2019 David Shah <dave@ds0.me>
+# Copyright (c) 2020 David Corrigan <davidcorrigan714@gmail.com>
+# SPDX-License-Identifier: BSD-2-Clause
 
 from migen.fhdl.module import Module
 from migen.fhdl.specials import Instance, Tristate
@@ -142,9 +146,9 @@ lattice_ecp5_trellis_special_overrides = {
 }
 
 
-# LIFCL AsyncResetSynchronizer ----------------------------------------------------------------------
+# NX AsyncResetSynchronizer ------------------------------------------------------------------------
 
-class LatticeLIFCLsyncResetSynchronizerImpl(Module):
+class LatticeNXsyncResetSynchronizerImpl(Module):
     def __init__(self, cd, async_reset):
         rst1 = Signal()
         self.specials += [
@@ -163,15 +167,15 @@ class LatticeLIFCLsyncResetSynchronizerImpl(Module):
         ]
 
 
-class LatticeLIFCLAsyncResetSynchronizer:
+class LatticeNXAsyncResetSynchronizer:
     @staticmethod
     def lower(dr):
-        return LatticeLIFCLsyncResetSynchronizerImpl(dr.cd, dr.async_reset)
+        return LatticeNXsyncResetSynchronizerImpl(dr.cd, dr.async_reset)
 
 
-# LIFCL SDR Input -----------------------------------------------------------------------------------
+# NX SDR Input -------------------------------------------------------------------------------------
 
-class LatticeLIFCLSDRInputImpl(Module):
+class LatticeNXSDRInputImpl(Module):
     def __init__(self, i, o, clk):
         self.specials += Instance("IFD1P3BX",
             i_SCLK = clk,
@@ -181,14 +185,14 @@ class LatticeLIFCLSDRInputImpl(Module):
             o_Q    = o,
         )
 
-class LatticeLIFCLSDRInput:
+class LatticeNXSDRInput:
     @staticmethod
     def lower(dr):
-        return LatticeLIFCLSDRInputImpl(dr.i, dr.o, dr.clk)
+        return LatticeNXSDRInputImpl(dr.i, dr.o, dr.clk)
 
-# LIFCL SDR Output ----------------------------------------------------------------------------------
+# NX SDR Output ------------------------------------------------------------------------------------
 
-class LatticeLIFCLSDROutputImpl(Module):
+class LatticeNXSDROutputImpl(Module):
     def __init__(self, i, o, clk):
         self.specials += Instance("OFD1P3BX",
             i_SCLK = clk,
@@ -198,14 +202,14 @@ class LatticeLIFCLSDROutputImpl(Module):
             o_Q    = o,
         )
 
-class LatticeLIFCLSDROutput:
+class LatticeNXSDROutput:
     @staticmethod
     def lower(dr):
-        return LatticeLIFCLSDROutputImpl(dr.i, dr.o, dr.clk)
+        return LatticeNXSDROutputImpl(dr.i, dr.o, dr.clk)
 
-# LIFCL DDR Input -----------------------------------------------------------------------------------
+# NX DDR Input -------------------------------------------------------------------------------------
 
-class LatticeLIFCLDDRInputImpl(Module):
+class LatticeNXDDRInputImpl(Module):
     def __init__(self, i, o1, o2, clk):
         self.specials += Instance("IDDRX1",
             i_SCLK = clk,
@@ -214,14 +218,14 @@ class LatticeLIFCLDDRInputImpl(Module):
             o_Q1   = o2,
         )
 
-class LatticeLIFCLDDRInput:
+class LatticeNXDDRInput:
     @staticmethod
     def lower(dr):
-        return LatticeLIFCLDDRInputImpl(dr.i, dr.o1, dr.o2, dr.clk)
+        return LatticeNXDDRInputImpl(dr.i, dr.o1, dr.o2, dr.clk)
 
-# LIFCL DDR Output ----------------------------------------------------------------------------------
+# NX DDR Output ------------------------------------------------------------------------------------
 
-class LatticeLIFCLDDROutputImpl(Module):
+class LatticeNXDDROutputImpl(Module):
     def __init__(self, i1, i2, o, clk):
         self.specials += Instance("ODDRX1",
             i_SCLK = clk,
@@ -230,23 +234,22 @@ class LatticeLIFCLDDROutputImpl(Module):
             o_Q    = o,
         )
 
-class LatticeLIFCLDDROutput:
+class LatticeNXDDROutput:
     @staticmethod
     def lower(dr):
-        return LatticeLIFCLDDROutputImpl(dr.i1, dr.i2, dr.o, dr.clk)
+        return LatticeNXDDROutputImpl(dr.i1, dr.i2, dr.o, dr.clk)
 
-# LIFCL Special Overrides ---------------------------------------------------------------------------
+# NX Special Overrides -----------------------------------------------------------------------------
 
-lattice_lifcl_special_overrides = {
-    AsyncResetSynchronizer: LatticeLIFCLAsyncResetSynchronizer,
-    SDRInput:               LatticeLIFCLSDRInput,
-    SDROutput:              LatticeLIFCLSDROutput,
-    DDRInput:               LatticeLIFCLDDRInput,
-    DDROutput:              LatticeLIFCLDDROutput,
+lattice_NX_special_overrides = {
+    AsyncResetSynchronizer: LatticeNXAsyncResetSynchronizer,
+    SDRInput:               LatticeNXSDRInput,
+    SDROutput:              LatticeNXSDROutput,
+    DDRInput:               LatticeNXDDRInput,
+    DDROutput:              LatticeNXDDROutput,
 }
 
-
-# iCE40 AsyncResetSynchronizer ----------------------------------------------------------------------
+# iCE40 AsyncResetSynchronizer ---------------------------------------------------------------------
 
 class LatticeiCE40AsyncResetSynchronizerImpl(Module):
     def __init__(self, cd, async_reset):

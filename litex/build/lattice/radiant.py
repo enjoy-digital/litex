@@ -1,7 +1,11 @@
-# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2017-2018 Sergiusz Bazanski <q3k@q3k.org>
-# This file is Copyright (c) 2017 William D. Jones <thor0505@comcast.net>
-# License: BSD
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2020 David Corrigan <davidcorrigan714@gmail.com>
+# Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2018 Sergiusz Bazanski <q3k@q3k.org>
+# Copyright (c) 2017 William D. Jones <thor0505@comcast.net>
+# SPDX-License-Identifier: BSD-2-Clause
 
 import os
 import re
@@ -9,6 +13,7 @@ import sys
 import math
 import subprocess
 import shutil
+from shutil import which
 
 from migen.fhdl.structure import _Fragment
 
@@ -18,6 +23,55 @@ from litex.build.generic_platform import *
 from litex.build import tools
 from litex.build.lattice import common
 
+# Mixed Radiant+Yosys support
+
+def _run_yosys(device, sources, vincpaths, build_name):
+    ys_contents = ""
+    incflags = ""
+    for path in vincpaths:
+        incflags += " -I" + path
+    for filename, language, library in sources:
+        assert language != "vhdl"
+        ys_contents += "read_{}{} {}\n".format(language, incflags, filename)
+
+    ys_contents += """\
+hierarchy -top {build_name}
+
+# Map keep to keep=1 for yosys
+log
+log XX. Converting (* keep = "xxxx" *) attribute for Yosys
+log
+attrmap -tocase keep -imap keep="true" keep=1 -imap keep="false" keep=0 -remove keep=0
+select -list a:keep=1
+
+# Add keep=1 for yosys to objects which have dont_touch="true" attribute.
+log
+log XX. Converting (* dont_touch = "true" *) attribute for Yosys
+log
+select -list a:dont_touch=true
+setattr -set keep 1 a:dont_touch=true
+
+# Convert (* async_reg = "true" *) to async registers for Yosys.
+# (* async_reg = "true", dont_touch = "true" *) reg xilinxmultiregimpl0_regs1 = 1'd0;
+log
+log XX. Converting (* async_reg = "true" *) attribute to async registers for Yosys
+log
+select -list a:async_reg=true
+setattr -set keep 1 a:async_reg=true
+
+synth_nexus -top {build_name} -vm {build_name}_yosys.vm
+""".format(build_name=build_name)
+
+    ys_name = build_name + ".ys"
+    tools.write_to_file(ys_name, ys_contents)
+
+    if which("yosys") is None:
+        msg = "Unable to find Yosys toolchain, please:\n"
+        msg += "- Add Yosys toolchain to your $PATH."
+        raise OSError(msg)
+
+    if subprocess.call(["yosys", ys_name]) != 0:
+        raise OSError("Subprocess failed")
 
 # Constraints (.ldc) -------------------------------------------------------------------------------
 
@@ -44,13 +98,13 @@ def _build_pdc(named_sc, named_pc, clocks, vns, build_name):
     for sig, pins, others, resname in named_sc:
         if len(pins) > 1:
             for i, p in enumerate(pins):
-                pdc.append(_format_ldc(sig + "[" + str(i) + "]", p, others, resname))
+                pdc.append(_format_ldc("{" + sig + "[" + str(i) + "]}", p, others, resname))
         else:
             pdc.append(_format_ldc(sig, pins[0], others, resname))
     if named_pc:
         pdc.append("\n".join(named_pc))
 
-    # Note: .pdc is only used post-synthesis, tooling constraints clocks by default to 200MHz.
+    # Note: .pdc is only used post-synthesis, Synplify constraints clocks by default to 200MHz.
     for clk, period in clocks.items():
         clk_name = vns.get_name(clk)
         pdc.append("create_clock -period {} -name {} [{} {}];".format(
@@ -64,7 +118,7 @@ def _build_pdc(named_sc, named_pc, clocks, vns, build_name):
 
 # Project (.tcl) -----------------------------------------------------------------------------------
 
-def _build_tcl(device, sources, vincpaths, build_name, pdc_file):
+def _build_tcl(device, sources, vincpaths, build_name, pdc_file, synth_mode):
     tcl = []
     # Create project
     tcl.append(" ".join([
@@ -72,7 +126,7 @@ def _build_tcl(device, sources, vincpaths, build_name, pdc_file):
         "-name \"{}\"".format(build_name),
         "-impl \"impl\"",
         "-dev {}".format(device),
-        "-synthesis \"lse\""
+        "-synthesis \"lsc\""
     ]))
 
     def tcl_path(path): return path.replace("\\", "/")
@@ -82,8 +136,17 @@ def _build_tcl(device, sources, vincpaths, build_name, pdc_file):
     tcl.append("prj_set_impl_opt {include path} {\"" + vincpath + "\"}")
 
     # Add sources
-    for filename, language, library in sources:
-        tcl.append("prj_add_source \"{}\" -work {}".format(tcl_path(filename), library))
+    if synth_mode == "yosys":
+        # NOTE: it is seemingly impossible to skip synthesis using the Tcl flow
+        # so we give lsc the structural netlist from Yosys which it won't actually touch
+        # The other option is to call the low level Radiant commands starting from 'map'
+        # with the structural netlist from Yosys, but this would be harder to do in a cross
+        # platform way.
+        tcl.append("prj_add_source \"{}_yosys.vm\" -work work".format(build_name))
+        library = "work"
+    else:
+        for filename, language, library in sources:
+            tcl.append("prj_add_source \"{}\" -work {}".format(tcl_path(filename), library))
 
     tcl.append("prj_add_source \"{}\" -work {}".format(tcl_path(pdc_file), library))
 
@@ -138,11 +201,18 @@ def _build_script(build_name, device):
 def _run_script(script):
     if sys.platform in ("win32", "cygwin"):
         shell = ["cmd", "/c"]
+        tool  = "pnmainc"
     else:
         shell = ["bash"]
+        tool  = "radiantc"
+
+    if which(tool) is None:
+        msg = "Unable to find Radiant toolchain, please:\n"
+        msg += "- Add Radiant toolchain to your $PATH."
+        raise OSError(msg)
 
     if subprocess.call(shell + [script]) != 0:
-        raise OSError("Subprocess failed")
+        raise OSError("Error occured during Radiant's script execution.")
 
 def _check_timing(build_name):
     lines = open("impl/{}_impl.par".format(build_name), "r").readlines()
@@ -188,7 +258,7 @@ class LatticeRadiantToolchain:
         "no_shreg_extract": None
     }
 
-    special_overrides = common.lattice_lifcl_special_overrides
+    special_overrides = common.lattice_NX_special_overrides
 
     def __init__(self):
         self.clocks      = {}
@@ -199,6 +269,7 @@ class LatticeRadiantToolchain:
         build_name     = "top",
         run            = True,
         timingstrict   = True,
+        synth_mode     = "radiant",
         **kwargs):
 
         # Create build directory
@@ -223,13 +294,15 @@ class LatticeRadiantToolchain:
         pdc_file = build_dir + "\\" + build_name + ".pdc"
 
         # Generate design script file (.tcl)
-        _build_tcl(platform.device, platform.sources, platform.verilog_include_paths, build_name, pdc_file)
+        _build_tcl(platform.device, platform.sources, platform.verilog_include_paths, build_name, pdc_file, synth_mode)
 
         # Generate build script
         script = _build_script(build_name, platform.device)
 
         # Run
         if run:
+            if synth_mode == "yosys":
+                _run_yosys(platform.device, platform.sources, platform.verilog_include_paths, build_name)
             _run_script(script)
             if timingstrict:
                 _check_timing(build_name)
@@ -252,3 +325,10 @@ class LatticeRadiantToolchain:
         to.attr.add("keep")
         if (to, from_) not in self.false_paths:
             self.false_paths.add((from_, to))
+
+def radiant_build_args(parser):
+    parser.add_argument("--synth-mode", default="vivado", help="synthesis mode (synplify or yosys, default=synplify)")
+
+
+def radiant_build_argdict(args):
+    return {"synth_mode": args.synth_mode}
