@@ -50,7 +50,7 @@ def _build_pdc(named_sc, named_pc, clocks, vns, build_name):
     if named_pc:
         pdc.append("\n".join(named_pc))
 
-    # Note: .pdc is only used post-synthesis, Synplify constraints clocks by default to 200MHz.
+    # Note: .pdc is only used post-synthesis, tooling constraints clocks by default to 200MHz.
     for clk, period in clocks.items():
         clk_name = vns.get_name(clk)
         pdc.append("create_clock -period {} -name {} [{} {}];".format(
@@ -72,7 +72,7 @@ def _build_tcl(device, sources, vincpaths, build_name, pdc_file):
         "-name \"{}\"".format(build_name),
         "-impl \"impl\"",
         "-dev {}".format(device),
-        "-synthesis \"synplify\""
+        "-synthesis \"lse\""
     ]))
 
     def tcl_path(path): return path.replace("\\", "/")
