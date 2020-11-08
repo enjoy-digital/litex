@@ -1,17 +1,17 @@
 include ../include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
-OBJECTS=sdcard.o spisdcard.o
+OBJECTS=sata.o
 
-all: liblitesdcard.a
+all: liblitesata.a
 
-liblitesdcard.a: $(OBJECTS)
-	$(AR) crs liblitesdcard.a $(OBJECTS)
+liblitesata.a: $(OBJECTS)
+	$(AR) crs liblitesata.a $(OBJECTS)
 
 # pull in dependency info for *existing* .o files
 -include $(OBJECTS:.o=.d)
 
-%.o: $(LIBLITESDCARD_DIRECTORY)/%.c
+%.o: $(LIBLITESATA_DIRECTORY)/%.c
 	$(compile)
 
 %.o: %.S
@@ -20,4 +20,4 @@ liblitesdcard.a: $(OBJECTS)
 .PHONY: all clean
 
 clean:
-	$(RM) $(OBJECTS) liblitesdcard.a .*~ *~
+	$(RM) $(OBJECTS) liblitesata.a .*~ *~

@@ -72,3 +72,13 @@ define_command(netboot, netboot, "Boot via Ethernet (TFTP)", BOOT_CMDS);
 define_command(sdcardboot, sdcardboot, "Boot from SDCard", BOOT_CMDS);
 #endif
 
+/**
+ * Command "sataboot"
+ *
+ * Boot software from SATA
+ *
+ */
+#if defined(CSR_SATA_SECTOR2MEM_BASE)
+define_command(sataboot, sataboot, "Boot from SATA", BOOT_CMDS);
+#endif
+

@@ -10,42 +10,7 @@ from litex.build.xilinx import XilinxPlatform, VivadoProgrammer
 # IOs ----------------------------------------------------------------------------------------------
 
 _io = [
-    ("user_led", 0, Pins("AP8"), IOStandard("LVCMOS18")),
-    ("user_led", 1, Pins("H23"), IOStandard("LVCMOS18")),
-    ("user_led", 2, Pins("P20"), IOStandard("LVCMOS18")),
-    ("user_led", 3, Pins("P21"), IOStandard("LVCMOS18")),
-    ("user_led", 4, Pins("N22"), IOStandard("LVCMOS18")),
-    ("user_led", 5, Pins("M22"), IOStandard("LVCMOS18")),
-    ("user_led", 6, Pins("R23"), IOStandard("LVCMOS18")),
-    ("user_led", 7, Pins("P23"), IOStandard("LVCMOS18")),
-
-    ("cpu_reset", 0, Pins("AN8"), IOStandard("LVCMOS18")),
-
-    ("user_btn_c", 0, Pins("AE10"), IOStandard("LVCMOS18")),
-    ("user_btn_n", 0, Pins("AD10"), IOStandard("LVCMOS18")),
-    ("user_btn_s", 0, Pins("AF8"),  IOStandard("LVCMOS18")),
-    ("user_btn_w", 0, Pins("AF9"),  IOStandard("LVCMOS18")),
-    ("user_btn_e", 0, Pins("AE8"),  IOStandard("LVCMOS18")),
-
-    ("user_dip_btn", 0, Pins("AN16"), IOStandard("LVCMOS12")),
-    ("user_dip_btn", 1, Pins("AN19"), IOStandard("LVCMOS12")),
-    ("user_dip_btn", 2, Pins("AP18"), IOStandard("LVCMOS12")),
-    ("user_dip_btn", 3, Pins("AN14"), IOStandard("LVCMOS12")),
-
-    ("user_sma_clock", 0,
-        Subsignal("p", Pins("D23"), IOStandard("LVDS")),
-        Subsignal("n", Pins("C23"), IOStandard("LVDS"))
-    ),
-    ("user_sma_clock_p", 0, Pins("D23"), IOStandard("LVCMOS18")),
-    ("user_sma_clock_n", 0, Pins("C23"), IOStandard("LVCMOS18")),
-
-    ("user_sma_gpio", 0,
-        Subsignal("p", Pins("H27"), IOStandard("LVDS")),
-        Subsignal("n", Pins("G27"), IOStandard("LVDS"))
-    ),
-    ("user_sma_gpio_p", 0, Pins("H27"), IOStandard("LVCMOS18")),
-    ("user_sma_gpio_n", 0, Pins("G27"), IOStandard("LVCMOS18")),
-
+    # Clk / Rst
     ("clk125", 0,
         Subsignal("p", Pins("G10"), IOStandard("LVDS")),
         Subsignal("n", Pins("F10"), IOStandard("LVDS"))
@@ -55,13 +20,53 @@ _io = [
         Subsignal("p", Pins("AK17"), IOStandard("DIFF_SSTL12")),
         Subsignal("n", Pins("AK16"), IOStandard("DIFF_SSTL12"))
     ),
+    ("cpu_reset", 0, Pins("AN8"), IOStandard("LVCMOS18")),
 
+    # Leds
+    ("user_led", 0, Pins("AP8"), IOStandard("LVCMOS18")),
+    ("user_led", 1, Pins("H23"), IOStandard("LVCMOS18")),
+    ("user_led", 2, Pins("P20"), IOStandard("LVCMOS18")),
+    ("user_led", 3, Pins("P21"), IOStandard("LVCMOS18")),
+    ("user_led", 4, Pins("N22"), IOStandard("LVCMOS18")),
+    ("user_led", 5, Pins("M22"), IOStandard("LVCMOS18")),
+    ("user_led", 6, Pins("R23"), IOStandard("LVCMOS18")),
+    ("user_led", 7, Pins("P23"), IOStandard("LVCMOS18")),
+
+    # Buttons
+    ("user_btn_c", 0, Pins("AE10"), IOStandard("LVCMOS18")),
+    ("user_btn_n", 0, Pins("AD10"), IOStandard("LVCMOS18")),
+    ("user_btn_s", 0, Pins("AF8"),  IOStandard("LVCMOS18")),
+    ("user_btn_w", 0, Pins("AF9"),  IOStandard("LVCMOS18")),
+    ("user_btn_e", 0, Pins("AE8"),  IOStandard("LVCMOS18")),
+
+    # Switches
+    ("user_dip_btn", 0, Pins("AN16"), IOStandard("LVCMOS12")),
+    ("user_dip_btn", 1, Pins("AN19"), IOStandard("LVCMOS12")),
+    ("user_dip_btn", 2, Pins("AP18"), IOStandard("LVCMOS12")),
+    ("user_dip_btn", 3, Pins("AN14"), IOStandard("LVCMOS12")),
+
+    # SMA
+    ("user_sma_clock", 0,
+        Subsignal("p", Pins("D23"), IOStandard("LVDS")),
+        Subsignal("n", Pins("C23"), IOStandard("LVDS"))
+    ),
+    ("user_sma_clock_p", 0, Pins("D23"), IOStandard("LVCMOS18")),
+    ("user_sma_clock_n", 0, Pins("C23"), IOStandard("LVCMOS18")),
+    ("user_sma_gpio", 0,
+        Subsignal("p", Pins("H27"), IOStandard("LVDS")),
+        Subsignal("n", Pins("G27"), IOStandard("LVDS"))
+    ),
+    ("user_sma_gpio_p", 0, Pins("H27"), IOStandard("LVCMOS18")),
+    ("user_sma_gpio_n", 0, Pins("G27"), IOStandard("LVCMOS18")),
+
+    # I2C
     ("i2c", 0,
         Subsignal("scl", Pins("J24")),
         Subsignal("sda", Pins("J25")),
         IOStandard("LVCMOS18")
     ),
 
+    # Serial
     ("serial", 0,
         Subsignal("cts", Pins("L23")),
         Subsignal("rts", Pins("K27")),
@@ -70,26 +75,19 @@ _io = [
         IOStandard("LVCMOS18")
     ),
 
+    # SPIFlash
     ("spiflash", 0,  # clock needs to be accessed through primitive
         Subsignal("cs_n", Pins("U7")),
         Subsignal("dq",   Pins("AC7 AB7 AA7 Y7")),
         IOStandard("LVCMOS18")
     ),
-
     ("spiflash", 1,  # clock needs to be accessed through primitive
         Subsignal("cs_n", Pins("G26")),
         Subsignal("dq",   Pins("M20 L20 R21 R22")),
         IOStandard("LVCMOS18")
     ),
 
-    ("sdcard", 0,
-        Subsignal("clk", Pins("AL10")),
-        Subsignal("cmd", Pins("AD9"), Misc("PULLUP True")),
-        Subsignal("data", Pins("AP9 AN9 AH9 AH8"), Misc("PULLUP True")),
-        Misc("SLEW=FAST"),
-        IOStandard("LVCMOS18")
-    ),
-
+    # SDCard
     ("spisdcard", 0,
         Subsignal("clk",  Pins("AL10")),
         Subsignal("cs_n", Pins("AH8")),
@@ -98,7 +96,15 @@ _io = [
         Misc("SLEW=FAST"),
         IOStandard("LVCMOS18")
     ),
+    ("sdcard", 0,
+        Subsignal("clk", Pins("AL10")),
+        Subsignal("cmd", Pins("AD9"), Misc("PULLUP True")),
+        Subsignal("data", Pins("AP9 AN9 AH9 AH8"), Misc("PULLUP True")),
+        Misc("SLEW=FAST"),
+        IOStandard("LVCMOS18")
+    ),
 
+    # Rotary Encoder
     ("rotary", 0,
         Subsignal("a",    Pins("Y21")),
         Subsignal("b",    Pins("AD26")),
@@ -106,6 +112,7 @@ _io = [
         IOStandard("LVCMOS18")
     ),
 
+    # HDMI
     ("hdmi", 0,
         Subsignal("d", Pins(
             "AK11 AP11 AP13 AN13 AN11 AM11 AN12 AM12",
@@ -120,6 +127,7 @@ _io = [
         IOStandard("LVCMOS18")
     ),
 
+    # DDR4 SDRAM
     ("ddram", 0,
         Subsignal("a", Pins(
             "AE17 AH17 AE18 AJ15 AG16 AL17 AK18 AG17",
@@ -165,6 +173,7 @@ _io = [
         Misc("SLEW=FAST"),
     ),
 
+    # PCIe
     ("pcie_x1", 0,
         Subsignal("rst_n", Pins("K22"), IOStandard("LVCMOS18")),
         Subsignal("clk_p", Pins("AB6")),
@@ -174,7 +183,6 @@ _io = [
         Subsignal("tx_p",  Pins("AC4")),
         Subsignal("tx_n",  Pins("AC3"))
     ),
-
     ("pcie_x2", 0,
         Subsignal("rst_n", Pins("K22"), IOStandard("LVCMOS18")),
         Subsignal("clk_p", Pins("AB6")),
@@ -184,7 +192,6 @@ _io = [
         Subsignal("tx_p",  Pins("AC4 AE4")),
         Subsignal("tx_n",  Pins("AC3 AE3"))
     ),
-
     ("pcie_x4", 0,
         Subsignal("rst_n", Pins("K22"), IOStandard("LVCMOS18")),
         Subsignal("clk_p", Pins("AB6")),
@@ -194,7 +201,6 @@ _io = [
         Subsignal("tx_p",  Pins("AC4 AE4 AG4 AH6")),
         Subsignal("tx_n",  Pins("AC3 AE3 AG3 AH5"))
     ),
-
     ("pcie_x8", 0,
         Subsignal("rst_n", Pins("K22"), IOStandard("LVCMOS18")),
         Subsignal("clk_p", Pins("AB6")),
@@ -205,16 +211,19 @@ _io = [
         Subsignal("tx_n",  Pins("AC3 AE3 AG3 AH5 AK5 AL3 AM5 AN3"))
     ),
 
+    # SGMII Clk
     ("sgmii_clock", 0,
         Subsignal("p", Pins("P26"), IOStandard("LVDS_25")),
         Subsignal("n", Pins("N26"), IOStandard("LVDS_25"))
     ),
 
+    # SI570
     ("si570_refclk", 0,
         Subsignal("p", Pins("P6")),
         Subsignal("n", Pins("P5"))
     ),
 
+    # SMA
     ("user_sma_mgt_refclk", 0,
         Subsignal("p", Pins("V6")),
         Subsignal("n", Pins("V5"))
@@ -228,6 +237,7 @@ _io = [
         Subsignal("n", Pins("P1"))
     ),
 
+    # SFP
     ("sfp", 0,
         Subsignal("txp", Pins("U4")),
         Subsignal("txn", Pins("U3")),

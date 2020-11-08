@@ -33,7 +33,8 @@
 
 #include <liblitesdcard/spisdcard.h>
 #include <liblitesdcard/sdcard.h>
-#include <liblitesdcard/fat/ff.h>
+#include <liblitesata/sata.h>
+#include <libfatfs/ff.h>
 
 /*-----------------------------------------------------------------------*/
 /* Helpers                                                               */
@@ -672,5 +673,175 @@ void sdcardboot(void)
 
 	/* Boot failed if we are here... */
 	printf("SDCard boot failed.\n");
+}
+#endif
+
+/*-----------------------------------------------------------------------*/
+/* SATA Boot                                                             */
+/*-----------------------------------------------------------------------*/
+
+#if defined(CSR_SATA_SECTOR2MEM_BASE)
+
+static int copy_file_from_sata_to_ram(const char * filename, unsigned long ram_address)
+{
+	FRESULT fr;
+	FATFS fs;
+	FIL file;
+	uint32_t br;
+	uint32_t offset;
+	uint32_t length;
+
+	fr = f_mount(&fs, "", 1);
+	if (fr != FR_OK)
+		return 0;
+	fr = f_open(&file, filename, FA_READ);
+	if (fr != FR_OK) {
+		printf("%s file not found.\n", filename);
+		f_mount(0, "", 0);
+		return 0;
+	}
+
+	length = f_size(&file);
+	printf("Copying %s to 0x%08x (%d bytes)...\n", filename, ram_address, length);
+	init_progression_bar(length);
+	offset = 0;
+	for (;;) {
+		fr = f_read(&file, (void*) ram_address + offset,  0x8000, &br);
+		if (fr != FR_OK) {
+			printf("file read error.\n");
+			f_close(&file);
+			f_mount(0, "", 0);
+			return 0;
+		}
+		if (br == 0)
+			break;
+		offset += br;
+		show_progress(offset);
+	}
+	show_progress(offset);
+	printf("\n");
+
+	f_close(&file);
+	f_mount(0, "", 0);
+
+	return 1;
+}
+
+static void sataboot_from_json(const char * filename)
+{
+	FRESULT fr;
+	FATFS fs;
+	FIL file;
+
+	uint8_t i;
+	uint8_t count;
+	uint32_t length;
+	uint32_t result;
+
+	/* FIXME: modify/increase if too limiting */
+	char json_buffer[1024];
+	char json_name[32];
+	char json_value[32];
+
+	unsigned long boot_r1 = 0;
+	unsigned long boot_r2 = 0;
+	unsigned long boot_r3 = 0;
+	unsigned long boot_addr = 0;
+
+	uint8_t image_found = 0;
+	uint8_t boot_addr_found = 0;
+
+	/* Read JSON file */
+	fr = f_mount(&fs, "", 1);
+	if (fr != FR_OK)
+		return;
+	fr = f_open(&file, filename, FA_READ);
+	if (fr != FR_OK) {
+		printf("%s file not found.\n", filename);
+		f_mount(0, "", 0);
+		return;
+	}
+
+	fr = f_read(&file, json_buffer, sizeof(json_buffer), &length);
+
+	/* Close JSON file */
+	f_close(&file);
+	f_mount(0, "", 0);
+
+	/* Parse JSON file */
+	jsmntok_t t[32];
+	jsmn_parser p;
+	jsmn_init(&p);
+	count = jsmn_parse(&p, json_buffer, strlen(json_buffer), t, sizeof(t)/sizeof(*t));
+	for (i=0; i<count-1; i++) {
+		memset(json_name,   0, sizeof(json_name));
+		memset(json_value,  0, sizeof(json_value));
+		/* Elements are JSON strings with 1 children */
+		if ((t[i].type == JSMN_STRING) && (t[i].size == 1)) {
+			/* Get Element's filename */
+			memcpy(json_name, json_buffer + t[i].start, t[i].end - t[i].start);
+			/* Get Element's address */
+			memcpy(json_value, json_buffer + t[i+1].start, t[i+1].end - t[i+1].start);
+			/* Skip bootargs (optional) */
+			if (strncmp(json_name, "bootargs", 8) == 0) {
+				continue;
+			}
+			/* Get boot addr (optional) */
+			else if (strncmp(json_name, "addr", 4) == 0) {
+				boot_addr = strtoul(json_value, NULL, 0);
+				boot_addr_found = 1;
+			}
+			/* Get boot r1 (optional) */
+			else if (strncmp(json_name, "r1", 2) == 0) {
+				memcpy(json_name, json_buffer + t[i].start, t[i].end - t[i].start);
+				boot_r1 = strtoul(json_value, NULL, 0);
+			}
+			/* Get boot r2 (optional) */
+			else if (strncmp(json_name, "r2", 2) == 0) {
+				boot_r2 = strtoul(json_value, NULL, 0);
+			}
+			/* Get boot r3 (optional) */
+			else if (strncmp(json_name, "r3", 2) == 0) {
+				boot_r3 = strtoul(json_value, NULL, 0);
+			/* Copy Image from SDCard to address */
+			} else {
+				result = copy_file_from_sata_to_ram(json_name, strtoul(json_value, NULL, 0));
+				if (result == 0)
+					return;
+				image_found = 1;
+				if (boot_addr_found == 0) /* Boot to last Image address if no bootargs.addr specified */
+					boot_addr = strtoul(json_value, NULL, 0);
+			}
+		}
+	}
+
+	/* Boot */
+	if (image_found)
+		boot(boot_r1, boot_r2, boot_r3, boot_addr);
+}
+
+static void sataboot_from_bin(const char * filename)
+{
+	uint32_t result;
+	result = copy_file_from_sata_to_ram(filename, MAIN_RAM_BASE);
+	if (result == 0)
+		return;
+	boot(0, 0, 0, MAIN_RAM_BASE);
+}
+
+void sataboot(void)
+{
+	printf("Booting from SATA...\n");
+
+	/* Boot from boot.json */
+	printf("Booting from boot.json...\n");
+	sataboot_from_json("boot.json");
+
+	/* Boot from boot.bin */
+	printf("Booting from boot.bin...\n");
+	sataboot_from_bin("boot.bin");
+
+	/* Boot failed if we are here... */
+	printf("SATA boot failed.\n");
 }
 #endif

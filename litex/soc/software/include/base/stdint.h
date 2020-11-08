@@ -26,7 +26,22 @@ typedef signed int int_least32_t;
 typedef unsigned int uint_least32_t;
 typedef signed long long int_least64_t;
 typedef unsigned long long uint_least64_t;
-  
+
+#define INT8_MAX 127
+#define INT16_MAX 32767
+#define INT32_MAX 2147483647
+#define INT64_MAX 9223372036854775807LL
+
+#define INT8_MIN -128
+#define INT16_MIN -32768
+#define INT32_MIN (-INT32_MAX - 1)
+#define INT64_MIN (-INT64_MAX - 1LL)
+
+#define UINT8_MAX 255
+#define UINT16_MAX 65535
+#define UINT32_MAX 4294967295U
+#define UINT64_MAX 18446744073709551615ULL
+
 #define __int_c_join(a, b) a ## b
 #define __int_c(v, suffix) __int_c_join(v, suffix)
 #define __uint_c(v, suffix) __int_c_join(v##U, suffix)

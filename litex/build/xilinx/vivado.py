@@ -8,6 +8,7 @@ import os
 import subprocess
 import sys
 import math
+from shutil import which
 
 from migen.fhdl.structure import _Fragment
 
@@ -89,8 +90,15 @@ def _run_script(script):
     else:
         shell = ["bash"]
 
+    if which("vivado") is None:
+        msg = "Unable to find or source Vivado toolchain, please either:\n"
+        msg += "- Source Vivado's settings manually.\n"
+        msg += "- Or set LITEX_ENV_VIVADO environment variant to Vivado's settings path.\n"
+        msg += "- Or add Vivado toolchain to your $PATH."
+        raise OSError(msg)
+
     if tools.subprocess_call_filtered(shell + [script], common.colors) != 0:
-        raise OSError("Subprocess failed")
+        raise OSError("Error occured during Vivado's script execution.")
 
 # XilinxVivadoToolchain ----------------------------------------------------------------------------
 

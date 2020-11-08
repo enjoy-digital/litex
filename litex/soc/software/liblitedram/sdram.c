@@ -283,15 +283,15 @@ void sdram_write_leveling_rst_cmd_delay(int show) {
 }
 
 void sdram_write_leveling_force_cmd_delay(int taps, int show) {
+	int i;
 	_sdram_write_leveling_cmd_scan  = 0;
 	_sdram_write_leveling_cmd_delay = taps;
 	if (show)
 		printf("Forcing Cmd delay to %d taps\n", taps);
 	ddrphy_cdly_rst_write(1);
-	while (taps > 0) {
+	for (i=0; i<taps; i++) {
 		ddrphy_cdly_inc_write(1);
-		cdelay(1000);
-		taps--;
+		cdelay(100);
 	}
 }
 
@@ -331,8 +331,10 @@ static void sdram_write_leveling_rst_delay(int module) {
 	ddrphy_wdly_dq_rst_write(1);
 	ddrphy_wdly_dqs_rst_write(1);
 #ifdef SDRAM_PHY_WRITE_LEVELING_REINIT
-	for(i=0; i<ddrphy_half_sys8x_taps_read(); i++)
+	for(i=0; i<ddrphy_half_sys8x_taps_read(); i++) {
 		ddrphy_wdly_dqs_inc_write(1);
+		cdelay(100);
+    }
 #endif
 
 	/* unsel module */
@@ -370,7 +372,6 @@ static int sdram_write_leveling_scan(int *delays, int loops, int show)
 	err_ddrphy_wdly = SDRAM_PHY_DELAYS - ddrphy_half_sys8x_taps_read();
 
 	sdram_write_leveling_on();
-	cdelay(100);
 	for(i=0;i<SDRAM_PHY_MODULES;i++) {
 		if (show)
 			printf("  m%d: |", i);
@@ -388,7 +389,7 @@ static int sdram_write_leveling_scan(int *delays, int loops, int show)
 #endif
 			for (k=0; k<loops; k++) {
 				ddrphy_wlevel_strobe_write(1);
-				cdelay(10);
+				cdelay(100);
 				csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr[0], buf, DFII_PIX_DATA_BYTES);
 				if (buf[SDRAM_PHY_MODULES-1-i] != 0)
 					one_count++;
@@ -402,7 +403,7 @@ static int sdram_write_leveling_scan(int *delays, int loops, int show)
 			if (show_iter)
 				printf("%d", taps_scan[j]);
 			sdram_write_leveling_inc_delay(i);
-			cdelay(10);
+			cdelay(100);
 		}
 		if (show)
 			printf("|");
@@ -482,7 +483,7 @@ static void sdram_write_leveling_find_cmd_delay(unsigned int *best_error, int *b
 		/* increment cdly to current value */
 		while (cdly_actual < cdly) {
 			ddrphy_cdly_inc_write(1);
-			cdelay(10);
+			cdelay(100);
 			cdly_actual++;
 		}
 
@@ -562,7 +563,7 @@ int sdram_write_leveling(void)
 		ddrphy_cdly_rst_write(1);
 		for (int i = 0; i < best_cdly; ++i) {
 			ddrphy_cdly_inc_write(1);
-			cdelay(10);
+			cdelay(100);
 		}
 	}
 
@@ -793,8 +794,10 @@ static void sdram_read_leveling_module(int module)
 
 	/* Set delay to the middle */
 	sdram_read_leveling_rst_delay(module);
-	for(i=0;i<(delay_min+delay_max)/2;i++)
+	for(i=0;i<(delay_min+delay_max)/2;i++) {
 		sdram_read_leveling_inc_delay(module);
+		cdelay(100);
+	}
 }
 #endif /* CSR_DDRPHY_BASE */
 

@@ -7,6 +7,7 @@
 
 import os
 import subprocess
+from shutil import which
 
 from migen.fhdl.structure import _Fragment
 
@@ -26,7 +27,7 @@ def _build_cst(named_sc, named_pc):
 
     for name, pin, other in flat_sc:
         lines.append(f"IO_LOC \"{name}\" {pin};")
-    
+
         for c in other:
             if isinstance(c, IOStandard):
                 lines.append(f"IO_PORT \"{name}\" IO_TYPE={c.name};")
@@ -97,7 +98,7 @@ class GowinToolchain():
         v_file = build_name + ".v"
         v_output.write(v_file)
         platform.add_source(v_file)
-        
+
         if platform.verilog_include_paths:
             self.options['include_path'] = '{' + ';'.join(platform.verilog_include_paths) + '}'
 
@@ -115,7 +116,13 @@ class GowinToolchain():
 
         # Run
         if run:
-            subprocess.run(["gw_sh", "run.tcl"])
+            if which("gw_sh") is None:
+                msg = "Unable to find Gowin toolchain, please:\n"
+                msg += "- Add Gowin toolchain to your $PATH."
+                raise OSError(msg)
+
+            if subprocess.call(["gw_sh", "run.tcl"]) != 0:
+                raise OSError("Error occured during Gowin's script execution.")
 
         os.chdir(cwd)
 

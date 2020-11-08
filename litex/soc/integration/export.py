@@ -347,9 +347,9 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
         interrupts[csr] = irq
 
     documented_regions = []
-    for name, region in soc.csr.regions.items():
+    for region_name, region in soc.csr.regions.items():
         documented_regions.append(DocumentedCSRRegion(
-            name           = name,
+            name           = region_name,
             region         = region,
             csr_data_width = soc.csr.data_width)
         )
@@ -431,9 +431,9 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
     if len(soc.mem_regions) > 0:
         svd.append('    <vendorExtensions>')
         svd.append('        <memoryRegions>')
-        for name, region in soc.mem_regions.items():
+        for region_name, region in soc.mem_regions.items():
             svd.append('            <memoryRegion>')
-            svd.append('                <name>{}</name>'.format(name.upper()))
+            svd.append('                <name>{}</name>'.format(region_name.upper()))
             svd.append('                <baseAddress>0x{:08X}</baseAddress>'.format(region.origin))
             svd.append('                <size>0x{:08X}</size>'.format(region.size))
             svd.append('            </memoryRegion>')

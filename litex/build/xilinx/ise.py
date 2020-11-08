@@ -13,6 +13,7 @@
 import os
 import subprocess
 import sys
+from shutil import which
 
 from migen.fhdl.structure import _Fragment
 
@@ -159,9 +160,16 @@ bitgen {bitgen_opt} {build_name}.ncd {build_name}.bit{fail_stmt}
     build_script_file = "build_" + build_name + script_ext
     tools.write_to_file(build_script_file, build_script_contents, force_unix=False)
     command = shell + [build_script_file]
-    r = tools.subprocess_call_filtered(command, common.colors)
-    if r != 0:
-        raise OSError("Subprocess failed")
+
+    if which("ise") is None:
+        msg = "Unable to find or source ISE toolchain, please either:\n"
+        msg += "- Source ISE's settings manually.\n"
+        msg += "- Or set LITEX_ISE_VIVADO environment variant to ISE's settings path.\n"
+        msg += "- Or add ISE toolchain to your $PATH."
+        raise OSError(msg)
+
+    if tools.subprocess_call_filtered(command, common.colors) != 0:
+        raise OSError("Error occured during ISE's script execution.")
 
 # XilinxISEToolchain --------------------------------------------------------------------------------
 

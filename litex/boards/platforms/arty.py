@@ -12,6 +12,12 @@ from litex.build.openocd import OpenOCD
 # IOs ----------------------------------------------------------------------------------------------
 
 _io = [
+    # Clk / Rst
+    ("clk100",    0, Pins("E3"), IOStandard("LVCMOS33")),
+    ("cpu_reset", 0, Pins("C2"), IOStandard("LVCMOS33")),
+
+
+    # Leds
     ("user_led", 0, Pins("H5"),  IOStandard("LVCMOS33")),
     ("user_led", 1, Pins("J5"),  IOStandard("LVCMOS33")),
     ("user_led", 2, Pins("T9"),  IOStandard("LVCMOS33")),
@@ -23,21 +29,18 @@ _io = [
         Subsignal("b", Pins("E1")),
         IOStandard("LVCMOS33"),
     ),
-
     ("rgb_led", 1,
         Subsignal("r", Pins("G3")),
         Subsignal("g", Pins("J4")),
         Subsignal("b", Pins("G4")),
         IOStandard("LVCMOS33"),
     ),
-
     ("rgb_led", 2,
         Subsignal("r", Pins("J3")),
         Subsignal("g", Pins("J2")),
         Subsignal("b", Pins("H4")),
         IOStandard("LVCMOS33"),
     ),
-
     ("rgb_led", 3,
         Subsignal("r", Pins("K1")),
         Subsignal("g", Pins("H6")),
@@ -45,26 +48,26 @@ _io = [
         IOStandard("LVCMOS33"),
     ),
 
+    # Switches
     ("user_sw", 0, Pins("A8"),  IOStandard("LVCMOS33")),
     ("user_sw", 1, Pins("C11"), IOStandard("LVCMOS33")),
     ("user_sw", 2, Pins("C10"), IOStandard("LVCMOS33")),
     ("user_sw", 3, Pins("A10"), IOStandard("LVCMOS33")),
 
+    # Buttons
     ("user_btn", 0, Pins("D9"), IOStandard("LVCMOS33")),
     ("user_btn", 1, Pins("C9"), IOStandard("LVCMOS33")),
     ("user_btn", 2, Pins("B9"), IOStandard("LVCMOS33")),
     ("user_btn", 3, Pins("B8"), IOStandard("LVCMOS33")),
 
-    ("clk100", 0, Pins("E3"), IOStandard("LVCMOS33")),
-
-    ("cpu_reset", 0, Pins("C2"), IOStandard("LVCMOS33")),
-
+    # Serial
     ("serial", 0,
         Subsignal("tx", Pins("D10")),
         Subsignal("rx", Pins("A9")),
         IOStandard("LVCMOS33")
     ),
 
+    # SPI
     ("spi", 0,
         Subsignal("clk",  Pins("F1")),
         Subsignal("cs_n", Pins("C1")),
@@ -73,6 +76,7 @@ _io = [
         IOStandard("LVCMOS33"),
     ),
 
+    # I2C
     ("i2c", 0,
         Subsignal("scl", Pins("L18")),
         Subsignal("sda", Pins("M18")),
@@ -81,12 +85,7 @@ _io = [
         IOStandard("LVCMOS33"),
     ),
 
-    ("spiflash4x", 0,
-        Subsignal("cs_n", Pins("L13")),
-        Subsignal("clk",  Pins("L16")),
-        Subsignal("dq",   Pins("K17", "K18", "L14", "M14")),
-        IOStandard("LVCMOS33")
-    ),
+    # SPIFlash
     ("spiflash", 0,
         Subsignal("cs_n", Pins("L13")),
         Subsignal("clk",  Pins("L16")),
@@ -96,7 +95,14 @@ _io = [
         Subsignal("hold", Pins("M14")),
         IOStandard("LVCMOS33"),
     ),
+    ("spiflash4x", 0,
+        Subsignal("cs_n", Pins("L13")),
+        Subsignal("clk",  Pins("L16")),
+        Subsignal("dq",   Pins("K17", "K18", "L14", "M14")),
+        IOStandard("LVCMOS33")
+    ),
 
+    # DDR3 SDRAM
     ("ddram", 0,
         Subsignal("a", Pins(
             "R2 M6 N4 T1 N6 R7 V6 U7",
@@ -127,6 +133,7 @@ _io = [
         Misc("SLEW=FAST"),
     ),
 
+    # MII Ethernet
     ("eth_ref_clk", 0, Pins("G18"), IOStandard("LVCMOS33")),
     ("eth_clocks", 0,
         Subsignal("tx", Pins("H16")),

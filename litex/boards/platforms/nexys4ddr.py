@@ -11,6 +11,11 @@ from litex.build.openocd import OpenOCD
 # IOs ----------------------------------------------------------------------------------------------
 
 _io = [
+    # Clk / Rst
+    ("clk100", 0, Pins("E3"), IOStandard("LVCMOS33")),
+    ("cpu_reset", 0, Pins("C12"), IOStandard("LVCMOS33")),
+
+    # Leds
     ("user_led",  0, Pins("H17"), IOStandard("LVCMOS33")),
     ("user_led",  1, Pins("K15"), IOStandard("LVCMOS33")),
     ("user_led",  2, Pins("J13"), IOStandard("LVCMOS33")),
@@ -28,6 +33,7 @@ _io = [
     ("user_led", 14, Pins("V12"), IOStandard("LVCMOS33")),
     ("user_led", 15, Pins("V11"), IOStandard("LVCMOS33")),
 
+    # Switches
     ("user_sw",  0, Pins("J15"), IOStandard("LVCMOS33")),
     ("user_sw",  1, Pins("L16"), IOStandard("LVCMOS33")),
     ("user_sw",  2, Pins("M13"), IOStandard("LVCMOS33")),
@@ -45,22 +51,21 @@ _io = [
     ("user_sw", 14, Pins("U11"), IOStandard("LVCMOS33")),
     ("user_sw", 15, Pins("V10"), IOStandard("LVCMOS33")),
 
+    # Buttons
     ("user_btn", 0, Pins("N17"), IOStandard("LVCMOS33")),
     ("user_btn", 1, Pins("P18"), IOStandard("LVCMOS33")),
     ("user_btn", 2, Pins("P17"), IOStandard("LVCMOS33")),
     ("user_btn", 3, Pins("M17"), IOStandard("LVCMOS33")),
     ("user_btn", 4, Pins("M18"), IOStandard("LVCMOS33")),
 
-    ("clk100", 0, Pins("E3"), IOStandard("LVCMOS33")),
-
-    ("cpu_reset", 0, Pins("C12"), IOStandard("LVCMOS33")),
-
+    # Serial
     ("serial", 0,
         Subsignal("tx", Pins("D4")),
         Subsignal("rx", Pins("C4")),
         IOStandard("LVCMOS33"),
     ),
 
+    # SDCard
     ("spisdcard", 0,
         Subsignal("rst",  Pins("E2")),
         Subsignal("clk",  Pins("B1")),
@@ -70,7 +75,6 @@ _io = [
         Misc("SLEW=FAST"),
         IOStandard("LVCMOS33"),
     ),
-
     ("sdcard", 0,
         Subsignal("rst",  Pins("E2"),          Misc("PULLUP True")),
         Subsignal("data", Pins("C2 E1 F1 D2"), Misc("PULLUP True")),
@@ -81,6 +85,7 @@ _io = [
         IOStandard("LVCMOS33"),
     ),
 
+    # DDR2 SDRAM
     ("ddram", 0,
         Subsignal("a", Pins(
             "M4 P4 M6 T1 L3 P5 M2 N1",
@@ -106,6 +111,7 @@ _io = [
         Misc("SLEW=FAST"),
     ),
 
+    # RMII Ethernet
     ("eth_clocks", 0,
         Subsignal("ref_clk", Pins("D5")),
         IOStandard("LVCMOS33"),

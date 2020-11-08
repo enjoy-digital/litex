@@ -10,31 +10,29 @@ from litex.build.microsemi import MicrosemiPlatform
 # IOs ----------------------------------------------------------------------------------------------
 
 _io = [
+    # Clk / Rst
     ("clk50", 0, Pins("R1"), IOStandard("LVCMOS25")),
     ("clk50", 1, Pins("J3"), IOStandard("LVCMOS25")),
-
     ("rst_n", 0, Pins("F5"), IOStandard("LVCMOS33")),
 
+    # Leds
     ("user_led", 0, Pins("D6"), IOStandard("LVCMOS33")),
     ("user_led", 1, Pins("D7"), IOStandard("LVCMOS33")),
     ("user_led", 2, Pins("D8"), IOStandard("LVCMOS33")),
     ("user_led", 3, Pins("D9"), IOStandard("LVCMOS33")),
 
+    # Buttons
     ("user_btn", 0, Pins("E13"), IOStandard("LVCMOS33")),
     ("user_btn", 1, Pins("E14"), IOStandard("LVCMOS33")),
 
+    # Serial
     ("serial", 0,
         Subsignal("tx", Pins("F17")),
         Subsignal("rx", Pins("F16")),
         IOStandard("LVCMOS33")
     ),
 
-    ("spiflash4x", 0,
-        Subsignal("clk",  Pins("J1")),
-        Subsignal("cs_n", Pins("H1")),
-        Subsignal("dq",   Pins("F2 F1 M7 M8")),
-        IOStandard("LVCMOS25")
-    ),
+    # SPIFlash
     ("spiflash", 0,
         Subsignal("clk",  Pins("J1")),
         Subsignal("cs_n", Pins("H1")),
@@ -44,7 +42,14 @@ _io = [
         Subsignal("hold", Pins("M8")),
         IOStandard("LVCMOS25"),
     ),
+    ("spiflash4x", 0,
+        Subsignal("clk",  Pins("J1")),
+        Subsignal("cs_n", Pins("H1")),
+        Subsignal("dq",   Pins("F2 F1 M7 M8")),
+        IOStandard("LVCMOS25")
+    ),
 
+    # DDR3 SDRAM
     ("ddram", 0,
         Subsignal("a", Pins(
             "U5 U4  V4  W3 V5 W4  Y3 AA3",
@@ -69,6 +74,7 @@ _io = [
         Subsignal("reset_n", Pins("AB7"), IOStandard("SSTL15II")),
     ),
 
+    # Ethernet
     ("eth_clocks", 0,
         Subsignal("tx", Pins("J8")),
         Subsignal("rx", Pins("K3")),

@@ -10,6 +10,7 @@ import os
 import subprocess
 import sys
 import math
+from shutil import which
 
 from migen.fhdl.structure import _Fragment
 
@@ -156,8 +157,13 @@ def _run_script(script):
     else:
         shell = ["bash"]
 
+    if which("quartus_map") is None:
+        msg = "Unable to find Quartus toolchain, please:\n"
+        msg += "- Add Quartus toolchain to your $PATH."
+        raise OSError(msg)
+
     if subprocess.call(shell + [script]) != 0:
-        raise OSError("Subprocess failed")
+        raise OSError("Error occured during Quartus's script execution.")
 
 # AlteraQuartusToolchain ---------------------------------------------------------------------------
 

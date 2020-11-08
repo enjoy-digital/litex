@@ -11,6 +11,11 @@ from litex.build.xilinx.programmer import XC3SProg
 # IOs ----------------------------------------------------------------------------------------------
 
 _io = [
+    # Clk / Rst
+    ("clk32", 0, Pins("J4"), IOStandard("LVCMOS33")),
+    ("clk50", 0, Pins("K3"), IOStandard("LVCMOS33")),
+
+    # Leds
     ("user_led", 0, Pins("P11"), IOStandard("LVCMOS33")),
     ("user_led", 1, Pins("N9"),  IOStandard("LVCMOS33")),
     ("user_led", 2, Pins("M9"),  IOStandard("LVCMOS33")),
@@ -20,14 +25,14 @@ _io = [
     ("user_led", 6, Pins("P8"),  IOStandard("LVCMOS33")),
     ("user_led", 7, Pins("P7"),  IOStandard("LVCMOS33")),
 
+    # Switches
     ("user_sw", 0, Pins("L1"), IOStandard("LVCMOS33"), Misc("PULLUP")),
     ("user_sw", 1, Pins("L3"), IOStandard("LVCMOS33"), Misc("PULLUP")),
     ("user_sw", 2, Pins("L4"), IOStandard("LVCMOS33"), Misc("PULLUP")),
     ("user_sw", 3, Pins("L5"), IOStandard("LVCMOS33"), Misc("PULLUP")),
 
-    ("clk32", 0, Pins("J4"), IOStandard("LVCMOS33")),
-    ("clk50", 0, Pins("K3"), IOStandard("LVCMOS33")),
 
+    # SPIFlash
     ("spiflash", 0,
         Subsignal("cs_n", Pins("T3"), IOStandard("LVCMOS33")),
         Subsignal("clk",  Pins("R11"), IOStandard("LVCMOS33")),
@@ -35,6 +40,26 @@ _io = [
         Subsignal("miso", Pins("P10"), IOStandard("LVCMOS33"))
     ),
 
+    # Serial
+    ("serial", 0,
+        Subsignal("tx", Pins("N6"), IOStandard("LVCMOS33")),  # FTDI D1
+        Subsignal("rx", Pins("M7"), IOStandard("LVCMOS33"))   # FTDI D0
+    ),
+
+    # USB FIFO
+    ("usb_fifo", 0,
+        Subsignal("data",  Pins("M7 N6 M6 P5 N5 P4 P2 P1")),
+        Subsignal("rxf_n", Pins("N3")),
+        Subsignal("txe_n", Pins("N1")),
+        Subsignal("rd_n",  Pins("M1")),
+        Subsignal("wr_n",  Pins("M2")),
+        Subsignal("siwua", Pins("M3")),
+        Misc("SLEW=FAST"),
+        Drive(8),
+        IOStandard("LVCMOS33"),
+    ),
+
+    # ADC
     ("adc", 0,
         Subsignal("cs_n", Pins("F6"), IOStandard("LVCMOS33")),
         Subsignal("clk",  Pins("G6"), IOStandard("LVCMOS33")),
@@ -42,16 +67,13 @@ _io = [
         Subsignal("miso", Pins("H5"), IOStandard("LVCMOS33"))
     ),
 
-    ("serial", 0,
-        Subsignal("tx", Pins("N6"), IOStandard("LVCMOS33")),  # FTDI D1
-        Subsignal("rx", Pins("M7"), IOStandard("LVCMOS33"))   # FTDI D0
-    ),
-
+    # Audio
     ("audio", 0,
         Subsignal("a0", Pins("B8"), IOStandard("LVCMOS33")),
         Subsignal("a1", Pins("A8"), IOStandard("LVCMOS33"))
     ),
 
+    # SDR SDRAM
     ("sdram_clock", 0, Pins("G16"), IOStandard("LVCMOS33"), Misc("SLEW=FAST")),
     ("sdram", 0,
         Subsignal("a", Pins(
@@ -71,18 +93,7 @@ _io = [
         IOStandard("LVCMOS33"),
     ),
 
-    ("usb_fifo", 0,
-        Subsignal("data",  Pins("M7 N6 M6 P5 N5 P4 P2 P1")),
-        Subsignal("rxf_n", Pins("N3")),
-        Subsignal("txe_n", Pins("N1")),
-        Subsignal("rd_n",  Pins("M1")),
-        Subsignal("wr_n",  Pins("M2")),
-        Subsignal("siwua", Pins("M3")),
-        Misc("SLEW=FAST"),
-        Drive(8),
-        IOStandard("LVCMOS33"),
-    ),
-
+    # SDCard
     ("spisdcard", 0,
         Subsignal("clk",  Pins("L12")),
         Subsignal("mosi", Pins("K11"), Misc("PULLUP")),
@@ -91,7 +102,6 @@ _io = [
         Misc("SLEW=FAST"),
         IOStandard("LVCMOS33"),
     ),
-
     ("sdcard", 0,
         Subsignal("data", Pins("M10 L10 J11 K12"), Misc("PULLUP")),
         Subsignal("cmd",  Pins("K11"), Misc("PULLUP")),
@@ -100,6 +110,7 @@ _io = [
         IOStandard("LVCMOS33"),
     ),
 
+    # DVI In
     ("dvi_in", 0,
         Subsignal("clk_p",  Pins("C9"), IOStandard("TMDS_33")),
         Subsignal("clk_n",  Pins("A9"), IOStandard("TMDS_33")),
@@ -109,6 +120,7 @@ _io = [
         Subsignal("sda",    Pins("B1"), IOStandard("LVCMOS33"))
     ),
 
+    # DVI Out
     ("dvi_out", 0,
         Subsignal("clk_p",  Pins("B14"), IOStandard("TMDS_33")),
         Subsignal("clk_n",  Pins("A14"), IOStandard("TMDS_33")),

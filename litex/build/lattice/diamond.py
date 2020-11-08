@@ -12,6 +12,7 @@ import sys
 import math
 import subprocess
 import shutil
+from shutil import which
 
 from migen.fhdl.structure import _Fragment
 
@@ -147,8 +148,13 @@ def _run_script(script):
     else:
         shell = ["bash"]
 
+    if which("diamondc") is None:
+        msg = "Unable to find Diamond toolchain, please:\n"
+        msg += "- Add Diamond toolchain to your $PATH.\n"
+        raise OSError(msg)
+
     if subprocess.call(shell + [script]) != 0:
-        raise OSError("Subprocess failed")
+        raise OSError("Error occured during Diamond's script execution.")
 
 def _check_timing(build_name):
     lines = open("impl/{}_impl.par".format(build_name), "r").readlines()

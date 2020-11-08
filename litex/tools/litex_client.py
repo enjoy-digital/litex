@@ -1,11 +1,14 @@
+#!/usr/bin/env python3
+
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2016 Tim 'mithro' Ansell <mithro@mithis.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
+import argparse
 import socket
 
 from litex.tools.remote.etherbone import EtherbonePacket, EtherboneRecord
@@ -13,6 +16,7 @@ from litex.tools.remote.etherbone import EtherboneReads, EtherboneWrites
 from litex.tools.remote.etherbone import EtherboneIPC
 from litex.tools.remote.csr_builder import CSRBuilder
 
+# Remote Client ------------------------------------------------------------------------------------
 
 class RemoteClient(EtherboneIPC, CSRBuilder):
     def __init__(self, host="localhost", port=1234, base_address=0, csr_csv=None, csr_data_width=None, debug=False):
@@ -79,3 +83,50 @@ class RemoteClient(EtherboneIPC, CSRBuilder):
         if self.debug:
             for i, data in enumerate(datas):
                 print("write {:08x} @ {:08x}".format(data, self.base_address + addr + 4*i))
+
+# Utils --------------------------------------------------------------------------------------------
+
+def dump_identifier(port):
+    wb = RemoteClient(port=port)
+    wb.open()
+
+    fpga_identifier = ""
+
+    for i in range(256):
+        c = chr(wb.read(wb.bases.identifier_mem + 4*i) & 0xff)
+        fpga_identifier += c
+        if c == "\0":
+            break
+
+    print(fpga_identifier)
+
+    wb.close()
+
+def dump_registers(port):
+    wb = RemoteClient(port=port)
+    wb.open()
+
+    for name, register in wb.regs.__dict__.items():
+        print("0x{:08x} : 0x{:08x} {}".format(register.addr, register.read(), name))
+
+    wb.close()
+
+# Run ----------------------------------------------------------------------------------------------
+
+def main():
+    parser = argparse.ArgumentParser(description="LiteX Client utility")
+    parser.add_argument("--port",  default="1234",      help="Host bind port")
+    parser.add_argument("--ident", action="store_true", help="Dump FPGA identifier")
+    parser.add_argument("--regs",  action="store_true", help="Dump FPGA registers")
+    args = parser.parse_args()
+
+    port = int(args.port, 0)
+
+    if args.ident:
+        dump_identifier(port=port)
+
+    if args.regs:
+        dump_registers(port=port)
+
+if __name__ == "__main__":
+    main()

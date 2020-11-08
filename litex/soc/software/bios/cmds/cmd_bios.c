@@ -131,6 +131,35 @@ define_command(flush_cpu_dcache, flush_cpu_dcache, "Flush CPU data cache", SYSTE
 define_command(flush_l2_cache, flush_l2_cache, "Flush L2 cache", SYSTEM_CMDS);
 #endif
 
+/**
+ * Command "leds"
+ *
+ * Set Leds value
+ *
+ */
+#ifdef CSR_LEDS_BASE
+static void leds_handler(int nb_params, char **params)
+{
+	char *c;
+	unsigned int value;
+
+	if (nb_params < 1) {
+		printf("leds <value>");
+		return;
+	}
+
+	value = strtoul(params[0], &c, 0);
+	if (*c != 0) {
+		printf("Incorrect value");
+		return;
+	}
+
+	printf("Settings Leds to 0x%x", value);
+	leds_out_write(value);
+}
+
+define_command(leds, leds_handler, "Set Leds value", SYSTEM_CMDS);
+#endif
 
 /**
  * Command "trace"

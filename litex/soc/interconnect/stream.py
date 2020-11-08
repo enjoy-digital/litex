@@ -70,7 +70,7 @@ class Endpoint(Record):
         Record.__init__(self, self.description.get_full_layout(), name, **kwargs)
         set_reset_less(self.first)
         set_reset_less(self.last)
-        set_reset_less(self.payload)
+        #set_reset_less(self.payload) # FIXME: cause issues with LiteSATA, understand why and uncomment.
         set_reset_less(self.param)
 
     def __getattr__(self, name):
@@ -567,6 +567,30 @@ class Gearbox(Module):
             self.comb += source.data.eq(o_data)
         else:
             self.comb += source.data.eq(o_data[::-1])
+
+# Shifter ------------------------------------------------------------------------------------------
+
+class Shifter(PipelinedActor):
+    def __init__(self, dw, shift=None):
+        self.shift  = Signal(max=dw) if shift is None else shift
+        self.sink   = sink   = Endpoint([("data", dw)])
+        self.source = source = Endpoint([("data", dw)])
+        PipelinedActor.__init__(self, latency=2)
+
+        # # #
+
+        # Accumulate current/last sink.data.
+        r = Signal(2*dw)
+        self.sync += If(self.pipe_ce,
+            r[:dw].eq(r[dw:]),
+            r[dw:].eq(sink.data)
+        )
+
+        # Select output data based on shift.
+        cases = {}
+        for i in range(dw):
+            cases[i] = self.source.data.eq(r[i:dw+i])
+        self.comb += Case(self.shift, cases)
 
 # Monitor ------------------------------------------------------------------------------------------
 

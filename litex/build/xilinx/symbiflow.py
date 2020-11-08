@@ -11,6 +11,7 @@ import sys
 import math
 from typing import NamedTuple, Union, List
 import re
+from shutil import which
 
 from migen.fhdl.structure import _Fragment, wrap, Constant
 from migen.fhdl.specials import Instance
@@ -94,8 +95,13 @@ class _MakefileGenerator:
 
 
 def _run_make():
-    if tools.subprocess_call_filtered("make", []) != 0:
-        raise OSError("Subprocess failed")
+    if which("symbiflow_synth") is None:
+        msg = "Unable to find Symbiflow toolchain, please:\n"
+        msg += "- Add Symbiflow toolchain to your $PATH."
+        raise OSError(msg)
+
+    if tools.subprocess_call_filtered(shell + [script], common.colors) != 0:
+        raise OSError("Error occured during Symbiflow's script execution.")
 
 # SymbiflowToolchain -------------------------------------------------------------------------------
 

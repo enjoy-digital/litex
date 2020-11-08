@@ -45,6 +45,7 @@
 #include <liblitespi/spiflash.h>
 
 #include <liblitesdcard/sdcard.h>
+#include <liblitesata/sata.h>
 
 static void boot_sequence(void)
 {
@@ -57,6 +58,9 @@ static void boot_sequence(void)
 #endif
 #if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCORE_BASE)
 		sdcardboot();
+#endif
+#if defined(CSR_SATA_SECTOR2MEM_BASE)
+		sataboot();
 #endif
 #ifdef CSR_ETHMAC_BASE
 #ifdef CSR_ETHPHY_MODE_DETECTION_MODE_ADDR
