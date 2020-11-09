@@ -12,6 +12,8 @@ extern "C" {
 #include <generated/soc.h>
 #include <generated/mem.h>
 
+#ifdef CONFIG_CPU_HAS_INTERRUPT
+
 // Address of exception / IRQ handler routine
 extern void * __rom_isr_address;
 void isr(uint64_t vec);
@@ -153,6 +155,9 @@ static inline unsigned int irq_pending(void)
 	}
 	return pending;
 }
+
+
+#endif /* CONFIG_CPU_HAS_INTERRUPT */
 
 #ifdef __cplusplus
 }
