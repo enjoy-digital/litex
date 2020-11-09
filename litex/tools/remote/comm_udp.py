@@ -22,7 +22,6 @@ class CommUDP:
             return
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.bind(("", self.port))
-        self.socket.settimeout(1)
 
     def close(self):
         if not hasattr(self, "socket"):
@@ -41,22 +40,16 @@ class CommUDP:
         packet.records = [record]
         packet.encode()
 
-        try:
-            self.socket.sendto(bytes(packet), (self.server, self.port))
+        self.socket.sendto(bytes(packet), (self.server, self.port))
 
-            datas, dummy = self.socket.recvfrom(8192)
-            packet = EtherbonePacket(datas)
-            packet.decode()
-            datas = packet.records.pop().writes.get_datas()
-            if self.debug:
-                for i, value in enumerate(datas):
-                    print("read {:08x} @ {:08x}".format(value, addr + 4*i))
-            return datas[0] if length is None else datas
-        except Exception as ex:
-            print("commUDP read: exception ({})".format(ex))
-            self.close()
-            self.open()
-            return []
+        datas, dummy = self.socket.recvfrom(8192)
+        packet = EtherbonePacket(datas)
+        packet.decode()
+        datas = packet.records.pop().writes.get_datas()
+        if self.debug:
+            for i, value in enumerate(datas):
+                print("read {:08x} @ {:08x}".format(value, addr + 4*i))
+        return datas[0] if length is None else datas
 
     def write(self, addr, datas):
         datas = datas if isinstance(datas, list) else [datas]
@@ -69,14 +62,8 @@ class CommUDP:
         packet.records = [record]
         packet.encode()
 
-        try:
-            self.socket.sendto(bytes(packet), (self.server, self.port))
+        self.socket.sendto(bytes(packet), (self.server, self.port))
 
-            if self.debug:
-                for i, value in enumerate(datas):
-                    print("write {:08x} @ {:08x}".format(value, addr + 4*i))
-        except Exception as ex:
-            print("commUDP write: exception ({})".format(ex))
-            self.close()
-            self.open()
-
+        if self.debug:
+            for i, value in enumerate(datas):
+                print("write {:08x} @ {:08x}".format(value, addr + 4*i))
