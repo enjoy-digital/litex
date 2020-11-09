@@ -1,8 +1,6 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2018-2020 Florent Kermarrec <florent@enjoy-digital.fr>
-# Copyright (c) 2019 Michael Betz <michibetz@gmail.com>
 # Copyright (c) 2020 David Corrigan <davidcorrigan714@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
@@ -35,7 +33,7 @@ class NXPLL(Module):
     vco_out_freq_range  = ( 800e6,  1600e6)
     instance_num        = 0
 
-    def __init__(self, name = None):
+    def __init__(self, platform = None, create_output_port_clocks=False):
         self.logger = logging.getLogger("NXPLL")
         self.logger.info("Creating NXPLL.")
         self.params     = {}
@@ -47,7 +45,10 @@ class NXPLL(Module):
         self.nclkouts   = 0
         self.clkouts    = {}
         self.config     = {}
-        self.name       = name
+        self.name       = 'PLL_' + str(NXPLL.instance_num)
+        NXPLL.instance_num += 1
+        self.platform   = platform
+        self.create_output_port_clocks = create_output_port_clocks
 
         self.calc_valid_io_i2()
         self.calc_tf_coefficients()
@@ -154,9 +155,9 @@ class NXPLL(Module):
 
         analog_params = self.calculate_analog_parameters(self.clkin_freq, config["clkfb_div"])
         self.params.update(analog_params)
+        n_to_l = {0: "P", 1: "S", 2: "S2", 3:"S3", 4:"S4"}
 
         for n, (clk, f, p, m) in sorted(self.clkouts.items()):
-            n_to_l = {0: "P", 1: "S", 2: "S2", 3:"S3", 4:"S4"}
             div    = config["clko{}_div".format(n)]
             phase = int((1+p/360) * div)
             letter = chr(n+65)
@@ -166,6 +167,15 @@ class NXPLL(Module):
             self.params["p_DEL{}".format(letter)] = str(phase - 1)
             self.params["o_CLKO{}".format(n_to_l[n])] = clk
 
+            # In theory this really shouldn't be necessary, in practice
+            # the tooling seems to have suspicous clock latency values
+            # on generated clocks that are causing timing problems and Lattice
+            # hasn't responded to my support requests on the matter.
+            if self.platform and self.create_output_port_clocks:
+                self.platform.add_platform_command("create_clock -period {} -name {} [get_pins {}.PLL_inst/CLKO{}]".format(str(1/f*1e9), self.name + "_" + n_to_l[n],self.name, n_to_l[n]))
+
+        if self.platform and self.create_output_port_clocks:
+            i = 0
         self.specials += Instance("PLL", name = self.name, **self.params)
 
     # The gist of calculating the analog parameters is to run through all the
@@ -203,8 +213,7 @@ class NXPLL(Module):
                 best_3db = closed_loop_3db["f"]
                 best_params = params
 
-        print("Done calculating analog parameters.")
-        print("Analog Paramters: ")
+        print("Done calculating analog parameters:")
         HDL_params = self.numerical_params_to_HDL_params(best_params)
         pprint.pprint(HDL_params)
 

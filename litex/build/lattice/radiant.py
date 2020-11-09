@@ -126,7 +126,7 @@ def _build_tcl(device, sources, vincpaths, build_name, pdc_file, synth_mode):
         "-name \"{}\"".format(build_name),
         "-impl \"impl\"",
         "-dev {}".format(device),
-        "-synthesis \"lsc\""
+        "-synthesis \"synplify\""
     ]))
 
     def tcl_path(path): return path.replace("\\", "/")
