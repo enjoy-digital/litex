@@ -10,6 +10,7 @@ import os
 import argparse
 
 from migen import *
+from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.boards.platforms import kcu105
 
