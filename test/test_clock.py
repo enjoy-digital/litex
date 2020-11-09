@@ -6,6 +6,8 @@
 
 import unittest
 
+from migen import *
+
 from litex.soc.cores.clock import *
 
 
@@ -70,6 +72,38 @@ class TestClock(unittest.TestCase):
             mmcm.create_clkout(ClockDomain("clkout{}".format(i)), 200e6)
         mmcm.compute_config()
 
+    # Intel / CycloneIV
+    def test_cycloneivpll(self):
+        pll = CycloneIVPLL()
+        pll.register_clkin(Signal(), 50e6)
+        for i in range(pll.nclkouts_max):
+            pll.create_clkout(ClockDomain("clkout{}".format(i)), 100e6)
+        pll.compute_config()
+
+    # Intel / CycloneV
+    def test_cyclonevpll(self):
+        pll = CycloneVPLL()
+        pll.register_clkin(Signal(), 50e6)
+        for i in range(pll.nclkouts_max):
+            pll.create_clkout(ClockDomain("clkout{}".format(i)), 100e6)
+        pll.compute_config()
+
+    # Intel / Cyclone10
+    def test_cyclone10pll(self):
+        pll = Cyclone10LPPLL()
+        pll.register_clkin(Signal(), 50e6)
+        for i in range(pll.nclkouts_max):
+            pll.create_clkout(ClockDomain("clkout{}".format(i)), 100e6)
+        pll.compute_config()
+
+    # Intel / Max10
+    def test_max10pll(self):
+        pll = Max10PLL()
+        pll.register_clkin(Signal(), 50e6)
+        for i in range(pll.nclkouts_max):
+            pll.create_clkout(ClockDomain("clkout{}".format(i)), 100e6)
+        pll.compute_config()
+
     # Lattice / iCE40
     def test_ice40pll(self):
         pll = USMMCM()
@@ -86,18 +120,10 @@ class TestClock(unittest.TestCase):
             pll.create_clkout(ClockDomain("clkout{}".format(i)), 200e6)
         pll.compute_config()
 
-    # Altera / CycloneIV
-    def test_cycloneivpll(self):
-        pll = CycloneIVPLL()
-        pll.register_clkin(Signal(), 50e6)
+    # Lattice / NX
+    def test_nxpll(self):
+        pll = NXPLL()
+        pll.register_clkin(Signal(), 100e6)
         for i in range(pll.nclkouts_max):
-            pll.create_clkout(ClockDomain("clkout{}".format(i)), 100e6)
-        pll.compute_config()
-
-    # Altera / CycloneV
-    def test_cyclonevpll(self):
-        pll = CycloneVPLL()
-        pll.register_clkin(Signal(), 50e6)
-        for i in range(pll.nclkouts_max):
-            pll.create_clkout(ClockDomain("clkout{}".format(i)), 100e6)
+            pll.create_clkout(ClockDomain("clkout{}".format(i)), 200e6)
         pll.compute_config()
