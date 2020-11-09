@@ -13,7 +13,7 @@ from cmath import phase
 
 from migen import *
 
-from litex.soc.cores.clock import register_clkin_log, create_clkout_log, compute_config_log
+from litex.soc.cores.clock.common import *
 
 logging.basicConfig(level=logging.INFO)
 
@@ -21,6 +21,90 @@ io_i2 = namedtuple('io_i2',['io', 'i2', 'IPP_CTRL', 'BW_CTL_BIAS', 'IPP_SEL'])
 nx_pll_param_permutation = namedtuple("nx_pll_param_permutation",[
                                 "C1","C2","C3","C4","C5","C6",
                                 "IPP_CTRL","BW_CTL_BIAS","IPP_SEL","CSET","CRIPPLE","V2I_PP_RES","IPI_CMP"])
+
+
+# Lattice / NX OSCA --------------------------------------------------------------------------------
+# NOTE This clock has +/- 15% accuracy
+
+class NXOSCA(Module):
+    nclkouts_max = 2
+    clk_hf_div_range = (0, 255)
+    clk_hf_freq_range = (1.76, 450e6)
+    clk_hf_freq = 450e6
+
+    def __init__(self):
+        self.logger = logging.getLogger("NXOSCA")
+        self.logger.info("Creating NXOSCA.")
+
+        self.hf_clk_out    = {}
+        self.hfsdc_clk_out = {}
+        self.lf_clk_out    = None
+        self.params        = {}
+
+    def create_hf_clk(self, cd, freq, margin=.05):
+        """450 - 1.7 Mhz Clk"""
+        (clko_freq_min, clko_freq_max) = self.clk_hf_freq_range
+        assert freq >= clko_freq_min
+        assert freq <= clko_freq_max
+        clkout = Signal()
+        self.hf_clk_out = (clkout, freq, margin)
+        self.comb += cd.clk.eq(clkout)
+        create_clkout_log(self.logger, cd.name, freq, margin, -1)
+
+    def create_hfsdc_clk(self, cd, freq, margin=.05):
+        """450 - 1.7 Mhz Clk. Can only be connected to the SEDC_CLK port of CONFIG_CLKRST_CORE"""
+        (clko_freq_min, clko_freq_max) = self.clk_hf_freq_range
+        assert freq >= clko_freq_min
+        assert freq <= clko_freq_max
+        clkout = Signal()
+        self.hfsdc_clk_out = (clkout, freq, margin)
+        self.comb += cd.clk.eq(clkout)
+        create_clkout_log(self.logger, cd.name, freq, margin, -1)
+
+    def create_lf_clk(self, cd):
+        """128 kHz Clock"""
+        clkout = Signal()
+        self.lf_clk_out = (clkout)
+        self.comb += cd.clk.eq(clkout)
+        create_clkout_log(self.logger, cd.name, 128e3, 19e3, -1)
+
+    def compute_divisor(self, freq, margin):
+        config = {}
+
+        for divisor in range(*self.clk_hf_div_range):
+            clk_freq = self.clk_hf_freq/(divisor+1)
+            if abs(clk_freq - freq) <= freq*margin:
+                config["freq"]  = clk_freq
+                config["div"]   = str(divisor)
+                break
+
+        if config:
+            compute_config_log(self.logger, config)
+            return config["div"]
+
+        raise ValueError("Bad OSC freq.")
+
+    def do_finalize(self):
+        if self.hf_clk_out:
+            divisor = self.compute_divisor(self.hf_clk_out[1], self.hf_clk_out[2])
+            self.params["i_HFOUTEN"]      = 0b1
+            self.params["p_HF_CLK_DIV"]   = divisor
+            self.params["o_HFCLKOUT"]     = self.hf_clk_out[0]
+            self.params["p_HF_OSC_EN"]    = "ENABLED"
+
+        if self.hfsdc_clk_out:
+            divisor = self.compute_divisor(self.hfsdc_clk_out[1], self.hfsdc_clk_out[2])
+            self.params["i_HFSDSCEN"]        = 0b1
+            self.params["p_HF_SED_SEC_DIV"]  = divisor
+            self.params["o_HFSDCOUT"]        = self.hfsdc_clk_out[0]
+
+        if self.lf_clk_out is not None:
+            self.params["o_LFCLKOUT"] = self.lf_clk_out[0]
+            self.params["p_LF_OUTPUT_EN"] = "ENABLED"
+
+        self.specials += Instance("OSCA", **self.params)
+
+# Lattice / NX PLL ---------------------------------------------------------------------------------
 
 class NXPLL(Module):
     nclkouts_max        = 5
@@ -187,7 +271,7 @@ class NXPLL(Module):
 
     # Later revs of the Lattice calculator BW_FACTOR is set to 10, may need to change it
     def calc_optimal_params(self, fref, fbkdiv, M = 1, BW_FACTOR = 5):
-        print("Calculating Analog Paramters for a reference freqeuncy of " + str(fref*1e-6) + 
+        print("Calculating Analog Paramters for a reference freqeuncy of " + str(fref*1e-6) +
               " Mhz, feedback div " + str(fbkdiv) + ", and input div " + str(M) + "."
         )
 
@@ -196,7 +280,7 @@ class NXPLL(Module):
 
         for params in self.transfer_func_coefficients:
             closed_loop_peak = self.closed_loop_peak(fbkdiv, params)
-            if (closed_loop_peak["peak"] < 0.8 or 
+            if (closed_loop_peak["peak"] < 0.8 or
                closed_loop_peak["peak"] > 1.35):
                 continue
 
@@ -360,7 +444,7 @@ class NXPLL(Module):
             if this_result > peak_value:
                 peak_value = this_result
                 peak_f = f
-            
+
             if this_result < last_value and step_divs < 5:
                 f = f/(step**2)
                 step = (step - 1) * .5 + 1
