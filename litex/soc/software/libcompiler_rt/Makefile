@@ -13,8 +13,7 @@ OBJECTS=umodsi3.o udivsi3.o divsi3.o modsi3.o comparesf2.o comparedf2.o negsf2.o
 
 all: libcompiler_rt.a
 
-libcompiler_rt.a: $(OBJECTS)
-	$(CC) -c $(CFLAGS) $(1) $(SOC_DIRECTORY)/software/libcompiler_rt/mulsi3.c -o mulsi3.o
+libcompiler_rt.a: $(OBJECTS) mulsi3.o
 	$(AR) crs libcompiler_rt.a $(OBJECTS) mulsi3.o
 
 # pull in dependency info for *existing* .o files
