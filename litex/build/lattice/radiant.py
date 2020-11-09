@@ -138,7 +138,7 @@ def _build_tcl(device, sources, vincpaths, build_name, pdc_file, synth_mode):
     # Add sources
     if synth_mode == "yosys":
         # NOTE: it is seemingly impossible to skip synthesis using the Tcl flow
-        # so we give lsc the structural netlist from Yosys which it won't actually touch
+        # so we give Synplify the structural netlist from Yosys which it won't actually touch
         # The other option is to call the low level Radiant commands starting from 'map'
         # with the structural netlist from Yosys, but this would be harder to do in a cross
         # platform way.
