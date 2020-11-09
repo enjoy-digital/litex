@@ -18,13 +18,14 @@ class CommUDP:
         self.debug = debug
 
     def open(self):
-        if hasattr(self, "tx_socket"):
+        if hasattr(self, "socket"):
             return
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.bind(("", self.port))
+        self.socket.settimeout(1)
 
     def close(self):
-        if not hasattr(self, "tx_socket"):
+        if not hasattr(self, "socket"):
             return
         self.socket.close()
         del self.socket
@@ -39,16 +40,23 @@ class CommUDP:
         packet = EtherbonePacket()
         packet.records = [record]
         packet.encode()
-        self.socket.sendto(bytes(packet), (self.server, self.port))
 
-        datas, dummy = self.socket.recvfrom(8192)
-        packet = EtherbonePacket(datas)
-        packet.decode()
-        datas = packet.records.pop().writes.get_datas()
-        if self.debug:
-            for i, value in enumerate(datas):
-                print("read {:08x} @ {:08x}".format(value, addr + 4*i))
-        return datas[0] if length is None else datas
+        try:
+            self.socket.sendto(bytes(packet), (self.server, self.port))
+
+            datas, dummy = self.socket.recvfrom(8192)
+            packet = EtherbonePacket(datas)
+            packet.decode()
+            datas = packet.records.pop().writes.get_datas()
+            if self.debug:
+                for i, value in enumerate(datas):
+                    print("read {:08x} @ {:08x}".format(value, addr + 4*i))
+            return datas[0] if length is None else datas
+        except Exception as ex:
+            print("commUDP read: exception ({})".format(ex))
+            self.close()
+            self.open()
+            return []
 
     def write(self, addr, datas):
         datas = datas if isinstance(datas, list) else [datas]
@@ -60,8 +68,15 @@ class CommUDP:
         packet = EtherbonePacket()
         packet.records = [record]
         packet.encode()
-        self.socket.sendto(bytes(packet), (self.server, self.port))
 
-        if self.debug:
-            for i, value in enumerate(datas):
-                print("write {:08x} @ {:08x}".format(value, addr + 4*i))
+        try:
+            self.socket.sendto(bytes(packet), (self.server, self.port))
+
+            if self.debug:
+                for i, value in enumerate(datas):
+                    print("write {:08x} @ {:08x}".format(value, addr + 4*i))
+        except Exception as ex:
+            print("commUDP write: exception ({})".format(ex))
+            self.close()
+            self.open()
+
