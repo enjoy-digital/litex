@@ -14,19 +14,7 @@ from litex.soc.integration.doc import AutoDoc, ModuleDoc
 
 
 class S7SPIOPI(Module, AutoCSR, AutoDoc):
-    def __init__(self, platform, padgroup_name,
-        dq_delay_taps  = 0,
-        sclk_name      = "SCLK_ODDR",
-        iddr_name      = "SPI_IDDR",
-        cipo_name      = "CIPO_FDRE",
-        sim            = False,
-        spiread        = False,
-        prefetch_lines = 1):
-
-        pads = platform.request(padgroup_name)
-        self.dq = dq = TSTriple(7) # dq[0] is special because it is also copi
-        self.dq_copi = dq_copi = TSTriple(1) # this has similar structure but an independent "oe" signal
-
+    def add_timing_constraints(self, platform, padgroup_name):
         # reminder to self: the {{ and }} overloading is because Python treats these as special in strings, so {{ -> { in actual constraint
         # NOTE: ECSn is deliberately not constrained -- it's more or less async (0-10ns delay on the signal, only meant to line up with "block" region
 
@@ -42,7 +30,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         # derive clock for SCLK - clock-forwarded from DDR see Xilinx answer 62488 use case #4
         platform.add_platform_command(
             "create_generated_clock -name spiclk_out -multiply_by 1 -source [get_pins {}/Q] [get_ports {}_sclk]".format(
-                sclk_name, padgroup_name))
+                self.sclk_name, padgroup_name))
 
         # constrain CIPO SDR delay -- WARNING: -max is 'actually' 5.0ns, but design can't meet timing @ 5.0 tPD from SPIROM. There is some margin in the timing closure tho, so 4.5ns is probably going to work....
         platform.add_platform_command(
@@ -51,11 +39,11 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
             "set_input_delay -clock [get_clocks spiclk_out] -clock_fall -min 1 [get_ports {}_dq[1]]".format(padgroup_name))
         # corresponding false path on CIPO DDR input when clocking SDR data
         platform.add_platform_command(
-            "set_false_path -from [get_clocks spiclk_out] -to [get_pin {}/D ]".format(iddr_name + "1"))
+            "set_false_path -from [get_clocks spiclk_out] -to [get_pin {}/D ]".format(self.iddr_name + "1"))
         # corresponding false path on CIPO SDR input from DQS strobe, only if the cipo path is used
-        if spiread:
+        if self.spiread:
             platform.add_platform_command(
-                "set_false_path -from [get_clocks spidqs] -to [get_pin {}/D ]".format(cipo_name))
+                "set_false_path -from [get_clocks spidqs] -to [get_pin {}/D ]".format(self.cipo_name))
 
         # constrain CLK-to-DQ output DDR delays; copi uses the same rules
         platform.add_platform_command(
@@ -72,9 +60,26 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         platform.add_platform_command(
             "set_output_delay -clock [get_clocks spiclk_out] -max 1 [get_ports {}_cs_n]".format(padgroup_name))  # 4.5 in reality
         # unconstrain OE path - we have like 10+ dummy cycles to turn the bus on wr->rd, and 2+ cycles to turn on end of read
-        platform.add_platform_command("set_false_path -through [ get_pins {net}_reg/Q ]", net=dq.oe)
+        platform.add_platform_command("set_false_path -through [ get_pins {net}_reg/Q ]", net=self.dq.oe)
         platform.add_platform_command("set_false_path -through [ get_pins {net}_reg/Q ]",
-            net=dq_copi.oe)
+            net=self.dq_copi.oe)
+
+    def __init__(self, pads,
+        dq_delay_taps  = 0,
+        sclk_name      = "SCLK_ODDR",
+        iddr_name      = "SPI_IDDR",
+        cipo_name      = "CIPO_FDRE",
+        sim            = False,
+        spiread        = False,
+        prefetch_lines = 1):
+
+        self.sclk_name = sclk_name
+        self.iddr_name = iddr_name
+        self.cipo_name = cipo_name
+        self.spiread = spiread
+
+        self.dq = dq = TSTriple(7) # dq[0] is special because it is also copi
+        self.dq_copi = dq_copi = TSTriple(1) # this has similar structure but an independent "oe" signal
 
         self.intro = ModuleDoc("""Intro
 
