@@ -18,6 +18,7 @@ extern "C" {
 void i2c_reset(void);
 bool i2c_write(unsigned char slave_addr, unsigned char addr, const unsigned char *data, unsigned int len);
 bool i2c_read(unsigned char slave_addr, unsigned char addr, unsigned char *data, unsigned int len, bool send_stop);
+bool i2c_poll(unsigned char slave_addr);
 
 #ifdef __cplusplus
 }
