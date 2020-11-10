@@ -4,8 +4,6 @@
 # Copyright (c) 2015-2018 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-import subprocess
-
 from litex.build.generic_programmer import GenericProgrammer
 
 # USBBlaster ---------------------------------------------------------------------------------------
@@ -18,8 +16,8 @@ class USBBlaster(GenericProgrammer):
         self.device_id  = device_id
 
     def load_bitstream(self, bitstream_file, cable_suffix=""):
-        subprocess.call(["quartus_pgm",
-           "-m", "jtag",
-           "-c", "{}{}".format(self.cable_name, cable_suffix),
-           "-o", "p;{}@{}".format(bitstream_file, self.device_id)
+        self.call(["quartus_pgm",
+            "-m", "jtag",
+             "-c", "{}{}".format(self.cable_name, cable_suffix),
+             "-o", "p;{}@{}".format(bitstream_file, self.device_id)
         ])

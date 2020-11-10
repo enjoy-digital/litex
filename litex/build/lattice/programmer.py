@@ -6,7 +6,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
-import subprocess
 
 from litex.build.generic_programmer import GenericProgrammer
 from litex.build import tools
@@ -23,7 +22,7 @@ class LatticeProgrammer(GenericProgrammer):
         xcf_file = bitstream_file.replace(".bit", ".xcf")
         xcf_content = self.xcf_template.format(bitstream_file=bitstream_file)
         tools.write_to_file(xcf_file, xcf_content)
-        subprocess.call(["pgrcmd", "-infile", xcf_file])
+        self.call(["pgrcmd", "-infile", xcf_file])
 
 # OpenOCDJTAGProgrammer --------------------------------------------------------------------------------
 
@@ -35,7 +34,7 @@ class OpenOCDJTAGProgrammer(GenericProgrammer):
     def load_bitstream(self, bitstream_file):
         config   = self.find_config()
         svf_file = bitstream_file.replace(".bit", ".svf")
-        subprocess.call(["openocd", "-f", config, "-c", "transport select jtag; init; svf quiet progress \"{}\"; exit".format(svf_file)])
+        self.call(["openocd", "-f", config, "-c", "transport select jtag; init; svf quiet progress \"{}\"; exit".format(svf_file)])
 
     def flash(self, address, data, verify=True):
         config      = self.find_config()
@@ -52,7 +51,7 @@ class OpenOCDJTAGProgrammer(GenericProgrammer):
             "flash verify_bank spi0 \"{0}\" 0x{1:x}" if verify else "".format(data, address),
             "exit"
         ])
-        subprocess.call(["openocd", "-f", config, "-c", script])
+        self.call(["openocd", "-f", config, "-c", script])
 
 # IceStormProgrammer -------------------------------------------------------------------------------
 
@@ -60,10 +59,10 @@ class IceStormProgrammer(GenericProgrammer):
     needs_bitreverse = False
 
     def flash(self, address, bitstream_file):
-        subprocess.call(["iceprog", "-o", str(address), bitstream_file])
+        self.call(["iceprog", "-o", str(address), bitstream_file])
 
     def load_bitstream(self, bitstream_file):
-        subprocess.call(["iceprog", "-S", bitstream_file])
+        self.call(["iceprog", "-S", bitstream_file])
 
 # IceBurnProgrammer --------------------------------------------------------------------------------
 
@@ -75,7 +74,7 @@ class IceBurnProgrammer(GenericProgrammer):
     needs_bitreverse = False
 
     def load_bitstream(self, bitstream_file):
-        subprocess.call([self.iceburn, "-evw", bitstream_file])
+        self.call([self.iceburn, "-evw", bitstream_file])
 
 # TinyFpgaBProgrammer ------------------------------------------------------------------------------
 
@@ -85,13 +84,13 @@ class TinyFpgaBProgrammer(GenericProgrammer):
     # The default flash address you probably want is 0x30000; the image at
     # address 0 is for the bootloader.
     def flash(self, address, bitstream_file):
-        subprocess.call(["tinyfpgab", "-a", str(address), "-p",
+        self.call(["tinyfpgab", "-a", str(address), "-p",
                         bitstream_file])
 
     # Force user image to boot if a user reset tinyfpga, the bootloader
     # is active, and the user image need not be reprogrammed.
     def boot(self):
-        subprocess.call(["tinyfpgab", "-b"])
+        self.call(["tinyfpgab", "-b"])
 
 # TinyProgProgrammer -------------------------------------------------------------------------------
 
@@ -108,19 +107,19 @@ class TinyProgProgrammer(GenericProgrammer):
             if not user_data:
                 # tinyprog looks at spi flash metadata to figure out where to
                 # program your bitstream.
-                subprocess.call(["tinyprog", "-p", bitstream_file])
+                self.call(["tinyprog", "-p", bitstream_file])
             else:
                 # Ditto with user data.
-                subprocess.call(["tinyprog", "-u", bitstream_file])
+                self.call(["tinyprog", "-u", bitstream_file])
         else:
             # Provide override so user can program wherever they wish.
-            subprocess.call(["tinyprog", "-a", str(address), "-p",
+            self.call(["tinyprog", "-a", str(address), "-p",
                             bitstream_file])
 
     # Force user image to boot if a user reset tinyfpga, the bootloader
     # is active, and the user image need not be reprogrammed.
     def boot(self):
-        subprocess.call(["tinyprog", "-b"])
+        self.call(["tinyprog", "-b"])
 
 # MyStormProgrammer --------------------------------------------------------------------------------
 
@@ -140,4 +139,4 @@ class UJProg(GenericProgrammer):
     needs_bitreverse = False
 
     def load_bitstream(self, bitstream_file):
-        subprocess.call(["ujprog", bitstream_file])
+        self.call(["ujprog", bitstream_file])

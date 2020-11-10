@@ -61,11 +61,11 @@ class XC3SProg(GenericProgrammer):
         self.position = position
 
     def load_bitstream(self, bitstream_file):
-        subprocess.call(["xc3sprog", "-v", "-c", self.cable, "-p", str(self.position), bitstream_file])
+        self.call(["xc3sprog", "-v", "-c", self.cable, "-p", str(self.position), bitstream_file])
 
     def flash(self, address, data_file):
         flash_proxy = self.find_flash_proxy()
-        subprocess.call(["xc3sprog", "-v", "-c", self.cable, "-p", str(self.position),
+        self.call(["xc3sprog", "-v", "-c", self.cable, "-p", str(self.position),
             "-I"+flash_proxy, "{}:w:0x{:x}:BIN".format(data_file, address)])
 
 # FpgaProg -----------------------------------------------------------------------------------------
@@ -77,13 +77,13 @@ class FpgaProg(GenericProgrammer):
         GenericProgrammer.__init__(self, flash_proxy_basename)
 
     def load_bitstream(self, bitstream_file):
-        subprocess.call(["fpgaprog", "-v", "-f", bitstream_file])
+        self.call(["fpgaprog", "-v", "-f", bitstream_file])
 
     def flash(self, address, data_file):
         if address != 0:
             raise ValueError("fpga prog needs a main bitstream at address 0")
         flash_proxy = self.find_flash_proxy()
-        subprocess.call(["fpgaprog", "-v", "-sa", "-r", "-b", flash_proxy,
+        self.call(["fpgaprog", "-v", "-sa", "-r", "-b", flash_proxy,
                    "-f", data_file])
 
 # iMPACT -------------------------------------------------------------------------------------------
@@ -200,7 +200,7 @@ class Adept(GenericProgrammer):
         self.index = index
 
     def load_bitstream(self, bitstream_file):
-        subprocess.call([
+        self.call([
             "djtgcfg",
             "--verbose",
             "prog", "-d", self.board,

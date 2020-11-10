@@ -6,8 +6,6 @@
 # Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-import subprocess
-
 from litex.build.tools import write_to_file
 from litex.build.generic_programmer import GenericProgrammer
 
@@ -26,7 +24,7 @@ class OpenOCD(GenericProgrammer):
             "pld load 0 {{{}}}".format(bitstream),
             "exit",
         ])
-        subprocess.call(["openocd", "-f", config, "-c", script])
+        self.call(["openocd", "-f", config, "-c", script])
 
     def flash(self, address, data, set_qe=False):
         config      = self.find_config()
@@ -39,7 +37,7 @@ class OpenOCD(GenericProgrammer):
             "fpga_program",
             "exit"
         ])
-        subprocess.call(["openocd", "-f", config, "-c", script])
+        self.call(["openocd", "-f", config, "-c", script])
 
 
     def stream(self, port=20000):
@@ -144,4 +142,4 @@ proc jtagstream_serve {tap port} {
             "exit",
         ])
         config = self.find_config()
-        subprocess.call(["openocd", "-f", config, "-f", "stream.cfg", "-c", script])
+        self.call(["openocd", "-f", config, "-f", "stream.cfg", "-c", script])

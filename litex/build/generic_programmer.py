@@ -8,6 +8,7 @@
 
 import os
 import sys
+import subprocess
 
 from litex.build import tools
 
@@ -90,4 +91,10 @@ class GenericProgrammer:
     def flash(self, address, data_file):
         raise NotImplementedError
 
-
+    def call(self, command):
+        if subprocess.call(command) != 0:
+            msg = f"Error occured during {self.__class__.__name__}'s call, please check:\n"
+            msg += f"- {self.__class__.__name__} installation.\n"
+            msg += f"- access permissions.\n"
+            msg += f"- hardware and cable."
+            raise OSError(msg)
