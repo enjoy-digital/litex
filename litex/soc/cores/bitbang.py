@@ -16,8 +16,11 @@ class I2CMaster(Module, AutoCSR):
 
     Provides the minimal hardware to do software I2C Master bit banging.
 
-    On the same write CSRStorage (_w), software can control SCL (I2C_SCL), SDA direction and value
-    (I2C_OE, I2C_W). Software get back SDA value with the read CSRStatus (_r).
+    On the same write CSRStorage (_w), software can control:
+    - SCL (I2C_SCL).
+    - SDA direction and value (I2C_OE, I2C_W).
+
+    Software get back SDA value with the read CSRStatus (_r).
     """
     pads_layout = [("scl", 1), ("sda", 1)]
     def __init__(self, pads=None):
@@ -36,17 +39,17 @@ class I2CMaster(Module, AutoCSR):
         self.connect(pads)
 
     def connect(self, pads):
-        _sda_w  = Signal()
-        _sda_oe = Signal()
-        _sda_r  = Signal()
-        self.comb += [
-            pads.scl.eq(self._w.fields.scl),
-            _sda_oe.eq( self._w.fields.oe),
-            _sda_w.eq(  self._w.fields.sda),
-            self._r.fields.sda.eq(_sda_r),
-        ]
-        self.specials += Tristate(pads.sda, _sda_w, _sda_oe, _sda_r)
-
+        # SCL
+        self.specials += Tristate(pads.scl,
+            o  = 0, # I2C uses Pull-ups, only drive low.
+            oe = ~self._w.fields.scl # Drive when scl is low.
+        )
+        # SDA
+        self.specials += Tristate(pads.sda,
+            o  = 0, # I2C uses Pull-ups, only drive low.
+            oe = self._w.fields.oe & ~self._w.fields.sda, # Drive when oe and sda is low.
+            i  = self._r.fields.sda
+        )
 
 class I2CMasterSim(I2CMaster):
     """I2C Master Bit-Banging for Verilator simulation
