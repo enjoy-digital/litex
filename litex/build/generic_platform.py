@@ -6,6 +6,7 @@
 # Copyright (c) 2015 Yann Sionneau <ys@m-labs.hk>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import sys
 import os
 
 from migen.fhdl.structure import Signal, Cat
@@ -291,7 +292,11 @@ class GenericPlatform:
         self.device = device
         self.constraint_manager = ConstraintManager(io, connectors)
         if name is None:
+            # Get name from Platform file.
             name = self.__module__.split(".")[-1]
+        if name == "__main__":
+            # If no Platform file, use script filename,
+            name = os.path.splitext(os.path.basename(sys.argv[0]))[0]
         self.name = name
         self.sources = []
         self.verilog_include_paths = []
