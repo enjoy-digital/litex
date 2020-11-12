@@ -134,27 +134,29 @@ class BaseSoC(SoCCore):
 
 def main():
     parser = argparse.ArgumentParser(description="LiteX SoC on Versa ECP5")
-    parser.add_argument("--build", action="store_true", help="Build bitstream")
-    parser.add_argument("--load",  action="store_true", help="Load bitstream")
-    parser.add_argument("--toolchain", default="trellis", help="Gateware toolchain to use, trellis (default) or diamond")
+    parser.add_argument("--build",          action="store_true", help="Build bitstream")
+    parser.add_argument("--load",           action="store_true", help="Load bitstream")
+    parser.add_argument("--toolchain",      default="trellis",   help="FPGA toolchain: trellis (default) or diamond")
+    parser.add_argument("--sys-clk-freq",   default=75e6,        help="System clock frequency (default: 75MHz)")
+    parser.add_argument("--device",         default="LFE5UM5G",  help="FPGA device (LFE5UM5G (default) or LFE5UM)")
+    parser.add_argument("--with-ethernet",  action="store_true", help="Enable Ethernet support")
+    parser.add_argument("--with-etherbone", action="store_true", help="Enable Etherbone support")
+    parser.add_argument("--eth-phy",        default=0, type=int, help="Ethernet PHY: 0 (default) or 1")
     builder_args(parser)
     soc_sdram_args(parser)
     trellis_args(parser)
-    parser.add_argument("--sys-clk-freq",   default=75e6,        help="System clock frequency (default=75MHz)")
-    parser.add_argument("--device",         default="LFE5UM5G",  help="ECP5 device (LFE5UM5G (default) or LFE5UM)")
-    parser.add_argument("--with-ethernet",  action="store_true", help="Enable Ethernet support")
-    parser.add_argument("--with-etherbone", action="store_true", help="Enable Etherbone support")
-    parser.add_argument("--eth-phy",        default=0, type=int, help="Ethernet PHY 0 or 1 (default=0)")
     args = parser.parse_args()
 
     assert not (args.with_ethernet and args.with_etherbone)
-    soc = BaseSoC(sys_clk_freq=int(float(args.sys_clk_freq)),
+    soc = BaseSoC(
+        sys_clk_freq   = int(float(args.sys_clk_freq)),
         device         = args.device,
         with_ethernet  = args.with_ethernet,
         with_etherbone = args.with_etherbone,
         eth_phy        = args.eth_phy,
         toolchain      = args.toolchain,
-        **soc_sdram_argdict(args))
+        **soc_sdram_argdict(args)
+    )
     builder = Builder(soc, **builder_argdict(args))
     builder_kargs = trellis_argdict(args) if args.toolchain == "trellis" else {}
     builder.build(**builder_kargs, run=args.build)

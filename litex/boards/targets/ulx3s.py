@@ -82,7 +82,6 @@ class _CRG(Module):
 class BaseSoC(SoCCore):
     def __init__(self, device="LFE5U-45F", revision="2.0", toolchain="trellis",
         sys_clk_freq=int(50e6), sdram_module_cls="MT48LC16M16", sdram_rate="1:1", **kwargs):
-
         platform = ulx3s.Platform(device=device, revision=revision, toolchain=toolchain)
 
         # SoCCore ----------------------------------------------------------------------------------
@@ -129,23 +128,26 @@ class BaseSoC(SoCCore):
 
 def main():
     parser = argparse.ArgumentParser(description="LiteX SoC on ULX3S")
-    parser.add_argument("--build", action="store_true", help="Build bitstream")
-    parser.add_argument("--load",  action="store_true", help="Load bitstream")
-    parser.add_argument("--toolchain", default="trellis",   help="Gateware toolchain to use, trellis (default) or diamond")
-    parser.add_argument("--device",             dest="device",    default="LFE5U-45F", help="FPGA device, ULX3S can be populated with LFE5U-45F (default) or LFE5U-85F")
-    parser.add_argument("--revision", default="2.0", type=str,  help="Board revision 2.0 (default), 1.7")
-    parser.add_argument("--sys-clk-freq", default=50e6,           help="System clock frequency (default=50MHz)")
-    parser.add_argument("--sdram-module", default="MT48LC16M16",  help="SDRAM module: MT48LC16M16, AS4C32M16 or AS4C16M16 (default=MT48LC16M16)")
-    parser.add_argument("--with-spi-sdcard", action="store_true", help="Enable SPI-mode SDCard support")
-    parser.add_argument("--with-sdcard", action="store_true",     help="Enable SDCard support")
-    parser.add_argument("--with-oled", action="store_true",     help="Enable SDD1331 OLED support")
-    parser.add_argument("--sdram-rate",  default="1:1", help="SDRAM Rate 1:1 Full Rate (default), 1:2 Half Rate")
+    parser.add_argument("--build",           action="store_true",   help="Build bitstream")
+    parser.add_argument("--load",            action="store_true",   help="Load bitstream")
+    parser.add_argument("--toolchain",       default="trellis",     help="FPGA toolchain: trellis (default) or diamond")
+    parser.add_argument("--device",          default="LFE5U-45F",   help="FPGA device: LFE5U-12F, LFE5U-25F, LFE5U-45F (default)  or LFE5U-85F")
+    parser.add_argument("--revision",        default="2.0",         help="Board revision: 2.0 (default) or 1.7")
+    parser.add_argument("--sys-clk-freq",    default=50e6,          help="System clock frequency  (default: 50MHz)")
+    parser.add_argument("--sdram-module",    default="MT48LC16M16", help="SDRAM module: MT48LC16M16 (default), AS4C32M16 or AS4C16M16")
+    parser.add_argument("--with-spi-sdcard", action="store_true",   help="Enable SPI-mode SDCard support")
+    parser.add_argument("--with-sdcard",     action="store_true",   help="Enable SDCard support")
+    parser.add_argument("--with-oled",       action="store_true",   help="Enable SDD1331 OLED support")
+    parser.add_argument("--sdram-rate",      default="1:1",         help="SDRAM Rate: 1:1 Full Rate (default), 1:2 Half Rate")
     builder_args(parser)
     soc_sdram_args(parser)
     trellis_args(parser)
     args = parser.parse_args()
 
-    soc = BaseSoC(device=args.device, revision=args.revision, toolchain=args.toolchain,
+    soc = BaseSoC(
+        device           = args.device,
+        revision         = args.revision,
+        toolchain        = args.toolchain,
         sys_clk_freq     = int(float(args.sys_clk_freq)),
         sdram_module_cls = args.sdram_module,
         sdram_rate       = args.sdram_rate,

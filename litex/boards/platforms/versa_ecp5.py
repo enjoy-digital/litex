@@ -235,9 +235,9 @@ class Platform(LatticePlatform):
     default_clk_name   = "clk100"
     default_clk_period = 1e9/100e6
 
-    def __init__(self, device="LFE5UM5G", **kwargs):
+    def __init__(self, device="LFE5UM5G", toolchain="trellis", **kwargs):
         assert device in ["LFE5UM5G", "LFE5UM"]
-        LatticePlatform.__init__(self, device + "-45F-8BG381C", _io, _connectors, **kwargs)
+        LatticePlatform.__init__(self, device + "-45F-8BG381C", _io, _connectors, toolchain=toolchain, **kwargs)
 
     def create_programmer(self):
         return OpenOCDJTAGProgrammer("openocd_versa_ecp5.cfg")

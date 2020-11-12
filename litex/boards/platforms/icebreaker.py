@@ -17,7 +17,7 @@ from litex.build.lattice.programmer import IceStormProgrammer
 
 _io = [
     # Clk / Rst
-    ("clk12", 0, Pins("35"), IOStandard("LVCMOS33"))
+    ("clk12", 0, Pins("35"), IOStandard("LVCMOS33")),
 
     # Leds
     ("user_led_n",    0, Pins("11"), IOStandard("LVCMOS33")),
@@ -89,8 +89,8 @@ class Platform(LatticePlatform):
     default_clk_name   = "clk12"
     default_clk_period = 1e9/12e6
 
-    def __init__(self):
-        LatticePlatform.__init__(self, "ice40-up5k-sg48", _io, _connectors, toolchain="icestorm")
+    def __init__(self, toolchain="icestorm"):
+        LatticePlatform.__init__(self, "ice40-up5k-sg48", _io, _connectors, toolchain=toolchain)
 
     def create_programmer(self):
         return IceStormProgrammer()

@@ -69,9 +69,8 @@ class _CRG(Module):
 
 class BaseSoC(SoCCore):
     mem_map = {**SoCCore.mem_map, **{"spiflash": 0x80000000}}
-    def __init__(self, bios_flash_offset, **kwargs):
-        sys_clk_freq = int(24e6)
-        platform     = icebreaker.Platform()
+    def __init__(self, bios_flash_offset, sys_clk_freq=int(24e6), **kwargs):
+        platform = icebreaker.Platform()
         platform.add_extension(icebreaker.break_off_pmod)
 
         # Disable Integrated ROM/SRAM since too large for iCE40 and UP5K has specific SPRAM.
@@ -125,13 +124,18 @@ def main():
     parser = argparse.ArgumentParser(description="LiteX SoC on iCEBreaker")
     parser.add_argument("--build",             action="store_true", help="Build bitstream")
     parser.add_argument("--load",              action="store_true", help="Load bitstream")
-    parser.add_argument("--bios-flash-offset", default=0x40000,     help="BIOS offset in SPI Flash")
     parser.add_argument("--flash",             action="store_true", help="Flash Bitstream")
+    parser.add_argument("--sys-clk-freq",      default=24e6,        help="System clock frequency (default: 24MHz)")
+    parser.add_argument("--bios-flash-offset", default=0x40000,     help="BIOS offset in SPI Flash (default: 0x40000)")
     builder_args(parser)
     soc_core_args(parser)
     args = parser.parse_args()
 
-    soc     = BaseSoC(args.bios_flash_offset, **soc_core_argdict(args))
+    soc = BaseSoC(
+        bios_flash_offset = args.bios_flash_offset,
+        sys_clk_freq      = int(float(args.sys_clk_freq)),
+        **soc_core_argdict(args)
+    )
     builder = Builder(soc, **builder_argdict(args))
     builder.build(run=args.build)
 
