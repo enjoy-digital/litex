@@ -125,7 +125,7 @@ def generate_dts(d):
     # SoC ----------------------------------------------------------------------------------------------
 
     dts += """
-        soc {
+        soc {{
                 #address-cells = <1>;
                 #size-cells    = <1>;
                 bus-frequency  = <{sys_clk_freq}>;
