@@ -1492,3 +1492,48 @@ class LiteXSoC(SoC):
             self.crg.cd_sys.clk,
             self.sata_phy.crg.cd_sata_tx.clk,
             self.sata_phy.crg.cd_sata_rx.clk)
+
+    # Add PCIe -------------------------------------------------------------------------------------
+    def add_pcie(self, name="pcie", phy=None, ndmas=0):
+        assert self.csr.data_width == 32
+        assert not hasattr(self, f"{name}_endpoint")
+
+        # Imports
+        from litepcie.core import LitePCIeEndpoint, LitePCIeMSI
+        from litepcie.frontend.dma import LitePCIeDMA
+        from litepcie.frontend.wishbone import LitePCIeWishboneMaster
+
+        # Endpoint
+        endpoint = LitePCIeEndpoint(phy, max_pending_requests=8)
+        setattr(self.submodules, f"{name}_endpoint", endpoint)
+
+        # MMAP
+        mmap = LitePCIeWishboneMaster(self.pcie_endpoint, base_address=self.mem_map["csr"])
+        self.add_wb_master(mmap.wishbone)
+        setattr(self.submodules, f"{name}_mmap", mmap)
+
+        # MSI
+        msi = LitePCIeMSI()
+        setattr(self.submodules, f"{name}_msi", msi)
+        self.add_csr(f"{name}_msi")
+        self.comb += msi.source.connect(phy.msi)
+        self.msis = {}
+
+        # DMAs
+        for i in range(ndmas):
+            dma = LitePCIeDMA(phy, endpoint,
+                with_buffering = True, buffering_depth=1024,
+                with_loopback  = True)
+            setattr(self.submodules, f"{name}_dma{i}", dma)
+            self.add_csr(f"{name}_dma{i}")
+            self.msis[f"{name.upper()}_DMA{i}_WRITER"] = dma.writer.irq
+            self.msis[f"{name.upper()}_DMA{i}_READER"] = dma.reader.irq
+        self.add_constant("DMA_CHANNELS", ndmas)
+
+        # Map/Connect IRQs
+        for i, (k, v) in enumerate(sorted(self.msis.items())):
+            self.comb += msi.irqs[i].eq(v)
+            self.add_constant(k + "_INTERRUPT", i)
+
+        # Timing constraints
+        self.platform.add_false_path_constraints(self.crg.cd_sys.clk, phy.cd_pcie.clk)
