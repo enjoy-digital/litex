@@ -3,7 +3,7 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
 # Copyright (c) 2016 whitequark <whitequark@whitequark.org>
 # SPDX-License-Identifier: BSD-2-Clause
@@ -17,6 +17,7 @@ import threading
 import argparse
 import json
 
+# Console ------------------------------------------------------------------------------------------
 
 if sys.platform == "win32":
     import msvcrt
@@ -49,6 +50,8 @@ else:
         def getkey(self):
             return os.read(self.fd, 1)
 
+# SFL ----------------------------------------------------------------------------------------------
+
 sfl_prompt_req = b"F7:    boot from serial\n"
 sfl_prompt_ack = b"\x06"
 
@@ -71,6 +74,23 @@ sfl_ack_crcerror = b"C"
 sfl_ack_unknown  = b"U"
 sfl_ack_error    = b"E"
 
+
+class SFLFrame:
+    def __init__(self):
+        self.cmd = bytes()
+        self.payload = bytes()
+
+    def compute_crc(self):
+        return crc16(self.cmd + self.payload)
+
+    def encode(self):
+        packet = bytes([len(self.payload)])
+        packet += self.compute_crc().to_bytes(2, "big")
+        packet += self.cmd
+        packet += self.payload
+        return packet
+
+# CRC16 --------------------------------------------------------------------------------------------
 
 crc16_table = [
     0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50A5, 0x60C6, 0x70E7,
@@ -114,22 +134,7 @@ def crc16(l):
         crc = crc16_table[((crc >> 8) ^ d) & 0xff] ^ (crc << 8)
     return crc & 0xffff
 
-
-class SFLFrame:
-    def __init__(self):
-        self.cmd = bytes()
-        self.payload = bytes()
-
-    def compute_crc(self):
-        return crc16(self.cmd + self.payload)
-
-    def encode(self):
-        packet = bytes([len(self.payload)])
-        packet += self.compute_crc().to_bytes(2, "big")
-        packet += self.cmd
-        packet += self.payload
-        return packet
-
+# LiteXTerm ----------------------------------------------------------------------------------------
 
 class LiteXTerm:
     def __init__(self, serial_boot, kernel_image, kernel_address, json_images, no_crc, flash):
@@ -344,20 +349,19 @@ class LiteXTerm:
         if not writer_only:
             self.reader_thread.join()
 
+# Run ----------------------------------------------------------------------------------------------
 
 def _get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("port", help="serial port")
-    parser.add_argument("--speed", default=115200, help="serial baudrate")
-    parser.add_argument("--serial-boot", default=False, action='store_true',
-                        help="automatically initiate serial boot")
-    parser.add_argument("--kernel", default=None, help="kernel image")
-    parser.add_argument("--kernel-adr", default="0x40000000", help="kernel address (or flash offset with --flash)")
-    parser.add_argument("--images", default=None, help="json description of the images to load to memory")
-    parser.add_argument("--no-crc", default=False, action='store_true', help="disable CRC check (speedup serialboot)")
-    parser.add_argument("--flash", default=False, action='store_true', help="flash data with serialboot command")
+    parser.add_argument("port",                                              help="Serial port")
+    parser.add_argument("--speed",       default=115200,                     help="Aerial baudrate")
+    parser.add_argument("--serial-boot", default=False, action='store_true', help="Automatically initiate serial boot")
+    parser.add_argument("--kernel",      default=None,                       help="Kernel image")
+    parser.add_argument("--kernel-adr",  default="0x40000000",               help="Kernel address (or flash offset with --flash)")
+    parser.add_argument("--images",      default=None,                       help="JSON description of the images to load to memory")
+    parser.add_argument("--no-crc",      default=False, action='store_true', help="Disable CRC check (speedup serialboot)")
+    parser.add_argument("--flash",       default=False, action='store_true', help="Flash data with serialboot command")
     return parser.parse_args()
-
 
 def main():
     args = _get_args()
