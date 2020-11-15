@@ -219,10 +219,14 @@ class EventManager(Module, AutoCSR):
         self.enable = CSRStorage(n, description=desc, fields=fields)
 
         for i, source in enumerate(sources):
+            if source.name == None:
+                src_name = "event{}".format(i)
+            else:
+                src_name = source.name
             self.comb += [
-                getattr(self.status.fields, source.name).eq(source.status),
-                getattr(self.pending.fields, source.name).eq(source.pending),
-                If(self.pending.re & getattr(self.pending.fields, source.name), source.clear.eq(1)),
+                getattr(self.status.fields, src_name).eq(source.status),
+                getattr(self.pending.fields, src_name).eq(source.pending),
+                If(self.pending.re & getattr(self.pending.fields, src_name), source.clear.eq(1)),
             ]
 
         irqs = [self.pending.status[i] & self.enable.storage[i] for i in range(n)]
