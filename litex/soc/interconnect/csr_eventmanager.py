@@ -142,18 +142,22 @@ class EventManager(Module, AutoCSR):
         sources_u = [v for k, v in xdir(self, True) if isinstance(v, _EventSource)]
         sources = sorted(sources_u, key=lambda x: x.duid)
         n = len(sources)
-        self.status = CSR(n)
-        self.pending = CSR(n)
-        self.enable = CSRStorage(n)
+
+        fields = []
+        for i, source in enumerate(sources):
+            fields += [CSRField(source.name, size=1, description="Mask bit for {}".format(str(source.name)))]
+        self.status = CSRStatus(n, fields=fields)
+        self.pending = CSRStatus(n, fields=fields)
+        self.enable = CSRStorage(n, fields=fields)
 
         for i, source in enumerate(sources):
             self.comb += [
-                self.status.w[i].eq(source.status),
-                If(self.pending.re & self.pending.r[i], source.clear.eq(1)),
-                self.pending.w[i].eq(source.pending)
+                getattr(self.status.fields, source.name).eq(source.status),
+                getattr(self.pending.fields, source.name).eq(source.pending),
+                If(self.pending.re & getattr(self.pending.fields, source.name), source.clear.eq(1)),
             ]
 
-        irqs = [self.pending.w[i] & self.enable.storage[i] for i in range(n)]
+        irqs = [self.pending.status[i] & self.enable.storage[i] for i in range(n)]
         self.comb += self.irq.eq(reduce(or_, irqs))
 
     def __setattr__(self, name, value):
