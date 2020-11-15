@@ -145,8 +145,16 @@ class EventManager(Module, AutoCSR):
 
         fields = []
         for i, source in enumerate(sources):
-            fields += [CSRField(source.name, size=1, description="Mask bit for {}".format(str(source.name)))]
+            if source.description == None:
+                desc = "Mask bit for {}".format(str(source.name))
+            else:
+                desc = source.description
+            fields += [CSRField(source.name, size=1, description=desc)]
         self.status = CSRStatus(n, fields=fields)
+        fields = []
+        for i, source in enumerate(sources):
+            desc = "Mask bit for {}".format(str(source.name))
+            fields += [CSRField(source.name, size=1, description=desc)]
         self.pending = CSRStatus(n, fields=fields)
         self.enable = CSRStorage(n, fields=fields)
 
