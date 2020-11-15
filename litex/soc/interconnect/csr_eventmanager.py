@@ -139,24 +139,84 @@ class EventManager(Module, AutoCSR):
         self.irq = Signal()
 
     def do_finalize(self):
+        def source_description(src):
+            if hasattr(src, "name") and src.name is not None:
+                base_text = "`1` if a `{}` event occurred. ".format(src.name)
+            else:
+                base_text = "`1` if a this particular event occurred. "
+            if hasattr(src, "description") and src.description is not None:
+                return src.description
+            elif isinstance(src, EventSourceLevel):
+                return base_text + "This Event is **level triggered** when the signal is **high**."
+            elif isinstance(src, EventSourcePulse):
+                return base_text + "This Event is triggered on a **rising** edge."
+            elif isinstance(src, EventSourceProcess):
+                return base_text + "This Event is triggered on a **falling** edge."
+            else:
+                return base_text + "This Event uses an unknown method of triggering."
+
         sources_u = [v for k, v in xdir(self, True) if isinstance(v, _EventSource)]
         sources = sorted(sources_u, key=lambda x: x.duid)
         n = len(sources)
 
+        # annotate status
         fields = []
         for i, source in enumerate(sources):
             if source.description == None:
-                desc = "Mask bit for {}".format(str(source.name))
+                desc = "This register contains the current raw level of the {} event trigger.  Writes to this register have no effect.".format(str(source.name))
             else:
                 desc = source.description
-            fields += [CSRField(source.name, size=1, description=desc)]
-        self.status = CSRStatus(n, fields=fields)
+
+            if hasattr(source, "name") and source.name is not None:
+                fields.append(CSRField(
+                    name=source.name,
+                    size=1,
+                    description="Level of the `{}` event".format(source.name)))
+            else:
+                fields.append(CSRField(
+                    name="event{}".format(i),
+                    size=1,
+                    description="Level of the `event{}` event".format(i)))
+        self.status = CSRStatus(n, description=desc, fields=fields)
+
+        # annotate pending
         fields = []
         for i, source in enumerate(sources):
-            desc = "Mask bit for {}".format(str(source.name))
-            fields += [CSRField(source.name, size=1, description=desc)]
-        self.pending = CSRStatus(n, fields=fields)
-        self.enable = CSRStorage(n, fields=fields)
+            if source.description is None:
+                desc = "When a  {} event occurs, the corresponding bit will be set in this register.  To clear the Event, set the corresponding bit in this register.".format(str(source.name))
+            else:
+                desc = source.description
+
+            if hasattr(source, "name") and source.name is not None:
+                fields.append(CSRField(
+                    name=source.name,
+                    size=1,
+                    description=source_description(source)))
+            else:
+                fields.append(CSRField(
+                    name="event{}".format(i),
+                    size=1,
+                    description=source_description(source)))
+        self.pending = CSRStatus(n, description=desc, fields=fields)
+
+        # annotate enable
+        fields = []
+        for i, source in enumerate(sources):
+            if source.description is None:
+                desc = "This register enables the corresponding {} events.  Write a `0` to this register to disable individual events.".format(str(source.name))
+            else:
+                desc = source.description
+            if hasattr(source, "name") and source.name is not None:
+                fields.append(CSRField(
+                    name=source.name,
+                    offset=i,
+                    description="Write a `1` to enable the `{}` Event".format(source.name)))
+            else:
+                fields.append(CSRField(
+                    name="event{}".format(i),
+                    offset=i,
+                    description="Write a `1` to enable the `{}` Event".format(i)))
+        self.enable = CSRStorage(n, description=desc, fields=fields)
 
         for i, source in enumerate(sources):
             self.comb += [
