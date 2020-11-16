@@ -173,12 +173,12 @@ class EventManager(Module, AutoCSR):
                     fields.append(CSRField(
                         name=source.name,
                         size=1,
-                        description="Level of the `{}` event".format(source.name)))
+                        description="Level of the ``{}`` event".format(source.name)))
                 else:
                     fields.append(CSRField(
                         name="event{}".format(i),
                         size=1,
-                        description="Level of the `event{}` event".format(i)))
+                        description="Level of the ``event{}`` event".format(i)))
             self.status = CSRStatus(n, description=desc, fields=fields)
 
             # annotate pending
@@ -205,19 +205,19 @@ class EventManager(Module, AutoCSR):
             fields = []
             for i, source in enumerate(sources):
                 if source.description is None:
-                    desc = "This register enables the corresponding {} events.  Write a `0` to this register to disable individual events.".format(str(source.name))
+                    desc = "This register enables the corresponding {} events.  Write a ``0`` to this register to disable individual events.".format(str(source.name))
                 else:
                     desc = source.description
                 if hasattr(source, "name") and source.name is not None:
                     fields.append(CSRField(
                         name=source.name,
                         offset=i,
-                        description="Write a `1` to enable the `{}` Event".format(source.name)))
+                        description="Write a ``1`` to enable the ``{}`` Event".format(source.name)))
                 else:
                     fields.append(CSRField(
                         name="event{}".format(i),
                         offset=i,
-                        description="Write a `1` to enable the `{}` Event".format(i)))
+                        description="Write a ``1`` to enable the ``{}`` Event".format(i)))
             self.enable = CSRStorage(n, description=desc, fields=fields)
 
             for i, source in enumerate(sources):
