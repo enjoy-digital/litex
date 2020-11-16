@@ -231,6 +231,10 @@ def get_csr_header(regions, constants, csr_base=None, with_access_functions=True
                             r += "static inline uint32_t "+name+"_"+csr.name.lower()+"_"+field.name.lower()+"_extract(uint32_t oldword) {\n"
                             r += "\tuint32_t mask = ((1 << "+size+")-1);\n"
                             r += "\treturn ( (oldword >> "+offset+") & mask );\n}\n"
+                            r += "static inline uint32_t "+name+"_"+csr.name.lower()+"_"+field.name.lower()+"_read(void) {\n"
+                            r += "\tuint32_t word = "+name+"_"+csr.name.lower()+"_read();\n"
+                            r += "\treturn "+name+"_"+csr.name.lower()+"_"+field.name.lower()+"_extract(word);\n"
+                            r += "}\n"
                             if (name+"_"+csr.name.lower()+"_write") in r:
                                 r += "static inline uint32_t "+name+"_"+csr.name.lower()+"_"+field.name.lower()+"_inject(uint32_t oldword, uint32_t plain_value) {\n"
                                 r += "\tuint32_t mask = ((1 << "+size+")-1);\n"
