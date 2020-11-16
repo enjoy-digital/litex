@@ -19,7 +19,7 @@ class I2S_FORMAT(Enum):
     I2S_LEFT_JUSTIFIED = 2
 
 class S7I2S(Module, AutoCSR, AutoDoc):
-    def __init__(self, pads, fifo_depth=256, controller=False, master=False, concatenate_channels=True, sample_width=16, frame_format=I2S_FORMAT.I2S_LEFT_JUSTIFIED, lrck_ref_freq=100e6, lrck_freq=44100, bits_per_channel=28):
+    def __init__(self, pads, fifo_depth=256, controller=False, master=False, concatenate_channels=True, sample_width=16, frame_format=I2S_FORMAT.I2S_LEFT_JUSTIFIED, lrck_ref_freq=100e6, lrck_freq=44100, bits_per_channel=28, document_interrupts=False):
         if master == True:
             print("Master/slave terminology deprecated, please use controller/peripheral. Please see http://oshwa.org/a-resolution-to-redefine-spi-signal-names.")
             controller = True
@@ -198,7 +198,7 @@ class S7I2S(Module, AutoCSR, AutoDoc):
             ]
 
         # Interrupts
-        self.submodules.ev = EventManager()
+        self.submodules.ev = EventManager(document_fields=document_interrupts)
         if hasattr(pads, 'rx'):
             self.ev.rx_ready = EventSourcePulse(description="Indicates FIFO is ready to read")  # Rising edge triggered
             self.ev.rx_error = EventSourcePulse(description="Indicates an Rx error has happened (over/underflow)")
