@@ -234,11 +234,12 @@ def get_csr_header(regions, constants, csr_base=None, with_access_functions=True
                             r += "static inline uint32_t "+name.upper()+"_"+csr.name.lower()+"_"+field.name.lower()+"_inject(uint32_t oldword, uint32_t plain_value) {\n"
                             r += "\tuint32_t mask = ((1 << "+size+")-1);\n"
                             r += "\treturn (oldword & (~(mask << "+offset+"))) | (mask & plain_value)<< "+offset+" ;\n}\n"
-                            r += "static inline void "+name.upper()+"_"+csr.name.lower()+"_"+field.name.lower()+"_write(uint32_t plain_value) {\n"
-                            r += "\tuint32_t oldword = "+name.upper()+"_"+csr.name.lower()+"_read();\n"
-                            r += "\tuint32_t newword = "+name.upper()+"_"+csr.name.lower()+"_"+field.name.lower()+"_inject(oldword, plain_value);\n"
-                            r += "\t"+name.upper()+"_"+csr.name.lower()+"_write(newword);\n"
-                            r += "\}\n"
+                            if (name+"_"+csr.name.lower()+"_write") in r:
+                                r += "static inline void "+name.upper()+"_"+csr.name.lower()+"_"+field.name.lower()+"_write(uint32_t plain_value) {\n"
+                                r += "\tuint32_t oldword = "+name.upper()+"_"+csr.name.lower()+"_read();\n"
+                                r += "\tuint32_t newword = "+name.upper()+"_"+csr.name.lower()+"_"+field.name.lower()+"_inject(oldword, plain_value);\n"
+                                r += "\t"+name+"_"+csr.name.lower()+"_write(newword);\n"
+                                r += "}\n"
 
     r += "\n#endif\n"
     return r
