@@ -236,7 +236,7 @@ def get_csr_header(regions, constants, csr_base=None, with_access_functions=True
                             r += "\treturn (oldword & (~(mask << "+offset+"))) | (mask & plain_value)<< "+offset+" ;\n}\n"
                             if (name+"_"+csr.name.lower()+"_write") in r:
                                 r += "static inline void "+name.upper()+"_"+csr.name.lower()+"_"+field.name.lower()+"_write(uint32_t plain_value) {\n"
-                                r += "\tuint32_t oldword = "+name.upper()+"_"+csr.name.lower()+"_read();\n"
+                                r += "\tuint32_t oldword = "+name+"_"+csr.name.lower()+"_read();\n"
                                 r += "\tuint32_t newword = "+name.upper()+"_"+csr.name.lower()+"_"+field.name.lower()+"_inject(oldword, plain_value);\n"
                                 r += "\t"+name+"_"+csr.name.lower()+"_write(newword);\n"
                                 r += "}\n"
