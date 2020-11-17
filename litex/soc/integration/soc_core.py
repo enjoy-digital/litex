@@ -310,6 +310,9 @@ def soc_core_args(parser):
     # Timer parameters
     parser.add_argument("--no-timer", action="store_true",
                         help="Disable Timer (default=False)")
+    parser.add_argument("--timer-uptime", action="store_true",
+                        help="Add an uptime register to the timer (default=False)")
+
     # Controller parameters
     parser.add_argument("--no-ctrl", action="store_true",
                         help="Disable Controller (default=False)")
