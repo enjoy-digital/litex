@@ -308,7 +308,7 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
         svd.append('                    <addressOffset>0x{:04x}</addressOffset>'.format(csr_address))
         svd.append('                    <resetValue>0x{:02x}</resetValue>'.format(csr.reset_value))
         svd.append('                    <size>{}</size>'.format(length))
-        svd.append('                    <access>{}</access>'.format(csr.access))
+        # svd.append('                    <access>{}</access>'.format(csr.access))  # 'access' is a lie: "read-only" registers can legitimately change state based on a write, and is in fact used to handle the "pending" field in events
         csr_address = csr_address + 4
         svd.append('                    <fields>')
         if hasattr(csr, "fields") and len(csr.fields) > 0:

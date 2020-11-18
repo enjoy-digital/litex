@@ -135,25 +135,116 @@ class EventManager(Module, AutoCSR):
         asserted.
     """
 
-    def __init__(self):
+    def __init__(self, document_fields=False):
         self.irq = Signal()
+        self.document_fields = document_fields
 
     def do_finalize(self):
+        def source_description(src):
+            if hasattr(src, "name") and src.name is not None:
+                base_text = "`1` if a `{}` event occurred. ".format(src.name)
+            else:
+                base_text = "`1` if a this particular event occurred. "
+            if hasattr(src, "description") and src.description is not None:
+                return src.description
+            elif isinstance(src, EventSourceLevel):
+                return base_text + "This Event is **level triggered** when the signal is **high**."
+            elif isinstance(src, EventSourcePulse):
+                return base_text + "This Event is triggered on a **rising** edge."
+            elif isinstance(src, EventSourceProcess):
+                return base_text + "This Event is triggered on a **falling** edge."
+            else:
+                return base_text + "This Event uses an unknown method of triggering."
+
         sources_u = [v for k, v in xdir(self, True) if isinstance(v, _EventSource)]
         sources = sorted(sources_u, key=lambda x: x.duid)
         n = len(sources)
-        self.status = CSR(n)
-        self.pending = CSR(n)
-        self.enable = CSRStorage(n)
 
-        for i, source in enumerate(sources):
-            self.comb += [
-                self.status.w[i].eq(source.status),
-                If(self.pending.re & self.pending.r[i], source.clear.eq(1)),
-                self.pending.w[i].eq(source.pending)
-            ]
+        if self.document_fields:
+            # annotate status
+            fields = []
+            for i, source in enumerate(sources):
+                if source.description == None:
+                    desc = "This register contains the current raw level of the {} event trigger.  Writes to this register have no effect.".format(str(source.name))
+                else:
+                    desc = source.description
 
-        irqs = [self.pending.w[i] & self.enable.storage[i] for i in range(n)]
+                if hasattr(source, "name") and source.name is not None:
+                    fields.append(CSRField(
+                        name=source.name,
+                        size=1,
+                        description="Level of the ``{}`` event".format(source.name)))
+                else:
+                    fields.append(CSRField(
+                        name="event{}".format(i),
+                        size=1,
+                        description="Level of the ``event{}`` event".format(i)))
+            self.status = CSRStatus(n, description=desc, fields=fields)
+
+            # annotate pending
+            fields = []
+            for i, source in enumerate(sources):
+                if source.description is None:
+                    desc = "When a  {} event occurs, the corresponding bit will be set in this register.  To clear the Event, set the corresponding bit in this register.".format(str(source.name))
+                else:
+                    desc = source.description
+
+                if hasattr(source, "name") and source.name is not None:
+                    fields.append(CSRField(
+                        name=source.name,
+                        size=1,
+                        description=source_description(source)))
+                else:
+                    fields.append(CSRField(
+                        name="event{}".format(i),
+                        size=1,
+                        description=source_description(source)))
+            self.pending = CSRStatus(n, description=desc, fields=fields)
+
+            # annotate enable
+            fields = []
+            for i, source in enumerate(sources):
+                if source.description is None:
+                    desc = "This register enables the corresponding {} events.  Write a ``0`` to this register to disable individual events.".format(str(source.name))
+                else:
+                    desc = source.description
+                if hasattr(source, "name") and source.name is not None:
+                    fields.append(CSRField(
+                        name=source.name,
+                        offset=i,
+                        description="Write a ``1`` to enable the ``{}`` Event".format(source.name)))
+                else:
+                    fields.append(CSRField(
+                        name="event{}".format(i),
+                        offset=i,
+                        description="Write a ``1`` to enable the ``{}`` Event".format(i)))
+            self.enable = CSRStorage(n, description=desc, fields=fields)
+
+            for i, source in enumerate(sources):
+                if source.name == None:
+                    src_name = "event{}".format(i)
+                else:
+                    src_name = source.name
+                self.comb += [
+                    getattr(self.status.fields, src_name).eq(source.status),
+                    getattr(self.pending.fields, src_name).eq(source.pending),
+                    If(self.pending.re & getattr(self.pending.fields, src_name), source.clear.eq(1)),
+                ]
+
+            irqs = [self.pending.status[i] & self.enable.storage[i] for i in range(n)]
+        else:
+            self.status = CSR(n)
+            self.pending = CSR(n)
+            self.enable = CSRStorage(n)
+
+            for i, source in enumerate(sources):
+                self.comb += [
+                    self.status.w[i].eq(source.status),
+                    If(self.pending.re & self.pending.r[i], source.clear.eq(1)),
+                    self.pending.w[i].eq(source.pending)
+                ]
+
+            irqs = [self.pending.w[i] & self.enable.storage[i] for i in range(n)]
         self.comb += self.irq.eq(reduce(or_, irqs))
 
     def __setattr__(self, name, value):
