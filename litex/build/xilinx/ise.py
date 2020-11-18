@@ -161,10 +161,10 @@ bitgen {bitgen_opt} {build_name}.ncd {build_name}.bit{fail_stmt}
     tools.write_to_file(build_script_file, build_script_contents, force_unix=False)
     command = shell + [build_script_file]
 
-    if which("ise") is None:
+    if which("ise") is None and os.getenv("LITEX_ENV_ISE", False) == False:
         msg = "Unable to find or source ISE toolchain, please either:\n"
         msg += "- Source ISE's settings manually.\n"
-        msg += "- Or set LITEX_ISE_VIVADO environment variant to ISE's settings path.\n"
+        msg += "- Or set LITEX_ENV_ISE environment variant to ISE's settings path.\n"
         msg += "- Or add ISE toolchain to your $PATH."
         raise OSError(msg)
 

@@ -90,7 +90,7 @@ def _run_script(script):
     else:
         shell = ["bash"]
 
-    if which("vivado") is None:
+    if which("vivado") is None and os.getenv("LITEX_ENV_VIVADO", False) == False:
         msg = "Unable to find or source Vivado toolchain, please either:\n"
         msg += "- Source Vivado's settings manually.\n"
         msg += "- Or set LITEX_ENV_VIVADO environment variant to Vivado's settings path.\n"
