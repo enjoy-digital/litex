@@ -64,7 +64,8 @@ class Builder:
         csr_csv          = None,
         csr_svd          = None,
         memory_x         = None,
-        bios_options     = []):
+        bios_options     = [],
+        generate_doc     = False):
         self.soc = soc
 
         # From Python doc: makedirs() will become confused if the path elements to create include '..'
@@ -81,7 +82,7 @@ class Builder:
         self.csr_svd          = csr_svd
         self.memory_x         = memory_x
         self.bios_options     = bios_options
-
+        self.generate_doc     = generate_doc
         self.software_packages = []
         for name in soc_software_packages:
             self.add_software_package(name)
@@ -215,8 +216,14 @@ class Builder:
             kwargs["run"] = self.compile_gateware
         vns = self.soc.build(build_dir=self.gateware_dir, **kwargs)
         self.soc.do_exit(vns=vns)
-        return vns
 
+        if self.generate_doc:
+            from litex.soc.doc import generate_docs
+            doc_dir = os.path.join(self.output_dir, "doc")
+            generate_docs(self.soc, doc_dir)
+            os.system(f"sphinx-build -M html {doc_dir} {doc_dir}/_build")
+
+        return vns
 
 def builder_args(parser):
     parser.add_argument("--output-dir", default=None,
@@ -249,6 +256,7 @@ def builder_args(parser):
     parser.add_argument("--memory-x", default=None,
                         help="store Mem regions in memory-x format into the "
                              "specified file")
+    parser.add_argument("--doc", action="store_true", help="Generate Documentation")
 
 
 def builder_argdict(args):
@@ -264,4 +272,5 @@ def builder_argdict(args):
         "csr_json":         args.csr_json,
         "csr_svd":          args.csr_svd,
         "memory_x":         args.memory_x,
+        "generate_doc":     args.doc,
     }
