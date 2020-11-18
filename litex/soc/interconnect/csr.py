@@ -286,16 +286,19 @@ class CSRStatus(_CompoundCSR):
         The value of the CSRStatus register.
     """
 
-    def __init__(self, size=1, reset=0, fields=[], name=None, description=None):
+    def __init__(self, size=1, reset=0, fields=[], name=None, description=None, read_only=True):
         if fields != []:
             self.fields = CSRFieldAggregate(fields, CSRAccess.ReadOnly)
             size  = self.fields.get_size()
             reset = self.fields.get_reset()
         _CompoundCSR.__init__(self, size, name)
         self.description = description
+        self.read_only   = read_only
         self.status      = Signal(self.size, reset=reset)
         self.we          = Signal()
         self.re          = Signal()
+        if not read_only:
+            self.r       = Signal(self.size)
         for field in fields:
             self.comb += self.status[field.offset:field.offset + field.size].eq(getattr(self.fields, field.name))
 
@@ -306,8 +309,12 @@ class CSRStatus(_CompoundCSR):
             sc    = CSR(nbits, self.name + str(i) if nwords > 1 else self.name)
             self.comb += sc.w.eq(self.status[i*busword:i*busword+nbits])
             self.simple_csrs.append(sc)
+            if not self.read_only:
+                lo = i*busword
+                hi = lo+nbits
+                self.sync += If(sc.re, self.r[lo:hi].eq(sc.r))
         self.comb += self.we.eq(sc.we)
-        self.comb += self.re.eq(sc.re)
+        self.sync += self.re.eq(sc.re)
 
     def read(self):
         """Read method for simulation."""

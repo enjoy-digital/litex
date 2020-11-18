@@ -198,7 +198,7 @@ class S7I2S(Module, AutoCSR, AutoDoc):
             ]
 
         # Interrupts
-        self.submodules.ev = EventManager(document_fields=document_interrupts)
+        self.submodules.ev = EventManager()
         if hasattr(pads, 'rx'):
             self.ev.rx_ready = EventSourcePulse(description="Indicates FIFO is ready to read")  # Rising edge triggered
             self.ev.rx_error = EventSourcePulse(description="Indicates an Rx error has happened (over/underflow)")
