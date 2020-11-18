@@ -36,17 +36,19 @@ class NXLRAM(Module):
             depth_cascading = size//(128*kB)
             width_cascading = 2
 
+        # Combine RAMs to increase Depth.
         for d in range(depth_cascading):
+            # Combine RAMs to increase Width.
             for w in range(width_cascading):
-                datain = Signal(32)
+                datain  = Signal(32)
                 dataout = Signal(32)
-                cs = Signal()
-                wren = Signal()
+                cs      = Signal()
+                wren    = Signal()
                 self.comb += [
-                    cs.eq(self.bus.adr[14:14+log2_int(depth_cascading)+1] == d),
-                    wren.eq(self.bus.we & self.bus.stb & self.bus.cyc),
                     datain.eq(self.bus.dat_w[32*w:32*(w+1)]),
-                    If(cs,
+                    If(self.bus.adr[14:14+log2_int(depth_cascading)+1] == d,
+                        cs.eq(1),
+                        wren.eq(self.bus.we & self.bus.stb & self.bus.cyc),
                         self.bus.dat_r[32*w:32*(w+1)].eq(dataout)
                     ),
                 ]

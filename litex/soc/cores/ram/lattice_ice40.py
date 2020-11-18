@@ -42,12 +42,14 @@ class Up5kSPRAM(Module):
             depth_cascading = size//(128*kB)
             width_cascading = 4
 
+        # Combine RAMs to increase Depth.
         for d in range(depth_cascading):
+            # Combine RAMs to increase Width.
             for w in range(width_cascading):
-                datain = Signal(16)
-                dataout = Signal(16)
+                datain   = Signal(16)
+                dataout  = Signal(16)
                 maskwren = Signal(4)
-                wren = Signal()
+                wren     = Signal()
                 self.comb += [
                     datain.eq(self.bus.dat_w[16*w:16*(w+1)]),
                     If(self.bus.adr[14:14+log2_int(depth_cascading)+1] == d,
@@ -61,16 +63,16 @@ class Up5kSPRAM(Module):
                     maskwren[3].eq(self.bus.sel[2*w + 1]),
                 ]
                 self.specials += Instance("SB_SPRAM256KA",
-                    i_ADDRESS=self.bus.adr[:14],
-                    i_DATAIN=datain,
-                    i_MASKWREN=maskwren,
-                    i_WREN=wren,
-                    i_CHIPSELECT=0b1,
-                    i_CLOCK=ClockSignal("sys"),
-                    i_STANDBY=0b0,
-                    i_SLEEP=0b0,
-                    i_POWEROFF=0b1,
-                    o_DATAOUT=dataout
+                    i_CLOCK      = ClockSignal("sys"),
+                    i_STANDBY    = 0b0,
+                    i_SLEEP      = 0b0,
+                    i_POWEROFF   = 0b1,
+                    i_ADDRESS    = self.bus.adr[:14],
+                    i_DATAIN     = datain,
+                    i_MASKWREN   = maskwren,
+                    i_WREN       = wren,
+                    i_CHIPSELECT = 0b1,
+                    o_DATAOUT    = dataout
                 )
 
         self.sync += self.bus.ack.eq(self.bus.stb & self.bus.cyc & ~self.bus.ack)
