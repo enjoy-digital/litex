@@ -97,7 +97,7 @@ int main(int i, char **c)
 	printf(" (c) Copyright 2012-2020 Enjoy-Digital\n");
 	printf(" (c) Copyright 2007-2015 M-Labs\n");
 	printf("\n");
-#ifdef CONFIG_HAS_TIMESTAMP
+#ifdef CONFIG_WITH_BUILD_TIME
 	printf(" BIOS built on "__DATE__" "__TIME__"\n");
 #endif
 	crcbios();
