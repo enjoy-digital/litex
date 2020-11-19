@@ -192,7 +192,8 @@ class SoCCore(LiteXSoC):
     # Methods --------------------------------------------------------------------------------------
 
     def add_interrupt(self, interrupt_name, interrupt_id=None, use_loc_if_exists=False):
-        self.irq.add(interrupt_name, interrupt_id, use_loc_if_exists=use_loc_if_exists)
+        if hasattr(self.cpu, "interrupt"):
+            self.irq.add(interrupt_name, interrupt_id, use_loc_if_exists=use_loc_if_exists)
 
     def add_csr(self, csr_name, csr_id=None, use_loc_if_exists=False):
         self.csr.add(csr_name, csr_id, use_loc_if_exists=use_loc_if_exists)
