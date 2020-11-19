@@ -219,7 +219,7 @@ def get_csr_header(regions, constants, csr_base=None, with_access_functions=True
             for csr in region.obj:
                 nr = (csr.size + region.busword - 1)//region.busword
                 r += _get_rw_functions_c(name + "_" + csr.name, origin, nr, region.busword, alignment,
-                    isinstance(csr, CSRStatus), with_access_functions)
+                    getattr(csr, "read_only", False), with_access_functions)
                 origin += alignment//8*nr
                 if hasattr(csr, "fields"):
                     for field in csr.fields.fields:
