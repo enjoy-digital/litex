@@ -27,6 +27,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         self.iddr_name = iddr_name
         self.cipo_name = cipo_name
         self.spiread = spiread
+        self.gsr = Signal()
 
         self.dq = dq = TSTriple(7) # dq[0] is special because it is also copi
         self.dq_copi = dq_copi = TSTriple(1) # this has similar structure but an independent "oe" signal
@@ -289,7 +290,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
             # De-activate the CCLK interface, parallel it with a GPIO
             Instance("STARTUPE2",
                 i_CLK       = 0,
-                i_GSR       = 0,
+                i_GSR       = self.gsr,
                 i_GTS       = 0,
                 i_KEYCLEARB = 0,
                 i_PACK      = 0,
