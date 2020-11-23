@@ -652,7 +652,7 @@ class SoCController(Module, AutoCSR):
         with_errors   = True):
 
         if with_reset:
-            self._reset = CSRStorage(1, description="""Write a ``1`` to this register to reset the SoC.""")
+            self._reset = CSRStorage(1, description="""Any write to this register will reset the SoC.""")
         if with_scratch:
             self._scratch = CSRStorage(32, reset=0x12345678, description="""
                 Use this register as a scratch space to verify that software read/write accesses
