@@ -1335,9 +1335,10 @@ class LiteXSoC(SoC):
 
     # Add Etherbone --------------------------------------------------------------------------------
     def add_etherbone(self, name="etherbone", phy=None,
-        mac_address = 0x10e2d5000000,
-        ip_address  = "192.168.1.50",
-        udp_port    = 1234):
+        mac_address  = 0x10e2d5000000,
+        ip_address   = "192.168.1.50",
+        udp_port     = 1234,
+        buffer_depth = 4):
         # Imports
         from liteeth.core import LiteEthUDPIPCore
         from liteeth.frontend.etherbone import LiteEthEtherbone
@@ -1356,9 +1357,10 @@ class LiteXSoC(SoC):
         self.comb += self.cd_etherbone.rst.eq(ResetSignal("sys"))
 
         # Etherbone
-        etherbone = LiteEthEtherbone(ethcore.udp, udp_port, cd="etherbone")
+        etherbone = LiteEthEtherbone(ethcore.udp, udp_port, buffer_depth=buffer_depth, cd="etherbone")
         setattr(self.submodules, name, etherbone)
         self.add_wb_master(etherbone.wishbone.bus)
+
         # Timing constraints
         if hasattr(phy, "crg"):
             eth_rx_clk = phy.crg.cd_eth_rx.clk
