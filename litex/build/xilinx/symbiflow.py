@@ -19,33 +19,11 @@ from migen.fhdl.specials import Instance
 from litex.build.generic_platform import *
 from litex.build.xilinx.vivado import _xdc_separator, _format_xdc, _build_xdc
 from litex.build import tools
+from litex.build.xilinx import common
 
 
 def _unwrap(value):
     return value.value if isinstance(value, Constant) else value
-
-# Constraints (.pcf) -------------------------------------------------------------------------------
-
-def _build_pcf(named_sc):
-    r = _xdc_separator("Design constraints")
-    current_resname = ""
-    for sig, pins, _, resname in named_sc:
-        if current_resname != resname[0]:
-            if current_resname:
-                r += "\n"
-            current_resname = resname[0]
-            r += f"# {current_resname}\n"
-        if len(pins) > 1:
-            for i, p in enumerate(pins):
-                r += f"set_io {sig}[{i}] {Pins(p).identifiers[0]}\n"
-        elif pins:
-            r += f"set_io {sig} {Pins(pins[0]).identifiers[0]}\n"
-    return r
-
-# Constraints (.sdc) -------------------------------------------------------------------------------
-
-def _build_sdc(named_pc):
-    return "\n".join(named_pc) if named_pc else ""
 
 # Makefile -----------------------------------------------------------------------------------------
 
@@ -95,12 +73,14 @@ class _MakefileGenerator:
 
 
 def _run_make():
+    make_cmd = ["make"]
+
     if which("symbiflow_synth") is None:
         msg = "Unable to find Symbiflow toolchain, please:\n"
         msg += "- Add Symbiflow toolchain to your $PATH."
         raise OSError(msg)
 
-    if tools.subprocess_call_filtered(shell + [script], common.colors) != 0:
+    if tools.subprocess_call_filtered(make_cmd, common.colors) != 0:
         raise OSError("Error occured during Symbiflow's script execution.")
 
 # SymbiflowToolchain -------------------------------------------------------------------------------
@@ -159,7 +139,6 @@ class SymbiflowToolchain:
             "",
             Var("VERILOG", [f for f,language,_ in platform.sources if language in ["verilog", "system_verilog"]]),
             Var("MEM_INIT", [f"{name}" for name in os.listdir() if name.endswith(".init")]),
-            Var("PCF", f"{build_name}.pcf"),
             Var("SDC", f"{build_name}.sdc"),
             Var("XDC", f"{build_name}.xdc"),
             Var("ARTIFACTS", [
@@ -176,8 +155,8 @@ class SymbiflowToolchain:
             Rule("$(TOP).net", ["$(TOP).eblif", "$(SDC)"], commands=[
                     "symbiflow_pack -e $(TOP).eblif -d $(DEVICE) -s $(SDC) > /dev/null"
                 ]),
-            Rule("$(TOP).place", ["$(TOP).net", "$(PCF)"], commands=[
-                    "symbiflow_place -e $(TOP).eblif -d $(DEVICE) -p $(PCF) -n $(TOP).net -P $(PARTNAME) -s $(SDC) > /dev/null"
+            Rule("$(TOP).place", ["$(TOP).net"], commands=[
+                    "symbiflow_place -e $(TOP).eblif -d $(DEVICE) -n $(TOP).net -P $(PARTNAME) -s $(SDC) > /dev/null"
                 ]),
             Rule("$(TOP).route", ["$(TOP).place"], commands=[
                     "symbiflow_route -e $(TOP).eblif -d $(DEVICE) -s $(SDC) > /dev/null"
@@ -196,24 +175,14 @@ class SymbiflowToolchain:
         tools.write_to_file("Makefile", makefile.generate())
 
     def _build_clock_constraints(self, platform):
-        for clk, (period, phase) in sorted(self.clocks.items(), key=lambda x: x[0].duid):
-            rising_edge = math.floor(period/360.0 * phase * 1e3)/1e3
-            falling_edge = math.floor(((rising_edge + period/2) % period) * 1.e3)/1e3
-            platform.add_platform_command(f"create_clock -period {period} {{clk}} -waveform {{{{{rising_edge} {falling_edge}}}}}", clk=clk)
-        for from_, to in sorted(self.false_paths, key=lambda x: (x[0].duid, x[1].duid)):
-           platform.add_platform_command("set_clock_groups -exclusive -group {{{from_}}} -group {{{to}}}", from_=from_, to=to)
-        # Make sure add_*_constraint cannot be used again
-        del self.clocks
-        del self.false_paths
+        platform.add_platform_command(_xdc_separator("Clock constraints"))
+        for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
+            platform.add_platform_command(
+                "create_clock -period " + str(period) +
+                " {clk}", clk=clk)
 
-    # Yosys has limited support for real type. It requires that some values be multiplied
-    # by 1000 and passed as integers. For details, see:
-    # https://github.com/SymbiFlow/symbiflow-arch-defs/blob/master/xc/xc7/techmap/cells_map.v
     def _fix_instance(self, instance):
-        if instance.of == "PLLE2_ADV":
-            for item in instance.items:
-                if isinstance(item, Instance.Parameter) and re.fullmatch("CLKOUT[0-9]_(PHASE|DUTY_CYCLE)", item.name):
-                    item.value = wrap(math.floor(_unwrap(item.value) * 1000))
+        pass
 
     def build(self, platform, fragment,
         build_dir  = "build",
@@ -255,9 +224,7 @@ class SymbiflowToolchain:
         )
 
         # Generate design constraints
-        tools.write_to_file(build_name + ".xdc", _build_xdc(named_sc, False))
-        tools.write_to_file(build_name + ".pcf", _build_pcf(named_sc))
-        tools.write_to_file(build_name + ".sdc", _build_sdc(named_pc))
+        tools.write_to_file(build_name + ".xdc", _build_xdc(named_sc, named_pc))
 
         if run:
             _run_make()
@@ -266,25 +233,14 @@ class SymbiflowToolchain:
 
         return v_output.ns
 
-    def add_period_constraint(self, platform, clk, period, phase=0):
+    def add_period_constraint(self, platform, clk, period):
         clk.attr.add("keep")
-        phase  = math.floor(phase % 360.0 * 1e3)/1e3
         period = math.floor(period*1e3)/1e3 # round to lowest picosecond
         if clk in self.clocks:
-            if period != self.clocks[clk][0]:
+            if period != self.clocks[clk]:
                 raise ValueError("Clock already constrained to {:.2f}ns, new constraint to {:.2f}ns"
-                    .format(self.clocks[clk][0], period))
-            if phase != self.clocks[clk][1]:
-                raise ValueError("Clock already constrained with phase {:.2f}deg, new phase {:.2f}deg"
-                    .format(self.clocks[clk][1], phase))
-        self.clocks[clk] = (period, phase)
-
-    def add_false_path_constraint(self, platform, from_, to):
-        if (from_, to) in self.false_paths or (to, from_) in self.false_paths:
-            return
-        from_.attr.add("keep")
-        to.attr.add("keep")
-        self.false_paths.add((from_, to))
+                    .format(self.clocks[clk], period))
+        self.clocks[clk] = period
 
 
 def symbiflow_build_args(parser):
