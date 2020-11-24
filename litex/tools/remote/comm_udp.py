@@ -48,7 +48,7 @@ class CommUDP:
         datas = packet.records.pop().writes.get_datas()
         if self.debug:
             for i, value in enumerate(datas):
-                print("read {:08x} @ {:08x}".format(value, addr + 4*i))
+                print("read 0x{:08x} @ 0x{:08x}".format(value, addr + 4*i))
         return datas[0] if length is None else datas
 
     def write(self, addr, datas):
@@ -66,4 +66,4 @@ class CommUDP:
 
         if self.debug:
             for i, value in enumerate(datas):
-                print("write {:08x} @ {:08x}".format(value, addr + 4*i))
+                print("write 0x{:08x} @ 0x{:08x}".format(value, addr + 4*i))

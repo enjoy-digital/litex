@@ -33,7 +33,7 @@ class CommPCIe:
         for i in range(length_int):
             value = ctypes.c_uint32.from_buffer(self.mmap, addr + 4*i).value
             if self.debug:
-                print("read {:08x} @ {:08x}".format(value, addr + 4*i))
+                print("read 0x{:08x} @ 0x{:08x}".format(value, addr + 4*i))
             if length is None:
                 return value
             data.append(value)
@@ -45,4 +45,4 @@ class CommPCIe:
         for i, value in enumerate(data):
             ctypes.c_uint32.from_buffer(self.mmap, addr + 4*i).value = value
             if self.debug:
-                print("write {:08x} @ {:08x}".format(value, addr + 4*i))
+                print("write 0x{:08x} @ 0x{:08x}".format(value, addr + 4*i))

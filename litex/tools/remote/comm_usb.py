@@ -102,7 +102,7 @@ class CommUSB:
             if value is None:
                 value = 0xffffffff
             if self.debug:
-                print("read {:08x} @ {:08x}".format(value, addr))
+                print("read 0x{:08x} @ 0x{:08x}".format(value, addr))
             if length is None:
                 return value
             data.append(value)
@@ -137,7 +137,7 @@ class CommUSB:
         for i, value in enumerate(data):
             self.usb_write(addr, value)
             if self.debug:
-                print("write {:08x} @ {:08x}".format(value, addr + 4*i))
+                print("write 0x{:08x} @ 0x{:08x}".format(value, addr + 4*i))
 
     def usb_write(self, addr, value, depth=0):
         try:

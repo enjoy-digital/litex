@@ -61,7 +61,7 @@ class CommUART:
         for i in range(length_int):
             value = int.from_bytes(self._read(4), "big")
             if self.debug:
-                print("read {:08x} @ {:08x}".format(value, addr + 4*i))
+                print("read 0x{:08x} @ 0x{:08x}".format(value, addr + 4*i))
             if length is None:
                 return value
             data.append(value)
@@ -83,6 +83,6 @@ class CommUART:
             for i, value in enumerate(data[offset:offset+size]):
                 self._write(list(value.to_bytes(4, byteorder="big")))
                 if self.debug:
-                    print("write {:08x} @ {:08x}".format(value, addr + offset, 4*i))
+                    print("write 0x{:08x} @ 0x{:08x}".format(value, addr + offset, 4*i))
             offset += size
             length -= size
