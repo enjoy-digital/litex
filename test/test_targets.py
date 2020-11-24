@@ -14,7 +14,7 @@ from migen import *
 from litex.soc.integration.builder import *
 
 
-RUNNING_ON_TRAVIS = (os.getenv('TRAVIS', 'false').lower() == 'true')
+RUNNING_ON_GITHUB_ACTIONS = (os.getenv("GITHUB_ACTIONS", None) is not None)
 
 
 def build_test(socs):
@@ -175,7 +175,7 @@ litex/boards/targets/simple.py litex.boards.platforms.arty \
     def test_variants_vexriscv(self):
         self.run_variants("vexriscv", ('standard', 'minimal', 'lite', 'lite+debug', 'full+debug'))
 
-    @unittest.skipIf(RUNNING_ON_TRAVIS, "No nMigen/Yosys on Travis-CI")
+    @unittest.skipIf(RUNNING_ON_GITHUB_ACTIONS, "No nMigen/Yosys on Travis-CI")
     def test_variants_minerva(self):
         self.run_variants("minerva", ('standard',))
 
@@ -186,10 +186,10 @@ litex/boards/targets/simple.py litex.boards.platforms.arty \
         for cpu, variants in cpu_variants.items():
             self.run_variants(cpu, variants)
 
-    @unittest.skipIf(RUNNING_ON_TRAVIS, "No lm32 toolchain on Travis-CI")
+    @unittest.skipIf(RUNNING_ON_GITHUB_ACTIONS, "No lm32 toolchain on Travis-CI")
     def test_variants_lm32(self):
         self.run_variants('lm32', ('standard', 'minimal', 'lite'))
 
-    @unittest.skipIf(RUNNING_ON_TRAVIS, "No or1k toolchain on Travis-CI")
+    @unittest.skipIf(RUNNING_ON_GITHUB_ACTIONS, "No or1k toolchain on Travis-CI")
     def test_variants_mor1kx(self):
         self.run_variants('mor1kx', ('standard', 'linux'))

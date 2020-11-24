@@ -1,0 +1,43 @@
+name: ci
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-18.04
+    steps:
+      # Checkout Repository
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      # Install Tools
+      - name: Install Tools
+        run: |
+          sudo apt-get install wget build-essential python3
+          pip3 install setuptools
+          pip3 install requests
+
+      # Install (n)Migen / LiteX / Cores
+      - name: Install LiteX
+        run: |
+          wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py
+          python3 litex_setup.py init install --user
+
+      # Install RISC-V GCC
+      - name: Install RISC-V GCC
+        run: |
+          wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py
+          python3 litex_setup.py gcc
+          ls $PWD/../riscv64-*/bin/
+          export PATH=$PATH:$(echo $PWD/../riscv64-*/bin/)
+          riscv64-unknown-elf-gcc --version
+
+      # Install Project
+      - name: Install Project
+        run: python3 setup.py develop --user
+
+      # Test
+      - name: Run Tests
+        run: |
+          export GITHUB_ACTIONS=1
+          python3 setup.py test
