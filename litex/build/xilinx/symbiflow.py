@@ -242,6 +242,9 @@ class SymbiflowToolchain:
                     .format(self.clocks[clk], period))
         self.clocks[clk] = period
 
+    def add_false_path_constraint(self, platform, from_, to):
+        # FIXME: false path constraints are currently not supported by the symbiflow toolchain
+        return
 
 def symbiflow_build_args(parser):
     pass
