@@ -40,7 +40,7 @@ class CommUDP:
         packet.records = [record]
         packet.encode()
 
-        self.socket.sendto(bytes(packet), (self.server, self.port))
+        self.socket.sendto(packet.bytes, (self.server, self.port))
 
         datas, dummy = self.socket.recvfrom(8192)
         packet = EtherbonePacket(datas)
@@ -62,7 +62,7 @@ class CommUDP:
         packet.records = [record]
         packet.encode()
 
-        self.socket.sendto(bytes(packet), (self.server, self.port))
+        self.socket.sendto(packet.bytes, (self.server, self.port))
 
         if self.debug:
             for i, value in enumerate(datas):
