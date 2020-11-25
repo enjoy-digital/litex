@@ -57,6 +57,9 @@ def get_field_data(field, datas):
     v = int.from_bytes(datas[field.byte:field.byte+math.ceil(field.width/8)], "big")
     return (v >> field.offset) & (2**field.width-1)
 
+pack_to_uint32 = struct.Struct('>I').pack
+unpack_uint32_from = struct.Struct('>I').unpack
+
 # Packet -------------------------------------------------------------------------------------------
 
 class Packet(list):
@@ -107,20 +110,25 @@ class EtherboneWrites(Packet):
     def encode(self):
         if self.encoded:
             raise ValueError
-        self.bytes = self.base_addr.to_bytes(4, "big")
+        ba = bytearray()
+        ba += pack_to_uint32(self.base_addr)
         for write in self.writes:
-            self.bytes += write.data.to_bytes(4, "big")
+            ba += pack_to_uint32(write.data)
+        self.bytes   = ba
         self.encoded = True
 
     def decode(self):
         if not self.encoded:
             raise ValueError
-        self.base_addr = int.from_bytes(self.bytes[:4], "big")
+        ba = self.bytes
+        self.base_addr = unpack_uint32_from(ba[:4])[0]
+        writes = []
         offset = 4
-        self.writes = []
-        while len(self.bytes) > offset:
-            self.writes.append(EtherboneWrite(int.from_bytes(self.bytes[offset:offset+4], "big")))
+        length = len(ba)
+        while length > offset:
+            writes.append(EtherboneWrite(unpack_uint32_from(ba[offset:offset+4])[0]))
             offset += 4
+        self.writes  = writes
         self.encoded = False
 
     def __repr__(self):
@@ -156,20 +164,25 @@ class EtherboneReads(Packet):
     def encode(self):
         if self.encoded:
             raise ValueError
-        self.bytes = self.base_ret_addr.to_bytes(4, "big")
+        ba = bytearray()
+        ba += pack_to_uint32(self.base_ret_addr)
         for read in self.reads:
-            self.bytes += read.addr.to_bytes(4, "big")
+            ba += pack_to_uint32(read.addr)
+        self.bytes   = ba
         self.encoded = True
 
     def decode(self):
         if not self.encoded:
             raise ValueError
-        base_ret_addr = int.from_bytes(self.bytes[:4], "big")
+        ba = self.bytes
+        base_ret_addr = unpack_uint32_from(ba[:4])[0]
+        reads  = []
         offset = 4
-        self.reads  = []
-        while len(self.bytes) > offset:
-            self.reads.append(EtherboneRead(int.from_bytes(self.bytes[offset:offset+4], "big")))
+        length = len(ba)
+        while length > offset:
+            reads.append(EtherboneRead(unpack_uint32_from(ba[offset:offset+4])[0]))
             offset += 4
+        self.reads   = reads
         self.encoded = False
 
     def __repr__(self):
@@ -230,23 +243,26 @@ class EtherboneRecord(Packet):
         self.wcount = 0 if self.writes is None else len(self.writes.writes)
         self.rcount = 0 if self.reads  is None else len(self.reads.reads)
 
+        ba = bytearray()
+
         # Encode header
         header = 0
         for k, v in sorted(etherbone_record_header.fields.items()):
             value = int.from_bytes(getattr(self, k).to_bytes(math.ceil(v.width/8), "big"), "little")
             header += (value << v.offset+(v.byte*8))
-        self.bytes = header.to_bytes(etherbone_record_header.length, "little")
+        ba += header.to_bytes(etherbone_record_header.length, "little")
 
         # Encode writes
         if self.wcount:
             self.writes.encode()
-            self.bytes += self.writes.bytes
+            ba += self.writes.bytes
 
         # Encode reads
         if self.rcount:
             self.reads.encode()
-            self.bytes += self.reads.bytes
+            ba += self.reads.bytes
 
+        self.bytes   = ba
         self.encoded = True
 
     def __repr__(self, n=0):
@@ -284,15 +300,18 @@ class EtherbonePacket(Packet):
         if not self.encoded:
             raise ValueError
 
+        ba = self.bytes
+
         # Decode header
-        header = list(self.bytes[:etherbone_packet_header.length])
+        header = list(ba[:etherbone_packet_header.length])
         for k, v in sorted(etherbone_packet_header.fields.items()):
             setattr(self, k, get_field_data(v, header))
         offset = etherbone_packet_header.length
 
         # Decode records
-        while len(self.bytes) > offset:
-            record = EtherboneRecord(self.bytes[offset:])
+        length = len(ba)
+        while length > offset:
+            record = EtherboneRecord(ba[offset:])
             record.decode()
             self.records.append(record)
             offset += etherbone_record_header.length
@@ -307,18 +326,21 @@ class EtherbonePacket(Packet):
         if self.encoded:
             raise ValueError
 
+        ba = bytearray()
+
         # Encode header
         header = 0
         for k, v in sorted(etherbone_packet_header.fields.items()):
             value = int.from_bytes(getattr(self, k).to_bytes(math.ceil(v.width/8), "big"), "little")
             header += (value << v.offset+(v.byte*8))
-        self.bytes = header.to_bytes(etherbone_packet_header.length, "little")
+        ba += header.to_bytes(etherbone_packet_header.length, "little")
 
         # Encode records
         for record in self.records:
             record.encode()
-            self.bytes += record.bytes
+            ba += record.bytes
 
+        self.bytes   = ba
         self.encoded = True
 
     def __repr__(self):
