@@ -53,12 +53,8 @@ etherbone_record_header = Header(
     swap_field_bytes = True)
 
 
-def merge_bytes(b, endianness="big"):
-    return int.from_bytes(b, endianness)
-
-
 def get_field_data(field, datas):
-    v = merge_bytes(datas[field.byte:field.byte+math.ceil(field.width/8)])
+    v = int.from_bytes(datas[field.byte:field.byte+math.ceil(field.width/8)], "big")
     return (v >> field.offset) & (2**field.width-1)
 
 # Packet -------------------------------------------------------------------------------------------
@@ -125,13 +121,13 @@ class EtherboneWrites(Packet):
         base_addr = []
         for i in range(4):
             base_addr.append(self.pop(0))
-        self.base_addr = merge_bytes(base_addr)
+        self.base_addr = int.from_bytes(base_addr, "big")
         self.writes    = []
         while len(self) != 0:
             write = []
             for i in range(4):
                 write.append(self.pop(0))
-            self.writes.append(EtherboneWrite(merge_bytes(write)))
+            self.writes.append(EtherboneWrite(int.from_bytes(write, "big")))
         self.encoded = False
 
     def __repr__(self):
@@ -180,13 +176,13 @@ class EtherboneReads(Packet):
         base_ret_addr = []
         for i in range(4):
             base_ret_addr.append(self.pop(0))
-        self.base_ret_addr = merge_bytes(base_ret_addr)
+        self.base_ret_addr = int.from_bytes(base_ret_addr, "big")
         self.reads         = []
         while len(self) != 0:
             read = []
             for i in range(4):
                 read.append(self.pop(0))
-            self.reads.append(EtherboneRead(merge_bytes(read)))
+            self.reads.append(EtherboneRead(int.from_bytes(read, "big")))
         self.encoded = False
 
     def __repr__(self):
@@ -271,7 +267,7 @@ class EtherboneRecord(Packet):
             self.set_reads(self.reads)
         header = 0
         for k, v in sorted(etherbone_record_header.fields.items()):
-            value = merge_bytes(getattr(self, k).to_bytes(math.ceil(v.width/8), "big"), "little")
+            value = int.from_bytes(getattr(self, k).to_bytes(math.ceil(v.width/8), "big"), "little")
             header += (value << v.offset+(v.byte*8))
         for d in header.to_bytes(etherbone_record_header.length, "big"):
             self.insert(0, d)
@@ -342,7 +338,7 @@ class EtherbonePacket(Packet):
         self.set_records(self.records)
         header = 0
         for k, v in sorted(etherbone_packet_header.fields.items()):
-            value = merge_bytes(getattr(self, k).to_bytes(math.ceil(v.width/8), "big"), "little")
+            value = int.from_bytes(getattr(self, k).to_bytes(math.ceil(v.width/8), "big"), "little")
             header += (value << v.offset+(v.byte*8))
         for d in header.to_bytes(etherbone_packet_header.length, "big"):
             self.insert(0, d)
