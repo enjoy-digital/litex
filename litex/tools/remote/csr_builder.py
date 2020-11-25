@@ -1,12 +1,13 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2016 Tim 'mithro' Ansell <mithro@mithis.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import csv
 
+# CSR Elements -------------------------------------------------------------------------------------
 
 class CSRElements:
     def __init__(self, d):
@@ -23,16 +24,15 @@ class CSRElements:
             pass
         raise AttributeError("No such element " + attr)
 
-
 class CSRRegister:
     def __init__(self, readfn, writefn, name, addr, length, data_width, mode):
-        self.readfn = readfn
-        self.writefn = writefn
-        self.name = name
-        self.addr = addr
-        self.length = length
+        self.readfn     = readfn
+        self.writefn    = writefn
+        self.name       = name
+        self.addr       = addr
+        self.length     = length
         self.data_width = data_width
-        self.mode = mode
+        self.mode       = mode
 
     def read(self):
         if self.mode not in ["rw", "ro"]:
@@ -55,32 +55,34 @@ class CSRRegister:
             datas.append((value >> ((self.length-1-i)*self.data_width)) & (2**self.data_width-1))
         self.writefn(self.addr, datas)
 
-
 class CSRMemoryRegion:
     def __init__(self, base, size, type):
         self.base = base
         self.size = size
         self.type = type
 
+# CSR Builder --------------------------------------------------------------------------------------
+
 class CSRBuilder:
     def __init__(self, comm, csr_csv, csr_data_width=None):
-        self.items = self.get_csr_items(csr_csv)
-        self.constants = self.build_constants()
+        if csr_csv is not None:
+            self.items     = self.get_csr_items(csr_csv)
+            self.constants = self.build_constants()
 
-        # Load csr_data_width from the constants, otherwise it must be provided
-        constant_csr_data_width = self.constants.d.get("config_csr_data_width", None)
-        if csr_data_width is None:
-            csr_data_width = constant_csr_data_width
-        if csr_data_width is None:
-            raise KeyError("csr_data_width not found in constants, please provide!")
-        if csr_data_width != constant_csr_data_width:
-            raise KeyError("csr_data_width of {} provided but {} found in constants".format(
-                csr_data_width, constant_csr_data_width))
+            # Load csr_data_width from the constants, otherwise it must be provided
+            constant_csr_data_width = self.constants.d.get("config_csr_data_width", None)
+            if csr_data_width is None:
+                csr_data_width = constant_csr_data_width
+            if csr_data_width is None:
+                raise KeyError("csr_data_width not found in constants, please provide!")
+            if csr_data_width != constant_csr_data_width:
+                raise KeyError("csr_data_width of {} provided but {} found in constants".format(
+                    csr_data_width, constant_csr_data_width))
 
-        self.csr_data_width = csr_data_width
-        self.bases = self.build_bases()
-        self.regs = self.build_registers(comm.read, comm.write)
-        self.mems = self.build_memories()
+            self.csr_data_width = csr_data_width
+            self.bases = self.build_bases()
+            self.regs  = self.build_registers(comm.read, comm.write)
+            self.mems  = self.build_memories()
 
     @staticmethod
     def get_csr_items(csr_csv):

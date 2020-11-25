@@ -8,8 +8,13 @@ import os
 import ctypes
 import mmap
 
-class CommPCIe:
-    def __init__(self, bar, debug=False):
+from litex.tools.remote.csr_builder import CSRBuilder
+
+# CommPCIe -----------------------------------------------------------------------------------------
+
+class CommPCIe(CSRBuilder):
+    def __init__(self, bar, csr_csr=None, debug=False):
+        CSRBuilder.__init__(self, comm=self, csr_csv=csr_csv)
         self.bar   = bar
         self.debug = debug
 

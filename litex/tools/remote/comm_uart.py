@@ -1,23 +1,29 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import serial
 import struct
+
+from litex.tools.remote.csr_builder import CSRBuilder
+
+# Constants ----------------------------------------------------------------------------------------
 
 CMD_WRITE_BURST_INCR  = 0x01
 CMD_READ_BURST_INCR   = 0x02
 CMD_WRITE_BURST_FIXED = 0x03
 CMD_READ_BURST_FIXED  = 0x04
 
-class CommUART:
-    def __init__(self, port, baudrate=115200, debug=False):
-        self.port = port
+# CommUART -----------------------------------------------------------------------------------------
+
+class CommUART(CSRBuilder):
+    def __init__(self, port, baudrate=115200, csr_csv=None, debug=False):
+        CSRBuilder.__init__(self, comm=self, csr_csv=csr_csv)
+        self.port     = serial.serial_for_url(port, baudrate)
         self.baudrate = str(baudrate)
-        self.debug = debug
-        self.port = serial.serial_for_url(port, baudrate)
+        self.debug    = debug
 
     def open(self):
         if hasattr(self, "port"):
@@ -50,9 +56,9 @@ class CommUART:
 
     def read(self, addr, length=None, burst="incr"):
         self._flush()
-        data = []
+        data       = []
         length_int = 1 if length is None else length
-        cmd = {
+        cmd        = {
             "incr" : CMD_READ_BURST_INCR,
             "fixed": CMD_READ_BURST_FIXED,
         }[burst]
@@ -69,7 +75,7 @@ class CommUART:
 
     def write(self, addr, data, burst="incr"):
         self._flush()
-        data = data if isinstance(data, list) else [data]
+        data   = data if isinstance(data, list) else [data]
         length = len(data)
         offset = 0
         while length:

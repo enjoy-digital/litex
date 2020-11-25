@@ -10,12 +10,16 @@ import socket
 from litex.tools.remote.etherbone import EtherbonePacket, EtherboneRecord
 from litex.tools.remote.etherbone import EtherboneReads, EtherboneWrites
 
+from litex.tools.remote.csr_builder import CSRBuilder
 
-class CommUDP:
-    def __init__(self, server="192.168.1.50", port=1234, debug=False):
+# CommUDP ------------------------------------------------------------------------------------------
+
+class CommUDP(CSRBuilder):
+    def __init__(self, server="192.168.1.50", port=1234, csr_csv=None, debug=False):
+        CSRBuilder.__init__(self, comm=self, csr_csv=csr_csv)
         self.server = server
-        self.port = port
-        self.debug = debug
+        self.port   = port
+        self.debug  = debug
 
     def open(self):
         if hasattr(self, "socket"):
