@@ -58,7 +58,7 @@ class RemoteClient(EtherboneIPC, CSRBuilder):
         packet = EtherbonePacket()
         packet.records = [record]
         packet.encode()
-        self.send_packet(self.socket, packet[:])
+        self.send_packet(self.socket, packet)
 
         # receive response
         packet = EtherbonePacket(self.receive_packet(self.socket))
