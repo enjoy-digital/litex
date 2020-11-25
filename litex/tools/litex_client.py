@@ -48,25 +48,25 @@ class RemoteClient(EtherboneIPC, CSRBuilder):
 
     def read(self, addr, length=None, burst="incr"):
         length_int = 1 if length is None else length
-        # prepare packet
+        # Prepare packet
         record = EtherboneRecord()
         incr = (burst == "incr")
-        record.reads = EtherboneReads(addrs=[self.base_address + addr + 4*incr*j for j in range(length_int)])
+        record.reads  = EtherboneReads(addrs=[self.base_address + addr + 4*incr*j for j in range(length_int)])
         record.rcount = len(record.reads)
 
-        # send packet
+        # Send packet
         packet = EtherbonePacket()
         packet.records = [record]
         packet.encode()
         self.send_packet(self.socket, packet)
 
-        # receive response
+        # Receive response
         packet = EtherbonePacket(self.receive_packet(self.socket))
         packet.decode()
         datas = packet.records.pop().writes.get_datas()
         if self.debug:
             for i, data in enumerate(datas):
-                print("read {:08x} @ {:08x}".format(data, self.base_address + addr + 4*i))
+                print("read 0x{:08x} @ 0x{:08x}".format(data, self.base_address + addr + 4*i))
         return datas[0] if length is None else datas
 
     def write(self, addr, datas):
@@ -82,7 +82,7 @@ class RemoteClient(EtherboneIPC, CSRBuilder):
 
         if self.debug:
             for i, data in enumerate(datas):
-                print("write {:08x} @ {:08x}".format(data, self.base_address + addr + 4*i))
+                print("write 0x{:08x} @ 0x{:08x}".format(data, self.base_address + addr + 4*i))
 
 # Utils --------------------------------------------------------------------------------------------
 
