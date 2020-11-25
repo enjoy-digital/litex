@@ -53,11 +53,6 @@ etherbone_record_header = Header(
     swap_field_bytes = True)
 
 
-def split_bytes(v, n, endianness="big"):
-    r = []
-    return v.to_bytes(n, byteorder=endianness)
-
-
 def merge_bytes(b, endianness="big"):
     return int.from_bytes(b, endianness)
 
@@ -117,10 +112,10 @@ class EtherboneWrites(Packet):
     def encode(self):
         if self.encoded:
             raise ValueError
-        for byte in split_bytes(self.base_addr, 4):
+        for byte in self.base_addr.to_bytes(4, "big"):
             self.append(byte)
         for write in self.writes:
-            for byte in split_bytes(write.data, 4):
+            for byte in write.data.to_bytes(4, "big"):
                 self.append(byte)
         self.encoded = True
 
@@ -172,10 +167,10 @@ class EtherboneReads(Packet):
     def encode(self):
         if self.encoded:
             raise ValueError
-        for byte in split_bytes(self.base_ret_addr, 4):
+        for byte in self.base_ret_addr.to_bytes(4, "big"):
             self.append(byte)
         for read in self.reads:
-            for byte in split_bytes(read.addr, 4):
+            for byte in read.addr.to_bytes(4, "big"):
                 self.append(byte)
         self.encoded = True
 
@@ -276,11 +271,9 @@ class EtherboneRecord(Packet):
             self.set_reads(self.reads)
         header = 0
         for k, v in sorted(etherbone_record_header.fields.items()):
-            value = merge_bytes(split_bytes(getattr(self, k),
-                                            math.ceil(v.width/8)),
-                                            "little")
+            value = merge_bytes(getattr(self, k).to_bytes(math.ceil(v.width/8), "big"), "little")
             header += (value << v.offset+(v.byte*8))
-        for d in split_bytes(header, etherbone_record_header.length):
+        for d in header.to_bytes(etherbone_record_header.length, "big"):
             self.insert(0, d)
         self.encoded = True
 
@@ -349,9 +342,9 @@ class EtherbonePacket(Packet):
         self.set_records(self.records)
         header = 0
         for k, v in sorted(etherbone_packet_header.fields.items()):
-            value = merge_bytes(split_bytes(getattr(self, k), math.ceil(v.width/8)), "little")
+            value = merge_bytes(getattr(self, k).to_bytes(math.ceil(v.width/8), "big"), "little")
             header += (value << v.offset+(v.byte*8))
-        for d in split_bytes(header, etherbone_packet_header.length):
+        for d in header.to_bytes(etherbone_packet_header.length, "big"):
             self.insert(0, d)
         self.encoded = True
 
