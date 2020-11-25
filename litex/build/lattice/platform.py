@@ -6,7 +6,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 from litex.build.generic_platform import GenericPlatform
-from litex.build.lattice import common, diamond, icestorm, trellis, radiant
+from litex.build.lattice import common, diamond, icestorm, trellis, radiant, oxide
 
 # LatticePlatform ----------------------------------------------------------------------------------
 
@@ -24,6 +24,8 @@ class LatticePlatform(GenericPlatform):
             self.toolchain = icestorm.LatticeIceStormToolchain()
         elif toolchain == "radiant":
             self.toolchain = radiant.LatticeRadiantToolchain()
+        elif toolchain == "oxide":
+            self.toolchain = oxide.LatticeOxideToolchain()
         else:
             raise ValueError("Unknown toolchain")
 
