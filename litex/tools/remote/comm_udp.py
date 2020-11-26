@@ -26,12 +26,31 @@ class CommUDP(CSRBuilder):
             return
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.bind(("", self.port))
+        self.socket.settimeout(1)
+        self.probe()
 
     def close(self):
         if not hasattr(self, "socket"):
             return
         self.socket.close()
         del self.socket
+
+    def probe(self):
+        # Send probe request to server...
+        packet = EtherbonePacket()
+        packet.pf = 1
+        packet.encode()
+        self.socket.sendto(packet.bytes, (self.server, self.port))
+
+        # ...and get/check server's response.
+        try:
+            datas, dummy = self.socket.recvfrom(8192)
+            packet = EtherbonePacket(datas)
+            packet.decode()
+            assert packet.pr == 1
+        except:
+            self.close()
+            raise Exception(f"Unable to probe Etherbone server at {self.server}.")
 
     def read(self, addr, length=None, burst="incr"):
         assert burst == "incr"
