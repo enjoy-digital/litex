@@ -90,6 +90,7 @@ class ECP5PLL(Module):
     def do_finalize(self):
         config = self.compute_config()
         clkfb  = Signal()
+        locked = Signal()
         self.params.update(
             attr=[
                 ("FREQUENCY_PIN_CLKI",     str(self.clkin_freq/1e6)),
@@ -99,7 +100,7 @@ class ECP5PLL(Module):
                 ("MFG_GMCREF_SEL",         "2")],
             i_RST           = self.reset,
             i_CLKI          = self.clkin,
-            o_LOCK          = self.locked,
+            o_LOCK          = locked,
             p_FEEDBK_PATH   = "INT_OS3", # CLKOS3 reserved for feedback with div=1.
             p_CLKOS3_ENABLE = "ENABLED",
             p_CLKOS3_DIV    = 1,
@@ -108,6 +109,7 @@ class ECP5PLL(Module):
             p_CLKFB_DIV     = config["clkfb_div"],
             p_CLKI_DIV      = config["clki_div"],
         )
+        self.comb += self.locked.eq(locked & ~self.reset)
         for n, (clk, f, p, m) in sorted(self.clkouts.items()):
             n_to_l = {0: "P", 1: "S", 2: "S2"}
             div    = config["clko{}_div".format(n)]
