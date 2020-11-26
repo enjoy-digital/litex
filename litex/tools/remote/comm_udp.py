@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2016 Tim 'mithro' Ansell <mithro@mithis.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
@@ -21,13 +21,14 @@ class CommUDP(CSRBuilder):
         self.port   = port
         self.debug  = debug
 
-    def open(self):
+    def open(self, probe=True):
         if hasattr(self, "socket"):
             return
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.bind(("", self.port))
         self.socket.settimeout(1)
-        self.probe()
+        if probe:
+            self.probe(self.server, self.port)
 
     def close(self):
         if not hasattr(self, "socket"):
@@ -35,22 +36,34 @@ class CommUDP(CSRBuilder):
         self.socket.close()
         del self.socket
 
-    def probe(self):
-        # Send probe request to server...
-        packet = EtherbonePacket()
-        packet.pf = 1
-        packet.encode()
-        self.socket.sendto(packet.bytes, (self.server, self.port))
-
-        # ...and get/check server's response.
+    def probe(self, ip, port, loose=False):
         try:
+            # Send probe request to server...
+            packet = EtherbonePacket()
+            packet.pf = 1
+            packet.encode()
+            self.socket.sendto(packet.bytes, (ip, port))
+
+            # ...and get/check server's response.
             datas, dummy = self.socket.recvfrom(8192)
             packet = EtherbonePacket(datas)
             packet.decode()
             assert packet.pr == 1
+            return 1
         except:
-            self.close()
-            raise Exception(f"Unable to probe Etherbone server at {self.server}.")
+            if not loose:
+                self.close()
+                raise Exception(f"Unable to probe Etherbone server at {self.server}.")
+        return 0
+
+    def scan(self, ip="192.168.1.x"):
+        print(f"Etherbone scan on {ip} network:")
+        ip = ip.replace("x", "{}")
+        self.socket.settimeout(0.01)
+        for i in range(1, 255):
+            if self.probe(ip=ip.format(str(i)), port=self.port, loose=True):
+                print("- {}".format(ip.format(i)))
+        self.socket.settimeout(1)
 
     def read(self, addr, length=None, burst="incr"):
         assert burst == "incr"
