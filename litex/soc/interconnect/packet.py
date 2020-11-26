@@ -5,6 +5,8 @@
 # Copyright (c) 2019 Vamsi K Vytla <vkvytla@lbl.gov>
 # SPDX-License-Identifier: BSD-2-Clause
 
+from math import log2
+
 from migen import *
 from migen.genlib.roundrobin import *
 from migen.genlib.record import *
@@ -381,3 +383,34 @@ class Depacketizer(Module):
             x = [sink.last_be[(i - (bytes_per_clk - header_leftover))%bytes_per_clk]
                 for i in range(bytes_per_clk)]
             self.comb += source.last_be.eq(Cat(*x))
+
+# PacketFIFO ---------------------------------------------------------------------------------------
+
+class PacketFIFO(Module):
+    def __init__(self, description, depth, buffered=False):
+        self.sink   = sink   = stream.Endpoint(description)
+        self.source = source = stream.Endpoint(description)
+
+        # # #
+
+        # Create the FIFO.
+        self.submodules.fifo = fifo = stream.SyncFIFO(description, depth, buffered)
+
+        # Connect our sink to FIFO.sink.
+        self.comb += sink.connect(fifo.sink)
+
+        # Count packets in the FIFO.
+        count = Signal(int(log2(depth))+1)
+        inc   = (sink.valid   &   sink.ready &   sink.last)
+        dec   = (source.valid & source.ready & source.last)
+        self.sync += If(inc & ~dec, count.eq(count + 1))
+        self.sync += If(~inc & dec, count.eq(count - 1))
+
+        # Connect FIFO.sink to source only we have at least one packet in the FIFO.
+        self.comb += [
+            fifo.source.connect(source, omit={"valid", "ready"}),
+            If(count > 0,
+                source.valid.eq(1),
+                fifo.source.ready.eq(source.ready)
+            )
+        ]
