@@ -58,7 +58,7 @@ sfl_prompt_ack = b"\x06"
 sfl_magic_req = b"sL5DdSMmkekro\n"
 sfl_magic_ack = b"z6IHG7cYDID6o\n"
 
-sfl_payload_length = 64
+sfl_payload_length = 255
 
 # General commands
 sfl_cmd_abort       = b"\x00"
@@ -67,12 +67,18 @@ sfl_cmd_load_no_crc = b"\x03"
 sfl_cmd_jump        = b"\x02"
 sfl_cmd_flash       = b"\x04"
 sfl_cmd_reboot      = b"\x05"
+sfl_cmd_version     = b"\x06"
+sfl_cmd_load_async  = b"\x07"
+sfl_cmd_resync      = b"\x08"
 
 # Replies
 sfl_ack_success  = b"K"
 sfl_ack_crcerror = b"C"
 sfl_ack_unknown  = b"U"
 sfl_ack_error    = b"E"
+sfl_ack_resend   = b"R"
+sfl_ack_version  = b"V"
+sfl_ack_async    = b"A"
 
 
 class SFLFrame:
@@ -154,6 +160,7 @@ class LiteXTerm:
 
         self.reader_alive = False
         self.writer_alive = False
+        self.protocol_version = 1
 
         self.prompt_detect_buffer = bytes(len(sfl_prompt_req))
         self.magic_detect_buffer = bytes(len(sfl_magic_req))
@@ -189,7 +196,7 @@ class LiteXTerm:
         retry = 1
         while retry:
             self.port.write(frame.encode())
-            if not self.no_crc:
+            if (not self.no_crc) and frame.cmd != sfl_cmd_load_async:
                 # Get the reply from the device
                 reply = self.port.read()
                 if reply == sfl_ack_success:
@@ -203,7 +210,33 @@ class LiteXTerm:
                 retry = 0
         return 1
 
+    def check_device_protocol_version(self):
+        # Ask the device what protocol version it supports. If it doesn't
+        # understand the request, then it's protocol version 1 (the default set
+        # in the constructor).
+        frame = SFLFrame()
+        frame.cmd = sfl_cmd_version
+        self.port.write(frame.encode())
+        reply = self.port.read()
+        if reply == sfl_ack_version:
+            self.protocol_version = int.from_bytes(self.port.read(), byteorder='big')
+
+    def force_device_resync(self):
+        # Send it a few bytes that are not a valid command code. This should
+        # cause it to enter resync mode.
+        self.port.write(("x" * 10).encode())
+
+    def current_send_command(self):
+        if self.flash:
+            return sfl_cmd_flash
+        if self.no_crc:
+            return sfl_cmd_load_no_crc
+        if self.protocol_version >= 2:
+            return sfl_cmd_load_async
+        return sfl_cmd_load
+
     def upload(self, filename, address):
+        self.check_device_protocol_version()
         f = open(filename, "rb")
         f.seek(0, 2)
         length = f.tell()
@@ -214,29 +247,79 @@ class LiteXTerm:
         position = 0
         start = time.time()
         remaining = length
-        while remaining:
+        outstanding_frames = {}
+        async_retransmissions = 0
+        resend = []
+        send_cmd = self.current_send_command()
+        is_async = send_cmd == sfl_cmd_load_async
+        while remaining or len(outstanding_frames) > 0:
             sys.stdout.write("|{}>{}| {}%\r".format('=' * (20*position//length),
                                                     ' ' * (20-20*position//length),
                                                     100*position//length))
-            sys.stdout.flush()
-            frame = SFLFrame()
-            frame_data = f.read(min(remaining, sfl_payload_length-4))
-            if self.flash:
-                frame.cmd = sfl_cmd_flash
-            else:
-                frame.cmd = sfl_cmd_load if not self.no_crc else sfl_cmd_load_no_crc
-            frame.payload = current_address.to_bytes(4, "big")
-            frame.payload += frame_data
-            if self.send_frame(frame) == 0:
-                return
-            current_address += len(frame_data)
-            position += len(frame_data)
-            remaining -= len(frame_data)
-            time.sleep(1e-5) # Inter-frame delay for fast UARTs (ex: FT245).
+            if self.port.in_waiting or remaining == 0:
+                ack_code = self.port.read()
+                if ack_code == sfl_ack_resend:
+                    resend_address = int.from_bytes(self.port.read(4), byteorder='big')
+                    if not resend_address in outstanding_frames:
+                        # Device requested resend of an unknown frame. It's
+                        # probably got a corrupted length and is now out of
+                        # sync.
+                        self.force_device_resync()
+                        continue
+                    frame = outstanding_frames[resend_address]
+                    self.send_frame(frame)
+                    async_retransmissions += 1
+                elif ack_code == sfl_ack_async:
+                    ack_address = int.from_bytes(self.port.read(4), byteorder='big')
+                    acked_frame = outstanding_frames.pop(ack_address, None)
+                    if acked_frame is None:
+                        print("[LXTERM] Device reported writing address {:08X}, but we never asked it to. Aborting".format(ack_address))
+                        return 0
+                    position = max(position, ack_address - address + len(acked_frame.payload))
+                elif ack_code == sfl_ack_unknown:
+                    while True:
+                        resync = SFLFrame()
+                        resync.cmd = sfl_cmd_resync
+                        self.port.write(resync.encode())
+                        response = self.port.read()
+                        if response == sfl_ack_success:
+                            print("Resync successful")
+                            break
+                    # All frames that haven't already been acknowledged will
+                    # need to be resent.
+                    resend = list(outstanding_frames.values())
+                else:
+                    self.force_device_resync()
+                    continue
+
+            if len(resend) > 0:
+                async_retransmissions += 1
+                self.send_frame(resend.pop())
+
+            if remaining:
+                sys.stdout.flush()
+                frame = SFLFrame()
+                frame_data = f.read(min(remaining, sfl_payload_length - 4))
+                frame.cmd = send_cmd
+                frame.payload = current_address.to_bytes(4, "big")
+                frame.payload += frame_data
+                self.send_frame(frame)
+                if is_async:
+                    outstanding_frames[current_address] = frame
+                current_address += len(frame_data)
+                # For async transfers, we increment our position once we get
+                # acknowledgement of the transfer.
+                if not is_async:
+                    position += len(frame_data)
+                remaining -= len(frame_data)
+                time.sleep(1e-5) # Inter-frame delay for fast UARTs (ex: FT245).
+
         end = time.time()
         elapsed = end - start
         f.close()
-        print("[LXTERM] Upload complete ({0:.1f}KB/s).".format(length/(elapsed*1024)))
+        async_message = " Async retransmissions: {}".format(async_retransmissions) if is_async else ""
+        print("[LXTERM] Upload complete in {0:.1f}s ({1:.1f}KB/s).{2}".
+            format(elapsed, length/(elapsed*1024), async_message))
         return length
 
     def boot(self):
@@ -275,13 +358,14 @@ class LiteXTerm:
         if(len(self.mem_regions)):
             self.port.write(sfl_magic_ack)
         for filename, base in self.mem_regions.items():
-            self.upload(filename, int(base, 16))
+            if self.upload(filename, int(base, 16)) == 0:
+                return
         if self.flash:
             # clear mem_regions to avoid re-flashing on next reboot(s)
             self.mem_regions = {}
         else:
             self.boot()
-        print("[LXTERM] Done.");
+        print("[LXTERM] Done.")
 
     def reader(self):
         try:

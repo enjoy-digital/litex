@@ -143,7 +143,23 @@ static uint32_t get_uint32(unsigned char* data)
 			(uint32_t) data[3];
 }
 
+static void uart_write_uint32(uint32_t value)
+{
+	uart_write(value >> 24);
+	uart_write((value >> 16) & 0xff);
+	uart_write((value >> 8) & 0xff);
+	uart_write(value & 0xff);
+}
+
 #define MAX_FAILED 5
+
+static void read_frame_header(struct sfl_frame* frame_out)
+{
+	frame_out->payload_length = uart_read();
+	frame_out->crc[0] = uart_read();
+	frame_out->crc[1] = uart_read();
+	frame_out->cmd = uart_read();
+}
 
 /* Returns 1 if other boot methods should be tried */
 int serialboot(void)
@@ -153,6 +169,7 @@ int serialboot(void)
 	static const char str[SFL_MAGIC_LEN+1] = SFL_MAGIC_REQ;
 	const char *c;
 	int ack_status;
+	int use_v2_resync_protocol = 0;
 
 	printf("Booting from serial...\n");
 	printf("Press Q or ESC to abort boot completely.\n");
@@ -179,12 +196,29 @@ int serialboot(void)
 		int i;
 		int actualcrc;
 		int goodcrc;
+		int needs_resync = 0;
 
 		/* Get one Frame */
-		frame.payload_length = uart_read();
-		frame.crc[0] = uart_read();
-		frame.crc[1] = uart_read();
-		frame.cmd = uart_read();
+		read_frame_header(&frame);
+		if (use_v2_resync_protocol && (frame.cmd > SFL_MAX_CMD || needs_resync)) {
+			/* We have an invalid command. Either the command code got
+			corrupted, or a previous length got corrupted, in which case we're
+			now out of sync. Assume the latter and attempt to resync.
+
+			We resync by reporting that we received an unknown command. The
+			sender should then send a resync command, which we now look for. We
+			ignore everything until we get the resync command. */
+			uart_write(SFL_ACK_UNKNOWN);
+			read_frame_header(&frame);
+			while (frame.cmd != SFL_CMD_RESYNC || frame.payload_length != 0 || frame.crc[0] != 129 || frame.crc[1] != 8) {
+				/* Shift everything by 1 byte then read 1 more byte. */
+				frame.payload_length = frame.crc[0];
+				frame.crc[0] = frame.crc[1];
+				frame.crc[1] = frame.cmd;
+				frame.cmd = uart_read();
+			}
+			needs_resync = 0;
+		}
 		for(i=0;i<frame.payload_length;i++)
 			frame.payload[i] = uart_read();
 
@@ -193,14 +227,25 @@ int serialboot(void)
 			actualcrc = ((int)frame.crc[0] << 8)|(int)frame.crc[1];
 			goodcrc = crc16(&frame.cmd, frame.payload_length+1);
 			if(actualcrc != goodcrc) {
-				/* Clear out the RX buffer */
-				while (uart_read_nonblock()) uart_read();
+				if (!use_v2_resync_protocol) {
+					/* Clear out the RX buffer */
+					while (uart_read_nonblock()) uart_read();
+				}
 				failed++;
 				if(failed == MAX_FAILED) {
-					printf("Too many consecutive errors, aborting");
-					return 1;
+					if (use_v2_resync_protocol) {
+						needs_resync = 1;
+					} else {
+						printf("Too many consecutive errors, aborting");
+						return 1;
+					}
 				}
-				uart_write(SFL_ACK_CRCERROR);
+				if (frame.cmd == SFL_CMD_LOAD_ASYNC) {
+					uart_write(SFL_ACK_RESEND);
+					uart_write_uint32(get_uint32(&frame.payload[0]));
+				} else {
+					uart_write(SFL_ACK_CRCERROR);
+				}
 				continue;
 			}
 		}
@@ -211,7 +256,20 @@ int serialboot(void)
 				failed = 0;
 				uart_write(SFL_ACK_SUCCESS);
 				return 1;
+			case SFL_CMD_VERSION:
+				uart_write(SFL_ACK_VERSION);
+				uart_write(SFL_VERSION);
+				/* If the host has asked us for our version, the it supports
+				   using SFL_CMD_RESYNC to resynchronize. */
+				use_v2_resync_protocol = 1;
+				failed = 0;
+				break;
+			case SFL_CMD_RESYNC:
+				failed = 0;
+				uart_write(SFL_ACK_SUCCESS);
+				break;
 			case SFL_CMD_LOAD:
+			case SFL_CMD_LOAD_ASYNC:
 			case SFL_CMD_LOAD_NO_CRC: {
 				char *writepointer;
 
@@ -219,8 +277,12 @@ int serialboot(void)
 				writepointer = (char *) get_uint32(&frame.payload[0]);
 				for(i=4;i<frame.payload_length;i++)
 					*(writepointer++) = frame.payload[i];
-				if (frame.cmd == SFL_CMD_LOAD)
+				if (frame.cmd == SFL_CMD_LOAD) {
 					uart_write(SFL_ACK_SUCCESS);
+				} else if (frame.cmd == SFL_CMD_LOAD_ASYNC) {
+					uart_write(SFL_ACK_ASYNC);
+					uart_write_uint32(get_uint32(&frame.payload[0]));
+				}
 				break;
 			}
 			case SFL_CMD_JUMP: {
