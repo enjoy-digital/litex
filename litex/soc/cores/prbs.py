@@ -132,6 +132,7 @@ class PRBS31Checker(PRBSChecker):
 class PRBSRX(Module):
     def __init__(self, width, reverse=False):
         self.config = Signal(2)
+        self.pause  = Signal()
         self.i      = Signal(width)
         self.errors = Signal(32)
 
@@ -162,7 +163,7 @@ class PRBSRX(Module):
         self.sync += [
             If(config == 0,
                 self.errors.eq(0)
-            ).Elif(self.errors != (2**32-1),
+            ).Elif(~self.pause & (self.errors != (2**32-1)),
                 If(config == 0b01,
                     self.errors.eq(self.errors + (prbs7.errors != 0))
                 ).Elif(config == 0b10,
