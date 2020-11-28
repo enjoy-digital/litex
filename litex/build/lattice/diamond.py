@@ -210,7 +210,7 @@ class LatticeDiamondToolchain:
         build_dir      = "build",
         build_name     = "top",
         run            = True,
-        timingstrict   = True,
+        timingstrict   = False,
         **kwargs):
 
         # Create build directory
