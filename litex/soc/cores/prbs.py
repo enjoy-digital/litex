@@ -19,7 +19,7 @@ class PRBSGenerator(Module):
 
         # # #
 
-        state = Signal(n_state, reset=1)
+        state  = Signal(n_state, reset=1)
         curval = [state[i] for i in range(n_state)]
         curval += [0]*(n_out - n_state)
         for i in range(n_out):
@@ -52,23 +52,23 @@ class PRBS31Generator(PRBSGenerator):
 class PRBSTX(Module):
     def __init__(self, width, reverse=False):
         self.config = Signal(2)
-        self.i = Signal(width)
-        self.o = Signal(width)
+        self.i      = Signal(width)
+        self.o      = Signal(width)
 
         # # #
 
         config = Signal(2)
 
-        # generators
+        # Generators
         self.specials += MultiReg(self.config, config)
-        prbs7 = PRBS7Generator(width)
+        prbs7  = PRBS7Generator(width)
         prbs15 = PRBS15Generator(width)
         prbs31 = PRBS31Generator(width)
         self.submodules += prbs7, prbs15, prbs31
 
-        # select
+        # PRBS Selection
         prbs_data = Signal(width)
-        self.comb += \
+        self.comb += [
             If(config == 0b11,
                 prbs_data.eq(prbs31.o)
             ).Elif(config == 0b10,
@@ -76,31 +76,33 @@ class PRBSTX(Module):
             ).Else(
                 prbs_data.eq(prbs7.o)
             )
+        ]
 
-        # optional bits reversing
+        # Optional bits reversing
         if reverse:
             new_prbs_data = Signal(width)
             self.comb += new_prbs_data.eq(prbs_data[::-1])
             prbs_data = new_prbs_data
 
-        # prbs / data mux
-        self.comb += \
+        # PRBS / Data Selection
+        self.comb += [
             If(config == 0,
                 self.o.eq(self.i)
             ).Else(
                 self.o.eq(prbs_data)
             )
+        ]
 
 # PRBS Checkers ------------------------------------------------------------------------------------
 
 class PRBSChecker(Module):
     def __init__(self, n_in, n_state=23, taps=[17, 22]):
-        self.i = Signal(n_in)
+        self.i      = Signal(n_in)
         self.errors = Signal(n_in)
 
         # # #
 
-        state = Signal(n_state, reset=1)
+        state  = Signal(n_state, reset=1)
         curval = [state[i] for i in range(n_state)]
         for i in reversed(range(n_in)):
             correctv = reduce(xor, [curval[tap] for tap in taps])
@@ -129,24 +131,24 @@ class PRBS31Checker(PRBSChecker):
 
 class PRBSRX(Module):
     def __init__(self, width, reverse=False):
-        self.i = Signal(width)
         self.config = Signal(2)
+        self.i      = Signal(width)
         self.errors = Signal(32)
 
         # # #
 
         config = Signal(2)
 
-        # optional bits reversing
+        # Optional bits reversing
         prbs_data = self.i
         if reverse:
             new_prbs_data = Signal(width)
             self.comb += new_prbs_data.eq(prbs_data[::-1])
             prbs_data = new_prbs_data
 
-        # checkers
+        # Checkers
         self.specials += MultiReg(self.config, config)
-        prbs7 = PRBS7Checker(width)
+        prbs7  = PRBS7Checker(width)
         prbs15 = PRBS15Checker(width)
         prbs31 = PRBS31Checker(width)
         self.submodules += prbs7, prbs15, prbs31
@@ -156,8 +158,8 @@ class PRBSRX(Module):
             prbs31.i.eq(prbs_data)
         ]
 
-        # errors count
-        self.sync += \
+        # Errors count
+        self.sync += [
             If(config == 0,
                 self.errors.eq(0)
             ).Elif(self.errors != (2**32-1),
@@ -169,3 +171,4 @@ class PRBSRX(Module):
                     self.errors.eq(self.errors + (prbs31.errors != 0))
                 )
             )
+        ]
