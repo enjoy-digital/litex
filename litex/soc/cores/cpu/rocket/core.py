@@ -123,7 +123,7 @@ class RocketRV64(CPU):
             # debug (ignored)
             #i_resetctrl_hartIsInReset_0           = 0,
             i_debug_clock                          = 0,
-            i_debug_reset                          = 0,
+            i_debug_reset                          = ResetSignal() | self.reset,
             #o_debug_clockeddmi_dmi_req_ready      = ,
             i_debug_clockeddmi_dmi_req_valid       = 0,
             i_debug_clockeddmi_dmi_req_bits_addr   = 0,
@@ -134,7 +134,7 @@ class RocketRV64(CPU):
             #o_debug_clockeddmi_dmi_resp_bits_data = ,
             #o_debug_clockeddmi_dmi_resp_bits_resp = ,
             i_debug_clockeddmi_dmiClock            = 0,
-            i_debug_clockeddmi_dmiReset            = 0,
+            i_debug_clockeddmi_dmiReset            = ResetSignal() | self.reset,
             #o_debug_ndreset                       = ,
             #o_debug_dmactive                      = ,
             i_debug_dmactiveAck                    = 0,
