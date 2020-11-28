@@ -33,8 +33,15 @@ class OpenOCDJTAGProgrammer(GenericProgrammer):
 
     def load_bitstream(self, bitstream_file):
         config   = self.find_config()
-        svf_file = bitstream_file.replace(".bit", ".svf")
-        self.call(["openocd", "-f", config, "-c", "transport select jtag; init; svf quiet progress \"{}\"; exit".format(svf_file)])
+        assert bitstream_file.endswith(".bit") or bitstream_file.endswith(".svf")
+        if bitstream_file.endswith(".bit"):
+            from litex.build.lattice.bit_to_svf import bit_to_svf
+            bit = bitstream_file
+            svf = bit.replace(".bit", ".svf")
+            bit_to_svf(bit=bit, svf=svf)
+        else:
+            svf = bitstream_file
+        self.call(["openocd", "-f", config, "-c", "transport select jtag; init; svf quiet progress \"{}\"; exit".format(svf)])
 
     def flash(self, address, data, verify=True):
         config      = self.find_config()
