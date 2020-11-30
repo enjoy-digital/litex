@@ -905,7 +905,7 @@ class SoC(Module):
         self.check_if_exists(name)
         setattr(self.submodules, name, Timer())
         self.csr.add(name, use_loc_if_exists=True)
-        if hasattr(self.cpu, "interrupt"):
+        if self.irq.enabled:
             self.irq.add(name, use_loc_if_exists=True)
 
     # SoC finalization -----------------------------------------------------------------------------
@@ -1141,7 +1141,7 @@ class LiteXSoC(SoC):
 
         self.csr.add("uart_phy", use_loc_if_exists=True)
         self.csr.add("uart", use_loc_if_exists=True)
-        if hasattr(self.cpu, "interrupt"):
+        if self.irq.enabled:
             self.irq.add("uart", use_loc_if_exists=True)
         else:
             self.add_constant("UART_POLLING")
@@ -1333,7 +1333,7 @@ class LiteXSoC(SoC):
         ethmac_region = SoCRegion(origin=self.mem_map.get(name, None), size=0x2000, cached=False)
         self.bus.add_slave(name=name, slave=ethmac.bus, region=ethmac_region)
         self.csr.add(name, use_loc_if_exists=True)
-        if hasattr(self.cpu, "interrupt"):
+        if self.irq.enabled:
             self.irq.add(name, use_loc_if_exists=True)
         # Timing constraints
         if hasattr(phy, "crg"):

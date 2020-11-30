@@ -236,7 +236,7 @@ class SimSoC(SoCCore):
             self.add_memory_region("ethmac", self.mem_map["ethmac"], 0x2000, type="io")
             self.add_wb_slave(self.mem_regions["ethmac"].origin, self.ethmac.bus, 0x2000)
             self.add_csr("ethmac")
-            if hasattr(self.cpu, "interrupt"):
+            if self.irq.enabled:
                 self.irq.add("ethmac", use_loc_if_exists=True)
             # HW ethernet
             self.submodules.arp  = LiteEthARP(self.ethmac, etherbone_mac_address, etherbone_ip_address, sys_clk_freq, dw=8)
@@ -262,7 +262,7 @@ class SimSoC(SoCCore):
             self.add_memory_region("ethmac", self.mem_map["ethmac"], 0x2000, type="io")
             self.add_wb_slave(self.mem_regions["ethmac"].origin, self.ethmac.bus, 0x2000)
             self.add_csr("ethmac")
-            if hasattr(self.cpu, "interrupt"):
+            if self.irq.enabled:
                 self.irq.add("ethmac", use_loc_if_exists=True)
 
         # Etherbone --------------------------------------------------------------------------------
