@@ -1047,20 +1047,19 @@ class SoC(Module):
                 raise
 
         # SoC IRQ Interconnect ---------------------------------------------------------------------
-        if hasattr(self, "cpu"):
-            if hasattr(self.cpu, "interrupt"):
-                for name, loc in sorted(self.irq.locs.items()):
-                    if name in self.cpu.interrupts.keys():
-                        continue
-                    if hasattr(self, name):
-                        module = getattr(self, name)
-                        if not hasattr(module, "ev"):
-                            self.logger.error("EventManager {} in {} SubModule.".format(
-                                colorer("not found", color="red"),
-                                colorer(name)))
-                            raise
-                        self.comb += self.cpu.interrupt[loc].eq(module.ev.irq)
-                    self.add_constant(name + "_INTERRUPT", loc)
+        if hasattr(self, "cpu") and hasattr(self.cpu, "interrupt"):
+            for name, loc in sorted(self.irq.locs.items()):
+                if name in self.cpu.interrupts.keys():
+                    continue
+                if hasattr(self, name):
+                    module = getattr(self, name)
+                    if not hasattr(module, "ev"):
+                        self.logger.error("EventManager {} in {} SubModule.".format(
+                            colorer("not found", color="red"),
+                            colorer(name)))
+                        raise
+                    self.comb += self.cpu.interrupt[loc].eq(module.ev.irq)
+                self.add_constant(name + "_INTERRUPT", loc)
 
     # SoC build ------------------------------------------------------------------------------------
     def build(self, *args, **kwargs):
