@@ -619,6 +619,7 @@ class SoCIRQHandler(SoCLocHandler):
         SoCLocHandler.__init__(self, "IRQ", n_locs=n_irqs)
         self.logger = logging.getLogger("SoCIRQHandler")
         self.logger.info("Creating IRQ Handler...")
+        self.enabled = False
 
         # Check IRQ Number
         if n_irqs > 32:
@@ -635,6 +636,19 @@ class SoCIRQHandler(SoCLocHandler):
             self.add(name, n)
 
         self.logger.info("IRQ Handler {}.".format(colorer("created", color="green")))
+
+    # Enable ---------------------------------------------------------------------------------------
+    def enable(self):
+        self.enabled = True
+
+    # Add ------------------------------------------------------------------------------------------
+    def add(self, *args, **kwargs):
+        if self.enabled:
+            SoCLocHandler.add(self, *args, **kwargs)
+        else:
+            self.logger.error("Attempted to add an {} but SoC does not support {}.".format(
+                colorer("IRQ", color="red"), colorer("IRQs")))
+            raise
 
     # Str ------------------------------------------------------------------------------------------
     def __str__(self):
@@ -858,6 +872,7 @@ class SoC(Module):
                 self.bus.add_master(name="cpu_bus{}".format(n), master=cpu_bus)
             self.csr.add("cpu", use_loc_if_exists=True)
             if hasattr(self.cpu, "interrupt"):
+                self.irq.enable()
                 for name, loc in self.cpu.interrupts.items():
                     self.irq.add(name, loc)
                 self.add_config("CPU_HAS_INTERRUPT")
@@ -1318,7 +1333,8 @@ class LiteXSoC(SoC):
         ethmac_region = SoCRegion(origin=self.mem_map.get(name, None), size=0x2000, cached=False)
         self.bus.add_slave(name=name, slave=ethmac.bus, region=ethmac_region)
         self.csr.add(name, use_loc_if_exists=True)
-        self.add_interrupt(name)
+        if hasattr(self.cpu, "interrupt"):
+            self.irq.add(name, use_loc_if_exists=True)
         # Timing constraints
         if hasattr(phy, "crg"):
             eth_rx_clk = phy.crg.cd_eth_rx.clk
