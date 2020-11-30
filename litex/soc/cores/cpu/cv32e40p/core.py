@@ -78,27 +78,53 @@ def add_manifest_sources(platform, manifest):
 
 class OBI2Wishbone(Module):
     def __init__(self, obi, wb):
-        dat_r_d = Signal().like(wb.dat_r)
-        addr_d  = Signal().like(obi.addr)
-        ack_d   = Signal()
+        addr  = Signal.like(obi.addr)
+        be    = Signal.like(obi.be)
+        we    = Signal.like(obi.we)
+        wdata = Signal.like(obi.wdata)
 
-        self.sync += [
-            dat_r_d.eq(wb.dat_r),
-            ack_d.eq(wb.ack),
-            addr_d.eq(obi.addr),
-        ]
+        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        fsm.act("IDLE",
+            # On OBI request:
+            If(obi.req,
+                # Drive Wishbone bus from OBI bus.
+                wb.adr.eq(obi.addr[2:32]),
+                wb.stb.eq(            1),
+                wb.dat_w.eq(  obi.wdata),
+                wb.cyc.eq(            1),
+                wb.sel.eq(       obi.be),
+                wb.we.eq(        obi.we),
 
-        self.comb += [
-            wb.adr.eq(obi.addr[2:32]),
-            wb.stb.eq(obi.req & (~ack_d)),
-            wb.dat_w.eq(obi.wdata),
-            wb.cyc.eq(obi.req),
-            wb.sel.eq(obi.be),
-            wb.we.eq(obi.we),
-            obi.gnt.eq(wb.ack & (addr_d == obi.addr)),
-            obi.rvalid.eq(ack_d),
-            obi.rdata.eq(dat_r_d),
-        ]
+                # Store OBI bus values.
+                NextValue(addr,  obi.addr),
+                NextValue(be,    obi.be),
+                NextValue(we,    obi.we),
+                NextValue(wdata, obi.wdata),
+
+                # Now we need to wait Wishbone Ack.
+                NextState("ACK")
+            ),
+            obi.gnt.eq(1), # Always ack OBI request in Idle.
+        )
+        fsm.act("ACK",
+            # Drive Wishbone bus from stored OBI bus values.
+            wb.adr.eq(addr[2:32]),
+            wb.stb.eq(         1),
+            wb.dat_w.eq(   wdata),
+            wb.cyc.eq(         1),
+            wb.sel.eq(        be),
+            wb.we.eq(         we),
+
+            # On Wishbone Ack:
+            If(wb.ack,
+                # Generate OBI response.
+                obi.rvalid.eq(1),
+                obi.rdata.eq(wb.dat_r),
+
+                # Return to Idle.
+                NextState("IDLE")
+            )
+        )
 
 class Wishbone2OBI(Module):
     def __init__(self, wb, obi):
