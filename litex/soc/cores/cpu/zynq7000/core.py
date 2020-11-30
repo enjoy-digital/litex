@@ -47,8 +47,10 @@ class Zynq7000(CPU):
         self.clock_domains.cd_ps7 = ClockDomain()
 
         # PS7 (Minimal) ----------------------------------------------------------------------------
-        ps7_rst_n      = Signal()
-        ps7_ddram_pads = platform.request("ps7_ddram")
+        self.ps7_name   = None
+        self.ps7_tcl    = []
+        ps7_rst_n       = Signal()
+        ps7_ddram_pads  = platform.request("ps7_ddram")
         self.cpu_params = dict(
             # Clk/Rst
             io_PS_CLK            = platform.request("ps7_clk"),
@@ -139,30 +141,46 @@ class Zynq7000(CPU):
         if ps7_sdio0_wp_pads is not None:
             self.cpu_params.update(i_SDIO0_WP = ps7_sdio0_wp_pads.wp)
 
-    def set_ps7_xci(self, ps7_xci):
-        self.ps7_xci = ps7_xci
-        self.platform.add_ip(ps7_xci)
+    def set_ps7_xci(self, xci):
+        # Add .xci as Vivado IP and set ps7_name from .xci filename.
+        self.ps7_xci  = xci
+        self.ps7_name = os.path.splitext(os.path.basename(xci))[0]
+        self.platform.add_ip(xci)
 
-    def set_ps7_config(self):
-        ps7_name = f"{self.platform.name}_ps7"
-        tcl = []
-        tcl.append(f"set ps7 [create_ip -vendor xilinx.com -name processing_system7 -module_name {ps7_name}]")
+    def add_ps7_config(self, config):
+        # Check that PS7 has been set.
+        if self.ps7_name is None:
+            raise Exception("Please set PS7 with set_ps7 method first.")
+        # Config must be provided as a config, value dict.
+        assert isinstance(config, dict)
+        # Add configs to PS7.
+        self.ps7_tcl.append("set_property -dict [list \\")
+        for config, value in config.items():
+            self.ps7_tcl.append("CONFIG.{} {} \\".format(config, '{{' + value + '}}'))
+        self.ps7_tcl.append(f"] [get_ips {self.ps7_name}]")
 
-        if hasattr(self.platform, "ps7_preset") and self.platform.ps7_preset:
-            tcl.append("set_property -dict [list CONFIG.preset {}] [get_ips {}]".format(
-                '{{' + self.platform.ps7_preset + '}}', ps7_name))
+    def set_ps7(self, name=None, xci=None, preset=None, config=None):
+        # Check that PS7 has not already been set.
+        if self.ps7_name is not None:
+            raise Exception(f"PS7 has already been set to {self.ps7_name}.")
+        self.ps7_name = preset if name is None else name
 
-        if hasattr(self.platform, "ps7_config") and self.platform.ps7_config:
-            tcl.append("set_property -dict [list \\")
-            for config, value in self.platform.ps7_config.items():
-                tcl.append("CONFIG.{} {} \\".format(config, '{{' + value + '}}'))
-            tcl.append(f"] [get_ips {ps7_name}]")
+        # User should provide an .xci file, preset_name or config dict but not all at once.
+        if (xci is not None) and (preset is not None):
+            raise Exception("PS7 .xci and preset specified, please only provide one.")
 
-        tcl += [f"upgrade_ip [get_ips {ps7_name}]",
-            f"generate_target all [get_ips {ps7_name}]",
-            f"synth_ip [get_ips {ps7_name}]"
-        ]
-        self.platform.toolchain.pre_synthesis_commands += tcl
+        # User provides an .xci file...
+        if xci is not None:
+            self.set_ps7_xci(xci)
+
+        # User provides a preset or/and config
+        else:
+            self.ps7_tcl.append(f"set ps7 [create_ip -vendor xilinx.com -name processing_system7 -module_name {self.ps7_name}]")
+            if preset is not None:
+                assert isinstance(preset, str)
+                self.ps7_tcl.append("set_property -dict [list CONFIG.preset {}] [get_ips {}]".format("{{" + preset + "}}", self.ps7_name))
+            if config is not None:
+                self.add_ps7_config(config)
 
     # AXI GP Master --------------------------------------------------------------------------------
 
@@ -296,9 +314,13 @@ class Zynq7000(CPU):
         platform.add_ip(os.path.join("ip", self.ps7))
 
     def do_finalize(self):
-        if hasattr(self, "ps7_xci"):
-            ps7_name = os.path.splitext(os.path.basename(self.ps7_xci))[0]
-        else:
-            self.set_ps7_config()
-            ps7_name = self.platform.name + "_ps7"
-        self.specials += Instance(ps7_name, **self.cpu_params)
+        if self.ps7_name is None:
+            raise Exception("PS7 must be set with set_ps7 or set_ps7_xci methods.")
+        if len(self.ps7_tcl):
+            self.ps7_tcl += [
+                f"upgrade_ip [get_ips {self.ps7_name}]",
+                f"generate_target all [get_ips {self.ps7_name}]",
+                f"synth_ip [get_ips {self.ps7_name}]"
+            ]
+            self.platform.toolchain.pre_synthesis_commands += self.ps7_tcl
+        self.specials += Instance(self.ps7_name, **self.cpu_params)
