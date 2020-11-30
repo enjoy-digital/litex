@@ -143,6 +143,27 @@ class Zynq7000(CPU):
         self.ps7_xci = ps7_xci
         self.platform.add_ip(ps7_xci)
 
+    def set_ps7_config(self):
+        ps7_name = f"{self.platform.name}_ps7"
+        tcl = []
+        tcl.append(f"set ps7 [create_ip -vendor xilinx.com -name processing_system7 -module_name {ps7_name}]")
+
+        if hasattr(self.platform, "ps7_preset") and self.platform.ps7_preset:
+            tcl.append("set_property -dict [list CONFIG.preset {}] [get_ips {}]".format(
+                '{{' + self.platform.ps7_preset + '}}', ps7_name))
+
+        if hasattr(self.platform, "ps7_config") and self.platform.ps7_config:
+            tcl.append("set_property -dict [list \\")
+            for config, value in self.platform.ps7_config.items():
+                tcl.append("CONFIG.{} {} \\".format(config, '{{' + value + '}}'))
+            tcl.append(f"] [get_ips {ps7_name}]")
+
+        tcl += [f"upgrade_ip [get_ips {ps7_name}]",
+            f"generate_target all [get_ips {ps7_name}]",
+            f"synth_ip [get_ips {ps7_name}]"
+        ]
+        self.platform.toolchain.pre_synthesis_commands += tcl
+
     # AXI GP Master --------------------------------------------------------------------------------
 
     def add_axi_gp_master(self):
@@ -275,6 +296,9 @@ class Zynq7000(CPU):
         platform.add_ip(os.path.join("ip", self.ps7))
 
     def do_finalize(self):
-        assert hasattr(self, "ps7_xci")
-        ps7_name = os.path.splitext(os.path.basename(self.ps7_xci))[0]
+        if hasattr(self, "ps7_xci"):
+            ps7_name = os.path.splitext(os.path.basename(self.ps7_xci))[0]
+        else:
+            self.set_ps7_config()
+            ps7_name = self.platform.name + "_ps7"
         self.specials += Instance(ps7_name, **self.cpu_params)
