@@ -20,6 +20,7 @@ from litex.soc.cores.spi_flash import SpiFlash
 from litex.soc.cores.spi import SPIMaster
 
 from litex.soc.interconnect.csr import *
+from litex.soc.interconnect.csr_eventmanager import *
 from litex.soc.interconnect import csr_bus
 from litex.soc.interconnect import stream
 from litex.soc.interconnect import wishbone
@@ -1459,6 +1460,19 @@ class LiteXSoC(SoC):
             dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
             dma_bus.add_master("sdmem2block", master=bus)
             self.csr.add("sdmem2block", use_loc_if_exists=True)
+
+        # Interrupts
+        self.submodules.sdirq = EventManager()
+        self.sdirq.card_detect   = EventSourcePulse(description="SDCard has been ejected/inserted.")
+        self.sdirq.block2mem_dma = EventSourcePulse(description="Block2Mem DMA terminated.")
+        self.sdirq.mem2block_dma = EventSourcePulse(description="Mem2Block DMA terminated.")
+        self.sdirq.finalize()
+        self.csr.add("sdirq")
+        self.comb += [
+            self.sdirq.card_detect.trigger.eq(self.sdphy.card_detect_irq),
+            self.sdirq.block2mem_dma.trigger.eq(self.sdblock2mem.irq),
+            self.sdirq.mem2block_dma.trigger.eq(self.sdmem2block.irq),
+        ]
 
     # Add SATA -------------------------------------------------------------------------------------
     def add_sata(self, name="sata", phy=None, mode="read+write"):
