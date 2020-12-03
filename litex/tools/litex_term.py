@@ -58,12 +58,11 @@ sfl_prompt_ack = b"\x06"
 sfl_magic_req = b"sL5DdSMmkekro\n"
 sfl_magic_ack = b"z6IHG7cYDID6o\n"
 
-sfl_payload_length = 64
+sfl_payload_length = 255
 
 # General commands
 sfl_cmd_abort       = b"\x00"
 sfl_cmd_load        = b"\x01"
-sfl_cmd_load_no_crc = b"\x03"
 sfl_cmd_jump        = b"\x02"
 sfl_cmd_flash       = b"\x04"
 sfl_cmd_reboot      = b"\x05"
@@ -137,7 +136,7 @@ def crc16(l):
 # LiteXTerm ----------------------------------------------------------------------------------------
 
 class LiteXTerm:
-    def __init__(self, serial_boot, kernel_image, kernel_address, json_images, no_crc, flash):
+    def __init__(self, serial_boot, kernel_image, kernel_address, json_images, flash):
         self.serial_boot = serial_boot
         assert not (kernel_image is not None and json_images is not None)
         self.mem_regions = {}
@@ -149,7 +148,6 @@ class LiteXTerm:
             self.mem_regions.update(json.load(f))
             self.boot_address = self.mem_regions[list(self.mem_regions.keys())[-1]]
             f.close()
-        self.no_crc = no_crc
         self.flash = flash
 
         self.reader_alive = False
@@ -189,19 +187,26 @@ class LiteXTerm:
         retry = 1
         while retry:
             self.port.write(frame.encode())
-            if not self.no_crc:
-                # Get the reply from the device
-                reply = self.port.read()
-                if reply == sfl_ack_success:
-                    retry = 0
-                elif reply == sfl_ack_crcerror:
-                    retry = 1
-                else:
-                    print("[LXTERM] Got unknown reply '{}' from the device, aborting.".format(reply))
-                    return 0
-            else:
+            # Get the reply from the device
+            reply = self.port.read()
+            if reply == sfl_ack_success:
                 retry = 0
+            elif reply == sfl_ack_crcerror:
+                retry = 1
+            else:
+                print("[LXTERM] Got unknown reply '{}' from the device, aborting.".format(reply))
+                return 0
         return 1
+
+    def receive_upload_response(self):
+        reply = self.port.read()
+        if reply == sfl_ack_success:
+            return
+        elif reply == sfl_ack_crcerror:
+            print("[LXTERM] Upload to device failed due to data corruption (CRC error)")
+        else:
+            print(f"[LXTERM] Got unexpected response from device '{reply}'")
+        sys.exit(1)
 
     def upload(self, filename, address):
         f = open(filename, "rb")
@@ -214,6 +219,7 @@ class LiteXTerm:
         position = 0
         start = time.time()
         remaining = length
+        outstanding = 0
         while remaining:
             sys.stdout.write("|{}>{}| {}%\r".format('=' * (20*position//length),
                                                     ' ' * (20-20*position//length),
@@ -224,15 +230,20 @@ class LiteXTerm:
             if self.flash:
                 frame.cmd = sfl_cmd_flash
             else:
-                frame.cmd = sfl_cmd_load if not self.no_crc else sfl_cmd_load_no_crc
+                frame.cmd = sfl_cmd_load
             frame.payload = current_address.to_bytes(4, "big")
             frame.payload += frame_data
-            if self.send_frame(frame) == 0:
-                return
+            self.port.write(frame.encode())
+            outstanding += 1
+            if self.port.in_waiting:
+                self.receive_upload_response()
+                outstanding -= 1
             current_address += len(frame_data)
             position += len(frame_data)
             remaining -= len(frame_data)
             time.sleep(1e-5) # Inter-frame delay for fast UARTs (ex: FT245).
+        for _ in range(outstanding):
+            self.receive_upload_response()
         end = time.time()
         elapsed = end - start
         f.close()
@@ -365,7 +376,9 @@ def _get_args():
 
 def main():
     args = _get_args()
-    term = LiteXTerm(args.serial_boot, args.kernel, args.kernel_adr, args.images, args.no_crc, args.flash)
+    if args.no_crc:
+        print("[LXTERM] --no-crc is deprecated and now does nothing (CRC checking is now fast)")
+    term = LiteXTerm(args.serial_boot, args.kernel, args.kernel_adr, args.images, args.flash)
     term.open(args.port, int(float(args.speed)))
     term.console.configure()
     term.start()
