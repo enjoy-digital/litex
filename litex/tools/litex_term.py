@@ -203,6 +203,19 @@ class LiteXTerm:
                 retry = 0
         return 1
 
+    def receive_upload_response(self):
+        # If we're not doing CRC checking, then there's no response to read.
+        if self.no_crc:
+            return
+        reply = self.port.read()
+        if reply == sfl_ack_success:
+            return
+        elif reply == sfl_ack_crcerror:
+            print("[LXTERM] Upload to device failed due to data corruption (CRC error)")
+        else:
+            print(f"[LXTERM] Got unexpected response from device '{reply}'")
+        sys.exit(1)
+
     def upload(self, filename, address):
         f = open(filename, "rb")
         f.seek(0, 2)
@@ -214,6 +227,7 @@ class LiteXTerm:
         position = 0
         start = time.time()
         remaining = length
+        outstanding = 0
         while remaining:
             sys.stdout.write("|{}>{}| {}%\r".format('=' * (20*position//length),
                                                     ' ' * (20-20*position//length),
@@ -227,12 +241,17 @@ class LiteXTerm:
                 frame.cmd = sfl_cmd_load if not self.no_crc else sfl_cmd_load_no_crc
             frame.payload = current_address.to_bytes(4, "big")
             frame.payload += frame_data
-            if self.send_frame(frame) == 0:
-                return
+            self.port.write(frame.encode())
+            outstanding += 1
+            if self.port.in_waiting:
+                self.receive_upload_response()
+                outstanding -= 1
             current_address += len(frame_data)
             position += len(frame_data)
             remaining -= len(frame_data)
             time.sleep(1e-5) # Inter-frame delay for fast UARTs (ex: FT245).
+        for _ in range(outstanding):
+            self.receive_upload_response()
         end = time.time()
         elapsed = end - start
         f.close()
