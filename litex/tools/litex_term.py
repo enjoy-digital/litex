@@ -58,7 +58,7 @@ sfl_prompt_ack = b"\x06"
 sfl_magic_req = b"sL5DdSMmkekro\n"
 sfl_magic_ack = b"z6IHG7cYDID6o\n"
 
-sfl_payload_length = 64
+sfl_payload_length = 255
 
 # General commands
 sfl_cmd_abort       = b"\x00"
