@@ -215,6 +215,7 @@ class NXPLL(Module):
             p_KP_VCO            = "0b00011", # if (VOLTAGE == 0.9V) 0b11001 else 0b00011
 
             p_PLLPD_N           = "USED",
+            p_PLLRESET_ENA      = "ENABLED",
             p_REF_INTEGER_MODE  = "ENABLED", # Ref manual has a discrepency so lets always set this value just in case
             p_REF_MMD_DIG       = "1", # Divider for the input clock, ie 'M'
 
