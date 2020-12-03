@@ -643,12 +643,12 @@ class SoCIRQHandler(SoCLocHandler):
         self.enabled = True
 
     # Add ------------------------------------------------------------------------------------------
-    def add(self, *args, **kwargs):
+    def add(self, name, *args, **kwargs):
         if self.enabled:
-            SoCLocHandler.add(self, *args, **kwargs)
+            SoCLocHandler.add(self, name, *args, **kwargs)
         else:
-            self.logger.error("Attempted to add an {} but SoC does not support {}.".format(
-                colorer("IRQ", color="red"), colorer("IRQs")))
+            self.logger.error("Attempted to add {} IRQ but SoC does {}.".format(
+                colorer(name), colorer("not support IRQs", color="red")))
             raise
 
     # Str ------------------------------------------------------------------------------------------
