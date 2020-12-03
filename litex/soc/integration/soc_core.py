@@ -160,8 +160,9 @@ class SoCCore(LiteXSoC):
             reset_address = None if integrated_rom_size else cpu_reset_address)
 
         # Add User's interrupts
-        for name, loc in self.interrupt_map.items():
-            self.irq.add(name, loc)
+        if self.irq.enabled:
+            for name, loc in self.interrupt_map.items():
+                self.irq.add(name, loc)
 
         # Add integrated ROM
         if integrated_rom_size:
