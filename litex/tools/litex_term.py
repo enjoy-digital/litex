@@ -63,7 +63,6 @@ sfl_payload_length = 64
 # General commands
 sfl_cmd_abort       = b"\x00"
 sfl_cmd_load        = b"\x01"
-sfl_cmd_load_no_crc = b"\x03"
 sfl_cmd_jump        = b"\x02"
 sfl_cmd_flash       = b"\x04"
 sfl_cmd_reboot      = b"\x05"
@@ -137,7 +136,7 @@ def crc16(l):
 # LiteXTerm ----------------------------------------------------------------------------------------
 
 class LiteXTerm:
-    def __init__(self, serial_boot, kernel_image, kernel_address, json_images, no_crc, flash):
+    def __init__(self, serial_boot, kernel_image, kernel_address, json_images, flash):
         self.serial_boot = serial_boot
         assert not (kernel_image is not None and json_images is not None)
         self.mem_regions = {}
@@ -149,7 +148,6 @@ class LiteXTerm:
             self.mem_regions.update(json.load(f))
             self.boot_address = self.mem_regions[list(self.mem_regions.keys())[-1]]
             f.close()
-        self.no_crc = no_crc
         self.flash = flash
 
         self.reader_alive = False
@@ -189,24 +187,18 @@ class LiteXTerm:
         retry = 1
         while retry:
             self.port.write(frame.encode())
-            if not self.no_crc:
-                # Get the reply from the device
-                reply = self.port.read()
-                if reply == sfl_ack_success:
-                    retry = 0
-                elif reply == sfl_ack_crcerror:
-                    retry = 1
-                else:
-                    print("[LXTERM] Got unknown reply '{}' from the device, aborting.".format(reply))
-                    return 0
-            else:
+            # Get the reply from the device
+            reply = self.port.read()
+            if reply == sfl_ack_success:
                 retry = 0
+            elif reply == sfl_ack_crcerror:
+                retry = 1
+            else:
+                print("[LXTERM] Got unknown reply '{}' from the device, aborting.".format(reply))
+                return 0
         return 1
 
     def receive_upload_response(self):
-        # If we're not doing CRC checking, then there's no response to read.
-        if self.no_crc:
-            return
         reply = self.port.read()
         if reply == sfl_ack_success:
             return
@@ -238,7 +230,7 @@ class LiteXTerm:
             if self.flash:
                 frame.cmd = sfl_cmd_flash
             else:
-                frame.cmd = sfl_cmd_load if not self.no_crc else sfl_cmd_load_no_crc
+                frame.cmd = sfl_cmd_load
             frame.payload = current_address.to_bytes(4, "big")
             frame.payload += frame_data
             self.port.write(frame.encode())
@@ -384,7 +376,9 @@ def _get_args():
 
 def main():
     args = _get_args()
-    term = LiteXTerm(args.serial_boot, args.kernel, args.kernel_adr, args.images, args.no_crc, args.flash)
+    if args.no_crc:
+        print("[LXTERM] --no-crc is deprecated and now does nothing (CRC checking is now fast)")
+    term = LiteXTerm(args.serial_boot, args.kernel, args.kernel_adr, args.images, args.flash)
     term.open(args.port, int(float(args.speed)))
     term.console.configure()
     term.start()
