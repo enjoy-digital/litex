@@ -58,7 +58,7 @@ sfl_prompt_ack = b"\x06"
 sfl_magic_req = b"sL5DdSMmkekro\n"
 sfl_magic_ack = b"z6IHG7cYDID6o\n"
 
-sfl_payload_length = 64 # FIXME: Understand why 255 failing with USB-FIFO.
+sfl_payload_length = 255
 sfl_outstanding    = 128
 
 # General commands
@@ -165,6 +165,13 @@ class LiteXTerm:
     def open(self, port, baudrate):
         if hasattr(self, "port"):
             return
+        # FIXME: https://github.com/enjoy-digital/litex/issues/720
+        if "ttyACM" in port:
+            self.payload_length = sfl_payload_length
+            self.delay          = 1e-4
+        else:
+            self.payload_length = 64
+            self.delay          = 1e-5
         self.port = serial.serial_for_url(port, baudrate)
 
     def close(self):
@@ -236,7 +243,7 @@ class LiteXTerm:
             if outstanding <= sfl_outstanding:
                 # Prepare frame.
                 frame = SFLFrame()
-                frame_data = f.read(min(remaining, sfl_payload_length-4))
+                frame_data = f.read(min(remaining, self.payload_length-4))
                 if self.flash:
                     frame.cmd = sfl_cmd_flash
                 else:
@@ -253,11 +260,11 @@ class LiteXTerm:
                 remaining       -= len(frame_data)
                 outstanding     += 1
 
-                # Inter-frame delay for fast UARTs (ex: FT245).
-                time.sleep(1e-4)
+                # Inter-frame delay.
+                time.sleep(self.delay)
 
             # Read response if availables.
-            if self.port.in_waiting:
+            while self.port.in_waiting:
                 self.receive_upload_response()
                 outstanding -= 1
 
