@@ -254,7 +254,7 @@ def generate_dts(d):
                         litespi,num-cs = <1>;
 
                         #address-cells = <1>;
-                        #size-cells    = <1>;
+                        #size-cells    = <0>;
 
                         spidev0: spidev@0 {{
                                 compatible = "linux,spidev";
@@ -302,7 +302,7 @@ def generate_dts(d):
                         litespi,num-cs = <1>;
 
                         #address-cells = <1>;
-                        #size-cells    = <1>;
+                        #size-cells    = <0>;
 
                         mmc-slot@0 {{
                                 compatible = "mmc-spi-slot";
