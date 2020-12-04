@@ -59,7 +59,7 @@ sfl_magic_req = b"sL5DdSMmkekro\n"
 sfl_magic_ack = b"z6IHG7cYDID6o\n"
 
 sfl_payload_length = 64 # FIXME: Understand why 255 failing with USB-FIFO.
-sfl_outstanding    = 4
+sfl_outstanding    = 128
 
 # General commands
 sfl_cmd_abort       = b"\x00"
