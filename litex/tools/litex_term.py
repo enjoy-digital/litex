@@ -58,7 +58,8 @@ sfl_prompt_ack = b"\x06"
 sfl_magic_req = b"sL5DdSMmkekro\n"
 sfl_magic_ack = b"z6IHG7cYDID6o\n"
 
-sfl_payload_length = 64 # FIXME: understand why 255 failing with USB-FIFO.
+sfl_payload_length = 64 # FIXME: Understand why 255 failing with USB-FIFO.
+sfl_outstanding    = 4
 
 # General commands
 sfl_cmd_abort       = b"\x00"
@@ -213,41 +214,62 @@ class LiteXTerm:
         f.seek(0, 2)
         length = f.tell()
         f.seek(0, 0)
-        print("[LXTERM] {} {} to 0x{:08x} ({} bytes)...".format(
-            "Flashing" if self.flash else "Uploading", filename, address, length))
+
+        action = "Flashing" if self.flash else "Uploading"
+        print(f"[LXTERM] {action} {filename} to 0x{address:08x} ({length} bytes)...")
+
+        # Prepare parameters
         current_address = address
-        position = 0
-        start = time.time()
-        remaining = length
-        outstanding = 0
+        position        = 0
+        start           = time.time()
+        remaining       = length
+        outstanding     = 0
         while remaining:
-            sys.stdout.write("|{}>{}| {}%\r".format('=' * (20*position//length),
-                                                    ' ' * (20-20*position//length),
-                                                    100*position//length))
+            # Show progress
+            sys.stdout.write("|{}>{}| {}%\r".format(
+                "=" * (20*position//length),
+                " " * (20-20*position//length),
+                100*position//length))
             sys.stdout.flush()
-            frame = SFLFrame()
-            frame_data = f.read(min(remaining, sfl_payload_length-4))
-            if self.flash:
-                frame.cmd = sfl_cmd_flash
-            else:
-                frame.cmd = sfl_cmd_load
-            frame.payload = current_address.to_bytes(4, "big")
-            frame.payload += frame_data
-            self.port.write(frame.encode())
-            outstanding += 1
+
+            # Send frame if max outstanding not reached.
+            if outstanding <= sfl_outstanding:
+                # Prepare frame.
+                frame = SFLFrame()
+                frame_data = f.read(min(remaining, sfl_payload_length-4))
+                if self.flash:
+                    frame.cmd = sfl_cmd_flash
+                else:
+                    frame.cmd = sfl_cmd_load
+                frame.payload = current_address.to_bytes(4, "big")
+                frame.payload += frame_data
+
+                # Encode frame and send it.
+                self.port.write(frame.encode())
+
+                # Update parameters
+                current_address += len(frame_data)
+                position        += len(frame_data)
+                remaining       -= len(frame_data)
+                outstanding     += 1
+
+                # Inter-frame delay for fast UARTs (ex: FT245).
+                time.sleep(1e-4)
+
+            # Read response if availables.
             if self.port.in_waiting:
                 self.receive_upload_response()
                 outstanding -= 1
-            current_address += len(frame_data)
-            position += len(frame_data)
-            remaining -= len(frame_data)
-            time.sleep(1e-5) # Inter-frame delay for fast UARTs (ex: FT245).
+
+        # Get remaining responses.
         for _ in range(outstanding):
             self.receive_upload_response()
-        end = time.time()
+
+        # Compute speed.
+        end     = time.time()
         elapsed = end - start
-        f.close()
         print("[LXTERM] Upload complete ({0:.1f}KB/s).".format(length/(elapsed*1024)))
+        f.close()
         return length
 
     def boot(self):
