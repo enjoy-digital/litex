@@ -229,20 +229,21 @@ def get_csr_header(regions, constants, csr_base=None, with_access_functions=True
                         r += "#define CSR_"+name.upper()+"_"+csr.name.upper()+"_"+field.name.upper()+"_SIZE "+size+"\n"
                         if with_access_functions:
                             reg_name = name + "_" + csr.name.lower()
-                            r += "static inline uint32_t " + reg_name + "_" + field.name.lower() + "_extract(uint32_t oldword) {\n"
+                            field_name = reg_name + "_" + field.name.lower()
+                            r += "static inline uint32_t " + field_name + "_extract(uint32_t oldword) {\n"
                             r += "\tuint32_t mask = ((1 << " + size + ")-1);\n"
                             r += "\treturn ( (oldword >> " + offset + ") & mask );\n}\n"
-                            r += "static inline uint32_t " + reg_name + "_" + field.name.lower() + "_read(void) {\n"
+                            r += "static inline uint32_t " + field_name + "_read(void) {\n"
                             r += "\tuint32_t word = " + reg_name + "_read();\n"
-                            r += "\treturn " + reg_name + "_" + field.name.lower() + "_extract(word);\n"
+                            r += "\treturn " + field_name + "_extract(word);\n"
                             r += "}\n"
                             if (reg_name + "_write") in r:
-                                r += "static inline uint32_t " + reg_name + "_" + field.name.lower() + "_inject(uint32_t oldword, uint32_t plain_value) {\n"
+                                r += "static inline uint32_t " + field_name + "_inject(uint32_t oldword, uint32_t plain_value) {\n"
                                 r += "\tuint32_t mask = ((1 << " + size + ")-1);\n"
                                 r += "\treturn (oldword & (~(mask << " + offset + "))) | (mask & plain_value)<< " + offset + " ;\n}\n"
-                                r += "static inline void " + reg_name + "_" + field.name.lower() + "_write(uint32_t plain_value) {\n"
+                                r += "static inline void " + field_name + "_write(uint32_t plain_value) {\n"
                                 r += "\tuint32_t oldword = " + reg_name + "_read();\n"
-                                r += "\tuint32_t newword = " + reg_name + "_" + field.name.lower() + "_inject(oldword, plain_value);\n"
+                                r += "\tuint32_t newword = " + field_name + "_inject(oldword, plain_value);\n"
                                 r += "\t" + reg_name + "_write(newword);\n"
                                 r += "}\n"
 
