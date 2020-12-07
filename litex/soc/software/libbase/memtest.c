@@ -15,7 +15,7 @@
 #define MIB (KIB*1024)
 #define GIB (MIB*1024)
 
-#define ONEZERO 0xAAAAAAAA
+#define ONEZERO 0xaaaaaaaa
 #define ZEROONE 0x55555555
 
 #ifndef MEMTEST_BUS_SIZE
@@ -47,36 +47,46 @@ int memtest_bus(unsigned int *addr, unsigned long size)
 
 	errors = 0;
 
-	for(i = 0; i < size/4;i++) {
+	/* Write One/Zero pattern */
+	for(i=0; i<size/4; i++) {
 		array[i] = ONEZERO;
 	}
+
+	/* Flush caches */
 	flush_cpu_dcache();
 #ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
 #endif
-	for(i = 0; i < size/4; i++) {
+
+	/* Read/Verify One/Zero pattern */
+	for(i=0; i<size/4; i++) {
 		rdata = array[i];
 		if(rdata != ONEZERO) {
 			errors++;
 #ifdef MEMTEST_BUS_DEBUG
-			printf("[bus: 0x%0x]: 0x%08x vs 0x%08x\n", i, rdata, ONEZERO);
+			printf("memtest_bus error @ 0x%0x: 0x%08x vs 0x%08x\n", i, rdata, ONEZERO);
 #endif
 		}
 	}
 
+	/* Write Zero/One pattern */
 	for(i = 0; i < size/4; i++) {
 		array[i] = ZEROONE;
 	}
+
+	/* Flush caches */
 	flush_cpu_dcache();
 #ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
 #endif
+
+	/* Read/Verify One/Zero pattern */
 	for(i = 0; i < size/4; i++) {
 		rdata = array[i];
 		if(rdata != ZEROONE) {
 			errors++;
 #ifdef MEMTEST_BUS_DEBUG
-			printf("[bus 0x%0x]: 0x%08x vs 0x%08x\n", i, rdata, ZEROONE);
+			printf("memtest_bus error @ 0x%0x:: 0x%08x vs 0x%08x\n", i, rdata, ZEROONE);
 #endif
 		}
 	}
@@ -91,26 +101,30 @@ int memtest_addr(unsigned int *addr, unsigned long size, int random)
 	unsigned short seed_16;
 	unsigned short rdata;
 
-	errors = 0;
+	errors  = 0;
 	seed_16 = 1;
 
-	for(i = 0; i < size/4; i++) {
+	/* Write datas*/
+	for(i=0; i<size/4; i++) {
 		seed_16 = seed_to_data_16(seed_16, random);
 		array[(unsigned int) seed_16] = i;
 	}
 
-	seed_16 = 1;
+	/* Flush caches */
 	flush_cpu_dcache();
 #ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
 #endif
-	for(i = 0; i < size/4; i++) {
+
+	/* Read/Verify datas */
+	seed_16 = 1;
+	for(i=0; i<size/4; i++) {
 		seed_16 = seed_to_data_16(seed_16, random);
 		rdata = array[(unsigned int) seed_16];
 		if(rdata != i) {
 			errors++;
 #ifdef MEMTEST_ADDR_DEBUG
-			printf("[addr 0x%0x]: 0x%08x vs 0x%08x\n", i, rdata, i);
+			printf("memtest_addr error @ 0x%0x: 0x%08x vs 0x%08x\n", i, rdata, i);
 #endif
 		}
 	}
@@ -148,10 +162,11 @@ int memtest_data(unsigned int *addr, unsigned long size, int random)
 	unsigned int seed_32;
 	unsigned int rdata;
 
-	errors = 0;
+	errors  = 0;
 	seed_32 = 1;
 
-	for(i = 0; i < size/4; i++) {
+	/* Write datas */
+	for(i=0; i<size/4; i++) {
 		seed_32 = seed_to_data_32(seed_32, random);
 		array[i] = seed_32;
 		if (i%0x8000 == 0)
@@ -160,18 +175,21 @@ int memtest_data(unsigned int *addr, unsigned long size, int random)
 	print_progress("  Write:", (unsigned long)addr, 4*i);
 	printf("\n");
 
-	seed_32 = 1;
+	/* Flush caches */
 	flush_cpu_dcache();
 #ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
 #endif
-	for(i = 0; i < size/4; i++) {
+
+	/* Read/Verify datas */
+	seed_32 = 1;
+	for(i=0; i<size/4; i++) {
 		seed_32 = seed_to_data_32(seed_32, random);
 		rdata = array[i];
 		if(rdata != seed_32) {
 			errors++;
 #ifdef MEMTEST_DATA_DEBUG
-			printf("[data 0x%0x]: 0x%08x vs 0x%08x\n", i, rdata, seed_32);
+			printf("memtest_data error @%0x: 0x%08x vs 0x%08x\n", i, rdata, seed_32);
 #endif
 		}
 		if (i%0x8000 == 0)
@@ -197,13 +215,13 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only)
 	print_size(size);
 	printf(")...\n");
 
-	/* init timer */
+	/* Init timer */
 	timer0_en_write(0);
 	timer0_reload_write(0);
 	timer0_load_write(0xffffffff);
 	timer0_en_write(1);
 
-	/* write speed */
+	/* Measure Write speed */
 	if (!read_only) {
 		timer0_update_value_write(1);
 		start = timer0_value_read();
@@ -220,13 +238,13 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only)
 		printf("\n");
 	}
 
-	/* flush CPU and L2 caches */
+	/* flush caches */
 	flush_cpu_dcache();
 #ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
 #endif
 
-	/* read speed */
+	/* Measure Read speed */
 	timer0_en_write(1);
 	timer0_update_value_write(1);
 	start = timer0_value_read();
