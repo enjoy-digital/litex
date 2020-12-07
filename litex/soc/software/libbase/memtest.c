@@ -7,9 +7,9 @@
 #include <generated/soc.h>
 #include <generated/csr.h>
 
-// #define MEMTEST_BUS_DEBUG
-// #define MEMTEST_DATA_DEBUG
-// #define MEMTEST_ADDR_DEBUG
+//#define MEMTEST_BUS_DEBUG
+//#define MEMTEST_DATA_DEBUG
+//#define MEMTEST_ADDR_DEBUG
 
 #define KIB 1024
 #define MIB (KIB*1024)
@@ -54,9 +54,7 @@ int memtest_bus(unsigned int *addr, unsigned long size)
 
 	/* Flush caches */
 	flush_cpu_dcache();
-#ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
-#endif
 
 	/* Read/Verify One/Zero pattern */
 	for(i=0; i<size/4; i++) {
@@ -76,9 +74,7 @@ int memtest_bus(unsigned int *addr, unsigned long size)
 
 	/* Flush caches */
 	flush_cpu_dcache();
-#ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
-#endif
 
 	/* Read/Verify One/Zero pattern */
 	for(i = 0; i < size/4; i++) {
@@ -112,9 +108,7 @@ int memtest_addr(unsigned int *addr, unsigned long size, int random)
 
 	/* Flush caches */
 	flush_cpu_dcache();
-#ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
-#endif
 
 	/* Read/Verify datas */
 	seed_16 = 1;
@@ -177,9 +171,7 @@ int memtest_data(unsigned int *addr, unsigned long size, int random)
 
 	/* Flush caches */
 	flush_cpu_dcache();
-#ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
-#endif
 
 	/* Read/Verify datas */
 	seed_32 = 1;
@@ -240,9 +232,7 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only)
 
 	/* flush caches */
 	flush_cpu_dcache();
-#ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
-#endif
 
 	/* Measure Read speed */
 	timer0_en_write(1);

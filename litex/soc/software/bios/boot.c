@@ -60,9 +60,7 @@ static void __attribute__((noreturn)) boot(unsigned long r1, unsigned long r2, u
 #endif
 	flush_cpu_icache();
 	flush_cpu_dcache();
-#ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
-#endif
 
 #if defined(CONFIG_CPU_TYPE_MOR1KX) && defined(CONFIG_CPU_VARIANT_LINUX)
 	/* Mainline Linux expects to have exception vector base address set to the

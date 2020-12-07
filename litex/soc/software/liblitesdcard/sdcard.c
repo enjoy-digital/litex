@@ -488,11 +488,9 @@ void sdcard_read(uint32_t block, uint32_t count, uint8_t* buf)
 	sdcard_stop_transmission();
 
 #ifndef CONFIG_CPU_HAS_DMA_BUS
-	/* Flush CPU caches */
+	/* Flush caches */
 	flush_cpu_dcache();
-#ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
-#endif
 #endif
 }
 
