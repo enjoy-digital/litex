@@ -39,6 +39,27 @@ static unsigned short seed_to_data_16(unsigned short seed, int random)
 	return random ? lfsr(16, seed) : seed + 1;
 }
 
+int memtest_access(unsigned int *addr)
+{
+	volatile unsigned int *array = addr;
+	int bus_errors;
+
+	/* Get current bus errors */
+	bus_errors = ctrl_bus_errors_read();
+
+	/* Check bus Read/Write */
+	array[0] = ONEZERO;
+	array[1] = array[0];
+	array[0] = ZEROONE;
+	array[1] = array[0];
+	if (ctrl_bus_errors_read() - bus_errors) {
+		printf("memtest_access error @ 0x%0x, exiting memtest.\n", addr);
+		return 1;
+	}
+
+	return 0;
+}
+
 int memtest_bus(unsigned int *addr, unsigned long size)
 {
 	volatile unsigned int *array = addr;
@@ -62,13 +83,13 @@ int memtest_bus(unsigned int *addr, unsigned long size)
 		if(rdata != ONEZERO) {
 			errors++;
 #ifdef MEMTEST_BUS_DEBUG
-			printf("memtest_bus error @ 0x%0x: 0x%08x vs 0x%08x\n", i, rdata, ONEZERO);
+			printf("memtest_bus error @ 0x%0x: 0x%08x vs 0x%08x\n", addr + i, rdata, ONEZERO);
 #endif
 		}
 	}
 
 	/* Write Zero/One pattern */
-	for(i = 0; i < size/4; i++) {
+	for(i=0; i < size/4; i++) {
 		array[i] = ZEROONE;
 	}
 
@@ -77,12 +98,12 @@ int memtest_bus(unsigned int *addr, unsigned long size)
 	flush_l2_cache();
 
 	/* Read/Verify One/Zero pattern */
-	for(i = 0; i < size/4; i++) {
+	for(i=0; i<size/4; i++) {
 		rdata = array[i];
 		if(rdata != ZEROONE) {
 			errors++;
 #ifdef MEMTEST_BUS_DEBUG
-			printf("memtest_bus error @ 0x%0x:: 0x%08x vs 0x%08x\n", i, rdata, ZEROONE);
+			printf("memtest_bus error @ 0x%0x:: 0x%08x vs 0x%08x\n", addr + i, rdata, ZEROONE);
 #endif
 		}
 	}
@@ -118,7 +139,7 @@ int memtest_addr(unsigned int *addr, unsigned long size, int random)
 		if(rdata != i) {
 			errors++;
 #ifdef MEMTEST_ADDR_DEBUG
-			printf("memtest_addr error @ 0x%0x: 0x%08x vs 0x%08x\n", i, rdata, i);
+			printf("memtest_addr error @ 0x%0x: 0x%08x vs 0x%08x\n", addr + i, rdata, i);
 #endif
 		}
 	}
@@ -181,7 +202,7 @@ int memtest_data(unsigned int *addr, unsigned long size, int random)
 		if(rdata != seed_32) {
 			errors++;
 #ifdef MEMTEST_DATA_DEBUG
-			printf("memtest_data error @%0x: 0x%08x vs 0x%08x\n", i, rdata, seed_32);
+			printf("memtest_data error @%0x: 0x%08x vs 0x%08x\n", addr + i, rdata, seed_32);
 #endif
 		}
 		if (i%0x8000 == 0)
@@ -261,6 +282,9 @@ int memtest(unsigned int *addr, unsigned long maxsize)
 	printf("Memtest at 0x%p (", addr);
 	print_size(data_size);
 	printf(")...\n");
+
+	if (memtest_access(addr))
+		return 0;
 
 	bus_errors  = memtest_bus(addr, bus_size);
 	addr_errors = memtest_addr(addr, addr_size, MEMTEST_ADDR_RANDOM);

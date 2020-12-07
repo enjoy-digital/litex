@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 
+int memtest_access(unsigned int *addr);
 int memtest_bus(unsigned int *addr, unsigned long size);
 int memtest_addr(unsigned int *addr, unsigned long size, int random);
 int memtest_data(unsigned int *addr, unsigned long size, int random);
