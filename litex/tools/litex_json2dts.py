@@ -183,9 +183,9 @@ def generate_dts(d):
         dts += """
                 mac0: mac@{ethmac_csr_base:x} {{
                         compatible = "litex,liteeth";
-                        reg = <0x{ethmac_csr_base:x} 0x7c
-                                0x{ethphy_csr_base:x} 0x0a
-                                0x{ethmac_mem_base:x} 0x2000>;
+                        reg = <0x{ethmac_csr_base:x} 0x7c>,
+                              <0x{ethphy_csr_base:x} 0x0a>,
+                              <0x{ethmac_mem_base:x} 0x2000>;
                         tx-fifo-depth = <{ethmac_tx_slots}>;
                         rx-fifo-depth = <{ethmac_rx_slots}>;
                 }};
@@ -254,7 +254,7 @@ def generate_dts(d):
                         litespi,num-cs = <1>;
 
                         #address-cells = <1>;
-                        #size-cells    = <1>;
+                        #size-cells    = <0>;
 
                         spidev0: spidev@0 {{
                                 compatible = "linux,spidev";
@@ -273,8 +273,8 @@ def generate_dts(d):
 
         dts += """
                 litespiflash: spiflash@{spiflash_csr_base:x} {{
-                            #address-cells = <1>;
-                            #size-cells    = <1>;
+                        #address-cells = <1>;
+                        #size-cells    = <1>;
                         compatible = "litex,spiflash";
                         reg = <0x{spiflash_csr_base:x} 0x100>;
                         flash: flash@0 {{
@@ -302,14 +302,14 @@ def generate_dts(d):
                         litespi,num-cs = <1>;
 
                         #address-cells = <1>;
-                        #size-cells    = <1>;
+                        #size-cells    = <0>;
 
                         mmc-slot@0 {{
                                 compatible = "mmc-spi-slot";
-                            reg = <0>;
+                                reg = <0>;
                                 voltage-ranges = <3300 3300>;
                                 spi-max-frequency = <1500000>;
-                            status = "okay";
+                                status = "okay";
                         }};
                 }};
 """.format(spisdcard_csr_base=d["csr_bases"]["spisdcard"])
@@ -408,7 +408,7 @@ def generate_dts(d):
         return """
                         CLKOUT{clkout_nr}: CLKOUT{clkout_nr} {{
                                 compatible = "litex,clk";
-                                #clock-cells =	<0>;
+                                #clock-cells = <0>;
                                 clock-output-names = "CLKOUT{clkout_nr}";
                                 reg = <{clkout_nr}>;
                                 litex,clock-frequency = <{clk_f}>;
