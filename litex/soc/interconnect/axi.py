@@ -79,6 +79,35 @@ def _connect_axi(master, slave, keep=None, omit=None):
         r.extend(m.connect(s, keep=keep, omit=omit))
     return r
 
+def connect_to_pads(bus, pads, mode="master"):
+    assert mode in ["slave", "master"]
+    r = []
+    def swap_mode(mode): return "master" if mode == "slave" else "slave"
+    channel_modes = {
+        "aw": mode,
+        "w" : mode,
+        "b" : swap_mode(mode),
+        "ar": mode,
+        "r" : swap_mode(mode),
+    }
+    for channel, mode in channel_modes.items():
+        ch = getattr(bus, channel)
+        for name, width in [("valid", 1)] + ch.description.payload_layout:
+            sig  = getattr(ch, name)
+            pad  = getattr(pads, channel + name)
+            if mode == "master":
+                r.append(pad.eq(sig))
+            else:
+                r.append(sig.eq(pad))
+        for name, width in [("ready", 1)]:
+            sig  = getattr(ch, name)
+            pad  = getattr(pads, channel + name)
+            if mode == "master":
+                r.append(sig.eq(pad))
+            else:
+                r.append(pad.eq(sig))
+    return r
+
 def _axi_layout_flat(axi):
     # yields tuples (channel, name, direction)
     def get_dir(channel, direction):
@@ -109,6 +138,9 @@ class AXIInterface:
         self.b  = stream.Endpoint(b_description(id_width))
         self.ar = stream.Endpoint(ax_description(address_width, id_width))
         self.r  = stream.Endpoint(r_description(data_width, id_width))
+
+    def connect_to_pads(self, pads, mode="master"):
+        return connect_to_pads(self, pads, mode)
 
     def connect(self, slave, **kwargs):
         return _connect_axi(self, slave, **kwargs)
@@ -159,32 +191,7 @@ class AXILiteInterface:
         return ios
 
     def connect_to_pads(self, pads, mode="master"):
-        assert mode in ["slave", "master"]
-        r = []
-        def swap_mode(mode): return "master" if mode == "slave" else "slave"
-        channel_modes = {
-            "aw": mode,
-            "w" : mode,
-            "b" : swap_mode(mode),
-            "ar": mode,
-            "r" : swap_mode(mode),
-        }
-        for channel, mode in channel_modes.items():
-            for name, width in [("valid", 1)] + getattr(self, channel).description.payload_layout:
-                sig  = getattr(getattr(self, channel), name)
-                pad  = getattr(pads, channel + name)
-                if mode == "master":
-                    r.append(pad.eq(sig))
-                else:
-                    r.append(sig.eq(pad))
-            for name, width in [("ready", 1)]:
-                sig  = getattr(getattr(self, channel), name)
-                pad  = getattr(pads, channel + name)
-                if mode == "master":
-                    r.append(sig.eq(pad))
-                else:
-                    r.append(pad.eq(sig))
-        return r
+        return connect_to_pads(self, pads, mode)
 
     def connect(self, slave, **kwargs):
         return _connect_axi(self, slave, **kwargs)
