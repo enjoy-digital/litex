@@ -238,12 +238,12 @@ def get_csr_header(regions, constants, csr_base=None, with_access_functions=True
                             r += "\treturn " + field_name + "_extract(word);\n"
                             r += "}\n"
                             if (reg_name + "_write") in r:
-                                r += "static inline uint32_t " + field_name + "_inject(uint32_t oldword, uint32_t plain_value) {\n"
+                                r += "static inline uint32_t " + field_name + "_replace(uint32_t oldword, uint32_t plain_value) {\n"
                                 r += "\tuint32_t mask = ((1 << " + size + ")-1);\n"
                                 r += "\treturn (oldword & (~(mask << " + offset + "))) | (mask & plain_value)<< " + offset + " ;\n}\n"
                                 r += "static inline void " + field_name + "_write(uint32_t plain_value) {\n"
                                 r += "\tuint32_t oldword = " + reg_name + "_read();\n"
-                                r += "\tuint32_t newword = " + field_name + "_inject(oldword, plain_value);\n"
+                                r += "\tuint32_t newword = " + field_name + "_replace(oldword, plain_value);\n"
                                 r += "\t" + reg_name + "_write(newword);\n"
                                 r += "}\n"
 
