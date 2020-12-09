@@ -26,6 +26,13 @@
 
 #ifdef CSR_SDRAM_BASE
 
+/*-----------------------------------------------------------------------*/
+/* Helpers                                                               */
+/*-----------------------------------------------------------------------*/
+
+#define max(x, y) (((x) > (y)) ? (x) : (y))
+#define min(x, y) (((x) < (y)) ? (x) : (y))
+
 __attribute__((unused)) static void cdelay(int i)
 {
 #ifndef CONFIG_SIM_DISABLE_DELAYS
@@ -452,6 +459,10 @@ static int sdram_write_leveling_scan(int *delays, int loops, int show)
 			}
 		/* Succeed only if the start of a 1s window has been found */
 		} else if (one_window_best_count > 0 && one_window_best_start > 0) {
+#if SDRAM_PHY_DELAYS > 32
+			/* Ensure write delay is just before transition */
+			one_window_start -= min(one_window_start, 16);
+#endif
 			delays[i] = one_window_best_start;
 
 			/* Configure write delay */
@@ -507,7 +518,7 @@ static void sdram_write_leveling_find_cmd_delay(unsigned int *best_error, int *b
 			delay_mean /= SDRAM_PHY_MODULES;
 
 			/* We want it to be at the start */
-			int ideal_delay = 4*SDRAM_PHY_DELAYS/32;
+			int ideal_delay = 0;
 			int error = ideal_delay - delay_mean;
 			if (error < 0)
 				error *= -1;
