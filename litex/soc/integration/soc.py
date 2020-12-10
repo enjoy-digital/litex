@@ -1100,6 +1100,13 @@ class LiteXSoC(SoC):
                 tx_fifo_depth = fifo_depth,
                 rx_fifo_depth = fifo_depth)
 
+        # Crossover + Bridge
+        elif name in ["crossover+bridge"]:
+            self.add_uartbone(baudrate=baudrate)
+            self.submodules.uart = uart.UARTCrossover(
+                tx_fifo_depth = fifo_depth,
+                rx_fifo_depth = fifo_depth)
+
         # Model/Sim
         elif name in ["model", "sim"]:
             self.submodules.uart_phy = uart.RS232PHYModel(self.platform.request("serial"))
