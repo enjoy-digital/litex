@@ -16,6 +16,8 @@ import serial
 import multiprocessing
 import argparse
 import json
+import pty
+import telnetlib
 
 # Console ------------------------------------------------------------------------------------------
 
@@ -50,14 +52,12 @@ else:
         def getkey(self):
             return os.read(self.fd, 1)
 
-# Crossover ----------------------------------------------------------------------------------------
-
-import pty
+# Crossover UART  ----------------------------------------------------------------------------------
 
 from litex import RemoteClient
 
-class CrossoverBridge:
-    def __init__(self, host="localhost", base_address=0):
+class CrossoverUART:
+    def __init__(self, host="localhost", base_address=0): # FIXME: add command line arguments
         self.bus = RemoteClient(host=host, base_address=base_address)
 
     def open(self):
@@ -90,6 +90,48 @@ class CrossoverBridge:
                 r = self.bus.read(self.bus.regs.uart_xover_rxtx.addr, length=length, burst="fixed")
                 for v in r:
                     os.write(self.file, bytes(chr(v).encode("utf-8")))
+
+# JTAG UART ----------------------------------------------------------------------------------------
+
+from litex.build.openocd import OpenOCD
+
+class JTAGUART:
+    def __init__(self, config="openocd_xc7_ft2232.cfg", port=20000): # FIXME: add command line arguments
+        self.config = config
+        self.port   = port
+
+    def open(self):
+        self.file, self.name = pty.openpty()
+        self.jtag2telnet_thread = multiprocessing.Process(target=self.jtag2telnet)
+        self.jtag2telnet_thread.start()
+        time.sleep(0.5)
+        self.pty2telnet_thread  = multiprocessing.Process(target=self.pty2telnet)
+        self.telnet2pty_thread  = multiprocessing.Process(target=self.telnet2pty)
+        self.telnet = telnetlib.Telnet("localhost", self.port)
+        self.pty2telnet_thread.start()
+        self.telnet2pty_thread.start()
+
+    def close(self):
+        self.jtag2telnet_thread.terminate()
+        self.pty2telnet_thread.terminate()
+        self.telnet2pty_thread.terminate()
+
+    def jtag2telnet(self):
+        prog = OpenOCD(self.config)
+        prog.stream(self.port)
+
+    def pty2telnet(self):
+        while True:
+            r = os.read(self.file, 1)
+            self.telnet.write(r)
+            if r == bytes("\n".encode("utf-8")):
+                self.telnet.write("\r".encode("utf-8"))
+            self.telnet.write("\n".encode("utf-8"))
+
+    def telnet2pty(self):
+        while True:
+            r = self.telnet.read_some()
+            os.write(self.file, bytes(r))
 
 # SFL ----------------------------------------------------------------------------------------------
 
@@ -441,18 +483,20 @@ def main():
         print("[LXTERM] --no-crc is deprecated and now does nothing (CRC checking is now fast)")
     term = LiteXTerm(args.serial_boot, args.kernel, args.kernel_adr, args.images, args.flash)
 
-    port = args.port
-    if args.port == "crossover":
-        bridge = CrossoverBridge()
+    bridge_cls = {"crossover": CrossoverUART, "jtag_uart": JTAGUART}.get(args.port, None)
+    if bridge_cls is not None:
+        bridge = bridge_cls()
         bridge.open()
         port = os.ttyname(bridge.name)
+    else:
+        port = args.port
     term.open(port, int(float(args.speed)))
     term.console.configure()
     try:
         term.start()
         while True: pass
     except:
-        if args.port == "crossover":
+        if bridge_cls is not None:
             bridge.close()
         term.console.unconfigure()
         term.stop()
