@@ -80,9 +80,16 @@ class CrossoverBridge:
 
     def crossover2pty(self):
         while True:
-            if self.bus.regs.uart_xover_rxempty.read() == 0:
-                r = self.bus.regs.uart_xover_rxtx.read()
-                os.write(self.file, bytes(chr(r).encode("utf-8")))
+            if self.bus.regs.uart_txfull.read():
+                length = 16
+            elif not self.bus.regs.uart_xover_rxempty.read():
+                length = 1
+            else:
+                length = 0
+            if length:
+                r = self.bus.read(self.bus.regs.uart_xover_rxtx.addr, length=length, burst="fixed")
+                for v in r:
+                    os.write(self.file, bytes(chr(v).encode("utf-8")))
 
 # SFL ----------------------------------------------------------------------------------------------
 
