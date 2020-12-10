@@ -13,7 +13,7 @@ import signal
 import os
 import time
 import serial
-import threading
+import multiprocessing
 import argparse
 import json
 
@@ -49,6 +49,40 @@ else:
 
         def getkey(self):
             return os.read(self.fd, 1)
+
+# Crossover ----------------------------------------------------------------------------------------
+
+import pty
+
+from litex import RemoteClient
+
+class CrossoverBridge:
+    def __init__(self, host="localhost", base_address=0):
+        self.bus = RemoteClient(host=host, base_address=base_address)
+
+    def open(self):
+        self.bus.open()
+        self.file, self.name = pty.openpty()
+        self.pty2crossover_thread = multiprocessing.Process(target=self.pty2crossover)
+        self.crossover2pty_thread = multiprocessing.Process(target=self.crossover2pty)
+        self.pty2crossover_thread.start()
+        self.crossover2pty_thread.start()
+
+    def close(self):
+        self.bus.close()
+        self.pty2crossover_thread.terminate()
+        self.crossover2pty_thread.terminate()
+
+    def pty2crossover(self):
+        while True:
+            r = os.read(self.file, 1)
+            self.bus.regs.uart_xover_rxtx.write(ord(r))
+
+    def crossover2pty(self):
+        while True:
+            if self.bus.regs.uart_xover_rxempty.read() == 0:
+                r = self.bus.regs.uart_xover_rxtx.read()
+                os.write(self.file, bytes(chr(r).encode("utf-8")))
 
 # SFL ----------------------------------------------------------------------------------------------
 
@@ -181,12 +215,11 @@ class LiteXTerm:
         del self.port
 
     def sigint(self, sig, frame):
-        self.port.write(b"\x03")
+        if hasattr(self, "port"):
+            self.port.write(b"\x03")
         sigint_time_current = time.time()
         # Exit term if 2 CTRL-C pressed in less than 0.5s.
         if (sigint_time_current - self.sigint_time_last < 0.5):
-            self.console.unconfigure()
-            self.close()
             sys.exit()
         else:
             self.sigint_time_last = sigint_time_current
@@ -342,13 +375,12 @@ class LiteXTerm:
 
     def start_reader(self):
         self.reader_alive = True
-        self.reader_thread = threading.Thread(target=self.reader)
-        self.reader_thread.setDaemon(True)
+        self.reader_thread = multiprocessing.Process(target=self.reader)
         self.reader_thread.start()
 
     def stop_reader(self):
         self.reader_alive = False
-        self.reader_thread.join()
+        self.reader_thread.terminate()
 
     def writer(self):
         try:
@@ -367,27 +399,20 @@ class LiteXTerm:
 
     def start_writer(self):
         self.writer_alive = True
-        self.writer_thread = threading.Thread(target=self.writer)
-        self.writer_thread.setDaemon(True)
+        self.writer_thread = multiprocessing.Process(target=self.writer)
         self.writer_thread.start()
 
     def stop_writer(self):
         self.writer_alive = False
-        self.writer_thread.join()
+        self.writer_thread.terminate()
 
     def start(self):
-        print("[LXTERM] Starting....")
         self.start_reader()
         self.start_writer()
 
     def stop(self):
-        self.reader_alive = False
-        self.writer_alive = False
-
-    def join(self, writer_only=False):
-        self.writer_thread.join()
-        if not writer_only:
-            self.reader_thread.join()
+        self.reader_thread.terminate()
+        self.writer_thread.terminate()
 
 # Run ----------------------------------------------------------------------------------------------
 
@@ -408,10 +433,23 @@ def main():
     if args.no_crc:
         print("[LXTERM] --no-crc is deprecated and now does nothing (CRC checking is now fast)")
     term = LiteXTerm(args.serial_boot, args.kernel, args.kernel_adr, args.images, args.flash)
-    term.open(args.port, int(float(args.speed)))
+
+    port = args.port
+    if args.port == "crossover":
+        bridge = CrossoverBridge()
+        bridge.open()
+        port = os.ttyname(bridge.name)
+    term.open(port, int(float(args.speed)))
     term.console.configure()
-    term.start()
-    term.join(True)
+    try:
+        term.start()
+        while True: pass
+    except:
+        if args.port == "crossover":
+            bridge.close()
+        term.console.unconfigure()
+        term.stop()
+        term.close()
 
 if __name__ == "__main__":
     main()
