@@ -1096,7 +1096,9 @@ class LiteXSoC(SoC):
 
         # Crossover
         elif name in ["crossover"]:
-            self.submodules.uart = uart.UARTCrossover()
+            self.submodules.uart = uart.UARTCrossover(
+                tx_fifo_depth = fifo_depth,
+                rx_fifo_depth = fifo_depth)
 
         # Model/Sim
         elif name in ["model", "sim"]:
