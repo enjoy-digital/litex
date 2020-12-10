@@ -39,7 +39,6 @@ setup(
             "litex_term=litex.tools.litex_term:main",
             "litex_server=litex.tools.litex_server:main",
             "litex_cli=litex.tools.litex_client:main",
-            "litex_jtag_uart=litex.tools.litex_jtag_uart:main",
             "litex_sim=litex.tools.litex_sim:main",
             "litex_read_verilog=litex.tools.litex_read_verilog:main",
             "litex_simple=litex.boards.targets.simple:main",
