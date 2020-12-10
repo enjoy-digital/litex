@@ -1393,7 +1393,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         ])
 
         self.comb += self.ecc_status.fields.ecc_error.eq(ecs_n)
-        self.comb += [
+        self.sync += [
             ecs_pulse.eq(ecs_n_delay & ~ecs_n), # falling edge -> positive pulse
             If(ecs_pulse,
                self.ecc_address.fields.ecc_address.eq(rom_addr),
