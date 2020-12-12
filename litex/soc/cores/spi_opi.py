@@ -28,6 +28,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         self.cipo_name = cipo_name
         self.spiread = spiread
         self.gsr = Signal()
+        self.cfgmclk = Signal()
 
         self.dq = dq = TSTriple(7) # dq[0] is special because it is also copi
         self.dq_copi = dq_copi = TSTriple(1) # this has similar structure but an independent "oe" signal
@@ -298,6 +299,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
                 i_USRDONETS = 1,
                 i_USRCCLKO  = 0,
                 i_USRCCLKTS = 1,  # Force to tristate
+                o_CFGMCLK   = self.cfgmclk,
             ),
             Instance("ODDR", name=sclk_name, # Need to name this so we can constrain it properly
                 p_DDR_CLK_EDGE = "SAME_EDGE",
