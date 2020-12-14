@@ -34,6 +34,8 @@ CPU_VARIANTS = {
     "linux":            "VexRiscv_Linux",
     "linux+debug":      "VexRiscv_LinuxDebug",
     "linux+no-dsp":     "VexRiscv_LinuxNoDspFmax",
+    "secure":           "VexRiscv_Secure",
+    "secure+debug":     "VexRiscv_SecureDebug",
 }
 
 
@@ -58,6 +60,8 @@ GCC_FLAGS = {
     "linux":            "-march=rv32ima    -mabi=ilp32",
     "linux+debug":      "-march=rv32ima    -mabi=ilp32",
     "linux+no-dsp":     "-march=rv32ima    -mabi=ilp32",
+    "secure":           "-march=rv32ima    -mabi=ilp32",
+    "secure+debug":     "-march=rv32ima    -mabi=ilp32",
 }
 
 
