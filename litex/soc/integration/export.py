@@ -237,7 +237,7 @@ def get_csr_header(regions, constants, csr_base=None, with_access_functions=True
                             r += "\tuint32_t word = " + reg_name + "_read();\n"
                             r += "\treturn " + field_name + "_extract(word);\n"
                             r += "}\n"
-                            if (reg_name + "_write") in r:
+                            if not getattr(csr, "read_only", False):
                                 r += "static inline uint32_t " + field_name + "_replace(uint32_t oldword, uint32_t plain_value) {\n"
                                 r += "\tuint32_t mask = ((1 << " + size + ")-1);\n"
                                 r += "\treturn (oldword & (~(mask << " + offset + "))) | (mask & plain_value)<< " + offset + " ;\n}\n"
