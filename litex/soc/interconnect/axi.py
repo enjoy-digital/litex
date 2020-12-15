@@ -142,6 +142,19 @@ class AXIInterface:
     def connect_to_pads(self, pads, mode="master"):
         return connect_to_pads(self, pads, mode)
 
+    def get_ios(self, bus_name="wb"):
+        subsignals = []
+        for channel in ["aw", "w", "b", "ar", "r"]:
+            for name in ["valid", "ready"]:
+                subsignals.append(Subsignal(channel + name, Pins(1)))
+            for name, width in getattr(self, channel).description.payload_layout:
+                subsignals.append(Subsignal(channel + name, Pins(width)))
+
+        subsignals.append(Subsignal("rlast", Pins(1)))
+        subsignals.append(Subsignal("wlast", Pins(1)))
+        ios = [(bus_name , 0) + tuple(subsignals)]
+        return ios
+
     def connect(self, slave, **kwargs):
         return _connect_axi(self, slave, **kwargs)
 
