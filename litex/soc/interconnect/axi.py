@@ -140,7 +140,16 @@ class AXIInterface:
         self.r  = stream.Endpoint(r_description(data_width, id_width))
 
     def connect_to_pads(self, pads, mode="master"):
-        return connect_to_pads(self, pads, mode)
+        r = connect_to_pads(self, pads, mode)
+
+        if mode == "master":
+            r.append(pads.wlast.eq(self.w.last))
+            r.append(self.r.last.eq(pads.rlast))
+        else:
+            r.append(pads.rlast.eq(self.r.last))
+            r.append(self.w.last.eq(pads.wlast))
+
+        return r
 
     def get_ios(self, bus_name="wb"):
         subsignals = []
