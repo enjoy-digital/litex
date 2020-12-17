@@ -229,7 +229,9 @@ class LiteXTerm:
             self.boot_address = kernel_address
         if json_images is not None:
             f = open(json_images, "r")
-            self.mem_regions.update(json.load(f))
+            json_dir = os.path.dirname(json_images)
+            for k, v in json.load(f).items():
+                self.mem_regions[os.path.join(json_dir, k)] = v
             self.boot_address = self.mem_regions[list(self.mem_regions.keys())[-1]]
             f.close()
         self.flash = flash
