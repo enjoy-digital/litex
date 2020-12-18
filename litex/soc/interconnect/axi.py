@@ -79,7 +79,7 @@ def _connect_axi(master, slave, keep=None, omit=None):
         r.extend(m.connect(s, keep=keep, omit=omit))
     return r
 
-def connect_to_pads(bus, pads, mode="master"):
+def connect_to_pads(bus, pads, mode="master", axi_full=False):
     assert mode in ["slave", "master"]
     r = []
     def swap_mode(mode): return "master" if mode == "slave" else "slave"
@@ -92,7 +92,10 @@ def connect_to_pads(bus, pads, mode="master"):
     }
     for channel, mode in channel_modes.items():
         ch = getattr(bus, channel)
-        for name, width in [("valid", 1)] + ch.description.payload_layout:
+        for name, width in (
+            [("valid", 1)] +
+            [("last",  1)] if (ch in ["w", "r"] and axi_full) else [] +
+            ch.description.payload_layout):
             sig  = getattr(ch, name)
             pad  = getattr(pads, channel + name)
             if mode == "master":
@@ -140,27 +143,15 @@ class AXIInterface:
         self.r  = stream.Endpoint(r_description(data_width, id_width))
 
     def connect_to_pads(self, pads, mode="master"):
-        r = connect_to_pads(self, pads, mode)
-
-        if mode == "master":
-            r.append(pads.wlast.eq(self.w.last))
-            r.append(self.r.last.eq(pads.rlast))
-        else:
-            r.append(pads.rlast.eq(self.r.last))
-            r.append(self.w.last.eq(pads.wlast))
-
-        return r
+        return connect_to_pads(self, pads, mode, axi_full=True)
 
     def get_ios(self, bus_name="wb"):
         subsignals = []
         for channel in ["aw", "w", "b", "ar", "r"]:
-            for name in ["valid", "ready"]:
+            for name in ["valid", "ready"] + ["last"] if channel in ["w", "r"] else []:
                 subsignals.append(Subsignal(channel + name, Pins(1)))
             for name, width in getattr(self, channel).description.payload_layout:
                 subsignals.append(Subsignal(channel + name, Pins(width)))
-
-        subsignals.append(Subsignal("rlast", Pins(1)))
-        subsignals.append(Subsignal("wlast", Pins(1)))
         ios = [(bus_name , 0) + tuple(subsignals)]
         return ios
 
