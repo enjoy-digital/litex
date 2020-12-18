@@ -44,6 +44,7 @@ class VexRiscvSMP(CPU):
     litedram_width = 32
     dcache_width   = 32
     icache_width   = 32
+    aes_instruction = False
 
     @staticmethod
     def args_fill(parser):
@@ -56,6 +57,7 @@ class VexRiscvSMP(CPU):
         parser.add_argument("--dcache-ways",          default=None,        help="L1 data cache ways per CPU")
         parser.add_argument("--icache-size",          default=None,        help="L1 instruction cache size in byte per CPU")
         parser.add_argument("--icache-ways",          default=None,        help="L1 instruction cache ways per CPU")
+        parser.add_argument("--aes-instruction",      default=None,        help="True to enable the AES custom instruction acceleration")
 
 
     @staticmethod
@@ -77,6 +79,7 @@ class VexRiscvSMP(CPU):
         if(args.icache_size): VexRiscvSMP.icache_size  = int(args.icache_size)
         if(args.dcache_ways): VexRiscvSMP.dcache_ways  = int(args.dcache_ways)
         if(args.icache_ways): VexRiscvSMP.icache_ways  = int(args.icache_ways)
+        if(args.aes_instruction): VexRiscvSMP.aes_instruction  = bool(args.aes_instruction)
 
     @property
     def mem_map(self):
@@ -109,7 +112,8 @@ class VexRiscvSMP(CPU):
         f"Dy{VexRiscvSMP.dcache_ways}"  \
         "_" \
         f"Ldw{VexRiscvSMP.litedram_width}" \
-        f"{'_Cdma' if VexRiscvSMP.coherent_dma else ''}"
+        f"{'_Cdma' if VexRiscvSMP.coherent_dma else ''}" \
+        f"{'_Aes' if VexRiscvSMP.aes_instruction else ''}"
 
     @staticmethod
     def generate_default_configs():
@@ -184,6 +188,7 @@ class VexRiscvSMP(CPU):
         gen_args.append(f"--dcache-ways={VexRiscvSMP.dcache_ways}")
         gen_args.append(f"--icache-ways={VexRiscvSMP.icache_ways}")
         gen_args.append(f"--litedram-width={VexRiscvSMP.litedram_width}")
+        gen_args.append(f"--aes-instruction={VexRiscvSMP.aes_instruction}")
         gen_args.append(f"--netlist-name={VexRiscvSMP.cluster_name}")
         gen_args.append(f"--netlist-directory={vdir}")
 
