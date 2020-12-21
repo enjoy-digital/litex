@@ -34,6 +34,15 @@ def generate_dts(d):
 
     # Boot Arguments -----------------------------------------------------------------------------------
 
+    linux_initrd_start_offset = {
+        "mor1kx":               8*mB,
+        "vexriscv smp-linux" : 16*mB,
+    }
+    linux_initrd_end_offset = {
+        "mor1kx":              16*mB,
+        "vexriscv smp-linux" : 24*mB,
+    }
+
     dts += """
         chosen {{
                 bootargs = "mem={main_ram_size_mb}M@0x{main_ram_base:x} rootwait console=liteuart earlycon=sbi root=/dev/ram0 init=/sbin/init swiotlb=32";
@@ -43,41 +52,40 @@ def generate_dts(d):
 """.format(main_ram_base=d["memories"]["main_ram"]["base"],
 	   main_ram_size=d["memories"]["main_ram"]["size"],
 	   main_ram_size_mb=d["memories"]["main_ram"]["size"] // mB,
-	   linux_initrd_start=d["memories"]["main_ram"]["base"] + 8*mB,
-	   linux_initrd_end=d["memories"]["main_ram"]["base"] + 16*mB)
+	   linux_initrd_start=d["memories"]["main_ram"]["base"] + linux_initrd_start_offset[cpu_name],
+	   linux_initrd_end=d["memories"]["main_ram"]["base"]   + linux_initrd_end_offset[cpu_name])
 
     # CPU ----------------------------------------------------------------------------------------------
 
-    if cpu_name == "vexriscv_linux":
+    if cpu_name == "vexriscv smp-linux":
+        dts += """
+	    cpus {{
+		    #address-cells = <1>;
+		    #size-cells    = <0>;
+		    timebase-frequency = <{sys_clk_freq}>;
+""".format(sys_clk_freq=int(50e6) if "sim" in d["constants"] else d["constants"]["config_clock_frequency"])
+
+        cpus = range(int(d["constants"]["config_cpu_count"]))
+        for cpu in cpus:
+            dts += """
+    		    cpu@{cpu} {{
+                    device_type = "cpu";
+                    compatible = "riscv";
+                    riscv,isa = "rv32ima";
+                    mmu-type = "riscv,sv32";
+                    reg = <0>;
+                    status = "okay";
+                    L{irq}: interrupt-controller {{
+                        #interrupt-cells = <0x00000001>;
+                        interrupt-controller;
+                        compatible = "riscv,cpu-intc";
+                    }};
+    		    }};
+""".format(cpu=cpu, irq=cpu)
 
         dts += """
-            cpus {{
-                    #address-cells = <1>;
-                    #size-cells    = <0>;
-                    timebase-frequency = <{sys_clk_freq}>;
-                    cpu@0 {{
-                            clock-frequency = <{sys_clk_freq}>;
-                            compatible = "spinalhdl,vexriscv", "sifive,rocket0", "riscv";
-                            d-cache-block-size = <0x40>;
-                            d-cache-sets = <0x40>;
-                            d-cache-size = <0x8000>;
-                            d-tlb-sets = <0x1>;
-                            d-tlb-size = <0x20>;
-                            device_type = "cpu";
-                            i-cache-block-size = <0x40>;
-                            i-cache-sets = <0x40>;
-                            i-cache-size = <0x8000>;
-                            i-tlb-sets = <0x1>;
-                            i-tlb-size = <0x20>;
-                            mmu-type = "riscv,sv32";
-                            reg = <0x0>;
-                            riscv,isa = "rv32ima";
-                            sifive,itim = <0x1>;
-                            status = "okay";
-                            tlb-split;
-                    }};
-            }};
-""".format(sys_clk_freq=int(50e6) if "sim" in d["constants"] else d["constants"]["config_clock_frequency"])
+    	};
+"""
 
     elif cpu_name == "mor1kx":
 
@@ -93,11 +101,6 @@ def generate_dts(d):
             }};
 """.format(sys_clk_freq=d["constants"]["config_clock_frequency"])
 
-    else:
-
-        raise Exception("ERROR: unsupported CPU type {}".format(cpu_name))
-
-
     # Memory -------------------------------------------------------------------------------------------
 
     dts += """
@@ -108,19 +111,19 @@ def generate_dts(d):
 """.format(main_ram_base=d["memories"]["main_ram"]["base"],
            main_ram_size=d["memories"]["main_ram"]["size"])
 
-    if "emulator" in d["memories"]:
+    if "opensbi" in d["memories"]:
         dts += """
 
         reserved-memory {{
                 #address-cells = <1>;
                 #size-cells    = <1>;
                 ranges;
-                vexriscv_emulator@{emulator_base:x} {{
-                        reg = <0x{emulator_base:x} 0x{emulator_size:x}>;
+                opensbi@{opensbi_base:x} {{
+                    reg = <0x{opensbi_base:x} 0x{opensbi_size:x}>;
                 }};
         }};
-""".format(emulator_base=d["memories"]["emulator"]["base"],
-           emulator_size=d["memories"]["emulator"]["size"])
+""".format(opensbi_base=d["memories"]["opensbi"]["base"],
+           opensbi_size=d["memories"]["opensbi"]["size"])
 
     # SoC ----------------------------------------------------------------------------------------------
 
@@ -135,21 +138,33 @@ def generate_dts(d):
 
     # Interrupt controller -----------------------------------------------------------------------------
 
-    if cpu_name == "vexriscv_linux":
-        irq_controller_compatible = "vexriscv,intc0"
+    if cpu_name == "vexriscv smp-linux":
+	    dts += """
+		plic: interrupt-controller@{plic_base:x} {{
+			compatible = "sifive,plic-1.0.0", "sifive,fu540-c000-plic";
+			reg = <0x{plic_base:x} 0x400000>;
+			#interrupt-cells = <1>;
+			interrupt-controller;
+			interrupts-extended = <
+				{cpu_mapping}>;
+			riscv,ndev = <32>;
+		}};
+	""".format(	plic_base=d["memories"]["plic"]["base"],
+				cpu_mapping="\n\t\t\t\t".join(["&L{} 11 &L{} 9".format(cpu, cpu) for cpu in cpus]))
+
     elif cpu_name == "mor1kx":
-        irq_controller_compatible = "opencores,or1k-pic"
+        dts += """
+        intc0: interrupt-controller {
+            interrupt-controller;
+            #interrupt-cells = <1>;
+            compatible = "opencores,or1k-pic";
+            status = "okay";
+        };
+"""
     else:
         raise Exception("Unsupported CPU type: {}".format(cpu_name))
 
-    dts += """
-                intc0: interrupt-controller {{
-                        interrupt-controller;
-                        #interrupt-cells = <1>;
-                        compatible = "{compatible}";
-                        status = "okay";
-                }};
-""".format(compatible=irq_controller_compatible)
+
 
     # SoC Controller -----------------------------------------------------------------------------------
 
@@ -486,21 +501,23 @@ def generate_dts(d):
     # SDCARD -------------------------------------------------------------------------------------------
 
     if "sdcore" in d["csr_bases"]:
-
-        dts += """
-                mmc0: mmc@{mmc_csr_base:x} {{
-                        compatible = "litex,mmc";
-                        bus-width = <4>;
-                        reg = <
-                                0x{sdphy_csr_base:x} 0x100
-                                0x{sdcore_csr_base:x} 0x100
-                        >;
-                        status = "okay";
-                }};
-""".format(mmc_csr_base=d["csr_bases"]["sdcore"],
-           sdphy_csr_base=d["csr_bases"]["sdphy"],
-           sdcore_csr_base=d["csr_bases"]["sdcore"])
-
+	    dts += """
+		mmc0: mmc@{mmc_csr_base:x} {{
+			compatible = "litex,mmc";
+			reg = <
+				0x{sdphy_csr_base:x} 0x100
+				0x{sdcore_csr_base:x} 0x100
+				0x{sdblock2mem:x} 0x100
+				0x{sdmem2block:x} 0x100>;
+			bus-width = <0x04>;
+			status = "okay";
+		}};
+	""".format(mmc_csr_base=d["csr_bases"]["sdcore"],
+			sdphy_csr_base=d["csr_bases"]["sdphy"],
+			sdcore_csr_base=d["csr_bases"]["sdcore"],
+			sdblock2mem=d["csr_bases"]["sdblock2mem"],
+			sdmem2block=d["csr_bases"]["sdmem2block"]
+)
     dts += """
         };
 """
