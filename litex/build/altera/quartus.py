@@ -99,7 +99,16 @@ def _build_qsf(device, ips, sources, vincpaths, named_sc, named_pc, build_name, 
     for filename, language, library in sources:
         if language == "verilog": language = "systemverilog" # Enforce use of SystemVerilog
         tpl = "set_global_assignment -name {lang}_FILE {path} -library {lib}"
-        qsf.append(tpl.format(lang=language.upper(), path=filename.replace("\\", "/"), lib=library))
+        # Do not add None type files
+        if language is not None:
+            qsf.append(tpl.format(lang=language.upper(), path=filename.replace("\\", "/"), lib=library))
+        # Check if the file is a header. Those should not be explicitly added to qsf,
+        # but rather included in include search_path
+        else:
+            if filename.endswith(".svh") or filename.endswith(".vh"):
+                fpath = os.path.dirname(filename)
+                if fpath not in vincpaths:
+                    vincpaths.append(fpath)
 
     # Add ips
     for filename in ips:
