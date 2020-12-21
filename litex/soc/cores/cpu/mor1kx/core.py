@@ -50,6 +50,7 @@ class MOR1KX(CPU):
     def gcc_flags(self):
         flags =  "-mhard-mul "
         flags += "-mhard-div "
+        flags += "-mcmov "
         flags += "-D__mor1kx__ "
 
         if "linux" in self.variant:
