@@ -72,7 +72,7 @@ def generate_dts(d):
                 compatible = "riscv";
                 riscv,isa = "rv32ima";
                 mmu-type = "riscv,sv32";
-                reg = <0>;
+                reg = <{cpu}>;
                 status = "okay";
                 L{irq}: interrupt-controller {{
                     #interrupt-cells = <0x00000001>;
