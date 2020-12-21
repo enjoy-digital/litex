@@ -148,7 +148,7 @@ class AXIInterface:
     def get_ios(self, bus_name="wb"):
         subsignals = []
         for channel in ["aw", "w", "b", "ar", "r"]:
-            for name in ["valid", "ready"] + ["last"] if channel in ["w", "r"] else []:
+            for name in ["valid", "ready"] + (["last"] if channel in ["w", "r"] else []):
                 subsignals.append(Subsignal(channel + name, Pins(1)))
             for name, width in getattr(self, channel).description.payload_layout:
                 subsignals.append(Subsignal(channel + name, Pins(width)))
