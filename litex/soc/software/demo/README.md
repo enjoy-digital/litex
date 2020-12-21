@@ -6,8 +6,8 @@ This directory provides a minimal bare metal demo app that demonstrates how to e
 [> Build
 --------
 
-Imagine you just build Arty example design from LiteX-Boards, to build the demo app, run in this directory:
- `$ export BUILD_DIR=xxyy/litex/litex/boards/targets/build/arty && make`
+Imagine you just build the Arty example design from LiteX-Boards, to build the demo app, run:
+ `$ litex_bare_metal_demo --build-path=build/arty/`
 
 [> Load
 -------
