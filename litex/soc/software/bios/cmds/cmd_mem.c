@@ -5,9 +5,24 @@
 #include <memtest.h>
 
 #include <generated/csr.h>
+#include <generated/mem.h>
 
 #include "../command.h"
 #include "../helpers.h"
+
+/**
+ * Command "mem_list"
+ *
+ * Memory list
+ *
+ */
+static void mem_list_handler(int nb_params, char **params)
+{
+	printf("Available memory regions:\n");
+	puts(MEM_REGIONS);
+}
+
+define_command(mem_list, mem_list_handler, "List available memory regions", MEM_CMDS);
 
 /**
  * Command "mem_read"

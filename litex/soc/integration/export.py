@@ -121,16 +121,27 @@ def get_mem_header(regions):
     r = generated_banner("//")
     r += "#ifndef __GENERATED_MEM_H\n#define __GENERATED_MEM_H\n\n"
     for name, region in regions.items():
-        r += "#ifndef {name}\n".format(name=name.upper())
-        r += "#define {name}_BASE 0x{base:08x}L\n#define {name}_SIZE 0x{size:08x}\n\n".format(
+        r += "#ifndef {name}_BASE\n".format(name=name.upper())
+        r += "#define {name}_BASE 0x{base:08x}L\n#define {name}_SIZE 0x{size:08x}\n".format(
             name=name.upper(), base=region.origin, size=region.length)
-        r += "#endif\n"
+        r += "#endif\n\n"
+
+    r += "#ifndef MEM_REGIONS\n"
+    r += "#define MEM_REGIONS \"";
+    for name, region in regions.items():
+        r += f"{name.upper()} {' '*(8-len(name))} 0x{region.origin:08x} 0x{region.size:x} \\n"
+    r = r[:-2]
+    r += "\"\n"
+    r += "#endif\n"
+
     r += "#endif\n"
     return r
 
 def get_soc_header(constants, with_access_functions=True):
     r = generated_banner("//")
     r += "#ifndef __GENERATED_SOC_H\n#define __GENERATED_SOC_H\n"
+
+
     for name, value in constants.items():
         if value is None:
             r += "#define "+name+"\n"
