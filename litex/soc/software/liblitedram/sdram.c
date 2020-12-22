@@ -24,6 +24,8 @@
 
 #include "sdram.h"
 
+//#define SDRAM_TEST_DISABLE
+
 #ifdef CSR_SDRAM_BASE
 
 /*-----------------------------------------------------------------------*/
@@ -1014,6 +1016,7 @@ int sdram_init(void)
 	sdram_leveling();
 #endif
 	sdram_software_control_off();
+#ifndef SDRAM_TEST_DISABLE
 	if(!memtest((unsigned int *) MAIN_RAM_BASE, MEMTEST_DATA_SIZE)) {
 #ifdef CSR_DDRCTRL_BASE
 		ddrctrl_init_done_write(1);
@@ -1022,6 +1025,7 @@ int sdram_init(void)
 		return 0;
 	}
 	memspeed((unsigned int *) MAIN_RAM_BASE, MEMTEST_DATA_SIZE, false);
+#endif
 #ifdef CSR_DDRCTRL_BASE
 	ddrctrl_init_done_write(1);
 #endif
