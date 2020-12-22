@@ -1327,17 +1327,20 @@ class LiteXSoC(SoC):
                 port         = port,
                 base_address = self.bus.regions["main_ram"].origin)
 
-
     # Add Ethernet ---------------------------------------------------------------------------------
-    def add_ethernet(self, name="ethmac", phy=None):
+    def add_ethernet(self, name="ethmac", phy=None, phy_cd="eth"):
         # Imports
         from liteeth.mac import LiteEthMAC
+
         # MAC
         ethmac = LiteEthMAC(
             phy        = phy,
             dw         = 32,
             interface  = "wishbone",
             endianness = self.cpu.endianness)
+        ethmac = ClockDomainsRenamer({
+            "eth_tx": phy_cd + "_tx",
+            "eth_rx": phy_cd + "_rx"})(ethmac)
         setattr(self.submodules, name, ethmac)
         ethmac_region = SoCRegion(origin=self.mem_map.get(name, None), size=0x2000, cached=False)
         self.bus.add_slave(name=name, slave=ethmac.bus, region=ethmac_region)
