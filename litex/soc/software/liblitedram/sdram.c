@@ -260,13 +260,14 @@ int _sdram_write_leveling_cdly_range_end   = -1;
 
 static void sdram_write_leveling_on(void)
 {
-	sdram_dfii_pi0_address_write(DDRX_MR1 | (1 << 7));
-	sdram_dfii_pi0_baddress_write(1);
+	// Flip write leveling bit in the Mode Register, as it is disabled by default
+	sdram_dfii_pi0_address_write(DDRX_MR_WRLVL_RESET ^ (1 << DDRX_MR_WRLVL_BIT));
+	sdram_dfii_pi0_baddress_write(DDRX_MR_WRLVL_ADDRESS);
 	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
 
 #ifdef SDRAM_PHY_DDR4_RDIMM
-	sdram_dfii_pi0_address_write((DDRX_MR1 | (1 << 7)) ^ 0x2BF8) ;
-	sdram_dfii_pi0_baddress_write(1 ^ 0xF);
+	sdram_dfii_pi0_address_write((DDRX_MR_WRLVL_RESET ^ (1 << DDRX_MR_WRLVL_BIT)) ^ 0x2BF8) ;
+	sdram_dfii_pi0_baddress_write(DDRX_MR_WRLVL_ADDRESS ^ 0xF);
 	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
 #endif
 
@@ -275,13 +276,13 @@ static void sdram_write_leveling_on(void)
 
 static void sdram_write_leveling_off(void)
 {
-	sdram_dfii_pi0_address_write(DDRX_MR1);
-	sdram_dfii_pi0_baddress_write(1);
+	sdram_dfii_pi0_address_write(DDRX_MR_WRLVL_RESET);
+	sdram_dfii_pi0_baddress_write(DDRX_MR_WRLVL_ADDRESS);
 	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
 
 #ifdef SDRAM_PHY_DDR4_RDIMM
-	sdram_dfii_pi0_address_write(DDRX_MR1 ^ 0x2BF8);
-	sdram_dfii_pi0_baddress_write(1 ^ 0xF);
+	sdram_dfii_pi0_address_write(DDRX_MR_WRLVL_RESET ^ 0x2BF8);
+	sdram_dfii_pi0_baddress_write(DDRX_MR_WRLVL_ADDRESS ^ 0xF);
 	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
 #endif
 
