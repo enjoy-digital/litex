@@ -1362,7 +1362,7 @@ class LiteXSoC(SoC):
             eth_tx_clk)
 
     # Add Etherbone --------------------------------------------------------------------------------
-    def add_etherbone(self, name="etherbone", phy=None,
+    def add_etherbone(self, name="etherbone", phy=None, phy_cd="eth",
         mac_address  = 0x10e2d5000000,
         ip_address   = "192.168.1.50",
         udp_port     = 1234,
@@ -1377,7 +1377,9 @@ class LiteXSoC(SoC):
             mac_address = mac_address,
             ip_address  = ip_address,
             clk_freq    = self.clk_freq)
-        ethcore = ClockDomainsRenamer("eth_tx")(ethcore)
+        ethcore = ClockDomainsRenamer({
+            "eth_tx": phy_cd + "_tx",
+            "eth_rx": phy_cd + "_rx"})(ethcore)
         self.submodules.ethcore = ethcore
 
         # Clock domain renaming
