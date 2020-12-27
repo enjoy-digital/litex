@@ -139,7 +139,7 @@ def generate_dts(d):
 
     dts += """
             soc_ctrl0: soc_controller@{soc_ctrl_csr_base:x} {{
-                compatible = "litex,soc_controller";
+                compatible = "litex,soc-controller";
                 reg = <0x{soc_ctrl_csr_base:x} 0xc>;
                 status = "okay";
             }};
