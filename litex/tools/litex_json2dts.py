@@ -12,7 +12,7 @@ import json
 import argparse
 
 
-def generate_dts(d):
+def generate_dts(d, initrd_start_offset=None, initrd_size=None):
 
     kB = 1024
     mB = kB*1024
@@ -32,14 +32,16 @@ def generate_dts(d):
 """
 
     # Boot Arguments -------------------------------------------------------------------------------
-    linux_initrd_start_offset = {
+    default_initrd_start_offset = {
         "mor1kx":               8*mB,
         "vexriscv smp-linux" : 16*mB,
     }
-    linux_initrd_end_offset = {
-        "mor1kx":              16*mB,
-        "vexriscv smp-linux" : 24*mB,
-    }
+
+    if initrd_start_offset is None:
+        initrd_start_offset = default_initrd_start_offset[cpu_name]
+
+    if initrd_size is None:
+        initrd_size = 8*mB
 
     dts += """
         chosen {{
@@ -51,8 +53,8 @@ def generate_dts(d):
     main_ram_base      = d["memories"]["main_ram"]["base"],
     main_ram_size      = d["memories"]["main_ram"]["size"],
     main_ram_size_mb   = d["memories"]["main_ram"]["size"] // mB,
-    linux_initrd_start = d["memories"]["main_ram"]["base"] + linux_initrd_start_offset[cpu_name],
-    linux_initrd_end   = d["memories"]["main_ram"]["base"] + linux_initrd_end_offset[cpu_name])
+    linux_initrd_start = d["memories"]["main_ram"]["base"] + initrd_start_offset,
+    linux_initrd_end   = d["memories"]["main_ram"]["base"] + initrd_start_offset + initrd_size)
 
     # CPU ------------------------------------------------------------------------------------------
 
@@ -542,11 +544,13 @@ def generate_dts(d):
 def main():
     parser = argparse.ArgumentParser(description="LiteX's CSR JSON to Linux DTS generator")
     parser.add_argument("csr_json", help="CSR JSON file")
+    parser.add_argument("--initrd-start", type=int, help="The location the kernel will look for initrd, used to define linux,initrd-start (default depends on CPU)")
+    parser.add_argument("--initrd-size", type=int, help="The size of the initrd, used to calculate linux,initrd-end (default=8MB)")
     args = parser.parse_args()
 
     d = json.load(open(args.csr_json))
 
-    print(generate_dts(d))
+    print(generate_dts(d, getattr(args, "initrd_start"), getattr(args, "initrd_size")))
 
 
 if __name__ == "__main__":
