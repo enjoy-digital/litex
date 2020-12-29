@@ -12,7 +12,7 @@ import json
 import argparse
 
 
-def generate_dts(d, initrd_start=None, initrd_size=None):
+def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
 
     kB = 1024
     mB = kB*1024
@@ -184,12 +184,12 @@ def generate_dts(d, initrd_start=None, initrd_size=None):
                 device_type = "serial";
                 compatible = "litex,liteuart";
                 reg = <0x{uart_csr_base:x} 0x100>;
-                interrupts = <{uart_interrupt}>;
+                {uart_interrupt}
                 status = "okay";
             }};
 """.format(
-    uart_csr_base = d["csr_bases"]["uart"],
-    uart_interrupt = d["constants"]["uart_interrupt"])
+    uart_csr_base  = d["csr_bases"]["uart"],
+    uart_interrupt = "" if polling else "interrupts = <{}>;".format(d["constants"]["uart_interrupt"]))
 
     # Ethernet -------------------------------------------------------------------------------------
 
@@ -202,15 +202,15 @@ def generate_dts(d, initrd_start=None, initrd_size=None):
                       <0x{ethmac_mem_base:x} 0x2000>;
                 tx-fifo-depth = <{ethmac_tx_slots}>;
                 rx-fifo-depth = <{ethmac_rx_slots}>;
-                interrupts = <{ethmac_interrupt}>;
+                {ethmac_interrupt}
             }};
 """.format(
-    ethphy_csr_base = d["csr_bases"]["ethphy"],
-    ethmac_csr_base = d["csr_bases"]["ethmac"],
-    ethmac_mem_base = d["memories"]["ethmac"]["base"],
-    ethmac_tx_slots = d["constants"]["ethmac_tx_slots"],
-    ethmac_rx_slots = d["constants"]["ethmac_rx_slots"],
-    ethmac_interrupt = d["constants"]["ethmac_interrupt"])
+    ethphy_csr_base  = d["csr_bases"]["ethphy"],
+    ethmac_csr_base  = d["csr_bases"]["ethmac"],
+    ethmac_mem_base  = d["memories"]["ethmac"]["base"],
+    ethmac_tx_slots  = d["constants"]["ethmac_tx_slots"],
+    ethmac_rx_slots  = d["constants"]["ethmac_rx_slots"],
+    ethmac_interrupt = "" if polling else "interrupts = <{}>;".format(d["constants"]["ethmac_interrupt"]))
 
    # SPI Flash -------------------------------------------------------------------------------------
 
@@ -551,14 +551,16 @@ def generate_dts(d, initrd_start=None, initrd_size=None):
 def main():
     parser = argparse.ArgumentParser(description="LiteX's CSR JSON to Linux DTS generator")
     parser.add_argument("csr_json", help="CSR JSON file")
-    parser.add_argument("--initrd-start", type=int, help="Location of initrd in RAM (relative, default depends on CPU)")
-    parser.add_argument("--initrd-size",  type=int, help="Size of initrd (default=8MB)")
+    parser.add_argument("--initrd-start", type=int,            help="Location of initrd in RAM (relative, default depends on CPU)")
+    parser.add_argument("--initrd-size",  type=int,            help="Size of initrd (default=8MB)")
+    parser.add_argument("--polling",      action="store_true", help="Force polling mode on peripherals")
     args = parser.parse_args()
 
     d = json.load(open(args.csr_json))
     r = generate_dts(d,
         initrd_start = args.initrd_start,
-        initrd_size  = args.initrd_size
+        initrd_size  = args.initrd_size,
+        polling      = args.polling,
     )
     print(r)
 
