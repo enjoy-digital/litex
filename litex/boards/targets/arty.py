@@ -54,8 +54,16 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, toolchain="vivado", sys_clk_freq=int(100e6), with_ethernet=False, with_etherbone=False, ident_version=True, **kwargs):
-        platform = arty.Platform(toolchain=toolchain)
+    def __init__(
+            self,
+            toolchain="vivado",
+            sys_clk_freq=int(100e6),
+            with_ethernet=False,
+            with_etherbone=False,
+            ident_version=True,
+            board_variant="a7-35",
+            **kwargs):
+        platform = arty.Platform(variant=board_variant, toolchain=toolchain)
 
         # SoCCore ----------------------------------------------------------------------------------
         SoCCore.__init__(self, platform, sys_clk_freq,
@@ -105,6 +113,7 @@ class BaseSoC(SoCCore):
 def main():
     parser = argparse.ArgumentParser(description="LiteX SoC on Arty A7")
     parser.add_argument("--toolchain",        default="vivado",     help="Toolchain use to build (default: vivado)")
+    parser.add_argument("--board-variant",    default="a7-35",      help="Board variant (default: a7-35)")
     parser.add_argument("--build",            action="store_true",  help="Build bitstream")
     parser.add_argument("--load",             action="store_true",  help="Load bitstream")
     parser.add_argument("--sys-clk-freq",     default=100e6,        help="System clock frequency (default: 100MHz)")
@@ -125,6 +134,7 @@ def main():
         with_ethernet  = args.with_ethernet,
         with_etherbone = args.with_etherbone,
         ident_version  = args.no_ident_version,
+        board_variant  = args.board_variant,
         **soc_sdram_argdict(args)
     )
     assert not (args.with_spi_sdcard and args.with_sdcard)
