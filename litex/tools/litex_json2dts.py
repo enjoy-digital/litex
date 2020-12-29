@@ -28,6 +28,7 @@ def generate_dts(d, initrd_start_offset=None, initrd_size=None):
 / {
         #address-cells = <1>;
         #size-cells    = <1>;
+        interrupt-parent = <&intc0>;
 
 """
 
@@ -182,9 +183,12 @@ def generate_dts(d, initrd_start_offset=None, initrd_size=None):
                 device_type = "serial";
                 compatible = "litex,liteuart";
                 reg = <0x{uart_csr_base:x} 0x100>;
+                interrupts = <{uart_interrupt}>;
                 status = "okay";
             }};
-""".format(uart_csr_base=d["csr_bases"]["uart"])
+""".format(
+    uart_csr_base = d["csr_bases"]["uart"],
+    uart_interrupt = d["constants"]["uart_interrupt"])
 
     # Ethernet -------------------------------------------------------------------------------------
 
@@ -197,13 +201,15 @@ def generate_dts(d, initrd_start_offset=None, initrd_size=None):
                       <0x{ethmac_mem_base:x} 0x2000>;
                 tx-fifo-depth = <{ethmac_tx_slots}>;
                 rx-fifo-depth = <{ethmac_rx_slots}>;
+                interrupts = <{ethmac_interrupt}>;
             }};
 """.format(
     ethphy_csr_base = d["csr_bases"]["ethphy"],
     ethmac_csr_base = d["csr_bases"]["ethmac"],
     ethmac_mem_base = d["memories"]["ethmac"]["base"],
     ethmac_tx_slots = d["constants"]["ethmac_tx_slots"],
-    ethmac_rx_slots = d["constants"]["ethmac_rx_slots"])
+    ethmac_rx_slots = d["constants"]["ethmac_rx_slots"],
+    ethmac_interrupt = d["constants"]["ethmac_interrupt"])
 
    # SPI Flash -------------------------------------------------------------------------------------
 
