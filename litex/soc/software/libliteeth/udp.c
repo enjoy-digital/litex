@@ -7,6 +7,7 @@
 
 #include <generated/csr.h>
 #include <generated/mem.h>
+#include <generated/soc.h>
 
 #ifdef CSR_ETHMAC_BASE
 
@@ -17,8 +18,8 @@
 
 #include "udp.h"
 
-//#define DEBUG_UDP_TX
-//#define DEBUG_UDP_RX
+//#define ETH_UDP_TX_DEBUG
+//#define ETH_UDP_RX_DEBUG
 
 #define ETHERTYPE_ARP 0x0806
 #define ETHERTYPE_IP  0x0800
@@ -144,7 +145,7 @@ static void send_packet(void)
 	txlen += 4;
 #endif
 
-#ifdef DEBUG_LITEETH_UDP_TX
+#ifdef ETH_UDP_TX_DEBUG
 	int j;
 	printf(">>>> txlen : %d\n", txlen);
 	for(j=0;j<txlen;j++)
@@ -381,7 +382,7 @@ static void process_frame(void)
 {
 	flush_cpu_dcache();
 
-#ifdef DEBUG_LITEETH_UDP_RX
+#ifdef ETH_UDP_RX_DEBUG
 	int j;
 	printf("<<< rxlen : %d\n", rxlen);
 	for(j=0;j<rxlen;j++)

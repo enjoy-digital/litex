@@ -1328,16 +1328,17 @@ class LiteXSoC(SoC):
                 base_address = self.bus.regions["main_ram"].origin)
 
     # Add Ethernet ---------------------------------------------------------------------------------
-    def add_ethernet(self, name="ethmac", phy=None, phy_cd="eth"):
+    def add_ethernet(self, name="ethmac", phy=None, phy_cd="eth", software_debug=False):
         # Imports
         from liteeth.mac import LiteEthMAC
 
         # MAC
         ethmac = LiteEthMAC(
-            phy        = phy,
-            dw         = 32,
-            interface  = "wishbone",
-            endianness = self.cpu.endianness)
+            phy               = phy,
+            dw                = 32,
+            interface         = "wishbone",
+            endianness        = self.cpu.endianness,
+            with_preamble_crc = not software_debug)
         ethmac = ClockDomainsRenamer({
             "eth_tx": phy_cd + "_tx",
             "eth_rx": phy_cd + "_rx"})(ethmac)
@@ -1347,6 +1348,7 @@ class LiteXSoC(SoC):
         self.csr.add(name, use_loc_if_exists=True)
         if self.irq.enabled:
             self.irq.add(name, use_loc_if_exists=True)
+
         # Timing constraints
         if hasattr(phy, "crg"):
             eth_rx_clk = phy.crg.cd_eth_rx.clk
@@ -1360,6 +1362,11 @@ class LiteXSoC(SoC):
             self.crg.cd_sys.clk,
             eth_rx_clk,
             eth_tx_clk)
+
+        # Software Debug
+        if software_debug:
+            self.add_constant("ETH_UDP_TX_DEBUG")
+            self.add_constant("ETH_UDP_RX_DEBUG")
 
     # Add Etherbone --------------------------------------------------------------------------------
     def add_etherbone(self, name="etherbone", phy=None, phy_cd="eth",
@@ -1425,7 +1432,7 @@ class LiteXSoC(SoC):
         self.csr.add(name, use_loc_if_exists=True)
 
     # Add SPI SDCard -------------------------------------------------------------------------------
-    def add_spi_sdcard(self, name="spisdcard", spi_clk_freq=400e3):
+    def add_spi_sdcard(self, name="spisdcard", spi_clk_freq=400e3, software_debug=False):
         pads = self.platform.request(name)
         if hasattr(pads, "rst"):
             self.comb += pads.rst.eq(0)
@@ -1434,8 +1441,11 @@ class LiteXSoC(SoC):
         setattr(self.submodules, name, spisdcard)
         self.csr.add(name, use_loc_if_exists=True)
 
+        if software_debug:
+            self.add_constant("SPISDCARD_DEBUG")
+
     # Add SDCard -----------------------------------------------------------------------------------
-    def add_sdcard(self, name="sdcard", mode="read+write", use_emulator=False):
+    def add_sdcard(self, name="sdcard", mode="read+write", use_emulator=False, software_debug=False):
         assert mode in ["read", "write", "read+write"]
         # Imports
         from litesdcard.emulator import SDEmulator
@@ -1487,6 +1497,10 @@ class LiteXSoC(SoC):
             self.sdirq.block2mem_dma.trigger.eq(self.sdblock2mem.irq),
             self.sdirq.mem2block_dma.trigger.eq(self.sdmem2block.irq),
         ]
+
+        # Software Debug
+        if software_debug:
+            self.add_constant("SDCARD_DEBUG")
 
     # Add SATA -------------------------------------------------------------------------------------
     def add_sata(self, name="sata", phy=None, mode="read+write"):

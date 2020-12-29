@@ -10,6 +10,7 @@
 
 #include <generated/csr.h>
 #include <generated/mem.h>
+#include <generated/soc.h>
 #include <system.h>
 
 #include <libfatfs/ff.h>
