@@ -141,17 +141,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
 
     # SoC Controller -------------------------------------------------------------------------------
 
-    if cpu_name == "vexriscv smp-linux": # FIXME: remove when kernel will be generated from litex-rebase.
-        dts += """
-            soc_ctrl0: soc_controller@{soc_ctrl_csr_base:x} {{
-                compatible = "litex,soc_controller";
-                reg = <0x{soc_ctrl_csr_base:x} 0xc>;
-                status = "okay";
-            }};
-""".format(soc_ctrl_csr_base=d["csr_bases"]["ctrl"])
-
-    else:
-        dts += """
+    dts += """
             soc_ctrl0: soc_controller@{soc_ctrl_csr_base:x} {{
                 compatible = "litex,soc-controller";
                 reg = <0x{soc_ctrl_csr_base:x} 0xc>;
