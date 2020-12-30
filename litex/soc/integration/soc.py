@@ -895,6 +895,11 @@ class SoC(Module):
                 if hasattr(self.ctrl, "reset"):
                     self.comb += self.cpu.reset.eq(self.ctrl.reset)
             self.add_config("CPU_RESET_ADDR", reset_address)
+
+        # Specific Microwatt IROs integration FIXME (remove or provide generic integration method)
+        if isinstance(self.cpu, cpu.Microwatt) and "irq" in variant:
+            self.cpu.add_xics(self, SoCRegion)
+
         # Add constants
         self.add_config("CPU_TYPE",    str(name))
         self.add_config("CPU_VARIANT", str(variant.split('+')[0]))
