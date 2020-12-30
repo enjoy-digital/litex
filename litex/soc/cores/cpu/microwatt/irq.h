@@ -35,32 +35,32 @@ void isr(uint64_t vec);
 
 uint8_t inline xics_icp_readb(int reg)
 {
-	return *((uint8_t*)(HOSTXICSICP_BASE + reg));
+	return *((uint8_t*)(XICSICP_BASE + reg));
 }
 
 void inline xics_icp_writeb(int reg, uint8_t value)
 {
-	*((uint8_t*)(HOSTXICSICP_BASE + reg)) = value;
+	*((uint8_t*)(XICSICP_BASE + reg)) = value;
 }
 
 uint32_t inline xics_icp_readw(int reg)
 {
-	return *((uint32_t*)(HOSTXICSICP_BASE + reg));
+	return *((uint32_t*)(XICSICP_BASE + reg));
 }
 
 void inline xics_icp_writew(int reg, uint32_t value)
 {
-	*((uint32_t*)(HOSTXICSICP_BASE + reg)) = value;
+	*((uint32_t*)(XICSICP_BASE + reg)) = value;
 }
 
 uint32_t inline xics_ics_read_xive(int irq_number)
 {
-	return *((uint32_t*)(HOSTXICSICS_BASE + 0x800 + (irq_number << 2)));
+	return *((uint32_t*)(XICSICS_BASE + 0x800 + (irq_number << 2)));
 }
 
 void inline xics_ics_write_xive(int irq_number, uint32_t priority)
 {
-	*((uint32_t*)(HOSTXICSICS_BASE + 0x800 + (irq_number << 2))) = priority;
+	*((uint32_t*)(XICSICS_BASE + 0x800 + (irq_number << 2))) = priority;
 }
 
 void inline mtmsrd(uint64_t val)

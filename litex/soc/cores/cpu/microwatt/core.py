@@ -31,7 +31,11 @@ class Microwatt(CPU):
 
     @property
     def mem_map(self):
-        return {"csr": 0xc0000000}
+        return {
+            "csr":      0xc0000000,
+            "xicsicp":  0xc3ff0000,
+            "xicsics":  0xc3ff1000
+        }
 
     @property
     def gcc_flags(self):
@@ -112,7 +116,7 @@ class Microwatt(CPU):
         self.reset_address = reset_address
         assert reset_address == 0x00000000
 
-    def add_xics(self, soc, soc_region_cls):
+    def add_soc_components(self, soc, soc_region_cls):
         self.submodules.xics = XICSSlave(
             platform     = self.platform,
             variant      = self.variant,
@@ -120,10 +124,10 @@ class Microwatt(CPU):
             int_level_in = self.interrupt,
             endianness   = self.endianness
         )
-        xicsicp_region = soc_region_cls(origin=soc.mem_map.get("hostxicsicp", 0xc3ff0000), size=4096, cached=False)
-        xicsics_region = soc_region_cls(origin=soc.mem_map.get("hostxicsics", 0xc3ff1000), size=4096, cached=False)
-        soc.bus.add_slave(name="hostxicsicp", slave=self.xics.icp_bus, region=xicsicp_region)
-        soc.bus.add_slave(name="hostxicsics", slave=self.xics.ics_bus, region=xicsics_region)
+        xicsicp_region = soc_region_cls(origin=soc.mem_map.get("xicsicp"), size=4096, cached=False)
+        xicsics_region = soc_region_cls(origin=soc.mem_map.get("xicsics"), size=4096, cached=False)
+        soc.bus.add_slave(name="xicsicp", slave=self.xics.icp_bus, region=xicsicp_region)
+        soc.bus.add_slave(name="xicsics", slave=self.xics.ics_bus, region=xicsics_region)
 
     @staticmethod
     def add_sources(platform, use_ghdl_yosys_plugin=False):

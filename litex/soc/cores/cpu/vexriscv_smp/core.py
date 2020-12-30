@@ -90,6 +90,7 @@ class VexRiscvSMP(CPU):
             "main_ram": 0x40000000,
             "csr":      0xf0000000,
             "clint":    0xf0010000,
+            "plic":     0xf0c00000,
         }
 
     @property
@@ -211,8 +212,6 @@ class VexRiscvSMP(CPU):
         self.jtag_tdi         = Signal()
         self.interrupt        = Signal(32)
         self.pbus             = pbus    = wishbone.Interface()
-        self.cbus             = cbus    = wishbone.Interface()
-        self.plicbus          = plicbus = wishbone.Interface()
 
         self.periph_buses     = [pbus]
         self.memory_buses     = [] # Added dynamically
@@ -247,25 +246,7 @@ class VexRiscvSMP(CPU):
             o_peripheral_SEL         = pbus.sel,
             i_peripheral_ERR         = pbus.err,
             o_peripheral_CTI         = pbus.cti,
-            o_peripheral_BTE         = pbus.bte,
-
-            # CLINT Bus (Slave)
-            i_clintWishbone_CYC      = cbus.cyc,
-            i_clintWishbone_STB      = cbus.stb,
-            o_clintWishbone_ACK      = cbus.ack,
-            i_clintWishbone_WE       = cbus.we,
-            i_clintWishbone_ADR      = cbus.adr,
-            o_clintWishbone_DAT_MISO = cbus.dat_r,
-            i_clintWishbone_DAT_MOSI = cbus.dat_w,
-
-            # PLIC Bus (Slave)
-            i_plicWishbone_CYC       = plicbus.cyc,
-            i_plicWishbone_STB       = plicbus.stb,
-            o_plicWishbone_ACK       = plicbus.ack,
-            i_plicWishbone_WE        = plicbus.we,
-            i_plicWishbone_ADR       = plicbus.adr,
-            o_plicWishbone_DAT_MISO  = plicbus.dat_r,
-            i_plicWishbone_DAT_MOSI  = plicbus.dat_w
+            o_peripheral_BTE         = pbus.bte
         )
 
         if VexRiscvSMP.coherent_dma:
@@ -306,6 +287,36 @@ class VexRiscvSMP(CPU):
         platform.add_source(os.path.join(vdir, "RamXilinx.v"), "verilog")
         platform.add_source(os.path.join(vdir,  self.cluster_name + ".v"), "verilog")
 
+    def add_soc_components(self, soc, soc_region_cls):
+        # Define number of CPUs
+        soc.add_config("CPU_COUNT", VexRiscvSMP.cpu_count)
+
+        # Add PLIC as Bus Slave
+        self.plicbus = plicbus  = wishbone.Interface()
+        self.cpu_params.update(
+            i_plicWishbone_CYC       = plicbus.cyc,
+            i_plicWishbone_STB       = plicbus.stb,
+            o_plicWishbone_ACK       = plicbus.ack,
+            i_plicWishbone_WE        = plicbus.we,
+            i_plicWishbone_ADR       = plicbus.adr,
+            o_plicWishbone_DAT_MISO  = plicbus.dat_r,
+            i_plicWishbone_DAT_MOSI  = plicbus.dat_w
+        )
+        soc.bus.add_slave("plic", self.plicbus, region=soc_region_cls(origin=soc.mem_map.get("plic"), size=0x400000, cached=False))
+
+        # Add CLINT as Bus Slave
+        self.clintbus = clintbus = wishbone.Interface()
+        self.cpu_params.update(
+            i_clintWishbone_CYC      = clintbus.cyc,
+            i_clintWishbone_STB      = clintbus.stb,
+            o_clintWishbone_ACK      = clintbus.ack,
+            i_clintWishbone_WE       = clintbus.we,
+            i_clintWishbone_ADR      = clintbus.adr,
+            o_clintWishbone_DAT_MISO = clintbus.dat_r,
+            i_clintWishbone_DAT_MOSI = clintbus.dat_w,
+        )
+        soc.bus.add_slave("clint", clintbus, region=soc_region_cls(origin=soc.mem_map.get("clint"), size=0x10000, cached=False))
+
     def add_memory_buses(self, address_width, data_width):
         VexRiscvSMP.litedram_width = data_width
 
@@ -343,7 +354,6 @@ class VexRiscvSMP(CPU):
             o_dBridge_dram_rdata_ready        = dbus.rdata.ready,
             i_dBridge_dram_rdata_payload_data = dbus.rdata.data,
         )
-
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
