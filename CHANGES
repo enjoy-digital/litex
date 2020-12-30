@@ -5,25 +5,53 @@
 	------------------
 	- fix SDCard writes.
 	- fix crt0 .data initialize on SERV/Minerva.
+	- fix Zynq7000 AXI HP Slave integration.
 
 	[> Added Features
 	------------------
-	- Wishbone2CSR: add registered version and use it on system with SDRAM.
-	- litex_json2dts: add Mor1kx DTS generation support.
-	- Build: add initial Radiant support for NX FPGA family.
-	- SoC: allow ROM to be optionally writable (for contents overwrite over UARTBone/Etherbone).
-	- LiteSDCard: improve BIOS support.
-	- UARTBone: add clock domain support.
-	- Clocking: uniformize reset on iCE40PLL/ECP5PLL.
-	- LiteDRAM: improve calibration and add BIOS debug commands.
-	- Clocking: add initial Ultrascale+ support.
+	- Wishbone2CSR: Add registered version and use it on system with SDRAM.
+	- litex_json2dts: Add Mor1kx DTS generation support.
+	- Build: Add initial Radiant support for NX FPGA family.
+	- SoC: Allow ROM to be optionally writable (for contents overwrite over UARTBone/Etherbone).
+	- LiteSDCard: Improve BIOS support.
+	- UARTBone: Add clock domain support.
+	- Clocking: Uniformize reset on iCE40PLL/ECP5PLL.
+	- LiteDRAM: Improve calibration and add BIOS debug commands.
+	- Clocking: Add initial Ultrascale+ support.
 	- Sim: Allow dynamic enable/disable of tracing.
-	- BIOS: improve memtest and report.
-	- BIOS: rename/reorganize commands.
-	- litex_server: simplify usage with PCIe and add debug parameter.
-	- LitePCIe: add Ultrascale(+) support up to Gen3 X16.
-	- LiteSATA: add BIOS/Boot integration.
+	- BIOS: Improve memtest and report.
+	- BIOS: Rename/reorganize commands.
+	- litex_server: Simplify usage with PCIe and add debug parameter.
+	- LitePCIe: Add Ultrascale(+) support up to Gen3 X16.
+	- LiteSATA: Add BIOS/Boot integration.
 	- Add litex_cli to provides common RemoteClient functions: get identifier, dump regs, etc...
+	- LiteDRAM: Simplify BIST integration.
+	- Toolchains/Programmers: Improve checks/error reporting.
+	- BIOS: add leds command.
+	- SoC: Do a full reset of the SoC on reboot (not only the CPU).
+	- Etherbone: Improve efficiency/performance.
+	- LiteDRAM: Improve DDR4/DDR3 calibration.
+	- Build: Add initial Oxide support for NX FPGA family.
+	- Clock/RAM: Reorganize for better modularity.
+	- SPI-OPI: Various improvements for Betrusted.
+	- litex_json2dts: Improvements to use it with mor1kx and VexRiscv-SMP.
+	- Microwatt: Add IRQ support.*
+	- BIOS: Add i2c_scan command.
+	- Builder: Simplify Documentation generation with --doc args on targets.
+	- CSR: Add documentation to EventManager registers.
+	- BIOS: Allow disabling timestamp for reproducible builds.
+	- Symbiflow: Remove workarounds on targets.
+	- litex_server: Simplify use on PCIe, allow direct CommXY use in scripts to bypass litex_server.
+	- Zynq7000: Improve PS7 configuration support (now supporting .xci/preset/dict)
+	- CV32E40P: Improve OBI efficiency.
+	- litex_term: Improve upload speed with CRC check enabled, deprecate --no-crc (no longer useful).
+	- BIOS: Add mem_list command to list available memory and use mem_xy commands on them.
+	- litex_term: Add Crossover and JTAG_UART support.
+	- Software: Add minimal bare metal demo app.
+	- UART: Add Crossover+Bridge support.
+	- VexRiscv-SMP: Integrate AES support.
+	- LitePCIe: Allow AXI mastering from FPGA (AXI-Lite and Full).
+	- mor1kx: Add standard+fpu and linux+fpu variants.
 
 	[> API changes/Deprecation
 	--------------------------
