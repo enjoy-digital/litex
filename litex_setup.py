@@ -52,7 +52,7 @@ repos = [
     ("pythondata-cpu-vexriscv-smp",("https://github.com/litex-hub/", True,  True, None)),
     ("pythondata-cpu-rocket",      ("https://github.com/litex-hub/", False, True, None)),
     ("pythondata-cpu-minerva",     ("https://github.com/litex-hub/", False, True, None)),
-    ("pythondata-cpu-microwatt",   ("https://github.com/litex-hub/", False, True, 0xba76652)),
+    ("pythondata-cpu-microwatt",   ("https://github.com/litex-hub/", False, True, 0xf9807b6)),
     ("pythondata-cpu-blackparrot", ("https://github.com/litex-hub/", False, True, None)),
     ("pythondata-cpu-cv32e40p",    ("https://github.com/litex-hub/", True,  True, None)),
 ]

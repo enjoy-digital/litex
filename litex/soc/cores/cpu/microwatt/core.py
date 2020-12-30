@@ -141,7 +141,6 @@ class Microwatt(CPU):
 
             # Fetch
             "fetch1.vhdl",
-            "fetch2.vhdl",
 
             # Instruction/Data Cache
             "cache_ram.vhdl",

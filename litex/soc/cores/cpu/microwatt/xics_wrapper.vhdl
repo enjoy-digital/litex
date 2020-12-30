@@ -166,7 +166,7 @@ begin
 
     xics_ics : entity work.xics_ics
         generic map (
-            SRC_NUM           => 16
+            SRC_NUM           => 256
         )
         port map (
             clk               => clk,
