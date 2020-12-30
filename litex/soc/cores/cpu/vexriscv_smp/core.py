@@ -19,7 +19,8 @@ import os
 
 
 CPU_VARIANTS = {
-    "linux":    "VexRiscv",
+    "standard": "VexRiscv",
+    "linux":    "VexRiscv", # Similar to standard.
 }
 
 class Open(Signal): pass
