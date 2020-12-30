@@ -1,5 +1,5 @@
-[> 2020.XX, planned for December 2020
----------------------------------
+[> 2020.12, released on December 30th 2020
+------------------------------------------
 
 	[> Issues resolved
 	------------------
@@ -35,7 +35,7 @@
 	- Clock/RAM: Reorganize for better modularity.
 	- SPI-OPI: Various improvements for Betrusted.
 	- litex_json2dts: Improvements to use it with mor1kx and VexRiscv-SMP.
-	- Microwatt: Add IRQ support.*
+	- Microwatt: Add IRQ support.
 	- BIOS: Add i2c_scan command.
 	- Builder: Simplify Documentation generation with --doc args on targets.
 	- CSR: Add documentation to EventManager registers.
@@ -59,8 +59,8 @@
 	- LiteDRAM: rdcmdphase/wrcmdphase no longer exposed.
 	- CSR: change default csr_data_width from 8 to 32.
 
-[> 2020.08, planned for July 2020
----------------------------------
+[> 2020.08, released on August 7th 2020
+---------------------------------------
 
 	[> Issues resolved
 	------------------
@@ -100,8 +100,8 @@
 	- Rename --gateware-toolchain target parameter to --toolchain.
 	- Integrate Zynq's PS7 as a regular CPU (zynq7000) and deprecate SoCZynq.
 
-[> 2020.04, released April 28th, 2020
--------------------------------------
+[> 2020.04, released on April 28th, 2020
+----------------------------------------
 
 	[> Description
 	--------------
