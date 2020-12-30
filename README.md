@@ -6,8 +6,6 @@
 [![](https://github.com/enjoy-digital/litex/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litex/actions)
 ![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)
 
-> **Note:** In release 2020.04, LiteX switched to Python modules instead of Git submodules. Existing users will have to reinstall LiteX following the [installation guide](https://github.com/enjoy-digital/litex/wiki/Installation#litex-installation-guide).
-
 # Welcome to LiteX!
 
 LiteX is a Migen/MiSoC based Core/SoC builder that provides the infrastructure to easily create Cores/SoCs (with or without CPU).
@@ -53,10 +51,14 @@ LiteX already supports various softcores CPUs: VexRiscv, Rocket, LM32, Mor1kx, P
 | [LiteVideo](http://github.com/enjoy-digital/litevideo)       | [![](https://github.com/enjoy-digital/litevideo/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litevideo/actions)       | VGA, DVI, HDMI            |
 | [LiteScope](http://github.com/enjoy-digital/litescope)       | [![](https://github.com/enjoy-digital/litescope/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litescope/actions)       | Logic analyzer            |
 
-Combining LiteX with the ecosystem of cores allows the creation of complex SoCs such as the one below
-created for the NeTV2 board to do HDMI capture/playback over PCIe:
+By combining LiteX with the ecosystem of cores, creating complex SoCs becomes easier than with traditional tools while providing better portability and flexibility. Here are some projects created recently with the tools:
 
-<p align="center"><img width="800" src="https://raw.githubusercontent.com/enjoy-digital/netv2/master/doc/architecture.png"></p>
+A Multi-core Linux Capable SoC based on VexRiscv-SMP CPU, LiteDRAM, LiteSATA and integrated with LiteX:
+![](https://user-images.githubusercontent.com/1450143/103343266-f8cc9a00-4a8b-11eb-9444-f02e1522a490.png)For more info, have a look at [Linux-on-LiteX-Vexriscv](https://github.com/litex-hub/linux-on-litex-vexriscv) project and try running Linux on your FPGA board!
+
+A custom PCIe SDI Capture/Playback board built around LitePCIe and integrated with LiteX, allowing full control of the SDI flow and very low latency.
+![](https://user-images.githubusercontent.com/1450143/103343791-282fd680-4a8d-11eb-82bd-c068ac1ad293.png)
+To discover more products/projects built with LiteX, visit the [projects page](https://github.com/enjoy-digital/litex/wiki/Projects) on the Wiki.
 
 # Papers, Presentations, Tutorials, Links
 **FPGA lessons/tutorials:**
