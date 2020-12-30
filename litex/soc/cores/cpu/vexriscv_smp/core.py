@@ -50,15 +50,15 @@ class VexRiscvSMP(CPU):
     @staticmethod
     def args_fill(parser):
         parser.add_argument("--cpu-count",            default=1,           help="")
-        parser.add_argument("--with-coherent-dma",    action='store_true', help="")
-        parser.add_argument("--without-coherent-dma", action='store_true', help="")
-        parser.add_argument("--dcache-width",         default=None,        help="L1 data cache bus width")
-        parser.add_argument("--icache-width",         default=None,        help="L1 instruction cache bus width")
-        parser.add_argument("--dcache-size",          default=None,        help="L1 data cache size in byte per CPU")
-        parser.add_argument("--dcache-ways",          default=None,        help="L1 data cache ways per CPU")
-        parser.add_argument("--icache-size",          default=None,        help="L1 instruction cache size in byte per CPU")
+        parser.add_argument("--with-coherent-dma",    action='store_true', help="Enable Coherent DMA Slave interface.")
+        parser.add_argument("--without-coherent-dma", action='store_true', help="Disable Coherent DMA Slave interface.")
+        parser.add_argument("--dcache-width",         default=None,        help="L1 data cache bus width.")
+        parser.add_argument("--icache-width",         default=None,        help="L1 instruction cache bus width.")
+        parser.add_argument("--dcache-size",          default=None,        help="L1 data cache size in byte per CPU.")
+        parser.add_argument("--dcache-ways",          default=None,        help="L1 data cache ways per CPU.")
+        parser.add_argument("--icache-size",          default=None,        help="L1 instruction cache size in byte per CPU.")
         parser.add_argument("--icache-ways",          default=None,        help="L1 instruction cache ways per CPU")
-        parser.add_argument("--aes-instruction",      default=None,        help="True to enable the AES custom instruction acceleration")
+        parser.add_argument("--aes-instruction",      default=None,        help="Enable AES instruction acceleration.")
 
 
     @staticmethod
@@ -72,15 +72,15 @@ class VexRiscvSMP(CPU):
             VexRiscvSMP.dcache_ways  = 2
             VexRiscvSMP.icache_ways  = 2
             VexRiscvSMP.coherent_dma = True
-        if(args.with_coherent_dma): VexRiscvSMP.coherent_dma    = bool(True)
-        if(args.without_coherent_dma): VexRiscvSMP.coherent_dma = bool(False)
-        if(args.dcache_width): VexRiscvSMP.dcache_width = int(args.dcache_width)
-        if(args.icache_width): VexRiscvSMP.icache_width = int(args.icache_width)
-        if(args.dcache_size): VexRiscvSMP.dcache_size  = int(args.dcache_size)
-        if(args.icache_size): VexRiscvSMP.icache_size  = int(args.icache_size)
-        if(args.dcache_ways): VexRiscvSMP.dcache_ways  = int(args.dcache_ways)
-        if(args.icache_ways): VexRiscvSMP.icache_ways  = int(args.icache_ways)
-        if(args.aes_instruction): VexRiscvSMP.aes_instruction  = bool(args.aes_instruction)
+        if(args.with_coherent_dma):    VexRiscvSMP.coherent_dma     = bool(True)
+        if(args.without_coherent_dma): VexRiscvSMP.coherent_dma     = bool(False)
+        if(args.dcache_width):         VexRiscvSMP.dcache_width     = int(args.dcache_width)
+        if(args.icache_width):         VexRiscvSMP.icache_width     = int(args.icache_width)
+        if(args.dcache_size):          VexRiscvSMP.dcache_size      = int(args.dcache_size)
+        if(args.icache_size):          VexRiscvSMP.icache_size      = int(args.icache_size)
+        if(args.dcache_ways):          VexRiscvSMP.dcache_ways      = int(args.dcache_ways)
+        if(args.icache_ways):          VexRiscvSMP.icache_ways      = int(args.icache_ways)
+        if(args.aes_instruction):      VexRiscvSMP.aes_instruction  = bool(args.aes_instruction)
 
     @property
     def mem_map(self):
