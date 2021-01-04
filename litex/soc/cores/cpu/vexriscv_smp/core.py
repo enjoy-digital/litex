@@ -14,6 +14,7 @@ from migen import *
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr import *
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
+from litex.soc.integration.soc import auto_int
 
 import os
 
@@ -49,7 +50,7 @@ class VexRiscvSMP(CPU):
 
     @staticmethod
     def args_fill(parser):
-        parser.add_argument("--cpu-count",            default=1,           help="")
+        parser.add_argument("--cpu-count",            default=1,           help="",                                             type=auto_int)
         parser.add_argument("--with-coherent-dma",    action='store_true', help="Enable Coherent DMA Slave interface.")
         parser.add_argument("--without-coherent-dma", action='store_true', help="Disable Coherent DMA Slave interface.")
         parser.add_argument("--dcache-width",         default=None,        help="L1 data cache bus width.")
