@@ -8,8 +8,9 @@
 import os
 from os import path
 
-from litex import get_data_mod
 from migen import *
+
+from litex import get_data_mod
 
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr import *
@@ -49,7 +50,7 @@ class VexRiscvSMP(CPU):
 
     @staticmethod
     def args_fill(parser):
-        parser.add_argument("--cpu-count",            default=1,           help="")
+        parser.add_argument("--cpu-count",            default=1,           help="Number of CPU(s) in the cluster.", type=int)
         parser.add_argument("--with-coherent-dma",    action='store_true', help="Enable Coherent DMA Slave interface.")
         parser.add_argument("--without-coherent-dma", action='store_true', help="Disable Coherent DMA Slave interface.")
         parser.add_argument("--dcache-width",         default=None,        help="L1 data cache bus width.")
