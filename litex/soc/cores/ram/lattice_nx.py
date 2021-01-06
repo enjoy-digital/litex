@@ -26,13 +26,12 @@ class NXLRAM(Module):
         self.bus = wishbone.Interface(width)
         assert width in [32, 64]
 
-        # TODO: allow larger sizes to support Crosslink/NX-17 & Certus
         if width == 32:
-            assert size in [64*kB, 128*kB]
+            assert size in [64*kB, 128*kB, 192*kB, 256*kB, 320*kB]
             depth_cascading = size//(64*kB)
             width_cascading = 1
         if width == 64:
-            assert size in [128*kB]
+            assert size in [128*kB, 256*kB]
             depth_cascading = size//(128*kB)
             width_cascading = 2
 
@@ -46,7 +45,7 @@ class NXLRAM(Module):
                 wren    = Signal()
                 self.comb += [
                     datain.eq(self.bus.dat_w[32*w:32*(w+1)]),
-                    If(self.bus.adr[14:14+log2_int(depth_cascading)+1] == d,
+                    If(self.bus.adr[14:14+depth_cascading.bit_length()] == d,
                         cs.eq(1),
                         wren.eq(self.bus.we & self.bus.stb & self.bus.cyc),
                         self.bus.dat_r[32*w:32*(w+1)].eq(dataout)
