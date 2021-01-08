@@ -496,7 +496,8 @@ def main():
     term.console.configure()
     try:
         term.start()
-        while True: pass
+        while True:
+            time.sleep(0.1)
     except:
         if bridge_cls is not None:
             bridge.close()
