@@ -2,6 +2,8 @@
 #include <irq.h>
 #include <generated/csr.h>
 
+#ifdef CSR_UART_BASE
+
 /*
  * Buffer sizes must be a power of 2 so that modulos can be computed
  * with logical AND.
@@ -149,5 +151,7 @@ void uart_sync(void)
 {
 	while (uart_txfull_read());
 }
+
+#endif
 
 #endif

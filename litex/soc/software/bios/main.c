@@ -49,27 +49,29 @@
 
 static void boot_sequence(void)
 {
-	if(serialboot()) {
+#ifdef CSR_UART_BASE
+	if (serialboot() == 0)
+		return;
+#endif
 #ifdef FLASH_BOOT_ADDRESS
-		flashboot();
+	flashboot();
 #endif
 #ifdef ROM_BOOT_ADDRESS
-		romboot();
+	romboot();
 #endif
 #if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCORE_BASE)
-		sdcardboot();
+	sdcardboot();
 #endif
 #if defined(CSR_SATA_SECTOR2MEM_BASE)
-		sataboot();
+	sataboot();
 #endif
 #ifdef CSR_ETHMAC_BASE
 #ifdef CSR_ETHPHY_MODE_DETECTION_MODE_ADDR
-		eth_mode();
+	eth_mode();
 #endif
-		netboot();
+	netboot();
 #endif
-		printf("No boot medium found\n");
-	}
+	printf("No boot medium found\n");
 }
 
 int main(int i, char **c)
@@ -85,7 +87,9 @@ int main(int i, char **c)
 	irq_setmask(0);
 	irq_setie(1);
 #endif
+#ifdef CSR_UART_BASE
 	uart_init();
+#endif
 
 	printf("\n");
 	printf("\e[1m        __   _ __      _  __\e[0m\n");

@@ -100,6 +100,8 @@ void romboot(void)
 /* Serial Boot                                                           */
 /*-----------------------------------------------------------------------*/
 
+#ifdef CSR_UART_BASE
+
 static int check_ack(void)
 {
 	int recognized;
@@ -264,6 +266,8 @@ int serialboot(void)
 	}
 	return 1;
 }
+
+#endif
 
 /*-----------------------------------------------------------------------*/
 /* Ethernet Boot                                                         */
