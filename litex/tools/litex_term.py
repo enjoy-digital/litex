@@ -13,6 +13,7 @@ import signal
 import os
 import time
 import serial
+import threading
 import multiprocessing
 import argparse
 import json
@@ -271,6 +272,8 @@ class LiteXTerm:
         sigint_time_current = time.time()
         # Exit term if 2 CTRL-C pressed in less than 0.5s.
         if (sigint_time_current - self.sigint_time_last < 0.5):
+            self.console.unconfigure()
+            self.close()
             sys.exit()
         else:
             self.sigint_time_last = sigint_time_current
@@ -426,12 +429,13 @@ class LiteXTerm:
 
     def start_reader(self):
         self.reader_alive = True
-        self.reader_thread = multiprocessing.Process(target=self.reader)
+        self.reader_thread = threading.Thread(target=self.reader)
+        self.reader_thread.setDaemon(True)
         self.reader_thread.start()
 
     def stop_reader(self):
         self.reader_alive = False
-        self.reader_thread.terminate()
+        self.reader_thread.join()
 
     def writer(self):
         try:
@@ -450,20 +454,26 @@ class LiteXTerm:
 
     def start_writer(self):
         self.writer_alive = True
-        self.writer_thread = multiprocessing.Process(target=self.writer)
+        self.writer_thread = threading.Thread(target=self.writer)
+        self.writer_thread.setDaemon(True)
         self.writer_thread.start()
 
     def stop_writer(self):
         self.writer_alive = False
-        self.writer_thread.terminate()
+        self.writer_thread.join()
 
     def start(self):
         self.start_reader()
         self.start_writer()
 
     def stop(self):
-        self.reader_thread.terminate()
-        self.writer_thread.terminate()
+        self.reader_alive = False
+        self.writer_alive = False
+
+    def join(self, writer_only=False):
+        self.writer_thread.join()
+        if not writer_only:
+            self.reader_thread.join()
 
 # Run ----------------------------------------------------------------------------------------------
 
@@ -494,16 +504,8 @@ def main():
         port = args.port
     term.open(port, int(float(args.speed)))
     term.console.configure()
-    try:
-        term.start()
-        while True:
-            time.sleep(0.1)
-    except:
-        if bridge_cls is not None:
-            bridge.close()
-        term.console.unconfigure()
-        term.stop()
-        term.close()
+    term.start()
+    term.join(True)
 
 if __name__ == "__main__":
     main()
