@@ -17,7 +17,6 @@ import threading
 import multiprocessing
 import argparse
 import json
-import pty
 import telnetlib
 
 # Console ------------------------------------------------------------------------------------------
@@ -35,6 +34,7 @@ if sys.platform == "win32":
             return msvcrt.getch()
 else:
     import termios
+    import pty
     class Console:
         def __init__(self):
             self.fd = sys.stdin.fileno()
@@ -495,7 +495,10 @@ def main():
         print("[LXTERM] --no-crc is deprecated and now does nothing (CRC checking is now fast)")
     term = LiteXTerm(args.serial_boot, args.kernel, args.kernel_adr, args.images, args.flash)
 
-    bridge_cls = {"crossover": CrossoverUART, "jtag_uart": JTAGUART}.get(args.port, None)
+    if sys.platform == "win32":
+        bridge_cls = None
+    else:
+        bridge_cls = {"crossover": CrossoverUART, "jtag_uart": JTAGUART}.get(args.port, None)
     if bridge_cls is not None:
         bridge = bridge_cls()
         bridge.open()
