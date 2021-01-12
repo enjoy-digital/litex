@@ -22,10 +22,14 @@ import telnetlib
 # Console ------------------------------------------------------------------------------------------
 
 if sys.platform == "win32":
+    import ctypes
     import msvcrt
     class Console:
         def configure(self):
-            pass
+            # https://stackoverflow.com/a/36760881
+            # ENABLE_VIRTUAL_TERMINAL_PROCESSING
+            kernel32 = ctypes.windll.kernel32
+            kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
 
         def unconfigure(self):
             pass
