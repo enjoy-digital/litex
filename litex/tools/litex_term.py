@@ -36,6 +36,42 @@ if sys.platform == "win32":
 
         def getkey(self):
             return msvcrt.getch()
+
+        # getch doesn't return Virtual Keycodes, but rather
+        # PS/2 Scan Codes. Keycodes starting with 0xE0 are
+        # worth handling.
+        def escape_char(self, b):
+            return b == b"\xe0"
+
+        def handle_escape(self, b):
+            # UP
+            if b == b"H":
+                return b"\x1b[A"
+            # DOWN
+            elif b == b"P":
+                return b"\x1b[B"
+            # LEFT
+            elif b == b"K":
+                return b"\x1b[D"
+            # RIGHT
+            elif b == b"M":
+                return b"\x1b[C"
+            # HOME
+            elif b == b"G":
+                return b"\x1b[H"
+            # END
+            elif b == b"O":
+                return b"\x1b[F"
+            # INSERT
+            elif b == b"R":
+                return b"\x1b[2~"
+            # DELETE
+            elif b == b"S":
+                return b"\x1b[3~"
+            else:
+                # Ignore remaining- TODO: Maybe handle ESC eventually?
+                return None
+
 else:
     import termios
     import pty
@@ -56,6 +92,12 @@ else:
 
         def getkey(self):
             return os.read(self.fd, 1)
+
+        def escape_char(self, b):
+            return False
+
+        def handle_escape(self, b):
+            return None
 
 # Crossover UART  ----------------------------------------------------------------------------------
 
@@ -449,6 +491,10 @@ class LiteXTerm:
                     self.stop()
                 elif b == b"\n":
                     self.port.write(b"\x0a")
+                elif self.console.escape_char(b):
+                    b = self.console.getkey()
+                    ansi_seq = self.console.handle_escape(b)
+                    self.port.write(ansi_seq)
                 else:
                     self.port.write(b)
         except:
