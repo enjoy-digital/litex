@@ -44,33 +44,16 @@ if sys.platform == "win32":
             return b == b"\xe0"
 
         def handle_escape(self, b):
-            # UP
-            if b == b"H":
-                return b"\x1b[A"
-            # DOWN
-            elif b == b"P":
-                return b"\x1b[B"
-            # LEFT
-            elif b == b"K":
-                return b"\x1b[D"
-            # RIGHT
-            elif b == b"M":
-                return b"\x1b[C"
-            # HOME
-            elif b == b"G":
-                return b"\x1b[H"
-            # END
-            elif b == b"O":
-                return b"\x1b[F"
-            # INSERT
-            elif b == b"R":
-                return b"\x1b[2~"
-            # DELETE
-            elif b == b"S":
-                return b"\x1b[3~"
-            else:
-                # Ignore remaining- TODO: Maybe handle ESC eventually?
-                return None
+            return {
+                b"H" : b"\x1b[A",  # Up
+                b"P" : b"\x1b[B",  # Down
+                b"K" : b"\x1b[D",  # Left
+                b"M" : b"\x1b[C",  # Right
+                b"G" : b"\x1b[H",  # Home
+                b"O" : b"\x1b[F",  # End
+                b"R" : b"\x1b[2~", # Insert
+                b"S" : b"\x1b[3~", # Delete
+            }.get(b, None) # TODO: Handle ESC? Others?
 
 else:
     import termios
@@ -546,9 +529,9 @@ def main():
     term = LiteXTerm(args.serial_boot, args.kernel, args.kernel_adr, args.images, args.flash)
 
     if sys.platform == "win32":
-        bridge_cls = None
-    else:
-        bridge_cls = {"crossover": CrossoverUART, "jtag_uart": JTAGUART}.get(args.port, None)
+        if args.port in ["crossover", "jtag_uart"]:
+            raise NotImplementedError
+    bridge_cls = {"crossover": CrossoverUART, "jtag_uart": JTAGUART}.get(args.port, None)
     if bridge_cls is not None:
         bridge = bridge_cls()
         bridge.open()
