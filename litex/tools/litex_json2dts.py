@@ -272,7 +272,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
                 status = "okay";
             }};
     """.format(
-        mmc_csr_base    = d["csr_bases"]["sdcore"],
+        mmc_csr_base    = d["csr_bases"]["sdphy"],
         sdphy_csr_base  = d["csr_bases"]["sdphy"],
         sdcore_csr_base = d["csr_bases"]["sdcore"],
         sdblock2mem     = d["csr_bases"]["sdblock2mem"],
