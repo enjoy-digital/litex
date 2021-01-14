@@ -67,7 +67,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
             #address-cells = <1>;
             #size-cells    = <0>;
             timebase-frequency = <{sys_clk_freq}>;
-""".format(sys_clk_freq=int(50e6) if "sim" in d["constants"] else d["constants"]["config_clock_frequency"])
+""".format(sys_clk_freq=d["constants"]["config_clock_frequency"])
         cpus = range(int(d["constants"]["config_cpu_count"]))
         for cpu in cpus:
             dts += """
@@ -77,6 +77,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
                 riscv,isa = "rv32ima";
                 mmu-type = "riscv,sv32";
                 reg = <{cpu}>;
+                clock-frequency = <{sys_clk_freq}>;
                 status = "okay";
                 L{irq}: interrupt-controller {{
                     #interrupt-cells = <0x00000001>;
@@ -84,7 +85,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
                     compatible = "riscv,cpu-intc";
                 }};
             }};
-""".format(cpu=cpu, irq=cpu)
+""".format(cpu=cpu, irq=cpu, sys_clk_freq=d["constants"]["config_clock_frequency"])
         dts += """
     	};
 """
@@ -98,7 +99,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
             cpu@0 {{
                 compatible = "opencores,or1200-rtlsvn481";
                 reg = <0>;
-                    clock-frequency = <{sys_clk_freq}>;
+                clock-frequency = <{sys_clk_freq}>;
             }};
         }};
 """.format(sys_clk_freq=d["constants"]["config_clock_frequency"])
