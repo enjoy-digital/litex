@@ -255,6 +255,9 @@ int _sdram_write_leveling_cmd_scan  = 1;
 int _sdram_write_leveling_cmd_delay = 0;
 int _sdram_write_leveling_dat_delays[16];
 
+int _sdram_write_leveling_cdly_range_start = -1;
+int _sdram_write_leveling_cdly_range_end   = -1;
+
 static void sdram_write_leveling_on(void)
 {
 	sdram_dfii_pi0_address_write(DDRX_MR1 | (1 << 7));
@@ -549,8 +552,15 @@ int sdram_write_leveling(void)
 		/* Center write leveling by varying cdly. Searching through all possible
 		 * values is slow, but we can use a simple optimization method of iterativly
 		 * scanning smaller ranges with decreasing step */
-		cdly_range_start = 0;
-		cdly_range_end   = 2*ddrphy_half_sys8x_taps_read(); /* Limit Clk/Cmd scan to 1/2 tCK */
+		if (_sdram_write_leveling_cdly_range_start != -1)
+			cdly_range_start = _sdram_write_leveling_cdly_range_start;
+		else
+			cdly_range_start = 0;
+		if (_sdram_write_leveling_cdly_range_end != -1)
+			cdly_range_end = _sdram_write_leveling_cdly_range_end;
+		else
+			cdly_range_end = 2*ddrphy_half_sys8x_taps_read(); /* Limit Clk/Cmd scan to 1/2 tCK */
+
 		printf("  Cmd/Clk scan (%d-%d)\n", cdly_range_start, cdly_range_end);
 		if (SDRAM_PHY_DELAYS > 32)
 			cdly_range_step = SDRAM_PHY_DELAYS/8;
