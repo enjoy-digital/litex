@@ -10,11 +10,11 @@ extern "C" {
 int putchar(int c);
 int puts(const char *s);
 
-int snprintf(char *buf, size_t size, const char *fmt, ...);
-int scnprintf(char *buf, size_t size, const char *fmt, ...);
-int sprintf(char *buf, const char *fmt, ...);
+int snprintf(char *buf, size_t size, const char *fmt, ...) __attribute__((format(printf, 3, 4)));
+int scnprintf(char *buf, size_t size, const char *fmt, ...) __attribute__((format(printf, 3, 4)));
+int sprintf(char *buf, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
 
-int printf(const char *fmt, ...);
+int printf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 
 /* Not sure this belongs here... */
 typedef long long loff_t;
@@ -53,7 +53,7 @@ extern FILE *stdin;
 extern FILE *stdout;
 extern FILE *stderr;
 
-int fprintf(FILE *stream, const char *format, ...);
+int fprintf(FILE *stream, const char *format, ...) __attribute__((format(printf, 2, 3)));
 int fflush(FILE *stream);
 
 FILE *fopen(const char *path, const char *mode);
