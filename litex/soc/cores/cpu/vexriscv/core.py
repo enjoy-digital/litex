@@ -265,6 +265,11 @@ class VexRiscv(CPU, AutoCSR):
         vdir = get_data_mod("cpu", "vexriscv").data_location
         platform.add_source(os.path.join(vdir, cpu_filename))
 
+    def add_soc_components(self, soc, soc_region_cls):
+        if "debug" in self.variant:
+            soc.bus.add_slave("vexriscv_debug", self.debug_bus, region=soc_region_cls(origin=0xf00f0000, size=0x100, cached=False))
+
+
     def use_external_variant(self, variant_filename):
         self.external_variant = True
         self.platform.add_source(variant_filename)
