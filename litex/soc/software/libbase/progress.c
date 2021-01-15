@@ -61,6 +61,4 @@ void init_progression_bar(int max)
 	spin = 0;
 	if (progress_max && progress_max != FILESIZE_MAX)
 		printf("[%*s]\r[", HASHES_PER_LINE, "");
-	else
-		printf("");
 }

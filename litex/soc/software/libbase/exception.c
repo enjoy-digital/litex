@@ -156,7 +156,6 @@ static void gdb_stub(unsigned long pc, unsigned long sr,
 			}
 
 			default:
-				snprintf(buf, sizeof(buf), "");
 				break;
 		}
 
