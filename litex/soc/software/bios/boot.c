@@ -50,7 +50,7 @@ extern void boot_helper(unsigned long r1, unsigned long r2, unsigned long r3, un
 
 static void __attribute__((noreturn)) boot(unsigned long r1, unsigned long r2, unsigned long r3, unsigned long addr)
 {
-	printf("Executing booted program at 0x%08x\n\n", addr);
+	printf("Executing booted program at 0x%08lx\n\n", addr);
 	printf("--============= \e[1mLiftoff!\e[0m ===============--\n");
 	uart_sync();
 #ifdef CONFIG_CPU_HAS_INTERRUPT
@@ -428,7 +428,7 @@ static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned lon
 
 	length = check_image_in_flash(flash_address);
 	if(length > 0) {
-		printf("Copying 0x%08x to 0x%08x (%d bytes)...\n", flash_address, ram_address, length);
+		printf("Copying 0x%08x to 0x%08lx (%d bytes)...\n", flash_address, ram_address, length);
 		offset = 0;
 		init_progression_bar(length);
 		while (length > 0) {
@@ -500,7 +500,7 @@ static int copy_file_from_sdcard_to_ram(const char * filename, unsigned long ram
 	}
 
 	length = f_size(&file);
-	printf("Copying %s to 0x%08x (%d bytes)...\n", filename, ram_address, length);
+	printf("Copying %s to 0x%08lx (%d bytes)...\n", filename, ram_address, length);
 	init_progression_bar(length);
 	offset = 0;
 	for (;;) {
@@ -675,7 +675,7 @@ static int copy_file_from_sata_to_ram(const char * filename, unsigned long ram_a
 	}
 
 	length = f_size(&file);
-	printf("Copying %s to 0x%08x (%d bytes)...\n", filename, ram_address, length);
+	printf("Copying %s to 0x%08lx (%d bytes)...\n", filename, ram_address, length);
 	init_progression_bar(length);
 	offset = 0;
 	for (;;) {

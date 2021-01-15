@@ -1008,7 +1008,7 @@ int sdram_init(void)
 	_sdram_write_leveling_cmd_scan  = 0;
 	_sdram_write_leveling_cmd_delay = SDRAM_PHY_CMD_DELAY;
 #endif
-	printf("Initializing SDRAM @0x%08x...\n", MAIN_RAM_BASE);
+	printf("Initializing SDRAM @0x%08lx...\n", MAIN_RAM_BASE);
 	sdram_software_control_on();
 #if CSR_DDRPHY_RST_ADDR
 	ddrphy_rst_write(1);

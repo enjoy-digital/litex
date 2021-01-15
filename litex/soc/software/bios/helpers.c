@@ -25,7 +25,7 @@ void dump_bytes(unsigned int *ptr, int count, unsigned long addr)
 			(count > NUMBER_OF_BYTES_ON_A_LINE)?
 				NUMBER_OF_BYTES_ON_A_LINE : count;
 
-		printf("\n0x%08x  ", addr);
+		printf("\n0x%08lx  ", addr);
 		for (i = 0; i < line_bytes; i++)
 			printf("%02x ", *(unsigned char *)(data+i));
 
