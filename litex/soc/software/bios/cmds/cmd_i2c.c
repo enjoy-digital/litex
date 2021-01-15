@@ -138,7 +138,7 @@ static void i2c_scan_handler(int nb_params, char **params)
 			printf("\n0x%02x:", (slave_addr/0x10) * 0x10);
 		}
 		if (i2c_poll(slave_addr)) {
-			printf(" %02x");
+			printf(" %02x", slave_addr);
 		} else {
 			printf(" --");
 		}
