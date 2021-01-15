@@ -130,7 +130,7 @@ void sdram_bist_loop(uint32_t loop, uint32_t burst_length, uint32_t random) {
 
 static uint32_t compute_speed_mibs(uint32_t length, uint32_t ticks) {
 	uint32_t speed;
-	//printf("(%lu, %lu)", length, ticks);
+	//printf("(%u, %u)", length, ticks);
 	speed = length*(CONFIG_CLOCK_FREQUENCY/(1024*1024))/ticks;
 	return speed;
 }
