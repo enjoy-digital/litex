@@ -273,7 +273,7 @@ static int copy_file_from_tftp_to_ram(unsigned int ip, unsigned short server_por
 const char *filename, char *buffer)
 {
 	int size;
-	printf("Copying %s to 0x%08x... ", filename, buffer);
+	printf("Copying %s to %p... ", filename, buffer);
 	size = tftp_get(ip, server_port, filename, buffer);
 	if(size > 0)
 		printf("(%d bytes)", size);

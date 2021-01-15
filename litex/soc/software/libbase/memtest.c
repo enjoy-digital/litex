@@ -53,7 +53,7 @@ int memtest_access(unsigned int *addr)
 	array[0] = ZEROONE;
 	array[1] = array[0];
 	if (ctrl_bus_errors_read() - bus_errors) {
-		printf("memtest_access error @ 0x%0x, exiting memtest.\n", addr);
+		printf("memtest_access error @ %p, exiting memtest.\n", addr);
 		return 1;
 	}
 
@@ -83,7 +83,7 @@ int memtest_bus(unsigned int *addr, unsigned long size)
 		if(rdata != ONEZERO) {
 			errors++;
 #ifdef MEMTEST_BUS_DEBUG
-			printf("memtest_bus error @ 0x%0x: 0x%08x vs 0x%08x\n", addr + i, rdata, ONEZERO);
+			printf("memtest_bus error @ %p: 0x%08x vs 0x%08x\n", addr + i, rdata, ONEZERO);
 #endif
 		}
 	}
@@ -103,7 +103,7 @@ int memtest_bus(unsigned int *addr, unsigned long size)
 		if(rdata != ZEROONE) {
 			errors++;
 #ifdef MEMTEST_BUS_DEBUG
-			printf("memtest_bus error @ 0x%0x:: 0x%08x vs 0x%08x\n", addr + i, rdata, ZEROONE);
+			printf("memtest_bus error @ %p:: 0x%08x vs 0x%08x\n", addr + i, rdata, ZEROONE);
 #endif
 		}
 	}
@@ -139,7 +139,7 @@ int memtest_addr(unsigned int *addr, unsigned long size, int random)
 		if(rdata != i) {
 			errors++;
 #ifdef MEMTEST_ADDR_DEBUG
-			printf("memtest_addr error @ 0x%0x: 0x%08x vs 0x%08x\n", addr + i, rdata, i);
+			printf("memtest_addr error @ %p: 0x%08x vs 0x%08x\n", addr + i, rdata, i);
 #endif
 		}
 	}
@@ -202,7 +202,7 @@ int memtest_data(unsigned int *addr, unsigned long size, int random)
 		if(rdata != seed_32) {
 			errors++;
 #ifdef MEMTEST_DATA_DEBUG
-			printf("memtest_data error @%0x: 0x%08x vs 0x%08x\n", addr + i, rdata, seed_32);
+			printf("memtest_data error @%p: 0x%08x vs 0x%08x\n", addr + i, rdata, seed_32);
 #endif
 		}
 		if (i%0x8000 == 0)
