@@ -135,10 +135,10 @@ static void i2c_scan_handler(int nb_params, char **params)
 	printf("       0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f");
 	for (slave_addr = 0; slave_addr < 0x80; slave_addr++) {
 		if (slave_addr % 0x10 == 0) {
-			printf("\n0x%02x:", (slave_addr/0x10) * 0x10);
+			printf("\n0x%02x:", slave_addr & 0x70);
 		}
 		if (i2c_poll(slave_addr)) {
-			printf(" %02x");
+			printf(" %02x", slave_addr);
 		} else {
 			printf(" --");
 		}
