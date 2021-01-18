@@ -178,8 +178,6 @@ sfl_outstanding    = 128
 sfl_cmd_abort       = b"\x00"
 sfl_cmd_load        = b"\x01"
 sfl_cmd_jump        = b"\x02"
-sfl_cmd_flash       = b"\x04"
-sfl_cmd_reboot      = b"\x05"
 
 # Replies
 sfl_ack_success  = b"K"
@@ -250,7 +248,7 @@ def crc16(l):
 # LiteXTerm ----------------------------------------------------------------------------------------
 
 class LiteXTerm:
-    def __init__(self, serial_boot, kernel_image, kernel_address, json_images, flash):
+    def __init__(self, serial_boot, kernel_image, kernel_address, json_images):
         self.serial_boot = serial_boot
         assert not (kernel_image is not None and json_images is not None)
         self.mem_regions = {}
@@ -264,7 +262,6 @@ class LiteXTerm:
                 self.mem_regions[os.path.join(json_dir, k)] = v
             self.boot_address = self.mem_regions[list(self.mem_regions.keys())[-1]]
             f.close()
-        self.flash = flash
 
         self.reader_alive = False
         self.writer_alive = False
@@ -338,8 +335,7 @@ class LiteXTerm:
         length = f.tell()
         f.seek(0, 0)
 
-        action = "Flashing" if self.flash else "Uploading"
-        print(f"[LXTERM] {action} {filename} to 0x{address:08x} ({length} bytes)...")
+        print(f"[LXTERM] Uploading {filename} to 0x{address:08x} ({length} bytes)...")
 
         # Prepare parameters
         current_address = address
@@ -358,12 +354,9 @@ class LiteXTerm:
             # Send frame if max outstanding not reached.
             if outstanding <= sfl_outstanding:
                 # Prepare frame.
-                frame = SFLFrame()
+                frame      = SFLFrame()
+                frame.cmd  = sfl_cmd_load
                 frame_data = f.read(min(remaining, self.payload_length-4))
-                if self.flash:
-                    frame.cmd = sfl_cmd_flash
-                else:
-                    frame.cmd = sfl_cmd_load
                 frame.payload = current_address.to_bytes(4, "big")
                 frame.payload += frame_data
 
@@ -402,12 +395,6 @@ class LiteXTerm:
         frame.payload = int(self.boot_address, 16).to_bytes(4, "big")
         self.send_frame(frame)
 
-    def reboot(self):
-        print("[LXTERM] Rebooting the device.")
-        frame = SFLFrame()
-        frame.cmd = sfl_cmd_reboot
-        self.send_frame(frame)
-
     def detect_prompt(self, data):
         if len(data):
             self.prompt_detect_buffer = self.prompt_detect_buffer[1:] + data
@@ -432,11 +419,7 @@ class LiteXTerm:
             self.port.write(sfl_magic_ack)
         for filename, base in self.mem_regions.items():
             self.upload(filename, int(base, 16))
-        if self.flash:
-            # clear mem_regions to avoid re-flashing on next reboot(s)
-            self.mem_regions = {}
-        else:
-            self.boot()
+        self.boot()
         print("[LXTERM] Done.");
 
     def reader(self):
@@ -516,14 +499,13 @@ def _get_args():
     parser.add_argument("--speed",       default=115200,                     help="Serial baudrate")
     parser.add_argument("--serial-boot", default=False, action='store_true', help="Automatically initiate serial boot")
     parser.add_argument("--kernel",      default=None,                       help="Kernel image")
-    parser.add_argument("--kernel-adr",  default="0x40000000",               help="Kernel address (or flash offset with --flash)")
+    parser.add_argument("--kernel-adr",  default="0x40000000",               help="Kernel address")
     parser.add_argument("--images",      default=None,                       help="JSON description of the images to load to memory")
-    parser.add_argument("--flash",       default=False, action='store_true', help="Flash data with serialboot command")
     return parser.parse_args()
 
 def main():
     args = _get_args()
-    term = LiteXTerm(args.serial_boot, args.kernel, args.kernel_adr, args.images, args.flash)
+    term = LiteXTerm(args.serial_boot, args.kernel, args.kernel_adr, args.images)
 
     if sys.platform == "win32":
         if args.port in ["crossover", "jtag_uart"]:

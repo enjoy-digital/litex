@@ -19,8 +19,6 @@ struct sfl_frame {
 #define SFL_CMD_ABORT		0x00
 #define SFL_CMD_LOAD		0x01
 #define SFL_CMD_JUMP		0x02
-#define SFL_CMD_FLASH		0x04
-#define SFL_CMD_REBOOT		0x05
 
 /* Replies */
 #define SFL_ACK_SUCCESS		'K'

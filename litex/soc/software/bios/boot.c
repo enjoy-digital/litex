@@ -26,7 +26,6 @@
 #include "jsmn.h"
 
 #include <progress.h>
-#include <spiflash.h>
 
 #include <libliteeth/udp.h>
 #include <libliteeth/tftp.h>
@@ -229,31 +228,6 @@ int serialboot(void)
 				boot(0, 0, 0, addr);
 				break;
 			}
-			case SFL_CMD_FLASH: {
-#if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
-				uint32_t addr;
-
-				failed = 0;
-				addr = get_uint32(&frame.payload[0]);
-
-				for (i = 4; i < frame.payload_length; i++) {
-					/* Erase page at sector boundaries before writing */
-					if ((addr & (SPIFLASH_SECTOR_SIZE - 1)) == 0) {
-						erase_flash_sector(addr);
-					}
-					write_to_flash(addr, &frame.payload[i], 1);
-					addr++;
-				}
-				uart_write(SFL_ACK_SUCCESS);
-#endif
-				break;
-			}
-			case SFL_CMD_REBOOT:
-#ifdef CSR_CTRL_RESET_ADDR
-				uart_write(SFL_ACK_SUCCESS);
-				ctrl_reset_write(1);
-#endif
-				break;
 			default:
 				failed++;
 				if(failed == MAX_FAILED) {
