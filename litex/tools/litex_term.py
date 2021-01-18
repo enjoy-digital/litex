@@ -513,7 +513,7 @@ class LiteXTerm:
 def _get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("port",                                              help="Serial port")
-    parser.add_argument("--speed",       default=115200,                     help="Aerial baudrate")
+    parser.add_argument("--speed",       default=115200,                     help="Serial baudrate")
     parser.add_argument("--serial-boot", default=False, action='store_true', help="Automatically initiate serial boot")
     parser.add_argument("--kernel",      default=None,                       help="Kernel image")
     parser.add_argument("--kernel-adr",  default="0x40000000",               help="Kernel address (or flash offset with --flash)")
