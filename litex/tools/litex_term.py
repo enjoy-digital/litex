@@ -518,14 +518,11 @@ def _get_args():
     parser.add_argument("--kernel",      default=None,                       help="Kernel image")
     parser.add_argument("--kernel-adr",  default="0x40000000",               help="Kernel address (or flash offset with --flash)")
     parser.add_argument("--images",      default=None,                       help="JSON description of the images to load to memory")
-    parser.add_argument("--no-crc",      default=False, action='store_true', help="Disable CRC check (speedup serialboot)")
     parser.add_argument("--flash",       default=False, action='store_true', help="Flash data with serialboot command")
     return parser.parse_args()
 
 def main():
     args = _get_args()
-    if args.no_crc:
-        print("[LXTERM] --no-crc is deprecated and now does nothing (CRC checking is now fast)")
     term = LiteXTerm(args.serial_boot, args.kernel, args.kernel_adr, args.images, args.flash)
 
     if sys.platform == "win32":
