@@ -212,7 +212,7 @@ int serialboot(void)
 				char *writepointer;
 
 				failed = 0;
-				writepointer = (char *) get_uint32(&frame.payload[0]);
+				writepointer = (char *)(uintptr_t) get_uint32(&frame.payload[0]);
 				for(i=4;i<frame.payload_length;i++)
 					*(writepointer++) = frame.payload[i];
 				if (frame.cmd == SFL_CMD_LOAD)
