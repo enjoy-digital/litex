@@ -5,8 +5,13 @@
 extern "C" {
 #endif
 
+#ifdef __LP64__
+typedef long intptr_t;
+typedef unsigned long uintptr_t;
+#else
 typedef int intptr_t;
 typedef unsigned int uintptr_t;
+#endif
 
 typedef unsigned long long uint64_t;
 typedef unsigned int uint32_t;
