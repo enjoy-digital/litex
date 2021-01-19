@@ -87,8 +87,8 @@ define_command(uptime, uptime_handler, "Uptime of the system since power-up", SY
 static void crc_handler(int nb_params, char **params)
 {
 	char *c;
-	unsigned int addr;
-	unsigned int length;
+	uintptr_t addr;
+	size_t length;
 
 	if (nb_params < 2) {
 		printf("crc <address> <length>");
