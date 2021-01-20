@@ -548,6 +548,8 @@ int sdram_write_leveling(void)
 	int cdly_range_end;
 	int cdly_range_step;
 
+	printf("  Half Sys8x Taps: %d\n", ddrphy_half_sys8x_taps_read());
+
 	if (_sdram_write_leveling_cmd_scan) {
 		/* Center write leveling by varying cdly. Searching through all possible
 		 * values is slow, but we can use a simple optimization method of iterativly
