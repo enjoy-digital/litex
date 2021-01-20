@@ -108,7 +108,11 @@ static int check_ack(void)
 
 	timer0_en_write(0);
 	timer0_reload_write(0);
+#ifndef CONFIG_DISABLE_DELAYS
 	timer0_load_write(CONFIG_CLOCK_FREQUENCY/4);
+#else
+	timer0_load_write(0);
+#endif
 	timer0_en_write(1);
 	timer0_update_value_write(1);
 	recognized = 0;

@@ -37,7 +37,7 @@
 
 __attribute__((unused)) static void cdelay(int i)
 {
-#ifndef CONFIG_SIM_DISABLE_DELAYS
+#ifndef CONFIG_DISABLE_DELAYS
 	while(i > 0) {
 		__asm__ volatile(CONFIG_CPU_NOP);
 		i--;
@@ -348,7 +348,7 @@ static void sdram_write_leveling_rst_delay(int module) {
 	for(i=0; i<ddrphy_half_sys8x_taps_read(); i++) {
 		ddrphy_wdly_dqs_inc_write(1);
 		cdelay(100);
-    }
+	}
 #endif
 
 	/* Un-select module */
