@@ -548,7 +548,7 @@ int sdram_write_leveling(void)
 	int cdly_range_end;
 	int cdly_range_step;
 
-	printf("  Half Sys8x Taps: %d\n", ddrphy_half_sys8x_taps_read());
+	printf("  tCK/4 taps: %d\n", ddrphy_half_sys8x_taps_read());
 
 	if (_sdram_write_leveling_cmd_scan) {
 		/* Center write leveling by varying cdly. Searching through all possible
@@ -899,7 +899,7 @@ static void sdram_write_latency_calibration(void) {
 	for(module=0; module<SDRAM_PHY_MODULES; module++) {
 		/* Scan possible write windows */
 		best_score   = 0;
-		best_bitslip = 0;
+		best_bitslip = -1;
 		for(bitslip=0; bitslip<SDRAM_PHY_BITSLIPS; bitslip+=2) { /* +2 for tCK steps */
 			score = 0;
 			/* Select module */
@@ -929,7 +929,10 @@ static void sdram_write_latency_calibration(void) {
 			bitslip = best_bitslip;
 		else
 			bitslip = _sdram_write_leveling_bitslips[module];
-		printf("m%d:%d ", module, bitslip);
+		if (bitslip == -1)
+			printf("m%d:- ", module, bitslip);
+		else
+			printf("m%d:%d ", module, bitslip);
 
 		/* Select best write window */
 		ddrphy_dly_sel_write(1 << module);
