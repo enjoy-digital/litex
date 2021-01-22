@@ -186,7 +186,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 			case 'p':
 				if (field_width == -1) {
 					field_width = 2*sizeof(void *);
-					flags |= PRINTF_ZEROPAD;
+					flags |= PRINTF_ZEROPAD | PRINTF_SPECIAL;
 				}
 				str = number(str, end,
 						(unsigned long) va_arg(args, void *),

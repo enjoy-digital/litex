@@ -473,7 +473,7 @@ void sdcard_read(uint32_t block, uint32_t count, uint8_t* buf)
 {
 	/* Initialize DMA Writer */
 	sdblock2mem_dma_enable_write(0);
-	sdblock2mem_dma_base_write((uint64_t) buf);
+	sdblock2mem_dma_base_write((uint64_t)(uintptr_t) buf);
 	sdblock2mem_dma_length_write(512*count);
 	sdblock2mem_dma_enable_write(1);
 
@@ -504,7 +504,7 @@ void sdcard_write(uint32_t block, uint32_t count, uint8_t* buf)
 	while (count--) {
 		/* Initialize DMA Reader */
 		sdmem2block_dma_enable_write(0);
-		sdmem2block_dma_base_write((uint64_t) buf);
+		sdmem2block_dma_base_write((uint64_t)(uintptr_t) buf);
 		sdmem2block_dma_length_write(512);
 		sdmem2block_dma_enable_write(1);
 

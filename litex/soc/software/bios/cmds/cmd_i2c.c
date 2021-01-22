@@ -40,7 +40,7 @@ static void i2c_write_handler(int nb_params, char **params)
 	}
 
 	if (nb_params - 1 > sizeof(write_params)) {
-		printf("Max data length is %d", sizeof(write_params));
+		printf("Max data length is %zu", sizeof(write_params));
 		return;
 	}
 
@@ -98,7 +98,7 @@ static void i2c_read_handler(int nb_params, char **params)
 		return;
 	}
 	if (len > sizeof(buf)) {
-		printf("Max data count is %d", sizeof(buf));
+		printf("Max data count is %zu", sizeof(buf));
 		return;
 	}
 

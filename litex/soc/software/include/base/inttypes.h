@@ -24,7 +24,7 @@
 
 #include <stdint.h>
 
-# if __WORDSIZE == 64
+# ifdef __LP64__
 #  define __PRI64_PREFIX        "l"
 #  define __PRIPTR_PREFIX       "l"
 # else

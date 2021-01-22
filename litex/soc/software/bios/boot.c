@@ -50,7 +50,7 @@ extern void boot_helper(unsigned long r1, unsigned long r2, unsigned long r3, un
 
 static void __attribute__((noreturn)) boot(unsigned long r1, unsigned long r2, unsigned long r3, unsigned long addr)
 {
-	printf("Executing booted program at 0x%08x\n\n", addr);
+	printf("Executing booted program at 0x%08lx\n\n", addr);
 	printf("--============= \e[1mLiftoff!\e[0m ===============--\n");
 	uart_sync();
 #ifdef CONFIG_CPU_HAS_INTERRUPT
@@ -216,7 +216,7 @@ int serialboot(void)
 				char *writepointer;
 
 				failed = 0;
-				writepointer = (char *) get_uint32(&frame.payload[0]);
+				writepointer = (char *)(uintptr_t) get_uint32(&frame.payload[0]);
 				for(i=4;i<frame.payload_length;i++)
 					*(writepointer++) = frame.payload[i];
 				if (frame.cmd == SFL_CMD_LOAD)
@@ -277,7 +277,7 @@ static int copy_file_from_tftp_to_ram(unsigned int ip, unsigned short server_por
 const char *filename, char *buffer)
 {
 	int size;
-	printf("Copying %s to 0x%08x... ", filename, buffer);
+	printf("Copying %s to %p... ", filename, buffer);
 	size = tftp_get(ip, server_port, filename, buffer);
 	if(size > 0)
 		printf("(%d bytes)", size);
@@ -432,7 +432,7 @@ static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned lon
 
 	length = check_image_in_flash(flash_address);
 	if(length > 0) {
-		printf("Copying 0x%08x to 0x%08x (%d bytes)...\n", flash_address, ram_address, length);
+		printf("Copying 0x%08x to 0x%08lx (%d bytes)...\n", flash_address, ram_address, length);
 		offset = 0;
 		init_progression_bar(length);
 		while (length > 0) {
@@ -504,7 +504,7 @@ static int copy_file_from_sdcard_to_ram(const char * filename, unsigned long ram
 	}
 
 	length = f_size(&file);
-	printf("Copying %s to 0x%08x (%d bytes)...\n", filename, ram_address, length);
+	printf("Copying %s to 0x%08lx (%d bytes)...\n", filename, ram_address, length);
 	init_progression_bar(length);
 	offset = 0;
 	for (;;) {
@@ -679,7 +679,7 @@ static int copy_file_from_sata_to_ram(const char * filename, unsigned long ram_a
 	}
 
 	length = f_size(&file);
-	printf("Copying %s to 0x%08x (%d bytes)...\n", filename, ram_address, length);
+	printf("Copying %s to 0x%08lx (%d bytes)...\n", filename, ram_address, length);
 	init_progression_bar(length);
 	offset = 0;
 	for (;;) {
