@@ -3,13 +3,14 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2015-2021 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2019 Sean Cross <sean@xobs.io>
 # Copyright (c) 2018 Felix Held <felix-github@felixheld.de>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import argparse
 
+import os
 import sys
 import socket
 import time
@@ -174,6 +175,9 @@ def main():
     parser.add_argument("--uart-port",       default=None,           help="Set UART port")
     parser.add_argument("--uart-baudrate",   default=115200,         help="Set UART baudrate")
 
+    # JTAG-UART arguments
+    parser.add_argument("--jtag-uart",       action="store_true",    help="Select JTAG UART interface")
+
     # UDP arguments
     parser.add_argument("--udp",             action="store_true",    help="Select UDP interface")
     parser.add_argument("--udp-ip",          default="192.168.1.50", help="Set UDP remote IP address")
@@ -202,6 +206,15 @@ def main():
         uart_baudrate = int(float(args.uart_baudrate))
         print("[CommUART] port: {} / baudrate: {} / ".format(uart_port, uart_baudrate), end="")
         comm = CommUART(uart_port, uart_baudrate, debug=args.debug)
+
+    # JTAG UART mode
+    elif args.jtag_uart:
+        from litex.tools.litex_term import JTAGUART
+        from litex.tools.remote.comm_uart import CommUART
+        bridge = JTAGUART()
+        bridge.open()
+        print("[CommUART] port: JTAG-UART / ", end="")
+        comm = CommUART(os.ttyname(bridge.name), debug=args.debug)
 
     # UDP mode
     elif args.udp:
