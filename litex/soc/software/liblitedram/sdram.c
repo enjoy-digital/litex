@@ -930,7 +930,7 @@ static void sdram_write_latency_calibration(void) {
 		else
 			bitslip = _sdram_write_leveling_bitslips[module];
 		if (bitslip == -1)
-			printf("m%d:- ", module, bitslip);
+			printf("m%d:- ", module);
 		else
 			printf("m%d:%d ", module, bitslip);
 
