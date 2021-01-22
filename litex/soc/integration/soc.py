@@ -1163,10 +1163,15 @@ class LiteXSoC(SoC):
     # Add UARTbone ---------------------------------------------------------------------------------
     def add_uartbone(self, name="serial", clk_freq=None, baudrate=115200, cd="sys"):
         from litex.soc.cores import uart
+        if name == "jtag_uart":
+            from litex.soc.cores.jtag import JTAGPHY
+            phy = JTAGPHY(device=self.platform.device)
+        else:
+            phy = uart.UARTPHY(platform.request(name), clk_freq, bandrate)
+        self.submodules += phy
         self.submodules.uartbone = uart.UARTBone(
-            pads     = self.platform.request(name),
+            phy      = phy,
             clk_freq = clk_freq if clk_freq is not None else self.sys_clk_freq,
-            baudrate = baudrate,
             cd       = cd)
         self.bus.add_master(name="uartbone", master=self.uartbone.wishbone)
 
