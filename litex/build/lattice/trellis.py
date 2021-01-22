@@ -26,13 +26,16 @@ def _format_constraint(c):
         return ("IOBUF PORT ", " IO_TYPE=" + c.name)
     elif isinstance(c, Misc):
         return ("IOBUF PORT ", " " + c.misc)
+    elif isinstance(c, Inverted):
+        return (None, None)
 
 
 def _format_lpf(signame, pin, others, resname):
     fmt_c = [_format_constraint(c) for c in ([Pins(pin)] + others)]
     lpf = []
     for pre, suf in fmt_c:
-        lpf.append(pre + "\"" + signame + "\"" + suf + ";")
+        if pre is not None:
+            lpf.append(pre + "\"" + signame + "\"" + suf + ";")
     return "\n".join(lpf)
 
 
