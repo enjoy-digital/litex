@@ -1141,7 +1141,9 @@ class LiteXSoC(SoC):
             import valentyusb.usbcore.cpu.cdc_eptri as cdc_eptri
             usb_pads = self.platform.request("usb")
             usb_iobuf = usbio.IoBuf(usb_pads.d_p, usb_pads.d_n, usb_pads.pullup)
-            self.submodules.uart = cdc_eptri.CDCUsb(usb_iobuf)
+            self.clock_domains.cd_sys_usb = ClockDomain()       # Run USB ACM in sys_usb clock domain similar to
+            self.comb += self.cd_sys_usb.clk.eq(ClockSignal("sys")) # sys clock domain but with rst disconnected.
+            self.submodules.uart = ClockDomainsRenamer("sys_usb")(cdc_eptri.CDCUsb(usb_iobuf))
 
         # Classic UART
         else:
