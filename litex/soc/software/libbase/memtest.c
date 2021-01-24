@@ -202,7 +202,7 @@ int memtest_data(unsigned int *addr, unsigned long size, int random)
 		if(rdata != seed_32) {
 			errors++;
 #ifdef MEMTEST_DATA_DEBUG
-			printf("memtest_data error @%p: 0x%08x vs 0x%08x\n", addr + i, rdata, seed_32);
+			printf("memtest_data error @ %p: 0x%08x vs 0x%08x\n", addr + i, rdata, seed_32);
 #endif
 		}
 		if (i%0x8000 == 0)
@@ -224,7 +224,7 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only)
 	__attribute__((unused)) unsigned long data;
 	const unsigned int sz = sizeof(unsigned long);
 
-	printf("Memspeed at 0x%p (", addr);
+	printf("Memspeed at %p (", addr);
 	print_size(size);
 	printf(")...\n");
 
@@ -279,7 +279,7 @@ int memtest(unsigned int *addr, unsigned long maxsize)
 	unsigned long addr_size = MEMTEST_ADDR_SIZE < maxsize ? MEMTEST_ADDR_SIZE : maxsize;
 	unsigned long data_size = maxsize;
 
-	printf("Memtest at 0x%p (", addr);
+	printf("Memtest at %p (", addr);
 	print_size(data_size);
 	printf(")...\n");
 
