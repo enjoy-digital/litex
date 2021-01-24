@@ -1480,7 +1480,7 @@ class LiteXSoC(SoC):
             sdcard_pads = self.platform.request(name)
 
         # Core
-        self.submodules.sdphy  = SDPHY(sdcard_pads, self.platform.device, self.clk_freq)
+        self.submodules.sdphy  = SDPHY(sdcard_pads, self.platform.device, self.clk_freq, cmd_timeout=10e-1, data_timeout=10e-1)
         self.submodules.sdcore = SDCore(self.sdphy)
         self.csr.add("sdphy", use_loc_if_exists=True)
         self.csr.add("sdcore", use_loc_if_exists=True)
