@@ -273,10 +273,9 @@ class Stream2Wishbone(Module):
         bytes_count_done  = (bytes_count == (data_width//8 - 1))
         words_count_done  = (words_count == (length - 1))
 
-        fsm   = ResetInserter()(FSM(reset_state="RECEIVE-CMD"))
-        timer = WaitTimer(int(100e-3*clk_freq))
+        self.submodules.fsm   = fsm   = ResetInserter()(FSM(reset_state="RECEIVE-CMD"))
+        self.submodules.timer = timer = WaitTimer(int(100e-3*clk_freq))
         self.comb += timer.wait.eq(~fsm.ongoing("RECEIVE-CMD"))
-        self.submodules += fsm, timer
         self.comb += fsm.reset.eq(timer.done)
         fsm.act("RECEIVE-CMD",
             sink.ready.eq(1),
