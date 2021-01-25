@@ -17,7 +17,7 @@ import threading
 import multiprocessing
 import argparse
 import json
-import telnetlib
+import socket
 
 # Console ------------------------------------------------------------------------------------------
 
@@ -132,35 +132,36 @@ class JTAGUART:
 
     def open(self):
         self.file, self.name = pty.openpty()
-        self.jtag2telnet_thread = multiprocessing.Process(target=self.jtag2telnet)
-        self.jtag2telnet_thread.start()
+        self.jtag2tcp_thread = multiprocessing.Process(target=self.jtag2tcp)
+        self.jtag2tcp_thread.start()
         time.sleep(0.5)
-        self.pty2telnet_thread  = multiprocessing.Process(target=self.pty2telnet)
-        self.telnet2pty_thread  = multiprocessing.Process(target=self.telnet2pty)
-        self.telnet = telnetlib.Telnet("localhost", self.port)
-        self.pty2telnet_thread.start()
-        self.telnet2pty_thread.start()
+        self.pty2tcp_thread  = multiprocessing.Process(target=self.pty2tcp)
+        self.tcp2pty_thread  = multiprocessing.Process(target=self.tcp2pty)
+        self.tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.tcp.connect(("localhost", self.port))
+        self.pty2tcp_thread.start()
+        self.tcp2pty_thread.start()
 
     def close(self):
-        self.jtag2telnet_thread.terminate()
-        self.pty2telnet_thread.terminate()
-        self.telnet2pty_thread.terminate()
+        self.jtag2tcp_thread.terminate()
+        self.pty2tcp_thread.terminate()
+        self.tcp2pty_thread.terminate()
 
-    def jtag2telnet(self):
+    def jtag2tcp(self):
         prog = OpenOCD(self.config)
         prog.stream(self.port)
 
-    def pty2telnet(self):
+    def pty2tcp(self):
         while True:
             r = os.read(self.file, 1)
-            self.telnet.write(r)
+            self.tcp.send(r)
             if r == bytes("\n".encode("utf-8")):
-                self.telnet.write("\r".encode("utf-8"))
-            self.telnet.write("\n".encode("utf-8"))
+                self.tcp.send("\r".encode("utf-8"))
+            self.tcp.send("\n".encode("utf-8"))
 
-    def telnet2pty(self):
+    def tcp2pty(self):
         while True:
-            r = self.telnet.read_some()
+            r = self.tcp.recv(1)
             os.write(self.file, bytes(r))
 
 # SFL ----------------------------------------------------------------------------------------------
