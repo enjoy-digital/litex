@@ -123,7 +123,7 @@ class JTAGPHY(Module):
                 jtag = USJTAG()
             else:
                 raise NotImplementedError
-            self.submodules += jtag
+            self.submodules.jtag = jtag
 
         # JTAG clock domain ------------------------------------------------------------------------
         self.clock_domains.cd_jtag = ClockDomain()
@@ -136,7 +136,8 @@ class JTAGPHY(Module):
             tx_cdc = ClockDomainsRenamer({"write": clock_domain, "read": "jtag"})(tx_cdc)
             rx_cdc = stream.AsyncFIFO([("data", data_width)], 4)
             rx_cdc = ClockDomainsRenamer({"write": "jtag", "read": clock_domain})(rx_cdc)
-            self.submodules += tx_cdc, rx_cdc
+            self.submodules.tx_cdc = tx_cdc
+            self.submodules.rx_cdc = rx_cdc
             self.comb += [
                 sink.connect(tx_cdc.sink),
                 rx_cdc.source.connect(source)
