@@ -37,33 +37,33 @@ class VexRiscvSMP(CPU):
     nop                  = "nop"
     io_regions           = {0x80000000: 0x80000000} # origin, length
 
-    cpu_count      = 1
-    dcache_size    = 4096
-    icache_size    = 4096
-    dcache_ways    = 1
-    icache_ways    = 1
-    coherent_dma   = False
-    litedram_width = 32
-    dcache_width   = 32
-    icache_width   = 32
-    aes_instruction = False
+    cpu_count            = 1
+    dcache_size          = 4096
+    icache_size          = 4096
+    dcache_ways          = 1
+    icache_ways          = 1
+    coherent_dma         = False
+    litedram_width       = 32
+    dcache_width         = 32
+    icache_width         = 32
+    aes_instruction      = False
     out_of_order_decoder = True
-    wishbone_memory = False
+    wishbone_memory      = False
 
     @staticmethod
     def args_fill(parser):
-        parser.add_argument("--cpu-count",            default=1,           help="Number of CPU(s) in the cluster.", type=int)
-        parser.add_argument("--with-coherent-dma",    action='store_true', help="Enable Coherent DMA Slave interface.")
-        parser.add_argument("--without-coherent-dma", action='store_true', help="Disable Coherent DMA Slave interface.")
-        parser.add_argument("--dcache-width",         default=None,        help="L1 data cache bus width.")
-        parser.add_argument("--icache-width",         default=None,        help="L1 instruction cache bus width.")
-        parser.add_argument("--dcache-size",          default=None,        help="L1 data cache size in byte per CPU.")
-        parser.add_argument("--dcache-ways",          default=None,        help="L1 data cache ways per CPU.")
-        parser.add_argument("--icache-size",          default=None,        help="L1 instruction cache size in byte per CPU.")
-        parser.add_argument("--icache-ways",          default=None,        help="L1 instruction cache ways per CPU")
-        parser.add_argument("--aes-instruction",      default=None,        help="Enable AES instruction acceleration.")
-        parser.add_argument("--without-out-of-order-decoder", action='store_true',        help="Reduce area at cost of peripheral access speed")
-        parser.add_argument("--with-wishbone-memory"        , action='store_true',       help="Disable native litedram interface")
+        parser.add_argument("--cpu-count",                    default=1,           help="Number of CPU(s) in the cluster.", type=int)
+        parser.add_argument("--with-coherent-dma",            action="store_true", help="Enable Coherent DMA Slave interface.")
+        parser.add_argument("--without-coherent-dma",         action="store_true", help="Disable Coherent DMA Slave interface.")
+        parser.add_argument("--dcache-width",                 default=None,        help="L1 data cache bus width.")
+        parser.add_argument("--icache-width",                 default=None,        help="L1 instruction cache bus width.")
+        parser.add_argument("--dcache-size",                  default=None,        help="L1 data cache size in byte per CPU.")
+        parser.add_argument("--dcache-ways",                  default=None,        help="L1 data cache ways per CPU.")
+        parser.add_argument("--icache-size",                  default=None,        help="L1 instruction cache size in byte per CPU.")
+        parser.add_argument("--icache-ways",                  default=None,        help="L1 instruction cache ways per CPU")
+        parser.add_argument("--aes-instruction",              default=None,        help="Enable AES instruction acceleration.")
+        parser.add_argument("--without-out-of-order-decoder", action="store_true", help="Reduce area at cost of peripheral access speed")
+        parser.add_argument("--with-wishbone-memory"        , action="store_true", help="Disable native LiteDRAM interface")
 
     @staticmethod
     def args_read(args):
@@ -76,17 +76,17 @@ class VexRiscvSMP(CPU):
             VexRiscvSMP.dcache_ways  = 2
             VexRiscvSMP.icache_ways  = 2
             VexRiscvSMP.coherent_dma = True
-        if(args.with_coherent_dma):    VexRiscvSMP.coherent_dma     = bool(True)
-        if(args.without_coherent_dma): VexRiscvSMP.coherent_dma     = bool(False)
-        if(args.dcache_width):         VexRiscvSMP.dcache_width     = int(args.dcache_width)
-        if(args.icache_width):         VexRiscvSMP.icache_width     = int(args.icache_width)
-        if(args.dcache_size):          VexRiscvSMP.dcache_size      = int(args.dcache_size)
-        if(args.icache_size):          VexRiscvSMP.icache_size      = int(args.icache_size)
-        if(args.dcache_ways):          VexRiscvSMP.dcache_ways      = int(args.dcache_ways)
-        if(args.icache_ways):          VexRiscvSMP.icache_ways      = int(args.icache_ways)
-        if(args.aes_instruction):      VexRiscvSMP.aes_instruction  = bool(args.aes_instruction)
+        if(args.with_coherent_dma):            VexRiscvSMP.coherent_dma          = bool(True)
+        if(args.without_coherent_dma):         VexRiscvSMP.coherent_dma          = bool(False)
+        if(args.dcache_width):                 VexRiscvSMP.dcache_width          = int(args.dcache_width)
+        if(args.icache_width):                 VexRiscvSMP.icache_width          = int(args.icache_width)
+        if(args.dcache_size):                  VexRiscvSMP.dcache_size           = int(args.dcache_size)
+        if(args.icache_size):                  VexRiscvSMP.icache_size           = int(args.icache_size)
+        if(args.dcache_ways):                  VexRiscvSMP.dcache_ways           = int(args.dcache_ways)
+        if(args.icache_ways):                  VexRiscvSMP.icache_ways           = int(args.icache_ways)
+        if(args.aes_instruction):              VexRiscvSMP.aes_instruction       = bool(args.aes_instruction)
         if(args.without_out_of_order_decoder): VexRiscvSMP.out_of_order_decoder  = False
-        if(args.with_wishbone_memory): VexRiscvSMP.wishbone_memory  = True
+        if(args.with_wishbone_memory): VexRiscvSMP.wishbone_memory               = True
 
 
     @property
@@ -120,12 +120,11 @@ class VexRiscvSMP(CPU):
         f"Dw{VexRiscvSMP.dcache_width}" \
         f"Ds{VexRiscvSMP.dcache_size}"  \
         f"Dy{VexRiscvSMP.dcache_ways}"  \
-        "_" \
-        f"{ldw if not VexRiscvSMP.wishbone_memory else ''}" \
-        f"{'_Cdma' if VexRiscvSMP.coherent_dma else ''}" \
-        f"{'_Aes' if VexRiscvSMP.aes_instruction else ''}"\
-        f"{'_Ood' if VexRiscvSMP.out_of_order_decoder else ''}"\
-        f"{'_Wm' if VexRiscvSMP.wishbone_memory else ''}"
+        f"{'_'+ldw if not VexRiscvSMP.wishbone_memory  else ''}" \
+        f"{'_Cdma' if VexRiscvSMP.coherent_dma         else ''}" \
+        f"{'_Aes'  if VexRiscvSMP.aes_instruction      else ''}" \
+        f"{'_Ood'  if VexRiscvSMP.out_of_order_decoder else ''}" \
+        f"{'_Wm'   if VexRiscvSMP.wishbone_memory      else ''}"
 
     @staticmethod
     def generate_default_configs():
@@ -205,7 +204,7 @@ class VexRiscvSMP(CPU):
         gen_args.append(f"--wishbone-memory={VexRiscvSMP.wishbone_memory}")
         gen_args.append(f"--netlist-name={VexRiscvSMP.cluster_name}")
         gen_args.append(f"--netlist-directory={vdir}")
-        
+
         cmd = 'cd {path} && sbt "runMain vexriscv.demo.smp.VexRiscvLitexSmpClusterCmdGen {args}"'.format(path=os.path.join(vdir, "ext", "VexRiscv"), args=" ".join(gen_args))
         os.system(cmd)
 
