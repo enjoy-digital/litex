@@ -1115,25 +1115,25 @@ class LiteXSoC(SoC):
         # Model/Sim
         elif name in ["model", "sim"]:
             self.submodules.uart_phy = uart.RS232PHYModel(self.platform.request("serial"))
-            self.submodules.uart = ResetInserter()(uart.UART(self.uart_phy,
+            self.submodules.uart = uart.UART(self.uart_phy,
                 tx_fifo_depth = fifo_depth,
-                rx_fifo_depth = fifo_depth))
+                rx_fifo_depth = fifo_depth)
 
         # JTAG Atlantic
         elif name in ["jtag_atlantic"]:
             from litex.soc.cores.jtag import JTAGAtlantic
             self.submodules.uart_phy = JTAGAtlantic()
-            self.submodules.uart = ResetInserter()(uart.UART(self.uart_phy,
+            self.submodules.uart = uart.UART(self.uart_phy,
                 tx_fifo_depth = fifo_depth,
-                rx_fifo_depth = fifo_depth))
+                rx_fifo_depth = fifo_depth)
 
         # JTAG UART
         elif name in ["jtag_uart"]:
             from litex.soc.cores.jtag import JTAGPHY
             self.submodules.uart_phy = JTAGPHY(device=self.platform.device)
-            self.submodules.uart = ResetInserter()(uart.UART(self.uart_phy,
+            self.submodules.uart = uart.UART(self.uart_phy,
                 tx_fifo_depth = fifo_depth,
-                rx_fifo_depth = fifo_depth))
+                rx_fifo_depth = fifo_depth)
 
         # USB ACM (with ValentyUSB core)
         elif name in ["usb_acm"]:
@@ -1141,7 +1141,7 @@ class LiteXSoC(SoC):
             import valentyusb.usbcore.cpu.cdc_eptri as cdc_eptri
             usb_pads = self.platform.request("usb")
             usb_iobuf = usbio.IoBuf(usb_pads.d_p, usb_pads.d_n, usb_pads.pullup)
-            self.clock_domains.cd_sys_usb = ClockDomain()       # Run USB ACM in sys_usb clock domain similar to
+            self.clock_domains.cd_sys_usb = ClockDomain()           # Run USB ACM in sys_usb clock domain similar to
             self.comb += self.cd_sys_usb.clk.eq(ClockSignal("sys")) # sys clock domain but with rst disconnected.
             self.submodules.uart = ClockDomainsRenamer("sys_usb")(cdc_eptri.CDCUsb(usb_iobuf))
 
@@ -1151,9 +1151,9 @@ class LiteXSoC(SoC):
                 pads     = self.platform.request(name),
                 clk_freq = self.sys_clk_freq,
                 baudrate = baudrate)
-            self.submodules.uart = ResetInserter()(uart.UART(self.uart_phy,
+            self.submodules.uart = uart.UART(self.uart_phy,
                 tx_fifo_depth = fifo_depth,
-                rx_fifo_depth = fifo_depth))
+                rx_fifo_depth = fifo_depth)
 
         self.csr.add("uart_phy", use_loc_if_exists=True)
         self.csr.add("uart", use_loc_if_exists=True)
