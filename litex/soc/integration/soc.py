@@ -1130,7 +1130,9 @@ class LiteXSoC(SoC):
         # JTAG UART
         elif name in ["jtag_uart"]:
             from litex.soc.cores.jtag import JTAGPHY
-            self.submodules.uart_phy = JTAGPHY(device=self.platform.device)
+            self.clock_domains.cd_sys_jtag = ClockDomain()          # Run JTAG-UART in sys_jtag clock domain similar to
+            self.comb += self.cd_sys_jtag.clk.eq(ClockSignal("sys")) # sys clock domain but with rst disconnected.
+            self.submodules.uart_phy = JTAGPHY(device=self.platform.device, clock_domain="sys_jtag")
             self.submodules.uart = uart.UART(self.uart_phy,
                 tx_fifo_depth = fifo_depth,
                 rx_fifo_depth = fifo_depth)

@@ -130,7 +130,7 @@ class JTAGPHY(Module):
         # JTAG clock domain ------------------------------------------------------------------------
         self.clock_domains.cd_jtag = ClockDomain()
         self.comb += ClockSignal("jtag").eq(jtag.tck)
-        self.specials += AsyncResetSynchronizer(self.cd_jtag, ResetSignal("sys"))
+        self.specials += AsyncResetSynchronizer(self.cd_jtag, ResetSignal(clock_domain))
 
         # JTAG clock domain crossing ---------------------------------------------------------------
         if clock_domain != "jtag":
