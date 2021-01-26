@@ -1169,16 +1169,17 @@ class LiteXSoC(SoC):
         from litex.soc.cores import uart
         if clk_freq is None:
             clk_freq = self.sys_clk_freq
-        self.submodules.phy = uart.UARTPHY(self.platform.request(name), clk_freq, baudrate)
-        self.submodules.uartbone = uart.UARTBone(phy=self.phy, clk_freq=clk_freq, cd=cd)
+        self.submodules.uartbone_phy = uart.UARTPHY(self.platform.request(name), clk_freq, baudrate)
+        self.csr.add("uartbone_phy")
+        self.submodules.uartbone = uart.UARTBone(phy=self.uartbone_phy, clk_freq=clk_freq, cd=cd)
         self.bus.add_master(name="uartbone", master=self.uartbone.wishbone)
 
     # Add JTAGbone ---------------------------------------------------------------------------------
     def add_jtagbone(self):
         from litex.soc.cores import uart
         from litex.soc.cores.jtag import JTAGPHY
-        self.submodules.phy = JTAGPHY(device=self.platform.device)
-        self.submodules.jtagbone = uart.UARTBone(phy=self.phy, clk_freq=self.sys_clk_freq)
+        self.submodules.jtagbone_phy = JTAGPHY(device=self.platform.device)
+        self.submodules.jtagbone = uart.UARTBone(phy=self.jtagbone_phy, clk_freq=self.sys_clk_freq)
         self.bus.add_master(name="jtagbone", master=self.jtagbone.wishbone)
 
     # Add SDRAM ------------------------------------------------------------------------------------
