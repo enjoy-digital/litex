@@ -176,7 +176,8 @@ def main():
     parser.add_argument("--uart-baudrate",   default=115200,         help="Set UART baudrate")
 
     # JTAG arguments
-    parser.add_argument("--jtag",            action="store_true",    help="Select JTAG interface")
+    parser.add_argument("--jtag",            action="store_true",             help="Select JTAG interface")
+    parser.add_argument("--jtag-config",     default="openocd_xc7_ft232.cfg", help="OpenOCD JTAG configuration file")
 
     # UDP arguments
     parser.add_argument("--udp",             action="store_true",    help="Select UDP interface")
@@ -211,7 +212,7 @@ def main():
     elif args.jtag:
         from litex.tools.litex_term import JTAGUART
         from litex.tools.remote.comm_uart import CommUART
-        bridge = JTAGUART()
+        bridge = JTAGUART(config=args.jtag_config)
         bridge.open()
         print("[CommUART] port: JTAG / ", end="")
         comm = CommUART(os.ttyname(bridge.name), debug=args.debug)
