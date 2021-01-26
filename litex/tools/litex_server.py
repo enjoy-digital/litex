@@ -175,8 +175,8 @@ def main():
     parser.add_argument("--uart-port",       default=None,           help="Set UART port")
     parser.add_argument("--uart-baudrate",   default=115200,         help="Set UART baudrate")
 
-    # JTAG-UART arguments
-    parser.add_argument("--jtag-uart",       action="store_true",    help="Select JTAG UART interface")
+    # JTAG arguments
+    parser.add_argument("--jtag",            action="store_true",    help="Select JTAG interface")
 
     # UDP arguments
     parser.add_argument("--udp",             action="store_true",    help="Select UDP interface")
@@ -207,13 +207,13 @@ def main():
         print("[CommUART] port: {} / baudrate: {} / ".format(uart_port, uart_baudrate), end="")
         comm = CommUART(uart_port, uart_baudrate, debug=args.debug)
 
-    # JTAG UART mode
-    elif args.jtag_uart:
+    # JTAG mode
+    elif args.jtag:
         from litex.tools.litex_term import JTAGUART
         from litex.tools.remote.comm_uart import CommUART
         bridge = JTAGUART()
         bridge.open()
-        print("[CommUART] port: JTAG-UART / ", end="")
+        print("[CommUART] port: JTAG / ", end="")
         comm = CommUART(os.ttyname(bridge.name), debug=args.debug)
 
     # UDP mode
