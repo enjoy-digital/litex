@@ -939,7 +939,8 @@ class SoC(Module):
         # Connect SoCController's reset to CRG's reset if presents.
         if hasattr(self, "ctrl") and hasattr(self, "crg"):
             if hasattr(self.ctrl, "_reset") and hasattr(self.crg, "rst"):
-                self.comb += self.crg.rst.eq(self.ctrl._reset.re)
+                if isinstance(self.crg.rst, Signal):
+                    self.comb += self.crg.rst.eq(self.ctrl._reset.re)
 
         # SoC CSR bridge ---------------------------------------------------------------------------
         # FIXME: for now, use registered CSR bridge when SDRAM is present; find the best compromise.
