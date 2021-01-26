@@ -1569,7 +1569,7 @@ class LiteXSoC(SoC):
             self.sata_phy.crg.cd_sata_rx.clk)
 
     # Add PCIe -------------------------------------------------------------------------------------
-    def add_pcie(self, name="pcie", phy=None, ndmas=0):
+    def add_pcie(self, name="pcie", phy=None, ndmas=0, max_pending_requests=8):
         assert self.csr.data_width == 32
         assert not hasattr(self, f"{name}_endpoint")
 
@@ -1579,7 +1579,7 @@ class LiteXSoC(SoC):
         from litepcie.frontend.wishbone import LitePCIeWishboneMaster
 
         # Endpoint
-        endpoint = LitePCIeEndpoint(phy, max_pending_requests=8)
+        endpoint = LitePCIeEndpoint(phy, max_pending_requests=max_pending_requests)
         setattr(self.submodules, f"{name}_endpoint", endpoint)
 
         # MMAP
