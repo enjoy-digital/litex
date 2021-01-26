@@ -62,7 +62,7 @@ from litex.tools.remote.csr_builder import CSRBuilder
 # CommUSB ------------------------------------------------------------------------------------------
 
 class CommUSB(CSRBuilder):
-    def __init__(self, vid=None, pid=None, max_retries=10, csr_csr=None, debug=False):
+    def __init__(self, vid=None, pid=None, max_retries=10, csr_csv=None, debug=False):
         CSRBuilder.__init__(self, comm=self, csr_csv=csr_csv)
         self.vid         = vid
         self.pid         = pid
