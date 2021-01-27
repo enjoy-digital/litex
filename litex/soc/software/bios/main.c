@@ -47,6 +47,10 @@
 #include <liblitesdcard/sdcard.h>
 #include <liblitesata/sata.h>
 
+#ifdef VIDEOCHAR_BASE
+#include <videochar.h>
+#endif
+
 static void boot_sequence(void)
 {
 #ifdef CSR_UART_BASE
@@ -86,6 +90,9 @@ int main(int i, char **c)
 #ifdef CONFIG_CPU_HAS_INTERRUPT
 	irq_setmask(0);
 	irq_setie(1);
+#endif
+#ifdef VIDEOCHAR_BASE
+	videochar_init();
 #endif
 #ifdef CSR_UART_BASE
 	uart_init();

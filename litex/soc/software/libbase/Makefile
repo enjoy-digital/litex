@@ -19,7 +19,8 @@ OBJECTS = exception.o \
 	div64.o           \
 	progress.o        \
 	memtest.o         \
-	sim_debug.o
+	sim_debug.o	  \
+	videochar.o
 
 all: crt0.o libbase.a libbase-nofloat.a
 
