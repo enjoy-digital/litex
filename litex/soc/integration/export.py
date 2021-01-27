@@ -64,6 +64,9 @@ def get_cpu_mak(cpu, compile_software):
         r = None
         if not isinstance(triple, tuple):
             triple = (triple,)
+        override = os.getenv( "TRIPLE" )
+        if override:
+            triple = (override,) + triple
         p = get_platform()
         for i in range(len(triple)):
             t = triple[i]
