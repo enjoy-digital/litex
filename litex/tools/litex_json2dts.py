@@ -204,6 +204,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
                 tx-fifo-depth = <{ethmac_tx_slots}>;
                 rx-fifo-depth = <{ethmac_rx_slots}>;
                 {ethmac_interrupt}
+                status = "okay";
             }};
 """.format(
     ethphy_csr_base  = d["csr_bases"]["ethphy"],
