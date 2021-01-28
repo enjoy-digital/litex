@@ -92,6 +92,6 @@ class Timer(Module, AutoCSR, ModuleDoc):
 
         # # #
 
-        uptime_cycles = Signal(width, reset_less=True)
-        self.sync += uptime_cycles.eq(uptime_cycles + 1)
-        self.sync += If(self._uptime_latch.re, self._uptime_cycles.status.eq(uptime_cycles))
+        self.uptime_cycles = Signal(width, reset_less=True)
+        self.sync += self.uptime_cycles.eq(self.uptime_cycles + 1)
+        self.sync += If(self._uptime_latch.re, self._uptime_cycles.status.eq(self.uptime_cycles))
