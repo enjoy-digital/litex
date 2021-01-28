@@ -1346,7 +1346,7 @@ class LiteXSoC(SoC):
                 base_address = self.bus.regions["main_ram"].origin)
 
     # Add Ethernet ---------------------------------------------------------------------------------
-    def add_ethernet(self, name="ethmac", phy=None, phy_cd="eth", software_debug=False):
+    def add_ethernet(self, name="ethmac", phy=None, phy_cd="eth", software_debug=False, timestamp_source=None):
         # Imports
         from liteeth.mac import LiteEthMAC
 
@@ -1356,7 +1356,9 @@ class LiteXSoC(SoC):
             dw                = 32,
             interface         = "wishbone",
             endianness        = self.cpu.endianness,
-            with_preamble_crc = not software_debug)
+            with_preamble_crc = not software_debug,
+            timestamp_source  = timestamp_source,
+        )
         ethmac = ClockDomainsRenamer({
             "eth_tx": phy_cd + "_tx",
             "eth_rx": phy_cd + "_rx"})(ethmac)
