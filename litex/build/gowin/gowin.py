@@ -26,7 +26,8 @@ def _build_cst(named_sc, named_pc):
             flat_sc.append((name, pins[0], other))
 
     for name, pin, other in flat_sc:
-        lines.append(f"IO_LOC \"{name}\" {pin};")
+        if pin != "X":
+            lines.append(f"IO_LOC \"{name}\" {pin};")
 
         for c in other:
             if isinstance(c, IOStandard):
