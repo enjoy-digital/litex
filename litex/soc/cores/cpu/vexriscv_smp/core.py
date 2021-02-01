@@ -206,7 +206,8 @@ class VexRiscvSMP(CPU):
         gen_args.append(f"--netlist-directory={vdir}")
 
         cmd = 'cd {path} && sbt "runMain vexriscv.demo.smp.VexRiscvLitexSmpClusterCmdGen {args}"'.format(path=os.path.join(vdir, "ext", "VexRiscv"), args=" ".join(gen_args))
-        os.system(cmd)
+        if os.system(cmd) != 0:
+            raise OSError('Failed to run sbt')
 
     def __init__(self, platform, variant):
         self.platform         = platform
