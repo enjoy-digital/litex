@@ -102,22 +102,24 @@ static unsigned char sdram_dfii_get_wrphase(void) {
 }
 
 static void sdram_dfii_pix_address_write(unsigned char phase, unsigned int value) {
+#if (SDRAM_PHY_PHASES > 8)
+	#error "More than 8 DFI phases not supported"
+#endif
 	switch (phase) {
+#if (SDRAM_PHY_PHASES > 4)
+	case 7: sdram_dfii_pi7_address_write(value); break;
+	case 6: sdram_dfii_pi6_address_write(value); break;
+	case 5: sdram_dfii_pi5_address_write(value); break;
+	case 4: sdram_dfii_pi4_address_write(value); break;
+#endif
 #if (SDRAM_PHY_PHASES > 2)
-	case 3:
-		sdram_dfii_pi3_address_write(value);
-		break;
-	case 2:
-		sdram_dfii_pi2_address_write(value);
-		break;
+	case 3: sdram_dfii_pi3_address_write(value); break;
+	case 2: sdram_dfii_pi2_address_write(value); break;
 #endif
 #if (SDRAM_PHY_PHASES > 1)
-	case 1:
-		sdram_dfii_pi1_address_write(value);
-		break;
+	case 1: sdram_dfii_pi1_address_write(value); break;
 #endif
-	default:
-		sdram_dfii_pi0_address_write(value);
+	default: sdram_dfii_pi0_address_write(value);
 	}
 }
 
@@ -132,22 +134,24 @@ static void sdram_dfii_piwr_address_write(unsigned int value) {
 }
 
 static void sdram_dfii_pix_baddress_write(unsigned char phase, unsigned int value) {
+#if (SDRAM_PHY_PHASES > 8)
+	#error "More than 8 DFI phases not supported"
+#endif
 	switch (phase) {
+#if (SDRAM_PHY_PHASES > 4)
+	case 7: sdram_dfii_pi7_baddress_write(value); break;
+	case 6: sdram_dfii_pi6_baddress_write(value); break;
+	case 5: sdram_dfii_pi5_baddress_write(value); break;
+	case 4: sdram_dfii_pi4_baddress_write(value); break;
+#endif
 #if (SDRAM_PHY_PHASES > 2)
-	case 3:
-		sdram_dfii_pi3_baddress_write(value);
-		break;
-	case 2:
-		sdram_dfii_pi2_baddress_write(value);
-		break;
+	case 3: sdram_dfii_pi3_baddress_write(value); break;
+	case 2: sdram_dfii_pi2_baddress_write(value); break;
 #endif
 #if (SDRAM_PHY_PHASES > 1)
-	case 1:
-		sdram_dfii_pi1_baddress_write(value);
-		break;
+	case 1: sdram_dfii_pi1_baddress_write(value); break;
 #endif
-	default:
-		sdram_dfii_pi0_baddress_write(value);
+	default: sdram_dfii_pi0_baddress_write(value);
 	}
 }
 
@@ -162,22 +166,24 @@ static void sdram_dfii_piwr_baddress_write(unsigned int value) {
 }
 
 static void command_px(unsigned char phase, unsigned int value) {
+#if (SDRAM_PHY_PHASES > 8)
+	#error "More than 8 DFI phases not supported"
+#endif
 	switch (phase) {
+#if (SDRAM_PHY_PHASES > 4)
+	case 7: command_p7(value); break;
+	case 6: command_p6(value); break;
+	case 5: command_p5(value); break;
+	case 4: command_p4(value); break;
+#endif
 #if (SDRAM_PHY_PHASES > 2)
-	case 3:
-		command_p3(value);
-		break;
-	case 2:
-		command_p2(value);
-		break;
+	case 3: command_p3(value); break;
+	case 2: command_p2(value); break;
 #endif
 #if (SDRAM_PHY_PHASES > 1)
-	case 1:
-		command_p1(value);
-		break;
+	case 1: command_p1(value); break;
 #endif
-	default:
-		command_p0(value);
+	default: command_p0(value);
 	}
 }
 
