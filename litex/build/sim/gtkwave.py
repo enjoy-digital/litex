@@ -96,7 +96,7 @@ class GTKWSave:
         return prefix[:last_underscore + 1]
 
     def group(self,
-            signals: list[Signal],
+            signals: Sequence[Signal],
             group_name: str = None,
             alias: bool = True,
             closed: bool = True,

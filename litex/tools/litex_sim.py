@@ -472,8 +472,6 @@ def main():
         if args.with_analyzer:
             soc.analyzer.export_csv(vns, "analyzer.csv")
         if args.gtkwave_savefile:
-            if sys.version_info[1] < 7:
-                raise OSError("--gtkwave-savefile option only supported for python 3.7+.")
             generate_gtkw_savefile(builder, vns, args.trace_fst)
 
 if __name__ == "__main__":
