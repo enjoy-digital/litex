@@ -8,6 +8,7 @@
 # Copyright (c) 2017 Pierre-Olivier Vauboin <po@lambdaconcept>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import sys
 import argparse
 
 from migen import *
@@ -23,7 +24,6 @@ from litex.soc.integration.builder import *
 from litex.soc.integration.soc import *
 from litex.soc.cores.bitbang import *
 from litex.soc.cores.cpu import CPUS
-from litex.build.sim import gtkwave as gtkw
 
 from litedram import modules as litedram_modules
 from litedram.modules import parse_spd_hexdump
@@ -328,6 +328,7 @@ class SimSoC(SoCCore):
 # Build --------------------------------------------------------------------------------------------
 
 def generate_gtkw_savefile(builder, vns, trace_fst):
+    from litex.build.sim import gtkwave as gtkw
     dumpfile = os.path.join(builder.gateware_dir, "sim.{}".format("fst" if trace_fst else "vcd"))
     savefile = os.path.join(builder.gateware_dir, "sim.gtkw")
     soc = builder.soc
@@ -471,6 +472,8 @@ def main():
         if args.with_analyzer:
             soc.analyzer.export_csv(vns, "analyzer.csv")
         if args.gtkwave_savefile:
+            if sys.version_info[1] < 7:
+                raise OSError("--gtkwave-savefile option only supported for python 3.7+.")
             generate_gtkw_savefile(builder, vns, args.trace_fst)
 
 if __name__ == "__main__":
