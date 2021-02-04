@@ -96,7 +96,7 @@ proc jtagstream_drain {tap tx chunk_rx max_rx} {
 proc jtagstream_rxtx {tap client is_poll} {
     if {![$client eof]} {
         if {!$is_poll} {
-            set tx [$client read -nonewline 1]
+            set tx [$client read 1]
         } else {
             set tx ""
         }

@@ -126,9 +126,10 @@ class CrossoverUART:
 from litex.build.openocd import OpenOCD
 
 class JTAGUART:
-    def __init__(self, config="openocd_xc7_ft2232.cfg", port=20000): # FIXME: add command line arguments
-        self.config = config
-        self.port   = port
+    def __init__(self, config="openocd_xc7_ft2232.cfg", port=20000, binary_mode=False): # FIXME: add command line arguments
+        self.config      = config
+        self.port        = port
+        self.binary_mode = binary_mode
 
     def open(self):
         self.file, self.name = pty.openpty()
@@ -155,9 +156,10 @@ class JTAGUART:
         while True:
             r = os.read(self.file, 1)
             self.tcp.send(r)
-            if r == bytes("\n".encode("utf-8")):
-                self.tcp.send("\r".encode("utf-8"))
-            self.tcp.send("\n".encode("utf-8"))
+            if not self.binary_mode:
+                if r == bytes("\n".encode("utf-8")):
+                    self.tcp.send("\r".encode("utf-8"))
+                self.tcp.send("\n".encode("utf-8"))
 
     def tcp2pty(self):
         while True:
