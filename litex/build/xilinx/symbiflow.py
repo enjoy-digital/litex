@@ -110,20 +110,24 @@ class SymbiflowToolchain:
                     # FIXME: fine for now since only a few devices are supported, do more clever device re-mapping.
                     "xc7a35ticsg324-1L" : "xc7a50t_test",
                     "xc7a100tcsg324-1" : "xc7a100t_test",
+                    "xc7a200t-sbg484-1" : "xc7a200t_test",
                 }[platform.device]
             except KeyError:
                 raise ValueError(f"symbiflow_device is not specified")
         if not self.bitstream_device:
             try:
+                arch = re.match('xc7a[0-9]*t', platform.device).group(0)
                 self.bitstream_device = {
-                    "xc7a": "artix7"
-                }[platform.device[:4]]
+                    "xc7a35t": "artix7",
+                    "xc7a200t": "artix7_200t"
+                }[arch]
             except KeyError:
                 raise ValueError(f"Unsupported device: {platform.device}")
         # FIXME: prjxray-db doesn't have xc7a35ticsg324-1L - use closest replacement
         self._partname = {
             "xc7a35ticsg324-1L" : "xc7a35tcsg324-1",
             "xc7a100tcsg324-1" : "xc7a100tcsg324-1",
+            "xc7a200t-sbg484-1" : "xc7a200tsbg484-1",
         }.get(platform.device, platform.device)
 
     def _generate_makefile(self, platform, build_name):
