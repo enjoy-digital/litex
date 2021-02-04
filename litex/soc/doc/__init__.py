@@ -28,6 +28,7 @@ offline_skin_js_path = "https://wavedrom.com/skins/default.js"
 offline_wavedrom_js_path = "https://wavedrom.com/WaveDrom.js"
 html_theme = 'alabaster'
 html_static_path = ['_static']
+master_doc = 'index'
 """
 
 def generate_svd(soc, buildpath, filename=None, name="soc", **kwargs):
