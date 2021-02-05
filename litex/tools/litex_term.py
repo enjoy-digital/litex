@@ -126,7 +126,7 @@ class CrossoverUART:
 from litex.build.openocd import OpenOCD
 
 class JTAGUART:
-    def __init__(self, config="openocd_xc7_ft2232.cfg", port=20000): # FIXME: add command line arguments
+    def __init__(self, config="openocd_xc7_ft2232.cfg", port=20000):
         self.config = config
         self.port   = port
 
@@ -499,6 +499,7 @@ def _get_args():
     parser.add_argument("--kernel",      default=None,                       help="Kernel image")
     parser.add_argument("--kernel-adr",  default="0x40000000",               help="Kernel address")
     parser.add_argument("--images",      default=None,                       help="JSON description of the images to load to memory")
+    parser.add_argument("--jtag-config", default="openocd_xc7_ft2232.cfg",   help="OpenOCD JTAG configuration file with jtag_uart")
     return parser.parse_args()
 
 def main():
@@ -508,9 +509,10 @@ def main():
     if sys.platform == "win32":
         if args.port in ["crossover", "jtag_uart"]:
             raise NotImplementedError
-    bridge_cls = {"crossover": CrossoverUART, "jtag_uart": JTAGUART}.get(args.port, None)
+    bridge_cls    = {"crossover": CrossoverUART, "jtag_uart": JTAGUART}.get(args.port, None)
+    bridge_kwargs = {"jtag_uart": {"config": args.jtag_config}}.get(args.port, {})
     if bridge_cls is not None:
-        bridge = bridge_cls()
+        bridge = bridge_cls(**bridge_kwargs)
         bridge.open()
         port = os.ttyname(bridge.name)
     else:
