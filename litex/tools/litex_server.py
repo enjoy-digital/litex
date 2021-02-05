@@ -212,7 +212,7 @@ def main():
     elif args.jtag:
         from litex.tools.litex_term import JTAGUART
         from litex.tools.remote.comm_uart import CommUART
-        bridge = JTAGUART(config=args.jtag_config, binary_mode=True)
+        bridge = JTAGUART(config=args.jtag_config)
         bridge.open()
         print("[CommUART] port: JTAG / ", end="")
         comm = CommUART(os.ttyname(bridge.name), debug=args.debug)
