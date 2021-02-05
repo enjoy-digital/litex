@@ -119,6 +119,7 @@ class SymbiflowToolchain:
                 arch = re.match('xc7a[0-9]*t', platform.device).group(0)
                 self.bitstream_device = {
                     "xc7a35t": "artix7",
+                    "xc7a100t": "artix7_100t",
                     "xc7a200t": "artix7_200t"
                 }[arch]
             except KeyError:
