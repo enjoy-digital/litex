@@ -190,7 +190,7 @@ int readline(char *buf, int len)
 	unsigned int eol_num = 0;
 	unsigned int wlen;
 	int insert = 1;
-	char ichar;
+	unsigned char ichar;
 
 #ifndef TERM_NO_COMPLETE
 	char tmp;
