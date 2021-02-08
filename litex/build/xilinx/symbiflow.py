@@ -208,9 +208,22 @@ class SymbiflowToolchain:
         platform.finalize(fragment)
 
         # Symbiflow-specific fixes
+        idelayctrl_num = 0
+        idelaye2_num = 0
+        idelayctrl = None
         for instance in fragment.specials:
+            if hasattr(instance, "name_override"):
+                if "IDELAYCTRL" == instance.name_override:
+                    idelayctrl_num += 1
+                    idelayctrl = instance
+                if "IDELAYE2" == instance.name_override:
+                    idelaye2_num += 1
             if isinstance(instance, Instance):
                 self._fix_instance(instance)
+        if idelayctrl_num == 1 and idelaye2_num == 0:
+            # Drop IDELAYCTRL submodule from target because it won't be used
+            # without IDELAYE2 anyways
+            fragment.specials.remove(idelayctrl)
 
         # Generate timing constraints
         self._build_clock_constraints(platform)
