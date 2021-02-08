@@ -161,6 +161,33 @@ class JTAGUART:
             r = self.tcp.recv(1)
             os.write(self.file, bytes(r))
 
+# Intel/Altera JTAG UART via nios2-terminal
+class Nios2Terminal():
+    def __init__(self):
+        from subprocess import Popen, PIPE
+        p = Popen("nios2-terminal", stdin=PIPE, stdout=PIPE)
+        self.p = p
+
+    def read(self):
+        return self.p.stdout.read(1)
+
+    def in_waiting(self):
+        # unfortunately p.stdout does not provide
+        # information about awaiting input
+        return False
+
+    def write(self, data):
+        if data is not None:
+            self.p.stdin.write(data)
+            try:
+                self.p.stdin.flush()
+            except BrokenPipeError:
+                print("nios2-terminal has terminated, exiting...\n")
+                sys.exit(1)
+
+    def close(self):
+        self.p.terminate()
+
 # SFL ----------------------------------------------------------------------------------------------
 
 sfl_prompt_req = b"F7:    boot from serial\n"
@@ -320,7 +347,7 @@ class LiteXTerm:
     def receive_upload_response(self):
         reply = self.port.read()
         if reply == sfl_ack_success:
-            return
+            return True
         elif reply == sfl_ack_crcerror:
             print("[LXTERM] Upload to device failed due to data corruption (CRC error)")
         else:
@@ -370,10 +397,12 @@ class LiteXTerm:
                 # Inter-frame delay.
                 time.sleep(self.delay)
 
-            # Read response if availables.
+            # Read response if available.
             while self.port.in_waiting:
-                self.receive_upload_response()
-                outstanding -= 1
+                ack = self.receive_upload_response()
+                if ack:
+                    outstanding -= 1
+                    break
 
         # Get remaining responses.
         for _ in range(outstanding):
@@ -418,7 +447,7 @@ class LiteXTerm:
         for filename, base in self.mem_regions.items():
             self.upload(filename, int(base, 16))
         self.boot()
-        print("[LXTERM] Done.");
+        print("[LXTERM] Done.")
 
     def reader(self):
         try:
@@ -493,7 +522,7 @@ class LiteXTerm:
 
 def _get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("port",                                              help="Serial port")
+    parser.add_argument("port",                                              help="Serial port (eg /dev/tty*, crossover, jtag_uart, jtag_atlantic)")
     parser.add_argument("--speed",       default=115200,                     help="Serial baudrate")
     parser.add_argument("--serial-boot", default=False, action='store_true', help="Automatically initiate serial boot")
     parser.add_argument("--kernel",      default=None,                       help="Kernel image")
@@ -511,7 +540,12 @@ def main():
             raise NotImplementedError
     bridge_cls    = {"crossover": CrossoverUART, "jtag_uart": JTAGUART}.get(args.port, None)
     bridge_kwargs = {"jtag_uart": {"config": args.jtag_config}}.get(args.port, {})
-    if bridge_cls is not None:
+    if args.port == "jtag_atlantic":
+        term.port = Nios2Terminal()
+        port = args.port
+        term.payload_length = 128
+        term.delay          = 1e-6
+    elif bridge_cls is not None:
         bridge = bridge_cls(**bridge_kwargs)
         bridge.open()
         port = os.ttyname(bridge.name)
