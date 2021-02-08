@@ -12,9 +12,7 @@ from distutils.dir_util import copy_tree
 
 def main():
     parser = argparse.ArgumentParser(description="LiteX Bare Metal Demo App.")
-    parser.add_argument("--build-path", help="Target's build path (eg ./build/board_name/)." + \
-        "Note: this tool needs to be invoked from the project directory " + \
-        "(the directory containing the build/ subdirectory)", required=True)
+    parser.add_argument("--build-path", help="Target's build path (ex build/board_name)", required=True)
     args = parser.parse_args()
 
     # Create demo directory
@@ -25,7 +23,8 @@ def main():
     copy_tree(src, "demo")
 
     # Compile demo
-    os.system(f"export BUILD_DIR=../{args.build_path} && cd demo && make")
+    build_path = args.build_path if os.path.isabs(args.build_path) else os.path.join("..", args.build_path)
+    os.system(f"export BUILD_DIR={build_path} && cd demo && make")
 
     # Copy demo.bin
     os.system("cp demo/demo.bin ./")
