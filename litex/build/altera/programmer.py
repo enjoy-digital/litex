@@ -11,7 +11,7 @@ from litex.build.generic_programmer import GenericProgrammer
 class USBBlaster(GenericProgrammer):
     needs_bitreverse = False
 
-    def __init__(self, cable_name="USB-Blaster", device_id=1):
+    def __init__(self, cable_name="DE-SoC", device_id=2):
         self.cable_name = cable_name
         self.device_id  = device_id
 
