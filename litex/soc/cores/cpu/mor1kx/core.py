@@ -15,7 +15,8 @@ from litex import get_data_mod
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU
 
-CPU_VARIANTS = ["standard", "standard+fpu", "linux", "linux+fpu"]
+CPU_VARIANTS = ["standard", "standard+fpu", "linux", "linux+fpu",
+                "linux+smp", "linux+smp+fpu"]
 
 
 class MOR1KX(CPU):
@@ -112,6 +113,11 @@ class MOR1KX(CPU):
             p_IBUS_WB_TYPE              = "B3_REGISTERED_FEEDBACK",
             p_DBUS_WB_TYPE              = "B3_REGISTERED_FEEDBACK",
         )
+
+        if "smp" in variant:
+           cpu_args.update(
+               p_OPTION_RF_NUM_SHADOW_GPR = 1,
+           )
 
         if "fpu" in variant:
             cpu_args.update(
