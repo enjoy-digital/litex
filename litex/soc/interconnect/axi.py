@@ -258,10 +258,13 @@ class AXILiteInterface:
 # AXI Stream Definition ----------------------------------------------------------------------------
 
 class AXIStreamInterface(stream.Endpoint):
-    def __init__(self, data_width=32, user_width=0):
+    def __init__(self, data_width=32, keep_width=0, user_width=0):
         self.data_width = data_width
+        self.keep_width = keep_width
         self.user_width = user_width
         payload_layout = [("data", data_width)]
+        if self.keep_width:
+            payload_layout += [("keep", keep_width)]
         param_layout   = []
         if self.user_width:
             param_layout += [("user", user_width)]
@@ -274,6 +277,8 @@ class AXIStreamInterface(stream.Endpoint):
             Subsignal("tready", Pins(1)),
             Subsignal("tdata",  Pins(self.data_width)),
         ]
+        if self.keep_width:
+            subsignals += [Subsignal("tkeep", Pins(self.keep_width))]
         if self.user_width:
             subsignals += [Subsignal("tuser", Pins(self.user_width))]
         ios = [(bus_name , 0) + tuple(subsignals)]
@@ -287,6 +292,8 @@ class AXIStreamInterface(stream.Endpoint):
             r.append(self.ready.eq(pads.tready))
             r.append(pads.tlast.eq(self.last))
             r.append(pads.tdata.eq(self.data))
+            if self.keep_width:
+                r.append(pads.tkeep.eq(self.keep))
             if self.user_width:
                 r.append(pads.tuser.eq(self.user))
         if mode == "slave":
@@ -294,6 +301,8 @@ class AXIStreamInterface(stream.Endpoint):
             r.append(pads.tready.eq(self.ready))
             r.append(self.last.eq(pads.tlast))
             r.append(self.data.eq(pads.tdata))
+            if self.keep_width:
+                r.append(self.keep.eq(pads.tkeep))
             if self.user_width:
                 r.append(self.user.eq(pads.tuser))
         return r
