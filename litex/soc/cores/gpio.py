@@ -12,60 +12,41 @@ from litex.soc.interconnect.csr import *
 
 from litex.soc.interconnect.csr_eventmanager import *
 
-from enum import Enum
-
 # Helpers ------------------------------------------------------------------------------------------
 
 def _to_signal(obj):
     return obj.raw_bits() if isinstance(obj, Record) else obj
-
-class IRQ_Type(Enum):
-    NO_IRQ = 0
-    RISING_EDGE = 1
-    FALLING_EDGE = 2
 
 # GPIO Input ---------------------------------------------------------------------------------------
 
 class GPIOIn(Module, AutoCSR):
     """GPIO Input
 
-    Parameters / Attributes
-    -----------------------
-    pads : Object
-        GPIO Input pads description.
+    Provides a GPIO Input peripheral. An optional IRQ dict can be passed to add rising or falling
+    interrupts to pads.
 
-    irq : list of IRQ_Type (optional)
-        List containing IRQ types for each pad. It can take values supported by IRQ_Type Enum.
-
-        Example use:
-        irq = [IRQ_Type.NO_IRQ, IRQ_Type.NO_IRQ, IRQ_Type.FALLING_EDGE, IRQ_Type.RISING_EDGE] 
-        This adds interrupts on pins 2 (falling edge) and 3 (rising edge).
+    Ex: pads=Signal(8), irqs={}                    : 8-bit Input, No IRQ.
+        pads=Signal(8), irqs={0: "rise", 7: "fall"}: 8-bit Input, rising IRQ on 0, falling IRQ on 1.
     """
-    def __init__(self, pads, irq=None):
+    def __init__(self, pads, irqs={}):
         pads = _to_signal(pads)
+
+        # Inputs
         self._in = CSRStatus(len(pads), description="GPIO Input(s) Status.")
         self.specials += MultiReg(pads, self._in.status)
-        
-        if irq:
-            assert(len(irq) <= len(pads))
+
+        # IRQs
+        if len(irqs):
             self.submodules.ev = EventManager()
-
-            irq_no = []
-            for i, irq_type in enumerate(irq):
-                assert(irq_type, IRQ_Type)
-                name = "pin" + str(i)
-                if irq_type == IRQ_Type.RISING_EDGE:
-                    setattr(self.ev, name, EventSourcePulse())
-                    irq_no.append(i)
-                elif irq_type == IRQ_Type.FALLING_EDGE:
-                    setattr(self.ev, name, EventSourceProcess())
-                    irq_no.append(i)
-                
-            self.ev.finalize()
-
-            sources_u = [v for k, v in xdir(self.ev, True) if isinstance(v, (EventSourcePulse, EventSourceProcess))]
-            for i, source in enumerate(sources_u):
-                self.comb += source.trigger.eq(pads[irq_no[i]])
+            for n, irq_type in irqs.items():
+                assert irq_type in ["fall", "falling", "rise", "rising"]
+                assert len(pads) > n
+                name = f"i{n}"
+                if irq_type in ["rise", "rising"]:
+                    setattr(self.ev, f"i{n}", EventSourcePulse())
+                if irq_type in ["fall", "falling"]:
+                    setattr(self.ev, f"i{n}", EventSourceProcess())
+                self.comb += getattr(self.ev, f"i{n}").trigger.eq(pads[n])
 
 # GPIO Output --------------------------------------------------------------------------------------
 
