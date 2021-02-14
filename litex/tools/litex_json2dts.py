@@ -13,8 +13,6 @@ import argparse
 
 
 def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
-    if d["memories"].get('main_ram') is None:
-        return
 
     kB = 1024
     mB = kB*1024
@@ -38,7 +36,6 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
     default_initrd_start = {
         "mor1kx":               8*mB,
         "vexriscv smp-linux" : 16*mB,
-        "vexriscv_linux" :     16*mB,
     }
     default_initrd_size = 8*mB
 
@@ -50,7 +47,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
 
     dts += """
         chosen {{
-            bootargs = "mem={main_ram_size_mb}M@0x{main_ram_base:x} rootwait console=liteuart0 earlycon=sbi root=/dev/ram0 init=/sbin/init swiotlb=32";
+            bootargs = "mem={main_ram_size_mb}M@0x{main_ram_base:x} rootwait console=liteuart earlycon=sbi root=/dev/ram0 init=/sbin/init swiotlb=32";
             linux,initrd-start = <0x{linux_initrd_start:x}>;
             linux,initrd-end   = <0x{linux_initrd_end:x}>;
         }};
@@ -195,34 +192,6 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
     uart_csr_base  = d["csr_bases"]["uart"],
     uart_interrupt = "" if polling else "interrupts = <{}>;".format(d["constants"]["uart_interrupt"]))
 
-    if "uart1" in d["csr_bases"]:
-        aliases["serial1"] = "liteuart1"
-        dts += """
-            liteuart1: serial@{uart_csr_base:x} {{
-                device_type = "serial";
-                compatible = "litex,liteuart";
-                reg = <0x{uart_csr_base:x} 0x100>;
-                {uart_interrupt}
-                status = "okay";
-            }};
-""".format(
-    uart_csr_base  = d["csr_bases"]["uart1"],
-    uart_interrupt = "" if polling else "interrupts = <{}>;".format(d["constants"]["uart1_interrupt"]))
-
-    if "uart2" in d["csr_bases"]:
-        aliases["serial2"] = "liteuart2"
-        dts += """
-            liteuart2: serial@{uart_csr_base:x} {{
-                device_type = "serial";
-                compatible = "litex,liteuart";
-                reg = <0x{uart_csr_base:x} 0x100>;
-                {uart_interrupt}
-                status = "okay";
-            }};
-""".format(
-    uart_csr_base  = d["csr_bases"]["uart2"],
-    uart_interrupt = "" if polling else "interrupts = <{}>;".format(d["constants"]["uart2_interrupt"]))
-
     # Ethernet -------------------------------------------------------------------------------------
 
     if "ethphy" in d["csr_bases"] and "ethmac" in d["csr_bases"]:
@@ -273,7 +242,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
                 status = "okay";
 
                 litespi,max-bpw = <8>;
-                litespi,sck-frequency = <2000000>;
+                litespi,sck-frequency = <1500000>;
                 litespi,num-cs = <1>;
 
                 #address-cells = <1>;
@@ -283,7 +252,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
                     compatible = "mmc-spi-slot";
                     reg = <0>;
                     voltage-ranges = <3300 3300>;
-                    spi-max-frequency = <2000000>;
+                    spi-max-frequency = <1500000>;
                     status = "okay";
                     }};
             }};
@@ -351,16 +320,16 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
 
     # SPI ------------------------------------------------------------------------------------------
 
-    if "spi0" in d["csr_bases"]:
+    if "spi" in d["csr_bases"]:
         aliases["spi0"] = "litespi0"
         dts += """
-            litespi0: spi@{spi0_csr_base:x} {{
+            litespi0: spi@{spi_csr_base:x} {{
                 compatible = "litex,litespi";
-                reg = <0x{spi0_csr_base:x} 0x100>;
+                reg = <0x{spi_csr_base:x} 0x100>;
                 status = "okay";
 
                 litespi,max-bpw = <8>;
-                litespi,sck-frequency = <2000000>;
+                litespi,sck-frequency = <1000000>;
                 litespi,num-cs = <1>;
 
                 #address-cells = <1>;
@@ -369,35 +338,11 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
                 spidev0: spidev@0 {{
                     compatible = "linux,spidev";
                     reg = <0>;
-                    spi-max-frequency = <2000000>;
+                    spi-max-frequency = <1000000>;
                     status = "okay";
                 }};
             }};
-""".format(spi0_csr_base=d["csr_bases"]["spi0"])
-
-    if "spi1" in d["csr_bases"]:
-        aliases["spi1"] = "litespi1"
-        dts += """
-            litespi1: spi@{spi1_csr_base:x} {{
-                compatible = "litex,litespi";
-                reg = <0x{spi1_csr_base:x} 0x100>;
-                status = "okay";
-
-                litespi,max-bpw = <8>;
-                litespi,sck-frequency = <2000000>;
-                litespi,num-cs = <1>;
-
-                #address-cells = <1>;
-                #size-cells    = <0>;
-
-                spidev1: spidev@0 {{
-                    compatible = "linux,spidev";
-                    reg = <0>;
-                    spi-max-frequency = <2000000>;
-                    status = "okay";
-                }};
-            }};
-""".format(spi1_csr_base=d["csr_bases"]["spi1"])
+""".format(spi_csr_base=d["csr_bases"]["spi"])
 
     # I2C ------------------------------------------------------------------------------------------
 
@@ -409,24 +354,6 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
                 status = "okay";
             }};
 """.format(i2c0_csr_base=d["csr_bases"]["i2c0"])
-
-    if "i2c1" in d["csr_bases"]:
-        dts += """
-            i2c1: i2c@{i2c1_csr_base:x} {{
-                compatible = "litex,i2c";
-                reg = <0x{i2c1_csr_base:x} 0x5>;
-                status = "okay";
-            }};
-""".format(i2c1_csr_base=d["csr_bases"]["i2c1"])
-
-    if "i2c2" in d["csr_bases"]:
-        dts += """
-            i2c2: i2c@{i2c2_csr_base:x} {{
-                compatible = "litex,i2c";
-                reg = <0x{i2c2_csr_base:x} 0x5>;
-                status = "okay";
-            }};
-""".format(i2c2_csr_base=d["csr_bases"]["i2c2"])
 
     # XADC -----------------------------------------------------------------------------------------
 

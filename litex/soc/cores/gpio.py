@@ -10,6 +10,8 @@ from migen.genlib.cdc import MultiReg
 
 from litex.soc.interconnect.csr import *
 
+from litex.soc.interconnect.csr_eventmanager import *
+
 # Helpers ------------------------------------------------------------------------------------------
 
 def _to_signal(obj):
@@ -18,10 +20,33 @@ def _to_signal(obj):
 # GPIO Input ---------------------------------------------------------------------------------------
 
 class GPIOIn(Module, AutoCSR):
-    def __init__(self, pads):
+    """GPIO Input
+
+    Provides a GPIO Input peripheral. An optional IRQ dict can be passed to add rising or falling
+    interrupts to pads.
+
+    Ex: pads=Signal(8), irqs={}                    : 8-bit Input, No IRQ.
+        pads=Signal(8), irqs={0: "rise", 7: "fall"}: 8-bit Input, rising IRQ on 0, falling IRQ on 1.
+    """
+    def __init__(self, pads, irqs={}):
         pads = _to_signal(pads)
+
+        # Inputs
         self._in = CSRStatus(len(pads), description="GPIO Input(s) Status.")
         self.specials += MultiReg(pads, self._in.status)
+
+        # IRQs
+        if len(irqs):
+            self.submodules.ev = EventManager()
+            for n, irq_type in irqs.items():
+                assert irq_type in ["fall", "falling", "rise", "rising"]
+                assert len(pads) > n
+                name = f"i{n}"
+                if irq_type in ["rise", "rising"]:
+                    setattr(self.ev, f"i{n}", EventSourcePulse())
+                if irq_type in ["fall", "falling"]:
+                    setattr(self.ev, f"i{n}", EventSourceProcess())
+                self.comb += getattr(self.ev, f"i{n}").trigger.eq(pads[n])
 
 # GPIO Output --------------------------------------------------------------------------------------
 

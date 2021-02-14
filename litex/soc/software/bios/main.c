@@ -91,6 +91,7 @@ int main(int i, char **c)
 	uart_init();
 #endif
 
+#ifndef CONFIG_SIM_DISABLE_BIOS_PROMPT
 	printf("\n");
 	printf("\e[1m        __   _ __      _  __\e[0m\n");
 	printf("\e[1m       / /  (_) /____ | |/_/\e[0m\n");
@@ -140,6 +141,7 @@ int main(int i, char **c)
 #endif
 #endif
 	printf("\n");
+#endif // CONFIG_SIM_DISABLE_BIOS_PROMPT
 
         sdr_ok = 1;
 
