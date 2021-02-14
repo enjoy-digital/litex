@@ -49,8 +49,8 @@ GCC_FLAGS = {
     #                               imacfd
     "minimal":          "-march=rv32i      -mabi=ilp32",
     "minimal+debug":    "-march=rv32i      -mabi=ilp32",
-    "lite":             "-march=rv32i      -mabi=ilp32",
-    "lite+debug":       "-march=rv32i      -mabi=ilp32",
+    "lite":             "-march=rv32im     -mabi=ilp32",
+    "lite+debug":       "-march=rv32im     -mabi=ilp32",
     "standard":         "-march=rv32im     -mabi=ilp32",
     "standard+debug":   "-march=rv32im     -mabi=ilp32",
     "imac":             "-march=rv32imac   -mabi=ilp32",
