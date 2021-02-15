@@ -370,11 +370,11 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
 
     if "framebuffer" in d["csr_bases"]:
         # FIXME: Use dynamic framebuffer base and size
-        framebuffer_base   = 0xc8000000
+        framebuffer_base   = 0x4f000000
         framebuffer_width  = d["constants"]["litevideo_h_active"]
         framebuffer_height = d["constants"]["litevideo_v_active"]
         dts += """
-            framebuffer0: framebuffer@f0000000 {{
+            framebuffer0: framebuffer@{framebuffer_base:x} {{
                 compatible = "simple-framebuffer";
                 reg = <0x{framebuffer_base:x} 0x{framebuffer_size:x}>;
                 width = <{framebuffer_width}>;
