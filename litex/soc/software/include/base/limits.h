@@ -5,17 +5,21 @@
 extern "C" {
 #endif
 
-#define ULONG_MAX 0xffffffff
+#ifdef __LP64__
+#define ULONG_MAX	18446744073709551615UL
+#else
+#define ULONG_MAX	4294967295UL
+#endif
 
-#define UINT_MAX 0xffffffff
-#define INT_MIN 0x80000000
-#define INT_MAX 0x7fffffff
+#define UINT_MAX	4294967295U
+#define INT_MIN		(-INT_MAX - 1)
+#define INT_MAX		2147483647
 
-#define USHRT_MAX 0xffff
-#define SHRT_MIN 0x8000
-#define SHRT_MAX 0x7fff
+#define USHRT_MAX	65535
+#define SHRT_MIN	(-32768)
+#define SHRT_MAX	32767
 
-#define UCHAR_MAX 0xff
+#define UCHAR_MAX	255
 
 #define CHAR_BIT 8
 

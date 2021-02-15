@@ -72,7 +72,7 @@ struct esc_cmds {
 #define REFRESH_TO_EOL() {			\
 	if (num < eol_num) {			\
 		wlen = eol_num - num;		\
-		putnstr(buf + num, (int)wlen);	\
+		putnstr(buf + num, wlen);	\
 		num = eol_num;			\
 	}					\
 }

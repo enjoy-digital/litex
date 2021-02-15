@@ -151,6 +151,8 @@ if "update" in sys.argv[1:]:
         os.chdir(os.path.join(current_path, name))
         subprocess.check_call("git checkout master", shell=True)
         subprocess.check_call("git pull --ff-only", shell=True)
+        if need_recursive:
+            subprocess.check_call("git submodule update --init --recursive", shell=True)
         if sha1 is not None:
             os.chdir(os.path.join(current_path, name))
             os.system("git checkout {:7x}".format(sha1))

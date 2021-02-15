@@ -8,6 +8,7 @@
 # Copyright (c) 2017 Pierre-Olivier Vauboin <po@lambdaconcept>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import sys
 import argparse
 
 from migen import *
@@ -114,7 +115,7 @@ def get_sdram_phy_settings(memtype, data_width, clk_freq):
     elif memtype in ["DDR2", "DDR3"]:
         # Settings from s7ddrphy
         tck             = 2/(2*nphases*clk_freq)
-        cl, cwl         = get_cl_cw(memtype, tck)
+        cl, cwl         = get_default_cl_cwl(memtype, tck)
         cl_sys_latency  = get_sys_latency(nphases, cl)
         cwl_sys_latency = get_sys_latency(nphases, cwl)
         rdphase         = get_sys_phase(nphases, cl_sys_latency, cl)
@@ -124,7 +125,7 @@ def get_sdram_phy_settings(memtype, data_width, clk_freq):
     elif memtype == "DDR4":
         # Settings from usddrphy
         tck             = 2/(2*nphases*clk_freq)
-        cl, cwl         = get_cl_cw(memtype, tck)
+        cl, cwl         = get_default_cl_cwl(memtype, tck)
         cl_sys_latency  = get_sys_latency(nphases, cl)
         cwl_sys_latency = get_sys_latency(nphases, cwl)
         rdphase         = get_sys_phase(nphases, cl_sys_latency, cl)
@@ -326,6 +327,42 @@ class SimSoC(SoCCore):
 
 # Build --------------------------------------------------------------------------------------------
 
+def generate_gtkw_savefile(builder, vns, trace_fst):
+    from litex.build.sim import gtkwave as gtkw
+    dumpfile = os.path.join(builder.gateware_dir, "sim.{}".format("fst" if trace_fst else "vcd"))
+    savefile = os.path.join(builder.gateware_dir, "sim.gtkw")
+    soc = builder.soc
+
+    with gtkw.GTKWSave(vns, savefile=savefile, dumpfile=dumpfile) as save:
+        save.clocks()
+        save.fsm_states(soc)
+        save.add(soc.bus.slaves["main_ram"], mappers=[gtkw.wishbone_sorter(), gtkw.wishbone_colorer()])
+
+        if hasattr(soc, 'sdrphy'):
+            # all dfi signals
+            save.add(soc.sdrphy.dfi, mappers=[gtkw.dfi_sorter(), gtkw.dfi_in_phase_colorer()])
+
+            # each phase in separate group
+            with save.gtkw.group("dfi phaseX", closed=True):
+                for i, phase in enumerate(soc.sdrphy.dfi.phases):
+                    save.add(phase, group_name="dfi p{}".format(i), mappers=[
+                        gtkw.dfi_sorter(phases=False),
+                        gtkw.dfi_in_phase_colorer(),
+                    ])
+
+            # only dfi command/data signals
+            def dfi_group(name, suffixes):
+                save.add(soc.sdrphy.dfi, group_name=name, mappers=[
+                    gtkw.regex_filter(gtkw.suffixes2re(suffixes)),
+                    gtkw.dfi_sorter(),
+                    gtkw.dfi_per_phase_colorer(),
+                ])
+
+            dfi_group("dfi commands", ["cas_n", "ras_n", "we_n"])
+            dfi_group("dfi commands", ["wrdata"])
+            dfi_group("dfi commands", ["wrdata_mask"])
+            dfi_group("dfi commands", ["rddata"])
+
 def sim_args(parser):
     builder_args(parser)
     soc_sdram_args(parser)
@@ -351,6 +388,7 @@ def sim_args(parser):
     parser.add_argument("--trace-end",            default="-1",            help="Time to end tracing (ps)")
     parser.add_argument("--opt-level",            default="O3",            help="Compilation optimization level")
     parser.add_argument("--sim-debug",            action="store_true",     help="Add simulation debugging modules")
+    parser.add_argument("--gtkwave-savefile",     action="store_true",     help="Generate GTKWave savefile")
 
 def main():
     parser = argparse.ArgumentParser(description="Generic LiteX SoC Simulation")
@@ -433,6 +471,8 @@ def main():
         )
         if args.with_analyzer:
             soc.analyzer.export_csv(vns, "analyzer.csv")
+        if args.gtkwave_savefile:
+            generate_gtkw_savefile(builder, vns, args.trace_fst)
 
 if __name__ == "__main__":
     main()

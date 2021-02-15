@@ -65,7 +65,7 @@ static inline unsigned long lfsr(unsigned long bits, unsigned long prev)
                0x20000029,
                0x48000000,
                0x80200003,
-#if __WORDSIZE == 64
+#ifdef __LP64__
                0x100080000,
                0x204000003,
                0x500000000,

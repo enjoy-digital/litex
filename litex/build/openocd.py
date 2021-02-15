@@ -42,7 +42,7 @@ class OpenOCD(GenericProgrammer):
 
     def stream(self, port=20000):
         """
-        Create a Telnet server to stream data to/from the internal JTAG TAP of the FPGA
+        Create a TCP server to stream data to/from the internal JTAG TAP of the FPGA
 
         Wire format: 10 bits LSB first
         Host to Target:
@@ -64,6 +64,7 @@ proc jtagstream_poll {tap tx n} {
     foreach txj [split $tx ""] {
         lset txi $i 1 [format 0x%4.4X [expr 0x201 | ([scan $txj %c] << 1)]]
         incr i
+        #echo tx[scan $txj %c]
     }
     set txi [concat {*}$txi]
     set rxi [split [drscan $tap {*}$txi -endstate DRPAUSE] " "]
@@ -95,12 +96,13 @@ proc jtagstream_drain {tap tx chunk_rx max_rx} {
 proc jtagstream_rxtx {tap client is_poll} {
     if {![$client eof]} {
         if {!$is_poll} {
-            set tx [$client gets]
+            set tx [$client read 1]
         } else {
             set tx ""
         }
         set rx [jtagstream_drain $tap $tx 64 4096]
         if {[string length $rx]} {
+            #echo [string length $rx]
             $client puts -nonewline $rx
         }
         if {$is_poll} {

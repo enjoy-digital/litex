@@ -14,6 +14,8 @@ The common components of a SoC are provided directly: Buses and Streams (Wishbon
 Think of Migen as a toolbox to create FPGA designs in Python and LiteX as a
 SoC builder to create/develop/debug FPGA SoCs in Python.
 
+**Want to get started and/or looking for documentation? Make sure to visit the [Wiki](https://github.com/enjoy-digital/litex/wiki)!**
+
 **A question or want to get in touch? Our IRC channel is [#litex at freenode.net](https://webchat.freenode.net/?channels=litex)**
 
 # Typical LiteX design flow:

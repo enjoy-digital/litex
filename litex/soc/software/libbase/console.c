@@ -75,10 +75,7 @@ int readchar_nonblock(void)
 
 int puts(const char *s)
 {
-	while(*s) {
-		putchar(*s);
-		s++;
-	}
+	putsnonl(s);
 	putchar('\n');
 	return 1;
 }

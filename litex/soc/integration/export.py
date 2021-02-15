@@ -64,6 +64,9 @@ def get_cpu_mak(cpu, compile_software):
         r = None
         if not isinstance(triple, tuple):
             triple = (triple,)
+        override = os.getenv("LITEX_ENV_CC_TRIPLE")
+        if override:
+            triple = (override,) + triple
         p = get_platform()
         for i in range(len(triple)):
             t = triple[i]
@@ -238,7 +241,7 @@ def get_csr_header(regions, constants, csr_base=None, with_access_functions=True
                         size = str(field.size)
                         r += "#define CSR_"+name.upper()+"_"+csr.name.upper()+"_"+field.name.upper()+"_OFFSET "+offset+"\n"
                         r += "#define CSR_"+name.upper()+"_"+csr.name.upper()+"_"+field.name.upper()+"_SIZE "+size+"\n"
-                        if with_access_functions:
+                        if with_access_functions and csr.size <= 32: # FIXME: Implement extract/read functions for csr.size > 32-bit.
                             reg_name = name + "_" + csr.name.lower()
                             field_name = reg_name + "_" + field.name.lower()
                             r += "static inline uint32_t " + field_name + "_extract(uint32_t oldword) {\n"

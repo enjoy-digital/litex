@@ -17,24 +17,47 @@ import threading
 import multiprocessing
 import argparse
 import json
-import pty
-import telnetlib
+import socket
 
 # Console ------------------------------------------------------------------------------------------
 
 if sys.platform == "win32":
+    import ctypes
     import msvcrt
     class Console:
         def configure(self):
-            pass
+            # https://stackoverflow.com/a/36760881
+            # ENABLE_VIRTUAL_TERMINAL_PROCESSING
+            kernel32 = ctypes.windll.kernel32
+            kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
 
         def unconfigure(self):
             pass
 
         def getkey(self):
             return msvcrt.getch()
+
+        # getch doesn't return Virtual Keycodes, but rather
+        # PS/2 Scan Codes. Keycodes starting with 0xE0 are
+        # worth handling.
+        def escape_char(self, b):
+            return b == b"\xe0"
+
+        def handle_escape(self, b):
+            return {
+                b"H" : b"\x1b[A",  # Up
+                b"P" : b"\x1b[B",  # Down
+                b"K" : b"\x1b[D",  # Left
+                b"M" : b"\x1b[C",  # Right
+                b"G" : b"\x1b[H",  # Home
+                b"O" : b"\x1b[F",  # End
+                b"R" : b"\x1b[2~", # Insert
+                b"S" : b"\x1b[3~", # Delete
+            }.get(b, None) # TODO: Handle ESC? Others?
+
 else:
     import termios
+    import pty
     class Console:
         def __init__(self):
             self.fd = sys.stdin.fileno()
@@ -52,6 +75,12 @@ else:
 
         def getkey(self):
             return os.read(self.fd, 1)
+
+        def escape_char(self, b):
+            return False
+
+        def handle_escape(self, b):
+            return None
 
 # Crossover UART  ----------------------------------------------------------------------------------
 
@@ -97,42 +126,67 @@ class CrossoverUART:
 from litex.build.openocd import OpenOCD
 
 class JTAGUART:
-    def __init__(self, config="openocd_xc7_ft2232.cfg", port=20000): # FIXME: add command line arguments
+    def __init__(self, config="openocd_xc7_ft2232.cfg", port=20000):
         self.config = config
         self.port   = port
 
     def open(self):
         self.file, self.name = pty.openpty()
-        self.jtag2telnet_thread = multiprocessing.Process(target=self.jtag2telnet)
-        self.jtag2telnet_thread.start()
+        self.jtag2tcp_thread = multiprocessing.Process(target=self.jtag2tcp)
+        self.jtag2tcp_thread.start()
         time.sleep(0.5)
-        self.pty2telnet_thread  = multiprocessing.Process(target=self.pty2telnet)
-        self.telnet2pty_thread  = multiprocessing.Process(target=self.telnet2pty)
-        self.telnet = telnetlib.Telnet("localhost", self.port)
-        self.pty2telnet_thread.start()
-        self.telnet2pty_thread.start()
+        self.pty2tcp_thread  = multiprocessing.Process(target=self.pty2tcp)
+        self.tcp2pty_thread  = multiprocessing.Process(target=self.tcp2pty)
+        self.tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.tcp.connect(("localhost", self.port))
+        self.pty2tcp_thread.start()
+        self.tcp2pty_thread.start()
 
     def close(self):
-        self.jtag2telnet_thread.terminate()
-        self.pty2telnet_thread.terminate()
-        self.telnet2pty_thread.terminate()
+        self.jtag2tcp_thread.terminate()
+        self.pty2tcp_thread.terminate()
+        self.tcp2pty_thread.terminate()
 
-    def jtag2telnet(self):
+    def jtag2tcp(self):
         prog = OpenOCD(self.config)
         prog.stream(self.port)
 
-    def pty2telnet(self):
+    def pty2tcp(self):
         while True:
             r = os.read(self.file, 1)
-            self.telnet.write(r)
-            if r == bytes("\n".encode("utf-8")):
-                self.telnet.write("\r".encode("utf-8"))
-            self.telnet.write("\n".encode("utf-8"))
+            self.tcp.send(r)
 
-    def telnet2pty(self):
+    def tcp2pty(self):
         while True:
-            r = self.telnet.read_some()
+            r = self.tcp.recv(1)
             os.write(self.file, bytes(r))
+
+# Intel/Altera JTAG UART via nios2-terminal
+class Nios2Terminal():
+    def __init__(self):
+        from subprocess import Popen, PIPE
+        p = Popen("nios2-terminal", stdin=PIPE, stdout=PIPE)
+        self.p = p
+
+    def read(self):
+        return self.p.stdout.read(1)
+
+    def in_waiting(self):
+        # unfortunately p.stdout does not provide
+        # information about awaiting input
+        return False
+
+    def write(self, data):
+        if data is not None:
+            self.p.stdin.write(data)
+            try:
+                self.p.stdin.flush()
+            except BrokenPipeError:
+                print("nios2-terminal has terminated, exiting...\n")
+                sys.exit(1)
+
+    def close(self):
+        self.p.terminate()
 
 # SFL ----------------------------------------------------------------------------------------------
 
@@ -149,8 +203,6 @@ sfl_outstanding    = 128
 sfl_cmd_abort       = b"\x00"
 sfl_cmd_load        = b"\x01"
 sfl_cmd_jump        = b"\x02"
-sfl_cmd_flash       = b"\x04"
-sfl_cmd_reboot      = b"\x05"
 
 # Replies
 sfl_ack_success  = b"K"
@@ -221,7 +273,7 @@ def crc16(l):
 # LiteXTerm ----------------------------------------------------------------------------------------
 
 class LiteXTerm:
-    def __init__(self, serial_boot, kernel_image, kernel_address, json_images, flash):
+    def __init__(self, serial_boot, kernel_image, kernel_address, json_images):
         self.serial_boot = serial_boot
         assert not (kernel_image is not None and json_images is not None)
         self.mem_regions = {}
@@ -235,7 +287,6 @@ class LiteXTerm:
                 self.mem_regions[os.path.join(json_dir, k)] = v
             self.boot_address = self.mem_regions[list(self.mem_regions.keys())[-1]]
             f.close()
-        self.flash = flash
 
         self.reader_alive = False
         self.writer_alive = False
@@ -296,7 +347,7 @@ class LiteXTerm:
     def receive_upload_response(self):
         reply = self.port.read()
         if reply == sfl_ack_success:
-            return
+            return True
         elif reply == sfl_ack_crcerror:
             print("[LXTERM] Upload to device failed due to data corruption (CRC error)")
         else:
@@ -309,8 +360,7 @@ class LiteXTerm:
         length = f.tell()
         f.seek(0, 0)
 
-        action = "Flashing" if self.flash else "Uploading"
-        print(f"[LXTERM] {action} {filename} to 0x{address:08x} ({length} bytes)...")
+        print(f"[LXTERM] Uploading {filename} to 0x{address:08x} ({length} bytes)...")
 
         # Prepare parameters
         current_address = address
@@ -329,12 +379,9 @@ class LiteXTerm:
             # Send frame if max outstanding not reached.
             if outstanding <= sfl_outstanding:
                 # Prepare frame.
-                frame = SFLFrame()
+                frame      = SFLFrame()
+                frame.cmd  = sfl_cmd_load
                 frame_data = f.read(min(remaining, self.payload_length-4))
-                if self.flash:
-                    frame.cmd = sfl_cmd_flash
-                else:
-                    frame.cmd = sfl_cmd_load
                 frame.payload = current_address.to_bytes(4, "big")
                 frame.payload += frame_data
 
@@ -350,10 +397,12 @@ class LiteXTerm:
                 # Inter-frame delay.
                 time.sleep(self.delay)
 
-            # Read response if availables.
+            # Read response if available.
             while self.port.in_waiting:
-                self.receive_upload_response()
-                outstanding -= 1
+                ack = self.receive_upload_response()
+                if ack:
+                    outstanding -= 1
+                    break
 
         # Get remaining responses.
         for _ in range(outstanding):
@@ -371,12 +420,6 @@ class LiteXTerm:
         frame = SFLFrame()
         frame.cmd = sfl_cmd_jump
         frame.payload = int(self.boot_address, 16).to_bytes(4, "big")
-        self.send_frame(frame)
-
-    def reboot(self):
-        print("[LXTERM] Rebooting the device.")
-        frame = SFLFrame()
-        frame.cmd = sfl_cmd_reboot
         self.send_frame(frame)
 
     def detect_prompt(self, data):
@@ -403,12 +446,8 @@ class LiteXTerm:
             self.port.write(sfl_magic_ack)
         for filename, base in self.mem_regions.items():
             self.upload(filename, int(base, 16))
-        if self.flash:
-            # clear mem_regions to avoid re-flashing on next reboot(s)
-            self.mem_regions = {}
-        else:
-            self.boot()
-        print("[LXTERM] Done.");
+        self.boot()
+        print("[LXTERM] Done.")
 
     def reader(self):
         try:
@@ -445,6 +484,10 @@ class LiteXTerm:
                     self.stop()
                 elif b == b"\n":
                     self.port.write(b"\x0a")
+                elif self.console.escape_char(b):
+                    b = self.console.getkey()
+                    ansi_seq = self.console.handle_escape(b)
+                    self.port.write(ansi_seq)
                 else:
                     self.port.write(b)
         except:
@@ -479,25 +522,31 @@ class LiteXTerm:
 
 def _get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("port",                                              help="Serial port")
-    parser.add_argument("--speed",       default=115200,                     help="Aerial baudrate")
+    parser.add_argument("port",                                              help="Serial port (eg /dev/tty*, crossover, jtag_uart, jtag_atlantic)")
+    parser.add_argument("--speed",       default=115200,                     help="Serial baudrate")
     parser.add_argument("--serial-boot", default=False, action='store_true', help="Automatically initiate serial boot")
     parser.add_argument("--kernel",      default=None,                       help="Kernel image")
-    parser.add_argument("--kernel-adr",  default="0x40000000",               help="Kernel address (or flash offset with --flash)")
+    parser.add_argument("--kernel-adr",  default="0x40000000",               help="Kernel address")
     parser.add_argument("--images",      default=None,                       help="JSON description of the images to load to memory")
-    parser.add_argument("--no-crc",      default=False, action='store_true', help="Disable CRC check (speedup serialboot)")
-    parser.add_argument("--flash",       default=False, action='store_true', help="Flash data with serialboot command")
+    parser.add_argument("--jtag-config", default="openocd_xc7_ft2232.cfg",   help="OpenOCD JTAG configuration file with jtag_uart")
     return parser.parse_args()
 
 def main():
     args = _get_args()
-    if args.no_crc:
-        print("[LXTERM] --no-crc is deprecated and now does nothing (CRC checking is now fast)")
-    term = LiteXTerm(args.serial_boot, args.kernel, args.kernel_adr, args.images, args.flash)
+    term = LiteXTerm(args.serial_boot, args.kernel, args.kernel_adr, args.images)
 
-    bridge_cls = {"crossover": CrossoverUART, "jtag_uart": JTAGUART}.get(args.port, None)
-    if bridge_cls is not None:
-        bridge = bridge_cls()
+    if sys.platform == "win32":
+        if args.port in ["crossover", "jtag_uart"]:
+            raise NotImplementedError
+    bridge_cls    = {"crossover": CrossoverUART, "jtag_uart": JTAGUART}.get(args.port, None)
+    bridge_kwargs = {"jtag_uart": {"config": args.jtag_config}}.get(args.port, {})
+    if args.port == "jtag_atlantic":
+        term.port = Nios2Terminal()
+        port = args.port
+        term.payload_length = 128
+        term.delay          = 1e-6
+    elif bridge_cls is not None:
+        bridge = bridge_cls(**bridge_kwargs)
         bridge.open()
         port = os.ttyname(bridge.name)
     else:

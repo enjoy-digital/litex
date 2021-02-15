@@ -273,10 +273,9 @@ class Stream2Wishbone(Module):
         bytes_count_done  = (bytes_count == (data_width//8 - 1))
         words_count_done  = (words_count == (length - 1))
 
-        fsm   = ResetInserter()(FSM(reset_state="RECEIVE-CMD"))
-        timer = WaitTimer(int(100e-3*clk_freq))
+        self.submodules.fsm   = fsm   = ResetInserter()(FSM(reset_state="RECEIVE-CMD"))
+        self.submodules.timer = timer = WaitTimer(int(100e-3*clk_freq))
         self.comb += timer.wait.eq(~fsm.ongoing("RECEIVE-CMD"))
-        self.submodules += fsm, timer
         self.comb += fsm.reset.eq(timer.done)
         fsm.act("RECEIVE-CMD",
             sink.ready.eq(1),
@@ -378,12 +377,12 @@ class Stream2Wishbone(Module):
 
 
 class UARTBone(Stream2Wishbone):
-    def __init__(self, pads, clk_freq, baudrate=115200, cd="sys"):
+    def __init__(self, phy, clk_freq, cd="sys"):
         if cd == "sys":
-            self.submodules.phy = RS232PHY(pads, clk_freq, baudrate)
+            self.submodules.phy = phy
             Stream2Wishbone.__init__(self, self.phy, clk_freq=clk_freq)
         else:
-            self.submodules.phy = ClockDomainsRenamer(cd)(RS232PHY(pads, clk_freq, baudrate))
+            self.submodules.phy = ClockDomainsRenamer(cd)(phy)
             self.submodules.tx_cdc = stream.ClockDomainCrossing([("data", 8)], cd_from="sys", cd_to=cd)
             self.submodules.rx_cdc = stream.ClockDomainCrossing([("data", 8)], cd_from=cd,    cd_to="sys")
             self.comb += self.phy.source.connect(self.rx_cdc.sink)
@@ -392,7 +391,10 @@ class UARTBone(Stream2Wishbone):
             self.comb += self.rx_cdc.source.connect(self.sink)
             self.comb += self.source.connect(self.tx_cdc.sink)
 
-class UARTWishboneBridge(UARTBone): pass
+class UARTWishboneBridge(UARTBone):
+    def __init__(self, pads, clk_freq, baudrate=115200, cd="sys"):
+        self.submodules.phy = RS232PHY(pads, clk_freq, baudrate)
+        UARTBone.__init__(self, self.phy, clk_freq, cd)
 
 # UART Multiplexer ---------------------------------------------------------------------------------
 

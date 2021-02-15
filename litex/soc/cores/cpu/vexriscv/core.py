@@ -49,8 +49,8 @@ GCC_FLAGS = {
     #                               imacfd
     "minimal":          "-march=rv32i      -mabi=ilp32",
     "minimal+debug":    "-march=rv32i      -mabi=ilp32",
-    "lite":             "-march=rv32i      -mabi=ilp32",
-    "lite+debug":       "-march=rv32i      -mabi=ilp32",
+    "lite":             "-march=rv32im     -mabi=ilp32",
+    "lite+debug":       "-march=rv32im     -mabi=ilp32",
     "standard":         "-march=rv32im     -mabi=ilp32",
     "standard+debug":   "-march=rv32im     -mabi=ilp32",
     "imac":             "-march=rv32imac   -mabi=ilp32",
@@ -264,6 +264,11 @@ class VexRiscv(CPU, AutoCSR):
         cpu_filename = CPU_VARIANTS[variant] + ".v"
         vdir = get_data_mod("cpu", "vexriscv").data_location
         platform.add_source(os.path.join(vdir, cpu_filename))
+
+    def add_soc_components(self, soc, soc_region_cls):
+        if "debug" in self.variant:
+            soc.bus.add_slave("vexriscv_debug", self.debug_bus, region=soc_region_cls(origin=0xf00f0000, size=0x100, cached=False))
+
 
     def use_external_variant(self, variant_filename):
         self.external_variant = True

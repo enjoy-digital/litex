@@ -15,8 +15,13 @@ class OpenFPGALoader(GenericProgrammer):
     def __init__(self, board):
         self.board = board
 
-    def load_bitstream(self, bitstream_file, flash=False):
+    def load_bitstream(self, bitstream_file):
         cmd = ["openFPGALoader", "--board", self.board, "--bitstream", bitstream_file]
-        if flash:
-            cmd.append("--write-flash")
+        self.call(cmd)
+
+    def flash(self, address, data_file):
+        cmd = ["openFPGALoader", "--board", self.board, "--write-flash", "--bitstream", data_file]
+        if address:
+            cmd.append("--offset")
+            cmd.append(address)
         self.call(cmd)

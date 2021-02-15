@@ -939,7 +939,8 @@ class SoC(Module):
         # Connect SoCController's reset to CRG's reset if presents.
         if hasattr(self, "ctrl") and hasattr(self, "crg"):
             if hasattr(self.ctrl, "_reset") and hasattr(self.crg, "rst"):
-                self.comb += self.crg.rst.eq(self.ctrl._reset.re)
+                if isinstance(self.crg.rst, Signal):
+                    self.comb += self.crg.rst.eq(self.ctrl._reset.re)
 
         # SoC CSR bridge ---------------------------------------------------------------------------
         # FIXME: for now, use registered CSR bridge when SDRAM is present; find the best compromise.
@@ -1115,25 +1116,27 @@ class LiteXSoC(SoC):
         # Model/Sim
         elif name in ["model", "sim"]:
             self.submodules.uart_phy = uart.RS232PHYModel(self.platform.request("serial"))
-            self.submodules.uart = ResetInserter()(uart.UART(self.uart_phy,
+            self.submodules.uart = uart.UART(self.uart_phy,
                 tx_fifo_depth = fifo_depth,
-                rx_fifo_depth = fifo_depth))
+                rx_fifo_depth = fifo_depth)
 
         # JTAG Atlantic
         elif name in ["jtag_atlantic"]:
             from litex.soc.cores.jtag import JTAGAtlantic
             self.submodules.uart_phy = JTAGAtlantic()
-            self.submodules.uart = ResetInserter()(uart.UART(self.uart_phy,
+            self.submodules.uart = uart.UART(self.uart_phy,
                 tx_fifo_depth = fifo_depth,
-                rx_fifo_depth = fifo_depth))
+                rx_fifo_depth = fifo_depth)
 
         # JTAG UART
         elif name in ["jtag_uart"]:
             from litex.soc.cores.jtag import JTAGPHY
-            self.submodules.uart_phy = JTAGPHY(device=self.platform.device)
-            self.submodules.uart = ResetInserter()(uart.UART(self.uart_phy,
+            self.clock_domains.cd_sys_jtag = ClockDomain()          # Run JTAG-UART in sys_jtag clock domain similar to
+            self.comb += self.cd_sys_jtag.clk.eq(ClockSignal("sys")) # sys clock domain but with rst disconnected.
+            self.submodules.uart_phy = JTAGPHY(device=self.platform.device, clock_domain="sys_jtag")
+            self.submodules.uart = uart.UART(self.uart_phy,
                 tx_fifo_depth = fifo_depth,
-                rx_fifo_depth = fifo_depth))
+                rx_fifo_depth = fifo_depth)
 
         # USB ACM (with ValentyUSB core)
         elif name in ["usb_acm"]:
@@ -1141,7 +1144,9 @@ class LiteXSoC(SoC):
             import valentyusb.usbcore.cpu.cdc_eptri as cdc_eptri
             usb_pads = self.platform.request("usb")
             usb_iobuf = usbio.IoBuf(usb_pads.d_p, usb_pads.d_n, usb_pads.pullup)
-            self.submodules.uart = cdc_eptri.CDCUsb(usb_iobuf)
+            self.clock_domains.cd_sys_usb = ClockDomain()           # Run USB ACM in sys_usb clock domain similar to
+            self.comb += self.cd_sys_usb.clk.eq(ClockSignal("sys")) # sys clock domain but with rst disconnected.
+            self.submodules.uart = ClockDomainsRenamer("sys_usb")(cdc_eptri.CDCUsb(usb_iobuf))
 
         # Classic UART
         else:
@@ -1149,9 +1154,9 @@ class LiteXSoC(SoC):
                 pads     = self.platform.request(name),
                 clk_freq = self.sys_clk_freq,
                 baudrate = baudrate)
-            self.submodules.uart = ResetInserter()(uart.UART(self.uart_phy,
+            self.submodules.uart = uart.UART(self.uart_phy,
                 tx_fifo_depth = fifo_depth,
-                rx_fifo_depth = fifo_depth))
+                rx_fifo_depth = fifo_depth)
 
         self.csr.add("uart_phy", use_loc_if_exists=True)
         self.csr.add("uart", use_loc_if_exists=True)
@@ -1163,12 +1168,20 @@ class LiteXSoC(SoC):
     # Add UARTbone ---------------------------------------------------------------------------------
     def add_uartbone(self, name="serial", clk_freq=None, baudrate=115200, cd="sys"):
         from litex.soc.cores import uart
-        self.submodules.uartbone = uart.UARTBone(
-            pads     = self.platform.request(name),
-            clk_freq = clk_freq if clk_freq is not None else self.sys_clk_freq,
-            baudrate = baudrate,
-            cd       = cd)
+        if clk_freq is None:
+            clk_freq = self.sys_clk_freq
+        self.submodules.uartbone_phy = uart.UARTPHY(self.platform.request(name), clk_freq, baudrate)
+        self.csr.add("uartbone_phy")
+        self.submodules.uartbone = uart.UARTBone(phy=self.uartbone_phy, clk_freq=clk_freq, cd=cd)
         self.bus.add_master(name="uartbone", master=self.uartbone.wishbone)
+
+    # Add JTAGbone ---------------------------------------------------------------------------------
+    def add_jtagbone(self):
+        from litex.soc.cores import uart
+        from litex.soc.cores.jtag import JTAGPHY
+        self.submodules.jtagbone_phy = JTAGPHY(device=self.platform.device)
+        self.submodules.jtagbone = uart.UARTBone(phy=self.jtagbone_phy, clk_freq=self.sys_clk_freq)
+        self.bus.add_master(name="jtagbone", master=self.jtagbone.wishbone)
 
     # Add SDRAM ------------------------------------------------------------------------------------
     def add_sdram(self, name, phy, module, origin, size=None, with_bist=False, with_soc_interconnect=True,
@@ -1467,7 +1480,7 @@ class LiteXSoC(SoC):
             sdcard_pads = self.platform.request(name)
 
         # Core
-        self.submodules.sdphy  = SDPHY(sdcard_pads, self.platform.device, self.clk_freq)
+        self.submodules.sdphy  = SDPHY(sdcard_pads, self.platform.device, self.clk_freq, cmd_timeout=10e-1, data_timeout=10e-1)
         self.submodules.sdcore = SDCore(self.sdphy)
         self.csr.add("sdphy", use_loc_if_exists=True)
         self.csr.add("sdcore", use_loc_if_exists=True)
@@ -1561,7 +1574,7 @@ class LiteXSoC(SoC):
             self.sata_phy.crg.cd_sata_rx.clk)
 
     # Add PCIe -------------------------------------------------------------------------------------
-    def add_pcie(self, name="pcie", phy=None, ndmas=0):
+    def add_pcie(self, name="pcie", phy=None, ndmas=0, max_pending_requests=8):
         assert self.csr.data_width == 32
         assert not hasattr(self, f"{name}_endpoint")
 
@@ -1571,7 +1584,7 @@ class LiteXSoC(SoC):
         from litepcie.frontend.wishbone import LitePCIeWishboneMaster
 
         # Endpoint
-        endpoint = LitePCIeEndpoint(phy, max_pending_requests=8)
+        endpoint = LitePCIeEndpoint(phy, max_pending_requests=max_pending_requests)
         setattr(self.submodules, f"{name}_endpoint", endpoint)
 
         # MMAP

@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
+from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.soc.cores.clock.common import *
 

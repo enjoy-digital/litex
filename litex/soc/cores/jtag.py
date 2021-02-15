@@ -22,20 +22,23 @@ class JTAGAtlantic(Module):
 
         self.specials += Instance("alt_jtag_atlantic",
             # Parameters
-            p_LOG2_RXFIFO_DEPTH="5", # FIXME: expose?
-            p_LOG2_TXFIFO_DEPTH="5", # FIXME: expose?
-            p_SLD_AUTO_INSTANCE_INDEX="YES",
+            p_LOG2_RXFIFO_DEPTH       = "5", # FIXME: expose?
+            p_LOG2_TXFIFO_DEPTH       = "5", # FIXME: expose?
+            p_SLD_AUTO_INSTANCE_INDEX = "YES",
+
             # Clk/Rst
-            i_clk=ClockSignal("sys"),
-            i_rst_n=~ResetSignal("sys"),
+            i_clk   = ClockSignal("sys"),
+            i_rst_n = ~ResetSignal("sys"),
+
             # TX
-            i_r_dat=sink.data,
-            i_r_val=sink.valid,
-            o_r_ena=sink.ready,
+            i_r_dat = sink.data,
+            i_r_val = sink.valid,
+            o_r_ena = sink.ready,
+
             # RX
-            o_t_dat=source.data,
-            i_t_dav=source.ready,
-            o_t_ena=source.valid,
+            o_t_dat = source.data,
+            i_t_dav = source.ready,
+            o_t_ena = source.valid,
         )
 
 # Xilinx JTAG --------------------------------------------------------------------------------------
@@ -54,20 +57,19 @@ class XilinxJTAG(Module):
 
         # # #
 
-        self.specials += \
-            Instance(primitive,
-                p_JTAG_CHAIN=chain,
+        self.specials += Instance(primitive,
+            p_JTAG_CHAIN = chain,
 
-                o_RESET=self.reset,
-                o_CAPTURE=self.capture,
-                o_SHIFT=self.shift,
-                o_UPDATE=self.update,
+            o_RESET   = self.reset,
+            o_CAPTURE = self.capture,
+            o_SHIFT   = self.shift,
+            o_UPDATE  = self.update,
 
-                o_TCK=self.tck,
-                o_TMS=self.tms,
-                o_TDI=self.tdi,
-                i_TDO=self.tdo,
-            )
+            o_TCK = self.tck,
+            o_TMS = self.tms,
+            o_TDI = self.tdi,
+            i_TDO = self.tdo,
+        )
 
 class S6JTAG(XilinxJTAG):
     def __init__(self, *args, **kwargs):
@@ -123,12 +125,12 @@ class JTAGPHY(Module):
                 jtag = USJTAG()
             else:
                 raise NotImplementedError
-            self.submodules += jtag
+            self.submodules.jtag = jtag
 
         # JTAG clock domain ------------------------------------------------------------------------
         self.clock_domains.cd_jtag = ClockDomain()
         self.comb += ClockSignal("jtag").eq(jtag.tck)
-        self.specials += AsyncResetSynchronizer(self.cd_jtag, ResetSignal("sys"))
+        self.specials += AsyncResetSynchronizer(self.cd_jtag, ResetSignal(clock_domain))
 
         # JTAG clock domain crossing ---------------------------------------------------------------
         if clock_domain != "jtag":
@@ -136,7 +138,8 @@ class JTAGPHY(Module):
             tx_cdc = ClockDomainsRenamer({"write": clock_domain, "read": "jtag"})(tx_cdc)
             rx_cdc = stream.AsyncFIFO([("data", data_width)], 4)
             rx_cdc = ClockDomainsRenamer({"write": "jtag", "read": clock_domain})(rx_cdc)
-            self.submodules += tx_cdc, rx_cdc
+            self.submodules.tx_cdc = tx_cdc
+            self.submodules.rx_cdc = rx_cdc
             self.comb += [
                 sink.connect(tx_cdc.sink),
                 rx_cdc.source.connect(source)

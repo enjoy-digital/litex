@@ -76,9 +76,9 @@ static void gdb_stub(unsigned long pc, unsigned long sr,
 
 			case 'g': {
 				snprintf(buf, sizeof(buf),
-				         "%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x"
-				         "%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x"
-				         "%08x%08x%08x",
+				         "%08x%08lx%08lx%08lx%08lx%08lx%08lx%08lx%08lx%08lx%08lx%08lx%08lx%08lx%08lx%08lx"
+				         "%08lx%08lx%08lx%08lx%08lx%08lx%08lx%08lx%08lx%08lx%08lx%08lx%08lx%08lx%08lx%08lx"
+				         "%08lx%08lx%08lx",
 				         0,        r1,       regs[2],  regs[3],  regs[4],  regs[5],  regs[6],  regs[7],
 				         regs[8],  regs[9],  regs[10], regs[11], regs[12], regs[13], regs[14], regs[15],
 				         regs[16], regs[17], regs[18], regs[19], regs[20], regs[21], regs[22], regs[23],
@@ -120,7 +120,7 @@ static void gdb_stub(unsigned long pc, unsigned long sr,
 					snprintf(buf, sizeof(buf), "E01");
 					break;
 				}
-				snprintf(buf, sizeof(buf), "%08x", value);
+				snprintf(buf, sizeof(buf), "%08lx", value);
 				break;
 			}
 
@@ -156,7 +156,6 @@ static void gdb_stub(unsigned long pc, unsigned long sr,
 			}
 
 			default:
-				snprintf(buf, sizeof(buf), "");
 				break;
 		}
 

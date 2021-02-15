@@ -396,8 +396,7 @@ class GenericPlatform:
         # resolve signal names in constraints
         sc = self.constraint_manager.get_sig_constraints()
         named_sc = [(vns.get_name(sig), pins, others, resource)
-                    for sig, pins, others, resource in sc
-                        if not re.match(r"^X+$", ''.join(pins))]
+                    for sig, pins, others, resource in sc]
         # resolve signal names in platform commands
         pc = self.constraint_manager.get_platform_commands()
         named_pc = []
