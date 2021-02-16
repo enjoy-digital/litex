@@ -132,10 +132,13 @@ class RS232PHYTX(Module):
 
 
 class RS232PHY(Module, AutoCSR):
-    def __init__(self, pads, clk_freq, baudrate=115200):
-        self._tuning_word  = CSRStorage(32, reset=int((baudrate/clk_freq)*2**32))
-        self.submodules.tx = RS232PHYTX(pads, self._tuning_word.storage)
-        self.submodules.rx = RS232PHYRX(pads, self._tuning_word.storage)
+    def __init__(self, pads, clk_freq, baudrate=115200, with_dynamic_baudrate=False):
+        tuning_word = int((baudrate/clk_freq)*2**32)
+        if with_dynamic_baudrate:
+            self._tuning_word  = CSRStorage(32, reset=tuning_word)
+            tuning_word = self._tuning_word.storage
+        self.submodules.tx = RS232PHYTX(pads, tuning_word)
+        self.submodules.rx = RS232PHYRX(pads, tuning_word)
         self.sink, self.source = self.tx.sink, self.rx.source
 
 
