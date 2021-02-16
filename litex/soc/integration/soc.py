@@ -1333,7 +1333,7 @@ class LiteXSoC(SoC):
                 base_address = self.bus.regions["main_ram"].origin)
 
     # Add Ethernet ---------------------------------------------------------------------------------
-    def add_ethernet(self, name="ethmac", phy=None, phy_cd="eth", software_debug=False):
+    def add_ethernet(self, name="ethmac", phy=None, phy_cd="eth", dynamic_ip=False, software_debug=False):
         # Imports
         from liteeth.mac import LiteEthMAC
 
@@ -1367,6 +1367,9 @@ class LiteXSoC(SoC):
             self.crg.cd_sys.clk,
             eth_rx_clk,
             eth_tx_clk)
+
+        if dynamic_ip:
+            self.add_constant("ETH_DYNAMIC_IP")
 
         # Software Debug
         if software_debug:
