@@ -340,10 +340,6 @@ void sdram_write_leveling_force_bitslip(int module, int bitslip, int show) {
 }
 
 static void sdram_write_leveling_rst_delay(int module) {
-#ifdef SDRAM_PHY_WRITE_LEVELING_REINIT
-	int i;
-#endif
-
 	/* Select module */
 	ddrphy_dly_sel_write(1 << module);
 
@@ -351,12 +347,6 @@ static void sdram_write_leveling_rst_delay(int module) {
 	ddrphy_wdly_dq_rst_write(1);
 	ddrphy_wdly_dqs_rst_write(1);
 	cdelay(100);
-#ifdef SDRAM_PHY_WRITE_LEVELING_REINIT
-	for(i=0; i<ddrphy_half_sys8x_taps_read(); i++) {
-		ddrphy_wdly_dqs_inc_write(1);
-		cdelay(100);
-	}
-#endif
 
 	/* Un-select module */
 	ddrphy_dly_sel_write(0);
