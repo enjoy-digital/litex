@@ -503,4 +503,3 @@ class GenericBank(Module):
                 c.finalize(busword, ordering)
                 self.simple_csrs += c.get_simple_csrs()
                 self.submodules  += c
-        self.decode_bits = bits_for(len(self.simple_csrs)-1)
