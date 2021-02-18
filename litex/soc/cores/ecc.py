@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2018-2021 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 """
@@ -26,7 +26,6 @@ def compute_m_n(k):
     n = m + k
     return m, n
 
-
 def compute_syndrome_positions(m):
     r = []
     i = 1
@@ -35,7 +34,6 @@ def compute_syndrome_positions(m):
         i = i << 1
     return r
 
-
 def compute_data_positions(m):
     r = []
     e = compute_syndrome_positions(m)
@@ -43,7 +41,6 @@ def compute_data_positions(m):
         if not i in e:
             r.append(i)
     return r
-
 
 def compute_cover_positions(m, p):
     r = []
@@ -54,7 +51,7 @@ def compute_cover_positions(m, p):
         i += 2*p
     return r
 
-# SECDED (Single Error Detection, Double Error Detection) ------------------------------------------
+# SECDED (Single Error Correction, Double Error Detection) -----------------------------------------
 
 class SECDED:
     def place_data(self, data, codeword):
@@ -98,21 +95,21 @@ class ECCEncoder(SECDED, Module):
 
         # # #
 
-        syndrome = Signal(m)
-        parity = Signal()
-        codeword_d = Signal(n)
+        syndrome     = Signal(m)
+        parity       = Signal()
+        codeword_d   = Signal(n)
         codeword_d_p = Signal(n)
-        codeword = Signal(n + 1)
+        codeword     = Signal(n + 1)
 
-        # place data bits in codeword
+        # Place data bits in codeword.
         self.place_data(i, codeword_d)
-        # compute and place syndrome bits
+        # Compute and place syndrome bits.
         self.compute_syndrome(codeword_d, syndrome)
         self.comb += codeword_d_p.eq(codeword_d)
         self.place_syndrome(syndrome, codeword_d_p)
-        # compute parity
+        # Compute parity.
         self.compute_parity(codeword_d_p, parity)
-        # output codeword + parity
+        # Output codeword + parity.
         self.comb += o.eq(Cat(parity, codeword_d_p))
 
 # ECC Decoder --------------------------------------------------------------------------------------
@@ -122,39 +119,39 @@ class ECCDecoder(SECDED, Module):
         m, n = compute_m_n(k)
 
         self.enable = Signal()
-        self.i = i = Signal(n + 1)
-        self.o = o = Signal(k)
+        self.i = i  = Signal(n + 1)
+        self.o = o  = Signal(k)
 
         self.sec = sec = Signal()
         self.ded = ded = Signal()
 
         # # #
 
-        syndrome = Signal(m)
-        parity = Signal()
-        codeword = Signal(n)
+        syndrome   = Signal(m)
+        parity     = Signal()
+        codeword   = Signal(n)
         codeword_c = Signal(n)
 
-        # input codeword + parity
+        # Input codeword + parity.
         self.compute_parity(i, parity)
         self.comb += codeword.eq(i[1:])
-        # compute_syndrome
+        # Compute_syndrome
         self.compute_syndrome(codeword, syndrome)
         self.comb += If(~self.enable, syndrome.eq(0))
-        # locate/correct codeword error bit if any and flip it
+        # Locate/correct codeword error bit if any and flip it.
         cases = {}
         cases["default"] = codeword_c.eq(codeword)
         for i in range(1, 2**len(syndrome)):
             cases[i] = codeword_c.eq(codeword ^ (1<<(i-1)))
         self.comb += Case(syndrome, cases)
-        # extract data / status
+        # Extract data / status.
         self.extract_data(codeword_c, o)
         self.comb += [
             If(syndrome != 0,
-                 # double error detected
+                # Double error detected.
                 If(~parity,
                     ded.eq(1)
-                # single error corrected
+                # Single error corrected.
                 ).Else(
                     sec.eq(1)
                 )
