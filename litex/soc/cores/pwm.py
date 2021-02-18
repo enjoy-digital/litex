@@ -19,12 +19,15 @@ class PWM(Module, AutoCSR):
     Pulse Width Modulation can be useful for various purposes: dim leds, regulate a fan, control
     an oscillator. Software can configure the PWM width and period and enable/disable it.
     """
-    def __init__(self, pwm=None, clock_domain="sys", with_csr=True):
+    def __init__(self, pwm=None, clock_domain="sys", with_csr=True,
+        default_enable = 0,
+        default_width  = 0,
+        default_period = 0):
         if pwm is None:
             self.pwm = pwm = Signal()
-        self.enable = Signal()
-        self.width  = Signal(32)
-        self.period = Signal(32)
+        self.enable = Signal(reset=default_enable)
+        self.width  = Signal(32, reset=default_width)
+        self.period = Signal(32, reset=default_period)
 
         # # #
 
@@ -53,12 +56,15 @@ class PWM(Module, AutoCSR):
 
     def add_csr(self, clock_domain):
         self._enable = CSRStorage(description="""PWM Enable.\n
-            Write ``1`` to enable PWM.""")
+            Write ``1`` to enable PWM.""",
+            reset = self.enable.reset)
         self._width  = CSRStorage(32, reset_less=True, description="""PWM Width.\n
             Defines the *Duty cycle* of the PWM. PWM is active high for *Width* ``{cd}_clk`` cycles and
-            active low for *Period - Width* ``{cd}_clk`` cycles.""".format(cd=clock_domain))
+            active low for *Period - Width* ``{cd}_clk`` cycles.""".format(cd=clock_domain),
+            reset = self.width.reset)
         self._period = CSRStorage(32, reset_less=True, description="""PWM Period.\n
-            Defines the *Period* of the PWM in ``{cd}_clk`` cycles.""".format(cd=clock_domain))
+            Defines the *Period* of the PWM in ``{cd}_clk`` cycles.""".format(cd=clock_domain),
+            reset = self.period.reset)
 
         n = 0 if clock_domain == "sys" else 2
         self.specials += [
