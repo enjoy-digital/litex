@@ -444,7 +444,7 @@ class UARTCrossover(UART):
     def __init__(self, **kwargs):
         assert kwargs.get("phy", None) == None
         UART.__init__(self, **kwargs)
-        self.submodules.xover = UART(tx_fifo_depth=1, rx_fifo_depth=1, rx_fifo_rx_we=True)
+        self.submodules.xover = UART(tx_fifo_depth=1, rx_fifo_depth=16, rx_fifo_rx_we=True)
         self.comb += [
             self.source.connect(self.xover.sink),
             self.xover.source.connect(self.sink)
