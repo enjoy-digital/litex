@@ -13,7 +13,7 @@ from litex.tools.remote.csr_builder import CSRBuilder
 # CommPCIe -----------------------------------------------------------------------------------------
 
 class CommPCIe(CSRBuilder):
-    def __init__(self, bar, csr_csr=None, debug=False):
+    def __init__(self, bar, csr_csv=None, debug=False):
         CSRBuilder.__init__(self, comm=self, csr_csv=csr_csv)
         if "/sys/bus/pci/devices" not in bar:
             bar = f"/sys/bus/pci/devices/0000:{bar}/resource0"
