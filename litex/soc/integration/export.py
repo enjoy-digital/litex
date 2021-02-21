@@ -463,8 +463,9 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
             svd.append('            </interrupt>')
         svd.append('        </peripheral>')
     svd.append('    </peripherals>')
+    svd.append('    <vendorExtensions>')
+
     if len(soc.mem_regions) > 0:
-        svd.append('    <vendorExtensions>')
         svd.append('        <memoryRegions>')
         for region_name, region in soc.mem_regions.items():
             svd.append('            <memoryRegion>')
@@ -473,7 +474,13 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
             svd.append('                <size>0x{:08X}</size>'.format(region.size))
             svd.append('            </memoryRegion>')
         svd.append('        </memoryRegions>')
-        svd.append('    </vendorExtensions>')
+
+    svd.append('        <constants>')
+    for name, value in soc.constants.items():
+        svd.append('            <constant name="{}" value="{}" />'.format(name, value))
+    svd.append('        </constants>')
+
+    svd.append('    </vendorExtensions>')
     svd.append('</device>')
     return "\n".join(svd)
 
