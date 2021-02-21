@@ -1,9 +1,18 @@
 # BlackParrot in LiteX
 
+> **Note:** Tested on Ubuntu 18.04
+
+> **Note:** Since both BlackParrot and Litex are under active development, newer updates on LiteX or BP can cause some compatibility issues. If the most recent BP and LiteX do not work, please use the following link that includes necessary instructions to run BP on Linux with compatible commits.
+
+```
+https://github.com/black-parrot/litex/tree/working_linux
+
+```
 
 ## Prerequisites and Installing
 
 Please visit https://github.com/scanakci/linux-on-litex-blackparrot for the detailed setup instructions and linux boot-up process.
+
 
 ## Set necessary environment variables for BlackParrot
 
