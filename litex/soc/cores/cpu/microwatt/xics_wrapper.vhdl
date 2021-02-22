@@ -108,7 +108,7 @@ architecture rtl of xics_ics_wrapper is
     signal wishbone_out : wb_io_slave_out;
 
     signal icp_out      : ics_to_icp_t;
-    signal int_level_uw : std_ulogic_vector(255 downto 0);
+    signal int_level_uw : std_ulogic_vector(15 downto 0);
 
 begin
     -- wishbone mapping
@@ -146,27 +146,11 @@ begin
         int_level_uw(13) <= int_level_in(13);
         int_level_uw(14) <= int_level_in(14);
         int_level_uw(15) <= int_level_in(15);
-        int_level_uw(16) <= int_level_in(16);
-        int_level_uw(17) <= int_level_in(17);
-        int_level_uw(18) <= int_level_in(18);
-        int_level_uw(19) <= int_level_in(19);
-        int_level_uw(20) <= int_level_in(20);
-        int_level_uw(21) <= int_level_in(21);
-        int_level_uw(22) <= int_level_in(22);
-        int_level_uw(23) <= int_level_in(23);
-        int_level_uw(24) <= int_level_in(24);
-        int_level_uw(25) <= int_level_in(25);
-        int_level_uw(26) <= int_level_in(26);
-        int_level_uw(27) <= int_level_in(27);
-        int_level_uw(28) <= int_level_in(28);
-        int_level_uw(29) <= int_level_in(29);
-        int_level_uw(30) <= int_level_in(30);
-        int_level_uw(31) <= int_level_in(31);
     end process;
 
     xics_ics : entity work.xics_ics
         generic map (
-            SRC_NUM           => 256
+            SRC_NUM           => 16
         )
         port map (
             clk               => clk,
