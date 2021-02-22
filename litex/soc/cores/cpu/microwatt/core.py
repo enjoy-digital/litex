@@ -117,17 +117,18 @@ class Microwatt(CPU):
         assert reset_address == 0x00000000
 
     def add_soc_components(self, soc, soc_region_cls):
-        self.submodules.xics = XICSSlave(
-            platform     = self.platform,
-            variant      = self.variant,
-            core_irq_out = self.core_ext_irq,
-            int_level_in = self.interrupt,
-            endianness   = self.endianness
-        )
-        xicsicp_region = soc_region_cls(origin=soc.mem_map.get("xicsicp"), size=4096, cached=False)
-        xicsics_region = soc_region_cls(origin=soc.mem_map.get("xicsics"), size=4096, cached=False)
-        soc.bus.add_slave(name="xicsicp", slave=self.xics.icp_bus, region=xicsicp_region)
-        soc.bus.add_slave(name="xicsics", slave=self.xics.ics_bus, region=xicsics_region)
+        if "irq" in self.variant:
+            self.submodules.xics = XICSSlave(
+                platform     = self.platform,
+                variant      = self.variant,
+                core_irq_out = self.core_ext_irq,
+                int_level_in = self.interrupt,
+                endianness   = self.endianness
+            )
+            xicsicp_region = soc_region_cls(origin=soc.mem_map.get("xicsicp"), size=4096, cached=False)
+            xicsics_region = soc_region_cls(origin=soc.mem_map.get("xicsics"), size=4096, cached=False)
+            soc.bus.add_slave(name="xicsicp", slave=self.xics.icp_bus, region=xicsicp_region)
+            soc.bus.add_slave(name="xicsics", slave=self.xics.ics_bus, region=xicsics_region)
 
     @staticmethod
     def add_sources(platform, use_ghdl_yosys_plugin=False):
