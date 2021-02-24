@@ -10,6 +10,58 @@
 #include "../boot.h"
 
 /**
+ * Command "boot"
+ *
+ * Boot software from system memory
+ *
+ */
+
+static void boot_handler(int nb_params, char **params)
+{
+	char *c;
+	unsigned long addr;
+	unsigned long r1;
+	unsigned long r2;
+	unsigned long r3;
+
+	if (nb_params < 1) {
+		printf("boot <address> [r1] [r2] [r3]");
+		return;
+	}
+	addr = strtoul(params[0], &c, 0);
+	if (*c != 0) {
+		printf("Incorrect address");
+		return;
+	}
+	r1 = 0;
+	if (nb_params > 1) {
+		r1 = strtoul(params[1], &c, 0);
+		if (*c != 0) {
+			printf("Incorrect r1");
+			return;
+		}
+	}
+	r2 = 0;
+	if (nb_params > 2) {
+		r2 = strtoul(params[2], &c, 0);
+		if (*c != 0) {
+			printf("Incorrect r2");
+			return;
+		}
+	}
+	r3 = 0;
+	if (nb_params > 3) {
+		r2 = strtoul(params[3], &c, 0);
+		if (*c != 0) {
+			printf("Incorrect r3");
+			return;
+		}
+	}
+	boot(r1, r2, r3, addr);
+}
+define_command(boot, boot_handler, "Boot from Memory",  BOOT_CMDS);
+
+/**
  * Command "reboot"
  *
  * Reboot the system

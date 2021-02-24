@@ -48,7 +48,7 @@
 
 extern void boot_helper(unsigned long r1, unsigned long r2, unsigned long r3, unsigned long addr);
 
-static void __attribute__((noreturn)) boot(unsigned long r1, unsigned long r2, unsigned long r3, unsigned long addr)
+void __attribute__((noreturn)) boot(unsigned long r1, unsigned long r2, unsigned long r3, unsigned long addr)
 {
 	printf("Executing booted program at 0x%08lx\n\n", addr);
 	printf("--============= \e[1mLiftoff!\e[0m ===============--\n");
