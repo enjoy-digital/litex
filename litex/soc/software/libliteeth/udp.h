@@ -10,6 +10,8 @@
 
 typedef void (*udp_callback)(unsigned int src_ip, unsigned short src_port, unsigned short dst_port, void *data, unsigned int length);
 
+void udp_set_ip(unsigned int ip);
+void udp_set_mac(const unsigned char *macaddr);
 void udp_start(const unsigned char *macaddr, unsigned int ip);
 int udp_arp_resolve(unsigned int ip);
 void *udp_get_tx_buffer(void);
