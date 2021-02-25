@@ -448,7 +448,7 @@ def main():
         trace_reset_on = trace_start > 0 or trace_end > 0,
         sdram_init     = [] if args.sdram_init is None else get_mem_data(args.sdram_init, cpu.endianness),
         **soc_kwargs)
-    if args.ram_init is not None:
+    if args.ram_init is not None or args.sdram_init is not None:
         soc.add_constant("ROM_BOOT_ADDRESS", 0x40000000)
     if args.with_ethernet:
         for i in range(4):
