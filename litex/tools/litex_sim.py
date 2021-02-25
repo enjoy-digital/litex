@@ -216,9 +216,13 @@ class SimSoC(SoCCore):
                 l2_cache_min_data_width = kwargs.get("min_l2_data_width", 128),
                 l2_cache_reverse        = False
             )
-            # Reduce memtest size for simulation speedup
-            self.add_constant("MEMTEST_DATA_SIZE", 8*1024)
-            self.add_constant("MEMTEST_ADDR_SIZE", 8*1024)
+            if sdram_init != []:
+                # Skip SDRAM test to avoid corrupting pre-initialized contents.
+                self.add_constant("SDRAM_TEST_DISABLE")
+            else:
+                # Reduce memtest size for simulation speedup
+                self.add_constant("MEMTEST_DATA_SIZE", 8*1024)
+                self.add_constant("MEMTEST_ADDR_SIZE", 8*1024)
 
         #assert not (with_ethernet and with_etherbone)
 
