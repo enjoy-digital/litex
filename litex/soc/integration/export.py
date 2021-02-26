@@ -33,6 +33,17 @@ from litex.soc.doc.module import gather_submodules, ModuleNotDocumented, Documen
 from litex.soc.doc.csr import DocumentedCSRRegion
 from litex.soc.interconnect.csr import _CompoundCSR
 
+from jinja2 import Environment, FileSystemLoader
+script_path = os.path.dirname(os.path.realpath(__file__))
+jinja_env = Environment(
+    loader=FileSystemLoader(os.path.join(script_path, 'templates')),
+    trim_blocks=True,
+    lstrip_blocks=True
+)
+jinja_env.filters["hex"] = hex
+jinja_env.filters["hasattr"] = hasattr
+jinja_env.globals["getattr"] = getattr
+
 # CPU files ----------------------------------------------------------------------------------------
 
 def get_cpu_mak(cpu, compile_software):
@@ -163,105 +174,16 @@ def get_soc_header(constants, with_access_functions=True):
     r += "\n#endif\n"
     return r
 
-def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_only, with_access_functions):
-    r = ""
-
-    addr_str = "CSR_{}_ADDR".format(reg_name.upper())
-    size_str = "CSR_{}_SIZE".format(reg_name.upper())
-    r += "#define {} (CSR_BASE + {}L)\n".format(addr_str, hex(reg_base))
-    r += "#define {} {}\n".format(size_str, nwords)
-
-    size = nwords*busword//8
-    if size > 8:
-        # downstream should select appropriate `csr_[rd|wr]_buf_uintX()` pair!
-        return r
-    elif size > 4:
-        ctype = "uint64_t"
-    elif size > 2:
-        ctype = "uint32_t"
-    elif size > 1:
-        ctype = "uint16_t"
-    else:
-        ctype = "uint8_t"
-
-    stride = alignment//8;
-    if with_access_functions:
-        r += "static inline {} {}_read(void) {{\n".format(ctype, reg_name)
-        if nwords > 1:
-            r += "\t{} r = csr_read_simple(CSR_BASE + {}L);\n".format(ctype, hex(reg_base))
-            for sub in range(1, nwords):
-                r += "\tr <<= {};\n".format(busword)
-                r += "\tr |= csr_read_simple(CSR_BASE + {}L);\n".format(hex(reg_base+sub*stride))
-            r += "\treturn r;\n}\n"
-        else:
-            r += "\treturn csr_read_simple(CSR_BASE + {}L);\n}}\n".format(hex(reg_base))
-
-        if not read_only:
-            r += "static inline void {}_write({} v) {{\n".format(reg_name, ctype)
-            for sub in range(nwords):
-                shift = (nwords-sub-1)*busword
-                if shift:
-                    v_shift = "v >> {}".format(shift)
-                else:
-                    v_shift = "v"
-                r += "\tcsr_write_simple({}, CSR_BASE + {}L);\n".format(v_shift, hex(reg_base+sub*stride))
-            r += "}\n"
-    return r
-
-
 def get_csr_header(regions, constants, csr_base=None, with_access_functions=True):
-    alignment = constants.get("CONFIG_CSR_ALIGNMENT", 32)
-    r = generated_banner("//")
-    if with_access_functions: # FIXME
-        r += "#include <generated/soc.h>\n"
-    r += "#ifndef __GENERATED_CSR_H\n#define __GENERATED_CSR_H\n"
-    if with_access_functions:
-        r += "#include <stdint.h>\n"
-        r += "#include <system.h>\n"
-        r += "#ifndef CSR_ACCESSORS_DEFINED\n"
-        r += "#include <hw/common.h>\n"
-        r += "#endif /* ! CSR_ACCESSORS_DEFINED */\n"
+    template = jinja_env.get_template("csr.h.jinja")
     csr_base = csr_base if csr_base is not None else regions[next(iter(regions))].origin
-    r += "#ifndef CSR_BASE\n"
-    r += "#define CSR_BASE {}L\n".format(hex(csr_base))
-    r += "#endif\n"
-    for name, region in regions.items():
-        origin = region.origin - csr_base
-        r += "\n/* "+name+" */\n"
-        r += "#define CSR_"+name.upper()+"_BASE (CSR_BASE + "+hex(origin)+"L)\n"
-        if not isinstance(region.obj, Memory):
-            for csr in region.obj:
-                nr = (csr.size + region.busword - 1)//region.busword
-                r += _get_rw_functions_c(name + "_" + csr.name, origin, nr, region.busword, alignment,
-                    getattr(csr, "read_only", False), with_access_functions)
-                origin += alignment//8*nr
-                if hasattr(csr, "fields"):
-                    for field in csr.fields.fields:
-                        offset = str(field.offset)
-                        size = str(field.size)
-                        r += "#define CSR_"+name.upper()+"_"+csr.name.upper()+"_"+field.name.upper()+"_OFFSET "+offset+"\n"
-                        r += "#define CSR_"+name.upper()+"_"+csr.name.upper()+"_"+field.name.upper()+"_SIZE "+size+"\n"
-                        if with_access_functions and csr.size <= 32: # FIXME: Implement extract/read functions for csr.size > 32-bit.
-                            reg_name = name + "_" + csr.name.lower()
-                            field_name = reg_name + "_" + field.name.lower()
-                            r += "static inline uint32_t " + field_name + "_extract(uint32_t oldword) {\n"
-                            r += "\tuint32_t mask = ((1 << " + size + ")-1);\n"
-                            r += "\treturn ( (oldword >> " + offset + ") & mask );\n}\n"
-                            r += "static inline uint32_t " + field_name + "_read(void) {\n"
-                            r += "\tuint32_t word = " + reg_name + "_read();\n"
-                            r += "\treturn " + field_name + "_extract(word);\n"
-                            r += "}\n"
-                            if not getattr(csr, "read_only", False):
-                                r += "static inline uint32_t " + field_name + "_replace(uint32_t oldword, uint32_t plain_value) {\n"
-                                r += "\tuint32_t mask = ((1 << " + size + ")-1);\n"
-                                r += "\treturn (oldword & (~(mask << " + offset + "))) | (mask & plain_value)<< " + offset + " ;\n}\n"
-                                r += "static inline void " + field_name + "_write(uint32_t plain_value) {\n"
-                                r += "\tuint32_t oldword = " + reg_name + "_read();\n"
-                                r += "\tuint32_t newword = " + field_name + "_replace(oldword, plain_value);\n"
-                                r += "\t" + reg_name + "_write(newword);\n"
-                                r += "}\n"
-
-    r += "\n#endif\n"
+    r = template.render(
+        alignment=constants.get("CONFIG_CSR_ALIGNMENT", 32),
+        generated_banner=generated_banner("//"),
+        with_access_functions=with_access_functions,
+        csr_base=csr_base,
+        regions=regions
+    )
     return r
 
 # JSON Export --------------------------------------------------------------------------------------

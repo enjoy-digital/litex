@@ -1,0 +1,37 @@
+#define CSR_{{ reg_name | upper }}_ADDR (CSR_BASE + {{ reg_base | hex}}L)
+#define CSR_{{ reg_name | upper }}_SIZE {{ nwords }}
+{% set size = nwords*busword//8 %}
+{% set stride = alignment//8 %}
+{% if size <= 1 %}
+{% set ctype = "uint8_t" %}
+{% elif size <= 2 %}
+{% set ctype = "uint16_t" %}
+{% elif size <= 4 %}
+{% set ctype = "uint32_t" %}
+{% elif size <= 8 %}
+{% set ctype = "uint64_t" %}
+{% endif %}
+
+{% if size <= 8 and with_access_functions %}
+static inline {{ ctype }} {{ reg_name }}_read(void) {
+	{% if nwords > 1 %}
+        {{ ctype }} r = csr_read_simple(CSR_BASE + {{ reg_base | hex }}L);
+	{% for sub in range(1, nwords) %}
+        r <<= {{ busword }};
+        r |= csr_read_simple(CSR_BASE + {{ (reg_base + sub*stride) | hex}}L);
+	{% endfor %}
+        return r;
+        {% else %}
+        return csr_read_simple(CSR_BASE + {{ reg_base | hex}}L);
+	{% endif %}
+}
+
+{% if not read_only %}
+static inline void {{ reg_name }}_write({{ ctype }} v) {
+	{% for sub in range(nwords) %}
+	{% set shift = (nwords-sub-1)*busword %}
+        csr_write_simple(v{% if shift %} >> {{ shift }}{% endif %}, CSR_BASE + {{ (reg_base + sub*stride) | hex }}L);
+	{% endfor %}
+}
+{% endif %}
+{% endif %}
