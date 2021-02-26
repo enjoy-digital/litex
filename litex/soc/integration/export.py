@@ -152,39 +152,22 @@ def get_mem_header(regions):
     return r
 
 def get_soc_header(constants, with_access_functions=True):
-    r = generated_banner("//")
-    r += "#ifndef __GENERATED_SOC_H\n#define __GENERATED_SOC_H\n"
-
-
-    for name, value in constants.items():
-        if value is None:
-            r += "#define "+name+"\n"
-            continue
-        if isinstance(value, str):
-            value = "\"" + value + "\""
-            ctype = "const char *"
-        else:
-            value = str(value)
-            ctype = "int"
-        r += "#define "+name+" "+value+"\n"
-        if with_access_functions:
-            r += "static inline "+ctype+" "+name.lower()+"_read(void) {\n"
-            r += "\treturn "+value+";\n}\n"
-
-    r += "\n#endif\n"
-    return r
+    template = jinja_env.get_template("soc.h.jinja")
+    return template.render(
+        generated_banner=generated_banner("//"),
+        constants=constants
+    )
 
 def get_csr_header(regions, constants, csr_base=None, with_access_functions=True):
     template = jinja_env.get_template("csr.h.jinja")
     csr_base = csr_base if csr_base is not None else regions[next(iter(regions))].origin
-    r = template.render(
+    return template.render(
         alignment=constants.get("CONFIG_CSR_ALIGNMENT", 32),
         generated_banner=generated_banner("//"),
         with_access_functions=with_access_functions,
         csr_base=csr_base,
         regions=regions
     )
-    return r
 
 # JSON Export --------------------------------------------------------------------------------------
 
