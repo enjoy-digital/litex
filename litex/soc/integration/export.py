@@ -40,7 +40,13 @@ jinja_env = Environment(
     trim_blocks=True,
     lstrip_blocks=True
 )
-jinja_env.filters["hex"] = hex
+def hex_zfill(v, size=None):
+    v = hex(v)
+    if size:
+        print(v, type(v))
+        v = "0x" + v[2:].zfill(size)
+    return v
+jinja_env.filters["hex"] = hex_zfill
 jinja_env.filters["hasattr"] = hasattr
 jinja_env.globals["getattr"] = getattr
 
@@ -132,24 +138,11 @@ def get_git_header():
     return r
 
 def get_mem_header(regions):
-    r = generated_banner("//")
-    r += "#ifndef __GENERATED_MEM_H\n#define __GENERATED_MEM_H\n\n"
-    for name, region in regions.items():
-        r += "#ifndef {name}_BASE\n".format(name=name.upper())
-        r += "#define {name}_BASE 0x{base:08x}L\n#define {name}_SIZE 0x{size:08x}\n".format(
-            name=name.upper(), base=region.origin, size=region.length)
-        r += "#endif\n\n"
-
-    r += "#ifndef MEM_REGIONS\n"
-    r += "#define MEM_REGIONS \"";
-    for name, region in regions.items():
-        r += f"{name.upper()} {' '*(8-len(name))} 0x{region.origin:08x} 0x{region.size:x} \\n"
-    r = r[:-2]
-    r += "\"\n"
-    r += "#endif\n"
-
-    r += "#endif\n"
-    return r
+    template = jinja_env.get_template("mem.h.jinja")
+    return template.render(
+        generated_banner=generated_banner("//"),
+        regions=regions
+    )
 
 def get_soc_header(constants, with_access_functions=True):
     template = jinja_env.get_template("soc.h.jinja")

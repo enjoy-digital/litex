@@ -1,0 +1,21 @@
+{{ generated_banner }}
+
+#ifndef __GENERATED_MEM_H
+#define __GENERATED_MEM_H
+
+{% for name, region in regions.items() %}
+#ifndef {{ name | upper }}_BASE
+#define {{ name | upper }}_BASE {{ region.origin | hex(8) }}L
+#define {{ name | upper }}_SIZE {{ region.length | hex(8) }}
+#endif
+{% endfor %}
+
+#ifndef MEM_REGIONS
+#define MEM_REGIONS ""\
+{% for name, region in regions.items() %}
+	"{{ name.ljust(8) | upper }} {{ region.origin | hex(8) }} {{ region.size | hex }}"\
+{% endfor %}
+
+#endif
+
+#endif /* ! __GENERATED_MEM_H */
