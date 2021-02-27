@@ -43,7 +43,6 @@ jinja_env = Environment(
 def hex_zfill(v, size=None):
     v = hex(v)
     if size:
-        print(v, type(v))
         v = "0x" + v[2:].zfill(size)
     return v
 jinja_env.filters["hex"] = hex_zfill
@@ -130,35 +129,30 @@ def get_linker_regions(regions):
 
 def get_git_header():
     from litex.build.tools import get_migen_git_revision, get_litex_git_revision
-    r = generated_banner("//")
-    r += "#ifndef __GENERATED_GIT_H\n#define __GENERATED_GIT_H\n\n"
-    r += "#define MIGEN_GIT_SHA1 \"{}\"\n".format(get_migen_git_revision())
-    r += "#define LITEX_GIT_SHA1 \"{}\"\n".format(get_litex_git_revision())
-    r += "#endif\n"
-    return r
+    return jinja_env.get_template("git.h.jinja").render(
+        generated_banner=generated_banner("//"),
+        migen_git_revision=get_migen_git_revision(),
+        litex_git_revision=get_litex_git_revision()
+    )
 
 def get_mem_header(regions):
-    template = jinja_env.get_template("mem.h.jinja")
-    return template.render(
+    return jinja_env.get_template("mem.h.jinja").render(
         generated_banner=generated_banner("//"),
         regions=regions
     )
 
 def get_soc_header(constants, with_access_functions=True):
-    template = jinja_env.get_template("soc.h.jinja")
-    return template.render(
+    return jinja_env.get_template("soc.h.jinja").render(
         generated_banner=generated_banner("//"),
         constants=constants
     )
 
 def get_csr_header(regions, constants, csr_base=None, with_access_functions=True):
-    template = jinja_env.get_template("csr.h.jinja")
-    csr_base = csr_base if csr_base is not None else regions[next(iter(regions))].origin
-    return template.render(
+    return jinja_env.get_template("csr.h.jinja").render(
         alignment=constants.get("CONFIG_CSR_ALIGNMENT", 32),
         generated_banner=generated_banner("//"),
         with_access_functions=with_access_functions,
-        csr_base=csr_base,
+        csr_base=csr_base if csr_base is not None else regions[next(iter(regions))].origin,
         regions=regions
     )
 
