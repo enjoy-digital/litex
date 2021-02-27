@@ -112,18 +112,13 @@ def get_cpu_mak(cpu, compile_software):
         ("CPU_DIRECTORY", os.path.dirname(inspect.getfile(cpu.__class__))),
     ]
 
-
 def get_linker_output_format(cpu):
     return "OUTPUT_FORMAT(\"" + cpu.linker_output_format + "\")\n"
 
-
 def get_linker_regions(regions):
-    r = "MEMORY {\n"
-    for name, region in regions.items():
-        r += "\t{} : ORIGIN = 0x{:08x}, LENGTH = 0x{:08x}\n".format(name, region.origin, region.length)
-    r += "}\n"
-    return r
-
+    return jinja_env.get_template("regions.ld.jinja").render(
+        regions=regions
+    )
 
 # C Export -----------------------------------------------------------------------------------------
 
