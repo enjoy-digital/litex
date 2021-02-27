@@ -21,8 +21,8 @@
 
 {% for name, region in regions.items() %}
 /* {{ name }} */
-{% set origin = region.origin - csr_base %}
-#define CSR_{{ name | upper}}_BASE (CSR_BASE + {{ origin | hex }}L)
+{% set ns = namespace(origin=region.origin-csr_base) %}
+#define CSR_{{ name | upper}}_BASE (CSR_BASE + {{ ns.origin | hex }}L)
 {% if region.obj.__class__.__name__ != "Memory" %}
 {% for csr in region.obj %}
 {% set read_only = getattr(csr, "read_only", False) %}
@@ -30,13 +30,13 @@
 {% set nr = (csr.size + region.busword - 1)//region.busword %}
 
 {% with %}
-{% set reg_base = origin %}
+{% set reg_base = ns.origin %}
 {% set nwords = nr %}
 {% set busword = region.busword %}
 {% include 'csr_rw.c.jinja' %}
 {% endwith %}
 
-{% set origin = origin+alignment//8*nr %}
+{% set ns.origin = ns.origin+alignment//8*nr %}
 {% if ( csr | hasattr("fields")) %}
 {% for field in csr.fields.fields %}
 #define CSR_{{ name | upper }}_{{ csr.name | upper }}_{{ field.name | upper }}_OFFSET {{ field.offset }}
