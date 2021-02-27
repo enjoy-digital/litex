@@ -375,14 +375,7 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
 # Memory.x Export ----------------------------------------------------------------------------------
 
 def get_memory_x(soc):
-    r = get_linker_regions(soc.mem_regions)
-    r += '\n'
-    r += 'REGION_ALIAS("REGION_TEXT", spiflash);\n'
-    r += 'REGION_ALIAS("REGION_RODATA", spiflash);\n'
-    r += 'REGION_ALIAS("REGION_DATA", sram);\n'
-    r += 'REGION_ALIAS("REGION_BSS", sram);\n'
-    r += 'REGION_ALIAS("REGION_HEAP", sram);\n'
-    r += 'REGION_ALIAS("REGION_STACK", sram);\n\n'
-    r += '/* CPU reset location. */\n'
-    r += '_stext = {:#08x};\n'.format(soc.cpu.reset_address)
-    return r
+    return jinja_env.get_template("Memory.x.jinja").render(
+        regions=soc.mem_regions,
+        reset_address=soc.cpu.reset_address
+    )

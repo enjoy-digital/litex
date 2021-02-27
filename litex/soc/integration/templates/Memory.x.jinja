@@ -1,0 +1,11 @@
+{% include 'regions.ld.jinja' %}
+
+REGION_ALIAS("REGION_TEXT", spiflash);
+REGION_ALIAS("REGION_RODATA", spiflash);
+REGION_ALIAS("REGION_DATA", sram);
+REGION_ALIAS("REGION_BSS", sram);
+REGION_ALIAS("REGION_HEAP", sram);
+REGION_ALIAS("REGION_STACK", sram);
+
+/* CPU reset location. */
+_stext = {{ reset_address | hex(8) }};
