@@ -43,12 +43,13 @@ from migen.fhdl.tracer import get_obj_var_name
 # CSRBase ------------------------------------------------------------------------------------------
 
 class _CSRBase(DUID):
-    def __init__(self, size, name):
+    def __init__(self, size, name, read_only=False):
         DUID.__init__(self)
         self.name = get_obj_var_name(name)
         if self.name is None:
             raise ValueError("Cannot extract CSR name from code, need to specify.")
         self.size = size
+        self.read_only = read_only
 
 # CSRConstant --------------------------------------------------------------------------------------
 
@@ -127,8 +128,8 @@ class CSR(_CSRBase):
 
 
 class _CompoundCSR(_CSRBase, Module):
-    def __init__(self, size, name):
-        _CSRBase.__init__(self, size, name)
+    def __init__(self, size, name, read_only):
+        _CSRBase.__init__(self, size, name, read_only)
         self.simple_csrs = []
 
     def get_simple_csrs(self):
@@ -291,9 +292,8 @@ class CSRStatus(_CompoundCSR):
             self.fields = CSRFieldAggregate(fields, CSRAccess.ReadOnly)
             size  = self.fields.get_size()
             reset = self.fields.get_reset()
-        _CompoundCSR.__init__(self, size, name)
+        _CompoundCSR.__init__(self, size, name, read_only)
         self.description = description
-        self.read_only   = read_only
         self.status      = Signal(self.size, reset=reset)
         self.we          = Signal()
         self.re          = Signal()
@@ -380,7 +380,7 @@ class CSRStorage(_CompoundCSR):
             self.fields = CSRFieldAggregate(fields, CSRAccess.ReadWrite)
             size  = self.fields.get_size()
             reset = self.fields.get_reset()
-        _CompoundCSR.__init__(self, size, name)
+        _CompoundCSR.__init__(self, size, name, read_only=False)
         self.description  = description
         self.storage      = Signal(self.size, reset=reset, reset_less=reset_less)
         self.atomic_write = atomic_write

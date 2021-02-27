@@ -1,6 +1,6 @@
 #define CSR_{{ reg_name | upper }}_ADDR (CSR_BASE + {{ reg_base | hex}}L)
 #define CSR_{{ reg_name | upper }}_SIZE {{ nwords }}
-{% set size = nwords*busword//8 %}
+{% set size = nwords*region.busword//8 %}
 {% set stride = alignment//8 %}
 {% if size <= 1 %}
 {% set ctype = "uint8_t" %}
@@ -17,7 +17,7 @@ static inline {{ ctype }} {{ reg_name }}_read(void) {
 	{% if nwords > 1 %}
         {{ ctype }} r = csr_read_simple(CSR_BASE + {{ reg_base | hex }}L);
 	{% for sub in range(1, nwords) %}
-        r <<= {{ busword }};
+        r <<= {{ region.busword }};
         r |= csr_read_simple(CSR_BASE + {{ (reg_base + sub*stride) | hex}}L);
 	{% endfor %}
         return r;
@@ -26,10 +26,10 @@ static inline {{ ctype }} {{ reg_name }}_read(void) {
 	{% endif %}
 }
 
-{% if not read_only %}
+{% if not csr.read_only %}
 static inline void {{ reg_name }}_write({{ ctype }} v) {
 	{% for sub in range(nwords) %}
-	{% set shift = (nwords-sub-1)*busword %}
+	{% set shift = (nwords-sub-1)*region.busword %}
         csr_write_simple(v{% if shift %} >> {{ shift }}{% endif %}, CSR_BASE + {{ (reg_base + sub*stride) | hex }}L);
 	{% endfor %}
 }

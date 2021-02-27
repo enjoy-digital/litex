@@ -1,0 +1,28 @@
+#define CSR_{{ name | upper }}_{{ csr.name | upper }}_{{ field.name | upper }}_OFFSET {{ field.offset }}
+#define CSR_{{ name | upper }}_{{ csr.name | upper }}_{{ field.name | upper }}_SIZE {{ field.size }}
+{% if with_access_functions and csr.size <=32 %}
+{% set field_name = reg_name + "_" + field.name.lower() %}
+static inline uint32_t {{ field_name }}_extract(uint32_t oldword) {
+	uint32_t mask = ((1 << {{ field.size }})-1);
+        return ( (oldword >> {{ field.offset }}) & mask );
+}
+
+static inline uint32_t {{ field_name }}_read(void) {
+	uint32_t word = {{ reg_name }}_read();
+        return {{ field_name }}_extract(word);
+}
+
+{% if not csr.read_only %}
+static inline uint32_t {{ field_name }}_replace(uint32_t oldword, uint32_t plain_value) {
+	uint32_t mask = ((1 << {{ field.size }})-1);
+        return (oldword & (~(mask << {{ field.offset }}))) | (mask & plain_value)<< {{ field.offset }};
+}
+
+static inline void {{ field_name }}_write(uint32_t plain_value) {
+	uint32_t oldword = {{ reg_name }}_read();
+        uint32_t newword = {{ field_name }}_replace(oldword, plain_value);
+        {{ reg_name }}_write(newword);
+}
+{% endif %}
+{% endif %}
+
