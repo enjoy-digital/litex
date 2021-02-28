@@ -14,6 +14,7 @@
 # This file is Copyright (c) 2015 whitequark <whitequark@whitequark.org>
 # This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
 # This file is Copyright (c) 2020 Piotr Esden-Tempski <piotr@esden.net>
+# This file is Copyright (c) 2021 David Jablonski <dayjaby@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
@@ -33,18 +34,24 @@ from litex.soc.doc.module import gather_submodules, ModuleNotDocumented, Documen
 from litex.soc.doc.csr import DocumentedCSRRegion
 from litex.soc.interconnect.csr import _CompoundCSR
 
+# Jinja2 Environment --------------------------------------------------------------------------------
+
 from jinja2 import Environment, FileSystemLoader
+
 script_path = os.path.dirname(os.path.realpath(__file__))
 jinja_env = Environment(
     loader=FileSystemLoader(os.path.join(script_path, 'templates')),
     trim_blocks=True,
     lstrip_blocks=True
 )
-def hex_zfill(v, size=None):
+def hex_zfill(v, size=None, upper=False):
     v = hex(v)
+    if upper:
+        v = v.upper()
     if size:
         v = "0x" + v[2:].zfill(size)
     return v
+
 jinja_env.filters["hex"] = hex_zfill
 jinja_env.filters["hasattr"] = hasattr
 jinja_env.globals["getattr"] = getattr

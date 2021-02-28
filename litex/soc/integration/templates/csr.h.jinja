@@ -2,6 +2,7 @@
 
 {% if with_access_functions %}
 #include <generated/soc.h>
+#include <system.h>
 {% endif %}
 
 #ifndef __GENERATED_CSR_H
@@ -9,7 +10,6 @@
 
 {% if with_access_functions %}
 #include <stdint.h>
-#include <system.h>
 #ifndef CSR_ACCESSORS_DEFINED
 #include <hw/common.h>
 #endif /* ! CSR_ACCESSORS_DEFINED */
@@ -29,7 +29,7 @@
 {% set nwords = (csr.size + region.busword - 1)//region.busword %}
 {% set reg_base = ns.origin %}
 {% set ns.origin = ns.origin+alignment//8*nwords %}
-{% include 'csr_readwrite.h.jinja' %}
+	{% include 'csr_readwrite.h.jinja' %}
 {% if ( csr | hasattr("fields")) %}
 {% for field in csr.fields.fields %}
 {% include 'csr_field.h.jinja' %}
