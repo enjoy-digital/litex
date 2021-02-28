@@ -187,7 +187,7 @@ class Builder:
                 dst_dir = os.path.join(self.software_dir, name)
                 makefile = os.path.join(src_dir, "Makefile")
                 if self.compile_software:
-                    subprocess.check_call(["make", "-C", dst_dir, "-f", makefile])
+                    subprocess.check_call(["make", "-j", "4", "-C", dst_dir, "-f", makefile])
 
     def _initialize_rom_software(self):
         bios_file = os.path.join(self.software_dir, "bios", "bios.bin")
