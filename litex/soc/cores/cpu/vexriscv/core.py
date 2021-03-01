@@ -96,12 +96,13 @@ class VexRiscv(CPU, AutoCSR):
     io_regions           = {0x80000000: 0x80000000} # origin, length
 
     @property
-    def mem_map_linux(self):
+    def mem_map(self):
         return {
-            "rom":          0x00000000,
-            "sram":         0x10000000,
-            "main_ram":     0x40000000,
-            "csr":          0xf0000000,
+            "rom":            0x00000000,
+            "sram":           0x10000000,
+            "main_ram":       0x40000000,
+            "csr":            0xf0000000,
+            "vexriscv_debug": 0xf00f0000,
         }
 
     @property
@@ -110,7 +111,7 @@ class VexRiscv(CPU, AutoCSR):
         flags += " -D__vexriscv__"
         return flags
 
-    def __init__(self, platform, variant="standard"):
+    def __init__(self, platform, variant="standard", timer_enabled=True):
         self.platform         = platform
         self.variant          = variant
         self.human_name       = CPU_VARIANTS.get(variant, "VexRiscv")
@@ -157,9 +158,8 @@ class VexRiscv(CPU, AutoCSR):
                 i_dBusWishbone_ERR      = dbus.err
             )
 
-        if "linux" in variant:
+        if timer_enabled:
             self.add_timer()
-            self.mem_map = self.mem_map_linux
 
         if "debug" in variant:
             self.add_debug()
@@ -267,7 +267,7 @@ class VexRiscv(CPU, AutoCSR):
 
     def add_soc_components(self, soc, soc_region_cls):
         if "debug" in self.variant:
-            soc.bus.add_slave("vexriscv_debug", self.debug_bus, region=soc_region_cls(origin=0xf00f0000, size=0x100, cached=False))
+            soc.bus.add_slave("vexriscv_debug", self.debug_bus, region=soc_region_cls(origin=soc.mem_map.get("vexriscv_debug"), size=0x100, cached=False))
 
 
     def use_external_variant(self, variant_filename):
