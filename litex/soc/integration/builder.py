@@ -73,6 +73,7 @@ class Builder:
         csr_csv          = None,
         csr_svd          = None,
         memory_x         = None,
+        peripherals      = None,
 
         # BIOS Options.
         bios_options     = [],
@@ -94,10 +95,11 @@ class Builder:
         self.compile_gateware = compile_gateware
 
         # Exports.
-        self.csr_csv  = csr_csv
-        self.csr_json = csr_json
-        self.csr_svd  = csr_svd
-        self.memory_x = memory_x
+        self.csr_csv     = csr_csv
+        self.csr_json    = csr_json
+        self.csr_svd     = csr_svd
+        self.memory_x    = memory_x
+        self.peripherals = peripherals
 
         # BIOS Options.
         self.bios_options = bios_options
@@ -212,6 +214,17 @@ class Builder:
             csr_svd_contents = export.get_csr_svd(self.soc)
             write_to_file(os.path.realpath(self.csr_svd), csr_svd_contents)
 
+    def _generate_peripherals(self):
+        if self.peripherals:
+            write_to_file(
+                os.path.join(self.generated_dir, "peripherals.csv"),
+                export.get_peripherals(self.soc.csr_regions, self.soc.constants, self.soc.mem_regions))
+            wd = os.getcwd()
+            os.chdir(self.generated_dir)
+            if subprocess.call(["xxd", "-i", "peripherals.csv", "../../bios/peripherals.c"]) != 0:
+                raise OSError("The peripherals list could not be generated.")
+            os.chdir(wd)
+
     def _prepare_rom_software(self):
         # Create directories for all software packages.
         for name, src_dir in self.software_packages:
@@ -253,6 +266,7 @@ class Builder:
 
         # Export SoC Mapping.
         self._generate_csr_map()
+        self._generate_peripherals()
 
         # Compile the BIOS when the SoC uses it.
         if self.soc.cpu_type is not None:
@@ -293,18 +307,19 @@ class Builder:
 # Builder Arguments --------------------------------------------------------------------------------
 
 def builder_args(parser):
-    parser.add_argument("--output-dir",          default=None,        help="Base Output directory (customizable with --{gateware,software,include,generated}-dir).")
-    parser.add_argument("--gateware-dir",        default=None,        help="Output directory for Gateware files.")
-    parser.add_argument("--software-dir",        default=None,        help="Output directory for Software files.")
-    parser.add_argument("--include-dir",         default=None,        help="Output directory for Header files.")
-    parser.add_argument("--generated-dir",       default=None,        help="Output directory for Generated files.")
-    parser.add_argument("--no-compile-software", action="store_true", help="Disable Software compilation.")
-    parser.add_argument("--no-compile-gateware", action="store_true", help="Disable Gateware compilation.")
-    parser.add_argument("--csr-csv",             default=None,        help="Write SoC mapping to the specified CSV file.")
-    parser.add_argument("--csr-json",            default=None,        help="Write SoC mapping to the specified JSON file.")
-    parser.add_argument("--csr-svd",             default=None,        help="Write SoC mapping to the specified SVD file.")
-    parser.add_argument("--memory-x",            default=None,        help="Write SoC Memory Regions to the specified Memory-X file.")
-    parser.add_argument("--doc",                 action="store_true", help="Generate SoC Documentation.")
+    parser.add_argument("--output-dir",           default=None,        help="Base Output directory (customizable with --{gateware,software,include,generated}-dir).")
+    parser.add_argument("--gateware-dir",         default=None,        help="Output directory for Gateware files.")
+    parser.add_argument("--software-dir",         default=None,        help="Output directory for Software files.")
+    parser.add_argument("--include-dir",          default=None,        help="Output directory for Header files.")
+    parser.add_argument("--generated-dir",        default=None,        help="Output directory for Generated files.")
+    parser.add_argument("--no-compile-software",  action="store_true", help="Disable Software compilation.")
+    parser.add_argument("--no-compile-gateware",  action="store_true", help="Disable Gateware compilation.")
+    parser.add_argument("--csr-csv",              default=None,        help="Write SoC mapping to the specified CSV file.")
+    parser.add_argument("--csr-json",             default=None,        help="Write SoC mapping to the specified JSON file.")
+    parser.add_argument("--csr-svd",              default=None,        help="Write SoC mapping to the specified SVD file.")
+    parser.add_argument("--memory-x",             default=None,        help="Write SoC Memory Regions to the specified Memory-X file.")
+    parser.add_argument("--generate-peripherals", action="store_true", help="generate and add to the ROM a peripherals list")
+    parser.add_argument("--doc",                  action="store_true", help="Generate SoC Documentation.")
 
 
 def builder_argdict(args):
@@ -320,5 +335,6 @@ def builder_argdict(args):
         "csr_json":         args.csr_json,
         "csr_svd":          args.csr_svd,
         "memory_x":         args.memory_x,
+        "peripherals":      args.generate_peripherals,
         "generate_doc":     args.doc,
     }

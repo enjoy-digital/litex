@@ -19,6 +19,8 @@
 import os
 import json
 import inspect
+import time
+import datetime
 from shutil import which
 from sysconfig import get_platform
 
@@ -498,4 +500,34 @@ def get_memory_x(soc):
     r += 'REGION_ALIAS("REGION_STACK", sram);\n\n'
     r += '/* CPU reset location. */\n'
     r += '_stext = {:#08x};\n'.format(soc.cpu.reset_address)
+    return r
+
+# Peripherals CSV Export ---------------------------------------------------------------------------
+
+def get_peripherals(csr_regions={}, constants={}, mem_regions={}):
+    from litex.build.tools import get_migen_git_revision, get_litex_git_revision
+
+    # First node
+    r =  "magic: Ky1U5x7xsJyAs,"
+    r += "building_date: {},".format(datetime.datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d"))
+    r += "building_time: {},".format(datetime.datetime.fromtimestamp(time.time()).strftime("%H:%M:%S"))
+    r += "main_ram_size: {},".format(mem_regions["main_ram"].length)
+    r += "migen_git_sha1: {},".format(get_migen_git_revision())
+    r += "litex_git_sha1: {},\n\n".format(get_litex_git_revision())
+
+    # Next nodes
+    alignment = constants.get("CONFIG_CSR_ALIGNMENT", 32)
+    for name, region in csr_regions.items():
+        r += "name: {},base: 0x{:08x},\n".format(name, region.origin)
+        region_origin = region.origin
+        if not isinstance(region.obj, Memory):
+            for csr in region.obj:
+                size = (csr.size + region.busword - 1)//region.busword
+                r += "name: {}, addr: 0x{:08x}, size: {}, type: {}\n".format(name + "_" + csr.name, region_origin, size, "ro" if isinstance(csr, CSRStatus) else "rw")
+                region_origin += alignment//8*size
+        r += "\n"
+
+    for name, region in mem_regions.items():
+        r += "name: {},base: 0x{:08x},length: {},type: {},\n\n".format(name, region.origin, region.length, region.type)
+
     return r
