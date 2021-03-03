@@ -55,6 +55,8 @@ def hex_zfill(v, size=None, upper=False):
 jinja_env.filters["hex"] = hex_zfill
 jinja_env.filters["hasattr"] = hasattr
 jinja_env.globals["getattr"] = getattr
+next_power_of_2 = lambda x, at_least=None: max([1<<(x-1).bit_length()] + ([at_least] if at_least else []))
+jinja_env.globals["get_ctype"] = lambda size: "uint{}_t".format(next_power_of_2(size, at_least=8))
 
 # CPU files ----------------------------------------------------------------------------------------
 

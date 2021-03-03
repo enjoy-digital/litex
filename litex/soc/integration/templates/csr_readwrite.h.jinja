@@ -1,18 +1,10 @@
 #define CSR_{{ reg_name | upper }}_ADDR (CSR_BASE + {{ reg_base | hex}}L)
 #define CSR_{{ reg_name | upper }}_SIZE {{ nwords }}
-{% set size = nwords*region.busword//8 %}
+{% set size = nwords*region.busword %}
 {% set stride = alignment//8 %}
-{% if size <= 1 %}
-{% set ctype = "uint8_t" %}
-{% elif size <= 2 %}
-{% set ctype = "uint16_t" %}
-{% elif size <= 4 %}
-{% set ctype = "uint32_t" %}
-{% elif size <= 8 %}
-{% set ctype = "uint64_t" %}
-{% endif %}
+{% set ctype = get_ctype(size) %}
 
-{% if size <= 8 and with_access_functions %}
+{% if size <= 64 and with_access_functions %}
 static inline {{ ctype }} {{ reg_name }}_read(void) {
 	{% if nwords > 1 %}
         {{ ctype }} r = csr_read_simple(CSR_BASE + {{ reg_base | hex }}L);
