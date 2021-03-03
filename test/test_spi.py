@@ -69,12 +69,14 @@ class TestSPI(unittest.TestCase):
                 yield
             yield dut.master.mosi.eq(0xdeadbeef)
             yield dut.master.length.eq(32)
+            yield dut.master.cs.eq(1)
             yield dut.master.start.eq(1)
             yield
             yield dut.master.start.eq(0)
             yield
             while (yield dut.master.done) == 0:
                 yield
+            yield dut.master.cs.eq(0)
             yield
             self.assertEqual(hex((yield dut.master.miso)), hex(0x12345678))
 
