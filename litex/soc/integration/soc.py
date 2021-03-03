@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX.
 #
-# This file is Copyright (c) 2014-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2014-2021 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
 # This file is Copyright (c) 2019 Gabriel L. Somlo <somlo@cmu.edu>
 # SPDX-License-Identifier: BSD-2-Clause
@@ -18,6 +18,7 @@ from litex.soc.cores.identifier import Identifier
 from litex.soc.cores.timer import Timer
 from litex.soc.cores.spi_flash import SpiFlash
 from litex.soc.cores.spi import SPIMaster
+from litex.soc.cores.video import VideoTimingGenerator, VideoTerminal
 
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect.csr_eventmanager import *
@@ -1623,3 +1624,34 @@ class LiteXSoC(SoC):
 
         # Timing constraints
         self.platform.add_false_path_constraints(self.crg.cd_sys.clk, phy.cd_pcie.clk)
+
+    # Add Video Terminal ---------------------------------------------------------------------------
+    def add_video_terminal(self, name="video_terminal", phy=None, timings="800x600@60Hz", clock_domain="sys"):
+        # Video Timing Generator.
+        vtg = VideoTimingGenerator(default_video_timings=timings)
+        vtg = ClockDomainsRenamer(clock_domain)(vtg)
+        self.submodules.video_terminal_vtg = vtg
+        self.add_csr("video_terminal_vtg")
+
+        # Video Terminal.
+        vt = VideoTerminal(
+            hres = int(timings.split("@")[0].split("x")[0]),
+            vres = int(timings.split("@")[0].split("x")[1]),
+        )
+        vt = ClockDomainsRenamer(clock_domain)(vt)
+        self.submodules.video_terminal_vt = vt
+
+        # Connect Video Timing Generator to Video Terminal.
+        self.comb += vtg.source.connect(vt.vtg_sink)
+
+        # Connect UART to Video Terminal.
+        uart_cdc = stream.ClockDomainCrossing([("data", 8)], cd_from="sys", cd_to=clock_domain)
+        self.submodules.video_terminal_uart_cdc = uart_cdc
+        self.comb += [
+            uart_cdc.sink.valid.eq(self.uart.source.valid & self.uart.source.ready),
+            uart_cdc.sink.data.eq(self.uart.source.data),
+            uart_cdc.source.connect(vt.uart_sink),
+        ]
+
+        # Connect Video Terminal to Video PHY.
+        self.comb += vt.source.connect(phy.sink)
