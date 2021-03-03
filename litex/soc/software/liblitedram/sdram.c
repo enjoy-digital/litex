@@ -343,10 +343,21 @@ static void sdram_write_leveling_rst_delay(int module) {
 	/* Select module */
 	ddrphy_dly_sel_write(1 << module);
 
-	/* Reset delay */
+#if defined(SDRAM_PHY_USDDRPHY) || defined(SDRAM_PHY_USPDDRPHY)
+	/* Reset DQ delay */
+	ddrphy_wdly_dq_rst_write(1);
+
+	/* Reset DQS delay */
+	while (ddrphy_wdly_dqs_inc_count_read() != 0) {
+		ddrphy_wdly_dqs_inc_write(1);
+		cdelay(100);
+	}
+#else
+	/* Reset DQ/DQS delay */
 	ddrphy_wdly_dq_rst_write(1);
 	ddrphy_wdly_dqs_rst_write(1);
 	cdelay(100);
+#endif
 
 	/* Un-select module */
 	ddrphy_dly_sel_write(0);
@@ -356,7 +367,7 @@ static void sdram_write_leveling_inc_delay(int module) {
 	/* Select module */
 	ddrphy_dly_sel_write(1 << module);
 
-	/* Increment delay */
+	/* Increment DQ/DQS delay */
 	ddrphy_wdly_dq_inc_write(1);
 	ddrphy_wdly_dqs_inc_write(1);
 
