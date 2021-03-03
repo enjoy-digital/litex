@@ -103,12 +103,15 @@ class ECCEncoder(SECDED, Module):
 
         # Place data bits in codeword.
         self.place_data(i, codeword_d)
+
         # Compute and place syndrome bits.
         self.compute_syndrome(codeword_d, syndrome)
         self.comb += codeword_d_p.eq(codeword_d)
         self.place_syndrome(syndrome, codeword_d_p)
+
         # Compute parity.
         self.compute_parity(codeword_d_p, parity)
+
         # Output codeword + parity.
         self.comb += o.eq(Cat(parity, codeword_d_p))
 
@@ -135,15 +138,18 @@ class ECCDecoder(SECDED, Module):
         # Input codeword + parity.
         self.compute_parity(i, parity)
         self.comb += codeword.eq(i[1:])
+
         # Compute_syndrome
         self.compute_syndrome(codeword, syndrome)
         self.comb += If(~self.enable, syndrome.eq(0))
+
         # Locate/correct codeword error bit if any and flip it.
         cases = {}
         cases["default"] = codeword_c.eq(codeword)
         for i in range(1, 2**len(syndrome)):
             cases[i] = codeword_c.eq(codeword ^ (1<<(i-1)))
         self.comb += Case(syndrome, cases)
+
         # Extract data / status.
         self.extract_data(codeword_c, o)
         self.comb += [
