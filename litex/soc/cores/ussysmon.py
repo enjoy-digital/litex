@@ -38,7 +38,7 @@ class USSYSMON(Module, AutoCSR):
         # # #
 
         busy    = Signal()
-        channel = Signal(7)
+        channel = Signal(8)
         eoc     = Signal()
         eos     = Signal()
 
