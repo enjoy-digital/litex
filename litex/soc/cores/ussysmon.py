@@ -46,7 +46,7 @@ class USSYSMON(Module, AutoCSR):
         self.dwe  = Signal()
         self.den  = Signal()
         self.drdy = Signal()
-        self.dadr = Signal(7)
+        self.dadr = Signal(8)
         self.di   = Signal(16)
         self.do   = Signal(16)
         self.drp_en = Signal()
@@ -103,7 +103,7 @@ class USSYSMON(Module, AutoCSR):
         self.sync += [
                 If(self.drdy,
                     Case(channel, dict(
-                        (k, v.status.eq(self.do >> 6))
+                        (k, v.status.eq((self.do >> 6) & 0x3ff))
                     for k, v in channels.items()))
                 )
         ]
@@ -119,7 +119,7 @@ class USSYSMON(Module, AutoCSR):
         self.drp_read   = CSR()
         self.drp_write  = CSR()
         self.drp_drdy   = CSRStatus()
-        self.drp_adr    = CSRStorage(7,  reset_less=True)
+        self.drp_adr    = CSRStorage(8,  reset_less=True)
         self.drp_dat_w  = CSRStorage(16, reset_less=True)
         self.drp_dat_r  = CSRStatus(16)
 
