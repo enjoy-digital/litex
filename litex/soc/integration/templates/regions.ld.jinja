@@ -1,6 +1,0 @@
-MEMORY {
-{% for name, region in regions.items() %}
-	{{ name }} : ORIGIN = {{ region.origin | hex(8) }}, LENGTH = {{ region.length | hex(8) }}
-{% endfor %}
-}
-

@@ -125,7 +125,13 @@ def get_linker_output_format(cpu):
     return "OUTPUT_FORMAT(\"" + cpu.linker_output_format + "\")\n"
 
 def get_linker_regions(regions):
-    return jinja_env.get_template("regions.ld.jinja").render(
+    return jinja_env.from_string("""\
+MEMORY {
+{% for name, region in regions.items() %}
+	{{ name }} : ORIGIN = {{ region.origin | hex(8) }}, LENGTH = {{ region.length | hex(8) }}
+{% endfor %}
+}
+""").render(
         regions=regions
     )
 
@@ -133,26 +139,128 @@ def get_linker_regions(regions):
 
 def get_git_header():
     from litex.build.tools import get_migen_git_revision, get_litex_git_revision
-    return jinja_env.get_template("git.h.jinja").render(
+    return jinja_env.from_string("""\
+{{ generated_banner }}
+
+#ifndef __GENERATED_GIT_H
+#define __GENERATED_GIT_H
+
+#define MIGEN_GIT_SHA1 "{{ migen_git_revision }}"
+#define LITEX_GIT_SHA1 "{{ litex_git_revision }}"
+
+#endif /* ! __GENERATED_GIT_H */
+""").render(
         generated_banner=generated_banner("//"),
         migen_git_revision=get_migen_git_revision(),
         litex_git_revision=get_litex_git_revision()
     )
 
 def get_mem_header(regions):
-    return jinja_env.get_template("mem.h.jinja").render(
+    return jinja_env.from_string("""\
+{{ generated_banner }}
+
+#ifndef __GENERATED_MEM_H
+#define __GENERATED_MEM_H
+
+{% for name, region in regions.items() %}
+#ifndef {{ name | upper }}_BASE
+#define {{ name | upper }}_BASE {{ region.origin | hex(8) }}L
+#define {{ name | upper }}_SIZE {{ region.length | hex(8) }}
+#endif
+{% endfor %}
+
+#ifndef MEM_REGIONS
+#define MEM_REGIONS ""\
+{% for name, region in regions.items() %}
+	"{{ name.ljust(8) | upper }} {{ region.origin | hex(8) }} {{ region.size | hex }}"\
+{% endfor %}
+
+#endif
+
+#endif /* ! __GENERATED_MEM_H */
+""").render(
         generated_banner=generated_banner("//"),
         regions=regions
     )
 
 def get_soc_header(constants, with_access_functions=True):
-    return jinja_env.get_template("soc.h.jinja").render(
+    return jinja_env.from_string("""\
+{{ generated_banner }}
+
+#ifndef __GENERATED_SOC_H
+#define __GENERATED_SOC_H
+
+{% for name, value in constants.items() %}
+{% if value is none %}
+#define {{ name }}
+{% else %}
+{% if value is string %}
+{% set value = "\\"{}\\"".format(value) %}
+{% set ctype = "const char *" %}
+{% else %}
+{% set value = value | int %}
+{% set ctype = "int" %}
+{% endif %}
+#define {{ name }} {{ value }}
+{% if with_access_functions %}
+static inline {{ ctype }} {{ name | lower }}_read(void) {
+	return {{ value }};
+}
+{% endif %}
+{% endif %}
+{% endfor %}
+
+#endif /* ! __GENERATED_SOC_H */
+""").render(
         generated_banner=generated_banner("//"),
         constants=constants
     )
 
 def get_csr_header(regions, constants, csr_base=None, with_access_functions=True):
-    return jinja_env.get_template("csr.h.jinja").render(
+    return jinja_env.from_string("""\
+{{ generated_banner }}
+
+{% if with_access_functions %}
+#include <generated/soc.h>
+#include <system.h>
+{% endif %}
+
+#ifndef __GENERATED_CSR_H
+#define __GENERATED_CSR_H
+
+{% if with_access_functions %}
+#include <stdint.h>
+#ifndef CSR_ACCESSORS_DEFINED
+#include <hw/common.h>
+#endif /* ! CSR_ACCESSORS_DEFINED */
+{% endif %}
+
+#ifndef CSR_BASE
+#define CSR_BASE {{ csr_base | hex }}L
+#endif
+
+{% for name, region in regions.items() %}
+/* {{ name }} */
+{% set ns = namespace(origin=region.origin-csr_base) %}
+#define CSR_{{ name | upper}}_BASE (CSR_BASE + {{ ns.origin | hex }}L)
+{% if region.obj.__class__.__name__ != "Memory" %}
+{% for csr in region.obj %}
+{% set reg_name = name + "_" + csr.name.lower() %}
+{% set nwords = (csr.size + region.busword - 1)//region.busword %}
+{% set reg_base = ns.origin %}
+{% set ns.origin = ns.origin+alignment//8*nwords %}
+{% include 'csr_readwrite.h.jinja' %}
+{% if ( csr | hasattr("fields")) %}
+{% for field in csr.fields.fields %}
+{% include 'csr_field.h.jinja' %}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endfor %}
+
+#endif /* ! __GENERATED_CSR_H */
+""").render(
         alignment=constants.get("CONFIG_CSR_ALIGNMENT", 32),
         generated_banner=generated_banner("//"),
         with_access_functions=with_access_functions,
@@ -384,7 +492,17 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
 # Memory.x Export ----------------------------------------------------------------------------------
 
 def get_memory_x(soc):
-    return jinja_env.get_template("Memory.x.jinja").render(
-        regions=soc.mem_regions,
+    return get_linker_regions(soc.mem_regions) + jinja_env.from_string("""\
+
+REGION_ALIAS("REGION_TEXT", spiflash);
+REGION_ALIAS("REGION_RODATA", spiflash);
+REGION_ALIAS("REGION_DATA", sram);
+REGION_ALIAS("REGION_BSS", sram);
+REGION_ALIAS("REGION_HEAP", sram);
+REGION_ALIAS("REGION_STACK", sram);
+
+/* CPU reset location. */
+_stext = {{ reset_address | hex(8) }};
+""").render(
         reset_address=soc.cpu.reset_address
     )
