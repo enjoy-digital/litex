@@ -9,6 +9,8 @@ from migen import *
 from litex.soc.interconnect.csr import *
 
 
+# Xilinx DNA (Device Identifier) -------------------------------------------------------------------
+
 class DNA(Module, AutoCSR):
     def __init__(self):
         n = 57
