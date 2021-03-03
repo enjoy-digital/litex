@@ -15,26 +15,26 @@ from litex.soc.interconnect.csr import *
 class _Sampler(Module):
     def __init__(self, width):
         self.latch = Signal()
-        self.i = Signal(width)
-        self.o = Signal(32)
+        self.i     = Signal(width)
+        self.o     = Signal(32)
 
         # # #
 
-        inc     = Signal(width)
-        counter = Signal(32)
+        inc   = Signal(width)
+        count = Signal(32)
 
         # Use wrapping property of unsigned arithmeric to reset the counter at each cycle. Doing
-        # it in fmeter clock domain would not be reliable.
+        # it in FreqMeter clock domain would not be reliable.
         i_d = Signal(width)
         self.sync += i_d.eq(self.i)
         self.comb += inc.eq(self.i - i_d)
-        self.sync += \
+        self.sync += [
+            count.eq(count + inc),
             If(self.latch,
-                counter.eq(0),
-                self.o.eq(counter),
-            ).Else(
-                counter.eq(counter + inc)
+                count.eq(0),
+                self.o.eq(count)
             )
+        ]
 
 # Freq Meter ---------------------------------------------------------------------------------------
 
