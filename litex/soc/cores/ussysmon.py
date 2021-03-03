@@ -103,7 +103,7 @@ class USSYSMON(Module, AutoCSR):
         self.sync += [
                 If(self.drdy,
                     Case(channel, dict(
-                        (k, v.status.eq(self.do >> 4))
+                        (k, v.status.eq(self.do >> 6))
                     for k, v in channels.items()))
                 )
         ]
