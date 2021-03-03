@@ -21,10 +21,10 @@ class LedChaser(Module, AutoCSR):
 
         # # #
 
-        n         = len(pads)
-        chaser    = Signal(n)
-        mode      = Signal(reset=_CHASER_MODE)
-        timer     = WaitTimer(int(period*sys_clk_freq/(2*n)))
+        n      = len(pads)
+        chaser = Signal(n)
+        mode   = Signal(reset=_CHASER_MODE)
+        timer  = WaitTimer(int(period*sys_clk_freq/(2*n)))
         self.submodules += timer
         self.comb += timer.wait.eq(~timer.done)
         self.sync += If(timer.done, chaser.eq(Cat(~chaser[-1], chaser)))
