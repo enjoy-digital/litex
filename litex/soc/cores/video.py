@@ -13,6 +13,8 @@ from migen.genlib.cdc import MultiReg
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import stream
 
+from litedram.frontend.dma import LiteDRAMDMAReader
+
 # Video Constants ----------------------------------------------------------------------------------
 
 hbits = 12
@@ -229,7 +231,7 @@ class VideoTimingGenerator(Module, AutoCSR):
             )
         )
 
-# Patterns -----------------------------------------------------------------------------------------
+# Video Patterns -----------------------------------------------------------------------------------
 
 class ColorBarsPattern(Module):
     """Color Bars Pattern"""
@@ -550,6 +552,51 @@ class VideoTerminal(Module):
             source.g.eq(0x00),
             source.b.eq(0x00)
         )
+
+# Video FrameBuffer --------------------------------------------------------------------------------
+
+class VideoFrameBuffer(Module, AutoCSR):
+    """Video FrameBuffer"""
+    def __init__(self, dram_port, hres=640, vres=480, base=0x00000000, clock_domain="sys"):
+        self.vtg_sink = vtg_sink   = stream.Endpoint(video_timing_layout)
+        self.source   = source = stream.Endpoint(video_data_layout)
+
+        # # #
+
+        # Video DMA.
+        self.submodules.dma = LiteDRAMDMAReader(dram_port, fifo_depth=2048, fifo_buffered=True) # FIXME: Adjust/Expose.
+        self.dma.add_csr(
+            default_base   = base,
+            default_length = hres*vres*32//8, # 32-bit RGB-444
+            default_start  = 1,
+            default_loop   = 1
+        )
+
+        # FIXME: Make sure it will work for all DRAM's data-width/all Video resolutions.
+
+        # Video Data-Width Converter.
+        self.submodules.conv = stream.Converter(dram_port.data_width, 32)
+        self.comb += self.dma.source.connect(self.conv.sink)
+
+        # Video CDC.
+        self.submodules.cdc = stream.ClockDomainCrossing([("data", 32)], cd_from="sys", cd_to=clock_domain)
+        self.comb += self.conv.source.connect(self.cdc.sink)
+
+        # Video Generation.
+        self.comb += [
+            vtg_sink.ready.eq(1),
+            If(vtg_sink.valid & vtg_sink.de,
+                source.valid.eq(self.cdc.source.valid),
+                vtg_sink.ready.eq(source.ready),
+                self.cdc.source.ready.eq(source.ready)
+            ),
+            source.de.eq(vtg_sink.de),
+            source.hsync.eq(vtg_sink.hsync),
+            source.vsync.eq(vtg_sink.vsync),
+            source.r.eq(self.cdc.source.data[ 0: 8]),
+            source.g.eq(self.cdc.source.data[ 8:16]),
+            source.b.eq(self.cdc.source.data[16:24]),
+        ]
 
 # Video PHYs ---------------------------------------------------------------------------------------
 

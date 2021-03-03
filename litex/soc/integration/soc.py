@@ -18,7 +18,7 @@ from litex.soc.cores.identifier import Identifier
 from litex.soc.cores.timer import Timer
 from litex.soc.cores.spi_flash import SpiFlash
 from litex.soc.cores.spi import SPIMaster
-from litex.soc.cores.video import VideoTimingGenerator, VideoTerminal
+from litex.soc.cores.video import VideoTimingGenerator, VideoTerminal, VideoFrameBuffer
 
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect.csr_eventmanager import *
@@ -1639,7 +1639,7 @@ class LiteXSoC(SoC):
             vres = int(timings.split("@")[0].split("x")[1]),
         )
         vt = ClockDomainsRenamer(clock_domain)(vt)
-        self.submodules.video_terminal_vt = vt
+        self.submodules.video_terminal = vt
 
         # Connect Video Timing Generator to Video Terminal.
         self.comb += vtg.source.connect(vt.vtg_sink)
@@ -1655,3 +1655,26 @@ class LiteXSoC(SoC):
 
         # Connect Video Terminal to Video PHY.
         self.comb += vt.source.connect(phy.sink)
+
+    # Add Video Framebuffer ------------------------------------------------------------------------
+    def add_video_framebuffer(self, name="video_framebuffer", phy=None, timings="800x600@60Hz", clock_domain="sys"):
+        # Video Timing Generator.
+        vtg = VideoTimingGenerator(default_video_timings=timings)
+        vtg = ClockDomainsRenamer(clock_domain)(vtg)
+        self.submodules.video_framebuffer_vtg = vtg
+        self.add_csr("video_framebuffer_vtg")
+
+        # Video FrameBuffer.
+        vfb = VideoFrameBuffer(self.sdram.crossbar.get_port(),
+             hres = int(timings.split("@")[0].split("x")[0]),
+             vres = int(timings.split("@")[0].split("x")[1]),
+             clock_domain = "vga"
+        )
+        self.submodules.video_framebuffer = vfb
+        self.add_csr("video_framebuffer")
+
+        # Connect Video Timing Generator to Video FrameBuffer.
+        self.comb += vtg.source.connect(vfb.vtg_sink)
+
+        # Connect Video FrameBuffer to Video PHY.
+        self.comb += vfb.source.connect(phy.sink)
