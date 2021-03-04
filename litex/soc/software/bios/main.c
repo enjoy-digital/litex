@@ -165,6 +165,14 @@ int main(int i, char **c)
 	spiflash_init();
 #endif
 
+#ifdef CSR_VIDEO_FRAMEBUFFER_BASE
+	/* Initialize Video Framebuffer FIXME: Move */
+	video_framebuffer_vtg_enable_write(0);
+	video_framebuffer_dma_enable_write(0);
+	video_framebuffer_vtg_enable_write(1);
+	video_framebuffer_dma_enable_write(1);
+#endif
+
 	if(sdr_ok) {
 		printf("--============== \e[1mBoot\e[0m ==================--\n");
 		boot_sequence();
