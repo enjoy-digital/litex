@@ -184,7 +184,10 @@ class VideoTimingGenerator(Module, AutoCSR):
         # Generate timings.
         hactive = Signal()
         vactive = Signal()
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        fsm = FSM(reset_state="IDLE")
+        fsm = ResetInserter()(fsm)
+        self.submodules.fsm = fsm
+        self.comb += fsm.reset.eq(~enable)
         fsm.act("IDLE",
             NextValue(hactive, 0),
             NextValue(vactive, 0),
@@ -192,9 +195,7 @@ class VideoTimingGenerator(Module, AutoCSR):
             NextValue(source.vres, vres),
             NextValue(source.hcount,  0),
             NextValue(source.vcount,  0),
-            If(enable,
-                NextState("RUN")
-            )
+            NextState("RUN")
         )
         self.comb += source.de.eq(hactive & vactive) # DE when both HActive and VActive.
         self.sync += source.first.eq((source.hcount ==     0) & (source.vcount ==     0)),
@@ -390,7 +391,7 @@ class CSIInterpreter(Module):
         )
 
 class VideoTerminal(Module):
-    def __init__(self, hres=640, vres=480, with_csi_interpreter=True):
+    def __init__(self, hres=800, vres=600, with_csi_interpreter=True):
         self.enable    = Signal(reset=1)
         self.vtg_sink  = vtg_sink   = stream.Endpoint(video_timing_layout)
         self.uart_sink = uart_sink  = stream.Endpoint([("data", 8)])
@@ -555,7 +556,7 @@ class VideoTerminal(Module):
 
 class VideoFrameBuffer(Module, AutoCSR):
     """Video FrameBuffer"""
-    def __init__(self, dram_port, hres=640, vres=480, base=0x00000000, clock_domain="sys"):
+    def __init__(self, dram_port, hres=800, vres=600, base=0x00000000, clock_domain="sys"):
         self.vtg_sink = vtg_sink   = stream.Endpoint(video_timing_layout)
         self.source   = source = stream.Endpoint(video_data_layout)
 
@@ -567,7 +568,7 @@ class VideoFrameBuffer(Module, AutoCSR):
         self.dma.add_csr(
             default_base   = base,
             default_length = hres*vres*32//8, # 32-bit RGB-444
-            default_start  = 1,
+            default_enable = 0,
             default_loop   = 1
         )
 
@@ -585,13 +586,11 @@ class VideoFrameBuffer(Module, AutoCSR):
         self.comb += [
             vtg_sink.ready.eq(1),
             If(vtg_sink.valid & vtg_sink.de,
-                source.valid.eq(self.cdc.source.valid),
-                vtg_sink.ready.eq(source.ready),
-                self.cdc.source.ready.eq(source.ready)
+                self.cdc.source.connect(source, keep={"valid", "ready"}),
+                vtg_sink.ready.eq(source.valid & source.ready),
+
             ),
-            source.de.eq(vtg_sink.de),
-            source.hsync.eq(vtg_sink.hsync),
-            source.vsync.eq(vtg_sink.vsync),
+            vtg_sink.connect(source, keep={"de", "hsync", "vsync"}),
             source.r.eq(self.cdc.source.data[ 0: 8]),
             source.g.eq(self.cdc.source.data[ 8:16]),
             source.b.eq(self.cdc.source.data[16:24]),
