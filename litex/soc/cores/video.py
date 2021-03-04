@@ -13,6 +13,8 @@ from migen.genlib.cdc import MultiReg
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import stream
 
+from litex.build.io import SDROutput, DDROutput
+
 # Video Constants ----------------------------------------------------------------------------------
 
 hbits = 12
@@ -617,30 +619,32 @@ class VideoFrameBuffer(Module, AutoCSR):
 # Video PHYs ---------------------------------------------------------------------------------------
 
 class VideoDVIPHY(Module):
-    def __init__(self, pads, clock_domain="sys"):
+    def __init__(self, pads, clock_domain="sys", with_clk_ddr_output=True):
         self.sink = sink = stream.Endpoint(video_data_layout)
 
         # # #
 
-        # FIXME: Use IOs primitives.
+        # Always ack Sink, no backpressure.
+        self.comb += sink.ready.eq(1)
 
-        self.comb += [
-            # Always ack Sink, no backpressure.
-            sink.ready.eq(1),
+        # Drive DVI Clk.
+        if with_clk_ddr_output:
+            self.specials += DDROutput(i1=1, i2=0, o=pads.clk, clk=ClockSignal(clock_domain))
+        else:
+            self.comb += pads.clk.eq(ClockSignal(clock_domain))
 
-            # Drive DVI Clk.
-            pads.clk.eq(ClockSignal(clock_domain)),
+        # Drive DVI Controls.
+        self.specials += SDROutput(i=sink.de,    o=pads.de,    clk=ClockSignal(clock_domain))
+        self.specials += SDROutput(i=sink.hsync, o=pads.hsync, clk=ClockSignal(clock_domain))
+        self.specials += SDROutput(i=sink.vsync, o=pads.vsync, clk=ClockSignal(clock_domain))
 
-            # Drive DVI Controls.
-            pads.de.eq(sink.de),
-            pads.hsync.eq(sink.hsync),
-            pads.vsync.eq(sink.vsync),
-
-            # Drive DVI Datas.
-            pads.r.eq(sink.r[8-len(pads.r):]),
-            pads.g.eq(sink.g[8-len(pads.g):]),
-            pads.b.eq(sink.b[8-len(pads.b):]),
-        ]
+        # Drive DVI Datas.
+        cbits  = len(pads.r)
+        cshift = (8 - cbits)
+        for i in range(cbits):
+            self.specials += SDROutput(i=sink.r[cshift + i], o=pads.r[i], clk=ClockSignal(clock_domain))
+            self.specials += SDROutput(i=sink.g[cshift + i], o=pads.g[i], clk=ClockSignal(clock_domain))
+            self.specials += SDROutput(i=sink.b[cshift + i], o=pads.b[i], clk=ClockSignal(clock_domain))
 
 
 class VideoVGAPHY(Module):
@@ -649,18 +653,17 @@ class VideoVGAPHY(Module):
 
         # # #
 
-        # FIXME: Use IOs primitives.
+        # Always ack Sink, no backpressure.
+        self.comb += sink.ready.eq(1)
 
-        self.comb += [
-            # Always ack Sink, no backpressure.
-            sink.ready.eq(1),
+        # Drive VGA Conrols.
+        self.specials += SDROutput(i=~sink.hsync, o=pads.hsync_n, clk=ClockSignal(clock_domain))
+        self.specials += SDROutput(i=~sink.vsync, o=pads.vsync_n, clk=ClockSignal(clock_domain))
 
-            # Drive DVI Controls.
-            pads.hsync_n.eq(~sink.hsync),
-            pads.vsync_n.eq(~sink.vsync),
-
-            # Drive DVI Datas.
-            pads.r.eq(sink.r[8-len(pads.r):]),
-            pads.g.eq(sink.g[8-len(pads.g):]),
-            pads.b.eq(sink.b[8-len(pads.b):]),
-        ]
+        # Drive VGA Datas.
+        cbits  = len(pads.r)
+        cshift = (8 - cbits)
+        for i in range(cbits):
+            self.specials += SDROutput(i=sink.r[cshift + i], o=pads.r[i], clk=ClockSignal(clock_domain))
+            self.specials += SDROutput(i=sink.g[cshift + i], o=pads.g[i], clk=ClockSignal(clock_domain))
+            self.specials += SDROutput(i=sink.b[cshift + i], o=pads.b[i], clk=ClockSignal(clock_domain))
