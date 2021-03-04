@@ -407,7 +407,7 @@ class VideoTerminal(Module):
         font_width  = 8
         font_heigth = 16
         font_mem    = Memory(width=8, depth=4096, init=font)
-        font_rdport = font_mem.get_port(write_capable=False, has_re=True)
+        font_rdport = font_mem.get_port(has_re=True)
         self.specials += font_mem, font_rdport
 
         # Terminal Mem.
@@ -418,7 +418,7 @@ class VideoTerminal(Module):
         term_init   = [ord(c) for c in [" "]*term_colums*term_lines]
         term_mem    = Memory(width=font_width, depth=term_depth, init=term_init)
         term_wrport = term_mem.get_port(write_capable=True)
-        term_rdport = term_mem.get_port(write_capable=False, has_re=True)
+        term_rdport = term_mem.get_port(has_re=True)
         self.specials += term_mem, term_wrport, term_rdport
 
         # UART Terminal Fill.
@@ -438,7 +438,25 @@ class VideoTerminal(Module):
         x_term = term_wrport.adr[:7]
         y_term = term_wrport.adr[7:]
         y_term_rollover = Signal()
-        self.submodules.uart_fsm = uart_fsm = FSM(reset_state="IDLE")
+        self.submodules.uart_fsm = uart_fsm = FSM(reset_state="RESET")
+        uart_fsm.act("RESET",
+            NextValue(x_term, 0),
+            NextValue(y_term, 0),
+            NextState("CLEAR-XY")
+        )
+        uart_fsm.act("CLEAR-XY",
+            term_wrport.we.eq(1),
+            term_wrport.dat_w.eq(ord(" ")),
+            NextValue(x_term, x_term + 1),
+            If(x_term == (term_colums - 1),
+                NextValue(x_term, 0),
+                NextValue(y_term, y_term + 1),
+                If(y_term == (term_lines - 1),
+                    NextValue(y_term, 0),
+                    NextState("IDLE")
+                )
+            )
+        )
         uart_fsm.act("IDLE",
             If(uart_sink.valid,
                 If(uart_sink.data == ord("\n"),
@@ -486,7 +504,7 @@ class VideoTerminal(Module):
             NextValue(x_term, x_term + 1),
             term_wrport.we.eq(1),
             term_wrport.dat_w.eq(ord(" ")),
-            If(x_term == (80 - 1),
+            If(x_term == (term_colums - 1),
                 NextValue(x_term, 0),
                 NextState("IDLE")
             )
