@@ -13,8 +13,6 @@ from migen.genlib.cdc import MultiReg
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import stream
 
-from litedram.frontend.dma import LiteDRAMDMAReader
-
 # Video Constants ----------------------------------------------------------------------------------
 
 hbits = 12
@@ -564,6 +562,7 @@ class VideoFrameBuffer(Module, AutoCSR):
         # # #
 
         # Video DMA.
+        from litedram.frontend.dma import LiteDRAMDMAReader
         self.submodules.dma = LiteDRAMDMAReader(dram_port, fifo_depth=2048, fifo_buffered=True) # FIXME: Adjust/Expose.
         self.dma.add_csr(
             default_base   = base,
