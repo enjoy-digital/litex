@@ -1668,7 +1668,7 @@ class LiteXSoC(SoC):
         vfb = VideoFrameBuffer(self.sdram.crossbar.get_port(),
              hres = int(timings.split("@")[0].split("x")[0]),
              vres = int(timings.split("@")[0].split("x")[1]),
-             clock_domain = "vga"
+             clock_domain = clock_domain
         )
         self.submodules.video_framebuffer = vfb
         self.add_csr("video_framebuffer")
