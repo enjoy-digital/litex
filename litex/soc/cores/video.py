@@ -618,6 +618,33 @@ class VideoFrameBuffer(Module, AutoCSR):
 
 # Video PHYs ---------------------------------------------------------------------------------------
 
+class Open(Signal): pass
+
+# VGA (Generic).
+
+class VideoVGAPHY(Module):
+    def __init__(self, pads, clock_domain="sys"):
+        self.sink = sink = stream.Endpoint(video_data_layout)
+
+        # # #
+
+        # Always ack Sink, no backpressure.
+        self.comb += sink.ready.eq(1)
+
+        # Drive VGA Conrols.
+        self.specials += SDROutput(i=~sink.hsync, o=pads.hsync_n, clk=ClockSignal(clock_domain))
+        self.specials += SDROutput(i=~sink.vsync, o=pads.vsync_n, clk=ClockSignal(clock_domain))
+
+        # Drive VGA Datas.
+        cbits  = len(pads.r)
+        cshift = (8 - cbits)
+        for i in range(cbits):
+            self.specials += SDROutput(i=sink.r[cshift + i], o=pads.r[i], clk=ClockSignal(clock_domain))
+            self.specials += SDROutput(i=sink.g[cshift + i], o=pads.g[i], clk=ClockSignal(clock_domain))
+            self.specials += SDROutput(i=sink.b[cshift + i], o=pads.b[i], clk=ClockSignal(clock_domain))
+
+# DVI (Generic).
+
 class VideoDVIPHY(Module):
     def __init__(self, pads, clock_domain="sys", with_clk_ddr_output=True):
         self.sink = sink = stream.Endpoint(video_data_layout)
@@ -639,28 +666,6 @@ class VideoDVIPHY(Module):
         self.specials += SDROutput(i=sink.vsync, o=pads.vsync, clk=ClockSignal(clock_domain))
 
         # Drive DVI Datas.
-        cbits  = len(pads.r)
-        cshift = (8 - cbits)
-        for i in range(cbits):
-            self.specials += SDROutput(i=sink.r[cshift + i], o=pads.r[i], clk=ClockSignal(clock_domain))
-            self.specials += SDROutput(i=sink.g[cshift + i], o=pads.g[i], clk=ClockSignal(clock_domain))
-            self.specials += SDROutput(i=sink.b[cshift + i], o=pads.b[i], clk=ClockSignal(clock_domain))
-
-
-class VideoVGAPHY(Module):
-    def __init__(self, pads, clock_domain="sys"):
-        self.sink = sink = stream.Endpoint(video_data_layout)
-
-        # # #
-
-        # Always ack Sink, no backpressure.
-        self.comb += sink.ready.eq(1)
-
-        # Drive VGA Conrols.
-        self.specials += SDROutput(i=~sink.hsync, o=pads.hsync_n, clk=ClockSignal(clock_domain))
-        self.specials += SDROutput(i=~sink.vsync, o=pads.vsync_n, clk=ClockSignal(clock_domain))
-
-        # Drive VGA Datas.
         cbits  = len(pads.r)
         cshift = (8 - cbits)
         for i in range(cbits):
