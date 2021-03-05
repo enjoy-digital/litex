@@ -12,6 +12,7 @@ from migen.genlib.cdc import MultiReg
 
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import stream
+from litex.soc.cores.code_tmds import TMDSEncoder
 
 from litex.build.io import SDROutput, DDROutput
 
@@ -672,3 +673,84 @@ class VideoDVIPHY(Module):
             self.specials += SDROutput(i=sink.r[cshift + i], o=pads.r[i], clk=ClockSignal(clock_domain))
             self.specials += SDROutput(i=sink.g[cshift + i], o=pads.g[i], clk=ClockSignal(clock_domain))
             self.specials += SDROutput(i=sink.b[cshift + i], o=pads.b[i], clk=ClockSignal(clock_domain))
+
+# HDMI (7-Series).
+
+class VideoS7HDMI10to1Serializer(Module):
+    def __init__(self, data_i, data_o, clock_domain):
+        # Note: 2 OSERDESE2 are coupled for 10:1 Serialization (8:1 Max with one).
+
+        # Map Input Data to OSERDESE2 Master/Slave.
+        data_m = Signal(8)
+        data_s = Signal(8)
+        self.comb += data_m[0:8].eq(data_i[:8]) # D1 to D8
+        self.comb += data_s[2:4].eq(data_i[8:]) # D3 to D4
+
+        # OSERDESE2 Master/Slave.
+        shift = Signal(2)
+        for data, serdes in zip([data_m, data_s], ["master", "slave"]):
+            self.specials += Instance("OSERDESE2",
+                # Parameters
+                p_DATA_WIDTH     = 10,
+                p_TRISTATE_WIDTH = 1,
+                p_DATA_RATE_OQ   = "DDR",
+                p_DATA_RATE_TQ   = "DDR",
+                p_SERDES_MODE    = serdes.upper(),
+
+                # Controls.
+                i_OCE    = 1,
+                i_TCE    = 0,
+                i_RST    = ResetSignal(clock_domain),
+                i_CLK    = ClockSignal(clock_domain + "5x"),
+                i_CLKDIV = ClockSignal(clock_domain),
+
+                # Datas.
+                **{f"i_D{n+1}": data[n] for n in range(8)},
+
+                # Master/Slave shift in/out.
+                i_SHIFTIN1  = shift[0] if serdes == "master" else 0,
+                i_SHIFTIN2  = shift[1] if serdes == "master" else 0,
+                o_SHIFTOUT1 = shift[0] if serdes == "slave"  else 0,
+                o_SHIFTOUT2 = shift[1] if serdes == "slave"  else 0,
+
+                # Output
+                o_OQ = data_o if serdes == "master" else Open(),
+            )
+
+
+class VideoS7HDMIPHY(Module):
+    def __init__(self, pads, clock_domain="sys"):
+        self.sink = sink = stream.Endpoint(video_data_layout)
+
+        # # #
+
+        # Always ack Sink, no backpressure.
+        self.comb += sink.ready.eq(1)
+
+        # Clocking + Differential Signaling.
+        pads_clk = Signal()
+        self.specials += DDROutput(i1=1, i2=0, o=pads_clk, clk=ClockSignal(clock_domain))
+        self.specials += Instance("OBUFDS", i_I=pads_clk, o_O=pads.clk_p, o_OB=pads.clk_n)
+
+        # Encode/Serialize Datas.
+        for color in ["r", "g", "b"]:
+
+            # TMDS Encoding.
+            encoder = ClockDomainsRenamer(clock_domain)(TMDSEncoder())
+            self.submodules += encoder
+            self.comb += encoder.d.eq(getattr(sink, color))
+            self.comb += encoder.c.eq(Cat(sink.hsync, sink.vsync) if color == "r" else 0)
+            self.comb += encoder.de.eq(sink.de)
+
+            # 10:1 Serialization + Differential Signaling.
+            pad_o = Signal()
+            serializer = VideoS7HDMI10to1Serializer(
+                data_i       = encoder.out,
+                data_o       = pad_o,
+                clock_domain = clock_domain,
+            )
+            self.submodules += serializer
+            c2d   = {"r": 0, "g": 1, "b": 2}
+            pad_p = getattr(pads, f"data{c2d[color]}_p")
+            pad_n = getattr(pads, f"data{c2d[color]}_n")
+            self.specials += Instance("OBUFDS", i_I=pad_o, o_O=pad_p, o_OB=pad_n)
