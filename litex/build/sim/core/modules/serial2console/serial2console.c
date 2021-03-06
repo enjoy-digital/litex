@@ -76,11 +76,6 @@ void read_handler(int fd, short event, void *arg)
   int i;
   read_len = read(fd, buffer, 1024);
   for(i = 0; i < read_len; i++) {
-    /* If we are reading a newline make sure its \r\n.  */
-    if (buffer[i] == '\n') {
-      s->databuf[(s->data_start + s->datalen ) % 2048] = '\r';
-      s->datalen++;
-    }
     s->databuf[(s->data_start + s->datalen ) % 2048] = buffer[i];
     s->datalen++;
   }
