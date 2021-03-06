@@ -65,8 +65,14 @@ class Builder:
         csr_svd          = None,
         memory_x         = None,
         bios_options     = [],
+        estimate_rom_size= False,
         generate_doc     = False):
         self.soc = soc
+
+        self.estimate_rom_size = estimate_rom_size
+        if estimate_rom_size:
+            # start estimation with very large rom size
+            self.soc.bus.regions["rom"].size = self.soc.integrated_rom_size * 256
 
         # From Python doc: makedirs() will become confused if the path elements to create include '..'
         self.output_dir    = os.path.abspath(output_dir    or os.path.join("build", soc.platform.name))
@@ -188,6 +194,13 @@ class Builder:
                 makefile = os.path.join(src_dir, "Makefile")
                 if self.compile_software:
                     subprocess.check_call(["make", "-C", dst_dir, "-f", makefile])
+                    if name == "bios" and self.estimate_rom_size:
+                        bios_file = os.path.join(self.software_dir, "bios", "bios.bin")
+                        self.soc.integrated_rom_size = 2**soc_core.log2_int(os.stat(bios_file).st_size, False)
+                        self.soc.bus.regions["rom"].size = self.soc.integrated_rom_size
+                        self.soc.bus.regions["rom"].size_pow2 = self.soc.integrated_rom_size
+                        self.soc.bus.regions["rom"].length = self.soc.integrated_rom_size
+                        self.estimate_rom_size = False
 
     def _initialize_rom_software(self):
         bios_file = os.path.join(self.software_dir, "bios", "bios.bin")
@@ -201,16 +214,17 @@ class Builder:
 
         self.soc.finalize()
 
-        self._generate_includes()
-        self._generate_csr_map()
-        self._generate_mem_region_map()
-        if self.soc.cpu_type is not None:
-            if self.soc.cpu.use_rom:
-                self._prepare_rom_software()
-                self._generate_rom_software(not self.soc.integrated_rom_initialized)
-                if self.soc.integrated_rom_size and self.compile_software:
-                    if not self.soc.integrated_rom_initialized:
-                        self._initialize_rom_software()
+        for i in range(2 if self.estimate_rom_size else 1):
+            self._generate_includes()
+            self._generate_csr_map()
+            self._generate_mem_region_map()
+            if self.soc.cpu_type is not None:
+                if self.soc.cpu.use_rom:
+                    self._prepare_rom_software()
+                    self._generate_rom_software(not self.soc.integrated_rom_initialized)
+                    if self.soc.integrated_rom_size and self.compile_software:
+                        if not self.soc.integrated_rom_initialized:
+                            self._initialize_rom_software()
 
         if "run" not in kwargs:
             kwargs["run"] = self.compile_gateware
@@ -257,6 +271,8 @@ def builder_args(parser):
                         help="store Mem regions in memory-x format into the "
                              "specified file")
     parser.add_argument("--doc", action="store_true", help="Generate Documentation")
+    parser.add_argument("--estimate-rom-size", action="store_true",
+                        help="estimate the size of the integrated ROM (default=False)")
 
 
 def builder_argdict(args):
@@ -273,4 +289,5 @@ def builder_argdict(args):
         "csr_svd":          args.csr_svd,
         "memory_x":         args.memory_x,
         "generate_doc":     args.doc,
+        "estimate_rom_size":args.estimate_rom_size,
     }
