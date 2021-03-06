@@ -88,7 +88,9 @@ static void help(void)
 #endif
 	puts("donut              - Spinning Donut demo");
 	puts("helloc             - Hello C");
+#ifdef WITH_CXX
 	puts("hellocpp           - Hello C++");
+#endif
 }
 
 /*-----------------------------------------------------------------------*/
@@ -148,6 +150,7 @@ static void helloc_cmd(void)
 	helloc();
 }
 
+#ifdef WITH_CXX
 extern void hellocpp(void);
 
 static void hellocpp_cmd(void)
@@ -155,6 +158,8 @@ static void hellocpp_cmd(void)
 	printf("Hello C++ demo...\n");
 	hellocpp();
 }
+#endif
+
 /*-----------------------------------------------------------------------*/
 /* Console service / Main                                                */
 /*-----------------------------------------------------------------------*/
@@ -179,8 +184,10 @@ static void console_service(void)
 		donut_cmd();
 	else if(strcmp(token, "helloc") == 0)
 		helloc_cmd();
+#ifdef WITH_CXX
 	else if(strcmp(token, "hellocpp") == 0)
 		hellocpp_cmd();
+#endif
 	prompt();
 }
 
