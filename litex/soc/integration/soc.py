@@ -1408,7 +1408,8 @@ class LiteXSoC(SoC):
             clk_freq    = self.clk_freq)
         ethcore = ClockDomainsRenamer({
             "eth_tx": phy_cd + "_tx",
-            "eth_rx": phy_cd + "_rx"})(ethcore)
+            "eth_rx": phy_cd + "_rx",
+            "sys":    phy_cd + "_rx"})(ethcore)
         self.submodules.ethcore = ethcore
 
         # Clock domain renaming
