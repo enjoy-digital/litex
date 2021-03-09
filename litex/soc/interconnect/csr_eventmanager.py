@@ -78,20 +78,22 @@ class EventSourcePulse(Module, _EventSource):
 
 
 class EventSourceProcess(Module, _EventSource):
-    """EventSource which triggers on a falling edge.
+    """EventSource which triggers on a Falling or Rising edge.
 
     The purpose of this event source is to monitor the status of processes and
     generate an interrupt on their completion.
     """
-    def __init__(self, name=None, description=None):
+    def __init__(self, name=None, description=None, edge="falling"):
+        assert edge in ["falling", "rising"]
         _EventSource.__init__(self, name, description)
         self.comb += self.status.eq(self.trigger)
-        old_trigger = Signal()
-        self.sync += [
-            If(self.clear, self.pending.eq(0)),
-            old_trigger.eq(self.trigger),
-            If(~self.trigger & old_trigger, self.pending.eq(1))
-        ]
+        trigger_d = Signal()
+        self.sync += If(self.clear, self.pending.eq(0))
+        self.sync += trigger_d.eq(self.trigger)
+        if edge == "falling":
+            self.sync += If(~self.trigger & trigger_d, self.pending.eq(1))
+        if edge == "rising":
+            self.sync += If(self.trigger & ~trigger_d, self.pending.eq(1))
 
 
 class EventSourceLevel(Module, _EventSource):
