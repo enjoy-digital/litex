@@ -17,36 +17,28 @@ from litex.soc.interconnect.csr_eventmanager import *
 def _to_signal(obj):
     return obj.raw_bits() if isinstance(obj, Record) else obj
 
+
+class _GPIOIRQ(Module, AutoCSR):
+    def __init__(self, in_pads):
+        self._polarity = CSRStorage(len(in_pads), description="GPIO IRQ Polarity: 0: Rising Edge, 1: Falling Edge.")
+
+        # # #
+
+        self.submodules.ev = EventManager()
+        for n in range(len(in_pads)):
+            esp = EventSourceProcess(name=f"i{n}", edge="rising")
+            self.comb += esp.trigger.eq(in_pads[n] ^ self._polarity.storage[n])
+            setattr(self.ev, f"i{n}", esp)
+
 # GPIO Input ---------------------------------------------------------------------------------------
 
 class GPIOIn(Module, AutoCSR):
-    """GPIO Input
-
-    Provides a GPIO Input peripheral. An optional IRQ dict can be passed to add rising or falling
-    interrupts to pads.
-
-    Ex: pads=Signal(8), irqs={}                    : 8-bit Input, No IRQ.
-        pads=Signal(8), irqs={0: "rise", 7: "fall"}: 8-bit Input, rising IRQ on 0, falling IRQ on 1.
-    """
-    def __init__(self, pads, irqs={}):
+    def __init__(self, pads, with_irq=False):
         pads = _to_signal(pads)
-
-        # Inputs
         self._in = CSRStatus(len(pads), description="GPIO Input(s) Status.")
         self.specials += MultiReg(pads, self._in.status)
-
-        # IRQs
-        if len(irqs):
-            self.submodules.ev = EventManager()
-            for n, irq_type in irqs.items():
-                assert irq_type in ["fall", "falling", "rise", "rising"]
-                assert len(pads) > n
-                name = f"i{n}"
-                if irq_type in ["rise", "rising"]:
-                    setattr(self.ev, f"i{n}", EventSourcePulse())
-                if irq_type in ["fall", "falling"]:
-                    setattr(self.ev, f"i{n}", EventSourceProcess())
-                self.comb += getattr(self.ev, f"i{n}").trigger.eq(pads[n])
+        if with_irq:
+            self.submodules.irq = _GPIOIRQ(self._in.status)
 
 # GPIO Output --------------------------------------------------------------------------------------
 
@@ -69,7 +61,7 @@ class GPIOInOut(Module):
 # GPIO Tristate ------------------------------------------------------------------------------------
 
 class GPIOTristate(Module, AutoCSR):
-    def __init__(self, pads):
+    def __init__(self, pads, with_irq=False):
         assert isinstance(pads, Signal)
         nbits     = len(pads)
         self._oe  = CSRStorage(nbits, description="GPIO Tristate(s) Control.")
@@ -84,3 +76,6 @@ class GPIOTristate(Module, AutoCSR):
             self.comb += t.oe.eq(self._oe.storage[i])
             self.comb += t.o.eq(self._out.storage[i])
             self.specials += MultiReg(t.i, self._in.status[i])
+
+        if with_irq:
+            self.submodules.irq = _GPIOIRQ(self._in.status)
