@@ -111,7 +111,7 @@ class VexRiscv(CPU, AutoCSR):
         flags += " -D__vexriscv__"
         return flags
 
-    def __init__(self, platform, variant="standard", timer_enabled=True):
+    def __init__(self, platform, variant="standard", with_timer=False):
         self.platform         = platform
         self.variant          = variant
         self.human_name       = CPU_VARIANTS.get(variant, "VexRiscv")
@@ -158,7 +158,7 @@ class VexRiscv(CPU, AutoCSR):
                 i_dBusWishbone_ERR      = dbus.err
             )
 
-        if timer_enabled:
+        if with_timer:
             self.add_timer()
 
         if "debug" in variant:
