@@ -350,7 +350,7 @@ class GenericPlatform:
     def do_finalize(self, fragment, *args, **kwargs):
         """overload this and e.g. add_platform_command()'s after the modules
         had their say"""
-        if self.use_default_clk:
+        if self.use_default_clk and hasattr(self, "default_clk_period"):
             try:
                 self.add_period_constraint(
                     self.lookup_request(self.default_clk_name),
