@@ -1042,8 +1042,8 @@ int sdram_init(void)
 #ifndef SDRAM_TEST_DISABLE
 	if(!memtest((unsigned int *) MAIN_RAM_BASE, MEMTEST_DATA_SIZE)) {
 #ifdef CSR_DDRCTRL_BASE
-		ddrctrl_init_done_write(1);
 		ddrctrl_init_error_write(1);
+		ddrctrl_init_done_write(1);
 #endif
 		return 0;
 	}
