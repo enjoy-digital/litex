@@ -14,6 +14,7 @@
 # This file is Copyright (c) 2015 whitequark <whitequark@whitequark.org>
 # This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
 # This file is Copyright (c) 2020 Piotr Esden-Tempski <piotr@esden.net>
+# This file is Copyright (c) 2021 David Jablonski <dayjaby@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
@@ -32,6 +33,30 @@ from litex.soc.doc.rst import reflow
 from litex.soc.doc.module import gather_submodules, ModuleNotDocumented, DocumentedModule, DocumentedInterrupts
 from litex.soc.doc.csr import DocumentedCSRRegion
 from litex.soc.interconnect.csr import _CompoundCSR
+
+# Jinja2 Environment --------------------------------------------------------------------------------
+
+from jinja2 import Environment, FileSystemLoader
+
+script_path = os.path.dirname(os.path.realpath(__file__))
+jinja_env = Environment(
+    loader=FileSystemLoader(os.path.join(script_path, 'templates')),
+    trim_blocks=True,
+    lstrip_blocks=True
+)
+def hex_zfill(v, size=None, upper=False):
+    v = hex(v)
+    if upper:
+        v = v.upper()
+    if size:
+        v = "0x" + v[2:].zfill(size)
+    return v
+
+jinja_env.filters["hex"] = hex_zfill
+jinja_env.filters["hasattr"] = hasattr
+jinja_env.globals["getattr"] = getattr
+next_power_of_2 = lambda x, at_least=None: max([1<<(x-1).bit_length()] + ([at_least] if at_least else []))
+jinja_env.globals["get_ctype"] = lambda size: "uint{}_t".format(next_power_of_2(size, at_least=8))
 
 # CPU files ----------------------------------------------------------------------------------------
 
@@ -96,173 +121,152 @@ def get_cpu_mak(cpu, compile_software):
         ("CPU_DIRECTORY", os.path.dirname(inspect.getfile(cpu.__class__))),
     ]
 
-
 def get_linker_output_format(cpu):
     return "OUTPUT_FORMAT(\"" + cpu.linker_output_format + "\")\n"
 
-
 def get_linker_regions(regions):
-    r = "MEMORY {\n"
-    for name, region in regions.items():
-        r += "\t{} : ORIGIN = 0x{:08x}, LENGTH = 0x{:08x}\n".format(name, region.origin, region.length)
-    r += "}\n"
-    return r
-
+    return jinja_env.from_string("""\
+MEMORY {
+{% for name, region in regions.items() %}
+	{{ name }} : ORIGIN = {{ region.origin | hex(8) }}, LENGTH = {{ region.length | hex(8) }}
+{% endfor %}
+}
+""").render(
+        regions=regions
+    )
 
 # C Export -----------------------------------------------------------------------------------------
 
 def get_git_header():
     from litex.build.tools import get_migen_git_revision, get_litex_git_revision
-    r = generated_banner("//")
-    r += "#ifndef __GENERATED_GIT_H\n#define __GENERATED_GIT_H\n\n"
-    r += "#define MIGEN_GIT_SHA1 \"{}\"\n".format(get_migen_git_revision())
-    r += "#define LITEX_GIT_SHA1 \"{}\"\n".format(get_litex_git_revision())
-    r += "#endif\n"
-    return r
+    return jinja_env.from_string("""\
+{{ generated_banner }}
+
+#ifndef __GENERATED_GIT_H
+#define __GENERATED_GIT_H
+
+#define MIGEN_GIT_SHA1 "{{ migen_git_revision }}"
+#define LITEX_GIT_SHA1 "{{ litex_git_revision }}"
+
+#endif /* ! __GENERATED_GIT_H */
+""").render(
+        generated_banner=generated_banner("//"),
+        migen_git_revision=get_migen_git_revision(),
+        litex_git_revision=get_litex_git_revision()
+    )
 
 def get_mem_header(regions):
-    r = generated_banner("//")
-    r += "#ifndef __GENERATED_MEM_H\n#define __GENERATED_MEM_H\n\n"
-    for name, region in regions.items():
-        r += "#ifndef {name}_BASE\n".format(name=name.upper())
-        r += "#define {name}_BASE 0x{base:08x}L\n#define {name}_SIZE 0x{size:08x}\n".format(
-            name=name.upper(), base=region.origin, size=region.length)
-        r += "#endif\n\n"
+    return jinja_env.from_string("""\
+{{ generated_banner }}
 
-    r += "#ifndef MEM_REGIONS\n"
-    r += "#define MEM_REGIONS \"";
-    for name, region in regions.items():
-        r += f"{name.upper()} {' '*(8-len(name))} 0x{region.origin:08x} 0x{region.size:x} \\n"
-    r = r[:-2]
-    r += "\"\n"
-    r += "#endif\n"
+#ifndef __GENERATED_MEM_H
+#define __GENERATED_MEM_H
 
-    r += "#endif\n"
-    return r
+{% for name, region in regions.items() %}
+#ifndef {{ name | upper }}_BASE
+#define {{ name | upper }}_BASE {{ region.origin | hex(8) }}L
+#define {{ name | upper }}_SIZE {{ region.length | hex(8) }}
+#endif
+{% endfor %}
+
+#ifndef MEM_REGIONS
+#define MEM_REGIONS ""\
+{% for name, region in regions.items() %}
+	"{{ name.ljust(8) | upper }} {{ region.origin | hex(8) }} {{ region.size | hex }}"\
+{% endfor %}
+
+#endif
+
+#endif /* ! __GENERATED_MEM_H */
+""").render(
+        generated_banner=generated_banner("//"),
+        regions=regions
+    )
 
 def get_soc_header(constants, with_access_functions=True):
-    r = generated_banner("//")
-    r += "#ifndef __GENERATED_SOC_H\n#define __GENERATED_SOC_H\n"
+    return jinja_env.from_string("""\
+{{ generated_banner }}
 
+#ifndef __GENERATED_SOC_H
+#define __GENERATED_SOC_H
 
-    for name, value in constants.items():
-        if value is None:
-            r += "#define "+name+"\n"
-            continue
-        if isinstance(value, str):
-            value = "\"" + value + "\""
-            ctype = "const char *"
-        else:
-            value = str(value)
-            ctype = "int"
-        r += "#define "+name+" "+value+"\n"
-        if with_access_functions:
-            r += "static inline "+ctype+" "+name.lower()+"_read(void) {\n"
-            r += "\treturn "+value+";\n}\n"
+{% for name, value in constants.items() %}
+{% if value is none %}
+#define {{ name }}
+{% else %}
+{% if value is string %}
+{% set value = "\\"{}\\"".format(value) %}
+{% set ctype = "const char *" %}
+{% else %}
+{% set value = value | int %}
+{% set ctype = "int" %}
+{% endif %}
+#define {{ name }} {{ value }}
+{% if with_access_functions %}
+static inline {{ ctype }} {{ name | lower }}_read(void) {
+	return {{ value }};
+}
+{% endif %}
+{% endif %}
+{% endfor %}
 
-    r += "\n#endif\n"
-    return r
-
-def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_only, with_access_functions):
-    r = ""
-
-    addr_str = "CSR_{}_ADDR".format(reg_name.upper())
-    size_str = "CSR_{}_SIZE".format(reg_name.upper())
-    r += "#define {} (CSR_BASE + {}L)\n".format(addr_str, hex(reg_base))
-    r += "#define {} {}\n".format(size_str, nwords)
-
-    size = nwords*busword//8
-    if size > 8:
-        # downstream should select appropriate `csr_[rd|wr]_buf_uintX()` pair!
-        return r
-    elif size > 4:
-        ctype = "uint64_t"
-    elif size > 2:
-        ctype = "uint32_t"
-    elif size > 1:
-        ctype = "uint16_t"
-    else:
-        ctype = "uint8_t"
-
-    stride = alignment//8;
-    if with_access_functions:
-        r += "static inline {} {}_read(void) {{\n".format(ctype, reg_name)
-        if nwords > 1:
-            r += "\t{} r = csr_read_simple(CSR_BASE + {}L);\n".format(ctype, hex(reg_base))
-            for sub in range(1, nwords):
-                r += "\tr <<= {};\n".format(busword)
-                r += "\tr |= csr_read_simple(CSR_BASE + {}L);\n".format(hex(reg_base+sub*stride))
-            r += "\treturn r;\n}\n"
-        else:
-            r += "\treturn csr_read_simple(CSR_BASE + {}L);\n}}\n".format(hex(reg_base))
-
-        if not read_only:
-            r += "static inline void {}_write({} v) {{\n".format(reg_name, ctype)
-            for sub in range(nwords):
-                shift = (nwords-sub-1)*busword
-                if shift:
-                    v_shift = "v >> {}".format(shift)
-                else:
-                    v_shift = "v"
-                r += "\tcsr_write_simple({}, CSR_BASE + {}L);\n".format(v_shift, hex(reg_base+sub*stride))
-            r += "}\n"
-    return r
-
+#endif /* ! __GENERATED_SOC_H */
+""").render(
+        generated_banner=generated_banner("//"),
+        constants=constants
+    )
 
 def get_csr_header(regions, constants, csr_base=None, with_access_functions=True):
-    alignment = constants.get("CONFIG_CSR_ALIGNMENT", 32)
-    r = generated_banner("//")
-    if with_access_functions: # FIXME
-        r += "#include <generated/soc.h>\n"
-    r += "#ifndef __GENERATED_CSR_H\n#define __GENERATED_CSR_H\n"
-    if with_access_functions:
-        r += "#include <stdint.h>\n"
-        r += "#include <system.h>\n"
-        r += "#ifndef CSR_ACCESSORS_DEFINED\n"
-        r += "#include <hw/common.h>\n"
-        r += "#endif /* ! CSR_ACCESSORS_DEFINED */\n"
-    csr_base = csr_base if csr_base is not None else regions[next(iter(regions))].origin
-    r += "#ifndef CSR_BASE\n"
-    r += "#define CSR_BASE {}L\n".format(hex(csr_base))
-    r += "#endif\n"
-    for name, region in regions.items():
-        origin = region.origin - csr_base
-        r += "\n/* "+name+" */\n"
-        r += "#define CSR_"+name.upper()+"_BASE (CSR_BASE + "+hex(origin)+"L)\n"
-        if not isinstance(region.obj, Memory):
-            for csr in region.obj:
-                nr = (csr.size + region.busword - 1)//region.busword
-                r += _get_rw_functions_c(name + "_" + csr.name, origin, nr, region.busword, alignment,
-                    getattr(csr, "read_only", False), with_access_functions)
-                origin += alignment//8*nr
-                if hasattr(csr, "fields"):
-                    for field in csr.fields.fields:
-                        offset = str(field.offset)
-                        size = str(field.size)
-                        r += "#define CSR_"+name.upper()+"_"+csr.name.upper()+"_"+field.name.upper()+"_OFFSET "+offset+"\n"
-                        r += "#define CSR_"+name.upper()+"_"+csr.name.upper()+"_"+field.name.upper()+"_SIZE "+size+"\n"
-                        if with_access_functions and csr.size <= 32: # FIXME: Implement extract/read functions for csr.size > 32-bit.
-                            reg_name = name + "_" + csr.name.lower()
-                            field_name = reg_name + "_" + field.name.lower()
-                            r += "static inline uint32_t " + field_name + "_extract(uint32_t oldword) {\n"
-                            r += "\tuint32_t mask = ((1 << " + size + ")-1);\n"
-                            r += "\treturn ( (oldword >> " + offset + ") & mask );\n}\n"
-                            r += "static inline uint32_t " + field_name + "_read(void) {\n"
-                            r += "\tuint32_t word = " + reg_name + "_read();\n"
-                            r += "\treturn " + field_name + "_extract(word);\n"
-                            r += "}\n"
-                            if not getattr(csr, "read_only", False):
-                                r += "static inline uint32_t " + field_name + "_replace(uint32_t oldword, uint32_t plain_value) {\n"
-                                r += "\tuint32_t mask = ((1 << " + size + ")-1);\n"
-                                r += "\treturn (oldword & (~(mask << " + offset + "))) | (mask & plain_value)<< " + offset + " ;\n}\n"
-                                r += "static inline void " + field_name + "_write(uint32_t plain_value) {\n"
-                                r += "\tuint32_t oldword = " + reg_name + "_read();\n"
-                                r += "\tuint32_t newword = " + field_name + "_replace(oldword, plain_value);\n"
-                                r += "\t" + reg_name + "_write(newword);\n"
-                                r += "}\n"
+    return jinja_env.from_string("""\
+{{ generated_banner }}
 
-    r += "\n#endif\n"
-    return r
+{% if with_access_functions %}
+#include <generated/soc.h>
+#include <system.h>
+{% endif %}
+
+#ifndef __GENERATED_CSR_H
+#define __GENERATED_CSR_H
+
+{% if with_access_functions %}
+#include <stdint.h>
+#ifndef CSR_ACCESSORS_DEFINED
+#include <hw/common.h>
+#endif /* ! CSR_ACCESSORS_DEFINED */
+{% endif %}
+
+#ifndef CSR_BASE
+#define CSR_BASE {{ csr_base | hex }}L
+#endif
+
+{% for name, region in regions.items() %}
+/* {{ name }} */
+{% set ns = namespace(origin=region.origin-csr_base) %}
+#define CSR_{{ name | upper}}_BASE (CSR_BASE + {{ ns.origin | hex }}L)
+{% if region.obj.__class__.__name__ != "Memory" %}
+{% for csr in region.obj %}
+{% set reg_name = name + "_" + csr.name.lower() %}
+{% set nwords = (csr.size + region.busword - 1)//region.busword %}
+{% set reg_base = ns.origin %}
+{% set ns.origin = ns.origin+alignment//8*nwords %}
+{% include 'csr_readwrite.h.jinja' %}
+{% if ( csr | hasattr("fields")) %}
+{% for field in csr.fields.fields %}
+{% include 'csr_field.h.jinja' %}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endfor %}
+
+#endif /* ! __GENERATED_CSR_H */
+""").render(
+        alignment=constants.get("CONFIG_CSR_ALIGNMENT", 32),
+        generated_banner=generated_banner("//"),
+        with_access_functions=with_access_functions,
+        csr_base=csr_base if csr_base is not None else regions[next(iter(regions))].origin,
+        regions=regions
+    )
 
 # JSON Export --------------------------------------------------------------------------------------
 
@@ -488,14 +492,17 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
 # Memory.x Export ----------------------------------------------------------------------------------
 
 def get_memory_x(soc):
-    r = get_linker_regions(soc.mem_regions)
-    r += '\n'
-    r += 'REGION_ALIAS("REGION_TEXT", spiflash);\n'
-    r += 'REGION_ALIAS("REGION_RODATA", spiflash);\n'
-    r += 'REGION_ALIAS("REGION_DATA", sram);\n'
-    r += 'REGION_ALIAS("REGION_BSS", sram);\n'
-    r += 'REGION_ALIAS("REGION_HEAP", sram);\n'
-    r += 'REGION_ALIAS("REGION_STACK", sram);\n\n'
-    r += '/* CPU reset location. */\n'
-    r += '_stext = {:#08x};\n'.format(soc.cpu.reset_address)
-    return r
+    return get_linker_regions(soc.mem_regions) + jinja_env.from_string("""\
+
+REGION_ALIAS("REGION_TEXT", spiflash);
+REGION_ALIAS("REGION_RODATA", spiflash);
+REGION_ALIAS("REGION_DATA", sram);
+REGION_ALIAS("REGION_BSS", sram);
+REGION_ALIAS("REGION_HEAP", sram);
+REGION_ALIAS("REGION_STACK", sram);
+
+/* CPU reset location. */
+_stext = {{ reset_address | hex(8) }};
+""").render(
+        reset_address=soc.cpu.reset_address
+    )
