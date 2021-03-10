@@ -342,7 +342,7 @@ class GenericPlatform:
                     "No default clock and no clock domain defined")
             crg = CRG(self.request(self.default_clk_name))
             fragment += crg.get_fragment()
-            self.user_default_clk = True
+            self.use_default_clk = True
 
         self.do_finalize(fragment, *args, **kwargs)
         self.finalized = True
