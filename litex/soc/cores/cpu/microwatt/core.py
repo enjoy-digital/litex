@@ -123,7 +123,6 @@ class Microwatt(CPU):
                 variant      = self.variant,
                 core_irq_out = self.core_ext_irq,
                 int_level_in = self.interrupt,
-                endianness   = self.endianness
             )
             xicsicp_region = soc_region_cls(origin=soc.mem_map.get("xicsicp"), size=4096, cached=False)
             xicsics_region = soc_region_cls(origin=soc.mem_map.get("xicsics"), size=4096, cached=False)
@@ -212,21 +211,11 @@ class Microwatt(CPU):
 
 
 class XICSSlave(Module, AutoCSR):
-    def __init__(self, platform, core_irq_out=Signal(), int_level_in=Signal(16), endianness="big", variant="standard"):
+    def __init__(self, platform, core_irq_out=Signal(), int_level_in=Signal(16), variant="standard"):
         self.variant = variant
 
         self.icp_bus    = icp_bus    = wishbone.Interface(data_width=32, adr_width=12)
         self.ics_bus    = ics_bus    = wishbone.Interface(data_width=32, adr_width=12)
-
-        # Bus endianness handlers
-        self.icp_dat_w = Signal(32)
-        self.icp_dat_r = Signal(32)
-        self.comb += self.icp_dat_w.eq(icp_bus.dat_w if endianness == "big" else reverse_bytes(icp_bus.dat_w))
-        self.comb += icp_bus.dat_r.eq(self.icp_dat_r if endianness == "big" else reverse_bytes(self.icp_dat_r))
-        self.ics_dat_w = Signal(32)
-        self.ics_dat_r = Signal(32)
-        self.comb += self.ics_dat_w.eq(ics_bus.dat_w if endianness == "big" else reverse_bytes(ics_bus.dat_w))
-        self.comb += ics_bus.dat_r.eq(self.ics_dat_r if endianness == "big" else reverse_bytes(self.ics_dat_r))
 
         # XICS signals
         self.ics_icp_xfer_src = Signal(4)
@@ -238,11 +227,11 @@ class XICSSlave(Module, AutoCSR):
             i_rst            = ResetSignal(),
 
             # Wishbone bus
-            o_wishbone_dat_r = self.icp_dat_r,
+            o_wishbone_dat_r = icp_bus.dat_r,
             o_wishbone_ack   = icp_bus.ack,
 
             i_wishbone_adr   = icp_bus.adr,
-            i_wishbone_dat_w = self.icp_dat_w,
+            i_wishbone_dat_w = icp_bus.dat_w,
             i_wishbone_cyc   = icp_bus.cyc,
             i_wishbone_stb   = icp_bus.stb,
             i_wishbone_sel   = icp_bus.sel,
@@ -260,11 +249,11 @@ class XICSSlave(Module, AutoCSR):
             i_rst            = ResetSignal(),
 
             # Wishbone bus
-            o_wishbone_dat_r = self.ics_dat_r,
+            o_wishbone_dat_r = ics_bus.dat_r,
             o_wishbone_ack   = ics_bus.ack,
 
             i_wishbone_adr   = ics_bus.adr,
-            i_wishbone_dat_w = self.ics_dat_w,
+            i_wishbone_dat_w = ics_bus.dat_w,
             i_wishbone_cyc   = ics_bus.cyc,
             i_wishbone_stb   = ics_bus.stb,
             i_wishbone_sel   = ics_bus.sel,

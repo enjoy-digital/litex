@@ -33,6 +33,8 @@ void isr(uint64_t vec);
 // Default external interrupt priority set by software during IRQ enable
 #define PPC_EXT_INTERRUPT_PRIO	0x08
 
+#define bswap32(x) (uint32_t)__builtin_bswap32((uint32_t)(x))
+
 static inline uint8_t xics_icp_readb(int reg)
 {
 	return *((uint8_t*)(XICSICP_BASE + reg));
@@ -45,22 +47,22 @@ static inline void xics_icp_writeb(int reg, uint8_t value)
 
 static inline uint32_t xics_icp_readw(int reg)
 {
-	return *((uint32_t*)(XICSICP_BASE + reg));
+	return bswap32(*((uint32_t*)(XICSICP_BASE + reg)));
 }
 
 static inline void xics_icp_writew(int reg, uint32_t value)
 {
-	*((uint32_t*)(XICSICP_BASE + reg)) = value;
+	*((uint32_t*)(XICSICP_BASE + reg)) = bswap32(value);
 }
 
 static inline uint32_t xics_ics_read_xive(int irq_number)
 {
-	return *((uint32_t*)(XICSICS_BASE + 0x800 + (irq_number << 2)));
+	return bswap32(*((uint32_t*)(XICSICS_BASE + 0x800 + (irq_number << 2))));
 }
 
 static inline void xics_ics_write_xive(int irq_number, uint32_t priority)
 {
-	*((uint32_t*)(XICSICS_BASE + 0x800 + (irq_number << 2))) = priority;
+	*((uint32_t*)(XICSICS_BASE + 0x800 + (irq_number << 2))) = bswap32(priority);
 }
 
 static inline void mtmsrd(uint64_t val)
