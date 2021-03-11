@@ -33,54 +33,56 @@ void isr(uint64_t vec);
 // Default external interrupt priority set by software during IRQ enable
 #define PPC_EXT_INTERRUPT_PRIO	0x08
 
-uint8_t inline xics_icp_readb(int reg)
+#define bswap32(x) (uint32_t)__builtin_bswap32((uint32_t)(x))
+
+static inline uint8_t xics_icp_readb(int reg)
 {
 	return *((uint8_t*)(XICSICP_BASE + reg));
 }
 
-void inline xics_icp_writeb(int reg, uint8_t value)
+static inline void xics_icp_writeb(int reg, uint8_t value)
 {
 	*((uint8_t*)(XICSICP_BASE + reg)) = value;
 }
 
-uint32_t inline xics_icp_readw(int reg)
+static inline uint32_t xics_icp_readw(int reg)
 {
-	return *((uint32_t*)(XICSICP_BASE + reg));
+	return bswap32(*((uint32_t*)(XICSICP_BASE + reg)));
 }
 
-void inline xics_icp_writew(int reg, uint32_t value)
+static inline void xics_icp_writew(int reg, uint32_t value)
 {
-	*((uint32_t*)(XICSICP_BASE + reg)) = value;
+	*((uint32_t*)(XICSICP_BASE + reg)) = bswap32(value);
 }
 
-uint32_t inline xics_ics_read_xive(int irq_number)
+static inline uint32_t xics_ics_read_xive(int irq_number)
 {
-	return *((uint32_t*)(XICSICS_BASE + 0x800 + (irq_number << 2)));
+	return bswap32(*((uint32_t*)(XICSICS_BASE + 0x800 + (irq_number << 2))));
 }
 
-void inline xics_ics_write_xive(int irq_number, uint32_t priority)
+static inline void xics_ics_write_xive(int irq_number, uint32_t priority)
 {
-	*((uint32_t*)(XICSICS_BASE + 0x800 + (irq_number << 2))) = priority;
+	*((uint32_t*)(XICSICS_BASE + 0x800 + (irq_number << 2))) = bswap32(priority);
 }
 
-void inline mtmsrd(uint64_t val)
+static inline void mtmsrd(uint64_t val)
 {
 	__asm__ volatile("mtmsrd %0" : : "r" (val) : "memory");
 }
 
-uint64_t inline mfmsr(void)
+static inline uint64_t mfmsr(void)
 {
 	uint64_t rval;
 	__asm__ volatile("mfmsr %0" : "=r" (rval) : : "memory");
 	return rval;
 }
 
-void inline mtdec(uint64_t val)
+static inline void mtdec(uint64_t val)
 {
 	__asm__ volatile("mtdec %0" : : "r" (val) : "memory");
 }
 
-uint64_t inline mfdec(void)
+static inline uint64_t mfdec(void)
 {
 	uint64_t rval;
 	__asm__ volatile("mfdec %0" : "=r" (rval) : : "memory");
