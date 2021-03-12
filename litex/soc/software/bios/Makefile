@@ -38,6 +38,10 @@ else
 OBJECTS += readline.o
 endif
 
+ifdef PERIPHERALS
+OBJECTS += peripherals.o
+endif
+
 all: bios.bin
 	$(PYTHON) -m litex.soc.software.memusage bios.elf $(CURDIR)/../include/generated/regions.ld $(TRIPLE)
 

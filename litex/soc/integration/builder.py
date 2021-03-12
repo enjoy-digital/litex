@@ -18,9 +18,10 @@ import struct
 import shutil
 
 from litex import get_data_mod
-from litex.build.tools import write_to_file
+from litex.build.tools import write_to_file, replace_in_file
 from litex.soc.integration import export, soc_core
 from litex.soc.cores import cpu
+from migen.fhdl.bitcontainer import log2_int
 
 # Helpers ------------------------------------------------------------------------------------------
 
@@ -215,15 +216,46 @@ class Builder:
             write_to_file(os.path.realpath(self.csr_svd), csr_svd_contents)
 
     def _generate_peripherals(self):
-        if self.peripherals:
+        if self.peripherals and not ("peripherals_rom" in self.soc.mem_regions):
+            #Generate peripherals.csv
             write_to_file(
                 os.path.join(self.generated_dir, "peripherals.csv"),
                 export.get_peripherals(self.soc.csr_regions, self.soc.constants, self.soc.mem_regions))
+            #Generate peripherals.c
             wd = os.getcwd()
             os.chdir(self.generated_dir)
-            if subprocess.call(["xxd", "-i", "peripherals.csv", "../../bios/peripherals.c"]) != 0:
+            if subprocess.call(["xxd", "-i", "peripherals.csv", os.path.join("..", "..", "bios", "peripherals.c")]) != 0:
                 raise OSError("The peripherals list could not be generated.")
             os.chdir(wd)
+            replace_in_file(os.path.join(self.software_dir, "bios", "peripherals.c"), '[]',
+                    '[] __attribute__((section(".peripherals")))')
+            #Generate peripherals_rom
+            with open(os.path.join(self.software_dir, "bios", "peripherals.c"), "r") as f:
+                line = f.readlines()[-1]
+                size = int(line.split(" ")[-1][:-2])
+            self.soc.mem_map["peripherals_rom"] = self.soc.mem_regions['rom'].origin + 2**log2_int(self.soc.mem_regions['rom'].size, False)
+            self.soc.add_rom("peripherals_rom", self.soc.mem_map["peripherals_rom"], size, [], "r")
+            with open(os.path.join(self.generated_dir, "mem.h"), "a") as mem_file:
+                mem_file.write("\n#ifndef PERIPHERALS_BASE\n")
+                mem_file.write("#define PERIPHERALS_BASE " + str(hex(self.soc.mem_map["peripherals_rom"])) + "\n")
+                mem_file.write("#define PERIPHERALS_SIZE " + str(hex(size)) + "\n")
+                mem_file.write("#endif")
+            replace_in_file(os.path.join(self.generated_dir, "regions.ld"), "}",
+                    "\tperipherals_rom : ORIGIN = " +  str(hex(self.soc.mem_map["peripherals_rom"])) + ", LENGTH = " + str(hex(size)) + "\n}")
+            #Generate peripherals.ld
+            write_to_file(
+                os.path.join(self.generated_dir, "peripherals.ld"),
+                """.peripherals :
+            {
+                    _fperipherals = .;
+                    *(.peripherals)
+                    _eperipherals = .;
+            } > peripherals_rom""")
+            #Add variable to variables.mak
+            with open(os.path.join(self.generated_dir, "variables.mak"), "a") as variables:
+                variables.write("\nPERIPHERALS=1")
+        else:
+            open(os.path.join(self.generated_dir, "peripherals.ld"), "w").close()
 
     def _prepare_rom_software(self):
         # Create directories for all software packages.
@@ -232,13 +264,15 @@ class Builder:
 
     def _generate_rom_software(self, compile_bios=True):
         # Compile all software packages.
-         for name, src_dir in self.software_packages:
+        for name, src_dir in self.software_packages:
             # Skip BIOS compilation when disabled.
             if name == "bios" and not compile_bios:
                 continue
             # Compile software package.
             dst_dir  = os.path.join(self.software_dir, name)
             makefile = os.path.join(src_dir, "Makefile")
+            if name == "bios":
+                self._generate_peripherals()
             if self.compile_software:
                 subprocess.check_call(["make", "-C", dst_dir, "-f", makefile])
 
@@ -266,7 +300,6 @@ class Builder:
 
         # Export SoC Mapping.
         self._generate_csr_map()
-        self._generate_peripherals()
 
         # Compile the BIOS when the SoC uses it.
         if self.soc.cpu_type is not None:
@@ -318,8 +351,8 @@ def builder_args(parser):
     parser.add_argument("--csr-json",             default=None,        help="Write SoC mapping to the specified JSON file.")
     parser.add_argument("--csr-svd",              default=None,        help="Write SoC mapping to the specified SVD file.")
     parser.add_argument("--memory-x",             default=None,        help="Write SoC Memory Regions to the specified Memory-X file.")
-    parser.add_argument("--generate-peripherals", action="store_true", help="generate and add to the ROM a peripherals list")
     parser.add_argument("--doc",                  action="store_true", help="Generate SoC Documentation.")
+    parser.add_argument("--generate-peripherals", action="store_true", help="Generate and add to the ROM a list of peripherals")
 
 
 def builder_argdict(args):

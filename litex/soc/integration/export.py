@@ -528,6 +528,6 @@ def get_peripherals(csr_regions={}, constants={}, mem_regions={}):
         r += "\n"
 
     for name, region in mem_regions.items():
-        r += "name: {},base: 0x{:08x},length: {},type: {},\n\n".format(name, region.origin, region.length, region.type)
+        r += "name: {},base: 0x{:08x},length: {},type: {},\n\n".format(name, region.origin, region.size, region.mode)
 
     return r

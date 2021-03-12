@@ -76,7 +76,10 @@ SECTIONS
 		*(.eh_frame)
 		*(.comment)
 	}
+
+	INCLUDE generated/peripherals.ld
 }
+
 
 PROVIDE(_fstack = ORIGIN(sram) + LENGTH(sram) - 8);
 
