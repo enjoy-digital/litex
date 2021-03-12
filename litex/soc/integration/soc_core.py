@@ -199,7 +199,7 @@ class SoCCore(LiteXSoC):
         self.csr.add(csr_name, csr_id, use_loc_if_exists=use_loc_if_exists)
 
     def initialize_rom(self, data):
-        self.rom.mem.init = data
+        self.init_rom(name="rom", contents=data)
 
     def add_wb_master(self, wbm):
         self.bus.add_master(master=wbm)
@@ -270,7 +270,7 @@ def soc_core_args(parser):
     parser.add_argument("--no-ctrl", action="store_true", help="Disable Controller (default=False).")
 
     # ROM parameters
-    parser.add_argument("--integrated-rom-size", default=0x8000,  type=auto_int, help="Size/Enable the integrated (BIOS) ROM (default=32KB).")
+    parser.add_argument("--integrated-rom-size", default=0x10000, type=auto_int, help="Size/Enable the integrated (BIOS) ROM (default=64KB, automatically resized to BIOS size when smaller).")
     parser.add_argument("--integrated-rom-file", default=None,    type=str,      help="Integrated (BIOS) ROM binary file.")
 
     # SRAM parameters

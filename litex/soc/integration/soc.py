@@ -822,6 +822,18 @@ class SoC(Module):
     def add_rom(self, name, origin, size, contents=[], mode="r"):
         self.add_ram(name, origin, size, contents, mode=mode)
 
+    def init_rom(self, name, contents=[], auto_size=True):
+        self.logger.info("Initializing ROM {} with contents (Size: {}).".format(
+            colorer(name),
+            colorer(f"0x{4*len(contents):x}")))
+        getattr(self, name).mem.init = contents
+        if auto_size and self.bus.regions[name].mode == "r":
+            self.logger.info("Auto-Resizing ROM {} from {} to {}.".format(
+                colorer(name),
+                colorer(f"0x{self.bus.regions[name].size:x}"),
+                colorer(f"0x{4*len(contents):x}")))
+            getattr(self, name).mem.depth = len(contents)
+
     def add_csr_bridge(self, origin, register=False):
         csr_bridge_cls = {
             "wishbone": wishbone.Wishbone2CSR,
