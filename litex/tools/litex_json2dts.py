@@ -368,9 +368,9 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
 
     # Framebuffer ----------------------------------------------------------------------------------
 
-    if "framebuffer" in d["csr_bases"]:
+    if "video_framebuffer" in d["csr_bases"]:
         # FIXME: Use dynamic framebuffer base and size
-        framebuffer_base   = 0x4f000000
+        framebuffer_base   = d["constants"]["framebuffer_base"]
         framebuffer_width  = d["constants"]["litevideo_h_active"]
         framebuffer_height = d["constants"]["litevideo_v_active"]
         dts += """
@@ -406,7 +406,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
                 litevideo,dma-length    = <0x{litevideo_dma_length:x}>;
             }};
 """.format(
-    litevideo_base          = d["csr_bases"]["framebuffer"],
+    litevideo_base          = d["csr_bases"]["video_framebuffer"],
     litevideo_pixel_clock   = int(d["constants"]["litevideo_pix_clk"] / 1e3),
     litevideo_h_active      = d["constants"]["litevideo_h_active"],
     litevideo_h_blanking    = d["constants"]["litevideo_h_blanking"],
