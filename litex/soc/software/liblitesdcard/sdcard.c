@@ -218,9 +218,10 @@ int sdcard_switch(unsigned int mode, unsigned int group, unsigned int value) {
 #endif
 	sdcore_block_length_write(64);
 	sdcore_block_count_write(1);
-	return sdcard_send_command(arg, 6,
+	while (sdcard_send_command(arg, 6,
 		(SDCARD_CTRL_DATA_TRANSFER_READ << 5) |
-		SDCARD_CTRL_RESPONSE_SHORT);
+		SDCARD_CTRL_RESPONSE_SHORT) != SD_OK);
+	return sdcard_wait_data_done();
 }
 
 int sdcard_app_send_scr(void) {
@@ -229,9 +230,10 @@ int sdcard_app_send_scr(void) {
 #endif
 	sdcore_block_length_write(8);
 	sdcore_block_count_write(1);
-	return sdcard_send_command(0, 51,
+	while (sdcard_send_command(0, 51,
 		(SDCARD_CTRL_DATA_TRANSFER_READ << 5) |
-		SDCARD_CTRL_RESPONSE_SHORT);
+		SDCARD_CTRL_RESPONSE_SHORT) != SD_OK);
+	return sdcard_wait_data_done();
 }
 
 int sdcard_app_set_blocklen(unsigned int blocklen) {
