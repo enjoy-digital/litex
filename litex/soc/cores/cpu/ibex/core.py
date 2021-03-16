@@ -9,6 +9,7 @@ import os
 
 from migen import *
 
+from litex import get_data_mod
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 
@@ -177,10 +178,9 @@ class Ibex(CPU):
 
     @staticmethod
     def add_sources(platform):
-        # FIXME: Create pythondata-cpu-ibex.
-        os.system("git clone https://github.com/lowRISC/ibex")
-        os.system("git clone https://github.com/lowRISC/opentitan")
-        platform.add_sources(os.path.join("ibex", "rtl"),
+        opentitandir = get_data_mod("misc", "opentitan").data_location
+        ibexdir      = os.path.join(os.path.join(opentitandir, "hw", "vendor", "lowrisc_ibex"))
+        platform.add_sources(os.path.join(ibexdir, "rtl"),
             "ibex_pkg.sv",
             "ibex_alu.sv",
             "ibex_compressed_decoder.sv",
@@ -201,13 +201,13 @@ class Ibex(CPU):
             "ibex_wb_stage.sv",
             "ibex_core.sv",
         )
-        platform.add_source(os.path.join("ibex", "syn", "rtl", "prim_clock_gating.v"))
-        platform.add_sources(os.path.join("opentitan", "hw", "ip", "prim", "rtl"),
+        platform.add_source(os.path.join(ibexdir, "syn", "rtl", "prim_clock_gating.v"))
+        platform.add_sources(os.path.join(opentitandir, "hw", "ip", "prim", "rtl"),
             "prim_alert_pkg.sv",
             "prim_assert.sv"
         )
-        platform.add_verilog_include_path(os.path.join("opentitan", "hw", "ip", "prim", "rtl"))
-        platform.add_verilog_include_path(os.path.join("ibex", "dv", "fcov"))
+        platform.add_verilog_include_path(os.path.join(opentitandir, "hw", "ip", "prim", "rtl"))
+        platform.add_verilog_include_path(os.path.join(ibexdir, "dv", "fcov"))
 
     def set_reset_address(self, reset_address):
         assert not hasattr(self, "reset_address")

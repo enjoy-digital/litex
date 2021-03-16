@@ -93,7 +93,6 @@ class USPMMCM(XilinxClocking):
 
 class USPIDELAYCTRL(Module):
     def __init__(self, cd_ref, cd_sys, reset_cycles=64, ready_cycles=64):
-        cd_sys.rst.reset = 1
         self.clock_domains.cd_ic = ClockDomain()
         ic_reset_counter = Signal(max=reset_cycles, reset=reset_cycles-1)
         ic_reset         = Signal(reset=1)
@@ -109,6 +108,7 @@ class USPIDELAYCTRL(Module):
         ic_ready         = Signal()
         self.comb += self.cd_ic.clk.eq(cd_sys.clk)
         self.sync.ic += [
+            cd_sys.rst.eq(1),
             If(ic_ready,
                 If(ic_ready_counter != 0,
                     ic_ready_counter.eq(ic_ready_counter - 1)

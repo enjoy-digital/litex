@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX.
 #
-# This file is Copyright (c) 2014-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2014-2021 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
 # This file is Copyright (c) 2019 Gabriel L. Somlo <somlo@cmu.edu>
 # SPDX-License-Identifier: BSD-2-Clause
@@ -18,6 +18,7 @@ from litex.soc.cores.identifier import Identifier
 from litex.soc.cores.timer import Timer
 from litex.soc.cores.spi_flash import SpiFlash
 from litex.soc.cores.spi import SPIMaster
+from litex.soc.cores.video import VideoTimingGenerator, VideoTerminal, VideoFrameBuffer, ColorBarsPattern
 
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect.csr_eventmanager import *
@@ -821,6 +822,18 @@ class SoC(Module):
     def add_rom(self, name, origin, size, contents=[], mode="r"):
         self.add_ram(name, origin, size, contents, mode=mode)
 
+    def init_rom(self, name, contents=[], auto_size=True):
+        self.logger.info("Initializing ROM {} with contents (Size: {}).".format(
+            colorer(name),
+            colorer(f"0x{4*len(contents):x}")))
+        getattr(self, name).mem.init = contents
+        if auto_size and self.bus.regions[name].mode == "r":
+            self.logger.info("Auto-Resizing ROM {} from {} to {}.".format(
+                colorer(name),
+                colorer(f"0x{self.bus.regions[name].size:x}"),
+                colorer(f"0x{4*len(contents):x}")))
+            getattr(self, name).mem.depth = len(contents)
+
     def add_csr_bridge(self, origin, register=False):
         csr_bridge_cls = {
             "wishbone": wishbone.Wishbone2CSR,
@@ -1346,7 +1359,7 @@ class LiteXSoC(SoC):
                 base_address = self.bus.regions["main_ram"].origin)
 
     # Add Ethernet ---------------------------------------------------------------------------------
-    def add_ethernet(self, name="ethmac", phy=None, phy_cd="eth", software_debug=False):
+    def add_ethernet(self, name="ethmac", phy=None, phy_cd="eth", dynamic_ip=False, software_debug=False):
         # Imports
         from liteeth.mac import LiteEthMAC
 
@@ -1381,6 +1394,9 @@ class LiteXSoC(SoC):
             eth_rx_clk,
             eth_tx_clk)
 
+        if dynamic_ip:
+            self.add_constant("ETH_DYNAMIC_IP")
+
         # Software Debug
         if software_debug:
             self.add_constant("ETH_UDP_TX_DEBUG")
@@ -1404,7 +1420,8 @@ class LiteXSoC(SoC):
             clk_freq    = self.clk_freq)
         ethcore = ClockDomainsRenamer({
             "eth_tx": phy_cd + "_tx",
-            "eth_rx": phy_cd + "_rx"})(ethcore)
+            "eth_rx": phy_cd + "_rx",
+            "sys":    phy_cd + "_rx"})(ethcore)
         self.submodules.ethcore = ethcore
 
         # Clock domain renaming
@@ -1480,7 +1497,7 @@ class LiteXSoC(SoC):
             sdcard_pads = self.platform.request(name)
 
         # Core
-        self.submodules.sdphy  = SDPHY(sdcard_pads, self.platform.device, self.clk_freq)
+        self.submodules.sdphy  = SDPHY(sdcard_pads, self.platform.device, self.clk_freq, cmd_timeout=10e-1, data_timeout=10e-1)
         self.submodules.sdcore = SDCore(self.sdphy)
         self.csr.add("sdphy", use_loc_if_exists=True)
         self.csr.add("sdcore", use_loc_if_exists=True)
@@ -1574,7 +1591,7 @@ class LiteXSoC(SoC):
             self.sata_phy.crg.cd_sata_rx.clk)
 
     # Add PCIe -------------------------------------------------------------------------------------
-    def add_pcie(self, name="pcie", phy=None, ndmas=0, max_pending_requests=8):
+    def add_pcie(self, name="pcie", phy=None, ndmas=0, max_pending_requests=8, with_msi=True):
         assert self.csr.data_width == 32
         assert not hasattr(self, f"{name}_endpoint")
 
@@ -1593,14 +1610,16 @@ class LiteXSoC(SoC):
         setattr(self.submodules, f"{name}_mmap", mmap)
 
         # MSI
-        msi = LitePCIeMSI()
-        setattr(self.submodules, f"{name}_msi", msi)
-        self.add_csr(f"{name}_msi")
-        self.comb += msi.source.connect(phy.msi)
-        self.msis = {}
+        if with_msi:
+            msi = LitePCIeMSI()
+            setattr(self.submodules, f"{name}_msi", msi)
+            self.add_csr(f"{name}_msi")
+            self.comb += msi.source.connect(phy.msi)
+            self.msis = {}
 
         # DMAs
         for i in range(ndmas):
+            assert with_msi
             dma = LitePCIeDMA(phy, endpoint,
                 with_buffering = True, buffering_depth=1024,
                 with_loopback  = True)
@@ -1611,9 +1630,79 @@ class LiteXSoC(SoC):
         self.add_constant("DMA_CHANNELS", ndmas)
 
         # Map/Connect IRQs
-        for i, (k, v) in enumerate(sorted(self.msis.items())):
-            self.comb += msi.irqs[i].eq(v)
-            self.add_constant(k + "_INTERRUPT", i)
+        if with_msi:
+            for i, (k, v) in enumerate(sorted(self.msis.items())):
+                self.comb += msi.irqs[i].eq(v)
+                self.add_constant(k + "_INTERRUPT", i)
 
         # Timing constraints
         self.platform.add_false_path_constraints(self.crg.cd_sys.clk, phy.cd_pcie.clk)
+
+    def add_video_colorbars(self, name="video_colorbars", phy=None, timings="800x600@60Hz", clock_domain="sys"):
+        # Video Timing Generator.
+        vtg = VideoTimingGenerator(default_video_timings=timings)
+        vtg = ClockDomainsRenamer(clock_domain)(vtg)
+        self.submodules.video_colorbars_vtg = vtg
+        self.add_csr("video_colorbars_vtg")
+
+        colorbars = ColorBarsPattern()
+        self.submodules.video_colorbars = colorbars
+
+        self.comb += [
+            vtg.source.connect(colorbars.vtg_sink),
+            colorbars.source.connect(phy.sink)
+        ]
+
+    # Add Video Terminal ---------------------------------------------------------------------------
+    def add_video_terminal(self, name="video_terminal", phy=None, timings="800x600@60Hz", clock_domain="sys"):
+        # Video Timing Generator.
+        vtg = VideoTimingGenerator(default_video_timings=timings)
+        vtg = ClockDomainsRenamer(clock_domain)(vtg)
+        self.submodules.video_terminal_vtg = vtg
+        self.add_csr("video_terminal_vtg")
+
+        # Video Terminal.
+        vt = VideoTerminal(
+            hres = int(timings.split("@")[0].split("x")[0]),
+            vres = int(timings.split("@")[0].split("x")[1]),
+        )
+        vt = ClockDomainsRenamer(clock_domain)(vt)
+        self.submodules.video_terminal = vt
+
+        # Connect Video Timing Generator to Video Terminal.
+        self.comb += vtg.source.connect(vt.vtg_sink)
+
+        # Connect UART to Video Terminal.
+        uart_cdc = stream.ClockDomainCrossing([("data", 8)], cd_from="sys", cd_to=clock_domain)
+        self.submodules.video_terminal_uart_cdc = uart_cdc
+        self.comb += [
+            uart_cdc.sink.valid.eq(self.uart.source.valid & self.uart.source.ready),
+            uart_cdc.sink.data.eq(self.uart.source.data),
+            uart_cdc.source.connect(vt.uart_sink),
+        ]
+
+        # Connect Video Terminal to Video PHY.
+        self.comb += vt.source.connect(phy.sink)
+
+    # Add Video Framebuffer ------------------------------------------------------------------------
+    def add_video_framebuffer(self, name="video_framebuffer", phy=None, timings="800x600@60Hz", clock_domain="sys"):
+        # Video Timing Generator.
+        vtg = VideoTimingGenerator(default_video_timings=timings)
+        vtg = ClockDomainsRenamer(clock_domain)(vtg)
+        self.submodules.video_framebuffer_vtg = vtg
+        self.add_csr("video_framebuffer_vtg")
+
+        # Video FrameBuffer.
+        vfb = VideoFrameBuffer(self.sdram.crossbar.get_port(),
+             hres = int(timings.split("@")[0].split("x")[0]),
+             vres = int(timings.split("@")[0].split("x")[1]),
+             clock_domain = clock_domain
+        )
+        self.submodules.video_framebuffer = vfb
+        self.add_csr("video_framebuffer")
+
+        # Connect Video Timing Generator to Video FrameBuffer.
+        self.comb += vtg.source.connect(vfb.vtg_sink)
+
+        # Connect Video FrameBuffer to Video PHY.
+        self.comb += vfb.source.connect(phy.sink)

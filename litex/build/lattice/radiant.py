@@ -85,7 +85,7 @@ def _format_constraint(c):
 
 
 def _format_ldc(signame, pin, others, resname):
-    fmt_c = [_format_constraint(c) for c in ([Pins(pin)] + others)]
+    fmt_c = [_format_constraint(c) for c in ([Pins(pin)] + others) if not isinstance(c, Pins) or c.identifiers[0] != "X"]
     ldc = []
     for pre, suf in fmt_c:
         ldc.append(pre + signame + suf)

@@ -44,6 +44,7 @@ CPU_GCC_TRIPLE_RISCV32 = (
     "riscv64-elf",
     "riscv32-elf",
     "riscv-none-embed",
+    "riscv-none-elf",
     "riscv64-linux",
     "riscv64-linux-gnu",
     "riscv-sifive-elf",

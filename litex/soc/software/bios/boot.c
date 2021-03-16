@@ -48,7 +48,7 @@
 
 extern void boot_helper(unsigned long r1, unsigned long r2, unsigned long r3, unsigned long addr);
 
-static void __attribute__((noreturn)) boot(unsigned long r1, unsigned long r2, unsigned long r3, unsigned long addr)
+void __attribute__((noreturn)) boot(unsigned long r1, unsigned long r2, unsigned long r3, unsigned long addr)
 {
 	printf("Executing booted program at 0x%08lx\n\n", addr);
 	printf("--============= \e[1mLiftoff!\e[0m ===============--\n");
@@ -253,25 +253,23 @@ int serialboot(void)
 
 #ifdef CSR_ETHMAC_BASE
 
-#ifndef LOCALIP1
-#define LOCALIP1 192
-#define LOCALIP2 168
-#define LOCALIP3 1
-#define LOCALIP4 50
-#endif
-
-#ifndef REMOTEIP1
-#define REMOTEIP1 192
-#define REMOTEIP2 168
-#define REMOTEIP3 1
-#define REMOTEIP4 100
-#endif
-
 #ifndef TFTP_SERVER_PORT
 #define TFTP_SERVER_PORT 69
 #endif
 
-static const unsigned char macadr[6] = {0x10, 0xe2, 0xd5, 0x00, 0x00, 0x00};
+static unsigned char macadr[6] = {0x10, 0xe2, 0xd5, 0x00, 0x00, 0x00};
+
+#ifdef LOCALIP1
+static unsigned int local_ip[4] = {LOCALIP1, LOCALIP2, LOCALIP3, LOCALIP4};
+#else
+static unsigned int local_ip[4] = {192, 168, 1, 50};
+#endif
+
+#ifdef REMOTEIP1
+static unsigned int remote_ip[4] = {REMOTEIP1, REMOTEIP2, REMOTEIP3, REMOTEIP4};
+#else
+static unsigned int remote_ip[4] = {192, 168, 1, 100};
+#endif
 
 static int copy_file_from_tftp_to_ram(unsigned int ip, unsigned short server_port,
 const char *filename, char *buffer)
@@ -284,6 +282,123 @@ const char *filename, char *buffer)
 	printf("\n");
 	return size;
 }
+
+#ifdef ETH_DYNAMIC_IP
+
+static uint8_t parse_ip(const char * ip_address, unsigned int * ip_to_change)
+{
+	uint8_t n = 0;
+	uint8_t k = 0;
+	uint8_t i;
+	uint8_t size = strlen(ip_address);
+	unsigned int ip_to_set[4];
+	char buf[3];
+
+	if (size < 7 || size > 15) {
+		printf("Error: Invalid IP address length.");
+		return -1;
+	}
+
+	/* Extract numbers from input, check for potential errors */
+	for (i = 0; i < size; i++) {
+		if ((ip_address[i] == '.' && k != 0) || (ip_address[i] == '\n' && i == size - 1)) {
+			ip_to_set[n] = atoi(buf);
+			n++;
+			k = 0;
+			memset(buf, '\0', sizeof(buf));
+		} else if (ip_address[i] >= '0' && ip_address[i] <= '9' && k < 3) {
+			buf[k] = ip_address[i];
+			k++;
+		} else {
+			printf("Error: Invalid IP address format. Correct format is \"X.X.X.X\".");
+			return -1;
+		}
+	}
+	ip_to_set[n] = atoi(buf);
+
+	/* Check if a correct number of numbers was extracted from the input*/
+	if (n != 3) {
+		printf("Error: Invalid IP address format. Correct format is \"X.X.X.X\".");
+		return -1;
+	}
+
+	/* Set the extracted IP address as local or remote ip */
+	for (i = 0; i <= n; i++) {
+		ip_to_change[i] = ip_to_set[i];
+	}
+	return 0;
+}
+
+void set_local_ip(const char * ip_address)
+{
+	if (parse_ip(ip_address, local_ip) == 0) {
+		udp_set_ip(IPTOINT(local_ip[0], local_ip[1], local_ip[2], local_ip[3]));
+		printf("Local IP: %d.%d.%d.%d", local_ip[0], local_ip[1], local_ip[2], local_ip[3]);
+	}
+}
+
+void set_remote_ip(const char * ip_address)
+{
+	if (parse_ip(ip_address, remote_ip) == 0) {
+		printf("Remote IP: %d.%d.%d.%d", remote_ip[0], remote_ip[1], remote_ip[2], remote_ip[3]);
+	}
+}
+
+static uint8_t parse_mac_addr(const char * mac_address)
+{
+	uint8_t n = 0;
+	uint8_t k = 0;
+	uint8_t i;
+	uint8_t size = strlen(mac_address);
+	unsigned int mac_to_set[6];
+	char buf[2];
+
+	if (size != 17) {
+		printf("Error: Invalid MAC address length.");
+		return -1;
+	}
+
+	/* Extract numbers from input, check for potential errors */
+	for (i = 0; i < size; i++) {
+		if ((mac_address[i] == ':' && k != 0) || (mac_address[i] == '\n' && i == size - 1)) {
+			mac_to_set[n] = strtol(buf, NULL, 16);
+			n++;
+			k = 0;
+			memset(buf, '\0', sizeof(buf));
+		} else if (((mac_address[i] >= '0' && mac_address[i] <= '9') ||
+			(mac_address[i] >= 'a' && mac_address[i] <= 'f') ||
+			(mac_address[i] >= 'A' && mac_address[i] <= 'F')) && k < 2) {
+			buf[k] = mac_address[i];
+			k++;
+		} else {
+			printf("Error: Invalid MAC address format. Correct format is \"XX:XX:XX:XX:XX:XX\".");
+			return -1;
+		}
+	}
+	mac_to_set[n] = strtol(buf, NULL, 16);
+
+	/* Check if correct number of numbers was extracted from input */
+	if (n != 5) {
+		printf("Error: Invalid MAC address format. Correct format is \"XX:XX:XX:XX:XX:XX\".");
+		return -1;
+	}
+
+	/* Set the extracted MAC address as macadr */
+	for (i = 0; i <= n; i++) {
+		macadr[i] = mac_to_set[i];
+	}
+	return 0;
+}
+
+void set_mac_addr(const char * mac_address)
+{
+	if (parse_mac_addr(mac_address) == 0) {
+		udp_set_mac(macadr);
+		printf("MAC address : %x:%x:%x:%x:%x:%x", macadr[0], macadr[1], macadr[2], macadr[3], macadr[4], macadr[5]);
+	}
+}
+
+#endif
 
 static void netboot_from_json(const char * filename, unsigned int ip, unsigned short tftp_port)
 {
@@ -374,13 +489,13 @@ void netboot(void)
 {
 	unsigned int ip;
 
-
 	printf("Booting from network...\n");
-	printf("Local IP : %d.%d.%d.%d\n", LOCALIP1, LOCALIP2, LOCALIP3, LOCALIP4);
-	printf("Remote IP: %d.%d.%d.%d\n", REMOTEIP1, REMOTEIP2, REMOTEIP3, REMOTEIP4);
 
-	ip = IPTOINT(REMOTEIP1, REMOTEIP2, REMOTEIP3, REMOTEIP4);
-	udp_start(macadr, IPTOINT(LOCALIP1, LOCALIP2, LOCALIP3, LOCALIP4));
+	printf("Local IP: %d.%d.%d.%d\n", local_ip[0], local_ip[1], local_ip[2], local_ip[3]);
+	printf("Remote IP: %d.%d.%d.%d\n", remote_ip[0], remote_ip[1], remote_ip[2], remote_ip[3]);
+
+	ip = IPTOINT(remote_ip[0], remote_ip[1], remote_ip[2], remote_ip[3]);
+	udp_start(macadr, IPTOINT(local_ip[0], local_ip[1], local_ip[2], local_ip[3]));
 
 	/* Boot from boot.json */
 	printf("Booting from boot.json...\n");

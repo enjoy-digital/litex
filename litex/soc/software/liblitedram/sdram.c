@@ -25,6 +25,7 @@
 #include "sdram.h"
 
 //#define SDRAM_TEST_DISABLE
+//#define SDRAM_WRITE_LEVELING_CMD_DELAY_DEBUG
 
 #ifdef CSR_SDRAM_BASE
 
@@ -340,22 +341,23 @@ void sdram_write_leveling_force_bitslip(int module, int bitslip, int show) {
 }
 
 static void sdram_write_leveling_rst_delay(int module) {
-#ifdef SDRAM_PHY_WRITE_LEVELING_REINIT
-	int i;
-#endif
-
 	/* Select module */
 	ddrphy_dly_sel_write(1 << module);
 
-	/* Reset delay */
+#if defined(SDRAM_PHY_USDDRPHY) || defined(SDRAM_PHY_USPDDRPHY)
+	/* Reset DQ delay */
 	ddrphy_wdly_dq_rst_write(1);
-	ddrphy_wdly_dqs_rst_write(1);
-	cdelay(100);
-#ifdef SDRAM_PHY_WRITE_LEVELING_REINIT
-	for(i=0; i<ddrphy_half_sys8x_taps_read(); i++) {
+
+	/* Reset DQS delay */
+	while (ddrphy_wdly_dqs_inc_count_read() != 0) {
 		ddrphy_wdly_dqs_inc_write(1);
 		cdelay(100);
 	}
+#else
+	/* Reset DQ/DQS delay */
+	ddrphy_wdly_dq_rst_write(1);
+	ddrphy_wdly_dqs_rst_write(1);
+	cdelay(100);
 #endif
 
 	/* Un-select module */
@@ -366,7 +368,7 @@ static void sdram_write_leveling_inc_delay(int module) {
 	/* Select module */
 	ddrphy_dly_sel_write(1 << module);
 
-	/* Increment delay */
+	/* Increment DQ/DQS delay */
 	ddrphy_wdly_dq_inc_write(1);
 	ddrphy_wdly_dqs_inc_write(1);
 
@@ -502,12 +504,15 @@ static int sdram_write_leveling_scan(int *delays, int loops, int show)
 	return ok;
 }
 
-static void sdram_write_leveling_find_cmd_delay(unsigned int *best_error, int *best_cdly,
+static void sdram_write_leveling_find_cmd_delay(unsigned int *best_error, unsigned int *best_count, int *best_cdly,
 		int cdly_start, int cdly_stop, int cdly_step)
 {
 	int cdly;
 	int cdly_actual = 0;
 	int delays[SDRAM_PHY_MODULES];
+#ifndef SDRAM_WRITE_LEVELING_CMD_DELAY_DEBUG
+	int ok;
+#endif
 
 	/* Scan through the range */
 	ddrphy_cdly_rst_write(1);
@@ -521,28 +526,42 @@ static void sdram_write_leveling_find_cmd_delay(unsigned int *best_error, int *b
 		}
 
 		/* Write level using this delay */
-		if (sdram_write_leveling_scan(delays, 8, 0)) {
-			/* Use the mean of delays for error calulation */
-			int delay_mean = 0;
-			for (int i=0; i < SDRAM_PHY_MODULES; ++i) {
-				delay_mean += delays[i];
+#ifdef SDRAM_WRITE_LEVELING_CMD_DELAY_DEBUG
+		printf("Cmd/Clk delay: %d\n", cdly);
+		sdram_write_leveling_scan(delays, 8, 1);
+#else
+		ok = sdram_write_leveling_scan(delays, 8, 0);
+#endif
+		/* Use the mean of delays for error calulation */
+		int delay_mean  = 0;
+		int delay_count = 0;
+		for (int i=0; i < SDRAM_PHY_MODULES; ++i) {
+			if (delays[i] != -1) {
+				delay_mean  += delays[i] + ddrphy_half_sys8x_taps_read();
+				delay_count += 1;
 			}
-			delay_mean /= SDRAM_PHY_MODULES;
+		}
+		if (delay_count != 0)
+			delay_mean /= delay_count;
 
-			/* We want it to be at the start */
-			int ideal_delay = 0;
-			int error = ideal_delay - delay_mean;
-			if (error < 0)
-				error *= -1;
+		/* We want the higher number of valid modules and delay to be centered */
+		int ideal_delay = (SDRAM_PHY_DELAYS - ddrphy_half_sys8x_taps_read())/2;
+		int error = ideal_delay - delay_mean;
+		if (error < 0)
+			error *= -1;
 
+		if (delay_count >= *best_count) {
+			*best_count = delay_count;
 			if (error < *best_error) {
 				*best_cdly = cdly;
 				*best_error = error;
 			}
-			printf("1");
-		} else {
-			printf("0");
 		}
+#ifdef SDRAM_WRITE_LEVELING_CMD_DELAY_DEBUG
+		printf("Delay mean: %d, ideal: %d\n", delay_mean, ideal_delay);
+#else
+		printf("%d", ok);
+#endif
 	}
 }
 
@@ -550,6 +569,7 @@ int sdram_write_leveling(void)
 {
 	int delays[SDRAM_PHY_MODULES];
 	unsigned int best_error = ~0u;
+	unsigned int best_count = 0;
 	int best_cdly = -1;
 	int cdly_range_start;
 	int cdly_range_end;
@@ -577,7 +597,7 @@ int sdram_write_leveling(void)
 			cdly_range_step = 1;
 		while (cdly_range_step > 0) {
 			printf("  |");
-			sdram_write_leveling_find_cmd_delay(&best_error, &best_cdly,
+			sdram_write_leveling_find_cmd_delay(&best_error, &best_count, &best_cdly,
 					cdly_range_start, cdly_range_end, cdly_range_step);
 
 			/* Small optimization - stop if we have zero error */
@@ -1041,8 +1061,8 @@ int sdram_init(void)
 #ifndef SDRAM_TEST_DISABLE
 	if(!memtest((unsigned int *) MAIN_RAM_BASE, MEMTEST_DATA_SIZE)) {
 #ifdef CSR_DDRCTRL_BASE
-		ddrctrl_init_done_write(1);
 		ddrctrl_init_error_write(1);
+		ddrctrl_init_done_write(1);
 #endif
 		return 0;
 	}

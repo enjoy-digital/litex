@@ -61,20 +61,22 @@ class SpiFlashCommon(Module):
         # Xilinx 7-series
         if device[:3] == "xc7":
             self.specials += Instance("STARTUPE2",
-                i_CLK=0,
-                i_GSR=0,
-                i_GTS=0,
-                i_KEYCLEARB=0,
-                i_PACK=0,
-                i_USRCCLKO=self.pads.clk,
-                i_USRCCLKTS=0,
-                i_USRDONEO=1,
-                i_USRDONETS=1)
+                i_CLK       = 0,
+                i_GSR       = 0,
+                i_GTS       = 0,
+                i_KEYCLEARB = 0,
+                i_PACK      = 0,
+                i_USRCCLKO  = self.pads.clk,
+                i_USRCCLKTS = 0,
+                i_USRDONEO  = 1,
+                i_USRDONETS = 1
+            )
         # Lattice ECP5
         elif device[:4] == "LFE5":
             self.specials += Instance("USRMCLK",
-                i_USRMCLKI=self.pads.clk,
-                i_USRMCLKTS=0)
+                i_USRMCLKI  = self.pads.clk,
+                i_USRMCLKTS = 0
+            )
         else:
             raise NotImplementedError
         self.clk_primitive_registered = True
@@ -82,6 +84,7 @@ class SpiFlashCommon(Module):
     def do_finalize(self):
         if hasattr(self, "clk_primitive_needed"):
             assert self.clk_primitive_registered == True
+
 
 class SpiFlashDualQuad(SpiFlashCommon, AutoCSR):
     def __init__(self, pads, dummy=15, div=2, with_bitbang=True, endianness="big"):
@@ -98,9 +101,9 @@ class SpiFlashDualQuad(SpiFlashCommon, AutoCSR):
         if with_bitbang:
             self.bitbang = CSRStorage(4, reset_less=True, fields=[
                 CSRField("mosi", description="Output value for MOSI pin, valid whenever ``dir`` is ``0``."),
-                CSRField("clk", description="Output value for SPI CLK pin."),
+                CSRField("clk",  description="Output value for SPI CLK pin."),
                 CSRField("cs_n", description="Output value for SPI CSn pin."),
-                CSRField("dir", description="Sets the direction for *ALL* SPI data pins except CLK and CSn.", values=[
+                CSRField("dir",  description="Sets the direction for *ALL* SPI data pins except CLK and CSn.", values=[
                     ("0", "OUT", "SPI pins are all output"),
                     ("1", "IN", "SPI pins are all input"),
                 ])
@@ -114,11 +117,10 @@ class SpiFlashDualQuad(SpiFlashCommon, AutoCSR):
 
         # # #
 
-        cs_n = Signal(reset=1)
-        clk = Signal()
+        cs_n  = Signal(reset=1)
+        clk   = Signal()
         dq_oe = Signal()
         wbone_width = len(bus.dat_r)
-
 
         read_cmd_params = {
             4: (_format_cmd(_QIOFR, 4), 4*8),
@@ -228,6 +230,7 @@ class SpiFlashDualQuad(SpiFlashCommon, AutoCSR):
 
         self.sync += timeline(bus.cyc & bus.stb & (i == div - 1), tseq)
 
+
 class SpiFlashSingle(SpiFlashCommon, AutoCSR):
     def __init__(self, pads, dummy=15, div=2, with_bitbang=True, endianness="big"):
         """
@@ -240,9 +243,9 @@ class SpiFlashSingle(SpiFlashCommon, AutoCSR):
         if with_bitbang:
             self.bitbang = CSRStorage(4, reset_less=True, fields=[
                 CSRField("mosi", description="Output value for SPI MOSI pin."),
-                CSRField("clk", description="Output value for SPI CLK pin."),
+                CSRField("clk",  description="Output value for SPI CLK pin."),
                 CSRField("cs_n", description="Output value for SPI CSn pin."),
-                CSRField("dir", description="Unused in this design.")
+                CSRField("dir",  description="Unused in this design.")
             ], description="""Bitbang controls for SPI output.""")
             self.miso = CSRStatus(description="Incoming value of MISO pin.")
             self.bitbang_en = CSRStorage(description="Write a ``1`` here to disable memory-mapped mode and enable bitbang mode.")
@@ -256,7 +259,7 @@ class SpiFlashSingle(SpiFlashCommon, AutoCSR):
             self.comb += pads.hold.eq(1)
 
         cs_n = Signal(reset=1)
-        clk = Signal()
+        clk  = Signal()
         wbone_width = len(bus.dat_r)
 
         read_cmd = _FAST_READ
@@ -348,7 +351,58 @@ def SpiFlash(pads, *args, **kwargs):
     else:
         return SpiFlashDualQuad(pads, *args, **kwargs)
 
+
+# Xilinx 7-Series FPGAs SPI Flash (non-memory-mapped) ----------------------------------------------
+
+class S7SPIFlash(Module, AutoCSR):
+    def __init__(self, pads, sys_clk_freq, spi_clk_freq=25e6):
+        self.submodules.spi = spi = SPIMaster(None, 40, sys_clk_freq, spi_clk_freq)
+        self.specials += Instance("STARTUPE2",
+                i_CLK       = 0,
+                i_GSR       = 0,
+                i_GTS       = 0,
+                i_KEYCLEARB = 0,
+                i_PACK      = 0,
+                i_USRCCLKO  = spi.pads.clk,
+                i_USRCCLKTS = 0,
+                i_USRDONEO  = 1,
+                i_USRDONETS = 1
+        )
+        if hasattr(pads, "vpp"):
+            pads.vpp.reset = 1
+        if hasattr(pads, "hold"):
+            pads.hold.reset = 1
+        if hasattr(pads, "cs_n"):
+            self.comb += pads.cs_n.eq(spi.pads.cs_n)
+        self.comb += [
+            pads.mosi.eq(spi.pads.mosi),
+            spi.pads.miso.eq(pads.miso)
+        ]
+
+
+# Lattice ECP5 FPGAs SPI Flash (non-memory-mapped) -------------------------------------------------
+
+class ECP5SPIFlash(Module, AutoCSR):
+    def __init__(self, pads, sys_clk_freq, spi_clk_freq=25e6):
+        self.submodules.spi = spi = SPIMaster(None, 40, sys_clk_freq, spi_clk_freq)
+        self.specials += Instance("USRMCLK",
+            i_USRMCLKI  = spi.pads.clk,
+            i_USRMCLKTS = 0
+        )
+        if hasattr(pads, "vpp"):
+            pads.vpp.reset = 1
+        if hasattr(pads, "hold"):
+            pads.hold.reset = 1
+        if hasattr(pads, "cs_n"):
+            self.comb += pads.cs_n.eq(spi.pads.cs_n)
+        self.comb += [
+            pads.mosi.eq(spi.pads.mosi),
+            spi.pads.miso.eq(pads.miso)
+        ]
+
 # SpiFlash Quad Read/Write (memory-mapped) ---------------------------------------------------------
+
+# Note: This code too complicated and should probably be re-factored.
 
 class SpiFlashQuadReadWrite(SpiFlashCommon, AutoCSR):
     def __init__(self, pads, dummy=15, div=2, with_bitbang=True, endianness="big"):
@@ -579,51 +633,3 @@ class SpiFlashQuadReadWrite(SpiFlashCommon, AutoCSR):
 
         self.sync += timeline(queue.status[0] & ~self.en_quad.storage[0] & (i == div - 1), accumulate_timeline_deltas(read_seq))
         self.sync += timeline(queue.status[1] & ~self.en_quad.storage[0] & (i == div - 1), accumulate_timeline_deltas(write_seq))
-
-# Xilinx 7-Series FPGAs SPI Flash (non-memory-mapped) ----------------------------------------------
-
-class S7SPIFlash(Module, AutoCSR):
-    def __init__(self, pads, sys_clk_freq, spi_clk_freq=25e6):
-        self.submodules.spi = spi = SPIMaster(None, 40, sys_clk_freq, spi_clk_freq)
-        self.specials += Instance("STARTUPE2",
-                i_CLK=0,
-                i_GSR=0,
-                i_GTS=0,
-                i_KEYCLEARB=0,
-                i_PACK=0,
-                i_USRCCLKO=spi.pads.clk,
-                i_USRCCLKTS=0,
-                i_USRDONEO=1,
-                i_USRDONETS=1
-        )
-        if hasattr(pads, "vpp"):
-            pads.vpp.reset = 1
-        if hasattr(pads, "hold"):
-            pads.hold.reset = 1
-        if hasattr(pads, "cs_n"):
-            self.comb += pads.cs_n.eq(spi.pads.cs_n)
-        self.comb += [
-            pads.mosi.eq(spi.pads.mosi),
-            spi.pads.miso.eq(pads.miso)
-        ]
-
-
-# Lattice ECP5 FPGAs SPI Flash (non-memory-mapped) -------------------------------------------------
-
-class ECP5SPIFlash(Module, AutoCSR):
-    def __init__(self, pads, sys_clk_freq, spi_clk_freq=25e6):
-        self.submodules.spi = spi = SPIMaster(None, 40, sys_clk_freq, spi_clk_freq)
-        self.specials += Instance("USRMCLK",
-            i_USRMCLKI  = spi.pads.clk,
-            i_USRMCLKTS = 0
-        )
-        if hasattr(pads, "vpp"):
-            pads.vpp.reset = 1
-        if hasattr(pads, "hold"):
-            pads.hold.reset = 1
-        if hasattr(pads, "cs_n"):
-            self.comb += pads.cs_n.eq(spi.pads.cs_n)
-        self.comb += [
-            pads.mosi.eq(spi.pads.mosi),
-            spi.pads.miso.eq(pads.miso)
-        ]

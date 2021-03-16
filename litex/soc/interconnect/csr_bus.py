@@ -186,18 +186,16 @@ class CSRBank(csr.GenericBank):
         for i, c in enumerate(self.simple_csrs):
             self.comb += [
                 c.r.eq(self.bus.dat_w[:c.size]),
-                c.re.eq(sel & \
-                    self.bus.we & \
-                    (self.bus.adr[:self.decode_bits] == i)),
-                c.we.eq(sel & \
-                    ~self.bus.we & \
-                    (self.bus.adr[:self.decode_bits] == i)),
+                If(sel & (self.bus.adr[:log2_int(aligned_paging)] == i),
+                    c.re.eq( self.bus.we),
+                    c.we.eq(~self.bus.we)
+                )
             ]
 
         brcases = dict((i, self.bus.dat_r.eq(c.w)) for i, c in enumerate(self.simple_csrs))
         self.sync += [
             self.bus.dat_r.eq(0),
-            If(sel, Case(self.bus.adr[:self.decode_bits], brcases))
+            If(sel, Case(self.bus.adr[:log2_int(aligned_paging)], brcases))
         ]
 
 

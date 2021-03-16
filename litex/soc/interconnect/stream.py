@@ -648,7 +648,7 @@ class Monitor(Module, AutoCSR):
 
         # Tokens Count -----------------------------------------------------------------------------
         if with_tokens:
-            tokens_counter = MonitorCounter(reset, latch, endpoint.valid & endpoint.ready, self.tokens.status)
+            token_counter = MonitorCounter(reset, latch, endpoint.valid & endpoint.ready, self.tokens.status)
             self.submodules += token_counter
 
         # Overflows Count (only useful when endpoint is expected to always be ready) ---------------

@@ -82,13 +82,20 @@ else:
         def handle_escape(self, b):
             return None
 
-# Crossover UART  ----------------------------------------------------------------------------------
+# Bridge UART  -------------------------------------------------------------------------------------
 
 from litex import RemoteClient
 
-class CrossoverUART:
-    def __init__(self, host="localhost", base_address=0): # FIXME: add command line arguments
+class BridgeUART:
+    def __init__(self, name="uart_xover", host="localhost", base_address=0): # FIXME: add command line arguments
         self.bus = RemoteClient(host=host, base_address=base_address)
+        present = False
+        for k, v in self.bus.regs.d.items():
+            if f"{name}_" in k:
+                setattr(self, k.replace(f"{name}_", ""), v)
+                present = True
+        if not present:
+            raise ValueError(f"CrossoverUART {name} not present in design.")
 
     def open(self):
         self.bus.open()
@@ -106,20 +113,19 @@ class CrossoverUART:
     def pty2crossover(self):
         while True:
             r = os.read(self.file, 1)
-            self.bus.regs.uart_xover_rxtx.write(ord(r))
+            self.rxtx.write(ord(r))
 
     def crossover2pty(self):
         while True:
-            if self.bus.regs.uart_txfull.read():
+            if self.rxfull.read():
                 length = 16
-            elif not self.bus.regs.uart_xover_rxempty.read():
+            elif not self.rxempty.read():
                 length = 1
             else:
-                length = 0
-            if length:
-                r = self.bus.read(self.bus.regs.uart_xover_rxtx.addr, length=length, burst="fixed")
-                for v in r:
-                    os.write(self.file, bytes(chr(v).encode("utf-8")))
+                continue
+            r = self.bus.read(self.rxtx.addr, length=length, burst="fixed")
+            for v in r:
+                os.write(self.file, bytes(chr(v).encode("utf-8")))
 
 # JTAG UART ----------------------------------------------------------------------------------------
 
@@ -522,13 +528,17 @@ class LiteXTerm:
 
 def _get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("port",                                              help="Serial port (eg /dev/tty*, crossover, jtag_uart, jtag_atlantic)")
+    parser.add_argument("port",                                              help="Serial port (eg /dev/tty*, bridge, jtag)")
     parser.add_argument("--speed",       default=115200,                     help="Serial baudrate")
     parser.add_argument("--serial-boot", default=False, action='store_true', help="Automatically initiate serial boot")
     parser.add_argument("--kernel",      default=None,                       help="Kernel image")
     parser.add_argument("--kernel-adr",  default="0x40000000",               help="Kernel address")
     parser.add_argument("--images",      default=None,                       help="JSON description of the images to load to memory")
-    parser.add_argument("--jtag-config", default="openocd_xc7_ft2232.cfg",   help="OpenOCD JTAG configuration file with jtag_uart")
+
+    parser.add_argument("--bridge-name", default="uart_xover",               help="Bridge UART name to use (present in design/csr.csv)")
+
+    parser.add_argument("--jtag-name",   default="jtag_uart",                help="JTAG UART type: jtag_uart (default), jtag_atlantic")
+    parser.add_argument("--jtag-config", default="openocd_xc7_ft2232.cfg",   help="OpenOCD JTAG configuration file for jtag_uart")
     return parser.parse_args()
 
 def main():
@@ -536,19 +546,24 @@ def main():
     term = LiteXTerm(args.serial_boot, args.kernel, args.kernel_adr, args.images)
 
     if sys.platform == "win32":
-        if args.port in ["crossover", "jtag_uart"]:
+        if args.port in ["bridge", "jtag"]:
             raise NotImplementedError
-    bridge_cls    = {"crossover": CrossoverUART, "jtag_uart": JTAGUART}.get(args.port, None)
-    bridge_kwargs = {"jtag_uart": {"config": args.jtag_config}}.get(args.port, {})
-    if args.port == "jtag_atlantic":
-        term.port = Nios2Terminal()
-        port = args.port
-        term.payload_length = 128
-        term.delay          = 1e-6
-    elif bridge_cls is not None:
-        bridge = bridge_cls(**bridge_kwargs)
+    if args.port in ["bridge", "crossover"]: # FIXME: 2021-02-18, crossover for retro-compatibility remove and update targets?
+        bridge = BridgeUART(name=args.bridge_name)
         bridge.open()
         port = os.ttyname(bridge.name)
+    elif args.port in ["jtag"]:
+        if args.jtag_name == "jtag_atlantic":
+            term.port = Nios2Terminal()
+            port = args.port
+            term.payload_length = 128
+            term.delay          = 1e-6
+        elif args.jtag_name == "jtag_uart":
+            bridge = JTAGUART(config=args.jtag_config)
+            bridge.open()
+            port = os.ttyname(bridge.name)
+        else:
+            raise NotImplementedError
     else:
         port = args.port
     term.open(port, int(float(args.speed)))

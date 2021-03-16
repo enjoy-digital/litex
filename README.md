@@ -38,7 +38,7 @@ SoC builder to create/develop/debug FPGA SoCs in Python.
                                          board   target
                                          file    file
 ```
-LiteX already supports various softcores CPUs: VexRiscv, Rocket, LM32, Mor1kx, PicoRV32 and is compatible with the LiteX's Cores Ecosystem:
+LiteX already supports various softcores CPUs: VexRiscv, Rocket, LM32, Mor1kx, PicoRV32, BlackParrot and is compatible with the LiteX's Cores Ecosystem:
 
 | Name                                                         | Build Status                                                                                                                       | Description               |
 | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |

@@ -3,7 +3,10 @@ BUILD_DIR?=../build/
 include $(BUILD_DIR)/software/include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
-OBJECTS=isr.o donut.o main.o
+OBJECTS   = isr.o donut.o helloc.o main.o
+ifdef WITH_CXX
+	OBJECTS += hellocpp.o
+endif
 
 all: demo.bin
 
@@ -29,6 +32,13 @@ main.o: main.c
 	$(compile)
 
 donut.o: CFLAGS += -w
+
+helloc.o: CFLAGS += -w
+
+hellocpp.o: CXXFLAGS += -w
+
+%.o: %.cpp
+	$(compilexx)
 
 %.o: %.c
 	$(compile)

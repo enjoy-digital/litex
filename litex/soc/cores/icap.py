@@ -66,15 +66,13 @@ class ICAP(Module, AutoCSR):
 
         # ICAP instance
         if not simulation:
-            self.specials += [
-                Instance("ICAPE2",
-                    p_ICAP_WIDTH = "X32",
-                    i_CLK   = ClockSignal("icap"),
-                    i_CSIB  = _csib,
-                    i_RDWRB = 0,
-                    i_I     = Cat(*[_i[8*i:8*(i+1)][::-1] for i in range(4)]),
-                )
-            ]
+            self.specials += Instance("ICAPE2",
+                p_ICAP_WIDTH = "X32",
+                i_CLK   = ClockSignal("icap"),
+                i_CSIB  = _csib,
+                i_RDWRB = 0,
+                i_I     = Cat(*[_i[8*i:8*(i+1)][::-1] for i in range(4)]),
+            )
 
         # CSR
         if with_csr:
@@ -160,15 +158,13 @@ class ICAPBitstream(Module, AutoCSR):
 
         # ICAP instance ----------------------------------------------------------------------------
         if not simulation:
-            self.specials += [
-                Instance("ICAPE2",
-                    p_ICAP_WIDTH="X32",
-                    i_CLK=ClockSignal("icap"),
-                    i_CSIB=_csib,
-                    i_RDWRB=0,
-                    i_I=Cat(*[_i[8*i:8*(i+1)][::-1] for i in range(4)]),
-                )
-            ]
+            self.specials += Instance("ICAPE2",
+                p_ICAP_WIDTH = "X32",
+                i_CLK   = ClockSignal("icap"),
+                i_CSIB  = _csib,
+                i_RDWRB = 0,
+                i_I     = Cat(*[_i[8*i:8*(i+1)][::-1] for i in range(4)])
+            )
 
     def add_timing_constraints(self, platform, sys_clk_freq, sys_clk):
         platform.add_period_constraint(self.cd_icap.clk, 16*1e9/sys_clk_freq)
