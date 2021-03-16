@@ -18,7 +18,7 @@ from litex.soc.cores.identifier import Identifier
 from litex.soc.cores.timer import Timer
 from litex.soc.cores.spi_flash import SpiFlash
 from litex.soc.cores.spi import SPIMaster
-from litex.soc.cores.video import VideoTimingGenerator, VideoTerminal, VideoFrameBuffer
+from litex.soc.cores.video import VideoTimingGenerator, VideoTerminal, VideoFrameBuffer, ColorBarsPattern
 
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect.csr_eventmanager import *
@@ -1637,6 +1637,21 @@ class LiteXSoC(SoC):
 
         # Timing constraints
         self.platform.add_false_path_constraints(self.crg.cd_sys.clk, phy.cd_pcie.clk)
+
+    def add_video_colorbars(self, name="video_colorbars", phy=None, timings="800x600@60Hz", clock_domain="sys"):
+        # Video Timing Generator.
+        vtg = VideoTimingGenerator(default_video_timings=timings)
+        vtg = ClockDomainsRenamer(clock_domain)(vtg)
+        self.submodules.video_colorbars_vtg = vtg
+        self.add_csr("video_colorbars_vtg")
+
+        colorbars = ColorBarsPattern()
+        self.submodules.video_colorbars = colorbars
+
+        self.comb += [
+            vtg.source.connect(colorbars.vtg_sink),
+            colorbars.source.connect(phy.sink)
+        ]
 
     # Add Video Terminal ---------------------------------------------------------------------------
     def add_video_terminal(self, name="video_terminal", phy=None, timings="800x600@60Hz", clock_domain="sys"):
