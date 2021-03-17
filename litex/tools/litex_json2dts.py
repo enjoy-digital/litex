@@ -74,7 +74,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
             cpu@{cpu} {{
                 device_type = "cpu";
                 compatible = "riscv";
-                riscv,isa = "rv32ima";
+                riscv,isa = "{cpu_isa}";
                 mmu-type = "riscv,sv32";
                 reg = <{cpu}>;
                 clock-frequency = <{sys_clk_freq}>;
@@ -85,7 +85,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
                     compatible = "riscv,cpu-intc";
                 }};
             }};
-""".format(cpu=cpu, irq=cpu, sys_clk_freq=d["constants"]["config_clock_frequency"])
+""".format(cpu=cpu, irq=cpu, sys_clk_freq=d["constants"]["config_clock_frequency"], cpu_isa=d["constants"]["cpu_isa"])
         dts += """
     	};
 """
