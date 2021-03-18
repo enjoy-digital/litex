@@ -18,8 +18,8 @@ def _to_signal(obj):
     return obj.raw_bits() if isinstance(obj, Record) else obj
 
 
-class _GPIOIRQ(Module, AutoCSR):
-    def __init__(self, in_pads):
+class _GPIOIRQ:
+    def add_irq(self, in_pads):
         self._polarity = CSRStorage(len(in_pads), description="GPIO IRQ Polarity: 0: Rising Edge, 1: Falling Edge.")
 
         # # #
@@ -32,13 +32,13 @@ class _GPIOIRQ(Module, AutoCSR):
 
 # GPIO Input ---------------------------------------------------------------------------------------
 
-class GPIOIn(Module, AutoCSR):
+class GPIOIn(_GPIOIRQ, Module, AutoCSR):
     def __init__(self, pads, with_irq=False):
         pads = _to_signal(pads)
         self._in = CSRStatus(len(pads), description="GPIO Input(s) Status.")
         self.specials += MultiReg(pads, self._in.status)
         if with_irq:
-            self.submodules.irq = _GPIOIRQ(self._in.status)
+            self.add_irq(self._in.status)
 
 # GPIO Output --------------------------------------------------------------------------------------
 
@@ -60,7 +60,7 @@ class GPIOInOut(Module):
 
 # GPIO Tristate ------------------------------------------------------------------------------------
 
-class GPIOTristate(Module, AutoCSR):
+class GPIOTristate(_GPIOIRQ, Module, AutoCSR):
     def __init__(self, pads, with_irq=False):
         assert isinstance(pads, Signal)
         nbits     = len(pads)
@@ -78,4 +78,4 @@ class GPIOTristate(Module, AutoCSR):
             self.specials += MultiReg(t.i, self._in.status[i])
 
         if with_irq:
-            self.submodules.irq = _GPIOIRQ(self._in.status)
+            self.add_irq(self._in.status)
