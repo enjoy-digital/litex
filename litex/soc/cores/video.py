@@ -674,7 +674,66 @@ class VideoDVIPHY(Module):
             self.specials += SDROutput(i=sink.g[cshift + i], o=pads.g[i], clk=ClockSignal(clock_domain))
             self.specials += SDROutput(i=sink.b[cshift + i], o=pads.b[i], clk=ClockSignal(clock_domain))
 
-# HDMI (7-Series).
+# HDMI (Xilinx Spartan6).
+
+class VideoS6HDMI10to1Serializer(Module):
+    def __init__(self, data_i, data_o, clock_domain):
+        # Clock Domain Crossing.
+        self.submodules.cdc = stream.ClockDomainCrossing([("data", 10)], cd_from=clock_domain, cd_to=clock_domain + "5x")
+        self.comb += self.cdc.sink.valid.eq(1)
+        self.comb += self.cdc.sink.data.eq(data_i)
+
+        # 10:2 Gearbox.
+        self.submodules.gearbox = ClockDomainsRenamer(clock_domain + "5x")(stream.Gearbox(i_dw=10, o_dw=2, msb_first=False))
+        self.comb += self.cdc.source.connect(self.gearbox.sink)
+
+        # 2:1 Output DDR.
+        self.comb += self.gearbox.source.ready.eq(1)
+        self.specials += DDROutput(
+            clk = ClockSignal(clock_domain + "5x"),
+            i1  = self.gearbox.source.data[0],
+            i2  = self.gearbox.source.data[1],
+            o   = data_o,
+        )
+
+class VideoS6HDMIPHY(Module):
+    def __init__(self, pads, clock_domain="sys"):
+        self.sink = sink = stream.Endpoint(video_data_layout)
+
+        # # #
+
+        # Always ack Sink, no backpressure.
+        self.comb += sink.ready.eq(1)
+
+        # Clocking + Differential Signaling.
+        pads_clk = Signal()
+        self.specials += DDROutput(i1=1, i2=0, o=pads_clk, clk=ClockSignal(clock_domain))
+        self.specials += Instance("OBUFDS", i_I=pads_clk, o_O=pads.clk_p, o_OB=pads.clk_n)
+
+        # Encode/Serialize Datas.
+        for color in ["r", "g", "b"]:
+
+            # TMDS Encoding.
+            encoder = ClockDomainsRenamer(clock_domain)(TMDSEncoder())
+            setattr(self.submodules, f"{color}_encoder", encoder)
+            self.comb += encoder.d.eq(getattr(sink, color))
+            self.comb += encoder.c.eq(Cat(sink.hsync, sink.vsync) if color == "r" else 0)
+            self.comb += encoder.de.eq(sink.de)
+
+            # 10:1 Serialization + Differential Signaling.
+            pad_o = Signal()
+            serializer = VideoS6HDMI10to1Serializer(
+                data_i       = encoder.out,
+                data_o       = pad_o,
+                clock_domain = clock_domain,
+            )
+            setattr(self.submodules, f"{color}_serializer", serializer)
+            c2d   = {"r": 0, "g": 1, "b": 2}
+            pad_p = getattr(pads, f"data{c2d[color]}_p")
+            pad_n = getattr(pads, f"data{c2d[color]}_n")
+            self.specials += Instance("OBUFDS", i_I=pad_o, o_O=pad_p, o_OB=pad_n)
+
+# HDMI (Xilinx 7-Series).
 
 class VideoS7HDMI10to1Serializer(Module):
     def __init__(self, data_i, data_o, clock_domain):
