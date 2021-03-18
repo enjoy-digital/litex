@@ -1638,6 +1638,7 @@ class LiteXSoC(SoC):
         # Timing constraints
         self.platform.add_false_path_constraints(self.crg.cd_sys.clk, phy.cd_pcie.clk)
 
+    # Add Video ColorBars Pattern ------------------------------------------------------------------
     def add_video_colorbars(self, name="video_colorbars", phy=None, timings="800x600@60Hz", clock_domain="sys"):
         # Video Timing Generator.
         vtg = VideoTimingGenerator(default_video_timings=timings)
@@ -1645,9 +1646,11 @@ class LiteXSoC(SoC):
         self.submodules.video_colorbars_vtg = vtg
         self.add_csr("video_colorbars_vtg")
 
-        colorbars = ColorBarsPattern()
+        # ColorsBars Pattern.
+        colorbars = ClockDomainsRenamer(clock_domain)(ColorBarsPattern())
         self.submodules.video_colorbars = colorbars
 
+        # Connect Video Timing Generator to ColorsBars Pattern.
         self.comb += [
             vtg.source.connect(colorbars.vtg_sink),
             colorbars.source.connect(phy.sink)
