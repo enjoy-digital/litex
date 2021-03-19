@@ -49,6 +49,7 @@ class VexRiscvSMP(CPU):
     aes_instruction      = False
     out_of_order_decoder = True
     wishbone_memory      = False
+    with_fpu             = False
 
     @staticmethod
     def args_fill(parser):
@@ -64,6 +65,7 @@ class VexRiscvSMP(CPU):
         parser.add_argument("--aes-instruction",              default=None,        help="Enable AES instruction acceleration.")
         parser.add_argument("--without-out-of-order-decoder", action="store_true", help="Reduce area at cost of peripheral access speed")
         parser.add_argument("--with-wishbone-memory"        , action="store_true", help="Disable native LiteDRAM interface")
+        parser.add_argument("--with-fpu"                    , action="store_true", help="Enable the F32/F64 FPU")
 
     @staticmethod
     def args_read(args):
@@ -86,8 +88,26 @@ class VexRiscvSMP(CPU):
         if(args.icache_ways):                  VexRiscvSMP.icache_ways           = int(args.icache_ways)
         if(args.aes_instruction):              VexRiscvSMP.aes_instruction       = bool(args.aes_instruction)
         if(args.without_out_of_order_decoder): VexRiscvSMP.out_of_order_decoder  = False
-        if(args.with_wishbone_memory): VexRiscvSMP.wishbone_memory               = True
+        if(args.with_wishbone_memory):         VexRiscvSMP.wishbone_memory       = True
+        if(args.with_fpu):
+            VexRiscvSMP.with_fpu     = True
+            VexRiscvSMP.icache_width = 64
+            VexRiscvSMP.dcache_width = 64 # Required for F64
 
+
+    @staticmethod
+    def get_abi():
+        abi = "ilp32"
+        if VexRiscvSMP.with_fpu:
+            abi +="d"
+        return abi
+
+    @staticmethod
+    def get_arch():
+        arch = "rv32ima"
+        if VexRiscvSMP.with_fpu:
+            arch += "fd"
+        return arch
 
     @property
     def mem_map(self):
@@ -102,9 +122,9 @@ class VexRiscvSMP(CPU):
 
     @property
     def gcc_flags(self):
-        flags =  " -march=rv32ima -mabi=ilp32"
-        flags += " -D__vexriscv__"
-        flags += " -DUART_POLLING"
+        flags =  f" -march={VexRiscvSMP.get_arch()} -mabi={VexRiscvSMP.get_abi()}"
+        flags += f" -D__vexriscv__"
+        flags += f" -DUART_POLLING"
         return flags
 
     @staticmethod
@@ -124,7 +144,8 @@ class VexRiscvSMP(CPU):
         f"{'_Cdma' if VexRiscvSMP.coherent_dma         else ''}" \
         f"{'_Aes'  if VexRiscvSMP.aes_instruction      else ''}" \
         f"{'_Ood'  if VexRiscvSMP.out_of_order_decoder else ''}" \
-        f"{'_Wm'   if VexRiscvSMP.wishbone_memory      else ''}"
+        f"{'_Wm'   if VexRiscvSMP.wishbone_memory      else ''}" \
+        f"{'_Fpu'  if VexRiscvSMP.with_fpu             else ''}"
 
     @staticmethod
     def generate_default_configs():
@@ -202,6 +223,7 @@ class VexRiscvSMP(CPU):
         gen_args.append(f"--aes-instruction={VexRiscvSMP.aes_instruction}")
         gen_args.append(f"--out-of-order-decoder={VexRiscvSMP.out_of_order_decoder}")
         gen_args.append(f"--wishbone-memory={VexRiscvSMP.wishbone_memory}")
+        gen_args.append(f"--fpu={VexRiscvSMP.with_fpu}")
         gen_args.append(f"--netlist-name={VexRiscvSMP.cluster_name}")
         gen_args.append(f"--netlist-directory={vdir}")
 
@@ -302,6 +324,7 @@ class VexRiscvSMP(CPU):
     def add_soc_components(self, soc, soc_region_cls):
         # Define number of CPUs
         soc.add_config("CPU_COUNT", VexRiscvSMP.cpu_count)
+        soc.add_constant("CPU_ISA", VexRiscvSMP.get_arch())
 
         # Add PLIC as Bus Slave
         self.plicbus = plicbus  = wishbone.Interface()
