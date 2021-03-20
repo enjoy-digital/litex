@@ -78,22 +78,46 @@ class EventSourcePulse(Module, _EventSource):
 
 
 class EventSourceProcess(Module, _EventSource):
-    """EventSource which triggers on a Falling or Rising edge.
+    """EventSource which triggers on a Falling, Rising or Both edges.
 
     The purpose of this event source is to monitor the status of processes and
     generate an interrupt on their completion.
+
+    Attributes
+    ----------
+    rising_enable : Signal(), in
+        Optional signal which enables/disables rising edge (default is enabled).
+        Used with rising and both edge types.
+
+    falling_enable : Signal(), in
+        Optional signal which enables/disables falling edge (default is enabled).
+        Used with falling and both edge types.
     """
     def __init__(self, name=None, description=None, edge="falling"):
-        assert edge in ["falling", "rising"]
+        assert edge in ["falling", "rising", "both"]
         _EventSource.__init__(self, name, description)
+        self.rising_enable = Signal(reset=1)
+        self.falling_enable = Signal(reset=1)
         self.comb += self.status.eq(self.trigger)
         trigger_d = Signal()
         self.sync += If(self.clear, self.pending.eq(0))
         self.sync += trigger_d.eq(self.trigger)
         if edge == "falling":
-            self.sync += If(~self.trigger & trigger_d, self.pending.eq(1))
+            self.sync += If(
+                ~self.trigger & trigger_d & self.falling_enable,
+                self.pending.eq(1)
+            )
         if edge == "rising":
-            self.sync += If(self.trigger & ~trigger_d, self.pending.eq(1))
+            self.sync += If(
+                self.trigger & ~trigger_d & self.rising_enable,
+                self.pending.eq(1)
+            )
+        if edge == "both":
+            self.sync += If(
+                (self.trigger & ~trigger_d & self.rising_enable) |
+                (~self.trigger & trigger_d & self.falling_enable),
+                self.pending.eq(1)
+            )
 
 
 class EventSourceLevel(Module, _EventSource):
