@@ -20,14 +20,25 @@ def _to_signal(obj):
 
 class _GPIOIRQ:
     def add_irq(self, in_pads):
-        self._polarity = CSRStorage(len(in_pads), description="GPIO IRQ Polarity: 0: Rising Edge, 1: Falling Edge.")
+        self._mode = CSRStorage(len(in_pads), description="GPIO IRQ Mode: 0: Edge, 1: Change.")
+        self._edge = CSRStorage(len(in_pads), description="GPIO IRQ Edge (when in Edge mode): 0: Rising Edge, 1: Falling Edge.")
 
         # # #
 
         self.submodules.ev = EventManager()
         for n in range(len(in_pads)):
+            in_pads_n_d = Signal()
+            self.sync += in_pads_n_d.eq(in_pads[n])
             esp = EventSourceProcess(name=f"i{n}", edge="rising")
-            self.comb += esp.trigger.eq(in_pads[n] ^ self._polarity.storage[n])
+            self.comb += [
+                # Change mode.
+                If(self._mode.storage[n],
+                    esp.trigger.eq(in_pads[n] ^ in_pads_n_d)
+                # Edge mode.
+                ).Else(
+                    esp.trigger.eq(in_pads[n] ^ self._edge.storage[n])
+                )
+            ]
             setattr(self.ev, f"i{n}", esp)
 
 # GPIO Input ---------------------------------------------------------------------------------------
