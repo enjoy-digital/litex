@@ -519,6 +519,10 @@ class Gearbox(Module):
         # # #
 
         io_lcm = lcm(i_dw, o_dw)
+        if (io_lcm//i_dw) < 2:
+            io_lcm = io_lcm * 2
+        if (io_lcm//o_dw) < 2:
+            io_lcm = io_lcm * 2
 
         # Control path
 

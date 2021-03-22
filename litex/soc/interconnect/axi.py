@@ -832,24 +832,18 @@ class _AXILiteDownConverterWrite(Module):
         dw_from      = len(master.w.data)
         dw_to        = len(slave.w.data)
         ratio        = dw_from//dw_to
-        master_align = log2_int(master.data_width//8)
-        slave_align  = log2_int(slave.data_width//8)
 
         skip         = Signal()
         counter      = Signal(max=ratio)
         aw_ready     = Signal()
         w_ready      = Signal()
         resp         = Signal.like(master.b.resp)
-        addr_counter = Signal(master_align)
 
         # # #
 
-        # Slave address counter
-        self.comb += addr_counter[slave_align:].eq(counter)
-
         # Data path
         self.comb += [
-            slave.aw.addr.eq(Cat(addr_counter, master.aw.addr[master_align:])),
+            slave.aw.addr.eq(master.aw.addr + counter*(dw_to//8)),
             Case(counter, {i: slave.w.data.eq(master.w.data[i*dw_to:]) for i in range(ratio)}),
             Case(counter, {i: slave.w.strb.eq(master.w.strb[i*dw_to//8:]) for i in range(ratio)}),
             master.b.resp.eq(resp),
@@ -929,18 +923,12 @@ class _AXILiteDownConverterRead(Module):
         dw_from      = len(master.r.data)
         dw_to        = len(slave.r.data)
         ratio        = dw_from//dw_to
-        master_align = log2_int(master.data_width//8)
-        slave_align  = log2_int(slave.data_width//8)
 
         skip         = Signal()
         counter      = Signal(max=ratio)
         resp         = Signal.like(master.r.resp)
-        addr_counter = Signal(master_align)
 
         # # #
-
-        # Slave address counter
-        self.comb += addr_counter[slave_align:].eq(counter)
 
         # Data path
         # Shift the data word
@@ -949,7 +937,7 @@ class _AXILiteDownConverterRead(Module):
         self.comb += master.r.data.eq(Cat(r_data[dw_to:], slave.r.data))
         # Connect address, resp
         self.comb += [
-            slave.ar.addr.eq(Cat(addr_counter, master.ar.addr[master_align:])),
+            slave.ar.addr.eq(master.ar.addr + counter*(dw_to//8)),
             master.r.resp.eq(resp),
         ]
 

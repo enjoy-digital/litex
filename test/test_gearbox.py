@@ -42,20 +42,29 @@ def data_checker(dut, gearbox, datas):
 
 
 class GearboxDUT(Module):
-    def __init__(self):
-        self.submodules.gearbox0 = Gearbox(20, 32)
-        self.submodules.gearbox1 = Gearbox(32, 20)
+    def __init__(self, dw0=20, dw1=32):
+        self.submodules.gearbox0 = Gearbox(dw0, dw1)
+        self.submodules.gearbox1 = Gearbox(dw1, dw0)
         self.comb += self.gearbox0.source.connect(self.gearbox1.sink)
 
 
 class TestGearbox(unittest.TestCase):
-    def test_gearbox(self):
+    def gearbox_test(self, dw0, dw1):
         prng = random.Random(42)
-        dut = GearboxDUT()
-        datas = [prng.randrange(2**20) for i in range(128)]
+        dut = GearboxDUT(dw0, dw1)
+        datas = [prng.randrange(2**dw0) for i in range(128)]
         generators = [
             data_generator(dut, dut.gearbox0, datas),
             data_checker(dut, dut.gearbox1, datas)
         ]
         run_simulation(dut, generators)
         self.assertEqual(dut.errors, 0)
+
+    def test_gearbox_20_32(self):
+        self.gearbox_test(20, 32)
+
+    def test_gearbox_10_2(self):
+        self.gearbox_test(10, 2)
+
+    def test_gearbox_10_4(self):
+        self.gearbox_test(10, 4)
