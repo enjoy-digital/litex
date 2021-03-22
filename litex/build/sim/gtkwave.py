@@ -52,6 +52,7 @@ class GTKWSave:
             savefile: str,
             dumpfile: str,
             filtersdir: str = None,
+            treeopen: bool = True,
             prefix: str = "TOP.sim."):
         """Crate savefile generator for the namespace.
 
@@ -62,6 +63,7 @@ class GTKWSave:
         self.savefile = savefile
         self.dumpfile = dumpfile
         self.filtersdir = filtersdir
+        self.treeopen = treeopen
         if self.filtersdir is None:
             self.filtersdir = os.path.dirname(self.savefile)
 
@@ -71,9 +73,11 @@ class GTKWSave:
         self.file = open(self.savefile, "w")
         self.gtkw = GTKWSave(self.file)
         self.gtkw.dumpfile(self.dumpfile)
-        modules = self.prefix.rstrip(".").split(".")
-        for i in range(len(modules)):
-            self.gtkw.treeopen(".".join(modules[:i + 1]))
+        if self.treeopen:
+            modules = self.prefix.rstrip(".").split(".")
+            for i in range(len(modules)):
+                if modules[i]:
+                    self.gtkw.treeopen(".".join(modules[:i + 1]))
         self.gtkw.sst_expanded(True)
         return self
 
