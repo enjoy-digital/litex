@@ -50,6 +50,7 @@ class VexRiscvSMP(CPU):
     out_of_order_decoder = True
     wishbone_memory      = False
     with_fpu             = False
+    cpu_per_fpu          = 4
 
     @staticmethod
     def args_fill(parser):
@@ -66,6 +67,7 @@ class VexRiscvSMP(CPU):
         parser.add_argument("--without-out-of-order-decoder", action="store_true", help="Reduce area at cost of peripheral access speed")
         parser.add_argument("--with-wishbone-memory"        , action="store_true", help="Disable native LiteDRAM interface")
         parser.add_argument("--with-fpu"                    , action="store_true", help="Enable the F32/F64 FPU")
+        parser.add_argument("--cpu-per-fpu"                 , default="4",         help="Maximal ratio between CPU count and FPU count. Will instanciate as many FPU as necessary.")
 
     @staticmethod
     def args_read(args):
@@ -93,6 +95,8 @@ class VexRiscvSMP(CPU):
             VexRiscvSMP.with_fpu     = True
             VexRiscvSMP.icache_width = 64
             VexRiscvSMP.dcache_width = 64 # Required for F64
+        if(args.cpu_per_fpu):
+            VexRiscvSMP.cpu_per_fpu = args.cpu_per_fpu
 
 
     @staticmethod
@@ -145,7 +149,7 @@ class VexRiscvSMP(CPU):
         f"{'_Aes'  if VexRiscvSMP.aes_instruction      else ''}" \
         f"{'_Ood'  if VexRiscvSMP.out_of_order_decoder else ''}" \
         f"{'_Wm'   if VexRiscvSMP.wishbone_memory      else ''}" \
-        f"{'_Fpu'  if VexRiscvSMP.with_fpu             else ''}"
+        f"{'_Fpu' + str(VexRiscvSMP.cpu_per_fpu)  if VexRiscvSMP.with_fpu else ''}"
 
     @staticmethod
     def generate_default_configs():
@@ -224,6 +228,7 @@ class VexRiscvSMP(CPU):
         gen_args.append(f"--out-of-order-decoder={VexRiscvSMP.out_of_order_decoder}")
         gen_args.append(f"--wishbone-memory={VexRiscvSMP.wishbone_memory}")
         gen_args.append(f"--fpu={VexRiscvSMP.with_fpu}")
+        gen_args.append(f"--cpu-per-fpu={VexRiscvSMP.cpu_per_fpu}")
         gen_args.append(f"--netlist-name={VexRiscvSMP.cluster_name}")
         gen_args.append(f"--netlist-directory={vdir}")
 
