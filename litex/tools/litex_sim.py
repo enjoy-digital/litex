@@ -19,7 +19,6 @@ from litex.build.sim.config import SimConfig
 
 from litex.soc.integration.common import *
 from litex.soc.integration.soc_core import *
-from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
 from litex.soc.integration.soc import *
 from litex.soc.cores.bitbang import *
@@ -369,7 +368,7 @@ def generate_gtkw_savefile(builder, vns, trace_fst):
 
 def sim_args(parser):
     builder_args(parser)
-    soc_sdram_args(parser)
+    soc_core_args(parser)
     parser.add_argument("--threads",              default=1,               help="Set number of threads (default=1)")
     parser.add_argument("--rom-init",             default=None,            help="rom_init file")
     parser.add_argument("--ram-init",             default=None,            help="ram_init file")
@@ -399,7 +398,7 @@ def main():
     sim_args(parser)
     args = parser.parse_args()
 
-    soc_kwargs     = soc_sdram_argdict(args)
+    soc_kwargs     = soc_core_argdict(args)
     builder_kwargs = builder_argdict(args)
 
     sys_clk_freq = int(1e6)
