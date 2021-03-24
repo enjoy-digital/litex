@@ -17,9 +17,6 @@ from migen import *
 
 from litex.soc.interconnect import stream
 
-# TODO: clean up code below
-# XXX
-
 __all__ = [
     "print_with_prefix",
     "seed_to_data",
@@ -212,5 +209,3 @@ class Randomizer(Module):
             else:
                 yield self.ce.eq(1)
             yield
-
-# XXX
