@@ -1,3 +1,8 @@
+####################################################################################################
+#       DISCLAIMER: Provides retro-compatibility layer for SoCSDRAM based designs.
+#              Will soon no longer work, please don't use in new designs.
+####################################################################################################
+
 #
 # This file is part of LiteX.
 #
@@ -5,11 +10,6 @@
 # This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2019 Gabriel L. Somlo <somlo@cmu.edu>
 # SPDX-License-Identifier: BSD-2-Clause
-
-####################################################################################################
-#       DISCLAIMER: Provides retro-compatibility layer for existing SoCSDRAM based designs.
-#     Most of the SoC code has been refactored/improved and is now located in integration/soc.py
-####################################################################################################
 
 import inspect
 
