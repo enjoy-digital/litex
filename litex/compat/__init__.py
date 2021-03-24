@@ -43,8 +43,20 @@ def add_compat(location):
                 from litex.compat import soc_sdram
                 return getattr(soc_sdram, name)
         sys.modules["litex.soc.integration.soc_sdram"] = compat_soc_sdram()
+    # Interconnect.
+    if location == "litex.soc.interconnect":
+        class compat_stream_sim:
+            noticed = False
+            def __getattr__(self, name):
+                if not self.noticed:
+                    compat_notice("stream_sim", date="2020-03-24", info="Code will not be replaced, copy it in your project to continue using it.")
+                    self.noticed = True
+                from litex.compat import stream_sim
+                return getattr(stream_sim, name)
+        sys.modules["litex.soc.interconnect.stream_sim"] = compat_stream_sim()
+
     # Cores.
-    elif location == "litex.soc.cores":
+    if location == "litex.soc.cores":
         class compat_up5kspram:
             noticed = False
             def __getattr__(self, name):
