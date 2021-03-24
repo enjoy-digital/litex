@@ -299,6 +299,12 @@ def soc_core_args(parser):
     parser.add_argument("--no-timer",        action="store_true", help="Disable Timer (default=False).")
     parser.add_argument("--timer-uptime",    action="store_true", help="Add an uptime capability to Timer (default=False).")
 
+    # L2 Cache
+    parser.add_argument("--l2-size",           default=8192, type=auto_int, help="L2 cache size (default=8192).")
+    parser.add_argument("--min-l2-data-width", default=128,  type=auto_int, help="Minimum L2 cache datawidth (default=128).")
+
+    # SDRAM
+    parser.add_argument("--max-sdram-size", default=0x40000000, type=auto_int, help="Maximum SDRAM size mapped to the SoC (default=1GB))")
 
 def soc_core_argdict(args):
     r = dict()
