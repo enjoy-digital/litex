@@ -33,3 +33,7 @@ def add_compat(location):
         #compat_notice("SoCSDRAM", date="2020-03-24", info="Switch to SoCCore/add_sdram/soc_core_args instead.")
         from litex.compat import soc_sdram
         sys.modules["litex.soc.integration.soc_sdram"] = soc_sdram
+    elif location == "litex.soc.cores":
+        compat_notice("litex.soc.cores.up5kspram", date="2020-03-24", info="Switch to litex.soc.cores.ram.")
+        from litex.soc.cores import ram
+        sys.modules["litex.soc.cores.up5kspram"] = ram
