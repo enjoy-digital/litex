@@ -15,7 +15,6 @@ from migen import *
 
 from litex.soc.cores import cpu
 from litex.soc.cores.identifier import Identifier
-from litex.soc.cores.timer import Timer
 from litex.soc.cores.video import VideoTimingGenerator, VideoTerminal, VideoFrameBuffer, ColorBarsPattern
 
 from litex.soc.interconnect.csr import *
@@ -919,6 +918,7 @@ class SoC(Module):
             self.add_constant("CONFIG_CPU_NOP", self.cpu.nop)
 
     def add_timer(self, name="timer0"):
+        from litex.soc.cores.timer import Timer
         self.check_if_exists(name)
         setattr(self.submodules, name, Timer())
         self.csr.add(name, use_loc_if_exists=True)
