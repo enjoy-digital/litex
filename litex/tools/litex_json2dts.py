@@ -74,7 +74,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
             cpu@{cpu} {{
                 device_type = "cpu";
                 compatible = "riscv";
-                riscv,isa = "rv32ima";
+                riscv,isa = "{cpu_isa}";
                 mmu-type = "riscv,sv32";
                 reg = <{cpu}>;
                 clock-frequency = <{sys_clk_freq}>;
@@ -85,7 +85,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
                     compatible = "riscv,cpu-intc";
                 }};
             }};
-""".format(cpu=cpu, irq=cpu, sys_clk_freq=d["constants"]["config_clock_frequency"])
+""".format(cpu=cpu, irq=cpu, sys_clk_freq=d["constants"]["config_clock_frequency"], cpu_isa=d["constants"]["cpu_isa"])
         dts += """
     	};
 """
@@ -200,7 +200,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
                 compatible = "litex,liteeth";
                 reg = <0x{ethmac_csr_base:x} 0x7c>,
                       <0x{ethphy_csr_base:x} 0x0a>,
-                      <0x{ethmac_mem_base:x} 0x2000>;
+                      <0x{ethmac_mem_base:x} 0x{ethmac_mem_size:x}>;
                 tx-fifo-depth = <{ethmac_tx_slots}>;
                 rx-fifo-depth = <{ethmac_rx_slots}>;
                 {ethmac_interrupt}
@@ -210,6 +210,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
     ethphy_csr_base  = d["csr_bases"]["ethphy"],
     ethmac_csr_base  = d["csr_bases"]["ethmac"],
     ethmac_mem_base  = d["memories"]["ethmac"]["base"],
+    ethmac_mem_size  = d["memories"]["ethmac"]["size"],
     ethmac_tx_slots  = d["constants"]["ethmac_tx_slots"],
     ethmac_rx_slots  = d["constants"]["ethmac_rx_slots"],
     ethmac_interrupt = "" if polling else "interrupts = <{}>;".format(d["constants"]["ethmac_interrupt"]))
@@ -367,6 +368,59 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
 """.format(xadc_csr_base=d["csr_bases"]["xadc"])
 
     # Framebuffer ----------------------------------------------------------------------------------
+
+    if "framebuffer" in d["csr_bases"]:
+        # FIXME: Use dynamic framebuffer base and size
+        framebuffer_base   = 0xc8000000
+        framebuffer_width  = d["constants"]["litevideo_h_active"]
+        framebuffer_height = d["constants"]["litevideo_v_active"]
+        dts += """
+            framebuffer0: framebuffer@f0000000 {{
+                compatible = "simple-framebuffer";
+                reg = <0x{framebuffer_base:x} 0x{framebuffer_size:x}>;
+                width = <{framebuffer_width}>;
+                height = <{framebuffer_height}>;
+                stride = <{framebuffer_stride}>;
+                format = "a8b8g8r8";
+            }};
+""".format(
+    framebuffer_base   = framebuffer_base,
+    framebuffer_width  = framebuffer_width,
+    framebuffer_height = framebuffer_height,
+    framebuffer_size   = framebuffer_width * framebuffer_height * 4,
+    framebuffer_stride = framebuffer_width * 4)
+
+        dts += """
+            litevideo0: gpu@{litevideo_base:x} {{
+                compatible = "litex,litevideo";
+                reg = <0x{litevideo_base:x} 0x100>;
+                litevideo,pixel-clock   = <{litevideo_pixel_clock}>;
+                litevideo,h-active      = <{litevideo_h_active}>;
+                litevideo,h-blanking    = <{litevideo_h_blanking}>;
+                litevideo,h-sync        = <{litevideo_h_sync}>;
+                litevideo,h-front-porch = <{litevideo_h_front_porch}>;
+                litevideo,v-active      = <{litevideo_v_active}>;
+                litevideo,v-blanking    = <{litevideo_v_blanking}>;
+                litevideo,v-sync        = <{litevideo_v_sync}>;
+                litevideo,v-front-porch = <{litevideo_v_front_porch}>;
+                litevideo,dma-offset    = <0x{litevideo_dma_offset:x}>;
+                litevideo,dma-length    = <0x{litevideo_dma_length:x}>;
+            }};
+""".format(
+    litevideo_base          = d["csr_bases"]["framebuffer"],
+    litevideo_pixel_clock   = int(d["constants"]["litevideo_pix_clk"] / 1e3),
+    litevideo_h_active      = d["constants"]["litevideo_h_active"],
+    litevideo_h_blanking    = d["constants"]["litevideo_h_blanking"],
+    litevideo_h_sync        = d["constants"]["litevideo_h_sync"],
+    litevideo_h_front_porch = d["constants"]["litevideo_h_front_porch"],
+    litevideo_v_active      = d["constants"]["litevideo_v_active"],
+    litevideo_v_blanking    = d["constants"]["litevideo_v_blanking"],
+    litevideo_v_sync        = d["constants"]["litevideo_v_sync"],
+    litevideo_v_front_porch = d["constants"]["litevideo_v_front_porch"],
+    litevideo_dma_offset    = framebuffer_base - d["memories"]["main_ram"]["base"],
+    litevideo_dma_length    = framebuffer_width * framebuffer_height * 4)
+
+    # Video Framebuffer -----------------------------------------------------------------------------
 
     if "video_framebuffer" in d["csr_bases"]:
         # FIXME: Use dynamic framebuffer base and size

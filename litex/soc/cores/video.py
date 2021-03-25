@@ -112,6 +112,17 @@ video_timings = {
         "v_sync_offset" : 4,
         "v_sync_width"  : 5,
     },
+    "1024x600@60Hz": {
+        "pix_clk"        : 49e6,
+        "h_active"       : 1024,
+        "h_blanking"     : 288,
+        "h_sync_offset"  : 270,
+        "h_sync_width"   : 13,
+        "v_active"       : 600,
+        "v_blanking"     : 22,
+        "v_sync_offset"  : 17,
+        "v_sync_width"   : 3,
+    },
 }
 
 # Video Timing Generator ---------------------------------------------------------------------------
@@ -415,7 +426,7 @@ class VideoTerminal(Module):
 
         # Terminal Mem.
         # -------------
-        term_colums = 128 # 80 rounded to next power of two.
+        term_colums = math.floor(hres/font_width) # 128 # 80 rounded to next power of two.
         term_lines  = math.floor(vres/font_heigth)
         term_depth  = term_colums * term_lines
         term_init   = [ord(c) for c in [" "]*term_colums*term_lines]
@@ -486,7 +497,7 @@ class VideoTerminal(Module):
         uart_fsm.act("INCR-X",
             NextValue(x_term, x_term + 1),
             NextState("IDLE"),
-            If(x_term == (80 - 1),
+            If(x_term == (term_colums - 1),
                 NextValue(x_term, 0),
                 NextState("INCR-Y")
             )
@@ -549,7 +560,7 @@ class VideoTerminal(Module):
         self.comb += term_rdport.adr.eq(x + y_rollover*term_colums)
         self.comb += [
             term_dat_r.eq(term_rdport.dat_r),
-            If((x >= 80) | (y >= term_lines),
+            If((x >= term_colums) | (y >= term_lines),
                 term_dat_r.eq(ord(" ")), # Out of range, generate space.
             )
         ]
@@ -674,7 +685,68 @@ class VideoDVIPHY(Module):
             self.specials += SDROutput(i=sink.g[cshift + i], o=pads.g[i], clk=ClockSignal(clock_domain))
             self.specials += SDROutput(i=sink.b[cshift + i], o=pads.b[i], clk=ClockSignal(clock_domain))
 
-# HDMI (7-Series).
+# HDMI (Generic).
+
+class VideoHDMI10to1Serializer(Module):
+    def __init__(self, data_i, data_o, clock_domain):
+        # Clock Domain Crossing.
+        self.submodules.cdc = stream.ClockDomainCrossing([("data", 10)], cd_from=clock_domain, cd_to=clock_domain + "5x")
+        self.comb += self.cdc.sink.valid.eq(1)
+        self.comb += self.cdc.sink.data.eq(data_i)
+
+        # 10:2 Gearbox.
+        self.submodules.gearbox = ClockDomainsRenamer(clock_domain + "5x")(stream.Gearbox(i_dw=10, o_dw=2, msb_first=False))
+        self.comb += self.cdc.source.connect(self.gearbox.sink)
+
+        # 2:1 Output DDR.
+        self.comb += self.gearbox.source.ready.eq(1)
+        self.specials += DDROutput(
+            clk = ClockSignal(clock_domain + "5x"),
+            i1  = self.gearbox.source.data[0],
+            i2  = self.gearbox.source.data[1],
+            o   = data_o,
+        )
+
+# HDMI (Xilinx Spartan6).
+
+class VideoS6HDMIPHY(Module):
+    def __init__(self, pads, clock_domain="sys"):
+        self.sink = sink = stream.Endpoint(video_data_layout)
+
+        # # #
+
+        # Always ack Sink, no backpressure.
+        self.comb += sink.ready.eq(1)
+
+        # Clocking + Differential Signaling.
+        pads_clk = Signal()
+        self.specials += DDROutput(i1=1, i2=0, o=pads_clk, clk=ClockSignal(clock_domain))
+        self.specials += Instance("OBUFDS", i_I=pads_clk, o_O=pads.clk_p, o_OB=pads.clk_n)
+
+        # Encode/Serialize Datas.
+        for color in ["r", "g", "b"]:
+
+            # TMDS Encoding.
+            encoder = ClockDomainsRenamer(clock_domain)(TMDSEncoder())
+            setattr(self.submodules, f"{color}_encoder", encoder)
+            self.comb += encoder.d.eq(getattr(sink, color))
+            self.comb += encoder.c.eq(Cat(sink.hsync, sink.vsync) if color == "r" else 0)
+            self.comb += encoder.de.eq(sink.de)
+
+            # 10:1 Serialization + Differential Signaling.
+            pad_o = Signal()
+            serializer = VideoHDMI10to1Serializer(
+                data_i       = encoder.out,
+                data_o       = pad_o,
+                clock_domain = clock_domain,
+            )
+            setattr(self.submodules, f"{color}_serializer", serializer)
+            c2d   = {"r": 0, "g": 1, "b": 2}
+            pad_p = getattr(pads, f"data{c2d[color]}_p")
+            pad_n = getattr(pads, f"data{c2d[color]}_n")
+            self.specials += Instance("OBUFDS", i_I=pad_o, o_O=pad_p, o_OB=pad_n)
+
+# HDMI (Xilinx 7-Series).
 
 class VideoS7HDMI10to1Serializer(Module):
     def __init__(self, data_i, data_o, clock_domain):
@@ -754,3 +826,37 @@ class VideoS7HDMIPHY(Module):
             pad_p = getattr(pads, f"data{c2d[color]}_p")
             pad_n = getattr(pads, f"data{c2d[color]}_n")
             self.specials += Instance("OBUFDS", i_I=pad_o, o_O=pad_p, o_OB=pad_n)
+
+
+# HDMI (Lattice ECP5).
+
+class VideoECP5HDMIPHY(Module):
+    def __init__(self, pads, clock_domain="sys"):
+        self.sink = sink = stream.Endpoint(video_data_layout)
+
+        # # #
+
+        # Always ack Sink, no backpressure.
+        self.comb += sink.ready.eq(1)
+
+        # Clocking + Pseudo Differential Signaling.
+        self.specials += DDROutput(i1=1, i2=0, o=pads.clk_p, clk=ClockSignal(clock_domain))
+
+        # Encode/Serialize Datas.
+        for color in ["r", "g", "b"]:
+
+            # TMDS Encoding.
+            encoder = ClockDomainsRenamer(clock_domain)(TMDSEncoder())
+            setattr(self.submodules, f"{color}_encoder", encoder)
+            self.comb += encoder.d.eq(getattr(sink, color))
+            self.comb += encoder.c.eq(Cat(sink.hsync, sink.vsync) if color == "r" else 0)
+            self.comb += encoder.de.eq(sink.de)
+
+            # 10:1 Serialization + Pseudo Differential Signaling.
+            c2d   = {"r": 0, "g": 1, "b": 2}
+            serializer = VideoHDMI10to1Serializer(
+                data_i       = encoder.out,
+                data_o       = getattr(pads, f"data{c2d[color]}_p"),
+                clock_domain = clock_domain,
+            )
+            setattr(self.submodules, f"{color}_serializer", serializer)

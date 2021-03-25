@@ -1,3 +1,8 @@
+####################################################################################################
+#       DISCLAIMER: Provides retro-compatibility layer for stream_sim based designs.
+#              Will soon no longer work, please don't use in new designs.
+####################################################################################################
+
 #
 # This file is part of LiteX.
 #
@@ -12,8 +17,20 @@ from migen import *
 
 from litex.soc.interconnect import stream
 
-# TODO: clean up code below
-# XXX
+__all__ = [
+    "print_with_prefix",
+    "seed_to_data",
+    "split_bytes",
+    "merge_bytes",
+    "get_field_data",
+    "comp",
+    "check",
+    "randn",
+    "Packet",
+    "PacketStreamer",
+    "PacketLogger",
+    "Randomizer"
+]
 
 def print_with_prefix(s, prefix=""):
     if not isinstance(s, str):
@@ -192,5 +209,3 @@ class Randomizer(Module):
             else:
                 yield self.ce.eq(1)
             yield
-
-# XXX

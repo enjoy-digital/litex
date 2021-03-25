@@ -134,8 +134,3 @@ def generated_banner(line_comment="//"):
     r += "{}\n".format(datetime.datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d %H:%M:%S"))
     r += line_comment + "-"*80 + "\n"
     return r
-
-
-def deprecated_warning(msg):
-    print("[WARNING] Deprecated, please update " + msg)
-    time.sleep(2) # annoy user to force update :)

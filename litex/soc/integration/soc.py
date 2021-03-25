@@ -18,7 +18,7 @@ from litex.soc.cores.identifier import Identifier
 from litex.soc.cores.timer import Timer
 from litex.soc.cores.spi_flash import SpiFlash
 from litex.soc.cores.spi import SPIMaster
-from litex.soc.cores.video import VideoTimingGenerator, VideoTerminal, VideoFrameBuffer, ColorBarsPattern
+from litex.soc.cores.video import VideoTimingGenerator, VideoTerminal, VideoFrameBuffer, ColorBarsPattern, video_timings
 
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect.csr_eventmanager import *
@@ -1359,7 +1359,7 @@ class LiteXSoC(SoC):
                 base_address = self.bus.regions["main_ram"].origin)
 
     # Add Ethernet ---------------------------------------------------------------------------------
-    def add_ethernet(self, name="ethmac", phy=None, phy_cd="eth", dynamic_ip=False, software_debug=False):
+    def add_ethernet(self, name="ethmac", phy=None, phy_cd="eth", dynamic_ip=False, software_debug=False, nrxslots=2, ntxslots=2):
         # Imports
         from liteeth.mac import LiteEthMAC
 
@@ -1369,12 +1369,15 @@ class LiteXSoC(SoC):
             dw                = 32,
             interface         = "wishbone",
             endianness        = self.cpu.endianness,
-            with_preamble_crc = not software_debug)
+            with_preamble_crc = not software_debug,
+            nrxslots          = nrxslots,
+            ntxslots          = ntxslots)
         ethmac = ClockDomainsRenamer({
             "eth_tx": phy_cd + "_tx",
             "eth_rx": phy_cd + "_rx"})(ethmac)
         setattr(self.submodules, name, ethmac)
-        ethmac_region = SoCRegion(origin=self.mem_map.get(name, None), size=0x2000, cached=False)
+        ethmac_region_size = (ethmac.rx_slots.read()+ethmac.tx_slots.read())*ethmac.slot_size.read()
+        ethmac_region = SoCRegion(origin=self.mem_map.get(name, None), size=ethmac_region_size, cached=False)
         self.bus.add_slave(name=name, slave=ethmac.bus, region=ethmac_region)
         self.csr.add(name, use_loc_if_exists=True)
         if self.irq.enabled:
@@ -1638,6 +1641,7 @@ class LiteXSoC(SoC):
         # Timing constraints
         self.platform.add_false_path_constraints(self.crg.cd_sys.clk, phy.cd_pcie.clk)
 
+    # Add Video ColorBars Pattern ------------------------------------------------------------------
     def add_video_colorbars(self, name="video_colorbars", phy=None, timings="800x600@60Hz", clock_domain="sys"):
         # Video Timing Generator.
         vtg = VideoTimingGenerator(default_video_timings=timings)
@@ -1645,9 +1649,11 @@ class LiteXSoC(SoC):
         self.submodules.video_colorbars_vtg = vtg
         self.add_csr("video_colorbars_vtg")
 
-        colorbars = ColorBarsPattern()
+        # ColorsBars Pattern.
+        colorbars = ClockDomainsRenamer(clock_domain)(ColorBarsPattern())
         self.submodules.video_colorbars = colorbars
 
+        # Connect Video Timing Generator to ColorsBars Pattern.
         self.comb += [
             vtg.source.connect(colorbars.vtg_sink),
             colorbars.source.connect(phy.sink)
@@ -1685,7 +1691,7 @@ class LiteXSoC(SoC):
         self.comb += vt.source.connect(phy.sink)
 
     # Add Video Framebuffer ------------------------------------------------------------------------
-    def add_video_framebuffer(self, name="video_framebuffer", phy=None, timings="800x600@60Hz", clock_domain="sys"):
+    def add_video_framebuffer(self, name="video_framebuffer", base=0x4f000000, phy=None, timings="800x600@60Hz", clock_domain="sys"):
         # Video Timing Generator.
         vtg = VideoTimingGenerator(default_video_timings=timings)
         vtg = ClockDomainsRenamer(clock_domain)(vtg)
@@ -1696,10 +1702,21 @@ class LiteXSoC(SoC):
         vfb = VideoFrameBuffer(self.sdram.crossbar.get_port(),
              hres = int(timings.split("@")[0].split("x")[0]),
              vres = int(timings.split("@")[0].split("x")[1]),
+             base = base,
              clock_domain = clock_domain
         )
         self.submodules.video_framebuffer = vfb
         self.add_csr("video_framebuffer")
+        self.add_constant("framebuffer_base",        base)
+        self.add_constant("litevideo_pix_clk",       video_timings[timings]["pix_clk"])
+        self.add_constant("litevideo_h_active",      video_timings[timings]["h_active"])
+        self.add_constant("litevideo_h_blanking",    video_timings[timings]["h_blanking"])
+        self.add_constant("litevideo_h_sync",        video_timings[timings]["h_sync_width"])
+        self.add_constant("litevideo_h_front_porch", video_timings[timings]["h_sync_offset"])
+        self.add_constant("litevideo_v_active",      video_timings[timings]["v_active"])
+        self.add_constant("litevideo_v_blanking",    video_timings[timings]["v_blanking"])
+        self.add_constant("litevideo_v_sync",        video_timings[timings]["v_sync_width"])
+        self.add_constant("litevideo_v_front_porch", video_timings[timings]["v_sync_offset"])
 
         # Connect Video Timing Generator to Video FrameBuffer.
         self.comb += vtg.source.connect(vfb.vtg_sink)

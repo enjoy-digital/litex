@@ -25,13 +25,9 @@ class Status(Module):
         self.ongoing = Signal()
 
         ongoing = Signal()
-        self.comb += \
-            If(endpoint.valid,
-                self.last.eq(endpoint.last & endpoint.ready)
-            )
+        self.comb += If(endpoint.valid, self.last.eq(endpoint.last & endpoint.ready))
         self.sync += ongoing.eq((endpoint.valid | ongoing) & ~self.last)
         self.comb += self.ongoing.eq((endpoint.valid | ongoing) & ~self.last)
-
         self.sync += [
             If(self.last,
                 self.first.eq(1)
@@ -82,16 +78,18 @@ class Dispatcher(Module):
 
             sel = Signal.like(self.sel)
             sel_ongoing = Signal.like(self.sel)
-            self.sync += \
+            self.sync += [
                 If(status.first,
                     sel_ongoing.eq(self.sel)
                 )
-            self.comb += \
+            ]
+            self.comb += [
                 If(status.first,
                     sel.eq(self.sel)
                 ).Else(
                     sel.eq(sel_ongoing)
                 )
+            ]
             cases = {}
             for i, slave in enumerate(slaves):
                 if one_hot:
@@ -167,26 +165,26 @@ class Packetizer(Module):
 
         # # #
 
-        # Parameters -------------------------------------------------------------------------------
+        # Parameters.
         data_width      = len(self.sink.data)
         bytes_per_clk   = data_width//8
         header_words    = (header.length*8)//data_width
         header_leftover = header.length%bytes_per_clk
 
-        # Signals ----------------------------------------------------------------------------------
+        # Signals.
         sr       = Signal(header.length*8, reset_less=True)
         sr_load  = Signal()
         sr_shift = Signal()
         count    = Signal(max=max(header_words, 2))
         sink_d   = stream.Endpoint(sink_description)
 
-        # Header Encode/Load/Shift -----------------------------------------------------------------
+        # Header Encode/Load/Shift.
         self.comb += header.encode(sink, self.header)
         self.sync += If(sr_load, sr.eq(self.header))
         if header_words != 1:
             self.sync += If(sr_shift, sr.eq(sr[data_width:]))
 
-        # Last BE ----------------------------------------------------------------------------------
+        # Last BE.
         last_be   = Signal(data_width//8)
         last_be_d = Signal(data_width//8)
         if hasattr(sink, "last_be") and hasattr(source, "last_be"):
@@ -195,7 +193,7 @@ class Packetizer(Module):
             self.comb += last_be.eq(Cat(*x))
             self.sync += last_be_d.eq(last_be)
 
-        # FSM --------------------------------------------------------------------------------------
+        # FSM.
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
         fsm_from_idle = Signal()
         fsm.act("IDLE",
@@ -274,7 +272,7 @@ class Packetizer(Module):
             )
         )
 
-        # Error ------------------------------------------------------------------------------------
+        # Error.
         if hasattr(sink, "error") and hasattr(source, "error"):
             self.comb += source.error.eq(sink.error)
 
@@ -288,20 +286,20 @@ class Depacketizer(Module):
 
         # # #
 
-        # Parameters -------------------------------------------------------------------------------
+        # Parameters.
         data_width      = len(sink.data)
         bytes_per_clk   = data_width//8
         header_words    = (header.length*8)//data_width
         header_leftover = header.length%bytes_per_clk
 
-        # Signals ----------------------------------------------------------------------------------
+        # Signals.
         sr                = Signal(header.length*8, reset_less=True)
         sr_shift          = Signal()
         sr_shift_leftover = Signal()
         count             = Signal(max=max(header_words, 2))
         sink_d            = stream.Endpoint(sink_description)
 
-        # Header Shift/Decode ----------------------------------------------------------------------
+        # Header Shift/Decode.
         if (header_words) == 1 and (header_leftover == 0):
             self.sync += If(sr_shift, sr.eq(sink.data))
         else:
@@ -312,7 +310,7 @@ class Depacketizer(Module):
         self.comb += self.header.eq(sr)
         self.comb += header.decode(self.header, source)
 
-        # FSM --------------------------------------------------------------------------------------
+        # FSM.
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
         fsm_from_idle = Signal()
         fsm.act("IDLE",
@@ -380,11 +378,11 @@ class Depacketizer(Module):
             )
         )
 
-        # Error ------------------------------------------------------------------------------------
+        # Error.
         if hasattr(sink, "error") and hasattr(source, "error"):
             self.comb += source.error.eq(sink.error)
 
-        # Last BE ----------------------------------------------------------------------------------
+        # Last BE.
         if hasattr(sink, "last_be") and hasattr(source, "last_be"):
             x = [sink.last_be[(i - (bytes_per_clk - header_leftover))%bytes_per_clk]
                 for i in range(bytes_per_clk)]

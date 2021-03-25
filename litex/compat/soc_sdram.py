@@ -1,3 +1,8 @@
+####################################################################################################
+#       DISCLAIMER: Provides retro-compatibility layer for SoCSDRAM based designs.
+#              Will soon no longer work, please don't use in new designs.
+####################################################################################################
+
 #
 # This file is part of LiteX.
 #
@@ -5,11 +10,6 @@
 # This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2019 Gabriel L. Somlo <somlo@cmu.edu>
 # SPDX-License-Identifier: BSD-2-Clause
-
-####################################################################################################
-#       DISCLAIMER: Provides retro-compatibility layer for existing SoCSDRAM based designs.
-#     Most of the SoC code has been refactored/improved and is now located in integration/soc.py
-####################################################################################################
 
 import inspect
 
@@ -55,15 +55,6 @@ class SoCSDRAM(SoCCore):
 
 def soc_sdram_args(parser):
     soc_core_args(parser)
-    # L2 Cache
-    parser.add_argument("--l2-size", default=8192, type=auto_int,
-                        help="L2 cache size (default=8192)")
-    parser.add_argument("--min-l2-data-width", default=128, type=auto_int,
-                        help="Minimum L2 cache datawidth (default=128)")
-
-    # SDRAM
-    parser.add_argument("--max-sdram-size", default=0x40000000, type=auto_int,
-                        help="Maximum SDRAM size mapped to the SoC (default=1GB))")
 
 def soc_sdram_argdict(args):
     r = soc_core_argdict(args)
