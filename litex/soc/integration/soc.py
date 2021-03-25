@@ -16,7 +16,6 @@ from migen import *
 from litex.soc.cores import cpu
 from litex.soc.cores.identifier import Identifier
 from litex.soc.cores.timer import Timer
-from litex.soc.cores.spi_flash import SpiFlash
 from litex.soc.cores.spi import SPIMaster
 from litex.soc.cores.video import VideoTimingGenerator, VideoTerminal, VideoFrameBuffer, ColorBarsPattern
 
@@ -1443,9 +1442,15 @@ class LiteXSoC(SoC):
 
     # Add SPI Flash --------------------------------------------------------------------------------
     def add_spi_flash(self, name="spiflash", mode="4x", dummy_cycles=None, clk_freq=None):
+        # Imports.
+        from litex.soc.cores.spi_flash import SpiFlash
+
+        # Checks.
         assert dummy_cycles is not None                 # FIXME: Get dummy_cycles from SPI Flash
         assert mode in ["1x", "4x"]
         if clk_freq is None: clk_freq = self.clk_freq/2 # FIXME: Get max clk_freq from SPI Flash
+
+        # Core.
         spiflash = SpiFlash(
             pads         = self.platform.request(name if mode == "1x" else name + mode),
             dummy        = dummy_cycles,
