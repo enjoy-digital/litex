@@ -1243,9 +1243,9 @@ class LiteXSoC(SoC):
         # LiteDRAM BIST
         if with_bist:
             self.submodules.sdram_generator = LiteDRAMBISTGenerator(self.sdram.crossbar.get_port())
-            self.add_csr("sdram_generator")
+            self.csr.add("sdram_generator")
             self.submodules.sdram_checker = LiteDRAMBISTChecker(self.sdram.crossbar.get_port())
-            self.add_csr("sdram_checker")
+            self.csr.add("sdram_checker")
 
         if not with_soc_interconnect: return
 
@@ -1616,7 +1616,7 @@ class LiteXSoC(SoC):
         if with_msi:
             msi = LitePCIeMSI()
             setattr(self.submodules, f"{name}_msi", msi)
-            self.add_csr(f"{name}_msi")
+            self.csr.add(f"{name}_msi")
             self.comb += msi.source.connect(phy.msi)
             self.msis = {}
 
@@ -1627,7 +1627,7 @@ class LiteXSoC(SoC):
                 with_buffering = True, buffering_depth=1024,
                 with_loopback  = True)
             setattr(self.submodules, f"{name}_dma{i}", dma)
-            self.add_csr(f"{name}_dma{i}")
+            self.csr.add(f"{name}_dma{i}")
             self.msis[f"{name.upper()}_DMA{i}_WRITER"] = dma.writer.irq
             self.msis[f"{name.upper()}_DMA{i}_READER"] = dma.reader.irq
         self.add_constant("DMA_CHANNELS", ndmas)
@@ -1647,7 +1647,7 @@ class LiteXSoC(SoC):
         vtg = VideoTimingGenerator(default_video_timings=timings)
         vtg = ClockDomainsRenamer(clock_domain)(vtg)
         self.submodules.video_colorbars_vtg = vtg
-        self.add_csr("video_colorbars_vtg")
+        self.csr.add("video_colorbars_vtg")
 
         # ColorsBars Pattern.
         colorbars = ClockDomainsRenamer(clock_domain)(ColorBarsPattern())
@@ -1665,7 +1665,7 @@ class LiteXSoC(SoC):
         vtg = VideoTimingGenerator(default_video_timings=timings)
         vtg = ClockDomainsRenamer(clock_domain)(vtg)
         self.submodules.video_terminal_vtg = vtg
-        self.add_csr("video_terminal_vtg")
+        self.csr.add("video_terminal_vtg")
 
         # Video Terminal.
         vt = VideoTerminal(
@@ -1696,7 +1696,7 @@ class LiteXSoC(SoC):
         vtg = VideoTimingGenerator(default_video_timings=timings)
         vtg = ClockDomainsRenamer(clock_domain)(vtg)
         self.submodules.video_framebuffer_vtg = vtg
-        self.add_csr("video_framebuffer_vtg")
+        self.csr.add("video_framebuffer_vtg")
 
         # Video FrameBuffer.
         vfb = VideoFrameBuffer(self.sdram.crossbar.get_port(),
@@ -1705,7 +1705,7 @@ class LiteXSoC(SoC):
              clock_domain = clock_domain
         )
         self.submodules.video_framebuffer = vfb
-        self.add_csr("video_framebuffer")
+        self.csr.add("video_framebuffer")
 
         # Connect Video Timing Generator to Video FrameBuffer.
         self.comb += vtg.source.connect(vfb.vtg_sink)
