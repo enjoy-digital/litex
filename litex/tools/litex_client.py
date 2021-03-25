@@ -90,6 +90,10 @@ def dump_identifier(port):
     wb = RemoteClient(port=port)
     wb.open()
 
+    # On PCIe designs, CSR is remapped to 0 to limit BAR0 size.
+    if hasattr(wb.bases, "pcie_phy"):
+        wb.base_address = -wb.mems.csr.base
+
     fpga_identifier = ""
 
     for i in range(256):
@@ -105,6 +109,10 @@ def dump_identifier(port):
 def dump_registers(port):
     wb = RemoteClient(port=port)
     wb.open()
+
+    # On PCIe designs, CSR is remapped to 0 to limit BAR0 size.
+    if hasattr(wb.bases, "pcie_phy"):
+        wb.base_address = -wb.mems.csr.base
 
     for name, register in wb.regs.__dict__.items():
         print("0x{:08x} : 0x{:08x} {}".format(register.addr, register.read(), name))
