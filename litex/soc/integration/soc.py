@@ -15,7 +15,6 @@ from migen import *
 
 from litex.soc.cores import cpu
 from litex.soc.cores.identifier import Identifier
-from litex.soc.cores.video import VideoTimingGenerator, VideoTerminal, VideoFrameBuffer, ColorBarsPattern
 
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect.csr_eventmanager import *
@@ -1643,6 +1642,9 @@ class LiteXSoC(SoC):
 
     # Add Video ColorBars Pattern ------------------------------------------------------------------
     def add_video_colorbars(self, name="video_colorbars", phy=None, timings="800x600@60Hz", clock_domain="sys"):
+        # Imports.
+        from litex.soc.cores.video import VideoTimingGenerator, ColorBarsPattern
+
         # Video Timing Generator.
         vtg = VideoTimingGenerator(default_video_timings=timings)
         vtg = ClockDomainsRenamer(clock_domain)(vtg)
@@ -1661,6 +1663,9 @@ class LiteXSoC(SoC):
 
     # Add Video Terminal ---------------------------------------------------------------------------
     def add_video_terminal(self, name="video_terminal", phy=None, timings="800x600@60Hz", clock_domain="sys"):
+        # Imports.
+        from litex.soc.cores.video import VideoTimingGenerator, VideoTerminal
+
         # Video Timing Generator.
         vtg = VideoTimingGenerator(default_video_timings=timings)
         vtg = ClockDomainsRenamer(clock_domain)(vtg)
@@ -1692,6 +1697,9 @@ class LiteXSoC(SoC):
 
     # Add Video Framebuffer ------------------------------------------------------------------------
     def add_video_framebuffer(self, name="video_framebuffer", phy=None, timings="800x600@60Hz", clock_domain="sys"):
+        # Imports.
+        from litex.soc.cores.video import VideoTimingGenerator, VideoFrameBuffer
+
         # Video Timing Generator.
         vtg = VideoTimingGenerator(default_video_timings=timings)
         vtg = ClockDomainsRenamer(clock_domain)(vtg)
