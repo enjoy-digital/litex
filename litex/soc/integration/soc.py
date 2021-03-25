@@ -16,7 +16,6 @@ from migen import *
 from litex.soc.cores import cpu
 from litex.soc.cores.identifier import Identifier
 from litex.soc.cores.timer import Timer
-from litex.soc.cores.spi import SPIMaster
 from litex.soc.cores.video import VideoTimingGenerator, VideoTerminal, VideoFrameBuffer, ColorBarsPattern
 
 from litex.soc.interconnect.csr import *
@@ -1465,14 +1464,21 @@ class LiteXSoC(SoC):
 
     # Add SPI SDCard -------------------------------------------------------------------------------
     def add_spi_sdcard(self, name="spisdcard", spi_clk_freq=400e3, software_debug=False):
+        # Imports.
+        from litex.soc.cores.spi import SPIMaster
+
+        # Pads.
         pads = self.platform.request(name)
         if hasattr(pads, "rst"):
             self.comb += pads.rst.eq(0)
+
+        # Core.
         spisdcard = SPIMaster(pads, 8, self.sys_clk_freq, spi_clk_freq)
         spisdcard.add_clk_divider()
         setattr(self.submodules, name, spisdcard)
         self.csr.add(name, use_loc_if_exists=True)
 
+        # Debug.
         if software_debug:
             self.add_constant("SPISDCARD_DEBUG")
 
