@@ -833,6 +833,7 @@ class SoC(Module):
             "wishbone": wishbone.Wishbone2CSR,
             "axi-lite": axi.AXILite2CSR,
         }[self.bus.standard]
+        self.check_if_exists("csr_bridge")
         self.submodules.csr_bridge = csr_bridge_cls(
             bus_csr       = csr_bus.Interface(
             address_width = self.csr.address_width,
@@ -868,6 +869,7 @@ class SoC(Module):
                 colorer("not supported", color="red"),
                 colorer(", ".join(cpu_cls.variants))))
             raise
+        self.check_if_exists("cpu")
         self.submodules.cpu = cpu_cls(self.platform, variant)
 
         # Update SoC with CPU constraints.
@@ -1102,6 +1104,7 @@ class LiteXSoC(SoC):
     # Add UART -------------------------------------------------------------------------------------
     def add_uart(self, name, baudrate=115200, fifo_depth=16):
         from litex.soc.cores import uart
+        self.check_if_exists("uart")
 
         # Stub / Stream.
         if name in ["stub", "stream"]:
@@ -1183,6 +1186,7 @@ class LiteXSoC(SoC):
         from litex.soc.cores import uart
         if clk_freq is None:
             clk_freq = self.sys_clk_freq
+        self.check_if_exists("uartbone")
         self.submodules.uartbone_phy = uart.UARTPHY(self.platform.request(name), clk_freq, baudrate)
         self.csr.add("uartbone_phy")
         self.submodules.uartbone = uart.UARTBone(phy=self.uartbone_phy, clk_freq=clk_freq, cd=cd)
@@ -1192,6 +1196,7 @@ class LiteXSoC(SoC):
     def add_jtagbone(self):
         from litex.soc.cores import uart
         from litex.soc.cores.jtag import JTAGPHY
+        self.check_if_exists("jtabone")
         self.submodules.jtagbone_phy = JTAGPHY(device=self.platform.device)
         self.submodules.jtagbone = uart.UARTBone(phy=self.jtagbone_phy, clk_freq=self.sys_clk_freq)
         self.bus.add_master(name="jtagbone", master=self.jtagbone.wishbone)
@@ -1212,6 +1217,7 @@ class LiteXSoC(SoC):
         from litedram.frontend.bist import  LiteDRAMBISTGenerator, LiteDRAMBISTChecker
 
         # LiteDRAM core.
+        self.check_if_exists("sdram")
         self.submodules.sdram = LiteDRAMCore(
             phy             = phy,
             geom_settings   = module.geom_settings,
@@ -1365,6 +1371,7 @@ class LiteXSoC(SoC):
         from liteeth.phy.model import LiteEthPHYModel
 
         # MAC.
+        self.check_if_exists(name)
         ethmac = LiteEthMAC(
             phy        = phy,
             dw         = 32,
@@ -1416,6 +1423,7 @@ class LiteXSoC(SoC):
         from liteeth.phy.model import LiteEthPHYModel
 
         # Core
+        self.check_if_exists(name)
         ethcore = LiteEthUDPIPCore(
             phy         = phy,
             mac_address = mac_address,
@@ -1457,6 +1465,7 @@ class LiteXSoC(SoC):
         if clk_freq is None: clk_freq = self.clk_freq/2 # FIXME: Get max clk_freq from SPI Flash
 
         # Core.
+        self.check_if_exists(name)
         spiflash = SpiFlash(
             pads  = self.platform.request(name if mode == "1x" else name + mode),
             dummy = dummy_cycles,
@@ -1480,6 +1489,7 @@ class LiteXSoC(SoC):
             self.comb += pads.rst.eq(0)
 
         # Core.
+        self.check_if_exists(name)
         spisdcard = SPIMaster(pads, 8, self.sys_clk_freq, spi_clk_freq)
         spisdcard.add_clk_divider()
         setattr(self.submodules, name, spisdcard)
@@ -1509,6 +1519,8 @@ class LiteXSoC(SoC):
             sdcard_pads = self.platform.request(name)
 
         # Core.
+        self.check_if_exists("sdphy")
+        self.check_if_exists("sdcore")
         self.submodules.sdphy  = SDPHY(sdcard_pads, self.platform.device, self.clk_freq, cmd_timeout=10e-1, data_timeout=10e-1)
         self.submodules.sdcore = SDCore(self.sdphy)
         self.csr.add("sdphy", use_loc_if_exists=True)
@@ -1567,9 +1579,11 @@ class LiteXSoC(SoC):
         assert self.clk_freq >= sata_clk_freq/2 # FIXME: /2 for 16-bit data-width, add support for 32-bit.
 
         # Core.
+        self.check_if_exists("sata_core")
         self.submodules.sata_core = LiteSATACore(phy)
 
         # Crossbar.
+        self.check_if_exists("sata_crossbar")
         self.submodules.sata_crossbar = LiteSATACrossbar(self.sata_core)
 
         # Sector2Mem DMA.
@@ -1614,16 +1628,19 @@ class LiteXSoC(SoC):
         assert not hasattr(self, f"{name}_endpoint")
 
         # Endpoint.
+        self.check_if_exists(f"{name}_endpoint")
         endpoint = LitePCIeEndpoint(phy, max_pending_requests=max_pending_requests)
         setattr(self.submodules, f"{name}_endpoint", endpoint)
 
         # MMAP.
+        self.check_if_exists(f"{name}_mmap")
         mmap = LitePCIeWishboneMaster(self.pcie_endpoint, base_address=self.mem_map["csr"])
         self.add_wb_master(mmap.wishbone)
         setattr(self.submodules, f"{name}_mmap", mmap)
 
         # MSI.
         if with_msi:
+            self.check_if_exists(f"{name}_msi")
             msi = LitePCIeMSI()
             setattr(self.submodules, f"{name}_msi", msi)
             self.csr.add(f"{name}_msi")
@@ -1633,6 +1650,7 @@ class LiteXSoC(SoC):
         # DMAs.
         for i in range(ndmas):
             assert with_msi
+            self.check_if_exists(f"{name}_dma{i}")
             dma = LitePCIeDMA(phy, endpoint,
                 with_buffering = True, buffering_depth=1024,
                 with_loopback  = True)
@@ -1657,14 +1675,16 @@ class LiteXSoC(SoC):
         from litex.soc.cores.video import VideoTimingGenerator, ColorBarsPattern
 
         # Video Timing Generator.
+        self.check_if_exists(f"{name}_vtg")
         vtg = VideoTimingGenerator(default_video_timings=timings)
         vtg = ClockDomainsRenamer(clock_domain)(vtg)
-        self.submodules.video_colorbars_vtg = vtg
-        self.csr.add("video_colorbars_vtg")
+        setattr(self.submodules, f"{name}_vtg", vtg)
+        self.csr.add(f"{name}_vtg")
 
         # ColorsBars Pattern.
+        self.check_if_exists(name)
         colorbars = ClockDomainsRenamer(clock_domain)(ColorBarsPattern())
-        self.submodules.video_colorbars = colorbars
+        setattr(self.submodules, name, colorbars)
 
         # Connect Video Timing Generator to ColorsBars Pattern.
         self.comb += [
@@ -1678,10 +1698,11 @@ class LiteXSoC(SoC):
         from litex.soc.cores.video import VideoTimingGenerator, VideoTerminal
 
         # Video Timing Generator.
+        self.check_if_exists(f"{name}_vtg")
         vtg = VideoTimingGenerator(default_video_timings=timings)
         vtg = ClockDomainsRenamer(clock_domain)(vtg)
-        self.submodules.video_terminal_vtg = vtg
-        self.csr.add("video_terminal_vtg")
+        setattr(self.submodules, f"{name}_vtg", vtg)
+        self.csr.add(f"{name}_vtg")
 
         # Video Terminal.
         vt = VideoTerminal(
@@ -1689,14 +1710,14 @@ class LiteXSoC(SoC):
             vres = int(timings.split("@")[0].split("x")[1]),
         )
         vt = ClockDomainsRenamer(clock_domain)(vt)
-        self.submodules.video_terminal = vt
+        setattr(self.submodules, name, vt)
 
         # Connect Video Timing Generator to Video Terminal.
         self.comb += vtg.source.connect(vt.vtg_sink)
 
         # Connect UART to Video Terminal.
         uart_cdc = stream.ClockDomainCrossing([("data", 8)], cd_from="sys", cd_to=clock_domain)
-        self.submodules.video_terminal_uart_cdc = uart_cdc
+        setattr(self.submodules, f"{name}_uart_cdc", uart_cdc)
         self.comb += [
             uart_cdc.sink.valid.eq(self.uart.source.valid & self.uart.source.ready),
             uart_cdc.sink.data.eq(self.uart.source.data),
@@ -1714,8 +1735,8 @@ class LiteXSoC(SoC):
         # Video Timing Generator.
         vtg = VideoTimingGenerator(default_video_timings=timings)
         vtg = ClockDomainsRenamer(clock_domain)(vtg)
-        self.submodules.video_framebuffer_vtg = vtg
-        self.csr.add("video_framebuffer_vtg")
+        setattr(self.submodules, f"{name}_vtg", vtg)
+        self.csr.add(f"{name}_vtg")
 
         # Video FrameBuffer.
         vfb = VideoFrameBuffer(self.sdram.crossbar.get_port(),
@@ -1723,8 +1744,8 @@ class LiteXSoC(SoC):
              vres = int(timings.split("@")[0].split("x")[1]),
              clock_domain = clock_domain
         )
-        self.submodules.video_framebuffer = vfb
-        self.csr.add("video_framebuffer")
+        setattr(self.submodules, name, vfb)
+        self.csr.add(name)
 
         # Connect Video Timing Generator to Video FrameBuffer.
         self.comb += vtg.source.connect(vfb.vtg_sink)
