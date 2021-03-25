@@ -1497,6 +1497,8 @@ class LiteXSoC(SoC):
 
     # Add SDCard -----------------------------------------------------------------------------------
     def add_sdcard(self, name="sdcard", mode="read+write", use_emulator=False, software_debug=False):
+        # FIXME: Make sure Linux Driver does not rely on CSR implicit ordering and remove self.csr.add().
+
         # Imports.
         from litesdcard.emulator import SDEmulator
         from litesdcard.phy import SDPHY
@@ -1519,6 +1521,8 @@ class LiteXSoC(SoC):
         self.check_if_exists("sdcore")
         self.submodules.sdphy  = SDPHY(sdcard_pads, self.platform.device, self.clk_freq, cmd_timeout=10e-1, data_timeout=10e-1)
         self.submodules.sdcore = SDCore(self.sdphy)
+        self.csr.add("sdphy", use_loc_if_exists=True)
+        self.csr.add("sdcore", use_loc_if_exists=True)
 
         # Block2Mem DMA.
         if "read" in mode:
@@ -1527,6 +1531,7 @@ class LiteXSoC(SoC):
             self.comb += self.sdcore.source.connect(self.sdblock2mem.sink)
             dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
             dma_bus.add_master("sdblock2mem", master=bus)
+            self.csr.add("sdblock2mem", use_loc_if_exists=True)
 
         # Mem2Block DMA.
         if "write" in mode:
@@ -1535,6 +1540,7 @@ class LiteXSoC(SoC):
             self.comb += self.sdmem2block.source.connect(self.sdcore.sink)
             dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
             dma_bus.add_master("sdmem2block", master=bus)
+            self.csr.add("sdmem2block", use_loc_if_exists=True)
 
         # Interrupts.
         self.submodules.sdirq = EventManager()
@@ -1542,6 +1548,7 @@ class LiteXSoC(SoC):
         self.sdirq.block2mem_dma = EventSourcePulse(description="Block2Mem DMA terminated.")
         self.sdirq.mem2block_dma = EventSourcePulse(description="Mem2Block DMA terminated.")
         self.sdirq.finalize()
+        self.csr.add("sdirq")
         self.comb += [
             self.sdirq.card_detect.trigger.eq(self.sdphy.card_detect_irq),
             self.sdirq.block2mem_dma.trigger.eq(self.sdblock2mem.irq),
