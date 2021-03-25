@@ -14,7 +14,6 @@ from math import log2, ceil
 from migen import *
 
 from litex.soc.cores import cpu
-from litex.soc.cores.identifier import Identifier
 
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect.csr_eventmanager import *
@@ -1089,6 +1088,7 @@ class SoC(Module):
 class LiteXSoC(SoC):
     # Add Identifier -------------------------------------------------------------------------------
     def add_identifier(self, name="identifier", identifier="LiteX SoC", with_build_time=True):
+        from litex.soc.cores.identifier import Identifier
         self.check_if_exists(name)
         if with_build_time:
             identifier += " " + build_time()
