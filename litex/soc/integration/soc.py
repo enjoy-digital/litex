@@ -587,15 +587,23 @@ class SoCCSRHandler(SoCLocHandler):
         self.regions[name] = region
 
     # Address map ----------------------------------------------------------------------------------
-    def address_map(self, name, memory):
+    def address_map(self, name, memory, auto_alloc=True):
         if memory is not None:
             name = name + "_" + memory.name_override
         if self.locs.get(name, None) is None:
-            self.logger.error("CSR {} {}.".format(
-                colorer(name),
-                colorer("not found", color="red")))
-            self.logger.error(self)
-            raise
+            if auto_alloc:
+                self.add(name, use_loc_if_exists=True)
+            else:
+                self.logger.info("{} {} {} at Location {}.".format(
+                colorer(name, color="underline"),
+                self.name,
+                colorer("allocated" if allocated else "added", color="cyan" if allocated else "green"),
+                colorer(n)))
+                self.logger.error("CSR {} {}.".format(
+                    colorer(name),
+                    colorer("not found", color="red")))
+                self.logger.error(self)
+                raise
         return self.locs[name]
 
     # Str ------------------------------------------------------------------------------------------
@@ -930,16 +938,6 @@ class SoC(Module):
 
     # SoC finalization -----------------------------------------------------------------------------
     def do_finalize(self):
-        self.logger.info(colorer("-"*80, color="bright"))
-        self.logger.info(colorer("Finalized SoC:"))
-        self.logger.info(colorer("-"*80, color="bright"))
-        self.logger.info(self.bus)
-        if hasattr(self, "dma_bus"):
-            self.logger.info(self.dma_bus)
-        self.logger.info(self.csr)
-        self.logger.info(self.irq)
-        self.logger.info(colorer("-"*80, color="bright"))
-
         interconnect_p2p_cls = {
             "wishbone": wishbone.InterconnectPointToPoint,
             "axi-lite": axi.AXILiteInterconnectPointToPoint,
@@ -1081,6 +1079,17 @@ class SoC(Module):
                         raise
                     self.comb += self.cpu.interrupt[loc].eq(module.ev.irq)
                 self.add_constant(name + "_INTERRUPT", loc)
+
+        # SoC Infos --------------------------------------------------------------------------------
+        self.logger.info(colorer("-"*80, color="bright"))
+        self.logger.info(colorer("Finalized SoC:"))
+        self.logger.info(colorer("-"*80, color="bright"))
+        self.logger.info(self.bus)
+        if hasattr(self, "dma_bus"):
+            self.logger.info(self.dma_bus)
+        self.logger.info(self.csr)
+        self.logger.info(self.irq)
+        self.logger.info(colorer("-"*80, color="bright"))
 
     # SoC build ------------------------------------------------------------------------------------
     def build(self, *args, **kwargs):
