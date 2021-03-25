@@ -800,7 +800,6 @@ class SoC(Module):
     def add_controller(self, name="ctrl", **kwargs):
         self.check_if_exists(name)
         setattr(self.submodules, name, SoCController(**kwargs))
-        self.csr.add(name, use_loc_if_exists=True)
 
     def add_ram(self, name, origin, size, contents=[], mode="rw"):
         ram_cls = {
@@ -892,7 +891,6 @@ class SoC(Module):
             self.cpu.set_reset_address(reset_address)
             for n, cpu_bus in enumerate(self.cpu.periph_buses):
                 self.bus.add_master(name="cpu_bus{}".format(n), master=cpu_bus)
-            self.csr.add("cpu", use_loc_if_exists=True)
             if hasattr(self.cpu, "interrupt"):
                 self.irq.enable()
                 for name, loc in self.cpu.interrupts.items():
@@ -932,7 +930,6 @@ class SoC(Module):
         from litex.soc.cores.timer import Timer
         self.check_if_exists(name)
         setattr(self.submodules, name, Timer())
-        self.csr.add(name, use_loc_if_exists=True)
         if self.irq.enabled:
             self.irq.add(name, use_loc_if_exists=True)
 
@@ -1108,7 +1105,6 @@ class LiteXSoC(SoC):
             identifier += " " + build_time()
             self.add_config("WITH_BUILD_TIME")
         setattr(self.submodules, name, Identifier(identifier))
-        self.csr.add(name + "_mem", use_loc_if_exists=True)
 
     # Add UART -------------------------------------------------------------------------------------
     def add_uart(self, name, baudrate=115200, fifo_depth=16):
@@ -1183,8 +1179,6 @@ class LiteXSoC(SoC):
                 tx_fifo_depth = fifo_depth,
                 rx_fifo_depth = fifo_depth)
 
-        self.csr.add("uart_phy", use_loc_if_exists=True)
-        self.csr.add("uart", use_loc_if_exists=True)
         if self.irq.enabled:
             self.irq.add("uart", use_loc_if_exists=True)
         else:
@@ -1197,7 +1191,6 @@ class LiteXSoC(SoC):
             clk_freq = self.sys_clk_freq
         self.check_if_exists("uartbone")
         self.submodules.uartbone_phy = uart.UARTPHY(self.platform.request(name), clk_freq, baudrate)
-        self.csr.add("uartbone_phy")
         self.submodules.uartbone = uart.UARTBone(phy=self.uartbone_phy, clk_freq=clk_freq, cd=cd)
         self.bus.add_master(name="uartbone", master=self.uartbone.wishbone)
 
@@ -1233,7 +1226,6 @@ class LiteXSoC(SoC):
             timing_settings = module.timing_settings,
             clk_freq        = self.sys_clk_freq,
             **kwargs)
-        self.csr.add("sdram", use_loc_if_exists=True)
 
         # Save SPD data to be able to verify it at runtime.
         if hasattr(module, "_spd_data"):
@@ -1258,9 +1250,7 @@ class LiteXSoC(SoC):
         # LiteDRAM BIST.
         if with_bist:
             self.submodules.sdram_generator = LiteDRAMBISTGenerator(self.sdram.crossbar.get_port())
-            self.csr.add("sdram_generator")
             self.submodules.sdram_checker = LiteDRAMBISTChecker(self.sdram.crossbar.get_port())
-            self.csr.add("sdram_checker")
 
         if not with_soc_interconnect: return
 
@@ -1398,7 +1388,6 @@ class LiteXSoC(SoC):
         ethmac_region_size = (ethmac.rx_slots.read() + ethmac.tx_slots.read())*ethmac.slot_size.read()
         ethmac_region = SoCRegion(origin=self.mem_map.get(name, None), size=ethmac_region_size, cached=False)
         self.bus.add_slave(name=name, slave=ethmac.bus, region=ethmac_region)
-        self.csr.add(name, use_loc_if_exists=True)
         # Add IRQs (if enabled).
         if self.irq.enabled:
             self.irq.add(name, use_loc_if_exists=True)
@@ -1485,7 +1474,6 @@ class LiteXSoC(SoC):
         setattr(self.submodules, name, spiflash)
         spiflash_region = SoCRegion(origin=self.mem_map.get(name, None), size=0x1000000) # FIXME: Get size from SPI Flash
         self.bus.add_slave(name=name, slave=spiflash.bus, region=spiflash_region)
-        self.csr.add(name, use_loc_if_exists=True)
 
     # Add SPI SDCard -------------------------------------------------------------------------------
     def add_spi_sdcard(self, name="spisdcard", spi_clk_freq=400e3, software_debug=False):
@@ -1502,7 +1490,6 @@ class LiteXSoC(SoC):
         spisdcard = SPIMaster(pads, 8, self.sys_clk_freq, spi_clk_freq)
         spisdcard.add_clk_divider()
         setattr(self.submodules, name, spisdcard)
-        self.csr.add(name, use_loc_if_exists=True)
 
         # Debug.
         if software_debug:
@@ -1532,8 +1519,6 @@ class LiteXSoC(SoC):
         self.check_if_exists("sdcore")
         self.submodules.sdphy  = SDPHY(sdcard_pads, self.platform.device, self.clk_freq, cmd_timeout=10e-1, data_timeout=10e-1)
         self.submodules.sdcore = SDCore(self.sdphy)
-        self.csr.add("sdphy", use_loc_if_exists=True)
-        self.csr.add("sdcore", use_loc_if_exists=True)
 
         # Block2Mem DMA.
         if "read" in mode:
@@ -1542,7 +1527,6 @@ class LiteXSoC(SoC):
             self.comb += self.sdcore.source.connect(self.sdblock2mem.sink)
             dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
             dma_bus.add_master("sdblock2mem", master=bus)
-            self.csr.add("sdblock2mem", use_loc_if_exists=True)
 
         # Mem2Block DMA.
         if "write" in mode:
@@ -1551,7 +1535,6 @@ class LiteXSoC(SoC):
             self.comb += self.sdmem2block.source.connect(self.sdcore.sink)
             dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
             dma_bus.add_master("sdmem2block", master=bus)
-            self.csr.add("sdmem2block", use_loc_if_exists=True)
 
         # Interrupts.
         self.submodules.sdirq = EventManager()
@@ -1559,7 +1542,6 @@ class LiteXSoC(SoC):
         self.sdirq.block2mem_dma = EventSourcePulse(description="Block2Mem DMA terminated.")
         self.sdirq.mem2block_dma = EventSourcePulse(description="Mem2Block DMA terminated.")
         self.sdirq.finalize()
-        self.csr.add("sdirq")
         self.comb += [
             self.sdirq.card_detect.trigger.eq(self.sdphy.card_detect_irq),
             self.sdirq.block2mem_dma.trigger.eq(self.sdblock2mem.irq),
@@ -1604,7 +1586,6 @@ class LiteXSoC(SoC):
                endianness = self.cpu.endianness)
             dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
             dma_bus.add_master("sata_sector2mem", master=bus)
-            self.csr.add("sata_sector2mem", use_loc_if_exists=True)
 
         # Mem2Sector DMA.
         if "write" in mode:
@@ -1615,7 +1596,6 @@ class LiteXSoC(SoC):
                endianness = self.cpu.endianness)
             dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
             dma_bus.add_master("sata_mem2sector", master=bus)
-            self.csr.add("sata_mem2sector", use_loc_if_exists=True)
 
         # Timing constraints.
         self.platform.add_period_constraint(self.sata_phy.crg.cd_sata_tx.clk, 1e9/sata_clk_freq)
@@ -1652,7 +1632,6 @@ class LiteXSoC(SoC):
             self.check_if_exists(f"{name}_msi")
             msi = LitePCIeMSI()
             setattr(self.submodules, f"{name}_msi", msi)
-            self.csr.add(f"{name}_msi")
             self.comb += msi.source.connect(phy.msi)
             self.msis = {}
 
@@ -1664,7 +1643,6 @@ class LiteXSoC(SoC):
                 with_buffering = True, buffering_depth=1024,
                 with_loopback  = True)
             setattr(self.submodules, f"{name}_dma{i}", dma)
-            self.csr.add(f"{name}_dma{i}")
             self.msis[f"{name.upper()}_DMA{i}_WRITER"] = dma.writer.irq
             self.msis[f"{name.upper()}_DMA{i}_READER"] = dma.reader.irq
         self.add_constant("DMA_CHANNELS", ndmas)
@@ -1688,7 +1666,6 @@ class LiteXSoC(SoC):
         vtg = VideoTimingGenerator(default_video_timings=timings)
         vtg = ClockDomainsRenamer(clock_domain)(vtg)
         setattr(self.submodules, f"{name}_vtg", vtg)
-        self.csr.add(f"{name}_vtg")
 
         # ColorsBars Pattern.
         self.check_if_exists(name)
@@ -1711,7 +1688,6 @@ class LiteXSoC(SoC):
         vtg = VideoTimingGenerator(default_video_timings=timings)
         vtg = ClockDomainsRenamer(clock_domain)(vtg)
         setattr(self.submodules, f"{name}_vtg", vtg)
-        self.csr.add(f"{name}_vtg")
 
         # Video Terminal.
         vt = VideoTerminal(
@@ -1745,7 +1721,6 @@ class LiteXSoC(SoC):
         vtg = VideoTimingGenerator(default_video_timings=timings)
         vtg = ClockDomainsRenamer(clock_domain)(vtg)
         setattr(self.submodules, f"{name}_vtg", vtg)
-        self.csr.add(f"{name}_vtg")
 
         # Video FrameBuffer.
         vfb = VideoFrameBuffer(self.sdram.crossbar.get_port(),
@@ -1754,7 +1729,6 @@ class LiteXSoC(SoC):
              clock_domain = clock_domain
         )
         setattr(self.submodules, name, vfb)
-        self.csr.add(name)
 
         # Connect Video Timing Generator to Video FrameBuffer.
         self.comb += vtg.source.connect(vfb.vtg_sink)
