@@ -51,6 +51,7 @@ class VexRiscvSMP(CPU):
     wishbone_memory      = False
     with_fpu             = False
     cpu_per_fpu          = 4
+    with_rvc             = False
 
     @staticmethod
     def args_fill(parser):
@@ -68,6 +69,7 @@ class VexRiscvSMP(CPU):
         parser.add_argument("--with-wishbone-memory"        , action="store_true", help="Disable native LiteDRAM interface")
         parser.add_argument("--with-fpu"                    , action="store_true", help="Enable the F32/F64 FPU")
         parser.add_argument("--cpu-per-fpu"                 , default="4",         help="Maximal ratio between CPU count and FPU count. Will instanciate as many FPU as necessary.")
+        parser.add_argument("--with-rvc"                    , action="store_true", help="Enable RISC-V compressed instruction support")
 
     @staticmethod
     def args_read(args):
@@ -97,6 +99,8 @@ class VexRiscvSMP(CPU):
             VexRiscvSMP.dcache_width = 64 # Required for F64
         if(args.cpu_per_fpu):
             VexRiscvSMP.cpu_per_fpu = args.cpu_per_fpu
+        if(args.with_rvc):
+            VexRiscvSMP.with_rvc     = True
 
 
     @staticmethod
@@ -111,6 +115,8 @@ class VexRiscvSMP(CPU):
         arch = "rv32ima"
         if VexRiscvSMP.with_fpu:
             arch += "fd"
+        if VexRiscvSMP.with_rvc:
+            arch += "c"
         return arch
 
     @property
@@ -149,7 +155,8 @@ class VexRiscvSMP(CPU):
         f"{'_Aes'  if VexRiscvSMP.aes_instruction      else ''}" \
         f"{'_Ood'  if VexRiscvSMP.out_of_order_decoder else ''}" \
         f"{'_Wm'   if VexRiscvSMP.wishbone_memory      else ''}" \
-        f"{'_Fpu' + str(VexRiscvSMP.cpu_per_fpu)  if VexRiscvSMP.with_fpu else ''}"
+        f"{'_Fpu' + str(VexRiscvSMP.cpu_per_fpu)  if VexRiscvSMP.with_fpu else ''}" \
+        f"{'_Rvc'  if VexRiscvSMP.with_rvc else ''}"
 
     @staticmethod
     def generate_default_configs():
@@ -229,6 +236,7 @@ class VexRiscvSMP(CPU):
         gen_args.append(f"--wishbone-memory={VexRiscvSMP.wishbone_memory}")
         gen_args.append(f"--fpu={VexRiscvSMP.with_fpu}")
         gen_args.append(f"--cpu-per-fpu={VexRiscvSMP.cpu_per_fpu}")
+        gen_args.append(f"--rvc={VexRiscvSMP.with_rvc}")
         gen_args.append(f"--netlist-name={VexRiscvSMP.cluster_name}")
         gen_args.append(f"--netlist-directory={vdir}")
 
