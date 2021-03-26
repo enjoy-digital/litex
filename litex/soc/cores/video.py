@@ -608,9 +608,9 @@ class VideoFrameBuffer(Module, AutoCSR):
 
             ),
             vtg_sink.connect(source, keep={"de", "hsync", "vsync"}),
-            source.r.eq(self.cdc.source.data[ 0: 8]),
+            source.r.eq(self.cdc.source.data[16:24]),
             source.g.eq(self.cdc.source.data[ 8:16]),
-            source.b.eq(self.cdc.source.data[16:24]),
+            source.b.eq(self.cdc.source.data[ 0: 8]),
         ]
 
 # Video PHYs ---------------------------------------------------------------------------------------
