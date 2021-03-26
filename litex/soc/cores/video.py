@@ -330,10 +330,7 @@ class CSIInterpreter(Module):
         self.sink   = sink   = stream.Endpoint([("data", 8)])
         self.source = source = stream.Endpoint([("data", 8)])
 
-        self.color = Record([("r", 8), ("g", 8), ("b", 8)])
-        self.color.r.reset = 0xff
-        self.color.g.reset = 0xff
-        self.color.b.reset = 0xff
+        self.color = Signal(4)
 
         # # #
 
@@ -379,15 +376,10 @@ class CSIInterpreter(Module):
         )
         fsm.act("DECODE-CSI",
             If(csi_final == ord("m"),
-                # FIXME: Write color in Terminal Mem.
                 If((csi_bytes[0] == ord("9")) and (csi_bytes[1] == ord("2")),
-                    NextValue(self.color.r, 0x89),
-                    NextValue(self.color.g, 0xe2),
-                    NextValue(self.color.b, 0x34),
+                    NextValue(self.color, 1), # FIXME: Add Palette.
                 ).Else(
-                    NextValue(self.color.r, self.color.r.reset),
-                    NextValue(self.color.g, self.color.g.reset),
-                    NextValue(self.color.b, self.color.b.reset),
+                    NextValue(self.color, 0), # FIXME: Add Palette.
                 ),
             ),
             NextState("RECOPY")
@@ -401,6 +393,8 @@ class VideoTerminal(Module):
         self.source    = source     = stream.Endpoint(video_data_layout)
 
         # # #
+
+        csi_width = 8 if with_csi_interpreter else 0
 
         # Font Mem.
         # ---------
@@ -419,7 +413,7 @@ class VideoTerminal(Module):
         term_lines  = math.floor(vres/font_heigth)
         term_depth  = term_colums * term_lines
         term_init   = [ord(c) for c in [" "]*term_colums*term_lines]
-        term_mem    = Memory(width=font_width, depth=term_depth, init=term_init)
+        term_mem    = Memory(width=font_width + csi_width, depth=term_depth, init=term_init)
         term_wrport = term_mem.get_port(write_capable=True)
         term_rdport = term_mem.get_port(has_re=True)
         self.specials += term_mem, term_wrport, term_rdport
@@ -432,6 +426,7 @@ class VideoTerminal(Module):
             self.submodules.csi_interpreter = CSIInterpreter()
             self.comb += uart_sink.connect(self.csi_interpreter.sink)
             uart_sink = self.csi_interpreter.source
+            self.comb += term_wrport.dat_w[font_width:].eq(self.csi_interpreter.color)
 
         self.submodules.uart_fifo = stream.SyncFIFO([("data", 8)], 8)
         self.comb += uart_sink.connect(self.uart_fifo.sink)
@@ -449,7 +444,7 @@ class VideoTerminal(Module):
         )
         uart_fsm.act("CLEAR-XY",
             term_wrport.we.eq(1),
-            term_wrport.dat_w.eq(ord(" ")),
+            term_wrport.dat_w[:font_width].eq(ord(" ")),
             NextValue(x_term, x_term + 1),
             If(x_term == (term_colums - 1),
                 NextValue(x_term, 0),
@@ -476,7 +471,7 @@ class VideoTerminal(Module):
         uart_fsm.act("WRITE",
             uart_sink.ready.eq(1),
             term_wrport.we.eq(1),
-            term_wrport.dat_w.eq(uart_sink.data),
+            term_wrport.dat_w[:font_width].eq(uart_sink.data),
             NextState("INCR-X")
         )
         uart_fsm.act("RST-X",
@@ -506,7 +501,7 @@ class VideoTerminal(Module):
         uart_fsm.act("CLEAR-X",
             NextValue(x_term, x_term + 1),
             term_wrport.we.eq(1),
-            term_wrport.dat_w.eq(ord(" ")),
+            term_wrport.dat_w[:font_width].eq(ord(" ")),
             If(x_term == (term_colums - 1),
                 NextValue(x_term, 0),
                 NextState("IDLE")
@@ -548,7 +543,7 @@ class VideoTerminal(Module):
         self.comb += term_rdport.re.eq(ce)
         self.comb += term_rdport.adr.eq(x + y_rollover*term_colums)
         self.comb += [
-            term_dat_r.eq(term_rdport.dat_r),
+            term_dat_r.eq(term_rdport.dat_r[:font_width]),
             If((x >= 80) | (y >= term_lines),
                 term_dat_r.eq(ord(" ")), # Out of range, generate space.
             )
@@ -562,16 +557,17 @@ class VideoTerminal(Module):
         for i in range(font_width):
             cases[i] = [bit.eq(font_rdport.dat_r[font_width-1-i])]
         self.comb += Case(timing_bufs[1].source.hcount[:int(math.log2(font_width))], cases)
-        # FIXME: Allow static/dynamic Font color.
-        self.comb += If(bit,
-            source.r.eq(0xff),
-            source.g.eq(0xff),
-            source.b.eq(0xff),
-        ).Else(
-            source.r.eq(0x00),
-            source.g.eq(0x00),
-            source.b.eq(0x00)
-        )
+        # FIXME: Add Palette.
+        self.comb += [
+            If(bit,
+                Case(term_rdport.dat_r[font_width:], {
+                    0: [Cat(source.r, source.g, source.b).eq(0xffffff)],
+                    1: [Cat(source.r, source.g, source.b).eq(0x34e289)],
+                })
+            ).Else(
+                Cat(source.r, source.g, source.b).eq(0x000000),
+            )
+        ]
 
 # Video FrameBuffer --------------------------------------------------------------------------------
 
