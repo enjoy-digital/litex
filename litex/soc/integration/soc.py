@@ -1723,10 +1723,14 @@ class LiteXSoC(SoC):
         setattr(self.submodules, f"{name}_vtg", vtg)
 
         # Video FrameBuffer.
+        base = self.mem_map.get(name, 0x48000000)
+        hres = int(timings.split("@")[0].split("x")[0])
+        vres = int(timings.split("@")[0].split("x")[1])
         vfb = VideoFrameBuffer(self.sdram.crossbar.get_port(),
-             hres = int(timings.split("@")[0].split("x")[0]),
-             vres = int(timings.split("@")[0].split("x")[1]),
-             clock_domain = clock_domain
+            hres = hres,
+            vres = vres,
+            base = base,
+            clock_domain = clock_domain,
         )
         setattr(self.submodules, name, vfb)
 
@@ -1735,3 +1739,8 @@ class LiteXSoC(SoC):
 
         # Connect Video FrameBuffer to Video PHY.
         self.comb += vfb.source.connect(phy.sink)
+
+        # Constants.
+        self.add_constant("VIDEO_FRAMEBUFFER_BASE", base)
+        self.add_constant("VIDEO_FRAMEBUFFER_HRES", hres)
+        self.add_constant("VIDEO_FRAMEBUFFER_VRES", vres)
