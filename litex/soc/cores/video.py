@@ -481,7 +481,7 @@ class VideoTerminal(Module):
         )
         uart_fsm.act("RST-X",
             NextValue(x_term, 0),
-            NextState("IDLE")
+            NextState("CLEAR-X")
         )
         uart_fsm.act("INCR-X",
             NextValue(x_term, x_term + 1),
