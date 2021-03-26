@@ -87,7 +87,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
             }};
 """.format(cpu=cpu, irq=cpu, sys_clk_freq=d["constants"]["config_clock_frequency"], cpu_isa=d["constants"]["cpu_isa"])
         dts += """
-    	};
+        };
 """
 
     # mor1kx
@@ -163,7 +163,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
                     {cpu_mapping}>;
                 riscv,ndev = <32>;
             }};
-    """.format(
+""".format(
         plic_base   =d["memories"]["plic"]["base"],
         cpu_mapping =("\n" + " "*20).join(["&L{} 11 &L{} 9".format(cpu, cpu) for cpu in cpus]))
 
@@ -275,7 +275,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
                 bus-width = <0x04>;
                 status = "okay";
             }};
-    """.format(
+""".format(
         mmc_csr_base    = d["csr_bases"]["sdphy"],
         sdphy_csr_base  = d["csr_bases"]["sdphy"],
         sdcore_csr_base = d["csr_bases"]["sdcore"],
