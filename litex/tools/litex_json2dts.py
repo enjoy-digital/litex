@@ -198,10 +198,9 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
         dts += """
             mac0: mac@{ethmac_csr_base:x} {{
                 compatible = "litex,liteeth";
-                reg = <
-                    0x{ethmac_csr_base:x} 0x7c
-                    0x{ethphy_csr_base:x} 0x0a
-                    0x{ethmac_mem_base:x} 0x{ethmac_mem_size:x}>;
+                reg = <0x{ethmac_csr_base:x} 0x7c>,
+                      <0x{ethphy_csr_base:x} 0x0a>,
+                      <0x{ethmac_mem_base:x} 0x{ethmac_mem_size:x}>;
                 tx-fifo-depth = <{ethmac_tx_slots}>;
                 rx-fifo-depth = <{ethmac_rx_slots}>;
                 {ethmac_interrupt}
