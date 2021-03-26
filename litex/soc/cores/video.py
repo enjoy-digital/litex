@@ -658,7 +658,8 @@ class VideoDVIPHY(Module):
             self.comb += pads.clk.eq(ClockSignal(clock_domain))
 
         # Drive DVI Controls.
-        self.specials += SDROutput(i=sink.de,    o=pads.de,    clk=ClockSignal(clock_domain))
+        if hasattr(pads, "de"):
+            self.specials += SDROutput(i=sink.de,    o=pads.de,    clk=ClockSignal(clock_domain))
         self.specials += SDROutput(i=sink.hsync, o=pads.hsync, clk=ClockSignal(clock_domain))
         self.specials += SDROutput(i=sink.vsync, o=pads.vsync, clk=ClockSignal(clock_domain))
 
