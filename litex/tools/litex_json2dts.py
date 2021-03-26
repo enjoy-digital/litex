@@ -183,7 +183,6 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
         aliases["serial0"] = "liteuart0"
         dts += """
             liteuart0: serial@{uart_csr_base:x} {{
-                device_type = "serial";
                 compatible = "litex,liteuart";
                 reg = <0x{uart_csr_base:x} 0x100>;
                 {uart_interrupt}
