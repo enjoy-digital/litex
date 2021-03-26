@@ -155,8 +155,9 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
     if cpu_name == "vexriscv smp-linux":
         dts += """
             intc0: interrupt-controller@{plic_base:x} {{
-                compatible = "sifive,plic-1.0.0", "sifive,fu540-c000-plic";
+                compatible = "sifive,fu540-c000-plic", "sifive,plic-1.0.0";
                 reg = <0x{plic_base:x} 0x400000>;
+                #address-cells = <0>;
                 #interrupt-cells = <1>;
                 interrupt-controller;
                 interrupts-extended = <
