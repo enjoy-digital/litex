@@ -587,23 +587,11 @@ class SoCCSRHandler(SoCLocHandler):
         self.regions[name] = region
 
     # Address map ----------------------------------------------------------------------------------
-    def address_map(self, name, memory, auto_alloc=True):
+    def address_map(self, name, memory):
         if memory is not None:
             name = name + "_" + memory.name_override
         if self.locs.get(name, None) is None:
-            if auto_alloc:
-                self.add(name, use_loc_if_exists=True)
-            else:
-                self.logger.info("{} {} {} at Location {}.".format(
-                colorer(name, color="underline"),
-                self.name,
-                colorer("allocated" if allocated else "added", color="cyan" if allocated else "green"),
-                colorer(n)))
-                self.logger.error("CSR {} {}.".format(
-                    colorer(name),
-                    colorer("not found", color="red")))
-                self.logger.error(self)
-                raise
+            self.add(name, use_loc_if_exists=True)
         return self.locs[name]
 
     # Str ------------------------------------------------------------------------------------------
