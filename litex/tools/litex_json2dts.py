@@ -267,11 +267,10 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
         dts += """
             mmc0: mmc@{mmc_csr_base:x} {{
                 compatible = "litex,mmc";
-                reg = <
-                    0x{sdphy_csr_base:x} 0x100
-                    0x{sdcore_csr_base:x} 0x100
-                    0x{sdblock2mem:x} 0x100
-                    0x{sdmem2block:x} 0x100>;
+                reg = <0x{sdphy_csr_base:x} 0x100>,
+                      <0x{sdcore_csr_base:x} 0x100>,
+                      <0x{sdblock2mem:x} 0x100>,
+                      <0x{sdmem2block:x} 0x100>;
                 bus-width = <0x04>;
                 status = "okay";
             }};
