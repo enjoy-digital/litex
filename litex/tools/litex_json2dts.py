@@ -87,7 +87,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
             }};
 """.format(cpu=cpu, irq=cpu, sys_clk_freq=d["constants"]["config_clock_frequency"], cpu_isa=d["constants"]["cpu_isa"])
         dts += """
-    	};
+        };
 """
 
     # mor1kx
@@ -155,15 +155,16 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
     if cpu_name == "vexriscv smp-linux":
         dts += """
             intc0: interrupt-controller@{plic_base:x} {{
-                compatible = "sifive,plic-1.0.0", "sifive,fu540-c000-plic";
+                compatible = "sifive,fu540-c000-plic", "sifive,plic-1.0.0";
                 reg = <0x{plic_base:x} 0x400000>;
+                #address-cells = <0>;
                 #interrupt-cells = <1>;
                 interrupt-controller;
                 interrupts-extended = <
                     {cpu_mapping}>;
                 riscv,ndev = <32>;
             }};
-    """.format(
+""".format(
         plic_base   =d["memories"]["plic"]["base"],
         cpu_mapping =("\n" + " "*20).join(["&L{} 11 &L{} 9".format(cpu, cpu) for cpu in cpus]))
 
@@ -182,7 +183,6 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
         aliases["serial0"] = "liteuart0"
         dts += """
             liteuart0: serial@{uart_csr_base:x} {{
-                device_type = "serial";
                 compatible = "litex,liteuart";
                 reg = <0x{uart_csr_base:x} 0x100>;
                 {uart_interrupt}
@@ -267,15 +267,14 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
         dts += """
             mmc0: mmc@{mmc_csr_base:x} {{
                 compatible = "litex,mmc";
-                reg = <
-                    0x{sdphy_csr_base:x} 0x100
-                    0x{sdcore_csr_base:x} 0x100
-                    0x{sdblock2mem:x} 0x100
-                    0x{sdmem2block:x} 0x100>;
+                reg = <0x{sdphy_csr_base:x} 0x100>,
+                      <0x{sdcore_csr_base:x} 0x100>,
+                      <0x{sdblock2mem:x} 0x100>,
+                      <0x{sdmem2block:x} 0x100>;
                 bus-width = <0x04>;
                 status = "okay";
             }};
-    """.format(
+""".format(
         mmc_csr_base    = d["csr_bases"]["sdphy"],
         sdphy_csr_base  = d["csr_bases"]["sdphy"],
         sdcore_csr_base = d["csr_bases"]["sdcore"],
