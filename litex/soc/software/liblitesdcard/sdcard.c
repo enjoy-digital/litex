@@ -106,7 +106,6 @@ void sdcard_set_clk_freq(uint32_t clk_freq, int show) {
 	uint32_t divider;
 	divider = clk_freq ? CONFIG_CLOCK_FREQUENCY/clk_freq : 256;
 	divider = pow2_round_up(divider);
-	divider <<= 1; /* NOTE: workaround for occasional sdcardboot failure */
 	divider = min(max(divider, 2), 256);
 #ifdef SDCARD_DEBUG
 	show = 1;
