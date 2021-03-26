@@ -370,11 +370,10 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
 
     # Framebuffer ----------------------------------------------------------------------------------
 
-    if "framebuffer" in d["csr_bases"]:
-        # FIXME: Use dynamic framebuffer base and size
-        framebuffer_base   = 0xc8000000
-        framebuffer_width  = d["constants"]["litevideo_h_active"]
-        framebuffer_height = d["constants"]["litevideo_v_active"]
+    if "video_framebuffer" in d["csr_bases"]:
+        framebuffer_base   = d["constants"]["video_framebuffer_base"]
+        framebuffer_width  = d["constants"]["video_framebuffer_hres"]
+        framebuffer_height = d["constants"]["video_framebuffer_vres"]
         dts += """
             framebuffer0: framebuffer@f0000000 {{
                 compatible = "simple-framebuffer";
@@ -390,36 +389,6 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
     framebuffer_height = framebuffer_height,
     framebuffer_size   = framebuffer_width * framebuffer_height * 4,
     framebuffer_stride = framebuffer_width * 4)
-
-        dts += """
-            litevideo0: gpu@{litevideo_base:x} {{
-                compatible = "litex,litevideo";
-                reg = <0x{litevideo_base:x} 0x100>;
-                litevideo,pixel-clock   = <{litevideo_pixel_clock}>;
-                litevideo,h-active      = <{litevideo_h_active}>;
-                litevideo,h-blanking    = <{litevideo_h_blanking}>;
-                litevideo,h-sync        = <{litevideo_h_sync}>;
-                litevideo,h-front-porch = <{litevideo_h_front_porch}>;
-                litevideo,v-active      = <{litevideo_v_active}>;
-                litevideo,v-blanking    = <{litevideo_v_blanking}>;
-                litevideo,v-sync        = <{litevideo_v_sync}>;
-                litevideo,v-front-porch = <{litevideo_v_front_porch}>;
-                litevideo,dma-offset    = <0x{litevideo_dma_offset:x}>;
-                litevideo,dma-length    = <0x{litevideo_dma_length:x}>;
-            }};
-""".format(
-    litevideo_base          = d["csr_bases"]["framebuffer"],
-    litevideo_pixel_clock   = int(d["constants"]["litevideo_pix_clk"] / 1e3),
-    litevideo_h_active      = d["constants"]["litevideo_h_active"],
-    litevideo_h_blanking    = d["constants"]["litevideo_h_blanking"],
-    litevideo_h_sync        = d["constants"]["litevideo_h_sync"],
-    litevideo_h_front_porch = d["constants"]["litevideo_h_front_porch"],
-    litevideo_v_active      = d["constants"]["litevideo_v_active"],
-    litevideo_v_blanking    = d["constants"]["litevideo_v_blanking"],
-    litevideo_v_sync        = d["constants"]["litevideo_v_sync"],
-    litevideo_v_front_porch = d["constants"]["litevideo_v_front_porch"],
-    litevideo_dma_offset    = framebuffer_base - d["memories"]["main_ram"]["base"],
-    litevideo_dma_length    = framebuffer_width * framebuffer_height * 4)
 
     # ICAP Bitstream -------------------------------------------------------------------------------
 
