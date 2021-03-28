@@ -287,6 +287,8 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
             leds: gpio@{leds_csr_base:x} {{
                 compatible = "litex,gpio";
                 reg = <0x{leds_csr_base:x} 0x4>;
+                gpio-controller;
+                #gpio-cells = <2>;
                 litex,direction = "out";
                 status = "disabled";
             }};
@@ -313,6 +315,8 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
             switches: gpio@{switches_csr_base:x} {{
                 compatible = "litex,gpio";
                 reg = <0x{switches_csr_base:x} 0x4>;
+                gpio-controller;
+                #gpio-cells = <2>;
                 litex,direction = "in";
                 status = "disabled";
             }};
@@ -351,6 +355,8 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
             i2c0: i2c@{i2c0_csr_base:x} {{
                 compatible = "litex,i2c";
                 reg = <0x{i2c0_csr_base:x} 0x5>;
+                #address-cells = <1>;
+                #size-cells = <0>;
                 status = "okay";
             }};
 """.format(i2c0_csr_base=d["csr_bases"]["i2c0"])
