@@ -54,7 +54,6 @@ soc_software_packages = [
 # Builder ------------------------------------------------------------------------------------------
 
 soc_directory         = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-compiler_rt_directory = get_data_mod("software", "compiler_rt").data_location
 
 class Builder:
     def __init__(self, soc,
@@ -136,6 +135,7 @@ class Builder:
 
             # Define the SoC/Compiler-RT/Software/Include directories.
             define("SOC_DIRECTORY",         soc_directory)
+            compiler_rt_directory = get_data_mod("software", "compiler_rt").data_location
             define("COMPILER_RT_DIRECTORY", compiler_rt_directory)
             variables_contents.append("export BUILDINC_DIRECTORY")
             define("BUILDINC_DIRECTORY", self.include_dir)
