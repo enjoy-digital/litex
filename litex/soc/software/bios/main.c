@@ -167,10 +167,15 @@ int main(int i, char **c)
 
 #ifdef CSR_VIDEO_FRAMEBUFFER_BASE
 	/* Initialize Video Framebuffer FIXME: Move */
+	unsigned char *fb_ptr = NULL;
+	unsigned int fb_len = 0;
 	video_framebuffer_vtg_enable_write(0);
 	video_framebuffer_dma_enable_write(0);
 	video_framebuffer_vtg_enable_write(1);
 	video_framebuffer_dma_enable_write(1);
+	fb_ptr = (unsigned char *)VIDEO_FRAMEBUFFER_BASE;
+	fb_len = VIDEO_FRAMEBUFFER_HRES * VIDEO_FRAMEBUFFER_VRES * 4;
+	memset(fb_ptr, 0x00, fb_len);
 #endif
 
 	if(sdr_ok) {
