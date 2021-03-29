@@ -599,6 +599,10 @@ class VideoFrameBuffer(Module, AutoCSR):
         # Video CDC.
         self.submodules.cdc = stream.ClockDomainCrossing([("data", 32)], cd_from="sys", cd_to=clock_domain)
         self.comb += self.conv.source.connect(self.cdc.sink)
+        self.comb += If(dram_port.data_width < 32, # FIXME.
+            self.cdc.sink.data[ 0: 8].eq(self.conv.source.data[16:24]),
+            self.cdc.sink.data[16:24].eq(self.conv.source.data[ 0: 8]),
+        )
 
         # Video Generation.
         self.comb += [
