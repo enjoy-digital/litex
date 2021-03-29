@@ -573,15 +573,16 @@ class VideoTerminal(Module):
 
 class VideoFrameBuffer(Module, AutoCSR):
     """Video FrameBuffer"""
-    def __init__(self, dram_port, hres=800, vres=600, base=0x00000000, clock_domain="sys"):
-        self.vtg_sink = vtg_sink   = stream.Endpoint(video_timing_layout)
-        self.source   = source = stream.Endpoint(video_data_layout)
+    def __init__(self, dram_port, hres=800, vres=600, base=0x00000000, fifo_depth=8192, clock_domain="sys"):
+        self.vtg_sink  = vtg_sink   = stream.Endpoint(video_timing_layout)
+        self.source    = source = stream.Endpoint(video_data_layout)
+        self.underflow = Signal()
 
         # # #
 
         # Video DMA.
         from litedram.frontend.dma import LiteDRAMDMAReader
-        self.submodules.dma = LiteDRAMDMAReader(dram_port, fifo_depth=2048, fifo_buffered=True) # FIXME: Adjust/Expose.
+        self.submodules.dma = LiteDRAMDMAReader(dram_port, fifo_depth=fifo_depth//(dram_port.data_width//8), fifo_buffered=True)
         self.dma.add_csr(
             default_base   = base,
             default_length = hres*vres*32//8, # 32-bit RGB-444
@@ -612,6 +613,9 @@ class VideoFrameBuffer(Module, AutoCSR):
             source.g.eq(self.cdc.source.data[ 8:16]),
             source.b.eq(self.cdc.source.data[ 0: 8]),
         ]
+
+        # Underflow.
+        self.comb += self.underflow.eq(~source.valid)
 
 # Video PHYs ---------------------------------------------------------------------------------------
 
