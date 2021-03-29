@@ -1711,7 +1711,7 @@ class LiteXSoC(SoC):
         setattr(self.submodules, f"{name}_vtg", vtg)
 
         # Video FrameBuffer.
-        base = self.mem_map.get(name, 0x48000000)
+        base = self.mem_map.get(name, 0x40c00000)
         hres = int(timings.split("@")[0].split("x")[0])
         vres = int(timings.split("@")[0].split("x")[1])
         vfb = VideoFrameBuffer(self.sdram.crossbar.get_port(),
