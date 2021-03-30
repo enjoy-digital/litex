@@ -331,7 +331,18 @@ class VexRiscvSMP(CPU):
         if not path.exists(os.path.join(vdir, self.cluster_name + ".v")):
             self.generate_netlist()
 
-        platform.add_source(os.path.join(vdir, "RamXilinx.v"), "verilog")
+
+        # Add RAM.
+
+        # By default, use Generic RAM implementation.
+        ram_filename = "Ram_1w_1rs_Generic.v"
+        # On Altera/Intel platforms, use specific implementation.
+        from litex.build.altera import AlteraPlatform
+        if isinstance(platform, AlteraPlatform):
+            ram_filename = "Ram_1w_1rs_Intel.v"
+        platform.add_source(os.path.join(vdir, ram_filename), "verilog")
+
+        # Add Cluster.
         platform.add_source(os.path.join(vdir,  self.cluster_name + ".v"), "verilog")
 
     def add_soc_components(self, soc, soc_region_cls):
