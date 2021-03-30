@@ -141,7 +141,15 @@ video_data_layout = [
 
 class VideoTimingGenerator(Module, AutoCSR):
     def __init__(self, default_video_timings="800x600@60Hz"):
-        vt = video_timings[default_video_timings]
+        # Check / Get Video Timings.
+        try:
+            vt = video_timings[default_video_timings]
+        except KeyError:
+            msg = [f"Video Timings {default_video_timings} not supported, availables:"]
+            for video_timing in video_timings.keys():
+                msg.append(f" - {video_timing} / {video_timings[video_timing]['pix_clk']/1e6:3.2f}MHz.")
+            raise ValueError("\n".join(msg))
+
         # MMAP Control/Status Registers.
         self._enable      = CSRStorage(reset=1)
 
