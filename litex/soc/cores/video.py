@@ -143,7 +143,7 @@ class VideoTimingGenerator(Module, AutoCSR):
     def __init__(self, default_video_timings="800x600@60Hz"):
         # Check / Get Video Timings.
         try:
-            vt = video_timings[default_video_timings]
+            self.video_timings = vt = video_timings[default_video_timings]
         except KeyError:
             msg = [f"Video Timings {default_video_timings} not supported, availables:"]
             for video_timing in video_timings.keys():
@@ -581,9 +581,9 @@ class VideoTerminal(Module):
 
 class VideoFrameBuffer(Module, AutoCSR):
     """Video FrameBuffer"""
-    def __init__(self, dram_port, hres=800, vres=600, base=0x00000000, fifo_depth=8192, clock_domain="sys"):
-        self.vtg_sink  = vtg_sink   = stream.Endpoint(video_timing_layout)
-        self.source    = source = stream.Endpoint(video_data_layout)
+    def __init__(self, dram_port, hres=800, vres=600, base=0x00000000, fifo_depth=65536, clock_domain="sys", clock_faster_than_sys=False):
+        self.vtg_sink  = vtg_sink = stream.Endpoint(video_timing_layout)
+        self.source    = source   = stream.Endpoint(video_data_layout)
         self.underflow = Signal()
 
         # # #
@@ -598,32 +598,41 @@ class VideoFrameBuffer(Module, AutoCSR):
             default_loop   = 1
         )
 
-        # FIXME: Make sure it will work for all DRAM's data-width/all Video resolutions.
-
-        # Video Data-Width Converter.
-        self.submodules.conv = stream.Converter(dram_port.data_width, 32)
-        self.comb += self.dma.source.connect(self.conv.sink)
-
-        # Video CDC.
-        self.submodules.cdc = stream.ClockDomainCrossing([("data", 32)], cd_from="sys", cd_to=clock_domain)
-        self.comb += self.conv.source.connect(self.cdc.sink)
-        self.comb += If(dram_port.data_width < 32, # FIXME.
-            self.cdc.sink.data[ 0: 8].eq(self.conv.source.data[16:24]),
-            self.cdc.sink.data[16:24].eq(self.conv.source.data[ 0: 8]),
-        )
+        # If DRAM Data Width > 32-bit and Video clock is faster than sys_clk:
+        if (dram_port.data_width > 32) and clock_faster_than_sys:
+            # Do Clock Domain Crossing first...
+            self.submodules.cdc = stream.ClockDomainCrossing([("data", dram_port.data_width)], cd_from="sys", cd_to=clock_domain)
+            self.comb += self.dma.source.connect(self.cdc.sink)
+            # ... and then Data-Width Conversion.
+            self.submodules.conv = stream.Converter(dram_port.data_width, 32)
+            self.comb += self.cdc.source.connect(self.conv.sink)
+            video_pipe_source = self.conv.source
+        # Elsif DRAM Data Widt < 32-bit or Video clock is slower than sys_clk:
+        else:
+            # Do Data-Width Conversion first...
+            self.submodules.conv = stream.Converter(dram_port.data_width, 32)
+            self.comb += self.dma.source.connect(self.conv.sink)
+            # ... and then Clock Domain Crossing.
+            self.submodules.cdc = stream.ClockDomainCrossing([("data", 32)], cd_from="sys", cd_to=clock_domain)
+            self.comb += self.conv.source.connect(self.cdc.sink)
+            self.comb += If(dram_port.data_width < 32, # FIXME.
+                self.cdc.sink.data[ 0: 8].eq(self.conv.source.data[16:24]),
+                self.cdc.sink.data[16:24].eq(self.conv.source.data[ 0: 8]),
+            )
+            video_pipe_source = self.cdc.source
 
         # Video Generation.
         self.comb += [
             vtg_sink.ready.eq(1),
             If(vtg_sink.valid & vtg_sink.de,
-                self.cdc.source.connect(source, keep={"valid", "ready"}),
+                video_pipe_source.connect(source, keep={"valid", "ready"}),
                 vtg_sink.ready.eq(source.valid & source.ready),
 
             ),
             vtg_sink.connect(source, keep={"de", "hsync", "vsync"}),
-            source.r.eq(self.cdc.source.data[16:24]),
-            source.g.eq(self.cdc.source.data[ 8:16]),
-            source.b.eq(self.cdc.source.data[ 0: 8]),
+            source.r.eq(video_pipe_source.data[16:24]),
+            source.g.eq(video_pipe_source.data[ 8:16]),
+            source.b.eq(video_pipe_source.data[ 0: 8]),
         ]
 
         # Underflow.
