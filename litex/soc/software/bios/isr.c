@@ -6,11 +6,16 @@
 
 #include <generated/csr.h>
 #include <generated/soc.h>
+#include <lxtimer.h>
 #include <irq.h>
 #include <uart.h>
 #include <stdio.h>
 
-#if defined(__microwatt__)
+#if defined(__PPC64__)
+#ifdef _PPCTIME_H_
+#define USE_DEC_AS_TIMER0 1
+#endif
+
 void isr(uint64_t vec);
 void isr_dec(void);
 #else
@@ -138,11 +143,18 @@ void isr(uint64_t vec)
 	}
 }
 
+#if (USE_DEC_AS_TIMER0)
+void isr_dec(void)
+{
+	ppc_arch_timer_isr_dec();
+}
+#else
 void isr_dec(void)
 {
 	//  For now, just set DEC back to a large enough value to slow the flood of DEC-initiated timer interrupts
 	mtdec(0x000000000ffffff);
 }
+#endif
 
 #else
 void isr(void)

@@ -14,6 +14,7 @@
 # This file is Copyright (c) 2015 whitequark <whitequark@whitequark.org>
 # This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
 # This file is Copyright (c) 2020 Piotr Esden-Tempski <piotr@esden.net>
+# This file is Copyright (c) 2021 Raptor Engineering, LLC <sales@raptorengineering.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
@@ -88,6 +89,7 @@ def get_cpu_mak(cpu, compile_software):
 
     # return informations
     return [
+        ("ARCHITECTURE", select_triple(triple).split("-")[0]),
         ("TRIPLE", select_triple(triple)),
         ("CPU", cpu.name),
         ("CPUFLAGS", flags),

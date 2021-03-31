@@ -21,6 +21,11 @@ OBJECTS = exception.o \
 	memtest.o         \
 	sim_debug.o
 
+
+ifeq ($(ARCHITECTURE),powerpc64le)
+	OBJECTS += arch_ppc_timer.o
+endif
+
 all: crt0.o libbase.a libbase-nofloat.a
 
 libbase.a: $(OBJECTS) vsnprintf.o

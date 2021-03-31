@@ -18,6 +18,35 @@
 #ifndef _LXTIMER_H_
 #define _LXTIMER_H_
 
+#ifdef __PPC64__
+
+#include <ppc/timer.h>
+
+static inline void lxtimer_load_write(uint32_t v) {
+	ppc_arch_timer_load_write(v);
+}
+
+static inline void lxtimer_reload_write(uint32_t v) {
+	ppc_arch_timer_reload_write(v);
+}
+
+static inline uint32_t lxtimer_reload_read(void) {
+	return ppc_arch_timer_reload_read();
+}
+
+static inline void lxtimer_en_write(uint8_t v) {
+	ppc_arch_timer_en_write(v);
+}
+
+static inline void lxtimer_update_value_write(uint8_t v) {
+	ppc_arch_timer_update_value_write(v);
+}
+
+static inline uint32_t lxtimer_value_read(void) {
+	return ppc_arch_timer_value_read();
+}
+#else
+
 #include <generated/csr.h>
 
 static inline void lxtimer_load_write(uint32_t v) {
@@ -43,5 +72,6 @@ static inline void lxtimer_update_value_write(uint8_t v) {
 static inline uint32_t lxtimer_value_read(void) {
 	return timer0_value_read();
 }
+#endif
 
 #endif // _LXTIMER_H_

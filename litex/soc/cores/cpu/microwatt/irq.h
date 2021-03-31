@@ -12,6 +12,8 @@ extern "C" {
 #include <generated/soc.h>
 #include <generated/mem.h>
 
+#include <ppc/ppc64_asm.h>
+
 #ifdef CONFIG_CPU_HAS_INTERRUPT
 
 // Address of exception / IRQ handler routine
@@ -63,30 +65,6 @@ static inline uint32_t xics_ics_read_xive(int irq_number)
 static inline void xics_ics_write_xive(int irq_number, uint32_t priority)
 {
 	*((uint32_t*)(XICSICS_BASE + 0x800 + (irq_number << 2))) = bswap32(priority);
-}
-
-static inline void mtmsrd(uint64_t val)
-{
-	__asm__ volatile("mtmsrd %0" : : "r" (val) : "memory");
-}
-
-static inline uint64_t mfmsr(void)
-{
-	uint64_t rval;
-	__asm__ volatile("mfmsr %0" : "=r" (rval) : : "memory");
-	return rval;
-}
-
-static inline void mtdec(uint64_t val)
-{
-	__asm__ volatile("mtdec %0" : : "r" (val) : "memory");
-}
-
-static inline uint64_t mfdec(void)
-{
-	uint64_t rval;
-	__asm__ volatile("mfdec %0" : "=r" (rval) : : "memory");
-	return rval;
 }
 
 static inline unsigned int irq_getie(void)
