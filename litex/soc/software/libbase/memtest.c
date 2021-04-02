@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <lfsr.h>
 #include <system.h>
+#include <lxtimer.h>
 
 #include <generated/soc.h>
 #include <generated/csr.h>
@@ -229,20 +230,20 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only)
 	printf(")...\n");
 
 	/* Init timer */
-	timer0_en_write(0);
-	timer0_reload_write(0);
-	timer0_load_write(0xffffffff);
-	timer0_en_write(1);
+	lxtimer_en_write(0);
+	lxtimer_reload_write(0);
+	lxtimer_load_write(0xffffffff);
+	lxtimer_en_write(1);
 
 	/* Measure Write speed */
 	if (!read_only) {
-		timer0_update_value_write(1);
-		start = timer0_value_read();
+		lxtimer_update_value_write(1);
+		start = lxtimer_value_read();
 		for(i = 0; i < size/sz; i++) {
 			array[i] = -1ul;
 		}
-		timer0_update_value_write(1);
-		end = timer0_value_read();
+		lxtimer_update_value_write(1);
+		end = lxtimer_value_read();
 		uint64_t numerator   = ((uint64_t)size)*((uint64_t)CONFIG_CLOCK_FREQUENCY);
 		uint64_t denominator = ((uint64_t)start - (uint64_t)end);
 		write_speed = numerator/denominator;
@@ -256,14 +257,14 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only)
 	flush_l2_cache();
 
 	/* Measure Read speed */
-	timer0_en_write(1);
-	timer0_update_value_write(1);
-	start = timer0_value_read();
+	lxtimer_en_write(1);
+	lxtimer_update_value_write(1);
+	start = lxtimer_value_read();
 	for(i = 0; i < size/sz; i++) {
 		data = array[i];
 	}
-	timer0_update_value_write(1);
-	end = timer0_value_read();
+	lxtimer_update_value_write(1);
+	end = lxtimer_value_read();
 	uint64_t numerator   = ((uint64_t)size)*((uint64_t)CONFIG_CLOCK_FREQUENCY);
 	uint64_t denominator = ((uint64_t)start - (uint64_t)end);
 	read_speed = numerator/denominator;

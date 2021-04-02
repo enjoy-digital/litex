@@ -67,8 +67,8 @@ static void uptime_handler(int nb_params, char **params)
 {
 	unsigned long uptime;
 
-	timer0_uptime_latch_write(1);
-	uptime = timer0_uptime_cycles_read();
+	lxtimer_uptime_latch_write(1);
+	uptime = lxtimer_uptime_cycles_read();
 	printf("Uptime: %ld sys_clk cycles / %ld seconds",
 		uptime,
 		uptime/CONFIG_CLOCK_FREQUENCY

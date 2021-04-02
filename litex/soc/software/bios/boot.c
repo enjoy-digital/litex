@@ -16,6 +16,7 @@
 #include <crc.h>
 #include <string.h>
 #include <irq.h>
+#include <lxtimer.h>
 
 #include <generated/mem.h>
 #include <generated/csr.h>
@@ -106,17 +107,17 @@ static int check_ack(void)
 	int recognized;
 	static const char str[SFL_MAGIC_LEN] = SFL_MAGIC_ACK;
 
-	timer0_en_write(0);
-	timer0_reload_write(0);
+	lxtimer_en_write(0);
+	lxtimer_reload_write(0);
 #ifndef CONFIG_DISABLE_DELAYS
-	timer0_load_write(CONFIG_CLOCK_FREQUENCY/4);
+	lxtimer_load_write(CONFIG_CLOCK_FREQUENCY/4);
 #else
-	timer0_load_write(0);
+	lxtimer_load_write(0);
 #endif
-	timer0_en_write(1);
-	timer0_update_value_write(1);
+	lxtimer_en_write(1);
+	lxtimer_update_value_write(1);
 	recognized = 0;
-	while(timer0_value_read()) {
+	while(lxtimer_value_read()) {
 		if(uart_read_nonblock()) {
 			char c;
 			c = uart_read();
@@ -133,7 +134,7 @@ static int check_ack(void)
 					recognized = 0;
 			}
 		}
-		timer0_update_value_write(1);
+		lxtimer_update_value_write(1);
 	}
 	return ACK_TIMEOUT;
 }
