@@ -5,6 +5,7 @@
 # Copyright (c) 2017 William D. Jones <thor0505@comcast.net>
 # Copyright (c) 2019 David Shah <dave@ds0.me>
 # Copyright (c) 2020 David Corrigan <davidcorrigan714@gmail.com>
+# Copyright (c) 2021 Charles-Henri Mousset <ch.mousset@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen.fhdl.module import Module
@@ -105,6 +106,21 @@ class LatticeECP5DDROutput:
     def lower(dr):
         return LatticeECP5DDROutputImpl(dr.i1, dr.i2, dr.o, dr.clk)
 
+# ECP5 Differential Input --------------------------------------------------------------------------
+
+class LatticeECP5DifferentialInputImpl(Module):
+    def __init__(self, i_p, i_n, o):
+        self.specials += Instance("ILVDS",
+            i_A=i_p,
+            i_AN=i_n,
+            o_Z=o,
+        )
+
+class LatticeECP5DifferentialInput:
+    @staticmethod
+    def lower(dr):
+        return LatticeECP5DifferentialInputImpl(dr.i_p, dr.i_n, dr.o)
+
 # ECP5 Special Overrides ---------------------------------------------------------------------------
 
 lattice_ecp5_special_overrides = {
@@ -113,6 +129,7 @@ lattice_ecp5_special_overrides = {
     SDROutput:              LatticeECP5SDROutput,
     DDRInput:               LatticeECP5DDRInput,
     DDROutput:              LatticeECP5DDROutput,
+    DifferentialInput:      LatticeECP5DifferentialInput,
 }
 
 # ECP5 Trellis Tristate ----------------------------------------------------------------------------
@@ -142,7 +159,8 @@ lattice_ecp5_trellis_special_overrides = {
     SDRInput:               LatticeECP5SDRInput,
     SDROutput:              LatticeECP5SDROutput,
     DDRInput:               LatticeECP5DDRInput,
-    DDROutput:              LatticeECP5DDROutput
+    DDROutput:              LatticeECP5DDROutput,
+    DifferentialInput:      LatticeECP5DifferentialInput,
 }
 
 
