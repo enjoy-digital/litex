@@ -52,7 +52,9 @@ void __attribute__((noreturn)) boot(unsigned long r1, unsigned long r2, unsigned
 {
 	printf("Executing booted program at 0x%08lx\n\n", addr);
 	printf("--============= \e[1mLiftoff!\e[0m ===============--\n");
+#ifdef CSR_UART_BASE
 	uart_sync();
+#endif
 #ifdef CONFIG_CPU_HAS_INTERRUPT
 	irq_setmask(0);
 	irq_setie(0);
