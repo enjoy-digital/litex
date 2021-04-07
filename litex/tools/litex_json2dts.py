@@ -115,19 +115,33 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
     main_ram_base = d["memories"]["main_ram"]["base"],
     main_ram_size = d["memories"]["main_ram"]["size"])
 
-    if "opensbi" in d["memories"]:
+    if (("opensbi" in d["memories"]) or ("video_framebuffer" in d["csr_bases"])):
         dts += """
-        reserved-memory {{
+        reserved-memory {
             #address-cells = <1>;
             #size-cells    = <1>;
             ranges;
+"""
+        if "opensbi" in d["memories"]:
+            dts += """
             opensbi@{opensbi_base:x} {{
                 reg = <0x{opensbi_base:x} 0x{opensbi_size:x}>;
             }};
-        }};
 """.format(
     opensbi_base = d["memories"]["opensbi"]["base"],
     opensbi_size = d["memories"]["opensbi"]["size"])
+        if "video_framebuffer" in d["csr_bases"]:
+            dts += """
+            framebuffer@f0000000 {{
+                reg = <0x{framebuffer_base:x} 0x{framebuffer_size:x}>;
+            }};
+""".format(
+    framebuffer_base = d["constants"]["video_framebuffer_base"],
+    framebuffer_size = (d["constants"]["video_framebuffer_hres"] * d["constants"]["video_framebuffer_vres"] * 4))
+
+        dts += """
+        };
+"""
 
     # SoC ------------------------------------------------------------------------------------------
 
