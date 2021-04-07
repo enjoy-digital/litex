@@ -39,6 +39,7 @@ static unsigned short seed_to_data_16(unsigned short seed, int random)
 	return random ? lfsr(16, seed) : seed + 1;
 }
 
+#ifdef CSR_CTRL_BASE
 int memtest_access(unsigned int *addr)
 {
 	volatile unsigned int *array = addr;
@@ -59,6 +60,7 @@ int memtest_access(unsigned int *addr)
 
 	return 0;
 }
+#endif
 
 int memtest_bus(unsigned int *addr, unsigned long size)
 {
@@ -283,8 +285,10 @@ int memtest(unsigned int *addr, unsigned long maxsize)
 	print_size(data_size);
 	printf(")...\n");
 
+#ifdef CSR_CTRL_BASE
 	if (memtest_access(addr))
 		return 0;
+#endif
 
 	bus_errors  = memtest_bus(addr, bus_size);
 	addr_errors = memtest_addr(addr, addr_size, MEMTEST_ADDR_RANDOM);

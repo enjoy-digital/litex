@@ -786,7 +786,7 @@ class SoC(Module):
 
     def check_bios_requirements(self):
         # Check for required Peripherals.
-        for periph in ["ctrl", "timer0"]:
+        for periph in [ "timer0"]:
             if periph not in self.csr.locs.keys():
                 self.logger.error("BIOS needs {} peripheral to be {}.".format(
                     colorer(periph),
