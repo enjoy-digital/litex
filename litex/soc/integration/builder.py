@@ -258,13 +258,20 @@ class Builder:
         if self.soc.cpu_type is not None:
             if self.soc.cpu.use_rom:
                 # Prepare/Generate ROM software.
+                use_bios = (
+                    # BIOS compilation enabled.
+                    self.compile_software and
+                    # ROM contents has not already been initialized.
+                    (not self.soc.integrated_rom_initialized)
+                )
+                if use_bios:
+                    self.soc.check_bios_requirements()
                 self._prepare_rom_software()
-                self._generate_rom_software(not self.soc.integrated_rom_initialized)
+                self._generate_rom_software(compile_bios=use_bios)
 
                 # Initialize ROM.
-                if self.soc.integrated_rom_size and self.compile_software:
-                    if not self.soc.integrated_rom_initialized:
-                        self._initialize_rom_software()
+                if use_bios and self.soc.integrated_rom_size:
+                    self._initialize_rom_software()
 
         # Translate compile_gateware to run.
         if "run" not in kwargs:
