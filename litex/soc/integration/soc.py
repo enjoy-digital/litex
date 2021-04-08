@@ -1615,7 +1615,6 @@ class LiteXSoC(SoC):
 
         # Checks.
         assert self.csr.data_width == 32
-        assert not hasattr(self, f"{name}_endpoint")
 
         # Endpoint.
         self.check_if_exists(f"{name}_endpoint")
