@@ -16,6 +16,7 @@ from litex.soc.integration.doc import ModuleDoc
 # Timer --------------------------------------------------------------------------------------------
 
 class Timer(Module, AutoCSR, ModuleDoc):
+    with_uptime = False
     """Timer
 
     Provides a generic Timer core.
@@ -87,11 +88,13 @@ class Timer(Module, AutoCSR, ModuleDoc):
         self.comb += self.ev.zero.trigger.eq(value != 0)
 
     def add_uptime(self, width=64):
+        if self.with_uptime: return
+        self.with_uptime    = True
         self._uptime_latch  = CSRStorage(description="Write a ``1`` to latch current Uptime cycles to ``uptime_cycles`` register.")
         self._uptime_cycles = CSRStatus(width, description="Latched Uptime since power-up (in ``sys_clk`` cycles).")
 
         # # #
 
-        uptime_cycles = Signal(width, reset_less=True)
+        self.uptime_cycles = uptime_cycles = Signal(width, reset_less=True)
         self.sync += uptime_cycles.eq(uptime_cycles + 1)
         self.sync += If(self._uptime_latch.re, self._uptime_cycles.status.eq(uptime_cycles))
