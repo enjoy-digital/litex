@@ -21,7 +21,8 @@
 #ifdef CSR_SDCORE_BASE
 
 //#define SDCARD_DEBUG
-//#define SDCARD_CMD23_SUPPORT
+//#define SDCARD_CMD23_SUPPORT /* SET_BLOCK_COUNT */
+#define SDCARD_CMD18_SUPPORT /* READ_MULTIPLE_BLOCK */
 
 #ifndef SDCARD_CLK_FREQ_INIT
 #define SDCARD_CLK_FREQ_INIT 400000
@@ -473,22 +474,40 @@ int sdcard_init(void) {
 
 void sdcard_read(uint32_t block, uint32_t count, uint8_t* buf)
 {
-	/* Initialize DMA Writer */
-	sdblock2mem_dma_enable_write(0);
-	sdblock2mem_dma_base_write((uint64_t)(uintptr_t) buf);
-	sdblock2mem_dma_length_write(512*count);
-	sdblock2mem_dma_enable_write(1);
-
-	/* Read Block(s) from SDCard */
-#ifdef SDCARD_CMD23_SUPPORT
-	sdcard_set_block_count(count);
+	while (count) {
+		uint32_t nblocks;
+#ifdef SDCARD_CMD18_SUPPORT
+		nblocks = count;
+#else
+		nblocks = 1;
 #endif
-	sdcard_read_multiple_block(block, count);
+		/* Initialize DMA Writer */
+		sdblock2mem_dma_enable_write(0);
+		sdblock2mem_dma_base_write((uint64_t)(uintptr_t) buf);
+		sdblock2mem_dma_length_write(512*nblocks);
+		sdblock2mem_dma_enable_write(1);
 
-	/* Wait for DMA Writer to complete */
-	while ((sdblock2mem_dma_done_read() & 0x1) == 0);
+		/* Read Block(s) from SDCard */
+#ifdef SDCARD_CMD23_SUPPORT
+		sdcard_set_block_count(nblocks);
+#endif
+		if (nblocks > 1)
+			sdcard_read_multiple_block(block, nblocks);
+		else
+			sdcard_read_single_block(block);
 
-	sdcard_stop_transmission();
+		/* Wait for DMA Writer to complete */
+		while ((sdblock2mem_dma_done_read() & 0x1) == 0);
+
+		/* Stop transmission (Only for multiple block reads). */
+		if (nblocks > 1)
+			sdcard_stop_transmission();
+
+		/* Update Block/Buffer/Count */
+		block += nblocks;
+		buf   += 512*nblocks;
+		count -= nblocks;
+	}
 
 #ifndef CONFIG_CPU_HAS_DMA_BUS
 	/* Flush caches */
