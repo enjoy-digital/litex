@@ -397,6 +397,12 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
     svd.append('    <name>{}</name>'.format(name.upper()))
     if description is not None:
         svd.append('    <description><![CDATA[{}]]></description>'.format(reflow(description)))
+    else:
+        import datetime
+        import time
+        fmt = "%Y-%m-%d %H:%M:%S"
+        build_time = datetime.datetime.fromtimestamp(time.time()).strftime(fmt)
+        svd.append('    <description><![CDATA[{}]]></description>'.format(reflow("Litex SoC " + build_time)))
     svd.append('')
     svd.append('    <addressUnitBits>8</addressUnitBits>')
     svd.append('    <width>32</width>')
