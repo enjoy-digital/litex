@@ -1092,6 +1092,8 @@ class SoC(Module):
     # SoC build ------------------------------------------------------------------------------------
     def build(self, *args, **kwargs):
         self.build_name = kwargs.pop("build_name", self.platform.name)
+        if self.build_name[0].isdigit():
+            self.build_name = f"_{self.build_name}"
         kwargs.update({"build_name": self.build_name})
         return self.platform.build(self, *args, **kwargs)
 
