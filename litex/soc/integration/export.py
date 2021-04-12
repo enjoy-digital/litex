@@ -33,6 +33,10 @@ from litex.soc.doc.module import gather_submodules, ModuleNotDocumented, Documen
 from litex.soc.doc.csr import DocumentedCSRRegion
 from litex.soc.interconnect.csr import _CompoundCSR
 
+# for generating a timestamp in the description field, if none is otherwise given
+import datetime
+import time
+
 # CPU files ----------------------------------------------------------------------------------------
 
 def get_cpu_mak(cpu, compile_software):
@@ -398,8 +402,6 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
     if description is not None:
         svd.append('    <description><![CDATA[{}]]></description>'.format(reflow(description)))
     else:
-        import datetime
-        import time
         fmt = "%Y-%m-%d %H:%M:%S"
         build_time = datetime.datetime.fromtimestamp(time.time()).strftime(fmt)
         svd.append('    <description><![CDATA[{}]]></description>'.format(reflow("Litex SoC " + build_time)))
