@@ -106,7 +106,7 @@ def dump_identifier(port):
 
     wb.close()
 
-def dump_registers(port):
+def dump_registers(port, filter=None):
     wb = RemoteClient(port=port)
     wb.open()
 
@@ -115,7 +115,8 @@ def dump_registers(port):
         wb.base_address = -wb.mems.csr.base
 
     for name, register in wb.regs.__dict__.items():
-        print("0x{:08x} : 0x{:08x} {}".format(register.addr, register.read(), name))
+        if (filter is None) or filter in name:
+            print("0x{:08x} : 0x{:08x} {}".format(register.addr, register.read(), name))
 
     wb.close()
 
@@ -138,12 +139,13 @@ def write_memory(port, addr, data):
 # Run ----------------------------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="LiteX Client utility")
-    parser.add_argument("--port",  default="1234",        help="Host bind port")
-    parser.add_argument("--ident", action="store_true",   help="Dump SoC identifier")
-    parser.add_argument("--regs",  action="store_true",   help="Dump SoC registers")
-    parser.add_argument("--read",  default=None,          help="Do a MMAP Read to SoC bus (--read addr)")
-    parser.add_argument("--write", default=None, nargs=2, help="Do a MMAP Write to SoC bus (--write addr data)")
+    parser = argparse.ArgumentParser(description="LiteX Client utility.")
+    parser.add_argument("--port",   default="1234",        help="Host bind port.")
+    parser.add_argument("--ident",  action="store_true",   help="Dump SoC identifier.")
+    parser.add_argument("--regs",   action="store_true",   help="Dump SoC registers.")
+    parser.add_argument("--filter", default=None,          help="Registers filter (to be used with --regs).")
+    parser.add_argument("--read",   default=None,          help="Do a MMAP Read to SoC bus (--read addr)")
+    parser.add_argument("--write",  default=None, nargs=2, help="Do a MMAP Write to SoC bus (--write addr data)")
     args = parser.parse_args()
 
     port = int(args.port, 0)
@@ -152,7 +154,7 @@ def main():
         dump_identifier(port=port)
 
     if args.regs:
-        dump_registers(port=port)
+        dump_registers(port=port, filter=args.filter)
 
     if args.read:
         read_memory(port=port, addr=int(args.read, 0))
