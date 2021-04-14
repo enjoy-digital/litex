@@ -155,12 +155,12 @@ def _compile_sim(build_name, verbose):
     if verbose:
         print(output)
 
-def _run_sim(build_name, as_root=False):
+def _run_sim(build_name, as_root=False, interactive=True):
     run_script_contents = "sudo " if as_root else ""
     run_script_contents += "obj_dir/Vsim"
     run_script_file = "run_" + build_name + ".sh"
     tools.write_to_file(run_script_file, run_script_contents, force_unix=True)
-    if sys.platform != "win32":
+    if sys.platform != "win32" and interactive:
         import termios
         termios_settings = termios.tcgetattr(sys.stdin.fileno())
     try:
@@ -169,7 +169,7 @@ def _run_sim(build_name, as_root=False):
             raise OSError("Subprocess failed")
     except:
         pass
-    if sys.platform != "win32":
+    if sys.platform != "win32" and interactive:
         termios.tcsetattr(sys.stdin.fileno(), termios.TCSAFLUSH, termios_settings)
 
 
