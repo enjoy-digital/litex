@@ -11,13 +11,14 @@ from migen import *
 
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect.csr_eventmanager import *
-from litex.soc.integration.doc import ModuleDoc
+from litex.soc.integration.doc import AutoDoc, ModuleDoc
 
 # Timer --------------------------------------------------------------------------------------------
 
-class Timer(Module, AutoCSR, ModuleDoc):
+class Timer(Module, AutoCSR, AutoDoc):
     with_uptime = False
-    """Timer
+    def __init__(self, width=32):
+        self.intro = ModuleDoc("""Timer
 
     Provides a generic Timer core.
 
@@ -50,8 +51,7 @@ class Timer(Module, AutoCSR, ModuleDoc):
 
     For both modes, the CPU can be advertised by an IRQ that the duration/period has elapsed. (The
     CPU can also do software polling with ``update_value`` and ``value`` to know the elapsed duration)
-    """
-    def __init__(self, width=32):
+    """)
         self._load = CSRStorage(width, description="""Load value when Timer is (re-)enabled.
             In One-Shot mode, the value written to this register specifies the Timer's duration in
             clock cycles.""")
