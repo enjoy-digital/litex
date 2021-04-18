@@ -164,7 +164,7 @@ int sdcard_app_send_op_cond(int hcs) {
 #ifdef SDCARD_DEBUG
 	printf("ACMD41: APP_SEND_OP_COND, arg: %08x\n", arg);
 #endif
-	return sdcard_send_command(arg, 41, SDCARD_CTRL_RESPONSE_SHORT);
+	return sdcard_send_command(arg, 41, SDCARD_CTRL_RESPONSE_SHORT_BUSY);
 }
 
 int sdcard_all_send_cid(void) {
@@ -199,7 +199,7 @@ int sdcard_select_card(uint16_t rca) {
 #ifdef SDCARD_DEBUG
 	printf("CMD7: SELECT_CARD\n");
 #endif
-	return sdcard_send_command(rca << 16, 7, SDCARD_CTRL_RESPONSE_SHORT);
+	return sdcard_send_command(rca << 16, 7, SDCARD_CTRL_RESPONSE_SHORT_BUSY);
 }
 
 int sdcard_app_set_bus_width(void) {
@@ -296,7 +296,7 @@ int sdcard_stop_transmission(void) {
 #ifdef SDCARD_DEBUG
 	printf("CMD12: STOP_TRANSMISSION\n");
 #endif
-	return sdcard_send_command(0, 12, SDCARD_CTRL_RESPONSE_SHORT);
+	return sdcard_send_command(0, 12, SDCARD_CTRL_RESPONSE_SHORT_BUSY);
 }
 
 int sdcard_send_status(uint16_t rca) {

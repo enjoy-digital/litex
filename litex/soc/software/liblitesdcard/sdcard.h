@@ -52,6 +52,11 @@
 #define SDCARD_CTRL_RESPONSE_SHORT 1
 #define SDCARD_CTRL_RESPONSE_LONG  2
 
+#define SDCARD_CTRL_RESPONSE_BUSY  4
+
+#define SDCARD_CTRL_RESPONSE_SHORT_BUSY (SDCARD_CTRL_RESPONSE_SHORT | \
+					 SDCARD_CTRL_RESPONSE_BUSY)
+
 /*-----------------------------------------------------------------------*/
 /* SDCard command helpers                                                */
 /*-----------------------------------------------------------------------*/
