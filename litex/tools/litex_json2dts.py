@@ -28,7 +28,6 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
 / {
         #address-cells = <1>;
         #size-cells    = <1>;
-        interrupt-parent = <&intc0>;
 
 """
 
@@ -151,6 +150,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
             #size-cells    = <1>;
             bus-frequency  = <{sys_clk_freq}>;
             compatible = "simple-bus";
+            interrupt-parent = <&intc0>;
             ranges;
 """.format(sys_clk_freq=d["constants"]["config_clock_frequency"])
 
