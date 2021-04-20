@@ -48,14 +48,10 @@
 #define SDCARD_CTRL_DATA_TRANSFER_READ  1
 #define SDCARD_CTRL_DATA_TRANSFER_WRITE 2
 
-#define SDCARD_CTRL_RESPONSE_NONE  0
-#define SDCARD_CTRL_RESPONSE_SHORT 1
-#define SDCARD_CTRL_RESPONSE_LONG  2
-
-#define SDCARD_CTRL_RESPONSE_BUSY  4
-
-#define SDCARD_CTRL_RESPONSE_SHORT_BUSY (SDCARD_CTRL_RESPONSE_SHORT | \
-					 SDCARD_CTRL_RESPONSE_BUSY)
+#define SDCARD_CTRL_RESPONSE_NONE       0
+#define SDCARD_CTRL_RESPONSE_SHORT      1
+#define SDCARD_CTRL_RESPONSE_LONG       2
+#define SDCARD_CTRL_RESPONSE_SHORT_BUSY 3
 
 /*-----------------------------------------------------------------------*/
 /* SDCard command helpers                                                */
