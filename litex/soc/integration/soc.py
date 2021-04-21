@@ -1550,11 +1550,13 @@ class LiteXSoC(SoC):
         self.sdirq.card_detect   = EventSourcePulse(description="SDCard has been ejected/inserted.")
         self.sdirq.block2mem_dma = EventSourcePulse(description="Block2Mem DMA terminated.")
         self.sdirq.mem2block_dma = EventSourcePulse(description="Mem2Block DMA terminated.")
+        self.sdirq.cmd_done      = EventSourceLevel(description="Command completed.")
         self.sdirq.finalize()
         self.comb += [
             self.sdirq.card_detect.trigger.eq(self.sdphy.card_detect_irq),
             self.sdirq.block2mem_dma.trigger.eq(self.sdblock2mem.irq),
             self.sdirq.mem2block_dma.trigger.eq(self.sdmem2block.irq),
+            self.sdirq.cmd_done.trigger.eq(self.sdcore.cmd_done)
         ]
 
         # Debug.
