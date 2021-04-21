@@ -85,6 +85,41 @@ class USJTAG(XilinxJTAG):
     def __init__(self, *args, **kwargs):
         XilinxJTAG.__init__(self, primitive="BSCANE2", *args, **kwargs)
 
+# ECP5 JTAG ----------------------------------------------------------------------------------------
+
+class ECP5JTAG(Module):
+    def __init__(self):
+        self.reset   = Signal()
+        self.capture = Signal()
+        self.shift   = Signal()
+        self.update  = Signal()
+
+        self.tck = Signal()
+        self.tdi = Signal()
+        self.tdo = Signal()
+
+        jce1 = Signal()
+        jce2 = Signal()
+        rst_n = Signal()
+
+        # # #
+
+        self.comb += self.capture.eq(jce1 | jce2)
+        self.comb += self.reset.eq(~rst_n)
+
+        self.specials += Instance("JTAGG",
+            o_JRSTN   = rst_n,
+            o_JSHIFT  = self.shift,
+            o_JUPDATE = self.update,
+
+            o_JTCK  = self.tck,
+            o_JTDI  = self.tdi,
+            o_JCE1  = jce1,
+            o_JCE2  = jce2,
+            i_JTDO1 = self.tdo,
+            i_JTDO2 = self.tdo,
+        )
+
 # JTAG PHY -----------------------------------------------------------------------------------------
 
 class JTAGPHY(Module):
@@ -123,6 +158,8 @@ class JTAGPHY(Module):
                 jtag = S7JTAG()
             elif device[:4] in ["xcku", "xcvu"]:
                 jtag = USJTAG()
+            elif device[:6] == "LFE5UM":
+                jtag = ECP5JTAG()
             else:
                 raise NotImplementedError
             self.submodules.jtag = jtag
