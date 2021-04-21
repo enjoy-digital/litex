@@ -1556,7 +1556,7 @@ class LiteXSoC(SoC):
             self.sdirq.card_detect.trigger.eq(self.sdphy.card_detect_irq),
             self.sdirq.block2mem_dma.trigger.eq(self.sdblock2mem.irq),
             self.sdirq.mem2block_dma.trigger.eq(self.sdmem2block.irq),
-            self.sdirq.cmd_done.trigger.eq(self.sdcore.cmd_done)
+            self.sdirq.cmd_done.trigger.eq(self.sdcore.cmd_event.fields.done)
         ]
 
         # Debug.
