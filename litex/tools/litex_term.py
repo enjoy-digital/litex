@@ -122,6 +122,7 @@ class BridgeUART:
             elif not self.rxempty.read():
                 length = 1
             else:
+                time.sleep(1e-3)
                 continue
             r = self.bus.read(self.rxtx.addr, length=length, burst="fixed")
             for v in r:
