@@ -1071,10 +1071,12 @@ static void sdram_read_leveling_best_bitslip(int module)
 		sdram_read_leveling_inc_bitslip(module);
 	}
 
-	/* Select best read window */
+	/* Select best read window and re-center it */
 	sdram_read_leveling_rst_bitslip(module);
 	for (bitslip=0; bitslip<best_bitslip; bitslip++)
 		sdram_read_leveling_inc_bitslip(module);
+	sdram_leveling_center_module(module, 0, 0,
+		sdram_read_leveling_rst_delay, sdram_read_leveling_inc_delay);
 }
 
 static void sdram_write_dq_dqs_training(void)
