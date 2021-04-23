@@ -13,9 +13,11 @@ from litex import get_data_mod
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 
+# Variants -----------------------------------------------------------------------------------------
 
 CPU_VARIANTS = ["standard"]
 
+# SERV ---------------------------------------------------------------------------------------------
 
 class SERV(CPU):
     name                 = "serv"
@@ -26,8 +28,9 @@ class SERV(CPU):
     gcc_triple           = CPU_GCC_TRIPLE_RISCV32
     linker_output_format = "elf32-littleriscv"
     nop                  = "nop"
-    io_regions           = {0x80000000: 0x80000000} # origin, length
+    io_regions           = {0x80000000: 0x80000000} # Origin, Length.
 
+    # GCC Flags.
     @property
     def gcc_flags(self):
         flags =  "-march=rv32i "
@@ -41,26 +44,26 @@ class SERV(CPU):
         self.reset        = Signal()
         self.ibus         = ibus = wishbone.Interface()
         self.dbus         = dbus = wishbone.Interface()
-        self.periph_buses = [ibus, dbus]
-        self.memory_buses = []
+        self.periph_buses = [ibus, dbus] # Peripheral buses (Connected to main SoC's bus).
+        self.memory_buses = []           # Memory buses (Connected directly to LiteDRAM).
 
         # # #
 
         self.cpu_params = dict(
-            # clock / reset
+            # Clk / Rst
             i_clk   = ClockSignal(),
             i_i_rst = ResetSignal() | self.reset,
 
-            # timer irq
+            # Timer IRQ.
             i_i_timer_irq = 0,
 
-            # ibus
+            # Ibus.
             o_o_ibus_adr = Cat(Signal(2), ibus.adr),
             o_o_ibus_cyc = ibus.cyc,
             i_i_ibus_rdt = ibus.dat_r,
             i_i_ibus_ack = ibus.ack,
 
-            # dbus
+            # Dbus.
             o_o_dbus_adr = Cat(Signal(2), dbus.adr),
             o_o_dbus_dat = dbus.dat_w,
             o_o_dbus_sel = dbus.sel,
@@ -75,7 +78,7 @@ class SERV(CPU):
             dbus.stb.eq(dbus.cyc),
         ]
 
-        # add verilog sources
+        # Add Verilog sources
         self.add_sources(platform)
 
     def set_reset_address(self, reset_address):

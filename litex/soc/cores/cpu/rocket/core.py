@@ -38,6 +38,9 @@ from litex.soc.interconnect import axi
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV64
 
+class Open(Signal): pass
+
+# Variants -----------------------------------------------------------------------------------------
 
 CPU_VARIANTS = {
     "standard": "freechips.rocketchip.system.LitexConfig",
@@ -47,6 +50,8 @@ CPU_VARIANTS = {
     "full":     "freechips.rocketchip.system.LitexFullConfig",
 }
 
+# GCC Flags-----------------------------------------------------------------------------------------
+
 GCC_FLAGS = {
     "standard": "-march=rv64imac   -mabi=lp64 ",
     "linux":    "-march=rv64imac   -mabi=lp64 ",
@@ -55,14 +60,18 @@ GCC_FLAGS = {
     "full":     "-march=rv64imafdc -mabi=lp64 ",
 }
 
+# AXI Data-Widths ----------------------------------------------------------------------------------
+
 AXI_DATA_WIDTHS = {
-    # variant : (mem, mmio)
+    # Variant : (mem, mmio)
     "standard": ( 64,  64),
     "linux":    ( 64,  64),
     "linuxd":   (128,  64),
     "linuxq":   (256,  64),
     "full":     ( 64,  64),
 }
+
+# Rocket RV64 --------------------------------------------------------------------------------------
 
 class RocketRV64(CPU):
     name                 = "rocket"
@@ -73,8 +82,9 @@ class RocketRV64(CPU):
     gcc_triple           = CPU_GCC_TRIPLE_RISCV64
     linker_output_format = "elf64-littleriscv"
     nop                  = "nop"
-    io_regions           = {0x10000000: 0x70000000} # origin, length
+    io_regions           = {0x10000000: 0x70000000} # Origin, Length.
 
+    # Memory Mapping.
     @property
     def mem_map(self):
         # Rocket reserves the first 256Mbytes for internal use, so we must change default mem_map.
@@ -86,6 +96,7 @@ class RocketRV64(CPU):
             "main_ram" : 0x80000000,
         }
 
+    # GCC Flags.
     @property
     def gcc_flags(self):
         flags =  "-mno-save-restore "
@@ -109,40 +120,40 @@ class RocketRV64(CPU):
         self.mmio_wb   = mmio_wb = wishbone.Interface(data_width=mmio_dw, adr_width=32-log2_int(mmio_dw//8))
         self.l2fb_wb   = l2fb_wb = wishbone.Interface(data_width=mmio_dw, adr_width=32-log2_int(mmio_dw//8))
 
-        self.memory_buses = [mem_axi]
-        self.periph_buses = [mmio_wb]
-        self.dma_bus      =  l2fb_wb
+        self.memory_buses = [mem_axi] # Peripheral buses (Connected to main SoC's bus).
+        self.periph_buses = [mmio_wb] # Memory buses (Connected directly to LiteDRAM).
+        self.dma_bus      =  l2fb_wb  # DMA bus (Arbitrated and connected to SoC's bus).
 
         # # #
 
         self.cpu_params = dict(
-            # clock, reset
-            i_clock=ClockSignal(),
-            i_reset=ResetSignal() | self.reset,
+            # Clk / Rst.
+            i_clock = ClockSignal(),
+            i_reset = ResetSignal() | self.reset,
 
-            # debug (ignored)
-            #i_resetctrl_hartIsInReset_0           = 0,
-            i_debug_clock                          = 0,
-            i_debug_reset                          = ResetSignal() | self.reset,
-            #o_debug_clockeddmi_dmi_req_ready      = ,
-            i_debug_clockeddmi_dmi_req_valid       = 0,
-            i_debug_clockeddmi_dmi_req_bits_addr   = 0,
-            i_debug_clockeddmi_dmi_req_bits_data   = 0,
-            i_debug_clockeddmi_dmi_req_bits_op     = 0,
-            i_debug_clockeddmi_dmi_resp_ready      = 0,
-            #o_debug_clockeddmi_dmi_resp_valid     = ,
-            #o_debug_clockeddmi_dmi_resp_bits_data = ,
-            #o_debug_clockeddmi_dmi_resp_bits_resp = ,
-            i_debug_clockeddmi_dmiClock            = 0,
-            i_debug_clockeddmi_dmiReset            = ResetSignal() | self.reset,
-            #o_debug_ndreset                       = ,
-            #o_debug_dmactive                      = ,
-            i_debug_dmactiveAck                    = 0,
+            # Debug (ignored).
+            i_resetctrl_hartIsInReset_0           = Open(),
+            i_debug_clock                         = 0,
+            i_debug_reset                         = ResetSignal() | self.reset,
+            o_debug_clockeddmi_dmi_req_ready      = Open(),
+            i_debug_clockeddmi_dmi_req_valid      = 0,
+            i_debug_clockeddmi_dmi_req_bits_addr  = 0,
+            i_debug_clockeddmi_dmi_req_bits_data  = 0,
+            i_debug_clockeddmi_dmi_req_bits_op    = 0,
+            i_debug_clockeddmi_dmi_resp_ready     = 0,
+            o_debug_clockeddmi_dmi_resp_valid     = Open(),
+            o_debug_clockeddmi_dmi_resp_bits_data = Open(),
+            o_debug_clockeddmi_dmi_resp_bits_resp = Open(),
+            i_debug_clockeddmi_dmiClock           = 0,
+            i_debug_clockeddmi_dmiReset           = ResetSignal() | self.reset,
+            o_debug_ndreset                       = Open(),
+            o_debug_dmactive                      = Open(),
+            i_debug_dmactiveAck                   = 0,
 
-            # irq
-            i_interrupts=self.interrupt,
+            # IRQ.
+            i_interrupts = self.interrupt,
 
-            # axi memory (L1-cached)
+            # AXI Memory (L1-cached).
             i_mem_axi4_0_aw_ready      = mem_axi.aw.ready,
             o_mem_axi4_0_aw_valid      = mem_axi.aw.valid,
             o_mem_axi4_0_aw_bits_id    = mem_axi.aw.id,
@@ -185,7 +196,7 @@ class RocketRV64(CPU):
             i_mem_axi4_0_r_bits_resp   = mem_axi.r.resp,
             i_mem_axi4_0_r_bits_last   = mem_axi.r.last,
 
-            # axi mmio (not cached)
+            # AXI MMIO (not cached).
             i_mmio_axi4_0_aw_ready      = mmio_axi.aw.ready,
             o_mmio_axi4_0_aw_valid      = mmio_axi.aw.valid,
             o_mmio_axi4_0_aw_bits_id    = mmio_axi.aw.id,
@@ -228,7 +239,7 @@ class RocketRV64(CPU):
             i_mmio_axi4_0_r_bits_resp   = mmio_axi.r.resp,
             i_mmio_axi4_0_r_bits_last   = mmio_axi.r.last,
 
-            # axi l2fb (slave, for e.g., DMA)
+            # AXI L2FB (Slave, for e.g., DMA).
             o_l2_frontend_bus_axi4_0_aw_ready      = l2fb_axi.aw.ready,
             i_l2_frontend_bus_axi4_0_aw_valid      = l2fb_axi.aw.valid,
             i_l2_frontend_bus_axi4_0_aw_bits_id    = l2fb_axi.aw.id,
@@ -272,17 +283,16 @@ class RocketRV64(CPU):
             o_l2_frontend_bus_axi4_0_r_bits_last   = l2fb_axi.r.last,
         )
 
-        # adapt axi interfaces to wishbone
-        # NOTE: AXI2Wishbone FSMs must be reset with the CPU!
+        # Adapt AXI interfaces to Wishbone.
         mmio_a2w = ResetInserter()(axi.AXI2Wishbone(mmio_axi, mmio_wb, base_address=0))
-        self.comb += mmio_a2w.reset.eq(ResetSignal() | self.reset)
+        self.comb += mmio_a2w.reset.eq(ResetSignal() | self.reset) # Note: Must be reset with the CPU.
         self.submodules += mmio_a2w
 
         l2fb_a2w = ResetInserter()(axi.Wishbone2AXI(l2fb_wb, l2fb_axi, base_address=0))
-        self.comb += l2fb_a2w.reset.eq(ResetSignal() | self.reset)
+        self.comb += l2fb_a2w.reset.eq(ResetSignal() | self.reset) # Note: Must be reset with the CPU.
         self.submodules += l2fb_a2w
 
-        # add verilog sources
+        # Add Verilog sources.
         self.add_sources(platform, variant)
 
     def set_reset_address(self, reset_address):

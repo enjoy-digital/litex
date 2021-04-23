@@ -13,8 +13,13 @@ from litex import get_data_mod
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 
+class Open(Signal): pass
+
+# Variants -----------------------------------------------------------------------------------------
 
 CPU_VARIANTS = ["standard"]
+
+# GCC Flags ----------------------------------------------------------------------------------------
 
 GCC_FLAGS = {
     #                       /-------- Base ISA
@@ -26,6 +31,8 @@ GCC_FLAGS = {
     #                       imacfd
     "standard": "-march=rv32imc    -mabi=ilp32 ",
 }
+
+# OBI <> Wishbone ----------------------------------------------------------------------------------
 
 obi_layout = [
     ("req",    1),
@@ -88,6 +95,7 @@ class OBI2Wishbone(Module):
             )
         )
 
+# Ibex ---------------------------------------------------------------------------------------------
 
 class Ibex(CPU):
     name                 = "ibex"
@@ -98,8 +106,9 @@ class Ibex(CPU):
     gcc_triple           = CPU_GCC_TRIPLE_RISCV32
     linker_output_format = "elf32-littleriscv"
     nop                  = "nop"
-    io_regions           = {0x80000000: 0x80000000} # origin, length
+    io_regions           = {0x80000000: 0x80000000} # Origin, Length.
 
+    # GCC Flags.
     @property
     def gcc_flags(self):
         flags = GCC_FLAGS[self.variant]
@@ -118,6 +127,7 @@ class Ibex(CPU):
         ibus = Record(obi_layout)
         dbus = Record(obi_layout)
 
+        # OBI <> Wishbone.
         self.submodules.ibus_conv = OBI2Wishbone(ibus, self.ibus)
         self.submodules.dbus_conv = OBI2Wishbone(dbus, self.dbus)
 
@@ -126,18 +136,17 @@ class Ibex(CPU):
             ibus.be.eq(1111),
         ]
 
-        class Open(Signal): pass
         self.cpu_params = dict(
-            # Configuration
+            # Configuration.
             p_RegFile        = 1, # RegFileFPGA
             i_test_en_i      = 0,
             i_hart_id_i      = 0,
 
-            # Clk/Rst
+            # Clk/Rst.
             i_clk_i          = ClockSignal(),
             i_rst_ni         = ~ResetSignal(),
 
-            # Instruction bus
+            # Instruction bus.
             o_instr_req_o    = ibus.req,
             i_instr_gnt_i    = ibus.gnt,
             i_instr_rvalid_i = ibus.rvalid,
@@ -145,7 +154,7 @@ class Ibex(CPU):
             i_instr_rdata_i  = ibus.rdata,
             i_instr_err_i    = 0,
 
-            # Data bus
+            # Data bus.
             o_data_req_o     = dbus.req,
             i_data_gnt_i     = dbus.gnt,
             i_data_rvalid_i  = dbus.rvalid,
@@ -156,24 +165,24 @@ class Ibex(CPU):
             i_data_rdata_i   = dbus.rdata,
             i_data_err_i     = 0,
 
-            # Interrupts
+            # Interrupts.
             i_irq_software_i = 0,
             i_irq_timer_i    = 0,
             i_irq_external_i = 0,
             i_irq_fast_i     = 0,
             i_irq_nm_i       = 0,
 
-            # Debug
+            # Debug.
             i_debug_req_i    = 0,
 
-            # Control/Status
+            # Control/Status.
             i_fetch_enable_i = 1,
             o_alert_minor_o  = Open(),
             o_alert_major_o  = Open(),
             o_core_sleep_o   = Open()
         )
 
-        # Add verilog sources
+        # Add Verilog sources
         self.add_sources(platform)
 
     @staticmethod

@@ -15,6 +15,7 @@ from litex.soc.interconnect import axi
 
 from litex.soc.cores.cpu import CPU
 
+# Zynq 7000 ----------------------------------------------------------------------------------------
 
 class Zynq7000(CPU):
     variants             = ["standard"]
@@ -26,8 +27,9 @@ class Zynq7000(CPU):
     gcc_triple           = "arm-xilinx-eabi"
     linker_output_format = "elf32-littlearm"
     nop                  = "nop"
-    io_regions           = {0x00000000: 0x100000000} # origin, length
+    io_regions           = {0x00000000: 0x100000000} # Origin, Length.
 
+    # Memory Mapping.
     @property
     def mem_map(self):
         return {"csr": 0x00000000}
@@ -35,15 +37,16 @@ class Zynq7000(CPU):
     def __init__(self, platform, variant):
         self.platform       = platform
         self.reset          = Signal()
-        self.periph_buses   = []
-        self.memory_buses   = []
+        self.periph_buses   = [] # Peripheral buses (Connected to main SoC's bus).
+        self.memory_buses   = [] # Memory buses (Connected directly to LiteDRAM).
 
-        self.axi_gp_masters = []
-        self.axi_gp_slaves  = []
-        self.axi_hp_slaves  = []
+        self.axi_gp_masters = [] # General Purpose AXI Masters.
+        self.axi_gp_slaves  = [] # General Purpose AXI Slaves.
+        self.axi_hp_slaves  = [] # High Performance AXI Slaves.
 
         # # #
 
+        # PS7 Clocking.
         self.clock_domains.cd_ps7 = ClockDomain()
 
         # PS7 (Minimal) ----------------------------------------------------------------------------
@@ -52,39 +55,39 @@ class Zynq7000(CPU):
         ps7_rst_n       = Signal()
         ps7_ddram_pads  = platform.request("ps7_ddram")
         self.cpu_params = dict(
-            # Clk/Rst
-            io_PS_CLK            = platform.request("ps7_clk"),
-            io_PS_PORB           = platform.request("ps7_porb"),
-            io_PS_SRSTB          = platform.request("ps7_srstb"),
+            # Clk / Rst.
+            io_PS_CLK   = platform.request("ps7_clk"),
+            io_PS_PORB  = platform.request("ps7_porb"),
+            io_PS_SRSTB = platform.request("ps7_srstb"),
 
-            # MIO
-            io_MIO               = platform.request("ps7_mio"),
+            # MIO.
+            io_MIO = platform.request("ps7_mio"),
 
-            # DDRAM
-            io_DDR_Addr          = ps7_ddram_pads.addr,
-            io_DDR_BankAddr      = ps7_ddram_pads.ba,
-            io_DDR_CAS_n         = ps7_ddram_pads.cas_n,
-            io_DDR_Clk_n         = ps7_ddram_pads.ck_n,
-            io_DDR_Clk           = ps7_ddram_pads.ck_p,
-            io_DDR_CKE           = ps7_ddram_pads.cke,
-            io_DDR_CS_n          = ps7_ddram_pads.cs_n,
-            io_DDR_DM            = ps7_ddram_pads.dm,
-            io_DDR_DQ            = ps7_ddram_pads.dq,
-            io_DDR_DQS_n         = ps7_ddram_pads.dqs_n,
-            io_DDR_DQS           = ps7_ddram_pads.dqs_p,
-            io_DDR_ODT           = ps7_ddram_pads.odt,
-            io_DDR_RAS_n         = ps7_ddram_pads.ras_n,
-            io_DDR_DRSTB         = ps7_ddram_pads.reset_n,
-            io_DDR_WEB           = ps7_ddram_pads.we_n,
-            io_DDR_VRN           = ps7_ddram_pads.vrn,
-            io_DDR_VRP           = ps7_ddram_pads.vrp,
+            # DDRAM.
+            io_DDR_Addr     = ps7_ddram_pads.addr,
+            io_DDR_BankAddr = ps7_ddram_pads.ba,
+            io_DDR_CAS_n    = ps7_ddram_pads.cas_n,
+            io_DDR_Clk_n    = ps7_ddram_pads.ck_n,
+            io_DDR_Clk      = ps7_ddram_pads.ck_p,
+            io_DDR_CKE      = ps7_ddram_pads.cke,
+            io_DDR_CS_n     = ps7_ddram_pads.cs_n,
+            io_DDR_DM       = ps7_ddram_pads.dm,
+            io_DDR_DQ       = ps7_ddram_pads.dq,
+            io_DDR_DQS_n    = ps7_ddram_pads.dqs_n,
+            io_DDR_DQS      = ps7_ddram_pads.dqs_p,
+            io_DDR_ODT      = ps7_ddram_pads.odt,
+            io_DDR_RAS_n    = ps7_ddram_pads.ras_n,
+            io_DDR_DRSTB    = ps7_ddram_pads.reset_n,
+            io_DDR_WEB      = ps7_ddram_pads.we_n,
+            io_DDR_VRN      = ps7_ddram_pads.vrn,
+            io_DDR_VRP      = ps7_ddram_pads.vrp,
 
-            # USB0
+            # USB0.
             i_USB0_VBUS_PWRFAULT = 0,
 
-            # Fabric Clk/Rst
-            o_FCLK_CLK0          = ClockSignal("ps7"),
-            o_FCLK_RESET0_N      = ps7_rst_n
+            # Fabric Clk / Rst.
+            o_FCLK_CLK0     = ClockSignal("ps7"),
+            o_FCLK_RESET0_N = ps7_rst_n
         )
         self.specials += AsyncResetSynchronizer(self.cd_ps7, ~ps7_rst_n)
 
@@ -182,7 +185,7 @@ class Zynq7000(CPU):
             if config is not None:
                 self.add_ps7_config(config)
 
-    # AXI GP Master --------------------------------------------------------------------------------
+    # AXI General Purpose Master -------------------------------------------------------------------
 
     def add_axi_gp_master(self):
         assert len(self.axi_gp_masters) < 2
@@ -190,10 +193,10 @@ class Zynq7000(CPU):
         axi_gpn = axi.AXIInterface(data_width=32, address_width=32, id_width=12)
         self.axi_gp_masters.append(axi_gpn)
         self.cpu_params.update({
-            # AXI GP clk
+            # AXI GP clk.
             f"i_M_AXI_GP{n}_ACLK"    : ClockSignal("ps7"),
 
-            # AXI GP aw
+            # AXI GP aw.
             f"o_M_AXI_GP{n}_AWVALID" : axi_gpn.aw.valid,
             f"i_M_AXI_GP{n}_AWREADY" : axi_gpn.aw.ready,
             f"o_M_AXI_GP{n}_AWADDR"  : axi_gpn.aw.addr,
@@ -206,7 +209,7 @@ class Zynq7000(CPU):
             f"o_M_AXI_GP{n}_AWCACHE" : axi_gpn.aw.cache,
             f"o_M_AXI_GP{n}_AWQOS"   : axi_gpn.aw.qos,
 
-            # AXI GP w
+            # AXI GP w.
             f"o_M_AXI_GP{n}_WVALID"  : axi_gpn.w.valid,
             f"o_M_AXI_GP{n}_WLAST"   : axi_gpn.w.last,
             f"i_M_AXI_GP{n}_WREADY"  : axi_gpn.w.ready,
@@ -214,13 +217,13 @@ class Zynq7000(CPU):
             f"o_M_AXI_GP{n}_WDATA"   : axi_gpn.w.data,
             f"o_M_AXI_GP{n}_WSTRB"   : axi_gpn.w.strb,
 
-            # AXI GP b
+            # AXI GP b.
             f"i_M_AXI_GP{n}_BVALID"  : axi_gpn.b.valid,
             f"o_M_AXI_GP{n}_BREADY"  : axi_gpn.b.ready,
             f"i_M_AXI_GP{n}_BID"     : axi_gpn.b.id,
             f"i_M_AXI_GP{n}_BRESP"   : axi_gpn.b.resp,
 
-            # AXI GP ar
+            # AXI GP ar.
             f"o_M_AXI_GP{n}_ARVALID" : axi_gpn.ar.valid,
             f"i_M_AXI_GP{n}_ARREADY" : axi_gpn.ar.ready,
             f"o_M_AXI_GP{n}_ARADDR"  : axi_gpn.ar.addr,
@@ -233,7 +236,7 @@ class Zynq7000(CPU):
             f"o_M_AXI_GP{n}_ARCACHE" : axi_gpn.ar.cache,
             f"o_M_AXI_GP{n}_ARQOS"   : axi_gpn.ar.qos,
 
-            # AXI GP r
+            # AXI GP r.
             f"i_M_AXI_GP{n}_RVALID"  : axi_gpn.r.valid,
             f"o_M_AXI_GP{n}_RREADY"  : axi_gpn.r.ready,
             f"i_M_AXI_GP{n}_RLAST"   : axi_gpn.r.last,
@@ -243,12 +246,12 @@ class Zynq7000(CPU):
         })
         return axi_gpn
 
-    # AXI GP Slave ---------------------------------------------------------------------------------
+    # AXI General Purpose Slave --------------------------------------------------------------------
 
     def add_axi_gp_slave(self):
         raise NotImplementedError
 
-    # AXI HP Slave ---------------------------------------------------------------------------------
+    # AXI High Performance Slave -------------------------------------------------------------------
 
     def add_axi_hp_slave(self):
         assert len(self.axi_hp_slaves) < 4
@@ -256,10 +259,10 @@ class Zynq7000(CPU):
         axi_hpn = axi.AXIInterface(data_width=64, address_width=32, id_width=6)
         self.axi_hp_slaves.append(axi_hpn)
         self.cpu_params.update({
-            # AXI HP0 clk
+            # AXI HP0 clk.
             f"i_S_AXI_HP{n}_ACLK"    : ClockSignal("ps7"),
 
-            # AXI HP0 aw
+            # AXI HP0 aw.
             f"i_S_AXI_HP{n}_AWVALID" : axi_hpn.aw.valid,
             f"o_S_AXI_HP{n}_AWREADY" : axi_hpn.aw.ready,
             f"i_S_AXI_HP{n}_AWADDR"  : axi_hpn.aw.addr,
@@ -272,7 +275,7 @@ class Zynq7000(CPU):
             f"i_S_AXI_HP{n}_AWCACHE" : axi_hpn.aw.cache,
             f"i_S_AXI_HP{n}_AWQOS"   : axi_hpn.aw.qos,
 
-            # AXI HP0 w
+            # AXI HP0 w.
             f"i_S_AXI_HP{n}_WVALID" : axi_hpn.w.valid,
             f"i_S_AXI_HP{n}_WLAST"  : axi_hpn.w.last,
             f"o_S_AXI_HP{n}_WREADY" : axi_hpn.w.ready,
@@ -280,13 +283,13 @@ class Zynq7000(CPU):
             f"i_S_AXI_HP{n}_WDATA"  : axi_hpn.w.data,
             f"i_S_AXI_HP{n}_WSTRB"  : axi_hpn.w.strb,
 
-            # AXI HP0 b
+            # AXI HP0 b.
             f"o_S_AXI_HP{n}_BVALID" : axi_hpn.b.valid,
             f"i_S_AXI_HP{n}_BREADY" : axi_hpn.b.ready,
             f"o_S_AXI_HP{n}_BID"    : axi_hpn.b.id,
             f"o_S_AXI_HP{n}_BRESP"  : axi_hpn.b.resp,
 
-            # AXI HP0 ar
+            # AXI HP0 ar.
             f"i_S_AXI_HP{n}_ARVALID" : axi_hpn.ar.valid,
             f"o_S_AXI_HP{n}_ARREADY" : axi_hpn.ar.ready,
             f"i_S_AXI_HP{n}_ARADDR"  : axi_hpn.ar.addr,
@@ -299,7 +302,7 @@ class Zynq7000(CPU):
             f"i_S_AXI_HP{n}_ARCACHE" : axi_hpn.ar.cache,
             f"i_S_AXI_HP{n}_ARQOS"   : axi_hpn.ar.qos,
 
-            # AXI HP0 r
+            # AXI HP0 r.
             f"o_S_AXI_HP{n}_RVALID" : axi_hpn.r.valid,
             f"i_S_AXI_HP{n}_RREADY" : axi_hpn.r.ready,
             f"o_S_AXI_HP{n}_RLAST"  : axi_hpn.r.last,

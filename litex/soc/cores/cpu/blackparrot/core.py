@@ -37,12 +37,21 @@ from litex.soc.interconnect import axi
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV64
 
+class Open(Signal): pass
+
+
+# Variants -----------------------------------------------------------------------------------------
+
 CPU_VARIANTS = ["standard", "sim"]
+
+# GCC Flags ----------------------------------------------------------------------------------------
 
 GCC_FLAGS = {
     "standard": "-march=rv64ima -mabi=lp64 ",
     "sim":      "-march=rv64ima -mabi=lp64 ",
 }
+
+# BlackParrotRV64 ----------------------------------------------------------------------------------
 
 class BlackParrotRV64(CPU):
     name                 = "blackparrot"
@@ -53,8 +62,9 @@ class BlackParrotRV64(CPU):
     gcc_triple           = CPU_GCC_TRIPLE_RISCV64
     linker_output_format = "elf64-littleriscv"
     nop                  = "nop"
-    io_regions           = {0x50000000: 0x10000000} # origin, length
+    io_regions           = {0x50000000: 0x10000000} # Origin, Length.
 
+    # Memory Mapping.
     @property
     def mem_map(self):
         return {
@@ -64,6 +74,7 @@ class BlackParrotRV64(CPU):
             "main_ram" : 0x80000000,
         }
 
+    # GCC Flags.
     @property
     def gcc_flags(self):
         flags =  "-mno-save-restore "
@@ -80,16 +91,16 @@ class BlackParrotRV64(CPU):
         self.memory_buses = []
 
         self.cpu_params = dict(
-            # Clock / Reset
+            # Clk / Rst.
             i_clk_i = ClockSignal(),
             i_reset_i = ResetSignal() | self.reset,
 
-            # Wishbone (I/D)
+            # Wishbone (I/D).
             i_wbm_dat_i  = idbus.dat_r,
             o_wbm_dat_o  = idbus.dat_w,
             i_wbm_ack_i  = idbus.ack,
             i_wbm_err_i  = idbus.err,
-            #i_wbm_rty_i = 0,
+            i_wbm_rty_i  = Open(),
             o_wbm_adr_o  = idbus.adr,
             o_wbm_stb_o  = idbus.stb,
             o_wbm_cyc_o  = idbus.cyc,
@@ -99,7 +110,7 @@ class BlackParrotRV64(CPU):
             o_wbm_bte_o  = idbus.bte,
         )
 
-        # Add verilog sources
+        # Add Verilog sources
         try:
             os.environ["BP"]
             os.environ["LITEX"]

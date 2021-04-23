@@ -14,8 +14,11 @@ from litex import get_data_mod
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 
+# Variants -----------------------------------------------------------------------------------------
+
 CPU_VARIANTS = ["standard"]
 
+# Minerva ------------------------------------------------------------------------------------------
 
 class Minerva(CPU):
     name                 = "minerva"
@@ -26,8 +29,9 @@ class Minerva(CPU):
     gcc_triple           = CPU_GCC_TRIPLE_RISCV32
     linker_output_format = "elf32-littleriscv"
     nop                  = "nop"
-    io_regions           = {0x80000000: 0x80000000} # origin, length
+    io_regions           = {0x80000000: 0x80000000} # Origin, Length.
 
+    # GCC Flags.
     @property
     def gcc_flags(self):
         flags =  "-march=rv32im "
@@ -40,53 +44,48 @@ class Minerva(CPU):
         self.variant      = variant
         self.reset        = Signal()
         self.interrupt    = Signal(32)
-        self.ibus         = wishbone.Interface()
-        self.dbus         = wishbone.Interface()
-        self.periph_buses = [self.ibus, self.dbus]
-        self.memory_buses = []
-
-        # TODO: create variants
-        self.with_icache = False
-        self.with_dcache = False
-        self.with_muldiv = True
+        self.ibus         = ibus = wishbone.Interface()
+        self.dbus         = dbus = wishbone.Interface()
+        self.periph_buses = [self.ibus, self.dbus] # Peripheral buses (Connected to main SoC's bus).
+        self.memory_buses = []                     # Memory buses (Connected directly to LiteDRAM).
 
         # # #
 
         self.cpu_params = dict(
-            # clock / reset
-            i_clk=ClockSignal(),
-            i_rst=ResetSignal() | self.reset,
+            # Clk / Rst.
+            i_clk = ClockSignal(),
+            i_rst = ResetSignal() | self.reset,
 
-            # interrupts
+            # IRQ.
             i_timer_interrupt    = 0,
             i_software_interrupt = 0,
             i_external_interrupt = self.interrupt,
 
-            # ibus
-            o_ibus__stb   = self.ibus.stb,
-            o_ibus__cyc   = self.ibus.cyc,
-            o_ibus__cti   = self.ibus.cti,
-            o_ibus__bte   = self.ibus.bte,
-            o_ibus__we    = self.ibus.we,
-            o_ibus__adr   = self.ibus.adr,
-            o_ibus__dat_w = self.ibus.dat_w,
-            o_ibus__sel   = self.ibus.sel,
-            i_ibus__ack   = self.ibus.ack,
-            i_ibus__err   = self.ibus.err,
-            i_ibus__dat_r = self.ibus.dat_r,
+            # Ibus.
+            o_ibus__stb   = ibus.stb,
+            o_ibus__cyc   = ibus.cyc,
+            o_ibus__cti   = ibus.cti,
+            o_ibus__bte   = ibus.bte,
+            o_ibus__we    = ibus.we,
+            o_ibus__adr   = ibus.adr,
+            o_ibus__dat_w = ibus.dat_w,
+            o_ibus__sel   = ibus.sel,
+            i_ibus__ack   = ibus.ack,
+            i_ibus__err   = ibus.err,
+            i_ibus__dat_r = ibus.dat_r,
 
-            # dbus
-            o_dbus__stb   = self.dbus.stb,
-            o_dbus__cyc   = self.dbus.cyc,
-            o_dbus__cti   = self.dbus.cti,
-            o_dbus__bte   = self.dbus.bte,
-            o_dbus__we    = self.dbus.we,
-            o_dbus__adr   = self.dbus.adr,
-            o_dbus__dat_w = self.dbus.dat_w,
-            o_dbus__sel   = self.dbus.sel,
-            i_dbus__ack   = self.dbus.ack,
-            i_dbus__err   = self.dbus.err,
-            i_dbus__dat_r = self.dbus.dat_r,
+            # Dbus.
+            o_dbus__stb   = dbus.stb,
+            o_dbus__cyc   = dbus.cyc,
+            o_dbus__cti   = dbus.cti,
+            o_dbus__bte   = dbus.bte,
+            o_dbus__we    = dbus.we,
+            o_dbus__adr   = dbus.adr,
+            o_dbus__dat_w = dbus.dat_w,
+            o_dbus__sel   = dbus.sel,
+            i_dbus__ack   = dbus.ack,
+            i_dbus__err   = dbus.err,
+            i_dbus__dat_r = dbus.dat_r,
         )
 
     def set_reset_address(self, reset_address):
@@ -115,9 +114,9 @@ class Minerva(CPU):
         verilog_filename = os.path.join(self.platform.output_dir, "gateware", "minerva.v")
         self.elaborate(
             reset_address    = self.reset_address,
-            with_icache      = self.with_icache,
-            with_dcache      = self.with_dcache,
-            with_muldiv      = self.with_muldiv,
+            with_icache      = True,
+            with_dcache      = True,
+            with_muldiv      = True,
             verilog_filename = verilog_filename)
         self.platform.add_source(verilog_filename)
         self.specials += Instance("minerva_cpu", **self.cpu_params)

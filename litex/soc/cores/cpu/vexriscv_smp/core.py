@@ -18,13 +18,16 @@ from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 
 import os
 
+class Open(Signal): pass
+
+# Variants -----------------------------------------------------------------------------------------
 
 CPU_VARIANTS = {
     "standard": "VexRiscv",
     "linux":    "VexRiscv", # Similar to standard.
 }
 
-class Open(Signal): pass
+# VexRiscv SMP -------------------------------------------------------------------------------------
 
 class VexRiscvSMP(CPU):
     name                 = "vexriscv"
@@ -35,8 +38,9 @@ class VexRiscvSMP(CPU):
     gcc_triple           = CPU_GCC_TRIPLE_RISCV32
     linker_output_format = "elf32-littleriscv"
     nop                  = "nop"
-    io_regions           = {0x80000000: 0x80000000} # origin, length
+    io_regions           = {0x80000000: 0x80000000} # Origin, Length.
 
+    # Default parameters.
     cpu_count            = 1
     dcache_size          = 4096
     icache_size          = 4096
@@ -53,6 +57,7 @@ class VexRiscvSMP(CPU):
     cpu_per_fpu          = 4
     with_rvc             = False
 
+    # Command line configuration arguments.
     @staticmethod
     def args_fill(parser):
         parser.add_argument("--cpu-count",                    default=1,           help="Number of CPU(s) in the cluster.", type=int)
@@ -102,7 +107,7 @@ class VexRiscvSMP(CPU):
         if(args.with_rvc):
             VexRiscvSMP.with_rvc     = True
 
-
+    # ABI.
     @staticmethod
     def get_abi():
         abi = "ilp32"
@@ -110,6 +115,7 @@ class VexRiscvSMP(CPU):
             abi +="d"
         return abi
 
+    # Arch.
     @staticmethod
     def get_arch():
         arch = "rv32ima"
@@ -119,6 +125,7 @@ class VexRiscvSMP(CPU):
             arch += "c"
         return arch
 
+    # Memory Mapping.
     @property
     def mem_map(self):
         return {
@@ -130,6 +137,7 @@ class VexRiscvSMP(CPU):
             "plic":     0xf0c00000,
         }
 
+    # GCC Flags.
     @property
     def gcc_flags(self):
         flags =  f" -march={VexRiscvSMP.get_arch()} -mabi={VexRiscvSMP.get_abi()}"
@@ -137,6 +145,7 @@ class VexRiscvSMP(CPU):
         flags += f" -DUART_POLLING"
         return flags
 
+    # Cluster Name Generation.
     @staticmethod
     def generate_cluster_name():
         ldw = f"Ldw{VexRiscvSMP.litedram_width}"
@@ -158,9 +167,10 @@ class VexRiscvSMP(CPU):
         f"{'_Fpu' + str(VexRiscvSMP.cpu_per_fpu)  if VexRiscvSMP.with_fpu else ''}" \
         f"{'_Rvc'  if VexRiscvSMP.with_rvc else ''}"
 
+    # Default Configs Generation.
     @staticmethod
     def generate_default_configs():
-        # Single cores
+        # Single cores.
         for data_width in [16, 32, 64, 128]:
             VexRiscvSMP.litedram_width = data_width
             VexRiscvSMP.icache_width   = 32
@@ -168,23 +178,23 @@ class VexRiscvSMP(CPU):
             VexRiscvSMP.coherent_dma   = False
             VexRiscvSMP.cpu_count      = 1
 
-            # Low cache amount
+            # Low cache amount.
             VexRiscvSMP.dcache_size    = 4096
             VexRiscvSMP.icache_size    = 4096
             VexRiscvSMP.dcache_ways    = 1
             VexRiscvSMP.icache_ways    = 1
 
-            # Without DMA
+            # Without DMA.
             VexRiscvSMP.coherent_dma   = False
             VexRiscvSMP.generate_cluster_name()
             VexRiscvSMP.generate_netlist()
 
-            # With DMA
+            # With DMA.
             VexRiscvSMP.coherent_dma   = True
             VexRiscvSMP.generate_cluster_name()
             VexRiscvSMP.generate_netlist()
 
-            # High cache amount
+            # High cache amount.
             VexRiscvSMP.dcache_size    = 8192
             VexRiscvSMP.icache_size    = 8192
             VexRiscvSMP.dcache_ways    = 2
@@ -192,17 +202,17 @@ class VexRiscvSMP(CPU):
             VexRiscvSMP.icache_width   = 32 if data_width < 64 else 64
             VexRiscvSMP.dcache_width   = 32 if data_width < 64 else 64
 
-            # Without DMA
+            # Without DMA.
             VexRiscvSMP.coherent_dma = False
             VexRiscvSMP.generate_cluster_name()
             VexRiscvSMP.generate_netlist()
 
-            # With DMA
+            # With DMA.
             VexRiscvSMP.coherent_dma = True
             VexRiscvSMP.generate_cluster_name()
             VexRiscvSMP.generate_netlist()
 
-        # Multi cores
+        # Multi cores.
         for core_count in [2,4]:
             VexRiscvSMP.litedram_width = 128
             VexRiscvSMP.icache_width   = 64
@@ -216,6 +226,7 @@ class VexRiscvSMP(CPU):
             VexRiscvSMP.generate_cluster_name()
             VexRiscvSMP.generate_netlist()
 
+    # Netlist Generation.
     @staticmethod
     def generate_netlist():
         print(f"Generating cluster netlist")
@@ -260,40 +271,40 @@ class VexRiscvSMP(CPU):
         self.interrupt        = Signal(32)
         self.pbus             = pbus    = wishbone.Interface()
 
-        self.periph_buses     = [pbus]
-        self.memory_buses     = [] # Added dynamically
+        self.periph_buses     = [pbus] # Peripheral buses (Connected to main SoC's bus).
+        self.memory_buses     = []     # Memory buses (Connected directly to LiteDRAM).
 
         # # #
         self.cpu_params = dict(
-            # Clk / Rst
+            # Clk / Rst.
             i_debugCd_external_clk   = ClockSignal(),
             i_debugCd_external_reset = ResetSignal() | self.reset,
 
-            # Interrupts
-            i_interrupts             = self.interrupt,
+            # Interrupts.
+            i_interrupts = self.interrupt,
 
-            # JTAG
-            i_jtag_clk               = self.jtag_clk,
-            i_debugPort_enable       = self.jtag_enable,
-            i_debugPort_capture      = self.jtag_capture,
-            i_debugPort_shift        = self.jtag_shift,
-            i_debugPort_update       = self.jtag_update,
-            i_debugPort_reset        = self.jtag_reset,
-            i_debugPort_tdi          = self.jtag_tdi,
-            o_debugPort_tdo          = self.jtag_tdo,
+            # JTAG.
+            i_jtag_clk          = self.jtag_clk,
+            i_debugPort_enable  = self.jtag_enable,
+            i_debugPort_capture = self.jtag_capture,
+            i_debugPort_shift   = self.jtag_shift,
+            i_debugPort_update  = self.jtag_update,
+            i_debugPort_reset   = self.jtag_reset,
+            i_debugPort_tdi     = self.jtag_tdi,
+            o_debugPort_tdo     = self.jtag_tdo,
 
-            # Peripheral Bus (Master)
-            o_peripheral_CYC         = pbus.cyc,
-            o_peripheral_STB         = pbus.stb,
-            i_peripheral_ACK         = pbus.ack,
-            o_peripheral_WE          = pbus.we,
-            o_peripheral_ADR         = pbus.adr,
-            i_peripheral_DAT_MISO    = pbus.dat_r,
-            o_peripheral_DAT_MOSI    = pbus.dat_w,
-            o_peripheral_SEL         = pbus.sel,
-            i_peripheral_ERR         = pbus.err,
-            o_peripheral_CTI         = pbus.cti,
-            o_peripheral_BTE         = pbus.bte
+            # Peripheral Bus (Master).
+            o_peripheral_CYC      = pbus.cyc,
+            o_peripheral_STB      = pbus.stb,
+            i_peripheral_ACK      = pbus.ack,
+            o_peripheral_WE       = pbus.we,
+            o_peripheral_ADR      = pbus.adr,
+            i_peripheral_DAT_MISO = pbus.dat_r,
+            o_peripheral_DAT_MOSI = pbus.dat_w,
+            o_peripheral_SEL      = pbus.sel,
+            i_peripheral_ERR      = pbus.err,
+            o_peripheral_CTI      = pbus.cti,
+            o_peripheral_BTE      = pbus.bte
         )
 
         if VexRiscvSMP.coherent_dma:
@@ -301,6 +312,7 @@ class VexRiscvSMP(CPU):
             dma_bus_stall   = Signal()
             dma_bus_inhibit = Signal()
             self.cpu_params.update(
+                # DMA Bus (Slave).
                 i_dma_wishbone_CYC      = dma_bus.cyc,
                 i_dma_wishbone_STB      = dma_bus.stb & ~dma_bus_inhibit,
                 o_dma_wishbone_ACK      = dma_bus.ack,
@@ -388,7 +400,7 @@ class VexRiscvSMP(CPU):
             self.memory_buses.append(ibus)
             self.memory_buses.append(dbus)
             self.cpu_params.update(
-                # Instruction Memory Bus (Master)
+                # Instruction Memory Bus (Master).
                 o_iBridge_dram_cmd_valid          = ibus.cmd.valid,
                 i_iBridge_dram_cmd_ready          = ibus.cmd.ready,
                 o_iBridge_dram_cmd_payload_we     = ibus.cmd.we,
@@ -401,7 +413,7 @@ class VexRiscvSMP(CPU):
                 o_iBridge_dram_rdata_ready        = ibus.rdata.ready,
                 i_iBridge_dram_rdata_payload_data = ibus.rdata.data,
 
-                # Data Memory Bus (Master)
+                # Data Memory Bus (Master).
                 o_dBridge_dram_cmd_valid          = dbus.cmd.valid,
                 i_dBridge_dram_cmd_ready          = dbus.cmd.ready,
                 o_dBridge_dram_cmd_payload_we     = dbus.cmd.we,
@@ -419,6 +431,6 @@ class VexRiscvSMP(CPU):
         assert hasattr(self, "reset_address")
         self.specials += Instance(self.cluster_name, **self.cpu_params)
 
-        # Add verilog sources
+        # Add Verilog sources
         self.add_sources(self.platform)
 

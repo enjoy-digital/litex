@@ -15,8 +15,11 @@ from litex.soc.interconnect import wishbone, stream
 from litex.soc.interconnect.csr import *
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 
+# Variants -----------------------------------------------------------------------------------------
 
 CPU_VARIANTS = ["standard", "full"]
+
+# GCC Flags ----------------------------------------------------------------------------------------
 
 GCC_FLAGS = {
     #                       /-------- Base ISA
@@ -29,6 +32,8 @@ GCC_FLAGS = {
     "standard": "-march=rv32imc    -mabi=ilp32 ",
     "full":     "-march=rv32imfc   -mabi=ilp32 ",
 }
+
+# OBI / APB / Trace Layouts ------------------------------------------------------------------------
 
 obi_layout = [
     ("req",    1),
@@ -64,6 +69,8 @@ trace_layout = [
     ("compressed", 1),
 ]
 
+# Helpers ------------------------------------------------------------------------------------------
+
 def add_manifest_sources(platform, manifest):
     basedir = get_data_mod("cpu", "cv32e40p").data_location
     with open(os.path.join(basedir, manifest), 'r') as f:
@@ -75,6 +82,7 @@ def add_manifest_sources(platform, manifest):
                 else:
                     platform.add_source(os.path.join(basedir, 'rtl', res.group(1)))
 
+# OBI <> Wishbone ----------------------------------------------------------------------------------
 
 class OBI2Wishbone(Module):
     def __init__(self, obi, wb):
@@ -148,6 +156,8 @@ class Wishbone2OBI(Module):
             wb.dat_r.eq(obi.rdata),
         ]
 
+# Wishbone <> APB ----------------------------------------------------------------------------------
+
 class Wishbone2APB(Module):
     def __init__(self, wb, apb):
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
@@ -169,6 +179,8 @@ class Wishbone2APB(Module):
             apb.pwdata.eq(wb.dat_w),
             wb.dat_r.eq(apb.prdata),
         ]
+
+# Trace Collector ----------------------------------------------------------------------------------
 
 class TraceCollector(Module, AutoCSR):
     def __init__(self, trace_depth=16384):
@@ -214,6 +226,8 @@ class TraceCollector(Module, AutoCSR):
             self._pointer.status.eq(pointer),
         ]
 
+# Trace Debugger -----------------------------------------------------------------------------------
+
 class TraceDebugger(Module):
     def __init__(self):
         self.bus      = wishbone.Interface()
@@ -225,11 +239,12 @@ class TraceDebugger(Module):
         self.submodules.bus_conv = Wishbone2APB(self.bus, apb)
 
         self.trace_params = dict(
-            # clk / rst
+            # Clk / Rst.
             i_clk_i               = ClockSignal(),
             i_rst_ni              = ~ResetSignal(),
             i_test_mode_i         = 0,
-            # cpu interface
+
+            # CPU Interface.
             i_ivalid_i            = trace_if.ivalid,
             i_iexception_i        = trace_if.iexception,
             i_interrupt_i         = trace_if.interrupt,
@@ -239,7 +254,8 @@ class TraceDebugger(Module):
             i_iaddr_i             = trace_if.iaddr,
             i_instr_i             = trace_if.instr,
             i_compressed_i        = trace_if.compressed,
-            # apb interface
+
+            # APB Interface.
             i_paddr_i             = apb.paddr,
             i_pwdata_i            = apb.pwdata,
             i_pwrite_i            = apb.pwrite,
@@ -248,7 +264,8 @@ class TraceDebugger(Module):
             o_prdata_o            = apb.prdata,
             o_pready_o            = apb.pready,
             o_pslverr_o           = apb.pslverr,
-            # data output
+
+            # Data Output.
             o_packet_word_o       = source.data,
             o_packet_word_valid_o = source.valid,
             i_grant_i             = source.ready,
@@ -258,6 +275,8 @@ class TraceDebugger(Module):
     @staticmethod
     def add_sources(platform):
         add_manifest_sources(platform, "cv32e40p_trace_manifest.flist")
+
+# Debug Module -------------------------------------------------------------------------------------
 
 class DebugModule(Module):
     jtag_layout = [
@@ -289,18 +308,21 @@ class DebugModule(Module):
         self.specials += Tristate(pads.tdo, tdo_o, tdo_oe, tdo_i)
 
         self.dm_params = dict(
+            # Clk / Rst.
             i_clk       = ClockSignal(),
             i_rst_n     = ~ResetSignal(),
             o_ndmreset  = self.ndmreset,
             o_debug_req = self.debug_req,
-            # slave bus
+
+            # Slave Bus.
             i_dm_req    = dmbus.req,
             i_dm_we     = dmbus.we,
             i_dm_addr   = dmbus.addr,
             i_dm_be     = dmbus.be,
             i_dm_wdata  = dmbus.wdata,
             o_dm_rdata  = dmbus.rdata,
-            # master bus
+
+            # Master Bus.
             o_sb_req    = sbbus.req,
             o_sb_addr   = sbbus.addr,
             o_sb_we     = sbbus.we,
@@ -309,7 +331,8 @@ class DebugModule(Module):
             i_sb_gnt    = sbbus.gnt,
             i_sb_rvalid = sbbus.rvalid,
             i_sb_rdata  = sbbus.rdata,
-            # jtag
+
+            # JTAG.
             i_tck       = pads.tck,
             i_tms       = pads.tms,
             i_trst_n    = pads.trst,
@@ -329,6 +352,7 @@ class DebugModule(Module):
     def add_sources(platform):
         add_manifest_sources(platform, "cv32e40p_dm_manifest.flist")
 
+# CV32E40P -----------------------------------------------------------------------------------------
 
 class CV32E40P(CPU):
     name                 = "cv32e40p"
@@ -339,15 +363,15 @@ class CV32E40P(CPU):
     gcc_triple           = CPU_GCC_TRIPLE_RISCV32
     linker_output_format = "elf32-littleriscv"
     nop                  = "nop"
-    io_regions           = {0x80000000: 0x80000000} # origin, length
+    io_regions           = {0x80000000: 0x80000000} # Origin, Length.
 
     has_fpu              = ["full"]
 
+    # GCC Flags.
     @property
     def gcc_flags(self):
         flags = GCC_FLAGS[self.variant]
         flags += "-D__cv32e40p__ "
-
         return flags
 
     def __init__(self, platform, variant="standard"):
@@ -363,6 +387,7 @@ class CV32E40P(CPU):
         ibus = Record(obi_layout)
         dbus = Record(obi_layout)
 
+        # OBI <> Wishbone.
         self.submodules.ibus_conv = OBI2Wishbone(ibus, self.ibus)
         self.submodules.dbus_conv = OBI2Wishbone(dbus, self.dbus)
 
@@ -372,20 +397,25 @@ class CV32E40P(CPU):
         ]
 
         self.cpu_params = dict(
+            # Clk / Rst.
             i_clk_i              = ClockSignal(),
             i_rst_ni             = ~ResetSignal(),
+
+            # Controls.
             i_clock_en_i         = 1,
             i_test_en_i          = 0,
             i_fregfile_disable_i = 0,
             i_core_id_i          = 0,
             i_cluster_id_i       = 0,
-            # ibus
+
+            # IBus.
             o_instr_req_o        = ibus.req,
             i_instr_gnt_i        = ibus.gnt,
             i_instr_rvalid_i     = ibus.rvalid,
             o_instr_addr_o       = ibus.addr,
             i_instr_rdata_i      = ibus.rdata,
-            # dbus
+
+            # DBus.
             o_data_req_o         = dbus.req,
             i_data_gnt_i         = dbus.gnt,
             i_data_rvalid_i      = dbus.rvalid,
@@ -394,25 +424,30 @@ class CV32E40P(CPU):
             o_data_addr_o        = dbus.addr,
             o_data_wdata_o       = dbus.wdata,
             i_data_rdata_i       = dbus.rdata,
-            # apu
+
+            # APU.
             i_apu_master_gnt_i   = 0,
             i_apu_master_valid_i = 0,
-            # ir q
+
+            # IRQ.
             i_irq_sec_i          = 0,
             i_irq_software_i     = 0,
             i_irq_external_i     = 0,
             i_irq_fast_i         = self.interrupt,
             i_irq_nmi_i          = 0,
             i_irq_fastx_i        = 0,
-            # debug
+
+            # Debug.
             i_debug_req_i        = 0,
-            # cpu control
+
+            # CPU Control.
             i_fetch_enable_i     = 1,
         )
 
-        # add verilog sources
+        # Add Verilog sources.
         add_manifest_sources(platform, 'cv32e40p_manifest.flist')
 
+        # Specific FPU variant parameters/files.
         if variant in self.has_fpu:
             self.cpu_params.update(p_FPU=1)
             add_manifest_sources(platform, 'cv32e40p_fpu_manifest.flist')

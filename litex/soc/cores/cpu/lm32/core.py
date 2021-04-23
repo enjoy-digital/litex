@@ -16,8 +16,11 @@ from litex import get_data_mod
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU
 
+# Variants -----------------------------------------------------------------------------------------
+
 CPU_VARIANTS = ["minimal", "lite", "standard"]
 
+# LM32 ---------------------------------------------------------------------------------------------
 
 class LM32(CPU):
     name                 = "lm32"
@@ -30,6 +33,7 @@ class LM32(CPU):
     nop                  = "nop"
     io_regions           = {0x80000000: 0x80000000} # origin, length
 
+    # GCC Flags.
     @property
     def gcc_flags(self):
         flags =  "-mbarrel-shift-enabled "
@@ -43,55 +47,52 @@ class LM32(CPU):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
-        self.ibus         = i = wishbone.Interface()
-        self.dbus         = d = wishbone.Interface()
+        self.ibus         = ibus = wishbone.Interface()
+        self.dbus         = dbus = wishbone.Interface()
         self.interrupt    = Signal(32)
-        self.periph_buses = [i, d]
-        self.memory_buses = []
+        self.periph_buses = [ibus, dbus] # Peripheral buses (Connected to main SoC's bus).
+        self.memory_buses = []           # Memory buses (Connected directly to LiteDRAM).
 
         # # #
 
-        i_adr_o = Signal(32)
-        d_adr_o = Signal(32)
         self.cpu_params = dict(
-            i_clk_i=ClockSignal(),
-            i_rst_i=ResetSignal() | self.reset,
+            # Clk / Rst.
+            i_clk_i = ClockSignal(),
+            i_rst_i = ResetSignal() | self.reset,
 
+            # IRQ.
             i_interrupt=self.interrupt,
 
-            o_I_ADR_O = i_adr_o,
-            o_I_DAT_O = i.dat_w,
-            o_I_SEL_O = i.sel,
-            o_I_CYC_O = i.cyc,
-            o_I_STB_O = i.stb,
-            o_I_WE_O  = i.we,
-            o_I_CTI_O = i.cti,
-            o_I_BTE_O = i.bte,
-            i_I_DAT_I = i.dat_r,
-            i_I_ACK_I = i.ack,
-            i_I_ERR_I = i.err,
+            # IBus.
+            o_I_ADR_O = Cat(Signal(2), ibus.adr),
+            o_I_DAT_O = ibus.dat_w,
+            o_I_SEL_O = ibus.sel,
+            o_I_CYC_O = ibus.cyc,
+            o_I_STB_O = ibus.stb,
+            o_I_WE_O  = ibus.we,
+            o_I_CTI_O = ibus.cti,
+            o_I_BTE_O = ibus.bte,
+            i_I_DAT_I = ibus.dat_r,
+            i_I_ACK_I = ibus.ack,
+            i_I_ERR_I = ibus.err,
             i_I_RTY_I = 0,
 
-            o_D_ADR_O = d_adr_o,
-            o_D_DAT_O = d.dat_w,
-            o_D_SEL_O = d.sel,
-            o_D_CYC_O = d.cyc,
-            o_D_STB_O = d.stb,
-            o_D_WE_O  = d.we,
-            o_D_CTI_O = d.cti,
-            o_D_BTE_O = d.bte,
-            i_D_DAT_I = d.dat_r,
-            i_D_ACK_I = d.ack,
-            i_D_ERR_I = d.err,
+            # DBus.
+            o_D_ADR_O = Cat(Signal(2), dbus.adr),
+            o_D_DAT_O = dbus.dat_w,
+            o_D_SEL_O = dbus.sel,
+            o_D_CYC_O = dbus.cyc,
+            o_D_STB_O = dbus.stb,
+            o_D_WE_O  = dbus.we,
+            o_D_CTI_O = dbus.cti,
+            o_D_BTE_O = dbus.bte,
+            i_D_DAT_I = dbus.dat_r,
+            i_D_ACK_I = dbus.ack,
+            i_D_ERR_I = dbus.err,
             i_D_RTY_I = 0,
         )
 
-        self.comb += [
-            self.ibus.adr.eq(i_adr_o[2:]),
-            self.dbus.adr.eq(d_adr_o[2:])
-        ]
-
-        # add verilog sources
+        # Add Verilog sources.
         self.add_sources(platform, variant)
 
     def set_reset_address(self, reset_address):
