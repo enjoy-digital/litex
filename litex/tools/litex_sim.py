@@ -407,7 +407,7 @@ def main():
 
     # Configuration --------------------------------------------------------------------------------
 
-    cpu = CPUS[soc_kwargs.get("cpu_type", "vexriscv")]
+    cpu = CPUS.get(soc_kwargs.get("cpu_type", "vexriscv"))
     if soc_kwargs["uart_name"] == "serial":
         soc_kwargs["uart_name"] = "sim"
         sim_config.add_module("serial2console", "serial")
