@@ -487,9 +487,13 @@ static void netboot_from_bin(const char * filename, unsigned int ip, unsigned sh
 	boot(0, 0, 0, MAIN_RAM_BASE);
 }
 
-void netboot(void)
+void netboot(int nb_params, char **params)
 {
 	unsigned int ip;
+	char * filename = NULL;
+
+	if (nb_params > 0 )
+		filename = params[0];
 
 	printf("Booting from network...\n");
 
@@ -499,13 +503,18 @@ void netboot(void)
 	ip = IPTOINT(remote_ip[0], remote_ip[1], remote_ip[2], remote_ip[3]);
 	udp_start(macadr, IPTOINT(local_ip[0], local_ip[1], local_ip[2], local_ip[3]));
 
-	/* Boot from boot.json */
-	printf("Booting from boot.json...\n");
-	netboot_from_json("boot.json", ip, TFTP_SERVER_PORT);
+	if (filename) {
+		printf("Booting from %s (JSON)...\n", filename);
+		netboot_from_json(filename, ip, TFTP_SERVER_PORT);
+	} else {
+		/* Boot from boot.json */
+		printf("Booting from boot.json...\n");
+		netboot_from_json("boot.json", ip, TFTP_SERVER_PORT);
 
-	/* Boot from boot.bin */
-	printf("Booting from boot.bin...\n");
-	netboot_from_bin("boot.bin", ip, TFTP_SERVER_PORT);
+		/* Boot from boot.bin */
+		printf("Booting from boot.bin...\n");
+		netboot_from_bin("boot.bin", ip, TFTP_SERVER_PORT);
+	}
 
 	/* Boot failed if we are here... */
 	printf("Network boot failed.\n");

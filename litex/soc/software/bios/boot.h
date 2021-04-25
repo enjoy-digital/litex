@@ -7,7 +7,7 @@ void set_mac_addr(const char * mac_address);
 
 void __attribute__((noreturn)) boot(unsigned long r1, unsigned long r2, unsigned long r3, unsigned long addr);
 int serialboot(void);
-void netboot(void);
+void netboot(int nb_params, char **params);
 void flashboot(void);
 void romboot(void);
 void sdcardboot(void);

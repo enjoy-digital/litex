@@ -69,7 +69,7 @@ static void boot_sequence(void)
 #ifdef CSR_ETHPHY_MODE_DETECTION_MODE_ADDR
 	eth_mode();
 #endif
-	netboot();
+	netboot(0, NULL);
 #endif
 	printf("No boot medium found\n");
 }
