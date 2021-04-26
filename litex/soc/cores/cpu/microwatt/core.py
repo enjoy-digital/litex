@@ -39,9 +39,10 @@ class Microwatt(CPU):
     @property
     def mem_map(self):
         return {
-            "csr":      0xc0000000,
-            "xicsicp":  0xc3ff0000,
-            "xicsics":  0xc3ff1000
+            # Keep the lower 128MBs for SoC IOs auto-allocation.
+            "csr":      0xc8000000,
+            "xicsicp":  0xcbff0000,
+            "xicsics":  0xcbff1000,
         }
 
     # GCC Flags.
