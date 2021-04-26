@@ -196,7 +196,7 @@ class LatticeNXAsyncResetSynchronizer:
 class LatticeNXSDRInputImpl(Module):
     def __init__(self, i, o, clk):
         self.specials += Instance("IFD1P3BX",
-            i_SCLK = clk,
+            i_CK = clk,
             i_PD   = 0,
             i_SP   = 1,
             i_D    = i,
@@ -213,7 +213,7 @@ class LatticeNXSDRInput:
 class LatticeNXSDROutputImpl(Module):
     def __init__(self, i, o, clk):
         self.specials += Instance("OFD1P3BX",
-            i_SCLK = clk,
+            i_CK = clk,
             i_PD   = 0,
             i_SP   = 1,
             i_D    = i,
