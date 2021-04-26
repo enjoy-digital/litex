@@ -153,11 +153,6 @@ def get_sdram_phy_settings(memtype, data_width, clk_freq):
 # Simulation SoC -----------------------------------------------------------------------------------
 
 class SimSoC(SoCCore):
-    mem_map = {
-        "ethmac": 0xb0000000,
-    }
-    mem_map.update(SoCCore.mem_map)
-
     def __init__(self,
         with_sdram            = False,
         with_ethernet         = False,
@@ -234,7 +229,7 @@ class SimSoC(SoCCore):
                 hw_mac     = etherbone_mac_address)
 
             # SoftCPU
-            self.add_memory_region("ethmac", self.mem_map["ethmac"], 0x2000, type="io")
+            self.add_memory_region("ethmac", self.mem_map.get("ethmac", None), 0x2000, type="io")
             self.add_wb_slave(self.mem_regions["ethmac"].origin, self.ethmac.bus, 0x2000)
             if self.irq.enabled:
                 self.irq.add("ethmac", use_loc_if_exists=True)
@@ -258,7 +253,7 @@ class SimSoC(SoCCore):
             if with_etherbone:
                 ethmac = ClockDomainsRenamer({"eth_tx": "ethphy_eth_tx", "eth_rx":  "ethphy_eth_rx"})(ethmac)
             self.submodules.ethmac = ethmac
-            self.add_memory_region("ethmac", self.mem_map["ethmac"], 0x2000, type="io")
+            self.add_memory_region("ethmac", self.mem_map.get("ethmac", None), 0x2000, type="io")
             self.add_wb_slave(self.mem_regions["ethmac"].origin, self.ethmac.bus, 0x2000)
             if self.irq.enabled:
                 self.irq.add("ethmac", use_loc_if_exists=True)
