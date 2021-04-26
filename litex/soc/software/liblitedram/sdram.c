@@ -877,12 +877,6 @@ static void sdram_leveling_center_module(
 		delay_max = delay;
 	}
 
-	/* Extend the range if it wraps around */
-	if (delay_min_next > 0) {
-		delay_min = delay_min_next;
-		delay_max += SDRAM_PHY_DELAYS;
-	}
-
 	if (show_long)
 		printf("| ");
 
