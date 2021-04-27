@@ -131,7 +131,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
     opensbi_size = d["memories"]["opensbi"]["size"])
         if "video_framebuffer" in d["csr_bases"]:
             dts += """
-            framebuffer@f0000000 {{
+            framebuffer@{framebuffer_base:x} {{
                 reg = <0x{framebuffer_base:x} 0x{framebuffer_size:x}>;
             }};
 """.format(
@@ -393,7 +393,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
         framebuffer_width  = d["constants"]["video_framebuffer_hres"]
         framebuffer_height = d["constants"]["video_framebuffer_vres"]
         dts += """
-            framebuffer0: framebuffer@f0000000 {{
+            framebuffer0: framebuffer@{framebuffer_base:x} {{
                 compatible = "simple-framebuffer";
                 reg = <0x{framebuffer_base:x} 0x{framebuffer_size:x}>;
                 width = <{framebuffer_width}>;
