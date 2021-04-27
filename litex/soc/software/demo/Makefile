@@ -18,7 +18,7 @@ all: demo.bin
 	chmod -x $@
 
 demo.elf: $(OBJECTS)
-	$(LD) $(LDFLAGS) \
+	$(CC) $(LDFLAGS) \
 		-T linker.ld \
 		-N -o $@ \
 		$(BUILD_DIR)/software/libbase/crt0.o \
