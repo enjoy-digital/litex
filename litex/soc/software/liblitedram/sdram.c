@@ -1075,22 +1075,16 @@ static void sdram_read_leveling_best_bitslip(int module)
 
 static void sdram_write_dq_dqs_training(void)
 {
-	/* In the first iteration read leveling and DQ-DQS training may not be done optimally */
-	const int n_iter = 2;
 	int i;
-	int show;
 	int module;
 
-	for (i = 0; i < n_iter; ++i) {
-		show = i == n_iter - 1;
-		for(module=0; module<SDRAM_PHY_MODULES; module++) {
-			/* Find best bitslip */
-			sdram_read_leveling_best_bitslip(module);
-			/* Center DQ-DQS window */
-			sdram_leveling_center_module(module, show, show,
-				sdram_write_dq_dqs_training_rst_delay, sdram_write_dq_dqs_training_inc_delay);
-		}
-	}
+    for(module=0; module<SDRAM_PHY_MODULES; module++) {
+        /* Find best bitslip */
+        sdram_read_leveling_best_bitslip(module);
+        /* Center DQ-DQS window */
+        sdram_leveling_center_module(module, 1, 1,
+            sdram_write_dq_dqs_training_rst_delay, sdram_write_dq_dqs_training_inc_delay);
+    }
 }
 
 #endif /* SDRAM_PHY_WRITE_DQ_DQS_TRAINING_CAPABLE */
