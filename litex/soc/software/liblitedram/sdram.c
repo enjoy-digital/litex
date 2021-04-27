@@ -1075,7 +1075,6 @@ static void sdram_read_leveling_best_bitslip(int module)
 
 static void sdram_write_dq_dqs_training(void)
 {
-	int i;
 	int module;
 
     for(module=0; module<SDRAM_PHY_MODULES; module++) {
