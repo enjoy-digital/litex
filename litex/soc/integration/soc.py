@@ -1367,7 +1367,7 @@ class LiteXSoC(SoC):
                 base_address = self.bus.regions["main_ram"].origin)
 
     # Add Ethernet ---------------------------------------------------------------------------------
-    def add_ethernet(self, name="ethmac", phy=None, phy_cd="eth", dynamic_ip=False, software_debug=False,
+    def add_ethernet(self, name="ethmac", phy=None, phy_cd="eth", dynamic_ip=False, with_dhcp=False, software_debug=False,
         nrxslots       = 2,
         ntxslots       = 2,
         with_timestamp = False):
@@ -1412,6 +1412,11 @@ class LiteXSoC(SoC):
         # Dynamic IP (if enabled).
         if dynamic_ip:
             self.add_constant("ETH_DYNAMIC_IP")
+
+        # Use DHCP to assigne IP address.
+        if with_dhcp:
+            assert(dynamic_ip)
+            self.add_constant("ETH_WITH_DHCP")
 
         # Software Debug
         if software_debug:
