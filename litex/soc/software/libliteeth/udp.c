@@ -241,6 +241,13 @@ int udp_arp_resolve(unsigned int ip)
 			if(cached_mac[i]) return 1;
 	}
 	cached_ip = ip;
+        /* Omit ARP request while Broadcasting */
+        if(cached_ip == IPTOINT(255,255,255,255)){
+                for(i=0;i<6;i++)
+                        cached_mac[i] = broadcast[i];
+		return 1;
+	}
+
 	for(i=0;i<6;i++)
 		cached_mac[i] = 0;
 
@@ -377,7 +384,8 @@ static void process_ip(void)
 	// check disabled for QEMU compatibility
 	//if(ntohs(rxbuffer->frame.contents.udp.ip.fragment_offset) != IP_DONT_FRAGMENT) return;
 	if(udp_ip->ip.proto != IP_PROTO_UDP) return;
-	if(ntohl(udp_ip->ip.dst_ip) != my_ip) return;
+	// Check isn't neeeded when we use DHCP client(my_ip = 0.0.0.0)
+	if((ntohl(udp_ip->ip.dst_ip) != my_ip) && my_ip != 0) return;
 	if(ntohs(udp_ip->udp.length) < sizeof(struct udp_header)) return;
 
 	if(rx_callback)
