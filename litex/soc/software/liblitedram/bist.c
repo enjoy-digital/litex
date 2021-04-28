@@ -10,7 +10,7 @@
 #include <time.h>
 #include <console.h>
 
-#include "bist.h"
+#include <liblitedram/bist.h>
 
 #define SDRAM_TEST_BASE 0x00000000
 #define SDRAM_TEST_DATA_BYTES (CSR_SDRAM_DFII_PI0_RDDATA_SIZE*4)

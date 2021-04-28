@@ -22,7 +22,7 @@
 #include <generated/mem.h>
 #include <system.h>
 
-#include "sdram.h"
+#include <liblitedram/sdram.h>
 
 //#define SDRAM_TEST_DISABLE
 //#define SDRAM_WRITE_LEVELING_CMD_DELAY_DEBUG
