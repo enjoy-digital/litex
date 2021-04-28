@@ -552,10 +552,10 @@ static void sdram_write_leveling_find_cmd_delay(unsigned int *best_error, unsign
 			error *= -1;
 
 		if (delay_count >= *best_count) {
-			*best_count = delay_count;
 			if (error < *best_error) {
-				*best_cdly = cdly;
+				*best_cdly  = cdly;
 				*best_error = error;
+				*best_count = delay_count;
 			}
 		}
 #ifdef SDRAM_WRITE_LEVELING_CMD_DELAY_DEBUG
