@@ -1673,7 +1673,7 @@ class LiteXSoC(SoC):
 
         # Video Timing Generator.
         self.check_if_exists(f"{name}_vtg")
-        vtg = VideoTimingGenerator(default_video_timings=timings)
+        vtg = VideoTimingGenerator(default_video_timings=timings if isinstance(timings, str) else timings[1])
         vtg = ClockDomainsRenamer(clock_domain)(vtg)
         setattr(self.submodules, f"{name}_vtg", vtg)
 
@@ -1695,11 +1695,12 @@ class LiteXSoC(SoC):
 
         # Video Timing Generator.
         self.check_if_exists(f"{name}_vtg")
-        vtg = VideoTimingGenerator(default_video_timings=timings)
+        vtg = VideoTimingGenerator(default_video_timings=timings if isinstance(timings, str) else timings[1])
         vtg = ClockDomainsRenamer(clock_domain)(vtg)
         setattr(self.submodules, f"{name}_vtg", vtg)
 
         # Video Terminal.
+        timings = timings if isinstance(timings, str) else timings[0]
         vt = VideoTerminal(
             hres = int(timings.split("@")[0].split("x")[0]),
             vres = int(timings.split("@")[0].split("x")[1]),
@@ -1728,11 +1729,12 @@ class LiteXSoC(SoC):
         from litex.soc.cores.video import VideoTimingGenerator, VideoFrameBuffer
 
         # Video Timing Generator.
-        vtg = VideoTimingGenerator(default_video_timings=timings)
+        vtg = VideoTimingGenerator(default_video_timings=timings if isinstance(timings, str) else timings[1])
         vtg = ClockDomainsRenamer(clock_domain)(vtg)
         setattr(self.submodules, f"{name}_vtg", vtg)
 
         # Video FrameBuffer.
+        timings = timings if isinstance(timings, str) else timings[0]
         base = self.mem_map.get(name, 0x40c00000)
         hres = int(timings.split("@")[0].split("x")[0])
         vres = int(timings.split("@")[0].split("x")[1])
