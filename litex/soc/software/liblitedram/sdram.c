@@ -254,6 +254,7 @@ void sdram_mode_register_write(char reg, int value) {
 /* Write Leveling                                                        */
 /*-----------------------------------------------------------------------*/
 
+int _sdram_tck_taps;
 int _sdram_write_leveling_bitslips[16];
 
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
@@ -392,7 +393,7 @@ static int sdram_write_leveling_scan(int *delays, int loops, int show)
 
 	int ok;
 
-	err_ddrphy_wdly = SDRAM_PHY_DELAYS - ddrphy_half_sys8x_taps_read();
+	err_ddrphy_wdly = SDRAM_PHY_DELAYS - _sdram_tck_taps/4;
 
 	sdram_write_leveling_on();
 	cdelay(100);
@@ -537,7 +538,7 @@ static void sdram_write_leveling_find_cmd_delay(unsigned int *best_error, unsign
 		int delay_count = 0;
 		for (int i=0; i < SDRAM_PHY_MODULES; ++i) {
 			if (delays[i] != -1) {
-				delay_mean  += delays[i] + ddrphy_half_sys8x_taps_read();
+				delay_mean  += delays[i] + _sdram_tck_taps/4;
 				delay_count += 1;
 			}
 		}
@@ -545,7 +546,7 @@ static void sdram_write_leveling_find_cmd_delay(unsigned int *best_error, unsign
 			delay_mean /= delay_count;
 
 		/* We want the higher number of valid modules and delay to be centered */
-		int ideal_delay = (SDRAM_PHY_DELAYS - ddrphy_half_sys8x_taps_read())/2;
+		int ideal_delay = (SDRAM_PHY_DELAYS - _sdram_tck_taps/4)/2;
 		int error = ideal_delay - delay_mean;
 		if (error < 0)
 			error *= -1;
@@ -575,7 +576,8 @@ int sdram_write_leveling(void)
 	int cdly_range_end;
 	int cdly_range_step;
 
-	printf("  tCK/4 taps: %d\n", ddrphy_half_sys8x_taps_read());
+	_sdram_tck_taps = ddrphy_half_sys8x_taps_read()*4;
+	printf("  tCK equivalent taps: %d\n", _sdram_tck_taps);
 
 	if (_sdram_write_leveling_cmd_scan) {
 		/* Center write leveling by varying cdly. Searching through all possible
@@ -588,7 +590,7 @@ int sdram_write_leveling(void)
 		if (_sdram_write_leveling_cdly_range_end != -1)
 			cdly_range_end = _sdram_write_leveling_cdly_range_end;
 		else
-			cdly_range_end = 2*ddrphy_half_sys8x_taps_read(); /* Limit Clk/Cmd scan to 1/2 tCK */
+			cdly_range_end = _sdram_tck_taps/2; /* Limit Clk/Cmd scan to 1/2 tCK */
 
 		printf("  Cmd/Clk scan (%d-%d)\n", cdly_range_start, cdly_range_end);
 		if (SDRAM_PHY_DELAYS > 32)
