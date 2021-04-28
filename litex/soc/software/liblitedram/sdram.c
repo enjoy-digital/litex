@@ -811,7 +811,7 @@ static void sdram_leveling_center_module(
 	int show;
 	int working;
 	int delay, delay_mid, delay_range;
-	int delay_min = -1, delay_min_next = -1, delay_max = -1;
+	int delay_min = -1, delay_max = -1;
 
 	if (show_long)
 		printf("m%d: |", module);
@@ -861,12 +861,6 @@ static void sdram_leveling_center_module(
 			printf(working ? "1" : "0");
 		if(!working && delay_max < 0) {
 			delay_max = delay;
-		}
-		/* Store next working delay to include wrapping around */
-		if (!working) {
-			delay_min_next = -1;
-		} else if(working && delay_min_next < 0) {
-			delay_min_next = delay;
 		}
 		delay++;
 		if(delay >= SDRAM_PHY_DELAYS)
@@ -1077,13 +1071,13 @@ static void sdram_write_dq_dqs_training(void)
 {
 	int module;
 
-    for(module=0; module<SDRAM_PHY_MODULES; module++) {
-        /* Find best bitslip */
-        sdram_read_leveling_best_bitslip(module);
-        /* Center DQ-DQS window */
-        sdram_leveling_center_module(module, 1, 1,
-            sdram_write_dq_dqs_training_rst_delay, sdram_write_dq_dqs_training_inc_delay);
-    }
+	for(module=0; module<SDRAM_PHY_MODULES; module++) {
+		/* Find best bitslip */
+		sdram_read_leveling_best_bitslip(module);
+		/* Center DQ-DQS window */
+		sdram_leveling_center_module(module, 1, 1,
+			sdram_write_dq_dqs_training_rst_delay, sdram_write_dq_dqs_training_inc_delay);
+	}
 }
 
 #endif /* SDRAM_PHY_WRITE_DQ_DQS_TRAINING_CAPABLE */
