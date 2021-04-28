@@ -512,10 +512,10 @@ static void sdram_write_leveling_rst_delay(int module) {
 	/* Select module */
 	ddrphy_dly_sel_write(1 << module);
 
-#if defined(SDRAM_PHY_USDDRPHY) || defined(SDRAM_PHY_USPDDRPHY)
 	/* Reset DQ delay */
 	ddrphy_wdly_dq_rst_write(1);
 
+#if defined(SDRAM_PHY_USDDRPHY) || defined(SDRAM_PHY_USPDDRPHY)
 	/* Reset DQS delay */
 	while (ddrphy_wdly_dqs_inc_count_read() != 0) {
 		ddrphy_wdly_dqs_inc_write(1);
@@ -1029,8 +1029,21 @@ static void sdram_write_latency_calibration(void) {
 static void sdram_write_dq_dqs_training_rst_delay(int module) {
 	/* Select module */
 	ddrphy_dly_sel_write(1 << module);
-	/* Reset delay */
+
+#if defined(SDRAM_PHY_USDDRPHY) || defined(SDRAM_PHY_USPDDRPHY)
+	/* Reset DQ delay */
+	int dq_count = ddrphy_wdly_dqs_inc_count_read();
+	while (dq_count != SDRAM_PHY_DELAYS) {
+		ddrphy_wdly_dq_inc_write(1);
+		cdelay(100);
+		dq_count++;
+	}
+#else
+	/* Reset DQ delay */
 	ddrphy_wdly_dq_rst_write(1);
+	cdelay(100);
+#endif
+
 	/* Un-select module */
 	ddrphy_dly_sel_write(0);
 }
@@ -1040,6 +1053,7 @@ static void sdram_write_dq_dqs_training_inc_delay(int module) {
 	ddrphy_dly_sel_write(1 << module);
 	/* Increment delay */
 	ddrphy_wdly_dq_inc_write(1);
+	cdelay(100);
 	/* Un-select module */
 	ddrphy_dly_sel_write(0);
 }
