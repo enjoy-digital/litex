@@ -1070,12 +1070,17 @@ class SoC(Module):
                     continue
                 if hasattr(self, name):
                     module = getattr(self, name)
-                    if not hasattr(module, "ev"):
+                    ev = None
+                    if hasattr(module, "ev"):
+                        ev = module.ev
+                    elif isinstance(module, EventManager):
+                        ev = module
+                    else:
                         self.logger.error("EventManager {} in {} SubModule.".format(
                             colorer("not found", color="red"),
                             colorer(name)))
                         raise
-                    self.comb += self.cpu.interrupt[loc].eq(module.ev.irq)
+                    self.comb += self.cpu.interrupt[loc].eq(ev.irq)
                 self.add_constant(name + "_INTERRUPT", loc)
 
         # SoC Infos --------------------------------------------------------------------------------
@@ -1558,6 +1563,8 @@ class LiteXSoC(SoC):
             self.sdirq.mem2block_dma.trigger.eq(self.sdmem2block.irq),
             self.sdirq.cmd_done.trigger.eq(self.sdcore.cmd_event.fields.done)
         ]
+        if self.irq.enabled:
+            self.irq.add("sdirq", use_loc_if_exists=True)
 
         # Debug.
         if software_debug:
