@@ -667,6 +667,10 @@ class VideoVGAPHY(Module):
         # Always ack Sink, no backpressure.
         self.comb += sink.ready.eq(1)
 
+        # Drive VGA Clk (Optional).
+        if hasattr(pads, "clk"):
+            self.comb += pads.clk.eq(ClockSignal(clock_domain))
+
         # Drive VGA Conrols.
         self.specials += SDROutput(i=~sink.hsync, o=pads.hsync_n, clk=ClockSignal(clock_domain))
         self.specials += SDROutput(i=~sink.vsync, o=pads.vsync_n, clk=ClockSignal(clock_domain))
