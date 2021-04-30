@@ -182,14 +182,13 @@ class SPISlave(Module):
         self.pads       = pads
         self.data_width = data_width
 
-        self.start    = Signal()
-        self.length   = Signal(8)
-        self.done     = Signal()
-        self.irq      = Signal()
-        self.mosi     = Signal(data_width)
-        self.miso     = Signal(data_width)
-        self.cs       = Signal()
-        self.loopback = Signal()
+        self.start    = Signal()            # o, Signal a start of SPI Xfer.
+        self.length   = Signal(8)           # o, Signal the length of the SPI Xfer (in bits).
+        self.done     = Signal()            # o, Signal that SPI Xfer is done/inactive.
+        self.irq      = Signal()            # o, Signal the end of a SPI Xfer.
+        self.mosi     = Signal(data_width)  # i, Data to send on SPI MOSI.
+        self.miso     = Signal(data_width)  # o, Data received on SPI MISO.
+        self.loopback = Signal()            # i, Loopback enable.
 
         # # #
 
@@ -200,14 +199,14 @@ class SPISlave(Module):
 
         # IOs <--> Internal (input resynchronization) ----------------------------------------------
         self.specials += [
-            MultiReg(pads.clk, clk),
-            MultiReg(~pads.cs_n, cs),
-            MultiReg(pads.mosi, mosi),
+            MultiReg(pads.clk,    clk),
+            MultiReg(~pads.cs_n,   cs),
+            MultiReg(pads.mosi,  mosi),
         ]
         self.comb += pads.miso.eq(miso)
 
         # Clock detection --------------------------------------------------------------------------
-        clk_d = Signal()
+        clk_d    = Signal()
         clk_rise = Signal()
         clk_fall = Signal()
         self.sync += clk_d.eq(clk)
@@ -235,21 +234,24 @@ class SPISlave(Module):
 
         # Master In Slave Out (MISO) generation (generated on spi_clk falling edge) ----------------
         miso_data = Signal(data_width)
-        self.sync += \
+        self.sync += [
             If(self.start,
                 miso_data.eq(self.miso)
             ).Elif(cs & clk_fall,
                 miso_data.eq(Cat(Signal(), miso_data[:-1]))
             )
-        self.comb += \
+        ]
+        self.comb += [
             If(self.loopback,
                 miso.eq(mosi)
             ).Else(
                 miso.eq(miso_data[-1]),
             )
+        ]
 
         # Master Out Slave In (MOSI) capture (captured on spi_clk rising edge) ---------------------
-        self.sync += \
+        self.sync += [
             If(cs & clk_rise,
                 self.mosi.eq(Cat(mosi, self.mosi[:-1]))
             )
+        ]
