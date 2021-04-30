@@ -66,12 +66,12 @@ class GW1NPLL(Module):
                     if (vco_freq >= vco_freq_min*(1 + self.vco_margin) and
                         vco_freq <= vco_freq_max*(1 - self.vco_margin)):
                             for _n, (clk, f, p, _m) in sorted(self.clkouts.items()):
-                            if abs(out_freq - f) <= f*_m:
-                                config["clk{}_freq".format(_n)] = out_freq
-                                config["vco"]  = vco_freq
-                                config["fdiv"] = fdiv
-                                compute_config_log(self.logger, config)
-                                return config
+                                if abs(out_freq - f) <= f*_m:
+                                    config["clk{}_freq".format(_n)] = out_freq
+                                    config["vco"]  = vco_freq
+                                    config["fdiv"] = fdiv
+                                    compute_config_log(self.logger, config)
+                                    return config
         raise ValueError("No PLL config found")
 
     def do_finalize(self):
