@@ -121,12 +121,13 @@ def _build_pdc(named_sc, named_pc, clocks, vns, build_name):
 def _build_tcl(device, sources, vincpaths, build_name, pdc_file, synth_mode):
     tcl = []
     # Create project
+    syn = "lse" if synth_mode == "lse" else "synplify"
     tcl.append(" ".join([
         "prj_create",
         "-name \"{}\"".format(build_name),
         "-impl \"impl\"",
         "-dev {}".format(device),
-        "-synthesis \"synplify\""
+        "-synthesis \"" + syn + "\""
     ]))
 
     def tcl_path(path): return path.replace("\\", "/")
