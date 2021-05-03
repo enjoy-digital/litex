@@ -1,3 +1,75 @@
+[> 2021.04, released on May 3th 2021
+------------------------------------
+
+	[> Issues resolved
+	------------------
+	- litex_term:         Fix Windows/OS-X support.
+	- soc/USB-ACM:        Fix reset clock domain.
+	- litex_json2dts:     Various fixes/improvements.
+	- cores/clock:        Fix US(P)IDELAYCTRL reset sequence.
+	- cpu/Vexriscv:       Fix Lite variant ABI (has multiplier so can use rv32im).
+	- BIOS:               Fix various compiler warnings.
+	- LiteSDCard:         Fix various issues, enable multiblock reads/writes and improve performance.
+	- CSR:                Fix address wrapping within a CSRBank.
+	- soc/add_etherbone:  Fix UDPIPCore clock domain.
+	- stream/Gearbox:     Fix some un-supported cases.
+	- cpu/VexRiscv-SMP:   Fix build on Intel/Altera devices with specific RAM implementation.
+	- timer:              Fix AutoDoc.
+	- Microwatt/Ethernet: Fix build.
+	- soc/software:       Link with compiler instead of ld.
+
+	[> Added Features
+	-----------------
+	- Lattice-NX:             Allow up to 320KB RAMs.
+	- BIOS:                   Allow compilation with UART disabled.
+	- litex_json2dts:         Simplify/Improve and allow VexRiscv/Mor1kx support.
+	- BIOS/i2c:               Improve cmd_i2c.
+	- BIOS/liblitedram:       Various improvements for DDR4/LPDDR.
+	- cores/Timer:            Add initial unit test.
+	- cores:                  Add initial JTAGBone support on Xilinx FPGAs.
+	- litex_term:             Improve JTAG-UART support.
+	- litex_server:           Add JTAGBone support.
+	- VexRiscv-SMP:           Add --without-out-of-order and --with-wishbone-memory capabilities.
+	- BIOS:                   Allow specify TRIPLE with LITEX_ENV_CC_TRIPLE.
+	- litex_client:           Add simple --read/--write support.
+	- OpenFPGALoader:         Add flash method.
+	- litex_sim:              Add GTKWave savefile generator.
+	- litex_term:             Add nios2-terminal support.
+	- cpu/mor1kx:             Add initial SMP support.
+	- interconnect/axi:       Add tkeep support.
+	- cores/gpio:             Add IRQ support to GPIOIn.
+	- cpu:                    Add initial lowRISC's Ibex support.
+	- build/xilinx/Vivado:    Allow tcl script to be added as ip.
+	- cores/uart:             Rewrite PHYs to reduce resource usage and improve readability.
+	- cores/pwm:              Add configurable default enable/width/period values.
+	- cores/leds:             Add optional dimming (through PWM).
+	- soc/add_pcie:           Allow disabling MSI when not required.
+	- export/svd:             Add constants to SVD export.
+	- BIOS:                   Allow dynamic Ethernet IP address.
+	- BIOS:                   Add boot command to boot from memory.
+	- cores:                  Add simple VideoOut core with Terminal, ColorBards, Framebuffer + various PHYs (VGA, DVI, HDMI, etc...).
+	- csr/EventSourceProcess: Add rising edge support and edge selection.
+	- soc/integration:        Cleanup/Simplify soc_core/builder.
+	- soc/integrated_rom:     Add automatic BIOS ROM resize to minimize blockram usage and improve flexibility.
+	- interconnect/axi:       Add AXILite Clock Domain Crossing.
+	- cores/xadc:             Add Ultrascale support.
+	- soc/add_ethernet:       Allow nrxslots/ntxslots configuration.
+	- cpu/VexRiscv-SMP:       Integrate FPU/RVC support.
+	- soc/add_csr:            Add auto-allocation mode and switch to it in LiteX's code base.
+	- soc/BIOS:               Add method to check BIOS requirements during the build and improve error message when not satisfied.
+	- LiteEth:                Add initial timestamping support.
+	- litex_client:           Add optional filter to --regs.
+	- LiteDRAM:               Add LPDDR4 support.
+	- BIOS/netboot:           Allow specifying .json file.
+	- cores/clock:            Add initial Gowin GW1N PLL support.
+	- LiteSDCard:             Add IRQ support.
+
+	[> API changes/Deprecation
+	--------------------------
+	- platforms/targets: Move all platforms/targets to https://github.com/litex-hub/litex-boards.
+	- litex_term:        Remove flashing capability.
+	- cores/uart:        Disable dynamic baudrate by default (Unused and save resources).
+
 [> 2020.12, released on December 30th 2020
 ------------------------------------------
 
