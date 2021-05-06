@@ -858,7 +858,8 @@ class VideoS7HDMIPHY(Module):
 
 
 class VideoS7GTPHDMIPHY(Module):
-    def __init__(self, pads, sys_clk_freq, clock_domain="sys"):
+    def __init__(self, pads, sys_clk_freq, clock_domain="sys", clk_freq=148.5e6, refclk=None):
+        assert sys_clk_freq >= clk_freq
         self.sink = sink = stream.Endpoint(video_data_layout)
 
         # # #
@@ -874,7 +875,20 @@ class VideoS7GTPHDMIPHY(Module):
         self.specials += Instance("OBUFDS", i_I=pads_clk, o_O=pads.clk_p, o_OB=pads.clk_n)
 
         # GTP Quad PLL.
-        self.submodules.pll = pll = GTPQuadPLL(ClockSignal(clock_domain), 148.5e6, 1.485e9) # FIXME: 1080P60, allow other Video timings.
+        if refclk is None:
+            # No RefClk provided, use the Video Clk as GTP RefClk.
+            refclk = ClockSignal(clock_domain)
+        elif isinstance(refclk, Record):
+            # Differential RefCLk provided, add an IBUFDS_GTE2.
+            refclk_se = Signal()
+            self.specials += Instance("IBUFDS_GTE2",
+                i_CEB = 0,
+                i_I   = refclk.p,
+                i_IB  = refclk.n,
+                o_O   = refclk_se
+            )
+            refclk = refclk_se
+        self.submodules.pll = pll = GTPQuadPLL(refclk, clk_freq, 1.485e9)
 
         # Encode/Serialize Datas.
         for color in ["r", "g", "b"]:
