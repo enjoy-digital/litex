@@ -559,17 +559,23 @@ class S7I2S(Module, AutoCSR, AutoDoc):
             self.submodules.txi2s = txi2s = FSM(reset_state="IDLE")
             txi2s.act("IDLE",
                 If(self.tx_ctl.fields.enable,
-                    If(falling_edge & (~sync_pin if frame_format == I2S_FORMAT.I2S_STANDARD else sync_pin),
+                    If(rising_edge & (~sync_pin if frame_format == I2S_FORMAT.I2S_STANDARD else sync_pin),
                         NextState("WAIT_SYNC"),
                     )
                 )
             ),
             txi2s.act("WAIT_SYNC",
-                If(falling_edge & (~sync_pin if frame_format == I2S_FORMAT.I2S_STANDARD else sync_pin),
-                    NextState("LEFT"),
+                If(rising_edge & (~sync_pin if frame_format == I2S_FORMAT.I2S_STANDARD else sync_pin),
+                    NextState("LEFT_FALL"),
                     NextValue(tx_cnt, sample_width),
                     NextValue(tx_buf, Cat(tx_rd_d, offset)),
                     tx_rden.eq(1),
+                )
+            )
+            # sync should be sampled on rising edge, but data should change on falling edge
+            txi2s.act("LEFT_FALL",
+                If(falling_edge,
+                    NextState("LEFT")
                 )
             )
             txi2s.act("LEFT",
@@ -587,7 +593,7 @@ class S7I2S(Module, AutoCSR, AutoDoc):
                     If(~self.tx_ctl.fields.enable,
                         NextState("IDLE")
                     ).Else(
-                        If(falling_edge,
+                        If(rising_edge,
                             If((tx_cnt == 0),
                                 If((sync_pin if frame_format == I2S_FORMAT.I2S_STANDARD else ~sync_pin),
                                     NextValue(tx_cnt, sample_width),
@@ -596,7 +602,7 @@ class S7I2S(Module, AutoCSR, AutoDoc):
                                     NextState("LEFT_WAIT"),
                                 )
                             ).Elif(tx_cnt > 0,
-                                NextState("LEFT"),
+                                NextState("LEFT_FALL"),
                             )
                         )
                     )
@@ -606,23 +612,28 @@ class S7I2S(Module, AutoCSR, AutoDoc):
                     If(~self.tx_ctl.fields.enable,
                         NextState("IDLE")
                     ).Else(
-                        If(falling_edge,
+                        If(rising_edge,
                             If((tx_cnt == 0),
                                 If((sync_pin if frame_format == I2S_FORMAT.I2S_STANDARD else ~sync_pin),
                                     NextValue(tx_cnt, sample_width),
-                                    NextState("RIGHT"),
+                                    NextState("RIGHT_FALL"),
                                     NextValue(tx_buf, Cat(tx_rd_d,offset)),
                                     tx_rden.eq(1),
                                 ).Else(
                                     NextState("LEFT_WAIT"),
                                 )
                             ).Elif(tx_cnt > 0,
-                                NextState("LEFT"),
+                                NextState("LEFT_FALL"),
                             )
                         )
                     )
                 )
-
+            # sync should be sampled on rising edge, but data should change on falling edge
+            txi2s.act("RIGHT_FALL",
+                If(falling_edge,
+                    NextState("RIGHT")
+                )
+            )
             txi2s.act("RIGHT",
                 If(~self.tx_ctl.fields.enable,
                     NextState("IDLE")
@@ -637,14 +648,14 @@ class S7I2S(Module, AutoCSR, AutoDoc):
                 If(~self.tx_ctl.fields.enable,
                     NextState("IDLE")
                 ).Else(
-                    If(falling_edge,
+                    If(rising_edge,
                         If((tx_cnt == 0) & (~sync_pin if frame_format == I2S_FORMAT.I2S_STANDARD else sync_pin),
                             NextValue(tx_cnt, sample_width),
-                            NextState("LEFT"),
+                            NextState("LEFT_FALL"),
                             NextValue(tx_buf, Cat(tx_rd_d,offset)),
                             tx_rden.eq(1)
                         ).Elif(tx_cnt > 0,
-                            NextState("RIGHT")
+                            NextState("RIGHT_FALL")
                         )
                     )
                 )
