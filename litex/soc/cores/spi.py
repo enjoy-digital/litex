@@ -35,7 +35,7 @@ class SPIMaster(Module, AutoCSR):
         self.irq         = Signal()
         self.mosi        = Signal(data_width)
         self.miso        = Signal(data_width)
-        self.cs          = Signal(len(pads.cs_n), reset=1)
+        self.cs          = Signal(len(pads.cs_n))
         self.loopback    = Signal()
         self.clk_divider = Signal(16, reset=math.ceil(sys_clk_freq/spi_clk_freq))
 
@@ -45,7 +45,7 @@ class SPIMaster(Module, AutoCSR):
         # # #
 
         clk_enable = Signal()
-        cs_enable  = Signal()
+        mosi_enable  = Signal()
         count      = Signal(max=data_width)
         mosi_latch = Signal()
         miso_latch = Signal()
@@ -79,13 +79,13 @@ class SPIMaster(Module, AutoCSR):
         fsm.act("START",
             NextValue(count, 0),
             If(clk_fall,
-                cs_enable.eq(1),
+                mosi_enable.eq(1),
                 NextState("RUN")
             )
         )
         fsm.act("RUN",
             clk_enable.eq(1),
-            cs_enable.eq(1),
+            mosi_enable.eq(1),
             If(clk_fall,
                 NextValue(count, count + 1),
                 If(count == (self.length - 1),
@@ -94,7 +94,7 @@ class SPIMaster(Module, AutoCSR):
             )
         )
         fsm.act("STOP",
-            cs_enable.eq(1),
+            mosi_enable.eq(1),
             If(clk_rise,
                 miso_latch.eq(1),
                 self.irq.eq(1),
@@ -105,7 +105,7 @@ class SPIMaster(Module, AutoCSR):
         # Chip Select generation -------------------------------------------------------------------
         if hasattr(pads, "cs_n"):
             for i in range(len(pads.cs_n)):
-                self.sync += pads.cs_n[i].eq(~self.cs[i] | ~cs_enable)
+                self.sync += pads.cs_n[i].eq(~self.cs[i])
 
         # Master Out Slave In (MOSI) generation (generated on spi_clk falling edge) ----------------
         mosi_data  = Signal(data_width)
@@ -116,7 +116,7 @@ class SPIMaster(Module, AutoCSR):
                 mosi_data.eq(self.mosi),
                 mosi_sel.eq((self.length-1) if mode == "aligned" else (data_width-1)),
             ).Elif(clk_fall,
-                If(cs_enable, pads.mosi.eq(mosi_array[mosi_sel])),
+                If(mosi_enable, pads.mosi.eq(mosi_array[mosi_sel])),
                 mosi_sel.eq(mosi_sel - 1)
             ),
         ]
@@ -154,7 +154,7 @@ class SPIMaster(Module, AutoCSR):
         ]
         if with_cs:
             self._cs       = CSRStorage(fields=[
-                CSRField("sel", len(self.cs), reset=1, description="Write ``1`` to corresponding bit to enable Xfer for chip.")
+                CSRField("sel", len(self.cs), reset=0, description="Write ``1`` to corresponding bit to enable Xfer for chip.")
             ], description="SPI Chip Select.")
             self.comb += self.cs.eq(self._cs.storage)
         if with_loopback:
