@@ -193,3 +193,13 @@ static void eth_mac_addr_handler(int nb_params, char **params)
 }
 define_command(eth_mac_addr, eth_mac_addr_handler, "Set the mac address", LITEETH_CMDS);
 #endif
+
+/**
+ * Command "eth_dhcp"
+ *
+ * Get ip address from DHCP server.
+ *
+ */
+#ifdef ETH_WITH_DHCP
+define_command(eth_dhcp, dhcp_get_ip, "Use DHCP to get ip address", LITEETH_CMDS);
+#endif

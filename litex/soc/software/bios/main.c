@@ -69,6 +69,10 @@ static void boot_sequence(void)
 #ifdef CSR_ETHPHY_MODE_DETECTION_MODE_ADDR
 	eth_mode();
 #endif
+#ifdef ETH_WITH_DHCP
+	dhcp_get_ip();
+	printf("\n");
+#endif
 	netboot(0, NULL);
 #endif
 	printf("No boot medium found\n");
