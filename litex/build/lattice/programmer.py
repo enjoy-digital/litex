@@ -71,6 +71,17 @@ class IceStormProgrammer(GenericProgrammer):
     def load_bitstream(self, bitstream_file):
         self.call(["iceprog", "-S", bitstream_file])
 
+# IceSugarProgrammer -------------------------------------------------------------------------------
+
+class IceSugarProgrammer(GenericProgrammer):
+    needs_bitreverse = False
+
+    def flash(self, address, bitstream_file):
+        self.call(["icesprog", "-o", str(address), bitstream_file])
+
+    def load_bitstream(self, bitstream_file):
+        self.call(["icesprog", bitstream_file])
+
 # IceBurnProgrammer --------------------------------------------------------------------------------
 
 class IceBurnProgrammer(GenericProgrammer):
