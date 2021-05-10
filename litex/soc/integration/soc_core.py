@@ -70,6 +70,8 @@ class SoCCore(LiteXSoC):
         cpu_reset_address        = None,
         cpu_variant              = None,
         cpu_cls                  = None,
+        # CFU parameters
+        cfu_filename             = None,
         # ROM parameters
         integrated_rom_size      = 0,
         integrated_rom_mode      = "r",
@@ -190,6 +192,11 @@ class SoCCore(LiteXSoC):
             if timer_uptime:
                 self.timer0.add_uptime()
 
+        # Add CFU
+        if cfu_filename:
+            assert(cpu_type == "vexriscv")
+            self.cpu.add_cfu(cfu_filename=cfu_filename)
+
     # Methods --------------------------------------------------------------------------------------
 
     def add_interrupt(self, interrupt_name, interrupt_id=None, use_loc_if_exists=False):
@@ -301,6 +308,9 @@ def soc_core_args(parser):
 
     # L2 Cache
     parser.add_argument("--l2-size",           default=8192, type=auto_int, help="L2 cache size (default=8192).")
+
+    # CFU
+    parser.add_argument("--cfu-filename",      default=None,                help="CFU verilog filename.")
 
 def soc_core_argdict(args):
     r = dict()

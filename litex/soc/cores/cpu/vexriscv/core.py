@@ -31,7 +31,9 @@ CPU_VARIANTS = {
     "imac":             "VexRiscv_IMAC",
     "imac+debug":       "VexRiscv_IMACDebug",
     "full":             "VexRiscv_Full",
+    "full+cfu":         "VexRiscv_FullCfu",
     "full+debug":       "VexRiscv_FullDebug",
+    "full+cfu+debug":   "VexRiscv_FullCfuDebug",
     "linux":            "VexRiscv_Linux",
     "linux+debug":      "VexRiscv_LinuxDebug",
     "linux+no-dsp":     "VexRiscv_LinuxNoDspFmax",
@@ -58,7 +60,9 @@ GCC_FLAGS = {
     "imac":             "-march=rv32imac   -mabi=ilp32",
     "imac+debug":       "-march=rv32imac   -mabi=ilp32",
     "full":             "-march=rv32im     -mabi=ilp32",
+    "full+cfu":         "-march=rv32im     -mabi=ilp32",
     "full+debug":       "-march=rv32im     -mabi=ilp32",
+    "full+cfu+debug":   "-march=rv32im     -mabi=ilp32",
     "linux":            "-march=rv32ima    -mabi=ilp32",
     "linux+debug":      "-march=rv32ima    -mabi=ilp32",
     "linux+no-dsp":     "-march=rv32ima    -mabi=ilp32",
@@ -277,6 +281,59 @@ class VexRiscv(CPU, AutoCSR):
     def use_external_variant(self, variant_filename):
         self.external_variant = True
         self.platform.add_source(variant_filename)
+
+    def add_cfu(self, cfu_filename):
+        cfu_bus_layout = [
+            ("cmd", [
+                ("valid", 1),
+                ("ready", 1),
+                ("payload", [
+                    ("function_id", 10),
+                    ("inputs_0", 32),
+                    ("inputs_1", 32),
+                ]),
+            ]),
+            ("rsp", [
+                ("valid", 1),
+                ("ready", 1),
+                ("payload", [
+                    ("response_ok", 1),
+                    ("outputs_0", 32),
+                ]),
+            ]),
+        ]
+
+        # CFU Bus.
+        self.cfu_bus = cfu_bus = Record(cfu_bus_layout)
+
+        # Add CFU.
+        self.specials += Instance("Cfu",
+            i_cmd_valid                = cfu_bus.cmd.valid,
+            o_cmd_ready                = cfu_bus.cmd.ready,
+            i_cmd_payload_function_id  = cfu_bus.cmd.payload.function_id,
+            i_cmd_payload_inputs_0     = cfu_bus.cmd.payload.inputs_0,
+            i_cmd_payload_inputs_1     = cfu_bus.cmd.payload.inputs_1,
+            o_rsp_valid                = cfu_bus.rsp.valid,
+            i_rsp_ready                = cfu_bus.rsp.ready,
+            o_rsp_payload_response_ok  = cfu_bus.rsp.payload.response_ok,
+            o_rsp_payload_outputs_0    = cfu_bus.rsp.payload.outputs_0,
+            i_clk                      = ClockSignal(),
+            i_reset                    = ResetSignal(),
+        )
+        self.platform.add_source(cfu_filename)
+
+        # Connect CFU to CPU.
+        self.cpu_params.update(
+            o_CfuPlugin_bus_cmd_valid                = cfu_bus.cmd.valid,
+            i_CfuPlugin_bus_cmd_ready                = cfu_bus.cmd.ready,
+            o_CfuPlugin_bus_cmd_payload_function_id  = cfu_bus.cmd.payload.function_id,
+            o_CfuPlugin_bus_cmd_payload_inputs_0     = cfu_bus.cmd.payload.inputs_0,
+            o_CfuPlugin_bus_cmd_payload_inputs_1     = cfu_bus.cmd.payload.inputs_1,
+            i_CfuPlugin_bus_rsp_valid                = cfu_bus.rsp.valid,
+            o_CfuPlugin_bus_rsp_ready                = cfu_bus.rsp.ready,
+            i_CfuPlugin_bus_rsp_payload_response_ok  = cfu_bus.rsp.payload.response_ok,
+            i_CfuPlugin_bus_rsp_payload_outputs_0    = cfu_bus.rsp.payload.outputs_0,
+        )
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
