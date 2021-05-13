@@ -424,7 +424,7 @@ int skip_atoi(const char **s)
 	return i;
 }
 
-char *number(char *buf, char *end, unsigned long num, int base, int size, int precision, int type)
+char *number(char *buf, char *end, unsigned long long num, int base, int size, int precision, int type)
 {
 	char c,sign,tmp[66];
 	const char *digits;

@@ -57,7 +57,7 @@ static inline int atoi(const char *nptr) {
 static inline long atol(const char *nptr) {
 	return (long)atoi(nptr);
 }
-char *number(char *buf, char *end, unsigned long num, int base, int size, int precision, int type);
+char *number(char *buf, char *end, unsigned long long num, int base, int size, int precision, int type);
 
 #define   RAND_MAX        2147483647
 
