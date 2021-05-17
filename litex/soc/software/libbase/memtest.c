@@ -15,6 +15,10 @@
 #ifndef MEMTEST_DEBUG_MAX_ERRORS
 #define MEMTEST_DEBUG_MAX_ERRORS 400
 #endif
+// Retry reading when an error occurs. Allows to spot if errors happen during read or write.
+#ifndef MEMTEST_DATA_RETRIES
+#define MEMTEST_DATA_RETRIES 0
+#endif
 
 #define KIB 1024
 #define MIB (KIB*1024)
@@ -184,6 +188,7 @@ int memtest_data(unsigned int *addr, unsigned long size, int random, struct memt
 {
 	volatile unsigned int *array = addr;
 	int i, errors;
+	int j, ok_at;
 	int progress;
 	unsigned int seed_32;
 	unsigned int rdata;
@@ -212,7 +217,18 @@ int memtest_data(unsigned int *addr, unsigned long size, int random, struct memt
 	seed_32 = 1;
 	for(i=0; i<size/4; i++) {
 		seed_32 = seed_to_data_32(seed_32, random);
-		rdata = array[i];
+
+		ok_at = -1;
+		for (j = 0; j < MEMTEST_DATA_RETRIES + 1; ++j) {
+			rdata = array[i];
+			if (rdata == seed_32) {
+				ok_at = j;
+				break;
+			}
+		}
+		if (ok_at > 0)
+			printf("@%p: Redeemed at %d. attempt\n", addr + i, ok_at + 1);
+
 		if(rdata != seed_32) {
 			errors++;
 			if (config != NULL && config->on_error != NULL) {
