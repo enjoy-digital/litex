@@ -71,6 +71,7 @@ class SoCCore(LiteXSoC):
         cpu_reset_address        = None,
         cpu_variant              = None,
         cpu_cls                  = None,
+        cpu_cfu                  = None,
 
         # CFU parameters
         cfu_filename             = None,
@@ -186,8 +187,9 @@ class SoCCore(LiteXSoC):
         self.add_cpu(
             name          = str(cpu_type),
             variant       = "standard" if cpu_variant is None else cpu_variant,
+            reset_address = None if integrated_rom_size else cpu_reset_address,
             cls           = cpu_cls,
-            reset_address = None if integrated_rom_size else cpu_reset_address)
+            cfu           = cpu_cfu)
 
         # Add User's interrupts
         if self.irq.enabled:
@@ -219,11 +221,6 @@ class SoCCore(LiteXSoC):
             self.add_timer(name="timer0")
             if timer_uptime:
                 self.timer0.add_uptime()
-
-        # Add CFU
-        if cfu_filename:
-            assert(cpu_type == "vexriscv")
-            self.cpu.add_cfu(cfu_filename=cfu_filename)
 
     # Methods --------------------------------------------------------------------------------------
 
@@ -300,6 +297,7 @@ def soc_core_args(parser):
     parser.add_argument("--cpu-type",          default=None,                     help="Select CPU: {}, (default=vexriscv).".format(", ".join(iter(cpu.CPUS.keys()))))
     parser.add_argument("--cpu-variant",       default=None,                     help="CPU variant (default=standard).")
     parser.add_argument("--cpu-reset-address", default=None,      type=auto_int, help="CPU reset address (default=None : Boot from Integrated ROM).")
+    parser.add_argument("--cpu-cfu",           default=None,                     help="Optional CPU CFU file/instance to add to the CPU.")
 
     # Controller parameters
     parser.add_argument("--no-ctrl", action="store_true", help="Disable Controller (default=False).")
@@ -336,9 +334,6 @@ def soc_core_args(parser):
 
     # L2 Cache
     parser.add_argument("--l2-size",           default=8192, type=auto_int, help="L2 cache size (default=8192).")
-
-    # CFU
-    parser.add_argument("--cfu-filename",      default=None,                help="CFU verilog filename.")
 
 def soc_core_argdict(args):
     r = dict()

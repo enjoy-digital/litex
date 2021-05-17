@@ -7,7 +7,7 @@
 
 	[> Added Features
 	-----------------
-	-
+	- cpu/vexriscv: Add CFU support.
 
 	[> API changes/Deprecation
 	--------------------------

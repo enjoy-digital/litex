@@ -101,7 +101,7 @@ class VexRiscv(CPU, AutoCSR):
     gcc_triple           = CPU_GCC_TRIPLE_RISCV32
     linker_output_format = "elf32-littleriscv"
     nop                  = "nop"
-    io_regions           = {0x80000000: 0x80000000} # origin, length
+    io_regions           = {0x80000000: 0x80000000} # Origin, Length
 
     # Memory Mapping.
     @property
@@ -121,7 +121,7 @@ class VexRiscv(CPU, AutoCSR):
         flags += " -D__vexriscv__"
         return flags
 
-    def __init__(self, platform, variant="standard", with_timer=False):
+    def __init__(self, platform, variant="standard", with_timer=False, cfu=None):
         self.platform         = platform
         self.variant          = variant
         self.human_name       = CPU_VARIANTS.get(variant, "VexRiscv")
@@ -173,6 +173,9 @@ class VexRiscv(CPU, AutoCSR):
 
         if "debug" in variant:
             self.add_debug()
+
+        if "cfu" in variant:
+            self.add_cfu(cfu_filename="Cfu.v" if cfu is None else cfu)
 
     def set_reset_address(self, reset_address):
         assert not hasattr(self, "reset_address")
@@ -268,6 +271,10 @@ class VexRiscv(CPU, AutoCSR):
         )
 
     def add_cfu(self, cfu_filename):
+        # Check CFU presence.
+        if not os.path.exists(cfu_filename):
+            raise OSError(f"Unable to find VexRiscv CFU plugin {cfu_filename}.")
+
         # CFU Layout.
         cfu_bus_layout = [
             ("cmd", [
