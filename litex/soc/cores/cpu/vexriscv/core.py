@@ -174,6 +174,15 @@ class VexRiscv(CPU, AutoCSR):
         if "debug" in variant:
             self.add_debug()
 
+    def set_reset_address(self, reset_address):
+        assert not hasattr(self, "reset_address")
+        self.reset_address = reset_address
+        self.cpu_params.update(i_externalResetVector=Signal(32, reset=reset_address))
+
+    def add_timer(self):
+        self.submodules.timer = VexRiscvTimer()
+        self.cpu_params.update(i_timerInterrupt=self.timer.interrupt)
+
     def add_debug(self):
         debug_reset = Signal()
 
@@ -258,31 +267,8 @@ class VexRiscv(CPU, AutoCSR):
             o_debug_resetOut                = self.o_resetOut
         )
 
-    def set_reset_address(self, reset_address):
-        assert not hasattr(self, "reset_address")
-        self.reset_address = reset_address
-        self.cpu_params.update(i_externalResetVector=Signal(32, reset=reset_address))
-
-    def add_timer(self):
-        self.submodules.timer = VexRiscvTimer()
-        self.cpu_params.update(i_timerInterrupt=self.timer.interrupt)
-
-    @staticmethod
-    def add_sources(platform, variant="standard"):
-        cpu_filename = CPU_VARIANTS[variant] + ".v"
-        vdir = get_data_mod("cpu", "vexriscv").data_location
-        platform.add_source(os.path.join(vdir, cpu_filename))
-
-    def add_soc_components(self, soc, soc_region_cls):
-        if "debug" in self.variant:
-            soc.bus.add_slave("vexriscv_debug", self.debug_bus, region=soc_region_cls(
-                origin=soc.mem_map.get("vexriscv_debug"), size=0x100, cached=False))
-
-    def use_external_variant(self, variant_filename):
-        self.external_variant = True
-        self.platform.add_source(variant_filename)
-
     def add_cfu(self, cfu_filename):
+        # CFU Layout.
         cfu_bus_layout = [
             ("cmd", [
                 ("valid", 1),
@@ -334,6 +320,21 @@ class VexRiscv(CPU, AutoCSR):
             i_CfuPlugin_bus_rsp_payload_response_ok  = cfu_bus.rsp.payload.response_ok,
             i_CfuPlugin_bus_rsp_payload_outputs_0    = cfu_bus.rsp.payload.outputs_0,
         )
+
+    @staticmethod
+    def add_sources(platform, variant="standard"):
+        cpu_filename = CPU_VARIANTS[variant] + ".v"
+        vdir = get_data_mod("cpu", "vexriscv").data_location
+        platform.add_source(os.path.join(vdir, cpu_filename))
+
+    def add_soc_components(self, soc, soc_region_cls):
+        if "debug" in self.variant:
+            soc.bus.add_slave("vexriscv_debug", self.debug_bus, region=soc_region_cls(
+                origin=soc.mem_map.get("vexriscv_debug"), size=0x100, cached=False))
+
+    def use_external_variant(self, variant_filename):
+        self.external_variant = True
+        self.platform.add_source(variant_filename)
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
