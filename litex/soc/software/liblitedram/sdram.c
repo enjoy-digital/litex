@@ -27,6 +27,7 @@
 
 //#define SDRAM_TEST_DISABLE
 //#define SDRAM_WRITE_LEVELING_CMD_DELAY_DEBUG
+//#define SDRAM_WRITE_LATENCY_CALIBRATION_DEBUG
 
 #ifdef CSR_SDRAM_BASE
 
@@ -972,6 +973,9 @@ static void sdram_write_latency_calibration(void) {
 		best_score   = 0;
 		best_bitslip = -1;
 		for(bitslip=0; bitslip<SDRAM_PHY_BITSLIPS; bitslip+=2) { /* +2 for tCK steps */
+#ifdef SDRAM_WRITE_LATENCY_CALIBRATION_DEBUG
+			printf("m%d wb%02d:\n", module, bitslip);
+#endif
 			score = 0;
 			/* Select module */
 			ddrphy_dly_sel_write(1 << module);
@@ -986,7 +990,12 @@ static void sdram_write_latency_calibration(void) {
 			sdram_read_leveling_rst_bitslip(module);
 			for(i=0; i<SDRAM_PHY_BITSLIPS; i++) {
 				/* Compute score */
+#ifdef SDRAM_WRITE_LATENCY_CALIBRATION_DEBUG
+				score += sdram_read_leveling_scan_module(module, i, 1);
+				printf("\n");
+#else
 				score += sdram_read_leveling_scan_module(module, i, 0);
+#endif
 				/* Increment bitslip */
 				sdram_read_leveling_inc_bitslip(module);
 			}
@@ -1004,6 +1013,9 @@ static void sdram_write_latency_calibration(void) {
 			printf("m%d:- ", module);
 		else
 			printf("m%d:%d ", module, bitslip);
+#ifdef SDRAM_WRITE_LATENCY_CALIBRATION_DEBUG
+		printf("\n");
+#endif
 
 		/* Select best write window */
 		ddrphy_dly_sel_write(1 << module);
