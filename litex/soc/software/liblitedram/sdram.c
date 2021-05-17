@@ -28,6 +28,7 @@
 //#define SDRAM_TEST_DISABLE
 //#define SDRAM_WRITE_LEVELING_CMD_DELAY_DEBUG
 //#define SDRAM_WRITE_LATENCY_CALIBRATION_DEBUG
+//#define SDRAM_LEVELING_SCAN_DISPLAY_HEX_DIV 10
 
 #ifdef CSR_SDRAM_BASE
 
@@ -272,8 +273,37 @@ static void sdram_precharge_test_row(void) {
 	cdelay(15);
 }
 
-static int sdram_write_read_check_test_pattern(int module, unsigned int seed) {
+// Count number of bits in a 32-bit word, faster version than a while loop
+// see: https://www.johndcook.com/blog/2020/02/21/popcount/
+static unsigned int popcount(unsigned int x) {
+	x -= ((x >> 1) & 0x55555555);
+	x = (x & 0x33333333) + ((x >> 2) & 0x33333333);
+	x = (x + (x >> 4)) & 0x0F0F0F0F;
+	x += (x >> 8);
+	x += (x >> 16);
+	return x & 0x0000003F;
+}
+
+static void print_scan_errors(unsigned int errors) {
+#ifdef SDRAM_LEVELING_SCAN_DISPLAY_HEX_DIV
+	// Display '.' for no errors, errors/div in hex if it is a single char, else show 'X'
+	errors = errors / SDRAM_LEVELING_SCAN_DISPLAY_HEX_DIV;
+	if (errors == 0)
+		printf(".");
+	else if (errors > 0xf)
+		printf("X");
+	else
+		printf("%x", errors);
+#else
+		printf("%d", errors == 0);
+#endif
+}
+
+#define READ_CHECK_TEST_PATTERN_MAX_ERRORS (SDRAM_PHY_PHASES*2*32)
+
+static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int seed) {
 	int p, i;
+	unsigned int errors;
 	unsigned int prv;
 	unsigned char tst[DFII_PIX_DATA_BYTES];
 	unsigned char prs[SDRAM_PHY_PHASES][DFII_PIX_DATA_BYTES];
@@ -311,13 +341,13 @@ static int sdram_write_read_check_test_pattern(int module, unsigned int seed) {
 	/* Precharge */
 	sdram_precharge_test_row();
 
+	errors = 0;
 	for(p=0;p<SDRAM_PHY_PHASES;p++) {
 		/* Read back test pattern */
 		csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr(p), tst, DFII_PIX_DATA_BYTES);
 		/* Verify bytes matching current 'module' */
-		if (prs[p][  SDRAM_PHY_MODULES-1-module] != tst[  SDRAM_PHY_MODULES-1-module] ||
-		    prs[p][2*SDRAM_PHY_MODULES-1-module] != tst[2*SDRAM_PHY_MODULES-1-module])
-			return 0;
+		errors += popcount(prs[p][	SDRAM_PHY_MODULES-1-module] ^ tst[	SDRAM_PHY_MODULES-1-module]);
+		errors += popcount(prs[p][2*SDRAM_PHY_MODULES-1-module] ^ tst[2*SDRAM_PHY_MODULES-1-module]);
 	}
 
 #ifdef SDRAM_PHY_ECP5DDRPHY
@@ -325,7 +355,7 @@ static int sdram_write_read_check_test_pattern(int module, unsigned int seed) {
 		return 0;
 #endif
 
-	return 1;
+	return errors;
 }
 
 static void sdram_leveling_center_module(
@@ -334,6 +364,7 @@ static void sdram_leveling_center_module(
 	int i;
 	int show;
 	int working;
+	unsigned int errors;
 	int delay, delay_mid, delay_range;
 	int delay_min = -1, delay_max = -1;
 
@@ -344,14 +375,15 @@ static void sdram_leveling_center_module(
 	delay = 0;
 	rst_delay(module);
 	while(1) {
-		working  = sdram_write_read_check_test_pattern(module, 42);
-		working &= sdram_write_read_check_test_pattern(module, 84);
+		errors  = sdram_write_read_check_test_pattern(module, 42);
+		errors += sdram_write_read_check_test_pattern(module, 84);
+		working = errors == 0;
 		show = show_long;
 #if SDRAM_PHY_DELAYS > 32
 		show = show && (delay%16 == 0);
 #endif
 		if (show)
-			printf(working ? "1" : "0");
+			print_scan_errors(errors);
 		if(working && delay_min < 0) {
 			delay_min = delay;
 			break;
@@ -375,14 +407,15 @@ static void sdram_leveling_center_module(
 
 	/* Find largest working delay */
 	while(1) {
-		working  = sdram_write_read_check_test_pattern(module, 42);
-		working &= sdram_write_read_check_test_pattern(module, 84);
+		errors  = sdram_write_read_check_test_pattern(module, 42);
+		errors += sdram_write_read_check_test_pattern(module, 84);
+		working = errors == 0;
 		show = show_long;
 #if SDRAM_PHY_DELAYS > 32
 		show = show && (delay%16 == 0);
 #endif
 		if (show)
-			printf(working ? "1" : "0");
+			print_scan_errors(errors);
 		if(!working && delay_max < 0) {
 			delay_max = delay;
 		}
@@ -874,15 +907,17 @@ static void sdram_read_leveling_inc_bitslip(char m)
 	ddrphy_dly_sel_write(0);
 }
 
-static int sdram_read_leveling_scan_module(int module, int bitslip, int show)
+static unsigned int sdram_read_leveling_scan_module(int module, int bitslip, int show)
 {
+	const unsigned int max_errors = 2*READ_CHECK_TEST_PATTERN_MAX_ERRORS;
 	int i;
-	int score;
+	unsigned int score;
+	unsigned int errors;
 
-    /* Check test pattern for each delay value */
+	/* Check test pattern for each delay value */
 	score = 0;
 	if (show)
-		printf("  m%d, b%d: |", module, bitslip);
+		printf("  m%d, b%02d: |", module, bitslip);
 	sdram_read_leveling_rst_delay(module);
 	for(i=0;i<SDRAM_PHY_DELAYS;i++) {
 		int working;
@@ -890,11 +925,14 @@ static int sdram_read_leveling_scan_module(int module, int bitslip, int show)
 #if SDRAM_PHY_DELAYS > 32
 		_show = (i%16 == 0) & show;
 #endif
-		working  = sdram_write_read_check_test_pattern(module, 42);
-		working &= sdram_write_read_check_test_pattern(module, 84);
-		if (_show)
-			printf("%d", working);
-		score += working;
+		errors  = sdram_write_read_check_test_pattern(module, 42);
+		errors += sdram_write_read_check_test_pattern(module, 84);
+		working = errors == 0;
+		/* When any scan is working then the final score will always be higher then if no scan was working */
+		score += (working * max_errors*SDRAM_PHY_DELAYS) + (max_errors - errors);
+		if (_show) {
+			print_scan_errors(errors);
+		}
 		sdram_read_leveling_inc_delay(module);
 	}
 	if (show)
@@ -915,8 +953,8 @@ void sdram_read_leveling(void)
 {
 	int module;
 	int bitslip;
-	int score;
-	int best_score;
+	unsigned int score;
+	unsigned int best_score;
 	int best_bitslip;
 
 	for(module=0; module<SDRAM_PHY_MODULES; module++) {
@@ -964,8 +1002,9 @@ static void sdram_write_latency_calibration(void) {
 	int i;
 	int module;
 	int bitslip;
-	int score;
-	int best_score;
+	unsigned int score;
+	unsigned int subscore;
+	unsigned int best_score;
 	int best_bitslip;
 
 	for(module=0; module<SDRAM_PHY_MODULES; module++) {
@@ -991,11 +1030,12 @@ static void sdram_write_latency_calibration(void) {
 			for(i=0; i<SDRAM_PHY_BITSLIPS; i++) {
 				/* Compute score */
 #ifdef SDRAM_WRITE_LATENCY_CALIBRATION_DEBUG
-				score += sdram_read_leveling_scan_module(module, i, 1);
+				subscore = sdram_read_leveling_scan_module(module, i, 1);
 				printf("\n");
 #else
-				score += sdram_read_leveling_scan_module(module, i, 0);
+				subscore = sdram_read_leveling_scan_module(module, i, 0);
 #endif
+				score = subscore > score ? subscore : score;
 				/* Increment bitslip */
 				sdram_read_leveling_inc_bitslip(module);
 			}
@@ -1073,10 +1113,10 @@ static void sdram_write_dq_dqs_training_inc_delay(int module) {
 
 static void sdram_read_leveling_best_bitslip(int module)
 {
-	int score;
+	unsigned int score;
 	int bitslip;
 	int best_bitslip = 0;
-	int best_score = 0;
+	unsigned int best_score = 0;
 
 	sdram_read_leveling_rst_bitslip(module);
 	for(bitslip=0; bitslip<SDRAM_PHY_BITSLIPS; bitslip++) {
