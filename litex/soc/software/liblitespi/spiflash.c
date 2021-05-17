@@ -17,16 +17,6 @@
 #define DEBUG	0
 #define USER_DEFINED_DUMMY_BITS	0
 
-static spi_mode spi_get_mode(void)
-{
-	return (spi_mode)spiflash_mmap_cfg_read();
-}
-
-static void spi_set_mode(spi_mode mode)
-{
-	spiflash_mmap_cfg_write((unsigned char)mode);
-}
-
 int spiflash_freq_init(void)
 {
 	unsigned int lowest_div = spiflash_phy_clk_divisor_read();
@@ -36,10 +26,6 @@ int spiflash_freq_init(void)
 #if DEBUG
 	printf("Testing against CRC32: %08x\n\r", crc);
 #endif
-
-	if(spi_get_mode() != SPI_MODE_MMAP) {
-		spi_set_mode(SPI_MODE_MMAP);
-	}
 
 	/* Check if block is erased (filled with 0xFF) */
 	if(crc == CRC32_ERASED_FLASH) {
