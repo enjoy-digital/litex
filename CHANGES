@@ -7,7 +7,8 @@
 
 	[> Added Features
 	-----------------
-	- cpu/vexriscv: Add CFU support.
+	- cpu/vexriscv:   Add CFU support.
+	- soc/controller: Add separate SoC/CPU reset fields.
 
 	[> API changes/Deprecation
 	--------------------------
