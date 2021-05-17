@@ -121,7 +121,7 @@ class VexRiscv(CPU, AutoCSR):
         flags += " -D__vexriscv__"
         return flags
 
-    def __init__(self, platform, variant="standard", with_timer=False, cfu=None):
+    def __init__(self, platform, variant="standard", with_timer=False):
         self.platform         = platform
         self.variant          = variant
         self.human_name       = CPU_VARIANTS.get(variant, "VexRiscv")
@@ -173,9 +173,6 @@ class VexRiscv(CPU, AutoCSR):
 
         if "debug" in variant:
             self.add_debug()
-
-        if "cfu" in variant:
-            self.add_cfu(cfu_filename="Cfu.v" if cfu is None else cfu)
 
     def set_reset_address(self, reset_address):
         assert not hasattr(self, "reset_address")

@@ -864,7 +864,7 @@ class SoC(Module):
         self.add_config("CSR_DATA_WIDTH", self.csr.data_width)
         self.add_config("CSR_ALIGNMENT",  self.csr.alignment)
 
-    def add_cpu(self, name="vexriscv", variant="standard", cls=None, reset_address=None, **kwargs):
+    def add_cpu(self, name="vexriscv", variant="standard", cls=None, reset_address=None, cfu=None):
         # Check that CPU is supported.
         if name not in cpu.CPUS.keys():
             self.logger.error("{} CPU {}, supporteds: {}.".format(
@@ -887,7 +887,11 @@ class SoC(Module):
                 colorer(", ".join(cpu_cls.variants))))
             raise
         self.check_if_exists("cpu")
-        self.submodules.cpu = cpu_cls(self.platform, variant, **kwargs)
+        self.submodules.cpu = cpu_cls(self.platform, variant)
+
+        # Add optional CFU plugin.
+        if "cfu" in variant and hasattr(self.cpu, "add_cfu"):
+            self.cpu.add_cfu(cfu_filename=cfu)
 
         # Update SoC with CPU constraints.
         for n, (origin, size) in enumerate(self.cpu.io_regions.items()):
