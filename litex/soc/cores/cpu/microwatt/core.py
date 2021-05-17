@@ -78,8 +78,8 @@ class Microwatt(CPU):
 
         self.cpu_params = dict(
             # Clk / Rst.
-            i_clk = ClockSignal(),
-            i_rst = ResetSignal() | self.reset,
+            i_clk = ClockSignal("sys"),
+            i_rst = ResetSignal("sys") | self.reset,
 
             # IBus.
             i_wishbone_insn_dat_r = ibus.dat_r,
@@ -235,8 +235,8 @@ class XICSSlave(Module, AutoCSR):
 
         self.icp_params = dict(
             # Clk / Rst.
-            i_clk            = ClockSignal(),
-            i_rst            = ResetSignal(),
+            i_clk            = ClockSignal("sys"),
+            i_rst            = ResetSignal("sys"),
 
             # Wishbone Bus.
             o_wishbone_dat_r = icp_bus.dat_r,
@@ -257,8 +257,8 @@ class XICSSlave(Module, AutoCSR):
 
         self.ics_params = dict(
             # Clk / Rst.
-            i_clk            = ClockSignal(),
-            i_rst            = ResetSignal(),
+            i_clk            = ClockSignal("sys"),
+            i_rst            = ResetSignal("sys"),
 
             # Wishbone Bus.
             o_wishbone_dat_r = ics_bus.dat_r,

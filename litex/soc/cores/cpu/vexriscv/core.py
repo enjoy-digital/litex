@@ -136,8 +136,8 @@ class VexRiscv(CPU, AutoCSR):
         # # #
 
         self.cpu_params = dict(
-            i_clk                    = ClockSignal(),
-            i_reset                  = ResetSignal() | self.reset,
+            i_clk                    = ClockSignal("sys"),
+            i_reset                  = ResetSignal("sys") | self.reset,
 
             i_externalInterruptArray = self.interrupt,
             i_timerInterrupt         = 0,
@@ -310,8 +310,8 @@ class VexRiscv(CPU, AutoCSR):
             i_rsp_ready                = cfu_bus.rsp.ready,
             o_rsp_payload_response_ok  = cfu_bus.rsp.payload.response_ok,
             o_rsp_payload_outputs_0    = cfu_bus.rsp.payload.outputs_0,
-            i_clk                      = ClockSignal(),
-            i_reset                    = ResetSignal(),
+            i_clk                      = ClockSignal("sys"),
+            i_reset                    = ResetSignal("sys"),
         )
         self.platform.add_source(cfu_filename)
 

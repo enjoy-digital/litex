@@ -240,8 +240,8 @@ class TraceDebugger(Module):
 
         self.trace_params = dict(
             # Clk / Rst.
-            i_clk_i               = ClockSignal(),
-            i_rst_ni              = ~ResetSignal(),
+            i_clk_i               = ClockSignal("sys"),
+            i_rst_ni              = ~ResetSignal("sys"),
             i_test_mode_i         = 0,
 
             # CPU Interface.
@@ -309,8 +309,8 @@ class DebugModule(Module):
 
         self.dm_params = dict(
             # Clk / Rst.
-            i_clk       = ClockSignal(),
-            i_rst_n     = ~ResetSignal(),
+            i_clk       = ClockSignal("sys"),
+            i_rst_n     = ~ResetSignal("sys"),
             o_ndmreset  = self.ndmreset,
             o_debug_req = self.debug_req,
 
@@ -398,8 +398,8 @@ class CV32E40P(CPU):
 
         self.cpu_params = dict(
             # Clk / Rst.
-            i_clk_i              = ClockSignal(),
-            i_rst_ni             = ~ResetSignal(),
+            i_clk_i              = ClockSignal("sys"),
+            i_rst_ni             = ~ResetSignal("sys"),
 
             # Controls.
             i_clock_en_i         = 1,

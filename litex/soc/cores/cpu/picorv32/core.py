@@ -123,8 +123,8 @@ class PicoRV32(CPU):
 
         self.cpu_params.update(
             # Clk / Rst.
-            i_clk    = ClockSignal(),
-            i_resetn = ~(ResetSignal() | self.reset),
+            i_clk    = ClockSignal("sys"),
+            i_resetn = ~(ResetSignal("sys") | self.reset),
 
             # Trap.
             o_trap = self.trap,

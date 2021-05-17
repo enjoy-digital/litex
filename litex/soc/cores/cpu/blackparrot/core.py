@@ -92,8 +92,8 @@ class BlackParrotRV64(CPU):
 
         self.cpu_params = dict(
             # Clk / Rst.
-            i_clk_i = ClockSignal(),
-            i_reset_i = ResetSignal() | self.reset,
+            i_clk_i   = ClockSignal("sys"),
+            i_reset_i = ResetSignal("sys") | self.reset,
 
             # Wishbone (I/D).
             i_wbm_dat_i  = idbus.dat_r,

@@ -154,8 +154,8 @@ class MOR1KX(CPU):
             **cpu_args,
 
             # Clk / Rst.
-            i_clk = ClockSignal(),
-            i_rst = ResetSignal() | self.reset,
+            i_clk = ClockSignal("sys"),
+            i_rst = ResetSignal("sys") | self.reset,
 
             # IRQ.
             i_irq_i=self.interrupt,
