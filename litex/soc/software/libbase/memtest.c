@@ -11,6 +11,11 @@
 //#define MEMTEST_DATA_DEBUG
 //#define MEMTEST_ADDR_DEBUG
 
+// Limits the number of errors printed, so that we can still access bios console
+#ifndef MEMTEST_DEBUG_MAX_ERRORS
+#define MEMTEST_DEBUG_MAX_ERRORS 400
+#endif
+
 #define KIB 1024
 #define MIB (KIB*1024)
 #define GIB (MIB*1024)
@@ -85,7 +90,8 @@ int memtest_bus(unsigned int *addr, unsigned long size)
 		if(rdata != ONEZERO) {
 			errors++;
 #ifdef MEMTEST_BUS_DEBUG
-			printf("memtest_bus error @ %p: 0x%08x vs 0x%08x\n", addr + i, rdata, ONEZERO);
+			if (MEMTEST_DEBUG_MAX_ERRORS < 0 || errors <= MEMTEST_DEBUG_MAX_ERRORS)
+				printf("memtest_bus error @ %p: 0x%08x vs 0x%08x\n", addr + i, rdata, ONEZERO);
 #endif
 		}
 	}
@@ -105,7 +111,8 @@ int memtest_bus(unsigned int *addr, unsigned long size)
 		if(rdata != ZEROONE) {
 			errors++;
 #ifdef MEMTEST_BUS_DEBUG
-			printf("memtest_bus error @ %p:: 0x%08x vs 0x%08x\n", addr + i, rdata, ZEROONE);
+			if (MEMTEST_DEBUG_MAX_ERRORS < 0 || errors <= MEMTEST_DEBUG_MAX_ERRORS)
+				printf("memtest_bus error @ %p:: 0x%08x vs 0x%08x\n", addr + i, rdata, ZEROONE);
 #endif
 		}
 	}
@@ -141,7 +148,8 @@ int memtest_addr(unsigned int *addr, unsigned long size, int random)
 		if(rdata != i) {
 			errors++;
 #ifdef MEMTEST_ADDR_DEBUG
-			printf("memtest_addr error @ %p: 0x%08x vs 0x%08x\n", addr + i, rdata, i);
+			if (MEMTEST_DEBUG_MAX_ERRORS < 0 || errors <= MEMTEST_DEBUG_MAX_ERRORS)
+				printf("memtest_addr error @ %p: 0x%08x vs 0x%08x\n", addr + i, rdata, i);
 #endif
 		}
 	}
@@ -213,7 +221,8 @@ int memtest_data(unsigned int *addr, unsigned long size, int random, struct memt
 					return errors;
 			}
 #ifdef MEMTEST_DATA_DEBUG
-			printf("memtest_data error @ %p: 0x%08x vs 0x%08x\n", addr + i, rdata, seed_32);
+			if (MEMTEST_DEBUG_MAX_ERRORS < 0 || errors <= MEMTEST_DEBUG_MAX_ERRORS)
+				printf("memtest_data error @ %p: 0x%08x vs 0x%08x\n", addr + i, rdata, seed_32);
 #endif
 		}
 		if (i%0x8000 == 0 && progress)
