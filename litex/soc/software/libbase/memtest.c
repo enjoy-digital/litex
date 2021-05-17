@@ -172,25 +172,29 @@ static void print_progress(const char * header, unsigned int offset, unsigned in
 	printf("   \r");
 }
 
-int memtest_data(unsigned int *addr, unsigned long size, int random)
+int memtest_data(unsigned int *addr, unsigned long size, int random, struct memtest_config *config)
 {
 	volatile unsigned int *array = addr;
 	int i, errors;
+	int progress;
 	unsigned int seed_32;
 	unsigned int rdata;
 
+	progress = config == NULL ? 1 : config->show_progress;
 	errors  = 0;
 	seed_32 = 1;
 
-	/* Write datas */
-	for(i=0; i<size/4; i++) {
-		seed_32 = seed_to_data_32(seed_32, random);
-		array[i] = seed_32;
-		if (i%0x8000 == 0)
-			print_progress("  Write:", (unsigned long)addr, 4*i);
+	if (config == NULL || !config->read_only) {
+		/* Write datas */
+		for(i=0; i<size/4; i++) {
+			seed_32 = seed_to_data_32(seed_32, random);
+			array[i] = seed_32;
+			if (i%0x8000 == 0)
+				print_progress("  Write:", (unsigned long)addr, 4*i);
+		}
+		print_progress("  Write:", (unsigned long)addr, 4*i);
+		printf("\n");
 	}
-	print_progress("  Write:", (unsigned long)addr, 4*i);
-	printf("\n");
 
 	/* Flush caches */
 	flush_cpu_dcache();
@@ -203,15 +207,22 @@ int memtest_data(unsigned int *addr, unsigned long size, int random)
 		rdata = array[i];
 		if(rdata != seed_32) {
 			errors++;
+			if (config != NULL && config->on_error != NULL) {
+				// call the handler, if non-zero status is returned finish now
+				if (config->on_error((unsigned int) (addr + i), rdata, seed_32, config->arg) != 0)
+					return errors;
+			}
 #ifdef MEMTEST_DATA_DEBUG
 			printf("memtest_data error @ %p: 0x%08x vs 0x%08x\n", addr + i, rdata, seed_32);
 #endif
 		}
-		if (i%0x8000 == 0)
+		if (i%0x8000 == 0 && progress)
 			print_progress("   Read:", (unsigned long)addr, 4*i);
 	}
-	print_progress("   Read:", (unsigned long)addr, 4*i);
-	printf("\n");
+	if (progress) {
+		print_progress("   Read:", (unsigned long)addr, 4*i);
+		printf("\n");
+	}
 
 	return errors;
 }
@@ -292,7 +303,7 @@ int memtest(unsigned int *addr, unsigned long maxsize)
 
 	bus_errors  = memtest_bus(addr, bus_size);
 	addr_errors = memtest_addr(addr, addr_size, MEMTEST_ADDR_RANDOM);
-	data_errors = memtest_data(addr, data_size, MEMTEST_DATA_RANDOM);
+	data_errors = memtest_data(addr, data_size, MEMTEST_DATA_RANDOM, NULL);
 
 	if(bus_errors + addr_errors + data_errors != 0) {
 		printf("  bus errors:  %d/%ld\n", bus_errors,  2*bus_size/4);
