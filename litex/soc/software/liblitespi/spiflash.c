@@ -47,12 +47,11 @@ int spiflash_freq_init(void)
 		return -1;
 	}
 
-	for(int i = lowest_div; (crc == crc_test) && (i >= 0); i--) {
-		lowest_div = i;
-		spiflash_phy_clk_divisor_write((uint32_t)i);
+	while((crc == crc_test) && (lowest_div-- > 0)) {
+		spiflash_phy_clk_divisor_write((uint32_t)lowest_div);
 		crc_test = crc32((unsigned char *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE);
 #if DEBUG
-		printf("[DIV: %d] %08x\n\r", i, crc_test);
+		printf("[DIV: %d] %08x\n\r", lowest_div, crc_test);
 #endif
 	}
 	lowest_div++;
