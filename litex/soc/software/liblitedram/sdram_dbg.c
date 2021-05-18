@@ -3,6 +3,8 @@
 #include <string.h>
 #include <stdio.h>
 
+#ifdef SDRAM_DEBUG
+
 void error_stats_init(struct error_stats *stats) {
 	memset(stats, 0, sizeof(struct error_stats));
 }
@@ -85,3 +87,5 @@ int readback_compare(struct readback *readback, struct readback *other, int verb
 	}
 	return missing;
 }
+
+#endif
