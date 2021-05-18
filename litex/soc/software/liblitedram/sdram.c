@@ -23,6 +23,7 @@
 #include <system.h>
 
 #include <liblitedram/sdram.h>
+#include <liblitedram/sdram_dbg.h>
 
 //#define SDRAM_TEST_DISABLE
 //#define SDRAM_WRITE_LEVELING_CMD_DELAY_DEBUG
@@ -290,7 +291,7 @@ static int sdram_write_read_check_test_pattern(int module, unsigned int seed) {
 
 	/* Write pseudo-random sequence */
 	for(p=0;p<SDRAM_PHY_PHASES;p++)
-		csr_wr_buf_uint8(sdram_dfii_pix_wrdata_addr[p], prs[p], DFII_PIX_DATA_BYTES);
+		csr_wr_buf_uint8(sdram_dfii_pix_wrdata_addr(p), prs[p], DFII_PIX_DATA_BYTES);
 	sdram_dfii_piwr_address_write(0);
 	sdram_dfii_piwr_baddress_write(0);
 	command_pwr(DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS|DFII_COMMAND_WRDATA);
@@ -311,7 +312,7 @@ static int sdram_write_read_check_test_pattern(int module, unsigned int seed) {
 
 	for(p=0;p<SDRAM_PHY_PHASES;p++) {
 		/* Read back test pattern */
-		csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr[p], tst, DFII_PIX_DATA_BYTES);
+		csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr(p), tst, DFII_PIX_DATA_BYTES);
 		/* Verify bytes matching current 'module' */
 		if (prs[p][  SDRAM_PHY_MODULES-1-module] != tst[  SDRAM_PHY_MODULES-1-module] ||
 		    prs[p][2*SDRAM_PHY_MODULES-1-module] != tst[2*SDRAM_PHY_MODULES-1-module])
@@ -583,7 +584,7 @@ static int sdram_write_leveling_scan(int *delays, int loops, int show)
 			for (k=0; k<loops; k++) {
 				ddrphy_wlevel_strobe_write(1);
 				cdelay(100);
-				csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr[0], buf, DFII_PIX_DATA_BYTES);
+				csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr(0), buf, DFII_PIX_DATA_BYTES);
 				if (buf[SDRAM_PHY_MODULES-1-i] != 0)
 					one_count++;
 				else
@@ -1204,5 +1205,145 @@ int sdram_init(void)
 
 	return 1;
 }
+
+/*-----------------------------------------------------------------------*/
+/* Debugging                                                             */
+/*-----------------------------------------------------------------------*/
+
+#ifdef SDRAM_DEBUG
+
+#define SDRAM_DEBUG_STATS_NUM_RUNS 10
+#define SDRAM_DEBUG_STATS_MEMTEST_SIZE MEMTEST_DATA_SIZE
+
+#ifdef SDRAM_DEBUG_READBACK_MEM_ADDR
+#ifndef SDRAM_DEBUG_READBACK_MEM_SIZE
+#error "Provide readback memory size via SDRAM_DEBUG_READBACK_MEM_SIZE"
+#endif
+#define SDRAM_DEBUG_READBACK_VERBOSE 1
+
+#define SDRAM_DEBUG_READBACK_COUNT 3
+#define SDRAM_DEBUG_READBACK_MEMTEST_SIZE MEMTEST_DATA_SIZE
+
+#define _SINGLE_READBACK (SDRAM_DEBUG_READBACK_MEM_SIZE/SDRAM_DEBUG_READBACK_COUNT)
+#define _READBACK_ERRORS_SIZE (_SINGLE_READBACK - sizeof(struct readback))
+#define SDRAM_DEBUG_READBACK_LEN (_READBACK_ERRORS_SIZE / sizeof(struct memory_error))
+#endif
+
+static int sdram_debug_error_stats_on_error(
+	unsigned int addr, unsigned int rdata, unsigned int refdata, void *arg)
+{
+	struct error_stats *stats = (struct error_stats *) arg;
+	struct memory_error error = {
+		.addr = addr,
+		.data = rdata,
+		.ref = refdata,
+	};
+	error_stats_update(stats, error);
+	return 0;
+}
+
+static void sdram_debug_error_stats(void) {
+	printf("Running initial memtest to fill memory ...\n");
+	memtest_data((unsigned int *) MAIN_RAM_BASE, SDRAM_DEBUG_STATS_MEMTEST_SIZE, 1, NULL);
+
+	struct error_stats stats;
+	error_stats_init(&stats);
+
+	struct memtest_config config = {
+		.show_progress = 0,
+		.read_only = 1,
+		.on_error = sdram_debug_error_stats_on_error,
+		.arg = &stats,
+	};
+
+	printf("Running read-only memtests ... \n");
+	for (int i = 0; i < SDRAM_DEBUG_STATS_NUM_RUNS; ++i) {
+		printf("Running read-only memtest %3d/%3d ... \r", i + 1, SDRAM_DEBUG_STATS_NUM_RUNS);
+		memtest_data((unsigned int *) MAIN_RAM_BASE, SDRAM_DEBUG_STATS_MEMTEST_SIZE, 1, &config);
+	}
+
+	printf("\n");
+	error_stats_print(&stats);
+}
+
+#ifdef SDRAM_DEBUG_READBACK_MEM_ADDR
+static int sdram_debug_readback_on_error(
+	unsigned int addr, unsigned int rdata, unsigned int refdata, void *arg)
+{
+	struct readback *readback = (struct readback *) arg;
+	struct memory_error error = {
+		.addr = addr,
+		.data = rdata,
+		.ref = refdata,
+	};
+	// run only as long as we have space for new entries
+	return readback_add(readback, SDRAM_DEBUG_READBACK_LEN, error) != 1;
+}
+
+static void sdram_debug_readback(void)
+{
+	printf("Using storage @0x%08x with size 0x%08x for %d readbacks.\n",
+		SDRAM_DEBUG_READBACK_MEM_ADDR, SDRAM_DEBUG_READBACK_MEM_SIZE, SDRAM_DEBUG_READBACK_COUNT);
+
+	printf("Running initial memtest to fill memory ...\n");
+	memtest_data((unsigned int *) MAIN_RAM_BASE, SDRAM_DEBUG_READBACK_MEMTEST_SIZE, 1, NULL);
+
+	for (int i = 0; i < SDRAM_DEBUG_READBACK_COUNT; ++i) {
+		struct readback *readback = (struct readback *)
+			(SDRAM_DEBUG_READBACK_MEM_ADDR + i * READBACK_SIZE(SDRAM_DEBUG_READBACK_LEN));
+		readback_init(readback);
+
+		struct memtest_config config = {
+			.show_progress = 0,
+			.read_only = 1,
+			.on_error = sdram_debug_readback_on_error,
+			.arg = readback,
+		};
+
+		printf("Running readback %3d/%3d ... \r", i + 1, SDRAM_DEBUG_READBACK_COUNT);
+		memtest_data((unsigned int *) MAIN_RAM_BASE, SDRAM_DEBUG_READBACK_MEMTEST_SIZE, 1, &config);
+	}
+	printf("\n");
+
+
+	// Iterate over all combinations
+	for (int i = 0; i < SDRAM_DEBUG_READBACK_COUNT; ++i) {
+		struct readback *first = (struct readback *)
+			(SDRAM_DEBUG_READBACK_MEM_ADDR + i * READBACK_SIZE(SDRAM_DEBUG_READBACK_LEN));
+
+		for (int j = i + 1; j < SDRAM_DEBUG_READBACK_COUNT; ++j) {
+			int nums[] = {i, j};
+			struct readback *readbacks[] = {
+				(struct readback *) (SDRAM_DEBUG_READBACK_MEM_ADDR + i * READBACK_SIZE(SDRAM_DEBUG_READBACK_LEN)),
+				(struct readback *) (SDRAM_DEBUG_READBACK_MEM_ADDR + j * READBACK_SIZE(SDRAM_DEBUG_READBACK_LEN)),
+			};
+
+			// Compare i vs j and j vs i
+			for (int k = 0; k < 2; ++k) {
+				printf("Comparing readbacks %d vs %d:\n", nums[k], nums[1 - k]);
+				int missing = readback_compare(readbacks[k], readbacks[1 - k], SDRAM_DEBUG_READBACK_VERBOSE);
+				if (missing == 0)
+					printf("  OK\n");
+				else
+					printf("  N missing = %d\n", missing);
+			}
+		}
+	}
+}
+#endif
+
+void sdram_debug(void)
+{
+#if defined(SDRAM_DEBUG_STATS_NUM_RUNS) && SDRAM_DEBUG_STATS_NUM_RUNS > 0
+	printf("\nError stats:\n");
+	sdram_debug_error_stats();
+#endif
+
+#ifdef SDRAM_DEBUG_READBACK_MEM_ADDR
+	printf("\nReadback:\n");
+	sdram_debug_readback();
+#endif
+}
+#endif
 
 #endif
