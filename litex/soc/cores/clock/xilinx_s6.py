@@ -32,9 +32,14 @@ class S6PLL(XilinxClocking):
         config = self.compute_config()
         pll_fb = Signal()
         self.params.update(
+            # Global.
             p_SIM_DEVICE     = "SPARTAN6",
             p_BANDWIDTH      = "OPTIMIZED",
             p_COMPENSATION   = "INTERNAL",
+            i_RST            = self.reset,
+            o_LOCKED         = self.locked,
+
+            # VCO.
             p_REF_JITTER     = .01, p_CLK_FEEDBACK="CLKFBOUT",
             p_CLKIN1_PERIOD  = 1e9/self.clkin_freq,
             p_CLKIN2_PERIOD  = 0.,
@@ -42,11 +47,9 @@ class S6PLL(XilinxClocking):
             p_CLKFBOUT_PHASE = 0.,
             p_DIVCLK_DIVIDE  = config["divclk_divide"],
             i_CLKINSEL       = 1,
-            i_RST            = self.reset,
             i_CLKIN1         = self.clkin,
             i_CLKFBIN        = pll_fb,
             o_CLKFBOUT       = pll_fb,
-            o_LOCKED         = self.locked,
         )
         for n, (clk, f, p, m) in sorted(self.clkouts.items()):
             self.params["p_CLKOUT{}_DIVIDE".format(n)]     = config["clkout{}_divide".format(n)]
