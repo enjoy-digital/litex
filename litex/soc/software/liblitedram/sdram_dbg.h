@@ -1,6 +1,10 @@
 #ifndef __SDRAM_DBG_H
 #define __SDRAM_DBG_H
 
+#include <generated/csr.h>
+
+#ifdef CSR_SDRAM_BASE
+
 #include <generated/sdram_phy.h>
 
 struct memory_error {
@@ -47,5 +51,7 @@ int readback_find(struct readback *readback, unsigned int addr);
 int readback_add(struct readback *readback, unsigned int max_len, struct memory_error error);
 // Print errors that occured in `readback` that didn't occure in `other`. Returns number of errors.
 int readback_compare(struct readback *readback, struct readback *other, int verbose);
+
+#endif /* CSR_SDRAM_BASE */
 
 #endif /* __SDRAM_DBG_H */
