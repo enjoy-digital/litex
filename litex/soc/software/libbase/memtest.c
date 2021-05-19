@@ -162,11 +162,11 @@ int memtest_addr(unsigned int *addr, unsigned long size, int random)
 }
 
 static void print_size(unsigned long size) {
-	if (size < KIB)
+	if (size < 10*KIB)
 		printf("%luB", size);
-	else if (size < MIB)
+	else if (size < 10*MIB)
 		printf("%luKiB", size/KIB);
-	else if (size < GIB)
+	else if (size < 10*GIB)
 		printf("%luMiB", size/MIB);
 	else
 		printf("%luGiB", size/GIB);
