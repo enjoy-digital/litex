@@ -34,6 +34,7 @@ class S7PLL(XilinxClocking):
             # Global.
             p_STARTUP_WAIT = "FALSE",
             i_RST          = self.reset,
+            i_PWRDWN       = self.power_down,
             o_LOCKED       = self.locked,
 
             # VCO.
@@ -81,6 +82,7 @@ class S7MMCM(XilinxClocking):
             # Global.
             p_BANDWIDTH = "OPTIMIZED",
             i_RST       = self.reset,
+            i_PWRDWN    = self.power_down,
             o_LOCKED    = self.locked,
 
             # VCO.

@@ -22,6 +22,7 @@ class XilinxClocking(Module, AutoCSR):
     def __init__(self, vco_margin=0):
         self.vco_margin = vco_margin
         self.reset      = Signal()
+        self.power_down = Signal()
         self.locked     = Signal()
         self.clkin_freq = None
         self.vcxo_freq  = None

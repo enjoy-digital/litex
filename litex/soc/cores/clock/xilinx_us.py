@@ -39,6 +39,7 @@ class USPLL(XilinxClocking):
             # Global.
             p_STARTUP_WAIT = "FALSE",
             i_RST          = self.reset,
+            i_PWRDWN       = self.power_down,
             o_LOCKED       = self.locked,
 
             # VCO.
@@ -84,6 +85,7 @@ class USMMCM(XilinxClocking):
             # Global.
             p_BANDWIDTH = "OPTIMIZED",
             i_RST       = self.reset,
+            i_PWRDWN    = self.power_down,
             o_LOCKED    = self.locked,
 
             # VCO.
