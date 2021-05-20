@@ -74,6 +74,7 @@ from litex.soc.cores.cpu.microwatt import Microwatt
 
 # RISC-V (32-bit)
 from litex.soc.cores.cpu.serv import SERV
+from litex.soc.cores.cpu.femtorv import FemtoRV
 from litex.soc.cores.cpu.picorv32 import PicoRV32
 from litex.soc.cores.cpu.minerva import Minerva
 from litex.soc.cores.cpu.vexriscv import VexRiscv
@@ -107,6 +108,7 @@ CPUS = {
 
     # RISC-V (32-bit)
     "serv"        : SERV,
+    "femtorv"     : FemtoRV,
     "picorv32"    : PicoRV32,
     "minerva"     : Minerva,
     "vexriscv"    : VexRiscv,
