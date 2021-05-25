@@ -352,7 +352,7 @@ static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int
 
 #ifdef SDRAM_PHY_ECP5DDRPHY
 	if (((ddrphy_burstdet_seen_read() >> module) & 0x1) != 1)
-		return 0;
+		errors += 1;
 #endif
 
 	return errors;
