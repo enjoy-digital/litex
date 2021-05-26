@@ -233,7 +233,7 @@ int memtest_data(unsigned int *addr, unsigned long size, int random, struct memt
 			errors++;
 			if (config != NULL && config->on_error != NULL) {
 				// call the handler, if non-zero status is returned finish now
-				if (config->on_error((unsigned int) (addr + i), rdata, seed_32, config->arg) != 0)
+				if (config->on_error((unsigned long) (addr + i), rdata, seed_32, config->arg) != 0)
 					return errors;
 			}
 #ifdef MEMTEST_DATA_DEBUG
