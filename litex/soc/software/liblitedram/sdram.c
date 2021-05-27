@@ -39,7 +39,7 @@
 #define max(x, y) (((x) > (y)) ? (x) : (y))
 #define min(x, y) (((x) < (y)) ? (x) : (y))
 
-__attribute__((unused)) static void cdelay(int i)
+__attribute__((unused)) void cdelay(int i)
 {
 #ifndef CONFIG_DISABLE_DELAYS
 	while(i > 0) {
