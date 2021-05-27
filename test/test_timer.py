@@ -50,14 +50,14 @@ class TestTimer(unittest.TestCase):
             yield from timer._reload.write(0)
             yield from timer.ev.enable.write(1)
 
-            self.assertEqual(1, (yield timer.ev.zero.trigger))
+            self.assertEqual(0, (yield timer.ev.zero.trigger))
 
             yield from timer._en.write(1)
 
-            while (yield timer.ev.zero.trigger != 0) and clock_cycles >= -5:
+            while (yield timer.ev.zero.trigger != 1) and clock_cycles >= -5:
                 yield
                 clock_cycles -= 1
-            self.assertEqual(0, (yield timer.ev.zero.trigger))
+            self.assertEqual(1, (yield timer.ev.zero.trigger))
 
         timer = Timer()
         run_simulation(timer, generator(timer))
