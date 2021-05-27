@@ -262,15 +262,11 @@ class SimSoC(SoCCore):
         elif with_etherbone:
             # Ethernet PHY
             self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth", 0)) # FIXME
-            # Ethernet Core
-            ethcore = LiteEthUDPIPCore(self.ethphy,
-                mac_address = etherbone_mac_address,
+            self.add_etherbone(
+                phy         = self.ethphy,
                 ip_address  = etherbone_ip_address,
-                clk_freq    = sys_clk_freq)
-            self.submodules.ethcore = ethcore
-            # Etherbone
-            self.submodules.etherbone = LiteEthEtherbone(self.ethcore.udp, 1234, mode="master")
-            self.add_wb_master(self.etherbone.wishbone.bus)
+                mac_address = etherbone_mac_address
+            )
 
         # Analyzer ---------------------------------------------------------------------------------
         if with_analyzer:
