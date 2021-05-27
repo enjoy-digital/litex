@@ -165,11 +165,11 @@ static void print_size(unsigned long size) {
 	if (size < KIB)
 		printf("%luB", size);
 	else if (size < MIB)
-		printf("%luKiB", size/KIB);
+		printf("%lu.%luKiB", size/KIB, (size/1   - KIB*(size/KIB))/(KIB/10));
 	else if (size < GIB)
-		printf("%luMiB", size/MIB);
+		printf("%lu.%luMiB", size/MIB, (size/KIB - KIB*(size/MIB))/(KIB/10));
 	else
-		printf("%luGiB", size/GIB);
+		printf("%lu.%luGiB", size/GIB, (size/MIB - KIB*(size/GIB))/(KIB/10));
 }
 
 static void print_speed(unsigned long speed) {
