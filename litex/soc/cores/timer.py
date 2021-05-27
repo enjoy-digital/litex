@@ -66,7 +66,7 @@ class Timer(Module, AutoCSR, AutoDoc):
             This value is updated by writing to ``update_value``.""")
 
         self.submodules.ev = EventManager()
-        self.ev.zero       = EventSourceProcess()
+        self.ev.zero       = EventSourceProcess(edge="rising")
         self.ev.finalize()
 
         # # #
@@ -85,7 +85,7 @@ class Timer(Module, AutoCSR, AutoDoc):
             ),
             If(self._update_value.re, self._value.status.eq(value))
         ]
-        self.comb += self.ev.zero.trigger.eq(value != 0)
+        self.comb += self.ev.zero.trigger.eq(value == 0)
 
     def add_uptime(self, width=64):
         if self.with_uptime: return
