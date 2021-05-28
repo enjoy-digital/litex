@@ -1,3 +1,20 @@
+[> 2021.XX, planned for August 2021
+-----------------------------------
+
+	[> Issues resolved
+	------------------
+	-
+
+	[> Added Features
+	-----------------
+	- cpu/vexriscv:   Add CFU support.
+	- soc/controller: Add separate SoC/CPU reset fields.
+
+	[> API changes/Deprecation
+	--------------------------
+	- soc_core: --integrated-rom-file argument renamed to --integrated-rom-init.
+
+
 [> 2021.04, released on May 3th 2021
 ------------------------------------
 

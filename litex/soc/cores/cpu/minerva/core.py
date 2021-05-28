@@ -53,8 +53,8 @@ class Minerva(CPU):
 
         self.cpu_params = dict(
             # Clk / Rst.
-            i_clk = ClockSignal(),
-            i_rst = ResetSignal() | self.reset,
+            i_clk = ClockSignal("sys"),
+            i_rst = ResetSignal("sys") | self.reset,
 
             # IRQ.
             i_timer_interrupt    = 0,

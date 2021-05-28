@@ -128,8 +128,8 @@ class RocketRV64(CPU):
 
         self.cpu_params = dict(
             # Clk / Rst.
-            i_clock = ClockSignal(),
-            i_reset = ResetSignal() | self.reset,
+            i_clock = ClockSignal("sys"),
+            i_reset = ResetSignal("sys") | self.reset,
 
             # Debug (ignored).
             i_resetctrl_hartIsInReset_0           = Open(),

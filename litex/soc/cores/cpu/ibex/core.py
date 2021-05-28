@@ -143,8 +143,8 @@ class Ibex(CPU):
             i_hart_id_i      = 0,
 
             # Clk/Rst.
-            i_clk_i          = ClockSignal(),
-            i_rst_ni         = ~ResetSignal(),
+            i_clk_i          = ClockSignal("sys"),
+            i_rst_ni         = ~ResetSignal("sys"),
 
             # Instruction bus.
             o_instr_req_o    = ibus.req,

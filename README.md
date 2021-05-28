@@ -16,7 +16,7 @@ SoC builder to create/develop/debug FPGA SoCs in Python.
 
 **Want to get started and/or looking for documentation? Make sure to visit the [Wiki](https://github.com/enjoy-digital/litex/wiki)!**
 
-**A question or want to get in touch? Our IRC channel is [#litex at freenode.net](https://webchat.freenode.net/?channels=litex)**
+**A question or want to get in touch? Our IRC channel is [#litex at irc.libera.chat]**
 
 # Typical LiteX design flow:
 ```

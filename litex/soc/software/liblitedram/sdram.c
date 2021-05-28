@@ -23,9 +23,12 @@
 #include <system.h>
 
 #include <liblitedram/sdram.h>
+#include <liblitedram/sdram_dbg.h>
 
 //#define SDRAM_TEST_DISABLE
 //#define SDRAM_WRITE_LEVELING_CMD_DELAY_DEBUG
+//#define SDRAM_WRITE_LATENCY_CALIBRATION_DEBUG
+//#define SDRAM_LEVELING_SCAN_DISPLAY_HEX_DIV 10
 
 #ifdef CSR_SDRAM_BASE
 
@@ -36,7 +39,7 @@
 #define max(x, y) (((x) > (y)) ? (x) : (y))
 #define min(x, y) (((x) < (y)) ? (x) : (y))
 
-__attribute__((unused)) static void cdelay(int i)
+__attribute__((unused)) void cdelay(int i)
 {
 #ifndef CONFIG_DISABLE_DELAYS
 	while(i > 0) {
@@ -270,8 +273,37 @@ static void sdram_precharge_test_row(void) {
 	cdelay(15);
 }
 
-static int sdram_write_read_check_test_pattern(int module, unsigned int seed) {
+// Count number of bits in a 32-bit word, faster version than a while loop
+// see: https://www.johndcook.com/blog/2020/02/21/popcount/
+static unsigned int popcount(unsigned int x) {
+	x -= ((x >> 1) & 0x55555555);
+	x = (x & 0x33333333) + ((x >> 2) & 0x33333333);
+	x = (x + (x >> 4)) & 0x0F0F0F0F;
+	x += (x >> 8);
+	x += (x >> 16);
+	return x & 0x0000003F;
+}
+
+static void print_scan_errors(unsigned int errors) {
+#ifdef SDRAM_LEVELING_SCAN_DISPLAY_HEX_DIV
+	// Display '.' for no errors, errors/div in hex if it is a single char, else show 'X'
+	errors = errors / SDRAM_LEVELING_SCAN_DISPLAY_HEX_DIV;
+	if (errors == 0)
+		printf(".");
+	else if (errors > 0xf)
+		printf("X");
+	else
+		printf("%x", errors);
+#else
+		printf("%d", errors == 0);
+#endif
+}
+
+#define READ_CHECK_TEST_PATTERN_MAX_ERRORS (SDRAM_PHY_PHASES*2*32)
+
+static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int seed) {
 	int p, i;
+	unsigned int errors;
 	unsigned int prv;
 	unsigned char tst[DFII_PIX_DATA_BYTES];
 	unsigned char prs[SDRAM_PHY_PHASES][DFII_PIX_DATA_BYTES];
@@ -290,7 +322,7 @@ static int sdram_write_read_check_test_pattern(int module, unsigned int seed) {
 
 	/* Write pseudo-random sequence */
 	for(p=0;p<SDRAM_PHY_PHASES;p++)
-		csr_wr_buf_uint8(sdram_dfii_pix_wrdata_addr[p], prs[p], DFII_PIX_DATA_BYTES);
+		csr_wr_buf_uint8(sdram_dfii_pix_wrdata_addr(p), prs[p], DFII_PIX_DATA_BYTES);
 	sdram_dfii_piwr_address_write(0);
 	sdram_dfii_piwr_baddress_write(0);
 	command_pwr(DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS|DFII_COMMAND_WRDATA);
@@ -309,21 +341,21 @@ static int sdram_write_read_check_test_pattern(int module, unsigned int seed) {
 	/* Precharge */
 	sdram_precharge_test_row();
 
+	errors = 0;
 	for(p=0;p<SDRAM_PHY_PHASES;p++) {
 		/* Read back test pattern */
-		csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr[p], tst, DFII_PIX_DATA_BYTES);
+		csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr(p), tst, DFII_PIX_DATA_BYTES);
 		/* Verify bytes matching current 'module' */
-		if (prs[p][  SDRAM_PHY_MODULES-1-module] != tst[  SDRAM_PHY_MODULES-1-module] ||
-		    prs[p][2*SDRAM_PHY_MODULES-1-module] != tst[2*SDRAM_PHY_MODULES-1-module])
-			return 0;
+		errors += popcount(prs[p][	SDRAM_PHY_MODULES-1-module] ^ tst[	SDRAM_PHY_MODULES-1-module]);
+		errors += popcount(prs[p][2*SDRAM_PHY_MODULES-1-module] ^ tst[2*SDRAM_PHY_MODULES-1-module]);
 	}
 
 #ifdef SDRAM_PHY_ECP5DDRPHY
 	if (((ddrphy_burstdet_seen_read() >> module) & 0x1) != 1)
-		return 0;
+		errors += 1;
 #endif
 
-	return 1;
+	return errors;
 }
 
 static void sdram_leveling_center_module(
@@ -332,6 +364,7 @@ static void sdram_leveling_center_module(
 	int i;
 	int show;
 	int working;
+	unsigned int errors;
 	int delay, delay_mid, delay_range;
 	int delay_min = -1, delay_max = -1;
 
@@ -342,14 +375,15 @@ static void sdram_leveling_center_module(
 	delay = 0;
 	rst_delay(module);
 	while(1) {
-		working  = sdram_write_read_check_test_pattern(module, 42);
-		working &= sdram_write_read_check_test_pattern(module, 84);
+		errors  = sdram_write_read_check_test_pattern(module, 42);
+		errors += sdram_write_read_check_test_pattern(module, 84);
+		working = errors == 0;
 		show = show_long;
 #if SDRAM_PHY_DELAYS > 32
 		show = show && (delay%16 == 0);
 #endif
 		if (show)
-			printf(working ? "1" : "0");
+			print_scan_errors(errors);
 		if(working && delay_min < 0) {
 			delay_min = delay;
 			break;
@@ -373,14 +407,15 @@ static void sdram_leveling_center_module(
 
 	/* Find largest working delay */
 	while(1) {
-		working  = sdram_write_read_check_test_pattern(module, 42);
-		working &= sdram_write_read_check_test_pattern(module, 84);
+		errors  = sdram_write_read_check_test_pattern(module, 42);
+		errors += sdram_write_read_check_test_pattern(module, 84);
+		working = errors == 0;
 		show = show_long;
 #if SDRAM_PHY_DELAYS > 32
 		show = show && (delay%16 == 0);
 #endif
 		if (show)
-			printf(working ? "1" : "0");
+			print_scan_errors(errors);
 		if(!working && delay_max < 0) {
 			delay_max = delay;
 		}
@@ -583,7 +618,7 @@ static int sdram_write_leveling_scan(int *delays, int loops, int show)
 			for (k=0; k<loops; k++) {
 				ddrphy_wlevel_strobe_write(1);
 				cdelay(100);
-				csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr[0], buf, DFII_PIX_DATA_BYTES);
+				csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr(0), buf, DFII_PIX_DATA_BYTES);
 				if (buf[SDRAM_PHY_MODULES-1-i] != 0)
 					one_count++;
 				else
@@ -872,15 +907,17 @@ static void sdram_read_leveling_inc_bitslip(char m)
 	ddrphy_dly_sel_write(0);
 }
 
-static int sdram_read_leveling_scan_module(int module, int bitslip, int show)
+static unsigned int sdram_read_leveling_scan_module(int module, int bitslip, int show)
 {
+	const unsigned int max_errors = 2*READ_CHECK_TEST_PATTERN_MAX_ERRORS;
 	int i;
-	int score;
+	unsigned int score;
+	unsigned int errors;
 
-    /* Check test pattern for each delay value */
+	/* Check test pattern for each delay value */
 	score = 0;
 	if (show)
-		printf("  m%d, b%d: |", module, bitslip);
+		printf("  m%d, b%02d: |", module, bitslip);
 	sdram_read_leveling_rst_delay(module);
 	for(i=0;i<SDRAM_PHY_DELAYS;i++) {
 		int working;
@@ -888,11 +925,14 @@ static int sdram_read_leveling_scan_module(int module, int bitslip, int show)
 #if SDRAM_PHY_DELAYS > 32
 		_show = (i%16 == 0) & show;
 #endif
-		working  = sdram_write_read_check_test_pattern(module, 42);
-		working &= sdram_write_read_check_test_pattern(module, 84);
-		if (_show)
-			printf("%d", working);
-		score += working;
+		errors  = sdram_write_read_check_test_pattern(module, 42);
+		errors += sdram_write_read_check_test_pattern(module, 84);
+		working = errors == 0;
+		/* When any scan is working then the final score will always be higher then if no scan was working */
+		score += (working * max_errors*SDRAM_PHY_DELAYS) + (max_errors - errors);
+		if (_show) {
+			print_scan_errors(errors);
+		}
 		sdram_read_leveling_inc_delay(module);
 	}
 	if (show)
@@ -913,8 +953,8 @@ void sdram_read_leveling(void)
 {
 	int module;
 	int bitslip;
-	int score;
-	int best_score;
+	unsigned int score;
+	unsigned int best_score;
 	int best_bitslip;
 
 	for(module=0; module<SDRAM_PHY_MODULES; module++) {
@@ -962,8 +1002,9 @@ static void sdram_write_latency_calibration(void) {
 	int i;
 	int module;
 	int bitslip;
-	int score;
-	int best_score;
+	unsigned int score;
+	unsigned int subscore;
+	unsigned int best_score;
 	int best_bitslip;
 
 	for(module=0; module<SDRAM_PHY_MODULES; module++) {
@@ -971,6 +1012,9 @@ static void sdram_write_latency_calibration(void) {
 		best_score   = 0;
 		best_bitslip = -1;
 		for(bitslip=0; bitslip<SDRAM_PHY_BITSLIPS; bitslip+=2) { /* +2 for tCK steps */
+#ifdef SDRAM_WRITE_LATENCY_CALIBRATION_DEBUG
+			printf("m%d wb%02d:\n", module, bitslip);
+#endif
 			score = 0;
 			/* Select module */
 			ddrphy_dly_sel_write(1 << module);
@@ -985,7 +1029,13 @@ static void sdram_write_latency_calibration(void) {
 			sdram_read_leveling_rst_bitslip(module);
 			for(i=0; i<SDRAM_PHY_BITSLIPS; i++) {
 				/* Compute score */
-				score += sdram_read_leveling_scan_module(module, i, 0);
+#ifdef SDRAM_WRITE_LATENCY_CALIBRATION_DEBUG
+				subscore = sdram_read_leveling_scan_module(module, i, 1);
+				printf("\n");
+#else
+				subscore = sdram_read_leveling_scan_module(module, i, 0);
+#endif
+				score = subscore > score ? subscore : score;
 				/* Increment bitslip */
 				sdram_read_leveling_inc_bitslip(module);
 			}
@@ -1003,6 +1053,9 @@ static void sdram_write_latency_calibration(void) {
 			printf("m%d:- ", module);
 		else
 			printf("m%d:%d ", module, bitslip);
+#ifdef SDRAM_WRITE_LATENCY_CALIBRATION_DEBUG
+		printf("\n");
+#endif
 
 		/* Select best write window */
 		ddrphy_dly_sel_write(1 << module);
@@ -1060,10 +1113,10 @@ static void sdram_write_dq_dqs_training_inc_delay(int module) {
 
 static void sdram_read_leveling_best_bitslip(int module)
 {
-	int score;
+	unsigned int score;
 	int bitslip;
 	int best_bitslip = 0;
-	int best_score = 0;
+	unsigned int best_score = 0;
 
 	sdram_read_leveling_rst_bitslip(module);
 	for(bitslip=0; bitslip<SDRAM_PHY_BITSLIPS; bitslip++) {
@@ -1204,5 +1257,145 @@ int sdram_init(void)
 
 	return 1;
 }
+
+/*-----------------------------------------------------------------------*/
+/* Debugging                                                             */
+/*-----------------------------------------------------------------------*/
+
+#ifdef SDRAM_DEBUG
+
+#define SDRAM_DEBUG_STATS_NUM_RUNS 10
+#define SDRAM_DEBUG_STATS_MEMTEST_SIZE MEMTEST_DATA_SIZE
+
+#ifdef SDRAM_DEBUG_READBACK_MEM_ADDR
+#ifndef SDRAM_DEBUG_READBACK_MEM_SIZE
+#error "Provide readback memory size via SDRAM_DEBUG_READBACK_MEM_SIZE"
+#endif
+#define SDRAM_DEBUG_READBACK_VERBOSE 1
+
+#define SDRAM_DEBUG_READBACK_COUNT 3
+#define SDRAM_DEBUG_READBACK_MEMTEST_SIZE MEMTEST_DATA_SIZE
+
+#define _SINGLE_READBACK (SDRAM_DEBUG_READBACK_MEM_SIZE/SDRAM_DEBUG_READBACK_COUNT)
+#define _READBACK_ERRORS_SIZE (_SINGLE_READBACK - sizeof(struct readback))
+#define SDRAM_DEBUG_READBACK_LEN (_READBACK_ERRORS_SIZE / sizeof(struct memory_error))
+#endif
+
+static int sdram_debug_error_stats_on_error(
+	unsigned int addr, unsigned int rdata, unsigned int refdata, void *arg)
+{
+	struct error_stats *stats = (struct error_stats *) arg;
+	struct memory_error error = {
+		.addr = addr,
+		.data = rdata,
+		.ref = refdata,
+	};
+	error_stats_update(stats, error);
+	return 0;
+}
+
+static void sdram_debug_error_stats(void) {
+	printf("Running initial memtest to fill memory ...\n");
+	memtest_data((unsigned int *) MAIN_RAM_BASE, SDRAM_DEBUG_STATS_MEMTEST_SIZE, 1, NULL);
+
+	struct error_stats stats;
+	error_stats_init(&stats);
+
+	struct memtest_config config = {
+		.show_progress = 0,
+		.read_only = 1,
+		.on_error = sdram_debug_error_stats_on_error,
+		.arg = &stats,
+	};
+
+	printf("Running read-only memtests ... \n");
+	for (int i = 0; i < SDRAM_DEBUG_STATS_NUM_RUNS; ++i) {
+		printf("Running read-only memtest %3d/%3d ... \r", i + 1, SDRAM_DEBUG_STATS_NUM_RUNS);
+		memtest_data((unsigned int *) MAIN_RAM_BASE, SDRAM_DEBUG_STATS_MEMTEST_SIZE, 1, &config);
+	}
+
+	printf("\n");
+	error_stats_print(&stats);
+}
+
+#ifdef SDRAM_DEBUG_READBACK_MEM_ADDR
+static int sdram_debug_readback_on_error(
+	unsigned int addr, unsigned int rdata, unsigned int refdata, void *arg)
+{
+	struct readback *readback = (struct readback *) arg;
+	struct memory_error error = {
+		.addr = addr,
+		.data = rdata,
+		.ref = refdata,
+	};
+	// run only as long as we have space for new entries
+	return readback_add(readback, SDRAM_DEBUG_READBACK_LEN, error) != 1;
+}
+
+static void sdram_debug_readback(void)
+{
+	printf("Using storage @0x%08x with size 0x%08x for %d readbacks.\n",
+		SDRAM_DEBUG_READBACK_MEM_ADDR, SDRAM_DEBUG_READBACK_MEM_SIZE, SDRAM_DEBUG_READBACK_COUNT);
+
+	printf("Running initial memtest to fill memory ...\n");
+	memtest_data((unsigned int *) MAIN_RAM_BASE, SDRAM_DEBUG_READBACK_MEMTEST_SIZE, 1, NULL);
+
+	for (int i = 0; i < SDRAM_DEBUG_READBACK_COUNT; ++i) {
+		struct readback *readback = (struct readback *)
+			(SDRAM_DEBUG_READBACK_MEM_ADDR + i * READBACK_SIZE(SDRAM_DEBUG_READBACK_LEN));
+		readback_init(readback);
+
+		struct memtest_config config = {
+			.show_progress = 0,
+			.read_only = 1,
+			.on_error = sdram_debug_readback_on_error,
+			.arg = readback,
+		};
+
+		printf("Running readback %3d/%3d ... \r", i + 1, SDRAM_DEBUG_READBACK_COUNT);
+		memtest_data((unsigned int *) MAIN_RAM_BASE, SDRAM_DEBUG_READBACK_MEMTEST_SIZE, 1, &config);
+	}
+	printf("\n");
+
+
+	// Iterate over all combinations
+	for (int i = 0; i < SDRAM_DEBUG_READBACK_COUNT; ++i) {
+		struct readback *first = (struct readback *)
+			(SDRAM_DEBUG_READBACK_MEM_ADDR + i * READBACK_SIZE(SDRAM_DEBUG_READBACK_LEN));
+
+		for (int j = i + 1; j < SDRAM_DEBUG_READBACK_COUNT; ++j) {
+			int nums[] = {i, j};
+			struct readback *readbacks[] = {
+				(struct readback *) (SDRAM_DEBUG_READBACK_MEM_ADDR + i * READBACK_SIZE(SDRAM_DEBUG_READBACK_LEN)),
+				(struct readback *) (SDRAM_DEBUG_READBACK_MEM_ADDR + j * READBACK_SIZE(SDRAM_DEBUG_READBACK_LEN)),
+			};
+
+			// Compare i vs j and j vs i
+			for (int k = 0; k < 2; ++k) {
+				printf("Comparing readbacks %d vs %d:\n", nums[k], nums[1 - k]);
+				int missing = readback_compare(readbacks[k], readbacks[1 - k], SDRAM_DEBUG_READBACK_VERBOSE);
+				if (missing == 0)
+					printf("  OK\n");
+				else
+					printf("  N missing = %d\n", missing);
+			}
+		}
+	}
+}
+#endif
+
+void sdram_debug(void)
+{
+#if defined(SDRAM_DEBUG_STATS_NUM_RUNS) && SDRAM_DEBUG_STATS_NUM_RUNS > 0
+	printf("\nError stats:\n");
+	sdram_debug_error_stats();
+#endif
+
+#ifdef SDRAM_DEBUG_READBACK_MEM_ADDR
+	printf("\nReadback:\n");
+	sdram_debug_readback();
+#endif
+}
+#endif
 
 #endif

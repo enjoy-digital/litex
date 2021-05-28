@@ -40,7 +40,7 @@ class OpenOCD(GenericProgrammer):
         self.call(["openocd", "-f", config, "-c", script])
 
 
-    def stream(self, port=20000):
+    def stream(self, port=20000, chain=1):
         """
         Create a TCP server to stream data to/from the internal JTAG TAP of the FPGA
 
@@ -139,7 +139,7 @@ proc jtagstream_serve {tap port} {
         write_to_file("stream.cfg", cfg)
         script = "; ".join([
             "init",
-            "irscan $_CHIPNAME.tap $_USER1",
+            "irscan $_CHIPNAME.tap {:d}".format(0x1 + chain),
             "jtagstream_serve $_CHIPNAME.tap {:d}".format(port),
             "exit",
         ])

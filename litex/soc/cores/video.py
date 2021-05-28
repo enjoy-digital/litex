@@ -857,6 +857,79 @@ class VideoS7HDMIPHY(Module):
             self.specials += Instance("OBUFDS", i_I=pad_o, o_O=pad_p, o_OB=pad_n)
 
 
+class VideoS7GTPHDMIPHY(Module):
+    def __init__(self, pads, sys_clk_freq, clock_domain="sys", clk_freq=148.5e6, refclk=None):
+        assert sys_clk_freq >= clk_freq
+        self.sink = sink = stream.Endpoint(video_data_layout)
+
+        # # #
+
+        from liteiclink.serdes.gtp_7series import GTPQuadPLL, GTP
+
+        # Always ack Sink, no backpressure.
+        self.comb += sink.ready.eq(1)
+
+        # Clocking + Differential Signaling.
+        pads_clk = Signal()
+        self.specials += DDROutput(i1=1, i2=0, o=pads_clk, clk=ClockSignal(clock_domain))
+        self.specials += Instance("OBUFDS", i_I=pads_clk, o_O=pads.clk_p, o_OB=pads.clk_n)
+
+        # GTP Quad PLL.
+        if refclk is None:
+            # No RefClk provided, use the Video Clk as GTP RefClk.
+            refclk = ClockSignal(clock_domain)
+        elif isinstance(refclk, Record):
+            # Differential RefCLk provided, add an IBUFDS_GTE2.
+            refclk_se = Signal()
+            self.specials += Instance("IBUFDS_GTE2",
+                i_CEB = 0,
+                i_I   = refclk.p,
+                i_IB  = refclk.n,
+                o_O   = refclk_se
+            )
+            refclk = refclk_se
+        self.submodules.pll = pll = GTPQuadPLL(refclk, clk_freq, 1.485e9)
+
+        # Encode/Serialize Datas.
+        for color in ["r", "g", "b"]:
+            # TMDS Encoding.
+            encoder = ClockDomainsRenamer(clock_domain)(TMDSEncoder())
+            self.submodules += encoder
+            self.comb += encoder.d.eq(getattr(sink, color))
+            self.comb += encoder.c.eq(Cat(sink.hsync, sink.vsync) if color == "r" else 0)
+            self.comb += encoder.de.eq(sink.de)
+
+            # 10:20 (SerDes has a minimal 20:1 Serialization ratio).
+            converter = ClockDomainsRenamer(clock_domain)(stream.Converter(10, 20))
+            self.submodules += converter
+            self.comb += converter.sink.valid.eq(1)
+            self.comb += converter.sink.data.eq(encoder.out)
+
+            # Clock Domain Crossing (video_clk --> gtp_tx)
+            cdc = stream.ClockDomainCrossing([("data", 20)], cd_from=clock_domain, cd_to=f"gtp{color}_tx")
+            self.submodules += cdc
+            self.comb += converter.source.connect(cdc.sink)
+            self.comb += cdc.source.ready.eq(1) # No backpressure.
+
+            # 20:1 Serialization + Differential Signaling.
+            c2d  = {"r": 2, "g": 1, "b": 0}
+            class GTPPads:
+                def __init__(self, p, n):
+                    self.p = p
+                    self.n = n
+            tx_pads = GTPPads(p=getattr(pads, f"data{c2d[color]}_p"), n=getattr(pads, f"data{c2d[color]}_n"))
+            # FIXME: Find a way to avoid RX pads.
+            rx_pads = GTPPads(p=getattr(pads, f"rx{c2d[color]}_p"),   n=getattr(pads, f"rx{c2d[color]}_n"))
+            gtp = GTP(pll, tx_pads, rx_pads=rx_pads, sys_clk_freq=sys_clk_freq,
+                tx_polarity      = 1, # FIXME: Specific to Decklink Mini 4K, make it configurable.
+                tx_buffer_enable = True,
+                rx_buffer_enable = True,
+                clock_aligner    = False
+            )
+            setattr(self.submodules, f"gtp{color}", gtp)
+            self.comb += gtp.tx_produce_pattern.eq(1)
+            self.comb += gtp.tx_pattern.eq(cdc.source.data)
+
 # HDMI (Lattice ECP5).
 
 class VideoECP5HDMIPHY(Module):

@@ -11,6 +11,15 @@
 //#define MEMTEST_DATA_DEBUG
 //#define MEMTEST_ADDR_DEBUG
 
+// Limits the number of errors printed, so that we can still access bios console
+#ifndef MEMTEST_DEBUG_MAX_ERRORS
+#define MEMTEST_DEBUG_MAX_ERRORS 400
+#endif
+// Retry reading when an error occurs. Allows to spot if errors happen during read or write.
+#ifndef MEMTEST_DATA_RETRIES
+#define MEMTEST_DATA_RETRIES 0
+#endif
+
 #define KIB 1024
 #define MIB (KIB*1024)
 #define GIB (MIB*1024)
@@ -85,7 +94,8 @@ int memtest_bus(unsigned int *addr, unsigned long size)
 		if(rdata != ONEZERO) {
 			errors++;
 #ifdef MEMTEST_BUS_DEBUG
-			printf("memtest_bus error @ %p: 0x%08x vs 0x%08x\n", addr + i, rdata, ONEZERO);
+			if (MEMTEST_DEBUG_MAX_ERRORS < 0 || errors <= MEMTEST_DEBUG_MAX_ERRORS)
+				printf("memtest_bus error @ %p: 0x%08x vs 0x%08x\n", addr + i, rdata, ONEZERO);
 #endif
 		}
 	}
@@ -105,7 +115,8 @@ int memtest_bus(unsigned int *addr, unsigned long size)
 		if(rdata != ZEROONE) {
 			errors++;
 #ifdef MEMTEST_BUS_DEBUG
-			printf("memtest_bus error @ %p:: 0x%08x vs 0x%08x\n", addr + i, rdata, ZEROONE);
+			if (MEMTEST_DEBUG_MAX_ERRORS < 0 || errors <= MEMTEST_DEBUG_MAX_ERRORS)
+				printf("memtest_bus error @ %p:: 0x%08x vs 0x%08x\n", addr + i, rdata, ZEROONE);
 #endif
 		}
 	}
@@ -141,7 +152,8 @@ int memtest_addr(unsigned int *addr, unsigned long size, int random)
 		if(rdata != i) {
 			errors++;
 #ifdef MEMTEST_ADDR_DEBUG
-			printf("memtest_addr error @ %p: 0x%08x vs 0x%08x\n", addr + i, rdata, i);
+			if (MEMTEST_DEBUG_MAX_ERRORS < 0 || errors <= MEMTEST_DEBUG_MAX_ERRORS)
+				printf("memtest_addr error @ %p: 0x%08x vs 0x%08x\n", addr + i, rdata, i);
 #endif
 		}
 	}
@@ -153,11 +165,11 @@ static void print_size(unsigned long size) {
 	if (size < KIB)
 		printf("%luB", size);
 	else if (size < MIB)
-		printf("%luKiB", size/KIB);
+		printf("%lu.%luKiB", size/KIB, (size/1   - KIB*(size/KIB))/(KIB/10));
 	else if (size < GIB)
-		printf("%luMiB", size/MIB);
+		printf("%lu.%luMiB", size/MIB, (size/KIB - KIB*(size/MIB))/(KIB/10));
 	else
-		printf("%luGiB", size/GIB);
+		printf("%lu.%luGiB", size/GIB, (size/MIB - KIB*(size/GIB))/(KIB/10));
 }
 
 static void print_speed(unsigned long speed) {
@@ -172,25 +184,30 @@ static void print_progress(const char * header, unsigned int offset, unsigned in
 	printf("   \r");
 }
 
-int memtest_data(unsigned int *addr, unsigned long size, int random)
+int memtest_data(unsigned int *addr, unsigned long size, int random, struct memtest_config *config)
 {
 	volatile unsigned int *array = addr;
 	int i, errors;
+	int j, ok_at;
+	int progress;
 	unsigned int seed_32;
 	unsigned int rdata;
 
+	progress = config == NULL ? 1 : config->show_progress;
 	errors  = 0;
 	seed_32 = 1;
 
-	/* Write datas */
-	for(i=0; i<size/4; i++) {
-		seed_32 = seed_to_data_32(seed_32, random);
-		array[i] = seed_32;
-		if (i%0x8000 == 0)
-			print_progress("  Write:", (unsigned long)addr, 4*i);
+	if (config == NULL || !config->read_only) {
+		/* Write datas */
+		for(i=0; i<size/4; i++) {
+			seed_32 = seed_to_data_32(seed_32, random);
+			array[i] = seed_32;
+			if (i%0x8000 == 0)
+				print_progress("  Write:", (unsigned long)addr, 4*i);
+		}
+		print_progress("  Write:", (unsigned long)addr, 4*i);
+		printf("\n");
 	}
-	print_progress("  Write:", (unsigned long)addr, 4*i);
-	printf("\n");
 
 	/* Flush caches */
 	flush_cpu_dcache();
@@ -200,18 +217,37 @@ int memtest_data(unsigned int *addr, unsigned long size, int random)
 	seed_32 = 1;
 	for(i=0; i<size/4; i++) {
 		seed_32 = seed_to_data_32(seed_32, random);
-		rdata = array[i];
+
+		ok_at = -1;
+		for (j = 0; j < MEMTEST_DATA_RETRIES + 1; ++j) {
+			rdata = array[i];
+			if (rdata == seed_32) {
+				ok_at = j;
+				break;
+			}
+		}
+		if (ok_at > 0)
+			printf("@%p: Redeemed at %d. attempt\n", addr + i, ok_at + 1);
+
 		if(rdata != seed_32) {
 			errors++;
+			if (config != NULL && config->on_error != NULL) {
+				// call the handler, if non-zero status is returned finish now
+				if (config->on_error((unsigned long) (addr + i), rdata, seed_32, config->arg) != 0)
+					return errors;
+			}
 #ifdef MEMTEST_DATA_DEBUG
-			printf("memtest_data error @ %p: 0x%08x vs 0x%08x\n", addr + i, rdata, seed_32);
+			if (MEMTEST_DEBUG_MAX_ERRORS < 0 || errors <= MEMTEST_DEBUG_MAX_ERRORS)
+				printf("memtest_data error @ %p: 0x%08x vs 0x%08x\n", addr + i, rdata, seed_32);
 #endif
 		}
-		if (i%0x8000 == 0)
+		if (i%0x8000 == 0 && progress)
 			print_progress("   Read:", (unsigned long)addr, 4*i);
 	}
-	print_progress("   Read:", (unsigned long)addr, 4*i);
-	printf("\n");
+	if (progress) {
+		print_progress("   Read:", (unsigned long)addr, 4*i);
+		printf("\n");
+	}
 
 	return errors;
 }
@@ -292,7 +328,7 @@ int memtest(unsigned int *addr, unsigned long maxsize)
 
 	bus_errors  = memtest_bus(addr, bus_size);
 	addr_errors = memtest_addr(addr, addr_size, MEMTEST_ADDR_RANDOM);
-	data_errors = memtest_data(addr, data_size, MEMTEST_DATA_RANDOM);
+	data_errors = memtest_data(addr, data_size, MEMTEST_DATA_RANDOM, NULL);
 
 	if(bus_errors + addr_errors + data_errors != 0) {
 		printf("  bus errors:  %d/%ld\n", bus_errors,  2*bus_size/4);

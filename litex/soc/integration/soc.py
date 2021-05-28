@@ -658,7 +658,10 @@ class SoCIRQHandler(SoCLocHandler):
 class SoCController(Module, AutoCSR):
     def __init__(self, with_reset=True, with_scratch=True, with_errors=True):
         if with_reset:
-            self._reset = CSRStorage(1, description="""Any write to this register will reset the SoC.""")
+            self._reset = CSRStorage(fields=[
+                CSRField("soc_rst", size=1, offset=0, pulse=True, description="""Write `1` to this register to reset the full SoC (Pulse Reset)"""),
+                CSRField("cpu_rst", size=1, offset=1,             description="""Write `1` to this register to reset the CPU(s) of the SoC (Hold Reset)"""),
+            ])
         if with_scratch:
             self._scratch = CSRStorage(32, reset=0x12345678, description="""
                 Use this register as a scratch space to verify that software read/write accesses
@@ -671,8 +674,8 @@ class SoCController(Module, AutoCSR):
 
         # Reset
         if with_reset:
-            self.reset = Signal()
-            self.comb += self.reset.eq(self._reset.re)
+            self.soc_rst = self._reset.fields.soc_rst
+            self.cpu_rst = self._reset.fields.cpu_rst
 
         # Errors
         if with_errors:
@@ -861,7 +864,7 @@ class SoC(Module):
         self.add_config("CSR_DATA_WIDTH", self.csr.data_width)
         self.add_config("CSR_ALIGNMENT",  self.csr.alignment)
 
-    def add_cpu(self, name="vexriscv", variant="standard", cls=None, reset_address=None):
+    def add_cpu(self, name="vexriscv", variant="standard", cls=None, reset_address=None, cfu=None):
         # Check that CPU is supported.
         if name not in cpu.CPUS.keys():
             self.logger.error("{} CPU {}, supporteds: {}.".format(
@@ -885,6 +888,10 @@ class SoC(Module):
             raise
         self.check_if_exists("cpu")
         self.submodules.cpu = cpu_cls(self.platform, variant)
+
+        # Add optional CFU plugin.
+        if "cfu" in variant and hasattr(self.cpu, "add_cfu"):
+            self.cpu.add_cfu(cfu_filename=cfu)
 
         # Update SoC with CPU constraints.
         for n, (origin, size) in enumerate(self.cpu.io_regions.items()):
@@ -918,8 +925,11 @@ class SoC(Module):
 
             # Connect SoCController's reset to CPU reset.
             if hasattr(self, "ctrl"):
-                if hasattr(self.ctrl, "reset"):
-                    self.comb += self.cpu.reset.eq(self.ctrl.reset)
+                self.comb += self.cpu.reset.eq(
+                    # Reset the CPU on...
+                    getattr(self.ctrl, "soc_rst", 0) | # Full SoC Reset command...
+                    getattr(self.ctrl, "cpu_rst", 0)   # or on CPU Reset command.
+                )
             self.add_config("CPU_RESET_ADDR", reset_address)
 
         # Add CPU's SoC components (if any).
@@ -952,11 +962,11 @@ class SoC(Module):
         }[self.bus.standard]
 
         # SoC Reset --------------------------------------------------------------------------------
-        # Connect SoCController's reset to CRG's reset if presents.
+        # Connect soc_rst to CRG's rst if presents.
         if hasattr(self, "ctrl") and hasattr(self, "crg"):
-            if hasattr(self.ctrl, "_reset") and hasattr(self.crg, "rst"):
-                if isinstance(self.crg.rst, Signal):
-                    self.comb += self.crg.rst.eq(self.ctrl._reset.re)
+            crg_rst = getattr(self.crg, "rst", None)
+            if isinstance(crg_rst, Signal):
+                self.comb += crg_rst.eq(getattr(self.ctrl, "soc_rst", 0))
 
         # SoC CSR bridge ---------------------------------------------------------------------------
         # FIXME: for now, use registered CSR bridge when SDRAM is present; find the best compromise.
@@ -1203,11 +1213,11 @@ class LiteXSoC(SoC):
         self.bus.add_master(name="uartbone", master=self.uartbone.wishbone)
 
     # Add JTAGbone ---------------------------------------------------------------------------------
-    def add_jtagbone(self):
+    def add_jtagbone(self, chain=1):
         from litex.soc.cores import uart
         from litex.soc.cores.jtag import JTAGPHY
         self.check_if_exists("jtabone")
-        self.submodules.jtagbone_phy = JTAGPHY(device=self.platform.device)
+        self.submodules.jtagbone_phy = JTAGPHY(device=self.platform.device, chain=chain)
         self.submodules.jtagbone = uart.UARTBone(phy=self.jtagbone_phy, clk_freq=self.sys_clk_freq)
         self.bus.add_master(name="jtagbone", master=self.jtagbone.wishbone)
 
