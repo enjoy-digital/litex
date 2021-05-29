@@ -42,7 +42,7 @@ class XilinxClocking(Module, AutoCSR):
         self.clkin_freq = freq
         register_clkin_log(self.logger, clkin, freq)
 
-    def create_clkout(self, cd, freq, phase=0, buf="bufg", margin=1e-2, with_reset=True, ce=None):
+    def create_clkout(self, cd, freq, phase=0, buf="bufg", margin=1e-2, with_reset=True, ce=None, gated_replica_cd=None):
         assert self.nclkouts < self.nclkouts_max
         clkout = Signal()
         self.clkouts[self.nclkouts] = (clkout, freq, phase, margin)
@@ -65,6 +65,12 @@ class XilinxClocking(Module, AutoCSR):
                 self.specials += Instance("BUFIO", i_I=clkout, o_O=clkout_buf)
             else:
                 raise ValueError("Unsupported clock buffer: {}".format(buf))
+
+            if gated_replica_cd != None:
+                clkout_gated = Signal()
+                self.comb += gated_replica_cd.clk.eq(clkout_gated)
+                self.specials += Instance("BUFGCE", i_I=clkout, o_O=clkout_gated, i_CE=ce)
+
         create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
         self.nclkouts += 1
 
