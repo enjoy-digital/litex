@@ -42,7 +42,7 @@ class XilinxClocking(Module, AutoCSR):
         self.clkin_freq = freq
         register_clkin_log(self.logger, clkin, freq)
 
-    def create_clkout(self, cd, freq, phase=0, buf="bufg", margin=1e-2, with_reset=True, ce=None, gated_replica_cd=None):
+    def create_clkout(self, cd, freq, phase=0, buf="bufg", margin=1e-2, with_reset=True, ce=None, gated_replica_cd=None, replica_ce=None):
         assert self.nclkouts < self.nclkouts_max
         clkout = Signal()
         self.clkouts[self.nclkouts] = (clkout, freq, phase, margin)
@@ -60,7 +60,7 @@ class XilinxClocking(Module, AutoCSR):
             elif buf == "bufgce":
                 if ce is None:
                     raise ValueError("BUFGCE requires user to provide a clock enable ce Signal")
-                self.specials += Instance("BUFGCE", i_I=clkout, o_O=clkout_buf, i_CE=ce)
+                self.specials += Instance("BUFGCTRL", i_I0=clkout, i_I1=0, i_CE0=1, i_CE1=1, i_S0=ce, i_S1=~ce, o_O=clkout_buf, i_IGNORE0=0, i_IGNORE1=0)
             elif buf == "bufio":
                 self.specials += Instance("BUFIO", i_I=clkout, o_O=clkout_buf)
             else:
@@ -69,7 +69,12 @@ class XilinxClocking(Module, AutoCSR):
             if gated_replica_cd != None:
                 clkout_gated = Signal()
                 self.comb += gated_replica_cd.clk.eq(clkout_gated)
-                self.specials += Instance("BUFGCE", i_I=clkout, o_O=clkout_gated, i_CE=ce)
+                if replica_ce is None:
+                    self.specials += Instance("BUFGCTRL", i_I0=clkout, i_I1=0, i_CE0=1, i_CE1=1, i_S0=ce, i_S1=~ce,
+                        o_O=clkout_gated, i_IGNORE0=0, i_IGNORE1=0)
+                else:
+                    self.specials += Instance("BUFGCTRL", i_I0=clkout, i_I1=0, i_CE0=1, i_CE1=1, i_S0=replica_ce, i_S1=~replica_ce,
+                        o_O=clkout_gated, i_IGNORE0=0, i_IGNORE1=0)
 
         create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
         self.nclkouts += 1
