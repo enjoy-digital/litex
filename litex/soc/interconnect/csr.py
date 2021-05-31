@@ -428,6 +428,8 @@ class CSRStorage(_CompoundCSR):
         """Write method for simulation.
 
         Side effects: synchronous advances simulation clk by one tick."""
+        if bits_for(value) > self.size:
+            raise ValueError(f"value {value} exceeds range of {self.size} bit CSR {self.name}.")
 
         yield self.storage.eq(value)
         yield self.re.eq(1)
