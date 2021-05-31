@@ -42,7 +42,7 @@ class XilinxClocking(Module, AutoCSR):
         self.clkin_freq = freq
         register_clkin_log(self.logger, clkin, freq)
 
-    def create_clkout(self, cd, freq, phase=0, buf="bufg", margin=1e-2, with_reset=True, ce=None, gated_replica_cd=None, replica_ce=None):
+    def create_clkout(self, cd, freq, phase=0, buf="bufg", margin=1e-2, with_reset=True, ce=None, gated_replicas=None):
         assert self.nclkouts < self.nclkouts_max
         clkout = Signal()
         self.clkouts[self.nclkouts] = (clkout, freq, phase, margin)
@@ -66,14 +66,12 @@ class XilinxClocking(Module, AutoCSR):
             else:
                 raise ValueError("Unsupported clock buffer: {}".format(buf))
 
-            if gated_replica_cd != None:
-                clkout_gated = Signal()
-                self.comb += gated_replica_cd.clk.eq(clkout_gated)
-                if replica_ce is None:
-                    self.specials += Instance("BUFGCTRL", i_I0=clkout, i_I1=0, i_CE0=1, i_CE1=1, i_S0=ce, i_S1=~ce,
-                        o_O=clkout_gated, i_IGNORE0=0, i_IGNORE1=0)
-                else:
-                    self.specials += Instance("BUFGCTRL", i_I0=clkout, i_I1=0, i_CE0=1, i_CE1=1, i_S0=replica_ce, i_S1=~replica_ce,
+            if gated_replicas != None:
+                # { domain : gate }
+                for domain, gate in gated_replicas.items():
+                    clkout_gated = Signal()
+                    self.comb += domain.clk.eq(clkout_gated)
+                    self.specials += Instance("BUFGCTRL", i_I0=clkout, i_I1=0, i_CE0=1, i_CE1=1, i_S0=gate, i_S1=~gate,
                         o_O=clkout_gated, i_IGNORE0=0, i_IGNORE1=0)
 
         create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
