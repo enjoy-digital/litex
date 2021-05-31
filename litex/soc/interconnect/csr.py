@@ -419,11 +419,16 @@ class CSRStorage(_CompoundCSR):
         self.sync += self.re.eq(sc.re)
 
     def read(self):
-        """Read method for simulation."""
+        """Read method for simulation.
+
+        Side effects: none (asynchronous)."""
         return (yield self.storage)
 
     def write(self, value):
-        """Write method for simulation."""
+        """Write method for simulation.
+
+        Side effects: synchronous advances simulation clk by one tick."""
+
         yield self.storage.eq(value)
         yield self.re.eq(1)
         if hasattr(self, "fields"):
