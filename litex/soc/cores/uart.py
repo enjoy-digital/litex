@@ -216,56 +216,84 @@ class UART(Module, AutoCSR, UARTInterface):
             rx_fifo_depth = 16,
             rx_fifo_rx_we = False,
             phy_cd        = "sys"):
-        self._rxtx    = CSR(8)
-        self._txfull  = CSRStatus()
-        self._rxempty = CSRStatus()
+        self._rxtx    = CSR(8) # RX/TX Data.
+        self._txfull  = CSRStatus(description="TX FIFO Full.")
+        self._rxempty = CSRStatus(description="RX FIFO Empty.")
 
         self.submodules.ev = EventManager()
         self.ev.tx = EventSourceProcess(edge="rising")
         self.ev.rx = EventSourceProcess(edge="rising")
         self.ev.finalize()
 
-        self._txempty = CSRStatus()
-        self._rxfull  = CSRStatus()
+        self._txempty = CSRStatus(description="TX FIFO Empty.")
+        self._rxfull  = CSRStatus(description="RX FIFO Full.")
 
         # # #
 
         UARTInterface.__init__(self)
 
         # PHY
+        # ---
         if phy is not None:
-            self.comb += [
-                phy.source.connect(self.sink),
-                self.source.connect(phy.sink)
-            ]
+            self.comb += phy.source.connect(self.sink)
+            self.comb += self.source.connect(phy.sink)
 
         # TX
-        tx_fifo = _get_uart_fifo(tx_fifo_depth, source_cd=phy_cd)
-        self.submodules += tx_fifo
-
+        # --
+        self.submodules.tx_fifo = tx_fifo = _get_uart_fifo(tx_fifo_depth, source_cd=phy_cd)
         self.comb += [
+            # CSR --> FIFO.
             tx_fifo.sink.valid.eq(self._rxtx.re),
             tx_fifo.sink.data.eq(self._rxtx.r),
+
+            # FIFO --> Source.
+            tx_fifo.source.connect(self.source),
+
+            # CSR Status.
             self._txfull.status.eq(~tx_fifo.sink.ready),
             self._txempty.status.eq(~tx_fifo.source.valid),
-            tx_fifo.source.connect(self.source),
-            # Generate TX IRQ when tx_fifo becomes non-full.
+
+            # IRQ (When FIFO becomes non-full).
             self.ev.tx.trigger.eq(tx_fifo.sink.ready)
         ]
 
         # RX
-        rx_fifo = _get_uart_fifo(rx_fifo_depth, sink_cd=phy_cd)
-        self.submodules += rx_fifo
-
+        # --
+        self.submodules.rx_fifo = rx_fifo = _get_uart_fifo(rx_fifo_depth, sink_cd=phy_cd)
         self.comb += [
+            # Sink --> FIFO.
             self.sink.connect(rx_fifo.sink),
-            self._rxempty.status.eq(~rx_fifo.source.valid),
-            self._rxfull.status.eq(~rx_fifo.sink.ready),
+
+            # FIFO --> CSR.
             self._rxtx.w.eq(rx_fifo.source.data),
             rx_fifo.source.ready.eq(self.ev.rx.clear | (rx_fifo_rx_we & self._rxtx.we)),
-            # Generate RX IRQ when rx_fifo becomes non-empty.
+
+            # Status.
+            self._rxempty.status.eq(~rx_fifo.source.valid),
+            self._rxfull.status.eq(~rx_fifo.sink.ready),
+
+            # IRQ (When FIFO becomes non-empty).
             self.ev.rx.trigger.eq(rx_fifo.source.valid)
         ]
+
+    def add_auto_tx_flush(self, sys_clk_freq, timeout=1e-2, interval=2):
+        # Add automatic TX flush when ready is not active for a long time (timeout), this can prevent
+        # stalling the UART (and thus CPU) when the PHY is not operational at startup.
+
+        flush_ep    = stream.Endpoint([("data", 8)])
+        flush_count = Signal(int(log2(interval)))
+
+        # Insert Flush Endpoint between TX FIFO and Source.
+        self.comb += self.tx_fifo.source.connect(flush_ep)
+        self.comb += flush_ep.connect(self.source)
+
+        # Flush TX FIFO when Source.ready is inactive for timeout (with interval cycles between
+        # each ready).
+        self.submodules.timer = timer = WaitTimer(int(timeout*sys_clk_freq))
+        self.comb += timer.wait.eq(~self.source.ready)
+        self.sync += flush_count.eq(flush_count + 1)
+        self.comb += If(timer.done, flush_ep.ready.eq(flush_count == 0))
+        #self.sync += If(flush_ep.valid & flush_ep.ready, Display("%c", flush_ep.data))
 
 # UART Bone ----------------------------------------------------------------------------------------
 
