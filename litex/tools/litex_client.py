@@ -86,8 +86,8 @@ class RemoteClient(EtherboneIPC, CSRBuilder):
 
 # Utils --------------------------------------------------------------------------------------------
 
-def dump_identifier(port):
-    wb = RemoteClient(port=port)
+def dump_identifier(**kwargs):
+    wb = RemoteClient(**kwargs)
     wb.open()
 
     # On PCIe designs, CSR is remapped to 0 to limit BAR0 size.
@@ -106,8 +106,8 @@ def dump_identifier(port):
 
     wb.close()
 
-def dump_registers(port, filter=None):
-    wb = RemoteClient(port=port)
+def dump_registers(filter=None, **kwargs):
+    wb = RemoteClient(**kwargs)
     wb.open()
 
     # On PCIe designs, CSR is remapped to 0 to limit BAR0 size.
@@ -120,16 +120,16 @@ def dump_registers(port, filter=None):
 
     wb.close()
 
-def read_memory(port, addr):
-    wb = RemoteClient(port=port)
+def read_memory(addr, **kwargs):
+    wb = RemoteClient(**kwargs)
     wb.open()
 
     print("0x{:08x}".format(wb.read(addr)))
 
     wb.close()
 
-def write_memory(port, addr, data):
-    wb = RemoteClient(port=port)
+def write_memory(addr, data, **kwargs):
+    wb = RemoteClient(**kwargs)
     wb.open()
 
     wb.write(addr, data)
@@ -146,21 +146,22 @@ def main():
     parser.add_argument("--filter", default=None,          help="Registers filter (to be used with --regs).")
     parser.add_argument("--read",   default=None,          help="Do a MMAP Read to SoC bus (--read addr)")
     parser.add_argument("--write",  default=None, nargs=2, help="Do a MMAP Write to SoC bus (--write addr data)")
+    parser.add_argument("--csr-csv",default=None,          help="csr CSV file")
     args = parser.parse_args()
 
     port = int(args.port, 0)
 
     if args.ident:
-        dump_identifier(port=port)
+        dump_identifier(port=port, csr_csv=args.csr_csv)
 
     if args.regs:
-        dump_registers(port=port, filter=args.filter)
+        dump_registers(filter=args.filter, port=port, csr_csv=args.csr_csv)
 
     if args.read:
-        read_memory(port=port, addr=int(args.read, 0))
+        read_memory(addr=int(args.read, 0), port=port, csr_csv=args.csr_csv)
 
     if args.write:
-        write_memory(port=port, addr=int(args.write[0], 0), data=int(args.write[1], 0))
+        write_memory(addr=int(args.write[0], 0), data=int(args.write[1], 0), port=port, csr_csv=args.csr_csv)
 
 if __name__ == "__main__":
     main()
