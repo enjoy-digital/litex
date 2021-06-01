@@ -52,12 +52,8 @@ class FreqMeter(Module, AutoCSR):
         period_done    = Signal()
         period_counter = Signal(32)
         self.comb += period_done.eq(period_counter == period)
-        self.sync += \
-            If(period_done,
-                period_counter.eq(0),
-            ).Else(
-                period_counter.eq(period_counter + 1)
-            )
+        self.sync += period_counter.eq(period_counter + 1)
+        self.sync += If(period_done, period_counter.eq(0))
 
         # Frequency measurement
         event_counter = ClockDomainsRenamer("fmeter")(GrayCounter(width))
