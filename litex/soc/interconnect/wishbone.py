@@ -294,7 +294,7 @@ class UpConverter(Module):
         for i in range(ratio):
             cases[i] = [
                 slave.adr.eq(master.adr[int(log2(ratio)):]),
-                slave.sel[i*dw_from//8:(i+1)*dw_from//8].eq(2**(dw_from//8) - 1),
+                slave.sel[i*dw_from//8:(i+1)*dw_from//8].eq(master.sel),
                 slave.dat_w[i*dw_from:(i+1)*dw_from].eq(master.dat_w),
                 master.dat_r.eq(slave.dat_r[i*dw_from:(i+1)*dw_from]),
         ]

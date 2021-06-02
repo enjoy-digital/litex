@@ -3,7 +3,7 @@
 
 	[> Issues resolved
 	------------------
-	-
+	- wishbone/UpConverter: Fix SEL propagation.
 
 	[> Added Features
 	-----------------
