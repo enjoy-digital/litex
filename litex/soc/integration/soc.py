@@ -1326,7 +1326,7 @@ class LiteXSoC(SoC):
                         self.submodules += LiteDRAMWishbone2Native(
                             wishbone     = litedram_wb,
                             port         = port,
-                            base_address = origin)
+                            base_address = self.bus.regions["main_ram"].origin)
                         self.submodules += wishbone.Converter(mem_wb, litedram_wb)
                 # Check if bus is a Native bus and connect it.
                 if isinstance(mem_bus, LiteDRAMNativePort):
