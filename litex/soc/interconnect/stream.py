@@ -293,6 +293,25 @@ class Demultiplexer(Module):
             cases[i] = self.sink.connect(source)
         self.comb += Case(self.sel, cases)
 
+
+# Gate ---------------------------------------------------------------------------------------------
+
+class Gate(Module):
+    def __init__(self, layout, sink_ready_when_disabled=False):
+        self.sink   = Endpoint(layout)
+        self.source = Endpoint(layout)
+        self.enable = Signal()
+
+        # # #
+
+        self.comb += [
+            If(self.enable,
+                self.sink.connect(self.source)
+            ).Else(
+                self.sink.ready.eq(int(sink_ready_when_disabled))
+            )
+        ]
+
 # Converter ----------------------------------------------------------------------------------------
 
 class _UpConverter(Module):
