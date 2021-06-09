@@ -430,7 +430,7 @@ def main():
         sdram_init     = [] if args.sdram_init is None else get_mem_data(args.sdram_init, cpu.endianness),
         **soc_kwargs)
     if args.ram_init is not None or args.sdram_init is not None:
-        soc.add_constant("ROM_BOOT_ADDRESS", 0x40000000)
+        soc.add_constant("ROM_BOOT_ADDRESS", soc.mem_map["main_ram"])
     if args.with_ethernet:
         for i in range(4):
             soc.add_constant("LOCALIP{}".format(i+1), int(args.local_ip.split(".")[i]))
