@@ -123,6 +123,17 @@ video_timings = {
         "v_sync_offset" : 4,
         "v_sync_width"  : 5,
     },
+    "1920x1200@60Hz": {
+        "pix_clk"       : 148.2e6,
+        "h_active"      : 1920,
+        "h_blanking"    : 80,
+        "h_sync_offset" : 8,
+        "h_sync_width"  : 32,
+        "v_active"      : 1200,
+        "v_blanking"    : 35,
+        "v_sync_offset" : 21,
+        "v_sync_width"  : 8,
+    },
 }
 
 # Video Timing Generator ---------------------------------------------------------------------------
