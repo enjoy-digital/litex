@@ -28,6 +28,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         self.cipo_name = cipo_name
         self.spiread = spiread
         self.gsr = Signal()
+        self.keyclearb = Signal(reset=1)
         self.cfgmclk = Signal()
 
         self.dq = dq = TSTriple(7) # dq[0] is special because it is also copi
@@ -293,7 +294,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
                 i_CLK       = 0,
                 i_GSR       = self.gsr,
                 i_GTS       = 0,
-                i_KEYCLEARB = 0,
+                i_KEYCLEARB = self.keyclearb,
                 i_PACK      = 0,
                 i_USRDONEO  = 1,
                 i_USRDONETS = 1,
