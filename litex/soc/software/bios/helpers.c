@@ -10,6 +10,7 @@
 #include "readline.h"
 #include "helpers.h"
 #include "command.h"
+#include "init.h"
 
 extern unsigned int _ftext, _edata_rom;
 
@@ -125,4 +126,11 @@ struct command_struct *command_dispatcher(char *command, int nb_params, char **p
 	}
 
 	return NULL;
+}
+
+void init_dispatcher(void)
+{
+	for (const init_func* fp = __bios_init_start; fp != __bios_init_end; fp++) {
+		(*fp)();
+	}
 }
