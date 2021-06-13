@@ -46,9 +46,6 @@ soc_software_packages = [
     "libliteeth",
     "liblitesdcard",
     "liblitesata",
-
-    # BIOS.
-    "bios"
 ]
 
 # Builder ------------------------------------------------------------------------------------------
@@ -105,15 +102,24 @@ class Builder:
         # Documentation
         self.generate_doc = generate_doc
 
-        # List software packages.
+        # List software packages and libraries.
         self.software_packages = []
+        self.software_libraries = []
+
         for name in soc_software_packages:
             self.add_software_package(name)
+
+            if name == "libbase":
+                name += "-nofloat"
+            self.add_software_library(name)
 
     def add_software_package(self, name, src_dir=None):
         if src_dir is None:
             src_dir = os.path.join(soc_directory, "software", name)
         self.software_packages.append((name, src_dir))
+
+    def add_software_library(self, name):
+        self.software_libraries.append(name)
 
     def _generate_includes(self):
         # Generate Include/Generated directories.
@@ -123,11 +129,17 @@ class Builder:
         # Generate BIOS files when the SoC uses it.
         with_bios = self.soc.cpu_type not in [None, "zynq7000"]
         if with_bios:
+            self.add_software_package("bios")
 
             # Generate Variables to variables.mak.
             variables_contents = []
             def define(k, v):
                 variables_contents.append("{}={}".format(k, _makefile_escape(v)))
+
+            # Define packages and libraries.
+            define("PACKAGES", " ".join(name for name, src_dir in self.software_packages))
+            define("PACKAGE_DIRS", " ".join(src_dir for name, src_dir in self.software_packages))
+            define("LIBS", " ".join(self.software_libraries))
 
             # Define the CPU variables.
             for k, v in export.get_cpu_mak(self.soc.cpu, self.compile_software):
