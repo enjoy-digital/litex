@@ -337,7 +337,7 @@ def soc_core_args(parser):
 
 def soc_core_argdict(args):
     r = dict()
-    for a in inspect.getargspec(SoCCore.__init__).args:
+    for a in inspect.getfullargspec(SoCCore.__init__).args:
         if a not in ["self", "platform"]:
             if a in ["with_uart", "with_timer", "with_ctrl"]:
                 arg = not getattr(args, a.replace("with", "no"), True)
