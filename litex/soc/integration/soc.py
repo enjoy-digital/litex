@@ -1702,7 +1702,7 @@ class LiteXSoC(SoC):
         # Connect Video Timing Generator to ColorsBars Pattern.
         self.comb += [
             vtg.source.connect(colorbars.vtg_sink),
-            colorbars.source.connect(phy.sink)
+            colorbars.source.connect(phy if isinstance(phy, stream.Endpoint) else phy.sink)
         ]
 
     # Add Video Terminal ---------------------------------------------------------------------------
@@ -1738,7 +1738,7 @@ class LiteXSoC(SoC):
         ]
 
         # Connect Video Terminal to Video PHY.
-        self.comb += vt.source.connect(phy.sink)
+        self.comb += vt.source.connect(phy if isinstance(phy, stream.Endpoint) else phy.sink)
 
     # Add Video Framebuffer ------------------------------------------------------------------------
     def add_video_framebuffer(self, name="video_framebuffer", phy=None, timings="800x600@60Hz", clock_domain="sys"):
@@ -1768,7 +1768,7 @@ class LiteXSoC(SoC):
         self.comb += vtg.source.connect(vfb.vtg_sink)
 
         # Connect Video FrameBuffer to Video PHY.
-        self.comb += vfb.source.connect(phy.sink)
+        self.comb += vfb.source.connect(phy if isinstance(phy, stream.Endpoint) else phy.sink)
 
         # Constants.
         self.add_constant("VIDEO_FRAMEBUFFER_BASE", base)
