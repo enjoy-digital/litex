@@ -73,7 +73,7 @@ class _MakefileGenerator:
 
 
 def _run_make():
-    make_cmd = ["make"]
+    make_cmd = ["make", "-j1"]
 
     if which("symbiflow_synth") is None:
         msg = "Unable to find Symbiflow toolchain, please:\n"
