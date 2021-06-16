@@ -58,7 +58,7 @@ def soc_sdram_args(parser):
 
 def soc_sdram_argdict(args):
     r = soc_core_argdict(args)
-    for a in inspect.getargspec(SoCSDRAM.__init__).args:
+    for a in inspect.getfullargspec(SoCSDRAM.__init__).args:
         if a not in ["self", "platform", "clk_freq"]:
             arg = getattr(args, a, None)
             if arg is not None:
