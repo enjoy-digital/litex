@@ -49,7 +49,7 @@ def initval_parameters(contents, width):
 
 
 class NXLRAM(Module):
-    def __init__(self, width=32, size=128*kB):
+    def __init__(self, width=32, size=128*kB, init=[]):
         self.bus = wishbone.Interface(width)
         assert width in [32, 64]
         self.width = width
@@ -100,7 +100,10 @@ class NXLRAM(Module):
 
         self.sync += self.bus.ack.eq(self.bus.stb & self.bus.cyc & ~self.bus.ack)
 
-    def add_initial_value(self, data):
+        if init != []:
+            self.add_init(init)
+
+    def add_init(self, data):
         # Pad it out to make slicing easier below.
         data += [0] * (self.size // self.width * 8 - len(data))
         for d in range(self.depth_cascading):
