@@ -173,6 +173,8 @@ int main(int i, char **c)
 	video_framebuffer_dma_enable_write(1);
 #endif
 
+	init_dispatcher();
+
 	if(sdr_ok) {
 		printf("--============== \e[1mBoot\e[0m ==================--\n");
 		boot_sequence();
