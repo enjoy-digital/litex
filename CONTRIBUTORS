@@ -9,63 +9,124 @@ If you think you should be in this list and don't find yourself, write to floren
 and we'll fix it!
 
 Contributors:
+Copyright (c) 2021      Acathla-fr <fabien@acathla.tk>
 Copyright (c) 2011-2012 Alain Péteut <alain.peteut@yahoo.com>
-Copyright (c) 2019 Ambroz Bizjak <ambrop7@gmail.com>
-Copyright (c) 2019 Antony Pavlov <antonynpavlov@gmail.com>
-Copyright (c) 2019 Benjamin Herrenschmidt <benh@ozlabs.org>
+Copyright (c) 2019      Ambroz Bizjak <ambrop7@gmail.com>
+Copyright (c) 2019      Antony Pavlov <antonynpavlov@gmail.com>
+Copyright (c) 2019      Antti Lukats <Antti.Lukats@googlemail.com>
+Copyright (c) 2018-2021 Antmicro <www.antmicro.com>
+Copyright (c) 2019-2020 Arnaud Durand <arnaud.durand@unifr.ch>
+Copyright (c) 2021      Benjamin Henrion <zoobab@gmail.com>
+Copyright (c) 2019-2020 Benjamin Herrenschmidt <benh@kernel.crashing.org>
 Copyright (c) 2012-2013 Brandon Hamilton <brandon.hamilton@gmail.com>
-Copyright (c) 2017-2019 bunnie <bunnie@kosagi.com>
-Copyright (c) 2019 Caleb Jamison <cbjamo@gmail.com>
-Copyright (c) 2019 chmousset <ch.mousset@gmail.com>
-Copyright (c) 2018 Chris Ballance <chris.ballance@physics.ox.ac.uk>
-Copyright (c) 2013 David Carne <davidcarne@gmail.com>
-Copyright (c) 2018-2019 David Shah <dave@ds0.me>
-Copyright (c) 2018 Deano Calver <me@deanoc.com>
-Copyright (c) 2018 Dolu1990 <charles.papon.90@gmail.com>
-Copyright (c) 2018 Ewen McNeill <ewen@naos.co.nz>
-Copyright (c) 2014 Fabien Marteau <fabien.marteau@armadeus.com>
-Copyright (c) 2017-2018 Felix Held <felix-github@felixheld.de>
-Copyright (c) 2012-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-Copyright (c) 2019 Gabriel L. Somlo <gsomlo@gmail.com>
-Copyright (c) 2017 Greg Darke <greg@tsukasa.net.au>
+Copyright (c) 2017-2021 bunnie <bunnie@kosagi.com>
+Copyright (c) 2019      Caleb Jamison <cbjamo@gmail.com>
+Copyright (c) 2019-2021 Charles-Henri Mousset <ch.mousset@gmail.com>
+Copyright (c) 2018      Chris Ballance <chris.ballance@physics.ox.ac.uk>
+Copyright (c) 2020      Christian Klarhorst <cklarhor@techfak.uni-bielefeld.de>
+Copyright (c) 2021      Dan Callaghan <dcallagh@google.com>
+Copyright (c) 2019      Daniel Kucera <daniel.kucera@gmail.com>
+Copyright (c) 2020      Dave Marples <dave@marples.net>
+Copyright (c) 2013      David Carne <davidcarne@gmail.com>
+Copyright (c) 2020      davidcorrigan714 <davidcorrigan714@gmail.com>
+Copyright (c) 2020-2021 David Jablonski <dayjaby@gmail.com>
+Copyright (c) 2020-2021 David Lattimore <dml@chromium.org>
+Copyright (c) 2020      David Sawatzke <d-git@sawatzke.dev>
+Copyright (c) 2018      Deano Calver <me@deanoc.com>
+Copyright (c) 2021      developandplay <34752929+developandplay@users.noreply.github.com>
+Copyright (c) 2018-2021 Dolu1990 <charles.papon.90@gmail.com>
+Copyright (c) 2021      Evan Lojewski <github@meklort.com>
+Copyright (c) 2018      Ewen McNeill <ewen@naos.co.nz>
+Copyright (c) 2019      fb@frank-buss.de <fb@frank-buss.de>
+Copyright (c) 2014      Fabien Marteau <fabien.marteau@armadeus.com>
+Copyright (c) 2018      Felix Held <felix-github@felixheld.de>
+Copyright (c) 2020      Filipe Laíns <lains@archlinux.org>
+Copyright (c) 2012-2021 Florent Kermarrec <florent@enjoy-digital.fr>
+Copyright (c) 2019      Francis Lam <flam@alum.mit.edu>
+Copyright (c) 2020      Franck Jullien <franck.jullien@gmail.com>
+Copyright (c) 2019-2021 Gabriel L. Somlo <gsomlo@gmail.com>
+Copyright (c) 2021      Gary Wong <gtw@gnu.org>
+Copyright (c) 2018-2021      gatecat <gatecat@ds0.me>
+Copyright (c) 2020-2021 Geert Uytterhoeven <geert@linux-m68k.org>
+Copyright (c) 2019      Giammarco Zacheo <g.zacheo@gmail.com>
+Copyright (c) 2017      Greg Darke <greg@tsukasa.net.au>
+Copyright (c) 2020-2021 Greg Davill <greg.davill@gmail.com>
+Copyright (c) 2021      Guillaume REMBERT <zguig52@gmail.com>
+Copyright (c) 2020      Gwenhael Goavec-Merou <gwenhael.goavec-merou@trabucayre.com>
 Copyright (c) 2015-2014 Guy Hutchison <ghutchis@gmail.com>
-Copyright (c) 2019 Ilia Sergachev <ilia.sergachev@protonmail.ch>
-Copyright (c) 2014 Jannis Harder <jix@jixco.de>
-Copyright (c) 2018 Jean-François Nguyen <jf@lambdaconcept.com>
-Copyright (c) 2018-2019 Antmicro <www.antmicro.com>
-Copyright (c) 2015 Joe Britton <joe.britton@gmail.com>
-Copyright (c) 2017 Joel Addison <joel@addison.net.au>
-Copyright (c) 2019 Kees Jongenburger <kees.jongenburger@gmail.com>
+Copyright (c) 2021      Hans Baier <hansfbaier@gmail.com>
+Copyright (c) 2019      Ilia Sergachev <ilia.sergachev@protonmail.ch>
+Copyright (c) 2020      Ilya Epifanov <elijah.epifanov@gmail.com>
+Copyright (c) 2014      Jannis Harder <jix@jixco.de>
+Copyright (c) 2021      Jan Luebbe <jlu@pengutronix.de>
+Copyright (c) 2018      Jean-François Nguyen <jf@lambdaconcept.com>
+Copyright (c) 2015      Joe Britton <joe.britton@gmail.com>
+Copyright (c) 2017      Joel Addison <joel@addison.net.au>
+Copyright (c) 2020      Joel Stanley <joel@jms.id.au>
+Copyright (c) 2021      Joey Bushagour <jbushagour@google.com>
+Copyright (c) 2020      kessam <61152217+kessam@users.noreply.github.com>
+Copyright (c) 2019-2020 Konrad Beckmann <konrad.beckmann@gmail.com>
+Copyright (c) 2021      Konstantin <buecheko@protonmail.com>
+Copyright (c) 2019      Kees Jongenburger <kees.jongenburger@gmail.com>
 Copyright (c) 2013 Kenneth Ryerson <kryerson@vermeer.com>
-Copyright (c) 2019 Kurt Kiefer <kekiefer@gmail.com>
-Copyright (c) 2019 Larry Doolittle <ldoolitt@recycle.lbl.gov>
+Copyright (c) 2019      Kurt Kiefer <kekiefer@gmail.com>
+Copyright (c) 2019      Larry Doolittle <ldoolitt@recycle.lbl.gov>
+Copyright (c) 2020      Leon Schuermann <leon@is.currently.online>
 Copyright (c) 2012-2013 Lars-Peter Clausen <lars@metafoo.de>
-Copyright (c) 2017 Matt Kelly <Matthew.Joseph.Kelly@gmail.com>
-Copyright (c) 2019 Michael Betz <michibetz@gmail.com>
+Copyright (c) 2017      Matt Kelly <Matthew.Joseph.Kelly@gmail.com>
+Copyright (c) 2021      Marek Czerski <m.czerski@ap-tech.pl>
+Copyright (c) 2019-2020 Michael Betz <michibetz@gmail.com>
 Copyright (c) 2012 Michael Walle <michael@walle.cc>
-Copyright (c) 2019 msloniewski <marcin.sloniewski@gmail.com>
-Copyright (c) 2013 Nina Engelhardt <nakengelhardt@gmail.com>
-Copyright (c) 2015 numato <sales@numato.com>
-Copyright (c) 2015 Olof Kindgren <olof.kindgren@gmail.com>
-Copyright (c) 2018 Paul Schulz <paul@mawsonlakes.org>
-Copyright (c) 2018 phlipped <phlipped@gmail.com>
-Copyright (c) 2017 Pierre-Olivier Vauboin <po@lambdaconcept>
-Copyright (c) 2015 psmears <patrick@smears.org>
+Copyright (c) 2019      Miodrag Milanovic <mmicko@gmail.com>
+Copyright (c) 2019      msloniewski <marcin.sloniewski@gmail.com>
+Copyright (c) 2013      Nina Engelhardt <nakengelhardt@gmail.com>
+Copyright (c) 2015      Numato <sales@numato.com>
+Copyright (c) 2021      Nick Østergaard <oe.nick@gmail.com>
+Copyright (c) 2020      Owen Kirby <oskirby@gmail.com>
+Copyright (c) 2015      Olof Kindgren <olof.kindgren@gmail.com>
+Copyright (c) 2021      Paul Mackerras <paulus@ozlabs.org>
+Copyright (c) 2020      Paul Sajna <sajattack@gmail.com>
+Copyright (c) 2018      Paul Schulz <paul@mawsonlakes.org>
+Copyright (c) 2020      Pepijn de Vos <pepijndevos@gmail.com>
+Copyright (c) 2018      Phlipped <phlipped@gmail.com>
+Copyright (c) 2020      Piense <piense@gmail.com>
+Copyright (c) 2017      Pierre-Olivier Vauboin <po@lambdaconcept>
+Copyright (c) 2020      Piotr Esden-Tempski <piotr@esden.net>
+Copyright (c) 2015      Psmears <patrick@smears.org>
+Copyright (c) 2020      Rangel Ivanov <rangelivanov88@gmail.com>
+Copyright (c) 2020-2021 Raptor Engineering Development Team <support@raptorengineering.com>
 Copyright (c) 2013-2016 Robert Jordens <jordens@gmail.com>
-Copyright (c) 2015 Rohit Kumar Singh <rohit91.2008@gmail.com>
-Copyright (c) 2015 Ryan Verner <ryan.verner@gmail.com>
-Copyright (c) 2018-2019 Sean Cross <sean@xobs.io>
-Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
+Copyright (c) 2021      Robert Wilbrandt <robert@stamm-wilbrandt.de>
+Copyright (c) 2020      rob-ng15 <58272847+rob-ng15@users.noreply.github.com>
+Copyright (c) 2021      Romain Dolbeau <romain@dolbeau.org>
+Copyright (c) 2015      Rohit Kumar Singh <rohit91.2008@gmail.com>
+Copyright (c) 2020      rprinz08 <richard.prinz@min.at>
+Copyright (c) 2015      Ryan Verner <ryan.verner@gmail.com>
+Copyright (c) 2019-2021 Sadullah Canakci <sadullahcanakci@gmail.com>
+Copyright (c) 2020      Samuel Lindemer <samuel.lindemer@gmail.com>
+Copyright (c) 2018-2020 Sean Cross <sean@xobs.io>
+Copyright (c) 2013-2016 Sebastien Bourdeauducq <sb@m-labs.hk>
+Copyright (c) 2021      Sergiu Mosanu <sm7ed@virginia.edu>
 Copyright (c) 2017-2018 Sergiusz Bazanski <q3k@q3k.org>
-Copyright (c) 2018 Stafford Horne <shorne@gmail.com>
+Copyright (c) 2020      Shawn Anastasio <shawn@anastas.io>
+Copyright (c) 2020-2021 Shawn Hoffman <godisgovernment@gmail.com>
+Copyright (c) 2020      shuffle2 <godisgovernment@gmail.com>
+Copyright (c) 2021      Simon Thornington <simon.thornington@gmail.com>
+Copyright (c) 2018-2021 Stafford Horne <shorne@gmail.com>
+Copyright (c) 2020      Stéphane Gourichon <stephane.gourichon@fidergo.fr>
+Copyright (c) 2021      Tim Callahan <tcal@google.com>
 Copyright (c) 2017-2018 Tim 'mithro' Ansell <me@mith.ro>
-Copyright (c) 2019 Tom Keddie <git@bronwenandtom.com>
-Copyright (c) 2019 Vamsi K Vytla <vamsi.vytla@gmail.com>
-Copyright (c) 2019 vytautasb <v.buitvydas@limemicro.com>
-Copyright (c) 2013 Werner Almesberger <werner@almesberger.net>
+Copyright (c) 2019      Tom Keddie <git@bronwenandtom.com>
+Copyright (c) 2020      Vadim Kaushan <admin@disasm.info>
+Copyright (c) 2020-2021 Vamsi K Vytla <vamsi.vytla@gmail.com>
+Copyright (c) 2020-2021 Vegard Storheil Eriksen <zyp@jvnv.net>
+Copyright (c) 2019      vytautasb <v.buitvydas@limemicro.com>
+Copyright (c) 2013      Werner Almesberger <werner@almesberger.net>
 Copyright (c) 2015-2016 whitequark <whitequark@whitequark.org>
-Copyright (c) 2015-2019 William D. Jones <thor0505@comcast.net>
+Copyright (c) 2015-2021 William D. Jones <thor0505@comcast.net>
 Copyright (c) 2013-2014 Yann Sionneau <yann.sionneau@gmail.com>
 Copyright (c) 2015 Yves Delley <hack@delley.net>
-Copyright (c) 2015 Zach Smith <IAmSparticle@gmail.com>
-Copyright (c) 2020 Yehowshua Immanuel <yimmanuel3@gatech.edu>
+Copyright (c) 2020      Xiretza <xiretza@xiretza.xyz>
+Copyright (c) 2020      Yehowshua Immanuel <yimmanuel3@gatech.edu>
+Copyright (c) 2015      Zach Smith <IAmSparticle@gmail.com>
+Copyright (c) 2021      zyp <zyp@jvnv.net>
