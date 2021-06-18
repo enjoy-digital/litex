@@ -374,6 +374,7 @@ def sim_args(parser):
     parser.add_argument("--opt-level",            default="O3",            help="Compilation optimization level")
     parser.add_argument("--sim-debug",            action="store_true",     help="Add simulation debugging modules")
     parser.add_argument("--gtkwave-savefile",     action="store_true",     help="Generate GTKWave savefile")
+    parser.add_argument("--non-interactive",      action="store_true",     help="Run simulation without user input")
 
 def main():
     parser = argparse.ArgumentParser(description="Generic LiteX SoC Simulation")
@@ -452,7 +453,8 @@ def main():
             trace       = args.trace,
             trace_fst   = args.trace_fst,
             trace_start = trace_start,
-            trace_end   = trace_end
+            trace_end   = trace_end,
+            interactive = not args.non_interactive
         )
         if args.with_analyzer:
             soc.analyzer.export_csv(vns, "analyzer.csv")

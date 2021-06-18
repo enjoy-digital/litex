@@ -189,7 +189,8 @@ class SimVerilatorToolchain:
             trace_fst    = False,
             trace_start  = 0,
             trace_end    = -1,
-            regular_comb = False):
+            regular_comb = False,
+            interactive  = True):
 
         # Create build directory
         os.makedirs(build_dir, exist_ok=True)
@@ -238,7 +239,7 @@ class SimVerilatorToolchain:
                 run_as_root = True
             if sim_config.has_module("xgmii_ethernet"):
                 run_as_root = True
-            _run_sim(build_name, as_root=run_as_root)
+            _run_sim(build_name, as_root=run_as_root, interactive=interactive)
 
         os.chdir(cwd)
 
