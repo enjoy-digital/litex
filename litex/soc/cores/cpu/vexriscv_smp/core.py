@@ -109,9 +109,9 @@ class VexRiscvSMP(CPU):
         if(args.cpu_per_fpu):
             VexRiscvSMP.cpu_per_fpu = args.cpu_per_fpu
         if(args.with_rvc):
-            VexRiscvSMP.with_rvc     = True
-        if(args.dtlb_size):                    VexRiscvSMP.dtlb_size             = int(args.dtlb_size)
-        if(args.itlb_size):                    VexRiscvSMP.itlb_size             = int(args.itlb_size)
+            VexRiscvSMP.with_rvc = True
+        if(args.dtlb_size): VexRiscvSMP.dtlb_size = int(args.dtlb_size)
+        if(args.itlb_size): VexRiscvSMP.itlb_size = int(args.itlb_size)
 
     # ABI.
     @staticmethod
@@ -372,7 +372,7 @@ class VexRiscvSMP(CPU):
         # Define number of CPUs
         soc.add_config("CPU_COUNT", VexRiscvSMP.cpu_count)
         soc.add_constant("CPU_ISA", VexRiscvSMP.get_arch())
-        # constants for cache so we can add them in the DTS
+        # Constants for cache so we can add them in the DTS.
         if (VexRiscvSMP.dcache_size > 0):
             soc.add_constant("cpu_dcache_size", VexRiscvSMP.dcache_size)
             soc.add_constant("cpu_dcache_ways", VexRiscvSMP.dcache_ways)
@@ -381,8 +381,8 @@ class VexRiscvSMP(CPU):
             soc.add_constant("cpu_icache_size", VexRiscvSMP.icache_size)
             soc.add_constant("cpu_icache_ways", VexRiscvSMP.icache_ways)
             soc.add_constant("cpu_icache_block_size", 64) # hardwired?
-        # constants for TLB so we can add them in the DTS
-        # full associative so only the size is described
+        # Constants for TLB so we can add them in the DTS
+        # full associative so only the size is described.
         if (VexRiscvSMP.dtlb_size > 0):
             soc.add_constant("cpu_dtlb_size", VexRiscvSMP.dtlb_size)
             soc.add_constant("cpu_dtlb_ways", VexRiscvSMP.dtlb_size)
