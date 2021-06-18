@@ -259,7 +259,6 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
             liteuart0: serial@{uart_csr_base:x} {{
                 compatible = "litex,liteuart";
                 reg = <0x{uart_csr_base:x} 0x100>;
-                interrupt-parent = <&intc0>;
                 {uart_interrupt}
                 status = "okay";
             }};
@@ -278,7 +277,6 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
                       <0x{ethmac_mem_base:x} 0x{ethmac_mem_size:x}>;
                 tx-fifo-depth = <{ethmac_tx_slots}>;
                 rx-fifo-depth = <{ethmac_rx_slots}>;
-                interrupt-parent = <&intc0>;
                 {ethmac_interrupt}
                 status = "okay";
             }};
@@ -405,15 +403,6 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
     # Switches -------------------------------------------------------------------------------------
 
     if "switches" in d["csr_bases"]:
-        interrupt_specification = ""
-        if "switches_interrupt" in d["constants"]:
-            switches_interrupt = d["constants"]["switches_interrupt"]
-            interrupt_specification = """
-                interrupt-controller;
-                #interrupt-cells = <2>;
-                interrupt-parent = <&intc0>;
-                interrupts = <{switches_interrupt}>;""".format(switches_interrupt=switches_interrupt)
-
         dts += """
             switches: gpio@{switches_csr_base:x} {{
                 compatible = "litex,gpio";
@@ -421,11 +410,12 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
                 gpio-controller;
                 #gpio-cells = <2>;
                 litex,direction = "in";
-                gpio-controller;
-                #gpio-cells = <2>;{interrupt_specification}
+                {switches_interrupt}
                 status = "disabled";
             }};
-""".format(switches_csr_base=d["csr_bases"]["switches"], interrupt_specification=interrupt_specification)
+""".format(
+    switches_csr_base  = d["csr_bases"]["switches"],
+	switches_interrupt = "" if polling else "interrupts = <{}>;".format(d["constants"]["switches_interrupt"]))
 
     # SPI ------------------------------------------------------------------------------------------
 
