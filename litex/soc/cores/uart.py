@@ -42,7 +42,7 @@ class RS232ClkPhaseAccum(Module):
     def __init__(self, tuning_word, mode="tx"):
         assert mode in ["tx", "rx"]
         self.enable = Signal()
-        self.tick   = Signal(32)
+        self.tick   = Signal()
 
         # # #
 
