@@ -9,6 +9,7 @@ from operator import xor, add
 from functools import reduce
 
 from migen import *
+from migen.genlib.misc import WaitTimer
 from migen.genlib.cdc import MultiReg
 
 # PRBS Generators ----------------------------------------------------------------------------------
@@ -59,14 +60,14 @@ class PRBSTX(Module):
 
         config = Signal(2)
 
-        # Generators
+        # Generators.
         self.specials += MultiReg(self.config, config)
         prbs7  = PRBS7Generator(width)
         prbs15 = PRBS15Generator(width)
         prbs31 = PRBS31Generator(width)
         self.submodules += prbs7, prbs15, prbs31
 
-        # PRBS Selection
+        # PRBS Selection.
         prbs_data = Signal(width)
         self.comb += [
             If(config == 0b11,
@@ -78,17 +79,16 @@ class PRBSTX(Module):
             )
         ]
 
-        # Optional bits reversing
+        # Optional Bits Reversing.
         if reverse:
             new_prbs_data = Signal(width)
             self.comb += new_prbs_data.eq(prbs_data[::-1])
             prbs_data = new_prbs_data
 
-        # PRBS / Data Selection
+        # PRBS / Data Selection.
         self.comb += [
-            If(config == 0,
-                self.o.eq(self.i)
-            ).Else(
+            self.o.eq(self.i),
+            If(config != 0,
                 self.o.eq(prbs_data)
             )
         ]
@@ -102,16 +102,23 @@ class PRBSChecker(Module):
 
         # # #
 
+        # LFSR Update / Check.
         state  = Signal(n_state, reset=1)
         curval = [state[i] for i in range(n_state)]
         for i in reversed(range(n_in)):
             correctv = reduce(xor, [curval[tap] for tap in taps])
-            self.sync += self.errors[i].eq(self.i[i] != correctv)
+            self.comb += self.errors[i].eq(self.i[i] != correctv)
             curval.insert(0, self.i[i])
             curval.pop()
-
         self.sync += state.eq(Cat(*curval[:n_state]))
 
+        # Idle Check.
+        i_last     = Signal(n_in)
+        idle_timer = WaitTimer(1024)
+        self.submodules += idle_timer
+        self.sync += i_last.eq(self.i)
+        self.comb += idle_timer.wait.eq(self.i == i_last)
+        self.comb += If(idle_timer.done, self.errors.eq(2**n_in-1))
 
 class PRBS7Checker(PRBSChecker):
     def __init__(self, n_out):
@@ -134,7 +141,7 @@ class PRBSRX(Module):
         self.config = Signal(2)
         self.pause  = Signal()
         self.i      = Signal(width)
-        self.errors = Signal(32)
+        self.errors = errors = Signal(32)
 
         # # #
 
@@ -162,14 +169,14 @@ class PRBSRX(Module):
         # Errors count
         self.sync += [
             If(config == 0,
-                self.errors.eq(0)
-            ).Elif(~self.pause & (self.errors != (2**32-1)),
+                errors.eq(0)
+            ).Elif(~self.pause & (errors != (2**32-1)),
                 If(config == 0b01,
-                    self.errors.eq(self.errors + (prbs7.errors != 0))
+                    errors.eq(errors + (prbs7.errors != 0))
                 ).Elif(config == 0b10,
-                    self.errors.eq(self.errors + (prbs15.errors != 0))
+                    errors.eq(errors + (prbs15.errors != 0))
                 ).Elif(config == 0b11,
-                    self.errors.eq(self.errors + (prbs31.errors != 0))
+                    errors.eq(errors + (prbs31.errors != 0))
                 )
             )
         ]
