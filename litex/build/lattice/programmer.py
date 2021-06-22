@@ -22,7 +22,7 @@ class LatticeProgrammer(GenericProgrammer):
         xcf_file = bitstream_file.replace(".bit", ".xcf")
         xcf_content = self.xcf_template.format(bitstream_file=bitstream_file)
         tools.write_to_file(xcf_file, xcf_content)
-        self.call(["pgrcmd", "-infile", xcf_file])
+        self.call(["pgrcmd", "-infile", xcf_file], check=False)
 
 # OpenOCDJTAGProgrammer --------------------------------------------------------------------------------
 
