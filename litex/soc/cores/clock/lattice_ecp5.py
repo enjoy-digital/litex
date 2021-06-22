@@ -32,11 +32,6 @@ class ECP5PLL(Module):
         self.config     = {}
         self.params     = {}
 
-        self.phase_sel  = Signal(2)
-        self.phase_dir  = Signal()
-        self.phase_step = Signal()
-        self.phase_load = Signal()
-
     def register_clkin(self, clkin, freq):
         (clki_freq_min, clki_freq_max) = self.clki_freq_range
         assert freq >= clki_freq_min
@@ -92,6 +87,23 @@ class ECP5PLL(Module):
                     return config
         raise ValueError("No PLL config found")
 
+    def expose_dpa(self):
+        self.phase_sel  = Signal(2)
+        self.phase_dir  = Signal()
+        self.phase_step = Signal()
+        self.phase_load = Signal()
+
+        # # #
+
+        self.params.update(
+            p_DPHASE_SOURCE = "ENABLED",
+            i_PHASESEL0     = self.phase_sel[0],
+            i_PHASESEL1     = self.phase_sel[1],
+            i_PHASEDIR      = self.phase_dir,
+            i_PHASESTEP     = self.phase_step,
+            i_PHASELOADREG  = self.phase_load
+        )
+
     def do_finalize(self):
         config = self.compute_config()
         clkfb  = Signal()
@@ -112,15 +124,7 @@ class ECP5PLL(Module):
             p_CLKOS3_FPHASE = 0,
             p_CLKOS3_CPHASE = 23,
             p_CLKFB_DIV     = config["clkfb_div"],
-            p_CLKI_DIV      = config["clki_div"],
-
-            p_DPHASE_SOURCE = "ENABLED",
-
-            i_PHASESEL0     = self.phase_sel[0],
-            i_PHASESEL1     = self.phase_sel[1],
-            i_PHASEDIR      = self.phase_dir,
-            i_PHASESTEP     = self.phase_step,
-            i_PHASELOADREG  = self.phase_load,
+            p_CLKI_DIV      = config["clki_div"]
         )
         self.comb += self.locked.eq(locked & ~self.reset)
         for n, (clk, f, p, m) in sorted(self.clkouts.items()):
