@@ -62,7 +62,7 @@ module ExampleBlackParrotSystem
    , output [63:0]  wbm_dat_o
    , input          wbm_ack_i
    , input          wbm_err_i
-// , input          wbm_rty_i
+   , input          wbm_rty_i
    , output [36:0]  wbm_adr_o //TODO parametrize this
    , output         wbm_stb_o
    , output         wbm_cyc_o

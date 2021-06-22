@@ -52,7 +52,7 @@ module bp2wb_convertor
    , (* mark_debug = "true" *) output                              we_o
    , output [2:0]                        cti_o //TODO: hardwire in Litex
    , output [1:0]                        bte_o //TODO: hardwire in Litex
- 
+   , input                        rty_i //TODO: hardwire in Litex
    );
 
   `declare_bp_me_if(paddr_width_p, cce_block_width_p, lce_id_width_p, lce_assoc_p);
