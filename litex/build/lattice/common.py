@@ -111,15 +111,30 @@ class LatticeECP5DDROutput:
 class LatticeECP5DifferentialInputImpl(Module):
     def __init__(self, i_p, i_n, o):
         self.specials += Instance("ILVDS",
-            i_A=i_p,
-            i_AN=i_n,
-            o_Z=o,
+            i_A  = i_p,
+            i_AN = i_n,
+            o_Z  = o,
         )
 
 class LatticeECP5DifferentialInput:
     @staticmethod
     def lower(dr):
         return LatticeECP5DifferentialInputImpl(dr.i_p, dr.i_n, dr.o)
+
+# ECP5 Differential Output -------------------------------------------------------------------------
+
+class LatticeECP5DifferentialOutputImpl(Module):
+    def __init__(self, i, o_p, o_n):
+        self.specials += Instance("OLVDS",
+            i_A  = i,
+            o_Z  = o_p,
+            o_ZN = o_n,
+        )
+
+class LatticeECP5DifferentialOutput:
+    @staticmethod
+    def lower(dr):
+        return LatticeECP5DifferentialOutputImpl(dr.i, dr.o_p, dr.o_n)
 
 # ECP5 Special Overrides ---------------------------------------------------------------------------
 
@@ -130,6 +145,7 @@ lattice_ecp5_special_overrides = {
     DDRInput:               LatticeECP5DDRInput,
     DDROutput:              LatticeECP5DDROutput,
     DifferentialInput:      LatticeECP5DifferentialInput,
+    DifferentialOutput:     LatticeECP5DifferentialOutput,
 }
 
 # ECP5 Trellis Tristate ----------------------------------------------------------------------------
