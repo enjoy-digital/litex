@@ -52,7 +52,7 @@ module bp2wb_convertor
    , (* mark_debug = "true" *) output                              we_o
    , output [2:0]                        cti_o //TODO: hardwire in Litex
    , output [1:0]                        bte_o //TODO: hardwire in Litex
- 
+   , input                        rty_i //TODO: hardwire in Litex
    );
 
   `declare_bp_me_if(paddr_width_p, cce_block_width_p, lce_id_width_p, lce_assoc_p);
@@ -77,7 +77,7 @@ module bp2wb_convertor
   assign mem_resp_v_o =  v_li;
   assign stb_o = (set_stb) && !stb_justgotack; 
   assign cyc_o = stb_o; 
-  assign sel_o = 8'b11111111; 
+  assign sel_o = mem_cmd_r.header.size == e_mem_msg_size_4 ? ('h0F << wr_byte_shift) : 'hFF; 
   assign cti_o = 0;
   assign bte_o = 0;
 
@@ -157,14 +157,14 @@ module bp2wb_convertor
     if( mem_cmd_addr_l < cached_addr_base )
     begin 
       adr_o = mem_cmd_addr_l[wbone_addr_ubound-1:wbone_addr_lbound];//no need to change address for uncached stores/loads
-      dat_o = data_lo[(0*wbone_data_width) +: wbone_data_width];//unchached data is stored in LS 64bits
+      dat_o = mem_cmd_r.header.size == e_mem_msg_size_4 ? data_lo[(0*wbone_data_width) +: wbone_data_width] << rd_byte_offset*8 : data_lo[(0*wbone_data_width) +: wbone_data_width];//unchached data is stored in LS 64bits
     end
 
     else
     begin
       mem_cmd_addr_l_zero64 = mem_cmd_addr_l >> 6 << 6;
       {adr_o,throw_away} =  mem_cmd_addr_l_zero64 + (ack_ctr*8);//TODO:careful
-      dat_o = data_lo[(ack_ctr*wbone_data_width) +: wbone_data_width];
+      dat_o = mem_cmd_r.header.size == e_mem_msg_size_4 ? data_lo[(ack_ctr*wbone_data_width) +: wbone_data_width] << rd_byte_offset*8 : data_lo[(ack_ctr*wbone_data_width) +: wbone_data_width];
      end
   end
 
@@ -173,7 +173,8 @@ module bp2wb_convertor
 //Data Pass from BP2WB to BP
 
 wire [cce_block_width_p-1:0]  rd_word_offset = mem_cmd_r.header.addr[3+:3];
-//wire [cce_block_width_p-1:0]  rd_byte_offset = mem_cmd_r.addr[0+:3];
+wire [cce_block_width_p-1:0]  rd_byte_offset = mem_cmd_r.header.addr[0+:3];
+wire [cce_block_width_p-1:0]   wr_byte_shift = rd_byte_offset;
 wire [cce_block_width_p-1:0]    rd_bit_shift = rd_word_offset*64; // We rely on receiver to adjust bits
 
 (* mark_debug = "true" *) wire [cce_block_width_p-1:0] data_li_resp = (mem_cmd_r.header.msg_type == e_cce_mem_uc_rd)
