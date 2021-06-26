@@ -134,9 +134,9 @@ class BlackParrotRV64(CPU):
 
     @staticmethod
     def add_sources(platform, variant="standard"):
-        vdir = os.path.abspath(os.path.dirname(__file__))
-        bp_litex_dir = os.path.join(vdir,"bp_litex")
-        filename = os.path.join(bp_litex_dir, {
+        vdir = get_data_mod("cpu", "blackparrot").data_location
+        bp_litex = os.path.join(vdir, "bp_litex")
+        filename = os.path.join(bp_litex, {
             "standard": "flist.fpga",
             "sim"     : "flist.verilator"
         }[variant])

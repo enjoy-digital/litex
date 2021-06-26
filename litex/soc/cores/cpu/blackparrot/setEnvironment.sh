@@ -2,7 +2,7 @@
 ## Set common environment variables
 export LITEX=$(git rev-parse --show-toplevel)
 export BP=$LITEX/../pythondata-cpu-blackparrot/pythondata_cpu_blackparrot/system_verilog
-export BP_LITEX_DIR=$LITEX/litex/soc/cores/cpu/blackparrot/bp_litex
+export BP_LITEX_DIR=$BP/bp_litex
 
 #TODO: check if BP exists and warn user
 export BP_COMMON_DIR=$BP/bp_common
