@@ -30,6 +30,7 @@
 
 import os
 import sys
+from shutil import copyfile
 from migen import *
 
 from litex import get_data_mod
@@ -109,6 +110,11 @@ class BlackParrotRV64(CPU):
             o_wbm_cti_o  = idbus.cti,
             o_wbm_bte_o  = idbus.bte,
         )
+
+        # Copy config loader to /tmp
+        vdir = get_data_mod("cpu", "blackparrot").data_location
+        bp_litex = os.path.join(vdir, "bp_litex")
+        copyfile(os.path.join(bp_litex, "cce_ucode.mem"), "/tmp/cce_ucode.mem")
 
         # Add Verilog sources
         try:
