@@ -147,18 +147,10 @@ class BlackParrotRV64(CPU):
                     continue
                 elif ("+incdir+" in temp) :
                     s1 = line.find('$')
-                    s2 = line.find('/')
-                    dir_ = line[s1:s2]
-                    a = os.popen('echo '+ str(dir_))
-                    dir_start = a.read()
-                    vdir = dir_start[:-1] + line[s2:-1]
+                    vdir = os.path.expandvars(line[s1:]).strip()
                     platform.add_verilog_include_path(vdir)
                 elif (temp[0]=='$') :
-                    s2 = line.find('/')
-                    dir_ = line[0:s2]
-                    a = os.popen('echo '+ str(dir_))
-                    dir_start = a.read()
-                    vdir = dir_start[:-1]+ line[s2:-1]
+                    vdir = os.path.expandvars(line).strip()
                     platform.add_source(vdir, "systemverilog")
                 elif (temp[0] == '/'):
                     assert("No support for absolute path for now")
