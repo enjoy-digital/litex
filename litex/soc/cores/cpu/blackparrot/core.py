@@ -30,6 +30,7 @@
 
 import os
 import sys
+from shutil import copyfile
 from migen import *
 
 from litex import get_data_mod
@@ -110,15 +111,27 @@ class BlackParrotRV64(CPU):
             o_wbm_bte_o  = idbus.bte,
         )
 
-        # Add Verilog sources
-        try:
-            os.environ["BP"]
-            os.environ["LITEX"]
-            self.add_sources(platform, variant)
-        except:
-            RED = '\033[91m'
-            print(RED + "Please set environment variables first, refer to readme file under litex/soc/cores/cpu/blackparrot for details!")
-            sys.exit(1)
+        # Copy config loader to /tmp
+        vdir = get_data_mod("cpu", "blackparrot").data_location
+        bp_litex = os.path.join(vdir, "bp_litex")
+        copyfile(os.path.join(bp_litex, "cce_ucode.mem"), "/tmp/cce_ucode.mem")
+
+        # Set environmental variables
+        os.environ["BP"] = vdir
+        os.environ["BP_LITEX_DIR"] = bp_litex
+
+        os.environ["BP_COMMON_DIR"] = os.path.join(vdir, "bp_common")
+        os.environ["BP_FE_DIR"] = os.path.join(vdir, "bp_fe")
+        os.environ["BP_BE_DIR"] = os.path.join(vdir, "bp_be")
+        os.environ["BP_ME_DIR"] = os.path.join(vdir, "bp_me")
+        os.environ["BP_TOP_DIR"] = os.path.join(vdir, "bp_top")
+        external = os.path.join(vdir, "external")
+        os.environ["BP_EXTERNAL_DIR"] = external
+        os.environ["BASEJUMP_STL_DIR"] = os.path.join(external, "basejump_stl")
+        os.environ["LITEX_FPGA_DIR"] = os.path.join(bp_litex, "fpga")
+        os.environ["LITEX_SIMU_DIR"] = os.path.join(bp_litex, "simulation")
+
+        self.add_sources(platform, variant)
 
 
     def set_reset_address(self, reset_address):
@@ -128,9 +141,9 @@ class BlackParrotRV64(CPU):
 
     @staticmethod
     def add_sources(platform, variant="standard"):
-        vdir = os.path.abspath(os.path.dirname(__file__))
-        bp_litex_dir = os.path.join(vdir,"bp_litex")
-        filename = os.path.join(bp_litex_dir, {
+        vdir = get_data_mod("cpu", "blackparrot").data_location
+        bp_litex = os.path.join(vdir, "bp_litex")
+        filename = os.path.join(bp_litex, {
             "standard": "flist.fpga",
             "sim"     : "flist.verilator"
         }[variant])
@@ -141,18 +154,10 @@ class BlackParrotRV64(CPU):
                     continue
                 elif ("+incdir+" in temp) :
                     s1 = line.find('$')
-                    s2 = line.find('/')
-                    dir_ = line[s1:s2]
-                    a = os.popen('echo '+ str(dir_))
-                    dir_start = a.read()
-                    vdir = dir_start[:-1] + line[s2:-1]
+                    vdir = os.path.expandvars(line[s1:]).strip()
                     platform.add_verilog_include_path(vdir)
                 elif (temp[0]=='$') :
-                    s2 = line.find('/')
-                    dir_ = line[0:s2]
-                    a = os.popen('echo '+ str(dir_))
-                    dir_start = a.read()
-                    vdir = dir_start[:-1]+ line[s2:-1]
+                    vdir = os.path.expandvars(line).strip()
                     platform.add_source(vdir, "systemverilog")
                 elif (temp[0] == '/'):
                     assert("No support for absolute path for now")
