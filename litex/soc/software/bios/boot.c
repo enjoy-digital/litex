@@ -34,6 +34,8 @@
 #include <liblitesdcard/sdcard.h>
 #include <liblitesata/sata.h>
 #include <libfatfs/ff.h>
+#include <spiflash.h>
+#include <jsmn_helpers.h>
 
 /*-----------------------------------------------------------------------*/
 /* Helpers                                                               */
@@ -258,6 +260,7 @@ int serialboot(void)
 #ifndef TFTP_SERVER_PORT
 #define TFTP_SERVER_PORT 69
 #endif
+static unsigned int tftp_server_port = TFTP_SERVER_PORT;
 
 static unsigned char macadr[6] = {0x10, 0xe2, 0xd5, 0x00, 0x00, 0x00};
 
@@ -329,6 +332,12 @@ static uint8_t parse_ip(const char * ip_address, unsigned int * ip_to_change)
 		ip_to_change[i] = ip_to_set[i];
 	}
 	return 0;
+}
+
+void set_tftpserver_port(unsigned port_address)
+{
+	tftp_server_port = port_address;
+	printf("TFTP server port: %i ", port_address);
 }
 
 void set_local_ip(const char * ip_address)
@@ -600,6 +609,50 @@ void flashboot(void)
        The code starts after (a) length and (b) CRC -- both uint32_t */
 	boot(0, 0, 0, (FLASH_BOOT_ADDRESS + 2 * sizeof(uint32_t)));
 #endif
+}
+
+#endif
+
+#ifdef FLASH_SAVE_ENV
+
+int init_env_from_flash(void)
+{
+	printf("Initialization of environment variables...\n");
+	char flash_buffer[ENV_VAR_SIZE];
+	memset(flash_buffer, 0, sizeof(flash_buffer));
+	memcpy((void *)flash_buffer, (void *)FLASH_ENV_ADDRESS, ENV_VAR_SIZE);
+	int token_count;
+	jsmn_parser parser;
+	jsmntok_t tokens[JSMN_TOKEN_SIZE]; /* No more than JSMN_TOKEN_SIZE tokens */
+	char object[128];
+	char object_value[128];
+	jsmn_init(&parser);
+	token_count = jsmn_parse(&parser, flash_buffer, strlen(flash_buffer), tokens, sizeof(tokens) / sizeof(tokens[0]));
+	if(token_count < 0)
+	{
+		printf("Failed to parse JSON\n");
+		return -1;
+	}
+	for (unsigned i = 1; i < token_count; i++)
+	{
+		sprintf(object ,"%.*s", tokens[i].end - tokens[i].start, flash_buffer + tokens[i].start);
+		sprintf(object_value ,"%.*s", tokens[i + 1].end - tokens[i + 1].start, flash_buffer + tokens[i + 1].start);
+		if(json_token_check(flash_buffer, &tokens[i], "TFTP_SERVER_PORT") == 0)
+			set_tftpserver_port(atoi(object_value));
+		else if(json_token_check(flash_buffer, &tokens[i], "REMOTE_IP") == 0)
+			set_remote_ip(object_value);
+		else if(json_token_check(flash_buffer, &tokens[i], "LOCAL_IP") == 0)
+			set_local_ip(object_value);
+		 printf("\n");
+		++i;
+	}
+	return 0;
+}
+
+int get_env_params(char *base_env_params, unsigned int size)
+{
+	sprintf(base_env_params, "{\"TFTP_SERVER_PORT\": %i, \"REMOTE_IP\": \"%i.%i.%i.%i\", \"LOCAL_IP\": \"%i.%i.%i.%i\"}", tftp_server_port, remote_ip[0], remote_ip[1], remote_ip[2], remote_ip[3], local_ip[0], local_ip[1], local_ip[2], local_ip[3]);
+	return 0;
 }
 
 #endif

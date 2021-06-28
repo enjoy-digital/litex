@@ -49,6 +49,10 @@
 
 static void boot_sequence(void)
 {
+#ifdef FLASH_SAVE_ENV
+	if (init_env_from_flash() == -1)
+		printf("Failed to get initialization parameters from Flash memory\n");
+#endif
 #ifdef CSR_UART_BASE
 	if (serialboot() == 0)
 		return;
