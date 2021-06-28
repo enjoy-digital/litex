@@ -193,3 +193,28 @@ static void eth_mac_addr_handler(int nb_params, char **params)
 }
 define_command(eth_mac_addr, eth_mac_addr_handler, "Set the mac address", LITEETH_CMDS);
 #endif
+
+/**
+ * Command "tftp_server_port"
+ *
+ * Set TFTP server port.
+ *
+ */
+#ifdef ETH_DYNAMIC_IP
+static void tftp_server_port_handler(int nb_params, char **params)
+{
+	if (nb_params != 1)
+	{
+		printf("tftp_server_port <port>");
+		return;
+	}
+	int port_address = atoi(params[0]);
+	if (port_address < 0)
+	{
+	printf("Incorrect port number \n");
+	return;
+	}
+	set_tftpserver_port(port_address);
+}
+define_command(tftp_server_port, tftp_server_port_handler, "Set the TFTP server port", LITEETH_CMDS);
+#endif
