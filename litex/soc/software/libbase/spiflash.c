@@ -1,5 +1,9 @@
 #include <generated/csr.h>
 
+#include <stdio.h>
+#include <string.h>
+#include <console.h>
+
 #if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
 
 #include <spiflash.h>
@@ -10,6 +14,7 @@
 #define WREN_CMD         0x06
 #define CE_CMD           0xc7
 #define SE_CMD           0xd8
+#define SSE_CMD          0x20
 
 #define BITBANG_CLK         (1 << 1)
 #define BITBANG_CS_N        (1 << 2)
@@ -88,6 +93,27 @@ void erase_flash_sector(unsigned int addr)
     wait_for_device_ready();
 
     spiflash_bitbang_en_write(0);
+}
+
+void erase_flash_subsector(unsigned int subsector)
+{
+	unsigned int subsector_addr = subsector & ~(SPIFLASH_SUBSECTOR_SIZE - 1);
+	printf("Erasing subsector: %i\n", subsector_addr);
+
+	spiflash_bitbang_en_write(1);
+
+	wait_for_device_ready();
+
+	flash_write_byte(WREN_CMD);
+	spiflash_bitbang_write(BITBANG_CS_N);
+
+	flash_write_byte(SSE_CMD);
+	flash_write_addr(subsector_addr);
+	spiflash_bitbang_write(BITBANG_CS_N);
+
+	wait_for_device_ready();
+
+	spiflash_bitbang_en_write(0);
 }
 
 void erase_flash(void)
