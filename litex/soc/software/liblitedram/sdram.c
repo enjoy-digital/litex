@@ -674,8 +674,13 @@ static int sdram_write_leveling_scan(int *delays, int loops, int show)
 				sdram_write_leveling_inc_delay(i);
 				cdelay(100);
 			}
-		/* Succeed only if the start of a 1s window has been found */
-		} else if (one_window_best_count > 0 && one_window_best_start > 0) {
+		/* Succeed only if the start of a 1s window has been found: */
+		} else if (
+			/* Start of 1s window directly seen after 0. */
+			((one_window_best_start) > 0 && (one_window_best_count > 0)) ||
+			/* Start of 1s window indirectly seen before 0. */
+			((one_window_best_start == 0) && (one_window_best_count > _sdram_tck_taps/4))
+			){
 #if SDRAM_PHY_DELAYS > 32
 			/* Ensure write delay is just before transition */
 			one_window_start -= min(one_window_start, 16);
