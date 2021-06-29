@@ -73,6 +73,7 @@ class Builder:
 
         # BIOS Options.
         bios_options     = [],
+        rom_override     = None,
 
         # Documentation.
         generate_doc     = False):
@@ -98,6 +99,7 @@ class Builder:
 
         # BIOS Options.
         self.bios_options = bios_options
+        self.rom_override = rom_override
 
         # Documentation
         self.generate_doc = generate_doc
@@ -243,7 +245,10 @@ class Builder:
 
     def _initialize_rom_software(self):
         # Get BIOS data from compiled BIOS binary.
-        bios_file = os.path.join(self.software_dir, "bios", "bios.bin")
+        if self.rom_override:
+            bios_file = os.path.expanduser(self.rom_override)
+        else:
+            bios_file = os.path.join(self.software_dir, "bios", "bios.bin")
         bios_data = soc_core.get_mem_data(bios_file, self.soc.cpu.endianness)
 
         # Initialize SoC with with BIOS data.
@@ -317,6 +322,7 @@ def builder_args(parser):
     parser.add_argument("--csr-svd",             default=None,        help="Write SoC mapping to the specified SVD file.")
     parser.add_argument("--memory-x",            default=None,        help="Write SoC Memory Regions to the specified Memory-X file.")
     parser.add_argument("--doc",                 action="store_true", help="Generate SoC Documentation.")
+    parser.add_argument("--rom-override",        default=None,        help="Override contents of ROM.")
 
 
 def builder_argdict(args):
@@ -333,4 +339,5 @@ def builder_argdict(args):
         "csr_svd":          args.csr_svd,
         "memory_x":         args.memory_x,
         "generate_doc":     args.doc,
+        "rom_override":     args.rom_override,
     }
