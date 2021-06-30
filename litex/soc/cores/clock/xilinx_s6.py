@@ -37,7 +37,6 @@ class S6PLL(XilinxClocking):
             p_BANDWIDTH      = "OPTIMIZED",
             p_COMPENSATION   = "INTERNAL",
             i_RST            = self.reset,
-            i_PWRDWN         = self.power_down,
             o_LOCKED         = self.locked,
 
             # VCO.
