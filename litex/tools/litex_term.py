@@ -314,6 +314,9 @@ class LiteXTerm:
         if "ttyACM" in port:
             self.payload_length = sfl_payload_length
             self.delay          = 1e-4
+        elif "tty.usbmodem" in port:
+            self.payload_length = sfl_payload_length
+            self.delay          = 1e-3
         else:
             self.payload_length = 64
             self.delay          = 1e-5
