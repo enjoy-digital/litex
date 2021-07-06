@@ -25,6 +25,7 @@ class ECP5PLL(Module):
         self.logger.info("Creating ECP5PLL.")
         self.reset      = Signal()
         self.locked     = Signal()
+        self.stdby      = Signal()
         self.clkin_freq = None
         self.vcxo_freq  = None
         self.nclkouts   = 0
@@ -117,6 +118,7 @@ class ECP5PLL(Module):
                 ("MFG_GMCREF_SEL",         "2")],
             i_RST           = self.reset,
             i_CLKI          = self.clkin,
+            i_STDBY         = self.stdby,
             o_LOCK          = locked,
             p_FEEDBK_PATH   = "INT_OS3", # CLKOS3 reserved for feedback with div=1.
             p_CLKOS3_ENABLE = "ENABLED",
