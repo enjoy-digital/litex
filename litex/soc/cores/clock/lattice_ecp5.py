@@ -30,6 +30,7 @@ class ECP5PLL(Module):
         self.stdby      = Signal()
         self.clkin_freq = None
         self.vcxo_freq  = None
+        self.dpa_en     = False
         self.nclkouts   = 0
         self.clkouts    = {}
         self.config     = {}
@@ -47,13 +48,13 @@ class ECP5PLL(Module):
         self.clkin_freq = freq
         register_clkin_log(self.logger, clkin, freq)
 
-    def create_clkout(self, cd, freq, phase=0, margin=1e-2, with_reset=True):
+    def create_clkout(self, cd, freq, phase=0, margin=1e-2, with_reset=True, uses_dpa=True):
         (clko_freq_min, clko_freq_max) = self.clko_freq_range
         assert freq >= clko_freq_min
         assert freq <= clko_freq_max
         assert self.nclkouts < self.nclkouts_max
         clkout = Signal()
-        self.clkouts[self.nclkouts] = (clkout, freq, phase, margin)
+        self.clkouts[self.nclkouts] = (clkout, freq, phase, margin, uses_dpa)
         if with_reset:
             self.specials += AsyncResetSynchronizer(cd, ~self.locked)
         self.comb += cd.clk.eq(clkout)
@@ -80,7 +81,10 @@ class ECP5PLL(Module):
             for clkfb_div in range(*self.clkfb_div_range):
                 # pick a suitable feedback clock
                 found_fb = None
-                for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+                for n, (clk, f, p, m, dpa) in sorted(self.clkouts.items()):
+                    if dpa and self.dpa_en:
+                        # cannot use clocks whose phase the user will change
+                        continue
                     for d in range(*self.clko_div_range):
                         vco_freq = self.clkin_freq/clki_div*clkfb_div*d
                         clk_freq = vco_freq/d
@@ -107,7 +111,7 @@ class ECP5PLL(Module):
 
                 # vco_freq is known, compute remaining clocks' output settings
                 all_valid = True
-                for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+                for n, (clk, f, p, m, dpa) in sorted(self.clkouts.items()):
                     if n == found_fb:
                         continue  # already picked this one
                     for d in range(*self.clko_div_range):
@@ -128,6 +132,7 @@ class ECP5PLL(Module):
         raise ValueError("No PLL config found")
 
     def expose_dpa(self):
+        self.dpa_en     = True
         self.phase_sel  = Signal(2)
         self.phase_dir  = Signal()
         self.phase_step = Signal()
@@ -164,7 +169,7 @@ class ECP5PLL(Module):
             p_CLKI_DIV      = config["clki_div"]
         )
         self.comb += self.locked.eq(locked & ~self.reset)
-        for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+        for n, (clk, f, p, m, dpa) in sorted(self.clkouts.items()):
             div    = config["clko{}_div".format(n)]
             cphase = int(p*(div + 1)/360 + div - 1)
             self.params["p_CLKO{}_ENABLE".format(n_to_l[n])] = "ENABLED"
