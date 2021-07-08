@@ -24,9 +24,9 @@ from litex.soc.integration.soc import *
 from litex.soc.cores.bitbang import *
 from litex.soc.cores.cpu import CPUS
 
+
 from litedram import modules as litedram_modules
 from litedram.modules import parse_spd_hexdump
-from litedram.common import *
 from litedram.phy.model import sdram_module_nphases, get_sdram_phy_settings
 from litedram.phy.model import SDRAMPHYModel
 
@@ -123,16 +123,12 @@ class SimSoC(SoCCore):
                 sdram_module     = sdram_module_cls(sdram_clk_freq, sdram_rate)
             else:
                 sdram_module = litedram_modules.SDRAMModule.from_spd_data(sdram_spd_data, sdram_clk_freq)
-            phy_settings     = get_sdram_phy_settings(
-                memtype    = sdram_module.memtype,
-                data_width = sdram_data_width,
-                clk_freq   = sdram_clk_freq)
             self.submodules.sdrphy = SDRAMPHYModel(
-                module    = sdram_module,
-                settings  = phy_settings,
-                clk_freq  = sdram_clk_freq,
-                verbosity = sdram_verbosity,
-                init      = sdram_init)
+                module     = sdram_module,
+                data_width = sdram_data_width,
+                clk_freq   = sdram_clk_freq,
+                verbosity  = sdram_verbosity,
+                init       = sdram_init)
             self.add_sdram("sdram",
                 phy                     = self.sdrphy,
                 module                  = sdram_module,
