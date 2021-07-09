@@ -57,7 +57,7 @@ __attribute__((unused)) void cdelay(int i)
 #define MEMTEST_DATA_SIZE (2*1024*1024)
 #endif
 
-#define DFII_PIX_DATA_BYTES DFII_PIX_DATA_SIZE*CONFIG_CSR_DATA_WIDTH/8
+#define DFII_PIX_DATA_BYTES SDRAM_PHY_DATABITS*SDRAM_PHY_XDR/8
 
 int sdram_get_databits(void) {
 	return SDRAM_PHY_DATABITS;
