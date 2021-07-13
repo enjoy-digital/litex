@@ -147,7 +147,7 @@ def get_mem_header(regions):
 def get_soc_header(constants, with_access_functions=True):
     r = generated_banner("//")
     r += "#ifndef __GENERATED_SOC_H\n#define __GENERATED_SOC_H\n"
-
+    funcs = ""
 
     for name, value in constants.items():
         if value is None:
@@ -161,8 +161,13 @@ def get_soc_header(constants, with_access_functions=True):
             ctype = "int"
         r += "#define "+name+" "+value+"\n"
         if with_access_functions:
-            r += "static inline "+ctype+" "+name.lower()+"_read(void) {\n"
-            r += "\treturn "+value+";\n}\n"
+            funcs += "static inline "+ctype+" "+name.lower()+"_read(void) {\n"
+            funcs += "\treturn "+value+";\n}\n"
+
+    if with_access_functions:
+        r += "\n#ifndef __ASSEMBLER__\n"
+        r += funcs
+        r += "#endif // !__ASSEMBLER__\n"
 
     r += "\n#endif\n"
     return r
