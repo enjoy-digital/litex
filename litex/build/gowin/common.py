@@ -33,8 +33,42 @@ class GowinAsyncResetSynchronizer:
     def lower(dr):
         return GowinAsyncResetSynchronizerImpl(dr.cd, dr.async_reset)
 
+# Gowin DDR Input ----------------------------------------------------------------------------------
+
+class GowinDDRInputImpl(Module):
+    def __init__(self, i, o1, o2, clk):
+        self.specials += Instance("IDDR",
+            i_CLK = clk,
+            i_D   = i,
+            o_Q0  = o1,
+            o_Q1  = o2,
+        )
+
+class GowinDDRInput:
+    @staticmethod
+    def lower(dr):
+        return GowinInputImpl(dr.i, dr.o1, dr.o2, dr.clk)
+
+# Gowin DDR Output ---------------------------------------------------------------------------------
+
+class GowinDDROutputImpl(Module):
+    def __init__(self, i1, i2, o, clk):
+        self.specials += Instance("ODDR",
+            i_CLK = clk,
+            i_D0  = i1,
+            i_D1  = i2,
+            o_Q0  = o,
+        )
+
+class GowinDDROutput:
+    @staticmethod
+    def lower(dr):
+        return GowinDDROutputImpl(dr.i1, dr.i2, dr.o, dr.clk)
+
 # Gowin Special Overrides --------------------------------------------------------------------------
 
 gowin_special_overrides = {
     AsyncResetSynchronizer: GowinAsyncResetSynchronizer,
+    DDRInput:               GowinDDRInput,
+    DDROutput:              GowinDDROutput,
 }
