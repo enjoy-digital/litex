@@ -11,11 +11,13 @@ from shutil import which
 
 from migen.fhdl.structure import _Fragment
 
-from litex.build.generic_platform import Pins, IOStandard, Misc
+from litex.build.generic_platform import *
 from litex.build import tools
 
+# IO Constraints (.cst) ----------------------------------------------------------------------------
+
 def _build_cst(named_sc, named_pc):
-    lines = []
+    cst = []
 
     flat_sc = []
     for name, pins, other, resource in named_sc:
@@ -27,41 +29,49 @@ def _build_cst(named_sc, named_pc):
 
     for name, pin, other in flat_sc:
         if pin != "X":
-            lines.append(f"IO_LOC \"{name}\" {pin};")
+            cst.append(f"IO_LOC \"{name}\" {pin};")
 
         for c in other:
             if isinstance(c, IOStandard):
-                lines.append(f"IO_PORT \"{name}\" IO_TYPE={c.name};")
+                cst.append(f"IO_PORT \"{name}\" IO_TYPE={c.name};")
             elif isinstance(c, Misc):
-                lines.append(f"IO_PORT \"{name}\" {c.misc};")
+                cst.append(f"IO_PORT \"{name}\" {c.misc};")
 
     if named_pc:
-        lines.extend(named_pc)
+        cst.extend(named_pc)
 
-    cst = "\n".join(lines)
     with open("top.cst", "w") as f:
-        f.write(cst)
+        f.write("\n".join(cst))
 
-def _build_script(name, partnumber, files, options):
-    lines = [
-        f"set_device -name {name} {partnumber}",
-        "add_file top.cst",
-    ]
+# Script -------------------------------------------------------------------------------------------
 
+def _build_tcl(name, partnumber, files, options):
+    tcl = []
+
+    # Set Device.
+    tcl.append(f"set_device -name {name} {partnumber}")
+
+    # Add IO Constraints.
+    tcl.append("add_file top.cst")
+
+    # Add Sources.
     for f, typ, lib in files:
-        lines.append(f"add_file {f}")
+        tcl.append(f"add_file {f}")
 
+    # Set Options.
     for opt, val in options.items():
-        lines.append(f"set_option -{opt} {val}")
+        tcl.append(f"set_option -{opt} {val}")
 
-    lines.append("run all")
+    # Run.
+    tcl.append("run all")
 
-    tcl = "\n".join(lines)
+    # Generate .tcl.
     with open("run.tcl", "w") as f:
-        f.write(tcl)
+        f.write("\n".join(tcl))
 
-class GowinToolchain():
+# GowinToolchain -----------------------------------------------------------------------------------
 
+class GowinToolchain:
     attr_translate = {
         "keep":             None,
         "no_retiming":      None,
@@ -78,12 +88,12 @@ class GowinToolchain():
         self.options = {}
 
     def build(self, platform, fragment,
-        build_dir      = "build",
-        build_name     = "top",
-        run            = True,
+        build_dir  = "build",
+        build_name = "top",
+        run        = True,
         **kwargs):
 
-        # Create build directory
+        # Create build directory.
         cwd = os.getcwd()
         os.makedirs(build_dir, exist_ok=True)
         os.chdir(build_dir)
@@ -101,19 +111,19 @@ class GowinToolchain():
         platform.add_source(v_file)
 
         if platform.verilog_include_paths:
-            self.options['include_path'] = '{' + ';'.join(platform.verilog_include_paths) + '}'
+            self.options["include_path"] = "{" + ";".join(platform.verilog_include_paths) + "}"
 
         # Generate constraints file (.cst)
         _build_cst(
-            named_sc                = named_sc,
-            named_pc                = named_pc)
+            named_sc = named_sc,
+            named_pc = named_pc)
 
-        # Generate TCL build script
-        script = _build_script(
-            name                    = platform.devicename,
-            partnumber              = platform.device,
-            files                   = platform.sources,
-            options                 = self.options)
+        # Generate build script (.tcl)
+        script = _build_tcl(
+            name       = platform.devicename,
+            partnumber = platform.device,
+            files      = platform.sources,
+            options    = self.options)
 
         # Run
         if run:
