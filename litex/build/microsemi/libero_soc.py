@@ -216,18 +216,7 @@ def _run_script(script):
 # MicrosemiLiberoSoCPolarfireToolchain -------------------------------------------------------------
 
 class MicrosemiLiberoSoCPolarfireToolchain:
-    attr_translate = {
-        # FIXME: document
-        "keep":             None,
-        "no_retiming":      None,
-        "async_reg":        None,
-        "mr_ff":            None,
-        "mr_false_path":    None,
-        "ars_ff1":          None,
-        "ars_ff2":          None,
-        "ars_false_path":   None,
-        "no_shreg_extract": None
-    }
+    attr_translate = {}
 
     special_overrides = common.microsemi_polarfire_special_overrides
 

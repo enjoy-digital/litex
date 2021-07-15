@@ -177,6 +177,8 @@ def _run_script(script):
 # AlteraQuartusToolchain ---------------------------------------------------------------------------
 
 class AlteraQuartusToolchain:
+    attr_translate = {}
+
     def __init__(self):
         self.clocks      = dict()
         self.false_paths = set()

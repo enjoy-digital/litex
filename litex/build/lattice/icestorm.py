@@ -148,16 +148,7 @@ def _run_script(script):
 
 class LatticeIceStormToolchain:
     attr_translate = {
-        # FIXME: document
         "keep": ("keep", "true"),
-        "no_retiming":      None,
-        "async_reg":        None,
-        "mr_ff":            None,
-        "mr_false_path":    None,
-        "ars_ff1":          None,
-        "ars_ff2":          None,
-        "ars_false_path":   None,
-        "no_shreg_extract": None
     }
 
     special_overrides = common.lattice_ice40_special_overrides

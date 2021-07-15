@@ -43,8 +43,10 @@ class XilinxPlatform(GenericPlatform):
         if self.device[:4] == "xcku":
             so.update(common.xilinx_us_special_overrides)
         so.update(special_overrides)
-        return GenericPlatform.get_verilog(self, *args, special_overrides=so,
-            attr_translate=self.toolchain.attr_translate, **kwargs)
+        return GenericPlatform.get_verilog(self, *args,
+            special_overrides = so,
+            attr_translate    = self.toolchain.attr_translate,
+            **kwargs)
 
     def get_edif(self, fragment, **kwargs):
         return GenericPlatform.get_edif(self, fragment, "UNISIMS", "Xilinx", self.device, **kwargs)

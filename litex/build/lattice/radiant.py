@@ -247,16 +247,8 @@ def _check_timing(build_name):
 
 class LatticeRadiantToolchain:
     attr_translate = {
-        # FIXME: document
         "keep":             ("syn_keep", "true"),
         "no_retiming":      ("syn_no_retiming", "true"),
-        "async_reg":        None,
-        "mr_ff":            None,
-        "mr_false_path":    None,
-        "ars_ff1":          None,
-        "ars_ff2":          None,
-        "ars_false_path":   None,
-        "no_shreg_extract": None
     }
 
     special_overrides = common.lattice_NX_special_overrides
