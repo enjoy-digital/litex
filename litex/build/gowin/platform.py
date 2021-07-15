@@ -39,3 +39,7 @@ class GowinPlatform(GenericPlatform):
 
     def build(self, *args, **kwargs):
         return self.toolchain.build(self, *args, **kwargs)
+
+    def add_period_constraint(self, clk, period):
+        if clk is None: return
+        self.toolchain.add_period_constraint(self, clk, period)

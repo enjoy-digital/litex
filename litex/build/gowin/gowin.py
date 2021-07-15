@@ -6,6 +6,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
+import math
 import subprocess
 from shutil import which
 
@@ -14,7 +15,7 @@ from migen.fhdl.structure import _Fragment
 from litex.build.generic_platform import *
 from litex.build import tools
 
-# IO Constraints (.cst) ----------------------------------------------------------------------------
+# Constraints (.cst and .tcl) ----------------------------------------------------------------------
 
 def _build_cst(named_sc, named_pc):
     cst = []
@@ -43,6 +44,13 @@ def _build_cst(named_sc, named_pc):
     with open("top.cst", "w") as f:
         f.write("\n".join(cst))
 
+def _build_sdc(clocks, vns):
+    sdc = []
+    for clk, period in sorted(clocks.items(), key=lambda x: x[0].duid):
+        sdc.append(f"create_clock -name {vns.get_name(clk)} -period {str(period)} [get_ports {{{vns.get_name(clk)}}}]")
+    with open("top.sdc", "w") as f:
+        f.write("\n".join(sdc))
+
 # Script -------------------------------------------------------------------------------------------
 
 def _build_tcl(name, partnumber, files, options):
@@ -51,8 +59,11 @@ def _build_tcl(name, partnumber, files, options):
     # Set Device.
     tcl.append(f"set_device -name {name} {partnumber}")
 
-    # Add IO Constraints.
+    # Add IOs Constraints.
     tcl.append("add_file top.cst")
+
+    # Add Timings Constraints.
+    tcl.append("add_file top.sdc")
 
     # Add Sources.
     for f, typ, lib in files:
@@ -76,6 +87,7 @@ class GowinToolchain:
 
     def __init__(self):
         self.options = {}
+        self.clocks  = dict()
 
     def build(self, platform, fragment,
         build_dir  = "build",
@@ -103,10 +115,18 @@ class GowinToolchain:
         if platform.verilog_include_paths:
             self.options["include_path"] = "{" + ";".join(platform.verilog_include_paths) + "}"
 
-        # Generate constraints file (.cst)
+        # Generate constraints file.
+        # IOs (.cst).
         _build_cst(
             named_sc = named_sc,
-            named_pc = named_pc)
+            named_pc = named_pc
+        )
+
+        # Timings (.sdc)
+        _build_sdc(
+            clocks  = self.clocks,
+            vns     = v_output.ns
+        )
 
         # Generate build script (.tcl)
         script = _build_tcl(
@@ -128,3 +148,12 @@ class GowinToolchain:
         os.chdir(cwd)
 
         return v_output.ns
+
+    def add_period_constraint(self, platform, clk, period):
+        clk.attr.add("keep")
+        period = math.floor(period*1e3)/1e3 # round to lowest picosecond
+        if clk in self.clocks:
+            if period != self.clocks[clk]:
+                raise ValueError("Clock already constrained to {:.2f}ns, new constraint to {:.2f}ns"
+                    .format(self.clocks[clk], period))
+        self.clocks[clk] = period
