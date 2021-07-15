@@ -391,30 +391,39 @@ class Depacketizer(Module):
 # PacketFIFO ---------------------------------------------------------------------------------------
 
 class PacketFIFO(Module):
-    def __init__(self, description, depth, buffered=False):
-        self.sink   = sink   = stream.Endpoint(description)
-        self.source = source = stream.Endpoint(description)
+    def __init__(self, layout, payload_depth, param_depth=None, buffered=False):
+        self.sink   = sink   = stream.Endpoint(layout)
+        self.source = source = stream.Endpoint(layout)
 
         # # #
 
-        # Create the FIFO.
-        self.submodules.fifo = fifo = stream.SyncFIFO(description, depth, buffered)
+        # Parameters.
+        param_layout   = sink.description.param_layout
+        payload_layout = sink.description.payload_layout
+        if param_layout == []:
+            param_layout = [("dummy", 1)]
+        if param_depth is None:
+            param_depth = payload_depth
 
-        # Connect our sink to FIFO.sink.
-        self.comb += sink.connect(fifo.sink)
+        # Create the FIFOs.
+        payload_description = stream.EndpointDescription(payload_layout=payload_layout)
+        param_description   = stream.EndpointDescription(param_layout=param_layout)
+        self.submodules.payload_fifo = payload_fifo = stream.SyncFIFO(payload_description, payload_depth, buffered)
+        self.submodules.param_fifo   = param_fifo   = stream.SyncFIFO(param_description,   param_depth,   buffered)
 
-        # Count packets in the FIFO.
-        count = Signal(int(log2(depth))+1)
-        inc   = (sink.valid   &   sink.ready &   sink.last)
-        dec   = (source.valid & source.ready & source.last)
-        self.sync += If(inc & ~dec, count.eq(count + 1))
-        self.sync += If(~inc & dec, count.eq(count - 1))
-
-        # Connect FIFO.sink to source only we have at least one packet in the FIFO.
+        # Connect Sink to FIFOs.
         self.comb += [
-            fifo.source.connect(source, omit={"valid", "ready"}),
-            If(count > 0,
-                source.valid.eq(1),
-                fifo.source.ready.eq(source.ready)
-            )
+            sink.connect(param_fifo.sink,   keep=set([e[0] for e in param_layout])),
+            sink.connect(payload_fifo.sink, keep=set([e[0] for e in payload_layout] + ["last"])),
+            param_fifo.sink.valid.eq(sink.valid & sink.last),
+            payload_fifo.sink.valid.eq(sink.valid & payload_fifo.sink.ready),
+            sink.ready.eq(param_fifo.sink.ready & payload_fifo.sink.ready),
+        ]
+
+        # Connect FIFOs to Source.
+        self.comb += [
+            param_fifo.source.connect(source,   omit={"last",  "ready"}),
+            payload_fifo.source.connect(source, omit={"valid", "ready"}),
+            param_fifo.source.ready.eq(  source.valid & source.last & source.ready),
+            payload_fifo.source.ready.eq(source.valid &               source.ready),
         ]
