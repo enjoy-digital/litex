@@ -369,7 +369,7 @@ def _printspecials(overrides, specials, ns, add_data_file, attr_translate):
     return r
 
 
-class DummyAttrTranslate:
+class DummyAttrTranslate(dict):
     def __getitem__(self, k):
         return (k, "true")
 
