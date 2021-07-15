@@ -12,16 +12,22 @@ from litex.build.generic_programmer import GenericProgrammer
 class OpenFPGALoader(GenericProgrammer):
     needs_bitreverse = False
 
-    def __init__(self, board):
-        self.board = board
+    def __init__(self, board="", cable="", freq=0):
+        self.cmd = ["openFPGALoader"]
+        if board:
+            self.cmd += ["--board", board]
+        if cable:
+            self.cmd += ["--cable", cable]
+        if freq:
+            self.cmd += ["--freq", str(int(freq))]
 
     def load_bitstream(self, bitstream_file):
-        cmd = ["openFPGALoader", "--board", self.board, "--bitstream", bitstream_file]
-        self.call(cmd)
+        self.cmd += ["--bitstream", bitstream_file]
+        self.call(self.cmd)
 
     def flash(self, address, data_file):
-        cmd = ["openFPGALoader", "--board", self.board, "--write-flash", "--bitstream", data_file]
+        self.cmd += ["--write-flash", "--bitstream", data_file]
         if address:
-            cmd.append("--offset")
-            cmd.append(address)
-        self.call(cmd)
+            self.cmd.append("--offset")
+            self.cmd.append(address)
+        self.call(self.cmd)
