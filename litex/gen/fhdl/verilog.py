@@ -205,7 +205,7 @@ def _printattr(attr, attr_translate):
             attr_name, attr_value = attr
         else:
             # translated attribute
-            at = attr_translate[attr]
+            at = attr_translate.get(attr, None)
             if at is None:
                 continue
             attr_name, attr_value = at
