@@ -170,6 +170,7 @@ class Packetizer(Module):
         bytes_per_clk   = data_width//8
         header_words    = (header.length*8)//data_width
         header_leftover = header.length%bytes_per_clk
+        aligned         = header_leftover == 0
 
         # Signals.
         sr       = Signal(header.length*8, reset_less=True)
@@ -208,11 +209,7 @@ class Packetizer(Module):
                     sr_load.eq(1),
                     NextValue(fsm_from_idle, 1),
                     If(header_words == 1,
-                        If(header_leftover != 0,
-                            NextState("UNALIGNED-DATA-COPY")
-                        ).Else(
-                            NextState("ALIGNED-DATA-COPY")
-                        )
+                        NextState("ALIGNED-DATA-COPY" if aligned else "UNALIGNED-DATA-COPY")
                     ).Else(
                         NextState("HEADER-SEND")
                     )
@@ -227,12 +224,8 @@ class Packetizer(Module):
                 sr_shift.eq(1),
                 If(count == (header_words - 1),
                     sr_shift.eq(0),
-                    If(header_leftover,
-                        NextState("UNALIGNED-DATA-COPY"),
-                        NextValue(count, count + 1)
-                    ).Else(
-                        NextState("ALIGNED-DATA-COPY")
-                    )
+                    NextState("ALIGNED-DATA-COPY" if aligned else "UNALIGNED-DATA-COPY"),
+                    NextValue(count, count + 1)
                ).Else(
                     NextValue(count, count + 1),
                )
@@ -251,26 +244,27 @@ class Packetizer(Module):
                )
             )
         )
-        header_offset_multiplier = 1 if header_words == 1 else 2
-        self.sync += If(source.ready, sink_d.eq(sink))
-        fsm.act("UNALIGNED-DATA-COPY",
-            source.valid.eq(sink.valid | sink_d.last),
-            source.last.eq(sink_d.last),
-            source_last_be.eq(last_be_d),
-            If(fsm_from_idle,
-                source.data[:max(header_leftover*8, 1)].eq(sr[min(header_offset_multiplier*data_width, len(sr)-1):])
-            ).Else(
-                source.data[:max(header_leftover*8, 1)].eq(sink_d.data[min((bytes_per_clk-header_leftover)*8, data_width-1):])
-            ),
-            source.data[header_leftover*8:].eq(sink.data),
-            If(source.valid & source.ready,
-                sink.ready.eq(~source.last),
-                NextValue(fsm_from_idle, 0),
-                If(source.last,
-                    NextState("IDLE")
+        if not aligned:
+            header_offset_multiplier = 1 if header_words == 1 else 2
+            self.sync += If(source.ready, sink_d.eq(sink))
+            fsm.act("UNALIGNED-DATA-COPY",
+                source.valid.eq(sink.valid | sink_d.last),
+                source.last.eq(sink_d.last),
+                source_last_be.eq(last_be_d),
+                If(fsm_from_idle,
+                    source.data[:max(header_leftover*8, 1)].eq(sr[min(header_offset_multiplier*data_width, len(sr)-1):])
+                ).Else(
+                    source.data[:max(header_leftover*8, 1)].eq(sink_d.data[min((bytes_per_clk-header_leftover)*8, data_width-1):])
+                ),
+                source.data[header_leftover*8:].eq(sink.data),
+                If(source.valid & source.ready,
+                    sink.ready.eq(~source.last),
+                    NextValue(fsm_from_idle, 0),
+                    If(source.last,
+                        NextState("IDLE")
+                    )
                 )
             )
-        )
 
         # Error.
         if hasattr(sink, "error") and hasattr(source, "error"):
@@ -291,6 +285,7 @@ class Depacketizer(Module):
         bytes_per_clk   = data_width//8
         header_words    = (header.length*8)//data_width
         header_leftover = header.length%bytes_per_clk
+        aligned         = header_leftover == 0
 
         # Signals.
         sr                = Signal(header.length*8, reset_less=True)
@@ -320,11 +315,7 @@ class Depacketizer(Module):
                 sr_shift.eq(1),
                 NextValue(fsm_from_idle, 1),
                 If(header_words == 1,
-                    If(header_leftover,
-                        NextState("UNALIGNED-DATA-COPY")
-                    ).Else(
-                        NextState("ALIGNED-DATA-COPY")
-                    ),
+                    NextState("ALIGNED-DATA-COPY" if aligned else "UNALIGNED-DATA-COPY"),
                 ).Else(
                     NextState("HEADER-RECEIVE")
                 )
@@ -336,33 +327,8 @@ class Depacketizer(Module):
                 NextValue(count, count + 1),
                 sr_shift.eq(1),
                 If(count == (header_words - 1),
-                    If(header_leftover,
-                        NextValue(count, count + 1),
-                        NextState("UNALIGNED-DATA-COPY")
-                    ).Else(
-                        NextState("ALIGNED-DATA-COPY")
-                    )
-                )
-            )
-        )
-        self.sync += If(sink.valid & sink.ready, sink_d.eq(sink))
-        fsm.act("UNALIGNED-DATA-COPY",
-            source.valid.eq(sink.valid | sink_d.last),
-            source.last.eq(sink.last | sink_d.last),
-            sink.ready.eq(source.ready),
-            source.data.eq(sink_d.data[header_leftover*8:]),
-            source.data[min((bytes_per_clk-header_leftover)*8, data_width-1):].eq(sink.data),
-            If(fsm_from_idle,
-                source.valid.eq(sink_d.last),
-                sink.ready.eq(1),
-                If(sink.valid,
-                    NextValue(fsm_from_idle, 0),
-                    sr_shift_leftover.eq(1),
-                )
-            ),
-            If(source.valid & source.ready,
-                If(source.last,
-                    NextState("IDLE")
+                    NextState("ALIGNED-DATA-COPY" if aligned else "UNALIGNED-DATA-COPY"),
+                    NextValue(count, count + 1),
                 )
             )
         )
@@ -377,6 +343,29 @@ class Depacketizer(Module):
                )
             )
         )
+
+        if not aligned:
+            self.sync += If(sink.valid & sink.ready, sink_d.eq(sink))
+            fsm.act("UNALIGNED-DATA-COPY",
+                source.valid.eq(sink.valid | sink_d.last),
+                source.last.eq(sink.last | sink_d.last),
+                sink.ready.eq(source.ready),
+                source.data.eq(sink_d.data[header_leftover*8:]),
+                source.data[min((bytes_per_clk-header_leftover)*8, data_width-1):].eq(sink.data),
+                If(fsm_from_idle,
+                    source.valid.eq(sink_d.last),
+                    sink.ready.eq(1),
+                    If(sink.valid,
+                        NextValue(fsm_from_idle, 0),
+                        sr_shift_leftover.eq(1),
+                    )
+                ),
+                If(source.valid & source.ready,
+                    If(source.last,
+                        NextState("IDLE")
+                    )
+                )
+            )
 
         # Error.
         if hasattr(sink, "error") and hasattr(source, "error"):
