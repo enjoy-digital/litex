@@ -19,7 +19,7 @@ class OpenFPGALoader(GenericProgrammer):
         if cable:
             self.cmd += ["--cable", cable]
         if freq:
-            self.cmd += ["--freq", str(int(freq))]
+            self.cmd += ["--freq", str(int(float(freq)))]
 
     def load_bitstream(self, bitstream_file):
         self.cmd += ["--bitstream", bitstream_file]
