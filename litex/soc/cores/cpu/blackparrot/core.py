@@ -68,8 +68,9 @@ class BlackParrotRV64(CPU):
     # Memory Mapping.
     @property
     def mem_map(self):
+        # Keep the lower 128MBs for SoC IOs auto-allocation.
         return {
-            "csr"      : 0x50000000,
+            "csr"      : 0x58000000,
             "rom"      : 0x70000000,
             "sram"     : 0x71000000,
             "main_ram" : 0x80000000,
