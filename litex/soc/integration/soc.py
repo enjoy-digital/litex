@@ -1563,14 +1563,18 @@ class LiteXSoC(SoC):
         # Interrupts.
         self.submodules.sdirq = EventManager()
         self.sdirq.card_detect   = EventSourcePulse(description="SDCard has been ejected/inserted.")
-        self.sdirq.block2mem_dma = EventSourcePulse(description="Block2Mem DMA terminated.")
-        self.sdirq.mem2block_dma = EventSourcePulse(description="Mem2Block DMA terminated.")
+        if "read" in mode:
+            self.sdirq.block2mem_dma = EventSourcePulse(description="Block2Mem DMA terminated.")
+        if "write" in mode:
+            self.sdirq.mem2block_dma = EventSourcePulse(description="Mem2Block DMA terminated.")
         self.sdirq.cmd_done      = EventSourceLevel(description="Command completed.")
         self.sdirq.finalize()
+        if "read" in mode:
+            self.comb += self.sdirq.block2mem_dma.trigger.eq(self.sdblock2mem.irq)
+        if "write" in mode:
+            self.comb += self.sdirq.mem2block_dma.trigger.eq(self.sdmem2block.irq)
         self.comb += [
             self.sdirq.card_detect.trigger.eq(self.sdphy.card_detect_irq),
-            self.sdirq.block2mem_dma.trigger.eq(self.sdblock2mem.irq),
-            self.sdirq.mem2block_dma.trigger.eq(self.sdmem2block.irq),
             self.sdirq.cmd_done.trigger.eq(self.sdcore.cmd_event.fields.done)
         ]
         if self.irq.enabled:
