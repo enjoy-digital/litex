@@ -19,9 +19,9 @@ extern "C" {
 #define _X	0x40	/* hex digit */
 #define _SP	0x80	/* hard space (0x20) */
 
-extern const unsigned char _ctype[];
+extern const unsigned char _ctype_[];
 
-#define __ismask(x) (_ctype[(int)(unsigned char)(x)])
+#define __ismask(x) (_ctype_[(int)(unsigned char)(x)])
 
 #define isalnum(c)	((__ismask(c)&(_U|_L|_D)) != 0)
 #define isalpha(c)	((__ismask(c)&(_U|_L)) != 0)

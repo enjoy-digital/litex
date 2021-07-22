@@ -2,8 +2,6 @@ include ../include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
 OBJECTS = exception.o \
-	libc.o            \
-	errno.o           \
 	crc16.o           \
 	crc32.o           \
 	console.o         \
@@ -11,10 +9,7 @@ OBJECTS = exception.o \
 	id.o              \
 	uart.o            \
 	time.o            \
-	qsort.o           \
-	strtod.o          \
 	spiflash.o        \
-	strcasecmp.o      \
 	i2c.o             \
 	div64.o           \
 	progress.o        \
@@ -23,17 +18,14 @@ OBJECTS = exception.o \
 
 all: crt0.o libbase.a libbase-nofloat.a
 
-libbase.a: $(OBJECTS) vsnprintf.o
-	$(AR) crs libbase.a $(OBJECTS) vsnprintf.o
+libbase.a: $(OBJECTS)
+	$(AR) crs libbase.a $(OBJECTS)
 
-libbase-nofloat.a: $(OBJECTS) vsnprintf-nofloat.o
-	$(AR) crs libbase-nofloat.a $(OBJECTS) vsnprintf-nofloat.o
+libbase-nofloat.a: $(OBJECTS)
+	$(AR) crs libbase-nofloat.a $(OBJECTS)
 
 # pull in dependency info for *existing* .o files
 -include $(OBJECTS:.o=.d)
-
-vsnprintf-nofloat.o: $(LIBBASE_DIRECTORY)/vsnprintf.c
-	$(call compile,-DNO_FLOAT)
 
 %.o: $(LIBBASE_DIRECTORY)/%.c
 	$(compile)
