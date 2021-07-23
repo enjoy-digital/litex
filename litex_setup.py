@@ -23,8 +23,9 @@ repos = [
     ("nmigen",       ("https://github.com/nmigen/",        True,  True, None)),
 
     # LiteX SoC builder
+    ("pythondata-software-picolibc",    ("https://github.com/michalsieron/",  True,  True, None)),
     ("pythondata-software-compiler_rt", ("https://github.com/litex-hub/",     False, True, None)),
-    ("litex",                           ("https://github.com/enjoy-digital/", False, True, None)),
+    ("litex",                           ("https://github.com/antmicro/",      False, True, 0xba7b7b97)),
 
     # LiteX cores ecosystem
     ("liteeth",      ("https://github.com/enjoy-digital/", False, True, None)),
@@ -103,7 +104,7 @@ if len(sys.argv) < 2:
 
 # Check/Update litex_setup.py
 
-litex_setup_url = "https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py"
+litex_setup_url = "https://raw.githubusercontent.com/antmicro/litex/libbase-replacement/litex_setup.py"
 current_sha1 = hashlib.sha1(open(os.path.realpath(__file__)).read().encode("utf-8")).hexdigest()
 print("[checking litex_setup.py]...")
 try:
