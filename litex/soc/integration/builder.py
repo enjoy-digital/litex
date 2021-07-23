@@ -41,6 +41,7 @@ soc_software_packages = [
 
     # LiteX cores.
     "libbase",
+    "libc",
 
     # LiteX Ecosystem cores.
     "libfatfs",
@@ -138,8 +139,10 @@ class Builder:
         for k, v in export.get_cpu_mak(self.soc.cpu, self.compile_software):
             define(k, v)
 
-        # Define the SoC/Compiler-RT/Software/Include directories.
+        # Define the SoC/Picolibc/Compiler-RT/Software/Include directories.
         define("SOC_DIRECTORY", soc_directory)
+        picolibc_directory = get_data_mod("software", "picolibc").data_location
+        define("PICOLIBC_DIRECTORY", picolibc_directory)
         compiler_rt_directory = get_data_mod("software", "compiler_rt").data_location
         define("COMPILER_RT_DIRECTORY", compiler_rt_directory)
         variables_contents.append("export BUILDINC_DIRECTORY")
