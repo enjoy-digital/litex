@@ -47,6 +47,22 @@
 #include <liblitesdcard/sdcard.h>
 #include <liblitesata/sata.h>
 
+#ifdef CSR_ETHMAC_BASE
+// hack to respond to pings:
+// hook ethernet packet handlers into the uart polling loop
+static char con_read_hook(void)
+{
+	return uart_read();
+}
+
+static int con_read_nonblock_hook(void)
+{
+	while (!uart_read_nonblock())
+		udp_service();
+	return 1;
+}
+#endif
+
 static void boot_sequence(void)
 {
 #ifdef CSR_UART_BASE
@@ -70,6 +86,7 @@ static void boot_sequence(void)
 	eth_mode();
 #endif
 	netboot(0, NULL);
+	console_set_read_hook(con_read_hook, con_read_nonblock_hook);
 #endif
 	printf("No boot medium found\n");
 }
