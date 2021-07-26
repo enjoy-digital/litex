@@ -116,7 +116,7 @@ class TestClock(unittest.TestCase):
     def test_ecp5pll(self):
         pll = ECP5PLL()
         pll.register_clkin(Signal(), 100e6)
-        for i in range(pll.nclkouts_max):
+        for i in range(pll.nclkouts_max-1):
             pll.create_clkout(ClockDomain("clkout{}".format(i)), 200e6, uses_dpa=(i != 0))
         pll.expose_dpa()
         pll.compute_config()

@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2018-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2018-2021 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2021 George Hilliard <thirtythreeforty@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
@@ -63,72 +63,54 @@ class ECP5PLL(Module):
 
     def compute_config(self):
         config = {}
-
-        def in_range(n, r):
-            (r_min, r_max) = r
-            return n >= r_min and n <= r_max
-
-        def found_clk(n, f, d, p):
-            config["clko{}_freq".format(n)]  = f
-            config["clko{}_div".format(n)]   = d
-            config["clko{}_phase".format(n)] = p
-
+        # Iterate on CLKI dividers...
         for clki_div in range(*self.clki_div_range):
-            if not in_range(self.clkin_freq / clki_div, self.pfd_freq_range):
+            # Check if in PFD range.
+            (pfd_freq_min, pfd_freq_max) = self.pfd_freq_range
+            if not (pfd_freq_min <= self.clkin_freq/clki_div <= pfd_freq_max):
                 continue
             config["clki_div"] = clki_div
-
-            for clkfb_div in range(*self.clkfb_div_range):
-                # pick a suitable feedback clock
-                found_fb = None
-                for n, (clk, f, p, m, dpa) in sorted(self.clkouts.items()):
-                    if dpa and self.dpa_en:
-                        # cannot use clocks whose phase the user will change
-                        continue
-                    for d in range(*self.clko_div_range):
-                        vco_freq = self.clkin_freq/clki_div*clkfb_div*d
-                        clk_freq = vco_freq/d
-                        if in_range(vco_freq, self.vco_freq_range) \
-                            and abs(clk_freq - f) <= f*m:
-                            found_fb = n
-                            found_clk(n, f, d, p)
-                            break
-                    if found_fb is not None:
-                        break
-                else:
-                    # none found, try to use a new output
-                    for d in range(*self.clko_div_range):
-                        vco_freq = self.clkin_freq/clki_div*clkfb_div*d
-                        clk_freq = vco_freq/d
-                        if self.nclkouts < self.nclkouts_max \
-                            and in_range(vco_freq, self.vco_freq_range) \
-                            and in_range(clk_freq, self.clko_freq_range):
-                            found_fb = self.nclkouts
-                            found_clk(found_fb, clk_freq, d, 0)
-                            break
-                    else:
-                        continue
-
-                # vco_freq is known, compute remaining clocks' output settings
-                all_valid = True
-                for n, (clk, f, p, m, dpa) in sorted(self.clkouts.items()):
-                    if n == found_fb:
-                        continue  # already picked this one
-                    for d in range(*self.clko_div_range):
-                        clk_freq = vco_freq/d
-                        if abs(clk_freq - f) <= f*m:
-                            found_clk(n, f, d, p)
-                            break
+            # Iterate on CLKO dividers... (to get us in VCO range)
+            for clkofb_div in range(*self.clko_div_range):
+                # Iterate on CLKFB dividers...
+                for clkfb_div in range(*self.clkfb_div_range):
+                    vco_freq = (self.clkin_freq/clki_div)*clkfb_div*clkofb_div
+                    (vco_freq_min, vco_freq_max) = self.vco_freq_range
+                    all_valid = True
+                    # If in VCO range, find dividers for all outputs.
+                    if vco_freq_min <= vco_freq <= vco_freq_max:
+                        config["clkfb"] = None
+                        for n, (clk, f, p, m, dpa) in sorted(self.clkouts.items()):
+                            valid = False
+                            for d in range(*self.clko_div_range):
+                                clk_freq = vco_freq/d
+                                # If output is valid, save config.
+                                if abs(clk_freq - f) <= f*m:
+                                    config["clko{}_freq".format(n)]  = clk_freq
+                                    config["clko{}_div".format(n)]   = d
+                                    config["clko{}_phase".format(n)] = p
+                                    valid = True
+                                    # Check if ouptut can be used as feedback, if so use it.
+                                    # (We cannot use clocks with dynamic phase adjustment enabled)
+                                    if (d == clkofb_div) and (not (dpa and self.dpa_en)):
+                                        config["clkfb"] = n
+                                    break
+                            if not valid:
+                                all_valid = False
                     else:
                         all_valid = False
-                if all_valid:
-                    if found_fb > self.nclkouts:
-                        self.create_clkout(ClockDomain('feedback'), vco_freq / clkfb_div)
-                    config["vco"] = vco_freq
-                    config["clkfb"] = found_fb
-                    config["clkfb_div"] = clkfb_div
-                    compute_config_log(self.logger, config)
-                    return config
+                    if all_valid:
+                        # If no output suitable for feedback, create a new output for it.
+                        if config["clkfb"] is None:
+                            # We need at least a free output...
+                            assert self.nclkouts < self.nclkouts_max
+                            config["clkfb"] = self.nclkouts
+                            self.clkouts[self.nclkouts] = (Signal(), 0, 0, 0, 0)
+                            config[f"clko{self.nclkouts}_div"] = int((vco_freq*clki_div)/(self.clkin_freq*clkfb_div))
+                        config["vco"]       = vco_freq
+                        config["clkfb_div"] = clkfb_div
+                        compute_config_log(self.logger, config)
+                        return config
         raise ValueError("No PLL config found")
 
     def expose_dpa(self):
@@ -164,17 +146,17 @@ class ECP5PLL(Module):
             i_CLKI          = self.clkin,
             i_STDBY         = self.stdby,
             o_LOCK          = locked,
-            p_FEEDBK_PATH   = "INT_O{}".format(n_to_l[config['clkfb']]),
+            p_FEEDBK_PATH   = f"INT_O{n_to_l[config['clkfb']]}",
             p_CLKFB_DIV     = config["clkfb_div"],
             p_CLKI_DIV      = config["clki_div"]
         )
         self.comb += self.locked.eq(locked & ~self.reset)
         for n, (clk, f, p, m, dpa) in sorted(self.clkouts.items()):
-            div    = config["clko{}_div".format(n)]
+            div    = config[f"clko{n}_div"]
             cphase = int(p*(div + 1)/360 + div - 1)
-            self.params["p_CLKO{}_ENABLE".format(n_to_l[n])] = "ENABLED"
-            self.params["p_CLKO{}_DIV".format(n_to_l[n])]    = div
-            self.params["p_CLKO{}_FPHASE".format(n_to_l[n])] = 0
-            self.params["p_CLKO{}_CPHASE".format(n_to_l[n])] = cphase
-            self.params["o_CLKO{}".format(n_to_l[n])]        = clk
+            self.params[f"p_CLKO{n_to_l[n]}_ENABLE"] = "ENABLED"
+            self.params[f"p_CLKO{n_to_l[n]}_DIV"]    = div
+            self.params[f"p_CLKO{n_to_l[n]}_FPHASE"] = 0
+            self.params[f"p_CLKO{n_to_l[n]}_CPHASE"] = cphase
+            self.params[f"o_CLKO{n_to_l[n]}"]        = clk
         self.specials += Instance("EHXPLLL", **self.params)
