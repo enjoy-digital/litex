@@ -114,21 +114,23 @@ class BlackParrotRV64(CPU):
 
         # Copy config loader to /tmp
         vdir = get_data_mod("cpu", "blackparrot").data_location
+        blackparrot = os.path.join(vdir, "black-parrot")
         bp_litex = os.path.join(vdir, "bp_litex")
         copyfile(os.path.join(bp_litex, "cce_ucode.mem"), "/tmp/cce_ucode.mem")
 
         # Set environmental variables
-        os.environ["BP"] = vdir
+        os.environ["BP"] = blackparrot
         os.environ["BP_LITEX_DIR"] = bp_litex
 
-        os.environ["BP_COMMON_DIR"] = os.path.join(vdir, "bp_common")
-        os.environ["BP_FE_DIR"] = os.path.join(vdir, "bp_fe")
-        os.environ["BP_BE_DIR"] = os.path.join(vdir, "bp_be")
-        os.environ["BP_ME_DIR"] = os.path.join(vdir, "bp_me")
-        os.environ["BP_TOP_DIR"] = os.path.join(vdir, "bp_top")
-        external = os.path.join(vdir, "external")
+        os.environ["BP_COMMON_DIR"] = os.path.join(blackparrot, "bp_common")
+        os.environ["BP_FE_DIR"] = os.path.join(blackparrot, "bp_fe")
+        os.environ["BP_BE_DIR"] = os.path.join(blackparrot, "bp_be")
+        os.environ["BP_ME_DIR"] = os.path.join(blackparrot, "bp_me")
+        os.environ["BP_TOP_DIR"] = os.path.join(blackparrot, "bp_top")
+        external = os.path.join(blackparrot, "external")
         os.environ["BP_EXTERNAL_DIR"] = external
         os.environ["BASEJUMP_STL_DIR"] = os.path.join(external, "basejump_stl")
+        os.environ["HARDFLOAT_DIR"] = os.path.join(external, "HardFloat")
         os.environ["LITEX_FPGA_DIR"] = os.path.join(bp_litex, "fpga")
         os.environ["LITEX_SIMU_DIR"] = os.path.join(bp_litex, "simulation")
 
