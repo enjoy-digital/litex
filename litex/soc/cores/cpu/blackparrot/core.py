@@ -48,15 +48,15 @@ CPU_VARIANTS = ["standard", "sim"]
 # GCC Flags ----------------------------------------------------------------------------------------
 
 GCC_FLAGS = {
-    "standard": "-march=rv64ima -mabi=lp64 ",
-    "sim":      "-march=rv64ima -mabi=lp64 ",
+    "standard": "-march=rv64imafd -mabi=lp64d ",
+    "sim":      "-march=rv64imafd -mabi=lp64d ",
 }
 
 # BlackParrotRV64 ----------------------------------------------------------------------------------
 
 class BlackParrotRV64(CPU):
     name                 = "blackparrot"
-    human_name           = "BlackParrotRV64[ima]"
+    human_name           = "BlackParrotRV64[imafd]"
     variants             = CPU_VARIANTS
     data_width           = 64
     endianness           = "little"
