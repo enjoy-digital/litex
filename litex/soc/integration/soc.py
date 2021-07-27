@@ -1477,27 +1477,49 @@ class LiteXSoC(SoC):
             self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk, eth_tx_clk)
 
     # Add SPI Flash --------------------------------------------------------------------------------
-    def add_spi_flash(self, name="spiflash", mode="4x", dummy_cycles=None, clk_freq=None):
-        # Imports.
-        from litex.soc.cores.spi_flash import SpiFlash
+    def add_spi_flash(self, name="spiflash", mode="4x", dummy_cycles=None, clk_freq=None, module=None, **kwargs):
+        # LiteX SPI Flash Core FIXME: Keep it for now but we'll probably deprecate it.
+        if module is None:
+            # Imports.
+            from litex.soc.cores.spi_flash import SpiFlash
 
-        # Checks.
-        assert dummy_cycles is not None # FIXME: Get dummy_cycles from SPI Flash
-        assert mode in ["1x", "4x"]
-        if clk_freq is None: clk_freq = self.clk_freq/2 # FIXME: Get max clk_freq from SPI Flash
+            # Checks.
+            assert dummy_cycles is not None # FIXME: Get dummy_cycles from SPI Flash
+            assert mode in ["1x", "4x"]
+            if clk_freq is None: clk_freq = self.clk_freq/2 # FIXME: Get max clk_freq from SPI Flash
 
-        # Core.
-        self.check_if_exists(name)
-        spiflash = SpiFlash(
-            pads  = self.platform.request(name if mode == "1x" else name + mode),
-            dummy = dummy_cycles,
-            div   = ceil(self.clk_freq/clk_freq),
-            with_bitbang = True,
-            endianness   = self.cpu.endianness)
-        spiflash.add_clk_primitive(self.platform.device)
-        setattr(self.submodules, name, spiflash)
-        spiflash_region = SoCRegion(origin=self.mem_map.get(name, None), size=0x1000000) # FIXME: Get size from SPI Flash
-        self.bus.add_slave(name=name, slave=spiflash.bus, region=spiflash_region)
+            # Core.
+            self.check_if_exists(name)
+            spiflash = SpiFlash(
+                pads  = self.platform.request(name if mode == "1x" else name + mode),
+                dummy = dummy_cycles,
+                div   = ceil(self.clk_freq/clk_freq),
+                with_bitbang = True,
+                endianness   = self.cpu.endianness)
+            spiflash.add_clk_primitive(self.platform.device)
+            setattr(self.submodules, name, spiflash)
+            spiflash_region = SoCRegion(origin=self.mem_map.get(name, None), size=0x1000000) # FIXME: Get size from SPI Flash
+            self.bus.add_slave(name=name, slave=spiflash.bus, region=spiflash_region)
+        # LiteSPI.
+        else:
+            # Imports.
+            from litespi.phy.generic import LiteSPIPHY
+            from litespi import LiteSPI
+
+            # Checks/Parameters.
+            assert mode in ["1x", "4x"]
+            if clk_freq is None: clk_freq = self.sys_clk_freq
+
+            # Core.
+            self.check_if_exists(name + "_phy")
+            self.check_if_exists(name + "_mmap")
+            spiflash_pads   = self.platform.request(name if mode == "1x" else name + mode)
+            spiflash_phy    = LiteSPIPHY(spiflash_pads, module)
+            spiflash_mmap   = LiteSPI(spiflash_phy, clk_freq=clk_freq, mmap_endianness=self.cpu.endianness, **kwargs)
+            setattr(self.submodules, name + "_phy",  spiflash_phy)
+            setattr(self.submodules, name + "_mmap", spiflash_mmap)
+            spiflash_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size, cached=False)
+            self.bus.add_slave(name=name, slave=spiflash_mmap.bus, region=spiflash_region)
 
     # Add SPI SDCard -------------------------------------------------------------------------------
     def add_spi_sdcard(self, name="spisdcard", spi_clk_freq=400e3, software_debug=False):
