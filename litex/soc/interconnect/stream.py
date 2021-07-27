@@ -266,7 +266,7 @@ class Multiplexer(Module):
             sink = Endpoint(layout)
             setattr(self, "sink"+str(i), sink)
             sinks.append(sink)
-        self.sel = Signal(max=n)
+        self.sel = Signal(max=max(n, 2))
 
         # # #
 
@@ -284,7 +284,7 @@ class Demultiplexer(Module):
             source = Endpoint(layout)
             setattr(self, "source"+str(i), source)
             sources.append(source)
-        self.sel = Signal(max=n)
+        self.sel = Signal(max=max(n, 2))
 
         # # #
 
