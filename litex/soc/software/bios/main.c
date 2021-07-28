@@ -145,7 +145,7 @@ int main(int i, char **c)
 
         sdr_ok = 1;
 
-#if defined(CSR_ETHMAC_BASE) || defined(CSR_SDRAM_BASE)
+#if defined(CSR_ETHMAC_BASE) || defined(CSR_SDRAM_BASE) || defined(CSR_SPIFLASH_MMAP_BASE)
     printf("--========== \e[1mInitialization\e[0m ============--\n");
 #ifdef CSR_ETHMAC_BASE
 	eth_init();
@@ -157,13 +157,13 @@ int main(int i, char **c)
 	sdr_ok = memtest();
 #endif
 #endif
-	if (sdr_ok !=1)
+	if (sdr_ok != 1)
 		printf("Memory initialization failed\n");
-	printf("\n");
 #endif
 #ifdef CSR_SPIFLASH_MMAP_BASE
 	spiflash_init();
 #endif
+printf("\n");
 
 #ifdef CSR_VIDEO_FRAMEBUFFER_BASE
 	/* Initialize Video Framebuffer FIXME: Move */
