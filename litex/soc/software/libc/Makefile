@@ -1,7 +1,10 @@
 include ../include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
-newlib/libc.a:
-	$(LIBC_DIRECTORY)/do-rv32im-configure $(PICOLIBC_DIRECTORY)
+libc.a:
+	meson $(PICOLIBC_DIRECTORY) \
+		-Dmultilib=false \
+		--cross-file "$(LIBC_DIRECTORY)/cross-rv32im.txt"
 	meson compile
-	sh $(LIBC_DIRECTORY)/swap_libc.sh
+	cp newlib/libc.a libc.a
+
