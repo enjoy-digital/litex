@@ -59,7 +59,7 @@ void donut(void) {
     R(5, 7, cA, sA);
     R(5, 8, cB, sB);
   	if (readchar_nonblock()) {
-  		readchar();
+  		getchar();
   		break;
   	}
     fputs("\x1b[23A", stdout);

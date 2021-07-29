@@ -21,7 +21,7 @@ static char *readstr(void)
 	static int ptr = 0;
 
 	if(readchar_nonblock()) {
-		c[0] = readchar();
+		c[0] = getchar();
 		c[1] = 0;
 		switch(c[0]) {
 			case 0x7f:

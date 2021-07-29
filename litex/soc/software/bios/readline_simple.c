@@ -22,7 +22,7 @@ int readline(char *s, int size)
 	c[1] = 0;
 	ptr = 0;
 	while(1) {
-		c[0] = readchar();
+		c[0] = getchar();
 		if (c[0] == skip)
 			continue;
 		skip = 0;
