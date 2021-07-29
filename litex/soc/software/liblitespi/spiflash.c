@@ -56,6 +56,22 @@ void spiflash_dummy_bits_setup(unsigned int dummy_bits)
 #endif
 }
 
+static void spiflash_master_write(uint32_t val, size_t len, size_t width, uint32_t mask)
+{
+	/* empty rx queue */
+	while (spiflash_mmap_master_status_rx_ready_read())
+		spiflash_mmap_master_rxtx_read();
+
+	spiflash_mmap_master_cs_write(1);
+	spiflash_mmap_master_phyconfig_len_write(8 * len);
+	spiflash_mmap_master_phyconfig_mask_write(mask);
+	spiflash_mmap_master_phyconfig_width_write(width);
+	spiflash_mmap_master_rxtx_write(val);
+
+	while (!spiflash_mmap_master_status_rx_ready_read());
+	spiflash_mmap_master_cs_write(0);
+}
+
 void spiflash_init(void)
 {
 	int ret;
@@ -68,6 +84,22 @@ void spiflash_init(void)
 #if (USER_DEFINED_DUMMY_BITS > 0)
 	spiflash_dummy_bits_setup(USER_DEFINED_DUMMY_BITS);
 #endif
+
+#ifdef FLASH_CHIP_MX25L12833F_QUAD
+	/* enable write enable latch */
+	printf("Enabling quad lines on MX25L12833F...\n");
+	spiflash_master_write(0x00000006, 1, 1, 0x1);
+
+	/* enable quad lines */
+	spiflash_master_write(0x00014307, 3, 1, 0x1);
+
+#ifdef FLASH_CHIP_MX25L12833F_QPI
+	/* enter qpi */
+	printf("Entering QPI mode...\n");
+	spiflash_master_write(0x00000035, 1, 1, 0x1);
+#endif
+
+#endif /* FLASH_CHIP_MX25L12833F_QUAD */
 }
 
 #endif
