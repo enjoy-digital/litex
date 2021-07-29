@@ -1478,28 +1478,10 @@ class LiteXSoC(SoC):
 
     # Add SPI Flash --------------------------------------------------------------------------------
     def add_spi_flash(self, name="spiflash", mode="4x", dummy_cycles=None, clk_freq=None, module=None, **kwargs):
-        # LiteX SPI Flash Core FIXME: Keep it for now but we'll probably deprecate it.
         if module is None:
-            # Imports.
-            from litex.soc.cores.spi_flash import SpiFlash
-
-            # Checks.
-            assert dummy_cycles is not None # FIXME: Get dummy_cycles from SPI Flash
-            assert mode in ["1x", "4x"]
-            if clk_freq is None: clk_freq = self.clk_freq/2 # FIXME: Get max clk_freq from SPI Flash
-
-            # Core.
-            self.check_if_exists(name)
-            spiflash = SpiFlash(
-                pads  = self.platform.request(name if mode == "1x" else name + mode),
-                dummy = dummy_cycles,
-                div   = ceil(self.clk_freq/clk_freq),
-                with_bitbang = True,
-                endianness   = self.cpu.endianness)
-            spiflash.add_clk_primitive(self.platform.device)
-            setattr(self.submodules, name, spiflash)
-            spiflash_region = SoCRegion(origin=self.mem_map.get(name, None), size=0x1000000) # FIXME: Get size from SPI Flash
-            self.bus.add_slave(name=name, slave=spiflash.bus, region=spiflash_region)
+            # Use previous LiteX SPI Flash core with compat, will be deprecated at some point.
+            from litex.compat.soc_add_spi_flash import add_spi_flash
+            add_spi_flash(self, name, mode, dummy_cycles)
         # LiteSPI.
         else:
             # Imports.
