@@ -41,7 +41,7 @@ int spiflash_freq_init(void)
 #endif
 	}
 	lowest_div++;
-	printf("SPI Flash freq configured to %d MHz\n", (spiflash_core_sys_clk_freq_read()/(2*(1 + lowest_div)))/1000000);
+	printf("SPI Flash clk configured to %d MHz\n", (spiflash_core_sys_clk_freq_read()/(2*(1 + lowest_div)))/1000000);
 
 	spiflash_phy_clk_divisor_write(lowest_div);
 
@@ -56,33 +56,37 @@ void spiflash_dummy_bits_setup(unsigned int dummy_bits)
 #endif
 }
 
+#ifdef CSR_SPIFLASH_CORE_MASTER_CS_ADDR
+
 static void spiflash_master_write(uint32_t val, size_t len, size_t width, uint32_t mask)
 {
 	/* Be sure to empty RX queue before doing Xfer. */
-	while (spiflash_mmap_master_status_rx_ready_read())
-		spiflash_mmap_master_rxtx_read();
+	while (spiflash_core_master_status_rx_ready_read())
+		spiflash_core_master_rxtx_read();
 
 	/* Configure Master */
-	spiflash_mmap_master_phyconfig_len_write(8 * len);
-	spiflash_mmap_master_phyconfig_mask_write(mask);
-	spiflash_mmap_master_phyconfig_width_write(width);
+	spiflash_core_master_phyconfig_len_write(8 * len);
+	spiflash_core_master_phyconfig_mask_write(mask);
+	spiflash_core_master_phyconfig_width_write(width);
 
 	/* Set CS. */
-	spiflash_mmap_master_cs_write(1);
+	spiflash_core_master_cs_write(1);
 
 	/* Do Xfer. */
-	spiflash_mmap_master_rxtx_write(val);
-	while (!spiflash_mmap_master_status_rx_ready_read());
+	spiflash_core_master_rxtx_write(val);
+	while (!spiflash_core_master_status_rx_ready_read());
 
 	/* Clear CS. */
-	spiflash_mmap_master_cs_write(0);
+	spiflash_core_master_cs_write(0);
 }
+
+#endif
 
 void spiflash_init(void)
 {
 	int ret;
 
-	printf("Initializing SPI Flash...\n");
+	printf("Initializing %s SPI Flash...\n", SPIFLASH_MODULE_NAME);
 
 	/* Clk frequency auto-calibration. */
 	ret = spiflash_freq_init();
@@ -94,7 +98,9 @@ void spiflash_init(void)
 	spiflash_dummy_bits_setup(SPIFLASH_MODULE_DUMMY_BITS);
 #endif
 
-	/* Quad / QPI Configuraiton. */
+#ifdef CSR_SPIFLASH_CORE_MASTER_CS_ADDR
+
+	/* Quad / QPI Configuration. */
 #ifdef SPIFLASH_MODULE_QUAD_CAPABLE
 	printf("Enabling Quad mode...\n");
 	spiflash_master_write(0x00000006, 1, 1, 0x1);
@@ -103,6 +109,8 @@ void spiflash_init(void)
 #ifdef SPIFLASH_MODULE_QPI_CAPABLE
 	printf("Switching to QPI mode...\n");
 	spiflash_master_write(0x00000035, 1, 1, 0x1);
+#endif
+
 #endif
 
 #endif
