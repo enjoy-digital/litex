@@ -125,6 +125,9 @@ int main(int i, char **c)
 #ifdef CONFIG_L2_SIZE
 	printf("\e[1mL2\e[0m:\t\t%dKiB\n", CONFIG_L2_SIZE/1024);
 #endif
+#ifdef CSR_SPIFLASH_CORE_BASE
+	printf("\e[1mFLASH\e[0m:\t\t%dKiB\n", SPIFLASH_MODULE_TOTAL_SIZE/1024);
+#endif
 #ifdef MAIN_RAM_SIZE
 #ifdef CSR_SDRAM_BASE
 	printf("\e[1mSDRAM\e[0m:\t\t%dKiB %d-bit @ %dMT/s ",
