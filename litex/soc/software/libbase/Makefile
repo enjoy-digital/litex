@@ -15,13 +15,10 @@ OBJECTS = exception.o \
 	memtest.o         \
 	sim_debug.o
 
-all: crt0.o libbase.a libbase-nofloat.a
+all: crt0.o libbase.a
 
 libbase.a: $(OBJECTS)
 	$(AR) crs libbase.a $(OBJECTS)
-
-libbase-nofloat.a: $(OBJECTS)
-	$(AR) crs libbase-nofloat.a $(OBJECTS)
 
 # pull in dependency info for *existing* .o files
 -include $(OBJECTS:.o=.d)
@@ -38,5 +35,5 @@ crt0.o: $(CPU_DIRECTORY)/crt0.S
 .PHONY: all clean
 
 clean:
-	$(RM) $(OBJECTS) crt0.o vsnprintf.o vsnprintf-nofloat.o
-	$(RM) libbase.a libbase-nofloat.a .*~ *~
+	$(RM) $(OBJECTS) crt0.o
+	$(RM) libbase.a .*~ *~

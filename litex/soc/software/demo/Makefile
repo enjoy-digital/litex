@@ -25,7 +25,7 @@ demo.elf: $(OBJECTS)
 		$(OBJECTS) \
 		-L$(BUILD_DIR)/software/libbase \
 		-L$(BUILD_DIR)/software/libcompiler_rt \
-		-lbase-nofloat -lcompiler_rt
+		-lbase -lcompiler_rt
 	chmod -x $@
 
 main.o: main.c

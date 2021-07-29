@@ -114,9 +114,6 @@ class Builder:
 
         for name in soc_software_packages:
             self.add_software_package(name)
-
-            if name == "libbase":
-                name += "-nofloat"
             self.add_software_library(name)
 
     def add_software_package(self, name, src_dir=None):
