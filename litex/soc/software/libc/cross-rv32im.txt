@@ -12,7 +12,7 @@ cpu = 'riscv32'
 endian = 'little'
 
 [properties]
-c_args = [ '-nostdlib', '-mno-save-restore', '-march=rv32im', '-mabi=ilp32']
-c_link_args = [ '-nostdlib', '-mno-save-restore', '-march=rv32im', '-mabi=ilp32']
+c_args = [ '-DPRINTF_LEVEL=1', '-DSCANF_LEVEL=1', '-nostdlib', '-mno-save-restore', '-march=rv32im', '-mabi=ilp32']
+c_link_args = [ '-DPRINTF_LEVEL=1', '-DSCANF_LEVEL=1', '-nostdlib', '-mno-save-restore', '-march=rv32im', '-mabi=ilp32']
 skip_sanity_check = true
 
