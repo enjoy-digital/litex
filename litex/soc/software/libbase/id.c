@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <id.h>
+#include <base/id.h>
 
 #define DFII_ADDR_SHIFT CONFIG_CSR_ALIGNMENT/8
 

@@ -45,12 +45,14 @@ DEPFLAGS += -MD -MP
 
 # Toolchain options
 #
-INCLUDES = -I$(SOC_DIRECTORY)/software/include/base \
+INCLUDES = -I$(PICOLIBC_DIRECTORY)/newlib/libc/tinystdio \
+           -I$(PICOLIBC_DIRECTORY)/newlib/libc/include \
            -I$(SOC_DIRECTORY)/software/include \
            -I$(SOC_DIRECTORY)/software \
            -I$(BUILDINC_DIRECTORY) \
+           -I$(BUILDINC_DIRECTORY)/../libc \
            -I$(CPU_DIRECTORY)
-COMMONFLAGS = $(DEPFLAGS) -Os $(CPUFLAGS) -g3 -fomit-frame-pointer -Wall -fno-builtin -nostdinc -fno-stack-protector $(INCLUDES)
+COMMONFLAGS = $(DEPFLAGS) -Os $(CPUFLAGS) -g3 -fomit-frame-pointer -Wall -fno-builtin -fno-stack-protector $(INCLUDES)
 CFLAGS = $(COMMONFLAGS) -fexceptions -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes
 CXXFLAGS = $(COMMONFLAGS) -std=c++11 -I$(SOC_DIRECTORY)/software/include/basec++ -fexceptions -fno-rtti -ffreestanding
 LDFLAGS = -nostdlib -nodefaultlibs -Wl,--no-dynamic-linker -Wl,--build-id=none -L$(BUILDINC_DIRECTORY)

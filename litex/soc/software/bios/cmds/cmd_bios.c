@@ -2,10 +2,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <id.h>
-#include <crc.h>
+#include <base/id.h>
+#include <base/crc.h>
 #include <system.h>
-#include <sim_debug.h>
+#include <base/sim_debug.h>
 
 #include <generated/csr.h>
 

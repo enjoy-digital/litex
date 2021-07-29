@@ -17,13 +17,13 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <console.h>
+#include <base/console.h>
 #include <string.h>
-#include <uart.h>
+#include <base/uart.h>
 #include <system.h>
-#include <id.h>
+#include <base/id.h>
 #include <irq.h>
-#include <crc.h>
+#include <base/crc.h>
 
 #include "boot.h"
 #include "readline.h"
@@ -35,7 +35,7 @@
 #include <generated/mem.h>
 #include <generated/git.h>
 
-#include <spiflash.h>
+#include <base/spiflash.h>
 
 #include <liblitedram/sdram.h>
 

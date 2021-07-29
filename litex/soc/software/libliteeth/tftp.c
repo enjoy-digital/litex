@@ -10,7 +10,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <progress.h>
+#include <base/progress.h>
 
 #include "udp.h"
 #include "tftp.h"

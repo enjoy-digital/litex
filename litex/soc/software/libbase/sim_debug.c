@@ -1,4 +1,4 @@
-#include "sim_debug.h"
+#include <base/sim_debug.h>
 
 #include <stdio.h>
 #include <generated/csr.h>

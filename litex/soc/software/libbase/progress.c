@@ -17,12 +17,12 @@
  *
  */
 
-#include <console.h>
+#include <base/console.h>
 #include <stdio.h>
 #include <stdint.h>
 
-#include <div64.h>
-#include <progress.h>
+#include <base/div64.h>
+#include <base/progress.h>
 
 #define FILESIZE_MAX    100000000
 #define HASHES_PER_LINE	40

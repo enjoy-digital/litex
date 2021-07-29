@@ -1,5 +1,5 @@
 // This file is Copyright (c) 2020 Antmicro <www.antmicro.com>
-#include <i2c.h>
+#include <base/i2c.h>
 #include <generated/csr.h>
 
 #ifdef CSR_I2C_BASE

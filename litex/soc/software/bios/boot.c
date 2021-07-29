@@ -10,10 +10,10 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <console.h>
-#include <uart.h>
+#include <base/console.h>
+#include <base/uart.h>
 #include <system.h>
-#include <crc.h>
+#include <base/crc.h>
 #include <string.h>
 #include <irq.h>
 
@@ -23,9 +23,9 @@
 
 #include "sfl.h"
 #include "boot.h"
-#include "jsmn.h"
+#include <base/jsmn.h>
 
-#include <progress.h>
+#include <base/progress.h>
 
 #include <libliteeth/udp.h>
 #include <libliteeth/tftp.h>

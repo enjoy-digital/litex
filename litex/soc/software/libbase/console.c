@@ -1,5 +1,5 @@
-#include <uart.h>
-#include <console.h>
+#include <base/uart.h>
+#include <base/console.h>
 #include <stdio.h>
 #include <stdarg.h>
 
