@@ -1515,11 +1515,11 @@ class LiteXSoC(SoC):
             self.check_if_exists(name + "_mmap")
             spiflash_pads   = self.platform.request(name if mode == "1x" else name + mode)
             spiflash_phy    = LiteSPIPHY(spiflash_pads, module, default_divisor=max(int(self.sys_clk_freq/clk_freq), 2))
-            spiflash_mmap   = LiteSPI(spiflash_phy, clk_freq=clk_freq, mmap_endianness=self.cpu.endianness, **kwargs)
+            spiflash_core   = LiteSPI(spiflash_phy, clk_freq=clk_freq, mmap_endianness=self.cpu.endianness, **kwargs)
             setattr(self.submodules, name + "_phy",  spiflash_phy)
-            setattr(self.submodules, name + "_mmap", spiflash_mmap)
+            setattr(self.submodules, name + "_mmap", spiflash_core)
             spiflash_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size, cached=False)
-            self.bus.add_slave(name=name, slave=spiflash_mmap.bus, region=spiflash_region)
+            self.bus.add_slave(name=name, slave=spiflash_core.bus, region=spiflash_region)
 
     # Add SPI SDCard -------------------------------------------------------------------------------
     def add_spi_sdcard(self, name="spisdcard", spi_clk_freq=400e3, software_debug=False):

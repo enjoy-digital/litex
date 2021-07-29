@@ -12,7 +12,7 @@
 
 #include "spiflash.h"
 
-#if defined(CSR_SPIFLASH_PHY_BASE) && defined(CSR_SPIFLASH_MMAP_BASE)
+#if defined(CSR_SPIFLASH_PHY_BASE) && defined(CSR_SPIFLASH_CORE_BASE)
 
 #define DEBUG	0
 #define USER_DEFINED_DUMMY_BITS	0
@@ -41,7 +41,7 @@ int spiflash_freq_init(void)
 #endif
 	}
 	lowest_div++;
-	printf("SPIFlash freq configured to %d MHz\n", (spiflash_mmap_sys_clk_freq_read()/(2*(1 + lowest_div)))/1000000);
+	printf("SPIFlash freq configured to %d MHz\n", (spiflash_core_sys_clk_freq_read()/(2*(1 + lowest_div)))/1000000);
 
 	spiflash_phy_clk_divisor_write(lowest_div);
 
