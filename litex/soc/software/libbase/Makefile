@@ -4,7 +4,6 @@ include $(SOC_DIRECTORY)/software/common.mak
 OBJECTS = exception.o \
 	crc16.o           \
 	crc32.o           \
-	console.o         \
 	system.o          \
 	id.o              \
 	uart.o            \
