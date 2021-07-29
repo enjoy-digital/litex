@@ -14,8 +14,8 @@
 
 #if defined(CSR_SPIFLASH_PHY_BASE) && defined(CSR_SPIFLASH_CORE_BASE)
 
-#define DEBUG	0
-#define USER_DEFINED_DUMMY_BITS	0
+//#define SPIFLASH_DEBUG
+//#define SPIFLASH_MODULE_DUMMY_BITS 8
 
 int spiflash_freq_init(void)
 {
@@ -23,25 +23,25 @@ int spiflash_freq_init(void)
 	unsigned int crc = crc32((unsigned char *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE);
 	unsigned int crc_test = crc;
 
-#if DEBUG
+#if SPIFLASH_DEBUG
 	printf("Testing against CRC32: %08x\n\r", crc);
 #endif
 
 	/* Check if block is erased (filled with 0xFF) */
 	if(crc == CRC32_ERASED_FLASH) {
-		printf("Block of size %d, started on address 0x%lx is erased. Cannot proceed with SPI frequency test.\n\r", SPI_FLASH_BLOCK_SIZE, SPIFLASH_BASE);
+		printf("Block of size %d, started on address 0x%lx is erased. Cannot proceed with SPI Flash frequency test.\n\r", SPI_FLASH_BLOCK_SIZE, SPIFLASH_BASE);
 		return -1;
 	}
 
 	while((crc == crc_test) && (lowest_div-- > 0)) {
 		spiflash_phy_clk_divisor_write((uint32_t)lowest_div);
 		crc_test = crc32((unsigned char *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE);
-#if DEBUG
+#if SPIFLASH_DEBUG
 		printf("[DIV: %d] %08x\n\r", lowest_div, crc_test);
 #endif
 	}
 	lowest_div++;
-	printf("SPIFlash freq configured to %d MHz\n", (spiflash_core_sys_clk_freq_read()/(2*(1 + lowest_div)))/1000000);
+	printf("SPI Flash freq configured to %d MHz\n", (spiflash_core_sys_clk_freq_read()/(2*(1 + lowest_div)))/1000000);
 
 	spiflash_phy_clk_divisor_write(lowest_div);
 
@@ -51,24 +51,30 @@ int spiflash_freq_init(void)
 void spiflash_dummy_bits_setup(unsigned int dummy_bits)
 {
 	spiflash_phy_dummy_bits_write((uint32_t)dummy_bits);
-#if DEBUG
+#if SPIFLASH_DEBUG
 	printf("Dummy bits set to: %d\n\r", spi_dummy_bits_read());
 #endif
 }
 
 static void spiflash_master_write(uint32_t val, size_t len, size_t width, uint32_t mask)
 {
-	/* empty rx queue */
+	/* Be sure to empty RX queue before doing Xfer. */
 	while (spiflash_mmap_master_status_rx_ready_read())
 		spiflash_mmap_master_rxtx_read();
 
-	spiflash_mmap_master_cs_write(1);
+	/* Configure Master */
 	spiflash_mmap_master_phyconfig_len_write(8 * len);
 	spiflash_mmap_master_phyconfig_mask_write(mask);
 	spiflash_mmap_master_phyconfig_width_write(width);
-	spiflash_mmap_master_rxtx_write(val);
 
+	/* Set CS. */
+	spiflash_mmap_master_cs_write(1);
+
+	/* Do Xfer. */
+	spiflash_mmap_master_rxtx_write(val);
 	while (!spiflash_mmap_master_status_rx_ready_read());
+
+	/* Clear CS. */
 	spiflash_mmap_master_cs_write(0);
 }
 
@@ -76,30 +82,31 @@ void spiflash_init(void)
 {
 	int ret;
 
-	printf("Initializing SPIFlash...\n");
+	printf("Initializing SPI Flash...\n");
 
+	/* Clk frequency auto-calibration. */
 	ret = spiflash_freq_init();
 	if (ret < 0)
 		return;
-#if (USER_DEFINED_DUMMY_BITS > 0)
-	spiflash_dummy_bits_setup(USER_DEFINED_DUMMY_BITS);
+
+	/* Dummy bits setup. */
+#ifdef SPIFLASH_MODULE_DUMMY_BITS
+	spiflash_dummy_bits_setup(SPIFLASH_MODULE_DUMMY_BITS);
 #endif
 
-#ifdef FLASH_CHIP_MX25L12833F_QUAD
-	/* enable write enable latch */
-	printf("Enabling quad lines on MX25L12833F...\n");
+	/* Quad / QPI Configuraiton. */
+#ifdef SPIFLASH_MODULE_QUAD_CAPABLE
+	printf("Enabling Quad mode...\n");
 	spiflash_master_write(0x00000006, 1, 1, 0x1);
-
-	/* enable quad lines */
 	spiflash_master_write(0x00014307, 3, 1, 0x1);
 
-#ifdef FLASH_CHIP_MX25L12833F_QPI
-	/* enter qpi */
-	printf("Entering QPI mode...\n");
+#ifdef SPIFLASH_MODULE_QPI_CAPABLE
+	printf("Switching to QPI mode...\n");
 	spiflash_master_write(0x00000035, 1, 1, 0x1);
 #endif
 
-#endif /* FLASH_CHIP_MX25L12833F_QUAD */
+#endif
+
 }
 
 #endif
