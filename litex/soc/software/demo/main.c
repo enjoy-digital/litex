@@ -28,7 +28,7 @@ static char *readstr(void)
 			case 0x08:
 				if(ptr > 0) {
 					ptr--;
-					putsnonl("\x08 \x08");
+					fputs("\x08 \x08", stdout);
 				}
 				break;
 			case 0x07:
@@ -36,13 +36,13 @@ static char *readstr(void)
 			case '\r':
 			case '\n':
 				s[ptr] = 0x00;
-				putsnonl("\n");
+				fputs("\n", stdout);
 				ptr = 0;
 				return s;
 			default:
 				if(ptr >= (sizeof(s) - 1))
 					break;
-				putsnonl(c);
+				fputs(c, stdout);
 				s[ptr] = c[0];
 				ptr++;
 				break;

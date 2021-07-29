@@ -15,8 +15,6 @@ void console_set_read_hook(console_read_hook r, console_read_nonblock_hook rn);
 char readchar(void);
 int readchar_nonblock(void);
 
-void putsnonl(const char *s);
-
 #ifdef __cplusplus
 }
 #endif

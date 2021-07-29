@@ -71,11 +71,3 @@ int readchar_nonblock(void)
 
 #endif
 
-void putsnonl(const char *s)
-{
-	while(*s) {
-		putchar(*s);
-		s++;
-	}
-}
-

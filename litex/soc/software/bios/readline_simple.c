@@ -31,7 +31,7 @@ int readline(char *s, int size)
 			case 0x08:
 				if(ptr > 0) {
 					ptr--;
-					putsnonl("\x08 \x08");
+					fputs("\x08 \x08", stdout);
 				}
 				break;
 			case 0x07:
@@ -39,15 +39,15 @@ int readline(char *s, int size)
 			case '\r':
 				skip = '\n';
 				s[ptr] = 0x00;
-				putsnonl("\n");
+				fputs("\n", stdout);
 				return 0;
 			case '\n':
 				skip = '\r';
 				s[ptr] = 0x00;
-				putsnonl("\n");
+				fputs("\n", stdout);
 				return 0;
 			default:
-				putsnonl(c);
+				fputs(c, stdout);
 				s[ptr] = c[0];
 				ptr++;
 				break;

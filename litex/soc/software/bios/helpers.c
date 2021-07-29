@@ -20,7 +20,7 @@ void dump_bytes(unsigned int *ptr, int count, unsigned long addr)
 	char *data = (char *)ptr;
 	int line_bytes = 0, i = 0;
 
-	putsnonl("Memory dump:");
+	fputs("Memory dump:", stdout);
 	while (count > 0) {
 		line_bytes =
 			(count > NUMBER_OF_BYTES_ON_A_LINE)?

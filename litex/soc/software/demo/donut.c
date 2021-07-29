@@ -62,6 +62,6 @@ void donut(void) {
   		readchar();
   		break;
   	}
-    putsnonl("\x1b[23A");
+    fputs("\x1b[23A", stdout);
   }
 }
