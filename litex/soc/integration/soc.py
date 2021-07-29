@@ -1487,6 +1487,7 @@ class LiteXSoC(SoC):
             # Imports.
             from litespi.phy.generic import LiteSPIPHY
             from litespi import LiteSPI
+            from litespi.opcodes import SpiNorFlashOpCodes
 
             # Checks/Parameters.
             assert mode in ["1x", "4x"]
@@ -1499,9 +1500,18 @@ class LiteXSoC(SoC):
             spiflash_phy    = LiteSPIPHY(spiflash_pads, module, default_divisor=max(int(self.sys_clk_freq/clk_freq), 2))
             spiflash_core   = LiteSPI(spiflash_phy, clk_freq=clk_freq, mmap_endianness=self.cpu.endianness, **kwargs)
             setattr(self.submodules, name + "_phy",  spiflash_phy)
-            setattr(self.submodules, name + "_mmap", spiflash_core)
+            setattr(self.submodules, name + "_core", spiflash_core)
             spiflash_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size)
             self.bus.add_slave(name=name, slave=spiflash_core.bus, region=spiflash_region)
+
+            # Constants.
+            self.add_constant("SPIFLASH_MODULE_NAME",       module.name.upper())
+            self.add_constant("SPIFLASH_MODULE_TOTAL_SIZE", module.total_size)
+            self.add_constant("SPIFLASH_MODULE_PAGE_SIZE",  module.page_size)
+            if SpiNorFlashOpCodes.READ_1_1_4 in module.supported_opcodes:
+                self.add_constant("SPIFLASH_MODULE_QUAD_CAPABLE")
+            if SpiNorFlashOpCodes.READ_4_4_4 in module.supported_opcodes:
+                self.add_constant("SPIFLASH_MODULE_QPI_CAPABLE")
 
     # Add SPI SDCard -------------------------------------------------------------------------------
     def add_spi_sdcard(self, name="spisdcard", spi_clk_freq=400e3, software_debug=False):
