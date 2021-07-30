@@ -19,7 +19,7 @@ class CPU(Module):
     clang_flags          = None
     linker_output_format = None
     interrupts           = {}
-    mem_map              = {}
+    mem_map              = {"csr": 0x82000000}
     io_regions           = {}
     use_rom              = False
 

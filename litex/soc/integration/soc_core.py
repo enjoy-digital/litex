@@ -56,7 +56,6 @@ class SoCCore(LiteXSoC):
         "rom":      0x00000000,
         "sram":     0x01000000,
         "main_ram": 0x40000000,
-        "csr":      0x82000000,
     }
 
     def __init__(self, platform, clk_freq,

@@ -894,9 +894,23 @@ class SoC(Module):
             self.cpu.add_cfu(cfu_filename=cfu)
 
         # Update SoC with CPU constraints.
+        # IOs regions.
         for n, (origin, size) in enumerate(self.cpu.io_regions.items()):
             self.bus.add_region("io{}".format(n), SoCIORegion(origin=origin, size=size, cached=False))
-        self.mem_map.update(self.cpu.mem_map) # FIXME
+        # Mapping.
+        if isinstance(self.cpu, cpu.CPUNone):
+            # With CPUNone, give priority to User's mapping.
+            self.mem_map = {**self.cpu.mem_map, **self.mem_map}
+        else:
+            # Override User's mapping with CPU constrainted mapping (and warn User).
+            for n, origin in self.cpu.mem_map.items():
+                if n in self.mem_map.keys():
+                    self.logger.info("CPU {} {} mapping from {} to {}.".format(
+                        colorer("overriding", color="cyan"),
+                        colorer(n),
+                        colorer(f"0x{self.mem_map[n]:x}"),
+                        colorer(f"0x{self.cpu.mem_map[n]:x}")))
+            self.mem_map.update(self.cpu.mem_map)
 
         # Add Bus Masters/CSR/IRQs.
         if not isinstance(self.cpu, (cpu.CPUNone, cpu.Zynq7000)):
