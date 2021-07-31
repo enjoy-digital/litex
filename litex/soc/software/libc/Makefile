@@ -49,6 +49,7 @@ libc.a: cross.txt $(PICOLIBC_DIRECTORY)/newlib/libc/machine/$(CPUFAMILY)/meson.b
 	meson $(PICOLIBC_DIRECTORY) \
 		-Dmultilib=false \
 		-Dpicocrt=false \
+		-Dnewlib-global-errno=true \
 		-Dincludedir=picolibc/$(TRIPLE)/include \
 		-Dlibdir=picolibc/$(TRIPLE)/lib \
 		--cross-file cross.txt
