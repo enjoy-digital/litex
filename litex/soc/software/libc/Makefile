@@ -1,7 +1,7 @@
 include ../include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
-all: libc.a iob.c.o
+all: libc.a iob.c.o missing.c.o
 
 CPUFAMILY=
 
@@ -56,7 +56,7 @@ libc.a: cross.txt $(PICOLIBC_DIRECTORY)/newlib/libc/machine/$(CPUFAMILY)/meson.b
 	meson compile
 	cp newlib/libc.a libc.a
 
-iob.c.o: $(LIBC_DIRECTORY)/iob.c
+%.o: $(LIBC_DIRECTORY)/%
 	$(compile)
-	$(AR) csr libc.a iob.c.o
+	$(AR) csr libc.a $@
 
