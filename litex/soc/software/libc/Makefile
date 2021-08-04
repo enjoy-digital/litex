@@ -13,6 +13,7 @@ else ifeq ($(CPU), mor1kx)
 	CPUFAMILY = or1k
 else ifeq ($(CPU), microwatt)
 	CPUFAMILY = powerpc
+	CFLAGS += -DLONG_LONG_MIN=LLONG_MIN -DLONG_LONG_MAX=LLONG_MAX -DLONG_LONG_MIN=LLONG_MIN -DULONG_LONG_MAX=ULLONG_MAX
 else ifeq ($(CPU), zynq7000)
 	CPUFAMILY = arm
 else
