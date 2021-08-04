@@ -1,7 +1,7 @@
 include ../include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
-all: libc.a iob.c.o missing.c.o
+all: libc.a iob.c.o missing.c.o exchange.c.o arc4random.c.o
 
 CPUFAMILY=
 
@@ -23,9 +23,9 @@ endif
 define CROSSFILE
 [binaries]
 c = '$(TRIPLE)-gcc'
-ar = '$(TRIPLE)-ar'
+ar = '$(TRIPLE)-gcc-ar'
 as = '$(TRIPLE)-as'
-nm = '$(TRIPLE)-nm'
+nm = '$(TRIPLE)-gcc-nm'
 strip = '$(TRIPLE)-strip'
 
 [host_machine]
@@ -57,7 +57,19 @@ libc.a: cross.txt $(PICOLIBC_DIRECTORY)/newlib/libc/machine/$(CPUFAMILY)/meson.b
 	meson compile
 	cp newlib/libc.a libc.a
 
-%.o: $(LIBC_DIRECTORY)/%
+iob.c.o: $(LIBC_DIRECTORY)/iob.c
 	$(compile)
+	$(AR) csr libc.a $@
+
+missing.c.o: $(LIBC_DIRECTORY)/missing.c
+	$(compile)
+	$(AR) csr libc.a $@
+
+exchange.c.o: $(PICOLIBC_DIRECTORY)/newlib/libc/tinystdio/exchange.c
+	$(call compile,-fno-lto)
+	$(AR) csr libc.a $@
+
+arc4random.c.o: $(PICOLIBC_DIRECTORY)/newlib/libc/stdlib/arc4random.c
+	$(call compile,-fno-lto)
 	$(AR) csr libc.a $@
 

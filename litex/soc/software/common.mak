@@ -14,7 +14,7 @@ else
 CC_normal      := $(TARGET_PREFIX)gcc -std=gnu99
 CX_normal      := $(TARGET_PREFIX)g++
 endif
-AR_normal      := $(TARGET_PREFIX)ar
+AR_normal      := $(TARGET_PREFIX)gcc-ar
 LD_normal      := $(TARGET_PREFIX)ld
 OBJCOPY_normal := $(TARGET_PREFIX)objcopy
 
@@ -52,10 +52,10 @@ INCLUDES = -I$(PICOLIBC_DIRECTORY)/newlib/libc/tinystdio \
            -I$(BUILDINC_DIRECTORY) \
            -I$(BUILDINC_DIRECTORY)/../libc \
            -I$(CPU_DIRECTORY)
-COMMONFLAGS = $(DEPFLAGS) -Os $(CPUFLAGS) -g3 -fomit-frame-pointer -Wall -fno-builtin -fno-stack-protector $(INCLUDES)
+COMMONFLAGS = $(DEPFLAGS) -Os $(CPUFLAGS) -g3 -fomit-frame-pointer -Wall -fno-builtin -fno-stack-protector -flto $(INCLUDES)
 CFLAGS = $(COMMONFLAGS) -fexceptions -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes
 CXXFLAGS = $(COMMONFLAGS) -std=c++11 -I$(SOC_DIRECTORY)/software/include/basec++ -fexceptions -fno-rtti -ffreestanding
-LDFLAGS = -nostdlib -nodefaultlibs -Wl,--no-dynamic-linker -Wl,--build-id=none -L$(BUILDINC_DIRECTORY)
+LDFLAGS = -nostdlib -nodefaultlibs -Wl,--no-dynamic-linker -Wl,--build-id=none $(CFLAGS) -L$(BUILDINC_DIRECTORY)
 
 define compilexx
 $(CX) -c $(CXXFLAGS) $(1) $< -o $@

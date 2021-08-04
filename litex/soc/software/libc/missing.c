@@ -1,3 +1,9 @@
+#include <stddef.h>
+
+int getentropy(void *v, size_t s) {
+    return -1;
+}
+
 int getpid() {
     return 1;
 }
