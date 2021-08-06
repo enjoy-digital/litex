@@ -23,13 +23,20 @@ class Burst:
 
     def to_beats(self):
         r = []
-        for i in range(self.len + 1):
+        burst_length = self.len + 1
+        burst_size   = 2**self.size
+        for i in range(burst_length):
             if self.type == BURST_INCR:
                 offset = i*2**(self.size)
                 r += [Beat(self.addr + offset)]
             elif self.type == BURST_WRAP:
-                offset = (i*2**(self.size))%((2**self.size)*(self.len + 1))
-                r += [Beat(self.addr + offset)]
+                assert burst_length in [2, 4, 8, 16]
+                assert (self.addr % burst_size) == 0
+                burst_base   = self.addr - self.addr % (burst_length * burst_size)
+                burst_offset = self.addr % (burst_length * burst_size)
+                burst_addr   = burst_base + (burst_offset + i*burst_size) % (burst_length * burst_size)
+                #print("0x{:08x}".format(burst_addr))
+                r += [Beat(burst_addr)]
             else:
                 r += [Beat(self.addr)]
         return r
@@ -86,6 +93,7 @@ class TestAXI(unittest.TestCase):
                         yield ax.ready.eq(0)
                     yield
                 ax_addr = (yield ax.addr)
+                #print("0x{:08x}".format(ax_addr))
                 if ax_addr != beat.addr:
                     self.errors += 1
                 yield
@@ -102,6 +110,7 @@ class TestAXI(unittest.TestCase):
             bursts.append(Burst(prng.randrange(2**32), BURST_FIXED, prng.randrange(255), log2_int(32//8)))
             bursts.append(Burst(prng.randrange(2**32), BURST_INCR, prng.randrange(255), log2_int(32//8)))
         bursts.append(Burst(4, BURST_WRAP, 4-1, log2_int(2)))
+        bursts.append(Burst(0x80000160, BURST_WRAP, 0x3, 0b100))
 
         # generate expected dut output (beats for reference)
         beats = []
