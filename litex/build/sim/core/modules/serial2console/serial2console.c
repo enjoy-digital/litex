@@ -141,7 +141,7 @@ out:
 }
 
 static int serial2console_tick(void *sess, uint64_t time_ps) {
-  static struct clk_edge_t edge;
+  static clk_edge_state_t edge;
   struct session_s *s = (struct session_s*)sess;
 
   if(!clk_pos_edge(&edge, *s->sys_clk)) {

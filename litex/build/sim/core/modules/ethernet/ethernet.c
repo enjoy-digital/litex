@@ -202,7 +202,7 @@ out:
 
 static int ethernet_tick(void *sess, uint64_t time_ps)
 {
-  static struct clk_edge_t edge;
+  static clk_edge_state_t edge;
   char c;
   struct session_s *s = (struct session_s*)sess;
   struct eth_packet_s *pep;

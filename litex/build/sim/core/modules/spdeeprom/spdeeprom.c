@@ -164,7 +164,7 @@ out:
 
 static int spdeeprom_tick(void *sess, uint64_t time_ps)
 {
-  static struct clk_edge_t edge;
+  static clk_edge_state_t edge;
   struct session_s *s = (struct session_s*) sess;
 
   if (s->sda_in == 0 || s->sda_out == 0 || s->scl == 0) {
