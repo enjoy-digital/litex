@@ -30,6 +30,7 @@ from litedram.modules import parse_spd_hexdump
 from litedram.phy.model import sdram_module_nphases, get_sdram_phy_settings
 from litedram.phy.model import SDRAMPHYModel
 
+from liteeth.phy.gmii import LiteEthPHYGMII
 from liteeth.phy.xgmii import LiteEthPHYXGMII
 from liteeth.phy.model import LiteEthPHYModel
 from liteeth.mac import LiteEthMAC
@@ -75,6 +76,14 @@ _io = [
         Subsignal("rx_ctl",       Pins(8)),
         Subsignal("tx_data",      Pins(64)),
         Subsignal("tx_ctl",       Pins(8)),
+    ),
+    ("gmii_eth", 0,
+        Subsignal("rx_data",      Pins(8)),
+        Subsignal("rx_dv",        Pins(1)),
+        Subsignal("rx_er",        Pins(1)),
+        Subsignal("tx_data",      Pins(8)),
+        Subsignal("tx_en",        Pins(1)),
+        Subsignal("tx_er",        Pins(1)),
     ),
     ("i2c", 0,
         Subsignal("scl",     Pins(1)),
@@ -185,6 +194,8 @@ class SimSoC(SoCCore):
                 self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth", 0))
             elif ethernet_phy_model == "xgmii":
                 self.submodules.ethphy = LiteEthPHYXGMII(None, self.platform.request("xgmii_eth", 0), model=True)
+            elif ethernet_phy_model == "gmii":
+                self.submodules.ethphy = LiteEthPHYGMII(None, self.platform.request("gmii_eth", 0), model=True)
             else:
                 raise ValueError("Unknown Ethernet PHY model:", ethernet_phy_model)
             # Ethernet MAC
@@ -306,7 +317,7 @@ def sim_args(parser):
     parser.add_argument("--sdram-from-spd-dump",  default=None,            help="Generate SDRAM module based on data from SPD EEPROM dump")
     parser.add_argument("--sdram-verbosity",      default=0,               help="Set SDRAM checker verbosity")
     parser.add_argument("--with-ethernet",        action="store_true",     help="Enable Ethernet support")
-    parser.add_argument("--ethernet-phy-model",   default="sim",           help="Ethernet PHY to simulate (sim, xgmii)")
+    parser.add_argument("--ethernet-phy-model",   default="sim",           help="Ethernet PHY to simulate (sim, xgmii, gmii)")
     parser.add_argument("--with-etherbone",       action="store_true",     help="Enable Etherbone support")
     parser.add_argument("--local-ip",             default="192.168.1.50",  help="Local IP address of SoC (default=192.168.1.50)")
     parser.add_argument("--remote-ip",            default="192.168.1.100", help="Remote IP address of TFTP server (default=192.168.1.100)")
@@ -360,6 +371,8 @@ def main():
             sim_config.add_module("ethernet", "eth", args={"interface": "tap0", "ip": args.remote_ip})
         elif args.ethernet_phy_model == "xgmii":
             sim_config.add_module("xgmii_ethernet", "xgmii_eth", args={"interface": "tap0", "ip": args.remote_ip})
+        elif args.ethernet_phy_model == "gmii":
+            sim_config.add_module("gmii_ethernet", "gmii_eth", args={"interface": "tap0", "ip": args.remote_ip})
         else:
             raise ValueError("Unknown Ethernet PHY model: " + args.ethernet_phy_model)
 
