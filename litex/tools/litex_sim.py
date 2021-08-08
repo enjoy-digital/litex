@@ -30,6 +30,7 @@ from litedram.modules import parse_spd_hexdump
 from litedram.phy.model import sdram_module_nphases, get_sdram_phy_settings
 from litedram.phy.model import SDRAMPHYModel
 
+from liteeth.phy.xgmii import LiteEthPHYXGMII
 from liteeth.phy.model import LiteEthPHYModel
 from liteeth.mac import LiteEthMAC
 from liteeth.core.arp import LiteEthARP
@@ -69,6 +70,12 @@ _io = [
         Subsignal("sink_ready",   Pins(1)),
         Subsignal("sink_data",    Pins(8)),
     ),
+    ("xgmii_eth", 0,
+        Subsignal("rx_data",      Pins(64)),
+        Subsignal("rx_ctl",       Pins(8)),
+        Subsignal("tx_data",      Pins(64)),
+        Subsignal("tx_ctl",       Pins(8)),
+    ),
     ("i2c", 0,
         Subsignal("scl",     Pins(1)),
         Subsignal("sda_out", Pins(1)),
@@ -88,6 +95,7 @@ class SimSoC(SoCCore):
     def __init__(self,
         with_sdram            = False,
         with_ethernet         = False,
+        ethernet_phy_model    = "sim",
         with_etherbone        = False,
         etherbone_mac_address = 0x10e2d5000001,
         etherbone_ip_address  = "192.168.1.51",
@@ -173,16 +181,25 @@ class SimSoC(SoCCore):
         # Ethernet ---------------------------------------------------------------------------------
         elif with_ethernet:
             # Ethernet PHY
-            self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth", 0))
+            if ethernet_phy_model == "sim":
+                self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth", 0))
+            elif ethernet_phy_model == "xgmii":
+                self.submodules.ethphy = LiteEthPHYXGMII(None, self.platform.request("xgmii_eth", 0), model=True)
+            else:
+                raise ValueError("Unknown Ethernet PHY model:", ethernet_phy_model)
             # Ethernet MAC
-            ethmac = LiteEthMAC(phy=self.ethphy, dw=32,
+            ethmac = LiteEthMAC(
+                phy        = self.ethphy,
+                dw         = 64 if ethernet_phy_model == "xgmii" else 32,
                 interface  = "wishbone",
+                #interface  = "loopback",
                 endianness = self.cpu.endianness)
             if with_etherbone:
                 ethmac = ClockDomainsRenamer({"eth_tx": "ethphy_eth_tx", "eth_rx":  "ethphy_eth_rx"})(ethmac)
             self.submodules.ethmac = ethmac
-            self.add_memory_region("ethmac", self.mem_map.get("ethmac", None), 0x2000, type="io")
-            self.add_wb_slave(self.mem_regions["ethmac"].origin, self.ethmac.bus, 0x2000)
+            sram_region_size = (ethmac.rx_slots.read() + ethmac.tx_slots.read()) * ethmac.slot_size.read()
+            self.add_memory_region("ethmac", self.mem_map.get("ethmac", None), sram_region_size, type="io")
+            self.add_wb_slave(self.mem_regions["ethmac"].origin, self.ethmac.bus, sram_region_size)
             if self.irq.enabled:
                 self.irq.add("ethmac", use_loc_if_exists=True)
 
@@ -289,6 +306,7 @@ def sim_args(parser):
     parser.add_argument("--sdram-from-spd-dump",  default=None,            help="Generate SDRAM module based on data from SPD EEPROM dump")
     parser.add_argument("--sdram-verbosity",      default=0,               help="Set SDRAM checker verbosity")
     parser.add_argument("--with-ethernet",        action="store_true",     help="Enable Ethernet support")
+    parser.add_argument("--ethernet-phy-model",   default="sim",           help="Ethernet PHY to simulate (sim, xgmii)")
     parser.add_argument("--with-etherbone",       action="store_true",     help="Enable Etherbone support")
     parser.add_argument("--local-ip",             default="192.168.1.50",  help="Local IP address of SoC (default=192.168.1.50)")
     parser.add_argument("--remote-ip",            default="192.168.1.100", help="Remote IP address of TFTP server (default=192.168.1.100)")
@@ -338,7 +356,12 @@ def main():
             soc_kwargs["sdram_spd_data"] = parse_spd_hexdump(args.sdram_from_spd_dump)
 
     if args.with_ethernet or args.with_etherbone:
-        sim_config.add_module("ethernet", "eth", args={"interface": "tap0", "ip": args.remote_ip})
+        if args.ethernet_phy_model == "sim":
+            sim_config.add_module("ethernet", "eth", args={"interface": "tap0", "ip": args.remote_ip})
+        elif args.ethernet_phy_model == "xgmii":
+            sim_config.add_module("xgmii_ethernet", "xgmii_eth", args={"interface": "tap0", "ip": args.remote_ip})
+        else:
+            raise ValueError("Unknown Ethernet PHY model: " + args.ethernet_phy_model)
 
     if args.with_i2c:
         sim_config.add_module("spdeeprom", "i2c")
@@ -348,15 +371,16 @@ def main():
 
     # SoC ------------------------------------------------------------------------------------------
     soc = SimSoC(
-        with_sdram     = args.with_sdram,
-        with_ethernet  = args.with_ethernet,
-        with_etherbone = args.with_etherbone,
-        with_analyzer  = args.with_analyzer,
-        with_i2c       = args.with_i2c,
-        with_sdcard    = args.with_sdcard,
-        sim_debug      = args.sim_debug,
-        trace_reset_on = trace_start > 0 or trace_end > 0,
-        sdram_init     = [] if args.sdram_init is None else get_mem_data(args.sdram_init, cpu.endianness),
+        with_sdram         = args.with_sdram,
+        with_ethernet      = args.with_ethernet,
+        ethernet_phy_model = args.ethernet_phy_model,
+        with_etherbone     = args.with_etherbone,
+        with_analyzer      = args.with_analyzer,
+        with_i2c           = args.with_i2c,
+        with_sdcard        = args.with_sdcard,
+        sim_debug          = args.sim_debug,
+        trace_reset_on     = trace_start > 0 or trace_end > 0,
+        sdram_init         = [] if args.sdram_init is None else get_mem_data(args.sdram_init, cpu.endianness),
         **soc_kwargs)
     if args.ram_init is not None or args.sdram_init is not None:
         soc.add_constant("ROM_BOOT_ADDRESS", soc.mem_map["main_ram"])
