@@ -241,6 +241,31 @@ class LatticeNXSDROutput:
     def lower(dr):
         return LatticeNXSDROutputImpl(dr.i, dr.o, dr.clk)
 
+# NX SDR Input and Output via regular flip-flops ---------------------------------------------------
+
+# This is a workaround for IO-specific primitives IFD1P3BX / OFD1P3BX being unsupported in nextpnr:
+# https://github.com/YosysHQ/nextpnr/issues/698
+
+class LatticeNXSDRFFImpl(Module):
+    def __init__(self, i, o, clk):
+        self.specials += Instance("FD1P3BX",
+            i_CK = clk,
+            i_PD   = 0,
+            i_SP   = 1,
+            i_D    = i,
+            o_Q    = o,
+        )
+
+class LatticeNXSDRInputViaFlipFlop:
+    @staticmethod
+    def lower(dr):
+        return LatticeNXSDRFFImpl(dr.i, dr.o, dr.clk)
+
+class LatticeNXSDROutputViaFlipFlop:
+    @staticmethod
+    def lower(dr):
+        return LatticeNXSDRFFImpl(dr.i, dr.o, dr.clk)
+
 # NX DDR Input -------------------------------------------------------------------------------------
 
 class LatticeNXDDRInputImpl(Module):
@@ -282,6 +307,12 @@ lattice_NX_special_overrides = {
     DDRInput:               LatticeNXDDRInput,
     DDROutput:              LatticeNXDDROutput,
 }
+
+lattice_NX_special_overrides_for_oxide = dict(lattice_NX_special_overrides)
+lattice_NX_special_overrides_for_oxide.update({
+    SDRInput:               LatticeNXSDRInputViaFlipFlop,
+    SDROutput:              LatticeNXSDROutputViaFlipFlop,
+})
 
 # iCE40 AsyncResetSynchronizer ---------------------------------------------------------------------
 
