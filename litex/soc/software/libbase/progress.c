@@ -20,8 +20,8 @@
 #include <base/console.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 
-#include <base/div64.h>
 #include <base/progress.h>
 
 #define FILESIZE_MAX    100000000
@@ -42,8 +42,7 @@ void show_progress(int now)
 
 	if (progress_max && progress_max != FILESIZE_MAX) {
 		uint64_t tmp = (int64_t)now * HASHES_PER_LINE;
-		do_div(tmp, progress_max);
-		now = tmp;
+		now = lldiv(tmp, progress_max).quot;
 	}
 
 	while (printed < now) {

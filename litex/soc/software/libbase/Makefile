@@ -10,7 +10,6 @@ OBJECTS = exception.o \
 	time.o            \
 	spiflash.o        \
 	i2c.o             \
-	div64.o           \
 	progress.o        \
 	memtest.o         \
 	sim_debug.o
