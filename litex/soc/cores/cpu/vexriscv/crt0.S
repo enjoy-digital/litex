@@ -54,7 +54,7 @@ trap_entry:
 
 
 crt_init:
-  la sp, _fstack + 4
+  la sp, _fstack
   la a0, trap_entry
   csrw mtvec, a0
 

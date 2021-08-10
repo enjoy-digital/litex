@@ -58,7 +58,7 @@ trap_entry:
   .text
 
 crt_init:
-  la sp, _fstack + 4
+  la sp, _fstack
   la a0, trap_entry
   csrw mtvec, a0
   sw x0, smp_lottery_lock, a1
