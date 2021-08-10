@@ -7,7 +7,6 @@ OBJECTS = exception.o \
 	system.o          \
 	id.o              \
 	uart.o            \
-	time.o            \
 	spiflash.o        \
 	i2c.o             \
 	progress.o        \
