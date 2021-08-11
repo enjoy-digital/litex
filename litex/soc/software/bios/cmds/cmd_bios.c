@@ -2,7 +2,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <base/id.h>
 #include <base/crc.h>
 #include <system.h>
 #include <base/sim_debug.h>
@@ -48,9 +47,17 @@ define_command(help, help_handler, "Print this help", SYSTEM_CMDS);
  */
 static void ident_handler(int nb_params, char **params)
 {
+	const int IDENT_SIZE = 256;
 	char buffer[IDENT_SIZE];
 
-	get_ident(buffer);
+#ifdef CSR_IDENTIFIER_MEM_BASE
+	int i;
+	for(i=0;i<IDENT_SIZE;i++)
+		buffer[i] = MMPTR(CSR_IDENTIFIER_MEM_BASE + CONFIG_CSR_ALIGNMENT/8*i);
+#else
+	buffer[0] = 0;
+#endif
+
 	printf("Ident: %s", *buffer ? buffer : "-");
 }
 

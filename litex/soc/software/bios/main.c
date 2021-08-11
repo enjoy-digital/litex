@@ -21,7 +21,6 @@
 #include <string.h>
 #include <base/uart.h>
 #include <system.h>
-#include <base/id.h>
 #include <irq.h>
 #include <base/crc.h>
 

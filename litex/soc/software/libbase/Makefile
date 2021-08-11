@@ -5,7 +5,6 @@ OBJECTS = exception.o \
 	crc16.o           \
 	crc32.o           \
 	system.o          \
-	id.o              \
 	uart.o            \
 	spiflash.o        \
 	i2c.o             \
