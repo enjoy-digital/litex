@@ -185,3 +185,18 @@ class EcpDapProgrammer(GenericProgrammer):
             "--freq", str(self.frequency_khz),
             bitstream_file
         ])
+
+# EcpprogProgrammer -------------------------------------------------------------------------------
+
+class EcpprogProgrammer(GenericProgrammer):
+    """ecpprog allows you to program ECP5 FPGAs and attached SPI flash using FTDI based JTAG probes
+
+    You can get `ecpprog` here: https://github.com/gregdavill/ecpprog
+    """
+    needs_bitreverse = False
+
+    def flash(self, address, bitstream_file):
+        self.call(["ecpprog", "-o", str(address), bitstream_file])
+
+    def load_bitstream(self, bitstream_file):
+        self.call(["ecpprog", "-S", bitstream_file])
