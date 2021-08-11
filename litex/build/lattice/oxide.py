@@ -110,7 +110,7 @@ class LatticeOxideToolchain:
         "keep": ("keep", "true"),
     }
 
-    special_overrides = common.lattice_NX_special_overrides
+    special_overrides = common.lattice_NX_special_overrides_for_oxide
 
     def __init__(self):
         self.yosys_template   = _yosys_template
