@@ -1,5 +1,4 @@
 #include <irq.h>
-#include <base/uart.h>
 
 #include <system.h>
 #include <generated/mem.h>
