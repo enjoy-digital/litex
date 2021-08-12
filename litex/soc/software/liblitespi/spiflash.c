@@ -88,10 +88,14 @@ void spiflash_init(void)
 
 	printf("Initializing %s SPI Flash...\n", SPIFLASH_MODULE_NAME);
 
+#ifndef SPIFLASH_SKIP_FREQ_INIT
 	/* Clk frequency auto-calibration. */
 	ret = spiflash_freq_init();
 	if (ret < 0)
 		return;
+#else
+	printf("Warning: SPI Flash frequency auto-calibration skipped, using the default divisor of %d", spiflash_phy_clk_divisor_read());
+#endif
 
 	/* Dummy bits setup. */
 #ifdef SPIFLASH_MODULE_DUMMY_BITS
@@ -115,6 +119,11 @@ void spiflash_init(void)
 
 #endif
 
+	printf("SPI Flash bandwidth benchmarks\n");
+	printf("Sequential accesses:");
+	memspeed(SPIFLASH_BASE, SPIFLASH_SIZE, 1, 0);
+	printf("Random accesses:");
+	memspeed(SPIFLASH_BASE, SPIFLASH_SIZE, 1, 1);
 }
 
 #endif
