@@ -85,7 +85,7 @@ SECTIONS
 	}
 }
 
-PROVIDE(_fstack = ORIGIN(sram) + LENGTH(sram) - 8);
+PROVIDE(_fstack = ORIGIN(sram) + LENGTH(sram));
 
 PROVIDE(_fdata_rom = LOADADDR(.data));
 PROVIDE(_edata_rom = LOADADDR(.data) + SIZEOF(.data));
