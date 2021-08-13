@@ -46,9 +46,9 @@ def get_cpu_mak(cpu, compile_software):
         clang = bool(int(clang))
     else:
         clang = None
-    if not hasattr(cpu, "clang_triple"):
+    if cpu.clang_triple is None:
         if clang:
-            raise ValueError(cpu.name + "not supported with clang.")
+            raise ValueError(cpu.name + " is not supported with clang.")
         else:
             clang = False
     else:
