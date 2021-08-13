@@ -44,7 +44,7 @@ repos = [
 
     # Optional LiteX data
     ("pythondata-misc-tapcfg",     ("https://github.com/litex-hub/", False, True, None)),
-    ("pythondata-misc-opentitan",  ("https://github.com/litex-hub/", False, True, None)),
+    ("pythondata-misc-opentitan",  ("https://github.com/litex-hub/", False, True, 0xe43566c)),
     ("pythondata-misc-usb_ohci",   ("https://github.com/litex-hub/", False, True, None)),
     ("pythondata-cpu-lm32",        ("https://github.com/litex-hub/", False, True, None)),
     ("pythondata-cpu-mor1kx",      ("https://github.com/litex-hub/", False, True, None)),
