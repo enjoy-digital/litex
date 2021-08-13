@@ -419,8 +419,6 @@ class VexRiscvSMP(CPU):
     def add_memory_buses(self, address_width, data_width):
         VexRiscvSMP.litedram_width = data_width
 
-        VexRiscvSMP.generate_cluster_name()
-
         from litedram.common import LiteDRAMNativePort
         if(not VexRiscvSMP.wishbone_memory):
             ibus = LiteDRAMNativePort(mode="both", address_width=32, data_width=VexRiscvSMP.litedram_width)
@@ -457,6 +455,7 @@ class VexRiscvSMP(CPU):
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
+        VexRiscvSMP.generate_cluster_name()
         self.specials += Instance(self.cluster_name, **self.cpu_params)
 
         # Add Verilog sources
