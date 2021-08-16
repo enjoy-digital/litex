@@ -84,14 +84,7 @@ static void spiflash_master_write(uint32_t val, size_t len, size_t width, uint32
 
 void spiflash_init(void)
 {
-	int ret;
-
 	printf("Initializing %s SPI Flash...\n", SPIFLASH_MODULE_NAME);
-
-	/* Clk frequency auto-calibration. */
-	ret = spiflash_freq_init();
-	if (ret < 0)
-		return;
 
 	/* Dummy bits setup. */
 #ifdef SPIFLASH_MODULE_DUMMY_BITS
@@ -115,6 +108,8 @@ void spiflash_init(void)
 
 #endif
 
+	/* Clk frequency auto-calibration. */
+	spiflash_freq_init();
 }
 
 #endif
