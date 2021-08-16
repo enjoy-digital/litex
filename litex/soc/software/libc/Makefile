@@ -35,7 +35,7 @@ cpu = '$(CPU)'
 endian = '$(CPUENDIANNESS)'
 
 [built-in options]
-c_args = [ '-DPRINTF_LEVEL=1', $(foreach flag,$(filter-out $(INCLUDES) $(DEPFLAGS),$(CFLAGS)),'$(flag)',) ]
+c_args = [ '-DPRINTF_LEVEL=1', $(foreach flag,$(filter-out $(DEPFLAGS),$(CFLAGS)),'$(flag)',) ]
 c_link_args = [ '-DPRINTF_LEVEL=1', $(foreach flag,$(LDFLAGS),'$(flag)',) ]
 endef
 
