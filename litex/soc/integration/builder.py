@@ -45,7 +45,6 @@ soc_software_packages = [
     # LiteX cores.
     "libutils",
     "libcomm",
-    "libmisc",
 
     # LiteX Ecosystem cores.
     "libfatfs",
