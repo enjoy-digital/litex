@@ -1,4 +1,5 @@
-#include <base/uart.h>
+#include "uart.h"
+
 #include <irq.h>
 #include <generated/csr.h>
 

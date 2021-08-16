@@ -8,9 +8,6 @@
 #include <string.h>
 #include <ctype.h>
 
-#include <console.h>
-#include <uart.h>
-
 #include "readline.h"
 
 int readline(char *s, int size)

@@ -3,7 +3,7 @@
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
-#include <base/crc.h>
+#include "crc.h"
 
 #ifndef SMALL_CRC
 static const unsigned int crc_table[256] = {

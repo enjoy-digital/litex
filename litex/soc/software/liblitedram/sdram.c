@@ -14,8 +14,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <base/memtest.h>
-#include <base/lfsr.h>
+
+#include <libutils/memtest.h>
+#include <libutils/lfsr.h>
 
 #ifdef CSR_SDRAM_BASE
 #include <generated/sdram_phy.h>

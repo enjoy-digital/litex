@@ -56,9 +56,9 @@ bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 
 vpath %.a $(PACKAGES:%=../%)
 
-%.elf: ../libbase/crt0.o $(LIBS:%=%.a)
+%.elf: crt0.o $(LIBS:%=%.a)
 	$(CC) $(LDFLAGS) -T $(BIOS_DIRECTORY)/linker.ld -N -o $@ \
-		../libbase/crt0.o \
+		crt0.o \
 		$(OBJECTS) \
 		$(PACKAGES:%=-L../%) \
 		-Wl,--whole-archive \
@@ -83,6 +83,9 @@ endif
 	$(assemble)
 
 boot-helper.o: $(CPU_DIRECTORY)/boot-helper.S
+	$(assemble)
+
+crt0.o: $(CPU_DIRECTORY)/crt0.S
 	$(assemble)
 
 clean:

@@ -1,7 +1,7 @@
-#include <base/memtest.h>
+#include "memtest.h"
+#include "lfsr.h"
 
 #include <stdio.h>
-#include <base/lfsr.h>
 #include <system.h>
 
 #include <generated/soc.h>

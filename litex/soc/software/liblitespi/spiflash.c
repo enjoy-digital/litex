@@ -4,8 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <base/memtest.h>
-#include <base/crc.h>
+#include <libutils/memtest.h>
+#include <libutils/crc.h>
 
 #include <generated/csr.h>
 #include <generated/mem.h>

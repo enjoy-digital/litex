@@ -13,9 +13,6 @@
 #include <string.h>
 #include <ctype.h>
 
-#include <base/console.h>
-#include <base/uart.h>
-
 #include "readline.h"
 #include "complete.h"
 

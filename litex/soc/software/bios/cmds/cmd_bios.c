@@ -2,9 +2,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <base/crc.h>
 #include <system.h>
-#include <base/sim_debug.h>
+
+#include <libmisc/sim_debug.h>
+#include <libutils/crc.h>
 
 #include <generated/csr.h>
 

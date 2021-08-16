@@ -14,7 +14,7 @@
 #include <stdio.h>
 #include <arpa/inet.h>
 #include <system.h>
-#include <crc.h>
+#include <libutils/crc.h>
 
 #include "udp.h"
 

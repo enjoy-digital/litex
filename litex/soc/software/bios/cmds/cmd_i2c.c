@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 #include <generated/csr.h>
-#include <base/i2c.h>
+#include <libcomm/i2c.h>
 
 #include "../command.h"
 #include "../helpers.h"

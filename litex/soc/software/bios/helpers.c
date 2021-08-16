@@ -3,9 +3,10 @@
 // SPDX-License-Identifier: BSD-Source-Code
 
 #include <stdio.h>
-#include <base/console.h>
-#include <base/crc.h>
 #include <string.h>
+
+#include <libutils/console.h>
+#include <libutils/crc.h>
 
 #include "readline.h"
 #include "helpers.h"

@@ -1,7 +1,7 @@
 #include <stdio.h>
 
-#include <base/console.h>
-#include <base/uart.h>
+#include <libutils/console.h>
+#include <libcomm/uart.h>
 
 #include <generated/csr.h>
 

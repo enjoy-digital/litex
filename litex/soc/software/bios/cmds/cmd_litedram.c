@@ -4,11 +4,11 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
-#include <base/memtest.h>
+#include <libutils/memtest.h>
 
 #include <generated/csr.h>
 #include <generated/mem.h>
-#include <base/i2c.h>
+#include <libcomm/i2c.h>
 
 #include <liblitedram/sdram.h>
 #include <liblitedram/bist.h>
