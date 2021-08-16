@@ -44,7 +44,10 @@ cross.txt:
 	@echo "$$CROSSFILE" > $@
 
 libc.a: cross.txt
-	cp $(LIBC_DIRECTORY)/$(CPUFAMILY)/* $(PICOLIBC_DIRECTORY)/newlib/libc/machine/$(CPUFAMILY)/
+	if [ -d "$(LIBC_DIRECTORY)/$(CPUFAMILY)" ]; then \
+		cp $(LIBC_DIRECTORY)/$(CPUFAMILY)/* $(PICOLIBC_DIRECTORY)/newlib/libc/machine/$(CPUFAMILY)/ ;\
+	fi
+
 	meson $(PICOLIBC_DIRECTORY) \
 		-Dmultilib=false \
 		-Dpicocrt=false \
@@ -53,6 +56,7 @@ libc.a: cross.txt
 		-Dincludedir=picolibc/$(TRIPLE)/include \
 		-Dlibdir=picolibc/$(TRIPLE)/lib \
 		--cross-file cross.txt
+
 	meson compile
 	cp newlib/libc.a libc.a
 
