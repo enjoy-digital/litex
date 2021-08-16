@@ -2,8 +2,7 @@ include ../include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
 OBJECTS = \
-	exception.o \
-	sim_debug.o
+	exception.o
 
 all: libmisc.a
 

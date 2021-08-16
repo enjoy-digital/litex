@@ -4,13 +4,13 @@
 #include <stdlib.h>
 #include <system.h>
 
-#include <libmisc/sim_debug.h>
 #include <libutils/crc.h>
 
 #include <generated/csr.h>
 
 #include "../command.h"
 #include "../helpers.h"
+#include "../sim_debug.h"
 
 /**
  * Command "help"
