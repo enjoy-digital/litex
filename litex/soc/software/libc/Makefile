@@ -43,10 +43,8 @@ export CROSSFILE
 cross.txt:
 	@echo "$$CROSSFILE" > $@
 
-$(PICOLIBC_DIRECTORY)/newlib/libc/machine/$(CPUFAMILY)/meson.build:
-	cp $(LIBC_DIRECTORY)/$(CPUFAMILY)-meson.build $@
-
-libc.a: cross.txt $(PICOLIBC_DIRECTORY)/newlib/libc/machine/$(CPUFAMILY)/meson.build
+libc.a: cross.txt
+	cp $(LIBC_DIRECTORY)/$(CPUFAMILY)/* $(PICOLIBC_DIRECTORY)/newlib/libc/machine/$(CPUFAMILY)/
 	meson $(PICOLIBC_DIRECTORY) \
 		-Dmultilib=false \
 		-Dpicocrt=false \

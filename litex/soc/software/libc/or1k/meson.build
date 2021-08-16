@@ -34,6 +34,7 @@
 #
 srcs_machine = [
   'setjmp.S',
+  'exception.c',
 ]
 
 foreach target : targets
