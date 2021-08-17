@@ -3,7 +3,7 @@ BUILD_DIR?=../build/
 include $(BUILD_DIR)/software/include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
-OBJECTS   = isr.o donut.o helloc.o main.o
+OBJECTS   = isr.o donut.o helloc.o main.o crt0.o
 ifdef WITH_CXX
 	OBJECTS += hellocpp.o
 endif
@@ -21,15 +21,16 @@ demo.elf: $(OBJECTS)
 	$(CC) $(LDFLAGS) \
 		-T linker.ld \
 		-N -o $@ \
-		$(BUILD_DIR)/software/libbase/crt0.o \
 		$(OBJECTS) \
-		-L$(BUILD_DIR)/software/libbase \
-		-L$(BUILD_DIR)/software/libcompiler_rt \
-		-lbase -lcompiler_rt
+		$(PACKAGES:%=-L$(BUILD_DIR)/software/%) \
+		$(LIBS:lib%=-l%)
 	chmod -x $@
 
 main.o: main.c
 	$(compile)
+
+crt0.o: $(CPU_DIRECTORY)/crt0.S
+	$(assemble)
 
 donut.o: CFLAGS += -w
 
