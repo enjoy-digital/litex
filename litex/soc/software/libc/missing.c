@@ -1,3 +1,9 @@
+/* This file contains functions that were missing
+ * during picolibc compilation. They are only stubs
+ * and should be probably replaced with more
+ * meaningful versions.
+ */
+
 #include <stddef.h>
 
 int getentropy(void *v, size_t s) {
