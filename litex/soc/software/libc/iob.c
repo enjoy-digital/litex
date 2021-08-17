@@ -1,3 +1,19 @@
+/* Most of the code here is ported from console.c
+ * with slightly changed function signatures and 
+ * names. Picolibc requires providing __iob array
+ * which contains stdin, stdout and stderr files.
+ * To simpify things, we can create one file
+ * which can be both read from and written to,
+ * and assign it to all three of them.
+ *
+ * It does mean, that in future it is possible to
+ * provide stderr for example which could be non-
+ * blocking for example.
+ *
+ * For more information on __iob and how to create
+ * it look into picolibc/doc/os.md.
+ */
+
 #include <stdio.h>
 
 #include <libutils/console.h>
