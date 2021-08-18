@@ -16,27 +16,29 @@ SECTIONS
 
 	.rodata :
 	{
-		. = ALIGN(4);
+		. = ALIGN(8);
 		_frodata = .;
 		*(.rodata .rodata.* .gnu.linkonce.r.*)
 		*(.rodata1)
+		. = ALIGN(8);
 		_erodata = .;
 	} > main_ram
 
 	.data :
 	{
-		. = ALIGN(4);
+		. = ALIGN(8);
 		_fdata = .;
 		*(.data .data.* .gnu.linkonce.d.*)
 		*(.data1)
 		_gp = ALIGN(16);
 		*(.sdata .sdata.* .gnu.linkonce.s.*)
+		. = ALIGN(8);
 		_edata = .;
 	} > main_ram
 
 	.bss :
 	{
-		. = ALIGN(4);
+		. = ALIGN(8);
 		_fbss = .;
 		*(.dynsbss)
 		*(.sbss .sbss.* .gnu.linkonce.sb.*)
@@ -44,13 +46,13 @@ SECTIONS
 		*(.dynbss)
 		*(.bss .bss.* .gnu.linkonce.b.*)
 		*(COMMON)
-		. = ALIGN(4);
+		. = ALIGN(8);
 		_ebss = .;
 		_end = .;
 	} > sram
 }
 
-PROVIDE(_fstack = ORIGIN(sram) + LENGTH(sram) - 4);
+PROVIDE(_fstack = ORIGIN(sram) + LENGTH(sram));
 
 PROVIDE(_fdata_rom = LOADADDR(.data));
 PROVIDE(_edata_rom = LOADADDR(.data) + SIZEOF(.data));
