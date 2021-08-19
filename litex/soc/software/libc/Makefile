@@ -51,7 +51,7 @@ libc.a: cross.txt
 	meson $(PICOLIBC_DIRECTORY) \
 		-Dmultilib=false \
 		-Dpicocrt=false \
-		-Dnewlib-global-errno=true \
+		-Dthread-local-storage=false \
 		-Dio-long-long=true \
 		-Dincludedir=picolibc/$(TRIPLE)/include \
 		-Dlibdir=picolibc/$(TRIPLE)/lib \
