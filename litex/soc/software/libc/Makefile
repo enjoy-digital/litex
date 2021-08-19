@@ -1,7 +1,7 @@
 include ../include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
-all: libc.a iob.c.o missing.c.o exchange.c.o arc4random.c.o
+all: libc.a iob.c.o missing.c.o
 
 CPUFAMILY=
 
@@ -35,8 +35,8 @@ cpu = '$(CPU)'
 endian = '$(CPUENDIANNESS)'
 
 [built-in options]
-c_args = [ '-DPRINTF_LEVEL=1', $(foreach flag,$(filter-out $(DEPFLAGS),$(CFLAGS)),'$(flag)',) ]
-c_link_args = [ '-DPRINTF_LEVEL=1', $(foreach flag,$(LDFLAGS),'$(flag)',) ]
+c_args = [ $(foreach flag,$(filter-out $(DEPFLAGS) -flto,$(CFLAGS)),'$(flag)',) ]
+c_link_args = [ $(foreach flag,$(filter-out -flto,$(LDFLAGS)),'$(flag)',) ]
 endef
 
 export CROSSFILE
@@ -66,13 +66,5 @@ iob.c.o: $(LIBC_DIRECTORY)/iob.c
 
 missing.c.o: $(LIBC_DIRECTORY)/missing.c
 	$(compile)
-	$(AR) csr libc.a $@
-
-exchange.c.o: $(PICOLIBC_DIRECTORY)/newlib/libc/tinystdio/exchange.c
-	$(call compile,-fno-lto)
-	$(AR) csr libc.a $@
-
-arc4random.c.o: $(PICOLIBC_DIRECTORY)/newlib/libc/stdlib/arc4random.c
-	$(call compile,-fno-lto)
 	$(AR) csr libc.a $@
 
