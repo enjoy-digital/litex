@@ -366,18 +366,36 @@ class XilinxDDRInputUS:
 
 # Ultrascale SDROutput -----------------------------------------------------------------------------
 
+class XilinxSDROutputImplUS(Module):
+    def __init__(self, i, o, clk):
+        self.specials += Instance("FDCE",
+            i_C   = clk,
+            i_CE  = 1,
+            i_CLR = 0,
+            i_D   = i,
+            o_Q   = o
+        )
+
 class XilinxSDROutputUS:
     @staticmethod
     def lower(dr):
-        return XilinxDDROutputImplUS(dr.i, dr.i, dr.o, dr.clk)
-
-
+        return XilinxSDROutputImplUS(dr.i, dr.o, dr.clk)
+        
 # Ultrascale SDRInput ------------------------------------------------------------------------------
+class XilinxSDRInputImplUS(Module):
+    def __init__(self, i, o, clk): 
+        self.specials += Instance("FDCE",
+            i_C   = clk,
+            i_CE  = 1,
+            i_CLR = 0,
+            i_D   = i,
+            o_Q   = o
+        )
 
 class XilinxSDRInputUS:
     @staticmethod
     def lower(dr):
-        return XilinxDDRInputImplUS(dr.i, dr.o, Signal(), dr.clk)
+        return XilinxSDRInputImplUS(dr.i, dr.o, dr.clk)
 
 # Ultrascale Specials Overrides --------------------------------------------------------------------
 
