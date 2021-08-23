@@ -252,11 +252,11 @@ int memtest_data(unsigned int *addr, unsigned long size, int random, struct memt
 	return errors;
 }
 
-void memspeed(unsigned int *addr, unsigned long size, bool read_only, bool random_access)
+void memspeed(unsigned int *addr, unsigned long size, bool read_only, bool random)
 {
 	volatile unsigned long *array = (unsigned long *)addr;
 	int i;
-	unsigned int seed_32;
+	unsigned int seed_32 = 0;
 	uint32_t start, end;
 	unsigned long write_speed = 0;
 	unsigned long read_speed;
@@ -264,6 +264,10 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only, bool rando
 	const unsigned int sz = sizeof(unsigned long);
 
 	printf("Memspeed at %p (", addr);
+	if (random)
+		printf("Random, ");
+	else
+		printf("Sequential, ");
 	print_size(size);
 	printf(")...\n");
 
@@ -301,7 +305,7 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only, bool rando
 
 	int num = size/sz;
 
-	if (random_access) {
+	if (random) {
 		for (i = 0; i < size/sz; i++) {
 			seed_32 = seed_to_data_32(seed_32, i);
 			data = array[seed_32 % num];

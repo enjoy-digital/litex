@@ -1254,7 +1254,7 @@ int sdram_init(void)
 #endif
 		return 0;
 	}
-	memspeed((unsigned int *) MAIN_RAM_BASE, MEMTEST_DATA_SIZE, false);
+	memspeed((unsigned int *) MAIN_RAM_BASE, MEMTEST_DATA_SIZE, false, 0);
 #endif
 #ifdef CSR_DDRCTRL_BASE
 	ddrctrl_init_done_write(1);

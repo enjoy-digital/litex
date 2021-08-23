@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <crc.h>
+#include <memtest.h>
 
 #include <generated/csr.h>
 #include <generated/mem.h>
@@ -84,7 +85,7 @@ static void spiflash_master_write(uint32_t val, size_t len, size_t width, uint32
 
 void spiflash_init(void)
 {
-	printf("Initializing %s SPI Flash...\n", SPIFLASH_MODULE_NAME);
+	printf("\nInitializing %s SPI Flash @0x%08lx...\n", SPIFLASH_MODULE_NAME, SPIFLASH_BASE);
 
 #ifdef SPIFLASH_MODULE_DUMMY_BITS
 	spiflash_dummy_bits_setup(SPIFLASH_MODULE_DUMMY_BITS);
@@ -107,18 +108,15 @@ void spiflash_init(void)
 
 #endif
 
-	/* Clk frequency auto-calibration. */
 #ifndef SPIFLASH_SKIP_FREQ_INIT
 	/* Clk frequency auto-calibration. */
 	spiflash_freq_init();
-	printf("Warning: SPI Flash frequency auto-calibration skipped, using the default divisor of %d", spiflash_phy_clk_divisor_read());
+#else
+	printf("Warning: SPI Flash frequency auto-calibration skipped, using the default divisor of %d\n", spiflash_phy_clk_divisor_read());
 #endif
 
-	printf("SPI Flash bandwidth benchmarks\n");
-	printf("Sequential accesses:");
-	memspeed(SPIFLASH_BASE, SPIFLASH_SIZE, 1, 0);
-	printf("Random accesses:");
-	memspeed(SPIFLASH_BASE, SPIFLASH_SIZE, 1, 1);
+	memspeed((unsigned int *) SPIFLASH_BASE, SPIFLASH_SIZE/16, 1, 0);
+	memspeed((unsigned int *) SPIFLASH_BASE, SPIFLASH_SIZE/16, 1, 1);
 }
 
 #endif

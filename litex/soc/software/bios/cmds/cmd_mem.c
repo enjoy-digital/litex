@@ -202,10 +202,10 @@ static void mem_speed_handler(int nb_params, char **params)
 	unsigned int *addr;
 	unsigned long size;
 	bool read_only = false;
-	bool random_access = false;
+	bool random = false;
 
 	if (nb_params < 1) {
-		printf("mem_speed <addr> <size> [<readonly>] [<random_access>]");
+		printf("mem_speed <addr> <size> [<readonly>] [<random>]");
 		return;
 	}
 
@@ -230,13 +230,13 @@ static void mem_speed_handler(int nb_params, char **params)
 	}
 
 	if (nb_params >= 4) {
-		random_access = (bool) strtoul(params[3], &c, 0);
+		random = (bool) strtoul(params[3], &c, 0);
 		if (*c != 0) {
-			printf("Incorrect random_access value");
+			printf("Incorrect random value");
 			return;
 		}
 	}
 
-	memspeed(addr, size, read_only, random_access);
+	memspeed(addr, size, read_only, random);
 }
 define_command(mem_speed, mem_speed_handler, "Test memory speed", MEM_CMDS);
