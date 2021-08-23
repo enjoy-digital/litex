@@ -252,10 +252,11 @@ int memtest_data(unsigned int *addr, unsigned long size, int random, struct memt
 	return errors;
 }
 
-void memspeed(unsigned int *addr, unsigned long size, bool read_only)
+void memspeed(unsigned int *addr, unsigned long size, bool read_only, bool random_access)
 {
 	volatile unsigned long *array = (unsigned long *)addr;
 	int i;
+	unsigned int seed_32;
 	uint32_t start, end;
 	unsigned long write_speed = 0;
 	unsigned long read_speed;
@@ -297,9 +298,20 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only)
 	timer0_en_write(1);
 	timer0_update_value_write(1);
 	start = timer0_value_read();
-	for(i = 0; i < size/sz; i++) {
-		data = array[i];
+
+	int num = size/sz;
+
+	if (random_access) {
+		for (i = 0; i < size/sz; i++) {
+			seed_32 = seed_to_data_32(seed_32, i);
+			data = array[seed_32 % num];
+		}
+	} else {
+		for (i = 0; i < size/sz; i++) {
+			data = array[i];
+		}
 	}
+
 	timer0_update_value_write(1);
 	end = timer0_value_read();
 	uint64_t numerator   = ((uint64_t)size)*((uint64_t)CONFIG_CLOCK_FREQUENCY);
