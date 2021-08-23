@@ -1,7 +1,7 @@
 /* Most of the code here is ported from console.c
  * with slightly changed function signatures and 
- * names. Picolibc requires providing __iob array
- * which contains stdin, stdout and stderr files.
+ * names. It sets up for stdin, stdout and
+ * stderr files.
  * To simpify things, we can create one file
  * which can be both read from and written to,
  * and assign it to all three of them.
@@ -10,8 +10,8 @@
  * provide stderr for example which could be non-
  * blocking for example.
  *
- * For more information on __iob and how to create
- * it look into picolibc/doc/os.md.
+ * For more information on usage and how to create
+ * those files look into picolibc/doc/os.md.
  */
 
 #include <stdio.h>
@@ -96,5 +96,7 @@ int readchar_nonblock(void)
 
 static FILE __stdio = FDEV_SETUP_STREAM(dummy_putc, dummy_getc, NULL, _FDEV_SETUP_RW);
 
-FILE *const __iob[3] = { &__stdio, &__stdio, &__stdio };
+FILE *const stdout = &__stdio;
+FILE *const stderr = &__stdio;
+FILE *const stdin  = &__stdio;
 

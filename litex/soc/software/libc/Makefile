@@ -1,7 +1,7 @@
 include ../include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
-all: libc.a iob.c.o missing.c.o
+all: libc.a stdio.c.o missing.c.o
 
 CPUFAMILY=
 
@@ -53,6 +53,7 @@ libc.a: cross.txt
 		-Dpicocrt=false \
 		-Dthread-local-storage=false \
 		-Dio-long-long=true \
+		-Dformat-default=integer \
 		-Dincludedir=picolibc/$(TRIPLE)/include \
 		-Dlibdir=picolibc/$(TRIPLE)/lib \
 		--cross-file cross.txt
@@ -60,7 +61,7 @@ libc.a: cross.txt
 	meson compile
 	cp newlib/libc.a libc.a
 
-iob.c.o: $(LIBC_DIRECTORY)/iob.c
+stdio.c.o: $(LIBC_DIRECTORY)/stdio.c
 	$(compile)
 	$(AR) csr libc.a $@
 
