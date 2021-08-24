@@ -2,7 +2,7 @@
 # This file is part of LiteX.
 #
 # This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2015-2021 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2018-2019 Antmicro <www.antmicro.com>
 # This file is Copyright (c) 2018 Sergiusz Bazanski <q3k@q3k.org>
 # This file is Copyright (c) 2016-2017 Tim 'mithro' Ansell <mithro@mithis.com>
@@ -27,8 +27,11 @@ from litex.soc.cores import cpu
 def _makefile_escape(s):
     return s.replace("\\", "\\\\")
 
-def _create_dir(d):
-    os.makedirs(os.path.realpath(d), exist_ok=True)
+def _create_dir(d, remove_if_exists=False):
+    dir_path = os.path.realpath(d)
+    if remove_if_exists and os.path.exists(dir_path):
+        shutil.rmtree(dir_path)
+    os.makedirs(dir_path, exist_ok=True)
 
 # Software Packages --------------------------------------------------------------------------------
 
@@ -50,7 +53,7 @@ soc_software_packages = [
 
 # Builder ------------------------------------------------------------------------------------------
 
-soc_directory         = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+soc_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 class Builder:
     def __init__(self, soc,
@@ -103,7 +106,7 @@ class Builder:
         self.generate_doc = generate_doc
 
         # List software packages and libraries.
-        self.software_packages = []
+        self.software_packages  = []
         self.software_libraries = []
 
         for name in soc_software_packages:
@@ -121,46 +124,46 @@ class Builder:
     def add_software_library(self, name):
         self.software_libraries.append(name)
 
-    def _generate_includes(self):
+    def _get_variables_contents(self):
+        variables_contents = []
+        def define(k, v):
+            variables_contents.append("{}={}".format(k, _makefile_escape(v)))
+
+        # Define packages and libraries.
+        define("PACKAGES", " ".join(name for name, src_dir in self.software_packages))
+        define("PACKAGE_DIRS", " ".join(src_dir for name, src_dir in self.software_packages))
+        define("LIBS", " ".join(self.software_libraries))
+
+        # Define the CPU variables.
+        for k, v in export.get_cpu_mak(self.soc.cpu, self.compile_software):
+            define(k, v)
+
+        # Define the SoC/Compiler-RT/Software/Include directories.
+        define("SOC_DIRECTORY", soc_directory)
+        compiler_rt_directory = get_data_mod("software", "compiler_rt").data_location
+        define("COMPILER_RT_DIRECTORY", compiler_rt_directory)
+        variables_contents.append("export BUILDINC_DIRECTORY")
+        define("BUILDINC_DIRECTORY", self.include_dir)
+        for name, src_dir in self.software_packages:
+            define(name.upper() + "_DIRECTORY", src_dir)
+
+        # Define the BIOS Options.
+        for bios_option in self.bios_options:
+            assert bios_option in ["TERM_NO_HIST", "TERM_MINI", "TERM_NO_COMPLETE"]
+            define(bios_option, "1")
+
+        return "\n".join(variables_contents)
+
+    def _generate_includes(self, with_bios=True):
         # Generate Include/Generated directories.
         _create_dir(self.include_dir)
         _create_dir(self.generated_dir)
 
         # Generate BIOS files when the SoC uses it.
-        with_bios = self.soc.cpu_type not in [None, "zynq7000"]
         if with_bios:
-            self.add_software_package("bios")
-
             # Generate Variables to variables.mak.
-            variables_contents = []
-            def define(k, v):
-                variables_contents.append("{}={}".format(k, _makefile_escape(v)))
-
-            # Define packages and libraries.
-            define("PACKAGES", " ".join(name for name, src_dir in self.software_packages))
-            define("PACKAGE_DIRS", " ".join(src_dir for name, src_dir in self.software_packages))
-            define("LIBS", " ".join(self.software_libraries))
-
-            # Define the CPU variables.
-            for k, v in export.get_cpu_mak(self.soc.cpu, self.compile_software):
-                define(k, v)
-
-            # Define the SoC/Compiler-RT/Software/Include directories.
-            define("SOC_DIRECTORY",         soc_directory)
-            compiler_rt_directory = get_data_mod("software", "compiler_rt").data_location
-            define("COMPILER_RT_DIRECTORY", compiler_rt_directory)
-            variables_contents.append("export BUILDINC_DIRECTORY")
-            define("BUILDINC_DIRECTORY", self.include_dir)
-            for name, src_dir in self.software_packages:
-                define(name.upper() + "_DIRECTORY", src_dir)
-
-            # Define the BIOS Options.
-            for bios_option in self.bios_options:
-                assert bios_option in ["TERM_NO_HIST", "TERM_MINI", "TERM_NO_COMPLETE"]
-                define(bios_option, "1")
-
-            # Write to variables.mak.
-            write_to_file(os.path.join(self.generated_dir, "variables.mak"), "\n".join(variables_contents))
+            variables_contents = self._get_variables_contents()
+            write_to_file(os.path.join(self.generated_dir, "variables.mak"), variables_contents)
 
             # Generate Output Format to output_format.ld.
             output_format_contents = export.get_linker_output_format(self.soc.cpu)
@@ -194,7 +197,7 @@ class Builder:
         git_contents = export.get_git_header()
         write_to_file(os.path.join(self.generated_dir, "git.h"), git_contents)
 
-        # Generate LiteDRAM C header to sdram_phy.h when the SoC use it.
+        # Generate LiteDRAM C header to sdram_phy.h when the SoC use it
         if hasattr(self.soc, "sdram"):
             from litedram.init import get_sdram_phy_c_header
             sdram_contents = get_sdram_phy_c_header(
@@ -253,15 +256,29 @@ class Builder:
         # Pass Output Directory to Platform.
         self.soc.platform.output_dir = self.output_dir
 
-        # Create Gateware/Software directories.
+        # Check if BIOS is used and add software package if so.
+        with_bios = self.soc.cpu_type not in [None, "zynq7000"]
+        if with_bios:
+            self.add_software_package("bios")
+
+        # Create Gateware directory.
         _create_dir(self.gateware_dir)
-        _create_dir(self.software_dir)
+
+        # Create Software directory.
+        # First check if software needs a full re-build and remove software dir if so.
+        software_full_rebuild  = False
+        software_variables_mak = os.path.join(self.generated_dir, "variables.mak")
+        if os.path.exists(software_variables_mak):
+            old_variables_contents = open(software_variables_mak).read()
+            new_variables_contents = self._get_variables_contents()
+            software_full_rebuild  = (old_variables_contents != new_variables_contents)
+        _create_dir(self.software_dir, remove_if_exists=software_full_rebuild)
 
         # Finalize the SoC.
         self.soc.finalize()
 
         # Generate Software Includes/Files.
-        self._generate_includes()
+        self._generate_includes(with_bios=with_bios)
 
         # Export SoC Mapping.
         self._generate_csr_map()
