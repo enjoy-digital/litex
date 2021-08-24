@@ -288,13 +288,16 @@ def get_csr_json(csr_regions={}, constants={}, mem_regions={}):
         region_origin = region.origin
         if not isinstance(region.obj, Memory):
             for csr in region.obj:
-                size = (csr.size + region.busword - 1)//region.busword
+                _size = (csr.size + region.busword - 1)//region.busword
+                _type = "rw"
+                if isinstance(csr, CSRStatus) and not hasattr(csr, "r"):
+                    _type = "ro"
                 d["csr_registers"][name + "_" + csr.name] = {
                     "addr": region_origin,
-                    "size": size,
-                    "type": "ro" if isinstance(csr, CSRStatus) else "rw"
+                    "size": _size,
+                    "type": _type
                 }
-                region_origin += alignment//8*size
+                region_origin += alignment//8*_size
 
     for name, value in constants.items():
         d["constants"][name.lower()] = value.lower() if isinstance(value, str) else value
