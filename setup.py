@@ -41,7 +41,9 @@ setup(
             "litex_cli=litex.tools.litex_client:main",
             "litex_sim=litex.tools.litex_sim:main",
             "litex_read_verilog=litex.tools.litex_read_verilog:main",
-            "litex_json2dts=litex.tools.litex_json2dts:main",
+            "litex_json2dts_linux=litex.tools.litex_json2dts_linux:main",
+            "litex_json2dts_zephyr=litex.tools.litex_json2dts_zephyr:main",
+            "litex_json2renode=litex.tools.litex_json2renode:main",
             "litex_bare_metal_demo=litex.soc.software.demo.demo:main",
             # short names
             "lxterm=litex.tools.litex_term:main",
