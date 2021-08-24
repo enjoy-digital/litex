@@ -275,8 +275,10 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
                 reg = <0x{ethmac_csr_base:x} 0x7c>,
                       <0x{ethphy_csr_base:x} 0x0a>,
                       <0x{ethmac_mem_base:x} 0x{ethmac_mem_size:x}>;
-                tx-fifo-depth = <{ethmac_tx_slots}>;
-                rx-fifo-depth = <{ethmac_rx_slots}>;
+                reg-names = "mac", "mdio", "buffer";
+                litex,rx-slots = <{ethmac_rx_slots}>;
+                litex,tx-slots = <{ethmac_tx_slots}>;
+                litex,slot-size = <{ethmac_slot_size}>;
                 {ethmac_interrupt}
                 status = "okay";
             }};
@@ -285,8 +287,9 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
     ethmac_csr_base  = d["csr_bases"]["ethmac"],
     ethmac_mem_base  = d["memories"]["ethmac"]["base"],
     ethmac_mem_size  = d["memories"]["ethmac"]["size"],
-    ethmac_tx_slots  = d["constants"]["ethmac_tx_slots"],
     ethmac_rx_slots  = d["constants"]["ethmac_rx_slots"],
+    ethmac_tx_slots  = d["constants"]["ethmac_tx_slots"],
+    ethmac_slot_size  = d["constants"]["ethmac_slot_size"],
     ethmac_interrupt = "" if polling else "interrupts = <{}>;".format(d["constants"]["ethmac_interrupt"]))
 
     # USB OHCI -------------------------------------------------------------------------------------
