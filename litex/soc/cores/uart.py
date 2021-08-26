@@ -57,6 +57,8 @@ class RS232PHYTX(Module):
 
         # # #
 
+        pads.tx.reset = 1
+
         data  = Signal(8, reset_less=True)
         count = Signal(4, reset_less=True)
 
