@@ -145,6 +145,34 @@ class DDROutput(Special):
     def lower(dr):
         raise NotImplementedError("Attempted to use a DDR output, but platform does not support them")
 
+# DDR Tristate -------------------------------------------------------------------------------------
+
+class DDRTristate(Special):
+    def __init__(self, i1, i2, o1, o2, oe1, oe2, io, clk=ClockSignal()):
+        Special.__init__(self)
+        self.i1  = i1
+        self.i2  = i2
+        self.o1  = o1
+        self.o2  = o2
+        self.oe1 = oe1
+        self.oe2 = oe2
+        self.io  = io
+        self.clk = clk
+
+    def iter_expressions(self):
+        yield self, "io", SPECIAL_INOUT
+        yield self, "i1", SPECIAL_INPUT
+        yield self, "i2", SPECIAL_INPUT
+        yield self, "o1", SPECIAL_OUTPUT
+        yield self, "o2", SPECIAL_OUTPUT
+        yield self, "oe1", SPECIAL_INPUT
+        yield self, "oe2", SPECIAL_INPUT
+        yield self, "clk", SPECIAL_INPUT
+
+    @staticmethod
+    def lower(dr):
+        raise NotImplementedError("Attempted to use a DDR tristate, but platform does not support them")
+
 # Clock Reset Generator ----------------------------------------------------------------------------
 
 class CRG(Module):
