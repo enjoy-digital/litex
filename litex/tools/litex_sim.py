@@ -163,10 +163,20 @@ class SimSoC(SoCCore):
                 self.add_constant("MEMTEST_DATA_SIZE", 8*1024)
                 self.add_constant("MEMTEST_ADDR_SIZE", 8*1024)
 
+        # Ethernet / Etherbone PHY -----------------------------------------------------------------
+        if with_ethernet or with_etherbone:
+            if ethernet_phy_model == "sim":
+                self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth", 0))
+            elif ethernet_phy_model == "xgmii":
+                self.submodules.ethphy = LiteEthPHYXGMII(None, self.platform.request("xgmii_eth", 0), model=True)
+            elif ethernet_phy_model == "gmii":
+                self.submodules.ethphy = LiteEthPHYGMII(None, self.platform.request("gmii_eth", 0), model=True)
+            else:
+                raise ValueError("Unknown Ethernet PHY model:", ethernet_phy_model)
+
+        # Ethernet and Etherbone -------------------------------------------------------------------
         if with_ethernet and with_etherbone:
             etherbone_ip_address = convert_ip(etherbone_ip_address)
-            # Ethernet PHY
-            self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth", 0))
             # Ethernet MAC
             self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=8,
                 interface  = "hybrid",
@@ -189,35 +199,20 @@ class SimSoC(SoCCore):
 
         # Ethernet ---------------------------------------------------------------------------------
         elif with_ethernet:
-            # Ethernet PHY
-            if ethernet_phy_model == "sim":
-                self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth", 0))
-            elif ethernet_phy_model == "xgmii":
-                self.submodules.ethphy = LiteEthPHYXGMII(None, self.platform.request("xgmii_eth", 0), model=True)
-            elif ethernet_phy_model == "gmii":
-                self.submodules.ethphy = LiteEthPHYGMII(None, self.platform.request("gmii_eth", 0), model=True)
-            else:
-                raise ValueError("Unknown Ethernet PHY model:", ethernet_phy_model)
             # Ethernet MAC
-            ethmac = LiteEthMAC(
+            self.submodules.ethmac = ethmac = LiteEthMAC(
                 phy        = self.ethphy,
                 dw         = 64 if ethernet_phy_model == "xgmii" else 32,
                 interface  = "wishbone",
-                #interface  = "loopback",
                 endianness = self.cpu.endianness)
-            if with_etherbone:
-                ethmac = ClockDomainsRenamer({"eth_tx": "ethphy_eth_tx", "eth_rx":  "ethphy_eth_rx"})(ethmac)
-            self.submodules.ethmac = ethmac
             sram_region_size = (ethmac.rx_slots.read() + ethmac.tx_slots.read()) * ethmac.slot_size.read()
             self.add_memory_region("ethmac", self.mem_map.get("ethmac", None), sram_region_size, type="io")
-            self.add_wb_slave(self.mem_regions["ethmac"].origin, self.ethmac.bus, sram_region_size)
+            self.add_wb_slave(self.mem_regions["ethmac"].origin, ethmac.bus, sram_region_size)
             if self.irq.enabled:
                 self.irq.add("ethmac", use_loc_if_exists=True)
 
         # Etherbone --------------------------------------------------------------------------------
         elif with_etherbone:
-            # Ethernet PHY
-            self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth", 0)) # FIXME
             self.add_etherbone(
                 phy         = self.ethphy,
                 ip_address  = etherbone_ip_address,
