@@ -147,6 +147,16 @@ class DDROutput(Special):
 
 # DDR Tristate -------------------------------------------------------------------------------------
 
+class InferedDDRTristate(Module):
+    def __init__(self, i1, i2, o1, o2, oe1, oe2, io, clk):
+        _o  = Signal()
+        _oe = Signal()
+        _i  = Signal()
+        self.specials += DDROutput(i1, i2, _o, clk)
+        self.specials += DDROutput(oe1, oe2, _oe, clk)
+        self.specials += DDRInput(_i, o1, o2, clk)
+        self.specials += Tristate(io, _o, _oe, _i)
+
 class DDRTristate(Special):
     def __init__(self, i1, i2, o1, o2, oe1, oe2, io, clk=ClockSignal()):
         Special.__init__(self)
@@ -171,7 +181,7 @@ class DDRTristate(Special):
 
     @staticmethod
     def lower(dr):
-        raise NotImplementedError("Attempted to use a DDR tristate, but platform does not support them")
+        return InferedDDRTristate(dr.i1, dr.i2, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.io, dr.clk)
 
 # Clock Reset Generator ----------------------------------------------------------------------------
 
