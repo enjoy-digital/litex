@@ -22,6 +22,9 @@ setup(
     ],
     packages=find_packages(exclude=("test*", "sim*", "doc*")),
     include_package_data=True,
+    package_data={
+        'litex.soc.doc': ['static/*']
+    },
     platforms=["Any"],
     keywords="HDL ASIC FPGA hardware design",
     classifiers=[
