@@ -159,9 +159,9 @@ class XilinxDDRTristateImpl(Module):
         _o    = Signal()
         _oe_n = Signal()
         _i    = Signal()
-        self.specials += DDROutput(i1, i2, _o)
-        self.specials += DDROutput(~oe1, ~oe2, _oe_n)
-        self.specials += DDRInput(_i, o1, o2)
+        self.specials += DDROutput(i1, i2, _o, clk)
+        self.specials += DDROutput(~oe1, ~oe2, _oe_n, clk)
+        self.specials += DDRInput(_i, o1, o2, clk)
         self.specials += Instance("IOBUF",
             io_IO = io,
             o_O   = _i,
