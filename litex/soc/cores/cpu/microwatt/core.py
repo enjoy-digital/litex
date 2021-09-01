@@ -58,7 +58,6 @@ class Microwatt(CPU):
         flags += "-mlittle-endian "
         flags += "-mstrict-align "
         flags += "-fno-stack-protector "
-        flags += "-mcmodel=small "
         flags += "-D__microwatt__ "
         return flags
 
