@@ -300,7 +300,7 @@ static void print_scan_errors(unsigned int errors) {
 #endif
 }
 
-#define READ_CHECK_TEST_PATTERN_MAX_ERRORS (8*SDRAM_PHY_PHASES*SDRAM_PHY_XDR)
+#define READ_CHECK_TEST_PATTERN_MAX_ERRORS (8*SDRAM_PHY_PHASES*DFII_PIX_DATA_BYTES/SDRAM_PHY_MODULES)
 
 static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int seed) {
 	int p, i;
