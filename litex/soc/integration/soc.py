@@ -1512,7 +1512,11 @@ class LiteXSoC(SoC):
             spiflash_pads   = self.platform.request(name if mode == "1x" else name + mode)
             if init is None:
                 from litespi.phy.generic import LiteSPIPHY
-                spiflash_phy = LiteSPIPHY(spiflash_pads, module, clock_domain=clock_domain, device=self.platform.device,)
+                if not hasattr(spiflash_pads, "clk") or self.platform.device.startswith("LFE5U") or self.platform.device.startswith("LAE5U"):
+                    spiflash_phy = LiteSPIPHY(spiflash_pads, module, clock_domain=clock_domain, device=self.platform.device, default_divisor=int(self.sys_clk_freq/clk_freq), legacy=True)
+                    self.add_constant("SPIFLASH_LEGACY")
+                else:
+                    spiflash_phy = LiteSPIPHY(spiflash_pads, module, clock_domain=clock_domain, device=self.platform.device, legacy=False)
             else:
                 from litespi.phy.model import LiteSPIPHYModel
                 spiflash_phy = LiteSPIPHYModel(module, init=init, clock_domain=clock_domain)

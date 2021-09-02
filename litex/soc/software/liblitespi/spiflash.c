@@ -15,8 +15,40 @@
 
 #if defined(CSR_SPIFLASH_CORE_BASE)
 
-//#define SPIFLASH_DEBUG
-//#define SPIFLASH_MODULE_DUMMY_BITS 8
+#if defined(SPIFLASH_LEGACY)
+
+int spiflash_freq_init(void)
+{
+	unsigned int lowest_div = spiflash_phy_clk_divisor_read();
+	unsigned int crc = crc32((unsigned char *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE);
+	unsigned int crc_test = crc;
+
+#if SPIFLASH_DEBUG
+	printf("Testing against CRC32: %08x\n\r", crc);
+#endif
+
+	/* Check if block is erased (filled with 0xFF) */
+	if(crc == CRC32_ERASED_FLASH) {
+		printf("Block of size %d, started on address 0x%lx is erased. Cannot proceed with SPI Flash frequency test.\n\r", SPI_FLASH_BLOCK_SIZE, SPIFLASH_BASE);
+		return -1;
+	}
+
+	while((crc == crc_test) && (lowest_div-- > 0)) {
+		spiflash_phy_clk_divisor_write((uint32_t)lowest_div);
+		crc_test = crc32((unsigned char *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE);
+#if SPIFLASH_DEBUG
+		printf("[DIV: %d] %08x\n\r", lowest_div, crc_test);
+#endif
+	}
+	lowest_div++;
+	printf("SPI Flash clk configured to %d MHz\n", (spiflash_frequency_read()/(2*(1 + lowest_div)))/1000000);
+
+	spiflash_phy_clk_divisor_write(lowest_div);
+
+	return 0;
+}
+
+#else
 
 int spiflash_freq_init(void)
 {
@@ -36,6 +68,9 @@ int spiflash_freq_init(void)
 	printf("SPI Flash clk configured to %ld MHz\n", (unsigned long)(spiflash_frequency_read()/1e6));
 	return 0;
 }
+
+#endif // SPIFLASH_LEGACY
+
 void spiflash_dummy_bits_setup(unsigned int dummy_bits)
 {
 	spiflash_core_mmap_dummy_bits_write((uint32_t)dummy_bits);
