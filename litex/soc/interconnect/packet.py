@@ -411,7 +411,7 @@ class PacketFIFO(Module):
 
         # Connect FIFOs to Source.
         self.comb += [
-            param_fifo.source.connect(source,   omit={"last",  "ready"}),
+            param_fifo.source.connect(source,   omit={"last",  "ready", "dummy"}),
             payload_fifo.source.connect(source, omit={"valid", "ready"}),
             param_fifo.source.ready.eq(  source.valid & source.last & source.ready),
             payload_fifo.source.ready.eq(source.valid &               source.ready),
