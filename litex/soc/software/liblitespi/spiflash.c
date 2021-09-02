@@ -30,7 +30,7 @@ int spiflash_freq_init(void)
 
 	/* Check if block is erased (filled with 0xFF) */
 	if(crc == CRC32_ERASED_FLASH) {
-		printf("Block of size %d, started on address 0x%lx is erased. Cannot proceed with SPI Flash frequency test.\n\r", SPI_FLASH_BLOCK_SIZE, SPIFLASH_BASE);
+		printf("First SPI Flash block erased, unable to perform freq test.\n\r");
 		return -1;
 	}
 
