@@ -155,7 +155,10 @@ class ConnectorManager:
         r = []
         for identifier in identifiers:
             if ":" in identifier:
-                conn, pn = identifier.split(":")
+                try:
+                    conn, pn = identifier.split(":")
+                except ValueError as err:
+                    raise ValueError(f"\"{identifier}\" {err}") from err
                 if pn.isdigit():
                     pn = int(pn)
 
