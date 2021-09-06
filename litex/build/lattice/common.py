@@ -298,6 +298,23 @@ class LatticeNXDDROutput:
     def lower(dr):
         return LatticeNXDDROutputImpl(dr.i1, dr.i2, dr.o, dr.clk)
 
+# NX DDR Tristate ------------------------------------------------------------------------------------
+
+class LatticeNXDDRTristateImpl(Module):
+    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk):
+        _o  = Signal()
+        _oe = Signal()
+        _i  = Signal()
+        self.specials += DDROutput(i1, i2, _o, clk)
+        self.specials += SDROutput(oe1|oe2, _oe, clk)
+        self.specials += DDRInput(_i, o1, o2, clk)
+        self.specials += Tristate(io, _o, _oe, _i)
+
+class LatticeNXDDRTristate:
+    @staticmethod
+    def lower(dr):
+        return LatticeNXDDRTristateImpl(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk)
+
 # NX Special Overrides -----------------------------------------------------------------------------
 
 lattice_NX_special_overrides = {
@@ -306,6 +323,7 @@ lattice_NX_special_overrides = {
     SDROutput:              LatticeNXSDROutput,
     DDRInput:               LatticeNXDDRInput,
     DDROutput:              LatticeNXDDROutput,
+    DDRTristate:            LatticeNXDDRTristate,
 }
 
 lattice_NX_special_overrides_for_oxide = dict(lattice_NX_special_overrides)
