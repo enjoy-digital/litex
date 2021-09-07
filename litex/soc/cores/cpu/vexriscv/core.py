@@ -336,6 +336,12 @@ class VexRiscv(CPU, AutoCSR):
             soc.bus.add_slave("vexriscv_debug", self.debug_bus, region=soc_region_cls(
                 origin=soc.mem_map.get("vexriscv_debug"), size=0x100, cached=False))
 
+        base_variant = str(self.variant.split('+')[0])
+        if base_variant == "lite" or base_variant == "minimal":
+            soc.add_config("CPU_NO_DCACHE")
+        if base_variant == "minimal":
+            soc.add_config("CPU_NO_ICACHE")
+
     def use_external_variant(self, variant_filename):
         self.external_variant = True
         self.platform.add_source(variant_filename)
