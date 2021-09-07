@@ -1491,7 +1491,7 @@ class LiteXSoC(SoC):
             self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk, eth_tx_clk)
 
     # Add SPI Flash --------------------------------------------------------------------------------
-    def add_spi_flash(self, name="spiflash", mode="4x", dummy_cycles=None, clk_freq=None, module=None, init=None, clock_domain="sys", **kwargs):
+    def add_spi_flash(self, name="spiflash", mode="4x", dummy_cycles=None, clk_freq=None, module=None, phy=None, **kwargs):
         if module is None:
             # Use previous LiteX SPI Flash core with compat, will be deprecated at some point.
             from litex.compat.soc_add_spi_flash import add_spi_flash
@@ -1500,37 +1500,33 @@ class LiteXSoC(SoC):
         else:
             # Imports.
             from litespi import LiteSPI
+            from litespi.phy.generic import LiteSPIPHY
             from litespi.opcodes import SpiNorFlashOpCodes
 
             # Checks/Parameters.
             assert mode in ["1x", "4x"]
             if clk_freq is None: clk_freq = self.sys_clk_freq
 
+            # PHY.
+            spiflash_phy = phy
+            if spiflash_phy is None:
+                self.check_if_exists(name + "_phy")
+                spiflash_pads = self.platform.request(name if mode == "1x" else name + mode)
+                spiflash_phy = LiteSPIPHY(spiflash_pads, module, device=self.platform.device, default_divisor=int(self.sys_clk_freq/clk_freq))
+                setattr(self.submodules, name + "_phy",  spiflash_phy)
+
             # Core.
-            self.check_if_exists(name + "_phy")
             self.check_if_exists(name + "_mmap")
-            spiflash_pads   = self.platform.request(name if mode == "1x" else name + mode)
-            if init is None:
-                from litespi.phy.generic import LiteSPIPHY
-                if not hasattr(spiflash_pads, "clk") or self.platform.device.startswith("LFE5U") or self.platform.device.startswith("LAE5U"):
-                    spiflash_phy = LiteSPIPHY(spiflash_pads, module, clock_domain=clock_domain, device=self.platform.device, default_divisor=int(self.sys_clk_freq/clk_freq), legacy=True)
-                    self.add_constant("SPIFLASH_LEGACY")
-                else:
-                    spiflash_phy = LiteSPIPHY(spiflash_pads, module, clock_domain=clock_domain, device=self.platform.device, legacy=False)
-            else:
-                from litespi.phy.model import LiteSPIPHYModel
-                spiflash_phy = LiteSPIPHYModel(module, init=init, clock_domain=clock_domain)
-            spiflash_core   = LiteSPI(spiflash_phy, clock_domain=clock_domain, mmap_endianness=self.cpu.endianness, **kwargs)
-            setattr(self.submodules, name + "_phy",  spiflash_phy)
+            spiflash_core = LiteSPI(spiflash_phy, mmap_endianness=self.cpu.endianness, **kwargs)
             setattr(self.submodules, name + "_core", spiflash_core)
             spiflash_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size)
             self.bus.add_slave(name=name, slave=spiflash_core.bus, region=spiflash_region)
 
             # Constants.
-            self.add_constant("SPIFLASH_FREQUENCY",         clk_freq)
-            self.add_constant("SPIFLASH_MODULE_NAME",       module.name.upper())
+            self.add_constant("SPIFLASH_PHY_FREQUENCY", clk_freq)
+            self.add_constant("SPIFLASH_MODULE_NAME", module.name.upper())
             self.add_constant("SPIFLASH_MODULE_TOTAL_SIZE", module.total_size)
-            self.add_constant("SPIFLASH_MODULE_PAGE_SIZE",  module.page_size)
+            self.add_constant("SPIFLASH_MODULE_PAGE_SIZE", module.page_size)
             if SpiNorFlashOpCodes.READ_1_1_4 in module.supported_opcodes:
                 self.add_constant("SPIFLASH_MODULE_QUAD_CAPABLE")
             if SpiNorFlashOpCodes.READ_4_4_4 in module.supported_opcodes:
