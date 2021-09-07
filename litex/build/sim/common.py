@@ -14,7 +14,7 @@ class SimDDROutputImpl(Module):
             i_clk = clk
         )
 
-class SimDDROutput
+class SimDDROutput:
     @staticmethod
     def lower(dr):
         return SimDDROutputImpl(dr.o, dr.i1, dr.i2, dr.clk)
