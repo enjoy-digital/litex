@@ -135,6 +135,7 @@ class VexRiscv(CPU, AutoCSR):
 
         # # #
 
+        # CPU Instance.
         self.cpu_params = dict(
             i_clk                    = ClockSignal("sys"),
             i_reset                  = ResetSignal("sys") | self.reset,
@@ -168,9 +169,11 @@ class VexRiscv(CPU, AutoCSR):
             i_dBusWishbone_ERR      = dbus.err
         )
 
+        # Add Timer (Optional).
         if with_timer:
             self.add_timer()
 
+        # Add Debug (Optional).
         if "debug" in variant:
             self.add_debug()
 
@@ -332,15 +335,24 @@ class VexRiscv(CPU, AutoCSR):
         platform.add_source(os.path.join(vdir, cpu_filename))
 
     def add_soc_components(self, soc, soc_region_cls):
+        # Connect Debug interface to SoC.
         if "debug" in self.variant:
-            soc.bus.add_slave("vexriscv_debug", self.debug_bus, region=soc_region_cls(
-                origin=soc.mem_map.get("vexriscv_debug"), size=0x100, cached=False))
+            soc.bus.add_slave("vexriscv_debug", self.debug_bus, region=
+                soc_region_cls(
+                    origin = soc.mem_map.get("vexriscv_debug"),
+                    size   = 0x100,
+                    cached = False
+                )
+            )
 
+        # Pass I/D Caches info to software.
         base_variant = str(self.variant.split('+')[0])
-        if base_variant == "lite" or base_variant == "minimal":
-            soc.add_config("CPU_NO_DCACHE")
-        if base_variant == "minimal":
-            soc.add_config("CPU_NO_ICACHE")
+        # DCACHE is present on all variants except minimal and lite.
+        if not base_variant in ["minimal", "lite"]:
+            soc.add_config("CPU_HAS_DCACHE")
+        # ICACHE is present on all variants except minimal.
+        if not base_variant in ["minimal"]:
+            soc.add_config("CPU_HAS_ICACHE")
 
     def use_external_variant(self, variant_filename):
         self.external_variant = True
