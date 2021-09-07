@@ -1491,7 +1491,7 @@ class LiteXSoC(SoC):
             self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk, eth_tx_clk)
 
     # Add SPI Flash --------------------------------------------------------------------------------
-    def add_spi_flash(self, name="spiflash", mode="4x", dummy_cycles=None, clk_freq=None, module=None, phy=None, **kwargs):
+    def add_spi_flash(self, name="spiflash", mode="4x", dummy_cycles=None, clk_freq=None, module=None, phy=None, rate="1:1", **kwargs):
         if module is None:
             # Use previous LiteX SPI Flash core with compat, will be deprecated at some point.
             from litex.compat.soc_add_spi_flash import add_spi_flash
@@ -1512,7 +1512,7 @@ class LiteXSoC(SoC):
             if spiflash_phy is None:
                 self.check_if_exists(name + "_phy")
                 spiflash_pads = self.platform.request(name if mode == "1x" else name + mode)
-                spiflash_phy = LiteSPIPHY(spiflash_pads, module, device=self.platform.device, default_divisor=int(self.sys_clk_freq/clk_freq))
+                spiflash_phy = LiteSPIPHY(spiflash_pads, module, device=self.platform.device, default_divisor=int(self.sys_clk_freq/clk_freq), rate=rate)
                 setattr(self.submodules, name + "_phy",  spiflash_phy)
 
             # Core.
