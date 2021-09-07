@@ -115,7 +115,7 @@ class SimSoC(SoCCore):
         self.submodules.crg = CRG(platform.request("sys_clk"))
 
         # SDRAM ------------------------------------------------------------------------------------
-        if with_sdram:
+        if not self.integrated_main_ram_size and with_sdram:
             sdram_clk_freq = int(100e6) # FIXME: use 100MHz timings
             if sdram_spd_data is None:
                 sdram_module_cls = getattr(litedram_modules, sdram_module)
@@ -319,28 +319,34 @@ def main():
     # Configuration --------------------------------------------------------------------------------
 
     cpu = CPUS.get(soc_kwargs.get("cpu_type", "vexriscv"))
+
+    # UART.
     if soc_kwargs["uart_name"] == "serial":
         soc_kwargs["uart_name"] = "sim"
         sim_config.add_module("serial2console", "serial")
+
+    # ROM.
     if args.rom_init:
         soc_kwargs["integrated_rom_init"] = get_mem_data(args.rom_init, cpu.endianness)
-    if not args.with_sdram:
-#configure main ram size from command line argument
-        soc_kwargs["integrated_main_ram_size"] = args.integrated_main_ram_size 
+
+    # RAM / SDRAM.
+    soc_kwargs["integrated_main_ram_size"] = args.integrated_main_ram_size
+    if args.integrated_main_ram_size:
         if args.ram_init is not None:
             soc_kwargs["integrated_main_ram_init"] = get_mem_data(args.ram_init, cpu.endianness)
-    else:
+    elif args.with_sdram:
         assert args.ram_init is None
-        soc_kwargs["integrated_main_ram_size"] = 0x0
-        soc_kwargs["sdram_module"]             = args.sdram_module
-        soc_kwargs["sdram_data_width"]         = int(args.sdram_data_width)
-        soc_kwargs["sdram_verbosity"]          = int(args.sdram_verbosity)
+        soc_kwargs["sdram_module"]     = args.sdram_module
+        soc_kwargs["sdram_data_width"] = int(args.sdram_data_width)
+        soc_kwargs["sdram_verbosity"]  = int(args.sdram_verbosity)
         if args.sdram_from_spd_dump:
             soc_kwargs["sdram_spd_data"] = parse_spd_hexdump(args.sdram_from_spd_dump)
 
+    # Ethernet.
     if args.with_ethernet or args.with_etherbone:
         sim_config.add_module("ethernet", "eth", args={"interface": "tap0", "ip": args.remote_ip})
 
+    # I2C.
     if args.with_i2c:
         sim_config.add_module("spdeeprom", "i2c")
 
