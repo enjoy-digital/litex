@@ -31,8 +31,11 @@ class RemoteClient(EtherboneIPC, CSRBuilder):
             csr_data_width = 32
         self.host         = host
         self.port         = port
-        self.base_address = base_address
         self.debug        = debug
+        if base_address is not None:
+            self.base_address = base_address
+        else:
+            self.base_address = 0
 
     def open(self):
         if hasattr(self, "socket"):
