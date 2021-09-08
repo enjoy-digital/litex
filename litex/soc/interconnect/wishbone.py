@@ -6,6 +6,8 @@
 # Copyright (c) 2018 Tim 'mithro' Ansell <me@mith.ro>
 # SPDX-License-Identifier: BSD-2-Clause
 
+"""Wishbone Classic support for LiteX (Standard HandShaking/Synchronous Feedback)"""
+
 from math import log2
 
 from functools import reduce
