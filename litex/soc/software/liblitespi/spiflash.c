@@ -93,6 +93,14 @@ static void spiflash_master_write(uint32_t val, size_t len, size_t width, uint32
 
 #endif
 
+void spiflash_memspeed(void) {
+	/* Test Sequential Read accesses */
+	memspeed((unsigned int *) SPIFLASH_BASE, 4096, 1, 0);
+
+	/* Test Random Read accesses */
+	memspeed((unsigned int *) SPIFLASH_BASE, 4096, 1, 1);
+}
+
 void spiflash_init(void)
 {
 	printf("\nInitializing %s SPI Flash @0x%08lx...\n", SPIFLASH_MODULE_NAME, SPIFLASH_BASE);
@@ -123,8 +131,8 @@ void spiflash_init(void)
 	spiflash_freq_init();
 #endif
 
-	memspeed((unsigned int *) SPIFLASH_BASE, SPIFLASH_SIZE/16, 1, 0);
-	memspeed((unsigned int *) SPIFLASH_BASE, SPIFLASH_SIZE/16, 1, 1);
+	/* Test SPI Flash speed */
+	spiflash_memspeed();
 }
 
 #endif
