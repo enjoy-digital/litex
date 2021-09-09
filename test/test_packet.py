@@ -39,7 +39,7 @@ def raw_description(dw):
 
 
 class TestPacket(unittest.TestCase):
-    def loopback_test(self, dw, seed=42, with_last_be=False):
+    def loopback_test(self, dw, seed=42, with_last_be=False, debug_print=False):
         prng = random.Random(seed)
         # Prepare packets
         npackets = 8
@@ -72,6 +72,7 @@ class TestPacket(unittest.TestCase):
                     dut.sink,
                     src=packets,
                     seed=seed,
+                    debug_print=debug_print,
                     valid_rand=50,
                 ),
                 stream_collector(
@@ -79,6 +80,7 @@ class TestPacket(unittest.TestCase):
                     dest=recvd_packets,
                     expect_npackets=npackets,
                     seed=seed,
+                    debug_print=debug_print,
                     ready_rand=50,
                 ),
             ],
