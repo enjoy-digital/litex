@@ -39,7 +39,7 @@ def raw_description(dw):
 
 
 class TestPacket(unittest.TestCase):
-    def loopback_test(self, dw, seed=42):
+    def loopback_test(self, dw, seed=42, with_last_be=False):
         prng = random.Random(seed)
         # Prepare packets
         npackets = 8
@@ -83,16 +83,28 @@ class TestPacket(unittest.TestCase):
                 ),
             ],
         )
+
+        # When we don't have a last_be signal, the Packetizer will
+        # simply throw away the partial bus word. The Depacketizer
+        # will then fill up these values with garbage again. Thus we
+        # also have to remove the proper amount of bytes from the sent
+        # packets so the comparison will work.
+        if not with_last_be and dw != 8:
+            for (packet, recvd_packet) in zip(packets, recvd_packets):
+                invalid_recvd_bytes = packet_header_length % (dw // 8)
+                recvd_packet.data = recvd_packet.data[:-invalid_recvd_bytes]
+                packet.data = packet.data[:len(recvd_packet.data)]
+
         self.assertTrue(compare_packets(packets, recvd_packets))
 
     def test_8bit_loopback(self):
         self.loopback_test(dw=8)
 
-    # def test_32bit_loopback(self):
-    #     self.loopback_test(dw=32)
+    def test_32bit_loopback(self):
+        self.loopback_test(dw=32)
 
-    # def test_64bit_loopback(self):
-    #     self.loopback_test(dw=64)
+    def test_64bit_loopback(self):
+        self.loopback_test(dw=64)
 
-    # def test_128bit_loopback(self):
-    #     self.loopback_test(dw=128)
+    def test_128bit_loopback(self):
+        self.loopback_test(dw=128)
