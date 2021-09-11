@@ -57,7 +57,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, polling=Fa
             bootargs = "mem={main_ram_size_mb}M@0x{main_ram_base:x} {console} {rootfs} init=/sbin/init swiotlb=32";""".format(
     main_ram_base      = d["memories"]["main_ram"]["base"],
     main_ram_size_mb   = d["memories"]["main_ram"]["size"] // mB,
-    console            = "console=liteuart earlycon=sbi",
+    console            = "console=liteuart earlycon=liteuart,0x{:x}".format(d["csr_bases"]["uart"]),
     rootfs             = "rootwait root=/dev/ram0")
 
     if initrd_enabled is True:
