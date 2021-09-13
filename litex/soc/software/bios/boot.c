@@ -29,6 +29,7 @@
 
 #include <libliteeth/udp.h>
 #include <libliteeth/tftp.h>
+#include <libliteeth/dhcp_client.h>
 
 #include <liblitesdcard/spisdcard.h>
 #include <liblitesdcard/sdcard.h>
@@ -398,6 +399,15 @@ void set_mac_addr(const char * mac_address)
 		udp_set_mac(macadr);
 		printf("MAC address : %x:%x:%x:%x:%x:%x", macadr[0], macadr[1], macadr[2], macadr[3], macadr[4], macadr[5]);
 	}
+}
+
+#endif
+
+#ifdef ETH_WITH_DHCP
+
+void dhcp_get_ip(void)
+{
+        dhcp_resolve(macadr);
 }
 
 #endif
