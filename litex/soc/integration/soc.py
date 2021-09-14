@@ -233,13 +233,17 @@ class SoCBusHandler(Module):
         for _, search_region in search_regions.items():
             origin = search_region.origin
             while (origin + size) < (search_region.origin + search_region.size_pow2):
+                # Align Origin on Size.
+                if (origin%size):
+                    origin += (origin - origin%size)
+                    continue
                 # Create a Candidate.
                 candidate = SoCRegion(origin=origin, size=size, cached=cached)
                 overlap   = False
                 # Check Candidate does not overlap with allocated existing regions.
                 for _, allocated in self.regions.items():
                     if self.check_regions_overlap({"0": allocated, "1": candidate}) is not None:
-                        origin  = allocated.origin + allocated.size_pow2
+                        origin += size
                         overlap = True
                         break
                 if not overlap:
