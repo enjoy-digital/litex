@@ -121,6 +121,15 @@ class TestClock(unittest.TestCase):
         pll.expose_dpa()
         pll.compute_config()
 
+        # Test corner cases that have historically had trouble:
+        pll = ECP5PLL()
+        pll.register_clkin(Signal(), 100e6)
+        pll.create_clkout(ClockDomain("clkout1"), 350e6)
+        pll.create_clkout(ClockDomain("clkout2"), 350e6)
+        pll.create_clkout(ClockDomain("clkout3"), 175e6)
+        pll.create_clkout(ClockDomain("clkout4"), 175e6)
+        pll.compute_config()
+
     # Lattice / NX
     def test_nxpll(self):
         pll = NXPLL()
