@@ -97,6 +97,9 @@ class ECP5PLL(Module):
                                     break
                             if not valid:
                                 all_valid = False
+                        if self.nclkouts == self.nclkouts_max and not config["clkfb"]:
+                            # If there is no output suitable for feedback and no spare, not valid
+                            all_valid = False
                     else:
                         all_valid = False
                     if all_valid:
