@@ -162,4 +162,6 @@ class ECP5PLL(Module):
             self.params[f"p_CLKO{n_to_l[n]}_FPHASE"] = 0
             self.params[f"p_CLKO{n_to_l[n]}_CPHASE"] = cphase
             self.params[f"o_CLKO{n_to_l[n]}"]        = clk
+            if f > 0:  # i.e. not a feedback-only clock
+                self.params["attr"].append((f"FREQUENCY_PIN_CLKO{n_to_l[n]}", str(f/1e6)))
         self.specials += Instance("EHXPLLL", **self.params)
