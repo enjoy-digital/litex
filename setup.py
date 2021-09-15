@@ -48,6 +48,7 @@ setup(
             "litex_json2dts_zephyr=litex.tools.litex_json2dts_zephyr:main",
             "litex_json2renode=litex.tools.litex_json2renode:main",
             "litex_bare_metal_demo=litex.soc.software.demo.demo:main",
+            "litex_contributors=litex.tools.litex_contributors:main",
             # short names
             "lxterm=litex.tools.litex_term:main",
             "lxserver=litex.tools.litex_server:main",
