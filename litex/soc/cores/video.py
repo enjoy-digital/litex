@@ -930,7 +930,7 @@ class VideoS7GTPHDMIPHY(Module):
 # HDMI (Lattice ECP5).
 
 class VideoECP5HDMIPHY(Module):
-    def __init__(self, pads, clock_domain="sys"):
+    def __init__(self, pads, clock_domain="sys", pn_swap=[]):
         self.sink = sink = stream.Endpoint(video_data_layout)
 
         # # #
@@ -952,9 +952,10 @@ class VideoECP5HDMIPHY(Module):
             self.comb += encoder.de.eq(sink.de)
 
             # 10:1 Serialization + Pseudo Differential Signaling.
-            c2d   = {"r": 0, "g": 1, "b": 2}
+            c2d  = {"r": 0, "g": 1, "b": 2}
+            data = encoder.out if color not in pn_swap else ~encoder.out
             serializer = VideoHDMI10to1Serializer(
-                data_i       = encoder.out,
+                data_i       = data,
                 data_o       = getattr(pads, f"data{c2d[color]}_p"),
                 clock_domain = clock_domain,
             )
