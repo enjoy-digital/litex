@@ -1,0 +1,1 @@
+from litex.build.efinix.programmer import EfinixProgrammer
