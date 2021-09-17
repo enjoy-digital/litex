@@ -87,7 +87,7 @@ else:
 from litex import RemoteClient
 
 class BridgeUART:
-    def __init__(self, name="uart_xover", host="localhost", base_address=None, csr_csv=None): # FIXME: add command line arguments
+    def __init__(self, name="uart_xover", host="localhost", base_address=None, csr_csv=None):
         self.bus = RemoteClient(host=host, base_address=base_address, csr_csv=csr_csv)
         present = False
         for k, v in self.bus.regs.d.items():
@@ -97,7 +97,7 @@ class BridgeUART:
         if not present:
             raise ValueError(f"CrossoverUART {name} not present in design.")
 
-        # On PCIe designs, CSR is remapped to 0 to limit BAR0 size.
+        # FIXME: On PCIe designs, CSR is remapped to 0 to limit BAR0 size.
         if base_address is None and hasattr(self.bus.bases, "pcie_phy"):
             self.bus.base_address = -self.bus.mems.csr.base
 
@@ -544,7 +544,7 @@ def _get_args():
     parser.add_argument("--kernel-adr",   default="0x40000000",               help="Kernel address")
     parser.add_argument("--images",       default=None,                       help="JSON description of the images to load to memory")
 
-    parser.add_argument("--csr-csv",      default=None,                       help="SoC mapping file")
+    parser.add_argument("--csr-csv",      default=None,                       help="SoC CSV file")
     parser.add_argument("--base-address", default=None,                       help="CSR base address")
     parser.add_argument("--bridge-name",  default="uart_xover",               help="Bridge UART name to use (present in design/csr.csv)")
 
@@ -561,11 +561,8 @@ def main():
         if args.port in ["bridge", "jtag"]:
             raise NotImplementedError
     if args.port in ["bridge", "crossover"]: # FIXME: 2021-02-18, crossover for retro-compatibility remove and update targets?
-        if args.base_address is not None:
-            base_address = int(args.base_address)
-        else:
-            base_address = None
-        bridge = BridgeUART(base_address=base_address,csr_csv=args.csr_csv,name=args.bridge_name)
+        base_address = None if args.base_address is None else int(args.base_address)
+        bridge = BridgeUART(base_address=base_address, csr_csv=args.csr_csv, name=args.bridge_name)
         bridge.open()
         port = os.ttyname(bridge.name)
     elif args.port in ["jtag"]:
