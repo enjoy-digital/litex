@@ -2,6 +2,10 @@
 .global isr
 .global _start
 
+.global smp_ap_args
+.global smp_ap_target
+.global smp_ap_ready
+
 _start:
   j crt_init
   nop
@@ -54,8 +58,26 @@ trap_entry:
 
 crt_init:
   la sp, _fstack
+  sd zero, smp_ap_ready, t0
   la t0, trap_entry
   csrw mtvec, t0
+
+smp_select_bp:
+  csrr a0, mhartid
+  beqz a0, data_init  // hart 0 is bp, everyone else is ap
+
+smp_ap_loop:
+  ld t0, smp_ap_ready
+  beqz t0, smp_ap_loop
+smp_ap_boot:
+  fence r, r
+  fence.i  // i$ flush
+  ld a0, smp_ap_args     // hart ID (but next-stage loads its own)
+  ld a1, smp_ap_args+8   // DTB pointer (if provded by litex bios)
+  ld a2, smp_ap_args+16
+  ld a3, smp_ap_target
+  jr a3
+smp_ap_done:
 
 data_init:
   la t0, _fdata
@@ -88,3 +110,13 @@ bss_done:
   call main
 inf_loop:
   j inf_loop
+
+.bss
+smp_ap_args:
+  .dword 0
+  .dword 0
+  .dword 0
+smp_ap_target:
+  .dword 0
+smp_ap_ready:
+  .dword 0
