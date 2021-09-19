@@ -1,4 +1,4 @@
 .section    .text, "ax", @progbits
-.global     boot_helper
+.global boot_helper
 boot_helper:
-	jr x13
+  jr a3

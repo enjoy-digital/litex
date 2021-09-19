@@ -54,36 +54,36 @@ trap_entry:
 
 crt_init:
   la sp, _fstack
-  la a0, trap_entry
-  csrw mtvec, a0
+  la t0, trap_entry
+  csrw mtvec, t0
 
 data_init:
-  la a0, _fdata
-  la a1, _edata
-  la a2, _fdata_rom
+  la t0, _fdata
+  la t1, _edata
+  la t2, _fdata_rom
 data_loop:
-  beq a0,a1,data_done
-  ld a3,0(a2)
-  sd a3,0(a0)
-  add a0,a0,8
-  add a2,a2,8
+  beq t0,t1,data_done
+  ld t3,0(t2)
+  sd t3,0(t0)
+  add t0,t0,8
+  add t2,t2,8
   j data_loop
 data_done:
 
 bss_init:
-  la a0, _fbss
-  la a1, _ebss
+  la t0, _fbss
+  la t1, _ebss
 bss_loop:
-  beq a0,a1,bss_done
-  sd zero,0(a0)
-  add a0,a0,8
+  beq t0,t1,bss_done
+  sd zero,0(t0)
+  add t0,t0,8
   j bss_loop
 bss_done:
 
   call plic_init // initialize external interrupt controller
-  li a0, 0x800   // external interrupt sources only (using LiteX timer);
+  li t0, 0x800   // external interrupt sources only (using LiteX timer);
                  // NOTE: must still enable mstatus.MIE!
-  csrw mie,a0
+  csrw mie,t0
 
   call main
 inf_loop:
