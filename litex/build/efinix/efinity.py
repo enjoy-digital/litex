@@ -13,8 +13,10 @@ import sys
 import site
 import subprocess
 import inspect
+import datetime
 
-from lxml import etree
+from xml.dom import expatbuilder
+import xml.etree.ElementTree as et
 
 from litex.build.generic_platform import *
 
@@ -198,62 +200,70 @@ def _build_peri(efinity_path, build_name, partnumber, named_sc, named_pc, fragme
 
 def _build_xml(name, partnumber, build_name, sources, additional_xml_commands):
 
-    test  = '<project xmlns:efx="http://www.efinixinc.com/enf_proj"'
-    test += ' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
-    test += ' name="{}"'.format(name)
-    test += ' description=""'
-    test += ' last_change_date="mer. sept. 15 2021 12:04:56"'
-    test += ' location="{}"'.format(pathlib.Path().resolve())
-    test += ' sw_version="2021.1.165.2.19"'
-    test += ' last_run_state="" last_run_tool="" last_run_flow=""'
-    test += ' config_result_in_sync="sync" design_ood="sync" place_ood="sync" route_ood="sync"'
-    test += ' xsi:schemaLocation="http://www.efinixinc.com/enf_proj enf_proj.xsd"'
-    test += '/>'
+    root = et.Element('efx:project')
 
-    root = etree.XML(test)
+    now = datetime.datetime.now()
+    date_str = " Date: " + now.strftime("%Y-%m-%d %H:%M") + " "
 
-    device_info  = etree.SubElement(root, "device_info")
-    etree.SubElement(device_info, "family", name = "Trion")
-    etree.SubElement(device_info, "device", name = partnumber)
-    etree.SubElement(device_info, "timing_model", name = "C4")
+    # Add the required attributes
+    root.attrib['xmlns:efx'] = 'http://www.efinixinc.com/enf_proj'
+    root.attrib['xmlns:xsi'] = "http://www.w3.org/2001/XMLSchema-instance"
+    root.attrib['name'] = name
+    root.attrib['description'] = ''
+    root.attrib['last_change_date'] = date_str
+    root.attrib['location'] = str(pathlib.Path().resolve())
+    root.attrib['sw_version'] = '2021.1.165.2.19' # TODO: read it from sw_version.txt
+    root.attrib['last_run_state'] = ''
+    root.attrib['last_run_tool'] = ''
+    root.attrib['last_run_flow'] = ''
+    root.attrib['config_result_in_sync'] = 'sync'
+    root.attrib['design_ood'] = 'sync'
+    root.attrib['place_ood'] = 'sync'
+    root.attrib['route_ood'] = 'sync'
+    root.attrib['xsi:schemaLocation'] = 'http://www.efinixinc.com/enf_proj enf_proj.xsd'
 
-    design_info  = etree.SubElement(root, "design_info")
-    etree.SubElement(design_info, "top_module", name = build_name)
+    device_info = et.SubElement(root, 'efx:device_info')
+    et.SubElement(device_info, 'efx:family', name = 'Trion')
+    et.SubElement(device_info, 'efx:device', name = partnumber)
+    et.SubElement(device_info, 'efx:timing_model', name = 'C4')
+
+    design_info = et.SubElement(root, 'efx:design_info')
+    et.SubElement(design_info, "efx:top_module", name = build_name)
     for filename, language, library in sources:
         val = {'name':filename, 'version':'default', 'library':'default'}
-        etree.SubElement(design_info, "design_file", val)
-    etree.SubElement(design_info, "top_vhdl_arch", name = "")
+        et.SubElement(design_info, "efx:design_file", val)
+    et.SubElement(design_info, "efx:top_vhdl_arch", name = "")
 
-    constraint_info  = etree.SubElement(root, "constraint_info")
-    etree.SubElement(constraint_info, "sdc_file", name = "{}.sdc".format(build_name))
+    constraint_info  = et.SubElement(root, "efx:constraint_info")
+    et.SubElement(constraint_info, "efx:sdc_file", name = "{}.sdc".format(build_name))
 
-    misc_info  = etree.SubElement(root, "misc_info")
-    ip_info  = etree.SubElement(root, "ip_info")
+    misc_info  = et.SubElement(root, "efx:misc_info")
+    ip_info  = et.SubElement(root, "efx:ip_info")
 
-    synthesis  = etree.SubElement(root, "synthesis", tool_name="efx_map")
+    synthesis  = et.SubElement(root, "efx:synthesis", tool_name="efx_map")
     for l in additional_xml_commands:
         if l[0] == 'efx_map':
             val = {'name':l[1], 'value':l[2], 'value_type':l[3]}
-            etree.SubElement(synthesis, "param", val)
+            et.SubElement(synthesis, "efx:param", val)
 
-    place_and_route  = etree.SubElement(root, "place_and_route", tool_name="efx_pnr")
+    place_and_route  = et.SubElement(root, "efx:place_and_route", tool_name="efx_pnr")
     for l in additional_xml_commands:
         if l[0] == 'efx_pnr':
             val = {'name':l[1], 'value':l[2], 'value_type':l[3]}
-            etree.SubElement(place_and_route, "param", val)
+            et.SubElement(place_and_route, "efx:param", val)
 
-    bitstream_generation  = etree.SubElement(root, "bitstream_generation", tool_name="efx_pgm")
+    bitstream_generation  = et.SubElement(root, "efx:bitstream_generation", tool_name="efx_pgm")
     for l in additional_xml_commands:
         if l[0] == 'efx_pgm':
             val = {'name':l[1], 'value':l[2], 'value_type':l[3]}
-            etree.SubElement(bitstream_generation, "param", val)
+            et.SubElement(bitstream_generation, "efx:param", val)
 
-    # Hack
-    output = etree.tostring(root, pretty_print=True).decode().replace('<', '<efx:')
-    output = output.replace('<efx:/', '</efx:')
+    xml_string = et.tostring(root, 'utf-8')
+    reparsed = expatbuilder.parseString(xml_string, False)
+    print_string = reparsed.toprettyxml(indent="  ")
 
     # Generate .xml
-    tools.write_to_file("{}.xml".format(build_name), output)
+    tools.write_to_file("{}.xml".format(build_name), print_string)
 
 class EfinityToolchain():
     attr_translate = {}
