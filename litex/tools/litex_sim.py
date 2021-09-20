@@ -22,6 +22,7 @@ from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
 from litex.soc.integration.soc import *
 from litex.soc.cores.bitbang import *
+from litex.soc.cores.gpio import GPIOTristate
 from litex.soc.cores.cpu import CPUS
 
 
@@ -87,6 +88,13 @@ _io = [
         Subsignal("clk",  Pins(1)),
         Subsignal("dq",   Pins(4)),
     ),
+    # Simulated tristate IO (Verilator does not support top-level
+    # tristate signals)
+    ("gpio", 0,
+        Subsignal("oe",   Pins(32)),
+        Subsignal("o",    Pins(32)),
+        Subsignal("i",    Pins(32)),
+    )
 ]
 
 # Platform -----------------------------------------------------------------------------------------
@@ -115,6 +123,7 @@ class SimSoC(SoCCore):
         with_sdcard           = False,
         with_spi_flash        = False,
         spi_flash_init        = [],
+        with_gpio             = False,
         sim_debug             = False,
         trace_reset_on        = False,
         **kwargs):
@@ -260,6 +269,11 @@ class SimSoC(SoCCore):
             self.submodules.spiflash_phy = LiteSPIPHYModel(spiflash_module, init=spi_flash_init)
             self.add_spi_flash(phy=self.spiflash_phy, mode="4x", module=spiflash_module, with_master=True)
 
+        # GPIO --------------------------------------------------------------------------------------
+        if with_gpio:
+            self.submodules.gpio = GPIOTristate(platform.request("gpio"), with_irq=True)
+            self.irq.add("gpio", use_loc_if_exists=True)
+
         # Simulation debugging ----------------------------------------------------------------------
         if sim_debug:
             platform.add_debug(self, reset=1 if trace_reset_on else 0)
@@ -325,6 +339,7 @@ def sim_args(parser):
     parser.add_argument("--with-sdcard",          action="store_true",     help="Enable SDCard support")
     parser.add_argument("--with-spi-flash",       action="store_true",     help="Enable SPI Flash (MMAPed)")
     parser.add_argument("--spi_flash-init",       default=None,            help="SPI Flash init file")
+    parser.add_argument("--with-gpio",            action="store_true",     help="Enable Tristate GPIO (32 pins)")
     parser.add_argument("--trace",                action="store_true",     help="Enable Tracing")
     parser.add_argument("--trace-fst",            action="store_true",     help="Enable FST tracing (default=VCD)")
     parser.add_argument("--trace-start",          default="0",             help="Time to start tracing (ps)")
@@ -392,6 +407,7 @@ def main():
         with_i2c       = args.with_i2c,
         with_sdcard    = args.with_sdcard,
         with_spi_flash = args.with_spi_flash,
+        with_gpio      = args.with_gpio,
         sim_debug      = args.sim_debug,
         trace_reset_on = trace_start > 0 or trace_end > 0,
         sdram_init     = [] if args.sdram_init is None else get_mem_data(args.sdram_init, cpu.endianness),
