@@ -89,7 +89,7 @@ design.create('{2}', '{3}', './../build', overwrite=True)
     def footer(self):
         return """
 # Check design, generate constraints and reports
-#design.generate(enable_bitstream=True)
+design.generate(enable_bitstream=True)
 # Save the configured periphery design
 design.save()"""
 
