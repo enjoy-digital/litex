@@ -89,6 +89,27 @@ class GowinToolchain:
         self.options = {}
         self.clocks  = dict()
 
+    def apply_hyperram_integration_hack(self, v_file):
+        # FIXME: Gowin EDA expects a very specific HypeRAM integration pattern, modify generated verilog to match it.
+
+        # Convert to vectors.
+        tools.replace_in_file(v_file, "O_hpram_reset_n", "O_hpram_reset_n[0]")
+        tools.replace_in_file(v_file, "O_hpram_cs_n",    "O_hpram_cs_n[0]")
+        tools.replace_in_file(v_file, "O_hpram_rwds",    "O_hpram_rwds[0]")
+        tools.replace_in_file(v_file, "O_hpram_ck ",     "O_hpram_ck[0] ")
+        tools.replace_in_file(v_file, "O_hpram_ck_n ",   "O_hpram_ck_n[0] ")
+        tools.replace_in_file(v_file, "O_hpram_ck,",     "O_hpram_ck[0],")
+        tools.replace_in_file(v_file, "O_hpram_ck_n,",   "O_hpram_ck_n[0],")
+        tools.replace_in_file(v_file, "wire O_hpram_reset_n[0]", "wire [0:0] O_hpram_reset_n")
+        tools.replace_in_file(v_file, "wire O_hpram_cs_n[0]",    "wire [0:0] O_hpram_cs_n")
+        tools.replace_in_file(v_file, "wire IO_hpram_rwds[0]",   "wire [0:0] IO_hpram_rwds")
+        tools.replace_in_file(v_file, "wire O_hpram_ck[0]",      "wire [0:0] O_hpram_ck")
+        tools.replace_in_file(v_file, "wire O_hpram_ck_n[0]",    "wire [0:0] O_hpram_ck_n")
+
+        # Apply Synthesis directives.
+        tools.replace_in_file(v_file, "wire [0:0] IO_hpram_rwds,", "wire [0:0] IO_hpram_rwds, /* synthesis syn_tristate = 1 */")
+        tools.replace_in_file(v_file, "wire [7:0] IO_hpram_dq,",    "wire [7:0] IO_hpram_dq,  /* synthesis syn_tristate = 1 */")
+
     def build(self, platform, fragment,
         build_dir  = "build",
         build_name = "top",
@@ -99,8 +120,8 @@ class GowinToolchain:
         cwd = os.getcwd()
         os.makedirs(build_dir, exist_ok=True)
         os.chdir(build_dir)
-
         # Finalize design
+
         if not isinstance(fragment, _Fragment):
             fragment = fragment.get_fragment()
         platform.finalize(fragment)
@@ -111,6 +132,7 @@ class GowinToolchain:
         v_file = build_name + ".v"
         v_output.write(v_file)
         platform.add_source(v_file)
+        self.apply_hyperram_integration_hack(v_file)
 
         if platform.verilog_include_paths:
             self.options["include_path"] = "{" + ";".join(platform.verilog_include_paths) + "}"
