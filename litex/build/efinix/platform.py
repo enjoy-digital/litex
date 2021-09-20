@@ -50,3 +50,20 @@ class EfinixPlatform(GenericPlatform):
         if hasattr(to, "p"):
             to = to.p
         self.toolchain.add_false_path_constraint(self, from_, to)
+
+    # TODO: fix this when pin is like p = platform.request("sdios")
+    # get_pin_location(p[1])
+    # not tested with subsignal like get_pin_location(p.clk)
+    def get_pin_location(self, sig):
+        sc = self.constraint_manager.get_sig_constraints()
+        for s, pins, others, resource in sc:
+            if s == sig:
+                return pins[0]
+        return None
+
+    def get_pin_name(self, sig):
+        sc = self.constraint_manager.get_sig_constraints()
+        for s, pins, others, resource in sc:
+            if s == sig:
+                return resource[0]
+        return None
