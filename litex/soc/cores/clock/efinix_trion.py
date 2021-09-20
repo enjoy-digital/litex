@@ -22,13 +22,15 @@ count = 0
 
 class TRIONPLL(Module):
     nclkouts_max = 4
-    def __init__(self, platform):
+    def __init__(self, platform, with_reset=False):
         global count
         self.logger = logging.getLogger("TRIONPLL")
         self.logger.info("Creating TRIONPLL.".format())
         self.platform   = platform
         self.nclkouts   = 0
         self.pll_name   = "pll{}".format(count)
+        self.reset      = Signal()
+        self.locked     = Signal()
 
         block = {}
         count += 1
@@ -36,6 +38,18 @@ class TRIONPLL(Module):
         block['type'] = 'PLL'
         block['name'] = self.pll_name
         block['clk_out'] = []
+
+        pll_locked_name = self.pll_name + '_locked'
+        block['locked'] = pll_locked_name
+        io = self.platform.add_iface_io(pll_locked_name)
+        self.comb += self.locked.eq(io)
+
+        block['reset'] = ''
+        if with_reset:
+            pll_reset_name = self.pll_name + '_reset'
+            block['reset'] = pll_reset_name
+            io = self.platform.add_iface_io(pll_reset_name)
+            self.comb += io.eq(self.reset)
 
         self.platform.toolchain.ifacewriter.blocks.append(block)
 
@@ -72,6 +86,9 @@ class TRIONPLL(Module):
 
         self.platform.add_extension([(clk_out_name, 0, Pins(1))])
         tmp = self.platform.request(clk_out_name)
+
+        if with_reset:
+            self.specials += AsyncResetSynchronizer(cd, ~self.locked)
 
         # We don't want this IO to be in the interface configuration file as a simple GPIO
         self.platform.toolchain.specials_gpios.append(tmp)

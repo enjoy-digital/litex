@@ -7,7 +7,7 @@
 
 import os
 
-from litex.build.generic_platform import GenericPlatform
+from litex.build.generic_platform import *
 from litex.build.efinix import common, efinity
 
 # EfinixPlatform -----------------------------------------------------------------------------------
@@ -67,3 +67,10 @@ class EfinixPlatform(GenericPlatform):
             if s == sig:
                 return resource[0]
         return None
+
+    def add_iface_io(self, name, size=1):
+        self.add_extension([(name, 0, Pins(size))])
+        tmp = self.request(name)
+        # We don't want this IO to be in the interface configuration file as a simple GPIO
+        self.toolchain.specials_gpios.append(tmp)
+        return tmp

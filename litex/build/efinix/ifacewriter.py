@@ -53,6 +53,10 @@ design.create('{2}', '{3}', './../build', overwrite=True)
         cmd += 'pll_config = {{ "REFCLK_FREQ":"{}" }}\n'.format(block['input_freq'] / 1e6)
         cmd += 'design.set_property("{}", pll_config, block_type="PLL")\n\n'.format(name)
 
+        cmd += 'design.set_property("{}","LOCKED_PIN","{}", block_type="PLL")\n'.format(name, block['locked'])
+        if block['reset'] != '':
+            cmd += 'design.set_property("{}","RSTN_PIN","{}", block_type="PLL")\n\n'.format(name, block['reset'])
+
          # Output clock 0 is enabled by default
         for i, clock in enumerate(block['clk_out']):
             if i > 0:
