@@ -108,6 +108,7 @@ def _run_script(script):
 class LatticeOxideToolchain:
     attr_translate = {
         "keep": ("keep", "true"),
+        "syn_useioff": ("syn_useioff", 1),
     }
 
     special_overrides = common.lattice_NX_special_overrides_for_oxide
