@@ -266,13 +266,14 @@ class Builder:
 
         # Create Software directory.
         # First check if software needs a full re-build and remove software dir if so.
-        software_full_rebuild  = False
-        software_variables_mak = os.path.join(self.generated_dir, "variables.mak")
-        if os.path.exists(software_variables_mak):
-            old_variables_contents = open(software_variables_mak).read()
-            new_variables_contents = self._get_variables_contents()
-            software_full_rebuild  = (old_variables_contents != new_variables_contents)
-        _create_dir(self.software_dir, remove_if_exists=software_full_rebuild)
+        if self.soc.cpu_type is not None:
+            software_full_rebuild  = False
+            software_variables_mak = os.path.join(self.generated_dir, "variables.mak")
+            if os.path.exists(software_variables_mak):
+                old_variables_contents = open(software_variables_mak).read()
+                new_variables_contents = self._get_variables_contents()
+                software_full_rebuild  = (old_variables_contents != new_variables_contents)
+            _create_dir(self.software_dir, remove_if_exists=software_full_rebuild)
 
         # Finalize the SoC.
         self.soc.finalize()
