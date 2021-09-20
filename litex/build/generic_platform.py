@@ -190,6 +190,11 @@ class ConstraintManager:
     def add_extension(self, io):
         self.available.extend(io)
 
+    def delete(self, signal):
+        for res, obj in self.matched:
+            if obj == signal:
+                self.matched.remove((res, obj))
+
     def request(self, name, number=None, loose=False):
         resource = _lookup(self.available, name, number, loose)
         if resource is None:
@@ -312,6 +317,9 @@ class GenericPlatform:
 
     def request(self, *args, **kwargs):
         return self.constraint_manager.request(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        return self.constraint_manager.delete(*args, **kwargs)
 
     def request_all(self, *args, **kwargs):
         return self.constraint_manager.request_all(*args, **kwargs)
