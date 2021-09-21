@@ -10,7 +10,7 @@ from litex.soc.interconnect import axi
 from litex.build import tools
 
 class EfinixDDR(Module):
-    def __init__(self, platform, config):
+    def __init__(self, platform, config, cd):
         self.blocks = []
         self.platform = platform
         self.config = config
@@ -19,15 +19,11 @@ class EfinixDDR(Module):
         if config['ports'] != None:
             self.nb_ports = self.config['ports']
 
-        self.clock_domains.cd_axi_ddr = ClockDomain()
-
-        self.port0 = port0 = axi.AXIInterface(data_width=256, address_width=32, id_width=8, clock_domain="axi_ddr")
+        # TODO: set clock_domain ?
+        self.port0 = port0 = axi.AXIInterface(data_width=256, address_width=32, id_width=8)
 
         if self.nb_ports == 2:
-            self.port1 = port1 = axi.AXIInterface(data_width=256, address_width=32, id_width=8, clock_domain="axi_ddr")
-
-        axi_clk = platform.add_iface_io('axi_user_clk')
-        self.cd_axi_ddr.clk.eq(axi_clk),
+            self.port1 = port1 = axi.AXIInterface(data_width=256, address_width=32, id_width=8)
 
         for i in range (0, self.nb_ports):
             ios = [('axi', i,
@@ -60,7 +56,7 @@ class EfinixDDR(Module):
             io = platform.add_iface_ios(ios)
 
             port = port0
-            if i == 0:
+            if i == 1:
                 port = port1
 
             is_read = port.ar.valid

@@ -23,7 +23,7 @@ class InterfaceWriter():
         root = tree.getroot()
         ddr_info = root.find('efxpt:ddr_info', namespaces)
 
-        et.SubElement(ddr_info, 'efxpt:ddr',
+        ddr = et.SubElement(ddr_info, 'efxpt:ddr',
                         name            = 'ddr_inst1',
                         ddr_def         = 'DDR_0',
                         cs_preset_id    = '173',
@@ -39,7 +39,7 @@ class InterfaceWriter():
         axi_suffix = ''     # '_1' for second port
         type_suffix = '_0'  # '_1' for second port
 
-        gen_pin_target0 = et.SubElement(ddr_info, 'efxpt:gen_pin_target0')
+        gen_pin_target0 = et.SubElement(ddr, 'efxpt:gen_pin_target0')
         et.SubElement(gen_pin_target0, 'efxpt:pin', name='axi_wdata{}'.format(axi_suffix),  type_name='WDATA{}'.format(type_suffix),  is_bus = 'true')
         et.SubElement(gen_pin_target0, 'efxpt:pin', name='axi_wready{}'.format(axi_suffix), type_name='WREADY{}'.format(type_suffix), is_bus = 'false')
         et.SubElement(gen_pin_target0, 'efxpt:pin', name='axi_wid{}'.format(axi_suffix),    type_name='WID{}'.format(type_suffix),    is_bus = 'true')
@@ -64,10 +64,39 @@ class InterfaceWriter():
         et.SubElement(gen_pin_target0, 'efxpt:pin', name='axi_wstrb{}'.format(axi_suffix),  type_name='WSTRB{}'.format(type_suffix),  is_bus = 'true')
         et.SubElement(gen_pin_target0, 'efxpt:pin', name='axi_aready{}'.format(axi_suffix), type_name='AREADY{}'.format(type_suffix), is_bus = 'false')
         et.SubElement(gen_pin_target0, 'efxpt:pin', name='axi_alen{}'.format(axi_suffix),   type_name='ALEN{}'.format(type_suffix),   is_bus = 'true')
+        et.SubElement(gen_pin_target0, 'efxpt:pin', name='axi_clk',                         type_name='ACLK{}'.format(type_suffix),   is_bus = 'false', is_clk = 'true', is_clk_invert = 'false')
 
-        et.SubElement(gen_pin_target0, 'efxpt:pin', name='axi_clk',  type_name='ACLK_0',   is_bus = 'false', is_clk = 'true', is_clk_invert = 'false')
+        axi_suffix = '_1'     # '_1' for second port
+        type_suffix = '_1'  # '_1' for second port
 
-        gen_pin_config = et.SubElement(ddr_info, 'efxpt:gen_pin_config')
+        gen_pin_target1 = et.SubElement(ddr, 'efxpt:gen_pin_target1')
+        et.SubElement(gen_pin_target1, 'efxpt:pin', name='axi_wdata{}'.format(axi_suffix),  type_name='WDATA{}'.format(type_suffix),  is_bus = 'true')
+        et.SubElement(gen_pin_target1, 'efxpt:pin', name='axi_wready{}'.format(axi_suffix), type_name='WREADY{}'.format(type_suffix), is_bus = 'false')
+        et.SubElement(gen_pin_target1, 'efxpt:pin', name='axi_wid{}'.format(axi_suffix),    type_name='WID{}'.format(type_suffix),    is_bus = 'true')
+        et.SubElement(gen_pin_target1, 'efxpt:pin', name='axi_bready{}'.format(axi_suffix), type_name='BREADY{}'.format(type_suffix), is_bus = 'false')
+        et.SubElement(gen_pin_target1, 'efxpt:pin', name='axi_rdata{}'.format(axi_suffix),  type_name='RDATA{}'.format(type_suffix),  is_bus = 'true')
+        et.SubElement(gen_pin_target1, 'efxpt:pin', name='axi_aid{}'.format(axi_suffix),    type_name='AID{}'.format(type_suffix),    is_bus = 'true')
+        et.SubElement(gen_pin_target1, 'efxpt:pin', name='axi_bvalid{}'.format(axi_suffix), type_name='BVALID{}'.format(type_suffix), is_bus = 'false')
+        et.SubElement(gen_pin_target1, 'efxpt:pin', name='axi_rlast{}'.format(axi_suffix),  type_name='RLAST{}'.format(type_suffix),  is_bus = 'false')
+        et.SubElement(gen_pin_target1, 'efxpt:pin', name='axi_bid{}'.format(axi_suffix),    type_name='BID{}'.format(type_suffix),    is_bus = 'true')
+        et.SubElement(gen_pin_target1, 'efxpt:pin', name='axi_asize{}'.format(axi_suffix),  type_name='ASIZE{}'.format(type_suffix),  is_bus = 'true')
+        et.SubElement(gen_pin_target1, 'efxpt:pin', name='axi_atype{}'.format(axi_suffix),  type_name='ATYPE{}'.format(type_suffix),  is_bus = 'false')
+        et.SubElement(gen_pin_target1, 'efxpt:pin', name='axi_aburst{}'.format(axi_suffix), type_name='ABURST{}'.format(type_suffix), is_bus = 'true')
+        et.SubElement(gen_pin_target1, 'efxpt:pin', name='axi_wvalid{}'.format(axi_suffix), type_name='WVALID{}'.format(type_suffix), is_bus = 'false')
+        et.SubElement(gen_pin_target1, 'efxpt:pin', name='axi_wlast{}'.format(axi_suffix),  type_name='WLAST{}'.format(type_suffix),  is_bus = 'false')
+        et.SubElement(gen_pin_target1, 'efxpt:pin', name='axi_aaddr{}'.format(axi_suffix),  type_name='AADDR{}'.format(type_suffix),  is_bus = 'true')
+        et.SubElement(gen_pin_target1, 'efxpt:pin', name='axi_rid{}'.format(axi_suffix),    type_name='RID{}'.format(type_suffix),    is_bus = 'true')
+        et.SubElement(gen_pin_target1, 'efxpt:pin', name='axi_avalid{}'.format(axi_suffix), type_name='AVALID{}'.format(type_suffix), is_bus = 'false')
+        et.SubElement(gen_pin_target1, 'efxpt:pin', name='axi_rvalid{}'.format(axi_suffix), type_name='RVALID{}'.format(type_suffix), is_bus = 'false')
+        et.SubElement(gen_pin_target1, 'efxpt:pin', name='axi_alock{}'.format(axi_suffix),  type_name='ALOCK{}'.format(type_suffix),  is_bus = 'true')
+        et.SubElement(gen_pin_target1, 'efxpt:pin', name='axi_rready{}'.format(axi_suffix), type_name='RREADY{}'.format(type_suffix), is_bus = 'false')
+        et.SubElement(gen_pin_target1, 'efxpt:pin', name='axi_rresp{}'.format(axi_suffix),  type_name='RRESP{}'.format(type_suffix),  is_bus = 'true')
+        et.SubElement(gen_pin_target1, 'efxpt:pin', name='axi_wstrb{}'.format(axi_suffix),  type_name='WSTRB{}'.format(type_suffix),  is_bus = 'true')
+        et.SubElement(gen_pin_target1, 'efxpt:pin', name='axi_aready{}'.format(axi_suffix), type_name='AREADY{}'.format(type_suffix), is_bus = 'false')
+        et.SubElement(gen_pin_target1, 'efxpt:pin', name='axi_alen{}'.format(axi_suffix),   type_name='ALEN{}'.format(type_suffix),   is_bus = 'true')
+        et.SubElement(gen_pin_target1, 'efxpt:pin', name='axi_clk',                         type_name='ACLK{}'.format(type_suffix),   is_bus = 'false', is_clk = 'true', is_clk_invert = 'false')
+
+        gen_pin_config = et.SubElement(ddr, 'efxpt:gen_pin_config')
         et.SubElement(gen_pin_config, 'efxpt:pin', name='', type_name='CFG_SEQ_RST',   is_bus = 'false')
         et.SubElement(gen_pin_config, 'efxpt:pin', name='', type_name='CFG_SCL_IN',    is_bus = 'false')
         et.SubElement(gen_pin_config, 'efxpt:pin', name='', type_name='CFG_SEQ_START', is_bus = 'false')
@@ -75,16 +104,16 @@ class InterfaceWriter():
         et.SubElement(gen_pin_config, 'efxpt:pin', name='', type_name='CFG_SDA_IN',    is_bus = 'false')
         et.SubElement(gen_pin_config, 'efxpt:pin', name='', type_name='CFG_SDA_OEN',   is_bus = 'false')
 
-        cs_fpga = et.SubElement(ddr_info, 'efxpt:cs_fpga')
+        cs_fpga = et.SubElement(ddr, 'efxpt:cs_fpga')
         et.SubElement(cs_fpga, 'efxpt:param', name='FPGA_ITERM', value='120', value_type = 'str')
         et.SubElement(cs_fpga, 'efxpt:param', name='FPGA_OTERM', value='34',  value_type = 'str')
 
-        cs_memory = et.SubElement(ddr_info, 'efxpt:cs_memory')
+        cs_memory = et.SubElement(ddr, 'efxpt:cs_memory')
         et.SubElement(cs_memory, 'efxpt:param', name='RTT_NOM',   value='RZQ/2',     value_type = 'str')
         et.SubElement(cs_memory, 'efxpt:param', name='MEM_OTERM', value='40',        value_type = 'str')
         et.SubElement(cs_memory, 'efxpt:param', name='CL',        value='RL=6/WL=3', value_type = 'str')
 
-        timing = et.SubElement(ddr_info, 'efxpt:cs_memory_timing')
+        timing = et.SubElement(ddr, 'efxpt:cs_memory_timing')
         et.SubElement(timing, 'efxpt:param', name='tRAS',  value= '42.000',  value_type='float')
         et.SubElement(timing, 'efxpt:param', name='tRC',   value= '60.000',  value_type='float')
         et.SubElement(timing, 'efxpt:param', name='tRP',   value= '18.000',  value_type='float')
@@ -96,19 +125,19 @@ class InterfaceWriter():
         et.SubElement(timing, 'efxpt:param', name='tRRD',  value= '10.000',  value_type='float')
         et.SubElement(timing, 'efxpt:param', name='tFAW',  value= '50.000',  value_type='float')
 
-        cs_control = et.SubElement(ddr_info, 'efxpt:cs_control')
+        cs_control = et.SubElement(ddr, 'efxpt:cs_control')
         et.SubElement(cs_control, 'efxpt:param', name='AMAP',             value= 'ROW-COL_HIGH-BANK-COL_LOW', value_type='str')
         et.SubElement(cs_control, 'efxpt:param', name='EN_AUTO_PWR_DN',   value= 'Off',                       value_type='str')
         et.SubElement(cs_control, 'efxpt:param', name='EN_AUTO_SELF_REF', value= 'No',                        value_type='str')
 
-        cs_gate_delay = et.SubElement(ddr_info, 'efxpt:cs_gate_delay')
-        et.SubElement(cs_control, 'efxpt:param', name='EN_DLY_OVR', value= 'No', value_type='str')
-        et.SubElement(cs_control, 'efxpt:param', name='GATE_C_DLY', value= '3',  value_type='str')
-        et.SubElement(cs_control, 'efxpt:param', name='GATE_F_DLY', value= '0',  value_type='str')
+        cs_gate_delay = et.SubElement(ddr, 'efxpt:cs_gate_delay')
+        et.SubElement(cs_gate_delay, 'efxpt:param', name='EN_DLY_OVR', value= 'No', value_type='str')
+        et.SubElement(cs_gate_delay, 'efxpt:param', name='GATE_C_DLY', value= '3',  value_type='int')
+        et.SubElement(cs_gate_delay, 'efxpt:param', name='GATE_F_DLY', value= '0',  value_type='int')
 
         xml_string = et.tostring(root, 'utf-8')
         reparsed = expatbuilder.parseString(xml_string, False)
-        print_string = reparsed.toprettyxml(indent="  ")
+        print_string = reparsed.toprettyxml(indent="    ")
 
         # Remove lines with only whitespaces. Not sure why they are here
         print_string = os.linesep.join([s for s in print_string.splitlines() if s.strip()])
@@ -170,6 +199,9 @@ design.create('{2}', '{3}', './../build', overwrite=True)
             if i > 0:
                 cmd += 'pll_config = {{ "CLKOUT{}_EN":"1", "CLKOUT{}_PIN":"{}" }}\n'.format(i, i, clock[0])
                 cmd += 'design.set_property("{}", pll_config, block_type="PLL")\n\n'.format(name)
+            else:
+                cmd += 'pll_config = {{ "CLKOUT{}_PIN":"{}" }}\n'.format(i, clock[0])
+                cmd += 'design.set_property("{}", pll_config, block_type="PLL")\n\n'.format(name)
 
         cmd += 'target_freq = {\n'
         for i, clock in enumerate(block['clk_out']):
@@ -201,7 +233,7 @@ design.create('{2}', '{3}', './../build', overwrite=True)
     def footer(self):
         return """
 # Check design, generate constraints and reports
-#design.generate(enable_bitstream=True)
+design.generate(enable_bitstream=True)
 # Save the configured periphery design
 design.save()"""
 
