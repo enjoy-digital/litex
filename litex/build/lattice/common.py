@@ -305,9 +305,9 @@ class LatticeNXDDRTristateImpl(Module):
         _o  = Signal()
         _oe = Signal()
         _i  = Signal()
-        self.specials += DDROutput(i1, i2, _o, clk)
-        self.specials += SDROutput(oe1|oe2, _oe, clk)
-        self.specials += DDRInput(_i, o1, o2, clk)
+        self.specials += DDROutput(o1, o2, _o, clk)
+        self.specials += SDROutput(oe1 | oe2, _oe, clk)
+        self.specials += DDRInput(_i, i1, i2, clk)
         self.specials += Tristate(io, _o, _oe, _i)
         _oe.attr.add("syn_useioff")
 
