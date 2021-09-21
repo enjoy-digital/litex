@@ -199,7 +199,7 @@ def _build_peri(efinity_path, build_name, partnumber, named_sc, named_pc, fragme
 
 # Project configuration ------------------------------------------------------------------------
 
-def _build_xml(name, partnumber, build_name, sources, additional_xml_commands):
+def _build_xml(partnumber, build_name, sources, additional_xml_commands):
 
     root = et.Element('efx:project')
 
@@ -209,7 +209,7 @@ def _build_xml(name, partnumber, build_name, sources, additional_xml_commands):
     # Add the required attributes
     root.attrib['xmlns:efx'] = 'http://www.efinixinc.com/enf_proj'
     root.attrib['xmlns:xsi'] = "http://www.w3.org/2001/XMLSchema-instance"
-    root.attrib['name'] = name
+    root.attrib['name'] = build_name
     root.attrib['description'] = ''
     root.attrib['last_change_date'] = date_str
     root.attrib['location'] = str(pathlib.Path().resolve())
@@ -321,7 +321,6 @@ class EfinityToolchain():
 
         # Generate project file (.xml)
         _build_xml(
-            name                    = build_name,
             partnumber              = platform.device,
             build_name              = build_name,
             sources                 = platform.sources,
