@@ -290,7 +290,6 @@ class VexRiscv(CPU, AutoCSR):
                 ("valid", 1),
                 ("ready", 1),
                 ("payload", [
-                    ("response_ok", 1),
                     ("outputs_0", 32),
                 ]),
             ]),
@@ -308,7 +307,6 @@ class VexRiscv(CPU, AutoCSR):
             i_cmd_payload_inputs_1     = cfu_bus.cmd.payload.inputs_1,
             o_rsp_valid                = cfu_bus.rsp.valid,
             i_rsp_ready                = cfu_bus.rsp.ready,
-            o_rsp_payload_response_ok  = cfu_bus.rsp.payload.response_ok,
             o_rsp_payload_outputs_0    = cfu_bus.rsp.payload.outputs_0,
             i_clk                      = ClockSignal("sys"),
             i_reset                    = ResetSignal("sys"),
@@ -324,7 +322,6 @@ class VexRiscv(CPU, AutoCSR):
             o_CfuPlugin_bus_cmd_payload_inputs_1     = cfu_bus.cmd.payload.inputs_1,
             i_CfuPlugin_bus_rsp_valid                = cfu_bus.rsp.valid,
             o_CfuPlugin_bus_rsp_ready                = cfu_bus.rsp.ready,
-            i_CfuPlugin_bus_rsp_payload_response_ok  = cfu_bus.rsp.payload.response_ok,
             i_CfuPlugin_bus_rsp_payload_outputs_0    = cfu_bus.rsp.payload.outputs_0,
         )
 
