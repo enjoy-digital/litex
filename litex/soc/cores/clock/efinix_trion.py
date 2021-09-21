@@ -79,21 +79,23 @@ class TRIONPLL(Module):
         self.logger.info("Using {}".format(pll_res))
         self.logger.info("Clock source: {}, using EXT_CLK{}".format(block['input_clock'], clock_no))
 
-    def create_clkout(self, cd, freq, phase=0, margin=1e-2, with_reset=True):
+    def create_clkout(self, cd, freq, phase=0, margin=1e-2, with_reset=False, user_clk=True):
         assert self.nclkouts < self.nclkouts_max
 
         clk_out_name = '{}_CLKOUT{}'.format(self.pll_name, self.nclkouts)
 
-        self.platform.add_extension([(clk_out_name, 0, Pins(1))])
-        tmp = self.platform.request(clk_out_name)
+        if user_clk == True:
+            self.platform.add_extension([(clk_out_name, 0, Pins(1))])
+            tmp = self.platform.request(clk_out_name)
 
-        if with_reset:
-            self.specials += AsyncResetSynchronizer(cd, ~self.locked)
+            if with_reset:
+                self.specials += AsyncResetSynchronizer(cd, ~self.locked)
 
-        # We don't want this IO to be in the interface configuration file as a simple GPIO
-        self.platform.toolchain.specials_gpios.append(tmp)
-        self.comb += cd.clk.eq(tmp)
-        create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
+            # We don't want this IO to be in the interface configuration file as a simple GPIO
+            self.platform.toolchain.specials_gpios.append(tmp)
+            self.comb += cd.clk.eq(tmp)
+            create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
+
         self.nclkouts += 1
 
         block = self.platform.toolchain.ifacewriter.get_block(self.pll_name)

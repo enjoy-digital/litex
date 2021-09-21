@@ -74,3 +74,10 @@ class EfinixPlatform(GenericPlatform):
         # We don't want this IO to be in the interface configuration file as a simple GPIO
         self.toolchain.specials_gpios.append(tmp)
         return tmp
+
+    def add_iface_ios(self, io):
+        self.add_extension(io)
+        tmp = self.request(io[0][0])
+        for s in tmp.flatten():
+            self.toolchain.specials_gpios.append(s)
+        return tmp

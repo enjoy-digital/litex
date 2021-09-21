@@ -188,6 +188,7 @@ def _build_peri(efinity_path, build_name, partnumber, named_sc, named_pc, fragme
 
     header    = platform.toolchain.ifacewriter.header(build_name, partnumber)
     gen       = platform.toolchain.ifacewriter.generate()
+    #TODO: move this to ifacewriter
     gpio      = _build_iface_gpio(named_sc, named_pc, fragment, platform, specials_gpios)
     add       = '\n'.join(additional_iface_commands)
     footer    = platform.toolchain.ifacewriter.footer()
@@ -274,7 +275,7 @@ class EfinityToolchain():
         self.efinity_path = efinity_path
         self.additional_sdc_commands = []
         self.additional_xml_commands = []
-        self.ifacewriter = InterfaceWriter("iface.py", efinity_path)
+        self.ifacewriter = InterfaceWriter(efinity_path)
         self.specials_gpios = []
         self.additional_iface_commands = []
 
@@ -337,6 +338,10 @@ class EfinityToolchain():
             platform                  = platform,
             additional_iface_commands = self.additional_iface_commands,
             specials_gpios            = self.specials_gpios)
+
+        # DDR doesn't have Python API so we need to configure it
+        # directly in the peri.xml file
+        self.ifacewriter.add_ddr_xml(build_name)
 
         # Run
         if run:
