@@ -79,10 +79,13 @@ class TRIONPLL(Module):
         self.logger.info("Using {}".format(pll_res))
         self.logger.info("Clock source: {}, using EXT_CLK{}".format(block['input_clock'], clock_no))
 
-    def create_clkout(self, cd, freq, phase=0, margin=1e-2, with_reset=False, user_clk=True):
+    def create_clkout(self, cd, freq, phase=0, margin=1e-2, name='', with_reset=False, user_clk=True):
         assert self.nclkouts < self.nclkouts_max
 
-        clk_out_name = '{}_CLKOUT{}'.format(self.pll_name, self.nclkouts)
+        if name != '':
+            clk_out_name = name
+        else:
+            clk_out_name = '{}_CLKOUT{}'.format(self.pll_name, self.nclkouts)
 
         if user_clk == True:
             self.platform.add_extension([(clk_out_name, 0, Pins(1))])
