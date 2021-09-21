@@ -10,9 +10,9 @@
 import sys
 import json
 import argparse
+import os
 
-
-def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
+def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_device=None, polling=False):
 
     kB = 1024
     mB = kB*1024
@@ -44,18 +44,35 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
     if initrd_size is None:
         initrd_size = default_initrd_size
 
+    if initrd == "enabled" or initrd is None:
+        initrd_enabled = True
+    elif initrd == "disabled":
+        initrd_enabled = False
+    else:
+        initrd_enabled = True
+        initrd_size = os.path.getsize(initrd)
+
+    if root_device is None:
+        root_device = "ram0"
+
     dts += """
         chosen {{
-            bootargs = "mem={main_ram_size_mb}M@0x{main_ram_base:x} rootwait console=liteuart earlycon=sbi root=/dev/ram0 init=/sbin/init swiotlb=32";
-            linux,initrd-start = <0x{linux_initrd_start:x}>;
-            linux,initrd-end   = <0x{linux_initrd_end:x}>;
-        }};
-""".format(
+            bootargs = "mem={main_ram_size_mb}M@0x{main_ram_base:x} {console} {rootfs} init=/sbin/init swiotlb=32";""".format(
     main_ram_base      = d["memories"]["main_ram"]["base"],
-    main_ram_size      = d["memories"]["main_ram"]["size"],
     main_ram_size_mb   = d["memories"]["main_ram"]["size"] // mB,
-    linux_initrd_start = d["memories"]["main_ram"]["base"] + initrd_start,
-    linux_initrd_end   = d["memories"]["main_ram"]["base"] + initrd_start + initrd_size)
+    console            = "console=liteuart earlycon=liteuart,0x{:x}".format(d["csr_bases"]["uart"]),
+    rootfs             = "rootwait root=/dev/{}".format(root_device))
+
+    if initrd_enabled is True:
+        dts += """
+            linux,initrd-start = <0x{linux_initrd_start:x}>;
+            linux,initrd-end   = <0x{linux_initrd_end:x}>;""".format(
+        linux_initrd_start = d["memories"]["main_ram"]["base"] + initrd_start,
+        linux_initrd_end   = d["memories"]["main_ram"]["base"] + initrd_start + initrd_size)
+
+    dts += """
+        };
+"""
 
     # CPU ------------------------------------------------------------------------------------------
 
@@ -624,10 +641,13 @@ def generate_dts(d, initrd_start=None, initrd_size=None, polling=False):
     return dts
 
 def main():
+
     parser = argparse.ArgumentParser(description="LiteX's CSR JSON to Linux DTS generator")
     parser.add_argument("csr_json", help="CSR JSON file")
     parser.add_argument("--initrd-start", type=int,            help="Location of initrd in RAM (relative, default depends on CPU)")
     parser.add_argument("--initrd-size",  type=int,            help="Size of initrd (default=8MB)")
+    parser.add_argument("--initrd",       type=str,            help="Supports arguments 'enabled', 'disabled' or a file name. Set to 'disabled' if you use a kernel built in rootfs or have your rootfs on an SD card partition. If a file name is provied the size of the file will be used instead of --initrd-size. (default=enabled)")
+    parser.add_argument("--root-device",  type=str,            help="Device that has our rootfs, if using initrd use the default. For SD card's use something like mmcblk0p3. (default=ram0)")
     parser.add_argument("--polling",      action="store_true", help="Force polling mode on peripherals")
     args = parser.parse_args()
 
@@ -635,6 +655,8 @@ def main():
     r = generate_dts(d,
         initrd_start = args.initrd_start,
         initrd_size  = args.initrd_size,
+        initrd       = args.initrd,
+        root_device  = args.root_device,
         polling      = args.polling,
     )
     print(r)
