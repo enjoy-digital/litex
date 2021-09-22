@@ -169,7 +169,7 @@ is_verbose = {1}
 design = DesignAPI(is_verbose)
 device = DeviceAPI(is_verbose)
 
-design.create('{2}', '{3}', './../build', overwrite=True)
+design.create('{2}', '{3}', './../gateware', overwrite=True)
 
 """
         return header.format(self.efinity_path, 'True', build_name, partnumber)

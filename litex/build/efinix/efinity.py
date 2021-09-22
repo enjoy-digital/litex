@@ -231,8 +231,9 @@ def _build_xml(partnumber, build_name, sources, additional_xml_commands):
     design_info = et.SubElement(root, 'efx:design_info')
     et.SubElement(design_info, "efx:top_module", name = build_name)
     for filename, language, library in sources:
-        val = {'name':filename, 'version':'default', 'library':'default'}
-        et.SubElement(design_info, "efx:design_file", val)
+        if '.vh' not in filename:
+            val = {'name':filename, 'version':'default', 'library':'default'}
+            et.SubElement(design_info, "efx:design_file", val)
     et.SubElement(design_info, "efx:top_vhdl_arch", name = "")
 
     constraint_info  = et.SubElement(root, "efx:constraint_info")
@@ -270,6 +271,7 @@ class EfinityToolchain():
     attr_translate = {}
 
     def __init__(self, efinity_path):
+        self.options     = {}
         self.clocks      = dict()
         self.false_paths = set()
         self.efinity_path = efinity_path
@@ -340,7 +342,7 @@ class EfinityToolchain():
 
         # DDR doesn't have Python API so we need to configure it
         # directly in the peri.xml file
-        self.ifacewriter.add_ddr_xml(build_name)
+        # self.ifacewriter.add_ddr_xml(build_name)
 
         # Run
         if run:
