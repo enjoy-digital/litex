@@ -45,9 +45,12 @@ class Open(Signal): pass
 CPU_VARIANTS = {
     "standard": "freechips.rocketchip.system.LitexConfig",
     "linux":    "freechips.rocketchip.system.LitexLinuxConfig",
+    "linux4":   "freechips.rocketchip.system.LitexLinux4Config",
     "linuxd":   "freechips.rocketchip.system.LitexLinuxDConfig",
     "linuxq":   "freechips.rocketchip.system.LitexLinuxQConfig",
     "full":     "freechips.rocketchip.system.LitexFullConfig",
+    "full4d":   "freechips.rocketchip.system.LitexFull4DConfig",
+    "full4q":   "freechips.rocketchip.system.LitexFull4QConfig",
 }
 
 # GCC Flags-----------------------------------------------------------------------------------------
@@ -55,9 +58,12 @@ CPU_VARIANTS = {
 GCC_FLAGS = {
     "standard": "-march=rv64imac   -mabi=lp64 ",
     "linux":    "-march=rv64imac   -mabi=lp64 ",
+    "linux4":   "-march=rv64imac   -mabi=lp64 ",
     "linuxd":   "-march=rv64imac   -mabi=lp64 ",
     "linuxq":   "-march=rv64imac   -mabi=lp64 ",
     "full":     "-march=rv64imafdc -mabi=lp64 ",
+    "full4d":   "-march=rv64imafdc -mabi=lp64 ",
+    "full4q":   "-march=rv64imafdc -mabi=lp64 ",
 }
 
 # CPU Size Params ----------------------------------------------------------------------------------
@@ -66,9 +72,12 @@ CPU_SIZE_PARAMS = {
     # Variant : (mem_dw, mmio_dw, num_cores)
     "standard": (    64,      64,         1),
     "linux":    (    64,      64,         1),
+    "linux4":   (    64,      64,         4),
     "linuxd":   (   128,      64,         1),
     "linuxq":   (   256,      64,         1),
     "full":     (    64,      64,         1),
+    "full4d":   (   128,      64,         4),
+    "full4q":   (   256,      64,         4),
 }
 
 # Rocket RV64 --------------------------------------------------------------------------------------
