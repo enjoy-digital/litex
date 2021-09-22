@@ -63,23 +63,9 @@ crt_init:
   csrw mtvec, a0
   sw x0, smp_lottery_lock, a1
 
-data_init:
-  la a0, _fdata
-  la a1, _edata
-  la a2, _fdata_rom
-data_loop:
-  beq a0,a1,data_done
-  lw a3,0(a2)
-  sw a3,0(a0)
-  add a0,a0,4
-  add a2,a2,4
-  j data_loop
-data_done:
-
 smp_tyranny:
   csrr a0, mhartid
-  beqz a0, bss_init
-  call smp_slave
+  beqz a0, data_init
 
 smp_slave:
   lw a0, smp_lottery_lock
@@ -92,6 +78,19 @@ smp_slave:
   lw x12, smp_lottery_args+8
   lw x13, smp_lottery_target
   jr x13
+
+data_init:
+  la a0, _fdata
+  la a1, _edata
+  la a2, _fdata_rom
+data_loop:
+  beq a0,a1,data_done
+  lw a3,0(a2)
+  sw a3,0(a0)
+  add a0,a0,4
+  add a2,a2,4
+  j data_loop
+data_done:
 
 bss_init:
   la a0, _fbss
