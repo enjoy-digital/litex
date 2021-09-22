@@ -815,7 +815,7 @@ class SoC(Module):
         self.check_if_exists(name)
         setattr(self.submodules, name, SoCController(**kwargs))
 
-    def add_ram(self, name, origin, size, contents=[], mode="rw"):
+    def add_ram(self, name, origin, size, contents=[], mode="rw", no_we=False):
         ram_cls = {
             "wishbone": wishbone.SRAM,
             "axi-lite": axi.AXILiteSRAM,
@@ -825,7 +825,7 @@ class SoC(Module):
             "axi-lite": axi.AXILiteInterface,
         }[self.bus.standard]
         ram_bus = interface_cls(data_width=self.bus.data_width)
-        ram     = ram_cls(size, bus=ram_bus, init=contents, read_only=(mode == "r"))
+        ram     = ram_cls(size, bus=ram_bus, init=contents, read_only=(mode == "r"), no_we=no_we)
         self.bus.add_slave(name, ram.bus, SoCRegion(origin=origin, size=size, mode=mode))
         self.check_if_exists(name)
         self.logger.info("RAM {} {} {}.".format(
@@ -834,8 +834,8 @@ class SoC(Module):
             self.bus.regions[name]))
         setattr(self.submodules, name, ram)
 
-    def add_rom(self, name, origin, size, contents=[], mode="r"):
-        self.add_ram(name, origin, size, contents, mode=mode)
+    def add_rom(self, name, origin, size, contents=[], mode="r", no_we=False):
+        self.add_ram(name, origin, size, contents, mode=mode, no_we=no_we)
 
     def init_rom(self, name, contents=[], auto_size=True):
         self.logger.info("Initializing ROM {} with contents (Size: {}).".format(
