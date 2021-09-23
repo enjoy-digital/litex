@@ -53,33 +53,44 @@ class TRIONPLL(Module):
 
         self.platform.toolchain.ifacewriter.blocks.append(block)
 
-    def register_clkin(self, clkin, freq):
+    def register_clkin(self, clkin, freq, name= ''):
         block = self.platform.toolchain.ifacewriter.get_block(self.pll_name)
 
-        # If clkin has resource, PLL clock input is EXTERNAL
-        # When PLL clock is external, it must not be present in the top file
-        # Add a test on clkin resource here
         block['input_clock_name'] = self.platform.get_pin_name(clkin)
-        pin_name = self.platform.get_pin_location(clkin)
 
-        self.platform.delete(clkin)
+        # If clkin has a pin number, PLL clock input is EXTERNAL
+        if self.platform.get_pin_location(clkin):
+           
+            pad_name = self.platform.get_pin_location(clkin)
+            self.platform.delete(clkin)
 
-        #tpl = "create_clock -name {clk} -period {period} [get_ports {{{clk}}}]"
-        #sdc = self.platform.toolchain.additional_sdc_commands
-        #sdc.append(tpl.format(clk=block['input_clock_name'], period=1/freq))
+            #tpl = "create_clock -name {clk} -period {period} [get_ports {{{clk}}}]"
+            #sdc = self.platform.toolchain.additional_sdc_commands
+            #sdc.append(tpl.format(clk=block['input_clock_name'], period=1/freq))
 
-        parser = EfinixDbParser(self.platform.efinity_path, self.platform.device)
-        (pll_res, clock_no) = parser.get_pll_inst_from_pin(pin_name)
+            parser = EfinixDbParser(self.platform.efinity_path, self.platform.device)
+            try:
+                (pll_res, clock_no) = parser.get_pll_inst_from_pin(pad_name)
+            except:
+                self.logger.error("Cannot find a pll with {} as input".format(pad_name))
+                quit()
 
-        block['input_clock'] = 'EXTERNAL'
+            block['input_clock'] = 'EXTERNAL'
+            block['resource'] = pll_res
+            block['clock_no'] = clock_no
+            self.logger.info("Clock source: {}, using EXT_CLK{}".format(block['input_clock'], clock_no))
+            self.platform.get_pll_resource(pll_res)
+        else:
+            block['input_clock'] = 'INTERNAL'
+            block['resource'] = self.platform.get_free_pll_resource()
+            block['input_signal'] = name
+            self.logger.info("Clock source: {}".format(block['input_clock']))
+
         block['input_freq'] = freq
-        block['resource'] = pll_res
-        block['clock_no'] = clock_no
 
-        self.logger.info("Using {}".format(pll_res))
-        self.logger.info("Clock source: {}, using EXT_CLK{}".format(block['input_clock'], clock_no))
+        self.logger.info("Using {}".format(block['resource']))
 
-    def create_clkout(self, cd, freq, phase=0, margin=1e-2, name='', with_reset=False, user_clk=True):
+    def create_clkout(self, cd, freq, phase=0, margin=1e-2, name='', with_reset=False):
         assert self.nclkouts < self.nclkouts_max
 
         if name != '':
@@ -87,7 +98,7 @@ class TRIONPLL(Module):
         else:
             clk_out_name = '{}_CLKOUT{}'.format(self.pll_name, self.nclkouts)
 
-        if user_clk == True:
+        if cd != None:
             self.platform.add_extension([(clk_out_name, 0, Pins(1))])
             tmp = self.platform.request(clk_out_name)
 

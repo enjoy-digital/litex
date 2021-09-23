@@ -180,15 +180,70 @@ design.create('{2}', '{3}', './../gateware', overwrite=True)
                 return b
         return None
 
+    def generate_gpio(self, block, verbose=True):
+        name = block['name']
+        mode = block['mode']
+        cmd = ''
+
+
+# TODO: {'type': 'GPIO', 'mode': 'OUTPUT', 'location': 'U16', 'size': 4, 'in_reg': 'DDIO_RESYNC', 'out_clk_pin': '', 'is_inclk_inverted': False, 'name': 'auto_ethtx_tx_data_d1', 'name_d2': 'auto_ethtx_tx_data_d2'}
+
+        if mode == 'INPUT':
+            if len(block['location']) == 1:
+                cmd += 'design.create_input_gpio("{}")\n'.format(name)
+                cmd += 'design.assign_pkg_pin("{}","{}")\n'.format(name, block['location'][0])
+            else:
+                cmd += 'design.create_input_gpio("{}",{},0)\n'.format(name, block['size']-1)
+                for i, pad in enumerate(block['location']):
+                    cmd += 'design.assign_pkg_pin("{}[{}]","{}")\n'.format(name, i, pad)
+            if 'in_reg' in block:
+                cmd += 'design.set_property("{}","IN_REG","{}")\n'.format(name, block['in_reg'])
+                cmd += 'design.set_property("{}","IN_CLK_PIN","{}")\n\n'.format(name, block['in_clk_pin'])
+            return cmd
+
+        if mode == 'OUTPUT':
+            if len(block['location']) == 1:
+                cmd += 'design.create_output_gpio("{}")\n'.format(name)
+                cmd += 'design.assign_pkg_pin("{}","{}")\n'.format(name, block['location'][0])
+            else:
+                cmd += 'design.create_input_gpio("{}",{},0)\n'.format(name, block['size']-1)
+                for i, pad in enumerate(block['location']):
+                    cmd += 'design.assign_pkg_pin("{}[{}]","{}")\n'.format(name, i, pad)
+            if 'out_reg' in block:
+                cmd += 'design.set_property("{}","OUT_REG","{}")\n'.format(name, block['out_reg'])
+                cmd += 'design.set_property("{}","OUT_CLK_PIN","{}")\n\n'.format(name, block['out_clk_pin'])
+            return cmd
+
+        if mode == 'INPUT_CLK':
+            cmd += 'design.create_input_clock_gpio("{}")\n'.format(name)
+            cmd += 'design.set_property("{}","IN_PIN","{}")\n'.format(name, name)
+            cmd += 'design.assign_pkg_pin("{}","{}")\n\n'.format(name, block['location'])
+            return cmd
+
+        if mode == 'OUTPUT_CLK':
+            cmd += 'design.create_clockout_gpio("{}")\n'.format(name)
+            cmd += 'design.set_property("{}","OUT_CLK_PIN","{}")\n'.format(name, name)
+            cmd += 'design.assign_pkg_pin("{}","{}")\n\n'.format(name, block['location'])
+            return cmd
+
+        cmd = '# TODO: ' + str(block) +'\n'
+        return cmd
+
     def generate_pll(self, block, verbose=True):
         name = block['name']
         cmd = '# ---------- PLL {} ---------\n'.format(name)
         cmd += 'design.create_block("{}", block_type="PLL")\n'.format(name)
-        cmd += 'design.gen_pll_ref_clock("{}", pll_res="{}", refclk_src="{}", refclk_name="{}", ext_refclk_no="{}")\n\n' \
-               .format(name, block['resource'], block['input_clock'], block['input_clock_name'], block['clock_no'])
-
         cmd += 'pll_config = {{ "REFCLK_FREQ":"{}" }}\n'.format(block['input_freq'] / 1e6)
-        cmd += 'design.set_property("{}", pll_config, block_type="PLL")\n\n'.format(name)
+
+        if block['input_clock'] == 'EXTERNAL':
+            cmd += 'design.gen_pll_ref_clock("{}", pll_res="{}", refclk_src="{}", refclk_name="{}", ext_refclk_no="{}")\n\n' \
+                .format(name, block['resource'], block['input_clock'], block['input_clock_name'], block['clock_no'])
+        else:
+            cmd += 'design.gen_pll_ref_clock("{}", pll_res="{}", refclk_name="{}", refclk_src="CORE")\n'.format(name, block['resource'], block['input_signal'])
+            cmd += 'design.set_property("{}", "CORE_CLK_PIN", "{}", block_type="PLL")\n\n'.format(name, block['input_signal'])
+
+            cmd += 'pll_config = {{ "REFCLK_FREQ":"{}" }}\n'.format(block['input_freq'] / 1e6)
+            cmd += 'design.set_property("{}", pll_config, block_type="PLL")\n\n'.format(name)
 
         cmd += 'design.set_property("{}","LOCKED_PIN","{}", block_type="PLL")\n'.format(name, block['locked'])
         if block['reset'] != '':
@@ -198,10 +253,10 @@ design.create('{2}', '{3}', './../gateware', overwrite=True)
         for i, clock in enumerate(block['clk_out']):
             if i > 0:
                 cmd += 'pll_config = {{ "CLKOUT{}_EN":"1", "CLKOUT{}_PIN":"{}" }}\n'.format(i, i, clock[0])
-                cmd += 'design.set_property("{}", pll_config, block_type="PLL")\n\n'.format(name)
             else:
                 cmd += 'pll_config = {{ "CLKOUT{}_PIN":"{}" }}\n'.format(i, clock[0])
-                cmd += 'design.set_property("{}", pll_config, block_type="PLL")\n\n'.format(name)
+
+            cmd += 'design.set_property("{}", pll_config, block_type="PLL")\n\n'.format(name)
 
         cmd += 'target_freq = {\n'
         for i, clock in enumerate(block['clk_out']):
@@ -215,8 +270,8 @@ design.create('{2}', '{3}', './../gateware', overwrite=True)
             cmd += 'print("#### {} ####")\n'.format(name)
             cmd += 'clksrc_info = design.trace_ref_clock("{}", block_type="PLL")\n'.format(name)
             cmd += 'pprint.pprint(clksrc_info)\n'
-            cmd += 'clock_source_prop = ["REFCLK_SOURCE", "EXT_CLK", "CLKOUT0_EN", "CLKOUT1_EN","REFCLK_FREQ", "RESOURCE"]\n'
-            cmd += 'clock_source_prop += ["M", "N", "O", "CLKOUT0_DIV", "CLKOUT2_DIV", "VCO_FREQ", "PLL_FREQ"]\n'
+            cmd += 'clock_source_prop = ["REFCLK_SOURCE", "CORE_CLK_PIN", "EXT_CLK", "CLKOUT0_EN", "CLKOUT1_EN","REFCLK_FREQ", "RESOURCE"]\n'
+            cmd += 'clock_source_prop += ["CLKOUT0_FREQ", "CLKOUT1_FREQ", "CLKOUT2_FREQ"]\n'
             cmd += 'prop_map = design.get_property("{}", clock_source_prop, block_type="PLL")\n'.format(name)
             cmd += 'pprint.pprint(prop_map)\n'
 
@@ -228,6 +283,9 @@ design.create('{2}', '{3}', './../gateware', overwrite=True)
         for b in self.blocks:
             if b['type'] == 'PLL':
                 output += self.generate_pll(b)
+            if b['type'] == 'GPIO':
+                output += self.generate_gpio(b)
+
         return output
 
     def footer(self):

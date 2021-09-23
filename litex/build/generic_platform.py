@@ -192,6 +192,12 @@ class ConstraintManager:
 
     def delete(self, signal):
         for res, obj in self.matched:
+            if isinstance(signal, Record):
+                if isinstance(obj, Signal):
+                    continue
+            else:
+                if isinstance(obj, Record):
+                    continue
             if obj == signal:
                 self.matched.remove((res, obj))
 
@@ -280,12 +286,14 @@ class ConstraintManager:
             if has_subsignals:
                 for element in resource[2:]:
                     if isinstance(element, Subsignal):
-                        sig = getattr(obj, element.name)
-                        pins, others = _separate_pins(top_constraints +
-                                                      element.constraints)
-                        pins = self.connector_manager.resolve_identifiers(pins)
-                        r.append((sig, pins, others,
-                                  (name, number, element.name)))
+                        # Because we could have removed one Signal From the record
+                        if hasattr(obj, element.name):
+                            sig = getattr(obj, element.name)
+                            pins, others = _separate_pins(top_constraints +
+                                                        element.constraints)
+                            pins = self.connector_manager.resolve_identifiers(pins)
+                            r.append((sig, pins, others,
+                                    (name, number, element.name)))
             else:
                 pins, others = _separate_pins(top_constraints)
                 pins = self.connector_manager.resolve_identifiers(pins)

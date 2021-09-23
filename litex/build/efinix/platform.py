@@ -18,6 +18,9 @@ class EfinixPlatform(GenericPlatform):
     def __init__(self, *args, toolchain="efinity", **kwargs):
         GenericPlatform.__init__(self, *args, **kwargs)
 
+        self.pll_available = ['PLL_TL0', 'PLL_TR0', 'PLL_TR1', 'PLL_TR2', 'PLL_TR3', 'PLL_BR0', 'PLL_BR1', 'PLL_BR2', 'PLL_BL0']
+        self.pll_used = []
+
         if 'LITEX_ENV_EFINITY' in os.environ:
             self.efinity_path = os.environ['LITEX_ENV_EFINITY'].rstrip('/')
             os.environ['EFINITY_HOME'] = self.efinity_path
@@ -55,29 +58,63 @@ class EfinixPlatform(GenericPlatform):
     # get_pin_location(p[1])
     # not tested with subsignal like get_pin_location(p.clk)
     def get_pin_location(self, sig):
+        if sig is None:
+            return None
         sc = self.constraint_manager.get_sig_constraints()
         for s, pins, others, resource in sc:
-            if s == sig:
-                return pins[0]
+            if (s == sig) and (pins[0] != 'X'):
+                    return pins
         return None
 
     def get_pin_name(self, sig):
+        if sig is None:
+            return None
         sc = self.constraint_manager.get_sig_constraints()
         for s, pins, others, resource in sc:
             if s == sig:
-                return resource[0]
+                if resource[2]:
+                    return resource[0] + '_' + resource[2]
+                else:
+                    return resource[0]
         return None
 
-    def add_iface_io(self, name, size=1):
+    def get_sig_constraint(self, sig):
+        sc = self.constraint_manager.get_sig_constraints()
+        for s, pins, others, resource in sc:
+            if s == sig:
+                return sc
+        return None
+
+    def add_iface_io(self, name, size=1, append=True):
         self.add_extension([(name, 0, Pins(size))])
         tmp = self.request(name)
         # We don't want this IO to be in the interface configuration file as a simple GPIO
-        self.toolchain.specials_gpios.append(tmp)
+        if append:
+            self.toolchain.specials_gpios.append(tmp)
         return tmp
 
-    def add_iface_ios(self, io):
+    def add_iface_ios(self, io, append=True):
         self.add_extension(io)
         tmp = self.request(io[0][0])
-        for s in tmp.flatten():
-            self.toolchain.specials_gpios.append(s)
+        if append:
+            for s in tmp.flatten():
+                self.toolchain.specials_gpios.append(s)
         return tmp
+
+    def del_record_signal(self, record, sig):
+            for pos, (name, item) in enumerate(vars(record).items()):
+                    if isinstance(item, Signal):
+                            if item == sig:
+                                    # Two first pos are name and layout
+                                    del record.layout[pos-2]
+                                    delattr(record, name)
+                                    break
+
+    def get_pll_resource(self, name):
+        self.pll_used.append(name)
+        self.pll_available.remove(name)
+        print('Pll used         : ' + str(self.pll_used))
+        print('Pll pll_available: ' + str(self.pll_available))
+
+    def get_free_pll_resource(self):
+        return self.pll_available[0]
