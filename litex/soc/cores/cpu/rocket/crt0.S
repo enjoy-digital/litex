@@ -2,6 +2,10 @@
 .global isr
 .global _start
 
+.global smp_ap_args
+.global smp_ap_target
+.global smp_ap_ready
+
 _start:
   j crt_init
   nop
@@ -54,37 +58,65 @@ trap_entry:
 
 crt_init:
   la sp, _fstack
-  la a0, trap_entry
-  csrw mtvec, a0
+  sd zero, smp_ap_ready, t0
+  la t0, trap_entry
+  csrw mtvec, t0
+
+smp_select_bp:
+  csrr a0, mhartid
+  beqz a0, data_init  // hart 0 is bp, everyone else is ap
+
+smp_ap_loop:
+  ld t0, smp_ap_ready
+  beqz t0, smp_ap_loop
+smp_ap_boot:
+  fence r, r
+  fence.i  // i$ flush
+  ld a0, smp_ap_args     // hart ID (but next-stage loads its own)
+  ld a1, smp_ap_args+8   // DTB pointer (if provded by litex bios)
+  ld a2, smp_ap_args+16
+  ld a3, smp_ap_target
+  jr a3
+smp_ap_done:
 
 data_init:
-  la a0, _fdata
-  la a1, _edata
-  la a2, _fdata_rom
+  la t0, _fdata
+  la t1, _edata
+  la t2, _fdata_rom
 data_loop:
-  beq a0,a1,data_done
-  ld a3,0(a2)
-  sd a3,0(a0)
-  add a0,a0,8
-  add a2,a2,8
+  beq t0,t1,data_done
+  ld t3,0(t2)
+  sd t3,0(t0)
+  add t0,t0,8
+  add t2,t2,8
   j data_loop
 data_done:
 
 bss_init:
-  la a0, _fbss
-  la a1, _ebss
+  la t0, _fbss
+  la t1, _ebss
 bss_loop:
-  beq a0,a1,bss_done
-  sd zero,0(a0)
-  add a0,a0,8
+  beq t0,t1,bss_done
+  sd zero,0(t0)
+  add t0,t0,8
   j bss_loop
 bss_done:
 
   call plic_init // initialize external interrupt controller
-  li a0, 0x800   // external interrupt sources only (using LiteX timer);
+  li t0, 0x800   // external interrupt sources only (using LiteX timer);
                  // NOTE: must still enable mstatus.MIE!
-  csrw mie,a0
+  csrw mie,t0
 
   call main
 inf_loop:
   j inf_loop
+
+.bss
+smp_ap_args:
+  .dword 0
+  .dword 0
+  .dword 0
+smp_ap_target:
+  .dword 0
+smp_ap_ready:
+  .dword 0

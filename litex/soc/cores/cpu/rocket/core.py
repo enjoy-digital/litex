@@ -45,9 +45,12 @@ class Open(Signal): pass
 CPU_VARIANTS = {
     "standard": "freechips.rocketchip.system.LitexConfig",
     "linux":    "freechips.rocketchip.system.LitexLinuxConfig",
+    "linux4":   "freechips.rocketchip.system.LitexLinux4Config",
     "linuxd":   "freechips.rocketchip.system.LitexLinuxDConfig",
     "linuxq":   "freechips.rocketchip.system.LitexLinuxQConfig",
     "full":     "freechips.rocketchip.system.LitexFullConfig",
+    "full4d":   "freechips.rocketchip.system.LitexFull4DConfig",
+    "full4q":   "freechips.rocketchip.system.LitexFull4QConfig",
 }
 
 # GCC Flags-----------------------------------------------------------------------------------------
@@ -55,20 +58,26 @@ CPU_VARIANTS = {
 GCC_FLAGS = {
     "standard": "-march=rv64imac   -mabi=lp64 ",
     "linux":    "-march=rv64imac   -mabi=lp64 ",
+    "linux4":   "-march=rv64imac   -mabi=lp64 ",
     "linuxd":   "-march=rv64imac   -mabi=lp64 ",
     "linuxq":   "-march=rv64imac   -mabi=lp64 ",
     "full":     "-march=rv64imafdc -mabi=lp64 ",
+    "full4d":   "-march=rv64imafdc -mabi=lp64 ",
+    "full4q":   "-march=rv64imafdc -mabi=lp64 ",
 }
 
-# AXI Data-Widths ----------------------------------------------------------------------------------
+# CPU Size Params ----------------------------------------------------------------------------------
 
-AXI_DATA_WIDTHS = {
-    # Variant : (mem, mmio)
-    "standard": ( 64,  64),
-    "linux":    ( 64,  64),
-    "linuxd":   (128,  64),
-    "linuxq":   (256,  64),
-    "full":     ( 64,  64),
+CPU_SIZE_PARAMS = {
+    # Variant : (mem_dw, mmio_dw, num_cores)
+    "standard": (    64,      64,         1),
+    "linux":    (    64,      64,         1),
+    "linux4":   (    64,      64,         4),
+    "linuxd":   (   128,      64,         1),
+    "linuxq":   (   256,      64,         1),
+    "full":     (    64,      64,         1),
+    "full4d":   (   128,      64,         4),
+    "full4q":   (   256,      64,         4),
 }
 
 # Rocket RV64 --------------------------------------------------------------------------------------
@@ -111,7 +120,7 @@ class RocketRV64(CPU):
         self.reset     = Signal()
         self.interrupt = Signal(4)
 
-        mem_dw, mmio_dw = AXI_DATA_WIDTHS[self.variant]
+        mem_dw, mmio_dw, num_cores = CPU_SIZE_PARAMS[self.variant]
 
         self.mem_axi   =  mem_axi = axi.AXIInterface(data_width=mem_dw,  address_width=32, id_width=4)
         self.mmio_axi  = mmio_axi = axi.AXIInterface(data_width=mmio_dw, address_width=32, id_width=4)
@@ -132,7 +141,6 @@ class RocketRV64(CPU):
             i_reset = ResetSignal("sys") | self.reset,
 
             # Debug (ignored).
-            i_resetctrl_hartIsInReset_0           = Open(),
             i_debug_clock                         = 0,
             i_debug_reset                         = ResetSignal() | self.reset,
             o_debug_clockeddmi_dmi_req_ready      = Open(),
@@ -282,6 +290,8 @@ class RocketRV64(CPU):
             o_l2_frontend_bus_axi4_0_r_bits_resp   = l2fb_axi.r.resp,
             o_l2_frontend_bus_axi4_0_r_bits_last   = l2fb_axi.r.last,
         )
+        # additional per-core debug signals:
+        self.cpu_params.update({'i_resetctrl_hartIsInReset_%s'%i : Open() for i in range(num_cores)})
 
         # Adapt AXI interfaces to Wishbone.
         mmio_a2w = ResetInserter()(axi.AXI2Wishbone(mmio_axi, mmio_wb, base_address=0))
