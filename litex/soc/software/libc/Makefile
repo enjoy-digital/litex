@@ -64,11 +64,11 @@ libc.a: cross.txt
 	meson compile
 	cp newlib/libc.a libc.a
 
-stdio.c.o: $(LIBC_DIRECTORY)/stdio.c
+stdio.c.o: $(LIBC_DIRECTORY)/stdio.c libc.a
 	$(compile)
 	$(AR) csr libc.a $@
 
-missing.c.o: $(LIBC_DIRECTORY)/missing.c
+missing.c.o: $(LIBC_DIRECTORY)/missing.c libc.a
 	$(compile)
 	$(AR) csr libc.a $@
 
