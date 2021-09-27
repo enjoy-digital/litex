@@ -5,6 +5,9 @@ all: libc.a stdio.c.o missing.c.o
 
 CPUFAMILY=
 
+CFLAGS = $(COMMONFLAGS) -fexceptions -Wpragmas
+
+# FIXME: Generate from Python.
 ifneq ($(findstring $(CPU), serv femtorv picorv32 minerva vexriscv vexriscv_smp ibex cv32e40p rocket blackparrot),)
 	CPUFAMILY = riscv
 else ifeq ($(CPU), lm32)
@@ -22,20 +25,20 @@ endif
 
 define CROSSFILE
 [binaries]
-c = '$(TRIPLE)-gcc'
-ar = '$(TRIPLE)-gcc-ar'
-as = '$(TRIPLE)-as'
-nm = '$(TRIPLE)-gcc-nm'
+c     = '$(TRIPLE)-gcc'
+ar    = '$(TRIPLE)-gcc-ar'
+as    = '$(TRIPLE)-as'
+nm    = '$(TRIPLE)-gcc-nm'
 strip = '$(TRIPLE)-strip'
 
 [host_machine]
-system = 'unknown'
+system     = 'unknown'
 cpu_family = '$(CPUFAMILY)'
-cpu = '$(CPU)'
-endian = '$(CPUENDIANNESS)'
+cpu        = '$(CPU)'
+endian     = '$(CPUENDIANNESS)'
 
 [built-in options]
-c_args = [ $(foreach flag,$(filter-out $(DEPFLAGS) -flto,$(CFLAGS)),'$(flag)',) ]
+c_args      = [ $(foreach flag,$(filter-out $(DEPFLAGS) -flto,$(CFLAGS)),'$(flag)',) ]
 c_link_args = [ $(foreach flag,$(filter-out -flto,$(LDFLAGS)),'$(flag)',) ]
 endef
 
