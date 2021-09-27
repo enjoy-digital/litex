@@ -23,9 +23,9 @@ repos = [
     ("nmigen",       ("https://github.com/nmigen/",        True,  True, None)),
 
     # LiteX SoC builder
-    ("pythondata-software-picolibc",    ("https://github.com/antmicro/",  True,  True, None)),
-    ("pythondata-software-compiler_rt", ("https://github.com/litex-hub/", False, True, None)),
-    ("litex",                           ("https://github.com/antmicro/",  False, True, 0xba7b7b97)),
+    ("pythondata-software-picolibc",    ("https://github.com/antmicro/",      True,  True, None)),
+    ("pythondata-software-compiler_rt", ("https://github.com/litex-hub/",     False, True, None)),
+    ("litex",                           ("https://github.com/enjoy-digital/", False, True, None)),
 
     # LiteX cores ecosystem
     ("liteeth",      ("https://github.com/enjoy-digital/", False, True, None)),
