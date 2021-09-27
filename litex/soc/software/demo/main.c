@@ -6,8 +6,8 @@
 #include <string.h>
 
 #include <irq.h>
-#include <uart.h>
-#include <console.h>
+#include <libcomm/uart.h>
+#include <libutils/console.h>
 #include <generated/csr.h>
 
 /*-----------------------------------------------------------------------*/
@@ -21,14 +21,14 @@ static char *readstr(void)
 	static int ptr = 0;
 
 	if(readchar_nonblock()) {
-		c[0] = readchar();
+		c[0] = getchar();
 		c[1] = 0;
 		switch(c[0]) {
 			case 0x7f:
 			case 0x08:
 				if(ptr > 0) {
 					ptr--;
-					putsnonl("\x08 \x08");
+					fputs("\x08 \x08", stdout);
 				}
 				break;
 			case 0x07:
@@ -36,13 +36,13 @@ static char *readstr(void)
 			case '\r':
 			case '\n':
 				s[ptr] = 0x00;
-				putsnonl("\n");
+				fputs("\n", stdout);
 				ptr = 0;
 				return s;
 			default:
 				if(ptr >= (sizeof(s) - 1))
 					break;
-				putsnonl(c);
+				fputs(c, stdout);
 				s[ptr] = c[0];
 				ptr++;
 				break;

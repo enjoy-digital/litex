@@ -13,9 +13,6 @@
 #include <string.h>
 #include <ctype.h>
 
-#include <console.h>
-#include <uart.h>
-
 #include "readline.h"
 #include "complete.h"
 
@@ -54,15 +51,15 @@ static int read_key(void)
 {
 	char c;
 	char esc[5];
-	c = readchar();
+	c = getchar();
 
 	if (c == 27) {
 		int i = 0;
-		esc[i++] = readchar();
-		esc[i++] = readchar();
+		esc[i++] = getchar();
+		esc[i++] = getchar();
 		if (isdigit(esc[1])) {
 			while(1) {
-				esc[i] = readchar();
+				esc[i] = getchar();
 				if (esc[i++] == '~')
 					break;
 				if (i == ARRAY_SIZE(esc))

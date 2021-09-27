@@ -12,9 +12,9 @@
 #ifdef CSR_ETHMAC_BASE
 
 #include <stdio.h>
-#include <inet.h>
+#include <arpa/inet.h>
 #include <system.h>
-#include <crc.h>
+#include <libutils/crc.h>
 
 #include "udp.h"
 

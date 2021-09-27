@@ -2,7 +2,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <memtest.h>
+#include <libutils/memtest.h>
 
 #include <generated/csr.h>
 #include <generated/mem.h>
