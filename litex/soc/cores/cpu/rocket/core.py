@@ -294,12 +294,10 @@ class RocketRV64(CPU):
         self.cpu_params.update({'i_resetctrl_hartIsInReset_%s'%i : Open() for i in range(num_cores)})
 
         # Adapt AXI interfaces to Wishbone.
-        mmio_a2w = ResetInserter()(axi.AXI2Wishbone(mmio_axi, mmio_wb, base_address=0))
-        self.comb += mmio_a2w.reset.eq(ResetSignal() | self.reset) # Note: Must be reset with the CPU.
+        mmio_a2w = axi.AXI2Wishbone(mmio_axi, mmio_wb, base_address=0)
         self.submodules += mmio_a2w
 
-        l2fb_a2w = ResetInserter()(axi.Wishbone2AXI(l2fb_wb, l2fb_axi, base_address=0))
-        self.comb += l2fb_a2w.reset.eq(ResetSignal() | self.reset) # Note: Must be reset with the CPU.
+        l2fb_a2w = axi.Wishbone2AXI(l2fb_wb, l2fb_axi, base_address=0)
         self.submodules += l2fb_a2w
 
         # Add Verilog sources.
