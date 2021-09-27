@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <system.h>
 
-#include <libutils/crc.h>
+#include <libbase/crc.h>
 
 #include <generated/csr.h>
 

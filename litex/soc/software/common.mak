@@ -47,6 +47,7 @@ DEPFLAGS += -MD -MP
 #
 INCLUDES = -I$(PICOLIBC_DIRECTORY)/newlib/libc/tinystdio \
            -I$(PICOLIBC_DIRECTORY)/newlib/libc/include \
+           -I$(LIBBASE_DIRECTORY) \
            -I$(SOC_DIRECTORY)/software/include \
            -I$(SOC_DIRECTORY)/software \
            -I$(BUILDINC_DIRECTORY) \

@@ -5,8 +5,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <libutils/console.h>
-#include <libutils/crc.h>
+#include <libbase/console.h>
+#include <libbase/crc.h>
 
 #include "readline.h"
 #include "helpers.h"

@@ -21,12 +21,12 @@
 #include "sfl.h"
 #include "boot.h"
 
-#include <libcomm/uart.h>
+#include <libbase/uart.h>
 
-#include <libutils/console.h>
-#include <libutils/crc.h>
-#include <libutils/jsmn.h>
-#include <libutils/progress.h>
+#include <libbase/console.h>
+#include <libbase/crc.h>
+#include <libbase/jsmn.h>
+#include <libbase/progress.h>
 
 #include <libliteeth/udp.h>
 #include <libliteeth/tftp.h>

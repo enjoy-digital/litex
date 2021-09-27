@@ -1,24 +1,29 @@
 include ../include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
-OBJECTS = \
+OBJECTS =  \
+	crc16.o    \
+	crc32.o    \
+	system.o   \
+	progress.o \
+	memtest.o  \
 	uart.o     \
 	spiflash.o \
-	i2c.o      \
+	i2c.o
 
-all: libcomm.a
+all: libbase.a
 
-libcomm.a: $(OBJECTS)
-	$(AR) crs libcomm.a $(OBJECTS)
+libbase.a: $(OBJECTS)
+	$(AR) crs libbase.a $(OBJECTS)
 
 # pull in dependency info for *existing* .o files
 -include $(OBJECTS:.o=.d)
 
-%.o: $(LIBCOMM_DIRECTORY)/%.c
+%.o: $(LIBBASE_DIRECTORY)/%.c
 	$(compile)
 
 .PHONY: all clean
 
 clean:
 	$(RM) $(OBJECTS)
-	$(RM) libcomm.a .*~ *~
+	$(RM) libbase.a .*~ *~

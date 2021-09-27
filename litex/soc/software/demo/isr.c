@@ -4,7 +4,7 @@
 #include <generated/csr.h>
 #include <generated/soc.h>
 #include <irq.h>
-#include <libcomm/uart.h>
+#include <libbase/uart.h>
 
 void isr(void);
 

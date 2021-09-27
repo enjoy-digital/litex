@@ -10,7 +10,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <libutils/progress.h>
+#include <libbase/progress.h>
 
 #include "udp.h"
 #include "tftp.h"

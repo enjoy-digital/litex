@@ -16,8 +16,8 @@
 
 #include <stdio.h>
 
-#include <libutils/console.h>
-#include <libcomm/uart.h>
+#include <libbase/console.h>
+#include <libbase/uart.h>
 
 #include <generated/csr.h>
 

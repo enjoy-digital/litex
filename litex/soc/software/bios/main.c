@@ -31,11 +31,11 @@
 #include <generated/mem.h>
 #include <generated/git.h>
 
-#include <libutils/console.h>
-#include <libutils/crc.h>
+#include <libbase/console.h>
+#include <libbase/crc.h>
 
-#include <libcomm/spiflash.h>
-#include <libcomm/uart.h>
+#include <libbase/spiflash.h>
+#include <libbase/uart.h>
 
 #include <liblitedram/sdram.h>
 

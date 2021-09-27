@@ -6,8 +6,8 @@
 #include <string.h>
 
 #include <irq.h>
-#include <libcomm/uart.h>
-#include <libutils/console.h>
+#include <libbase/uart.h>
+#include <libbase/console.h>
 #include <generated/csr.h>
 
 /*-----------------------------------------------------------------------*/
