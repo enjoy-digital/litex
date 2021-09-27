@@ -78,6 +78,8 @@ SECTIONS
 		_end = .;
 	} > sram
 
+	.note.gnu.build-id (NOLOAD) : { *(.note.gnu.build-id) }
+
 	/DISCARD/ :
 	{
 		*(.eh_frame)
