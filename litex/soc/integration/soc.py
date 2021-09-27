@@ -1333,12 +1333,10 @@ class LiteXSoC(SoC):
                         mem_wb  = wishbone.Interface(
                             data_width = self.cpu.mem_axi.data_width,
                             adr_width  = 32-log2_int(self.cpu.mem_axi.data_width//8))
-                        # FIXME: AXI2Wishbone FSMs must be reset with the CPU.
-                        mem_a2w = ResetInserter()(axi.AXI2Wishbone(
+                        mem_a2w = axi.AXI2Wishbone(
                             axi          = self.cpu.mem_axi,
                             wishbone     = mem_wb,
-                            base_address = 0))
-                        self.comb += mem_a2w.reset.eq(ResetSignal() | self.cpu.reset)
+                            base_address = 0)
                         self.submodules += mem_a2w
                         litedram_wb = wishbone.Interface(port.data_width)
                         self.submodules += LiteDRAMWishbone2Native(
