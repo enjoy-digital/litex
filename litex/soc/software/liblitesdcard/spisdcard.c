@@ -264,12 +264,12 @@ uint8_t spisdcard_init(void) {
 
 static DSTATUS spisdcardstatus = STA_NOINIT;
 
-DSTATUS disk_status(uint8_t drv) {
+DSTATUS disk_status(BYTE drv) {
     if (drv) return STA_NOINIT;
     return spisdcardstatus;
 }
 
-DSTATUS disk_initialize(uint8_t drv) {
+DSTATUS disk_initialize(BYTE drv) {
     if (drv) return STA_NOINIT;
     if (spisdcardstatus) {
         spisdcardstatus = spisdcard_init() ? 0 : STA_NOINIT;
@@ -278,7 +278,7 @@ DSTATUS disk_initialize(uint8_t drv) {
     return spisdcardstatus;
 }
 
-DRESULT disk_read(uint8_t drv, uint8_t *buf, uint32_t sector, uint32_t count) {
+DRESULT disk_read(BYTE drv, BYTE *buf, LBA_t block, UINT count) {
     uint8_t cmd;
     if (count > 1)
         cmd = CMD18; /* READ_MULTIPLE_BLOCK */

@@ -565,19 +565,19 @@ void sdcard_write(uint32_t block, uint32_t count, uint8_t* buf)
 
 static DSTATUS sdcardstatus = STA_NOINIT;
 
-DSTATUS disk_status(uint8_t drv) {
+DSTATUS disk_status(BYTE drv) {
 	if (drv) return STA_NOINIT;
 	return sdcardstatus;
 }
 
-DSTATUS disk_initialize(uint8_t drv) {
+DSTATUS disk_initialize(BYTE drv) {
 	if (drv) return STA_NOINIT;
 	if (sdcardstatus)
 		sdcardstatus = sdcard_init() ? 0 : STA_NOINIT;
 	return sdcardstatus;
 }
 
-DRESULT disk_read(uint8_t drv, uint8_t *buf, uint32_t block, uint32_t count) {
+DRESULT disk_read(BYTE drv, BYTE *buf, LBA_t block, UINT count) {
 	sdcard_read(block, count, buf);
 	return RES_OK;
 }
