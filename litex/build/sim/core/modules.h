@@ -7,6 +7,12 @@
 #include <stdbool.h>
 #include "pads.h"
 
+typedef enum clk_edge {
+    CLK_EDGE_NONE,
+    CLK_EDGE_RISING,
+    CLK_EDGE_FALLING,
+} clk_edge_t;
+
 struct interface_s {
   char *name;
   int index;
@@ -35,24 +41,35 @@ struct ext_module_list_s {
   struct ext_module_list_s *next;
 };
 
-struct clk_edge_t {
+typedef struct clk_edge_state {
   int last_clk;
-};
+} clk_edge_state_t;
 
 int litex_sim_file_parse(char *filename, struct module_s **mod, uint64_t *timebase);
 int litex_sim_load_ext_modules(struct ext_module_list_s **mlist);
 int litex_sim_find_ext_module(struct ext_module_list_s *first, char *name , struct ext_module_list_s **found);
 
-inline bool clk_pos_edge(struct clk_edge_t *edge, int new_clk) {
-  bool is_edge = edge->last_clk == 0 && new_clk == 1;
-  edge->last_clk = new_clk;
+inline bool clk_pos_edge(clk_edge_state_t *edge_state, int new_clk) {
+  bool is_edge = edge_state->last_clk == 0 && new_clk == 1;
+  edge_state->last_clk = new_clk;
   return is_edge;
 }
 
-inline bool clk_neg_edge(struct clk_edge_t *edge, int new_clk) {
-  bool is_edge = edge->last_clk == 1 && new_clk == 0;
-  edge->last_clk = new_clk;
+inline bool clk_neg_edge(clk_edge_state_t *edge_state, int new_clk) {
+  bool is_edge = edge_state->last_clk == 1 && new_clk == 0;
+  edge_state->last_clk = new_clk;
   return is_edge;
+}
+
+inline clk_edge_t clk_edge(clk_edge_state_t *edge_state, int new_clk) {
+  clk_edge_t edge = CLK_EDGE_NONE;
+  if (edge_state->last_clk == 0 && new_clk == 1) {
+      edge = CLK_EDGE_RISING;
+  } else if (edge_state->last_clk == 1 && new_clk == 0) {
+      edge = CLK_EDGE_FALLING;
+  }
+  edge_state->last_clk = new_clk;
+  return edge;
 }
 
 #endif

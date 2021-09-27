@@ -232,7 +232,7 @@ out:
 }
 static int serial2tcp_tick(void *sess, uint64_t time_ps)
 {
-  static struct clk_edge_t edge;
+  static clk_edge_state_t edge;
   char c;
   int ret = RC_OK;
 

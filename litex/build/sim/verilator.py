@@ -235,9 +235,9 @@ class SimVerilatorToolchain:
                 raise OSError(msg)
             _compile_sim(build_name, verbose)
             run_as_root = False
-            if sim_config.has_module("ethernet"):
-                run_as_root = True
-            if sim_config.has_module("xgmii_ethernet"):
+            if sim_config.has_module("ethernet") \
+               or sim_config.has_module("xgmii_ethernet") \
+               or sim_config.has_module("gmii_ethernet"):
                 run_as_root = True
             _run_sim(build_name, as_root=run_as_root, interactive=interactive)
 
