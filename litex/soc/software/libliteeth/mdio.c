@@ -1,9 +1,10 @@
 #include <generated/csr.h>
 #ifdef CSR_ETHPHY_MDIO_W_ADDR
-#include "mdio.h"
 
 #include <stdio.h>
 #include <stdlib.h>
+
+#include <libliteeth/mdio.h>
 
 static void delay(void)
 {

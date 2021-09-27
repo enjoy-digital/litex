@@ -12,11 +12,13 @@
 #ifdef CSR_ETHMAC_BASE
 
 #include <stdio.h>
-#include <arpa/inet.h>
+
 #include <system.h>
+
 #include <libbase/crc.h>
 
-#include "udp.h"
+#include <libliteeth/inet.h>
+#include <libliteeth/udp.h>
 
 //#define ETH_UDP_TX_DEBUG
 //#define ETH_UDP_RX_DEBUG

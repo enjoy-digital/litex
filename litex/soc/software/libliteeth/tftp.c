@@ -12,8 +12,8 @@
 
 #include <libbase/progress.h>
 
-#include "udp.h"
-#include "tftp.h"
+#include <libliteeth/udp.h>
+#include <libliteeth/tftp.h>
 
 /* Local TFTP client port (arbitrary) */
 #define PORT_IN		7642
