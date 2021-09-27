@@ -22,6 +22,7 @@ from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
 from litex.soc.integration.soc import *
 from litex.soc.cores.bitbang import *
+from litex.soc.cores.gpio import GPIOTristate
 from litex.soc.cores.cpu import CPUS
 
 
@@ -90,6 +91,26 @@ _io = [
         Subsignal("sda_out", Pins(1)),
         Subsignal("sda_in",  Pins(1)),
     ),
+    ("spiflash", 0,
+        Subsignal("cs_n", Pins(1)),
+        Subsignal("clk",  Pins(1)),
+        Subsignal("mosi", Pins(1)),
+        Subsignal("miso", Pins(1)),
+        Subsignal("wp",   Pins(1)),
+        Subsignal("hold", Pins(1)),
+    ),
+    ("spiflash4x", 0,
+        Subsignal("cs_n", Pins(1)),
+        Subsignal("clk",  Pins(1)),
+        Subsignal("dq",   Pins(4)),
+    ),
+    # Simulated tristate IO (Verilator does not support top-level
+    # tristate signals)
+    ("gpio", 0,
+        Subsignal("oe",   Pins(32)),
+        Subsignal("o",    Pins(32)),
+        Subsignal("i",    Pins(32)),
+    )
 ]
 
 # Platform -----------------------------------------------------------------------------------------
@@ -101,6 +122,7 @@ class Platform(SimPlatform):
 # Simulation SoC -----------------------------------------------------------------------------------
 
 class SimSoC(SoCCore):
+    mem_map = {**SoCCore.mem_map, **{"spiflash": 0x80000000}}
     def __init__(self,
         with_sdram            = False,
         with_ethernet         = False,
@@ -116,6 +138,9 @@ class SimSoC(SoCCore):
         sdram_verbosity       = 0,
         with_i2c              = False,
         with_sdcard           = False,
+        with_spi_flash        = False,
+        spi_flash_init        = [],
+        with_gpio             = False,
         sim_debug             = False,
         trace_reset_on        = False,
         **kwargs):
@@ -132,7 +157,7 @@ class SimSoC(SoCCore):
         self.submodules.crg = CRG(platform.request("sys_clk"))
 
         # SDRAM ------------------------------------------------------------------------------------
-        if with_sdram:
+        if not self.integrated_main_ram_size and with_sdram:
             sdram_clk_freq = int(100e6) # FIXME: use 100MHz timings
             if sdram_spd_data is None:
                 sdram_module_cls = getattr(litedram_modules, sdram_module)
@@ -205,9 +230,9 @@ class SimSoC(SoCCore):
                 dw         = 64 if ethernet_phy_model == "xgmii" else 32,
                 interface  = "wishbone",
                 endianness = self.cpu.endianness)
-            sram_region_size = (ethmac.rx_slots.read() + ethmac.tx_slots.read()) * ethmac.slot_size.read()
-            self.add_memory_region("ethmac", self.mem_map.get("ethmac", None), sram_region_size, type="io")
-            self.add_wb_slave(self.mem_regions["ethmac"].origin, ethmac.bus, sram_region_size)
+            ethmac_region_size = (ethmac.rx_slots.read() + ethmac.tx_slots.read()) * ethmac.slot_size.read()
+            self.add_memory_region("ethmac", self.mem_map.get("ethmac", None), ethmac_region_size, type="io")
+            self.add_wb_slave(self.mem_regions["ethmac"].origin, ethmac.bus, ethmac_region_size)
             if self.irq.enabled:
                 self.irq.add("ethmac", use_loc_if_exists=True)
 
@@ -254,6 +279,23 @@ class SimSoC(SoCCore):
         # SDCard -----------------------------------------------------------------------------------
         if with_sdcard:
             self.add_sdcard("sdcard", use_emulator=True)
+
+        # SPI Flash --------------------------------------------------------------------------------
+        if with_spi_flash:
+            from litespi.phy.model import LiteSPIPHYModel
+            from litespi.modules import S25FL128L
+            from litespi.opcodes import SpiNorFlashOpCodes as Codes
+            spiflash_module = S25FL128L(Codes.READ_1_1_4)
+            if spi_flash_init is None:
+                platform.add_sources(os.path.abspath(os.path.dirname(__file__)), "../build/sim/verilog/iddr_verilog.v")
+                platform.add_sources(os.path.abspath(os.path.dirname(__file__)), "../build/sim/verilog/oddr_verilog.v")
+            self.submodules.spiflash_phy = LiteSPIPHYModel(spiflash_module, init=spi_flash_init)
+            self.add_spi_flash(phy=self.spiflash_phy, mode="4x", module=spiflash_module, with_master=True)
+
+        # GPIO --------------------------------------------------------------------------------------
+        if with_gpio:
+            self.submodules.gpio = GPIOTristate(platform.request("gpio"), with_irq=True)
+            self.irq.add("gpio", use_loc_if_exists=True)
 
         # Simulation debugging ----------------------------------------------------------------------
         if sim_debug:
@@ -319,6 +361,9 @@ def sim_args(parser):
     parser.add_argument("--with-analyzer",        action="store_true",     help="Enable Analyzer support")
     parser.add_argument("--with-i2c",             action="store_true",     help="Enable I2C support")
     parser.add_argument("--with-sdcard",          action="store_true",     help="Enable SDCard support")
+    parser.add_argument("--with-spi-flash",       action="store_true",     help="Enable SPI Flash (MMAPed)")
+    parser.add_argument("--spi_flash-init",       default=None,            help="SPI Flash init file")
+    parser.add_argument("--with-gpio",            action="store_true",     help="Enable Tristate GPIO (32 pins)")
     parser.add_argument("--trace",                action="store_true",     help="Enable Tracing")
     parser.add_argument("--trace-fst",            action="store_true",     help="Enable FST tracing (default=VCD)")
     parser.add_argument("--trace-start",          default="0",             help="Time to start tracing (ps)")
@@ -343,24 +388,30 @@ def main():
     # Configuration --------------------------------------------------------------------------------
 
     cpu = CPUS.get(soc_kwargs.get("cpu_type", "vexriscv"))
+
+    # UART.
     if soc_kwargs["uart_name"] == "serial":
         soc_kwargs["uart_name"] = "sim"
         sim_config.add_module("serial2console", "serial")
+
+    # ROM.
     if args.rom_init:
         soc_kwargs["integrated_rom_init"] = get_mem_data(args.rom_init, cpu.endianness)
-    if not args.with_sdram:
-        soc_kwargs["integrated_main_ram_size"] = 0x10000000 # 256 MB
+
+    # RAM / SDRAM.
+    soc_kwargs["integrated_main_ram_size"] = args.integrated_main_ram_size
+    if args.integrated_main_ram_size:
         if args.ram_init is not None:
             soc_kwargs["integrated_main_ram_init"] = get_mem_data(args.ram_init, cpu.endianness)
-    else:
+    elif args.with_sdram:
         assert args.ram_init is None
-        soc_kwargs["integrated_main_ram_size"] = 0x0
-        soc_kwargs["sdram_module"]             = args.sdram_module
-        soc_kwargs["sdram_data_width"]         = int(args.sdram_data_width)
-        soc_kwargs["sdram_verbosity"]          = int(args.sdram_verbosity)
+        soc_kwargs["sdram_module"]     = args.sdram_module
+        soc_kwargs["sdram_data_width"] = int(args.sdram_data_width)
+        soc_kwargs["sdram_verbosity"]  = int(args.sdram_verbosity)
         if args.sdram_from_spd_dump:
             soc_kwargs["sdram_spd_data"] = parse_spd_hexdump(args.sdram_from_spd_dump)
 
+    # Ethernet.
     if args.with_ethernet or args.with_etherbone:
         if args.ethernet_phy_model == "sim":
             sim_config.add_module("ethernet", "eth", args={"interface": "tap0", "ip": args.remote_ip})
@@ -371,6 +422,7 @@ def main():
         else:
             raise ValueError("Unknown Ethernet PHY model: " + args.ethernet_phy_model)
 
+    # I2C.
     if args.with_i2c:
         sim_config.add_module("spdeeprom", "i2c")
 
@@ -386,9 +438,12 @@ def main():
         with_analyzer      = args.with_analyzer,
         with_i2c           = args.with_i2c,
         with_sdcard        = args.with_sdcard,
+        with_spi_flash     = args.with_spi_flash,
+        with_gpio          = args.with_gpio,
         sim_debug          = args.sim_debug,
         trace_reset_on     = trace_start > 0 or trace_end > 0,
         sdram_init         = [] if args.sdram_init is None else get_mem_data(args.sdram_init, cpu.endianness),
+        spi_flash_init     = None if args.spi_flash_init is None else get_mem_data(args.spi_flash_init, "big"),
         **soc_kwargs)
     if args.ram_init is not None or args.sdram_init is not None:
         soc.add_constant("ROM_BOOT_ADDRESS", soc.mem_map["main_ram"])

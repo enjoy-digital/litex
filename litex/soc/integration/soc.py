@@ -1430,14 +1430,6 @@ class LiteXSoC(SoC):
         if self.irq.enabled:
             self.irq.add(name, use_loc_if_exists=True)
 
-        # Timing constraints
-        eth_rx_clk = getattr(phy, "crg", phy).cd_eth_rx.clk
-        eth_tx_clk = getattr(phy, "crg", phy).cd_eth_tx.clk
-        if not isinstance(phy, LiteEthPHYModel) and not getattr(phy, "model", False):
-            self.platform.add_period_constraint(eth_rx_clk, 1e9/phy.rx_clk_freq)
-            self.platform.add_period_constraint(eth_tx_clk, 1e9/phy.tx_clk_freq)
-            self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk, eth_tx_clk)
-
         # Dynamic IP (if enabled).
         if dynamic_ip:
             self.add_constant("ETH_DYNAMIC_IP")
@@ -1446,6 +1438,15 @@ class LiteXSoC(SoC):
         if software_debug:
             self.add_constant("ETH_UDP_TX_DEBUG")
             self.add_constant("ETH_UDP_RX_DEBUG")
+
+        # Timing constraints
+        if with_timing_constraints:
+            eth_rx_clk = getattr(phy, "crg", phy).cd_eth_rx.clk
+            eth_tx_clk = getattr(phy, "crg", phy).cd_eth_tx.clk
+            if not isinstance(phy, LiteEthPHYModel) and not getattr(phy, "model", False):
+                self.platform.add_period_constraint(eth_rx_clk, 1e9/phy.rx_clk_freq)
+                self.platform.add_period_constraint(eth_tx_clk, 1e9/phy.tx_clk_freq)
+                self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk, eth_tx_clk)
 
     # Add Etherbone --------------------------------------------------------------------------------
     def add_etherbone(self, name="etherbone", phy=None, phy_cd="eth",
@@ -1483,12 +1484,13 @@ class LiteXSoC(SoC):
         self.add_wb_master(etherbone.wishbone.bus)
 
         # Timing constraints
-        eth_rx_clk = getattr(phy, "crg", phy).cd_eth_rx.clk
-        eth_tx_clk = getattr(phy, "crg", phy).cd_eth_tx.clk
-        if not isinstance(phy, LiteEthPHYModel) and not getattr(phy, "model", False):
-            self.platform.add_period_constraint(eth_rx_clk, 1e9/phy.rx_clk_freq)
-            self.platform.add_period_constraint(eth_tx_clk, 1e9/phy.tx_clk_freq)
-            self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk, eth_tx_clk)
+        if with_timing_constraints:
+            eth_rx_clk = getattr(phy, "crg", phy).cd_eth_rx.clk
+            eth_tx_clk = getattr(phy, "crg", phy).cd_eth_tx.clk
+            if not isinstance(phy, LiteEthPHYModel) and not getattr(phy, "model", False):
+                self.platform.add_period_constraint(eth_rx_clk, 1e9/phy.rx_clk_freq)
+                self.platform.add_period_constraint(eth_tx_clk, 1e9/phy.tx_clk_freq)
+                self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk, eth_tx_clk)
 
     # Add SPI Flash --------------------------------------------------------------------------------
     def add_spi_flash(self, name="spiflash", mode="4x", dummy_cycles=None, clk_freq=None, module=None, **kwargs):
