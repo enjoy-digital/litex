@@ -102,6 +102,22 @@ def _run_script(script):
 
 # XilinxVivadoToolchain ----------------------------------------------------------------------------
 
+class XilinxVivadoCommands(list):
+    def add(self, command, **signals):
+        self.append((command, signals))
+
+    def resolve(self, vns):
+        named_commands = []
+        for command in self:
+            if isinstance(command, str):
+                named_commands.append(command)
+            else:
+                template, args = command
+                name_dict = dict((k, vns.get_name(sig)) for k, sig in args.items())
+                named_commands.append(template.format(**name_dict))
+        return named_commands
+
+
 class XilinxVivadoToolchain:
     attr_translate = {
         "keep":            ("dont_touch", "true"),
@@ -116,9 +132,9 @@ class XilinxVivadoToolchain:
     def __init__(self):
         self.bitstream_commands                   = []
         self.additional_commands                  = []
-        self.pre_synthesis_commands               = []
-        self.pre_placement_commands               = []
-        self.pre_routing_commands                 = []
+        self.pre_synthesis_commands               = XilinxVivadoCommands()
+        self.pre_placement_commands               = XilinxVivadoCommands()
+        self.pre_routing_commands                 = XilinxVivadoCommands()
         self.incremental_implementation           = False
         self.vivado_synth_directive               = "default"
         self.opt_directive                        = "default"
@@ -129,7 +145,7 @@ class XilinxVivadoToolchain:
         self.clocks      = dict()
         self.false_paths = set()
 
-    def _build_tcl(self, platform, build_name, synth_mode, enable_xpm):
+    def _build_tcl(self, platform, build_name, synth_mode, enable_xpm, vns):
         assert synth_mode in ["vivado", "yosys"]
         tcl = []
 
@@ -191,7 +207,7 @@ class XilinxVivadoToolchain:
 
         # Add pre-synthesis commands
         tcl.append("\n# Add pre-synthesis commands\n")
-        tcl.extend(c.format(build_name=build_name) for c in self.pre_synthesis_commands)
+        tcl.extend(c.format(build_name=build_name) for c in self.pre_synthesis_commands.resolve(vns))
 
         # Synthesis
         if synth_mode == "vivado":
@@ -223,7 +239,7 @@ class XilinxVivadoToolchain:
 
         # Add pre-placement commands
         tcl.append("\n# Add pre-placement commands\n")
-        tcl.extend(c.format(build_name=build_name) for c in self.pre_placement_commands)
+        tcl.extend(c.format(build_name=build_name) for c in self.pre_placement_commands.resolve(vns))
 
         # Placement
         tcl.append("\n# Placement\n")
@@ -239,7 +255,7 @@ class XilinxVivadoToolchain:
 
         # Add pre-routing commands
         tcl.append("\n# Add pre-routing commands\n")
-        tcl.extend(c.format(build_name=build_name) for c in self.pre_routing_commands)
+        tcl.extend(c.format(build_name=build_name) for c in self.pre_routing_commands.resolve(vns))
 
         # Routing
         tcl.append("\n# Routing\n")
@@ -341,7 +357,8 @@ class XilinxVivadoToolchain:
             platform   = platform,
             build_name = build_name,
             synth_mode = synth_mode,
-            enable_xpm = enable_xpm
+            enable_xpm = enable_xpm,
+            vns        = v_output.ns,
         )
 
         # Generate design constraints (.xdc)

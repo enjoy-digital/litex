@@ -12,10 +12,10 @@ typedef int (*console_read_nonblock_hook)(void);
 void console_set_write_hook(console_write_hook h);
 void console_set_read_hook(console_read_hook r, console_read_nonblock_hook rn);
 
-char readchar(void);
-int readchar_nonblock(void);
+#define readchar getchar
+#define putsnonl(X) fputs(X, stdout)
 
-void putsnonl(const char *s);
+int readchar_nonblock(void);
 
 #ifdef __cplusplus
 }

@@ -145,6 +145,44 @@ class DDROutput(Special):
     def lower(dr):
         raise NotImplementedError("Attempted to use a DDR output, but platform does not support them")
 
+# DDR Tristate -------------------------------------------------------------------------------------
+
+class InferedDDRTristate(Module):
+    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk):
+        _o  = Signal()
+        _oe = Signal()
+        _i  = Signal()
+        self.specials += DDROutput(o1, o2, _o, clk)
+        self.specials += DDROutput(oe1, oe2, _oe, clk)
+        self.specials += DDRInput(_i, i1, i2, clk)
+        self.specials += Tristate(io, _o, _oe, _i)
+
+class DDRTristate(Special):
+    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk=ClockSignal()):
+        Special.__init__(self)
+        self.io  = io
+        self.o1  = o1
+        self.o2  = o2
+        self.oe1 = oe1
+        self.oe2 = oe2
+        self.i1  = i1
+        self.i2  = i2
+        self.clk = clk
+
+    def iter_expressions(self):
+        yield self, "io",  SPECIAL_INOUT
+        yield self, "o1",  SPECIAL_INPUT
+        yield self, "o2",  SPECIAL_INPUT
+        yield self, "oe1", SPECIAL_INPUT
+        yield self, "oe2", SPECIAL_INPUT
+        yield self, "i1",  SPECIAL_OUTPUT
+        yield self, "i2",  SPECIAL_OUTPUT
+        yield self, "clk", SPECIAL_INPUT
+
+    @staticmethod
+    def lower(dr):
+        return InferedDDRTristate(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk)
+
 # Clock Reset Generator ----------------------------------------------------------------------------
 
 class CRG(Module):

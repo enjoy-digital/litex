@@ -65,10 +65,42 @@ class GowinDDROutput:
     def lower(dr):
         return GowinDDROutputImpl(dr.i1, dr.i2, dr.o, dr.clk)
 
+# Gowin Differential Input -------------------------------------------------------------------------
+
+class GowinDifferentialInputImpl(Module):
+    def __init__(self, i_p, i_n, o):
+        self.specials += Instance("TLVDS_IBUF",
+            i_I  = i_p,
+            i_IB = i_n,
+            o_O  = o,
+        )
+
+class GowinDifferentialInput:
+    @staticmethod
+    def lower(dr):
+        return GowinDifferentialInputImpl(dr.i_p, dr.i_n, dr.o)
+
+# Gowin Differential Output -------------------------------------------------------------------------
+
+class GowinDifferentialOutputImpl(Module):
+    def __init__(self, i, o_p, o_n):
+        self.specials += Instance("TLVDS_OBUF",
+            i_I  = i,
+            o_O  = o_p,
+            o_OB = o_n,
+        )
+
+class GowinDifferentialOutput:
+    @staticmethod
+    def lower(dr):
+        return GowinDifferentialOutputImpl(dr.i, dr.o_p, dr.o_n)
+
 # Gowin Special Overrides --------------------------------------------------------------------------
 
 gowin_special_overrides = {
     AsyncResetSynchronizer: GowinAsyncResetSynchronizer,
     DDRInput:               GowinDDRInput,
     DDROutput:              GowinDDROutput,
+    DifferentialInput:      GowinDifferentialInput,
+    DifferentialOutput:     GowinDifferentialOutput,
 }

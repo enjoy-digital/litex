@@ -20,7 +20,7 @@ int memtest_bus(unsigned int *addr, unsigned long size);
 int memtest_addr(unsigned int *addr, unsigned long size, int random);
 int memtest_data(unsigned int *addr, unsigned long size, int random, struct memtest_config *config);
 
-void memspeed(unsigned int *addr, unsigned long size, bool read_only);
+void memspeed(unsigned int *addr, unsigned long size, bool read_only, bool random);
 int memtest(unsigned int *addr, unsigned long maxsize);
 
 #endif /* __MEMTEST_H */

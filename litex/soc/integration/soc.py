@@ -233,13 +233,17 @@ class SoCBusHandler(Module):
         for _, search_region in search_regions.items():
             origin = search_region.origin
             while (origin + size) < (search_region.origin + search_region.size_pow2):
+                # Align Origin on Size.
+                if (origin%size):
+                    origin += (origin - origin%size)
+                    continue
                 # Create a Candidate.
                 candidate = SoCRegion(origin=origin, size=size, cached=cached)
                 overlap   = False
                 # Check Candidate does not overlap with allocated existing regions.
                 for _, allocated in self.regions.items():
                     if self.check_regions_overlap({"0": allocated, "1": candidate}) is not None:
-                        origin  = allocated.origin + allocated.size_pow2
+                        origin += size
                         overlap = True
                         break
                 if not overlap:
@@ -1329,12 +1333,10 @@ class LiteXSoC(SoC):
                         mem_wb  = wishbone.Interface(
                             data_width = self.cpu.mem_axi.data_width,
                             adr_width  = 32-log2_int(self.cpu.mem_axi.data_width//8))
-                        # FIXME: AXI2Wishbone FSMs must be reset with the CPU.
-                        mem_a2w = ResetInserter()(axi.AXI2Wishbone(
+                        mem_a2w = axi.AXI2Wishbone(
                             axi          = self.cpu.mem_axi,
                             wishbone     = mem_wb,
-                            base_address = 0))
-                        self.comb += mem_a2w.reset.eq(ResetSignal() | self.cpu.reset)
+                            base_address = 0)
                         self.submodules += mem_a2w
                         litedram_wb = wishbone.Interface(port.data_width)
                         self.submodules += LiteDRAMWishbone2Native(
@@ -1397,9 +1399,10 @@ class LiteXSoC(SoC):
 
     # Add Ethernet ---------------------------------------------------------------------------------
     def add_ethernet(self, name="ethmac", phy=None, phy_cd="eth", dynamic_ip=False, software_debug=False,
-        nrxslots       = 2,
-        ntxslots       = 2,
-        with_timestamp = False):
+        nrxslots                = 2,
+        ntxslots                = 2,
+        with_timestamp          = False,
+        with_timing_constraints = True):
         # Imports
         from liteeth.mac import LiteEthMAC
         from liteeth.phy.model import LiteEthPHYModel
@@ -1450,10 +1453,11 @@ class LiteXSoC(SoC):
 
     # Add Etherbone --------------------------------------------------------------------------------
     def add_etherbone(self, name="etherbone", phy=None, phy_cd="eth",
-        mac_address  = 0x10e2d5000000,
-        ip_address   = "192.168.1.50",
-        udp_port     = 1234,
-        buffer_depth = 4):
+        mac_address             = 0x10e2d5000000,
+        ip_address              = "192.168.1.50",
+        udp_port                = 1234,
+        buffer_depth            = 4,
+        with_timing_constraints = True):
         # Imports
         from liteeth.core import LiteEthUDPIPCore
         from liteeth.frontend.etherbone import LiteEthEtherbone
@@ -1493,7 +1497,7 @@ class LiteXSoC(SoC):
                 self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk, eth_tx_clk)
 
     # Add SPI Flash --------------------------------------------------------------------------------
-    def add_spi_flash(self, name="spiflash", mode="4x", dummy_cycles=None, clk_freq=None, module=None, **kwargs):
+    def add_spi_flash(self, name="spiflash", mode="4x", dummy_cycles=None, clk_freq=None, module=None, phy=None, rate="1:1", **kwargs):
         if module is None:
             # Use previous LiteX SPI Flash core with compat, will be deprecated at some point.
             from litex.compat.soc_add_spi_flash import add_spi_flash
@@ -1501,29 +1505,34 @@ class LiteXSoC(SoC):
         # LiteSPI.
         else:
             # Imports.
-            from litespi.phy.generic import LiteSPIPHY
             from litespi import LiteSPI
+            from litespi.phy.generic import LiteSPIPHY
             from litespi.opcodes import SpiNorFlashOpCodes
 
             # Checks/Parameters.
             assert mode in ["1x", "4x"]
             if clk_freq is None: clk_freq = self.sys_clk_freq
 
+            # PHY.
+            spiflash_phy = phy
+            if spiflash_phy is None:
+                self.check_if_exists(name + "_phy")
+                spiflash_pads = self.platform.request(name if mode == "1x" else name + mode)
+                spiflash_phy = LiteSPIPHY(spiflash_pads, module, device=self.platform.device, default_divisor=int(self.sys_clk_freq/clk_freq), rate=rate)
+                setattr(self.submodules, name + "_phy",  spiflash_phy)
+
             # Core.
-            self.check_if_exists(name + "_phy")
             self.check_if_exists(name + "_mmap")
-            spiflash_pads   = self.platform.request(name if mode == "1x" else name + mode)
-            spiflash_phy    = LiteSPIPHY(spiflash_pads, module, default_divisor=int(self.sys_clk_freq/clk_freq))
-            spiflash_core   = LiteSPI(spiflash_phy, clk_freq=clk_freq, mmap_endianness=self.cpu.endianness, **kwargs)
-            setattr(self.submodules, name + "_phy",  spiflash_phy)
+            spiflash_core = LiteSPI(spiflash_phy, mmap_endianness=self.cpu.endianness, **kwargs)
             setattr(self.submodules, name + "_core", spiflash_core)
             spiflash_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size)
             self.bus.add_slave(name=name, slave=spiflash_core.bus, region=spiflash_region)
 
             # Constants.
-            self.add_constant("SPIFLASH_MODULE_NAME",       module.name.upper())
+            self.add_constant("SPIFLASH_PHY_FREQUENCY", clk_freq)
+            self.add_constant("SPIFLASH_MODULE_NAME", module.name.upper())
             self.add_constant("SPIFLASH_MODULE_TOTAL_SIZE", module.total_size)
-            self.add_constant("SPIFLASH_MODULE_PAGE_SIZE",  module.page_size)
+            self.add_constant("SPIFLASH_MODULE_PAGE_SIZE", module.page_size)
             if SpiNorFlashOpCodes.READ_1_1_4 in module.supported_opcodes:
                 self.add_constant("SPIFLASH_MODULE_QUAD_CAPABLE")
             if SpiNorFlashOpCodes.READ_4_4_4 in module.supported_opcodes:

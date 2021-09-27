@@ -241,6 +241,31 @@ class LatticeNXSDROutput:
     def lower(dr):
         return LatticeNXSDROutputImpl(dr.i, dr.o, dr.clk)
 
+# NX SDR Input and Output via regular flip-flops ---------------------------------------------------
+
+# This is a workaround for IO-specific primitives IFD1P3BX / OFD1P3BX being unsupported in nextpnr:
+# https://github.com/YosysHQ/nextpnr/issues/698
+
+class LatticeNXSDRFFImpl(Module):
+    def __init__(self, i, o, clk):
+        self.specials += Instance("FD1P3BX",
+            i_CK = clk,
+            i_PD   = 0,
+            i_SP   = 1,
+            i_D    = i,
+            o_Q    = o,
+        )
+
+class LatticeNXSDRInputViaFlipFlop:
+    @staticmethod
+    def lower(dr):
+        return LatticeNXSDRFFImpl(dr.i, dr.o, dr.clk)
+
+class LatticeNXSDROutputViaFlipFlop:
+    @staticmethod
+    def lower(dr):
+        return LatticeNXSDRFFImpl(dr.i, dr.o, dr.clk)
+
 # NX DDR Input -------------------------------------------------------------------------------------
 
 class LatticeNXDDRInputImpl(Module):
@@ -273,6 +298,24 @@ class LatticeNXDDROutput:
     def lower(dr):
         return LatticeNXDDROutputImpl(dr.i1, dr.i2, dr.o, dr.clk)
 
+# NX DDR Tristate ------------------------------------------------------------------------------------
+
+class LatticeNXDDRTristateImpl(Module):
+    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk):
+        _o  = Signal()
+        _oe = Signal()
+        _i  = Signal()
+        self.specials += DDROutput(o1, o2, _o, clk)
+        self.specials += SDROutput(oe1 | oe2, _oe, clk)
+        self.specials += DDRInput(_i, i1, i2, clk)
+        self.specials += Tristate(io, _o, _oe, _i)
+        _oe.attr.add("syn_useioff")
+
+class LatticeNXDDRTristate:
+    @staticmethod
+    def lower(dr):
+        return LatticeNXDDRTristateImpl(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk)
+
 # NX Special Overrides -----------------------------------------------------------------------------
 
 lattice_NX_special_overrides = {
@@ -281,7 +324,14 @@ lattice_NX_special_overrides = {
     SDROutput:              LatticeNXSDROutput,
     DDRInput:               LatticeNXDDRInput,
     DDROutput:              LatticeNXDDROutput,
+    DDRTristate:            LatticeNXDDRTristate,
 }
+
+lattice_NX_special_overrides_for_oxide = dict(lattice_NX_special_overrides)
+lattice_NX_special_overrides_for_oxide.update({
+    SDRInput:               LatticeNXSDRInputViaFlipFlop,
+    SDROutput:              LatticeNXSDROutputViaFlipFlop,
+})
 
 # iCE40 AsyncResetSynchronizer ---------------------------------------------------------------------
 

@@ -317,7 +317,7 @@ class AXIBurst2Beat(Module):
 
         beat_count  = Signal(8)
         beat_size   = Signal(8 + 4)
-        beat_offset = Signal(8 + 4)
+        beat_offset = Signal((8 + 4, True))
         beat_wrap   = Signal(8 + 4)
 
         # Compute parameters
@@ -352,8 +352,8 @@ class AXIBurst2Beat(Module):
                     )
                 ),
                 If((ax_burst.burst == BURST_WRAP) & (BURST_WRAP in capabilities),
-                    If(beat_offset == beat_wrap,
-                        beat_offset.eq(0)
+                    If((ax_beat.addr & beat_wrap) == beat_wrap,
+                        beat_offset.eq(beat_offset - beat_wrap)
                     )
                 )
             )

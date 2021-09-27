@@ -18,6 +18,8 @@
 
 import os
 import json
+import time
+import datetime
 import inspect
 from shutil import which
 from sysconfig import get_platform
@@ -33,26 +35,22 @@ from litex.soc.doc.module import gather_submodules, ModuleNotDocumented, Documen
 from litex.soc.doc.csr import DocumentedCSRRegion
 from litex.soc.interconnect.csr import _CompoundCSR
 
-# for generating a timestamp in the description field, if none is otherwise given
-import datetime
-import time
-
 # CPU files ----------------------------------------------------------------------------------------
 
 def get_cpu_mak(cpu, compile_software):
-    # select between clang and gcc
+    # Select between CLANG and GCC.
     clang = os.getenv("CLANG", "")
     if clang != "":
         clang = bool(int(clang))
     else:
         clang = None
-    if not hasattr(cpu, "clang_triple"):
+    if cpu.clang_triple is None:
         if clang:
-            raise ValueError(cpu.name + "not supported with clang.")
+            raise ValueError(cpu.name + " is not supported with CLANG.")
         else:
             clang = False
     else:
-        # Default to gcc unless told otherwise
+        # Default to gcc unless told otherwise.
         if clang is None:
             clang = False
     assert isinstance(clang, bool)
@@ -63,7 +61,7 @@ def get_cpu_mak(cpu, compile_software):
         triple = cpu.gcc_triple
         flags = cpu.gcc_flags
 
-    # select triple when more than one
+    # Select triple when more than one.
     def select_triple(triple):
         r = None
         if not isinstance(triple, tuple):
@@ -74,7 +72,7 @@ def get_cpu_mak(cpu, compile_software):
         p = get_platform()
         for i in range(len(triple)):
             t = triple[i]
-            # use native toolchain if host and target platforms are the same
+            # Use native toolchain if host and target platforms are the same.
             if t == 'riscv64-unknown-elf' and p == 'linux-riscv64':
                 r = '--native--'
                 break
@@ -90,25 +88,25 @@ def get_cpu_mak(cpu, compile_software):
             raise OSError(msg)
         return r
 
-    # return informations
+    # Return informations.
     return [
-        ("TRIPLE", select_triple(triple)),
-        ("CPU", cpu.name),
-        ("CPUFLAGS", flags),
+        ("TRIPLE",        select_triple(triple)),
+        ("CPU",           cpu.name),
+        ("CPUFLAGS",      flags),
         ("CPUENDIANNESS", cpu.endianness),
-        ("CLANG", str(int(clang))),
+        ("CLANG",         str(int(clang))),
         ("CPU_DIRECTORY", os.path.dirname(inspect.getfile(cpu.__class__))),
     ]
 
 
 def get_linker_output_format(cpu):
-    return "OUTPUT_FORMAT(\"" + cpu.linker_output_format + "\")\n"
+    return f"OUTPUT_FORMAT(\"{cpu.linker_output_format}\")\n"
 
 
 def get_linker_regions(regions):
     r = "MEMORY {\n"
     for name, region in regions.items():
-        r += "\t{} : ORIGIN = 0x{:08x}, LENGTH = 0x{:08x}\n".format(name, region.origin, region.length)
+        r += f"\t{name} : ORIGIN = 0x{region.origin:08x}, LENGTH = 0x{region.length:08x}\n"
     r += "}\n"
     return r
 
@@ -119,8 +117,8 @@ def get_git_header():
     from litex.build.tools import get_migen_git_revision, get_litex_git_revision
     r = generated_banner("//")
     r += "#ifndef __GENERATED_GIT_H\n#define __GENERATED_GIT_H\n\n"
-    r += "#define MIGEN_GIT_SHA1 \"{}\"\n".format(get_migen_git_revision())
-    r += "#define LITEX_GIT_SHA1 \"{}\"\n".format(get_litex_git_revision())
+    r += f"#define MIGEN_GIT_SHA1 \"{get_migen_git_revision()}\"\n"
+    r += f"#define LITEX_GIT_SHA1 \"{get_litex_git_revision()}\"\n"
     r += "#endif\n"
     return r
 
@@ -128,9 +126,9 @@ def get_mem_header(regions):
     r = generated_banner("//")
     r += "#ifndef __GENERATED_MEM_H\n#define __GENERATED_MEM_H\n\n"
     for name, region in regions.items():
-        r += "#ifndef {name}_BASE\n".format(name=name.upper())
-        r += "#define {name}_BASE 0x{base:08x}L\n#define {name}_SIZE 0x{size:08x}\n".format(
-            name=name.upper(), base=region.origin, size=region.length)
+        r += f"#ifndef {name.upper()}_BASE\n"
+        r += f"#define {name.upper()}_BASE 0x{region.origin:08x}L\n"
+        r += f"#define {name.upper()}_SIZE 0x{region.length:08x}\n"
         r += "#endif\n\n"
 
     r += "#ifndef MEM_REGIONS\n"
@@ -175,14 +173,14 @@ def get_soc_header(constants, with_access_functions=True):
 def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_only, with_access_functions):
     r = ""
 
-    addr_str = "CSR_{}_ADDR".format(reg_name.upper())
-    size_str = "CSR_{}_SIZE".format(reg_name.upper())
-    r += "#define {} (CSR_BASE + {}L)\n".format(addr_str, hex(reg_base))
-    r += "#define {} {}\n".format(size_str, nwords)
+    addr_str = f"CSR_{reg_name.upper()}_ADDR"
+    size_str = f"CSR_{reg_name.upper()}_SIZE"
+    r += f"#define {addr_str} (CSR_BASE + {hex(reg_base)}L)\n"
+    r += f"#define {size_str} {nwords}\n"
 
     size = nwords*busword//8
     if size > 8:
-        # downstream should select appropriate `csr_[rd|wr]_buf_uintX()` pair!
+        # Downstream should select appropriate `csr_[rd|wr]_buf_uintX()` pair!
         return r
     elif size > 4:
         ctype = "uint64_t"
@@ -195,25 +193,25 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_onl
 
     stride = alignment//8;
     if with_access_functions:
-        r += "static inline {} {}_read(void) {{\n".format(ctype, reg_name)
+        r += f"static inline {ctype} {reg_name}_read(void) {{\n"
         if nwords > 1:
-            r += "\t{} r = csr_read_simple(CSR_BASE + {}L);\n".format(ctype, hex(reg_base))
+            r += f"\t{ctype} r = csr_read_simple(CSR_BASE + {reg_base}L);\n"
             for sub in range(1, nwords):
-                r += "\tr <<= {};\n".format(busword)
-                r += "\tr |= csr_read_simple(CSR_BASE + {}L);\n".format(hex(reg_base+sub*stride))
+                r += f"\tr <<= {busword};\n"
+                r += f"\tr |= csr_read_simple(CSR_BASE + {hex(reg_base+sub*stride)}L);\n"
             r += "\treturn r;\n}\n"
         else:
-            r += "\treturn csr_read_simple(CSR_BASE + {}L);\n}}\n".format(hex(reg_base))
+            r += f"\treturn csr_read_simple(CSR_BASE + {hex(reg_base)}L);\n}}\n"
 
         if not read_only:
-            r += "static inline void {}_write({} v) {{\n".format(reg_name, ctype)
+            r += f"static inline void {reg_name}_write({ctype} v) {{\n"
             for sub in range(nwords):
                 shift = (nwords-sub-1)*busword
                 if shift:
                     v_shift = "v >> {}".format(shift)
                 else:
                     v_shift = "v"
-                r += "\tcsr_write_simple({}, CSR_BASE + {}L);\n".format(v_shift, hex(reg_base+sub*stride))
+                r += f"\tcsr_write_simple({v_shift}, CSR_BASE + {hex(reg_base+sub*stride)}L);\n"
             r += "}\n"
     return r
 
@@ -232,12 +230,12 @@ def get_csr_header(regions, constants, csr_base=None, with_access_functions=True
         r += "#endif /* ! CSR_ACCESSORS_DEFINED */\n"
     csr_base = csr_base if csr_base is not None else regions[next(iter(regions))].origin
     r += "#ifndef CSR_BASE\n"
-    r += "#define CSR_BASE {}L\n".format(hex(csr_base))
+    r += f"#define CSR_BASE {hex(csr_base)}L\n"
     r += "#endif\n"
     for name, region in regions.items():
         origin = region.origin - csr_base
         r += "\n/* "+name+" */\n"
-        r += "#define CSR_"+name.upper()+"_BASE (CSR_BASE + "+hex(origin)+"L)\n"
+        r += f"#define CSR_{name.upper()}_BASE (CSR_BASE + {hex(origin)}L)\n"
         if not isinstance(region.obj, Memory):
             for csr in region.obj:
                 nr = (csr.size + region.busword - 1)//region.busword
@@ -248,10 +246,10 @@ def get_csr_header(regions, constants, csr_base=None, with_access_functions=True
                     for field in csr.fields.fields:
                         offset = str(field.offset)
                         size = str(field.size)
-                        r += "#define CSR_"+name.upper()+"_"+csr.name.upper()+"_"+field.name.upper()+"_OFFSET "+offset+"\n"
-                        r += "#define CSR_"+name.upper()+"_"+csr.name.upper()+"_"+field.name.upper()+"_SIZE "+size+"\n"
+                        r += f"#define CSR_{name.upper()}_{csr.name.upper()}_{field.name.upper()}_OFFSET {offset}\n"
+                        r += f"#define CSR_{name.upper()}_{csr.name.upper()}_{field.name.upper()}_SIZE {size}\n"
                         if with_access_functions and csr.size <= 32: # FIXME: Implement extract/read functions for csr.size > 32-bit.
-                            reg_name = name + "_" + csr.name.lower()
+                            reg_name   = name + "_" + csr.name.lower()
                             field_name = reg_name + "_" + field.name.lower()
                             r += "static inline uint32_t " + field_name + "_extract(uint32_t oldword) {\n"
                             r += "\tuint32_t mask = ((1 << " + size + ")-1);\n"
@@ -290,13 +288,16 @@ def get_csr_json(csr_regions={}, constants={}, mem_regions={}):
         region_origin = region.origin
         if not isinstance(region.obj, Memory):
             for csr in region.obj:
-                size = (csr.size + region.busword - 1)//region.busword
+                _size = (csr.size + region.busword - 1)//region.busword
+                _type = "rw"
+                if isinstance(csr, CSRStatus) and not hasattr(csr, "r"):
+                    _type = "ro"
                 d["csr_registers"][name + "_" + csr.name] = {
                     "addr": region_origin,
-                    "size": size,
-                    "type": "ro" if isinstance(csr, CSRStatus) else "rw"
+                    "size": _size,
+                    "type": _type
                 }
-                region_origin += alignment//8*size
+                region_origin += alignment//8*_size
 
     for name, value in constants.items():
         d["constants"][name.lower()] = value.lower() if isinstance(value, str) else value

@@ -17,13 +17,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <console.h>
 #include <string.h>
-#include <uart.h>
 #include <system.h>
-#include <id.h>
 #include <irq.h>
-#include <crc.h>
 
 #include "boot.h"
 #include "readline.h"
@@ -35,7 +31,11 @@
 #include <generated/mem.h>
 #include <generated/git.h>
 
-#include <spiflash.h>
+#include <libbase/console.h>
+#include <libbase/crc.h>
+
+#include <libbase/spiflash.h>
+#include <libbase/uart.h>
 
 #include <liblitedram/sdram.h>
 

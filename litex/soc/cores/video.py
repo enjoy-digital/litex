@@ -733,6 +733,38 @@ class VideoHDMI10to1Serializer(Module):
             o   = data_o,
         )
 
+class VideoHDMIPHY(Module):
+    def __init__(self, pads, clock_domain="sys", pn_swap=[]):
+        self.sink = sink = stream.Endpoint(video_data_layout)
+
+        # # #
+
+        # Always ack Sink, no backpressure.
+        self.comb += sink.ready.eq(1)
+
+        # Clocking + Pseudo Differential Signaling.
+        self.specials += DDROutput(i1=1, i2=0, o=pads.clk_p, clk=ClockSignal(clock_domain))
+
+        # Encode/Serialize Datas.
+        for color in ["r", "g", "b"]:
+
+            # TMDS Encoding.
+            encoder = ClockDomainsRenamer(clock_domain)(TMDSEncoder())
+            setattr(self.submodules, f"{color}_encoder", encoder)
+            self.comb += encoder.d.eq(getattr(sink, color))
+            self.comb += encoder.c.eq(Cat(sink.hsync, sink.vsync) if color == "r" else 0)
+            self.comb += encoder.de.eq(sink.de)
+
+            # 10:1 Serialization + Pseudo Differential Signaling.
+            c2d  = {"r": 0, "g": 1, "b": 2}
+            data = encoder.out if color not in pn_swap else ~encoder.out
+            serializer = VideoHDMI10to1Serializer(
+                data_i       = data,
+                data_o       = getattr(pads, f"data{c2d[color]}_p"),
+                clock_domain = clock_domain,
+            )
+            setattr(self.submodules, f"{color}_serializer", serializer)
+
 # HDMI (Xilinx Spartan6).
 
 class VideoS6HDMIPHY(Module):
@@ -926,36 +958,3 @@ class VideoS7GTPHDMIPHY(Module):
             setattr(self.submodules, f"gtp{color}", gtp)
             self.comb += gtp.tx_produce_pattern.eq(1)
             self.comb += gtp.tx_pattern.eq(cdc.source.data)
-
-# HDMI (Lattice ECP5).
-
-class VideoECP5HDMIPHY(Module):
-    def __init__(self, pads, clock_domain="sys"):
-        self.sink = sink = stream.Endpoint(video_data_layout)
-
-        # # #
-
-        # Always ack Sink, no backpressure.
-        self.comb += sink.ready.eq(1)
-
-        # Clocking + Pseudo Differential Signaling.
-        self.specials += DDROutput(i1=1, i2=0, o=pads.clk_p, clk=ClockSignal(clock_domain))
-
-        # Encode/Serialize Datas.
-        for color in ["r", "g", "b"]:
-
-            # TMDS Encoding.
-            encoder = ClockDomainsRenamer(clock_domain)(TMDSEncoder())
-            setattr(self.submodules, f"{color}_encoder", encoder)
-            self.comb += encoder.d.eq(getattr(sink, color))
-            self.comb += encoder.c.eq(Cat(sink.hsync, sink.vsync) if color == "r" else 0)
-            self.comb += encoder.de.eq(sink.de)
-
-            # 10:1 Serialization + Pseudo Differential Signaling.
-            c2d   = {"r": 0, "g": 1, "b": 2}
-            serializer = VideoHDMI10to1Serializer(
-                data_i       = encoder.out,
-                data_o       = getattr(pads, f"data{c2d[color]}_p"),
-                clock_domain = clock_domain,
-            )
-            setattr(self.submodules, f"{color}_serializer", serializer)

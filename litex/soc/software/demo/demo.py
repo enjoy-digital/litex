@@ -8,7 +8,6 @@
 
 import os
 import argparse
-from distutils.dir_util import copy_tree
 
 def main():
     parser = argparse.ArgumentParser(description="LiteX Bare Metal Demo App.")
@@ -20,8 +19,7 @@ def main():
     os.makedirs("demo", exist_ok=True)
 
     # Copy contents to demo directory
-    src = os.path.abspath(os.path.dirname(__file__))
-    copy_tree(src, "demo")
+    os.system(f"cp {os.path.abspath(os.path.dirname(__file__))}/* demo")
 
     # Compile demo
     build_path = args.build_path if os.path.isabs(args.build_path) else os.path.join("..", args.build_path)

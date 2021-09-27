@@ -2,7 +2,7 @@
 
 #if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
 
-#include <spiflash.h>
+#include "spiflash.h"
 
 #define PAGE_PROGRAM_CMD 0x02
 #define WRDI_CMD         0x04

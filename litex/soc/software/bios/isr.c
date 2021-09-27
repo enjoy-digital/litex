@@ -7,7 +7,7 @@
 #include <generated/csr.h>
 #include <generated/soc.h>
 #include <irq.h>
-#include <uart.h>
+#include <libbase/uart.h>
 #include <stdio.h>
 
 #if defined(__microwatt__)

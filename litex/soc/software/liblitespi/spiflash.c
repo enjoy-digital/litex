@@ -4,7 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <crc.h>
+#include <libbase/memtest.h>
+#include <libbase/crc.h>
 
 #include <generated/csr.h>
 #include <generated/mem.h>
@@ -12,16 +13,20 @@
 
 #include "spiflash.h"
 
-#if defined(CSR_SPIFLASH_PHY_BASE) && defined(CSR_SPIFLASH_CORE_BASE)
-
 //#define SPIFLASH_DEBUG
-//#define SPIFLASH_MODULE_DUMMY_BITS 8
+
+#if defined(CSR_SPIFLASH_CORE_BASE)
 
 int spiflash_freq_init(void)
 {
-	unsigned int lowest_div = spiflash_phy_clk_divisor_read();
-	unsigned int crc = crc32((unsigned char *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE);
-	unsigned int crc_test = crc;
+
+#ifdef CSR_SPIFLASH_PHY_CLK_DIVISOR_ADDR
+
+	unsigned int lowest_div, crc, crc_test;
+
+	lowest_div = spiflash_phy_clk_divisor_read();
+	crc        = crc32((unsigned char *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE);
+	crc_test   = crc;
 
 #if SPIFLASH_DEBUG
 	printf("Testing against CRC32: %08x\n\r", crc);
@@ -29,7 +34,7 @@ int spiflash_freq_init(void)
 
 	/* Check if block is erased (filled with 0xFF) */
 	if(crc == CRC32_ERASED_FLASH) {
-		printf("Block of size %d, started on address 0x%lx is erased. Cannot proceed with SPI Flash frequency test.\n\r", SPI_FLASH_BLOCK_SIZE, SPIFLASH_BASE);
+		printf("First SPI Flash block erased, unable to perform freq test.\n\r");
 		return -1;
 	}
 
@@ -41,18 +46,24 @@ int spiflash_freq_init(void)
 #endif
 	}
 	lowest_div++;
-	printf("SPI Flash clk configured to %d MHz\n", (spiflash_core_sys_clk_freq_read()/(2*(1 + lowest_div)))/1000000);
+	printf("SPI Flash clk configured to %d MHz\n", (SPIFLASH_PHY_FREQUENCY/(2*(1 + lowest_div)))/1000000);
 
 	spiflash_phy_clk_divisor_write(lowest_div);
+
+#else
+
+	printf("SPI Flash clk configured to %ld MHz\n", (unsigned long)(SPIFLASH_PHY_FREQUENCY/1e6));
+
+#endif
 
 	return 0;
 }
 
 void spiflash_dummy_bits_setup(unsigned int dummy_bits)
 {
-	spiflash_phy_dummy_bits_write((uint32_t)dummy_bits);
+	spiflash_core_mmap_dummy_bits_write((uint32_t)dummy_bits);
 #if SPIFLASH_DEBUG
-	printf("Dummy bits set to: %d\n\r", spi_dummy_bits_read());
+	printf("Dummy bits set to: %d\n\r", spiflash_core_mmap_dummy_bits_read());
 #endif
 }
 
@@ -82,18 +93,18 @@ static void spiflash_master_write(uint32_t val, size_t len, size_t width, uint32
 
 #endif
 
+void spiflash_memspeed(void) {
+	/* Test Sequential Read accesses */
+	memspeed((unsigned int *) SPIFLASH_BASE, 4096, 1, 0);
+
+	/* Test Random Read accesses */
+	memspeed((unsigned int *) SPIFLASH_BASE, 4096, 1, 1);
+}
+
 void spiflash_init(void)
 {
-	int ret;
+	printf("\nInitializing %s SPI Flash @0x%08lx...\n", SPIFLASH_MODULE_NAME, SPIFLASH_BASE);
 
-	printf("Initializing %s SPI Flash...\n", SPIFLASH_MODULE_NAME);
-
-	/* Clk frequency auto-calibration. */
-	ret = spiflash_freq_init();
-	if (ret < 0)
-		return;
-
-	/* Dummy bits setup. */
 #ifdef SPIFLASH_MODULE_DUMMY_BITS
 	spiflash_dummy_bits_setup(SPIFLASH_MODULE_DUMMY_BITS);
 #endif
@@ -115,6 +126,13 @@ void spiflash_init(void)
 
 #endif
 
+#ifndef SPIFLASH_SKIP_FREQ_INIT
+	/* Clk frequency auto-calibration. */
+	spiflash_freq_init();
+#endif
+
+	/* Test SPI Flash speed */
+	spiflash_memspeed();
 }
 
 #endif

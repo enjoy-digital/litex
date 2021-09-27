@@ -87,8 +87,8 @@ else:
 from litex import RemoteClient
 
 class BridgeUART:
-    def __init__(self, name="uart_xover", host="localhost", base_address=0): # FIXME: add command line arguments
-        self.bus = RemoteClient(host=host, base_address=base_address)
+    def __init__(self, name="uart_xover", host="localhost", base_address=None, csr_csv=None):
+        self.bus = RemoteClient(host=host, base_address=base_address, csr_csv=csr_csv)
         present = False
         for k, v in self.bus.regs.d.items():
             if f"{name}_" in k:
@@ -96,6 +96,10 @@ class BridgeUART:
                 present = True
         if not present:
             raise ValueError(f"CrossoverUART {name} not present in design.")
+
+        # FIXME: On PCIe designs, CSR is remapped to 0 to limit BAR0 size.
+        if base_address is None and hasattr(self.bus.bases, "pcie_phy"):
+            self.bus.base_address = -self.bus.mems.csr.base
 
     def open(self):
         self.bus.open()
@@ -534,17 +538,19 @@ class LiteXTerm:
 def _get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("port",                                              help="Serial port (eg /dev/tty*, bridge, jtag)")
-    parser.add_argument("--speed",       default=115200,                     help="Serial baudrate")
-    parser.add_argument("--serial-boot", default=False, action='store_true', help="Automatically initiate serial boot")
-    parser.add_argument("--kernel",      default=None,                       help="Kernel image")
-    parser.add_argument("--kernel-adr",  default="0x40000000",               help="Kernel address")
-    parser.add_argument("--images",      default=None,                       help="JSON description of the images to load to memory")
+    parser.add_argument("--speed",        default=115200,                     help="Serial baudrate")
+    parser.add_argument("--serial-boot",  default=False, action='store_true', help="Automatically initiate serial boot")
+    parser.add_argument("--kernel",       default=None,                       help="Kernel image")
+    parser.add_argument("--kernel-adr",   default="0x40000000",               help="Kernel address")
+    parser.add_argument("--images",       default=None,                       help="JSON description of the images to load to memory")
 
-    parser.add_argument("--bridge-name", default="uart_xover",               help="Bridge UART name to use (present in design/csr.csv)")
+    parser.add_argument("--csr-csv",      default=None,                       help="SoC CSV file")
+    parser.add_argument("--base-address", default=None,                       help="CSR base address")
+    parser.add_argument("--bridge-name",  default="uart_xover",               help="Bridge UART name to use (present in design/csr.csv)")
 
-    parser.add_argument("--jtag-name",   default="jtag_uart",                help="JTAG UART type: jtag_uart (default), jtag_atlantic")
-    parser.add_argument("--jtag-config", default="openocd_xc7_ft2232.cfg",   help="OpenOCD JTAG configuration file for jtag_uart")
-    parser.add_argument("--jtag-chain",  default=1,                          help="JTAG chain.")
+    parser.add_argument("--jtag-name",    default="jtag_uart",                help="JTAG UART type: jtag_uart (default), jtag_atlantic")
+    parser.add_argument("--jtag-config",  default="openocd_xc7_ft2232.cfg",   help="OpenOCD JTAG configuration file for jtag_uart")
+    parser.add_argument("--jtag-chain",   default=1,                          help="JTAG chain.")
     return parser.parse_args()
 
 def main():
@@ -555,7 +561,8 @@ def main():
         if args.port in ["bridge", "jtag"]:
             raise NotImplementedError
     if args.port in ["bridge", "crossover"]: # FIXME: 2021-02-18, crossover for retro-compatibility remove and update targets?
-        bridge = BridgeUART(name=args.bridge_name)
+        base_address = None if args.base_address is None else int(args.base_address)
+        bridge = BridgeUART(base_address=base_address, csr_csv=args.csr_csv, name=args.bridge_name)
         bridge.open()
         port = os.ttyname(bridge.name)
     elif args.port in ["jtag"]:

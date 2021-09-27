@@ -2,7 +2,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <memtest.h>
+#include <libbase/memtest.h>
 
 #include <generated/csr.h>
 #include <generated/mem.h>
@@ -202,9 +202,10 @@ static void mem_speed_handler(int nb_params, char **params)
 	unsigned int *addr;
 	unsigned long size;
 	bool read_only = false;
+	bool random = false;
 
 	if (nb_params < 1) {
-		printf("mem_speed <addr> <size> [<readonly>]");
+		printf("mem_speed <addr> <size> [<readonly>] [<random>]");
 		return;
 	}
 
@@ -228,6 +229,14 @@ static void mem_speed_handler(int nb_params, char **params)
 		}
 	}
 
-	memspeed(addr, size, read_only);
+	if (nb_params >= 4) {
+		random = (bool) strtoul(params[3], &c, 0);
+		if (*c != 0) {
+			printf("Incorrect random value");
+			return;
+		}
+	}
+
+	memspeed(addr, size, read_only, random);
 }
 define_command(mem_speed, mem_speed_handler, "Test memory speed", MEM_CMDS);

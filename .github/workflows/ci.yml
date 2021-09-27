@@ -16,6 +16,7 @@ jobs:
           sudo apt-get install wget build-essential python3
           pip3 install setuptools
           pip3 install requests
+          pip3 install meson
 
       # Install (n)Migen / LiteX / Cores
       - name: Install LiteX

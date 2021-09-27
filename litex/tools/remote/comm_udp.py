@@ -42,6 +42,7 @@ class CommUDP(CSRBuilder):
             packet = EtherbonePacket()
             packet.pf = 1
             packet.encode()
+            packet.bytes += bytes([0x00, 0x00, 0x00, 0x00]) # Add Padding as payload.
             self.socket.sendto(packet.bytes, (ip, port))
 
             # ...and get/check server's response.

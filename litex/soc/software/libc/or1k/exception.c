@@ -1,12 +1,13 @@
 #include <generated/csr.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdarg.h>
 
 void isr(void);
 
 #ifdef __or1k__
 
-#include <base/uart.h>
+#include <libbase/uart.h>
 
 #define EXTERNAL_IRQ 0x8
 

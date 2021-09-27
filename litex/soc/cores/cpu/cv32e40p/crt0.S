@@ -90,7 +90,7 @@ trap_entry:
 
 
 crt_init:
-  la sp, _fstack + 4
+  la sp, _fstack
   la a0, vector_table
   csrw mtvec, a0
 

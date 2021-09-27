@@ -30,6 +30,11 @@ class Author:
 
 # Use Git Log + Processing to create the list of Contibutors ---------------------------------------
 
+companies = {
+    "Antmicro" : "Antmicro.com",
+    "Google"   : "Google.com",
+}
+
 def list_contributors(path):
 
     # Create .csv with git log.
@@ -43,6 +48,11 @@ def list_contributors(path):
             name  = line[0]
             email = line[1]
             year  = line[2][:4]
+            # For companies, replace individuals with company name/email.
+            for companies_name, companies_email in companies.items():
+                if companies_email.lower() in email:
+                    name  = companies_name
+                    email = companies_email
             if name in authors.keys():
                 authors[name].add_year(int(year))
             else:

@@ -73,20 +73,29 @@ class GPIOInOut(Module):
 
 class GPIOTristate(_GPIOIRQ, Module, AutoCSR):
     def __init__(self, pads, with_irq=False):
-        assert isinstance(pads, Signal)
-        nbits     = len(pads)
+        assert isinstance(pads, Signal) or isinstance(pads, Record)
+        nbits = len(pads) if isinstance(pads, Signal) else len(pads.o)
+
         self._oe  = CSRStorage(nbits, description="GPIO Tristate(s) Control.")
         self._in  = CSRStatus(nbits,  description="GPIO Input(s) Status.")
         self._out = CSRStorage(nbits, description="GPIO Ouptut(s) Control.")
 
         # # #
 
-        for i in range(nbits):
-            t = TSTriple()
-            self.specials += t.get_tristate(pads[i])
-            self.comb += t.oe.eq(self._oe.storage[i])
-            self.comb += t.o.eq(self._out.storage[i])
-            self.specials += MultiReg(t.i, self._in.status[i])
+        if isinstance(pads, Signal):
+            # Proper inout IOs.
+            for i in range(nbits):
+                t = TSTriple()
+                self.specials += t.get_tristate(pads[i])
+                self.comb += t.oe.eq(self._oe.storage[i])
+                self.comb += t.o.eq(self._out.storage[i])
+                self.specials += MultiReg(t.i, self._in.status[i])
+        else:
+            # Tristate inout IOs (For external tristate IO chips or simulation).
+            for i in range(nbits):
+                self.comb += pads.oe[i].eq(self._oe.storage[i])
+                self.comb += pads.o[i].eq(self._out.storage[i])
+                self.specials += MultiReg(pads.i[i], self._in.status[i])
 
         if with_irq:
             self.add_irq(self._in.status)

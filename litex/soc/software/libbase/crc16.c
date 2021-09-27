@@ -1,4 +1,4 @@
-#include <crc.h>
+#include "crc.h"
 
 #ifndef SMALL_CRC
 static const unsigned int crc16_table[256] = {

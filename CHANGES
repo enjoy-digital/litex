@@ -1,14 +1,72 @@
-[> 2021.XX, planned for August 2021
------------------------------------
+[> 2021.08, released on September 15th 2021
+-------------------------------------------
 
 	[> Issues resolved
 	------------------
 	- wishbone/UpConverter: Fix SEL propagation.
+	- cores/i2s:            Fix SYNC sampling.
+	- BIOS/lib*:            Fix GCC warnings.
+	- cpu/software:         Fix stack alignment issues.
+	- cpu/blackparrot:      Fix integration.
+	- interconnect/axi:     Fix valid signal in connect_to_pads for axi lite.
+	- software/hw/common:   Fix _csr_rd_buf/_csr_wr_buf for sizeof(buf[0]) < CSR_DW_BYTES case.
+	- software/soc.h:       Fix interoperability with assembly.
+	- interconnect/stream:  Fix n=1 case on Multiplexer/Demultiplexer.
+	- interconnect/axi:     Fix BURST_WRAP case on AXIBurst2Beat.
+	- cpu/VexRiscv-SMP:     Fix build without a memory bus.
+	- cpu/software:         Fix CLANG detection.
+	- build/software:       Force a fresh software build when cpu-type/variant is changed.
+	- cores/uart:           Fix TX reset level.
+	- BIOS:                 Fix PHDR link error.
+	- BIOS:                 Fix build-id link error.
+	- LiteDRAM:             Fix Artix7/DDR3 calibraiton at low speed.
 
 	[> Added Features
 	-----------------
-	- cpu/vexriscv:   Add CFU support.
-	- soc/controller: Add separate SoC/CPU reset fields.
+	- cores/video:               Add 7-Series HDMI PHY over GTPs.
+	- cores/jtagbone:            Allow JTAG chain selection.
+	- programmer:                Add iCESugar programmer.
+	- cpu/vexriscv:              Add CFU support.
+	- soc/controller:            Add separate SoC/CPU reset fields.
+	- BIOS/liblitedram:          Add debug capabilities, minor improvements.
+	- cpu/femtoRV:               Add initial FemtoRV support.
+	- cores/uart:                Cleaned-up, Add optional TX-Flush.
+	- cores/usb_ohci:            Add initial SpinalHDL's USB OHCI support (integrated in Linux-on-LiteX-Vexriscv).
+	- stream:                    Add Gate Module.
+	- soc/builder:               Allow linking external software packages.
+	- soc/software:              Allow registering init functions.
+	- cores/ram:                 Add init support to Nexus LRAM.
+	- cores/spi:                 Add Manual CS Mode for bulk transfers.
+	- cores/VexRiscv-SMP:        Make [ID]TLB size configurable.
+	- dts:                       Add GPIO IRQ support.
+	- programmer/DFUProg:        Allow to specify alt interace and to not reboot.
+	- cores/clock/ecp5:          Add dynamic phase adjustment signals.
+	- tools/litex_sim:           Mode SDRAM settings to LiteDRAM's DFI model.
+	- build/gowin:               Add AsyncResetSynchronizer/DDRInput/DDROutput implementations.
+	- build/gowin:               Add On-Chip-Oscillator support.
+	- build/gowin:               Add initial timing constraints support.
+	- build/attr_translate:      Simplify/Cleanup.
+	- programmer/OpenFPGALoader: Add cable and freq options.
+	- interconnect/packet:       Improve PacketFIFO to handle payload/param separately.
+	- clock/ecp5:                Add 4-output support.
+	- LiteSPI:                   Simplified/Cleaned-up, new MMAP architecture, applied to LiteX-Boards.
+	- soc:                       Add LiteSPI integration code.
+	- LitePCIe:                  DMA/Controller Simplified/Cleaned-up.
+	- soc/add_cpu:               Add memory mapping overrides to build log and make an exception for the CPUNone case.
+	- programmer:                Add ECPprogProgrammer.
+	- soc/software:              Add Random access option to memtest.
+	- tools:                     Add Renode generator script.
+	- tools:                     Add Zephyr DTS generator script.
+	- build/io:                  Add DDRTristate.
+	- cpu/VexRiscv:              Restructure config flags for dcache/icache presence.
+	- litex_sim:                 Improve RAM/SDRAM integration and make it closer to LiteX-Boards targets.
+	- build/sim:                 Add ODDR/IDDR/DDRSTristate simulation models.
+	- litex_sim:                 Add SPIFlash support.
+	- LiteSPI:                   Add DDR support and integration in LiteX (rate=1:1, 1:2).
+	- build/Vivado:              Make pre_synthesis/placement/routing commands similar to platform_commands.
+	- LiteDRAM:                  Refactor C code generator.
+	- LiteDRAM:                  Improve LPDDR4 support.
+	- LiteDRAM:                  Reduce ECC granularity.
 
 	[> API changes/Deprecation
 	--------------------------
