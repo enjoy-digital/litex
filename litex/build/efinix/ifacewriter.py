@@ -209,9 +209,15 @@ design.create('{2}', '{3}', './../gateware', overwrite=True)
                 cmd += 'design.create_input_gpio("{}",{},0)\n'.format(name, block['size']-1)
                 for i, pad in enumerate(block['location']):
                     cmd += 'design.assign_pkg_pin("{}[{}]","{}")\n'.format(name, i, pad)
+
             if 'out_reg' in block:
                 cmd += 'design.set_property("{}","OUT_REG","{}")\n'.format(name, block['out_reg'])
-                cmd += 'design.set_property("{}","OUT_CLK_PIN","{}")\n\n'.format(name, block['out_clk_pin'])
+                cmd += 'design.set_property("{}","OUT_CLK_PIN","{}")\n'.format(name, block['out_clk_pin'])
+
+            if 'drive_strength' in block:
+                cmd += 'design.set_property("{}","DRIVE_STRENGTH","4")\n'.format(name, block['drive_strength'])
+
+            cmd += '\n'
             return cmd
 
         if mode == 'INPUT_CLK':
@@ -234,6 +240,7 @@ design.create('{2}', '{3}', './../gateware', overwrite=True)
         cmd = '# ---------- PLL {} ---------\n'.format(name)
         cmd += 'design.create_block("{}", block_type="PLL")\n'.format(name)
         cmd += 'pll_config = {{ "REFCLK_FREQ":"{}" }}\n'.format(block['input_freq'] / 1e6)
+        cmd += 'design.set_property("{}", pll_config, block_type="PLL")\n\n'.format(name)
 
         if block['input_clock'] == 'EXTERNAL':
             cmd += 'design.gen_pll_ref_clock("{}", pll_res="{}", refclk_src="{}", refclk_name="{}", ext_refclk_no="{}")\n\n' \
@@ -241,9 +248,6 @@ design.create('{2}', '{3}', './../gateware', overwrite=True)
         else:
             cmd += 'design.gen_pll_ref_clock("{}", pll_res="{}", refclk_name="{}", refclk_src="CORE")\n'.format(name, block['resource'], block['input_signal'])
             cmd += 'design.set_property("{}", "CORE_CLK_PIN", "{}", block_type="PLL")\n\n'.format(name, block['input_signal'])
-
-            cmd += 'pll_config = {{ "REFCLK_FREQ":"{}" }}\n'.format(block['input_freq'] / 1e6)
-            cmd += 'design.set_property("{}", pll_config, block_type="PLL")\n\n'.format(name)
 
         cmd += 'design.set_property("{}","LOCKED_PIN","{}", block_type="PLL")\n'.format(name, block['locked'])
         if block['reset'] != '':
