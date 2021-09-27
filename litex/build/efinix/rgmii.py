@@ -1,6 +1,7 @@
 #
 # This file is part of LiteEth.
 #
+# Copyright (c) 2021 Franck Jullien <franck.jullien@collshade.fr>
 # Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
@@ -15,7 +16,6 @@ from litex.soc.cores.clock import *
 from liteeth.common import *
 from liteeth.phy.common import *
 
-
 class LiteEthPHYRGMIITX(Module):
     def __init__(self, platform, pads):
         self.sink = sink = stream.Endpoint(eth_phy_description(8))
@@ -25,50 +25,61 @@ class LiteEthPHYRGMIITX(Module):
         name = platform.get_pin_name(pads.tx_data)
         pad = platform.get_pin_location(pads.tx_data)
         name = 'auto_' + name
-        tx_data_d1 = []
-        tx_data_d2 = []
+        tx_data_h = []
+        tx_data_l = []
+
         # This a workaround, we could use signals with 4 bits but there is
         # a problem with the Python API that prevents it
-
-        #tx_data_d1 = platform.add_iface_io(name + '_HI', 4)
-        #tx_data_d2 = platform.add_iface_io(name + '_LO', 4)
-
         for i in range(4):
-                tx_data_d1.append(platform.add_iface_io(name + str(i) + '_HI'))
-                tx_data_d2.append(platform.add_iface_io(name + str(i) + '_LO'))
+                tx_data_h.append(platform.add_iface_io(name + str(i) + '_HI'))
+                tx_data_l.append(platform.add_iface_io(name + str(i) + '_LO'))
 
                 block = {'type':'GPIO',
                         'mode':'OUTPUT',
                         'name':name + str(i),
-                       #'name':name,
                         'location':[pad[i]],
                         'size':1,
-                       #'location':pad,
-                       #'size':4,
                         'out_reg':'DDIO_RESYNC',
-                        'out_clk_pin':'auto_eth_tx_clk', # -------------------------- TODO
-                        'is_inclk_inverted':False
+                        'out_clk_pin':'auto_eth_tx_clk',
+                        'is_inclk_inverted':False,
+                        'drive_strength':4  # TODO: get this from pin constraints
                 }
                 platform.toolchain.ifacewriter.blocks.append(block)
 
         platform.del_record_signal(pads, pads.tx_data)
 
-        #self.comb += pads.tx_ctl.eq(sink.valid)
-        #self.comb += tx_data_d1.eq(sink.data[0:4])
-        #self.comb += tx_data_d2.eq(sink.data[4:8])
-        #self.comb += sink.ready.eq(1)
+        name = platform.get_pin_name(pads.tx_ctl)
+        pad = platform.get_pin_location(pads.tx_ctl)
+        name = 'auto_' + name
+        tx_ctl_h = platform.add_iface_io(name + '_HI')
+        tx_ctl_l = platform.add_iface_io(name + '_LO')
 
-        self.comb += [ pads.tx_ctl.eq(sink.valid),
-                       tx_data_d1[0].eq(sink.data[0]),
-                       tx_data_d1[1].eq(sink.data[1]),
-                       tx_data_d1[2].eq(sink.data[2]),
-                       tx_data_d1[3].eq(sink.data[3]),
-                       tx_data_d2[0].eq(sink.data[4]),
-                       tx_data_d2[1].eq(sink.data[5]),
-                       tx_data_d2[2].eq(sink.data[6]),
-                       tx_data_d2[3].eq(sink.data[7]),
-                       sink.ready.eq(1),
+        block = {'type':'GPIO',
+                'mode':'OUTPUT',
+                'name':name,
+                'location':[pad[0]],
+                'size':1,
+                'out_reg':'DDIO_RESYNC',
+                'out_clk_pin':'auto_eth_tx_clk',
+                'is_inclk_inverted':False,
+                'drive_strength':4  # TODO: get this from pin constraints
+        }
+        platform.toolchain.ifacewriter.blocks.append(block)
+        platform.del_record_signal(pads, pads.tx_ctl)
+
+        self.sync += [ tx_data_h[0].eq(sink.data[0]),
+                       tx_data_h[1].eq(sink.data[1]),
+                       tx_data_h[2].eq(sink.data[2]),
+                       tx_data_h[3].eq(sink.data[3]),
+                       tx_data_l[0].eq(sink.data[4]),
+                       tx_data_l[1].eq(sink.data[5]),
+                       tx_data_l[2].eq(sink.data[6]),
+                       tx_data_l[3].eq(sink.data[7]),
+                       tx_ctl_h.eq(sink.valid),
+                       tx_ctl_l.eq(sink.valid),
         ]
+
+        self.comb += sink.ready.eq(1)
 
 class LiteEthPHYRGMIIRX(Module):
     def __init__(self, platform, pads):
@@ -76,23 +87,19 @@ class LiteEthPHYRGMIIRX(Module):
 
         # # #
 
-        rx_ctl_d = Signal()
         rx_data = Signal(8)
-
-        # pads.rx_ctl can't be connected to a special GPIO (DDIO) because
-        # of this board layout.
 
         # Add a DDIO_RESYNC input block with 'auto_eth_rx_clk' as clock
         name = platform.get_pin_name(pads.rx_data)
         pad = platform.get_pin_location(pads.rx_data)
         name = 'auto_' + name
-        rx_data_d1 = []
-        rx_data_d2 = []
+        rx_data_h = []
+        rx_data_l = []
         # This a workaround, we could use signals with 4 bits but there is
         # a problem with the Python API that prevents it
         for i in range(4):
-            rx_data_d1.append(platform.add_iface_io(name + str(i) + '_HI'))
-            rx_data_d2.append(platform.add_iface_io(name + str(i) + '_LO'))
+            rx_data_h.append(platform.add_iface_io(name + str(i) + '_HI'))
+            rx_data_l.append(platform.add_iface_io(name + str(i) + '_LO'))
 
             block = {'type':'GPIO',
                     'mode':'INPUT',
@@ -107,18 +114,19 @@ class LiteEthPHYRGMIIRX(Module):
 
         platform.del_record_signal(pads, pads.rx_data)
 
-        self.comb += rx_data.eq(Cat(rx_data_d1[0], rx_data_d1[1], rx_data_d1[2], rx_data_d1[3],
-                                    rx_data_d2[0], rx_data_d2[1], rx_data_d2[2], rx_data_d2[3]))
+        self.comb += rx_data.eq(Cat(rx_data_l[0], rx_data_l[1], rx_data_l[2], rx_data_l[3],
+                                    rx_data_h[0], rx_data_h[1], rx_data_h[2], rx_data_h[3]))
 
+        rx_ctl_d = Signal()
         self.sync += rx_ctl_d.eq(pads.rx_ctl)
 
         last = Signal()
         self.comb += last.eq(~pads.rx_ctl & rx_ctl_d)
         self.sync += [
-            source.valid.eq(pads.rx_ctl),
-            source.data.eq(rx_data)
+            source.valid.eq(rx_ctl_d),
+            source.data.eq(rx_data),
+            source.last.eq(last),
         ]
-        self.comb += source.last.eq(last)
 
 class LiteEthPHYRGMIICRG(Module, AutoCSR):
     def __init__(self, platform, clock_pads, with_hw_init_reset, tx_delay=2e-9, hw_reset_cycles=256):
@@ -128,9 +136,12 @@ class LiteEthPHYRGMIICRG(Module, AutoCSR):
 
         # Clocks
 
-        self.clock_domains.cd_eth_rx         = ClockDomain()
-        self.clock_domains.cd_eth_tx         = ClockDomain()
-        self.clock_domains.cd_eth_tx_delayed = ClockDomain(reset_less=True)
+        self.clock_domains.cd_eth_rx = ClockDomain()
+        self.clock_domains.cd_eth_tx = ClockDomain()
+
+        # *************************
+        # *        RX CLOCK       *
+        # *************************
 
         # Add a GPIO block with clock input property
         # Add a input 'auto_eth_rx_clk' to the top.v 
@@ -145,39 +156,54 @@ class LiteEthPHYRGMIICRG(Module, AutoCSR):
         platform.toolchain.ifacewriter.blocks.append(block)
         self.comb += self.cd_eth_rx.clk.eq(clkrx)
 
-        clktx = platform.add_iface_io('auto_eth_tx_delayed_clk')
+        cmd = "create_clock -period {} auto_eth_rx_clk".format(1e9/125e6)
+        platform.toolchain.additional_sdc_commands.append(cmd)
+
+        # *************************
+        # *     TX CLOCK PIN      *
+        # *************************
+
         block = {'type':'GPIO',
                  'size':1,
                  # Get the location from the original resource
                  'location': platform.get_pin_location(clock_pads.tx)[0],
-                 'name':platform.get_pin_name(clktx),
+                 'name':'auto_eth_tx_delayed_clk',
                  'mode':'OUTPUT_CLK'
         }
         platform.toolchain.ifacewriter.blocks.append(block)
-        self.comb += clktx.eq(self.cd_eth_tx.clk)
+
+        # *************************
+        # *        TX CLOCK       *
+        # *************************
 
         self.submodules.pll = pll = TRIONPLL(platform)
-        # Internal clock must come from a named signal
         pll.register_clkin(None, 125e6, name='auto_eth_rx_clk')
-        pll.create_clkout(None,  125e6, phase=90, name='auto_eth_tx_delayed_clk')
-        pll.create_clkout(None,  125e6, name='auto_eth_tx_clk')
+        pll.create_clkout(None,  125e6, phase=0, name='auto_eth_tx_delayed_clk')
+        pll.create_clkout(self.cd_eth_tx,  125e6, name='auto_eth_tx_clk')
+
+        cmd = "create_clock -period {} auto_eth_tx_clk".format(1e9/125e6)
+        platform.toolchain.additional_sdc_commands.append(cmd)
 
         platform.delete(clock_pads)
 
-        ## Reset
-        #self.reset = reset = Signal()
-        #if with_hw_init_reset:
-        #    self.submodules.hw_reset = LiteEthPHYHWReset(cycles=hw_reset_cycles)
-        #    self.comb += reset.eq(self._reset.storage | self.hw_reset.reset)
-        #else:
-        #    self.comb += reset.eq(self._reset.storage)
-        #if hasattr(clock_pads, "rst_n"):
-        #    self.comb += clock_pads.rst_n.eq(~reset)
-        #self.specials += [
-        #    AsyncResetSynchronizer(self.cd_eth_tx, reset),
-        #    AsyncResetSynchronizer(self.cd_eth_rx, reset),
-        #]
+        # *************************
+        # *        RESET          *
+        # *************************
 
+        self.reset = reset = Signal()
+        if with_hw_init_reset:
+            self.submodules.hw_reset = LiteEthPHYHWReset(cycles=hw_reset_cycles)
+            self.comb += reset.eq(self._reset.storage | self.hw_reset.reset)
+        else:
+            self.comb += reset.eq(self._reset.storage)
+        if hasattr(clock_pads, "rst_n"):
+            self.comb += clock_pads.rst_n.eq(~reset)
+        self.specials += [
+            AsyncResetSynchronizer(self.cd_eth_tx, reset),
+            AsyncResetSynchronizer(self.cd_eth_rx, reset),
+        ]
+
+        #platform.add_false_path_constraints(ClockSignal('sys'), self.cd_eth_rx.clk, self.cd_eth_tx.clk)
 
 class LiteEthPHYRGMII(Module, AutoCSR):
     dw          = 8
