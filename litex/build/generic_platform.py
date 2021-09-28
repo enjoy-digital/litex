@@ -192,14 +192,19 @@ class ConstraintManager:
 
     def delete(self, signal):
         for res, obj in self.matched:
-            if isinstance(signal, Record):
-                if isinstance(obj, Signal):
-                    continue
+            if isinstance(obj, Record):
+                for pos, (name, item) in enumerate(vars(obj).items()):
+                        if isinstance(item, Signal):
+                                if item == signal:
+                                        # Two first pos are name and layout
+                                        del obj.layout[pos-2]
+                                        delattr(obj, name)
+                                        if len(obj.layout) == 0:
+                                            self.matched.remove((res, obj))
+                                        break
             else:
-                if isinstance(obj, Record):
-                    continue
-            if obj == signal:
-                self.matched.remove((res, obj))
+                if obj == signal:
+                    self.matched.remove((res, obj))
 
     def request(self, name, number=None, loose=False):
         resource = _lookup(self.available, name, number, loose)
