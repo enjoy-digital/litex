@@ -9,6 +9,7 @@ import os
 
 from litex.build.generic_platform import *
 from litex.build.efinix import common, efinity
+from litex.build.efinix import EfinixDbParser
 
 # EfinixPlatform -----------------------------------------------------------------------------------
 
@@ -31,6 +32,8 @@ class EfinixPlatform(GenericPlatform):
             self.toolchain = efinity.EfinityToolchain(self.efinity_path)
         else:
             raise ValueError("Unknown toolchain")
+
+        self.parser = EfinixDbParser(self.efinity_path, self.device)
 
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
         so = dict(common.efinix_special_overrides)
