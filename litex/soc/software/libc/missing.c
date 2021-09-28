@@ -24,3 +24,4 @@ int kill(int pid, int name) {
     return 0;
 }
 
+void *_impure_ptr;
