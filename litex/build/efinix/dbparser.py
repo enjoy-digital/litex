@@ -20,7 +20,6 @@ class EfinixDbParser():
 
         for d in data:
             if d[0] == device:
-                print(d)
                 return d
 
         return None
@@ -94,3 +93,7 @@ class EfinixDbParser():
         inst = self.get_instance_name_xml(dmap, pad)
 
         return self.get_pll_inst_from_gpio_inst(dmap, inst)
+
+    def get_gpio_instance_from_pin(self, pin):
+        dmap = self.get_device_map(self.device)
+        return self.get_pad_name_xml(dmap, pin)
