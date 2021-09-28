@@ -154,6 +154,7 @@ $ ./litex_setup.py update
 
 3. Install a RISC-V toolchain (Only if you want to test/create a SoC with a CPU):
 ```sh
+$ pip3 install meson
 $ ./litex_setup.py gcc
 ```
 
