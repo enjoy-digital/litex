@@ -287,6 +287,8 @@ class EfinityToolchain():
         run            = True,
         **kwargs):
 
+        self.ifacewriter.set_build_params(platform, build_name)
+
         # Create build directory
         cwd = os.getcwd()
         os.makedirs(build_dir, exist_ok=True)
@@ -342,7 +344,8 @@ class EfinityToolchain():
 
         # DDR doesn't have Python API so we need to configure it
         # directly in the peri.xml file
-        # self.ifacewriter.add_ddr_xml(build_name)
+        if self.ifacewriter.xml_blocks:
+            self.ifacewriter.generate_xml_blocks()
 
         # Run
         if run:

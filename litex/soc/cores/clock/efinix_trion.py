@@ -11,8 +11,6 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 from litex.build.generic_platform import *
 from litex.soc.cores.clock.common import *
 
-from litex.build.efinix import EfinixDbParser
-
 class Open(Signal): pass
 
 #TODO: do somthing else
@@ -61,16 +59,15 @@ class TRIONPLL(Module):
         # If clkin has a pin number, PLL clock input is EXTERNAL
         if self.platform.get_pin_location(clkin):
            
-            pad_name = self.platform.get_pin_location(clkin)
+            pad_name = self.platform.get_pin_location(clkin)[0]
             self.platform.delete(clkin)
 
             #tpl = "create_clock -name {clk} -period {period} [get_ports {{{clk}}}]"
             #sdc = self.platform.toolchain.additional_sdc_commands
             #sdc.append(tpl.format(clk=block['input_clock_name'], period=1/freq))
 
-            parser = EfinixDbParser(self.platform.efinity_path, self.platform.device)
             try:
-                (pll_res, clock_no) = parser.get_pll_inst_from_pin(pad_name)
+                (pll_res, clock_no) = self.platform.parser.get_pll_inst_from_pin(pad_name)
             except:
                 self.logger.error("Cannot find a pll with {} as input".format(pad_name))
                 quit()
@@ -114,6 +111,10 @@ class TRIONPLL(Module):
 
         block = self.platform.toolchain.ifacewriter.get_block(self.pll_name)
         block['clk_out'].append([clk_out_name, freq, phase, margin])
+
+    def extra(self, extra):
+        block = self.platform.toolchain.ifacewriter.get_block(self.pll_name)
+        block['extra'] = extra
 
     def compute_config(self):
         pass
