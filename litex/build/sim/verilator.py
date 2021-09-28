@@ -175,22 +175,23 @@ def _run_sim(build_name, as_root=False, interactive=True):
 
 class SimVerilatorToolchain:
     def build(self, platform, fragment,
-            build_dir    = "build",
-            build_name   = "sim",
-            serial       = "console",
-            build        = True,
-            run          = True,
-            threads      = 1,
-            verbose      = True,
-            sim_config   = None,
-            coverage     = False,
-            opt_level    = "O0",
-            trace        = False,
-            trace_fst    = False,
-            trace_start  = 0,
-            trace_end    = -1,
-            regular_comb = False,
-            interactive  = True):
+            build_dir        = "build",
+            build_name       = "sim",
+            serial           = "console",
+            build            = True,
+            run              = True,
+            threads          = 1,
+            verbose          = True,
+            sim_config       = None,
+            coverage         = False,
+            opt_level        = "O0",
+            trace            = False,
+            trace_fst        = False,
+            trace_start      = 0,
+            trace_end        = -1,
+            regular_comb     = False,
+            interactive      = True,
+            pre_run_callback = None):
 
         # Create build directory
         os.makedirs(build_dir, exist_ok=True)
@@ -228,6 +229,8 @@ class SimVerilatorToolchain:
 
         # Run
         if run:
+            if pre_run_callback is not None:
+                pre_run_callback(v_output.ns)
             if which("verilator") is None:
                 msg = "Unable to find Verilator toolchain, please either:\n"
                 msg += "- Install Verilator.\n"

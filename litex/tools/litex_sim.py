@@ -454,27 +454,23 @@ def main():
             soc.add_constant("REMOTEIP{}".format(i+1), int(args.remote_ip.split(".")[i]))
 
     # Build/Run ------------------------------------------------------------------------------------
+    def pre_run_callback(vns):
+        generate_gtkw_savefile(builder, vns, args.trace_fst)
+
     builder_kwargs["csr_csv"] = "csr.csv"
     builder = Builder(soc, **builder_kwargs)
-    for i in range(2):
-        build = (i == 0)
-        run   = (i == 1)
-        vns = builder.build(
-            build       = build,
-            run         = run,
-            threads     = args.threads,
-            sim_config  = sim_config,
-            opt_level   = args.opt_level,
-            trace       = args.trace,
-            trace_fst   = args.trace_fst,
-            trace_start = trace_start,
-            trace_end   = trace_end,
-            interactive = not args.non_interactive
-        )
-        if args.with_analyzer:
-            soc.analyzer.export_csv(vns, "analyzer.csv")
-        if args.gtkwave_savefile:
-            generate_gtkw_savefile(builder, vns, args.trace_fst)
+    soc.platform.toolchain.pre_run_callback = pre_run_callback
+    builder.build(
+        threads          = args.threads,
+        sim_config       = sim_config,
+        opt_level        = args.opt_level,
+        trace            = args.trace,
+        trace_fst        = args.trace_fst,
+        trace_start      = trace_start,
+        trace_end        = trace_end,
+        interactive      = not args.non_interactive,
+        pre_run_callback = pre_run_callback
+    )
 
 if __name__ == "__main__":
     main()
