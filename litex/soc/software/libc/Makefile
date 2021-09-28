@@ -1,7 +1,7 @@
 include ../include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
-all: libc.a stdio.c.o missing.c.o
+all: libc.a
 
 CFLAGS = $(COMMONFLAGS) -fexceptions -Wpragmas
 
@@ -32,7 +32,7 @@ export CROSSFILE
 cross.txt:
 	@echo "$$CROSSFILE" > $@
 
-libc.a: cross.txt
+__libc.a: cross.txt
 	if [ -d "$(LIBC_DIRECTORY)/$(CPUFAMILY)" ]; then \
 		cp $(LIBC_DIRECTORY)/$(CPUFAMILY)/* $(PICOLIBC_DIRECTORY)/newlib/libc/machine/$(CPUFAMILY)/ ;\
 	fi
@@ -49,13 +49,15 @@ libc.a: cross.txt
 		--cross-file cross.txt
 
 	meson compile
-	cp newlib/libc.a libc.a
+	cp newlib/libc.a __libc.a
 
-stdio.c.o: $(LIBC_DIRECTORY)/stdio.c libc.a
+_libc.a: $(LIBC_DIRECTORY)/stdio.c __libc.a
 	$(compile)
-	$(AR) csr libc.a $@
+	$(AR) csr __libc.a $@
+	cp __libc.a _libc.a
 
-missing.c.o: $(LIBC_DIRECTORY)/missing.c libc.a
+libc.a: $(LIBC_DIRECTORY)/missing.c _libc.a
 	$(compile)
-	$(AR) csr libc.a $@
+	$(AR) csr _libc.a $@
+	cp _libc.a libc.a
 
