@@ -104,7 +104,7 @@ if len(sys.argv) < 2:
 
 # Check/Update litex_setup.py
 
-litex_setup_url = "https://raw.githubusercontent.com/antmicro/litex/libbase-replacement/litex_setup.py"
+litex_setup_url = "https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py"
 current_sha1 = hashlib.sha1(open(os.path.realpath(__file__)).read().encode("utf-8")).hexdigest()
 print("[checking litex_setup.py]...")
 try:
