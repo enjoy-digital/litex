@@ -18,6 +18,7 @@ CPU_VARIANTS = ["standard"]
 # FemtoRV ------------------------------------------------------------------------------------------
 
 class FemtoRV(CPU):
+    family               = "riscv"
     name                 = "femtorv"
     human_name           = "FemtoRV"
     variants             = CPU_VARIANTS

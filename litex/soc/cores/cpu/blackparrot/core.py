@@ -55,6 +55,7 @@ GCC_FLAGS = {
 # BlackParrotRV64 ----------------------------------------------------------------------------------
 
 class BlackParrotRV64(CPU):
+    family               = "riscv"
     name                 = "blackparrot"
     human_name           = "BlackParrotRV64[imafd]"
     variants             = CPU_VARIANTS

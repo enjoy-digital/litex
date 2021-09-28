@@ -22,6 +22,7 @@ CPU_VARIANTS = ["standard", "standard+fpu", "linux", "linux+fpu", "linux+smp", "
 # Mor1kx -------------------------------------------------------------------------------------------
 
 class MOR1KX(CPU):
+    family               = "or1k"
     name                 = "mor1kx"
     human_name           = "MOR1KX"
     variants             = CPU_VARIANTS

@@ -23,6 +23,7 @@ CPU_VARIANTS = ["minimal", "lite", "standard"]
 # LM32 ---------------------------------------------------------------------------------------------
 
 class LM32(CPU):
+    family               = "lm32"
     name                 = "lm32"
     human_name           = "LM32"
     variants             = CPU_VARIANTS

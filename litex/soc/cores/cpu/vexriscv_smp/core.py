@@ -30,6 +30,7 @@ CPU_VARIANTS = {
 # VexRiscv SMP -------------------------------------------------------------------------------------
 
 class VexRiscvSMP(CPU):
+    family               = "riscv"
     name                 = "vexriscv"
     human_name           = "VexRiscv SMP"
     variants             = CPU_VARIANTS

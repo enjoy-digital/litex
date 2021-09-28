@@ -37,6 +37,7 @@ GCC_FLAGS = {
 # PicoRV32 -----------------------------------------------------------------------------------------
 
 class PicoRV32(CPU):
+    family               = "riscv"
     name                 = "picorv32"
     human_name           = "PicoRV32"
     variants             = CPU_VARIANTS

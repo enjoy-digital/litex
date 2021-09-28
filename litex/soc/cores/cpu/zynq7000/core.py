@@ -19,6 +19,7 @@ from litex.soc.cores.cpu import CPU
 
 class Zynq7000(CPU):
     variants             = ["standard"]
+    family               = "arm"
     name                 = "zynq7000"
     human_name           = "Zynq7000"
     data_width           = 32

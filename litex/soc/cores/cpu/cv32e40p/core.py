@@ -355,6 +355,7 @@ class DebugModule(Module):
 # CV32E40P -----------------------------------------------------------------------------------------
 
 class CV32E40P(CPU):
+    family               = "riscv"
     name                 = "cv32e40p"
     human_name           = "CV32E40P"
     variants             = CPU_VARIANTS

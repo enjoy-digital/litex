@@ -21,6 +21,7 @@ CPU_VARIANTS = ["standard"]
 # Minerva ------------------------------------------------------------------------------------------
 
 class Minerva(CPU):
+    family               = "riscv"
     name                 = "minerva"
     human_name           = "Minerva"
     variants             = CPU_VARIANTS

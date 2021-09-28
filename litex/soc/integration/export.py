@@ -92,6 +92,7 @@ def get_cpu_mak(cpu, compile_software):
     return [
         ("TRIPLE",        select_triple(triple)),
         ("CPU",           cpu.name),
+        ("CPUFAMILY",     cpu.family),
         ("CPUFLAGS",      flags),
         ("CPUENDIANNESS", cpu.endianness),
         ("CLANG",         str(int(clang))),

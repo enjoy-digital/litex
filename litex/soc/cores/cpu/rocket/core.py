@@ -83,6 +83,7 @@ CPU_SIZE_PARAMS = {
 # Rocket RV64 --------------------------------------------------------------------------------------
 
 class RocketRV64(CPU):
+    family               = "riscv"
     name                 = "rocket"
     human_name           = "RocketRV64[imac]"
     variants             = CPU_VARIANTS

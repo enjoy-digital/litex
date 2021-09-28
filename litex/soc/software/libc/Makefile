@@ -3,24 +3,10 @@ include $(SOC_DIRECTORY)/software/common.mak
 
 all: libc.a stdio.c.o missing.c.o
 
-CPUFAMILY=
-
 CFLAGS = $(COMMONFLAGS) -fexceptions -Wpragmas
 
-# FIXME: Generate from Python.
-ifneq ($(findstring $(CPU), serv femtorv picorv32 minerva vexriscv vexriscv_smp ibex cv32e40p rocket blackparrot),)
-	CPUFAMILY = riscv
-else ifeq ($(CPU), lm32)
-	CPUFAMILY = lm32
-else ifeq ($(CPU), mor1kx)
-	CPUFAMILY = or1k
-else ifeq ($(CPU), microwatt)
-	CPUFAMILY = powerpc
+ifeq ($(CPU), microwatt)
 	CFLAGS += -DLONG_LONG_MIN=LLONG_MIN -DLONG_LONG_MAX=LLONG_MAX -DLONG_LONG_MIN=LLONG_MIN -DULONG_LONG_MAX=ULLONG_MAX
-else ifeq ($(CPU), zynq7000)
-	CPUFAMILY = arm
-else
-	$(error Unsupported CPU)
 endif
 
 define CROSSFILE

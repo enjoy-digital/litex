@@ -20,6 +20,7 @@ CPU_VARIANTS = ["standard"]
 # SERV ---------------------------------------------------------------------------------------------
 
 class SERV(CPU):
+    family               = "riscv"
     name                 = "serv"
     human_name           = "SERV"
     variants             = CPU_VARIANTS
