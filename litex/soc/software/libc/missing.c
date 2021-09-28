@@ -5,6 +5,7 @@
  */
 
 #include <stddef.h>
+#include <errno.h>
 
 int getentropy(void *v, size_t s) {
     return -1;
