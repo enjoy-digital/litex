@@ -44,25 +44,25 @@ static __inline uint64_t __bswap_64(uint64_t __x)
 #define bswap_32(x) __bswap_32(x)
 #define bswap_64(x) __bswap_64(x)
 
-uint32_t htonl(uint32_t n)
+static uint32_t htonl(uint32_t n)
 {
     union { int i; char c; } u = { 1 };
     return u.c ? bswap_32(n) : n;
 }
 
-uint16_t htons(uint16_t n)
+static uint16_t htons(uint16_t n)
 {
     union { int i; char c; } u = { 1 };
     return u.c ? bswap_16(n) : n;
 }
 
-uint32_t ntohl(uint32_t n)
+static uint32_t ntohl(uint32_t n)
 {
     union { int i; char c; } u = { 1 };
     return u.c ? bswap_32(n) : n;
 }
 
-uint16_t ntohs(uint16_t n)
+static uint16_t ntohs(uint16_t n)
 {
     union { int i; char c; } u = { 1 };
     return u.c ? bswap_16(n) : n;
