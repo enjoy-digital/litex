@@ -456,7 +456,8 @@ def main():
 
     # Build/Run ------------------------------------------------------------------------------------
     def pre_run_callback(vns):
-        generate_gtkw_savefile(builder, vns, args.trace_fst)
+        if args.trace:
+            generate_gtkw_savefile(builder, vns, args.trace_fst)
 
     builder_kwargs["csr_csv"] = "csr.csv"
     builder = Builder(soc, **builder_kwargs)
