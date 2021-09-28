@@ -125,31 +125,33 @@ class Builder:
         self.software_libraries.append(name)
 
     def _get_variables_contents(self):
+        # Helper.
         variables_contents = []
         def define(k, v):
             variables_contents.append("{}={}".format(k, _makefile_escape(v)))
 
         # Define packages and libraries.
-        define("PACKAGES", " ".join(name for name, src_dir in self.software_packages))
+        define("PACKAGES",     " ".join(name for name, src_dir in self.software_packages))
         define("PACKAGE_DIRS", " ".join(src_dir for name, src_dir in self.software_packages))
-        define("LIBS", " ".join(self.software_libraries))
+        define("LIBS",         " ".join(self.software_libraries))
 
-        # Define the CPU variables.
+        # Define CPU variables.
         for k, v in export.get_cpu_mak(self.soc.cpu, self.compile_software):
             define(k, v)
 
-        # Define the SoC/Picolibc/Compiler-RT/Software/Include directories.
-        define("SOC_DIRECTORY", soc_directory)
-        picolibc_directory = get_data_mod("software", "picolibc").data_location
-        define("PICOLIBC_DIRECTORY", picolibc_directory)
+        # Define SoC/Picolibc/Compiler-RT/Software/Include directories.
+        picolibc_directory    = get_data_mod("software", "picolibc").data_location
         compiler_rt_directory = get_data_mod("software", "compiler_rt").data_location
+
+        define("SOC_DIRECTORY",         soc_directory)
+        define("PICOLIBC_DIRECTORY",    picolibc_directory)
         define("COMPILER_RT_DIRECTORY", compiler_rt_directory)
         variables_contents.append("export BUILDINC_DIRECTORY")
         define("BUILDINC_DIRECTORY", self.include_dir)
         for name, src_dir in self.software_packages:
             define(name.upper() + "_DIRECTORY", src_dir)
 
-        # Define the BIOS Options.
+        # Define BIOS Options.
         for bios_option in self.bios_options:
             assert bios_option in ["TERM_NO_HIST", "TERM_MINI", "TERM_NO_COMPLETE"]
             define(bios_option, "1")
@@ -268,10 +270,10 @@ class Builder:
 
         # Create Software directory.
         # First check if software needs a full re-build and remove software dir if so.
-        if self.soc.cpu_type is not None:
+        if with_bios:
             software_full_rebuild  = False
             software_variables_mak = os.path.join(self.generated_dir, "variables.mak")
-            if os.path.exists(software_variables_mak):
+            if self.compile_software and os.path.exists(software_variables_mak):
                 old_variables_contents = open(software_variables_mak).read()
                 new_variables_contents = self._get_variables_contents()
                 software_full_rebuild  = (old_variables_contents != new_variables_contents)
