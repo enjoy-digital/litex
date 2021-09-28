@@ -5,6 +5,7 @@
  */
 
 #include <stddef.h>
+#include <errno.h>
 
 int getentropy(void *v, size_t s) {
     return -1;
@@ -23,3 +24,4 @@ int kill(int pid, int name) {
     return 0;
 }
 
+void *_impure_ptr;
