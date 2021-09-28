@@ -40,6 +40,7 @@ libc.a: cross.txt
 	meson $(PICOLIBC_DIRECTORY) \
 		-Dmultilib=false \
 		-Dpicocrt=false \
+		-Datomic-ungetc=false \
 		-Dthread-local-storage=false \
 		-Dio-long-long=true \
 		-Dformat-default=integer \
