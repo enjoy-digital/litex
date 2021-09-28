@@ -314,9 +314,10 @@ def generate_gtkw_savefile(builder, vns, trace_fst):
     with gtkw.GTKWSave(vns, savefile=savefile, dumpfile=dumpfile) as save:
         save.clocks()
         save.fsm_states(soc)
-        save.add(soc.bus.slaves["main_ram"], mappers=[gtkw.wishbone_sorter(), gtkw.wishbone_colorer()])
+        if "main_ram" in soc.bus.slaves.keys():
+            save.add(soc.bus.slaves["main_ram"], mappers=[gtkw.wishbone_sorter(), gtkw.wishbone_colorer()])
 
-        if hasattr(soc, 'sdrphy'):
+        if hasattr(soc, "sdrphy"):
             # all dfi signals
             save.add(soc.sdrphy.dfi, mappers=[gtkw.dfi_sorter(), gtkw.dfi_in_phase_colorer()])
 
