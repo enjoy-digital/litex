@@ -1,4 +1,4 @@
-// This file is Copyright (c) 2014-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+// This file is Copyright (c) 2014-2021 Florent Kermarrec <florent@enjoy-digital.fr>
 // This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
 // This file is Copyright (c) 2018 Ewen McNeill <ewen@naos.co.nz>
 // This file is Copyright (c) 2018 Felix Held <felix-github@felixheld.de>
@@ -104,20 +104,27 @@ void romboot(void)
 
 #ifdef CSR_UART_BASE
 
-static int check_ack(void)
-{
-	int recognized;
-	static const char str[SFL_MAGIC_LEN] = SFL_MAGIC_ACK;
+#define ACK_TIMEOUT_DELAY CONFIG_CLOCK_FREQUENCY/4
+#define CMD_TIMEOUT_DELAY CONFIG_CLOCK_FREQUENCY/16
 
+static void timer0_load(unsigned int value) {
 	timer0_en_write(0);
 	timer0_reload_write(0);
 #ifndef CONFIG_DISABLE_DELAYS
-	timer0_load_write(CONFIG_CLOCK_FREQUENCY/4);
+	timer0_load_write(value);
 #else
 	timer0_load_write(0);
 #endif
 	timer0_en_write(1);
 	timer0_update_value_write(1);
+}
+
+static int check_ack(void)
+{
+	int recognized;
+	static const char str[SFL_MAGIC_LEN] = SFL_MAGIC_ACK;
+
+	timer0_load(ACK_TIMEOUT_DELAY);
 	recognized = 0;
 	while(timer0_value_read()) {
 		if(uart_read_nonblock()) {
@@ -144,18 +151,18 @@ static int check_ack(void)
 static uint32_t get_uint32(unsigned char* data)
 {
 	return ((uint32_t) data[0] << 24) |
-		   ((uint32_t) data[1] << 16) |
-		   ((uint32_t) data[2] << 8) |
-			(uint32_t) data[3];
+			 ((uint32_t) data[1] << 16) |
+			 ((uint32_t) data[2] << 8) |
+			  (uint32_t) data[3];
 }
 
-#define MAX_FAILED 5
+#define MAX_FAILURES 256
 
 /* Returns 1 if other boot methods should be tried */
 int serialboot(void)
 {
 	struct sfl_frame frame;
-	int failed;
+	int failures;
 	static const char str[SFL_MAGIC_LEN+1] = SFL_MAGIC_REQ;
 	const char *c;
 	int ack_status;
@@ -163,7 +170,7 @@ int serialboot(void)
 	printf("Booting from serial...\n");
 	printf("Press Q or ESC to abort boot completely.\n");
 
-	/* Send the serialboot "magic" request to Host */
+	/* Send the serialboot "magic" request to Host and wait for ACK_OK */
 	c = str;
 	while(*c) {
 		uart_write(*c);
@@ -178,70 +185,113 @@ int serialboot(void)
 		printf("Cancelled\n");
 		return 0;
 	}
-	/* Assume ACK_OK */
 
-	failed = 0;
+	/* Assume ACK_OK */
+	failures = 0;
 	while(1) {
 		int i;
-		int actualcrc;
-		int goodcrc;
+		int timeout;
+		int computed_crc;
+		int received_crc;
 
 		/* Get one Frame */
-		frame.payload_length = uart_read();
-		frame.crc[0] = uart_read();
-		frame.crc[1] = uart_read();
-		frame.cmd = uart_read();
-		for(i=0;i<frame.payload_length;i++)
-			frame.payload[i] = uart_read();
+		i = 0;
+		timeout = 1;
+		while((i == 0) || timer0_value_read()) {
+			if (uart_read_nonblock()) {
+				if (i == 0) {
+						timer0_load(CMD_TIMEOUT_DELAY);
+						frame.payload_length = uart_read();
+				}
+				if (i == 1) frame.crc[0] = uart_read();
+				if (i == 2) frame.crc[1] = uart_read();
+				if (i == 3) frame.cmd    = uart_read();
+				if (i >= 4) {
+					frame.payload[i-4] = uart_read();
+					if (i == (frame.payload_length + 4 - 1)) {
+						timeout = 0;
+						break;
+					}
+				}
+				i++;
+			}
+			timer0_update_value_write(1);
+		}
 
-		/* Check Frame CRC (if CMD has a CRC) */
-		actualcrc = ((int)frame.crc[0] << 8)|(int)frame.crc[1];
-		goodcrc = crc16(&frame.cmd, frame.payload_length+1);
-		if(actualcrc != goodcrc) {
-			/* Clear out the RX buffer */
-			while (uart_read_nonblock()) uart_read();
-			failed++;
-			if(failed == MAX_FAILED) {
+		/* Check Timeout */
+		if (timeout) {
+			/* Acknowledge the Timeout and continue with a new frame */
+			uart_write(SFL_ACK_ERROR);
+			continue;
+		}
+
+		/* Check Frame CRC */
+		received_crc = ((int)frame.crc[0] << 8)|(int)frame.crc[1];
+		computed_crc = crc16(&frame.cmd, frame.payload_length+1);
+		if(computed_crc != received_crc) {
+			/* Acknowledge the CRC error */
+			uart_write(SFL_ACK_CRCERROR);
+
+			/* Increment failures and exit when max is reached */
+			failures++;
+			if(failures == MAX_FAILURES) {
 				printf("Too many consecutive errors, aborting");
 				return 1;
 			}
-			uart_write(SFL_ACK_CRCERROR);
 			continue;
 		}
 
 		/* Execute Frame CMD */
 		switch(frame.cmd) {
+			/* On SFL_CMD_ABORT ... */
 			case SFL_CMD_ABORT:
-				failed = 0;
+				/* Reset failures */
+				failures = 0;
+				/* Acknowledge and exit */
 				uart_write(SFL_ACK_SUCCESS);
 				return 1;
-			case SFL_CMD_LOAD: {
-				char *writepointer;
 
-				failed = 0;
-				writepointer = (char *)(uintptr_t) get_uint32(&frame.payload[0]);
-				for(i=4;i<frame.payload_length;i++)
-					*(writepointer++) = frame.payload[i];
-				if (frame.cmd == SFL_CMD_LOAD)
-					uart_write(SFL_ACK_SUCCESS);
+			/* On SFL_CMD_LOAD... */
+			case SFL_CMD_LOAD: {
+				char *load_addr;
+
+				/* Reset failures */
+				failures = 0;
+
+				/* Copy payload */
+				load_addr = (char *)(uintptr_t) get_uint32(&frame.payload[0]);
+				memcpy(load_addr, &frame.payload[4], frame.payload_length);
+
+				/* Acknowledge and continue */
+				uart_write(SFL_ACK_SUCCESS);
 				break;
 			}
+			/* On SFL_CMD_ABORT ... */
 			case SFL_CMD_JUMP: {
-				uint32_t addr;
+				uint32_t jump_addr;
 
-				failed = 0;
-				addr = get_uint32(&frame.payload[0]);
+				/* Reset failures */
+				failures = 0;
+
+				/* Acknowledge and jump */
 				uart_write(SFL_ACK_SUCCESS);
-				boot(0, 0, 0, addr);
+				jump_addr = get_uint32(&frame.payload[0]);
+				boot(0, 0, 0, jump_addr);
 				break;
 			}
 			default:
-				failed++;
-				if(failed == MAX_FAILED) {
+				/* Increment failures */
+				failures++;
+
+				/* Acknowledge the UNKNOWN cmd */
+				uart_write(SFL_ACK_UNKNOWN);
+
+				/* Increment failures and exit when max is reached */
+				if(failures == MAX_FAILURES) {
 					printf("Too many consecutive errors, aborting");
 					return 1;
 				}
-				uart_write(SFL_ACK_UNKNOWN);
+
 				break;
 		}
 	}
