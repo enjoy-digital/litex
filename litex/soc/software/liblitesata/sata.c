@@ -101,19 +101,19 @@ void sata_write(uint32_t sector, uint32_t count, uint8_t* buf)
 
 static DSTATUS satastatus = STA_NOINIT;
 
-DSTATUS disk_status(uint8_t drv) {
+DSTATUS disk_status(BYTE drv) {
 	if (drv) return STA_NOINIT;
 	return satastatus;
 }
 
-DSTATUS disk_initialize(uint8_t drv) {
+DSTATUS disk_initialize(BYTE drv) {
 	if (drv) return STA_NOINIT;
 	if (satastatus)
 		satastatus = sata_init() ? 0 : STA_NOINIT;
 	return satastatus;
 }
 
-DRESULT disk_read(uint8_t drv, uint8_t *buf, uint32_t sector, uint32_t count) {
+DRESULT disk_read(BYTE drv, BYTE *buf, LBA_t sector, UINT count) {
 	sata_read(sector, count, buf);
 	return RES_OK;
 }
