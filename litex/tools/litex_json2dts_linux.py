@@ -211,7 +211,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
             }};
 """.format(
     framebuffer_base = d["constants"]["video_framebuffer_base"],
-    framebuffer_size = (d["constants"]["video_framebuffer_hres"] * d["constants"]["video_framebuffer_vres"] * 4))
+    framebuffer_size = (d["constants"]["video_framebuffer_hres"] * d["constants"]["video_framebuffer_vres"] * (d["constants"]["video_framebuffer_depth"]//8)))
 
         dts += """
         };
@@ -491,6 +491,10 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         framebuffer_base   = d["constants"]["video_framebuffer_base"]
         framebuffer_width  = d["constants"]["video_framebuffer_hres"]
         framebuffer_height = d["constants"]["video_framebuffer_vres"]
+        framebuffer_depth  = d["constants"]["video_framebuffer_depth"]
+        framebuffer_format = "a8b8g8r8"
+        if (framebuffer_depth == 16):
+            framebuffer_format = "r5g6b5"
         dts += """
             framebuffer0: framebuffer@{framebuffer_base:x} {{
                 compatible = "simple-framebuffer";
@@ -498,14 +502,15 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 width = <{framebuffer_width}>;
                 height = <{framebuffer_height}>;
                 stride = <{framebuffer_stride}>;
-                format = "a8b8g8r8";
+                format = "{framebuffer_format}";
             }};
 """.format(
     framebuffer_base   = framebuffer_base,
     framebuffer_width  = framebuffer_width,
     framebuffer_height = framebuffer_height,
-    framebuffer_size   = framebuffer_width * framebuffer_height * 4,
-    framebuffer_stride = framebuffer_width * 4)
+    framebuffer_size   = framebuffer_width * framebuffer_height * (framebuffer_depth//8),
+    framebuffer_stride = framebuffer_width * (framebuffer_depth//8),
+    framebuffer_format = framebuffer_format)
 
     # ICAP Bitstream -------------------------------------------------------------------------------
 
