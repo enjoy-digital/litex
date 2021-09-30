@@ -117,9 +117,9 @@ void sdcard_set_clk_freq(uint32_t clk_freq, int show) {
 		clk_freq = CONFIG_CLOCK_FREQUENCY/divider;
 		printf("Setting SDCard clk freq to ");
 		if (clk_freq > 1000000)
-			printf("%d MHz\n", clk_freq/1000000);
+			printf("%ld MHz\n", clk_freq/1000000);
 		else
-			printf("%d KHz\n", clk_freq/1000);
+			printf("%ld KHz\n", clk_freq/1000);
 	}
 	sdphy_clocker_divider_write(divider);
 }

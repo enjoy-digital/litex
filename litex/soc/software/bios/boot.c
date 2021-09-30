@@ -681,11 +681,11 @@ static int copy_file_from_sdcard_to_ram(const char * filename, unsigned long ram
 	}
 
 	length = f_size(&file);
-	printf("Copying %s to 0x%08lx (%d bytes)...\n", filename, ram_address, length);
+	printf("Copying %s to 0x%08lx (%ld bytes)...\n", filename, ram_address, length);
 	init_progression_bar(length);
 	offset = 0;
 	for (;;) {
-		fr = f_read(&file, (void*) ram_address + offset,  0x8000, &br);
+		fr = f_read(&file, (void*) ram_address + offset,  0x8000, (UINT *)&br);
 		if (fr != FR_OK) {
 			printf("file read error.\n");
 			f_close(&file);
@@ -741,7 +741,7 @@ static void sdcardboot_from_json(const char * filename)
 		return;
 	}
 
-	fr = f_read(&file, json_buffer, sizeof(json_buffer), &length);
+	fr = f_read(&file, json_buffer, sizeof(json_buffer), (UINT *) &length);
 
 	/* Close JSON file */
 	f_close(&file);
@@ -856,11 +856,11 @@ static int copy_file_from_sata_to_ram(const char * filename, unsigned long ram_a
 	}
 
 	length = f_size(&file);
-	printf("Copying %s to 0x%08lx (%d bytes)...\n", filename, ram_address, length);
+	printf("Copying %s to 0x%08lx (%ld bytes)...\n", filename, ram_address, length);
 	init_progression_bar(length);
 	offset = 0;
 	for (;;) {
-		fr = f_read(&file, (void*) ram_address + offset,  0x8000, &br);
+		fr = f_read(&file, (void*) ram_address + offset,  0x8000, (UINT *) &br);
 		if (fr != FR_OK) {
 			printf("file read error.\n");
 			f_close(&file);
@@ -916,7 +916,7 @@ static void sataboot_from_json(const char * filename)
 		return;
 	}
 
-	fr = f_read(&file, json_buffer, sizeof(json_buffer), &length);
+	fr = f_read(&file, json_buffer, sizeof(json_buffer), (UINT *) &length);
 
 	/* Close JSON file */
 	f_close(&file);

@@ -98,7 +98,7 @@ static void sdcard_read_handler(int nb_params, char **params)
 	}
 
 	sdcard_read(block, 1, buf);
-	dump_bytes((uint32_t *)buf, 512, (unsigned long) buf);
+	dump_bytes((unsigned int *)buf, 512, (unsigned long) buf);
 }
 
 define_command(sdcard_read, sdcard_read_handler, "Read SDCard block", LITESDCARD_CMDS);
@@ -138,7 +138,7 @@ static void sdcard_write_handler(int nb_params, char **params)
 			}
 		}
 	}
-	dump_bytes((uint32_t *)buf, 512, (unsigned long) buf);
+	dump_bytes((unsigned int *)buf, 512, (unsigned long) buf);
 	sdcard_write(block, 1, buf);
 }
 

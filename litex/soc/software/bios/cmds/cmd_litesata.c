@@ -54,7 +54,7 @@ static void sata_read_handler(int nb_params, char **params)
 	}
 
 	sata_read(sector, 1, buf);
-	dump_bytes((uint32_t *)buf, 512, (unsigned long) buf);
+	dump_bytes((unsigned int *)buf, 512, (unsigned long) buf);
 }
 
 define_command(sata_read, sata_read_handler, "Read SATA sector", LITESATA_CMDS);
@@ -94,7 +94,7 @@ static void sata_write_handler(int nb_params, char **params)
 			}
 		}
 	}
-	dump_bytes((uint32_t *)buf, 512, (unsigned long) buf);
+	dump_bytes((unsigned int *)buf, 512, (unsigned long) buf);
 	sata_write(sector, 1, buf);
 }
 
