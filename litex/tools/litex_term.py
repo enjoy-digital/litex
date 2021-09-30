@@ -310,6 +310,7 @@ class LiteXTerm:
         signal.signal(signal.SIGINT, self.sigint)
         self.sigint_time_last = 0
 
+        self.safe        = safe
         self.delay       = 0
         self.length      = 64
         self.outstanding = 0 if safe else 128
@@ -435,11 +436,10 @@ class LiteXTerm:
         print(f"[LXTERM] Uploading {filename} to 0x{address:08x} ({length} bytes)...")
 
         # Upload calibration
-        if self.outstanding:
+        if not self.safe:
             self.upload_calibration(address)
-            # Force safe mode when calibration fails.
+            # Force safe mode settings when calibration fails.
             if self.delay is None:
-
                 self.delay       = 0
                 self.length      = 64
                 self.outstanding = 0
