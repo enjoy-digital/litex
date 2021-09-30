@@ -284,7 +284,7 @@ DRESULT disk_read(BYTE drv, BYTE *buf, LBA_t block, UINT count) {
         cmd = CMD18; /* READ_MULTIPLE_BLOCK */
     else
         cmd = CMD17; /* READ_SINGLE_BLOCK */
-    if (spisdcardsend_cmd(cmd, sector) == 0) {
+    if (spisdcardsend_cmd(cmd, block) == 0) {
         while(count > 0) {
             if (spisdcardreceive_block(buf) == 0)
                 break;
