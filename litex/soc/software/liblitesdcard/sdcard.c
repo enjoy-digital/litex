@@ -104,7 +104,7 @@ static inline uint32_t pow2_round_up(uint32_t r) {
 	return r;
 }
 
-void sdcard_set_clk_freq(uint32_t clk_freq, int show) {
+void sdcard_set_clk_freq(unsigned long clk_freq, int show) {
 	uint32_t divider;
 	divider = clk_freq ? CONFIG_CLOCK_FREQUENCY/clk_freq : 256;
 	divider = pow2_round_up(divider);
