@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2019-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2019-2021 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from enum import IntEnum
@@ -73,15 +73,17 @@ class ICAPCMDs(IntEnum):
 class ICAP(Module, AutoCSR):
     """ICAP
 
-    Allow sending commands to ICAPE2 of Xilinx 7-Series FPGAs.
+    Allow writing/reading ICAPE2's registers of Xilinx 7-Series FPGAs.
 
     A warm boot can for example be triggered by writing IPROG CMD (0xf) to CMD register (0b100).
     """
     def __init__(self, with_csr=True, simulation=False):
-        self.addr = Signal(5)
-        self.data = Signal(32)
-        self.send = Signal()
-        self.done = Signal()
+        self.write      = Signal()
+        self.read       = Signal()
+        self.done       = Signal()
+        self.addr       = Signal(5)
+        self.write_data = Signal(32)
+        self.read_data  = Signal(32)
 
         # # #
 
@@ -91,20 +93,18 @@ class ICAP(Module, AutoCSR):
         self.sync += icap_clk_counter.eq(icap_clk_counter + 1)
         self.sync += self.cd_icap.clk.eq(icap_clk_counter[3])
 
-        # Resynchronize send pulse to ICAP domain.
-        ps_send = PulseSynchronizer("sys", "icap")
-        self.submodules += ps_send
-        self.comb += ps_send.i.eq(self.send)
-
         # Generate ICAP bitstream sequence.
         self._csib  = _csib  = Signal(reset=1)
         self._rdwrb = _rdwrb = Signal()
         self._i     = _i     = Signal(32)
+        self._o     = _o     = Signal(32)
 
         count = Signal(4)
         fsm   = FSM(reset_state="WAIT")
         fsm   = ClockDomainsRenamer("icap")(fsm)
+        fsm   = ResetInserter()(fsm)
         self.submodules += fsm
+        self.comb += fsm.reset.eq(~(self.write | self.read))
 
         # Wait User Command.
         fsm.act("WAIT",
@@ -113,11 +113,8 @@ class ICAP(Module, AutoCSR):
             _rdwrb.eq(0),
             _i.eq(ICAP_DUMMY),
 
-            # Set Done.
-            self.done.eq(1),
-
             # Wait User Command.
-            If(ps_send.o,
+            If(self.write | self.read,
                 NextValue(count, 0),
                 NextState("SYNC")
             )
@@ -136,7 +133,11 @@ class ICAP(Module, AutoCSR):
             NextValue(count, count + 1),
             If(count == (4-1),
                 NextValue(count, 0),
-                NextState("WRITE")
+                If(self.write,
+                    NextState("WRITE")
+                ).Else(
+                    NextState("READ")
+                )
             )
         )
 
@@ -146,12 +147,35 @@ class ICAP(Module, AutoCSR):
             _rdwrb.eq(0),
             Case(count, {
                 0 : _i.eq(ICAP_WRITE | (self.addr  << 13) | 1), # Set Register.
-                1 : _i.eq(self.data),                           # Set Register Data.
+                1 : _i.eq(self.write_data),                     # Set Register Data.
                 2 : _i.eq(ICAP_NOOP),                           # No Op.
                 3 : _i.eq(ICAP_NOOP),                           # No Op.
             }),
             NextValue(count, count + 1),
             If(count == (4-1),
+                NextValue(count, 0),
+                NextState("DESYNC")
+            )
+        )
+
+        # Send ICAP Read sequence.
+        fsm.act("READ",
+            _csib.eq(0),
+            _rdwrb.eq(0),
+            Case(count, {
+                0 : _i.eq(ICAP_READ | (self.addr  << 13) | 1),     # Set Register.
+                1 : _i.eq(ICAP_NOOP),                              # No Op.
+                2 : _i.eq(ICAP_NOOP),                              # No Op.
+                3 : [_csib.eq(1), _rdwrb.eq(1), _i.eq(ICAP_NOOP)], # Idle + No Op.
+                4 : [_csib.eq(0), _rdwrb.eq(1), _i.eq(ICAP_NOOP)], # No Op.
+                5 : [_csib.eq(0), _rdwrb.eq(1), _i.eq(ICAP_NOOP)], # No Op.
+                6 : [_csib.eq(0), _rdwrb.eq(1), _i.eq(ICAP_NOOP)], # No Op.
+                7 : [_csib.eq(0), _rdwrb.eq(1), _i.eq(ICAP_NOOP)], # No Op.
+                8 : [_csib.eq(0), _rdwrb.eq(1), _i.eq(ICAP_NOOP)], # No Op.
+            }),
+            NextValue(count, count + 1),
+            If(count == (8-1),
+                NextValue(self.read_data, _o),
                 NextValue(count, 0),
                 NextState("DESYNC")
             )
@@ -170,18 +194,32 @@ class ICAP(Module, AutoCSR):
             NextValue(count, count + 1),
             If(count == (4-1),
                 NextValue(count, 0),
-                NextState("WAIT")
+                NextState("DONE")
             )
+        )
+
+        # Done
+        fsm.act("DONE",
+            # Set ICAP in IDLE state.
+            _csib.eq(1),
+            _rdwrb.eq(0),
+            _i.eq(ICAP_DUMMY),
+            self.done.eq(1)
         )
 
         # ICAP Instance.
         if not simulation:
+            _i_icape2 = Signal(32)
+            _o_icape2 = Signal(32)
+            self.comb += _i_icape2.eq(Cat(*[_i[8*i:8*(i+1)][::-1] for i in range(4)])),
+            self.comb += _o.eq(Cat(*[_o_icape2[8*i:8*(i+1)][::-1] for i in range(4)])),
             self.specials += Instance("ICAPE2",
                 p_ICAP_WIDTH = "X32",
                 i_CLK   = ClockSignal("icap"),
                 i_CSIB  = _csib,
                 i_RDWRB = _rdwrb,
-                i_I     = Cat(*[_i[8*i:8*(i+1)][::-1] for i in range(4)]),
+                i_I     = _i_icape2,
+                o_O     = _o_icape2,
             )
 
         # CSR.
@@ -189,16 +227,22 @@ class ICAP(Module, AutoCSR):
             self.add_csr()
 
     def add_csr(self):
-        self._addr = CSRStorage(5,  reset_less=True, description="ICAP Write Address.")
-        self._data = CSRStorage(32, reset_less=True, description="ICAP Write Data.")
-        self._send = CSRStorage(description="ICAP Control.\n\n Write ``1`` send a write command to the ICAP.")
-        self._done = CSRStatus(reset=1, description="ICAP Status.\n\n Write command done when read as ``1``.")
+        self._addr  = CSRStorage(5,  reset_less=True, description="ICAP Address.")
+        self._data  = CSRStorage(32, reset_less=True, description="ICAP Write/Read Data.", write_from_dev=True)
+        self._write = CSRStorage(description="ICAP Control.\n\n Write ``1`` send a write to the ICAP.")
+        self._done  = CSRStatus(reset=1, description="ICAP Status.\n\n Write command done when read as ``1``.")
+        self._read  = CSRStorage(description="ICAP Control.\n\n Read ``1`` send a read from the ICAP.")
 
         self.comb += [
             self.addr.eq(self._addr.storage),
-            self.data.eq(self._data.storage),
-            self.send.eq(self._send.re),
-            self._done.status.eq(self.done)
+            self.write_data.eq(self._data.storage),
+            self.write.eq(self._write.storage),
+            self._done.status.eq(self.done),
+            self.read.eq(self._read.storage),
+            If(self.done,
+                self._data.we.eq(1),
+                self._data.dat_w.eq(self.read_data)
+            )
         ]
 
     def add_reload(self):
@@ -212,8 +256,8 @@ class ICAP(Module, AutoCSR):
         )
         fsm.act("RELOAD",
             self.addr.eq(ICAPRegisters.CMD),
-            self.data.eq(ICAPCMDs.IPROG),
-            self.send.eq(1),
+            self.write.eq(1),
+            self.write_data.eq(ICAPCMDs.IPROG),
         )
 
     def add_timing_constraints(self, platform, sys_clk_freq, sys_clk):
