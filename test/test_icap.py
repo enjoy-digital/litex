@@ -8,24 +8,25 @@ import unittest
 
 from migen import *
 
-from litex.soc.cores.icap import ICAP, ICAPBitstream
+from litex.soc.cores.icap import *
 
 
 class TestICAP(unittest.TestCase):
     def test_icap_command_reload(self):
         def generator(dut):
-            yield dut.addr.eq(0x4)
-            yield dut.data.eq(0xf)
+            yield dut.addr.eq(ICAPRegisters.CMD)
+            yield dut.data.eq(ICAPCMDs.IPROG)
             for i in range(16):
                 yield
             yield dut.send.eq(1)
             yield
             yield dut.send.eq(0)
-            for i in range(256):
+            for i in range(32):
+                print(f"{(yield dut._i):08x}")
                 yield
 
         dut = ICAP(with_csr=False, simulation=True)
-        clocks = {"sys": 10, "icap":20}
+        clocks = {"sys": 10, "icap": 10}
         run_simulation(dut, generator(dut), clocks, vcd_name="icap.vcd")
 
     def test_icap_bitstream_syntax(self):

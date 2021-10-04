@@ -16,6 +16,14 @@ from litex.soc.interconnect import stream
 
 # Constants ----------------------------------------------------------------------------------------
 
+# ICAP Words
+
+ICAP_DUMMY = 0xffffffff
+ICAP_SYNC  = 0xaa995566
+ICAP_NOOP  = 0x20000000
+ICAP_WRITE = 0x30000000
+ICAP_READ  = 0x28000000
+
 # Configuration Registers (from UG470).
 
 class ICAPRegisters(IntEnum):
@@ -78,38 +86,45 @@ class ICAP(Module, AutoCSR):
 
         # # #
 
-        # Create slow icap clk (sys_clk/16) ---------------------------------------------------------
+        # Create slow ICAP Clk (sys_clk/16).
         self.clock_domains.cd_icap = ClockDomain()
         icap_clk_counter = Signal(4)
         self.sync += icap_clk_counter.eq(icap_clk_counter + 1)
         self.sync += self.cd_icap.clk.eq(icap_clk_counter[3])
 
-        # Resynchronize send pulse to icap domain ---------------------------------------------------
+        # Resynchronize send pulse to ICAP domain.
         ps_send = PulseSynchronizer("sys", "icap")
         self.submodules += ps_send
         self.comb += ps_send.i.eq(self.send)
 
-        # Generate icap bitstream write sequence
+        # Generate ICAP bitstream write sequence.
         self._csib = _csib = Signal(reset=1)
         self._i    = _i =  Signal(32)
-        _addr      = self.addr << 13
-        _data      = self.data
         self.sync.icap += [
-            _i.eq(0xffffffff), # dummy
+            _i.eq(ICAP_DUMMY), # Dummy (Default).
             timeline(ps_send.o, [
+                # Clear Done.
                 (1,  [_csib.eq(1), self.done.eq(0)]),
-                (2,  [_csib.eq(0), _i.eq(0x20000000)]),         # noop
-                (3,  [_csib.eq(0), _i.eq(0xaa995566)]),         # sync word
-                (4,  [_csib.eq(0), _i.eq(0x20000000)]),         # noop
-                (5,  [_csib.eq(0), _i.eq(0x20000000)]),         # noop
-                (6,  [_csib.eq(0), _i.eq(0x30000001 | _addr)]), # write command
-                (7,  [_csib.eq(0), _i.eq(_data)]),              # write value
-                (8,  [_csib.eq(0), _i.eq(0x20000000)]),         # noop
-                (9,  [_csib.eq(0), _i.eq(0x20000000)]),         # noop
-                (10, [_csib.eq(0), _i.eq(0x30008001)]),         # write to cmd register
-                (11, [_csib.eq(0), _i.eq(0x0000000d)]),         # desync command
-                (12, [_csib.eq(0), _i.eq(0x20000000)]),         # noop
-                (13, [_csib.eq(0), _i.eq(0x20000000)]),         # noop
+
+                # Synchronize.
+                (2,  [_csib.eq(0), _i.eq(ICAP_NOOP)]), # No Op.
+                (3,  [_csib.eq(0), _i.eq(ICAP_SYNC)]), # Sync Word.
+                (4,  [_csib.eq(0), _i.eq(ICAP_NOOP)]), # No Op.
+                (5,  [_csib.eq(0), _i.eq(ICAP_NOOP)]), # No Op.
+
+                # Write User's data to addr Register.
+                (6,  [_csib.eq(0), _i.eq(ICAP_WRITE | (self.addr  << 13) | 1)]), # Set Register.
+                (7,  [_csib.eq(0), _i.eq(self.data)]),                           # Set Register Data.
+                (8,  [_csib.eq(0), _i.eq(ICAP_NOOP)]),                           # No Op.
+                (9,  [_csib.eq(0), _i.eq(ICAP_NOOP)]),                           # No Op.
+
+                # De-Synchronize.
+                (10, [_csib.eq(0), _i.eq(ICAP_WRITE | (ICAPRegisters.CMD << 13) | 1)]), # Write to CMD Register.
+                (11, [_csib.eq(0), _i.eq(ICAPCMDs.DESYNC)]),                            # DESYNC CMD.
+                (12, [_csib.eq(0), _i.eq(ICAP_NOOP)]),                                  # No Op.
+                (13, [_csib.eq(0), _i.eq(ICAP_NOOP)]),                                  # No Op.
+
+                # Set Done.
                 (14, [_csib.eq(1), self.done.eq(1)]),
             ])
         ]
