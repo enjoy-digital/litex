@@ -98,8 +98,9 @@ class ICAP(Module, AutoCSR):
         self.comb += ps_send.i.eq(self.send)
 
         # Generate ICAP bitstream write sequence.
-        self._csib = _csib = Signal(reset=1)
-        self._i    = _i =  Signal(32)
+        self._csib  = _csib  = Signal(reset=1)
+        self._rdwrb = _rdwrb = Signal()
+        self._i     = _i     = Signal(32)
         self.sync.icap += [
             _i.eq(ICAP_DUMMY), # Dummy (Default).
             timeline(ps_send.o, [
