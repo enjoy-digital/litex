@@ -112,11 +112,14 @@ inf_loop:
   j inf_loop
 
 .bss
+  .align 8
 smp_ap_args:
   .dword 0
   .dword 0
   .dword 0
+  .align 8
 smp_ap_target:
   .dword 0
+  .align 8
 smp_ap_ready:
   .dword 0
