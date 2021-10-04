@@ -4,6 +4,8 @@
 # Copyright (c) 2019-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+from enum import IntEnum
+
 from migen import *
 
 from migen.genlib.misc import timeline
@@ -11,6 +13,53 @@ from migen.genlib.cdc import PulseSynchronizer
 
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import stream
+
+# Constants ----------------------------------------------------------------------------------------
+
+# Configuration Registers (from UG470).
+
+class ICAPRegisters(IntEnum):
+    CRC     = 0b00000 # CRC Register.
+    FAR     = 0b00001 # Frame Address Register.
+    FDRI    = 0b00010 # Frame Data Register, Input Register.
+    FDRO    = 0b00011 # Frame Data Register, Output Register.
+    CMD     = 0b00100 # Command Register.
+    CTL0    = 0b00101 # Control Register 0.
+    MASK    = 0b00110 # Masking Register for CTL0 and CTL1.
+    STAT    = 0b00111 # Status Register.
+    LOUT    = 0b01000 # Legacy Output Register for daisy chain.
+    COR0    = 0b01001 # Configuration Option Register 0.
+    MFWR    = 0b01010 # Multiple Frame Write Register.
+    CBC     = 0b01011 # Initial CBC Value Register.
+    IDCODE  = 0b01100 # Device ID Register.
+    AXSS    = 0b01101 # User Access Register.
+    COR1    = 0b01110 # Configuration Option Register 1.
+    WBSTAR  = 0b10000 # Warm Boot Start Address Register.
+    TIMER   = 0b10001 # Watchdog Timer Register.
+    BOOTSTS = 0b10110 # Boot History Status Register.
+    CTL1    = 0b11000 # Control Register 1.
+    BSPI    = 0b11111 # BPI/SPI Configuration Options Register.
+
+# Commands (from UG470).
+
+class ICAPCMDs(IntEnum):
+    MFW       = 0b00010 # Multiple Frame Write.
+    LFRM      = 0b00011 # Last Frame.
+    RCFG      = 0b00100 # Reads Configuration Data.
+    START     = 0b00101 # Begins the Startup Sequence.
+    RCAP      = 0b00110 # Resets the CAPTURE signal.
+    RCRC      = 0b00111 # Resets CRC.
+    AGHIGH    = 0b01000 # Asserts the GHIGH_B signal.
+    SWITCH    = 0b01001 # Switches the CCLK frequency.
+    GRESTORE  = 0b01010 # Pulses the GRESTORE signal.
+    SHUTDOWN  = 0b01011 # Begin Shutdown Sequence.
+    GCAPTURE  = 0b01100 # Pulses GCAPTURE.
+    DESYNC    = 0b01101 # Resets the DALIGN signal.
+    IPROG     = 0b01111 # Internal PROG for triggering a warm boot.
+    CRCC      = 0b10000 # Recalculates the first readback CRC value after reconfiguration
+    LTIMER    = 0b10001 # Reload Watchdog timer.
+    BSPI_READ = 0b10010 # BPI/SPI re-initiate bitstream read.
+    FALL_EDGE = 0b10011 # Switch to negative-edge clocking.
 
 # Xilinx 7-series ----------------------------------------------------------------------------------
 
