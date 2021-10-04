@@ -42,7 +42,7 @@ class TestICAP(unittest.TestCase):
             for ref_w in iprog_sequence:
                 cur_w = f"{(yield dut._csib)} {(yield dut._rdwrb)} 0x{(yield dut._i):08x}"
                 self.assertEqual(ref_w, cur_w)
-                # print(cur_w)
+                #print(cur_w)
                 yield
 
 

@@ -8,7 +8,6 @@ from enum import IntEnum
 
 from migen import *
 
-from migen.genlib.misc import timeline
 from migen.genlib.cdc import PulseSynchronizer
 
 from litex.soc.interconnect.csr import *
@@ -97,50 +96,95 @@ class ICAP(Module, AutoCSR):
         self.submodules += ps_send
         self.comb += ps_send.i.eq(self.send)
 
-        # Generate ICAP bitstream write sequence.
+        # Generate ICAP bitstream sequence.
         self._csib  = _csib  = Signal(reset=1)
         self._rdwrb = _rdwrb = Signal()
         self._i     = _i     = Signal(32)
-        self.sync.icap += [
-            _i.eq(ICAP_DUMMY), # Dummy (Default).
-            timeline(ps_send.o, [
-                # Clear Done.
-                (1,  [_csib.eq(1), self.done.eq(0)]),
 
-                # Synchronize.
-                (2,  [_csib.eq(0), _i.eq(ICAP_NOOP)]), # No Op.
-                (3,  [_csib.eq(0), _i.eq(ICAP_SYNC)]), # Sync Word.
-                (4,  [_csib.eq(0), _i.eq(ICAP_NOOP)]), # No Op.
-                (5,  [_csib.eq(0), _i.eq(ICAP_NOOP)]), # No Op.
+        count = Signal(4)
+        fsm   = FSM(reset_state="WAIT")
+        fsm   = ClockDomainsRenamer("icap")(fsm)
+        self.submodules += fsm
 
-                # Write User's data to addr Register.
-                (6,  [_csib.eq(0), _i.eq(ICAP_WRITE | (self.addr  << 13) | 1)]), # Set Register.
-                (7,  [_csib.eq(0), _i.eq(self.data)]),                           # Set Register Data.
-                (8,  [_csib.eq(0), _i.eq(ICAP_NOOP)]),                           # No Op.
-                (9,  [_csib.eq(0), _i.eq(ICAP_NOOP)]),                           # No Op.
+        # Wait User Command.
+        fsm.act("WAIT",
+            # Set ICAP in IDLE state.
+            _csib.eq(1),
+            _rdwrb.eq(0),
+            _i.eq(ICAP_DUMMY),
 
-                # De-Synchronize.
-                (10, [_csib.eq(0), _i.eq(ICAP_WRITE | (ICAPRegisters.CMD << 13) | 1)]), # Write to CMD Register.
-                (11, [_csib.eq(0), _i.eq(ICAPCMDs.DESYNC)]),                            # DESYNC CMD.
-                (12, [_csib.eq(0), _i.eq(ICAP_NOOP)]),                                  # No Op.
-                (13, [_csib.eq(0), _i.eq(ICAP_NOOP)]),                                  # No Op.
+            # Set Done.
+            self.done.eq(1),
 
-                # Set Done.
-                (14, [_csib.eq(1), self.done.eq(1)]),
-            ])
-        ]
+            # Wait User Command.
+            If(ps_send.o,
+                NextValue(count, 0),
+                NextState("SYNC")
+            )
+        )
 
-        # ICAP instance
+        # Send ICAP Synchronization sequence.
+        fsm.act("SYNC",
+            _csib.eq(0),
+            _rdwrb.eq(0),
+            Case(count, {
+                0 : _i.eq(ICAP_NOOP), # No Op.
+                1 : _i.eq(ICAP_SYNC), # Sync Word.
+                2 : _i.eq(ICAP_NOOP), # No Op.
+                3 : _i.eq(ICAP_NOOP), # No Op.
+            }),
+            NextValue(count, count + 1),
+            If(count == (4-1),
+                NextValue(count, 0),
+                NextState("WRITE")
+            )
+        )
+
+        # Send ICAP Write sequence.
+        fsm.act("WRITE",
+            _csib.eq(0),
+            _rdwrb.eq(0),
+            Case(count, {
+                0 : _i.eq(ICAP_WRITE | (self.addr  << 13) | 1), # Set Register.
+                1 : _i.eq(self.data),                           # Set Register Data.
+                2 : _i.eq(ICAP_NOOP),                           # No Op.
+                3 : _i.eq(ICAP_NOOP),                           # No Op.
+            }),
+            NextValue(count, count + 1),
+            If(count == (4-1),
+                NextValue(count, 0),
+                NextState("DESYNC")
+            )
+        )
+
+        # Send ICAP Desynchronization sequence.
+        fsm.act("DESYNC",
+            _csib.eq(0),
+            _rdwrb.eq(0),
+            Case(count, {
+                0 : _i.eq(ICAP_WRITE | (ICAPRegisters.CMD << 13) | 1), # Write to CMD Register.
+                1 : _i.eq(ICAPCMDs.DESYNC),                            # DESYNC CMD.
+                2 : _i.eq(ICAP_NOOP),                                  # No Op.
+                3 : _i.eq(ICAP_NOOP),                                  # No Op.
+            }),
+            NextValue(count, count + 1),
+            If(count == (4-1),
+                NextValue(count, 0),
+                NextState("WAIT")
+            )
+        )
+
+        # ICAP Instance.
         if not simulation:
             self.specials += Instance("ICAPE2",
                 p_ICAP_WIDTH = "X32",
                 i_CLK   = ClockSignal("icap"),
                 i_CSIB  = _csib,
-                i_RDWRB = 0,
+                i_RDWRB = _rdwrb,
                 i_I     = Cat(*[_i[8*i:8*(i+1)][::-1] for i in range(4)]),
             )
 
-        # CSR
+        # CSR.
         if with_csr:
             self.add_csr()
 
@@ -167,8 +211,8 @@ class ICAP(Module, AutoCSR):
             )
         )
         fsm.act("RELOAD",
-            self.addr.eq(0x4),
-            self.data.eq(0xf),
+            self.addr.eq(ICAPRegisters.CMD),
+            self.data.eq(ICAPCMDs.IPROG),
             self.send.eq(1),
         )
 
