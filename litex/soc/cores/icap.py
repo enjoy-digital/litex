@@ -17,8 +17,9 @@ from litex.soc.interconnect import stream
 class ICAP(Module, AutoCSR):
     """ICAP
 
-    Allow sending commands to ICAPE2 of Xilinx 7-Series FPGAs, the bistream can for example be
-    reloaded from SPI Flash by writing 0x00000000 at address @0x4.
+    Allow sending commands to ICAPE2 of Xilinx 7-Series FPGAs.
+
+    A warm boot can for example be triggered by writing IPROG CMD (0xf) to CMD register (0b100).
     """
     def __init__(self, with_csr=True, simulation=False):
         self.addr = Signal(5)
