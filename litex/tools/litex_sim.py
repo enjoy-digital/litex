@@ -461,7 +461,6 @@ def main():
 
     builder_kwargs["csr_csv"] = "csr.csv"
     builder = Builder(soc, **builder_kwargs)
-    soc.platform.toolchain.pre_run_callback = pre_run_callback
     builder.build(
         threads          = args.threads,
         sim_config       = sim_config,
