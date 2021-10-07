@@ -16,7 +16,9 @@ if os.path.exists(".gitignore"):
 
 # Repositories -------------------------------------------------------------------------------------
 
-# name,  (url, recursive clone, develop, sha1)
+# Get SHA1: git rev-parse HEAD
+
+# Name,  (URL, Recursive clone, Develop, SHA1)
 repos = [
     # HDL
     ("migen",        ("https://github.com/m-labs/",        True,  True, None)),
@@ -134,7 +136,7 @@ if "init" in sys.argv[1:]:
             subprocess.check_call("git clone " + full_url + " " + opts, shell=True)
             if sha1 is not None:
                 os.chdir(os.path.join(current_path, name))
-                os.system("git checkout {:7x}".format(sha1))
+                os.system("git checkout {:040x}".format(sha1))
 
 # Repositories update
 if "update" in sys.argv[1:]:
@@ -153,7 +155,7 @@ if "update" in sys.argv[1:]:
             subprocess.check_call("git submodule update --init --recursive", shell=True)
         if sha1 is not None:
             os.chdir(os.path.join(current_path, name))
-            os.system("git checkout {:7x}".format(sha1))
+            os.system("git checkout {:040x}".format(sha1))
 
 # Repositories installation
 if "install" in sys.argv[1:]:
