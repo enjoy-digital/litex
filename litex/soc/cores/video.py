@@ -634,7 +634,7 @@ class VideoFrameBuffer(Module, AutoCSR):
             self.submodules.cdc = stream.ClockDomainCrossing([("data", dram_port.data_width)], cd_from="sys", cd_to=clock_domain)
             self.comb += self.dma.source.connect(self.cdc.sink)
             # ... and then Data-Width Conversion.
-            self.submodules.conv = stream.Converter(dram_port.data_width, depth)
+            self.submodules.conv = ClockDomainsRenamer(clock_domain)(stream.Converter(dram_port.data_width, depth))
             self.comb += self.cdc.source.connect(self.conv.sink)
             video_pipe_source = self.conv.source
         # Elsif DRAM Data Width <= depth or Video clock is slower than sys_clk:
