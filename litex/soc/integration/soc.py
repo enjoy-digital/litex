@@ -1784,7 +1784,7 @@ class LiteXSoC(SoC):
         self.comb += vt.source.connect(phy if isinstance(phy, stream.Endpoint) else phy.sink)
 
     # Add Video Framebuffer ------------------------------------------------------------------------
-    def add_video_framebuffer(self, name="video_framebuffer", phy=None, timings="800x600@60Hz", clock_domain="sys", depth=32):
+    def add_video_framebuffer(self, name="video_framebuffer", phy=None, timings="800x600@60Hz", clock_domain="sys", format="rgb888"):
         # Imports.
         from litex.soc.cores.video import VideoTimingGenerator, VideoFrameBuffer
 
@@ -1799,12 +1799,12 @@ class LiteXSoC(SoC):
         hres = int(timings.split("@")[0].split("x")[0])
         vres = int(timings.split("@")[0].split("x")[1])
         vfb = VideoFrameBuffer(self.sdram.crossbar.get_port(),
-            hres = hres,
-            vres = vres,
-            base = base,
+            hres   = hres,
+            vres   = vres,
+            base   = base,
+            format = format,
             clock_domain          = clock_domain,
             clock_faster_than_sys = vtg.video_timings["pix_clk"] > self.sys_clk_freq,
-            depth = depth
         )
         setattr(self.submodules, name, vfb)
 
@@ -1818,5 +1818,5 @@ class LiteXSoC(SoC):
         self.add_constant("VIDEO_FRAMEBUFFER_BASE", base)
         self.add_constant("VIDEO_FRAMEBUFFER_HRES", hres)
         self.add_constant("VIDEO_FRAMEBUFFER_VRES", vres)
-        self.add_constant("VIDEO_FRAMEBUFFER_DEPTH", depth)
+        self.add_constant("VIDEO_FRAMEBUFFER_DEPTH", vfb.depth)
 
