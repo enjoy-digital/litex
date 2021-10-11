@@ -84,12 +84,13 @@ def parse_device(device):
                  "ct256", "tq144:4k"],
         "up3k": ["sg48", "uwg30"],
         "up5k": ["sg48", "uwg30"],
+        "u4k": ["sg48"],
     }
 
     (family, architecture, package) = device.split("-")
     if family not in ["ice40"]:
         raise ValueError("Unknown device family {}".format(family))
-    if architecture not in ["lp384", "lp1k", "hx1k", "lp8k", "hx8k", "up5k"]:
+    if architecture not in packages.keys():
         raise ValueError("Invalid device architecture {}".format(architecture))
     if package not in packages[architecture]:
         raise ValueError("Invalid device package {}".format(package))
