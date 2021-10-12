@@ -1695,7 +1695,7 @@ class LiteXSoC(SoC):
 
         # Endpoint.
         self.check_if_exists(f"{name}_endpoint")
-        endpoint = LitePCIeEndpoint(phy, max_pending_requests=max_pending_requests)
+        endpoint = LitePCIeEndpoint(phy, max_pending_requests=max_pending_requests, endianness=phy.endianness)
         setattr(self.submodules, f"{name}_endpoint", endpoint)
 
         # MMAP.
