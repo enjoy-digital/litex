@@ -190,6 +190,22 @@ class ConstraintManager:
     def add_extension(self, io):
         self.available.extend(io)
 
+    def delete(self, signal):
+        for res, obj in self.matched:
+            if isinstance(obj, Record):
+                for pos, (name, item) in enumerate(vars(obj).items()):
+                        if isinstance(item, Signal):
+                                if item == signal:
+                                        # Two first pos are name and layout
+                                        del obj.layout[pos-2]
+                                        delattr(obj, name)
+                                        if len(obj.layout) == 0:
+                                            self.matched.remove((res, obj))
+                                        break
+            else:
+                if obj == signal:
+                    self.matched.remove((res, obj))
+
     def request(self, name, number=None, loose=False):
         resource = _lookup(self.available, name, number, loose)
         if resource is None:
@@ -275,12 +291,14 @@ class ConstraintManager:
             if has_subsignals:
                 for element in resource[2:]:
                     if isinstance(element, Subsignal):
-                        sig = getattr(obj, element.name)
-                        pins, others = _separate_pins(top_constraints +
-                                                      element.constraints)
-                        pins = self.connector_manager.resolve_identifiers(pins)
-                        r.append((sig, pins, others,
-                                  (name, number, element.name)))
+                        # Because we could have removed one Signal From the record
+                        if hasattr(obj, element.name):
+                            sig = getattr(obj, element.name)
+                            pins, others = _separate_pins(top_constraints +
+                                                        element.constraints)
+                            pins = self.connector_manager.resolve_identifiers(pins)
+                            r.append((sig, pins, others,
+                                    (name, number, element.name)))
             else:
                 pins, others = _separate_pins(top_constraints)
                 pins = self.connector_manager.resolve_identifiers(pins)
@@ -312,6 +330,9 @@ class GenericPlatform:
 
     def request(self, *args, **kwargs):
         return self.constraint_manager.request(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        return self.constraint_manager.delete(*args, **kwargs)
 
     def request_all(self, *args, **kwargs):
         return self.constraint_manager.request_all(*args, **kwargs)
