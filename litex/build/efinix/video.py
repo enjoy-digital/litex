@@ -4,6 +4,8 @@
 # Copyright (c) 2021 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+# FIXME: Cleanup/Move, integrate in soc.cores.video.
+
 import os
 import math
 

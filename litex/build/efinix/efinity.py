@@ -29,6 +29,8 @@ from litex.build import tools
 
 from litex.build.efinix import InterfaceWriter
 
+# FIXME: Avoid duplication with verilog.py.
+
 _reserved_keywords = {
     "always", "and", "assign", "automatic", "begin", "buf", "bufif0", "bufif1",
     "case", "casex", "casez", "cell", "cmos", "config", "deassign", "default",

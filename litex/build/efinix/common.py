@@ -10,24 +10,24 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.build.io import *
 
-# Efinix AsyncResetSynchronizer ---------------------------------------------------------------------
+# Efinix AsyncResetSynchronizer --------------------------------------------------------------------
 
 class EfinixAsyncResetSynchronizerImpl(Module):
     def __init__(self, cd, async_reset):
         rst1 = Signal()
         self.specials += [
             Instance("EFX_FF",
-                i_D      = 0,
-                i_SR     = async_reset,
-                i_CLK    = cd.clk,
-                i_CE     = 1,
-                o_Q      = rst1),
+                i_D   = 0,
+                i_SR  = async_reset,
+                i_CLK = cd.clk,
+                i_CE  = 1,
+                o_Q   = rst1),
             Instance("EFX_FF",
-                i_D      = rst1,
-                i_SR     = async_reset,
-                i_CLK    = cd.clk,
-                i_CE     = 1,
-                o_Q      = cd.rst)
+                i_D   = rst1,
+                i_SR  = async_reset,
+                i_CLK = cd.clk,
+                i_CE  = 1,
+                o_Q   = cd.rst)
         ]
 
 
@@ -36,7 +36,7 @@ class EfinixAsyncResetSynchronizer:
     def lower(dr):
         return EfinixAsyncResetSynchronizerImpl(dr.cd, dr.async_reset)
 
-# Gowin Special Overrides --------------------------------------------------------------------------
+# Efinix Special Overrides -------------------------------------------------------------------------
 
 efinix_special_overrides = {
     AsyncResetSynchronizer: EfinixAsyncResetSynchronizer

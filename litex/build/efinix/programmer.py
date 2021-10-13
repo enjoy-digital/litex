@@ -10,6 +10,8 @@ import subprocess
 
 from litex.build.generic_programmer import GenericProgrammer
 
+# EfinixProgrammer ---------------------------------------------------------------------------------
+
 class EfinixProgrammer(GenericProgrammer):
 
     def __init__(self, cable_name=""):

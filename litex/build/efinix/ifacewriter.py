@@ -1,3 +1,9 @@
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2021 Franck Jullien <franck.jullien@collshade.fr>
+# SPDX-License-Identifier: BSD-2-Clause
+
 import os
 import csv
 import re
@@ -8,17 +14,20 @@ import xml.etree.ElementTree as et
 
 from litex.build import tools
 
-namespaces = { 'efxpt' : 'http://www.efinixinc.com/peri_design_db',
-               'xi'    : 'http://www.w3.org/2001/XInclude'
+namespaces = {
+    "efxpt" : "http://www.efinixinc.com/peri_design_db",
+    "xi"    : "http://www.w3.org/2001/XInclude"
 }
+
+# Interface Writer  --------------------------------------------------------------------------------
 
 class InterfaceWriter():
     def __init__(self, efinity_path):
         self.efinity_path = efinity_path
-        self.blocks = []
-        self.xml_blocks = []
-        self.filename = ''
-        self.platform = None
+        self.blocks       = []
+        self.xml_blocks   = []
+        self.filename     = ''
+        self.platform     = None
 
     def set_build_params(self, platform, build_name):
         self.filename = build_name
@@ -47,10 +56,10 @@ class InterfaceWriter():
     def add_ddr_lvds(self, root, params):
         lvds_info = root.find('efxpt:lvds_info', namespaces)
         if params['mode'] == 'OUTPUT':
-            dir = 'tx'
+            dir  = 'tx'
             mode = 'out'
         else:
-            dir = 'rx'
+            dir  = 'rx'
             mode = 'in'
 
         pad = self.platform.parser.get_gpio_instance_from_pin(params['location'][0])
@@ -64,38 +73,42 @@ class InterfaceWriter():
             pad = pad.rsplit('_', 1)[0]
 
         lvds = et.SubElement(lvds_info, 'efxpt:lvds',
-                name            = params['name'],
-                lvds_def        = pad,
-                ops_type        = dir)
+            name     = params['name'],
+            lvds_def = pad,
+            ops_type = dir
+        )
 
-        et.SubElement(lvds, 'efxpt:ltx_info', pll_instance    = '',
-                                              fast_clock_name = '{}'.format(params['fast_clk']),
-                                              slow_clock_name = '{}'.format(params['slow_clk']),
-                                              reset_name      = '',
-                                              out_bname       = '{}'.format(params['name']),
-                                              oe_name         = '',
-                                              clock_div       = '1',
-                                              mode            = '{}'.format(mode),
-                                              serialization   = '{}'.format(params['serialisation']),
-                                              reduced_swing   = 'false',
-                                              load            = '3')
+        et.SubElement(lvds, 'efxpt:ltx_info',
+            pll_instance    = '',
+            fast_clock_name = '{}'.format(params['fast_clk']),
+            slow_clock_name = '{}'.format(params['slow_clk']),
+            reset_name      = '',
+            out_bname       = '{}'.format(params['name']),
+            oe_name         = '',
+            clock_div       = '1',
+            mode            = '{}'.format(mode),
+            serialization   = '{}'.format(params['serialisation']),
+            reduced_swing   = 'false',
+            load            = '3'
+        )
 
 
     def add_ddr_xml(self, root, params):
         ddr_info = root.find('efxpt:ddr_info', namespaces)
 
         ddr = et.SubElement(ddr_info, 'efxpt:ddr',
-                        name            = 'ddr_inst1',
-                        ddr_def         = 'DDR_0',
-                        cs_preset_id    = '173',
-                        cs_mem_type     = 'LPDDR3',
-                        cs_ctrl_width   = 'x32',
-                        cs_dram_width   = 'x32',
-                        cs_dram_density = '8G',
-                        cs_speedbin     = '800',
-                        target0_enable  = 'true',
-                        target1_enable  = 'false',
-                        ctrl_type       = 'none')
+            name            = 'ddr_inst1',
+            ddr_def         = 'DDR_0',
+            cs_preset_id    = '173',
+            cs_mem_type     = 'LPDDR3',
+            cs_ctrl_width   = 'x32',
+            cs_dram_width   = 'x32',
+            cs_dram_density = '8G',
+            cs_speedbin     = '800',
+            target0_enable  = 'true',
+            target1_enable  = 'false',
+            ctrl_type       = 'none'
+        )
 
         axi_suffix = ''     # '_1' for second port
         type_suffix = '_0'  # '_1' for second port

@@ -1,12 +1,23 @@
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2021 Franck Jullien <franck.jullien@collshade.fr>
+# SPDX-License-Identifier: BSD-2-Clause
+
 import os
 import csv
 import re
 
 import xml.etree.ElementTree as et
 
-namespaces = { 'efxpt' : 'http://www.efinixinc.com/peri_device_db',
-               'xi'    : 'http://www.w3.org/2001/XInclude'
+# NameSpaces ---------------------------------------------------------------------------------------
+
+namespaces = {
+    'efxpt' : "http://www.efinixinc.com/peri_device_db",
+    'xi'    : "http://www.w3.org/2001/XInclude"
 }
+
+# Efinix Database Parser ---------------------------------------------------------------------------
 
 class EfinixDbParser():
     def __init__(self, efinity_path, device):

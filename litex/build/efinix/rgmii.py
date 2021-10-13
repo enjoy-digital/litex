@@ -5,7 +5,9 @@
 # Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-# RGMII PHY for 7-Series Xilinx FPGA
+# RGMII PHY for Efinix FPGAs
+
+# FIXME: Cleanup/Move.
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
