@@ -175,6 +175,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 {cache_desc}
                 {tlb_desc}
                 L{irq}: interrupt-controller {{
+                    #address-cells = <0>;
                     #interrupt-cells = <0x00000001>;
                     interrupt-controller;
                     compatible = "riscv,cpu-intc";
