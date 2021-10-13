@@ -22,11 +22,14 @@ class EfinixPlatform(GenericPlatform):
         self.pll_available = ['PLL_TL0', 'PLL_TR0', 'PLL_TR1', 'PLL_TR2', 'PLL_TR3', 'PLL_BR0', 'PLL_BR1', 'PLL_BR2', 'PLL_BL0']
         self.pll_used = []
 
-        if 'LITEX_ENV_EFINITY' in os.environ:
-            self.efinity_path = os.environ['LITEX_ENV_EFINITY'].rstrip('/')
-            os.environ['EFINITY_HOME'] = self.efinity_path
-        else:
-            raise OSError('Unable to find Efinity toolchain, please set LITEX_ENV_EFINITY to ${install_dir}')
+        if os.getenv("LITEX_ENV_EFINITY", False) == False:
+            msg = "Unable to find or source Efinity toolchain, please either:\n"
+            msg += "- Set LITEX_ENV_EFINITY environment variant to Efinity path.\n"
+            msg += "- Or add Efinity toolchain to your $PATH."
+            raise OSError(msg)
+
+        self.efinity_path = os.environ["LITEX_ENV_EFINITY"].rstrip('/')
+        os.environ["EFINITY_HOME"] = self.efinity_path
 
         if toolchain == "efinity":
             self.toolchain = efinity.EfinityToolchain(self.efinity_path)
