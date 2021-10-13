@@ -339,7 +339,8 @@ class SRAM(Module):
             self.mem = mem_or_size
         else:
             if no_we:
-                from litex.gen.fhdl.memory import Memory as NoWeMemory
+                # FIXME: Cleanup/Improve integration.
+                from litex.build.efinix.memory import Memory as NoWeMemory
                 self.mem = NoWeMemory(bus_data_width, mem_or_size//(bus_data_width//8), init=init)
             else:
                 self.mem = Memory(bus_data_width, mem_or_size//(bus_data_width//8), init=init)
