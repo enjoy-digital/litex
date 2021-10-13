@@ -88,6 +88,16 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         };
 """
 
+    # Clocks ------------------------------------------------------------------------------------------
+
+    dts += """
+        sys_clk: pll {{
+            compatible = "fixed-clock";
+            #clock-cells = <0>;
+            clock-frequency  = <{sys_clk_freq}>;
+        }};
+""".format(sys_clk_freq=d["constants"]["config_clock_frequency"])
+
     # CPU ------------------------------------------------------------------------------------------
 
     # RISC-V
