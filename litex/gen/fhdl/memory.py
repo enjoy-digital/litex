@@ -21,6 +21,13 @@ def memory_emit_verilog(memory, ns, add_data_file):
     adr_regs = {}
     data_regs = {}
 
+    # https://github.com/enjoy-digital/litex/issues/1003
+    # FIXME: Verify behaviour with the different FPGA toolchains.
+    clocks = [port.clock for port in memory.ports]
+    if clocks.count(clocks[0]) != len(clocks):
+        for port in memory.ports:
+            port.mode = READ_FIRST
+
     for port in memory.ports:
         if not port.async_read:
             if port.mode == WRITE_FIRST:
