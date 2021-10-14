@@ -86,7 +86,7 @@ class Microwatt(CPU):
             i_wishbone_insn_ack   = ibus.ack,
             i_wishbone_insn_stall = ibus.cyc & ~ibus.ack, # No burst support
 
-            o_wishbone_insn_adr   = Cat(Signal(3), ibus.adr),
+            o_wishbone_insn_adr   = ibus.adr,
             o_wishbone_insn_dat_w = ibus.dat_w,
             o_wishbone_insn_cyc   = ibus.cyc,
             o_wishbone_insn_stb   = ibus.stb,
@@ -98,7 +98,7 @@ class Microwatt(CPU):
             i_wishbone_data_ack   = dbus.ack,
             i_wishbone_data_stall = dbus.cyc & ~dbus.ack, # No burst support
 
-            o_wishbone_data_adr   = Cat(Signal(3), dbus.adr),
+            o_wishbone_data_adr   = dbus.adr,
             o_wishbone_data_dat_w = dbus.dat_w,
             o_wishbone_data_cyc   = dbus.cyc,
             o_wishbone_data_stb   = dbus.stb,
@@ -147,6 +147,7 @@ class Microwatt(CPU):
             "utils.vhdl",
             "common.vhdl",
             "helpers.vhdl",
+            "nonrandom.vhdl",
 
             # Fetch.
             "fetch1.vhdl",
@@ -160,8 +161,6 @@ class Microwatt(CPU):
             # Decode.
             "insn_helpers.vhdl",
             "decode1.vhdl",
-            "gpr_hazard.vhdl",
-            "cr_hazard.vhdl",
             "control.vhdl",
             "decode2.vhdl",
 
@@ -183,6 +182,12 @@ class Microwatt(CPU):
             # Multiply/Divide.
             "multiply.vhdl",
             "divider.vhdl",
+
+            # FPU.
+            "fpu.vhdl",
+
+            # PMU.
+            "pmu.vhdl",
 
             # Writeback.
             "writeback.vhdl",
