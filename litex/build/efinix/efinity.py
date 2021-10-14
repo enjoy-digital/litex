@@ -29,54 +29,13 @@ from litex.build import tools
 
 from litex.build.efinix import InterfaceWriter
 
-# FIXME: Avoid duplication with verilog.py.
-
-_reserved_keywords = {
-    "always", "and", "assign", "automatic", "begin", "buf", "bufif0", "bufif1",
-    "case", "casex", "casez", "cell", "cmos", "config", "deassign", "default",
-    "defparam", "design", "disable", "edge", "else", "end", "endcase",
-    "endconfig", "endfunction", "endgenerate", "endmodule", "endprimitive",
-    "endspecify", "endtable", "endtask", "event", "for", "force", "forever",
-    "fork", "function", "generate", "genvar", "highz0", "highz1", "if",
-    "ifnone", "incdir", "include", "initial", "inout", "input",
-    "instance", "integer", "join", "large", "liblist", "library", "localparam",
-    "macromodule", "medium", "module", "nand", "negedge", "nmos", "nor",
-    "noshowcancelled", "not", "notif0", "notif1", "or", "output", "parameter",
-    "pmos", "posedge", "primitive", "pull0", "pull1" "pulldown",
-    "pullup", "pulsestyle_onevent", "pulsestyle_ondetect", "remos", "real",
-    "realtime", "reg", "release", "repeat", "rnmos", "rpmos", "rtran",
-    "rtranif0", "rtranif1", "scalared", "showcancelled", "signed", "small",
-    "specify", "specparam", "strong0", "strong1", "supply0", "supply1",
-    "table", "task", "time", "tran", "tranif0", "tranif1", "tri", "tri0",
-    "tri1", "triand", "trior", "trireg", "unsigned", "use", "vectored", "wait",
-    "wand", "weak0", "weak1", "while", "wire", "wor","xnor", "xor", "do"
-}
-
 def get_pin_direction(fragment, platform, pinname):
-    ios = platform.constraint_manager.get_io_signals()
-    sigs = list_signals(fragment) | list_special_ios(fragment, True, True, True)
-    special_outs = list_special_ios(fragment, False, True, True)
-    inouts = list_special_ios(fragment, False, False, True)
-    targets = list_targets(fragment) | special_outs
-
-    ns = build_namespace(list_signals(fragment) \
-    | list_special_ios(fragment, True, True, True) \
-    | ios, _reserved_keywords)
-    ns.clock_domains = fragment.clock_domains
-
-    dir = "Unknown"
-
-    for sig in sorted(ios, key=lambda x: x.duid):
+    pins = platform.constraint_manager.get_io_signals()
+    for pin in sorted(pins, key=lambda x: x.duid):
         # Better idea ???
-        if (pinname.split('[')[0] == ns.get_name(sig)):
-            if sig in inouts:
-                dir = "inout"
-            elif sig in targets:
-                dir = "output"
-            else:
-                dir = "input"
-
-    return dir
+        if (pinname.split('[')[0] == pin.name):
+            return pin.direction
+    return "Unknown"
 
 # Timing Constraints (.sdc) ------------------------------------------------------------------------
 
