@@ -87,8 +87,9 @@ class SoCCore(LiteXSoC):
         integrated_sram_no_we    = False,
 
         # MAIN_RAM parameters
-        integrated_main_ram_size = 0,
-        integrated_main_ram_init = [],
+        integrated_main_ram_size  = 0,
+        integrated_main_ram_init  = [],
+        integrated_main_ram_no_we = False,
 
         # CSR parameters
         csr_data_width           = 32,
@@ -199,15 +200,30 @@ class SoCCore(LiteXSoC):
 
         # Add integrated ROM
         if integrated_rom_size:
-            self.add_rom("rom", self.cpu.reset_address, integrated_rom_size, integrated_rom_init, integrated_rom_mode, no_we=integrated_rom_no_we)
+            self.add_rom("rom",
+                origin   = self.cpu.reset_address,
+                size     = integrated_rom_size,
+                contents = integrated_rom_init,
+                mode     = integrated_rom_mode,
+                no_we    = integrated_rom_no_we
+            )
 
         # Add integrated SRAM
         if integrated_sram_size:
-            self.add_ram("sram", self.mem_map["sram"], integrated_sram_size, no_we=integrated_sram_no_we)
+            self.add_ram("sram",
+                origin = self.mem_map["sram"],
+                size   = integrated_sram_size,
+                no_we  = integrated_sram_no_we
+            )
 
         # Add integrated MAIN_RAM (only useful when no external SRAM/SDRAM is available)
         if integrated_main_ram_size:
-            self.add_ram("main_ram", self.mem_map["main_ram"], integrated_main_ram_size, integrated_main_ram_init)
+            self.add_ram("main_ram",
+                origin   = self.mem_map["main_ram"],
+                size     = integrated_main_ram_size,
+                contents = integrated_main_ram_init,
+                no_we    = integrated_main_ram_no_we
+            )
 
         # Add Identifier
         if ident != "":
