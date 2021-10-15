@@ -470,7 +470,6 @@ class DummyAttrTranslate(dict):
 def convert(f, ios=set(), name="top",
     special_overrides    = dict(),
     attr_translate       = DummyAttrTranslate(),
-    create_clock_domains = True,
     blocking_assign      = False,
     regular_comb         = True):
 
@@ -486,18 +485,12 @@ def convert(f, ios=set(), name="top",
         # Try to get Clock Domain.
         try:
             f.clock_domains[cd_name]
-        # If not found, create it if enabled:
+        # If not found, raise Error.
         except:
-            if create_clock_domains:
-                cd = ClockDomain(cd_name)
-                f.clock_domains.append(cd)
-                ios |= {cd.clk, cd.rst}
-            # Or raise Error.
-            else:
-                msg = f"""Unresolved clock domain {cd_name}, availables:\n"""
-                for f in f.clock_domains:
-                    msg += f"- {f.name}\n"
-                raise Exception(msg)
+            msg = f"""Unresolved clock domain {cd_name}, availables:\n"""
+            for f in f.clock_domains:
+                msg += f"- {f.name}\n"
+            raise Exception(msg)
 
     # Lower complex slices.
     f = lower_complex_slices(f)
