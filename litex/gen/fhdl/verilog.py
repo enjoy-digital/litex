@@ -328,8 +328,7 @@ def _list_comb_wires(f):
             r |= g[0]
     return r
 
-def _print_module(f, ios, name, ns, attr_translate,
-                 reg_initialization):
+def _print_module(f, ios, name, ns, attr_translate):
     sigs         = list_signals(f) | list_special_ios(f, ins=True, outs=True, inouts=True)
     special_outs = list_special_ios(f, ins=False, outs=True,  inouts=True)
     inouts       = list_special_ios(f, ins=False, outs=False, inouts=True)
@@ -367,10 +366,7 @@ def _print_module(f, ios, name, ns, attr_translate,
         if sig in wires:
             r += "wire " + _print_signal(ns, sig) + ";\n"
         else:
-            if reg_initialization:
-                r += "reg " + _print_signal(ns, sig) + " = " + _print_expression(ns, sig.reset)[0] + ";\n"
-            else:
-                r += "reg " + _print_signal(ns, sig) + ";\n"
+            r += "reg " + _print_signal(ns, sig) + " = " + _print_expression(ns, sig.reset)[0] + ";\n"
     r += "\n"
     return r
 
@@ -497,7 +493,6 @@ def convert(f, ios=set(), name="top",
     special_overrides    = dict(),
     attr_translate       = DummyAttrTranslate(),
     create_clock_domains = True,
-    reg_initialization   = True,
     dummy_signal         = True,
     blocking_assign      = False,
     regular_comb         = True):
@@ -565,7 +560,7 @@ def convert(f, ios=set(), name="top",
     verilog = generated_banner("//")
 
     # Module Top.
-    verilog += _print_module(f, ios, name, ns, attr_translate, reg_initialization=reg_initialization)
+    verilog += _print_module(f, ios, name, ns, attr_translate)
 
     # Combinatorial Logic.
     if regular_comb:
