@@ -85,31 +85,33 @@ _ieee_1800_2017_verilog_reserved_keywords = {
 # Print Signal -------------------------------------------------------------------------------------
 
 def _print_signal(ns, s):
-    if s.signed:
-        n = "signed "
-    else:
-        n = ""
-    if len(s) > 1:
-        n += "[" + str(len(s)-1) + ":0] "
-    n += ns.get_name(s)
-    return n
+    return "{signed}{vector}{name}".format(
+        signed = "" if (not s.signed) else "signed ",
+        vector = "" if ( len(s) <= 1) else f"[{str(len(s)-1) }:0] ",
+        name   = ns.get_name(s)
+    )
 
 # Print Constant -----------------------------------------------------------------------------------
 
 def _print_constant(node):
-    if node.signed:
-        sign = "-" if node.value < 0 else ""
-        return (sign + str(node.nbits) + "'d" + str(abs(node.value)), True)
-    else:
-        return str(node.nbits) + "'d" + str(node.value), False
+    return "{sign}{bits}'d{value}".format(
+        sign  = "" if node.value >= 0 else "-",
+        bits  = str(node.nbits),
+        value = abs(node.value),
+    ), node.signed
 
 # Print Expression ---------------------------------------------------------------------------------
 
 def _print_expression(ns, node):
+    # Constant.
     if isinstance(node, Constant):
         return _print_constant(node)
+
+    # Signal.
     elif isinstance(node, Signal):
         return ns.get_name(node), node.signed
+
+    # Operator.
     elif isinstance(node, _Operator):
         arity = len(node.operands)
         r1, s1 = _print_expression(ns, node.operands[0])
@@ -145,11 +147,13 @@ def _print_expression(ns, node):
         else:
             raise TypeError
         return "(" + r + ")", s
+
+    # Slice.
     elif isinstance(node, _Slice):
         # Verilog does not like us slicing non-array signals...
-        if isinstance(node.value, Signal) \
-          and len(node.value) == 1 \
-          and node.start == 0 and node.stop == 1:
+        if (isinstance(node.value, Signal) and
+            len(node.value) == 1 and
+            node.start == 0 and node.stop == 1):
               return _print_expression(ns, node.value)
 
         if node.start + 1 == node.stop:
@@ -158,9 +162,13 @@ def _print_expression(ns, node):
             sr = "[" + str(node.stop-1) + ":" + str(node.start) + "]"
         r, s = _print_expression(ns, node.value)
         return r + sr, s
+
+    # Cat.
     elif isinstance(node, Cat):
         l = [_print_expression(ns, v)[0] for v in reversed(node.l)]
         return "{" + ", ".join(l) + "}", False
+
+    # Replicate.
     elif isinstance(node, Replicate):
         return "{" + str(node.n) + "{" + _print_expression(ns, node.v)[0] + "}}", False
     else:
