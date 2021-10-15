@@ -27,28 +27,62 @@ from migen.fhdl.specials import Memory
 from litex.gen.fhdl.memory import memory_emit_verilog
 from litex.build.tools import generated_banner
 
+# Reserved Keywords  -------------------------------------------------------------------------------
 
-_reserved_keywords = {
-    "always", "and", "assign", "automatic", "begin", "buf", "bufif0", "bufif1",
-    "case", "casex", "casez", "cell", "cmos", "config", "deassign", "default",
-    "defparam", "design", "disable", "edge", "else", "end", "endcase",
-    "endconfig", "endfunction", "endgenerate", "endmodule", "endprimitive",
-    "endspecify", "endtable", "endtask", "event", "for", "force", "forever",
-    "fork", "function", "generate", "genvar", "highz0", "highz1", "if",
-    "ifnone", "incdir", "include", "initial", "inout", "input",
-    "instance", "integer", "join", "large", "liblist", "library", "localparam",
-    "macromodule", "medium", "module", "nand", "negedge", "nmos", "nor",
-    "noshowcancelled", "not", "notif0", "notif1", "or", "output", "parameter",
-    "pmos", "posedge", "primitive", "pull0", "pull1" "pulldown",
-    "pullup", "pulsestyle_onevent", "pulsestyle_ondetect", "remos", "real",
-    "realtime", "reg", "release", "repeat", "rnmos", "rpmos", "rtran",
-    "rtranif0", "rtranif1", "scalared", "showcancelled", "signed", "small",
-    "specify", "specparam", "strong0", "strong1", "supply0", "supply1",
-    "table", "task", "time", "tran", "tranif0", "tranif1", "tri", "tri0",
-    "tri1", "triand", "trior", "trireg", "unsigned", "use", "vectored", "wait",
-    "wand", "weak0", "weak1", "while", "wire", "wor","xnor", "xor", "do"
+_ieee_1800_2017_verilog_reserved_keywords = {
+     "accept_on",          "alias",          "always",         "always_comb",          "always_ff",
+  "always_latch",            "and",          "assert",              "assign",             "assume",
+     "automatic",         "before",           "begin",                "bind",               "bins",
+        "binsof",            "bit",           "break",                 "buf",             "bufif0",
+        "bufif1",           "byte",            "case",               "casex",              "casez",
+          "cell",        "chandle",         "checker",               "class",           "clocking",
+          "cmos",         "config",           "const",          "constraint",            "context",
+      "continue",          "cover",      "covergroup",          "coverpoint",              "cross",
+      "deassign",        "default",        "defparam",              "design",            "disable",
+          "dist",             "do",            "edge",                "else",                "end",
+       "endcase",     "endchecker",        "endclass",         "endclocking",          "endconfig",
+   "endfunction",    "endgenerate",        "endgroup",        "endinterface",          "endmodule",
+    "endpackage",   "endprimitive",      "endprogram",         "endproperty",        "endsequence",
+    "endspecify",       "endtable",         "endtask",                "enum",              "event",
+    "eventually",         "expect",          "export",             "extends",             "extern",
+         "final",    "first_match",             "for",               "force",            "foreach",
+       "forever",           "fork",        "forkjoin",            "function",           "generate",
+        "genvar",         "global",          "highz0",              "highz1",                 "if",
+           "iff",         "ifnone",     "ignore_bins",        "illegal_bins",         "implements",
+       "implies",         "import",          "incdir",             "include",            "initial",
+         "inout",          "input",          "inside",            "instance",                "int",
+       "integer",   "interconnect",       "interface",           "intersect",               "join",
+      "join_any",      "join_none",           "large",                 "let",            "liblist",
+       "library",          "local",      "localparam",               "logic",            "longint",
+   "macromodule",        "matches",          "medium",             "modport",             "module",
+          "nand",        "negedge",         "nettype",                 "new",           "nexttime",
+          "nmos",            "nor", "noshowcancelled",                 "not",             "notif0",
+        "notif1",           "null",              "or",              "output",            "package",
+        "packed",      "parameter",            "pmos",             "posedge",          "primitive",
+      "priority",        "program",        "property",           "protected",              "pull0",
+         "pull1",       "pulldown",          "pullup", "pulsestyle_ondetect", "pulsestyle_onevent",
+          "pure",           "rand",           "randc",            "randcase",       "randsequence",
+         "rcmos",           "real",        "realtime",                 "ref",                "reg",
+     "reject_on",        "release",    "      repeat",            "restrict",             "return",
+         "rnmos",          "rpmos",           "rtran",            "rtranif0",           "rtranif1",
+      "s_always",   "s_eventually",      "s_nexttime",             "s_until",       "s_until_with",
+      "scalared",       "sequence",        "shortint",           "shortreal",      "showcancelled",
+        "signed",          "small",            "soft",               "solve",            "specify",
+     "specparam",         "static",          "string",              "strong",            "strong0",
+       "strong1",         "struct",           "super",             "supply0",            "supply1",
+"sync_accept_on", "sync_reject_on",           "table",              "tagged",               "task",
+          "this",     "throughout",            "time",       "timeprecision",           "timeunit",
+          "tran",        "tranif0",         "tranif1",                 "tri",               "tri0",
+          "tri1",         "triand",           "trior",              "trireg",               "type",
+       "typedef",   "       union",          "unique",             "unique0",           "unsigned",
+         "until",     "until_with",         "untyped",                 "use",           "   uwire",
+           "var",       "vectored",         "virtual",                "void",               "wait",
+    "wait_order",           "wand",            "weak",               "weak0",              "weak1",
+         "while",       "wildcard",            "wire",                "with",             "within",
+           "wor",           "xnor",             "xor",
 }
 
+# Print Signals ------------------------------------------------------------------------------------
 
 def _printsig(ns, s):
     if s.signed:
@@ -60,6 +94,7 @@ def _printsig(ns, s):
     n += ns.get_name(s)
     return n
 
+# Print Constants ----------------------------------------------------------------------------------
 
 def _printconstant(node):
     if node.signed:
@@ -68,6 +103,7 @@ def _printconstant(node):
     else:
         return str(node.nbits) + "'d" + str(node.value), False
 
+# Print Expressions --------------------------------------------------------------------------------
 
 def _printexpr(ns, node):
     if isinstance(node, Constant):
@@ -131,6 +167,8 @@ def _printexpr(ns, node):
         raise TypeError("Expression of unrecognized type: '{}'".format(type(node).__name__))
 
 
+# Print Nodes --------------------------------------------------------------------------------------
+
 (_AT_BLOCKING, _AT_NONBLOCKING, _AT_SIGNAL) = range(3)
 
 
@@ -188,14 +226,7 @@ def _printnode(ns, at, level, node, target_filter=None):
     else:
         raise TypeError("Node of unrecognized type: "+str(type(node)))
 
-
-def _list_comb_wires(f):
-    r = set()
-    groups = group_by_targets(f.comb)
-    for g in groups:
-        if len(g[1]) == 1 and isinstance(g[1][0], _Assign):
-            r |= g[0]
-    return r
+# Print Attributes ---------------------------------------------------------------------------------
 
 def _printattr(attr, attr_translate):
     r = ""
@@ -220,6 +251,15 @@ def _printattr(attr, attr_translate):
         r = "(* " + r + " *)"
     return r
 
+# Print Header -------------------------------------------------------------------------------------
+
+def _list_comb_wires(f):
+    r = set()
+    groups = group_by_targets(f.comb)
+    for g in groups:
+        if len(g[1]) == 1 and isinstance(g[1][0], _Assign):
+            r |= g[0]
+    return r
 
 def _printheader(f, ios, name, ns, attr_translate,
                  reg_initialization):
@@ -267,6 +307,7 @@ def _printheader(f, ios, name, ns, attr_translate,
     r += "\n"
     return r
 
+# Print Combinatorial Logic (Simulation) -----------------------------------------------------------
 
 def _printcomb_simulation(f, ns,
             display_run,
@@ -325,6 +366,7 @@ def _printcomb_simulation(f, ns,
     r += "\n"
     return r
 
+# Print Combinatorial Logic (Synthesis) ------------------------------------------------------------
 
 def _printcomb_regular(f, ns, blocking_assign):
     r = ""
@@ -348,6 +390,7 @@ def _printcomb_regular(f, ns, blocking_assign):
     r += "\n"
     return r
 
+# Print Synchronous Logic --------------------------------------------------------------------------
 
 def _printsync(f, ns):
     r = ""
@@ -357,6 +400,7 @@ def _printsync(f, ns):
         r += "end\n\n"
     return r
 
+# Print Specials -----------------------------------------------------------------------------------
 
 def _printspecials(overrides, specials, ns, add_data_file, attr_translate):
     r = ""
@@ -375,21 +419,21 @@ def _printspecials(overrides, specials, ns, add_data_file, attr_translate):
         r += pr
     return r
 
+# Convert FHDL to Verilog ------------------------------------------------------------------------
 
 class DummyAttrTranslate(dict):
     def __getitem__(self, k):
         return (k, "true")
 
-
 def convert(f, ios=None, name="top",
-  special_overrides=dict(),
-  attr_translate=DummyAttrTranslate(),
-  create_clock_domains=True,
-  display_run=False,
-  reg_initialization=True,
-  dummy_signal=True,
-  blocking_assign=False,
-  regular_comb=True):
+  special_overrides    = dict(),
+  attr_translate       = DummyAttrTranslate(),
+  create_clock_domains = True,
+  display_run          = False,
+  reg_initialization   = True,
+  dummy_signal         = True,
+  blocking_assign      = False,
+  regular_comb         = True):
     r = ConvOutput()
     if not isinstance(f, _Fragment):
         f = f.get_fragment()
@@ -423,7 +467,7 @@ def convert(f, ios=None, name="top",
                 io.name_override = io_name
     ns = build_namespace(list_signals(f) \
         | list_special_ios(f, True, True, True) \
-        | ios, _reserved_keywords)
+        | ios, _ieee_1800_2017_verilog_reserved_keywords)
     ns.clock_domains = f.clock_domains
     r.ns = ns
 
