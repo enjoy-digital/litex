@@ -27,7 +27,9 @@ from migen.fhdl.specials import Memory
 from litex.gen.fhdl.memory import memory_emit_verilog
 from litex.build.tools import generated_banner
 
-# Reserved Keywords  -------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------ #
+#                                    RESERVED KEYWORDS                                             #
+# ------------------------------------------------------------------------------------------------ #
 
 _ieee_1800_2017_verilog_reserved_keywords = {
      "accept_on",          "alias",          "always",         "always_comb",          "always_ff",
@@ -82,14 +84,9 @@ _ieee_1800_2017_verilog_reserved_keywords = {
            "wor",           "xnor",             "xor",
 }
 
-# Print Signal -------------------------------------------------------------------------------------
-
-def _print_signal(ns, s):
-    return "{signed}{vector}{name}".format(
-        signed = "" if (not s.signed) else "signed ",
-        vector = "" if ( len(s) <= 1) else f"[{str(len(s)-1) }:0] ",
-        name   = ns.get_name(s)
-    )
+# ------------------------------------------------------------------------------------------------ #
+#                                       EXPRESSIONS                                                #
+# ------------------------------------------------------------------------------------------------ #
 
 # Print Constant -----------------------------------------------------------------------------------
 
@@ -99,6 +96,15 @@ def _print_constant(node):
         bits  = str(node.nbits),
         value = abs(node.value),
     ), node.signed
+
+# Print Signal -------------------------------------------------------------------------------------
+
+def _print_signal(ns, s):
+    return "{signed}{vector}{name}".format(
+        signed = "" if (not s.signed) else "signed ",
+        vector = "" if ( len(s) <= 1) else f"[{str(len(s)-1) }:0] ",
+        name   = ns.get_name(s)
+    )
 
 # Print Operator -----------------------------------------------------------------------------------
 
@@ -209,14 +215,17 @@ def _print_expression(ns, node):
     else:
         raise TypeError(f"Expression of unrecognized type: '{type(node).__name__}'")
 
-
-# Print Node ---------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------ #
+#                                          NODES                                                   #
+# ------------------------------------------------------------------------------------------------ #
 
 (_AT_BLOCKING, _AT_NONBLOCKING, _AT_SIGNAL) = range(3)
 
 def _print_node(ns, at, level, node, target_filter=None):
     if target_filter is not None and target_filter not in list_targets(node):
         return ""
+
+    # Assignment.
     elif isinstance(node, _Assign):
         if at == _AT_BLOCKING:
             assignment = " = "
@@ -227,8 +236,12 @@ def _print_node(ns, at, level, node, target_filter=None):
         else:
             assignment = " <= "
         return "\t"*level + _print_expression(ns, node.l)[0] + assignment + _print_expression(ns, node.r)[0] + ";\n"
+
+    # Iterable.
     elif isinstance(node, collections.abc.Iterable):
         return "".join(_print_node(ns, at, level, n, target_filter) for n in node)
+
+    # If.
     elif isinstance(node, If):
         r = "\t"*level + "if (" + _print_expression(ns, node.cond)[0] + ") begin\n"
         r += _print_node(ns, at, level + 1, node.t, target_filter)
@@ -237,6 +250,8 @@ def _print_node(ns, at, level, node, target_filter=None):
             r += _print_node(ns, at, level + 1, node.f, target_filter)
         r += "\t"*level + "end\n"
         return r
+
+    # Case.
     elif isinstance(node, Case):
         if node.cases:
             r = "\t"*level + "case (" + _print_expression(ns, node.test)[0] + ")\n"
@@ -254,6 +269,8 @@ def _print_node(ns, at, level, node, target_filter=None):
             return r
         else:
             return ""
+
+    # Display.
     elif isinstance(node, Display):
         s = "\"" + node.s + "\""
         for arg in node.args:
@@ -263,12 +280,18 @@ def _print_node(ns, at, level, node, target_filter=None):
             else:
                 s += str(arg)
         return "\t"*level + "$display(" + s + ");\n"
+
+    # Finish.
     elif isinstance(node, Finish):
         return "\t"*level + "$finish;\n"
-    else:
-        raise TypeError("Node of unrecognized type: "+str(type(node)))
 
-# Print Attribute ----------------------------------------------------------------------------------
+    # Unknown.
+    else:
+        raise TypeError(f"Node of unrecognized type: {str(type(node))}")
+
+# ------------------------------------------------------------------------------------------------ #
+#                                        ATTRIBUTES                                                #
+# ------------------------------------------------------------------------------------------------ #
 
 def _print_attribute(attr, attr_translate):
     r = ""
@@ -293,7 +316,9 @@ def _print_attribute(attr, attr_translate):
         r = "(* " + r + " *)"
     return r
 
-# Print Module -------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------ #
+#                                           MODULE                                                 #
+# ------------------------------------------------------------------------------------------------ #
 
 def _list_comb_wires(f):
     r = set()
@@ -349,7 +374,9 @@ def _print_module(f, ios, name, ns, attr_translate,
     r += "\n"
     return r
 
-# Print Combinatorial Logic (Simulation) -----------------------------------------------------------
+# ------------------------------------------------------------------------------------------------ #
+#                                  COMBINATORIAL LOGIC                                             #
+# ------------------------------------------------------------------------------------------------ #
 
 def _print_combinatorial_logic_sim(f, ns, dummy_signal, blocking_assign):
     r = ""
@@ -403,8 +430,6 @@ def _print_combinatorial_logic_sim(f, ns, dummy_signal, blocking_assign):
     r += "\n"
     return r
 
-# Print Combinatorial Logic (Synthesis) ------------------------------------------------------------
-
 def _print_combinatorial_logic_synth(f, ns, blocking_assign):
     r = ""
     if f.comb:
@@ -427,7 +452,9 @@ def _print_combinatorial_logic_synth(f, ns, blocking_assign):
     r += "\n"
     return r
 
-# Print Synchronous Logic --------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------ #
+#                                    SYNCHRONOUS LOGIC                                             #
+# ------------------------------------------------------------------------------------------------ #
 
 def _print_synchronous_logic(f, ns):
     r = ""
@@ -437,7 +464,9 @@ def _print_synchronous_logic(f, ns):
         r += "end\n\n"
     return r
 
-# Print Specials -----------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------ #
+#                                      SPECIALS                                                    #
+# ------------------------------------------------------------------------------------------------ #
 
 def _print_specials(overrides, specials, ns, add_data_file, attr_translate):
     r = ""
@@ -456,7 +485,9 @@ def _print_specials(overrides, specials, ns, add_data_file, attr_translate):
         r += pr
     return r
 
-# Convert FHDL to Verilog --------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------ #
+#                                    FHDL --> VERILOG                                              #
+# ------------------------------------------------------------------------------------------------ #
 
 class DummyAttrTranslate(dict):
     def __getitem__(self, k):
