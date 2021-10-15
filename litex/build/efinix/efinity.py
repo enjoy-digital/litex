@@ -237,7 +237,12 @@ class EfinityToolchain():
         self.false_paths = set()
         self.efinity_path = efinity_path
         self.additional_sdc_commands = []
-        self.additional_xml_commands = []
+        self.additional_xml_commands = [
+            [ 'efx_pgm', 'spi_low_power_mode', 'on', 'e_bool'],
+            [ 'efx_pgm', 'io_weak_pullup', 'on', 'e_bool'],
+            [ 'efx_pgm', 'oscillator_clock_divider', 'DIV8', 'e_option'],
+            [ 'efx_pgm', 'enable_crc_check', 'on', 'e_bool'],
+        ]
         self.ifacewriter = InterfaceWriter(efinity_path)
         self.specials_gpios = []
         self.additional_iface_commands = []
