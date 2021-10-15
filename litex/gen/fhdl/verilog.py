@@ -167,6 +167,17 @@ def _print_slice(ns, node):
     r, s = _print_expression(ns, node.value)
     return r + sr, s
 
+# Print Cat ----------------------------------------------------------------------------------------
+
+def _print_cat(ns, node):
+    l = [_print_expression(ns, v)[0] for v in reversed(node.l)]
+    return "{" + ", ".join(l) + "}", False
+
+# Print Replicate ----------------------------------------------------------------------------------
+
+def _print_replicate(ns, node):
+    return "{" + str(node.n) + "{" + _print_expression(ns, node.v)[0] + "}}", False
+
 # Print Expression ---------------------------------------------------------------------------------
 
 def _print_expression(ns, node):
@@ -188,14 +199,15 @@ def _print_expression(ns, node):
 
     # Cat.
     elif isinstance(node, Cat):
-        l = [_print_expression(ns, v)[0] for v in reversed(node.l)]
-        return "{" + ", ".join(l) + "}", False
+        return _print_cat(ns, node)
 
     # Replicate.
     elif isinstance(node, Replicate):
-        return "{" + str(node.n) + "{" + _print_expression(ns, node.v)[0] + "}}", False
+        return _print_replicate(ns, node)
+
+    # Unknown.
     else:
-        raise TypeError("Expression of unrecognized type: '{}'".format(type(node).__name__))
+        raise TypeError(f"Expression of unrecognized type: '{type(node).__name__}'")
 
 
 # Print Node ---------------------------------------------------------------------------------------
@@ -293,11 +305,11 @@ def _list_comb_wires(f):
 
 def _print_module(f, ios, name, ns, attr_translate,
                  reg_initialization):
-    sigs = list_signals(f) | list_special_ios(f, True, True, True)
-    special_outs = list_special_ios(f, False, True, True)
-    inouts = list_special_ios(f, False, False, True)
-    targets = list_targets(f) | special_outs
-    wires = _list_comb_wires(f) | special_outs
+    sigs         = list_signals(f) | list_special_ios(f, ins=True, outs=True, inouts=True)
+    special_outs = list_special_ios(f, ins=False, outs=True,  inouts=True)
+    inouts       = list_special_ios(f, ins=False, outs=False, inouts=True)
+    targets      = list_targets(f) | special_outs
+    wires        = _list_comb_wires(f) | special_outs
     r = "module " + name + "(\n"
     firstp = True
     for sig in sorted(ios, key=lambda x: x.duid):
@@ -455,67 +467,105 @@ class DummyAttrTranslate(dict):
     def __getitem__(self, k):
         return (k, "true")
 
-def convert(f, ios=None, name="top",
-  special_overrides    = dict(),
-  attr_translate       = DummyAttrTranslate(),
-  create_clock_domains = True,
-  display_run          = False,
-  reg_initialization   = True,
-  dummy_signal         = True,
-  blocking_assign      = False,
-  regular_comb         = True):
+def convert(f, ios=set(), name="top",
+    special_overrides    = dict(),
+    attr_translate       = DummyAttrTranslate(),
+    create_clock_domains = True,
+    display_run          = False,
+    reg_initialization   = True,
+    dummy_signal         = True,
+    blocking_assign      = False,
+    regular_comb         = True):
+
+    # Create ConvOutput.
     r = ConvOutput()
+
+    # Convert to FHDL's fragments is not already done.
     if not isinstance(f, _Fragment):
         f = f.get_fragment()
-    if ios is None:
-        ios = set()
 
+    # Verify/Create Clock Domains.
     for cd_name in sorted(list_clock_domains(f)):
+        # Try to get Clock Domain.
         try:
             f.clock_domains[cd_name]
-        except KeyError:
+        # If not found, create it if enabled:
+        except:
             if create_clock_domains:
                 cd = ClockDomain(cd_name)
                 f.clock_domains.append(cd)
                 ios |= {cd.clk, cd.rst}
+            # Or raise Error.
             else:
                 msg = f"""Unresolved clock domain {cd_name}, availables:\n"""
                 for f in f.clock_domains:
                     msg += f"- {f.name}\n"
                 raise Exception(msg)
 
+    # Lower complex slices.
     f = lower_complex_slices(f)
+
+    # Insert resets.
     insert_resets(f)
-    f = lower_basics(f)
-    f, lowered_specials = lower_specials(special_overrides, f)
+
+    # Lower basics.
     f = lower_basics(f)
 
+    # Lower specials.
+    f, lowered_specials = lower_specials(special_overrides, f)
+
+    # Lower basics (for basics included in specials).
+    f = lower_basics(f)
+
+    # IOs backtrace/naming.
     for io in sorted(ios, key=lambda x: x.duid):
         if io.name_override is None:
             io_name = io.backtrace[-1][0]
             if io_name:
                 io.name_override = io_name
-    ns = build_namespace(list_signals(f) \
-        | list_special_ios(f, True, True, True) \
-        | ios, _ieee_1800_2017_verilog_reserved_keywords)
-    ns.clock_domains = f.clock_domains
-    r.ns = ns
 
-    src = generated_banner("//")
-    src += _print_module(f, ios, name, ns, attr_translate,
-                        reg_initialization=reg_initialization)
+    # Build NameSpace.
+    # ----------------
+    ns = build_namespace(
+        signals = (
+            list_signals(f) |
+            list_special_ios(f, ins=True, outs=True, inouts=True) |
+            ios),
+        reserved_keywords = _ieee_1800_2017_verilog_reserved_keywords
+    )
+    ns.clock_domains = f.clock_domains
+
+    # Build Verilog.
+    # --------------
+    verilog = generated_banner("//")
+
+    # Module Top.
+    verilog += _print_module(f, ios, name, ns, attr_translate, reg_initialization=reg_initialization)
+
+    # Combinatorial Logic.
     if regular_comb:
-        src += _print_combinatorial_logic_synth(f, ns,
-                      blocking_assign=blocking_assign)
+        verilog += _print_combinatorial_logic_synth(f, ns,
+            blocking_assign = blocking_assign
+        )
     else:
-        src += _print_combinatorial_logic_sim(f, ns,
-                      display_run=display_run,
-                      dummy_signal=dummy_signal,
-                      blocking_assign=blocking_assign)
-    src += _print_synchronous_logic(f, ns)
-    src += _print_specials(special_overrides, f.specials - lowered_specials,
+        verilog += _print_combinatorial_logic_sim(f, ns,
+            display_run     = display_run,
+            dummy_signal    = dummy_signal,
+            blocking_assign = blocking_assign
+        )
+
+    # Synchronous Logic.
+    verilog += _print_synchronous_logic(f, ns)
+
+    # Specials
+    verilog += _print_specials(special_overrides, f.specials - lowered_specials,
         ns, r.add_data_file, attr_translate)
-    src += "endmodule\n"
-    r.set_main_source(src)
+
+    # Module End.
+    verilog += "endmodule\n"
+
+
+    r.set_main_source(verilog)
+    r.ns = ns
 
     return r
