@@ -117,7 +117,7 @@ def _print_operator(ns, node):
     assert arity in [UNARY, BINARY, TERNARY]
 
     def to_signed(r):
-        return f"$signed({{1'd0 {r}}}))"
+        return f"$signed({{1'd0, {r}}})"
 
     # Unary Operator.
     if arity == UNARY:
