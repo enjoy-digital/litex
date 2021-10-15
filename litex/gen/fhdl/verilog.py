@@ -82,9 +82,9 @@ _ieee_1800_2017_verilog_reserved_keywords = {
            "wor",           "xnor",             "xor",
 }
 
-# Print Signals ------------------------------------------------------------------------------------
+# Print Signal -------------------------------------------------------------------------------------
 
-def _printsig(ns, s):
+def _print_signal(ns, s):
     if s.signed:
         n = "signed "
     else:
@@ -94,25 +94,25 @@ def _printsig(ns, s):
     n += ns.get_name(s)
     return n
 
-# Print Constants ----------------------------------------------------------------------------------
+# Print Constant -----------------------------------------------------------------------------------
 
-def _printconstant(node):
+def _print_constant(node):
     if node.signed:
         sign = "-" if node.value < 0 else ""
         return (sign + str(node.nbits) + "'d" + str(abs(node.value)), True)
     else:
         return str(node.nbits) + "'d" + str(node.value), False
 
-# Print Expressions --------------------------------------------------------------------------------
+# Print Expression ---------------------------------------------------------------------------------
 
-def _printexpr(ns, node):
+def _print_expression(ns, node):
     if isinstance(node, Constant):
-        return _printconstant(node)
+        return _print_constant(node)
     elif isinstance(node, Signal):
         return ns.get_name(node), node.signed
     elif isinstance(node, _Operator):
         arity = len(node.operands)
-        r1, s1 = _printexpr(ns, node.operands[0])
+        r1, s1 = _print_expression(ns, node.operands[0])
         if arity == 1:
             if node.op == "-":
                 if s1:
@@ -124,7 +124,7 @@ def _printexpr(ns, node):
                 r = node.op + r1
                 s = s1
         elif arity == 2:
-            r2, s2 = _printexpr(ns, node.operands[1])
+            r2, s2 = _print_expression(ns, node.operands[1])
             if node.op not in ["<<<", ">>>"]:
                 if s2 and not s1:
                     r1 = "$signed({1'd0, " + r1 + "})"
@@ -134,8 +134,8 @@ def _printexpr(ns, node):
             s = s1 or s2
         elif arity == 3:
             assert node.op == "m"
-            r2, s2 = _printexpr(ns, node.operands[1])
-            r3, s3 = _printexpr(ns, node.operands[2])
+            r2, s2 = _print_expression(ns, node.operands[1])
+            r3, s3 = _print_expression(ns, node.operands[2])
             if s2 and not s3:
                 r3 = "$signed({1'd0, " + r3 + "})"
             if s3 and not s2:
@@ -150,29 +150,28 @@ def _printexpr(ns, node):
         if isinstance(node.value, Signal) \
           and len(node.value) == 1 \
           and node.start == 0 and node.stop == 1:
-              return _printexpr(ns, node.value)
+              return _print_expression(ns, node.value)
 
         if node.start + 1 == node.stop:
             sr = "[" + str(node.start) + "]"
         else:
             sr = "[" + str(node.stop-1) + ":" + str(node.start) + "]"
-        r, s = _printexpr(ns, node.value)
+        r, s = _print_expression(ns, node.value)
         return r + sr, s
     elif isinstance(node, Cat):
-        l = [_printexpr(ns, v)[0] for v in reversed(node.l)]
+        l = [_print_expression(ns, v)[0] for v in reversed(node.l)]
         return "{" + ", ".join(l) + "}", False
     elif isinstance(node, Replicate):
-        return "{" + str(node.n) + "{" + _printexpr(ns, node.v)[0] + "}}", False
+        return "{" + str(node.n) + "{" + _print_expression(ns, node.v)[0] + "}}", False
     else:
         raise TypeError("Expression of unrecognized type: '{}'".format(type(node).__name__))
 
 
-# Print Nodes --------------------------------------------------------------------------------------
+# Print Node ---------------------------------------------------------------------------------------
 
 (_AT_BLOCKING, _AT_NONBLOCKING, _AT_SIGNAL) = range(3)
 
-
-def _printnode(ns, at, level, node, target_filter=None):
+def _print_node(ns, at, level, node, target_filter=None):
     if target_filter is not None and target_filter not in list_targets(node):
         return ""
     elif isinstance(node, _Assign):
@@ -184,29 +183,29 @@ def _printnode(ns, at, level, node, target_filter=None):
             assignment = " = "
         else:
             assignment = " <= "
-        return "\t"*level + _printexpr(ns, node.l)[0] + assignment + _printexpr(ns, node.r)[0] + ";\n"
+        return "\t"*level + _print_expression(ns, node.l)[0] + assignment + _print_expression(ns, node.r)[0] + ";\n"
     elif isinstance(node, collections.abc.Iterable):
-        return "".join(_printnode(ns, at, level, n, target_filter) for n in node)
+        return "".join(_print_node(ns, at, level, n, target_filter) for n in node)
     elif isinstance(node, If):
-        r = "\t"*level + "if (" + _printexpr(ns, node.cond)[0] + ") begin\n"
-        r += _printnode(ns, at, level + 1, node.t, target_filter)
+        r = "\t"*level + "if (" + _print_expression(ns, node.cond)[0] + ") begin\n"
+        r += _print_node(ns, at, level + 1, node.t, target_filter)
         if node.f:
             r += "\t"*level + "end else begin\n"
-            r += _printnode(ns, at, level + 1, node.f, target_filter)
+            r += _print_node(ns, at, level + 1, node.f, target_filter)
         r += "\t"*level + "end\n"
         return r
     elif isinstance(node, Case):
         if node.cases:
-            r = "\t"*level + "case (" + _printexpr(ns, node.test)[0] + ")\n"
+            r = "\t"*level + "case (" + _print_expression(ns, node.test)[0] + ")\n"
             css = [(k, v) for k, v in node.cases.items() if isinstance(k, Constant)]
             css = sorted(css, key=lambda x: x[0].value)
             for choice, statements in css:
-                r += "\t"*(level + 1) + _printexpr(ns, choice)[0] + ": begin\n"
-                r += _printnode(ns, at, level + 2, statements, target_filter)
+                r += "\t"*(level + 1) + _print_expression(ns, choice)[0] + ": begin\n"
+                r += _print_node(ns, at, level + 2, statements, target_filter)
                 r += "\t"*(level + 1) + "end\n"
             if "default" in node.cases:
                 r += "\t"*(level + 1) + "default: begin\n"
-                r += _printnode(ns, at, level + 2, node.cases["default"], target_filter)
+                r += _print_node(ns, at, level + 2, node.cases["default"], target_filter)
                 r += "\t"*(level + 1) + "end\n"
             r += "\t"*level + "endcase\n"
             return r
@@ -226,9 +225,9 @@ def _printnode(ns, at, level, node, target_filter=None):
     else:
         raise TypeError("Node of unrecognized type: "+str(type(node)))
 
-# Print Attributes ---------------------------------------------------------------------------------
+# Print Attribute ----------------------------------------------------------------------------------
 
-def _printattr(attr, attr_translate):
+def _print_attribute(attr, attr_translate):
     r = ""
     firsta = True
     for attr in sorted(attr,
@@ -251,7 +250,7 @@ def _printattr(attr, attr_translate):
         r = "(* " + r + " *)"
     return r
 
-# Print Header -------------------------------------------------------------------------------------
+# Print Module -------------------------------------------------------------------------------------
 
 def _list_comb_wires(f):
     r = set()
@@ -261,7 +260,7 @@ def _list_comb_wires(f):
             r |= g[0]
     return r
 
-def _printheader(f, ios, name, ns, attr_translate,
+def _print_module(f, ios, name, ns, attr_translate,
                  reg_initialization):
     sigs = list_signals(f) | list_special_ios(f, True, True, True)
     special_outs = list_special_ios(f, False, True, True)
@@ -274,42 +273,42 @@ def _printheader(f, ios, name, ns, attr_translate,
         if not firstp:
             r += ",\n"
         firstp = False
-        attr = _printattr(sig.attr, attr_translate)
+        attr = _print_attribute(sig.attr, attr_translate)
         if attr:
             r += "\t" + attr
         sig.type = "wire"
         sig.name = ns.get_name(sig)
         if sig in inouts:
             sig.direction = "inout"
-            r += "\tinout wire " + _printsig(ns, sig)
+            r += "\tinout wire " + _print_signal(ns, sig)
         elif sig in targets:
             sig.direction = "output"
             if sig in wires:
-                r += "\toutput wire " + _printsig(ns, sig)
+                r += "\toutput wire " + _print_signal(ns, sig)
             else:
                 sig.type = "reg"
-                r += "\toutput reg " + _printsig(ns, sig)
+                r += "\toutput reg " + _print_signal(ns, sig)
         else:
             sig.direction = "input"
-            r += "\tinput wire " + _printsig(ns, sig)
+            r += "\tinput wire " + _print_signal(ns, sig)
     r += "\n);\n\n"
     for sig in sorted(sigs - ios, key=lambda x: x.duid):
-        attr = _printattr(sig.attr, attr_translate)
+        attr = _print_attribute(sig.attr, attr_translate)
         if attr:
             r += attr + " "
         if sig in wires:
-            r += "wire " + _printsig(ns, sig) + ";\n"
+            r += "wire " + _print_signal(ns, sig) + ";\n"
         else:
             if reg_initialization:
-                r += "reg " + _printsig(ns, sig) + " = " + _printexpr(ns, sig.reset)[0] + ";\n"
+                r += "reg " + _print_signal(ns, sig) + " = " + _print_expression(ns, sig.reset)[0] + ";\n"
             else:
-                r += "reg " + _printsig(ns, sig) + ";\n"
+                r += "reg " + _print_signal(ns, sig) + ";\n"
     r += "\n"
     return r
 
 # Print Combinatorial Logic (Simulation) -----------------------------------------------------------
 
-def _printcomb_simulation(f, ns,
+def _print_combinatorial_logic_sim(f, ns,
             display_run,
             dummy_signal,
             blocking_assign):
@@ -322,7 +321,7 @@ def _printcomb_simulation(f, ns,
             syn_on = "// synthesis translate_on\n"
             dummy_s = Signal(name_override="dummy_s")
             r += syn_off
-            r += "reg " + _printsig(ns, dummy_s) + ";\n"
+            r += "reg " + _print_signal(ns, dummy_s) + ";\n"
             r += "initial " + ns.get_name(dummy_s) + " <= 1'd0;\n"
             r += syn_on
 
@@ -341,23 +340,23 @@ def _printcomb_simulation(f, ns,
         for n, (t, stmts) in enumerate(target_stmt_map.items()):
             assert isinstance(t, Signal)
             if len(stmts) == 1 and isinstance(stmts[0], _Assign):
-                r += "assign " + _printnode(ns, _AT_BLOCKING, 0, stmts[0])
+                r += "assign " + _print_node(ns, _AT_BLOCKING, 0, stmts[0])
             else:
                 if dummy_signal:
                     dummy_d = Signal(name_override="dummy_d")
                     r += "\n" + syn_off
-                    r += "reg " + _printsig(ns, dummy_d) + ";\n"
+                    r += "reg " + _print_signal(ns, dummy_d) + ";\n"
                     r += syn_on
 
                 r += "always @(*) begin\n"
                 if display_run:
                     r += "\t$display(\"Running comb block #" + str(n) + "\");\n"
                 if blocking_assign:
-                    r += "\t" + ns.get_name(t) + " = " + _printexpr(ns, t.reset)[0] + ";\n"
-                    r += _printnode(ns, _AT_BLOCKING, 1, stmts, t)
+                    r += "\t" + ns.get_name(t) + " = " + _print_expression(ns, t.reset)[0] + ";\n"
+                    r += _print_node(ns, _AT_BLOCKING, 1, stmts, t)
                 else:
-                    r += "\t" + ns.get_name(t) + " <= " + _printexpr(ns, t.reset)[0] + ";\n"
-                    r += _printnode(ns, _AT_NONBLOCKING, 1, stmts, t)
+                    r += "\t" + ns.get_name(t) + " <= " + _print_expression(ns, t.reset)[0] + ";\n"
+                    r += _print_node(ns, _AT_NONBLOCKING, 1, stmts, t)
                 if dummy_signal:
                     r += syn_off
                     r += "\t" + ns.get_name(dummy_d) + " = " + ns.get_name(dummy_s) + ";\n"
@@ -368,45 +367,45 @@ def _printcomb_simulation(f, ns,
 
 # Print Combinatorial Logic (Synthesis) ------------------------------------------------------------
 
-def _printcomb_regular(f, ns, blocking_assign):
+def _print_combinatorial_logic_synth(f, ns, blocking_assign):
     r = ""
     if f.comb:
         groups = group_by_targets(f.comb)
 
         for n, g in enumerate(groups):
             if len(g[1]) == 1 and isinstance(g[1][0], _Assign):
-                r += "assign " + _printnode(ns, _AT_BLOCKING, 0, g[1][0])
+                r += "assign " + _print_node(ns, _AT_BLOCKING, 0, g[1][0])
             else:
                 r += "always @(*) begin\n"
                 if blocking_assign:
                     for t in g[0]:
-                        r += "\t" + ns.get_name(t) + " = " + _printexpr(ns, t.reset)[0] + ";\n"
-                    r += _printnode(ns, _AT_BLOCKING, 1, g[1])
+                        r += "\t" + ns.get_name(t) + " = " + _print_expression(ns, t.reset)[0] + ";\n"
+                    r += _print_node(ns, _AT_BLOCKING, 1, g[1])
                 else:
                     for t in g[0]:
-                        r += "\t" + ns.get_name(t) + " <= " + _printexpr(ns, t.reset)[0] + ";\n"
-                    r += _printnode(ns, _AT_NONBLOCKING, 1, g[1])
+                        r += "\t" + ns.get_name(t) + " <= " + _print_expression(ns, t.reset)[0] + ";\n"
+                    r += _print_node(ns, _AT_NONBLOCKING, 1, g[1])
                 r += "end\n"
     r += "\n"
     return r
 
 # Print Synchronous Logic --------------------------------------------------------------------------
 
-def _printsync(f, ns):
+def _print_synchronous_logic(f, ns):
     r = ""
     for k, v in sorted(f.sync.items(), key=itemgetter(0)):
         r += "always @(posedge " + ns.get_name(f.clock_domains[k].clk) + ") begin\n"
-        r += _printnode(ns, _AT_SIGNAL, 1, v)
+        r += _print_node(ns, _AT_SIGNAL, 1, v)
         r += "end\n\n"
     return r
 
 # Print Specials -----------------------------------------------------------------------------------
 
-def _printspecials(overrides, specials, ns, add_data_file, attr_translate):
+def _print_specials(overrides, specials, ns, add_data_file, attr_translate):
     r = ""
     for special in sorted(specials, key=lambda x: x.duid):
         if hasattr(special, "attr"):
-            attr = _printattr(special.attr, attr_translate)
+            attr = _print_attribute(special.attr, attr_translate)
             if attr:
                 r += attr + " "
         # Replace Migen Memory's emit_verilog with our implementation.
@@ -419,7 +418,7 @@ def _printspecials(overrides, specials, ns, add_data_file, attr_translate):
         r += pr
     return r
 
-# Convert FHDL to Verilog ------------------------------------------------------------------------
+# Convert FHDL to Verilog --------------------------------------------------------------------------
 
 class DummyAttrTranslate(dict):
     def __getitem__(self, k):
@@ -472,18 +471,18 @@ def convert(f, ios=None, name="top",
     r.ns = ns
 
     src = generated_banner("//")
-    src += _printheader(f, ios, name, ns, attr_translate,
+    src += _print_module(f, ios, name, ns, attr_translate,
                         reg_initialization=reg_initialization)
     if regular_comb:
-        src += _printcomb_regular(f, ns,
+        src += _print_combinatorial_logic_synth(f, ns,
                       blocking_assign=blocking_assign)
     else:
-        src += _printcomb_simulation(f, ns,
+        src += _print_combinatorial_logic_sim(f, ns,
                       display_run=display_run,
                       dummy_signal=dummy_signal,
                       blocking_assign=blocking_assign)
-    src += _printsync(f, ns)
-    src += _printspecials(special_overrides, f.specials - lowered_specials,
+    src += _print_synchronous_logic(f, ns)
+    src += _print_specials(special_overrides, f.specials - lowered_specials,
         ns, r.add_data_file, attr_translate)
     src += "endmodule\n"
     r.set_main_source(src)
