@@ -189,7 +189,6 @@ class SimVerilatorToolchain:
             trace_fst        = False,
             trace_start      = 0,
             trace_end        = -1,
-            regular_comb     = False,
             interactive      = True,
             pre_run_callback = None):
 
@@ -205,10 +204,7 @@ class SimVerilatorToolchain:
             platform.finalize(fragment)
 
             # Generate verilog
-            v_output = platform.get_verilog(fragment,
-                name            = build_name,
-                regular_comb    = regular_comb,
-                blocking_assign = True)
+            v_output = platform.get_verilog(fragment, name=build_name)
             named_sc, named_pc = platform.resolve_signals(v_output.ns)
             v_file = build_name + ".v"
             v_output.write(v_file)

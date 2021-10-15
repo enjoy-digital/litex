@@ -374,7 +374,7 @@ def _print_module(f, ios, name, ns, attr_translate):
 #                                  COMBINATORIAL LOGIC                                             #
 # ------------------------------------------------------------------------------------------------ #
 
-def _print_combinatorial_logic_sim(f, ns, blocking_assign):
+def _print_combinatorial_logic_sim(f, ns):
     r = ""
     if f.comb:
         from collections import defaultdict
@@ -394,17 +394,13 @@ def _print_combinatorial_logic_sim(f, ns, blocking_assign):
                 r += "assign " + _print_node(ns, _AT_BLOCKING, 0, stmts[0])
             else:
                 r += "always @(*) begin\n"
-                if blocking_assign:
-                    r += "\t" + ns.get_name(t) + " = " + _print_expression(ns, t.reset)[0] + ";\n"
-                    r += _print_node(ns, _AT_BLOCKING, 1, stmts, t)
-                else:
-                    r += "\t" + ns.get_name(t) + " <= " + _print_expression(ns, t.reset)[0] + ";\n"
-                    r += _print_node(ns, _AT_NONBLOCKING, 1, stmts, t)
+                r += "\t" + ns.get_name(t) + " <= " + _print_expression(ns, t.reset)[0] + ";\n"
+                r += _print_node(ns, _AT_NONBLOCKING, 1, stmts, t)
                 r += "end\n"
     r += "\n"
     return r
 
-def _print_combinatorial_logic_synth(f, ns, blocking_assign):
+def _print_combinatorial_logic_synth(f, ns):
     r = ""
     if f.comb:
         groups = group_by_targets(f.comb)
@@ -414,14 +410,9 @@ def _print_combinatorial_logic_synth(f, ns, blocking_assign):
                 r += "assign " + _print_node(ns, _AT_BLOCKING, 0, g[1][0])
             else:
                 r += "always @(*) begin\n"
-                if blocking_assign:
-                    for t in g[0]:
-                        r += "\t" + ns.get_name(t) + " = " + _print_expression(ns, t.reset)[0] + ";\n"
-                    r += _print_node(ns, _AT_BLOCKING, 1, g[1])
-                else:
-                    for t in g[0]:
-                        r += "\t" + ns.get_name(t) + " <= " + _print_expression(ns, t.reset)[0] + ";\n"
-                    r += _print_node(ns, _AT_NONBLOCKING, 1, g[1])
+                for t in g[0]:
+                    r += "\t" + ns.get_name(t) + " <= " + _print_expression(ns, t.reset)[0] + ";\n"
+                r += _print_node(ns, _AT_NONBLOCKING, 1, g[1])
                 r += "end\n"
     r += "\n"
     return r
@@ -470,7 +461,6 @@ class DummyAttrTranslate(dict):
 def convert(f, ios=set(), name="top",
     special_overrides    = dict(),
     attr_translate       = DummyAttrTranslate(),
-    blocking_assign      = False,
     regular_comb         = True):
 
     # Create ConvOutput.
@@ -534,11 +524,9 @@ def convert(f, ios=set(), name="top",
 
     # Combinatorial Logic.
     if regular_comb:
-        verilog += _print_combinatorial_logic_synth(f, ns,
-            blocking_assign = blocking_assign
-        )
+        verilog += _print_combinatorial_logic_synth(f, ns)
     else:
-        verilog += _print_combinatorial_logic_sim(f, ns, blocking_assign=blocking_assign)
+        verilog += _print_combinatorial_logic_sim(f, ns)
 
     # Synchronous Logic.
     verilog += _print_synchronous_logic(f, ns)
