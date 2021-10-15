@@ -351,10 +351,7 @@ def _print_module(f, ios, name, ns, attr_translate,
 
 # Print Combinatorial Logic (Simulation) -----------------------------------------------------------
 
-def _print_combinatorial_logic_sim(f, ns,
-            display_run,
-            dummy_signal,
-            blocking_assign):
+def _print_combinatorial_logic_sim(f, ns, dummy_signal, blocking_assign):
     r = ""
     if f.comb:
         if dummy_signal:
@@ -392,8 +389,6 @@ def _print_combinatorial_logic_sim(f, ns,
                     r += syn_on
 
                 r += "always @(*) begin\n"
-                if display_run:
-                    r += "\t$display(\"Running comb block #" + str(n) + "\");\n"
                 if blocking_assign:
                     r += "\t" + ns.get_name(t) + " = " + _print_expression(ns, t.reset)[0] + ";\n"
                     r += _print_node(ns, _AT_BLOCKING, 1, stmts, t)
@@ -471,7 +466,6 @@ def convert(f, ios=set(), name="top",
     special_overrides    = dict(),
     attr_translate       = DummyAttrTranslate(),
     create_clock_domains = True,
-    display_run          = False,
     reg_initialization   = True,
     dummy_signal         = True,
     blocking_assign      = False,
@@ -549,7 +543,6 @@ def convert(f, ios=set(), name="top",
         )
     else:
         verilog += _print_combinatorial_logic_sim(f, ns,
-            display_run     = display_run,
             dummy_signal    = dummy_signal,
             blocking_assign = blocking_assign
         )
