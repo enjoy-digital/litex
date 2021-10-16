@@ -210,6 +210,7 @@ class Ibex(CPU):
             "ibex_register_file_fpga.sv",
             "ibex_wb_stage.sv",
             "ibex_core.sv",
+            "ibex_top.sv"
         )
         platform.add_source(os.path.join(ibexdir, "syn", "rtl", "prim_clock_gating.v"))
         platform.add_sources(os.path.join(opentitandir, "hw", "ip", "prim", "rtl"),
@@ -217,7 +218,7 @@ class Ibex(CPU):
             "prim_assert.sv"
         )
         platform.add_verilog_include_path(os.path.join(opentitandir, "hw", "ip", "prim", "rtl"))
-        platform.add_verilog_include_path(os.path.join(ibexdir, "dv", "fcov"))
+        platform.add_verilog_include_path(os.path.join(opentitandir, "hw", "dv", "sv", "dv_utils"))
 
     def set_reset_address(self, reset_address):
         assert not hasattr(self, "reset_address")
@@ -226,4 +227,4 @@ class Ibex(CPU):
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
-        self.specials += Instance("ibex_core", **self.cpu_params)
+        self.specials += Instance("ibex_top", **self.cpu_params)
