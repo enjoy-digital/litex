@@ -160,7 +160,7 @@ def _build_peri(efinity_path, build_name, partnumber, named_sc, named_pc, fragme
 
 # Project configuration ------------------------------------------------------------------------
 
-def _build_xml(partnumber, build_name, sources, additional_xml_commands):
+def _build_xml(partnumber, timing_model, build_name, sources, additional_xml_commands):
 
     root = et.Element('efx:project')
 
@@ -187,7 +187,7 @@ def _build_xml(partnumber, build_name, sources, additional_xml_commands):
     device_info = et.SubElement(root, 'efx:device_info')
     et.SubElement(device_info, 'efx:family', name = 'Trion')
     et.SubElement(device_info, 'efx:device', name = partnumber)
-    et.SubElement(device_info, 'efx:timing_model', name = 'C4')
+    et.SubElement(device_info, 'efx:timing_model', name = timing_model)
 
     design_info = et.SubElement(root, 'efx:design_info')
     et.SubElement(design_info, "efx:top_module", name = build_name)
@@ -292,6 +292,7 @@ class EfinityToolchain():
         # Generate project file (.xml)
         _build_xml(
             partnumber              = platform.device,
+            timing_model            = platform.timing_model,
             build_name              = build_name,
             sources                 = platform.sources,
             additional_xml_commands = self.additional_xml_commands)
