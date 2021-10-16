@@ -19,6 +19,9 @@ class EfinixPlatform(GenericPlatform):
     def __init__(self, *args, toolchain="efinity", **kwargs):
         GenericPlatform.__init__(self, *args, **kwargs)
 
+        self.timing_model = self.device[-2:]
+        self.device       = self.device[:-2]
+
         self.pll_available = ['PLL_TL0', 'PLL_TR0', 'PLL_TR1', 'PLL_TR2', 'PLL_TR3', 'PLL_BR0', 'PLL_BR1', 'PLL_BR2', 'PLL_BL0']
         self.pll_used = []
 
