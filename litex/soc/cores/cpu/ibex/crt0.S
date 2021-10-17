@@ -1,4 +1,6 @@
-#define MIE_MEIE  0x800
+#define MIE_MEIE  0x800 
+#define MIE_MFIE  0x7FFF0000
+#define MIE       (MIE_MEIE|MIE_MFIE)
 
   .global _start
 _start:
@@ -30,7 +32,7 @@ reset_vector:
   j 1b
 3:
   // enable external interrupts
-  li t0, MIE_MEIE
+  li t0, 0x7FFF0880
   csrs mie, t0
 
   call main

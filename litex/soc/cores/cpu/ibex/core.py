@@ -124,6 +124,7 @@ class Ibex(CPU):
         self.dbus         = wishbone.Interface()
         self.periph_buses = [self.ibus, self.dbus]
         self.memory_buses = []
+        self.interrupt    = Signal(15)
 
         ibus = Record(obi_layout)
         dbus = Record(obi_layout)
@@ -170,7 +171,7 @@ class Ibex(CPU):
             i_irq_software_i = 0,
             i_irq_timer_i    = 0,
             i_irq_external_i = 0,
-            i_irq_fast_i     = 0,
+            i_irq_fast_i     = self.interrupt,
             i_irq_nm_i       = 0,
 
             # Debug.
