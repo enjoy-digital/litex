@@ -231,6 +231,19 @@ class Builder:
             csr_svd_contents = export.get_csr_svd(self.soc)
             write_to_file(os.path.realpath(self.csr_svd), csr_svd_contents)
 
+    def _check_meson(self):
+        # Check Meson install/version.
+        meson_present   = (shutil.which("meson") is not None)
+        meson_version   = [0, 0, 0]
+        meson_major_min = 0
+        meson_minor_min = 59
+        if meson_present:
+            meson_version = subprocess.check_output(["meson", "-v"]).decode("utf-8").split(".")
+        if (not meson_present) or (int(meson_version[0]) < meson_major_min) or (int(meson_version[1]) < meson_minor_min):
+            msg = "Unable to find valid Meson build system, please install it with:\n"
+            msg += "- pip3 install meson.\n"
+            raise OSError(msg)
+
     def _prepare_rom_software(self):
         # Create directories for all software packages.
         for name, src_dir in self.software_packages:
@@ -243,19 +256,6 @@ class Builder:
             # Skip BIOS compilation when disabled.
             if name == "bios" and not compile_bios:
                 continue
-
-            # Check Meson install/version.
-            meson_present   = (shutil.which("meson") is not None)
-            meson_version   = [0, 0, 0]
-            meson_major_min = 0
-            meson_minor_min = 59
-            if meson_present:
-                meson_version = subprocess.check_output(["meson", "-v"]).decode("utf-8").split(".")
-            if (not meson_present) or (int(meson_version[0]) < meson_major_min) or (int(meson_version[1]) < meson_minor_min):
-                msg = "Unable to find valid Meson build system, please install it with:\n"
-                msg += "- pip3 install meson.\n"
-                raise OSError(msg)
-
             # Compile software package.
             dst_dir  = os.path.join(self.software_dir, name)
             makefile = os.path.join(src_dir, "Makefile")
@@ -314,6 +314,7 @@ class Builder:
                 )
                 if use_bios:
                     self.soc.check_bios_requirements()
+                    self._check_meson()
                 self._prepare_rom_software()
                 self._generate_rom_software(compile_bios=use_bios)
 
