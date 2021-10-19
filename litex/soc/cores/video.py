@@ -359,13 +359,18 @@ class CSIInterpreter(Module):
     csi_start     = ord("[")
     csi_param_min = 0x30
     csi_param_max = 0x3f
-    def __init__(self):
+    def __init__(self, enable=True):
         self.sink   = sink   = stream.Endpoint([("data", 8)])
         self.source = source = stream.Endpoint([("data", 8)])
 
-        self.color = Signal(4)
+        self.color    = Signal(4)
+        self.clear_xy = Signal()
 
         # # #
+
+        if not enable:
+            self.comb += self.sink.connect(self.source)
+            return
 
         csi_count = Signal(3)
         csi_bytes = Array([Signal(8) for _ in range(8)])
@@ -415,6 +420,9 @@ class CSIInterpreter(Module):
                     NextValue(self.color, 0), # FIXME: Add Palette.
                 ),
             ),
+            If(csi_final == ord("A"), # FIXME: Move Up.
+                self.clear_xy.eq(1)
+            ),
             NextState("RECOPY")
         )
 
@@ -455,11 +463,10 @@ class VideoTerminal(Module):
         # -------------------
 
         # Optional CSI Interpreter.
-        if with_csi_interpreter:
-            self.submodules.csi_interpreter = CSIInterpreter()
-            self.comb += uart_sink.connect(self.csi_interpreter.sink)
-            uart_sink = self.csi_interpreter.source
-            self.comb += term_wrport.dat_w[font_width:].eq(self.csi_interpreter.color)
+        self.submodules.csi_interpreter = CSIInterpreter(enable=with_csi_interpreter)
+        self.comb += uart_sink.connect(self.csi_interpreter.sink)
+        uart_sink = self.csi_interpreter.source
+        self.comb += term_wrport.dat_w[font_width:].eq(self.csi_interpreter.color)
 
         self.submodules.uart_fifo = stream.SyncFIFO([("data", 8)], 8)
         self.comb += uart_sink.connect(self.uart_fifo.sink)
@@ -478,6 +485,7 @@ class VideoTerminal(Module):
         uart_fsm.act("CLEAR-XY",
             term_wrport.we.eq(1),
             term_wrport.dat_w[:font_width].eq(ord(" ")),
+            NextValue(y_term_rollover, 0),
             NextValue(x_term, x_term + 1),
             If(x_term == (term_colums - 1),
                 NextValue(x_term, 0),
@@ -499,6 +507,9 @@ class VideoTerminal(Module):
                 ).Else(
                     NextState("WRITE")
                 )
+            ),
+            If(self.csi_interpreter.clear_xy,
+                NextState("CLEAR-XY")
             )
         )
         uart_fsm.act("WRITE",
