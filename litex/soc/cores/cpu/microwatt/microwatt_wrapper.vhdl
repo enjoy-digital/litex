@@ -16,7 +16,8 @@ use work.wishbone_types.all;
 entity microwatt_wrapper is
     generic (
         SIM             : boolean := false;
-        DISABLE_FLATTEN : boolean := false
+        DISABLE_FLATTEN : boolean := false;
+        HAS_FPU         : boolean := false
     );
     port (
         clk          : in std_logic;
@@ -26,7 +27,7 @@ entity microwatt_wrapper is
         wishbone_insn_ack   : in std_ulogic;
         wishbone_insn_stall : in std_ulogic;
 
-        wishbone_insn_adr   : out std_ulogic_vector(31 downto 0);
+        wishbone_insn_adr   : out std_ulogic_vector(28 downto 0);
         wishbone_insn_dat_w : out std_ulogic_vector(63 downto 0);
         wishbone_insn_cyc   : out std_ulogic;
         wishbone_insn_stb   : out std_ulogic;
@@ -37,12 +38,14 @@ entity microwatt_wrapper is
         wishbone_data_ack   : in std_ulogic;
         wishbone_data_stall : in std_ulogic;
 
-        wishbone_data_adr   : out std_ulogic_vector(31 downto 0);
+        wishbone_data_adr   : out std_ulogic_vector(28 downto 0);
         wishbone_data_dat_w : out std_ulogic_vector(63 downto 0);
         wishbone_data_cyc   : out std_ulogic;
         wishbone_data_stb   : out std_ulogic;
         wishbone_data_sel   : out std_ulogic_vector(7 downto 0);
         wishbone_data_we    : out std_ulogic;
+
+        wb_snoop_in         : in wishbone_master_out;
 
         dmi_addr : in  std_ulogic_vector(3 downto 0);
         dmi_din  : in  std_ulogic_vector(63 downto 0);
@@ -94,7 +97,8 @@ begin
     microwatt_core : entity work.core
         generic map (
             SIM             => SIM,
-            DISABLE_FLATTEN => DISABLE_FLATTEN
+            DISABLE_FLATTEN => DISABLE_FLATTEN,
+            HAS_FPU         => HAS_FPU
         )
         port map (
             clk               => clk,
@@ -107,6 +111,8 @@ begin
 
             wishbone_data_in  => wishbone_data_in,
             wishbone_data_out => wishbone_data_out,
+
+            wb_snoop_in       => wb_snoop_in,
 
             dmi_addr          => dmi_addr,
             dmi_din           => dmi_din,
