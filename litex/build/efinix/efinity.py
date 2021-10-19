@@ -156,7 +156,9 @@ def _build_peri(efinity_path, build_name, partnumber, named_sc, named_pc, fragme
 
     tools.write_to_file("iface.py", header + gen + gpio + add + footer)
 
-    subprocess.call([efinity_path + '/bin/python3', 'iface.py'])
+    if subprocess.call([efinity_path + '/bin/python3', 'iface.py']) != 0:
+        raise OSError("Error occurred during Efinity peri script execution.")
+
 
 # Project configuration ------------------------------------------------------------------------
 
@@ -316,7 +318,8 @@ class EfinityToolchain():
 
         # Run
         if run:
-            subprocess.call([self.efinity_path + '/scripts/efx_run.py', build_name + '.xml', '-f', 'compile'])
+            if subprocess.call([self.efinity_path + '/scripts/efx_run.py', build_name + '.xml', '-f', 'compile'])  != 0:
+                raise OSError("Error occurred during efx_run script execution.")
 
         os.chdir(cwd)
 

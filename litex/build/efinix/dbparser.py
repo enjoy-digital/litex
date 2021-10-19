@@ -80,6 +80,21 @@ class EfinixDbParser():
 
         return None
 
+    def get_block_instance_names(self, block):
+        dmap = self.get_device_map(self.device)
+        die = self.get_die_file_name(dmap)
+        tree = et.parse(self.efinity_db_path + 'die/' + die)
+        root = tree.getroot()
+
+        peri = root.findall('efxpt:periphery_instance', namespaces)
+        names = []
+        for p in peri:
+            if p.get('block') == block:
+                names.append(p.get('name'))
+
+        print(f"block {block}: names:{names}")
+        return names
+
     def get_pll_inst_from_gpio_inst(self, dmap, inst):
         die = self.get_die_file_name(dmap)
         tree = et.parse(self.efinity_db_path + 'die/' + die)

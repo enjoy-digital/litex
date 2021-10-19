@@ -419,11 +419,18 @@ class CSRStorage(_CompoundCSR):
         self.sync += self.re.eq(sc.re)
 
     def read(self):
-        """Read method for simulation."""
+        """Read method for simulation.
+
+        Side effects: none (asynchronous)."""
         return (yield self.storage)
 
     def write(self, value):
-        """Write method for simulation."""
+        """Write method for simulation.
+
+        Side effects: synchronous advances simulation clk by one tick."""
+        if bits_for(value) > self.size:
+            raise ValueError(f"value {value} exceeds range of {self.size} bit CSR {self.name}.")
+
         yield self.storage.eq(value)
         yield self.re.eq(1)
         if hasattr(self, "fields"):

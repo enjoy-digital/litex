@@ -22,9 +22,6 @@ class EfinixPlatform(GenericPlatform):
         self.timing_model = self.device[-2:]
         self.device       = self.device[:-2]
 
-        self.pll_available = ['PLL_TL0', 'PLL_TR0', 'PLL_TR1', 'PLL_TR2', 'PLL_TR3', 'PLL_BR0', 'PLL_BR1', 'PLL_BR2', 'PLL_BL0']
-        self.pll_used = []
-
         if os.getenv("LITEX_ENV_EFINITY", False) == False:
             msg = "Unable to find or source Efinity toolchain, please either:\n"
             msg += "- Set LITEX_ENV_EFINITY environment variant to Efinity path.\n"
@@ -40,6 +37,8 @@ class EfinixPlatform(GenericPlatform):
             raise ValueError("Unknown toolchain")
 
         self.parser = EfinixDbParser(self.efinity_path, self.device)
+        self.pll_available = self.parser.get_block_instance_names('pll')
+        self.pll_used = []
 
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
         so = dict(common.efinix_special_overrides)
