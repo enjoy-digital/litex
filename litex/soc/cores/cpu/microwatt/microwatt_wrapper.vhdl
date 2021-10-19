@@ -45,7 +45,12 @@ entity microwatt_wrapper is
         wishbone_data_sel   : out std_ulogic_vector(7 downto 0);
         wishbone_data_we    : out std_ulogic;
 
-        wb_snoop_in         : in wishbone_master_out;
+        wb_snoop_in_adr   : in std_ulogic_vector(28 downto 0);
+        wb_snoop_in_dat_w : in std_ulogic_vector(63 downto 0);
+        wb_snoop_in_cyc   : in std_ulogic;
+        wb_snoop_in_stb   : in std_ulogic;
+        wb_snoop_in_sel   : in std_ulogic_vector(7 downto 0);
+        wb_snoop_in_we    : in std_ulogic;
 
         dmi_addr : in  std_ulogic_vector(3 downto 0);
         dmi_din  : in  std_ulogic_vector(63 downto 0);
@@ -68,9 +73,11 @@ architecture rtl of microwatt_wrapper is
     signal wishbone_data_in  : wishbone_slave_out;
     signal wishbone_data_out : wishbone_master_out;
 
+    signal wb_snoop_in : wishbone_master_out;
+
 begin
 
-    -- wishbone_insn mapping
+    -- Wishbone_insn mapping
     wishbone_insn_in.dat   <= wishbone_insn_dat_r;
     wishbone_insn_in.ack   <= wishbone_insn_ack;
     wishbone_insn_in.stall <= wishbone_insn_stall;
@@ -82,7 +89,7 @@ begin
     wishbone_insn_sel      <= wishbone_insn_out.sel;
     wishbone_insn_we       <= wishbone_insn_out.we;
 
-    -- wishbone_data mapping
+    -- Wishbone_data mapping
     wishbone_data_in.dat   <= wishbone_data_dat_r;
     wishbone_data_in.ack   <= wishbone_data_ack;
     wishbone_data_in.stall <= wishbone_data_stall;
@@ -93,6 +100,14 @@ begin
     wishbone_data_stb      <= wishbone_data_out.stb;
     wishbone_data_sel      <= wishbone_data_out.sel;
     wishbone_data_we       <= wishbone_data_out.we;
+
+    -- Wishbone snoop mapping
+    wb_snoop_in.adr <= wb_snoop_in_adr;
+    wb_snoop_in.dat <= wb_snoop_in_dat_w;
+    wb_snoop_in.cyc <= wb_snoop_in_cyc;
+    wb_snoop_in.stb <= wb_snoop_in_stb;
+    wb_snoop_in.sel <= wb_snoop_in_sel;
+    wb_snoop_in.we  <= wb_snoop_in_we;
 
     microwatt_core : entity work.core
         generic map (

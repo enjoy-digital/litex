@@ -105,6 +105,14 @@ class Microwatt(CPU):
             o_wishbone_data_sel   = dbus.sel,
             o_wishbone_data_we    = dbus.we,
 
+            # Snoop.
+            i_wb_snoop_in_adr   = 0,
+            i_wb_snoop_in_dat_w = 0,
+            i_wb_snoop_in_cyc   = 0,
+            i_wb_snoop_in_stb   = 0,
+            i_wb_snoop_in_sel   = 0,
+            i_wb_snoop_in_we    = 0,
+
             # Debug.
             i_dmi_addr = 0,
             i_dmi_din  = 0,
