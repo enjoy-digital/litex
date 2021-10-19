@@ -66,6 +66,8 @@ repos = OrderedDict(repos)
 
 # RISC-V toolchain download ------------------------------------------------------------------------
 
+# TODO: Update.
+
 def sifive_riscv_download():
     base_url  = "https://static.dev.sifive.com/dev-tools/"
     base_file = "riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-"
@@ -92,6 +94,20 @@ def sifive_riscv_download():
 
     print("Extracting", fn)
     shutil.unpack_archive(fn)
+
+# PowerPC toolchain download -----------------------------------------------------------------------
+
+# TODO
+# Link: https://toolchains.bootlin.com/downloads/releases/toolchains/powerpc64le-power8/tarballs/powerpc64le-power8--musl--stable-2020.08-1.tar.bz2
+
+# LM32 toolchain download --------------------------------------------------------------------------
+
+# TODO
+
+# OpenRisc toolchain download ----------------------------------------------------------------------
+
+# TODO
+# Link: https://toolchains.bootlin.com/downloads/releases/toolchains/openrisc/tarballs/openrisc--musl--stable-2020.08-1.tar.bz2
 
 # Setup --------------------------------------------------------------------------------------------
 
