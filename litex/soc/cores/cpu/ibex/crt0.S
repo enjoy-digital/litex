@@ -116,8 +116,6 @@ bss_loop:
   j bss_loop
 bss_done:
 
-  li t0, 0x7FFF0880   // enable external interrupts
-  csrs mie, t0
   call main
 
 infinit_loop:

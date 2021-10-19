@@ -79,7 +79,7 @@ void isr(void)
 void isr(void)
 {
     unsigned int cause = csrr(mcause) & IRQ_MASK;
-	puts("isr");
+
     if (csrr(mcause) & 0x80000000) {
 #ifndef UART_POLLING
         if (cause == (UART_INTERRUPT+FIRQ_OFFSET)){
@@ -102,25 +102,6 @@ void isr(void)
 #endif
     }
 }
-#elif defined(__ibex__)
-
-#define FIRQ_OFFSET 16
-#define IRQ_MASK 0x7FFFFFFF
-
-void isr(void)
-{
-    __attribute__((unused)) unsigned int irqs;
-
-	irqs = irq_pending() & irq_getmask();
-
-#ifdef CSR_UART_BASE
-#ifndef UART_POLLING
-	if(irqs & (1 << (UART_INTERRUPT+FIRQ_OFFSET)))
-		uart_isr();
-#endif
-#endif
-}
-
 #elif defined(__microwatt__)
 
 void isr(uint64_t vec)
