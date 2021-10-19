@@ -28,7 +28,7 @@ class MOR1KX(CPU):
     variants             = CPU_VARIANTS
     data_width           = 32
     endianness           = "big"
-    gcc_triple           = "or1k-elf"
+    gcc_triple           = ("or1k-elf", "or1k-linux")
     clang_triple         = "or1k-linux"
     linker_output_format = "elf32-or1k"
     nop                  = "l.nop"
