@@ -211,8 +211,16 @@ class Ibex(CPU):
             "ibex_register_file_fpga.sv",
             "ibex_wb_stage.sv",
             "ibex_core.sv",
-            "ibex_top.sv"
+            #"ibex_top.sv" FIXME.
         )
+         # FIXME: Patch ibex_top.sv to fix missing import.
+        if not os.path.exists("ibex_top.sv"):
+            # Get ibex_top source.
+            os.system("cp {src} {dst}".format(src=os.path.join(ibexdir, "rtl", "ibex_top.sv"), dst="ibex_top.sv"))
+            # FIXME: Patch ibex_top
+            os.system(f"patch -p0 < {os.path.dirname(os.path.realpath(__file__))}/ibex_top.patch")
+        platform.add_source("ibex_top.sv")
+
         platform.add_source(os.path.join(ibexdir, "syn", "rtl", "prim_clock_gating.v"))
         platform.add_sources(os.path.join(opentitandir, "hw", "ip", "prim", "rtl"),
             "prim_alert_pkg.sv",

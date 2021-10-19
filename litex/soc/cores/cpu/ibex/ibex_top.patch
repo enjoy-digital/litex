@@ -1,0 +1,12 @@
+diff --git a/ibex_top.sv b/ibex_top.sv
+index c0148ea4e..eaf4d1533 100644
+--- a/ibex_top.sv
++++ b/ibex_top.sv
+@@ -8,6 +8,7 @@
+ `endif
+ 
+ `include "prim_assert.sv"
++`include "prim_ram_1p_pkg.sv"
+ 
+ /**
+  * Top level module of the ibex RISC-V core
