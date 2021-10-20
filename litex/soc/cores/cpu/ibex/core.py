@@ -189,8 +189,7 @@ class Ibex(CPU):
 
     @staticmethod
     def add_sources(platform):
-        opentitandir = get_data_mod("misc", "opentitan").data_location
-        ibexdir      = os.path.join(os.path.join(opentitandir, "hw", "vendor", "lowrisc_ibex"))
+        ibexdir = get_data_mod("cpu", "ibex").data_location
         platform.add_sources(os.path.join(ibexdir, "rtl"),
             "ibex_pkg.sv",
             "ibex_alu.sv",
@@ -222,12 +221,17 @@ class Ibex(CPU):
         platform.add_source("ibex_top.sv")
 
         platform.add_source(os.path.join(ibexdir, "syn", "rtl", "prim_clock_gating.v"))
-        platform.add_sources(os.path.join(opentitandir, "hw", "ip", "prim", "rtl"),
+        platform.add_sources(os.path.join(ibexdir, "vendor", "lowrisc_ip", "ip", "prim", "rtl"),
             "prim_alert_pkg.sv",
             "prim_assert.sv"
         )
-        platform.add_verilog_include_path(os.path.join(opentitandir, "hw", "ip", "prim", "rtl"))
-        platform.add_verilog_include_path(os.path.join(opentitandir, "hw", "dv", "sv", "dv_utils"))
+        platform.add_verilog_include_path(os.path.join(ibexdir, "rtl"))
+        platform.add_verilog_include_path(os.path.join(ibexdir, 
+            "vendor", "lowrisc_ip", "dv", "sv", "dv_utils")
+        )
+        platform.add_verilog_include_path(os.path.join(ibexdir, 
+            "vendor", "lowrisc_ip", "ip", "prim", "rtl")
+        )
 
     def set_reset_address(self, reset_address):
         assert not hasattr(self, "reset_address")
