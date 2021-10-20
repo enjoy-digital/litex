@@ -190,6 +190,19 @@ class Ibex(CPU):
     @staticmethod
     def add_sources(platform):
         ibexdir = get_data_mod("cpu", "ibex").data_location
+        platform.add_verilog_include_path(os.path.join(ibexdir, "rtl"))
+        platform.add_verilog_include_path(os.path.join(ibexdir,
+            "vendor", "lowrisc_ip", "dv", "sv", "dv_utils")
+        )
+        platform.add_verilog_include_path(os.path.join(ibexdir,
+            "vendor", "lowrisc_ip", "ip", "prim", "rtl")
+        )
+        platform.add_source(os.path.join(ibexdir, "syn", "rtl", "prim_clock_gating.v"))
+        platform.add_sources(os.path.join(ibexdir, "vendor", "lowrisc_ip", "ip", "prim", "rtl"),
+            "prim_alert_pkg.sv",
+            "prim_assert.sv",
+            "prim_ram_1p_pkg.sv",
+        )
         platform.add_sources(os.path.join(ibexdir, "rtl"),
             "ibex_pkg.sv",
             "ibex_alu.sv",
@@ -210,27 +223,7 @@ class Ibex(CPU):
             "ibex_register_file_fpga.sv",
             "ibex_wb_stage.sv",
             "ibex_core.sv",
-            #"ibex_top.sv" FIXME.
-        )
-         # FIXME: Patch ibex_top.sv to fix missing import.
-        if not os.path.exists("ibex_top.sv"):
-            # Get ibex_top source.
-            os.system("cp {src} {dst}".format(src=os.path.join(ibexdir, "rtl", "ibex_top.sv"), dst="ibex_top.sv"))
-            # FIXME: Patch ibex_top
-            os.system(f"patch -p0 < {os.path.dirname(os.path.realpath(__file__))}/ibex_top.patch")
-        platform.add_source("ibex_top.sv")
-
-        platform.add_source(os.path.join(ibexdir, "syn", "rtl", "prim_clock_gating.v"))
-        platform.add_sources(os.path.join(ibexdir, "vendor", "lowrisc_ip", "ip", "prim", "rtl"),
-            "prim_alert_pkg.sv",
-            "prim_assert.sv"
-        )
-        platform.add_verilog_include_path(os.path.join(ibexdir, "rtl"))
-        platform.add_verilog_include_path(os.path.join(ibexdir, 
-            "vendor", "lowrisc_ip", "dv", "sv", "dv_utils")
-        )
-        platform.add_verilog_include_path(os.path.join(ibexdir, 
-            "vendor", "lowrisc_ip", "ip", "prim", "rtl")
+            "ibex_top.sv"
         )
 
     def set_reset_address(self, reset_address):
