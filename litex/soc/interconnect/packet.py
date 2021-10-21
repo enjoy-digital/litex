@@ -188,11 +188,15 @@ class Packetizer(Module):
         # Last BE.
         last_be   = Signal(data_width//8)
         last_be_d = Signal(data_width//8)
-        if hasattr(sink, "last_be") and hasattr(source, "last_be"):
-            rotate_by = header.length%bytes_per_clk
-            x = [sink.last_be[(i + rotate_by)%bytes_per_clk] for i in range(bytes_per_clk)]
-            self.comb += last_be.eq(Cat(*x))
-            self.sync += last_be_d.eq(last_be)
+            
+        sink_last_be = getattr(sink, "last_be", C(2**(data_width//8 - 1), data_width//8))
+        rotate_by = header.length%bytes_per_clk
+        x = [sink_last_be[(i - rotate_by)%bytes_per_clk] for i in range(bytes_per_clk)]
+        self.comb += last_be.eq(Cat(*x))
+
+        sink_error = getattr(sink, "error", Signal(data_width//8))
+        error_on_last = Signal()
+        error_on_last_d = Signal()
 
         # FSM.
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
@@ -231,44 +235,77 @@ class Packetizer(Module):
                )
             )
         )
-        source_last_be = getattr(source, "last_be", Signal())
+        source_last_be = getattr(source, "last_be", Signal(data_width//8))
+        source_error = getattr(source, "error", Signal(data_width//8))
         fsm.act("ALIGNED-DATA-COPY",
             source.valid.eq(sink.valid),
             source.last.eq(sink.last),
-            source_last_be.eq(last_be),
             source.data.eq(sink.data),
             If(source.valid & source.ready,
-               sink.ready.eq(1),
-               If(source.last,
-                  NextState("IDLE")
-               )
+                sink.ready.eq(1),
+                If(source.last,
+                    source_last_be.eq(last_be),
+                    NextState("IDLE")
+                )
             )
         )
         if not aligned:
             header_offset_multiplier = 1 if header_words == 1 else 2
             self.sync += If(source.ready, sink_d.eq(sink))
             fsm.act("UNALIGNED-DATA-COPY",
-                source.valid.eq(sink.valid | sink_d.last),
-                source.last.eq(sink_d.last),
-                source_last_be.eq(last_be_d),
+                sink.ready.eq(source.ready),
+                source.valid.eq(sink.valid),
                 If(fsm_from_idle,
                     source.data[:max(header_leftover*8, 1)].eq(sr[min(header_offset_multiplier*data_width, len(sr)-1):])
                 ).Else(
                     source.data[:max(header_leftover*8, 1)].eq(sink_d.data[min((bytes_per_clk-header_leftover)*8, data_width-1):])
                 ),
                 source.data[header_leftover*8:].eq(sink.data),
-                If(source.valid & source.ready,
-                    sink.ready.eq(~source.last),
+                If(sink.valid & sink.ready,
                     NextValue(fsm_from_idle, 0),
-                    If(source.last,
-                        NextState("IDLE")
+                    If(sink.last,
+                        If(sink_last_be > last_be,
+                            NextValue(last_be_d, last_be),
+                            NextValue(error_on_last_d, error_on_last),
+                            NextState("LEFTOVER")
+                        ).Else(
+                            source.last.eq(1),
+                            source_last_be.eq(last_be),
+                            NextState("IDLE")
+                        )
                     )
+                )
+            ),
+            fsm.act("LEFTOVER",
+                source.last.eq(1),
+                source.valid.eq(1),
+                source.data[:max(header_leftover*8, 1)].eq(sink_d.data[min((bytes_per_clk-header_leftover)*8, data_width-1):]),
+                source_last_be.eq(last_be_d),
+                If(source.ready,
+                    NextValue(error_on_last_d, 0),
+                    NextState("IDLE")
                 )
             )
 
         # Error.
-        if hasattr(sink, "error") and hasattr(source, "error"):
-            self.comb += source.error.eq(sink.error)
+        self.comb += [
+            If(sink.last & sink.valid, error_on_last.eq((sink_error & sink_last_be) != 0)),
+            If(source.last,
+                If(fsm.ongoing("LEFTOVER"),
+                    If(error_on_last_d,
+                        source_error.eq(last_be_d)
+                    ).Else(
+                        source_error.eq(~last_be_d)
+                    )
+                ).Else(
+                    If(error_on_last,
+                        source_error.eq(last_be)
+                    ).Else(
+                        source_error.eq(~last_be)
+                    )
+                )
+            )
+        ]
 
 # Depacketizer -------------------------------------------------------------------------------------
 
@@ -293,6 +330,17 @@ class Depacketizer(Module):
         sr_shift_leftover = Signal()
         count             = Signal(max=max(header_words, 2))
         sink_d            = stream.Endpoint(sink_description)
+        last_be    = Signal(data_width//8)
+        last_be_d  = Signal(data_width//8)
+
+        sink_last_be = getattr(sink, "last_be", Signal())
+        source_last_be = getattr(source, "last_be", Signal())
+        sink_error = getattr(sink, "error", Signal(data_width//8))
+        source_error = getattr(source, "error", Signal(data_width//8))
+
+        error_on_last = Signal()
+        error_on_last_d = Signal()
+
 
         # Header Shift/Decode.
         if (header_words) == 1 and (header_leftover == 0):
@@ -338,9 +386,10 @@ class Depacketizer(Module):
             sink.ready.eq(source.ready),
             source.data.eq(sink.data),
             If(source.valid & source.ready,
-               If(source.last,
-                  NextState("IDLE")
-               )
+                If(source.last,
+                    source_last_be.eq(sink_last_be),
+                    NextState("IDLE")
+                )
             )
         )
 
@@ -348,7 +397,6 @@ class Depacketizer(Module):
             self.sync += If(sink.valid & sink.ready, sink_d.eq(sink))
             fsm.act("UNALIGNED-DATA-COPY",
                 source.valid.eq(sink.valid | sink_d.last),
-                source.last.eq(sink.last | sink_d.last),
                 sink.ready.eq(source.ready),
                 source.data.eq(sink_d.data[header_leftover*8:]),
                 source.data[min((bytes_per_clk-header_leftover)*8, data_width-1):].eq(sink.data),
@@ -361,21 +409,62 @@ class Depacketizer(Module):
                     )
                 ),
                 If(source.valid & source.ready,
-                    If(source.last,
-                        NextState("IDLE")
+                    If(sink.last | sink_d.last,
+                        If(sink_last_be > last_be,
+                            source.last.eq(0),
+                            NextValue(last_be_d, last_be),
+                            NextValue(error_on_last_d, error_on_last),
+                            NextState("LEFTOVER")
+                        ).Else(
+                            source.last.eq(sink.last | sink_d.last),
+                            source_last_be.eq(last_be),
+
+
+
+                            NextState("IDLE")
+                        )
                     )
                 )
             )
+            fsm.act("LEFTOVER",
+                source.last.eq(1),
+                source.valid.eq(1),
+                source.data.eq(sink_d.data[header_leftover*8:]),
+                source_last_be.eq(last_be_d),
+                If(source.ready,
+                    NextState("IDLE")
+                )
+            )
 
-        # Error.
-        if hasattr(sink, "error") and hasattr(source, "error"):
-            self.comb += source.error.eq(sink.error)
+        # Error
+        self.comb += [
+            If(sink.last & sink.valid, error_on_last.eq((sink_error & sink_last_be) != 0)),
+            If(source.last,
+                If(fsm.ongoing("LEFTOVER"),
+                    If(error_on_last_d,
+                        source_error.eq(last_be_d)
+                    ).Else(
+                        source_error.eq(~last_be_d)
+                    )
+                ).Else(
+                    If(error_on_last, 
+                        source_error.eq(last_be)
+                    ).Else(
+                        source_error.eq(~last_be)
+                    )
+                )
+            )
+        ]
 
         # Last BE.
         if hasattr(sink, "last_be") and hasattr(source, "last_be"):
-            x = [sink.last_be[(i - (bytes_per_clk - header_leftover))%bytes_per_clk]
-                for i in range(bytes_per_clk)]
-            self.comb += source.last_be.eq(Cat(*x))
+            if aligned:
+                self.comb += last_be.eq(sink_last_be)
+            else:
+                x = [sink_last_be[(i - (bytes_per_clk - header_leftover))%bytes_per_clk]
+                    for i in range(bytes_per_clk)]
+                self.comb += last_be.eq(Cat(*x))
+
 
 # PacketFIFO ---------------------------------------------------------------------------------------
 
