@@ -891,7 +891,7 @@ class SoC(Module):
                 colorer("cpu_cls", color="red")))
             raise SoCError()
         cpu_cls = cls if cls is not None else cpu.CPUS[name]
-        if variant not in cpu_cls.variants:
+        if (variant not in cpu_cls.variants) and (cpu_cls is not cpu.CPUNone):
             self.logger.error("{} CPU variant {}, supporteds: {}.".format(
                 colorer(variant),
                 colorer("not supported", color="red"),
