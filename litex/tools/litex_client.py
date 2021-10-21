@@ -120,11 +120,12 @@ def dump_registers(port, filter=None):
 
     wb.close()
 
-def read_memory(port, addr):
+def read_memory(port, addr, length):
     wb = RemoteClient(port=port)
     wb.open()
 
-    print("0x{:08x}".format(wb.read(addr)))
+    for offset in range(length//4):
+        print(f"0x{addr + 4*offset:08x} : 0x{wb.read(addr + 4*offset):08x}")
 
     wb.close()
 
@@ -146,6 +147,7 @@ def main():
     parser.add_argument("--filter", default=None,          help="Registers filter (to be used with --regs).")
     parser.add_argument("--read",   default=None,          help="Do a MMAP Read to SoC bus (--read addr)")
     parser.add_argument("--write",  default=None, nargs=2, help="Do a MMAP Write to SoC bus (--write addr data)")
+    parser.add_argument("--length", default="4",           help="MMAP access length")
     args = parser.parse_args()
 
     port = int(args.port, 0)
@@ -157,7 +159,7 @@ def main():
         dump_registers(port=port, filter=args.filter)
 
     if args.read:
-        read_memory(port=port, addr=int(args.read, 0))
+        read_memory(port=port, addr=int(args.read, 0), length=int(args.length, 0))
 
     if args.write:
         write_memory(port=port, addr=int(args.write[0], 0), data=int(args.write[1], 0))
