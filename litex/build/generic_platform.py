@@ -435,7 +435,11 @@ class GenericPlatform:
         return named_sc, named_pc
 
     def get_verilog(self, fragment, **kwargs):
-        return verilog.convert(fragment, self.constraint_manager.get_io_signals(), **kwargs)
+        return verilog.convert(fragment,
+            ios      = self.constraint_manager.get_io_signals(),
+            platform = self,
+            **kwargs
+        )
 
     def get_edif(self, fragment, cell_library, vendor, device, **kwargs):
         return edif.convert(

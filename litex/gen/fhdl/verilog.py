@@ -458,7 +458,7 @@ class DummyAttrTranslate(dict):
     def __getitem__(self, k):
         return (k, "true")
 
-def convert(f, ios=set(), name="top",
+def convert(f, ios=set(), name="top", platform=None,
     special_overrides    = dict(),
     attr_translate       = DummyAttrTranslate(),
     regular_comb         = True):
@@ -492,6 +492,9 @@ def convert(f, ios=set(), name="top",
     f = lower_basics(f)
 
     # Lower specials.
+    if platform is not None:
+        for s in f.specials:
+            s.platform = platform
     f, lowered_specials = lower_specials(special_overrides, f)
 
     # Lower basics (for basics included in specials).
