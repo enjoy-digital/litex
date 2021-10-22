@@ -446,7 +446,10 @@ class LatticeiCE40DDRInput:
 class LatticeiCE40SDROutputImpl(Module):
     def __init__(self, i, o, clk):
         self.specials += Instance("SB_IO",
-            p_PIN_TYPE      = C(0b010100, 6), # PIN_OUTPUT_REGISTERED
+            # i_INPUT_CLK must match between two SB_IOs in the same tile.
+            # In PIN_INPUT mode, this restriction is relaxed; an unconnected
+            # i_INPUT_CLK also works.
+            p_PIN_TYPE      = C(0b010101, 6), # PIN_OUTPUT_REGISTERED + PIN_INPUT
             p_IO_STANDARD   = "SB_LVCMOS",
             io_PACKAGE_PIN  = o,
             i_CLOCK_ENABLE  = 1,
