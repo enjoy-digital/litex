@@ -7,6 +7,8 @@
 
 import os
 
+from migen.fhdl.structure import _Slice
+
 from litex.build.generic_platform import *
 from litex.build.efinix import common, efinity
 from litex.build.efinix import EfinixDbParser
@@ -68,22 +70,34 @@ class EfinixPlatform(GenericPlatform):
     def get_pin_location(self, sig):
         if sig is None:
             return None
+        assert len(sig) == 1
+        idx = 0
+        if isinstance(sig, _Slice):
+            idx = sig.start
+            sig = sig.value
         sc = self.constraint_manager.get_sig_constraints()
         for s, pins, others, resource in sc:
             if (s == sig) and (pins[0] != 'X'):
-                    return pins
+                    return [pins[idx]]
         return None
 
     def get_pin_name(self, sig):
         if sig is None:
             return None
+        assert len(sig) == 1
+        idx = 0
+        slc = False
+        if isinstance(sig, _Slice):
+            slc = True
+            idx = sig.start
+            sig = sig.value
         sc = self.constraint_manager.get_sig_constraints()
         for s, pins, others, resource in sc:
             if s == sig:
                 if resource[2]:
-                    return resource[0] + '_' + resource[2]
+                    return resource[0] + "_" + resource[2] + (f"{idx}" if slc else "")
                 else:
-                    return resource[0]
+                    return resource[0] + (f"{idx}" if slc else "")
         return None
 
     def get_sig_constraint(self, sig):
