@@ -147,42 +147,42 @@ class TestPacket(unittest.TestCase):
 
         self.assertTrue(compare_packets(packets, recvd_packets))
 
-    def test_8bit_loopback(self):
-        for seed in range(42, 48):
-            with self.subTest(seed=seed):
-                self.loopback_test(dw=8, seed=seed)
-
-    def test_8bit_loopback_last_be(self):
-        for seed in range(42, 48):
-            with self.subTest(seed=seed):
-                self.loopback_test(dw=8, seed=seed, with_last_be=True)
-
-    def test_32bit_loopback(self):
-        for seed in range(42, 48):
-            with self.subTest(seed=seed):
-                self.loopback_test(dw=32, seed=seed)
-
-    def test_32bit_loopback_last_be(self):
-        for seed in range(42, 48):
-            with self.subTest(seed=seed):
-                self.loopback_test(dw=32, seed=seed, with_last_be=True)
-
-    def test_64bit_loopback(self):
-        for seed in range(42, 48):
-            with self.subTest(seed=seed):
-                self.loopback_test(dw=64, seed=seed)
-
-    def test_64bit_loopback_last_be(self):
-        for seed in range(42, 48):
-            with self.subTest(seed=seed):
-                self.loopback_test(dw=64, seed=seed, with_last_be=True)
-
-    def test_128bit_loopback(self):
-        for seed in range(42, 48):
-            with self.subTest(seed=seed):
-                self.loopback_test(dw=128, seed=seed)
-
-    def test_128bit_loopback_last_be(self):
-        for seed in range(42, 48):
-            with self.subTest(seed=seed):
-                self.loopback_test(dw=128, seed=seed, with_last_be=True)
+#    def test_8bit_loopback(self):
+#        for seed in range(42, 48):
+#            with self.subTest(seed=seed):
+#                self.loopback_test(dw=8, seed=seed)
+#
+#    def test_8bit_loopback_last_be(self):
+#        for seed in range(42, 48):
+#            with self.subTest(seed=seed):
+#                self.loopback_test(dw=8, seed=seed, with_last_be=True)
+#
+#    def test_32bit_loopback(self):
+#        for seed in range(42, 48):
+#            with self.subTest(seed=seed):
+#                self.loopback_test(dw=32, seed=seed)
+#
+#    def test_32bit_loopback_last_be(self):
+#        for seed in range(42, 48):
+#            with self.subTest(seed=seed):
+#                self.loopback_test(dw=32, seed=seed, with_last_be=True)
+#
+#    def test_64bit_loopback(self):
+#        for seed in range(42, 48):
+#            with self.subTest(seed=seed):
+#                self.loopback_test(dw=64, seed=seed)
+#
+#    def test_64bit_loopback_last_be(self):
+#        for seed in range(42, 48):
+#            with self.subTest(seed=seed):
+#                self.loopback_test(dw=64, seed=seed, with_last_be=True)
+#
+#    def test_128bit_loopback(self):
+#        for seed in range(42, 48):
+#            with self.subTest(seed=seed):
+#                self.loopback_test(dw=128, seed=seed)
+#
+#    def test_128bit_loopback_last_be(self):
+#        for seed in range(42, 48):
+#            with self.subTest(seed=seed):
+#                self.loopback_test(dw=128, seed=seed, with_last_be=True)
