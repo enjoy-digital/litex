@@ -14,9 +14,12 @@ jobs:
       - name: Install Tools
         run: |
           sudo apt-get install wget build-essential python3
+          sudo apt-get install verilator libevent-dev libjson-c-dev
           pip3 install setuptools
           pip3 install requests
           pip3 install meson
+          pip3 install ninja
+          pip3 install nmigen-yosys
 
       # Install (n)Migen / LiteX / Cores
       - name: Install LiteX
@@ -41,4 +44,5 @@ jobs:
       - name: Run Tests
         run: |
           export GITHUB_ACTIONS=1
+          export PATH=$PATH:$(echo $PWD/../riscv64-*/bin/)
           python3 setup.py test
