@@ -12,7 +12,7 @@ from migen import *
 from litex.soc.interconnect.stream import *
 from litex.soc.interconnect.packet import *
 
-from .test_stream import StreamPacket, stream_inserter, stream_collector, compare_packets
+from .test_stream2 import StreamPacket, stream_inserter, stream_collector, compare_packets
 
 def mask_last_be(dw, data, last_be):
     masked_data = 0
