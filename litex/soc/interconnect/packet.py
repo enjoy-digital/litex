@@ -255,6 +255,7 @@ class Packetizer(Module):
             )
 
         # Last BE.
+        # FIXME: Switch to a simpler Data Qualifier and remove Last BE handling/section.
         if hasattr(sink, "last_be") and hasattr(source, "last_be"):
             # For an 8-bit data path, last_be really should be 1 when last is
             # asserted, other values do not make sense. However, legacy code
@@ -438,6 +439,7 @@ class Depacketizer(Module):
             self.comb += source.error.eq(sink.error)
 
         # Last BE.
+        # FIXME: Switch to a simpler Data Qualifier and remove Last BE handling/section.
         if hasattr(sink, "last_be") and hasattr(source, "last_be"):
             # For an 8-bit data path, last_be really should be 1 when last is
             # asserted, other values do not make sense. However, legacy code
