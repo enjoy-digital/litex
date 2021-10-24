@@ -10,26 +10,27 @@ import sys
 
 class TestCPU(unittest.TestCase):
     def boot_test(self, cpu_type):
-        cmd = 'lxsim --cpu-type={}'.format(cpu_type)
-        litex_prompt = [b'\033\[92;1mlitex\033\[0m>']
-        p = pexpect.spawn(cmd, timeout=None, logfile=sys.stdout.buffer)
-        try:
-            match_id = p.expect(litex_prompt, timeout=1200)
-        except pexpect.EOF:
-            print('\n*** Premature termination')
-            return False
-        except pexpect.TIMEOUT:
-            print('\n*** Timeout ')
-            return False
-
+        cmd = f'lxsim --cpu-type={cpu_type}'
+        litex_prompt = [b'\033\[[0-9;]+mlitex\033\[[0-9;]+m>']
         is_success = True
+        with open("/tmp/test_boot_log", "wb") as result_file:
+            p = pexpect.spawn(cmd, timeout=None, logfile=result_file)
+            try:
+                match_id = p.expect(litex_prompt, timeout=1200)
+            except pexpect.EOF:
+                print('\n*** Premature termination')
+                is_success = False
+            except pexpect.TIMEOUT:
+                print('\n*** Timeout ')
+                is_success = False
 
-        # Let it print rest of line
-        match_id = p.expect_exact([b'\n', pexpect.TIMEOUT, pexpect.EOF], timeout=1)
-        p.terminate(force=True)
-
-        line_break = '\n' if match_id != 0 else ''
-        print(f'{line_break}*** {"Success" if is_success else "Failure"}')
+        if not is_success:
+            print(f'*** {cpu_type} Boot Failure')
+            with open("/tmp/test_boot_log", "r") as result_file:
+                print(result_file.read())
+        else:
+            p.terminate(force=True)
+            print(f'*** {cpu_type} Boot Success')
 
         return is_success
 
