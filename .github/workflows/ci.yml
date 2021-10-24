@@ -3,7 +3,7 @@ name: ci
 on: [push, pull_request]
 
 jobs:
-  build:
+  regression-test:
     runs-on: ubuntu-18.04
     steps:
       # Checkout Repository
@@ -20,6 +20,7 @@ jobs:
           pip3 install meson
           pip3 install ninja
           pip3 install nmigen-yosys
+          pip3 install pexpect
 
       # Install (n)Migen / LiteX / Cores
       - name: Install LiteX
