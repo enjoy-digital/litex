@@ -3,7 +3,7 @@ name: ci
 on: [push, pull_request]
 
 jobs:
-  build:
+  regression-test:
     runs-on: ubuntu-18.04
     steps:
       # Checkout Repository
