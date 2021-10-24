@@ -177,15 +177,6 @@ printf("\n");
 	video_framebuffer_dma_enable_write(1);
 #endif
 
-#ifdef BIOS_TEST_MODE
-	printf("Bios successfully booted.\n");
-#ifdef CSR_SIM_FINISH_BASE
-	printf("Exiting simulation.\n");
-  	sim_finish();
-#endif
-	return 0;
-#endif
-
 	init_dispatcher();
 
 	if(sdr_ok) {
