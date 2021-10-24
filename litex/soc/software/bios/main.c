@@ -25,7 +25,6 @@
 #include "readline.h"
 #include "helpers.h"
 #include "command.h"
-#include "sim_debug.h"
 
 #include <generated/csr.h>
 #include <generated/soc.h>
@@ -175,15 +174,6 @@ printf("\n");
 	video_framebuffer_dma_enable_write(0);
 	video_framebuffer_vtg_enable_write(1);
 	video_framebuffer_dma_enable_write(1);
-#endif
-
-#ifdef BIOS_TEST_MODE
-	printf("Bios successfully booted.\n");
-#ifdef CSR_SIM_FINISH_BASE
-	printf("Exiting simulation.\n");
-  	sim_finish();
-#endif
-	return 0;
 #endif
 
 	init_dispatcher();
