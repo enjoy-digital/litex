@@ -14,7 +14,7 @@ class TestCPU(unittest.TestCase):
         litex_prompt = [b'\033\[92;1mlitex\033\[0m>']
         p = pexpect.spawn(cmd, timeout=None, logfile=sys.stdout.buffer)
         try:
-            match_id = p.expect(litex_prompt, timeout=240)
+            match_id = p.expect(litex_prompt, timeout=1200)
         except pexpect.EOF:
             print('\n*** Premature termination')
             return False
