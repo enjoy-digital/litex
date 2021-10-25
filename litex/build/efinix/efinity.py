@@ -230,7 +230,7 @@ def _build_xml(partnumber, timing_model, build_name, sources, additional_xml_com
     # Generate .xml
     tools.write_to_file("{}.xml".format(build_name), print_string)
 
-class EfinityToolchain():
+class EfinityToolchain:
     attr_translate = {}
 
     def __init__(self, efinity_path):

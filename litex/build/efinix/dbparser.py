@@ -19,7 +19,7 @@ namespaces = {
 
 # Efinix Database Parser ---------------------------------------------------------------------------
 
-class EfinixDbParser():
+class EfinixDbParser:
     def __init__(self, efinity_path, device):
         self.efinity_db_path = efinity_path + '/pt/db/'
         self.device = device

@@ -21,7 +21,7 @@ namespaces = {
 
 # Interface Writer  --------------------------------------------------------------------------------
 
-class InterfaceWriter():
+class InterfaceWriter:
     def __init__(self, efinity_path):
         self.efinity_path = efinity_path
         self.blocks       = []
