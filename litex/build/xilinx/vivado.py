@@ -8,7 +8,7 @@ import os
 import subprocess
 import sys
 import math
-from shutil import which
+from shutil import which, copyfile
 
 from migen.fhdl.structure import _Fragment
 
@@ -145,7 +145,7 @@ class XilinxVivadoToolchain:
         self.clocks      = dict()
         self.false_paths = set()
 
-    def _build_tcl(self, platform, build_name, synth_mode, enable_xpm, vns):
+    def _build_tcl(self, platform, build_name, synth_mode, enable_xpm, vns, copy_deps):
         assert synth_mode in ["vivado", "yosys"]
         tcl = []
 
@@ -164,6 +164,11 @@ class XilinxVivadoToolchain:
             tcl.append("\n# Add Sources\n")
             # "-include_dirs {}" crashes Vivado 2016.4
             for filename, language, library in platform.sources:
+                if copy_deps:
+                    relative_path = os.path.join(".", os.path.basename(filename))
+                    if not os.path.normpath(os.path.realpath(filename)) == os.path.normpath(os.path.realpath(relative_path)):
+                        copyfile(filename, relative_path)
+                    filename = relative_path
                 filename_tcl = "{" + filename + "}"
                 if (language == "systemverilog"):
                     tcl.append("read_verilog -v " + filename_tcl)
@@ -181,6 +186,10 @@ class XilinxVivadoToolchain:
         # Add EDIFs
         tcl.append("\n# Add EDIFs\n")
         for filename in platform.edifs:
+            if copy_deps:
+                relative_path = os.path.join(".", os.path.basename(filename))
+                copyfile(filename, relative_path)
+                filename = relative_path
             filename_tcl = "{" + filename + "}"
             tcl.append("read_edif " + filename_tcl)
 
@@ -190,6 +199,10 @@ class XilinxVivadoToolchain:
             if filename.endswith("tcl"):
                 tcl += open(filename, "r").read().splitlines()
             else:
+                if copy_deps:
+                    relative_path = os.path.join(".", os.path.basename(filename))
+                    copyfile(filename, relative_path)
+                    filename = relative_path
                 filename_tcl = "{" + filename + "}"
                 ip = os.path.splitext(os.path.basename(filename))[0]
                 tcl.append("read_ip " + filename_tcl)
@@ -329,6 +342,7 @@ class XilinxVivadoToolchain:
         run        = True,
         synth_mode = "vivado",
         enable_xpm = False,
+        copy_deps  = False,
         **kwargs):
 
         # Create build directory
@@ -359,6 +373,7 @@ class XilinxVivadoToolchain:
             synth_mode = synth_mode,
             enable_xpm = enable_xpm,
             vns        = v_output.ns,
+            copy_deps  = copy_deps,
         )
 
         # Generate design constraints (.xdc)
