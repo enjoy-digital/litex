@@ -500,9 +500,10 @@ def convert(f, ios=set(), name="top", platform=None,
     # Lower basics (for basics included in specials).
     f = lower_basics(f)
 
-    # IOs collection.
-    if platform is not None:
-        ios.update(platform.constraint_manager.get_io_signals())
+    # IOs collection (when not specified).
+    if len(ios) == 0:
+        assert platform is not None
+        ios = platform.constraint_manager.get_io_signals()
 
     # IOs backtrace/naming.
     for io in sorted(ios, key=lambda x: x.duid):
