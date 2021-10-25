@@ -24,7 +24,6 @@ from migen.fhdl.namer import build_namespace
 from migen.fhdl.conv_output import ConvOutput
 from migen.fhdl.specials import Memory
 
-from litex.gen.fhdl.memory import memory_emit_verilog
 from litex.build.tools import generated_banner
 
 # ------------------------------------------------------------------------------------------------ #
@@ -442,7 +441,13 @@ def _print_specials(overrides, specials, ns, add_data_file, attr_translate):
                 r += attr + " "
         # Replace Migen Memory's emit_verilog with our implementation.
         if isinstance(special, Memory):
-            pr = memory_emit_verilog(special, ns, add_data_file)
+            from litex.build.efinix.platform import EfinixPlatform
+            if isinstance(special.platform, EfinixPlatform) and (special.width == 32): # FIXME: Improve.
+                from litex.gen.fhdl.memory_efinix import memory_emit_verilog
+                pr = memory_emit_verilog(special, ns, add_data_file)
+            else:
+                from litex.gen.fhdl.memory import memory_emit_verilog
+                pr = memory_emit_verilog(special, ns, add_data_file)
         else:
             pr = call_special_classmethod(overrides, special, "emit_verilog", ns, add_data_file)
         if pr is None:

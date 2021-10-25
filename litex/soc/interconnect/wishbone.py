@@ -329,7 +329,7 @@ class Converter(Module):
 # Wishbone SRAM ------------------------------------------------------------------------------------
 
 class SRAM(Module):
-    def __init__(self, mem_or_size, read_only=None, init=None, bus=None, no_we=False):
+    def __init__(self, mem_or_size, read_only=None, init=None, bus=None):
         if bus is None:
             bus = Interface()
         self.bus = bus
@@ -338,12 +338,7 @@ class SRAM(Module):
             assert(mem_or_size.width <= bus_data_width)
             self.mem = mem_or_size
         else:
-            if no_we:
-                # FIXME: Cleanup/Improve integration.
-                from litex.build.efinix.memory import Memory as NoWeMemory
-                self.mem = NoWeMemory(bus_data_width, mem_or_size//(bus_data_width//8), init=init)
-            else:
-                self.mem = Memory(bus_data_width, mem_or_size//(bus_data_width//8), init=init)
+            self.mem = Memory(bus_data_width, mem_or_size//(bus_data_width//8), init=init)
 
         if read_only is None:
             if hasattr(self.mem, "bus_read_only"):
