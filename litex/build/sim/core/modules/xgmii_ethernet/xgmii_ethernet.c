@@ -302,10 +302,10 @@ static xgmii_bus_snapshot_t xgmii_ethernet_rx_adv(xgmii_ethernet_state_t *s,
             // is going to be wrong and thus the packet being cut off
             // can be detected.
             uint32_t crc = crc32(0, popped_rx_pkt->data, popped_rx_pkt->len);
-            s->current_rx_pkt[copy_len + 0] = (crc >> 24) & 0xFF;
-            s->current_rx_pkt[copy_len + 1] = (crc >> 16) & 0xFF;
-            s->current_rx_pkt[copy_len + 2] = (crc >>  8) & 0xFF;
-            s->current_rx_pkt[copy_len + 3] = (crc >>  0) & 0xFF;
+            s->current_rx_pkt[copy_len + 3] = (crc >> 24) & 0xFF;
+            s->current_rx_pkt[copy_len + 2] = (crc >> 16) & 0xFF;
+            s->current_rx_pkt[copy_len + 1] = (crc >>  8) & 0xFF;
+            s->current_rx_pkt[copy_len + 0] = (crc >>  0) & 0xFF;
 
 #ifdef XGMII_RX_DEBUG
             fprintf(stderr, "\n----------------------------------\n"
