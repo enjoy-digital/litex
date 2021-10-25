@@ -43,25 +43,26 @@ class EfinixAsyncResetSynchronizer:
 # Efinix Tristate ----------------------------------------------------------------------------------
 
 class EfinixTristateImpl(Module):
-    def __init__(self, platform, io, o, oe, i):
+    def __init__(self, platform, io, o, oe, i=None):
         nbits, sign = value_bits_sign(io)
         assert nbits == 1
         io_name = platform.get_pin_name(io)
-        print(io_name)
         io_loc  = platform.get_pin_location(io)
-        self.comb += [
-            platform.add_iface_io(io_name + "_OUT").eq(o),
-            platform.add_iface_io(io_name + "_OE").eq(oe),
-            i.eq(platform.add_iface_io(io_name + "_IN"))
-        ]
+        io_o    = platform.add_iface_io(io_name + "_OUT")
+        io_oe   = platform.add_iface_io(io_name +  "_OE")
+        io_i    = platform.add_iface_io(io_name +  "_IN")
+        self.comb += io_o.eq(o)
+        self.comb += io_oe.eq(oe)
+        if i is not None:
+            self.comb += i.eq(io_i)
         block = {
-            "type"    : "GPIO",
-            "mode"    : "INOUT",
-            "name"    : io_name,
-            "location": [io_loc[0]],
+            "type"     : "GPIO",
+            "mode"     : "INOUT",
+            "name"     : io_name,
+            "location" : [io_loc[0]],
         }
         platform.toolchain.ifacewriter.blocks.append(block)
-        #platform.delete(io) # FIXME!
+        platform.delete(io)
 
 class EfinixTristate(Module):
     @staticmethod
