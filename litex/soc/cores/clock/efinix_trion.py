@@ -58,8 +58,12 @@ class TRIONPLL(Module):
 
         # If clkin has a pin number, PLL clock input is EXTERNAL
         if self.platform.get_pin_location(clkin):
-           
             pad_name = self.platform.get_pin_location(clkin)[0]
+            # PLL v1 needs pin name
+            pin_name = self.platform.parser.get_gpio_instance_from_pin(pad_name)
+            if pin_name.count('_') == 2:
+                pin_name = pin_name.rsplit('_', 1)[0]
+
             self.platform.delete(clkin)
 
             #tpl = "create_clock -name {clk} -period {period} [get_ports {{{clk}}}]"
@@ -73,6 +77,7 @@ class TRIONPLL(Module):
                 quit()
 
             block['input_clock'] = 'EXTERNAL'
+            block['input_clock_pad'] = pin_name
             block['resource'] = pll_res
             block['clock_no'] = clock_no
             self.logger.info("Clock source: {}, using EXT_CLK{}".format(block['input_clock'], clock_no))

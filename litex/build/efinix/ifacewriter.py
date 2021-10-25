@@ -308,7 +308,7 @@ design.create('{2}', '{3}', './../gateware', overwrite=True)
         cmd = '# TODO: ' + str(block) +'\n'
         return cmd
 
-    def generate_pll(self, block, verbose=True):
+    def generate_pll(self, block, partnumber, verbose=True):
         name = block['name']
         cmd = '# ---------- PLL {} ---------\n'.format(name)
         cmd += 'design.create_block("{}", block_type="PLL")\n'.format(name)
@@ -316,8 +316,13 @@ design.create('{2}', '{3}', './../gateware', overwrite=True)
         cmd += 'design.set_property("{}", pll_config, block_type="PLL")\n\n'.format(name)
 
         if block['input_clock'] == 'EXTERNAL':
-            cmd += 'design.gen_pll_ref_clock("{}", pll_res="{}", refclk_src="{}", refclk_name="{}", ext_refclk_no="{}")\n\n' \
-                .format(name, block['resource'], block['input_clock'], block['input_clock_name'], block['clock_no'])
+            # PLL V1 has a different configuration
+            if partnumber[0:2] in ["T4", "T8"]:
+                cmd += 'design.gen_pll_ref_clock("{}", pll_res="{}", refclk_res="{}", refclk_name="{}", ext_refclk_no="{}")\n\n' \
+                    .format(name, block['resource'], block['input_clock_pad'], block['input_clock_name'], block['clock_no'])
+            else:
+                cmd += 'design.gen_pll_ref_clock("{}", pll_res="{}", refclk_src="{}", refclk_name="{}", ext_refclk_no="{}")\n\n' \
+                    .format(name, block['resource'], block['input_clock'], block['input_clock_name'], block['clock_no'])
         else:
             cmd += 'design.gen_pll_ref_clock("{}", pll_res="{}", refclk_name="{}", refclk_src="CORE")\n'.format(name, block['resource'], block['input_signal'])
             cmd += 'design.set_property("{}", "CORE_CLK_PIN", "{}", block_type="PLL")\n\n'.format(name, block['input_signal'])
@@ -361,11 +366,11 @@ design.create('{2}', '{3}', './../gateware', overwrite=True)
         cmd += '# ---------- END PLL {} ---------\n\n'.format(name)
         return cmd
 
-    def generate(self):
+    def generate(self, partnumber):
         output = ''
         for b in self.blocks:
             if b['type'] == 'PLL':
-                output += self.generate_pll(b)
+                output += self.generate_pll(b, partnumber)
             if b['type'] == 'GPIO':
                 output += self.generate_gpio(b)
 

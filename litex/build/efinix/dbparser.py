@@ -102,14 +102,22 @@ class EfinixDbParser():
 
         peri = root.findall('efxpt:periphery_instance', namespaces)
         for p in peri:
+            # T20/T120 have instance attribute in single_conn
+            # not true for T4/T8 -> search in dependency subnode
             if p.get('block') == 'pll':
-                conn = p.findall('efxpt:single_conn', namespaces)
-                for c in conn:
-                    if c.get('instance') == inst:
-                        refclk_no = 0
-                        if c.get('index') == '3':
-                            refclk_no = 1
-                        return (p.get('name'), refclk_no)
+                if self.device[0:2] not in ['T4', 'T8']:
+                    conn = p.findall('efxpt:single_conn', namespaces)
+                    for c in conn:
+                        if c.get('instance') == inst:
+                            refclk_no = 0
+                            if c.get('index') == '3':
+                                refclk_no = 1
+                            return (p.get('name'), refclk_no)
+                else:
+                    deps = p.findall('efxpt:dependency', namespaces)[0]
+                    for c in deps.findall('efxpt:instance_dep', namespaces)
+                        if c.get('name') == inst:
+                            return (p.get('name'), 3) # always 3 ?
 
         return None
 

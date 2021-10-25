@@ -148,7 +148,7 @@ def _build_peri(efinity_path, build_name, partnumber, named_sc, named_pc, fragme
     pythonpath = ""
 
     header    = platform.toolchain.ifacewriter.header(build_name, partnumber)
-    gen       = platform.toolchain.ifacewriter.generate()
+    gen       = platform.toolchain.ifacewriter.generate(partnumber)
     #TODO: move this to ifacewriter
     gpio      = _build_iface_gpio(named_sc, named_pc, fragment, platform, specials_gpios)
     add       = '\n'.join(additional_iface_commands)
