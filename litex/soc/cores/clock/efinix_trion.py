@@ -52,7 +52,7 @@ class TRIONPLL(Module):
             if pin_name.count("_") == 2:
                 pin_name = pin_name.rsplit("_", 1)[0]
 
-            self.platform.delete(clkin)
+            self.platform.toolchain.excluded_ios.append(clkin)
 
             #tpl = "create_clock -name {clk} -period {period} [get_ports {{{clk}}}]"
             #sdc = self.platform.toolchain.additional_sdc_commands
@@ -83,22 +83,14 @@ class TRIONPLL(Module):
     def create_clkout(self, cd, freq, phase=0, margin=1e-2, name="", with_reset=False):
         assert self.nclkouts < self.nclkouts_max
 
-        if name != "":
-            clk_out_name = name
-        else:
-            clk_out_name = "{}_CLKOUT{}".format(self.pll_name, self.nclkouts)
+        clk_out_name = "{}_CLKOUT{}".format(self.pll_name, self.nclkouts)
 
-        if cd != None:
-            self.platform.add_extension([(clk_out_name, 0, Pins(1))])
-            tmp = self.platform.request(clk_out_name)
-
-            if with_reset:
-                self.specials += AsyncResetSynchronizer(cd, ~self.locked)
-
-            # We don't want this IO to be in the interface configuration file as a simple GPIO
-            self.platform.toolchain.specials_gpios.append(tmp)
-            self.comb += cd.clk.eq(tmp)
-            create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
+        self.platform.add_extension([(clk_out_name, 0, Pins(1))])
+        self.comb += cd.clk.eq(self.platform.request(clk_out_name))
+        if with_reset:
+            self.specials += AsyncResetSynchronizer(cd, ~self.locked)
+        self.platform.toolchain.excluded_ios.append(clk_out_name)
+        create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
 
         self.nclkouts += 1
 
