@@ -115,7 +115,7 @@ class EfinixDbParser():
                             return (p.get('name'), refclk_no)
                 else:
                     deps = p.findall('efxpt:dependency', namespaces)[0]
-                    for c in deps.findall('efxpt:instance_dep', namespaces)
+                    for c in deps.findall('efxpt:instance_dep', namespaces):
                         if c.get('name') == inst:
                             return (p.get('name'), 3) # always 3 ?
 
