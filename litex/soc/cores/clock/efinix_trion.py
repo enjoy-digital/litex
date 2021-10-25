@@ -13,25 +13,20 @@ from litex.soc.cores.clock.common import *
 
 class Open(Signal): pass
 
-#TODO: do somthing else
-count = 0
-
 # Efinix / TRIONPLL ----------------------------------------------------------------------------------
 
 class TRIONPLL(Module):
     nclkouts_max = 4
     def __init__(self, platform, with_reset=False):
-        global count
         self.logger = logging.getLogger("TRIONPLL")
         self.logger.info("Creating TRIONPLL.".format())
         self.platform   = platform
         self.nclkouts   = 0
-        self.pll_name   = "pll{}".format(count)
+        self.pll_name   = "pll0" # FIXME: Add support for multiple PLLs.
         self.reset      = Signal()
         self.locked     = Signal()
 
         block = {}
-        count += 1
 
         block['type'] = 'PLL'
         block['name'] = self.pll_name
