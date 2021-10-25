@@ -17,7 +17,7 @@ class Open(Signal): pass
 
 class TRIONPLL(Module):
     nclkouts_max = 4
-    def __init__(self, platform, with_reset=False):
+    def __init__(self, platform):
         self.logger = logging.getLogger("TRIONPLL")
         self.logger.info("Creating TRIONPLL.".format())
         self.platform   = platform
@@ -26,25 +26,18 @@ class TRIONPLL(Module):
         self.reset      = Signal()
         self.locked     = Signal()
 
+        # Create PLL block.
         block = {}
-
-        block["type"] = "PLL"
-        block["name"] = self.pll_name
+        block["type"]    = "PLL"
+        block["name"]    = self.pll_name
         block["clk_out"] = []
-
-        pll_locked_name = self.pll_name + "_locked"
-        block["locked"] = pll_locked_name
-        io = self.platform.add_iface_io(pll_locked_name)
-        self.comb += self.locked.eq(io)
-
-        block["reset"] = ""
-        if with_reset:
-            pll_reset_name = self.pll_name + "_reset"
-            block["reset"] = pll_reset_name
-            io = self.platform.add_iface_io(pll_reset_name)
-            self.comb += io.eq(self.reset)
-
+        block["locked"]  = self.pll_name + "_locked"
+        block["rstn"]    = self.pll_name + "_rstn"
         self.platform.toolchain.ifacewriter.blocks.append(block)
+
+        # Connect PLL's rstn/locked.
+        self.comb += self.platform.add_iface_io(self.pll_name + "_rstn").eq(~self.reset)
+        self.comb += self.locked.eq(self.platform.add_iface_io(self.pll_name + "_locked"))
 
     def register_clkin(self, clkin, freq, name= ""):
         block = self.platform.toolchain.ifacewriter.get_block(self.pll_name)

@@ -328,8 +328,8 @@ design.create('{2}', '{3}', './../gateware', overwrite=True)
             cmd += 'design.set_property("{}", "CORE_CLK_PIN", "{}", block_type="PLL")\n\n'.format(name, block['input_signal'])
 
         cmd += 'design.set_property("{}","LOCKED_PIN","{}", block_type="PLL")\n'.format(name, block['locked'])
-        if block['reset'] != '':
-            cmd += 'design.set_property("{}","RSTN_PIN","{}", block_type="PLL")\n\n'.format(name, block['reset'])
+        if block['rstn'] != '':
+            cmd += 'design.set_property("{}","RSTN_PIN","{}", block_type="PLL")\n\n'.format(name, block['rstn'])
 
          # Output clock 0 is enabled by default
         for i, clock in enumerate(block['clk_out']):
