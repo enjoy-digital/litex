@@ -16,7 +16,7 @@ def memory_emit_verilog(memory, ns, add_data_file):
 
     for i in range(memory.width // 8):
         r += "reg [" + str((memory.width//4)-1) + ":0] " \
-        + gn(memory) + '_' + str(i) \
+        + gn(memory) + '_efx_' + str(i) \
         + "[0:" + str(memory.depth-1) + "];\n"
 
     adr_regs = {}
@@ -46,7 +46,7 @@ def memory_emit_verilog(memory, ns, add_data_file):
                     M = (i+1)*port.we_granularity-1
                     sl = "[" + str(M) + ":" + str(m) + "]"
                     r += "\tif (" + gn(port.we) + "[" + str(i) + "])\n"
-                    r += "\t\t" + gn(memory) + '_' + str(i) + "[" + gn(port.adr) + "]" + " <= " + gn(port.dat_w) + sl + ";\n"
+                    r += "\t\t" + gn(memory) + '_efx_' + str(i) + "[" + gn(port.adr) + "]" + " <= " + gn(port.dat_w) + sl + ";\n"
                     r += "end\n"
             else:
                 r += "\tif (" + gn(port.we) + ")\n"
@@ -61,7 +61,7 @@ def memory_emit_verilog(memory, ns, add_data_file):
                     m = i*port.we_granularity
                     M = (i+1)*port.we_granularity-1
                     sl = "[" + str(M) + ":" + str(m) + "]"
-                    bassign += gn(data_regs[id(port)]) + sl + " <= " + gn(memory) + "_" + str(i) + "[" + gn(port.adr) + "];\n"
+                    bassign += gn(data_regs[id(port)]) + sl + " <= " + gn(memory) + "_efx_" + str(i) + "[" + gn(port.adr) + "];\n"
                 if port.mode == READ_FIRST:
                     rd = "\t" + bassign
                 elif port.mode == NO_CHANGE:
@@ -83,7 +83,7 @@ def memory_emit_verilog(memory, ns, add_data_file):
                     m = i*port.we_granularity
                     M = (i+1)*port.we_granularity-1
                     sl = "[" + str(M) + ":" + str(m) + "]"
-                    r += "assign " + gn(port.dat_r) + sl + " = " + gn(memory) + "_" + str(i) + "[" + gn(adr_regs[id(port)]) + "];\n"
+                    r += "assign " + gn(port.dat_r) + sl + " = " + gn(memory) + "_efx_" + str(i) + "[" + gn(adr_regs[id(port)]) + "];\n"
             else:
                 r += "assign " + gn(port.dat_r) + " = " + gn(data_regs[id(port)]) + ";\n"
     r += "\n"
@@ -118,15 +118,15 @@ def memory_emit_verilog(memory, ns, add_data_file):
         for d in init_31_24:
             content_31_24 += formatter.format(d)
 
-        memory_filename1 = add_data_file(gn(memory) + "1.init", content_7_0)
-        memory_filename2 = add_data_file(gn(memory) + "2.init", content_15_8)
-        memory_filename3 = add_data_file(gn(memory) + "3.init", content_23_16)
-        memory_filename4 = add_data_file(gn(memory) + "4.init", content_31_24)
+        memory_filename1 = add_data_file(gn(memory) + "_efx_1.init", content_7_0)
+        memory_filename2 = add_data_file(gn(memory) + "_efx_2.init", content_15_8)
+        memory_filename3 = add_data_file(gn(memory) + "_efx_3.init", content_23_16)
+        memory_filename4 = add_data_file(gn(memory) + "_efx_4.init", content_31_24)
         r += "initial begin\n"
-        r += "\t$readmemh(\"" + memory_filename1 + "\", " + gn(memory)+ "_0" + ");\n"
-        r += "\t$readmemh(\"" + memory_filename2 + "\", " + gn(memory)+ "_1" + ");\n"
-        r += "\t$readmemh(\"" + memory_filename3 + "\", " + gn(memory)+ "_2" + ");\n"
-        r += "\t$readmemh(\"" + memory_filename4 + "\", " + gn(memory)+ "_3" + ");\n"
+        r += "\t$readmemh(\"" + memory_filename1 + "\", " + gn(memory)+ "_efx_0" + ");\n"
+        r += "\t$readmemh(\"" + memory_filename2 + "\", " + gn(memory)+ "_efx_1" + ");\n"
+        r += "\t$readmemh(\"" + memory_filename3 + "\", " + gn(memory)+ "_efx_2" + ");\n"
+        r += "\t$readmemh(\"" + memory_filename4 + "\", " + gn(memory)+ "_efx_3" + ");\n"
         r += "end\n\n"
 
     return r
