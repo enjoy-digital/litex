@@ -122,16 +122,23 @@ def _format_conf_constraint(signame, pin, others, resname, fragment, platform):
     fmt_c = [_format_constraint(c, signame, fmt_r, fragment, platform) for c in ([Pins(pin)] + others)]
     return ''.join(fmt_c)
 
-def _build_iface_gpio(named_sc, named_pc, fragment, platform, specials_gpios):
+def _build_iface_gpio(named_sc, named_pc, fragment, platform, excluded_ios):
     conf = []
     inst = []
 
     # GPIO
     for sig, pins, others, resname in named_sc:
-        if sig not in specials_gpios:
-            inst.append(_create_gpio_instance(fragment, platform, sig, pins))
-        else:
+        excluded = False
+        for excluded_io in excluded_ios:
+            if isinstance(excluded_io, str):
+                if sig == excluded_io:
+                    excluded = True
+            elif isinstance(excluded_io, Signal):
+                if sig == excluded_io.name:
+                    excluded = True
+        if excluded:
             continue
+        inst.append(_create_gpio_instance(fragment, platform, sig, pins))
         if len(pins) > 1:
             for i, p in enumerate(pins):
                 conf.append(_format_conf_constraint("{}[{}]".format(sig, i), p, others, resname, fragment, platform))
@@ -144,13 +151,13 @@ def _build_iface_gpio(named_sc, named_pc, fragment, platform, specials_gpios):
 
     return "\n".join(conf)
 
-def _build_peri(efinity_path, build_name, partnumber, named_sc, named_pc, fragment, platform, additional_iface_commands, specials_gpios):
+def _build_peri(efinity_path, build_name, partnumber, named_sc, named_pc, fragment, platform, additional_iface_commands, excluded_ios):
     pythonpath = ""
 
     header    = platform.toolchain.ifacewriter.header(build_name, partnumber)
     gen       = platform.toolchain.ifacewriter.generate(partnumber)
     #TODO: move this to ifacewriter
-    gpio      = _build_iface_gpio(named_sc, named_pc, fragment, platform, specials_gpios)
+    gpio      = _build_iface_gpio(named_sc, named_pc, fragment, platform, excluded_ios)
     add       = '\n'.join(additional_iface_commands)
     footer    = platform.toolchain.ifacewriter.footer()
 
@@ -245,7 +252,7 @@ class EfinityToolchain:
             [ 'efx_pgm', 'enable_crc_check', 'on', 'e_bool'],
         ]
         self.ifacewriter = InterfaceWriter(efinity_path)
-        self.specials_gpios = []
+        self.excluded_ios = []
         self.additional_iface_commands = []
 
     def build(self, platform, fragment,
@@ -272,9 +279,6 @@ class EfinityToolchain:
         v_file = build_name + ".v"
         v_output.write(v_file)
         platform.add_source(v_file)
-
-        sc = platform.constraint_manager.get_sig_constraints()
-        self.specials_gpios = [(v_output.ns.get_name(sig)) for sig in self.specials_gpios]
 
         if platform.verilog_include_paths:
             self.options['includ_path'] = '{' + ';'.join(platform.verilog_include_paths) + '}'
@@ -308,7 +312,7 @@ class EfinityToolchain:
             fragment                  = fragment,
             platform                  = platform,
             additional_iface_commands = self.additional_iface_commands,
-            specials_gpios            = self.specials_gpios)
+            excluded_ios              = self.excluded_ios)
 
         # DDR doesn't have Python API so we need to configure it
         # directly in the peri.xml file

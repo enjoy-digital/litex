@@ -109,28 +109,8 @@ class EfinixPlatform(GenericPlatform):
 
     def add_iface_io(self, name, size=1, append=True):
         self.add_extension([(name, 0, Pins(size))])
-        tmp = self.request(name)
-        # We don't want this IO to be in the interface configuration file as a simple GPIO
-        if append:
-            self.toolchain.specials_gpios.append(tmp)
-        return tmp
-
-    def add_iface_ios(self, io, append=True):
-        self.add_extension(io)
-        tmp = self.request(io[0][0])
-        if append:
-            for s in tmp.flatten():
-                self.toolchain.specials_gpios.append(s)
-        return tmp
-
-    def del_record_signal(self, record, sig):
-            for pos, (name, item) in enumerate(vars(record).items()):
-                    if isinstance(item, Signal):
-                            if item == sig:
-                                    # Two first pos are name and layout
-                                    del record.layout[pos-2]
-                                    delattr(record, name)
-                                    break
+        self.toolchain.excluded_ios.append(name)
+        return self.request(name)
 
     def get_pll_resource(self, name):
         self.pll_used.append(name)

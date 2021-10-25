@@ -62,7 +62,7 @@ class EfinixTristateImpl(Module):
             "location" : [io_loc[0]],
         }
         platform.toolchain.ifacewriter.blocks.append(block)
-        platform.delete(io)
+        platform.toolchain.excluded_ios.append(io_name)
 
 class EfinixTristate(Module):
     @staticmethod
