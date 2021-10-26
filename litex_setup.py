@@ -27,6 +27,11 @@ git_repos = {
     "migen":  GitRepo(url="https://github.com/m-labs/", clone="recursive"),
     "nmigen": GitRepo(url="https://github.com/nmigen/", clone="recursive"),
 
+    # LiteX SoC builder
+    "pythondata-software-picolibc":    GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
+    "pythondata-software-compiler_rt": GitRepo(url="https://github.com/litex-hub/"),
+    "litex":                           GitRepo(url="https://github.com/enjoy-digital/"),
+
     # LiteX Cores Ecosystem.
     "liteeth":      GitRepo(url="https://github.com/enjoy-digital/"),
     "litedram":     GitRepo(url="https://github.com/enjoy-digital/"),
@@ -224,7 +229,7 @@ if "install" in sys.argv[1:]:
 
 if "gcc" in sys.argv[1:]:
     os.chdir(os.path.join(current_path))
-    sifive_riscv_download()
+    riscv_gcc_toolchain_download()
     if "riscv64" not in os.environ.get("PATH", ""):
         print("Make sure that the downloaded RISC-V compiler is in your $PATH.")
         print("export PATH=$PATH:$(echo $PWD/riscv64-*/bin/)")
