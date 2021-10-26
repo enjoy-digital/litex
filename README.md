@@ -21,7 +21,7 @@ LiteX provides all the common components required to easily create an FPGA Core/
  - :heavy_check_mark: Complex cores through the ecosystem of cores: [LiteDRAM](https://github.com/enjoy-digital/litedram), [LitePCIe](https://github.com/enjoy-digital/litepcie), [LiteEth](https://github.com/enjoy-digital/liteeth), [LiteSATA](https://github.com/enjoy-digital/litesata), etc...
  - :heavy_check_mark: Various CPUs & ISAs: RISC-V, OpenRISC, LM32, Zynq, X86 (through a PCIe), etc...
  - :heavy_check_mark: Mixed languages support with VHDL/Verilog/(n)Migen/Spinal-HDL/etc... integration capabilities.
- - :heavy_check_mark: Powerful debug infractrusture through the various [bridges](https://github.com/enjoy-digital/litex/wiki/Use-Host-Bridge-to-control-debug-a-SoC) and [Litescope](https://github.com/enjoy-digital/litescope).
+ - :heavy_check_mark: Powerful debug infrastructure through the various [bridges](https://github.com/enjoy-digital/litex/wiki/Use-Host-Bridge-to-control-debug-a-SoC) and [Litescope](https://github.com/enjoy-digital/litescope).
  - :heavy_check_mark: Direct/Fast simulation through [Verilator](https://www.veripool.org/verilator/).
  - :heavy_check_mark: Build backends for open-source and vendors toolchains.
  - :heavy_check_mark: And a lot more... :)
