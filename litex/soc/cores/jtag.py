@@ -90,7 +90,7 @@ class USJTAG(XilinxJTAG):
 # ECP5 JTAG ----------------------------------------------------------------------------------------
 
 class ECP5JTAG(Module):
-    def __init__(self):
+    def __init__(self, tck_delay_luts=8):
         self.reset   = Signal()
         self.capture = Signal()
         self.shift   = Signal()
@@ -122,9 +122,21 @@ class ECP5JTAG(Module):
             i_JTDO1 = self.tdo, # FF(negedge TCK, JTDO1) if (IR==0x32 && FSM==Shift-DR)
         )
 
-        # Note due to TDI being registered inside JTAGG:
-        # We delay TCK here, so TDI is valid on our local TCK edge.
-        self.specials += MultiReg(tck, self.tck)
+        # TDI/TCK are synchronous on JTAGG output (TDI being registered with TCK). Introduce a delay
+        # on TCK with multiple LUT4s to allow its use as the JTAG Clk.
+        for i in range(tck_delay_luts):
+            new_tck = Signal()
+            self.specials += Instance("LUT4",
+                attr   = {"keep"},
+                p_INIT = 1,
+                i_A = tck,
+                i_B = 0,
+                i_C = 0,
+                i_D = 0,
+                o_Z = new_tck
+            )
+            tck = new_tck
+        self.comb += self.tck.eq(tck)
 
 # JTAG PHY -----------------------------------------------------------------------------------------
 
