@@ -5,6 +5,7 @@ import sys
 import subprocess
 import shutil
 import hashlib
+import argparse
 
 import urllib.request
 
@@ -210,31 +211,46 @@ def lm32_gcc_toolchain_download():
 
 # Run ----------------------------------------------------------------------------------------------
 
-if len(sys.argv) < 2:
-    print("Available commands:")
-    print("- init")
-    print("- update")
-    print("- install (add --user to install to user directory)")
-    print("- gcc")
-    print("- dev (dev mode, disable automatic litex_setup.py update)")
-    exit()
+def main():
+    parser = argparse.ArgumentParser(description="LiteX Setup utility.")
+    parser.add_argument("--init",      action="store_true", help="Initialize Git Repositories.")
+    parser.add_argument("--update",    action="store_true", help="Update Git Repositories.")
+    parser.add_argument("--install",   action="store_true", help="Install Git Repositories.")
+    parser.add_argument("--user",      action="store_true", help="Install in User-Mode.")
+    parser.add_argument("--gcc",       action="store_true", help="Download/Extract GCC Toolchain.")
+    parser.add_argument("--dev",       action="store_true", help="Development-Mode (no Auto-Update).")
+    parser.add_argument("compat_args", nargs="+",           help="Retro-Compatibility arguments (init, update, install or gcc).")
+    args = parser.parse_args()
 
-litex_setup_location_check()
-if "dev" not in sys.argv[1:]:
-    litex_setup_auto_update()
+    # Handle compat_args.
+    for arg in args.compat_args:
+        if arg in ["init", "update", "install", "gcc"]:
+            setattr(args, arg, True)
 
-if "init" in sys.argv[1:]:
-    litex_setup_init_repos()
+    # Location/Auto-Update.
+    litex_setup_location_check()
+    if args.dev:
+        litex_setup_auto_update()
 
-if "update" in sys.argv[1:]:
-    litex_setup_update_repos()
+    # Init.
+    if args.init:
+        litex_setup_init_repos()
 
-if "install" in sys.argv[1:]:
-    litex_setup_install_repos(user_mode="--user" in sys.argv[1:])
+    # Update.
+    if args.update:
+        litex_setup_update_repos()
 
-if "gcc" in sys.argv[1:]:
-    os.chdir(os.path.join(current_path))
-    riscv_gcc_toolchain_download()
-    if "riscv64" not in os.environ.get("PATH", ""):
-        print("Make sure that the downloaded RISC-V compiler is in your $PATH.")
-        print("export PATH=$PATH:$(echo $PWD/riscv64-*/bin/)")
+    # Install.
+    if args.install:
+        litex_setup_install_repos(user_mode=args.user)
+
+    # GCC.
+    if args.gcc:
+        os.chdir(os.path.join(current_path))
+        riscv_gcc_toolchain_download()
+        if "riscv64" not in os.environ.get("PATH", ""):
+            print("Make sure that the downloaded RISC-V compiler is in your $PATH.")
+            print("export PATH=$PATH:$(echo $PWD/riscv64-*/bin/)")
+
+if __name__ == "__main__":
+    main()
