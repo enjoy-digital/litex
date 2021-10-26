@@ -147,6 +147,17 @@ def litex_setup_install_repos(user_mode=False):
 
 # GCC Toolchains Download --------------------------------------------------------------------------
 
+def gcc_toolchain_download(url, filename):
+    if not os.path.exists(filename):
+        full_url = url + filename
+        print(f"Downloading {full_url} to {filename}.")
+        urllib.request.urlretrieve(full_url, filename)
+    else:
+        print("Using existing file {filename}.")
+
+    print(f"Extracting {filename}")
+    shutil.unpack_archive(filename)
+
 # RISC-V toolchain.
 # -----------------
 
@@ -165,17 +176,9 @@ def riscv_gcc_toolchain_download():
         end_file = "apple-darwin.tar.gz"
     else:
         raise NotImplementedError(sys.platform)
-    fn = base_file + end_file
 
-    if not os.path.exists(fn):
-        url = base_url + fn
-        print("Downloading", url, "to", fn)
-        urllib.request.urlretrieve(url, fn)
-    else:
-        print("Using existing file", fn)
-
-    print("Extracting", fn)
-    shutil.unpack_archive(fn)
+    # Download/Extract.
+    gcc_toolchain_download(url=base_url, filename=base_file + end_file)
 
 # PowerPC toolchain download.
 # ---------------------------
@@ -184,7 +187,8 @@ def powerpc_gcc_toolchain_download():
     base_url  = "https://toolchains.bootlin.com/downloads/releases/toolchains/powerpc64le-power8/tarballs/"
     base_file = "powerpc64le-power8--musl--stable-2020.08-1.tar.bz2"
 
-    # TODO
+    # Download/Extract.
+    gcc_toolchain_download(url=base_url, filename=base_file)
 
 # OpenRISC toolchain download.
 # ----------------------------
@@ -193,7 +197,8 @@ def openrisc_gcc_toolchain_download():
     base_url  = "https://toolchains.bootlin.com/downloads/releases/toolchains/openrisc/tarballs/"
     base_file = "openrisc--musl--stable-2020.08-1.tar.bz2"
 
-    # TODO
+    # Download/Extract.
+    gcc_toolchain_download(url=base_url, filename=base_file)
 
 # LM32 toolchain download.
 
