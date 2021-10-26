@@ -224,22 +224,23 @@ def main():
     parser.add_argument("--gcc", default=None, help="Download/Extract GCC Toolchain (riscv, powerpc, openrisc or lm32).")
 
     # Development mode.
-    parser.add_argument("--dev", action="store_true", help="Development-Mode (no Auto-Update).")
+    parser.add_argument("--dev", action="store_true", help="Development-Mode (no Auto-Update of litex_setup.py).")
 
     # Retro-compatibility.
-    parser.add_argument("compat_args", nargs="+", help="Retro-Compatibility arguments (init, update, install or gcc).")
+    parser.add_argument("compat_args", nargs="*", help="Retro-Compatibility arguments (init, update, install or gcc).")
     args = parser.parse_args()
 
     # Handle compat_args.
-    for arg in args.compat_args:
-        if arg in ["init", "update", "install"]:
-            setattr(args, arg, True)
-        if arg in ["gcc"]:
-            args.gcc = "riscv"
+    if args.compat_args is not None:
+        for arg in args.compat_args:
+            if arg in ["init", "update", "install"]:
+                setattr(args, arg, True)
+            if arg in ["gcc"]:
+                args.gcc = "riscv"
 
     # Location/Auto-Update.
     litex_setup_location_check()
-    if args.dev:
+    if not args.dev:
         litex_setup_auto_update()
 
     # Init.
