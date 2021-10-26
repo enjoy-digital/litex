@@ -9,9 +9,6 @@ import hashlib
 import urllib.request
 
 current_path = os.path.abspath(os.curdir)
-# Check location (is litex_setup.py executed inside a cloned LiteX repository or alongside?)
-if os.path.exists(".gitignore"):
-    current_path = os.path.join(current_path, "../")
 
 # Git Repositories ---------------------------------------------------------------------------------
 
@@ -62,11 +59,93 @@ git_repos = {
     "pythondata-cpu-ibex":         GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
 }
 
-# RISC-V toolchain download ------------------------------------------------------------------------
+# Script Location / Auto-Update --------------------------------------------------------------------
 
-# TODO: Update.
+def litex_setup_location_check():
+    # Check if script is executed inside a cloned LiteX repository or alongside?
+    if os.path.exists(".gitignore"):
+        global current_path
+        current_path = os.path.join(current_path, "../")
 
-def sifive_riscv_download():
+def litex_setup_auto_update():
+    litex_setup_url = "https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py"
+    current_sha1 = hashlib.sha1(open(os.path.realpath(__file__)).read().encode("utf-8")).hexdigest()
+    print("[Checking litex_setup.py]...")
+    try:
+        import requests
+        r = requests.get(litex_setup_url)
+        if r.status_code != 404:
+            upstream_sha1 = hashlib.sha1(r.content).hexdigest()
+            if current_sha1 != upstream_sha1:
+                print("[Updating litex_setup.py]...")
+                with open(os.path.realpath(__file__), "wb") as f:
+                    f.write(r.content)
+                os.execl(sys.executable, sys.executable, *sys.argv)
+    except:
+        pass
+
+# Repositories Initialization ----------------------------------------------------------------------
+
+def litex_setup_init_repos():
+    for name, repo in git_repos.items():
+        os.chdir(os.path.join(current_path))
+        print(f"[Checking {name}]...")
+        if not os.path.exists(name):
+            # Clone Repo.
+            print(f"[Cloning {name}]...")
+            subprocess.check_call("git clone {url} {options}".format(
+                url     = repo.url + name,
+                options = "--recursive" if repo.clone == "recursive" else ""
+                ), shell=True)
+            # Use specific SHA1 (Optional).
+            if repo.sha1 is not None:
+                os.chdir(os.path.join(current_path, name))
+                os.system(f"git checkout {repo.sha1:07x}")
+
+# Repositories Update ------------------------------------------------------------------------------
+
+def litex_setup_update_repos():
+    for name, repo in git_repos.items():
+        os.chdir(os.path.join(current_path))
+        # Check if Repo is present.
+        if not os.path.exists(name):
+            raise Exception("{} not initialized, please (re)-run init and install first.".format(name))
+        # Update Repo.
+        print(f"[Updating {name}]...")
+        os.chdir(os.path.join(current_path, name))
+        subprocess.check_call("git checkout master", shell=True)
+        subprocess.check_call("git pull --ff-only", shell=True)
+        # Recursive Update (Optional).
+        if repo.clone == "recursive":
+            subprocess.check_call("git submodule update --init --recursive", shell=True)
+        # Use specific SHA1 (Optional).
+        if repo.sha1 is not None:
+            os.chdir(os.path.join(current_path, name))
+            os.system(f"git checkout {repo.sha1:07x}")
+
+# Repositories Install -----------------------------------------------------------------------------
+
+def litex_setup_install_repos(user_mode=False):
+    for name, repo in git_repos.items():
+        os.chdir(os.path.join(current_path))
+        # Install Repo.
+        if repo.develop:
+            print(f"[Installing {name}]...")
+            os.chdir(os.path.join(current_path, name))
+            subprocess.check_call("python3 setup.py develop {options}".format(
+                options="--user" if user_mode else "",
+                ), shell=True)
+    if user_mode:
+        if ".local/bin" not in os.environ.get("PATH", ""):
+            print("Make sure that ~/.local/bin is in your PATH")
+            print("export PATH=$PATH:~/.local/bin")
+
+# GCC Toolchains Download --------------------------------------------------------------------------
+
+# RISC-V toolchain.
+# -----------------
+
+def riscv_gcc_toolchain_download():
     base_url  = "https://static.dev.sifive.com/dev-tools/"
     base_file = "riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-"
 
@@ -93,21 +172,33 @@ def sifive_riscv_download():
     print("Extracting", fn)
     shutil.unpack_archive(fn)
 
-# PowerPC toolchain download -----------------------------------------------------------------------
+# PowerPC toolchain download.
+# ---------------------------
 
-# TODO
-# Link: https://toolchains.bootlin.com/downloads/releases/toolchains/powerpc64le-power8/tarballs/powerpc64le-power8--musl--stable-2020.08-1.tar.bz2
+def powerpc_gcc_toolchain_download():
+    base_url  = "https://toolchains.bootlin.com/downloads/releases/toolchains/powerpc64le-power8/tarballs/"
+    base_file = "powerpc64le-power8--musl--stable-2020.08-1.tar.bz2"
 
-# LM32 toolchain download --------------------------------------------------------------------------
+    # TODO
 
-# TODO
+# OpenRISC toolchain download.
+# ----------------------------
 
-# OpenRisc toolchain download ----------------------------------------------------------------------
+def openrisc_gcc_toolchain_download():
+    base_url  = "https://toolchains.bootlin.com/downloads/releases/toolchains/openrisc/tarballs/"
+    base_file = "openrisc--musl--stable-2020.08-1.tar.bz2"
 
-# TODO
-# Link: https://toolchains.bootlin.com/downloads/releases/toolchains/openrisc/tarballs/openrisc--musl--stable-2020.08-1.tar.bz2
+    # TODO
 
-# Setup --------------------------------------------------------------------------------------------
+# LM32 toolchain download.
+
+def lm32_gcc_toolchain_download():
+    base_url  = ""
+    base_file = ""
+
+    # TODO
+
+# Run ----------------------------------------------------------------------------------------------
 
 if len(sys.argv) < 2:
     print("Available commands:")
@@ -118,84 +209,19 @@ if len(sys.argv) < 2:
     print("- dev (dev mode, disable automatic litex_setup.py update)")
     exit()
 
-# Check/Update of litex_setup.py.
-# -------------------------------
+litex_setup_location_check()
+if "dev" not in sys.argv[1:]:
+    litex_setup_auto_update()
 
-litex_setup_url = "https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py"
-current_sha1 = hashlib.sha1(open(os.path.realpath(__file__)).read().encode("utf-8")).hexdigest()
-print("[Checking litex_setup.py]...")
-try:
-    import requests
-    r = requests.get(litex_setup_url)
-    if r.status_code != 404:
-        upstream_sha1 = hashlib.sha1(r.content).hexdigest()
-        if current_sha1 != upstream_sha1:
-            if "dev" not in sys.argv[1:]:
-                print("[Updating litex_setup.py]...")
-                with open(os.path.realpath(__file__), "wb") as f:
-                    f.write(r.content)
-                os.execl(sys.executable, sys.executable, *sys.argv)
-except:
-    pass
-
-# Git Repositories Cloning.
-# -------------------------
 if "init" in sys.argv[1:]:
-    for name, repo in git_repos.items():
-        os.chdir(os.path.join(current_path))
-        print(f"[Checking {name}]...")
-        if not os.path.exists(name):
-            # Clone Repo.
-            print(f"[Cloning {name}]...")
-            subprocess.check_call("git clone {url} {options}".format(
-                url     = repo.url + name,
-                options = "--recursive" if repo.clone == "recursive" else ""
-                ), shell=True)
-            # Use specific SHA1 (Optional).
-            if repo.sha1 is not None:
-                os.chdir(os.path.join(current_path, name))
-                os.system(f"git checkout {repo.sha1:07x}")
+    litex_setup_init_repos()
 
-# Git Repositories Update.
-# ------------------------
 if "update" in sys.argv[1:]:
-    for name, repo in git_repos.items():
-        os.chdir(os.path.join(current_path))
-        # Check if Repo is present.
-        if not os.path.exists(name):
-            raise Exception("{} not initialized, please (re)-run init and install first.".format(name))
-        # Update Repo.
-        print(f"[Updating {name}]...")
-        os.chdir(os.path.join(current_path, name))
-        subprocess.check_call("git checkout master", shell=True)
-        subprocess.check_call("git pull --ff-only", shell=True)
-        # Recursive Update (Optional).
-        if repo.clone == "recursive":
-            subprocess.check_call("git submodule update --init --recursive", shell=True)
-        # Use specific SHA1 (Optional).
-        if repo.sha1 is not None:
-            os.chdir(os.path.join(current_path, name))
-            os.system(f"git checkout {repo.sha1:07x}")
+    litex_setup_update_repos()
 
-# Git Repositories Install.
-# -------------------------
 if "install" in sys.argv[1:]:
-    for name, repo in git_repos.items():
-        os.chdir(os.path.join(current_path))
-        # Install Repo.
-        if repo.develop:
-            print(f"[Installing {name}]...")
-            os.chdir(os.path.join(current_path, name))
-            subprocess.check_call("python3 setup.py develop {options}".format(
-                options="--user" if "--user" in sys.argv[1:] else ""),
-                shell=True)
-    if "--user" in sys.argv[1:]:
-        if ".local/bin" not in os.environ.get("PATH", ""):
-            print("Make sure that ~/.local/bin is in your PATH")
-            print("export PATH=$PATH:~/.local/bin")
+    litex_setup_install_repos(user_mode="--user" in sys.argv[1:])
 
-# GCC Toolchain Install.
-# ----------------------
 if "gcc" in sys.argv[1:]:
     os.chdir(os.path.join(current_path))
     sifive_riscv_download()
