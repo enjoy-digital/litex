@@ -42,6 +42,5 @@ jobs:
       # Test
       - name: Run Tests
         run: |
-          export GITHUB_ACTIONS=1
           export PATH=/usr/local/riscv/bin:$PATH
           python3 setup.py test
