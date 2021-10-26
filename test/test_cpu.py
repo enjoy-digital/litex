@@ -60,5 +60,5 @@ class TestCPU(unittest.TestCase):
         self.assertTrue(self.boot_test("minerva"))
 
     # OpenRISC CPUs.
-    def test_mor1kx(self):
-        self.assertTrue(self.boot_test("mor1kx"))
+    #def test_mor1kx(self):
+    #    self.assertTrue(self.boot_test("mor1kx"))
