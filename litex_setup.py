@@ -5,7 +5,6 @@ import sys
 import subprocess
 import shutil
 import hashlib
-from collections import OrderedDict
 
 import urllib.request
 
@@ -14,54 +13,54 @@ current_path = os.path.abspath(os.curdir)
 if os.path.exists(".gitignore"):
     current_path = os.path.join(current_path, "../")
 
-# Repositories -------------------------------------------------------------------------------------
+# Git Repositories ---------------------------------------------------------------------------------
 
 # Get SHA1: git rev-parse --short=7 HEAD
 
-# Name,  (URL, Recursive clone, Develop, SHA1)
-repos = [
-    # HDL
-    ("migen",        ("https://github.com/m-labs/",        True,  True, None)),
-    ("nmigen",       ("https://github.com/nmigen/",        True,  True, None)),
+class GitRepo:
+    def __init__(self, url, clone="regular", develop=True, sha1=None):
+        assert clone in ["regular", "recursive"]
+        self.url     = url
+        self.clone   = clone
+        self.develop = develop
+        self.sha1    = sha1
 
-    # LiteX SoC builder
-    ("pythondata-software-picolibc",    ("https://github.com/litex-hub/",     True,  True, None)),
-    ("pythondata-software-compiler_rt", ("https://github.com/litex-hub/",     False, True, None)),
-    ("litex",                           ("https://github.com/enjoy-digital/", False, True, None)),
+git_repos = {
+    # HDL.
+    "migen":  GitRepo(url="https://github.com/m-labs/", clone="recursive"),
+    "nmigen": GitRepo(url="https://github.com/nmigen/", clone="recursive"),
 
-    # LiteX cores ecosystem
-    ("liteeth",      ("https://github.com/enjoy-digital/", False, True, None)),
-    ("litedram",     ("https://github.com/enjoy-digital/", False, True, None)),
-    ("litepcie",     ("https://github.com/enjoy-digital/", False, True, None)),
-    ("litesata",     ("https://github.com/enjoy-digital/", False, True, None)),
-    ("litesdcard",   ("https://github.com/enjoy-digital/", False, True, None)),
-    ("liteiclink",   ("https://github.com/enjoy-digital/", False, True, None)),
-    ("litescope",    ("https://github.com/enjoy-digital/", False, True, None)),
-    ("litejesd204b", ("https://github.com/enjoy-digital/", False, True, None)),
-    ("litespi",      ("https://github.com/litex-hub/",     False, True, None)),
-    ("litehyperbus", ("https://github.com/litex-hub/",     False, True, None)),
+    # LiteX Cores Ecosystem.
+    "liteeth":      GitRepo(url="https://github.com/enjoy-digital/"),
+    "litedram":     GitRepo(url="https://github.com/enjoy-digital/"),
+    "litepcie":     GitRepo(url="https://github.com/enjoy-digital/"),
+    "litesata":     GitRepo(url="https://github.com/enjoy-digital/"),
+    "litesdcard":   GitRepo(url="https://github.com/enjoy-digital/"),
+    "liteiclink":   GitRepo(url="https://github.com/enjoy-digital/"),
+    "litescope":    GitRepo(url="https://github.com/enjoy-digital/"),
+    "litejesd204b": GitRepo(url="https://github.com/enjoy-digital/"),
+    "litespi":      GitRepo(url="https://github.com/litex-hub/"),
+    "litehyperbus": GitRepo(url="https://github.com/litex-hub/"),
 
-    # LiteX boards support
-    ("litex-boards", ("https://github.com/litex-hub/",     False, True, None)),
+    # LiteX Boards.
+    "litex-boards": GitRepo(url="https://github.com/litex-hub/", clone="regular"),
 
-    # Optional LiteX data
-    ("pythondata-misc-tapcfg",     ("https://github.com/litex-hub/", False, True, None)),
-    ("pythondata-misc-usb_ohci",   ("https://github.com/litex-hub/", False, True, None)),
-    ("pythondata-cpu-lm32",        ("https://github.com/litex-hub/", False, True, None)),
-    ("pythondata-cpu-mor1kx",      ("https://github.com/litex-hub/", False, True, None)),
-    ("pythondata-cpu-picorv32",    ("https://github.com/litex-hub/", False, True, None)),
-    ("pythondata-cpu-serv",        ("https://github.com/litex-hub/", False, True, None)),
-    ("pythondata-cpu-vexriscv",    ("https://github.com/litex-hub/", False, True, None)),
-    ("pythondata-cpu-vexriscv-smp",("https://github.com/litex-hub/", True,  True, None)),
-    ("pythondata-cpu-rocket",      ("https://github.com/litex-hub/", False, True, None)),
-    ("pythondata-cpu-minerva",     ("https://github.com/litex-hub/", False, True, None)),
-    ("pythondata-cpu-microwatt",   ("https://github.com/litex-hub/", False, True, 0xdad611c)),
-    ("pythondata-cpu-blackparrot", ("https://github.com/litex-hub/", False, True, None)),
-    ("pythondata-cpu-cv32e40p",    ("https://github.com/litex-hub/", True,  True, None)),
-    ("pythondata-cpu-ibex",        ("https://github.com/litex-hub/", True,  True, None)),
-]
-
-repos = OrderedDict(repos)
+    # LiteX pythondata.
+    "pythondata-misc-tapcfg":      GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-misc-usb_ohci":    GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-cpu-lm32":         GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-cpu-mor1kx":       GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-cpu-picorv32":     GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-cpu-serv":         GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-cpu-vexriscv":     GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-cpu-vexriscv-smp": GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
+    "pythondata-cpu-rocket":       GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-cpu-minerva":      GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-cpu-microwatt":    GitRepo(url="https://github.com/litex-hub/", sha1=0xdad611c),
+    "pythondata-cpu-blackparrot":  GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-cpu-cv32e40p":     GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
+    "pythondata-cpu-ibex":         GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
+}
 
 # RISC-V toolchain download ------------------------------------------------------------------------
 
@@ -119,11 +118,12 @@ if len(sys.argv) < 2:
     print("- dev (dev mode, disable automatic litex_setup.py update)")
     exit()
 
-# Check/Update litex_setup.py
+# Check/Update of litex_setup.py.
+# -------------------------------
 
 litex_setup_url = "https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py"
 current_sha1 = hashlib.sha1(open(os.path.realpath(__file__)).read().encode("utf-8")).hexdigest()
-print("[checking litex_setup.py]...")
+print("[Checking litex_setup.py]...")
 try:
     import requests
     r = requests.get(litex_setup_url)
@@ -131,67 +131,71 @@ try:
         upstream_sha1 = hashlib.sha1(r.content).hexdigest()
         if current_sha1 != upstream_sha1:
             if "dev" not in sys.argv[1:]:
-                print("[updating litex_setup.py]...")
+                print("[Updating litex_setup.py]...")
                 with open(os.path.realpath(__file__), "wb") as f:
                     f.write(r.content)
                 os.execl(sys.executable, sys.executable, *sys.argv)
 except:
     pass
 
-# Repositories cloning
+# Git Repositories Cloning.
+# -------------------------
 if "init" in sys.argv[1:]:
-    for name in repos.keys():
+    for name, repo in git_repos.items():
         os.chdir(os.path.join(current_path))
+        print(f"[Checking {name}]...")
         if not os.path.exists(name):
-            url, need_recursive, need_develop, sha1 = repos[name]
-            # clone repo (recursive if needed)
-            print("[cloning " + name + "]...")
-            full_url = url + name
-            opts = "--recursive" if need_recursive else ""
-            subprocess.check_call("git clone " + full_url + " " + opts, shell=True)
-            if sha1 is not None:
+            # Clone Repo.
+            print(f"[Cloning {name}]...")
+            subprocess.check_call("git clone {url} {options}".format(
+                url     = repo.url + name,
+                options = "--recursive" if repo.clone == "recursive" else ""
+                ), shell=True)
+            # Use specific SHA1 (Optional).
+            if repo.sha1 is not None:
                 os.chdir(os.path.join(current_path, name))
-                os.system("git checkout {:07x}".format(sha1))
+                os.system(f"git checkout {repo.sha1:07x}")
 
-# Repositories update
+# Git Repositories Update.
+# ------------------------
 if "update" in sys.argv[1:]:
-    for name in repos.keys():
+    for name, repo in git_repos.items():
         os.chdir(os.path.join(current_path))
-        url, need_recursive, need_develop, sha1 = repos[name]
-        print(url)
+        # Check if Repo is present.
         if not os.path.exists(name):
             raise Exception("{} not initialized, please (re)-run init and install first.".format(name))
-        # update
-        print("[updating " + name + "]...")
+        # Update Repo.
+        print(f"[Updating {name}]...")
         os.chdir(os.path.join(current_path, name))
         subprocess.check_call("git checkout master", shell=True)
         subprocess.check_call("git pull --ff-only", shell=True)
-        if need_recursive:
+        # Recursive Update (Optional).
+        if repo.clone == "recursive":
             subprocess.check_call("git submodule update --init --recursive", shell=True)
-        if sha1 is not None:
+        # Use specific SHA1 (Optional).
+        if repo.sha1 is not None:
             os.chdir(os.path.join(current_path, name))
-            os.system("git checkout {:07x}".format(sha1))
+            os.system(f"git checkout {repo.sha1:07x}")
 
-# Repositories installation
+# Git Repositories Install.
+# -------------------------
 if "install" in sys.argv[1:]:
-    for name in repos.keys():
+    for name, repo in git_repos.items():
         os.chdir(os.path.join(current_path))
-        url, need_recursive, need_develop, sha1 = repos[name]
-        # develop if needed
-        print("[installing " + name + "]...")
-        if need_develop:
+        # Install Repo.
+        if repo.develop:
+            print(f"[Installing {name}]...")
             os.chdir(os.path.join(current_path, name))
-            if "--user" in sys.argv[1:]:
-                subprocess.check_call("python3 setup.py develop --user", shell=True)
-            else:
-                subprocess.check_call("python3 setup.py develop", shell=True)
-
+            subprocess.check_call("python3 setup.py develop {options}".format(
+                options="--user" if "--user" in sys.argv[1:] else ""),
+                shell=True)
     if "--user" in sys.argv[1:]:
         if ".local/bin" not in os.environ.get("PATH", ""):
             print("Make sure that ~/.local/bin is in your PATH")
             print("export PATH=$PATH:~/.local/bin")
 
-# RISC-V GCC installation
+# GCC Toolchain Install.
+# ----------------------
 if "gcc" in sys.argv[1:]:
     os.chdir(os.path.join(current_path))
     sifive_riscv_download()
