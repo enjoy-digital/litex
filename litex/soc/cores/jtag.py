@@ -4,10 +4,11 @@
 # Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2019 Antti Lukats <antti.lukats@gmail.com>
 # Copyright (c) 2017 Robert Jordens <jordens@gmail.com>
+# Copyright (c) 2021 Gergory Davill <greg.davill@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
-from migen.genlib.cdc import AsyncResetSynchronizer
+from migen.genlib.cdc import AsyncResetSynchronizer, MultiReg
 
 from litex.soc.interconnect import stream
 
@@ -85,6 +86,45 @@ class USJTAG(XilinxJTAG):
     def __init__(self, *args, **kwargs):
         XilinxJTAG.__init__(self, primitive="BSCANE2", *args, **kwargs)
 
+# ECP5 JTAG ----------------------------------------------------------------------------------------
+
+class ECP5JTAG(Module):
+    def __init__(self):
+        self.reset   = Signal()
+        self.capture = Signal()
+        self.shift   = Signal()
+        self.update  = Signal()
+
+        self.tck = Signal()
+        self.tdi = Signal()
+        self.tdo = Signal()
+
+        tck = Signal()
+        jce1 = Signal()
+        _jce1 = Signal()
+        rst_n = Signal()
+
+        # # #
+
+        self.sync.jtag += _jce1.eq(jce1)
+        self.comb += self.capture.eq(~_jce1 & jce1) # First cycle jce1 is high we're in Capture-DR
+        self.comb += self.reset.eq(~rst_n)
+
+        self.specials += Instance("JTAGG",
+            o_JRSTN   = rst_n,
+            o_JSHIFT  = self.shift,
+            o_JUPDATE = self.update,
+
+            o_JTCK  = tck,
+            o_JTDI  = self.tdi, # JTDI = FF(posedge TCK, TDI)
+            o_JCE1  = jce1,     # (FSM==Capture-DR || Shift-DR) & (IR==0x32)
+            i_JTDO1 = self.tdo, # FF(negedge TCK, JTDO1) if (IR==0x32 && FSM==Shift-DR)
+        )
+
+        # Note due to TDI being registered inside JTAGG:
+        # We delay TCK here, so TDI is valid on our local TCK edge
+        self.specials += MultiReg(tck, self.tck)
+
 # JTAG PHY -----------------------------------------------------------------------------------------
 
 class JTAGPHY(Module):
@@ -123,6 +163,8 @@ class JTAGPHY(Module):
                 jtag = S7JTAG(chain=chain)
             elif device[:4] in ["xcku", "xcvu"]:
                 jtag = USJTAG(chain=chain)
+            elif device[:6] == "LFE5UM":
+                jtag = ECP5JTAG()
             else:
                 raise NotImplementedError
             self.submodules.jtag = jtag
