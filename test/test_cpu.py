@@ -9,8 +9,8 @@ import pexpect
 import sys
 
 class TestCPU(unittest.TestCase):
-    def boot_test(self, cpu_type):
-        cmd = f'litex_sim --cpu-type={cpu_type}'
+    def boot_test(self, cpu_type, cpu_variant="standard"):
+        cmd = f'litex_sim --cpu-type={cpu_type} --cpu-variant={cpu_variant}'
         litex_prompt = [b'\033\[[0-9;]+mlitex\033\[[0-9;]+m>']
         is_success = True
         with open("/tmp/test_boot_log", "wb") as result_file:
@@ -62,3 +62,11 @@ class TestCPU(unittest.TestCase):
     # OpenRISC CPUs.
     #def test_mor1kx(self):
     #    self.assertTrue(self.boot_test("mor1kx"))
+
+    # PowerPC CPUs.
+    #def test_microwatt(self):
+    #    self.assertTrue(self.boot_test("microwatt", cpu_variant="standard+ghdl"))
+
+    # LM32 CPUs.
+    #def test_lm32(self):
+    #    self.assertTrue(self.boot_test("lm32"))
