@@ -3,7 +3,7 @@ name: ci
 on: [push, pull_request]
 
 jobs:
-  regression-test:
+  build:
     runs-on: ubuntu-18.04
     steps:
       # Checkout Repository
@@ -13,14 +13,13 @@ jobs:
       # Install Tools
       - name: Install Tools
         run: |
-          sudo apt-get install wget build-essential python3
+          sudo apt-get install wget build-essential python3 ninja-build
           sudo apt-get install verilator libevent-dev libjson-c-dev
           pip3 install setuptools
           pip3 install requests
-          pip3 install meson
-          pip3 install ninja
-          pip3 install nmigen-yosys
           pip3 install pexpect
+          pip3 install meson
+          pip3 install nmigen-yosys
 
       # Install (n)Migen / LiteX / Cores
       - name: Install LiteX
@@ -33,9 +32,8 @@ jobs:
         run: |
           wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py
           python3 litex_setup.py gcc
-          ls $PWD/../riscv64-*/bin/
-          export PATH=$PATH:$(echo $PWD/../riscv64-*/bin/)
-          riscv64-unknown-elf-gcc --version
+          sudo mkdir /usr/local/riscv
+          sudo cp -r $PWD/../riscv64-*/* /usr/local/riscv
 
       # Install Project
       - name: Install Project
@@ -45,5 +43,5 @@ jobs:
       - name: Run Tests
         run: |
           export GITHUB_ACTIONS=1
-          export PATH=$PATH:$(echo $PWD/../riscv64-*/bin/)
+          export PATH=/usr/local/riscv/bin:$PATH
           python3 setup.py test
