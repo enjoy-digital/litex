@@ -151,12 +151,12 @@ def litex_setup_install_repos(user_mode=False):
 def gcc_toolchain_download(url, filename):
     if not os.path.exists(filename):
         full_url = url + filename
-        print(f"Downloading {full_url} to {filename}.")
+        print(f"[Downloading {full_url} to {filename}]...")
         urllib.request.urlretrieve(full_url, filename)
     else:
         print("Using existing file {filename}.")
 
-    print(f"Extracting {filename}")
+    print(f"[Extracting {filename}]...")
     shutil.unpack_archive(filename)
 
 # RISC-V toolchain.
@@ -207,25 +207,35 @@ def lm32_gcc_toolchain_download():
     base_url  = ""
     base_file = ""
 
-    # TODO
+    raise NotImplementedError
 
 # Run ----------------------------------------------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(description="LiteX Setup utility.")
+
+    # Git Repositories.
     parser.add_argument("--init",      action="store_true", help="Initialize Git Repositories.")
     parser.add_argument("--update",    action="store_true", help="Update Git Repositories.")
     parser.add_argument("--install",   action="store_true", help="Install Git Repositories.")
     parser.add_argument("--user",      action="store_true", help="Install in User-Mode.")
-    parser.add_argument("--gcc",       action="store_true", help="Download/Extract GCC Toolchain.")
-    parser.add_argument("--dev",       action="store_true", help="Development-Mode (no Auto-Update).")
-    parser.add_argument("compat_args", nargs="+",           help="Retro-Compatibility arguments (init, update, install or gcc).")
+
+    # GCC toolchains.
+    parser.add_argument("--gcc", default=None, help="Download/Extract GCC Toolchain (riscv, powerpc, openrisc or lm32).")
+
+    # Development mode.
+    parser.add_argument("--dev", action="store_true", help="Development-Mode (no Auto-Update).")
+
+    # Retro-compatibility.
+    parser.add_argument("compat_args", nargs="+", help="Retro-Compatibility arguments (init, update, install or gcc).")
     args = parser.parse_args()
 
     # Handle compat_args.
     for arg in args.compat_args:
-        if arg in ["init", "update", "install", "gcc"]:
+        if arg in ["init", "update", "install"]:
             setattr(args, arg, True)
+        if arg in ["gcc"]:
+            args.gcc = "riscv"
 
     # Location/Auto-Update.
     litex_setup_location_check()
@@ -245,12 +255,15 @@ def main():
         litex_setup_install_repos(user_mode=args.user)
 
     # GCC.
-    if args.gcc:
-        os.chdir(os.path.join(current_path))
+    os.chdir(os.path.join(current_path))
+    if args.gcc == "riscv":
         riscv_gcc_toolchain_download()
-        if "riscv64" not in os.environ.get("PATH", ""):
-            print("Make sure that the downloaded RISC-V compiler is in your $PATH.")
-            print("export PATH=$PATH:$(echo $PWD/riscv64-*/bin/)")
+    if args.gcc == "powerpc":
+        powerpc_gcc_toolchain_download()
+    if args.gcc == "openrisc":
+        openrisc_gcc_toolchain_download()
+    if args.gcc == "lm32":
+        lm32_gcc_toolchain_download()
 
 if __name__ == "__main__":
     main()
