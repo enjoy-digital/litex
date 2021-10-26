@@ -47,11 +47,6 @@ class MOR1KX(CPU):
             "csr"      : 0xe0000000,
         }
 
-    # GCC Triple.
-    @property
-    def gcc_triple(self):
-        return "or1k-elf"
-
     # GCC Flags.
     @property
     def gcc_flags(self):

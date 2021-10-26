@@ -25,15 +25,18 @@ jobs:
       - name: Install LiteX
         run: |
           wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py
-          python3 litex_setup.py init install --user
+          python3 litex_setup.py --init --install --user
 
-      # Install RISC-V GCC
-      - name: Install RISC-V GCC
+      # Install GCC Toolchains
+      - name: Install GCC Toolchains
         run: |
           wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py
-          python3 litex_setup.py gcc
+          python3 litex_setup.py --gcc=riscv
           sudo mkdir /usr/local/riscv
           sudo cp -r $PWD/../riscv64-*/* /usr/local/riscv
+          python3 litex_setup.py --gcc=openrisc
+          sudo mkdir /usr/local/openrisc
+          sudo cp -r $PWD/../openrisc-*/* /usr/local/openrisc
 
       # Install Project
       - name: Install Project
@@ -43,4 +46,5 @@ jobs:
       - name: Run Tests
         run: |
           export PATH=/usr/local/riscv/bin:$PATH
+          export PATH=/usr/local/openrisc/bin:$PATH
           python3 setup.py test
