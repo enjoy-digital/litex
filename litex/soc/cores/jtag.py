@@ -4,7 +4,8 @@
 # Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2019 Antti Lukats <antti.lukats@gmail.com>
 # Copyright (c) 2017 Robert Jordens <jordens@gmail.com>
-# Copyright (c) 2021 Gergory Davill <greg.davill@gmail.com>
+# Copyright (c) 2021 Gregory Davill <greg.davill@gmail.com>
+# Copyright (c) 2021 Gabriel L. Somlo <somlo@cmu.edu>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
@@ -99,15 +100,15 @@ class ECP5JTAG(Module):
         self.tdi = Signal()
         self.tdo = Signal()
 
-        tck = Signal()
-        jce1 = Signal()
-        _jce1 = Signal()
-        rst_n = Signal()
-
         # # #
 
-        self.sync.jtag += _jce1.eq(jce1)
-        self.comb += self.capture.eq(~_jce1 & jce1) # First cycle jce1 is high we're in Capture-DR
+        rst_n  = Signal()
+        tck    = Signal()
+        jce1   = Signal()
+        jce1_d = Signal()
+
+        self.sync.jtag += jce1_d.eq(jce1)
+        self.comb += self.capture.eq(jce1 & ~jce1_d) # First cycle jce1 is high we're in Capture-DR.
         self.comb += self.reset.eq(~rst_n)
 
         self.specials += Instance("JTAGG",
@@ -122,7 +123,7 @@ class ECP5JTAG(Module):
         )
 
         # Note due to TDI being registered inside JTAGG:
-        # We delay TCK here, so TDI is valid on our local TCK edge
+        # We delay TCK here, so TDI is valid on our local TCK edge.
         self.specials += MultiReg(tck, self.tck)
 
 # JTAG PHY -----------------------------------------------------------------------------------------
