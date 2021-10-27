@@ -176,9 +176,10 @@ class JTAGPHY(Module):
                 jtag = S7JTAG(chain=chain)
             elif device[:4] in ["xcku", "xcvu"]:
                 jtag = USJTAG(chain=chain)
-            elif device[:6] == "LFE5UM":
+            elif device[:5] == "LFE5U":
                 jtag = ECP5JTAG()
             else:
+                print(device)
                 raise NotImplementedError
             self.submodules.jtag = jtag
 
