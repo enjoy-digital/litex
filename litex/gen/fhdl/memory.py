@@ -23,6 +23,7 @@ def memory_emit_verilog(memory, ns, add_data_file):
 
     # Parameters.
     # -----------
+    r         = ""
     adrbits   = bits_for(memory.depth-1)
     adr_regs  = {}
     data_regs = {}
@@ -36,9 +37,34 @@ def memory_emit_verilog(memory, ns, add_data_file):
         for port in memory.ports:
             port.mode = READ_FIRST
 
-    # Memory Declaration/Initialization.
-    # ----------------------------------
-    r = f"reg [{memory.width-1}:0] {gn(memory)}[0:{memory.depth-1}];\n"
+    # Memory Description.
+    # -------------------
+    r += "//" + "-"*80 + "\n"
+    r += f"// Memory {gn(memory)}: {memory.depth}-words x {memory.width}-bit\n"
+    r += "//" + "-"*80 + "\n"
+    for n, port in enumerate(memory.ports):
+        r += f"// Port {n} | "
+        if port.async_read:
+            r += "Read: Async | "
+        else:
+            r += "Read: Sync  | "
+        if port.we is None:
+            r += "Write: ---- | "
+        else:
+            r += "Write: Sync | "
+            r += "Mode: "
+            if port.mode == WRITE_FIRST:
+                r += "Write-First | "
+            elif port.mode == READ_FIRST:
+                r += "Read-First  | "
+            elif port.mode == NO_CHANGE:
+                r += "No-Change | "
+            r += f"Write-Granularity: {port.we_granularity} "
+        r += "\n"
+
+    # Memory Logic Declaration/Initialization.
+    # ----------------------------------------
+    r += f"reg [{memory.width-1}:0] {gn(memory)}[0:{memory.depth-1}];\n"
     if memory.init is not None:
         content = ""
         formatter = f"{{:0{int(memory.width/4)}x}}\n"
@@ -48,7 +74,7 @@ def memory_emit_verilog(memory, ns, add_data_file):
 
         r += "initial begin\n"
         r += f"\t$readmemh(\"{memory_filename}\", {gn(memory)});\n"
-        r += "end\n\n"
+        r += "end\n"
 
     # Port Intermediate Signals.
     # --------------------------
@@ -111,7 +137,7 @@ def memory_emit_verilog(memory, ns, add_data_file):
             else:
                 r += f"\tif ({gn(port.re)})\n"
                 r += "\t" + rd.replace("\n\t", "\n\t\t")
-        r += "end\n\n"
+        r += "end\n"
 
     # Ports Read Mapping.
     # -------------------
@@ -128,7 +154,6 @@ def memory_emit_verilog(memory, ns, add_data_file):
         # Read-First/No-Change mode: Data already Read on Data Register.
         if port.mode in [READ_FIRST, NO_CHANGE]:
              r += f"assign {gn(port.dat_r)} = {gn(data_regs[id(port)])};\n"
-
-    r += "\n"
+    r +=  "//" + "-"*80 + "\n\n"
 
     return r
