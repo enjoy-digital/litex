@@ -18,12 +18,12 @@ import datetime
 from xml.dom import expatbuilder
 import xml.etree.ElementTree as et
 
-from litex.build.generic_platform import *
-
 from migen.fhdl.structure import _Fragment
 from migen.fhdl.tools import *
 from migen.fhdl.namer import build_namespace
+from migen.fhdl.simplify import FullMemoryWE
 
+from litex.build.generic_platform import *
 from litex.build.generic_platform import Pins, IOStandard, Misc
 from litex.build import tools
 
@@ -267,6 +267,9 @@ class EfinityToolchain:
         cwd = os.getcwd()
         os.makedirs(build_dir, exist_ok=True)
         os.chdir(build_dir)
+
+        # Apply FullMemoryWE on design (Efiniy does not infer memories correctly otherwise).
+        FullMemoryWE()(fragment)
 
         # Finalize design
         if not isinstance(fragment, _Fragment):
