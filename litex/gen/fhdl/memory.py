@@ -103,13 +103,11 @@ def memory_emit_verilog(memory, ns, add_data_file):
         if port.we is not None:
             # Split Write Logic when Granularity.
             if port.we_granularity:
-                n = memory.width//port.we_granularity
-                for i in range(n):
-                    m = i*port.we_granularity
-                    M = (i+1)*port.we_granularity-1
-                    sl = f"[{M}:{m}]"
-                    r += f"\tif ({gn(port.we)}[{i}])\n"
-                    r += f"\t\t{gn(memory)}[{gn(port.adr)}]{sl} <= {gn(port.dat_w)}{sl};\n"
+                for n in range(memory.width//port.we_granularity):
+                    r += f"\tif ({gn(port.we)}[{n}])\n"
+                    lbit =     n*port.we_granularity
+                    hbit = (n+1)*port.we_granularity-1
+                    r += f"\t\t{gn(memory)}[{gn(port.adr)}][{hbit}:{lbit}] <= {gn(port.dat_w)}[{hbit}:{lbit}];\n"
             # Else use common Write Logic.
             else:
                 r += f"\tif ({gn(port.we)})\n"
