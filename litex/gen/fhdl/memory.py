@@ -29,12 +29,18 @@ def memory_emit_verilog(memory, ns, add_data_file):
 
     # Ports Transformations.
     # ----------------------
-    # https://github.com/enjoy-digital/litex/issues/1003
-    # FIXME: Verify behaviour with the different FPGA toolchains.
+
+    # Set Port Mode to Read-First when several Ports with different Clocks.
+    # FIXME: Verify behaviour with the different FPGA toolchains, try to avoid it.
     clocks = [port.clock for port in memory.ports]
     if clocks.count(clocks[0]) != len(clocks):
         for port in memory.ports:
             port.mode = READ_FIRST
+
+    # Set Port Granularity when 0.
+    for port in memory.ports:
+        if port.we_granularity == 0:
+            port.we_granularity = memory.width
 
     # Memory Description.
     # -------------------
@@ -98,17 +104,13 @@ def memory_emit_verilog(memory, ns, add_data_file):
         r += f"always @(posedge {gn(port.clock)}) begin\n"
         # Write Logic.
         if port.we is not None:
-            # Split Write Logic when Granularity.
-            if port.we_granularity:
-                for i in range(memory.width//port.we_granularity):
-                    r += f"\tif ({gn(port.we)}[{i}])\n"
-                    lbit =     i*port.we_granularity
-                    hbit = (i+1)*port.we_granularity-1
-                    r += f"\t\t{gn(memory)}[{gn(port.adr)}][{hbit}:{lbit}] <= {gn(port.dat_w)}[{hbit}:{lbit}];\n"
-            # Else use common Write Logic.
-            else:
-                r += f"\tif ({gn(port.we)})\n"
-                r += f"\t\t{gn(memory)}[{gn(port.adr)}] <= {gn(port.dat_w)};\n"
+            # Split Write Logic.
+            for i in range(memory.width//port.we_granularity):
+                wbit = f"[{i}]" if memory.width != port.we_granularity else ""
+                r += f"\tif ({gn(port.we)}{wbit})\n"
+                lbit =     i*port.we_granularity
+                hbit = (i+1)*port.we_granularity-1
+                r += f"\t\t{gn(memory)}[{gn(port.adr)}][{hbit}:{lbit}] <= {gn(port.dat_w)}[{hbit}:{lbit}];\n"
 
         # Read Logic.
         if not port.async_read:
