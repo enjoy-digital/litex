@@ -44,9 +44,9 @@ def memory_emit_verilog(memory, ns, add_data_file):
 
     # Memory Description.
     # -------------------
-    r += "//" + "-"*80 + "\n"
+    r += "//" + "-"*78 + "\n"
     r += f"// Memory {gn(memory)}: {memory.depth}-words x {memory.width}-bit\n"
-    r += "//" + "-"*80 + "\n"
+    r += "//" + "-"*78 + "\n"
     for n, port in enumerate(memory.ports):
         r += f"// Port {n} | "
         if port.async_read:
@@ -150,6 +150,6 @@ def memory_emit_verilog(memory, ns, add_data_file):
         # Read-First/No-Change mode: Data already Read on Data Register.
         if port.mode in [READ_FIRST, NO_CHANGE]:
              r += f"assign {gn(port.dat_r)} = {gn(data_regs[n])};\n"
-    r +=  "//" + "-"*80 + "\n\n"
+    r += "\n\n"
 
     return r
