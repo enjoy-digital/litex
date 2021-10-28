@@ -1,3 +1,10 @@
+#
+# This file is part of LiteX (Adapted from Migen for LiteX usage).
+#
+# This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
+# This file is Copyright (c) 2021 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
+
 from migen.fhdl.structure import *
 from migen.fhdl.module import *
 from migen.fhdl.bitcontainer import bits_for
@@ -6,21 +13,22 @@ from migen.fhdl.verilog import _printexpr as verilog_printexpr
 from migen.fhdl.specials import *
 
 def memory_emit_verilog(memory, ns, add_data_file):
-    r = ""
+    # Helpers.
+    # --------
     def gn(e):
         if isinstance(e, Memory):
             return ns.get_name(e)
         else:
             return verilog_printexpr(ns, e)[0]
-    adrbits = bits_for(memory.depth-1)
 
-    r += "reg [" + str(memory.width-1) + ":0] " \
-        + gn(memory) \
-        + "[0:" + str(memory.depth-1) + "];\n"
-
-    adr_regs = {}
+    # Parameters.
+    # -----------
+    adrbits   = bits_for(memory.depth-1)
+    adr_regs  = {}
     data_regs = {}
 
+    # Ports Transformations.
+    # ----------------------
     # https://github.com/enjoy-digital/litex/issues/1003
     # FIXME: Verify behaviour with the different FPGA toolchains.
     clocks = [port.clock for port in memory.ports]
@@ -28,69 +36,99 @@ def memory_emit_verilog(memory, ns, add_data_file):
         for port in memory.ports:
             port.mode = READ_FIRST
 
-    for port in memory.ports:
-        if not port.async_read:
-            if port.mode == WRITE_FIRST:
-                adr_reg = Signal(name_override="memadr")
-                r += "reg [" + str(adrbits-1) + ":0] " \
-                    + gn(adr_reg) + ";\n"
-                adr_regs[id(port)] = adr_reg
-            else:
-                data_reg = Signal(name_override="memdat")
-                r += "reg [" + str(memory.width-1) + ":0] " \
-                    + gn(data_reg) + ";\n"
-                data_regs[id(port)] = data_reg
+    # Memory Declaration/Initialization.
+    # ----------------------------------
+    r = f"reg [{memory.width-1}:0] {gn(memory)}[0:{memory.depth-1}];\n"
+    if memory.init is not None:
+        content = ""
+        formatter = f"{{:0{int(memory.width/4)}x}}\n"
+        for d in memory.init:
+            content += formatter.format(d)
+        memory_filename = add_data_file(f"{gn(memory)}.init", content)
 
+        r += "initial begin\n"
+        r += f"\t$readmemh(\"{memory_filename}\", {gn(memory)});\n"
+        r += "end\n\n"
+
+    # Port Intermediate Signals.
+    # --------------------------
     for port in memory.ports:
-        r += "always @(posedge " + gn(port.clock) + ") begin\n"
+        # No Intermediate Signal for Async Read.
+        if port.async_read:
+            continue
+
+        # Create Address Register in Write-First mode.
+        if port.mode in [WRITE_FIRST]:
+            adr_reg = Signal(name_override="memadr")
+            r += f"reg [{adrbits-1}:0] {gn(adr_reg)};\n"
+            adr_regs[id(port)] = adr_reg
+
+        # Create Data Register in Read-First/No Change mode.
+        if port.mode in [READ_FIRST, NO_CHANGE]:
+            data_reg = Signal(name_override="memdat")
+            r += f"reg [{memory.width-1}:0] {gn(data_reg)};\n"
+            data_regs[id(port)] = data_reg
+
+    # Ports Write/Read Logic.
+    # -----------------------
+    for port in memory.ports:
+        r += f"always @(posedge {gn(port.clock)}) begin\n"
+        # Write Logic.
         if port.we is not None:
+            # Split Write Logic when Granularity.
             if port.we_granularity:
                 n = memory.width//port.we_granularity
                 for i in range(n):
                     m = i*port.we_granularity
                     M = (i+1)*port.we_granularity-1
-                    sl = "[" + str(M) + ":" + str(m) + "]"
-                    r += "\tif (" + gn(port.we) + "[" + str(i) + "])\n"
-                    r += "\t\t" + gn(memory) + "[" + gn(port.adr) + "]" + sl + " <= " + gn(port.dat_w) + sl + ";\n"
+                    sl = f"[{M}:{m}]"
+                    r += f"\tif ({gn(port.we)}[{i}])\n"
+                    r += f"\t\t{gn(memory)}[{gn(port.adr)}]{sl} <= {gn(port.dat_w)}{sl};\n"
+            # Else use common Write Logic.
             else:
-                r += "\tif (" + gn(port.we) + ")\n"
-                r += "\t\t" + gn(memory) + "[" + gn(port.adr) + "] <= " + gn(port.dat_w) + ";\n"
+                r += f"\tif ({gn(port.we)})\n"
+                r += f"\t\t{gn(memory)}[{gn(port.adr)}] <= {gn(port.dat_w)};\n"
+
+        # Read Logic.
         if not port.async_read:
-            if port.mode == WRITE_FIRST:
-                rd = "\t" + gn(adr_regs[id(port)]) + " <= " + gn(port.adr) + ";\n"
-            else:
-                bassign = gn(data_regs[id(port)]) + " <= " + gn(memory) + "[" + gn(port.adr) + "];\n"
+            # In Write-First mode, Read from Address Register.
+            if port.mode in [WRITE_FIRST]:
+                rd = f"\t{gn(adr_regs[id(port)])} <= {gn(port.adr)};\n"
+
+            # In Write-First/No Change mode:
+            if port.mode in [READ_FIRST, NO_CHANGE]:
+                bassign = f"{gn(data_regs[id(port)])} <= {gn(memory)} [{gn(port.adr)}];\n"
+                # Always Read in Read-First mode.
                 if port.mode == READ_FIRST:
-                    rd = "\t" + bassign
+                    rd = f"\t{bassign}"
+                # Only Read in No-Change mode when no Write.
                 elif port.mode == NO_CHANGE:
-                    rd = "\tif (!" + gn(port.we) + ")\n" \
-                      + "\t\t" + bassign
+                    rd = f"\tif (!{gn(port.we)})\n\t\t{bassign}"
+
+            # Add Read-Enable Logic.
             if port.re is None:
                 r += rd
             else:
-                r += "\tif (" + gn(port.re) + ")\n"
+                r += f"\tif ({gn(port.re)})\n"
                 r += "\t" + rd.replace("\n\t", "\n\t\t")
         r += "end\n\n"
 
+    # Ports Read Mapping.
+    # -------------------
     for port in memory.ports:
+        # Direct (Asynchronous) Read on Async-Read mode.
         if port.async_read:
-            r += "assign " + gn(port.dat_r) + " = " + gn(memory) + "[" + gn(port.adr) + "];\n"
-        else:
-            if port.mode == WRITE_FIRST:
-                r += "assign " + gn(port.dat_r) + " = " + gn(memory) + "[" + gn(adr_regs[id(port)]) + "];\n"
-            else:
-                r += "assign " + gn(port.dat_r) + " = " + gn(data_regs[id(port)]) + ";\n"
+            r += f"assign {gn(port.dat_r)} = {gn(memory)}[{gn(port.adr)}];\n"
+            continue
+
+        # Write-First mode: Do Read through Address Register.
+        if port.mode in [WRITE_FIRST]:
+            r += f"assign {gn(port.dat_r)} = {gn(memory)}[{gn(adr_regs[id(port)])}];\n"
+
+        # Read-First/No-Change mode: Data already Read on Data Register.
+        if port.mode in [READ_FIRST, NO_CHANGE]:
+             r += f"assign {gn(port.dat_r)} = {gn(data_regs[id(port)])};\n"
+
     r += "\n"
-
-    if memory.init is not None:
-        content = ""
-        formatter = "{:0" + str(int(memory.width / 4)) + "X}\n"
-        for d in memory.init:
-            content += formatter.format(d)
-        memory_filename = add_data_file(gn(memory) + ".init", content)
-
-        r += "initial begin\n"
-        r += "\t$readmemh(\"" + memory_filename + "\", " + gn(memory) + ");\n"
-        r += "end\n\n"
 
     return r
