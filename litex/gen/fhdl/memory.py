@@ -118,15 +118,14 @@ def memory_emit_verilog(memory, ns, add_data_file):
             if port.mode in [WRITE_FIRST]:
                 rd = f"\t{gn(adr_regs[n])} <= {gn(port.adr)};\n"
 
-            # In Write-First/No Change mode:
+            # In Read-First/No Change mode:
             if port.mode in [READ_FIRST, NO_CHANGE]:
-                bassign = f"{gn(data_regs[n])} <= {gn(memory)} [{gn(port.adr)}];\n"
-                # Always Read in Read-First mode.
-                if port.mode == READ_FIRST:
-                    rd = f"\t{bassign}"
+                rd = ""
                 # Only Read in No-Change mode when no Write.
-                elif port.mode == NO_CHANGE:
-                    rd = f"\tif (!{gn(port.we)})\n\t\t{bassign}"
+                if port.mode == NO_CHANGE:
+                    rd += f"\tif (!{gn(port.we)})\n\t"
+                # Read-First/No-Change Read logic.
+                rd += f"\t{gn(data_regs[n])} <= {gn(memory)}[{gn(port.adr)}];\n"
 
             # Add Read-Enable Logic.
             if port.re is None:
