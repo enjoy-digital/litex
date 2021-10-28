@@ -24,7 +24,6 @@ def memory_emit_verilog(memory, ns, add_data_file):
     # Parameters.
     # -----------
     r         = ""
-    adrbits   = bits_for(memory.depth-1)
     adr_regs  = {}
     data_regs = {}
 
@@ -78,35 +77,33 @@ def memory_emit_verilog(memory, ns, add_data_file):
 
     # Port Intermediate Signals.
     # --------------------------
-    for port in memory.ports:
+    for n, port in enumerate(memory.ports):
         # No Intermediate Signal for Async Read.
         if port.async_read:
             continue
 
         # Create Address Register in Write-First mode.
         if port.mode in [WRITE_FIRST]:
-            adr_reg = Signal(name_override="memadr")
-            r += f"reg [{adrbits-1}:0] {gn(adr_reg)};\n"
-            adr_regs[id(port)] = adr_reg
+            adr_regs[n] = Signal(name_override=f"{gn(memory)}_adr{n}")
+            r += f"reg [{bits_for(memory.depth-1)-1}:0] {gn(adr_regs[n])};\n"
 
         # Create Data Register in Read-First/No Change mode.
         if port.mode in [READ_FIRST, NO_CHANGE]:
-            data_reg = Signal(name_override="memdat")
-            r += f"reg [{memory.width-1}:0] {gn(data_reg)};\n"
-            data_regs[id(port)] = data_reg
+            data_regs[n] = Signal(name_override=f"{gn(memory)}_dat{n}")
+            r += f"reg [{memory.width-1}:0] {gn(data_regs[n])};\n"
 
     # Ports Write/Read Logic.
     # -----------------------
-    for port in memory.ports:
+    for n, port in enumerate(memory.ports):
         r += f"always @(posedge {gn(port.clock)}) begin\n"
         # Write Logic.
         if port.we is not None:
             # Split Write Logic when Granularity.
             if port.we_granularity:
-                for n in range(memory.width//port.we_granularity):
-                    r += f"\tif ({gn(port.we)}[{n}])\n"
-                    lbit =     n*port.we_granularity
-                    hbit = (n+1)*port.we_granularity-1
+                for i in range(memory.width//port.we_granularity):
+                    r += f"\tif ({gn(port.we)}[{i}])\n"
+                    lbit =     i*port.we_granularity
+                    hbit = (i+1)*port.we_granularity-1
                     r += f"\t\t{gn(memory)}[{gn(port.adr)}][{hbit}:{lbit}] <= {gn(port.dat_w)}[{hbit}:{lbit}];\n"
             # Else use common Write Logic.
             else:
@@ -117,11 +114,11 @@ def memory_emit_verilog(memory, ns, add_data_file):
         if not port.async_read:
             # In Write-First mode, Read from Address Register.
             if port.mode in [WRITE_FIRST]:
-                rd = f"\t{gn(adr_regs[id(port)])} <= {gn(port.adr)};\n"
+                rd = f"\t{gn(adr_regs[n])} <= {gn(port.adr)};\n"
 
             # In Write-First/No Change mode:
             if port.mode in [READ_FIRST, NO_CHANGE]:
-                bassign = f"{gn(data_regs[id(port)])} <= {gn(memory)} [{gn(port.adr)}];\n"
+                bassign = f"{gn(data_regs[n])} <= {gn(memory)} [{gn(port.adr)}];\n"
                 # Always Read in Read-First mode.
                 if port.mode == READ_FIRST:
                     rd = f"\t{bassign}"
@@ -139,7 +136,7 @@ def memory_emit_verilog(memory, ns, add_data_file):
 
     # Ports Read Mapping.
     # -------------------
-    for port in memory.ports:
+    for n, port in enumerate(memory.ports):
         # Direct (Asynchronous) Read on Async-Read mode.
         if port.async_read:
             r += f"assign {gn(port.dat_r)} = {gn(memory)}[{gn(port.adr)}];\n"
@@ -147,11 +144,11 @@ def memory_emit_verilog(memory, ns, add_data_file):
 
         # Write-First mode: Do Read through Address Register.
         if port.mode in [WRITE_FIRST]:
-            r += f"assign {gn(port.dat_r)} = {gn(memory)}[{gn(adr_regs[id(port)])}];\n"
+            r += f"assign {gn(port.dat_r)} = {gn(memory)}[{gn(adr_regs[n])}];\n"
 
         # Read-First/No-Change mode: Data already Read on Data Register.
         if port.mode in [READ_FIRST, NO_CHANGE]:
-             r += f"assign {gn(port.dat_r)} = {gn(data_regs[id(port)])};\n"
+             r += f"assign {gn(port.dat_r)} = {gn(data_regs[n])};\n"
     r +=  "//" + "-"*80 + "\n\n"
 
     return r
