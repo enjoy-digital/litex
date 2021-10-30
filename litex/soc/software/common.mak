@@ -6,13 +6,14 @@ endif
 
 RM ?= rm -f
 PYTHON ?= python3
+CCACHE ?=
 
 ifeq ($(CLANG),1)
-CC_normal      := clang -target $(TRIPLE) -integrated-as
-CX_normal      := clang++ -target $(TRIPLE) -integrated-as
+CC_normal      := $(CCACHE) clang -target $(TRIPLE) -integrated-as
+CX_normal      := $(CCACHE) clang++ -target $(TRIPLE) -integrated-as
 else
-CC_normal      := $(TARGET_PREFIX)gcc -std=gnu99
-CX_normal      := $(TARGET_PREFIX)g++
+CC_normal      := $(CCACHE) $(TARGET_PREFIX)gcc -std=gnu99
+CX_normal      := $(CCACHE) $(TARGET_PREFIX)g++
 endif
 AR_normal      := $(TARGET_PREFIX)gcc-ar
 LD_normal      := $(TARGET_PREFIX)ld

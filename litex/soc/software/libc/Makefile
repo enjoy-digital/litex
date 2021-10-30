@@ -9,9 +9,15 @@ ifeq ($(CPU), microwatt)
 	CFLAGS += -DLONG_LONG_MIN=LLONG_MIN -DLONG_LONG_MAX=LLONG_MAX -DLONG_LONG_MIN=LLONG_MIN -DULONG_LONG_MAX=ULLONG_MAX
 endif
 
+ifeq ($(CCACHE), )
+	MESON_CROSS_CC = '$(TRIPLE)-gcc'
+else
+	MESON_CROSS_CC = ['$(CCACHE)', '$(TRIPLE)-gcc']
+endif
+
 define CROSSFILE
 [binaries]
-c     = '$(TRIPLE)-gcc'
+c     = $(MESON_CROSS_CC)
 ar    = '$(TRIPLE)-gcc-ar'
 as    = '$(TRIPLE)-as'
 nm    = '$(TRIPLE)-gcc-nm'
@@ -60,4 +66,3 @@ libc.a: $(LIBC_DIRECTORY)/missing.c _libc.a
 	$(compile)
 	$(AR) csr _libc.a $@
 	cp _libc.a libc.a
-
