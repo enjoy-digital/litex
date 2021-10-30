@@ -110,7 +110,8 @@ def memory_emit_verilog(memory, ns, add_data_file):
                 r += f"\tif ({gn(port.we)}{wbit})\n"
                 lbit =     i*port.we_granularity
                 hbit = (i+1)*port.we_granularity-1
-                r += f"\t\t{gn(memory)}[{gn(port.adr)}][{hbit}:{lbit}] <= {gn(port.dat_w)}[{hbit}:{lbit}];\n"
+                dslc = f"[{hbit}:{lbit}]" if (memory.width != port.we_granularity) else ""
+                r += f"\t\t{gn(memory)}[{gn(port.adr)}]{dslc} <= {gn(port.dat_w)}{dslc};\n"
 
         # Read Logic.
         if not port.async_read:
