@@ -395,7 +395,7 @@ def _print_module(f, ios, name, ns, attr_translate):
             sig.direction = "inout"
             r += "\tinout  wire " + _print_signal(ns, sig)
         elif sig in targets:
-            sig.direction = "output      "
+            sig.direction = "output"
             if sig in wires:
                 r += "\toutput wire " + _print_signal(ns, sig)
             else:
