@@ -189,6 +189,7 @@ class SimVerilatorToolchain:
             trace_fst        = False,
             trace_start      = 0,
             trace_end        = -1,
+            regular_comb     = False,
             interactive      = True,
             pre_run_callback = None):
 
@@ -202,6 +203,9 @@ class SimVerilatorToolchain:
             if not isinstance(fragment, _Fragment):
                 fragment = fragment.get_fragment()
             platform.finalize(fragment)
+
+            if regular_comb:
+                raise ValueError("SimVerilatorToolchain disallows regular_comb=True")
 
             # Generate verilog
             v_output = platform.get_verilog(fragment, name=build_name)
