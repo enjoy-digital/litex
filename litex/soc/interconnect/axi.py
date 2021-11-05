@@ -317,7 +317,7 @@ class AXIBurst2Beat(Module):
 
         beat_count  = Signal(8)
         beat_size   = Signal(8 + 4)
-        beat_offset = Signal((8 + 4, True))
+        beat_offset = Signal((8 + 4 + 1, True))
         beat_wrap   = Signal(8 + 4)
 
         # Compute parameters
