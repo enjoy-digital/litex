@@ -204,11 +204,11 @@ class SimVerilatorToolchain:
                 fragment = fragment.get_fragment()
             platform.finalize(fragment)
 
-            if regular_comb:
-                raise ValueError("SimVerilatorToolchain disallows regular_comb=True")
-
             # Generate verilog
-            v_output = platform.get_verilog(fragment, name=build_name)
+            v_output = platform.get_verilog(fragment,
+                name         = build_name,
+                regular_comb = regular_comb
+            )
             named_sc, named_pc = platform.resolve_signals(v_output.ns)
             v_file = build_name + ".v"
             v_output.write(v_file)
