@@ -39,7 +39,7 @@ class TRIONPLL(Module):
         self.comb += self.platform.add_iface_io(self.pll_name + "_rstn").eq(~self.reset)
         self.comb += self.locked.eq(self.platform.add_iface_io(self.pll_name + "_locked"))
 
-    def register_clkin(self, clkin, freq, name= ""):
+    def register_clkin(self, clkin, freq, name=""):
         block = self.platform.toolchain.ifacewriter.get_block(self.pll_name)
 
         block["input_clock_name"] = self.platform.get_pin_name(clkin)
@@ -64,15 +64,15 @@ class TRIONPLL(Module):
                 self.logger.error("Cannot find a pll with {} as input".format(pad_name))
                 quit()
 
-            block["input_clock"] = "EXTERNAL"
+            block["input_clock"]     = "EXTERNAL"
             block["input_clock_pad"] = pin_name
-            block["resource"] = pll_res
-            block["clock_no"] = clock_no
+            block["resource"]        = pll_res
+            block["clock_no"]        = clock_no
             self.logger.info("Clock source: {}, using EXT_CLK{}".format(block["input_clock"], clock_no))
             self.platform.get_pll_resource(pll_res)
         else:
-            block["input_clock"] = "INTERNAL"
-            block["resource"] = self.platform.get_free_pll_resource()
+            block["input_clock"]  = "INTERNAL"
+            block["resource"]     = self.platform.get_free_pll_resource()
             block["input_signal"] = name
             self.logger.info("Clock source: {}".format(block["input_clock"]))
 
@@ -85,12 +85,13 @@ class TRIONPLL(Module):
 
         clk_out_name = "{}_CLKOUT{}".format(self.pll_name, self.nclkouts)
 
-        self.platform.add_extension([(clk_out_name, 0, Pins(1))])
-        self.comb += cd.clk.eq(self.platform.request(clk_out_name))
-        if with_reset:
-            self.specials += AsyncResetSynchronizer(cd, ~self.locked)
-        self.platform.toolchain.excluded_ios.append(clk_out_name)
-        create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
+        if cd is not None:
+            self.platform.add_extension([(clk_out_name, 0, Pins(1))])
+            self.comb += cd.clk.eq(self.platform.request(clk_out_name))
+            if with_reset:
+                self.specials += AsyncResetSynchronizer(cd, ~self.locked)
+            self.platform.toolchain.excluded_ios.append(clk_out_name)
+            create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
 
         self.nclkouts += 1
 
