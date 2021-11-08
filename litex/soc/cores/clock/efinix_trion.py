@@ -83,7 +83,7 @@ class TRIONPLL(Module):
     def create_clkout(self, cd, freq, phase=0, margin=1e-2, name="", with_reset=False):
         assert self.nclkouts < self.nclkouts_max
 
-        clk_out_name = "{}_CLKOUT{}".format(self.pll_name, self.nclkouts)
+        clk_out_name = "{}_CLKOUT{}".format(self.pll_name, self.nclkouts) if name == "" else name
 
         if cd is not None:
             self.platform.add_extension([(clk_out_name, 0, Pins(1))])
