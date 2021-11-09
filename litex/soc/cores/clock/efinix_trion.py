@@ -17,30 +17,30 @@ class Open(Signal): pass
 
 class TRIONPLL(Module):
     nclkouts_max = 4
-    def __init__(self, platform):
+    def __init__(self, platform, n=0):
         self.logger = logging.getLogger("TRIONPLL")
         self.logger.info("Creating TRIONPLL.".format())
         self.platform   = platform
         self.nclkouts   = 0
-        self.pll_name   = "pll0" # FIXME: Add support for multiple PLLs.
         self.reset      = Signal()
         self.locked     = Signal()
+        self.name       = f"pll{n}"
 
         # Create PLL block.
         block = {}
         block["type"]    = "PLL"
-        block["name"]    = self.pll_name
+        block["name"]    = self.name
         block["clk_out"] = []
-        block["locked"]  = self.pll_name + "_locked"
-        block["rstn"]    = self.pll_name + "_rstn"
+        block["locked"]  = self.name + "_locked"
+        block["rstn"]    = self.name + "_rstn"
         self.platform.toolchain.ifacewriter.blocks.append(block)
 
         # Connect PLL's rstn/locked.
-        self.comb += self.platform.add_iface_io(self.pll_name + "_rstn").eq(~self.reset)
-        self.comb += self.locked.eq(self.platform.add_iface_io(self.pll_name + "_locked"))
+        self.comb += self.platform.add_iface_io(self.name + "_rstn").eq(~self.reset)
+        self.comb += self.locked.eq(self.platform.add_iface_io(self.name + "_locked"))
 
     def register_clkin(self, clkin, freq, name=""):
-        block = self.platform.toolchain.ifacewriter.get_block(self.pll_name)
+        block = self.platform.toolchain.ifacewriter.get_block(self.name)
 
         block["input_clock_name"] = self.platform.get_pin_name(clkin)
 
@@ -83,7 +83,7 @@ class TRIONPLL(Module):
     def create_clkout(self, cd, freq, phase=0, margin=1e-2, name="", with_reset=False):
         assert self.nclkouts < self.nclkouts_max
 
-        clk_out_name = "{}_CLKOUT{}".format(self.pll_name, self.nclkouts) if name == "" else name
+        clk_out_name = "{}_CLKOUT{}".format(self.name, self.nclkouts) if name == "" else name
 
         if cd is not None:
             self.platform.add_extension([(clk_out_name, 0, Pins(1))])
@@ -95,11 +95,11 @@ class TRIONPLL(Module):
 
         self.nclkouts += 1
 
-        block = self.platform.toolchain.ifacewriter.get_block(self.pll_name)
+        block = self.platform.toolchain.ifacewriter.get_block(self.name)
         block["clk_out"].append([clk_out_name, freq, phase, margin])
 
     def extra(self, extra):
-        block = self.platform.toolchain.ifacewriter.get_block(self.pll_name)
+        block = self.platform.toolchain.ifacewriter.get_block(self.name)
         block["extra"] = extra
 
     def compute_config(self):
