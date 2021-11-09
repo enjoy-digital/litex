@@ -260,7 +260,7 @@ int serialboot(void)
 
 				/* Copy payload */
 				load_addr = (char *)(uintptr_t) get_uint32(&frame.payload[0]);
-				memcpy(load_addr, &frame.payload[4], frame.payload_length);
+				memcpy(load_addr, &frame.payload[4], frame.payload_length - 4);
 
 				/* Acknowledge and continue */
 				uart_write(SFL_ACK_SUCCESS);
