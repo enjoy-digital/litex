@@ -2,6 +2,7 @@
 # This file is part of LiteX.
 #
 # Copyright (c) 2021 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2021 Gwenhael Goavec-Merou <gwenhael.goavec-merou@trabucayre.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
@@ -40,17 +41,27 @@ def _build_makefile(platform, sources, build_dir, build_name):
     # Define Paths.
     makefile.append("mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))")
     makefile.append("current_dir := $(patsubst %/,%,$(dir $(mkfile_path)))")
+    # bit -> h and bit -> bin requires TOP_F
+    makefile.append(f"TOP_F={build_name}")
 
     # Create Project.
     # FIXME: Only use top file for now and ignore .init files.
-    makefile.append("all:")
+    makefile.append("all: {top}_bit.h {top}.bin build/{top}.bit".format(top=build_name))
+    # build bit file (default)
+    makefile.append(f"build/{build_name}.bit:")
     makefile.append("\tql_symbiflow -compile -d {device} -P {part} -v {verilog} -t {top} -p {pcf}".format(
         device  = platform.device,
-        part    = {"ql-eos-s3": "pd64"}.get(platform.device),
+        part    = {"ql-eos-s3": "PU64"}.get(platform.device),
         verilog = f"{build_name}.v",
         top     = build_name,
         pcf     = f"{build_name}.pcf"
     ))
+    # build header to include in CPU firmware
+    makefile.append("{top}_bit.h: build/{top}.bit".format(top=build_name))
+    makefile.append(f"\t(cd build; TOP_F=$(TOP_F) symbiflow_write_bitheader)")
+    # build binary to write in dedicated FLASH area
+    makefile.append("{top}.bin: build/{top}.bit".format(top=build_name))
+    makefile.append(f"\t(cd build; TOP_F=$(TOP_F) symbiflow_write_binary)")
 
     # Generate Makefile.
     tools.write_to_file("Makefile", "\n".join(makefile))

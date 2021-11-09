@@ -924,7 +924,9 @@ class SoC(Module):
             self.mem_map.update(self.cpu.mem_map)
 
         # Add Bus Masters/CSR/IRQs.
-        if not isinstance(self.cpu, (cpu.CPUNone, cpu.Zynq7000)):
+        if isinstance(self.cpu, cpu.EOS_S3):
+            self.bus.add_master(master=self.cpu.wb)
+        if not isinstance(self.cpu, (cpu.CPUNone, cpu.Zynq7000, cpu.EOS_S3)):
             if reset_address is None:
                 reset_address = self.mem_map["rom"]
             self.cpu.set_reset_address(reset_address)
@@ -1082,7 +1084,7 @@ class SoC(Module):
             self.add_constant(name + "_" + constant.name, constant.value.value)
 
         # SoC CPU Check ----------------------------------------------------------------------------
-        if not isinstance(self.cpu, (cpu.CPUNone, cpu.Zynq7000)):
+        if not isinstance(self.cpu, (cpu.CPUNone, cpu.Zynq7000, cpu.EOS_S3)):
             cpu_reset_address_valid = False
             for name, container in self.bus.regions.items():
                 if self.bus.check_region_is_in(
