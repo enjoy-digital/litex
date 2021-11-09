@@ -107,10 +107,17 @@ class EfinixPlatform(GenericPlatform):
                 return sc
         return None
 
-    def add_iface_io(self, name, size=1, append=True):
+    def add_iface_io(self, name, size=1):
         self.add_extension([(name, 0, Pins(size))])
         self.toolchain.excluded_ios.append(name)
         return self.request(name)
+
+    def add_iface_ios(self, io):
+        self.add_extension(io)
+        tmp = self.request(io[0][0])
+        for s in tmp.flatten():
+            self.toolchain.excluded_ios.append(s)
+        return tmp
 
     def get_pll_resource(self, name):
         self.pll_used.append(name)
