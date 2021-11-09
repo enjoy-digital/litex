@@ -200,8 +200,8 @@ int serialboot(void)
 		while((i == 0) || timer0_value_read()) {
 			if (uart_read_nonblock()) {
 				if (i == 0) {
-						timer0_load(CMD_TIMEOUT_DELAY);
-						frame.payload_length = uart_read();
+					timer0_load(CMD_TIMEOUT_DELAY);
+					frame.payload_length = uart_read();
 				}
 				if (i == 1) frame.crc[0] = uart_read();
 				if (i == 2) frame.crc[1] = uart_read();
@@ -227,7 +227,7 @@ int serialboot(void)
 
 		/* Check Frame CRC */
 		received_crc = ((int)frame.crc[0] << 8)|(int)frame.crc[1];
-		computed_crc = crc16(&frame.cmd, frame.payload_length+1);
+		computed_crc = crc16(&frame.cmd, frame.payload_length + 1);
 		if(computed_crc != received_crc) {
 			/* Acknowledge the CRC error */
 			uart_write(SFL_ACK_CRCERROR);
