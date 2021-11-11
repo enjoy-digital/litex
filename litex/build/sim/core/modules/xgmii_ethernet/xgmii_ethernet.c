@@ -37,11 +37,13 @@ static const char macadr[6] = {0xaa, 0xb6, 0x24, 0x69, 0x77, 0x21};
 
 #define MIN_ETH_LEN 60
 
-#define XGMII_IDLE_DATA 0x0707070707070707
-#define XGMII_IDLE_CTL  0xFF
+#define XGMII_IDLE_DATA 0x07070707
+#define XGMII_IDLE_CTL  0xF
 
-// Contains the start XGMII control character (fb), the XGMII preamble
-// (48-bit alternating 0 and 1) and the Ethernet start of frame delimiter
+// Contains the start XGMII control character (fb), the XGMII preamble (48-bit
+// alternating 0 and 1) and the Ethernet start of frame delimiter. Is a 64-bit
+// bus word, thus to transmit it over a 32-bit bus one must first transmit the
+// lower and subsequently the upper half.
 #define XGMII_FB_PREAMBLE_SF_DATA 0xD5555555555555FB
 #define XGMII_FB_PREAMBLE_SF_CTL  0x01
 
@@ -49,10 +51,11 @@ static const char macadr[6] = {0xaa, 0xb6, 0x24, 0x69, 0x77, 0x21};
 #define XGMII_CTLCHAR_END   0xFD
 #define XGMII_CTLCHAR_IDLE  0x07
 
-// Type definitions for the XGMII bus contents, irrespective of the XGMII bus
-// width used. The data here is then latched out over a bus with the
-// xgmii_*_signal_t types.
-typedef uint64_t xgmii_data_t;
+// Type definitions for the 32-bit XGMII bus contents, irrespective of the XGMII
+// bus width used. The data here is then latched out over a bus with the
+// xgmii_*_signal_t types (either 32-bit or 64-bit, which is two 32-bit words
+// combined).
+typedef uint32_t xgmii_data_t;
 typedef uint8_t xgmii_ctl_t;
 typedef struct xgmii_bus_snapshot {
     xgmii_data_t data;
@@ -87,25 +90,32 @@ typedef struct xgmii_bus_snapshot {
 //   IDLE
 //   |-> IDLE:    data = XGMII_IDLE_DATA
 //   |            ctl  = XGMII_IDLE_CTL
-//   \-> RECEIVE: data = XGMII_FB_PREAMBLE_SF_DATA
-//                ctl  = XGMII_FB_PREAMBLE_SF_CTL
+//   \-> PREAMB:  data = (XGMII_FB_PREAMBLE_SF_DATA & 0xFFFFFFFF)
+//                ctl  = (XGMII_FB_PREAMBLE_SF_CTL & 0xF)
+//
+//   PREAMB
+//   \-> RECEIVE: data = ((XGMII_FB_PREAMBLE_SF_DATA >> 32) & 0xFFFFFFFF)
+//                ctl  = ((XGMII_FB_PREAMBLE_SF_CTL >> 4) & 0xF)
 //
 //   RECEIVE
-//   |-> RECEIVE: data = 8 * <payload>
-//   |            ctl  = 0x00
+//   |-> RECEIVE: data = 4 * <payload>
+//   |            ctl  = 0x0
 //   \-> IDLE:    data = m * XGMII_CTLCHAR_IDLE
 //                       | XGMII_CTLCHAR_PACKET_END
 //                       | n * <payload>
-//                ctl  = 0xFF & ~(2 ** n - 1)
+//                ctl  = 0xF & ~(2 ** n - 1)
 typedef enum xgmii_rx_state {
     XGMII_RX_STATE_IDLE,
+    XGMII_RX_STATE_PREAMB,
     XGMII_RX_STATE_RECEIVE,
 } xgmii_rx_state_t;
 
 // XGMII TX Mealy state machine
 typedef enum xgmii_tx_state {
     XGMII_TX_STATE_IDLE,
+    XGMII_TX_STATE_PREAMB,
     XGMII_TX_STATE_TRANSMIT,
+    XGMII_TX_STATE_ABORT,
 } xgmii_tx_state_t;
 
 // RX incoming (TAP -> Sim) Ethernet packet queue structs
@@ -131,22 +141,6 @@ typedef struct xgmii_state {
     // TX clock signal and edge state
     uint8_t *tx_clk;
     clk_edge_state_t tx_clk_edge;
-
-#if XGMII_WIDTH == 32
-    // Internal XGMII DDR transmit (Sim -> TAP) state latched from the bus on
-    // the rising clock edge, until it can be processed together with the other
-    // half of the data on the falling clock edge. This represents the lower
-    // half of the bus' bits.
-    xgmii_data_signal_t tx_data_posedge;
-    xgmii_ctl_signal_t  tx_ctl_posedge;
-
-    // Internal XGMII DDR receive (TAP -> Sim) state latched to the bus on the
-    // falling clock edge. This represents the higher half of the bus'
-    // bits. This is generated along with the lower half on the rising clock
-    // edge.
-    xgmii_data_signal_t rx_data_negedge;
-    xgmii_ctl_signal_t rx_ctl_negedge;
-#endif
 
     // ---------- GLOBAL STATE --------
     tapcfg_t *tapcfg;
@@ -181,17 +175,18 @@ typedef struct xgmii_state {
 static struct event_base *base = NULL;
 
 /**
- * Advance the RX (TAP->Sim) state machine, producing a 64-bit bus word
+ * Advance the RX (TAP->Sim) state machine, producing a 32-bit bus word
  *
- * This method must be called on the rising clock edge. It will produce a 64-bit
- * XGMII bus word which needs to be presented to the device. Depending on the
- * bus width, this may either happen entirely on the rising clock edge (64-bit)
- * or on both the rising and falling clock edges (32-bit DDR).
+ * For a 32-bit bus, call this method on either clock edge to retrieve a valid
+ * bus word. When using a 64-bit (non-DDR) bus, this method must be called twice
+ * on a rising clock edge, resulting in the lower and upper half of the 64-bit
+ * XGMII bus word.
  *
  * This function will detect pending RX packets in the queue and remove them
- * accordingly. Thus it is important that this function will be called on every
- * rising clock edge, regardless of whether a packet is currently being
- * transmitted.
+ * accordingly, and keeps track of the IFG and DIC. Thus it is important that
+ * this function will be called on every clock edge (32-bit bus) or twice on the
+ * rising clock edge (64-bit bus), regardless of whether a packet is currently
+ * being transmitted.
  */
 static xgmii_bus_snapshot_t xgmii_ethernet_rx_adv(xgmii_ethernet_state_t *s,
                                                  uint64_t time_ps) {
@@ -209,10 +204,18 @@ static xgmii_bus_snapshot_t xgmii_ethernet_rx_adv(xgmii_ethernet_state_t *s,
             // Reset the transmit progress
             s->current_rx_progress = 0;
 
-            // Send the start-of-packet XGMII control code, the
-            // preamble and the start of frame delimiter.
-            bus.data = XGMII_FB_PREAMBLE_SF_DATA;
-            bus.ctl  = XGMII_FB_PREAMBLE_SF_CTL;
+            // Send the start-of-packet XGMII control code, and the first half
+            // of the preamble.
+            bus.data = XGMII_FB_PREAMBLE_SF_DATA & 0xFFFFFFFF;
+            bus.ctl  = XGMII_FB_PREAMBLE_SF_CTL & 0xF;
+
+            // Enter the PREAMB state.
+            s->rx_state = XGMII_RX_STATE_PREAMB;
+        } else if (s->rx_state == XGMII_RX_STATE_PREAMB) {
+            // We have initiated a new transmission, time to send the second
+            // half of the preamble and the Ethernet start character.
+            bus.data = (XGMII_FB_PREAMBLE_SF_DATA >> 32) & 0xFFFFFFFF;
+            bus.ctl  = (XGMII_FB_PREAMBLE_SF_CTL >> 4) & 0xF;
 
             // Enter the RECEIVE state.
             s->rx_state = XGMII_RX_STATE_RECEIVE;
@@ -220,9 +223,9 @@ static xgmii_bus_snapshot_t xgmii_ethernet_rx_adv(xgmii_ethernet_state_t *s,
             // Reception of the packet has been initiated, transfer as much as
             // required.
 
-	    // Initialize ctl and data to zero
-	    bus.ctl = 0;
-	    bus.data = 0;
+            // Initialize ctl and data to zero
+            bus.ctl = 0;
+            bus.data = 0;
 
             // Place the bytes one by one: either with data, end of frame
             // delimiters or idle markers
@@ -230,14 +233,14 @@ static xgmii_bus_snapshot_t xgmii_ethernet_rx_adv(xgmii_ethernet_state_t *s,
                 if (s->current_rx_progress < s->current_rx_len) {
                     // Actual data byte to transmit
                     bus.data |=
-                        ((uint64_t)
+                        ((xgmii_data_t)
                          (s->current_rx_pkt[s->current_rx_progress] & 0xFF))
                         << (idx * 8);
                     s->current_rx_progress++;
                 } else if (s->current_rx_progress == s->current_rx_len) {
                     // End of frame delimiter to transmit
                     bus.data |=
-                        ((uint64_t) XGMII_CTLCHAR_END)
+                        ((xgmii_data_t) XGMII_CTLCHAR_END)
                         << (idx * 8);
                     bus.ctl  |= 1 << idx;
 
@@ -256,13 +259,25 @@ static xgmii_bus_snapshot_t xgmii_ethernet_rx_adv(xgmii_ethernet_state_t *s,
                     s->rx_state = XGMII_RX_STATE_IDLE;
                 } else {
                     // Fill the rest of this bus word with idle indicators
-                    bus.data |= ((uint64_t) XGMII_CTLCHAR_IDLE) << (idx * 8);
+                    bus.data |=
+                        ((xgmii_data_t) XGMII_CTLCHAR_IDLE) << (idx * 8);
                     bus.ctl  |= 1 << idx;
                 }
             }
 
             // If not transitioned to IDLE state above, remain in RECEIVE
             // state.
+        } else {
+            fprintf(stderr, "[xgmii_ethernet]: PANIC PANIC PANIC - RX state "
+                    "machine reached invalid state!\n");
+
+            // We need to produce a valid bus word to avoid returning some
+            // uninitialized memory.
+            bus.data = XGMII_IDLE_DATA;
+            bus.ctl  = XGMII_IDLE_CTL;
+
+            // Return to idle in the hopes that we aren't entirely broken.
+            s->rx_state = XGMII_RX_STATE_IDLE;
         }
     } else {
         // No packet to transmit, indicate that we are idle.
@@ -335,13 +350,13 @@ static xgmii_bus_snapshot_t xgmii_ethernet_rx_adv(xgmii_ethernet_state_t *s,
 }
 
 /**
- * Advance the TX (Sim -> TAP) state machine based on a 64-bit bus word
+ * Advance the TX (Sim -> TAP) state machine based on a 32-bit bus word
  *
- * This method must be called whenever a full 64-bit bus word has been
- * transmitted by the device. This means that for a 64-bit bus, it must be
- * invoked on the rising clock edge, whereas on a 32-bit (DDR) bus it must be
- * invoked on the falling clock edge when the entire 64-bit bus word has been
- * transmitted.
+ * This method must be called whenever 32-bit bus word has been transmitted by
+ * the device. This means that for a 64-bit bus, it must be invoked twice on the
+ * rising clock edge, first with the lower and subsequently with the upper half
+ * of the 64-bit bus word, whereas on a 32-bit (DDR) bus it must be invoked on
+ * the rising and falling clock edge with the respective 32-bit bus words.
  *
  * This function will detect frames sent by the device and place them on the TAP
  * network interface.
@@ -350,29 +365,28 @@ static void xgmii_ethernet_tx_adv(xgmii_ethernet_state_t *s, uint64_t time_ps,
                                   xgmii_bus_snapshot_t bus) {
     if (s->tx_state == XGMII_TX_STATE_IDLE) {
         // Idling until a XGMII start of packet control marker is detected. By
-        // IEEE802.3, this must be on the first octect of the XGMII bus (which
-        // replaces one Ethernet preamble octet).
-        if ((bus.data & 0xFF) == XGMII_CTLCHAR_START && (bus.ctl & 0x01) != 0) {
-            // The rest of the 64-bit data word must be the remaining 48 bits of
-            // the preamble and the Ethernet start of frame delimiter. Thus we
-            // can match on the entire 64-bit data word here. We can't combine
-            // this check with the one above, as we issue an error if we see a
-            // XGMII start control character with garbage behind it.
-            if (bus.data == XGMII_FB_PREAMBLE_SF_DATA
-                && bus.ctl == XGMII_FB_PREAMBLE_SF_CTL) {
-                // XGMII start character, preamble and Ethernet start of frame
-                // matched, start accepting payload data.
+        // IEEE802.3, this must be on lane 0, i.e. the first octect of the XGMII
+        // bus, replacing one Ethernet preamble octet.
+        if ((bus.data & 0xFF) == XGMII_CTLCHAR_START && (bus.ctl & 0x1) != 0) {
+            // The rest of the 32-bit data word must 24 bits of the
+            // preamble. The rest of the preamble and the the Ethernet start of
+            // frame delimiter are expected on the subsequent invocation of
+            // xgmii_ethernet_tx_adv.
+            if (bus.data == (XGMII_FB_PREAMBLE_SF_DATA & 0xFFFFFFFF)
+                && bus.ctl == (XGMII_FB_PREAMBLE_SF_CTL & 0xF)) {
+                // XGMII start character and first half of preamble detected.
 
                 // Reset the current progress
                 s->current_tx_len = 0;
 
-                // Switch to the TRANSMIT state
-                s->tx_state = XGMII_TX_STATE_TRANSMIT;
+                // Switch to the PREAMB state
+                s->tx_state = XGMII_TX_STATE_PREAMB;
             } else {
                 fprintf(stderr, "[xgmii_ethernet]: got XGMII start character, "
-                        "but either Ethernet preamble or start of frame "
-                        "delimiter is not valid: %016lx %02x\n",
+                        "but Ethernet preamble is not valid: %08x %01x. "
+                        "Discarding rest of transaction.\n",
                         bus.data, bus.ctl);
+                s->tx_state = XGMII_TX_STATE_ABORT;
             }
         } else {
 #ifdef XGMII_TX_DEBUG_INVAL_SIGNAL
@@ -381,16 +395,32 @@ static void xgmii_ethernet_tx_adv(xgmii_ethernet_state_t *s, uint64_t time_ps,
                     if (((bus.data >> (idx * 8)) & 0xFF) != 0x07) {
                         fprintf(stderr, "[xgmii_ethernet]: got invalid XGMII "
                                 "control character in XGMII_TX_STATE_IDLE: "
-                                "%016lx %02x %lu\n", bus.data, bus.ctl, idx);
+                                "%08x %01x %lu\n", bus.data, bus.ctl, idx);
                     }
                 } else {
                     fprintf(stderr, "[xgmii_ethernet]: got non-XGMII control "
                             "character in XGMII_TX_STATE_IDLE without "
-                            "proper XGMII_CTLCHAR_START: %016lx %02x %lu\n",
+                            "proper XGMII_CTLCHAR_START: %08x %01x %lu\n",
                             bus.data, bus.ctl, idx);
                 }
             }
 #endif
+        }
+    } else if (s->tx_state == XGMII_TX_STATE_PREAMB) {
+        // We've seen the XGMII start of frame control character. This bus word
+        // MUST contain the rest of the Ethernet preamble.
+        if (bus.data == ((XGMII_FB_PREAMBLE_SF_DATA >> 32) & 0xFFFFFFFF)
+            && bus.ctl == ((XGMII_FB_PREAMBLE_SF_CTL >> 4) & 0xF)) {
+            // Rest of the Ethernet preamble and Ethernet start of frame
+            // delimiter detected. Continue in the TRANSMIT state.
+            s->tx_state = XGMII_TX_STATE_TRANSMIT;
+        } else {
+            fprintf(stderr, "[xgmii_ethernet]: got XGMII start character and "
+                    "partially valid Ethernet preamble, but either second "
+                    "half of Ethernet preamble or Ethernet start of frame "
+                    "delimiter is not valid: %08x %01x. Discarding rest of "
+                    "transaction.\n", bus.data, bus.ctl);
+            s->tx_state = XGMII_TX_STATE_ABORT;
         }
     } else if (s->tx_state == XGMII_TX_STATE_TRANSMIT) {
         // Iterate over all bytes until we hit an XGMII end of frame control
@@ -423,9 +453,9 @@ static void xgmii_ethernet_tx_adv(xgmii_ethernet_state_t *s, uint64_t time_ps,
                 } else {
                     fprintf(stderr, "[xgmii_ethernet]: received non-end XGMII "
                             "control character in XGMII_TX_STATE_TRANSMIT. "
-                            "Aborting TX. %016lx %02x %lu\n", bus.data, bus.ctl,
+                            "Aborting TX. %08x %01x %lu\n", bus.data, bus.ctl,
                             idx);
-                    s->tx_state = XGMII_TX_STATE_IDLE;
+                    s->tx_state = XGMII_TX_STATE_ABORT;
                     return;
                 }
             }
@@ -447,12 +477,12 @@ static void xgmii_ethernet_tx_adv(xgmii_ethernet_state_t *s, uint64_t time_ps,
                 || ((bus.data >> (chk_idx * 8)) & 0xFF) != XGMII_CTLCHAR_IDLE) {
                 fprintf(stderr, "[xgmii_ethernet]: received non-XGMII idle "
                         "control character after XGMII end of frame marker. "
-                        "%016lx %02x %lu\n", bus.data, bus.ctl, chk_idx);
+                        "%08x %01x %lu\n", bus.data, bus.ctl, chk_idx);
             }
         }
 #endif
 
-	// Length without frame check sequence
+        // Length without frame check sequence
         size_t pkt_len =
             (s->current_tx_len > 3) ? s->current_tx_len - 4 : 0;
 
@@ -471,30 +501,43 @@ static void xgmii_ethernet_tx_adv(xgmii_ethernet_state_t *s, uint64_t time_ps,
             fprintf(stderr, "\n----------------------------------\n");
 #endif
 
-	    if (s->current_tx_len < 4) {
-		fprintf(stderr, "[xgmii_ethernet]: TX packet too short to contain "
-			"frame check sequence\n");
-	    } else {
-		uint32_t crc = crc32(0, s->current_tx_pkt, pkt_len);
-		if (!((s->current_tx_pkt[pkt_len + 0] == ((crc >>  0) & 0xFF))
-		      && (s->current_tx_pkt[pkt_len + 1] == ((crc >>  8) & 0xFF))
-		      && (s->current_tx_pkt[pkt_len + 2] == ((crc >> 16) & 0xFF))
-		      && (s->current_tx_pkt[pkt_len + 3] == ((crc >> 24) & 0xFF))))
-		    {
-			fprintf(stderr, "[xgmii_ethernet]: TX packet FCS mismatch. "
-				"Expected: %08x. Actual: %08x.\n", crc,
-				(uint32_t) s->current_tx_pkt[pkt_len + 0] << 0
-				| (uint32_t) s->current_tx_pkt[pkt_len + 1] << 8
-				| (uint32_t) s->current_tx_pkt[pkt_len + 2] << 16
-				| (uint32_t) s->current_tx_pkt[pkt_len + 3] << 24);
-		    }
-	    }
+            if (s->current_tx_len < 4) {
+                fprintf(stderr, "[xgmii_ethernet]: TX packet too short to contain "
+                        "frame check sequence\n");
+            } else {
+                uint32_t crc = crc32(0, s->current_tx_pkt, pkt_len);
+                if (!((s->current_tx_pkt[pkt_len + 0] == ((crc >>  0) & 0xFF))
+                      && (s->current_tx_pkt[pkt_len + 1] == ((crc >>  8) & 0xFF))
+                      && (s->current_tx_pkt[pkt_len + 2] == ((crc >> 16) & 0xFF))
+                      && (s->current_tx_pkt[pkt_len + 3] == ((crc >> 24) & 0xFF))))
+                    {
+                        fprintf(stderr, "[xgmii_ethernet]: TX packet FCS mismatch. "
+                                "Expected: %08x. Actual: %08x.\n", crc,
+                                (uint32_t) s->current_tx_pkt[pkt_len + 0] << 0
+                                | (uint32_t) s->current_tx_pkt[pkt_len + 1] << 8
+                                | (uint32_t) s->current_tx_pkt[pkt_len + 2] << 16
+                                | (uint32_t) s->current_tx_pkt[pkt_len + 3] << 24);
+                    }
+            }
 
 
             // Packet read completely, place it on the TAP interface
             tapcfg_write(s->tapcfg, s->current_tx_pkt, s->current_tx_len);
             s->tx_state = XGMII_TX_STATE_IDLE;
         }
+    } else if (s->tx_state == XGMII_TX_STATE_ABORT) {
+        // The transmission has been aborted. Scan for the end of the
+        // transmission (XGMII end control character) and return back to IDLE.
+        for (size_t i = 0; i < sizeof(xgmii_data_t); i++) {
+            if ((bus.ctl & (1 << i)) == 1
+                && ((bus.data >> (i * 8)) & 0xFF) == XGMII_CTLCHAR_END) {
+                s->tx_state = XGMII_TX_STATE_IDLE;
+            }
+        }
+    } else {
+        fprintf(stderr, "[xgmii_ethernet]: PANIC PANIC PANIC - TX state "
+                "machine reached invalid state!\n");
+        s->tx_state = XGMII_TX_STATE_IDLE;
     }
 }
 
@@ -509,36 +552,30 @@ static int xgmii_ethernet_tick(void *state, uint64_t time_ps) {
 
 #if XGMII_WIDTH == 64
     // 64-bit bus. Sample the entire data on the rising clock edge and process
-    // accordingly.
+    // accordingly (invoke xgmii_ethernet_tx_adv twice).
     if (tx_edge == CLK_EDGE_RISING) {
-        xgmii_bus_snapshot_t tx_bus = {
-            .data = *s->tx_data_signal,
-            .ctl = *s->tx_ctl_signal,
+        xgmii_bus_snapshot_t tx_bus_lower = {
+            .data = *s->tx_data_signal & 0xFFFFFFFF,
+            .ctl = *s->tx_ctl_signal & 0xF,
         };
 
-        xgmii_ethernet_tx_adv(s, time_ps, tx_bus);
+        xgmii_ethernet_tx_adv(s, time_ps, tx_bus_lower);
+
+        xgmii_bus_snapshot_t tx_bus_upper = {
+            .data = (*s->tx_data_signal >> 32) & 0xFFFFFFFF,
+            .ctl = (*s->tx_ctl_signal >> 4) & 0xF,
+        };
+
+        xgmii_ethernet_tx_adv(s, time_ps, tx_bus_upper);
     }
 #elif XGMII_WIDTH == 32
-    // 32-bit bus. Sample the lower half of the data on the rising clock edge.
-    if (tx_edge == CLK_EDGE_RISING) {
-        s->tx_data_posedge = *s->tx_data_signal;
-        s->tx_ctl_posedge = *s->tx_ctl_signal;
-    }
+    // 32-bit bus.
+    xgmii_bus_snapshot_t tx_bus = {
+        .data = *s->tx_data_signal,
+        .ctl = *s->tx_ctl_signal,
+    };
 
-    // Sample the higher half of the data on the falling clock edge and process
-    // the joint data from the rising and falling edges.
-    if (tx_edge == CLK_EDGE_FALLING) {
-        xgmii_bus_snapshot_t tx_bus = {
-            .data =
-                (xgmii_data_t) (*s->tx_data_signal) << XGMII_UPPER_DATA_SHIFT
-                | (xgmii_data_t) s->tx_data_posedge,
-            .ctl =
-                (xgmii_ctl_t) (*s->tx_ctl_signal) << XGMII_UPPER_CTL_SHIFT
-                | (xgmii_ctl_t) s->tx_ctl_posedge,
-        };
-
-        xgmii_ethernet_tx_adv(s, time_ps, tx_bus);
-    }
+    xgmii_ethernet_tx_adv(s, time_ps, tx_bus);
 #endif
 
     // ---------- RX BUS (TAP -> Sim) ----------
@@ -550,33 +587,32 @@ static int xgmii_ethernet_tick(void *state, uint64_t time_ps) {
     if (rx_edge == CLK_EDGE_RISING) {
         // Positive clock edge, advance the RX state and place new contents on
         // the XGMII RX bus.
-        xgmii_bus_snapshot_t rx_bus = xgmii_ethernet_rx_adv(s, time_ps);
 
 #if XGMII_WIDTH == 64
-        // 64-bit wide bus. We can transmit everything on the positive clock
-        // edge.
+        // 64-bit wide bus. We must transmit two XGMII 32-bit bus words in the
+        // same cycle.
+        xgmii_bus_snapshot_t rx_bus_lower = xgmii_ethernet_rx_adv(s, time_ps);
+        xgmii_bus_snapshot_t rx_bus_upper = xgmii_ethernet_rx_adv(s, time_ps);
+        *s->rx_data_signal =
+            ((xgmii_data_signal_t) rx_bus_upper.data << 32)
+            | (xgmii_data_signal_t) rx_bus_lower.data;
+        *s->rx_ctl_signal =
+            ((xgmii_ctl_signal_t) rx_bus_upper.ctl << 4)
+            | (xgmii_ctl_signal_t) rx_bus_lower.ctl;
+#elif XGMII_WIDTH == 32
+        // 32-bit wide bus.
+        xgmii_bus_snapshot_t rx_bus = xgmii_ethernet_rx_adv(s, time_ps);
         *s->rx_data_signal = rx_bus.data;
         *s->rx_ctl_signal = rx_bus.ctl;
-#elif XGMII_WIDTH == 32
-        // 32-bit wide bus. We must transmit the lower half of bits on the
-        // positive, and the upper half of bits on the negative clock edge.
-        *s->rx_data_signal = (xgmii_data_signal_t)
-            rx_bus.data & XGMII_DATA_SIGNAL_MASK;
-        *s->rx_ctl_signal = (xgmii_ctl_signal_t)
-            rx_bus.ctl & XGMII_CTL_SIGNAL_MASK;
-        s->rx_data_negedge = (xgmii_data_signal_t)
-            ((rx_bus.data >> XGMII_UPPER_DATA_SHIFT) & XGMII_DATA_SIGNAL_MASK);
-        s->rx_ctl_negedge = (xgmii_ctl_signal_t)
-            ((rx_bus.ctl >> XGMII_UPPER_CTL_SHIFT) & XGMII_CTL_SIGNAL_MASK);
 #endif
     }
 
 #if XGMII_WIDTH == 32
     if (rx_edge == CLK_EDGE_FALLING) {
-        // 32-bit wide bus and negative clock edge. Transmit the data prepared
-        // on the previous positive clock edge.
-        *s->rx_data_signal = s->rx_data_negedge;
-        *s->rx_ctl_signal = s->rx_ctl_negedge;
+        // 32-bit wide bus and negative clock edge.
+        xgmii_bus_snapshot_t rx_bus = xgmii_ethernet_rx_adv(s, time_ps);
+        *s->rx_data_signal = rx_bus.data;
+        *s->rx_ctl_signal = rx_bus.ctl;
     }
 #endif
 
