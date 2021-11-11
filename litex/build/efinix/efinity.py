@@ -169,7 +169,7 @@ def _build_peri(efinity_path, build_name, partnumber, named_sc, named_pc, fragme
 
 # Project configuration ------------------------------------------------------------------------
 
-def _build_xml(partnumber, timing_model, build_name, sources, additional_xml_commands):
+def _build_xml(family, device, timing_model, build_name, sources, additional_xml_commands):
 
     root = et.Element('efx:project')
 
@@ -194,8 +194,8 @@ def _build_xml(partnumber, timing_model, build_name, sources, additional_xml_com
     root.attrib['xsi:schemaLocation'] = 'http://www.efinixinc.com/enf_proj enf_proj.xsd'
 
     device_info = et.SubElement(root, 'efx:device_info')
-    et.SubElement(device_info, 'efx:family', name = 'Trion')
-    et.SubElement(device_info, 'efx:device', name = partnumber)
+    et.SubElement(device_info, 'efx:family', name = family)
+    et.SubElement(device_info, 'efx:device', name = device)
     et.SubElement(device_info, 'efx:timing_model', name = timing_model)
 
     design_info = et.SubElement(root, 'efx:design_info')
@@ -261,6 +261,8 @@ class EfinityToolchain:
         run            = True,
         **kwargs):
 
+        family = "Trion" # FIXME: Add Titanium support.
+
         self.ifacewriter.set_build_params(platform, build_name)
 
         # Create build directory
@@ -295,15 +297,18 @@ class EfinityToolchain:
             vns                     = v_output.ns,
             named_sc                = named_sc,
             build_name              = build_name,
-            additional_sdc_commands = self.additional_sdc_commands)
+            additional_sdc_commands = self.additional_sdc_commands,
+        )
 
         # Generate project file (.xml)
         _build_xml(
-            partnumber              = platform.device,
+            family                  = family,
+            device                  = platform.device,
             timing_model            = platform.timing_model,
             build_name              = build_name,
             sources                 = platform.sources,
-            additional_xml_commands = self.additional_xml_commands)
+            additional_xml_commands = self.additional_xml_commands,
+        )
 
         # Generate constraints file (.peri.xml)
         _build_peri(
@@ -315,7 +320,8 @@ class EfinityToolchain:
             fragment                  = fragment,
             platform                  = platform,
             additional_iface_commands = self.additional_iface_commands,
-            excluded_ios              = self.excluded_ios)
+            excluded_ios              = self.excluded_ios,
+        )
 
         # DDR doesn't have Python API so we need to configure it
         # directly in the peri.xml file
@@ -324,91 +330,86 @@ class EfinityToolchain:
 
         # Run
         if run:
-            if True: # FIXME: Keep efx_run for now as default.
-                if subprocess.call([self.efinity_path + '/scripts/efx_run.py', build_name + '.xml', '-f', 'compile'])  != 0:
-                    raise OSError("Error occurred during efx_run script execution.")
-            else:
-                # Synthesis/Mapping.
-                r = subprocess.call([self.efinity_path + "/bin/efx_map",
-                    "--project",                    f"{build_name}",
-                    "--root",                       f"{build_name}",
-                    "--write-efx-verilog",          f"outflow/{build_name}.map.v",
-                    "--write-premap-module",        f"outflow/{build_name}.elab.vdb",
-                    "--binary-db",                  f"{build_name}.vdb",
-                    "--family",                     "Trion",
-                    "--device",                     platform.device,
-                    "--mode",                       "speed",
-                    "--max_ram",                    "-1",
-                    "--max_mult",                   "-1",
-                    "--infer-clk-enable",           "3",
-                    "--infer-sync-set-reset",       "1",
-                    "--fanout-limit",               "0",
-                    "--bram_output_regs_packing",   "1",
-                    "--retiming",                   "1",
-                    "--seq_opt",                    "1",
-                    "--blast_const_operand_adders", "1",
-                    "--mult_input_regs_packing",    "1",
-                    "--mult_output_regs_packing",   "1",
-                    "--veri_option",                "verilog_mode=verilog_2k,vhdl_mode=vhdl_2008",
-                    "--work-dir",                   "work_syn",
-                    "--output-dir",                 "outflow",
-                    "--project-xml",                f"{build_name}.xml",
-                    "--I",                          "./"
-                ])
-                if r != 0:
-                    raise OSError("Error occurred during efx_map execution.")
+            # Synthesis/Mapping.
+            r = subprocess.call([self.efinity_path + "/bin/efx_map",
+                "--project",                    f"{build_name}",
+                "--root",                       f"{build_name}",
+                "--write-efx-verilog",          f"outflow/{build_name}.map.v",
+                "--write-premap-module",        f"outflow/{build_name}.elab.vdb",
+                "--binary-db",                  f"{build_name}.vdb",
+                "--family",                     family,
+                "--device",                     platform.device,
+                "--mode",                       "speed",
+                "--max_ram",                    "-1",
+                "--max_mult",                   "-1",
+                "--infer-clk-enable",           "3",
+                "--infer-sync-set-reset",       "1",
+                "--fanout-limit",               "0",
+                "--bram_output_regs_packing",   "1",
+                "--retiming",                   "1",
+                "--seq_opt",                    "1",
+                "--blast_const_operand_adders", "1",
+                "--mult_input_regs_packing",    "1",
+                "--mult_output_regs_packing",   "1",
+                "--veri_option",                "verilog_mode=verilog_2k,vhdl_mode=vhdl_2008",
+                "--work-dir",                   "work_syn",
+                "--output-dir",                 "outflow",
+                "--project-xml",                f"{build_name}.xml",
+                "--I",                          "./"
+            ])
+            if r != 0:
+                raise OSError("Error occurred during efx_map execution.")
 
-                # Place and Route.
-                r = subprocess.call([self.efinity_path + "/bin/python3",
-                    self.efinity_path + "/scripts/efx_run_pt.py",
-                    f"{build_name}",
-                    "Trion",
-                   platform.device
-                ])
-                if r != 0:
-                   raise OSError("Error occurred during efx_run_pt execution.")
+            # Place and Route.
+            r = subprocess.call([self.efinity_path + "/bin/python3",
+                self.efinity_path + "/scripts/efx_run_pt.py",
+                f"{build_name}",
+                family,
+                platform.device
+            ])
+            if r != 0:
+               raise OSError("Error occurred during efx_run_pt execution.")
 
-                r = subprocess.call([self.efinity_path + "/bin/efx_pnr",
-                    "--circuit",              f"{build_name}",
-                    "--family",               "Trion",
-                    "--device",               platform.device,
-                    "--operating_conditions", platform.timing_model,
-                    "--pack",
-                    "--place",
-                    "--route",
-                    "--vdb_file",             f"work_syn/{build_name}.vdb",
-                    "--use_vdb_file",         "on",
-                    "--place_file",           f"outflow/{build_name}.place",
-                    "--route_file",           f"outflow/{build_name}.route",
-                    "--sdc_file",             f"{build_name}.sdc",
-                    #"--sync_file",            f"{build_name}.csv", # FIXME.
-                    "--seed",                 "1",
-                    "--work_dir",             "work_pnr",
-                    "--output_dir",           "outflow",
-                    "--timing_analysis",      "on",
-                    "--load_delay_matrix"
-                ])
-                if r != 0:
-                    raise OSError("Error occurred during efx_pnr execution.")
+            r = subprocess.call([self.efinity_path + "/bin/efx_pnr",
+                "--circuit",              f"{build_name}",
+                "--family",               family,
+                "--device",               platform.device,
+                "--operating_conditions", platform.timing_model,
+                "--pack",
+                "--place",
+                "--route",
+                "--vdb_file",             f"work_syn/{build_name}.vdb",
+                "--use_vdb_file",         "on",
+                "--place_file",           f"outflow/{build_name}.place",
+                "--route_file",           f"outflow/{build_name}.route",
+                "--sdc_file",             f"{build_name}.sdc",
+                "--sync_file",            f"outflow/{build_name}.interface.csv",
+                "--seed",                 "1",
+                "--work_dir",             "work_pnr",
+                "--output_dir",           "outflow",
+                "--timing_analysis",      "on",
+                "--load_delay_matrix"
+            ])
+            if r != 0:
+                raise OSError("Error occurred during efx_pnr execution.")
 
-                # Bitstream.
-                r = subprocess.call([self.efinity_path + "/bin/efx_pgm",
-                    "--source",                      f"work_pnr/{build_name}.lbf",
-                    "--dest",                        f"outflow/{build_name}.hex",
-                    "--device",                      platform.device,
-                    "--family",                      "Trion",
-                    "--periph",                      f"outflow/{build_name}.lpf",
-                    "--interface_designer_settings", f"outflow/{build_name}_or.ini",
-                    "--oscillator_clock_divider",    "DIV8",
-                    "--spi_low_power_mode",          "off",
-                    "--io_weak_pullup",              "on",
-                    "--enable_roms",                 "on",
-                    "--mode",                        "active",
-                    "--width",                        "1",
-                    "--enable_crc_check",             "on"
-                ])
-                if r != 0:
-                    raise OSError("Error occurred during efx_pgm execution.")
+            # Bitstream.
+            r = subprocess.call([self.efinity_path + "/bin/efx_pgm",
+                "--source",                      f"work_pnr/{build_name}.lbf",
+                "--dest",                        f"outflow/{build_name}.hex",
+                "--device",                      platform.device,
+                "--family",                      family,
+                "--periph",                      f"outflow/{build_name}.lpf",
+                "--oscillator_clock_divider",    "DIV8",
+                "--spi_low_power_mode",          "off",
+                "--io_weak_pullup",              "on",
+                "--enable_roms",                 "on",
+                "--mode",                        "active",
+                "--width",                       "1",
+                "--enable_crc_check",            "on"
+            ])
+            if r != 0:
+                raise OSError("Error occurred during efx_pgm execution.")
 
         os.chdir(cwd)
 
