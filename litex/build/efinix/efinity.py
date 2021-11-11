@@ -2,7 +2,7 @@
 # This file is part of LiteX.
 #
 # Copyright (c) 2021 Franck Jullien <franck.jullien@collshade.fr>
-# Copyright (c) 2015-2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2015-2021 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
@@ -33,7 +33,7 @@ def get_pin_direction(fragment, platform, pinname):
     pins = platform.constraint_manager.get_io_signals()
     for pin in sorted(pins, key=lambda x: x.duid):
         # Better idea ???
-        if (pinname.split('[')[0] == pin.name):
+        if (pinname.split("[")[0] == pin.name):
             return pin.direction
     return "Unknown"
 
@@ -66,12 +66,12 @@ def _build_sdc(clocks, false_paths, vns, named_sc, build_name, additional_sdc_co
     # Generate .sdc
     tools.write_to_file("{}.sdc".format(build_name), "\n".join(sdc))
 
-# Peripheral configuration ------------------------------------------------------------------------
+# Peripheral configuration (.xml) ------------------------------------------------------------------
 
 def _create_gpio_instance(fragment, platform, sig, pins):
     l = ""
     if len(pins) > 1:
-        l = ',{},0'.format(len(pins) - 1)
+        l = ",{},0".format(len(pins) - 1)
     d = get_pin_direction(fragment, platform, sig)
     return 'design.create_{d}_gpio("{name}"{len})'.format(d=d, name=sig, len=l)
 
@@ -84,9 +84,9 @@ def _format_constraint(c, signame, fmt_r, fragment, platform):
     # IO standard property
     elif isinstance(c, IOStandard):
         prop = ""
-        valid = ['3.3_V_LVTTL_/_LVCMOS', '2.5_V_LVCMOS', '1.8_V_LVCMOS']
+        valid = ["3.3_V_LVTTL_/_LVCMOS", "2.5_V_LVCMOS", "1.8_V_LVCMOS"]
         if c.name in valid:
-            prop = 'IO_STANDARD'
+            prop = "IO_STANDARD"
 
         if prop == "":
             print("{} has a wrong IOStandard format [{}]".format(signame, c.name))
@@ -100,13 +100,13 @@ def _format_constraint(c, signame, fmt_r, fragment, platform):
     # Others constraints
     elif isinstance(c, Misc):
         prop = ""
-        if c.misc in ['WEAK_PULLUP', 'WEAK_PULLDOWN']:
-            prop = 'PULL_OPTION'
+        if c.misc in ["WEAK_PULLUP", "WEAK_PULLDOWN"]:
+            prop = "PULL_OPTION"
             val = c.misc
 
-        if 'DRIVE_STRENGTH' in c.misc:
-            prop = 'DRIVE_STRENGTH'
-            val = c.misc.split('=')[1]
+        if "DRIVE_STRENGTH" in c.misc:
+            prop = "DRIVE_STRENGTH"
+            val = c.misc.split("=")[1]
 
         if prop == "":
             # Print error, warning ??
@@ -120,7 +120,7 @@ def _format_conf_constraint(signame, pin, others, resname, fragment, platform):
     if resname[2] is not None:
         fmt_r += "." + resname[2]
     fmt_c = [_format_constraint(c, signame, fmt_r, fragment, platform) for c in ([Pins(pin)] + others)]
-    return ''.join(fmt_c)
+    return "".join(fmt_c)
 
 def _build_iface_gpio(named_sc, named_pc, fragment, platform, excluded_ios):
     conf = []
@@ -151,146 +151,121 @@ def _build_iface_gpio(named_sc, named_pc, fragment, platform, excluded_ios):
 
     return "\n".join(conf)
 
-def _build_peri(efinity_path, build_name, partnumber, named_sc, named_pc, fragment, platform, additional_iface_commands, excluded_ios):
+def _build_peri(efinity_path, build_name, device, named_sc, named_pc, fragment, platform, additional_iface_commands, excluded_ios):
     pythonpath = ""
 
-    header    = platform.toolchain.ifacewriter.header(build_name, partnumber)
-    gen       = platform.toolchain.ifacewriter.generate(partnumber)
-    #TODO: move this to ifacewriter
-    gpio      = _build_iface_gpio(named_sc, named_pc, fragment, platform, excluded_ios)
-    add       = '\n'.join(additional_iface_commands)
-    footer    = platform.toolchain.ifacewriter.footer()
+    header = platform.toolchain.ifacewriter.header(build_name, device)
+    gen    = platform.toolchain.ifacewriter.generate(device)
+    #TODO  : move this to ifacewriter
+    gpio   = _build_iface_gpio(named_sc, named_pc, fragment, platform, excluded_ios)
+    add    = "\n".join(additional_iface_commands)
+    footer = platform.toolchain.ifacewriter.footer()
 
     tools.write_to_file("iface.py", header + gen + gpio + add + footer)
 
-    if subprocess.call([efinity_path + '/bin/python3', 'iface.py']) != 0:
+    if subprocess.call([efinity_path + "/bin/python3", "iface.py"]) != 0:
         raise OSError("Error occurred during Efinity peri script execution.")
 
 
-# Project configuration ------------------------------------------------------------------------
+# Project configuration (.xml) ---------------------------------------------------------------------
 
-def _build_xml(family, device, timing_model, build_name, sources, additional_xml_commands):
+def _build_xml(family, device, timing_model, build_name, sources):
+    now  = datetime.datetime.now()
 
-    root = et.Element('efx:project')
+    # Create Project.
+    root = et.Element("efx:project")
+    root.attrib["xmlns:efx"]        = "http://www.efinixinc.com/enf_proj"
+    root.attrib["name"]             = build_name
+    root.attrib["location"]         = str(pathlib.Path().resolve())
+    root.attrib["sw_version"]       = "2021.1.165.2.19" # TODO: read it from sw_version.txt
+    root.attrib["last_change_date"] = f"Date : {now.strftime('%Y-%m-%d %H:%M')}"
 
-    now = datetime.datetime.now()
-    date_str = " Date: " + now.strftime("%Y-%m-%d %H:%M") + " "
+    # Add Device.
+    device_info = et.SubElement(root, "efx:device_info")
+    et.SubElement(device_info, "efx:family",       name=family)
+    et.SubElement(device_info, "efx:device",       name=device)
+    et.SubElement(device_info, "efx:timing_model", name=timing_model)
 
-    # Add the required attributes
-    root.attrib['xmlns:efx'] = 'http://www.efinixinc.com/enf_proj'
-    root.attrib['xmlns:xsi'] = "http://www.w3.org/2001/XMLSchema-instance"
-    root.attrib['name'] = build_name
-    root.attrib['description'] = ''
-    root.attrib['last_change_date'] = date_str
-    root.attrib['location'] = str(pathlib.Path().resolve())
-    root.attrib['sw_version'] = '2021.1.165.2.19' # TODO: read it from sw_version.txt
-    root.attrib['last_run_state'] = ''
-    root.attrib['last_run_tool'] = ''
-    root.attrib['last_run_flow'] = ''
-    root.attrib['config_result_in_sync'] = 'sync'
-    root.attrib['design_ood'] = 'sync'
-    root.attrib['place_ood'] = 'sync'
-    root.attrib['route_ood'] = 'sync'
-    root.attrib['xsi:schemaLocation'] = 'http://www.efinixinc.com/enf_proj enf_proj.xsd'
+    # Add Design Info.
+    design_info = et.SubElement(root, "efx:design_info")
+    et.SubElement(design_info, "efx:top_module", name=build_name)
 
-    device_info = et.SubElement(root, 'efx:device_info')
-    et.SubElement(device_info, 'efx:family', name = family)
-    et.SubElement(device_info, 'efx:device', name = device)
-    et.SubElement(device_info, 'efx:timing_model', name = timing_model)
-
-    design_info = et.SubElement(root, 'efx:design_info')
-    et.SubElement(design_info, "efx:top_module", name = build_name)
+    # Add Design Sources.
     for filename, language, library in sources:
-        if '.vh' not in filename:
-            val = {'name':filename, 'version':'default', 'library':'default'}
-            et.SubElement(design_info, "efx:design_file", val)
-    et.SubElement(design_info, "efx:top_vhdl_arch", name = "")
+        if ".vh" not in filename:
+            et.SubElement(design_info, "efx:design_file", {
+                "name"    : filename,
+                "version" : "default",
+                "library" : "default",
+            })
 
+    # Add Timing Constraints.
     constraint_info  = et.SubElement(root, "efx:constraint_info")
-    et.SubElement(constraint_info, "efx:sdc_file", name = "{}.sdc".format(build_name))
+    et.SubElement(constraint_info, "efx:sdc_file", name=f"{build_name}.sdc")
 
+    # Add Misc Info.
     misc_info  = et.SubElement(root, "efx:misc_info")
+
+    # Add IP Info.
     ip_info  = et.SubElement(root, "efx:ip_info")
 
-    synthesis  = et.SubElement(root, "efx:synthesis", tool_name="efx_map")
-    for l in additional_xml_commands:
-        if l[0] == 'efx_map':
-            val = {'name':l[1], 'value':l[2], 'value_type':l[3]}
-            et.SubElement(synthesis, "efx:param", val)
-
-    place_and_route  = et.SubElement(root, "efx:place_and_route", tool_name="efx_pnr")
-    for l in additional_xml_commands:
-        if l[0] == 'efx_pnr':
-            val = {'name':l[1], 'value':l[2], 'value_type':l[3]}
-            et.SubElement(place_and_route, "efx:param", val)
-
-    bitstream_generation  = et.SubElement(root, "efx:bitstream_generation", tool_name="efx_pgm")
-    for l in additional_xml_commands:
-        if l[0] == 'efx_pgm':
-            val = {'name':l[1], 'value':l[2], 'value_type':l[3]}
-            et.SubElement(bitstream_generation, "efx:param", val)
-
-    xml_string = et.tostring(root, 'utf-8')
-    reparsed = expatbuilder.parseString(xml_string, False)
-    print_string = reparsed.toprettyxml(indent="  ")
-
     # Generate .xml
-    tools.write_to_file("{}.xml".format(build_name), print_string)
+    xml_str = et.tostring(root, "utf-8")
+    xml_str = expatbuilder.parseString(xml_str, False)
+    xml_str = xml_str.toprettyxml(indent="  ")
+    tools.write_to_file("{}.xml".format(build_name), xml_str)
+
+# Efinity Toolchain --------------------------------------------------------------------------------
 
 class EfinityToolchain:
     attr_translate = {}
 
     def __init__(self, efinity_path):
-        self.options     = {}
-        self.clocks      = dict()
-        self.false_paths = set()
-        self.efinity_path = efinity_path
-        self.additional_sdc_commands = []
-        self.additional_xml_commands = [
-            [ 'efx_pgm', 'io_weak_pullup', 'on', 'e_bool'],
-            [ 'efx_pgm', 'oscillator_clock_divider', 'DIV8', 'e_option'],
-            [ 'efx_pgm', 'enable_crc_check', 'on', 'e_bool'],
-        ]
-        self.ifacewriter = InterfaceWriter(efinity_path)
-        self.excluded_ios = []
+        self.options                   = {}
+        self.clocks                    = dict()
+        self.false_paths               = set()
+        self.efinity_path              = efinity_path
+        self.ifacewriter               = InterfaceWriter(efinity_path)
+        self.excluded_ios              = []
+        self.additional_sdc_commands   = []
         self.additional_iface_commands = []
 
     def build(self, platform, fragment,
-        build_dir      = "build",
-        build_name     = "top",
-        run            = True,
+        build_dir  = "build",
+        build_name = "top",
+        run        = True,
         **kwargs):
 
         family = "Trion" # FIXME: Add Titanium support.
 
         self.ifacewriter.set_build_params(platform, build_name)
 
-        # Create build directory
+        # Create Build Directory.
         cwd = os.getcwd()
         os.makedirs(build_dir, exist_ok=True)
         os.chdir(build_dir)
 
-        # Apply FullMemoryWE on design (Efiniy does not infer memories correctly otherwise).
+        # Apply FullMemoryWE on Design (Efiniy does not infer memories correctly otherwise).
         FullMemoryWE()(fragment)
 
-        # Finalize design
+        # Finalize Design.
         if not isinstance(fragment, _Fragment):
             fragment = fragment.get_fragment()
         platform.finalize(fragment)
 
-        # Generate verilog
+        # Generate Design.
         v_output = platform.get_verilog(fragment, name=build_name, **kwargs)
-        named_sc, named_pc = platform.resolve_signals(v_output.ns)
-        v_file = build_name + ".v"
-        v_output.write(v_file)
-        platform.add_source(v_file)
+        v_output.write(f"{build_name}.v")
+        platform.add_source(f"{build_name}.v")
 
+        # Add Include Paths.
         if platform.verilog_include_paths:
-            self.options['includ_path'] = '{' + ';'.join(platform.verilog_include_paths) + '}'
+            self.options["includ_path"] = "{" + ";".join(platform.verilog_include_paths) + "}"
 
-        os.environ['EFXPT_HOME'] = self.efinity_path + '/pt'
+        os.environ["EFXPT_HOME"] = self.efinity_path + "/pt"
 
-        # Generate design timing constraints file (.sdc)
+        # Generate Design Timing Constraints file (.sdc)
+        named_sc, named_pc = platform.resolve_signals(v_output.ns)
         _build_sdc(
             clocks                  = self.clocks,
             false_paths             = self.false_paths,
@@ -302,25 +277,24 @@ class EfinityToolchain:
 
         # Generate project file (.xml)
         _build_xml(
-            family                  = family,
-            device                  = platform.device,
-            timing_model            = platform.timing_model,
-            build_name              = build_name,
-            sources                 = platform.sources,
-            additional_xml_commands = self.additional_xml_commands,
+            family       = family,
+            device       = platform.device,
+            timing_model = platform.timing_model,
+            build_name   = build_name,
+            sources      = platform.sources
         )
 
-        # Generate constraints file (.peri.xml)
+        # Generate peripheral file (.peri.xml)
         _build_peri(
             efinity_path              = self.efinity_path,
             build_name                = build_name,
-            partnumber                = platform.device,
+            device                    = platform.device,
             named_sc                  = named_sc,
             named_pc                  = named_pc,
             fragment                  = fragment,
             platform                  = platform,
             additional_iface_commands = self.additional_iface_commands,
-            excluded_ios              = self.excluded_ios,
+            excluded_ios              = self.excluded_ios
         )
 
         # DDR doesn't have Python API so we need to configure it
@@ -395,18 +369,18 @@ class EfinityToolchain:
 
             # Bitstream.
             r = subprocess.call([self.efinity_path + "/bin/efx_pgm",
-                "--source",                      f"work_pnr/{build_name}.lbf",
-                "--dest",                        f"outflow/{build_name}.hex",
-                "--device",                      platform.device,
-                "--family",                      family,
-                "--periph",                      f"outflow/{build_name}.lpf",
-                "--oscillator_clock_divider",    "DIV8",
-                "--spi_low_power_mode",          "off",
-                "--io_weak_pullup",              "on",
-                "--enable_roms",                 "on",
-                "--mode",                        "active",
-                "--width",                       "1",
-                "--enable_crc_check",            "on"
+                "--source",                   f"work_pnr/{build_name}.lbf",
+                "--dest",                     f"outflow/{build_name}.hex",
+                "--device",                   platform.device,
+                "--family",                   family,
+                "--periph",                   f"outflow/{build_name}.lpf",
+                "--oscillator_clock_divider", "DIV8",
+                "--spi_low_power_mode",       "off",
+                "--io_weak_pullup",           "on",
+                "--enable_roms",              "on",
+                "--mode",                     "active",
+                "--width",                    "1",
+                "--enable_crc_check",         "on"
             ])
             if r != 0:
                 raise OSError("Error occurred during efx_pgm execution.")
