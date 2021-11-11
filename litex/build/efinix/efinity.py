@@ -369,7 +369,7 @@ class EfinityToolchain:
             # Bitstream.
             r = tools.subprocess_call_filtered([self.efinity_path + "/bin/efx_pgm",
                 "--source",                   f"work_pnr/{build_name}.lbf",
-                "--dest",                     f"outflow/{build_name}.hex",
+                "--dest",                     f"{build_name}.hex",
                 "--device",                   platform.device,
                 "--family",                   family,
                 "--periph",                   f"outflow/{build_name}.lpf",
