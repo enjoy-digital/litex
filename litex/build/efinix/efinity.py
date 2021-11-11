@@ -6,12 +6,10 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
-import subprocess
 import pathlib
 import math
 import sys
 import site
-import subprocess
 import inspect
 import datetime
 
@@ -23,10 +21,11 @@ from migen.fhdl.tools import *
 from migen.fhdl.namer import build_namespace
 from migen.fhdl.simplify import FullMemoryWE
 
+from litex.build import tools
 from litex.build.generic_platform import *
 from litex.build.generic_platform import Pins, IOStandard, Misc
-from litex.build import tools
 
+from litex.build.efinix import common
 from litex.build.efinix import InterfaceWriter
 
 def get_pin_direction(fragment, platform, pinname):
@@ -163,7 +162,7 @@ def _build_peri(efinity_path, build_name, device, named_sc, named_pc, fragment, 
 
     tools.write_to_file("iface.py", header + gen + gpio + add + footer)
 
-    if subprocess.call([efinity_path + "/bin/python3", "iface.py"]) != 0:
+    if tools.subprocess_call_filtered([efinity_path + "/bin/python3", "iface.py"], common.colors) != 0:
         raise OSError("Error occurred during Efinity peri script execution.")
 
 
@@ -305,7 +304,7 @@ class EfinityToolchain:
         # Run
         if run:
             # Synthesis/Mapping.
-            r = subprocess.call([self.efinity_path + "/bin/efx_map",
+            r = tools.subprocess_call_filtered([self.efinity_path + "/bin/efx_map",
                 "--project",                    f"{build_name}",
                 "--root",                       f"{build_name}",
                 "--write-efx-verilog",          f"outflow/{build_name}.map.v",
@@ -330,21 +329,21 @@ class EfinityToolchain:
                 "--output-dir",                 "outflow",
                 "--project-xml",                f"{build_name}.xml",
                 "--I",                          "./"
-            ])
+            ], common.colors)
             if r != 0:
                 raise OSError("Error occurred during efx_map execution.")
 
             # Place and Route.
-            r = subprocess.call([self.efinity_path + "/bin/python3",
+            r = tools.subprocess_call_filtered([self.efinity_path + "/bin/python3",
                 self.efinity_path + "/scripts/efx_run_pt.py",
                 f"{build_name}",
                 family,
                 platform.device
-            ])
+            ], common.colors)
             if r != 0:
                raise OSError("Error occurred during efx_run_pt execution.")
 
-            r = subprocess.call([self.efinity_path + "/bin/efx_pnr",
+            r = tools.subprocess_call_filtered([self.efinity_path + "/bin/efx_pnr",
                 "--circuit",              f"{build_name}",
                 "--family",               family,
                 "--device",               platform.device,
@@ -363,12 +362,12 @@ class EfinityToolchain:
                 "--output_dir",           "outflow",
                 "--timing_analysis",      "on",
                 "--load_delay_matrix"
-            ])
+            ], common.colors)
             if r != 0:
                 raise OSError("Error occurred during efx_pnr execution.")
 
             # Bitstream.
-            r = subprocess.call([self.efinity_path + "/bin/efx_pgm",
+            r = tools.subprocess_call_filtered([self.efinity_path + "/bin/efx_pgm",
                 "--source",                   f"work_pnr/{build_name}.lbf",
                 "--dest",                     f"outflow/{build_name}.hex",
                 "--device",                   platform.device,
@@ -381,7 +380,7 @@ class EfinityToolchain:
                 "--mode",                     "active",
                 "--width",                    "1",
                 "--enable_crc_check",         "on"
-            ])
+            ], common.colors)
             if r != 0:
                 raise OSError("Error occurred during efx_pgm execution.")
 

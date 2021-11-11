@@ -12,6 +12,26 @@ from litex.build.io import *
 
 from litex.build.efinix.efinity import EfinityToolchain
 
+# Colorama -----------------------------------------------------------------------------------------
+
+try:
+    import colorama
+    colorama.init()  # install escape sequence translation on Windows
+    _have_colorama = True
+except ImportError:
+    _have_colorama = False
+
+colors = []
+if _have_colorama:
+    colors += [
+        ("ERROR", colorama.Fore.RED + colorama.Style.BRIGHT +
+         r"\g<0>" + colorama.Style.RESET_ALL),
+        ("WARNING", colorama.Fore.YELLOW +
+         r"\g<0>" + colorama.Style.RESET_ALL),
+        ("INFO", colorama.Fore.CYAN +
+         r"\g<0>" + colorama.Style.RESET_ALL),
+    ]
+
 # Efinix AsyncResetSynchronizer --------------------------------------------------------------------
 
 class EfinixAsyncResetSynchronizerImpl(Module):
