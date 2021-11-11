@@ -1056,10 +1056,14 @@ static void sdram_write_latency_calibration(void) {
 			}
 		}
 
+		#ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
 		if (_sdram_write_leveling_bitslips[module] < 0)
 			bitslip = best_bitslip;
 		else
 			bitslip = _sdram_write_leveling_bitslips[module];
+		#else
+			bitslip = best_bitslip;
+		#endif
 		if (bitslip == -1)
 			printf("m%d:- ", module);
 		else
