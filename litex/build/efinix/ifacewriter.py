@@ -281,6 +281,7 @@ design.save()"""
         )
 
     def add_dram_xml(self, root, params):
+        # Move to target file and switch to DDRDesignService?
         ddr_info = root.find("efxpt:ddr_info", namespaces)
 
         ddr = et.SubElement(ddr_info, "efxpt:ddr",
@@ -294,7 +295,7 @@ design.save()"""
             cs_speedbin     = "800",
             target0_enable  = "true",
             target1_enable  = "false",
-            ctrl_type       = "none"
+            ctrl_type       = "ena_user_rst"
         )
 
         gen_pin_target0 = et.SubElement(ddr, "efxpt:gen_pin_target0")
@@ -352,12 +353,12 @@ design.save()"""
         et.SubElement(gen_pin_target1, "efxpt:pin", name="axi_clk",     type_name=f"ACLK_1",   is_bus="false", is_clk="true", is_clk_invert="false")
 
         gen_pin_config = et.SubElement(ddr, "efxpt:gen_pin_config")
-        et.SubElement(gen_pin_config, "efxpt:pin", name="", type_name="CFG_SEQ_RST",   is_bus="false")
-        et.SubElement(gen_pin_config, "efxpt:pin", name="", type_name="CFG_SCL_IN",    is_bus="false")
-        et.SubElement(gen_pin_config, "efxpt:pin", name="", type_name="CFG_SEQ_START", is_bus="false")
-        et.SubElement(gen_pin_config, "efxpt:pin", name="", type_name="RSTN",          is_bus="false")
-        et.SubElement(gen_pin_config, "efxpt:pin", name="", type_name="CFG_SDA_IN",    is_bus="false")
-        et.SubElement(gen_pin_config, "efxpt:pin", name="", type_name="CFG_SDA_OEN",   is_bus="false")
+        et.SubElement(gen_pin_config, "efxpt:pin", name="ddr_inst1_CFG_SEQ_RST",   type_name="CFG_SEQ_RST",   is_bus="false")
+        et.SubElement(gen_pin_config, "efxpt:pin", name="",                        type_name="CFG_SCL_IN",    is_bus="false")
+        et.SubElement(gen_pin_config, "efxpt:pin", name="ddr_inst1_CFG_SEQ_START", type_name="CFG_SEQ_START", is_bus="false")
+        et.SubElement(gen_pin_config, "efxpt:pin", name="ddr_inst1_RSTN",          type_name="RSTN",          is_bus="false")
+        et.SubElement(gen_pin_config, "efxpt:pin", name="",                        type_name="CFG_SDA_IN",    is_bus="false")
+        et.SubElement(gen_pin_config, "efxpt:pin", name="",                        type_name="CFG_SDA_OEN",   is_bus="false")
 
         cs_fpga = et.SubElement(ddr, "efxpt:cs_fpga")
         et.SubElement(cs_fpga, "efxpt:param", name="FPGA_ITERM", value="120", value_type="str")
