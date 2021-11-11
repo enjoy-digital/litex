@@ -51,7 +51,6 @@ class TRIONPLL(Module):
             pin_name = self.platform.parser.get_gpio_instance_from_pin(pad_name)
             if pin_name.count("_") == 2:
                 pin_name = pin_name.rsplit("_", 1)[0]
-
             self.platform.toolchain.excluded_ios.append(clkin)
 
             #tpl = "create_clock -name {clk} -period {period} [get_ports {{{clk}}}]"
@@ -83,7 +82,8 @@ class TRIONPLL(Module):
     def create_clkout(self, cd, freq, phase=0, margin=1e-2, name="", with_reset=False):
         assert self.nclkouts < self.nclkouts_max
 
-        clk_out_name = "{}_CLKOUT{}".format(self.name, self.nclkouts) if name == "" else name
+        clk_out_name = f"{self.name}_clkout{self.nclkouts}" if name == "" else name
+        self.platform.toolchain.additional_sdc_commands.append(f"create_clock -period {1e9/freq} {clk_out_name}")
 
         if cd is not None:
             self.platform.add_extension([(clk_out_name, 0, Pins(1))])
