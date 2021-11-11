@@ -24,6 +24,9 @@
 // MAC address for the host's TAP interface
 static const char macadr[6] = {0xaa, 0xb6, 0x24, 0x69, 0x77, 0x21};
 
+// Enable the deficit idle count mechanism for RX (TAP -> SIM)
+#define XGMII_RX_DIC_ENABLE
+
 // Debug (print to stderr) invalid bus states
 #define XGMII_TX_DEBUG_INVAL_SIGNAL
 
@@ -51,8 +54,12 @@ static const char macadr[6] = {0xaa, 0xb6, 0x24, 0x69, 0x77, 0x21};
 #define XGMII_CTLCHAR_END   0xFD
 #define XGMII_CTLCHAR_IDLE  0x07
 
+// Shortcut macro for incrementing the inter-frame gap count, bounded by
+// 15. While Ethernet mandates a 12-byte IFG, the DIC mechanism requires us to
+// keep track of inserted IFG characters. Thus limit the IFG count to 15 bytes
+// (to prevent eventual overflow).
 #define XGMII_RX_IFG_INC(s) \
-    if (s->rx_ifg_count < 12) s->rx_ifg_count++;
+    if (s->rx_ifg_count < 15) s->rx_ifg_count++;
 
 // Type definitions for the 32-bit XGMII bus contents, irrespective of the XGMII
 // bus width used. The data here is then latched out over a bus with the
@@ -163,6 +170,40 @@ typedef struct xgmii_state {
     // bus (bounded counter to 12).
     size_t rx_ifg_count;
 
+#ifdef XGMII_RX_DIC_ENABLE
+    // Because XGMII only allows start of frame characters to be placed on lane
+    // 0 (first octet in a 32-bit XGMII bus word), when a packet's length % 4 !=
+    // 0, we can't transmit exactly 12 XGMII idle characters inter-frame gap
+    // (the XGMII end of frame character counts towards the inter-frame gap,
+    // while start of frame does not). Given we are required to transmit a
+    // minimum of 12 bytes IFG, it's allowed to send packet length % 4 bytes
+    // additional IFG bytes. However this would waste precious bandwidth
+    // transmitting these characters.
+    //
+    // Thus, 10Gbit/s Ethernet and above allow using the deficit idle count
+    // mechanism. It allows to delete some idle characters, as long as an
+    // average count of >= 12 bytes IFG is maintained. This is to be implemented
+    // as a two bit counter as specified in IEEE802.3-2018, section four,
+    // 46.3.1.4 Start control character alignment.
+    //
+    // This module optionally implements the deficit idle count algorithm as
+    // described by Eric Lynskey of the UNH InterOperability Lab[1]:
+    //
+    // | current |             |             |             |             |
+    // | count   |           0 |           1 |           2 |           3 |
+    // |---------+-----+-------+-----+-------+-----+-------+-----+-------|
+    // |         |     | new   |     | new   |     | new   |     | new   |
+    // | pkt % 4 | IFG | count | IFG | count | IFG | count | IFG | count |
+    // |---------+-----+-------+-----+-------+-----+-------+-----+-------|
+    // |       0 |  12 |     0 |  12 |     1 |  12 |     2 |  12 |     3 |
+    // |       1 |  11 |     1 |  11 |     2 |  11 |     3 |  15 |     0 |
+    // |       2 |  10 |     2 |  10 |     3 |  14 |     0 |  14 |     1 |
+    // |       3 |   9 |     3 |  13 |     0 |  13 |     1 |  13 |     2 |
+    //
+    // [1]: https://www.iol.unh.edu/sites/default/files/knowledgebase/10gec/10GbE_DIC.pdf
+    size_t rx_dic;
+#endif
+
     // Packet currently being received over the XGMII bus (TAP ->
     // Sim). Packets copied here are already removed from the TAP
     // incoming queue. Fields are valid if current_rx_len != 0. This
@@ -180,6 +221,58 @@ typedef struct xgmii_state {
 
 // Shared libevent state, set on module init
 static struct event_base *base = NULL;
+
+/**
+ * Check whether sufficient IFG (XGMII IDLE characters) has been inserted on the
+ * XGMII interface to start a new transmission.
+ *
+ * If enabled, this method must conform to the DIC mechanism and thus allow
+ * transmission with up to 3 deleted XGMII idle characters.
+ */
+bool xgmii_ethernet_rx_sufficient_ifg(xgmii_ethernet_state_t *s);
+
+/**
+ * Update the internal DIC count based on the actual inserted IFG.
+ *
+ * This method MUST be called on/after the start of a new transmission,
+ * regardless of whether the DIC mechanism is enabled.
+ */
+void xgmii_ethernet_rx_update_dic(xgmii_ethernet_state_t *s, size_t gen_ifg);
+
+// Implementation of the forwards-declared methods, depending on whether
+// XGMII_RX_DIC_ENABLE is on.
+#ifdef XGMII_RX_DIC_ENABLE
+bool xgmii_ethernet_rx_sufficient_ifg(xgmii_ethernet_state_t *s) {
+    printf("IFG SUFFICIENT? %lu %lu\n", s->rx_ifg_count, s->rx_dic);
+    return s->rx_ifg_count >= 9 + s->rx_dic;
+}
+void xgmii_ethernet_rx_update_dic(xgmii_ethernet_state_t *s, size_t gen_ifg) {
+    // Check whether we've deleted or inserted some IDLE characters and update
+    // the DIC count accordingly.
+    if (gen_ifg < 9) {
+        fprintf(stderr, "[xgmii_ethernet]: PANIC PANIC PANIC - RX generated "
+                "invalid IFG: %lu!\n", gen_ifg);
+    }
+
+    if (gen_ifg < 12) {
+        // Deleted characters, add them to the DIC
+        s->rx_dic += 12 - gen_ifg;
+    } else if (gen_ifg > 12) {
+        // Inserted characters, subtract them from the DIC, avoiding an
+        // underflow
+        if (s->rx_dic < gen_ifg - 12) {
+            s->rx_dic = 0;
+        } else {
+            s->rx_dic -= gen_ifg - 12;
+        }
+    }
+}
+#else
+bool xgmii_ethernet_rx_sufficient_ifg(xgmii_ethernet_state_t *s) {
+    return s->rx_ifg_count >= 12;
+}
+void xgmii_ethernet_rx_update_dic(xgmii_ethernet_state_t *s, size_t gen_ifg) {}
+#endif
 
 /**
  * Advance the RX (TAP->Sim) state machine, producing a 32-bit bus word
@@ -207,8 +300,11 @@ static xgmii_bus_snapshot_t xgmii_ethernet_rx_adv(xgmii_ethernet_state_t *s,
         // already transmitting.
         if (s->rx_state == XGMII_RX_STATE_IDLE) {
             // Currently idling, do we have sufficient IFG?
-            if (s->rx_ifg_count >= 12) {
+            if (xgmii_ethernet_rx_sufficient_ifg(s)) {
                 // Yup, we can start a transmission.
+
+                // Update the DIC if enabled
+                xgmii_ethernet_rx_update_dic(s, s->rx_ifg_count);
 
                 // Reset the transmit progress
                 s->current_rx_progress = 0;
