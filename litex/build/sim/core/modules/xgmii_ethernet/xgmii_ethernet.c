@@ -51,6 +51,9 @@ static const char macadr[6] = {0xaa, 0xb6, 0x24, 0x69, 0x77, 0x21};
 #define XGMII_CTLCHAR_END   0xFD
 #define XGMII_CTLCHAR_IDLE  0x07
 
+#define XGMII_RX_IFG_INC(s) \
+    if (s->rx_ifg_count < 12) s->rx_ifg_count++;
+
 // Type definitions for the 32-bit XGMII bus contents, irrespective of the XGMII
 // bus width used. The data here is then latched out over a bus with the
 // xgmii_*_signal_t types (either 32-bit or 64-bit, which is two 32-bit words
@@ -156,6 +159,10 @@ typedef struct xgmii_state {
     // ---------- RX (TAP -> Sim) STATE ---------
     xgmii_rx_state_t rx_state;
 
+    // How many bytes of inter-frame gap we've produced on the XGMII
+    // bus (bounded counter to 12).
+    size_t rx_ifg_count;
+
     // Packet currently being received over the XGMII bus (TAP ->
     // Sim). Packets copied here are already removed from the TAP
     // incoming queue. Fields are valid if current_rx_len != 0. This
@@ -199,18 +206,32 @@ static xgmii_bus_snapshot_t xgmii_ethernet_rx_adv(xgmii_ethernet_state_t *s,
         // There are bytes to send, check whether we're currently idling or
         // already transmitting.
         if (s->rx_state == XGMII_RX_STATE_IDLE) {
-            // Currently idling, thus initiate a new transmission.
+            // Currently idling, do we have sufficient IFG?
+            if (s->rx_ifg_count >= 12) {
+                // Yup, we can start a transmission.
 
-            // Reset the transmit progress
-            s->current_rx_progress = 0;
+                // Reset the transmit progress
+                s->current_rx_progress = 0;
 
-            // Send the start-of-packet XGMII control code, and the first half
-            // of the preamble.
-            bus.data = XGMII_FB_PREAMBLE_SF_DATA & 0xFFFFFFFF;
-            bus.ctl  = XGMII_FB_PREAMBLE_SF_CTL & 0xF;
+                // Reset the inter-frame gap counter
+                s->rx_ifg_count = 0;
 
-            // Enter the PREAMB state.
-            s->rx_state = XGMII_RX_STATE_PREAMB;
+                // Send the start-of-packet XGMII control code, and the first half
+                // of the preamble.
+                bus.data = XGMII_FB_PREAMBLE_SF_DATA & 0xFFFFFFFF;
+                bus.ctl  = XGMII_FB_PREAMBLE_SF_CTL & 0xF;
+
+                // Enter the PREAMB state.
+                s->rx_state = XGMII_RX_STATE_PREAMB;
+            } else {
+                // We are in IDLE and have a packet ready, but need to wait
+                // until we've accumulated sufficient IFG.
+                bus.data = XGMII_IDLE_DATA;
+                bus.ctl  = XGMII_IDLE_CTL;
+                for (size_t i = 0; i < sizeof(bus.data); i++) {
+                    XGMII_RX_IFG_INC(s);
+                }
+            }
         } else if (s->rx_state == XGMII_RX_STATE_PREAMB) {
             // We have initiated a new transmission, time to send the second
             // half of the preamble and the Ethernet start character.
@@ -244,6 +265,10 @@ static xgmii_bus_snapshot_t xgmii_ethernet_rx_adv(xgmii_ethernet_state_t *s,
                         << (idx * 8);
                     bus.ctl  |= 1 << idx;
 
+                    // The end of frame XGMII control character counts towards
+                    // the inter-frame gap
+                    XGMII_RX_IFG_INC(s);
+
                     // We deliberately let the progress advance beyond the
                     // length here, to indicate that we've already transmitted
                     // the end-of-frame buffer
@@ -262,6 +287,10 @@ static xgmii_bus_snapshot_t xgmii_ethernet_rx_adv(xgmii_ethernet_state_t *s,
                     bus.data |=
                         ((xgmii_data_t) XGMII_CTLCHAR_IDLE) << (idx * 8);
                     bus.ctl  |= 1 << idx;
+
+                    // The trailing XGMII idle characters on the last bus word
+                    // count towards the inter-frame gap
+                    XGMII_RX_IFG_INC(s);
                 }
             }
 
@@ -272,7 +301,9 @@ static xgmii_bus_snapshot_t xgmii_ethernet_rx_adv(xgmii_ethernet_state_t *s,
                     "machine reached invalid state!\n");
 
             // We need to produce a valid bus word to avoid returning some
-            // uninitialized memory.
+            // uninitialized memory. Set to IDLE, but don't count towards IFG
+            // because this should never happen and we don't want to ruin the
+            // next transmission because of insufficent IFG as well.
             bus.data = XGMII_IDLE_DATA;
             bus.ctl  = XGMII_IDLE_CTL;
 
@@ -283,6 +314,9 @@ static xgmii_bus_snapshot_t xgmii_ethernet_rx_adv(xgmii_ethernet_state_t *s,
         // No packet to transmit, indicate that we are idle.
         bus.data = XGMII_IDLE_DATA;
         bus.ctl  = XGMII_IDLE_CTL;
+        for (size_t i = 0; i < sizeof(bus.data); i++) {
+            XGMII_RX_IFG_INC(s);
+        }
     }
 
     if (!s->current_rx_len) {
