@@ -364,6 +364,10 @@ class VexRiscvSMP(CPU):
         from litex.build.altera import AlteraPlatform
         if isinstance(platform, AlteraPlatform):
             ram_filename = "Ram_1w_1rs_Intel.v"
+        # On Efinix platforms, use specific implementation.
+        from litex.build.efinix import EfinixPlatform
+        if isinstance(platform, EfinixPlatform):
+            ram_filename = "Ram_1w_1rs_Efinix.v"
         platform.add_source(os.path.join(vdir, ram_filename), "verilog")
 
         # Add Cluster.
