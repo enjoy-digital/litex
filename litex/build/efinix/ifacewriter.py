@@ -212,14 +212,14 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
 
     def generate_pll_dram(self):
         return """
-design.create_block("br0_pll", block_type="PLL")
-design.set_property("br0_pll", {"REFCLK_FREQ":"50.0"}, block_type="PLL")
-design.gen_pll_ref_clock("br0_pll", pll_res="PLL_BR0", refclk_src="EXTERNAL", refclk_name="br0_pll_clkin", ext_refclk_no="0")
-design.set_property("br0_pll","LOCKED_PIN","br0_pll_locked", block_type="PLL")
-design.set_property("br0_pll","RSTN_PIN","br0_pll_rstn", block_type="PLL")
-design.set_property("br0_pll", {"CLKOUT0_PIN" : "br0_pll_CLKOUT0"}, block_type="PLL")
-design.set_property("br0_pll","CLKOUT0_PHASE","0","PLL")
-calc_result = design.auto_calc_pll_clock("br0_pll", {"CLKOUT0_FREQ": "400.0"})
+design.create_block("dram_pll", block_type="PLL")
+design.set_property("dram_pll", {"REFCLK_FREQ":"50.0"}, block_type="PLL")
+design.gen_pll_ref_clock("dram_pll", pll_res="PLL_BR0", refclk_src="EXTERNAL", refclk_name="dram_pll_clkin", ext_refclk_no="0")
+design.set_property("dram_pll","LOCKED_PIN","dram_pll_locked", block_type="PLL")
+design.set_property("dram_pll","RSTN_PIN","dram_pll_rst_n", block_type="PLL")
+design.set_property("dram_pll", {"CLKOUT0_PIN" : "dram_pll_CLKOUT0"}, block_type="PLL")
+design.set_property("dram_pll","CLKOUT0_PHASE","0","PLL")
+calc_result = design.auto_calc_pll_clock("dram_pll", {"CLKOUT0_FREQ": "400.0"})
 """
 
     def generate(self, partnumber):
