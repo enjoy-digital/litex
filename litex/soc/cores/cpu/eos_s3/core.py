@@ -36,6 +36,7 @@ class EOS_S3(CPU):
     def __init__(self, platform, variant):
         self.platform       = platform
         self.reset          = Signal()
+        self.interrupt      = Signal(4)
         self.periph_buses   = [] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses   = [] # Memory buses (Connected directly to LiteDRAM).
 
@@ -72,7 +73,7 @@ class EOS_S3(CPU):
             #SDMA_Done(),
             #SDMA_Active(),
             # FB Interrupts
-            #FB_msg_out(4'b0000),
+            i_FB_msg_out     = self.interrupt,
             #FB_Int_Clr(8'h0),
             #FB_Start(),
             #FB_Busy= 0,

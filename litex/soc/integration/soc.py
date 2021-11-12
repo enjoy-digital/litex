@@ -926,6 +926,11 @@ class SoC(Module):
         # Add Bus Masters/CSR/IRQs.
         if isinstance(self.cpu, cpu.EOS_S3):
             self.bus.add_master(master=self.cpu.wb)
+            if hasattr(self.cpu, "interrupt"):
+                self.irq.enable()
+                for name, loc in self.cpu.interrupts.items():
+                    self.irq.add(name, loc)
+                self.add_config("CPU_HAS_INTERRUPT")
         if not isinstance(self.cpu, (cpu.CPUNone, cpu.Zynq7000, cpu.EOS_S3)):
             if reset_address is None:
                 reset_address = self.mem_map["rom"]
