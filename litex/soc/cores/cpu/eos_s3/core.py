@@ -43,7 +43,7 @@ class EOS_S3(CPU):
         self.wishbone_master = [] # General Purpose Wishbone Masters.
 
         # # #
-        self.wb             = wishbone.Interface(data_width=32, adr_width=17)
+        self.wb             = wishbone.Interface(data_width=32, adr_width=15)
 
         # EOS-S3 Clocking.
         self.clock_domains.cd_Sys_Clk0 = ClockDomain()
@@ -58,7 +58,7 @@ class EOS_S3(CPU):
             # AHB-To-FPGA Bridge
             i_WB_CLK       = ClockSignal("Sys_Clk0"),
             o_WB_RST       = WB_RST,
-            o_WBs_ADR      = self.wb.adr,
+            o_WBs_ADR      = Cat(Signal(2), self.wb.adr),
             o_WBs_CYC      = self.wb.cyc,
             o_WBs_BYTE_STB = self.wb.sel,
             o_WBs_WE       = self.wb.we,
