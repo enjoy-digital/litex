@@ -47,13 +47,23 @@ class EOS_S3(CPU):
 
         # EOS-S3 Clocking --------------------------------------------------------------------------
         pbus_rst     = Signal()
+        eos_s3_0_clk = Signal()
         eos_s3_0_rst = Signal()
+        eos_s3_1_clk = Signal()
         eos_s3_1_rst = Signal()
         self.clock_domains.cd_eos_s3_0 = ClockDomain()
         self.clock_domains.cd_eos_s3_1 = ClockDomain()
         self.specials += Instance("gclkbuff",
+            i_A = eos_s3_0_clk,
+            o_Z = ClockSignal("eos_s3_0")
+        )
+        self.specials += Instance("gclkbuff",
             i_A = eos_s3_0_rst | pbus_rst,
             o_Z = ResetSignal("eos_s3_0")
+        )
+        self.specials += Instance("gclkbuff",
+            i_A = eos_s3_1_clk,
+            o_Z = ClockSignal("eos_s3_1")
         )
         self.specials += Instance("gclkbuff",
             i_A = eos_s3_1_rst | pbus_rst,
@@ -92,9 +102,9 @@ class EOS_S3(CPU):
 
             # Clocking.
             # ---------
-            o_Sys_Clk0     = ClockSignal("eos_s3_0"),
+            o_Sys_Clk0     = eos_s3_0_clk,
             o_Sys_Clk0_Rst = eos_s3_0_rst,
-            o_Sys_Clk1     = ClockSignal("eos_s3_1"),
+            o_Sys_Clk1     = eos_s3_1_clk,
             o_Sys_Clk1_Rst = eos_s3_1_rst,
 
             # Packet FIFO.
