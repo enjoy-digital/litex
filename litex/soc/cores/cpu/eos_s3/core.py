@@ -37,13 +37,11 @@ class EOS_S3(CPU):
         self.platform       = platform
         self.reset          = Signal()
         self.interrupt      = Signal(4)
-        self.periph_buses   = [] # Peripheral buses (Connected to main SoC's bus).
-        self.memory_buses   = [] # Memory buses (Connected directly to LiteDRAM).
-
-        self.wishbone_master = [] # General Purpose Wishbone Masters.
+        self.pbus           = wishbone.Interface(data_width=32, adr_width=15)
+        self.periph_buses   = [self.pbus]
+        self.memory_buses   = []
 
         # # #
-        self.wb             = wishbone.Interface(data_width=32, adr_width=15)
 
         # EOS-S3 Clocking.
         self.clock_domains.cd_Sys_Clk0 = ClockDomain()
@@ -58,15 +56,15 @@ class EOS_S3(CPU):
             # AHB-To-FPGA Bridge
             i_WB_CLK       = ClockSignal("Sys_Clk0"),
             o_WB_RST       = WB_RST,
-            o_WBs_ADR      = Cat(Signal(2), self.wb.adr),
-            o_WBs_CYC      = self.wb.cyc,
-            o_WBs_BYTE_STB = self.wb.sel,
-            o_WBs_WE       = self.wb.we,
-            o_WBs_STB      = self.wb.stb,
+            o_WBs_ADR      = Cat(Signal(2), self.pbus.adr),
+            o_WBs_CYC      = self.pbus.cyc,
+            o_WBs_BYTE_STB = self.pbus.sel,
+            o_WBs_WE       = self.pbus.we,
+            o_WBs_STB      = self.pbus.stb,
             #o_WBs_RD"(),   =           // output        | Read  Enable               to   FPGA
-            o_WBs_WR_DAT   = self.wb.dat_w,
-            i_WBs_RD_DAT   = self.wb.dat_r,
-            i_WBs_ACK      = self.wb.ack,
+            o_WBs_WR_DAT   = self.pbus.dat_w,
+            i_WBs_RD_DAT   = self.pbus.dat_r,
+            i_WBs_ACK      = self.pbus.ack,
             # SDMA Signals
             #SDMA_Req(4'b0000),
             #SDMA_Sreq(4'b0000),
