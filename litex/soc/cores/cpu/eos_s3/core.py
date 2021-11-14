@@ -13,6 +13,8 @@ from litex.soc.interconnect import wishbone
 
 from litex.soc.cores.cpu import CPU
 
+class Open(Signal): pass
+
 # EOS-S3 -------------------------------------------------------------------------------------------
 
 class EOS_S3(CPU):
@@ -43,22 +45,27 @@ class EOS_S3(CPU):
 
         # # #
 
-        # EOS-S3 Clocking.
-        self.clock_domains.cd_Sys_Clk0 = ClockDomain()
-        self.clock_domains.cd_Sys_Clk1 = ClockDomain()
+        # EOS-S3 Clocking --------------------------------------------------------------------------
+        pbus_rst     = Signal()
+        eos_s3_0_rst = Signal()
+        eos_s3_1_rst = Signal()
+        self.clock_domains.cd_eos_s3_0 = ClockDomain()
+        self.clock_domains.cd_eos_s3_1 = ClockDomain()
+        self.specials += Instance("gclkbuff",
+            i_A = eos_s3_0_rst | pbus_rst,
+            o_Z = ResetSignal("eos_s3_0")
+        )
+        self.specials += Instance("gclkbuff",
+            i_A = eos_s3_1_rst | pbus_rst,
+            o_Z = ResetSignal("eos_s3_1")
+        )
 
-        # EOS-S3 (Minimal) -------------------------------------------------------------------------
-        Sys_Clk0_Rst       = Signal()
-        Sys_Clk1_Rst       = Signal()
-        WB_RST             = Signal()
-
-        class Open(Signal): pass
-
+        # EOS-S3 Instance --------------------------------------------------------------------------
         self.cpu_params = dict(
             # Wishbone Master.
             # -----------
-            i_WB_CLK       = ClockSignal("Sys_Clk0"),
-            o_WB_RST       = WB_RST,
+            i_WB_CLK       = ClockSignal("eos_s3_0"),
+            o_WB_RST       = pbus_rst,
             o_WBs_ADR      = Cat(Signal(2), self.pbus.adr),
             o_WBs_CYC      = self.pbus.cyc,
             o_WBs_BYTE_STB = self.pbus.sel,
@@ -85,10 +92,10 @@ class EOS_S3(CPU):
 
             # Clocking.
             # ---------
-            o_Sys_Clk0     = ClockSignal("Sys_Clk0"),
-            o_Sys_Clk0_Rst = Sys_Clk0_Rst,
-            o_Sys_Clk1     = ClockSignal("Sys_Clk1"),
-            o_Sys_Clk1_Rst = Sys_Clk1_Rst,
+            o_Sys_Clk0     = ClockSignal("eos_s3_0"),
+            o_Sys_Clk0_Rst = eos_s3_0_rst,
+            o_Sys_Clk1     = ClockSignal("eos_s3_1"),
+            o_Sys_Clk1_Rst = eos_s3_1_rst,
 
             # Packet FIFO.
             # ------------
@@ -147,10 +154,6 @@ class EOS_S3(CPU):
             i_FB_BusyS        = 0,
             i_WB_CLKS         = 0
         )
-
-        self.specials += Instance("gclkbuff",
-            i_A = Sys_Clk0_Rst | WB_RST,
-            o_Z = self.cd_Sys_Clk0.rst)
 
     def do_finalize(self):
         self.specials += Instance("qlal4s3b_cell_macro", **self.cpu_params)
