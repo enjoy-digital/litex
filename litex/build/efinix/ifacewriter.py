@@ -19,6 +19,16 @@ namespaces = {
     "xi"    : "http://www.w3.org/2001/XInclude"
 }
 
+# Interface Writer Block ---------------------------------------------------------------------------
+
+class InterfaceWriterBlock(dict):
+    def generate(self):
+        raise NotImplementedError # Must be overloaded
+
+class InterfaceWriterXMLBlock(dict):
+    def generate(self):
+        raise NotImplementedError # Must be overloaded
+
 # Interface Writer  --------------------------------------------------------------------------------
 
 class InterfaceWriter:
@@ -39,10 +49,13 @@ class InterfaceWriter:
         root = tree.getroot()
 
         for block in self.xml_blocks:
-            if block["type"] == "LVDS":
-                self.add_lvds_xml(root, block)
-            if block["type"] == "DRAM":
-                self.add_dram_xml(root, block)
+            if isinstance(block, InterfaceWriterXMLBlock):
+                block.generate(root, namespaces)
+            else:
+                if block["type"] == "LVDS":
+                    self.add_lvds_xml(root, block)
+                if block["type"] == "DRAM":
+                    self.add_dram_xml(root, block)
 
         xml_string = et.tostring(root, "utf-8")
         reparsed = expatbuilder.parseString(xml_string, False)
@@ -210,27 +223,16 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
         cmd += "# ---------- END PLL {} ---------\n\n".format(name)
         return cmd
 
-    def generate_pll_dram(self):
-        return """
-design.create_block("dram_pll", block_type="PLL")
-design.set_property("dram_pll", {"REFCLK_FREQ":"50.0"}, block_type="PLL")
-design.gen_pll_ref_clock("dram_pll", pll_res="PLL_BR0", refclk_src="EXTERNAL", refclk_name="dram_pll_clkin", ext_refclk_no="0")
-design.set_property("dram_pll","LOCKED_PIN","dram_pll_locked", block_type="PLL")
-design.set_property("dram_pll","RSTN_PIN","dram_pll_rst_n", block_type="PLL")
-design.set_property("dram_pll", {"CLKOUT0_PIN" : "dram_pll_CLKOUT0"}, block_type="PLL")
-design.set_property("dram_pll","CLKOUT0_PHASE","0","PLL")
-calc_result = design.auto_calc_pll_clock("dram_pll", {"CLKOUT0_FREQ": "400.0"})
-"""
-
     def generate(self, partnumber):
         output = ""
-        for b in self.blocks:
-            if b["type"] == "PLL":
-                output += self.generate_pll(b, partnumber)
-            if b["type"] == "PLL_DRAM":
-                output += self.generate_pll_dram()
-            if b["type"] == "GPIO":
-                output += self.generate_gpio(b)
+        for block in self.blocks:
+            if isinstance(block, InterfaceWriterBlock):
+                output += block.generate()
+            else:
+                if block["type"] == "PLL":
+                    output += self.generate_pll(block, partnumber)
+                if block["type"] == "GPIO":
+                    output += self.generate_gpio(block)
         return output
 
     def footer(self):
@@ -280,113 +282,3 @@ design.save()"""
             load            = "3"
         )
 
-    def add_dram_xml(self, root, params):
-        # Move to target file and switch to DDRDesignService?
-        ddr_info = root.find("efxpt:ddr_info", namespaces)
-
-        ddr = et.SubElement(ddr_info, "efxpt:ddr",
-            name            = "ddr_inst1",
-            ddr_def         = "DDR_0",
-            cs_preset_id    = "173",
-            cs_mem_type     = "LPDDR3",
-            cs_ctrl_width   = "x32",
-            cs_dram_width   = "x32",
-            cs_dram_density = "8G",
-            cs_speedbin     = "800",
-            target0_enable  = "true",
-            target1_enable  = "false",
-            ctrl_type       = "ena_user_rst"
-        )
-
-        gen_pin_target0 = et.SubElement(ddr, "efxpt:gen_pin_target0")
-        et.SubElement(gen_pin_target0, "efxpt:pin", name="axi0_wdata",  type_name=f"WDATA_0",  is_bus="true")
-        et.SubElement(gen_pin_target0, "efxpt:pin", name="axi0_wready", type_name=f"WREADY_0", is_bus="false")
-        et.SubElement(gen_pin_target0, "efxpt:pin", name="axi0_wid",    type_name=f"WID_0",    is_bus="true")
-        et.SubElement(gen_pin_target0, "efxpt:pin", name="axi0_bready", type_name=f"BREADY_0", is_bus="false")
-        et.SubElement(gen_pin_target0, "efxpt:pin", name="axi0_rdata",  type_name=f"RDATA_0",  is_bus="true")
-        et.SubElement(gen_pin_target0, "efxpt:pin", name="axi0_aid",    type_name=f"AID_0",    is_bus="true")
-        et.SubElement(gen_pin_target0, "efxpt:pin", name="axi0_bvalid", type_name=f"BVALID_0", is_bus="false")
-        et.SubElement(gen_pin_target0, "efxpt:pin", name="axi0_rlast",  type_name=f"RLAST_0",  is_bus="false")
-        et.SubElement(gen_pin_target0, "efxpt:pin", name="axi0_bid",    type_name=f"BID_0",    is_bus="true")
-        et.SubElement(gen_pin_target0, "efxpt:pin", name="axi0_asize",  type_name=f"ASIZE_0",  is_bus="true")
-        et.SubElement(gen_pin_target0, "efxpt:pin", name="axi0_atype",  type_name=f"ATYPE_0",  is_bus="false")
-        et.SubElement(gen_pin_target0, "efxpt:pin", name="axi0_aburst", type_name=f"ABURST_0", is_bus="true")
-        et.SubElement(gen_pin_target0, "efxpt:pin", name="axi0_wvalid", type_name=f"WVALID_0", is_bus="false")
-        et.SubElement(gen_pin_target0, "efxpt:pin", name="axi0_wlast",  type_name=f"WLAST_0",  is_bus="false")
-        et.SubElement(gen_pin_target0, "efxpt:pin", name="axi0_aaddr",  type_name=f"AADDR_0",  is_bus="true")
-        et.SubElement(gen_pin_target0, "efxpt:pin", name="axi0_rid",    type_name=f"RID_0",    is_bus="true")
-        et.SubElement(gen_pin_target0, "efxpt:pin", name="axi0_avalid", type_name=f"AVALID_0", is_bus="false")
-        et.SubElement(gen_pin_target0, "efxpt:pin", name="axi0_rvalid", type_name=f"RVALID_0", is_bus="false")
-        et.SubElement(gen_pin_target0, "efxpt:pin", name="axi0_alock",  type_name=f"ALOCK_0",  is_bus="true")
-        et.SubElement(gen_pin_target0, "efxpt:pin", name="axi0_rready", type_name=f"RREADY_0", is_bus="false")
-        et.SubElement(gen_pin_target0, "efxpt:pin", name="axi0_rresp",  type_name=f"RRESP_0",  is_bus="true")
-        et.SubElement(gen_pin_target0, "efxpt:pin", name="axi0_wstrb",  type_name=f"WSTRB_0",  is_bus="true")
-        et.SubElement(gen_pin_target0, "efxpt:pin", name="axi0_aready", type_name=f"AREADY_0", is_bus="false")
-        et.SubElement(gen_pin_target0, "efxpt:pin", name="axi0_alen",   type_name=f"ALEN_0",   is_bus="true")
-        et.SubElement(gen_pin_target0, "efxpt:pin", name="axi_clk",     type_name=f"ACLK_0",   is_bus="false", is_clk="true", is_clk_invert="false")
-
-        gen_pin_target1 = et.SubElement(ddr, "efxpt:gen_pin_target1")
-        et.SubElement(gen_pin_target1, "efxpt:pin", name="axi1_wdata",  type_name=f"WDATA_1",  is_bus="true")
-        et.SubElement(gen_pin_target1, "efxpt:pin", name="axi1_wready", type_name=f"WREADY_1", is_bus="false")
-        et.SubElement(gen_pin_target1, "efxpt:pin", name="axi1_wid",    type_name=f"WID_1",    is_bus="true")
-        et.SubElement(gen_pin_target1, "efxpt:pin", name="axi1_bready", type_name=f"BREADY_1", is_bus="false")
-        et.SubElement(gen_pin_target1, "efxpt:pin", name="axi1_rdata",  type_name=f"RDATA_1",  is_bus="true")
-        et.SubElement(gen_pin_target1, "efxpt:pin", name="axi1_aid",    type_name=f"AID_1",    is_bus="true")
-        et.SubElement(gen_pin_target1, "efxpt:pin", name="axi1_bvalid", type_name=f"BVALID_1", is_bus="false")
-        et.SubElement(gen_pin_target1, "efxpt:pin", name="axi1_rlast",  type_name=f"RLAST_1",  is_bus="false")
-        et.SubElement(gen_pin_target1, "efxpt:pin", name="axi1_bid",    type_name=f"BID_1",    is_bus="true")
-        et.SubElement(gen_pin_target1, "efxpt:pin", name="axi1_asize",  type_name=f"ASIZE_1",  is_bus="true")
-        et.SubElement(gen_pin_target1, "efxpt:pin", name="axi1_atype",  type_name=f"ATYPE_1",  is_bus="false")
-        et.SubElement(gen_pin_target1, "efxpt:pin", name="axi1_aburst", type_name=f"ABURST_1", is_bus="true")
-        et.SubElement(gen_pin_target1, "efxpt:pin", name="axi1_wvalid", type_name=f"WVALID_1", is_bus="false")
-        et.SubElement(gen_pin_target1, "efxpt:pin", name="axi1_wlast",  type_name=f"WLAST_1",  is_bus="false")
-        et.SubElement(gen_pin_target1, "efxpt:pin", name="axi1_aaddr",  type_name=f"AADDR_1",  is_bus="true")
-        et.SubElement(gen_pin_target1, "efxpt:pin", name="axi1_rid",    type_name=f"RID_1",    is_bus="true")
-        et.SubElement(gen_pin_target1, "efxpt:pin", name="axi1_avalid", type_name=f"AVALID_1", is_bus="false")
-        et.SubElement(gen_pin_target1, "efxpt:pin", name="axi1_rvalid", type_name=f"RVALID_1", is_bus="false")
-        et.SubElement(gen_pin_target1, "efxpt:pin", name="axi1_alock",  type_name=f"ALOCK_1",  is_bus="true")
-        et.SubElement(gen_pin_target1, "efxpt:pin", name="axi1_rready", type_name=f"RREADY_1", is_bus="false")
-        et.SubElement(gen_pin_target1, "efxpt:pin", name="axi1_rresp",  type_name=f"RRESP_1",  is_bus="true")
-        et.SubElement(gen_pin_target1, "efxpt:pin", name="axi1_wstrb",  type_name=f"WSTRB_1",  is_bus="true")
-        et.SubElement(gen_pin_target1, "efxpt:pin", name="axi1_aready", type_name=f"AREADY_1", is_bus="false")
-        et.SubElement(gen_pin_target1, "efxpt:pin", name="axi1_alen",   type_name=f"ALEN_1",   is_bus="true")
-        et.SubElement(gen_pin_target1, "efxpt:pin", name="axi_clk",     type_name=f"ACLK_1",   is_bus="false", is_clk="true", is_clk_invert="false")
-
-        gen_pin_config = et.SubElement(ddr, "efxpt:gen_pin_config")
-        et.SubElement(gen_pin_config, "efxpt:pin", name="ddr_inst1_CFG_SEQ_RST",   type_name="CFG_SEQ_RST",   is_bus="false")
-        et.SubElement(gen_pin_config, "efxpt:pin", name="",                        type_name="CFG_SCL_IN",    is_bus="false")
-        et.SubElement(gen_pin_config, "efxpt:pin", name="ddr_inst1_CFG_SEQ_START", type_name="CFG_SEQ_START", is_bus="false")
-        et.SubElement(gen_pin_config, "efxpt:pin", name="ddr_inst1_RSTN",          type_name="RSTN",          is_bus="false")
-        et.SubElement(gen_pin_config, "efxpt:pin", name="",                        type_name="CFG_SDA_IN",    is_bus="false")
-        et.SubElement(gen_pin_config, "efxpt:pin", name="",                        type_name="CFG_SDA_OEN",   is_bus="false")
-
-        cs_fpga = et.SubElement(ddr, "efxpt:cs_fpga")
-        et.SubElement(cs_fpga, "efxpt:param", name="FPGA_ITERM", value="120", value_type="str")
-        et.SubElement(cs_fpga, "efxpt:param", name="FPGA_OTERM", value="34",  value_type="str")
-
-        cs_memory = et.SubElement(ddr, "efxpt:cs_memory")
-        et.SubElement(cs_memory, "efxpt:param", name="RTT_NOM",   value="RZQ/2",     value_type="str")
-        et.SubElement(cs_memory, "efxpt:param", name="MEM_OTERM", value="40",        value_type="str")
-        et.SubElement(cs_memory, "efxpt:param", name="CL",        value="RL=6/WL=3", value_type="str")
-
-        timing = et.SubElement(ddr, "efxpt:cs_memory_timing")
-        et.SubElement(timing, "efxpt:param", name="tRAS",  value="42.000",  value_type="float")
-        et.SubElement(timing, "efxpt:param", name="tRC",   value="60.000",  value_type="float")
-        et.SubElement(timing, "efxpt:param", name="tRP",   value="18.000",  value_type="float")
-        et.SubElement(timing, "efxpt:param", name="tRCD",  value="18.000",  value_type="float")
-        et.SubElement(timing, "efxpt:param", name="tREFI", value="3.900",   value_type="float")
-        et.SubElement(timing, "efxpt:param", name="tRFC",  value="210.000", value_type="float")
-        et.SubElement(timing, "efxpt:param", name="tRTP",  value="10.000",  value_type="float")
-        et.SubElement(timing, "efxpt:param", name="tWTR",  value="10.000",  value_type="float")
-        et.SubElement(timing, "efxpt:param", name="tRRD",  value="10.000",  value_type="float")
-        et.SubElement(timing, "efxpt:param", name="tFAW",  value="50.000",  value_type="float")
-
-        cs_control = et.SubElement(ddr, "efxpt:cs_control")
-        et.SubElement(cs_control, "efxpt:param", name="AMAP",             value="ROW-COL_HIGH-BANK-COL_LOW", value_type="str")
-        et.SubElement(cs_control, "efxpt:param", name="EN_AUTO_PWR_DN",   value="Off",                       value_type="str")
-        et.SubElement(cs_control, "efxpt:param", name="EN_AUTO_SELF_REF", value="No",                        value_type="str")
-
-        cs_gate_delay = et.SubElement(ddr, "efxpt:cs_gate_delay")
-        et.SubElement(cs_gate_delay, "efxpt:param", name="EN_DLY_OVR", value="No", value_type="str")
-        et.SubElement(cs_gate_delay, "efxpt:param", name="GATE_C_DLY", value="3",  value_type="int")
-        et.SubElement(cs_gate_delay, "efxpt:param", name="GATE_F_DLY", value="0",  value_type="int")
