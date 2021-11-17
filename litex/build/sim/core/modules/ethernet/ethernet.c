@@ -97,7 +97,7 @@ out:
   return ret;
 }
 
-static int ethernet_start(void *b)
+static int ethernet_start(void *b, void *sh)
 {
   base = (struct event_base *) b;
   printf("[ethernet] loaded (%p)\n", base);
@@ -248,7 +248,8 @@ static struct ext_module_s ext_mod = {
   ethernet_new,
   ethernet_add_pads,
   NULL,
-  ethernet_tick
+  ethernet_tick,
+  NULL,
 };
 
 int litex_sim_ext_module_init(int (*register_module)(struct ext_module_s *))

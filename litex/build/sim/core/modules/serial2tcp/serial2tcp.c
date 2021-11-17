@@ -97,7 +97,7 @@ out:
   return ret;
 }
 
-static int serial2tcp_start(void *b)
+static int serial2tcp_start(void *b, void *sh)
 {
   base = (struct event_base *)b;
   printf("[serial2tcp] loaded (%p)\n", base);
@@ -272,7 +272,8 @@ static struct ext_module_s ext_mod = {
   serial2tcp_new,
   serial2tcp_add_pads,
   NULL,
-  serial2tcp_tick
+  serial2tcp_tick,
+  NULL,
 };
 
 int litex_sim_ext_module_init(int (*register_module)(struct ext_module_s *))

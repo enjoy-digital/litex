@@ -1,4 +1,9 @@
-/* Copyright (C) 2017 LambdaConcept */
+/**
+ * LiteX Simulator (verilated simulation)
+ *
+ * Copyright (c) 2017 LambdaConcept
+ * Copyright (c) 2021 Leon Schuermann <leon@is.currently.online>
+ */
 
 #include <string.h>
 #include <errno.h>
@@ -33,6 +38,10 @@ struct session_list_s {
 
 uint64_t timebase_ps = 1;
 uint64_t sim_time_ps = 0;
+
+// TODO: introduce parameter which enables the simulation to halt on start.
+bool sim_halt = false;
+
 struct session_list_s *sesslist=NULL;
 struct event_base *base=NULL;
 
@@ -45,10 +54,21 @@ static int litex_sim_initialize_all(void **sim, void *base)
   //struct ext_module_list_s *mlisti=NULL;
   struct pad_list_s *plist=NULL;
   struct pad_list_s *pplist=NULL;
+  struct session_list_s *fslist=NULL;
   struct session_list_s *slist=NULL;
   void *vsim=NULL;
   int i;
   int ret = RC_OK;
+
+  // Initialize the first entry of the session list early on, as we'd
+  // like to give a pointer to that to the individual modules. This
+  // pointer is going to be passed back by the modules for
+  // inter-module communication.
+  fslist = malloc(sizeof(struct session_list_s));
+  if (NULL == fslist) {
+      ret = RC_NOENMEM;
+      goto out;
+  }
 
   /* Load external modules */
   ret = litex_sim_load_ext_modules(&mlist);
@@ -60,7 +80,7 @@ static int litex_sim_initialize_all(void **sim, void *base)
   {
     if(pmlist->module->start)
     {
-      pmlist->module->start(base);
+      pmlist->module->start(base, fslist);
     }
   }
 
@@ -82,7 +102,6 @@ static int litex_sim_initialize_all(void **sim, void *base)
 
   for(mli = ml; mli; mli=mli->next)
   {
-
     /* Find the module in the external module */
     pmlist = NULL;
     ret = litex_sim_find_ext_module(mlist, mli->name, &pmlist );
@@ -96,11 +115,10 @@ static int litex_sim_initialize_all(void **sim, void *base)
       continue;
     }
 
-    slist=(struct session_list_s *)malloc(sizeof(struct session_list_s));
-    if(NULL == slist)
-    {
-      ret = RC_NOENMEM;
-      goto out;
+    slist = malloc(sizeof(struct session_list_s));
+    if (NULL == slist) {
+        ret = RC_NOENMEM;
+        goto out;
     }
     memset(slist, 0, sizeof(struct session_list_s));
 
@@ -122,20 +140,45 @@ static int litex_sim_initialize_all(void **sim, void *base)
       ret = litex_sim_pads_find(plist, mli->iface[i].name, mli->iface[i].index, &pplist);
       if(RC_OK != ret)
       {
-	goto out;
+        goto out;
       }
       if(NULL == pplist)
       {
-	eprintf("Could not find interface %s with index %d\n", mli->iface[i].name, mli->iface[i].index);
-	continue;
+        eprintf("Could not find interface %s with index %d\n", mli->iface[i].name, mli->iface[i].index);
+        continue;
       }
+      if (pmlist->module->add_pads != NULL) {
       ret = pmlist->module->add_pads(slist->session, pplist);
       if(RC_OK != ret)
       {
-	goto out;
+        goto out;
+      }}
+    }
+  }
+
+  // Move the list head to the already allocated memory location
+  memcpy(fslist, slist, sizeof(struct session_list_s));
+
+  // Try to send a message to every module session, announcing every
+  // other module session.
+  struct session_list_s *slist_iter_a;
+  struct session_list_s *slist_iter_b;
+  for (slist_iter_a = fslist; slist_iter_a != NULL; slist_iter_a = slist_iter_a->next) {
+    litex_sim_msid_t dst_session_id;
+    dst_session_id.sptr = slist_iter_a->session;
+    for (slist_iter_b = fslist; slist_iter_b != NULL; slist_iter_b = slist_iter_b->next) {
+      if (slist_iter_a != slist_iter_b) {
+          litex_sim_msid_t mod_session_id;
+          mod_session_id.sptr = slist_iter_b->session;
+          modmsg_newmodsession_payload_t data;
+          data.mod_name = slist_iter_b->module->name;
+          data.mod_session_id = mod_session_id;
+          void* retdata;
+          litex_sim_send_msg(fslist, dst_session_id, MODMSG_OP_NEWMODSESSION, &data, &retdata);
       }
     }
   }
+
   *sim = vsim;
 out:
   return ret;
@@ -178,8 +221,13 @@ static void cb(int sock, short which, void *arg)
   tv.tv_usec = 0;
   int i;
 
+  
   for(i = 0; i < 1000; i++)
   {
+    if (sim_halt) {
+      break;
+    }
+
     for(s = sesslist; s; s=s->next)
     {
       if(s->tickfirst)
@@ -203,10 +251,74 @@ static void cb(int sock, short which, void *arg)
     }
   }
 
-  if (!evtimer_pending(ev, NULL)) {
+  if (!evtimer_pending(ev, NULL) && !sim_halt) {
     event_del(ev);
     evtimer_add(ev, &tv);
   }
+}
+
+/**
+ * Send a message to a module session in the simulation.
+ *
+ * Prototype and behavior defined in `modules.h`.
+ */
+msg_return_t litex_sim_send_msg(
+  void *sim_handle,
+  litex_sim_msid_t mod_session_id,
+  uint32_t msg_op,
+  void* data,
+  void** retdata
+) {
+  struct session_list_s *slist = sim_handle;
+
+  // Find the matching session
+  while (slist != NULL) {
+      if (slist->session == mod_session_id.sptr) {
+        break;
+    }
+    slist = slist->next;
+  }
+
+  // Check whether we finished the loop without finding a matching module
+  if (slist == NULL) {
+    return MSGRET_MODSESSION_NOT_FOUND;
+  }
+
+  // Check whether the module has defined a handler for messages
+  if (slist->module->module_msg == NULL) {
+    return MSGRET_INVALID_OP;
+  }
+
+  // Finally, pass the message to the module
+  msg_return_t msg_ret = (slist->module->module_msg)(slist->session, msg_op, data, retdata);
+
+  if (msg_ret == MSGRET_MODSESSION_NOT_FOUND) {
+      fprintf(stderr, "[litex_sim]: module %s reported MSGRET_MODSESSION_NOT_FOUND, which is illegal. replacing with MSGRET_FAIL.\n", slist->module->name);
+      msg_ret = MSGRET_FAIL;
+  }
+
+  return msg_ret;
+};
+
+uint64_t litex_sim_current_time_ps(void *sim_handle) {
+    return sim_time_ps;
+}
+
+bool litex_sim_halted(void *sim_handle) {
+    return sim_halt;
+}
+
+void litex_sim_halt(bool halt) {
+    struct timeval tv;
+    tv.tv_sec = 0;
+    tv.tv_usec = 0;
+
+    sim_halt = halt;
+
+    if (!evtimer_pending(ev, NULL) && !sim_halt) {
+      event_del(ev);
+      evtimer_add(ev, &tv);
+    }
 }
 
 int main(int argc, char *argv[])
