@@ -413,6 +413,7 @@ def sim_args(parser):
     parser.add_argument("--sim-debug",            action="store_true",     help="Add simulation debugging modules.")
     parser.add_argument("--gtkwave-savefile",     action="store_true",     help="Generate GTKWave savefile.")
     parser.add_argument("--non-interactive",      action="store_true",     help="Run simulation without user input.")
+    parser.add_argument("--with-simctrl",         action="store_true",     help="Enable a ZeroMQ JSON control interface")
 
 def main():
     from litex.build.parser import LiteXArgumentParser
@@ -488,6 +489,10 @@ def main():
     # Video.
     if args.with_video_framebuffer or args.with_video_terminal:
         sim_config.add_module("video", "vga")
+
+    # Sim control (using ZMQ JSON RPC)
+    if args.with_simctrl:
+        sim_config.add_module("simctrl", [], args={})
 
     # SoC ------------------------------------------------------------------------------------------
     soc = SimSoC(
