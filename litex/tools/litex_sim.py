@@ -494,6 +494,10 @@ def main():
     if args.with_simctrl:
         sim_config.add_module("simctrl", [], args={})
 
+    # GPIO simulation module, controllable through simctrl interface
+    if args.with_gpio:
+        sim_config.add_module("gpio", "gpio", args={})
+
     # SoC ------------------------------------------------------------------------------------------
     soc = SimSoC(
         with_sdram             = args.with_sdram,
