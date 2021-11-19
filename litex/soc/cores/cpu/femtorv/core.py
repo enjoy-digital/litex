@@ -82,53 +82,55 @@ class FemtoRV(CPU):
 
         # Adapt FemtoRV Mem Bus to Wishbone.
         # ----------------------------------
-
-        # Bytes to Words addressing conversion.
-        self.comb += idbus.adr.eq(mbus.addr[2:])
-
-        # Wdata/WMask direct connection.
-        self.comb += idbus.dat_w.eq(mbus.wdata)
-        self.comb += idbus.sel.eq(mbus.wmask)
-
-        # Control adaptation.
         latch = Signal()
         write = mbus.wmask != 0
         read  = mbus.rstrb
 
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
-        fsm.act("IDLE",
-            idbus.stb.eq(read | write),
-            idbus.cyc.eq(read | write),
-            idbus.we.eq(write),
-            If(read,
-                mbus.rbusy.eq(1),
-                NextState("READ")
-            ).Elif(write,
-                mbus.wbusy.eq(1),
-                NextState("WRITE")
+        self.submodules.fsm = fsm = FSM(reset_state="WAIT")
+        fsm.act("WAIT",
+            # Latch Address + Bytes to Words conversion.
+            NextValue(idbus.adr, mbus.addr[2:]),
+
+            # Latch Wdata/WMask.
+            NextValue(idbus.dat_w, mbus.wdata),
+            NextValue(idbus.sel,   mbus.wmask),
+
+            # If Read or Write, jump to access.
+            If(read | write,
+                NextValue(idbus.we, write),
+                NextState("WB-ACCESS")
             )
         )
-        fsm.act("READ",
+        fsm.act("WB-ACCESS",
             idbus.stb.eq(1),
             idbus.cyc.eq(1),
+            mbus.wbusy.eq(1),
             mbus.rbusy.eq(1),
             If(idbus.ack,
+                mbus.wbusy.eq(0),
+                mbus.rbusy.eq(0),
                 latch.eq(1),
-                NextState("IDLE")
-            )
-        )
-        fsm.act("WRITE",
-            idbus.stb.eq(1),
-            idbus.cyc.eq(1),
-            idbus.we.eq(1),
-            mbus.wbusy.eq(1),
-            If(idbus.ack,
-                NextState("IDLE")
+                NextState("WAIT")
             )
         )
 
         # Latch RData on Wishbone ack.
-        self.sync += If(latch, mbus.rdata.eq(idbus.dat_r))
+        mbus_rdata = Signal(32)
+        self.sync += If(latch, mbus_rdata.eq(idbus.dat_r))
+        self.comb += mbus.rdata.eq(mbus_rdata)             # Latched value.
+        self.comb += If(latch, mbus.rdata.eq(idbus.dat_r)) # Immediate value.
+
+        # Main Ram accesses debug.
+        if False:
+            self.sync += If(mbus.addr[28:32] == 0x4, # Only Display Main Ram accesses.
+                If(idbus.stb & idbus.ack,
+                    If(idbus.we,
+                        Display("Write: Addr 0x%08x : Data 0x%08x, Sel: 0x%x", idbus.adr, idbus.dat_w, idbus.sel)
+                    ).Else(
+                        Display("Read:  Addr 0x%08x : Data 0x%08x", idbus.adr, idbus.dat_r)
+                    )
+                )
+            )
 
         # Add Verilog sources.
         # --------------------
