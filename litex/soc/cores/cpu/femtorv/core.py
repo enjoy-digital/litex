@@ -11,15 +11,6 @@ from migen import *
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 
-# TODO:
-# - electron:    Issue with ADDR_PAD (Similar to the previous issue with quark).
-# - intermissum: Issue with ADDR_PAD (Similar to the previous issue with intermissum).
-# - intermissum: Connect Interrupt (but should still work in polling mode).
-# - gracilis:    Issue with ADDR_PAD (Similar to the previous issue with intermissum).
-# - gracilis:    Connect Interrupt (but should still work in polling mode).
-# - petitbateau: Missing NRV_IS_IO_ADDR.
-
-
 # Variants -----------------------------------------------------------------------------------------
 
 CPU_VARIANTS = {
@@ -27,7 +18,7 @@ CPU_VARIANTS = {
     "quark":       "femtorv32_quark",       # Quark:       Most elementary version of FemtoRV32.
     "tachyon":     "femtorv32_tachyon",     # Tachyon:     Like Quark but supporting higher freq.
     "electron":    "femtorv32_electron",    # Electron:    Adds M support.
-    "intermissum": "femtorv32_electron",    # Intermissum: Adds Interrupt + CSR.
+    "intermissum": "femtorv32_intermissum", # Intermissum: Adds Interrupt + CSR.
     "gracilis":    "femtorv32_gracilis",    # Gracilis:    Adds C support.
     "petitbateau": "femtorv32_petitbateau", # PetitBateau: Adds F support.
 }
@@ -48,7 +39,7 @@ GCC_FLAGS = {
     "electron":         "-march=rv32im    -mabi=ilp32",
     "intermissum":      "-march=rv32im    -mabi=ilp32",
     "gracilis":         "-march=rv32imc   -mabi=ilp32",
-    "petitbateau":      "-march=rv32imcf  -mabi=ilp32",
+    "petitbateau":      "-march=rv32imcf  -mabi=ilp32f",
 }
 
 # FemtoRV ------------------------------------------------------------------------------------------
