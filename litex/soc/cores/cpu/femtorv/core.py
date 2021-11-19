@@ -13,7 +13,26 @@ from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 
 # Variants -----------------------------------------------------------------------------------------
 
-CPU_VARIANTS = ["standard"]
+CPU_VARIANTS = {
+    "standard": "femtorv32_quark",
+    "quark":    "femtorv32_quark",   # The most elementary version of FemtoRV32.
+    "tachyon":  "femtorv32_tachyon", # Quark with the EXECUTE is splitted into two steps, higher freq.
+}
+
+# GCC Flags ----------------------------------------------------------------------------------------
+
+GCC_FLAGS = {
+    #                               /-------- Base ISA
+    #                               |/------- Hardware Multiply + Divide
+    #                               ||/----- Atomics
+    #                               |||/---- Compressed ISA
+    #                               ||||/--- Single-Precision Floating-Point
+    #                               |||||/-- Double-Precision Floating-Point
+    #                               imacfd
+    "standard":         "-march=rv32      -mabi=ilp32",
+    "quark":            "-march=rv32i     -mabi=ilp32",
+    "tachyon":          "-march=rv32i     -mabi=ilp32",
+}
 
 # FemtoRV ------------------------------------------------------------------------------------------
 
@@ -40,6 +59,7 @@ class FemtoRV(CPU):
     def __init__(self, platform, variant="standard"):
         self.platform     = platform
         self.variant      = variant
+        self.human_name   = f"FemtoRV-{variant.upper()}"
         self.reset        = Signal()
         self.idbus        = idbus = wishbone.Interface()
         self.periph_buses = [idbus] # Peripheral buses (Connected to main SoC's bus).
@@ -134,7 +154,7 @@ class FemtoRV(CPU):
 
         # Add Verilog sources.
         # --------------------
-        self.add_sources(platform)
+        self.add_sources(platform, variant)
 
     def set_reset_address(self, reset_address):
         assert not hasattr(self, "reset_address")
@@ -142,11 +162,12 @@ class FemtoRV(CPU):
         self.cpu_params.update(p_RESET_ADDR=Constant(reset_address, 32))
 
     @staticmethod
-    def add_sources(platform):
-        if not os.path.exists("femtorv32_quark.v"):
+    def add_sources(platform, variant):
+        cpu_filename = f"femtorv32_{variant}.v"
+        if not os.path.exists(cpu_filename):
             # Get FemtoRV32 source.
-            os.system("wget https://raw.githubusercontent.com/BrunoLevy/learn-fpga/master/FemtoRV/RTL/PROCESSOR/femtorv32_quark.v")
-        platform.add_source("femtorv32_quark.v")
+            os.system(f"wget https://raw.githubusercontent.com/BrunoLevy/learn-fpga/master/FemtoRV/RTL/PROCESSOR/{cpu_filename}")
+        platform.add_source(cpu_filename)
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
