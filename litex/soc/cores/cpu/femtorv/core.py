@@ -143,8 +143,7 @@ class FemtoRV(CPU):
     def add_sources(platform):
         if not os.path.exists("femtorv32_quark.v"):
             # Get FemtoRV32 source.
-            os.system("wget https://github.com/enjoy-digital/litex/files/7487578/femtorv32_quark.v.txt")
-            os.system("mv femtorv32_quark.v.txt femtorv32_quark.v")
+            os.system("wget https://raw.githubusercontent.com/BrunoLevy/learn-fpga/master/FemtoRV/RTL/PROCESSOR/femtorv32_quark.v")
         platform.add_source("femtorv32_quark.v")
 
     def do_finalize(self):
