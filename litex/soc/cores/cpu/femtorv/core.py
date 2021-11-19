@@ -11,12 +11,25 @@ from migen import *
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 
+# TODO:
+# - electron:    Issue with ADDR_PAD (Similar to the previous issue with quark).
+# - intermissum: Issue with ADDR_PAD (Similar to the previous issue with intermissum).
+# - intermissum: Connect Interrupt (but should still work in polling mode).
+# - gracilis:    Issue with ADDR_PAD (Similar to the previous issue with intermissum).
+# - gracilis:    Connect Interrupt (but should still work in polling mode).
+# - petitbateau: Missing NRV_IS_IO_ADDR.
+
+
 # Variants -----------------------------------------------------------------------------------------
 
 CPU_VARIANTS = {
-    "standard": "femtorv32_quark",
-    "quark":    "femtorv32_quark",   # The most elementary version of FemtoRV32.
-    "tachyon":  "femtorv32_tachyon", # Quark with the EXECUTE is splitted into two steps, higher freq.
+    "standard":   "femtorv32_quark",
+    "quark":       "femtorv32_quark",       # Quark:       Most elementary version of FemtoRV32.
+    "tachyon":     "femtorv32_tachyon",     # Tachyon:     Like Quark but supporting higher freq.
+    "electron":    "femtorv32_electron",    # Electron:    Adds M support.
+    "intermissum": "femtorv32_electron",    # Intermissum: Adds Interrupt + CSR.
+    "gracilis":    "femtorv32_gracilis",    # Gracilis:    Adds C support.
+    "petitbateau": "femtorv32_petitbateau", # PetitBateau: Adds F support.
 }
 
 # GCC Flags ----------------------------------------------------------------------------------------
@@ -32,6 +45,10 @@ GCC_FLAGS = {
     "standard":         "-march=rv32      -mabi=ilp32",
     "quark":            "-march=rv32i     -mabi=ilp32",
     "tachyon":          "-march=rv32i     -mabi=ilp32",
+    "electron":         "-march=rv32im    -mabi=ilp32",
+    "intermissum":      "-march=rv32im    -mabi=ilp32",
+    "gracilis":         "-march=rv32imc   -mabi=ilp32",
+    "petitbateau":      "-march=rv32imcf  -mabi=ilp32",
 }
 
 # FemtoRV ------------------------------------------------------------------------------------------
@@ -163,11 +180,14 @@ class FemtoRV(CPU):
 
     @staticmethod
     def add_sources(platform, variant):
-        cpu_filename = f"femtorv32_{variant}.v"
-        if not os.path.exists(cpu_filename):
-            # Get FemtoRV32 source.
-            os.system(f"wget https://raw.githubusercontent.com/BrunoLevy/learn-fpga/master/FemtoRV/RTL/PROCESSOR/{cpu_filename}")
-        platform.add_source(cpu_filename)
+        platform.add_verilog_include_path(os.getcwd())
+        cpu_files = [f"femtorv32_{variant}.v"]
+        if variant == "petitbateau":
+            cpu_files.append("petitbateau.v")
+        for cpu_file in cpu_files:
+            if not os.path.exists(cpu_file):
+                os.system(f"wget https://raw.githubusercontent.com/BrunoLevy/learn-fpga/master/FemtoRV/RTL/PROCESSOR/{cpu_file}")
+            platform.add_source(cpu_file)
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
