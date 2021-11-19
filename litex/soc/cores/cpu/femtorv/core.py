@@ -23,7 +23,7 @@ from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 # Variants -----------------------------------------------------------------------------------------
 
 CPU_VARIANTS = {
-    "standard":   "femtorv32_quark",
+    "standard":    "femtorv32_quark",
     "quark":       "femtorv32_quark",       # Quark:       Most elementary version of FemtoRV32.
     "tachyon":     "femtorv32_tachyon",     # Tachyon:     Like Quark but supporting higher freq.
     "electron":    "femtorv32_electron",    # Electron:    Adds M support.
@@ -181,7 +181,7 @@ class FemtoRV(CPU):
     @staticmethod
     def add_sources(platform, variant):
         platform.add_verilog_include_path(os.getcwd())
-        cpu_files = [f"femtorv32_{variant}.v"]
+        cpu_files = [f"{CPU_VARIANTS[variant]}.v"]
         if variant == "petitbateau":
             cpu_files.append("petitbateau.v")
         for cpu_file in cpu_files:
