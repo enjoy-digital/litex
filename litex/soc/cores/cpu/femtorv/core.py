@@ -33,7 +33,7 @@ GCC_FLAGS = {
     #                               ||||/--- Single-Precision Floating-Point
     #                               |||||/-- Double-Precision Floating-Point
     #                               imacfd
-    "standard":         "-march=rv32      -mabi=ilp32",
+    "standard":         "-march=rv32i     -mabi=ilp32",
     "quark":            "-march=rv32i     -mabi=ilp32",
     "tachyon":          "-march=rv32i     -mabi=ilp32",
     "electron":         "-march=rv32im    -mabi=ilp32",
