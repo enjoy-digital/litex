@@ -59,9 +59,8 @@ class FemtoRV(CPU):
     # GCC Flags.
     @property
     def gcc_flags(self):
-        flags =  "-march=rv32i "
-        flags += "-mabi=ilp32 "
-        flags += "-D__femtorv__ "
+        flags =  GCC_FLAGS[self.variant]
+        flags += " -D__femtorv__ "
         return flags
 
     def __init__(self, platform, variant="standard"):
