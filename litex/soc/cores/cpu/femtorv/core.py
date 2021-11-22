@@ -39,7 +39,7 @@ GCC_FLAGS = {
     "electron":         "-march=rv32im    -mabi=ilp32",
     "intermissum":      "-march=rv32im    -mabi=ilp32",
     "gracilis":         "-march=rv32imc   -mabi=ilp32",
-    "petitbateau":      "-march=rv32imcf  -mabi=ilp32f",
+    "petitbateau":      "-march=rv32imfc  -mabi=ilp32f",
 }
 
 # FemtoRV ------------------------------------------------------------------------------------------
