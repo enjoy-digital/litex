@@ -56,6 +56,7 @@ def _build_al(name, family, device, files):
     xml = []
 
     date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
     # Set Device.
     xml.append(f"<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
     xml.append(f"<Project Version=\"1\" Path=\"...\">")
@@ -69,6 +70,7 @@ def _build_al(name, family, device, files):
     xml.append(f"    </HardWare>")
     xml.append(f"    <Source_Files>")
     xml.append(f"        <Verilog>")
+
     # Add Sources.
     for f, typ, lib in files:
         xml.append(f"            <File Path=\"{f}\">")
@@ -139,7 +141,8 @@ def _build_tcl(name, architecture, package):
 
     # Add project.
     tcl.append(f"open_project {name}.al")
-    # Rlaborate
+
+    # Elaborate.
     tcl.append(f"elaborate -top {name}")
 
     # Add IOs Constraints.
@@ -150,7 +153,7 @@ def _build_tcl(name, architecture, package):
     # Add SDC Constraints.
     tcl.append("read_sdc top.sdc")
 
-    # Perform PnR
+    # Perform PnR.
     tcl.append("optimize_gate")
     tcl.append("legalize_phy_inst")
     tcl.append("place")
@@ -192,13 +195,13 @@ class TangDinastyToolchain:
         cwd = os.getcwd()
         os.makedirs(build_dir, exist_ok=True)
         os.chdir(build_dir)
-        # Finalize design
 
+        # Finalize design.
         if not isinstance(fragment, _Fragment):
             fragment = fragment.get_fragment()
         platform.finalize(fragment)
 
-        # Generate verilog
+        # Generate verilog.
         v_output = platform.get_verilog(fragment, name=build_name, **kwargs)
         named_sc, named_pc = platform.resolve_signals(v_output.ns)
         v_file = build_name + ".v"
@@ -212,27 +215,28 @@ class TangDinastyToolchain:
             named_pc = named_pc
         )
 
-        # Timings (.sdc)
+        # Timings (.sdc).
         _build_sdc(
             clocks  = self.clocks,
             vns     = v_output.ns
         )
 
         architecture, family, package = parse_device(platform.device)
-        # Generate project file (.al)
+
+        # Generate project file (.al).
         al = _build_al(          
             name         = build_name,
             family       = family,
             device       = platform.device,
             files        = platform.sources)
 
-        # Generate build script (.tcl)
+        # Generate build script (.tcl).
         script = _build_tcl(          
             name         = build_name,
             architecture = architecture,
             package      = package)
 
-        # Run
+        # Run.
         if run:
             if which("td") is None:
                 msg = "Unable to find Tang Dinasty toolchain, please:\n"

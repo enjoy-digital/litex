@@ -18,26 +18,27 @@ class AnlogicAsyncResetSynchronizerImpl(Module):
         self.specials += [
             Instance("AL_MAP_SEQ",
                 p_DFFMODE = "FF",
-                p_REGSET = "SET",
-                p_SRMUX = "SR",
-                p_SRMODE = "ASYNC",
-                i_ce     = 1,
-                i_d      = 0,
-                i_sr     = async_reset,
-                i_clk    = cd.clk,
-                o_q      = rst1),
+                p_REGSET  = "SET",
+                p_SRMUX   = "SR",
+                p_SRMODE  = "ASYNC",
+                i_ce      = 1,
+                i_d       = 0,
+                i_sr      = async_reset,
+                i_clk     = cd.clk,
+                o_q       = rst1
+            ),
             Instance("AL_MAP_SEQ",
                 p_DFFMODE = "FF",
-                p_REGSET = "SET",
-                p_SRMUX = "SR",
-                p_SRMODE = "ASYNC",
-                i_ce     = 1,
-                i_d      = rst1,
-                i_sr     = async_reset,
-                i_clk    = cd.clk,
-                o_q      = cd.rst)
+                p_REGSET  = "SET",
+                p_SRMUX   = "SR",
+                p_SRMODE  = "ASYNC",
+                i_ce      = 1,
+                i_d       = rst1,
+                i_sr      = async_reset,
+                i_clk     = cd.clk,
+                o_q       = cd.rst
+            )
         ]
-
 
 class AnlogicAsyncResetSynchronizer:
     @staticmethod
