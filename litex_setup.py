@@ -171,7 +171,12 @@ def riscv_gcc_toolchain_download():
         end_file = "w64-mingw32.zip"
     # Linux
     elif sys.platform.startswith("linux"):
-        end_file = "linux-ubuntu14.tar.gz"
+        os_release = (open("/etc/os-release").read()).lower()
+        if "fedora" in os_release:
+            end_file = "linux-centos6.tar.gz"
+        else:
+            end_file = "linux-ubuntu14.tar.gz"
+
     # Mac OS
     elif sys.platform.startswith("darwin"):
         end_file = "apple-darwin.tar.gz"
