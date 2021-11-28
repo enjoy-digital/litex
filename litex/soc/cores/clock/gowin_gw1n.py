@@ -48,13 +48,13 @@ class GW1NOSC(Module):
 # GoWin / GW1NPLL ----------------------------------------------------------------------------------
 
 class GW1NPLL(Module):
-    nclkouts_max   = 1
-    pfd_freq_range = (  3e6,  400e6)
-    vco_freq_range = (400e6, 1000e6)
-    def __init__(self, device, vco_margin=0):
+    nclkouts_max = 1
+
+    def __init__(self, devicename, device, vco_margin=0):
         self.logger = logging.getLogger("GW1NPLL")
         self.logger.info("Creating GW1NPLL.".format())
         self.device     = device
+        self.devicename = devicename
         self.vco_margin = vco_margin
         self.reset      = Signal()
         self.locked     = Signal()
@@ -64,6 +64,24 @@ class GW1NPLL(Module):
         self.clkouts    = {}
         self.config     = {}
         self.params     = {}
+        if device.startswith('GW1NS'):
+            if 'C7/I6' in device or 'C6/I5' in device:
+                self.vco_freq_range = (600e6, 1200e6)  # datasheet says (400, 1200) but compiler enforces (600, 1200)
+                self.pfd_freq_range = (3e6, 400e6)
+            elif 'C5/I4' in device:
+                self.vco_freq_range = (320e6, 960e6)  # datasheet values, not tested
+                self.pfd_freq_range = (3e6, 320e6)
+        elif device.startswith('GW1N-1S'):
+            self.vco_freq_range = (400e6, 1200e6)
+            self.pfd_freq_range = (3e6, 400e6)  # not verified: not found in the datasheet
+        elif device.startswith('GW1N-'):
+            self.vco_freq_range = (400e6, 900e6)
+            self.pfd_freq_range = (3e6, 400e6)  # not verified: not found in the datasheet
+
+        try:
+            self.vco_freq_range
+        except NameError:
+            self.logger.error('Unknown device name')
 
     def register_clkin(self, clkin, freq):
         self.clkin = Signal()
@@ -117,7 +135,7 @@ class GW1NPLL(Module):
         # Based on UG286-1.3E Note.
         self.params.update(
             # Parameters.
-            p_DEVICE           = self.device,              # FPGA Device.
+            p_DEVICE           = self.devicename,              # FPGA Device.
             p_FCLKIN           = str(self.clkin_freq/1e6), # Clk Input frequency (MHz).
             p_DYN_IDIV_SEL     = "false",                  # Disable dynamic IDIV.
             p_IDIV_SEL         = config["idiv"]-1,         # Static IDIV value (1-64).
@@ -145,8 +163,6 @@ class GW1NPLL(Module):
             i_CLKFB   = 0,          # Clk Feedback.
             i_RESET   = self.reset, # PLL Reset.
             i_RESET_P = 0,          # PLL Power Down.
-            i_RESET_I = 0,          # IDIV reset.
-            i_RESET_S = 0,          # SDIV and DIV3 reset.
             i_ODSEL   = 0,          # Dynamic ODIV control.
             i_FBDSEL  = 0,          # Dynamic IDIV control.
             i_IDSEL   = 0,          # Dynamic FDIV control.
@@ -154,6 +170,15 @@ class GW1NPLL(Module):
             i_DUTYDA  = 0,          # Dynamic duty cycle control.
             i_FDLY    = 0,          # Dynamic CLKOUTP delay control.
         )
+        if self.device.startswith('GW1NS'):
+            instance_name = 'PLLVR'
+            self.params.update(i_VREN=1)
+        else:
+            instance_name = 'PLL'
+            self.params.update(
+                i_RESET_I = 0,          # IDIV reset.
+                i_RESET_S = 0,          # SDIV and DIV3 reset.
+            )
         clk0, f0, p0, m0 = self.clkouts[0]
         self.params.update(
             # Outputs.
@@ -163,4 +188,4 @@ class GW1NPLL(Module):
             o_CLKOUTD  = Open(),      # Clock divided from CLKOUT and CLKOUTP (controlled by SDIV).
             o_CLKOUTD3 = Open(),      # Clock divided from CLKOUT and CLKOUTP (constant division of 3).
         )
-        self.specials += Instance("PLL", **self.params)
+        self.specials += Instance(instance_name, **self.params)
