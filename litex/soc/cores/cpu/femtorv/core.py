@@ -95,7 +95,7 @@ class FemtoRV(CPU):
 
             # Clk / Rst.
             i_clk   = ClockSignal("sys"),
-            i_reset = ~ResetSignal("sys"), # Active Low.
+            i_reset = ~(ResetSignal("sys") | self.reset), # Active Low.
 
             # I/D Bus.
             o_mem_addr  = mbus.addr,
