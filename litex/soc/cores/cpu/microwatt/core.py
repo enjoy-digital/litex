@@ -187,8 +187,7 @@ class Microwatt(CPU):
             # Load/Store.
             "loadstore1.vhdl",
 
-            # Multiply/Divide.
-            "multiply.vhdl",
+            # Divide.
             "divider.vhdl",
 
             # FPU.
@@ -207,6 +206,12 @@ class Microwatt(CPU):
             "core_debug.vhdl",
             "core.vhdl",
         ]
+        from litex.build.xilinx import XilinxPlatform
+        if isinstance(platform, XilinxPlatform) and not use_ghdl_yosys_plugin:
+            sources.append("xilinx-mult.vhdl")
+        else:
+            sources.append("multiply.vhdl")
+
         sdir = get_data_mod("cpu", "microwatt").data_location
         cdir = os.path.dirname(__file__)
         # Convert VHDL to Verilog through GHDL/Yosys.
