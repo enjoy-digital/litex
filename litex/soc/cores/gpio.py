@@ -73,8 +73,8 @@ class GPIOInOut(Module):
 
 class GPIOTristate(_GPIOIRQ, Module, AutoCSR):
     def __init__(self, pads, with_irq=False):
-        assert isinstance(pads, Signal) or isinstance(pads, Record)
-        nbits = len(pads) if isinstance(pads, Signal) else len(pads.o)
+        internal = not (hasattr(pads, "o") and hasattr(pads, "oe") and hasattr(pads, "i"))
+        nbits    = len(pads) if internal else len(pads.o)
 
         self._oe  = CSRStorage(nbits, description="GPIO Tristate(s) Control.")
         self._in  = CSRStatus(nbits,  description="GPIO Input(s) Status.")
@@ -82,7 +82,10 @@ class GPIOTristate(_GPIOIRQ, Module, AutoCSR):
 
         # # #
 
-        if isinstance(pads, Signal):
+        # Internal Tristate.
+        if internal:
+            if isinstance(pads, Record):
+                pads = pads.flatten()
             # Proper inout IOs.
             for i in range(nbits):
                 t = TSTriple()
@@ -90,6 +93,8 @@ class GPIOTristate(_GPIOIRQ, Module, AutoCSR):
                 self.comb += t.oe.eq(self._oe.storage[i])
                 self.comb += t.o.eq(self._out.storage[i])
                 self.specials += MultiReg(t.i, self._in.status[i])
+
+        # External Tristate.
         else:
             # Tristate inout IOs (For external tristate IO chips or simulation).
             for i in range(nbits):
