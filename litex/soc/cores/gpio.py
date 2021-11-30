@@ -85,7 +85,7 @@ class GPIOTristate(_GPIOIRQ, Module, AutoCSR):
         # Internal Tristate.
         if internal:
             if isinstance(pads, Record):
-                pads = pads.raw_bits()
+                pads = pads.flatten()
             # Proper inout IOs.
             for i in range(nbits):
                 t = TSTriple()
