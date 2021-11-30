@@ -243,7 +243,6 @@ void xgmii_ethernet_rx_update_dic(xgmii_ethernet_state_t *s, size_t gen_ifg);
 // XGMII_RX_DIC_ENABLE is on.
 #ifdef XGMII_RX_DIC_ENABLE
 bool xgmii_ethernet_rx_sufficient_ifg(xgmii_ethernet_state_t *s) {
-    printf("IFG SUFFICIENT? %lu %lu\n", s->rx_ifg_count, s->rx_dic);
     return s->rx_ifg_count >= 9 + s->rx_dic;
 }
 void xgmii_ethernet_rx_update_dic(xgmii_ethernet_state_t *s, size_t gen_ifg) {
