@@ -191,12 +191,11 @@ def _build_xml(family, device, timing_model, build_name, sources):
 
     # Add Design Sources.
     for filename, language, library in sources:
-        if ".vh" not in filename:
-            et.SubElement(design_info, "efx:design_file", {
-                "name"    : filename,
-                "version" : "default",
-                "library" : "default",
-            })
+        et.SubElement(design_info, "efx:design_file", {
+            "name"    : filename,
+            "version" : "default",
+            "library" : "default" if ".vh" not in filename else library,
+        })
 
     # Add Timing Constraints.
     constraint_info  = et.SubElement(root, "efx:constraint_info")
