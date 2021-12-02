@@ -74,7 +74,7 @@ class GW1NPLL(Module):
         elif device.startswith('GW1N-1S'):
             self.vco_freq_range = (400e6, 1200e6)
             self.pfd_freq_range = (3e6, 400e6)  # not verified: not found in the datasheet
-        elif device.startswith('GW1N-'):
+        elif device.startswith('GW1N-') or device.startswith('GW1NR-'):
             self.vco_freq_range = (400e6, 900e6)
             self.pfd_freq_range = (3e6, 400e6)  # not verified: not found in the datasheet
 
