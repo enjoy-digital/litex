@@ -1301,7 +1301,7 @@ class LiteXSoC(SoC):
         # Compute/Check SDRAM size.
         sdram_size = 2**(module.geom_settings.bankbits +
                          module.geom_settings.rowbits +
-                         module.geom_settings.colbits)*phy.settings.databits//8
+                         module.geom_settings.colbits)*phy.settings.nranks*phy.settings.databits//8
         if size is not None:
             sdram_size = min(sdram_size, size)
 
