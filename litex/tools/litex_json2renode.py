@@ -584,7 +584,8 @@ def generate_repl(csr, etherbone_peripherals, autoalign):
 
 
 def filter_memory_regions(raw_regions, alignment=None, autoalign=[]):
-    """ Filters memory regions skipping those of linker type
+    """ Filters memory regions, skipping those that are included
+        in each other, those that have size equal to 0
         and those from `non_generated_mem_regions` list
         and verifying if they have proper size and do not overlap.
 
@@ -603,10 +604,6 @@ def filter_memory_regions(raw_regions, alignment=None, autoalign=[]):
 
     raw_regions.sort(key=lambda x: x['base'])
     for r in raw_regions:
-        if 'linker' in r['type']:
-            print('Skipping linker region: {}'.format(r['name']))
-            continue
-
         if 'io' in r['type']:
             print('Skipping io region: {}'.format(r['name']))
             continue
@@ -637,8 +634,16 @@ def filter_memory_regions(raw_regions, alignment=None, autoalign=[]):
                     print('Error: `{}` memory region size ({}) is not aligned to {}. This configuration cannot be currently simulated in Renode'.format(r['name'], hex(r['size']), hex(alignment)))
                     sys.exit(1)
 
-        if previous_region is not None and (previous_region['base'] + previous_region['size']) > (r['base'] + r['size']):
-            print("Error: detected overlaping memory regions: `{}` and `{}`".format(r['name'], previous_region['name']))
+        if r['size'] == 0:
+            print('Skipping `{}` due to size equal to 0'.format(r['name']))
+            continue
+
+        if previous_region is not None and r['base'] >= previous_region['base'] and r['base'] + r['size'] <= previous_region['base'] + previous_region['size']:
+            print('Skipping `{}` since it is included in `{}`'.format(r['name'], previous_region['name']))
+            continue
+
+        if previous_region is not None and r['base'] < previous_region['base'] + previous_region['size'] and r['base'] + r['size'] > previous_region['base'] + previous_region['size']:
+            print('Error: `{}` overlaps with `{}` - this configuration cannot be currently simulated in Renode'.format(r['name'], previous_region['name']))
             sys.exit(1)
 
         previous_region = r
