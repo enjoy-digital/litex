@@ -276,7 +276,7 @@ class VexRiscv(CPU, AutoCSR):
         if not os.path.exists(cfu_filename):
             raise OSError(f"Unable to find VexRiscv CFU plugin {cfu_filename}.")
 
-        # CFU Layout.
+        # CFU:CPU Bus Layout.
         cfu_bus_layout = [
             ("cmd", [
                 ("valid", 1),
@@ -296,11 +296,11 @@ class VexRiscv(CPU, AutoCSR):
             ]),
         ]
 
-        # CFU Bus.
+        # The CFU:CPU Bus.
         self.cfu_bus = cfu_bus = Record(cfu_bus_layout)
 
-        # Add CFU.
-        self.specials += Instance("Cfu",
+        # Connect CFU to the CFU:CPU bus.
+        self.cfu_params = dict(
             i_cmd_valid                = cfu_bus.cmd.valid,
             o_cmd_ready                = cfu_bus.cmd.ready,
             i_cmd_payload_function_id  = cfu_bus.cmd.payload.function_id,
@@ -314,7 +314,7 @@ class VexRiscv(CPU, AutoCSR):
         )
         self.platform.add_source(cfu_filename)
 
-        # Connect CFU to CPU.
+        # Connect CPU to the CFU:CPU bus.
         self.cpu_params.update(
             o_CfuPlugin_bus_cmd_valid                = cfu_bus.cmd.valid,
             i_CfuPlugin_bus_cmd_ready                = cfu_bus.cmd.ready,
@@ -361,3 +361,5 @@ class VexRiscv(CPU, AutoCSR):
         if not self.external_variant:
             self.add_sources(self.platform, self.variant)
         self.specials += Instance("VexRiscv", **self.cpu_params)
+        if hasattr(self, "cfu_params"):
+            self.specials += Instance("Cfu", **self.cfu_params)
