@@ -18,11 +18,12 @@ from litex.build.efinix import EfinixDbParser
 class EfinixPlatform(GenericPlatform):
     bitstream_ext = ".bit"
 
-    def __init__(self, *args, toolchain="efinity", **kwargs):
+    def __init__(self, *args, iobank_info=None, toolchain="efinity", **kwargs):
         GenericPlatform.__init__(self, *args, **kwargs)
 
         self.timing_model = self.device[-2:]
         self.device       = self.device[:-2]
+        self.iobank_info  = iobank_info
 
         if os.getenv("LITEX_ENV_EFINITY", False) == False:
             msg = "Unable to find or source Efinity toolchain, please either:\n"

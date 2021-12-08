@@ -57,6 +57,9 @@ class InterfaceWriter:
                 if block["type"] == "DRAM":
                     self.add_dram_xml(root, block)
 
+        if self.platform.iobank_info:
+            self.add_iobank_info_xml(root, self.platform.iobank_info)
+
         xml_string = et.tostring(root, "utf-8")
         reparsed = expatbuilder.parseString(xml_string, False)
         print_string = reparsed.toprettyxml(indent="    ")
@@ -282,3 +285,10 @@ design.save()"""
             load            = "3"
         )
 
+    def add_iobank_info_xml(self, root, iobank_info):
+        dev = root.find("efxpt:device_info", namespaces)
+        bank_info = dev.find("efxpt:iobank_info", namespaces)
+        for name, iostd in iobank_info:
+            for child in bank_info:
+                    if name == child.get("name"):
+                        child.set("iostd", iostd)
