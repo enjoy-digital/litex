@@ -1685,7 +1685,10 @@ class LiteXSoC(SoC):
             self.sata_phy.crg.cd_sata_rx.clk)
 
     # Add PCIe -------------------------------------------------------------------------------------
-    def add_pcie(self, name="pcie", phy=None, ndmas=0, max_pending_requests=8, with_msi=True):
+    def add_pcie(self, name="pcie", phy=None, ndmas=0, max_pending_requests=8,
+        with_dma_buffering = True, dma_buffering_depth=1024,
+        with_dma_loopback  = True,
+        with_msi           = True):
         # Imports
         from litepcie.core import LitePCIeEndpoint, LitePCIeMSI
         from litepcie.frontend.dma import LitePCIeDMA
@@ -1718,8 +1721,8 @@ class LiteXSoC(SoC):
             assert with_msi
             self.check_if_exists(f"{name}_dma{i}")
             dma = LitePCIeDMA(phy, endpoint,
-                with_buffering = True, buffering_depth=1024,
-                with_loopback  = True)
+                with_buffering = with_dma_buffering, buffering_depth=dma_buffering_depth,
+                with_loopback  = with_dma_loopback)
             setattr(self.submodules, f"{name}_dma{i}", dma)
             self.msis[f"{name.upper()}_DMA{i}_WRITER"] = dma.writer.irq
             self.msis[f"{name.upper()}_DMA{i}_READER"] = dma.reader.irq
