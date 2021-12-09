@@ -92,6 +92,8 @@ from litex.soc.cores.cpu.zynq7000 import Zynq7000
 # EOS-S3
 from litex.soc.cores.cpu.eos_s3 import EOS_S3
 
+from litex.soc.cores.cpu.gowin_emcu import GowinEMCU
+
 CPUS = {
     # None
     "None"        : CPUNone,
@@ -127,4 +129,6 @@ CPUS = {
 
     # EOS-S3
     "eos-s3"      : EOS_S3,
+
+    'gowin_emcu'  : GowinEMCU
 }
