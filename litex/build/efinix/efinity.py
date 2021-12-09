@@ -295,9 +295,10 @@ class EfinityToolchain:
             excluded_ios              = self.excluded_ios
         )
 
-        # DDR doesn't have Python API so we need to configure it
+        # Some IO blocks don't have Python API so we need to configure them
         # directly in the peri.xml file
-        if self.ifacewriter.xml_blocks:
+        # We also need to configure the bank voltage here
+        if self.ifacewriter.xml_blocks or platform.iobank_info:
             self.ifacewriter.generate_xml_blocks()
 
         # Run
