@@ -388,6 +388,8 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                       <0x{sdblock2mem:x} 0x100>,
                       <0x{sdmem2block:x} 0x100>,
                       <0x{sdirq:x} 0x100>;
+                reg-names = "phy", "core", "reader", "writer", "irq";
+                clocks = <&sys_clk>;
                 bus-width = <0x04>;
                 {sdirq_interrupt}
                 status = "okay";
