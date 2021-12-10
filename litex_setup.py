@@ -16,17 +16,18 @@ current_path = os.path.abspath(os.curdir)
 # Get SHA1: git rev-parse --short=7 HEAD
 
 class GitRepo:
-    def __init__(self, url, clone="regular", develop=True, sha1=None):
+    def __init__(self, url, clone="regular", develop=True, sha1=None, branch="master"):
         assert clone in ["regular", "recursive"]
         self.url     = url
         self.clone   = clone
         self.develop = develop
         self.sha1    = sha1
+        self.branch  = branch
 
 git_repos = {
     # HDL.
-    "migen":  GitRepo(url="https://github.com/m-labs/", clone="recursive"),
-    "nmigen": GitRepo(url="https://github.com/nmigen/", clone="recursive"),
+    "migen":    GitRepo(url="https://github.com/m-labs/", clone="recursive"),
+    "amaranth": GitRepo(url="https://github.com/amaranth-lang/", branch="main"),
 
     # LiteX SoC builder
     "pythondata-software-picolibc":    GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
@@ -119,7 +120,7 @@ def litex_setup_update_repos():
         # Update Repo.
         print(f"[Updating {name}]...")
         os.chdir(os.path.join(current_path, name))
-        subprocess.check_call("git checkout master", shell=True)
+        subprocess.check_call("git checkout " + repo.branch, shell=True)
         subprocess.check_call("git pull --ff-only", shell=True)
         # Recursive Update (Optional).
         if repo.clone == "recursive":
