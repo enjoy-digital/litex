@@ -117,19 +117,23 @@ class WS2812(Module):
      sys_clk_freq: int, in
          System Clk Frequency.
     """
-    def __init__(self, pad, nleds, sys_clk_freq):
-        # Memory.
-        mem = Memory(32, nleds)
-        port = mem.get_port()
-        self.specials += mem, port
+    def __init__(self, pad, nleds, sys_clk_freq, bus_mastering=False, bus_base=None):
+        if bus_mastering:
+            self.bus  = bus = wishbone.Interface(data_width=32)
+        else:
+            # Memory.
+            mem = Memory(32, nleds)
+            port = mem.get_port()
+            self.specials += mem, port
 
-        # Wishone Memory.
-        self.submodules.wb_mem = wishbone.SRAM(
-            mem_or_size = mem,
-            read_only   = False,
-            bus         = wishbone.Interface(data_width=32)
-        )
-        self.bus = self.wb_mem.bus
+            # Wishone Memory.
+            self.submodules.wb_mem = wishbone.SRAM(
+                mem_or_size = mem,
+                read_only   = False,
+                bus         = wishbone.Interface(data_width=32)
+            )
+            self.bus = self.wb_mem.bus
+
 
         # Internal Signals.
         led_data  = Signal(24)
@@ -164,17 +168,37 @@ class WS2812(Module):
                 NextState("LED-SHIFT")
             )
         )
-        self.comb += port.adr.eq(led_count)
-        fsm.act("LED-SHIFT",
-            NextValue(bit_count, 24-1),
-            NextValue(led_data,  port.dat_r),
-            NextValue(led_count, led_count + 1),
-            If(led_count == (nleds-1),
-                NextState("RST")
-            ).Else(
-                NextState("BIT-TEST")
+        if bus_mastering:
+             fsm.act("LED-SHIFT",
+                bus.stb.eq(1),
+                bus.cyc.eq(1),
+                bus.we.eq(0),
+                bus.sel.eq(2**(bus.data_width//8)-1),
+                bus.adr.eq(bus_base[2:] + led_count),
+                If(bus.ack,
+                    NextValue(bit_count, 24-1),
+                    NextValue(led_data,  bus.dat_r),
+                    NextValue(led_count, led_count + 1),
+                    If(led_count == (nleds-1),
+                        NextState("RST")
+                    ).Else(
+                        NextState("BIT-TEST")
+                    )
+                )
             )
-        )
+        else:
+            self.comb += port.adr.eq(led_count)
+            fsm.act("LED-SHIFT",
+                NextValue(bit_count, 24-1),
+                NextValue(led_data,  port.dat_r),
+                NextValue(led_count, led_count + 1),
+                If(led_count == (nleds-1),
+                    NextState("RST")
+                ).Else(
+                    NextState("BIT-TEST")
+                )
+            )
+
         fsm.act("BIT-TEST",
             If(led_data[-1] == 0,
                 NextState("ZERO-SEND"),
