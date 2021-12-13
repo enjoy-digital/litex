@@ -201,7 +201,10 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
             cmd += 'design.set_property("{}", pll_config, block_type="PLL")\n\n'.format(name)
 
         for i, clock in enumerate(block["clk_out"]):
-            cmd += 'design.set_property("{}","CLKOUT{}_PHASE","{}","PLL")\n'.format(name, i, clock[2])
+            if block["version"] == "V1_V2":
+                cmd += 'design.set_property("{}","CLKOUT{}_PHASE","{}","PLL")\n'.format(name, i, clock[2])
+            else:
+                cmd += '# Phase shift needs to be implemented for PLL V3\n'
 
         cmd += "target_freq = {\n"
         for i, clock in enumerate(block["clk_out"]):
