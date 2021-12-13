@@ -16,4 +16,4 @@ from litex.soc.cores.clock.lattice_ecp5  import ECP5PLL
 from litex.soc.cores.clock.lattice_nx    import NXOSCA, NXPLL
 
 # Efinix
-from litex.soc.cores.clock.efinix_trion import TRIONPLL
+from litex.soc.cores.clock.efinix import TRIONPLL, TITANIUMPLL

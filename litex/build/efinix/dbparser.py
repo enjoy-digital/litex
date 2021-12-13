@@ -108,7 +108,10 @@ class EfinixDbParser:
                 if self.device[0:2] not in ['T4', 'T8']:
                     conn = p.findall('efxpt:single_conn', namespaces)
                     for c in conn:
-                        if c.get('instance') == inst:
+                        i = c.get('instance')
+                        if i == None:
+                            continue
+                        if (i == inst) or (inst + '.' in i):
                             refclk_no = 0
                             if c.get('index') == '3':
                                 refclk_no = 1

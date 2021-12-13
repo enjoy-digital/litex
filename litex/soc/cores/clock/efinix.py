@@ -16,8 +16,8 @@ class Open(Signal): pass
 # Efinix / TRIONPLL ----------------------------------------------------------------------------------
 
 class TRIONPLL(Module):
-    nclkouts_max = 4
-    def __init__(self, platform, n=0):
+    nclkouts_max = 3
+    def __init__(self, platform, n=0, version="V1_V2"):
         self.logger = logging.getLogger("TRIONPLL")
         self.logger.info("Creating TRIONPLL.".format())
         self.platform   = platform
@@ -33,6 +33,7 @@ class TRIONPLL(Module):
         block["clk_out"] = []
         block["locked"]  = self.name + "_locked"
         block["rstn"]    = self.name + "_rstn"
+        block["version"] = version
         self.platform.toolchain.ifacewriter.blocks.append(block)
 
         # Connect PLL's rstn/locked.
@@ -110,3 +111,11 @@ class TRIONPLL(Module):
 
     def do_finalize(self):
         pass
+
+
+# Efinix / TITANIUMPLL ----------------------------------------------------------------------------------
+
+class TITANIUMPLL(TRIONPLL):
+    nclkouts_max = 5
+    def __init__(self, platform, n=0):
+        TRIONPLL.__init__(self, platform, n, version="V3")
