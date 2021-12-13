@@ -56,8 +56,9 @@ class TestCPU(unittest.TestCase):
     def test_picorv32(self):
         self.assertTrue(self.boot_test("picorv32"))
 
-    def test_minerva(self):
-        self.assertTrue(self.boot_test("minerva"))
+    # FIXME: Wait for Aramanth/Minerva to stabilize.
+    #def test_minerva(self):
+    #    self.assertTrue(self.boot_test("minerva"))
 
     # OpenRISC CPUs.
     #def test_mor1kx(self):
