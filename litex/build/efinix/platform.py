@@ -24,6 +24,10 @@ class EfinixPlatform(GenericPlatform):
         self.timing_model = self.device[-2:]
         self.device       = self.device[:-2]
         self.iobank_info  = iobank_info
+        if self.device[:2] == "Ti":
+            self.family = "Titanium"
+        else:
+            self.family = "Trion"
 
         if os.getenv("LITEX_ENV_EFINITY", False) == False:
             msg = "Unable to find or source Efinity toolchain, please either:\n"
