@@ -83,7 +83,15 @@ def _format_constraint(c, signame, fmt_r, fragment, platform):
     # IO standard property
     elif isinstance(c, IOStandard):
         prop = ""
-        valid = ["3.3_V_LVTTL_/_LVCMOS", "2.5_V_LVCMOS", "1.8_V_LVCMOS"]
+        valid = [ "3.3_V_LVTTL_/_LVCMOS", "2.5_V_LVCMOS", "1.8_V_LVCMOS",
+                  "1.2_V_Differential_HSTL", "1.2_V_Differential_SSTL",
+                  "1.2_V_HSTL", "1.2_V_LVCMOS", "1.2_V_SSTL", "1.5_V_Differential_HSTL",
+                  "1.5_V_Differential_SSTL", "1.5_V_HSTL", "1.5_V_LVCMOS", "1.5_V_SSTL",
+                  "1.8_V_Differential_HSTL", "1.8_V_Differential_SSTL", "1.8_V_HSTL",
+                  "1.8_V_LVCMOS", "1.8_V_SSTL", "2.5_V_LVCMOS", "3.0_V_LVCMOS",
+                  "3.0_V_LVTTL", "3.3_V_LVCMOS", "3.3_V_LVTTL"
+        ]
+
         if c.name in valid:
             prop = "IO_STANDARD"
 
