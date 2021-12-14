@@ -137,7 +137,7 @@ class PRBS31Checker(PRBSChecker):
 # PRBS RX ------------------------------------------------------------------------------------------
 
 class PRBSRX(Module):
-    def __init__(self, width, reverse=False, wrap=False):
+    def __init__(self, width, reverse=False, with_errors_saturation=False):
         self.config = Signal(2)
         self.pause  = Signal()
         self.i      = Signal(width)
@@ -147,14 +147,14 @@ class PRBSRX(Module):
 
         config = Signal(2)
 
-        # Optional bits reversing
+        # Optional bits reversing.
         prbs_data = self.i
         if reverse:
             new_prbs_data = Signal(width)
             self.comb += new_prbs_data.eq(prbs_data[::-1])
             prbs_data = new_prbs_data
 
-        # Checkers
+        # Checkers.
         self.specials += MultiReg(self.config, config)
         prbs7  = PRBS7Checker(width)
         prbs15 = PRBS15Checker(width)
@@ -166,11 +166,11 @@ class PRBSRX(Module):
             prbs31.i.eq(prbs_data)
         ]
 
-        # Errors count
+        # Errors count (with optional saturation).
         self.sync += [
             If(config == 0,
                 errors.eq(0)
-            ).Elif(~self.pause & ((errors != (2**32-1)) | wrap),
+            ).Elif(~self.pause & (~with_errors_saturation | (errors != (2**32-1))),
                 If(config == 0b01,
                     errors.eq(errors + (prbs7.errors != 0))
                 ).Elif(config == 0b10,
