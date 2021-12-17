@@ -69,6 +69,7 @@ class EfinixTristateImpl(Module):
         for bit in range(nbits):
             io_name = platform.get_pin_name(io[bit])
             io_loc  = platform.get_pin_location(io[bit])
+            io_prop = platform.get_pin_properties(io[bit])
             io_o    = platform.add_iface_io(io_name + "_OUT")
             io_oe   = platform.add_iface_io(io_name +  "_OE")
             io_i    = platform.add_iface_io(io_name +  "_IN")
@@ -81,6 +82,7 @@ class EfinixTristateImpl(Module):
                 "mode"       : "INOUT",
                 "name"       : io_name,
                 "location"   : [io_loc[0]],
+                "properties" : io_prop
             }
 
             platform.toolchain.ifacewriter.blocks.append(block)
