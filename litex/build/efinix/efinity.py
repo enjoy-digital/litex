@@ -115,6 +115,10 @@ def _format_constraint(c, signame, fmt_r, fragment, platform):
             prop = "DRIVE_STRENGTH"
             val = c.misc.split("=")[1]
 
+        if "SLEWRATE" in c.misc:
+            prop = "SLEW_RATE"
+            val = "1"
+
         if prop == "":
             # Print error, warning ??
             return ""
