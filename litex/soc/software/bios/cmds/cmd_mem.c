@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <libbase/memtest.h>
 
 #include <generated/csr.h>
@@ -69,17 +70,20 @@ define_command(mem_read, mem_read_handler, "Read address space", MEM_CMDS);
 static void mem_write_handler(int nb_params, char **params)
 {
 	char *c;
-	unsigned int *addr;
+	void *addr;
 	unsigned int value;
 	unsigned int count;
+	unsigned int size;
 	unsigned int i;
 
 	if (nb_params < 2) {
-		printf("mem_write <address> <value> [count]");
+		printf("mem_write <address> <value> [count] [size]");
 		return;
 	}
 
-	addr = (unsigned int *)strtoul(params[0], &c, 0);
+	size = 4;
+	addr = (void *)strtoul(params[0], &c, 0);
+
 	if (*c != 0) {
 		printf("Incorrect address");
 		return;
@@ -101,8 +105,25 @@ static void mem_write_handler(int nb_params, char **params)
 		}
 	}
 
-	for (i = 0; i < count; i++)
-		*addr++ = value;
+	if (nb_params == 4)
+		size = strtoul(params[3], &c, 0);
+
+	for (i = 0; i < count; i++) {
+		switch (size) {
+		case 1:
+			*(uint8_t *)addr++ = value;
+			break;
+		case 2:
+			*(uint16_t *)addr++ = value;
+			break;
+		case 4:
+			*(uint32_t *)addr++ = value;
+			break;
+		default:
+			printf("Incorrect size");
+			return;
+		}
+	}
 }
 
 define_command(mem_write, mem_write_handler, "Write address space", MEM_CMDS);
