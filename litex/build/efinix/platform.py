@@ -86,7 +86,36 @@ class EfinixPlatform(GenericPlatform):
                     return [pins[idx]]
         return None
 
-    def get_pin_name(self, sig):
+    def get_pin_properties(self, sig):
+        ret = []
+        if sig is None:
+            return None
+        assert len(sig) == 1
+
+        if isinstance(sig, _Slice):
+            sig = sig.value
+        sc = self.constraint_manager.get_sig_constraints()
+        for s, pins, others, resource in sc:
+            if (s == sig) and (pins[0] != 'X'):
+                    for o in others:
+                        if isinstance(o, IOStandard):
+                            ret.append(('IO_STANDARD', o.name))
+                        if isinstance(o, Misc):
+                            if o.misc in ["WEAK_PULLUP", "WEAK_PULLDOWN"]:
+                                prop = "PULL_OPTION"
+                                val = o.misc
+                            if "DRIVE_STRENGTH" in o.misc:
+                                prop = "DRIVE_STRENGTH"
+                                val = o.misc.split("=")[1]
+                                ret.append((prop, val))
+                            if "SLEWRATE" in o.misc:
+                                prop = "SLEW_RATE"
+                                val = "1"
+                                ret.append((prop, val))
+                    return ret
+        return None
+
+    def get_pin_name(self, sig, without_index=False):
         if sig is None:
             return None
         assert len(sig) == 1
@@ -100,7 +129,10 @@ class EfinixPlatform(GenericPlatform):
         for s, pins, others, resource in sc:
             if s == sig:
                 if resource[2]:
-                    return resource[0] + "_" + resource[2] + (f"{idx}" if slc else "")
+                    name = resource[0] + "_" + resource[2]
+                    if without_index is False:
+                        name = name + (f"{idx}" if slc else "")
+                    return name
                 else:
                     return resource[0] + (f"{idx}" if slc else "")
         return None

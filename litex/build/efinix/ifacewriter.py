@@ -108,6 +108,7 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
     def generate_gpio(self, block, verbose=True):
         name = block["name"]
         mode = block["mode"]
+        prop = block["properties"]
         cmd = ""
 
         if mode == "INOUT":
@@ -118,6 +119,9 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                 cmd += f'design.create_inout_gpio("{name}",{block["size"]-1},0)\n'
                 for i, pad in enumerate(block["location"]):
                     cmd += f'design.assign_pkg_pin("{name}[{i}]","{pad}")\n'
+            if prop:
+                for p, val in prop:
+                    cmd += 'design.set_property("{}","{}","{}")\n'.format(name, p, val)
             cmd += "\n"
             return cmd
 
@@ -132,6 +136,10 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
             if "in_reg" in block:
                 cmd += f'design.set_property("{name}","IN_REG","{block["in_reg"]}")\n'
                 cmd += f'design.set_property("{name}","IN_CLK_PIN","{block["in_clk_pin"]}")\n'
+            if prop:
+                for p, val in prop:
+                    cmd += 'design.set_property("{}","{}","{}")\n'.format(name, p, val)
+            cmd += "\n"
             return cmd
 
         if mode == "OUTPUT":
@@ -150,6 +158,9 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
             if "drive_strength" in block:
                 cmd += 'design.set_property("{}","DRIVE_STRENGTH","4")\n'.format(name, block["drive_strength"])
 
+            if prop:
+                for p, val in prop:
+                    cmd += 'design.set_property("{}","{}","{}")\n'.format(name, p, val)
             cmd += "\n"
             return cmd
 
@@ -157,12 +168,20 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
             cmd += 'design.create_input_clock_gpio("{}")\n'.format(name)
             cmd += 'design.set_property("{}","IN_PIN","{}")\n'.format(name, name)
             cmd += 'design.assign_pkg_pin("{}","{}")\n\n'.format(name, block["location"])
+            if prop:
+                for p, val in prop:
+                    cmd += 'design.set_property("{}","{}","{}")\n'.format(name, p, val)
+            cmd += "\n"
             return cmd
 
         if mode == "OUTPUT_CLK":
             cmd += 'design.create_clockout_gpio("{}")\n'.format(name)
             cmd += 'design.set_property("{}","OUT_CLK_PIN","{}")\n'.format(name, name)
             cmd += 'design.assign_pkg_pin("{}","{}")\n\n'.format(name, block["location"])
+            if prop:
+                for p, val in prop:
+                    cmd += 'design.set_property("{}","{}","{}")\n'.format(name, p, val)
+            cmd += "\n"
             return cmd
 
         cmd = "# TODO: " + str(block) +"\n"
