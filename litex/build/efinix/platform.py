@@ -100,7 +100,10 @@ class EfinixPlatform(GenericPlatform):
         for s, pins, others, resource in sc:
             if s == sig:
                 if resource[2]:
-                    return resource[0] + "_" + resource[2] + (f"{idx}" if slc else "")
+                    name = resource[0] + "_" + resource[2]
+                    if without_index is False:
+                        name = name + (f"{idx}" if slc else "")
+                    return name
                 else:
                     return resource[0] + (f"{idx}" if slc else "")
         return None

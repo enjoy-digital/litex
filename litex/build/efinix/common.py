@@ -65,24 +65,36 @@ class EfinixAsyncResetSynchronizer:
 class EfinixTristateImpl(Module):
     def __init__(self, platform, io, o, oe, i=None):
         nbits, sign = value_bits_sign(io)
-        assert nbits == 1
-        io_name = platform.get_pin_name(io)
-        io_loc  = platform.get_pin_location(io)
-        io_o    = platform.add_iface_io(io_name + "_OUT")
-        io_oe   = platform.add_iface_io(io_name +  "_OE")
-        io_i    = platform.add_iface_io(io_name +  "_IN")
-        self.comb += io_o.eq(o)
-        self.comb += io_oe.eq(oe)
-        if i is not None:
-            self.comb += i.eq(io_i)
-        block = {
-            "type"     : "GPIO",
-            "mode"     : "INOUT",
-            "name"     : io_name,
-            "location" : [io_loc[0]],
-        }
-        platform.toolchain.ifacewriter.blocks.append(block)
-        platform.toolchain.excluded_ios.append(io_name)
+
+        for bit in range(nbits):
+            io_name = platform.get_pin_name(io[bit])
+            io_loc  = platform.get_pin_location(io[bit])
+            io_o    = platform.add_iface_io(io_name + "_OUT")
+            io_oe   = platform.add_iface_io(io_name +  "_OE")
+            io_i    = platform.add_iface_io(io_name +  "_IN")
+            self.comb += io_o.eq(o[bit])
+            self.comb += io_oe.eq(oe)
+            if i[bit] is not None:
+                self.comb += i[bit].eq(io_i)
+            block = {
+                "type"       : "GPIO",
+                "mode"       : "INOUT",
+                "name"       : io_name,
+                "location"   : [io_loc[0]],
+            }
+
+            platform.toolchain.ifacewriter.blocks.append(block)
+
+        # Remove the group from the io list
+        exclude = platform.get_pin_name(io[0], without_index=True)
+
+        # In case of a single signal, there is still a '0' index
+        # to be remove at the end
+        if (nbits == 1) and (exclude[:-1] == '0'):
+            exclude = exclude[:-1]
+
+        platform.toolchain.excluded_ios.append(exclude)
+
 
 class EfinixTristate(Module):
     @staticmethod
