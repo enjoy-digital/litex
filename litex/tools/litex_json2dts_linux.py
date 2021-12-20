@@ -217,17 +217,28 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         };
 """
 
+    # Clock ----------------------------------------------------------------------------------------
+
+    dts += """
+        clocks {{
+            sys_clk: litex_sys_clk {{
+                #clock-cells = <0>;
+                compatible = "fixed-clock";
+                clock-frequency = <{sys_clk_freq}>;
+            }};
+        }};
+""".format(sys_clk_freq=d["constants"]["config_clock_frequency"])
+
     # SoC ------------------------------------------------------------------------------------------
 
     dts += """
         soc {{
             #address-cells = <1>;
             #size-cells    = <1>;
-            bus-frequency  = <{sys_clk_freq}>;
             compatible = "simple-bus";
             interrupt-parent = <&intc0>;
             ranges;
-""".format(sys_clk_freq=d["constants"]["config_clock_frequency"])
+"""
 
     # SoC Controller -------------------------------------------------------------------------------
 
@@ -377,6 +388,8 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                       <0x{sdblock2mem:x} 0x100>,
                       <0x{sdmem2block:x} 0x100>,
                       <0x{sdirq:x} 0x100>;
+                reg-names = "phy", "core", "reader", "writer", "irq";
+                clocks = <&sys_clk>;
                 bus-width = <0x04>;
                 {sdirq_interrupt}
                 status = "okay";
