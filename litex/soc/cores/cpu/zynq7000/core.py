@@ -167,6 +167,15 @@ class Zynq7000(CPU):
         # Check that PS7 has not already been set.
         if self.ps7_name is not None:
             raise Exception(f"PS7 has already been set to {self.ps7_name}.")
+        # when preset is a TCL file -> drop extension before using as the ps7 name
+        #                              and use absolute path
+        preset_tcl = False
+        if preset is not None:
+            preset_split = preset.split('.')
+            if len(preset_split) > 1 and preset_split[-1] == "tcl":
+                name = preset_split[0]
+                preset = os.path.abspath(preset)
+                preset_tcl = True
         self.ps7_name = preset if name is None else name
 
         # User should provide an .xci file, preset_name or config dict but not all at once.
@@ -182,7 +191,12 @@ class Zynq7000(CPU):
             self.ps7_tcl.append(f"set ps7 [create_ip -vendor xilinx.com -name processing_system7 -module_name {self.ps7_name}]")
             if preset is not None:
                 assert isinstance(preset, str)
-                self.ps7_tcl.append("set_property -dict [list CONFIG.preset {}] [get_ips {}]".format("{{" + preset + "}}", self.ps7_name))
+                if preset_tcl:
+                    self.ps7_tcl.append("source {}".format(preset))
+                    self.ps7_tcl.append("set ps7_cfg [apply_preset IPINST]")
+                    self.ps7_tcl.append("set_property -dict $ps7_cfg [get_ips {}]".format(self.ps7_name))
+                else:
+                    self.ps7_tcl.append("set_property -dict [list CONFIG.preset {}] [get_ips {}]".format("{{" + preset + "}}", self.ps7_name))
             if config is not None:
                 self.add_ps7_config(config)
 
