@@ -174,6 +174,11 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
             cmd += "\n"
             return cmd
 
+        if mode == "MIPI_CLKIN":
+            cmd += 'design.create_mipi_input_clock_gpio("{}")\n'.format(name)
+            cmd += 'design.assign_pkg_pin("{}","{}")\n\n'.format(name, block["location"])
+            return cmd
+
         if mode == "OUTPUT_CLK":
             cmd += 'design.create_clockout_gpio("{}")\n'.format(name)
             cmd += 'design.set_property("{}","OUT_CLK_PIN","{}")\n'.format(name, name)
