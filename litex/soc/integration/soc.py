@@ -1242,7 +1242,7 @@ class LiteXSoC(SoC):
     def add_jtagbone(self, chain=1):
         from litex.soc.cores import uart
         from litex.soc.cores.jtag import JTAGPHY
-        self.check_if_exists("jtabone")
+        self.check_if_exists("jtagbone")
         self.submodules.jtagbone_phy = JTAGPHY(device=self.platform.device, chain=chain)
         self.submodules.jtagbone = uart.UARTBone(phy=self.jtagbone_phy, clk_freq=self.sys_clk_freq)
         self.bus.add_master(name="jtagbone", master=self.jtagbone.wishbone)
