@@ -33,6 +33,7 @@ litex_getc(FILE *file)
 			return uart_read();
 #endif
 	}
+	return -1;
 }
 
 static FILE __stdio = FDEV_SETUP_STREAM(litex_putc, litex_getc, NULL, _FDEV_SETUP_RW);
