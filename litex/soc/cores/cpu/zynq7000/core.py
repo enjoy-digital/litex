@@ -10,7 +10,6 @@ import os
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from litex.soc.interconnect import wishbone
 from litex.soc.interconnect import axi
 
 from litex.soc.cores.cpu import CPU
@@ -35,7 +34,8 @@ class Zynq7000(CPU):
     def mem_map(self):
         return {"csr": 0x00000000}
 
-    def __init__(self, platform, variant):
+    def __init__(self, platform, variant, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.platform       = platform
         self.reset          = Signal()
         self.periph_buses   = [] # Peripheral buses (Connected to main SoC's bus).
@@ -160,7 +160,7 @@ class Zynq7000(CPU):
         # Add configs to PS7.
         self.ps7_tcl.append("set_property -dict [list \\")
         for config, value in config.items():
-            self.ps7_tcl.append("CONFIG.{} {} \\".format(config, '{{' + value + '}}'))
+            self.ps7_tcl.append("CONFIG.{} {} \\".format(config, '{{' + str(value) + '}}'))
         self.ps7_tcl.append(f"] [get_ips {self.ps7_name}]")
 
     def set_ps7(self, name=None, xci=None, preset=None, config=None):
