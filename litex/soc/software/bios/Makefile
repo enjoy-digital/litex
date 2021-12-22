@@ -39,6 +39,12 @@ else
 OBJECTS += readline.o
 endif
 
+ifeq ($(CPU), zynq7000)
+LSCRIPT = linker-zynq.ld
+else
+LSCRIPT = linker.ld
+endif
+
 all: bios.bin
 	$(PYTHON) -m litex.soc.software.memusage bios.elf $(CURDIR)/../include/generated/regions.ld $(TRIPLE)
 
@@ -53,12 +59,12 @@ else
 	$(PYTHON) -m litex.soc.software.mkmscimg $@
 endif
 
-bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
+bios.elf: $(BIOS_DIRECTORY)/$(LSCRIPT) $(OBJECTS)
 
 vpath %.a $(PACKAGES:%=../%)
 
 %.elf: crt0.o $(LIBS:%=%.a)
-	$(CC) $(LDFLAGS) -T $(BIOS_DIRECTORY)/linker.ld -N -o $@ \
+	$(CC) $(LDFLAGS) -T $(BIOS_DIRECTORY)/$(LSCRIPT) -N -o $@ \
 		crt0.o \
 		$(OBJECTS) \
 		$(PACKAGES:%=-L../%) \
