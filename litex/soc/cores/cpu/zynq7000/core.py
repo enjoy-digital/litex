@@ -327,10 +327,6 @@ class Zynq7000(CPU):
         })
         return axi_hpn
 
-    @staticmethod
-    def add_sources(platform):
-        platform.add_ip(os.path.join("ip", self.ps7))
-
     def do_finalize(self):
         if self.ps7_name is None:
             raise Exception("PS7 must be set with set_ps7 or set_ps7_xci methods.")
