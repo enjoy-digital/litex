@@ -24,7 +24,8 @@ class Zynq7000(CPU):
     data_width           = 32
     endianness           = "little"
     reset_address        = 0x00000000
-    gcc_triple           = "arm-xilinx-eabi"
+    gcc_triple           = "arm-none-eabi"
+    gcc_flags            = "-mcpu=cortex-a9 -mfpu=vfpv3 -mfloat-abi=hard"
     linker_output_format = "elf32-littlearm"
     nop                  = "nop"
     io_regions           = {0x00000000: 0x100000000} # Origin, Length.
