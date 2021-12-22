@@ -13,6 +13,16 @@ OBJECTS=umodsi3.o udivsi3.o divsi3.o modsi3.o comparesf2.o comparedf2.o negsf2.o
   floatsisf.o floatunsisf.o fixsfsi.o fixdfdi.o fixunssfsi.o fixunsdfdi.o adddf3.o subdf3.o muldf3.o divdf3.o floatsidf.o floatunsidf.o floatdidf.o fixdfsi.o fixunsdfsi.o \
   clzsi2.o ctzsi2.o udivdi3.o umoddi3.o moddi3.o ucmpdi2.o
 
+ifeq ($(CPUFAMILY), arm)
+OBJECTS += aeabi_div0.o aeabi_uldivmod.o aeabi_uidivmod.o aeabi_idivmod.o udivmodsi4.o divmodsi4.o
+
+%.o: $(COMPILER_RT_DIRECTORY)/lib/builtins/arm/%.c
+	$(call compile,-fno-lto)
+
+%.o: $(COMPILER_RT_DIRECTORY)/lib/builtins/arm/%.S
+	$(call compile,-fno-lto)
+endif
+
 all: libcompiler_rt.a
 
 libcompiler_rt.a: $(OBJECTS) mulsi3.o
