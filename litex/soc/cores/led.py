@@ -138,7 +138,7 @@ class WS2812(Module):
         # Internal Signals.
         led_data  = Signal(24)
         bit_count = Signal(8)
-        led_count = Signal(int(math.log2(nleds)))
+        led_count = Signal(max=nleds+1)   # Add 1 because max is exclusive.
 
         # Timings.
         trst = 75e-6
@@ -179,7 +179,7 @@ class WS2812(Module):
                     NextValue(bit_count, 24-1),
                     NextValue(led_data,  bus.dat_r),
                     NextValue(led_count, led_count + 1),
-                    If(led_count == (nleds-1),
+                    If(led_count == nleds,
                         NextState("RST")
                     ).Else(
                         NextState("BIT-TEST")
@@ -192,7 +192,7 @@ class WS2812(Module):
                 NextValue(bit_count, 24-1),
                 NextValue(led_data,  port.dat_r),
                 NextValue(led_count, led_count + 1),
-                If(led_count == (nleds-1),
+                If(led_count == nleds,
                     NextState("RST")
                 ).Else(
                     NextState("BIT-TEST")
