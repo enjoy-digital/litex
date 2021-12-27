@@ -238,7 +238,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
             compatible = "simple-bus";
             interrupt-parent = <&intc0>;
             ranges;
-"""
+""".format()
 
     # SoC Controller -------------------------------------------------------------------------------
 
