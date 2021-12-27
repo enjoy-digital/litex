@@ -165,11 +165,11 @@ class WS2812(Module):
             trst_timer.wait.eq(1),
             If(trst_timer.done,
                 NextValue(led_count, 0),
-                NextState("LED-SHIFT")
+                NextState("LED-READ")
             )
         )
         if bus_mastering:
-             fsm.act("LED-SHIFT",
+             fsm.act("LED-READ",
                 bus.stb.eq(1),
                 bus.cyc.eq(1),
                 bus.we.eq(0),
@@ -177,26 +177,16 @@ class WS2812(Module):
                 bus.adr.eq(bus_base[2:] + led_count),
                 If(bus.ack,
                     NextValue(bit_count, 24-1),
-                    NextValue(led_data,  bus.dat_r),
-                    NextValue(led_count, led_count + 1),
-                    If(led_count == (nleds-1),
-                        NextState("RST")
-                    ).Else(
-                        NextState("BIT-TEST")
-                    )
+                    NextValue(led_data, bus.dat_r),
+                    NextState("BIT-TEST")
                 )
             )
         else:
             self.comb += port.adr.eq(led_count)
-            fsm.act("LED-SHIFT",
+            fsm.act("LED-READ",
                 NextValue(bit_count, 24-1),
-                NextValue(led_data,  port.dat_r),
-                NextValue(led_count, led_count + 1),
-                If(led_count == (nleds-1),
-                    NextState("RST")
-                ).Else(
-                    NextState("BIT-TEST")
-                )
+                NextValue(led_data, port.dat_r),
+                NextState("BIT-TEST")
             )
 
         fsm.act("BIT-TEST",
@@ -230,5 +220,13 @@ class WS2812(Module):
                 NextState("LED-SHIFT")
             ).Else(
                 NextState("BIT-TEST")
+            )
+        )
+        fsm.act("LED-SHIFT",
+            NextValue(led_count, led_count + 1),
+            If(led_count == (nleds-1),
+                NextState("RST")
+            ).Else(
+                NextState("LED-READ")
             )
         )
