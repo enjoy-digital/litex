@@ -225,7 +225,7 @@ static void mem_speed_handler(int nb_params, char **params)
 	bool read_only = false;
 	bool random = false;
 
-	if (nb_params < 1) {
+	if (nb_params < 2) {
 		printf("mem_speed <addr> <size> [<readonly>] [<random>]");
 		return;
 	}
