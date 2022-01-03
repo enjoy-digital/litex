@@ -1,3 +1,71 @@
+[> 2021.12, released on XXX
+-------------------------------------------
+
+	[> Issues resolved
+	------------------
+	- software/linker:      Fix initialized global variables.
+	- build/xilinx:         Fix Ultrascale SDROutput/Input.
+	- cpu/rocket/crt0.s:    Fix alignements.
+	- core/video:           Fix missing ClockDomainsRenamer in specific DRAM's width case.
+	- mor1kx:               Fix --cpu-type=None --with-ethernet case.
+	- build/lattice:        Fix LatticeiCE40SDROutputImpl.
+	- soc/interconnect/axi: Fix 4KB bursts.
+
+	[> Added Features
+	-----------------
+	- integration/builder:      Check if full software re-build is required when a CPU is used.
+	- cores/clock:              Add Gowin PLL support.
+	- build/gowin:              Add initial HyperRam support.
+	- build/gowin:              Add differential Input/Output support.
+	- build/lattice:            Add DDRTristate support.
+	- cores/gpio:               Add external Tristate support.
+	- tools/json2dts:           Make it more generic (now also used with OpenRisc/Mor1kx).
+	- cpu/rocket:               Add SMP support (up to quad-core).
+	- software/bios/boot:       Allow frame reception to time out (for litex_term auto-calibration).
+	- tools/litex_term:         Add automatic settings calibration and --safe mode.
+	- build/quicklogic:         Add initial support.
+	- cores/icap/7-Series:      Add register read capability.
+	- cores/video:              Add RGB565 support to VideoFrameBuffer.
+	- soc:                      Raise custom SoCError Exception and disable traceback/exception.
+	- soc/add_pcie:             Automatically set Endpoint's endianness to PHY's endianness.
+	- build/efinix:             Add initial Trion and Titanium support.
+	- fhdl/verilog:             Cleanup/Simplify verilog generation.
+	- fhdl/memory:              Cleanup/Simplify and add support for Efinix case.
+	- cpu/ibex:                 Add interrupt support.
+	- tools/litex_client:       Add --length parameter for MMAP read accesses.
+	- software/bios/cpu:        Add CPU tests in CI.
+	- litex_sim/xgmii_ethernet: Improve models.
+	- litex_setup:              Cleanup/Simplify and switch to proper "--" commands (with retro-compat).
+	- cores/jtag:               Add ECP5 support.
+	- cores/led:                Add WS2812/NeoPixel core.
+	- cpu/femtorv:              Finish integration and add variants support.
+	- cpu/eos-s3:               Add initial support.
+	- build/anlogic:            Add initial support.
+	- cpu/microwatt:            Add Xilinx multiplier support.
+	- cpu/vexriscv/cfu:         Improve integration.
+	- soc/interconnect:         Add initial AHB support (AHB2Wishbone).
+	- cpu/gowin_emcu:           Add initial Gowin EMCU support.
+	- cpu/zynq7000:             Add initial BIOS/software support.
+	- cpu/zynq7000:             Add TCL support.
+	- core/prbs:                Add error behaviour configuration on saturation.
+	- software/bios:            Add write size option to mem_write cmd.
+	- LitePCIe/phy:             Cleanup 7-Series PHY integration.
+	- LitePCIe/dma              Add LitePCIeDMAStatus module.
+	- LitePCIe/software:        Improve kernel/user-space utilities.
+	- LiteDRAM/litedram_gen:    Improve ECP5 support.
+	- LiteDRAM/phy:             Add initial LPDDR5 support.
+	- LiteDRAM/frontend:        Refactor DRAM FIFO and add optional bypass mode.
+	- LiteEth/core:             Add 32-bit/64-bit datapath support.
+	- LiteEth/phy:              Add 10Gbps / Xilinx XGMII support.
+	- LiteEth/phy:              Add 1Gbps  / Efinix RGMII support.
+	- LiteSPI/phy:              Simplify SDR/DDR PHYs.
+	- LiteHyperBus:             Add 16-bit support.
+
+	[> API changes/Deprecation
+	--------------------------
+	- software: Replace libbase with picolibc (new requirements: meson/ninja).
+	- amaranth: Switch from nMigen to Amaranth HDL.
+
 [> 2021.08, released on September 15th 2021
 -------------------------------------------
 
