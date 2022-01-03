@@ -1341,8 +1341,7 @@ class AXILiteDecoder(Module):
 class AXILiteInterconnectShared(Module):
     """AXI Lite shared interconnect"""
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
-        # TODO: data width
-        shared = AXILiteInterface()
+        shared = AXILiteInterface(data_width=masters[0].data_width)
         self.submodules.arbiter = AXILiteArbiter(masters, shared)
         self.submodules.decoder = AXILiteDecoder(shared, slaves)
         if timeout_cycles is not None:

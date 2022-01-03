@@ -1010,7 +1010,7 @@ class SoC(Module):
             # Otherwise, use InterconnectShared.
             else:
                 self.submodules.bus_interconnect = interconnect_shared_cls(
-                    masters        = self.bus.masters.values(),
+                    masters        = list(self.bus.masters.values()),
                     slaves         = [(self.bus.regions[n].decoder(self.bus), s) for n, s in self.bus.slaves.items()],
                     register       = True,
                     timeout_cycles = self.bus.timeout)
@@ -1038,7 +1038,7 @@ class SoC(Module):
                 # Otherwise, use InterconnectShared.
                 else:
                     self.submodules.dma_bus_interconnect = wishbone.InterconnectShared(
-                        masters        = self.dma_bus.masters.values(),
+                        masters        = list(self.dma_bus.masters.values()),
                         slaves         = [(self.dma_bus.regions[n].decoder(self.dma_bus), s) for n, s in self.dma_bus.slaves.items()],
                         register       = True)
                 self.bus.logger.info("DMA Interconnect: {} ({} <-> {}).".format(
