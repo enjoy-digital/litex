@@ -287,6 +287,7 @@ class VexRiscvSMP(CPU):
         self.memory_buses     = []     # Memory buses (Connected directly to LiteDRAM).
 
         # # #
+
         self.cpu_params = dict(
             # Clk / Rst.
             i_debugCd_external_clk   = ClockSignal(),
@@ -460,9 +461,17 @@ class VexRiscvSMP(CPU):
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
+
+        # When no Direct Memory Bus, do memory accesses through Wishbone Peripheral Bus.
+        if len(self.memory_buses) == 0:
+            VexRiscvSMP.wishbone_memory = True
+
+        # Generate cluster name.
         VexRiscvSMP.generate_cluster_name()
+
+        # Do verilog instance.
         self.specials += Instance(self.cluster_name, **self.cpu_params)
 
-        # Add Verilog sources
+        # Add verilog sources
         self.add_sources(self.platform)
 
