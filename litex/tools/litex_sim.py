@@ -390,7 +390,7 @@ def sim_args(parser):
     parser.add_argument("--non-interactive",      action="store_true",     help="Run simulation without user input.")
 
 def main():
-    parser = argparse.ArgumentParser(description="Generic LiteX SoC Simulation")
+    parser = argparse.ArgumentParser(description="LiteX SoC Simulation utility")
     sim_args(parser)
     args = parser.parse_args()
 
