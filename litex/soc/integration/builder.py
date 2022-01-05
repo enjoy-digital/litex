@@ -344,18 +344,19 @@ class Builder:
 
 def builder_args(parser):
     parser.formatter_class = argparse.ArgumentDefaultsHelpFormatter
-    parser.add_argument("--output-dir",          default=None,        help="Base Output directory (customizable with --{gateware,software,include,generated}-dir).")
-    parser.add_argument("--gateware-dir",        default=None,        help="Output directory for Gateware files.")
-    parser.add_argument("--software-dir",        default=None,        help="Output directory for Software files.")
-    parser.add_argument("--include-dir",         default=None,        help="Output directory for Header files.")
-    parser.add_argument("--generated-dir",       default=None,        help="Output directory for Generated files.")
-    parser.add_argument("--no-compile-software", action="store_true", help="Disable Software compilation.")
-    parser.add_argument("--no-compile-gateware", action="store_true", help="Disable Gateware compilation.")
-    parser.add_argument("--csr-csv",             default=None,        help="Write SoC mapping to the specified CSV file.")
-    parser.add_argument("--csr-json",            default=None,        help="Write SoC mapping to the specified JSON file.")
-    parser.add_argument("--csr-svd",             default=None,        help="Write SoC mapping to the specified SVD file.")
-    parser.add_argument("--memory-x",            default=None,        help="Write SoC Memory Regions to the specified Memory-X file.")
-    parser.add_argument("--doc",                 action="store_true", help="Generate SoC Documentation.")
+    builder_group = parser.add_argument_group("builder")
+    builder_group.add_argument("--output-dir",          default=None,        help="Base Output directory (customizable with --{gateware,software,include,generated}-dir).")
+    builder_group.add_argument("--gateware-dir",        default=None,        help="Output directory for Gateware files.")
+    builder_group.add_argument("--software-dir",        default=None,        help="Output directory for Software files.")
+    builder_group.add_argument("--include-dir",         default=None,        help="Output directory for Header files.")
+    builder_group.add_argument("--generated-dir",       default=None,        help="Output directory for Generated files.")
+    builder_group.add_argument("--no-compile-software", action="store_true", help="Disable Software compilation.")
+    builder_group.add_argument("--no-compile-gateware", action="store_true", help="Disable Gateware compilation.")
+    builder_group.add_argument("--csr-csv",             default=None,        help="Write SoC mapping to the specified CSV file.")
+    builder_group.add_argument("--csr-json",            default=None,        help="Write SoC mapping to the specified JSON file.")
+    builder_group.add_argument("--csr-svd",             default=None,        help="Write SoC mapping to the specified SVD file.")
+    builder_group.add_argument("--memory-x",            default=None,        help="Write SoC Memory Regions to the specified Memory-X file.")
+    builder_group.add_argument("--doc",                 action="store_true", help="Generate SoC Documentation.")
 
 
 def builder_argdict(args):
