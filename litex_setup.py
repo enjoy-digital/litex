@@ -93,15 +93,18 @@ def litex_setup_auto_update():
 
 # Repositories Initialization ----------------------------------------------------------------------
 
-def litex_setup_init_repos():
+def litex_setup_init_repos(dev_mode=False):
     for name, repo in git_repos.items():
         os.chdir(os.path.join(current_path))
         print(f"[Checking {name}]...")
         if not os.path.exists(name):
             # Clone Repo.
             print(f"[Cloning {name}]...")
+            repo_url = repo.url
+            if dev_mode:
+                repo_url = repo_url.replace("https://github.com/", "git@github.com:")
             subprocess.check_call("git clone {url} {options}".format(
-                url     = repo.url + name,
+                url     = repo_url + name + ".git",
                 options = "--recursive" if repo.clone == "recursive" else ""
                 ), shell=True)
             # Use specific SHA1 (Optional).
@@ -230,7 +233,7 @@ def main():
     parser.add_argument("--gcc", default=None, help="Download/Extract GCC Toolchain (riscv, powerpc, openrisc or lm32).")
 
     # Development mode.
-    parser.add_argument("--dev", action="store_true", help="Development-Mode (no Auto-Update of litex_setup.py).")
+    parser.add_argument("--dev", action="store_true", help="Development-Mode (no Auto-Update of litex_setup.py / Switch to git@github.com URLs).")
 
     # Retro-compatibility.
     parser.add_argument("compat_args", nargs="*", help="Retro-Compatibility arguments (init, update, install or gcc).")
@@ -251,7 +254,7 @@ def main():
 
     # Init.
     if args.init:
-        litex_setup_init_repos()
+        litex_setup_init_repos(dev_mode=args.dev)
 
     # Update.
     if args.update:
