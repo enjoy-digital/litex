@@ -66,6 +66,35 @@ git_repos = {
     "pythondata-cpu-ibex":         GitRepo(url="https://github.com/litex-hub/", clone="recursive", sha1=0xd3d53df),
 }
 
+# Installs -----------------------------------------------------------------------------------------
+
+# Minimal: Only Migen + LiteX.
+minimal_repos = [
+    "migen", "litex"
+]
+
+# Standard: Migen + LiteX + Cores + Software + Popular CPUs (LM32, Mor1kx, SERV, VexRiscv).
+standard_repos = list(git_repos.keys())
+standard_repos.remove("amaranth")
+standard_repos.remove("pythondata-cpu-picorv32")
+standard_repos.remove("pythondata-cpu-rocket")
+standard_repos.remove("pythondata-cpu-minerva")
+standard_repos.remove("pythondata-cpu-microwatt")
+standard_repos.remove("pythondata-cpu-blackparrot")
+standard_repos.remove("pythondata-cpu-cv32e40p")
+standard_repos.remove("pythondata-cpu-ibex")
+
+# Full: Migen + LiteX + Cores + Software + All CPUs.
+full_repos = list(git_repos.keys())
+
+
+# Installs:
+install_configs = {
+    "minimal"  : minimal_repos,
+    "standard" : standard_repos,
+    "full"     : full_repos,
+}
+
 # Script Location / Auto-Update --------------------------------------------------------------------
 
 def litex_setup_location_check():
@@ -93,8 +122,9 @@ def litex_setup_auto_update():
 
 # Repositories Initialization ----------------------------------------------------------------------
 
-def litex_setup_init_repos(dev_mode=False):
-    for name, repo in git_repos.items():
+def litex_setup_init_repos(config="standard", dev_mode=False):
+    for name in install_configs[config]:
+        repo = git_repos[name]
         os.chdir(os.path.join(current_path))
         print(f"[Checking {name}]...")
         if not os.path.exists(name):
@@ -114,8 +144,9 @@ def litex_setup_init_repos(dev_mode=False):
 
 # Repositories Update ------------------------------------------------------------------------------
 
-def litex_setup_update_repos():
-    for name, repo in git_repos.items():
+def litex_setup_update_repos(config="standard"):
+    for name in install_configs[config]:
+        repo = git_repos[name]
         os.chdir(os.path.join(current_path))
         # Check if Repo is present.
         if not os.path.exists(name):
@@ -135,8 +166,9 @@ def litex_setup_update_repos():
 
 # Repositories Install -----------------------------------------------------------------------------
 
-def litex_setup_install_repos(user_mode=False):
-    for name, repo in git_repos.items():
+def litex_setup_install_repos(config="standard", user_mode=False):
+    for name in install_configs[config]:
+        repo = git_repos[name]
         os.chdir(os.path.join(current_path))
         # Install Repo.
         if repo.develop:
@@ -228,6 +260,7 @@ def main():
     parser.add_argument("--update",    action="store_true", help="Update Git Repositories.")
     parser.add_argument("--install",   action="store_true", help="Install Git Repositories.")
     parser.add_argument("--user",      action="store_true", help="Install in User-Mode.")
+    parser.add_argument("--config",    default="standard",  help="Install config (minimal, standard, full).")
 
     # GCC toolchains.
     parser.add_argument("--gcc", default=None, help="Download/Extract GCC Toolchain (riscv, powerpc, openrisc or lm32).")
@@ -254,15 +287,15 @@ def main():
 
     # Init.
     if args.init:
-        litex_setup_init_repos(dev_mode=args.dev)
+        litex_setup_init_repos(config=args.config, dev_mode=args.dev)
 
     # Update.
     if args.update:
-        litex_setup_update_repos()
+        litex_setup_update_repos(config=args.config)
 
     # Install.
     if args.install:
-        litex_setup_install_repos(user_mode=args.user)
+        litex_setup_install_repos(config=args.config, user_mode=args.user)
 
     # GCC.
     os.chdir(os.path.join(current_path))
