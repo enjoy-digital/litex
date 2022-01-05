@@ -48,8 +48,11 @@ from litescope import LiteScopeAnalyzer
 # IOs ----------------------------------------------------------------------------------------------
 
 _io = [
+    # Clk / Rst.
     ("sys_clk", 0, Pins(1)),
     ("sys_rst", 0, Pins(1)),
+
+    # Serial.
     ("serial", 0,
         Subsignal("source_valid", Pins(1)),
         Subsignal("source_ready", Pins(1)),
@@ -59,6 +62,8 @@ _io = [
         Subsignal("sink_ready",   Pins(1)),
         Subsignal("sink_data",    Pins(8)),
     ),
+
+    # Ethernet (Stream Endpoint).
     ("eth_clocks", 0,
         Subsignal("tx", Pins(1)),
         Subsignal("rx", Pins(1)),
@@ -72,12 +77,16 @@ _io = [
         Subsignal("sink_ready",   Pins(1)),
         Subsignal("sink_data",    Pins(8)),
     ),
+
+    # Ethernet (XGMII).
     ("xgmii_eth", 0,
         Subsignal("rx_data",      Pins(64)),
         Subsignal("rx_ctl",       Pins(8)),
         Subsignal("tx_data",      Pins(64)),
         Subsignal("tx_ctl",       Pins(8)),
     ),
+
+    # Ethernet (GMII).
     ("gmii_eth", 0,
         Subsignal("rx_data",      Pins(8)),
         Subsignal("rx_dv",        Pins(1)),
@@ -86,11 +95,15 @@ _io = [
         Subsignal("tx_en",        Pins(1)),
         Subsignal("tx_er",        Pins(1)),
     ),
+
+    # I2C.
     ("i2c", 0,
         Subsignal("scl",     Pins(1)),
         Subsignal("sda_out", Pins(1)),
         Subsignal("sda_in",  Pins(1)),
     ),
+
+    # SPI-Flash (X1).
     ("spiflash", 0,
         Subsignal("cs_n", Pins(1)),
         Subsignal("clk",  Pins(1)),
@@ -99,17 +112,19 @@ _io = [
         Subsignal("wp",   Pins(1)),
         Subsignal("hold", Pins(1)),
     ),
+
+    # SPI-Flash (X4).
     ("spiflash4x", 0,
         Subsignal("cs_n", Pins(1)),
         Subsignal("clk",  Pins(1)),
         Subsignal("dq",   Pins(4)),
     ),
-    # Simulated tristate IO (Verilator does not support top-level
-    # tristate signals)
+
+    # Tristate GPIOs (for sim control/status).
     ("gpio", 0,
-        Subsignal("oe",   Pins(32)),
-        Subsignal("o",    Pins(32)),
-        Subsignal("i",    Pins(32)),
+        Subsignal("oe", Pins(32)),
+        Subsignal("o",  Pins(32)),
+        Subsignal("i",  Pins(32)),
     )
 ]
 
@@ -244,33 +259,6 @@ class SimSoC(SoCCore):
                 mac_address = etherbone_mac_address
             )
 
-        # Analyzer ---------------------------------------------------------------------------------
-        if with_analyzer:
-            analyzer_signals = [
-                # IBus (could also just added as self.cpu.ibus)
-                self.cpu.ibus.stb,
-                self.cpu.ibus.cyc,
-                self.cpu.ibus.adr,
-                self.cpu.ibus.we,
-                self.cpu.ibus.ack,
-                self.cpu.ibus.sel,
-                self.cpu.ibus.dat_w,
-                self.cpu.ibus.dat_r,
-                # DBus (could also just added as self.cpu.dbus)
-                self.cpu.dbus.stb,
-                self.cpu.dbus.cyc,
-                self.cpu.dbus.adr,
-                self.cpu.dbus.we,
-                self.cpu.dbus.ack,
-                self.cpu.dbus.sel,
-                self.cpu.dbus.dat_w,
-                self.cpu.dbus.dat_r,
-            ]
-            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals,
-                depth        = 512,
-                clock_domain = "sys",
-                csr_csv      = "analyzer.csv")
-
         # I2C --------------------------------------------------------------------------------------
         if with_i2c:
             pads = platform.request("i2c", 0)
@@ -302,6 +290,33 @@ class SimSoC(SoCCore):
             platform.add_debug(self, reset=1 if trace_reset_on else 0)
         else:
             self.comb += platform.trace.eq(1)
+
+        # Analyzer ---------------------------------------------------------------------------------
+        if with_analyzer:
+            analyzer_signals = [
+                # IBus (could also just added as self.cpu.ibus)
+                self.cpu.ibus.stb,
+                self.cpu.ibus.cyc,
+                self.cpu.ibus.adr,
+                self.cpu.ibus.we,
+                self.cpu.ibus.ack,
+                self.cpu.ibus.sel,
+                self.cpu.ibus.dat_w,
+                self.cpu.ibus.dat_r,
+                # DBus (could also just added as self.cpu.dbus)
+                self.cpu.dbus.stb,
+                self.cpu.dbus.cyc,
+                self.cpu.dbus.adr,
+                self.cpu.dbus.we,
+                self.cpu.dbus.ack,
+                self.cpu.dbus.sel,
+                self.cpu.dbus.dat_w,
+                self.cpu.dbus.dat_r,
+            ]
+            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals,
+                depth        = 512,
+                clock_domain = "sys",
+                csr_csv      = "analyzer.csv")
 
 # Build --------------------------------------------------------------------------------------------
 
