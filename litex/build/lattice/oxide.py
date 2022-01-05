@@ -189,18 +189,13 @@ class LatticeOxideToolchain:
             self.false_paths.add((from_, to))
 
 def oxide_args(parser):
-    parser.add_argument("--yosys-nowidelut", action="store_true",
-                        help="pass '-nowidelut' to yosys synth_nexus")
-    parser.add_argument("--yosys-abc9", action="store_true",
-                        help="pass '-abc9' to yosys synth_nexus")
-    parser.add_argument("--nextpnr-timingstrict", action="store_true",
-                        help="fail if timing not met, i.e., do NOT pass '--timing-allow-fail' to nextpnr")
-    parser.add_argument("--nextpnr-ignoreloops", action="store_true",
-                        help="ignore combinational loops in timing analysis, i.e. pass '--ignore-loops' to nextpnr")
-    parser.add_argument("--nextpnr-seed", default=1, type=int,
-                        help="seed to pass to nextpnr")
-    parser.add_argument("--nexus-es-device", action="store_true",
-                        help="device is a ES1 Nexus part")
+    toolchain_group = parser.add_argument_group("toolchain")
+    toolchain_group.add_argument("--yosys-nowidelut",      action="store_true", help="Use Yosys's nowidelut mode.")
+    toolchain_group.add_argument("--yosys-abc9",           action="store_true", help="Use Yosys's abc9 mode.")
+    toolchain_group.add_argument("--nextpnr-timingstrict", action="store_true", help="Use strict Timing mode (Build will fail when Timings are not met).")
+    toolchain_group.add_argument("--nextpnr-ignoreloops",  action="store_true", help="Ignore combinatorial loops in Timing Analysis.")
+    toolchain_group.add_argument("--nextpnr-seed",         default=1, type=int, help="Set Nextpnr's seed.")
+    toolchain_group.add_argument("--nexus-es-device",      action="store_true", help="Use Nexus-ES1 part.")
 
 def oxide_argdict(args):
     return {

@@ -218,12 +218,10 @@ class LatticeIceStormToolchain:
         self.clocks[clk] = period
 
 def icestorm_args(parser):
-    parser.add_argument("--nextpnr-timingstrict", action="store_true",
-                        help="fail if timing not met, i.e., do NOT pass '--timing-allow-fail' to nextpnr")
-    parser.add_argument("--nextpnr-ignoreloops", action="store_true",
-                        help="ignore combinational loops in timing analysis, i.e. pass '--ignore-loops' to nextpnr")
-    parser.add_argument("--nextpnr-seed", default=1, type=int,
-                        help="seed to pass to nextpnr")
+    toolchain_group = parser.add_argument_group("toolchain")
+    toolchain_group.add_argument("--nextpnr-timingstrict", action="store_true", help="Make the build fail when Timing is not met.")
+    toolchain_group.add_argument("--nextpnr-ignoreloops",  action="store_true", help="Use strict Timing mode (Build will fail when Timings are not met).")
+    toolchain_group.add_argument("--nextpnr-seed",         default=1, type=int, help="Set Nextpnr's seed.")
 
 def icestorm_argdict(args):
     return {

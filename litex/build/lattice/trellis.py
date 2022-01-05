@@ -250,22 +250,15 @@ class LatticeTrellisToolchain:
             self.false_paths.add((from_, to))
 
 def trellis_args(parser):
-    parser.add_argument("--yosys-nowidelut", action="store_true",
-                        help="pass '-nowidelut' to yosys synth_ecp5")
-    parser.add_argument("--yosys-abc9", action="store_true",
-                        help="pass '-abc9' to yosys synth_ecp5")
-    parser.add_argument("--nextpnr-timingstrict", action="store_true",
-                        help="fail if timing not met, i.e., do NOT pass '--timing-allow-fail' to nextpnr")
-    parser.add_argument("--nextpnr-ignoreloops", action="store_true",
-                        help="ignore combinational loops in timing analysis, i.e. pass '--ignore-loops' to nextpnr")
-    parser.add_argument("--ecppack-bootaddr", default=0,
-                        help="Set boot address for next image, i.e. pass '--bootaddr xxx' to ecppack")
-    parser.add_argument("--ecppack-spimode", default=None,
-                        help="Set slave SPI programming mode")
-    parser.add_argument("--ecppack-compress", action="store_true",
-                        help="Compress bitstream to reduce size")
-    parser.add_argument("--nextpnr-seed", default=1, type=int,
-                        help="seed to pass to nextpnr")
+    toolchain_group = parser.add_argument_group("toolchain")
+    toolchain_group.add_argument("--yosys-nowidelut",      action="store_true", help="Use Yosys's nowidelut mode.")
+    toolchain_group.add_argument("--yosys-abc9",           action="store_true", help="Use Yosys's abc9 mode.")
+    toolchain_group.add_argument("--nextpnr-timingstrict", action="store_true", help="Use strict Timing mode (Build will fail when Timings are not met).")
+    toolchain_group.add_argument("--nextpnr-ignoreloops",  action="store_true", help="Ignore combinatorial loops in Timing Analysis.")
+    toolchain_group.add_argument("--nextpnr-seed",         default=1, type=int, help="Set Nextpnr's seed.")
+    toolchain_group.add_argument("--ecppack-bootaddr",     default=0,           help="Set boot address for next image.")
+    toolchain_group.add_argument("--ecppack-spimode",      default=None,        help="Set slave SPI programming mode.")
+    toolchain_group.add_argument("--ecppack-compress",     action="store_true", help="Use Bitstream compression.")
 
 def trellis_argdict(args):
     return {

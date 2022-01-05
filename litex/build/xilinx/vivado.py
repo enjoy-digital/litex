@@ -391,8 +391,8 @@ class XilinxVivadoToolchain:
             self.false_paths.add((from_, to))
 
 def vivado_build_args(parser):
-    parser.add_argument("--synth-mode", default="vivado", help="synthesis mode (vivado or yosys).")
-
+    toolchain_group = parser.add_argument_group("toolchain")
+    toolchain_group.add_argument("--synth-mode", default="vivado", help="Synthesis mode (vivado or yosys).")
 
 def vivado_build_argdict(args):
     return {"synth_mode": args.synth_mode}

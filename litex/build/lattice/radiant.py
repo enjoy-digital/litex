@@ -320,8 +320,8 @@ class LatticeRadiantToolchain:
             self.false_paths.add((from_, to))
 
 def radiant_build_args(parser):
-    parser.add_argument("--synth-mode", default="synplify", help="synthesis mode (synplify or yosys).")
-
+    toolchain_group = parser.add_argument_group("toolchain")
+    toolchain_group.add_argument("--synth-mode", default="synplify", help="Synthesis mode (synplify or yosys).")
 
 def radiant_build_argdict(args):
     return {"synth_mode": args.synth_mode}
