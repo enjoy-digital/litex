@@ -13,6 +13,7 @@
 
 
 import os
+import argparse
 import subprocess
 import struct
 import shutil
@@ -342,6 +343,7 @@ class Builder:
 # Builder Arguments --------------------------------------------------------------------------------
 
 def builder_args(parser):
+    parser.formatter_class = argparse.ArgumentDefaultsHelpFormatter
     parser.add_argument("--output-dir",          default=None,        help="Base Output directory (customizable with --{gateware,software,include,generated}-dir).")
     parser.add_argument("--gateware-dir",        default=None,        help="Output directory for Gateware files.")
     parser.add_argument("--software-dir",        default=None,        help="Output directory for Software files.")
