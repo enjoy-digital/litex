@@ -131,7 +131,7 @@ class LiteXCore(SoCMini):
             self.add_csr("gpio")
 
         # Wishbone Master
-        if kwargs["bus"] == "wishbone":
+        if kwargs["bus"] in ["wishbone"]:
             wb_bus = wishbone.Interface()
             self.bus.add_master(master=wb_bus)
             platform.add_extension(wb_bus.get_ios("wb"))
@@ -139,7 +139,7 @@ class LiteXCore(SoCMini):
             self.comb += wb_bus.connect_to_pads(wb_pads, mode="slave")
 
         # AXI-Lite Master
-        if kwargs["bus"] == "axi":
+        if kwargs["bus"] in ["axi", "axi_lite"]:
             axi_bus = axi.AXILiteInterface(data_width=32, address_width=32)
             wb_bus = wishbone.Interface()
             axi2wb = axi.AXILite2Wishbone(axi_bus, wb_bus)
@@ -180,29 +180,29 @@ def soc_argdict(args):
     return ret
 
 def main():
-    parser = argparse.ArgumentParser(description="LiteX standalone core generator")
+    parser = argparse.ArgumentParser(description="LiteX standalone core generator", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     builder_args(parser)
 
     # Bus
-    parser.add_argument("--bus",                   default="wishbone",    type=str, help="Type of Bus (wishbone, axi)")
+    parser.add_argument("--bus",                   default="wishbone",    type=str, help="Bus Standard (wishbone, or axi-lite).")
 
     # Cores
-    parser.add_argument("--with-pwm",              action="store_true",   help="Add PWM core")
-    parser.add_argument("--with-mmcm",             action="store_true",   help="Add MMCM (Xilinx 7-series) core")
-    parser.add_argument("--with-uart",             action="store_true",   help="Add UART core")
-    parser.add_argument("--uart-fifo-depth",       default=16, type=int,  help="UART FIFO depth (default=%(default)d)")
-    parser.add_argument("--with-ctrl",             action="store_true",   help="Add bus controller core")
-    parser.add_argument("--with-timer",            action="store_true",   help="Add timer core")
-    parser.add_argument("--with-spi-master",       action="store_true",   help="Add SPI master core")
-    parser.add_argument("--spi-master-data-width", default=8,   type=int, help="SPI master data width")
-    parser.add_argument("--spi-master-clk-freq",   default=8e6, type=int, help="SPI master output clock frequency")
-    parser.add_argument("--with-gpio",             action="store_true",   help="Add GPIO core")
-    parser.add_argument("--gpio-width",            default=32,  type=int, help="GPIO signals width")
+    parser.add_argument("--with-pwm",              action="store_true",   help="Add PWM core.")
+    parser.add_argument("--with-mmcm",             action="store_true",   help="Add MMCM (Xilinx 7-series) core.")
+    parser.add_argument("--with-uart",             action="store_true",   help="Add UART core.")
+    parser.add_argument("--uart-fifo-depth",       default=16, type=int,  help="UART FIFO depth.")
+    parser.add_argument("--with-ctrl",             action="store_true",   help="Add bus controller core.")
+    parser.add_argument("--with-timer",            action="store_true",   help="Add timer core.")
+    parser.add_argument("--with-spi-master",       action="store_true",   help="Add SPI master core.")
+    parser.add_argument("--spi-master-data-width", default=8,   type=int, help="SPI master data width.")
+    parser.add_argument("--spi-master-clk-freq",   default=8e6, type=int, help="SPI master output clock frequency.")
+    parser.add_argument("--with-gpio",             action="store_true",   help="Add GPIO core.")
+    parser.add_argument("--gpio-width",            default=32,  type=int, help="GPIO signals width.")
 
     # CSR settings
-    parser.add_argument("--csr-data-width",    default=8,     type=int, help="CSR bus data-width (8 or 32, default=%(default)d)")
-    parser.add_argument("--csr-address-width", default=14,    type=int, help="CSR bus address-width")
-    parser.add_argument("--csr-paging",        default=0x800, type=int, help="CSR bus paging")
+    parser.add_argument("--csr-data-width",    default=8,     type=int, help="CSR bus data-width (8 or 32).")
+    parser.add_argument("--csr-address-width", default=14,    type=int, help="CSR bus address-width.")
+    parser.add_argument("--csr-paging",        default=0x800, type=int, help="CSR bus paging.")
 
     args = parser.parse_args()
 

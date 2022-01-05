@@ -140,14 +140,14 @@ def write_memory(port, addr, data):
 # Run ----------------------------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="LiteX Client utility.")
+    parser = argparse.ArgumentParser(description="LiteX Client utility.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--port",   default="1234",        help="Host bind port.")
     parser.add_argument("--ident",  action="store_true",   help="Dump SoC identifier.")
     parser.add_argument("--regs",   action="store_true",   help="Dump SoC registers.")
     parser.add_argument("--filter", default=None,          help="Registers filter (to be used with --regs).")
-    parser.add_argument("--read",   default=None,          help="Do a MMAP Read to SoC bus (--read addr)")
-    parser.add_argument("--write",  default=None, nargs=2, help="Do a MMAP Write to SoC bus (--write addr data)")
-    parser.add_argument("--length", default="4",           help="MMAP access length")
+    parser.add_argument("--read",   default=None,          help="Do a MMAP Read to SoC bus (--read addr).")
+    parser.add_argument("--write",  default=None, nargs=2, help="Do a MMAP Write to SoC bus (--write addr data).")
+    parser.add_argument("--length", default="4",           help="MMAP access length.")
     args = parser.parse_args()
 
     port = int(args.port, 0)

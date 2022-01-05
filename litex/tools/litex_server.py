@@ -164,37 +164,37 @@ class RemoteServer(EtherboneIPC):
 # Run ----------------------------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="LiteX Server utility")
+    parser = argparse.ArgumentParser(description="LiteX Server utility", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     # Common arguments
-    parser.add_argument("--bind-ip",         default="localhost",    help="Host bind address")
-    parser.add_argument("--bind-port",       default=1234,           help="Host bind port")
-    parser.add_argument("--debug",           action="store_true",    help="Enable debug")
+    parser.add_argument("--bind-ip",         default="localhost",    help="Host bind address.")
+    parser.add_argument("--bind-port",       default=1234,           help="Host bind port.")
+    parser.add_argument("--debug",           action="store_true",    help="Enable debug.")
 
     # UART arguments
-    parser.add_argument("--uart",            action="store_true",    help="Select UART interface")
-    parser.add_argument("--uart-port",       default=None,           help="Set UART port")
-    parser.add_argument("--uart-baudrate",   default=115200,         help="Set UART baudrate")
+    parser.add_argument("--uart",            action="store_true",    help="Select UART interface.")
+    parser.add_argument("--uart-port",       default=None,           help="Set UART port.")
+    parser.add_argument("--uart-baudrate",   default=115200,         help="Set UART baudrate.")
 
     # JTAG arguments
-    parser.add_argument("--jtag",            action="store_true",             help="Select JTAG interface")
-    parser.add_argument("--jtag-config",     default="openocd_xc7_ft232.cfg", help="OpenOCD JTAG configuration file")
-    parser.add_argument("--jtag-chain",      default=1,                       help="JTAG chain")
+    parser.add_argument("--jtag",            action="store_true",             help="Select JTAG interface.")
+    parser.add_argument("--jtag-config",     default="openocd_xc7_ft232.cfg", help="OpenOCD JTAG configuration file.")
+    parser.add_argument("--jtag-chain",      default=1,                       help="JTAG chain.")
 
     # UDP arguments
-    parser.add_argument("--udp",             action="store_true",    help="Select UDP interface")
-    parser.add_argument("--udp-ip",          default="192.168.1.50", help="Set UDP remote IP address")
-    parser.add_argument("--udp-port",        default=1234,           help="Set UDP remote port")
+    parser.add_argument("--udp",             action="store_true",    help="Select UDP interface.")
+    parser.add_argument("--udp-ip",          default="192.168.1.50", help="Set UDP remote IP address.")
+    parser.add_argument("--udp-port",        default=1234,           help="Set UDP remote port.")
     parser.add_argument("--udp-scan",        action="store_true",    help="Scan network for available UDP devices.")
 
     # PCIe arguments
-    parser.add_argument("--pcie",            action="store_true",    help="Select PCIe interface")
-    parser.add_argument("--pcie-bar",        default=None,           help="Set PCIe BAR")
+    parser.add_argument("--pcie",            action="store_true",    help="Select PCIe interface.")
+    parser.add_argument("--pcie-bar",        default=None,           help="Set PCIe BAR.")
 
     # USB arguments
-    parser.add_argument("--usb",             action="store_true",    help="Select USB interface")
-    parser.add_argument("--usb-vid",         default=None,           help="Set USB vendor ID")
-    parser.add_argument("--usb-pid",         default=None,           help="Set USB product ID")
-    parser.add_argument("--usb-max-retries", default=10,             help="Number of USB reconecting retries")
+    parser.add_argument("--usb",             action="store_true",    help="Select USB interface.")
+    parser.add_argument("--usb-vid",         default=None,           help="Set USB vendor ID.")
+    parser.add_argument("--usb-pid",         default=None,           help="Set USB product ID.")
+    parser.add_argument("--usb-max-retries", default=10,             help="Number of USB reconecting retries.")
     args = parser.parse_args()
 
 
