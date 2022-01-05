@@ -298,53 +298,54 @@ class SoCCore(LiteXSoC):
 # SoCCore arguments --------------------------------------------------------------------------------
 
 def soc_core_args(parser):
+    soc_group = parser.add_argument_group("soc")
     # Bus parameters
-    parser.add_argument("--bus-standard",      default="wishbone",                help="Select bus standard: {}.".format(", ".join(SoCBusHandler.supported_standard)))
-    parser.add_argument("--bus-data-width",    default=32,         type=auto_int, help="Bus data-width.")
-    parser.add_argument("--bus-address-width", default=32,         type=auto_int, help="Bus address-width.")
-    parser.add_argument("--bus-timeout",       default=int(1e6),   type=float,    help="Bus timeout in cycles.")
+    soc_group.add_argument("--bus-standard",      default="wishbone",                help="Select bus standard: {}.".format(", ".join(SoCBusHandler.supported_standard)))
+    soc_group.add_argument("--bus-data-width",    default=32,         type=auto_int, help="Bus data-width.")
+    soc_group.add_argument("--bus-address-width", default=32,         type=auto_int, help="Bus address-width.")
+    soc_group.add_argument("--bus-timeout",       default=int(1e6),   type=float,    help="Bus timeout in cycles.")
 
     # CPU parameters
-    parser.add_argument("--cpu-type",          default="vexriscv",               help="Select CPU: {}.".format(", ".join(iter(cpu.CPUS.keys()))))
-    parser.add_argument("--cpu-variant",       default=None,                     help="CPU variant.")
-    parser.add_argument("--cpu-reset-address", default=None,      type=auto_int, help="CPU reset address (Boot from Integrated ROM by default).")
-    parser.add_argument("--cpu-cfu",           default=None,                     help="Optional CPU CFU file/instance to add to the CPU.")
+    soc_group.add_argument("--cpu-type",          default="vexriscv",               help="Select CPU: {}.".format(", ".join(iter(cpu.CPUS.keys()))))
+    soc_group.add_argument("--cpu-variant",       default=None,                     help="CPU variant.")
+    soc_group.add_argument("--cpu-reset-address", default=None,      type=auto_int, help="CPU reset address (Boot from Integrated ROM by default).")
+    soc_group.add_argument("--cpu-cfu",           default=None,                     help="Optional CPU CFU file/instance to add to the CPU.")
 
     # Controller parameters
-    parser.add_argument("--no-ctrl", action="store_true", help="Disable Controller.")
+    soc_group.add_argument("--no-ctrl", action="store_true", help="Disable Controller.")
 
     # ROM parameters
-    parser.add_argument("--integrated-rom-size", default=0x20000, type=auto_int, help="Size/Enable the integrated (BIOS) ROM (Automatically resized to BIOS size when smaller).")
-    parser.add_argument("--integrated-rom-init", default=None,    type=str,      help="Integrated ROM binary initialization file (override the BIOS when specified).")
+    soc_group.add_argument("--integrated-rom-size", default=0x20000, type=auto_int, help="Size/Enable the integrated (BIOS) ROM (Automatically resized to BIOS size when smaller).")
+    soc_group.add_argument("--integrated-rom-init", default=None,    type=str,      help="Integrated ROM binary initialization file (override the BIOS when specified).")
 
     # SRAM parameters
-    parser.add_argument("--integrated-sram-size", default=0x2000, type=auto_int, help="Size/Enable the integrated SRAM.")
+    soc_group.add_argument("--integrated-sram-size", default=0x2000, type=auto_int, help="Size/Enable the integrated SRAM.")
 
     # MAIN_RAM parameters
-    parser.add_argument("--integrated-main-ram-size", default=None, type=auto_int, help="size/enable the integrated main RAM.")
+    soc_group.add_argument("--integrated-main-ram-size", default=None, type=auto_int, help="size/enable the integrated main RAM.")
 
     # CSR parameters
-    parser.add_argument("--csr-data-width",    default=32  ,  type=auto_int, help="CSR bus data-width (8 or 32).")
-    parser.add_argument("--csr-address-width", default=14,    type=auto_int, help="CSR bus address-width.")
-    parser.add_argument("--csr-paging",        default=0x800, type=auto_int, help="CSR bus paging.")
-    parser.add_argument("--csr-ordering",      default="big",                help="CSR registers ordering (big or little).")
+    soc_group.add_argument("--csr-data-width",    default=32  ,  type=auto_int, help="CSR bus data-width (8 or 32).")
+    soc_group.add_argument("--csr-address-width", default=14,    type=auto_int, help="CSR bus address-width.")
+    soc_group.add_argument("--csr-paging",        default=0x800, type=auto_int, help="CSR bus paging.")
+    soc_group.add_argument("--csr-ordering",      default="big",                help="CSR registers ordering (big or little).")
 
     # Identifier parameters
-    parser.add_argument("--ident",             default=None,  type=str,  help="SoC identifier.")
-    parser.add_argument("--ident-version",     default=None , type=bool, help="Add date/time to SoC identifier.")
+    soc_group.add_argument("--ident",             default=None,  type=str,  help="SoC identifier.")
+    soc_group.add_argument("--ident-version",     default=None , type=bool, help="Add date/time to SoC identifier.")
 
     # UART parameters
-    parser.add_argument("--no-uart",         action="store_true",                help="Disable UART.")
-    parser.add_argument("--uart-name",       default="serial",    type=str,      help="UART type/name.")
-    parser.add_argument("--uart-baudrate",   default=115200,      type=auto_int, help="UART baudrate.")
-    parser.add_argument("--uart-fifo-depth", default=16,          type=auto_int, help="UART FIFO depth.")
+    soc_group.add_argument("--no-uart",         action="store_true",                help="Disable UART.")
+    soc_group.add_argument("--uart-name",       default="serial",    type=str,      help="UART type/name.")
+    soc_group.add_argument("--uart-baudrate",   default=115200,      type=auto_int, help="UART baudrate.")
+    soc_group.add_argument("--uart-fifo-depth", default=16,          type=auto_int, help="UART FIFO depth.")
 
     # Timer parameters
-    parser.add_argument("--no-timer",        action="store_true", help="Disable Timer.")
-    parser.add_argument("--timer-uptime",    action="store_true", help="Add an uptime capability to Timer.")
+    soc_group.add_argument("--no-timer",        action="store_true", help="Disable Timer.")
+    soc_group.add_argument("--timer-uptime",    action="store_true", help="Add an uptime capability to Timer.")
 
     # L2 Cache
-    parser.add_argument("--l2-size",           default=8192, type=auto_int, help="L2 cache size.")
+    soc_group.add_argument("--l2-size",           default=8192, type=auto_int, help="L2 cache size.")
 
 def soc_core_argdict(args):
     r = dict()
