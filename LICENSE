@@ -1,7 +1,7 @@
 LiteX is a Migen/MiSoC based Core/SoC builder that provides the infrastructure to
 easily create Cores/SoCs.
 
-Unless otherwise noted, LiteX is copyright (C) 2012-2020 Enjoy-Digital.
+Unless otherwise noted, LiteX is copyright (C) 2012-2022 Enjoy-Digital.
 Unless otherwise noted, MiSoC is copyright (C) 2012-2015 Enjoy-Digital.
 Unless otherwise noted, MiSoC is copyright (C) 2007-2015 M-Labs Ltd.
 All rights reserved.
