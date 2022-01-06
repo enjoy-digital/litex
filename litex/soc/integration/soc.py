@@ -197,17 +197,24 @@ class SoCBusHandler(Module):
                 self.regions[name] = region
             # Else add Region.
             else:
-                # If Region is an IO Region is not cached.
-                if not region.cached:
-                    if not self.check_region_is_io(region):
-                        self.logger.error("{} Region {}: {}.".format(
-                            colorer(name),
-                            colorer("not in IO region", color="red"),
+                if self.check_region_is_io(region):
+                    # If Region is an IO Region it is not cached.
+                    if region.cached:
+                        self.logger.error("{} {}".format(
+                            colorer(name + " Region in IO region, it can't be cached:", color="red"),
+                            str(region)))
+                        self.logger.error(self)
+                        raise SoCError()
+                else:
+                    # If Region is not an IO Region it is cached.
+                    if not region.cached:
+                        self.logger.error("{} {}".format(
+                            colorer(name + " Region not in IO region, it must be cached:", color="red"),
                             str(region)))
                         self.logger.error(self)
                         raise SoCError()
                 self.regions[name] = region
-                # Check for overlab with others IO regions.
+                # Check for overlap with others IO regions.
                 overlap = self.check_regions_overlap(self.regions)
                 if overlap is not None:
                     self.logger.error("Region {} between {} and {}:".format(
