@@ -926,8 +926,8 @@ class SoC(Module):
                     self.logger.info("CPU {} {} mapping from {} to {}.".format(
                         colorer("overriding", color="cyan"),
                         colorer(n),
-                        colorer(f"0x{self.mem_map[n]:x}"),
-                        colorer(f"0x{self.cpu.mem_map[n]:x}")))
+                        colorer(f"0x{self.mem_map[n]:08x}"),
+                        colorer(f"0x{self.cpu.mem_map[n]:08x}")))
             self.mem_map.update(self.cpu.mem_map)
 
         # Add Bus Masters/CSR/IRQs.
