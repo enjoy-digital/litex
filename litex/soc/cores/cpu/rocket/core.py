@@ -98,7 +98,7 @@ class RocketRV64(CPU):
     gcc_triple           = CPU_GCC_TRIPLE_RISCV64
     linker_output_format = "elf64-littleriscv"
     nop                  = "nop"
-    io_regions           = {0x10000000: 0x70000000} # Origin, Length.
+    io_regions           = {0x12000000: 0x70000000} # Origin, Length.
 
     # Memory Mapping.
     @property
