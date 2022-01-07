@@ -144,14 +144,15 @@ class SoCBusHandler(Module):
             raise SoCError()
 
         # Create Bus
-        self.standard      = standard
-        self.data_width    = data_width
-        self.address_width = address_width
-        self.masters       = {}
-        self.slaves        = {}
-        self.regions       = {}
-        self.io_regions    = {}
-        self.timeout       = timeout
+        self.standard         = standard
+        self.data_width       = data_width
+        self.address_width    = address_width
+        self.masters          = {}
+        self.slaves           = {}
+        self.regions          = {}
+        self.io_regions       = {}
+        self.io_regions_check = True
+        self.timeout          = timeout
         self.logger.info("{}-bit {} Bus, {}GiB Address Space.".format(
             colorer(data_width), colorer(standard), colorer(2**address_width/2**30)))
 
@@ -197,22 +198,23 @@ class SoCBusHandler(Module):
                 self.regions[name] = region
             # Else add Region.
             else:
-                if self.check_region_is_io(region):
-                    # If Region is an IO Region it is not cached.
-                    if region.cached:
-                        self.logger.error("{} {}".format(
-                            colorer(name + " Region in IO region, it can't be cached:", color="red"),
-                            str(region)))
-                        self.logger.error(self)
-                        raise SoCError()
-                else:
-                    # If Region is not an IO Region it is cached.
-                    if not region.cached:
-                        self.logger.error("{} {}".format(
-                            colorer(name + " Region not in IO region, it must be cached:", color="red"),
-                            str(region)))
-                        self.logger.error(self)
-                        raise SoCError()
+                if self.io_regions_check:
+                    if self.check_region_is_io(region):
+                        # If Region is an IO Region it is not cached.
+                        if region.cached:
+                            self.logger.error("{} {}".format(
+                                colorer(name + " Region in IO region, it can't be cached:", color="red"),
+                                str(region)))
+                            self.logger.error(self)
+                            raise SoCError()
+                    else:
+                        # If Region is not an IO Region it is cached.
+                        if not region.cached:
+                            self.logger.error("{} {}".format(
+                                colorer(name + " Region not in IO region, it must be cached:", color="red"),
+                                str(region)))
+                            self.logger.error(self)
+                            raise SoCError()
                 self.regions[name] = region
                 # Check for overlap with others IO regions.
                 overlap = self.check_regions_overlap(self.regions)
@@ -919,6 +921,8 @@ class SoC(Module):
         if isinstance(self.cpu, cpu.CPUNone):
             # With CPUNone, give priority to User's mapping.
             self.mem_map = {**self.cpu.mem_map, **self.mem_map}
+            # With CPUNone, disable IO regions check.
+            self.bus.io_regions_check = False
         else:
             # Override User's mapping with CPU constrainted mapping (and warn User).
             for n, origin in self.cpu.mem_map.items():
