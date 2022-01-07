@@ -49,13 +49,4 @@ def add_compat(location):
 
     # Cores.
     if location == "litex.soc.cores":
-        class compat_up5kspram:
-            noticed = False
-            def __getattr__(self, name):
-                if not self.noticed:
-                    compat_notice("litex.soc.cores.up5kspram", date="2020-03-24", info="Switch to litex.soc.cores.ram.")
-                    self.noticed = True
-                from litex.soc.cores import ram
-                return getattr(ram, name)
-        from litex.soc.cores import ram
-        sys.modules["litex.soc.cores.up5kspram"] = compat_up5kspram()
+        pass
