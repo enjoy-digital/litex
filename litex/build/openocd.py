@@ -39,6 +39,15 @@ class OpenOCD(GenericProgrammer):
         ])
         self.call(["openocd", "-f", config, "-c", script])
 
+    def get_ir(self, chain, config):
+        # On ECP5, force IR to 0x32.
+        ecp5 = "ecp5" in open(config).read()
+        if ecp5:
+            chain = 0x32
+        # Else IR = 1 + CHAIN.
+        else:
+            chain = 0x1 + chain
+        return chain
 
     def stream(self, port=20000, chain=1):
         """
@@ -55,6 +64,7 @@ class OpenOCD(GenericProgrammer):
           - TX data  : bit 1 to 8
           - TX valid : bit 9
         """
+        config = self.find_config()
         cfg = """
 proc jtagstream_poll {tap tx n} {
     set m [string length $tx]
@@ -139,9 +149,8 @@ proc jtagstream_serve {tap port} {
         write_to_file("stream.cfg", cfg)
         script = "; ".join([
             "init",
-            "irscan $_CHIPNAME.tap {:d}".format(0x1 + chain),
+            "irscan $_CHIPNAME.tap {:d}".format(self.get_ir(chain, config)),
             "jtagstream_serve $_CHIPNAME.tap {:d}".format(port),
             "exit",
         ])
-        config = self.find_config()
         self.call(["openocd", "-f", config, "-f", "stream.cfg", "-c", script])
