@@ -311,7 +311,6 @@ class RocketRV64(CPU):
         self.add_sources(platform, variant)
 
     def set_reset_address(self, reset_address):
-        assert not hasattr(self, "reset_address")
         self.reset_address = reset_address
         assert reset_address == 0x10000000, "cpu_reset_addr hardcoded in during elaboration!"
 

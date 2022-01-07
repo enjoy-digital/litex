@@ -179,7 +179,6 @@ class VexRiscv(CPU, AutoCSR):
             self.add_debug()
 
     def set_reset_address(self, reset_address):
-        assert not hasattr(self, "reset_address")
         self.reset_address = reset_address
         self.cpu_params.update(i_externalResetVector=Signal(32, reset=reset_address))
 

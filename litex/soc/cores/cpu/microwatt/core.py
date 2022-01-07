@@ -129,7 +129,6 @@ class Microwatt(CPU):
         self.add_sources(platform, use_ghdl_yosys_plugin="ghdl" in self.variant)
 
     def set_reset_address(self, reset_address):
-        assert not hasattr(self, "reset_address")
         self.reset_address = reset_address
         assert reset_address == 0x00000000
 

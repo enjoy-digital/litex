@@ -97,7 +97,6 @@ class LM32(CPU):
         self.add_sources(platform, variant)
 
     def set_reset_address(self, reset_address):
-        assert not hasattr(self, "reset_address")
         self.reset_address = reset_address
         self.cpu_params.update(
             p_eba_reset=Instance.PreformattedParam("32'h{:08x}".format(reset_address))

@@ -90,7 +90,6 @@ class Minerva(CPU):
         )
 
     def set_reset_address(self, reset_address):
-        assert not hasattr(self, "reset_address")
         self.reset_address = reset_address
 
     @staticmethod

@@ -83,7 +83,6 @@ class SERV(CPU):
         self.add_sources(platform)
 
     def set_reset_address(self, reset_address):
-        assert not hasattr(self, "reset_address")
         self.reset_address = reset_address
         self.cpu_params.update(p_RESET_PC=reset_address)
 

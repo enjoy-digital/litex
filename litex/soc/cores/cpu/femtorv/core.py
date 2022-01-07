@@ -164,7 +164,6 @@ class FemtoRV(CPU):
         self.add_sources(platform, variant)
 
     def set_reset_address(self, reset_address):
-        assert not hasattr(self, "reset_address")
         self.reset_address = reset_address
         self.cpu_params.update(p_RESET_ADDR=Constant(reset_address, 32))
 

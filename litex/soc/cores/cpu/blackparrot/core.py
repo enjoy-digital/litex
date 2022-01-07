@@ -139,7 +139,6 @@ class BlackParrotRV64(CPU):
 
 
     def set_reset_address(self, reset_address):
-        assert not hasattr(self, "reset_address")
         self.reset_address = reset_address
         assert reset_address == 0x70000000, "cpu_reset_addr hardcoded to 7x00000000!"
 

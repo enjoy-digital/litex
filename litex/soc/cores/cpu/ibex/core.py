@@ -227,7 +227,6 @@ class Ibex(CPU):
         )
 
     def set_reset_address(self, reset_address):
-        assert not hasattr(self, "reset_address")
         self.reset_address = reset_address
         self.cpu_params.update(i_boot_addr_i=Signal(32, reset=reset_address))
 
