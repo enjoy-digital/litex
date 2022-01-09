@@ -105,7 +105,7 @@ extern "C" void litex_sim_init(void **out)
     tools.write_to_file("sim_init.cpp", content)
 
 
-def _generate_sim_variables(include_paths):
+def _generate_sim_variables(include_paths, extra_mods, extra_mods_path):
     tapcfg_dir = get_data_mod("misc", "tapcfg").data_location
     include = ""
     for path in include_paths:
@@ -115,6 +115,13 @@ SRC_DIR = {}
 INC_DIR = {}
 TAPCFG_DIRECTORY = {}
 """.format(core_directory, include, tapcfg_dir)
+
+    if extra_mods:
+        modlist = " ".join(extra_mods)
+        content += "EXTRA_MOD_LIST = " + modlist + "\n"
+        content += "EXTRA_MOD_BASE_DIR = " + extra_mods_path + "\n"
+        tools.write_to_file(extra_mods_path + "/variables.mak", content)
+
     tools.write_to_file("variables.mak", content)
 
 
@@ -191,7 +198,9 @@ class SimVerilatorToolchain:
             trace_end        = -1,
             regular_comb     = False,
             interactive      = True,
-            pre_run_callback = None):
+            pre_run_callback = None,
+            extra_mods       = None,
+            extra_mods_path  = ""):
 
         # Create build directory
         os.makedirs(build_dir, exist_ok=True)
@@ -217,7 +226,10 @@ class SimVerilatorToolchain:
             # Generate cpp header/main/variables
             _generate_sim_h(platform)
             _generate_sim_cpp(platform, trace, trace_start, trace_end)
-            _generate_sim_variables(platform.verilog_include_paths)
+
+            _generate_sim_variables(platform.verilog_include_paths,
+                                    extra_mods,
+                                    extra_mods_path)
 
             # Generate sim config
             if sim_config:
