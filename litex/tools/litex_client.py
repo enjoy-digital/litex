@@ -87,62 +87,62 @@ class RemoteClient(EtherboneIPC, CSRBuilder):
 # Utils --------------------------------------------------------------------------------------------
 
 def reg2addr(reg):
-    wb = RemoteClient()
-    if hasattr(wb.regs, reg):
-        return getattr(wb.regs, reg).addr
+    bus = RemoteClient()
+    if hasattr(bus.regs, reg):
+        return getattr(bus.regs, reg).addr
     else:
         raise ValueError(f"Register {reg} not present, exiting.")
 
 def dump_identifier(port):
-    wb = RemoteClient(port=port)
-    wb.open()
+    bus = RemoteClient(port=port)
+    bus.open()
 
     # On PCIe designs, CSR is remapped to 0 to limit BAR0 size.
-    if hasattr(wb.bases, "pcie_phy"):
-        wb.base_address = -wb.mems.csr.base
+    if hasattr(bus.bases, "pcie_phy"):
+        bus.base_address = -bus.mems.csr.base
 
     fpga_identifier = ""
 
     for i in range(256):
-        c = chr(wb.read(wb.bases.identifier_mem + 4*i) & 0xff)
+        c = chr(bus.read(bus.bases.identifier_mem + 4*i) & 0xff)
         fpga_identifier += c
         if c == "\0":
             break
 
     print(fpga_identifier)
 
-    wb.close()
+    bus.close()
 
 def dump_registers(port, filter=None):
-    wb = RemoteClient(port=port)
-    wb.open()
+    bus = RemoteClient(port=port)
+    bus.open()
 
     # On PCIe designs, CSR is remapped to 0 to limit BAR0 size.
-    if hasattr(wb.bases, "pcie_phy"):
-        wb.base_address = -wb.mems.csr.base
+    if hasattr(bus.bases, "pcie_phy"):
+        bus.base_address = -bus.mems.csr.base
 
-    for name, register in wb.regs.__dict__.items():
+    for name, register in bus.regs.__dict__.items():
         if (filter is None) or filter in name:
             print("0x{:08x} : 0x{:08x} {}".format(register.addr, register.read(), name))
 
-    wb.close()
+    bus.close()
 
 def read_memory(port, addr, length):
-    wb = RemoteClient(port=port)
-    wb.open()
+    bus = RemoteClient(port=port)
+    bus.open()
 
     for offset in range(length//4):
-        print(f"0x{addr + 4*offset:08x} : 0x{wb.read(addr + 4*offset):08x}")
+        print(f"0x{addr + 4*offset:08x} : 0x{bus.read(addr + 4*offset):08x}")
 
-    wb.close()
+    bus.close()
 
 def write_memory(port, addr, data):
-    wb = RemoteClient(port=port)
-    wb.open()
+    bus = RemoteClient(port=port)
+    bus.open()
 
-    wb.write(addr, data)
+    bus.write(addr, data)
 
-    wb.close()
+    bus.close()
 
 # Run ----------------------------------------------------------------------------------------------
 
