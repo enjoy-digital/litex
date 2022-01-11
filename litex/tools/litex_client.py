@@ -86,6 +86,13 @@ class RemoteClient(EtherboneIPC, CSRBuilder):
 
 # Utils --------------------------------------------------------------------------------------------
 
+def reg2addr(reg):
+    wb = RemoteClient()
+    if hasattr(wb.regs, reg):
+        return getattr(wb.regs, reg).addr
+    else:
+        raise ValueError(f"Register {reg} not present, exiting.")
+
 def dump_identifier(port):
     wb = RemoteClient(port=port)
     wb.open()
@@ -145,8 +152,8 @@ def main():
     parser.add_argument("--ident",  action="store_true",   help="Dump SoC identifier.")
     parser.add_argument("--regs",   action="store_true",   help="Dump SoC registers.")
     parser.add_argument("--filter", default=None,          help="Registers filter (to be used with --regs).")
-    parser.add_argument("--read",   default=None,          help="Do a MMAP Read to SoC bus (--read addr).")
-    parser.add_argument("--write",  default=None, nargs=2, help="Do a MMAP Write to SoC bus (--write addr data).")
+    parser.add_argument("--read",   default=None,          help="Do a MMAP Read to SoC bus (--read addr/reg).")
+    parser.add_argument("--write",  default=None, nargs=2, help="Do a MMAP Write to SoC bus (--write addr/reg data).")
     parser.add_argument("--length", default="4",           help="MMAP access length.")
     args = parser.parse_args()
 
@@ -159,10 +166,18 @@ def main():
         dump_registers(port=port, filter=args.filter)
 
     if args.read:
-        read_memory(port=port, addr=int(args.read, 0), length=int(args.length, 0))
+        if isinstance(args.read, str):
+            addr = reg2addr(args.read)
+        else:
+            addr = int(args.read, 0)
+        read_memory(port=port, addr=addr, length=int(args.length, 0))
 
     if args.write:
-        write_memory(port=port, addr=int(args.write[0], 0), data=int(args.write[1], 0))
+        if isinstance(args.write[0], str):
+            addr = reg2addr(args.write[0])
+        else:
+            addr = int(args.write[0], 0)
+        write_memory(port=port, addr=addr, data=int(args.write[1], 0))
 
 if __name__ == "__main__":
     main()
