@@ -275,6 +275,10 @@ class Builder:
         # Pass Output Directory to Platform.
         self.soc.platform.output_dir = self.output_dir
 
+        # Copy generic files to the gateware directory
+        for f in self.soc.platform.extra_files:
+            shutil.copyfile(f, os.path.join(self.gateware_dir, os.path.basename(f)))
+
         # Check if BIOS is used and add software package if so.
         with_bios = self.soc.cpu_type not in [None, "eos-s3", 'gowin_emcu']
         if with_bios:
