@@ -310,6 +310,7 @@ class GenericPlatform:
             name = os.path.splitext(os.path.basename(sys.argv[0]))[0]
         self.name                  = name
         self.sources               = []
+        self.extra_files           = []
         self.verilog_include_paths = []
         self.output_dir            = None
         self.finalized             = False
@@ -377,6 +378,17 @@ class GenericPlatform:
             if f == filename:
                 return
         self.sources.append((filename, language, library))
+
+    def copy_file(self, filename):
+        filename = os.path.abspath(filename)
+        for f in self.extra_files:
+            if f == filename:
+                return
+        self.extra_files.append(filename)
+
+    def copy_files(self, path, *filenames):
+        for f in filenames:
+            self.add_file(os.path.join(path, f))
 
     def add_sources(self, path, *filenames, language=None, library=None):
         for f in filenames:

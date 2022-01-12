@@ -283,6 +283,10 @@ class Builder:
         # Create Gateware directory.
         _create_dir(self.gateware_dir)
 
+        # Copy generic files to the gateware directory
+        for f in self.soc.platform.extra_files:
+            shutil.copyfile(f, os.path.join(self.gateware_dir, os.path.basename(f)))
+
         # Create Software directory.
         # First check if software needs a full re-build and remove software dir if so.
         if with_bios:
