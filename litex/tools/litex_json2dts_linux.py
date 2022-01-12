@@ -229,6 +229,18 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         }};
 """.format(sys_clk_freq=d["constants"]["config_clock_frequency"])
 
+    # Voltage Regulator for LiteSDCard (if applicable) --------------------------------------------
+    if "sdcore" in d["csr_bases"]:
+        dts += """
+        vreg_mmc: vreg_mmc {{
+            compatible = "regulator-fixed";
+            regulator-name = "vreg_mmc";
+            regulator-min-microvolt = <3300000>;
+            regulator-max-microvolt = <3300000>;
+            regulator-always-on;
+        }};
+""".format()
+
     # SoC ------------------------------------------------------------------------------------------
 
     dts += """
@@ -390,6 +402,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                       <0x{sdirq:x} 0x100>;
                 reg-names = "phy", "core", "reader", "writer", "irq";
                 clocks = <&sys_clk>;
+                vmmc-supply = <&vreg_mmc>;
                 bus-width = <0x04>;
                 {sdirq_interrupt}
                 status = "okay";
