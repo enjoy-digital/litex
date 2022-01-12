@@ -261,3 +261,55 @@ static void mem_speed_handler(int nb_params, char **params)
 	memspeed(addr, size, read_only, random);
 }
 define_command(mem_speed, mem_speed_handler, "Test memory speed", MEM_CMDS);
+
+/**
+ * Command "mem_cmp"
+ *
+ * Memory Compare
+ *
+ */
+static void mem_cmp_handler(int nb_params, char **params)
+{
+        char *c;
+        unsigned int *addr1;
+        unsigned int *addr2;
+        unsigned int count;
+        unsigned int i;
+	bool same = true;
+        if (nb_params < 3) {
+                printf("mem_cmp <addr1> <addr2> <count>");
+                return;
+        }
+
+        addr1 = (unsigned int *)strtoul(params[0], &c, 0);
+        if (*c != 0) {
+                printf("Incorrect addr1");
+                return;
+        }
+
+        addr2 = (unsigned int *)strtoul(params[1], &c, 0);
+        if (*c != 0) {
+                printf("Incorrect addr2");
+                return;
+        }
+
+        count = strtoul(params[2], &c, 0);
+        if (*c != 0) {
+		printf("Incorrect count");
+		return;
+        }
+
+        for (i = 0; i < count; i++)
+                if (*addr1++ != *addr2++){
+			printf("Different memory content:\naddr1: 0x%08lx, content: 0x%08x\naddr2: 0x%08lx, content: 0x%08x\n",
+					(long unsigned int)(addr1 - 1), *(addr1 - 1),
+					(long unsigned int)(addr2 - 1), *(addr2 - 1));
+			same = false;
+		}
+
+	if (same)
+		printf("mem_cmp finished, same content.");
+	else
+		printf("mem_cmp finished, different content.");
+}
+define_command(mem_cmp, mem_cmp_handler, "Compare memory content", MEM_CMDS);
