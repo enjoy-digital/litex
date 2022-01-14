@@ -1552,18 +1552,35 @@ class LiteXSoC(SoC):
             self.add_constant("SPIFLASH_MODULE_QPI_CAPABLE")
 
     # Add SPI SDCard -------------------------------------------------------------------------------
-    def add_spi_sdcard(self, name="spisdcard", spi_clk_freq=400e3, software_debug=False):
+    def add_spi_sdcard(self, name="spisdcard", spi_clk_freq=400e3, with_tristate=False, software_debug=False):
         # Imports.
+        from migen.fhdl.specials import Tristate
         from litex.soc.cores.spi import SPIMaster
 
         # Pads.
-        pads = self.platform.request(name)
-        if hasattr(pads, "rst"):
+        spi_sdcard_pads = self.platform.request(name)
+        if hasattr(spi_sdcard_pads, "rst"):
             self.comb += pads.rst.eq(0)
+
+        # Tristate (Optional).
+        if with_tristate:
+            tristate = Signal()
+            spi_sdcard_tristate_pads = spi_sdcard_pads
+            spi_sdcard_pads          = Record([("clk", 1), ("cs_n", 1), ("mosi", 1), ("miso", 1)])
+            self.specials += Tristate(spi_sdcard_tristate_pads.clk,  spi_sdcard_pads.clk,  ~tristate)
+            self.specials += Tristate(spi_sdcard_tristate_pads.cs_n, spi_sdcard_pads.cs_n, ~tristate)
+            self.specials += Tristate(spi_sdcard_tristate_pads.mosi, spi_sdcard_pads.mosi, ~tristate)
+            self.comb += spi_sdcard_pads.miso.eq(spi_sdcard_tristate_pads.miso)
+            setattr(self, name + "_tristate", tristate)
 
         # Core.
         self.check_if_exists(name)
-        spisdcard = SPIMaster(pads, 8, self.sys_clk_freq, spi_clk_freq)
+        spisdcard = SPIMaster(
+            pads         = spi_sdcard_pads,
+            data_width   = 8,
+            sys_clk_freq = self.sys_clk_freq,
+            spi_clk_freq = spi_clk_freq,
+        )
         spisdcard.add_clk_divider()
         setattr(self.submodules, name, spisdcard)
 
