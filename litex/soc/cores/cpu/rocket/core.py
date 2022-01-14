@@ -125,7 +125,7 @@ class RocketRV64(CPU):
         self.variant   = variant
 
         self.reset     = Signal()
-        self.interrupt = Signal(4)
+        self.interrupt = Signal(8)
 
         mem_dw, mmio_dw, num_cores = CPU_SIZE_PARAMS[self.variant]
 

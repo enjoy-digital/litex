@@ -35,11 +35,11 @@ void plic_init(void)
 {
 	int i;
 
-	// priorities for interrupt pins 1..4
-	for (i = 1; i <= 4; i++)
+	// priorities for interrupt pins 1..8
+	for (i = 1; i <= 8; i++)
 		*((unsigned int *)PLIC_BASE + i) = 1;
-	// enable interrupt pins 1..4
-	*((unsigned int *)PLIC_ENABLED) = 0xf << 1;
+	// enable interrupt pins 1..8
+	*((unsigned int *)PLIC_ENABLED) = 0xff << 1;
 	// set priority threshold to 0 (any priority > 0 triggers interrupt)
 	*((unsigned int *)PLIC_THRSHLD) = 0;
 }
