@@ -1560,7 +1560,7 @@ class LiteXSoC(SoC):
         # Pads.
         spi_sdcard_pads = self.platform.request(name)
         if hasattr(spi_sdcard_pads, "rst"):
-            self.comb += pads.rst.eq(0)
+            self.comb += spi_sdcard_pads.rst.eq(0)
 
         # Tristate (Optional).
         if with_tristate:
