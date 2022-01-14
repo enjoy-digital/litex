@@ -111,13 +111,16 @@ static void mem_write_handler(int nb_params, char **params)
 	for (i = 0; i < count; i++) {
 		switch (size) {
 		case 1:
-			*(uint8_t *)addr++ = value;
+			*(uint8_t *)addr = value;
+			addr += 1;
 			break;
 		case 2:
-			*(uint16_t *)addr++ = value;
+			*(uint16_t *)addr = value;
+			addr += 2;
 			break;
 		case 4:
-			*(uint32_t *)addr++ = value;
+			*(uint32_t *)addr = value;
+			addr += 4;
 			break;
 		default:
 			printf("Incorrect size");
