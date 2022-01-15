@@ -24,18 +24,24 @@ class EOS_S3(CPU):
     human_name           = "EOS S3"
     data_width           = 32
     endianness           = "little"
-    reset_address        = 0x00000000
-    gcc_triple           = "gcc-arm-none-eabi"
+    reset_address        = 0x0000_0000
+    gcc_triple           = "arm-none-eabi"
+    gcc_flags            = "-mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16"
     linker_output_format = "elf32-littlearm"
     nop                  = "nop"
-    io_regions           = {0x00000000: 0x100000000} # Origin, Length.
+    io_regions           = {0x4000_0000: 0xc000_0000}  # Origin, Length.
 
     # Memory Mapping.
     @property
     def mem_map(self):
-        return {"csr": 0x00000000}
+        return {
+            "rom":  0x0000_0000,
+            "sram": 0x2000_0000,
+            "csr":  0x4002_0000
+        }
 
-    def __init__(self, platform, variant):
+    def __init__(self, platform, variant, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.platform       = platform
         self.reset          = Signal()
         self.interrupt      = Signal(4)

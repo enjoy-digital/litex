@@ -1094,7 +1094,7 @@ class SoC(Module):
             self.add_constant(name + "_" + constant.name, constant.value.value)
 
         # SoC CPU Check ----------------------------------------------------------------------------
-        if not isinstance(self.cpu, (cpu.CPUNone, cpu.EOS_S3)):
+        if not isinstance(self.cpu, cpu.CPUNone):
             cpu_reset_address_valid = False
             for name, container in self.bus.regions.items():
                 if self.bus.check_region_is_in(
