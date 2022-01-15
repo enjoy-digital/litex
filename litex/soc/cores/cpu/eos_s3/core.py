@@ -20,8 +20,8 @@ class Open(Signal): pass
 class EOS_S3(CPU):
     variants             = ["standard"]
     family               = "arm"
-    name                 = "eos-s3"
-    human_name           = "eos-s3"
+    name                 = "eos_s3"
+    human_name           = "EOS S3"
     data_width           = 32
     endianness           = "little"
     reset_address        = 0x00000000

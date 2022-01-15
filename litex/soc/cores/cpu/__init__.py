@@ -136,7 +136,7 @@ CPUS = {
     "zynq7000"    : Zynq7000,
 
     # EOS-S3
-    "eos-s3"      : EOS_S3,
+    "eos_s3"      : EOS_S3,
 
     # Gowin EMCU
     'gowin_emcu'  : GowinEMCU
