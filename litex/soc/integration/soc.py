@@ -81,7 +81,7 @@ class SoCRegion:
             self.logger.error(self)
             raise SoCError()
         if (origin == 0) and (size == 2**bus.address_width):
-            return lambda a : True
+            return lambda a: True
         origin >>= int(log2(bus.data_width//8)) # bytes to words aligned.
         size   >>= int(log2(bus.data_width//8)) # bytes to words aligned.
         return lambda a: (a[log2_int(size):] == (origin >> log2_int(size)))
@@ -165,7 +165,7 @@ class SoCBusHandler(Module):
 
         self.logger.info("Bus Handler {}.".format(colorer("created", color="green")))
 
-    # Add/Allog/Check Regions ----------------------------------------------------------------------
+    # Add/Alloc/Check Regions ----------------------------------------------------------------------
     def add_region(self, name, region):
         allocated = False
         if name in self.regions.keys() or name in self.io_regions.keys():
@@ -872,11 +872,11 @@ class SoC(Module):
         }[self.bus.standard]
         self.check_if_exists("csr_bridge")
         self.submodules.csr_bridge = csr_bridge_cls(
-            bus_csr       = csr_bus.Interface(
-            address_width = self.csr.address_width,
-            data_width    = self.csr.data_width),
-            register      = register)
-        csr_size   = 2**(self.csr.address_width + 2)
+            bus_csr=csr_bus.Interface(
+                address_width = self.csr.address_width,
+                data_width    = self.csr.data_width),
+            register=register)
+        csr_size = 2**(self.csr.address_width + 2)
         csr_region = SoCRegion(origin=origin, size=csr_size, cached=False)
         bus = getattr(self.csr_bridge, self.bus.standard.replace('-', '_'))
         self.bus.add_slave("csr", bus, csr_region)
