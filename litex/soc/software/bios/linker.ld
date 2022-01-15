@@ -8,11 +8,14 @@ SECTIONS
 	.text :
 	{
 		_ftext = .;
-                /* Make sure crt0 files come first, and they, and the isr */
-                /* don't get disposed of by greedy optimisation */
-                *crt0*(.text)
-                KEEP(*crt0*(.text))
-                KEEP(*(.text.isr))
+		/* Quicklogic EOS-S3 interrupt vector table uses section name "isr_vector" */
+		/* ARM table has to be placed at start */
+		KEEP(*(.isr_vector))
+		/* Make sure crt0 files come first, and they, and the isr */
+		/* don't get disposed of by greedy optimisation */
+		*crt0*(.text)
+		KEEP(*crt0*(.text))
+		KEEP(*(.text.isr))
 
 		*(.text .stub .text.* .gnu.linkonce.t.*)
 		_etext = .;
