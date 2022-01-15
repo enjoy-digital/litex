@@ -21,6 +21,7 @@ import shutil
 from litex import get_data_mod
 from litex.build.tools import write_to_file
 from litex.soc.integration import export, soc_core
+from litex.soc.integration.soc import colorer
 from litex.soc.cores import cpu
 
 # Helpers ------------------------------------------------------------------------------------------
@@ -129,7 +130,11 @@ class Builder:
         # Helper.
         variables_contents = []
         def define(k, v):
-            variables_contents.append("{}={}".format(k, _makefile_escape(v)))
+            try:
+                variables_contents.append("{}={}".format(k, _makefile_escape(v)))
+            except AttributeError as e:
+                print(colorer(f"problem with {k}:", 'red'))
+                raise e
 
         # Define packages and libraries.
         define("PACKAGES",     " ".join(name for name, src_dir in self.software_packages))
