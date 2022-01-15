@@ -843,7 +843,7 @@ static int copy_file_from_sata_to_ram(const char * filename, unsigned long ram_a
 	FIL file;
 	uint32_t br;
 	uint32_t offset;
-	uint32_t length;
+	unsigned long length;
 
 	fr = f_mount(&fs, "", 1);
 	if (fr != FR_OK)
