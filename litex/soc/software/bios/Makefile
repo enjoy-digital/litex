@@ -70,6 +70,7 @@ vpath %.a $(PACKAGES:%=../%)
 		$(PACKAGES:%=-L../%) \
 		-Wl,--whole-archive \
 		-Wl,--gc-sections \
+		-Wl,-Map,$@.map \
 		$(LIBS:lib%=-l%) \
 
 
