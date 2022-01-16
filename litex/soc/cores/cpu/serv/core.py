@@ -15,7 +15,23 @@ from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 
 # Variants -----------------------------------------------------------------------------------------
 
-CPU_VARIANTS = ["standard"]
+# Variants -----------------------------------------------------------------------------------------
+
+CPU_VARIANTS = ["standard", "mdu"]
+
+# GCC Flags ----------------------------------------------------------------------------------------
+
+GCC_FLAGS = {
+    #                               /-------- Base ISA
+    #                               |/------- Hardware Multiply + Divide
+    #                               ||/----- Atomics
+    #                               |||/---- Compressed ISA
+    #                               ||||/--- Single-Precision Floating-Point
+    #                               |||||/-- Double-Precision Floating-Point
+    #                               imacfd
+    "standard":         "-march=rv32i     -mabi=ilp32",
+    "mdu":              "-march=rv32im    -mabi=ilp32",
+}
 
 # SERV ---------------------------------------------------------------------------------------------
 
@@ -34,9 +50,8 @@ class SERV(CPU):
     # GCC Flags.
     @property
     def gcc_flags(self):
-        flags =  "-march=rv32i "
-        flags += "-mabi=ilp32 "
-        flags += "-D__serv__ "
+        flags =  GCC_FLAGS[self.variant]
+        flags += " -D__serv__ "
         return flags
 
     def __init__(self, platform, variant="standard"):
@@ -79,12 +94,53 @@ class SERV(CPU):
             dbus.stb.eq(dbus.cyc),
         ]
 
+        # Add MDU.
+        if self.variant == "mdu":
+            self.add_mdu()
+
         # Add Verilog sources
         self.add_sources(platform)
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
         self.cpu_params.update(p_RESET_PC=reset_address)
+
+    def add_mdu(self):
+        # Get MDU file.
+        mdu_file = "mdu_top.v"
+        if not os.path.exists(mdu_file):
+            os.system(f"wget https://raw.githubusercontent.com/zeeshanrafique23/mdu/dev/rtl/mdu_top.v")
+
+
+        # Do MDU instance.
+        mdu_rs1   = Signal(32)
+        mdu_rs2   = Signal(32)
+        mdu_op    = Signal(2)
+        mdu_valid = Signal()
+        mdu_rd    = Signal(32)
+        mdu_ready = Signal()
+        self.specials += Instance("mdu_top",
+            i_i_clk       = ClockSignal(),
+            i_i_rst       = ResetSignal() | self.reset,
+            i_i_mdu_rs1   = mdu_rs1,
+            i_i_mdu_rs2   = mdu_rs2,
+            i_i_mdu_op    = mdu_op,
+            i_i_mdu_valid = mdu_valid,
+            o_o_mdu_ready = mdu_ready,
+            o_o_mdu_rd    = mdu_rd
+        )
+        self.platform.add_source(mdu_file)
+
+        # Connect MDU to SERV.
+        self.cpu_params.update(
+            p_MDU          = 1,
+            o_o_ext_rs1    = mdu_rs1,
+            o_o_ext_rs2    = mdu_rs2,
+            o_o_ext_funct3 = mdu_op,
+            i_i_ext_rd     = mdu_rd,
+            i_i_ext_ready  = mdu_ready,
+            o_o_mdu_valid  = mdu_valid
+        )
 
     @staticmethod
     def add_sources(platform):
