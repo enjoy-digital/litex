@@ -113,7 +113,7 @@ video_timings = {
         "v_sync_width"  : 5,
     },
     "1920x1080@60Hz": {
-        "pix_clk"       : 148.35e6,
+        "pix_clk"       : 148.5e6,
         "h_active"      : 1920,
         "h_blanking"    : 280,
         "h_sync_offset" : 88,
