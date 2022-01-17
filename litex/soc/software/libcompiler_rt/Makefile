@@ -14,7 +14,8 @@ OBJECTS=umodsi3.o udivsi3.o divsi3.o modsi3.o comparesf2.o comparedf2.o negsf2.o
   clzsi2.o ctzsi2.o udivdi3.o umoddi3.o moddi3.o ucmpdi2.o
 
 ifeq ($(CPUFAMILY), arm)
-OBJECTS += aeabi_div0.o aeabi_uldivmod.o aeabi_uidivmod.o aeabi_idivmod.o udivmodsi4.o divmodsi4.o
+OBJECTS += aeabi_div0.o aeabi_uldivmod.o aeabi_uidivmod.o aeabi_idivmod.o \
+	udivmodsi4.o divmodsi4.o aeabi_ldivmod.o divmoddi4.o
 
 %.o: $(COMPILER_RT_DIRECTORY)/lib/builtins/arm/%.c
 	$(call compile,-fno-lto)

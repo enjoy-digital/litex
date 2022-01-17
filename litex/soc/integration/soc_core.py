@@ -158,7 +158,7 @@ class SoCCore(LiteXSoC):
             integrated_rom_size = 4*len(integrated_rom_init)
 
         # Disable ROM when no CPU/hard-CPU.
-        if cpu_type in [None, "zynq7000", "eos-s3"]:
+        if cpu_type in [None, "zynq7000", "eos_s3"]:
             integrated_rom_init = []
             integrated_rom_size = 0
         self.integrated_rom_size        = integrated_rom_size

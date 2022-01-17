@@ -21,6 +21,7 @@ import shutil
 from litex import get_data_mod
 from litex.build.tools import write_to_file
 from litex.soc.integration import export, soc_core
+from litex.soc.integration.soc import colorer
 from litex.soc.cores import cpu
 
 # Helpers ------------------------------------------------------------------------------------------
@@ -129,7 +130,11 @@ class Builder:
         # Helper.
         variables_contents = []
         def define(k, v):
-            variables_contents.append("{}={}".format(k, _makefile_escape(v)))
+            try:
+                variables_contents.append("{}={}".format(k, _makefile_escape(v)))
+            except AttributeError as e:
+                print(colorer(f"problem with {k}:", 'red'))
+                raise e
 
         # Define packages and libraries.
         define("PACKAGES",     " ".join(name for name, src_dir in self.software_packages))
@@ -276,7 +281,7 @@ class Builder:
         self.soc.platform.output_dir = self.output_dir
 
         # Check if BIOS is used and add software package if so.
-        with_bios = self.soc.cpu_type not in [None, "eos-s3", 'gowin_emcu']
+        with_bios = self.soc.cpu_type not in [None, 'gowin_emcu']
         if with_bios:
             self.add_software_package("bios")
 

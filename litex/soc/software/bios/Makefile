@@ -70,6 +70,7 @@ vpath %.a $(PACKAGES:%=../%)
 		$(PACKAGES:%=-L../%) \
 		-Wl,--whole-archive \
 		-Wl,--gc-sections \
+		-Wl,-Map,$@.map \
 		$(LIBS:lib%=-l%) \
 
 
@@ -80,19 +81,12 @@ endif
 # pull in dependency info for *existing* .o files
 -include $(OBJECTS:.o=.d)
 
-%.o: $(BIOS_DIRECTORY)/%.c
+VPATH = $(BIOS_DIRECTORY):$(BIOS_DIRECTORY)/cmds:$(CPU_DIRECTORY)
+
+%.o: %.c
 	$(compile)
 
-%.o: $(BIOS_DIRECTORY)/cmds/%.c
-	$(compile)
-
-%.o: $(BIOS_DIRECTORY)/%.S
-	$(assemble)
-
-boot-helper.o: $(CPU_DIRECTORY)/boot-helper.S
-	$(assemble)
-
-crt0.o: $(CPU_DIRECTORY)/crt0.S
+%.o: %.S
 	$(assemble)
 
 clean:
