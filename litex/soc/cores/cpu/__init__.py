@@ -75,6 +75,7 @@ from litex.soc.cores.cpu.lm32 import LM32
 
 # OpenRisc
 from litex.soc.cores.cpu.mor1kx import MOR1KX
+from litex.soc.cores.cpu.marocchino import Marocchino
 
 # OpenPower
 from litex.soc.cores.cpu.microwatt import Microwatt
@@ -114,6 +115,7 @@ CPUS = {
 
     # OpenRisc
     "mor1kx"      : MOR1KX,
+    "marocchino"  : Marocchino,
 
     # OpenPower
     "microwatt"   : Microwatt,
