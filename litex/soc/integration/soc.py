@@ -1837,7 +1837,7 @@ class LiteXSoC(SoC):
             base   = base,
             format = format,
             clock_domain          = clock_domain,
-            clock_faster_than_sys = vtg.video_timings["pix_clk"] > self.sys_clk_freq,
+            clock_faster_than_sys = vtg.video_timings["pix_clk"] >= self.sys_clk_freq,
         )
         setattr(self.submodules, name, vfb)
 
