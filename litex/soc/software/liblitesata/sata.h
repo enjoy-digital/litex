@@ -13,6 +13,7 @@
 #ifdef CSR_SATA_PHY_BASE
 
 int sata_init(void);
+void fatfs_set_ops_sata(void);
 
 #endif
 

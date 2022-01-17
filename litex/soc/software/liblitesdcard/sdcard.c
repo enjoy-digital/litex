@@ -565,21 +565,31 @@ void sdcard_write(uint32_t block, uint32_t count, uint8_t* buf)
 
 static DSTATUS sdcardstatus = STA_NOINIT;
 
-DSTATUS disk_status(BYTE drv) {
+static DSTATUS sd_disk_status(BYTE drv) {
 	if (drv) return STA_NOINIT;
 	return sdcardstatus;
 }
 
-DSTATUS disk_initialize(BYTE drv) {
+static DSTATUS sd_disk_initialize(BYTE drv) {
 	if (drv) return STA_NOINIT;
 	if (sdcardstatus)
 		sdcardstatus = sdcard_init() ? 0 : STA_NOINIT;
 	return sdcardstatus;
 }
 
-DRESULT disk_read(BYTE drv, BYTE *buf, LBA_t block, UINT count) {
+static DRESULT sd_disk_read(BYTE drv, BYTE *buf, LBA_t block, UINT count) {
 	sdcard_read(block, count, buf);
 	return RES_OK;
+}
+
+static DISKOPS SdCardDiskOps = {
+	.disk_initialize = sd_disk_initialize,
+	.disk_status = sd_disk_status,
+	.disk_read = sd_disk_read,
+};
+
+void fatfs_set_ops_sdcard(void) {
+	FfDiskOps = &SdCardDiskOps;
 }
 
 #endif /* CSR_SDCORE_BASE */
