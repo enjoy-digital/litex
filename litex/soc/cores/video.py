@@ -963,7 +963,7 @@ class VideoS7GTPHDMIPHY(Module):
             self.comb += cdc.source.ready.eq(1) # No backpressure.
 
             # 20:1 Serialization + Differential Signaling.
-            c2d  = {"r": 2, "g": 1, "b": 0}
+            c2d  = {"r": 0, "g": 1, "b": 2}
             class GTPPads:
                 def __init__(self, p, n):
                     self.p = p
