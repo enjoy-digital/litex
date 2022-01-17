@@ -101,21 +101,31 @@ void sata_write(uint32_t sector, uint32_t count, uint8_t* buf)
 
 static DSTATUS satastatus = STA_NOINIT;
 
-DSTATUS disk_status(BYTE drv) {
+static DSTATUS sata_disk_status(BYTE drv) {
 	if (drv) return STA_NOINIT;
 	return satastatus;
 }
 
-DSTATUS disk_initialize(BYTE drv) {
+static DSTATUS sata_disk_initialize(BYTE drv) {
 	if (drv) return STA_NOINIT;
 	if (satastatus)
 		satastatus = sata_init() ? 0 : STA_NOINIT;
 	return satastatus;
 }
 
-DRESULT disk_read(BYTE drv, BYTE *buf, LBA_t sector, UINT count) {
+static DRESULT sata_disk_read(BYTE drv, BYTE *buf, LBA_t sector, UINT count) {
 	sata_read(sector, count, buf);
 	return RES_OK;
+}
+
+static DISKOPS SataDiskOps = {
+	.disk_initialize = sata_disk_initialize,
+	.disk_status = sata_disk_status,
+	.disk_read = sata_disk_read,
+};
+
+void fatfs_set_ops_sata(void) {
+	FfDiskOps = &SataDiskOps;
 }
 
 #endif /* CSR_SATA_SECTOR2MEM_BASE */

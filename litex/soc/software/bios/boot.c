@@ -812,9 +812,11 @@ void sdcardboot(void)
 {
 #ifdef CSR_SPISDCARD_BASE
 	printf("Booting from SDCard in SPI-Mode...\n");
+	fatfs_set_ops_spisdcard();	/* use spisdcard disk access ops */
 #endif
 #ifdef CSR_SDCORE_BASE
 	printf("Booting from SDCard in SD-Mode...\n");
+	fatfs_set_ops_sdcard();		/* use sdcard disk access ops */
 #endif
 
 	/* Boot from boot.json */
@@ -986,6 +988,7 @@ static void sataboot_from_bin(const char * filename)
 void sataboot(void)
 {
 	printf("Booting from SATA...\n");
+	fatfs_set_ops_sata();		/* use sata disk access ops */
 
 	/* Boot from boot.json */
 	printf("Booting from boot.json...\n");

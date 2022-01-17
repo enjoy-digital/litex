@@ -50,6 +50,7 @@
 /*-----------------------------------------------------------------------*/
 
 uint8_t spisdcard_init(void);
+void fatfs_set_ops_spisdcard(void);
 
 #endif /* CSR_SPISDCARD_BASE */
 
