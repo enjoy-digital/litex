@@ -108,9 +108,9 @@ class SymbiflowToolchain:
             try:
                 self.symbiflow_device = {
                     # FIXME: fine for now since only a few devices are supported, do more clever device re-mapping.
-                    "xc7a35tcpg236-1" : "xc7a50t_test",
+                    "xc7a35tcpg236-1"   : "xc7a50t_test",
                     "xc7a35ticsg324-1L" : "xc7a50t_test",
-                    "xc7a100tcsg324-1" : "xc7a100t_test",
+                    "xc7a100tcsg324-1"  : "xc7a100t_test",
                     "xc7a200t-sbg484-1" : "xc7a200t_test",
                 }[platform.device]
             except KeyError:
@@ -127,7 +127,7 @@ class SymbiflowToolchain:
         # FIXME: prjxray-db doesn't have xc7a35ticsg324-1L - use closest replacement
         self._partname = {
             "xc7a35ticsg324-1L" : "xc7a35tcsg324-1",
-            "xc7a100tcsg324-1" : "xc7a100tcsg324-1",
+            "xc7a100tcsg324-1"  : "xc7a100tcsg324-1",
             "xc7a200t-sbg484-1" : "xc7a200tsbg484-1",
         }.get(platform.device, platform.device)
 
