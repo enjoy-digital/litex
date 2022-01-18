@@ -35,10 +35,35 @@
 #define SDCARD_CLK_FREQ_INIT 400000
 #endif
 
-#ifndef SDCARD_CLK_FREQ
-#define SDCARD_CLK_FREQ 25000000
+#if !defined(SD_SPEED_OPTION) && !defined(SDCARD_CLK_FREQ)
+#define SD_SPEED_OPTION SD_SPEED_SDR50
+#warning using default SD_SPEED_OPTION (50MHz)
 #endif
 
+#if SD_SPEED_OPTION == SD_SPEED_SDR12 //0
+#define SDCARD_CLK_FREQ 12500000
+#endif
+#if SD_SPEED_OPTION == SD_SPEED_SDR25 //1
+#define SDCARD_CLK_FREQ 25000000
+#endif
+#if SD_SPEED_OPTION == SD_SPEED_SDR50 //2
+#define SDCARD_CLK_FREQ 50000000
+#endif
+#if SD_SPEED_OPTION == SD_SPEED_SDR104 //3
+#if CONFIG_CLOCK_FREQUENCY > 200000000
+#define SDCARD_CLK_FREQ 104000000
+#else
+#define SDCARD_CLK_FREQ 100000000
+#warning setting SD clock of desired 104MHz to 100MHz
+#endif
+#endif
+#if SD_SPEED_OPTION == SD_SPEED_DDR50
+#error SD_SPEED_DDR50 not supported //4
+#endif
+
+#if SDCARD_CLK_FREQ*2 > CONFIG_CLOCK_FREQUENCY
+#error SD clock speed setting is too high
+#endif
 /*-----------------------------------------------------------------------*/
 /* Helpers                                                               */
 /*-----------------------------------------------------------------------*/
@@ -124,7 +149,7 @@ void sdcard_set_clk_freq(unsigned long clk_freq, int show) {
 	if (show) {
 		/* this is the *effective* new clk_freq */
 		clk_freq = CONFIG_CLOCK_FREQUENCY/divider;
-		printf("Setting SDCard clk freq to ");
+		printf("Setting SDCard clk to freq option %d, effective freq ", SD_SPEED_OPTION);
 		if (clk_freq > 1000000)
 			printf("%u.%u MHz\n", (int) (clk_freq/1000000), (int) (clk_freq/100000) % 10);
 		else
