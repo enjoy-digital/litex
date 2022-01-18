@@ -247,3 +247,22 @@ class SimVerilatorToolchain:
 
         if build:
             return v_output.ns
+
+def verilator_build_args(parser):
+    toolchain_group = parser.add_argument_group("toolchain")
+    toolchain_group.add_argument("--threads",      default=1,           help="Set number of threads.")
+    toolchain_group.add_argument("--trace",        action="store_true", help="Enable Tracing.")
+    toolchain_group.add_argument("--trace-fst",    action="store_true", help="Enable FST tracing.")
+    toolchain_group.add_argument("--trace-start",  default="0",         help="Time to start tracing (ps).")
+    toolchain_group.add_argument("--trace-end",    default="-1",        help="Time to end tracing (ps).")
+    toolchain_group.add_argument("--opt-level",    default="O3",        help="Compilation optimization level.")
+
+def verilator_build_argdict(args):
+    return {
+        "threads"     : args.threads,
+        "trace"       : args.trace,
+        "trace_fst"   : args.trace_fst,
+        "trace_start" : int(float(args.trace_start)),
+        "trace_end"   : int(float(args.trace_end)),
+        "opt_level"   : args.opt_level
+    }
