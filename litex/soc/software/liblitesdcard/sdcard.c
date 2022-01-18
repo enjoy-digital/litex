@@ -23,7 +23,10 @@
 
 #ifdef CSR_SDCORE_BASE
 
-//#define SDCARD_DEBUG
+#ifdef _DEBUG
+#define SDCARD_DEBUG
+#endif
+
 //#define SDCARD_CMD23_SUPPORT /* SET_BLOCK_COUNT */
 #define SDCARD_CMD18_SUPPORT /* READ_MULTIPLE_BLOCK */
 #define SDCARD_CMD25_SUPPORT /* WRITE_MULTIPLE_BLOCK */
@@ -55,7 +58,7 @@ int sdcard_wait_cmd_done(void) {
 	for (;;) {
 		event = sdcore_cmd_event_read();
 #ifdef SDCARD_DEBUG
-		printf("cmdevt: %08x\n", event);
+		//printf("cmdevt: %08x\n", event);
 #endif
 		busy_wait_us(10);
 		if (event & 0x1)
@@ -84,6 +87,9 @@ int sdcard_wait_data_done(void) {
 			break;
 		busy_wait_us(10);
 	}
+#ifdef SDCARD_DEBUG
+	printf("sdcard_wait_data_done: dataevt: 0x%08x (valid=0x01)\n", event);
+#endif
 	if (event & 0x4)
 		return SD_TIMEOUT;
 	else if (event & 0x8)
@@ -120,9 +126,9 @@ void sdcard_set_clk_freq(unsigned long clk_freq, int show) {
 		clk_freq = CONFIG_CLOCK_FREQUENCY/divider;
 		printf("Setting SDCard clk freq to ");
 		if (clk_freq > 1000000)
-			printf("%ld MHz\n", clk_freq/1000000);
+			printf("%u.%u MHz\n", (int) (clk_freq/1000000), (int) (clk_freq/100000) % 10);
 		else
-			printf("%ld KHz\n", clk_freq/1000);
+			printf("%u KHz\n", (int) (clk_freq/1000));
 	}
 	sdphy_clocker_divider_write(divider);
 }
@@ -209,7 +215,7 @@ int sdcard_app_set_bus_width(void) {
 #ifdef SDCARD_DEBUG
 	printf("ACMD6: SET_BUS_WIDTH\n");
 #endif
-	return sdcard_send_command(2, 6, SDCARD_CTRL_RESPONSE_SHORT);
+	return sdcard_send_command(2, 6, SDCARD_CTRL_RESPONSE_SHORT); //'00'-1bit or '10'=4 bits 
 }
 
 int sdcard_switch(unsigned int mode, unsigned int group, unsigned int value) {
@@ -279,7 +285,12 @@ int sdcard_read_single_block(unsigned int blockaddr) {
 	sdcore_block_count_write(1);
 	while (sdcard_send_command(blockaddr, 17,
 	    (SDCARD_CTRL_DATA_TRANSFER_READ << 5) |
-	    SDCARD_CTRL_RESPONSE_SHORT) != SD_OK);
+	    SDCARD_CTRL_RESPONSE_SHORT) != SD_OK)
+        {
+#ifdef SDCARD_DEBUG
+	printf("CMD17: retrying...\n");
+#endif
+        }
 	return sdcard_wait_data_done();
 }
 
@@ -340,20 +351,20 @@ void sdcard_decode_cid(void) {
 
 		r[0], r[1], r[2], r[3],
 
-		(r[0] >> 16) & 0xffff,
+		(int) ((r[0] >> 16) & 0xffff),
 
-		r[0] & 0xffff,
+		(int) (r[0] & 0xffff),
 
-		(r[1] >> 24) & 0xff, (r[1] >> 16) & 0xff,
-		(r[1] >>  8) & 0xff, (r[1] >>  0) & 0xff, (r[2] >> 24) & 0xff,
+		(uint8_t) (r[1] >> 24), (uint8_t) (r[1] >> 16),
+		(uint8_t) (r[1] >>  8), (uint8_t) (r[1] >>  0), (uint8_t) (r[2] >> 24),
 
-		r[3] & 0xff,
+		(uint8_t) r[3],
 
-		(r[3] >>  8) & 0x0f, (r[3] >> 12) & 0xff,
+		(int) ((r[3] >>  8) & 0x0f), (int) ((r[3] >> 12) & 0xff),
 
 		(r[3] >> 24) | (r[2] <<  8),
 
-		(r[0] >> 16) & 0xff, (r[0] >>  8) & 0xff
+		(uint8_t) (r[0] >> 16), (uint8_t) (r[0] >>  8)
 	);
 }
 #endif
@@ -382,15 +393,15 @@ According to https://github.com/micropython/micropython/blob/master/drivers/sdca
 		"CSD Register: 0x%08x%08x%08x%08x\n"
 		"Max data transfer rate: %d MB/s\n"
 		"Max read block length: %d bytes\n"
-		"Device size: %d GB\n",
+		"Device size: %u sectors (%u GB, %u GiB)\n",
 
 		r[0], r[1], r[2], r[3],
 
-		(r[0] >> 24) & 0xff,
+		(int) (r[0] >> 24) & 0xff,
 
 		(1 << ((r[1] >> 16) & 0xf)),
 
-		((r[2] >> 16) + ((r[1] & 0xff) << 16) + 1) * 512 / (1024 * 1024)
+		nsects, (nsects * 512 + 500*1000) / (1000*1000), nsects / (1024*(1024/512))
 	);
 #endif
 }
@@ -428,11 +439,21 @@ int sdcard_init(void) {
 		busy_wait(1);
 	}
 	if (timeout == 0)
+        {
+#ifdef SDCARD_DEBUG
+		printf("sdcard_init error: timeout at setting SPI Mode\n");
+#endif
 		return 0;
+        }
 
 	/* Set SDCard voltages, only supported by ver2.00+ SDCards */
 	if (sdcard_send_ext_csd() != SD_OK)
+        {
+#ifdef SDCARD_DEBUG
+		printf("sdcard_init error: SDCard voltages\n");
+#endif
 		return 0;
+        }
 
 	/* Set SD clk freq to Operational frequency */
 	sdcard_set_clk_freq(SDCARD_CLK_FREQ, 0);
@@ -446,64 +467,136 @@ int sdcard_init(void) {
 		busy_wait(1);
 	}
 	if (timeout == 0)
-		return 0;
+        {
+#ifdef SDCARD_DEBUG
+		printf("sdcard_init error: SDCARD_CLK_FREQ\n");
+#endif
+	    return 0;
+//		printf("*** ignoring SDCARD_CLK_FREQ error ***\n");
+//      #warning SDCARD_CLK_FREQ error is being ignored!
+        }
 
 	/* Send identification */
 	if (sdcard_all_send_cid() != SD_OK)
+        {
+#ifdef SDCARD_DEBUG
+		printf("sdcard_init error: sdcard_all_send_cid\n");
+#endif
 		return 0;
+        }
+
 #ifdef SDCARD_DEBUG
 	sdcard_decode_cid();
 #endif
 	/* Set Relative Card Address (RCA) */
 	if (sdcard_set_relative_address() != SD_OK)
+        {
+#ifdef SDCARD_DEBUG
+		printf("sdcard_init error: set RCA\n");
+#endif
 		return 0;
+        }
 	rca = sdcard_decode_rca();
 
 	/* Set CID */
 	if (sdcard_send_cid(rca) != SD_OK)
+        {
+#ifdef SDCARD_DEBUG
+		printf("sdcard_init error: send CID\n");
+#endif
 		return 0;
+        }
+
 #ifdef SDCARD_DEBUG
 	/* FIXME: add cid decoding (optional) */
 #endif
 
 	/* Set CSD */
 	if (sdcard_send_csd(rca) != SD_OK)
+        {
+#ifdef SDCARD_DEBUG
+		printf("sdcard_init error: send CSD\n");
+#endif
 		return 0;
+        }
 
 	sdcard_decode_csd(); //always performed to get card size
 
 	/* Select card */
 	if (sdcard_select_card(rca) != SD_OK)
+        {
+#ifdef SDCARD_DEBUG
+		printf("sdcard_init error: select card\n");
+#endif
 		return 0;
+        }
 
 	/* Set bus width */
 	if (sdcard_app_cmd(rca) != SD_OK)
+        {
+#ifdef SDCARD_DEBUG
+		printf("sdcard_init error: set bus width *\n");
+#endif
 		return 0;
+        }
 	if(sdcard_app_set_bus_width() != SD_OK)
+        {
+#ifdef SDCARD_DEBUG
+		printf("sdcard_init error: set bus width **\n");
+#endif
 		return 0;
+        }
+/***************************************************
 
 	/* Switch speed */
 	if (sdcard_switch(SD_SWITCH_SWITCH, SD_GROUP_ACCESSMODE, SD_SPEED_SDR25) != SD_OK)
+        {
+#ifdef SDCARD_DEBUG
+		printf("sdcard_init error: switch speed *\n");
+#endif
 		return 0;
+        }
 
 	/* Send SCR */
 	/* FIXME: add scr decoding (optional) */
 	if (sdcard_app_cmd(rca) != SD_OK)
+        {
+#ifdef SDCARD_DEBUG
+		printf("sdcard_init error: send SCR *\n");
+#endif
 		return 0;
+        }
 	if (sdcard_app_send_scr() != SD_OK)
+        {
+#ifdef SDCARD_DEBUG
+		printf("sdcard_init error: send SCR **\n");
+#endif
 		return 0;
+        }
 
 	/* Set block length */
 	if (sdcard_app_set_blocklen(512) != SD_OK)
+        {
+#ifdef SDCARD_DEBUG
+		printf("sdcard_init error: set block length\n");
+#endif
 		return 0;
+        }
 
-	return 1;
+#ifdef SDCARD_DEBUG
+        printf("sdcard_init: OK\n");
+#endif
+
+	return 1; //1=OK
 }
 
 #ifdef CSR_SDBLOCK2MEM_BASE
 
 void sdcard_read(uint32_t block, uint32_t count, uint8_t* buf)
 {
+#ifdef SDCARD_DEBUG
+	printf("sdcard_read: block=%lu, count=%ld, buf=%p\n", block, count, buf);
+#endif
 	while (count) {
 		uint32_t nblocks;
 #ifdef SDCARD_CMD18_SUPPORT
@@ -552,6 +645,9 @@ void sdcard_read(uint32_t block, uint32_t count, uint8_t* buf)
 
 void sdcard_write(uint32_t block, uint32_t count, const uint8_t* buf)
 {
+#ifdef SDCARD_DEBUG
+	printf("sdcard_write: block=%lu, count=%ld, buf=%p\n", block, count, buf);
+#endif
 	while (count) {
 		uint32_t nblocks;
 #ifdef SDCARD_CMD25_SUPPORT
@@ -578,7 +674,17 @@ void sdcard_write(uint32_t block, uint32_t count, const uint8_t* buf)
 		sdcard_stop_transmission();
 
 		/* Wait for DMA Reader to complete */
+#ifdef SDCARD_DEBUG
+    	//printf("sdcard_write: waiting DMA...\n");
+#endif
 		while ((sdmem2block_dma_done_read() & 0x1) == 0);
+
+#ifdef SDCARD_DEBUG
+    	printf("sdcard_write: DMA done!\n");
+        printf("final DMA offset %u\n", sdmem2block_dma_offset_read());
+#endif
+
+
 
 		/* Update Block/Buffer/Count */
 		block += nblocks;
@@ -597,11 +703,17 @@ void sdcard_write(uint32_t block, uint32_t count, const uint8_t* buf)
 static DSTATUS sdcardstatus = STA_NOINIT;
 
 static DSTATUS sd_disk_status(BYTE drv) {
+#ifdef SDCARD_DEBUG
+	printf("SPI disk_status: dvr=%p\n", drv);
+#endif
 	if (drv) return STA_NOINIT;
 	return sdcardstatus;
 }
 
 static DSTATUS sd_disk_initialize(BYTE drv) {
+#ifdef _DEBUG
+	printf("disk_initialize: dvr=%p\n", drv);
+#endif
 	if (drv) return STA_NOINIT;
 	if (sdcardstatus)
 		sdcardstatus = sdcard_init() ? 0 : STA_NOINIT;
@@ -609,6 +721,9 @@ static DSTATUS sd_disk_initialize(BYTE drv) {
 }
 
 static DRESULT sd_disk_read(BYTE drv, BYTE *buf, LBA_t block, UINT count) {
+#ifdef _DEBUG
+	printf("disk_read: dvr=%p, buf=%p, sector=%d count=%d\n", drv, buf, block, count);
+#endif
 	sdcard_read(block, count, buf);
 	return RES_OK;
 }
