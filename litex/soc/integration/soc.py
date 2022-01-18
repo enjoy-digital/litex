@@ -1262,7 +1262,7 @@ class LiteXSoC(SoC):
     def add_sdram(self, name, phy, module, origin=None, size=None, with_bist=False, with_soc_interconnect=True,
         l2_cache_size           = 8192,
         l2_cache_min_data_width = 128,
-        l2_cache_reverse        = True,
+        l2_cache_reverse        = False,
         l2_cache_full_memory_we = True,
         **kwargs):
 
