@@ -331,8 +331,8 @@ def soc_core_args(parser):
     soc_group.add_argument("--csr-ordering",      default="big",                help="CSR registers ordering (big or little).")
 
     # Identifier parameters
-    soc_group.add_argument("--ident",             default=None,  type=str,  help="SoC identifier.")
-    soc_group.add_argument("--ident-version",     default=None , type=bool, help="Add date/time to SoC identifier.")
+    soc_group.add_argument("--ident",             default=None,  type=str, help="SoC identifier.")
+    soc_group.add_argument("--no-ident-version",  action="store_true",     help="Disable date/time in SoC identifier.")
 
     # UART parameters
     soc_group.add_argument("--no-uart",         action="store_true",                help="Disable UART.")
@@ -349,14 +349,23 @@ def soc_core_args(parser):
 
 def soc_core_argdict(args):
     r = dict()
+    # Iterate on all SoCCore arguments.
     for a in inspect.getfullargspec(SoCCore.__init__).args:
-        if a not in ["self", "platform"]:
-            if a in ["with_uart", "with_timer", "with_ctrl"]:
-                arg = not getattr(args, a.replace("with", "no"), True)
-            else:
-                arg = getattr(args, a, None)
-            if arg is not None:
-                r[a] = arg
+        # Exclude specific arguments.
+        if a in ["self", "platform"]:
+            continue
+        # Handle specific with_xy case (--no_xy is exposed).
+        if a in ["with_uart", "with_timer", "with_ctrl"]:
+            arg = not getattr(args, a.replace("with", "no"), True)
+        # Handle specific ident_version case (--no-ident-version is exposed).
+        elif a in ["ident_version"]:
+            arg = not getattr(args, "no_ident_version")
+        # Regular cases.
+        else:
+             arg = getattr(args, a, None)
+        # Fill Dict.
+        if arg is not None:
+            r[a] = arg
     return r
 
 # SoCMini ---------------------------------------------------------------------------------------
