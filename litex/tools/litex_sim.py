@@ -16,6 +16,7 @@ from migen import *
 from litex.build.generic_platform import *
 from litex.build.sim import SimPlatform
 from litex.build.sim.config import SimConfig
+from litex.build.sim.verilator import verilator_build_args, verilator_build_argdict
 
 from litex.soc.integration.common import *
 from litex.soc.integration.soc_core import *
@@ -24,7 +25,6 @@ from litex.soc.integration.soc import *
 from litex.soc.cores.bitbang import *
 from litex.soc.cores.gpio import GPIOTristate
 from litex.soc.cores.cpu import CPUS
-
 
 from litedram import modules as litedram_modules
 from litedram.modules import parse_spd_hexdump
@@ -357,9 +357,10 @@ def generate_gtkw_savefile(builder, vns, trace_fst):
             dfi_group("dfi commands", ["rddata"])
 
 def sim_args(parser):
+
     builder_args(parser)
     soc_core_args(parser)
-    parser.add_argument("--threads",              default=1,               help="Set number of threads.")
+    verilator_build_args(parser)
     parser.add_argument("--rom-init",             default=None,            help="rom_init file.")
     parser.add_argument("--ram-init",             default=None,            help="ram_init file.")
     parser.add_argument("--with-sdram",           action="store_true",     help="Enable SDRAM support.")
@@ -379,11 +380,6 @@ def sim_args(parser):
     parser.add_argument("--with-spi-flash",       action="store_true",     help="Enable SPI Flash (MMAPed).")
     parser.add_argument("--spi_flash-init",       default=None,            help="SPI Flash init file.")
     parser.add_argument("--with-gpio",            action="store_true",     help="Enable Tristate GPIO (32 pins).")
-    parser.add_argument("--trace",                action="store_true",     help="Enable Tracing.")
-    parser.add_argument("--trace-fst",            action="store_true",     help="Enable FST tracing.")
-    parser.add_argument("--trace-start",          default="0",             help="Time to start tracing (ps).")
-    parser.add_argument("--trace-end",            default="-1",            help="Time to end tracing (ps).")
-    parser.add_argument("--opt-level",            default="O3",            help="Compilation optimization level.")
     parser.add_argument("--sim-debug",            action="store_true",     help="Add simulation debugging modules.")
     parser.add_argument("--gtkwave-savefile",     action="store_true",     help="Generate GTKWave savefile.")
     parser.add_argument("--non-interactive",      action="store_true",     help="Run simulation without user input.")
@@ -393,11 +389,12 @@ def main():
     sim_args(parser)
     args = parser.parse_args()
 
-    soc_kwargs     = soc_core_argdict(args)
-    builder_kwargs = builder_argdict(args)
+    soc_kwargs             = soc_core_argdict(args)
+    builder_kwargs         = builder_argdict(args)
+    verilator_build_kwargs = verilator_build_argdict(args)
 
     sys_clk_freq = int(1e6)
-    sim_config = SimConfig()
+    sim_config   = SimConfig()
     sim_config.add_clocker("sys_clk", freq_hz=sys_clk_freq)
 
     # Configuration --------------------------------------------------------------------------------
@@ -441,9 +438,6 @@ def main():
     if args.with_i2c:
         sim_config.add_module("spdeeprom", "i2c")
 
-    trace_start = int(float(args.trace_start))
-    trace_end = int(float(args.trace_end))
-
     # SoC ------------------------------------------------------------------------------------------
     soc = SimSoC(
         with_sdram         = args.with_sdram,
@@ -456,7 +450,7 @@ def main():
         with_spi_flash     = args.with_spi_flash,
         with_gpio          = args.with_gpio,
         sim_debug          = args.sim_debug,
-        trace_reset_on     = trace_start > 0 or trace_end > 0,
+        trace_reset_on     = int(float(args.trace_start)) > 0 or int(float(args.trace_end)) > 0,
         sdram_init         = [] if args.sdram_init is None else get_mem_data(args.sdram_init, cpu.endianness),
         spi_flash_init     = None if args.spi_flash_init is None else get_mem_data(args.spi_flash_init, "big"),
         **soc_kwargs)
@@ -476,15 +470,10 @@ def main():
     builder_kwargs["csr_csv"] = "csr.csv"
     builder = Builder(soc, **builder_kwargs)
     builder.build(
-        threads          = args.threads,
         sim_config       = sim_config,
-        opt_level        = args.opt_level,
-        trace            = args.trace,
-        trace_fst        = args.trace_fst,
-        trace_start      = trace_start,
-        trace_end        = trace_end,
         interactive      = not args.non_interactive,
-        pre_run_callback = pre_run_callback
+        pre_run_callback = pre_run_callback,
+        **verilator_build_kwargs,
     )
 
 if __name__ == "__main__":
