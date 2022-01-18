@@ -1,4 +1,5 @@
 // This file is Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
+// This file is Copyright (c) 2021 Victor Suarez Rovere <suarezvictor@gmail.com>
 // This file is Copyright (c) 2020 Rob Shelton <rob.s.ng15@googlemail.com>
 // License: BSD
 
@@ -13,9 +14,11 @@
 #include <generated/soc.h>
 #include <system.h>
 
+#include "spisdcard.h"
+#if !defined(MICROPY_VFS_FAT) && !defined(FFCONF_H)
 #include <libfatfs/ff.h>
 #include <libfatfs/diskio.h>
-#include "spisdcard.h"
+#endif
 
 #ifdef CSR_SPISDCARD_BASE
 
@@ -73,7 +76,7 @@ static uint8_t spi_xfer(uint8_t byte) {
 /* SPI SDCard Select/Deselect functions                                  */
 /*-----------------------------------------------------------------------*/
 
-static void spisdcard_deselect(void) {
+void spisdcard_deselect(void) {
     /* Set SPI CS High */
     spisdcard_cs_write(SPI_CS_HIGH);
     /* Generate 8 dummy clocks */
@@ -108,7 +111,7 @@ static int spisdcard_select(void) {
 /* SPI SDCard bytes Xfer functions                                       */
 /*-----------------------------------------------------------------------*/
 
-static void spisdcardwrite_bytes(uint8_t* buf, uint16_t n) {
+static void spisdcardwrite_bytes(const uint8_t* buf, uint16_t n) {
     uint16_t i;
     for (i=0; i<n; i++)
         spi_xfer(buf[i]);
@@ -124,7 +127,7 @@ static void spisdcardread_bytes(uint8_t* buf, uint16_t n) {
 /* SPI SDCard blocks Xfer functions                                      */
 /*-----------------------------------------------------------------------*/
 
-static uint8_t spisdcardreceive_block(uint8_t *buf) {
+static uint8_t spisdcardreceive_block(uint8_t *buf, uint16_t numbytes) {
     uint16_t i;
     uint32_t timeout;
 
@@ -141,7 +144,7 @@ static uint8_t spisdcardreceive_block(uint8_t *buf) {
 
     /* Receive block */
     spisdcard_mosi_write(0xff);
-    for (i=0; i<512; i++) {
+    for (i=0; i<numbytes; i++) {
         spisdcard_control_write(8*SPI_LENGTH | SPI_START);
         while (spisdcard_status_read() != SPI_DONE);
         *buf++ = spisdcard_miso_read();
@@ -152,6 +155,31 @@ static uint8_t spisdcardreceive_block(uint8_t *buf) {
     spi_xfer(0xff);
 
     return 1;
+}
+
+//write support
+static uint8_t spisdcardsend_block(const uint8_t *buf, uint16_t numbytes, uint8_t start_token) {
+
+    uint32_t timeout = 100000; 
+    for(;;) { //TODO: implement wait function
+        if (spi_xfer(0xff) == 0xff)
+            break;
+        if(--timeout == 0)
+            return 0;
+        busy_wait_us(1);
+    }
+
+    //printf("spisdcardsend_block timeout=%d, token=0x%02X, bytes=%d\n", timeout, token, numbytes);
+    spi_xfer(start_token);
+    spisdcardwrite_bytes(buf, numbytes);
+
+    /* Send dummy CRC */
+    spi_xfer(0xff);
+    spi_xfer(0xff);
+
+    uint8_t resp = spi_xfer(0xff);
+    //printf("spisdcardsend_block received=0x%02X\n", d);
+    return (resp & 0x1F) == 0x05; //check response
 }
 
 /*-----------------------------------------------------------------------*/
@@ -207,6 +235,72 @@ static uint8_t spisdcardsend_cmd(uint8_t cmd, uint32_t arg)
     return byte;
 }
 
+
+unsigned sdcard_nsects = 0;
+static void spisdcard_decode_csd(void) {
+	uint8_t r[SPISD_CMD_RESPONSE_SIZE];
+    //memset(r, 0xFF, sizeof(r));
+	spisdcardreceive_block(r, SPISD_CMD_RESPONSE_SIZE);
+
+#if 0
+    //Copyright (C) 2019, ChaN, all right reserved.
+
+		case GET_SECTOR_COUNT :	// Get number of sectors on the disk (DWORD) 
+			if ((send_cmd(CMD9, 0) == 0) && rcvr_datablock(csd, 16)) {
+				if ((csd[0] >> 6) == 1) {	// SDC ver 2.00 
+					cs = csd[9] + ((WORD)csd[8] << 8) + ((DWORD)(csd[7] & 63) << 16) + 1;
+					*(LBA_t*)buff = cs << 10;
+				} else {					// SDC ver 1.XX or MMC
+					n = (csd[5] & 15) + ((csd[10] & 128) >> 7) + ((csd[9] & 3) << 1) + 2;
+					cs = (csd[8] >> 6) + ((WORD)csd[7] << 2) + ((WORD)(csd[6] & 3) << 10) + 1;
+					*(LBA_t*)buff = cs << (n - 9);
+				}
+				res = RES_OK;
+			}
+			break;
+#endif
+
+	/* FIXME: only support CSR structure version 2.0 */
+    unsigned nsects = ((r[8] << 8) | r[9]) + 1;
+    sdcard_nsects = nsects * 1024;
+
+#ifdef SPISDCARD_DEBUG
+	printf(
+		"CSD Register: 0x%02x%02x%02x%02x 0x%02x%02x%02x%02x 0x%02x%02x%02x%02x 0x%02x%02x%02x%02x\n"
+		"Device size: %u sectors (%u GB, %u GiB)\n",
+
+		r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10], r[11], r[12], r[13], r[14], r[15],
+		nsects, (nsects * 512 + 500*1000) / (1000*1000), nsects / (1024*(1024/512))
+	);
+#endif
+}
+
+
+static uint8_t spisdcard_send_csd(void) {
+#ifdef SPISDCARD_DEBUG
+	printf("CMD9: SEND_CSD\n");
+#endif
+	return spisdcardsend_cmd(CMD9, 0);
+}
+
+uint32_t spisdcard_numblocks(void)
+{
+  if(sdcard_nsects == 0)
+  {
+
+	if (spisdcard_send_csd() != 0)
+    {
+#ifdef SPISDCARD_DEBUG
+		printf("spisdcard_numblocks error: send CSD\n");
+#endif
+		return 0;
+    }
+	spisdcard_decode_csd(); //always performed to get card size
+  }
+
+  return sdcard_nsects;
+}
+
 /*-----------------------------------------------------------------------*/
 /* SPI SDCard Initialization functions                                   */
 /*-----------------------------------------------------------------------*/
@@ -216,6 +310,7 @@ uint8_t spisdcard_init(void) {
     uint8_t  buf[4];
     uint16_t timeout;
 
+    sdcard_nsects = 0; //initialize number of sectors
     /* Set SPI clk freq to initialization frequency */
     spi_set_clk_freq(SPISDCARD_CLK_FREQ_INIT);
 
@@ -258,9 +353,67 @@ uint8_t spisdcard_init(void) {
     return 1;
 }
 
+
+uint32_t spisdcard_read(uint8_t *buf, uint32_t sector, uint32_t count)
+{
+    uint32_t readsectors = 0;
+    uint8_t cmd;
+    if (count > 1)
+        cmd = CMD18; /* READ_MULTIPLE_BLOCK */
+    else
+        cmd = CMD17; /* READ_SINGLE_BLOCK */
+    if (spisdcardsend_cmd(cmd, sector) == 0) {
+        while(readsectors != count) {
+            if (spisdcardreceive_block(buf, 512) == 0)
+                break;
+            buf += 512;
+            ++readsectors;
+        }
+        if (cmd == CMD18)
+            spisdcardsend_cmd(CMD12, 0); /* STOP_TRANSMISSION */
+    }
+    spisdcard_deselect();
+
+    return readsectors;
+}
+
+//Write support
+uint32_t spisdcard_write(const uint8_t *buf, uint32_t sector, uint32_t count)
+{
+    uint32_t writesectors = 0;
+    uint8_t cmd;
+    uint8_t token;
+    if (count > 1)
+    {
+        cmd = CMD25; /* WRITE_MULTIPLE_BLOCK */
+        token = 0xFC;
+    }
+    else
+    {
+        cmd = CMD24; /* WRITE_BLOCK */
+        token = 0xFE;
+    }
+    if (spisdcardsend_cmd(cmd, sector) == 0) {
+        while(writesectors != count) {
+            if (spisdcardsend_block(buf, 512, token) == 0)
+                break;
+            buf += 512;
+            ++writesectors;
+        }
+	    //FIXME: should wait and send STOP_TRAN token, 0xFD?
+        if (cmd == CMD25)
+            spisdcardsend_cmd(CMD12, 0); /* STOP_TRANSMISSION */
+    }
+    spisdcard_deselect();
+
+    return writesectors;
+}
+
 /*-----------------------------------------------------------------------*/
 /* SPI SDCard FatFs functions                                            */
 /*-----------------------------------------------------------------------*/
+#if MICROPY_VFS_FAT
+#else
 
 static DSTATUS spisdcardstatus = STA_NOINIT;
 
@@ -279,27 +432,10 @@ static DSTATUS spisd_disk_initialize(BYTE drv) {
 }
 
 static DRESULT spisd_disk_read(BYTE drv, BYTE *buf, LBA_t block, UINT count) {
-    uint8_t cmd;
-    if (count > 1)
-        cmd = CMD18; /* READ_MULTIPLE_BLOCK */
-    else
-        cmd = CMD17; /* READ_SINGLE_BLOCK */
-    if (spisdcardsend_cmd(cmd, block) == 0) {
-        while(count > 0) {
-            if (spisdcardreceive_block(buf) == 0)
-                break;
-            buf += 512;
-            count--;
-        }
-        if (cmd == CMD18)
-            spisdcardsend_cmd(CMD12, 0); /* STOP_TRANSMISSION */
-    }
-    spisdcard_deselect();
-
-    if (count)
-        return RES_ERROR;
-
-    return RES_OK;
+#ifdef _DEBUG
+    printf("disk_read: dvr=%p, buf=%p, sector=%d count=%d\n", drv, buf, sector, count);
+#endif
+    return spisdcard_read(buf, block, count) == count ? RES_OK : RES_ERROR;
 }
 
 static DISKOPS SpiSdDiskOps = {
@@ -312,4 +448,5 @@ void fatfs_set_ops_spisdcard(void) {
 	FfDiskOps = &SpiSdDiskOps;
 }
 
-#endif
+#endif //MICROPY_VFS_FAT
+#endif //CSR_SPISDCARD_BASE

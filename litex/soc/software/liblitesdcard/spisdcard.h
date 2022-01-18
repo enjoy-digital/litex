@@ -45,11 +45,17 @@
 #define CMD55   (55)        /* APP_CMD */
 #define CMD58   (58)        /* READ_OCR */
 
+#define SPISD_CMD_RESPONSE_SIZE 16 /* for CSD and others*/
+
 /*-----------------------------------------------------------------------*/
 /* SPI SDCard User functions                                             */
 /*-----------------------------------------------------------------------*/
 
 uint8_t spisdcard_init(void);
+uint32_t spisdcard_read(uint8_t *buf, uint32_t sector, uint32_t count);
+uint32_t spisdcard_write(const uint8_t *buf, uint32_t sector, uint32_t count);
+void spisdcard_deselect(void);
+uint32_t spisdcard_numblocks(void);
 void fatfs_set_ops_spisdcard(void);
 
 #endif /* CSR_SPISDCARD_BASE */

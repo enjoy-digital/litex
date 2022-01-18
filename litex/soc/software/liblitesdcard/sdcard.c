@@ -1,4 +1,5 @@
 // This file is Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+// This file is Copyright (c) 2021 Victor Suarez Rovere <suarezvictor@gmail.com>
 // This file is Copyright (c) 2019-2020 Gabriel L. Somlo <gsomlo@gmail.com>
 // This file is Copyright (c) 2019 Kees Jongenburger <kees.jongenburger@gmail.com>
 // This file is Copyright (c) 2018 bunnie <bunnie@kosagi.com>
@@ -14,9 +15,11 @@
 #include <generated/soc.h>
 #include <system.h>
 
+#include "sdcard.h"
+#if !defined(MICROPY_VFS_FAT) && !defined(FFCONF_H)
 #include <libfatfs/ff.h>
 #include <libfatfs/diskio.h>
-#include "sdcard.h"
+#endif
 
 #ifdef CSR_SDCORE_BASE
 
@@ -353,12 +356,28 @@ void sdcard_decode_cid(void) {
 		(r[0] >> 16) & 0xff, (r[0] >>  8) & 0xff
 	);
 }
+#endif
 
+unsigned sdcard_nsects = 0;
 void sdcard_decode_csd(void) {
 	uint32_t r[SD_CMD_RESPONSE_SIZE/4];
-	csr_rd_buf_uint32(CSR_SDCORE_CMD_RESPONSE_ADDR,
-			  r, SD_CMD_RESPONSE_SIZE/4);
+	csr_rd_buf_uint32(CSR_SDCORE_CMD_RESPONSE_ADDR, r, SD_CMD_RESPONSE_SIZE/4);
+
+/*
+According to https://github.com/micropython/micropython/blob/master/drivers/sdcard/sdcard.py
+   if csd[0] & 0xC0 == 0x40:  # CSD version 2.0
+            self.sectors = ((csd[8] << 8 | csd[9]) + 1) * 1024
+        elif csd[0] & 0xC0 == 0x00:  # CSD version 1.0 (old, <=2GB)
+            c_size = csd[6] & 0b11 | csd[7] << 2 | (csd[8] & 0b11000000) << 4
+            c_size_mult = ((csd[9] & 0b11) << 1) | csd[10] >> 7
+            self.sectors = (c_size + 1) * (2 ** (c_size_mult + 2))
+*/
+
 	/* FIXME: only support CSR structure version 2.0 */
+	unsigned nsects = (r[2] >> 16) + ((r[1] & 0xff) << 16) + 1;
+	sdcard_nsects = nsects * 1024;
+
+#ifdef SDCARD_DEBUG
 	printf(
 		"CSD Register: 0x%08x%08x%08x%08x\n"
 		"Max data transfer rate: %d MB/s\n"
@@ -373,8 +392,14 @@ void sdcard_decode_csd(void) {
 
 		((r[2] >> 16) + ((r[1] & 0xff) << 16) + 1) * 512 / (1024 * 1024)
 	);
-}
 #endif
+}
+
+uint32_t sdcard_numblocks(void)
+{
+  return sdcard_nsects;
+}
+
 
 /*-----------------------------------------------------------------------*/
 /* SDCard user functions                                                 */
@@ -382,6 +407,11 @@ void sdcard_decode_csd(void) {
 
 int sdcard_init(void) {
 	uint16_t rca, timeout;
+
+#ifdef SDCARD_DEBUG
+	printf("sdcard_init()\n");
+#endif
+	sdcard_nsects = 0; //initialize number of sectors
 
 	/* Set SD clk freq to Initialization frequency */
 	sdcard_set_clk_freq(SDCARD_CLK_FREQ_INIT, 0);
@@ -439,9 +469,8 @@ int sdcard_init(void) {
 	/* Set CSD */
 	if (sdcard_send_csd(rca) != SD_OK)
 		return 0;
-#ifdef SDCARD_DEBUG
-	sdcard_decode_csd();
-#endif
+
+	sdcard_decode_csd(); //always performed to get card size
 
 	/* Select card */
 	if (sdcard_select_card(rca) != SD_OK)
@@ -521,7 +550,7 @@ void sdcard_read(uint32_t block, uint32_t count, uint8_t* buf)
 
 #ifdef CSR_SDMEM2BLOCK_BASE
 
-void sdcard_write(uint32_t block, uint32_t count, uint8_t* buf)
+void sdcard_write(uint32_t block, uint32_t count, const uint8_t* buf)
 {
 	while (count) {
 		uint32_t nblocks;
@@ -562,6 +591,8 @@ void sdcard_write(uint32_t block, uint32_t count, uint8_t* buf)
 /*-----------------------------------------------------------------------*/
 /* SDCard FatFs disk functions                                           */
 /*-----------------------------------------------------------------------*/
+#if MICROPY_VFS_FAT
+#else
 
 static DSTATUS sdcardstatus = STA_NOINIT;
 
@@ -591,5 +622,7 @@ static DISKOPS SdCardDiskOps = {
 void fatfs_set_ops_sdcard(void) {
 	FfDiskOps = &SdCardDiskOps;
 }
+
+#endif // MICROPY_VFS_FAT
 
 #endif /* CSR_SDCORE_BASE */
