@@ -164,8 +164,7 @@ class SimSoC(SoCCore):
 
         # SoCCore ----------------------------------------------------------------------------------
         SoCCore.__init__(self, platform, clk_freq=sys_clk_freq,
-            ident         = "LiteX Simulation",
-            ident_version = True,
+            ident = "LiteX Simulation",
             **kwargs)
 
         # CRG --------------------------------------------------------------------------------------
