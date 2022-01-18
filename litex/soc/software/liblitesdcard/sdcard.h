@@ -6,6 +6,9 @@
 
 #include <generated/csr.h>
 
+#define LITEX_SDCARD_BOOT_ENABLED //allow disabling boot from SD card to make boot image smaller
+
+
 #define CLKGEN_STATUS_BUSY		0x1
 #define CLKGEN_STATUS_PROGDONE	0x2
 #define CLKGEN_STATUS_LOCKED	0x4

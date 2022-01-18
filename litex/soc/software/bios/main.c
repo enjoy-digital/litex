@@ -59,7 +59,7 @@ static void boot_sequence(void)
 #ifdef ROM_BOOT_ADDRESS
 	romboot();
 #endif
-#if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCORE_BASE)
+#if defined(LITEX_SDCARD_BOOT_ENABLED) && (defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCORE_BASE))
 	sdcardboot();
 #endif
 #if defined(CSR_SATA_SECTOR2MEM_BASE)

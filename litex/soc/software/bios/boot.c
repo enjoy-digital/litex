@@ -659,7 +659,7 @@ void flashboot(void)
 /* SDCard Boot                                                           */
 /*-----------------------------------------------------------------------*/
 
-#if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCORE_BASE)
+#if defined(LITEX_SDCARD_BOOT_ENABLED) && (defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCORE_BASE))
 
 static int copy_file_from_sdcard_to_ram(const char * filename, unsigned long ram_address)
 {
