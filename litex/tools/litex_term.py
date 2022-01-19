@@ -82,11 +82,11 @@ else:
         def handle_escape(self, b):
             return None
 
-# Bridge UART  -------------------------------------------------------------------------------------
+# Crossover UART  -------------------------------------------------------------------------------------
 
 from litex import RemoteClient
 
-class BridgeUART:
+class CrossoverUART:
     def __init__(self, name="uart_xover", host="localhost", base_address=None, csr_csv=None):
         self.bus = RemoteClient(host=host, base_address=base_address, csr_csv=csr_csv)
         present = False
@@ -604,7 +604,7 @@ class LiteXTerm:
 
 def _get_args():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("port",                                               help="Serial port (eg /dev/tty*, bridge, jtag).")
+    parser.add_argument("port",                                               help="Serial port (eg /dev/tty*, crossover, jtag).")
     parser.add_argument("--speed",        default=115200,                     help="Serial baudrate.")
     parser.add_argument("--serial-boot",  default=False, action='store_true', help="Automatically initiate serial boot.")
     parser.add_argument("--kernel",       default=None,                       help="Kernel image.")
@@ -612,9 +612,9 @@ def _get_args():
     parser.add_argument("--images",       default=None,                       help="JSON description of the images to load to memory.")
     parser.add_argument("--safe",         action="store_true",                help="Safe serial boot mode, disable upload speed optimizations.")
 
-    parser.add_argument("--csr-csv",      default=None,                       help="SoC CSV file.")
-    parser.add_argument("--base-address", default=None,                       help="CSR base address.")
-    parser.add_argument("--bridge-name",  default="uart_xover",               help="Bridge UART name to use (present in design/csr.csv).")
+    parser.add_argument("--csr-csv",        default=None,                       help="SoC CSV file.")
+    parser.add_argument("--base-address",   default=None,                       help="CSR base address.")
+    parser.add_argument("--crossover-name", default="uart_xover",               help="Crossover UART name to use (present in design/csr.csv).")
 
     parser.add_argument("--jtag-name",    default="jtag_uart",                help="JTAG UART type (jtag_uart or jtag_atlantic).")
     parser.add_argument("--jtag-config",  default="openocd_xc7_ft2232.cfg",   help="OpenOCD JTAG configuration file for jtag_uart.")
@@ -626,21 +626,21 @@ def main():
     term = LiteXTerm(args.serial_boot, args.kernel, args.kernel_adr, args.images, args.safe)
 
     if sys.platform == "win32":
-        if args.port in ["bridge", "jtag"]:
+        if args.port in ["crossover", "jtag"]:
             raise NotImplementedError
-    if args.port in ["bridge", "crossover"]: # FIXME: 2021-02-18, crossover for retro-compatibility remove and update targets?
+    if args.port in ["crossover"]:
         base_address = None if args.base_address is None else int(args.base_address)
-        bridge = BridgeUART(base_address=base_address, csr_csv=args.csr_csv, name=args.bridge_name)
-        bridge.open()
-        port = os.ttyname(bridge.name)
+        xover = CrossoverUART(base_address=base_address, csr_csv=args.csr_csv, name=args.crossover_name)
+        xover.open()
+        port = os.ttyname(xover.name)
     elif args.port in ["jtag"]:
         if args.jtag_name == "jtag_atlantic":
             term.port = Nios2Terminal()
             port = args.port
         elif args.jtag_name == "jtag_uart":
-            bridge = JTAGUART(config=args.jtag_config, chain=int(args.jtag_chain))
-            bridge.open()
-            port = os.ttyname(bridge.name)
+            jtag_uart = JTAGUART(config=args.jtag_config, chain=int(args.jtag_chain))
+            jtag_uart.open()
+            port = os.ttyname(jtag_uart.name)
         else:
             raise NotImplementedError
     else:

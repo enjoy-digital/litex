@@ -213,10 +213,10 @@ def main():
     elif args.jtag:
         from litex.tools.litex_term import JTAGUART
         from litex.tools.remote.comm_uart import CommUART
-        bridge = JTAGUART(config=args.jtag_config, chain=int(args.jtag_chain))
-        bridge.open()
+        jtag_uart = JTAGUART(config=args.jtag_config, chain=int(args.jtag_chain))
+        jtag_uart.open()
         print("[CommUART] port: JTAG / ", end="")
-        comm = CommUART(os.ttyname(bridge.name), debug=args.debug)
+        comm = CommUART(os.ttyname(jtag_uart.name), debug=args.debug)
 
     # UDP mode
     elif args.udp:
