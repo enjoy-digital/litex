@@ -1162,86 +1162,106 @@ class LiteXSoC(SoC):
         setattr(self.submodules, name, Identifier(identifier))
 
     # Add UART -------------------------------------------------------------------------------------
-    def add_uart(self, name, baudrate=115200, fifo_depth=16):
-        from litex.soc.cores import uart
-        self.check_if_exists("uart")
+    def add_uart(self, name="uart", uart_name="serial", baudrate=115200, fifo_depth=16):
+        # Imports.
+        from litex.soc.cores.uart import UART, UARTCrossover
 
+
+        # Core.
+        self.check_if_exists(name)
         # Stub / Stream.
-        if name in ["stub", "stream"]:
-            self.submodules.uart = uart.UART(tx_fifo_depth=0, rx_fifo_depth=0)
+        if uart_name in ["stub", "stream"]:
+            uart = UART(tx_fifo_depth=0, rx_fifo_depth=0)
+            setattr(self.submodules, name, _uart)
             if name == "stub":
-                self.comb += self.uart.sink.ready.eq(1)
+                self.comb += uart.sink.ready.eq(1)
 
         # UARTBone / Bridge.
-        elif name in ["uartbone", "bridge"]:
+        elif uart_name in ["uartbone", "bridge"]:
             self.add_uartbone(baudrate=baudrate)
 
         # Crossover.
-        elif name in ["crossover"]:
-            self.submodules.uart = uart.UARTCrossover(
+        elif uart_name in ["crossover"]:
+            uart = UARTCrossover(
                 tx_fifo_depth = fifo_depth,
                 rx_fifo_depth = fifo_depth)
+            setattr(self.submodules, name, uart)
 
         # Crossover + Bridge.
-        elif name in ["crossover+bridge"]:
+        elif uart_name in ["crossover+bridge"]:
             self.add_uartbone(baudrate=baudrate)
-            self.submodules.uart = uart.UARTCrossover(
+            uart = UARTCrossover(
                 tx_fifo_depth = fifo_depth,
                 rx_fifo_depth = fifo_depth)
+            setattr(self.submodules, name, uart)
 
         # Model/Sim.
-        elif name in ["model", "sim"]:
-            self.submodules.uart_phy = uart.RS232PHYModel(self.platform.request("serial"))
-            self.submodules.uart = uart.UART(self.uart_phy,
+        elif uart_name in ["model", "sim"]:
+            from litex.soc.cores.uart import RS232PHYModel
+            uart_phy = RS232PHYModel(self.platform.request("serial"))
+            uart     = UART(uart_phy,
                 tx_fifo_depth = fifo_depth,
                 rx_fifo_depth = fifo_depth)
+            setattr(self.submodules, name + "_phy", uart_phy)
+            setattr(self.submodules, name, uart)
 
         # JTAG Atlantic.
-        elif name in ["jtag_atlantic"]:
+        elif uart_name in ["jtag_atlantic"]:
             from litex.soc.cores.jtag import JTAGAtlantic
-            self.submodules.uart_phy = JTAGAtlantic()
-            self.submodules.uart = uart.UART(self.uart_phy,
+            uart_phy = JTAGAtlantic()
+            uart     = UART(uart_phy,
                 tx_fifo_depth = fifo_depth,
                 rx_fifo_depth = fifo_depth)
+            setattr(self.submodules, name + "_phy", uart_phy)
+            setattr(self.submodules, name, uart)
 
         # JTAG UART.
-        elif name in ["jtag_uart"]:
+        elif uart_name in ["jtag_uart"]:
             from litex.soc.cores.jtag import JTAGPHY
             self.clock_domains.cd_sys_jtag = ClockDomain()          # Run JTAG-UART in sys_jtag clock domain similar to
             self.comb += self.cd_sys_jtag.clk.eq(ClockSignal("sys")) # sys clock domain but with rst disconnected.
-            self.submodules.uart_phy = JTAGPHY(device=self.platform.device, clock_domain="sys_jtag")
-            self.submodules.uart = uart.UART(self.uart_phy,
+            uart_phy = JTAGPHY(device=self.platform.device, clock_domain="sys_jtag")
+            uart     = UART(uart_phy,
                 tx_fifo_depth = fifo_depth,
                 rx_fifo_depth = fifo_depth)
+            setattr(self.submodules, name + "_phy", uart_phy)
+            setattr(self.submodules, name, uart)
 
         # USB ACM (with ValentyUSB core).
-        elif name in ["usb_acm"]:
+        elif uart_name in ["usb_acm"]:
             import valentyusb.usbcore.io as usbio
             import valentyusb.usbcore.cpu.cdc_eptri as cdc_eptri
-            usb_pads = self.platform.request("usb")
+            usb_pads  = self.platform.request("usb")
             usb_iobuf = usbio.IoBuf(usb_pads.d_p, usb_pads.d_n, usb_pads.pullup)
             self.clock_domains.cd_sys_usb = ClockDomain()           # Run USB ACM in sys_usb clock domain similar to
             self.comb += self.cd_sys_usb.clk.eq(ClockSignal("sys")) # sys clock domain but with rst disconnected.
-            self.submodules.uart = ClockDomainsRenamer("sys_usb")(cdc_eptri.CDCUsb(usb_iobuf))
+            uart = ClockDomainsRenamer("sys_usb")(cdc_eptri.CDCUsb(usb_iobuf))
+            setattr(self.submodules, name, uart)
 
         # Classical UART.
         else:
-            self.submodules.uart_phy = uart.UARTPHY(
-                pads     = self.platform.request(name),
+            from litex.soc.cores.uart import UARTPHY
+            uart_phy = UARTPHY(
+                pads     = self.platform.request(uart_name),
                 clk_freq = self.sys_clk_freq,
                 baudrate = baudrate)
-            self.submodules.uart = uart.UART(self.uart_phy,
+            uart = UART(uart_phy,
                 tx_fifo_depth = fifo_depth,
                 rx_fifo_depth = fifo_depth)
+            setattr(self.submodules, name + "_phy", uart_phy)
+            setattr(self.submodules, name, uart)
 
         if self.irq.enabled:
-            self.irq.add("uart", use_loc_if_exists=True)
+            self.irq.add(name, use_loc_if_exists=True)
         else:
             self.add_constant("UART_POLLING")
 
     # Add UARTbone ---------------------------------------------------------------------------------
     def add_uartbone(self, name="serial", clk_freq=None, baudrate=115200, cd="sys"):
+        # Imports.
         from litex.soc.cores import uart
+
+        # Core.
         if clk_freq is None:
             clk_freq = self.sys_clk_freq
         self.check_if_exists("uartbone")
@@ -1251,8 +1271,11 @@ class LiteXSoC(SoC):
 
     # Add JTAGbone ---------------------------------------------------------------------------------
     def add_jtagbone(self, chain=1):
+        # Imports.
         from litex.soc.cores import uart
         from litex.soc.cores.jtag import JTAGPHY
+
+        # Core.
         self.check_if_exists("jtagbone")
         self.submodules.jtagbone_phy = JTAGPHY(device=self.platform.device, chain=chain)
         self.submodules.jtagbone = uart.UARTBone(phy=self.jtagbone_phy, clk_freq=self.sys_clk_freq)

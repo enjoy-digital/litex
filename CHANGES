@@ -19,6 +19,7 @@
 	- cpu/marocchino:     Add initial support.
 	- cpu/eos_s3:         Add LiteX BIOS/Bare Metal software support.
 	- litex_sim:          Add .json support for --rom/ram/sdram-init.
+	- soc/add_uart:       Allow multiple UARTs in the same design.
 
     [> API changes/Deprecation
 	--------------------------

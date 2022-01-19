@@ -225,7 +225,7 @@ class SoCCore(LiteXSoC):
 
         # Add UART
         if with_uart:
-            self.add_uart(name=uart_name, baudrate=uart_baudrate, fifo_depth=uart_fifo_depth)
+            self.add_uart(name="uart", uart_name=uart_name, baudrate=uart_baudrate, fifo_depth=uart_fifo_depth)
 
         # Add Timer
         if with_timer:
