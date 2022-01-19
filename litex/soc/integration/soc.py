@@ -935,7 +935,7 @@ class SoC(Module):
             self.mem_map.update(self.cpu.mem_map)
 
         # Add Bus Masters/CSR/IRQs.
-        if not isinstance(self.cpu, (cpu.CPUNone, cpu.Zynq7000)):
+        if not isinstance(self.cpu, cpu.CPUNone):
             if hasattr(self.cpu, "set_reset_address"):
                 if reset_address is None:
                     reset_address = self.mem_map["rom"]

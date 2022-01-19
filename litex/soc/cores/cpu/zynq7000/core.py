@@ -23,17 +23,20 @@ class Zynq7000(CPU):
     human_name           = "Zynq7000"
     data_width           = 32
     endianness           = "little"
-    reset_address        = 0x00000000
+    reset_address        = 0xfc00_0000
     gcc_triple           = "arm-none-eabi"
     gcc_flags            = "-mcpu=cortex-a9 -mfpu=vfpv3 -mfloat-abi=hard"
     linker_output_format = "elf32-littlearm"
     nop                  = "nop"
-    io_regions           = {0x00000000: 0x100000000} # Origin, Length.
+    io_regions           = {0x4000_0000: 0xbc00_0000} # Origin, Length.
 
     # Memory Mapping.
     @property
     def mem_map(self):
-        return {"csr": 0x00000000}
+        return {
+            "sram": 0x10_0000,  # DDR in fact
+            "rom":  0xfc00_0000,
+        }
 
     def __init__(self, platform, variant, *args, **kwargs):
         super().__init__(*args, **kwargs)
