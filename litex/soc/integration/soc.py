@@ -1483,7 +1483,7 @@ class LiteXSoC(SoC):
         from liteeth.phy.model import LiteEthPHYModel
 
         # Core
-        self.check_if_exists(name)
+        self.check_if_exists(name + "_ethcore")
         ethcore = LiteEthUDPIPCore(
             phy         = phy,
             mac_address = mac_address,
@@ -1494,15 +1494,16 @@ class LiteXSoC(SoC):
             "eth_tx": phy_cd + "_tx",
             "eth_rx": phy_cd + "_rx",
             "sys":    phy_cd + "_rx"})(ethcore)
-        self.submodules.ethcore = ethcore
+        setattr(self.submodules, "ethcore_" + name, ethcore)
 
         # Create Etherbone clock domain and run it from sys clock domain.
-        self.clock_domains.cd_etherbone = ClockDomain("etherbone")
-        self.comb += self.cd_etherbone.clk.eq(ClockSignal("sys"))
-        self.comb += self.cd_etherbone.rst.eq(ResetSignal("sys"))
+        setattr(self.clock_domains, f"cd_{name}", ClockDomain(name))
+        self.comb += getattr(self, f"cd_{name}").clk.eq(ClockSignal("sys"))
+        self.comb += getattr(self, f"cd_{name}").rst.eq(ResetSignal("sys"))
 
         # Etherbone
-        etherbone = LiteEthEtherbone(ethcore.udp, udp_port, buffer_depth=buffer_depth, cd="etherbone")
+        self.check_if_exists(name)
+        etherbone = LiteEthEtherbone(ethcore.udp, udp_port, buffer_depth=buffer_depth, cd=name)
         setattr(self.submodules, name, etherbone)
         self.add_wb_master(etherbone.wishbone.bus)
 
