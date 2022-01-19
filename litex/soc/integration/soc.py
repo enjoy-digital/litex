@@ -1166,13 +1166,18 @@ class LiteXSoC(SoC):
         # Imports.
         from litex.soc.cores.uart import UART, UARTCrossover
 
-
         # Core.
         self.check_if_exists(name)
+        uart_phy = None
+        uart     = None
+        uart_kwargs = {
+            "tx_fifo_depth": fifo_depth,
+            "rx_fifo_depth": fifo_depth,
+        }
+
         # Stub / Stream.
         if uart_name in ["stub", "stream"]:
             uart = UART(tx_fifo_depth=0, rx_fifo_depth=0)
-            setattr(self.submodules, name, _uart)
             if name == "stub":
                 self.comb += uart.sink.ready.eq(1)
 
@@ -1182,50 +1187,33 @@ class LiteXSoC(SoC):
 
         # Crossover.
         elif uart_name in ["crossover"]:
-            uart = UARTCrossover(
-                tx_fifo_depth = fifo_depth,
-                rx_fifo_depth = fifo_depth)
-            setattr(self.submodules, name, uart)
+            uart = UARTCrossover(**uart_kwargs)
 
         # Crossover + Bridge.
         elif uart_name in ["crossover+bridge"]:
             self.add_uartbone(baudrate=baudrate)
-            uart = UARTCrossover(
-                tx_fifo_depth = fifo_depth,
-                rx_fifo_depth = fifo_depth)
-            setattr(self.submodules, name, uart)
+            uart = UARTCrossover(**uart_kwargs)
 
         # Model/Sim.
         elif uart_name in ["model", "sim"]:
             from litex.soc.cores.uart import RS232PHYModel
             uart_phy = RS232PHYModel(self.platform.request("serial"))
-            uart     = UART(uart_phy,
-                tx_fifo_depth = fifo_depth,
-                rx_fifo_depth = fifo_depth)
-            setattr(self.submodules, name + "_phy", uart_phy)
-            setattr(self.submodules, name, uart)
+            uart     = UART(uart_phy, **uart_kwargs)
 
         # JTAG Atlantic.
         elif uart_name in ["jtag_atlantic"]:
             from litex.soc.cores.jtag import JTAGAtlantic
             uart_phy = JTAGAtlantic()
-            uart     = UART(uart_phy,
-                tx_fifo_depth = fifo_depth,
-                rx_fifo_depth = fifo_depth)
-            setattr(self.submodules, name + "_phy", uart_phy)
-            setattr(self.submodules, name, uart)
+            uart     = UART(uart_phy, **uart_kwargs)
 
         # JTAG UART.
         elif uart_name in ["jtag_uart"]:
             from litex.soc.cores.jtag import JTAGPHY
-            self.clock_domains.cd_sys_jtag = ClockDomain()          # Run JTAG-UART in sys_jtag clock domain similar to
-            self.comb += self.cd_sys_jtag.clk.eq(ClockSignal("sys")) # sys clock domain but with rst disconnected.
+            # Run JTAG-UART in sys_jtag clk domain similar to sys clk domain but without sys_rst.
+            self.clock_domains.cd_sys_jtag = ClockDomain()
+            self.comb += self.cd_sys_jtag.clk.eq(ClockSignal("sys")) #
             uart_phy = JTAGPHY(device=self.platform.device, clock_domain="sys_jtag")
-            uart     = UART(uart_phy,
-                tx_fifo_depth = fifo_depth,
-                rx_fifo_depth = fifo_depth)
-            setattr(self.submodules, name + "_phy", uart_phy)
-            setattr(self.submodules, name, uart)
+            uart     = UART(uart_phy, **uart_kwargs)
 
         # USB ACM (with ValentyUSB core).
         elif uart_name in ["usb_acm"]:
@@ -1233,24 +1221,24 @@ class LiteXSoC(SoC):
             import valentyusb.usbcore.cpu.cdc_eptri as cdc_eptri
             usb_pads  = self.platform.request("usb")
             usb_iobuf = usbio.IoBuf(usb_pads.d_p, usb_pads.d_n, usb_pads.pullup)
-            self.clock_domains.cd_sys_usb = ClockDomain()           # Run USB ACM in sys_usb clock domain similar to
-            self.comb += self.cd_sys_usb.clk.eq(ClockSignal("sys")) # sys clock domain but with rst disconnected.
+            # Run USB-ACM in sys_usb clock domain similar to sys_clk domain but without sys_rst.
+            self.clock_domains.cd_sys_usb = ClockDomain()
+            self.comb += self.cd_sys_usb.clk.eq(ClockSignal("sys"))
             uart = ClockDomainsRenamer("sys_usb")(cdc_eptri.CDCUsb(usb_iobuf))
-            setattr(self.submodules, name, uart)
 
         # Classical UART.
         else:
             from litex.soc.cores.uart import UARTPHY
-            uart_phy = UARTPHY(
-                pads     = self.platform.request(uart_name),
-                clk_freq = self.sys_clk_freq,
-                baudrate = baudrate)
-            uart = UART(uart_phy,
-                tx_fifo_depth = fifo_depth,
-                rx_fifo_depth = fifo_depth)
-            setattr(self.submodules, name + "_phy", uart_phy)
-            setattr(self.submodules, name, uart)
+            uart_phy = UARTPHY(self.platform.request(uart_name), clk_freq=self.sys_clk_freq, baudrate=baudrate)
+            uart     = UART(uart_phy, **uart_kwargs)
 
+        # Add PHY/UART.
+        if uart_phy is not None:
+            setattr(self.submodules, name + "_phy", uart_phy)
+        assert uart is not None
+        setattr(self.submodules, name, uart)
+
+        # IRQ.
         if self.irq.enabled:
             self.irq.add(name, use_loc_if_exists=True)
         else:
