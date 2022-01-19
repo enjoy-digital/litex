@@ -19,7 +19,7 @@ def get_version(with_time=True):
     fmt = "%Y-%m-%d %H:%M:%S" if with_time else "%Y-%m-%d"
     return datetime.datetime.fromtimestamp(time.time()).strftime(fmt)
 
-def get_mem_data(filename_or_regions, endianness="big", mem_size=None):
+def get_mem_data(filename_or_regions, endianness="big", mem_size=None, offset=0):
     # Create memory regions.
     if isinstance(filename_or_regions, dict):
         regions = filename_or_regions
@@ -30,7 +30,11 @@ def get_mem_data(filename_or_regions, endianness="big", mem_size=None):
         _, ext = os.path.splitext(filename)
         if ext == ".json":
             f = open(filename, "r")
-            regions = json.load(f)
+            _regions = json.load(f)
+            # .json
+            regions = dict()
+            for k, v in _regions.items():
+                regions[os.path.join(os.path.dirname(filename), k)] = v
             f.close()
         else:
             regions = {filename: "0x00000000"}
@@ -50,6 +54,7 @@ def get_mem_data(filename_or_regions, endianness="big", mem_size=None):
     # Fill data.
     data = [0]*math.ceil(data_size/4)
     for filename, base in regions.items():
+        base = int(base, 16)
         with open(filename, "rb") as f:
             i = 0
             while True:
@@ -59,9 +64,10 @@ def get_mem_data(filename_or_regions, endianness="big", mem_size=None):
                 if len(w) != 4:
                     for _ in range(len(w), 4):
                         w += b'\x00'
-                if endianness == "little":
-                    data[int(base, 16)//4 + i] = struct.unpack("<I", w)[0]
-                else:
-                    data[int(base, 16)//4 + i] = struct.unpack(">I", w)[0]
+                unpack_order = {
+                    "little": "<I",
+                    "big":    ">I"
+                }[endianness]
+                data[(base - offset)//4 + i] = struct.unpack(unpack_order, w)[0]
                 i += 1
     return data
