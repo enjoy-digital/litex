@@ -1168,37 +1168,41 @@ class LiteXSoC(SoC):
 
         # Core.
         self.check_if_exists(name)
-        uart_phy = None
-        uart     = None
-        uart_kwargs = {
+        supported_uarts = [
+            "crossover",
+            "crossover+uartbone",
+            "jtag_atlantic",
+            "jtag_uart",
+            "sim",
+            "stub",
+            "stream",
+            "uartbone",
+            "usb_acm",
+            "serial(x)",
+        ]
+        uart_pads_name = "serial" if uart_name == "sim" else uart_name
+        uart_pads      = self.platform.request(uart_pads_name, loose=True)
+        uart_phy       = None
+        uart           = None
+        uart_kwargs    = {
             "tx_fifo_depth": fifo_depth,
             "rx_fifo_depth": fifo_depth,
         }
-
-        # Stub / Stream.
-        if uart_name in ["stub", "stream"]:
-            uart = UART(tx_fifo_depth=0, rx_fifo_depth=0)
-            if name == "stub":
-                self.comb += uart.sink.ready.eq(1)
-
-        # UARTBone / Bridge.
-        elif uart_name in ["uartbone", "bridge"]:
-            self.add_uartbone(baudrate=baudrate)
+        if (uart_pads is None) and (uart_name not in supported_uarts):
+            self.logger.error("{} UART {}, supporteds: {}.".format(
+                colorer(uart_name),
+                colorer("not supported/found on board", color="red"),
+                colorer(", ".join(supported_uarts))))
+            raise SoCError()
 
         # Crossover.
-        elif uart_name in ["crossover"]:
+        if uart_name in ["crossover"]:
             uart = UARTCrossover(**uart_kwargs)
 
-        # Crossover + Bridge.
-        elif uart_name in ["crossover+bridge"]:
+        # Crossover + UARTBone.
+        elif uart_name in ["crossover+uartbone"]:
             self.add_uartbone(baudrate=baudrate)
             uart = UARTCrossover(**uart_kwargs)
-
-        # Model/Sim.
-        elif uart_name in ["model", "sim"]:
-            from litex.soc.cores.uart import RS232PHYModel
-            uart_phy = RS232PHYModel(self.platform.request("serial"))
-            uart     = UART(uart_phy, **uart_kwargs)
 
         # JTAG Atlantic.
         elif uart_name in ["jtag_atlantic"]:
@@ -1211,9 +1215,24 @@ class LiteXSoC(SoC):
             from litex.soc.cores.jtag import JTAGPHY
             # Run JTAG-UART in sys_jtag clk domain similar to sys clk domain but without sys_rst.
             self.clock_domains.cd_sys_jtag = ClockDomain()
-            self.comb += self.cd_sys_jtag.clk.eq(ClockSignal("sys")) #
+            self.comb += self.cd_sys_jtag.clk.eq(ClockSignal("sys"))
             uart_phy = JTAGPHY(device=self.platform.device, clock_domain="sys_jtag")
             uart     = UART(uart_phy, **uart_kwargs)
+
+        # Sim.
+        elif uart_name in ["sim"]:
+            from litex.soc.cores.uart import RS232PHYModel
+            uart_phy = RS232PHYModel(uart_pads)
+            uart     = UART(uart_phy, **uart_kwargs)
+
+        # Stub / Stream.
+        elif uart_name in ["stub", "stream"]:
+            uart = UART(tx_fifo_depth=0, rx_fifo_depth=0)
+            self.comb += uart.sink.ready.eq(uart_name == "stub")
+
+        # UARTBone.
+        elif uart_name in ["uartbone"]:
+            self.add_uartbone(baudrate=baudrate)
 
         # USB ACM (with ValentyUSB core).
         elif uart_name in ["usb_acm"]:
@@ -1226,11 +1245,11 @@ class LiteXSoC(SoC):
             self.comb += self.cd_sys_usb.clk.eq(ClockSignal("sys"))
             uart = ClockDomainsRenamer("sys_usb")(cdc_eptri.CDCUsb(usb_iobuf))
 
-        # Classical UART.
+        # Regular UART.
         else:
             from litex.soc.cores.uart import UARTPHY
-            uart_phy = UARTPHY(self.platform.request(uart_name), clk_freq=self.sys_clk_freq, baudrate=baudrate)
-            uart     = UART(uart_phy, **uart_kwargs)
+            uart_phy  = UARTPHY(uart_pads, clk_freq=self.sys_clk_freq, baudrate=baudrate)
+            uart      = UART(uart_phy, **uart_kwargs)
 
         # Add PHY/UART.
         if uart_phy is not None:
