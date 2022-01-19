@@ -18,6 +18,7 @@
 	- cpu/serv:           Add MDU support.
 	- cpu/marocchino:     Add initial support.
 	- cpu/eos_s3:         Add LiteX BIOS/Bare Metal software support.
+	- litex_sim:          Add .json support for --rom/ram/sdram-init.
 
     [> API changes/Deprecation
 	--------------------------

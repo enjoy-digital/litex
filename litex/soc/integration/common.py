@@ -37,7 +37,7 @@ def get_mem_data(filename_or_regions, endianness="big", mem_size=None, offset=0)
                 regions[os.path.join(os.path.dirname(filename), k)] = v
             f.close()
         else:
-            regions = {filename: "0x00000000"}
+            regions = {filename: f"{offset:08x}"}
 
     # Determine data_size.
     data_size = 0

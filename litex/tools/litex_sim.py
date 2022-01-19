@@ -361,12 +361,12 @@ def sim_args(parser):
     builder_args(parser)
     soc_core_args(parser)
     verilator_build_args(parser)
-    parser.add_argument("--rom-init",             default=None,            help="rom_init file.")
-    parser.add_argument("--ram-init",             default=None,            help="ram_init file.")
+    parser.add_argument("--rom-init",             default=None,            help="ROM init file (.bin or .json).")
+    parser.add_argument("--ram-init",             default=None,            help="RAM init file (.bin or .json).")
     parser.add_argument("--with-sdram",           action="store_true",     help="Enable SDRAM support.")
     parser.add_argument("--sdram-module",         default="MT48LC16M16",   help="Select SDRAM chip.")
     parser.add_argument("--sdram-data-width",     default=32,              help="Set SDRAM chip data width.")
-    parser.add_argument("--sdram-init",           default=None,            help="SDRAM init file.")
+    parser.add_argument("--sdram-init",           default=None,            help="SDRAM init file (.bin or .json).")
     parser.add_argument("--sdram-from-spd-dump",  default=None,            help="Generate SDRAM module based on data from SPD EEPROM dump.")
     parser.add_argument("--sdram-verbosity",      default=0,               help="Set SDRAM checker verbosity.")
     parser.add_argument("--with-ethernet",        action="store_true",     help="Enable Ethernet support.")
@@ -408,13 +408,13 @@ def main():
 
     # ROM.
     if args.rom_init:
-        soc_kwargs["integrated_rom_init"] = get_mem_data(args.rom_init, cpu.endianness)
+        soc_kwargs["integrated_rom_init"] = get_mem_data(args.rom_init, endianness=cpu.endianness)
 
     # RAM / SDRAM.
     soc_kwargs["integrated_main_ram_size"] = args.integrated_main_ram_size
     if args.integrated_main_ram_size:
         if args.ram_init is not None:
-            soc_kwargs["integrated_main_ram_init"] = get_mem_data(args.ram_init, cpu.endianness)
+            soc_kwargs["integrated_main_ram_init"] = get_mem_data(args.ram_init, endianness=cpu.endianness)
     elif args.with_sdram:
         assert args.ram_init is None
         soc_kwargs["sdram_module"]     = args.sdram_module
@@ -451,8 +451,8 @@ def main():
         with_gpio          = args.with_gpio,
         sim_debug          = args.sim_debug,
         trace_reset_on     = int(float(args.trace_start)) > 0 or int(float(args.trace_end)) > 0,
-        sdram_init         = [] if args.sdram_init is None else get_mem_data(args.sdram_init, cpu.endianness),
-        spi_flash_init     = None if args.spi_flash_init is None else get_mem_data(args.spi_flash_init, "big"),
+        sdram_init         = []   if args.sdram_init     is None else get_mem_data(args.sdram_init,     endianness=cpu.endianness),
+        spi_flash_init     = None if args.spi_flash_init is None else get_mem_data(args.spi_flash_init, endianness="big"),
         **soc_kwargs)
     if args.ram_init is not None or args.sdram_init is not None:
         soc.add_constant("ROM_BOOT_ADDRESS", soc.mem_map["main_ram"])
