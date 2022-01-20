@@ -86,9 +86,9 @@ CPU_SIZE_PARAMS = {
     "full4q":   (   256,      64,         4),
 }
 
-# Rocket RV64 --------------------------------------------------------------------------------------
+# Rocket  ------------------------------------------------------------------------------------------
 
-class RocketRV64(CPU):
+class Rocket(CPU):
     family               = "riscv"
     name                 = "rocket"
     human_name           = "RocketRV64[imac]"

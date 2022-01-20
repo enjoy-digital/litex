@@ -94,11 +94,10 @@ def collect_cpus():
                 continue
 
             # OK, it seems to be a CPU; now get the class and add it to dict.
-            cpu        = file
-            cpu_module = f"{cpu}"
+            cpu = file
             sys.path.append(path)
-            for cpu_name, cpu_cls in inspect.getmembers(importlib.import_module(cpu_module), inspect.isclass):
-                if cpu.replace("_", "") == cpu_name.lower():
+            for cpu_name, cpu_cls in inspect.getmembers(importlib.import_module(cpu), inspect.isclass):
+                if cpu_name.lower() in [cpu, cpu.replace("_", "")]:
                     cpus[cpu] = cpu_cls
 
     # Return collected CPUs.

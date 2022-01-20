@@ -52,9 +52,9 @@ GCC_FLAGS = {
     "sim":      "-march=rv64imafd -mabi=lp64d ",
 }
 
-# BlackParrotRV64 ----------------------------------------------------------------------------------
+# BlackParrot --------------------------------------------------------------------------------------
 
-class BlackParrotRV64(CPU):
+class BlackParrot(CPU):
     family               = "riscv"
     name                 = "blackparrot"
     human_name           = "BlackParrotRV64[imafd]"

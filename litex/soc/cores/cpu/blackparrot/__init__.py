@@ -1,1 +1,1 @@
-from litex.soc.cores.cpu.blackparrot.core import BlackParrotRV64
+from litex.soc.cores.cpu.blackparrot.core import BlackParrot
