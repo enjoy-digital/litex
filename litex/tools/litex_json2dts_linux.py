@@ -32,14 +32,20 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 """
 
     # Boot Arguments -------------------------------------------------------------------------------
+    cpu_architectures = {
+        "mor1kx":             "or1k",
+        "marocchino":         "or1k",
+        "vexriscv smp-linux": "riscv",
+    }
     default_initrd_start = {
-        "mor1kx":               8*mB,
-        "vexriscv smp-linux" : 16*mB,
+        "or1k":   8*mB,
+        "riscv": 16*mB,
     }
     default_initrd_size = 8*mB
 
+    cpu_arch = cpu_architectures[cpu_name]
     if initrd_start is None:
-        initrd_start = default_initrd_start[cpu_name]
+        initrd_start = default_initrd_start[cpu_arch]
 
     if initrd_size is None:
         initrd_size = default_initrd_size
@@ -76,7 +82,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     # VexRiscv-SMP
     # ------------
-    if cpu_name == "vexriscv smp-linux":
+    if cpu_arch == "riscv":
         # Cache description.
         cache_desc = ""
         if "cpu_dcache_size" in d["constants"]:
@@ -165,7 +171,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     # Mor1kx
     # ------
-    elif cpu_name == "mor1kx":
+    elif cpu_arch == "or1k":
         dts += """
         cpus {{
             #address-cells = <1>;
@@ -264,7 +270,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     # Interrupt Controller -------------------------------------------------------------------------
 
-    if cpu_name == "vexriscv smp-linux":
+    if cpu_arch == "riscv":
         dts += """
             intc0: interrupt-controller@{plic_base:x} {{
                 compatible = "sifive,fu540-c000-plic", "sifive,plic-1.0.0";
@@ -280,7 +286,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         plic_base   =d["memories"]["plic"]["base"],
         cpu_mapping =("\n" + " "*20).join(["&L{} 11 &L{} 9".format(cpu, cpu) for cpu in cpus]))
 
-    elif cpu_name == "mor1kx":
+    elif cpu_arch == "or1k":
         dts += """
             intc0: interrupt-controller {
                 interrupt-controller;
