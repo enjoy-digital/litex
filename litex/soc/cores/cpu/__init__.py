@@ -69,12 +69,7 @@ CPU_GCC_TRIPLE_RISCV32 = CPU_GCC_TRIPLE_RISCV64 + (
 # CPUS ---------------------------------------------------------------------------------------------
 
 def collect_cpus():
-    cpus = {
-        # None.
-        "None"     : CPUNone,
-        # External (CPU class provided externally by design/user)
-        "external" : None,
-    }
+    cpus  = {"None" : CPUNone}
     paths = [
         # Add litex.soc.cores.cpu path.
         os.path.dirname(__file__),
