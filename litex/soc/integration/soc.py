@@ -1249,8 +1249,8 @@ class LiteXSoC(SoC):
         # Add PHY/UART.
         if uart_phy is not None:
             setattr(self.submodules, name + "_phy", uart_phy)
-        assert uart is not None
-        setattr(self.submodules, name, uart)
+        if uart is not None:
+            setattr(self.submodules, name, uart)
 
         # IRQ.
         if self.irq.enabled:
