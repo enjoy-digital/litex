@@ -6,6 +6,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
+import sys
 import inspect
 import importlib
 
@@ -74,27 +75,36 @@ def collect_cpus():
         # External (CPU class provided externally by design/user)
         "external" : None,
     }
-    path = os.path.dirname(__file__)
+    paths = [
+        # Add litex.soc.cores.cpu path.
+        os.path.dirname(__file__),
+        # Add execution path.
+        os.getcwd()
+    ]
 
-    # Search for CPUs in cpu directory.
-    for file in os.listdir(path):
+    exec_dir = os.getcwd()
 
-        # Verify that it's a path...
-        cpu_path = os.path.join(os.path.dirname(__file__), file)
-        if not os.path.isdir(cpu_path):
-            continue
+    # Search for CPUs in paths.
+    for path in paths:
+        for file in os.listdir(path):
 
-        # ... and that core.py is present.
-        cpu_core = os.path.join(cpu_path, "core.py")
-        if not os.path.exists(cpu_core):
-            continue
+            # Verify that it's a path...
+            cpu_path = os.path.join(path, file)
+            if not os.path.isdir(cpu_path):
+                continue
 
-        # OK, it seems to be a CPU; now get the class and add it to dict.
-        cpu        = file
-        cpu_module = f"litex.soc.cores.cpu.{cpu}.core"
-        for cpu_name, cpu_cls in inspect.getmembers(importlib.import_module(cpu_module), inspect.isclass):
-            if cpu.replace("_", "") == cpu_name.lower():
-                cpus[cpu] = cpu_cls
+            # ... and that core.py is present.
+            cpu_core = os.path.join(cpu_path, "core.py")
+            if not os.path.exists(cpu_core):
+                continue
+
+            # OK, it seems to be a CPU; now get the class and add it to dict.
+            cpu        = file
+            cpu_module = f"{cpu}"
+            sys.path.append(path)
+            for cpu_name, cpu_cls in inspect.getmembers(importlib.import_module(cpu_module), inspect.isclass):
+                if cpu.replace("_", "") == cpu_name.lower():
+                    cpus[cpu] = cpu_cls
 
     # Return collected CPUs.
     return cpus
