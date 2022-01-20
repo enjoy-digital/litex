@@ -69,7 +69,6 @@ class SoCCore(LiteXSoC):
         cpu_type                 = "vexriscv",
         cpu_reset_address        = None,
         cpu_variant              = None,
-        cpu_cls                  = None,
         cpu_cfu                  = None,
 
         # CFU parameters
@@ -149,7 +148,6 @@ class SoCCore(LiteXSoC):
 
         self.cpu_type     = cpu_type
         self.cpu_variant  = cpu_variant
-        self.cpu_cls      = cpu_cls
 
         # ROM.
         # Initialize ROM from binary file when provided.
@@ -187,7 +185,6 @@ class SoCCore(LiteXSoC):
             name          = str(cpu_type),
             variant       = "standard" if cpu_variant is None else cpu_variant,
             reset_address = None if integrated_rom_size else cpu_reset_address,
-            cls           = cpu_cls,
             cfu           = cpu_cfu)
 
         # Add User's interrupts

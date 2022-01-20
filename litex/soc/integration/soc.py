@@ -884,7 +884,7 @@ class SoC(Module):
         self.add_config("CSR_DATA_WIDTH", self.csr.data_width)
         self.add_config("CSR_ALIGNMENT",  self.csr.alignment)
 
-    def add_cpu(self, name="vexriscv", variant="standard", cls=None, reset_address=None, cfu=None):
+    def add_cpu(self, name="vexriscv", variant="standard", reset_address=None, cfu=None):
         # Check that CPU is supported.
         if name not in cpu.CPUS.keys():
             self.logger.error("{} CPU {}, supporteds: {}.".format(
@@ -894,12 +894,7 @@ class SoC(Module):
             raise SoCError()
 
         # Add CPU.
-        if name == "external" and cls is None:
-            self.logger.error("{} CPU requires {} to be specified.".format(
-                colorer(name),
-                colorer("cpu_cls", color="red")))
-            raise SoCError()
-        cpu_cls = cls if cls is not None else cpu.CPUS[name]
+        cpu_cls = cpu.CPUS[name]
         if (variant not in cpu_cls.variants) and (cpu_cls is not cpu.CPUNone):
             self.logger.error("{} CPU variant {}, supporteds: {}.".format(
                 colorer(variant),
