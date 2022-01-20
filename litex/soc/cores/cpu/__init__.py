@@ -47,21 +47,6 @@ class CPUNone(CPU):
         "spiflash" : 0x10000000, # FIXME: Remove.
     }
 
-CPU_GCC_TRIPLE_RISCV32 = (
-    "riscv64-unknown-elf",
-    "riscv64-unknown-linux-gnu",
-    "riscv32-unknown-elf",
-    "riscv32-unknown-linux-gnu",
-    "riscv64-elf",
-    "riscv32-elf",
-    "riscv-none-embed",
-    "riscv-none-elf",
-    "riscv64-linux",
-    "riscv64-linux-gnu",
-    "riscv-sifive-elf",
-    "riscv64-none-elf",
-)
-
 CPU_GCC_TRIPLE_RISCV64 = (
     "riscv64-unknown-elf",
     "riscv64-unknown-linux-gnu",
@@ -70,6 +55,14 @@ CPU_GCC_TRIPLE_RISCV64 = (
     "riscv64-linux-gnu",
     "riscv-sifive-elf",
     "riscv64-none-elf",
+)
+
+CPU_GCC_TRIPLE_RISCV32 = CPU_GCC_TRIPLE_RISCV64 + (
+    "riscv32-unknown-elf",
+    "riscv32-unknown-linux-gnu",
+    "riscv32-elf",
+    "riscv-none-embed",
+    "riscv-none-elf",
 )
 
 # CPUS ---------------------------------------------------------------------------------------------
