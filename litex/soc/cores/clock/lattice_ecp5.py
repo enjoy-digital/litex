@@ -165,3 +165,51 @@ class ECP5PLL(Module):
             if f > 0:  # i.e. not a feedback-only clock
                 self.params["attr"].append((f"FREQUENCY_PIN_CLKO{n_to_l[n]}", str(f/1e6)))
         self.specials += Instance("EHXPLLL", **self.params)
+
+
+class ECP5Delay(Module):
+    # from ECP5 docs
+    delay_step_s = 25e-12
+    n_steps = 128
+
+    def __init__(self):
+        self.i = Signal()
+        self.o = Signal()
+        self.value = Signal(max=self.n_steps)
+
+    def do_finalize(self):
+        rst = Signal()
+        move = Signal()
+        current_value = Signal(max=self.n_steps)
+
+        self.specials += Instance(
+            "DELAYF",
+            p_DEL_MODE="USER_DEFINED",
+            p_DEL_VALUE=self.value.reset,
+            i_A=self.i,
+            o_Z=self.o,
+            i_LOADN=~(ResetSignal() | rst),
+            i_MOVE=move,
+            i_DIRECTION=0,
+            o_CFLAG=Signal()
+        )
+
+        self.submodules.fsm = fsm = FSM()
+        fsm.act("WAIT",
+                If(self.value != current_value,
+                   NextState('RST'))
+                )
+        fsm.act("RST",
+                rst.eq(1),
+                NextValue(current_value, 0),
+                NextState("MOVE")
+                )
+        fsm.act("MOVE",
+                If(current_value == self.value,
+                   NextValue(move, 0),
+                   NextState("WAIT")
+                ).Else(
+                   NextValue(move, ~move),
+                   If(move,
+                      NextValue(current_value, current_value + 1)),
+                ))
