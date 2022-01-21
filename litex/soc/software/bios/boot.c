@@ -64,7 +64,8 @@ void __attribute__((noreturn)) boot(unsigned long r1, unsigned long r2, unsigned
 	flush_cpu_dcache();
 	flush_l2_cache();
 
-#if defined(CONFIG_CPU_TYPE_MOR1KX) && defined(CONFIG_CPU_VARIANT_LINUX)
+#if (defined(CONFIG_CPU_TYPE_MOR1KX) || defined(CONFIG_CPU_TYPE_MAROCCHINO)) \
+     && defined(CONFIG_CPU_VARIANT_LINUX)
 	/* Mainline Linux expects to have exception vector base address set to the
 	 * base address of Linux kernel; it also expects to be run with an offset
 	 * of 0x100. */
