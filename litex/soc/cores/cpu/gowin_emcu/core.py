@@ -169,9 +169,6 @@ class GowinEMCU(CPU):
         self.periph_buses = [self.pbus]
         ahb_targexp0 = ahb.Interface()
         for s, _ in ahb_targexp0.master_signals:
-            # TODO: due to unexpected writes by the CPU bus is currently forced read-only
-            if s == "write":
-                continue
             self.cpu_params[f"o_TARGEXP0H{s.upper()}"] = getattr(ahb_targexp0, s)
         for s, _ in ahb_targexp0.slave_signals:
             self.cpu_params[f"i_TARGEXP0H{s.upper()}"] = getattr(ahb_targexp0, s)
