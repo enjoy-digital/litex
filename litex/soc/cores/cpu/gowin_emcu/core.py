@@ -61,7 +61,7 @@ class GowinEMCU(CPU):
     io_regions           = {
         # Origin, Length.
         0x4000_0000: 0x2000_0000,
-        0xa000_0000: 0x6000_0000
+        0xA000_0000: 0x6000_0000
     }
 
     @property
@@ -69,6 +69,7 @@ class GowinEMCU(CPU):
         return {
             "rom":  0x0000_0000,
             "sram": 0x2000_0000,
+            "peripherals": 0x4000_0000,
             "csr":  0xA000_0000,
         }
 
