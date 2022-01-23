@@ -8,8 +8,8 @@ SECTIONS
 	.text :
 	{
 		_ftext = .;
-		/* Quicklogic EOS-S3 interrupt vector table uses section name "isr_vector" */
-		/* ARM table has to be placed at start */
+		/* ARM (Quicklogic EOS-S3, Gowin EMCU) interrupt vector tables use section name "isr_vector" */
+		/* - such a table has to be placed at start */
 		KEEP(*(.isr_vector))
 		/* Make sure crt0 files come first, and they, and the isr */
 		/* don't get disposed of by greedy optimisation */
