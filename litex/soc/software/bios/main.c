@@ -74,7 +74,7 @@ static void boot_sequence(void)
 	printf("No boot medium found\n");
 }
 
-int main(int i, char **c)
+__attribute__((__used__)) int main(int i, char **c)
 {
 	char buffer[CMD_LINE_BUFFER_SIZE];
 	char *params[MAX_PARAM];
