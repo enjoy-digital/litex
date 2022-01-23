@@ -28,9 +28,9 @@ class I2CMaster(Module, AutoCSR):
             pads = Record(self.pads_layout)
         self.pads = pads
         self._w = CSRStorage(fields=[
-            CSRField("scl", size=1, offset=0),
+            CSRField("scl", size=1, offset=0, reset=1),
             CSRField("oe",  size=1, offset=1),
-            CSRField("sda", size=1, offset=2)],
+            CSRField("sda", size=1, offset=2, reset=1)],
             name="w")
         self._r = CSRStatus(fields=[
             CSRField("sda", size=1, offset=0)],
