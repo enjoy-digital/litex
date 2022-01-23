@@ -281,7 +281,7 @@ class Builder:
         self.soc.platform.output_dir = self.output_dir
 
         # Check if BIOS is used and add software package if so.
-        with_bios = self.soc.cpu_type not in [None, 'gowin_emcu']
+        with_bios = self.soc.cpu_type is not None
         if with_bios:
             self.add_software_package("bios")
 
