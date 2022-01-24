@@ -3,6 +3,7 @@
 #
 # Copyright (c) 2020 Antmicro <www.antmicro.com>
 # Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2022 Victor Suarez Rovere <suarezvictor@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
@@ -75,25 +76,25 @@ class _MakefileGenerator:
 def _run_make():
     make_cmd = ["make", "-j1"]
 
-    if which("symbiflow_synth") is None:
-        msg = "Unable to find Symbiflow toolchain, please:\n"
-        msg += "- Add Symbiflow toolchain to your $PATH."
+    if which("nextpnr-xilinx") is None:
+        msg = "Unable to find Yosys+Nextpnr toolchain, please:\n"
+        msg += "- Add Yosys and Nextpnr tools to your $PATH."
         raise OSError(msg)
 
     if tools.subprocess_call_filtered(make_cmd, common.colors) != 0:
-        raise OSError("Error occured during Symbiflow's script execution.")
+        raise OSError("Error occured during yosys or nextpnr script execution.")
 
-# SymbiflowToolchain -------------------------------------------------------------------------------
+# YosysNextpnrToolchain -------------------------------------------------------------------------------
 
-class SymbiflowToolchain:
+class YosysNextpnrToolchain:
     attr_translate = {
-        "keep":            ("dont_touch", "true"),
-        "no_retiming":     ("dont_touch", "true"),
-        "async_reg":       ("async_reg",  "true"),
-        "mr_ff":           ("mr_ff",      "true"), # user-defined attribute
-        "ars_ff1":         ("ars_ff1",    "true"), # user-defined attribute
-        "ars_ff2":         ("ars_ff2",    "true"), # user-defined attribute
-        "no_shreg_extract": None
+        #"keep":            ("dont_touch", "true"),
+        #"no_retiming":     ("dont_touch", "true"),
+        #"async_reg":       ("async_reg",  "true"),
+        #"mr_ff":           ("mr_ff",      "true"), # user-defined attribute
+        #"ars_ff1":         ("ars_ff1",    "true"), # user-defined attribute
+        #"ars_ff2":         ("ars_ff2",    "true"), # user-defined attribute
+        #"no_shreg_extract": None
     }
 
     def __init__(self):
@@ -108,10 +109,8 @@ class SymbiflowToolchain:
             try:
                 self.symbiflow_device = {
                     # FIXME: fine for now since only a few devices are supported, do more clever device re-mapping.
-                    "xc7a35tcpg236-1"   : "xc7a50t_test",
-                    "xc7a35ticsg324-1L" : "xc7a50t_test",
-                    "xc7a100tcsg324-1"  : "xc7a100t_test",
-                    "xc7a200t-sbg484-1" : "xc7a200t_test",
+                    "xc7a35ticsg324-1L" : "xc7a35t",
+                    "xc7a100tcsg324-1"  : "xc7a35t",
                 }[platform.device]
             except KeyError:
                 raise ValueError(f"symbiflow_device is not specified")
@@ -142,36 +141,35 @@ class SymbiflowToolchain:
             Var("DEVICE", self.symbiflow_device),
             Var("BITSTREAM_DEVICE", self.bitstream_device),
             "",
+            Var("DB_DIR", "/usr/share/nextpnr/prjxray-db"), #FIXME: resolve path
+            Var("CHIPDB_DIR", "/usr/share/nextpnr/xilinx-chipdb"), #FIXME: resolve path
+            "",
             Var("VERILOG", [f for f,language,_ in platform.sources if language in ["verilog", "system_verilog"]]),
             Var("MEM_INIT", [f"{name}" for name in os.listdir() if name.endswith(".init")]),
             Var("SDC", f"{build_name}.sdc"),
             Var("XDC", f"{build_name}.xdc"),
             Var("ARTIFACTS", [
-                    "$(TOP).eblif", "$(TOP).frames", "$(TOP).ioplace", "$(TOP).net",
-                    "$(TOP).place", "$(TOP).route", "$(TOP)_synth.*",
+                    "$(TOP).fasm", "$(TOP).frames", 
                     "*.bit", "*.fasm", "*.json", "*.log", "*.rpt",
                     "constraints.place"
                 ]),
 
             Rule("all", ["$(TOP).bit"], phony=True),
-            Rule("$(TOP).eblif", ["$(VERILOG)", "$(MEM_INIT)", "$(XDC)"], commands=[
-                    "symbiflow_synth -t $(TOP) -v $(VERILOG) -d $(BITSTREAM_DEVICE) -p $(PARTNAME) -x $(XDC) > /dev/null"
+            Rule("$(TOP).json", ["$(VERILOG)", "$(MEM_INIT)", "$(XDC)"], commands=[
+                    #"symbiflow_synth -t $(TOP) -v $(VERILOG) -d $(BITSTREAM_DEVICE) -p $(PARTNAME) -x $(XDC) > /dev/null"
+                    #yosys -p "synth_xilinx -flatten -abc9 -nosrl -noclkbuf -nodsp -iopad -nowidelut" #forum: symbiflow_synth
+                    'yosys -p "synth_xilinx -flatten -abc9 -nobram -arch xc7 -top $(TOP); write_json $(TOP).json" $(VERILOG) > /dev/null'
                 ]),
-            #Rule("$(TOP).net", ["$(TOP).eblif", "$(SDC)"], commands=[ #SDC conflicts with make -j2 and seems not needed
-            Rule("$(TOP).net", ["$(TOP).eblif"], commands=[
-                    "symbiflow_pack -e $(TOP).eblif -d $(DEVICE) -s $(SDC) > /dev/null"
+            Rule("$(TOP).fasm", ["$(TOP).json"], commands=[
+                    #"symbiflow_write_fasm -e $(TOP).eblif -d $(DEVICE) > /dev/null"
+                    'nextpnr-xilinx --chipdb $(CHIPDB_DIR)/$(DEVICE).bin --xdc $(XDC) --json $(TOP).json --write $(TOP)_routed.json --fasm $(TOP).fasm > /dev/null'
                 ]),
-            Rule("$(TOP).place", ["$(TOP).net"], commands=[
-                    "symbiflow_place -e $(TOP).eblif -d $(DEVICE) -n $(TOP).net -P $(PARTNAME) -s $(SDC) > /dev/null"
+            Rule("$(TOP).frames", ["$(TOP).fasm"], commands=[
+                    'fasm2frames.py --part $(PARTNAME) --db-root $(DB_DIR)/$(BITSTREAM_DEVICE) $(TOP).fasm > $(TOP).frames'
                 ]),
-            Rule("$(TOP).route", ["$(TOP).place"], commands=[
-                    "symbiflow_route -e $(TOP).eblif -d $(DEVICE) -s $(SDC) > /dev/null"
-                ]),
-            Rule("$(TOP).fasm", ["$(TOP).route"], commands=[
-                    "symbiflow_write_fasm -e $(TOP).eblif -d $(DEVICE) > /dev/null"
-                ]),
-            Rule("$(TOP).bit", ["$(TOP).fasm"], commands=[
-                    "symbiflow_write_bitstream -d $(BITSTREAM_DEVICE) -f $(TOP).fasm -p $(PARTNAME) -b $(TOP).bit > /dev/null"
+            Rule("$(TOP).bit", ["$(TOP).frames"], commands=[
+                    #"symbiflow_write_bitstream -d $(BITSTREAM_DEVICE) -f $(TOP).fasm -p $(PARTNAME) -b $(TOP).bit > /dev/null"
+                    'xc7frames2bit --part_file $(DB_DIR)/$(BITSTREAM_DEVICE)/$(PARTNAME)/part.yaml --part_name $(PARTNAME) --frm_file $(TOP).frames --output_file $(TOP).bit > /dev/null'
                 ]),
             Rule("clean", phony=True, commands=[
                     "rm -f $(ARTIFACTS)"
@@ -182,10 +180,11 @@ class SymbiflowToolchain:
 
     def _build_clock_constraints(self, platform):
         platform.add_platform_command(_xdc_separator("Clock constraints"))
-        for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
-            platform.add_platform_command(
-                "create_clock -period " + str(period) +
-                " {clk}", clk=clk)
+        #for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
+        #    platform.add_platform_command(
+        #        "create_clock -period " + str(period) +
+        #        " {clk}", clk=clk)
+        pass #clock constraints not supported
 
     def _fix_instance(self, instance):
         pass
@@ -209,7 +208,7 @@ class SymbiflowToolchain:
             fragment = fragment.get_fragment()
         platform.finalize(fragment)
 
-        # Symbiflow-specific fixes
+        # toolchain-specific fixes
         for instance in fragment.specials:
             if isinstance(instance, Instance):
                 self._fix_instance(instance)
