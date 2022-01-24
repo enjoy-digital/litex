@@ -3,12 +3,13 @@
 #
 # Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
 # Copyright (c) 2015-2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2022 Victor Suarez Rovere <suarezvictor@gmai.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
 
 from litex.build.generic_platform import GenericPlatform
-from litex.build.xilinx import common, vivado, ise, symbiflow
+from litex.build.xilinx import common
 
 # XilinxPlatform -----------------------------------------------------------------------------------
 
@@ -20,11 +21,20 @@ class XilinxPlatform(GenericPlatform):
         self.edifs = set()
         self.ips   = {}
         if toolchain == "ise":
+            from litex.build.xilinx import ise
             self.toolchain = ise.XilinxISEToolchain()
         elif toolchain == "vivado":
+            from litex.build.xilinx import vivado
             self.toolchain = vivado.XilinxVivadoToolchain()
         elif toolchain == "symbiflow":
+            from litex.build.xilinx import symbiflow
             self.toolchain = symbiflow.SymbiflowToolchain()
+        elif toolchain == "yosys+nextpnr": #experimental
+            from litex.build.xilinx import yosys_nextpnr
+            self.toolchain = yosys_nextpnr.YosysNextpnrToolchain()
+        #elif toolchain == "symbiflow+nextpnr": #highly experimental
+        #    import symbiflow_nextpnr 
+        #    self.toolchain = symbiflow_nextpnr.SymbiflowNextpnrToolchain()
         else:
             raise ValueError("Unknown toolchain")
 
