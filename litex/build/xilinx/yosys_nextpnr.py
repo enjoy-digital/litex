@@ -111,6 +111,8 @@ class YosysNextpnrToolchain:
                     # FIXME: fine for now since only a few devices are supported, do more clever device re-mapping.
                     "xc7a35ticsg324-1L" : "xc7a35t",
                     "xc7a100tcsg324-1"  : "xc7a35t",
+                    "xc7z010clg400-1"   : "xc7z010",
+                    "xc7z020clg400-1"   : "xc7z020",
                 }[platform.device]
             except KeyError:
                 raise ValueError(f"symbiflow_device is not specified")
@@ -120,6 +122,7 @@ class YosysNextpnrToolchain:
                 # available bitstream_devices: artix7, kintex7, zynq7
                 self.bitstream_device = {
                     "xc7a": "artix7", # xc7a35t, xc7a50t, xc7a100t, xc7a200t
+                    "xc7z": "zynq7", # xc7z010, xc7z020
                 }[platform.device[:4]]
             except KeyError:
                 raise ValueError(f"Unsupported device: {platform.device}")
@@ -128,6 +131,8 @@ class YosysNextpnrToolchain:
             "xc7a35ticsg324-1L" : "xc7a35tcsg324-1",
             "xc7a100tcsg324-1"  : "xc7a100tcsg324-1",
             "xc7a200t-sbg484-1" : "xc7a200tsbg484-1",
+            "xc7z010clg400-1"   : "xc7z010clg400-1",
+            "xc7z020clg400-1"   : "xc7z020clg400-1",
         }.get(platform.device, platform.device)
 
     def _generate_makefile(self, platform, build_name):
