@@ -145,7 +145,7 @@ class XilinxClocking(Module, AutoCSR):
     def add_reset_delay(self, cycles):
         for i in range(cycles):
             reset = Signal()
-            self.specials += Instance("FD", i_C=self.clkin, i_D=self.reset, o_Q=reset)
+            self.specials += Instance("FDCE", i_C=self.clkin, i_CE=1, i_CLR=0, i_D=self.reset, o_Q=reset)
             self.reset = reset
 
     def do_finalize(self):
