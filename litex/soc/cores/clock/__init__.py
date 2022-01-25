@@ -12,7 +12,7 @@ from litex.soc.cores.clock.intel_cyclone10 import Cyclone10LPPLL
 
 # Lattice
 from litex.soc.cores.clock.lattice_ice40 import iCE40PLL
-from litex.soc.cores.clock.lattice_ecp5  import ECP5PLL, ECP5Delay
+from litex.soc.cores.clock.lattice_ecp5  import ECP5PLL, ECP5DynamicDelay
 from litex.soc.cores.clock.lattice_nx    import NXOSCA, NXPLL
 
 # Efinix

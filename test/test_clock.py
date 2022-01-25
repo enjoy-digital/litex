@@ -130,8 +130,9 @@ class TestClock(unittest.TestCase):
         pll.create_clkout(ClockDomain("clkout4"), 175e6)
         pll.compute_config()
 
-    def test_ecp5_delay(self):
-        delay = ECP5Delay()
+    def test_ecp5_dynamic_delay(self):
+        delay = ECP5DynamicDelay(i=Signal(), o=Signal(), taps=Signal(7))
+        delay = ECP5DynamicDelay()
 
     # Lattice / NX
     def test_nxpll(self):
