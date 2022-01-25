@@ -346,9 +346,19 @@ static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int
 		/* Verify bytes matching current 'module' */
 		for (int i = 0; i < DFII_PIX_DATA_BYTES; ++i) {
 			int j = p * DFII_PIX_DATA_BYTES + i;
+#if SDRAM_PHY_DQ_DQS_RATIO == 4
+			if (j % (SDRAM_PHY_MODULES/2) == ((SDRAM_PHY_MODULES-1)/2)-(module/2)) {
+				if(module % 2) {
+					errors += popcount((prs[p][i] & 0xf0) ^ (tst[i] & 0xf0));
+				} else {
+					errors += popcount((prs[p][i] & 0x0f) ^ (tst[i] & 0x0f));
+				}
+			}
+#else
 			if (j % SDRAM_PHY_MODULES == SDRAM_PHY_MODULES-1-module) {
 				errors += popcount(prs[p][i] ^ tst[i]);
 			}
+#endif
 		}
 	}
 
@@ -636,7 +646,11 @@ static int sdram_write_leveling_scan(int *delays, int loops, int show)
 				ddrphy_wlevel_strobe_write(1);
 				cdelay(100);
 				csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr(0), buf, DFII_PIX_DATA_BYTES);
+#if SDRAM_PHY_DQ_DQS_RATIO == 4
+				if (buf[SDRAM_PHY_MODULES-1-(i/2)] != 0)
+#else
 				if (buf[SDRAM_PHY_MODULES-1-i] != 0)
+#endif
 					one_count++;
 				else
 					zero_count++;
