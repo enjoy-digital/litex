@@ -27,6 +27,7 @@
 	- Fully deprecate SoCSDRAM/SPIFlash core (replaced by LiteSPI).
 	- UART "bridge" name deprecated in favor of "crossover" (already supported).
 	- "external" CPU class support deprecated (replaced by out-of-tree support).
+	- lxterm/lxserver/lxsim short names deprecated (used long litex_xy names).
 
 [> 2021.12, released on January 5th 2022
 ----------------------------------------

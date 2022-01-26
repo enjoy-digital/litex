@@ -38,7 +38,6 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            # full names
             "litex_term=litex.tools.litex_term:main",
             "litex_server=litex.tools.litex_server:main",
             "litex_cli=litex.tools.litex_client:main",
@@ -49,10 +48,6 @@ setup(
             "litex_json2renode=litex.tools.litex_json2renode:main",
             "litex_bare_metal_demo=litex.soc.software.demo.demo:main",
             "litex_contributors=litex.tools.litex_contributors:main",
-            # short names
-            "lxterm=litex.tools.litex_term:main",
-            "lxserver=litex.tools.litex_server:main",
-            "lxsim=litex.tools.litex_sim:main",
         ],
     },
 )

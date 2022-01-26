@@ -349,7 +349,7 @@ class LiteXTerm:
             elif reply == sfl_ack_crcerror:
                 retry = 1
             else:
-                print("[LXTERM] Got unknown reply '{}' from the device, aborting.".format(reply))
+                print("[LITEX-TERM] Got unknown reply '{}' from the device, aborting.".format(reply))
                 return 0
         return 1
 
@@ -358,14 +358,14 @@ class LiteXTerm:
         if reply == sfl_ack_success:
             return True
         elif reply == sfl_ack_crcerror:
-            print("[LXTERM] Upload to device failed due to data corruption (CRC error)")
+            print("[LITEX-TERM] Upload to device failed due to data corruption (CRC error)")
         else:
-            print(f"[LXTERM] Got unexpected response from device '{reply}'")
+            print(f"[LITEX-TERM] Got unexpected response from device '{reply}'")
         sys.exit(1)
 
     def upload_calibration(self, address):
 
-        print("[LXTERM] Upload calibration... ", end="")
+        print("[LITEX-TERM] Upload calibration... ", end="")
         sys.stdout.flush()
 
         # Calibration parameters.
@@ -433,7 +433,7 @@ class LiteXTerm:
         length = f.tell()
         f.seek(0, 0)
 
-        print(f"[LXTERM] Uploading {filename} to 0x{address:08x} ({length} bytes)...")
+        print(f"[LITEX-TERM] Uploading {filename} to 0x{address:08x} ({length} bytes)...")
 
         # Upload calibration
         if not self.safe:
@@ -493,12 +493,12 @@ class LiteXTerm:
         # Compute speed.
         end     = time.time()
         elapsed = end - start
-        print("[LXTERM] Upload complete ({0:.1f}KB/s).".format(length/(elapsed*1024)))
+        print("[LITEX-TERM] Upload complete ({0:.1f}KB/s).".format(length/(elapsed*1024)))
         f.close()
         return length
 
     def boot(self):
-        print("[LXTERM] Booting the device.")
+        print("[LITEX-TERM] Booting the device.")
         frame = SFLFrame()
         frame.cmd = sfl_cmd_jump
         frame.payload = int(self.boot_address, 16).to_bytes(4, "big")
@@ -512,7 +512,7 @@ class LiteXTerm:
             return False
 
     def answer_prompt(self):
-        print("[LXTERM] Received serial boot prompt from the device.")
+        print("[LITEX-TERM] Received serial boot prompt from the device.")
         self.port.write(sfl_prompt_ack)
 
     def detect_magic(self, data):
@@ -523,13 +523,13 @@ class LiteXTerm:
             return False
 
     def answer_magic(self):
-        print("[LXTERM] Received firmware download request from the device.")
+        print("[LITEX-TERM] Received firmware download request from the device.")
         if(len(self.mem_regions)):
             self.port.write(sfl_magic_ack)
         for filename, base in self.mem_regions.items():
             self.upload(filename, int(base, 16))
         self.boot()
-        print("[LXTERM] Done.")
+        print("[LITEX-TERM] Done.")
 
     def reader(self):
         try:

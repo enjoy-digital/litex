@@ -18,7 +18,7 @@ Loading the compiled demo app can be done in different ways as explain in LiteX'
 https://github.com/enjoy-digital/litex/wiki/Load-Application-Code-To-CPU
 
 Since our app is small and for simplicity we'll just load it over serial here:
- `$ lxterm /dev/ttyUSBX --kernel=demo.bin`
+ `$ litex_term /dev/ttyUSBX --kernel=demo.bin`
 
 You should see the minimal demo app running and should be able to interact with it:
 
@@ -26,11 +26,11 @@ You should see the minimal demo app running and should be able to interact with 
     Booting from serial...
     Press Q or ESC to abort boot completely.
     sL5DdSMmkekro
-    [LXTERM] Received firmware download request from the device.
-    [LXTERM] Uploading demo.bin to 0x40000000 (9264 bytes)...
-    [LXTERM] Upload complete (9.8KB/s).
-    [LXTERM] Booting the device.
-    [LXTERM] Done.
+    [LITEX-TERM] Received firmware download request from the device.
+    [LITEX-TERM] Uploading demo.bin to 0x40000000 (9264 bytes)...
+    [LITEX-TERM] Upload complete (9.8KB/s).
+    [LITEX-TERM] Booting the device.
+    [LITEX-TERM] Done.
     Executing booted program at 0x40000000
 
     --============= Liftoff! ===============--

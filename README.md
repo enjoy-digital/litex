@@ -168,14 +168,14 @@ Go to litex-boards/litex_boards/targets and execute the target you want to build
 On Linux (Ubuntu):
 ```sh
 $ sudo apt install libevent-dev libjson-c-dev verilator
-$ lxsim --cpu-type=vexriscv
+$ litex_sim --cpu-type=vexriscv
 ```
 
 On MacOS:
 ```sh
 $ brew install json-c verilator libevent
 $ brew cask install tuntap
-$ lxsim --cpu-type=vexriscv
+$ litex_sim --cpu-type=vexriscv
 ```
 
 6. Run a terminal program on the board's serial port at 115200 8-N-1.
