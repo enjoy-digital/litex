@@ -229,6 +229,17 @@ def litex_setup_install_repos(config="standard", user_mode=False):
             print_status("Make sure that ~/.local/bin is in your PATH")
             print_status("export PATH=$PATH:~/.local/bin")
 
+# Git repositories status --------------------------------------------------------------------------
+
+def litex_setup_status_repos(config="standard"):
+    print_status("Getting status of Git repositories...", underline=True)
+    for name in install_configs[config]:
+        repo = git_repos[name]
+        os.chdir(os.path.join(current_path, name))
+        git_sha1_cmd = ["git", "rev-parse", "--short=7", "HEAD"]
+        git_sha1     = subprocess.check_output(git_sha1_cmd).decode("UTF-8")
+        print(f"{name}: sha1=0x{git_sha1}", end="")
+
 # GCC toolchains download --------------------------------------------------------------------------
 
 def gcc_toolchain_download(url, filename):
@@ -310,6 +321,7 @@ def main():
     parser.add_argument("--install",   action="store_true", help="Install Git repositories.")
     parser.add_argument("--user",      action="store_true", help="Install in User-Mode.")
     parser.add_argument("--config",    default="standard",  help="Install config (minimal, standard, full).")
+    parser.add_argument("--status",    action="store_true", help="Display Git status of repositories.")
 
     # GCC toolchains.
     parser.add_argument("--gcc", default=None, help="Download/Extract GCC Toolchain (riscv, powerpc, openrisc or lm32).")
@@ -345,6 +357,10 @@ def main():
     # Install.
     if args.install:
         litex_setup_install_repos(config=args.config, user_mode=args.user)
+
+    # Status.
+    if args.status:
+        litex_setup_status_repos(config=args.config)
 
     # GCC.
     os.chdir(os.path.join(current_path))
