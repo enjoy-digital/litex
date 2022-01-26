@@ -12,6 +12,7 @@ import urllib.request
 
 start_time   = time.time()
 current_path = os.path.abspath(os.curdir)
+python3      = sys.executable
 
 # Helpers ------------------------------------------------------------------------------------------
 
@@ -156,7 +157,7 @@ def litex_setup_auto_update():
                 print_status("LiteX Setup is obsolete, updating.")
                 with open(os.path.realpath(__file__), "wb") as f:
                     f.write(r.content)
-                os.execl(sys.executable, sys.executable, *sys.argv)
+                os.execl(python3, python3, *sys.argv)
             else:
                 print_status("LiteX Setup is up to date.")
     except:
@@ -221,9 +222,9 @@ def litex_setup_install_repos(config="standard", user_mode=False):
         if repo.develop:
             print_status(f"Installing {name} Git repository...")
             os.chdir(os.path.join(current_path, name))
-            subprocess.check_call("{python_executable} setup.py develop {options}".format(
-                python_executable = sys.executable,
-                options="--user" if user_mode else "",
+            subprocess.check_call("{python3} setup.py develop {options}".format(
+                python3 = sys.executable,
+                options = "--user" if user_mode else "",
                 ), shell=True)
     if user_mode:
         if ".local/bin" not in os.environ.get("PATH", ""):
