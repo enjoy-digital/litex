@@ -221,7 +221,8 @@ def litex_setup_install_repos(config="standard", user_mode=False):
         if repo.develop:
             print_status(f"Installing {name} Git repository...")
             os.chdir(os.path.join(current_path, name))
-            subprocess.check_call("python3 setup.py develop {options}".format(
+            subprocess.check_call("{python_executable} setup.py develop {options}".format(
+                python_executable = sys.executable,
                 options="--user" if user_mode else "",
                 ), shell=True)
     if user_mode:
