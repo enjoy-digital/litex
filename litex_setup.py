@@ -37,9 +37,11 @@ def print_banner():
     b.append("")
     print("\n".join(b))
 
-def print_status(status):
+def print_status(status, underline=False):
     exec_time = (time.time() - start_time)
     print(colorer(f"[{exec_time:8.3f}]", color="green") + " " + colorer(status))
+    if underline:
+        print(colorer(f"[{exec_time:8.3f}]", color="green") + " " + colorer("-"*len(status)))
 
 def print_error(status):
     exec_time = (time.time() - start_time)
@@ -163,8 +165,7 @@ def litex_setup_auto_update():
 # Git repositories initialization ------------------------------------------------------------------
 
 def litex_setup_init_repos(config="standard", dev_mode=False):
-    print_status("Initializing Git repositories...")
-    print_status("--------------------------------")
+    print_status("Initializing Git repositories...", underline=True)
     for name in install_configs[config]:
         repo = git_repos[name]
         os.chdir(os.path.join(current_path))
@@ -188,8 +189,7 @@ def litex_setup_init_repos(config="standard", dev_mode=False):
 # Git repositories update --------------------------------------------------------------------------
 
 def litex_setup_update_repos(config="standard"):
-    print_status("Updating Git repositories...")
-    print_status("----------------------------")
+    print_status("Updating Git repositories...", underline=True)
     for name in install_configs[config]:
         repo = git_repos[name]
         os.chdir(os.path.join(current_path))
@@ -213,8 +213,7 @@ def litex_setup_update_repos(config="standard"):
 # Git repositories install -------------------------------------------------------------------------
 
 def litex_setup_install_repos(config="standard", user_mode=False):
-    print_status("Installing Git repositories...")
-    print_status("------------------------------")
+    print_status("Installing Git repositories...", underline=True)
     for name in install_configs[config]:
         repo = git_repos[name]
         os.chdir(os.path.join(current_path))
@@ -233,8 +232,7 @@ def litex_setup_install_repos(config="standard", user_mode=False):
 # GCC toolchains download --------------------------------------------------------------------------
 
 def gcc_toolchain_download(url, filename):
-    print_status("Downloading GCC toolchain...")
-    print_status("----------------------------")
+    print_status("Downloading GCC toolchain...", underline=True)
     if not os.path.exists(filename):
         full_url = url + filename
         print_status(f"Downloading {full_url} to {filename}...")
