@@ -142,7 +142,7 @@ Provides definitions/modules to build cores (bus, bank, flow), cores and tools t
 ```sh
 $ wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py
 $ chmod +x litex_setup.py
-$ ./litex_setup.py --init --install --user (--user to install to user directory)
+$ ./litex_setup.py --init --install --user (--user to install to user directory) --config=(minimal, standard, full)
 ```
   Later, if you need to update all repositories:
 ```sh
