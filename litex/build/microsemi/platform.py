@@ -17,7 +17,7 @@ class MicrosemiPlatform(GenericPlatform):
         if toolchain == "libero_soc_polarfire":
             self.toolchain = libero_soc.MicrosemiLiberoSoCPolarfireToolchain()
         else:
-            raise ValueError("Unknown toolchain")
+            raise ValueError(f"Unknown toolchain {toolchain}")
 
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
         so = dict()

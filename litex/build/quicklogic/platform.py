@@ -19,7 +19,7 @@ class QuickLogicPlatform(GenericPlatform):
         if toolchain == "symbiflow":
             self.toolchain = symbiflow.SymbiflowToolchain()
         else:
-            raise ValueError("Unknown toolchain")
+            raise ValueError(f"Unknown toolchain {toolchain}")
 
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
         so = dict(common.quicklogic_special_overrides)

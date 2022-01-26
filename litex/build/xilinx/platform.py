@@ -36,7 +36,7 @@ class XilinxPlatform(GenericPlatform):
         #    import symbiflow_nextpnr 
         #    self.toolchain = symbiflow_nextpnr.SymbiflowNextpnrToolchain()
         else:
-            raise ValueError("Unknown toolchain")
+            raise ValueError(f"Unknown toolchain {toolchain}")
 
     def add_edif(self, filename):
         self.edifs.add((os.path.abspath(filename)))

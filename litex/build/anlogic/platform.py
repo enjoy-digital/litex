@@ -20,7 +20,7 @@ class AnlogicPlatform(GenericPlatform):
         if toolchain == "td":
             self.toolchain = anlogic.TangDinastyToolchain()
         else:
-            raise ValueError("Unknown toolchain")
+            raise ValueError(f"Unknown toolchain {toolchain}")
 
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
         so = dict(common.anlogic_special_overrides)

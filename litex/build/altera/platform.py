@@ -22,7 +22,7 @@ class AlteraPlatform(GenericPlatform):
         if toolchain == "quartus":
             self.toolchain = quartus.AlteraQuartusToolchain()
         else:
-            raise ValueError("Unknown toolchain")
+            raise ValueError(f"Unknown toolchain {toolchain}")
 
     def add_ip(self, filename):
         self.ips.add((os.path.abspath(filename)))

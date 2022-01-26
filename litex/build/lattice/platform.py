@@ -27,7 +27,7 @@ class LatticePlatform(GenericPlatform):
         elif toolchain == "oxide":
             self.toolchain = oxide.LatticeOxideToolchain()
         else:
-            raise ValueError("Unknown toolchain")
+            raise ValueError(f"Unknown toolchain {toolchain}")
 
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
         so = dict()  # No common overrides between ECP5 and iCE40.

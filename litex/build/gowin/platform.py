@@ -27,7 +27,7 @@ class GowinPlatform(GenericPlatform):
         elif toolchain == "apicula":
             raise ValueError("Apicula toolchain needs more work")
         else:
-            raise ValueError("Unknown toolchain")
+            raise ValueError(f"Unknown toolchain {toolchain}")
 
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
         so = dict(common.gowin_special_overrides)
