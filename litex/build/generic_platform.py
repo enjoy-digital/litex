@@ -9,6 +9,7 @@
 import sys
 import os
 import re
+import shutil
 
 from migen.fhdl.structure import Signal, Cat
 from migen.genlib.record import Record
@@ -312,6 +313,7 @@ class GenericPlatform:
         self.sources               = []
         self.verilog_include_paths = []
         self.output_dir            = None
+        self.gateware_dir          = None
         self.finalized             = False
         self.use_default_clk       = False
 
@@ -367,20 +369,30 @@ class GenericPlatform:
             except ConstraintError:
                 pass
 
-    def add_source(self, filename, language=None, library=None):
+    def add_source(self, filename, language=None, library=None, copy=False):
         filename = os.path.abspath(filename)
         if language is None:
             language = tools.language_by_filename(filename)
         if library is None:
             library = "work"
-        for f, _, _ in self.sources:
+        for f, *r in self.sources:
             if f == filename:
                 return
-        self.sources.append((filename, language, library))
+        # If the gateware_dir is already defined, we can copy the file
+        if self.gateware_dir:
+            dst = filename
+            if copy:
+                dst = os.path.join(self.gateware_dir, os.path.basename(s[0]))
+                shutil.copyfile(filename, dst)
+            self.sources.append((dst, language, library))
+        # If it's too early and the gateware_dir is not known and if it's
+        # necessary, the file will be copied by the Builder class
+        else:
+            self.sources.append((filename, language, library, copy))
 
-    def add_sources(self, path, *filenames, language=None, library=None):
+    def add_sources(self, path, *filenames, language=None, library=None, copy=False):
         for f in filenames:
-            self.add_source(os.path.join(path, f), language, library)
+            self.add_source(os.path.join(path, f), language, library, copy)
 
     def add_source_dir(self, path, recursive=True, language=None, library=None):
         dir_files = []

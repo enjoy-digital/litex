@@ -278,7 +278,8 @@ class Builder:
 
     def build(self, **kwargs):
         # Pass Output Directory to Platform.
-        self.soc.platform.output_dir = self.output_dir
+        self.soc.platform.output_dir   = self.output_dir
+        self.soc.platform.gateware_dir = self.gateware_dir
 
         # Check if BIOS is used and add software package if so.
         with_bios = self.soc.cpu_type is not None
@@ -287,6 +288,16 @@ class Builder:
 
         # Create Gateware directory.
         _create_dir(self.gateware_dir)
+
+        # If asked, copy files to the gateware directory and change the source file location.
+        # Drop the 'copy' element from the tupple.
+        # 'copy' may or may not be present in the tupple.
+        for i, (f, language, library, *r) in enumerate(self.soc.platform.sources):
+            dst = f
+            if r[0] is True:
+                dst = os.path.join(self.gateware_dir, os.path.basename(f))
+                shutil.copyfile(f, dst)
+            self.soc.platform.sources[i] = (dst, language, library)
 
         # Create Software directory.
         # First check if software needs a full re-build and remove software dir if so.
