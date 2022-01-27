@@ -23,6 +23,8 @@ from litex.soc.interconnect import stream
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect import axi
 
+from litex.config import DEFAULT_IP_PREFIX
+
 logging.basicConfig(level=logging.INFO)
 
 # Helpers ------------------------------------------------------------------------------------------
@@ -1498,7 +1500,7 @@ class LiteXSoC(SoC):
     # Add Etherbone --------------------------------------------------------------------------------
     def add_etherbone(self, name="etherbone", phy=None, phy_cd="eth",
         mac_address             = 0x10e2d5000000,
-        ip_address              = "192.168.1.50",
+        ip_address              = DEFAULT_IP_PREFIX + "50",
         udp_port                = 1234,
         buffer_depth            = 4,
         with_timing_constraints = True):

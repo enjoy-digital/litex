@@ -26,6 +26,8 @@ from litex.soc.cores.bitbang import *
 from litex.soc.cores.gpio import GPIOTristate
 from litex.soc.cores.cpu import CPUS
 
+from litex.config import DEFAULT_IP_PREFIX
+
 from litedram import modules as litedram_modules
 from litedram.modules import parse_spd_hexdump
 from litedram.phy.model import sdram_module_nphases, get_sdram_phy_settings
@@ -143,7 +145,7 @@ class SimSoC(SoCCore):
         ethernet_phy_model    = "sim",
         with_etherbone        = False,
         etherbone_mac_address = 0x10e2d5000001,
-        etherbone_ip_address  = "192.168.1.51",
+        etherbone_ip_address  = DEFAULT_IP_PREFIX + "51",
         with_analyzer         = False,
         sdram_module          = "MT48LC16M16",
         sdram_init            = [],
@@ -371,8 +373,8 @@ def sim_args(parser):
     parser.add_argument("--with-ethernet",        action="store_true",     help="Enable Ethernet support.")
     parser.add_argument("--ethernet-phy-model",   default="sim",           help="Ethernet PHY to simulate (sim, xgmii or gmii).")
     parser.add_argument("--with-etherbone",       action="store_true",     help="Enable Etherbone support.")
-    parser.add_argument("--local-ip",             default="192.168.1.50",  help="Local IP address of SoC.")
-    parser.add_argument("--remote-ip",            default="192.168.1.100", help="Remote IP address of TFTP server.")
+    parser.add_argument("--local-ip",             default=DEFAULT_IP_PREFIX + "50",  help="Local IP address of SoC.")
+    parser.add_argument("--remote-ip",            default=DEFAULT_IP_PREFIX + "100", help="Remote IP address of TFTP server.")
     parser.add_argument("--with-analyzer",        action="store_true",     help="Enable Analyzer support.")
     parser.add_argument("--with-i2c",             action="store_true",     help="Enable I2C support.")
     parser.add_argument("--with-sdcard",          action="store_true",     help="Enable SDCard support.")

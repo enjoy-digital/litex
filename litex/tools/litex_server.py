@@ -19,6 +19,8 @@ import threading
 from litex.tools.remote.etherbone import EtherbonePacket, EtherboneRecord, EtherboneWrites
 from litex.tools.remote.etherbone import EtherboneIPC
 
+from litex.config import DEFAULT_IP_PREFIX
+
 # Read Merger --------------------------------------------------------------------------------------
 
 def _read_merger(addrs, max_length=256, bursts=["incr", "fixed"]):
@@ -182,7 +184,7 @@ def main():
 
     # UDP arguments
     parser.add_argument("--udp",             action="store_true",    help="Select UDP interface.")
-    parser.add_argument("--udp-ip",          default="192.168.1.50", help="Set UDP remote IP address.")
+    parser.add_argument("--udp-ip",          default=DEFAULT_IP_PREFIX + "50", help="Set UDP remote IP address.")
     parser.add_argument("--udp-port",        default=1234,           help="Set UDP remote port.")
     parser.add_argument("--udp-scan",        action="store_true",    help="Scan network for available UDP devices.")
 

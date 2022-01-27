@@ -12,10 +12,12 @@ from litex.tools.remote.etherbone import EtherboneReads, EtherboneWrites
 
 from litex.tools.remote.csr_builder import CSRBuilder
 
+from litex.config import DEFAULT_IP_PREFIX
+
 # CommUDP ------------------------------------------------------------------------------------------
 
 class CommUDP(CSRBuilder):
-    def __init__(self, server="192.168.1.50", port=1234, csr_csv=None, debug=False):
+    def __init__(self, server=DEFAULT_IP_PREFIX + "50", port=1234, csr_csv=None, debug=False):
         CSRBuilder.__init__(self, comm=self, csr_csv=csr_csv)
         self.server = server
         self.port   = port
@@ -57,7 +59,7 @@ class CommUDP(CSRBuilder):
                 raise Exception(f"Unable to probe Etherbone server at {self.server}.")
         return 0
 
-    def scan(self, ip="192.168.1.x"):
+    def scan(self, ip=DEFAULT_IP_PREFIX + "x"):
         print(f"Etherbone scan on {ip} network:")
         ip = ip.replace("x", "{}")
         self.socket.settimeout(0.01)
