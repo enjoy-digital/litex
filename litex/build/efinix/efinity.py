@@ -203,6 +203,8 @@ def _build_xml(family, device, timing_model, build_name, sources):
 
     # Add Design Sources.
     for filename, language, library in sources:
+        if language is None:
+            continue
         et.SubElement(design_info, "efx:design_file", {
             "name"    : filename,
             "version" : "default",
