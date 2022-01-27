@@ -12,6 +12,13 @@ from migen import *
 from migen.genlib.misc import WaitTimer
 from migen.genlib.cdc import MultiReg
 
+# Constants ----------------------------------------------------------------------------------------
+
+PRBS_CONFIG_OFF    = 0b00
+PRBS_CONFIG_PRBS7  = 0b01
+PRBS_CONFIG_PRBS15 = 0b10
+PRBS_CONFIG_PRBS31 = 0b11
+
 # PRBS Generators ----------------------------------------------------------------------------------
 
 class PRBSGenerator(Module):
@@ -69,15 +76,12 @@ class PRBSTX(Module):
 
         # PRBS Selection.
         prbs_data = Signal(width)
-        self.comb += [
-            If(config == 0b11,
-                prbs_data.eq(prbs31.o)
-            ).Elif(config == 0b10,
-                prbs_data.eq(prbs15.o)
-            ).Else(
-                prbs_data.eq(prbs7.o)
-            )
-        ]
+        self.comb += Case(self.config, {
+            PRBS_CONFIG_OFF    : prbs_data.eq(0),
+            PRBS_CONFIG_PRBS7  : prbs_data.eq(prbs7.o),
+            PRBS_CONFIG_PRBS15 : prbs_data.eq(prbs15.o),
+            PRBS_CONFIG_PRBS31 : prbs_data.eq(prbs31.o),
+        })
 
         # Optional Bits Reversing.
         if reverse:
@@ -161,21 +165,23 @@ class PRBSRX(Module):
         prbs31 = PRBS31Checker(width)
         self.submodules += prbs7, prbs15, prbs31
         self.comb += [
-            prbs7.i.eq(prbs_data),
+            prbs7.i.eq( prbs_data),
             prbs15.i.eq(prbs_data),
-            prbs31.i.eq(prbs_data)
+            prbs31.i.eq(prbs_data),
         ]
 
         # Errors count (with optional saturation).
         self.sync += [
-            If(config == 0,
+            If(config == PRBS_CONFIG_OFF,
                 errors.eq(0)
             ).Elif(~self.pause & (~with_errors_saturation | (errors != (2**32-1))),
-                If(config == 0b01,
+                If(config == PRBS_CONFIG_PRBS7,
                     errors.eq(errors + (prbs7.errors != 0))
-                ).Elif(config == 0b10,
+                ),
+                If(config == PRBS_CONFIG_PRBS15,
                     errors.eq(errors + (prbs15.errors != 0))
-                ).Elif(config == 0b11,
+                ),
+                If(config == PRBS_CONFIG_PRBS31,
                     errors.eq(errors + (prbs31.errors != 0))
                 )
             )
