@@ -104,6 +104,7 @@ class EfinixPlatform(GenericPlatform):
                             if o.misc in ["WEAK_PULLUP", "WEAK_PULLDOWN"]:
                                 prop = "PULL_OPTION"
                                 val = o.misc
+                                ret.append((prop, val))
                             if "DRIVE_STRENGTH" in o.misc:
                                 prop = "DRIVE_STRENGTH"
                                 val = o.misc.split("=")[1]
