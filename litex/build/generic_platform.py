@@ -9,7 +9,6 @@
 import sys
 import os
 import re
-import shutil
 
 from migen.fhdl.structure import Signal, Cat
 from migen.genlib.record import Record
@@ -313,7 +312,6 @@ class GenericPlatform:
         self.sources               = []
         self.verilog_include_paths = []
         self.output_dir            = None
-        self.gateware_dir          = None
         self.finalized             = False
         self.use_default_clk       = False
 
@@ -375,20 +373,13 @@ class GenericPlatform:
             language = tools.language_by_filename(filename)
         if library is None:
             library = "work"
-        for f, *r in self.sources:
+        for f, *_ in self.sources:
             if f == filename:
                 return
-        # If the gateware_dir is already defined, we can copy the file
-        if self.gateware_dir:
-            dst = filename
-            if copy:
-                dst = os.path.join(self.gateware_dir, os.path.basename(s[0]))
-                shutil.copyfile(filename, dst)
-            self.sources.append((dst, language, library))
-        # If it's too early and the gateware_dir is not known and if it's
-        # necessary, the file will be copied by the Builder class
+        if copy:
+            self.sources.append((filename, language, library, True))
         else:
-            self.sources.append((filename, language, library, copy))
+            self.sources.append((filename, language, library))
 
     def add_sources(self, path, *filenames, language=None, library=None, copy=False):
         for f in filenames:
