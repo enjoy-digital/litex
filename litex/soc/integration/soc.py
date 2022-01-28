@@ -1530,7 +1530,7 @@ class LiteXSoC(SoC):
         self.check_if_exists(name)
         etherbone = LiteEthEtherbone(ethcore.udp, udp_port, buffer_depth=buffer_depth, cd=name)
         setattr(self.submodules, name, etherbone)
-        self.add_wb_master(etherbone.wishbone.bus)
+        self.bus.add_master(master=etherbone.wishbone.bus)
 
         # Timing constraints
         if with_timing_constraints:
@@ -1753,8 +1753,8 @@ class LiteXSoC(SoC):
         # MMAP.
         self.check_if_exists(f"{name}_mmap")
         mmap = LitePCIeWishboneMaster(self.pcie_endpoint, base_address=self.mem_map["csr"])
-        self.add_wb_master(mmap.wishbone)
         setattr(self.submodules, f"{name}_mmap", mmap)
+        self.bus.add_master(master=mmap.wishbone)
 
         # MSI.
         if with_msi:
