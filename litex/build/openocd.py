@@ -41,9 +41,13 @@ class OpenOCD(GenericProgrammer):
 
     def get_ir(self, chain, config):
         # On ECP5, force IR to 0x32.
-        ecp5 = "ecp5" in open(config).read()
+        cfg_str = open(config).read()
+        ecp5 = "ecp5" in cfg_str
+        altera = "10m50" in cfg_str # TODO: or cyclone 10
         if ecp5:
             chain = 0x32
+        elif altera:
+            chain = 0xC
         # Else IR = 1 + CHAIN.
         else:
             chain = 0x1 + chain
