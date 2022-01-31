@@ -346,10 +346,10 @@ class DocumentedCSRRegion:
                 sub_name = self.name.upper() + "_" + name
                 bits_str = "Bits {}-{} of `{}`.".format(start, start+length, full_name)
                 if atomic_write:
-                    if i == (range(len(csr.simple_csrs))-1):
-                        bits_str += "Writing this register triggers an update of " + full_name
+                    if i == (len(csr.simple_csrs)-1):
+                        bits_str += " Writing this register triggers an update of `" + full_name + "`."
                     else:
-                        bits_str += "The value won't take effect until `" + full_name + "0` is written."
+                        bits_str += " The value won't take effect until `" + full_name + "0` is written."
                 if i == 0:
                     d = description
                     if description is None:
