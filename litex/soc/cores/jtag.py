@@ -6,12 +6,170 @@
 # Copyright (c) 2017 Robert Jordens <jordens@gmail.com>
 # Copyright (c) 2021 Gregory Davill <greg.davill@gmail.com>
 # Copyright (c) 2021 Gabriel L. Somlo <somlo@cmu.edu>
+# Copyright (c) 2021 Jevin Sweval <jevinsweval@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
 from migen.genlib.cdc import AsyncResetSynchronizer, MultiReg
 
+from litex.gen.fhdl.fsm import CorrectedOngoingResetFSM
 from litex.soc.interconnect import stream
+
+# JTAG TAP FSM -------------------------------------------------------------------------------------
+
+class JTAGTAPFSM(Module):
+    def __init__(self, tms: Signal, tck: Signal, expose_signals=True):
+        self.submodules.fsm = fsm = ClockDomainsRenamer("jtag")(CorrectedOngoingResetFSM())
+
+        fsm.act("test_logic_reset",
+            If(~tms, NextState("run_test_idle"))
+        )
+        fsm.act("run_test_idle",
+            If( tms, NextState("select_dr_scan"))
+        )
+
+        # DR
+        fsm.act("select_dr_scan",
+            If(~tms, NextState("capture_dr")    ).Else(NextState("select_ir_scan"))
+        )
+        fsm.act("capture_dr",
+            If(~tms, NextState("shift_dr")      ).Else(NextState("exit1_dr"))
+        )
+        fsm.act("shift_dr",
+            If( tms, NextState("exit1_dr"))
+        )
+        fsm.act("exit1_dr",
+            If(~tms, NextState("pause_dr")      ).Else(NextState("update_dr"))
+        )
+        fsm.act("pause_dr",
+            If( tms, NextState("exit2_dr"))
+        )
+        fsm.act("exit2_dr",
+            If( tms, NextState("update_dr")     ).Else(NextState("shift_dr"))
+        )
+        fsm.act("update_dr",
+            If( tms, NextState("select_dr_scan")).Else(NextState("run_test_idle"))
+        )
+
+        # IR
+        fsm.act("select_ir_scan",
+            If(~tms, NextState("capture_ir")    ).Else(NextState("test_logic_reset"))
+        )
+        fsm.act("capture_ir",
+            If(~tms, NextState("shift_ir")      ).Else(NextState("exit1_ir"))
+        )
+        fsm.act("shift_ir",
+            If( tms, NextState("exit1_ir"))
+        )
+        fsm.act("exit1_ir",
+            If(~tms, NextState("pause_ir")      ).Else(NextState("update_ir"))
+        )
+        fsm.act("pause_ir",
+            If( tms, NextState("exit2_ir"))
+        )
+        fsm.act("exit2_ir",
+            If( tms, NextState("update_ir")     ).Else(NextState("shift_ir"))
+        )
+        fsm.act("update_ir",
+            If( tms, NextState("select_dr_scan")).Else(NextState("run_test_idle"))
+        )
+
+        if expose_signals:
+            for state_name in fsm.actions:
+                state_sig = fsm.ongoing(state_name)
+                SHOUTING_NAME = state_name.upper()
+                shouting_sig = Signal(name=SHOUTING_NAME)
+                setattr(self, SHOUTING_NAME, shouting_sig)
+                self.comb += shouting_sig.eq(state_sig)
+
+
+# Altera JTAG --------------------------------------------------------------------------------------
+
+class AlteraJTAG(Module):
+    def __init__(self, primitive, reserved_pads):
+        # Common with Xilinx
+        self.reset   = reset   = Signal() # provided by our own TAP FSM
+        self.capture = capture = Signal() # provided by our own TAP FSM
+        self.shift   = shift   = Signal()
+        self.update  = update  = Signal()
+        # Unique to Altera
+        self.runtest = runtest = Signal()
+        self.drck    = drck    = Signal()
+        self.sel     = sel     = Signal()
+
+        self.tck = tck = Signal()
+        self.tms = tms = Signal()
+        self.tdi = tdi = Signal()
+        self.tdo = tdo = Signal()
+
+        # magic reserved signals that have to be routed to the top module
+        self.altera_reserved_tck = rtck = Signal()
+        self.altera_reserved_tms = rtms = Signal()
+        self.altera_reserved_tdi = rtdi = Signal()
+        self.altera_reserved_tdo = rtdo = Signal()
+
+        # inputs
+        self.tdouser = tdouser = Signal()
+
+        # outputs
+        self.tmsutap = tmsutap = Signal()
+        self.tckutap = tckutap = Signal()
+        self.tdiutap = tdiutap = Signal()
+
+        # # #
+
+        # create falling-edge JTAG clock domain for TAP FSM
+        self.clock_domains.cd_jtag_inv = cd_jtag_inv = ClockDomain("jtag_inv")
+        self.comb += ClockSignal("jtag_inv").eq(~ClockSignal("jtag"))
+        self.comb += ResetSignal("jtag_inv").eq(ResetSignal("jtag"))
+
+        # connect the TAP state signals that LiteX expects but the HW IP doesn't provide
+        self.submodules.tap_fsm = JTAGTAPFSM(tms, tck)
+        self.sync.jtag_inv += reset.eq(self.tap_fsm.TEST_LOGIC_RESET)
+        self.sync.jtag_inv += capture.eq(self.tap_fsm.CAPTURE_DR)
+
+        self.specials += Instance(primitive,
+            # HW TAP FSM states
+            o_shiftuser      = shift,
+            o_updateuser     = update,
+            o_runidleuser    = runtest,
+            o_clkdruser      = drck,
+            o_usr1user       = sel,
+            # JTAG TAP IO
+            i_tdouser = tdouser,
+            o_tmsutap = tmsutap,
+            o_tckutap = tckutap,
+            o_tdiutap = tdiutap,
+            # reserved pins
+            i_tms = rtms,
+            i_tck = rtck,
+            i_tdi = rtdi,
+            o_tdo = rtdo,
+        )
+
+        # connect magical reserved signals to top level pads
+        self.comb += [
+            rtms.eq(reserved_pads["altera_reserved_tms"]),
+            rtck.eq(reserved_pads["altera_reserved_tck"]),
+            rtdi.eq(reserved_pads["altera_reserved_tdi"]),
+            reserved_pads["altera_reserved_tdo"].eq(rtdo),
+        ]
+
+        # connect TAP IO
+        self.comb += [
+            tck.eq(tckutap),
+            tms.eq(tmsutap),
+            tdi.eq(tdiutap),
+        ]
+        self.sync.jtag_inv += tdouser.eq(tdo)
+
+class MAX10JTAG(AlteraJTAG):
+    def __init__(self, reserved_pads, *args, **kwargs):
+        AlteraJTAG.__init__(self, "fiftyfivenm_jtag", reserved_pads, *args, **kwargs)
+
+class Cyclone10LPJTAG(AlteraJTAG):
+    def __init__(self, reserved_pads, *args, **kwargs):
+        AlteraJTAG.__init__(self, "cyclone10lp_jtag", reserved_pads, *args, **kwargs)
 
 # Altera Atlantic JTAG -----------------------------------------------------------------------------
 
@@ -141,7 +299,7 @@ class ECP5JTAG(Module):
 # JTAG PHY -----------------------------------------------------------------------------------------
 
 class JTAGPHY(Module):
-    def __init__(self, jtag=None, device=None, data_width=8, clock_domain="sys", chain=1):
+    def __init__(self, jtag=None, device=None, data_width=8, clock_domain="sys", chain=1, platform=None):
         """JTAG PHY
 
         Provides a simple JTAG to LiteX stream module to easily stream data to/from the FPGA
@@ -178,6 +336,14 @@ class JTAGPHY(Module):
                 jtag = USJTAG(chain=chain)
             elif device[:5] == "LFE5U":
                 jtag = ECP5JTAG()
+            elif device[:3].lower() in ["10m"]:
+                assert platform is not None
+                platform.add_reserved_jtag_decls()
+                jtag = MAX10JTAG(reserved_pads=platform.get_reserved_jtag_pads())
+            elif device[:4].lower() in ["10cl"]:
+                assert platform is not None
+                platform.add_reserved_jtag_decls()
+                jtag = Cyclone10LPJTAG(reserved_pads=platform.get_reserved_jtag_pads())
             else:
                 print(device)
                 raise NotImplementedError
