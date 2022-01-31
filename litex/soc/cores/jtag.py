@@ -12,7 +12,6 @@
 from migen import *
 from migen.genlib.cdc import AsyncResetSynchronizer, MultiReg
 
-from litex.gen.fhdl.fsm import CorrectedOngoingResetFSM
 from litex.soc.interconnect import stream
 
 # JTAG TAP FSM -------------------------------------------------------------------------------------
@@ -160,12 +159,12 @@ class JTAGTAPFSM(Module):
 
 class AlteraJTAG(Module):
     def __init__(self, primitive, reserved_pads):
-        # Common with Xilinx
-        self.reset   = reset   = Signal() # provided by our own TAP FSM
-        self.capture = capture = Signal() # provided by our own TAP FSM
+        # Common with Xilinx.
+        self.reset   = reset   = Signal() # Provided by our own TAP FSM.
+        self.capture = capture = Signal() # Provided by our own TAP FSM.
         self.shift   = shift   = Signal()
         self.update  = update  = Signal()
-        # Unique to Altera
+        # Unique to Altera.
         self.runtest = runtest = Signal()
         self.drck    = drck    = Signal()
         self.sel     = sel     = Signal()
@@ -175,49 +174,49 @@ class AlteraJTAG(Module):
         self.tdi = tdi = Signal()
         self.tdo = tdo = Signal()
 
-        # magic reserved signals that have to be routed to the top module
+        # Magic reserved signals that have to be routed to the top module.
         self.altera_reserved_tck = rtck = Signal()
         self.altera_reserved_tms = rtms = Signal()
         self.altera_reserved_tdi = rtdi = Signal()
         self.altera_reserved_tdo = rtdo = Signal()
 
-        # inputs
+        # Inputs.
         self.tdouser = tdouser = Signal()
 
-        # outputs
+        # Outputs.
         self.tmsutap = tmsutap = Signal()
         self.tckutap = tckutap = Signal()
         self.tdiutap = tdiutap = Signal()
 
         # # #
 
-        # create falling-edge JTAG clock domain for TAP FSM
+        # Create falling-edge JTAG clock domain for TAP FSM.
         self.clock_domains.cd_jtag_inv = cd_jtag_inv = ClockDomain("jtag_inv")
         self.comb += ClockSignal("jtag_inv").eq(~ClockSignal("jtag"))
         self.comb += ResetSignal("jtag_inv").eq(ResetSignal("jtag"))
 
-        # connect the TAP state signals that LiteX expects but the HW IP doesn't provide
+        # Connect the TAP state signals that LiteX expects but the HW IP doesn't provide.
         self.submodules.tap_fsm = ClockDomainsRenamer("jtag")(JTAGTAPFSM(tms))
         self.sync.jtag_inv += reset.eq(self.tap_fsm.TEST_LOGIC_RESET)
         self.sync.jtag_inv += capture.eq(self.tap_fsm.CAPTURE_DR)
 
         self.specials += Instance(primitive,
-            # HW TAP FSM states
-            o_shiftuser      = shift,
-            o_updateuser     = update,
-            o_runidleuser    = runtest,
-            o_clkdruser      = drck,
-            o_usr1user       = sel,
-            # JTAG TAP IO
-            i_tdouser = tdouser,
-            o_tmsutap = tmsutap,
-            o_tckutap = tckutap,
-            o_tdiutap = tdiutap,
-            # reserved pins
-            i_tms = rtms,
-            i_tck = rtck,
-            i_tdi = rtdi,
-            o_tdo = rtdo,
+            # HW TAP FSM states.
+            o_shiftuser   = shift,
+            o_updateuser  = update,
+            o_runidleuser = runtest,
+            o_clkdruser   = drck,
+            o_usr1user    = sel,
+            # JTAG TAP IO.
+            i_tdouser     = tdouser,
+            o_tmsutap     = tmsutap,
+            o_tckutap     = tckutap,
+            o_tdiutap     = tdiutap,
+            # Reserved pins.
+            i_tms         = rtms,
+            i_tck         = rtck,
+            i_tdi         = rtdi,
+            o_tdo         = rtdo,
         )
 
         # connect magical reserved signals to top level pads
@@ -228,7 +227,7 @@ class AlteraJTAG(Module):
             reserved_pads["altera_reserved_tdo"].eq(rtdo),
         ]
 
-        # connect TAP IO
+        # Connect TAP IO.
         self.comb += [
             tck.eq(tckutap),
             tms.eq(tmsutap),

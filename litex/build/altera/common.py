@@ -12,6 +12,15 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.build.io import *
 
+# Common JTAG --------------------------------------------------------------------------------------
+
+altera_reserved_jtag_pads = [
+    "altera_reserved_tms",
+    "altera_reserved_tck",
+    "altera_reserved_tdi",
+    "altera_reserved_tdo",
+]
+
 # Common AsyncResetSynchronizer --------------------------------------------------------------------
 
 class AlteraAsyncResetSynchronizerImpl(Module):

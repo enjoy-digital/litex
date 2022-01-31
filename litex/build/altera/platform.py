@@ -53,17 +53,10 @@ class AlteraPlatform(GenericPlatform):
         self.toolchain.add_false_path_constraint(self, from_, to)
 
     def add_reserved_jtag_decls(self):
-        self.add_extension([
-            ("altera_reserved_tms", 0, Pins("altera_reserved_tms")),
-            ("altera_reserved_tck", 0, Pins("altera_reserved_tck")),
-            ("altera_reserved_tdi", 0, Pins("altera_reserved_tdi")),
-            ("altera_reserved_tdo", 0, Pins("altera_reserved_tdo")),
-        ])
+        self.add_extension([*[(pad, 0, Pins(pad)) for pad in common.altera_reserved_jtag_pads]])
 
     def get_reserved_jtag_pads(self):
-        return {
-            "altera_reserved_tms": self.request("altera_reserved_tms"),
-            "altera_reserved_tck": self.request("altera_reserved_tck"),
-            "altera_reserved_tdi": self.request("altera_reserved_tdi"),
-            "altera_reserved_tdo": self.request("altera_reserved_tdo"),
-        }
+        r = {}
+        for pad in common.altera_reserved_jtag_pads:
+            r[pad] = self.request(pad)
+        return r
