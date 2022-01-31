@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2019-2022 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2019 Antti Lukats <antti.lukats@gmail.com>
 # Copyright (c) 2017 Robert Jordens <jordens@gmail.com>
 # Copyright (c) 2021 Gregory Davill <greg.davill@gmail.com>
@@ -18,70 +18,143 @@ from litex.soc.interconnect import stream
 # JTAG TAP FSM -------------------------------------------------------------------------------------
 
 class JTAGTAPFSM(Module):
-    def __init__(self, tms: Signal, tck: Signal, expose_signals=True):
-        self.submodules.fsm = fsm = ClockDomainsRenamer("jtag")(CorrectedOngoingResetFSM())
+    def __init__(self, tms):
+        self.submodules.fsm = fsm = FSM(reset_state="TEST_LOGIC_RESET")
 
-        fsm.act("test_logic_reset",
-            If(~tms, NextState("run_test_idle"))
-        )
-        fsm.act("run_test_idle",
-            If( tms, NextState("select_dr_scan"))
-        )
+        def JTAGTAPFSMState(name, transitions={}):
+            logic = []
 
-        # DR
-        fsm.act("select_dr_scan",
-            If(~tms, NextState("capture_dr")    ).Else(NextState("select_ir_scan"))
-        )
-        fsm.act("capture_dr",
-            If(~tms, NextState("shift_dr")      ).Else(NextState("exit1_dr"))
-        )
-        fsm.act("shift_dr",
-            If( tms, NextState("exit1_dr"))
-        )
-        fsm.act("exit1_dr",
-            If(~tms, NextState("pause_dr")      ).Else(NextState("update_dr"))
-        )
-        fsm.act("pause_dr",
-            If( tms, NextState("exit2_dr"))
-        )
-        fsm.act("exit2_dr",
-            If( tms, NextState("update_dr")     ).Else(NextState("shift_dr"))
-        )
-        fsm.act("update_dr",
-            If( tms, NextState("select_dr_scan")).Else(NextState("run_test_idle"))
+            # Transitions logic.
+            nextstates = {}
+            nextstates[0] = NextState(transitions.get(0, name))
+            nextstates[1] = NextState(transitions.get(1, name))
+            logic.append(Case(tms, nextstates))
+
+            # Ongoing logic.
+            ongoing = Signal()
+            setattr(self, name, ongoing)
+            logic.append(ongoing.eq(1))
+
+            # Add logic to state.
+            fsm.act(name, *logic)
+
+        # Test-Logic-Reset.
+        # -----------------
+        JTAGTAPFSMState(
+            name        = "TEST_LOGIC_RESET",
+            transitions = {
+                0 : "RUN_TEST_IDLE",
+            }
         )
 
-        # IR
-        fsm.act("select_ir_scan",
-            If(~tms, NextState("capture_ir")    ).Else(NextState("test_logic_reset"))
-        )
-        fsm.act("capture_ir",
-            If(~tms, NextState("shift_ir")      ).Else(NextState("exit1_ir"))
-        )
-        fsm.act("shift_ir",
-            If( tms, NextState("exit1_ir"))
-        )
-        fsm.act("exit1_ir",
-            If(~tms, NextState("pause_ir")      ).Else(NextState("update_ir"))
-        )
-        fsm.act("pause_ir",
-            If( tms, NextState("exit2_ir"))
-        )
-        fsm.act("exit2_ir",
-            If( tms, NextState("update_ir")     ).Else(NextState("shift_ir"))
-        )
-        fsm.act("update_ir",
-            If( tms, NextState("select_dr_scan")).Else(NextState("run_test_idle"))
+        # Run-Test/Idle.
+        # --------------
+        JTAGTAPFSMState(
+            name        = "RUN_TEST_IDLE",
+            transitions = {
+                1 : "SELECT_DR_SCAN",
+            }
         )
 
-        if expose_signals:
-            for state_name in fsm.actions:
-                state_sig = fsm.ongoing(state_name)
-                SHOUTING_NAME = state_name.upper()
-                shouting_sig = Signal(name=SHOUTING_NAME)
-                setattr(self, SHOUTING_NAME, shouting_sig)
-                self.comb += shouting_sig.eq(state_sig)
+        # DR-Scan.
+        # --------
+        JTAGTAPFSMState(
+            name        = "SELECT_DR_SCAN",
+            transitions = {
+                0 : "CAPTURE_DR",
+                1 : "SELECT_IR_SCAN",
+            }
+        )
+        JTAGTAPFSMState(
+            name        = "CAPTURE_DR",
+            transitions = {
+                0 : "SHIFT_DR",
+                1 : "EXIT1_DR",
+            }
+        )
+        JTAGTAPFSMState(
+            name        = "SHIFT_DR",
+            transitions = {
+                1 : "EXIT1_DR",
+            }
+        )
+        JTAGTAPFSMState(
+            name        = "EXIT1_DR",
+            transitions = {
+                0 : "PAUSE_DR",
+                1 : "UPDATE_DR",
+            }
+        )
+        JTAGTAPFSMState(
+            name        = "PAUSE_DR",
+            transitions = {
+                1 : "EXIT2_DR",
+            }
+        )
+        JTAGTAPFSMState(
+            name        = "EXIT2_DR",
+            transitions = {
+                0 : "SHIFT_DR",
+                1 : "UPDATE_DR",
+            }
+        )
+        JTAGTAPFSMState(
+            name        = "UPDATE_DR",
+            transitions = {
+                0 : "RUN_TEST_IDLE",
+                1 : "SELECT_DR_SCAN",
+            }
+        )
 
+        # IR-Scan.
+        # --------
+        JTAGTAPFSMState(
+            name        = "SELECT_IR_SCAN",
+            transitions = {
+                0 : "CAPTURE_IR",
+                1 : "TEST_LOGIC_RESET",
+            }
+        )
+        JTAGTAPFSMState(
+            name        = "CAPTURE_IR",
+            transitions = {
+                0 : "SHIFT_IR",
+                1 : "EXIT1_IR",
+            }
+        )
+        JTAGTAPFSMState(
+            name        = "SHIFT_IR",
+            transitions = {
+                1 : "EXIT1_IR",
+            }
+        )
+        JTAGTAPFSMState(
+            name        = "EXIT1_IR",
+            transitions = {
+                0 : "PAUSE_IR",
+                1 : "UPDATE_IR",
+            }
+        )
+        JTAGTAPFSMState(
+            name        = "PAUSE_IR",
+            transitions = {
+                1 : "EXIT2_IR",
+            }
+        )
+        JTAGTAPFSMState(
+            name        = "EXIT2_IR",
+            transitions = {
+                0 : "SHIFT_IR",
+                1 : "UPDATE_IR",
+            }
+        )
+        JTAGTAPFSMState(
+            name        = "UPDATE_IR",
+            transitions = {
+                0 : "RUN_TEST_IDLE",
+                1 : "SELECT_DR_SCAN",
+            }
+        )
 
 # Altera JTAG --------------------------------------------------------------------------------------
 
@@ -124,7 +197,7 @@ class AlteraJTAG(Module):
         self.comb += ResetSignal("jtag_inv").eq(ResetSignal("jtag"))
 
         # connect the TAP state signals that LiteX expects but the HW IP doesn't provide
-        self.submodules.tap_fsm = JTAGTAPFSM(tms, tck)
+        self.submodules.tap_fsm = ClockDomainsRenamer("jtag")(JTAGTAPFSM(tms))
         self.sync.jtag_inv += reset.eq(self.tap_fsm.TEST_LOGIC_RESET)
         self.sync.jtag_inv += capture.eq(self.tap_fsm.CAPTURE_DR)
 
