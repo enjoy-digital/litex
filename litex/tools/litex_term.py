@@ -616,7 +616,7 @@ def _get_args():
     parser.add_argument("--base-address",   default=None,                       help="CSR base address.")
     parser.add_argument("--crossover-name", default="uart_xover",               help="Crossover UART name to use (present in design/csr.csv).")
 
-    parser.add_argument("--jtag-name",    default="jtag_uart",                help="JTAG UART type (jtag_uart or jtag_atlantic).")
+    parser.add_argument("--jtag-name",    default="jtag_uart",                help="JTAG UART type (jtag_uart).")
     parser.add_argument("--jtag-config",  default="openocd_xc7_ft2232.cfg",   help="OpenOCD JTAG configuration file for jtag_uart.")
     parser.add_argument("--jtag-chain",   default=1,                          help="JTAG chain.")
     return parser.parse_args()
@@ -634,10 +634,7 @@ def main():
         xover.open()
         port = os.ttyname(xover.name)
     elif args.port in ["jtag"]:
-        if args.jtag_name == "jtag_atlantic":
-            term.port = Nios2Terminal()
-            port = args.port
-        elif args.jtag_name == "jtag_uart":
+        if args.jtag_name == "jtag_uart":
             jtag_uart = JTAGUART(config=args.jtag_config, chain=int(args.jtag_chain))
             jtag_uart.open()
             port = os.ttyname(jtag_uart.name)

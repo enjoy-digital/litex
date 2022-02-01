@@ -1166,7 +1166,6 @@ class LiteXSoC(SoC):
         supported_uarts = [
             "crossover",
             "crossover+uartbone",
-            "jtag_atlantic",
             "jtag_uart",
             "sim",
             "stub",
@@ -1198,12 +1197,6 @@ class LiteXSoC(SoC):
         elif uart_name in ["crossover+uartbone"]:
             self.add_uartbone(baudrate=baudrate)
             uart = UARTCrossover(**uart_kwargs)
-
-        # JTAG Atlantic.
-        elif uart_name in ["jtag_atlantic"]:
-            from litex.soc.cores.jtag import JTAGAtlantic
-            uart_phy = JTAGAtlantic()
-            uart     = UART(uart_phy, **uart_kwargs)
 
         # JTAG UART.
         elif uart_name in ["jtag_uart"]:
