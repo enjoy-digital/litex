@@ -73,9 +73,9 @@ class EfinixTristateImpl(Module):
             io_o    = platform.add_iface_io(io_name + "_OUT")
             io_oe   = platform.add_iface_io(io_name +  "_OE")
             io_i    = platform.add_iface_io(io_name +  "_IN")
-            self.comb += io_o.eq(o[bit])
+            self.comb += io_o.eq(o >> bit)
             self.comb += io_oe.eq(oe)
-            if i[bit] is not None:
+            if i is not None:
                 self.comb += i[bit].eq(io_i)
             block = {
                 "type"       : "GPIO",
