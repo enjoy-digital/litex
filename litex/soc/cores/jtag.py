@@ -235,13 +235,42 @@ class AlteraJTAG(Module):
         ]
         self.sync.jtag_inv += tdouser.eq(tdo)
 
-class MAX10JTAG(AlteraJTAG):
-    def __init__(self, *args, **kwargs):
-        AlteraJTAG.__init__(self, "fiftyfivenm_jtag", *args, **kwargs)
-
-class Cyclone10LPJTAG(AlteraJTAG):
-    def __init__(self, *args, **kwargs):
-        AlteraJTAG.__init__(self, "cyclone10lp_jtag", *args, **kwargs)
+    @staticmethod
+    def get_primitive(device):
+        # TODO: Add support for all devices.
+        prim_dict = {
+            # Primitive Name                Ðevice (startswith)
+            "arriaii_jtag"                : [],
+            "arriaiigz_jtag"              : [],
+            "arriav_jtag"                 : [],
+            "arriavgz_jtag"               : [],
+            "cyclone_jtag"                : [],
+            "cyclone10lp_jtag"            : ["10cl"],
+            "cycloneii_jtag"              : [],
+            "cycloneiii_jtag"             : [],
+            "cycloneiiils_jtag"           : [],
+            "cycloneiv_jtag"              : [],
+            "cycloneive_jtag"             : ["ep4c"],
+            "cyclonev_jtag"               : ["5c"],
+            "fiftyfivenm_jtag"            : ["10m"],
+            "maxii_jtag"                  : [],
+            "maxv_jtag"                   : [],
+            "stratix_jtag"                : [],
+            "stratixgx_jtag"              : [],
+            "stratixii_jtag"              : [],
+            "stratixiigx_jtag"            : [],
+            "stratixiii_jtag"             : [],
+            "stratixiv_jtag"              : [],
+            "stratixv_jtag"               : [],
+            "twentynm_jtagblock"          : [],
+            "twentynm_jtag"               : [],
+            "twentynm_hps_interface_jtag" : [],
+        }
+        for prim, prim_devs in prim_dict.items():
+            for prim_dev in prim_devs:
+                if device.lower().startswith(prim_dev):
+                    return prim
+        return None
 
 # Xilinx JTAG --------------------------------------------------------------------------------------
 
@@ -273,19 +302,19 @@ class XilinxJTAG(Module):
             i_TDO = self.tdo,
         )
 
-class S6JTAG(XilinxJTAG):
-    def __init__(self, *args, **kwargs):
-        XilinxJTAG.__init__(self, primitive="BSCAN_SPARTAN6", *args, **kwargs)
-
-
-class S7JTAG(XilinxJTAG):
-    def __init__(self, *args, **kwargs):
-        XilinxJTAG.__init__(self, primitive="BSCANE2", *args, **kwargs)
-
-
-class USJTAG(XilinxJTAG):
-    def __init__(self, *args, **kwargs):
-        XilinxJTAG.__init__(self, primitive="BSCANE2", *args, **kwargs)
+    @staticmethod
+    def get_primitive(device):
+        # TODO: Add support for all devices.
+        prim_dict = {
+            # Primitive Name   Ðevice (startswith)
+            "BSCAN_SPARTAN6" : ["xc6"],
+            "BSCANE2"        : ["xc7", "xcku", "xcvu"],
+        }
+        for prim, prim_devs in prim_dict.items():
+            for prim_dev in prim_devs:
+                if device.lower().startswith(prim_dev):
+                    return prim
+        return None
 
 # ECP5 JTAG ----------------------------------------------------------------------------------------
 
@@ -371,24 +400,18 @@ class JTAGPHY(Module):
         # JTAG TAP ---------------------------------------------------------------------------------
         if jtag is None:
             # Xilinx.
-            if device[:3] == "xc6":
-                jtag = S6JTAG(chain=chain)
-            elif device[:3] == "xc7":
-                jtag = S7JTAG(chain=chain)
-            elif device[:4] in ["xcku", "xcvu"]:
-                jtag = USJTAG(chain=chain)
-
+            if XilinxJTAG.get_primitive(device) is not None:
+                jtag = XilinxJTAG(primitive=XilinxJTAG.get_primitive(device))
             # Lattice.
             elif device[:5] == "LFE5U":
                 jtag = ECP5JTAG()
-
             # Altera/Intel.
-            elif device[:3].lower() in ["10m"]:
+            elif AlteraJTAG.get_primitive(device) is not None:
                 platform.add_reserved_jtag_decls()
-                jtag = MAX10JTAG(pads=platform.get_reserved_jtag_pads())
-            elif device[:4].lower() in ["10cl"]:
-                platform.add_reserved_jtag_decls()
-                jtag = Cyclone10LPJTAG(pads=platform.get_reserved_jtag_pads())
+                jtag = AlteraJTAG(
+                    primitive = AlteraJTAG.get_primitive(device),
+                    pads      = platform.get_reserved_jtag_pads()
+                )
             else:
                 print(device)
                 raise NotImplementedError
