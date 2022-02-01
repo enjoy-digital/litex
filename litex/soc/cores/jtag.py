@@ -158,7 +158,7 @@ class JTAGTAPFSM(Module):
 # Altera JTAG --------------------------------------------------------------------------------------
 
 class AlteraJTAG(Module):
-    def __init__(self, primitive, reserved_pads):
+    def __init__(self, primitive, pads):
         # Common with Xilinx.
         self.reset   = reset   = Signal() # Provided by our own TAP FSM.
         self.capture = capture = Signal() # Provided by our own TAP FSM.
@@ -221,10 +221,10 @@ class AlteraJTAG(Module):
 
         # connect magical reserved signals to top level pads
         self.comb += [
-            rtms.eq(reserved_pads["altera_reserved_tms"]),
-            rtck.eq(reserved_pads["altera_reserved_tck"]),
-            rtdi.eq(reserved_pads["altera_reserved_tdi"]),
-            reserved_pads["altera_reserved_tdo"].eq(rtdo),
+            rtms.eq(pads["altera_reserved_tms"]),
+            rtck.eq(pads["altera_reserved_tck"]),
+            rtdi.eq(pads["altera_reserved_tdi"]),
+            pads["altera_reserved_tdo"].eq(rtdo),
         ]
 
         # Connect TAP IO.
@@ -236,12 +236,12 @@ class AlteraJTAG(Module):
         self.sync.jtag_inv += tdouser.eq(tdo)
 
 class MAX10JTAG(AlteraJTAG):
-    def __init__(self, reserved_pads, *args, **kwargs):
-        AlteraJTAG.__init__(self, "fiftyfivenm_jtag", reserved_pads, *args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        AlteraJTAG.__init__(self, "fiftyfivenm_jtag", *args, **kwargs)
 
 class Cyclone10LPJTAG(AlteraJTAG):
-    def __init__(self, reserved_pads, *args, **kwargs):
-        AlteraJTAG.__init__(self, "cyclone10lp_jtag", reserved_pads, *args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        AlteraJTAG.__init__(self, "cyclone10lp_jtag", *args, **kwargs)
 
 # Xilinx JTAG --------------------------------------------------------------------------------------
 
@@ -370,22 +370,25 @@ class JTAGPHY(Module):
 
         # JTAG TAP ---------------------------------------------------------------------------------
         if jtag is None:
+            # Xilinx.
             if device[:3] == "xc6":
                 jtag = S6JTAG(chain=chain)
             elif device[:3] == "xc7":
                 jtag = S7JTAG(chain=chain)
             elif device[:4] in ["xcku", "xcvu"]:
                 jtag = USJTAG(chain=chain)
+
+            # Lattice.
             elif device[:5] == "LFE5U":
                 jtag = ECP5JTAG()
+
+            # Altera/Intel.
             elif device[:3].lower() in ["10m"]:
-                assert platform is not None
                 platform.add_reserved_jtag_decls()
-                jtag = MAX10JTAG(reserved_pads=platform.get_reserved_jtag_pads())
+                jtag = MAX10JTAG(pads=platform.get_reserved_jtag_pads())
             elif device[:4].lower() in ["10cl"]:
-                assert platform is not None
                 platform.add_reserved_jtag_decls()
-                jtag = Cyclone10LPJTAG(reserved_pads=platform.get_reserved_jtag_pads())
+                jtag = Cyclone10LPJTAG(pads=platform.get_reserved_jtag_pads())
             else:
                 print(device)
                 raise NotImplementedError
