@@ -25,6 +25,7 @@
 	- add_source:         Add optional copy to gateware directory.
 	- cores/jtag:         Add initial JTAG-UART/JTAGBone Altera/Intel support.
 	- LiteScope:          Add Samplerate support.
+	- cores/bitbang:      Add optional I2C initialization by CPU.
 
     [> API changes/Deprecation
 	--------------------------
