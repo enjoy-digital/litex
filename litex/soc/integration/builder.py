@@ -203,6 +203,10 @@ class Builder:
             csr_base  = self.soc.mem_regions['csr'].origin)
         write_to_file(os.path.join(self.generated_dir, "csr.h"), csr_contents)
 
+        # Generate I2C command/value table
+        i2c_contents = export.get_i2c_header(self.soc.i2c_init)
+        write_to_file(os.path.join(self.generated_dir, "i2c.h"), i2c_contents)
+
         # Generate Git SHA1 of tools to git.h
         git_contents = export.get_git_header()
         write_to_file(os.path.join(self.generated_dir, "git.h"), git_contents)

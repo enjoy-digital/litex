@@ -272,6 +272,47 @@ def get_csr_header(regions, constants, csr_base=None, with_access_functions=True
     r += "\n#endif\n"
     return r
 
+def get_i2c_header(i2c_init_values):
+    r = generated_banner("//")
+    r += "#ifndef __GENERATED_I2C_H\n#define __GENERATED_I2C_H\n\n"
+
+    if i2c_init_values:
+        r += "#include <libbase/i2c.h>\n\n"
+
+        r += "struct i2c_cmds {\n"
+        r += "\tstruct i2c_ops ops;\n"
+        r += "\tuint32_t *init_table;\n"
+        r += "\tint nb_cmds;\n"
+        r += "\tint addr_len;\n"
+        r += "\tint i2c_addr;\n"
+        r += "};\n"
+
+        r += "\n#define I2C_INIT\n"
+        r += "#define I2C_INIT_DEVS {}\n\n".format(len(i2c_init_values))
+
+        for i, (dev, i2c_addr, table, _) in enumerate(i2c_init_values):
+            r += "uint32_t {}_{}_{}_init_table[{}] = {{\n".format(dev, hex(i2c_addr), i, len(table) * 2)
+            for addr, data in table:
+                r += "\t0x{:04X}, 0x{:02X},\n".format(addr, data)
+            r += "};\n"
+
+        r += "static struct i2c_cmds i2c_init[I2C_INIT_DEVS] = {\n"
+        for i, (dev, i2c_addr, table, addr_len) in enumerate(i2c_init_values):
+            r += "\t{\n"
+            r += "\t\t.ops.write  = {}_w_write,\n".format(dev)
+            r += "\t\t.ops.read   = {}_r_read,\n".format(dev)
+            r += "\t\t.init_table = {}_{}_{}_init_table,\n".format(dev, hex(i2c_addr), i)
+            r += "\t\t.nb_cmds    = {},\n".format(len(table))
+            r += "\t\t.i2c_addr   = {},\n".format(hex(i2c_addr))
+            r += "\t\t.addr_len   = {},\n".format(addr_len)
+            r += "\t},\n"
+        r += "};\n"
+    else:
+        r += "\n// No initialization values\n"
+
+    r += "\n#endif\n"
+    return r
+
 # JSON Export --------------------------------------------------------------------------------------
 
 def get_csr_json(csr_regions={}, constants={}, mem_regions={}):

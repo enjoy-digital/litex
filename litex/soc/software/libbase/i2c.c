@@ -1,12 +1,19 @@
 // This file is Copyright (c) 2020 Antmicro <www.antmicro.com>
+// This file is Copyright (c) 2022 Franck Jullien <franck.jullien@collshade.fr>
 #include "i2c.h"
 
+#include <stdio.h>
+
 #include <generated/csr.h>
+#include <generated/i2c.h>
 
 #ifdef CSR_I2C_BASE
 
 #define I2C_PERIOD_CYCLES (CONFIG_CLOCK_FREQUENCY / I2C_FREQ_HZ)
 #define I2C_DELAY(n)	  cdelay((n)*I2C_PERIOD_CYCLES/4)
+
+i2c_write_t current_i2c_write = i2c_w_write;
+i2c_read_t current_i2c_read = i2c_r_read;
 
 static inline void cdelay(int i)
 {
@@ -16,9 +23,47 @@ static inline void cdelay(int i)
 	}
 }
 
+int i2c_send_init_cmds(void)
+{
+#ifdef I2C_INIT
+	struct i2c_cmds *i2c_cmd;
+	int dev, i, len;
+	uint8_t data[2];
+	uint8_t addr;
+
+	for (dev = 0; dev < I2C_INIT_DEVS; dev++) {
+		i2c_cmd = &i2c_init[dev];
+		current_i2c_write = i2c_cmd->ops.write;
+		current_i2c_read = i2c_cmd->ops.read;
+
+		for (i = 0; i < i2c_cmd->nb_cmds; i++) {
+
+			if (i2c_cmd->addr_len == 2) {
+				len     = 2;
+				addr    = (i2c_cmd->init_table[i*2] >> 8) & 0xff;
+				data[0] = i2c_cmd->init_table[i*2] & 0xff;
+				data[1] = i2c_cmd->init_table[(i*2) + 1] & 0xff;
+			} else {
+				len     = 1;
+				addr    = i2c_cmd->init_table[i*2] & 0xff;
+				data[0] = i2c_cmd->init_table[(i*2) + 1] & 0xff;
+			}
+
+			if (!i2c_write(i2c_cmd->i2c_addr, addr, data, len))
+				printf("Error during i2c write at address 0x%04x\n", addr);
+		}
+	}
+
+	current_i2c_write = i2c_w_write;
+	current_i2c_read = i2c_r_read;
+#endif
+
+	return 0;
+}
+
 static inline void i2c_oe_scl_sda(bool oe, bool scl, bool sda)
 {
-	i2c_w_write(
+	current_i2c_write(
 		((oe & 1)  << CSR_I2C_W_OE_OFFSET)	|
 		((scl & 1) << CSR_I2C_W_SCL_OFFSET) |
 		((sda & 1) << CSR_I2C_W_SDA_OFFSET)
@@ -69,7 +114,7 @@ static int i2c_receive_bit(void)
 	i2c_oe_scl_sda(0, 1, 0);
 	I2C_DELAY(1);
 	// read in the middle of SCL high
-	value = i2c_r_read() & 1;
+	value = current_i2c_read() & 1;
 	I2C_DELAY(1);
 	i2c_oe_scl_sda(0, 0, 0);
 	I2C_DELAY(1);

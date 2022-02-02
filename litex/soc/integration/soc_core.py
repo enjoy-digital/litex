@@ -174,6 +174,9 @@ class SoCCore(LiteXSoC):
         # Wishbone Slaves.
         self.wb_slaves = {}
 
+        # I2C initialisation tables
+        self.i2c_init = []
+
         # Modules instances ------------------------------------------------------------------------
 
         # Add SoCController
@@ -268,6 +271,9 @@ class SoCCore(LiteXSoC):
 
     def add_csr_region(self, name, origin, busword, obj):
         self.csr_regions[name] = SoCCSRRegion(origin, busword, obj)
+
+    def add_i2c_init_table(self, dev, i2c_addr, table, addr_len=1):
+        self.i2c_init.append((dev, i2c_addr, table, addr_len))
 
     # Finalization ---------------------------------------------------------------------------------
 
