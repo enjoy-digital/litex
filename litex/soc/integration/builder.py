@@ -204,7 +204,8 @@ class Builder:
         write_to_file(os.path.join(self.generated_dir, "csr.h"), csr_contents)
 
         # Generate I2C command/value table
-        i2c_contents = export.get_i2c_header(self.soc.i2c_init)
+        from litex.soc.cores.bitbang import collect_i2c_init
+        i2c_contents = export.get_i2c_header(collect_i2c_init(self.soc))
         write_to_file(os.path.join(self.generated_dir, "i2c.h"), i2c_contents)
 
         # Generate Git SHA1 of tools to git.h
