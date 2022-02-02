@@ -22,9 +22,9 @@ class I2CMaster(Module, AutoCSR):
 
     Software get back SDA value with the read CSRStatus (_r).
     """
-    init        = []
     pads_layout = [("scl", 1), ("sda", 1)]
     def __init__(self, pads=None):
+        self.init = []
         if pads is None:
             pads = Record(self.pads_layout)
         self.pads = pads
@@ -87,7 +87,7 @@ def collect_i2c_init(soc):
     i2c_init = []
     for name, obj in xdir(soc, True):
         if isinstance(obj, I2CMaster) and hasattr(obj, "init"):
-           for addr, init, init_addr_len in obj.init:
+            for addr, init, init_addr_len in obj.init:
                 i2c_init.append((name, addr, init, init_addr_len))
     return i2c_init
 
