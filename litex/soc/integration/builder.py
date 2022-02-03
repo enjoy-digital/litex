@@ -203,10 +203,12 @@ class Builder:
             csr_base  = self.soc.mem_regions['csr'].origin)
         write_to_file(os.path.join(self.generated_dir, "csr.h"), csr_contents)
 
-        # Generate I2C command/value table
-        from litex.soc.cores.bitbang import collect_i2c_init
-        i2c_contents = export.get_i2c_header(collect_i2c_init(self.soc))
-        write_to_file(os.path.join(self.generated_dir, "i2c.h"), i2c_contents)
+        # Generate I2C configuration and command/value table
+        from litex.soc.cores.bitbang import collect_i2c_info
+        i2c_devs, i2c_init = collect_i2c_info(self.soc)
+        if i2c_devs:
+            i2c_info = export.get_i2c_header((i2c_devs, i2c_init))
+            write_to_file(os.path.join(self.generated_dir, "i2c.h"), i2c_info)
 
         # Generate Git SHA1 of tools to git.h
         git_contents = export.get_git_header()

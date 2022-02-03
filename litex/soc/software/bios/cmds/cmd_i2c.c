@@ -4,22 +4,21 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#include <generated/soc.h>
 #include <generated/csr.h>
 #include <libbase/i2c.h>
 
 #include "../command.h"
 #include "../helpers.h"
 
-
+#ifdef CONFIG_HAS_I2C
 /**
  * Command "i2c_reset"
  *
  * Reset I2C line state in case a slave locks the line.
  *
  */
-#ifdef CSR_I2C_BASE
 define_command(i2c_reset, i2c_reset, "Reset I2C line state", I2C_CMDS);
-#endif
 
 /**
  * Command "i2c_write"
@@ -27,7 +26,6 @@ define_command(i2c_reset, i2c_reset, "Reset I2C line state", I2C_CMDS);
  * Write I2C slave memory using 7-bit slave address and 8-bit memory address.
  *
  */
-#ifdef CSR_I2C_BASE
 static void i2c_write_handler(int nb_params, char **params)
 {
 	int i;
@@ -58,7 +56,6 @@ static void i2c_write_handler(int nb_params, char **params)
 	}
 }
 define_command(i2c_write, i2c_write_handler, "Write over I2C", I2C_CMDS);
-#endif
 
 /**
  * Command "i2c_read"
@@ -66,7 +63,6 @@ define_command(i2c_write, i2c_write_handler, "Write over I2C", I2C_CMDS);
  * Read I2C slave memory using 7-bit slave address and 8-bit memory address.
  *
  */
-#ifdef CSR_I2C_BASE
 static void i2c_read_handler(int nb_params, char **params)
 {
 	char *c;
@@ -118,8 +114,6 @@ static void i2c_read_handler(int nb_params, char **params)
 	dump_bytes((unsigned int *) buf, len, addr);
 }
 define_command(i2c_read, i2c_read_handler, "Read over I2C", I2C_CMDS);
-#endif
-
 
 /**
  * Command "i2c_scan"
@@ -127,7 +121,6 @@ define_command(i2c_read, i2c_read_handler, "Read over I2C", I2C_CMDS);
  * Scan for available I2C devices
  *
  */
-#ifdef CSR_I2C_BASE
 static void i2c_scan_handler(int nb_params, char **params)
 {
 	int slave_addr;
@@ -146,4 +139,34 @@ static void i2c_scan_handler(int nb_params, char **params)
 	printf("\n");
 }
 define_command(i2c_scan, i2c_scan_handler, "Scan for I2C slaves", I2C_CMDS);
+
+/**
+ * Command "i2c_dev"
+ *
+ * List/Set I2C controller(s)
+ *
+ */
+static void i2c_dev_handler(int nb_params, char **params)
+{
+	struct i2c_dev *devs = get_i2c_devs();
+	unsigned char dev_index;
+	char *c;
+	int i;
+
+	if (nb_params == 0) {
+		for (i = 0; i < get_i2c_devs_count(); i++)
+			printf("Bus%d: %s %s\n", i, devs[i].name, get_i2c_active_dev() == i ? "*" : " ");
+		return;
+	}
+
+	if (nb_params == 1) {
+		dev_index = strtoul(params[0], &c, 0);
+		if ((*c != 0) || (dev_index >= get_i2c_devs_count())) {
+			printf("Incorrect device index");
+			return;
+		}
+		set_i2c_active_dev(dev_index);
+	}
+}
+define_command(i2c_dev, i2c_dev_handler, "List/Set I2C controller(s)", I2C_CMDS);
 #endif

@@ -14,6 +14,14 @@ typedef uint32_t (*i2c_read_t)(void);
 struct i2c_ops {
 	i2c_write_t write;
 	i2c_read_t read;
+	int w_scl_offset;
+	int w_sda_offset;
+	int w_oe_offset;
+};
+
+struct i2c_dev {
+	char *name;
+	struct i2c_ops ops;
 };
 
 /* I2C frequency defaults to a safe value in range 10-100 kHz to be compatible with SMBus */
@@ -29,6 +37,10 @@ bool i2c_write(unsigned char slave_addr, unsigned char addr, const unsigned char
 bool i2c_read(unsigned char slave_addr, unsigned char addr, unsigned char *data, unsigned int len, bool send_stop);
 bool i2c_poll(unsigned char slave_addr);
 int i2c_send_init_cmds(void);
+struct i2c_dev *get_i2c_devs(void);
+int get_i2c_devs_count(void);
+void set_i2c_active_dev(int dev);
+int get_i2c_active_dev(void);
 
 #ifdef __cplusplus
 }
