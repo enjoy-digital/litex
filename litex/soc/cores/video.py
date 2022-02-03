@@ -242,21 +242,23 @@ class VideoTimingGenerator(Module, AutoCSR):
                 # Increment HCount.
                 NextValue(source.hcount, source.hcount + 1),
                 # Generate HActive / HSync.
-                If(source.hcount == 0,           NextValue(hactive,      1)), # Start of HActive.
-                If(source.hcount == hres,        NextValue(hactive,      0)), # End of HActive.
-                If(source.hcount == hsync_start, NextValue(source.hsync, 1)), # Start of HSync.
-                If(source.hcount == hsync_end,   NextValue(source.hsync, 0)), # End of HSync.
+                If(source.hcount == 0,             NextValue(hactive,       1)), # Start of HActive.
+                If(source.hcount == hres,          NextValue(hactive,       0)), # End of HActive.
+                If(source.hcount == hsync_start,
+                    NextValue(source.hsync, 1),                                  # Start of HSync.
+                    NextValue(source.vsync, 1),                                  # Start of VSync.
+                    NextValue(source.vcount, vsync_start)
+                ),
+                If(source.hcount == hsync_end,     NextValue(source.hsync,  0)), # End of HSync.
+                If(source.hcount == hscan,         NextValue(source.hcount, 0)), # Reset HCount.
                 # End of HScan.
-                If(source.hcount == hscan,
-                    # Reset HCount.
-                    NextValue(source.hcount, 0),
+                If(source.hcount == hsync_start,
                     # Increment VCount.
                     NextValue(source.vcount, source.vcount + 1),
                     # Generate VActive / VSync.
-                    If(source.vcount == 0,           NextValue(vactive,      1)), # Start of VActive.
-                    If(source.vcount == vres,        NextValue(vactive,      0)), # End of HActive.
-                    If(source.vcount == vsync_start, NextValue(source.vsync, 1)), # Start of VSync.
-                    If(source.vcount == vsync_end,   NextValue(source.vsync, 0)), # End of VSync.
+                    If(source.vcount == 0,         NextValue(vactive,       1)), # Start of VActive.
+                    If(source.vcount == vres,      NextValue(vactive,       0)), # End of HActive.
+                    If(source.vcount == vsync_end, NextValue(source.vsync,  0)), # End of VSync.
                     # End of VScan.
                     If(source.vcount == vscan,
                         # Reset VCount.
