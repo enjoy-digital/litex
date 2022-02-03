@@ -14,6 +14,7 @@
 # This file is Copyright (c) 2015 whitequark <whitequark@whitequark.org>
 # This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
 # This file is Copyright (c) 2020 Piotr Esden-Tempski <piotr@esden.net>
+# This file is Copyright (c) 2022 Franck Jullien <franck.jullien@collshade.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
@@ -273,14 +274,35 @@ def get_csr_header(regions, constants, csr_base=None, with_access_functions=True
     return r
 
 def get_i2c_header(i2c_init_values):
+    i2c_devs, i2c_init = i2c_init_values
+
     r = generated_banner("//")
     r += "#ifndef __GENERATED_I2C_H\n#define __GENERATED_I2C_H\n\n"
+    r += "#include <libbase/i2c.h>\n\n"
+    r += "#define I2C_DEVS_COUNT {}\n\n".format(len(i2c_devs))
 
-    if i2c_init_values:
-        r += "#include <libbase/i2c.h>\n\n"
+    devs = {}
+    default_dev = 0
+    r += "struct i2c_dev i2c_devs[{}] = {{\n".format(len(i2c_devs))
+    for i, (name, is_default) in enumerate(sorted(i2c_devs)):
+        devs[name] = i
+        if is_default:
+            default_dev = i
+        r += "\t{\n"
+        r += "\t\t.ops.write          = {}_w_write,\n".format(name)
+        r += "\t\t.ops.read           = {}_r_read,\n".format(name)
+        r += "\t\t.ops.w_scl_offset   = CSR_{}_W_SCL_OFFSET,\n".format(name.upper())
+        r += "\t\t.ops.w_sda_offset   = CSR_{}_W_SDA_OFFSET,\n".format(name.upper())
+        r += "\t\t.ops.w_oe_offset    = CSR_{}_W_OE_OFFSET,\n".format(name.upper())
+        r += "\t\t.name               = \"{}\"\n".format(name)
+        r += "\t},\n"
+    r += "};\n\n"
 
+    r += "#define DEFAULT_I2C_DEV {}\n\n".format(default_dev)
+
+    if i2c_init:
         r += "struct i2c_cmds {\n"
-        r += "\tstruct i2c_ops ops;\n"
+        r += "\tint dev;\n"
         r += "\tuint32_t *init_table;\n"
         r += "\tint nb_cmds;\n"
         r += "\tint addr_len;\n"
@@ -288,27 +310,24 @@ def get_i2c_header(i2c_init_values):
         r += "};\n"
 
         r += "\n#define I2C_INIT\n"
-        r += "#define I2C_INIT_DEVS {}\n\n".format(len(i2c_init_values))
+        r += "#define I2C_INIT_CNT {}\n\n".format(len(i2c_init))
 
-        for i, (dev, i2c_addr, table, _) in enumerate(i2c_init_values):
-            r += "uint32_t {}_{}_{}_init_table[{}] = {{\n".format(dev, hex(i2c_addr), i, len(table) * 2)
+        for i, (name, i2c_addr, table, _) in enumerate(i2c_init):
+            r += "uint32_t {}_{}_{}_init_table[{}] = {{\n".format(name, hex(i2c_addr), i, len(table) * 2)
             for addr, data in table:
                 r += "\t0x{:04X}, 0x{:02X},\n".format(addr, data)
             r += "};\n"
 
-        r += "static struct i2c_cmds i2c_init[I2C_INIT_DEVS] = {\n"
-        for i, (dev, i2c_addr, table, addr_len) in enumerate(i2c_init_values):
+        r += "static struct i2c_cmds i2c_init[I2C_INIT_CNT] = {\n"
+        for i, (name, i2c_addr, table, addr_len) in enumerate(i2c_init):
             r += "\t{\n"
-            r += "\t\t.ops.write  = {}_w_write,\n".format(dev)
-            r += "\t\t.ops.read   = {}_r_read,\n".format(dev)
-            r += "\t\t.init_table = {}_{}_{}_init_table,\n".format(dev, hex(i2c_addr), i)
+            r += "\t\t.dev        = {},\n".format(devs[name])
+            r += "\t\t.init_table = {}_{}_{}_init_table,\n".format(name, hex(i2c_addr), i)
             r += "\t\t.nb_cmds    = {},\n".format(len(table))
             r += "\t\t.i2c_addr   = {},\n".format(hex(i2c_addr))
             r += "\t\t.addr_len   = {},\n".format(addr_len)
             r += "\t},\n"
         r += "};\n"
-    else:
-        r += "\n// No initialization values\n"
 
     r += "\n#endif\n"
     return r

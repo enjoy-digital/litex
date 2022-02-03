@@ -791,21 +791,22 @@ class SoC(Module):
                 colorer("declared", color="red")))
             raise SoCError()
 
-    def add_constant(self, name, value=None):
+    def add_constant(self, name, value=None, check_duplicate=True):
         name = name.upper()
         if name in self.constants.keys():
-            self.logger.error("{} Constant already {}.".format(
-                colorer(name),
-                colorer("declared", color="red")))
-            raise SoCError()
+            if check_duplicate:
+                self.logger.error("{} Constant already {}.".format(
+                    colorer(name),
+                    colorer("declared", color="red")))
+                raise SoCError()
         self.constants[name] = SoCConstant(value)
 
-    def add_config(self, name, value=None):
+    def add_config(self, name, value=None, check_duplicate=True):
         name = "CONFIG_" + name
         if isinstance(value, str):
-            self.add_constant(name + "_" + value)
+            self.add_constant(name + "_" + value, check_duplicate=check_duplicate)
         else:
-            self.add_constant(name, value)
+            self.add_constant(name, value, check_duplicate=check_duplicate)
 
     def check_bios_requirements(self):
         # Check for required Peripherals.

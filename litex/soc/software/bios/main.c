@@ -92,7 +92,7 @@ __attribute__((__used__)) int main(int i, char **c)
 	uart_init();
 #endif
 
-#ifdef CSR_I2C_BASE
+#ifdef CONFIG_HAS_I2C
 	i2c_send_init_cmds();
 #endif
 

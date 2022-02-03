@@ -6,6 +6,7 @@
 #include <string.h>
 #include <libbase/memtest.h>
 
+#include <generated/soc.h>
 #include <generated/csr.h>
 #include <generated/mem.h>
 #include <libbase/i2c.h>
@@ -352,7 +353,7 @@ define_command(sdram_mr_write, sdram_mr_write_handler, "Write SDRAM Mode Registe
  * SPD address is a 3-bit address defined by the pins A0, A1, A2.
  *
  */
-#ifdef CSR_I2C_BASE
+#ifdef CONFIG_HAS_I2C
 #define SPD_RW_PREAMBLE    0b1010
 #define SPD_RW_ADDR(a210)  ((SPD_RW_PREAMBLE << 3) | ((a210) & 0b111))
 

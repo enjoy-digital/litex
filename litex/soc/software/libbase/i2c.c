@@ -4,16 +4,21 @@
 
 #include <stdio.h>
 
+#include <generated/soc.h>
 #include <generated/csr.h>
-#include <generated/i2c.h>
 
-#ifdef CSR_I2C_BASE
+#ifdef CONFIG_HAS_I2C
+#include <generated/i2c.h>
 
 #define I2C_PERIOD_CYCLES (CONFIG_CLOCK_FREQUENCY / I2C_FREQ_HZ)
 #define I2C_DELAY(n)	  cdelay((n)*I2C_PERIOD_CYCLES/4)
 
-i2c_write_t current_i2c_write = i2c_w_write;
-i2c_read_t current_i2c_read = i2c_r_read;
+int current_i2c_dev = DEFAULT_I2C_DEV;
+
+struct i2c_dev *get_i2c_devs(void) { return &i2c_devs; }
+int get_i2c_devs_count(void)       { return I2C_DEVS_COUNT; }
+void set_i2c_active_dev(int dev)   { current_i2c_dev = dev; }
+int get_i2c_active_dev(void)       { return current_i2c_dev; }
 
 static inline void cdelay(int i)
 {
@@ -31,10 +36,9 @@ int i2c_send_init_cmds(void)
 	uint8_t data[2];
 	uint8_t addr;
 
-	for (dev = 0; dev < I2C_INIT_DEVS; dev++) {
+	for (dev = 0; dev < I2C_INIT_CNT; dev++) {
 		i2c_cmd = &i2c_init[dev];
-		current_i2c_write = i2c_cmd->ops.write;
-		current_i2c_read = i2c_cmd->ops.read;
+		current_i2c_dev = i2c_cmd->dev;
 
 		for (i = 0; i < i2c_cmd->nb_cmds; i++) {
 
@@ -50,12 +54,12 @@ int i2c_send_init_cmds(void)
 			}
 
 			if (!i2c_write(i2c_cmd->i2c_addr, addr, data, len))
-				printf("Error during i2c write at address 0x%04x\n", addr);
+				printf("Error during write at address 0x%04x on i2c dev %d\n",
+						addr, current_i2c_dev);
 		}
 	}
 
-	current_i2c_write = i2c_w_write;
-	current_i2c_read = i2c_r_read;
+	current_i2c_dev = DEFAULT_I2C_DEV;
 #endif
 
 	return 0;
@@ -63,10 +67,12 @@ int i2c_send_init_cmds(void)
 
 static inline void i2c_oe_scl_sda(bool oe, bool scl, bool sda)
 {
-	current_i2c_write(
-		((oe & 1)  << CSR_I2C_W_OE_OFFSET)	|
-		((scl & 1) << CSR_I2C_W_SCL_OFFSET) |
-		((sda & 1) << CSR_I2C_W_SDA_OFFSET)
+	struct i2c_ops ops = i2c_devs[current_i2c_dev].ops;
+
+	ops.write(
+		((oe & 1)  << ops.w_oe_offset)	|
+		((scl & 1) << ops.w_scl_offset) |
+		((sda & 1) << ops.w_sda_offset)
 	);
 }
 
@@ -114,7 +120,7 @@ static int i2c_receive_bit(void)
 	i2c_oe_scl_sda(0, 1, 0);
 	I2C_DELAY(1);
 	// read in the middle of SCL high
-	value = current_i2c_read() & 1;
+	value = i2c_devs[current_i2c_dev].ops.read() & 1;
 	I2C_DELAY(1);
 	i2c_oe_scl_sda(0, 0, 0);
 	I2C_DELAY(1);
@@ -261,4 +267,4 @@ bool i2c_poll(unsigned char slave_addr)
     return result;
 }
 
-#endif /* CSR_I2C_BASE */
+#endif /* CONFIG_HAS_I2C */

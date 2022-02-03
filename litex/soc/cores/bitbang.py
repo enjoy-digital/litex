@@ -23,7 +23,7 @@ class I2CMaster(Module, AutoCSR):
     Software get back SDA value with the read CSRStatus (_r).
     """
     pads_layout = [("scl", 1), ("sda", 1)]
-    def __init__(self, pads=None):
+    def __init__(self, pads=None, default_dev=False):
         self.init = []
         if pads is None:
             pads = Record(self.pads_layout)
@@ -36,6 +36,8 @@ class I2CMaster(Module, AutoCSR):
         self._r = CSRStatus(fields=[
             CSRField("sda", size=1, offset=0)],
             name="r")
+
+        self.default_dev = default_dev
 
         self.connect(pads)
 
@@ -83,13 +85,16 @@ class I2CMasterSim(I2CMaster):
 
 # I2C Master Init Collection  ----------------------------------------------------------------------
 
-def collect_i2c_init(soc):
+def collect_i2c_info(soc):
     i2c_init = []
+    i2c_devs = []
     for name, obj in xdir(soc, True):
-        if isinstance(obj, I2CMaster) and hasattr(obj, "init"):
-            for addr, init, init_addr_len in obj.init:
-                i2c_init.append((name, addr, init, init_addr_len))
-    return i2c_init
+        if isinstance(obj, I2CMaster):
+            i2c_devs.append((name, getattr(obj, "default_dev")))
+            if hasattr(obj, "init"):
+                for addr, init, init_addr_len in obj.init:
+                    i2c_init.append((name, addr, init, init_addr_len))
+    return i2c_devs, i2c_init
 
 # SPI Master Bit-Banging ---------------------------------------------------------------------------
 
