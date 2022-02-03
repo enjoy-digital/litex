@@ -83,13 +83,14 @@ class I2CMasterSim(I2CMaster):
             )
         ]
 
-# I2C Master Init Collection  ----------------------------------------------------------------------
+# I2C Master Info Collection  ----------------------------------------------------------------------
 
 def collect_i2c_info(soc):
     i2c_init = []
     i2c_devs = []
     for name, obj in xdir(soc, True):
         if isinstance(obj, I2CMaster):
+            soc.add_config("HAS_I2C", check_duplicate=False)
             i2c_devs.append((name, getattr(obj, "default_dev")))
             if hasattr(obj, "init"):
                 for addr, init, init_addr_len in obj.init:

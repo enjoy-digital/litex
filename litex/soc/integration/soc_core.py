@@ -20,7 +20,6 @@ import os
 import inspect
 
 from migen import *
-from migen.util.misc import xdir
 
 from litex.soc.cores import cpu
 from litex.soc.interconnect import wishbone
@@ -273,11 +272,6 @@ class SoCCore(LiteXSoC):
     # Finalization ---------------------------------------------------------------------------------
 
     def do_finalize(self):
-        for name, obj in xdir(self, True):
-            from litex.soc.cores.bitbang import I2CMaster
-            if isinstance(obj, I2CMaster):
-                self.add_config("HAS_I2C", check_duplicate=False)
-
         # Retro-compatibility
         for address, interface in self.wb_slaves.items():
             wb_name = None
