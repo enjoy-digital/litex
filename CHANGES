@@ -13,7 +13,7 @@
 	- openocd/stream:     Simplify ECP5 JTAG-UART/JTAGBone use.
 	- tools/litex_cli:    Allow passing reg name to --read/--write.
 	- soc/add_spi_sdcard: Allow optional Tristate (useful on ULX3S).
-	- software/bios:      Add new mem_cmd memory comparison commmand.
+	- software/bios:      Add new mem_cmd memory comparison command.
 	- cpu/rocket:         Increase IRQ lines to 8.
 	- cpu/serv:           Add MDU support.
 	- cpu/marocchino:     Add initial support.

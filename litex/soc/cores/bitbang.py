@@ -85,6 +85,8 @@ class I2CMasterSim(I2CMaster):
 
 # I2C Master Info Collection  ----------------------------------------------------------------------
 
+# TODO: Find a more generic way to do it that would also apply to other peripherals?
+
 def collect_i2c_info(soc):
     i2c_init = []
     i2c_devs = []
