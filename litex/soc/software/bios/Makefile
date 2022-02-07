@@ -41,6 +41,8 @@ endif
 
 ifeq ($(CPU), zynq7000)
 LSCRIPT = linker-zynq.ld
+else ifeq ($(CPU), zynqmp)
+LSCRIPT = linker-zynqmp.ld
 else
 LSCRIPT = linker.ld
 endif
