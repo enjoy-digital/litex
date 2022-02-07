@@ -3,6 +3,7 @@
 #
 # Copyright (c) 2019-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2020 Gwenhael Goavec-Merou <gwenhael.goavec-merou@trabucayre.com>
+# Copyright (c) 2022 Ilia Sergachev <ilia.sergachev@protonmail.ch>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
