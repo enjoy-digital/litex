@@ -38,9 +38,9 @@ class ZynqMP(CPU):
         super().__init__(*args, **kwargs)
         self.platform = platform
         self.reset          = Signal()
-        self.periph_buses   = []  # Peripheral buses (Connected to main SoC's bus).
-        self.memory_buses   = []  # Memory buses (Connected directly to LiteDRAM).
-        self.axi_gp_masters = []  # General Purpose AXI Masters.
+        self.periph_buses   = []          # Peripheral buses (Connected to main SoC's bus).
+        self.memory_buses   = []          # Memory buses (Connected directly to LiteDRAM).
+        self.axi_gp_masters = [None] * 3  # General Purpose AXI Masters.
 
         self.clock_domains.cd_ps = ClockDomain()
 
@@ -55,14 +55,15 @@ class ZynqMP(CPU):
         self.comb += ResetSignal("ps").eq(~rst_n)
         self.ps_tcl.append(f"set ps [create_ip -vendor xilinx.com -name zynq_ultra_ps_e -module_name {self.ps_name}]")
 
-    def add_axi_gp_master(self):
-        assert len(self.axi_gp_masters) < 3
-        n = len(self.axi_gp_masters)
-        axi_gpn = axi.AXIInterface(data_width=32, address_width=32, id_width=16)
+    def add_axi_gp_master(self, n=0, data_width=32):
+        assert n < 3 and self.axi_gp_masters[n] is None
+        assert data_width in [32, 64, 128]
+        axi_gpn = axi.AXIInterface(data_width=data_width, address_width=32, id_width=16)
         self.config[f'PSU__USE__M_AXI_GP{n}'] = 1
-        self.config[f'PSU__MAXIGP{n}__DATA_WIDTH'] = axi_gpn.data_width
+        self.config[f'PSU__MAXIGP{n}__DATA_WIDTH'] = data_width
         self.axi_gp_masters.append(axi_gpn)
-        self.cpu_params['i_maxihpm0_fpd_aclk'] = ClockSignal("ps")
+        self.cpu_params["i_maxihpm0_{}_aclk".format("lpd" if n == 2 else "fpd")] = ClockSignal("ps")
+        print(n)
         layout = axi_gpn.layout_flat()
         dir_map = {DIR_M_TO_S: 'o', DIR_S_TO_M: 'i'}
         for group, signal, direction in layout:
