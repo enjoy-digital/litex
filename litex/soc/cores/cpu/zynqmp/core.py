@@ -62,8 +62,8 @@ class ZynqMP(CPU):
         self.config[f'PSU__USE__M_AXI_GP{n}'] = 1
         self.config[f'PSU__MAXIGP{n}__DATA_WIDTH'] = data_width
         self.axi_gp_masters.append(axi_gpn)
-        self.cpu_params["i_maxihpm0_{}_aclk".format("lpd" if n == 2 else "fpd")] = ClockSignal("ps")
-        print(n)
+        xpd = {0 : "fpd", 1 : "fpd", 2 : "lpd"}[n]
+        self.cpu_params[f"i_maxihpm0_{xpd}_aclk"] = ClockSignal("ps")
         layout = axi_gpn.layout_flat()
         dir_map = {DIR_M_TO_S: 'o', DIR_S_TO_M: 'i'}
         for group, signal, direction in layout:
