@@ -1366,7 +1366,7 @@ class LiteXSoC(SoC):
                     else:
                         self.logger.info("Converting MEM data width: {} to {} via Wishbone".format(
                             port.data_width,
-                            self.mem_bus.data_width))
+                            mem_bus.data_width))
                         # FIXME: Replace WB data-width converter with native AXI converter.
                         mem_wb  = wishbone.Interface(
                             data_width = self.cpu.mem_axi.data_width,
