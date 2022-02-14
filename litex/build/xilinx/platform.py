@@ -29,12 +29,9 @@ class XilinxPlatform(GenericPlatform):
         elif toolchain == "symbiflow":
             from litex.build.xilinx import symbiflow
             self.toolchain = symbiflow.SymbiflowToolchain()
-        elif toolchain == "yosys+nextpnr": #experimental
+        elif toolchain == "yosys+nextpnr":
             from litex.build.xilinx import yosys_nextpnr
             self.toolchain = yosys_nextpnr.YosysNextpnrToolchain()
-        #elif toolchain == "symbiflow+nextpnr": #highly experimental
-        #    import symbiflow_nextpnr 
-        #    self.toolchain = symbiflow_nextpnr.SymbiflowNextpnrToolchain()
         else:
             raise ValueError(f"Unknown toolchain {toolchain}")
 
@@ -43,6 +40,17 @@ class XilinxPlatform(GenericPlatform):
 
     def add_ip(self, filename, disable_constraints=False):
         self.ips.update({os.path.abspath(filename): disable_constraints})
+
+    def add_platform_command(self, command, **signals):
+        skip = False
+        from litex.build.xilinx import yosys_nextpnr
+        if isinstance(self.toolchain, yosys_nextpnr.YosysNextpnrToolchain):
+            # FIXME: Add support for INTERNAL_VREF to yosys+nextpnr flow.
+            if "set_property INTERNAL_VREF" in command:
+                print("WARNING: INTERNAL_VREF constraint removed since not yet supported by yosys-nextpnr flow.")
+                skip = True
+        if not skip:
+            GenericPlatform.add_platform_command(self, command, **signals)
 
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
         so = dict(common.xilinx_special_overrides)
