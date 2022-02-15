@@ -748,7 +748,6 @@ class SoC(Module):
         self.sys_clk_freq = sys_clk_freq
         self.constants    = {}
         self.csr_regions  = {}
-        self.csr_decode   = True
 
         # SoC Bus Handler --------------------------------------------------------------------------
         self.submodules.bus = SoCBusHandler(
@@ -880,8 +879,7 @@ class SoC(Module):
                 data_width    = self.csr.data_width),
             register=register)
         csr_size = 2**(self.csr.address_width + 2)
-        csr_region = SoCRegion(origin=origin, size=csr_size, cached=False,
-                               decode=self.csr_decode)
+        csr_region = SoCRegion(origin=origin, size=csr_size, cached=False, decode=self.cpu.csr_decode)
         bus = getattr(self.csr_bridge, self.bus.standard.replace('-', '_'))
         self.bus.add_slave("csr", bus, csr_region)
         self.csr.add_master(name="bridge", master=self.csr_bridge.csr)

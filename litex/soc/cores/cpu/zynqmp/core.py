@@ -26,6 +26,7 @@ class ZynqMP(CPU):
         0x8000_0000: 0x4000_0000,
         0xe000_0000: 0xff_2000_0000  # TODO: there are more details here
     }
+    csr_decode           = False # AXI address is decoded in AXI2Wishbone (target level).
 
     @property
     def mem_map(self):
@@ -41,7 +42,6 @@ class ZynqMP(CPU):
         self.periph_buses   = []          # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses   = []          # Memory buses (Connected directly to LiteDRAM).
         self.axi_gp_masters = [None] * 3  # General Purpose AXI Masters.
-        self.csr_decode     = False       # AXI address is decoded in AXI2Wishbone (target level).
 
         self.clock_domains.cd_ps = ClockDomain()
 

@@ -27,6 +27,7 @@ class CPU(Module):
     mem_map              = {"csr": 0x82000000}
     io_regions           = {}
     use_rom              = False
+    csr_decode           = True
 
     def __init__(self, *args, **kwargs):
         pass
