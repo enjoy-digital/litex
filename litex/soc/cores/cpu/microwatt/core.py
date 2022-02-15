@@ -180,7 +180,7 @@ class Microwatt(CPU):
             "ppc_fx_insns.vhdl",
             "logical.vhdl",
             "rotator.vhdl",
-            "countzero.vhdl",
+            "countbits.vhdl",
             "execute1.vhdl",
 
             # Load/Store.
