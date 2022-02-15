@@ -123,6 +123,7 @@ standard_repos.remove("pythondata-cpu-minerva")
 standard_repos.remove("pythondata-cpu-microwatt")
 standard_repos.remove("pythondata-cpu-blackparrot")
 standard_repos.remove("pythondata-cpu-cv32e40p")
+standard_repos.remove("pythondata-cpu-cv32e41p")
 standard_repos.remove("pythondata-cpu-ibex")
 standard_repos.remove("pythondata-cpu-marocchino")
 
