@@ -48,6 +48,7 @@ class EOS_S3(CPU):
         self.pbus           = wishbone.Interface(data_width=32, adr_width=15)
         self.periph_buses   = [self.pbus]
         self.memory_buses   = []
+        self.csr_decode     = False # Wishbone address is decoded before fabric
 
         # # #
 

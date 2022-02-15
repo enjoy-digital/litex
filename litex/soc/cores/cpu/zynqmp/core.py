@@ -41,6 +41,7 @@ class ZynqMP(CPU):
         self.periph_buses   = []          # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses   = []          # Memory buses (Connected directly to LiteDRAM).
         self.axi_gp_masters = [None] * 3  # General Purpose AXI Masters.
+        self.csr_decode     = False       # AXI address is decoded in AXI2Wishbone (target level).
 
         self.clock_domains.cd_ps = ClockDomain()
 
