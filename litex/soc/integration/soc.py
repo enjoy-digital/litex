@@ -59,9 +59,10 @@ def SoCConstant(value):
 # SoCRegion ----------------------------------------------------------------------------------------
 
 class SoCRegion:
-    def __init__(self, origin=None, size=None, mode="rw", cached=True, linker=False):
+    def __init__(self, origin=None, size=None, mode="rw", cached=True, linker=False, decode=True):
         self.logger    = logging.getLogger("SoCRegion")
         self.origin    = origin
+        self.decode    = decode
         self.size      = size
         if size != 2**log2_int(size, False):
             self.logger.info("Region size {} internally from {} to {}.".format(
@@ -80,7 +81,7 @@ class SoCRegion:
             self.logger.error("Origin needs to be aligned on size:")
             self.logger.error(self)
             raise SoCError()
-        if (origin == 0) and (size == 2**bus.address_width):
+        if not self.decode or (origin == 0) and (size == 2**bus.address_width):
             return lambda a: True
         origin >>= int(log2(bus.data_width//8)) # bytes to words aligned.
         size   >>= int(log2(bus.data_width//8)) # bytes to words aligned.
@@ -747,6 +748,7 @@ class SoC(Module):
         self.sys_clk_freq = sys_clk_freq
         self.constants    = {}
         self.csr_regions  = {}
+        self.csr_decode   = True
 
         # SoC Bus Handler --------------------------------------------------------------------------
         self.submodules.bus = SoCBusHandler(
@@ -878,7 +880,8 @@ class SoC(Module):
                 data_width    = self.csr.data_width),
             register=register)
         csr_size = 2**(self.csr.address_width + 2)
-        csr_region = SoCRegion(origin=origin, size=csr_size, cached=False)
+        csr_region = SoCRegion(origin=origin, size=csr_size, cached=False,
+                               decode=self.csr_decode)
         bus = getattr(self.csr_bridge, self.bus.standard.replace('-', '_'))
         self.bus.add_slave("csr", bus, csr_region)
         self.csr.add_master(name="bridge", master=self.csr_bridge.csr)
