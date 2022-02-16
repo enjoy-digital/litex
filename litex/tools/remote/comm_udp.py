@@ -26,7 +26,7 @@ class CommUDP(CSRBuilder):
             return
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.bind(("", self.port))
-        self.socket.settimeout(1)
+        self.socket.settimeout(2)
         if probe:
             self.probe(self.server, self.port)
 
