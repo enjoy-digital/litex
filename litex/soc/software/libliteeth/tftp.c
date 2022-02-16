@@ -1,6 +1,6 @@
 // This file is Copyright (c) 2013 Werner Almesberger <werner@almesberger.net>
 // This file is Copyright (c) 2013-2015 Sebastien Bourdeauducq <sb@m-labs.hk>
-// This file is Copyright (c) 2014-2015 Florent Kermarec <florent@enjoy-digital.fr>
+// This file is Copyright (c) 2014-2022 Florent Kermarec <florent@enjoy-digital.fr>
 // This file is Copyright (c) 2017 Greg Darke <greg@tsukasa.net.au>
 // This file is Copyright (c) 2018 Ewen McNeill <ewen@naos.co.nz>
 
@@ -24,10 +24,10 @@ enum {
 	TFTP_DATA	= 3,	/* Data */
 	TFTP_ACK	= 4,	/* Acknowledgment */
 	TFTP_ERROR	= 5,	/* Error */
+	TFTP_OACK	= 6,	/* Option Acknowledgment */
 };
 
-#define	BLOCK_SIZE	512	/* block size in bytes */
-
+#define	BLOCK_SIZE	1024 /* block size in bytes 512 or 1024*/
 
 static int format_request(uint8_t *buf, uint16_t op, const char *filename)
 {
@@ -44,7 +44,24 @@ static int format_request(uint8_t *buf, uint16_t op, const char *filename)
 	*buf++ = 'e';
 	*buf++ = 't';
 	*buf++ = 0x00;
-	return 9+strlen(filename);
+#if (BLOCK_SIZE == 1024)
+	*buf++ = 'b';
+	*buf++ = 'l';
+	*buf++ = 'k';
+	*buf++ = 's';
+	*buf++ = 'i';
+	*buf++ = 'z';
+	*buf++ = 'e';
+	*buf++ = 0x00;
+	*buf++ = '1';
+	*buf++ = '0';
+	*buf++ = '2';
+	*buf++ = '4';
+	*buf++ = 0x00;
+	return 9 + 13 + strlen(filename);
+#else
+	return 9 + strlen(filename);
+#endif
 }
 
 static int format_ack(uint8_t *buf, uint16_t block)
@@ -89,6 +106,12 @@ static void rx_callback(uint32_t src_ip, uint16_t src_port,
 	if(opcode == TFTP_ACK) { /* Acknowledgement */
 		data_port = src_port;
 		last_ack = block;
+		return;
+	}
+	if (opcode == TFTP_OACK) { /* Option Acknowledgement */
+		packet_data = udp_get_tx_buffer();
+		length = format_ack(packet_data, 0);
+		udp_send(PORT_IN, src_port, length);
 		return;
 	}
 	if(block < 1) return;
