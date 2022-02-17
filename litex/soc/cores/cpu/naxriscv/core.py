@@ -205,9 +205,8 @@ class NaxRiscv(CPU):
         ndir = os.path.join(vdir, "ext", "NaxRiscv")
         sdir = os.path.join(vdir, "ext", "SpinalHDL")
 
-        # NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git", "c883e74e")
-        # NaxRiscv.git_setup("SpinalHDL", sdir, "https://github.com/SpinalHDL/SpinalHDL.git", "10cfe066")
-
+        NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git",   "66bf132c")
+        NaxRiscv.git_setup("SpinalHDL", sdir, "https://github.com/SpinalHDL/SpinalHDL.git", "10cfe066")
 
         gen_args = []
         gen_args.append(f"--netlist-name={NaxRiscv.netlist_name}")
@@ -374,7 +373,5 @@ class NaxRiscv(CPU):
         # Do verilog instance.
         self.specials += Instance(self.netlist_name, **self.cpu_params)
 
-
         # Add verilog sources
         self.add_sources(self.platform)
-
