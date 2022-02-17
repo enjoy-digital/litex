@@ -46,20 +46,20 @@ def w_description(data_width, id_width):
     return [
         ("data", data_width),
         ("strb", data_width//8),
-        ("id",   id_width)
+        ("id",     id_width)
     ]
 
-def b_description(id_width):
+def b_description(id_width, resp_width=2):
     return [
-        ("resp", 2),
-        ("id",   id_width)
+        ("id",    id_width),
+        ("resp", resp_width),
     ]
 
-def r_description(data_width, id_width):
+def r_description(data_width, id_width, resp_width=2):
     return [
-        ("resp", 2),
         ("data", data_width),
-        ("id",   id_width)
+        ("id",     id_width),
+        ("resp", resp_width),
     ]
 
 def _connect_axi(master, slave, keep=None, omit=None):
@@ -823,6 +823,62 @@ class AXILiteSRAM(Module):
             port_we    = port.we if not read_only else None)
         self.submodules.fsm = fsm
         self.comb += comb
+
+# AXI Data Width Converter -------------------------------------------------------------------------
+
+class AXIUpConverter(Module):
+    def __init__(self, axi_from, axi_to):
+        dw_from  = len(axi_from.r.data)
+        dw_to    = len(axi_to.r.data)
+        idw_from = len(axi_from.r.id)
+        idw_to   = len(axi_to.r.id)
+        ratio    = int(dw_to//dw_from)
+        assert dw_from*ratio == dw_to
+        assert idw_to >= idw_from*ratio
+
+        # # #
+
+        # Write path -------------------------------------------------------------------------------
+
+        # AW Channel.
+        self.comb += [
+            axi_from.aw.connect(axi_to.aw, omit={"len", "size"}),
+            axi_to.aw.len.eq( axi_from.aw.len >> log2_int(ratio)),
+            axi_to.aw.size.eq(axi_from.aw.size + log2_int(ratio)),
+        ]
+
+        # W Channel.
+        w_converter = stream.StrideConverter(
+            description_from = w_description(data_width=dw_from, id_width=idw_from),
+            description_to   = w_description(data_width=dw_to,   id_width=idw_from*ratio),
+            reverse          = True
+        )
+        self.submodules += w_converter
+        self.comb += axi_from.w.connect(w_converter.sink)
+        self.comb += w_converter.source.connect(axi_to.w)
+
+        # B Channel.
+        self.comb += axi_to.b.connect(axi_from.b)
+
+        # Read path --------------------------------------------------------------------------------
+
+        # AR Channel.
+        self.comb += [
+            axi_from.ar.connect(axi_to.ar, omit={"len", "size"}),
+            axi_to.ar.len.eq( axi_from.ar.len >> log2_int(ratio)),
+            axi_to.ar.size.eq(axi_from.ar.size + log2_int(ratio)),
+        ]
+
+        # R Channel.
+        r_converter = stream.StrideConverter(
+            description_from = r_description(data_width=dw_to,   id_width=idw_from*ratio, resp_width=2*ratio),
+            description_to   = r_description(data_width=dw_from, id_width=idw_from,       resp_width=2),
+            reverse          = True,
+        )
+        self.submodules += r_converter
+        self.comb += axi_to.r.connect(r_converter.sink, omit={"resp"})
+        self.comb += r_converter.sink.resp.eq(Replicate(axi_to.r.resp, ratio))
+        self.comb += r_converter.source.connect(axi_from.r)
 
 # AXILite Data Width Converter ---------------------------------------------------------------------
 
