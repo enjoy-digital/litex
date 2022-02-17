@@ -26,6 +26,10 @@
 	- cores/jtag:         Add initial JTAG-UART/JTAGBone Altera/Intel support.
 	- LiteScope:          Add Samplerate support.
 	- cores/bitbang:      Add optional I2C initialization by CPU.
+	- libliteeth/tftp:    Add blocksize support an increase to 1024 bytes (allow 64MB filesize).
+	- soc/add_sdram:      Make AXI integration more flexible (remove some specific Rocket hardcoding).
+	- cpu/neorv32:        Add initial support (RV32I, VHDL converted to Verilog through GHDL-Yosys-synth).
+	- cpu/naxriscv:       Add initial support (RV32IMA, already able to run Linux).
 
     [> API changes/Deprecation
 	--------------------------
