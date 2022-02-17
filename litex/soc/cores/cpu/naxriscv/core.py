@@ -4,12 +4,14 @@
 # Copyright (c) 2020-2022 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2020-2022 Dolu1990 <charles.papon.90@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
-
+import hashlib
 import os
+import subprocess
 from os import path
 
 from migen import *
 
+from litex import get_data_mod
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect import axi
 from litex.soc.interconnect.csr import *
@@ -42,6 +44,9 @@ class NaxRiscv(CPU):
     # Default parameters.
     with_fpu             = False
     with_rvc             = False
+    scala_files          = ["misc.scala", "fetch.scala", "frontend.scala", "branch_predictor_std.scala", "lsu.scala", "eu_2alu_1share.scala"]
+    netlist_name         = None
+    scala_paths          = []
 
     # ABI.
     @staticmethod
@@ -80,6 +85,20 @@ class NaxRiscv(CPU):
         flags += f" -D__NaxRiscv__"
         flags += f" -DUART_POLLING"
         return flags
+
+
+    # Command line configuration arguments.
+    @staticmethod
+    def args_fill(parser):
+        cpu_group = parser.add_argument_group("cpu")
+        cpu_group.add_argument("--scala-file", action='append', help="Specify the scala files used to configure NaxRiscv")
+
+    @staticmethod
+    def args_read(args):
+        print(args)
+        if args.scala_file:
+            NaxRiscv.scala_files = args.scala_file
+
 
     def __init__(self, platform, variant):
         self.platform         = platform
@@ -140,14 +159,90 @@ class NaxRiscv(CPU):
         self.reset_address = reset_address
         assert reset_address == 0x00000000
 
+    @staticmethod
+    def find_scala_files():
+        vdir = get_data_mod("cpu", "naxriscv").data_location
+        for file in NaxRiscv.scala_files:
+            if os.path.exists(file):
+                NaxRiscv.scala_paths.append(os.path.abspath(file))
+            else:
+                path = os.path.join(vdir, "configs", file)
+                if os.path.exists(path):
+                    NaxRiscv.scala_paths.append(path)
+                else:
+                    raise Exception(f"Can't find NaxRiscv's {file}")
+
+    # Cluster Name Generation.
+    @staticmethod
+    def generate_netlist_name():
+        md5_hash = hashlib.md5()
+        for file in NaxRiscv.scala_paths:
+            a_file = open(file, "rb")
+            content = a_file.read()
+            md5_hash.update(content)
+
+        digest = md5_hash.hexdigest()
+        NaxRiscv.netlist_name = "NaxRiscvLitex_" + digest
+
+
+    @staticmethod
+    def git_setup(name, dir, repo, hash):
+        if not os.path.exists(dir):
+            # Clone Repo.
+            print(f"Cloning {name} Git repository...")
+            subprocess.check_call("git clone {url} {options}".format(
+                url     = repo,
+                options = dir
+            ), shell=True)
+            # Use specific SHA1 (Optional).
+        os.chdir(os.path.join(dir))
+        os.system(f"cd {dir} && git checkout {hash}")
+
+    # Netlist Generation.
+    @staticmethod
+    def generate_netlist():
+        vdir = get_data_mod("cpu", "naxriscv").data_location
+        ndir = os.path.join(vdir, "ext", "NaxRiscv")
+        sdir = os.path.join(vdir, "ext", "SpinalHDL")
+
+        # NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git", "c883e74e")
+        # NaxRiscv.git_setup("SpinalHDL", sdir, "https://github.com/SpinalHDL/SpinalHDL.git", "10cfe066")
+
+
+        gen_args = []
+        gen_args.append(f"--netlist-name={NaxRiscv.netlist_name}")
+        gen_args.append(f"--netlist-directory={vdir}")
+        for file in NaxRiscv.scala_paths:
+            gen_args.append(f"--scala-file={file}")
+
+        cmd = f"""cd {ndir} && sbt "runMain naxriscv.platform.LitexGen {" ".join(gen_args)}\""""
+        print("NaxRiscv generation command :")
+        print(cmd)
+        if os.system(cmd) != 0:
+            raise OSError('Failed to run sbt')
+
+
     def add_sources(self, platform):
-        cdir = os.path.abspath(os.path.dirname(__file__))
-        # FIXME: Create pythondata-cpu-naxriscv once working.
-        if not os.path.exists(f"{cdir}/NaxRiscvLitex.v"):
-            os.system(f"wget https://github.com/enjoy-digital/litex_naxriscv_test/files/8059827/NaxRiscvLitex.v.txt -P {cdir}")
-            os.system(f"mv {cdir}/NaxRiscvLitex.v.txt {cdir}/NaxRiscvLitex.v")
-        platform.add_source(os.path.join(cdir, "NaxRiscvLitex.v"))
-        platform.add_source(os.path.join(cdir, "RamXilinx.v"))
+        vdir = get_data_mod("cpu", "naxriscv").data_location
+        print(f"NaxRiscv netlist : {self.netlist_name}")
+        if not path.exists(os.path.join(vdir, self.netlist_name + ".v")):
+            self.generate_netlist()
+
+        # Add RAM.
+        # By default, use Generic RAM implementation.
+        ram_filename = "Ram_1w_1rs_Generic.v"
+        # On Altera/Intel platforms, use specific implementation.
+        from litex.build.altera import AlteraPlatform
+        if isinstance(platform, AlteraPlatform):
+            ram_filename = "Ram_1w_1rs_Intel.v"
+        # On Efinix platforms, use specific implementation.
+        from litex.build.efinix import EfinixPlatform
+        if isinstance(platform, EfinixPlatform):
+            ram_filename = "Ram_1w_1rs_Efinix.v"
+        platform.add_source(os.path.join(vdir, ram_filename), "verilog")
+
+        # Add Cluster.
+        platform.add_source(os.path.join(vdir,  self.netlist_name + ".v"), "verilog")
 
     def add_soc_components(self, soc, soc_region_cls):
         soc.csr.add("uart",   n=2)
@@ -272,8 +367,13 @@ class NaxRiscv(CPU):
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
+
+        self.find_scala_files()
+        self.generate_netlist_name()
+
         # Do verilog instance.
-        self.specials += Instance("NaxRiscvLitex", **self.cpu_params)
+        self.specials += Instance(self.netlist_name, **self.cpu_params)
+
 
         # Add verilog sources
         self.add_sources(self.platform)

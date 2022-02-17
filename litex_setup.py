@@ -99,6 +99,7 @@ git_repos = {
     "pythondata-cpu-serv":         GitRepo(url="https://github.com/litex-hub/"),
     "pythondata-cpu-vexriscv":     GitRepo(url="https://github.com/litex-hub/"),
     "pythondata-cpu-vexriscv-smp": GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
+    "pythondata-cpu-naxriscv":     GitRepo(url="https://github.com/litex-hub/"),
     "pythondata-cpu-rocket":       GitRepo(url="https://github.com/litex-hub/"),
     "pythondata-cpu-minerva":      GitRepo(url="https://github.com/litex-hub/"),
     "pythondata-cpu-microwatt":    GitRepo(url="https://github.com/litex-hub/", sha1=0xb940b55acff),
