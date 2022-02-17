@@ -301,17 +301,17 @@ class NaxRiscv(CPU):
         soc.bus.add_slave("clint", clintbus, region=soc_region_cls(origin=soc.mem_map.get("clint"), size=0x10000, cached=False))
 
     def add_memory_buses(self, address_width, data_width):
-        assert data_width == 128 # FIXME: For now only support 16-bit/DDR3 config, add NaxRiscv automatic generation or LiteX conversion.
-
-        from litedram.common import LiteDRAMNativePort
+        nax_data_width = 128
+        assert data_width == nax_data_width  # FIXME: No conversion.
+        #assert data_width >= nax_data_width # FIXME: Only supporting up-conversion for now.
 
         ibus = axi.AXIInterface(
-            data_width    = data_width,
+            data_width    = nax_data_width,
             address_width = 32,
             id_width      = 1,
         )
         dbus = axi.AXIInterface(
-            data_width    = data_width,
+            data_width    = nax_data_width,
             address_width = 32,
             id_width      = 4,
         )
