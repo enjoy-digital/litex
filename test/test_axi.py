@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2019-2022 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import unittest
@@ -54,12 +54,9 @@ class Access(Burst):
         self.id   = id
 
 
-class Write(Access):
-    pass
+class Write(Access): pass
 
-
-class Read(Access):
-    pass
+class Read(Access): pass
 
 # TestAXI ------------------------------------------------------------------------------------------
 
@@ -98,12 +95,12 @@ class TestAXI(unittest.TestCase):
                     self.errors += 1
                 yield
 
-        # dut
+        # DUT
         ax_burst = stream.Endpoint(ax_description(32, 32))
         ax_beat = stream.Endpoint(ax_description(32, 32))
         dut =  AXIBurst2Beat(ax_burst, ax_beat)
 
-        # generate dut input (bursts)
+        # Generate DUT input (bursts).
         prng = random.Random(42)
         bursts = []
         for i in range(32):
@@ -112,12 +109,12 @@ class TestAXI(unittest.TestCase):
         bursts.append(Burst(4, BURST_WRAP, 4-1, log2_int(2)))
         bursts.append(Burst(0x80000160, BURST_WRAP, 0x3, 0b100))
 
-        # generate expected dut output (beats for reference)
+        # Generate expected DUT output (beats for reference).
         beats = []
         for burst in bursts:
             beats += burst.to_beats()
 
-        # simulation
+        # Simulation
         generators = [
             bursts_generator(ax_burst, bursts),
             beats_checker(ax_beat, beats)
@@ -128,17 +125,17 @@ class TestAXI(unittest.TestCase):
 
     def _test_axi2wishbone(self,
         naccesses=16, simultaneous_writes_reads=False,
-        # random: 0: min (no random), 100: max.
-        # burst randomness
+        # Random: 0: min (no random), 100: max.
+        # Burst randomness.
         id_rand_enable   = False,
         len_rand_enable  = False,
         data_rand_enable = False,
-        # flow valid randomness
+        # Flow valid randomness.
         aw_valid_random  = 0,
         w_valid_random   = 0,
         ar_valid_random  = 0,
         r_valid_random   = 0,
-        # flow ready randomness
+        # Flow ready randomness.
         w_ready_random   = 0,
         b_ready_random   = 0,
         r_ready_random   = 0
@@ -149,7 +146,7 @@ class TestAXI(unittest.TestCase):
             for write in writes:
                 while prng.randrange(100) < aw_valid_random:
                     yield
-                # send command
+                # Send command.
                 yield axi_port.aw.valid.eq(1)
                 yield axi_port.aw.addr.eq(write.addr<<2)
                 yield axi_port.aw.burst.eq(write.type)
@@ -168,7 +165,7 @@ class TestAXI(unittest.TestCase):
                 for i, data in enumerate(write.data):
                     while prng.randrange(100) < w_valid_random:
                         yield
-                    # send data
+                    # Send data.
                     yield axi_port.w.valid.eq(1)
                     if (i == (len(write.data) - 1)):
                         yield axi_port.w.last.eq(1)
@@ -204,7 +201,7 @@ class TestAXI(unittest.TestCase):
             for read in reads:
                 while prng.randrange(100) < ar_valid_random:
                     yield
-                # send command
+                # Send command.
                 yield axi_port.ar.valid.eq(1)
                 yield axi_port.ar.addr.eq(read.addr<<2)
                 yield axi_port.ar.burst.eq(read.type)
@@ -225,7 +222,7 @@ class TestAXI(unittest.TestCase):
                 yield
             for read in reads:
                 for i, data in enumerate(read.data):
-                    # wait data / response
+                    # Wait data / response.
                     yield axi_port.r.ready.eq(0)
                     yield
                     while (yield axi_port.r.valid) == 0:
@@ -245,7 +242,7 @@ class TestAXI(unittest.TestCase):
                         if (yield axi_port.r.last) != 0:
                             self.reads_last_errors += 1
 
-        # dut
+        # DUT
         class DUT(Module):
             def __init__(self):
                 self.axi      = AXIInterface(data_width=32, address_width=32, id_width=8)
@@ -259,25 +256,25 @@ class TestAXI(unittest.TestCase):
 
         dut = DUT()
 
-        # generate writes/reads
+        # Generate writes/reads.
         prng   = random.Random(42)
         writes = []
         offset = 1
         for i in range(naccesses):
-            _id = prng.randrange(2**8) if id_rand_enable else i
-            _len = prng.randrange(32) if len_rand_enable else i
+            _id   = prng.randrange(2**8) if id_rand_enable else i
+            _len  = prng.randrange(32) if len_rand_enable else i
             _data = [prng.randrange(2**32) if data_rand_enable else j for j in range(_len + 1)]
             writes.append(Write(offset, _data, _id, type=BURST_INCR, len=_len, size=log2_int(32//8)))
             offset += _len + 1
-        # dummy reads to ensure datas have been written before the effective reads start.
+        # Dummy reads to ensure datas have been written before the effective reads start.
         dummy_reads = [Read(1023, [0], 0, type=BURST_FIXED, len=0, size=log2_int(32//8)) for _ in range(32)]
         reads = writes
 
-        # simulation
+        # Simulation
         if simultaneous_writes_reads:
             dut.axi.reads_enable = True
         else:
-            dut.axi.reads_enable = False # will be set by writes_data_generator
+            dut.axi.reads_enable = False # Will be set by writes_data_generator.
         generators = [
             writes_cmd_generator(dut.axi, writes),
             writes_data_generator(dut.axi, writes),
@@ -286,16 +283,16 @@ class TestAXI(unittest.TestCase):
             reads_response_data_generator(dut.axi, reads)
         ]
         run_simulation(dut, generators)
-        self.assertEqual(self.writes_id_errors, 0)
+        self.assertEqual(self.writes_id_errors,  0)
         self.assertEqual(self.reads_data_errors, 0)
-        self.assertEqual(self.reads_id_errors, 0)
+        self.assertEqual(self.reads_id_errors,   0)
         self.assertEqual(self.reads_last_errors, 0)
 
-    # test with no randomness
+    # Test with no randomness.
     def test_axi2wishbone_writes_then_reads_no_random(self):
         self._test_axi2wishbone(simultaneous_writes_reads=False)
 
-    # test randomness one parameter at a time
+    # Test randomness one parameter at a time.
     def test_axi2wishbone_writes_then_reads_random_bursts(self):
         self._test_axi2wishbone(
             simultaneous_writes_reads = False,
@@ -324,7 +321,7 @@ class TestAXI(unittest.TestCase):
     def test_axi2wishbone_random_r_valid(self):
         self._test_axi2wishbone(r_valid_random=90)
 
-    # now let's stress things a bit... :)
+    # Now let's stress things a bit... :)
     def test_axi2wishbone_random_all(self):
         self._test_axi2wishbone(
             simultaneous_writes_reads = False,
