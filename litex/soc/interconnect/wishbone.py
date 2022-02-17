@@ -4,6 +4,7 @@
 # Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
 # Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2018 Tim 'mithro' Ansell <me@mith.ro>
+# Copytight (c) 2022 Antmicro <www.antmicro.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 """Wishbone Classic support for LiteX (Standard HandShaking/Synchronous Feedback)"""
@@ -329,7 +330,7 @@ class Converter(Module):
 # Wishbone SRAM ------------------------------------------------------------------------------------
 
 class SRAM(Module):
-    def __init__(self, mem_or_size, read_only=None, init=None, bus=None):
+    def __init__(self, mem_or_size, read_only=None, init=None, bus=None, burst=True):
         if bus is None:
             bus = Interface()
         self.bus = bus
@@ -347,6 +348,79 @@ class SRAM(Module):
                 read_only = False
 
         ###
+        if burst:
+            adr_wrap_mask = Array((0b0000, 0b0011, 0b0111, 0b1111))
+            adr_wrap_max = adr_wrap_mask[-1].bit_length()
+
+            adr_burst_wrap = Signal()
+            adr_burst_end = Signal()
+            adr_burst = Signal()
+            adr_latched = Signal()
+
+            adr_counter = Signal(len(self.bus.adr))
+            adr_counter_offset = Signal(adr_wrap_max)
+            adr_offset_lsb = Signal(adr_wrap_max)
+            adr_offset_msb = Signal(len(self.bus.adr))
+
+            adr_next = Signal(len(self.bus.adr))
+
+            # only incrementing burst cycles are supported
+            self.comb += [
+                Case(self.bus.cti, {
+                    # incrementing address burst cycle
+                    0b010: adr_burst.eq(1),
+                    # end current burst cycle
+                    0b111: adr_burst.eq(0),
+                    # unsupported burst cycle
+                    "default": adr_burst.eq(0)
+                }),
+                adr_burst_wrap.eq(self.bus.bte[0] | self.bus.bte[1])
+            ]
+
+            # latch initial address - initial address without wrapping bits and wrap offset
+            self.sync += [
+                If(self.bus.cyc & self.bus.stb & adr_burst,
+                    adr_latched.eq(1),
+                    # latch initial address, then increment it every clock cycle
+                    If(adr_latched,
+                        adr_counter.eq(adr_counter + 1)
+                    ).Else(
+                        adr_counter_offset.eq(self.bus.adr & adr_wrap_mask[self.bus.bte]),
+                        If(self.bus.we,
+                            adr_counter.eq(
+                                Cat(self.bus.adr & ~adr_wrap_mask[self.bus.bte],
+                                    self.bus.adr[adr_wrap_max:]
+                                    )
+                            ),
+                        ).Else(
+                            adr_counter.eq(
+                                Cat(self.bus.adr & ~adr_wrap_mask[self.bus.bte],
+                                    self.bus.adr[adr_wrap_max:]
+                                    ) + 1
+                            ),
+                        )
+                    ),
+                    If(self.bus.cti == 0b111,
+                        adr_latched.eq(0),
+                        adr_counter.eq(0),
+                        adr_counter_offset.eq(0)
+                    )
+                ).Else(
+                    adr_latched.eq(0),
+                    adr_counter.eq(0),
+                    adr_counter_offset.eq(0)
+                ),
+            ]
+
+            # next address = sum of counter value without wrapped bits
+            #                and wrapped counter bits with offset
+            self.comb += [
+                adr_offset_lsb.eq((adr_counter + adr_counter_offset) & adr_wrap_mask[self.bus.bte]),
+                adr_offset_msb.eq(adr_counter & ~adr_wrap_mask[self.bus.bte]),
+                adr_next.eq(adr_offset_msb + adr_offset_lsb)
+            ]
+
+        ###
 
         # memory
         port = self.mem.get_port(write_capable=not read_only, we_granularity=8,
@@ -357,17 +431,36 @@ class SRAM(Module):
             self.comb += [port.we[i].eq(self.bus.cyc & self.bus.stb & self.bus.we & self.bus.sel[i])
                 for i in range(bus_data_width//8)]
         # address and data
+        if burst:
+            self.comb += [
+                If(adr_burst & adr_latched,
+                    port.adr.eq(adr_next[:len(port.adr)]),
+                ).Else(
+                    port.adr.eq(self.bus.adr[:len(port.adr)]),
+                ),
+            ]
+        else:
+            self.comb += [
+                port.adr.eq(self.bus.adr[:len(port.adr)]),
+            ]
         self.comb += [
-            port.adr.eq(self.bus.adr[:len(port.adr)]),
             self.bus.dat_r.eq(port.dat_r)
         ]
         if not read_only:
             self.comb += port.dat_w.eq(self.bus.dat_w),
+        
         # generate ack
         self.sync += [
-            self.bus.ack.eq(0),
-            If(self.bus.cyc & self.bus.stb & ~self.bus.ack, self.bus.ack.eq(1))
+            self.bus.ack.eq(0)
         ]
+        if burst:
+            self.sync += [
+                If(self.bus.cyc & self.bus.stb & (~self.bus.ack | adr_burst), self.bus.ack.eq(1))
+            ]
+        else:
+            self.sync += [
+                If(self.bus.cyc & self.bus.stb & ~self.bus.ack, self.bus.ack.eq(1))
+            ]
 
 # Wishbone To CSR ----------------------------------------------------------------------------------
 
