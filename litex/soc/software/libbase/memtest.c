@@ -262,6 +262,9 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only, bool rando
 	unsigned long read_speed;
 	__attribute__((unused)) unsigned long data;
 	const unsigned int sz = sizeof(unsigned long);
+    int burst_size = 4;
+    volatile unsigned long *ptr, *ptr_max = (volatile unsigned long )(((char *)array) + size - sz*burst_size);
+
 
 	printf("Memspeed at %p (", addr);
 	if (random)
@@ -281,9 +284,16 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only, bool rando
 	if (!read_only) {
 		timer0_update_value_write(1);
 		start = timer0_value_read();
-		for(i = 0; i < size/sz; i++) {
-			array[i] = -1ul;
-		}
+
+        ptr = array;
+        do{
+			ptr[0] = -1ul;
+			ptr[1] = -1ul;
+			ptr[2] = -1ul;
+			ptr[3] = -1ul;
+            ptr += burst_size;
+		} while(ptr <= ptr_max);
+
 		timer0_update_value_write(1);
 		end = timer0_value_read();
 		uint64_t numerator   = ((uint64_t)size)*((uint64_t)CONFIG_CLOCK_FREQUENCY);
@@ -311,9 +321,14 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only, bool rando
 			data = array[seed_32 % num];
 		}
 	} else {
-		for (i = 0; i < size/sz; i++) {
-			data = array[i];
-		}
+        ptr = array;
+        do{
+			data = ptr[0];
+			data = ptr[1];
+			data = ptr[2];
+			data = ptr[3];
+            ptr += burst_size;
+		} while(ptr <= ptr_max);
 	}
 
 	timer0_update_value_write(1);
