@@ -80,7 +80,7 @@ class TRIONPLL(Module):
 
         self.logger.info("Using {}".format(block["resource"]))
 
-    def create_clkout(self, cd, freq, phase=0, margin=1e-2, name="", with_reset=False):
+    def create_clkout(self, cd, freq, phase=0, margin=1e-2, name="", with_reset=True):
         assert self.nclkouts < self.nclkouts_max
 
         clk_out_name = f"{self.name}_clkout{self.nclkouts}" if name == "" else name
