@@ -196,7 +196,7 @@ class NaxRiscv(CPU):
             ), shell=True)
             # Use specific SHA1 (Optional).
         os.chdir(os.path.join(dir))
-        os.system(f"cd {dir} && git checkout {hash}")
+        os.system(f"cd {dir} && git checkout main && git pull && git checkout {hash}")
 
     # Netlist Generation.
     @staticmethod
@@ -205,7 +205,7 @@ class NaxRiscv(CPU):
         ndir = os.path.join(vdir, "ext", "NaxRiscv")
         sdir = os.path.join(vdir, "ext", "SpinalHDL")
 
-        NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git",   "66bf132c")
+        NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git",   "cbb9a7af")
         NaxRiscv.git_setup("SpinalHDL", sdir, "https://github.com/SpinalHDL/SpinalHDL.git", "10cfe066")
 
         gen_args = []
@@ -301,9 +301,10 @@ class NaxRiscv(CPU):
         soc.bus.add_slave("clint", clintbus, region=soc_region_cls(origin=soc.mem_map.get("clint"), size=0x10000, cached=False))
 
     def add_memory_buses(self, address_width, data_width):
-        nax_data_width = 128
-        assert data_width == nax_data_width  # FIXME: No conversion.
-        #assert data_width >= nax_data_width # FIXME: Only supporting up-conversion for now.
+        nax_data_width = 64
+        nax_burst_size = 64
+        assert data_width >= nax_data_width   # FIXME: Only supporting up-conversion for now.
+        assert data_width <= nax_burst_size*8 # FIXME: AXIUpConverter doing assumptions on minimal burst_size.
 
         ibus = axi.AXIInterface(
             data_width    = nax_data_width,
