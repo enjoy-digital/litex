@@ -46,20 +46,20 @@ def w_description(data_width, id_width):
     return [
         ("data", data_width),
         ("strb", data_width//8),
-        ("id",     id_width)
+        ("id",   id_width)
     ]
 
-def b_description(id_width, resp_width=2):
+def b_description(id_width):
     return [
-        ("id",    id_width),
-        ("resp", resp_width),
+        ("resp", 2),
+        ("id",   id_width)
     ]
 
-def r_description(data_width, id_width, resp_width=2):
+def r_description(data_width, id_width):
     return [
+        ("resp", 2),
         ("data", data_width),
-        ("id",     id_width),
-        ("resp", resp_width),
+        ("id",   id_width)
     ]
 
 def _connect_axi(master, slave, keep=None, omit=None):
@@ -830,13 +830,12 @@ class AXIUpConverter(Module):
     def __init__(self, axi_from, axi_to):
         dw_from  = len(axi_from.r.data)
         dw_to    = len(axi_to.r.data)
-        idw_from = len(axi_from.r.id)
-        idw_to   = len(axi_to.r.id)
         ratio    = int(dw_to//dw_from)
         assert dw_from*ratio == dw_to
-        assert idw_to >= idw_from*ratio
 
         # # #
+
+        # Note: Assuming size of "axi_from" burst >= "axi_to" data_width.
 
         # Write path -------------------------------------------------------------------------------
 
@@ -849,13 +848,13 @@ class AXIUpConverter(Module):
 
         # W Channel.
         w_converter = stream.StrideConverter(
-            description_from = w_description(data_width=dw_from, id_width=idw_from),
-            description_to   = w_description(data_width=dw_to,   id_width=idw_from*ratio),
-            reverse          = True
+            description_from = [("data", dw_from), ("strb", dw_from//8)],
+            description_to   = [("data",   dw_to), ("strb",   dw_to//8)],
         )
         self.submodules += w_converter
-        self.comb += axi_from.w.connect(w_converter.sink)
+        self.comb += axi_from.w.connect(w_converter.sink, omit={"id"})
         self.comb += w_converter.source.connect(axi_to.w)
+        self.comb += axi_to.w.id.eq(axi_from.w.id)
 
         # B Channel.
         self.comb += axi_to.b.connect(axi_from.b)
@@ -871,14 +870,14 @@ class AXIUpConverter(Module):
 
         # R Channel.
         r_converter = stream.StrideConverter(
-            description_from = r_description(data_width=dw_to,   id_width=idw_from*ratio, resp_width=2*ratio),
-            description_to   = r_description(data_width=dw_from, id_width=idw_from,       resp_width=2),
-            reverse          = True,
+            description_from = [("data",   dw_to)],
+            description_to   = [("data", dw_from)],
         )
         self.submodules += r_converter
-        self.comb += axi_to.r.connect(r_converter.sink, omit={"resp"})
-        self.comb += r_converter.sink.resp.eq(Replicate(axi_to.r.resp, ratio))
+        self.comb += axi_to.r.connect(r_converter.sink, omit={"id", "resp"})
         self.comb += r_converter.source.connect(axi_from.r)
+        self.comb += axi_from.r.resp.eq(axi_to.r.resp)
+        self.comb += axi_from.r.id.eq(axi_to.r.id)
 
 # AXILite Data Width Converter ---------------------------------------------------------------------
 
