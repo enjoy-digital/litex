@@ -77,7 +77,7 @@ class EfinixPlatform(GenericPlatform):
             return None
         assert len(sig) == 1
         idx = 0
-        if isinstance(sig, _Slice):
+        while isinstance(sig, _Slice) and hasattr(sig, "value"):
             idx = sig.start
             sig = sig.value
         sc = self.constraint_manager.get_sig_constraints()
@@ -92,7 +92,7 @@ class EfinixPlatform(GenericPlatform):
             return None
         assert len(sig) == 1
 
-        if isinstance(sig, _Slice):
+        while isinstance(sig, _Slice) and hasattr(sig, "value"):
             sig = sig.value
         sc = self.constraint_manager.get_sig_constraints()
         for s, pins, others, resource in sc:
@@ -122,7 +122,7 @@ class EfinixPlatform(GenericPlatform):
         assert len(sig) == 1
         idx = 0
         slc = False
-        if isinstance(sig, _Slice):
+        while isinstance(sig, _Slice) and hasattr(sig, "value"):
             slc = True
             idx = sig.start
             sig = sig.value
