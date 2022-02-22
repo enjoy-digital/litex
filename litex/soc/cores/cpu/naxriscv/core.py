@@ -157,7 +157,6 @@ class NaxRiscv(CPU):
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
-        assert reset_address == 0x00000000
 
     @staticmethod
     def find_scala_files():
@@ -174,8 +173,9 @@ class NaxRiscv(CPU):
 
     # Cluster Name Generation.
     @staticmethod
-    def generate_netlist_name():
+    def generate_netlist_name(reset_address):
         md5_hash = hashlib.md5()
+        md5_hash.update(str(reset_address).encode('utf-8'))
         for file in NaxRiscv.scala_paths:
             a_file = open(file, "rb")
             content = a_file.read()
@@ -200,17 +200,18 @@ class NaxRiscv(CPU):
 
     # Netlist Generation.
     @staticmethod
-    def generate_netlist():
+    def generate_netlist(reset_address):
         vdir = get_data_mod("cpu", "naxriscv").data_location
         ndir = os.path.join(vdir, "ext", "NaxRiscv")
         sdir = os.path.join(vdir, "ext", "SpinalHDL")
 
-        NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git",   "092afc0ca796aa8e8c305d72468c92663f431f17")
+        NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git",   "51c9c751")
         NaxRiscv.git_setup("SpinalHDL", sdir, "https://github.com/SpinalHDL/SpinalHDL.git", "2ff1f4d7")
 
         gen_args = []
         gen_args.append(f"--netlist-name={NaxRiscv.netlist_name}")
         gen_args.append(f"--netlist-directory={vdir}")
+        gen_args.append(f"--reset-vector={reset_address}")
         for file in NaxRiscv.scala_paths:
             gen_args.append(f"--scala-file={file}")
 
@@ -225,7 +226,7 @@ class NaxRiscv(CPU):
         vdir = get_data_mod("cpu", "naxriscv").data_location
         print(f"NaxRiscv netlist : {self.netlist_name}")
         if not path.exists(os.path.join(vdir, self.netlist_name + ".v")):
-            self.generate_netlist()
+            self.generate_netlist(self.reset_address)
 
         # Add RAM.
         # By default, use Generic RAM implementation.
@@ -369,7 +370,7 @@ class NaxRiscv(CPU):
         assert hasattr(self, "reset_address")
 
         self.find_scala_files()
-        self.generate_netlist_name()
+        self.generate_netlist_name(self.reset_address)
 
         # Do verilog instance.
         self.specials += Instance(self.netlist_name, **self.cpu_params)
