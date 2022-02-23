@@ -33,6 +33,7 @@
 
 #include <libbase/console.h>
 #include <libbase/crc.h>
+#include <libbase/memtest.h>
 
 #include <libbase/spiflash.h>
 #include <libbase/uart.h>
@@ -153,7 +154,7 @@ __attribute__((__used__)) int main(int i, char **c)
 
         sdr_ok = 1;
 
-#if defined(CSR_ETHMAC_BASE) || defined(CSR_SDRAM_BASE) || defined(CSR_SPIFLASH_CORE_BASE)
+#if defined(CSR_ETHMAC_BASE) || defined(MAIN_RAM_BASE) || defined(CSR_SPIFLASH_CORE_BASE)
     printf("--========== \e[1mInitialization\e[0m ============--\n");
 #ifdef CSR_ETHMAC_BASE
 	eth_init();
@@ -161,8 +162,9 @@ __attribute__((__used__)) int main(int i, char **c)
 #ifdef CSR_SDRAM_BASE
 	sdr_ok = sdram_init();
 #else
-#ifdef MAIN_RAM_TEST
-	sdr_ok = memtest();
+#ifdef MAIN_RAM_BASE
+	sdr_ok = memtest((unsigned int *) MAIN_RAM_BASE, min(MAIN_RAM_SIZE, MEMTEST_DATA_SIZE));
+	memspeed((unsigned int *) MAIN_RAM_BASE, min(MAIN_RAM_SIZE, MEMTEST_DATA_SIZE), false, 0);
 #endif
 #endif
 	if (sdr_ok != 1)

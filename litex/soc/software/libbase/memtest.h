@@ -3,6 +3,16 @@
 
 #include <stdbool.h>
 
+#include <generated/csr.h>
+#include <generated/soc.h>
+
+#define max(x, y) (((x) > (y)) ? (x) : (y))
+#define min(x, y) (((x) < (y)) ? (x) : (y))
+
+#ifndef MEMTEST_DATA_SIZE
+#define MEMTEST_DATA_SIZE (2*1024*1024)
+#endif
+
 // Called when an error is encountered. Can return non-zero to stop the memtest.
 // `arg` can be used to pass arbitrary data to the callback via `memtest_config.arg`.
 typedef int (*on_error_callback)(unsigned int addr, unsigned int rdata, unsigned int refdata, void *arg);
