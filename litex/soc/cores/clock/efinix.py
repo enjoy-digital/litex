@@ -49,7 +49,7 @@ class TRIONPLL(Module):
         if self.platform.get_pin_location(clkin):
             pad_name = self.platform.get_pin_location(clkin)[0]
             # PLL v1 needs pin name
-            pin_name = self.platform.parser.get_gpio_instance_from_pin(pad_name)
+            pin_name = self.platform.parser.get_pad_name_from_pin(pad_name)
             if pin_name.count("_") == 2:
                 pin_name = pin_name.rsplit("_", 1)[0]
             self.platform.toolchain.excluded_ios.append(clkin)

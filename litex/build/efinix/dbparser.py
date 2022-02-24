@@ -124,13 +124,17 @@ class EfinixDbParser:
 
         return None
 
-    def get_pll_inst_from_pin(self, pin):
+    def get_gpio_instance_from_pin(self, pin):
         dmap = self.get_device_map(self.device)
         pad = self.get_pad_name_xml(dmap, pin)
-        inst = self.get_instance_name_xml(dmap, pad)
+        return self.get_instance_name_xml(dmap, pad)
+
+    def get_pll_inst_from_pin(self, pin):
+        dmap = self.get_device_map(self.device)
+        inst = self.get_gpio_instance_from_pin(pin)
 
         return self.get_pll_inst_from_gpio_inst(dmap, inst)
 
-    def get_gpio_instance_from_pin(self, pin):
+    def get_pad_name_from_pin(self, pin):
         dmap = self.get_device_map(self.device)
         return self.get_pad_name_xml(dmap, pin)

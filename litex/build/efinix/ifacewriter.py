@@ -288,7 +288,7 @@ design.save()"""
             dir  = "rx"
             mode = "in"
 
-        pad = self.platform.parser.get_gpio_instance_from_pin(params["location"][0])
+        pad = self.platform.parser.get_pad_name_from_pin(params["location"][0])
         pad = pad.replace("TXP", "TX")
         pad = pad.replace("TXN", "TX")
         pad = pad.replace("RXP", "RX")
