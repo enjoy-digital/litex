@@ -398,14 +398,16 @@ static void sdram_leveling_center_module(
 
 	/* Get a bit further into the working zone */
 #if SDRAM_PHY_DELAYS > 32
-	for(i=0;i<16;i++) {
+	#define	SDRAM_PHY_DELAY_JUMP 16
+#elif SDRAM_PHY_DELAYS > 8
+	#define SDRAM_PHY_DELAY_JUMP 4
+#else
+	#define SDRAM_PHY_DELAY_JUMP 1
+#endif
+	for(i=0;i<SDRAM_PHY_DELAY_JUMP;i++) {
 		delay += 1;
 		inc_delay(module);
 	}
-#else
-	delay++;
-	inc_delay(module);
-#endif
 
 	/* Find largest working delay */
 	while(1) {
