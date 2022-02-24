@@ -66,7 +66,7 @@ def _yosys_import_sources(platform):
     reads = []
     for path in platform.verilog_include_paths:
         includes += " -I" + path
-    for filename, language, library in platform.sources:
+    for filename, language, library, *copy in platform.sources:
         # yosys has no such function read_systemverilog
         if language == "systemverilog":
             language = "verilog -sv"

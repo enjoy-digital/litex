@@ -60,7 +60,7 @@ def _build_ucf(named_sc, named_pc):
 
 def _build_xst(device, sources, vincpaths, build_name, xst_opt):
     prj_contents = ""
-    for filename, language, library in sources:
+    for filename, language, library, *copy in sources:
         prj_contents += language + " " + library + " " + tools.cygpath(filename) + "\n"
     tools.write_to_file(build_name + ".prj", prj_contents)
 
@@ -85,7 +85,7 @@ def _run_yosys(device, sources, vincpaths, build_name):
     incflags = ""
     for path in vincpaths:
         incflags += " -I" + path
-    for filename, language, library in sources:
+    for filename, language, library, *copy in sources:
         ys_contents += "read_{}{} {}\n".format(language, incflags, filename)
 
     family = ""

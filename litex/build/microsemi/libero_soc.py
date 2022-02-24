@@ -111,7 +111,7 @@ def _build_tcl(platform, sources, build_dir, build_name):
     ]))
 
     # Add sources
-    for filename, language, library in sources:
+    for filename, language, library, *copy in sources:
         filename_tcl = "{" + filename + "}"
         tcl.append("import_files -hdl_source " + filename_tcl)
 

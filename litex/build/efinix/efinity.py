@@ -202,7 +202,7 @@ def _build_xml(family, device, timing_model, build_name, sources):
     et.SubElement(design_info, "efx:top_module", name=build_name)
 
     # Add Design Sources.
-    for filename, language, library in sources:
+    for filename, language, library, *copy in sources:
         if language is None:
             continue
         et.SubElement(design_info, "efx:design_file", {
