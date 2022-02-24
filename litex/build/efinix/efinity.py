@@ -313,6 +313,10 @@ class EfinityToolchain:
         if self.ifacewriter.xml_blocks or platform.iobank_info:
             self.ifacewriter.generate_xml_blocks()
 
+        # Because the Python API is sometimes bugged, we need to tweak the generated xml
+        if self.ifacewriter.fix_xml:
+            self.ifacewriter.fix_xml_values()
+
         # Run
         if run:
             # Synthesis/Mapping.
