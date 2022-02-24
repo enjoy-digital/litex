@@ -89,7 +89,7 @@ def _build_tcl(device, sources, vincpaths, build_name):
     tcl.append("prj_impl option {include path} {\"" + vincpath + "\"}")
 
     # Add sources
-    for filename, language, library in sources:
+    for filename, language, library, *copy in sources:
         tcl.append("prj_src add \"{}\" -work {}".format(tcl_path(filename), library))
 
     # Set top level

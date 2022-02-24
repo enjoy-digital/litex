@@ -30,7 +30,7 @@ def _run_yosys(device, sources, vincpaths, build_name):
     incflags = ""
     for path in vincpaths:
         incflags += " -I" + path
-    for filename, language, library in sources:
+    for filename, language, library, *copy in sources:
         assert language != "vhdl"
         ys_contents += "read_{}{} {}\n".format(language, incflags, filename)
 
@@ -146,7 +146,7 @@ def _build_tcl(device, sources, vincpaths, build_name, pdc_file, synth_mode):
         tcl.append("prj_add_source \"{}_yosys.vm\" -work work".format(build_name))
         library = "work"
     else:
-        for filename, language, library in sources:
+        for filename, language, library, *copy in sources:
             tcl.append("prj_add_source \"{}\" -work {}".format(tcl_path(filename), library))
 
     tcl.append("prj_add_source \"{}\" -work {}".format(tcl_path(pdc_file), library))

@@ -133,7 +133,7 @@ def _generate_sim_config(config):
 def _build_sim(build_name, sources, threads, coverage, opt_level="O3", trace_fst=False):
     makefile = os.path.join(core_directory, 'Makefile')
     cc_srcs = []
-    for filename, language, library in sources:
+    for filename, language, library, *copy in sources:
         cc_srcs.append("--cc " + filename + " ")
     build_script_contents = """\
 rm -rf obj_dir/

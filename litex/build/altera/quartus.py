@@ -108,7 +108,7 @@ def _build_qsf(device, ips, sources, vincpaths, named_sc, named_pc, build_name, 
     qsf.append("set_global_assignment -name DEVICE {}".format(device))
 
     # Add sources
-    for filename, language, library in sources:
+    for filename, language, library, *copy in sources:
         if language == "verilog": language = "systemverilog" # Enforce use of SystemVerilog
         tpl = "set_global_assignment -name {lang}_FILE {path} -library {lib}"
         # Do not add None type files

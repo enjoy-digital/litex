@@ -163,7 +163,7 @@ class XilinxVivadoToolchain:
         if synth_mode == "vivado":
             tcl.append("\n# Add Sources\n")
             # "-include_dirs {}" crashes Vivado 2016.4
-            for filename, language, library in platform.sources:
+            for filename, language, library, *copy in platform.sources:
                 filename_tcl = "{" + filename + "}"
                 if (language == "systemverilog"):
                     tcl.append("read_verilog -v " + filename_tcl)
