@@ -36,12 +36,32 @@ class InterfaceWriter:
         self.efinity_path = efinity_path
         self.blocks       = []
         self.xml_blocks   = []
+        self.fix_xml      = []
         self.filename     = ""
         self.platform     = None
 
     def set_build_params(self, platform, build_name):
         self.filename = build_name
         self.platform = platform
+
+    def fix_xml_values(self):
+        et.register_namespace("efxpt", "http://www.efinixinc.com/peri_design_db")
+        tree = et.parse(self.filename + ".peri.xml")
+        root = tree.getroot()
+        for tag, name, values in self.fix_xml:
+            for e in tree.iter():
+                if (tag in e.tag) and (name == e.get("name")):
+                    for n, v in values:
+                        e.set(n, v)
+
+        xml_string = et.tostring(root, "utf-8")
+        reparsed = expatbuilder.parseString(xml_string, False)
+        print_string = reparsed.toprettyxml(indent="    ")
+
+        # Remove lines with only whitespaces. Not sure why they are here
+        print_string = os.linesep.join([s for s in print_string.splitlines() if s.strip()])
+
+        tools.write_to_file("{}.peri.xml".format(self.filename), print_string)
 
     def generate_xml_blocks(self):
         et.register_namespace("efxpt", "http://www.efinixinc.com/peri_design_db")
