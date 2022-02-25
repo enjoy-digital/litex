@@ -181,12 +181,12 @@ class VideoTimingGenerator(Module, AutoCSR):
         self._hres        = CSRStorage(hbits, vt["h_active"])
         self._hsync_start = CSRStorage(hbits, vt["h_active"] + vt["h_sync_offset"])
         self._hsync_end   = CSRStorage(hbits, vt["h_active"] + vt["h_sync_offset"] + vt["h_sync_width"])
-        self._hscan       = CSRStorage(hbits, vt["h_active"] + vt["h_blanking"])
+        self._hscan       = CSRStorage(hbits, vt["h_active"] + vt["h_blanking"] - 1)
 
         self._vres        = CSRStorage(vbits, vt["v_active"])
         self._vsync_start = CSRStorage(vbits, vt["v_active"] + vt["v_sync_offset"])
         self._vsync_end   = CSRStorage(vbits, vt["v_active"] + vt["v_sync_offset"] + vt["v_sync_width"])
-        self._vscan       = CSRStorage(vbits, vt["v_active"] + vt["v_blanking"])
+        self._vscan       = CSRStorage(vbits, vt["v_active"] + vt["v_blanking"] - 1)
 
         # Video Timing Source
         self.source = source = stream.Endpoint(video_timing_layout)
@@ -242,28 +242,21 @@ class VideoTimingGenerator(Module, AutoCSR):
                 # Increment HCount.
                 NextValue(source.hcount, source.hcount + 1),
                 # Generate HActive / HSync.
-                If(source.hcount == 0,             NextValue(hactive,       1)), # Start of HActive.
-                If(source.hcount == hres,          NextValue(hactive,       0)), # End of HActive.
-                If(source.hcount == hsync_start,
-                    NextValue(source.hsync, 1),                                  # Start of HSync.
-                    NextValue(source.vsync, 1),                                  # Start of VSync.
-                    NextValue(source.vcount, vsync_start)
-                ),
-                If(source.hcount == hsync_end,     NextValue(source.hsync,  0)), # End of HSync.
-                If(source.hcount == hscan,         NextValue(source.hcount, 0)), # Reset HCount.
-                # End of HScan.
+                If(source.hcount == 0,           NextValue(hactive,       1)), # Start of HActive.
+                If(source.hcount == hres,        NextValue(hactive,       0)), # End of HActive.
+                If(source.hcount == hsync_start, NextValue(source.hsync,  1)),
+                If(source.hcount == hsync_end,   NextValue(source.hsync,  0)), # End of HSync.
+                If(source.hcount == hscan,       NextValue(source.hcount, 0)), # End of HScan.
+
                 If(source.hcount == hsync_start,
                     # Increment VCount.
                     NextValue(source.vcount, source.vcount + 1),
                     # Generate VActive / VSync.
-                    If(source.vcount == 0,         NextValue(vactive,       1)), # Start of VActive.
-                    If(source.vcount == vres,      NextValue(vactive,       0)), # End of HActive.
-                    If(source.vcount == vsync_end, NextValue(source.vsync,  0)), # End of VSync.
-                    # End of VScan.
-                    If(source.vcount == vscan,
-                        # Reset VCount.
-                        NextValue(source.vcount, 0),
-                    )
+                    If(source.vcount == 0,           NextValue(vactive,       1)), # Start of VActive.
+                    If(source.vcount == vres,        NextValue(vactive,       0)), # End of VActive.
+                    If(source.vcount == vsync_start, NextValue(source.vsync,  1)),
+                    If(source.vcount == vsync_end,   NextValue(source.vsync,  0)), # End of VSync.
+                    If(source.vcount == vscan,       NextValue(source.vcount, 0))  # End of VScan.
                 )
             )
         )
@@ -307,6 +300,9 @@ class ColorBarsPattern(Module):
                     NextValue(pix, 0),
                     NextValue(bar, bar + 1)
                 )
+            ).Else(
+                NextValue(pix, 0),
+                NextValue(bar, 0)
             )
         )
 
