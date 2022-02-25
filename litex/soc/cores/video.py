@@ -300,6 +300,9 @@ class ColorBarsPattern(Module):
                     NextValue(pix, 0),
                     NextValue(bar, bar + 1)
                 )
+            ).Else(
+                NextValue(pix, 0),
+                NextValue(bar, 0)
             )
         )
 
