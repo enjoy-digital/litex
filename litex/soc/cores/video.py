@@ -1,7 +1,9 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2021 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2021-2022 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2021 Romain Dolbeau <romain@dolbeau.org>
+# Copyright (c) 2022 Franck Jullien <franck.jullien@collshade.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
