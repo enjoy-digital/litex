@@ -156,27 +156,13 @@ class XADC(S7SystemMonitor): pass
 
 # Xilinx Ultrascale System Monitor -----------------------------------------------------------------
 
-class USSystemMonitor(SystemMonitorDRP, AutoCSR):
+class USFamilySystemMonitor(SystemMonitorDRP, AutoCSR):
     dadr_size = 8
 
     def __init__(self, analog_pads=None):
-        # Temperature
-        self.temperature = CSRStatus(10, description="""Raw Temperature value from SYSMONE1.\n
-            Temperature (°C) = ``Value`` x 503.975 / 1024 - 273.15.""")
-
-        # Voltages
-        self.vccint     = CSRStatus(10, description="""Raw VCCINT value from SYSMONE1.\n
-            VCCINT (V) = ``Value`` x 3 / 1024.""")
-        self.vccaux     = CSRStatus(10, description="""Raw VCCAUX value from SYSMONE1.\n
-            VCCAUX (V) = ``Value`` x 3 / 1024.""")
-        self.vccbram    = CSRStatus(10, description="""Raw VCCBRAM value from SYSMONE1.\n
-            VCCBRAM (V) = ``Value`` x 3 / 1024.""")
-        self.vccpsintlp = CSRStatus(10, description="""Raw VCCPSINTLP value from SYSMONE1.\n
-            VCCPSINTLP (V) = ``Value`` x 3 / 1024.""")
-        self.vccpsintfp = CSRStatus(10, description="""Raw VCCPSINTFP value from SYSMONE1.\n
-            VCCPSINTFP (V) = ``Value`` x 3 / 1024.""")
-        self.vccpsaux   = CSRStatus(10, description="""Raw VCCPSAUX value from SYSMONE1.\n
-            VCCPSAUX (V) = ``Value`` x 3 / 1024.""")
+        # Channels CSRs
+        for reg_addr, name, desc in self._channels:
+            setattr(self, name, CSRStatus(10, name=name, description=desc))
 
         # End of Convertion/Sequence
         self.eoc = CSRStatus(description="End of Conversion Status, ``1``: Conversion Done.")
@@ -201,7 +187,8 @@ class USSystemMonitor(SystemMonitorDRP, AutoCSR):
         self.di   = Signal(16)
         self.do   = Signal(16)
         self.drp_en = Signal()
-        self.specials += Instance("SYSMONE1",
+
+        params = dict(
             # From UG580
             p_INIT_40=0x9000, p_INIT_41=0x2fd0, p_INIT_42=0x1000,
             p_INIT_46=0x000f, p_INIT_48=0x4701, p_INIT_49=0x000f,
@@ -234,6 +221,10 @@ class USSystemMonitor(SystemMonitorDRP, AutoCSR):
             i_DI        = self.di,
             o_DO        = self.do
         )
+        if self._sim_device is not None:
+            params['p_SIM_DEVICE'] = self._sim_device
+        self.specials += Instance(self._block_name, **params)
+
         self.comb += [
             If(~self.drp_en,
                 self.den.eq(eoc),
@@ -242,20 +233,11 @@ class USSystemMonitor(SystemMonitorDRP, AutoCSR):
         ]
 
         # Channels update.
-        channels = {
-            0x0 : self.temperature,
-            0x1 : self.vccint,
-            0x2 : self.vccaux,
-            0x6 : self.vccbram,
-            0xd : self.vccpsintlp,
-            0xe : self.vccpsintfp,
-            0xf : self.vccpsaux,
-        }
         self.sync += [
                 If(self.drdy,
                     Case(channel, dict(
-                        (k, v.status.eq((self.do >> 6) & 0x3ff))
-                    for k, v in channels.items()))
+                        (reg_addr, getattr(self, name).status.eq((self.do >> 6) & 0x3ff))
+                    for reg_addr, name, desc in self._channels))
                 )
         ]
 
@@ -264,3 +246,56 @@ class USSystemMonitor(SystemMonitorDRP, AutoCSR):
             self.eoc.status.eq((self.eoc.status & ~self.eoc.we) | eoc),
             self.eos.status.eq((self.eos.status & ~self.eos.we) | eos),
         ]
+
+# Xilinx Ultrascale+ System Monitor -----------------------------------------------------------------
+
+class USSystemMonitor(USFamilySystemMonitor):
+
+    _block_name = 'SYSMONE1'
+    _sim_device = None
+    _channels = [
+        ( 0x0, 'temperature',
+          "Raw Temperature value from SYSMONE1.\n Temperature (°C) = ``Value`` x 503.975 / 1024 - 273.15."),
+        ( 0x1, 'vccint',
+          "Raw VCCINT value from SYSMONE1.\n VCCINT (V) = ``Value`` x 3 / 1024."),
+        ( 0x2, 'vccaux',
+          "Raw VCCAUX value from SYSMONE1.\n VCCAUX (V) = ``Value`` x 3 / 1024."),
+        ( 0x6, 'vccbram',
+          "Raw VCCBRAM value from SYSMONE1.\n VCCBRAM (V) = ``Value`` x 3 / 1024."),
+    ]
+
+class USPSystemMonitor(USFamilySystemMonitor):
+
+    _block_name = 'SYSMONE4'
+    _sim_device = 'ULTRASCALE_PLUS'
+    _channels = [
+        ( 0x0, 'temperature',
+          "Raw Temperature value from SYSMONE4.\n Temperature (°C) = ``Value`` x 507.5921310 / 1024 - 279.42657680."),
+        ( 0x1, 'vccint',
+          "Raw VCCINT value from SYSMONE4.\n VCCINT (V) = ``Value`` x 3 / 1024."),
+        ( 0x2, 'vccaux',
+          "Raw VCCAUX value from SYSMONE4.\n VCCAUX (V) = ``Value`` x 3 / 1024."),
+        ( 0x6, 'vccbram',
+          "Raw VCCBRAM value from SYSMONE4.\n VCCBRAM (V) = ``Value`` x 3 / 1024."),
+    ]
+
+class ZynqUSPSystemMonitor(USFamilySystemMonitor):
+
+    _block_name = 'SYSMONE4'
+    _sim_device = 'ZYNQ_ULTRASCALE'
+    _channels = [
+        ( 0x0, 'temperature',
+          "Raw Temperature value from SYSMONE4.\n Temperature (°C) = ``Value`` x 507.5921310 / 1024 - 279.42657680."),
+        ( 0x1, 'vccint',
+          "Raw VCCINT value from SYSMONE4.\n VCCINT (V) = ``Value`` x 3 / 1024."),
+        ( 0x2, 'vccaux',
+          "Raw VCCAUX value from SYSMONE4.\n VCCAUX (V) = ``Value`` x 3 / 1024."),
+        ( 0x6, 'vccbram',
+          "Raw VCCBRAM value from SYSMONE4.\n VCCBRAM (V) = ``Value`` x 3 / 1024."),
+        ( 0xd, 'vccpsintlp',
+          "Raw VCCPSINTLP value from SYSMONE4.\n VCCPSINTLP (V) = ``Value`` x 3 / 1024."),
+        ( 0xe, 'vccpsintfp',
+          "Raw VCCPSINTFP value from SYSMONE4.\n VCCPSINTFP (V) = ``Value`` x 3 / 1024."),
+        ( 0xf, 'vccpsaux',
+          "Raw VCCPSAUX value from SYSMONE4.\n VCCPSAUX (V) = ``Value`` x 3 / 1024."),
+    ]
