@@ -19,7 +19,7 @@ import datetime
 
 def language_by_filename(name):
     extension = name.rsplit(".")[-1]
-    if extension in ["v", "vh", "vo"]:
+    if extension in ["v", "vh", "vo", "vp"]:
         return "verilog"
     elif extension in ["vhd", "vhdl", "vho"]:
         return "vhdl"
