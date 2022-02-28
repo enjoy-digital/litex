@@ -7,6 +7,7 @@ import subprocess
 import shutil
 import hashlib
 import argparse
+import json
 
 import urllib.request
 
@@ -67,48 +68,61 @@ class GitRepo:
 
 git_repos = {
     # HDL.
-    "migen":    GitRepo(url="https://github.com/m-labs/", clone="recursive"),
-    "amaranth": GitRepo(url="https://github.com/amaranth-lang/", branch="main"),
+    "migen":    GitRepo(url="https://github.com/m-labs/migen.git", clone="recursive"),
+    "amaranth": GitRepo(url="https://github.com/amaranth-lang/amaranth.git", branch="main"),
 
     # LiteX SoC builder
-    "pythondata-software-picolibc":    GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
-    "pythondata-software-compiler_rt": GitRepo(url="https://github.com/litex-hub/"),
-    "litex":                           GitRepo(url="https://github.com/enjoy-digital/"),
+    "pythondata-software-picolibc":    GitRepo(url="https://github.com/litex-hub/pythondata-software-picolibc.git", clone="recursive"),
+    "pythondata-software-compiler_rt": GitRepo(url="https://github.com/litex-hub/pythondata-software-compiler_rt.git"),
+    "litex":                           GitRepo(url="https://github.com/enjoy-digital/litex.git"),
 
     # LiteX Cores Ecosystem.
-    "liteeth":      GitRepo(url="https://github.com/enjoy-digital/"),
-    "litedram":     GitRepo(url="https://github.com/enjoy-digital/"),
-    "litepcie":     GitRepo(url="https://github.com/enjoy-digital/"),
-    "litesata":     GitRepo(url="https://github.com/enjoy-digital/"),
-    "litesdcard":   GitRepo(url="https://github.com/enjoy-digital/"),
-    "liteiclink":   GitRepo(url="https://github.com/enjoy-digital/"),
-    "litescope":    GitRepo(url="https://github.com/enjoy-digital/"),
-    "litejesd204b": GitRepo(url="https://github.com/enjoy-digital/"),
-    "litespi":      GitRepo(url="https://github.com/litex-hub/"),
-    "litehyperbus": GitRepo(url="https://github.com/litex-hub/"),
+    "liteeth":      GitRepo(url="https://github.com/enjoy-digital/liteeth.git"),
+    "litedram":     GitRepo(url="https://github.com/enjoy-digital/litedram.git"),
+    "litepcie":     GitRepo(url="https://github.com/enjoy-digital/litepcie.git"),
+    "litesata":     GitRepo(url="https://github.com/enjoy-digital/litesata.git"),
+    "litesdcard":   GitRepo(url="https://github.com/enjoy-digital/litesdcard.git"),
+    "liteiclink":   GitRepo(url="https://github.com/enjoy-digital/liteiclink.git"),
+    "litescope":    GitRepo(url="https://github.com/enjoy-digital/litescope.git"),
+    "litejesd204b": GitRepo(url="https://github.com/enjoy-digital/litejesd204b.git"),
+    "litespi":      GitRepo(url="https://github.com/litex-hub/litespi.git"),
+    "litehyperbus": GitRepo(url="https://github.com/litex-hub/litehyperbus.git"),
 
     # LiteX Boards.
-    "litex-boards": GitRepo(url="https://github.com/litex-hub/", clone="regular"),
+    "litex-boards": GitRepo(url="https://github.com/litex-hub/litex-boards.git", clone="regular"),
 
     # LiteX pythondata.
-    "pythondata-misc-tapcfg":      GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-misc-usb_ohci":    GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-lm32":         GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-mor1kx":       GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-picorv32":     GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-serv":         GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-vexriscv":     GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-vexriscv-smp": GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
-    "pythondata-cpu-naxriscv":     GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-rocket":       GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-minerva":      GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-microwatt":    GitRepo(url="https://github.com/litex-hub/", sha1=0xb940b55acff),
-    "pythondata-cpu-blackparrot":  GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-cv32e40p":     GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
-    "pythondata-cpu-cv32e41p":     GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
-    "pythondata-cpu-ibex":         GitRepo(url="https://github.com/litex-hub/", clone="recursive", sha1=0xd3d53df),
-    "pythondata-cpu-marocchino":   GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-misc-tapcfg":      GitRepo(url="https://github.com/litex-hub/pythondata-misc-tapcfg.git"),
+    "pythondata-misc-usb_ohci":    GitRepo(url="https://github.com/litex-hub/pythondata-misc-usb_ohci.git"),
+    "pythondata-cpu-lm32":         GitRepo(url="https://github.com/litex-hub/pythondata-cpu-lm32.git"),
+    "pythondata-cpu-mor1kx":       GitRepo(url="https://github.com/litex-hub/pythondata-cpu-mor1kx.git"),
+    "pythondata-cpu-picorv32":     GitRepo(url="https://github.com/litex-hub/pythondata-cpu-picorv32.git"),
+    "pythondata-cpu-serv":         GitRepo(url="https://github.com/litex-hub/pythondata-cpu-serv.git"),
+    "pythondata-cpu-vexriscv":     GitRepo(url="https://github.com/litex-hub/pythondata-cpu-vexriscv.git"),
+    "pythondata-cpu-vexriscv-smp": GitRepo(url="https://github.com/litex-hub/pythondata-cpu-vexriscv-smp.git", clone="recursive"),
+    "pythondata-cpu-naxriscv":     GitRepo(url="https://github.com/litex-hub/pythondata-cpu-naxriscv.git"),
+    "pythondata-cpu-rocket":       GitRepo(url="https://github.com/litex-hub/pythondata-cpu-rocket.git"),
+    "pythondata-cpu-minerva":      GitRepo(url="https://github.com/litex-hub/pythondata-cpu-minerva.git"),
+    "pythondata-cpu-microwatt":    GitRepo(url="https://github.com/litex-hub/pythondata-cpu-microwatt.git", sha1=0xb940b55acff),
+    "pythondata-cpu-blackparrot":  GitRepo(url="https://github.com/litex-hub/pythondata-cpu-blackparrot.git"),
+    "pythondata-cpu-cv32e40p":     GitRepo(url="https://github.com/litex-hub/pythondata-cpu-cv32e40p.git", clone="recursive"),
+    "pythondata-cpu-cv32e41p":     GitRepo(url="https://github.com/litex-hub/pythondata-cpu-cv32e41p.git", clone="recursive"),
+    "pythondata-cpu-ibex":         GitRepo(url="https://github.com/litex-hub/pythondata-cpu-ibex.git", clone="recursive", sha1=0xd3d53df),
+    "pythondata-cpu-marocchino":   GitRepo(url="https://github.com/litex-hub/pythondata-cpu-marocchino.git"),
 }
+
+def apply_overlay(json_path):
+    with open(json_path, 'r') as fp:
+        overlay = json.load(fp)
+    for k, v in overlay.items():
+        if "sha1" in v:
+            v["sha1"] = int(v["sha1"], 16)
+        if k in git_repos:
+            git_repos[k].__dict__.update(**v)
+        elif "url" in v:
+            git_repos[k] = GitRepo(**v)
+        else:
+            raise RuntimeError(f"Invalid repository configuration {k}!")
 
 # Installs -----------------------------------------------------------------------------------------
 
@@ -179,9 +193,10 @@ def litex_setup_init_repos(config="standard", dev_mode=False):
             repo_url = repo.url
             if dev_mode:
                 repo_url = repo_url.replace("https://github.com/", "git@github.com:")
-            subprocess.check_call("git clone {url} {options}".format(
-                url     = repo_url + name + ".git",
-                options = "--recursive" if repo.clone == "recursive" else ""
+            subprocess.check_call("git clone {url} {options} {dir}".format(
+                url     = repo_url,
+                options = "--recursive" if repo.clone == "recursive" else "",
+                dir     = name
                 ), shell=True)
             # Use specific SHA1 (Optional).
             if repo.sha1 is not None:
@@ -327,6 +342,7 @@ def main():
     parser.add_argument("--user",      action="store_true", help="Install in User-Mode.")
     parser.add_argument("--config",    default="standard",  help="Install config (minimal, standard, full).")
     parser.add_argument("--status",    action="store_true", help="Display Git status of repositories.")
+    parser.add_argument("--json",      default=None,        help="Apply overlay to repo definitions from given JSON file.")
 
     # GCC toolchains.
     parser.add_argument("--gcc", default=None, help="Download/Extract GCC Toolchain (riscv, powerpc, openrisc or lm32).")
@@ -350,6 +366,10 @@ def main():
     litex_setup_location_check()
     if not args.dev:
         litex_setup_auto_update()
+
+    # Apply overlay.
+    if args.json:
+        apply_overlay(args.json)
 
     # Init.
     if args.init:

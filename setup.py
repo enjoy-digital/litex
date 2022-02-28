@@ -48,6 +48,7 @@ setup(
             "litex_json2renode=litex.tools.litex_json2renode:main",
             "litex_bare_metal_demo=litex.soc.software.demo.demo:main",
             "litex_contributors=litex.tools.litex_contributors:main",
+            "litex_freeze=litex.tools.litex_freeze:main"
         ],
     },
 )
