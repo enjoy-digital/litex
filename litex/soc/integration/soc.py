@@ -122,7 +122,7 @@ class SoCBusHandler(Module):
 
         # Check Bus Standard.
         if standard not in self.supported_standard:
-            self.logger.error("Unsupported {} {}, supporteds: {:s}".format(
+            self.logger.error("Unsupported {} {}, supported are: {:s}".format(
                 colorer("Bus standard", color="red"),
                 colorer(standard),
                 colorer(", ".join(self.supported_standard))))
@@ -130,7 +130,7 @@ class SoCBusHandler(Module):
 
         # Check Bus Data Width.
         if data_width not in self.supported_data_width:
-            self.logger.error("Unsupported {} {}, supporteds: {:s}".format(
+            self.logger.error("Unsupported {} {}, supported are: {:s}".format(
                 colorer("Data Width", color="red"),
                 colorer(data_width),
                 colorer(", ".join(str(x) for x in self.supported_data_width))))
@@ -138,7 +138,7 @@ class SoCBusHandler(Module):
 
         # Check Bus Address Width.
         if address_width not in self.supported_address_width:
-            self.logger.error("Unsupported {} {}, supporteds: {:s}".format(
+            self.logger.error("Unsupported {} {}, supported are: {:s}".format(
                 colorer("Address Width", color="red"),
                 colorer(address_width),
                 colorer(", ".join(str(x) for x in self.supported_address_width))))
@@ -513,7 +513,7 @@ class SoCCSRHandler(SoCLocHandler):
 
         # Check CSR Data Width.
         if data_width not in self.supported_data_width:
-            self.logger.error("Unsupported {} {}, supporteds: {:s}".format(
+            self.logger.error("Unsupported {} {}, supported are: {:s}".format(
                 colorer("Data Width", color="red"),
                 colorer(data_width),
                 colorer(", ".join(str(x) for x in self.supported_data_width))))
@@ -521,7 +521,7 @@ class SoCCSRHandler(SoCLocHandler):
 
         # Check CSR Address Width.
         if address_width not in self.supported_address_width:
-            self.logger.error("Unsupported {} {} supporteds: {:s}".format(
+            self.logger.error("Unsupported {} {} supported are: {:s}".format(
                 colorer("Address Width", color="red"),
                 colorer(address_width),
                 colorer(", ".join(str(x) for x in self.supported_address_width))))
@@ -529,7 +529,7 @@ class SoCCSRHandler(SoCLocHandler):
 
         # Check CSR Alignment.
         if alignment not in self.supported_alignment:
-            self.logger.error("Unsupported {}: {} supporteds: {:s}".format(
+            self.logger.error("Unsupported {}: {} supported are: {:s}".format(
                 colorer("Alignment", color="red"),
                 colorer(alignment),
                 colorer(", ".join(str(x) for x in self.supported_alignment))))
@@ -543,7 +543,7 @@ class SoCCSRHandler(SoCLocHandler):
 
         # Check CSR Paging.
         if paging not in self.supported_paging:
-            self.logger.error("Unsupported {} 0x{}, supporteds: {:s}".format(
+            self.logger.error("Unsupported {} 0x{}, supported are: {:s}".format(
                 colorer("Paging", color="red"),
                 colorer("{:x}".format(paging)),
                 colorer(", ".join("0x{:x}".format(x) for x in self.supported_paging))))
@@ -551,7 +551,7 @@ class SoCCSRHandler(SoCLocHandler):
 
         # Check CSR Ordering.
         if ordering not in self.supported_ordering:
-            self.logger.error("Unsupported {} {}, supporteds: {:s}".format(
+            self.logger.error("Unsupported {} {}, supported are: {:s}".format(
                 colorer("Ordering", color="red"),
                 colorer("{}".format(paging)),
                 colorer(", ".join("{}".format(x) for x in self.supported_ordering))))
@@ -640,7 +640,7 @@ class SoCIRQHandler(SoCLocHandler):
 
         # Check IRQ Number.
         if n_irqs > 32:
-            self.logger.error("Unsupported IRQs number: {} supporteds: {:s}".format(
+            self.logger.error("Unsupported IRQs number: {} supported are: {:s}".format(
                 colorer(n_irqs, color="red"), colorer("Up to 32", color="green")))
             raise SoCError()
 
@@ -889,7 +889,7 @@ class SoC(Module):
     def add_cpu(self, name="vexriscv", variant="standard", reset_address=None, cfu=None):
         # Check that CPU is supported.
         if name not in cpu.CPUS.keys():
-            self.logger.error("{} CPU {}, supporteds: {}.".format(
+            self.logger.error("{} CPU {}, supported are: {}.".format(
                 colorer(name),
                 colorer("not supported", color="red"),
                 colorer(", ".join(cpu.CPUS.keys()))))
@@ -898,7 +898,7 @@ class SoC(Module):
         # Add CPU.
         cpu_cls = cpu.CPUS[name]
         if (variant not in cpu_cls.variants) and (cpu_cls is not cpu.CPUNone):
-            self.logger.error("{} CPU variant {}, supporteds: {}.".format(
+            self.logger.error("{} CPU variant {}, supported are: {}.".format(
                 colorer(variant),
                 colorer("not supported", color="red"),
                 colorer(", ".join(cpu_cls.variants))))
@@ -1185,7 +1185,7 @@ class LiteXSoC(SoC):
             "rx_fifo_depth": fifo_depth,
         }
         if (uart_pads is None) and (uart_name not in supported_uarts):
-            self.logger.error("{} UART {}, supporteds: {}.".format(
+            self.logger.error("{} UART {}, supported are: {}.".format(
                 colorer(uart_name),
                 colorer("not supported/found on board", color="red"),
                 colorer(", ".join(supported_uarts))))
