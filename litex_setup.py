@@ -85,7 +85,6 @@ git_repos = {
     "litescope":    GitRepo(url="https://github.com/enjoy-digital/"),
     "litejesd204b": GitRepo(url="https://github.com/enjoy-digital/"),
     "litespi":      GitRepo(url="https://github.com/litex-hub/"),
-    "litehyperbus": GitRepo(url="https://github.com/litex-hub/"),
 
     # LiteX Boards.
     "litex-boards": GitRepo(url="https://github.com/litex-hub/", clone="regular"),
