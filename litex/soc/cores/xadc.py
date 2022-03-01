@@ -5,6 +5,7 @@
 # Copyright (c) 2019-2021 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2019 bunnie <bunnie@kosagi.com>
 # Copyright (c) 2021 Vamsi K Vytla <vamsi.vytla@gmail.com>
+# Copyright (c) 2022 Sylvain Munaut <tnt@246tNt.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
