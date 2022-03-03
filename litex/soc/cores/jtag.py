@@ -401,7 +401,7 @@ class JTAGPHY(Module):
         if jtag is None:
             # Xilinx.
             if XilinxJTAG.get_primitive(device) is not None:
-                jtag = XilinxJTAG(primitive=XilinxJTAG.get_primitive(device))
+                jtag = XilinxJTAG(primitive=XilinxJTAG.get_primitive(device), chain=chain)
             # Lattice.
             elif device[:5] == "LFE5U":
                 jtag = ECP5JTAG()
