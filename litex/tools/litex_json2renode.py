@@ -248,10 +248,7 @@ cpu: CPU.PicoRV32 @ sysbus
 """
     elif kind == 'ibex':
         return """
-cpu: CPU.RiscV32 @ sysbus
-    cpuType: "rv32imc"
-    timeProvider: empty
-    interruptMode: InterruptMode.Vectored
+cpu: CPU.IbexRiscV32 @ sysbus
 """
     elif kind == 'cv32e40p':
         result = """
