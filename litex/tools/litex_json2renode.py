@@ -246,6 +246,10 @@ cpu: CPU.VexRiscv @ sysbus
 cpu: CPU.PicoRV32 @ sysbus
     cpuType: "rv32imc"
 """
+    elif kind == 'minerva':
+        return """
+cpu: CPU.Minerva @ sysbus
+"""
     elif kind == 'ibex':
         return """
 cpu: CPU.IbexRiscV32 @ sysbus
