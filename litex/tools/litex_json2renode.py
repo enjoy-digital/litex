@@ -253,6 +253,24 @@ cpu: CPU.RiscV32 @ sysbus
     timeProvider: empty
     interruptMode: InterruptMode.Vectored
 """
+    elif kind == 'cv32e40p':
+        result = """
+cpu: CPU.CV32E40P @ sysbus
+"""
+        if variant == 'standard':
+            result += """
+    cpuType: "rv32imc"
+"""
+        else:
+            result += """
+    cpuType: "rv32imc"
+"""
+        if time_provider:
+            result += """
+    timeProvider: {}
+""".format(time_provider)
+
+        return result
     else:
         raise Exception('Unsupported cpu type: {}'.format(kind))
 
