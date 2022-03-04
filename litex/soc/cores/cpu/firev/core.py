@@ -1,10 +1,8 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2021 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2022 Sylvain Lefebvre <sylvain.lefebvre@inria.fr>
 # SPDX-License-Identifier: BSD-2-Clause
-#
-#
 
 import os
 
@@ -16,20 +14,20 @@ from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 # Variants -----------------------------------------------------------------------------------------
 
 CPU_VARIANTS = {
-    "standard":    "firev",
+    "standard": "firev",
 }
 
 # GCC Flags ----------------------------------------------------------------------------------------
 
 GCC_FLAGS = {
-    #                               /-------- Base ISA
-    #                               |/------- Hardware Multiply + Divide
-    #                               ||/----- Atomics
-    #                               |||/---- Compressed ISA
-    #                               ||||/--- Single-Precision Floating-Point
-    #                               |||||/-- Double-Precision Floating-Point
-    #                               imacfd
-    "standard":         "-march=rv32i     -mabi=ilp32",
+    #                       /-------- Base ISA
+    #                       |/------- Hardware Multiply + Divide
+    #                       ||/----- Atomics
+    #                       |||/---- Compressed ISA
+    #                       ||||/--- Single-Precision Floating-Point
+    #                       |||||/-- Double-Precision Floating-Point
+    #                       imacfd
+    "standard": "-march=rv32i     -mabi=ilp32",
 }
 
 # FireV ------------------------------------------------------------------------------------------
@@ -78,12 +76,12 @@ class firev(CPU):
         # FireV Instance.
         # -----------------
         self.cpu_params = dict(
-
-            i_in_boot_at = Constant(0, 32),
-
             # Clk / Rst.
             i_clock = ClockSignal("sys"),
             i_reset = (ResetSignal("sys") | self.reset),
+
+            # Reset Address.
+            i_in_boot_at = Constant(0, 32),
 
             # I/D Bus.
             o_out_ram_addr     = mbus.out_ram_addr,
@@ -96,7 +94,7 @@ class firev(CPU):
         )
 
         # Adapt FireV Mem Bus to Wishbone.
-        # ----------------------------------
+        # --------------------------------
         self.submodules.fsm = fsm = FSM(reset_state="WAIT")
         fsm.act("WAIT",
             If(mbus.out_ram_in_valid,
@@ -112,14 +110,16 @@ class firev(CPU):
                 NextState("WAIT")
             )
         )
+        self.comb += [
+            idbus.we.eq(mbus.out_ram_rw),
+            idbus.adr.eq(mbus.out_ram_addr[2:]),
+            idbus.sel.eq(mbus.out_ram_wmask),
+            idbus.dat_w.eq(mbus.out_ram_data_in),
 
-        self.comb += idbus.we.eq(mbus.out_ram_rw)
-        self.comb += idbus.adr.eq(mbus.out_ram_addr[2:])
-        self.comb += idbus.sel.eq(mbus.out_ram_wmask)
-        self.comb += idbus.dat_w.eq(mbus.out_ram_data_in)
 
-        self.comb += mbus.in_ram_data_out.eq(idbus.dat_r)
-        self.comb += mbus.in_ram_done.eq(idbus.ack)
+            mbus.in_ram_data_out.eq(idbus.dat_r),
+            mbus.in_ram_done.eq(idbus.ack),
+        ]
  
         # Main Ram accesses debug.
         if False:
@@ -137,16 +137,15 @@ class firev(CPU):
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
-        self.i_in_boot_at = Constant(reset_address, 32)
+        self.cpu_params.update(i_in_boot_at=Constant(reset_address, 32))
 
     @staticmethod
     def add_sources(platform, variant):
         platform.add_verilog_include_path(os.getcwd())
-        cpu_files = [f"{CPU_VARIANTS[variant]}.v"]
-        for cpu_file in cpu_files:
-            if not os.path.exists(cpu_file):
-                os.system(f"wget https://raw.githubusercontent.com/sylefeb/Silice/draft/projects/fire-v/export-verilog/{cpu_file}")
-            platform.add_source(cpu_file)
+        cpu_file = f"{CPU_VARIANTS[variant]}.v"
+        if not os.path.exists(cpu_file):
+            os.system(f"wget https://raw.githubusercontent.com/sylefeb/Silice/draft/projects/fire-v/export-verilog/{cpu_file}")
+        platform.add_source(cpu_file)
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
