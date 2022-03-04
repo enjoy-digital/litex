@@ -1000,7 +1000,7 @@ class SoC(Module):
         if hasattr(self, "ctrl") and hasattr(self, "crg"):
             crg_rst = getattr(self.crg, "rst", None)
             if isinstance(crg_rst, Signal):
-                self.comb += crg_rst.eq(getattr(self.ctrl, "soc_rst", 0))
+                self.comb += If(getattr(self.ctrl, "soc_rst", 0), crg_rst.eq(1))
 
         # SoC CSR bridge ---------------------------------------------------------------------------
         # FIXME: for now, use registered CSR bridge when SDRAM is present; find the best compromise.
