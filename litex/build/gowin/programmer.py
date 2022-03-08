@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2022-2023 Franz Zhou <curliph@gmail.com>
+# Copyright (c) 2022 Franz Zhou <curliph@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
