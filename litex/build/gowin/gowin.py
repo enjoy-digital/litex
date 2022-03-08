@@ -67,6 +67,7 @@ def _build_tcl(name, partnumber, files, options):
 
     # Add Sources.
     for f, typ, lib in files:
+        f = f.replace("\\", "\\\\")
         tcl.append(f"add_file {f}")
 
     # Set Options.
