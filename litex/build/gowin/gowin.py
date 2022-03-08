@@ -6,6 +6,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
+import sys
 import math
 import subprocess
 from shutil import which
@@ -67,6 +68,9 @@ def _build_tcl(name, partnumber, files, options):
 
     # Add Sources.
     for f, typ, lib in files:
+        # Support windows/powershell
+        if sys.platform == "win32": 
+            f = f.replace("\\", "\\\\")
         tcl.append(f"add_file {f}")
 
     # Set Options.
@@ -161,12 +165,19 @@ class GowinToolchain:
 
         # Run
         if run:
-            if which("gw_sh") is None:
+            # Support Powershell/WSL platform
+            # Some python distros for windows (e.g, oss-cad-suite)
+            # which does not have 'os.uname' support, we should check 'sys.platform' firstly.
+            gw_sh = "gw_sh"
+            if sys.platform.find("linux") >= 0:
+                if os.uname().release.find("WSL") > 0:
+                    gw_sh += ".exe"
+            if which(gw_sh) is None:
                 msg = "Unable to find Gowin toolchain, please:\n"
                 msg += "- Add Gowin toolchain to your $PATH."
                 raise OSError(msg)
 
-            if subprocess.call(["gw_sh", "run.tcl"]) != 0:
+            if subprocess.call([gw_sh, "run.tcl"]) != 0:
                 raise OSError("Error occured during Gowin's script execution.")
 
         os.chdir(cwd)
