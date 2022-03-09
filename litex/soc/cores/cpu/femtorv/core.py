@@ -147,18 +147,6 @@ class FemtoRV(CPU):
         self.comb += mbus.rdata.eq(mbus_rdata)             # Latched value.
         self.comb += If(latch, mbus.rdata.eq(idbus.dat_r)) # Immediate value.
 
-        # Main Ram accesses debug.
-        if False:
-            self.sync += If(mbus.addr[28:32] == 0x4, # Only Display Main Ram accesses.
-                If(idbus.stb & idbus.ack,
-                    If(idbus.we,
-                        Display("Write: Addr 0x%08x : Data 0x%08x, Sel: 0x%x", idbus.adr, idbus.dat_w, idbus.sel)
-                    ).Else(
-                        Display("Read:  Addr 0x%08x : Data 0x%08x", idbus.adr, idbus.dat_r)
-                    )
-                )
-            )
-
         # Add Verilog sources.
         # --------------------
         self.add_sources(platform, variant)

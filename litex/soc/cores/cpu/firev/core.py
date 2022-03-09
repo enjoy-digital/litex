@@ -120,16 +120,6 @@ class firev(CPU):
             mbus.in_ram_data_out.eq(idbus.dat_r),
             mbus.in_ram_done.eq(idbus.ack),
         ]
- 
-        # Main Ram accesses debug.
-        if False:
-            self.sync += If(idbus.stb & idbus.ack,
-                    If(idbus.we,
-                        Display("Write: Addr 0x%08x : Data 0x%08x, Sel: 0x%x", idbus.adr, idbus.dat_w, idbus.sel)
-                    ).Else(
-                        Display("Read:  Addr 0x%08x : Data 0x%08x", idbus.adr, idbus.dat_r)
-                    )
-                )
 
         # Add Verilog sources.
         # --------------------
