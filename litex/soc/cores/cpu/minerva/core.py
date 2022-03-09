@@ -107,7 +107,7 @@ class Minerva(CPU):
         sdir = get_data_mod("cpu", "minerva").data_location
         if subprocess.call(["python3", os.path.join(sdir, "cli.py"), *cli_params],
             stdout=open(verilog_filename, "w")):
-            raise OSError("Unable to elaborate Minerva CPU, please check your nMigen/Yosys install")
+            raise OSError("Unable to elaborate Minerva CPU, please check your Amaranth/Yosys install")
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
