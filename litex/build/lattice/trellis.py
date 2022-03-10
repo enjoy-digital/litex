@@ -198,7 +198,7 @@ class LatticeTrellisToolchain:
         bootaddr       = 0,
         seed           = 1,
         spimode        = None,
-        compress       = False,
+        compress       = True,
         **kwargs):
 
         # Create build directory
