@@ -1741,7 +1741,7 @@ class LiteXSoC(SoC):
             self.sata_phy.crg.cd_sata_rx.clk)
 
     # Add PCIe -------------------------------------------------------------------------------------
-    def add_pcie(self, name="pcie", phy=None, ndmas=0, max_pending_requests=8,
+    def add_pcie(self, name="pcie", phy=None, ndmas=0, max_pending_requests=8, address_width=32,
         with_dma_buffering = True, dma_buffering_depth=1024,
         with_dma_loopback  = True,
         with_msi           = True):
@@ -1755,7 +1755,11 @@ class LiteXSoC(SoC):
 
         # Endpoint.
         self.check_if_exists(f"{name}_endpoint")
-        endpoint = LitePCIeEndpoint(phy, max_pending_requests=max_pending_requests, endianness=phy.endianness)
+        endpoint = LitePCIeEndpoint(phy,
+            max_pending_requests = max_pending_requests,
+            endianness           = phy.endianness,
+            address_width        = address_width
+        )
         setattr(self.submodules, f"{name}_endpoint", endpoint)
 
         # MMAP.
@@ -1778,11 +1782,14 @@ class LiteXSoC(SoC):
             self.check_if_exists(f"{name}_dma{i}")
             dma = LitePCIeDMA(phy, endpoint,
                 with_buffering = with_dma_buffering, buffering_depth=dma_buffering_depth,
-                with_loopback  = with_dma_loopback)
+                with_loopback  = with_dma_loopback,
+                address_width  = address_width
+            )
             setattr(self.submodules, f"{name}_dma{i}", dma)
             self.msis[f"{name.upper()}_DMA{i}_WRITER"] = dma.writer.irq
             self.msis[f"{name.upper()}_DMA{i}_READER"] = dma.reader.irq
-        self.add_constant("DMA_CHANNELS", ndmas)
+        self.add_constant("DMA_CHANNELS",   ndmas)
+        self.add_constant("DMA_ADDR_WIDTH", address_width)
 
         # Map/Connect IRQs.
         if with_msi:
