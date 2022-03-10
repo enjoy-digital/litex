@@ -11,6 +11,8 @@
 
 The LiteX framework provides a convenient and efficient infrastructure to create FPGA Cores/SoCs, to explore various digital design architectures and create [full FPGA based  systems](https://github.com/enjoy-digital/litex/wiki/Projects).
 
+**LiteX SoC builder framework quick tour/overview: [Slides](https://docs.google.com/presentation/d/1mQOWqgmyQxpjLAzFwCulqgkp0TuxmaIDYp5iUfPqqIk/edit?usp=sharing)**
+
 **Want to get started and/or looking for documentation? Make sure to visit the [Wiki](https://github.com/enjoy-digital/litex/wiki)!**
 
 **A question or want to get in touch? Our IRC channel is [#litex at irc.libera.chat]**.
