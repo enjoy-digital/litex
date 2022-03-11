@@ -131,6 +131,10 @@ int memtest_addr(unsigned int *addr, unsigned long size, int random)
 	unsigned short seed_16;
 	unsigned short rdata;
 
+	/* Skip when size < 16KB */
+	if (size < 0x10000)
+		return 0;
+
 	errors  = 0;
 	seed_16 = 1;
 
