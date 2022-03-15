@@ -8,6 +8,8 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
+import time
+import threading
 import argparse
 import socket
 
@@ -144,6 +146,52 @@ def write_memory(csr_csv, port, addr, data):
 
     bus.close()
 
+# Gui ----------------------------------------------------------------------------------------------
+
+def run_gui(csr_csv, port):
+    import dearpygui.dearpygui as dpg
+
+    bus = RemoteClient(csr_csv=csr_csv, port=port)
+    bus.open()
+
+    def reboot_callback():
+        bus.regs.ctrl_reset.write(1)
+        bus.regs.ctrl_reset.write(0)
+
+    dpg.create_context()
+    dpg.create_viewport(width=800, height=600)
+    dpg.setup_dearpygui()
+
+    with dpg.window(label="LiteX Client GUI", width=800, height=600):
+        dpg.add_text("Control/Status")
+        dpg.add_button(label="Reboot", callback=reboot_callback)
+        dpg.add_text("Registers")
+        def reg_callback(tag, data):
+            for name, reg in  bus.regs.__dict__.items():
+                if (tag == name):
+                    try:
+                        reg.write(int(data, 0))
+                    except:
+                        pass
+        for name, reg in bus.regs.__dict__.items():
+            dpg.add_input_text(label=f"0x{reg.addr:08x} - {name}", tag=name, width=200, callback=reg_callback)
+
+    def timer_callback(refresh=1e-1):
+        while True:
+            for name, reg in bus.regs.__dict__.items():
+                value = reg.read()
+                dpg.set_value(item=name, value=f"0x{reg.read():x}")
+            time.sleep(refresh)
+
+    timer_thread = threading.Thread(target=timer_callback)
+    timer_thread.start()
+
+    dpg.show_viewport()
+    dpg.start_dearpygui()
+    dpg.destroy_context()
+
+    bus.close()
+
 # Run ----------------------------------------------------------------------------------------------
 
 def main():
@@ -156,6 +204,7 @@ def main():
     parser.add_argument("--read",    default=None,          help="Do a MMAP Read to SoC bus (--read addr/reg).")
     parser.add_argument("--write",   default=None, nargs=2, help="Do a MMAP Write to SoC bus (--write addr/reg data).")
     parser.add_argument("--length",  default="4",           help="MMAP access length.")
+    parser.add_argument("--gui",     action="store_true",   help="Run Gui.")
     args = parser.parse_args()
 
     csr_csv = args.csr_csv
@@ -180,6 +229,9 @@ def main():
         else:
             addr = int(args.write[0], 0)
         write_memory(csr_csv=csr_csv, port=port, addr=addr, data=int(args.write[1], 0))
+
+    if args.gui:
+        run_gui(csr_csv=csr_csv, port=port)
 
 if __name__ == "__main__":
     main()
