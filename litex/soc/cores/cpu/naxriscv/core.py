@@ -15,7 +15,7 @@ from litex import get_data_mod
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect import axi
 from litex.soc.interconnect.csr import *
-from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
+from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32, CPU_GCC_TRIPLE_RISCV64
 
 import os
 
@@ -47,11 +47,12 @@ class NaxRiscv(CPU):
     scala_files          = ["misc.scala", "fetch.scala", "frontend.scala", "branch_predictor_std.scala", "lsu.scala", "eu_2alu_1share.scala"]
     netlist_name         = None
     scala_paths          = []
+    xlen = 32
 
     # ABI.
     @staticmethod
     def get_abi():
-        abi = "ilp32"
+        abi = "lp64" if NaxRiscv.xlen == 64 else "ilp32"
         if NaxRiscv.with_fpu:
             abi +="d"
         return abi
@@ -59,7 +60,7 @@ class NaxRiscv(CPU):
     # Arch.
     @staticmethod
     def get_arch():
-        arch = "rv32ima"
+        arch = f"rv{NaxRiscv.xlen}ima"
         if NaxRiscv.with_fpu:
             arch += "fd"
         if NaxRiscv.with_rvc:
@@ -92,12 +93,19 @@ class NaxRiscv(CPU):
     def args_fill(parser):
         cpu_group = parser.add_argument_group("cpu")
         cpu_group.add_argument("--scala-file", action='append', help="Specify the scala files used to configure NaxRiscv")
+        cpu_group.add_argument("--xlen", help="Specify the RISC-V data width")
 
     @staticmethod
     def args_read(args):
         print(args)
         if args.scala_file:
             NaxRiscv.scala_files = args.scala_file
+        if args.xlen:
+            xlen = int(args.xlen)
+            NaxRiscv.xlen = xlen
+            NaxRiscv.data_width = xlen
+            NaxRiscv.gcc_triple = CPU_GCC_TRIPLE_RISCV64
+            NaxRiscv.linker_output_format = f"elf{xlen}-littleriscv"
 
 
     def __init__(self, platform, variant):
@@ -106,8 +114,8 @@ class NaxRiscv(CPU):
         self.human_name       = self.human_name
         self.reset            = Signal()
         self.interrupt        = Signal(32)
-        self.ibus             = ibus = axi.AXILiteInterface(address_width=32, data_width=32)
-        self.dbus             = dbus = axi.AXILiteInterface(address_width=32, data_width=32)
+        self.ibus             = ibus = axi.AXILiteInterface(address_width=32, data_width=64)
+        self.dbus             = dbus = axi.AXILiteInterface(address_width=32, data_width=64)
 
         self.periph_buses     = [ibus, dbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses     = []           # Memory buses (Connected directly to LiteDRAM).
@@ -186,7 +194,7 @@ class NaxRiscv(CPU):
 
 
     @staticmethod
-    def git_setup(name, dir, repo, hash):
+    def git_setup(name, dir, repo, branch, hash):
         if not os.path.exists(dir):
             # Clone Repo.
             print(f"Cloning {name} Git repository...")
@@ -196,7 +204,7 @@ class NaxRiscv(CPU):
             ), shell=True)
             # Use specific SHA1 (Optional).
         os.chdir(os.path.join(dir))
-        os.system(f"cd {dir} && git checkout main && git pull && git checkout {hash}")
+        os.system(f"cd {dir} && git checkout {branch} && git pull && git checkout {hash}")
 
     # Netlist Generation.
     @staticmethod
@@ -205,13 +213,14 @@ class NaxRiscv(CPU):
         ndir = os.path.join(vdir, "ext", "NaxRiscv")
         sdir = os.path.join(vdir, "ext", "SpinalHDL")
 
-        NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git",   "2832adfc")
-        NaxRiscv.git_setup("SpinalHDL", sdir, "https://github.com/SpinalHDL/SpinalHDL.git", "2ff1f4d7")
+        NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git"  , "main", "52e6a5a1")
+        NaxRiscv.git_setup("SpinalHDL", sdir, "https://github.com/SpinalHDL/SpinalHDL.git", "dev" , "d6ba3b6d")
 
         gen_args = []
         gen_args.append(f"--netlist-name={NaxRiscv.netlist_name}")
         gen_args.append(f"--netlist-directory={vdir}")
         gen_args.append(f"--reset-vector={reset_address}")
+        gen_args.append(f"--xlen={NaxRiscv.xlen}")
         for file in NaxRiscv.scala_paths:
             gen_args.append(f"--scala-file={file}")
 
