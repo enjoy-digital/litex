@@ -1508,7 +1508,7 @@ class LiteXSoC(SoC):
         mac_address             = 0x10e2d5000000,
         ip_address              = "192.168.1.50",
         udp_port                = 1234,
-        buffer_depth            = 4,
+        buffer_depth            = 16,
         with_timing_constraints = True):
         # Imports
         from liteeth.core import LiteEthUDPIPCore
