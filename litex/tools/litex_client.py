@@ -165,22 +165,28 @@ def run_gui(csr_csv, port):
     with dpg.window(autosize=True):
         dpg.add_text("Control/Status")
         dpg.add_button(label="Reboot", callback=reboot_callback)
-        dpg.add_text("Registers")
-        def reg_callback(tag, data):
-            for name, reg in  bus.regs.__dict__.items():
-                if (tag == name):
-                    try:
-                        reg.write(int(data, 0))
-                    except:
-                        pass
-        for name, reg in bus.regs.__dict__.items():
-            dpg.add_input_text(
-                label    = f"0x{reg.addr:08x} - {name}",
-                tag      = name,
-                callback = reg_callback,
-                on_enter = True,
-                width    = 200
-            )
+        def filter_callback(sender, filter_str):
+            dpg.set_value("csr_filter", filter_str)
+        dpg.add_input_text(label="CSR Filter (inc, -exc)", callback=filter_callback)
+        dpg.add_text("CSR Registers:")
+        with dpg.filter_set(id="csr_filter"):
+            def reg_callback(tag, data):
+                for name, reg in  bus.regs.__dict__.items():
+                    if (tag == name):
+                        try:
+                            reg.write(int(data, 0))
+                        except:
+                            pass
+            for name, reg in bus.regs.__dict__.items():
+                dpg.add_input_text(
+                    indent     = 16,
+                    label      = f"0x{reg.addr:08x} - {name}",
+                    tag        = name,
+                    filter_key =name,
+                    callback   = reg_callback,
+                    on_enter   = True,
+                    width      = 200
+                )
 
     def timer_callback(refresh=1e-1):
         while True:
