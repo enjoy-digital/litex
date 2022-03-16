@@ -159,10 +159,10 @@ def run_gui(csr_csv, port):
         bus.regs.ctrl_reset.write(0)
 
     dpg.create_context()
-    dpg.create_viewport(width=800, height=600)
+    dpg.create_viewport(title="LiteX CLI GUI", max_width=800, always_on_top=True)
     dpg.setup_dearpygui()
 
-    with dpg.window(label="LiteX Client GUI", width=800, height=600):
+    with dpg.window(autosize=True):
         dpg.add_text("Control/Status")
         dpg.add_button(label="Reboot", callback=reboot_callback)
         dpg.add_text("Registers")
@@ -174,7 +174,13 @@ def run_gui(csr_csv, port):
                     except:
                         pass
         for name, reg in bus.regs.__dict__.items():
-            dpg.add_input_text(label=f"0x{reg.addr:08x} - {name}", tag=name, width=200, callback=reg_callback)
+            dpg.add_input_text(
+                label    = f"0x{reg.addr:08x} - {name}",
+                tag      = name,
+                callback = reg_callback,
+                on_enter = True,
+                width    = 200
+            )
 
     def timer_callback(refresh=1e-1):
         while True:
