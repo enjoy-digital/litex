@@ -9,7 +9,7 @@ import os
 import sys
 import math
 import subprocess
-from shutil import which
+from shutil import which, copyfile
 
 from migen.fhdl.structure import _Fragment
 
@@ -126,8 +126,8 @@ class GowinToolchain:
         cwd = os.getcwd()
         os.makedirs(build_dir, exist_ok=True)
         os.chdir(build_dir)
-        # Finalize design
 
+        # Finalize design
         if not isinstance(fragment, _Fragment):
             fragment = fragment.get_fragment()
         platform.finalize(fragment)
@@ -179,6 +179,12 @@ class GowinToolchain:
 
             if subprocess.call([gw_sh, "run.tcl"]) != 0:
                 raise OSError("Error occured during Gowin's script execution.")
+
+            # Copy Bitstream to from impl to gateware directory.
+            copyfile(
+                os.path.join(build_dir, "impl", "pnr", "project.fs"),
+                os.path.join(build_dir, build_name + ".fs")
+            )
 
         os.chdir(cwd)
 
