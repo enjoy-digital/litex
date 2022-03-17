@@ -382,6 +382,9 @@ class VexRiscvSMP(CPU):
         soc.irq.add("uart",   n=0)
         soc.irq.add("timer0", n=1)
 
+        # Add OpenSBI region.
+        soc.add_memory_region("opensbi", self.mem_map["main_ram"] + 0x00f00000, 0x80000, type="cached+linker")
+
         # Define number of CPUs
         soc.add_config("CPU_COUNT", VexRiscvSMP.cpu_count)
         soc.add_constant("CPU_ISA", VexRiscvSMP.get_arch())
