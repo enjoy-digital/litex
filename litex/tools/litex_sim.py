@@ -408,10 +408,13 @@ def main():
         soc_kwargs["integrated_rom_init"] = get_mem_data(args.rom_init, endianness=cpu.endianness)
 
     # RAM / SDRAM.
+    ram_boot_offset  = 0x40000000 # FIXME
+    ram_boot_address = None
     soc_kwargs["integrated_main_ram_size"] = args.integrated_main_ram_size
     if args.integrated_main_ram_size:
         if args.ram_init is not None:
-            soc_kwargs["integrated_main_ram_init"] = get_mem_data(args.ram_init, endianness=cpu.endianness)
+            soc_kwargs["integrated_main_ram_init"] = get_mem_data(args.ram_init, endianness=cpu.endianness, offset=ram_boot_offset)
+            ram_boot_address                       = get_boot_address(args.ram_init)
     elif args.with_sdram:
         assert args.ram_init is None
         soc_kwargs["sdram_module"]     = args.sdram_module
@@ -419,6 +422,9 @@ def main():
         soc_kwargs["sdram_verbosity"]  = int(args.sdram_verbosity)
         if args.sdram_from_spd_dump:
             soc_kwargs["sdram_spd_data"] = parse_spd_hexdump(args.sdram_from_spd_dump)
+        if args.sdram_init is not None:
+            soc_kwargs["sdram_init"] = get_mem_data(args.sdram_init, endianness=cpu.endianness, offset=ram_boot_offset)
+            ram_boot_address         = get_boot_address(args.sdram_init)
 
     # Ethernet.
     if args.with_ethernet or args.with_etherbone:
@@ -448,11 +454,12 @@ def main():
         with_gpio          = args.with_gpio,
         sim_debug          = args.sim_debug,
         trace_reset_on     = int(float(args.trace_start)) > 0 or int(float(args.trace_end)) > 0,
-        sdram_init         = []   if args.sdram_init     is None else get_mem_data(args.sdram_init,     endianness=cpu.endianness),
         spi_flash_init     = None if args.spi_flash_init is None else get_mem_data(args.spi_flash_init, endianness="big"),
         **soc_kwargs)
-    if args.ram_init is not None or args.sdram_init is not None:
-        soc.add_constant("ROM_BOOT_ADDRESS", soc.mem_map["main_ram"])
+    if ram_boot_address is not None:
+        if ram_boot_address == 0:
+            ram_boot_address = ram_boot_offset
+        soc.add_constant("ROM_BOOT_ADDRESS", ram_boot_address)
     if args.with_ethernet:
         for i in range(4):
             soc.add_constant("LOCALIP{}".format(i+1), int(args.local_ip.split(".")[i]))
