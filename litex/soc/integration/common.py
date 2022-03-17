@@ -19,8 +19,7 @@ def get_version(with_time=True):
     fmt = "%Y-%m-%d %H:%M:%S" if with_time else "%Y-%m-%d"
     return datetime.datetime.fromtimestamp(time.time()).strftime(fmt)
 
-def get_mem_data(filename_or_regions, endianness="big", mem_size=None, offset=0):
-    # Create memory regions.
+def get_mem_regions(filename_or_regions, offset):
     if isinstance(filename_or_regions, dict):
         regions = filename_or_regions
     else:
@@ -38,13 +37,18 @@ def get_mem_data(filename_or_regions, endianness="big", mem_size=None, offset=0)
             f.close()
         else:
             regions = {filename: f"{offset:08x}"}
+    return regions
+
+def get_mem_data(filename_or_regions, endianness="big", mem_size=None, offset=0):
+    # Create memory regions.
+    regions = get_mem_regions(filename_or_regions, offset)
 
     # Determine data_size.
     data_size = 0
     for filename, base in regions.items():
         if not os.path.isfile(filename):
             raise OSError(f"Unable to find {filename} memory content file.")
-        data_size = max(int(base, 16) + os.path.getsize(filename), data_size)
+        data_size = max(int(base, 16) + os.path.getsize(filename) - offset, data_size)
     assert data_size > 0
     if mem_size is not None:
         assert data_size < mem_size, (
@@ -71,3 +75,13 @@ def get_mem_data(filename_or_regions, endianness="big", mem_size=None, offset=0)
                 data[(base - offset)//4 + i] = struct.unpack(unpack_order, w)[0]
                 i += 1
     return data
+
+def get_boot_address(filename_or_regions, offset=0):
+    # Create memory regions.
+    regions = get_mem_regions(filename_or_regions, offset)
+
+    print(regions)
+
+    # Boot on last region.
+    filename, base = regions.popitem()
+    return int(base, 0)
