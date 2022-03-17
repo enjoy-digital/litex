@@ -187,7 +187,6 @@ class SimSoC(SoCCore):
             self.add_sdram("sdram",
                 phy                     = self.sdrphy,
                 module                  = sdram_module,
-                origin                  = self.mem_map["main_ram"],
                 l2_cache_size           = kwargs.get("l2_size", 8192),
                 l2_cache_min_data_width = kwargs.get("min_l2_data_width", 128),
                 l2_cache_reverse        = False
