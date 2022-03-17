@@ -359,6 +359,18 @@ class Builder:
 
         return vns
 
+    def get_bios_filename(self):
+         return os.path.join(self.software_dir, "bios", "bios.bin")
+
+    def get_bitstream_filename(self, mode="sram", ext=None):
+        assert mode in ["sram", "flash"]
+        if ext is None:
+            ext = {
+                "sram"  : self.soc.platform.bitstream_ext,
+                "flash" : ".bin" # FIXME.
+            }[mode]
+        return os.path.join(self.gateware_dir, self.soc.build_name + ext)
+
 # Builder Arguments --------------------------------------------------------------------------------
 
 def builder_args(parser):
