@@ -375,9 +375,12 @@ class VexRiscvSMP(CPU):
         platform.add_source(os.path.join(vdir,  self.cluster_name + ".v"), "verilog")
 
     def add_soc_components(self, soc, soc_region_cls):
-        # Set UART/Timer0 CSRs to the ones used by OpenSBI.
+        # Set UART/Timer0 CSRs/IRQs to the ones used by OpenSBI.
         soc.csr.add("uart",   n=2)
         soc.csr.add("timer0", n=3)
+
+        soc.irq.add("uart",   n=0)
+        soc.irq.add("timer0", n=1)
 
         # Define number of CPUs
         soc.add_config("CPU_COUNT", VexRiscvSMP.cpu_count)
