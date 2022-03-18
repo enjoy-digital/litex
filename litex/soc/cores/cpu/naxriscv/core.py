@@ -184,6 +184,7 @@ class NaxRiscv(CPU):
     def generate_netlist_name(reset_address):
         md5_hash = hashlib.md5()
         md5_hash.update(str(reset_address).encode('utf-8'))
+        md5_hash.update(str(NaxRiscv.xlen).encode('utf-8'))
         for file in NaxRiscv.scala_paths:
             a_file = open(file, "rb")
             content = a_file.read()
@@ -213,8 +214,8 @@ class NaxRiscv(CPU):
         ndir = os.path.join(vdir, "ext", "NaxRiscv")
         sdir = os.path.join(vdir, "ext", "SpinalHDL")
 
-        NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git"  , "main", "52e6a5a1")
-        NaxRiscv.git_setup("SpinalHDL", sdir, "https://github.com/SpinalHDL/SpinalHDL.git", "dev" , "d6ba3b6d")
+        NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git"  , "main", "67389bd0")
+        NaxRiscv.git_setup("SpinalHDL", sdir, "https://github.com/SpinalHDL/SpinalHDL.git", "dev" , "62531c60")
 
         gen_args = []
         gen_args.append(f"--netlist-name={NaxRiscv.netlist_name}")
