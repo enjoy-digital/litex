@@ -6,8 +6,7 @@ ifdef TFTP_SERVER_PORT
 CFLAGS += -DTFTP_SERVER_PORT=$(TFTP_SERVER_PORT)
 endif
 
-OBJECTS = isr.o			\
-	  boot-helper.o		\
+OBJECTS = boot-helper.o	\
 	  boot.o			\
 	  helpers.o			\
 	  cmd_bios.o		\

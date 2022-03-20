@@ -118,6 +118,7 @@ class Rocket(CPU):
         flags =  "-mno-save-restore "
         flags += GCC_FLAGS[self.variant]
         flags += "-D__rocket__ "
+        flags += "-mcmodel=medany"
         return flags
 
     def __init__(self, platform, variant="standard"):
