@@ -267,7 +267,7 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only, bool rando
 	__attribute__((unused)) unsigned long data;
 	const unsigned int sz = sizeof(unsigned long);
 	int burst_size = 4;
-	volatile unsigned long *ptr, *ptr_max = (volatile unsigned long )(((char *)array) + size - sz*burst_size);
+	volatile unsigned long *ptr, *ptr_max = (volatile unsigned long *)(((char *)array) + size - sz*burst_size);
 
 
 	printf("Memspeed at %p (", addr);
