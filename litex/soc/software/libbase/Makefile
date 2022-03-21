@@ -10,7 +10,8 @@ OBJECTS =  \
 	memtest.o  \
 	uart.o     \
 	spiflash.o \
-	i2c.o
+	i2c.o \
+	isr.o
 
 all: libbase.a
 
