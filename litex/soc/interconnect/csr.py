@@ -61,15 +61,16 @@ class CSRConstant(DUID):
 
     def __init__(self, value, bits_sign=None, name=None):
         DUID.__init__(self)
-        self.value = Constant(value, bits_sign)
-        self.name = get_obj_var_name(name)
+        self.value    = Constant(value, bits_sign)
+        self.name     = get_obj_var_name(name)
+        self.constant = value
         if self.name is None:
             raise ValueError("Cannot extract CSR name from code, need to specify.")
 
     def read(self):
         """Read method for simulation."""
         yield
-        return self.value.value
+        return self.constant
 
 # CSR ----------------------------------------------------------------------------------------------
 
