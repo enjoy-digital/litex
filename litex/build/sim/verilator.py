@@ -261,7 +261,7 @@ class SimVerilatorToolchain:
             return v_output.ns
 
 def verilator_build_args(parser):
-    toolchain_group = parser.add_argument_group("toolchain")
+    toolchain_group = parser.add_argument_group(title="Toolchain options")
     toolchain_group.add_argument("--threads",      default=1,           help="Set number of threads.")
     toolchain_group.add_argument("--trace",        action="store_true", help="Enable Tracing.")
     toolchain_group.add_argument("--trace-fst",    action="store_true", help="Enable FST tracing.")

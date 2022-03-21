@@ -63,7 +63,7 @@ class VexRiscvSMP(CPU):
     # Command line configuration arguments.
     @staticmethod
     def args_fill(parser):
-        cpu_group = parser.add_argument_group("cpu")
+        cpu_group = parser.add_argument_group(title="CPU options")
         cpu_group.add_argument("--cpu-count",                    default=1,           help="Number of CPU(s) in the cluster.", type=int)
         cpu_group.add_argument("--with-coherent-dma",            action="store_true", help="Enable Coherent DMA Slave interface.")
         cpu_group.add_argument("--without-coherent-dma",         action="store_true", help="Disable Coherent DMA Slave interface.")

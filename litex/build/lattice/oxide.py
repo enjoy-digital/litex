@@ -189,7 +189,7 @@ class LatticeOxideToolchain:
             self.false_paths.add((from_, to))
 
 def oxide_args(parser):
-    toolchain_group = parser.add_argument_group("toolchain")
+    toolchain_group = parser.add_argument_group(title="Toolchain options")
     toolchain_group.add_argument("--yosys-nowidelut",      action="store_true", help="Use Yosys's nowidelut mode.")
     toolchain_group.add_argument("--yosys-abc9",           action="store_true", help="Use Yosys's abc9 mode.")
     toolchain_group.add_argument("--nextpnr-timingstrict", action="store_true", help="Use strict Timing mode (Build will fail when Timings are not met).")
