@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX.
 #
-# This file is Copyright (c) 2014-2021 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2014-2022 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
 # This file is Copyright (c) 2019 Gabriel L. Somlo <somlo@cmu.edu>
 # SPDX-License-Identifier: BSD-2-Clause
@@ -9,6 +9,7 @@
 import sys
 import time
 import logging
+import argparse
 import datetime
 from math import log2, ceil
 
@@ -1894,3 +1895,27 @@ class LiteXSoC(SoC):
         self.add_constant("VIDEO_FRAMEBUFFER_VRES", vres)
         self.add_constant("VIDEO_FRAMEBUFFER_DEPTH", vfb.depth)
 
+# LiteXSoCArgumentParser ---------------------------------------------------------------------------
+
+class LiteXSoCArgumentParser(argparse.ArgumentParser):
+    def parse_args(self):
+
+        def get_selected_cpu_name():
+            for name, cpu_cls in cpu.CPUS.items():
+                if f"--cpu-type={name}" in sys.argv: # FIXME: Improve.
+                    return cpu_cls
+            return None
+
+        # Intercept selected CPU to fill arguments.
+        cpu_cls = get_selected_cpu_name()
+        if cpu_cls is not None and hasattr(cpu_cls, "args_fill"):
+            cpu_cls.args_fill(self)
+
+        # Get Command-line arguments.
+        args = argparse.ArgumentParser.parse_args(self)
+
+        # Re-inject CPU read arguments.
+        if cpu_cls is not None and hasattr(cpu_cls, "args_read"):
+            cpu_cls.args_read(args)
+
+        return args
