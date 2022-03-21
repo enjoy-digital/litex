@@ -295,7 +295,7 @@ class SoCCore(LiteXSoC):
 # SoCCore arguments --------------------------------------------------------------------------------
 
 def soc_core_args(parser):
-    soc_group = parser.add_argument_group("SoC options")
+    soc_group = parser.add_argument_group(title="SoC options")
     # Bus parameters
     soc_group.add_argument("--bus-standard",      default="wishbone",                help="Select bus standard: {}.".format(", ".join(SoCBusHandler.supported_standard)))
     soc_group.add_argument("--bus-data-width",    default=32,         type=auto_int, help="Bus data-width.")

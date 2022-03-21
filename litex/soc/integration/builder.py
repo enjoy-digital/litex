@@ -375,7 +375,7 @@ class Builder:
 
 def builder_args(parser):
     parser.formatter_class = lambda prog: argparse.ArgumentDefaultsHelpFormatter(prog, max_help_position=10, width=120)
-    builder_group = parser.add_argument_group("Builder options")
+    builder_group = parser.add_argument_group(title="Builder options")
     builder_group.add_argument("--output-dir",          default=None,        help="Base Output directory.")
     builder_group.add_argument("--gateware-dir",        default=None,        help="Output directory for Gateware files.")
     builder_group.add_argument("--software-dir",        default=None,        help="Output directory for Software files.")
