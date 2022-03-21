@@ -68,6 +68,7 @@ class CSRConstant(DUID):
 
     def read(self):
         """Read method for simulation."""
+        yield
         return self.value.value
 
 # CSR ----------------------------------------------------------------------------------------------

@@ -26,9 +26,10 @@ def csr32_read(dut, adr):
 
 class CSRModule(Module, csr.AutoCSR):
     def __init__(self):
-        self._csr = csr.CSR()
-        self._storage = csr.CSRStorage(32, reset=0x12345678, write_from_dev=True)
-        self._status = csr.CSRStatus(32, reset=0x12345678)
+        self._csr      = csr.CSR()
+        self._constant = csr.CSRConstant(0x12345678)
+        self._storage  = csr.CSRStorage(32, reset=0x12345678, write_from_dev=True)
+        self._status   = csr.CSRStatus(32, reset=0x12345678)
 
         # # #
 
@@ -61,6 +62,13 @@ class CSRDUT(Module):
             self.csr, self.csrbankarray.get_buses())
 
 class TestCSR(unittest.TestCase):
+    def test_csr_constant(self):
+        def generator(dut):
+            self.assertEqual(hex((yield from dut.csrmodule._constant.read())), hex(0x12345678))
+
+        dut = CSRDUT()
+        run_simulation(dut, generator(dut))
+
     def test_csr_storage(self):
         def generator(dut):
             # check init value
