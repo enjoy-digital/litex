@@ -92,8 +92,8 @@ class NaxRiscv(CPU):
     @staticmethod
     def args_fill(parser):
         cpu_group = parser.add_argument_group("cpu")
-        cpu_group.add_argument("--scala-file", action='append', help="Specify the scala files used to configure NaxRiscv")
-        cpu_group.add_argument("--xlen", help="Specify the RISC-V data width")
+        cpu_group.add_argument("--scala-file", action="append", help="Specify the scala files used to configure NaxRiscv.")
+        cpu_group.add_argument("--xlen",       default=32,      help="Specify the RISC-V data width.")
 
     @staticmethod
     def args_read(args):
