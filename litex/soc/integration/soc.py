@@ -1479,7 +1479,7 @@ class LiteXSoC(SoC):
             "eth_rx": phy_cd + "_rx"})(ethmac)
         setattr(self.submodules, name, ethmac)
         # Compute Regions size and add it to the SoC.
-        ethmac_region_size = (ethmac.rx_slots.read() + ethmac.tx_slots.read())*ethmac.slot_size.read()
+        ethmac_region_size = (ethmac.rx_slots.constant + ethmac.tx_slots.constant)*ethmac.slot_size.constant
         ethmac_region = SoCRegion(origin=self.mem_map.get(name, None), size=ethmac_region_size, cached=False)
         self.bus.add_slave(name=name, slave=ethmac.bus, region=ethmac_region)
         # Add IRQs (if enabled).
