@@ -832,6 +832,9 @@ class SoC(Module):
     # SoC Main Components --------------------------------------------------------------------------
     def add_controller(self, name="ctrl", **kwargs):
         self.check_if_exists(name)
+        self.logger.info("Controller {} {}.".format(
+            colorer(name, color="underline"),
+            colorer("added", color="green")))
         setattr(self.submodules, name, SoCController(**kwargs))
 
     def add_ram(self, name, origin, size, contents=[], mode="rw"):
@@ -868,22 +871,27 @@ class SoC(Module):
                 colorer(f"0x{4*len(contents):x}")))
             getattr(self, name).mem.depth = len(contents)
 
-    def add_csr_bridge(self, origin, register=False):
+    def add_csr_bridge(self, name="csr", origin=None, register=False):
         csr_bridge_cls = {
             "wishbone": wishbone.Wishbone2CSR,
             "axi-lite": axi.AXILite2CSR,
         }[self.bus.standard]
-        self.check_if_exists("csr_bridge")
-        self.submodules.csr_bridge = csr_bridge_cls(
-            bus_csr=csr_bus.Interface(
+        csr_bridge_name = name + "_bridge"
+        self.check_if_exists(csr_bridge_name )
+        csr_bridge = csr_bridge_cls(
+            bus_csr = csr_bus.Interface(
                 address_width = self.csr.address_width,
                 data_width    = self.csr.data_width),
-            register=register)
+            register = register)
+        self.logger.info("CSR Bridge {} {}.".format(
+            colorer(name, color="underline"),
+            colorer("added", color="green")))
+        setattr(self.submodules, csr_bridge_name, csr_bridge)
         csr_size = 2**(self.csr.address_width + 2)
         csr_region = SoCRegion(origin=origin, size=csr_size, cached=False, decode=self.cpu.csr_decode)
         bus = getattr(self.csr_bridge, self.bus.standard.replace('-', '_'))
-        self.bus.add_slave("csr", bus, csr_region)
-        self.csr.add_master(name="bridge", master=self.csr_bridge.csr)
+        self.bus.add_slave(name=name, slave=bus, region=csr_region)
+        self.csr.add_master(name=name, master=self.csr_bridge.csr)
         self.add_config("CSR_DATA_WIDTH", self.csr.data_width)
         self.add_config("CSR_ALIGNMENT",  self.csr.alignment)
 
@@ -906,14 +914,23 @@ class SoC(Module):
             raise SoCError()
         self.check_if_exists("cpu")
         self.submodules.cpu = cpu_cls(self.platform, variant)
+        self.logger.info("CPU {} {}.".format(
+            colorer(name, color="underline"),
+            colorer("added", color="green")))
 
         # Add optional CFU plugin.
         if "cfu" in variant and hasattr(self.cpu, "add_cfu"):
             self.cpu.add_cfu(cfu_filename=cfu)
 
         # Update SoC with CPU constraints.
-        # IOs regions.
+        # IO regions.
         for n, (origin, size) in enumerate(self.cpu.io_regions.items()):
+            self.logger.info("CPU {} {} IO Region {} at {} (Size: {}).".format(
+                colorer(name, color="underline"),
+                colorer("adding", color="cyan"),
+                colorer(n),
+                colorer(f"0x{origin:08x}"),
+                colorer(f"0x{size:08x}")))
             self.bus.add_region("io{}".format(n), SoCIORegion(origin=origin, size=size, cached=False))
         # Mapping.
         if isinstance(self.cpu, cpu.CPUNone):
@@ -925,7 +942,8 @@ class SoC(Module):
             # Override User's mapping with CPU constrainted mapping (and warn User).
             for n, origin in self.cpu.mem_map.items():
                 if n in self.mem_map.keys() and self.mem_map[n] != self.cpu.mem_map[n]:
-                    self.logger.info("CPU {} {} mapping from {} to {}.".format(
+                    self.logger.info("CPU {} {} {} mapping from {} to {}.".format(
+                        colorer(name, color="underline"),
                         colorer("overriding", color="cyan"),
                         colorer(n),
                         colorer(f"0x{self.mem_map[n]:08x}"),
@@ -934,13 +952,28 @@ class SoC(Module):
 
         # Add Bus Masters/CSR/IRQs.
         if not isinstance(self.cpu, cpu.CPUNone):
+            # Reset Address.
             if hasattr(self.cpu, "set_reset_address"):
                 if reset_address is None:
                     reset_address = self.mem_map["rom"]
+                self.logger.info("CPU {} {} reset address to {}.".format(
+                    colorer(name, color="underline"),
+                    colorer("setting", color="cyan"),
+                    colorer(f"0x{reset_address:08x}")))
                 self.cpu.set_reset_address(reset_address)
+
+            # Bus Masters.
+            self.logger.info("CPU {} {} Bus Master(s).".format(
+                colorer(name, color="underline"),
+                colorer("adding", color="cyan")))
             for n, cpu_bus in enumerate(self.cpu.periph_buses):
                 self.bus.add_master(name="cpu_bus{}".format(n), master=cpu_bus)
+
+            # Interrupts.
             if hasattr(self.cpu, "interrupt"):
+                self.logger.info("CPU {} {} Interrupt(s).".format(
+                    colorer(name, color="underline"),
+                    colorer("adding", color="cyan")))
                 self.irq.enable()
                 for name, loc in self.cpu.interrupts.items():
                     self.irq.add(name, loc)
@@ -948,6 +981,9 @@ class SoC(Module):
 
             # Create optional DMA Bus (for Cache Coherence).
             if hasattr(self.cpu, "dma_bus"):
+                self.logger.info("CPU {} {} DMA Bus.".format(
+                    colorer(name, color="underline"),
+                    colorer("adding", color="cyan")))
                 self.submodules.dma_bus = SoCBusHandler(
                     name             = "SoCDMABusHandler",
                     standard         = "wishbone",
@@ -969,6 +1005,9 @@ class SoC(Module):
 
         # Add CPU's SoC components (if any).
         if hasattr(self.cpu, "add_soc_components"):
+            self.logger.info("CPU {} {} SoC components.".format(
+                colorer(name, color="underline"),
+                colorer("adding", color="cyan")))
             self.cpu.add_soc_components(soc=self, soc_region_cls=SoCRegion) # FIXME: avoid passing SoCRegion.
 
         # Add constants.
@@ -1005,7 +1044,11 @@ class SoC(Module):
 
         # SoC CSR bridge ---------------------------------------------------------------------------
         # FIXME: for now, use registered CSR bridge when SDRAM is present; find the best compromise.
-        self.add_csr_bridge(self.mem_map["csr"], register=hasattr(self, "sdram"))
+        self.add_csr_bridge(
+            name     = "csr",
+            origin   = self.mem_map["csr"],
+            register = hasattr(self, "sdram")
+        )
 
         # SoC Bus Interconnect ---------------------------------------------------------------------
         if len(self.bus.masters) and len(self.bus.slaves):
