@@ -1311,19 +1311,23 @@ class LiteXSoC(SoC):
         self.bus.add_master(name="uartbone", master=self.uartbone.wishbone)
 
     # Add JTAGbone ---------------------------------------------------------------------------------
-    def add_jtagbone(self, chain=1):
+    def add_jtagbone(self, name="jtagbone", chain=1):
         # Imports.
         from litex.soc.cores import uart
         from litex.soc.cores.jtag import JTAGPHY
 
         # Core.
-        self.check_if_exists("jtagbone")
-        self.submodules.jtagbone_phy = JTAGPHY(device=self.platform.device, chain=chain, platform=self.platform)
-        self.submodules.jtagbone = uart.UARTBone(phy=self.jtagbone_phy, clk_freq=self.sys_clk_freq)
-        self.bus.add_master(name="jtagbone", master=self.jtagbone.wishbone)
+        self.check_if_exists(name)
+        jtagbone_phy = JTAGPHY(device=self.platform.device, chain=chain, platform=self.platform)
+        jtagbone = uart.UARTBone(phy=jtagbone_phy, clk_freq=self.sys_clk_freq)
+        setattr(self.submodules, f"{name}_phy", jtagbone_phy)
+        setattr(self.submodules,          name, jtagbone)
+        self.bus.add_master(name=name, master=jtagbone.wishbone)
 
     # Add SDRAM ------------------------------------------------------------------------------------
-    def add_sdram(self, name, phy, module, origin=None, size=None, with_bist=False, with_soc_interconnect=True,
+    def add_sdram(self, name="sdram", phy=None, module=None, origin=None, size=None,
+        with_bist               = False,
+        with_soc_interconnect   = True,
         l2_cache_size           = 8192,
         l2_cache_min_data_width = 128,
         l2_cache_reverse        = False,
@@ -1338,13 +1342,14 @@ class LiteXSoC(SoC):
         from litedram.frontend.bist import  LiteDRAMBISTGenerator, LiteDRAMBISTChecker
 
         # LiteDRAM core.
-        self.check_if_exists("sdram")
-        self.submodules.sdram = LiteDRAMCore(
+        self.check_if_exists(name)
+        sdram = LiteDRAMCore(
             phy             = phy,
             geom_settings   = module.geom_settings,
             timing_settings = module.timing_settings,
             clk_freq        = self.sys_clk_freq,
             **kwargs)
+        setattr(self.submodules, name, sdram)
 
         # Save SPD data to be able to verify it at runtime.
         if hasattr(module, "_spd_data"):
@@ -1360,16 +1365,18 @@ class LiteXSoC(SoC):
                     if spd_byte < len(module._spd_data):
                         mem[i] |= module._spd_data[spd_byte]
             self.add_rom(
-                name     = "spd",
-                origin   = self.mem_map.get("spd", None),
+                name     = f"{name}_spd",
+                origin   = self.mem_map.get(f"{name}_spd", None),
                 size     = len(module._spd_data),
                 contents = mem,
             )
 
         # LiteDRAM BIST.
         if with_bist:
-            self.submodules.sdram_generator = LiteDRAMBISTGenerator(self.sdram.crossbar.get_port())
-            self.submodules.sdram_checker = LiteDRAMBISTChecker(self.sdram.crossbar.get_port())
+            sdram_generator = LiteDRAMBISTGenerator(sdram.crossbar.get_port())
+            sdram_checker   = LiteDRAMBISTChecker(  sdram.crossbar.get_port())
+            setattr(self.submodules, f"{name}_generator", sdram_generator)
+            setattr(self.submodules, f"{name}_checker",   sdram_checker)
 
         if not with_soc_interconnect: return
 
@@ -1387,7 +1394,7 @@ class LiteXSoC(SoC):
         if hasattr(self.cpu, "add_memory_buses"):
             self.cpu.add_memory_buses(
                 address_width = 32,
-                data_width    = self.sdram.crossbar.controller.data_width
+                data_width    = sdram.crossbar.controller.data_width
             )
 
         # Connect CPU's direct memory buses to LiteDRAM --------------------------------------------
@@ -1395,7 +1402,7 @@ class LiteXSoC(SoC):
             # When CPU has at least a direct memory bus, connect them directly to LiteDRAM.
             for mem_bus in self.cpu.memory_buses:
                 # Request a LiteDRAM native port.
-                port = self.sdram.crossbar.get_port()
+                port = sdram.crossbar.get_port()
                 port.data_width = 2**int(log2(port.data_width)) # Round to nearest power of 2.
 
                 # Check if bus is an AXI bus and connect it.
@@ -1460,7 +1467,7 @@ class LiteXSoC(SoC):
         )
         if connect_main_bus_to_dram:
             # Request a LiteDRAM native port.
-            port = self.sdram.crossbar.get_port()
+            port = sdram.crossbar.get_port()
             port.data_width = 2**int(log2(port.data_width)) # Round to nearest power of 2.
 
             # Create Wishbone Slave.
@@ -1491,7 +1498,8 @@ class LiteXSoC(SoC):
             self.submodules.wishbone_bridge = LiteDRAMWishbone2Native(
                 wishbone     = litedram_wb,
                 port         = port,
-                base_address = self.bus.regions["main_ram"].origin)
+                base_address = self.bus.regions["main_ram"].origin
+            )
 
     # Add Ethernet ---------------------------------------------------------------------------------
     def add_ethernet(self, name="ethmac", phy=None, phy_cd="eth", dynamic_ip=False, software_debug=False,
