@@ -435,7 +435,7 @@ static void sdram_leveling_center_module(
 	if (show_long)
 		printf("| ");
 
-	delay_mid = (delay_min+delay_max)/2 % SDRAM_PHY_DELAYS;
+	delay_mid   = (delay_min+delay_max)/2 % SDRAM_PHY_DELAYS;
 	delay_range = (delay_max-delay_min)/2;
 	if (show_short) {
 		if (delay_min < 0)
@@ -447,12 +447,25 @@ static void sdram_leveling_center_module(
 	if (show_long)
 		printf("\n");
 
-	/* Set delay to the middle */
-	rst_delay(module);
-    cdelay(100);
-	for(i = 0; i < delay_mid; i++) {
-		inc_delay(module);
-		cdelay(100);
+	/* Set delay to the middle and check */
+	if (delay_min >= 0) {
+		int retries = 8; /* Do N configs/checks and give up if failing */
+		while (retries > 0) {
+			/* Set delay. */
+			rst_delay(module);
+			cdelay(100);
+			for(i = 0; i < delay_mid; i++) {
+				inc_delay(module);
+				cdelay(100);
+			}
+
+			/* Check */
+			errors  = sdram_write_read_check_test_pattern(module, 42);
+			errors += sdram_write_read_check_test_pattern(module, 84);
+			if (errors == 0)
+				break;
+			retries--;
+		}
 	}
 }
 
