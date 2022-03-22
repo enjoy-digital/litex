@@ -1489,10 +1489,10 @@ class LiteXSoC(SoC):
                     l2_cache = FullMemoryWE()(l2_cache)
                 self.submodules.l2_cache = l2_cache
                 litedram_wb = self.l2_cache.slave
+                self.add_config("L2_SIZE", l2_cache_size)
             else:
                 litedram_wb = wishbone.Interface(port.data_width)
                 self.submodules += wishbone.Converter(wb_sdram, litedram_wb)
-            self.add_config("L2_SIZE", l2_cache_size)
 
             # Wishbone Slave <--> LiteDRAM bridge.
             self.submodules.wishbone_bridge = LiteDRAMWishbone2Native(

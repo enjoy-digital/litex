@@ -342,12 +342,14 @@ def soc_core_args(parser):
     soc_group.add_argument("--timer-uptime",    action="store_true", help="Add an uptime capability to Timer.")
 
     # L2 Cache
-    soc_group.add_argument("--l2-size",           default=8192, type=auto_int, help="L2 cache size.")
+    soc_group.add_argument("--l2-size", default=8192, type=auto_int, help="L2 cache size.")
 
 def soc_core_argdict(args):
     r = dict()
-    # Iterate on all SoCCore arguments.
-    for a in inspect.getfullargspec(SoCCore.__init__).args:
+    # Iterate on all arguments.
+    soc_args  = inspect.getfullargspec(SoCCore.__init__).args
+    full_args = soc_args + ["l2_size"]
+    for a in full_args:
         # Exclude specific arguments.
         if a in ["self", "platform"]:
             continue
@@ -359,7 +361,7 @@ def soc_core_argdict(args):
             arg = not getattr(args, "no_ident_version")
         # Regular cases.
         else:
-             arg = getattr(args, a, None)
+            arg = getattr(args, a, None)
         # Fill Dict.
         if arg is not None:
             r[a] = arg
