@@ -254,7 +254,7 @@ def get_csr_header(regions, constants, csr_base=None, with_access_functions=True
                             reg_name   = name + "_" + csr.name.lower()
                             field_name = reg_name + "_" + field.name.lower()
                             r += "static inline uint32_t " + field_name + "_extract(uint32_t oldword) {\n"
-                            r += "\tuint32_t mask = ((1 << " + size + ")-1);\n"
+                            r += "\tuint32_t mask = ((uint32_t)(1 << " + size + ")-1);\n"
                             r += "\treturn ( (oldword >> " + offset + ") & mask );\n}\n"
                             r += "static inline uint32_t " + field_name + "_read(void) {\n"
                             r += "\tuint32_t word = " + reg_name + "_read();\n"
@@ -262,7 +262,7 @@ def get_csr_header(regions, constants, csr_base=None, with_access_functions=True
                             r += "}\n"
                             if not getattr(csr, "read_only", False):
                                 r += "static inline uint32_t " + field_name + "_replace(uint32_t oldword, uint32_t plain_value) {\n"
-                                r += "\tuint32_t mask = ((1 << " + size + ")-1);\n"
+                                r += "\tuint32_t mask = ((uint32_t)(1 << " + size + ")-1);\n"
                                 r += "\treturn (oldword & (~(mask << " + offset + "))) | (mask & plain_value)<< " + offset + " ;\n}\n"
                                 r += "static inline void " + field_name + "_write(uint32_t plain_value) {\n"
                                 r += "\tuint32_t oldword = " + reg_name + "_read();\n"
