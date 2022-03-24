@@ -15,10 +15,8 @@ setup(
     license="BSD",
     python_requires="~=3.6",
     install_requires=[
-        "migen",
         "pyserial",
         "requests",
-        "pythondata-software-compiler_rt",
     ],
     packages=find_packages(exclude=("test*", "sim*", "doc*")),
     include_package_data=True,
