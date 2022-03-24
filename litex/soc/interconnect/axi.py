@@ -793,7 +793,7 @@ class AXILite2CSR(Module):
 # AXILite SRAM -------------------------------------------------------------------------------------
 
 class AXILiteSRAM(Module):
-    def __init__(self, mem_or_size, read_only=None, init=None, bus=None):
+    def __init__(self, mem_or_size, read_only=None, init=None, bus=None, burst=False):
         if bus is None:
             bus = AXILiteInterface()
         self.bus = bus

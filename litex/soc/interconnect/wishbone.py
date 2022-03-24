@@ -330,7 +330,7 @@ class Converter(Module):
 # Wishbone SRAM ------------------------------------------------------------------------------------
 
 class SRAM(Module):
-    def __init__(self, mem_or_size, read_only=None, init=None, bus=None, burst=True):
+    def __init__(self, mem_or_size, read_only=None, init=None, bus=None, burst=False):
         if bus is None:
             bus = Interface()
         self.bus = bus
