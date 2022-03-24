@@ -9,6 +9,8 @@ jobs:
       # Checkout Repository
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          path: /usr/litex
 
       # Install Tools
       - name: Install Tools
