@@ -159,12 +159,17 @@ __attribute__((__used__)) int main(int i, char **c)
 #ifdef CSR_ETHMAC_BASE
 	eth_init();
 #endif
+
+/* Initialize and test DRAM */
 #ifdef CSR_SDRAM_BASE
 	sdr_ok = sdram_init();
 #else
+/* Test Main RAM when present and not pre-initialized */
 #ifdef MAIN_RAM_BASE
+#ifndef CONFIG_MAIN_RAM_INIT
 	sdr_ok = memtest((unsigned int *) MAIN_RAM_BASE, min(MAIN_RAM_SIZE, MEMTEST_DATA_SIZE));
 	memspeed((unsigned int *) MAIN_RAM_BASE, min(MAIN_RAM_SIZE, MEMTEST_DATA_SIZE), false, 0);
+#endif
 #endif
 #endif
 	if (sdr_ok != 1)
