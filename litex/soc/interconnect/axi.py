@@ -93,7 +93,7 @@ def connect_to_pads(bus, pads, mode="master", axi_full=False):
     for channel, mode in channel_modes.items():
         ch = getattr(bus, channel)
         sig_list = [("valid", 1)] + ch.description.payload_layout
-        if ch in ["w", "r"] and axi_full:
+        if channel in ["w", "r"] and axi_full:
             sig_list += [("last",  1)]
         for name, width in sig_list:
             sig  = getattr(ch, name)
