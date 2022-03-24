@@ -19,7 +19,6 @@ jobs:
           pip3 install requests
           pip3 install pexpect
           pip3 install meson
-          pip3 install amaranth-yosys
 
       # Install (n)Migen / LiteX / Cores
       - name: Install LiteX
