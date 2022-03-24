@@ -282,7 +282,7 @@ class VexRiscvSMP(CPU):
         self.jtag_tdo         = Signal()
         self.jtag_tdi         = Signal()
         self.interrupt        = Signal(32)
-        self.pbus             = pbus    = wishbone.Interface()
+        self.pbus             = pbus = wishbone.Interface(data_width=max(VexRiscvSMP.icache_width, VexRiscvSMP.dcache_width))
 
         self.periph_buses     = [pbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses     = []     # Memory buses (Connected directly to LiteDRAM).
