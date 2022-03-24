@@ -855,6 +855,8 @@ class SoC(Module):
             colorer("added", color="green"),
             self.bus.regions[name]))
         setattr(self.submodules, name, ram)
+        if contents != []:
+            self.add_config(f"{name}_INIT", 1)
 
     def add_rom(self, name, origin, size, contents=[], mode="r"):
         self.add_ram(name, origin, size, contents, mode=mode)
