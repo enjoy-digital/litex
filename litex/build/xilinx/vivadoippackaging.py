@@ -47,8 +47,8 @@ def _run_script(script):
 
 # TCL procedure definition ----------------------------------------------------------------------------
 
-_proc_define_interface = """
-proc proc_define_interface { name } {
+_tcl_define_interface = """
+proc tcl_define_interface { name } {
   
   ipx::create_abstraction_definition Enjoy-Digital.com interface ${name}_rtl 1.0
   ipx::create_bus_definition Enjoy-Digital.com interface $name 1.0
@@ -63,8 +63,8 @@ proc proc_define_interface { name } {
 }
 """
 
-_proc_define_interface_port = """
-proc proc_define_interface_port {name width dir {type none}} {
+_tcl_define_interface_port = """
+proc tcl_define_interface_port {name width dir {type none}} {
 
   ipx::add_bus_abstraction_port $name [ipx::current_busabs]
   set m_intf [ipx::get_bus_abstraction_ports $name -of_objects [ipx::current_busabs]]
@@ -92,8 +92,8 @@ proc proc_define_interface_port {name width dir {type none}} {
 }
 """
 
-_proc_set_version = """
-proc proc_set_version { {ip_name "ip_tbd"}   \
+_tcl_set_version = """
+proc tcl_set_version { {ip_name "ip_tbd"}   \
                         {version_number "1.0"}  \
                         {core_revision_number "0"}  \
                         {display_name "display TBD"}  \
@@ -114,8 +114,8 @@ proc proc_set_version { {ip_name "ip_tbd"}   \
 }
 """
 
-_proc_set_device_family = """
-proc proc_set_device_family { {setting "all"} } {
+_tcl_set_device_family = """
+proc tcl_set_device_family { {setting "all"} } {
   # Management of supported families
   if { $setting eq "all" } {
       set i_families ""
@@ -136,8 +136,8 @@ proc proc_set_device_family { {setting "all"} } {
 }
 """
 
-_proc_archive_ip = """
-proc proc_archive_ip { vendor_name ip_name {version_number "1.0"} } {
+_tcl_archive_ip = """
+proc tcl_archive_ip { vendor_name ip_name {version_number "1.0"} } {
   # Management of archiving of the IP
   set archive_name "./"
   append archive_name $vendor_name "_" $ip_name "_" $version_number ".zip"
@@ -145,15 +145,15 @@ proc proc_archive_ip { vendor_name ip_name {version_number "1.0"} } {
 }
 """
 
-_proc_declare_interrupt = """
-proc proc_declare_interrupt { irq_name } {
+_tcl_declare_interrupt = """
+proc tcl_declare_interrupt { irq_name } {
   # declaration of the interrupt
   ipx::infer_bus_interface $irq_name xilinx.com:signal:interrupt_rtl:1.0 [ipx::current_core]
 }
 """
 
-_proc_add_bus_clock = """
-proc proc_add_bus_clock {clock_signal_name bus_inf_name {reset_signal_name ""} {reset_signal_mode "slave"}} {
+_tcl_add_bus_clock = """
+proc tcl_add_bus_clock {clock_signal_name bus_inf_name {reset_signal_name ""} {reset_signal_mode "slave"}} {
   set bus_inf_name_clean [string map {":" "_"} $bus_inf_name]
   set clock_inf_name [format "%s%s" $bus_inf_name_clean "_signal_clock"]
   set clock_inf [ipx::add_bus_interface $clock_inf_name [ipx::current_core]]
@@ -189,15 +189,15 @@ proc proc_add_bus_clock {clock_signal_name bus_inf_name {reset_signal_name ""} {
 }
 """
 
-_proc_add_bus = """
+_tcl_add_bus = """
 # Add a new port map definition to a bus interface.
-proc proc_add_port_map {bus phys logic} {
+proc tcl_add_port_map {bus phys logic} {
   set map [ipx::add_port_map $phys $bus]
   set_property "PHYSICAL_NAME" $phys $map
   set_property "LOGICAL_NAME" $logic $map
 }
 
-proc proc_add_bus {bus_name mode abs_type bus_type port_maps} {
+proc tcl_add_bus {bus_name mode abs_type bus_type port_maps} {
   set bus [ipx::add_bus_interface $bus_name [ipx::current_core]]
 
   set_property "ABSTRACTION_TYPE_VLNV" $abs_type $bus
@@ -205,14 +205,14 @@ proc proc_add_bus {bus_name mode abs_type bus_type port_maps} {
   set_property "INTERFACE_MODE" $mode $bus
 
   foreach port_map $port_maps {
-    proc_add_port_map $bus {*}$port_map
+    tcl_add_port_map $bus {*}$port_map
   }
 }
 
 """
 
-_proc_add_ip_files = """
-proc proc_add_ip_files {ip_name ip_files} {
+_tcl_add_ip_files = """
+proc tcl_add_ip_files {ip_name ip_files} {
   set proj_fileset [get_filesets sources_1]
   foreach m_file $ip_files {
     puts "got the following file to add: $m_file.\n"
@@ -229,8 +229,139 @@ proc proc_add_ip_files {ip_name ip_files} {
 # XilinxVivadoToolchain ----------------------------------------------------------------------------
 
 class XilinxVivadoIpPackaging:
+    """Xilinx Vivado IP Packaging class
+
+    This class manages the packaging of an IP core created with LiteX.
+    The package method should be used for that matter.
+    Several parameters are given access for the customization of the core.
+
+    Note: methods begining with an _ are considered as private.
+
+    Parameters
+    ----------
+    version_number : str
+        Version of the IP code
+
+    core_number : str
+        Version of the internal core. Useful to increment whenever 
+        correcting a bug without software impact.
+    
+    device_family : str
+        String of supported Xilinx families by the core.
+        default if "all"
+        example: "zynq Production"
+
+    taxonomy : str
+        IP make name
+
+    vendor: str
+        IP make url
+
+    clock_domain : dict
+        Gives the clock domains and reset related to the IP interfaces (AXI Lite, Stream or custom).
+        Xilinx vivado uses this at validation stage.
+        example:
+        'AXI Lite' : 
+            {
+            'clock_domain': 'axilite_clk',
+            'reset': 'axilite_rst',
+            'interfaces': 'axilite_in',
+            },
+        default: None.
+
+    custom_interface : dict
+        Gives the port mapping from the IP core interface to the custom interface.
+        'ip_core_port_name'   : 'generic_interface_port_name',
+        example:
+        'wishbone' : 
+            {
+            'name': 'wishbone_in',
+            'type': 'slave',
+            'signals' : 
+                {
+                    'wishbone_in_adr'   : 'wishbone_adr',
+                    'wishbone_in_dat_w' : 'wishbone_dat_w',
+                    'wishbone_in_dat_r' : 'wishbone_dat_r',
+                    'wishbone_in_sel'   : 'wishbone_sel',
+                    'wishbone_in_cyc'   : 'wishbone_cyc',
+                    'wishbone_in_stb'   : 'wishbone_stb',
+                    'wishbone_in_ack'   : 'wishbone_ack',
+                    'wishbone_in_we'    : 'wishbone_we',
+                    'wishbone_in_cti'   : 'wishbone_cti',
+                    'wishbone_in_bte'   : 'wishbone_bte',
+                    'wishbone_in_err'   : 'wishbone_err',
+                },
+            },
+        default: None.
+
+    declare_interface : dict
+        Gives the port, direction and size of a custom interface.
+        'generic_interface_port_name', 'size', 'direction'
+        example:
+        'wishbone' : 
+            {
+            'signals' : 
+                [
+                    ("wishbone_adr","30","input"),
+                    ...
+                    ("wishbone_err","1","output"),
+                ],
+            },
+        default: None. If specified, vivado is called for interface compilation.
+
+    generic_parameters : dict
+        Specify the generic parameter used for the generation of the IP.
+        Since verilog code generated by Litex tools do not implement generics,
+        parameter are added to the verilog netlist once built.
+        It enables the designer to view the paramters values used during the
+        code generation in the Xilinx vivado IP integrator.
+        Parameters are set in Read Only mode in Vivado.
+        ('generic_parameter_name', value)
+        example:
+        [
+            ("address_width",  64),
+            ...
+            ("reverse"    ,  args.reverse),
+        ]
+        default: None.
+
+    gui_description : dict
+        Simple support of GUI customization
+        example:
+        'AXI Stream' :
+            {
+            'order': 1,
+            'vars' : 
+                {
+                'input_width' : {'order' : 0,},
+                'output_width' : {'order' : 1,},
+                },
+            },
+        default: None.
+
+    interrupt : str
+        Interruption signal port name.
+
+    file_list : list
+        List of file for IP compilation
+        (verilog, xdc, xci)
+        example:
+        file_list = ["../file.xci", "../file.xdc", "../file.v"]
+        Note: top level netlist should always be last
+
+    """
+
 
     def __init__(self):
+        """Class init
+
+        This method initialize variables to default values.
+
+        Returns
+        -------
+            None
+        """
+
         self.version_number     = "1.0"
         self.core_number        = "0"
         self.device_family      = "all"
@@ -241,10 +372,23 @@ class XilinxVivadoIpPackaging:
         self.declare_interface  = dict()
         self.generic_parameters = dict()
         self.gui_description    = dict()
-        self.file_list          = list()
         self.interrupt          = None
+        self.file_list          = list()
 
     def _build_gui(self):
+        """Build GUI
+
+        This method returns the tcl based on the GUI configuration given
+        in gui_description dict.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+            str
+        """
 
         # If dictionary is not empty 
         if (self.gui_description):
@@ -271,24 +415,49 @@ class XilinxVivadoIpPackaging:
             return('# No GUI properties set.\n')
 
     def _build_clocks(self):
+        """Build Clocks and reset
 
+        This method returns the tcl based on the Clocks and reset configuration given
+        in clock_domain dict.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+            str
+        """
         # If dictionary is not empty 
         if (self.clock_domain):
             string = '# Set interface clock & reset properties\n'
             #Parse keys to retrieve the group names.
             for group in self.clock_domain:
-                string += 'proc_add_bus_clock "'+self.clock_domain[group]['clock_domain']+'" "'+self.clock_domain[group]['interfaces']+'" "'+self.clock_domain[group]['reset']+'"\n'
+                string += 'tcl_add_bus_clock "'+self.clock_domain[group]['clock_domain']+'" "'+self.clock_domain[group]['interfaces']+'" "'+self.clock_domain[group]['reset']+'"\n'
             return(string)
         else:
             return('# No interface clocks properties set.\n')
 
     def _build_interface(self):
+        """Build custom interface
+
+        This method returns the tcl based on the interface configuration given
+        in custom_interface dict.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+            str
+        """
 
         # If dictionary is not empty 
         if (self.custom_interface):
             string = '# Set custom interface properties\n'
             for inf in self.custom_interface:
-                string += 'proc_add_bus "'+self.custom_interface[inf]['name']+'" "'+self.custom_interface[inf]['type']+'" \\\n'
+                string += 'tcl_add_bus "'+self.custom_interface[inf]['name']+'" "'+self.custom_interface[inf]['type']+'" \\\n'
                 string += '\t"'+self.vendor+':interface:'+inf+'_rtl:1.0" \\\n'
                 string += '\t"'+self.vendor+':interface:'+inf+':1.0" \\\n'
                 string += '\t{ \\\n'
@@ -300,6 +469,21 @@ class XilinxVivadoIpPackaging:
             return('# No custom interface to instanciate.\n')
 
     def _declare_interface(self):
+        """Declare then Build a custom interface
+
+        This method generates the tcl based on the interface configuration given
+        in declare_interface dict.
+        Then, the tcl is run in Vivado to compile the interface.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+            None
+        """
+
         if (self.declare_interface):
             project = "interfaces"
             # shutil.rmtree(project, ignore_errors=True)
@@ -309,22 +493,36 @@ class XilinxVivadoIpPackaging:
                 # Prepare Vivado's tcl interface build script
                 tcl = []
                 # Declare Procedures
-                tcl.append(_proc_define_interface)
-                tcl.append(_proc_define_interface_port)
+                tcl.append(_tcl_define_interface)
+                tcl.append(_tcl_define_interface_port)
                 tcl.append("set if_name {}".format(inf))
                 # declare the interface name
-                tcl.append("proc_define_interface $if_name")
+                tcl.append("tcl_define_interface $if_name")
                 # declare the interface ports
                 for signal in self.declare_interface[inf]['signals']:
-                    tcl.append("proc_define_interface_port {} {} {} ".format(signal[0],signal[1],signal[2]))
+                    tcl.append("tcl_define_interface_port {} {} {} ".format(signal[0],signal[1],signal[2]))
  
                 tools.write_to_file(project + "/"+inf+".tcl", "\n".join(tcl))
 
                 # Run Vivado's tcl core packager script
                 os.system("cd {} && vivado -mode batch -source {}.tcl".format(project, inf))
 
-    # Last file of the ip_files list must be the top level file.
     def _ip_files(self, ip_files):
+        """Build IP file list in tcl
+
+        This method returns the tcl file list based on the configuration given
+        in ip_files list.
+        Note: Last file of the ip_files list must be the top level file.
+
+        Parameters
+        ----------
+        ip_files: list
+
+        Returns
+        -------
+            str
+        """
+
         string = "[list"
         for item in ip_files:
             string += " \""+item+"\""
@@ -332,8 +530,21 @@ class XilinxVivadoIpPackaging:
         return(string)
 
 
-    # Verilog Post Processing --------------------------------------------------------------------------
     def _netlist_post_processing(self, infile):
+        """Verilog netlit Post Processing
+
+        This method insert the generic parameters after the verilog module declaration.
+
+        Parameters
+        ----------
+        infile : str
+            The file location for processging
+
+        Returns
+        -------
+            None
+        """
+
         Found = False
         backup = infile+".old"
         os.system("cp {} {}".format(infile, backup))
@@ -353,6 +564,20 @@ class XilinxVivadoIpPackaging:
 
     # XDC Post Processing --------------------------------------------------------------------------
     def _constraints_post_processing(self, infile):
+        """XDC Post Processing
+
+        This method parse the XDC constraint file to only keep the timing constraints.
+
+        Parameters
+        ----------
+        infile : str
+            The file location for processing
+
+        Returns
+        -------
+            None
+        """
+
         Found = False
         backup = infile+".old"
         os.system("cp {} {}".format(infile, backup))
@@ -370,33 +595,48 @@ class XilinxVivadoIpPackaging:
                     writer.write(line)
 
     def _build_tcl(self, platform, build_name, 
-        toochain="vivadoippackaging",
-        enable_wishbone=False, 
-        enable_axistream=False):
+        toochain="vivadoippackaging"):
+        """Root method for generating the tcl for the packaging.
+
+        This method writes the tcl for packaging.
+
+        Parameters
+        ----------
+        build_name : str
+            Name of the IP
+
+        toochain : str
+            Name of the tool. Only vivadoippackaging is supported.
+
+        Returns
+        -------
+            None
+        """
+        
         # IP Packaging is dedicted to Vivado.
         assert toochain in ["vivadoippackaging"]
         tcl = []
 
         # Declare TCL Procedures
-        tcl.append(_proc_add_ip_files)
-        tcl.append(_proc_add_bus)
-        tcl.append(_proc_add_bus_clock)
-        tcl.append(_proc_declare_interrupt)
-        tcl.append(_proc_set_version)
-        tcl.append(_proc_set_device_family)
-        tcl.append(_proc_archive_ip)
+        tcl.append(_tcl_add_ip_files)
+        tcl.append(_tcl_add_bus)
+        tcl.append(_tcl_add_bus_clock)
+        tcl.append(_tcl_declare_interrupt)
+        tcl.append(_tcl_set_version)
+        tcl.append(_tcl_set_device_family)
+        tcl.append(_tcl_archive_ip)
         
         # Create project
         tcl.append("create_project -force -name {}_packager".format(build_name))
 
         #Add files
-        tcl.append("proc_add_ip_files \"{}\"  \"{}\" ".format(build_name, self._ip_files(self.file_list)))
+        tcl.append("tcl_add_ip_files \"{}\"  \"{}\" ".format(build_name, self._ip_files(self.file_list)))
 
         tcl.append("ipx::package_project -root_dir . -vendor {} -library user -taxonomy /{}".format(self.vendor, self.taxonomy))
         tcl.append("set_property name {} [ipx::current_core]".format(build_name))
         
         # Set the device family compatibility
-        tcl.append("proc_set_device_family \"{}\"".format(self.device_family))
+        tcl.append("tcl_set_device_family \"{}\"".format(self.device_family))
 
         # Save the settings.
         tcl.append("ipx::save_core [ipx::current_core]\n")
@@ -408,18 +648,18 @@ class XilinxVivadoIpPackaging:
         tcl.append(self._build_clocks())
         
         if self.interrupt is not None:
-            tcl.append("proc_declare_interrupt \"{}\"\n".format(self.interrupt))
+            tcl.append("tcl_declare_interrupt \"{}\"\n".format(self.interrupt))
         
         tcl.append(self._build_gui())
         
-        tcl.append("proc_set_version \"{}\"  \"{}\" \"{}\" \"{}\"".format(build_name, self.version_number, self.core_number, "Custom IP (LiteX Packaging)"))
+        tcl.append("tcl_set_version \"{}\"  \"{}\" \"{}\" \"{}\"".format(build_name, self.version_number, self.core_number, "Custom IP (LiteX Packaging)"))
         
         # Wrap-up
         tcl.append("ipx::create_xgui_files [ipx::current_core]")
         tcl.append("ipx::update_checksums [ipx::current_core]")
         tcl.append("ipx::check_integrity -quiet [ipx::current_core]")
         tcl.append("ipx::save_core [ipx::current_core]")
-        tcl.append("proc_archive_ip \"{}\" \"{}\" \"{}\"".format(self.vendor, build_name, self.version_number))
+        tcl.append("tcl_archive_ip \"{}\" \"{}\" \"{}\"".format(self.vendor, build_name, self.version_number))
         tcl.append("close_project")
         tcl.append("\n# End\n")
         tcl.append("exit")
@@ -436,6 +676,27 @@ class XilinxVivadoIpPackaging:
         declare_interface  = dict(),
         interrupt          = None,
         **kwargs):
+        """Entry point method for for the packaging.
+
+        This method generates the packaging packaging.
+
+        Parameters
+        ----------
+        build_name : str
+            Name of the IP
+
+        build_dir : str
+            Name of packaging directory.
+
+        run : bool
+            If True, Vivado is run to compile the IP.
+            If False, only the tcl code is generated.
+
+        Returns
+        -------
+            None
+        """
+        
 
         self.file_list          = file_list
         self.clock_domain       = clock_domain
