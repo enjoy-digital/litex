@@ -2,14 +2,13 @@
 # This file is part of LiteX.
 #
 # Copyright (c) 2021 Franck Jullien <franck.jullien@collshade.fr>
+# Copyright (c) 2022 Charles-Henri Mousset <ch.mousset@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
 import sys
+import time
 import subprocess
-from time import sleep
-import usb.core
-import usb.util
 
 from litex.build.generic_programmer import GenericProgrammer
 
@@ -51,6 +50,7 @@ class EfinixAtmelProgrammer:
     padding = 0xFF
 
     def __init__(self):
+        import usb.core
         dev = usb.core.find(find_all=False, idVendor=self.vid, idProduct=self.pid)
         if not dev:
             raise ValueError(f"did not find Atmel USB programmer device with VID{self.vid:04x} PID{self.pid:04x}")
@@ -79,17 +79,17 @@ class EfinixAtmelProgrammer:
 
     def _prep_flash(self):
         self._usb_w([0x08])  # 'SPI Master'
-        sleep(0.05)
+        time.sleep(0.05)
         self._usb_w([0x09])  # 'flash_ready'
-        sleep(0.05)
+        time.sleep(0.05)
 
     def _prep_load(self):
         self._usb_w([0x0B])
-        sleep(0.001)
+        time.sleep(0.001)
         self._usb_w([0x0C])
-        sleep(0.002)
+        time.sleep(0.002)
         self._usb_w([0x0D])
-        sleep(0.01)
+        time.sleep(0.01)
         self._usb_w([0x01] + [self.padding] * 10)  # "write some initial junk bytes"
 
     def _finish_load(self):
@@ -98,12 +98,12 @@ class EfinixAtmelProgrammer:
     def _erase_flash(self):
         print("Erasing Flash...")
         self._usb_w([0x04])
-        sleep(self.flash_erase_time)
+        time.sleep(self.flash_erase_time)
         print("done")
 
     def _reload(self):
         self._usb_w([0x06] + [self.padding] * 63)  # toggle CRESET
-        sleep(0.01)
+        time.sleep(0.01)
 
     def _send_packet(self, packet, flash=False):
         """send 63 bytes of data"""
@@ -124,7 +124,7 @@ class EfinixAtmelProgrammer:
             self._send_packet(packet, flash)
 
         self._usb_w([0x21] + [0xFF] * 63)  # 'close connection'
-        sleep(0.01)
+        time.sleep(0.01)
         print("done")
 
     def add_hex(self, offset, hexfile):
