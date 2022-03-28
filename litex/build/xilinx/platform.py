@@ -8,7 +8,7 @@
 import os
 
 from litex.build.generic_platform import GenericPlatform
-from litex.build.xilinx import common, vivado, ise, symbiflow
+from litex.build.xilinx import common, vivado, ise, symbiflow, vivadoippackaging
 
 # XilinxPlatform -----------------------------------------------------------------------------------
 
@@ -23,6 +23,7 @@ class XilinxPlatform(GenericPlatform):
             self.toolchain = ise.XilinxISEToolchain()
         elif toolchain == "vivado":
             self.toolchain = vivado.XilinxVivadoToolchain()
+            self.packaging = vivadoippackaging.XilinxVivadoIpPackaging()
         elif toolchain == "symbiflow":
             self.toolchain = symbiflow.SymbiflowToolchain()
         else:
@@ -51,6 +52,9 @@ class XilinxPlatform(GenericPlatform):
 
     def build(self, *args, **kwargs):
         return self.toolchain.build(self, *args, **kwargs)
+
+    def package(self, *args, **kwargs):
+        return self.packaging.package(self, *args, **kwargs)
 
     def add_period_constraint(self, clk, period):
         if clk is None: return

@@ -232,6 +232,7 @@ class XilinxVivadoIpPackaging:
 
     def __init__(self):
         self.version_number     = "1.0"
+        self.core_number        = "0"
         self.device_family      = "all"
         self.taxonomy           = "Enjoy_Digital"
         self.vendor             = "Enjoy-Digital.com"
@@ -411,7 +412,7 @@ class XilinxVivadoIpPackaging:
         
         tcl.append(self._build_gui())
         
-        tcl.append("proc_set_version \"{}\"  \"{}\" \"{}\" \"{}\"".format("AXIConverter", self.version_number, "0", "axi_converter IP (Packaging Proof of Concept)"))
+        tcl.append("proc_set_version \"{}\"  \"{}\" \"{}\" \"{}\"".format(build_name, self.version_number, self.core_number, "Custom IP (LiteX Packaging)"))
         
         # Wrap-up
         tcl.append("ipx::create_xgui_files [ipx::current_core]")
