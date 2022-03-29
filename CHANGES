@@ -4,6 +4,10 @@
 	[> Issues resolved
 	------------------
 	- software/bios/mem_write: Fix write address increment.
+	- software/liblitedram:    Improve calibration corner case on 7-series (SDRAM_PHY_DELAY_JUMP).
+	- software/liblitedram:    Fix delay reconfiguration issue on ECP5/DDR3.
+	- cores/jtag:              Fix chain parameter on XilinxJTAG.
+	- soc/arguments:           Fix l2_size handling.
 
     [> Added Features
 	-----------------
@@ -29,7 +33,35 @@
 	- libliteeth/tftp:    Add blocksize support an increase to 1024 bytes (allow 64MB filesize).
 	- soc/add_sdram:      Make AXI integration more flexible (remove some specific Rocket hardcoding).
 	- cpu/neorv32:        Add initial support (RV32I, VHDL converted to Verilog through GHDL-Yosys-synth).
-	- cpu/naxriscv:       Add initial support (RV32IMA, already able to run Linux).
+	- cpu/naxriscv:       Add initial support (RV32IMA & RV64IMA, already able to run Linux).
+	- interconnect/axi:   Add AXI UpConverter.
+	- soc/add_sdram:      Allow data_width upconversion directly on AXI (avoid switching to Wishbone).
+	- bios/memtest:       Optimize memspeed loop for better accuracy.
+	- build/sim:          Allow custom modules to be in custom path.
+	- build/OpenFPGA:     Add initial OpenFPGA build backend (Currently targeting SOFA chips).
+	- build/efinix:       Add initial MIPI TX/RX support (and test on Trion/Titanium).
+	- cores/video:        VTG improvements to support more Video chips.
+	- cores/xadc:         Improve Zynq Ultrascale+ support.
+	- LiteScope:          Optimize waveform upload speed.
+	- LitePCIe:           Add LTSSM tracer capability to debug PCIe bringup issues.
+	- cores/hyperbus:     Refactor core and improve performances (Automatic burst detection).
+	- cores/jtag:         Add Zynq UltraScale+.
+	- cores/ram:          Add Ultrascale+ HBM2 wrapper.
+	- litex_json2renode:  Improve and add support for more CPUs.
+	- cores/cpu:          Add initial FireV support.
+	- litex_cli:          Add --csr-csv support and minimal GUI (based on DearPyGui).
+	- litescope_cli:      Add minimal GUI (based on DearPyGui).
+	- build/gowin:        Add powershell support.
+	- LitePCIe:           Add initial 64-bit addressing support (Only for 64-bit datapath for now).
+	- software/bios:      Add Main RAM test (when not pre-initialized).
+	- build/trellis:      Enable bitstream compression on ECP5 by default.
+	- soc/add_etherbone:  Increase buffer_depth to 16 (to improve etherbone bursting).
+	- builder:            Add get_bios_filename/get_bitstream_filename methods to simplify targets.
+	- cpu/vexriscv_smp:   Re-integrate Linux-on-LiteX−VexRiscv specific changes/mapping.
+	- tools/litex_sim:    Allow RAM/SDRAM initialization from .json files (similar to hardware).
+	- soc/cpu:            Expose optional CPU configuration parameters to users (ex VexRiscv-SMP/NaxRiscv).
+	- soc:                Improve logs.
+	- build/Efinix:       Add Atmel programmer.
 
     [> API changes/Deprecation
 	--------------------------
