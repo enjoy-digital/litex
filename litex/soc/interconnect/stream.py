@@ -242,7 +242,7 @@ class AsyncFIFO(_FIFOWrapper):
 # ClockDomainCrossing ------------------------------------------------------------------------------
 
 class ClockDomainCrossing(Module):
-    def __init__(self, layout, cd_from="sys", cd_to="sys", depth=None):
+    def __init__(self, layout, cd_from="sys", cd_to="sys", depth=None, with_common_rst=True):
         self.sink   = Endpoint(layout)
         self.source = Endpoint(layout)
         # # #
@@ -253,24 +253,28 @@ class ClockDomainCrossing(Module):
             self.comb += self.sink.connect(self.source)
         # Different Clk Domains.
         else:
-            # Create intermediate Clk Domains and generate a common Rst.
-            _cd_rst  = Signal()
-            _cd_from = ClockDomain("from")
-            _cd_to   = ClockDomain("to")
-            self.clock_domains += _cd_from, _cd_to
-            self.comb += [
-                _cd_from.clk.eq(ClockSignal(cd_from)),
-                _cd_to.clk.eq(  ClockSignal(cd_to)),
-                _cd_rst.eq(ResetSignal(cd_from) | ResetSignal(cd_to))
-            ]
-            # Use common Rst on both Clk Domains (through AsyncResetSynchronizer).
-            self.specials += [
-                AsyncResetSynchronizer(_cd_from, _cd_rst),
-                AsyncResetSynchronizer(_cd_to,   _cd_rst)
-            ]
-            # Add Asynchronous FIFO (with intermediate Clk Domains).
+            if with_common_rst:
+                # Create intermediate Clk Domains and generate a common Rst.
+                _cd_rst  = Signal()
+                _cd_from = ClockDomain("from")
+                _cd_to   = ClockDomain("to")
+                self.clock_domains += _cd_from, _cd_to
+                self.comb += [
+                    _cd_from.clk.eq(ClockSignal(cd_from)),
+                    _cd_to.clk.eq(  ClockSignal(cd_to)),
+                    _cd_rst.eq(ResetSignal(cd_from) | ResetSignal(cd_to))
+                ]
+                cd_from = "from"
+                cd_to   = "to"
+                # Use common Rst on both Clk Domains (through AsyncResetSynchronizer).
+                self.specials += [
+                    AsyncResetSynchronizer(_cd_from, _cd_rst),
+                   AsyncResetSynchronizer(_cd_to,   _cd_rst),
+                ]
+
+            # Add Asynchronous FIFO
             cdc = AsyncFIFO(layout, depth)
-            cdc = ClockDomainsRenamer({"write": "from", "read": "to"})(cdc)
+            cdc = ClockDomainsRenamer({"write": cd_from, "read": cd_to})(cdc)
             self.submodules += cdc
 
             # Sink -> AsyncFIFO -> Source.
