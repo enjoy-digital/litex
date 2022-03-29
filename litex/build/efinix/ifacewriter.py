@@ -135,6 +135,21 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
         cmd += "# ---------- END MIPI TX {} ---------\n\n".format(name)
         return cmd
 
+    def generate_mipi_rx(self, block, verbose=True):
+        name = block["name"]
+
+        conn_type = ""
+        if "conn_type" in block:
+            conn_type = f', conn_type="{block["conn_type"]}"'
+
+        cmd = "# ---------- MIPI RX {} ---------\n".format(name)
+        cmd += f'design.create_block("{name}","MIPI_RX_LANE", mode="{block["mode"]}"' + conn_type + ')\n'
+        for p, v in block["props"].items():
+            cmd += f'design.set_property("{name}","{p}","{v}","MIPI_RX_LANE")\n'
+        cmd += f'design.assign_resource("{name}","{block["ressource"]}","MIPI_RX_LANE")\n'
+        cmd += "# ---------- END MIPI RX {} ---------\n\n".format(name)
+        return cmd
+
     def generate_gpio(self, block, verbose=True):
         name = block["name"]
         mode = block["mode"]
@@ -301,6 +316,8 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                     output += self.generate_gpio(block)
                 if block["type"] == "MIPI_TX_LANE":
                     output += self.generate_mipi_tx(block)
+                if block["type"] == "MIPI_RX_LANE":
+                    output += self.generate_mipi_rx(block)
         return output
 
     def footer(self):
