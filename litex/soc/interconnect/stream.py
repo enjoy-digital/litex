@@ -11,7 +11,7 @@ import math
 from migen import *
 from migen.util.misc import xdir
 from migen.genlib import fifo
-from migen.genlib.cdc import MultiReg, PulseSynchronizer
+from migen.genlib.cdc import MultiReg, PulseSynchronizer, AsyncResetSynchronizer
 
 from litex.soc.interconnect.csr import *
 
@@ -247,12 +247,33 @@ class ClockDomainCrossing(Module):
         self.source = Endpoint(layout)
         # # #
 
+        # Same Clk Domains.
         if cd_from == cd_to:
+            # No adaptation.
             self.comb += self.sink.connect(self.source)
+        # Different Clk Domains.
         else:
+            # Create intermediate Clk Domains and generate a common Rst.
+            _cd_rst  = Signal()
+            _cd_from = ClockDomain("from")
+            _cd_to   = ClockDomain("to")
+            self.clock_domains += _cd_from, _cd_to
+            self.comb += [
+                _cd_from.clk.eq(ClockSignal(cd_from)),
+                _cd_to.clk.eq(  ClockSignal(cd_to)),
+                _cd_rst.eq(ResetSignal(cd_from) | ResetSignal(cd_to))
+            ]
+            # Use common Rst on both Clk Domains (through AsyncResetSynchronizer).
+            self.specials += [
+                AsyncResetSynchronizer(_cd_from, _cd_rst),
+                AsyncResetSynchronizer(_cd_to,   _cd_rst)
+            ]
+            # Add Asynchronous FIFO (with intermediate Clk Domains).
             cdc = AsyncFIFO(layout, depth)
-            cdc = ClockDomainsRenamer({"write": cd_from, "read": cd_to})(cdc)
+            cdc = ClockDomainsRenamer({"write": "from", "read": "to"})(cdc)
             self.submodules += cdc
+
+            # Sink -> AsyncFIFO -> Source.
             self.comb += self.sink.connect(cdc.sink)
             self.comb += cdc.source.connect(self.source)
 
