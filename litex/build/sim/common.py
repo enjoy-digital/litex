@@ -1,7 +1,25 @@
 from migen import *
 from migen.fhdl.specials import Special
+from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.build.io import *
+
+# AsyncResetSynchronizer ---------------------------------------------------------------------
+
+class SimAsyncResetSynchronizerImpl(Module):
+    def __init__(self, cd, async_reset):
+        self.clock_domains.cd_resync = ClockDomain(reset_less=True)
+        self.comb += self.cd_resync.clk.eq(cd.clk)
+        rst1 = Signal()
+        self.sync.resync += [
+            rst1.eq(async_reset),
+            cd.rst.eq(async_reset | rst1)
+        ]
+
+class SimAsyncResetSynchronizer:
+    @staticmethod
+    def lower(dr):
+        return SimAsyncResetSynchronizerImpl(dr.cd, dr.async_reset)
 
 # DDROutput ----------------------------------------------------------------------------------------
 
@@ -38,6 +56,7 @@ class SimDDRInput:
 # Special Overrides --------------------------------------------------------------------------------
 
 sim_special_overrides = {
-    DDROutput: SimDDROutput,
-    DDRInput:  SimDDRInput,
+    AsyncResetSynchronizer : SimAsyncResetSynchronizer,
+    DDROutput              : SimDDROutput,
+    DDRInput               : SimDDRInput,
 }

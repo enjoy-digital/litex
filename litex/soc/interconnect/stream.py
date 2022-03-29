@@ -268,7 +268,7 @@ class ClockDomainCrossing(Module):
                 cd_to   = "to"
                 # Use common Rst on both Clk Domains (through AsyncResetSynchronizer).
                 self.specials += [
-                    AsyncResetSynchronizer(_cd_from, _cd_rst),
+                   AsyncResetSynchronizer(_cd_from, _cd_rst),
                    AsyncResetSynchronizer(_cd_to,   _cd_rst),
                 ]
 
