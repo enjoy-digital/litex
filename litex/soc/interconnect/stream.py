@@ -245,6 +245,7 @@ class ClockDomainCrossing(Module):
     def __init__(self, layout, cd_from="sys", cd_to="sys", depth=None, with_common_rst=True):
         self.sink   = Endpoint(layout)
         self.source = Endpoint(layout)
+
         # # #
 
         # Same Clk Domains.
@@ -255,17 +256,18 @@ class ClockDomainCrossing(Module):
         else:
             if with_common_rst:
                 # Create intermediate Clk Domains and generate a common Rst.
+                _cd_id   = id(self) # FIXME: Improve, used to allow build with anonymous modules.
                 _cd_rst  = Signal()
-                _cd_from = ClockDomain("from")
-                _cd_to   = ClockDomain("to")
+                _cd_from = ClockDomain(f"from{_cd_id}")
+                _cd_to   = ClockDomain(f"to{_cd_id}")
                 self.clock_domains += _cd_from, _cd_to
                 self.comb += [
                     _cd_from.clk.eq(ClockSignal(cd_from)),
                     _cd_to.clk.eq(  ClockSignal(cd_to)),
                     _cd_rst.eq(ResetSignal(cd_from) | ResetSignal(cd_to))
                 ]
-                cd_from = "from"
-                cd_to   = "to"
+                cd_from = _cd_from.name
+                cd_to   = _cd_to.name
                 # Use common Rst on both Clk Domains (through AsyncResetSynchronizer).
                 self.specials += [
                    AsyncResetSynchronizer(_cd_from, _cd_rst),
