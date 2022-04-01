@@ -8,6 +8,9 @@ ifdef WITH_CXX
 	OBJECTS += hellocpp.o
 endif
 
+CXXFLAGS:=$(filter-out -flto,$(CXXFLAGS))
+CFLAGS:=$(filter-out -flto,$(CFLAGS))
+
 all: demo.bin
 
 # pull in dependency info for *existing* .o files
