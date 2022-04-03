@@ -114,16 +114,20 @@ class PacketStreamer(Module):
         # # #
 
         self.packets = []
+        self.packet_bytes = []
+
+        self.n_bytes = 0
         self.packet = packet_cls()
         self.packet.done = True
 
-    def send(self, packet):
+    def send(self, packet, n_bytes):
         packet = deepcopy(packet)
         self.packets.append(packet)
+        self.packet_bytes.append(n_bytes)
         return packet
 
-    def send_blocking(self, packet):
-        packet = self.send(packet)
+    def send_blocking(self, packet, n_bytes):
+        packet = self.send(packet, n_bytes)
         while not packet.done:
             yield
 
@@ -132,6 +136,7 @@ class PacketStreamer(Module):
         while True:
             if len(self.packets) and self.packet.done:
                 self.packet = self.packets.pop(0)
+                self.n_bytes = self.packet_bytes.pop(0)
             if not self.packet.ongoing and not self.packet.done:
                 yield self.source.valid.eq(1)
                 yield self.source.data.eq(self.packet.pop(0))
