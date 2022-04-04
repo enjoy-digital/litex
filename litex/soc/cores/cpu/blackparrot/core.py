@@ -83,6 +83,7 @@ class BlackParrot(CPU):
         flags =  "-mno-save-restore "
         flags += GCC_FLAGS[self.variant]
         flags += "-D__blackparrot__ "
+        flags += "-mcmodel=medany"
         return flags
 
     def __init__(self, platform, variant="standard"):
