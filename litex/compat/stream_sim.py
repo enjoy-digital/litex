@@ -107,9 +107,8 @@ class Packet(list):
 
 
 class PacketStreamer(Module):
-    def __init__(self, description, last_be=None, packet_cls=Packet, dw=8):
+    def __init__(self, description, packet_cls=Packet, dw=8):
         self.source = stream.Endpoint(description)
-        self.last_be = last_be
 
         # # #
 
@@ -137,33 +136,40 @@ class PacketStreamer(Module):
         state = "idle"
         chunk_size = self.dw // 8
         while True:
-            if state == "idle":
-                if len(self.packets) and self.packet.done:
-                    self.packet = self.packets.pop(0)
-                    self.packet.ongoing = True
-                    r_ptr = 0
-                    state = "send"
-            elif state == "send":
-                tmp = self.packet[r_ptr: r_ptr + chunk_size]
-                last = r_ptr + chunk_size >= len(self.packet)
+            while len(self.packets) <= 0:
+                yield
+            self.packet = self.packets.pop(0)
+            n_chunks = len(self.packet) // chunk_size
+            n_remainder = len(self.packet) % chunk_size
+            # print(n_chunks, n_remainder)
+
+            yield self.source.valid.eq(1)
+
+            # Output complete chunks
+            for i in range(n_chunks):
+                tmp = self.packet[i * chunk_size: (i + 1) * chunk_size]
                 yield self.source.data.eq(merge_bytes(tmp, 'little'))
-                yield self.source.last.eq(last)
-                if self.last_be is not None and last:
-                    yield self.source.last_be.eq(1 << (len(tmp) - 1))
-                if (yield self.source.ready):
-                    yield self.source.valid.eq(1)
-                    r_ptr += chunk_size
-                    if last:
-                        state = "done"
-            elif state == "done":
-                self.packet.done = True
-                self.packet.ongoing = False
-                yield self.source.valid.eq(0)
-                yield self.source.last.eq(0)
-                if self.last_be is not None:
-                    yield self.source.last_be.eq(0)
-                state = "idle"
-            yield
+                if (i == (n_chunks - 1)) and (n_remainder == 0):
+                    yield self.source.last.eq(1)
+                    yield self.source.last_be.eq(1 << (chunk_size - 1))
+                yield
+                while not (yield self.source.ready):
+                   yield
+
+            # Output optional partial chunk
+            if n_remainder > 0:
+                tmp = self.packet[-n_remainder:]
+                yield self.source.data.eq(merge_bytes(tmp, 'little'))
+                yield self.source.last_be.eq(1 << (n_remainder - 1))
+                yield self.source.last.eq(1)
+                yield
+                while not (yield self.source.ready):
+                   yield
+
+            yield self.source.valid.eq(0)
+            yield self.source.last.eq(0)
+            yield self.source.last_be.eq(0)
+            yield self.source.data.eq(0)
 
 
 class PacketLogger(Module):
