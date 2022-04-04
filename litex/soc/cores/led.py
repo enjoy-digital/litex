@@ -2,9 +2,8 @@
 # This file is part of LiteX.
 #
 # Copyright (c) 2020-2021 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2022 Wolfgang Nagele <mail@wnagele.com>
 # SPDX-License-Identifier: BSD-2-Clause
-
-import math
 
 from migen import *
 from migen.genlib.misc import WaitTimer
@@ -16,6 +15,24 @@ from litex.soc.interconnect import wishbone
 
 _CHASER_MODE  = 0
 _CONTROL_MODE = 1
+
+
+# Based on: migen.genlib.misc.WaitTimer
+class ModifiableWaitTimer(Module):
+    def __init__(self, t):
+        self.wait = Signal()
+        self.done = Signal()
+        self.reset = Signal(bits_for(t), reset=t)
+
+        # # #
+
+        count = Signal(bits_for(t), reset=t)
+        self.comb += self.done.eq(count == 0)
+        self.sync += \
+            If(self.wait,
+                If(~self.done, count.eq(count - 1))
+            ).Else(count.eq(self.reset))
+
 
 class LedChaser(Module, AutoCSR):
     def __init__(self, pads, sys_clk_freq, period=1e0):
@@ -56,6 +73,13 @@ class LedChaser(Module, AutoCSR):
 
 class WS2812(Module):
     """WS2812/NeoPixel Led Driver.
+
+    Hardware Revisions
+    ------------------
+    WS2812 hardware has several different revisions that have been released over the years.
+    Unfortunately not all of them are compatible with the timings they require. Especially 
+    the reset timing has substantial differences between older and newer models.
+    Adjust the hardware_revision to your needs depending on which model you are using.
 
     Description
     -----------
@@ -117,12 +141,12 @@ class WS2812(Module):
      sys_clk_freq: int, in
          System Clk Frequency.
     """
-    def __init__(self, pad, nleds, sys_clk_freq, bus_mastering=False, bus_base=None):
+    def __init__(self, pad, nleds, sys_clk_freq, bus_mastering=False, bus_base=None, hardware_revision="old", test_data=None):
         if bus_mastering:
             self.bus  = bus = wishbone.Interface(data_width=32)
         else:
             # Memory.
-            mem = Memory(32, nleds)
+            mem = Memory(32, nleds, init=test_data)
             port = mem.get_port()
             self.specials += mem, port
 
@@ -138,25 +162,25 @@ class WS2812(Module):
         # Internal Signals.
         led_data  = Signal(24)
         bit_count = Signal(8)
-        led_count = Signal(int(math.log2(nleds)))
+        led_count = Signal(max = nleds + 1)
 
-        # Timings.
-        trst = 75e-6
-        t0h  = 0.40e-6
-        t0l  = 0.85e-6
-        t1h  = 0.80e-6
-        t1l  = 0.45e-6
+        # Timings
+        self.trst = trst = 285e-6 if hardware_revision == "new" else 55e-6
+        self.t0h = t0h = 0.40e-6
+        self.t1h = t1h = 0.80e-6
+        self.t0l = t0l = 0.85e-6
+        self.t1l = t1l = 0.45e-6
 
         # Timers.
-        t0h_timer = WaitTimer(int(t0h*sys_clk_freq))
-        t0l_timer = WaitTimer(int(t0l*sys_clk_freq))
+        t0h_timer = ModifiableWaitTimer(int(t0h*sys_clk_freq))
+        t0l_timer = ModifiableWaitTimer(int(t0l*sys_clk_freq) - 1) # compensate for data clk in cycle
         self.submodules += t0h_timer, t0l_timer
 
-        t1h_timer = WaitTimer(int(t1h*sys_clk_freq))
-        t1l_timer = WaitTimer(int(t1l*sys_clk_freq))
+        t1h_timer = ModifiableWaitTimer(int(t1h*sys_clk_freq))
+        t1l_timer = ModifiableWaitTimer(int(t1l*sys_clk_freq) - 1) # compensate for data clk in cycle
         self.submodules += t1h_timer, t1l_timer
 
-        trst_timer = WaitTimer(int(trst*sys_clk_freq))
+        trst_timer = ModifiableWaitTimer(int(trst*sys_clk_freq))
         self.submodules += trst_timer
 
         # FSM
@@ -164,7 +188,6 @@ class WS2812(Module):
         fsm.act("RST",
             trst_timer.wait.eq(1),
             If(trst_timer.done,
-                NextValue(led_count, 0),
                 NextState("LED-READ")
             )
         )
@@ -185,11 +208,23 @@ class WS2812(Module):
             self.comb += port.adr.eq(led_count)
             fsm.act("LED-READ",
                 NextValue(bit_count, 24-1),
+                NextValue(led_count, led_count + 1),
                 NextValue(led_data, port.dat_r),
                 NextState("BIT-TEST")
             )
 
         fsm.act("BIT-TEST",
+            # by including the cycles spent on checking for conditions
+            # data shifting, etc. we make the timing more precise
+            If(bit_count == 0,
+                # BIT-SHIFT + LED-SHIFT + LED-READ + BIT-TEST
+                NextValue(t0l_timer.reset, t0l_timer.reset.reset - 4),
+                NextValue(t1l_timer.reset, t1l_timer.reset.reset - 4)
+            ).Else(
+                # BIT-SHIFT + BIT-TEST
+                NextValue(t0l_timer.reset, t0l_timer.reset.reset - 2),
+                NextValue(t1l_timer.reset, t1l_timer.reset.reset - 2)
+            ),
             If(led_data[-1] == 0,
                 NextState("ZERO-SEND"),
             ),
@@ -215,16 +250,16 @@ class WS2812(Module):
         )
         fsm.act("BIT-SHIFT",
             NextValue(led_data, Cat(Signal(), led_data)),
-            NextValue(bit_count, bit_count - 1),
             If(bit_count == 0,
                 NextState("LED-SHIFT")
             ).Else(
+                NextValue(bit_count, bit_count - 1),
                 NextState("BIT-TEST")
             )
         )
         fsm.act("LED-SHIFT",
-            NextValue(led_count, led_count + 1),
-            If(led_count == (nleds-1),
+            If(led_count == nleds,
+                NextValue(led_count, 0),
                 NextState("RST")
             ).Else(
                 NextState("LED-READ")
