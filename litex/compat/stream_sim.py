@@ -107,55 +107,67 @@ class Packet(list):
 
 
 class PacketStreamer(Module):
-    def __init__(self, description, last_be=None, packet_cls=Packet):
+    def __init__(self, description, last_be=None, packet_cls=Packet, dw=8):
         self.source = stream.Endpoint(description)
         self.last_be = last_be
 
         # # #
 
         self.packets = []
-        self.packet_bytes = []
-
-        self.n_bytes = 0
         self.packet = packet_cls()
         self.packet.done = True
+        self.chunk = None
+        self.dw = dw
 
-    def send(self, packet, n_bytes):
+    def send(self, packet):
+        '''
+        packet must always be organized in bytes (not words)
+        '''
         packet = deepcopy(packet)
         self.packets.append(packet)
-        self.packet_bytes.append(n_bytes)
         return packet
 
-    def send_blocking(self, packet, n_bytes):
-        packet = self.send(packet, n_bytes)
+    def send_blocking(self, packet):
+        packet = self.send(packet)
         while not packet.done:
             yield
 
     @passive
     def generator(self):
+        state = "idle"
+        chunk_size = self.dw // 8
         while True:
-            if len(self.packets) and self.packet.done:
-                self.packet = self.packets.pop(0)
-                self.n_bytes = self.packet_bytes.pop(0)
-            if not self.packet.ongoing and not self.packet.done:
-                yield self.source.valid.eq(1)
-                yield self.source.data.eq(self.packet.pop(0))
-                self.packet.ongoing = True
-            elif (yield self.source.valid) and (yield self.source.ready):
-                yield self.source.last.eq(len(self.packet) == 1)
-                if self.last_be is not None:
-                    yield self.source.last_be.eq(self.last_be & (len(self.packet) == 1))
-                if len(self.packet):
+            if state == "idle":
+                if len(self.packets) and self.packet.done:
+                    self.packet = self.packets.pop(0)
+                    self.packet.ongoing = True
+                    r_ptr = 0
+                    state = "send"
+            elif state == "send":
+                tmp = self.packet[r_ptr: r_ptr + chunk_size]
+                last = r_ptr + chunk_size >= len(self.packet)
+                yield self.source.data.eq(merge_bytes(tmp, 'little'))
+                yield self.source.last.eq(last)
+                if self.last_be is not None and last:
+                    yield self.source.last_be.eq(1 << (len(tmp) - 1))
+                if (yield self.source.ready):
                     yield self.source.valid.eq(1)
-                    yield self.source.data.eq(self.packet.pop(0))
-                else:
-                    self.packet.done = True
-                    yield self.source.valid.eq(0)
+                    r_ptr += chunk_size
+                    if last:
+                        state = "done"
+            elif state == "done":
+                self.packet.done = True
+                self.packet.ongoing = False
+                yield self.source.valid.eq(0)
+                yield self.source.last.eq(0)
+                if self.last_be is not None:
+                    yield self.source.last_be.eq(0)
+                state = "idle"
             yield
 
 
 class PacketLogger(Module):
-    def __init__(self, description, packet_cls=Packet):
+    def __init__(self, description, packet_cls=Packet, dw=8):
         self.sink = stream.Endpoint(description)
 
         # # #
@@ -163,6 +175,7 @@ class PacketLogger(Module):
         self.packet_cls = packet_cls
         self.packet = packet_cls()
         self.first = True
+        self.dw = dw
 
     def receive(self, length=None):
         self.packet.done = False
@@ -175,16 +188,27 @@ class PacketLogger(Module):
 
     @passive
     def generator(self):
+        chunk_size = self.dw // 8
         while True:
             yield self.sink.ready.eq(1)
             if (yield self.sink.valid):
                 if self.first:
                     self.packet = self.packet_cls()
                     self.first = False
-                self.packet.append((yield self.sink.data))
-                if (yield self.sink.last):
+                # Split data word into bytes
+                bs = split_bytes((yield self.sink.data), chunk_size, "little")
+                if (yield self.sink.last) or (yield self.sink.last_be):
+                    # TODO 8 bit datapath doesn't handle last_be correctly?
+                    if chunk_size == 1:
+                        n = 1
+                    else:
+                        n = (yield self.sink.last_be).bit_length()
+                    self.packet += bs[:n]
+                    print('last part', bs, bs[:n])
                     self.packet.done = True
                     self.first = True
+                else:
+                    self.packet += bs
             yield
 
 
