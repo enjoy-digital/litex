@@ -204,7 +204,7 @@ class PacketLogger(Module):
                     else:
                         n = (yield self.sink.last_be).bit_length()
                     self.packet += bs[:n]
-                    print('last part', bs, bs[:n])
+                    # print('last part', bs, bs[:n])
                     self.packet.done = True
                     self.first = True
                 else:
