@@ -68,7 +68,6 @@ class GitRepo:
 git_repos = {
     # HDL.
     "migen":    GitRepo(url="https://github.com/m-labs/", clone="recursive"),
-    "amaranth": GitRepo(url="https://github.com/amaranth-lang/", branch="main"),
 
     # LiteX SoC builder
     "pythondata-software-picolibc":    GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
@@ -116,7 +115,6 @@ minimal_repos = ["migen", "litex"]
 
 # Standard: Migen + LiteX + Cores + Software + Popular CPUs (LM32, Mor1kx, SERV, VexRiscv).
 standard_repos = list(git_repos.keys())
-standard_repos.remove("amaranth")
 standard_repos.remove("pythondata-cpu-picorv32")
 standard_repos.remove("pythondata-cpu-rocket")
 standard_repos.remove("pythondata-cpu-minerva")
