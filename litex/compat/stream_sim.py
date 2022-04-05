@@ -133,7 +133,6 @@ class PacketStreamer(Module):
 
     @passive
     def generator(self):
-        state = "idle"
         chunk_size = self.dw // 8
         while True:
             while len(self.packets) <= 0:
@@ -141,9 +140,9 @@ class PacketStreamer(Module):
             self.packet = self.packets.pop(0)
             n_chunks = len(self.packet) // chunk_size
             n_remainder = len(self.packet) % chunk_size
-            # print(n_chunks, n_remainder)
 
-            yield self.source.valid.eq(1)
+            if n_remainder > 0 or n_chunks > 0:
+                yield self.source.valid.eq(1)
 
             # Output complete chunks
             for i in range(n_chunks):
