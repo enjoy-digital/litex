@@ -64,6 +64,7 @@ class SoCCore(LiteXSoC):
         bus_data_width           = 32,
         bus_address_width        = 32,
         bus_timeout              = 1e6,
+        bus_bursting             = False,
 
         # CPU parameters
         cpu_type                 = "vexriscv",
@@ -78,17 +79,14 @@ class SoCCore(LiteXSoC):
         integrated_rom_size      = 0,
         integrated_rom_mode      = "r",
         integrated_rom_init      = [],
-        integrated_rom_burst     = False,
 
         # SRAM parameters
         integrated_sram_size     = 0x2000,
         integrated_sram_init     = [],
-        integrated_sram_burst    = False,
 
         # MAIN_RAM parameters
-        integrated_main_ram_size  = 0,
-        integrated_main_ram_init  = [],
-        integrated_main_ram_burst = False,
+        integrated_main_ram_size = 0,
+        integrated_main_ram_init = [],
 
         # CSR parameters
         csr_data_width           = 32,
@@ -125,6 +123,7 @@ class SoCCore(LiteXSoC):
             bus_data_width       = bus_data_width,
             bus_address_width    = bus_address_width,
             bus_timeout          = bus_timeout,
+            bus_bursting         = bus_bursting,
             bus_reserved_regions = {},
 
             csr_data_width       = csr_data_width,
@@ -201,8 +200,7 @@ class SoCCore(LiteXSoC):
                 origin   = self.cpu.reset_address,
                 size     = integrated_rom_size,
                 contents = integrated_rom_init,
-                mode     = integrated_rom_mode,
-                burst    = integrated_rom_burst
+                mode     = integrated_rom_mode
             )
 
         # Add integrated SRAM
@@ -210,7 +208,6 @@ class SoCCore(LiteXSoC):
             self.add_ram("sram",
                 origin = self.mem_map["sram"],
                 size   = integrated_sram_size,
-                burst  = integrated_sram_burst
             )
 
         # Add integrated MAIN_RAM (only useful when no external SRAM/SDRAM is available)
@@ -219,7 +216,6 @@ class SoCCore(LiteXSoC):
                 origin   = self.mem_map["main_ram"],
                 size     = integrated_main_ram_size,
                 contents = integrated_main_ram_init,
-                burst    = integrated_main_ram_burst,
             )
 
         # Add Identifier
@@ -307,6 +303,7 @@ def soc_core_args(parser):
     soc_group.add_argument("--bus-data-width",    default=32,         type=auto_int, help="Bus data-width.")
     soc_group.add_argument("--bus-address-width", default=32,         type=auto_int, help="Bus address-width.")
     soc_group.add_argument("--bus-timeout",       default=int(1e6),   type=float,    help="Bus timeout in cycles.")
+    soc_group.add_argument("--bus-bursting",      action="store_true",               help="Enable burst cycles on the bus if supported.")
 
     # CPU parameters
     soc_group.add_argument("--cpu-type",          default="vexriscv",               help="Select CPU: {}.".format(", ".join(iter(cpu.CPUS.keys()))))
@@ -318,13 +315,11 @@ def soc_core_args(parser):
     soc_group.add_argument("--no-ctrl", action="store_true", help="Disable Controller.")
 
     # ROM parameters
-    soc_group.add_argument("--integrated-rom-size",  default=0x20000, type=auto_int,       help="Size/Enable the integrated (BIOS) ROM (Automatically resized to BIOS size when smaller).")
-    soc_group.add_argument("--integrated-rom-init",  default=None,    type=str,            help="Integrated ROM binary initialization file (override the BIOS when specified).")
-    soc_group.add_argument("--integrated-rom-burst", default=False,   action="store_true", help="Enable burst cycles support in integrated ROM (works only for Wishbone interconnect).")
+    soc_group.add_argument("--integrated-rom-size", default=0x20000, type=auto_int, help="Size/Enable the integrated (BIOS) ROM (Automatically resized to BIOS size when smaller).")
+    soc_group.add_argument("--integrated-rom-init", default=None,    type=str,      help="Integrated ROM binary initialization file (override the BIOS when specified).")
 
     # SRAM parameters
-    soc_group.add_argument("--integrated-sram-size",  default=0x2000, type=auto_int,       help="Size/Enable the integrated SRAM.")
-    soc_group.add_argument("--integrated-sram-burst", default=False,  action="store_true", help="Enable burst cycles support in integrated ROM (works only for Wishbone interconnect).")
+    soc_group.add_argument("--integrated-sram-size", default=0x2000, type=auto_int, help="Size/Enable the integrated SRAM.")
 
     # MAIN_RAM parameters
     soc_group.add_argument("--integrated-main-ram-size", default=None, type=auto_int, help="size/enable the integrated main RAM.")

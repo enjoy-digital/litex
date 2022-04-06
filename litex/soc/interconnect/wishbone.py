@@ -41,9 +41,10 @@ _layout = [
 
 
 class Interface(Record):
-    def __init__(self, data_width=32, adr_width=30):
-        self.data_width = data_width
-        self.adr_width  = adr_width
+    def __init__(self, data_width=32, adr_width=30, bursting=False):
+        self.data_width   = data_width
+        self.adr_width    = adr_width
+        self.bursting     = bursting
         Record.__init__(self, set_layout_parameters(_layout,
             adr_width  = adr_width,
             data_width = data_width,
@@ -330,7 +331,7 @@ class Converter(Module):
 # Wishbone SRAM ------------------------------------------------------------------------------------
 
 class SRAM(Module):
-    def __init__(self, mem_or_size, read_only=None, init=None, bus=None, burst=False):
+    def __init__(self, mem_or_size, read_only=None, init=None, bus=None):
         if bus is None:
             bus = Interface()
         self.bus = bus
@@ -348,7 +349,7 @@ class SRAM(Module):
                 read_only = False
 
         ###
-        if burst:
+        if self.bus.bursting:
             adr_wrap_mask = Array((0b0000, 0b0011, 0b0111, 0b1111))
             adr_wrap_max = adr_wrap_mask[-1].bit_length()
 
@@ -431,7 +432,7 @@ class SRAM(Module):
             self.comb += [port.we[i].eq(self.bus.cyc & self.bus.stb & self.bus.we & self.bus.sel[i])
                 for i in range(bus_data_width//8)]
         # address and data
-        if burst:
+        if self.bus.bursting:
             self.comb += [
                 If(adr_burst & adr_latched,
                     port.adr.eq(adr_next[:len(port.adr)]),
@@ -448,12 +449,12 @@ class SRAM(Module):
         ]
         if not read_only:
             self.comb += port.dat_w.eq(self.bus.dat_w),
-        
+
         # generate ack
         self.sync += [
             self.bus.ack.eq(0)
         ]
-        if burst:
+        if self.bus.bursting:
             self.sync += [
                 If(self.bus.cyc & self.bus.stb & (~self.bus.ack | adr_burst), self.bus.ack.eq(1))
             ]

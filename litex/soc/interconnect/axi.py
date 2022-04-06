@@ -192,10 +192,11 @@ def r_lite_description(data_width):
     ]
 
 class AXILiteInterface:
-    def __init__(self, data_width=32, address_width=32, clock_domain="sys", name=None):
+    def __init__(self, data_width=32, address_width=32, clock_domain="sys", name=None, bursting=False):
         self.data_width    = data_width
         self.address_width = address_width
         self.clock_domain  = clock_domain
+        self.bursting      = False  # Not supported in AXI Lite
 
         self.aw = stream.Endpoint(ax_lite_description(address_width), name=name)
         self.w  = stream.Endpoint(w_lite_description(data_width), name=name)
@@ -793,7 +794,7 @@ class AXILite2CSR(Module):
 # AXILite SRAM -------------------------------------------------------------------------------------
 
 class AXILiteSRAM(Module):
-    def __init__(self, mem_or_size, read_only=None, init=None, bus=None, burst=False):
+    def __init__(self, mem_or_size, read_only=None, init=None, bus=None):
         if bus is None:
             bus = AXILiteInterface()
         self.bus = bus
