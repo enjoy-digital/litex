@@ -381,8 +381,9 @@ def builder_args(parser):
     builder_group.add_argument("--software-dir",        default=None,        help="Output directory for Software files.")
     builder_group.add_argument("--include-dir",         default=None,        help="Output directory for Header files.")
     builder_group.add_argument("--generated-dir",       default=None,        help="Output directory for Generated files.")
-    builder_group.add_argument("--no-compile-software", action="store_true", help="Disable Software compilation.")
-    builder_group.add_argument("--no-compile-gateware", action="store_true", help="Disable Gateware compilation.")
+    builder_group.add_argument("--no-compile",          action="store_true", help="Disable Software and Gateware compilation.")
+    builder_group.add_argument("--no-compile-software", action="store_true", help="Disable Software compilation only.")
+    builder_group.add_argument("--no-compile-gateware", action="store_true", help="Disable Gateware compilation only.")
     builder_group.add_argument("--csr-csv",             default=None,        help="Write SoC mapping to the specified CSV file.")
     builder_group.add_argument("--csr-json",            default=None,        help="Write SoC mapping to the specified JSON file.")
     builder_group.add_argument("--csr-svd",             default=None,        help="Write SoC mapping to the specified SVD file.")
@@ -397,8 +398,8 @@ def builder_argdict(args):
         "software_dir":     args.software_dir,
         "include_dir":      args.include_dir,
         "generated_dir":    args.generated_dir,
-        "compile_software": not args.no_compile_software,
-        "compile_gateware": not args.no_compile_gateware,
+        "compile_software": (not args.no_compile) and (not args.no_compile_software),
+        "compile_gateware": (not args.no_compile) and (not args.no_compile_gateware),
         "csr_csv":          args.csr_csv,
         "csr_json":         args.csr_json,
         "csr_svd":          args.csr_svd,
