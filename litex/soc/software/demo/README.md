@@ -3,16 +3,15 @@
 
 This directory provides a minimal bare metal demo app that demonstrates how to easily create a bare metal C application and load it/run it on the CPU of a SoC.
 
-[> Build
---------
+[> Build and Load over LiteX-Term
+---------------------------------
 
-Imagine you just built the Arty example design from LiteX-Boards. Build the demo app as follows; where the build path is the path to your previously built Arty build directory:
+To build a LiteX SoC for the Arty board (available in LiteX-Boards) and build the demo app for it, execute the following commands:
 ```
+python3 -m litex_boards.targets.digilent_arty --build --load
 litex_bare_metal_demo --build-path=build/arty/
 ```
-
-[> Load
--------
+Where `--build-path` is the build path to the Arty build directory. The Arty board is used here but almost any another board supported in LiteX-Boards could be used. When no external RAM is provided directly by the board, `--integrated-main-ram-size` argument could be used to add some integrated RAM in the SoC and be able to execute the demo from it. (ex `--integrated-main-ram-size=0x8000` will add 32KB of integrated RAM).
 
 Loading the compiled demo app can be done in different ways as explain in LiteX's wiki:
 https://github.com/enjoy-digital/litex/wiki/Load-Application-Code-To-CPU
@@ -70,6 +69,33 @@ You should see the minimal demo app running and should be able to interact with 
                                    .~:;;========;=;;:::~-,
                                       .--~~::::~:~~--,.
     litex-demo-app>
+
+[> Replace the LiteX BIOS with the Demo App
+-------------------------------------------
+In some cases, we'll just want to replace the LiteX BIOS with our custom app. This demo can be used as a basis to create a such custom app.
+
+The demo will be recompiled to target the ROM of the SoC:
+```
+litex_bare_metal_demo --build-path=build/arty/ --mem=rom
+```
+
+The SoC can then be re-compiled to integrate the demo app in the ROM with:
+```
+python3 -m litex_boards.targets.digilent_arty --integrated-rom-init=demo.bin --build --load
+```
+
+When loading the bitstream, you should then directly see the demo app executed:
+```
+    LiteX minimal demo app built Dec 10 2020 17:13:02
+
+    Available commands:
+    help               - Show this command
+    reboot             - Reboot CPU
+    led                - Led demo
+    donut              - Spinning Donut demo
+    litex-demo-app>
+```
+
 
 [> Going further
 ----------------

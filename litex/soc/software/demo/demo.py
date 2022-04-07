@@ -15,7 +15,7 @@ def main():
     parser = argparse.ArgumentParser(description="LiteX Bare Metal Demo App.")
     parser.add_argument("--build-path",                      help="Target's build path (ex build/board_name).", required=True)
     parser.add_argument("--with-cxx",   action="store_true", help="Enable CXX support.")
-    parser.add_argument("--mem",        default="main_ram",  help="Memory Region from which code will be executed.")
+    parser.add_argument("--mem",        default="main_ram",  help="Memory Region where code will be loaded/executed.")
     args = parser.parse_args()
 
     # Create demo directory
