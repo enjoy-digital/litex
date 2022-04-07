@@ -21,6 +21,7 @@
 
 signed char b[1760], z[1760];
 
+void donut(void);
 void donut(void) {
   int sA=1024,cA=0,sB=1024,cB=0,_;
   for (;;) {
