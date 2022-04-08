@@ -44,10 +44,13 @@ class NaxRiscv(CPU):
     # Default parameters.
     with_fpu             = False
     with_rvc             = False
-    scala_files          = ["misc.scala", "fetch.scala", "frontend.scala", "branch_predictor_std.scala", "lsu.scala", "eu_2alu_1share.scala"]
+    scala_args           = []
+    scala_files          = ["gen.scala"]
     netlist_name         = None
     scala_paths          = []
     xlen = 32
+    jtag_tap = False
+    jtag_instruction = False
 
     # ABI.
     @staticmethod
@@ -92,14 +95,22 @@ class NaxRiscv(CPU):
     @staticmethod
     def args_fill(parser):
         cpu_group = parser.add_argument_group(title="CPU options")
-        cpu_group.add_argument("--scala-file", action="append", help="Specify the scala files used to configure NaxRiscv.")
-        cpu_group.add_argument("--xlen",       default=32,      help="Specify the RISC-V data width.")
+        cpu_group.add_argument("--scala-file",    action="append",     help="Specify the scala files used to configure NaxRiscv.")
+        cpu_group.add_argument("--scala-args",    action="append",     help="Add arguements for the scala run time. Ex : --scala-args 'rvc=true,mmu=false'")
+        cpu_group.add_argument("--xlen",          default=32,          help="Specify the RISC-V data width.")
+        cpu_group.add_argument("--with-jtag-tap", action="store_true", help="Add a embedded JTAG tap for debugging")
+        cpu_group.add_argument("--with-jtag-instruction", action="store_true", help="Add a JTAG instruction port which implement tunneling for debugging (TAP not included)")
 
     @staticmethod
     def args_read(args):
         print(args)
+        NaxRiscv.jtag_tap = args.with_jtag_tap
+        NaxRiscv.jtag_instruction = args.with_jtag_instruction
         if args.scala_file:
             NaxRiscv.scala_files = args.scala_file
+        if args.scala_args:
+            NaxRiscv.scala_args = args.scala_args
+            print(args.scala_args)
         if args.xlen:
             xlen = int(args.xlen)
             NaxRiscv.xlen = xlen
@@ -185,6 +196,10 @@ class NaxRiscv(CPU):
         md5_hash = hashlib.md5()
         md5_hash.update(str(reset_address).encode('utf-8'))
         md5_hash.update(str(NaxRiscv.xlen).encode('utf-8'))
+        md5_hash.update(str(NaxRiscv.jtag_tap).encode('utf-8'))
+        md5_hash.update(str(NaxRiscv.jtag_instruction).encode('utf-8'))
+        for args in NaxRiscv.scala_args:
+            md5_hash.update(args.encode('utf-8'))
         for file in NaxRiscv.scala_paths:
             a_file = open(file, "rb")
             content = a_file.read()
@@ -214,14 +229,22 @@ class NaxRiscv(CPU):
         ndir = os.path.join(vdir, "ext", "NaxRiscv")
         sdir = os.path.join(vdir, "ext", "SpinalHDL")
 
-        NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git"  , "main", "67389bd0")
-        NaxRiscv.git_setup("SpinalHDL", sdir, "https://github.com/SpinalHDL/SpinalHDL.git", "dev" , "62531c60")
+        NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git"  , "jtag", "d5777cfe")
+        NaxRiscv.git_setup("SpinalHDL", sdir, "https://github.com/SpinalHDL/SpinalHDL.git", "dev" , "f8f375e2")
 
         gen_args = []
         gen_args.append(f"--netlist-name={NaxRiscv.netlist_name}")
         gen_args.append(f"--netlist-directory={vdir}")
         gen_args.append(f"--reset-vector={reset_address}")
         gen_args.append(f"--xlen={NaxRiscv.xlen}")
+        for args in NaxRiscv.scala_args:
+            gen_args.append(f"--scala-args={args}")
+        if(NaxRiscv.jtag_tap) :
+            gen_args.append(f"--with-jtag-tap")
+        if(NaxRiscv.jtag_instruction) :
+            gen_args.append(f"--with-jtag-instruction")
+        if(NaxRiscv.jtag_tap or NaxRiscv.jtag_instruction):
+            gen_args.append(f"--with-debug")
         for file in NaxRiscv.scala_paths:
             gen_args.append(f"--scala-file={file}")
 
@@ -292,6 +315,40 @@ class NaxRiscv(CPU):
             o_peripheral_plic_rresp   = plicbus.r.resp,
         )
         soc.bus.add_slave("plic", self.plicbus, region=soc_region_cls(origin=soc.mem_map.get("plic"), size=0x400000, cached=False))
+
+        if NaxRiscv.jtag_tap:
+            self.jtag_tms = Signal()
+            self.jtag_tck = Signal()
+            self.jtag_tdi = Signal()
+            self.jtag_tdo = Signal()
+
+            self.cpu_params.update(
+                i_jtag_tms=self.jtag_tms,
+                i_jtag_tck=self.jtag_tck,
+                i_jtag_tdi=self.jtag_tdi,
+                o_jtag_tdo=self.jtag_tdo,
+            )
+
+        if NaxRiscv.jtag_instruction:
+            self.jtag_clk = Signal()
+            self.jtag_enable = Signal()
+            self.jtag_capture = Signal()
+            self.jtag_shift = Signal()
+            self.jtag_update = Signal()
+            self.jtag_reset = Signal()
+            self.jtag_tdo = Signal()
+            self.jtag_tdi = Signal()
+            
+            self.cpu_params.update(
+                i_jtag_instruction_clk     = self.jtag_clk,
+                i_jtag_instruction_enable  = self.jtag_enable,
+                i_jtag_instruction_capture = self.jtag_capture,
+                i_jtag_instruction_shift   = self.jtag_shift,
+                i_jtag_instruction_update  = self.jtag_update,
+                i_jtag_instruction_reset   = self.jtag_reset,
+                i_jtag_instruction_tdi     = self.jtag_tdi,
+                o_jtag_instruction_tdo     = self.jtag_tdo,
+            )
 
         # Add CLINT Bus (Wishbone Slave).
         self.clintbus = clintbus = axi.AXILiteInterface(address_width=32, data_width=32)
