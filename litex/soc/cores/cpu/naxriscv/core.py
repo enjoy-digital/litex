@@ -42,14 +42,14 @@ class NaxRiscv(CPU):
     io_regions           = {0x80000000: 0x80000000} # Origin, Length.
 
     # Default parameters.
-    with_fpu             = False
-    with_rvc             = False
-    scala_args           = []
-    scala_files          = ["gen.scala"]
-    netlist_name         = None
-    scala_paths          = []
-    xlen = 32
-    jtag_tap = False
+    with_fpu         = False
+    with_rvc         = False
+    scala_args       = []
+    scala_files      = ["gen.scala"]
+    netlist_name     = None
+    scala_paths      = []
+    xlen             = 32
+    jtag_tap         = False
     jtag_instruction = False
 
     # ABI.
@@ -113,9 +113,9 @@ class NaxRiscv(CPU):
             print(args.scala_args)
         if args.xlen:
             xlen = int(args.xlen)
-            NaxRiscv.xlen = xlen
-            NaxRiscv.data_width = xlen
-            NaxRiscv.gcc_triple = CPU_GCC_TRIPLE_RISCV64
+            NaxRiscv.xlen                 = xlen
+            NaxRiscv.data_width           = xlen
+            NaxRiscv.gcc_triple           = CPU_GCC_TRIPLE_RISCV64
             NaxRiscv.linker_output_format = f"elf{xlen}-littleriscv"
 
 
@@ -323,21 +323,21 @@ class NaxRiscv(CPU):
             self.jtag_tdo = Signal()
 
             self.cpu_params.update(
-                i_jtag_tms=self.jtag_tms,
-                i_jtag_tck=self.jtag_tck,
-                i_jtag_tdi=self.jtag_tdi,
-                o_jtag_tdo=self.jtag_tdo,
+                i_jtag_tms = self.jtag_tms,
+                i_jtag_tck = self.jtag_tck,
+                i_jtag_tdi = self.jtag_tdi,
+                o_jtag_tdo = self.jtag_tdo,
             )
 
         if NaxRiscv.jtag_instruction:
-            self.jtag_clk = Signal()
-            self.jtag_enable = Signal()
+            self.jtag_clk     = Signal()
+            self.jtag_enable  = Signal()
             self.jtag_capture = Signal()
-            self.jtag_shift = Signal()
-            self.jtag_update = Signal()
-            self.jtag_reset = Signal()
-            self.jtag_tdo = Signal()
-            self.jtag_tdi = Signal()
+            self.jtag_shift   = Signal()
+            self.jtag_update  = Signal()
+            self.jtag_reset   = Signal()
+            self.jtag_tdo     = Signal()
+            self.jtag_tdi     = Signal()
             
             self.cpu_params.update(
                 i_jtag_instruction_clk     = self.jtag_clk,
