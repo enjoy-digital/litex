@@ -39,6 +39,11 @@ _layout = [
     ("err",              1, DIR_S_TO_M)
 ]
 
+CTI_BURST_NONE = 0b000
+CTI_BURST_CONSTANT = 0b001
+CTI_BURST_INCREMENTING = 0b010
+CTI_BURST_END = 0b111
+
 
 class Interface(Record):
     def __init__(self, data_width=32, adr_width=30, bursting=False):
@@ -67,18 +72,26 @@ class Interface(Record):
         yield self.cyc.eq(0)
         yield self.stb.eq(0)
 
-    def write(self, adr, dat, sel=None):
+    def write(self, adr, dat, sel=None, cti=None, bte=None):
         if sel is None:
             sel = 2**len(self.sel) - 1
         yield self.adr.eq(adr)
         yield self.dat_w.eq(dat)
         yield self.sel.eq(sel)
+        if cti is not None:
+            yield self.cti.eq(cti)
+        if bte is not None:
+            yield self.bte.eq(bte)
         yield self.we.eq(1)
         yield from self._do_transaction()
 
-    def read(self, adr):
+    def read(self, adr, cti=None, bte=None):
         yield self.adr.eq(adr)
         yield self.we.eq(0)
+        if cti is not None:
+            yield self.cti.eq(cti)
+        if bte is not None:
+            yield self.bte.eq(bte)
         yield from self._do_transaction()
         return (yield self.dat_r)
 
@@ -369,9 +382,9 @@ class SRAM(Module):
             self.comb += [
                 Case(self.bus.cti, {
                     # incrementing address burst cycle
-                    0b010: adr_burst.eq(1),
+                    CTI_BURST_INCREMENTING: adr_burst.eq(1),
                     # end current burst cycle
-                    0b111: adr_burst.eq(0),
+                    CTI_BURST_END: adr_burst.eq(0),
                     # unsupported burst cycle
                     "default": adr_burst.eq(0)
                 }),
@@ -401,7 +414,7 @@ class SRAM(Module):
                             ),
                         )
                     ),
-                    If(self.bus.cti == 0b111,
+                    If(self.bus.cti == CTI_BURST_END,
                         adr_latched.eq(0),
                         adr_counter.eq(0),
                         adr_counter_offset.eq(0)
