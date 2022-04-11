@@ -113,7 +113,6 @@ __attribute__((__used__)) int main(int i, char **c)
 #endif
 	crcbios();
 	printf("\n");
-	printf(" Migen git sha1: "MIGEN_GIT_SHA1"\n");
 	printf(" LiteX git sha1: "LITEX_GIT_SHA1"\n");
 	printf("\n");
 	printf("--=============== \e[1mSoC\e[0m ==================--\n");

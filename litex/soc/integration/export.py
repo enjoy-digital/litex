@@ -116,10 +116,9 @@ def get_linker_regions(regions):
 # C Export -----------------------------------------------------------------------------------------
 
 def get_git_header():
-    from litex.build.tools import get_migen_git_revision, get_litex_git_revision
+    from litex.build.tools import get_litex_git_revision
     r = generated_banner("//")
     r += "#ifndef __GENERATED_GIT_H\n#define __GENERATED_GIT_H\n\n"
-    r += f"#define MIGEN_GIT_SHA1 \"{get_migen_git_revision()}\"\n"
     r += f"#define LITEX_GIT_SHA1 \"{get_litex_git_revision()}\"\n"
     r += "#endif\n"
     return r
