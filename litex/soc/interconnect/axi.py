@@ -28,6 +28,16 @@ RESP_EXOKAY    = 0b01
 RESP_SLVERR    = 0b10
 RESP_DECERR    = 0b11
 
+AXSIZE = {
+     1 : 0b000,
+     2 : 0b001,
+     4 : 0b010,
+     8 : 0b011,
+    16 : 0b100,
+    32 : 0b110,
+    64 : 0b111,
+}
+
 def ax_description(address_width, id_width):
     return [
         ("addr",  address_width),
