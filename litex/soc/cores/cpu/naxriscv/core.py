@@ -229,8 +229,8 @@ class NaxRiscv(CPU):
         ndir = os.path.join(vdir, "ext", "NaxRiscv")
         sdir = os.path.join(vdir, "ext", "SpinalHDL")
 
-        NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git"  , "jtag", "d5777cfe")
-        NaxRiscv.git_setup("SpinalHDL", sdir, "https://github.com/SpinalHDL/SpinalHDL.git", "dev" , "f8f375e2")
+        NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git"  , "dev" , "d97112e1")
+        NaxRiscv.git_setup("SpinalHDL", sdir, "https://github.com/SpinalHDL/SpinalHDL.git", "dev" , "e1e5961d")
 
         gen_args = []
         gen_args.append(f"--netlist-name={NaxRiscv.netlist_name}")
@@ -349,6 +349,29 @@ class NaxRiscv(CPU):
                 i_jtag_instruction_tdi     = self.jtag_tdi,
                 o_jtag_instruction_tdo     = self.jtag_tdo,
             )
+
+        if NaxRiscv.jtag_instruction or NaxRiscv.jtag_tap:
+            # Create PoR Clk Domain for debug_reset.
+            self.clock_domains.cd_debug_por = ClockDomain()
+            self.comb += self.cd_debug_por.clk.eq(ClockSignal("sys"))
+
+            # Create PoR debug_reset.
+            debug_reset = Signal(reset=1)
+            self.sync.debug_por += debug_reset.eq(0)
+
+            # Debug resets.
+            debug_ndmreset = Signal()
+            debug_ndmreset_last = Signal()
+            debug_ndmreset_rise = Signal()
+            self.cpu_params.update(
+                i_debug_reset=debug_reset,
+                o_debug_ndmreset=debug_ndmreset,
+            )
+
+            # Reset SoC's CRG when debug_ndmreset rising edge.
+            self.sync.debug_por += debug_ndmreset_last.eq(debug_ndmreset)
+            self.comb += debug_ndmreset_rise.eq(debug_ndmreset & ~debug_ndmreset_last)
+            self.comb += If(debug_ndmreset_rise, soc.crg.rst.eq(1))
 
         # Add CLINT Bus (Wishbone Slave).
         self.clintbus = clintbus = axi.AXILiteInterface(address_width=32, data_width=32)
