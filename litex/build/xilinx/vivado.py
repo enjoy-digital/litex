@@ -287,7 +287,8 @@ class XilinxVivadoToolchain:
         for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
             platform.add_platform_command(
                 "create_clock -name {clk} -period " + str(period) +
-                " [get_nets {clk}]", clk=clk)
+                " [get_ports {clk}]", clk=clk)
+#                " [get_nets {clk}]", clk=clk)
         for from_, to in sorted(self.false_paths,
                                 key=lambda x: (x[0].duid, x[1].duid)):
             platform.add_platform_command(
