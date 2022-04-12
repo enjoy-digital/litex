@@ -196,7 +196,8 @@ class AXILiteInterface:
         self.data_width    = data_width
         self.address_width = address_width
         self.clock_domain  = clock_domain
-        self.bursting      = False  # Not supported in AXI Lite
+        if bursting is not False:
+            raise NotImplementedError("AXI-Lite does not support bursting")
 
         self.aw = stream.Endpoint(ax_lite_description(address_width), name=name)
         self.w  = stream.Endpoint(w_lite_description(data_width), name=name)

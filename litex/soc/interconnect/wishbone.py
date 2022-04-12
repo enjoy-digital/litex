@@ -39,17 +39,17 @@ _layout = [
     ("err",              1, DIR_S_TO_M)
 ]
 
-CTI_BURST_NONE = 0b000
-CTI_BURST_CONSTANT = 0b001
+CTI_BURST_NONE         = 0b000
+CTI_BURST_CONSTANT     = 0b001
 CTI_BURST_INCREMENTING = 0b010
-CTI_BURST_END = 0b111
+CTI_BURST_END          = 0b111
 
 
 class Interface(Record):
     def __init__(self, data_width=32, adr_width=30, bursting=False):
-        self.data_width   = data_width
-        self.adr_width    = adr_width
-        self.bursting     = bursting
+        self.data_width = data_width
+        self.adr_width  = adr_width
+        self.bursting   = bursting
         Record.__init__(self, set_layout_parameters(_layout,
             adr_width  = adr_width,
             data_width = data_width,
@@ -362,19 +362,21 @@ class SRAM(Module):
                 read_only = False
 
         ###
+
+        adr_burst = Signal()
+
         if self.bus.bursting:
             adr_wrap_mask = Array((0b0000, 0b0011, 0b0111, 0b1111))
-            adr_wrap_max = adr_wrap_mask[-1].bit_length()
+            adr_wrap_max  = adr_wrap_mask[-1].bit_length()
 
             adr_burst_wrap = Signal()
-            adr_burst_end = Signal()
-            adr_burst = Signal()
-            adr_latched = Signal()
+            adr_latched    = Signal()
 
-            adr_counter = Signal(len(self.bus.adr))
+            adr_counter        = Signal(len(self.bus.adr))
+            adr_counter_base   = Signal(len(self.bus.adr))
             adr_counter_offset = Signal(adr_wrap_max)
-            adr_offset_lsb = Signal(adr_wrap_max)
-            adr_offset_msb = Signal(len(self.bus.adr))
+            adr_offset_lsb     = Signal(adr_wrap_max)
+            adr_offset_msb     = Signal(len(self.bus.adr))
 
             adr_next = Signal(len(self.bus.adr))
 
@@ -388,7 +390,12 @@ class SRAM(Module):
                     # unsupported burst cycle
                     "default": adr_burst.eq(0)
                 }),
-                adr_burst_wrap.eq(self.bus.bte[0] | self.bus.bte[1])
+                adr_burst_wrap.eq(self.bus.bte[0] | self.bus.bte[1]),
+                adr_counter_base.eq(
+                    Cat(self.bus.adr & ~adr_wrap_mask[self.bus.bte],
+                       self.bus.adr[adr_wrap_max:]
+                    )
+                )
             ]
 
             # latch initial address - initial address without wrapping bits and wrap offset
@@ -400,19 +407,10 @@ class SRAM(Module):
                         adr_counter.eq(adr_counter + 1)
                     ).Else(
                         adr_counter_offset.eq(self.bus.adr & adr_wrap_mask[self.bus.bte]),
-                        If(self.bus.we,
-                            adr_counter.eq(
-                                Cat(self.bus.adr & ~adr_wrap_mask[self.bus.bte],
-                                    self.bus.adr[adr_wrap_max:]
-                                    )
-                            ),
-                        ).Else(
-                            adr_counter.eq(
-                                Cat(self.bus.adr & ~adr_wrap_mask[self.bus.bte],
-                                    self.bus.adr[adr_wrap_max:]
-                                    ) + 1
-                            ),
-                        )
+                        adr_counter.eq(adr_counter_base + Cat(~self.bus.we,
+                                                              Replicate(0, len(adr_counter)-1)
+                                                              )
+                                       )
                     ),
                     If(self.bus.cti == CTI_BURST_END,
                         adr_latched.eq(0),
@@ -434,6 +432,9 @@ class SRAM(Module):
                 adr_next.eq(adr_offset_msb + adr_offset_lsb)
             ]
 
+        else: # self.ram.bursting == False
+            self.comb += adr_burst.eq(0)
+
         ###
 
         # memory
@@ -445,18 +446,11 @@ class SRAM(Module):
             self.comb += [port.we[i].eq(self.bus.cyc & self.bus.stb & self.bus.we & self.bus.sel[i])
                 for i in range(bus_data_width//8)]
         # address and data
+        self.comb += port.adr.eq(self.bus.adr[:len(port.adr)])
         if self.bus.bursting:
-            self.comb += [
-                If(adr_burst & adr_latched,
-                    port.adr.eq(adr_next[:len(port.adr)]),
-                ).Else(
-                    port.adr.eq(self.bus.adr[:len(port.adr)]),
-                ),
-            ]
-        else:
-            self.comb += [
-                port.adr.eq(self.bus.adr[:len(port.adr)]),
-            ]
+            self.comb += If(adr_burst & adr_latched,
+                port.adr.eq(adr_next[:len(port.adr)]),
+            )
         self.comb += [
             self.bus.dat_r.eq(port.dat_r)
         ]
@@ -465,16 +459,9 @@ class SRAM(Module):
 
         # generate ack
         self.sync += [
-            self.bus.ack.eq(0)
+            self.bus.ack.eq(0),
+            If(self.bus.cyc & self.bus.stb & (~self.bus.ack | adr_burst), self.bus.ack.eq(1))
         ]
-        if self.bus.bursting:
-            self.sync += [
-                If(self.bus.cyc & self.bus.stb & (~self.bus.ack | adr_burst), self.bus.ack.eq(1))
-            ]
-        else:
-            self.sync += [
-                If(self.bus.cyc & self.bus.stb & ~self.bus.ack, self.bus.ack.eq(1))
-            ]
 
 # Wishbone To CSR ----------------------------------------------------------------------------------
 
