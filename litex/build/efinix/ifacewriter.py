@@ -171,15 +171,21 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                 if "out_delay" in block:
                     cmd += f'design.set_property("{name}","OUTDELAY","{block["out_delay"]}")\n'
 
+            if "out_clk_inv" in block:
+                cmd += f'design.set_property("{name}","IS_OUTCLK_INVERTED","{block["out_clk_inv"]}")\n'
+                cmd += f'design.set_property("{name}","OE_CLK_PIN_INV","{block["out_clk_inv"]}")\n'
+
             if "in_reg" in block:
                 cmd += f'design.set_property("{name}","IN_REG","{block["in_reg"]}")\n'
                 cmd += f'design.set_property("{name}","IN_CLK_PIN","{block["in_clk_pin"]}")\n'
                 if "in_delay" in block:
                     cmd += f'design.set_property("{name}","INDELAY","{block["in_delay"]}")\n'
 
+            if "in_clk_inv" in block:
+                cmd += f'design.set_property("{name}","IS_INCLK_INVERTED","{block["in_clk_inv"]}")\n'
+
             if "oe_reg" in block:
-                if block["oe_reg"] == True:
-                    cmd += f'design.set_property("{name}","OE_REG","{block["oe_reg"]}")\n'
+                cmd += f'design.set_property("{name}","OE_REG","{block["oe_reg"]}")\n'
             if "oe_clk_pin" in block:
                 cmd += f'design.set_property("{name}","OE_CLK_PIN","{block["oe_clk_pin"]}")\n'
 
@@ -222,6 +228,10 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                 cmd += 'design.set_property("{}","OUT_CLK_PIN","{}")\n'.format(name, block["out_clk_pin"])
                 if "out_delay" in block:
                     cmd += 'design.set_property("{}","OUTDELAY","{}")\n'.format(name, block["out_delay"])
+
+            if "out_clk_inv" in block:
+                cmd += f'design.set_property("{name}","IS_OUTCLK_INVERTED","{block["out_clk_inv"]}")\n'
+                cmd += f'design.set_property("{name}","OE_CLK_PIN_INV","{block["out_clk_inv"]}")\n'
 
             if "drive_strength" in block:
                 cmd += 'design.set_property("{}","DRIVE_STRENGTH","4")\n'.format(name, block["drive_strength"])
