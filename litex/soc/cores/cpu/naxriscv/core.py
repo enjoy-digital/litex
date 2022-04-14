@@ -4,10 +4,10 @@
 # Copyright (c) 2020-2022 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2020-2022 Dolu1990 <charles.papon.90@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
-import hashlib
+
 import os
+import hashlib
 import subprocess
-from os import path
 
 from migen import *
 
@@ -258,7 +258,7 @@ class NaxRiscv(CPU):
     def add_sources(self, platform):
         vdir = get_data_mod("cpu", "naxriscv").data_location
         print(f"NaxRiscv netlist : {self.netlist_name}")
-        if not path.exists(os.path.join(vdir, self.netlist_name + ".v")):
+        if not os.path.exists(os.path.join(vdir, self.netlist_name + ".v")):
             self.generate_netlist(self.reset_address)
 
         # Add RAM.
@@ -360,12 +360,12 @@ class NaxRiscv(CPU):
             self.sync.debug_por += debug_reset.eq(0)
 
             # Debug resets.
-            debug_ndmreset = Signal()
+            debug_ndmreset      = Signal()
             debug_ndmreset_last = Signal()
             debug_ndmreset_rise = Signal()
             self.cpu_params.update(
-                i_debug_reset=debug_reset,
-                o_debug_ndmreset=debug_ndmreset,
+                i_debug_reset    = debug_reset,
+                o_debug_ndmreset = debug_ndmreset,
             )
 
             # Reset SoC's CRG when debug_ndmreset rising edge.
@@ -472,5 +472,5 @@ class NaxRiscv(CPU):
         # Do verilog instance.
         self.specials += Instance(self.netlist_name, **self.cpu_params)
 
-        # Add verilog sources
+        # Add verilog sources.
         self.add_sources(self.platform)
