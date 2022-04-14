@@ -160,8 +160,6 @@ class EfinixPlatform(GenericPlatform):
     def get_pll_resource(self, name):
         self.pll_used.append(name)
         self.pll_available.remove(name)
-        print('PLL used     : ' + str(self.pll_used))
-        print('PLL available: ' + str(self.pll_available))
 
     def get_free_pll_resource(self):
         pll = self.pll_available[0]
