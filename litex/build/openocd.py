@@ -40,18 +40,41 @@ class OpenOCD(GenericProgrammer):
         self.call(["openocd", "-f", config, "-c", script])
 
     def get_ir(self, chain, config):
-        # On ECP5, force IR to 0x32.
         cfg_str = open(config).read()
-        ecp5 = "ecp5" in cfg_str
-        altera = "10m50" in cfg_str # TODO: or cyclone 10
-        if ecp5:
+        # Lattice ECP5.
+        if "ecp5" in cfg_str:
             chain = 0x32
-        elif altera:
-            chain = 0xC
-        # Else IR = 1 + CHAIN.
+        # Intel Max10.
+        elif "10m50" in cfg_str:
+            chain = 0xc
+        # Xilinx ZynqMP.
+        elif "zynqmp" in cfg_str:
+            chain = {
+                1: 0x902, # USER1.
+                2: 0x903, # USER2.
+                3: 0x922, # USER3.
+                4: 0x923, # USER4.
+            }[chain]
+        # Xilinx 7-Series.
         else:
-            chain = 0x1 + chain
+            chain = {
+                1: 0x02, # USER1.
+                2: 0x03, # USER2.
+                3: 0x22, # USER3.
+                4: 0x23, # USER4.
+            }[chain]
         return chain
+
+    def get_endstate(self, config):
+        cfg_str = open(config).read()
+        # Lattice ECP5.
+        if "ecp5" in cfg_str:
+            return "-endstate DRPAUSE" # CHECKME: Can we avoid it?
+        # Intel Max10.
+        elif "10m50" in cfg_str:
+            return "-endstate DRPAUSE" # CHECKME: Is it required on Intel?
+        else:
+            return ""
 
     def stream(self, port=20000, chain=1):
         """
@@ -68,7 +91,9 @@ class OpenOCD(GenericProgrammer):
           - TX data  : bit 1 to 8
           - TX valid : bit 9
         """
-        config = self.find_config()
+        config   = self.find_config()
+        ir       = self.get_ir(chain, config)
+        endstate = self.get_endstate(config)
         cfg = """
 proc jtagstream_poll {tap tx n} {
     set m [string length $tx]
@@ -81,7 +106,11 @@ proc jtagstream_poll {tap tx n} {
         #echo tx[scan $txj %c]
     }
     set txi [concat {*}$txi]
-    set rxi [split [drscan $tap {*}$txi -endstate DRPAUSE] " "]
+"""
+        cfg += f"""
+    set rxi [split [drscan $tap {{*}}$txi {endstate}] " "]
+"""
+        cfg += """
     #echo $txi:$rxi
     set rx ""
     set writable 1
@@ -153,7 +182,7 @@ proc jtagstream_serve {tap port} {
         write_to_file("stream.cfg", cfg)
         script = "; ".join([
             "init",
-            "irscan $_CHIPNAME.tap {:d}".format(self.get_ir(chain, config)),
+            "irscan $_CHIPNAME.tap {:d}".format(ir),
             "jtagstream_serve $_CHIPNAME.tap {:d}".format(port),
             "exit",
         ])

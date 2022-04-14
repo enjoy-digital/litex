@@ -304,17 +304,25 @@ class XilinxJTAG(Module):
 
     @staticmethod
     def get_primitive(device):
-        # TODO: Add support for all devices.
         prim_dict = {
             # Primitive Name   Ðevice (startswith)
             "BSCAN_SPARTAN6" : ["xc6"],
-            "BSCANE2"        : ["xc7", "xcku", "xcvu", "xczu"],
+            "BSCANE2"        : ["xc7a", "xc7k", "xc7v", "xc7z"] +  ["xcku", "xcvu", "xczu"],
         }
         for prim, prim_devs in prim_dict.items():
             for prim_dev in prim_devs:
                 if device.lower().startswith(prim_dev):
                     return prim
         return None
+
+    @staticmethod
+    def get_tdi_delay(device):
+        # Input delay if 1 TCK on TDI on Zynq/ZynqMPSoC devices.
+        delay_dict = {"xc7z" : 1, "xczu" : 1}
+        for dev, delay in delay_dict.items():
+            if device.lower().startswith(dev):
+                return 1
+        return 0
 
 # ECP5 JTAG ----------------------------------------------------------------------------------------
 
@@ -393,15 +401,14 @@ class JTAGPHY(Module):
 
         # # #
 
-        valid = Signal()
-        data  = Signal(data_width)
-        count = Signal(max=data_width)
 
         # JTAG TAP ---------------------------------------------------------------------------------
         if jtag is None:
+            jtag_tdi_delay = 0
             # Xilinx.
             if XilinxJTAG.get_primitive(device) is not None:
                 jtag = XilinxJTAG(primitive=XilinxJTAG.get_primitive(device), chain=chain)
+                jtag_tdi_delay = XilinxJTAG.get_tdi_delay(device)
             # Lattice.
             elif device[:5] == "LFE5U":
                 jtag = ECP5JTAG()
@@ -436,16 +443,29 @@ class JTAGPHY(Module):
             ]
             sink, source = tx_cdc.source, rx_cdc.sink
 
+        # JTAG TDI/TDO Delay -----------------------------------------------------------------------
+        jtag_tdi = jtag.tdi
+        jtag_tdo = jtag.tdo
+        if jtag_tdi_delay:
+            jtag_tdi_sr = Signal(data_width + 2 - jtag_tdi_delay)
+            self.sync.jtag += If(jtag.shift, jtag_tdi_sr.eq(Cat(jtag.tdi, jtag_tdi_sr)))
+            jtag_tdi = jtag_tdi_sr[-1]
+
         # JTAG Xfer FSM ----------------------------------------------------------------------------
+        valid = Signal()
+        ready = Signal()
+        data  = Signal(data_width)
+        count = Signal(max=data_width)
+
         fsm = FSM(reset_state="XFER-READY")
         fsm = ClockDomainsRenamer("jtag")(fsm)
         fsm = ResetInserter()(fsm)
         self.submodules += fsm
         self.comb += fsm.reset.eq(jtag.reset | jtag.capture)
         fsm.act("XFER-READY",
-            jtag.tdo.eq(source.ready),
+            jtag_tdo.eq(ready),
             If(jtag.shift,
-                sink.ready.eq(jtag.tdi),
+                sink.ready.eq(jtag_tdi),
                 NextValue(valid, sink.valid),
                 NextValue(data,  sink.data),
                 NextValue(count, 0),
@@ -453,20 +473,21 @@ class JTAGPHY(Module):
             )
         )
         fsm.act("XFER-DATA",
-            jtag.tdo.eq(data),
+            jtag_tdo.eq(data),
             If(jtag.shift,
                 NextValue(count, count + 1),
-                NextValue(data, Cat(data[1:], jtag.tdi)),
+                NextValue(data, Cat(data[1:], jtag_tdi)),
                 If(count == (data_width - 1),
                     NextState("XFER-VALID")
                 )
             )
         )
         fsm.act("XFER-VALID",
-            jtag.tdo.eq(valid),
+            jtag_tdo.eq(valid),
             If(jtag.shift,
-                source.valid.eq(jtag.tdi),
+                source.valid.eq(jtag_tdi),
+                source.data.eq(data),
+                NextValue(ready, source.ready),
                 NextState("XFER-READY")
             )
         )
-        self.comb += source.data.eq(data)
