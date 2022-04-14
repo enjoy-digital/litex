@@ -15,11 +15,20 @@ class Open(Signal): pass
 
 # Efinix / TRIONPLL ----------------------------------------------------------------------------------
 
-class TRIONPLL(Module):
+class EFINIXPLL(Module):
     nclkouts_max = 3
     def __init__(self, platform, n=0, version="V1_V2"):
-        self.logger = logging.getLogger("TRIONPLL")
-        self.logger.info("Creating TRIONPLL.".format())
+        self.logger = logging.getLogger("EFINIXPLL")
+
+        if version == "V1_V2":
+            self.type = "TRIONPLL"
+        elif version == "V3":
+            self.type = "TITANIUMPLL"
+        else:
+            self.logger.error("PLL version {} not supported".format(version))
+            quit()
+
+        self.logger.info("Creating {}".format(colorer(self.type, color="green")))
         self.platform   = platform
         self.nclkouts   = 0
         self.reset      = Signal()
@@ -76,11 +85,14 @@ class TRIONPLL(Module):
             block["input_signal"] = name
             self.logger.info("Clock source: {}".format(block["input_clock"]))
 
+        self.logger.info("PLL used     : " + colorer(str(self.platform.pll_used), "cyan"))
+        self.logger.info("PLL available: " + colorer(str(self.platform.pll_available), "cyan"))
+
         block["input_freq"] = freq
 
-        self.logger.info("Using {}".format(block["resource"]))
+        self.logger.info("Use {}".format(colorer(block["resource"], "green")))
 
-    def create_clkout(self, cd, freq, phase=0, margin=1e-2, name="", with_reset=True):
+    def create_clkout(self, cd, freq, phase=0, margin=0, name="", with_reset=True):
         assert self.nclkouts < self.nclkouts_max
 
         clk_out_name = f"{self.name}_clkout{self.nclkouts}" if name == "" else name
@@ -92,7 +104,8 @@ class TRIONPLL(Module):
             if with_reset:
                 self.specials += AsyncResetSynchronizer(cd, ~self.locked)
             self.platform.toolchain.excluded_ios.append(clk_out_name)
-            create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
+
+        create_clkout_log(self.logger, clk_out_name, freq, margin, self.nclkouts)
 
         self.nclkouts += 1
 
@@ -112,10 +125,16 @@ class TRIONPLL(Module):
     def do_finalize(self):
         pass
 
+# Efinix / TITANIUMPLL -----------------------------------------------------------------------------
 
-# Efinix / TITANIUMPLL ----------------------------------------------------------------------------------
-
-class TITANIUMPLL(TRIONPLL):
+class TITANIUMPLL(EFINIXPLL):
     nclkouts_max = 5
     def __init__(self, platform, n=0):
-        TRIONPLL.__init__(self, platform, n, version="V3")
+        EFINIXPLL.__init__(self, platform, n, version="V3")
+
+# Efinix / TRION ----------------------------------------------------------------------------------
+
+class TRIONPLL(EFINIXPLL):
+    nclkouts_max = 3
+    def __init__(self, platform, n=0):
+        EFINIXPLL.__init__(self, platform, n, version="V1_V2")
