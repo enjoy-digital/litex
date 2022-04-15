@@ -361,9 +361,12 @@ class SRAM(Module):
             else:
                 read_only = False
 
-        ###
+        # # #
 
         adr_burst = Signal()
+
+        # Burst support.
+        # --------------
 
         if self.bus.bursting:
             adr_wrap_mask = Array((0b0000, 0b0011, 0b0111, 0b1111))
@@ -380,7 +383,7 @@ class SRAM(Module):
 
             adr_next = Signal(len(self.bus.adr))
 
-            # only incrementing burst cycles are supported
+            # Only Incrementing Burts are supported.
             self.comb += [
                 Case(self.bus.cti, {
                     # incrementing address burst cycle
@@ -398,19 +401,18 @@ class SRAM(Module):
                 )
             ]
 
-            # latch initial address - initial address without wrapping bits and wrap offset
+            # Latch initial address (without wrapping bits and wrap offset).
             self.sync += [
                 If(self.bus.cyc & self.bus.stb & adr_burst,
                     adr_latched.eq(1),
-                    # latch initial address, then increment it every clock cycle
+                    # Latch initial address, then increment it every clock cycle
                     If(adr_latched,
                         adr_counter.eq(adr_counter + 1)
                     ).Else(
                         adr_counter_offset.eq(self.bus.adr & adr_wrap_mask[self.bus.bte]),
-                        adr_counter.eq(adr_counter_base + Cat(~self.bus.we,
-                                                              Replicate(0, len(adr_counter)-1)
-                                                              )
-                                       )
+                        adr_counter.eq(adr_counter_base +
+                            Cat(~self.bus.we, Replicate(0, len(adr_counter)-1))
+                        )
                     ),
                     If(self.bus.cti == CTI_BURST_END,
                         adr_latched.eq(0),
@@ -424,28 +426,25 @@ class SRAM(Module):
                 ),
             ]
 
-            # next address = sum of counter value without wrapped bits
-            #                and wrapped counter bits with offset
+            # Next Address = counter value without wrapped bits + wrapped counter bits with offset.
             self.comb += [
                 adr_offset_lsb.eq((adr_counter + adr_counter_offset) & adr_wrap_mask[self.bus.bte]),
                 adr_offset_msb.eq(adr_counter & ~adr_wrap_mask[self.bus.bte]),
                 adr_next.eq(adr_offset_msb + adr_offset_lsb)
             ]
 
-        else: # self.ram.bursting == False
-            self.comb += adr_burst.eq(0)
+        # # #
 
-        ###
-
-        # memory
+        # Memory.
+        # -------
         port = self.mem.get_port(write_capable=not read_only, we_granularity=8,
             mode=READ_FIRST if read_only else WRITE_FIRST)
         self.specials += self.mem, port
-        # generate write enable signal
+        # Generate write enable signal
         if not read_only:
             self.comb += [port.we[i].eq(self.bus.cyc & self.bus.stb & self.bus.we & self.bus.sel[i])
                 for i in range(bus_data_width//8)]
-        # address and data
+        # Address and data
         self.comb += port.adr.eq(self.bus.adr[:len(port.adr)])
         if self.bus.bursting:
             self.comb += If(adr_burst & adr_latched,
@@ -457,7 +456,7 @@ class SRAM(Module):
         if not read_only:
             self.comb += port.dat_w.eq(self.bus.dat_w),
 
-        # generate ack
+        # Generate Ack.
         self.sync += [
             self.bus.ack.eq(0),
             If(self.bus.cyc & self.bus.stb & (~self.bus.ack | adr_burst), self.bus.ack.eq(1))
