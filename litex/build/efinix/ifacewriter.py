@@ -164,6 +164,31 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                 cmd += f'design.create_inout_gpio("{name}",{block["size"]-1},0)\n'
                 for i, pad in enumerate(block["location"]):
                     cmd += f'design.assign_pkg_pin("{name}[{i}]","{pad}")\n'
+
+            if "out_reg" in block:
+                cmd += f'design.set_property("{name}","OUT_REG","{block["out_reg"]}")\n'
+                cmd += f'design.set_property("{name}","OUT_CLK_PIN","{block["out_clk_pin"]}")\n'
+                if "out_delay" in block:
+                    cmd += f'design.set_property("{name}","OUTDELAY","{block["out_delay"]}")\n'
+
+            if "out_clk_inv" in block:
+                cmd += f'design.set_property("{name}","IS_OUTCLK_INVERTED","{block["out_clk_inv"]}")\n'
+                cmd += f'design.set_property("{name}","OE_CLK_PIN_INV","{block["out_clk_inv"]}")\n'
+
+            if "in_reg" in block:
+                cmd += f'design.set_property("{name}","IN_REG","{block["in_reg"]}")\n'
+                cmd += f'design.set_property("{name}","IN_CLK_PIN","{block["in_clk_pin"]}")\n'
+                if "in_delay" in block:
+                    cmd += f'design.set_property("{name}","INDELAY","{block["in_delay"]}")\n'
+
+            if "in_clk_inv" in block:
+                cmd += f'design.set_property("{name}","IS_INCLK_INVERTED","{block["in_clk_inv"]}")\n'
+
+            if "oe_reg" in block:
+                cmd += f'design.set_property("{name}","OE_REG","{block["oe_reg"]}")\n'
+            if "oe_clk_pin" in block:
+                cmd += f'design.set_property("{name}","OE_CLK_PIN","{block["oe_clk_pin"]}")\n'
+
             if prop:
                 for p, val in prop:
                     cmd += 'design.set_property("{}","{}","{}")\n'.format(name, p, val)
@@ -181,6 +206,8 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
             if "in_reg" in block:
                 cmd += f'design.set_property("{name}","IN_REG","{block["in_reg"]}")\n'
                 cmd += f'design.set_property("{name}","IN_CLK_PIN","{block["in_clk_pin"]}")\n'
+                if "in_delay" in block:
+                    cmd += f'design.set_property("{name}","INDELAY","{block["in_delay"]}")\n'
             if prop:
                 for p, val in prop:
                     cmd += 'design.set_property("{}","{}","{}")\n'.format(name, p, val)
@@ -199,6 +226,12 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
             if "out_reg" in block:
                 cmd += 'design.set_property("{}","OUT_REG","{}")\n'.format(name, block["out_reg"])
                 cmd += 'design.set_property("{}","OUT_CLK_PIN","{}")\n'.format(name, block["out_clk_pin"])
+                if "out_delay" in block:
+                    cmd += 'design.set_property("{}","OUTDELAY","{}")\n'.format(name, block["out_delay"])
+
+            if "out_clk_inv" in block:
+                cmd += f'design.set_property("{name}","IS_OUTCLK_INVERTED","{block["out_clk_inv"]}")\n'
+                cmd += f'design.set_property("{name}","OE_CLK_PIN_INV","{block["out_clk_inv"]}")\n'
 
             if "drive_strength" in block:
                 cmd += 'design.set_property("{}","DRIVE_STRENGTH","4")\n'.format(name, block["drive_strength"])
