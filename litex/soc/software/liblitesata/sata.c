@@ -21,8 +21,9 @@
 
 int sata_init(void) {
 	uint16_t timeout;
+	uint8_t  buf[512];
 
-	for (timeout=10; timeout>0; timeout--) {
+	for (timeout=16; timeout>0; timeout--) {
 		/* Reset SATA PHY */
 		sata_phy_enable_write(0);
 		busy_wait(1);
@@ -32,10 +33,27 @@ int sata_init(void) {
 		busy_wait(100);
 
 		/* Check SATA PHY status */
-		if (sata_phy_status_read() & 0x1)
-			return 1;
+		if ((sata_phy_status_read() & 0x1) == 0)
+			/* Re-initialize if failing */
+			continue;
+
+		/* Initiate a SATA Read */
+		sata_sector2mem_base_write((uint64_t)(uintptr_t) buf);
+		sata_sector2mem_sector_write(0);
+		sata_sector2mem_start_write(1);
+
+		/* Wait for 10ms */
+		busy_wait(10);
+
+		/* Check SATA Read status */
+		if ((sata_sector2mem_done_read() & 0x1) == 0)
+			continue;
+
+		/* Init succeeded */
+		return 1;
 	}
 
+	/* Init failed */
 	return 0;
 }
 
