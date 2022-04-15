@@ -312,8 +312,6 @@ class Stream2Wishbone(Module):
 
         # # #
 
-        assert data_width == address_width
-
         cmd              = Signal(8,                           reset_less=True)
         incr             = Signal()
         length           = Signal(8,                           reset_less=True)
