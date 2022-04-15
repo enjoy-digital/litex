@@ -117,7 +117,7 @@ class SoCBusHandler(Module):
     supported_address_width = [32]
 
     # Creation -------------------------------------------------------------------------------------
-    def __init__(self, name="SoCBusHandler", standard="wishbone", data_width=32, address_width=32, timeout=1e6, reserved_regions={}):
+    def __init__(self, name="SoCBusHandler", standard="wishbone", data_width=32, address_width=32, timeout=1e6, bursting=False, reserved_regions={}):
         self.logger = logging.getLogger(name)
         self.logger.info("Creating Bus Handler...")
 
@@ -149,6 +149,7 @@ class SoCBusHandler(Module):
         self.standard         = standard
         self.data_width       = data_width
         self.address_width    = address_width
+        self.bursting         = bursting
         self.masters          = {}
         self.slaves           = {}
         self.regions          = {}
@@ -719,6 +720,7 @@ class SoC(Module):
         bus_data_width       = 32,
         bus_address_width    = 32,
         bus_timeout          = 1e6,
+        bus_bursting         = False,
         bus_reserved_regions = {},
 
         csr_data_width       = 32,
@@ -756,6 +758,7 @@ class SoC(Module):
             data_width       = bus_data_width,
             address_width    = bus_address_width,
             timeout          = bus_timeout,
+            bursting         = bus_bursting,
             reserved_regions = bus_reserved_regions,
            )
 
@@ -846,7 +849,7 @@ class SoC(Module):
             "wishbone": wishbone.Interface,
             "axi-lite": axi.AXILiteInterface,
         }[self.bus.standard]
-        ram_bus = interface_cls(data_width=self.bus.data_width)
+        ram_bus = interface_cls(data_width=self.bus.data_width, bursting=self.bus.bursting)
         ram     = ram_cls(size, bus=ram_bus, init=contents, read_only=(mode == "r"))
         self.bus.add_slave(name, ram.bus, SoCRegion(origin=origin, size=size, mode=mode))
         self.check_if_exists(name)
@@ -991,6 +994,7 @@ class SoC(Module):
                     standard         = "wishbone",
                     data_width       = self.bus.data_width,
                     address_width    = self.bus.address_width,
+                    bursting         = self.bus.bursting
                 )
                 dma_bus = wishbone.Interface(data_width=self.bus.data_width)
                 self.dma_bus.add_slave("dma", slave=dma_bus, region=SoCRegion(origin=0x00000000, size=0x100000000)) # FIXME: covers lower 4GB only
@@ -1078,6 +1082,7 @@ class SoC(Module):
         self.add_constant("CONFIG_BUS_STANDARD",      self.bus.standard.upper())
         self.add_constant("CONFIG_BUS_DATA_WIDTH",    self.bus.data_width)
         self.add_constant("CONFIG_BUS_ADDRESS_WIDTH", self.bus.address_width)
+        self.add_constant("CONFIG_BUS_BURSTING",      int(self.bus.bursting))
 
         # SoC DMA Bus Interconnect (Cache Coherence) -----------------------------------------------
         if hasattr(self, "dma_bus"):

@@ -56,3 +56,64 @@ class TestWishbone(unittest.TestCase):
 
         dut = DUT()
         run_simulation(dut, generator(dut))
+
+    def test_sram_burst(self):
+        def generator(dut):
+            yield from dut.wb.write(0x0000, 0x01234567, cti=wishbone.CTI_BURST_INCREMENTING)
+            yield from dut.wb.write(0x0001, 0x89abcdef, cti=wishbone.CTI_BURST_INCREMENTING)
+            yield from dut.wb.write(0x0002, 0xdeadbeef, cti=wishbone.CTI_BURST_INCREMENTING)
+            yield from dut.wb.write(0x0003, 0xc0ffee00, cti=wishbone.CTI_BURST_END)
+            self.assertEqual((yield from dut.wb.read(0x0000, cti=wishbone.CTI_BURST_INCREMENTING)), 0x01234567)
+            self.assertEqual((yield from dut.wb.read(0x0001, cti=wishbone.CTI_BURST_INCREMENTING)), 0x89abcdef)
+            self.assertEqual((yield from dut.wb.read(0x0002, cti=wishbone.CTI_BURST_INCREMENTING)), 0xdeadbeef)
+            self.assertEqual((yield from dut.wb.read(0x0003, cti=wishbone.CTI_BURST_END)), 0xc0ffee00)
+
+        class DUT(Module):
+            def __init__(self):
+                self.wb = wishbone.Interface(bursting=True)
+                wishbone_mem = wishbone.SRAM(32, bus=self.wb)
+                self.submodules += wishbone_mem
+
+        dut = DUT()
+        run_simulation(dut, generator(dut))
+
+    def test_sram_burst_wrap(self):
+        def generator(dut):
+            bte = 0b01
+            yield from dut.wb.write(0x0001, 0x01234567, cti=wishbone.CTI_BURST_INCREMENTING, bte=bte)
+            yield from dut.wb.write(0x0002, 0x89abcdef, cti=wishbone.CTI_BURST_INCREMENTING, bte=bte)
+            yield from dut.wb.write(0x0003, 0xdeadbeef, cti=wishbone.CTI_BURST_INCREMENTING, bte=bte)
+            yield from dut.wb.write(0x0000, 0xc0ffee00, cti=wishbone.CTI_BURST_END, bte=bte)
+            self.assertEqual((yield from dut.wb.read(0x0001, cti=wishbone.CTI_BURST_INCREMENTING, bte=bte)), 0x01234567)
+            self.assertEqual((yield from dut.wb.read(0x0002, cti=wishbone.CTI_BURST_INCREMENTING, bte=bte)), 0x89abcdef)
+            self.assertEqual((yield from dut.wb.read(0x0003, cti=wishbone.CTI_BURST_INCREMENTING, bte=bte)), 0xdeadbeef)
+            self.assertEqual((yield from dut.wb.read(0x0000, cti=wishbone.CTI_BURST_END, bte=bte)), 0xc0ffee00)
+
+        class DUT(Module):
+            def __init__(self):
+                self.wb = wishbone.Interface(bursting=True)
+                wishbone_mem = wishbone.SRAM(32, bus=self.wb)
+                self.submodules += wishbone_mem
+
+        dut = DUT()
+        run_simulation(dut, generator(dut))
+
+    def test_sram_burst_constant(self):
+        def generator(dut):
+            yield from dut.wb.write(0x0001, 0x01234567, cti=wishbone.CTI_BURST_CONSTANT)
+            yield from dut.wb.write(0x0002, 0x89abcdef, cti=wishbone.CTI_BURST_CONSTANT)
+            yield from dut.wb.write(0x0003, 0xdeadbeef, cti=wishbone.CTI_BURST_CONSTANT)
+            yield from dut.wb.write(0x0000, 0xc0ffee00, cti=wishbone.CTI_BURST_END)
+            self.assertEqual((yield from dut.wb.read(0x0001, cti=wishbone.CTI_BURST_CONSTANT)), 0x01234567)
+            self.assertEqual((yield from dut.wb.read(0x0002, cti=wishbone.CTI_BURST_CONSTANT)), 0x89abcdef)
+            self.assertEqual((yield from dut.wb.read(0x0003, cti=wishbone.CTI_BURST_CONSTANT)), 0xdeadbeef)
+            self.assertEqual((yield from dut.wb.read(0x0000, cti=wishbone.CTI_BURST_END)), 0xc0ffee00)
+
+        class DUT(Module):
+            def __init__(self):
+                self.wb = wishbone.Interface(bursting=True)
+                wishbone_mem = wishbone.SRAM(32, bus=self.wb)
+                self.submodules += wishbone_mem
+
+        dut = DUT()
+        run_simulation(dut, generator(dut))

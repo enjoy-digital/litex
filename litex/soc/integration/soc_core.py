@@ -64,6 +64,7 @@ class SoCCore(LiteXSoC):
         bus_data_width           = 32,
         bus_address_width        = 32,
         bus_timeout              = 1e6,
+        bus_bursting             = False,
 
         # CPU parameters
         cpu_type                 = "vexriscv",
@@ -122,6 +123,7 @@ class SoCCore(LiteXSoC):
             bus_data_width       = bus_data_width,
             bus_address_width    = bus_address_width,
             bus_timeout          = bus_timeout,
+            bus_bursting         = bus_bursting,
             bus_reserved_regions = {},
 
             csr_data_width       = csr_data_width,
@@ -301,6 +303,7 @@ def soc_core_args(parser):
     soc_group.add_argument("--bus-data-width",    default=32,         type=auto_int, help="Bus data-width.")
     soc_group.add_argument("--bus-address-width", default=32,         type=auto_int, help="Bus address-width.")
     soc_group.add_argument("--bus-timeout",       default=int(1e6),   type=float,    help="Bus timeout in cycles.")
+    soc_group.add_argument("--bus-bursting",      action="store_true",               help="Enable burst cycles on the bus if supported.")
 
     # CPU parameters
     soc_group.add_argument("--cpu-type",          default="vexriscv",               help="Select CPU: {}.".format(", ".join(iter(cpu.CPUS.keys()))))
