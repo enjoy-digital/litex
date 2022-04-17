@@ -120,7 +120,7 @@ class EtherboneWrites(Packet):
     def decode(self):
         if not self.encoded:
             raise ValueError
-        ba = self.bytes
+        ba = bytes(self.bytes)
         self.base_addr = unpack_uint32_from(ba[:4])[0]
         writes = []
         offset = 4
@@ -174,7 +174,7 @@ class EtherboneReads(Packet):
     def decode(self):
         if not self.encoded:
             raise ValueError
-        ba = self.bytes
+        ba = bytes(self.bytes)
         base_ret_addr = unpack_uint32_from(ba[:4])[0]
         reads  = []
         offset = 4
@@ -300,7 +300,7 @@ class EtherbonePacket(Packet):
         if not self.encoded:
             raise ValueError
 
-        ba = self.bytes
+        ba = bytes(self.bytes)
 
         # Decode header
         header = list(ba[:etherbone_packet_header.length])
@@ -324,7 +324,8 @@ class EtherbonePacket(Packet):
 
     def encode(self):
         if self.encoded:
-            raise ValueError
+            return
+            # raise ValueError
 
         ba = bytearray()
 
@@ -346,14 +347,14 @@ class EtherbonePacket(Packet):
     def __repr__(self):
         r = "Packet\n"
         r += "--------\n"
+        for k in sorted(etherbone_packet_header.fields.keys()):
+            r += k + " : 0x{:0x}\n".format(getattr(self, k))
+        for i, record in enumerate(self.records):
+            r += record.__repr__(i)
         if self.encoded:
+            r += '\nencoded:\n'
             for d in self.bytes:
                 r += "{:02x}".format(d)
-        else:
-            for k in sorted(etherbone_packet_header.fields.keys()):
-                r += k + " : 0x{:0x}\n".format(getattr(self, k))
-            for i, record in enumerate(self.records):
-                r += record.__repr__(i)
         return r
 
 # Etherbone IPC ------------------------------------------------------------------------------------
