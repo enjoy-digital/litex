@@ -18,6 +18,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
+import re
 import json
 import time
 import datetime
@@ -91,8 +92,8 @@ def get_cpu_mak(cpu, compile_software):
 
     selected_triple = select_triple(triple)
     if not clang:
-      binutils_version = re.match("GNU ar \(GNU Binutils\) (.+)\.(.+)", os.popen(selected_triple + "-ar -V").read())
-      if int(binutils_version.group(1)) >= 2 and int(binutils_version.group(2)) >= 37 and (not re.search("zicsr", flags)):
+      binutils_version = re.match("GNU ar \(GNU Binutils\) (.+)", os.popen(selected_triple + "-ar -V").read()).group(1).split(".")
+      if int(binutils_version[1]) >= 2 and int(binutils_version[2]) >= 37 and (not re.search("zicsr", flags)):
         flags = re.compile("-march=([^ ]+)").sub("-march=\\1_zicsr", flags)
 
     # Return informations.
