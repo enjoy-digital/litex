@@ -89,9 +89,15 @@ def get_cpu_mak(cpu, compile_software):
             raise OSError(msg)
         return r
 
+    selected_triple = select_triple(triple)
+    if not clang:
+      binutils_version = re.match("GNU ar \(GNU Binutils\) (.+)\.(.+)", os.popen(selected_triple + "-ar -V").read())
+      if int(binutils_version.group(1)) >= 2 and int(binutils_version.group(2)) >= 37 and (not re.search("zicsr", flags)):
+        flags = re.compile("-march=([^ ]+)").sub("-march=\\1_zicsr", flags)
+
     # Return informations.
     return [
-        ("TRIPLE",        select_triple(triple)),
+        ("TRIPLE",        selected_triple),
         ("CPU",           cpu.name),
         ("CPUFAMILY",     cpu.family),
         ("CPUFLAGS",      flags),
