@@ -107,11 +107,12 @@ class Packet(list):
 
 
 class PacketStreamer(Module):
-    def __init__(self, description, packet_cls=Packet, dw=8):
+    def __init__(self, description, packet_cls=Packet, dw=8, assertStall=False):
         self.source = stream.Endpoint(description)
 
         # # #
 
+        self.assertStall = assertStall
         self.packets = []
         self.packet = packet_cls()
         self.packet.done = True
@@ -153,7 +154,9 @@ class PacketStreamer(Module):
                     yield self.source.last_be.eq(1 << (chunk_size - 1))
                 yield
                 while not (yield self.source.ready):
-                   yield
+                    if i > 0 and self.assertStall:
+                        raise RuntimeError("PacketStreamer: PHY got stalled!")
+                    yield
 
             # Output optional partial chunk
             if n_remainder > 0:
@@ -163,7 +166,9 @@ class PacketStreamer(Module):
                 yield self.source.last.eq(1)
                 yield
                 while not (yield self.source.ready):
-                   yield
+                    if i > 0 and self.assertStall:
+                        raise RuntimeError("PacketStreamer: PHY got stalled!")
+                    yield
 
             yield self.source.valid.eq(0)
             yield self.source.last.eq(0)
@@ -172,11 +177,12 @@ class PacketStreamer(Module):
 
 
 class PacketLogger(Module):
-    def __init__(self, description, packet_cls=Packet, dw=8):
+    def __init__(self, description, packet_cls=Packet, dw=8, assertStall=False):
         self.sink = stream.Endpoint(description)
 
         # # #
 
+        self.assertStall = assertStall
         self.packet_cls = packet_cls
         self.packet = packet_cls()
         self.first = True
@@ -214,6 +220,9 @@ class PacketLogger(Module):
                     self.first = True
                 else:
                     self.packet += bs
+            else:
+                if not self.first and self.assertStall:
+                    raise RuntimeError("PacketLogger: PHY got stalled!")
             yield
 
 
