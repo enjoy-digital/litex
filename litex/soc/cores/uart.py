@@ -312,17 +312,17 @@ class Stream2Wishbone(Module):
 
         # # #
 
-        assert data_width == address_width
+        cmd              = Signal(8,                           reset_less=True)
+        incr             = Signal()
+        length           = Signal(8,                           reset_less=True)
+        address          = Signal(address_width,               reset_less=True)
+        data             = Signal(data_width,                  reset_less=True)
+        data_bytes_count = Signal(int(log2(data_width//8)),    reset_less=True)
+        addr_bytes_count = Signal(int(log2(address_width//8)), reset_less=True)
+        words_count      = Signal(8,                           reset_less=True)
 
-        cmd         = Signal(8,                        reset_less=True)
-        incr        = Signal()
-        length      = Signal(8,                        reset_less=True)
-        address     = Signal(address_width,            reset_less=True)
-        data        = Signal(data_width,               reset_less=True)
-        bytes_count = Signal(int(log2(data_width//8)), reset_less=True)
-        words_count = Signal(8,                        reset_less=True)
-
-        bytes_count_done  = (bytes_count == (data_width//8 - 1))
+        data_bytes_count_done  = (data_bytes_count == (data_width//8 - 1))
+        addr_bytes_count_done  = (addr_bytes_count == (address_width//8 - 1))
         words_count_done  = (words_count == (length - 1))
 
         self.submodules.fsm   = fsm   = ResetInserter()(FSM(reset_state="RECEIVE-CMD"))
@@ -331,7 +331,8 @@ class Stream2Wishbone(Module):
         self.comb += fsm.reset.eq(timer.done)
         fsm.act("RECEIVE-CMD",
             sink.ready.eq(1),
-            NextValue(bytes_count, 0),
+            NextValue(data_bytes_count, 0),
+            NextValue(addr_bytes_count, 0),
             NextValue(words_count, 0),
             If(sink.valid,
                 NextValue(cmd, sink.data),
@@ -349,8 +350,8 @@ class Stream2Wishbone(Module):
             sink.ready.eq(1),
             If(sink.valid,
                 NextValue(address, Cat(sink.data, address)),
-                NextValue(bytes_count, bytes_count + 1),
-                If(bytes_count_done,
+                NextValue(addr_bytes_count, addr_bytes_count + 1),
+                If(addr_bytes_count_done,
                     If((cmd == CMD_WRITE_BURST_INCR) | (cmd == CMD_WRITE_BURST_FIXED),
                         NextValue(incr, cmd == CMD_WRITE_BURST_INCR),
                         NextState("RECEIVE-DATA")
@@ -367,8 +368,8 @@ class Stream2Wishbone(Module):
             sink.ready.eq(1),
             If(sink.valid,
                 NextValue(data, Cat(sink.data, data)),
-                NextValue(bytes_count, bytes_count + 1),
-                If(bytes_count_done,
+                NextValue(data_bytes_count, data_bytes_count + 1),
+                If(data_bytes_count_done,
                     NextState("WRITE-DATA")
                 )
             )
@@ -406,13 +407,13 @@ class Stream2Wishbone(Module):
         cases = {}
         for i, n in enumerate(reversed(range(data_width//8))):
             cases[i] = source.data.eq(data[8*n:])
-        self.comb += Case(bytes_count, cases)
+        self.comb += Case(data_bytes_count, cases)
         fsm.act("SEND-DATA",
             sink.ready.eq(0),
             source.valid.eq(1),
             If(source.ready,
-                NextValue(bytes_count, bytes_count + 1),
-                If(bytes_count_done,
+                NextValue(data_bytes_count, data_bytes_count + 1),
+                If(data_bytes_count_done,
                     NextValue(words_count, words_count + 1),
                     NextValue(address, address + incr),
                     If(words_count_done,
@@ -423,7 +424,7 @@ class Stream2Wishbone(Module):
                 )
             )
         )
-        self.comb += source.last.eq(bytes_count_done & words_count_done)
+        self.comb += source.last.eq(data_bytes_count_done & words_count_done)
         if hasattr(source, "length"):
             self.comb += source.length.eq((data_width//8)*length)
 
