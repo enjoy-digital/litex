@@ -311,6 +311,8 @@ class Stream2Wishbone(Module):
         self.wishbone = wishbone.Interface(data_width=data_width, adr_width=address_width)
 
         # # #
+        assert data_width    in [8, 16, 32]
+        assert address_width in [8, 16, 32]
 
         cmd              = Signal(8,                           reset_less=True)
         incr             = Signal()
