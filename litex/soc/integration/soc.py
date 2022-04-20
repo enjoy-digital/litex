@@ -903,19 +903,19 @@ class SoC(Module):
     def add_cpu(self, name="vexriscv", variant="standard", reset_address=None, cfu=None):
         # Check that CPU is supported.
         if name not in cpu.CPUS.keys():
-            self.logger.error("{} CPU {}, supported are: {}.".format(
+            self.logger.error("{} CPU {}, supported are: \n - {}".format(
                 colorer(name),
                 colorer("not supported", color="red"),
-                colorer(", ".join(cpu.CPUS.keys()))))
+                colorer("\n - ".join(sorted(cpu.CPUS.keys())))))
             raise SoCError()
 
         # Add CPU.
         cpu_cls = cpu.CPUS[name]
         if (variant not in cpu_cls.variants) and (cpu_cls is not cpu.CPUNone):
-            self.logger.error("{} CPU variant {}, supported are: {}.".format(
+            self.logger.error("{} CPU variant {}, supported are: \n - {}".format(
                 colorer(variant),
                 colorer("not supported", color="red"),
-                colorer(", ".join(cpu_cls.variants))))
+                colorer("\n - ".join(sorted(cpu_cls.variants)))))
             raise SoCError()
         self.check_if_exists("cpu")
         self.submodules.cpu = cpu_cls(self.platform, variant)
