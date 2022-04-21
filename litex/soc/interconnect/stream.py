@@ -535,24 +535,32 @@ class StrideConverter(Module):
 
         # last_be hack for len(input word) > len(output word)
         # discard remaining (invalid) output words as soon as last_be > 0
-        self.submodules.fsm = fsm = FSM(reset_state="SEND")
-        fsm.act("SEND",
-            source.valid.eq(converter.source.valid),
-            converter.source.ready.eq(source.ready),
-            source.first.eq(converter.source.first),
-            If(source.valid & source.ready & (source.last_be > 0) & (converter.source.last == 0),
-                NextState("DISCARD"),
-                source.last.eq(1)
-            ).Else(
+        if hasattr(source, 'last_be'):
+            self.submodules.fsm = fsm = FSM(reset_state="SEND")
+            fsm.act("SEND",
+                source.valid.eq(converter.source.valid),
+                converter.source.ready.eq(source.ready),
+                source.first.eq(converter.source.first),
+                If(source.valid & source.ready & (source.last_be > 0) & (converter.source.last == 0),
+                    NextState("DISCARD"),
+                    source.last.eq(1)
+                ).Else(
+                    source.last.eq(converter.source.last)
+                )
+            )
+            fsm.act("DISCARD",
+                converter.source.ready.eq(1),
+                If(converter.source.valid & converter.source.last,
+                    NextState("SEND")
+                )
+            )
+        else:
+            self.comb += [
+                source.valid.eq(converter.source.valid),
+                converter.source.ready.eq(source.ready),
+                source.first.eq(converter.source.first),
                 source.last.eq(converter.source.last)
-            )
-        )
-        fsm.act("DISCARD",
-            converter.source.ready.eq(1),
-            If(converter.source.valid & converter.source.last,
-                NextState("SEND")
-            )
-        )
+            ]
 
         # Connect params
         if converter.latency == 0:
