@@ -284,18 +284,22 @@ class XilinxVivadoToolchain:
 
     def _build_clock_constraints(self, platform):
         platform.add_platform_command(_xdc_separator("Clock constraints"))
+        def get_clk_type(clk):
+            return {
+                False :  "nets",
+                True  : "ports",
+            }[hasattr(clk, "port")]
         for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
             platform.add_platform_command(
                 "create_clock -name {clk} -period " + str(period) +
-                " [get_nets {clk}]", clk=clk)
-        for from_, to in sorted(self.false_paths,
-                                key=lambda x: (x[0].duid, x[1].duid)):
+                " [get_" + get_clk_type(clk) + " {clk}]", clk=clk)
+        for _from, _to in sorted(self.false_paths, key=lambda x: (x[0].duid, x[1].duid)):
             platform.add_platform_command(
                 "set_clock_groups "
-                "-group [get_clocks -include_generated_clocks -of [get_nets {from_}]] "
-                "-group [get_clocks -include_generated_clocks -of [get_nets {to}]] "
+                "-group [get_clocks -include_generated_clocks -of [get_" + get_clk_type(_from) + " {_from}]] "
+                "-group [get_clocks -include_generated_clocks -of [get_" + get_clk_type(_to)   + " {_to}]] "
                 "-asynchronous",
-                from_=from_, to=to)
+                _from=_from, _to=_to)
         # Make sure add_*_constraint cannot be used again
         del self.clocks
         del self.false_paths
@@ -341,12 +345,14 @@ class XilinxVivadoToolchain:
             fragment = fragment.get_fragment()
         platform.finalize(fragment)
 
+        # Generate verilog
+        v_output = platform.get_verilog(fragment, name=build_name, **kwargs)
+
         # Generate timing constraints
         self._build_clock_constraints(platform)
         self._build_false_path_constraints(platform)
 
-        # Generate verilog
-        v_output = platform.get_verilog(fragment, name=build_name, **kwargs)
+        # Add verilog to project.
         named_sc, named_pc = platform.resolve_signals(v_output.ns)
         v_file = build_name + ".v"
         v_output.write(v_file)

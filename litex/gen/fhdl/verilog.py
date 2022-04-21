@@ -391,6 +391,7 @@ def _print_module(f, ios, name, ns, attr_translate):
             r += "\t" + attr
         sig.type = "wire"
         sig.name = ns.get_name(sig)
+        sig.port = True
         if sig in inouts:
             sig.direction = "inout"
             r += "\tinout  wire " + _print_signal(ns, sig)
