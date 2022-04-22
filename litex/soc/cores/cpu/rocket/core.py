@@ -89,6 +89,7 @@ CPU_SIZE_PARAMS = {
 # Rocket  ------------------------------------------------------------------------------------------
 
 class Rocket(CPU):
+    category             = "softcore"
     family               = "riscv"
     name                 = "rocket"
     human_name           = "RocketRV64[imac]"

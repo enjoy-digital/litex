@@ -33,6 +33,7 @@ GCC_FLAGS = {
 # FireV ------------------------------------------------------------------------------------------
 
 class firev(CPU):
+    category             = "softcore"
     family               = "riscv"
     name                 = "firev"
     human_name           = "firev"

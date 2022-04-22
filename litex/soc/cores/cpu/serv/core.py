@@ -34,6 +34,7 @@ GCC_FLAGS = {
 # SERV ---------------------------------------------------------------------------------------------
 
 class SERV(CPU):
+    category             = "softcore"
     family               = "riscv"
     name                 = "serv"
     human_name           = "SERV"

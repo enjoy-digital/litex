@@ -904,10 +904,16 @@ class SoC(Module):
     def add_cpu(self, name="vexriscv", variant="standard", reset_address=None, cfu=None):
         # Check that CPU is supported.
         if name not in cpu.CPUS.keys():
-            self.logger.error("{} CPU {}, supported are: \n - {}".format(
+            supported_cpus = []
+            cpu_name_length = max([len(cpu_name) for cpu_name in cpu.CPUS.keys()])
+            for cpu_name in sorted(cpu.CPUS.keys()):
+                cpu_cls  = cpu.CPUS[cpu_name]
+                cpu_desc = f"{cpu_cls.family}\t/ {cpu_cls.category}"
+                supported_cpus += [f"- {cpu_name}{' '*(cpu_name_length - len(cpu_name))} ({cpu_desc})"]
+            self.logger.error("{} CPU {}, supported are: \n{}".format(
                 colorer(name),
                 colorer("not supported", color="red"),
-                colorer("\n - ".join(sorted(cpu.CPUS.keys())))))
+                colorer("\n".join(supported_cpus))))
             raise SoCError()
 
         # Add CPU.

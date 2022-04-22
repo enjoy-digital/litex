@@ -356,6 +356,7 @@ class DebugModule(Module):
 
 class CV32E40P(CPU):
     family               = "riscv"
+    category             = "softcore"
     name                 = "cv32e40p"
     human_name           = "CV32E40P"
     variants             = CPU_VARIANTS

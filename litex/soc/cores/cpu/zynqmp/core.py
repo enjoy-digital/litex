@@ -12,6 +12,7 @@ from litex.soc.interconnect import axi
 
 class ZynqMP(CPU):
     variants             = ["standard"]
+    category             = "hardcore"
     family               = "aarch64"
     name                 = "zynqmp"
     human_name           = "Zynq Ultrascale+ MPSoC"

@@ -49,6 +49,7 @@ class AHBFlash(Module):
 
 class GowinEMCU(CPU):
     variants             = ["standard"]
+    category             = "hardcore"
     family               = "arm"
     name                 = "gowin_emcu"
     human_name           = "Gowin EMCU"

@@ -27,6 +27,7 @@ CPU_VARIANTS = {
 # NaxRiscv -----------------------------------------------------------------------------------------
 
 class NaxRiscv(CPU):
+    category             = "softcore"
     family               = "riscv"
     name                 = "naxriscv"
     human_name           = "NaxRiscv"

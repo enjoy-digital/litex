@@ -95,6 +95,7 @@ class VexRiscvTimer(Module, AutoCSR):
 # VexRiscv -----------------------------------------------------------------------------------------
 
 class VexRiscv(CPU, AutoCSR):
+    category             = "softcore"
     family               = "riscv"
     name                 = "vexriscv"
     human_name           = "VexRiscv"

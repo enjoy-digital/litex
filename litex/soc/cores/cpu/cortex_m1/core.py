@@ -18,6 +18,7 @@ class Open(Signal): pass
 
 class CortexM1(CPU):
     variants             = ["standard"]
+    category             = "softcore"
     family               = "arm"
     name                 = "cortex_m1"
     human_name           = "ARM Cortex-M1"

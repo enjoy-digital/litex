@@ -45,6 +45,7 @@ GCC_FLAGS = {
 # FemtoRV ------------------------------------------------------------------------------------------
 
 class FemtoRV(CPU):
+    category             = "softcore"
     family               = "riscv"
     name                 = "femtorv"
     human_name           = "FemtoRV"

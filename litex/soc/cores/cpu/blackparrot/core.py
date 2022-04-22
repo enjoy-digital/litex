@@ -55,6 +55,7 @@ GCC_FLAGS = {
 # BlackParrot --------------------------------------------------------------------------------------
 
 class BlackParrot(CPU):
+    category             = "softcore"
     family               = "riscv"
     name                 = "blackparrot"
     human_name           = "BlackParrotRV64[imafd]"

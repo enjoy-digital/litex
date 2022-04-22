@@ -98,6 +98,7 @@ class OBI2Wishbone(Module):
 # Ibex ---------------------------------------------------------------------------------------------
 
 class Ibex(CPU):
+    category             = "softcore"
     family               = "riscv"
     name                 = "ibex"
     human_name           = "Ibex"

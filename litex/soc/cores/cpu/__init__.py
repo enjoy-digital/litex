@@ -15,6 +15,8 @@ from migen import *
 # CPU ----------------------------------------------------------------------------------------------
 
 class CPU(Module):
+    category             = None
+    family               = None
     name                 = None
     data_width           = None
     endianness           = None

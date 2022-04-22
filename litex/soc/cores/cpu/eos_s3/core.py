@@ -19,6 +19,7 @@ class Open(Signal): pass
 
 class EOS_S3(CPU):
     variants             = ["standard"]
+    category             = "hardcore"
     family               = "arm"
     name                 = "eos_s3"
     human_name           = "EOS S3"

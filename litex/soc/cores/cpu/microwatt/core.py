@@ -25,6 +25,7 @@ CPU_VARIANTS = ["standard", "standard+ghdl", "standard+irq", "standard+ghdl+irq"
 # Microwatt ----------------------------------------------------------------------------------------
 
 class Microwatt(CPU):
+    category             = "softcore"
     family               = "ppc64"
     name                 = "microwatt"
     human_name           = "Microwatt"

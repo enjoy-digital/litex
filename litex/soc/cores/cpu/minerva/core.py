@@ -21,6 +21,7 @@ CPU_VARIANTS = ["standard"]
 # Minerva ------------------------------------------------------------------------------------------
 
 class Minerva(CPU):
+    category             = "softcore"
     family               = "riscv"
     name                 = "minerva"
     human_name           = "Minerva"

@@ -242,6 +242,7 @@ class DebugModule(Module):
 # CV32E41P -----------------------------------------------------------------------------------------
 
 class CV32E41P(CPU):
+    category             = "softcore"
     family               = "riscv"
     name                 = "cv32e41p"
     human_name           = "CV32E41P"

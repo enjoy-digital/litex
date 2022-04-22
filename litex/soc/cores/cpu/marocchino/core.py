@@ -22,6 +22,7 @@ CPU_VARIANTS = ["standard", "linux", "linux+smp"]
 # Mor1kx -------------------------------------------------------------------------------------------
 
 class Marocchino(CPU):
+    category             = "softcore"
     family               = "or1k"
     name                 = "marocchino"
     human_name           = "Marocchino"

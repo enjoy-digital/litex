@@ -31,6 +31,7 @@ GCC_FLAGS = {
 # NEORV32 ------------------------------------------------------------------------------------------
 
 class NEORV32(CPU):
+    category             = "softcore"
     family               = "riscv"
     name                 = "neorv32"
     human_name           = "NEORV32"
