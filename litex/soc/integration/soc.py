@@ -1043,7 +1043,7 @@ class SoC(Module):
         }[self.bus.standard]
 
         # SoC Reset --------------------------------------------------------------------------------
-        # Connect soc_rst to CRG's rst if presents.
+        # Connect soc_rst to CRG's rst if present.
         if hasattr(self, "ctrl") and hasattr(self, "crg"):
             crg_rst = getattr(self.crg, "rst", None)
             if isinstance(crg_rst, Signal):
