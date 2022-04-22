@@ -70,7 +70,7 @@ class CortexM1(CPU):
 
             # Embedded ROM/SRAM.
             p_ITCM_SIZE = 0,  # Use LiteX's ROM.
-            p_DTCM_SIZE = 0,  # Use LiteX's RAM.
+            p_DTCM_SIZE = 0,  # Use LiteX's SRAM.
             i_CFGITCMEN = 0,  # 1 = alias ITCM at 0x0
 
             # Interrupts.
@@ -95,15 +95,15 @@ class CortexM1(CPU):
             o_AWPROT  = pbus_axi.aw.prot,
             o_AWSIZE  = pbus_axi.aw.size,
 
-            o_WVALID = pbus_axi.w.valid,
-            i_WREADY = pbus_axi.w.ready,
-            o_WLAST  = pbus_axi.w.last,
-            o_WSTRB  = pbus_axi.w.strb,
-            o_HWDATA = pbus_axi.w.data,
+            o_WVALID  = pbus_axi.w.valid,
+            i_WREADY  = pbus_axi.w.ready,
+            o_WLAST   = pbus_axi.w.last,
+            o_WSTRB   = pbus_axi.w.strb,
+            o_HWDATA  = pbus_axi.w.data,
 
-            i_BVALID = pbus_axi.b.valid,
-            o_BREADY = pbus_axi.b.ready,
-            i_BRESP  = pbus_axi.b.resp,
+            i_BVALID  = pbus_axi.b.valid,
+            o_BREADY  = pbus_axi.b.ready,
+            i_BRESP   = pbus_axi.b.resp,
 
             o_ARVALID = pbus_axi.ar.valid,
             i_ARREADY = pbus_axi.ar.ready,
