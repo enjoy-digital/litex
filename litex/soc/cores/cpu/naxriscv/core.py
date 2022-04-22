@@ -12,12 +12,9 @@ import subprocess
 from migen import *
 
 from litex import get_data_mod
-from litex.soc.interconnect import wishbone
 from litex.soc.interconnect import axi
 from litex.soc.interconnect.csr import *
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32, CPU_GCC_TRIPLE_RISCV64
-
-import os
 
 class Open(Signal): pass
 
@@ -291,7 +288,7 @@ class NaxRiscv(CPU):
         # Define ISA.
         soc.add_constant("CPU_ISA", NaxRiscv.get_arch())
 
-        # Add PLIC Bus (Wishbone Slave).
+        # Add PLIC Bus (AXILite Slave).
         self.plicbus = plicbus  = axi.AXILiteInterface(address_width=32, data_width=32)
         self.cpu_params.update(
             i_peripheral_plic_awvalid = plicbus.aw.valid,
@@ -373,7 +370,7 @@ class NaxRiscv(CPU):
             self.comb += debug_ndmreset_rise.eq(debug_ndmreset & ~debug_ndmreset_last)
             self.comb += If(debug_ndmreset_rise, soc.crg.rst.eq(1))
 
-        # Add CLINT Bus (Wishbone Slave).
+        # Add CLINT Bus (AXILite Slave).
         self.clintbus = clintbus = axi.AXILiteInterface(address_width=32, data_width=32)
         self.cpu_params.update(
             i_peripheral_clint_awvalid = clintbus.aw.valid,
