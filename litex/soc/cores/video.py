@@ -656,10 +656,11 @@ class VideoFrameBuffer(Module, AutoCSR):
             # ... and then Clock Domain Crossing.
             self.submodules.cdc = stream.ClockDomainCrossing([("data", depth)], cd_from="sys", cd_to=clock_domain)
             self.comb += self.conv.source.connect(self.cdc.sink)
-            self.comb += If((dram_port.data_width < depth) and (depth == 32), # FIXME.
-                self.cdc.sink.data[ 0: 8].eq(self.conv.source.data[16:24]),
-                self.cdc.sink.data[16:24].eq(self.conv.source.data[ 0: 8]),
-            )
+            if (dram_port.data_width < depth) and (depth == 32): # FIXME.
+                self.comb += [
+                    self.cdc.sink.data[ 0: 8].eq(self.conv.source.data[16:24]),
+                    self.cdc.sink.data[16:24].eq(self.conv.source.data[ 0: 8]),
+                ]
             video_pipe_source = self.cdc.source
 
         # Video Generation.
@@ -671,16 +672,19 @@ class VideoFrameBuffer(Module, AutoCSR):
 
             ),
             vtg_sink.connect(source, keep={"de", "hsync", "vsync"}),
-            If(depth == 32,
+        ]
+        if (depth == 32):
+            self.comb += [
                source.r.eq(video_pipe_source.data[16:24]),
                source.g.eq(video_pipe_source.data[ 8:16]),
                source.b.eq(video_pipe_source.data[ 0: 8]),
-            ).Else( # depth == 16
+            ]
+        else: # depth == 16
+            self.comb += [
                 source.r.eq(Cat(Signal(3, reset = 0), video_pipe_source.data[ 0: 5])),
                 source.g.eq(Cat(Signal(2, reset = 0), video_pipe_source.data[ 5:11])),
                 source.b.eq(Cat(Signal(3, reset = 0), video_pipe_source.data[11:16])),
-            )
-        ]
+            ]
 
         # Underflow.
         self.comb += self.underflow.eq(~source.valid)
