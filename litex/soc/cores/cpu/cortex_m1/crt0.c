@@ -7,7 +7,6 @@ extern void isr(void);
 
 void _start(void);
 void default_handler(void);
-void uart_handler_proxy(void);
 
 volatile unsigned int irqs_enabled;
 
@@ -32,14 +31,6 @@ void default_handler(void) {
     while(1);
 }
 
-
-void uart_handler_proxy(void) {
-    NVIC->ISPR[0] = (1 << UART_INTERRUPT);
-    isr();
-    NVIC->ICPR[0] = (1 << UART_INTERRUPT);
-}
-
-
 const void* isr_vector[] __attribute__((__used__)) __attribute__((section(".isr_vector"))) = {
     &_fstack,
     _start, // reset
@@ -58,7 +49,7 @@ const void* isr_vector[] __attribute__((__used__)) __attribute__((section(".isr_
     default_handler, // pend sv
     default_handler, // systick
     // external
-    uart_handler_proxy,
+    default_handler,
     default_handler,
     default_handler,
     default_handler,

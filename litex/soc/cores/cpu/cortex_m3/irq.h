@@ -33,15 +33,13 @@ static inline unsigned int irq_getmask(void)
 
 static inline void irq_setmask(unsigned int mask)
 {
-    // fixme: there are more interrupts
-    NVIC->ISER[0] = mask;
-    NVIC->ICER[0] = ~mask;
+   /* TODO */
 }
 
 static inline unsigned int irq_pending(void)
 {
-    // fixme: there are more interrupts
-    return NVIC->ISPR[0];
+    /* TODO */
+    return 0;
 }
 
 

@@ -26,7 +26,6 @@ class CortexM1(CPU):
     endianness           = "little"
     reset_address        = 0x0000_0000
     gcc_triple           = "arm-none-eabi"
-    gcc_flags            = "-march=armv6-m -mthumb -mfloat-abi=soft"
     linker_output_format = "elf32-littlearm"
     nop                  = "nop"
     io_regions           = {
@@ -35,6 +34,7 @@ class CortexM1(CPU):
         0xa000_0000 : 0x6000_0000,
     }
 
+    # Memory Mapping.
     @property
     def mem_map(self):
         return {
@@ -43,6 +43,14 @@ class CortexM1(CPU):
             "main_ram" : 0x1000_0000,
             "csr"      : 0xa000_0000,
         }
+
+    # GCC Flags.
+    @property
+    def gcc_flags(self):
+        flags =  f" -march=armv6-m -mthumb -mfloat-abi=soft"
+        flags += f" -D__CortexM1__"
+        flags += f" -DUART_POLLING"
+        return flags
 
     def __init__(self, platform, variant="standard"):
         self.platform     = platform
