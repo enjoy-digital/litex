@@ -1573,7 +1573,7 @@ class LiteXSoC(SoC):
                 self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk, eth_tx_clk)
 
     # Add Etherbone --------------------------------------------------------------------------------
-    def add_etherbone(self, name="etherbone", phy=None, phy_cd="eth",
+    def add_etherbone(self, name="etherbone", phy=None, phy_cd="eth", data_width=8,
         mac_address             = 0x10e2d5000000,
         ip_address              = "192.168.1.50",
         udp_port                = 1234,
@@ -1585,27 +1585,36 @@ class LiteXSoC(SoC):
         from liteeth.phy.model import LiteEthPHYModel
 
         # Core
+        assert data_width in [8, 32]
+        with_sys_datapath = (data_width == 32)
         self.check_if_exists(name + "_ethcore")
         ethcore = LiteEthUDPIPCore(
             phy         = phy,
             mac_address = mac_address,
             ip_address  = ip_address,
-            clk_freq    = self.clk_freq)
-        # Use PHY's eth_tx/eth_rx clock domains.
-        ethcore = ClockDomainsRenamer({
-            "eth_tx": phy_cd + "_tx",
-            "eth_rx": phy_cd + "_rx",
-            "sys":    phy_cd + "_rx"})(ethcore)
+            clk_freq    = self.clk_freq,
+            dw          = data_width,
+            with_sys_datapath = with_sys_datapath,
+        )
+        if not with_sys_datapath:
+            # Use PHY's eth_tx/eth_rx clock domains.
+            ethcore = ClockDomainsRenamer({
+                "eth_tx": phy_cd + "_tx",
+                "eth_rx": phy_cd + "_rx",
+                "sys":    phy_cd + "_rx"})(ethcore)
         setattr(self.submodules, "ethcore_" + name, ethcore)
 
-        # Create Etherbone clock domain and run it from sys clock domain.
-        setattr(self.clock_domains, f"cd_{name}", ClockDomain(name))
-        self.comb += getattr(self, f"cd_{name}").clk.eq(ClockSignal("sys"))
-        self.comb += getattr(self, f"cd_{name}").rst.eq(ResetSignal("sys"))
+        etherbone_cd = "sys"
+        if not with_sys_datapath:
+            # Create Etherbone clock domain and run it from sys clock domain.
+            etherbone_cd = name
+            setattr(self.clock_domains, f"cd_{name}", ClockDomain(name))
+            self.comb += getattr(self, f"cd_{name}").clk.eq(ClockSignal("sys"))
+            self.comb += getattr(self, f"cd_{name}").rst.eq(ResetSignal("sys"))
 
         # Etherbone
         self.check_if_exists(name)
-        etherbone = LiteEthEtherbone(ethcore.udp, udp_port, buffer_depth=buffer_depth, cd=name)
+        etherbone = LiteEthEtherbone(ethcore.udp, udp_port, buffer_depth=buffer_depth, cd=etherbone_cd)
         setattr(self.submodules, name, etherbone)
         self.bus.add_master(master=etherbone.wishbone.bus)
 
