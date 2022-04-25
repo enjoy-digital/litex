@@ -379,6 +379,7 @@ class PacketFIFO(Module):
         # Create the FIFOs.
         payload_description = stream.EndpointDescription(payload_layout=payload_layout)
         param_description   = stream.EndpointDescription(param_layout=param_layout)
+        param_depth         = param_depth + 1 # +1 to allow dequeuing current while enqueuing next.
         self.submodules.payload_fifo = payload_fifo = stream.SyncFIFO(payload_description, payload_depth, buffered)
         self.submodules.param_fifo   = param_fifo   = stream.SyncFIFO(param_description,   param_depth,   buffered)
 
