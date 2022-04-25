@@ -1520,6 +1520,7 @@ class LiteXSoC(SoC):
 
     # Add Ethernet ---------------------------------------------------------------------------------
     def add_ethernet(self, name="ethmac", phy=None, phy_cd="eth", dynamic_ip=False, software_debug=False,
+        data_width              = 8,
         nrxslots                = 2,
         ntxslots                = 2,
         with_timestamp          = False,
@@ -1529,6 +1530,8 @@ class LiteXSoC(SoC):
         from liteeth.phy.model import LiteEthPHYModel
 
         # MAC.
+        assert data_width in [8, 32]
+        with_sys_datapath = (data_width == 32)
         self.check_if_exists(name)
         if with_timestamp:
             self.timer0.add_uptime()
@@ -1540,11 +1543,13 @@ class LiteXSoC(SoC):
             nrxslots   = nrxslots,
             ntxslots   = ntxslots,
             timestamp  = None if not with_timestamp else self.timer0.uptime_cycles,
-            with_preamble_crc = not software_debug)
-        # Use PHY's eth_tx/eth_rx clock domains.
-        ethmac = ClockDomainsRenamer({
-            "eth_tx": phy_cd + "_tx",
-            "eth_rx": phy_cd + "_rx"})(ethmac)
+            with_preamble_crc = not software_debug,
+            with_sys_datapath = with_sys_datapath)
+        if not with_sys_datapath:
+            # Use PHY's eth_tx/eth_rx clock domains.
+            ethmac = ClockDomainsRenamer({
+                "eth_tx": phy_cd + "_tx",
+                "eth_rx": phy_cd + "_rx"})(ethmac)
         setattr(self.submodules, name, ethmac)
         # Compute Regions size and add it to the SoC.
         ethmac_region_size = (ethmac.rx_slots.constant + ethmac.tx_slots.constant)*ethmac.slot_size.constant
