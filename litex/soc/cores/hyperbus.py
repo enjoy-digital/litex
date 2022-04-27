@@ -24,7 +24,7 @@ class HyperRAM(Module):
 
     This core favors portability and ease of use over performance.
     """
-    def __init__(self, pads, latency=6):
+    def __init__(self, frequency, pads, latency=6, Tcsm=4e-6):
         self.pads = pads
         self.bus  = bus = wishbone.Interface()
 
@@ -60,6 +60,25 @@ class HyperRAM(Module):
             self.comb += pads.clk.eq(clk)
         else:
             self.specials += DifferentialOutput(clk, pads.clk_p, pads.clk_n)
+
+        # Timeout counter --------------------------------------------------------------------------
+        timeout_value = int(Tcsm * frequency)
+        timeout_cnt   = Signal(32)
+        timeout_rst   = Signal()
+        timeout       = Signal()
+
+        self.sync += [
+            If(timeout_rst,
+                timeout_cnt.eq(0),
+                timeout.eq(0)
+            ).Else(
+                If(timeout_cnt < timeout_value,
+                    timeout_cnt.eq(timeout_cnt + 1)
+                ).Else(
+                    timeout.eq(1)
+                )
+            ),
+        ]
 
         # Clock Generation (sys_clk/4) -------------------------------------------------------------
         self.sync += clk_phase.eq(clk_phase + 1)
@@ -122,6 +141,7 @@ class HyperRAM(Module):
         first  = Signal()
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
+            timeout_rst.eq(1),
             NextValue(first, 1),
             If(bus.cyc & bus.stb,
                 If(clk_phase == 0,
@@ -172,7 +192,7 @@ class HyperRAM(Module):
                     If(n == (states - 1),
                         NextValue(first, 0),
                         # Continue burst when a consecutive access is ready.
-                        If(bus.stb & bus.cyc & (bus.we == bus_we) & (bus.adr == (bus_adr + 1)),
+                        If(bus.stb & bus.cyc & (bus.we == bus_we) & (bus.adr == (bus_adr + 1)) & ~timeout,
                             # Latch Bus.
                             bus_latch.eq(1),
                             # Early Write Ack (to allow bursting).
