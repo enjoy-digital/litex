@@ -159,7 +159,9 @@ class HyperRAM(Module):
             # Wait for 6*2 cycles...
             If(cycles == (6*2 - 1),
                 NextState("WAIT-LATENCY")
-            )
+            ),
+            # Always check if bus cycle is still active
+            If(~bus.cyc, NextState("IDLE"))
         )
         fsm.act("WAIT-LATENCY",
             # Set CSn.
@@ -171,7 +173,9 @@ class HyperRAM(Module):
                 # Early Write Ack (to allow bursting).
                 bus.ack.eq(bus.we),
                 NextState("READ-WRITE-DATA0")
-            )
+            ),
+            # Always check if bus cycle is still active
+            If(~bus.cyc, NextState("IDLE"))
         )
         states = {8:4, 16:2}[dw]
         for n in range(states):
