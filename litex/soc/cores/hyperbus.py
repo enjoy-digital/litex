@@ -7,7 +7,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
-from migen.genlib.misc import timeline
+from migen.genlib.misc import WaitTimer
 
 from litex.build.io import DifferentialOutput
 
@@ -16,6 +16,7 @@ from litex.soc.interconnect import wishbone
 # HyperRAM -----------------------------------------------------------------------------------------
 
 class HyperRAM(Module):
+    tCSM = 4e-6
     """HyperRAM
 
     Provides a very simple/minimal HyperRAM core that should work with all FPGA/HyperRam chips:
@@ -24,7 +25,7 @@ class HyperRAM(Module):
 
     This core favors portability and ease of use over performance.
     """
-    def __init__(self, frequency, pads, latency=6, Tcsm=4e-6):
+    def __init__(self, pads, latency=6, sys_clk_freq=None):
         self.pads = pads
         self.bus  = bus = wishbone.Interface()
 
@@ -61,24 +62,10 @@ class HyperRAM(Module):
         else:
             self.specials += DifferentialOutput(clk, pads.clk_p, pads.clk_n)
 
-        # Timeout counter --------------------------------------------------------------------------
-        timeout_value = int(Tcsm * frequency)
-        timeout_cnt   = Signal(32)
-        timeout_rst   = Signal()
-        timeout       = Signal()
-
-        self.sync += [
-            If(timeout_rst,
-                timeout_cnt.eq(0),
-                timeout.eq(0)
-            ).Else(
-                If(timeout_cnt < timeout_value,
-                    timeout_cnt.eq(timeout_cnt + 1)
-                ).Else(
-                    timeout.eq(1)
-                )
-            ),
-        ]
+        # Burst Timer ------------------------------------------------------------------------------
+        sys_clk_freq = 10e6 if sys_clk_freq is None else sys_clk_freq
+        burst_timer  = WaitTimer(int(sys_clk_freq*self.tCSM))
+        self.submodules += burst_timer
 
         # Clock Generation (sys_clk/4) -------------------------------------------------------------
         self.sync += clk_phase.eq(clk_phase + 1)
@@ -141,7 +128,6 @@ class HyperRAM(Module):
         first  = Signal()
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
-            timeout_rst.eq(1),
             NextValue(first, 1),
             If(bus.cyc & bus.stb,
                 If(clk_phase == 0,
@@ -159,9 +145,7 @@ class HyperRAM(Module):
             # Wait for 6*2 cycles...
             If(cycles == (6*2 - 1),
                 NextState("WAIT-LATENCY")
-            ),
-            # Always check if bus cycle is still active
-            If(~bus.cyc, NextState("IDLE"))
+            )
         )
         fsm.act("WAIT-LATENCY",
             # Set CSn.
@@ -173,13 +157,13 @@ class HyperRAM(Module):
                 # Early Write Ack (to allow bursting).
                 bus.ack.eq(bus.we),
                 NextState("READ-WRITE-DATA0")
-            ),
-            # Always check if bus cycle is still active
-            If(~bus.cyc, NextState("IDLE"))
+            )
         )
         states = {8:4, 16:2}[dw]
         for n in range(states):
             fsm.act(f"READ-WRITE-DATA{n}",
+                # Enable Burst Timer.
+                burst_timer.wait.eq(1),
                 # Set CSn.
                 cs.eq(1),
                 # Send Data on DQ/RWDS (for write).
@@ -196,13 +180,13 @@ class HyperRAM(Module):
                     If(n == (states - 1),
                         NextValue(first, 0),
                         # Continue burst when a consecutive access is ready.
-                        If(bus.stb & bus.cyc & (bus.we == bus_we) & (bus.adr == (bus_adr + 1)) & ~timeout,
+                        If(bus.stb & bus.cyc & (bus.we == bus_we) & (bus.adr == (bus_adr + 1)) & (~burst_timer.done),
                             # Latch Bus.
                             bus_latch.eq(1),
                             # Early Write Ack (to allow bursting).
                             bus.ack.eq(bus.we)
                         # Else end the burst.
-                        ).Elif(bus_we | ~first,
+                        ).Elif(bus_we | (~first) | burst_timer.done,
                             NextState("IDLE")
                         )
                     ),
