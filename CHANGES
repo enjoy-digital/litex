@@ -8,6 +8,9 @@
 	- software/liblitedram:    Fix delay reconfiguration issue on ECP5/DDR3.
 	- cores/jtag:              Fix chain parameter on XilinxJTAG.
 	- soc/arguments:           Fix l2_size handling.
+	- cpu/vexriscv_smp:        Fix pbus_width when using direct LiteDRAM interface.
+	- libbase/i2c/i2c_poll:    Also check for write in i2c_scan (some chips are write only).
+	- build/vivado:            Fix timing constraints application on nets/ports.
 
     [> Added Features
 	-----------------
@@ -62,6 +65,20 @@
 	- soc/cpu:            Expose optional CPU configuration parameters to users (ex VexRiscv-SMP/NaxRiscv).
 	- soc:                Improve logs.
 	- build/Efinix:       Add Atmel programmer.
+	- stream/cdc:         Add optional common reset.
+	- LiteDRAM:           Decouple DQ/DQS widths on S7DDRPHY.
+	- cores/ws2812:       Improve timings at low sys_clk_freq.
+	- soc/builder:        Add --no-compile (similar to --no-compile-gateware --no-compile-software).
+	- software/demo:      Add --mem parameter to allow compilation for execution in ROM/RAM.
+	- cpu/naxrsicv:       Add JTAG debug support.
+	- cores/usb_fifo:     Re-implement FT245PHYSYnchronous.
+	- cores/jtag:         Add JTAGBone/JTAG-UART support on Zynq/ZynqMP.
+	- interconnect/sram:  Add SRAM burst support.
+	- liblitesata:        Improve SATA init.
+	- soc/cpu:            Improve command line listing.
+	- soc/cores/uart:     Decouple data/address width on Stream2Wishbone.
+	-
+
 
     [> API changes/Deprecation
 	--------------------------
