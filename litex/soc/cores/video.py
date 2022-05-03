@@ -740,7 +740,7 @@ class VideoDVIPHY(VideoGenericPHY): pass
 # HDMI (Generic).
 
 class VideoHDMI10to1Serializer(Module):
-    def __init__(self, data_i, data_o, clock_domain):
+    def __init__(self, data_i, data_o, clock_domain, data_o_n=Signal(), drive_both=False):
         # Clock Domain Crossing.
         self.submodules.cdc = stream.ClockDomainCrossing([("data", 10)], cd_from=clock_domain, cd_to=clock_domain + "5x")
         self.comb += self.cdc.sink.valid.eq(1)
@@ -758,9 +758,16 @@ class VideoHDMI10to1Serializer(Module):
             i2  = self.gearbox.source.data[1],
             o   = data_o,
         )
+        if drive_both:
+            self.specials += DDROutput(
+                clk = ClockSignal(clock_domain + "5x"),
+                i1  = ~self.gearbox.source.data[0],
+                i2  = ~self.gearbox.source.data[1],
+                o   = data_o_n,
+            )
 
 class VideoHDMIPHY(Module):
-    def __init__(self, pads, clock_domain="sys", pn_swap=[]):
+    def __init__(self, pads, clock_domain="sys", pn_swap=[], drive_both=False):
         self.sink = sink = stream.Endpoint(video_data_layout)
 
         # # #
@@ -770,10 +777,13 @@ class VideoHDMIPHY(Module):
 
         # Clocking + Pseudo Differential Signaling.
         self.specials += DDROutput(i1=1, i2=0, o=pads.clk_p, clk=ClockSignal(clock_domain))
+        if drive_both:
+            self.specials += DDROutput(i1=0, i2=1, o=pads.clk_n, clk=ClockSignal(clock_domain))
+
+        data_n = Signal()
 
         # Encode/Serialize Datas.
         for color in ["r", "g", "b"]:
-
             # TMDS Encoding.
             encoder = ClockDomainsRenamer(clock_domain)(TMDSEncoder())
             setattr(self.submodules, f"{color}_encoder", encoder)
@@ -784,10 +794,14 @@ class VideoHDMIPHY(Module):
             # 10:1 Serialization + Pseudo Differential Signaling.
             c2d  = {"r": 0, "g": 1, "b": 2}
             data = encoder.out if color not in pn_swap else ~encoder.out
+            if drive_both:
+                data_n = getattr(pads, f"data{c2d[color]}_n")
             serializer = VideoHDMI10to1Serializer(
                 data_i       = data,
                 data_o       = getattr(pads, f"data{c2d[color]}_p"),
+                data_o_n     = data_n,
                 clock_domain = clock_domain,
+                drive_both   = drive_both,
             )
             setattr(self.submodules, f"{color}_serializer", serializer)
 
