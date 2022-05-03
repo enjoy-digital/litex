@@ -229,17 +229,17 @@ def main():
         dump_registers(csr_csv=csr_csv, port=port, filter=args.filter)
 
     if args.read:
-        if isinstance(args.read, str):
+        try:
+           addr = int(args.read, 0)
+        except ValueError:
             addr = reg2addr(csr_csv, args.read)
-        else:
-            addr = int(args.read, 0)
         read_memory(csr_csv=csr_csv, port=port, addr=addr, length=int(args.length, 0))
 
     if args.write:
-        if isinstance(args.write[0], str):
+        try:
+           addr = int(args.write[0], 0)
+        except ValueError:
             addr = reg2addr(csr_csv, args.write[0])
-        else:
-            addr = int(args.write[0], 0)
         write_memory(csr_csv=csr_csv, port=port, addr=addr, data=int(args.write[1], 0))
 
     if args.gui:
