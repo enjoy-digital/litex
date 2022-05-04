@@ -57,13 +57,15 @@ class SetupError(Exception):
 # Get SHA1: git rev-parse --short=7 HEAD
 
 class GitRepo:
-    def __init__(self, url, clone="regular", develop=True, sha1=None, branch="master"):
+    def __init__(self, url, clone="regular", develop=True, sha1=None, branch="master", tag=None):
         assert clone in ["regular", "recursive"]
         self.url     = url
         self.clone   = clone
         self.develop = develop
         self.sha1    = sha1
         self.branch  = branch
+        self.tag     = tag
+
 
 git_repos = {
     # HDL.
@@ -72,21 +74,21 @@ git_repos = {
     # LiteX SoC builder
     "pythondata-software-picolibc":    GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
     "pythondata-software-compiler_rt": GitRepo(url="https://github.com/litex-hub/"),
-    "litex":                           GitRepo(url="https://github.com/enjoy-digital/"),
+    "litex":                           GitRepo(url="https://github.com/enjoy-digital/", tag=True),
 
     # LiteX Cores Ecosystem.
-    "liteeth":      GitRepo(url="https://github.com/enjoy-digital/"),
-    "litedram":     GitRepo(url="https://github.com/enjoy-digital/"),
-    "litepcie":     GitRepo(url="https://github.com/enjoy-digital/"),
-    "litesata":     GitRepo(url="https://github.com/enjoy-digital/"),
-    "litesdcard":   GitRepo(url="https://github.com/enjoy-digital/"),
-    "liteiclink":   GitRepo(url="https://github.com/enjoy-digital/"),
-    "litescope":    GitRepo(url="https://github.com/enjoy-digital/"),
-    "litejesd204b": GitRepo(url="https://github.com/enjoy-digital/"),
-    "litespi":      GitRepo(url="https://github.com/litex-hub/"),
+    "liteeth":      GitRepo(url="https://github.com/enjoy-digital/", tag=True),
+    "litedram":     GitRepo(url="https://github.com/enjoy-digital/", tag=True),
+    "litepcie":     GitRepo(url="https://github.com/enjoy-digital/", tag=True),
+    "litesata":     GitRepo(url="https://github.com/enjoy-digital/", tag=True),
+    "litesdcard":   GitRepo(url="https://github.com/enjoy-digital/", tag=True),
+    "liteiclink":   GitRepo(url="https://github.com/enjoy-digital/", tag=True),
+    "litescope":    GitRepo(url="https://github.com/enjoy-digital/", tag=True),
+    "litejesd204b": GitRepo(url="https://github.com/enjoy-digital/", tag=True),
+    "litespi":      GitRepo(url="https://github.com/litex-hub/", tag=True),
 
     # LiteX Boards.
-    "litex-boards": GitRepo(url="https://github.com/litex-hub/", clone="regular"),
+    "litex-boards": GitRepo(url="https://github.com/litex-hub/", clone="regular", tag=True),
 
     # LiteX pythondata.
     "pythondata-misc-tapcfg":      GitRepo(url="https://github.com/litex-hub/"),
@@ -162,9 +164,20 @@ def litex_setup_auto_update():
     except:
         pass
 
+# Git helpers --------------------------------------------------------------------------------------
+
+def git_checkout(sha1=None, tag=None):
+    assert not ((sha1 is None) and (tag is None))
+    if sha1 is not None:
+        os.system(f"git checkout {sha1:07x}")
+    if tag is not None:
+        sha1_tag_cmd = ["git", "rev-list", "-n 1", tag]
+        sha1_tag     = subprocess.check_output(sha1_tag_cmd).decode("UTF-8")[:-1]
+        os.system(f"git checkout {sha1_tag}")
+
 # Git repositories initialization ------------------------------------------------------------------
 
-def litex_setup_init_repos(config="standard", dev_mode=False):
+def litex_setup_init_repos(config="standard", tag=None, dev_mode=False):
     print_status("Initializing Git repositories...", underline=True)
     for name in install_configs[config]:
         repo = git_repos[name]
@@ -179,16 +192,26 @@ def litex_setup_init_repos(config="standard", dev_mode=False):
                 url     = repo_url + name + ".git",
                 options = "--recursive" if repo.clone == "recursive" else ""
                 ), shell=True)
+            os.chdir(os.path.join(current_path, name))
+            # Use specific Tag (Optional).
+            if repo.tag is not None:
+                # Priority to passed tag (if specified).
+                if tag is not None:
+                    git_checkout(tag=tag)
+                    continue
+                # Else fallback to repo tag (if specified).
+                if isinstance(repo.tag, str):
+                    git_checkout(tag=tag)
+                    continue
             # Use specific SHA1 (Optional).
             if repo.sha1 is not None:
-                os.chdir(os.path.join(current_path, name))
-                os.system(f"git checkout {repo.sha1:07x}")
+                git_checkout(sha1=repo.sha1)
         else:
             print_status(f"{name} Git Repo already present.")
 
 # Git repositories update --------------------------------------------------------------------------
 
-def litex_setup_update_repos(config="standard"):
+def litex_setup_update_repos(config="standard", tag=None):
     print_status("Updating Git repositories...", underline=True)
     for name in install_configs[config]:
         repo = git_repos[name]
@@ -205,10 +228,19 @@ def litex_setup_update_repos(config="standard"):
         # Recursive Update (Optional).
         if repo.clone == "recursive":
             subprocess.check_call("git submodule update --init --recursive", shell=True)
+        # Use specific Tag (Optional).
+        if repo.tag is not None:
+            # Priority to passed tag (if specified).
+            if tag is not None:
+                git_checkout(tag=tag)
+                continue
+            # Else fallback to repo tag (if specified).
+            if isinstance(repo.tag, str):
+                git_checkout(tag=tag)
+                continue
         # Use specific SHA1 (Optional).
         if repo.sha1 is not None:
-            os.chdir(os.path.join(current_path, name))
-            os.system(f"git checkout {repo.sha1:07x}")
+            git_checkout(sha1=repo.sha1)
 
 # Git repositories install -------------------------------------------------------------------------
 
@@ -334,7 +366,9 @@ def main():
     parser.add_argument("--install",   action="store_true", help="Install Git repositories.")
     parser.add_argument("--user",      action="store_true", help="Install in User-Mode.")
     parser.add_argument("--config",    default="standard",  help="Install config (minimal, standard, full).")
+    parser.add_argument("--tag",       default=None,        help="Use version from release tag.")
     parser.add_argument("--freeze",    action="store_true", help="Freeze and display current config.")
+
 
     # GCC toolchains.
     parser.add_argument("--gcc", default=None, help="Download/Extract GCC Toolchain (riscv, powerpc, openrisc or lm32).")
@@ -361,11 +395,11 @@ def main():
 
     # Init.
     if args.init:
-        litex_setup_init_repos(config=args.config, dev_mode=args.dev)
+        litex_setup_init_repos(config=args.config, tag=args.tag, dev_mode=args.dev)
 
     # Update.
     if args.update:
-        litex_setup_update_repos(config=args.config)
+        litex_setup_update_repos(config=args.config, tag=args.tag)
 
     # Install.
     if args.install:
