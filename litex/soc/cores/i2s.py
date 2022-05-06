@@ -14,12 +14,15 @@ from litex.soc.interconnect.csr_eventmanager import *
 from litex.soc.integration.doc import AutoDoc, ModuleDoc
 from enum import Enum
 import math
+
+from litex.soc.cores.ram.xilinx_fifo_sync_macro import FIFOSyncMacro
+
 class I2S_FORMAT(Enum):
     I2S_STANDARD = 1
     I2S_LEFT_JUSTIFIED = 2
 
 class S7I2S(Module, AutoCSR, AutoDoc):
-    def __init__(self, pads, fifo_depth=256, controller=False, master=False, concatenate_channels=True, sample_width=16, frame_format=I2S_FORMAT.I2S_LEFT_JUSTIFIED, lrck_ref_freq=100e6, lrck_freq=44100, bits_per_channel=28, document_interrupts=False):
+    def __init__(self, pads, fifo_depth=256, controller=False, master=False, concatenate_channels=True, sample_width=16, frame_format=I2S_FORMAT.I2S_LEFT_JUSTIFIED, lrck_ref_freq=100e6, lrck_freq=44100, bits_per_channel=28, document_interrupts=False, toolchain="vivado"):
         if master == True:
             print("Master/slave terminology deprecated, please use controller/peripheral. Please see http://oshwa.org/a-resolution-to-redefine-spi-signal-names.")
             controller = True
@@ -163,12 +166,11 @@ class S7I2S(Module, AutoCSR, AutoDoc):
         wr_ack = Signal()
         self.comb += [
             If(bus.we,
-               bus.ack.eq(wr_ack),
+                bus.ack.eq(wr_ack),
             ).Else(
                 bus.ack.eq(rd_ack),
             )
         ]
-
 
         if controller == True:
             if bits_per_channel < sample_width and frame_format == I2S_FORMAT.I2S_STANDARD:
@@ -209,19 +211,6 @@ class S7I2S(Module, AutoCSR, AutoDoc):
 
         # build the RX subsystem
         if hasattr(pads, 'rx'):
-            rx_rd_d        = Signal(fifo_data_width)
-            rx_almostfull  = Signal()
-            rx_almostempty = Signal()
-            rx_full        = Signal()
-            rx_empty       = Signal()
-            rx_rdcount     = Signal(9)
-            rx_rderr       = Signal()
-            rx_wrerr       = Signal()
-            rx_wrcount     = Signal(9)
-            rx_rden        = Signal()
-            rx_wr_d        = Signal(fifo_data_width)
-            rx_wren        = Signal()
-
             self.rx_ctl = CSRStorage(description="Rx data path control",
                 fields=[
                     CSRField("enable", size=1, description="Enable the receiving data"),
@@ -250,11 +239,11 @@ class S7I2S(Module, AutoCSR, AutoDoc):
             rx_reset   = Signal()
             self.sync += [
                 If(self.rx_ctl.fields.reset,
-                   rx_rst_cnt.eq(5),  # 5 cycles reset required by design
-                   rx_reset.eq(1)
+                    rx_rst_cnt.eq(5),  # 5 cycles reset required by design
+                    rx_reset.eq(1)
                 ).Else(
                     If(rx_rst_cnt == 0,
-                       rx_reset.eq(0)
+                        rx_reset.eq(0)
                     ).Else(
                         rx_rst_cnt.eq(rx_rst_cnt - 1),
                         rx_reset.eq(1)
@@ -262,38 +251,19 @@ class S7I2S(Module, AutoCSR, AutoDoc):
                 )
             ]
 
-            # At a width of 32 bits, an 18kiB fifo is 512 entries deep
-            self.specials += Instance("FIFO_SYNC_MACRO",
-                p_DEVICE              = "7SERIES",
-                p_FIFO_SIZE           = "18Kb",
-                p_DATA_WIDTH          = fifo_data_width,
-                p_ALMOST_EMPTY_OFFSET = 8,
-                p_ALMOST_FULL_OFFSET  = (512 - fifo_depth),
-                p_DO_REG              = 0,
-                i_CLK         = ClockSignal(),
-                i_RST         = rx_reset,
-                o_ALMOSTFULL  = rx_almostfull,
-                o_ALMOSTEMPTY = rx_almostempty,
-                o_FULL        = rx_full,
-                o_EMPTY       = rx_empty,
-                i_WREN        = rx_wren & ~rx_reset,
-                i_DI          = rx_wr_d,
-                i_RDEN        = rx_rden & ~rx_reset,
-                o_DO          = rx_rd_d,
-                o_RDCOUNT     = rx_rdcount,
-                o_RDERR       = rx_rderr,
-                o_WRCOUNT     = rx_wrcount,
-                o_WRERR       = rx_wrerr,
-            )
+            self.submodules.rx_fifo = fifo = FIFOSyncMacro("18Kb", data_width=fifo_data_width,
+                almost_empty_offset=8, almost_full_offset=(512 - fifo_depth), toolchain=toolchain)
+            self.comb += fifo.reset.eq(rx_reset)
+
             self.comb += [  # Wire up the status signals and interrupts
-                self.rx_stat.fields.overflow.eq(rx_wrerr),
-                self.rx_stat.fields.underflow.eq(rx_rderr),
-                self.rx_stat.fields.dataready.eq(rx_almostfull),
-                self.rx_stat.fields.wrcount.eq(rx_wrcount),
-                self.rx_stat.fields.rdcount.eq(rx_rdcount),
-                self.rx_stat.fields.empty.eq(rx_empty),
-                self.ev.rx_ready.trigger.eq(rx_almostfull),
-                self.ev.rx_error.trigger.eq(rx_wrerr | rx_rderr),
+                self.rx_stat.fields.overflow.eq(fifo.wrerr),
+                self.rx_stat.fields.underflow.eq(fifo.rderr),
+                self.rx_stat.fields.dataready.eq(fifo.almostfull),
+                self.rx_stat.fields.wrcount.eq(fifo.wrcount),
+                self.rx_stat.fields.rdcount.eq(fifo.rdcount),
+                self.rx_stat.fields.empty.eq(fifo.empty),
+                self.ev.rx_ready.trigger.eq(fifo.almostfull),
+                self.ev.rx_error.trigger.eq(fifo.wrerr | fifo.rderr),
             ]
             bus_read    = Signal()
             bus_read_d  = Signal()
@@ -302,18 +272,18 @@ class S7I2S(Module, AutoCSR, AutoDoc):
             self.sync += [  # This is the bus responder -- only works for uncached memory regions
                 bus_read_d.eq(bus_read),
                 If(bus_read & ~bus_read_d, # One response, one cycle
-                   rd_ack_pipe.eq(1),
-                   If(~rx_empty,
-                      bus.dat_r.eq(rx_rd_d),
-                      rx_rden.eq(1),
-                   ).Else(
-                       # Don't stall the bus indefinitely if we try to read from an empty fifo...just
-                       # return garbage
-                       bus.dat_r.eq(0xdeadbeef),
-                       rx_rden.eq(0),
-                   )
+                    rd_ack_pipe.eq(1),
+                    If(~fifo.empty,
+                        bus.dat_r.eq(fifo.rd_d),
+                        fifo.rden.eq(~rx_reset),
+                    ).Else(
+                        # Don't stall the bus indefinitely if we try to read from an empty fifo...just
+                        # return garbage
+                        bus.dat_r.eq(0xdeadbeef),
+                        fifo.rden.eq(0),
+                    )
                 ).Else(
-                    rx_rden.eq(0),
+                    fifo.rden.eq(0),
                     rd_ack_pipe.eq(0),
                 ),
                 rd_ack.eq(rd_ack_pipe),
@@ -325,14 +295,14 @@ class S7I2S(Module, AutoCSR, AutoDoc):
 
             self.submodules.rxi2s = rxi2s = FSM(reset_state="IDLE")
             rxi2s.act("IDLE",
-                NextValue(rx_wr_d, 0),
+                NextValue(fifo.wr_d, 0),
                 If(self.rx_ctl.fields.enable,
                     # Wait_sync guarantees we start at the beginning of a left frame, and not in
                     # the middle
                     If(rising_edge & (~sync_pin if frame_format == I2S_FORMAT.I2S_STANDARD else sync_pin),
                         NextState("WAIT_SYNC"),
                         NextValue(rx_delay_cnt, rx_delay_val)
-                   )
+                    )
                 )
             ),
             rxi2s.act("WAIT_SYNC",
@@ -351,7 +321,7 @@ class S7I2S(Module, AutoCSR, AutoDoc):
                 If(~self.rx_ctl.fields.enable,
                     NextState("IDLE")
                 ).Else(
-                    NextValue(rx_wr_d, Cat(rx_pin, rx_wr_d[:-1])),
+                    NextValue(fifo.wr_d, Cat(rx_pin, fifo.wr_d[:-1])),
                     NextValue(rx_cnt, rx_cnt - 1),
                     NextState("LEFT_WAIT")
                 )
@@ -393,7 +363,7 @@ class S7I2S(Module, AutoCSR, AutoDoc):
                                         NextValue(rx_cnt, sample_width),
                                         NextValue(rx_delay_cnt,rx_delay_val),
                                         NextState("RIGHT"),
-                                        rx_wren.eq(1) # Pulse rx_wren to write the current data word
+                                        fifo.wren.eq(~rx_reset) # Pulse rx_wren to write the current data word
                                     ).Else(
                                         NextValue(rx_delay_cnt, rx_delay_cnt - 1),
                                         NextState("LEFT_WAIT")
@@ -412,7 +382,7 @@ class S7I2S(Module, AutoCSR, AutoDoc):
                 If(~self.rx_ctl.fields.enable,
                     NextState("IDLE")
                 ).Else(
-                    NextValue(rx_wr_d, Cat(rx_pin, rx_wr_d[:-1])),
+                    NextValue(fifo.wr_d, Cat(rx_pin, fifo.wr_d[:-1])),
                     NextValue(rx_cnt, rx_cnt - 1),
                     NextState("RIGHT_WAIT")
                 )
@@ -427,7 +397,7 @@ class S7I2S(Module, AutoCSR, AutoDoc):
                                 NextValue(rx_cnt, sample_width),
                                 NextValue(rx_delay_cnt,rx_delay_val),
                                 NextState("LEFT"),
-                                rx_wren.eq(1) # Pulse rx_wren to write the current data word
+                                fifo.wren.eq(~rx_reset) # Pulse rx_wren to write the current data word
                             ).Else(
                                 NextValue(rx_delay_cnt, rx_delay_cnt - 1),
                                 NextState("RIGHT_WAIT")
@@ -442,19 +412,6 @@ class S7I2S(Module, AutoCSR, AutoDoc):
 
         # Build the TX subsystem
         if hasattr(pads, 'tx'):
-            tx_rd_d        = Signal(fifo_data_width)
-            tx_almostfull  = Signal()
-            tx_almostempty = Signal()
-            tx_full        = Signal()
-            tx_empty       = Signal()
-            tx_rdcount     = Signal(9)
-            tx_rderr       = Signal()
-            tx_wrerr       = Signal()
-            tx_wrcount     = Signal(9)
-            tx_rden        = Signal()
-            tx_wr_d        = Signal(fifo_data_width)
-            tx_wren        = Signal()
-
             self.tx_ctl = CSRStorage(description="Tx data path control",
                 fields=[
                     CSRField("enable", size=1, description="Enable the transmission data"),
@@ -479,15 +436,17 @@ class S7I2S(Module, AutoCSR, AutoDoc):
                     CSRField("lrck_freq", size=24, reset=lrck_freq, description="Audio sampling rate frequency"),
                 ])
 
+
             tx_rst_cnt = Signal(3)
-            tx_reset   = Signal()
+            tx_reset = Signal()
+
             self.sync += [
                 If(self.tx_ctl.fields.reset,
-                   tx_rst_cnt.eq(5), # 5 cycles reset required by design
-                   tx_reset.eq(1)
+                    tx_rst_cnt.eq(5), # 5 cycles reset required by design
+                    tx_reset.eq(1)
                 ).Else(
                     If(tx_rst_cnt == 0,
-                       tx_reset.eq(0)
+                        tx_reset.eq(0)
                     ).Else(
                         tx_rst_cnt.eq(tx_rst_cnt - 1),
                         tx_reset.eq(1)
@@ -495,55 +454,35 @@ class S7I2S(Module, AutoCSR, AutoDoc):
                 )
             ]
 
-            # At a width of 32 bits, an 18kiB fifo is 512 entries deep
-            self.specials += Instance("FIFO_SYNC_MACRO",
-                p_DEVICE              = "7SERIES",
-                p_FIFO_SIZE           = "18Kb",
-                p_DATA_WIDTH          = fifo_data_width,
-                p_ALMOST_EMPTY_OFFSET = (512 - fifo_depth),
-                p_ALMOST_FULL_OFFSET  = 8,
-                p_DO_REG              = 0,
-                i_CLK         = ClockSignal(),
-                i_RST         = tx_reset,
-                o_ALMOSTFULL  = tx_almostfull,
-                o_ALMOSTEMPTY = tx_almostempty,
-                o_FULL        = tx_full,
-                o_EMPTY       = tx_empty,
-                i_WREN        = tx_wren & ~tx_reset,
-                i_DI          = tx_wr_d,
-                i_RDEN        = tx_rden & ~tx_reset,
-                o_DO          = tx_rd_d,
-                o_RDCOUNT     = tx_rdcount,
-                o_RDERR       = tx_rderr,
-                o_WRCOUNT     = tx_wrcount,
-                o_WRERR       = tx_wrerr,
-            )
+            self.submodules.tx_fifo = fifo = FIFOSyncMacro("18Kb", data_width=fifo_data_width,
+                almost_empty_offset=(512 - fifo_depth), almost_full_offset=8, toolchain=toolchain)
+            self.comb += fifo.reset.eq(tx_reset)
 
             self.comb += [  # Wire up the status signals and interrupts
-                self.tx_stat.fields.underflow.eq(tx_rderr),
-                self.tx_stat.fields.free.eq(tx_almostempty),
-                self.tx_stat.fields.almostfull.eq(tx_almostfull),
-                self.tx_stat.fields.full.eq(tx_full),
-                self.tx_stat.fields.empty.eq(tx_empty),
-                self.tx_stat.fields.rdcount.eq(tx_rdcount),
-                self.tx_stat.fields.wrcount.eq(tx_wrcount),
-                self.ev.tx_ready.trigger.eq(tx_almostempty),
-                self.ev.tx_error.trigger.eq(tx_wrerr | tx_rderr),
+                self.tx_stat.fields.underflow.eq(fifo.rderr),
+                self.tx_stat.fields.free.eq(fifo.almostempty),
+                self.tx_stat.fields.almostfull.eq(fifo.almostfull),
+                self.tx_stat.fields.full.eq(fifo.full),
+                self.tx_stat.fields.empty.eq(fifo.empty),
+                self.tx_stat.fields.rdcount.eq(fifo.rdcount),
+                self.tx_stat.fields.wrcount.eq(fifo.wrcount),
+                self.ev.tx_ready.trigger.eq(fifo.almostempty),
+                self.ev.tx_error.trigger.eq(fifo.wrerr | fifo.rderr),
             ]
             self.sync += [
                 # This is the bus responder -- need to check how this interacts with uncached memory
                 # region
                 If(bus.cyc & bus.stb & bus.we & ~bus.ack,
-                   If(~tx_full,
-                      tx_wr_d.eq(bus.dat_w),
-                      tx_wren.eq(1),
-                      wr_ack.eq(1),
-                   ).Else(
-                       tx_wren.eq(0),
-                       wr_ack.eq(0),
-                   )
+                    If(~fifo.full,
+                        fifo.wr_d.eq(bus.dat_w),
+                        fifo.wren.eq(~tx_reset),
+                        wr_ack.eq(1),
+                    ).Else(
+                        fifo.wren.eq(0),
+                        wr_ack.eq(0),
+                    )
                 ).Else(
-                    tx_wren.eq(0),
+                    fifo.wren.eq(0),
                     wr_ack.eq(0),
                 )
             ]
@@ -568,8 +507,8 @@ class S7I2S(Module, AutoCSR, AutoDoc):
                 If(rising_edge & (~sync_pin if frame_format == I2S_FORMAT.I2S_STANDARD else sync_pin),
                     NextState("LEFT_FALL"),
                     NextValue(tx_cnt, sample_width),
-                    NextValue(tx_buf, Cat(tx_rd_d, offset)),
-                    tx_rden.eq(1),
+                    NextValue(tx_buf, Cat(fifo.rd_d, offset)),
+                    fifo.rden.eq(~tx_reset),
                 )
             )
             # sync should be sampled on rising edge, but data should change on falling edge
@@ -617,8 +556,8 @@ class S7I2S(Module, AutoCSR, AutoDoc):
                                 If((sync_pin if frame_format == I2S_FORMAT.I2S_STANDARD else ~sync_pin),
                                     NextValue(tx_cnt, sample_width),
                                     NextState("RIGHT_FALL"),
-                                    NextValue(tx_buf, Cat(tx_rd_d,offset)),
-                                    tx_rden.eq(1),
+                                    NextValue(tx_buf, Cat(fifo.rd_d,offset)),
+                                    fifo.rden.eq(~tx_reset),
                                 ).Else(
                                     NextState("LEFT_WAIT"),
                                 )
@@ -652,8 +591,8 @@ class S7I2S(Module, AutoCSR, AutoDoc):
                         If((tx_cnt == 0) & (~sync_pin if frame_format == I2S_FORMAT.I2S_STANDARD else sync_pin),
                             NextValue(tx_cnt, sample_width),
                             NextState("LEFT_FALL"),
-                            NextValue(tx_buf, Cat(tx_rd_d,offset)),
-                            tx_rden.eq(1)
+                            NextValue(tx_buf, Cat(fifo.rd_d,offset)),
+                            fifo.rden.eq(~tx_reset)
                         ).Elif(tx_cnt > 0,
                             NextState("RIGHT_FALL")
                         )
