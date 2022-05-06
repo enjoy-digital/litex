@@ -13,8 +13,9 @@
 
     [> API changes/Deprecation
 	--------------------------
-	- Remove short import support on LiteX-Boards' platforms/targets.
-	- Rename litex_gen to litex_periph_gen.
+	- LiteX-Boards : Remove short import support on platforms/targets.
+	- tools:         Rename litex_gen to litex_periph_gen.
+	- LiteX-Boards:  Only generate SoC/Software headers when --build is set
 
 [> 2022.04, released on May 3th 2022
 ------------------------------------
