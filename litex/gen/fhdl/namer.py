@@ -221,7 +221,7 @@ def _build_pnd(signals):
 
 def build_namespace(signals, reserved_keywords=set()):
     pnd = _build_pnd(signals)
-    ns = Namespace(pnd, reserved_keywords)
+    ns  = Namespace(pnd, reserved_keywords)
     # register signals with name_override
     swno = {signal for signal in signals if signal.name_override is not None}
     for signal in sorted(swno, key=lambda x: x.duid):
@@ -232,23 +232,35 @@ def build_namespace(signals, reserved_keywords=set()):
 class Namespace:
     def __init__(self, pnd, reserved_keywords=set()):
         self.counts = {k: 1 for k in reserved_keywords}
-        self.sigs = {}
-        self.pnd = pnd
+        self.sigs   = {}
+        self.pnd    = pnd
         self.clock_domains = dict()
 
     def get_name(self, sig):
+        # Clock Signal.
+        # -------------
         if isinstance(sig, ClockSignal):
             sig = self.clock_domains[sig.cd].clk
+
+        # Reset Signal.
+        # -------------
         if isinstance(sig, ResetSignal):
             sig = self.clock_domains[sig.cd].rst
             if sig is None:
-                raise ValueError("Attempted to obtain name of non-existent "
-                                 "reset signal of domain "+sig.cd)
+                msg = f"Clock Domain {sig.cd} is reset-less, can't obtain name"
+                raise ValueError(msg)
 
+        # Regular Signal.
+        # ---------------
+        # Use Name's override when set...
         if sig.name_override is not None:
             sig_name = sig.name_override
+        # ... else get Name from pnd.
         else:
             sig_name = self.pnd[sig]
+
+        # Check/Add numbering suffix when required.
+        # -----------------------------------------
         try:
             n = self.sigs[sig]
         except KeyError:
@@ -256,9 +268,9 @@ class Namespace:
                 n = self.counts[sig_name]
             except KeyError:
                 n = 0
-            self.sigs[sig] = n
+            self.sigs[sig]        = n
             self.counts[sig_name] = n + 1
-        if n:
-            return sig_name + "_" + str(n)
-        else:
-            return sig_name
+        suffix = "" if n == 0 else f"_{n}"
+
+        # Return Name.
+        return sig_name + suffix
