@@ -12,8 +12,7 @@ import os
 from collections import OrderedDict
 import shutil
 
-from migen.fhdl.namer import build_namespace
-
+from litex.gen.fhdl.namer import build_namespace
 
 def vcd_codes():
     codechars = [chr(i) for i in range(33, 127)]

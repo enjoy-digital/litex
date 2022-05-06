@@ -18,7 +18,6 @@ import xml.etree.ElementTree as et
 
 from migen.fhdl.structure import _Fragment
 from migen.fhdl.tools import *
-from migen.fhdl.namer import build_namespace
 from migen.fhdl.simplify import FullMemoryWE
 
 from litex.build import tools

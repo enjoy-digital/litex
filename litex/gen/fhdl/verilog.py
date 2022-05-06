@@ -23,10 +23,10 @@ import collections
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Operator, _Slice, _Assign, _Fragment
 from migen.fhdl.tools import *
-from migen.fhdl.namer import build_namespace
 from migen.fhdl.conv_output import ConvOutput
 from migen.fhdl.specials import Memory
 
+from litex.gen.fhdl.namer import build_namespace
 from litex.build.tools import get_litex_git_revision
 
 # ------------------------------------------------------------------------------------------------ #
