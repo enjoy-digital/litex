@@ -13,7 +13,7 @@ from migen.fhdl.verilog import _printexpr as verilog_printexpr
 from migen.fhdl.specials import *
 
 
-def memory_emit_verilog(memory, namespace, add_data_file):
+def memory_emit_verilog(name, memory, namespace, add_data_file):
     # Helpers.
     # --------
     def gn(e):
@@ -76,7 +76,7 @@ def memory_emit_verilog(memory, namespace, add_data_file):
         formatter = f"{{:0{int(memory.width/4)}x}}\n"
         for d in memory.init:
             content += formatter.format(d)
-        memory_filename = add_data_file(f"{gn(memory)}.init", content)
+        memory_filename = add_data_file(f"{name}_{gn(memory)}.init", content)
 
         r += "initial begin\n"
         r += f"\t$readmemh(\"{memory_filename}\", {gn(memory)});\n"
