@@ -1,3 +1,21 @@
+[> Changes since 2022.04
+------------------------
+
+	[> Issues resolved
+	------------------
+
+    [> Added Features
+	-----------------
+	- litex_setup: Add -tag support for install/update.
+	- tools:       Add initial LiteX standalone SoC generator.
+	- cores/ram:   Add Xilinx's FIFO_SYNC_MACRO equivalent.
+	- LitePCIe:    Always use 24-bit depth fields on LitePCIeBuffering to simplify software.
+
+    [> API changes/Deprecation
+	--------------------------
+	- Remove short import support on LiteX-Boards' platforms/targets.
+	- Rename litex_gen to litex_periph_gen.
+
 [> 2022.04, released on May 3th 2022
 ------------------------------------
 
@@ -77,8 +95,6 @@
 	- liblitesata:        Improve SATA init.
 	- soc/cpu:            Improve command line listing.
 	- soc/cores/uart:     Decouple data/address width on Stream2Wishbone.
-	-
-
 
     [> API changes/Deprecation
 	--------------------------
