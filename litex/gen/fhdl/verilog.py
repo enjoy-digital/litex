@@ -490,7 +490,7 @@ def _print_synchronous_logic(f, ns):
 #                                      SPECIALS                                                    #
 # ------------------------------------------------------------------------------------------------ #
 
-def _print_specials(overrides, specials, ns, add_data_file, attr_translate):
+def _print_specials(name, overrides, specials, namespace, add_data_file, attr_translate):
     r = ""
     for special in sorted(specials, key=lambda x: x.duid):
         if hasattr(special, "attr"):
@@ -500,9 +500,9 @@ def _print_specials(overrides, specials, ns, add_data_file, attr_translate):
         # Replace Migen Memory's emit_verilog with LiteX's implementation.
         if isinstance(special, Memory):
             from litex.gen.fhdl.memory import memory_emit_verilog
-            pr = memory_emit_verilog(special, ns, add_data_file)
+            pr = memory_emit_verilog(special, namespace, add_data_file)
         else:
-            pr = call_special_classmethod(overrides, special, "emit_verilog", ns, add_data_file)
+            pr = call_special_classmethod(overrides, special, "emit_verilog", namespace, add_data_file)
         if pr is None:
             raise NotImplementedError("Special " + str(special) + " failed to implement emit_verilog")
         r += pr
@@ -610,8 +610,14 @@ def convert(f, ios=set(), name="top", platform=None,
 
     # Specials
     verilog += _print_separator("Specialized Logic")
-    verilog += _print_specials(special_overrides, f.specials - lowered_specials,
-        ns, r.add_data_file, attr_translate)
+    verilog += _print_specials(
+        name           = name,
+        overrides      =special_overrides,
+        specials       = f.specials - lowered_specials,
+        namespace      = ns,
+        add_data_file  = r.add_data_file,
+        attr_translate = attr_translate
+    )
 
     # Module End.
     verilog += "endmodule\n"

@@ -12,14 +12,15 @@ from migen.fhdl.tools import *
 from migen.fhdl.verilog import _printexpr as verilog_printexpr
 from migen.fhdl.specials import *
 
-def memory_emit_verilog(memory, ns, add_data_file):
+
+def memory_emit_verilog(memory, namespace, add_data_file):
     # Helpers.
     # --------
     def gn(e):
         if isinstance(e, Memory):
-            return ns.get_name(e)
+            return namespace.get_name(e)
         else:
-            return verilog_printexpr(ns, e)[0]
+            return verilog_printexpr(namespace, e)[0]
 
     # Parameters.
     # -----------
