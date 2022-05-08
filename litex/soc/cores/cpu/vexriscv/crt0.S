@@ -2,6 +2,8 @@
 .global isr
 .global _start
 
+.option arch,+zicsr
+
 _start:
   j crt_init
   nop
