@@ -13,10 +13,10 @@ from migen.fhdl.structure import *
 class _Node:
     def __init__(self):
         self.signal_count = 0
-        self.numbers = set()
-        self.use_name = False
-        self.use_number = False
-        self.children = OrderedDict()
+        self.numbers      = set()
+        self.use_name     = False
+        self.use_number   = False
+        self.children     = OrderedDict()
 
 
 def _display_tree(filename, tree):
@@ -45,13 +45,13 @@ def _build_tree(signals, basic_tree=None):
     root = _Node()
     for signal in signals:
         current_b = basic_tree
-        current = root
+        current   = root
         current.signal_count += 1
         for name, number in signal.backtrace:
             if basic_tree is None:
                 use_number = False
             else:
-                current_b = current_b.children[name]
+                current_b  = current_b.children[name]
                 use_number = current_b.use_number
             if use_number:
                 key = (name, number)
@@ -93,13 +93,13 @@ def _set_use_name(node, node_name=""):
 
 def _name_signal(tree, signal):
     elements = []
-    treepos = tree
+    treepos  = tree
     for step_name, step_n in signal.backtrace:
         try:
-            treepos = treepos.children[(step_name, step_n)]
+            treepos    = treepos.children[(step_name, step_n)]
             use_number = True
         except KeyError:
-            treepos = treepos.children[step_name]
+            treepos    = treepos.children[step_name]
             use_number = False
         if treepos.use_name:
             elname = step_name
@@ -147,8 +147,7 @@ def _build_pnd_for_group(group_n, signals):
         _display_tree("tree{0}_basic.svg".format(group_n), basic_tree)
     pnd = _build_pnd_from_tree(basic_tree, signals)
 
-    # If there are conflicts, try splitting the tree by numbers
-    # on paths taken by conflicting signals.
+    # If there are conflicts, try splitting the tree by numbers on paths taken by conflicting signals.
     conflicting_signals = _list_conflicting_signals(pnd)
     if conflicting_signals:
         _set_use_number(basic_tree, conflicting_signals)
@@ -164,8 +163,8 @@ def _build_pnd_for_group(group_n, signals):
         if _debug:
             print("namer: using basic strategy (group {0})".format(group_n))
 
-    # ...then add number suffixes by DUID
-    inv_pnd = _invert_pnd(pnd)
+    # ...then add number suffixes by DUID.
+    inv_pnd       = _invert_pnd(pnd)
     duid_suffixed = False
     for name, signals in inv_pnd.items():
         if len(signals) > 1:
@@ -181,20 +180,19 @@ def _build_pnd_for_group(group_n, signals):
 def _build_signal_groups(signals):
     r = []
     for signal in signals:
-        # build chain of related signals
+        # Build chain of related signals.
         related_list = []
-        cur_signal = signal
+        cur_signal   = signal
         while cur_signal is not None:
             related_list.insert(0, cur_signal)
             cur_signal = cur_signal.related
-        # add to groups
+        # Add to groups.
         for _ in range(len(related_list) - len(r)):
             r.append(set())
         for target_set, source_signal in zip(r, related_list):
             target_set.add(source_signal)
-    # with the algorithm above and a list of all signals,
-    # a signal appears in all groups of a lower number than its.
-    # make signals appear only in their group of highest number.
+    # With the algorithm above and a list of all signals, a signal appears in all groups of a lower
+    # number than its. Make signals appear only in their group of highest number.
     for s1, s2 in zip(r, r[1:]):
         s1 -= s2
     return r
@@ -202,27 +200,25 @@ def _build_signal_groups(signals):
 
 def _build_pnd(signals):
     groups = _build_signal_groups(signals)
-    gpnds = [_build_pnd_for_group(n, gsignals) for n, gsignals in enumerate(groups)]
-
-    pnd = dict()
+    gpnds  = [_build_pnd_for_group(n, gsignals) for n, gsignals in enumerate(groups)]
+    pnd    = dict()
     for gn, gpnd in enumerate(gpnds):
         for signal, name in gpnd.items():
-            result = name
-            cur_gn = gn
+            result     = name
+            cur_gn     = gn
             cur_signal = signal
             while cur_signal.related is not None:
                 cur_signal = cur_signal.related
-                cur_gn -= 1
-                result = gpnds[cur_gn][cur_signal] + "_" + result
+                cur_gn     -= 1
+                result     = gpnds[cur_gn][cur_signal] + "_" + result
             pnd[signal] = result
-
     return pnd
 
 
 def build_namespace(signals, reserved_keywords=set()):
     pnd = _build_pnd(signals)
     ns  = Namespace(pnd, reserved_keywords)
-    # register signals with name_override
+    # Register Signals with name_override.
     swno = {signal for signal in signals if signal.name_override is not None}
     for signal in sorted(swno, key=lambda x: x.duid):
         ns.get_name(signal)
