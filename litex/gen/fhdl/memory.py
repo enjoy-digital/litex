@@ -16,7 +16,8 @@ from migen.fhdl.specials import *
 def memory_emit_verilog(name, memory, namespace, add_data_file):
     # Helpers.
     # --------
-    def gn(e):
+
+    def _get_name(e):
         if isinstance(e, Memory):
             return namespace.get_name(e)
         else:
@@ -46,7 +47,7 @@ def memory_emit_verilog(name, memory, namespace, add_data_file):
     # Memory Description.
     # -------------------
     r += "//" + "-"*78 + "\n"
-    r += f"// Memory {gn(memory)}: {memory.depth}-words x {memory.width}-bit\n"
+    r += f"// Memory {_get_name(memory)}: {memory.depth}-words x {memory.width}-bit\n"
     r += "//" + "-"*78 + "\n"
     for n, port in enumerate(memory.ports):
         r += f"// Port {n} | "
@@ -70,16 +71,16 @@ def memory_emit_verilog(name, memory, namespace, add_data_file):
 
     # Memory Logic Declaration/Initialization.
     # ----------------------------------------
-    r += f"reg [{memory.width-1}:0] {gn(memory)}[0:{memory.depth-1}];\n"
+    r += f"reg [{memory.width-1}:0] {_get_name(memory)}[0:{memory.depth-1}];\n"
     if memory.init is not None:
         content = ""
         formatter = f"{{:0{int(memory.width/4)}x}}\n"
         for d in memory.init:
             content += formatter.format(d)
-        memory_filename = add_data_file(f"{name}_{gn(memory)}.init", content)
+        memory_filename = add_data_file(f"{name}_{_get_name(memory)}.init", content)
 
         r += "initial begin\n"
-        r += f"\t$readmemh(\"{memory_filename}\", {gn(memory)});\n"
+        r += f"\t$readmemh(\"{memory_filename}\", {_get_name(memory)});\n"
         r += "end\n"
 
     # Port Intermediate Signals.
@@ -91,49 +92,49 @@ def memory_emit_verilog(name, memory, namespace, add_data_file):
 
         # Create Address Register in Write-First mode.
         if port.mode in [WRITE_FIRST]:
-            adr_regs[n] = Signal(name_override=f"{gn(memory)}_adr{n}")
-            r += f"reg [{bits_for(memory.depth-1)-1}:0] {gn(adr_regs[n])};\n"
+            adr_regs[n] = Signal(name_override=f"{_get_name(memory)}_adr{n}")
+            r += f"reg [{bits_for(memory.depth-1)-1}:0] {_get_name(adr_regs[n])};\n"
 
         # Create Data Register in Read-First/No Change mode.
         if port.mode in [READ_FIRST, NO_CHANGE]:
-            data_regs[n] = Signal(name_override=f"{gn(memory)}_dat{n}")
-            r += f"reg [{memory.width-1}:0] {gn(data_regs[n])};\n"
+            data_regs[n] = Signal(name_override=f"{_get_name(memory)}_dat{n}")
+            r += f"reg [{memory.width-1}:0] {_get_name(data_regs[n])};\n"
 
     # Ports Write/Read Logic.
     # -----------------------
     for n, port in enumerate(memory.ports):
-        r += f"always @(posedge {gn(port.clock)}) begin\n"
+        r += f"always @(posedge {_get_name(port.clock)}) begin\n"
         # Write Logic.
         if port.we is not None:
             # Split Write Logic.
             for i in range(memory.width//port.we_granularity):
                 wbit = f"[{i}]" if memory.width != port.we_granularity else ""
-                r += f"\tif ({gn(port.we)}{wbit})\n"
+                r += f"\tif ({_get_name(port.we)}{wbit})\n"
                 lbit =     i*port.we_granularity
                 hbit = (i+1)*port.we_granularity-1
                 dslc = f"[{hbit}:{lbit}]" if (memory.width != port.we_granularity) else ""
-                r += f"\t\t{gn(memory)}[{gn(port.adr)}]{dslc} <= {gn(port.dat_w)}{dslc};\n"
+                r += f"\t\t{_get_name(memory)}[{_get_name(port.adr)}]{dslc} <= {_get_name(port.dat_w)}{dslc};\n"
 
         # Read Logic.
         if not port.async_read:
             # In Write-First mode, Read from Address Register.
             if port.mode in [WRITE_FIRST]:
-                rd = f"\t{gn(adr_regs[n])} <= {gn(port.adr)};\n"
+                rd = f"\t{_get_name(adr_regs[n])} <= {_get_name(port.adr)};\n"
 
             # In Read-First/No Change mode:
             if port.mode in [READ_FIRST, NO_CHANGE]:
                 rd = ""
                 # Only Read in No-Change mode when no Write.
                 if port.mode == NO_CHANGE:
-                    rd += f"\tif (!{gn(port.we)})\n\t"
+                    rd += f"\tif (!{_get_name(port.we)})\n\t"
                 # Read-First/No-Change Read logic.
-                rd += f"\t{gn(data_regs[n])} <= {gn(memory)}[{gn(port.adr)}];\n"
+                rd += f"\t{_get_name(data_regs[n])} <= {_get_name(memory)}[{_get_name(port.adr)}];\n"
 
             # Add Read-Enable Logic.
             if port.re is None:
                 r += rd
             else:
-                r += f"\tif ({gn(port.re)})\n"
+                r += f"\tif ({_get_name(port.re)})\n"
                 r += "\t" + rd.replace("\n\t", "\n\t\t")
         r += "end\n"
 
@@ -142,16 +143,16 @@ def memory_emit_verilog(name, memory, namespace, add_data_file):
     for n, port in enumerate(memory.ports):
         # Direct (Asynchronous) Read on Async-Read mode.
         if port.async_read:
-            r += f"assign {gn(port.dat_r)} = {gn(memory)}[{gn(port.adr)}];\n"
+            r += f"assign {_get_name(port.dat_r)} = {_get_name(memory)}[{_get_name(port.adr)}];\n"
             continue
 
         # Write-First mode: Do Read through Address Register.
         if port.mode in [WRITE_FIRST]:
-            r += f"assign {gn(port.dat_r)} = {gn(memory)}[{gn(adr_regs[n])}];\n"
+            r += f"assign {_get_name(port.dat_r)} = {_get_name(memory)}[{_get_name(adr_regs[n])}];\n"
 
         # Read-First/No-Change mode: Data already Read on Data Register.
         if port.mode in [READ_FIRST, NO_CHANGE]:
-             r += f"assign {gn(port.dat_r)} = {gn(data_regs[n])};\n"
+             r += f"assign {_get_name(port.dat_r)} = {_get_name(data_regs[n])};\n"
     r += "\n\n"
 
     return r

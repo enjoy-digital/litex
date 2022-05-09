@@ -237,21 +237,21 @@ class Namespace:
         self.clock_domains = dict()
 
     def get_name(self, sig):
-        # Clock Signal.
-        # -------------
+        # Get name of a Clock Signal.
+        # ---------------------------
         if isinstance(sig, ClockSignal):
             sig = self.clock_domains[sig.cd].clk
 
-        # Reset Signal.
-        # -------------
+        # Get name of a Reset Signal.
+        # ---------------------------
         if isinstance(sig, ResetSignal):
             sig = self.clock_domains[sig.cd].rst
             if sig is None:
                 msg = f"Clock Domain {sig.cd} is reset-less, can't obtain name"
                 raise ValueError(msg)
 
-        # Regular Signal.
-        # ---------------
+        # Get name of a Regular Signal.
+        # -----------------------------
         # Use Name's override when set...
         if sig.name_override is not None:
             sig_name = sig.name_override
