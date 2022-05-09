@@ -1,1 +1,1 @@
-from litex.soc.cores.cpu.firev.core import firev
+from litex.soc.cores.cpu.firev.core import FireV
