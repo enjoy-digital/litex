@@ -344,7 +344,7 @@ class Converter(Module):
 # Wishbone SRAM ------------------------------------------------------------------------------------
 
 class SRAM(Module):
-    def __init__(self, mem_or_size, read_only=None, init=None, bus=None):
+    def __init__(self, mem_or_size, read_only=None, init=None, bus=None, name=None):
         if bus is None:
             bus = Interface()
         self.bus = bus
@@ -353,7 +353,7 @@ class SRAM(Module):
             assert(mem_or_size.width <= bus_data_width)
             self.mem = mem_or_size
         else:
-            self.mem = Memory(bus_data_width, mem_or_size//(bus_data_width//8), init=init)
+            self.mem = Memory(bus_data_width, mem_or_size//(bus_data_width//8), init=init, name=name)
 
         if read_only is None:
             if hasattr(self.mem, "bus_read_only"):
