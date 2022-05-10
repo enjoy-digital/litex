@@ -45,6 +45,11 @@ def get_uart_ios():
         )
     ]
 
+def get_debug_ios(debug_width=8):
+    return [
+        ("debug", 0, Pins(debug_width)),
+    ]
+
 # Platform -----------------------------------------------------------------------------------------
 
 class Platform(GenericPlatform):
@@ -72,7 +77,7 @@ class LiteXSoCGenerator(SoCMini):
         # SoC --------------------------------------------------------------------------------------
         if kwargs["uart_name"] == "serial":
             kwargs["uart_name"] = "uart"
-        SoCCore.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
+        SoCCore.__init__(self, platform, clk_freq=sys_clk_freq, ident=f"LiteX standalone SoC - {name}", **kwargs)
 
         # MMAP Slave Interface ---------------------------------------------------------------------
         s_bus = {
@@ -92,11 +97,21 @@ class LiteXSoCGenerator(SoCMini):
             "axi-lite" : axi.AXILiteInterface(),
 
         }[kwargs["bus_standard"]]
-        wb_region = SoCRegion(origin=0x2000_0000, size=0x1000_0000, cached=True) # FIXME.
+        wb_region = SoCRegion(origin=0xa000_0000, size=0x1000_0000, cached=False) # FIXME.
         self.bus.add_slave(name="mmap_m", slave=m_bus, region=wb_region)
         platform.add_extension(m_bus.get_ios("mmap_m"))
         wb_pads = platform.request("mmap_m")
         self.comb += m_bus.connect_to_pads(wb_pads, mode="master")
+
+        # Debug ------------------------------------------------------------------------------------
+        platform.add_extension(get_debug_ios())
+        debug_pads = platform.request("debug")
+        self.comb += [
+            # Export Signal(s) for debug.
+            debug_pads[0].eq(0), # 0.
+            debug_pads[1].eq(1), # 1.
+            # Etc...
+        ]
 
 # Build --------------------------------------------------------------------------------------------
 def main():
