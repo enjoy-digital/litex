@@ -51,7 +51,9 @@ CPU_VARIANTS = {
     "linuxq":   "freechips.rocketchip.system.LitexLinuxQConfig",
     "linux2q":  "freechips.rocketchip.system.LitexLinux2QConfig",
     "full":     "freechips.rocketchip.system.LitexFullConfig",
+    "fulld":    "freechips.rocketchip.system.LitexFullConfig",
     "full4d":   "freechips.rocketchip.system.LitexFull4DConfig",
+    "fullq":    "freechips.rocketchip.system.LitexFullConfig",
     "full4q":   "freechips.rocketchip.system.LitexFull4QConfig",
 }
 
@@ -66,7 +68,9 @@ GCC_FLAGS = {
     "linuxq":   "-march=rv64imac   -mabi=lp64 ",
     "linux2q":  "-march=rv64imac   -mabi=lp64 ",
     "full":     "-march=rv64imafdc -mabi=lp64 ",
+    "fulld":    "-march=rv64imafdc -mabi=lp64 ",
     "full4d":   "-march=rv64imafdc -mabi=lp64 ",
+    "fullq":    "-march=rv64imafdc -mabi=lp64 ",
     "full4q":   "-march=rv64imafdc -mabi=lp64 ",
 }
 
@@ -82,7 +86,9 @@ CPU_SIZE_PARAMS = {
     "linuxq":   (   256,      64,         1),
     "linux2q":  (   256,      64,         2),
     "full":     (    64,      64,         1),
+    "fulld":    (   128,      64,         1),
     "full4d":   (   128,      64,         4),
+    "fullq":    (   256,      64,         1),
     "full4q":   (   256,      64,         4),
 }
 
