@@ -439,8 +439,10 @@ class VideoTerminal(Module):
 
         # Font Mem.
         # ---------
-        os.system("wget https://github.com/enjoy-digital/litex/files/6076336/ter-u16b.txt") # FIXME: Store Font in LiteX?
-        os.system("mv ter-u16b.txt ter-u16b.bdf")
+        # FIXME: Store Font in LiteX?
+        if not os.path.exists("ter-u16b.bdf"):
+            os.system("wget https://github.com/enjoy-digital/litex/files/6076336/ter-u16b.txt")
+            os.system("mv ter-u16b.txt ter-u16b.bdf")
         font        = import_bdf_font("ter-u16b.bdf")
         font_width  = 8
         font_heigth = 16
