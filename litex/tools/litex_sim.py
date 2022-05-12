@@ -354,7 +354,6 @@ def generate_gtkw_savefile(builder, vns, trace_fst):
             dfi_group("dfi commands", ["rddata"])
 
 def sim_args(parser):
-
     builder_args(parser)
     soc_core_args(parser)
     verilator_build_args(parser)
@@ -382,7 +381,8 @@ def sim_args(parser):
     parser.add_argument("--non-interactive",      action="store_true",     help="Run simulation without user input.")
 
 def main():
-    parser = argparse.ArgumentParser(description="LiteX SoC Simulation utility")
+    from litex.soc.integration.soc import LiteXSoCArgumentParser
+    parser = LiteXSoCArgumentParser(description="LiteX SoC Simulation utility")
     sim_args(parser)
     args = parser.parse_args()
 
