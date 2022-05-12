@@ -740,7 +740,7 @@ class VideoDVIPHY(VideoGenericPHY): pass
 # HDMI (Generic).
 
 class VideoHDMI10to1Serializer(Module):
-    def __init__(self, data_i, data_o, clock_domain, data_o_n=Signal(), drive_both=False):
+    def __init__(self, data_i, data_o, clock_domain):
         # Clock Domain Crossing.
         self.submodules.cdc = stream.ClockDomainCrossing([("data", 10)], cd_from=clock_domain, cd_to=clock_domain + "5x")
         self.comb += self.cdc.sink.valid.eq(1)
@@ -758,52 +758,53 @@ class VideoHDMI10to1Serializer(Module):
             i2  = self.gearbox.source.data[1],
             o   = data_o,
         )
-        if drive_both:
-            self.specials += DDROutput(
-                clk = ClockSignal(clock_domain + "5x"),
-                i1  = ~self.gearbox.source.data[0],
-                i2  = ~self.gearbox.source.data[1],
-                o   = data_o_n,
-            )
 
 class VideoHDMIPHY(Module):
-    def __init__(self, pads, clock_domain="sys", pn_swap=[], drive_both=False):
+    def __init__(self, pads, clock_domain="sys", pn_swap=[]):
         self.sink = sink = stream.Endpoint(video_data_layout)
 
         # # #
+
+        # Determine driven polarities:
+        # - p only for True/Pseudo Differential.
+        # - p and n for Fake Differential.
+        drive_pols = []
+        for pol in ["p", "n"]:
+            if hasattr(pads, f"clk_{pol}"):
+                drive_pols.append(pol)
 
         # Always ack Sink, no backpressure.
         self.comb += sink.ready.eq(1)
 
         # Clocking + Pseudo Differential Signaling.
-        self.specials += DDROutput(i1=1, i2=0, o=pads.clk_p, clk=ClockSignal(clock_domain))
-        if drive_both:
-            self.specials += DDROutput(i1=0, i2=1, o=pads.clk_n, clk=ClockSignal(clock_domain))
-
-        data_n = Signal()
+        for pol in drive_pols:
+            self.specials += DDROutput(
+                i1  = {"p" : 1, "n" : 0}[pol],
+                i2  = {"p" : 0, "n" : 1}[pol],
+                o   = getattr(pads, f"clk_{pol}"),
+                clk = ClockSignal(clock_domain),
+            )
 
         # Encode/Serialize Datas.
-        for color in ["r", "g", "b"]:
-            # TMDS Encoding.
-            encoder = ClockDomainsRenamer(clock_domain)(TMDSEncoder())
-            setattr(self.submodules, f"{color}_encoder", encoder)
-            self.comb += encoder.d.eq(getattr(sink, color))
-            self.comb += encoder.c.eq(Cat(sink.hsync, sink.vsync) if color == "r" else 0)
-            self.comb += encoder.de.eq(sink.de)
+        for pol in drive_pols:
+            for color in ["r", "g", "b"]:
+                # TMDS Encoding.
+                encoder = ClockDomainsRenamer(clock_domain)(TMDSEncoder())
+                setattr(self.submodules, f"{color}_encoder", encoder)
+                self.comb += encoder.d.eq(getattr(sink, color))
+                self.comb += encoder.c.eq(Cat(sink.hsync, sink.vsync) if color == "r" else 0)
+                self.comb += encoder.de.eq(sink.de)
 
-            # 10:1 Serialization + Pseudo Differential Signaling.
-            c2d  = {"r": 0, "g": 1, "b": 2}
-            data = encoder.out if color not in pn_swap else ~encoder.out
-            if drive_both:
-                data_n = getattr(pads, f"data{c2d[color]}_n")
-            serializer = VideoHDMI10to1Serializer(
-                data_i       = data,
-                data_o       = getattr(pads, f"data{c2d[color]}_p"),
-                data_o_n     = data_n,
-                clock_domain = clock_domain,
-                drive_both   = drive_both,
-            )
-            setattr(self.submodules, f"{color}_serializer", serializer)
+                # 10:1 Serialization + Pseudo Differential Signaling.
+                c2d  = {"r": 0, "g": 1, "b": 2}
+                data_i = encoder.out if color not in pn_swap else ~encoder.out
+                data_o = getattr(pads, f"data{c2d[color]}_{pol}")
+                serializer = VideoHDMI10to1Serializer(
+                    data_i       = {"p":data_i, "n": ~data_i}[pol],
+                    data_o       = data_o,
+                    clock_domain = clock_domain,
+                )
+                setattr(self.submodules, f"{color}_serializer", serializer)
 
 # HDMI (Xilinx Spartan6).
 
