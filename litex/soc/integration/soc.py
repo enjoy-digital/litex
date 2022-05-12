@@ -1197,6 +1197,9 @@ class SoC(Module):
         self.logger.info(colorer("-"*80, color="bright"))
 
     # SoC build ------------------------------------------------------------------------------------
+    def get_build_name(self):
+        return getattr(self, "build_name", self.platform.name)
+
     def build(self, *args, **kwargs):
         self.build_name = kwargs.pop("build_name", self.platform.name)
         if self.build_name[0].isdigit():

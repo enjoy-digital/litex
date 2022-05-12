@@ -369,7 +369,7 @@ class Builder:
                 "sram"  : self.soc.platform.bitstream_ext,
                 "flash" : ".bin" # FIXME.
             }[mode]
-        return os.path.join(self.gateware_dir, self.soc.build_name + ext)
+        return os.path.join(self.gateware_dir, self.soc.get_build_name() + ext)
 
 # Builder Arguments --------------------------------------------------------------------------------
 
