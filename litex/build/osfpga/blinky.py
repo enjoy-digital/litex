@@ -11,10 +11,7 @@ import os
 from migen import *
 
 from litex.build.generic_platform import Pins
-from litex.build.openfpga import OpenFPGAPlatform
-
-# export LITEX_ENV_OPENFPGA=/home/florent/dev/openfpga/OpenFPGA
-# export LITEX_ENV_OPENFPGA_SOFA=/home/florent/dev/openfpga/SOFA
+from litex.build.osfpga import OSFPGAPlatform
 
 # Minimal Platform ---------------------------------------------------------------------------------
 
@@ -23,9 +20,9 @@ _io = [
     ("led", 0, Pins(1))
 ]
 
-class Platform(OpenFPGAPlatform):
+class Platform(OSFPGAPlatform):
     def __init__(self):
-        OpenFPGAPlatform.__init__(self, "FPGA1212_QLSOFA_HD", _io)
+        OSFPGAPlatform.__init__(self, device=None, io=_io) # FIXME: Add device support.
 
 # Minimal Design -----------------------------------------------------------------------------------
 
@@ -41,4 +38,4 @@ module.sync += counter.eq(counter + 1)
 
 # Build --------------------------------------------------------------------------------------------
 
-platform.build(module, run=True)
+platform.build(module, build_name="blinky", run=True)
