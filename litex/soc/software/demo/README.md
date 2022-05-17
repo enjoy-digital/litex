@@ -9,7 +9,7 @@ This directory provides a minimal bare metal demo app that demonstrates how to e
 To build a LiteX SoC for the Arty board (available in LiteX-Boards) and build the demo app for it, execute the following commands:
 ```
 python3 -m litex_boards.targets.digilent_arty --build --load
-litex_bare_metal_demo --build-path=build/arty/
+litex_bare_metal_demo --build-path=build/digilent_arty
 ```
 Where `--build-path` is the build path to the Arty build directory. The Arty board is used here but almost any another board supported in LiteX-Boards could be used. When no external RAM is provided directly by the board, `--integrated-main-ram-size` argument could be used to add some integrated RAM in the SoC and be able to execute the demo from it. (ex `--integrated-main-ram-size=0x8000` will add 32KB of integrated RAM).
 
