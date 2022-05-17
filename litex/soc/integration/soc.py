@@ -1985,10 +1985,15 @@ class LiteXSoC(SoC):
 class LiteXSoCArgumentParser(argparse.ArgumentParser):
     def parse_args(self):
 
+        # FIXME: Use 2 stages parser?
+
         def get_selected_cpu_name():
             for name, cpu_cls in cpu.CPUS.items():
-                if f"--cpu-type={name}" in sys.argv: # FIXME: Improve.
+                if f"--cpu-type={name}" in sys.argv:
                     return cpu_cls
+                if f"--cpu-type" in sys.argv:
+                    if name in sys.argv:
+                        return cpu_cls
             return None
 
         # Intercept selected CPU to fill arguments.
