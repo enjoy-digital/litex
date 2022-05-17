@@ -62,13 +62,14 @@ def _build_tcl(name, device, files, build_name):
     with open("build.tcl", "w") as f:
         f.write("\n".join(tcl))
 
-# FOEDAGToolchain -----------------------------------------------------------------------------------
+# OSFPGAToolchain -----------------------------------------------------------------------------------
 
-class FOEDAGToolchain:
+class OSFPGAToolchain:
     attr_translate = {}
 
-    def __init__(self):
-        self.clocks  = dict()
+    def __init__(self, toolchain):
+        self.toolchain = toolchain
+        self.clocks    = dict()
 
     def build(self, platform, fragment,
         build_dir  = "build",
@@ -114,14 +115,14 @@ class FOEDAGToolchain:
 
         # Run
         if run:
-            foedag_sh = "foedag"
-            if which(foedag_sh) is None:
-                msg = "Unable to find FOEDAG toolchain, please:\n"
-                msg += "- Add FOEDAG toolchain to your $PATH."
+            toolchain_sh = self.toolchain
+            if which(toolchain_sh) is None:
+                msg = f"Unable to find {toolchain_sh.upper()} toolchain, please:\n"
+                msg += f"- Add {toolchain_sh.upper()} toolchain to your $PATH."
                 raise OSError(msg)
 
-            if subprocess.call([foedag_sh, "--batch", "--script", "build.tcl"]) != 0:
-                raise OSError("Error occured during FOEDAG's script execution.")
+            if subprocess.call([toolchain_sh, "--batch", "--script", "build.tcl"]) != 0:
+                raise OSError(f"Error occured during {toolchain_sh.upper()}'s script execution.")
 
         os.chdir(cwd)
 

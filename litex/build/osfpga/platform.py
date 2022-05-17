@@ -7,7 +7,7 @@
 import os
 
 from litex.build.generic_platform import GenericPlatform
-from litex.build.osfpga import common, foedag
+from litex.build.osfpga import common, osfpga
 
 # OSFPGAPlatform -----------------------------------------------------------------------------------
 
@@ -17,8 +17,8 @@ class OSFPGAPlatform(GenericPlatform):
     def __init__(self, device, *args, toolchain="foedag", devicename=None, **kwargs):
         GenericPlatform.__init__(self, device, *args, **kwargs)
         self.devicename = devicename
-        if toolchain == "foedag":
-            self.toolchain = foedag.FOEDAGToolchain()
+        if toolchain in ["foedag", "raptor"]:
+            self.toolchain = osfpga.OSFPGAToolchain(toolchain=toolchain)
         else:
             raise ValueError(f"Unknown toolchain {toolchain}")
 
