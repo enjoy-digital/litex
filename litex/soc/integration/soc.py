@@ -1818,6 +1818,20 @@ class LiteXSoC(SoC):
             dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
             dma_bus.add_master("sata_mem2sector", master=bus)
 
+        # Interrupts.
+        self.submodules.sata_irq = EventManager()
+        if "read" in mode:
+            self.sata_irq.sector2mem_dma = EventSourcePulse(description="Sector2Mem DMA terminated.")
+        if "write" in mode:
+            self.sata_irq.mem2sector_dma = EventSourcePulse(description="Mem2Sector DMA terminated.")
+        self.sata_irq.finalize()
+        if "read" in mode:
+            self.comb += self.sata_irq.sector2mem_dma.trigger.eq(self.sata_sector2mem.irq)
+        if "write" in mode:
+            self.comb += self.sata_irq.mem2sector_dma.trigger.eq(self.sata_mem2sector.irq)
+        if self.irq.enabled:
+            self.irq.add("sata", use_loc_if_exists=True)
+
         # Timing constraints.
         self.platform.add_period_constraint(self.sata_phy.crg.cd_sata_tx.clk, 1e9/sata_clk_freq)
         self.platform.add_period_constraint(self.sata_phy.crg.cd_sata_rx.clk, 1e9/sata_clk_freq)
