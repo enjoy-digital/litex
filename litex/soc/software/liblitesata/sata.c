@@ -1,4 +1,4 @@
-// This file is Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
+// This file is Copyright (c) 2020-2022 Florent Kermarrec <florent@enjoy-digital.fr>
 // License: BSD
 
 #include <stdio.h>
@@ -19,9 +19,14 @@
 
 #ifdef CSR_SATA_PHY_BASE
 
-int sata_init(void) {
+int sata_init(int show) {
 	uint16_t timeout;
-	uint8_t  buf[512];
+	int i;
+	uint32_t data;
+	uint16_t buf[128];
+	uint8_t  model[38];
+	uint64_t sectors;
+	uint32_t capacity;
 
 	for (timeout=16; timeout>0; timeout--) {
 		/* Reset SATA PHY */
@@ -37,17 +42,49 @@ int sata_init(void) {
 			/* Re-initialize if failing */
 			continue;
 
-		/* Initiate a SATA Read */
-		sata_sector2mem_base_write((uint64_t)(uintptr_t) buf);
-		sata_sector2mem_sector_write(0);
-		sata_sector2mem_start_write(1);
+		/* Initiate a SATA Identify */
+		sata_identify_start_write(1);
 
-		/* Wait for 10ms */
-		busy_wait(10);
+		/* Wait for 100ms */
+		busy_wait(100);
 
-		/* Check SATA Read status */
-		if ((sata_sector2mem_done_read() & 0x1) == 0)
+		/* Check SATA Identify status */
+		if ((sata_identify_done_read() & 0x1) == 0)
+			/* Re-initialize if failing */
 			continue;
+
+		if (show)
+			printf("\n");
+
+		/* Dump Idenfify response to buf */
+		i = 0;
+		while (sata_identify_source_valid_read() && (i < 128)) {
+			data = sata_identify_source_data_read();
+			sata_identify_source_ready_write(1);
+			buf[i+0] = ((data >>  0) & 0xffff);
+			buf[i+1] = ((data >> 16) & 0xffff);
+			i += 2;
+		}
+
+		/* Get Disk Model from buf */
+		i = 0;
+		memset(model, 0, 38);
+		for (i=0; i<18; i++) {
+			model[2*i + 0] = (buf[27+i] >> 8) & 0xff;
+			model[2*i + 1] = (buf[27+i] >> 0) & 0xff;
+		}
+		if (show)
+			printf("Model:    %s\n", model);
+
+		/* Get Disk Capacity from buf */
+		sectors = 0;
+		sectors += (((uint64_t) buf[100]) <<  0);
+		sectors += (((uint64_t) buf[101]) << 16);
+		sectors += (((uint64_t) buf[102]) << 32);
+		sectors += (((uint64_t) buf[103]) << 48);
+		capacity = sectors/(1000*1000*500/256);
+		if (show)
+			printf("Capacity: %ldGB\n", capacity);
 
 		/* Init succeeded */
 		return 1;
@@ -127,7 +164,7 @@ static DSTATUS sata_disk_status(BYTE drv) {
 static DSTATUS sata_disk_initialize(BYTE drv) {
 	if (drv) return STA_NOINIT;
 	if (satastatus)
-		satastatus = sata_init() ? 0 : STA_NOINIT;
+		satastatus = sata_init(0) ? 0 : STA_NOINIT;
 	return satastatus;
 }
 
