@@ -1774,10 +1774,11 @@ class LiteXSoC(SoC):
             self.add_constant("SDCARD_DEBUG")
 
     # Add SATA -------------------------------------------------------------------------------------
-    def add_sata(self, name="sata", phy=None, mode="read+write"):
+    def add_sata(self, name="sata", phy=None, mode="read+write", with_identify=True):
         # Imports.
         from litesata.core import LiteSATACore
         from litesata.frontend.arbitration import LiteSATACrossbar
+        from litesata.frontend.identify import LiteSATAIdentify, LiteSATAIdentifyCSR
         from litesata.frontend.dma import LiteSATASector2MemDMA, LiteSATAMem2SectorDMA
 
         # Checks.
@@ -1797,6 +1798,12 @@ class LiteXSoC(SoC):
         # Crossbar.
         self.check_if_exists("sata_crossbar")
         self.submodules.sata_crossbar = LiteSATACrossbar(self.sata_core)
+
+        # Identify.
+        if with_identify:
+            sata_identify = LiteSATAIdentify(self.sata_crossbar.get_port())
+            self.submodules += sata_identify
+            self.submodules.sata_identify = LiteSATAIdentifyCSR(sata_identify)
 
         # Sector2Mem DMA.
         if "read" in mode:
