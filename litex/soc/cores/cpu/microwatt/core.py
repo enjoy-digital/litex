@@ -207,10 +207,9 @@ class Microwatt(CPU):
             "core.vhdl",
         ]
         from litex.build.xilinx import XilinxPlatform
-        if isinstance(platform, XilinxPlatform) and not use_ghdl_yosys_plugin:
-            sources.append("xilinx-mult.vhdl")
-        else:
-            sources.append("multiply.vhdl")
+        isXilinx = isinstance(platform, XilinxPlatform) and not use_ghdl_yosys_plugin
+        sources.append("xilinx-mult.vhdl" if isXilinx else "multiply.vhdl")
+
 
         sdir = Path(get_data_mod("cpu", "microwatt").data_location)
         cdir = Path(__file__).parent
