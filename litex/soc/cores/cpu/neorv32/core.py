@@ -4,7 +4,8 @@
 # Copyright (c) 2022 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-import os
+from pathlib import Path
+from os import system
 
 from migen import *
 
@@ -151,7 +152,7 @@ class NEORV32(CPU):
 
     @staticmethod
     def add_sources(platform):
-        cdir = os.path.abspath(os.path.dirname(__file__))
+        cdir = Path(__file__).resolve().parent
         # List VHDL sources.
         sources = [
             "neorv32_package.vhd",                  # Main CPU & Processor package file.
@@ -172,24 +173,24 @@ class NEORV32(CPU):
 
         # Download VHDL sources (if not already present).
         for source in sources:
-            if not os.path.exists(os.path.join(cdir, source)):
-                os.system(f"wget https://raw.githubusercontent.com/stnolting/neorv32/main/rtl/core/{source} -P {cdir}")
+            if not (cdir / source).exists():
+                system(f"wget https://raw.githubusercontent.com/stnolting/neorv32/main/rtl/core/{source} -P {cdir}")
 
         # Convert VHDL to Verilog through GHDL/Yosys.
         from litex.build import tools
         import subprocess
-        cdir = os.path.dirname(__file__)
+        cdir = Path(__file__).parent
         ys = []
         ys.append("ghdl --ieee=synopsys -fexplicit -frelaxed-rules --std=08 --work=neorv32 \\")
         for source in sources:
-            ys.append(os.path.join(cdir, source) + " \\")
+            ys.append(str(cdir / source) + " \\")
         ys.append("-e neorv32_cpu_wrapper")
         ys.append("chformal -assert -remove")
-        ys.append("write_verilog {}".format(os.path.join(cdir, "neorv32.v")))
-        tools.write_to_file(os.path.join(cdir, "neorv32.ys"), "\n".join(ys))
-        if subprocess.call(["yosys", "-q", "-m", "ghdl", os.path.join(cdir, "neorv32.ys")]):
+        ys.append(f"write_verilog {(cdir / 'neorv32.v')}")
+        tools.write_to_file(str(cdir / "neorv32.ys"), "\n".join(ys))
+        if subprocess.call(["yosys", "-q", "-m", "ghdl", str(cdir / "neorv32.ys")]):
             raise OSError("Unable to convert NEORV32 CPU to verilog, please check your GHDL-Yosys-plugin install.")
-        platform.add_source(os.path.join(cdir, "neorv32.v"))
+        platform.add_source(str(cdir / "neorv32.v"))
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
