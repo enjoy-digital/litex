@@ -317,35 +317,23 @@ class XICSSlave(Module, AutoCSR):
             from litex.build import tools
             import subprocess
 
-            # ICP
-            tools.write_to_file(str(cdir / "xics_icp.ys"), "\n".join([
-                    "ghdl --ieee=synopsys -fexplicit -frelaxed-rules --std=08 \\"
-                ] + [
-                    str(sdir / source) + " \\" for source in sources
-                ] + [
-                    str(cdir / "xics_wrapper.vhdl") + " \\",
-                    "-e xics_icp_wrapper",
-                    "chformal -assert -remove",
-                    f"write_verilog {(cdir / 'xics_icp.v')!s}",
-                ]))
-            if subprocess.call(["yosys", "-q", "-m", "ghdl", str(cdir / "xics_icp.ys")]):
-                raise OSError("Unable to convert Microwatt XICS ICP controller to verilog, please check your GHDL-Yosys-plugin install")
-            platform.add_source(str(cdir / "xics_icp.v"))
+            def add_target(target: str):
+                tools.write_to_file(str(cdir / f"xics_{target.lower()}.ys"), "\n".join([
+                        "ghdl --ieee=synopsys -fexplicit -frelaxed-rules --std=08 \\"
+                    ] + [
+                        str(sdir / source) + " \\" for source in sources
+                    ] + [
+                        str(cdir / "xics_wrapper.vhdl") + " \\",
+                        f"-e xics_{target.lower()}_wrapper",
+                        "chformal -assert -remove",
+                        f"write_verilog {(cdir / f'xics_{target.lower()}.v')!s}",
+                    ]))
+                if subprocess.call(["yosys", "-q", "-m", "ghdl", str(cdir / "xics_icp.ys")]):
+                    raise OSError(f"Unable to convert Microwatt XICS {target.upper()} controller to verilog, please check your GHDL-Yosys-plugin install")
+                platform.add_source(str(cdir / f"xics_{target.lower()}.v"))
 
-            # ICS
-            tools.write_to_file(str(cdir / "xics_ics.ys"), "\n".join([
-                    "ghdl --ieee=synopsys -fexplicit -frelaxed-rules --std=08 \\"
-                ] + [
-                    str(sdir / source) + " \\" for source in sources
-                ] + [
-                    str(cdir / "xics_wrapper.vhdl") + " \\",
-                    "-e xics_ics_wrapper",
-                    "chformal -assert -remove",
-                    f"write_verilog {(cdir / 'xics_ics.v')!s}",
-                ]))
-            if subprocess.call(["yosys", "-q", "-m", "ghdl", str(cdir / "xics_ics.ys")]):
-                raise OSError("Unable to convert Microwatt XICS ICP controller to verilog, please check your GHDL-Yosys-plugin install")
-            platform.add_source(str(cdir / "xics_ics.v"))
+            add_target('ICP')
+            add_target('ICS')
         else:
             platform.add_sources(str(sdir), *sources)
             platform.add_source(str(cdir / "xics_wrapper.vhdl"))
