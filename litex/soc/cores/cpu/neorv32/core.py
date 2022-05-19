@@ -180,14 +180,15 @@ class NEORV32(CPU):
         from litex.build import tools
         import subprocess
         cdir = Path(__file__).parent
-        ys = []
-        ys.append("ghdl --ieee=synopsys -fexplicit -frelaxed-rules --std=08 --work=neorv32 \\")
-        for source in sources:
-            ys.append(str(cdir / source) + " \\")
-        ys.append("-e neorv32_cpu_wrapper")
-        ys.append("chformal -assert -remove")
-        ys.append(f"write_verilog {(cdir / 'neorv32.v')}")
-        tools.write_to_file(str(cdir / "neorv32.ys"), "\n".join(ys))
+        tools.write_to_file(str(cdir / "neorv32.ys"), "\n".join([
+                "ghdl --ieee=synopsys -fexplicit -frelaxed-rules --std=08 --work=neorv32 \\"
+            ] + [
+                str(cdir / source) + " \\" for source in sources
+            ] + [
+                "-e neorv32_cpu_wrapper",
+                "chformal -assert -remove",
+                f"write_verilog {(cdir / 'neorv32.v')}",
+        ]))
         if subprocess.call(["yosys", "-q", "-m", "ghdl", str(cdir / "neorv32.ys")]):
             raise OSError("Unable to convert NEORV32 CPU to verilog, please check your GHDL-Yosys-plugin install.")
         platform.add_source(str(cdir / "neorv32.v"))
