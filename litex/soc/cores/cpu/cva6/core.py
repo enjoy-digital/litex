@@ -71,6 +71,7 @@ class CVA6(CPU):
     def gcc_flags(self):
         flags = GCC_FLAGS[self.variant]
         flags += "-D__cva6__ "
+        flags += f" -DUART_POLLING"
         return flags
 
     # Memory Mapping.
