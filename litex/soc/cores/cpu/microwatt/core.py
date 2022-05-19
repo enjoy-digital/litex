@@ -6,7 +6,7 @@
 # Copyright (c) 2020 Raptor Engineering <sales@raptorengineering.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
-import os
+from pathlib import Path
 
 from migen import *
 
@@ -212,8 +212,8 @@ class Microwatt(CPU):
         else:
             sources.append("multiply.vhdl")
 
-        sdir = get_data_mod("cpu", "microwatt").data_location
-        cdir = os.path.dirname(__file__)
+        sdir = Path(get_data_mod("cpu", "microwatt").data_location)
+        cdir = Path(__file__).parent
         # Convert VHDL to Verilog through GHDL/Yosys.
         if use_ghdl_yosys_plugin:
             from litex.build import tools
@@ -221,19 +221,19 @@ class Microwatt(CPU):
             ys = []
             ys.append("ghdl --ieee=synopsys -fexplicit -frelaxed-rules --std=08 \\")
             for source in sources:
-                ys.append(os.path.join(sdir, source) + " \\")
-            ys.append(os.path.join(os.path.dirname(__file__), "microwatt_wrapper.vhdl") + " \\")
+                ys.append(str(sdir / source) + " \\")
+            ys.append(str(cdir / "microwatt_wrapper.vhdl") + " \\")
             ys.append("-e microwatt_wrapper")
             ys.append("chformal -assert -remove")
-            ys.append("write_verilog {}".format(os.path.join(cdir, "microwatt.v")))
-            tools.write_to_file(os.path.join(cdir, "microwatt.ys"), "\n".join(ys))
-            if subprocess.call(["yosys", "-q", "-m", "ghdl", os.path.join(cdir, "microwatt.ys")]):
+            ys.append(f"write_verilog {(cdir / 'microwatt.v')!s}")
+            tools.write_to_file(str(cdir / "microwatt.ys"), "\n".join(ys))
+            if subprocess.call(["yosys", "-q", "-m", "ghdl", str(cdir / "microwatt.ys")]):
                 raise OSError("Unable to convert Microwatt CPU to verilog, please check your GHDL-Yosys-plugin install")
-            platform.add_source(os.path.join(cdir, "microwatt.v"))
+            platform.add_source(str(cdir / "microwatt.v"))
         # Direct use of VHDL sources.
         else:
-            platform.add_sources(sdir, *sources)
-            platform.add_source(os.path.join(os.path.dirname(__file__), "microwatt_wrapper.vhdl"))
+            platform.add_sources(str(sdir), *sources)
+            platform.add_source(str(cdir / "microwatt_wrapper.vhdl"))
 
     def do_finalize(self):
         self.specials += Instance("microwatt_wrapper", **self.cpu_params)
@@ -311,8 +311,8 @@ class XICSSlave(Module, AutoCSR):
             # XICS controller
             "xics.vhdl",
         ]
-        sdir = get_data_mod("cpu", "microwatt").data_location
-        cdir = os.path.dirname(__file__)
+        sdir = Path(get_data_mod("cpu", "microwatt").data_location)
+        cdir = Path(__file__).parent
         if use_ghdl_yosys_plugin:
             from litex.build import tools
             import subprocess
@@ -321,32 +321,32 @@ class XICSSlave(Module, AutoCSR):
             ys = []
             ys.append("ghdl --ieee=synopsys -fexplicit -frelaxed-rules --std=08 \\")
             for source in sources:
-                ys.append(os.path.join(sdir, source) + " \\")
-            ys.append(os.path.join(os.path.dirname(__file__), "xics_wrapper.vhdl") + " \\")
+                ys.append(str(sdir / source) + " \\")
+            ys.append(str(cdir / "xics_wrapper.vhdl") + " \\")
             ys.append("-e xics_icp_wrapper")
             ys.append("chformal -assert -remove")
-            ys.append("write_verilog {}".format(os.path.join(cdir, "xics_icp.v")))
-            tools.write_to_file(os.path.join(cdir, "xics_icp.ys"), "\n".join(ys))
-            if subprocess.call(["yosys", "-q", "-m", "ghdl", os.path.join(cdir, "xics_icp.ys")]):
+            ys.append(f"write_verilog {(cdir / 'xics_icp.v')!s}")
+            tools.write_to_file(str(cdir / "xics_icp.ys"), "\n".join(ys))
+            if subprocess.call(["yosys", "-q", "-m", "ghdl", str(cdir / "xics_icp.ys")]):
                 raise OSError("Unable to convert Microwatt XICS ICP controller to verilog, please check your GHDL-Yosys-plugin install")
-            platform.add_source(os.path.join(cdir, "xics_icp.v"))
+            platform.add_source(str(cdir / "xics_icp.v"))
 
             # ICS
             ys = []
             ys.append("ghdl --ieee=synopsys -fexplicit -frelaxed-rules --std=08 \\")
             for source in sources:
-                ys.append(os.path.join(sdir, source) + " \\")
-            ys.append(os.path.join(os.path.dirname(__file__), "xics_wrapper.vhdl") + " \\")
+                ys.append(str(sdir / source) + " \\")
+            ys.append(str(cdir / "xics_wrapper.vhdl") + " \\")
             ys.append("-e xics_ics_wrapper")
             ys.append("chformal -assert -remove")
-            ys.append("write_verilog {}".format(os.path.join(cdir, "xics_ics.v")))
-            tools.write_to_file(os.path.join(cdir, "xics_ics.ys"), "\n".join(ys))
-            if subprocess.call(["yosys", "-q", "-m", "ghdl", os.path.join(cdir, "xics_ics.ys")]):
+            ys.append(f"write_verilog {(cdir / 'xics_ics.v')!s}")
+            tools.write_to_file(str(cdir / "xics_ics.ys"), "\n".join(ys))
+            if subprocess.call(["yosys", "-q", "-m", "ghdl", str(cdir / "xics_ics.ys")]):
                 raise OSError("Unable to convert Microwatt XICS ICP controller to verilog, please check your GHDL-Yosys-plugin install")
-            platform.add_source(os.path.join(cdir, "xics_ics.v"))
+            platform.add_source(str(cdir / "xics_ics.v"))
         else:
-            platform.add_sources(sdir, *sources)
-            platform.add_source(os.path.join(os.path.dirname(__file__), "xics_wrapper.vhdl"))
+            platform.add_sources(str(sdir), *sources)
+            platform.add_source(str(cdir / "xics_wrapper.vhdl"))
 
     def do_finalize(self):
         self.specials += Instance("xics_icp_wrapper", **self.icp_params)
