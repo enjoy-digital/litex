@@ -217,15 +217,16 @@ class Microwatt(CPU):
         if use_ghdl_yosys_plugin:
             from litex.build import tools
             import subprocess
-            ys = []
-            ys.append("ghdl --ieee=synopsys -fexplicit -frelaxed-rules --std=08 \\")
-            for source in sources:
-                ys.append(str(sdir / source) + " \\")
-            ys.append(str(cdir / "microwatt_wrapper.vhdl") + " \\")
-            ys.append("-e microwatt_wrapper")
-            ys.append("chformal -assert -remove")
-            ys.append(f"write_verilog {(cdir / 'microwatt.v')!s}")
-            tools.write_to_file(str(cdir / "microwatt.ys"), "\n".join(ys))
+            tools.write_to_file(str(cdir / "microwatt.ys"), "\n".join([
+                    "ghdl --ieee=synopsys -fexplicit -frelaxed-rules --std=08 \\"
+                ] + [
+                    str(sdir / source) + " \\" for source in sources
+                ] + [
+                    str(cdir / "microwatt_wrapper.vhdl") + " \\",
+                    "-e microwatt_wrapper",
+                    "chformal -assert -remove",
+                    f"write_verilog {(cdir / 'microwatt.v')!s}",
+                ]))
             if subprocess.call(["yosys", "-q", "-m", "ghdl", str(cdir / "microwatt.ys")]):
                 raise OSError("Unable to convert Microwatt CPU to verilog, please check your GHDL-Yosys-plugin install")
             platform.add_source(str(cdir / "microwatt.v"))
@@ -317,29 +318,31 @@ class XICSSlave(Module, AutoCSR):
             import subprocess
 
             # ICP
-            ys = []
-            ys.append("ghdl --ieee=synopsys -fexplicit -frelaxed-rules --std=08 \\")
-            for source in sources:
-                ys.append(str(sdir / source) + " \\")
-            ys.append(str(cdir / "xics_wrapper.vhdl") + " \\")
-            ys.append("-e xics_icp_wrapper")
-            ys.append("chformal -assert -remove")
-            ys.append(f"write_verilog {(cdir / 'xics_icp.v')!s}")
-            tools.write_to_file(str(cdir / "xics_icp.ys"), "\n".join(ys))
+            tools.write_to_file(str(cdir / "xics_icp.ys"), "\n".join([
+                    "ghdl --ieee=synopsys -fexplicit -frelaxed-rules --std=08 \\"
+                ] + [
+                    str(sdir / source) + " \\" for source in sources
+                ] + [
+                    str(cdir / "xics_wrapper.vhdl") + " \\",
+                    "-e xics_icp_wrapper",
+                    "chformal -assert -remove",
+                    f"write_verilog {(cdir / 'xics_icp.v')!s}",
+                ]))
             if subprocess.call(["yosys", "-q", "-m", "ghdl", str(cdir / "xics_icp.ys")]):
                 raise OSError("Unable to convert Microwatt XICS ICP controller to verilog, please check your GHDL-Yosys-plugin install")
             platform.add_source(str(cdir / "xics_icp.v"))
 
             # ICS
-            ys = []
-            ys.append("ghdl --ieee=synopsys -fexplicit -frelaxed-rules --std=08 \\")
-            for source in sources:
-                ys.append(str(sdir / source) + " \\")
-            ys.append(str(cdir / "xics_wrapper.vhdl") + " \\")
-            ys.append("-e xics_ics_wrapper")
-            ys.append("chformal -assert -remove")
-            ys.append(f"write_verilog {(cdir / 'xics_ics.v')!s}")
-            tools.write_to_file(str(cdir / "xics_ics.ys"), "\n".join(ys))
+            tools.write_to_file(str(cdir / "xics_ics.ys"), "\n".join([
+                    "ghdl --ieee=synopsys -fexplicit -frelaxed-rules --std=08 \\"
+                ] + [
+                    str(sdir / source) + " \\" for source in sources
+                ] + [
+                    str(cdir / "xics_wrapper.vhdl") + " \\",
+                    "-e xics_ics_wrapper",
+                    "chformal -assert -remove",
+                    f"write_verilog {(cdir / 'xics_ics.v')!s}",
+                ]))
             if subprocess.call(["yosys", "-q", "-m", "ghdl", str(cdir / "xics_ics.ys")]):
                 raise OSError("Unable to convert Microwatt XICS ICP controller to verilog, please check your GHDL-Yosys-plugin install")
             platform.add_source(str(cdir / "xics_ics.v"))
