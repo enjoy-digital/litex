@@ -33,9 +33,9 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     # Boot Arguments -------------------------------------------------------------------------------
     cpu_architectures = {
-        "mor1kx":             "or1k",
-        "marocchino":         "or1k",
-        "vexriscv smp-linux": "riscv",
+        "mor1kx"             : "or1k",
+        "marocchino"         : "or1k",
+        "vexriscv smp-linux" : "riscv",
     }
     default_initrd_start = {
         "or1k":   8*mB,

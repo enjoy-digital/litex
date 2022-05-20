@@ -20,13 +20,6 @@ import os
 
 class Open(Signal): pass
 
-# Variants -----------------------------------------------------------------------------------------
-
-CPU_VARIANTS = {
-    "standard": "VexRiscv",
-    "linux":    "VexRiscv", # Similar to standard.
-}
-
 # VexRiscv SMP -------------------------------------------------------------------------------------
 
 class VexRiscvSMP(CPU):
@@ -34,7 +27,7 @@ class VexRiscvSMP(CPU):
     family               = "riscv"
     name                 = "vexriscv"
     human_name           = "VexRiscv SMP"
-    variants             = CPU_VARIANTS
+    variants             = ["standard", "linux"]
     data_width           = 32
     endianness           = "little"
     gcc_triple           = CPU_GCC_TRIPLE_RISCV32
@@ -271,8 +264,8 @@ class VexRiscvSMP(CPU):
 
     def __init__(self, platform, variant):
         self.platform         = platform
-        self.variant          = "standard"
-        self.human_name       = self.human_name + "-" + variant.upper()
+        self.variant          = "linux"
+        self.human_name       = self.human_name + "-" + self.variant.upper()
         self.reset            = Signal()
         self.jtag_clk         = Signal()
         self.jtag_enable      = Signal()
