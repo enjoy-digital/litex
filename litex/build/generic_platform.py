@@ -230,7 +230,18 @@ class ConstraintManager:
             except ConstraintError:
                 break
         if not len(r):
-            raise ValueError
+            raise ValueError(f"Could not request some pin(s) named '{name}'")
+        return Cat(r)
+
+    def request_remaining(self, name):
+        r = []
+        while True:
+            try:
+                r.append(self.request(name))
+            except ConstraintError:
+                break
+        if not len(r):
+            raise ValueError(f"Could not request any pins named '{name}'")
         return Cat(r)
 
     def lookup_request(self, name, number=None, loose=False):
@@ -320,6 +331,9 @@ class GenericPlatform:
 
     def request_all(self, *args, **kwargs):
         return self.constraint_manager.request_all(*args, **kwargs)
+
+    def request_remaining(self, *args, **kwargs):
+        return self.constraint_manager.request_remaining(*args, **kwargs)
 
     def lookup_request(self, *args, **kwargs):
         return self.constraint_manager.lookup_request(*args, **kwargs)
