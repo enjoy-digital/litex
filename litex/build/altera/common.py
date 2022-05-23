@@ -25,16 +25,16 @@ altera_reserved_jtag_pads = [
 
 class AlteraAsyncResetSynchronizerImpl(Module):
     def __init__(self, cd, async_reset):
-        rst_meta = Signal()
+        rst_meta = Signal(name_override=f'ars_cd_{cd.name}_rst_meta')
         self.specials += [
-            Instance("DFF",
+            Instance("DFF", name=f'ars_cd_{cd.name}_ff0',
                 i_d    = 0,
                 i_clk  = cd.clk,
                 i_clrn = 1,
                 i_prn  = ~async_reset,
                 o_q    = rst_meta
             ),
-            Instance("DFF",
+            Instance("DFF", name=f'ars_cd_{cd.name}_ff1',
                 i_d    = rst_meta,
                 i_clk  = cd.clk,
                 i_clrn = 1,
