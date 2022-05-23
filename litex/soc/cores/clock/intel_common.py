@@ -36,6 +36,7 @@ class IntelClocking(Module, AutoCSR):
         else:
             raise ValueError
         self.clkin_freq = freq
+        ClockFrequency(clkin, set_freq=freq)
         register_clkin_log(self.logger, clkin, freq)
 
     def create_clkout(self, cd, freq, phase=0, margin=1e-2, with_reset=True):
@@ -45,6 +46,8 @@ class IntelClocking(Module, AutoCSR):
         if with_reset:
             self.specials += AsyncResetSynchronizer(cd, ~self.locked)
         self.comb += cd.clk.eq(clkout)
+        ClockFrequency(cd, set_freq=freq)
+        ClockFrequency(clkout, set_freq=freq)
         create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
         self.nclkouts += 1
 

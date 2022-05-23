@@ -8,6 +8,7 @@ import logging
 import math
 
 from migen import Record
+from migen.fhdl.structure import ClockDomain
 
 from litex.soc.integration.soc import colorer
 
@@ -56,3 +57,17 @@ def clkdiv_range(start, stop, step=1):
     while current < stop:
         yield int(current) if math.floor(current) == current else current
         current += step
+
+def ClockFrequency(cd_or_signal="sys", set_freq=None):
+    CF = ClockFrequency
+    CF.freqs = getattr(CF, 'freqs', {})
+    if set_freq is not None:
+        if isinstance(cd_or_signal, ClockDomain):
+            CF.freqs[cd_or_signal.name] = set_freq
+        else:
+            CF.freqs[cd_or_signal] = set_freq
+    else:
+        try:
+            return CF.freqs[cd_or_signal]
+        except KeyError:
+            raise KeyError(f"ClockFrequency has not yet been set for domain/signal '{cd_or_signal}'")
