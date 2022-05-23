@@ -180,16 +180,23 @@ fi
 
     return script_file
 
+def which_quartus_map():
+    res = which("quartus_map")
+    if res is None:
+        msg = "Unable to find Quartus toolchain, please:\n"
+        msg += "- Add Quartus toolchain to your $PATH."
+        raise OSError(msg)
+    return res
+
+
 def _run_script(script):
     if sys.platform in ["win32", "cygwin"]:
         shell = ["cmd", "/c"]
     else:
         shell = ["bash"]
 
-    if which("quartus_map") is None:
-        msg = "Unable to find Quartus toolchain, please:\n"
-        msg += "- Add Quartus toolchain to your $PATH."
-        raise OSError(msg)
+    # check for proper PATH
+    which_quartus_map()
 
     if subprocess.call(shell + [script]) != 0:
         raise OSError("Error occured during Quartus's script execution.")
@@ -204,6 +211,8 @@ class AlteraQuartusToolchain:
         self.false_paths = set()
         self.additional_sdc_commands = []
         self.additional_qsf_commands = []
+        qmap_bin_dir     = os.path.dirname(which_quartus_map())
+        self.ip_dir      = os.path.normpath(os.path.join(qmap_bin_dir, "..", "..", "ip"))
 
     def build(self, platform, fragment,
         build_dir      = "build",
