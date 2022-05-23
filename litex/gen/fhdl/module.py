@@ -105,3 +105,13 @@ class LiteXModule(Module, AutoCSR, AutoDoc):
         if module is not None:
             assert isinstance(module, Module)
         return module
+
+    def get_signals(self, recurse=False):
+        """
+        Return public Signals/Record fields from the current module.
+
+        Args:
+            recurse (bool): Also collect Signals/Record fields from submodules.
+        """
+        from litex.gen.fhdl.utils import get_signals
+        return get_signals(self, recurse=recurse)
