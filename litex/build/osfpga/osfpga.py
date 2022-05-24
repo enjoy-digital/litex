@@ -33,8 +33,9 @@ def _build_tcl(name, device, files, build_name):
     tcl.append(f"create_design {build_name}")
 
     # Set Device.
-    # TODO (Use Macro for now).
-    tcl.append("set_macro P1=10  P2=20")
+    # FIXME: Directly pass Devices instead of Macro when possible.
+    macro = {"test": "P1=10  P2=20"}[device]
+    tcl.append(f"set_macro {macro}")
 
     # Add Include Path.
     # TODO.
