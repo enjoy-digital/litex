@@ -22,7 +22,7 @@ _io = [
 
 class Platform(OSFPGAPlatform):
     def __init__(self):
-        OSFPGAPlatform.__init__(self, device=None, toolchain="raptor", io=_io) # FIXME: Add device support.
+        OSFPGAPlatform.__init__(self, device="test", toolchain="raptor", io=_io)
 
 # Minimal Design -----------------------------------------------------------------------------------
 
