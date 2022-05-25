@@ -20,7 +20,7 @@
 static void sata_init_handler(int nb_params, char **params)
 {
 	printf("Initialize SATA... ");
-	if (sata_init())
+	if (sata_init(1))
 		printf("Successful.\n");
 	else
 		printf("Failed.\n");

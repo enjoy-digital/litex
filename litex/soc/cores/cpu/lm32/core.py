@@ -33,7 +33,7 @@ class LM32(CPU):
     gcc_triple           = "lm32-elf"
     linker_output_format = "elf32-lm32"
     nop                  = "nop"
-    io_regions           = {0x80000000: 0x80000000} # origin, length
+    io_regions           = {0x8000_0000: 0x8000_0000} # origin, length
 
     # GCC Flags.
     @property

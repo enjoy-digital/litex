@@ -56,6 +56,9 @@ class TestCPU(unittest.TestCase):
     def test_picorv32(self):
         self.assertTrue(self.boot_test("picorv32"))
 
+    #def test_cva6(self):
+    #    self.assertTrue(self.boot_test("cva6"))
+
     # OpenRISC CPUs.
     #def test_mor1kx(self):
     #    self.assertTrue(self.boot_test("mor1kx"))

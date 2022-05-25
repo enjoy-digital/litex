@@ -70,8 +70,8 @@ class IntelClocking(Module, AutoCSR):
                                 break
                             if valid:
                                 break
-                    if not valid:
-                        all_valid = False
+                        if not valid:
+                            all_valid = False
                 else:
                     all_valid = False
                 if all_valid:

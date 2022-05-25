@@ -65,17 +65,17 @@ class BlackParrot(CPU):
     gcc_triple           = CPU_GCC_TRIPLE_RISCV64
     linker_output_format = "elf64-littleriscv"
     nop                  = "nop"
-    io_regions           = {0x50000000: 0x10000000} # Origin, Length.
+    io_regions           = {0x5000_0000: 0x1000_0000} # Origin, Length.
 
     # Memory Mapping.
     @property
     def mem_map(self):
         # Keep the lower 128MBs for SoC IOs auto-allocation.
         return {
-            "csr"      : 0x58000000,
-            "rom"      : 0x70000000,
-            "sram"     : 0x71000000,
-            "main_ram" : 0x80000000,
+            "csr"      : 0x5800_0000,
+            "rom"      : 0x7000_0000,
+            "sram"     : 0x7100_0000,
+            "main_ram" : 0x8000_0000,
         }
 
     # GCC Flags.
@@ -142,7 +142,7 @@ class BlackParrot(CPU):
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
-        assert reset_address == 0x70000000, "cpu_reset_addr hardcoded to 7x00000000!"
+        assert reset_address == 0x7000_0000, "cpu_reset_addr hardcoded to 7x00000000!"
 
     @staticmethod
     def add_sources(platform, variant="standard"):

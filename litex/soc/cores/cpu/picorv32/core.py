@@ -47,7 +47,7 @@ class PicoRV32(CPU):
     gcc_triple           = CPU_GCC_TRIPLE_RISCV32
     linker_output_format = "elf32-littleriscv"
     nop                  = "nop"
-    io_regions           = {0x80000000: 0x80000000} # origin, length
+    io_regions           = {0x8000_0000: 0x8000_0000} # origin, length
 
     # GCC Flags.
     @property
@@ -183,7 +183,7 @@ class PicoRV32(CPU):
         self.reset_address = reset_address
         self.cpu_params.update(
             p_PROGADDR_RESET = reset_address,
-            p_PROGADDR_IRQ   = reset_address + 0x00000010
+            p_PROGADDR_IRQ   = reset_address + 0x0000_0010
         )
 
     @staticmethod

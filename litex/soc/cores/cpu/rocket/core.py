@@ -105,18 +105,18 @@ class Rocket(CPU):
     gcc_triple           = CPU_GCC_TRIPLE_RISCV64
     linker_output_format = "elf64-littleriscv"
     nop                  = "nop"
-    io_regions           = {0x12000000: 0x70000000} # Origin, Length.
+    io_regions           = {0x1200_0000: 0x7000_0000} # Origin, Length.
 
     # Memory Mapping.
     @property
     def mem_map(self):
         # Rocket reserves the first 256Mbytes for internal use, so we must change default mem_map.
         return {
-            "rom"      : 0x10000000,
-            "sram"     : 0x11000000,
-            "csr"      : 0x12000000,
-            "ethmac"   : 0x30000000,
-            "main_ram" : 0x80000000,
+            "rom"      : 0x1000_0000,
+            "sram"     : 0x1100_0000,
+            "csr"      : 0x1200_0000,
+            "ethmac"   : 0x3000_0000,
+            "main_ram" : 0x8000_0000,
         }
 
     # GCC Flags.
@@ -320,7 +320,7 @@ class Rocket(CPU):
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
-        assert reset_address == 0x10000000, "cpu_reset_addr hardcoded in during elaboration!"
+        assert reset_address == 0x1000_0000, "cpu_reset_addr hardcoded in during elaboration!"
 
     @staticmethod
     def add_sources(platform, variant="standard"):

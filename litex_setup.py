@@ -69,14 +69,17 @@ class GitRepo:
 
 git_repos = {
     # HDL.
+    # ----
     "migen":    GitRepo(url="https://github.com/m-labs/", clone="recursive"),
 
-    # LiteX SoC builder
+    # LiteX SoC builder.
+    # ------------------
     "pythondata-software-picolibc":    GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
     "pythondata-software-compiler_rt": GitRepo(url="https://github.com/litex-hub/"),
     "litex":                           GitRepo(url="https://github.com/enjoy-digital/", tag=True),
 
     # LiteX Cores Ecosystem.
+    # ----------------------
     "liteeth":      GitRepo(url="https://github.com/enjoy-digital/", tag=True),
     "litedram":     GitRepo(url="https://github.com/enjoy-digital/", tag=True),
     "litepcie":     GitRepo(url="https://github.com/enjoy-digital/", tag=True),
@@ -88,27 +91,39 @@ git_repos = {
     "litespi":      GitRepo(url="https://github.com/litex-hub/", tag=True),
 
     # LiteX Boards.
+    # -------------
     "litex-boards": GitRepo(url="https://github.com/litex-hub/", clone="regular", tag=True),
 
     # LiteX pythondata.
+    # -----------------
+    # Generic.
     "pythondata-misc-tapcfg":      GitRepo(url="https://github.com/litex-hub/"),
     "pythondata-misc-usb_ohci":    GitRepo(url="https://github.com/litex-hub/"),
+
+    # LM32 CPU(s).
     "pythondata-cpu-lm32":         GitRepo(url="https://github.com/litex-hub/"),
+
+    # OpenRISC CPU(s).
     "pythondata-cpu-mor1kx":       GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-picorv32":     GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-serv":         GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-vexriscv":     GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-vexriscv-smp": GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
-    "pythondata-cpu-naxriscv":     GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-rocket":       GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-minerva":      GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-cpu-marocchino":   GitRepo(url="https://github.com/litex-hub/"),
+
+    # OpenPower CPU(s).
     "pythondata-cpu-microwatt":    GitRepo(url="https://github.com/litex-hub/", sha1=0xb940b55acff),
+
+    # RISC-V CPU(s).
     "pythondata-cpu-blackparrot":  GitRepo(url="https://github.com/litex-hub/"),
     "pythondata-cpu-cv32e40p":     GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
     "pythondata-cpu-cv32e41p":     GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
     "pythondata-cpu-cva5":         GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-cpu-cva6":         GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
     "pythondata-cpu-ibex":         GitRepo(url="https://github.com/litex-hub/", clone="recursive", sha1=0xd3d53df),
-    "pythondata-cpu-marocchino":   GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-cpu-minerva":      GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-cpu-naxriscv":     GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-cpu-picorv32":     GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-cpu-rocket":       GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-cpu-serv":         GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-cpu-vexriscv":     GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-cpu-vexriscv-smp": GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
 }
 
 # Installs -----------------------------------------------------------------------------------------
@@ -118,15 +133,16 @@ minimal_repos = ["migen", "litex"]
 
 # Standard: Migen + LiteX + Cores + Software + Popular CPUs (LM32, Mor1kx, SERV, VexRiscv).
 standard_repos = list(git_repos.keys())
-standard_repos.remove("pythondata-cpu-picorv32")
-standard_repos.remove("pythondata-cpu-rocket")
-standard_repos.remove("pythondata-cpu-minerva")
-standard_repos.remove("pythondata-cpu-microwatt")
 standard_repos.remove("pythondata-cpu-blackparrot")
 standard_repos.remove("pythondata-cpu-cv32e40p")
 standard_repos.remove("pythondata-cpu-cv32e41p")
+standard_repos.remove("pythondata-cpu-cva6")
 standard_repos.remove("pythondata-cpu-ibex")
 standard_repos.remove("pythondata-cpu-marocchino")
+standard_repos.remove("pythondata-cpu-minerva")
+standard_repos.remove("pythondata-cpu-microwatt")
+standard_repos.remove("pythondata-cpu-picorv32")
+standard_repos.remove("pythondata-cpu-rocket")
 
 # Full: Migen + LiteX + Cores + Software + All CPUs.
 full_repos = list(git_repos.keys())
@@ -254,7 +270,7 @@ def litex_setup_install_repos(config="standard", user_mode=False):
         if repo.develop:
             print_status(f"Installing {name} Git repository...")
             os.chdir(os.path.join(current_path, name))
-            subprocess.check_call("{python3} -m pip install --editable . {options}".format(
+            subprocess.check_call("\"{python3}\" -m pip install --editable . {options}".format(
                 python3 = sys.executable,
                 options = "--user" if user_mode else "",
                 ), shell=True)

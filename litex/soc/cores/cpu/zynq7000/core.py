@@ -37,7 +37,7 @@ class Zynq7000(CPU):
     @property
     def mem_map(self):
         return {
-            "sram": 0x10_0000,  # DDR in fact
+            "sram": 0x0010_0000,  # DDR in fact
             "rom":  0xfc00_0000,
         }
 

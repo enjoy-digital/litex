@@ -26,18 +26,21 @@ def _build_sdc(clocks, vns, build_name):
 
 # Script -------------------------------------------------------------------------------------------
 
-def _build_tcl(name, device, files, build_name):
+def _build_tcl(name, device, files, build_name, include_paths):
     tcl = []
 
     # Create Design.
     tcl.append(f"create_design {build_name}")
 
     # Set Device.
-    # TODO (Use Macro for now).
-    tcl.append("set_macro P1=10  P2=20")
+    # FIXME: Directly pass Devices instead of Macro when possible.
+    macro = {"test": "P1=10  P2=20"}[device]
+    tcl.append(f"set_macro {macro}")
 
     # Add Include Path.
-    # TODO.
+    tcl.append("add_include_path ./")
+    for include_path in include_paths:
+        tcl.append(f"add_include_path {include_path}")
 
     # Add Sources.
     for f, typ, lib in files:
@@ -107,10 +110,11 @@ class OSFPGAToolchain:
 
         # Generate build script (.tcl)
         script = _build_tcl(
-            name       = platform.devicename,
-            device     = platform.device,
-            files      = platform.sources,
-            build_name = build_name,
+            name          = platform.devicename,
+            device        = platform.device,
+            files         = platform.sources,
+            build_name    = build_name,
+            include_paths = platform.verilog_include_paths,
         )
 
         # Run

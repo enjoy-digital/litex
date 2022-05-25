@@ -35,16 +35,16 @@ class Microwatt(CPU):
     gcc_triple           = ("powerpc64le-linux", "powerpc64le-linux-gnu", "ppc64le-linux", "ppc64le-linux-musl")
     linker_output_format = "elf64-powerpcle"
     nop                  = "nop"
-    io_regions           = {0xc0000000: 0x10000000} # Origin, Length.
+    io_regions           = {0xc000_0000: 0x1000_0000} # Origin, Length.
 
     # Memory Mapping.
     @property
     def mem_map(self):
         return {
             # Keep the lower 128MBs for SoC IOs auto-allocation.
-            "csr":      0xc8000000,
-            "xicsicp":  0xcbff0000,
-            "xicsics":  0xcbff1000,
+            "csr":      0xc800_0000,
+            "xicsicp":  0xcbff_0000,
+            "xicsics":  0xcbff_1000,
         }
 
     # GCC Flags.
@@ -131,7 +131,7 @@ class Microwatt(CPU):
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
-        assert reset_address == 0x00000000
+        assert reset_address == 0x0000_0000
 
     def add_soc_components(self, soc, soc_region_cls):
         if "irq" in self.variant:
