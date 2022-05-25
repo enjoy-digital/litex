@@ -111,7 +111,9 @@ __attribute__((__used__)) int main(int i, char **c)
 #ifndef CONFIG_BIOS_NO_BUILD_TIME
 	printf(" BIOS built on "__DATE__" "__TIME__"\n");
 #endif
+#ifndef CONFIG_BIOS_NO_CRC
 	crcbios();
+#endif
 	printf("\n");
 	printf(" LiteX git sha1: "LITEX_GIT_SHA1"\n");
 	printf("\n");
