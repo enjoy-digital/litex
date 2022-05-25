@@ -79,36 +79,26 @@ class CVA6(CPU):
             "csr"  : 0x80000000
         }
 
-    def __init__(self, platform, variant="standard", use_wishbone=True):
+    def __init__(self, platform, variant="standard"):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
         self.interrupt    = Signal(32)
-        if use_wishbone:
-            self.wb_if        = wishbone.Interface(data_width=64, adr_width=29)
-            self.periph_buses = [self.wb_if] # Peripheral buses (Connected to main SoC's bus).
-        else:
-            self.axi_lite_if  = axi.AXILiteInterface(data_width=64, address_width=32)
-            self.periph_buses = [self.axi_lite_if] # Peripheral buses (Connected to main SoC's bus).
-        self.memory_buses  = []                 # Memory buses (Connected directly to LiteDRAM).
+        self.axi_lite_if  = axi.AXILiteInterface(data_width=64, address_width=32)
+        self.periph_buses = [self.axi_lite_if] # Peripheral buses (Connected to main SoC's bus).
+        self.memory_buses = []                 # Memory buses (Connected directly to LiteDRAM).
 
         # # #
 
-        # AXI <-> Wishbone/AXILite conversion.
+        # AXI <-> AXILite conversion.
         axi_if = axi.AXIInterface(data_width=64,  address_width=32, id_width=4)
-        if use_wishbone:
-            self.submodules += axi.AXI2Wishbone(axi_if, self.wb_if)
-        else:
-            self.submodules += axi.AXI2AXILite(axi_if, self.axi_lite_if)
+        self.submodules += axi.AXI2AXILite(axi_if, self.axi_lite_if)
 
         # CPU Instance.
         self.cpu_params = dict(
             # Clk / Rst.
             i_clk_i       = ClockSignal("sys"),
             i_rst_n       = ~ResetSignal("sys") | self.reset,
-
-            # Interrupts.
-            i_irq_sources = self.interrupt,
 
             # AXI interface.
             o_AWVALID_o   = axi_if.aw.valid,
