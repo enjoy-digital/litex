@@ -161,13 +161,20 @@ class SimSoC(SoCCore):
         platform     = Platform()
         sys_clk_freq = int(1e6)
 
+        # CRG --------------------------------------------------------------------------------------
+        self.submodules.crg = CRG(platform.request("sys_clk"))
+
         # SoCCore ----------------------------------------------------------------------------------
         SoCCore.__init__(self, platform, clk_freq=sys_clk_freq,
             ident = "LiteX Simulation",
             **kwargs)
 
-        # CRG --------------------------------------------------------------------------------------
-        self.submodules.crg = CRG(platform.request("sys_clk"))
+        # BIOS Config ------------------------------------------------------------------------------
+        # FIXME: Expose?
+        #self.add_config("BIOS_NO_PROMPT")
+        #self.add_config("BIOS_NO_DELAYS")
+        #self.add_config("BIOS_NO_BUILD_TIME")
+        #self.add_config("BIOS_NO_CRC")
 
         # SDRAM ------------------------------------------------------------------------------------
         if not self.integrated_main_ram_size and with_sdram:
