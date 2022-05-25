@@ -1216,7 +1216,8 @@ class LiteXSoC(SoC):
         self.check_if_exists(name)
         if with_build_time:
             identifier += " " + build_time()
-            self.add_config("WITH_BUILD_TIME")
+        else:
+            self.add_config("BIOS_NO_BUILD_TIME")
         setattr(self.submodules, name, Identifier(identifier))
 
     # Add UART -------------------------------------------------------------------------------------

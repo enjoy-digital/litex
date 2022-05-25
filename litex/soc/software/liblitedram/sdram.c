@@ -43,7 +43,7 @@
 
 __attribute__((unused)) void cdelay(int i)
 {
-#ifndef CONFIG_DISABLE_DELAYS
+#ifndef CONFIG_BIOS_NO_DELAYS
 	while(i > 0) {
 		__asm__ volatile(CONFIG_CPU_NOP);
 		i--;
