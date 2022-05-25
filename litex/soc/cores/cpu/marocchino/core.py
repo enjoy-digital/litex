@@ -33,7 +33,7 @@ class Marocchino(CPU):
     clang_triple         = "or1k-linux"
     linker_output_format = "elf32-or1k"
     nop                  = "l.nop"
-    io_regions           = {0x80000000: 0x80000000} # Origin, Length.
+    io_regions           = {0x8000_0000: 0x8000_0000} # Origin, Length.
 
     # Memory Mapping for Linux variant.
     @property
@@ -42,10 +42,10 @@ class Marocchino(CPU):
         # address of 0x0. As we are running Linux from the MAIN_RAM region - move it to satisfy
         # that requirement.
         return {
-            "main_ram" : 0x00000000,
-            "rom"      : 0x10000000,
-            "sram"     : 0x50000000,
-            "csr"      : 0xe0000000,
+            "main_ram" : 0x0000_0000,
+            "rom"      : 0x1000_0000,
+            "sram"     : 0x5000_0000,
+            "csr"      : 0xe000_0000,
         }
 
     # GCC Flags.

@@ -68,10 +68,10 @@ class GowinEMCU(CPU):
     @property
     def mem_map(self):
         return {
-            "rom":  0x0000_0000,
-            "sram": 0x2000_0000,
-            "peripherals": 0x4000_0000,
-            "csr":  0xA000_0000,
+            "rom"         : 0x0000_0000,
+            "sram"        : 0x2000_0000,
+            "peripherals" : 0x4000_0000,
+            "csr"         : 0xa000_0000,
         }
 
     def __init__(self, platform, variant, *args, **kwargs):

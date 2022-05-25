@@ -33,7 +33,7 @@ class VexRiscvSMP(CPU):
     gcc_triple           = CPU_GCC_TRIPLE_RISCV32
     linker_output_format = "elf32-littleriscv"
     nop                  = "nop"
-    io_regions           = {0x80000000: 0x80000000} # Origin, Length.
+    io_regions           = {0x8000_0000: 0x8000_0000} # Origin, Length.
 
     # Default parameters.
     cpu_count            = 1
@@ -131,12 +131,12 @@ class VexRiscvSMP(CPU):
     @property
     def mem_map(self):
         return {
-            "rom":      0x00000000,
-            "sram":     0x10000000,
-            "main_ram": 0x40000000,
-            "csr":      0xf0000000,
-            "clint":    0xf0010000,
-            "plic":     0xf0c00000,
+            "rom":      0x0000_0000,
+            "sram":     0x1000_0000,
+            "main_ram": 0x4000_0000,
+            "csr":      0xf000_0000,
+            "clint":    0xf001_0000,
+            "plic":     0xf0c0_0000,
         }
 
     # GCC Flags.
@@ -346,7 +346,7 @@ class VexRiscvSMP(CPU):
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
-        assert reset_address == 0x00000000
+        assert reset_address == 0x0000_0000
 
     def add_sources(self, platform):
         vdir = get_data_mod("cpu", "vexriscv_smp").data_location
@@ -381,7 +381,7 @@ class VexRiscvSMP(CPU):
         soc.irq.add("timer0", n=1)
 
         # Add OpenSBI region.
-        soc.add_memory_region("opensbi", self.mem_map["main_ram"] + 0x00f00000, 0x80000, type="cached+linker")
+        soc.add_memory_region("opensbi", self.mem_map["main_ram"] + 0x00f0_0000, 0x8_0000, type="cached+linker")
 
         # Define number of CPUs
         soc.add_config("CPU_COUNT", VexRiscvSMP.cpu_count)
@@ -415,7 +415,7 @@ class VexRiscvSMP(CPU):
             o_plicWishbone_DAT_MISO  = plicbus.dat_r,
             i_plicWishbone_DAT_MOSI  = plicbus.dat_w
         )
-        soc.bus.add_slave("plic", self.plicbus, region=soc_region_cls(origin=soc.mem_map.get("plic"), size=0x400000, cached=False))
+        soc.bus.add_slave("plic", self.plicbus, region=soc_region_cls(origin=soc.mem_map.get("plic"), size=0x40_0000, cached=False))
 
         # Add CLINT as Bus Slave
         self.clintbus = clintbus = wishbone.Interface()
@@ -428,7 +428,7 @@ class VexRiscvSMP(CPU):
             o_clintWishbone_DAT_MISO = clintbus.dat_r,
             i_clintWishbone_DAT_MOSI = clintbus.dat_w,
         )
-        soc.bus.add_slave("clint", clintbus, region=soc_region_cls(origin=soc.mem_map.get("clint"), size=0x10000, cached=False))
+        soc.bus.add_slave("clint", clintbus, region=soc_region_cls(origin=soc.mem_map.get("clint"), size=0x1_0000, cached=False))
 
     def add_memory_buses(self, address_width, data_width):
         VexRiscvSMP.litedram_width = data_width

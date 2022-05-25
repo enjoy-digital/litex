@@ -24,7 +24,7 @@ class ZynqMP(CPU):
     linker_output_format = "elf64-littleaarch64"
     nop                  = "nop"
     io_regions           = {  # Origin, Length.
-        0x8000_0000: 0x4000_0000,
+        0x8000_0000: 0x00_4000_0000,
         0xe000_0000: 0xff_2000_0000  # TODO: there are more details here
     }
     csr_decode           = False # AXI address is decoded in AXI2Wishbone (target level).

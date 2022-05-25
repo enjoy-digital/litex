@@ -42,13 +42,13 @@ class CPUNone(CPU):
     data_width    = 32
     endianness    = "little"
     reset_address = 0x00000000
-    io_regions    = {0x00000000: 0x100000000} # origin, length
+    io_regions    = {0x0000_0000: 0x1_0000_0000} # origin, length
     periph_buses  = []
     memory_buses  = []
     mem_map       = {
-        "csr"      : 0x00000000,
-        "ethmac"   : 0x00020000, # FIXME: Remove.
-        "spiflash" : 0x10000000, # FIXME: Remove.
+        "csr"      : 0x0000_0000,
+        "ethmac"   : 0x0002_0000, # FIXME: Remove.
+        "spiflash" : 0x1000_0000, # FIXME: Remove.
     }
 
 CPU_GCC_TRIPLE_RISCV64 = (

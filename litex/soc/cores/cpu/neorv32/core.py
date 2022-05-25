@@ -41,7 +41,7 @@ class NEORV32(CPU):
     gcc_triple           = CPU_GCC_TRIPLE_RISCV32
     linker_output_format = "elf32-littleriscv"
     nop                  = "nop"
-    io_regions           = {0x80000000: 0x80000000} # Origin, Length.
+    io_regions           = {0x8000_0000: 0x8000_0000} # Origin, Length.
 
     # GCC Flags.
     @property
@@ -147,7 +147,7 @@ class NEORV32(CPU):
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
-        assert reset_address == 0x00000000
+        assert reset_address == 0x0000_0000
 
     @staticmethod
     def add_sources(platform):

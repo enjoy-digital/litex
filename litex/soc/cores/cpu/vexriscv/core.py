@@ -105,17 +105,17 @@ class VexRiscv(CPU, AutoCSR):
     gcc_triple           = CPU_GCC_TRIPLE_RISCV32
     linker_output_format = "elf32-littleriscv"
     nop                  = "nop"
-    io_regions           = {0x80000000: 0x80000000} # Origin, Length
+    io_regions           = {0x8000_0000: 0x8000_0000} # Origin, Length
 
     # Memory Mapping.
     @property
     def mem_map(self):
         return {
-            "rom":            0x00000000,
-            "sram":           0x10000000,
-            "main_ram":       0x40000000,
-            "csr":            0xf0000000,
-            "vexriscv_debug": 0xf00f0000,
+            "rom":            0x0000_0000,
+            "sram":           0x1000_0000,
+            "main_ram":       0x4000_0000,
+            "csr":            0xf000_0000,
+            "vexriscv_debug": 0xf00f_0000,
         }
 
     # GCC Flags.

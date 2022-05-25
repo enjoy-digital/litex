@@ -60,7 +60,7 @@ class CVA6(CPU):
     gcc_triple           = CPU_GCC_TRIPLE_RISCV64
     linker_output_format = "elf64-littleriscv"
     nop                  = "nop"
-    io_regions           = {0x80000000: 0x80000000} # Origin, Length.
+    io_regions           = {0x8000_0000: 0x8000_0000} # Origin, Length.
 
     # GCC Flags.
     @property
@@ -74,9 +74,9 @@ class CVA6(CPU):
     @property
     def mem_map(self):
         return {
-            "rom"  : 0x10000000,
-            "sram" : 0x20000000,
-            "csr"  : 0x80000000
+            "rom"  : 0x1000_0000,
+            "sram" : 0x2000_0000,
+            "csr"  : 0x8000_0000,
         }
 
     def __init__(self, platform, variant="standard"):
@@ -179,7 +179,7 @@ class CVA6(CPU):
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
-        assert reset_address == 0x10000000, "cpu_reset_addr hardcoded in during elaboration!"
+        assert reset_address == 0x1000_0000, "cpu_reset_addr hardcoded in during elaboration!"
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
