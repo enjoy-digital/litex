@@ -51,6 +51,7 @@ def add_manifest_sources(platform, manifest):
 # CVA6 ---------------------------------------------------------------------------------------------
 
 class CVA6(CPU):
+    category             = "softcore"
     family               = "riscv"
     name                 = "cva6"
     human_name           = "CVA6"
