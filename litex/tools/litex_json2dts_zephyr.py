@@ -154,6 +154,29 @@ def i2c_handler(name, parm, csr):
     return dtsi
 
 
+def i2s_handler(name, parm, csr):
+    registers = get_registers_of(name, csr)
+    if len(registers) == 0:
+        raise KeyError
+
+    fifo = {
+        'name': 'fifo',
+        'addr': csr['memories'][name]['base'],
+        'size': csr['memories'][name]['size'],
+        'type': csr['memories'][name]['type'],
+    }
+    registers.append(fifo)
+
+    dtsi = dts_reg(registers)
+    dtsi += dts_reg_names(registers)
+
+    try:
+        dtsi += dts_intr(name, csr)
+    except KeyError as e:
+        print('  dtsi key', e, 'not found, no interrupt override')
+    return dtsi
+
+
 def peripheral_handler(name, parm, csr):
     registers = get_registers_of(name, csr)
     if len(registers) == 0:
@@ -192,6 +215,19 @@ overlay_handlers = {
     'i2c0' : {
         'handler': i2c_handler,
         'config_entry': 'I2C_LITEX'
+    },
+    'i2s_rx' : {
+        'handler': i2s_handler,
+        'config_entry': 'I2S_LITEX'
+    },
+    'i2s_tx' : {
+        'handler': i2s_handler,
+        'config_entry': 'I2S_LITEX'
+    },
+    'mmcm' : {
+        'alias': 'clock0',
+        'handler': peripheral_handler,
+        'config_entry': 'CLOCK_CONTROL_LITEX'
     },
     'main_ram': {
         'handler': ram_handler,
