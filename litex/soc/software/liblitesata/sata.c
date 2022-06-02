@@ -26,7 +26,7 @@ int sata_init(int show) {
 	uint16_t buf[128];
 	uint8_t  model[38];
 	uint64_t sectors;
-	uint32_t capacity;
+	unsigned capacity;
 
 	for (timeout=16; timeout>0; timeout--) {
 		/* Reset SATA PHY */
@@ -84,7 +84,7 @@ int sata_init(int show) {
 		sectors += (((uint64_t) buf[103]) << 48);
 		capacity = sectors/(1000*1000*500/256);
 		if (show)
-			printf("Capacity: %ldGB\n", capacity);
+			printf("Capacity: %dGB\n", capacity);
 
 		/* Init succeeded */
 		return 1;
