@@ -217,10 +217,10 @@ class CSRFieldAggregate:
         for field in fields:
             if field.access is None:
                 field.access = access
-            elif field.access == CSRAccess.ReadOnly:
+            elif access == CSRAccess.ReadOnly:
                 assert not field.pulse
                 assert field.access == CSRAccess.ReadOnly
-            elif field.access == CSRAccess.ReadWrite:
+            elif access == CSRAccess.ReadWrite:
                 assert field.access in [CSRAccess.ReadWrite, CSRAccess.WriteOnly]
                 if field.pulse:
                     field.access = CSRAccess.WriteOnly
