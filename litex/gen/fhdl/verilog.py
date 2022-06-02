@@ -133,6 +133,18 @@ _ieee_1800_2017_verilog_reserved_keywords = {
 #                                       EXPRESSIONS                                                #
 # ------------------------------------------------------------------------------------------------ #
 
+# Stub for $time in Display() args -----------------------------------------------------------------
+
+class VerilogTime:
+    """Expression for $time in Display() statements
+    
+    Example:
+    self.sync += If(state != old_state,
+        Display("time=%t old_state: %d state: %d", VerilogTime(), old_state, state)
+    )
+    """
+    pass
+
 # Print Constant -----------------------------------------------------------------------------------
 
 def _print_constant(node):
@@ -322,6 +334,8 @@ def _print_node(ns, at, level, node, target_filter=None):
             s += ", "
             if isinstance(arg, Signal):
                 s += ns.get_name(arg)
+            elif isinstance(arg, VerilogTime):
+                s += "$time"
             else:
                 s += str(arg)
         return "\t"*level + "$display(" + s + ");\n"
