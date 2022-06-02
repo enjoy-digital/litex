@@ -14,7 +14,7 @@ CX_normal      := $(CCACHE) clang++ -target $(TRIPLE) -integrated-as
 else
 CC_normal      := $(CCACHE) $(TARGET_PREFIX)gcc -std=gnu99
 CX_normal      := $(CCACHE) $(TARGET_PREFIX)g++
-GCC_INSTALLATION_PATH := $(patsubst %/libgcc.a,%,$(shell $(CC) -print-libgcc-file-name))
+GCC_PATH       := $(patsubst %/libgcc.a,%,$(shell $(CC) -print-libgcc-file-name))
 endif
 AR_normal      := $(TARGET_PREFIX)gcc-ar
 LD_normal      := $(TARGET_PREFIX)ld
@@ -56,8 +56,8 @@ INCLUDES = -I$(PICOLIBC_DIRECTORY)/newlib/libc/tinystdio \
            -I$(BUILDINC_DIRECTORY)/../libc \
            -I$(CPU_DIRECTORY)
 COMMONFLAGS = $(DEPFLAGS) -Os $(CPUFLAGS) -g3 -fomit-frame-pointer -Wall -fno-builtin -fno-stack-protector $(INCLUDES)
-ifneq (,$(GCC_INSTALLATION_PATH))
-COMMONFLAGS += -nostdinc -I$(GCC_INSTALLATION_PATH)/include -I$(GCC_INSTALLATION_PATH)/include-fixed
+ifneq (,$(GCC_PATH))
+COMMONFLAGS += -nostdinc -I$(GCC_PATH)/include -I$(GCC_PATH)/include-fixed
 endif
 ifeq (,$(findstring musl,$(TRIPLE)))
 COMMONFLAGS += -flto
