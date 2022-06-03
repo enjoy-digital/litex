@@ -248,7 +248,7 @@ class SimSoC(SoCCore):
                 dw         = 64 if ethernet_phy_model == "xgmii" else 32,
                 interface  = "wishbone",
                 endianness = self.cpu.endianness)
-            ethmac_region_size = (ethmac.rx_slots.read() + ethmac.tx_slots.read()) * ethmac.slot_size.read()
+            ethmac_region_size = (ethmac.rx_slots.constant + ethmac.tx_slots.constant)*ethmac.slot_size.constant
             self.add_memory_region("ethmac", self.mem_map.get("ethmac", None), ethmac_region_size, type="io")
             self.add_wb_slave(self.mem_regions["ethmac"].origin, ethmac.bus, ethmac_region_size)
             if self.irq.enabled:
