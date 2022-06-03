@@ -59,9 +59,6 @@ COMMONFLAGS = $(DEPFLAGS) -Os $(CPUFLAGS) -g3 -fomit-frame-pointer -Wall -fno-bu
 ifneq (,$(GCC_PATH))
 COMMONFLAGS += -nostdinc -I$(GCC_PATH)/include -I$(GCC_PATH)/include-fixed
 endif
-ifeq (,$(findstring musl,$(TRIPLE)))
-COMMONFLAGS += -flto
-endif
 ifneq ($(CPUFAMILY), arm)
 COMMONFLAGS += -fexceptions
 endif
