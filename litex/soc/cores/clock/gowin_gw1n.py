@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2021 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2021-2022 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
@@ -79,8 +79,6 @@ class GW1NPLL(Module):
             vco_freq_range = (400e6, 1200e6)
         elif device.startswith('GW1N-') or device.startswith('GW1NR-'):
             vco_freq_range = (400e6, 900e6)
-        elif device.startswith('GW2A-'):
-            vco_freq_range = (500e6, 1250e6) # datasheet values
         if vco_freq_range is None:
             raise ValueError(f"Unsupported device {device}.")
         return vco_freq_range
@@ -97,8 +95,6 @@ class GW1NPLL(Module):
             pfd_freq_range = (3e6, 400e6)  # not verified: not found in the datasheet
         elif device.startswith('GW1N-') or device.startswith('GW1NR-'):
             pfd_freq_range = (3e6, 400e6)  # not verified: not found in the datasheet
-        elif device.startswith('GW2A-'):
-            pfd_freq_range = (3e6, 500e6)  # datasheet values
         if pfd_freq_range is None:
             raise ValueError(f"Unsupported device {device}.")
         return pfd_freq_range
