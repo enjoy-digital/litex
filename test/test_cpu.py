@@ -37,10 +37,11 @@ class TestCPU(unittest.TestCase):
     def test_cpu(self):
         tested_cpus = [
             "cv32e40p",     # (riscv   / softcore)
-            "cva5",         # (riscv   / softcore)
             "femtorv",      # (riscv   / softcore)
             "firev",        # (riscv   / softcore)
             "ibex",         # (riscv   / softcore)
+            "marocchino",   # (or1k    / softcore)
+            "mor1kx",       # (or1k    / softcore)
             "naxriscv",     # (riscv   / softcore)
             "picorv32",     # (riscv   / softcore)
             "rocket",       # (riscv   / softcore)
@@ -53,14 +54,13 @@ class TestCPU(unittest.TestCase):
             "cortex_m1",    # (arm     / softcore) -> Proprietary code.
             "cortex_m3",    # (arm     / softcore) -> Proprieraty code.
             "cv32e41p",     # (riscv   / softcore) -> Broken?
+            "cva5",         # (riscv   / softcore) -> Needs to be tested.
             "cva6",         # (riscv   / softcore) -> Needs to be tested.
             "eos_s3",       # (arm     / hardcore) -> Hardcore.
             "gowin_emcu",   # (arm     / hardcore) -> Hardcore.
             "lm32",         # (lm32    / softcore) -> Requires LM32 toolchain.
-            "marocchino",   # (or1k    / softcore) -> Needs to be tested.
             "microwatt",    # (ppc64   / softcore) -> Requires PPC toolchain + VHDL->Verilog (GHDL + Yosys).
             "minerva",      # (riscv   / softcore) -> Broken install? (Amaranth?)
-            "mor1kx",       # (or1k    / softcore) -> Needs to be tested.
             "neorv32",      # (riscv   / softcore) -> Requires VHDL->Verilog (GHDL + Yosys).
             "zynq7000",     # (arm     / hardcore) -> Hardcore.
             "zynqmp",       # (aarch64 / hardcore) -> Hardcore.
