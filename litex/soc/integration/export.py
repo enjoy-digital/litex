@@ -106,8 +106,8 @@ def get_cpu_mak(cpu, compile_software):
             flags = re.compile("-march=([^ ]+)").sub("-march=\\1_zicsr", flags)
         return flags
 
-    if (not clang) and ("riscv" in selected_triple):
-        flags = apply_riscv_zicsr_march_workaround(flags)
+    #if (not clang) and ("riscv" in selected_triple):
+    #   flags = apply_riscv_zicsr_march_workaround(flags)
 
     # Return informations.
     return [
