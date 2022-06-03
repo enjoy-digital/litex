@@ -64,27 +64,44 @@ class GW1NPLL(Module):
         self.clkouts    = {}
         self.config     = {}
         self.params     = {}
+        self.vco_freq_range = self.get_vco_freq_range(device)
+        self.pfd_freq_range = self.get_pfd_freq_range(device)
+
+    @staticmethod
+    def get_vco_freq_range(device):
+        vco_freq_range = None
         if device.startswith('GW1NS'):
             if 'C7/I6' in device or 'C6/I5' in device:
-                self.vco_freq_range = (600e6, 1200e6)  # datasheet says (400, 1200) but compiler enforces (600, 1200)
-                self.pfd_freq_range = (3e6, 400e6)
+                vco_freq_range = (600e6, 1200e6)  # datasheet says (400, 1200) but compiler enforces (600, 1200)
             elif 'C5/I4' in device:
-                self.vco_freq_range = (320e6, 960e6)  # datasheet values, not tested
-                self.pfd_freq_range = (3e6, 320e6)
+                vco_freq_range = (320e6, 960e6)  # datasheet values, not tested
         elif device.startswith('GW1N-1S'):
-            self.vco_freq_range = (400e6, 1200e6)
-            self.pfd_freq_range = (3e6, 400e6)  # not verified: not found in the datasheet
+            vco_freq_range = (400e6, 1200e6)
         elif device.startswith('GW1N-') or device.startswith('GW1NR-'):
-            self.vco_freq_range = (400e6, 900e6)
-            self.pfd_freq_range = (3e6, 400e6)  # not verified: not found in the datasheet
+            vco_freq_range = (400e6, 900e6)
         elif device.startswith('GW2A-'):
-            self.vco_freq_range = (500e6, 1250e6) # datasheet values
-            self.pfd_freq_range = (3e6, 500e6)  # datasheet values
+            vco_freq_range = (500e6, 1250e6) # datasheet values
+        if vco_freq_range is None:
+            raise ValueError(f"Unsupported device {device}.")
+        return vco_freq_range
 
-        try:
-            self.vco_freq_range
-        except NameError:
-            self.logger.error('Unknown device name')
+    @staticmethod
+    def get_pfd_freq_range(device):
+        pfd_freq_range = None
+        if device.startswith('GW1NS'):
+            if 'C7/I6' in device or 'C6/I5' in device:
+                pfd_freq_range = (3e6, 400e6)
+            elif 'C5/I4' in device:
+                pfd_freq_range = (3e6, 320e6)
+        elif device.startswith('GW1N-1S'):
+            pfd_freq_range = (3e6, 400e6)  # not verified: not found in the datasheet
+        elif device.startswith('GW1N-') or device.startswith('GW1NR-'):
+            pfd_freq_range = (3e6, 400e6)  # not verified: not found in the datasheet
+        elif device.startswith('GW2A-'):
+            pfd_freq_range = (3e6, 500e6)  # datasheet values
+        if pfd_freq_range is None:
+            raise ValueError(f"Unsupported device {device}.")
+        return pfd_freq_range
 
     def register_clkin(self, clkin, freq):
         self.clkin = Signal()
