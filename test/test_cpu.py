@@ -63,6 +63,9 @@ class TestCPU(unittest.TestCase):
     #def test_mor1kx(self):
     #    self.assertTrue(self.boot_test("mor1kx"))
 
+    def test_marocchino(self):
+        self.assertTrue(self.boot_test("marocchino"))
+
     # PowerPC CPUs.
     #def test_microwatt(self):
     #    self.assertTrue(self.boot_test("microwatt", cpu_variant="standard+ghdl"))
