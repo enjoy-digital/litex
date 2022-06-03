@@ -321,8 +321,8 @@ def gcc_toolchain_download(url, filename):
 # -----------------
 
 def riscv_gcc_toolchain_download():
-    base_url  = "https://static.dev.sifive.com/dev-tools/"
-    base_file = "riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-"
+    base_url  = "https://static.dev.sifive.com/dev-tools/freedom-tools/v2020.08/"
+    base_file = "riscv64-unknown-elf-gcc-10.1.0-2020.08.2-x86_64-"
 
     # Windows
     if (sys.platform.startswith("win") or sys.platform.startswith("cygwin")):
