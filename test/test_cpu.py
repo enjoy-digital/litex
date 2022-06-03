@@ -60,8 +60,8 @@ class TestCPU(unittest.TestCase):
     #    self.assertTrue(self.boot_test("cva6"))
 
     # OpenRISC CPUs.
-    #def test_mor1kx(self):
-    #    self.assertTrue(self.boot_test("mor1kx"))
+    def test_mor1kx(self):
+        self.assertTrue(self.boot_test("mor1kx"))
 
     def test_marocchino(self):
         self.assertTrue(self.boot_test("marocchino"))
