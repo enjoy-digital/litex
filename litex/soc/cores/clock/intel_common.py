@@ -2,7 +2,11 @@
 # This file is part of LiteX.
 #
 # Copyright (c) 2018-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2022 Jevin Sweval <jevinsweval@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
+
+from operator import mul
+from functools import reduce
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
@@ -14,6 +18,10 @@ from litex.soc.interconnect.csr import *
 from litex.soc.cores.clock.common import *
 
 # Intel / Generic ---------------------------------------------------------------------------------
+
+def geometric_mean(vals):
+    return reduce(mul, vals, 1) ** (1 / len(vals))
+
 
 class IntelClocking(Module, AutoCSR):
     def __init__(self, vco_margin=0):
@@ -49,36 +57,42 @@ class IntelClocking(Module, AutoCSR):
         self.nclkouts += 1
 
     def compute_config(self):
-        config = {}
+        valid_configs = {}
         for n in range(*self.n_div_range):
-            config["n"] = n
-            for m in reversed(range(*self.m_div_range)):
-                all_valid = True
+            for m in range(*self.m_div_range):
+                # For this given N, M, check to see if we can meet requirements
+                # for each clkout. If so, record the difference ratio from the
+                # requested clock freqs.
+                diff_ratios = [None] * len(self.clkouts)
                 vco_freq = self.clkin_freq*m/n
+                config = {"m": m, "vco": vco_freq}
                 (vco_freq_min, vco_freq_max) = self.vco_freq_range
                 if (vco_freq >= vco_freq_min*(1 + self.vco_margin) and
                     vco_freq <= vco_freq_max*(1 - self.vco_margin)):
+                    clk_valid = [False] * len(self.clkouts)
                     for _n, (clk, f, p, _m) in sorted(self.clkouts.items()):
-                        valid = False
+                        # For each C, see if the output frequency is within margin
+                        # and the difference is better than the previous valid, best C.
+                        best_diff = float("inf")
                         for c in clkdiv_range(*self.c_div_range):
                             clk_freq = vco_freq/c
-                            if abs(clk_freq - f) <= f*_m:
-                                config["clk{}_freq".format(_n)]   = clk_freq
-                                config["clk{}_divide".format(_n)] = c
-                                config["clk{}_phase".format(_n)]  = p
-                                valid = True
-                                break
-                            if valid:
-                                break
-                        if not valid:
-                            all_valid = False
+                            diff = abs(clk_freq - f)
+                            if diff <= f*_m and diff < best_diff:
+                                config[f"clk{_n}_freq"]   = clk_freq
+                                config[f"clk{_n}_divide"] = c
+                                config[f"clk{_n}_phase"]  = p
+                                clk_valid[_n] = True
+                                diff_ratios[_n] = diff / f
+                                best_diff = diff
+                    all_valid = all(clk_valid)
                 else:
                     all_valid = False
                 if all_valid:
-                    config["vco"] = vco_freq
-                    config["m"]   = m
-                    compute_config_log(self.logger, config)
-                    return config
+                    valid_configs[geometric_mean(diff_ratios)] = config
+        if len(valid_configs):
+            best_config = sorted(valid_configs.items())[0][1]
+            compute_config_log(self.logger, best_config)
+            return best_config
         raise ValueError("No PLL config found")
 
     def do_finalize(self):
