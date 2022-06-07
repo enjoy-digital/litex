@@ -97,10 +97,6 @@ class OSFPGAToolchain:
         v_output.write(v_file)
         platform.add_source(v_file)
 
-        # Copy .init files to work directory; FIXME.
-        os.makedirs(build_name, exist_ok=True)
-        os.system(f"cp *.init {build_name}")
-
         # Generate constraints file.
         # IOs.
         # TODO.
