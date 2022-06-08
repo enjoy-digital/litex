@@ -29,8 +29,8 @@ _io = [
 ]
 
 class Platform(OSFPGAPlatform):
-    def __init__(self, toolchain="foedag"):
-        OSFPGAPlatform.__init__(self, device="test", toolchain=toolchain, io=_io)
+    def __init__(self, toolchain="foedag", device="mpw1"):
+        OSFPGAPlatform.__init__(self, device=device, toolchain=toolchain, io=_io)
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
@@ -50,11 +50,12 @@ def main():
     target_group = parser.add_argument_group(title="Target options")
     target_group.add_argument("--build",     action="store_true", help="Build design.")
     target_group.add_argument("--toolchain", default="foedag",    help="FPGA toolchain.")
+    target_group.add_argument("--device",    default="mpw1",      help="FPGA device.")
     builder_args(parser)
     soc_core_args(parser)
     args = parser.parse_args()
 
-    platform = Platform(toolchain=args.toolchain)
+    platform = Platform(toolchain=args.toolchain, device=args.device)
     soc      = BaseSoC(platform,**soc_core_argdict(args))
     builder  = Builder(soc, **builder_argdict(args))
     if args.build:

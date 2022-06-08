@@ -33,9 +33,7 @@ def _build_tcl(name, device, files, build_name, include_paths):
     tcl.append(f"create_design {build_name}")
 
     # Set Device.
-    # FIXME: Directly pass Devices instead of Macro when possible.
-    macro = {"test": "P1=10  P2=20"}[device]
-    tcl.append(f"set_macro {macro}")
+    tcl.append(f"target_device {device.upper()}")
 
     # Add Include Path.
     tcl.append("add_include_path ./")
