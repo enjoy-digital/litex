@@ -207,7 +207,7 @@ class Builder:
         csr_contents = export.get_csr_header(
             regions   = self.soc.csr_regions,
             constants = self.soc.constants,
-            csr_base  = self.soc.mem_regions['csr'].origin)
+            csr_base  = self.soc.mem_regions["csr"].origin)
         write_to_file(os.path.join(self.generated_dir, "csr.h"), csr_contents)
 
         # Generate Git SHA1 of tools to git.h

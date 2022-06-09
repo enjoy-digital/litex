@@ -191,12 +191,19 @@ def get_soc_header(constants, with_access_functions=True):
     r += "\n#endif\n"
     return r
 
-def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_only, with_access_functions):
+def _get_csr_addr(csr_base, addr, with_csr_base_define=True):
+    if with_csr_base_define:
+        return f"CSR_BASE + {hex(addr)}L"
+    else:
+        return f"{hex(csr_base + addr)}L"
+
+def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_only, csr_base, with_csr_base_define, with_access_functions):
     r = ""
 
     addr_str = f"CSR_{reg_name.upper()}_ADDR"
     size_str = f"CSR_{reg_name.upper()}_SIZE"
-    r += f"#define {addr_str} (CSR_BASE + {hex(reg_base)}L)\n"
+    r += f"#define {addr_str} {_get_csr_addr(csr_base, reg_base, with_csr_base_define)}\n"
+
     r += f"#define {size_str} {nwords}\n"
 
     size = nwords*busword//8
@@ -216,13 +223,13 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_onl
     if with_access_functions:
         r += f"static inline {ctype} {reg_name}_read(void) {{\n"
         if nwords > 1:
-            r += f"\t{ctype} r = csr_read_simple(CSR_BASE + {reg_base}L);\n"
+            r += f"\t{ctype} r = csr_read_simple({_get_csr_addr(csr_base, reg_base, with_csr_base_define)});\n"
             for sub in range(1, nwords):
                 r += f"\tr <<= {busword};\n"
-                r += f"\tr |= csr_read_simple(CSR_BASE + {hex(reg_base+sub*stride)}L);\n"
+                r += f"\tr |= csr_read_simple({_get_csr_addr(csr_base, reg_base+sub*stride, with_csr_base_define)});\n"
             r += "\treturn r;\n}\n"
         else:
-            r += f"\treturn csr_read_simple(CSR_BASE + {hex(reg_base)}L);\n}}\n"
+            r += f"\treturn csr_read_simple({_get_csr_addr(csr_base, reg_base, with_csr_base_define)});\n}}\n"
 
         if not read_only:
             r += f"static inline void {reg_name}_write({ctype} v) {{\n"
@@ -232,12 +239,12 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_onl
                     v_shift = "v >> {}".format(shift)
                 else:
                     v_shift = "v"
-                r += f"\tcsr_write_simple({v_shift}, CSR_BASE + {hex(reg_base+sub*stride)}L);\n"
+                r += f"\tcsr_write_simple({v_shift}, {_get_csr_addr(csr_base, reg_base+sub*stride, with_csr_base_define)});\n"
             r += "}\n"
     return r
 
 
-def get_csr_header(regions, constants, csr_base=None, with_access_functions=True):
+def get_csr_header(regions, constants, csr_base=None, with_csr_base_define=True, with_access_functions=True):
     alignment = constants.get("CONFIG_CSR_ALIGNMENT", 32)
     r = generated_banner("//")
     if with_access_functions: # FIXME
@@ -250,18 +257,29 @@ def get_csr_header(regions, constants, csr_base=None, with_access_functions=True
         r += "#include <hw/common.h>\n"
         r += "#endif /* ! CSR_ACCESSORS_DEFINED */\n"
     csr_base = csr_base if csr_base is not None else regions[next(iter(regions))].origin
-    r += "#ifndef CSR_BASE\n"
-    r += f"#define CSR_BASE {hex(csr_base)}L\n"
-    r += "#endif\n"
+    if with_csr_base_define:
+        r += "#ifndef CSR_BASE\n"
+        r += f"#define CSR_BASE {hex(csr_base)}L\n"
+        r += "#endif\n"
     for name, region in regions.items():
         origin = region.origin - csr_base
         r += "\n/* "+name+" */\n"
-        r += f"#define CSR_{name.upper()}_BASE (CSR_BASE + {hex(origin)}L)\n"
+        if with_csr_base_define:
+            r += f"#define CSR_{name.upper()}_BASE {_get_csr_addr(csr_base, origin, with_csr_base_define)}\n"
         if not isinstance(region.obj, Memory):
             for csr in region.obj:
                 nr = (csr.size + region.busword - 1)//region.busword
-                r += _get_rw_functions_c(name + "_" + csr.name, origin, nr, region.busword, alignment,
-                    getattr(csr, "read_only", False), with_access_functions)
+                r += _get_rw_functions_c(
+                    reg_name              = name + "_" + csr.name,
+                    reg_base              = origin,
+                    nwords                = nr,
+                    busword               = region.busword,
+                    alignment             = alignment,
+                    read_only             = getattr(csr, "read_only", False),
+                    csr_base              = csr_base,
+                    with_csr_base_define  = with_csr_base_define,
+                    with_access_functions = with_access_functions,
+                )
                 origin += alignment//8*nr
                 if hasattr(csr, "fields"):
                     for field in csr.fields.fields:
