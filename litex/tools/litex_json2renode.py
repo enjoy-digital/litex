@@ -667,6 +667,28 @@ def filter_memory_regions(raw_regions, alignment=None, autoalign=[]):
         yield r
 
 
+def find_memory_region(memory_regions, address):
+    """ Finds the memory region containing the specified address.
+
+        Args:
+            memory_regions (list): list of memory regions filtered
+                                   with filter_memory_regions
+            address (int): the address to find
+
+        Returns:
+            dict or None: the region from `memory_regions` that contains
+                          `address` or None if none of them do
+    """
+    for r in memory_regions:
+        base, size = r['base'], r['size']
+        end = base + size
+
+        if base <= address < end:
+            return r
+
+    return None
+
+
 def generate_resc(csr, args, flash_binaries={}, tftp_binaries={}):
     """ Generates platform definition.
 
