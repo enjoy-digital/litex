@@ -88,6 +88,9 @@ def _build_sdc(clocks, false_paths, vns, named_sc, build_name, additional_sdc_co
             tpl = "create_clock -name {clk} -period {period} [get_nets {{{clk}}}]"
             sdc.append(tpl.format(clk=vns.get_name(clk), period=str(period)))
 
+    # Enable automatical constraint generation for PLLs
+    sdc.append("derive_pll_clocks")
+
     # False path constraints
     for from_, to in sorted(false_paths, key=lambda x: (x[0].duid, x[1].duid)):
         tpl = "set_false_path -from [get_clocks {{{from_}}}] -to [get_clocks {{{to}}}]"
