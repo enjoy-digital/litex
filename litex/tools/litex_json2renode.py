@@ -442,6 +442,41 @@ plic: IRQControllers.PlatformLevelInterruptController @ {}
     return result
 
 
+def generate_video_framebuffer(csr, name, **kwargs):
+    peripheral = get_descriptor(csr, name, 0xc) # This is simultaneously the "dma" region
+    vtg = get_descriptor(csr, name + "_vtg", 0x24)
+
+    constants = peripheral['constants']
+
+    hres = int(constants['hres'])
+    vres = int(constants['vres'])
+    base = int(constants['base'])
+
+    memory = find_memory_region(csr['filtered_memories'], base)
+    if memory is None:
+        raise Exception("Framebuffer base does not belong to a memory region")
+
+    offset = base - memory['base']
+
+    result = """
+litex_video: Video.LiteX_Framebuffer_CSR32 @ {{
+    {};
+    {}
+}}
+    format: PixelFormat.XBGR8888
+    memory: {}
+    offset: 0x{:08x}
+    hres: {}
+    vres: {}
+""".format(generate_sysbus_registration(peripheral,
+                                        skip_braces=True, region='dma'),
+           generate_sysbus_registration(vtg,
+                                        skip_braces=True, region='vtg'),
+           memory['name'], offset, hres, vres)
+
+    return result
+
+
 def get_clock_frequency(csr):
     """
     Args:
@@ -520,6 +555,12 @@ peripherals_handlers = {
         'model': 'SPI.LiteX_SPI',
         'ignored_constants': ['interrupt'] # model in Renode currently doesn't support interrupts
     },
+    'video_framebuffer': {
+        'handler': generate_video_framebuffer,
+    },
+    'video_framebuffer_vtg': {
+        'handler': lambda *args, **kwargs: "", # This is handled by generate_video_framebuffer
+    }
 }
 
 
