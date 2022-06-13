@@ -433,12 +433,12 @@ clint: IRQControllers.CoreLevelInterruptor @ {}
 
 
 def generate_plic(plic):
-    # TODO: this is configuration for VexRiscv - add support for other CPU types
+    # TODO: this is configuration for linux-on-litex-vexriscv - add support for other CPU types
     result = """
 plic: IRQControllers.PlatformLevelInterruptController @ {}
-    [0-3] -> cpu@[8-11]
+    [0, 1] -> cpu@[11, 9]
     numberOfSources: 31
-    numberOfTargets: 2
+    numberOfContexts: 2
     prioritiesEnabled: false
 """.format(generate_sysbus_registration(plic,
                                         skip_braces=True,
