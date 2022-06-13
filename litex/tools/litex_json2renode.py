@@ -186,7 +186,7 @@ def generate_silencer(csr, name, **kwargs):
     return """
 sysbus:
     init add:
-        SilenceRange <{} 0x200> # {}
+        SilenceRange <0x{:08x} 0x200> # {}
 """.format(csr['csr_bases'][name], name)
 
 
