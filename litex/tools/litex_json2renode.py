@@ -166,7 +166,7 @@ was {} bytes.
 {}: Memory.MappedMemory @ {}
     size: {}
 """.format(region_descriptor['name'],
-           generate_sysbus_registration(region_descriptor, skip_size=True),
+           generate_sysbus_registration(region_descriptor, skip_size=True, skip_braces=True),
            hex(region_descriptor['size']))
 
     return result
