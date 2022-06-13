@@ -79,7 +79,7 @@ class IntelClocking(Module, AutoCSR):
                             diff = abs(clk_freq - f)
                             if diff <= f*_m and diff < best_diff:
                                 config[f"clk{_n}_freq"]   = clk_freq
-                                config[f"clk{_n}_divide"] = c
+                                config[f"clk{_n}_divide"] = c * n
                                 config[f"clk{_n}_phase"]  = p
                                 clk_valid[_n] = True
                                 diff_ratios[_n] = diff / f
