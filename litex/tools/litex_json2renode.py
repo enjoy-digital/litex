@@ -562,7 +562,10 @@ def generate_repl(csr, etherbone_peripherals, autoalign):
         x['name'] = m
         memories.append(x)
 
-    for mem_region in filter_memory_regions(memories, alignment=0x1000, autoalign=autoalign):
+    filtered_memories = list(filter_memory_regions(memories, alignment=0x1000, autoalign=autoalign))
+    csr['filtered_memories'] = filtered_memories # Save for use by peripheral generators
+
+    for mem_region in filtered_memories:
         result += generate_memory_region(mem_region)
 
     time_provider = None
