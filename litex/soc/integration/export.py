@@ -193,7 +193,7 @@ def get_soc_header(constants, with_access_functions=True):
 
 def _get_csr_addr(csr_base, addr, with_csr_base_define=True):
     if with_csr_base_define:
-        return f"CSR_BASE + {hex(addr)}L"
+        return f"(CSR_BASE + {hex(addr)}L)"
     else:
         return f"{hex(csr_base + addr)}L"
 
