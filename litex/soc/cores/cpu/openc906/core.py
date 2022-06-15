@@ -11,7 +11,6 @@ from migen import *
 
 from litex import get_data_mod
 from litex.soc.interconnect import axi
-from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV64
 
 # Helpers ------------------------------------------------------------------------------------------
@@ -68,8 +67,8 @@ class OpenC906(CPU):
         self.variant      = variant
         self.reset        = Signal()
         self.interrupt    = Signal(240)
-        self.wishbone_if  = wishbone.Interface(data_width=128, adr_width=36)
-        self.periph_buses = [self.wishbone_if] # Peripheral buses (Connected to main SoC's bus).
+        self.axi_lite_if  = axi.AXILiteInterface(data_width=64, address_width=40)
+        self.periph_buses = [self.axi_lite_if] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses = []                 # Memory buses (Connected directly to LiteDRAM).
 
         # # #
@@ -78,69 +77,69 @@ class OpenC906(CPU):
         cycle_count = Signal(64)
         self.sync += cycle_count.eq(cycle_count + 1)
 
-        # AXI <-> Wishbone conversion.
-        axi_if = axi.AXIInterface(data_width=128, address_width=40, id_width=8)
-        self.submodules += axi.AXI2Wishbone(axi_if, self.wishbone_if, base_address=0)
+        # AXI <-> AXILite conversion.
+        axi_if = axi.AXIInterface(data_width=64,  address_width=40, id_width=8)
+        self.submodules += axi.AXI2AXILite(axi_if, self.axi_lite_if)
 
         # CPU Instance.
         self.cpu_params = dict(
             # Clk / Rst.
-            i_pll_core_cpuclk     = ClockSignal("sys"),
-            i_pad_cpu_rst_b       = ~ResetSignal("sys") | self.reset,
-            i_axim_clk_en         = 1,
+            i_pll_core_cpuclk  = ClockSignal("sys"),
+            i_pad_cpu_rst_b    = ~ResetSignal("sys") | self.reset,
+            i_axim_clk_en      = 1,
 
             # Debug (ignored).
-            i_sys_apb_clk         = 0,
-            i_sys_apb_rst_b       = 0,
+            i_sys_apb_clk      = 0,
+            i_sys_apb_rst_b    = 0,
 
-            # Interrupts
-            i_pad_cpu_apb_base    = Signal(40, reset=0x9000_0000),
-            i_pad_plic_int_cfg    = 0,
-            i_pad_plic_int_vld    = self.interrupt,
+            # Interrupts.
+            i_pad_cpu_apb_base = Signal(40, reset=0x9000_0000),
+            i_pad_plic_int_cfg = 0,
+            i_pad_plic_int_vld = self.interrupt,
 
-            # Integrated timer
-            i_pad_cpu_sys_cnt     = cycle_count,
+            # Integrated timer.
+            i_pad_cpu_sys_cnt  = cycle_count,
 
-            # AXI
-            o_biu_pad_awvalid     = axi_if.aw.valid,
-            i_pad_biu_awready     = axi_if.aw.ready,
-            o_biu_pad_awid        = axi_if.aw.id,
-            o_biu_pad_awaddr      = axi_if.aw.addr,
-            o_biu_pad_awlen       = axi_if.aw.len,
-            o_biu_pad_awsize      = axi_if.aw.size,
-            o_biu_pad_awburst     = axi_if.aw.burst,
-            o_biu_pad_awlock      = axi_if.aw.lock,
-            o_biu_pad_awcache     = axi_if.aw.cache,
-            o_biu_pad_awprot      = axi_if.aw.prot,
+            # AXI.
+            o_biu_pad_awvalid  = axi_if.aw.valid,
+            i_pad_biu_awready  = axi_if.aw.ready,
+            o_biu_pad_awid     = axi_if.aw.id,
+            o_biu_pad_awaddr   = axi_if.aw.addr,
+            o_biu_pad_awlen    = axi_if.aw.len,
+            o_biu_pad_awsize   = axi_if.aw.size,
+            o_biu_pad_awburst  = axi_if.aw.burst,
+            o_biu_pad_awlock   = axi_if.aw.lock,
+            o_biu_pad_awcache  = axi_if.aw.cache,
+            o_biu_pad_awprot   = axi_if.aw.prot,
 
-            o_biu_pad_wvalid      = axi_if.w.valid,
-            i_pad_biu_wready      = axi_if.w.ready,
-            o_biu_pad_wdata       = axi_if.w.data,
-            o_biu_pad_wstrb       = axi_if.w.strb,
-            o_biu_pad_wlast       = axi_if.w.last,
+            o_biu_pad_wvalid   = axi_if.w.valid,
+            i_pad_biu_wready   = axi_if.w.ready,
+            o_biu_pad_wdata    = axi_if.w.data,
+            o_biu_pad_wstrb    = axi_if.w.strb,
+            o_biu_pad_wlast    = axi_if.w.last,
 
-            i_pad_biu_bvalid      = axi_if.b.valid,
-            o_biu_pad_bready      = axi_if.b.ready,
-            i_pad_biu_bid         = axi_if.b.id,
-            i_pad_biu_bresp       = axi_if.b.resp,
+            i_pad_biu_bvalid   = axi_if.b.valid,
+            o_biu_pad_bready   = axi_if.b.ready,
+            i_pad_biu_bid      = axi_if.b.id,
+            i_pad_biu_bresp    = axi_if.b.resp,
 
-            o_biu_pad_arvalid     = axi_if.ar.valid,
-            i_pad_biu_arready     = axi_if.ar.ready,
-            o_biu_pad_arid        = axi_if.ar.id,
-            o_biu_pad_araddr      = axi_if.ar.addr,
-            o_biu_pad_arlen       = axi_if.ar.len,
-            o_biu_pad_arsize      = axi_if.ar.size,
-            o_biu_pad_arburst     = axi_if.ar.burst,
-            o_biu_pad_arlock      = axi_if.ar.lock,
-            o_biu_pad_arcache     = axi_if.ar.cache,
-            o_biu_pad_arprot      = axi_if.ar.prot,
+            o_biu_pad_arvalid  = axi_if.ar.valid,
+            i_pad_biu_arready  = axi_if.ar.ready,
+            o_biu_pad_arid     = axi_if.ar.id,
+            o_biu_pad_araddr   = axi_if.ar.addr,
+            o_biu_pad_arlen    = axi_if.ar.len,
+            o_biu_pad_arsize   = axi_if.ar.size,
+            o_biu_pad_arburst  = axi_if.ar.burst,
+            o_biu_pad_arlock   = axi_if.ar.lock,
+            o_biu_pad_arcache  = axi_if.ar.cache,
+            o_biu_pad_arprot   = axi_if.ar.prot,
 
-            i_pad_biu_rvalid      = axi_if.r.valid,
-            o_biu_pad_rready      = axi_if.r.ready,
-            i_pad_biu_rid         = axi_if.r.id,
-            i_pad_biu_rdata       = axi_if.r.data,
-            i_pad_biu_rresp       = axi_if.r.resp,
-            i_pad_biu_rlast       = axi_if.r.last,
+            i_pad_biu_rvalid   = axi_if.r.valid,
+            o_biu_pad_rready   = axi_if.r.ready,
+            i_pad_biu_rid      = axi_if.r.id,
+            i_pad_biu_rdata    = axi_if.r.data,
+            i_pad_biu_rresp    = axi_if.r.resp,
+            i_pad_biu_rlast    = axi_if.r.last,
         )
 
         # Add Verilog sources.
