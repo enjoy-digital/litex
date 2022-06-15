@@ -56,13 +56,9 @@ class CortexM1(CPU):
         self.platform     = platform
         self.reset        = Signal()
         self.interrupt    = Signal(2)
-        pbus              = axi.AXILiteInterface(data_width=32, address_width=32)
+        pbus              = axi.AXIInterface(data_width=32, address_width=32)
         self.periph_buses = [pbus]
         self.memory_buses = []
-
-        # Peripheral Bus AXI <-> AXILite conversion.
-        pbus_axi = axi.AXIInterface(data_width=self.data_width, address_width=32)
-        self.submodules += axi.AXI2AXILite(pbus_axi, pbus)
 
         # CPU Instance.
         self.cpu_params = dict(
@@ -94,41 +90,41 @@ class CortexM1(CPU):
             o_DBGRESTARTED = Open(),
 
             # Peripheral Bus (AXI).
-            o_AWVALID = pbus_axi.aw.valid,
-            i_AWREADY = pbus_axi.aw.ready,
-            o_AWADDR  = pbus_axi.aw.addr,
-            o_AWBURST = pbus_axi.aw.burst,
-            o_AWCACHE = pbus_axi.aw.cache,
-            o_AWLEN   = pbus_axi.aw.len,
-            o_AWLOCK  = pbus_axi.aw.lock,
-            o_AWPROT  = pbus_axi.aw.prot,
-            o_AWSIZE  = pbus_axi.aw.size,
+            o_AWVALID = pbus.aw.valid,
+            i_AWREADY = pbus.aw.ready,
+            o_AWADDR  = pbus.aw.addr,
+            o_AWBURST = pbus.aw.burst,
+            o_AWCACHE = pbus.aw.cache,
+            o_AWLEN   = pbus.aw.len,
+            o_AWLOCK  = pbus.aw.lock,
+            o_AWPROT  = pbus.aw.prot,
+            o_AWSIZE  = pbus.aw.size,
 
-            o_WVALID  = pbus_axi.w.valid,
-            i_WREADY  = pbus_axi.w.ready,
-            o_WLAST   = pbus_axi.w.last,
-            o_WSTRB   = pbus_axi.w.strb,
-            o_HWDATA  = pbus_axi.w.data,
+            o_WVALID  = pbus.w.valid,
+            i_WREADY  = pbus.w.ready,
+            o_WLAST   = pbus.w.last,
+            o_WSTRB   = pbus.w.strb,
+            o_HWDATA  = pbus.w.data,
 
-            i_BVALID  = pbus_axi.b.valid,
-            o_BREADY  = pbus_axi.b.ready,
-            i_BRESP   = pbus_axi.b.resp,
+            i_BVALID  = pbus.b.valid,
+            o_BREADY  = pbus.b.ready,
+            i_BRESP   = pbus.b.resp,
 
-            o_ARVALID = pbus_axi.ar.valid,
-            i_ARREADY = pbus_axi.ar.ready,
-            o_ARADDR  = pbus_axi.ar.addr,
-            o_ARBURST = pbus_axi.ar.burst,
-            o_ARCACHE = pbus_axi.ar.cache,
-            o_ARLEN   = pbus_axi.ar.len,
-            o_ARLOCK  = pbus_axi.ar.lock,
-            o_ARPROT  = pbus_axi.ar.prot,
-            o_ARSIZE  = pbus_axi.ar.size,
+            o_ARVALID = pbus.ar.valid,
+            i_ARREADY = pbus.ar.ready,
+            o_ARADDR  = pbus.ar.addr,
+            o_ARBURST = pbus.ar.burst,
+            o_ARCACHE = pbus.ar.cache,
+            o_ARLEN   = pbus.ar.len,
+            o_ARLOCK  = pbus.ar.lock,
+            o_ARPROT  = pbus.ar.prot,
+            o_ARSIZE  = pbus.ar.size,
 
-            i_RVALID  = pbus_axi.r.valid,
-            o_RREADY  = pbus_axi.r.ready,
-            i_RLAST   = pbus_axi.r.last,
-            i_RRESP   = pbus_axi.r.resp,
-            i_HRDATA  = pbus_axi.r.data,
+            i_RVALID  = pbus.r.valid,
+            o_RREADY  = pbus.r.ready,
+            i_RLAST   = pbus.r.last,
+            i_RRESP   = pbus.r.resp,
+            i_HRDATA  = pbus.r.data,
         )
         platform.add_source_dir("AT472-BU-98000-r0p1-00rel0/vivado/Arm_ipi_repository/CM1DbgAXI/logical/rtl")
 

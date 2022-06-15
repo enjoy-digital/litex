@@ -85,15 +85,11 @@ class CVA6(CPU):
         self.variant      = variant
         self.reset        = Signal()
         self.interrupt    = Signal(32)
-        self.axi_lite_if  = axi.AXILiteInterface(data_width=64, address_width=32)
-        self.periph_buses = [self.axi_lite_if] # Peripheral buses (Connected to main SoC's bus).
-        self.memory_buses = []                 # Memory buses (Connected directly to LiteDRAM).
+        self.axi_if       = axi.AXIInterface(data_width=64, address_width=32, id_width=4)
+        self.periph_buses = [self.axi_if] # Peripheral buses (Connected to main SoC's bus).
+        self.memory_buses = []            # Memory buses (Connected directly to LiteDRAM).
 
         # # #
-
-        # AXI <-> AXILite conversion.
-        axi_if = axi.AXIInterface(data_width=64,  address_width=32, id_width=4)
-        self.submodules += axi.AXI2AXILite(axi_if, self.axi_lite_if)
 
         # CPU Instance.
         self.cpu_params = dict(
@@ -102,53 +98,53 @@ class CVA6(CPU):
             i_rst_n       = ~ResetSignal("sys") | self.reset,
 
             # AXI interface.
-            o_AWVALID_o   = axi_if.aw.valid,
-            i_AWREADY_i   = axi_if.aw.ready,
-            o_AWID_o      = axi_if.aw.id,
-            o_AWADDR_o    = axi_if.aw.addr,
-            o_AWLEN_o     = axi_if.aw.len,
-            o_AWSIZE_o    = axi_if.aw.size,
-            o_AWBURST_o   = axi_if.aw.burst,
-            o_AWLOCK_o    = axi_if.aw.lock,
-            o_AWCACHE_o   = axi_if.aw.cache,
-            o_AWPROT_o    = axi_if.aw.prot,
-            o_AWQOS_o     = axi_if.aw.qos,
+            o_AWVALID_o   = self.axi_if.aw.valid,
+            i_AWREADY_i   = self.axi_if.aw.ready,
+            o_AWID_o      = self.axi_if.aw.id,
+            o_AWADDR_o    = self.axi_if.aw.addr,
+            o_AWLEN_o     = self.axi_if.aw.len,
+            o_AWSIZE_o    = self.axi_if.aw.size,
+            o_AWBURST_o   = self.axi_if.aw.burst,
+            o_AWLOCK_o    = self.axi_if.aw.lock,
+            o_AWCACHE_o   = self.axi_if.aw.cache,
+            o_AWPROT_o    = self.axi_if.aw.prot,
+            o_AWQOS_o     = self.axi_if.aw.qos,
             o_AWREGION_o  = Open(),
             o_AWUSER_o    = Open(),
 
-            o_WVALID_o    = axi_if.w.valid,
-            i_WREADY_i    = axi_if.w.ready,
-            o_WDATA_o     = axi_if.w.data,
-            o_WSTRB_o     = axi_if.w.strb,
-            o_WLAST_o     = axi_if.w.last,
+            o_WVALID_o    = self.axi_if.w.valid,
+            i_WREADY_i    = self.axi_if.w.ready,
+            o_WDATA_o     = self.axi_if.w.data,
+            o_WSTRB_o     = self.axi_if.w.strb,
+            o_WLAST_o     = self.axi_if.w.last,
             o_WUSER_o     = Open(),
 
-            i_BVALID_i    = axi_if.b.valid,
-            o_BREADY_o    = axi_if.b.ready,
-            i_BID_i       = axi_if.b.id,
-            i_BRESP_i     = axi_if.b.resp,
+            i_BVALID_i    = self.axi_if.b.valid,
+            o_BREADY_o    = self.axi_if.b.ready,
+            i_BID_i       = self.axi_if.b.id,
+            i_BRESP_i     = self.axi_if.b.resp,
             i_BUSER_i     = 0,
 
-            o_ARVALID_o   = axi_if.ar.valid,
-            i_ARREADY_i   = axi_if.ar.ready,
-            o_ARID_o      = axi_if.ar.id,
-            o_ARADDR_o    = axi_if.ar.addr,
-            o_ARLEN_o     = axi_if.ar.len,
-            o_ARSIZE_o    = axi_if.ar.size,
-            o_ARBURST_o   = axi_if.ar.burst,
-            o_ARLOCK_o    = axi_if.ar.lock,
-            o_ARCACHE_o   = axi_if.ar.cache,
-            o_ARPROT_o    = axi_if.ar.prot,
-            o_ARQOS_o     = axi_if.ar.qos,
+            o_ARVALID_o   = self.axi_if.ar.valid,
+            i_ARREADY_i   = self.axi_if.ar.ready,
+            o_ARID_o      = self.axi_if.ar.id,
+            o_ARADDR_o    = self.axi_if.ar.addr,
+            o_ARLEN_o     = self.axi_if.ar.len,
+            o_ARSIZE_o    = self.axi_if.ar.size,
+            o_ARBURST_o   = self.axi_if.ar.burst,
+            o_ARLOCK_o    = self.axi_if.ar.lock,
+            o_ARCACHE_o   = self.axi_if.ar.cache,
+            o_ARPROT_o    = self.axi_if.ar.prot,
+            o_ARQOS_o     = self.axi_if.ar.qos,
             o_ARUSER_o    = Open(),
             o_ARREGION_o  = Open(),
 
-            i_RVALID_i    = axi_if.r.valid,
-            o_RREADY_o    = axi_if.r.ready,
-            i_RID_i       = axi_if.r.id,
-            i_RDATA_i     = axi_if.r.data,
-            i_RRESP_i     = axi_if.r.resp,
-            i_RLAST_i     = axi_if.r.last,
+            i_RVALID_i    = self.axi_if.r.valid,
+            o_RREADY_o    = self.axi_if.r.ready,
+            i_RID_i       = self.axi_if.r.id,
+            i_RDATA_i     = self.axi_if.r.data,
+            i_RRESP_i     = self.axi_if.r.resp,
+            i_RLAST_i     = self.axi_if.r.last,
             i_RUSER_i     = 0,
         )
 
