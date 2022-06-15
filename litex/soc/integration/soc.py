@@ -314,8 +314,9 @@ class SoCBusHandler(Module):
         if interface.data_width != self.data_width:
             interface_cls = type(interface)
             converter_cls = {
-                wishbone.Interface:   wishbone.Converter,
-                axi.AXILiteInterface: axi.AXILiteConverter,
+                wishbone.Interface   : wishbone.Converter,
+                axi.AXILiteInterface : axi.AXILiteConverter,
+                axi.AXIInterface     : axi.AXIConverter,
             }[interface_cls]
             converted_interface = interface_cls(data_width=self.data_width)
             if direction == "m2s":
@@ -346,6 +347,8 @@ class SoCBusHandler(Module):
                 (axi.AXILiteInterface, wishbone.Interface)  : axi.AXILite2Wishbone,
                 (wishbone.Interface  , axi.AXIInterface)    : axi.Wishbone2AXI,
                 (axi.AXILiteInterface, axi.AXIInterface)    : axi.AXILite2AXI,
+                (axi.AXIInterface,     axi.AXILiteInterface): axi.AXI2AXILite,
+                (axi.AXIInterface,     wishbone.Interface)  : axi.AXI2Wishbone,
             }[type(master), type(slave)]
             bridge = bridge_cls(master, slave)
             self.submodules += bridge
