@@ -809,10 +809,7 @@ class SoC(Module):
 
     def add_config(self, name, value=None, check_duplicate=True):
         name = "CONFIG_" + name
-        if isinstance(value, str):
-            self.add_constant(name + "_" + value, check_duplicate=check_duplicate)
-        else:
-            self.add_constant(name, value, check_duplicate=check_duplicate)
+        self.add_constant(name, value, check_duplicate=check_duplicate)
 
     def check_bios_requirements(self):
         # Check for required Peripherals.
@@ -1024,11 +1021,11 @@ class SoC(Module):
             self.cpu.add_soc_components(soc=self, soc_region_cls=SoCRegion) # FIXME: avoid passing SoCRegion.
 
         # Add constants.
-        self.add_config("CPU_TYPE",    str(name))
-        self.add_config("CPU_VARIANT", str(variant.split('+')[0]))
-        self.add_constant("CONFIG_CPU_HUMAN_NAME", getattr(self.cpu, "human_name", "Unknown"))
+        self.add_config(f"CPU_TYPE_{name}")
+        self.add_config(f"CPU_VARIANT_{str(variant.split('+')[0])}")
+        self.add_config("CPU_HUMAN_NAME", getattr(self.cpu, "human_name", "Unknown"))
         if hasattr(self.cpu, "nop"):
-            self.add_constant("CONFIG_CPU_NOP", self.cpu.nop)
+            self.add_config("CPU_NOP", self.cpu.nop)
 
     def add_timer(self, name="timer0"):
         from litex.soc.cores.timer import Timer
@@ -1086,10 +1083,10 @@ class SoC(Module):
                 colorer(self.bus_interconnect.__class__.__name__),
                 colorer(len(self.bus.masters)),
                 colorer(len(self.bus.slaves))))
-        self.add_constant("CONFIG_BUS_STANDARD",      self.bus.standard.upper())
-        self.add_constant("CONFIG_BUS_DATA_WIDTH",    self.bus.data_width)
-        self.add_constant("CONFIG_BUS_ADDRESS_WIDTH", self.bus.address_width)
-        self.add_constant("CONFIG_BUS_BURSTING",      int(self.bus.bursting))
+        self.add_config("BUS_STANDARD",      self.bus.standard.upper())
+        self.add_config("BUS_DATA_WIDTH",    self.bus.data_width)
+        self.add_config("BUS_ADDRESS_WIDTH", self.bus.address_width)
+        self.add_config("BUS_BURSTING",      int(self.bus.bursting))
 
         # SoC DMA Bus Interconnect (Cache Coherence) -----------------------------------------------
         if hasattr(self, "dma_bus"):
@@ -1111,7 +1108,7 @@ class SoC(Module):
                     colorer(self.dma_bus_interconnect.__class__.__name__),
                     colorer(len(self.dma_bus.masters)),
                     colorer(len(self.dma_bus.slaves))))
-            self.add_constant("CONFIG_CPU_HAS_DMA_BUS")
+            self.add_config("CPU_HAS_DMA_BUS")
 
         # SoC CSR Interconnect ---------------------------------------------------------------------
         self.submodules.csr_bankarray = csr_bus.CSRBankArray(self,
