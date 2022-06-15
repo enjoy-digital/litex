@@ -29,17 +29,22 @@ void isr(void)
     onetime++;
   }
 }
-#elif defined(__rocket__)
+#elif defined(__rocket__) || defined(__openc906__)
+#if defined(__openc906__)
+#define PLIC_EXT_IRQ_BASE 16
+#else
+#define PLIC_EXT_IRQ_BASE 1
+#endif
 void plic_init(void);
 void plic_init(void)
 {
 	int i;
 
-	// priorities for interrupt pins 1..8
-	for (i = 1; i <= 8; i++)
-		*((unsigned int *)PLIC_BASE + i) = 1;
-	// enable interrupt pins 1..8
-	*((unsigned int *)PLIC_ENABLED) = 0xff << 1;
+	// priorities for first 8 external interrupts
+	for (i = 0; i < 8; i++)
+		*((unsigned int *)PLIC_BASE + PLIC_EXT_IRQ_BASE + i) = 1;
+	// enable first 8 external interrupts
+	*((unsigned int *)PLIC_ENABLED) = 0xff << PLIC_EXT_IRQ_BASE;
 	// set priority threshold to 0 (any priority > 0 triggers interrupt)
 	*((unsigned int *)PLIC_THRSHLD) = 0;
 }
@@ -49,7 +54,7 @@ void isr(void)
 	unsigned int claim;
 
 	while ((claim = *((unsigned int *)PLIC_CLAIM))) {
-		switch (claim - 1) {
+		switch (claim - PLIC_EXT_IRQ_BASE) {
 		case UART_INTERRUPT:
 			uart_isr();
 			break;
