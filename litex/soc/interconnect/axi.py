@@ -891,6 +891,49 @@ class AXIUpConverter(Module):
         self.comb += axi_from.r.resp.eq(axi_to.r.resp)
         self.comb += axi_from.r.id.eq(axi_to.r.id)
 
+
+class AXIDownConverter(Module):
+    def __init__(self, axi_from, axi_to):
+        dw_from  = len(axi_from.r.data)
+        dw_to    = len(axi_to.r.data)
+        ratio    = int(dw_from//dw_to)
+        assert dw_from == dw_to*ratio
+
+        # # #
+
+        # FIXME: Aoid AXI-Lite conversion...
+
+        axi_lite_from = AXILiteInterface(data_width=len(axi_from.r.data), address_width=len(axi_from.ar.addr))
+        axi_lite_to   = AXILiteInterface(data_width=len(axi_to.r.data),   address_width=len(axi_to.ar.addr))
+
+        # AXI -> AXI-Lite.
+        self.submodules += AXI2AXILite(axi=axi_from, axi_lite=axi_lite_from)
+
+        # AXI-Lite Conversion.
+        self.submodules += AXILiteConverter(master=axi_lite_from, slave=axi_lite_to)
+
+        # AXI-Lite -> AXI.
+        self.submodules += AXILite2AXI(axi_lite=axi_lite_to, axi=axi_to)
+
+class AXIConverter(Module):
+    """AXI data width converter"""
+    def __init__(self, master, slave):
+        self.master = master
+        self.slave  = slave
+
+        # # #
+
+        dw_from = len(master.r.data)
+        dw_to   = len(slave.r.data)
+        ratio   = dw_from/dw_to
+
+        if ratio > 1:
+            self.submodules += AXIDownConverter(master, slave)
+        elif ratio < 1:
+            self.submodules += AXIUpConverter(master, slave)
+        else:
+            self.comb += master.connect(slave)
+
 # AXILite Data Width Converter ---------------------------------------------------------------------
 
 class _AXILiteDownConverterWrite(Module):
