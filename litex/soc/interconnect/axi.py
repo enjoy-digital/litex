@@ -901,19 +901,48 @@ class AXIDownConverter(Module):
 
         # # #
 
-        # FIXME: Aoid AXI-Lite conversion...
+        # Write path -------------------------------------------------------------------------------
 
-        axi_lite_from = AXILiteInterface(data_width=len(axi_from.r.data), address_width=len(axi_from.ar.addr))
-        axi_lite_to   = AXILiteInterface(data_width=len(axi_to.r.data),   address_width=len(axi_to.ar.addr))
+        # AW Channel.
+        self.comb += [
+            axi_from.aw.connect(axi_to.aw, omit={"len", "size"}),
+            axi_to.aw.len.eq( axi_from.aw.len << log2_int(ratio)),
+            axi_to.aw.size.eq(axi_from.aw.size - log2_int(ratio)),
+        ]
 
-        # AXI -> AXI-Lite.
-        self.submodules += AXI2AXILite(axi=axi_from, axi_lite=axi_lite_from)
+        # W Channel.
+        w_converter = stream.StrideConverter(
+            description_from = [("data", dw_from), ("strb", dw_from//8)],
+            description_to   = [("data",   dw_to), ("strb",   dw_to//8)],
+        )
+        self.submodules += w_converter
+        self.comb += axi_from.w.connect(w_converter.sink, omit={"id"})
+        self.comb += w_converter.source.connect(axi_to.w)
+        self.comb += axi_to.w.id.eq(axi_from.w.id)
 
-        # AXI-Lite Conversion.
-        self.submodules += AXILiteConverter(master=axi_lite_from, slave=axi_lite_to)
+        # B Channel.
+        self.comb += axi_to.b.connect(axi_from.b)
 
-        # AXI-Lite -> AXI.
-        self.submodules += AXILite2AXI(axi_lite=axi_lite_to, axi=axi_to)
+        # Read path --------------------------------------------------------------------------------
+
+        # AR Channel.
+        self.comb += [
+            axi_from.ar.connect(axi_to.ar, omit={"len", "size"}),
+            axi_to.ar.len.eq( axi_from.ar.len << log2_int(ratio)),
+            axi_to.ar.size.eq(axi_from.ar.size - log2_int(ratio)),
+        ]
+
+        # R Channel.
+        r_converter = stream.StrideConverter(
+            description_from = [("data",   dw_to)],
+            description_to   = [("data", dw_from)],
+        )
+        self.submodules += r_converter
+        self.comb += axi_to.r.connect(r_converter.sink, omit={"id", "resp"})
+        self.comb += r_converter.source.connect(axi_from.r)
+        self.comb += axi_from.r.resp.eq(axi_to.r.resp)
+        self.comb += axi_from.r.id.eq(axi_to.r.id)
+
 
 class AXIConverter(Module):
     """AXI data width converter"""
