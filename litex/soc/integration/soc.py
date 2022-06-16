@@ -118,7 +118,15 @@ class SoCBusHandler(Module):
     supported_address_width = [32]
 
     # Creation -------------------------------------------------------------------------------------
-    def __init__(self, name="SoCBusHandler", standard="wishbone", data_width=32, address_width=32, timeout=1e6, bursting=False, reserved_regions={}):
+    def __init__(self, name="SoCBusHandler",
+        standard         = "wishbone",
+        data_width       = 32,
+        address_width    = 32,
+        timeout          = 1e6,
+        bursting         = False,
+        interconnect     = "shared",
+        reserved_regions = {}
+    ):
         self.logger = logging.getLogger(name)
         self.logger.info("Creating Bus Handler...")
 
@@ -151,6 +159,7 @@ class SoCBusHandler(Module):
         self.data_width       = data_width
         self.address_width    = address_width
         self.bursting         = bursting
+        self.interconnect     = interconnect
         self.masters          = {}
         self.slaves           = {}
         self.regions          = {}
@@ -743,6 +752,7 @@ class SoC(Module):
         bus_address_width    = 32,
         bus_timeout          = 1e6,
         bus_bursting         = False,
+        bus_interconnect     = "shared",
         bus_reserved_regions = {},
 
         csr_data_width       = 32,
@@ -781,6 +791,7 @@ class SoC(Module):
             address_width    = bus_address_width,
             timeout          = bus_timeout,
             bursting         = bus_bursting,
+            interconnect     = bus_interconnect,
             reserved_regions = bus_reserved_regions,
            )
 
@@ -1065,6 +1076,10 @@ class SoC(Module):
             "wishbone": wishbone.InterconnectShared,
             "axi-lite": axi.AXILiteInterconnectShared,
         }[self.bus.standard]
+        interconnect_crossbar_cls = {
+            "wishbone": wishbone.Crossbar,
+            "axi-lite": axi.AXILiteCrossbar,
+        }[self.bus.standard]
 
         # SoC Reset --------------------------------------------------------------------------------
         # Connect soc_rst to CRG's rst if present.
@@ -1090,15 +1105,19 @@ class SoC(Module):
                 self.submodules.bus_interconnect = interconnect_p2p_cls(
                     master = next(iter(self.bus.masters.values())),
                     slave  = next(iter(self.bus.slaves.values())))
-            # Otherwise, use InterconnectShared.
+            # Otherwise, use InterconnectShared/Crossbar.
             else:
-                self.submodules.bus_interconnect = interconnect_shared_cls(
+                interconnect_cls = {
+                    "shared"  :  interconnect_shared_cls,
+                    "crossbar": interconnect_crossbar_cls,
+                }[self.bus.interconnect]
+                self.submodules.bus_interconnect = interconnect_cls(
                     masters        = list(self.bus.masters.values()),
                     slaves         = [(self.bus.regions[n].decoder(self.bus), s) for n, s in self.bus.slaves.items()],
                     register       = True,
                     timeout_cycles = self.bus.timeout)
                 if hasattr(self, "ctrl") and self.bus.timeout is not None:
-                    if hasattr(self.ctrl, "bus_error"):
+                    if hasattr(self.ctrl, "bus_error") and hasattr(self.bus_interconnect, "timeout"):
                         self.comb += self.ctrl.bus_error.eq(self.bus_interconnect.timeout.error)
             self.bus.logger.info("Interconnect: {} ({} <-> {}).".format(
                 colorer(self.bus_interconnect.__class__.__name__),
