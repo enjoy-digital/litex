@@ -49,6 +49,7 @@
 #include <liblitesdcard/sdcard.h>
 #include <liblitesata/sata.h>
 
+#ifndef CONFIG_BIOS_NO_BOOT
 static void boot_sequence(void)
 {
 #ifdef CSR_UART_BASE
@@ -75,6 +76,7 @@ static void boot_sequence(void)
 #endif
 	printf("No boot medium found\n");
 }
+#endif
 
 __attribute__((__used__)) int main(int i, char **c)
 {
