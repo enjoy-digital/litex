@@ -310,51 +310,64 @@ class SoCBusHandler(Module):
     def add_adapter(self, name, interface, direction="m2s"):
         assert direction in ["m2s", "s2m"]
 
-        # Data-Width conversion.
-        if interface.data_width != self.data_width:
-            interface_cls = type(interface)
-            converter_cls = {
-                wishbone.Interface   : wishbone.Converter,
-                axi.AXILiteInterface : axi.AXILiteConverter,
-                axi.AXIInterface     : axi.AXIConverter,
-            }[interface_cls]
-            converted_interface = interface_cls(data_width=self.data_width)
-            if direction == "m2s":
-                master, slave = interface, converted_interface
-            elif direction == "s2m":
-                master, slave = converted_interface, interface
-            converter = converter_cls(master=master, slave=slave)
-            self.submodules += converter
-        else:
-            converted_interface = interface
+        # Data-Width conversion helper.
+        def data_width_convert(interface, direction):
+            # Same Data-Width, return un-modified interface.
+            if interface.data_width == self.data_width:
+                return interface
+            # Different Data-Width: Return adapted interface.
+            else:
+                interface_cls = type(interface)
+                converter_cls = {
+                    wishbone.Interface   : wishbone.Converter,
+                    axi.AXILiteInterface : axi.AXILiteConverter,
+                    axi.AXIInterface     : axi.AXIConverter,
+                }[interface_cls]
+                adapted_interface = interface_cls(data_width=self.data_width)
+                if direction == "m2s":
+                    master, slave = interface, adapted_interface
+                elif direction == "s2m":
+                    master, slave = adapted_interface, interface
+                converter = converter_cls(master=master, slave=slave)
+                self.submodules += converter
+                return adapted_interface
 
-        # Bus-Standard conversion.
-        main_bus_cls = {
-            "wishbone": wishbone.Interface,
-            "axi-lite": axi.AXILiteInterface,
-        }[self.standard]
-        if isinstance(converted_interface, main_bus_cls):
-            bridged_interface = converted_interface
-        else:
-            bridged_interface = main_bus_cls(data_width=self.data_width)
-            if direction == "m2s":
-                master, slave = converted_interface, bridged_interface
-            elif direction == "s2m":
-                master, slave = bridged_interface, converted_interface
-            bridge_cls = {
-                # Bus from           , Bus to               , Bridge
-                (wishbone.Interface  , axi.AXILiteInterface): axi.Wishbone2AXILite,
-                (axi.AXILiteInterface, wishbone.Interface)  : axi.AXILite2Wishbone,
-                (wishbone.Interface  , axi.AXIInterface)    : axi.Wishbone2AXI,
-                (axi.AXILiteInterface, axi.AXIInterface)    : axi.AXILite2AXI,
-                (axi.AXIInterface,     axi.AXILiteInterface): axi.AXI2AXILite,
-                (axi.AXIInterface,     wishbone.Interface)  : axi.AXI2Wishbone,
-            }[type(master), type(slave)]
-            bridge = bridge_cls(master, slave)
-            self.submodules += bridge
+        # Bus-Standard conversion helper.
+        def bus_standard_convert(interface, direction):
+            main_bus_cls = {
+                "wishbone": wishbone.Interface,
+                "axi-lite": axi.AXILiteInterface,
+            }[self.standard]
+            # Same Bus-Standard: Return un-modified interface.
+            if isinstance(interface, main_bus_cls):
+                return interface
+            # Different Bus-Standard: Return adapted interface.
+            else:
+                adapted_interface = main_bus_cls(data_width=self.data_width)
+                if direction == "m2s":
+                    master, slave = interface, adapted_interface
+                elif direction == "s2m":
+                    master, slave = adapted_interface, interface
+                bridge_cls = {
+                    # Bus from           , Bus to               , Bridge
+                    (wishbone.Interface  , axi.AXILiteInterface): axi.Wishbone2AXILite,
+                    (axi.AXILiteInterface, wishbone.Interface)  : axi.AXILite2Wishbone,
+                    (wishbone.Interface  , axi.AXIInterface)    : axi.Wishbone2AXI,
+                    (axi.AXILiteInterface, axi.AXIInterface)    : axi.AXILite2AXI,
+                    (axi.AXIInterface,     axi.AXILiteInterface): axi.AXI2AXILite,
+                    (axi.AXIInterface,     wishbone.Interface)  : axi.AXI2Wishbone,
+                }[type(master), type(slave)]
+                bridge = bridge_cls(master, slave)
+                self.submodules += bridge
+                return adapted_interface
 
-        if type(interface) != type(bridged_interface) or interface.data_width != bridged_interface.data_width:
-            fmt = "{name} Bus {converted} from {from_bus} {from_bits}-bit to {to_bus} {to_bits}-bit."
+        # Interface conversion.
+        adapted_interface = interface
+        adapted_interface = data_width_convert(adapted_interface, direction)
+        adapted_interface = bus_standard_convert(adapted_interface, direction)
+
+        if type(interface) != type(adapted_interface) or interface.data_width != adapted_interface.data_width:
+            fmt = "{name} Bus {adapted} from {from_bus} {from_bits}-bit to {to_bus} {to_bits}-bit."
             bus_names = {
                 wishbone.Interface:   "Wishbone",
                 axi.AXILiteInterface: "AXI-Lite",
@@ -362,12 +375,13 @@ class SoCBusHandler(Module):
             }
             self.logger.info(fmt.format(
                 name      = colorer(name),
-                converted = colorer("converted", color="cyan"),
+                adapted   = colorer("adapted", color="cyan"),
                 from_bus  = colorer(bus_names[type(interface)]),
                 from_bits = colorer(interface.data_width),
-                to_bus    = colorer(bus_names[type(bridged_interface)]),
-                to_bits   = colorer(bridged_interface.data_width)))
-        return bridged_interface
+                to_bus    = colorer(bus_names[type(adapted_interface)]),
+                to_bits   = colorer(adapted_interface.data_width)))
+
+        return adapted_interface
 
     def add_master(self, name=None, master=None):
         if name is None:
