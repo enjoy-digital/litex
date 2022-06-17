@@ -263,3 +263,35 @@ class AXIConverter(Module):
             self.submodules += AXIUpConverter(master, slave)
         else:
             self.comb += master.connect(slave)
+
+
+# AXI Interconnect ---------------------------------------------------------------------------------
+
+class AXIInterconnectPointToPoint(Module):
+    def __init__(self, master, slave):
+        self.comb += master.connect(slave)
+
+class AXIInterconnectShared(Module):
+    """AXI shared interconnect"""
+    def __init__(self, platform, masters, slaves):
+        # FIXME: WIP.
+        from verilog_axi.axi.axi_interconnect import AXIInterconnect
+        self.submodules.interconnect = AXIInterconnect(platform)
+        for master in masters:
+            self.interconnect.add_slave(s_axi=master)
+        for slave, origin, size in slaves:
+            self.interconnect.add_master(m_axi=slave, origin=origin, size=size)
+
+class AXICrossbar(Module):
+    """AXI crossbar
+
+    MxN crossbar for M masters and N slaves.
+    """
+    def __init__(self, platform, masters, slaves):
+        # FIXME: WIP.
+        from verilog_axi.axi.axi_crossbar import AXICrossbar
+        self.submodules.crossbar = AXICrossbar(platform)
+        for master in masters:
+            self.crossbar.add_slave(s_axi=master)
+        for slave, origin, size in slaves:
+            self.crossbar.add_master(m_axi=slave, origin=origin, size=size)
