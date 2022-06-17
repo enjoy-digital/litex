@@ -1067,7 +1067,10 @@ class SoC(Module):
             self.irq.add(name, use_loc_if_exists=True)
 
     # SoC finalization -----------------------------------------------------------------------------
-    def do_finalize(self):
+    def finalize(self):
+        if self.finalized:
+            return
+
         interconnect_p2p_cls = {
             "wishbone": wishbone.InterconnectPointToPoint,
             "axi-lite": axi.AXILiteInterconnectPointToPoint,
@@ -1232,6 +1235,9 @@ class SoC(Module):
         self.logger.info(self.csr)
         self.logger.info(self.irq)
         self.logger.info(colorer("-"*80, color="bright"))
+
+        # Finalize submodules ----------------------------------------------------------------------
+        Module.finalize(self)
 
     # SoC build ------------------------------------------------------------------------------------
     def get_build_name(self):
