@@ -113,7 +113,7 @@ class SoCCSRRegion:
 # SoCBusHandler ------------------------------------------------------------------------------------
 
 class SoCBusHandler(Module):
-    supported_standard      = ["wishbone", "axi-lite"]
+    supported_standard      = ["wishbone", "axi-lite", "axi"]
     supported_data_width    = [32, 64]
     supported_address_width = [32]
 
@@ -346,6 +346,7 @@ class SoCBusHandler(Module):
             main_bus_cls = {
                 "wishbone": wishbone.Interface,
                 "axi-lite": axi.AXILiteInterface,
+                "axi"     : axi.AXIInterface,
             }[self.standard]
             # Same Bus-Standard: Return un-modified interface.
             if isinstance(interface, main_bus_cls):
@@ -874,10 +875,12 @@ class SoC(Module):
         ram_cls = {
             "wishbone": wishbone.SRAM,
             "axi-lite": axi.AXILiteSRAM,
+            "axi"     : axi.AXILiteSRAM, # FIXME: Use AXI-Lite for now, create AXISRAM.
         }[self.bus.standard]
         interface_cls = {
             "wishbone": wishbone.Interface,
             "axi-lite": axi.AXILiteInterface,
+            "axi"     : axi.AXILiteInterface, # FIXME: Use AXI-Lite for now, create AXISRAM.
         }[self.bus.standard]
         ram_bus = interface_cls(data_width=self.bus.data_width, bursting=self.bus.bursting)
         ram     = ram_cls(size, bus=ram_bus, init=contents, read_only=(mode == "r"), name=name)
@@ -910,9 +913,10 @@ class SoC(Module):
         csr_bridge_cls = {
             "wishbone": wishbone.Wishbone2CSR,
             "axi-lite": axi.AXILite2CSR,
+            "axi"     : axi.AXILite2CSR, # Note: CSR is a slow bus so using AXI-Lite is fine.
         }[self.bus.standard]
         csr_bridge_name = name + "_bridge"
-        self.check_if_exists(csr_bridge_name )
+        self.check_if_exists(csr_bridge_name)
         csr_bridge = csr_bridge_cls(
             bus_csr = csr_bus.Interface(
                 address_width = self.csr.address_width,
@@ -922,11 +926,16 @@ class SoC(Module):
             colorer(name, color="underline"),
             colorer("added", color="green")))
         setattr(self.submodules, csr_bridge_name, csr_bridge)
-        csr_size = 2**(self.csr.address_width + 2)
+        csr_size   = 2**(self.csr.address_width + 2)
         csr_region = SoCRegion(origin=origin, size=csr_size, cached=False, decode=self.cpu.csr_decode)
-        bus = getattr(self.csr_bridge, self.bus.standard.replace('-', '_'))
+        bus_standard = {
+            "wishbone": "wishbone",
+            "axi-lite": "axi-lite",
+            "axi"     : "axi-lite",
+        }[self.bus.standard]
+        bus = getattr(csr_bridge, bus_standard.replace("-", "_"))
         self.bus.add_slave(name=name, slave=bus, region=csr_region)
-        self.csr.add_master(name=name, master=self.csr_bridge.csr)
+        self.csr.add_master(name=name, master=csr_bridge.csr)
         self.add_config("CSR_DATA_WIDTH", self.csr.data_width)
         self.add_config("CSR_ALIGNMENT",  self.csr.alignment)
 
@@ -1071,19 +1080,6 @@ class SoC(Module):
         if self.finalized:
             return
 
-        interconnect_p2p_cls = {
-            "wishbone": wishbone.InterconnectPointToPoint,
-            "axi-lite": axi.AXILiteInterconnectPointToPoint,
-        }[self.bus.standard]
-        interconnect_shared_cls = {
-            "wishbone": wishbone.InterconnectShared,
-            "axi-lite": axi.AXILiteInterconnectShared,
-        }[self.bus.standard]
-        interconnect_crossbar_cls = {
-            "wishbone": wishbone.Crossbar,
-            "axi-lite": axi.AXILiteCrossbar,
-        }[self.bus.standard]
-
         # SoC Reset --------------------------------------------------------------------------------
         # Connect soc_rst to CRG's rst if present.
         if hasattr(self, "ctrl") and hasattr(self, "crg"):
@@ -1092,14 +1088,29 @@ class SoC(Module):
                 self.comb += If(getattr(self.ctrl, "soc_rst", 0), crg_rst.eq(1))
 
         # SoC CSR bridge ---------------------------------------------------------------------------
-        # FIXME: for now, use registered CSR bridge when SDRAM is present; find the best compromise.
         self.add_csr_bridge(
             name     = "csr",
             origin   = self.mem_map["csr"],
-            register = hasattr(self, "sdram")
+            register = hasattr(self, "sdram"),
         )
 
         # SoC Bus Interconnect ---------------------------------------------------------------------
+        interconnect_p2p_cls = {
+            "wishbone": wishbone.InterconnectPointToPoint,
+            "axi-lite": axi.AXILiteInterconnectPointToPoint,
+            "axi"     : axi.AXIInterconnectPointToPoint,
+        }[self.bus.standard]
+        interconnect_shared_cls = {
+            "wishbone": wishbone.InterconnectShared,
+            "axi-lite": axi.AXILiteInterconnectShared,
+            "axi"     : axi.AXIInterconnectShared,
+        }[self.bus.standard]
+        interconnect_crossbar_cls = {
+            "wishbone": wishbone.Crossbar,
+            "axi-lite": axi.AXILiteCrossbar,
+            "axi"     : axi.AXICrossbar,
+        }[self.bus.standard]
+
         if len(self.bus.masters) and len(self.bus.slaves):
             # If 1 bus_master, 1 bus_slave and no address translation, use InterconnectPointToPoint.
             if ((len(self.bus.masters) == 1)  and
@@ -1111,14 +1122,22 @@ class SoC(Module):
             # Otherwise, use InterconnectShared/Crossbar.
             else:
                 interconnect_cls = {
-                    "shared"  :  interconnect_shared_cls,
+                    "shared"  : interconnect_shared_cls,
                     "crossbar": interconnect_crossbar_cls,
                 }[self.bus.interconnect]
-                self.submodules.bus_interconnect = interconnect_cls(
-                    masters        = list(self.bus.masters.values()),
-                    slaves         = [(self.bus.regions[n].decoder(self.bus), s) for n, s in self.bus.slaves.items()],
-                    register       = True,
-                    timeout_cycles = self.bus.timeout)
+                if interconnect_cls in [axi.AXIInterconnectShared, axi.AXICrossbar]:
+                    # FIXME: WIP, try to have compatibility with other interconnects.
+                    self.submodules.bus_interconnect = interconnect_cls(
+                        platform = self.platform,
+                        masters  = list(self.bus.masters.values()),
+                        slaves   = [(s, self.bus.regions[n].origin, self.bus.regions[n].size) for n, s in self.bus.slaves.items()]
+                    )
+                else:
+                    self.submodules.bus_interconnect = interconnect_cls(
+                        masters        = list(self.bus.masters.values()),
+                        slaves         = [(self.bus.regions[n].decoder(self.bus), s) for n, s in self.bus.slaves.items()],
+                        register       = True,
+                        timeout_cycles = self.bus.timeout)
                 if hasattr(self, "ctrl") and self.bus.timeout is not None:
                     if hasattr(self.ctrl, "bus_error") and hasattr(self.bus_interconnect, "timeout"):
                         self.comb += self.ctrl.bus_error.eq(self.bus_interconnect.timeout.error)
