@@ -53,17 +53,18 @@ def r_description(data_width, id_width):
     ]
 
 class AXIInterface:
-    def __init__(self, data_width=32, address_width=32, id_width=1, clock_domain="sys"):
+    def __init__(self, data_width=32, address_width=32, id_width=1, clock_domain="sys", name=None, bursting=False):
         self.data_width    = data_width
         self.address_width = address_width
         self.id_width      = id_width
         self.clock_domain  = clock_domain
+        self.bursting      = bursting # FIXME: Use or add check.
 
-        self.aw = stream.Endpoint(ax_description(address_width, id_width))
-        self.w  = stream.Endpoint(w_description(data_width, id_width))
-        self.b  = stream.Endpoint(b_description(id_width))
-        self.ar = stream.Endpoint(ax_description(address_width, id_width))
-        self.r  = stream.Endpoint(r_description(data_width, id_width))
+        self.aw = stream.Endpoint(ax_description(address_width, id_width), name=name)
+        self.w  = stream.Endpoint(w_description(data_width, id_width),     name=name)
+        self.b  = stream.Endpoint(b_description(id_width),                 name=name)
+        self.ar = stream.Endpoint(ax_description(address_width, id_width), name=name)
+        self.r  = stream.Endpoint(r_description(data_width, id_width),     name=name)
 
     def connect_to_pads(self, pads, mode="master"):
         return connect_to_pads(self, pads, mode, axi_full=True)

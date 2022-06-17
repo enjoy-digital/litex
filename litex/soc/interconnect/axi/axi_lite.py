@@ -45,10 +45,10 @@ class AXILiteInterface:
             raise NotImplementedError("AXI-Lite does not support bursting")
 
         self.aw = stream.Endpoint(ax_lite_description(address_width), name=name)
-        self.w  = stream.Endpoint(w_lite_description(data_width), name=name)
-        self.b  = stream.Endpoint(b_lite_description(), name=name)
+        self.w  = stream.Endpoint(w_lite_description(data_width),     name=name)
+        self.b  = stream.Endpoint(b_lite_description(),               name=name)
         self.ar = stream.Endpoint(ax_lite_description(address_width), name=name)
-        self.r  = stream.Endpoint(r_lite_description(data_width), name=name)
+        self.r  = stream.Endpoint(r_lite_description(data_width),     name=name)
 
     def get_ios(self, bus_name="wb"):
         subsignals = []
