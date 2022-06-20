@@ -93,7 +93,7 @@ git_repos = {
     # LiteX Misc Cores.
     # -----------------
     "valentyusb":         GitRepo(url="https://github.com/litex-hub/", branch="hw_cdc_eptri"),
-    "litex_verilog_axi":  GitRepo(url="https://github.com/enjoy-digital/"),
+    "litex_verilog_axi":  GitRepo(url="https://github.com/enjoy-digital/", clone="recursive"),
 
     # LiteX Boards.
     # -------------
