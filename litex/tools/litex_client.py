@@ -223,7 +223,7 @@ def run_gui(host, csr_csv, port):
     # Create Main Window.
     # -------------------
     dpg.create_context()
-    dpg.create_viewport(title="LiteX CLI GUI", width=1920, height=1080, always_on_top=True)
+    dpg.create_viewport(title="LiteX CLI GUI", width=1920, height=1080)
     dpg.setup_dearpygui()
 
     # Create CSR Window.
