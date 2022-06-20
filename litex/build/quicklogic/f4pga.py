@@ -18,7 +18,6 @@ from litex.build.quicklogic import common
 
 
 # IO Constraints (.pcf) ----------------------------------------------------------------------------
-
 def _format_io_pcf(signame, pin, others):
     r = f"set_io {signame} {Pins(pin).identifiers[0]}\n"
     return r
@@ -78,9 +77,10 @@ def _run_make():
         raise OSError("Error occured during QuickLogic Symbiflow's script execution.")
 
 
-# SymbiflowToolchain -------------------------------------------------------------------------------
+# F4PGAToolchain -------------------------------------------------------------------------------
+# Formerly SymbiflowToolchain, Symbiflow has been renamed to F4PGA -----------------------------
 
-class SymbiflowToolchain:
+class F4PGAToolchain:
     attr_translate = {}
 
     special_overrides = common.quicklogic_special_overrides

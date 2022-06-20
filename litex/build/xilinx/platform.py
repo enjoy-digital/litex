@@ -26,9 +26,9 @@ class XilinxPlatform(GenericPlatform):
         elif toolchain == "vivado":
             from litex.build.xilinx import vivado
             self.toolchain = vivado.XilinxVivadoToolchain()
-        elif toolchain == "symbiflow":
-            from litex.build.xilinx import symbiflow
-            self.toolchain = symbiflow.SymbiflowToolchain()
+        elif toolchain == "symbiflow" or toolchain == "f4pga":
+            from litex.build.xilinx import f4pga
+            self.toolchain = f4pga.F4PGAToolchain()
         elif toolchain == "yosys+nextpnr":
             from litex.build.xilinx import yosys_nextpnr
             self.toolchain = yosys_nextpnr.YosysNextpnrToolchain()
