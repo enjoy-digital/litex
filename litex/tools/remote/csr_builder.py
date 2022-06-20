@@ -25,12 +25,13 @@ class CSRElements:
         raise AttributeError("No such element " + attr)
 
 class CSRRegister:
-    def __init__(self, readfn, writefn, name, addr, length, data_width, mode):
+    def __init__(self, readfn, writefn, name, addr, size, data_width, mode):
         self.readfn     = readfn
         self.writefn    = writefn
         self.name       = name
         self.addr       = addr
-        self.length     = length
+        self.size       = size
+        self.length     = (size + data_width - 1)//data_width
         self.data_width = data_width
         self.mode       = mode
 
@@ -99,11 +100,11 @@ class CSRBuilder:
     def build_registers(self, readfn, writefn):
         d = {}
         for item in self.items:
-            group, name, addr, length, mode = item
+            group, name, addr, size, mode = item
             if group == "csr_register":
                 addr = int(addr.replace("0x", ""), 16)
-                length = int(length)
-                d[name] = CSRRegister(readfn, writefn, name, addr, length, self.csr_data_width, mode)
+                size = int(size)
+                d[name] = CSRRegister(readfn, writefn, name, addr, size, self.csr_data_width, mode)
         return CSRElements(d)
 
     def build_constants(self):

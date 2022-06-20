@@ -386,7 +386,7 @@ def get_csr_json(csr_regions={}, constants={}, mem_regions={}):
         region_origin = region.origin
         if not isinstance(region.obj, Memory):
             for csr in region.obj:
-                _size = (csr.size + region.busword - 1)//region.busword
+                _size = csr.size
                 _type = "rw"
                 if isinstance(csr, CSRStatus) and not hasattr(csr, "r"):
                     _type = "ro"
