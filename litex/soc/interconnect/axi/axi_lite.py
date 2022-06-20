@@ -568,7 +568,7 @@ class AXILiteTimeout(Module):
                 )
             ])
 
-# AXI-Lite Interconnect ----------------------------------------------------------------------------
+# AXI-Lite Interconnect Components -----------------------------------------------------------------
 
 class _AXILiteRequestCounter(Module):
     def __init__(self, request, response, max_requests=256):
@@ -593,10 +593,6 @@ class _AXILiteRequestCounter(Module):
                 counter.eq(counter - 1)
             ),
         ]
-
-class AXILiteInterconnectPointToPoint(Module):
-    def __init__(self, master, slave):
-        self.comb += master.connect(slave)
 
 class AXILiteArbiter(Module):
     """AXI Lite arbiter
@@ -633,9 +629,13 @@ class AXILiteArbiter(Module):
 
         # Allow to change rr.grant only after all requests from a master have been responded to.
         self.submodules.wr_lock = wr_lock = _AXILiteRequestCounter(
-            request=target.aw.valid & target.aw.ready, response=target.b.valid & target.b.ready)
+            request  = target.aw.valid & target.aw.ready,
+            response = target.b.valid  & target.b.ready
+        )
         self.submodules.rd_lock = rd_lock = _AXILiteRequestCounter(
-            request=target.ar.valid & target.ar.ready, response=target.r.valid & target.r.ready)
+            request  = target.ar.valid & target.ar.ready,
+            response = target.r.valid  & target.r.ready
+        )
 
         # Switch to next request only if there are no responses pending.
         self.comb += [
@@ -681,11 +681,13 @@ class AXILiteDecoder(Module):
         # TODO: we could reuse arbiter counters
         locks = {
             "write": _AXILiteRequestCounter(
-                request=master.aw.valid & master.aw.ready,
-                response=master.b.valid & master.b.ready),
+                request  = master.aw.valid & master.aw.ready,
+                response = master.b.valid & master.b.ready,
+            ),
             "read": _AXILiteRequestCounter(
-                request=master.ar.valid & master.ar.ready,
-                response=master.r.valid & master.r.ready),
+                request  = master.ar.valid & master.ar.ready,
+                response = master.r.valid & master.r.ready
+            ),
         }
         self.submodules += locks.values()
 
@@ -701,16 +703,18 @@ class AXILiteDecoder(Module):
                 slave_sel_dec["read"][i].eq(decoder(master.ar.addr[addr_shift:])),
             ]
 
-        # Dhange the current selection only when we've got all responses.
+        # Change the current selection only when we've got all responses.
         for channel in locks.keys():
             self.sync += If(locks[channel].ready, slave_sel_reg[channel].eq(slave_sel_dec[channel]))
         # We have to cut the delaying select.
         for ch, final in slave_sel.items():
-            self.comb += If(locks[ch].ready,
-                             final.eq(slave_sel_dec[ch])
-                         ).Else(
-                             final.eq(slave_sel_reg[ch])
-                         )
+            self.comb += [
+                If(locks[ch].ready,
+                    final.eq(slave_sel_dec[ch])
+                ).Else(
+                    final.eq(slave_sel_reg[ch])
+                )
+            ]
 
         # Connect master->slaves signals except valid/ready.
         for i, (_, slave) in enumerate(slaves):
@@ -734,6 +738,13 @@ class AXILiteDecoder(Module):
                     mask = Replicate(slave_sel[directions[channel]][i], len(dst))
                     masked.append(src & mask)
                 self.comb += dst.eq(reduce(or_, masked))
+
+# AXI-Lite Interconnect ----------------------------------------------------------------------------
+
+class AXILiteInterconnectPointToPoint(Module):
+    """AXI Lite point to point interconnect"""
+    def __init__(self, master, slave):
+        self.comb += master.connect(slave)
 
 class AXILiteInterconnectShared(Module):
     """AXI Lite shared interconnect"""
