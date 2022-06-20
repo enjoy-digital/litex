@@ -238,20 +238,30 @@ def run_gui(host, csr_csv, port):
             def reg_callback(tag, data):
                 for name, reg in  bus.regs.__dict__.items():
                     if (tag == name):
-                        try:
-                            reg.write(int(data, 0))
-                        except:
-                            pass
+                        reg.write(data)
             for name, reg in bus.regs.__dict__.items():
-                dpg.add_input_text(
-                    indent     = 16,
-                    label      = f"0x{reg.addr:08x} - {name}",
-                    tag        = name,
-                    filter_key = name,
-                    callback   = reg_callback,
-                    on_enter   = True,
-                    width      = 200
-                )
+                if reg.mode in ["ro"]:
+                    dpg.add_input_text(
+                        indent     = 16,
+                        label      = f"0x{reg.addr:08x} - {name}",
+                        tag        = name,
+                        filter_key = name,
+                        callback   = reg_callback,
+                        on_enter   = True,
+                        width      = 200
+                    )
+                else:
+                    dpg.add_slider_int(
+                        indent     = 16,
+                        label      = f"0x{reg.addr:08x} - {name}",
+                        tag        = name,
+                        filter_key = name,
+                        callback   = reg_callback,
+                        min_value  = 0,
+                        max_value  = (1<<reg.size) - 1,
+                        width      = 200
+                    )
+
 
     # Create Peripheral Window.
     # -------------------------
@@ -317,7 +327,7 @@ def run_gui(host, csr_csv, port):
             # CSR Update.
             for name, reg in bus.regs.__dict__.items():
                 value = reg.read()
-                dpg.set_value(item=name, value=f"0x{value():x}")
+                dpg.set_value(item=name, value=f"0x{value:x}" if reg.mode in ["ro"] else value)
 
             # XADC Update.
             if with_xadc:
