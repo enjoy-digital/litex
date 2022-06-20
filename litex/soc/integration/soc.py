@@ -1125,19 +1125,11 @@ class SoC(Module):
                     "shared"  : interconnect_shared_cls,
                     "crossbar": interconnect_crossbar_cls,
                 }[self.bus.interconnect]
-                if interconnect_cls in [axi.AXIInterconnectShared, axi.AXICrossbar]:
-                    # FIXME: WIP, try to have compatibility with other interconnects.
-                    self.submodules.bus_interconnect = interconnect_cls(
-                        platform = self.platform,
-                        masters  = list(self.bus.masters.values()),
-                        slaves   = [(s, self.bus.regions[n].origin, self.bus.regions[n].size) for n, s in self.bus.slaves.items()]
-                    )
-                else:
-                    self.submodules.bus_interconnect = interconnect_cls(
-                        masters        = list(self.bus.masters.values()),
-                        slaves         = [(self.bus.regions[n].decoder(self.bus), s) for n, s in self.bus.slaves.items()],
-                        register       = True,
-                        timeout_cycles = self.bus.timeout)
+                self.submodules.bus_interconnect = interconnect_cls(
+                    masters        = list(self.bus.masters.values()),
+                    slaves         = [(self.bus.regions[n].decoder(self.bus), s) for n, s in self.bus.slaves.items()],
+                    register       = True,
+                    timeout_cycles = self.bus.timeout)
                 if hasattr(self, "ctrl") and self.bus.timeout is not None:
                     if hasattr(self.ctrl, "bus_error") and hasattr(self.bus_interconnect, "timeout"):
                         self.comb += self.ctrl.bus_error.eq(self.bus_interconnect.timeout.error)
