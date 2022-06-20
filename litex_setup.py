@@ -212,6 +212,8 @@ def litex_setup_init_repos(config="standard", tag=None, dev_mode=False):
                 options = "--recursive" if repo.clone == "recursive" else ""
                 ), shell=True)
             os.chdir(os.path.join(current_path, name))
+            # Use specific Branch.
+            subprocess.check_call("git checkout " + repo.branch, shell=True)
             # Use specific Tag (Optional).
             if repo.tag is not None:
                 # Priority to passed tag (if specified).
