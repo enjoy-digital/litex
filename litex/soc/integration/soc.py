@@ -1350,9 +1350,6 @@ class LiteXSoC(SoC):
 
         # USB ACM (with ValentyUSB core).
         elif uart_name in ["usb_acm"]:
-            # FIXME: do proper install of ValentyUSB.
-            os.system("git clone https://github.com/litex-hub/valentyusb -b hw_cdc_eptri")
-            sys.path.append("valentyusb")
             import valentyusb.usbcore.io as usbio
             import valentyusb.usbcore.cpu.cdc_eptri as cdc_eptri
             usb_pads  = self.platform.request("usb")
