@@ -76,7 +76,6 @@ git_repos = {
     # ------------------
     "pythondata-software-picolibc":    GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
     "pythondata-software-compiler_rt": GitRepo(url="https://github.com/litex-hub/"),
-    "valentyusb":                      GitRepo(url="https://github.com/litex-hub/", branch="hw_cdc_eptri"), 
     "litex":                           GitRepo(url="https://github.com/enjoy-digital/", tag=True),
 
     # LiteX Cores Ecosystem.
@@ -89,7 +88,12 @@ git_repos = {
     "liteiclink":   GitRepo(url="https://github.com/enjoy-digital/", tag=True),
     "litescope":    GitRepo(url="https://github.com/enjoy-digital/", tag=True),
     "litejesd204b": GitRepo(url="https://github.com/enjoy-digital/", tag=True),
-    "litespi":      GitRepo(url="https://github.com/litex-hub/", tag=True),
+    "litespi":      GitRepo(url="https://github.com/litex-hub/",     tag=True),
+
+    # LiteX Misc Cores.
+    # -----------------
+    "valentyusb":         GitRepo(url="https://github.com/litex-hub/", branch="hw_cdc_eptri"),
+    "litex_verilog_axi":  GitRepo(url="https://github.com/enjoy-digital/"),
 
     # LiteX Boards.
     # -------------
