@@ -55,7 +55,7 @@ class LatticeTrellisToolchain(GenericToolchain):
 
         return self._build(platform, fragment, **kwargs)
 
-    # IO Constraints (.lpf) ----------------------------------------------------------------------------
+    # IO Constraints (.lpf) ------------------------------------------------------------------------
 
     @classmethod
     def _format_constraint(cls, c):
@@ -73,7 +73,7 @@ class LatticeTrellisToolchain(GenericToolchain):
             lpf.append(pre + "\"" + signame + "\"" + suf + ";")
         return "\n".join(lpf)
 
-    def build_constr_file(self, named_sc, named_pc):
+    def build_io_constraints(self, named_sc, named_pc):
         lpf = []
         lpf.append("BLOCK RESETPATHS;")
         lpf.append("BLOCK ASYNCPATHS;")
@@ -87,7 +87,7 @@ class LatticeTrellisToolchain(GenericToolchain):
             lpf.append("\n\n".join(named_pc))
         tools.write_to_file(self._build_name + ".lpf", "\n".join(lpf))
 
-    # Yosys/Nextpnr Helpers/Templates ------------------------------------------------------------------
+    # Yosys/Nextpnr Helpers/Templates --------------------------------------------------------------
 
     _yosys_template = [
         "verilog_defaults -push",
@@ -157,7 +157,7 @@ class LatticeTrellisToolchain(GenericToolchain):
         "lfe5um5g-85f": "um5g-85k",
     }
 
-    # Script -------------------------------------------------------------------------------------------
+    # Script ---------------------------------------------------------------------------------------
 
     _build_template = [
         "yosys -l {build_name}.rpt {build_name}.ys",

@@ -22,10 +22,10 @@ class GenericToolchain:
         self.named_pc    = []
         self.named_sc    = []
 
-    def build_constr_file(self, named_sc, named_pc):
-        raise NotImplementedError("GenericToolchain.build_constr_file must be overloaded.")
+    def build_io_constraints(self, named_sc, named_pc):
+        raise NotImplementedError("GenericToolchain.build_io_constraints must be overloaded.")
 
-    def build_timing_constr(self, vns, clocks):
+    def build_timing_constraints(self, vns, clocks):
         pass # Pass since optional.
 
     def build_project(self):
@@ -63,10 +63,10 @@ class GenericToolchain:
         platform.add_source(v_file)
 
         # Generate Design IO Constraints File.
-        self.build_constr_file(self.named_sc, self.named_pc)
+        self.build_io_constraints(self.named_sc, self.named_pc)
 
         # Generate Design Timing Constraints File.
-        self.build_timing_constr(v_output.ns, self.clocks)
+        self.build_timing_constraints(v_output.ns, self.clocks)
 
         # Generate project.
         self.build_project()

@@ -31,10 +31,9 @@ class AlteraQuartusToolchain(GenericToolchain):
         self.cst                     = []
 
     def build(self, platform, fragment, **kwargs):
-
         return self._build(platform, fragment, **kwargs)
 
-    # IO/Placement Constraints (.qsf) ------------------------------------------------------------------
+    # IO/Placement Constraints (.qsf) --------------------------------------------------------------
 
     def _format_constraint(self, c, signame, fmt_r):
         # IO location constraints
@@ -71,7 +70,7 @@ class AlteraQuartusToolchain(GenericToolchain):
             "altera_reserved_tdo",
         )
 
-    def build_constr_file(self, named_sc, named_pc):
+    def build_io_constraints(self, named_sc, named_pc):
         for sig, pins, others, resname in named_sc:
             if len(pins) > 1:
                 for i, p in enumerate(pins):
@@ -85,9 +84,9 @@ class AlteraQuartusToolchain(GenericToolchain):
         if named_pc:
             self.cst.append("\n\n".join(named_pc))
 
-    # Timing Constraints (.sdc) ------------------------------------------------------------------------
+    # Timing Constraints (.sdc) --------------------------------------------------------------------
 
-    def build_timing_constr(self, vns, clocks):
+    def build_timing_constraints(self, vns, clocks):
         sdc = []
 
         # Clock constraints
@@ -117,7 +116,7 @@ class AlteraQuartusToolchain(GenericToolchain):
         # Generate .sdc
         tools.write_to_file("{}.sdc".format(self._build_name), "\n".join(sdc))
 
-    # Project (.qsf) -----------------------------------------------------------------------------------
+    # Project (.qsf) -------------------------------------------------------------------------------
 
     def build_project(self):
         qsf = []
@@ -164,7 +163,7 @@ class AlteraQuartusToolchain(GenericToolchain):
         # Generate .qsf
         tools.write_to_file("{}.qsf".format(self._build_name), "\n".join(qsf))
 
-    # Script -------------------------------------------------------------------------------------------
+    # Script ---------------------------------------------------------------------------------------
 
     def build_script(self):
         build_name = self._build_name

@@ -25,7 +25,6 @@ class LatticeIceStormToolchain(GenericToolchain):
     attr_translate = {
         "keep": ("keep", "true"),
     }
-
     special_overrides = common.lattice_ice40_special_overrides
 
     def __init__(self):
@@ -47,7 +46,7 @@ class LatticeIceStormToolchain(GenericToolchain):
 
     # IO Constraints (.pcf) ------------------------------------------------------------------------
 
-    def build_constr_file(self, named_sc, named_pc):
+    def build_io_constraints(self, named_sc, named_pc):
         r = ""
         for sig, pins, others, resname in named_sc:
             if len(pins) > 1:
@@ -59,15 +58,15 @@ class LatticeIceStormToolchain(GenericToolchain):
             r += "\n" + "\n\n".join(named_pc)
         tools.write_to_file(self._build_name + ".pcf", r)
 
-    # Timing Constraints (in pre_pack file) ------------------------------------------------------------
+    # Timing Constraints (in pre_pack file) --------------------------------------------------------
 
-    def build_timing_constr(self, vns, clocks):
+    def build_timing_constraints(self, vns, clocks):
         r = ""
         for clk, period in clocks.items():
             r += """ctx.addClock("{}", {})\n""".format(vns.get_name(clk), 1e3/period)
         tools.write_to_file(self._build_name + "_pre_pack.py", r)
 
-    # Yosys/Nextpnr Helpers/Templates ------------------------------------------------------------------
+    # Yosys/Nextpnr Helpers/Templates --------------------------------------------------------------
 
     def _yosys_import_sources(self):
         includes = ""
@@ -82,7 +81,7 @@ class LatticeIceStormToolchain(GenericToolchain):
                 language, includes, filename))
         return "\n".join(reads)
 
-    # Yosys/Nextpnr Helpers/Templates ------------------------------------------------------------------
+    # Yosys/Nextpnr Helpers/Templates --------------------------------------------------------------
 
     _yosys_template = [
         "verilog_defaults -push",
@@ -103,7 +102,7 @@ class LatticeIceStormToolchain(GenericToolchain):
             ))
         tools.write_to_file(self._build_name + ".ys", "\n".join(ys))
 
-    # Script -------------------------------------------------------------------------------------------
+    # Script ---------------------------------------------------------------------------------------
 
     _build_template = [
         "yosys -l {build_name}.rpt {build_name}.ys",
