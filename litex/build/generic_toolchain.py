@@ -22,10 +22,16 @@ class GenericToolchain:
         self.named_pc    = []
         self.named_sc    = []
 
-    def build_io_constraints(self, named_sc, named_pc):
+    def build_io_constraints(self, *args, **kwargs):
+        # FIXME: Switch to fixed parameter when determined?
         raise NotImplementedError("GenericToolchain.build_io_constraints must be overloaded.")
 
-    def build_timing_constraints(self, vns, clocks):
+    def build_placement_constraints(self, *args, **kwargs):
+        # FIXME: Switch to fixed parameter when determined?
+        pass # Pass since optional.
+
+    def build_timing_constraints(self, *args, **kwargs):
+        # FIXME: Switch to fixed parameter when determined?
         pass # Pass since optional.
 
     def build_project(self):
