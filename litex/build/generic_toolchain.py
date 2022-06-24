@@ -6,6 +6,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
+import math
 
 from migen.fhdl.structure import _Fragment
 
@@ -96,3 +97,9 @@ class GenericToolchain:
                 raise ValueError("Clock already constrained to {:.2f}ns, new constraint to {:.2f}ns"
                     .format(self.clocks[clk], period))
         self.clocks[clk] = period
+
+    def add_false_path_constraint(self, platform, from_, to):
+        from_.attr.add("keep")
+        to.attr.add("keep")
+        if (to, from_) not in self.false_paths:
+            self.false_paths.add((from_, to))

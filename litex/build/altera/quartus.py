@@ -213,9 +213,3 @@ fi
 
         if subprocess.call(shell + [script]) != 0:
             raise OSError("Error occured during Quartus's script execution.")
-
-    def add_false_path_constraint(self, platform, from_, to):
-        from_.attr.add("keep")
-        to.attr.add("keep")
-        if (to, from_) not in self.false_paths:
-            self.false_paths.add((from_, to))
