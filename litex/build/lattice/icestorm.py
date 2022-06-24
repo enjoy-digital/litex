@@ -3,6 +3,7 @@
 #
 # Copyright (c) 2017-2018 William D. Jones <thor0505@comcast.net>
 # Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2022 Gwenhael Goavec-Merou <gwenhael.goavec-merou@trabucayre.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 
@@ -56,7 +57,7 @@ class LatticeIceStormToolchain(GenericToolchain):
                 r += "set_io {} {}\n".format(sig, pins[0])
         if named_pc:
             r += "\n" + "\n\n".join(named_pc)
-        tools.write_to_file(self._build_name + "pcf", r)
+        tools.write_to_file(self._build_name + ".pcf", r)
 
     # Timing Constraints (in pre_pack file) ------------------------------------------------------------
 
@@ -81,7 +82,7 @@ class LatticeIceStormToolchain(GenericToolchain):
                 language, includes, filename))
         return "\n".join(reads)
 
-    # Project (ys) -------------------------------------------------------------------------------------
+    # Yosys/Nextpnr Helpers/Templates ------------------------------------------------------------------
 
     _yosys_template = [
         "verilog_defaults -push",
@@ -92,7 +93,7 @@ class LatticeIceStormToolchain(GenericToolchain):
         "synth_ice40 {synth_opts} -json {build_name}.json -top {build_name} -dsp",
     ]
 
-    def build_project(self):
+    def _build_yosys(self):
         ys = []
         for l in self._yosys_template:
             ys.append(l.format(
@@ -112,6 +113,8 @@ class LatticeIceStormToolchain(GenericToolchain):
     ]
 
     def build_script(self):
+        # Generate Yosys script
+        self._build_yosys()
         # Translate device to Nextpnr architecture/package
         (family, architecture, package) = self.parse_device()
 
@@ -140,7 +143,7 @@ class LatticeIceStormToolchain(GenericToolchain):
 
         return script_file
 
-    def run_script(script):
+    def run_script(self, script):
         if sys.platform in ("win32", "cygwin"):
             shell = ["cmd", "/c"]
         else:

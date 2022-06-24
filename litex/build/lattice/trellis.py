@@ -4,6 +4,7 @@
 # Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2018-2019 David Shah <dave@ds0.me>
 # Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
+# Copyright (c) 2022 Gwenhael Goavec-Merou <gwenhael.goavec-merou@trabucayre.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os

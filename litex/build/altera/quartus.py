@@ -4,6 +4,7 @@
 # Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2019 msloniewski <marcin.sloniewski@gmail.com>
 # Copyright (c) 2019 vytautasb <v.buitvydas@limemicro.com>
+# Copyright (c) 2022 Gwenhael Goavec-Merou <gwenhael.goavec-merou@trabucayre.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
@@ -167,8 +168,6 @@ class AlteraQuartusToolchain(GenericToolchain):
 
     def build_script(self):
         build_name = self._build_name
-
-        self._build_qsf()
 
         if sys.platform in ["win32", "cygwin"]:
             script_file = "build_" + build_name + ".bat"
