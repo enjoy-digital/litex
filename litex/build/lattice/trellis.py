@@ -73,18 +73,18 @@ class LatticeTrellisToolchain(GenericToolchain):
             lpf.append(pre + "\"" + signame + "\"" + suf + ";")
         return "\n".join(lpf)
 
-    def build_io_constraints(self, named_sc, named_pc):
+    def build_io_constraints(self):
         lpf = []
         lpf.append("BLOCK RESETPATHS;")
         lpf.append("BLOCK ASYNCPATHS;")
-        for sig, pins, others, resname in named_sc:
+        for sig, pins, others, resname in self.named_sc:
             if len(pins) > 1:
                 for i, p in enumerate(pins):
                     lpf.append(self._format_lpf(sig + "[" + str(i) + "]", p, others, resname))
             else:
                 lpf.append(self._format_lpf(sig, pins[0], others, resname))
-        if named_pc:
-            lpf.append("\n\n".join(named_pc))
+        if self.named_pc:
+            lpf.append("\n\n".join(self.named_pc))
         tools.write_to_file(self._build_name + ".lpf", "\n".join(lpf))
 
     # Yosys Helpers/Templates ----------------------------------------------------------------------

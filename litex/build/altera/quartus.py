@@ -70,8 +70,8 @@ class AlteraQuartusToolchain(GenericToolchain):
             "altera_reserved_tdo",
         )
 
-    def build_io_constraints(self, named_sc, named_pc):
-        for sig, pins, others, resname in named_sc:
+    def build_io_constraints(self):
+        for sig, pins, others, resname in self.named_sc:
             if len(pins) > 1:
                 for i, p in enumerate(pins):
                     if self._is_virtual_pin(p):
@@ -81,16 +81,16 @@ class AlteraQuartusToolchain(GenericToolchain):
                 if self._is_virtual_pin(pins[0]):
                     continue
                 self.cst.append(self._format_qsf_constraint(sig, pins[0], others, resname))
-        if named_pc:
-            self.cst.append("\n\n".join(named_pc))
+        if self.named_pc:
+            self.cst.append("\n\n".join(self.named_pc))
 
     # Timing Constraints (.sdc) --------------------------------------------------------------------
 
-    def build_timing_constraints(self, vns, clocks):
+    def build_timing_constraints(self, vns):
         sdc = []
 
         # Clock constraints
-        for clk, period in sorted(clocks.items(), key=lambda x: x[0].duid):
+        for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
             is_port = False
             for sig, pins, others, resname in self.named_sc:
                 if sig == vns.get_name(clk):

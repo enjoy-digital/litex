@@ -23,15 +23,14 @@ class GenericToolchain:
         self.named_pc    = []
         self.named_sc    = []
 
-    def build_io_constraints(self, *args, **kwargs):
-        # FIXME: Switch to fixed parameter when determined?
+    def build_io_constraints(self):
         raise NotImplementedError("GenericToolchain.build_io_constraints must be overloaded.")
 
-    def build_placement_constraints(self, *args, **kwargs):
+    def build_placement_constraints(self):
         # FIXME: Switch to fixed parameter when determined?
         pass # Pass since optional.
 
-    def build_timing_constraints(self, *args, **kwargs):
+    def build_timing_constraints(self, vns):
         # FIXME: Switch to fixed parameter when determined?
         pass # Pass since optional.
 
@@ -70,10 +69,10 @@ class GenericToolchain:
         platform.add_source(v_file)
 
         # Generate Design IO Constraints File.
-        self.build_io_constraints(self.named_sc, self.named_pc)
+        self.build_io_constraints()
 
         # Generate Design Timing Constraints File.
-        self.build_timing_constraints(v_output.ns, self.clocks)
+        self.build_timing_constraints(v_output.ns)
 
         # Generate project.
         self.build_project()

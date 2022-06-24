@@ -46,23 +46,23 @@ class LatticeIceStormToolchain(GenericToolchain):
 
     # IO Constraints (.pcf) ------------------------------------------------------------------------
 
-    def build_io_constraints(self, named_sc, named_pc):
+    def build_io_constraints(self):
         r = ""
-        for sig, pins, others, resname in named_sc:
+        for sig, pins, others, resname in self.named_sc:
             if len(pins) > 1:
                 for bit, pin in enumerate(pins):
                     r += "set_io {}[{}] {}\n".format(sig, bit, pin)
             else:
                 r += "set_io {} {}\n".format(sig, pins[0])
-        if named_pc:
-            r += "\n" + "\n\n".join(named_pc)
+        if self.named_pc:
+            r += "\n" + "\n\n".join(self.named_pc)
         tools.write_to_file(self._build_name + ".pcf", r)
 
     # Timing Constraints (in pre_pack file) --------------------------------------------------------
 
-    def build_timing_constraints(self, vns, clocks):
+    def build_timing_constraints(self, vns):
         r = ""
-        for clk, period in clocks.items():
+        for clk, period in self.clocks.items():
             r += """ctx.addClock("{}", {})\n""".format(vns.get_name(clk), 1e3/period)
         tools.write_to_file(self._build_name + "_pre_pack.py", r)
 
