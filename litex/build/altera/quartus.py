@@ -214,15 +214,6 @@ fi
         if subprocess.call(shell + [script]) != 0:
             raise OSError("Error occured during Quartus's script execution.")
 
-    def add_period_constraint(self, platform, clk, period):
-        clk.attr.add("keep")
-        period = math.floor(period*1e3)/1e3 # round to lowest picosecond
-        if clk in self.clocks:
-            if period != self.clocks[clk]:
-                raise ValueError("Clock already constrained to {:.2f}ns, new constraint to {:.2f}ns"
-                    .format(self.clocks[clk], period))
-        self.clocks[clk] = period
-
     def add_false_path_constraint(self, platform, from_, to):
         from_.attr.add("keep")
         to.attr.add("keep")
