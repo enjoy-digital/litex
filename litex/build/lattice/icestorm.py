@@ -81,8 +81,6 @@ class LatticeIceStormToolchain(GenericToolchain):
                 language, includes, filename))
         return "\n".join(reads)
 
-    # Yosys/Nextpnr Helpers/Templates --------------------------------------------------------------
-
     _yosys_template = [
         "verilog_defaults -push",
         "verilog_defaults -add -defer",
@@ -92,7 +90,9 @@ class LatticeIceStormToolchain(GenericToolchain):
         "synth_ice40 {synth_opts} -json {build_name}.json -top {build_name} -dsp",
     ]
 
-    def _build_yosys(self):
+    # Project (.ys) --------------------------------------------------------------------------------
+
+    def build_project(self):
         ys = []
         for l in self._yosys_template:
             ys.append(l.format(
@@ -112,8 +112,6 @@ class LatticeIceStormToolchain(GenericToolchain):
     ]
 
     def build_script(self):
-        # Generate Yosys script
-        self._build_yosys()
         # Translate device to Nextpnr architecture/package
         (family, architecture, package) = self.parse_device()
 

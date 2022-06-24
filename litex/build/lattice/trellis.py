@@ -87,7 +87,7 @@ class LatticeTrellisToolchain(GenericToolchain):
             lpf.append("\n\n".join(named_pc))
         tools.write_to_file(self._build_name + ".lpf", "\n".join(lpf))
 
-    # Yosys/Nextpnr Helpers/Templates --------------------------------------------------------------
+    # Yosys Helpers/Templates ----------------------------------------------------------------------
 
     _yosys_template = [
         "verilog_defaults -push",
@@ -111,7 +111,9 @@ class LatticeTrellisToolchain(GenericToolchain):
                 language, includes, filename))
         return "\n".join(reads)
 
-    def _build_yosys(self):
+    # Project (.ys) --------------------------------------------------------------------------------
+
+    def build_project(self):
         ys = []
         for l in self._yosys_template:
             ys.append(l.format(
@@ -121,6 +123,8 @@ class LatticeTrellisToolchain(GenericToolchain):
                 read_files = self._yosys_import_sources()
             ))
         tools.write_to_file(self._build_name + ".ys", "\n".join(ys))
+
+    # NextPnr Helpers/Templates --------------------------------------------------------------------
 
     def nextpnr_ecp5_parse_device(self, device):
         device      = device.lower()
@@ -167,8 +171,6 @@ class LatticeTrellisToolchain(GenericToolchain):
     ]
 
     def build_script(self):
-        # Generate Yosys script
-        self._build_yosys()
         # Translate device to Nextpnr architecture/package
         (family, size, speed_grade, package) = self.nextpnr_ecp5_parse_device(self.platform.device)
         architecture = self.nextpnr_ecp5_architectures[(family + "-" + size)]
@@ -202,7 +204,7 @@ class LatticeTrellisToolchain(GenericToolchain):
 
         return script_file
 
-    def run_script(script):
+    def run_script(self, script):
         if sys.platform in ("win32", "cygwin"):
             shell = ["cmd", "/c"]
         else:
