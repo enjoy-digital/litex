@@ -17,22 +17,23 @@ class GenericToolchain:
         "keep": ("keep", "true"),
     }
 
+    supported_backend = ["LiteX"]
+
     def __init__(self):
         self.clocks      = dict()
         self.false_paths = set() # FIXME: use it
         self.named_pc    = []
         self.named_sc    = []
+        self._synth_opts = ""
 
     def build_io_constraints(self):
         raise NotImplementedError("GenericToolchain.build_io_constraints must be overloaded.")
 
     def build_placement_constraints(self):
-        # FIXME: Switch to fixed parameter when determined?
-        pass # Pass since optional.
+        return ("","") # Empty since optional.
 
     def build_timing_constraints(self, vns):
-        # FIXME: Switch to fixed parameter when determined?
-        pass # Pass since optional.
+        return ("","") # Empty since optional.
 
     def build_project(self):
         pass # Pass since optional.
@@ -40,15 +41,19 @@ class GenericToolchain:
     def build_script(self):
         raise NotImplementedError("GenericToolchain.build_script must be overloaded.")
 
+    def get_tool_options(self):
+        return ("",{}) # empty since optional.
+
     def _build(self, platform, fragment,
         build_dir      = "build",
         build_name     = "top",
         synth_opts     = "",
         run            = True,
+        backend        = "LiteX",
         **kwargs):
 
         self._build_name = build_name
-        self._synth_opts = synth_opts
+        self._synth_opts += synth_opts
         self.platform    = platform
 
         # Create Build Directory.
@@ -69,20 +74,60 @@ class GenericToolchain:
         platform.add_source(v_file)
 
         # Generate Design IO Constraints File.
-        self.build_io_constraints()
+        io_cst_file = self.build_io_constraints()
 
         # Generate Design Timing Constraints File.
-        self.build_timing_constraints(v_output.ns)
+        tim_cst_file = self.build_timing_constraints(v_output.ns)
 
-        # Generate project.
-        self.build_project()
+        if backend not in self.supported_backend:
+            raise NotImplementedError("Backend {backend} not supported by {toolchain} toolchain".format(
+                backend=backend,
+                toolchain=type(self).__name__))
 
-        # Generate build script.
-        script = self.build_script()
+        if backend == "LiteX":
+            # Generate project.
+            self.build_project()
 
-        # Run.
-        if run:
-            self.run_script(script)
+            # Generate build script.
+            script = self.build_script()
+
+            # Run.
+            if run:
+                self.run_script(script)
+        else:
+            from edalize import get_edatool
+
+            # Get tool name and options
+            (tool, tool_options)= self.get_tool_options()
+
+            # Files list
+            files = []
+            for filename, language, library, *copy in self.platform.sources:
+                ext = {
+                    "verilog"      : "verilogSource",
+                    "systemverilog": "systemVerilogSource",
+                    "vhdl"         : "vhdlSource"
+                    }[language]
+                files.append({'name': filename, 'file_type': ext})
+
+            # IO/timings constraints
+            files.append({'name':os.path.abspath(io_cst_file[0]), 'file_type':io_cst_file[1]})
+            if tim_cst_file[0] != "":
+                files.append({'name':os.path.abspath(tim_cst_file[0]), 'file_type':tim_cst_file[1]})
+
+            edam = {
+                'name'         : self._build_name,
+                'files'        : files,
+                'tool_options' : {tool: tool_options},
+                'toplevel'     : self._build_name,
+            }
+
+            backend = get_edatool(tool)(edam=edam, work_root=build_dir)
+            backend.configure()
+            if run:
+                backend.build()
+
+
 
         os.chdir(cwd)
 
