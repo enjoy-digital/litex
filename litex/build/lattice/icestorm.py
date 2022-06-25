@@ -31,6 +31,8 @@ class LatticeIceStormToolchain(GenericToolchain):
         super().__init__()
         self.yosys_template = self._yosys_template
         self.build_template = self._build_template
+        self._synth_opts    = "-dsp "
+        self._pnr_opts      = ""
 
     def build(self, platform, fragment,
         timingstrict   = False,
@@ -41,6 +43,19 @@ class LatticeIceStormToolchain(GenericToolchain):
         self.timingstrict = timingstrict
         self.ignoreloops  = ignoreloops
         self.seed         = seed
+        # Translate device to Nextpnr architecture/package
+        self.platform     = platform # GGM: FIXME
+        (_, self.architecture, self.package) = self.parse_device()
+
+        # NextPnr options
+        self._pnr_opts += " --pre-pack {build_name}_pre_pack.py \
+--{architecture} --package {package} {timefailarg} {ignoreloops} --seed {seed}".format(
+                build_name   = kwargs["build_name"] if "build_name" in kwargs else "top", # FIXME
+                architecture = self.architecture,
+                package      = self.package,
+                timefailarg  = "--timing-allow-fail " if not self.timingstrict else "",
+                ignoreloops  = "--ignore-loops " if self.ignoreloops else "",
+                seed         = self.seed)
 
         return self._build(platform, fragment, **kwargs)
 
@@ -87,7 +102,7 @@ class LatticeIceStormToolchain(GenericToolchain):
         "{read_files}",
         "verilog_defaults -pop",
         "attrmap -tocase keep -imap keep=\"true\" keep=1 -imap keep=\"false\" keep=0 -remove keep=0",
-        "synth_ice40 {synth_opts} -json {build_name}.json -top {build_name} -dsp",
+        "synth_ice40 {synth_opts} -json {build_name}.json -top {build_name}",
     ]
 
     # Project (.ys) --------------------------------------------------------------------------------
@@ -106,14 +121,11 @@ class LatticeIceStormToolchain(GenericToolchain):
 
     _build_template = [
         "yosys -l {build_name}.rpt {build_name}.ys",
-        "nextpnr-ice40 --json {build_name}.json --pcf {build_name}.pcf --asc {build_name}.txt \
-        --pre-pack {build_name}_pre_pack.py --{architecture} --package {package} {timefailarg} {ignoreloops} --seed {seed}",
+        "nextpnr-ice40 --json {build_name}.json --pcf {build_name}.pcf --asc {build_name}.txt {pnr_opts}",
         "icepack -s {build_name}.txt {build_name}.bin"
     ]
 
     def build_script(self):
-        # Translate device to Nextpnr architecture/package
-        (family, architecture, package) = self.parse_device()
 
         if sys.platform in ("win32", "cygwin"):
             script_ext = ".bat"
@@ -128,12 +140,8 @@ class LatticeIceStormToolchain(GenericToolchain):
             s_fail = s + "{fail_stmt}\n"  # Required so Windows scripts fail early.
             script_contents += s_fail.format(
                 build_name   = self._build_name,
-                architecture = architecture,
-                package      = package,
-                timefailarg  = "--timing-allow-fail" if not self.timingstrict else "",
-                ignoreloops  = "--ignore-loops" if self.ignoreloops else "",
                 fail_stmt    = fail_stmt,
-                seed         = self.seed)
+                pnr_opts     = self._pnr_opts)
 
         script_file = "build_" + self._build_name + script_ext
         tools.write_to_file(script_file, script_contents, force_unix=False)
