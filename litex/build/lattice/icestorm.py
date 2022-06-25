@@ -25,6 +25,7 @@ class LatticeIceStormToolchain(GenericToolchain):
     attr_translate = {
         "keep": ("keep", "true"),
     }
+    supported_backend = ["LiteX", "edalize"]
     special_overrides = common.lattice_ice40_special_overrides
 
     def __init__(self):
@@ -72,6 +73,7 @@ class LatticeIceStormToolchain(GenericToolchain):
         if self.named_pc:
             r += "\n" + "\n\n".join(self.named_pc)
         tools.write_to_file(self._build_name + ".pcf", r)
+        return (self._build_name + ".pcf", "PCF")
 
     # Timing Constraints (in pre_pack file) --------------------------------------------------------
 
@@ -80,6 +82,7 @@ class LatticeIceStormToolchain(GenericToolchain):
         for clk, period in self.clocks.items():
             r += """ctx.addClock("{}", {})\n""".format(vns.get_name(clk), 1e3/period)
         tools.write_to_file(self._build_name + "_pre_pack.py", r)
+        return (self._build_name + "_pre_pack.py", "PY")
 
     # Yosys/Nextpnr Helpers/Templates --------------------------------------------------------------
 
@@ -184,6 +187,16 @@ class LatticeIceStormToolchain(GenericToolchain):
         if package not in packages[architecture]:
             raise ValueError("Invalid device package {}".format(package))
         return (family, architecture, package)
+
+    # Edalize tool name and tool options -----------------------------------------------------------
+    def get_tool_options(self):
+        tool_options = {
+            "icepack_options": ["-s"],
+            "yosys_synth_options": self._synth_opts.split(' '),
+            "nextpnr_options": self._pnr_opts.split(' '),
+        }
+        print(tool_options)
+        return ("icestorm", tool_options)
 
 
 def icestorm_args(parser):
