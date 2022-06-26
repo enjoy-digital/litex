@@ -24,6 +24,7 @@ class GenericToolchain:
         self.false_paths = set() # FIXME: use it
         self.named_pc    = []
         self.named_sc    = []
+        self._vns        = None
         self._synth_opts = ""
 
     def finalize(self):
@@ -56,13 +57,14 @@ class GenericToolchain:
         **kwargs):
 
         self._build_name = build_name
+        self._build_dir  = build_dir
         self._synth_opts += synth_opts
         self.platform    = platform
 
         # Create Build Directory.
-        os.makedirs(build_dir, exist_ok=True)
+        os.makedirs(self._build_dir, exist_ok=True)
         cwd = os.getcwd()
-        os.chdir(build_dir)
+        os.chdir(self._build_dir)
 
         # Finalize Design.
         if not isinstance(fragment, _Fragment):
@@ -71,14 +73,15 @@ class GenericToolchain:
 
         # Generate Verilog.
         v_output = platform.get_verilog(fragment, name=build_name, **kwargs)
+        self._vns = v_output.ns
+        v_file = build_name + ".v"
+        v_output.write(v_file)
 
         # Finalize toolchain (after gateware is complete)
         self.finalize()
 
         # Get signals and platform constraints
-        self.named_sc, self.named_pc = platform.resolve_signals(v_output.ns)
-        v_file = build_name + ".v"
-        v_output.write(v_file)
+        self.named_sc, self.named_pc = platform.resolve_signals(self._vns)
         platform.add_source(v_file)
 
         # Generate Design IO Constraints File.
@@ -86,6 +89,9 @@ class GenericToolchain:
 
         # Generate Design Timing Constraints File.
         tim_cst_file = self.build_timing_constraints(v_output.ns)
+
+        # Generate Design Placement Constraints File.
+        place_cst_file = self.build_placement_constraints()
 
         if backend not in self.supported_backend:
             raise NotImplementedError("Backend {backend} not supported by {toolchain} toolchain".format(
@@ -122,6 +128,8 @@ class GenericToolchain:
             files.append({'name':os.path.abspath(io_cst_file[0]), 'file_type':io_cst_file[1]})
             if tim_cst_file[0] != "":
                 files.append({'name':os.path.abspath(tim_cst_file[0]), 'file_type':tim_cst_file[1]})
+            if place_cst_file[0] != "":
+                files.append({'name':os.path.abspath(place_cst_file[0]), 'file_type':place_cst_file[1]})
 
             edam = {
                 'name'         : self._build_name,
@@ -130,7 +138,7 @@ class GenericToolchain:
                 'toplevel'     : self._build_name,
             }
 
-            backend = get_edatool(tool)(edam=edam, work_root=build_dir)
+            backend = get_edatool(tool)(edam=edam, work_root=self._build_dir)
             backend.configure()
             if run:
                 backend.build()
