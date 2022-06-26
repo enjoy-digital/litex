@@ -44,21 +44,22 @@ class LatticeIceStormToolchain(GenericToolchain):
         self.timingstrict = timingstrict
         self.ignoreloops  = ignoreloops
         self.seed         = seed
+
+        return self._build(platform, fragment, **kwargs)
+
+    def finalize(self):
         # Translate device to Nextpnr architecture/package
-        self.platform     = platform # GGM: FIXME
         (_, self.architecture, self.package) = self.parse_device()
 
         # NextPnr options
         self._pnr_opts += " --pre-pack {build_name}_pre_pack.py \
 --{architecture} --package {package} {timefailarg} {ignoreloops} --seed {seed}".format(
-                build_name   = kwargs["build_name"] if "build_name" in kwargs else "top", # FIXME
+                build_name   = self._build_name,
                 architecture = self.architecture,
                 package      = self.package,
                 timefailarg  = "--timing-allow-fail " if not self.timingstrict else "",
                 ignoreloops  = "--ignore-loops " if self.ignoreloops else "",
                 seed         = self.seed)
-
-        return self._build(platform, fragment, **kwargs)
 
     # IO Constraints (.pcf) ------------------------------------------------------------------------
 
@@ -195,7 +196,6 @@ class LatticeIceStormToolchain(GenericToolchain):
             "yosys_synth_options": self._synth_opts.split(' '),
             "nextpnr_options": self._pnr_opts.split(' '),
         }
-        print(tool_options)
         return ("icestorm", tool_options)
 
 
