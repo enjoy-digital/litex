@@ -26,6 +26,9 @@ class GenericToolchain:
         self.named_sc    = []
         self._synth_opts = ""
 
+    def finalize(self):
+        pass # Pass since optional.
+
     def build_io_constraints(self):
         raise NotImplementedError("GenericToolchain.build_io_constraints must be overloaded.")
 
@@ -68,6 +71,11 @@ class GenericToolchain:
 
         # Generate Verilog.
         v_output = platform.get_verilog(fragment, name=build_name, **kwargs)
+
+        # Finalize toolchain (after gateware is complete)
+        self.finalize()
+
+        # Get signals and platform constraints
         self.named_sc, self.named_pc = platform.resolve_signals(v_output.ns)
         v_file = build_name + ".v"
         v_output.write(v_file)
