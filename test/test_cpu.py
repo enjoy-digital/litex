@@ -36,13 +36,13 @@ class TestCPU(unittest.TestCase):
 
     def test_cpu(self):
         tested_cpus = [
-            "cv32e40p",     # (riscv   / softcore)
+            #"cv32e40p",     # (riscv   / softcore)
             "femtorv",      # (riscv   / softcore)
             "firev",        # (riscv   / softcore)
             "ibex",         # (riscv   / softcore)
-            "marocchino",   # (or1k    / softcore)
+            #"marocchino",   # (or1k    / softcore)
             "naxriscv",     # (riscv   / softcore)
-            "rocket",       # (riscv   / softcore)
+            #"rocket",       # (riscv   / softcore)
             "serv",         # (riscv   / softcore)
             "vexriscv",     # (riscv   / softcore)
             "vexriscv_smp", # (riscv   / softcore)
