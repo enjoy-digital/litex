@@ -23,7 +23,7 @@
  * Initialize SDRAM (Init + Calibration)
  *
  */
-#if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE)
+#if defined(CSR_SDRAM_BASE)
 define_command(sdram_init, sdram_init, "Initialize SDRAM (Init + Calibration)", LITEDRAM_CMDS);
 #endif
 
@@ -317,7 +317,7 @@ define_command(sdram_force_bitslip, sdram_force_bitslip_handler, "Force write le
  * Write SDRAM Mode Register
  *
  */
-#if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE)
+#if defined(CSR_SDRAM_BASE)
 static void sdram_mr_write_handler(int nb_params, char **params)
 {
 	char *c;
