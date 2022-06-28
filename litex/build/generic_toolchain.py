@@ -60,6 +60,7 @@ class GenericToolchain:
         self._build_dir  = build_dir
         self._synth_opts += synth_opts
         self.platform    = platform
+        self.fragment    = fragment
 
         # Create Build Directory.
         os.makedirs(self._build_dir, exist_ok=True)
@@ -67,12 +68,12 @@ class GenericToolchain:
         os.chdir(self._build_dir)
 
         # Finalize Design.
-        if not isinstance(fragment, _Fragment):
-            fragment = fragment.get_fragment()
-        platform.finalize(fragment)
+        if not isinstance(self.fragment, _Fragment):
+            self.fragment = self.fragment.get_fragment()
+        platform.finalize(self.fragment)
 
         # Generate Verilog.
-        v_output = platform.get_verilog(fragment, name=build_name, **kwargs)
+        v_output = platform.get_verilog(self.fragment, name=build_name, **kwargs)
         self._vns = v_output.ns
         v_file = build_name + ".v"
         v_output.write(v_file)
@@ -84,11 +85,11 @@ class GenericToolchain:
         self.named_sc, self.named_pc = platform.resolve_signals(self._vns)
         platform.add_source(v_file)
 
-        # Generate Design IO Constraints File.
-        io_cst_file = self.build_io_constraints()
-
         # Generate Design Timing Constraints File.
         tim_cst_file = self.build_timing_constraints(v_output.ns)
+
+        # Generate Design IO Constraints File.
+        io_cst_file = self.build_io_constraints()
 
         # Generate Design Placement Constraints File.
         place_cst_file = self.build_placement_constraints()
