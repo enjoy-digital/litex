@@ -45,42 +45,6 @@ class LatticeDiamondToolchain(GenericToolchain):
 
         return self._build(platform, fragment, **kwargs)
 
-        ## Create build directory
-        #os.makedirs(build_dir, exist_ok=True)
-        #cwd = os.getcwd()
-        #os.chdir(build_dir)
-
-        ## Finalize design
-        #if not isinstance(fragment, _Fragment):
-        #    fragment = fragment.get_fragment()
-        #platform.finalize(fragment)
-
-        ## Generate verilog
-        #v_output = platform.get_verilog(fragment, name=build_name, **kwargs)
-        #named_sc, named_pc = platform.resolve_signals(v_output.ns)
-        #v_file = build_name + ".v"
-        #v_output.write(v_file)
-        #platform.add_source(v_file)
-
-        ## Generate design constraints file (.lpf)
-        #_build_lpf(named_sc, named_pc, self.clocks, v_output.ns, build_name)
-
-        ## Generate design script file (.tcl)
-        #_build_tcl(platform.device, platform.sources, platform.verilog_include_paths, build_name)
-
-        ## Generate build script
-        #script = _build_script(build_name, platform.device)
-
-        ## Run
-        #if run:
-        #    _run_script(script)
-        #    if timingstrict:
-        #        _check_timing(build_name)
-
-        #os.chdir(cwd)
-
-        #return v_output.ns
-
     # Helpers --------------------------------------------------------------------------------------
 
     @classmethod

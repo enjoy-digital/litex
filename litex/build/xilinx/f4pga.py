@@ -10,6 +10,7 @@ import math
 
 from migen.fhdl.structure import _Fragment
 
+from litex.build.generic_toolchain import GenericToolchain
 from litex.build.generic_platform import *
 from litex.build.xilinx.vivado import _xdc_separator, _build_xdc
 from litex.build import tools
@@ -28,7 +29,7 @@ F4CACHEPATH = '.f4cache'
 # F4PGAToolchain -------------------------------------------------------------------------------
 # Formerly SymbiflowToolchain, Symbiflow has been renamed to F4PGA -----------------------------
 
-class F4PGAToolchain:
+class F4PGAToolchain(GenericToolchain):
     attr_translate = {
         "keep":            ("dont_touch", "true"),
         "no_retiming":     ("dont_touch", "true"),
@@ -40,59 +41,11 @@ class F4PGAToolchain:
     }
 
     def __init__(self):
-        self.clocks = dict()
-        self.false_paths = set()
+        super().__init__()
         self._partname = None
-
-    def _generate_prj_flow(self, platform, build_name):
-        target = "bitstream"
-
-        prj_flow_cfg_dict = {}
-        prj_flow_cfg_dict["dependencies"] = {}
-        prj_flow_cfg_dict["values"] = {}
-        prj_flow_cfg_dict[self._partname] = {}
-
-        deps_cfg = prj_flow_cfg_dict["dependencies"]
-        deps_cfg["sources"] = [f for f,language,_ in platform.sources if language in ["verilog", "system_verilog"]]
-        deps_cfg["xdc"] = f"{build_name}.xdc"
-        deps_cfg["sdc"] = f"{build_name}.sdc"
-        deps_cfg["build_dir"] = os.getcwd()
-        deps_cfg["synth_log"] = f"{build_name}_synth.log"
-        deps_cfg["pack_log"] = f"{build_name}_pack.log"
-        deps_cfg["json"] = f"{build_name}.json"
-
-        values_cfg = prj_flow_cfg_dict["values"]
-        values_cfg["top"] = build_name
-        values_cfg["part_name"] = self._partname
-
-        prj_flow_cfg = ProjectFlowConfig("")
-        prj_flow_cfg.flow_cfg = prj_flow_cfg_dict
-
-        flow_cfg = make_flow_config(prj_flow_cfg, self._partname)
-
-        flow = Flow(
-            target=target,
-            cfg=flow_cfg,
-            f4cache=F4Cache(F4CACHEPATH)
-        )
-
-        print("\nProject status:")
-        flow.print_resolved_dependencies(0)
-        print("")
-
-        return flow
-
-    def _build_clock_constraints(self, platform):
-        platform.add_platform_command(_xdc_separator("Clock constraints"))
-        for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
-            platform.add_platform_command(
-                "create_clock -period " + str(period) +
-                " {clk}", clk=clk)
+        self._flow = None
 
     def build(self, platform, fragment,
-        build_dir  = "build",
-        build_name = "top",
-        run        = True,
         enable_xpm = False,
         **kwargs):
 
@@ -103,56 +56,66 @@ class F4PGAToolchain:
             "xc7a200t-sbg484-1" : "xc7a200tsbg484-1",
         }.get(platform.device, platform.device)
 
-        # Create build directory
-        os.makedirs(build_dir, exist_ok=True)
-        cwd = os.getcwd()
-        os.chdir(build_dir)
-
-        # Finalize design
-        if not isinstance(fragment, _Fragment):
-            fragment = fragment.get_fragment()
-        platform.finalize(fragment)
-
-        # Generate timing constraints
-        self._build_clock_constraints(platform)
-
-        # Generate verilog
-        v_output = platform.get_verilog(fragment, name=build_name, **kwargs)
-        named_sc, named_pc = platform.resolve_signals(v_output.ns)
-        v_file = build_name + ".v"
-        v_output.write(v_file)
-        platform.add_source(v_file)
-
         set_verbosity_level(2)
 
-        # Generate design constraints
-        tools.write_to_file(build_name + ".xdc", _build_xdc(named_sc, named_pc))
+        return self._build(platform, fragment, **kwargs)
 
-        flow = self._generate_prj_flow(
-            platform   = platform,
-            build_name = build_name
+    def build_io_contraints(self):
+        # Generate design constraints
+        tools.write_to_file(self._build_name + ".xdc", _build_xdc(self.named_sc, self.named_pc))
+        return (self._build_name + ".xdc", "XDC")
+
+    def build_timing_constraints(self):
+        self.platform.add_platform_command(_xdc_separator("Clock constraints"))
+        for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
+            self.platform.add_platform_command(
+                "create_clock -period " + str(period) +
+                " {clk}", clk=clk)
+        return ("", "")
+
+    def build_project(self):
+        target = "bitstream"
+
+        prj_flow_cfg_dict = {}
+        prj_flow_cfg_dict["dependencies"] = {}
+        prj_flow_cfg_dict["values"] = {}
+        prj_flow_cfg_dict[self._partname] = {}
+
+        deps_cfg = prj_flow_cfg_dict["dependencies"]
+        deps_cfg["sources"] = [f for f,language,_ in self.platform.sources if language in ["verilog", "system_verilog"]]
+        deps_cfg["xdc"] = f"{self._build_name}.xdc"
+        deps_cfg["sdc"] = f"{self._build_name}.sdc"
+        deps_cfg["build_dir"] = os.getcwd()
+        deps_cfg["synth_log"] = f"{self._build_name}_synth.log"
+        deps_cfg["pack_log"] = f"{self._build_name}_pack.log"
+        deps_cfg["json"] = f"{self._build_name}.json"
+
+        values_cfg = prj_flow_cfg_dict["values"]
+        values_cfg["top"] = self._build_name
+        values_cfg["part_name"] = self._partname
+
+        prj_flow_cfg = ProjectFlowConfig("")
+        prj_flow_cfg.flow_cfg = prj_flow_cfg_dict
+
+        flow_cfg = make_flow_config(prj_flow_cfg, self._partname)
+
+        self._flow = Flow(
+            target=target,
+            cfg=flow_cfg,
+            f4cache=F4Cache(F4CACHEPATH)
         )
 
-        if run:
-            try:
-                flow.execute()
-            except Exception as e:
-                print(e)
+        print("\nProject status:")
+        self._flow.print_resolved_dependencies(0)
+        print("")
+
+    def run_script(self, script):
+        try:
+            flow.execute()
+        except Exception as e:
+            print(e)
 
         flow.f4cache.save()
-
-        os.chdir(cwd)
-
-        return v_output.ns
-
-    def add_period_constraint(self, platform, clk, period):
-        clk.attr.add("keep")
-        period = math.floor(period*1e3)/1e3 # round to lowest picosecond
-        if clk in self.clocks:
-            if period != self.clocks[clk]:
-                raise ValueError("Clock already constrained to {:.2f}ns, new constraint to {:.2f}ns"
-                    .format(self.clocks[clk], period))
-        self.clocks[clk] = period
 
     def add_false_path_constraint(self, platform, from_, to):
         # FIXME: false path constraints are currently not supported by the F4PGA toolchain
