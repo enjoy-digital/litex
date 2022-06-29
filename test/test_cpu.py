@@ -36,13 +36,12 @@ class TestCPU(unittest.TestCase):
 
     def test_cpu(self):
         tested_cpus = [
-            #"cv32e40p",     # (riscv   / softcore)
+            "cv32e40p",     # (riscv   / softcore)
             "femtorv",      # (riscv   / softcore)
             "firev",        # (riscv   / softcore)
             "ibex",         # (riscv   / softcore)
-            #"marocchino",   # (or1k    / softcore)
+            "marocchino",   # (or1k    / softcore)
             "naxriscv",     # (riscv   / softcore)
-            #"rocket",       # (riscv   / softcore)
             "serv",         # (riscv   / softcore)
             "vexriscv",     # (riscv   / softcore)
             "vexriscv_smp", # (riscv   / softcore)
@@ -62,6 +61,7 @@ class TestCPU(unittest.TestCase):
             "mor1kx",       # (or1k    / softcore) -> Verilator compilation issue.
             "neorv32",      # (riscv   / softcore) -> Requires VHDL->Verilog (GHDL + Yosys).
             "picorv32",     # (riscv   / softcore) -> Verilator compilation issue.
+            "rocket",       # (riscv   / softcore) -> Not enough RAM in CI.
             "zynq7000",     # (arm     / hardcore) -> Hardcore.
             "zynqmp",       # (aarch64 / hardcore) -> Hardcore.
         ]
