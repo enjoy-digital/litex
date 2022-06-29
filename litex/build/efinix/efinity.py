@@ -279,8 +279,8 @@ class EfinityToolchain(GenericToolchain):
             "--write-efx-verilog",          f"outflow/{self._build_name}.map.v",
             "--write-premap-module",        f"outflow/{self._build_name}.elab.vdb",
             "--binary-db",                  f"{self._build_name}.vdb",
-            "--family",                     platform.family,
-            "--device",                     platform.device,
+            "--family",                     self.platform.family,
+            "--device",                     self.platform.device,
             "--mode",                       "speed",
             "--max_ram",                    "-1",
             "--max_mult",                   "-1",
@@ -306,17 +306,17 @@ class EfinityToolchain(GenericToolchain):
         r = tools.subprocess_call_filtered([self.efinity_path + "/bin/python3",
             self.efinity_path + "/scripts/efx_run_pt.py",
             f"{self._build_name}",
-            platform.family,
-            platform.device
+            self.platform.family,
+            self.platform.device
         ], common.colors)
         if r != 0:
            raise OSError("Error occurred during efx_run_pt execution.")
 
         r = tools.subprocess_call_filtered([self.efinity_path + "/bin/efx_pnr",
             "--circuit",              f"{self._build_name}",
-            "--family",               platform.family,
-            "--device",               platform.device,
-            "--operating_conditions", platform.timing_model,
+            "--family",               self.platform.family,
+            "--device",               self.platform.device,
+            "--operating_conditions", self.platform.timing_model,
             "--pack",
             "--place",
             "--route",
@@ -339,8 +339,8 @@ class EfinityToolchain(GenericToolchain):
         r = tools.subprocess_call_filtered([self.efinity_path + "/bin/efx_pgm",
             "--source",                   f"work_pnr/{self._build_name}.lbf",
             "--dest",                     f"{self._build_name}.hex",
-            "--device",                   platform.device,
-            "--family",                   platform.family,
+            "--device",                   self.platform.device,
+            "--family",                   self.platform.family,
             "--periph",                   f"outflow/{self._build_name}.lpf",
             "--oscillator_clock_divider", "DIV8",
             "--spi_low_power_mode",       "off",
