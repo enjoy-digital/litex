@@ -357,7 +357,7 @@ class XilinxVivadoToolchain(GenericToolchain):
         return script_file
 
     def run_script(self, script):
-        if synth_mode == "yosys":
+        if self._synth_mode == "yosys":
             common._run_yosys(self.platform.device, self.platform.sources,
                 self.platform.verilog_include_paths, self._build_name)
         if sys.platform in ["win32", "cygwin"]:
