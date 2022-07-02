@@ -257,7 +257,7 @@ def trellis_argdict(args):
         "ignoreloops":  args.nextpnr_ignoreloops,
         "bootaddr":     args.ecppack_bootaddr,
         "spimode":      args.ecppack_spimode,
-        "freq":         float(args.ecppack_freq),
+        "freq":         float(args.ecppack_freq) if args.ecppack_freq is not None else None,
         "compress":     args.ecppack_compress,
         "seed":         args.nextpnr_seed,
     }
