@@ -30,10 +30,6 @@ class MicrosemiLiberoSoCPolarfireToolchain(GenericToolchain):
         self.additional_fp_constraints     = []
         self.additional_timing_constraints = []
 
-    def build(self, platform, fragment, **kwargs):
-
-        return self._build(platform, fragment, **kwargs)
-
     # Helpers --------------------------------------------------------------------------------------
 
     @classmethod

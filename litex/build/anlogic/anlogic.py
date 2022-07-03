@@ -32,10 +32,6 @@ class TangDinastyToolchain(GenericToolchain):
     def finalize(self):
         self._architecture, self._family, self._package = self.parse_device()
 
-    def build(self, platform, fragment, **kwargs):
-
-        return self._build(platform, fragment, **kwargs)
-
     # Constraints (.adc ) --------------------------------------------------------------------------
 
     def build_io_constraints(self):

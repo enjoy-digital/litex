@@ -53,7 +53,7 @@ class XilinxISEToolchain(GenericToolchain):
         self._mode = mode
         self._isemode = mode if mode in ["xst", "cpld"] else "edif"
 
-        return self._build(platform, fragment, **kwargs)
+        return GenericToolchain.build(self, platform, fragment, **kwargs)
 
     # Constraints (.ucf) -------------------------------------------------------------------------------
 

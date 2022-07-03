@@ -53,7 +53,7 @@ class LatticeOxideToolchain(GenericToolchain):
         self._seed         = seed
         self._es_device    = es_device
 
-        return self._build(platform, fragment, **kwargs)
+        return GenericToolchain.build(self, platform, fragment, **kwargs)
 
     # Constraints (.ldc) ---------------------------------------------------------------------------
 

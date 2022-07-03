@@ -213,7 +213,7 @@ class YosysNextpnrToolchain(GenericToolchain):
         self.platform = platform
         self._check_properties()
 
-        return self._build(platform, fragment, **kwargs)
+        return GenericToolchain.build(self, platform, fragment, **kwargs)
 
     def add_false_path_constraint(self, platform, from_, to):
         # FIXME: false path constraints are currently not supported by the F4PGA toolchain

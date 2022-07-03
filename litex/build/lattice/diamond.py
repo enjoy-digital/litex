@@ -43,7 +43,7 @@ class LatticeDiamondToolchain(GenericToolchain):
 
         self._timinstrict = timingstrict
 
-        return self._build(platform, fragment, **kwargs)
+        return GenericToolchain.build(self, platform, fragment, **kwargs)
 
     # Helpers --------------------------------------------------------------------------------------
 

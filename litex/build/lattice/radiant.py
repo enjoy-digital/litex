@@ -91,7 +91,7 @@ class LatticeRadiantToolchain(GenericToolchain):
         self._timingstrict = timingstrict
         self._synth_mode   = synth_mode
 
-        return self._build(platform, fragment, **kwargs)
+        return GenericToolchain.build(self, platform, fragment, **kwargs)
 
     # Mixed Radiant+Yosys support ------------------------------------------------------------------
 

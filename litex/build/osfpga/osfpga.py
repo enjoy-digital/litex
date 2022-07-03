@@ -25,9 +25,6 @@ class OSFPGAToolchain(GenericToolchain):
         self.toolchain = toolchain
         self.clocks    = dict()
 
-    def build(self, platform, fragment, **kwargs):
-        return self._build(platform, fragment, **kwargs)
-
     # Constraints ----------------------------------------------------------------------------------
 
     def build_io_constraints(self):

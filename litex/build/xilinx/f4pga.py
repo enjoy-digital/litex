@@ -58,7 +58,7 @@ class F4PGAToolchain(GenericToolchain):
 
         set_verbosity_level(2)
 
-        return self._build(platform, fragment, **kwargs)
+        return GenericToolchain.build(self, platform, fragment, **kwargs)
 
     def build_io_contraints(self):
         # Generate design constraints

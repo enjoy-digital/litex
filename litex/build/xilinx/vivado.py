@@ -127,7 +127,7 @@ class XilinxVivadoToolchain(GenericToolchain):
         self._synth_mode = synth_mode
         self._enable_xpm = enable_xpm
 
-        return self._build(platform, fragment, **kwargs)
+        return GenericToolchain.build(platform, fragment, **kwargs)
 
     # Constraints (.xdc) ---------------------------------------------------------------------------
 

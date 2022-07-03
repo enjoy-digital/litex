@@ -45,7 +45,7 @@ class LatticeIceStormToolchain(GenericToolchain):
         self.ignoreloops  = ignoreloops
         self.seed         = seed
 
-        return self._build(platform, fragment, **kwargs)
+        return GenericToolchain.build(self, platform, fragment, **kwargs)
 
     def finalize(self):
         # Translate device to Nextpnr architecture/package

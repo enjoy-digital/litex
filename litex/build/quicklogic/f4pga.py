@@ -29,9 +29,6 @@ class F4PGAToolchain(GenericToolchain):
     def __init__(self):
         super().__init__()
 
-    def build(self, platform, fragment, **kwargs):
-        return self._build(platform, fragment, **kwargs)
-
     # IO Constraints (.pcf) ------------------------------------------------------------------------
 
     @classmethod

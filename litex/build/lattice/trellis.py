@@ -53,7 +53,7 @@ class LatticeTrellisToolchain(GenericToolchain):
         self._spimode      = spimode
         self._compress     = compress
 
-        return self._build(platform, fragment, **kwargs)
+        return GenericToolchain.build(self, platform, fragment, **kwargs)
 
     # IO Constraints (.lpf) ------------------------------------------------------------------------
 

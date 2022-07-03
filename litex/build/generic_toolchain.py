@@ -48,7 +48,7 @@ class GenericToolchain:
     def get_tool_options(self):
         return ("",{}) # empty since optional.
 
-    def _build(self, platform, fragment,
+    def build(self, platform, fragment,
         build_dir      = "build",
         build_name     = "top",
         synth_opts     = "",

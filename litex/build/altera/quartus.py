@@ -30,9 +30,6 @@ class AlteraQuartusToolchain(GenericToolchain):
         self.additional_qsf_commands = []
         self.cst                     = []
 
-    def build(self, platform, fragment, **kwargs):
-        return self._build(platform, fragment, **kwargs)
-
     # IO/Placement Constraints (.qsf) --------------------------------------------------------------
 
     def _format_constraint(self, c, signame, fmt_r):
