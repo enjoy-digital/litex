@@ -382,6 +382,7 @@ void sdcard_decode_csd(void) {
 
 int sdcard_init(void) {
 	uint16_t rca, timeout;
+	uint32_t r[SD_CMD_RESPONSE_SIZE/4];
 
 	/* Set SD clk freq to Initialization frequency */
 	sdcard_set_clk_freq(SDCARD_CLK_FREQ_INIT, 0);
@@ -411,8 +412,13 @@ int sdcard_init(void) {
 	/* Set SDCard in Operational state */
 	for (timeout=1000; timeout>0; timeout--) {
 		sdcard_app_cmd(0);
-		if (sdcard_app_send_op_cond(1) != SD_OK)
-			break;
+		if (sdcard_app_send_op_cond(1) == SD_OK) {
+			csr_rd_buf_uint32(CSR_SDCORE_CMD_RESPONSE_ADDR,
+			  r, SD_CMD_RESPONSE_SIZE/4);
+
+			if (r[3] & 0x80000000) /* Busy bit, set when init is complete */
+				break;
+		}
 		busy_wait(1);
 	}
 	if (timeout == 0)

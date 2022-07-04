@@ -10,11 +10,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
+      - name: Setup CCache
+        uses: hendrikmuhs/ccache-action@v1
+
       # Install Tools
       - name: Install Tools
         run: |
           sudo apt-get install wget build-essential python3 ninja-build
-          sudo apt-get install verilator libevent-dev libjson-c-dev
+          sudo apt-get install libevent-dev libjson-c-dev flex bison
+          sudo apt-get install libfl-dev libfl2 zlibc zlib1g-dev
           pip3 install setuptools
           pip3 install requests
           pip3 install pexpect
@@ -34,6 +38,17 @@ jobs:
           python3 litex_setup.py --gcc=openrisc
           sudo mkdir /usr/local/openrisc
           sudo cp -r $PWD/../openrisc-*/* /usr/local/openrisc
+
+      # Build / Install Verilator
+      - name: Build Verilator
+        run: |
+          export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
+          git clone https://github.com/verilator/verilator
+          cd verilator
+          autoconf
+          ./configure
+          make -j$(nproc)
+          sudo make install
 
       # Install Project
       - name: Install Project

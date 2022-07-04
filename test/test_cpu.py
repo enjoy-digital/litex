@@ -41,10 +41,7 @@ class TestCPU(unittest.TestCase):
             "firev",        # (riscv   / softcore)
             "ibex",         # (riscv   / softcore)
             "marocchino",   # (or1k    / softcore)
-            "mor1kx",       # (or1k    / softcore)
             "naxriscv",     # (riscv   / softcore)
-            "picorv32",     # (riscv   / softcore)
-            "rocket",       # (riscv   / softcore)
             "serv",         # (riscv   / softcore)
             "vexriscv",     # (riscv   / softcore)
             "vexriscv_smp", # (riscv   / softcore)
@@ -61,7 +58,10 @@ class TestCPU(unittest.TestCase):
             "lm32",         # (lm32    / softcore) -> Requires LM32 toolchain.
             "microwatt",    # (ppc64   / softcore) -> Requires PPC toolchain + VHDL->Verilog (GHDL + Yosys).
             "minerva",      # (riscv   / softcore) -> Broken install? (Amaranth?)
+            "mor1kx",       # (or1k    / softcore) -> Verilator compilation issue.
             "neorv32",      # (riscv   / softcore) -> Requires VHDL->Verilog (GHDL + Yosys).
+            "picorv32",     # (riscv   / softcore) -> Verilator compilation issue.
+            "rocket",       # (riscv   / softcore) -> Not enough RAM in CI.
             "zynq7000",     # (arm     / hardcore) -> Hardcore.
             "zynqmp",       # (aarch64 / hardcore) -> Hardcore.
         ]

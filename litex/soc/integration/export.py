@@ -603,8 +603,8 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
 def get_memory_x(soc):
     r = get_linker_regions(soc.mem_regions)
     r += '\n'
-    r += 'REGION_ALIAS("REGION_TEXT", spiflash);\n'
-    r += 'REGION_ALIAS("REGION_RODATA", spiflash);\n'
+    r += 'REGION_ALIAS("REGION_TEXT", rom);\n'
+    r += 'REGION_ALIAS("REGION_RODATA", rom);\n'
     r += 'REGION_ALIAS("REGION_DATA", sram);\n'
     r += 'REGION_ALIAS("REGION_BSS", sram);\n'
     r += 'REGION_ALIAS("REGION_HEAP", sram);\n'
