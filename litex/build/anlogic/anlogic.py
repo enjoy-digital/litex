@@ -14,241 +14,197 @@ from shutil import which
 from migen.fhdl.structure import _Fragment
 
 from litex.build.generic_platform import *
+from litex.build.generic_toolchain import GenericToolchain
 from litex.build import tools
-
-# Constraints (.adc and .sdc) ----------------------------------------------------------------------
-
-def _build_adc(named_sc, named_pc):
-    adc = []
-
-    flat_sc = []
-    for name, pins, other, resource in named_sc:
-        if len(pins) > 1:
-            for i, p in enumerate(pins):
-                flat_sc.append((f"{name}[{i}]", p, other))
-        else:
-            flat_sc.append((name, pins[0], other))
-
-    for name, pin, other in flat_sc:
-        line = f"set_pin_assignment {{{name}}} {{ LOCATION = {pin}; "
-        for c in other:
-            if isinstance(c, IOStandard):
-                line += f" IOSTANDARD = {c.name}; "
-        line += f"}}"
-        adc.append(line)
-
-    if named_pc:
-        adc.extend(named_pc)
-
-    with open("top.adc", "w") as f:
-        f.write("\n".join(adc))
-
-def _build_sdc(clocks, vns):
-    sdc = []
-    for clk, period in sorted(clocks.items(), key=lambda x: x[0].duid):
-        sdc.append(f"create_clock -name {vns.get_name(clk)} -period {str(period)} [get_ports {{{vns.get_name(clk)}}}]")
-    with open("top.sdc", "w") as f:
-        f.write("\n".join(sdc))
-
-# Script -------------------------------------------------------------------------------------------
-
-def _build_al(name, family, device, files):
-    xml = []
-
-    date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    # Set Device.
-    xml.append(f"<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
-    xml.append(f"<Project Version=\"1\" Path=\"...\">")
-    xml.append(f"    <Project_Created_Time>{date}</Project_Created_Time>")
-    xml.append(f"    <TD_Version>5.0.28716</TD_Version>")
-    xml.append(f"    <UCode>00000000</UCode>")
-    xml.append(f"    <Name>{name}</Name>")
-    xml.append(f"    <HardWare>")
-    xml.append(f"        <Family>{family}</Family>")
-    xml.append(f"        <Device>{device}</Device>")
-    xml.append(f"    </HardWare>")
-    xml.append(f"    <Source_Files>")
-    xml.append(f"        <Verilog>")
-
-    # Add Sources.
-    for f, typ, lib in files:
-        xml.append(f"            <File Path=\"{f}\">")
-        xml.append(f"                <FileInfo>")
-        xml.append(f"                    <Attr Name=\"UsedInSyn\" Val=\"true\"/>")
-        xml.append(f"                    <Attr Name=\"UsedInP&R\" Val=\"true\"/>")
-        xml.append(f"                    <Attr Name=\"BelongTo\" Val=\"design_1\"/>")
-        xml.append(f"                    <Attr Name=\"CompileOrder\" Val=\"1\"/>")
-        xml.append(f"               </FileInfo>")
-        xml.append(f"            </File>")
-    xml.append(f"        </Verilog>")
-
-    # Add IOs Constraints.
-    xml.append(f"        <ADC_FILE>")
-    xml.append(f"            <File Path=\"top.adc\">")
-    xml.append(f"                <FileInfo>")
-    xml.append(f"                    <Attr Name=\"UsedInSyn\" Val=\"true\"/>")
-    xml.append(f"                    <Attr Name=\"UsedInP&R\" Val=\"true\"/>")
-    xml.append(f"                    <Attr Name=\"BelongTo\" Val=\"constrain_1\"/>")
-    xml.append(f"                    <Attr Name=\"CompileOrder\" Val=\"1\"/>")
-    xml.append(f"               </FileInfo>")
-    xml.append(f"            </File>")
-    xml.append(f"        </ADC_FILE>")
-    xml.append(f"        <SDC_FILE>")
-    xml.append(f"            <File Path=\"top.sdc\">")
-    xml.append(f"                <FileInfo>")
-    xml.append(f"                    <Attr Name=\"UsedInSyn\" Val=\"true\"/>")
-    xml.append(f"                    <Attr Name=\"UsedInP&R\" Val=\"true\"/>")
-    xml.append(f"                    <Attr Name=\"BelongTo\" Val=\"constrain_1\"/>")
-    xml.append(f"                    <Attr Name=\"CompileOrder\" Val=\"2\"/>")
-    xml.append(f"               </FileInfo>")
-    xml.append(f"            </File>")
-    xml.append(f"        </SDC_FILE>")
-    xml.append(f"    </Source_Files>")
-    xml.append(f"   <FileSets>")
-    xml.append(f"        <FileSet Name=\"constrain_1\" Type=\"ConstrainFiles\">")
-    xml.append(f"        </FileSet>")
-    xml.append(f"        <FileSet Name=\"design_1\" Type=\"DesignFiles\">")
-    xml.append(f"        </FileSet>")
-    xml.append(f"    </FileSets>")
-    xml.append(f"    <TOP_MODULE>")
-    xml.append(f"        <LABEL></LABEL>")
-    xml.append(f"        <MODULE>{name}</MODULE>")
-    xml.append(f"        <CREATEINDEX>auto</CREATEINDEX>")
-    xml.append(f"    </TOP_MODULE>")
-    xml.append(f"    <Property>")
-    xml.append(f"    </Property>")
-    xml.append(f"    <Device_Settings>")
-    xml.append(f"    </Device_Settings>")
-    xml.append(f"    <Configurations>")
-    xml.append(f"    </Configurations>")
-    xml.append(f"    <Project_Settings>")
-    xml.append(f"        <Step_Last_Change>{date}</Step_Last_Change>")
-    xml.append(f"        <Current_Step>0</Current_Step>")
-    xml.append(f"        <Step_Status>true</Step_Status>")
-    xml.append(f"    </Project_Settings>")
-    xml.append(f"</Project>")
-
-    # Generate .al.
-    with open(name + ".al", "w") as f:
-        f.write("\n".join(xml))
-
-def _build_tcl(name, architecture, package):
-    tcl = []
-
-    # Set Device.
-    tcl.append(f"import_device {architecture}.db -package {package}")  
-
-    # Add project.
-    tcl.append(f"open_project {name}.al")
-
-    # Elaborate.
-    tcl.append(f"elaborate -top {name}")
-
-    # Add IOs Constraints.
-    tcl.append("read_adc top.adc")    
-
-    tcl.append("optimize_rtl")
-
-    # Add SDC Constraints.
-    tcl.append("read_sdc top.sdc")
-
-    # Perform PnR.
-    tcl.append("optimize_gate")
-    tcl.append("legalize_phy_inst")
-    tcl.append("place")
-    tcl.append("route")
-    tcl.append(f"bitgen -bit \"{name}.bit\" -version 0X00 -g ucode:000000000000000000000000")
-
-    # Generate .tcl.
-    with open("run.tcl", "w") as f:
-        f.write("\n".join(tcl))
-
 
 # TangDinastyToolchain -----------------------------------------------------------------------------------
 
-def parse_device(device):
-    
-    devices = {
-        "EG4S20BG256" :[ "eagle_s20", "EG4", "BG256" ],
-    }
 
-    if device not in devices.keys():
-        raise ValueError("Invalid device {}".format(device))
-
-    (architecture, family, package) = devices[device]
-    return (architecture, family, package)
-
-class TangDinastyToolchain:
+class TangDinastyToolchain(GenericToolchain):
     attr_translate = {}
 
     def __init__(self):
-        self.clocks  = dict()
+        super().__init__()
+        self._architecture = ""
+        self._family       = ""
+        self._package      = ""
 
-    def build(self, platform, fragment,
-        build_dir  = "build",
-        build_name = "top",
-        run        = True,
-        **kwargs):
+    def finalize(self):
+        self._architecture, self._family, self._package = self.parse_device()
 
-        # Create build directory.
-        cwd = os.getcwd()
-        os.makedirs(build_dir, exist_ok=True)
-        os.chdir(build_dir)
+    # Constraints (.adc ) --------------------------------------------------------------------------
 
-        # Finalize design.
-        if not isinstance(fragment, _Fragment):
-            fragment = fragment.get_fragment()
-        platform.finalize(fragment)
+    def build_io_constraints(self):
+        adc = []
 
-        # Generate verilog.
-        v_output = platform.get_verilog(fragment, name=build_name, **kwargs)
-        named_sc, named_pc = platform.resolve_signals(v_output.ns)
-        v_file = build_name + ".v"
-        v_output.write(v_file)
-        platform.add_source(v_file)
+        flat_sc = []
+        for name, pins, other, resource in self.named_sc:
+            if len(pins) > 1:
+                for i, p in enumerate(pins):
+                    flat_sc.append((f"{name}[{i}]", p, other))
+            else:
+                flat_sc.append((name, pins[0], other))
 
-        # Generate constraints file.
-        # IOs (.adc).
-        _build_adc(
-            named_sc = named_sc,
-            named_pc = named_pc
-        )
+        for name, pin, other in flat_sc:
+            line = f"set_pin_assignment {{{name}}} {{ LOCATION = {pin}; "
+            for c in other:
+                if isinstance(c, IOStandard):
+                    line += f" IOSTANDARD = {c.name}; "
+            line += f"}}"
+            adc.append(line)
 
-        # Timings (.sdc).
-        _build_sdc(
-            clocks  = self.clocks,
-            vns     = v_output.ns
-        )
+        if self.named_pc:
+            adc.extend(self.named_pc)
 
-        architecture, family, package = parse_device(platform.device)
+        tools.write_to_file("top.adc", "\n".join(adc))
+        return ("top.adc", "ADC")
 
-        # Generate project file (.al).
-        al = _build_al(          
-            name         = build_name,
-            family       = family,
-            device       = platform.device,
-            files        = platform.sources)
+    # Timing Constraints (in sdc file) -------------------------------------------------------------
 
-        # Generate build script (.tcl).
-        script = _build_tcl(          
-            name         = build_name,
-            architecture = architecture,
-            package      = package)
+    def build_timing_constraints(self, vns):
+        sdc = []
+        for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
+            sdc.append(f"create_clock -name {vns.get_name(clk)} -period {str(period)} [get_ports {{{vns.get_name(clk)}}}]")
+        tools.write_to_file("top.sdc", "\n".join(sdc))
+        return ("top.sdc", "SDC")
 
-        # Run.
-        if run:
+    # Project (.ai) --------------------------------------------------------------------------------
+
+    def build_project(self):
+        xml = []
+
+        date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # Set Device.
+        xml.append(f"<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
+        xml.append(f"<Project Version=\"1\" Path=\"...\">")
+        xml.append(f"    <Project_Created_Time>{date}</Project_Created_Time>")
+        xml.append(f"    <TD_Version>5.0.28716</TD_Version>")
+        xml.append(f"    <UCode>00000000</UCode>")
+        xml.append(f"    <Name>{self._build_name}</Name>")
+        xml.append(f"    <HardWare>")
+        xml.append(f"        <Family>{self._family}</Family>")
+        xml.append(f"        <Device>{self.platform.device}</Device>")
+        xml.append(f"    </HardWare>")
+        xml.append(f"    <Source_Files>")
+        xml.append(f"        <Verilog>")
+
+        # Add Sources.
+        for f, typ, lib in self.platform.sources:
+            xml.append(f"            <File Path=\"{f}\">")
+            xml.append(f"                <FileInfo>")
+            xml.append(f"                    <Attr Name=\"UsedInSyn\" Val=\"true\"/>")
+            xml.append(f"                    <Attr Name=\"UsedInP&R\" Val=\"true\"/>")
+            xml.append(f"                    <Attr Name=\"BelongTo\" Val=\"design_1\"/>")
+            xml.append(f"                    <Attr Name=\"CompileOrder\" Val=\"1\"/>")
+            xml.append(f"               </FileInfo>")
+            xml.append(f"            </File>")
+        xml.append(f"        </Verilog>")
+
+        # Add IOs Constraints.
+        xml.append(f"        <ADC_FILE>")
+        xml.append(f"            <File Path=\"top.adc\">")
+        xml.append(f"                <FileInfo>")
+        xml.append(f"                    <Attr Name=\"UsedInSyn\" Val=\"true\"/>")
+        xml.append(f"                    <Attr Name=\"UsedInP&R\" Val=\"true\"/>")
+        xml.append(f"                    <Attr Name=\"BelongTo\" Val=\"constrain_1\"/>")
+        xml.append(f"                    <Attr Name=\"CompileOrder\" Val=\"1\"/>")
+        xml.append(f"               </FileInfo>")
+        xml.append(f"            </File>")
+        xml.append(f"        </ADC_FILE>")
+        xml.append(f"        <SDC_FILE>")
+        xml.append(f"            <File Path=\"top.sdc\">")
+        xml.append(f"                <FileInfo>")
+        xml.append(f"                    <Attr Name=\"UsedInSyn\" Val=\"true\"/>")
+        xml.append(f"                    <Attr Name=\"UsedInP&R\" Val=\"true\"/>")
+        xml.append(f"                    <Attr Name=\"BelongTo\" Val=\"constrain_1\"/>")
+        xml.append(f"                    <Attr Name=\"CompileOrder\" Val=\"2\"/>")
+        xml.append(f"               </FileInfo>")
+        xml.append(f"            </File>")
+        xml.append(f"        </SDC_FILE>")
+        xml.append(f"    </Source_Files>")
+        xml.append(f"   <FileSets>")
+        xml.append(f"        <FileSet Name=\"constrain_1\" Type=\"ConstrainFiles\">")
+        xml.append(f"        </FileSet>")
+        xml.append(f"        <FileSet Name=\"design_1\" Type=\"DesignFiles\">")
+        xml.append(f"        </FileSet>")
+        xml.append(f"    </FileSets>")
+        xml.append(f"    <TOP_MODULE>")
+        xml.append(f"        <LABEL></LABEL>")
+        xml.append(f"        <MODULE>{self._build_name}</MODULE>")
+        xml.append(f"        <CREATEINDEX>auto</CREATEINDEX>")
+        xml.append(f"    </TOP_MODULE>")
+        xml.append(f"    <Property>")
+        xml.append(f"    </Property>")
+        xml.append(f"    <Device_Settings>")
+        xml.append(f"    </Device_Settings>")
+        xml.append(f"    <Configurations>")
+        xml.append(f"    </Configurations>")
+        xml.append(f"    <Project_Settings>")
+        xml.append(f"        <Step_Last_Change>{date}</Step_Last_Change>")
+        xml.append(f"        <Current_Step>0</Current_Step>")
+        xml.append(f"        <Step_Status>true</Step_Status>")
+        xml.append(f"    </Project_Settings>")
+        xml.append(f"</Project>")
+
+        # Generate .al.
+        tools.write_to_file(self._build_name + ".al", "\n".join(xml))
+
+    # Script ---------------------------------------------------------------------------------------
+
+    def build_script(self):
+        tcl = []
+
+        # Set Device.
+        tcl.append(f"import_device {self._architecture}.db -package {self._package}")
+
+        # Add project.
+        tcl.append(f"open_project {self._build_name}.al")
+
+        # Elaborate.
+        tcl.append(f"elaborate -top {self._build_name}")
+
+        # Add IOs Constraints.
+        tcl.append("read_adc top.adc")
+
+        tcl.append("optimize_rtl")
+
+        # Add SDC Constraints.
+        tcl.append("read_sdc top.sdc")
+
+        # Perform PnR.
+        tcl.append("optimize_gate")
+        tcl.append("legalize_phy_inst")
+        tcl.append("place")
+        tcl.append("route")
+        tcl.append(f"bitgen -bit \"{self._build_name}.bit\" -version 0X00 -g ucode:000000000000000000000000")
+
+        # Generate .tcl.
+        tools.write_to_file("run.tcl", "\n".join(tcl))
+
+        return "run.tcl"
+
+    def run_script(self, script):
             if which("td") is None:
                 msg = "Unable to find Tang Dinasty toolchain, please:\n"
                 msg += "- Add  Tang Dinasty toolchain to your $PATH."
                 raise OSError(msg)
 
-            if subprocess.call(["td", "run.tcl"]) != 0:
+            if subprocess.call(["td", script]) != 0:
                 raise OSError("Error occured during Tang Dinasty's script execution.")
 
-        os.chdir(cwd)
+    def parse_device(self):
+        device = self.platform.device
 
-        return v_output.ns
+        devices = {
+            "EG4S20BG256" :[ "eagle_s20", "EG4", "BG256" ],
+        }
+
+        if device not in devices.keys():
+            raise ValueError("Invalid device {}".format(device))
+
+        (architecture, family, package) = devices[device]
+        return (architecture, family, package)
 
     def add_period_constraint(self, platform, clk, period):
         clk.attr.add("keep")
