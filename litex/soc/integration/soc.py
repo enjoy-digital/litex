@@ -1460,13 +1460,16 @@ class LiteXSoC(SoC):
             sdram_size = min(sdram_size, size)
 
         # Add SDRAM region.
-        self.bus.add_region("main_ram", SoCRegion(origin=self.mem_map.get("main_ram", origin), size=sdram_size))
+        main_ram_region = SoCRegion(origin=self.mem_map.get("main_ram", origin), 
+                                    size=sdram_size)
+        self.bus.add_region("main_ram", main_ram_region)
 
         # Add CPU's direct memory buses (if not already declared) ----------------------------------
         if hasattr(self.cpu, "add_memory_buses"):
             self.cpu.add_memory_buses(
-                address_width = 32,
-                data_width    = sdram.crossbar.controller.data_width
+                address_width     = 32,
+                data_width        = sdram.crossbar.controller.data_width,
+                accessible_region = main_ram_region
             )
 
         # Connect CPU's direct memory buses to LiteDRAM --------------------------------------------

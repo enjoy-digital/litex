@@ -396,7 +396,7 @@ class NaxRiscv(CPU):
         )
         soc.bus.add_slave("clint", clintbus, region=soc_region_cls(origin=soc.mem_map.get("clint"), size=0x1_0000, cached=False))
 
-    def add_memory_buses(self, address_width, data_width):
+    def add_memory_buses(self, address_width, data_width, accessible_region):
         nax_data_width = 64
         nax_burst_size = 64
         assert data_width >= nax_data_width   # FIXME: Only supporting up-conversion for now.
@@ -460,6 +460,10 @@ class NaxRiscv(CPU):
             i_ram_dbus_rresp   = dbus.r.resp,
             i_ram_dbus_rlast   = dbus.r.last,
         )
+        self.scala_args.append('mem-region-origin=0x{accessible_region.origin:x}'
+                               .format(accessible_region=accessible_region))
+        self.scala_args.append('mem-region-length=0x{accessible_region.size:x}'
+                               .format(accessible_region=accessible_region))
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
