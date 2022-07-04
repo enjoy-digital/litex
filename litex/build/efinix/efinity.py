@@ -55,7 +55,7 @@ class EfinityToolchain(GenericToolchain):
         # Apply FullMemoryWE on Design (Efiniy does not infer memories correctly otherwise).
         FullMemoryWE()(fragment)
 
-        return GenericToolchain.build(self.platform, fragment, **kwargs)
+        return GenericToolchain.build(self, platform, fragment, **kwargs)
 
     # Timing Constraints (.sdc) ------------------------------------------------------------------------
 
