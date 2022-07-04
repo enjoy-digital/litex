@@ -135,8 +135,8 @@ class XilinxISEToolchain(GenericToolchain):
         else:
             raise OSError("Unsupported device")
 
-        ys_contents += """hierarchy -top top
-    synth_xilinx -top top -family {family} -ise
+        ys_contents += """hierarchy -top {build_name}
+    synth_xilinx -top {build_name} -family {family} -ise
     write_edif -pvector bra {build_name}.edif""".format(build_name=self._build_name, family=family)
 
         ys_name = self._build_name + ".ys"
