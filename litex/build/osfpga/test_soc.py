@@ -29,7 +29,7 @@ _io = [
 ]
 
 class Platform(OSFPGAPlatform):
-    def __init__(self, toolchain="foedag", device="mpw1"):
+    def __init__(self, toolchain="raptor", device="gemini"):
         OSFPGAPlatform.__init__(self, device=device, toolchain=toolchain, io=_io)
 
 # BaseSoC ------------------------------------------------------------------------------------------
@@ -49,8 +49,8 @@ def main():
     parser = LiteXSoCArgumentParser(description="LiteX Test SoC on OS-FPGA")
     target_group = parser.add_argument_group(title="Target options")
     target_group.add_argument("--build",     action="store_true", help="Build design.")
-    target_group.add_argument("--toolchain", default="foedag",    help="FPGA toolchain.")
-    target_group.add_argument("--device",    default="mpw1",      help="FPGA device.")
+    target_group.add_argument("--toolchain", default="raptor",    help="FPGA toolchain.")
+    target_group.add_argument("--device",    default="gemini",    help="FPGA device.")
     builder_args(parser)
     soc_core_args(parser)
     args = parser.parse_args()

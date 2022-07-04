@@ -22,6 +22,7 @@ class OSFPGAToolchain(GenericToolchain):
     attr_translate = {}
 
     def __init__(self, toolchain):
+        super().__init__()
         self.toolchain = toolchain
         self.clocks    = dict()
 
@@ -36,7 +37,7 @@ class OSFPGAToolchain(GenericToolchain):
         sdc = []
         for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
             sdc.append(f"create_clock -name {vns.get_name(clk)} -period {str(period)} [get_ports {{{vns.get_name(clk)}}}]")
-        with open(f"{build_name}.sdc", "w") as f:
+        with open(f"{self._build_name}.sdc", "w") as f:
             f.write("\n".join(sdc))
         return (self._build_name + ".sdc", "SDC")
 
@@ -53,7 +54,7 @@ class OSFPGAToolchain(GenericToolchain):
 
         # Add Include Path.
         tcl.append("add_include_path ./")
-        for include_path in platform.verilog_include_paths:
+        for include_path in self.platform.verilog_include_paths:
             tcl.append(f"add_include_path {include_path}")
 
         # Add Sources.
