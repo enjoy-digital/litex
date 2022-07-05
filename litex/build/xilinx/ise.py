@@ -43,15 +43,15 @@ class XilinxISEToolchain(GenericToolchain):
         self.ngdbuild_opt = ""
         self.bitgen_opt   = "-g Binary:Yes -w"
         self.ise_commands = ""
-        self.mode         = "xst"
+        self._mode         = "xst"
         self._isemode      = "xst"
 
     def build(self, platform, fragment,
         mode           = "xst",
         **kwargs):
-        self.mode = mode
+        self._mode = mode
         self._isemode = mode if mode in ["xst", "cpld"] else "edif"
-        if self.mode == "yosys":
+        if mode == "yosys":
             self.ngdbuild_opt += "-p " + platform.device
 
         return GenericToolchain.build(self, platform, fragment, **kwargs)
@@ -96,7 +96,7 @@ class XilinxISEToolchain(GenericToolchain):
     # Project (.xst) -------------------------------------------------------------------------------
 
     def build_project(self):
-        if self.mode not in ["xst", "cpld"]:
+        if self._mode not in ["xst", "cpld"]:
             return ("", "")
         prj_contents = ""
         for filename, language, library, *copy in self.platform.sources:
@@ -203,10 +203,10 @@ bitgen {bitgen_opt} {build_name}.ncd {build_name}.bit{fail_stmt}
 
     def run_script(self, script):
 
-        if self.mode == "yosys":
+        if self._mode == "yosys":
             self._run_yosys()
 
-        if self.mode == "edif":
+        if self._mode == "edif":
            # Generate edif
            e_output = self.platform.get_edif(self._fragment)
            self._vns = e_output.ns
