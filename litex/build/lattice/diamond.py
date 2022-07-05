@@ -41,7 +41,7 @@ class LatticeDiamondToolchain(GenericToolchain):
         timingstrict   = False,
         **kwargs):
 
-        self._timinstrict = timingstrict
+        self._timingstrict = timingstrict
 
         return GenericToolchain.build(self, platform, fragment, **kwargs)
 
@@ -183,7 +183,7 @@ class LatticeDiamondToolchain(GenericToolchain):
         if subprocess.call(shell + [script]) != 0:
             raise OSError("Error occured during Diamond's script execution.")
 
-        if self.timingstrict:
+        if self._timingstrict:
             self._check_timing()
 
     def _check_timing(self):
