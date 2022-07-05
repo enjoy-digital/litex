@@ -727,9 +727,10 @@ class VideoGenericPHY(Module):
         cbits  = len(pads.r)
         cshift = (8 - cbits)
         for i in range(cbits):
-            self.specials += SDROutput(i=sink.r[cshift + i], o=pads.r[i], clk=ClockSignal(clock_domain))
-            self.specials += SDROutput(i=sink.g[cshift + i], o=pads.g[i], clk=ClockSignal(clock_domain))
-            self.specials += SDROutput(i=sink.b[cshift + i], o=pads.b[i], clk=ClockSignal(clock_domain))
+            # VGA monitors interpret minimum value as black so ensure data is set to 0 during blanking.
+            self.specials += SDROutput(i=sink.r[cshift + i] & sink.de, o=pads.r[i], clk=ClockSignal(clock_domain))
+            self.specials += SDROutput(i=sink.g[cshift + i] & sink.de, o=pads.g[i], clk=ClockSignal(clock_domain))
+            self.specials += SDROutput(i=sink.b[cshift + i] & sink.de, o=pads.b[i], clk=ClockSignal(clock_domain))
 
 # VGA (Generic).
 

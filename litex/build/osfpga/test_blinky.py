@@ -22,7 +22,7 @@ _io = [
 
 class Platform(OSFPGAPlatform):
     def __init__(self):
-        OSFPGAPlatform.__init__(self, device="test", toolchain="raptor", io=_io)
+        OSFPGAPlatform.__init__(self, device="gemini", toolchain="raptor", io=_io)
 
 # Minimal Design -----------------------------------------------------------------------------------
 

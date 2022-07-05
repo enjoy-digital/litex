@@ -72,6 +72,7 @@ class Builder:
         # Compile Options.
         compile_software = True,
         compile_gateware = True,
+        backend          = "LiteX",
 
         # Exports.
         csr_json         = None,
@@ -97,6 +98,7 @@ class Builder:
         # Compile Options.
         self.compile_software = compile_software
         self.compile_gateware = compile_gateware
+        self.backend          = backend
 
         # Exports.
         self.csr_csv  = csr_csv
@@ -346,6 +348,8 @@ class Builder:
         if "run" not in kwargs:
             kwargs["run"] = self.compile_gateware
 
+        kwargs["backend"] = self.backend
+
         # Build SoC and pass Verilog Name Space to do_exit.
         vns = self.soc.build(build_dir=self.gateware_dir, **kwargs)
         self.soc.do_exit(vns=vns)
@@ -389,6 +393,7 @@ def builder_args(parser):
     builder_group.add_argument("--csr-svd",             default=None,        help="Write SoC mapping to the specified SVD file.")
     builder_group.add_argument("--memory-x",            default=None,        help="Write SoC Memory Regions to the specified Memory-X file.")
     builder_group.add_argument("--doc",                 action="store_true", help="Generate SoC Documentation.")
+    builder_group.add_argument("--backend",             default="LiteX",     help="Select backend: LiteX, edalize.")
 
 
 def builder_argdict(args):
@@ -405,4 +410,5 @@ def builder_argdict(args):
         "csr_svd":          args.csr_svd,
         "memory_x":         args.memory_x,
         "generate_doc":     args.doc,
+        "backend":          args.backend,
     }
