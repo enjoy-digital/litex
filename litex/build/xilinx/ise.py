@@ -51,6 +51,8 @@ class XilinxISEToolchain(GenericToolchain):
         **kwargs):
         self.mode = mode
         self._isemode = mode if mode in ["xst", "cpld"] else "edif"
+        if self.mode == "yosys":
+            self.ngdbuild_opt += "-p " + platform.device
 
         return GenericToolchain.build(self, platform, fragment, **kwargs)
 
@@ -203,7 +205,6 @@ bitgen {bitgen_opt} {build_name}.ncd {build_name}.bit{fail_stmt}
 
         if self.mode == "yosys":
             self._run_yosys()
-            self.ngdbuild_opt += "-p " + self.platform.device
 
         if self.mode == "edif":
            # Generate edif
