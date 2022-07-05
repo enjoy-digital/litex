@@ -55,9 +55,9 @@ ifneq ($(OS),Windows_NT)
 	chmod -x $@
 endif
 ifeq ($(CPUENDIANNESS),little)
-	$(PYTHON) -m litex.soc.software.mkmscimg $@ --little
+	$(PYTHON) -m litex.soc.software.crcfbigen $@ --little
 else
-	$(PYTHON) -m litex.soc.software.mkmscimg $@
+	$(PYTHON) -m litex.soc.software.crcfbigen $@
 endif
 
 bios.elf: $(BIOS_DIRECTORY)/$(LSCRIPT) $(OBJECTS)
