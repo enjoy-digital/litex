@@ -187,7 +187,7 @@ class SimVerilatorToolchain:
             serial           = "console",
             build            = True,
             run              = True,
-            backend          = None,
+            build_backend    = None,
             threads          = 1,
             verbose          = True,
             sim_config       = None,

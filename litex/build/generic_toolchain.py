@@ -17,7 +17,7 @@ class GenericToolchain:
         "keep": ("keep", "true"),
     }
 
-    supported_backend = ["LiteX"]
+    supported_build_backend = ["litex"]
 
     def __init__(self):
         self.clocks      = dict()
@@ -53,7 +53,7 @@ class GenericToolchain:
         build_name     = "top",
         synth_opts     = "",
         run            = True,
-        backend        = "LiteX",
+        build_backend  = "litex",
         **kwargs):
 
         self._build_name = build_name
@@ -94,12 +94,14 @@ class GenericToolchain:
         # Generate Design Placement Constraints File.
         place_cst_file = self.build_placement_constraints()
 
-        if backend not in self.supported_backend:
-            raise NotImplementedError("Backend {backend} not supported by {toolchain} toolchain".format(
-                backend=backend,
-                toolchain=type(self).__name__))
+        if build_backend not in self.supported_build_backend:
+            raise NotImplementedError("Build backend {build_backend} is not supported by {toolchain} toolchain".format(
+                build_backend   = build_backend,
+                toolchain = type(self).__name__)
+            )
 
-        if backend == "LiteX":
+        # LiteX backend.
+        if build_backend == "litex":
             # Generate project.
             self.build_project()
 
@@ -109,6 +111,8 @@ class GenericToolchain:
             # Run.
             if run:
                 self.run_script(script)
+
+        # Edalize backend.
         else:
             from edalize import get_edatool
 
@@ -143,8 +147,6 @@ class GenericToolchain:
             backend.configure()
             if run:
                 backend.build()
-
-
 
         os.chdir(cwd)
 

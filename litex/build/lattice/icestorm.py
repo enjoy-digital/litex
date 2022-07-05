@@ -25,7 +25,7 @@ class LatticeIceStormToolchain(GenericToolchain):
     attr_translate = {
         "keep": ("keep", "true"),
     }
-    supported_backend = ["LiteX", "edalize"]
+    supported_build_backend = ["litex", "edalize"]
     special_overrides = common.lattice_ice40_special_overrides
 
     def __init__(self):
