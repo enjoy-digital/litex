@@ -173,7 +173,7 @@ static uint8_t spisdcardsend_cmd(uint8_t cmd, uint32_t arg)
     }
 
     /* Select the card and wait for it, except for CMD12: STOP_TRANSMISSION */
-    if (cmd != CMD12) {
+    if (cmd != CMD12 && cmd != CMD0) {
         spisdcard_deselect();
         if (spisdcard_select() == 0)
             return 0xff;
