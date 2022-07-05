@@ -44,13 +44,12 @@ class XilinxISEToolchain(GenericToolchain):
         self.bitgen_opt   = "-g Binary:Yes -w"
         self.ise_commands = ""
         self.mode         = "xst"
-        self.isemode      = "xst"
+        self._isemode      = "xst"
 
     def build(self, platform, fragment,
         mode           = "xst",
         **kwargs):
-
-        self._mode = mode
+        self.mode = mode
         self._isemode = mode if mode in ["xst", "cpld"] else "edif"
 
         return GenericToolchain.build(self, platform, fragment, **kwargs)
@@ -118,11 +117,11 @@ class XilinxISEToolchain(GenericToolchain):
 
     # Yosys Run ----------------------------------------------------------------------------------------
 
-    def _run_yosys(build_name):
+    def _run_yosys(self):
         device = self.platform.device
         ys_contents = ""
         incflags = ""
-        for path in platform.verilog_include_paths:
+        for path in self.platform.verilog_include_paths:
             incflags += " -I" + path
         for filename, language, library, *copy in self.platform.sources:
             ys_contents += "read_{}{} {}\n".format(language, incflags, filename)
