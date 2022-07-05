@@ -215,8 +215,11 @@ bitgen {bitgen_opt} {build_name}.ncd {build_name}.bit{fail_stmt}
            e_output.write(e_file)
            self.build_io_constraints()
 
-
-        command = shell + [build_script_file]
+        if sys.platform == "win32" or sys.platform == "cygwin":
+            shell = ["cmd", "/c"]
+        else:
+            shell = ["bash"]
+        command = shell + [script]
 
         if which("ise") is None and os.getenv("LITEX_ENV_ISE", False) == False:
             msg = "Unable to find or source ISE toolchain, please either:\n"
