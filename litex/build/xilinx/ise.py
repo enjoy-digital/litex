@@ -43,15 +43,16 @@ class XilinxISEToolchain(GenericToolchain):
         self.ngdbuild_opt = ""
         self.bitgen_opt   = "-g Binary:Yes -w"
         self.ise_commands = ""
-        self.mode         = "xst"
-        self.isemode      = "xst"
+        self._mode         = "xst"
+        self._isemode      = "xst"
 
     def build(self, platform, fragment,
         mode           = "xst",
         **kwargs):
-
         self._mode = mode
         self._isemode = mode if mode in ["xst", "cpld"] else "edif"
+        if mode == "yosys":
+            self.ngdbuild_opt += "-p " + platform.device
 
         return GenericToolchain.build(self, platform, fragment, **kwargs)
 
@@ -95,7 +96,7 @@ class XilinxISEToolchain(GenericToolchain):
     # Project (.xst) -------------------------------------------------------------------------------
 
     def build_project(self):
-        if self.mode not in ["xst", "cpld"]:
+        if self._mode not in ["xst", "cpld"]:
             return ("", "")
         prj_contents = ""
         for filename, language, library, *copy in self.platform.sources:
@@ -118,11 +119,11 @@ class XilinxISEToolchain(GenericToolchain):
 
     # Yosys Run ----------------------------------------------------------------------------------------
 
-    def _run_yosys(build_name):
+    def _run_yosys(self):
         device = self.platform.device
         ys_contents = ""
         incflags = ""
-        for path in platform.verilog_include_paths:
+        for path in self.platform.verilog_include_paths:
             incflags += " -I" + path
         for filename, language, library, *copy in self.platform.sources:
             ys_contents += "read_{}{} {}\n".format(language, incflags, filename)
@@ -202,11 +203,10 @@ bitgen {bitgen_opt} {build_name}.ncd {build_name}.bit{fail_stmt}
 
     def run_script(self, script):
 
-        if self.mode == "yosys":
+        if self._mode == "yosys":
             self._run_yosys()
-            self.ngdbuild_opt += "-p " + self.platform.device
 
-        if self.mode == "edif":
+        if self._mode == "edif":
            # Generate edif
            e_output = self.platform.get_edif(self._fragment)
            self._vns = e_output.ns
@@ -215,8 +215,11 @@ bitgen {bitgen_opt} {build_name}.ncd {build_name}.bit{fail_stmt}
            e_output.write(e_file)
            self.build_io_constraints()
 
-
-        command = shell + [build_script_file]
+        if sys.platform == "win32" or sys.platform == "cygwin":
+            shell = ["cmd", "/c"]
+        else:
+            shell = ["bash"]
+        command = shell + [script]
 
         if which("ise") is None and os.getenv("LITEX_ENV_ISE", False) == False:
             msg = "Unable to find or source ISE toolchain, please either:\n"
