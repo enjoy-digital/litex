@@ -80,11 +80,11 @@ class LatticeRadiantToolchain(GenericToolchain):
     def __init__(self):
         super().__init__()
 
-        self._timingstrict = True
+        self._timingstrict = False
         self._synth_mode   = "radiant"
 
     def build(self, platform, fragment,
-        timingstrict   = True,
+        timingstrict   = False,
         synth_mode     = "radiant",
         **kwargs):
 
@@ -234,7 +234,7 @@ synth_nexus -top {build_name} -vm {build_name}_yosys.vm
         return build_script_file
 
     def run_script(self, script):
-        if synth_mode == "yosys":
+        if self._synth_mode == "yosys":
             self._run_yosys()
 
         if sys.platform in ("win32", "cygwin"):
@@ -251,7 +251,7 @@ synth_nexus -top {build_name} -vm {build_name}_yosys.vm
 
         if subprocess.call(shell + [script]) != 0:
             raise OSError("Error occured during Radiant's script execution.")
-        if timingstrict:
+        if self._timingstrict:
             self._check_timing()
 
     def _check_timing(self):
@@ -288,4 +288,4 @@ def radiant_build_args(parser):
     toolchain_group.add_argument("--synth-mode", default="synplify", help="Synthesis mode (synplify or yosys).")
 
 def radiant_build_argdict(args):
-    return {"synth_mode": args.synth_mode}
+    return {"synth_mode":   args.synth_mode}
