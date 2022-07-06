@@ -40,6 +40,7 @@ class XilinxISEToolchain(GenericToolchain):
         self.xst_opt = "-ifmt MIXED\n-use_new_parser yes\n-opt_mode SPEED\n-register_balancing yes"
         self.map_opt = "-ol high -w"
         self.par_opt = "-ol high -w"
+        self.synplify_opt = ""
         self.ngdbuild_opt = ""
         self.bitgen_opt   = "-g Binary:Yes -w"
         self.ise_commands = ""
@@ -146,6 +147,48 @@ class XilinxISEToolchain(GenericToolchain):
         if r != 0:
             raise OSError("Subprocess failed")
 
+    # Synplify Run ----------------------------------------------------------------------------------------
+
+    def _run_synplify(self):
+        synplify_variants = ["synplify_"+x for x in ["base", "pro", "premier", "premier_dp"]]
+        assert self._mode in synplify_variants
+        device = self.platform.device
+        assert device.startswith("xc6s"), "Please at more device->technology mappings."
+        technology = 'spartan6'
+        prj_contents = """
+set_option -technology {technology}
+set speedgrade_index [string last - {device}]
+set_option -speed_grade [string range {device} $speedgrade_index end]
+set allparts [partdata -part {technology}]
+# Parsing idea: go through all known part names and find the longest match
+for {{set i [string length {device}]}} {{$i>0}} {{set i [expr $i-1]}} {{
+    set part_index [lsearch -nocase $allparts [string range {device} 0 $i]]
+    if {{$part_index>0}} break
+}}
+set partname [lindex $allparts $part_index]
+set_option -part $partname
+# Package string starts at the end of the part name and ends when the speedgrade starts:
+set_option -package [string range {device} [string length $partname] [expr $speedgrade_index-1]]
+set_option -vlog_std v2001
+set_option -compiler_compatible 1
+set_option -automatic_compile_point 1
+set_option -top_module {build_name}
+project -result_file {build_name}.edif
+""" .format(build_name=self._build_name, device=device, technology=technology)
+        if self.platform.verilog_include_paths:
+            prj_contents += "set_option -include_path {"
+            for path in self.platform.verilog_include_paths:
+                prj_contents += tools.cygpath(path) + ";"
+            prj_contents += "}\n"
+        if self.synplify_opt:
+            prj_contents += self.synplify_opt + "\n"
+        for filename, language, library, *copy in self.platform.sources:
+            prj_contents += "add_file -" + language + " " + " " + tools.cygpath(filename) + "\n"
+        tools.write_to_file(self._build_name + ".prj", prj_contents)
+        r = subprocess.call([self._mode, "-batch", "-runall", "{build_name}.prj".format(build_name=self._build_name)])
+        if r != 0:
+            raise OSError("Subprocess failed")
+
     # ISE Run ------------------------------------------------------------------------------------------
 
     def build_script(self):
@@ -203,8 +246,11 @@ bitgen {bitgen_opt} {build_name}.ncd {build_name}.bit{fail_stmt}
 
     def run_script(self, script):
 
+        synplify_variants = ["synplify_"+x for x in ["base", "pro", "premier", "premier_dp"]]
         if self._mode == "yosys":
             self._run_yosys()
+        elif self._mode in synplify_variants:
+            self._run_synplify()
 
         if self._mode == "edif":
            # Generate edif
