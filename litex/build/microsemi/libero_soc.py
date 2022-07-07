@@ -49,13 +49,12 @@ class MicrosemiLiberoSoCPolarfireToolchain(GenericToolchain):
         else:
             raise NotImplementedError
 
-    @classmethod
-    def _format_io_pdc(cls, signame, pin, others):
-        fmt_c = [_format_io_constraint(c) for c in ([Pins(pin)] + others)]
+    def _format_io_pdc(self, signame, pin, others):
+        fmt_c = [self._format_io_constraint(c) for c in ([Pins(pin)] + others)]
         r = "set_io "
-        r += "-port_name {} ".format(tcl_name(signame))
+        r += "-port_name {} ".format(self.tcl_name(signame))
         for c in  ([Pins(pin)] + others):
-            r += _format_io_constraint(c)
+            r += self._format_io_constraint(c)
         r += "-fixed true "
         r += "\n"
         return r
@@ -88,7 +87,7 @@ class MicrosemiLiberoSoCPolarfireToolchain(GenericToolchain):
         tcl.append(" ".join([
             "new_project",
             "-location {./impl}",
-            "-name {}".format(tcl_name(self._build_name)),
+            "-name {}".format(self.tcl_name(self._build_name)),
             "-project_description {}",
             "-block_mode 0",
             "-standalone_peripheral_initialization 0",
@@ -109,9 +108,9 @@ class MicrosemiLiberoSoCPolarfireToolchain(GenericToolchain):
         tcl.append(" ".join([
             "set_device",
             "-family {PolarFire}",
-            "-die {}".format(tcl_name(die)),
-            "-package {}".format(tcl_name(package)),
-            "-speed {}".format(tcl_name("-" + speed)),
+            "-die {}".format(self.tcl_name(die)),
+            "-package {}".format(self.tcl_name(package)),
+            "-speed {}".format(self.tcl_name("-" + speed)),
             # FIXME: common to all PolarFire devices?
             "-die_voltage {1.0}",
             "-part_range {EXT}",
@@ -134,7 +133,7 @@ class MicrosemiLiberoSoCPolarfireToolchain(GenericToolchain):
             tcl.append("import_files -hdl_source " + filename_tcl)
 
         # Set top level
-        tcl.append("set_root -module {}".format(tcl_name(self._build_name)))
+        tcl.append("set_root -module {}".format(self.tcl_name(self._build_name)))
 
         # Copy init files FIXME: support for include path on LiberoSoC?
         for file in os.listdir(self._build_dir):
@@ -142,13 +141,13 @@ class MicrosemiLiberoSoCPolarfireToolchain(GenericToolchain):
                 tcl.append("file copy -- {} impl/synthesis".format(file))
 
         # Import io constraints
-        tcl.append("import_files -io_pdc {}".format(tcl_name(self._build_name + "_io.pdc")))
+        tcl.append("import_files -io_pdc {}".format(self.tcl_name(self._build_name + "_io.pdc")))
 
         # Import floorplanner constraints
-        tcl.append("import_files -fp_pdc {}".format(tcl_name(self._build_name + "_fp.pdc")))
+        tcl.append("import_files -fp_pdc {}".format(self.tcl_name(self._build_name + "_fp.pdc")))
 
         # Import timing constraints
-        tcl.append("import_files -convert_EDN_to_HDL 0 -sdc {}".format(tcl_name(self._build_name + ".sdc")))
+        tcl.append("import_files -convert_EDN_to_HDL 0 -sdc {}".format(self.tcl_name(self._build_name + ".sdc")))
 
         # Associate constraints with tools
         tcl.append(" ".join(["organize_tool_files",
@@ -224,7 +223,7 @@ class MicrosemiLiberoSoCPolarfireToolchain(GenericToolchain):
                             force_unix=False)
         return script_file
 
-    def run_script(self.script):
+    def run_script(self, script):
         # Delete previous impl
         if os.path.exists("impl"):
             shutil.rmtree("impl")
