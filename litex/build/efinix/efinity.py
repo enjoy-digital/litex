@@ -182,7 +182,7 @@ class EfinityToolchain(GenericToolchain):
             inst.append(self._create_gpio_instance(sig, pins))
             if len(pins) > 1:
                 for i, p in enumerate(pins):
-                    conf.append(_format_conf_constraint("{}[{}]".format(sig, i), p, others, resname))
+                    conf.append(self._format_conf_constraint("{}[{}]".format(sig, i), p, others, resname))
             else:
                 conf.append(self._format_conf_constraint(sig, pins[0], others, resname))
         if self.named_pc:
