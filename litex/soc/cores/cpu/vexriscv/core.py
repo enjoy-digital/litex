@@ -46,30 +46,30 @@ CPU_VARIANTS = {
 # GCC Flags ----------------------------------------------------------------------------------------
 
 GCC_FLAGS = {
-    #                               /-------- Base ISA
-    #                               |/------- Hardware Multiply + Divide
-    #                               ||/----- Atomics
-    #                               |||/---- Compressed ISA
-    #                               ||||/--- Single-Precision Floating-Point
-    #                               |||||/-- Double-Precision Floating-Point
-    #                               imacfd
-    "minimal":          "-march=rv32i      -mabi=ilp32",
-    "minimal+debug":    "-march=rv32i      -mabi=ilp32",
-    "lite":             "-march=rv32im     -mabi=ilp32",
-    "lite+debug":       "-march=rv32im     -mabi=ilp32",
-    "standard":         "-march=rv32im     -mabi=ilp32",
-    "standard+debug":   "-march=rv32im     -mabi=ilp32",
-    "imac":             "-march=rv32imac   -mabi=ilp32",
-    "imac+debug":       "-march=rv32imac   -mabi=ilp32",
-    "full":             "-march=rv32im     -mabi=ilp32",
-    "full+cfu":         "-march=rv32im     -mabi=ilp32",
-    "full+debug":       "-march=rv32im     -mabi=ilp32",
-    "full+cfu+debug":   "-march=rv32im     -mabi=ilp32",
-    "linux":            "-march=rv32ima    -mabi=ilp32",
-    "linux+debug":      "-march=rv32ima    -mabi=ilp32",
-    "linux+no-dsp":     "-march=rv32ima    -mabi=ilp32",
-    "secure":           "-march=rv32ima    -mabi=ilp32",
-    "secure+debug":     "-march=rv32ima    -mabi=ilp32",
+    #                               /---------- Base ISA
+    #                               |    /----- Hardware Multiply + Divide
+    #                               |    |/---- Atomics
+    #                               |    ||/--- Compressed ISA
+    #                               |    |||/-- Single-Precision Floating-Point
+    #                               |    ||||/- Double-Precision Floating-Point
+    #                               i    macfd
+    "minimal":          "-march=rv32i2p0       -mabi=ilp32",
+    "minimal+debug":    "-march=rv32i2p0       -mabi=ilp32",
+    "lite":             "-march=rv32i2p0_m     -mabi=ilp32",
+    "lite+debug":       "-march=rv32i2p0_m     -mabi=ilp32",
+    "standard":         "-march=rv32i2p0_m     -mabi=ilp32",
+    "standard+debug":   "-march=rv32i2p0_m     -mabi=ilp32",
+    "imac":             "-march=rv32i2p0_mac   -mabi=ilp32",
+    "imac+debug":       "-march=rv32i2p0_mac   -mabi=ilp32",
+    "full":             "-march=rv32i2p0_m     -mabi=ilp32",
+    "full+cfu":         "-march=rv32i2p0_m     -mabi=ilp32",
+    "full+debug":       "-march=rv32i2p0_m     -mabi=ilp32",
+    "full+cfu+debug":   "-march=rv32i2p0_m     -mabi=ilp32",
+    "linux":            "-march=rv32i2p0_ma    -mabi=ilp32",
+    "linux+debug":      "-march=rv32i2p0_ma    -mabi=ilp32",
+    "linux+no-dsp":     "-march=rv32i2p0_ma    -mabi=ilp32",
+    "secure":           "-march=rv32i2p0_ma    -mabi=ilp32",
+    "secure+debug":     "-march=rv32i2p0_ma    -mabi=ilp32",
 }
 
 # VexRiscv Timer -----------------------------------------------------------------------------------

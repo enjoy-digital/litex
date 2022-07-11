@@ -113,12 +113,20 @@ class SoCCSRRegion:
 # SoCBusHandler ------------------------------------------------------------------------------------
 
 class SoCBusHandler(Module):
-    supported_standard      = ["wishbone", "axi-lite"]
+    supported_standard      = ["wishbone", "axi-lite", "axi"]
     supported_data_width    = [32, 64]
     supported_address_width = [32]
 
     # Creation -------------------------------------------------------------------------------------
-    def __init__(self, name="SoCBusHandler", standard="wishbone", data_width=32, address_width=32, timeout=1e6, bursting=False, reserved_regions={}):
+    def __init__(self, name="SoCBusHandler",
+        standard         = "wishbone",
+        data_width       = 32,
+        address_width    = 32,
+        timeout          = 1e6,
+        bursting         = False,
+        interconnect     = "shared",
+        reserved_regions = {}
+    ):
         self.logger = logging.getLogger(name)
         self.logger.info("Creating Bus Handler...")
 
@@ -151,6 +159,7 @@ class SoCBusHandler(Module):
         self.data_width       = data_width
         self.address_width    = address_width
         self.bursting         = bursting
+        self.interconnect     = interconnect
         self.masters          = {}
         self.slaves           = {}
         self.regions          = {}
@@ -310,57 +319,79 @@ class SoCBusHandler(Module):
     def add_adapter(self, name, interface, direction="m2s"):
         assert direction in ["m2s", "s2m"]
 
-        # Data width conversion.
-        if interface.data_width != self.data_width:
-            interface_cls = type(interface)
-            converter_cls = {
-                wishbone.Interface:   wishbone.Converter,
-                axi.AXILiteInterface: axi.AXILiteConverter,
-            }[interface_cls]
-            converted_interface = interface_cls(data_width=self.data_width)
-            if direction == "m2s":
-                master, slave = interface, converted_interface
-            elif direction == "s2m":
-                master, slave = converted_interface, interface
-            converter = converter_cls(master=master, slave=slave)
-            self.submodules += converter
-        else:
-            converted_interface = interface
+        # Data-Width conversion helper.
+        def data_width_convert(interface, direction):
+            # Same Data-Width, return un-modified interface.
+            if interface.data_width == self.data_width:
+                return interface
+            # Different Data-Width: Return adapted interface.
+            else:
+                interface_cls = type(interface)
+                converter_cls = {
+                    wishbone.Interface   : wishbone.Converter,
+                    axi.AXILiteInterface : axi.AXILiteConverter,
+                    axi.AXIInterface     : axi.AXIConverter,
+                }[interface_cls]
+                adapted_interface = interface_cls(data_width=self.data_width)
+                if direction == "m2s":
+                    master, slave = interface, adapted_interface
+                elif direction == "s2m":
+                    master, slave = adapted_interface, interface
+                converter = converter_cls(master=master, slave=slave)
+                self.submodules += converter
+                return adapted_interface
 
-        # Wishbone <-> AXILite bridging.
-        main_bus_cls = {
-            "wishbone": wishbone.Interface,
-            "axi-lite": axi.AXILiteInterface,
-        }[self.standard]
-        if isinstance(converted_interface, main_bus_cls):
-            bridged_interface = converted_interface
-        else:
-            bridged_interface = main_bus_cls(data_width=self.data_width)
-            if direction == "m2s":
-                master, slave = converted_interface, bridged_interface
-            elif direction == "s2m":
-                master, slave = bridged_interface, converted_interface
-            bridge_cls = {
-                (wishbone.Interface, axi.AXILiteInterface): axi.Wishbone2AXILite,
-                (axi.AXILiteInterface, wishbone.Interface): axi.AXILite2Wishbone,
-            }[type(master), type(slave)]
-            bridge = bridge_cls(master, slave)
-            self.submodules += bridge
+        # Bus-Standard conversion helper.
+        def bus_standard_convert(interface, direction):
+            main_bus_cls = {
+                "wishbone": wishbone.Interface,
+                "axi-lite": axi.AXILiteInterface,
+                "axi"     : axi.AXIInterface,
+            }[self.standard]
+            # Same Bus-Standard: Return un-modified interface.
+            if isinstance(interface, main_bus_cls):
+                return interface
+            # Different Bus-Standard: Return adapted interface.
+            else:
+                adapted_interface = main_bus_cls(data_width=self.data_width)
+                if direction == "m2s":
+                    master, slave = interface, adapted_interface
+                elif direction == "s2m":
+                    master, slave = adapted_interface, interface
+                bridge_cls = {
+                    # Bus from           , Bus to               , Bridge
+                    (wishbone.Interface  , axi.AXILiteInterface): axi.Wishbone2AXILite,
+                    (axi.AXILiteInterface, wishbone.Interface)  : axi.AXILite2Wishbone,
+                    (wishbone.Interface  , axi.AXIInterface)    : axi.Wishbone2AXI,
+                    (axi.AXILiteInterface, axi.AXIInterface)    : axi.AXILite2AXI,
+                    (axi.AXIInterface,     axi.AXILiteInterface): axi.AXI2AXILite,
+                    (axi.AXIInterface,     wishbone.Interface)  : axi.AXI2Wishbone,
+                }[type(master), type(slave)]
+                bridge = bridge_cls(master, slave)
+                self.submodules += bridge
+                return adapted_interface
 
-        if type(interface) != type(bridged_interface) or interface.data_width != bridged_interface.data_width:
-            fmt = "{name} Bus {converted} from {from_bus} {from_bits}-bit to {to_bus} {to_bits}-bit."
+        # Interface conversion.
+        adapted_interface = interface
+        adapted_interface = data_width_convert(adapted_interface, direction)
+        adapted_interface = bus_standard_convert(adapted_interface, direction)
+
+        if type(interface) != type(adapted_interface) or interface.data_width != adapted_interface.data_width:
+            fmt = "{name} Bus {adapted} from {from_bus} {from_bits}-bit to {to_bus} {to_bits}-bit."
             bus_names = {
                 wishbone.Interface:   "Wishbone",
-                axi.AXILiteInterface: "AXI Lite",
+                axi.AXILiteInterface: "AXI-Lite",
+                axi.AXIInterface:     "AXI",
             }
             self.logger.info(fmt.format(
                 name      = colorer(name),
-                converted = colorer("converted", color="cyan"),
+                adapted   = colorer("adapted", color="cyan"),
                 from_bus  = colorer(bus_names[type(interface)]),
                 from_bits = colorer(interface.data_width),
-                to_bus    = colorer(bus_names[type(bridged_interface)]),
-                to_bits   = colorer(bridged_interface.data_width)))
-        return bridged_interface
+                to_bus    = colorer(bus_names[type(adapted_interface)]),
+                to_bits   = colorer(adapted_interface.data_width)))
+
+        return adapted_interface
 
     def add_master(self, name=None, master=None):
         if name is None:
@@ -722,6 +753,7 @@ class SoC(Module):
         bus_address_width    = 32,
         bus_timeout          = 1e6,
         bus_bursting         = False,
+        bus_interconnect     = "shared",
         bus_reserved_regions = {},
 
         csr_data_width       = 32,
@@ -760,6 +792,7 @@ class SoC(Module):
             address_width    = bus_address_width,
             timeout          = bus_timeout,
             bursting         = bus_bursting,
+            interconnect     = bus_interconnect,
             reserved_regions = bus_reserved_regions,
            )
 
@@ -809,10 +842,7 @@ class SoC(Module):
 
     def add_config(self, name, value=None, check_duplicate=True):
         name = "CONFIG_" + name
-        if isinstance(value, str):
-            self.add_constant(name + "_" + value, check_duplicate=check_duplicate)
-        else:
-            self.add_constant(name, value, check_duplicate=check_duplicate)
+        self.add_constant(name, value, check_duplicate=check_duplicate)
 
     def check_bios_requirements(self):
         # Check for required Peripherals.
@@ -845,10 +875,12 @@ class SoC(Module):
         ram_cls = {
             "wishbone": wishbone.SRAM,
             "axi-lite": axi.AXILiteSRAM,
+            "axi"     : axi.AXILiteSRAM, # FIXME: Use AXI-Lite for now, create AXISRAM.
         }[self.bus.standard]
         interface_cls = {
             "wishbone": wishbone.Interface,
             "axi-lite": axi.AXILiteInterface,
+            "axi"     : axi.AXILiteInterface, # FIXME: Use AXI-Lite for now, create AXISRAM.
         }[self.bus.standard]
         ram_bus = interface_cls(data_width=self.bus.data_width, bursting=self.bus.bursting)
         ram     = ram_cls(size, bus=ram_bus, init=contents, read_only=(mode == "r"), name=name)
@@ -881,9 +913,10 @@ class SoC(Module):
         csr_bridge_cls = {
             "wishbone": wishbone.Wishbone2CSR,
             "axi-lite": axi.AXILite2CSR,
+            "axi"     : axi.AXILite2CSR, # Note: CSR is a slow bus so using AXI-Lite is fine.
         }[self.bus.standard]
         csr_bridge_name = name + "_bridge"
-        self.check_if_exists(csr_bridge_name )
+        self.check_if_exists(csr_bridge_name)
         csr_bridge = csr_bridge_cls(
             bus_csr = csr_bus.Interface(
                 address_width = self.csr.address_width,
@@ -893,11 +926,16 @@ class SoC(Module):
             colorer(name, color="underline"),
             colorer("added", color="green")))
         setattr(self.submodules, csr_bridge_name, csr_bridge)
-        csr_size = 2**(self.csr.address_width + 2)
+        csr_size   = 2**(self.csr.address_width + 2)
         csr_region = SoCRegion(origin=origin, size=csr_size, cached=False, decode=self.cpu.csr_decode)
-        bus = getattr(self.csr_bridge, self.bus.standard.replace('-', '_'))
+        bus_standard = {
+            "wishbone": "wishbone",
+            "axi-lite": "axi-lite",
+            "axi"     : "axi-lite",
+        }[self.bus.standard]
+        bus = getattr(csr_bridge, bus_standard.replace("-", "_"))
         self.bus.add_slave(name=name, slave=bus, region=csr_region)
-        self.csr.add_master(name=name, master=self.csr_bridge.csr)
+        self.csr.add_master(name=name, master=csr_bridge.csr)
         self.add_config("CSR_DATA_WIDTH", self.csr.data_width)
         self.add_config("CSR_ALIGNMENT",  self.csr.alignment)
 
@@ -1024,11 +1062,11 @@ class SoC(Module):
             self.cpu.add_soc_components(soc=self, soc_region_cls=SoCRegion) # FIXME: avoid passing SoCRegion.
 
         # Add constants.
-        self.add_config("CPU_TYPE",    str(name))
-        self.add_config("CPU_VARIANT", str(variant.split('+')[0]))
-        self.add_constant("CONFIG_CPU_HUMAN_NAME", getattr(self.cpu, "human_name", "Unknown"))
+        self.add_config(f"CPU_TYPE_{name}")
+        self.add_config(f"CPU_VARIANT_{str(variant.split('+')[0])}")
+        self.add_config("CPU_HUMAN_NAME", getattr(self.cpu, "human_name", "Unknown"))
         if hasattr(self.cpu, "nop"):
-            self.add_constant("CONFIG_CPU_NOP", self.cpu.nop)
+            self.add_config("CPU_NOP", self.cpu.nop)
 
     def add_timer(self, name="timer0"):
         from litex.soc.cores.timer import Timer
@@ -1038,15 +1076,9 @@ class SoC(Module):
             self.irq.add(name, use_loc_if_exists=True)
 
     # SoC finalization -----------------------------------------------------------------------------
-    def do_finalize(self):
-        interconnect_p2p_cls = {
-            "wishbone": wishbone.InterconnectPointToPoint,
-            "axi-lite": axi.AXILiteInterconnectPointToPoint,
-        }[self.bus.standard]
-        interconnect_shared_cls = {
-            "wishbone": wishbone.InterconnectShared,
-            "axi-lite": axi.AXILiteInterconnectShared,
-        }[self.bus.standard]
+    def finalize(self):
+        if self.finalized:
+            return
 
         # SoC Reset --------------------------------------------------------------------------------
         # Connect soc_rst to CRG's rst if present.
@@ -1056,14 +1088,29 @@ class SoC(Module):
                 self.comb += If(getattr(self.ctrl, "soc_rst", 0), crg_rst.eq(1))
 
         # SoC CSR bridge ---------------------------------------------------------------------------
-        # FIXME: for now, use registered CSR bridge when SDRAM is present; find the best compromise.
         self.add_csr_bridge(
             name     = "csr",
             origin   = self.mem_map["csr"],
-            register = hasattr(self, "sdram")
+            register = hasattr(self, "sdram"),
         )
 
         # SoC Bus Interconnect ---------------------------------------------------------------------
+        interconnect_p2p_cls = {
+            "wishbone": wishbone.InterconnectPointToPoint,
+            "axi-lite": axi.AXILiteInterconnectPointToPoint,
+            "axi"     : axi.AXIInterconnectPointToPoint,
+        }[self.bus.standard]
+        interconnect_shared_cls = {
+            "wishbone": wishbone.InterconnectShared,
+            "axi-lite": axi.AXILiteInterconnectShared,
+            "axi"     : axi.AXIInterconnectShared,
+        }[self.bus.standard]
+        interconnect_crossbar_cls = {
+            "wishbone": wishbone.Crossbar,
+            "axi-lite": axi.AXILiteCrossbar,
+            "axi"     : axi.AXICrossbar,
+        }[self.bus.standard]
+
         if len(self.bus.masters) and len(self.bus.slaves):
             # If 1 bus_master, 1 bus_slave and no address translation, use InterconnectPointToPoint.
             if ((len(self.bus.masters) == 1)  and
@@ -1072,24 +1119,28 @@ class SoC(Module):
                 self.submodules.bus_interconnect = interconnect_p2p_cls(
                     master = next(iter(self.bus.masters.values())),
                     slave  = next(iter(self.bus.slaves.values())))
-            # Otherwise, use InterconnectShared.
+            # Otherwise, use InterconnectShared/Crossbar.
             else:
-                self.submodules.bus_interconnect = interconnect_shared_cls(
+                interconnect_cls = {
+                    "shared"  : interconnect_shared_cls,
+                    "crossbar": interconnect_crossbar_cls,
+                }[self.bus.interconnect]
+                self.submodules.bus_interconnect = interconnect_cls(
                     masters        = list(self.bus.masters.values()),
                     slaves         = [(self.bus.regions[n].decoder(self.bus), s) for n, s in self.bus.slaves.items()],
                     register       = True,
                     timeout_cycles = self.bus.timeout)
                 if hasattr(self, "ctrl") and self.bus.timeout is not None:
-                    if hasattr(self.ctrl, "bus_error"):
+                    if hasattr(self.ctrl, "bus_error") and hasattr(self.bus_interconnect, "timeout"):
                         self.comb += self.ctrl.bus_error.eq(self.bus_interconnect.timeout.error)
             self.bus.logger.info("Interconnect: {} ({} <-> {}).".format(
                 colorer(self.bus_interconnect.__class__.__name__),
                 colorer(len(self.bus.masters)),
                 colorer(len(self.bus.slaves))))
-        self.add_constant("CONFIG_BUS_STANDARD",      self.bus.standard.upper())
-        self.add_constant("CONFIG_BUS_DATA_WIDTH",    self.bus.data_width)
-        self.add_constant("CONFIG_BUS_ADDRESS_WIDTH", self.bus.address_width)
-        self.add_constant("CONFIG_BUS_BURSTING",      int(self.bus.bursting))
+        self.add_config("BUS_STANDARD",      self.bus.standard.upper())
+        self.add_config("BUS_DATA_WIDTH",    self.bus.data_width)
+        self.add_config("BUS_ADDRESS_WIDTH", self.bus.address_width)
+        self.add_config("BUS_BURSTING",      int(self.bus.bursting))
 
         # SoC DMA Bus Interconnect (Cache Coherence) -----------------------------------------------
         if hasattr(self, "dma_bus"):
@@ -1111,7 +1162,7 @@ class SoC(Module):
                     colorer(self.dma_bus_interconnect.__class__.__name__),
                     colorer(len(self.dma_bus.masters)),
                     colorer(len(self.dma_bus.slaves))))
-            self.add_constant("CONFIG_CPU_HAS_DMA_BUS")
+            self.add_config("CPU_HAS_DMA_BUS")
 
         # SoC CSR Interconnect ---------------------------------------------------------------------
         self.submodules.csr_bankarray = csr_bus.CSRBankArray(self,
@@ -1195,6 +1246,9 @@ class SoC(Module):
         self.logger.info(self.csr)
         self.logger.info(self.irq)
         self.logger.info(colorer("-"*80, color="bright"))
+
+        # Finalize submodules ----------------------------------------------------------------------
+        Module.finalize(self)
 
     # SoC build ------------------------------------------------------------------------------------
     def get_build_name(self):
@@ -1288,9 +1342,6 @@ class LiteXSoC(SoC):
 
         # USB ACM (with ValentyUSB core).
         elif uart_name in ["usb_acm"]:
-            # FIXME: do proper install of ValentyUSB.
-            os.system("git clone https://github.com/litex-hub/valentyusb -b hw_cdc_eptri")
-            sys.path.append("valentyusb")
             import valentyusb.usbcore.io as usbio
             import valentyusb.usbcore.cpu.cdc_eptri as cdc_eptri
             usb_pads  = self.platform.request("usb")
@@ -1587,6 +1638,7 @@ class LiteXSoC(SoC):
         ip_address              = "192.168.1.50",
         udp_port                = 1234,
         buffer_depth            = 16,
+        with_ip_broadcast       = True,
         with_timing_constraints = True):
         # Imports
         from liteeth.core import LiteEthUDPIPCore
@@ -1603,6 +1655,7 @@ class LiteXSoC(SoC):
             ip_address  = ip_address,
             clk_freq    = self.clk_freq,
             dw          = data_width,
+            with_ip_broadcast = with_ip_broadcast,
             with_sys_datapath = with_sys_datapath,
         )
         if not with_sys_datapath:

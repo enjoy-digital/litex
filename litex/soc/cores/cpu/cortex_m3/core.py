@@ -56,16 +56,10 @@ class CortexM3(CPU):
         self.platform     = platform
         self.reset        = Signal()
         self.interrupt    = Signal(2)
-        ibus              = axi.AXILiteInterface(data_width=32, address_width=32)
-        dbus              = axi.AXILiteInterface(data_width=32, address_width=32)
+        ibus              = axi.AXIInterface(data_width=32, address_width=32)
+        dbus              = axi.AXIInterface(data_width=32, address_width=32)
         self.periph_buses = [ibus, dbus]
         self.memory_buses = []
-
-        # Peripheral Bus AXI <-> AXILite conversion.
-        ibus_axi = axi.AXIInterface(data_width=self.data_width, address_width=32)
-        self.submodules += axi.AXI2AXILite(ibus_axi, ibus)
-        dbus_axi = axi.AXIInterface(data_width=self.data_width, address_width=32)
-        self.submodules += axi.AXI2AXILite(dbus_axi, dbus)
 
         # CPU Instance.
         self.cpu_params = dict(
@@ -91,78 +85,78 @@ class CortexM3(CPU):
             i_DBGRESETn = ~(ResetSignal() | self.reset),
 
             # Instruction Bus (AXI).
-            o_AWVALIDC = ibus_axi.aw.valid,
-            i_AWREADYC = ibus_axi.aw.ready,
-            o_AWADDRC  = ibus_axi.aw.addr,
-            o_AWBURSTC = ibus_axi.aw.burst,
-            o_AWCACHEC = ibus_axi.aw.cache,
-            o_AWLENC   = ibus_axi.aw.len,
-            o_AWLOCKC  = ibus_axi.aw.lock,
-            o_AWPROTC  = ibus_axi.aw.prot,
-            o_AWSIZEC  = ibus_axi.aw.size,
+            o_AWVALIDC = ibus.aw.valid,
+            i_AWREADYC = ibus.aw.ready,
+            o_AWADDRC  = ibus.aw.addr,
+            o_AWBURSTC = ibus.aw.burst,
+            o_AWCACHEC = ibus.aw.cache,
+            o_AWLENC   = ibus.aw.len,
+            o_AWLOCKC  = ibus.aw.lock,
+            o_AWPROTC  = ibus.aw.prot,
+            o_AWSIZEC  = ibus.aw.size,
 
-            o_WVALIDC  = ibus_axi.w.valid,
-            i_WREADYC  = ibus_axi.w.ready,
-            o_WLASTC   = ibus_axi.w.last,
-            o_WSTRBC   = ibus_axi.w.strb,
-            o_HWDATAC  = ibus_axi.w.data,
+            o_WVALIDC  = ibus.w.valid,
+            i_WREADYC  = ibus.w.ready,
+            o_WLASTC   = ibus.w.last,
+            o_WSTRBC   = ibus.w.strb,
+            o_HWDATAC  = ibus.w.data,
 
-            i_BVALIDC  = ibus_axi.b.valid,
-            o_BREADYC  = ibus_axi.b.ready,
-            i_BRESPC   = ibus_axi.b.resp,
+            i_BVALIDC  = ibus.b.valid,
+            o_BREADYC  = ibus.b.ready,
+            i_BRESPC   = ibus.b.resp,
 
-            o_ARVALIDC = ibus_axi.ar.valid,
-            i_ARREADYC = ibus_axi.ar.ready,
-            o_ARADDRC  = ibus_axi.ar.addr,
-            o_ARBURSTC = ibus_axi.ar.burst,
-            o_ARCACHEC = ibus_axi.ar.cache,
-            o_ARLENC   = ibus_axi.ar.len,
-            o_ARLOCKC  = ibus_axi.ar.lock,
-            o_ARPROTC  = ibus_axi.ar.prot,
-            o_ARSIZEC  = ibus_axi.ar.size,
+            o_ARVALIDC = ibus.ar.valid,
+            i_ARREADYC = ibus.ar.ready,
+            o_ARADDRC  = ibus.ar.addr,
+            o_ARBURSTC = ibus.ar.burst,
+            o_ARCACHEC = ibus.ar.cache,
+            o_ARLENC   = ibus.ar.len,
+            o_ARLOCKC  = ibus.ar.lock,
+            o_ARPROTC  = ibus.ar.prot,
+            o_ARSIZEC  = ibus.ar.size,
 
-            i_RVALIDC  = ibus_axi.r.valid,
-            o_RREADYC  = ibus_axi.r.ready,
-            i_RLASTC   = ibus_axi.r.last,
-            i_RRESPC   = ibus_axi.r.resp,
-            i_HRDATAC  = ibus_axi.r.data,
+            i_RVALIDC  = ibus.r.valid,
+            o_RREADYC  = ibus.r.ready,
+            i_RLASTC   = ibus.r.last,
+            i_RRESPC   = ibus.r.resp,
+            i_HRDATAC  = ibus.r.data,
 
             # Data Bus (AXI).
-            o_AWVALIDS = dbus_axi.aw.valid,
-            i_AWREADYS = dbus_axi.aw.ready,
-            o_AWADDRS  = dbus_axi.aw.addr,
-            o_AWBURSTS = dbus_axi.aw.burst,
-            o_AWCACHES = dbus_axi.aw.cache,
-            o_AWLENS   = dbus_axi.aw.len,
-            o_AWLOCKS  = dbus_axi.aw.lock,
-            o_AWPROTS  = dbus_axi.aw.prot,
-            o_AWSIZES  = dbus_axi.aw.size,
+            o_AWVALIDS = dbus.aw.valid,
+            i_AWREADYS = dbus.aw.ready,
+            o_AWADDRS  = dbus.aw.addr,
+            o_AWBURSTS = dbus.aw.burst,
+            o_AWCACHES = dbus.aw.cache,
+            o_AWLENS   = dbus.aw.len,
+            o_AWLOCKS  = dbus.aw.lock,
+            o_AWPROTS  = dbus.aw.prot,
+            o_AWSIZES  = dbus.aw.size,
 
-            o_WVALIDS  = dbus_axi.w.valid,
-            i_WREADYS  = dbus_axi.w.ready,
-            o_WLASTS   = dbus_axi.w.last,
-            o_WSTRBS   = dbus_axi.w.strb,
-            o_HWDATAS  = dbus_axi.w.data,
+            o_WVALIDS  = dbus.w.valid,
+            i_WREADYS  = dbus.w.ready,
+            o_WLASTS   = dbus.w.last,
+            o_WSTRBS   = dbus.w.strb,
+            o_HWDATAS  = dbus.w.data,
 
-            i_BVALIDS  = dbus_axi.b.valid,
-            o_BREADYS  = dbus_axi.b.ready,
-            i_BRESPS   = dbus_axi.b.resp,
+            i_BVALIDS  = dbus.b.valid,
+            o_BREADYS  = dbus.b.ready,
+            i_BRESPS   = dbus.b.resp,
 
-            o_ARVALIDS = dbus_axi.ar.valid,
-            i_ARREADYS = dbus_axi.ar.ready,
-            o_ARADDRS  = dbus_axi.ar.addr,
-            o_ARBURSTS = dbus_axi.ar.burst,
-            o_ARCACHES = dbus_axi.ar.cache,
-            o_ARLENS   = dbus_axi.ar.len,
-            o_ARLOCKS  = dbus_axi.ar.lock,
-            o_ARPROTS  = dbus_axi.ar.prot,
-            o_ARSIZES  = dbus_axi.ar.size,
+            o_ARVALIDS = dbus.ar.valid,
+            i_ARREADYS = dbus.ar.ready,
+            o_ARADDRS  = dbus.ar.addr,
+            o_ARBURSTS = dbus.ar.burst,
+            o_ARCACHES = dbus.ar.cache,
+            o_ARLENS   = dbus.ar.len,
+            o_ARLOCKS  = dbus.ar.lock,
+            o_ARPROTS  = dbus.ar.prot,
+            o_ARSIZES  = dbus.ar.size,
 
-            i_RVALIDS  = dbus_axi.r.valid,
-            o_RREADYS  = dbus_axi.r.ready,
-            i_RLASTS   = dbus_axi.r.last,
-            i_RRESPS   = dbus_axi.r.resp,
-            i_HRDATAS  = dbus_axi.r.data,
+            i_RVALIDS  = dbus.r.valid,
+            o_RREADYS  = dbus.r.ready,
+            i_RLASTS   = dbus.r.last,
+            i_RRESPS   = dbus.r.resp,
+            i_HRDATAS  = dbus.r.data,
         )
         platform.add_source_dir("AT426-BU-98000-r0p1-00rel0/vivado/Arm_ipi_repository/CM3DbgAXI/rtl")
 

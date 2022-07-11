@@ -34,8 +34,9 @@ class EfinixProgrammer(GenericProgrammer):
                    "-m", "jtag"], env=os.environ.copy()) != 0):
             msg = f"Error occured during {self.__class__.__name__}'s call, please check:\n"
             msg += f"- {self.__class__.__name__} installation.\n"
-            msg += f"- access permissions.\n"
-            msg += f"- hardware and cable."
+            msg += f"- Access permissions.\n"
+            msg += f"- Hardware and cable.\n"
+            msg += f"- Bitstream presence."
             raise OSError(msg)
 
 

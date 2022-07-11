@@ -72,6 +72,7 @@ class Builder:
         # Compile Options.
         compile_software = True,
         compile_gateware = True,
+        build_backend    = "litex",
 
         # Exports.
         csr_json         = None,
@@ -97,6 +98,7 @@ class Builder:
         # Compile Options.
         self.compile_software = compile_software
         self.compile_gateware = compile_gateware
+        self.build_backend    = build_backend
 
         # Exports.
         self.csr_csv  = csr_csv
@@ -207,7 +209,7 @@ class Builder:
         csr_contents = export.get_csr_header(
             regions   = self.soc.csr_regions,
             constants = self.soc.constants,
-            csr_base  = self.soc.mem_regions['csr'].origin)
+            csr_base  = self.soc.mem_regions["csr"].origin)
         write_to_file(os.path.join(self.generated_dir, "csr.h"), csr_contents)
 
         # Generate Git SHA1 of tools to git.h
@@ -346,6 +348,8 @@ class Builder:
         if "run" not in kwargs:
             kwargs["run"] = self.compile_gateware
 
+        kwargs["build_backend"] = self.build_backend
+
         # Build SoC and pass Verilog Name Space to do_exit.
         vns = self.soc.build(build_dir=self.gateware_dir, **kwargs)
         self.soc.do_exit(vns=vns)
@@ -381,6 +385,7 @@ def builder_args(parser):
     builder_group.add_argument("--software-dir",        default=None,        help="Output directory for Software files.")
     builder_group.add_argument("--include-dir",         default=None,        help="Output directory for Header files.")
     builder_group.add_argument("--generated-dir",       default=None,        help="Output directory for Generated files.")
+    builder_group.add_argument("--build-backend",       default="litex",     help="Select build backend: litex or edalize.")
     builder_group.add_argument("--no-compile",          action="store_true", help="Disable Software and Gateware compilation.")
     builder_group.add_argument("--no-compile-software", action="store_true", help="Disable Software compilation only.")
     builder_group.add_argument("--no-compile-gateware", action="store_true", help="Disable Gateware compilation only.")
@@ -390,7 +395,6 @@ def builder_args(parser):
     builder_group.add_argument("--memory-x",            default=None,        help="Write SoC Memory Regions to the specified Memory-X file.")
     builder_group.add_argument("--doc",                 action="store_true", help="Generate SoC Documentation.")
 
-
 def builder_argdict(args):
     return {
         "output_dir":       args.output_dir,
@@ -398,6 +402,7 @@ def builder_argdict(args):
         "software_dir":     args.software_dir,
         "include_dir":      args.include_dir,
         "generated_dir":    args.generated_dir,
+        "build_backend":    args.build_backend,
         "compile_software": (not args.no_compile) and (not args.no_compile_software),
         "compile_gateware": (not args.no_compile) and (not args.no_compile_gateware),
         "csr_csv":          args.csr_csv,

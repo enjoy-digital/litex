@@ -7,8 +7,6 @@
 .global smp_lottery_args
 .global smp_slave
 
-.option arch,+zicsr
-
 _start:
   j crt_init
   nop

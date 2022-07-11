@@ -3,19 +3,49 @@
 
 	[> Issues resolved
 	------------------
+	- cpu/vexriscv:               Fix compilation with new binutils.
+	- soc/LiteXSocArgumentParser: Fix --cpu-type parsing.
+	- litex_sim:                  Fix --with-ethernet.
 
     [> Added Features
 	-----------------
-	- litex_setup: Add -tag support for install/update.
-	- tools:       Add initial LiteX standalone SoC generator.
-	- cores/ram:   Add Xilinx's FIFO_SYNC_MACRO equivalent.
-	- LitePCIe:    Always use 24-bit depth fields on LitePCIeBuffering to simplify software.
+	- litex_setup:   Add -tag support for install/update.
+	- tools:         Add initial LiteX standalone SoC generator.
+	- cores/ram:     Add Xilinx's FIFO_SYNC_MACRO equivalent.
+	- LitePCIe:      Always use 24-bit depth fields on LitePCIeBuffering to simplify software.
+	- gen/fhdl:      Integrate Migen namer to give us more flexibility.
+	- fhdl/memory:   Prefix memory files with build name to simplify reuse/integration.
+	- cpu/rocket:    Add more variants.
+	- cores/video:   Enable driving both + and - diff outs to compensate hardware issues.
+	- build:         Add intial OSFPGA Foedag/Raptor build backend.
+	- cpu/cva5:      Add initial CVA5 CPU support (ex Taiga).
+	- LiteSATA:      Add IRQ and Identify support.
+	- clock/intel:   Improve to find the best PLL config.
+	- cpu/cva6:      Add initial CVA6 CPU support (ex Ariane).
+	- bios:          Improve config flags.
+	- tools:         Add I2s/MMCM support to litex_json2dts_zephyr.
+	- clock/gowin:   Add GW2A support.
+	- bios:          Disable LTO (does not work in all cases, needs to be investigated).
+	- CI:            Test more RISC-V CPUs and OpenRisc CPUs in CI.
+	- bios:          Add CONFIG_NO_BOOT to allow disabling boot sequence.
+	- export:        Allow disabling CSR_BASE define in csr.h.
+	- build/openocd: Update for compatibility with upstream OpenOCD.
+	- cpu/openc906:  Add initial OpenC906 support (open version of the Allwinner's D1 chip).
+	- soc:           Add automatic bridging between AXI <-> AXI-Lite <-> Wishbone.
+	- soc:           Add AXI-Full bus support.
+	- interconnect:  Add AXI DownConverted and Interconnect/Crossbar.
+	- interconnect:  Create axi directory and split code.
+	- soc:           Modify SoC finalization order for more flexibility.
+	- soc:           Add --bus-interconnect parameter to select interconect: shared/crossbar.
+	- valentyusb:    Package and install it with LiteX.
+	- bios/mem_list: Align Mem Regions.
 
     [> API changes/Deprecation
 	--------------------------
 	- LiteX-Boards : Remove short import support on platforms/targets.
 	- tools:         Rename litex_gen to litex_periph_gen.
 	- LiteX-Boards:  Only generate SoC/Software headers when --build is set
+	- Symbiflow:     Rename to F4PGA.
 
 [> 2022.04, released on May 3th 2022
 ------------------------------------

@@ -57,7 +57,7 @@ class TestFIFOSyncMacro(unittest.TestCase):
 
 
         dut = FIFOSyncMacro("18Kb", data_width=32, almost_empty_offset=128,
-                            almost_full_offset=128, toolchain="symbiflow")
+                            almost_full_offset=128, toolchain="f4pga")
 
         run_simulation(dut, generator(dut))
 
@@ -161,6 +161,6 @@ class TestFIFOSyncMacro(unittest.TestCase):
 
 
         dut = FIFOSyncMacro("18Kb", data_width=32, almost_empty_offset=128,
-                            almost_full_offset=128, toolchain="symbiflow")
+                            almost_full_offset=128, toolchain="f4pga")
 
         run_simulation(dut, generator(dut))

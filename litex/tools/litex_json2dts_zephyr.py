@@ -22,49 +22,169 @@ import argparse
 import json
 
 
+def get_registers_of(name, csr):
+    registers = csr['csr_registers']
+
+    return [
+        {
+            **params,
+            # describe size in bytes, not number of subregisters
+            'size': params['size'] * 4,
+            'name': r[len(name) + 1:],
+        }
+        for r, params in registers.items() if r.startswith(name)
+    ]
+
+
+# Indentation helpers
+INDENT_STR = '    '
+
+
+def indent(line, levels=1):
+    return INDENT_STR * levels + line
+
+
+def indent_all(text, levels=1):
+    return '\n'.join(map(indent, text.splitlines()))
+
+
+def indent_all_but_first(text, levels=1):
+    lines = text.splitlines()
+    indented = indent_all('\n'.join(lines[1:]), levels)
+    if indented:
+        return lines[0] + '\n' + indented
+    else:
+        return lines[0]
+
+
 # DTS formatting
-def dts_open(name, parm): return "&{} {{\n".format(parm.get('alias', name))
-def dts_close():          return "};\n"
-def dts_intr(name, csr):  return "    interrupts = <{} 0>;\n".format(
-                                    hex(csr['constants'][name + '_interrupt']))
-def dts_reg(regs):        return "    reg = <{}>;\n".format(regs)
+def dts_open(name, parm):
+    return "&{} {{\n".format(parm.get('alias', name))
+
+
+def dts_close():
+    return "};\n"
+
+
+def dts_intr(name, csr):
+    return indent("interrupts = <{} 0>;\n".format(
+        hex(csr['constants'][name + '_interrupt'])
+    ))
+
+
+def dts_reg(regs):
+    dtsi = 'reg = <'
+
+    formatted_registers = '\n'.join(
+        '0x{:x} 0x{:x}'.format(reg['addr'], reg['size'])
+        for reg in regs
+    )
+
+    dtsi += indent_all_but_first(formatted_registers)
+    dtsi += '>;'
+
+    return indent_all(dtsi) + '\n'
+
+
+def dts_reg_names(regs):
+    dtsi = 'reg-names = '
+
+    formatted_registers = ',\n'.join(
+        '"{}"'.format(reg['name'])
+        for reg in regs
+    )
+
+    dtsi += indent_all_but_first(formatted_registers)
+    dtsi += ';'
+
+    return indent_all(dtsi) + '\n'
 
 
 # DTS handlers
 def disabled_handler(name, parm, csr):
-    return "    status = \"disabled\";\n"
+    return indent('status = "disabled";\n')
 
 
 def ram_handler(name, parm, csr):
-    return dts_reg(" ".join([
-                hex(csr['memories'][name]['base']),
-                hex(csr['memories'][name]['size'])]))
+    mem_reg = {
+        'addr': csr['memories'][name]['base'],
+        'size': csr['memories'][name]['size'],
+    }
+
+    return dts_reg([mem_reg])
 
 
 def ethmac_handler(name, parm, csr):
-    dtsi  = dts_reg(" ".join([
-                hex(csr['csr_bases'][name]),
-                hex(parm['size']),
-                hex(csr['memories'][name]['base']),
-                hex(csr['memories'][name]['size'])]))
+    rx_registers = get_registers_of(name + '_sram_writer', csr)
+    for reg in rx_registers:
+        reg['name'] = 'rx_' + reg['name']
+
+    tx_registers = get_registers_of(name + '_sram_reader', csr)
+    for reg in tx_registers:
+        reg['name'] = 'tx_' + reg['name']
+
+    eth_buffers = {
+        'name': 'buffers',
+        'addr': csr['memories'][name]['base'],
+        'size': csr['memories'][name]['size'],
+        'type': csr['memories'][name]['type'],
+    }
+    registers = rx_registers + tx_registers + [eth_buffers]
+
+    dtsi = dts_reg(registers)
+    dtsi += dts_reg_names(registers)
     dtsi += dts_intr(name, csr)
     return dtsi
 
 
 def i2c_handler(name, parm, csr):
-    dtsi  = dts_reg(" ".join([
-                hex(csr['csr_bases'][name]),
-                hex(parm['size']),
-                hex(csr['csr_bases'][name] + parm['size']),
-                hex(parm['size'])]))
-    dtsi += dts_intr(name, csr)
+    registers = get_registers_of(name, csr)
+    if len(registers) == 0:
+        raise KeyError
+
+    for reg in registers:
+        if reg["name"] == "w":
+            reg["name"] = "write"
+        elif reg["name"] == "r":
+            reg["name"] = "read"
+
+    dtsi = dts_reg(registers)
+    dtsi += dts_reg_names(registers)
+
+    return dtsi
+
+
+def i2s_handler(name, parm, csr):
+    registers = get_registers_of(name, csr)
+    if len(registers) == 0:
+        raise KeyError
+
+    fifo = {
+        'name': 'fifo',
+        'addr': csr['memories'][name]['base'],
+        'size': csr['memories'][name]['size'],
+        'type': csr['memories'][name]['type'],
+    }
+    registers.append(fifo)
+
+    dtsi = dts_reg(registers)
+    dtsi += dts_reg_names(registers)
+
+    try:
+        dtsi += dts_intr(name, csr)
+    except KeyError as e:
+        print('  dtsi key', e, 'not found, no interrupt override')
     return dtsi
 
 
 def peripheral_handler(name, parm, csr):
-    dtsi  = dts_reg(" ".join([
-                hex(csr['csr_bases'][name]),
-                hex(parm['size'])]))
+    registers = get_registers_of(name, csr)
+    if len(registers) == 0:
+        raise KeyError
+
+    dtsi = dts_reg(registers)
+    dtsi += dts_reg_names(registers)
+
     try:
         dtsi += dts_intr(name, csr)
     except KeyError as e:
@@ -76,30 +196,38 @@ overlay_handlers = {
     'uart': {
         'handler': peripheral_handler,
         'alias': 'uart0',
-        'size': 0x20,
         'config_entry': 'UART_LITEUART'
     },
     'timer0': {
         'handler': peripheral_handler,
-        'size': 0x40,
         'config_entry': 'LITEX_TIMER'
     },
     'ethmac': {
         'handler': ethmac_handler,
         'alias': 'eth0',
-        'size': 0x80,
         'config_entry': 'ETH_LITEETH'
     },
     'spiflash': {
         'handler': peripheral_handler,
         'alias': 'spi0',
-        'size': 12,
         'config_entry': 'SPI_LITESPI'
     },
     'i2c0' : {
         'handler': i2c_handler,
-        'size': 0x4,
         'config_entry': 'I2C_LITEX'
+    },
+    'i2s_rx' : {
+        'handler': i2s_handler,
+        'config_entry': 'I2S_LITEX'
+    },
+    'i2s_tx' : {
+        'handler': i2s_handler,
+        'config_entry': 'I2S_LITEX'
+    },
+    'mmcm' : {
+        'alias': 'clock0',
+        'handler': peripheral_handler,
+        'config_entry': 'CLOCK_CONTROL_LITEX'
     },
     'main_ram': {
         'handler': ram_handler,
@@ -108,7 +236,6 @@ overlay_handlers = {
     'identifier_mem': {
         'handler': peripheral_handler,
         'alias': 'dna0',
-        'size': 0x100,
     }
 }
 
@@ -136,6 +263,10 @@ def generate_dts_config(csr):
     for name, value in csr['csr_bases'].items():
         if name not in overlay_handlers.keys():
             print('No overlay handler for:', name, 'at', hex(value))
+
+    cnf += ' -DCONFIG_LITEX_CSR_DATA_WIDTH={}'.format(
+        csr['constants']['config_csr_data_width'],
+    )
 
     return dts, cnf
 

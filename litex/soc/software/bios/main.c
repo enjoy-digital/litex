@@ -49,6 +49,7 @@
 #include <liblitesdcard/sdcard.h>
 #include <liblitesata/sata.h>
 
+#ifndef CONFIG_BIOS_NO_BOOT
 static void boot_sequence(void)
 {
 #ifdef CSR_UART_BASE
@@ -75,6 +76,7 @@ static void boot_sequence(void)
 #endif
 	printf("No boot medium found\n");
 }
+#endif
 
 __attribute__((__used__)) int main(int i, char **c)
 {
@@ -161,11 +163,11 @@ __attribute__((__used__)) int main(int i, char **c)
 	eth_init();
 #endif
 
-/* Initialize and test DRAM */
+	/* Initialize and test DRAM */
 #ifdef CSR_SDRAM_BASE
 	sdr_ok = sdram_init();
 #else
-/* Test Main RAM when present and not pre-initialized */
+	/* Test Main RAM when present and not pre-initialized */
 #ifdef MAIN_RAM_BASE
 #ifndef CONFIG_MAIN_RAM_INIT
 	sdr_ok = memtest((unsigned int *) MAIN_RAM_BASE, min(MAIN_RAM_SIZE, MEMTEST_DATA_SIZE));
@@ -176,27 +178,35 @@ __attribute__((__used__)) int main(int i, char **c)
 	if (sdr_ok != 1)
 		printf("Memory initialization failed\n");
 #endif
+
+	/* Initialize and test SPIFLASH */
 #ifdef CSR_SPIFLASH_CORE_BASE
 	spiflash_init();
 #endif
-printf("\n");
+	printf("\n");
 
-#ifdef CSR_VIDEO_FRAMEBUFFER_BASE
+
 	/* Initialize Video Framebuffer FIXME: Move */
+#ifdef CSR_VIDEO_FRAMEBUFFER_BASE
 	video_framebuffer_vtg_enable_write(0);
 	video_framebuffer_dma_enable_write(0);
 	video_framebuffer_vtg_enable_write(1);
 	video_framebuffer_dma_enable_write(1);
 #endif
 
+	/* Execute  initialization functions */
 	init_dispatcher();
 
+	/* Execute Boot sequence */
+#ifndef CONFIG_BIOS_NO_BOOT
 	if(sdr_ok) {
 		printf("--============== \e[1mBoot\e[0m ==================--\n");
 		boot_sequence();
 		printf("\n");
 	}
+#endif
 
+	/* Console */
 	printf("--============= \e[1mConsole\e[0m ================--\n");
 #if !defined(TERM_MINI) && !defined(TERM_NO_HIST)
 	hist_init();

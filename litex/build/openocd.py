@@ -101,7 +101,7 @@ proc jtagstream_poll {tap tx n} {
     set txi [lrepeat $n {10 0x001}]
     set i 0
     foreach txj [split $tx ""] {
-        lset txi $i 1 [format 0x%4.4X [expr 0x201 | ([scan $txj %c] << 1)]]
+        lset txi $i 1 [format 0x%4.4X [expr { 0x201 | ([scan $txj %c] << 1) }]]
         incr i
         #echo tx[scan $txj %c]
     }
@@ -115,10 +115,10 @@ proc jtagstream_poll {tap tx n} {
     set rx ""
     set writable 1
     foreach {rxj} $rxi {
-        set readable [expr 0x$rxj & 0x200]
-        set writable [expr 0x$rxj & $writable]
+        set readable [expr { "0x${rxj}" & 0x200 }]
+        set writable [expr { "0x${rxj}" & $writable }]
         if {$readable} {
-            append rx [format %c [expr (0x$rxj >> 1) & 0xff]]
+            append rx [format %c [expr { ("0x${rxj}" >> 1) & 0xff }]]
         }
     }
     return [list $rx $readable $writable]
@@ -126,7 +126,7 @@ proc jtagstream_poll {tap tx n} {
 
 proc jtagstream_drain {tap tx chunk_rx max_rx} {
     lassign [jtagstream_poll $tap $tx $chunk_rx] rx readable writable
-    while {[expr $writable && ($readable > 0) && ([string length $rx] < $max_rx)]} {
+    while {[expr { $writable && ($readable > 0) && ([string length $rx] < $max_rx) }]} {
         lassign [jtagstream_poll $tap "" $chunk_rx] rxi readable writable
         append rx $rxi
     }

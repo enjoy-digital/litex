@@ -7,17 +7,17 @@
 import os
 
 from litex.build.generic_platform import GenericPlatform
-from litex.build.quicklogic import common, symbiflow
+from litex.build.quicklogic import common, f4pga
 
 # QuickLogicPlatform -------------------------------------------------------------------------------
 
 class QuickLogicPlatform(GenericPlatform):
     bitstream_ext = ".bit"
 
-    def __init__(self, device, *args, toolchain="symbiflow", **kwargs):
-        GenericPlatform.__init__(self, device, *args, **kwargs)
-        if toolchain == "symbiflow":
-            self.toolchain = symbiflow.SymbiflowToolchain()
+    def __init__(self, *args, toolchain="f4pga", **kwargs):
+        GenericPlatform.__init__(self, *args, **kwargs)
+        if toolchain == "symbiflow" or toolchain == "f4pga":
+            self.toolchain = f4pga.F4PGAToolchain()
         else:
             raise ValueError(f"Unknown toolchain {toolchain}")
 

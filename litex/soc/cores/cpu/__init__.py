@@ -52,6 +52,7 @@ class CPUNone(CPU):
     }
 
 CPU_GCC_TRIPLE_RISCV64 = (
+    "riscv64-pc-linux-musl",
     "riscv64-unknown-elf",
     "riscv64-unknown-linux-gnu",
     "riscv64-elf",

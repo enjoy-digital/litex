@@ -10,7 +10,7 @@ import sys
 
 class TestCPU(unittest.TestCase):
     def boot_test(self, cpu_type, cpu_variant="standard"):
-        cmd = f'litex_sim --cpu-type={cpu_type} --cpu-variant={cpu_variant}'
+        cmd = f'litex_sim --cpu-type={cpu_type} --cpu-variant={cpu_variant} --opt-level=O0'
         litex_prompt = [b'\033\[[0-9;]+mlitex\033\[[0-9;]+m>']
         is_success = True
         with open("/tmp/test_boot_log", "wb") as result_file:
@@ -34,39 +34,37 @@ class TestCPU(unittest.TestCase):
 
         return is_success
 
-    # RISC-V CPUs.
-    def test_vexriscv(self):
-        self.assertTrue(self.boot_test("vexriscv"))
-
-    def test_vexriscv_smp(self):
-        self.assertTrue(self.boot_test("vexriscv_smp"))
-
-    def test_cv32e40p(self):
-        self.assertTrue(self.boot_test("cv32e40p"))
-
-    def test_ibex(self):
-        self.assertTrue(self.boot_test("ibex"))
-
-    def test_serv(self):
-        self.assertTrue(self.boot_test("serv"))
-
-    def test_femtorv(self):
-        self.assertTrue(self.boot_test("femtorv"))
-
-    def test_picorv32(self):
-        self.assertTrue(self.boot_test("picorv32"))
-
-    #def test_cva6(self):
-    #    self.assertTrue(self.boot_test("cva6"))
-
-    # OpenRISC CPUs.
-    #def test_mor1kx(self):
-    #    self.assertTrue(self.boot_test("mor1kx"))
-
-    # PowerPC CPUs.
-    #def test_microwatt(self):
-    #    self.assertTrue(self.boot_test("microwatt", cpu_variant="standard+ghdl"))
-
-    # LM32 CPUs.
-    #def test_lm32(self):
-    #    self.assertTrue(self.boot_test("lm32"))
+    def test_cpu(self):
+        tested_cpus = [
+            "cv32e40p",     # (riscv   / softcore)
+            "femtorv",      # (riscv   / softcore)
+            "firev",        # (riscv   / softcore)
+            "ibex",         # (riscv   / softcore)
+            "marocchino",   # (or1k    / softcore)
+            "naxriscv",     # (riscv   / softcore)
+            "serv",         # (riscv   / softcore)
+            "vexriscv",     # (riscv   / softcore)
+            "vexriscv_smp", # (riscv   / softcore)
+        ]
+        untested_cpus = [
+            "blackparrot",  # (riscv   / softcore) -> Broken install?
+            "cortex_m1",    # (arm     / softcore) -> Proprietary code.
+            "cortex_m3",    # (arm     / softcore) -> Proprieraty code.
+            "cv32e41p",     # (riscv   / softcore) -> Broken?
+            "cva5",         # (riscv   / softcore) -> Needs to be tested.
+            "cva6",         # (riscv   / softcore) -> Needs to be tested.
+            "eos_s3",       # (arm     / hardcore) -> Hardcore.
+            "gowin_emcu",   # (arm     / hardcore) -> Hardcore.
+            "lm32",         # (lm32    / softcore) -> Requires LM32 toolchain.
+            "microwatt",    # (ppc64   / softcore) -> Requires PPC toolchain + VHDL->Verilog (GHDL + Yosys).
+            "minerva",      # (riscv   / softcore) -> Broken install? (Amaranth?)
+            "mor1kx",       # (or1k    / softcore) -> Verilator compilation issue.
+            "neorv32",      # (riscv   / softcore) -> Requires VHDL->Verilog (GHDL + Yosys).
+            "picorv32",     # (riscv   / softcore) -> Verilator compilation issue.
+            "rocket",       # (riscv   / softcore) -> Not enough RAM in CI.
+            "zynq7000",     # (arm     / hardcore) -> Hardcore.
+            "zynqmp",       # (aarch64 / hardcore) -> Hardcore.
+        ]
+        for cpu in tested_cpus:
+             with self.subTest(target=cpu):
+                self.assertTrue(self.boot_test(cpu))
