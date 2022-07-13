@@ -159,11 +159,11 @@ class ECP5PLL(LiteXModule):
         self.comb += self.locked.eq(locked & ~self.reset)
         for n, (clk, f, p, m, dpa) in sorted(self.clkouts.items()):
             div    = config[f"clko{n}_div"]
-            cphase = int(p*(div + 1)/360 + div - 1)
+            phase = round(p*div/45)
             self.params[f"p_CLKO{n_to_l[n]}_ENABLE"] = "ENABLED"
             self.params[f"p_CLKO{n_to_l[n]}_DIV"]    = div
-            self.params[f"p_CLKO{n_to_l[n]}_FPHASE"] = 0
-            self.params[f"p_CLKO{n_to_l[n]}_CPHASE"] = cphase
+            self.params[f"p_CLKO{n_to_l[n]}_FPHASE"] = phase & 7
+            self.params[f"p_CLKO{n_to_l[n]}_CPHASE"] = (phase >> 3) + (div - 1)
             self.params[f"o_CLKO{n_to_l[n]}"]        = clk
             if f > 0:  # i.e. not a feedback-only clock
                 self.params["attr"].append((f"FREQUENCY_PIN_CLKO{n_to_l[n]}", str(f/1e6)))
