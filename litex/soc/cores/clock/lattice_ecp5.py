@@ -22,7 +22,7 @@ class ECP5PLL(Module):
     vco_freq_range  = (  400e6,  800e6)
     pfd_freq_range  = (   10e6,  400e6)
 
-    def __init__(self):
+    def __init__(self, bel=None):
         self.logger = logging.getLogger("ECP5PLL")
         self.logger.info("Creating ECP5PLL.")
         self.reset      = Signal()
@@ -35,6 +35,7 @@ class ECP5PLL(Module):
         self.clkouts    = {}
         self.config     = {}
         self.params     = {}
+        self.bel        = bel
 
     def register_clkin(self, clkin, freq):
         (clki_freq_min, clki_freq_max) = self.clki_freq_range
@@ -164,6 +165,8 @@ class ECP5PLL(Module):
             self.params[f"o_CLKO{n_to_l[n]}"]        = clk
             if f > 0:  # i.e. not a feedback-only clock
                 self.params["attr"].append((f"FREQUENCY_PIN_CLKO{n_to_l[n]}", str(f/1e6)))
+        if self.bel:
+            self.params["attr"].append(("BEL", self.bel))
         self.specials += Instance("EHXPLLL", **self.params)
 
 # Lattice / ECP5 Dynamic Delay ---------------------------------------------------------------------
