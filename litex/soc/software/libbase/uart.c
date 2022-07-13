@@ -42,6 +42,9 @@ void uart_isr(void)
 				rx_produce = rx_produce_next;
 			}
 			uart_ev_pending_write(UART_EV_RX);
+			#if defined(__cva6__)
+				asm volatile("fence\n");
+			#endif
 		}
 	}
 
