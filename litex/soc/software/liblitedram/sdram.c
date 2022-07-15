@@ -298,6 +298,7 @@ static void print_scan_errors(unsigned int errors) {
 }
 
 #define READ_CHECK_TEST_PATTERN_MAX_ERRORS (8*SDRAM_PHY_PHASES*DFII_PIX_DATA_BYTES/SDRAM_PHY_MODULES)
+#define MODULE_BITMASK ((1<<SDRAM_PHY_DQ_DQS_RATIO)-1)
 
 static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int seed) {
 	int p, i;
@@ -319,8 +320,9 @@ static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int
 	sdram_activate_test_row();
 
 	/* Write pseudo-random sequence */
-	for(p=0;p<SDRAM_PHY_PHASES;p++)
+	for(p=0;p<SDRAM_PHY_PHASES;p++) {
 		csr_wr_buf_uint8(sdram_dfii_pix_wrdata_addr(p), prs[p], DFII_PIX_DATA_BYTES);
+	}
 	sdram_dfii_piwr_address_write(0);
 	sdram_dfii_piwr_baddress_write(0);
 	command_pwr(DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS|DFII_COMMAND_WRDATA);
@@ -344,22 +346,25 @@ static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int
 		/* Read back test pattern */
 		csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr(p), tst, DFII_PIX_DATA_BYTES);
 		/* Verify bytes matching current 'module' */
-		for (int i = 0; i < DFII_PIX_DATA_BYTES; ++i) {
-			int j = p * DFII_PIX_DATA_BYTES + i;
-#if SDRAM_PHY_DQ_DQS_RATIO == 4
-			if (j % (SDRAM_PHY_MODULES/2) == ((SDRAM_PHY_MODULES-1)/2)-(module/2)) {
-				if(module % 2) {
-					errors += popcount((prs[p][i] & 0xf0) ^ (tst[i] & 0xf0));
-				} else {
-					errors += popcount((prs[p][i] & 0x0f) ^ (tst[i] & 0x0f));
-				}
-			}
-#else
-			if (j % SDRAM_PHY_MODULES == SDRAM_PHY_MODULES-1-module) {
-				errors += popcount(prs[p][i] ^ tst[i]);
-			}
-#endif
-		}
+		int positive_edge_byte_offset, negative_edge_byte_offset, in_byte_offset;
+
+		/* Values written into CSR are Big Endian */
+		positive_edge_byte_offset = (DFII_PIX_DATA_BYTES/2) - 1 - (module * SDRAM_PHY_DQ_DQS_RATIO)/8;
+		negative_edge_byte_offset = positive_edge_byte_offset + DFII_PIX_DATA_BYTES / 2;
+		in_byte_offset = (module * SDRAM_PHY_DQ_DQS_RATIO)%8;
+		errors += popcount((prs[p][positive_edge_byte_offset] & (MODULE_BITMASK << in_byte_offset)) ^
+		                   (tst[positive_edge_byte_offset] & (MODULE_BITMASK << in_byte_offset)));
+		if (SDRAM_PHY_DQ_DQS_RATIO == 16)
+			errors += popcount(prs[p][positive_edge_byte_offset+1] ^
+			                   tst[positive_edge_byte_offset+1]);
+
+		if (DFII_PIX_DATA_BYTES == 1) // Special case for x4 single IC
+			in_byte_offset = 0x4;
+		errors += popcount((prs[p][negative_edge_byte_offset] & (MODULE_BITMASK << in_byte_offset)) ^
+		                   (tst[negative_edge_byte_offset] & (MODULE_BITMASK << in_byte_offset)));
+		if (SDRAM_PHY_DQ_DQS_RATIO == 16)
+			errors += popcount(prs[p][negative_edge_byte_offset+1] ^
+			                   tst[negative_edge_byte_offset+1]);
 	}
 
 #ifdef SDRAM_PHY_ECP5DDRPHY
