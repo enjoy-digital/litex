@@ -298,6 +298,7 @@ static void print_scan_errors(unsigned int errors) {
 }
 
 #define READ_CHECK_TEST_PATTERN_MAX_ERRORS (8*SDRAM_PHY_PHASES*DFII_PIX_DATA_BYTES/SDRAM_PHY_MODULES)
+#define MODULE_BITMASK ((1<<SDRAM_PHY_DQ_DQS_RATIO)-1)
 
 static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int seed) {
 	int p, i;
@@ -319,8 +320,9 @@ static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int
 	sdram_activate_test_row();
 
 	/* Write pseudo-random sequence */
-	for(p=0;p<SDRAM_PHY_PHASES;p++)
+	for(p=0;p<SDRAM_PHY_PHASES;p++) {
 		csr_wr_buf_uint8(sdram_dfii_pix_wrdata_addr(p), prs[p], DFII_PIX_DATA_BYTES);
+	}
 	sdram_dfii_piwr_address_write(0);
 	sdram_dfii_piwr_baddress_write(0);
 	command_pwr(DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS|DFII_COMMAND_WRDATA);
@@ -344,22 +346,42 @@ static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int
 		/* Read back test pattern */
 		csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr(p), tst, DFII_PIX_DATA_BYTES);
 		/* Verify bytes matching current 'module' */
-		for (int i = 0; i < DFII_PIX_DATA_BYTES; ++i) {
-			int j = p * DFII_PIX_DATA_BYTES + i;
-#if SDRAM_PHY_DQ_DQS_RATIO == 4
-			if (j % (SDRAM_PHY_MODULES/2) == ((SDRAM_PHY_MODULES-1)/2)-(module/2)) {
-				if(module % 2) {
-					errors += popcount((prs[p][i] & 0xf0) ^ (tst[i] & 0xf0));
-				} else {
-					errors += popcount((prs[p][i] & 0x0f) ^ (tst[i] & 0x0f));
-				}
-			}
-#else
-			if (j % SDRAM_PHY_MODULES == SDRAM_PHY_MODULES-1-module) {
-				errors += popcount(prs[p][i] ^ tst[i]);
-			}
-#endif
+		int pebo;   // module's positive_edge_byte_offset
+		int nebo;   // module's negative_edge_byte_offset, could be undefined if SDR DRAM is used
+		int ibo;    // module's in byte offset (x4 ICs)
+		int mask;   // Check data lines
+
+		mask = MODULE_BITMASK;
+
+		/* Values written into CSR are Big Endian */
+		/* SDRAM_PHY_XDR is define 1 if SDR and 2 if DDR*/
+		nebo = (DFII_PIX_DATA_BYTES / SDRAM_PHY_XDR) - 1 - (module * SDRAM_PHY_DQ_DQS_RATIO)/8;
+		pebo = nebo + DFII_PIX_DATA_BYTES / SDRAM_PHY_XDR;
+		/* When DFII_PIX_DATA_BYTES is 1 and SDRAM_PHY_XDR is 2, pebo and nebo are both -1s,
+		* but only correct value is 0. This can happen when single x4 IC is used */
+		if ((DFII_PIX_DATA_BYTES/SDRAM_PHY_XDR) == 0) {
+			pebo = 0;
+			nebo = 0;
 		}
+
+		ibo = (module * SDRAM_PHY_DQ_DQS_RATIO)%8; // Non zero only if x4 ICs are used
+
+		errors += popcount(((prs[p][pebo] >> ibo) & mask) ^
+		                   ((tst[pebo] >> ibo) & mask));
+		if (SDRAM_PHY_DQ_DQS_RATIO == 16)
+			errors += popcount(((prs[p][pebo+1] >> ibo) & mask) ^
+			                   ((tst[pebo+1] >> ibo) & mask));
+
+
+#if SDRAM_PHY_XDR == 2
+		if (DFII_PIX_DATA_BYTES == 1) // Special case for x4 single IC
+			ibo = 0x4;
+		errors += popcount(((prs[p][nebo] >> ibo) & mask) ^
+		                   ((tst[nebo] >> ibo) & mask));
+		if (SDRAM_PHY_DQ_DQS_RATIO == 16)
+			errors += popcount(((prs[p][nebo+1] >> ibo) & mask) ^
+			                   ((tst[nebo+1] >> ibo) & mask));
+#endif //SDRAM_PHY_XDR == 2
 	}
 
 #if defined(SDRAM_PHY_ECP5DDRPHY) || defined(SDRAM_PHY_GW2DDRPHY)
