@@ -240,7 +240,7 @@ def run_gui(host, csr_csv, port):
                     if (tag == name):
                         reg.write(data)
             for name, reg in bus.regs.__dict__.items():
-                if reg.mode in ["ro"]:
+                if reg.mode in ["ro"] or reg.size >= 32:
                     dpg.add_input_text(
                         indent     = 16,
                         label      = f"0x{reg.addr:08x} - {name}",
