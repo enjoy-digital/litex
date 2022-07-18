@@ -13,7 +13,7 @@ from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 
 # Variants -----------------------------------------------------------------------------------------
 
-CPU_VARIANTS = ["standard"]
+CPU_VARIANTS = ["minimal", "lite", "standard", "full"]
 
 # GCC Flags ----------------------------------------------------------------------------------------
 
@@ -25,7 +25,10 @@ GCC_FLAGS = {
     #                               ||||/--- Single-Precision Floating-Point
     #                               |||||/-- Double-Precision Floating-Point
     #                               imacfd
-    "standard":         "-march=rv32i     -mabi=ilp32",
+    "minimal":          "-march=rv32i     -mabi=ilp32",
+    "lite":             "-march=rv32imc   -mabi=ilp32",
+    "standard":         "-march=rv32imc   -mabi=ilp32",
+    "full":             "-march=rv32imc   -mabi=ilp32",
 }
 
 # NEORV32 ------------------------------------------------------------------------------------------
@@ -34,7 +37,6 @@ class NEORV32(CPU):
     category             = "softcore"
     family               = "riscv"
     name                 = "neorv32"
-    human_name           = "NEORV32"
     variants             = CPU_VARIANTS
     data_width           = 32
     endianness           = "little"
@@ -53,6 +55,7 @@ class NEORV32(CPU):
     def __init__(self, platform, variant="standard"):
         self.platform     = platform
         self.variant      = variant
+        self.human_name   = f"NEORV32-{variant}"
         self.reset        = Signal()
         self.ibus         = idbus = wishbone.Interface()
         self.periph_buses = [idbus] # Peripheral buses (Connected to main SoC's bus).
@@ -95,14 +98,14 @@ class NEORV32(CPU):
         )
 
         # Add Verilog sources
-        self.add_sources(platform)
+        self.add_sources(platform, variant)
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
         assert reset_address == 0x0000_0000
 
     @staticmethod
-    def add_sources(platform):
+    def add_sources(platform, variant):
         cdir = os.path.abspath(os.path.dirname(__file__))
         # List VHDL sources.
         sources = {
@@ -151,6 +154,39 @@ class NEORV32(CPU):
             for vhd in vhds:
                 if not os.path.exists(os.path.join(cdir, vhd)):
                     os.system(f"wget https://raw.githubusercontent.com/stnolting/neorv32/main/rtl/{directory}/{vhd} -P {cdir}")
+
+        def configure_litex_core_complex(filename, variant):
+            # Read Wrapper.
+            lines = []
+            f = open(filename)
+            for l in f:
+                lines.append(l)
+            f.close()
+
+            # Configure.
+            _lines = []
+            for l in lines:
+                if "constant CONFIG" in l:
+                    config = {
+                        "minimal"  : "0",
+                        "lite"     : "1",
+                        "standard" : "2",
+                        "full"     : "3"
+                    }[variant]
+                    l = f"\tconstant CONFIG : natural := {config};\n"
+                _lines.append(l)
+            lines = _lines
+
+            # Write Wrapper.
+            f = open(filename, "w")
+            for l in lines:
+                f.write(l)
+            f.close()
+
+        configure_litex_core_complex(
+            filename = os.path.join(cdir, "neorv32_litex_core_complex.vhd"),
+            variant  = variant,
+        )
 
         # Convert VHDL to Verilog through GHDL/Yosys.
         from litex.build import tools
