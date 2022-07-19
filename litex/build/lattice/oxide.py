@@ -119,7 +119,7 @@ class LatticeOxideToolchain(GenericToolchain):
             s_fail = s + "{fail_stmt}\n"  # Required so Windows scripts fail early.
             script_contents += s_fail.format(
                 build_name      = self._build_name,
-                device          = "ES" if self._es_device else self.platform.device,
+                device          = f"{self.platform.device}{'ES' if self._es_device else ''}",
                 timefailarg     = "--timing-allow-fail" if not self._timingstrict else "",
                 ignoreloops     = "--ignore-loops" if self._ignoreloops else "",
                 fail_stmt       = fail_stmt,
