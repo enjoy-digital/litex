@@ -54,9 +54,9 @@ class GPIOIn(_GPIOIRQ, Module, AutoCSR):
 # GPIO Output --------------------------------------------------------------------------------------
 
 class GPIOOut(Module, AutoCSR):
-    def __init__(self, pads):
+    def __init__(self, pads, reset=0):
         pads = _to_signal(pads)
-        self.out = CSRStorage(len(pads), description="GPIO Output(s) Control.")
+        self.out = CSRStorage(len(pads), reset=reset, description="GPIO Output(s) Control.")
         self.comb += pads.eq(self.out.storage)
 
 # GPIO Input/Output --------------------------------------------------------------------------------
