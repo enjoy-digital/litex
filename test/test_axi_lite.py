@@ -146,18 +146,19 @@ class AXILitePatternGenerator:
 # TestAXILite --------------------------------------------------------------------------------------
 
 class TestAXILite(unittest.TestCase):
-    def test_wishbone2axi2wishbone(self):
+    def test_wishbone2axilite2wishbone(self, data_width=32, address_width=32):
         class DUT(Module):
             def __init__(self):
-                self.wishbone = wishbone.Interface(data_width=32, adr_width=30)
+                self.wishbone = wishbone.Interface(data_width=data_width,
+                                                   adr_width=address_width - log2_int(data_width // 8))
 
                 # # #
 
-                axi = AXILiteInterface(data_width=32, address_width=32)
-                wb  = wishbone.Interface(data_width=32, adr_width=30)
+                axi_lite = AXILiteInterface(data_width=data_width, address_width=address_width)
+                wb  = wishbone.Interface(data_width=data_width, adr_width=address_width - log2_int(data_width // 8))
 
-                wishbone2axi = Wishbone2AXILite(self.wishbone, axi)
-                axi2wishbone = AXILite2Wishbone(axi, wb)
+                wishbone2axi = Wishbone2AXILite(self.wishbone, axi_lite)
+                axi2wishbone = AXILite2Wishbone(axi_lite, wb)
                 self.submodules += wishbone2axi, axi2wishbone
 
                 sram = wishbone.SRAM(1024, init=[0x12345678, 0xa55aa55a])
@@ -179,6 +180,9 @@ class TestAXILite(unittest.TestCase):
         dut = DUT()
         run_simulation(dut, [generator(dut)])
         self.assertEqual(dut.errors, 0)
+
+    def test_wishbone2axilite2wishbone_dw64(self):
+        return self.test_wishbone2axilite2wishbone(data_width=64)
 
     def test_axilite2axi2mem(self):
         class DUT(Module):
