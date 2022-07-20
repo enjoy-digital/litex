@@ -52,7 +52,7 @@ sim: $(OBJS_SIM) | mkdir
 		$(INC_DIR) \
 		-Wno-BLKANDNBLK \
 		-Wno-WIDTH
-	make -j -C $(OBJ_DIR) -f Vsim.mk Vsim
+	make -j$(JOBS) -C $(OBJ_DIR) -f Vsim.mk Vsim
 
 .PHONY: modules
 modules:
