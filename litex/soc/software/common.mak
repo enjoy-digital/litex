@@ -54,7 +54,7 @@ INCLUDES = -I$(PICOLIBC_DIRECTORY)/newlib/libc/tinystdio \
            -I$(BUILDINC_DIRECTORY) \
            -I$(BUILDINC_DIRECTORY)/../libc \
            -I$(CPU_DIRECTORY)
-COMMONFLAGS = $(DEPFLAGS) -Os $(CPUFLAGS) -g3 -fomit-frame-pointer -Wall -fno-builtin -fno-stack-protector $(INCLUDES)
+COMMONFLAGS = $(DEPFLAGS) -Os $(CPUFLAGS) -g3 -fomit-frame-pointer -Wall -fno-builtin -fno-stack-protector -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 $(INCLUDES)
 ifneq ($(CPUFAMILY), arm)
 COMMONFLAGS += -fexceptions
 endif
