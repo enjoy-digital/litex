@@ -60,18 +60,21 @@ class F4PGAToolchain(GenericToolchain):
 
         return GenericToolchain.build(self, platform, fragment, **kwargs)
 
-    def build_io_contraints(self):
+    def build_io_constraints(self):
         # Generate design constraints
         tools.write_to_file(self._build_name + ".xdc", _build_xdc(self.named_sc, self.named_pc))
         return (self._build_name + ".xdc", "XDC")
 
-    def build_timing_constraints(self):
+    def build_timing_constraints(self, vns):
         self.platform.add_platform_command(_xdc_separator("Clock constraints"))
         for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
             self.platform.add_platform_command(
                 "create_clock -period " + str(period) +
                 " {clk}", clk=clk)
         return ("", "")
+
+    def build_script(self):
+        pass # Pass since unused (F4PGA uses static TCL script)
 
     def build_project(self):
         target = "bitstream"
@@ -110,12 +113,18 @@ class F4PGAToolchain(GenericToolchain):
         print("")
 
     def run_script(self, script):
+        if os.getenv("F4PGA_INSTALL_DIR", False) == False:
+            msg = "Unable to find F4PGA toolchain.\n"
+            msg += "Please set F4PGA_INSTALL_DIR environment variable "
+            msg += "to F4PGA's installation path.\n"
+            raise OSError(msg)
+
         try:
-            flow.execute()
+            self._flow.execute()
         except Exception as e:
             print(e)
 
-        flow.f4cache.save()
+        self._flow.f4cache.save()
 
     def add_false_path_constraint(self, platform, from_, to):
         # FIXME: false path constraints are currently not supported by the F4PGA toolchain
