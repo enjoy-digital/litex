@@ -130,7 +130,7 @@ def _generate_sim_config(config):
     tools.write_to_file("sim_config.js", content)
 
 
-def _build_sim(build_name, sources, threads, coverage, opt_level="O3", trace_fst=False):
+def _build_sim(build_name, sources, jobs, threads, coverage, opt_level="O3", trace_fst=False):
     makefile = os.path.join(core_directory, 'Makefile')
     cc_srcs = []
     for filename, language, library, *copy in sources:
@@ -140,6 +140,7 @@ rm -rf obj_dir/
 make -C . -f {} {} {} {} {} {}
 """.format(makefile,
     "CC_SRCS=\"{}\"".format("".join(cc_srcs)),
+    "JOBS={}".format(jobs) if jobs else "",
     "THREADS={}".format(threads) if int(threads) > 1 else "",
     "COVERAGE=1" if coverage else "",
     "OPT_LEVEL={}".format(opt_level),
@@ -188,6 +189,7 @@ class SimVerilatorToolchain:
             build            = True,
             run              = True,
             build_backend    = None,
+            jobs             = None,
             threads          = 1,
             verbose          = True,
             sim_config       = None,
@@ -237,7 +239,7 @@ class SimVerilatorToolchain:
                 _generate_sim_config(sim_config)
 
             # Build
-            _build_sim(build_name, platform.sources, threads, coverage, opt_level, trace_fst)
+            _build_sim(build_name, platform.sources, jobs, threads, coverage, opt_level, trace_fst)
 
         # Run
         if run:
@@ -263,7 +265,8 @@ class SimVerilatorToolchain:
 
 def verilator_build_args(parser):
     toolchain_group = parser.add_argument_group(title="Toolchain options")
-    toolchain_group.add_argument("--threads",      default=1,           help="Set number of threads.")
+    toolchain_group.add_argument("--jobs",         default=None,        help="Limit the number of compiler jobs.")
+    toolchain_group.add_argument("--threads",      default=1,           help="Set number of simulation threads.")
     toolchain_group.add_argument("--trace",        action="store_true", help="Enable Tracing.")
     toolchain_group.add_argument("--trace-fst",    action="store_true", help="Enable FST tracing.")
     toolchain_group.add_argument("--trace-start",  default="0",         help="Time to start tracing (ps).")
@@ -272,6 +275,7 @@ def verilator_build_args(parser):
 
 def verilator_build_argdict(args):
     return {
+        "jobs"     :    args.jobs,
         "threads"     : args.threads,
         "trace"       : args.trace,
         "trace_fst"   : args.trace_fst,
