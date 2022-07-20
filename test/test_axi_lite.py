@@ -184,12 +184,12 @@ class TestAXILite(unittest.TestCase):
     def test_wishbone2axilite2wishbone_dw64(self):
         return self.test_wishbone2axilite2wishbone(data_width=64)
 
-    def test_axilite2axi2mem(self):
+    def test_axilite2axi2mem(self, data_width=32, address_width=32):
         class DUT(Module):
             def __init__(self, mem_bus="wishbone"):
-                self.axi_lite = AXILiteInterface()
+                self.axi_lite = AXILiteInterface(data_width=data_width, address_width=address_width)
 
-                axi = AXIInterface()
+                axi = AXIInterface(data_width=data_width, address_width=address_width)
                 self.submodules.axil2axi = AXILite2AXI(self.axi_lite, axi)
 
                 interface_cls, converter_cls, sram_cls = {
@@ -197,25 +197,27 @@ class TestAXILite(unittest.TestCase):
                     "axi_lite": (AXILiteInterface,   AXI2AXILite,  AXILiteSRAM),
                 }[mem_bus]
 
-                bus_kwargs = {"adr_width" : 30} if mem_bus == "wishbone" else {}
+                bus_kwargs = {"data_width": data_width}
+                if mem_bus == "wishbone":
+                    bus_kwargs["adr_width"] = address_width - log2_int(data_width // 8)
                 bus = interface_cls(**bus_kwargs)
                 self.submodules += converter_cls(axi, bus)
-                sram = sram_cls(1024, init=[0x12345678, 0xa55aa55a])
+                sram = sram_cls(1024, init=[0x12345678, 0xa55aa55a], bus=bus)
                 self.submodules += sram
-                self.comb += bus.connect(sram.bus)
 
         def generator(axi_lite, datas, resps):
+            dw_bytes = data_width // 8
             data, resp = (yield from axi_lite.read(0x00))
             resps.append((resp, RESP_OKAY))
             datas.append((data, 0x12345678))
-            data, resp = (yield from axi_lite.read(0x04))
+            data, resp = (yield from axi_lite.read(dw_bytes * 1))
             resps.append((resp, RESP_OKAY))
             datas.append((data, 0xa55aa55a))
             for i in range(32):
-                resp = (yield from axi_lite.write(4*i, i))
+                resp = (yield from axi_lite.write(dw_bytes * i, i))
                 resps.append((resp, RESP_OKAY))
             for i in range(32):
-                data, resp = (yield from axi_lite.read(4*i))
+                data, resp = (yield from axi_lite.read(dw_bytes * i))
                 resps.append((resp, RESP_OKAY))
                 datas.append((data, i))
 
@@ -233,6 +235,9 @@ class TestAXILite(unittest.TestCase):
                 self.assertEqual(*actual_expected(resps))
                 msg = "\n".join("0x{:08x} vs 0x{:08x}".format(actual, expected) for actual, expected in datas)
                 self.assertEqual(*actual_expected(datas), msg="actual vs expected:\n" + msg)
+
+    def test_axilite2axi2mem_dw64(self):
+        return self.test_axilite2axi2mem(data_width=64)
 
     def test_axilite2csr(self):
         @passive
