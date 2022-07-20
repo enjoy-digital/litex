@@ -68,7 +68,7 @@ class OpenC906(CPU):
         self.reset        = Signal()
         self.interrupt    = Signal(240)
         self.axi_if       = axi.AXIInterface(data_width=64, address_width=40)
-        self.periph_buses = [self.axi_lite_if] # Peripheral buses (Connected to main SoC's bus).
+        self.periph_buses = [self.axi_if] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses = []                 # Memory buses (Connected directly to LiteDRAM).
 
         # # #
