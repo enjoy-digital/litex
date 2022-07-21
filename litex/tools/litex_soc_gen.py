@@ -4,6 +4,7 @@
 # This file is part of LiteX.
 #
 # Copyright (c) 2022 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2022 Joseph Wagane Faye <joseph-wagane.faye@insa-rennes.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 """
