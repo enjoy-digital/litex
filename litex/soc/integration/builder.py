@@ -73,6 +73,7 @@ class Builder:
         compile_software = True,
         compile_gateware = True,
         build_backend    = "litex",
+        lto              = False,
 
         # Exports.
         csr_json         = None,
@@ -99,6 +100,7 @@ class Builder:
         self.compile_software = compile_software
         self.compile_gateware = compile_gateware
         self.build_backend    = build_backend
+        self.lto              = lto
 
         # Exports.
         self.csr_csv  = csr_csv
@@ -159,7 +161,8 @@ class Builder:
         for name, src_dir in self.software_packages:
             define(name.upper() + "_DIRECTORY", src_dir)
 
-        # Define BIOS Options.
+        # Define Compile/BIOS Options.
+        define("LTO", f"{self.lto:d}")
         for bios_option in self.bios_options:
             assert bios_option in ["TERM_NO_HIST", "TERM_MINI", "TERM_NO_COMPLETE"]
             define(bios_option, "1")
@@ -389,6 +392,7 @@ def builder_args(parser):
     builder_group.add_argument("--no-compile",          action="store_true", help="Disable Software and Gateware compilation.")
     builder_group.add_argument("--no-compile-software", action="store_true", help="Disable Software compilation only.")
     builder_group.add_argument("--no-compile-gateware", action="store_true", help="Disable Gateware compilation only.")
+    builder_group.add_argument("--lto",                 action="store_true", help="Enable LTO (Link Time Optimization) for Software compilation.")
     builder_group.add_argument("--csr-csv",             default=None,        help="Write SoC mapping to the specified CSV file.")
     builder_group.add_argument("--csr-json",            default=None,        help="Write SoC mapping to the specified JSON file.")
     builder_group.add_argument("--csr-svd",             default=None,        help="Write SoC mapping to the specified SVD file.")
@@ -397,17 +401,18 @@ def builder_args(parser):
 
 def builder_argdict(args):
     return {
-        "output_dir":       args.output_dir,
-        "gateware_dir":     args.gateware_dir,
-        "software_dir":     args.software_dir,
-        "include_dir":      args.include_dir,
-        "generated_dir":    args.generated_dir,
-        "build_backend":    args.build_backend,
-        "compile_software": (not args.no_compile) and (not args.no_compile_software),
-        "compile_gateware": (not args.no_compile) and (not args.no_compile_gateware),
-        "csr_csv":          args.csr_csv,
-        "csr_json":         args.csr_json,
-        "csr_svd":          args.csr_svd,
-        "memory_x":         args.memory_x,
-        "generate_doc":     args.doc,
+        "output_dir"       : args.output_dir,
+        "gateware_dir"     : args.gateware_dir,
+        "software_dir"     : args.software_dir,
+        "include_dir"      : args.include_dir,
+        "generated_dir"    : args.generated_dir,
+        "build_backend"    : args.build_backend,
+        "compile_software" : (not args.no_compile) and (not args.no_compile_software),
+        "compile_gateware" : (not args.no_compile) and (not args.no_compile_gateware),
+        "lto"              : args.lto,
+        "csr_csv"          : args.csr_csv,
+        "csr_json"         : args.csr_json,
+        "csr_svd"          : args.csr_svd,
+        "memory_x"         : args.memory_x,
+        "generate_doc"     : args.doc,
     }
