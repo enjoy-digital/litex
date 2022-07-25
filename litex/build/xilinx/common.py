@@ -19,6 +19,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.build.io import *
 from litex.build import tools
+from litex.build.yosys_wrapper import YosysWrapper
 
 # Colorama -----------------------------------------------------------------------------------------
 
@@ -408,50 +409,44 @@ xilinx_us_special_overrides = {
 
 # Yosys Run ----------------------------------------------------------------------------------------
 
-def _run_yosys(device, sources, vincpaths, build_name):
-    ys_contents = ""
-    incflags = ""
-    for path in vincpaths:
-        incflags += " -I" + path
-    for filename, language, library, *copy in sources:
-        assert language != "vhdl"
-        ys_contents += "read_{}{} {}\n".format(language, incflags, filename)
+def _build_yosys_project(platform, synth_opts="", build_name=""):
+    family = ""
+    device = platform.device
+    if (device.startswith("xc7") or device.startswith("xa7") or device.startswith("xq7")):
+        family = "xc7"
+    elif (device.startswith("xc6s") or device.startswith("xa6s") or device.startswith("xq6s")):
+        family = "xc6s"
+    else:
+        raise OSError("Unsupported device")
 
-    ys_contents += """\
-hierarchy -top {build_name}
+    yosys_cmd = [
+        "hierarchy -top {build_name}",
+        "# FIXME: Are these needed?",
+        "# proc; memory; opt; fsm; opt",
+        "# Map keep to keep=1 for yosys",
+        "log",
+        "log XX. Converting (* keep = \"xxxx\" *) attribute for Yosys",
+        "log",
+        "attrmap -tocase keep -imap keep=\"true\" keep=1 -imap keep=\"false\" keep=0 -remove keep=0",
+        "select -list a:keep=1",
+        "# Add keep=1 for yosys to objects which have dont_touch=\"true\" attribute.",
+        "log",
+        "log XX. Converting (* dont_touch = \"true\" *) attribute for Yosys",
+        "log",
+        "select -list a:dont_touch=true",
+        "setattr -set keep 1 a:dont_touch=true",
+        "# Convert (* async_reg = \"true\" *) to async registers for Yosys.",
+        "# (* async_reg = \"true\", dont_touch = \"true\" *) reg xilinxmultiregimpl0_regs1 = 1'd0;",
+        "log",
+        "log XX. Converting (* async_reg = \"true\" *) attribute to async registers for Yosys",
+        "log",
+        "select -list a:async_reg=true",
+        "setattr -set keep 1 a:async_reg=true",
+    ]
 
-# FIXME: Are these needed?
-# proc; memory; opt; fsm; opt
-
-# Map keep to keep=1 for yosys
-log
-log XX. Converting (* keep = "xxxx" *) attribute for Yosys
-log
-attrmap -tocase keep -imap keep="true" keep=1 -imap keep="false" keep=0 -remove keep=0
-select -list a:keep=1
-
-# Add keep=1 for yosys to objects which have dont_touch="true" attribute.
-log
-log XX. Converting (* dont_touch = "true" *) attribute for Yosys
-log
-select -list a:dont_touch=true
-setattr -set keep 1 a:dont_touch=true
-
-# Convert (* async_reg = "true" *) to async registers for Yosys.
-# (* async_reg = "true", dont_touch = "true" *) reg xilinxmultiregimpl0_regs1 = 1'd0;
-log
-log XX. Converting (* async_reg = "true" *) attribute to async registers for Yosys
-log
-select -list a:async_reg=true
-setattr -set keep 1 a:async_reg=true
-
-synth_xilinx -top {build_name}
-
-write_edif -pvector bra -attrprop {build_name}.edif
-""".format(build_name=build_name)
-
-    ys_name = build_name + ".ys"
-    tools.write_to_file(ys_name, ys_contents)
-    r = subprocess.call(["yosys", ys_name])
-    if r != 0:
-        raise OSError("Subprocess failed")
+    yosys = YosysWrapper(platform, build_name,
+        target="xilinx",
+        template=[], yosys_cmds=yosys_cmd,
+        yosys_opts=f"-family {family}", synth_format="edif")
+    yosys.build_script()
+    return yosys.get_yosys_call("script")

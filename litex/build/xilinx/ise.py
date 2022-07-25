@@ -117,34 +117,6 @@ class XilinxISEToolchain(GenericToolchain):
             xst_contents += "}"
         tools.write_to_file(self._build_name + ".xst", xst_contents)
 
-    # Yosys Run ----------------------------------------------------------------------------------------
-
-    def _run_yosys(self):
-        device = self.platform.device
-        ys_contents = ""
-        incflags = ""
-        for path in self.platform.verilog_include_paths:
-            incflags += " -I" + path
-        for filename, language, library, *copy in self.platform.sources:
-            ys_contents += "read_{}{} {}\n".format(language, incflags, filename)
-
-        family = ""
-        if (device.startswith("xc7") or device.startswith("xa7") or device.startswith("xq7")):
-            family = "xc7"
-        elif (device.startswith("xc6s") or device.startswith("xa6s") or device.startswith("xq6s")):
-            family = "xc6s"
-        else:
-            raise OSError("Unsupported device")
-
-        ys_contents += """hierarchy -top {build_name}
-    synth_xilinx -top {build_name} -family {family} -ise
-    write_edif -pvector bra {build_name}.edif""".format(build_name=self._build_name, family=family)
-
-        ys_name = self._build_name + ".ys"
-        tools.write_to_file(ys_name, ys_contents)
-        r = subprocess.call(["yosys", ys_name])
-        if r != 0:
-            raise OSError("Subprocess failed")
 
     # ISE Run ------------------------------------------------------------------------------------------
 
@@ -161,6 +133,8 @@ class XilinxISEToolchain(GenericToolchain):
             if os.getenv("LITEX_ENV_ISE", False):
                 build_script_contents += "source " + os.path.join(os.getenv("LITEX_ENV_ISE"), "settings64.sh\n")
             fail_stmt = ""
+        if self._mode == "yosys":
+            build_script_contents += common._build_yosys_project(self.platform, "-ise ", self._build_name) + fail_stmt
         if self._isemode == "edif":
             ext = "ngo"
             build_script_contents += """
@@ -202,9 +176,6 @@ bitgen {bitgen_opt} {build_name}.ncd {build_name}.bit{fail_stmt}
         return build_script_file
 
     def run_script(self, script):
-
-        if self._mode == "yosys":
-            self._run_yosys()
 
         if self._mode == "edif":
            # Generate edif
