@@ -335,3 +335,86 @@ class TestAXI(unittest.TestCase):
             r_valid_random  = 90,
             r_ready_random  = 90
         )
+
+    def test_axi_width_converter(self):
+        class DUT(Module):
+            def __init__(self, dw_from=64, dw_to=32):
+                self.axi_master = axi_master = AXIInterface(data_width=dw_from)
+                self.axi_slave = axi_slave = AXIInterface(data_width=dw_to)
+                converter = AXIConverter(axi_master, axi_slave)
+                self.submodules += converter
+                wb = wishbone.Interface(data_width=dw_to,
+                                        adr_width=axi_slave.address_width - log2_int(axi_slave.data_width // 8))
+                axi2wb = AXI2Wishbone(axi_slave, wb)
+                self.submodules += axi2wb
+                self.mem = mem = wishbone.SRAM(1024, bus=wb, init=range(256))
+                self.submodules += mem
+
+        class DUT_ref(Module):
+            """
+            An alternative configuration to the DUT above not using AXIConverter
+            to demonstrate that the generators below are valid.
+            Not used by default.
+            """
+            def __init__(self, dw_from=64, dw_to=32):
+                self.axi_master = axi_master = AXIInterface(data_width=dw_from)
+                wb_from = wishbone.Interface(data_width=dw_from,
+                                             adr_width=axi_master.address_width - log2_int(axi_master.data_width // 8))
+                axi2wb = AXI2Wishbone(axi_master, wb_from)
+                self.submodules += axi2wb
+                wb_to = wishbone.Interface(data_width=dw_to,
+                                           adr_width=wb_from.adr_width - log2_int(wb_from.data_width // dw_to))
+                wb2wb = wishbone.Converter(wb_from, wb_to)
+                self.submodules += wb2wb
+                self.mem = mem = wishbone.SRAM(1024, bus=wb_to, init=range(256))
+                self.submodules += mem
+
+        def generator_rd(dut):
+            axi_port = dut.axi_master
+            addr = 0x34
+            yield axi_port.ar.addr.eq(addr * dut.mem.bus.data_width // 8)
+            yield axi_port.ar.valid.eq(1)
+            yield axi_port.ar.burst.eq(0)
+            yield axi_port.ar.len.eq(0)
+            yield axi_port.ar.size.eq(log2_int(axi_port.data_width // 8))
+            yield axi_port.r.ready.eq(1)
+            yield
+            while (yield axi_port.r.valid) == 0:
+                yield
+            rd = (yield axi_port.r.data)
+            mem_content = 0
+            i = 0
+            while i < axi_port.data_width // dut.mem.bus.data_width:
+                mem_content |= (yield dut.mem.mem[addr + i]) << (i * dut.mem.bus.data_width)
+                i += 1
+            assert rd == mem_content, (hex(rd), hex(mem_content))
+
+        def generator_wr(dut):
+            axi_port = dut.axi_master
+            addr = 0x24
+            data = 0x98761244
+            yield axi_port.aw.addr.eq(addr * 4)
+            yield axi_port.aw.valid.eq(1)
+            yield axi_port.aw.burst.eq(0)
+            yield axi_port.aw.len.eq(0)
+            yield axi_port.aw.size.eq(log2_int(axi_port.data_width // 8))
+            yield axi_port.w.strb.eq(2**(len(axi_port.w.data)//8) - 1)
+            yield axi_port.w.data.eq(data)
+            yield axi_port.w.valid.eq(1)
+            yield axi_port.w.last.eq(1)
+            yield
+            while (yield axi_port.aw.ready) == 0:
+                yield
+            yield axi_port.aw.valid.eq(0)
+            while (yield axi_port.w.ready) == 0:
+                yield
+            yield axi_port.w.valid.eq(0)
+            mem_content = 0
+            i = 0
+            while i < axi_port.data_width // dut.mem.bus.data_width:
+                mem_content |= (yield dut.mem.mem[addr + i]) << (i * dut.mem.bus.data_width)
+                i += 1
+            assert data == mem_content, (hex(data), hex(mem_content))
+
+        dut = DUT(64, 32)
+        run_simulation(dut, [generator_rd(dut), generator_wr(dut)])
