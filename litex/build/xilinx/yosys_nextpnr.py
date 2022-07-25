@@ -74,17 +74,6 @@ class _MakefileGenerator:
         return "\n".join(makefile)
 
 
-def _run_make():
-    make_cmd = ["make", "-j1"]
-
-    if which("nextpnr-xilinx") is None:
-        msg = "Unable to find Yosys+Nextpnr toolchain, please:\n"
-        msg += "- Add Yosys and Nextpnr tools to your $PATH."
-        raise OSError(msg)
-
-    if tools.subprocess_call_filtered(make_cmd, common.colors) != 0:
-        raise OSError("Error occured during yosys or nextpnr script execution.")
-
 # YosysNextpnrToolchain -------------------------------------------------------------------------------
 
 class YosysNextpnrToolchain(GenericToolchain):
@@ -183,6 +172,17 @@ class YosysNextpnrToolchain(GenericToolchain):
 
         tools.write_to_file("Makefile", makefile.generate())
         return "Makefile"
+
+    def run_script(self, script):
+        make_cmd = ["make", "-j1"]
+
+        if which("nextpnr-xilinx") is None:
+            msg = "Unable to find Yosys+Nextpnr toolchain, please:\n"
+            msg += "- Add Yosys and Nextpnr tools to your $PATH."
+            raise OSError(msg)
+
+        if tools.subprocess_call_filtered(make_cmd, common.colors) != 0:
+            raise OSError("Error occured during yosys or nextpnr script execution.")
 
     def build_timing_constraints(self, vns):
         self.platform.add_platform_command(_xdc_separator("Clock constraints"))
