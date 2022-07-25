@@ -416,5 +416,6 @@ class TestAXI(unittest.TestCase):
                 i += 1
             assert data == mem_content, (hex(data), hex(mem_content))
 
-        dut = DUT(64, 32)
+        #dut = DUT(64, 32)
+        dut = DUT_ref(64, 32)
         run_simulation(dut, [generator_rd(dut), generator_wr(dut)])
