@@ -149,5 +149,5 @@ class GowinToolchain(GenericToolchain):
         # Copy Bitstream to from impl to gateware directory.
         copyfile(
             os.path.join("impl", "pnr", "project.fs"),
-            os.path.join(build_name + ".fs")
+            os.path.join(self._build_name + ".fs")
         )
