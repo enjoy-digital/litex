@@ -23,6 +23,7 @@ from litex.build.generic_platform import *
 from litex.build import tools
 from litex.build.lattice import common
 from litex.build.generic_toolchain import GenericToolchain
+from litex.build.yosys_wrapper import YosysWrapper
 
 # Required by oxide too (FIXME)
 def _format_constraint(c):
@@ -82,6 +83,7 @@ class LatticeRadiantToolchain(GenericToolchain):
 
         self._timingstrict = False
         self._synth_mode   = "radiant"
+        self._yosys        = None
 
     def build(self, platform, fragment,
         timingstrict   = False,
@@ -95,53 +97,33 @@ class LatticeRadiantToolchain(GenericToolchain):
 
     # Mixed Radiant+Yosys support ------------------------------------------------------------------
 
-    def _run_yosys(self):
-        ys_contents = ""
-        incflags = ""
-        for path in self.platform.verilog_include_paths:
-            incflags += " -I" + path
-        for filename, language, library, *copy in self.platform.sources:
-            assert language != "vhdl"
-            ys_contents += "read_{}{} {}\n".format(language, incflags, filename)
+    def finalize(self):
+        if self._synth_mode != "yosys":
+            return
 
-        ys_contents += """\
-hierarchy -top {build_name}
+        yosys_cmds = [
+            "hierarchy -top {build_name}",
+            "select -list a:keep=1",
+            "# Add keep=1 for yosys to objects which have dont_touch=\"true\" attribute.",
+            "log",
+            "log XX. Converting (* dont_touch = \"true\" *) attribute for Yosys",
+            "log",
+            "select -list a:dont_touch=true",
+            "setattr -set keep 1 a:dont_touch=true",
+            "",
+            "# Convert (* async_reg = \"true\" *) to async registers for Yosys.",
+            "# (* async_reg = \"true\", dont_touch = \"true\" *) reg xilinxmultiregimpl0_regs1 = 1'd0;",
+            "log",
+            "log XX. Converting (* async_reg = \"true\" *) attribute to async registers for Yosys",
+            "log",
+            "select -list a:async_reg=true",
+            "setattr -set keep 1 a:async_reg=true",
+        ]
 
-# Map keep to keep=1 for yosys
-log
-log XX. Converting (* keep = "xxxx" *) attribute for Yosys
-log
-attrmap -tocase keep -imap keep="true" keep=1 -imap keep="false" keep=0 -remove keep=0
-select -list a:keep=1
-
-# Add keep=1 for yosys to objects which have dont_touch="true" attribute.
-log
-log XX. Converting (* dont_touch = "true" *) attribute for Yosys
-log
-select -list a:dont_touch=true
-setattr -set keep 1 a:dont_touch=true
-
-# Convert (* async_reg = "true" *) to async registers for Yosys.
-# (* async_reg = "true", dont_touch = "true" *) reg xilinxmultiregimpl0_regs1 = 1'd0;
-log
-log XX. Converting (* async_reg = "true" *) attribute to async registers for Yosys
-log
-select -list a:async_reg=true
-setattr -set keep 1 a:async_reg=true
-
-synth_nexus -top {build_name} -vm {build_name}_yosys.vm
-""".format(build_name=self._build_name)
-
-        ys_name = self._build_name + ".ys"
-        tools.write_to_file(ys_name, ys_contents)
-
-        if which("yosys") is None:
-            msg = "Unable to find Yosys toolchain, please:\n"
-            msg += "- Add Yosys toolchain to your $PATH."
-            raise OSError(msg)
-
-        if subprocess.call(["yosys", ys_name]) != 0:
-            raise OSError("Subprocess failed")
+        self._yosys = YosysWrapper(self.platform, self._build_name,
+                output_name=self._build_name+"_yosys", target="nexus",
+                template=[], yosys_cmds=yosys_cmds,
+                yosys_opts=self._synth_opts, synth_format="vm")
 
     # Constraints (.ldc) ---------------------------------------------------------------------------
 
@@ -152,6 +134,8 @@ synth_nexus -top {build_name} -vm {build_name}_yosys.vm
     # Project (.tcl) -------------------------------------------------------------------------------
 
     def build_project(self):
+        if self._synth_mode == "yosys":
+            self._yosys.build_script()
         pdc_file = os.path.join(self._build_dir, self._build_name + ".pdc")
         tcl = []
         # Create project
@@ -218,6 +202,9 @@ synth_nexus -top {build_name} -vm {build_name}_yosys.vm
             copy_stmt = "cp"
             fail_stmt = ""
 
+        if self._synth_mode == "yosys":
+            script_contents += self._yosys.get_yosys_call(target="script")
+
         script_contents += "{tool} {tcl_script}{fail_stmt}\n".format(
             tool = tool,
             tcl_script = self._build_name + ".tcl",
@@ -234,9 +221,6 @@ synth_nexus -top {build_name} -vm {build_name}_yosys.vm
         return build_script_file
 
     def run_script(self, script):
-        if self._synth_mode == "yosys":
-            self._run_yosys()
-
         if sys.platform in ("win32", "cygwin"):
             shell = ["cmd", "/c"]
             tool  = "pnmainc"
@@ -247,6 +231,11 @@ synth_nexus -top {build_name} -vm {build_name}_yosys.vm
         if which(tool) is None:
             msg = "Unable to find Radiant toolchain, please:\n"
             msg += "- Add Radiant toolchain to your $PATH."
+            raise OSError(msg)
+
+        if self._synth_mode == "yosys" and which("yosys") is None:
+            msg = "Unable to find Yosys toolchain, please:\n"
+            msg += "- Add Yosys toolchain to your $PATH."
             raise OSError(msg)
 
         if subprocess.call(shell + [script]) != 0:
