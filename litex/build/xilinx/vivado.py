@@ -348,7 +348,9 @@ class XilinxVivadoToolchain(GenericToolchain):
                 script_contents += "source " + os.path.join(os.getenv("LITEX_ENV_VIVADO"), "settings64.sh\n")
             script_ext = "sh"
 
-        #script_contents += common._build_yosys_project(platform=self.platform, build_name=self._build_name) # FIXME.
+        if self._synth_mode == "yosys":
+            script_contents += common._build_yosys_project(platform=self.platform, build_name=self._build_name)
+
         script_contents += "vivado -mode batch -source " + self._build_name + ".tcl\n"
         script_file     = "build_" + self._build_name + "." + script_ext
         tools.write_to_file(script_file, script_contents)
