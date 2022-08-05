@@ -137,7 +137,7 @@ def _build_sim(build_name, sources, jobs, threads, coverage, opt_level="O3", tra
         cc_srcs.append("--cc " + filename + " ")
     build_script_contents = """\
 rm -rf obj_dir/
-make -C . -f {} {} {} {} {} {}
+make -C . -f {} {} {} {} {} {} {}
 """.format(makefile,
     "CC_SRCS=\"{}\"".format("".join(cc_srcs)),
     "JOBS={}".format(jobs) if jobs else "",
