@@ -255,7 +255,7 @@ def run_gui(host, csr_csv, port):
             vccaux  = gen_xadc_data(get_xadc_vccaux,  n=xadc_points)
             vccbram = gen_xadc_data(get_xadc_vccbram, n=xadc_points)
 
-        while True:
+        while dpg.is_dearpygui_running():
             # CSR Update.
             for name, reg in bus.regs.__dict__.items():
                 value = reg.read()
@@ -282,8 +282,11 @@ def run_gui(host, csr_csv, port):
     timer_thread.start()
 
     dpg.show_viewport()
-    dpg.start_dearpygui()
-    dpg.destroy_context()
+    try:
+        while dpg.is_dearpygui_running():
+            dpg.render_dearpygui_frame()
+    except KeyboardInterrupt:
+        dpg.destroy_context()
 
     bus.close()
 
