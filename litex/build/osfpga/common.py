@@ -9,6 +9,6 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.build.io import *
 
-# OS-FPGA Special Overrides --------------------------------------------------------------------------
+# OS-FPGA Special Overrides ------------------------------------------------------------------------
 
 osfpga_special_overrides = {}

@@ -16,7 +16,7 @@ from litex.build.generic_toolchain import GenericToolchain
 from litex.build.generic_platform import *
 from litex.build import tools
 
-# OSFPGAToolchain -----------------------------------------------------------------------------------
+# OSFPGAToolchain ----------------------------------------------------------------------------------
 
 class OSFPGAToolchain(GenericToolchain):
     attr_translate = {}

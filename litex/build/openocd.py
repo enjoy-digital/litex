@@ -9,6 +9,7 @@
 from litex.build.tools import write_to_file
 from litex.build.generic_programmer import GenericProgrammer
 
+# OpenOCD ------------------------------------------------------------------------------------------
 
 class OpenOCD(GenericProgrammer):
     needs_bitreverse = False

@@ -4,19 +4,25 @@
 # Copyright (c) 2022 Gwenhael Goavec-Merou <gwenhael.goavec-merou@trabucayre.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
-
-#from litex.build import *
 from litex.build import tools
 
+# NextPNR Wrapper ----------------------------------------------------------------------------------
 
 class NextPNRWrapper():
     """
     NextPNRWrapper NexPNR wrapper
     """
 
-    def __init__(self, family="", architecture="", package="", build_name="",
-            in_format="", out_format="", constr_format="",
-            pnr_opts="", **kwargs):
+    def __init__(self,
+        family        = "",
+        architecture  = "",
+        package       = "",
+        build_name    = "",
+        in_format     = "",
+        out_format    = "",
+        constr_format = "",
+        pnr_opts      = "",
+        **kwargs)     :
         """
         Parameters
         ==========
@@ -39,15 +45,15 @@ class NextPNRWrapper():
         kwargs: dict
             alternate options key/value
         """
-        self.name = f"nextpnr-{family}"
-        self._target = family
-        self._build_name = build_name
-        self._in_format = in_format
-        self._out_format = out_format
+        self.name           = f"nextpnr-{family}"
+        self._target        = family
+        self._build_name    = build_name
+        self._in_format     = in_format
+        self._out_format    = out_format
         self._constr_format = constr_format
-        self._pnr_opts = pnr_opts + " "
-        self._pnr_opts += f"--{architecture} " if architecture != "" else ""
-        self._pnr_opts += f"--package {package} " if package != "" else ""
+        self._pnr_opts      = pnr_opts + " "
+        self._pnr_opts     += f"--{architecture} " if architecture != "" else ""
+        self._pnr_opts     += f"--package {package} " if package != "" else ""
         for key,value in kwargs.items():
             key = key.replace("_","-")
             if isinstance(value, bool):
@@ -72,13 +78,14 @@ class NextPNRWrapper():
             " {build_name}.{constr_fmt}" + \
             " --{out_fmt} {build_name}.{out_ext} {pnr_opts}\n"
         base_cmd = cmd.format(
-                pnr_name=self.name,
-                build_name=self._build_name,
-                in_fmt=self._in_format,
-                out_fmt="textcfg" if self._out_format == "config" else self._out_format,
-                out_ext=self._out_format,
-                constr_fmt=self._constr_format,
-                pnr_opts=self._pnr_opts)
+            pnr_name   = self.name,
+            build_name = self._build_name,
+            in_fmt     = self._in_format,
+            out_fmt    = "textcfg" if self._out_format == "config" else self._out_format,
+            out_ext    = self._out_format,
+            constr_fmt = self._constr_format,
+            pnr_opts   = self._pnr_opts
+        )
         if target == "makefile":
             return f"{self._build_name}.{self._out_format}:\n\t" + base_cmd
         elif target == "script":

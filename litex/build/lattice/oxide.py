@@ -22,7 +22,7 @@ from litex.build.yosys_nextpnr_toolchain import YosysNextPNRToolchain
 import math
 
 
-# LatticeOxideToolchain --------------------------------------------------------------------------
+# LatticeOxideToolchain ----------------------------------------------------------------------------
 
 class LatticeOxideToolchain(YosysNextPNRToolchain):
     attr_translate = {

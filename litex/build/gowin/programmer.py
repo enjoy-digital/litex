@@ -11,7 +11,7 @@ from shutil import which
 from litex.build.generic_programmer import GenericProgrammer
 from litex.build import tools
 
-# GowinProgrammer --------------------------------------------------------------------------------
+# GowinProgrammer ----------------------------------------------------------------------------------
 
 GOWIN_PMODE_SRAM = 4
 GOWIN_PMODE_EMBFLASH = 5

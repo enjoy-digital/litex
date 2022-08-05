@@ -22,7 +22,7 @@ from litex.build.generic_platform import *
 from litex.build import tools
 from litex.build.xilinx import common
 
-# XilinxISEToolchain --------------------------------------------------------------------------------
+# XilinxISEToolchain -------------------------------------------------------------------------------
 
 class XilinxISEToolchain(GenericToolchain):
     attr_translate = {
@@ -37,14 +37,14 @@ class XilinxISEToolchain(GenericToolchain):
 
     def __init__(self):
         super().__init__()
-        self.xst_opt = "-ifmt MIXED\n-use_new_parser yes\n-opt_mode SPEED\n-register_balancing yes"
-        self.map_opt = "-ol high -w"
-        self.par_opt = "-ol high -w"
+        self.xst_opt      = "-ifmt MIXED\n-use_new_parser yes\n-opt_mode SPEED\n-register_balancing yes"
+        self.map_opt      = "-ol high -w"
+        self.par_opt      = "-ol high -w"
         self.ngdbuild_opt = ""
         self.bitgen_opt   = "-g Binary:Yes -w"
         self.ise_commands = ""
-        self._mode         = "xst"
-        self._isemode      = "xst"
+        self._mode        = "xst"
+        self._isemode     = "xst"
 
     def build(self, platform, fragment,
         mode           = "xst",
@@ -56,7 +56,7 @@ class XilinxISEToolchain(GenericToolchain):
 
         return GenericToolchain.build(self, platform, fragment, **kwargs)
 
-    # Constraints (.ucf) -------------------------------------------------------------------------------
+    # Constraints (.ucf) ---------------------------------------------------------------------------
 
     @classmethod
     def _format_constraint(cls, c):
@@ -118,7 +118,7 @@ class XilinxISEToolchain(GenericToolchain):
         tools.write_to_file(self._build_name + ".xst", xst_contents)
 
 
-    # ISE Run ------------------------------------------------------------------------------------------
+    # ISE Run --------------------------------------------------------------------------------------
 
     def build_script(self):
         if sys.platform == "win32" or sys.platform == "cygwin":
@@ -176,7 +176,6 @@ bitgen {bitgen_opt} {build_name}.ncd {build_name}.bit{fail_stmt}
         return build_script_file
 
     def run_script(self, script):
-
         if self._mode == "edif":
            # Generate edif
            e_output = self.platform.get_edif(self._fragment)

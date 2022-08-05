@@ -5,13 +5,13 @@
 # Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-
 import os
 import sys
 import subprocess
 
 from litex.build import tools
 
+# Generic Programmer -------------------------------------------------------------------------------
 
 class GenericProgrammer:
     def __init__(self, flash_proxy_basename=None):

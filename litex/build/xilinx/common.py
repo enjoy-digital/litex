@@ -445,8 +445,11 @@ def _build_yosys_project(platform, synth_opts="", build_name=""):
     ]
 
     yosys = YosysWrapper(platform, build_name,
-        target="xilinx",
-        template=[], yosys_cmds=yosys_cmd,
-        yosys_opts=f"-family {family}", synth_format="edif")
+        target       = "xilinx",
+        template     = [],
+        yosys_cmds   = yosys_cmd,
+        yosys_opts   = f"-family {family}",
+        synth_format = "edif"
+    )
     yosys.build_script()
     return yosys.get_yosys_call("script")

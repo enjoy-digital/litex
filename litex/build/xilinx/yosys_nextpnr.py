@@ -28,18 +28,10 @@ def _unwrap(value):
     return value.value if isinstance(value, Constant) else value
 
 
-# YosysNextpnrToolchain -------------------------------------------------------------------------------
+# YosysNextpnrToolchain ----------------------------------------------------------------------------
 
 class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
-    attr_translate = {
-        #"keep":            ("dont_touch", "true"),
-        #"no_retiming":     ("dont_touch", "true"),
-        #"async_reg":       ("async_reg",  "true"),
-        #"mr_ff":           ("mr_ff",      "true"), # user-defined attribute
-        #"ars_ff1":         ("ars_ff1",    "true"), # user-defined attribute
-        #"ars_ff2":         ("ars_ff2",    "true"), # user-defined attribute
-        #"no_shreg_extract": None
-    }
+    attr_translate = {}
 
     family     = "xilinx"
     synth_fmt  = "json"

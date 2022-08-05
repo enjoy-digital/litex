@@ -4,20 +4,23 @@
 # Copyright (c) 2022 Gwenhael Goavec-Merou <gwenhael.goavec-merou@trabucayre.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
-
 from litex.build import tools
 
+# YosysWrapper -------------------------------------------------------------------------------------
 
 class YosysWrapper():
     """
     YosysWrapper synthesis wrapper
     """
 
-    def __init__(self, platform, build_name, target="", output_name="",
-            template=[], yosys_opts="",
-            yosys_cmds=[],
-            synth_format="json",
-            **kwargs):
+    def __init__(self, platform, build_name,
+        target       = "",
+        output_name  = "",
+        template     = [],
+        yosys_opts   = "",
+        yosys_cmds   = [],
+        synth_format = "json",
+        **kwargs)    :
         """
         Parameters
         ==========
@@ -41,21 +44,21 @@ class YosysWrapper():
             list of key/value for yosys_opts [optional]
         """
 
-        assert platform != ""
-        assert build_name != ""
-        assert target != ""
+        assert platform     != ""
+        assert build_name   != ""
+        assert target       != ""
         assert synth_format != ""
 
-        self._template = self._default_template if template == [] else template
+        self._template    = self._default_template if template == [] else template
         self._output_name = build_name if output_name == "" else output_name
 
-        self._platform = platform
-        self._build_name = build_name
+        self._platform     = platform
+        self._build_name   = build_name
         self._synth_format = synth_format
-        self._yosys_opts = yosys_opts
-        self._yosys_cmds = yosys_cmds
+        self._yosys_opts   = yosys_opts
+        self._yosys_cmds   = yosys_cmds
 
-        self._target=target
+        self._target = target
 
         for key,value in kwargs.items():
             key = key.replace("_","-")

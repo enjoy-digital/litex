@@ -24,7 +24,7 @@ class LatticeProgrammer(GenericProgrammer):
         tools.write_to_file(xcf_file, xcf_content)
         self.call(["pgrcmd", "-infile", xcf_file], check=False)
 
-# OpenOCDJTAGProgrammer --------------------------------------------------------------------------------
+# OpenOCDJTAGProgrammer ----------------------------------------------------------------------------
 
 class OpenOCDJTAGProgrammer(GenericProgrammer):
     def __init__(self, config, flash_proxy_basename=None):
@@ -159,7 +159,7 @@ class UJProg(GenericProgrammer):
     def load_bitstream(self, bitstream_file):
         self.call(["ujprog", bitstream_file])
 
-# EcpDapProgrammer -------------------------------------------------------------------------------
+# EcpDapProgrammer ---------------------------------------------------------------------------------
 
 class EcpDapProgrammer(GenericProgrammer):
     """ECPDAP allows you to program ECP5 FPGAs and attached SPI flash using CMSIS-DAP probes in JTAG mode.

@@ -57,7 +57,7 @@ class EfinityToolchain(GenericToolchain):
 
         return GenericToolchain.build(self, platform, fragment, **kwargs)
 
-    # Timing Constraints (.sdc) ------------------------------------------------------------------------
+    # Timing Constraints (.sdc) --------------------------------------------------------------------
 
     def build_timing_constraints(self, vns):
         sdc = []
@@ -87,7 +87,7 @@ class EfinityToolchain(GenericToolchain):
         tools.write_to_file("{}.sdc".format(self._build_name), "\n".join(sdc))
         return (self._build_name + ".sdc", "SDC")
 
-    # Peripheral configuration (.xml) ------------------------------------------------------------------
+    # Peripheral configuration (.xml) --------------------------------------------------------------
 
     def get_pin_direction(self, pinname):
         pins = self.platform.constraint_manager.get_io_signals()
@@ -219,7 +219,7 @@ class EfinityToolchain(GenericToolchain):
 
 
 
-    # Project configuration (.xml) ---------------------------------------------------------------------
+    # Project configuration (.xml) -----------------------------------------------------------------
 
     def build_project(self):
         now  = datetime.datetime.now()

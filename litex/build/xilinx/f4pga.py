@@ -26,8 +26,8 @@ except ModuleNotFoundError as e:
 F4CACHEPATH = '.f4cache'
 
 
-# F4PGAToolchain -------------------------------------------------------------------------------
-# Formerly SymbiflowToolchain, Symbiflow has been renamed to F4PGA -----------------------------
+# F4PGAToolchain -----------------------------------------------------------------------------------
+# Formerly SymbiflowToolchain, Symbiflow has been renamed to F4PGA ---------------------------------
 
 class F4PGAToolchain(GenericToolchain):
     attr_translate = {

@@ -18,8 +18,8 @@ from litex.build import tools
 from litex.build.quicklogic import common
 
 
-# F4PGAToolchain -------------------------------------------------------------------------------
-# Formerly SymbiflowToolchain, Symbiflow has been renamed to F4PGA -----------------------------
+# F4PGAToolchain -----------------------------------------------------------------------------------
+# Formerly SymbiflowToolchain, Symbiflow has been renamed to F4PGA ---------------------------------
 
 class F4PGAToolchain(GenericToolchain):
     attr_translate = {}
