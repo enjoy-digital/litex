@@ -154,17 +154,47 @@ def run_gui(host, csr_csv, port):
     bus = RemoteClient(host, csr_csv=csr_csv, port=port)
     bus.open()
 
-    def reboot_callback():
+    # Board capabilities.
+    # -------------------
+    with_xadc = hasattr(bus.regs, "xadc_temperature")
+
+    # Board functions.
+    # ----------------
+    def reboot():
         bus.regs.ctrl_reset.write(1)
         bus.regs.ctrl_reset.write(0)
 
+    if with_xadc:
+        def get_xadc_temp():
+            return bus.regs.xadc_temperature.read()*503.975/4096 - 273.15
+
+        def get_xadc_vccint():
+            return bus.regs.xadc_vccint.read()*3/4096
+
+        def get_xadc_vccaux():
+            return bus.regs.xadc_vccaux.read()*3/4096
+
+        def get_xadc_vccbram():
+            return bus.regs.xadc_vccbram.read()*3/4096
+
+        def gen_xadc_data(get_cls, n):
+            xadc_data = [get_cls()]*n
+            while True:
+                xadc_data.pop(-1)
+                xadc_data.insert(0, get_cls())
+                yield xadc_data
+
+    # Create Main Window.
+    # -------------------
     dpg.create_context()
-    dpg.create_viewport(title="LiteX CLI GUI", max_width=800, always_on_top=True)
+    dpg.create_viewport(title="LiteX CLI GUI", always_on_top=True)
     dpg.setup_dearpygui()
 
-    with dpg.window(autosize=True):
+    # Create CSR Window.
+    # ------------------
+    with dpg.window(label="FPGA CSR Registers", autosize=True):
         dpg.add_text("Control/Status")
-        dpg.add_button(label="Reboot", callback=reboot_callback)
+        dpg.add_button(label="Reboot", callback=reboot)
         def filter_callback(sender, filter_str):
             dpg.set_value("csr_filter", filter_str)
         dpg.add_input_text(label="CSR Filter (inc, -exc)", callback=filter_callback)
@@ -182,17 +212,70 @@ def run_gui(host, csr_csv, port):
                     indent     = 16,
                     label      = f"0x{reg.addr:08x} - {name}",
                     tag        = name,
-                    filter_key =name,
+                    filter_key = name,
                     callback   = reg_callback,
                     on_enter   = True,
                     width      = 200
                 )
 
-    def timer_callback(refresh=1e-1):
+    # Create XADC Window.
+    # -------------------
+    if with_xadc:
+        with dpg.window(label="FPGA XADC", width=600, height=600, pos=(600, 0)):
+            with dpg.subplots(2, 2, label="", width=-1, height=-1) as subplot_id:
+                # Temperature.
+                with dpg.plot(label=f"Temperature (°C)"):
+                    dpg.add_plot_axis(dpg.mvXAxis,  tag="temp_x")
+                    with dpg.plot_axis(dpg.mvYAxis, tag="temp_y"):
+                        dpg.add_line_series([], [], label="temp", tag="temp")
+                    dpg.set_axis_limits("temp_y", 0, 100)
+                # VCCInt.
+                with dpg.plot(label=f"VCCInt (V)"):
+                    dpg.add_plot_axis(dpg.mvXAxis,  tag="vccint_x")
+                    with dpg.plot_axis(dpg.mvYAxis, tag="vccint_y"):
+                        dpg.add_line_series([], [], label="vccint", tag="vccint")
+                    dpg.set_axis_limits("vccint_y", 0, 1.8)
+                # VCCAux.
+                with dpg.plot(label=f"VCCAux (V)"):
+                    dpg.add_plot_axis(dpg.mvXAxis,  tag="vccaux_x")
+                    with dpg.plot_axis(dpg.mvYAxis, tag="vccaux_y"):
+                        dpg.add_line_series([], [], label="vcaux", tag="vccaux")
+                    dpg.set_axis_limits("vccaux_y", 0, 2.5)
+                # VCCBRAM.
+                with dpg.plot(label=f"VCCBRAM (V)"):
+                    dpg.add_plot_axis(dpg.mvXAxis,  tag="vccbram_x")
+                    with dpg.plot_axis(dpg.mvYAxis, tag="vccbram_y"):
+                        dpg.add_line_series([], [], label="vccbram", tag="vccbram")
+                    dpg.set_axis_limits("vccbram_y", 0, 1.8)
+
+    def timer_callback(refresh=1e-1, xadc_points=100):
+        if with_xadc:
+            temp    = gen_xadc_data(get_xadc_temp,    n=xadc_points)
+            vccint  = gen_xadc_data(get_xadc_vccint,  n=xadc_points)
+            vccaux  = gen_xadc_data(get_xadc_vccaux,  n=xadc_points)
+            vccbram = gen_xadc_data(get_xadc_vccbram, n=xadc_points)
+
         while True:
+            # CSR Update.
             for name, reg in bus.regs.__dict__.items():
                 value = reg.read()
                 dpg.set_value(item=name, value=f"0x{reg.read():x}")
+
+            # XADC Update.
+            if with_xadc:
+                for name, gen in [
+                    ("temp",      temp),
+                    ("vccint",   vccint),
+                    ("vccbram", vccbram),
+                    ("vccaux",   vccaux),
+                    ("vccint",   vccint),
+                ]:
+                    datay = next(gen)
+                    datax = list(range(len(datay)))
+                    dpg.set_value(name, [datax, datay])
+                    dpg.set_item_label(name, name)
+                    dpg.set_axis_limits_auto(f"{name}_x")
+                    dpg.fit_axis_data(f"{name}_x")
             time.sleep(refresh)
 
     timer_thread = threading.Thread(target=timer_callback)
