@@ -1906,7 +1906,7 @@ class LiteXSoC(SoC):
         if "write" in mode:
             self.comb += self.sata_irq.mem2sector_dma.trigger.eq(self.sata_mem2sector.irq)
         if self.irq.enabled:
-            self.irq.add("sata", use_loc_if_exists=True)
+            self.irq.add("sata_irq", use_loc_if_exists=True)
 
         # Timing constraints.
         self.platform.add_period_constraint(self.sata_phy.crg.cd_sata_tx.clk, 1e9/sata_clk_freq)
