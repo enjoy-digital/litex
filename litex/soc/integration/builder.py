@@ -257,9 +257,14 @@ class Builder:
         meson_minor_min = 59
         if meson_present:
             meson_version = subprocess.check_output(["meson", "-v"]).decode("utf-8").split(".")
-        if (not meson_present) or (int(meson_version[0]) < meson_major_min) or (int(meson_version[1]) < meson_minor_min):
+        if (not meson_present):
             msg = "Unable to find valid Meson build system, please install it with:\n"
             msg += "- pip3 install meson.\n"
+            raise OSError(msg)
+        if (int(meson_version[0]) < meson_major_min) or (int(meson_version[1]) < meson_minor_min):
+            msg = f"Meson version to old. Found: {meson_version[0]}.{meson_version[1]}. Required: {meson_major_min}.{meson_minor_min}.\n"
+            msg += "Try updating with:\n"
+            msg += "- pip3 install -U meson.\n"
             raise OSError(msg)
 
     def _prepare_rom_software(self):
