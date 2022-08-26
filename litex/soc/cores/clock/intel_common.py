@@ -5,6 +5,8 @@
 # Copyright (c) 2022 Jevin Sweval <jevinsweval@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
+#file to be placed in litex/litex/soc/cores/clock directory. Some enhancement on resetting the pll
+
 from operator import mul
 from functools import reduce
 
@@ -26,7 +28,7 @@ def geometric_mean(vals):
 class IntelClocking(Module, AutoCSR):
     def __init__(self, vco_margin=0):
         self.vco_margin = vco_margin
-        self.reset      = Signal()
+        self.pll_reset  = Signal()
         self.locked     = Signal()
         self.clkin_freq = None
         self.vcxo_freq  = None
@@ -98,15 +100,15 @@ class IntelClocking(Module, AutoCSR):
     def do_finalize(self):
         assert hasattr(self, "clkin")
         config = self.compute_config()
-        clks = Signal(self.nclkouts)
+        clks = Signal(self.nclkouts_max)
         self.params.update(
             p_BANDWIDTH_TYPE         = "AUTO",
             p_COMPENSATE_CLOCK       = "CLK0",
             p_INCLK0_INPUT_FREQUENCY = int(1e12/self.clkin_freq),
             p_OPERATION_MODE         = "NORMAL",
-            i_INCLK                  = self.clkin,
+            i_INCLK                  = Cat(self.clkin, 0),
             o_CLK                    = clks,
-            i_ARESET                 = 0,
+            i_ARESET                 = self.pll_reset,
             i_CLKENA                 = 2**self.nclkouts_max - 1,
             i_EXTCLKENA              = 0xf,
             i_FBIN                   = 1,
