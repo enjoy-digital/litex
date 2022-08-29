@@ -32,7 +32,7 @@ struct command_struct {
 extern struct command_struct *const __bios_cmd_start[];
 extern struct command_struct *const __bios_cmd_end[];
 
-#ifdef NO_TERM
+#ifdef BIOS_CONSOLE_BIOS_CONSOLE_DISABLE
 	#define define_command(cmd_name, handler, help_txt, group_id)
 #else
 	#define define_command(cmd_name, handler, help_txt, group_id) \

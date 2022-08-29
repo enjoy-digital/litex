@@ -110,7 +110,6 @@ class Builder:
         # BIOS.
         self.bios_lto     = bios_lto
         self.bios_console = bios_console
-        print(bios_console)
 
         # Documentation.
         self.generate_doc = generate_doc
@@ -163,7 +162,13 @@ class Builder:
 
         # Define BIOS variables.
         define("LTO", f"{self.bios_lto:d}")
-        assert self.bios_console in ["TERM_FULL", "TERM_NO_HIST", "TERM_NO_COMPLETE", "TERM_MINI", "NO_TERM"]
+        assert self.bios_console in [
+            "BIOS_CONSOLE_FULL",
+            "BIOS_CONSOLE_NO_HISTORY",
+            "BIOS_CONSOLE_NO_AUTOCOMPLETE",
+            "BIOS_CONSOLE_LITE",
+            "BIOS_CONSOLE_DISABLE"
+        ]
         define(self.bios_console, "1")
 
         return "\n".join(variables_contents)
@@ -403,7 +408,7 @@ def builder_args(parser):
     builder_group.add_argument("--doc",                 action="store_true", help="Generate SoC Documentation.")
     bios_group = parser.add_argument_group(title="BIOS options") # FIXME: Move?
     bios_group.add_argument("--bios-lto",     action="store_true", help="Enable BIOS LTO (Link Time Optimization) compilation.")
-    bios_group.add_argument("--bios-console", default="full"  ,    help="Select BIOS console config.", choices=["full", "history", "autocomplete", "min", "none"])
+    bios_group.add_argument("--bios-console", default="full"  ,    help="Select BIOS console config.", choices=["full", "no-history", "no-autocomplete", "lite", "disable"])
 
 def builder_argdict(args):
     return {
@@ -422,10 +427,10 @@ def builder_argdict(args):
         "generate_doc"     : args.doc,
         "bios_lto"         : args.bios_lto,
         "bios_console"     : { # FIXME: Move?
-            "full"          : "TERM_FULL",
-            "history"       : "TERM_NO_COMPLETE",
-            "autocomplete"  : "TERM_NO_HIST",
-            "minimal"       : "TERM_MINI",
-            "none"          : "NO_TERM",
+            "full"            : "BIOS_CONSOLE_FULL",
+            "no-history"      : "BIOS_CONSOLE_NO_AUTOCOMPLETE",
+            "no-autocomplete" : "BIOS_CONSOLE_NO_HISTORY",
+            "lite"            : "BIOS_CONSOLE_LITE",
+            "disable"         : "BIOS_CONSOLE_DISABLE",
         }[args.bios_console],
     }
