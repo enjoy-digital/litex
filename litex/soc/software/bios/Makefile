@@ -31,6 +31,10 @@ ifdef TERM_NO_HIST
 CFLAGS += -DTERM_NO_HIST
 endif
 
+ifdef NO_TERM
+CFLAGS += -DNO_TERM
+endif
+
 ifdef TERM_MINI
 CFLAGS += -DTERM_MINI
 OBJECTS += readline_simple.o

@@ -32,17 +32,20 @@ struct command_struct {
 extern struct command_struct *const __bios_cmd_start[];
 extern struct command_struct *const __bios_cmd_end[];
 
-#define define_command(cmd_name, handler, help_txt, group_id) \
-	struct command_struct s_##cmd_name = {					     \
-		.func = (cmd_handler)handler,					     \
-		.name = #cmd_name,						     \
-		.help = help_txt,						     \
-		.group = group_id,						     \
-	};									     \
-	const struct command_struct *__bios_cmd_##cmd_name __attribute__((__used__)) \
-	__attribute__((__section__(".bios_cmd"))) = &s_##cmd_name
+#ifdef NO_TERM
+	#define define_command(cmd_name, handler, help_txt, group_id)
+#else
+	#define define_command(cmd_name, handler, help_txt, group_id) \
+		struct command_struct s_##cmd_name = {					     \
+			.func = (cmd_handler)handler,					     \
+			.name = #cmd_name,						     \
+			.help = help_txt,						     \
+			.group = group_id,						     \
+		};									     \
+		const struct command_struct *__bios_cmd_##cmd_name __attribute__((__used__)) \
+		__attribute__((__section__(".bios_cmd"))) = &s_##cmd_name
 
+	struct command_struct *command_dispatcher(char *command, int nb_params, char **params);
 
-struct command_struct *command_dispatcher(char *command, int nb_params, char **params);
-
+	#endif
 #endif

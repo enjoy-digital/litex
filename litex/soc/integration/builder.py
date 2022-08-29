@@ -117,7 +117,6 @@ class Builder:
         # List software packages and libraries.
         self.software_packages  = []
         self.software_libraries = []
-
         for name in soc_software_packages:
             self.add_software_package(name)
             self.add_software_library(name)
@@ -164,7 +163,7 @@ class Builder:
         # Define Compile/BIOS Options.
         define("LTO", f"{self.lto:d}")
         for bios_option in self.bios_options:
-            assert bios_option in ["TERM_NO_HIST", "TERM_MINI", "TERM_NO_COMPLETE"]
+            assert bios_option in ["TERM_NO_HIST", "TERM_MINI", "TERM_NO_COMPLETE", "NO_TERM"]
             define(bios_option, "1")
 
         return "\n".join(variables_contents)
@@ -398,6 +397,7 @@ def builder_args(parser):
     builder_group.add_argument("--no-compile-software", action="store_true", help="Disable Software compilation only.")
     builder_group.add_argument("--no-compile-gateware", action="store_true", help="Disable Gateware compilation only.")
     builder_group.add_argument("--lto",                 action="store_true", help="Enable LTO (Link Time Optimization) for Software compilation.")
+    builder_group.add_argument("--bios-console",        default=[],          help="Select bios options.", choices=["TERM_NO_HIST", "TERM_MINI", "TERM_NO_COMPLETE", "NO_TERM"], nargs=1)
     builder_group.add_argument("--csr-csv",             default=None,        help="Write SoC mapping to the specified CSV file.")
     builder_group.add_argument("--csr-json",            default=None,        help="Write SoC mapping to the specified JSON file.")
     builder_group.add_argument("--csr-svd",             default=None,        help="Write SoC mapping to the specified SVD file.")
@@ -415,6 +415,7 @@ def builder_argdict(args):
         "compile_software" : (not args.no_compile) and (not args.no_compile_software),
         "compile_gateware" : (not args.no_compile) and (not args.no_compile_gateware),
         "lto"              : args.lto,
+        "bios_options"     : args.bios_console,
         "csr_csv"          : args.csr_csv,
         "csr_json"         : args.csr_json,
         "csr_svd"          : args.csr_svd,
