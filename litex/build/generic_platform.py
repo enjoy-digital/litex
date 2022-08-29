@@ -168,7 +168,10 @@ class ConnectorManager:
                 if pn.isdigit():
                     pn = int(pn)
 
-                r.append(self.connector_table[conn][pn])
+                conn_pn = self.connector_table[conn][pn]
+                if ":" in conn_pn:
+                    conn_pn = self.resolve_identifiers([conn_pn])[0]
+                r.append(conn_pn)
             else:
                 r.append(identifier)
 
