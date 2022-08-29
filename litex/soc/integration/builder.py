@@ -82,7 +82,7 @@ class Builder:
 
         # BIOS.
         bios_lto         = False,
-        bios_options     = [],
+        bios_console     = [],
 
         # Documentation.
         generate_doc     = False):
@@ -109,7 +109,8 @@ class Builder:
 
         # BIOS.
         self.bios_lto     = bios_lto
-        self.bios_options = bios_options
+        self.bios_console = bios_console
+        print(bios_console)
 
         # Documentation.
         self.generate_doc = generate_doc
@@ -162,9 +163,8 @@ class Builder:
 
         # Define BIOS variables.
         define("LTO", f"{self.bios_lto:d}")
-        for bios_option in self.bios_options:
-            assert bios_option in ["TERM_NO_HIST", "TERM_MINI", "TERM_NO_COMPLETE", "NO_TERM"]
-            define(bios_option, "1")
+        assert self.bios_console in ["TERM_FULL", "TERM_NO_HIST", "TERM_NO_COMPLETE", "TERM_MINI", "NO_TERM"]
+        define(self.bios_console, "1")
 
         return "\n".join(variables_contents)
 
@@ -401,9 +401,9 @@ def builder_args(parser):
     builder_group.add_argument("--csr-svd",             default=None,        help="Write SoC mapping to the specified SVD file.")
     builder_group.add_argument("--memory-x",            default=None,        help="Write SoC Memory Regions to the specified Memory-X file.")
     builder_group.add_argument("--doc",                 action="store_true", help="Generate SoC Documentation.")
-    bios_group = parser.add_argument_group(title="BIOS options")
+    bios_group = parser.add_argument_group(title="BIOS options") # FIXME: Move?
     bios_group.add_argument("--bios-lto",     action="store_true", help="Enable BIOS LTO (Link Time Optimization) compilation.")
-    bios_group.add_argument("--bios-console", default=[],          help="Select BIOS options.", choices=["TERM_NO_HIST", "TERM_MINI", "TERM_NO_COMPLETE", "NO_TERM"], nargs=1)
+    bios_group.add_argument("--bios-console", default="full"  ,    help="Select BIOS console config.", choices=["full", "history", "autocomplete", "min", "none"])
 
 def builder_argdict(args):
     return {
@@ -415,11 +415,17 @@ def builder_argdict(args):
         "build_backend"    : args.build_backend,
         "compile_software" : (not args.no_compile) and (not args.no_compile_software),
         "compile_gateware" : (not args.no_compile) and (not args.no_compile_gateware),
-        "bios_lto"         : args.bios_lto,
-        "bios_options"     : args.bios_console,
         "csr_csv"          : args.csr_csv,
         "csr_json"         : args.csr_json,
         "csr_svd"          : args.csr_svd,
         "memory_x"         : args.memory_x,
         "generate_doc"     : args.doc,
+        "bios_lto"         : args.bios_lto,
+        "bios_console"     : { # FIXME: Move?
+            "full"          : "TERM_FULL",
+            "history"       : "TERM_NO_COMPLETE",
+            "autocomplete"  : "TERM_NO_HIST",
+            "minimal"       : "TERM_MINI",
+            "none"          : "NO_TERM",
+        }[args.bios_console],
     }
