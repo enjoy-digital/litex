@@ -209,7 +209,7 @@ __attribute__((__used__)) int main(int i, char **c)
 #endif
 
 #ifdef NO_TERM
-	printf("--============= \e[1mBuild without Console!\e[0m ================--\n");
+	printf("--======= \e[1mDone (No Console) \e[0m ==========--\n");
 #else
 	/* Console */
 	printf("--============= \e[1mConsole\e[0m ================--\n");
