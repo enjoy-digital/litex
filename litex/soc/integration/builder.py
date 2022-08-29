@@ -69,11 +69,10 @@ class Builder:
         include_dir      = None,
         generated_dir    = None,
 
-        # Compile Options.
+        # Compilation.
         compile_software = True,
         compile_gateware = True,
         build_backend    = "litex",
-        lto              = False,
 
         # Exports.
         csr_json         = None,
@@ -81,7 +80,8 @@ class Builder:
         csr_svd          = None,
         memory_x         = None,
 
-        # BIOS Options.
+        # BIOS.
+        bios_lto         = False,
         bios_options     = [],
 
         # Documentation.
@@ -96,11 +96,10 @@ class Builder:
         self.include_dir   = os.path.abspath(include_dir   or os.path.join(self.software_dir, "include"))
         self.generated_dir = os.path.abspath(generated_dir or os.path.join(self.include_dir,  "generated"))
 
-        # Compile Options.
+        # Compilation.
         self.compile_software = compile_software
         self.compile_gateware = compile_gateware
         self.build_backend    = build_backend
-        self.lto              = lto
 
         # Exports.
         self.csr_csv  = csr_csv
@@ -108,13 +107,14 @@ class Builder:
         self.csr_svd  = csr_svd
         self.memory_x = memory_x
 
-        # BIOS Options.
+        # BIOS.
+        self.bios_lto     = bios_lto
         self.bios_options = bios_options
 
-        # Documentation
+        # Documentation.
         self.generate_doc = generate_doc
 
-        # List software packages and libraries.
+        # Software packages and libraries.
         self.software_packages  = []
         self.software_libraries = []
         for name in soc_software_packages:
@@ -160,8 +160,8 @@ class Builder:
         for name, src_dir in self.software_packages:
             define(name.upper() + "_DIRECTORY", src_dir)
 
-        # Define Compile/BIOS Options.
-        define("LTO", f"{self.lto:d}")
+        # Define BIOS variables.
+        define("LTO", f"{self.bios_lto:d}")
         for bios_option in self.bios_options:
             assert bios_option in ["TERM_NO_HIST", "TERM_MINI", "TERM_NO_COMPLETE", "NO_TERM"]
             define(bios_option, "1")
@@ -396,13 +396,14 @@ def builder_args(parser):
     builder_group.add_argument("--no-compile",          action="store_true", help="Disable Software and Gateware compilation.")
     builder_group.add_argument("--no-compile-software", action="store_true", help="Disable Software compilation only.")
     builder_group.add_argument("--no-compile-gateware", action="store_true", help="Disable Gateware compilation only.")
-    builder_group.add_argument("--lto",                 action="store_true", help="Enable LTO (Link Time Optimization) for Software compilation.")
-    builder_group.add_argument("--bios-console",        default=[],          help="Select bios options.", choices=["TERM_NO_HIST", "TERM_MINI", "TERM_NO_COMPLETE", "NO_TERM"], nargs=1)
     builder_group.add_argument("--csr-csv",             default=None,        help="Write SoC mapping to the specified CSV file.")
     builder_group.add_argument("--csr-json",            default=None,        help="Write SoC mapping to the specified JSON file.")
     builder_group.add_argument("--csr-svd",             default=None,        help="Write SoC mapping to the specified SVD file.")
     builder_group.add_argument("--memory-x",            default=None,        help="Write SoC Memory Regions to the specified Memory-X file.")
     builder_group.add_argument("--doc",                 action="store_true", help="Generate SoC Documentation.")
+    bios_group = parser.add_argument_group(title="BIOS options")
+    bios_group.add_argument("--bios-lto",     action="store_true", help="Enable BIOS LTO (Link Time Optimization) compilation.")
+    bios_group.add_argument("--bios-console", default=[],          help="Select BIOS options.", choices=["TERM_NO_HIST", "TERM_MINI", "TERM_NO_COMPLETE", "NO_TERM"], nargs=1)
 
 def builder_argdict(args):
     return {
@@ -414,7 +415,7 @@ def builder_argdict(args):
         "build_backend"    : args.build_backend,
         "compile_software" : (not args.no_compile) and (not args.no_compile_software),
         "compile_gateware" : (not args.no_compile) and (not args.no_compile_gateware),
-        "lto"              : args.lto,
+        "bios_lto"         : args.bios_lto,
         "bios_options"     : args.bios_console,
         "csr_csv"          : args.csr_csv,
         "csr_json"         : args.csr_json,
