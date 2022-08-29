@@ -80,11 +80,13 @@ static void boot_sequence(void)
 
 __attribute__((__used__)) int main(int i, char **c)
 {
+#ifndef NO_TERM
 	char buffer[CMD_LINE_BUFFER_SIZE];
 	char *params[MAX_PARAM];
 	char *command;
 	struct command_struct *cmd;
 	int nb_params;
+#endif
 	int sdr_ok;
 
 #ifdef CONFIG_CPU_HAS_INTERRUPT
@@ -206,6 +208,9 @@ __attribute__((__used__)) int main(int i, char **c)
 	}
 #endif
 
+#ifdef NO_TERM
+	printf("--============= \e[1mBuild without Console!\e[0m ================--\n");
+#else
 	/* Console */
 	printf("--============= \e[1mConsole\e[0m ================--\n");
 #if !defined(TERM_MINI) && !defined(TERM_NO_HIST)
@@ -223,5 +228,6 @@ __attribute__((__used__)) int main(int i, char **c)
 		}
 		printf("\n%s", PROMPT);
 	}
+#endif
 	return 0;
 }
