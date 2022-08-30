@@ -883,7 +883,7 @@ class SoC(Module):
             "axi"     : axi.AXILiteInterface, # FIXME: Use AXI-Lite for now, create AXISRAM.
         }[self.bus.standard]
         ram_bus = interface_cls(data_width=self.bus.data_width, bursting=self.bus.bursting)
-        ram     = ram_cls(size, bus=ram_bus, init=contents, read_only=(mode == "r"), name=name)
+        ram     = ram_cls(size, bus=ram_bus, init=contents, read_only=("w" not in mode), name=name)
         self.bus.add_slave(name, ram.bus, SoCRegion(origin=origin, size=size, mode=mode))
         self.check_if_exists(name)
         self.logger.info("RAM {} {} {}.".format(
@@ -902,7 +902,7 @@ class SoC(Module):
             colorer(name),
             colorer(f"0x{4*len(contents):x}")))
         getattr(self, name).mem.init = contents
-        if auto_size and self.bus.regions[name].mode == "r":
+        if auto_size and "w" not in self.bus.regions[name].mode:
             self.logger.info("Auto-Resizing ROM {} from {} to {}.".format(
                 colorer(name),
                 colorer(f"0x{self.bus.regions[name].size:x}"),
