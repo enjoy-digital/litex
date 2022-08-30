@@ -1461,7 +1461,8 @@ class LiteXSoC(SoC):
 
         # Add SDRAM region.
         main_ram_region = SoCRegion(origin=self.mem_map.get("main_ram", origin), 
-                                    size=sdram_size)
+                                    size=sdram_size,
+                                    mode="rwx")
         self.bus.add_region("main_ram", main_ram_region)
 
         # Add CPU's direct memory buses (if not already declared) ----------------------------------
