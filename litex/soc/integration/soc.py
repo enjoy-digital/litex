@@ -871,7 +871,7 @@ class SoC(Module):
             colorer("added", color="green")))
         setattr(self.submodules, name, SoCController(**kwargs))
 
-    def add_ram(self, name, origin, size, contents=[], mode="rw"):
+    def add_ram(self, name, origin, size, contents=[], mode="rwx"):
         ram_cls = {
             "wishbone": wishbone.SRAM,
             "axi-lite": axi.AXILiteSRAM,
@@ -894,7 +894,7 @@ class SoC(Module):
         if contents != []:
             self.add_config(f"{name}_INIT", 1)
 
-    def add_rom(self, name, origin, size, contents=[], mode="r"):
+    def add_rom(self, name, origin, size, contents=[], mode="rx"):
         self.add_ram(name, origin, size, contents, mode=mode)
 
     def init_rom(self, name, contents=[], auto_size=True):
