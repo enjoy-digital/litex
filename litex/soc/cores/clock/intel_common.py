@@ -28,7 +28,7 @@ def geometric_mean(vals):
 class IntelClocking(Module, AutoCSR):
     def __init__(self, vco_margin=0):
         self.vco_margin = vco_margin
-        self.pll_reset  = Signal()
+        self.reset  = Signal()
         self.locked     = Signal()
         self.clkin_freq = None
         self.vcxo_freq  = None
@@ -108,7 +108,7 @@ class IntelClocking(Module, AutoCSR):
             p_OPERATION_MODE         = "NORMAL",
             i_INCLK                  = Cat(self.clkin, 0),
             o_CLK                    = clks,
-            i_ARESET                 = self.pll_reset,
+            i_ARESET                 = self.reset,
             i_CLKENA                 = 2**self.nclkouts_max - 1,
             i_EXTCLKENA              = 0xf,
             i_FBIN                   = 1,
