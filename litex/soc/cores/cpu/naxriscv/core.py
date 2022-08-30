@@ -395,6 +395,7 @@ class NaxRiscv(CPU):
             o_peripheral_clint_rresp   = clintbus.r.resp,
         )
         soc.bus.add_slave("clint", clintbus, region=soc_region_cls(origin=soc.mem_map.get("clint"), size=0x1_0000, cached=False))
+        self.soc = soc # Save SoC instance to retrieve the final mem layout on finalization
 
     def add_memory_buses(self, address_width, data_width, accessible_region):
         nax_data_width = 64
@@ -467,8 +468,14 @@ class NaxRiscv(CPU):
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
-
         self.find_scala_files()
+
+        # Find mem regions with executable flag
+        for region in self.soc.bus.regions.values():
+            if 'x' in region.mode:
+                self.scala_args.append('executable-region=(0x{region.origin:x},0x{region.size:x})'
+                                       .format(region=region))
+
         self.generate_netlist_name(self.reset_address)
 
         # Do verilog instance.
