@@ -97,10 +97,6 @@ class CrossoverUART:
         if not present:
             raise ValueError(f"CrossoverUART {name} not present in design.")
 
-        # FIXME: On PCIe designs, CSR is remapped to 0 to limit BAR0 size.
-        if base_address is None and hasattr(self.bus.bases, "pcie_phy"):
-            self.bus.base_address = -self.bus.mems.csr.base
-
     def open(self):
         self.bus.open()
         self.file, self.name = pty.openpty()

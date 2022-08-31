@@ -80,7 +80,7 @@ class GowinDifferentialInput:
     def lower(dr):
         return GowinDifferentialInputImpl(dr.i_p, dr.i_n, dr.o)
 
-# Gowin Differential Output -------------------------------------------------------------------------
+# Gowin Differential Output ------------------------------------------------------------------------
 
 class GowinDifferentialOutputImpl(Module):
     def __init__(self, i, o_p, o_n):

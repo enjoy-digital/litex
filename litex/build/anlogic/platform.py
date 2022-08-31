@@ -10,7 +10,7 @@ import os
 from litex.build.generic_platform import GenericPlatform
 from litex.build.anlogic import common, anlogic
 
-# AnlogicPlatform -----------------------------------------------------------------------------------
+# AnlogicPlatform ----------------------------------------------------------------------------------
 
 class AnlogicPlatform(GenericPlatform):
     bitstream_ext = ".fs"

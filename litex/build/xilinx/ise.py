@@ -22,7 +22,7 @@ from litex.build.generic_platform import *
 from litex.build import tools
 from litex.build.xilinx import common
 
-# XilinxISEToolchain --------------------------------------------------------------------------------
+# XilinxISEToolchain -------------------------------------------------------------------------------
 
 class XilinxISEToolchain(GenericToolchain):
     attr_translate = {
@@ -37,25 +37,26 @@ class XilinxISEToolchain(GenericToolchain):
 
     def __init__(self):
         super().__init__()
-        self.xst_opt = "-ifmt MIXED\n-use_new_parser yes\n-opt_mode SPEED\n-register_balancing yes"
-        self.map_opt = "-ol high -w"
-        self.par_opt = "-ol high -w"
+        self.xst_opt      = "-ifmt MIXED\n-use_new_parser yes\n-opt_mode SPEED\n-register_balancing yes"
+        self.map_opt      = "-ol high -w"
+        self.par_opt      = "-ol high -w"
         self.ngdbuild_opt = ""
         self.bitgen_opt   = "-g Binary:Yes -w"
         self.ise_commands = ""
-        self.mode         = "xst"
-        self.isemode      = "xst"
+        self._mode        = "xst"
+        self._isemode     = "xst"
 
     def build(self, platform, fragment,
         mode           = "xst",
         **kwargs):
-
         self._mode = mode
         self._isemode = mode if mode in ["xst", "cpld"] else "edif"
+        if mode == "yosys":
+            self.ngdbuild_opt += "-p " + platform.device
 
         return GenericToolchain.build(self, platform, fragment, **kwargs)
 
-    # Constraints (.ucf) -------------------------------------------------------------------------------
+    # Constraints (.ucf) ---------------------------------------------------------------------------
 
     @classmethod
     def _format_constraint(cls, c):
@@ -95,7 +96,7 @@ class XilinxISEToolchain(GenericToolchain):
     # Project (.xst) -------------------------------------------------------------------------------
 
     def build_project(self):
-        if self.mode not in ["xst", "cpld"]:
+        if self._mode not in ["xst", "cpld"]:
             return ("", "")
         prj_contents = ""
         for filename, language, library, *copy in self.platform.sources:
@@ -116,36 +117,8 @@ class XilinxISEToolchain(GenericToolchain):
             xst_contents += "}"
         tools.write_to_file(self._build_name + ".xst", xst_contents)
 
-    # Yosys Run ----------------------------------------------------------------------------------------
 
-    def _run_yosys(build_name):
-        device = self.platform.device
-        ys_contents = ""
-        incflags = ""
-        for path in platform.verilog_include_paths:
-            incflags += " -I" + path
-        for filename, language, library, *copy in self.platform.sources:
-            ys_contents += "read_{}{} {}\n".format(language, incflags, filename)
-
-        family = ""
-        if (device.startswith("xc7") or device.startswith("xa7") or device.startswith("xq7")):
-            family = "xc7"
-        elif (device.startswith("xc6s") or device.startswith("xa6s") or device.startswith("xq6s")):
-            family = "xc6s"
-        else:
-            raise OSError("Unsupported device")
-
-        ys_contents += """hierarchy -top {build_name}
-    synth_xilinx -top {build_name} -family {family} -ise
-    write_edif -pvector bra {build_name}.edif""".format(build_name=self._build_name, family=family)
-
-        ys_name = self._build_name + ".ys"
-        tools.write_to_file(ys_name, ys_contents)
-        r = subprocess.call(["yosys", ys_name])
-        if r != 0:
-            raise OSError("Subprocess failed")
-
-    # ISE Run ------------------------------------------------------------------------------------------
+    # ISE Run --------------------------------------------------------------------------------------
 
     def build_script(self):
         if sys.platform == "win32" or sys.platform == "cygwin":
@@ -160,6 +133,8 @@ class XilinxISEToolchain(GenericToolchain):
             if os.getenv("LITEX_ENV_ISE", False):
                 build_script_contents += "source " + os.path.join(os.getenv("LITEX_ENV_ISE"), "settings64.sh\n")
             fail_stmt = ""
+        if self._mode == "yosys":
+            build_script_contents += common._build_yosys_project(self.platform, "-ise ", self._build_name) + fail_stmt
         if self._isemode == "edif":
             ext = "ngo"
             build_script_contents += """
@@ -201,12 +176,7 @@ bitgen {bitgen_opt} {build_name}.ncd {build_name}.bit{fail_stmt}
         return build_script_file
 
     def run_script(self, script):
-
-        if self.mode == "yosys":
-            self._run_yosys()
-            self.ngdbuild_opt += "-p " + self.platform.device
-
-        if self.mode == "edif":
+        if self._mode == "edif":
            # Generate edif
            e_output = self.platform.get_edif(self._fragment)
            self._vns = e_output.ns
@@ -215,8 +185,11 @@ bitgen {bitgen_opt} {build_name}.ncd {build_name}.bit{fail_stmt}
            e_output.write(e_file)
            self.build_io_constraints()
 
-
-        command = shell + [build_script_file]
+        if sys.platform == "win32" or sys.platform == "cygwin":
+            shell = ["cmd", "/c"]
+        else:
+            shell = ["bash"]
+        command = shell + [script]
 
         if which("ise") is None and os.getenv("LITEX_ENV_ISE", False) == False:
             msg = "Unable to find or source ISE toolchain, please either:\n"

@@ -37,7 +37,7 @@ def _format_xdc_constraint(c):
     elif isinstance(c, Inverted):
         return None
     else:
-        raise ValueError("unknown constraint {}".format(c))
+        raise ValueError(f"unknown constraint {c}")
 
 
 def _format_xdc(signame, resname, *constraints):
@@ -45,7 +45,7 @@ def _format_xdc(signame, resname, *constraints):
     fmt_r = resname[0] + ":" + str(resname[1])
     if resname[2] is not None:
         fmt_r += "." + resname[2]
-    r = "# {}\n".format(fmt_r)
+    r = f"# {fmt_r}\n"
     for c in fmt_c:
         if c is not None:
             r += c + " [get_ports {" + signame + "}]\n"
@@ -143,7 +143,7 @@ class XilinxVivadoToolchain(GenericToolchain):
         elif isinstance(c, Inverted):
             return None
         else:
-            raise ValueError("unknown constraint {}".format(c))
+            raise ValueError(f"unknown constraint {c}")
 
     def build_io_constraints(self):
         r = _build_xdc(self.named_sc, self.named_pc)
@@ -208,7 +208,7 @@ class XilinxVivadoToolchain(GenericToolchain):
 
         # Create project
         tcl.append("\n# Create Project\n")
-        tcl.append("create_project -force -name {} -part {}".format(self._build_name, self.platform.device))
+        tcl.append(f"create_project -force -name {self._build_name} -part {self.platform.device}")
         tcl.append("set_msg_config -id {Common 17-55} -new_severity {Warning}")
 
         # Enable Xilinx Parameterized Macros
@@ -223,15 +223,13 @@ class XilinxVivadoToolchain(GenericToolchain):
             for filename, language, library, *copy in self.platform.sources:
                 filename_tcl = "{" + filename + "}"
                 if (language == "systemverilog"):
-                    tcl.append("read_verilog -v " + filename_tcl)
-                    tcl.append("set_property file_type SystemVerilog [get_files {}]"
-                            .format(filename_tcl))
+                    tcl.append(f"read_verilog -v {filename_tcl}")
+                    tcl.append(f"set_property file_type SystemVerilog [get_files {filename_tcl}]")
                 elif (language == "verilog"):
-                    tcl.append("read_verilog " + filename_tcl)
+                    tcl.append(f"read_verilog {filename_tcl}")
                 elif (language == "vhdl"):
-                    tcl.append("read_vhdl -vhdl2008 " + filename_tcl)
-                    tcl.append("set_property library {} [get_files {}]"
-                               .format(library, filename_tcl))
+                    tcl.append(f"read_vhdl -vhdl2008 {filename_tcl}")
+                    tcl.append(f"set_property library {library} [get_files {filename_tcl}]")
                 else:
                     tcl.append("add_files " + filename_tcl)
 
@@ -239,7 +237,7 @@ class XilinxVivadoToolchain(GenericToolchain):
         tcl.append("\n# Add EDIFs\n")
         for filename in self.platform.edifs:
             filename_tcl = "{" + filename + "}"
-            tcl.append("read_edif " + filename_tcl)
+            tcl.append(f"read_edif {filename_tcl}")
 
         # Add IPs
         tcl.append("\n# Add IPs\n")
@@ -249,18 +247,18 @@ class XilinxVivadoToolchain(GenericToolchain):
             else:
                 filename_tcl = "{" + filename + "}"
                 ip = os.path.splitext(os.path.basename(filename))[0]
-                tcl.append("read_ip " + filename_tcl)
-                tcl.append("upgrade_ip [get_ips {}]".format(ip))
-                tcl.append("generate_target all [get_ips {}]".format(ip))
-                tcl.append("synth_ip [get_ips {}] -force".format(ip))
-                tcl.append("get_files -all -of_objects [get_files {}]".format(filename_tcl))
+                tcl.append(f"read_ip {filename_tcl}")
+                tcl.append(f"upgrade_ip [get_ips {ip}]")
+                tcl.append(f"generate_target all [get_ips {ip}]")
+                tcl.append(f"synth_ip [get_ips {ip}] -force")
+                tcl.append(f"get_files -all -of_objects [get_files {filename_tcl}]")
                 if disable_constraints:
-                    tcl.append("set_property is_enabled false [get_files -of_objects [get_files {}] -filter {{FILE_TYPE== XDC}}]".format(filename_tcl))
+                    tcl.append(f"set_property is_enabled false [get_files -of_objects [get_files {filename_tcl}] -filter {{FILE_TYPE== XDC}}]")
 
         # Add constraints
         tcl.append("\n# Add constraints\n")
-        tcl.append("read_xdc {}.xdc".format(self._build_name))
-        tcl.append("set_property PROCESSING_ORDER EARLY [get_files {}.xdc]".format(self._build_name))
+        tcl.append(f"read_xdc {self._build_name}.xdc")
+        tcl.append(f"set_property PROCESSING_ORDER EARLY [get_files {self._build_name}.xdc]")
 
         # Add pre-synthesis commands
         tcl.append("\n# Add pre-synthesis commands\n")
@@ -269,30 +267,29 @@ class XilinxVivadoToolchain(GenericToolchain):
         # Synthesis
         if self._synth_mode == "vivado":
             tcl.append("\n# Synthesis\n")
-            synth_cmd = "synth_design -directive {} -top {} -part {}".format(self.vivado_synth_directive,
-                                                                             self._build_name, self.platform.device)
+            synth_cmd = f"synth_design -directive {self.vivado_synth_directive} -top {self._build_name} -part {self.platform.device}"
             if self.platform.verilog_include_paths:
-                synth_cmd += " -include_dirs {{{}}}".format(" ".join(self.platform.verilog_include_paths))
+                synth_cmd += f" -include_dirs \{{" ".join(self.platform.verilog_include_paths)}\}"
             tcl.append(synth_cmd)
         elif self._synth_mode == "yosys":
             tcl.append("\n# Read Yosys EDIF\n")
-            tcl.append("read_edif {}.edif".format(self._build_name))
-            tcl.append("link_design -top {} -part {}".format(self._build_name, self.platform.device))
+            tcl.append(f"read_edif {self._build_name}.edif")
+            tcl.append(f"link_design -top {self._build_name} -part {self.platform.device}")
         else:
-            raise OSError("Unknown synthesis mode! {}".format(self._synth_mode))
+            raise OSError(f"Unknown synthesis mode! {self._synth_mode}")
         tcl.append("\n# Synthesis report\n")
-        tcl.append("report_timing_summary -file {}_timing_synth.rpt".format(self._build_name))
-        tcl.append("report_utilization -hierarchical -file {}_utilization_hierarchical_synth.rpt".format(self._build_name))
-        tcl.append("report_utilization -file {}_utilization_synth.rpt".format(self._build_name))
+        tcl.append(f"report_timing_summary -file {self._build_name}_timing_synth.rpt")
+        tcl.append(f"report_utilization -hierarchical -file {self._build_name}_utilization_hierarchical_synth.rpt")
+        tcl.append(f"report_utilization -file {self._build_name}_utilization_synth.rpt")
 
         # Optimize
         tcl.append("\n# Optimize design\n")
-        tcl.append("opt_design -directive {}".format(self.opt_directive))
+        tcl.append(f"opt_design -directive {self.opt_directive}")
 
         # Incremental implementation
         if self.incremental_implementation:
             tcl.append("\n# Read design checkpoint\n")
-            tcl.append("read_checkpoint -incremental {}_route.dcp".format(self._build_name))
+            tcl.append(f"read_checkpoint -incremental {self._build_name}_route.dcp")
 
         # Add pre-placement commands
         tcl.append("\n# Add pre-placement commands\n")
@@ -300,15 +297,15 @@ class XilinxVivadoToolchain(GenericToolchain):
 
         # Placement
         tcl.append("\n# Placement\n")
-        tcl.append("place_design -directive {}".format(self.vivado_place_directive))
+        tcl.append(f"place_design -directive {self.vivado_place_directive}")
         if self.vivado_post_place_phys_opt_directive:
-            tcl.append("phys_opt_design -directive {}".format(self.vivado_post_place_phys_opt_directive))
+            tcl.append(f"phys_opt_design -directive {self.vivado_post_place_phys_opt_directive}")
         tcl.append("\n# Placement report\n")
-        tcl.append("report_utilization -hierarchical -file {}_utilization_hierarchical_place.rpt".format(self._build_name))
-        tcl.append("report_utilization -file {}_utilization_place.rpt".format(self._build_name))
-        tcl.append("report_io -file {}_io.rpt".format(self._build_name))
-        tcl.append("report_control_sets -verbose -file {}_control_sets.rpt".format(self._build_name))
-        tcl.append("report_clock_utilization -file {}_clock_utilization.rpt".format(self._build_name))
+        tcl.append(f"report_utilization -hierarchical -file {self._build_name}_utilization_hierarchical_place.rpt")
+        tcl.append(f"report_utilization -file {self._build_name}_utilization_place.rpt")
+        tcl.append(f"report_io -file {self._build_name}_io.rpt")
+        tcl.append(f"report_control_sets -verbose -file {self._build_name}_control_sets.rpt")
+        tcl.append(f"report_clock_utilization -file {self._build_name}_clock_utilization.rpt")
 
         # Add pre-routing commands
         tcl.append("\n# Add pre-routing commands\n")
@@ -316,21 +313,21 @@ class XilinxVivadoToolchain(GenericToolchain):
 
         # Routing
         tcl.append("\n# Routing\n")
-        tcl.append("route_design -directive {}".format(self.vivado_route_directive))
-        tcl.append("phys_opt_design -directive {}".format(self.vivado_post_route_phys_opt_directive))
-        tcl.append("write_checkpoint -force {}_route.dcp".format(self._build_name))
+        tcl.append(f"route_design -directive {self.vivado_route_directive}")
+        tcl.append(f"phys_opt_design -directive {self.vivado_post_route_phys_opt_directive}")
+        tcl.append(f"write_checkpoint -force {self._build_name}_route.dcp")
         tcl.append("\n# Routing report\n")
         tcl.append("report_timing_summary -no_header -no_detailed_paths")
-        tcl.append("report_route_status -file {}_route_status.rpt".format(self._build_name))
-        tcl.append("report_drc -file {}_drc.rpt".format(self._build_name))
-        tcl.append("report_timing_summary -datasheet -max_paths 10 -file {}_timing.rpt".format(self._build_name))
-        tcl.append("report_power -file {}_power.rpt".format(self._build_name))
+        tcl.append(f"report_route_status -file {self._build_name}_route_status.rpt")
+        tcl.append(f"report_drc -file {self._build_name}_drc.rpt")
+        tcl.append(f"report_timing_summary -datasheet -max_paths 10 -file {self._build_name}_timing.rpt")
+        tcl.append(f"report_power -file {self._build_name}_power.rpt")
         for bitstream_command in self.bitstream_commands:
             tcl.append(bitstream_command.format(build_name=self._build_name))
 
         # Bitstream generation
         tcl.append("\n# Bitstream generation\n")
-        tcl.append("write_bitstream -force {}.bit ".format(self._build_name))
+        tcl.append(f"write_bitstream -force {self._build_name}.bit ")
         for additional_command in self.additional_commands:
             tcl.append(additional_command.format(build_name=self._build_name))
 
@@ -344,22 +341,22 @@ class XilinxVivadoToolchain(GenericToolchain):
     def build_script(self):
         if sys.platform in ["win32", "cygwin"]:
             script_contents = "REM Autogenerated by LiteX / git: " + tools.get_litex_git_revision() + "\n"
-            script_contents += "vivado -mode batch -source " + self._build_name + ".tcl\n"
-            script_file = "build_" + self._build_name + ".bat"
-            tools.write_to_file(script_file, script_contents)
+            script_ext = "bat"
         else:
             script_contents = "# Autogenerated by LiteX / git: " + tools.get_litex_git_revision() + "\nset -e\n"
             if os.getenv("LITEX_ENV_VIVADO", False):
                 script_contents += "source " + os.path.join(os.getenv("LITEX_ENV_VIVADO"), "settings64.sh\n")
-            script_contents += "vivado -mode batch -source " + self._build_name + ".tcl\n"
-            script_file = "build_" + self._build_name + ".sh"
-            tools.write_to_file(script_file, script_contents)
+            script_ext = "sh"
+
+        if self._synth_mode == "yosys":
+            script_contents += common._build_yosys_project(platform=self.platform, build_name=self._build_name)
+
+        script_contents += "vivado -mode batch -source " + self._build_name + ".tcl\n"
+        script_file     = "build_" + self._build_name + "." + script_ext
+        tools.write_to_file(script_file, script_contents)
         return script_file
 
     def run_script(self, script):
-        if self._synth_mode == "yosys":
-            common._run_yosys(self.platform.device, self.platform.sources,
-                self.platform.verilog_include_paths, self._build_name)
         if sys.platform in ["win32", "cygwin"]:
             shell = ["cmd", "/c"]
         else:

@@ -298,7 +298,7 @@ class LatticeNXDDROutput:
     def lower(dr):
         return LatticeNXDDROutputImpl(dr.i1, dr.i2, dr.o, dr.clk)
 
-# NX DDR Tristate ------------------------------------------------------------------------------------
+# NX DDR Tristate ----------------------------------------------------------------------------------
 
 class LatticeNXDDRTristateImpl(Module):
     def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk):

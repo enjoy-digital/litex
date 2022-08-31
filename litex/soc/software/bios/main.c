@@ -80,11 +80,13 @@ static void boot_sequence(void)
 
 __attribute__((__used__)) int main(int i, char **c)
 {
+#ifndef BIOS_CONSOLE_DISABLE
 	char buffer[CMD_LINE_BUFFER_SIZE];
 	char *params[MAX_PARAM];
 	char *command;
 	struct command_struct *cmd;
 	int nb_params;
+#endif
 	int sdr_ok;
 
 #ifdef CONFIG_CPU_HAS_INTERRUPT
@@ -207,8 +209,11 @@ __attribute__((__used__)) int main(int i, char **c)
 #endif
 
 	/* Console */
+#ifdef BIOS_CONSOLE_DISABLE
+	printf("--======= \e[1mDone (No Console) \e[0m ==========--\n");
+#else
 	printf("--============= \e[1mConsole\e[0m ================--\n");
-#if !defined(TERM_MINI) && !defined(TERM_NO_HIST)
+#if !defined(BIOS_CONSOLE_LITE) && !defined(BIOS_CONSOLE_NO_HISTORY)
 	hist_init();
 #endif
 	printf("\n%s", PROMPT);
@@ -223,5 +228,6 @@ __attribute__((__used__)) int main(int i, char **c)
 		}
 		printf("\n%s", PROMPT);
 	}
+#endif
 	return 0;
 }

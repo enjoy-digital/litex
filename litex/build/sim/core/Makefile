@@ -51,8 +51,9 @@ sim: $(OBJS_SIM) | mkdir
 		--output-split-ctrace 500 \
 		$(INC_DIR) \
 		-Wno-BLKANDNBLK \
-		-Wno-WIDTH
-	make -j -C $(OBJ_DIR) -f Vsim.mk Vsim
+		-Wno-WIDTH \
+		--relative-includes
+	make -j$(JOBS) -C $(OBJ_DIR) -f Vsim.mk Vsim
 
 .PHONY: modules
 modules:

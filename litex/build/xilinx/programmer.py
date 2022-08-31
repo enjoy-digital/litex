@@ -206,7 +206,7 @@ class Adept(GenericProgrammer):
             "prog", "-d", self.board,
             "-i", str(self.index),
             "-f", bitstream_file,
-            ])
+        ])
 
     def flash(self, address, data_file):
         raise ValueError("Flashing unsupported with DigilentAdept tools")

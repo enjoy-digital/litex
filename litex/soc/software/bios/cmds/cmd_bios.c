@@ -140,6 +140,22 @@ define_command(flush_l2_cache, flush_l2_cache, "Flush L2 cache", SYSTEM_CMDS);
 #endif
 
 /**
+ * Command "buttons"
+ *
+ * Set Buttons value
+ *
+ */
+#ifdef CSR_BUTTONS_BASE
+static void buttons_handler(int nb_params, char **params)
+{
+	unsigned int value;
+	value = buttons_in_read();
+	printf("Buttons value: 0x%x", value);
+}
+define_command(buttons, buttons_handler, "Get Buttons value", SYSTEM_CMDS);
+#endif
+
+/**
  * Command "leds"
  *
  * Set Leds value

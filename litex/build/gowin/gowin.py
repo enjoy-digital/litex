@@ -82,8 +82,8 @@ class GowinToolchain(GenericToolchain):
         if self.named_pc:
             cst.extend(self.named_pc)
 
-        tools.write_to_file("top.cst", "\n".join(cst))
-        return ("top.cst", "CST")
+        tools.write_to_file(f"{self._build_name}.cst", "\n".join(cst))
+        return (f"{self._build_name}.cst", "CST")
 
     # Timing Constraints (.sdc ) -------------------------------------------------------------------
 
@@ -91,8 +91,8 @@ class GowinToolchain(GenericToolchain):
         sdc = []
         for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
             sdc.append(f"create_clock -name {vns.get_name(clk)} -period {str(period)} [get_ports {{{vns.get_name(clk)}}}]")
-        tools.write_to_file("top.sdc", "\n".join(sdc))
-        return ("top.sdc", "SDC")
+        tools.write_to_file(f"{self._build_name}.sdc", "\n".join(sdc))
+        return (f"{self._build_name}.sdc", "SDC")
 
     # Project (tcl) --------------------------------------------------------------------------------
 
@@ -103,10 +103,10 @@ class GowinToolchain(GenericToolchain):
         tcl.append(f"set_device -name {self.platform.devicename} {self.platform.device}")
 
         # Add IOs Constraints.
-        tcl.append("add_file top.cst")
+        tcl.append(f"add_file {self._build_name}.cst")
 
         # Add Timings Constraints.
-        tcl.append("add_file top.sdc")
+        tcl.append(f"add_file {self._build_name}.sdc")
 
         # Add Sources.
         for f, typ, lib in self.platform.sources:
@@ -149,5 +149,5 @@ class GowinToolchain(GenericToolchain):
         # Copy Bitstream to from impl to gateware directory.
         copyfile(
             os.path.join("impl", "pnr", "project.fs"),
-            os.path.join(build_name + ".fs")
+            os.path.join(self._build_name + ".fs")
         )

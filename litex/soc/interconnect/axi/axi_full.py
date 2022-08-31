@@ -359,7 +359,7 @@ class AXIArbiter(Module):
     """
     def __init__(self, masters, target):
         self.submodules.rr_write = roundrobin.RoundRobin(len(masters), roundrobin.SP_CE)
-        self.submodules.rr_read = roundrobin.RoundRobin(len(masters), roundrobin.SP_CE)
+        self.submodules.rr_read  = roundrobin.RoundRobin(len(masters), roundrobin.SP_CE)
 
         def get_sig(interface, channel, name):
             return getattr(getattr(interface, channel), name)
@@ -378,8 +378,8 @@ class AXIArbiter(Module):
                 source = get_sig(target, channel, name)
                 for i, m in enumerate(masters):
                     dest = get_sig(m, channel, name)
-                    if name == "ready":
-                        self.comb += dest.eq(source & (rr.grant == i))
+                    if name in ["valid", "ready"]:
+                        self.comb += If(rr.grant == i, dest.eq(source))
                     else:
                         self.comb += dest.eq(source)
 

@@ -57,7 +57,7 @@ class EfinityToolchain(GenericToolchain):
 
         return GenericToolchain.build(self, platform, fragment, **kwargs)
 
-    # Timing Constraints (.sdc) ------------------------------------------------------------------------
+    # Timing Constraints (.sdc) --------------------------------------------------------------------
 
     def build_timing_constraints(self, vns):
         sdc = []
@@ -87,7 +87,7 @@ class EfinityToolchain(GenericToolchain):
         tools.write_to_file("{}.sdc".format(self._build_name), "\n".join(sdc))
         return (self._build_name + ".sdc", "SDC")
 
-    # Peripheral configuration (.xml) ------------------------------------------------------------------
+    # Peripheral configuration (.xml) --------------------------------------------------------------
 
     def get_pin_direction(self, pinname):
         pins = self.platform.constraint_manager.get_io_signals()
@@ -182,7 +182,7 @@ class EfinityToolchain(GenericToolchain):
             inst.append(self._create_gpio_instance(sig, pins))
             if len(pins) > 1:
                 for i, p in enumerate(pins):
-                    conf.append(_format_conf_constraint("{}[{}]".format(sig, i), p, others, resname))
+                    conf.append(self._format_conf_constraint("{}[{}]".format(sig, i), p, others, resname))
             else:
                 conf.append(self._format_conf_constraint(sig, pins[0], others, resname))
         if self.named_pc:
@@ -219,7 +219,7 @@ class EfinityToolchain(GenericToolchain):
 
 
 
-    # Project configuration (.xml) ---------------------------------------------------------------------
+    # Project configuration (.xml) -----------------------------------------------------------------
 
     def build_project(self):
         now  = datetime.datetime.now()

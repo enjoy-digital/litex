@@ -176,8 +176,12 @@ class VexRiscvSMP(CPU):
     @staticmethod
     def generate_default_configs():
         # Single cores.
-        for data_width in [16, 32, 64, 128]:
-            VexRiscvSMP.litedram_width = data_width
+        for data_width in [None, 16, 32, 64, 128]:
+            if data_width is None:
+                VexRiscvSMP.wishbone_memory = True
+            else:
+                VexRiscvSMP.wishbone_memory = False
+                VexRiscvSMP.litedram_width = data_width
             VexRiscvSMP.icache_width   = 32
             VexRiscvSMP.dcache_width   = 32
             VexRiscvSMP.coherent_dma   = False
@@ -204,8 +208,10 @@ class VexRiscvSMP(CPU):
             VexRiscvSMP.icache_size    = 8192
             VexRiscvSMP.dcache_ways    = 2
             VexRiscvSMP.icache_ways    = 2
-            VexRiscvSMP.icache_width   = 32 if data_width < 64 else 64
-            VexRiscvSMP.dcache_width   = 32 if data_width < 64 else 64
+            VexRiscvSMP.icache_width   = 32 if data_width is None \
+                                              or data_width < 64 else 64
+            VexRiscvSMP.dcache_width   = 32 if data_width is None \
+                                              or data_width < 64 else 64
 
             # Without DMA.
             VexRiscvSMP.coherent_dma = False
@@ -363,6 +369,10 @@ class VexRiscvSMP(CPU):
         from litex.build.altera import AlteraPlatform
         if isinstance(platform, AlteraPlatform):
             ram_filename = "Ram_1w_1rs_Intel.v"
+            # define SYNTHESIS verilog name to avoid issues with unsupported
+            # functions
+            platform.toolchain.additional_qsf_commands.append(
+                'set_global_assignment -name VERILOG_MACRO "SYNTHESIS=1"')
         # On Efinix platforms, use specific implementation.
         from litex.build.efinix import EfinixPlatform
         if isinstance(platform, EfinixPlatform):

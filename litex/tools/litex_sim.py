@@ -478,7 +478,6 @@ def main():
         if args.trace:
             generate_gtkw_savefile(builder, vns, args.trace_fst)
 
-    builder_kwargs["csr_csv"] = "csr.csv"
     builder = Builder(soc, **builder_kwargs)
     builder.build(
         sim_config       = sim_config,

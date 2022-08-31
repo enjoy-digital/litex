@@ -166,7 +166,7 @@ was {} bytes.
 {}: Memory.MappedMemory @ {}
     size: {}
 """.format(region_descriptor['name'],
-           generate_sysbus_registration(region_descriptor, skip_size=True),
+           generate_sysbus_registration(region_descriptor, skip_size=True, skip_braces=True),
            hex(region_descriptor['size']))
 
     return result
@@ -186,7 +186,7 @@ def generate_silencer(csr, name, **kwargs):
     return """
 sysbus:
     init add:
-        SilenceRange <{} 0x200> # {}
+        SilenceRange <0x{:08x} 0x200> # {}
 """.format(csr['csr_bases'][name], name)
 
 
@@ -234,11 +234,6 @@ cpu: CPU.VexRiscv @ sysbus
             result += """
     timeProvider: {}
 """.format(time_provider)
-
-        if kind == 'vexriscv_smp':
-            result += """
-    builtInIrqController: false
-"""
 
         return result
     elif kind == 'picorv32':
@@ -433,16 +428,51 @@ clint: IRQControllers.CoreLevelInterruptor @ {}
 
 
 def generate_plic(plic):
-    # TODO: this is configuration for VexRiscv - add support for other CPU types
+    # TODO: this is configuration for linux-on-litex-vexriscv - add support for other CPU types
     result = """
 plic: IRQControllers.PlatformLevelInterruptController @ {}
-    [0-3] -> cpu@[8-11]
+    [0, 1] -> cpu@[11, 9]
     numberOfSources: 31
-    numberOfTargets: 2
+    numberOfContexts: 2
     prioritiesEnabled: false
 """.format(generate_sysbus_registration(plic,
                                         skip_braces=True,
                                         skip_size=True))
+
+    return result
+
+
+def generate_video_framebuffer(csr, name, **kwargs):
+    peripheral = get_descriptor(csr, name, 0xc) # This is simultaneously the "dma" region
+    vtg = get_descriptor(csr, name + "_vtg", 0x24)
+
+    constants = peripheral['constants']
+
+    hres = int(constants['hres'])
+    vres = int(constants['vres'])
+    base = int(constants['base'])
+
+    memory = find_memory_region(csr['filtered_memories'], base)
+    if memory is None:
+        raise Exception("Framebuffer base does not belong to a memory region")
+
+    offset = base - memory['base']
+
+    result = """
+litex_video: Video.LiteX_Framebuffer_CSR32 @ {{
+    {};
+    {}
+}}
+    format: PixelFormat.XBGR8888
+    memory: {}
+    offset: 0x{:08x}
+    hres: {}
+    vres: {}
+""".format(generate_sysbus_registration(peripheral,
+                                        skip_braces=True, region='dma'),
+           generate_sysbus_registration(vtg,
+                                        skip_braces=True, region='vtg'),
+           memory['name'], offset, hres, vres)
 
     return result
 
@@ -525,6 +555,12 @@ peripherals_handlers = {
         'model': 'SPI.LiteX_SPI',
         'ignored_constants': ['interrupt'] # model in Renode currently doesn't support interrupts
     },
+    'video_framebuffer': {
+        'handler': generate_video_framebuffer,
+    },
+    'video_framebuffer_vtg': {
+        'handler': lambda *args, **kwargs: "", # This is handled by generate_video_framebuffer
+    }
 }
 
 
@@ -567,7 +603,10 @@ def generate_repl(csr, etherbone_peripherals, autoalign):
         x['name'] = m
         memories.append(x)
 
-    for mem_region in filter_memory_regions(memories, alignment=0x1000, autoalign=autoalign):
+    filtered_memories = list(filter_memory_regions(memories, alignment=0x1000, autoalign=autoalign))
+    csr['filtered_memories'] = filtered_memories # Save for use by peripheral generators
+
+    for mem_region in filtered_memories:
         result += generate_memory_region(mem_region)
 
     time_provider = None
@@ -667,6 +706,28 @@ def filter_memory_regions(raw_regions, alignment=None, autoalign=[]):
 
         previous_region = r
         yield r
+
+
+def find_memory_region(memory_regions, address):
+    """ Finds the memory region containing the specified address.
+
+        Args:
+            memory_regions (list): list of memory regions filtered
+                                   with filter_memory_regions
+            address (int): the address to find
+
+        Returns:
+            dict or None: the region from `memory_regions` that contains
+                          `address` or None if none of them do
+    """
+    for r in memory_regions:
+        base, size = r['base'], r['size']
+        end = base + size
+
+        if base <= address < end:
+            return r
+
+    return None
 
 
 def generate_resc(csr, args, flash_binaries={}, tftp_binaries={}):

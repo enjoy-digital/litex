@@ -34,6 +34,9 @@ def main():
     # Copy demo.bin
     os.system("cp demo/demo.bin ./")
 
+    # Prepare flash boot image.
+    os.system("python3 -m litex.soc.software.crcfbigen demo.bin -o demo.fbi --fbi --little") # FIXME: Endianness.
+
 if __name__ == "__main__":
     main()
 

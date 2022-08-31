@@ -10,7 +10,7 @@ import os
 from litex.build.generic_platform import GenericPlatform
 from litex.build.gowin import common, gowin
 
-# GowinPlatform -----------------------------------------------------------------------------------
+# GowinPlatform ------------------------------------------------------------------------------------
 
 class GowinPlatform(GenericPlatform):
     bitstream_ext = ".fs"

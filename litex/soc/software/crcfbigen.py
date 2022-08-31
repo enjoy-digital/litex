@@ -30,11 +30,11 @@ def insert_crc(i_filename, fbi_mode=False, o_filename=None, little_endian=False)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="CRC32 computation tool and MiSoC image file writer.")
-    parser.add_argument("input", help="input file")
-    parser.add_argument("-o", "--output", default=None, help="output file (if not specified, use input file)")
-    parser.add_argument("-f", "--fbi", default=False, action="store_true", help="build flash boot image (FBI) file")
-    parser.add_argument("-l", "--little", default=False, action="store_true", help="Use little endian to write the CRC32")
+    parser = argparse.ArgumentParser(description="CRC32/Flash Boot Image generator.")
+    parser.add_argument("input",                                              help="Input file.")
+    parser.add_argument("-o", "--output", default=None,                       help="Output file (if not specified, use input file).")
+    parser.add_argument("-f", "--fbi",    default=False, action="store_true", help="Build Flash Boot Image (FBI) file.")
+    parser.add_argument("-l", "--little", default=False, action="store_true", help="Use little endian to write the CRC32.")
     args = parser.parse_args()
     insert_crc(args.input, args.fbi, args.output, args.little)
 

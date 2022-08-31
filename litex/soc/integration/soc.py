@@ -440,6 +440,21 @@ class SoCBusHandler(Module):
             colorer(name, color="underline"),
             colorer("added", color="green")))
 
+    def get_address_width(self, standard):
+        standard_from = self.standard
+        standard_to   = standard
+
+        # AXI or AXI-Lite SoC Bus and Wishbone requested:
+        if standard_from in ["axi", "axi-lite"] and standard_to in ["wishbone"]:
+            address_shift = log2_int(self.data_width//8)
+            return self.address_width - address_shift
+        # Wishbone SoC Bus and AXI, AXI-Lite requested:
+        if standard_from in ["wishbone"] and standard_to in ["axi", "axi-lite"]:
+            address_shift = log2_int(self.data_width//8)
+            return self.address_width + address_shift
+        # Else just return address_width:
+        return self.address_width
+
     # Str ------------------------------------------------------------------------------------------
     def __str__(self):
         r = "{}-bit {} Bus, {}GiB Address Space.\n".format(
@@ -1038,7 +1053,7 @@ class SoC(Module):
                     name             = "SoCDMABusHandler",
                     standard         = "wishbone",
                     data_width       = self.bus.data_width,
-                    address_width    = self.bus.address_width,
+                    address_width    = self.bus.get_address_width(standard="wishbone"),
                     bursting         = self.bus.bursting
                 )
                 dma_bus = wishbone.Interface(data_width=self.bus.data_width)
@@ -1792,7 +1807,7 @@ class LiteXSoC(SoC):
 
         # Block2Mem DMA.
         if "read" in mode:
-            bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.address_width)
+            bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.get_address_width(standard="wishbone"))
             self.submodules.sdblock2mem = SDBlock2MemDMA(bus=bus, endianness=self.cpu.endianness)
             self.comb += self.sdcore.source.connect(self.sdblock2mem.sink)
             dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
@@ -1800,20 +1815,20 @@ class LiteXSoC(SoC):
 
         # Mem2Block DMA.
         if "write" in mode:
-            bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.address_width)
+            bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.get_address_width(standard="wishbone"))
             self.submodules.sdmem2block = SDMem2BlockDMA(bus=bus, endianness=self.cpu.endianness)
             self.comb += self.sdmem2block.source.connect(self.sdcore.sink)
             dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
             dma_bus.add_master("sdmem2block", master=bus)
 
         # Interrupts.
-        self.submodules.sdirq = EventManager()
-        self.sdirq.card_detect   = EventSourcePulse(description="SDCard has been ejected/inserted.")
+        self.submodules.sdirq  = EventManager()
+        self.sdirq.card_detect = EventSourcePulse(description="SDCard has been ejected/inserted.")
         if "read" in mode:
             self.sdirq.block2mem_dma = EventSourcePulse(description="Block2Mem DMA terminated.")
         if "write" in mode:
             self.sdirq.mem2block_dma = EventSourcePulse(description="Mem2Block DMA terminated.")
-        self.sdirq.cmd_done      = EventSourceLevel(description="Command completed.")
+        self.sdirq.cmd_done  = EventSourceLevel(description="Command completed.")
         self.sdirq.finalize()
         if "read" in mode:
             self.comb += self.sdirq.block2mem_dma.trigger.eq(self.sdblock2mem.irq)
@@ -1864,7 +1879,7 @@ class LiteXSoC(SoC):
 
         # Sector2Mem DMA.
         if "read" in mode:
-            bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.address_width)
+            bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.get_address_width(standard="wishbone"))
             self.submodules.sata_sector2mem = LiteSATASector2MemDMA(
                port       = self.sata_crossbar.get_port(),
                bus        = bus,
@@ -1874,7 +1889,7 @@ class LiteXSoC(SoC):
 
         # Mem2Sector DMA.
         if "write" in mode:
-            bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.address_width)
+            bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.get_address_width(standard="wishbone"))
             self.submodules.sata_mem2sector = LiteSATAMem2SectorDMA(
                bus        = bus,
                port       = self.sata_crossbar.get_port(),
@@ -1894,7 +1909,7 @@ class LiteXSoC(SoC):
         if "write" in mode:
             self.comb += self.sata_irq.mem2sector_dma.trigger.eq(self.sata_mem2sector.irq)
         if self.irq.enabled:
-            self.irq.add("sata", use_loc_if_exists=True)
+            self.irq.add("sata_irq", use_loc_if_exists=True)
 
         # Timing constraints.
         self.platform.add_period_constraint(self.sata_phy.crg.cd_sata_tx.clk, 1e9/sata_clk_freq)

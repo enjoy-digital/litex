@@ -5,13 +5,13 @@
 # Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-
 import os
 import sys
 import subprocess
 
 from litex.build import tools
 
+# Generic Programmer -------------------------------------------------------------------------------
 
 class GenericProgrammer:
     def __init__(self, flash_proxy_basename=None):
@@ -95,6 +95,7 @@ class GenericProgrammer:
         if (subprocess.call(command) != 0) and check:
             msg = f"Error occured during {self.__class__.__name__}'s call, please check:\n"
             msg += f"- {self.__class__.__name__} installation.\n"
-            msg += f"- access permissions.\n"
-            msg += f"- hardware and cable."
+            msg += f"- Access permissions.\n"
+            msg += f"- Hardware and cable.\n"
+            msg += f"- Bitstream presence."
             raise OSError(msg)

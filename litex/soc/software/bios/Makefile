@@ -21,18 +21,22 @@ OBJECTS = boot-helper.o	\
 	  sim_debug.o		\
 	  main.o
 
-ifneq "$(or $(TERM_NO_COMPLETE),$(TERM_MINI))" ""
-CFLAGS += -DTERM_NO_COMPLETE
+ifneq "$(or $(BIOS_CONSOLE_NO_AUTOCOMPLETE),$(BIOS_CONSOLE_LITE))" ""
+CFLAGS += -DBIOS_CONSOLE_NO_AUTOCOMPLETE
 else
 OBJECTS += complete.o
 endif
 
-ifdef TERM_NO_HIST
-CFLAGS += -DTERM_NO_HIST
+ifdef BIOS_CONSOLE_NO_HISTORY
+CFLAGS += -DBIOS_CONSOLE_NO_HISTORY
 endif
 
-ifdef TERM_MINI
-CFLAGS += -DTERM_MINI
+ifdef BIOS_CONSOLE_DISABLE
+CFLAGS += -DBIOS_CONSOLE_DISABLE
+endif
+
+ifdef BIOS_CONSOLE_LITE
+CFLAGS += -DBIOS_CONSOLE_LITE
 OBJECTS += readline_simple.o
 else
 OBJECTS += readline.o
@@ -55,9 +59,9 @@ ifneq ($(OS),Windows_NT)
 	chmod -x $@
 endif
 ifeq ($(CPUENDIANNESS),little)
-	$(PYTHON) -m litex.soc.software.mkmscimg $@ --little
+	$(PYTHON) -m litex.soc.software.crcfbigen $@ --little
 else
-	$(PYTHON) -m litex.soc.software.mkmscimg $@
+	$(PYTHON) -m litex.soc.software.crcfbigen $@
 endif
 
 bios.elf: $(BIOS_DIRECTORY)/$(LSCRIPT) $(OBJECTS)
