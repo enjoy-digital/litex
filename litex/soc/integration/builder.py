@@ -82,7 +82,7 @@ class Builder:
 
         # BIOS.
         bios_lto         = False,
-        bios_console     = [],
+        bios_console     = "BIOS_CONSOLE_FULL",
 
         # Documentation.
         generate_doc     = False):
