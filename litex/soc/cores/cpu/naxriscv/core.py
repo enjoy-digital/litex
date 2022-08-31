@@ -196,6 +196,7 @@ class NaxRiscv(CPU):
         md5_hash.update(str(NaxRiscv.xlen).encode('utf-8'))
         md5_hash.update(str(NaxRiscv.jtag_tap).encode('utf-8'))
         md5_hash.update(str(NaxRiscv.jtag_instruction).encode('utf-8'))
+        md5_hash.update(str(NaxRiscv.memory_regions).encode('utf-8'))
         for args in NaxRiscv.scala_args:
             md5_hash.update(args.encode('utf-8'))
         for file in NaxRiscv.scala_paths:
@@ -235,6 +236,8 @@ class NaxRiscv(CPU):
         gen_args.append(f"--netlist-directory={vdir}")
         gen_args.append(f"--reset-vector={reset_address}")
         gen_args.append(f"--xlen={NaxRiscv.xlen}")
+        for region in NaxRiscv.memory_regions:
+            gen_args.append(f"--memory-region={region[0]},{region[1]},{region[2]}")
         for args in NaxRiscv.scala_args:
             gen_args.append(f"--scala-args={args}")
         if(NaxRiscv.jtag_tap) :
@@ -397,7 +400,7 @@ class NaxRiscv(CPU):
         soc.bus.add_slave("clint", clintbus, region=soc_region_cls(origin=soc.mem_map.get("clint"), size=0x1_0000, cached=False))
         self.soc = soc # Save SoC instance to retrieve the final mem layout on finalization
 
-    def add_memory_buses(self, address_width, data_width, accessible_region):
+    def add_memory_buses(self, address_width, data_width):
         nax_data_width = 64
         nax_burst_size = 64
         assert data_width >= nax_data_width   # FIXME: Only supporting up-conversion for now.
@@ -461,20 +464,25 @@ class NaxRiscv(CPU):
             i_ram_dbus_rresp   = dbus.r.resp,
             i_ram_dbus_rlast   = dbus.r.last,
         )
-        self.scala_args.append('mem-region-origin=0x{accessible_region.origin:x}'
-                               .format(accessible_region=accessible_region))
-        self.scala_args.append('mem-region-length=0x{accessible_region.size:x}'
-                               .format(accessible_region=accessible_region))
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
         self.find_scala_files()
 
-        # Find mem regions with executable flag
-        for region in self.soc.bus.regions.values():
-            if 'x' in region.mode:
-                self.scala_args.append('executable-region=(0x{region.origin:x},0x{region.size:x})'
-                                       .format(region=region))
+        # Generate memory map from CPU perspective
+        # naxriscv modes:
+        # r,w  : regular memory load/store
+        # i,o  : peripheral memory load/store
+        # x    : instruction fetchable (execute)
+        # litex modes:
+        # rwx  : load, store, execute (everything is peripheral per default)
+        NaxRiscv.memory_regions = []
+        for name, region in self.soc.bus.regions.items():
+            if len(self.memory_buses) and name == 'main_ram':
+                mode = region.mode
+            else:
+                mode = region.mode.replace('r', 'i').replace('w', 'o')
+            NaxRiscv.memory_regions.append( (region.origin, region.size, mode) )
 
         self.generate_netlist_name(self.reset_address)
 
