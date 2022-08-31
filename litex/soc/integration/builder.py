@@ -82,7 +82,7 @@ class Builder:
 
         # BIOS.
         bios_lto         = False,
-        bios_console     = "BIOS_CONSOLE_FULL",
+        bios_console     = "full",
 
         # Documentation.
         generate_doc     = False):
@@ -133,6 +133,7 @@ class Builder:
         # Helper.
         variables_contents = []
         def define(k, v):
+            k = k.replace("-", "_")
             try:
                 variables_contents.append("{}={}".format(k, _makefile_escape(v)))
             except AttributeError as e:
@@ -162,14 +163,8 @@ class Builder:
 
         # Define BIOS variables.
         define("LTO", f"{self.bios_lto:d}")
-        assert self.bios_console in [
-            "BIOS_CONSOLE_FULL",
-            "BIOS_CONSOLE_NO_HISTORY",
-            "BIOS_CONSOLE_NO_AUTOCOMPLETE",
-            "BIOS_CONSOLE_LITE",
-            "BIOS_CONSOLE_DISABLE"
-        ]
-        define(self.bios_console, "1")
+        assert self.bios_console in ["full", "no-history", "no-autocomplete", "lite", "disable"]
+        define(f"BIOS_CONSOLE_{self.bios_console.upper()}", "1")
 
         return "\n".join(variables_contents)
 
@@ -426,11 +421,5 @@ def builder_argdict(args):
         "memory_x"         : args.memory_x,
         "generate_doc"     : args.doc,
         "bios_lto"         : args.bios_lto,
-        "bios_console"     : { # FIXME: Move?
-            "full"            : "BIOS_CONSOLE_FULL",
-            "no-history"      : "BIOS_CONSOLE_NO_AUTOCOMPLETE",
-            "no-autocomplete" : "BIOS_CONSOLE_NO_HISTORY",
-            "lite"            : "BIOS_CONSOLE_LITE",
-            "disable"         : "BIOS_CONSOLE_DISABLE",
-        }[args.bios_console],
+        "bios_console"     : args.bios_console,
     }
