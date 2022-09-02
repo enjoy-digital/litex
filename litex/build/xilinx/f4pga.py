@@ -16,10 +16,11 @@ from litex.build.xilinx.vivado import _xdc_separator, _build_xdc
 from litex.build import tools
 
 try:
-    from f4pga import Flow, make_flow_config
-    from f4pga.common import set_verbosity_level
-    from f4pga.cache import F4Cache
-    from f4pga.flow_config import ProjectFlowConfig
+    from f4pga.flows.flow import Flow
+    from f4pga.flows.commands import make_flow_config
+    from f4pga.flows.common import set_verbosity_level
+    from f4pga.flows.cache import F4Cache
+    from f4pga.flows.flow_config import ProjectFlowConfig
 except ModuleNotFoundError as e:
     raise ModuleNotFoundError("Try getting/updating F4PGA tool (https://github.com/chipsalliance/f4pga/)") from e
 
