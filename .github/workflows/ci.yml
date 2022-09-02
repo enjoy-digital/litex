@@ -1,35 +1,47 @@
 name: ci
 
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
-      # Checkout Repository
+
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Setup CCache
         uses: hendrikmuhs/ccache-action@v1
 
-      # Install Tools
       - name: Install Tools
-        run: |
-          sudo apt-get install wget build-essential python3 ninja-build
-          sudo apt-get install libevent-dev libjson-c-dev flex bison
-          sudo apt-get install libfl-dev libfl2 zlib1g-dev
-          pip3 install setuptools
-          pip3 install requests
-          pip3 install pexpect
-          pip3 install meson
+        run: >-
+          sudo apt-get install
+          wget
+          build-essential
+          python3
+          ninja-build
+          libevent-dev
+          libjson-c-dev
+          flex
+          bison
+          libfl-dev
+          libfl2
+          zlib1g-dev
 
-      # Install (n)Migen / LiteX / Cores
-      - name: Install LiteX
-        run: |
-          python3 litex_setup.py --config=full --init --install --user
+      - name: Install Python dependencies
+        run: >-
+          pip3 install
+          setuptools
+          requests
+          pexpect
+          meson
 
-      # Install GCC Toolchains
+      - name: Install (n)Migen / LiteX / Cores
+        run: python3 litex_setup.py --config=full --init --install --user
+
       - name: Install GCC Toolchains
         run: |
           python3 litex_setup.py --gcc=riscv
@@ -39,8 +51,7 @@ jobs:
           sudo mkdir /usr/local/openrisc
           sudo cp -r $PWD/../openrisc-*/* /usr/local/openrisc
 
-      # Build / Install Verilator
-      - name: Build Verilator
+      - name: Build / Install Verilator
         run: |
           export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
           git clone https://github.com/verilator/verilator
@@ -50,11 +61,9 @@ jobs:
           make -j$(nproc)
           sudo make install
 
-      # Install Project
       - name: Install Project
         run: python3 setup.py develop --user
 
-      # Test
       - name: Run Tests
         run: |
           export PATH=/usr/local/riscv/bin:$PATH
