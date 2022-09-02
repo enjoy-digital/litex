@@ -478,6 +478,8 @@ class NaxRiscv(CPU):
         # rwx  : load, store, execute (everything is peripheral per default)
         NaxRiscv.memory_regions = []
         for name, region in self.soc.bus.regions.items():
+            if region.linker: # remove virtual regions
+                continue
             if len(self.memory_buses) and name == 'main_ram':
                 mode = region.mode
             else:
