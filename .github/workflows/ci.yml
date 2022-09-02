@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   build:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     steps:
       # Checkout Repository
       - name: Checkout
@@ -18,7 +18,7 @@ jobs:
         run: |
           sudo apt-get install wget build-essential python3 ninja-build
           sudo apt-get install libevent-dev libjson-c-dev flex bison
-          sudo apt-get install libfl-dev libfl2 zlibc zlib1g-dev
+          sudo apt-get install libfl-dev libfl2 zlib1g-dev
           pip3 install setuptools
           pip3 install requests
           pip3 install pexpect
