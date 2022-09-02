@@ -30,7 +30,7 @@ class DNA(Module, AutoCSR):
         count = Signal(8)
         dout  = Signal()
         self.specials += Instance("DNA_PORT",
-            i_CLK   = ClockSignal("icap"),
+            i_CLK   = ClockSignal("dna"),
             i_READ  = (count == 0),
             i_SHIFT = 1,
             i_DIN   = 0,
