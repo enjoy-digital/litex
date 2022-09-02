@@ -1290,7 +1290,7 @@ class LiteXSoC(SoC):
         setattr(self.submodules, name, Identifier(identifier))
 
     # Add UART -------------------------------------------------------------------------------------
-    def add_uart(self, name="uart", uart_name="serial", baudrate=115200, fifo_depth=16):
+    def add_uart(self, name="uart", uart_name="serial", baudrate=115200, fifo_depth=16, uart_pads_name="serial"):
         # Imports.
         from litex.soc.cores.uart import UART, UARTCrossover
 
@@ -1307,7 +1307,7 @@ class LiteXSoC(SoC):
             "usb_acm",
             "serial(x)",
         ]
-        uart_pads_name = "serial" if uart_name == "sim" else uart_name
+        uart_pads_name = "serial" if uart_name == "sim" else uart_pads_name
         uart_pads      = self.platform.request(uart_pads_name, loose=True)
         uart_phy       = None
         uart           = None

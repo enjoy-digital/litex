@@ -144,6 +144,9 @@ class SoCCore(LiteXSoC):
         self.mem_map     = self.mem_map
         self.config      = {}
 
+        # naming scheme
+        postfix = kwargs.get("postfix", "")
+
         # Parameters management --------------------------------------------------------------------
 
         # CPU.
@@ -226,7 +229,10 @@ class SoCCore(LiteXSoC):
 
         # Add UART
         if with_uart:
-            self.add_uart(name="uart", uart_name=uart_name, baudrate=uart_baudrate, fifo_depth=uart_fifo_depth)
+            self.add_uart(name="uart", uart_name=uart_name, 
+                          baudrate=uart_baudrate, fifo_depth=uart_fifo_depth,
+                          uart_pads_name = uart_name + postfix)
+
 
         # Add Timer
         if with_timer:
