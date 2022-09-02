@@ -66,10 +66,12 @@ class Builder:
         output_dir       = None,
         gateware_dir     = None,
         software_dir     = None,
+        doc_dir          = None,
         include_dir      = None,
         generated_dir    = None,
 
         # Compile Options.
+        generate_verilog = True,
         compile_software = True,
         compile_gateware = True,
         build_backend    = "litex",
@@ -93,12 +95,14 @@ class Builder:
         self.output_dir    = os.path.abspath(output_dir    or os.path.join("build", soc.platform.name))
         self.gateware_dir  = os.path.abspath(gateware_dir  or os.path.join(self.output_dir,   "gateware"))
         self.software_dir  = os.path.abspath(software_dir  or os.path.join(self.output_dir,   "software"))
+        self.doc_dir       = os.path.abspath(doc_dir       or os.path.join(self.output_dir,   "doc"))
         self.include_dir   = os.path.abspath(include_dir   or os.path.join(self.software_dir, "include"))
         self.generated_dir = os.path.abspath(generated_dir or os.path.join(self.include_dir,  "generated"))
 
         # Compile Options.
+        self.generate_verilog = generate_verilog
         self.compile_software = compile_software
-        self.compile_gateware = compile_gateware
+        self.compile_gateware = compile_gateware and generate_verilog
         self.build_backend    = build_backend
         self.lto              = lto
 
@@ -294,6 +298,7 @@ class Builder:
         self.soc.initialize_rom(bios_data)
 
     def build(self, **kwargs):
+
         # Pass Output Directory to Platform.
         self.soc.platform.output_dir = self.output_dir
 
@@ -302,15 +307,16 @@ class Builder:
         if with_bios:
             self.add_software_package("bios")
 
-        # Create Gateware directory.
-        _create_dir(self.gateware_dir)
+        if self.generate_verilog:
+            # Create Gateware directory.
+            create_dir(self.gateware_dir)
 
-        # Copy Sources to Gateware directory (Optional).
-        for i, (f, language, library, *copy) in enumerate(self.soc.platform.sources):
-            if len(copy) and copy[0]:
-                shutil.copy(f, self.gateware_dir)
-                f = os.path.basename(f)
-            self.soc.platform.sources[i] = (f, language, library)
+            # Copy Sources to Gateware directory (Optional).
+            for i, (f, language, library, *copy) in enumerate(self.soc.platform.sources):
+                if len(copy) and copy[0]:
+                    shutil.copy(f, self.gateware_dir)
+                    f = os.path.basename(f)
+                self.soc.platform.sources[i] = (f, language, library)
 
         # Create Software directory.
         # First check if software needs a full re-build and remove software dir if so.
@@ -359,15 +365,18 @@ class Builder:
         kwargs["build_backend"] = self.build_backend
 
         # Build SoC and pass Verilog Name Space to do_exit.
-        vns = self.soc.build(build_dir=self.gateware_dir, **kwargs)
-        self.soc.do_exit(vns=vns)
+        if self.generate_verilog:
+            vns = self.soc.build(build_dir=self.gateware_dir, **kwargs)
+            self.soc.do_exit(vns=vns)
+        else:
+            vns=""
 
         # Generate SoC Documentation.
         if self.generate_doc:
             from litex.soc.doc import generate_docs
-            doc_dir = os.path.join(self.output_dir, "doc")
-            generate_docs(self.soc, doc_dir)
-            os.system(f"sphinx-build -M html {doc_dir} {doc_dir}/_build")
+            generate_docs(self.soc, self.doc_dir)
+            os.system(f"sphinx-build -M html {self.doc_dir} {self.doc_dir}/_build")
+            os.system(f"cp -r {self.doc_dir}/_build/html {self.doc_dir}/html")
 
         return vns
 
@@ -394,6 +403,7 @@ def builder_args(parser):
     builder_group.add_argument("--include-dir",         default=None,        help="Output directory for Header files.")
     builder_group.add_argument("--generated-dir",       default=None,        help="Output directory for Generated files.")
     builder_group.add_argument("--build-backend",       default="litex",     help="Select build backend: litex or edalize.")
+    builder_group.add_argument("--no-verilog",          action="store_true", help="Disable verilog generation, forces --no-compile-gateware.")
     builder_group.add_argument("--no-compile",          action="store_true", help="Disable Software and Gateware compilation.")
     builder_group.add_argument("--no-compile-software", action="store_true", help="Disable Software compilation only.")
     builder_group.add_argument("--no-compile-gateware", action="store_true", help="Disable Gateware compilation only.")
@@ -403,6 +413,7 @@ def builder_args(parser):
     builder_group.add_argument("--csr-svd",             default=None,        help="Write SoC mapping to the specified SVD file.")
     builder_group.add_argument("--memory-x",            default=None,        help="Write SoC Memory Regions to the specified Memory-X file.")
     builder_group.add_argument("--doc",                 action="store_true", help="Generate SoC Documentation.")
+    builder_group.add_argument("--doc-dir",             default=None,        help="Output directory for SoC Documentation, defaults to --output-dir.")
 
 def builder_argdict(args):
     return {
@@ -412,6 +423,7 @@ def builder_argdict(args):
         "include_dir"      : args.include_dir,
         "generated_dir"    : args.generated_dir,
         "build_backend"    : args.build_backend,
+        "generate_verilog" : not args.no_verilog,
         "compile_software" : (not args.no_compile) and (not args.no_compile_software),
         "compile_gateware" : (not args.no_compile) and (not args.no_compile_gateware),
         "lto"              : args.lto,
@@ -420,4 +432,5 @@ def builder_argdict(args):
         "csr_svd"          : args.csr_svd,
         "memory_x"         : args.memory_x,
         "generate_doc"     : args.doc,
+        "doc_dir"          : args.doc_dir,
     }
