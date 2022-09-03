@@ -322,6 +322,8 @@ class ConstraintManager:
 # Generic Platform ---------------------------------------------------------------------------------
 
 class GenericPlatform:
+    device_family = None
+
     def __init__(self, device, io, connectors=[], name=None):
         self.toolchain          = None
         self.device             = device
@@ -467,3 +469,54 @@ class GenericPlatform:
     @property
     def support_mixed_language(self):
         return self.toolchain.support_mixed_language
+
+    @classmethod
+    def fill_args(cls, toolchain, parser):
+        """
+        pass parser to the specific toolchain to
+        fill this with toolchain args
+
+        Parameters
+        ==========
+        toolchain: str
+            toolchain name
+        parser: argparse.ArgumentParser
+            parser to be filled
+        """
+        pass # pass must be overloaded (if required)
+
+    @classmethod
+    def get_argdict(cls, toolchain, args):
+        """
+        return a dict of args
+
+        Parameters
+        ==========
+        toolchain: str
+            toolchain name
+
+        Return
+        ======
+        a dict of key/value for each args or an empty dict
+        """
+        return {} # Empty must be overloaded (if required)
+
+    @classmethod
+    def toolchains(cls, device):
+        """
+        Returns list of toolchains compatible with device
+
+        Parameters
+        ==========
+        device: str
+            device name (ice40, ecp5, nexus)
+
+        Return
+        ======
+        A list of compatible toolchains (str) or an empty list
+        """
+        if type(cls._supported_toolchains) == dict:
+            assert device is not None
+            return cls._supported_toolchains[device]
+        else:
+            return cls._supported_toolchains
