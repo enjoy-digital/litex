@@ -809,6 +809,54 @@ class VideoHDMIPHY(Module):
                 )
                 setattr(self.submodules, f"{color}_serializer", serializer)
 
+# HDMI (Gowin).
+
+class VideoGowinHDMIPHY(Module):
+    def __init__(self, pads, clock_domain="sys", pn_swap=[]):
+        self.sink = sink = stream.Endpoint(video_data_layout)
+
+        # # #
+
+        # Always ack Sink, no backpressure.
+        self.comb += sink.ready.eq(1)
+
+        # Clocking + Differential Signaling.
+        pix_clk = ClockSignal(clock_domain)
+        self.specials += Instance("ELVDS_OBUF",
+            i_I  = pix_clk if "clk" not in pn_swap else ~pix_clk,
+            o_O  = pads.clk_p,
+            o_OB = pads.clk_n,
+        )
+
+        for color in ["r", "g", "b"]:
+            # TMDS Encoding.
+            encoder = ClockDomainsRenamer(clock_domain)(TMDSEncoder())
+            setattr(self.submodules, f"{color}_encoder", encoder)
+            self.comb += encoder.d.eq(getattr(sink, color))
+            self.comb += encoder.c.eq(Cat(sink.hsync, sink.vsync) if color == "r" else 0)
+            self.comb += encoder.de.eq(sink.de)
+
+            # 10:1 Serialization + Differential Signaling.
+            data_i = encoder.out if color not in pn_swap else ~encoder.out
+            pad_o = Signal()
+
+            serializer_attrs = dict(
+                o_Q     = pad_o,
+                i_PCLK  = pix_clk,
+                i_FCLK  = ClockSignal(clock_domain + "5x"),
+                i_RESET = ResetSignal(clock_domain),
+            )
+            serializer_attrs.update({f"i_D{i}": data_i[i] for i in range(10)})
+            self.specials += Instance("OSER10", **serializer_attrs)
+
+            c2d  = {"r": 0, "g": 1, "b": 2}
+            self.specials += Instance("ELVDS_OBUF",
+                i_I  = pad_o,
+                o_O  = getattr(pads, f"data{c2d[color]}_p"),
+                o_OB = getattr(pads, f"data{c2d[color]}_n"),
+            )
+
+
 # HDMI (Xilinx Spartan6).
 
 class VideoS6HDMIPHY(Module):
