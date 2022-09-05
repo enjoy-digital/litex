@@ -838,16 +838,14 @@ class VideoGowinHDMIPHY(Module):
 
             # 10:1 Serialization + Differential Signaling.
             data_i = encoder.out if color not in pn_swap else ~encoder.out
-            pad_o = Signal()
-
-            serializer_attrs = dict(
-                o_Q     = pad_o,
+            pad_o  = Signal()
+            self.specials += Instance("OSER10",
                 i_PCLK  = pix_clk,
                 i_FCLK  = ClockSignal(clock_domain + "5x"),
                 i_RESET = ResetSignal(clock_domain),
+                **{f"i_D{i}" : data_i[i] for i in range(10)},
+                o_Q     = pad_o,
             )
-            serializer_attrs.update({f"i_D{i}": data_i[i] for i in range(10)})
-            self.specials += Instance("OSER10", **serializer_attrs)
 
             c2d  = {"r": 0, "g": 1, "b": 2}
             self.specials += Instance("ELVDS_OBUF",
