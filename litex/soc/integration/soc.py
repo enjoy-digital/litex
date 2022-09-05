@@ -954,7 +954,7 @@ class SoC(Module):
         self.add_config("CSR_DATA_WIDTH", self.csr.data_width)
         self.add_config("CSR_ALIGNMENT",  self.csr.alignment)
 
-    def add_cpu(self, name="vexriscv", variant="standard", reset_address=None, cfu=None):
+    def add_cpu(self, name="vexriscv", variant="standard", reset_address=None, cfu=None, postfix=""):
         # Check that CPU is supported.
         if name not in cpu.CPUS.keys():
             supported_cpus = []
@@ -978,7 +978,7 @@ class SoC(Module):
                 colorer("\n - ".join(sorted(cpu_cls.variants)))))
             raise SoCError()
         self.check_if_exists("cpu")
-        self.submodules.cpu = cpu_cls(self.platform, variant)
+        self.submodules.cpu = cpu_cls(self.platform, variant, postfix)
         self.logger.info("CPU {} {}.".format(
             colorer(name, color="underline"),
             colorer("added", color="green")))

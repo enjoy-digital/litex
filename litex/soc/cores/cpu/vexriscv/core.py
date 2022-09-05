@@ -125,7 +125,7 @@ class VexRiscv(CPU, AutoCSR):
         flags += " -D__vexriscv__"
         return flags
 
-    def __init__(self, platform, variant="standard", with_timer=False):
+    def __init__(self, platform, variant="standard", with_timer=False, **kwargs):
         self.platform         = platform
         self.variant          = variant
         self.human_name       = CPU_VARIANTS.get(variant, "VexRiscv")
@@ -136,6 +136,9 @@ class VexRiscv(CPU, AutoCSR):
         self.dbus             = dbus = wishbone.Interface()
         self.periph_buses     = [ibus, dbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses     = []           # Memory buses (Connected directly to LiteDRAM).
+
+        ### naming scheme
+        self.postfix = kwargs.pop("postfix", "")
 
         # # #
 
@@ -362,6 +365,6 @@ class VexRiscv(CPU, AutoCSR):
         assert hasattr(self, "reset_address")
         if not self.external_variant:
             self.add_sources(self.platform, self.variant)
-        self.specials += Instance("VexRiscv", **self.cpu_params)
+        self.specials += Instance("VexRiscv"+self.postfix, **self.cpu_params)
         if hasattr(self, "cfu_params"):
             self.specials += Instance("Cfu", **self.cfu_params)

@@ -192,7 +192,8 @@ class SoCCore(LiteXSoC):
             name          = str(cpu_type),
             variant       = "standard" if cpu_variant is None else cpu_variant,
             reset_address = None if integrated_rom_size else cpu_reset_address,
-            cfu           = cpu_cfu)
+            cfu           = cpu_cfu,
+            postfix       = postfix)
 
         # Add User's interrupts
         if self.irq.enabled:
