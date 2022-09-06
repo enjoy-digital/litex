@@ -48,6 +48,7 @@ class VexRiscvSMP(CPU):
     aes_instruction      = False
     out_of_order_decoder = True
     wishbone_memory      = False
+    wishbone_force_32b   = False
     with_fpu             = False
     cpu_per_fpu          = 4
     with_rvc             = False
@@ -70,6 +71,7 @@ class VexRiscvSMP(CPU):
         cpu_group.add_argument("--aes-instruction",              default=None,        help="Enable AES instruction acceleration.")
         cpu_group.add_argument("--without-out-of-order-decoder", action="store_true", help="Reduce area at cost of peripheral access speed")
         cpu_group.add_argument("--with-wishbone-memory",         action="store_true", help="Disable native LiteDRAM interface")
+        cpu_group.add_argument("--wishbone-force-32b",           action="store_true", help="Force the wishbone bus to be 32 bits")
         cpu_group.add_argument("--with-fpu",                     action="store_true", help="Enable the F32/F64 FPU")
         cpu_group.add_argument("--cpu-per-fpu",                  default="4",         help="Maximal ratio between CPU count and FPU count. Will instanciate as many FPU as necessary.")
         cpu_group.add_argument("--with-rvc",                     action="store_true", help="Enable RISC-V compressed instruction support")
@@ -98,6 +100,7 @@ class VexRiscvSMP(CPU):
         if(args.aes_instruction):              VexRiscvSMP.aes_instruction       = bool(args.aes_instruction)
         if(args.without_out_of_order_decoder): VexRiscvSMP.out_of_order_decoder  = False
         if(args.with_wishbone_memory):         VexRiscvSMP.wishbone_memory       = True
+        if(args.wishbone_force_32b):           VexRiscvSMP.wishbone_force_32b    = True
         if(args.with_fpu):
             VexRiscvSMP.with_fpu     = True
             VexRiscvSMP.icache_width = 64
@@ -169,6 +172,7 @@ class VexRiscvSMP(CPU):
         f"{'_Aes'  if VexRiscvSMP.aes_instruction      else ''}" \
         f"{'_Ood'  if VexRiscvSMP.out_of_order_decoder else ''}" \
         f"{'_Wm'   if VexRiscvSMP.wishbone_memory      else ''}" \
+        f"{'_Wf32' if VexRiscvSMP.wishbone_force_32b   else ''}" \
         f"{'_Fpu' + str(VexRiscvSMP.cpu_per_fpu)  if VexRiscvSMP.with_fpu else ''}" \
         f"{'_Rvc'  if VexRiscvSMP.with_rvc else ''}"
 
@@ -256,6 +260,7 @@ class VexRiscvSMP(CPU):
         gen_args.append(f"--aes-instruction={VexRiscvSMP.aes_instruction}")
         gen_args.append(f"--out-of-order-decoder={VexRiscvSMP.out_of_order_decoder}")
         gen_args.append(f"--wishbone-memory={VexRiscvSMP.wishbone_memory}")
+        gen_args.append(f"--wishbone-force-32b={VexRiscvSMP.wishbone_force_32b}")
         gen_args.append(f"--fpu={VexRiscvSMP.with_fpu}")
         gen_args.append(f"--cpu-per-fpu={VexRiscvSMP.cpu_per_fpu}")
         gen_args.append(f"--rvc={VexRiscvSMP.with_rvc}")
@@ -287,7 +292,7 @@ class VexRiscvSMP(CPU):
             False : 32,
             # Else max of I/DCache-width.
             True  : max(VexRiscvSMP.icache_width, VexRiscvSMP.dcache_width),
-        }[VexRiscvSMP.wishbone_memory])
+        }[VexRiscvSMP.wishbone_memory and not VexRiscvSMP.wishbone_force_32b])
         self.periph_buses     = [pbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses     = []     # Memory buses (Connected directly to LiteDRAM).
 
