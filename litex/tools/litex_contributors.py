@@ -32,8 +32,9 @@ class Author:
 # Use Git Log + Processing to create the list of Contibutors ---------------------------------------
 
 companies = {
-    "Antmicro" : "Antmicro.com",
-    "Google"   : "Google.com",
+    "Antmicro"     : "Antmicro.com",
+    "Google"       : "Google.com",
+    "RapidSilicon" : "RapidSilicon.com",
 }
 
 def list_contributors(path):
