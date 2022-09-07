@@ -766,7 +766,32 @@ class PipeReady(Module):
 
 # Buffer -------------------------------------------------------------------------------------------
 
-class Buffer(PipeValid): pass # FIXME: Replace Buffer with PipeValid in codebase?
+class Buffer(Module):
+    """Pipe valid/payload and/or ready to cut timing path"""
+    def __init__(self, layout, pipe_valid=True, pipe_ready=False):
+        self.sink   = sink   = Endpoint(layout)
+        self.source = source = Endpoint(layout)
+
+        # # #
+
+        pipeline = []
+
+        # Pipe Valid (Optional).
+        if pipe_valid:
+            self.submodules.pipe_valid = PipeValid(layout)
+            pipeline.append(self.pipe_valid)
+
+        # Pipe Ready (Optional).
+        if pipe_ready:
+            self.submodules.pipe_ready = PipeReady(layout)
+            pipeline.append(self.pipe_ready)
+
+        # Buffer Pipeline.
+        self.submodules.pipeline = Pipeline(
+            sink,
+            *pipeline,
+            source
+        )
 
 # Cast ---------------------------------------------------------------------------------------------
 

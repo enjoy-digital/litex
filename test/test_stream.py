@@ -50,3 +50,15 @@ class TestStream(unittest.TestCase):
     def test_pipe_ready(self):
         dut = PipeReady([("data", 8)])
         self.pipe_test(dut)
+
+    def test_buffer_valid(self):
+        dut = Buffer([("data", 8)], pipe_valid=True, pipe_ready=False)
+        self.pipe_test(dut)
+
+    def test_buffer_ready(self):
+        dut = Buffer([("data", 8)], pipe_valid=False, pipe_ready=True)
+        self.pipe_test(dut)
+
+    def test_buffer_valid_ready(self):
+        dut = Buffer([("data", 8)], pipe_valid=True, pipe_ready=True)
+        self.pipe_test(dut)
