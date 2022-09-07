@@ -326,7 +326,7 @@ static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int
 	command_pwr(DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS|DFII_COMMAND_WRDATA);
 	cdelay(15);
 
-#ifdef SDRAM_PHY_ECP5DDRPHY
+#if defined(SDRAM_PHY_ECP5DDRPHY) || defined(SDRAM_PHY_GW2DDRPHY)
 	ddrphy_burstdet_clr_write(1);
 #endif
 
@@ -362,7 +362,7 @@ static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int
 		}
 	}
 
-#ifdef SDRAM_PHY_ECP5DDRPHY
+#if defined(SDRAM_PHY_ECP5DDRPHY) || defined(SDRAM_PHY_GW2DDRPHY)
 	if (((ddrphy_burstdet_seen_read() >> module) & 0x1) != 1)
 		errors += 1;
 #endif
@@ -894,7 +894,7 @@ static void sdram_read_leveling_rst_delay(int module) {
 	/* Un-select module */
 	ddrphy_dly_sel_write(0);
 
-#ifdef SDRAM_PHY_ECP5DDRPHY
+#if defined(SDRAM_PHY_ECP5DDRPHY) || defined(SDRAM_PHY_GW2DDRPHY)
 	/* Sync all DQSBUFM's, By toggling all dly_sel (DQSBUFM.PAUSE) lines. */
 	ddrphy_dly_sel_write(0xff);
 	ddrphy_dly_sel_write(0);
@@ -911,7 +911,7 @@ static void sdram_read_leveling_inc_delay(int module) {
 	/* Un-select module */
 	ddrphy_dly_sel_write(0);
 
-#ifdef SDRAM_PHY_ECP5DDRPHY
+#if defined(SDRAM_PHY_ECP5DDRPHY) || defined(SDRAM_PHY_GW2DDRPHY)
 	/* Sync all DQSBUFM's, By toggling all dly_sel (DQSBUFM.PAUSE) lines. */
 	ddrphy_dly_sel_write(0xff);
 	ddrphy_dly_sel_write(0);
