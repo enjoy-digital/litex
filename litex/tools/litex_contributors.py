@@ -61,7 +61,8 @@ def list_contributors(path):
                 contributors[name] = Author(email, int(year))
 
     # Export Contributors.
-    for name, info in contributors.items():
+    for name in sorted(contributors.keys(), key=lambda x:x.upper()):
+        info = contributors[name]
         r = "Copyright (c) "
         if len(info.years) > 1:
             years = f"{info.years[0]}-{info.years[-1]}"
