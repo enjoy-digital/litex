@@ -27,6 +27,7 @@ class Author:
     def add_year(self, year):
         self.years.append(year)
         self.years = make_unique(self.years)
+        self.years.sort()
 
 # Use Git Log + Processing to create the list of Contibutors ---------------------------------------
 
