@@ -237,7 +237,7 @@ class NaxRiscv(CPU):
         gen_args.append(f"--reset-vector={reset_address}")
         gen_args.append(f"--xlen={NaxRiscv.xlen}")
         for region in NaxRiscv.memory_regions:
-            gen_args.append(f"--memory-region={region[0]},{region[1]},{region[2]}")
+            gen_args.append(f"--memory-region={region[0]},{region[1]},{region[2]},{region[3]}")
         for args in NaxRiscv.scala_args:
             gen_args.append(f"--scala-args={args}")
         if(NaxRiscv.jtag_tap) :
@@ -477,14 +477,18 @@ class NaxRiscv(CPU):
         # litex modes:
         # rwx  : load, store, execute (everything is peripheral per default)
         NaxRiscv.memory_regions = []
+        for name, region in self.soc.bus.io_regions.items():
+            NaxRiscv.memory_regions.append( (region.origin, region.size, "io", "p") ) # IO is only allowed on the p bus
         for name, region in self.soc.bus.regions.items():
             if region.linker: # remove virtual regions
                 continue
-            if len(self.memory_buses) and name == 'main_ram':
-                mode = region.mode
+            if len(self.memory_buses) and name == 'main_ram': # m bus
+                bus = "m"
             else:
-                mode = region.mode.replace('r', 'i').replace('w', 'o')
-            NaxRiscv.memory_regions.append( (region.origin, region.size, mode) )
+                bus = "p"
+            mode = region.mode
+            mode += "c" if region.cached else ""
+            NaxRiscv.memory_regions.append( (region.origin, region.size, mode, bus) )
 
         self.generate_netlist_name(self.reset_address)
 
