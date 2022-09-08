@@ -257,42 +257,40 @@ class DownConverter(Module):
 
         # # #
 
-        skip    = Signal()
-        counter = Signal(max=ratio)
+        skip  = Signal()
+        done  = Signal()
+        count = Signal(max=ratio)
 
-        # Control Path
-        fsm = FSM(reset_state="IDLE")
-        fsm = ResetInserter()(fsm)
-        self.submodules.fsm = fsm
-        self.comb += fsm.reset.eq(~master.cyc)
-        fsm.act("IDLE",
-            NextValue(counter, 0),
-            If(master.stb & master.cyc,
-                NextState("CONVERT"),
-            )
-        )
-        fsm.act("CONVERT",
-            slave.adr.eq(Cat(counter, master.adr)),
-            Case(counter, {i: slave.sel.eq(master.sel[i*dw_to//8:]) for i in range(ratio)}),
+        # Control Path.
+        self.comb += [
+            done.eq(count == (ratio - 1)),
             If(master.stb & master.cyc,
                 skip.eq(slave.sel == 0),
-                slave.we.eq(master.we),
                 slave.cyc.eq(~skip),
                 slave.stb.eq(~skip),
+                slave.we.eq(master.we),
                 If(slave.ack | skip,
-                    NextValue(counter, counter + 1),
-                    If(counter == (ratio - 1),
-                        master.ack.eq(1),
-                        NextState("IDLE")
-                    )
+                    master.ack.eq(done)
                 )
             )
-        )
+        ]
+        self.sync += [
+            If((slave.stb & slave.cyc & slave.ack) | skip,
+                count.eq(count + 1)
+            ),
+            If(master.ack | ~master.cyc,
+                count.eq(0)
+            )
+        ]
 
-        # Write Datapath
-        self.comb += Case(counter, {i: slave.dat_w.eq(master.dat_w[i*dw_to:]) for i in range(ratio)})
+        # Address.
+        self.comb += slave.adr.eq(Cat(count, master.adr))
 
-        # Read Datapath
+        # Write Datapath.
+        self.comb += Case(count, {i: slave.dat_w.eq(master.dat_w[i*dw_to:]) for i in range(ratio)})
+        self.comb += Case(count, {i: slave.sel.eq(master.sel[i*dw_to//8:])  for i in range(ratio)}),
+
+        # Read Datapath.
         dat_r = Signal(dw_from, reset_less=True)
         self.comb += master.dat_r.eq(Cat(dat_r[dw_to:], slave.dat_r))
         self.sync += If(slave.ack | skip, dat_r.eq(master.dat_r))
