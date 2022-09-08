@@ -19,7 +19,11 @@ from litex.soc.interconnect.axi.axi_common import *
 # AXI-Lite Definition ------------------------------------------------------------------------------
 
 def ax_lite_description(address_width):
-    return [("addr",  address_width)]
+    return [
+        ("addr",  address_width),
+        ("prot",  3), # *
+    ]
+    # * present for interconnect with others cores but not used by LiteX.
 
 def w_lite_description(data_width):
     return [
