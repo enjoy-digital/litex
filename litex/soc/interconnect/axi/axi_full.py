@@ -18,53 +18,73 @@ from litex.soc.interconnect.axi.axi_common import *
 
 # AXI Definition -----------------------------------------------------------------------------------
 
-def ax_description(address_width, id_width):
-    return [
-        ("addr",  address_width),
-        ("burst", 2), # Burst type
-        ("len",   8), # Number of data (-1) transfers (up to 256)
-        ("size",  4), # Number of bytes (-1) of each data transfer (up to 1024 bits)
-        ("lock",  2), # *
-        ("prot",  3), # *
-        ("cache", 4), # *
-        ("qos",   4), # *
-        ("id",    id_width)
-    ]
+def ax_description(address_width, id_width=0, user_width=0):
     # * present for interconnect with others cores but not used by LiteX.
+    ax = [
+        ("addr",   address_width),   # Address Width.
+        ("burst",  2),               # Burst type.
+        ("len",    8),               # Number of data (-1) transfers (up to 256).
+        ("size",   4),               # Number of bytes (-1) of each data transfer (up to 1024 bits).
+        ("lock",   2),               # *
+        ("prot",   3),               # *
+        ("cache",  4),               # *
+        ("qos",    4),               # *
+        ("region", 4),               # *
+    ]
+    if id_width:
+        ax += [("id", id_width)]     # ID Width.
+    if user_width:
+        ax += [("user", user_width)] # *
+    return ax
 
-def w_description(data_width, id_width):
-    return [
+def w_description(data_width, id_width=0, user_width=0):
+    w = [
         ("data", data_width),
         ("strb", data_width//8),
-        ("id",   id_width)
     ]
+    if id_width:
+        w += [("id", id_width)]
+    if user_width:
+        w += [("user", user_width)]
+    return w
 
-def b_description(id_width):
-    return [
-        ("resp", 2),
-        ("id",   id_width)
-    ]
+def b_description(id_width=0, user_width=0):
+    b = [("resp", 2)]
+    if id_width:
+        b += [("id",   id_width)]
+    if user_width:
+        b += [("user", user_width)]
+    return b
 
-def r_description(data_width, id_width):
-    return [
+def r_description(data_width, id_width=0, user_width=0):
+    r = [
         ("resp", 2),
         ("data", data_width),
-        ("id",   id_width)
     ]
+    if id_width:
+        r += [("id", id_width)]
+    if user_width:
+        r += [("user", user_width)]
+    return r
 
 class AXIInterface:
-    def __init__(self, data_width=32, address_width=32, id_width=1, clock_domain="sys", name=None, bursting=False):
+    def __init__(self, data_width=32, address_width=32, id_width=1, clock_domain="sys", name=None, bursting=False,
+        aw_user_width = 0,
+        w_user_width  = 0,
+        b_user_width  = 0,
+        ar_user_width = 0,
+        r_user_width  = 0):
         self.data_width    = data_width
         self.address_width = address_width
         self.id_width      = id_width
         self.clock_domain  = clock_domain
         self.bursting      = bursting # FIXME: Use or add check.
 
-        self.aw = stream.Endpoint(ax_description(address_width, id_width), name=name)
-        self.w  = stream.Endpoint(w_description(data_width, id_width),     name=name)
-        self.b  = stream.Endpoint(b_description(id_width),                 name=name)
-        self.ar = stream.Endpoint(ax_description(address_width, id_width), name=name)
-        self.r  = stream.Endpoint(r_description(data_width, id_width),     name=name)
+        self.aw = stream.Endpoint(ax_description(address_width, id_width, aw_user_width), name=name)
+        self.w  = stream.Endpoint(w_description(data_width, id_width, w_user_width),      name=name)
+        self.b  = stream.Endpoint(b_description(id_width, b_user_width),                  name=name)
+        self.ar = stream.Endpoint(ax_description(address_width, id_width, ar_user_width), name=name)
+        self.r  = stream.Endpoint(r_description(data_width, id_width, r_user_width),      name=name)
 
     def connect_to_pads(self, pads, mode="master"):
         return connect_to_pads(self, pads, mode, axi_full=True)
