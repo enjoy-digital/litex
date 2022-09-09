@@ -471,11 +471,11 @@ class NaxRiscv(CPU):
 
         # Generate memory map from CPU perspective
         # naxriscv modes:
-        # r,w  : regular memory load/store
-        # i,o  : peripheral memory load/store
-        # x    : instruction fetchable (execute)
-        # litex modes:
-        # rwx  : load, store, execute (everything is peripheral per default)
+        # r,w,x,c  : readable, writeable, executable, caching allowed
+        # io       : IO region (Implies P bus, preserve memory order, no dcache)
+        # naxriscv bus:
+        # p        : peripheral
+        # m        : memory
         NaxRiscv.memory_regions = []
         for name, region in self.soc.bus.io_regions.items():
             NaxRiscv.memory_regions.append( (region.origin, region.size, "io", "p") ) # IO is only allowed on the p bus
