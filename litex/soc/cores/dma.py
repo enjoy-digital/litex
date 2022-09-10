@@ -182,7 +182,6 @@ class WishboneDMAWriter(Module, AutoCSR):
         self.submodules += fsm
         self.comb += fsm.reset.eq(~self._enable.storage)
         fsm.act("IDLE",
-            self.sink.ready.eq(1),
             NextValue(offset, 0),
             NextState("RUN"),
         )
