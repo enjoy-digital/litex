@@ -187,7 +187,7 @@ class WishboneDMAWriter(Module, AutoCSR):
         )
         fsm.act("RUN",
             self._sink.valid.eq(self.sink.valid),
-            self._sink.last.eq(offset == (length - 1)),
+            self._sink.last.eq(self.sink.last | (offset + 1 == length)),
             self._sink.address.eq(base + offset),
             self._sink.data.eq(self.sink.data),
             self.sink.ready.eq(self._sink.ready),
