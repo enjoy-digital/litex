@@ -332,7 +332,10 @@ class SoCBusHandler(Module):
                     axi.AXILiteInterface : axi.AXILiteConverter,
                     axi.AXIInterface     : axi.AXIConverter,
                 }[interface_cls]
-                adapted_interface = interface_cls(data_width=self.data_width)
+                adapted_interface = interface_cls(
+                    data_width    = self.data_width,
+                    address_width = self.address_width
+                )
                 if direction == "m2s":
                     master, slave = interface, adapted_interface
                 elif direction == "s2m":
@@ -353,7 +356,10 @@ class SoCBusHandler(Module):
                 return interface
             # Different Bus-Standard: Return adapted interface.
             else:
-                adapted_interface = main_bus_cls(data_width=self.data_width)
+                adapted_interface = main_bus_cls(
+                    data_width    = self.data_width,
+                    address_width = self.address_width
+                )
                 if direction == "m2s":
                     master, slave = interface, adapted_interface
                 elif direction == "s2m":
@@ -897,7 +903,11 @@ class SoC(Module):
             "axi-lite": axi.AXILiteInterface,
             "axi"     : axi.AXILiteInterface, # FIXME: Use AXI-Lite for now, create AXISRAM.
         }[self.bus.standard]
-        ram_bus = interface_cls(data_width=self.bus.data_width, bursting=self.bus.bursting)
+        ram_bus = interface_cls(
+            data_width    = self.bus.data_width,
+            address_width = self.bus.address_width,
+            bursting      = self.bus.bursting
+        )
         ram     = ram_cls(size, bus=ram_bus, init=contents, read_only=("w" not in mode), name=name)
         self.bus.add_slave(name, ram.bus, SoCRegion(origin=origin, size=size, mode=mode))
         self.check_if_exists(name)
