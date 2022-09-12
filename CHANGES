@@ -1,5 +1,5 @@
-[> Changes since 2022.04
-------------------------
+[> 2022.08, released on September 12th 2022
+-------------------------------------------
 
 	[> Issues resolved
 	------------------
@@ -69,6 +69,8 @@
 	- build/generic_platofrm: Add add_connector methode to allow extending connectors.
 	- litex_server/client:    Add initial information exchange between server/client.
 	- LitePCIe:               Improve 64-bit support.
+	- interconnect/axi:       Add missing optional signals.
+	- interconnect/wishbone:  Improve DownConverter efficiency.
 
 	[> API changes/Deprecation
 	--------------------------
