@@ -46,9 +46,12 @@ CTI_BURST_END          = 0b111
 
 
 class Interface(Record):
-    def __init__(self, data_width=32, adr_width=30, bursting=False):
+    def __init__(self, data_width=32, adr_width=30, bursting=False, **kwargs):
         self.data_width = data_width
-        self.adr_width  = adr_width
+        if kwargs.get("address_width", False):
+            # FIXME: Improve or switch Wishbone to byte addressing instead of word addressing.
+            adr_width = kwargs["address_width"] - int(log2(data_width//8))
+        self.adr_width = adr_width
         self.bursting   = bursting
         Record.__init__(self, set_layout_parameters(_layout,
             adr_width  = adr_width,
