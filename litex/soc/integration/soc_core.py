@@ -78,7 +78,7 @@ class SoCCore(LiteXSoC):
 
         # ROM parameters
         integrated_rom_size      = 0,
-        integrated_rom_mode      = "r",
+        integrated_rom_mode      = "rx",
         integrated_rom_init      = [],
 
         # SRAM parameters
