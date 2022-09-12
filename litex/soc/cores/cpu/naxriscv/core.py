@@ -112,7 +112,7 @@ class NaxRiscv(CPU):
         if args.xlen:
             xlen = int(args.xlen)
             NaxRiscv.xlen                 = xlen
-            NaxRiscv.data_width           = xlen
+            NaxRiscv.p_bus_data_width     = xlen
             NaxRiscv.gcc_triple           = CPU_GCC_TRIPLE_RISCV64
             NaxRiscv.linker_output_format = f"elf{xlen}-littleriscv"
 
@@ -123,8 +123,8 @@ class NaxRiscv(CPU):
         self.human_name       = self.human_name
         self.reset            = Signal()
         self.interrupt        = Signal(32)
-        self.ibus             = ibus = axi.AXILiteInterface(address_width=32, data_width=64)
-        self.dbus             = dbus = axi.AXILiteInterface(address_width=32, data_width=64)
+        self.ibus             = ibus = axi.AXILiteInterface(address_width=32, data_width=NaxRiscv.p_bus_data_width)
+        self.dbus             = dbus = axi.AXILiteInterface(address_width=32, data_width=NaxRiscv.p_bus_data_width)
 
         self.periph_buses     = [ibus, dbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses     = []           # Memory buses (Connected directly to LiteDRAM).
@@ -279,6 +279,10 @@ class NaxRiscv(CPU):
         platform.add_source(os.path.join(vdir,  self.netlist_name + ".v"), "verilog")
 
     def add_soc_components(self, soc, soc_region_cls):
+        assert soc.bus.data_width == NaxRiscv.p_bus_data_width, \
+            f"""Main bus data_width needs to match XLEN ({soc.bus.data_width} vs {NaxRiscv.p_bus_data_width})
+You can fix this with --bus-data-width (bits) and --xlen (bits)"""
+
         # Set UART/Timer0 CSRs/IRQs to the ones used by OpenSBI.
         soc.csr.add("uart",   n=2)
         soc.csr.add("timer0", n=3)
