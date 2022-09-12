@@ -156,7 +156,10 @@ class SoCCore(LiteXSoC):
         # ROM.
         # Initialize ROM from binary file when provided.
         if isinstance(integrated_rom_init, str):
-            integrated_rom_init = get_mem_data(integrated_rom_init, "little") # FIXME: Endianness.
+            integrated_rom_init = get_mem_data(integrated_rom_init,
+                endianness = "little", # FIXME: Depends on CPU.
+                data_width = bus_data_width
+            )
             integrated_rom_size = 4*len(integrated_rom_init)
 
         # Disable ROM when no CPU/hard-CPU.

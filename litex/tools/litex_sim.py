@@ -403,7 +403,8 @@ def main():
 
     # Configuration --------------------------------------------------------------------------------
 
-    cpu = CPUS.get(soc_kwargs.get("cpu_type", "vexriscv"))
+    cpu            = CPUS.get(soc_kwargs.get("cpu_type", "vexriscv"))
+    bus_data_width = int(soc_kwargs["bus_data_width"])
 
     # UART.
     if soc_kwargs["uart_name"] == "serial":
@@ -412,7 +413,10 @@ def main():
 
     # ROM.
     if args.rom_init:
-        soc_kwargs["integrated_rom_init"] = get_mem_data(args.rom_init, endianness=cpu.endianness)
+        soc_kwargs["integrated_rom_init"] = get_mem_data(args.rom_init,
+            data_width = bus_data_width,
+            endianness = cpu.endianness
+        )
 
     # RAM / SDRAM.
     ram_boot_offset  = 0x40000000 # FIXME
@@ -420,8 +424,12 @@ def main():
     soc_kwargs["integrated_main_ram_size"] = args.integrated_main_ram_size
     if args.integrated_main_ram_size:
         if args.ram_init is not None:
-            soc_kwargs["integrated_main_ram_init"] = get_mem_data(args.ram_init, endianness=cpu.endianness, offset=ram_boot_offset)
-            ram_boot_address                       = get_boot_address(args.ram_init)
+            soc_kwargs["integrated_main_ram_init"] = get_mem_data(args.ram_init,
+                data_width = bus_data_width,
+                endianness = cpu.endianness,
+                offset     = ram_boot_offset
+            )
+            ram_boot_address = get_boot_address(args.ram_init)
     elif args.with_sdram:
         assert args.ram_init is None
         soc_kwargs["sdram_module"]     = args.sdram_module
@@ -430,7 +438,11 @@ def main():
         if args.sdram_from_spd_dump:
             soc_kwargs["sdram_spd_data"] = parse_spd_hexdump(args.sdram_from_spd_dump)
         if args.sdram_init is not None:
-            soc_kwargs["sdram_init"] = get_mem_data(args.sdram_init, endianness=cpu.endianness, offset=ram_boot_offset)
+            soc_kwargs["sdram_init"] = get_mem_data(args.sdram_init,
+                data_width = bus_data_width,
+                endianness = cpu.endianness,
+                offset     = ram_boot_offset
+            )
             ram_boot_address         = get_boot_address(args.sdram_init)
 
     # Ethernet.
