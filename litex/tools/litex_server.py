@@ -96,35 +96,48 @@ class RemoteServer(EtherboneIPC):
         self.socket.close()
         del self.socket
 
+    def _send_server_info(self, client_socket):
+        # FIXME: Formalize info/improve.
+        info = []
+        info.append(f"{self.comm.__class__.__name__}")
+        info.append(f"{self.bind_ip}")
+        info.append(f"{self.bind_port}")
+        info = ":".join(info)
+        client_socket.sendall(bytes(info, "UTF-8"))
+
     def _serve_thread(self):
         while True:
             client_socket, addr = self.socket.accept()
+            self._send_server_info(client_socket)
             print("Connected with " + addr[0] + ":" + str(addr[1]))
             try:
+                # Serve Etherbone reads/writes.
                 while True:
+                    # Receive packet.
                     try:
                         packet = self.receive_packet(client_socket)
                         if packet == 0:
                             break
                     except:
                         break
+
+                    # Decode Packet.
                     packet = EtherbonePacket(packet)
                     packet.decode()
 
+                    # Get Packet's Record.
                     record = packet.records.pop()
 
-                    # Wait for lock
+                    # Hardware lock/reservation.
                     while self.lock:
                         time.sleep(0.01)
-
-                    # Set lock
                     self.lock = True
 
-                    # Handle writes:
+                    # Handle Etherbone writes.
                     if record.writes != None:
                         self.comm.write(record.writes.base_addr, record.writes.get_datas())
 
-                    # Handle reads
+                    # Handle Etherbone reads.
                     if record.reads != None:
                         max_length = {
                             "CommUART": 256,
@@ -148,7 +161,7 @@ class RemoteServer(EtherboneIPC):
                         packet.encode()
                         self.send_packet(client_socket, packet)
 
-                    # release lock
+                    # Release hardware lock.
                     self.lock = False
 
             finally:

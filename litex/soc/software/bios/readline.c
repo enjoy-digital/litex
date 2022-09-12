@@ -16,7 +16,7 @@
 #include "readline.h"
 #include "complete.h"
 
-#ifndef TERM_NO_HIST
+#ifndef BIOS_CONSOLE_NO_HISTORY
 static int hist_max = 0;
 static int hist_add_idx = 0;
 static int hist_cur = 0;
@@ -76,7 +76,7 @@ static int read_key(void)
 	return c;
 }
 
-#ifndef TERM_NO_HIST
+#ifndef BIOS_CONSOLE_NO_HISTORY
 static void cread_add_to_hist(char *line)
 {
 	strcpy(&hist_lines[hist_add_idx][0], line);
@@ -189,7 +189,7 @@ int readline(char *buf, int len)
 	int insert = 1;
 	unsigned char ichar;
 
-#ifndef TERM_NO_COMPLETE
+#ifndef BIOS_CONSOLE_NO_AUTOCOMPLETE
 	char tmp;
 	int reprint, i;
 	char *completestr;
@@ -204,7 +204,7 @@ int readline(char *buf, int len)
 
 		switch (ichar) {
 		case '\t':
-#ifndef TERM_NO_COMPLETE
+#ifndef BIOS_CONSOLE_NO_AUTOCOMPLETE
 			buf[eol_num] = 0;
 			tmp = buf[num];
 
@@ -306,7 +306,7 @@ int readline(char *buf, int len)
 		case KEY_UP:
 		case KEY_DOWN:
 		{
-#ifndef TERM_NO_HIST
+#ifndef BIOS_CONSOLE_NO_HISTORY
 			char * hline;
 			if (ichar == KEY_UP)
 			 	hline = hist_prev();
@@ -343,7 +343,7 @@ int readline(char *buf, int len)
 	len = eol_num;
 	buf[eol_num] = '\0';
 
-#ifndef TERM_NO_HIST
+#ifndef BIOS_CONSOLE_NO_HISTORY
 	if (buf[0] && buf[0] != CREAD_HIST_CHAR) 
 		cread_add_to_hist(buf);
 	hist_cur = hist_add_idx;

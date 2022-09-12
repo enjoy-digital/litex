@@ -332,7 +332,10 @@ class SoCBusHandler(Module):
                     axi.AXILiteInterface : axi.AXILiteConverter,
                     axi.AXIInterface     : axi.AXIConverter,
                 }[interface_cls]
-                adapted_interface = interface_cls(data_width=self.data_width)
+                adapted_interface = interface_cls(
+                    data_width    = self.data_width,
+                    address_width = self.address_width
+                )
                 if direction == "m2s":
                     master, slave = interface, adapted_interface
                 elif direction == "s2m":
@@ -353,7 +356,10 @@ class SoCBusHandler(Module):
                 return interface
             # Different Bus-Standard: Return adapted interface.
             else:
-                adapted_interface = main_bus_cls(data_width=self.data_width)
+                adapted_interface = main_bus_cls(
+                    data_width    = self.data_width,
+                    address_width = self.address_width
+                )
                 if direction == "m2s":
                     master, slave = interface, adapted_interface
                 elif direction == "s2m":
@@ -886,7 +892,7 @@ class SoC(Module):
             colorer("added", color="green")))
         setattr(self.submodules, name, SoCController(**kwargs))
 
-    def add_ram(self, name, origin, size, contents=[], mode="rw"):
+    def add_ram(self, name, origin, size, contents=[], mode="rwx"):
         ram_cls = {
             "wishbone": wishbone.SRAM,
             "axi-lite": axi.AXILiteSRAM,
@@ -897,8 +903,12 @@ class SoC(Module):
             "axi-lite": axi.AXILiteInterface,
             "axi"     : axi.AXILiteInterface, # FIXME: Use AXI-Lite for now, create AXISRAM.
         }[self.bus.standard]
-        ram_bus = interface_cls(data_width=self.bus.data_width, bursting=self.bus.bursting)
-        ram     = ram_cls(size, bus=ram_bus, init=contents, read_only=(mode == "r"), name=name)
+        ram_bus = interface_cls(
+            data_width    = self.bus.data_width,
+            address_width = self.bus.address_width,
+            bursting      = self.bus.bursting
+        )
+        ram     = ram_cls(size, bus=ram_bus, init=contents, read_only=("w" not in mode), name=name)
         self.bus.add_slave(name, ram.bus, SoCRegion(origin=origin, size=size, mode=mode))
         self.check_if_exists(name)
         self.logger.info("RAM {} {} {}.".format(
@@ -909,7 +919,7 @@ class SoC(Module):
         if contents != []:
             self.add_config(f"{name}_INIT", 1)
 
-    def add_rom(self, name, origin, size, contents=[], mode="r"):
+    def add_rom(self, name, origin, size, contents=[], mode="rx"):
         self.add_ram(name, origin, size, contents, mode=mode)
 
     def init_rom(self, name, contents=[], auto_size=True):
@@ -917,7 +927,7 @@ class SoC(Module):
             colorer(name),
             colorer(f"0x{4*len(contents):x}")))
         getattr(self, name).mem.init = contents
-        if auto_size and self.bus.regions[name].mode == "r":
+        if auto_size and "w" not in self.bus.regions[name].mode:
             self.logger.info("Auto-Resizing ROM {} from {} to {}.".format(
                 colorer(name),
                 colorer(f"0x{self.bus.regions[name].size:x}"),
@@ -1475,7 +1485,11 @@ class LiteXSoC(SoC):
             sdram_size = min(sdram_size, size)
 
         # Add SDRAM region.
-        self.bus.add_region("main_ram", SoCRegion(origin=self.mem_map.get("main_ram", origin), size=sdram_size))
+        main_ram_region = SoCRegion(
+            origin = self.mem_map.get("main_ram", origin),
+            size   = sdram_size,
+            mode   = "rwx")
+        self.bus.add_region("main_ram", main_ram_region)
 
         # Add CPU's direct memory buses (if not already declared) ----------------------------------
         if hasattr(self.cpu, "add_memory_buses"):
@@ -1906,7 +1920,7 @@ class LiteXSoC(SoC):
         if "write" in mode:
             self.comb += self.sata_irq.mem2sector_dma.trigger.eq(self.sata_mem2sector.irq)
         if self.irq.enabled:
-            self.irq.add("sata", use_loc_if_exists=True)
+            self.irq.add("sata_irq", use_loc_if_exists=True)
 
         # Timing constraints.
         self.platform.add_period_constraint(self.sata_phy.crg.cd_sata_tx.clk, 1e9/sata_clk_freq)
@@ -1920,7 +1934,8 @@ class LiteXSoC(SoC):
     def add_pcie(self, name="pcie", phy=None, ndmas=0, max_pending_requests=8, address_width=32,
         with_dma_buffering = True, dma_buffering_depth=1024,
         with_dma_loopback  = True,
-        with_msi           = True):
+        with_msi           = True,
+        with_synchronizer  = False):
         # Imports
         from litepcie.core import LitePCIeEndpoint, LitePCIeMSI
         from litepcie.frontend.dma import LitePCIeDMA
@@ -1957,9 +1972,10 @@ class LiteXSoC(SoC):
             assert with_msi
             self.check_if_exists(f"{name}_dma{i}")
             dma = LitePCIeDMA(phy, endpoint,
-                with_buffering = with_dma_buffering, buffering_depth=dma_buffering_depth,
-                with_loopback  = with_dma_loopback,
-                address_width  = address_width
+                with_buffering    = with_dma_buffering, buffering_depth=dma_buffering_depth,
+                with_loopback     = with_dma_loopback,
+                with_synchronizer = with_synchronizer,
+                address_width     = address_width
             )
             setattr(self.submodules, f"{name}_dma{i}", dma)
             self.msis[f"{name.upper()}_DMA{i}_WRITER"] = dma.writer.irq

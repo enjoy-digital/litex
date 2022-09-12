@@ -36,11 +36,19 @@ class RemoteClient(EtherboneIPC, CSRBuilder):
         self.debug        = debug
         self.base_address = base_address if base_address is not None else 0
 
+    def _receive_server_info(self):
+        info = str(self.socket.recv(128))
+
+        # With LitePCIe, CSRs are translated to 0 to limit BAR0 size, so also translate base address.
+        if "CommPCIe" in info:
+            self.base_address = -self.mems.csr.base
+
     def open(self):
         if hasattr(self, "socket"):
             return
         self.socket = socket.create_connection((self.host, self.port), 5.0)
         self.socket.settimeout(5.0)
+        self._receive_server_info()
 
     def close(self):
         if not hasattr(self, "socket"):
@@ -99,10 +107,6 @@ def dump_identifier(host, csr_csv, port):
     bus = RemoteClient(host=host, csr_csv=csr_csv, port=port)
     bus.open()
 
-    # On PCIe designs, CSR is remapped to 0 to limit BAR0 size.
-    if hasattr(bus.bases, "pcie_phy"):
-        bus.base_address = -bus.mems.csr.base
-
     fpga_identifier = ""
 
     for i in range(256):
@@ -118,10 +122,6 @@ def dump_identifier(host, csr_csv, port):
 def dump_registers(host, csr_csv, port, filter=None):
     bus = RemoteClient(host=host, csr_csv=csr_csv, port=port)
     bus.open()
-
-    # On PCIe designs, CSR is remapped to 0 to limit BAR0 size.
-    if hasattr(bus.bases, "pcie_phy"):
-        bus.base_address = -bus.mems.csr.base
 
     for name, register in bus.regs.__dict__.items():
         if (filter is None) or filter in name:

@@ -196,6 +196,7 @@ class NaxRiscv(CPU):
         md5_hash.update(str(NaxRiscv.xlen).encode('utf-8'))
         md5_hash.update(str(NaxRiscv.jtag_tap).encode('utf-8'))
         md5_hash.update(str(NaxRiscv.jtag_instruction).encode('utf-8'))
+        md5_hash.update(str(NaxRiscv.memory_regions).encode('utf-8'))
         for args in NaxRiscv.scala_args:
             md5_hash.update(args.encode('utf-8'))
         for file in NaxRiscv.scala_paths:
@@ -227,7 +228,7 @@ class NaxRiscv(CPU):
         ndir = os.path.join(vdir, "ext", "NaxRiscv")
         sdir = os.path.join(vdir, "ext", "SpinalHDL")
 
-        NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git"  , "main", "b13c0aad")
+        NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git"  , "main", "cb2a598a")
         NaxRiscv.git_setup("SpinalHDL", sdir, "https://github.com/SpinalHDL/SpinalHDL.git", "dev" , "a130f7b7")
 
         gen_args = []
@@ -235,6 +236,8 @@ class NaxRiscv(CPU):
         gen_args.append(f"--netlist-directory={vdir}")
         gen_args.append(f"--reset-vector={reset_address}")
         gen_args.append(f"--xlen={NaxRiscv.xlen}")
+        for region in NaxRiscv.memory_regions:
+            gen_args.append(f"--memory-region={region[0]},{region[1]},{region[2]},{region[3]}")
         for args in NaxRiscv.scala_args:
             gen_args.append(f"--scala-args={args}")
         if(NaxRiscv.jtag_tap) :
@@ -395,6 +398,7 @@ class NaxRiscv(CPU):
             o_peripheral_clint_rresp   = clintbus.r.resp,
         )
         soc.bus.add_slave("clint", clintbus, region=soc_region_cls(origin=soc.mem_map.get("clint"), size=0x1_0000, cached=False))
+        self.soc = soc # FIXME: Save SoC instance to retrieve the final mem layout on finalization.
 
     def add_memory_buses(self, address_width, data_width):
         nax_data_width = 64
@@ -463,8 +467,29 @@ class NaxRiscv(CPU):
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
-
         self.find_scala_files()
+
+        # Generate memory map from CPU perspective
+        # naxriscv modes:
+        # r,w,x,c  : readable, writeable, executable, caching allowed
+        # io       : IO region (Implies P bus, preserve memory order, no dcache)
+        # naxriscv bus:
+        # p        : peripheral
+        # m        : memory
+        NaxRiscv.memory_regions = []
+        for name, region in self.soc.bus.io_regions.items():
+            NaxRiscv.memory_regions.append( (region.origin, region.size, "io", "p") ) # IO is only allowed on the p bus
+        for name, region in self.soc.bus.regions.items():
+            if region.linker: # remove virtual regions
+                continue
+            if len(self.memory_buses) and name == 'main_ram': # m bus
+                bus = "m"
+            else:
+                bus = "p"
+            mode = region.mode
+            mode += "c" if region.cached else ""
+            NaxRiscv.memory_regions.append( (region.origin, region.size, mode, bus) )
+
         self.generate_netlist_name(self.reset_address)
 
         # Do verilog instance.

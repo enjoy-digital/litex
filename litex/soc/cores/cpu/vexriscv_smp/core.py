@@ -260,7 +260,7 @@ class VexRiscvSMP(CPU):
         gen_args.append(f"--aes-instruction={VexRiscvSMP.aes_instruction}")
         gen_args.append(f"--out-of-order-decoder={VexRiscvSMP.out_of_order_decoder}")
         gen_args.append(f"--wishbone-memory={VexRiscvSMP.wishbone_memory}")
-        gen_args.append(f"--wishbone-force-32b={VexRiscvSMP.wishbone_force_32b}")
+        if(VexRiscvSMP.wishbone_force_32b): gen_args.append(f"--wishbone-force-32b={VexRiscvSMP.wishbone_force_32b}")
         gen_args.append(f"--fpu={VexRiscvSMP.with_fpu}")
         gen_args.append(f"--cpu-per-fpu={VexRiscvSMP.cpu_per_fpu}")
         gen_args.append(f"--rvc={VexRiscvSMP.with_rvc}")
