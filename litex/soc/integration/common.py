@@ -39,7 +39,8 @@ def get_mem_regions(filename_or_regions, offset):
             regions = {filename: f"{offset:08x}"}
     return regions
 
-def get_mem_data(filename_or_regions, endianness="big", mem_size=None, offset=0):
+def get_mem_data(filename_or_regions, data_width=32, endianness="big", mem_size=None, offset=0):
+    assert data_width in [32, 64]
     # Create memory regions.
     regions = get_mem_regions(filename_or_regions, offset)
 
@@ -56,23 +57,28 @@ def get_mem_data(filename_or_regions, endianness="big", mem_size=None, offset=0)
              data_size, mem_size))
 
     # Fill data.
-    data = [0]*math.ceil(data_size/4)
+    bytes_per_data = data_width//8
+    data           = [0]*math.ceil(data_size/bytes_per_data)
     for filename, base in regions.items():
         base = int(base, 16)
         with open(filename, "rb") as f:
             i = 0
             while True:
-                w = f.read(4)
+                w = f.read(bytes_per_data)
                 if not w:
                     break
-                if len(w) != 4:
-                    for _ in range(len(w), 4):
+                if len(w) != bytes_per_data:
+                    for _ in range(len(w), bytes_per_data):
                         w += b'\x00'
                 unpack_order = {
                     "little": "<I",
                     "big":    ">I"
                 }[endianness]
-                data[(base - offset)//4 + i] = struct.unpack(unpack_order, w)[0]
+                if data_width == 32:
+                    data[(base - offset)//bytes_per_data + i] = struct.unpack(unpack_order, w)[0]
+                if data_width == 64:
+                    data[(base - offset)//bytes_per_data + i]  = (struct.unpack(unpack_order, w[0:4])[0] <<  0)
+                    data[(base - offset)//bytes_per_data + i] |= (struct.unpack(unpack_order, w[4:8])[0] << 32)
                 i += 1
     return data
 
