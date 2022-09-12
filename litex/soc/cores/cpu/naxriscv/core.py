@@ -123,8 +123,8 @@ class NaxRiscv(CPU):
         self.human_name       = self.human_name
         self.reset            = Signal()
         self.interrupt        = Signal(32)
-        self.ibus             = ibus = axi.AXILiteInterface(address_width=32, data_width=64)
-        self.dbus             = dbus = axi.AXILiteInterface(address_width=32, data_width=64)
+        self.ibus             = ibus = axi.AXILiteInterface(address_width=32, data_width=32)
+        self.dbus             = dbus = axi.AXILiteInterface(address_width=32, data_width=32)
 
         self.periph_buses     = [ibus, dbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses     = []           # Memory buses (Connected directly to LiteDRAM).
@@ -228,8 +228,8 @@ class NaxRiscv(CPU):
         ndir = os.path.join(vdir, "ext", "NaxRiscv")
         sdir = os.path.join(vdir, "ext", "SpinalHDL")
 
-        NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git"  , "main", "cb2a598a")
-        NaxRiscv.git_setup("SpinalHDL", sdir, "https://github.com/SpinalHDL/SpinalHDL.git", "dev" , "a130f7b7")
+        NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git"  , "main", "15d2d10b")
+        NaxRiscv.git_setup("SpinalHDL", sdir, "https://github.com/SpinalHDL/SpinalHDL.git", "dev" , "5a0592d1")
 
         gen_args = []
         gen_args.append(f"--netlist-name={NaxRiscv.netlist_name}")
