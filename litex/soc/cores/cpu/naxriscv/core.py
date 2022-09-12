@@ -398,7 +398,7 @@ class NaxRiscv(CPU):
             o_peripheral_clint_rresp   = clintbus.r.resp,
         )
         soc.bus.add_slave("clint", clintbus, region=soc_region_cls(origin=soc.mem_map.get("clint"), size=0x1_0000, cached=False))
-        self.soc = soc # Save SoC instance to retrieve the final mem layout on finalization
+        self.soc = soc # FIXME: Save SoC instance to retrieve the final mem layout on finalization.
 
     def add_memory_buses(self, address_width, data_width):
         nax_data_width = 64

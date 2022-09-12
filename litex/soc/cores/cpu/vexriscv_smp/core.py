@@ -445,7 +445,7 @@ class VexRiscvSMP(CPU):
         )
         soc.bus.add_slave("clint", clintbus, region=soc_region_cls(origin=soc.mem_map.get("clint"), size=0x1_0000, cached=False))
 
-    def add_memory_buses(self, address_width, data_width, accessible_region):
+    def add_memory_buses(self, address_width, data_width):
         VexRiscvSMP.litedram_width = data_width
 
         from litedram.common import LiteDRAMNativePort
