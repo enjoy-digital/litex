@@ -25,9 +25,10 @@ class AXI2AXILite(Module):
         assert axi.data_width    == axi_lite.data_width
         assert axi.address_width == axi_lite.address_width
 
-        ax_buffer = stream.Buffer(ax_description(axi.address_width, axi.id_width))
-        ax_burst  = stream.Endpoint(ax_description(axi.address_width, axi.id_width))
-        ax_beat   = stream.Endpoint(ax_description(axi.address_width, axi.id_width))
+        ax_burst = AXIStreamInterface(layout=ax_description(axi.address_width), id_width=axi.id_width)
+        ax_beat  = AXIStreamInterface(layout=ax_description(axi.address_width), id_width=axi.id_width)
+        ax_buffer = stream.Buffer(ax_burst.description)
+
         self.comb += ax_burst.connect(ax_buffer.sink)
         ax_burst2beat = AXIBurst2Beat(ax_buffer.source, ax_beat)
         self.submodules += ax_buffer, ax_burst2beat
