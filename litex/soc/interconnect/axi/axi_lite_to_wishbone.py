@@ -14,7 +14,8 @@ from litex.soc.interconnect.axi.axi_lite import *
 # AXI-Lite to Wishbone -----------------------------------------------------------------------------
 
 class AXILite2Wishbone(Module):
-    def __init__(self, axi_lite, wishbone, base_address=0x00000000, early_wb_req=False):
+    def __init__(self, axi_lite, wishbone, base_address=0x00000000, 
+                 early_wb_req=False, early_data_handover=False):
         wishbone_adr_shift = log2_int(axi_lite.data_width//8)
         assert axi_lite.data_width    == len(wishbone.dat_r)
         assert axi_lite.address_width == len(wishbone.adr) + wishbone_adr_shift
@@ -46,32 +47,41 @@ class AXILite2Wishbone(Module):
                     NextValue(_last_ar_aw_n, 0),
                     NextState("DO-WRITE"),
                     # Start write req one cycle earlier to reduce latency
-                    *do_write if early_wb_req else () 
+                    do_write if early_wb_req else () 
                 # If last access was a write, do a read
                 ).Else(
                     NextValue(_last_ar_aw_n, 1),
                     NextState("DO-READ"),
                     # Start read req one cycle earlier to reduce latency
-                    *do_read if early_wb_req else ()
+                    do_read if early_wb_req else ()
                 )
             ).Elif(axi_lite.ar.valid,
                 NextValue(_last_ar_aw_n, 1),
                 NextState("DO-READ"),
                 # Start read req one cycle earlier to reduce latency
-                *do_read if early_wb_req else ()
+                do_read if early_wb_req else ()
             ).Elif(axi_lite.aw.valid,
                 NextValue(_last_ar_aw_n, 0),
                 NextState("DO-WRITE"),
                 # Start write req one cycle earlier to reduce latency
-                *do_write if early_wb_req else ()
+                do_write if early_wb_req else ()
             )
         )
         fsm.act("DO-READ",
-            *do_read,
+            do_read,
             If(wishbone.ack,
                 axi_lite.ar.ready.eq(1),
                 NextValue(_data, wishbone.dat_r),
-                NextState("SEND-READ-RESPONSE")
+                (NextState("SEND-READ-RESPONSE"),) if not early_data_handover else (
+                    # Write date to axi one cycle earlier
+                    axi_lite.r.valid.eq(1),
+                    axi_lite.r.resp.eq(RESP_OKAY),
+                    axi_lite.r.data.eq(wishbone.dat_r),
+                    If(axi_lite.r.ready,
+                        NextState("IDLE")
+                    ).Else(
+                        NextState("SEND-READ-RESPONSE")
+                    ),)
             )
         )
         fsm.act("SEND-READ-RESPONSE",
@@ -83,11 +93,19 @@ class AXILite2Wishbone(Module):
             )
         )
         fsm.act("DO-WRITE",
-            *do_write,
+            do_write,
             If(wishbone.ack,
                 axi_lite.aw.ready.eq(1),
                 axi_lite.w.ready.eq(1),
-                NextState("SEND-WRITE-RESPONSE")
+                (NextState("SEND-WRITE-RESPONSE"),) if not early_data_handover else (
+                    axi_lite.b.valid.eq(1),
+                    axi_lite.b.resp.eq(RESP_OKAY),
+                    If(axi_lite.b.ready,
+                        NextState("IDLE")
+                    ).Else(
+                        NextState("SEND-WRITE-RESPONSE"),
+                    ),
+                )
             )
         )
         fsm.act("SEND-WRITE-RESPONSE",
