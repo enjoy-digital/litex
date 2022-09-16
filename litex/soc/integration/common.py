@@ -41,6 +41,12 @@ def get_mem_regions(filename_or_regions, offset):
 
 def get_mem_data(filename_or_regions, data_width=32, endianness="big", mem_size=None, offset=0):
     assert data_width in [32, 64]
+    assert endianness in ["big", "little"]
+
+    # Return empty list if no filename or regions.
+    if filename_or_regions is None:
+        return []
+
     # Create memory regions.
     regions = get_mem_regions(filename_or_regions, offset)
 
