@@ -111,7 +111,7 @@ void romboot(void)
 static void timer0_load(unsigned int value) {
 	timer0_en_write(0);
 	timer0_reload_write(0);
-#ifndef CONFIG_DISABLE_DELAYS
+#ifndef CONFIG_BIOS_NO_DELAYS
 	timer0_load_write(value);
 #else
 	timer0_load_write(0);
