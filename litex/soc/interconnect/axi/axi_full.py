@@ -193,9 +193,11 @@ class AXIUpConverter(Module):
             description_to   = [("data",   dw_to), ("strb",   dw_to//8)],
         )
         self.submodules += w_converter
-        self.comb += axi_from.w.connect(w_converter.sink, omit={"id"})
+        self.comb += axi_from.w.connect(w_converter.sink, omit={"id", "dest", "user"})
         self.comb += w_converter.source.connect(axi_to.w)
         self.comb += axi_to.w.id.eq(axi_from.w.id)
+        self.comb += axi_to.w.dest.eq(axi_from.w.dest)
+        self.comb += axi_to.w.user.eq(axi_from.w.user)
 
         # B Channel.
         self.comb += axi_to.b.connect(axi_from.b)
@@ -215,11 +217,12 @@ class AXIUpConverter(Module):
             description_to   = [("data", dw_from)],
         )
         self.submodules += r_converter
-        self.comb += axi_to.r.connect(r_converter.sink, omit={"id", "resp"})
+        self.comb += axi_to.r.connect(r_converter.sink, omit={"id", "dest", "user", "resp"})
         self.comb += r_converter.source.connect(axi_from.r)
         self.comb += axi_from.r.resp.eq(axi_to.r.resp)
         self.comb += axi_from.r.id.eq(axi_to.r.id)
-
+        self.comb += axi_from.r.user.eq(axi_to.r.user)
+        self.comb += axi_from.r.dest.eq(axi_to.r.dest)
 
 class AXIDownConverter(Module):
     def __init__(self, axi_from, axi_to):
