@@ -139,12 +139,8 @@ proc jtagstream_drain {tap tx chunk_rx max_rx} {
 
 proc jtagstream_rxtx {tap client is_poll} {
     if {![$client eof]} {
-        if {!$is_poll} {
-            set tx [$client read 1]
-        } else {
-            set tx ""
-        }
-        set rx [jtagstream_drain $tap $tx 64 4096]
+        set tx [$client read 512]
+        set rx [jtagstream_drain $tap $tx 512 4096]
         if {[string length $rx]} {
             #echo [string length $rx]
             $client puts -nonewline $rx
@@ -162,6 +158,7 @@ proc jtagstream_rxtx {tap client is_poll} {
 proc jtagstream_client {tap sock} {
     set client [$sock accept]
     fconfigure $client -buffering none
+    fconfigure $client -blocking 0
     $client readable [list jtagstream_rxtx $tap $client 0]
     $client onexception [list $client close]
     after 1 [list jtagstream_rxtx $tap $client 1]
