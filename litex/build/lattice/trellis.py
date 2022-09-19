@@ -17,7 +17,7 @@ from migen.fhdl.structure import _Fragment
 from litex.build.generic_platform import *
 from litex.build import tools
 from litex.build.lattice import common
-from litex.build.yosys_nextpnr_toolchain import YosysNextPNRToolchain
+from litex.build.yosys_nextpnr_toolchain import YosysNextPNRToolchain, yosys_nextpnr_args, yosys_nextpnr_argdict
 
 # LatticeTrellisToolchain --------------------------------------------------------------------------
 
@@ -151,12 +151,7 @@ class LatticeTrellisToolchain(YosysNextPNRToolchain):
 
 def trellis_args(parser):
     toolchain_group = parser.add_argument_group(title="Toolchain options")
-    toolchain_group.add_argument("--yosys-nowidelut",      action="store_true", help="Use Yosys's nowidelut mode.")
-    toolchain_group.add_argument("--yosys-abc9",           action="store_true", help="Use Yosys's abc9 mode.")
-    toolchain_group.add_argument("--yosys-flow3",          action="store_true", help="Use Yosys's abc9 mode with the flow3 script.")
-    toolchain_group.add_argument("--nextpnr-timingstrict", action="store_true", help="Use strict Timing mode (Build will fail when Timings are not met).")
-    toolchain_group.add_argument("--nextpnr-ignoreloops",  action="store_true", help="Ignore combinatorial loops in Timing Analysis.")
-    toolchain_group.add_argument("--nextpnr-seed",         default=1, type=int, help="Set Nextpnr's seed.")
+    yosys_nextpnr_args(toolchain_group)
     toolchain_group.add_argument("--ecppack-bootaddr",     default=0,           help="Set boot address for next image.")
     toolchain_group.add_argument("--ecppack-spimode",      default=None,        help="Set slave SPI programming mode.")
     toolchain_group.add_argument("--ecppack-freq",         default=None,        help="Set SPI MCLK frequency.")
@@ -164,14 +159,9 @@ def trellis_args(parser):
 
 def trellis_argdict(args):
     return {
-        "nowidelut":    args.yosys_nowidelut,
-        "abc9":         args.yosys_abc9,
-        "flow3":        args.yosys_flow3,
-        "timingstrict": args.nextpnr_timingstrict,
-        "ignoreloops":  args.nextpnr_ignoreloops,
+        **yosys_nextpnr_argdict(args),
         "bootaddr":     args.ecppack_bootaddr,
         "spimode":      args.ecppack_spimode,
         "freq":         float(args.ecppack_freq) if args.ecppack_freq is not None else None,
         "compress":     args.ecppack_compress,
-        "seed":         args.nextpnr_seed,
     }

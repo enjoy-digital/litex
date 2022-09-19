@@ -12,8 +12,8 @@ from shutil import which
 
 from litex.build import tools
 from litex.build.generic_toolchain import GenericToolchain
-from litex.build.nextpnr_wrapper import NextPNRWrapper
-from litex.build.yosys_wrapper import YosysWrapper
+from litex.build.nextpnr_wrapper import NextPNRWrapper, nextpnr_args, nextpnr_argdict
+from litex.build.yosys_wrapper import YosysWrapper, yosys_args, yosys_argdict
 
 # YosysNextPNRToolchain ----------------------------------------------------------------------------
 
@@ -216,3 +216,13 @@ class YosysNextPNRToolchain(GenericToolchain):
 
     def build_io_constraints(self):
         raise NotImplementedError("GenericToolchain.build_io_constraints must be overloaded.")
+
+def yosys_nextpnr_args(parser):
+    yosys_args(parser)
+    nextpnr_args(parser)
+
+def yosys_nextpnr_argdict(args):
+    return {
+        **yosys_argdict(args),
+        **nextpnr_argdict(args),
+    }

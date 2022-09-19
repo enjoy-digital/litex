@@ -137,3 +137,15 @@ class YosysWrapper():
             return base_cmd
         else:
             raise ValueError("Invalid script type")
+
+def yosys_args(parser):
+    parser.add_argument("--yosys-nowidelut", action="store_true", help="Use Yosys's nowidelut mode.")
+    parser.add_argument("--yosys-abc9",      action="store_true", help="Use Yosys's abc9 mode.")
+    parser.add_argument("--yosys-flow3",     action="store_true", help="Use Yosys's abc9 mode with the flow3 script.")
+
+def yosys_argdict(args):
+    return {
+        "nowidelut": args.yosys_nowidelut,
+        "abc9":      args.yosys_abc9,
+        "flow3":     args.yosys_flow3,
+    }
