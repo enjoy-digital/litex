@@ -17,9 +17,9 @@ from litex.soc.interconnect.axi.axi_common import *
 # AXI-Stream Definition ----------------------------------------------------------------------------
 
 class AXIStreamInterface(stream.Endpoint):
-    def __init__(self, data_width=0, keep_width=0, id_width=0, dest_width=0, user_width=0, layout=None, name=None):
+    def __init__(self, data_width=0, keep_width=None, id_width=0, dest_width=0, user_width=0, layout=None, name=None):
         self.data_width = data_width
-        self.keep_width = keep_width
+        self.keep_width = data_width//8 if keep_width is None else keep_width
         self.id_width   = id_width
         self.dest_width = dest_width
         self.user_width = user_width
@@ -28,14 +28,14 @@ class AXIStreamInterface(stream.Endpoint):
         if layout is not None:
             payload_layout = layout
         else:
-            payload_layout =  [("data", max(1, data_width))]
-            payload_layout += [("keep", max(1, keep_width))]
+            payload_layout =  [("data", max(1, self.data_width))]
+            payload_layout += [("keep", max(1, self.keep_width))]
 
         # Define Param Layout.
         param_layout = []
-        param_layout += [("id",   max(1,   id_width))]
-        param_layout += [("dest", max(1, dest_width))]
-        param_layout += [("user", max(1, user_width))]
+        param_layout += [("id",   max(1,   self.id_width))]
+        param_layout += [("dest", max(1, self.dest_width))]
+        param_layout += [("user", max(1, self.user_width))]
 
         # Create Endpoint.
         stream.Endpoint.__init__(self, stream.EndpointDescription(payload_layout, param_layout), name=name)
