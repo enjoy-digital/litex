@@ -49,13 +49,13 @@ class AXIStreamInterface(stream.Endpoint):
         ]
 
         # Payload Signals.
-        subsignals += [Subsignal("tdata", Pins(self.data_width))]
-        subsignals += [Subsignal("tkeep", Pins(self.keep_width))]
+        subsignals += [Subsignal("tdata", Pins(len(self.data)))]
+        subsignals += [Subsignal("tkeep", Pins(len(self.keep)))]
 
         # Param Signals.
-        subsignals += [Subsignal("tid",   Pins(self.id_width))]
-        subsignals += [Subsignal("tdest", Pins(self.dest_width))]
-        subsignals += [Subsignal("tuser", Pins(self.user_width))]
+        subsignals += [Subsignal("tid",   Pins(len(self.id)))]
+        subsignals += [Subsignal("tdest", Pins(len(self.dest)))]
+        subsignals += [Subsignal("tuser", Pins(len(self.user)))]
         ios = [(bus_name , 0) + tuple(subsignals)]
         return ios
 
