@@ -267,8 +267,7 @@ def litex_setup_update_repos(config="standard", tag=None):
             git_checkout(sha1=repo.sha1)
 
 # Git repositories install -------------------------------------------------------------------------
-
-def litex_setup_install_repos(config="standard", user_mode=False):
+def litex_setup_install_repos(config="standard", prefix=""):
     print_status("Installing Git repositories...", underline=True)
     for name in install_configs[config]:
         repo = git_repos[name]
@@ -277,14 +276,14 @@ def litex_setup_install_repos(config="standard", user_mode=False):
         if repo.develop:
             print_status(f"Installing {name} Git repository...")
             os.chdir(os.path.join(current_path, name))
-            subprocess.check_call("\"{python3}\" -m pip install --editable . {options}".format(
+            subprocess.check_call("\"{python3}\" -m pip install --prefix={options}  --editable .".format(
                 python3 = sys.executable,
-                options = "--user" if user_mode else "",
+                options = prefix,  
                 ), shell=True)
-    if user_mode:
-        if ".local/bin" not in os.environ.get("PATH", ""):
-            print_status("Make sure that ~/.local/bin is in your PATH")
-            print_status("export PATH=$PATH:~/.local/bin")
+#    if user_mode:
+#        if ".local/bin" not in os.environ.get("PATH", ""):
+#            print_status("Make sure that ~/.local/bin is in your PATH")
+#            print_status("export PATH=$PATH:~/.local/bin")
 
 # Git repositories freeze --------------------------------------------------------------------------
 
@@ -392,6 +391,8 @@ def main():
     parser.add_argument("--config",    default="standard",  help="Install config (minimal, standard, full).")
     parser.add_argument("--tag",       default=None,        help="Use version from release tag.")
     parser.add_argument("--freeze",    action="store_true", help="Freeze and display current config.")
+    parser.add_argument("--prefix",    default="",          help="Install in Prefix-Mode.")
+
 
 
     # GCC toolchains.
@@ -427,7 +428,7 @@ def main():
 
     # Install.
     if args.install:
-        litex_setup_install_repos(config=args.config, user_mode=args.user)
+        litex_setup_install_repos(config=args.config, prefix=args.prefix)
 
     # Freeze.
     if args.freeze:
