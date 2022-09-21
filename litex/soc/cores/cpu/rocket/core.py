@@ -51,9 +51,9 @@ CPU_VARIANTS = {
     "linuxq":   "freechips.rocketchip.system.LitexLinuxQConfig",
     "linux2q":  "freechips.rocketchip.system.LitexLinux2QConfig",
     "full":     "freechips.rocketchip.system.LitexFullConfig",
-    "fulld":    "freechips.rocketchip.system.LitexFullConfig",
+    "fulld":    "freechips.rocketchip.system.LitexFullDConfig",
     "full4d":   "freechips.rocketchip.system.LitexFull4DConfig",
-    "fullq":    "freechips.rocketchip.system.LitexFullConfig",
+    "fullq":    "freechips.rocketchip.system.LitexFullQConfig",
     "full4q":   "freechips.rocketchip.system.LitexFull4QConfig",
 }
 

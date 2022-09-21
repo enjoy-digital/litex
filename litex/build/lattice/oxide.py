@@ -17,7 +17,7 @@ from litex.build.generic_platform import *
 from litex.build import tools
 from litex.build.lattice import common
 from litex.build.lattice.radiant import _format_constraint, _format_ldc, _build_pdc
-from litex.build.yosys_nextpnr_toolchain import YosysNextPNRToolchain
+from litex.build.yosys_nextpnr_toolchain import YosysNextPNRToolchain, yosys_nextpnr_args, yosys_nextpnr_argdict
 
 import math
 
@@ -63,19 +63,11 @@ class LatticeOxideToolchain(YosysNextPNRToolchain):
 
 def oxide_args(parser):
     toolchain_group = parser.add_argument_group(title="Toolchain options")
-    toolchain_group.add_argument("--yosys-nowidelut",      action="store_true", help="Use Yosys's nowidelut mode.")
-    toolchain_group.add_argument("--yosys-abc9",           action="store_true", help="Use Yosys's abc9 mode.")
-    toolchain_group.add_argument("--nextpnr-timingstrict", action="store_true", help="Use strict Timing mode (Build will fail when Timings are not met).")
-    toolchain_group.add_argument("--nextpnr-ignoreloops",  action="store_true", help="Ignore combinatorial loops in Timing Analysis.")
-    toolchain_group.add_argument("--nextpnr-seed",         default=1, type=int, help="Set Nextpnr's seed.")
-    toolchain_group.add_argument("--nexus-es-device",      action="store_true", help="Use Nexus-ES1 part.")
+    yosys_nextpnr_args(toolchain_group)
+    toolchain_group.add_argument("--nexus-es-device", action="store_true", help="Use Nexus-ES1 part.")
 
 def oxide_argdict(args):
     return {
-        "nowidelut":    args.yosys_nowidelut,
-        "abc9":         args.yosys_abc9,
-        "timingstrict": args.nextpnr_timingstrict,
-        "ignoreloops":  args.nextpnr_ignoreloops,
-        "seed":         args.nextpnr_seed,
+        **yosys_nextpnr_argdict(args),
         "es_device":    args.nexus_es_device,
     }
