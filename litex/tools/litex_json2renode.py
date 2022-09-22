@@ -774,15 +774,15 @@ showAnalyzer sysbus.uart
 showAnalyzer sysbus.uart Antmicro.Renode.Analyzers.LoggingUartAnalyzer
 """.format(cpu_type, args.repl)
 
-    rom_base = csr['memories']['rom']['base'] if 'rom' in csr['memories'] else None
-    if rom_base is not None and args.bios_binary:
+    opensbi_base = csr['memories']['opensbi']['base'] if 'opensbi' in csr['memories'] else None
+    if opensbi_base is not None and args.bios_binary:
         # load LiteX BIOS to ROM
         result += """
 sysbus LoadBinary @{} {}
-""".format(args.bios_binary, hex(rom_base))
+""".format(args.bios_binary, hex(opensbi_base))
 
     for cpu_id in range(0, number_of_cores):
-        result += f"cpu{cpu_id} PC {hex(rom_base)}\n"
+        result += f"cpu{cpu_id} PC {hex(opensbi_base)}\n"
 
     if args.tftp_ip:
         result += """
