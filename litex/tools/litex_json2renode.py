@@ -811,16 +811,16 @@ connector Connect ethmac switch
 connector Connect host.tap switch
 """.format(args.configure_network)
     elif flash_binaries:
-        if 'flash_boot_address' not in csr['constants']:
+        if 'spiflash' not in csr['memories']:
             print('Warning! There is no flash memory to load binaries to')
         else:
             # load binaries to spiflash to boot from there
 
             for offset in flash_binaries:
                 path = flash_binaries[offset]
-                flash_boot_address = int(csr['constants']['flash_boot_address'], 0) + offset
+                flash_boot_address = int(csr['memories']['spiflash']['base']) + offset
 
-                firmware_data = open(path, 'rb').read()
+                firmware_data = open(os.path.expanduser(path), 'rb').read()
                 crc32 = zlib.crc32(firmware_data)
 
                 result += 'sysbus WriteDoubleWord {} {}\n'.format(hex(flash_boot_address), hex(len(firmware_data)))
