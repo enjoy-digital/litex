@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Copyright (c) 2019-2021 Antmicro <www.antmicro.com>
+Copyright (c) 2019-2022 Antmicro <www.antmicro.com>
 
 Renode platform definition (repl) and script (resc) generator for LiteX SoC.
 
@@ -20,6 +20,8 @@ import argparse
 # and should not be generated automatically
 non_generated_mem_regions = ['ethmac', 'csr']
 
+# let's just fail if we access this prematurely
+number_of_cores = None
 
 def get_descriptor(csr, name, size=None):
     res = { 'base': csr['csr_bases'][name], 'constants': {} }
@@ -110,7 +112,7 @@ ethmac: Network.LiteX_Ethernet{} @ {{
 
     interrupt_name = '{}_interrupt'.format(name)
     if interrupt_name in csr['constants']:
-        result += '    -> cpu@{}\n'.format(
+        result += '    -> plic@{}\n'.format(
             csr['constants'][interrupt_name])
 
     result += """
@@ -204,6 +206,9 @@ def get_cpu_type(csr):
 
     return (kind, variant)
 
+def get_cpu_count(csr):
+    config_cpu_count = csr['constants']['config_cpu_count']
+    return config_cpu_count
 
 def generate_cpu(csr, time_provider):
     """ Generates definition of a CPU.
@@ -214,62 +219,68 @@ def generate_cpu(csr, time_provider):
     kind, variant = get_cpu_type(csr)
 
     if kind == 'vexriscv' or kind == 'vexriscv_smp':
-        result = """
-cpu: CPU.VexRiscv @ sysbus
+        cpu_string = """
+CPU.VexRiscv @ sysbus
 """
         if variant == 'linux':
-            result += """
+            cpu_string += """
     cpuType: "rv32ima"
     privilegeArchitecture: PrivilegeArchitecture.Priv1_10
 """
         elif variant in ["i", "im", "ima", "imac"]:
-            result += """
+            cpu_string += """
     cpuType: "rv32{}"
 """.format(variant)
         else:
-            result += """
+            cpu_string += """
     cpuType: "rv32im"
 """
         if time_provider:
-            result += """
+            cpu_string += """
     timeProvider: {}
 """.format(time_provider)
 
-        return result
     elif kind == 'picorv32':
-        return """
-cpu: CPU.PicoRV32 @ sysbus
+        cpu_string = """
+CPU.PicoRV32 @ sysbus
     cpuType: "rv32imc"
 """
     elif kind == 'minerva':
-        return """
-cpu: CPU.Minerva @ sysbus
+        cpu_string = """
+CPU.Minerva @ sysbus
 """
     elif kind == 'ibex':
-        return """
-cpu: CPU.IbexRiscV32 @ sysbus
+        cpu_string = """
+CPU.IbexRiscV32 @ sysbus
 """
     elif kind == 'cv32e40p':
-        result = """
-cpu: CPU.CV32E40P @ sysbus
+        cpu_string = """
+CPU.CV32E40P @ sysbus
 """
         if variant == 'standard':
-            result += """
+            cpu_string += """
     cpuType: "rv32imc"
 """
         else:
-            result += """
+            cpu_string += """
     cpuType: "rv32imc"
 """
         if time_provider:
-            result += """
+            cpu_string += """
     timeProvider: {}
 """.format(time_provider)
 
-        return result
     else:
         raise Exception('Unsupported cpu type: {}'.format(kind))
 
+    result = ''
+    for cpu_id in range(0, number_of_cores):
+        result += f"""
+cpu{cpu_id}: {cpu_string.strip()}
+    hartId: {cpu_id}
+"""
+
+    return result
 
 def generate_peripheral(csr, name, **kwargs):
     """ Generates definition of a peripheral.
@@ -298,7 +309,7 @@ def generate_peripheral(csr, name, **kwargs):
     for constant, val in peripheral['constants'].items():
         if 'ignored_constants' not in kwargs or constant not in kwargs['ignored_constants']:
             if constant == 'interrupt':
-                result += '    -> cpu@{}\n'.format(val)
+                result += '    -> plic@{}\n'.format(val)
             else:
                 result += '    {}: {}\n'.format(constant, val)
 
@@ -418,11 +429,14 @@ def generate_clint(clint, frequency):
     result = """
 clint: IRQControllers.CoreLevelInterruptor @ {}
     frequency: {}
-    [0, 1] -> cpu@[101, 100]
+    numberOfTargets: {}
 """.format(generate_sysbus_registration(clint,
                                         skip_braces=True,
                                         skip_size=True),
-           frequency)
+           frequency, number_of_cores)
+
+    for cpu_id in range(0, number_of_cores):
+        result += f"    [{2 * cpu_id}, {2 * cpu_id + 1}] -> cpu{cpu_id}@[101, 100]\n"
 
     return result
 
@@ -431,13 +445,16 @@ def generate_plic(plic):
     # TODO: this is configuration for linux-on-litex-vexriscv - add support for other CPU types
     result = """
 plic: IRQControllers.PlatformLevelInterruptController @ {}
-    [0, 1] -> cpu@[11, 9]
     numberOfSources: 31
-    numberOfContexts: 2
+    numberOfContexts: {}
     prioritiesEnabled: false
 """.format(generate_sysbus_registration(plic,
                                         skip_braces=True,
-                                        skip_size=True))
+                                        skip_size=True),
+           2 * number_of_cores)
+
+    for cpu_id in range(0, number_of_cores):
+        result += f"    [{2 * cpu_id}, {2 * cpu_id + 1}] -> cpu{cpu_id}@[11, 9]\n"
 
     return result
 
@@ -521,7 +538,7 @@ peripherals_handlers = {
         },
         'interrupts': {
             # IRQ #100 in Renode's VexRiscv model is mapped to Machine Timer Interrupt
-            'IRQ': lambda: 'cpu@100'
+            'IRQ': lambda: 'cpu0@100'
         }
     },
     'ddrphy': {
@@ -591,7 +608,8 @@ def generate_repl(csr, etherbone_peripherals, autoalign):
                 peripherals and memory regions
     """
     result = ""
-
+    global number_of_cores
+    number_of_cores = get_cpu_count(csr)
 
     # RISC-V CPU in Renode requires memory region size
     # to be a multiple of 4KB - this is a known limitation
@@ -761,9 +779,10 @@ showAnalyzer sysbus.uart Antmicro.Renode.Analyzers.LoggingUartAnalyzer
         # load LiteX BIOS to ROM
         result += """
 sysbus LoadBinary @{} {}
-cpu PC {}
-""".format(args.bios_binary, rom_base, rom_base)
+""".format(args.bios_binary, hex(rom_base))
 
+    for cpu_id in range(0, number_of_cores):
+        result += f"cpu{cpu_id} PC {hex(rom_base)}\n"
 
     if args.tftp_ip:
         result += """
