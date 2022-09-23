@@ -57,10 +57,13 @@ class YosysNextPNRToolchain(GenericToolchain):
         target package  (optional/target dependant)
     _speed_grade: str
         target speed grade (optional/target dependant)
+    _support_mixed_language: bool
+        informs if toolchain is able to use only verilog or verilog + vhdl
     """
     attr_translate = {
         "keep": ("keep", "true"),
     }
+    _support_mixed_language  = False
 
     family     = ""
     synth_fmt  = ""
