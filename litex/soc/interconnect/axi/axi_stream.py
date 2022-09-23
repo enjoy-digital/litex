@@ -48,14 +48,10 @@ class AXIStreamInterface(stream.Endpoint):
             Subsignal("tready", Pins(1)),
         ]
 
-        # Payload Signals.
-        subsignals += [Subsignal("tdata", Pins(len(self.data)))]
-        subsignals += [Subsignal("tkeep", Pins(len(self.keep)))]
-
-        # Param Signals.
-        subsignals += [Subsignal("tid",   Pins(len(self.id)))]
-        subsignals += [Subsignal("tdest", Pins(len(self.dest)))]
-        subsignals += [Subsignal("tuser", Pins(len(self.user)))]
+        # Payload/Params Signals.
+        channel_layout = (self.description.payload_layout + self.description.param_layout)
+        for name, width in channel_layout:
+            subsignals.append(Subsignal(f"t{name}", Pins(width)))
         ios = [(bus_name , 0) + tuple(subsignals)]
         return ios
 
