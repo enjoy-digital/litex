@@ -12,6 +12,7 @@ import time
 import logging
 import argparse
 import datetime
+import inspect
 from math import log2, ceil
 
 from migen import *
@@ -125,7 +126,8 @@ class SoCBusHandler(Module):
         timeout          = 1e6,
         bursting         = False,
         interconnect     = "shared",
-        reserved_regions = {}
+        reserved_regions = {},
+        std_converter_opts = []
     ):
         self.logger = logging.getLogger(name)
         self.logger.info("Creating Bus Handler...")
@@ -160,6 +162,7 @@ class SoCBusHandler(Module):
         self.address_width    = address_width
         self.bursting         = bursting
         self.interconnect     = interconnect
+        self.std_converter_opts = std_converter_opts
         self.masters          = {}
         self.slaves           = {}
         self.regions          = {}
@@ -353,7 +356,7 @@ class SoCBusHandler(Module):
             }[self.standard]
             # Same Bus-Standard: Return un-modified interface.
             if isinstance(interface, main_bus_cls):
-                return interface
+                return interface, None
             # Different Bus-Standard: Return adapted interface.
             else:
                 adapted_interface = main_bus_cls(
@@ -373,29 +376,37 @@ class SoCBusHandler(Module):
                     (axi.AXIInterface,     axi.AXILiteInterface): axi.AXI2AXILite,
                     (axi.AXIInterface,     wishbone.Interface)  : axi.AXI2Wishbone,
                 }[type(master), type(slave)]
-                bridge = bridge_cls(master, slave)
+                if 'options' in inspect.getargspec(bridge_cls).args:
+                    bridge = bridge_cls(master, slave, options=self.std_converter_opts)
+                else:
+                    bridge = bridge_cls(master, slave)
                 self.submodules += bridge
-                return adapted_interface
+                return adapted_interface, bridge
 
         # Interface conversion.
         adapted_interface = interface
         adapted_interface = data_width_convert(adapted_interface, direction)
-        adapted_interface = bus_standard_convert(adapted_interface, direction)
+        adapted_interface, bridge = bus_standard_convert(adapted_interface, direction)
 
         if type(interface) != type(adapted_interface) or interface.data_width != adapted_interface.data_width:
-            fmt = "{name} Bus {adapted} from {from_bus} {from_bits}-bit to {to_bus} {to_bits}-bit."
+            fmt = "{name} Bus {adapted} from {from_bus} {from_bits}-bit to {to_bus} {to_bits}-bit. {bridge_desc}"
             bus_names = {
                 wishbone.Interface:   "Wishbone",
                 axi.AXILiteInterface: "AXI-Lite",
                 axi.AXIInterface:     "AXI",
             }
+            bridge_desc = ""
+            if bridge is not None and hasattr(bridge, "bridge_desc"):
+                bridge_desc += ", ".join(["{}: {}".format(k.capitalize(), colorer(v)) for k,v in bridge.bridge_desc.items()])
+                bridge_desc += "."
             self.logger.info(fmt.format(
                 name      = colorer(name),
                 adapted   = colorer("adapted", color="cyan"),
                 from_bus  = colorer(bus_names[type(interface)]),
                 from_bits = colorer(interface.data_width),
                 to_bus    = colorer(bus_names[type(adapted_interface)]),
-                to_bits   = colorer(adapted_interface.data_width)))
+                to_bits   = colorer(adapted_interface.data_width),
+                bridge_desc = bridge_desc))
 
         return adapted_interface
 
@@ -775,6 +786,7 @@ class SoC(Module):
         bus_timeout          = 1e6,
         bus_bursting         = False,
         bus_interconnect     = "shared",
+        bus_std_converter_opts = [],
         bus_reserved_regions = {},
 
         csr_data_width       = 32,
@@ -786,7 +798,6 @@ class SoC(Module):
         irq_n_irqs           = 32,
         irq_reserved_irqs    = {},
         ):
-
         self.logger = logging.getLogger("SoC")
         self.logger.info(colorer("        __   _ __      _  __  ", color="bright"))
         self.logger.info(colorer("       / /  (_) /____ | |/_/  ", color="bright"))
@@ -815,6 +826,7 @@ class SoC(Module):
             bursting         = bus_bursting,
             interconnect     = bus_interconnect,
             reserved_regions = bus_reserved_regions,
+            std_converter_opts=bus_std_converter_opts
            )
 
         # SoC Bus Handler --------------------------------------------------------------------------
