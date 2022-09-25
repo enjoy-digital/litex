@@ -99,6 +99,7 @@ class NaxRiscv(CPU):
         cpu_group.add_argument("--with-jtag-tap", action="store_true", help="Add a embedded JTAG tap for debugging")
         cpu_group.add_argument("--with-jtag-instruction", action="store_true", help="Add a JTAG instruction port which implement tunneling for debugging (TAP not included)")
         cpu_group.add_argument("--update-repo",   default="recommended", choices=["latest","wipe+latest","recommended","wipe+recommended","no"], help="Specify how the NaxRiscv & SpinalHDL repo should be updated (latest: update to HEAD, recommended: Update to known compatible version, no: Don't update, wipe+*: Do clean&reset before checkout)")
+        cpu_group.add_argument("--no-netlist-cache", action="store_true", help="Always (re-)build the netlist")
 
     @staticmethod
     def args_read(args):
@@ -106,6 +107,7 @@ class NaxRiscv(CPU):
         NaxRiscv.jtag_tap = args.with_jtag_tap
         NaxRiscv.jtag_instruction = args.with_jtag_instruction
         NaxRiscv.update_repo = args.update_repo
+        NaxRiscv.no_netlist_cache = args.no_netlist_cache
         if args.scala_file:
             NaxRiscv.scala_files = args.scala_file
         if args.scala_args:
@@ -265,7 +267,7 @@ class NaxRiscv(CPU):
     def add_sources(self, platform):
         vdir = get_data_mod("cpu", "naxriscv").data_location
         print(f"NaxRiscv netlist : {self.netlist_name}")
-        if not os.path.exists(os.path.join(vdir, self.netlist_name + ".v")):
+        if NaxRiscv.no_netlist_cache or not os.path.exists(os.path.join(vdir, self.netlist_name + ".v")):
             self.generate_netlist(self.reset_address)
 
         # Add RAM.
