@@ -98,12 +98,16 @@ class NaxRiscv(CPU):
         cpu_group.add_argument("--xlen",          default=32,          help="Specify the RISC-V data width.")
         cpu_group.add_argument("--with-jtag-tap", action="store_true", help="Add a embedded JTAG tap for debugging")
         cpu_group.add_argument("--with-jtag-instruction", action="store_true", help="Add a JTAG instruction port which implement tunneling for debugging (TAP not included)")
+        cpu_group.add_argument("--update-repo",   default="recommended", choices=["latest","wipe+latest","recommended","wipe+recommended","no"], help="Specify how the NaxRiscv & SpinalHDL repo should be updated (latest: update to HEAD, recommended: Update to known compatible version, no: Don't update, wipe+*: Do clean&reset before checkout)")
+        cpu_group.add_argument("--no-netlist-cache", action="store_true", help="Always (re-)build the netlist")
 
     @staticmethod
     def args_read(args):
         print(args)
         NaxRiscv.jtag_tap = args.with_jtag_tap
         NaxRiscv.jtag_instruction = args.with_jtag_instruction
+        NaxRiscv.update_repo = args.update_repo
+        NaxRiscv.no_netlist_cache = args.no_netlist_cache
         if args.scala_file:
             NaxRiscv.scala_files = args.scala_file
         if args.scala_args:
@@ -218,8 +222,11 @@ class NaxRiscv(CPU):
                 options = dir
             ), shell=True)
             # Use specific SHA1 (Optional).
+        print(f"Updating {name} Git repository...")
         os.chdir(os.path.join(dir))
-        os.system(f"cd {dir} && git checkout {branch} && git pull && git checkout {hash}")
+        wipe_cmd = "&& git clean --force -d -x && git reset --hard" if "wipe" in NaxRiscv.update_repo else ""
+        checkout_cmd = f"&& git checkout {hash}" if hash is not None else ""
+        subprocess.check_call(f"cd {dir} {wipe_cmd} && git checkout {branch} && git pull {checkout_cmd}", shell=True)
 
     # Netlist Generation.
     @staticmethod
@@ -228,8 +235,9 @@ class NaxRiscv(CPU):
         ndir = os.path.join(vdir, "ext", "NaxRiscv")
         sdir = os.path.join(vdir, "ext", "SpinalHDL")
 
-        NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git"  , "main", "15d2d10b")
-        NaxRiscv.git_setup("SpinalHDL", sdir, "https://github.com/SpinalHDL/SpinalHDL.git", "dev" , "5a0592d1")
+        if NaxRiscv.update_repo != "no":
+            NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git"  , "main", "15d2d10b" if NaxRiscv.update_repo=="recommended" else None)
+            NaxRiscv.git_setup("SpinalHDL", sdir, "https://github.com/SpinalHDL/SpinalHDL.git", "dev" , "5a0592d1" if NaxRiscv.update_repo=="recommended" else None)
 
         gen_args = []
         gen_args.append(f"--netlist-name={NaxRiscv.netlist_name}")
@@ -259,7 +267,7 @@ class NaxRiscv(CPU):
     def add_sources(self, platform):
         vdir = get_data_mod("cpu", "naxriscv").data_location
         print(f"NaxRiscv netlist : {self.netlist_name}")
-        if not os.path.exists(os.path.join(vdir, self.netlist_name + ".v")):
+        if NaxRiscv.no_netlist_cache or not os.path.exists(os.path.join(vdir, self.netlist_name + ".v")):
             self.generate_netlist(self.reset_address)
 
         # Add RAM.
