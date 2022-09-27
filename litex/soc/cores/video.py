@@ -163,6 +163,9 @@ video_data_layout = [
     ("b",     8),
 ]
 
+# DVI Color <-> channel mapping --------------------------------------------------------------------
+_dvi_c2d = {"b": 0, "g": 1, "r": 2}
+
 class VideoTimingGenerator(Module, AutoCSR):
     def __init__(self, default_video_timings="800x600@60Hz"):
         # Check / Get Video Timings (can be str or dict)
@@ -790,18 +793,17 @@ class VideoHDMIPHY(Module):
 
         # Encode/Serialize Datas.
         for pol in drive_pols:
-            for color in ["r", "g", "b"]:
+            for color, channel in _dvi_c2d.items():
                 # TMDS Encoding.
                 encoder = ClockDomainsRenamer(clock_domain)(TMDSEncoder())
                 setattr(self.submodules, f"{color}_encoder", encoder)
                 self.comb += encoder.d.eq(getattr(sink, color))
-                self.comb += encoder.c.eq(Cat(sink.hsync, sink.vsync) if color == "r" else 0)
+                self.comb += encoder.c.eq(Cat(sink.hsync, sink.vsync) if channel == 0 else 0)
                 self.comb += encoder.de.eq(sink.de)
 
                 # 10:1 Serialization + Pseudo Differential Signaling.
-                c2d  = {"r": 0, "g": 1, "b": 2}
                 data_i = encoder.out if color not in pn_swap else ~encoder.out
-                data_o = getattr(pads, f"data{c2d[color]}_{pol}")
+                data_o = getattr(pads, f"data{channel}_{pol}")
                 serializer = VideoHDMI10to1Serializer(
                     data_i       = {"p":data_i, "n": ~data_i}[pol],
                     data_o       = data_o,
@@ -828,12 +830,12 @@ class VideoGowinHDMIPHY(Module):
             o_OB = pads.clk_n,
         )
 
-        for color in ["r", "g", "b"]:
+        for color, channel in _dvi_c2d.items():
             # TMDS Encoding.
             encoder = ClockDomainsRenamer(clock_domain)(TMDSEncoder())
             setattr(self.submodules, f"{color}_encoder", encoder)
             self.comb += encoder.d.eq(getattr(sink, color))
-            self.comb += encoder.c.eq(Cat(sink.hsync, sink.vsync) if color == "r" else 0)
+            self.comb += encoder.c.eq(Cat(sink.hsync, sink.vsync) if channel == 0 else 0)
             self.comb += encoder.de.eq(sink.de)
 
             # 10:1 Serialization + Differential Signaling.
@@ -847,11 +849,10 @@ class VideoGowinHDMIPHY(Module):
                 o_Q     = pad_o,
             )
 
-            c2d  = {"r": 0, "g": 1, "b": 2}
             self.specials += Instance("ELVDS_OBUF",
                 i_I  = pad_o,
-                o_O  = getattr(pads, f"data{c2d[color]}_p"),
-                o_OB = getattr(pads, f"data{c2d[color]}_n"),
+                o_O  = getattr(pads, f"data{channel}_p"),
+                o_OB = getattr(pads, f"data{channel}_n"),
             )
 
 
@@ -872,13 +873,13 @@ class VideoS6HDMIPHY(Module):
         self.specials += Instance("OBUFDS", i_I=pads_clk, o_O=pads.clk_p, o_OB=pads.clk_n)
 
         # Encode/Serialize Datas.
-        for color in ["r", "g", "b"]:
+        for color, channel in _dvi_c2d.items():
 
             # TMDS Encoding.
             encoder = ClockDomainsRenamer(clock_domain)(TMDSEncoder())
             setattr(self.submodules, f"{color}_encoder", encoder)
             self.comb += encoder.d.eq(getattr(sink, color))
-            self.comb += encoder.c.eq(Cat(sink.hsync, sink.vsync) if color == "r" else 0)
+            self.comb += encoder.c.eq(Cat(sink.hsync, sink.vsync) if channel == 0 else 0)
             self.comb += encoder.de.eq(sink.de)
 
             # 10:1 Serialization + Differential Signaling.
@@ -889,9 +890,8 @@ class VideoS6HDMIPHY(Module):
                 clock_domain = clock_domain,
             )
             setattr(self.submodules, f"{color}_serializer", serializer)
-            c2d   = {"r": 0, "g": 1, "b": 2}
-            pad_p = getattr(pads, f"data{c2d[color]}_p")
-            pad_n = getattr(pads, f"data{c2d[color]}_n")
+            pad_p = getattr(pads, f"data{channel}_p")
+            pad_n = getattr(pads, f"data{channel}_n")
             self.specials += Instance("OBUFDS", i_I=pad_o, o_O=pad_p, o_OB=pad_n)
 
 # HDMI (Xilinx 7-Series).
@@ -953,13 +953,13 @@ class VideoS7HDMIPHY(Module):
         self.specials += Instance("OBUFDS", i_I=pads_clk, o_O=pads.clk_p, o_OB=pads.clk_n)
 
         # Encode/Serialize Datas.
-        for color in ["r", "g", "b"]:
+        for color, channel in _dvi_c2d.items():
 
             # TMDS Encoding.
             encoder = ClockDomainsRenamer(clock_domain)(TMDSEncoder())
             self.submodules += encoder
             self.comb += encoder.d.eq(getattr(sink, color))
-            self.comb += encoder.c.eq(Cat(sink.hsync, sink.vsync) if color == "r" else 0)
+            self.comb += encoder.c.eq(Cat(sink.hsync, sink.vsync) if channel == 0 else 0)
             self.comb += encoder.de.eq(sink.de)
 
             # 10:1 Serialization + Differential Signaling.
@@ -970,9 +970,8 @@ class VideoS7HDMIPHY(Module):
                 clock_domain = clock_domain,
             )
             self.submodules += serializer
-            c2d   = {"r": 0, "g": 1, "b": 2}
-            pad_p = getattr(pads, f"data{c2d[color]}_p")
-            pad_n = getattr(pads, f"data{c2d[color]}_n")
+            pad_p = getattr(pads, f"data{channel}_p")
+            pad_n = getattr(pads, f"data{channel}_n")
             self.specials += Instance("OBUFDS", i_I=pad_o, o_O=pad_p, o_OB=pad_n)
 
 
@@ -1010,12 +1009,12 @@ class VideoS7GTPHDMIPHY(Module):
         self.submodules.pll = pll = GTPQuadPLL(refclk, clk_freq, 1.485e9)
 
         # Encode/Serialize Datas.
-        for color in ["r", "g", "b"]:
+        for color, channel in _dvi_c2d.items():
             # TMDS Encoding.
             encoder = ClockDomainsRenamer(clock_domain)(TMDSEncoder())
             self.submodules += encoder
             self.comb += encoder.d.eq(getattr(sink, color))
-            self.comb += encoder.c.eq(Cat(sink.hsync, sink.vsync) if color == "r" else 0)
+            self.comb += encoder.c.eq(Cat(sink.hsync, sink.vsync) if channel == 0 else 0)
             self.comb += encoder.de.eq(sink.de)
 
             # 10:20 (SerDes has a minimal 20:1 Serialization ratio).
@@ -1031,14 +1030,13 @@ class VideoS7GTPHDMIPHY(Module):
             self.comb += cdc.source.ready.eq(1) # No backpressure.
 
             # 20:1 Serialization + Differential Signaling.
-            c2d  = {"r": 0, "g": 1, "b": 2}
             class GTPPads:
                 def __init__(self, p, n):
                     self.p = p
                     self.n = n
-            tx_pads = GTPPads(p=getattr(pads, f"data{c2d[color]}_p"), n=getattr(pads, f"data{c2d[color]}_n"))
+            tx_pads = GTPPads(p=getattr(pads, f"data{channel}_p"), n=getattr(pads, f"data{channel}_n"))
             # FIXME: Find a way to avoid RX pads.
-            rx_pads = GTPPads(p=getattr(pads, f"rx{c2d[color]}_p"),   n=getattr(pads, f"rx{c2d[color]}_n"))
+            rx_pads = GTPPads(p=getattr(pads, f"rx{channe}_p"),    n=getattr(pads, f"rx{channel}_n"))
             gtp = GTP(pll, tx_pads, rx_pads=rx_pads, sys_clk_freq=sys_clk_freq,
                 tx_polarity      = 1, # FIXME: Specific to Decklink Mini 4K, make it configurable.
                 tx_buffer_enable = True,
