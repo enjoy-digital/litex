@@ -105,12 +105,6 @@ class XilinxVivadoToolchain(GenericToolchain):
         self.pre_placement_commands               = XilinxVivadoCommands()
         self.pre_routing_commands                 = XilinxVivadoCommands()
         self.incremental_implementation           = False
-        self.vivado_synth_directive               = "default"
-        self.opt_directive                        = "default"
-        self.vivado_place_directive               = "default"
-        self.vivado_post_place_phys_opt_directive = None
-        self.vivado_route_directive               = "default"
-        self.vivado_post_route_phys_opt_directive = "default"
         self._synth_mode                          = "vivado"
         self._enable_xpm                          = False
 
@@ -122,10 +116,25 @@ class XilinxVivadoToolchain(GenericToolchain):
     def build(self, platform, fragment,
         synth_mode = "vivado",
         enable_xpm = False,
+        vivado_synth_directive               = "default",
+        opt_directive                        = "default",
+        vivado_place_directive               = "default",
+        vivado_post_place_phys_opt_directive = None,
+        vivado_route_directive               = "default",
+        vivado_post_route_phys_opt_directive = "default",
+        vivado_max_threads = None,
         **kwargs):
 
         self._synth_mode = synth_mode
         self._enable_xpm = enable_xpm
+
+        self.vivado_synth_directive = vivado_synth_directive
+        self.opt_directive = opt_directive
+        self.vivado_place_directive = vivado_place_directive
+        self.vivado_post_place_phys_opt_directive = vivado_post_place_phys_opt_directive
+        self.vivado_route_directive = vivado_route_directive
+        self.vivado_post_route_phys_opt_directive = vivado_post_route_phys_opt_directive
+        self.vivado_max_threads = vivado_max_threads
 
         return GenericToolchain.build(self, platform, fragment, **kwargs)
 
@@ -210,6 +219,9 @@ class XilinxVivadoToolchain(GenericToolchain):
         tcl.append("\n# Create Project\n")
         tcl.append(f"create_project -force -name {self._build_name} -part {self.platform.device}")
         tcl.append("set_msg_config -id {Common 17-55} -new_severity {Warning}")
+
+        if self.vivado_max_threads:
+            tcl.append(f"set_param general.maxThreads {self.vivado_max_threads}")
 
         # Enable Xilinx Parameterized Macros
         if self._enable_xpm:
@@ -376,6 +388,20 @@ class XilinxVivadoToolchain(GenericToolchain):
 def vivado_build_args(parser):
     toolchain_group = parser.add_argument_group(title="Toolchain options")
     toolchain_group.add_argument("--synth-mode", default="vivado", help="Synthesis mode (vivado or yosys).")
+    toolchain_group.add_argument("--vivado-synth-directive", default="default", help="Specify synthesis directive.")
+    toolchain_group.add_argument("--vivado-opt-directive", default="default", help="Specify opt directive.")
+    toolchain_group.add_argument("--vivado-place-directive", default="default", help="Specify place directive.")
+    toolchain_group.add_argument("--vivado-post-place-phys-opt-directive", default=None, help="Specify phys opt directive.")
+    toolchain_group.add_argument("--vivado-route-directive", default="default", help="Specify route directive.")
+    toolchain_group.add_argument("--vivado-post-route-phys-opt-directive", default="default", help="Specify phys opt directive.")
+    toolchain_group.add_argument("--vivado-max-threads", default=None, help="Limit the max threads vivado is allowed to use.")
 
 def vivado_build_argdict(args):
-    return {"synth_mode": args.synth_mode}
+    return {"synth_mode": args.synth_mode,
+            "vivado_synth_directive": args.vivado_synth_directive,
+            "opt_directive": args.vivado_opt_directive,
+            "vivado_place_directive": args.vivado_place_directive,
+            "vivado_post_place_phys_opt_directive": args.vivado_post_place_phys_opt_directive,
+            "vivado_route_directive": args.vivado_route_directive,
+            "vivado_post_route_phys_opt_directive": args.vivado_post_route_phys_opt_directive,
+            "vivado_max_threads": args.vivado_max_threads}
