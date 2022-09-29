@@ -24,7 +24,7 @@ def main():
 
     # Copy contents to demo directory
     os.system(f"cp {os.path.abspath(os.path.dirname(__file__))}/* demo")
-    os.system("chmod -R u+w demo")
+    os.system("chmod -R u+w demo") # Nix specific: Allow linker script to be modified.
 
     # Update memory region.
     replace_in_file("demo/linker.ld", "main_ram", args.mem)
@@ -37,7 +37,8 @@ def main():
     os.system("cp demo/demo.bin ./")
 
     # Prepare flash boot image.
-    os.system(f"{sys.executable or 'python3'} -m litex.soc.software.crcfbigen demo.bin -o demo.fbi --fbi --little") # FIXME: Endianness.
+    python3 = sys.executable or "python3" # Nix specific: Reuse current Python executable if available.
+    os.system(f"{python3} -m litex.soc.software.crcfbigen demo.bin -o demo.fbi --fbi --little") # FIXME: Endianness.
 
 if __name__ == "__main__":
     main()
