@@ -155,7 +155,7 @@ class WishboneDMAWriter(Module, AutoCSR):
         if with_csr:
             self.add_csr()
 
-    def add_csr(self, default_base=0, default_length=0, default_enable=0, default_loop=0):
+    def add_csr(self, default_base=0, default_length=0, default_enable=0, default_loop=0, ready_on_idle=1):
         self._sink = self.sink
         self.sink  = stream.Endpoint([("data", self.bus.data_width)])
 
@@ -182,13 +182,13 @@ class WishboneDMAWriter(Module, AutoCSR):
         self.submodules += fsm
         self.comb += fsm.reset.eq(~self._enable.storage)
         fsm.act("IDLE",
-            self.sink.ready.eq(1),
+            self.sink.ready.eq(ready_on_idle),
             NextValue(offset, 0),
             NextState("RUN"),
         )
         fsm.act("RUN",
             self._sink.valid.eq(self.sink.valid),
-            self._sink.last.eq(offset == (length - 1)),
+            self._sink.last.eq(self.sink.last | (offset + 1 == length)),
             self._sink.address.eq(base + offset),
             self._sink.data.eq(self.sink.data),
             self.sink.ready.eq(self._sink.ready),

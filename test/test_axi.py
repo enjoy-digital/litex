@@ -96,9 +96,9 @@ class TestAXI(unittest.TestCase):
                 yield
 
         # DUT
-        ax_burst = stream.Endpoint(ax_description(32, 32))
-        ax_beat = stream.Endpoint(ax_description(32, 32))
-        dut =  AXIBurst2Beat(ax_burst, ax_beat)
+        ax_burst = AXIStreamInterface(layout=ax_description(32), id_width=32)
+        ax_beat  = AXIStreamInterface(layout=ax_description(32), id_width=32)
+        dut      =  AXIBurst2Beat(ax_burst, ax_beat)
 
         # Generate DUT input (bursts).
         prng = random.Random(42)

@@ -12,8 +12,8 @@ from shutil import which
 
 from litex.build import tools
 from litex.build.generic_toolchain import GenericToolchain
-from litex.build.nextpnr_wrapper import NextPNRWrapper
-from litex.build.yosys_wrapper import YosysWrapper
+from litex.build.nextpnr_wrapper import NextPNRWrapper, nextpnr_args, nextpnr_argdict
+from litex.build.yosys_wrapper import YosysWrapper, yosys_args, yosys_argdict
 
 # YosysNextPNRToolchain ----------------------------------------------------------------------------
 
@@ -86,6 +86,7 @@ class YosysNextPNRToolchain(GenericToolchain):
     def build(self, platform, fragment,
         nowidelut    = False,
         abc9         = False,
+        flow3        = False,
         timingstrict = False,
         ignoreloops  = False,
         seed         = 1,
@@ -100,6 +101,8 @@ class YosysNextPNRToolchain(GenericToolchain):
             than native for the target (Yosys)
         abc9 : str
             use new ABC9 flow (Yosys)
+        flow3 : str
+            use ABC9 with flow3 (Yosys)
         timingstrict : list
             check timing failures (nextpnr)
         ignoreloops : str
@@ -110,6 +113,9 @@ class YosysNextPNRToolchain(GenericToolchain):
 
         self._nowidelut   = nowidelut
         self._abc9        = abc9 
+        if flow3:
+            self._abc9 = True
+            self._yosys_cmds.append("scratchpad -copy abc9.script.flow3 abc9.script")
         self.timingstrict = timingstrict
         self.ignoreloops  = ignoreloops
         self.seed         = seed
@@ -210,3 +216,13 @@ class YosysNextPNRToolchain(GenericToolchain):
 
     def build_io_constraints(self):
         raise NotImplementedError("GenericToolchain.build_io_constraints must be overloaded.")
+
+def yosys_nextpnr_args(parser):
+    yosys_args(parser)
+    nextpnr_args(parser)
+
+def yosys_nextpnr_argdict(args):
+    return {
+        **yosys_argdict(args),
+        **nextpnr_argdict(args),
+    }
