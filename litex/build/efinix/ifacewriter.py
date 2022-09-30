@@ -337,6 +337,31 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
         cmd += "\n#---------- END PLL {} ---------\n\n".format(name)
         return cmd
 
+    def generate_jtag(self, block, verbose=True):
+        name = block["name"]
+        id = block["id"]
+        pins = block["pins"]
+
+        cmd = f"# ---------- JTAG {id} ---------\n"
+        cmd += f'jtag = design.create_block("jtag_soc", block_type="JTAG")\n'
+        cmd += f'design.assign_resource(jtag, "JTAG_USER{id}", "JTAG")\n'
+        cmd += f'jtag_config = {{\n'
+        cmd += f'    "CAPTURE": "{pins.CAPTURE.backtrace[-1][0]}",\n'
+        cmd += f'    "DRCK": "{pins.DRCK.backtrace[-1][0]}",\n'
+        cmd += f'    "RESET": "{pins.RESET.backtrace[-1][0]}",\n'
+        cmd += f'    "RUNTEST": "{pins.RUNTEST.backtrace[-1][0]}",\n'
+        cmd += f'    "SEL": "{pins.SEL.backtrace[-1][0]}",\n'
+        cmd += f'    "SHIFT": "{pins.SHIFT.backtrace[-1][0]}",\n'
+        cmd += f'    "TCK": "{pins.TCK.backtrace[-1][0]}",\n'
+        cmd += f'    "TDI": "{pins.TDI.backtrace[-1][0]}",\n'
+        cmd += f'    "TMS": "{pins.TMS.backtrace[-1][0]}",\n'
+        cmd += f'    "UPDATE": "{pins.UPDATE.backtrace[-1][0]}",\n'
+        cmd += f'    "TDO": "{pins.TDO.backtrace[-1][0]}"\n'
+        cmd += f'}}\n'
+        cmd += f'design.set_property("jtag_soc", jtag_config, block_type="JTAG")\n'
+        cmd += f"# ---------- END JTAG {id} ---------\n\n"
+        return cmd
+
     def generate(self, partnumber):
         output = ""
         for block in self.blocks:
@@ -351,6 +376,8 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                     output += self.generate_mipi_tx(block)
                 if block["type"] == "MIPI_RX_LANE":
                     output += self.generate_mipi_rx(block)
+                if block["type"] == "JTAG":
+                    output += self.generate_jtag(block)
         return output
 
     def footer(self):
