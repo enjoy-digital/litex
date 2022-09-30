@@ -12,6 +12,7 @@
 from migen import *
 from migen.genlib.cdc import AsyncResetSynchronizer, MultiReg
 
+from litex.build.generic_platform import *
 from litex.soc.interconnect import stream
 
 # JTAG TAP FSM -------------------------------------------------------------------------------------
@@ -491,3 +492,52 @@ class JTAGPHY(Module):
                 NextState("XFER-READY")
             )
         )
+
+# Efinix / TRION ----------------------------------------------------------------------------------
+
+class EFINIX_JTAG(Module):
+    # id refer to the JTAG_USER{id}
+    def __init__(self, platform, id = 1):
+        self.name = f"jtag_{id}"
+        self.platform = platform
+        self.id = id
+
+        _io = [
+            (self.name, 0,
+             Subsignal("CAPTURE", Pins(1)),
+             Subsignal("DRCK", Pins(1)),
+             Subsignal("RESET", Pins(1)),
+             Subsignal("RUNTEST", Pins(1)),
+             Subsignal("SEL", Pins(1)),
+             Subsignal("SHIFT", Pins(1)),
+             Subsignal("TCK", Pins(1)),
+             Subsignal("TDI", Pins(1)),
+             Subsignal("TMS", Pins(1)),
+             Subsignal("UPDATE", Pins(1)),
+             Subsignal("TDO", Pins(1)),
+             ),
+        ]
+        platform.add_extension(_io)
+
+        self.pins = platform.request(self.name)
+        for pin in self.pins.flatten():
+            self.platform.toolchain.excluded_ios.append(pin.backtrace[-1][0])
+
+        block = {}
+        block["type"] = "JTAG"
+        block["name"] = self.name
+        block["id"]   = self.id
+        block["pins"] = self.pins
+        self.platform.toolchain.ifacewriter.blocks.append(block)
+
+    def bind_vexriscv_smp(self, cpu):
+        self.comb += cpu.jtag_clk.eq(self.pins.TCK)
+        self.comb += cpu.jtag_enable.eq(self.pins.SEL)
+        self.comb += cpu.jtag_capture.eq(self.pins.CAPTURE)
+        self.comb += cpu.jtag_shift.eq(self.pins.SHIFT)
+        self.comb += cpu.jtag_update.eq(self.pins.UPDATE)
+        self.comb += cpu.jtag_reset.eq(self.pins.RESET)
+        self.comb += cpu.jtag_tdi.eq(self.pins.TDI)
+        self.comb += self.pins.TDO.eq(cpu.jtag_tdo)
+
+
