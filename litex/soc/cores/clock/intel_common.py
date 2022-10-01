@@ -59,6 +59,7 @@ class IntelClocking(Module, AutoCSR):
 
     def compute_config(self):
         valid_configs = {}
+        clkdiv_range_list = list(clkdiv_range(*self.c_div_range)) # for speed
         # Only test values of N (input clock divisor) which result in a PFD
         # input frequency within the allowable range.
         min_n = math.ceil(self.clkin_freq/self.clkin_pfd_freq_range[1])
@@ -81,7 +82,7 @@ class IntelClocking(Module, AutoCSR):
                         # For each C, see if the output frequency is within margin
                         # and the difference is better than the previous valid, best C.
                         best_diff = float("inf")
-                        for c in clkdiv_range(*self.c_div_range):
+                        for c in clkdiv_range_list:
                             clk_freq = vco_freq/c
                             diff = abs(clk_freq - f)
                             if diff <= f*_m and diff < best_diff:
