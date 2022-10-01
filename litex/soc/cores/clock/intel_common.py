@@ -5,6 +5,7 @@
 # Copyright (c) 2022 Jevin Sweval <jevinsweval@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import math
 from operator import mul
 from functools import reduce
 
@@ -58,7 +59,13 @@ class IntelClocking(Module, AutoCSR):
 
     def compute_config(self):
         valid_configs = {}
-        for n in range(*self.n_div_range):
+        # Only test values of N (input clock divisor) which result in a PFD
+        # input frequency within the allowable range.
+        min_n = math.ceil(self.clkin_freq/self.clkin_pfd_freq_range[1])
+        max_n = math.floor(self.clkin_freq/self.clkin_pfd_freq_range[0])
+        min_n = max(min_n, self.n_div_range[0]) # keep within counter size
+        max_n = min(max_n+1, self.n_div_range[1])
+        for n in range(min_n, max_n):
             for m in range(*self.m_div_range):
                 # For this given N, M, check to see if we can meet requirements
                 # for each clkout. If so, record the difference ratio from the
