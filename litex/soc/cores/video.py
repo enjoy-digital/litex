@@ -611,7 +611,7 @@ class VideoTerminal(Module):
             If(bit,
                 Case(term_rdport.dat_r[font_width:], {
                     0: [Cat(source.r, source.g, source.b).eq(0xffffff)],
-                    1: [Cat(source.r, source.g, source.b).eq(0x34e289)],
+                    1: [Cat(source.r, source.g, source.b).eq(0x89e234)],
                 })
             ).Else(
                 Cat(source.r, source.g, source.b).eq(0x000000),
@@ -680,15 +680,15 @@ class VideoFrameBuffer(Module, AutoCSR):
         ]
         if (depth == 32):
             self.comb += [
-               source.r.eq(video_pipe_source.data[16:24]),
+               source.r.eq(video_pipe_source.data[ 0: 8]),
                source.g.eq(video_pipe_source.data[ 8:16]),
-               source.b.eq(video_pipe_source.data[ 0: 8]),
+               source.b.eq(video_pipe_source.data[16:24]),
             ]
         else: # depth == 16
             self.comb += [
-                source.r.eq(Cat(Signal(3, reset = 0), video_pipe_source.data[ 0: 5])),
+                source.r.eq(Cat(Signal(3, reset = 0), video_pipe_source.data[11:16])),
                 source.g.eq(Cat(Signal(2, reset = 0), video_pipe_source.data[ 5:11])),
-                source.b.eq(Cat(Signal(3, reset = 0), video_pipe_source.data[11:16])),
+                source.b.eq(Cat(Signal(3, reset = 0), video_pipe_source.data[ 0: 5])),
             ]
 
         # Underflow.
