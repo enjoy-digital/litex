@@ -115,10 +115,10 @@ class IntelClocking(Module, AutoCSR):
             o_LOCKED                 = self.locked,
         )
         for n, (clk, f, p, m) in sorted(self.clkouts.items()):
-            clk_phase_ps = int((1e12/config["clk{}_freq".format(n)])*config["clk{}_phase".format(n)]/360)
-            self.params["p_CLK{}_DIVIDE_BY".format(n)]   = config["clk{}_divide".format(n)]
-            self.params["p_CLK{}_DUTY_CYCLE".format(n)]  = 50
-            self.params["p_CLK{}_MULTIPLY_BY".format(n)] = config["m"]
-            self.params["p_CLK{}_PHASE_SHIFT".format(n)] = clk_phase_ps
+            clk_phase_ps = int((1e12/config[f"clk{n}_freq"])*config[f"clk{n}_phase"]/360)
+            self.params[f"p_CLK{n}_DIVIDE_BY"]   = config[f"clk{n}_divide"]
+            self.params[f"p_CLK{n}_DUTY_CYCLE"]  = 50
+            self.params[f"p_CLK{n}_MULTIPLY_BY"] = config["m"]
+            self.params[f"p_CLK{n}_PHASE_SHIFT"] = clk_phase_ps
             self.comb += clk.eq(clks[n])
         self.specials += Instance("ALTPLL", **self.params)
