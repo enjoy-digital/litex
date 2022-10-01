@@ -22,7 +22,9 @@ from litex.build import tools
 # AlteraQuartusToolchain ---------------------------------------------------------------------------
 
 class AlteraQuartusToolchain(GenericToolchain):
-    attr_translate = {}
+    attr_translate = {
+        "keep": ("keep", 1),
+    }
 
     def __init__(self):
         super().__init__()
@@ -100,7 +102,7 @@ class AlteraQuartusToolchain(GenericToolchain):
                 sdc.append(tpl.format(clk=vns.get_name(clk), period=str(period)))
 
         # Enable automatical constraint generation for PLLs
-        sdc.append("derive_pll_clocks")
+        sdc.append("derive_pll_clocks -use_net_name")
 
         # False path constraints
         for from_, to in sorted(self.false_paths, key=lambda x: (x[0].duid, x[1].duid)):
