@@ -5,6 +5,7 @@
 # Copyright (c) 2022 Jevin Sweval <jevinsweval@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import math
 from operator import mul
 from functools import reduce
 
@@ -58,7 +59,14 @@ class IntelClocking(Module, AutoCSR):
 
     def compute_config(self):
         valid_configs = {}
-        for n in range(*self.n_div_range):
+        clkdiv_range_list = list(clkdiv_range(*self.c_div_range)) # for speed
+        # Only test values of N (input clock divisor) which result in a PFD
+        # input frequency within the allowable range.
+        min_n = math.ceil(self.clkin_freq/self.clkin_pfd_freq_range[1])
+        max_n = math.floor(self.clkin_freq/self.clkin_pfd_freq_range[0])
+        min_n = max(min_n, self.n_div_range[0]) # keep within counter size
+        max_n = min(max_n+1, self.n_div_range[1])
+        for n in range(min_n, max_n):
             for m in range(*self.m_div_range):
                 # For this given N, M, check to see if we can meet requirements
                 # for each clkout. If so, record the difference ratio from the
@@ -74,7 +82,7 @@ class IntelClocking(Module, AutoCSR):
                         # For each C, see if the output frequency is within margin
                         # and the difference is better than the previous valid, best C.
                         best_diff = float("inf")
-                        for c in clkdiv_range(*self.c_div_range):
+                        for c in clkdiv_range_list:
                             clk_freq = vco_freq/c
                             diff = abs(clk_freq - f)
                             if diff <= f*_m and diff < best_diff:
@@ -115,10 +123,10 @@ class IntelClocking(Module, AutoCSR):
             o_LOCKED                 = self.locked,
         )
         for n, (clk, f, p, m) in sorted(self.clkouts.items()):
-            clk_phase_ps = int((1e12/config["clk{}_freq".format(n)])*config["clk{}_phase".format(n)]/360)
-            self.params["p_CLK{}_DIVIDE_BY".format(n)]   = config["clk{}_divide".format(n)]
-            self.params["p_CLK{}_DUTY_CYCLE".format(n)]  = 50
-            self.params["p_CLK{}_MULTIPLY_BY".format(n)] = config["m"]
-            self.params["p_CLK{}_PHASE_SHIFT".format(n)] = clk_phase_ps
+            clk_phase_ps = int((1e12/config[f"clk{n}_freq"])*config[f"clk{n}_phase"]/360)
+            self.params[f"p_CLK{n}_DIVIDE_BY"]   = config[f"clk{n}_divide"]
+            self.params[f"p_CLK{n}_DUTY_CYCLE"]  = 50
+            self.params[f"p_CLK{n}_MULTIPLY_BY"] = config["m"]
+            self.params[f"p_CLK{n}_PHASE_SHIFT"] = clk_phase_ps
             self.comb += clk.eq(clks[n])
         self.specials += Instance("ALTPLL", **self.params)
