@@ -242,7 +242,7 @@ class AsyncFIFO(_FIFOWrapper):
 # ClockDomainCrossing ------------------------------------------------------------------------------
 
 class ClockDomainCrossing(Module):
-    def __init__(self, layout, cd_from="sys", cd_to="sys", depth=None, with_common_rst=False):
+    def __init__(self, layout, cd_from="sys", cd_to="sys", depth=None, buffered=False, with_common_rst=False):
         self.sink   = Endpoint(layout)
         self.source = Endpoint(layout)
 
@@ -275,7 +275,7 @@ class ClockDomainCrossing(Module):
                 ]
 
             # Add Asynchronous FIFO
-            cdc = AsyncFIFO(layout, depth)
+            cdc = AsyncFIFO(layout, depth, buffered=buffered)
             cdc = ClockDomainsRenamer({"write": cd_from, "read": cd_to})(cdc)
             self.submodules += cdc
 
