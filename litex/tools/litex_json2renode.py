@@ -581,7 +581,7 @@ peripherals_handlers = {
 }
 
 
-def genereate_etherbone_bridge(name, address, port):
+def generate_etherbone_bridge(name, address, port):
     # FIXME: for now the width is fixed to 0x800
     return """
 {}: EtherboneBridge @ sysbus <{}, +0x800>
@@ -649,7 +649,7 @@ def generate_repl(csr, etherbone_peripherals, autoalign):
         if name in etherbone_peripherals:
             # generate an etherbone bridge for the peripheral
             port = etherbone_peripherals[name]
-            result += genereate_etherbone_bridge(name, address, port)
+            result += generate_etherbone_bridge(name, address, port)
             pass
         else:
             # generate an actual model of the peripheral
