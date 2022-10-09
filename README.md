@@ -149,6 +149,7 @@ $ ./litex_setup.py --init --install --user (--user to install to user directory)
 ```sh
 $ ./litex_setup.py --update
 ```
+> **Note:** The cli is installed by pip, make sure that pip folder (tipically `~/.local/`, or `%APPDATA%Python` on Windows) are in the `PATH`.
 
 > **Note:** On MacOS, make sure you have [HomeBrew](https://brew.sh) installed. Then do, ``brew install wget``.
 
