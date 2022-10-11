@@ -506,6 +506,60 @@ def get_clock_frequency(csr):
     # has different names
     return csr['constants']['config_clock_frequency' if 'config_clock_frequency' in csr['constants'] else 'system_clock_frequency']
 
+def generate_gpio_port(csr, name, **kwargs):
+    peripheral = get_descriptor(csr, name)
+
+    ints = ''
+    if 'interrupt' in kwargs:
+        ints += f'    IRQ -> plic@{kwargs["interrupt"]}'
+    if 'connections' in kwargs:
+        for irq, target in zip(kwargs['connections'], kwargs['connections_targets']):
+            ints += f'    {irq} -> {target}\n'
+    
+    result = """
+gpio_{}: GPIOPort.LiteX_GPIO @ {}
+    type: {}
+    enableIrq: {}
+{}
+""".format(name, 
+           generate_sysbus_registration(peripheral, skip_braces=True),
+           kwargs['type'], 
+           'true' if kwargs['type'] != 'Type.Out' else 'false',
+           ints)
+
+    return result
+
+def generate_switches(csr, name, **kwargs):
+    interrupt_name = '{}_interrupt'.format(name)
+    result = generate_gpio_port(csr, name, **{'type': 'Type.In', 'interrupt': csr['constants'][interrupt_name], **kwargs})
+
+    # Litex puts 4 by default into dts (litex_json2dts)
+    count = int(csr['constants'].get(f'{name}_ngpio', 4))
+
+    for i in range(0, count):
+        result += """
+{name}_{i}: Miscellaneous.Button @ {periph} {i}
+    -> {periph}@{i}
+""".format(name=name, periph=f"gpio_{name}", i=i)
+
+    return result
+
+def generate_leds(csr, name, **kwargs):
+    # Litex puts 4 by default into dts (litex_json2dts)
+    count = int(csr['constants'].get(f'{name}_ngpio', 4))
+    
+    result = generate_gpio_port(csr, name,  
+        **{'type': 'Type.Out',
+           'connections': [*range(0, count)],
+           'connections_targets': [f'leds_{i}@0' for i in range(0, count)],
+            **kwargs})
+
+    for i in range(0, count):
+        result += """
+{name}_{i}: Miscellaneous.LED @ {periph} {i}
+""".format(name=name, periph=f"gpio_{name}", i=i)
+
+    return result
 
 peripherals_handlers = {
     'uart': {
@@ -577,7 +631,13 @@ peripherals_handlers = {
     },
     'video_framebuffer_vtg': {
         'handler': lambda *args, **kwargs: "", # This is handled by generate_video_framebuffer
-    }
+    },
+    'leds': {
+        'handler': generate_leds,
+    },
+    'switches': {
+        'handler': generate_switches,
+    },
 }
 
 
