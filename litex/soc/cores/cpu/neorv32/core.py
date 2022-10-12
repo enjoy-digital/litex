@@ -8,6 +8,8 @@ import os
 
 from migen import *
 
+from litex.build.VHDLWrapper import *
+
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 
@@ -97,15 +99,21 @@ class NEORV32(CPU):
             i_wb_err_i    = idbus.err,
         )
 
+        self.submodules.vhdlwrapper = VHDLWrapper(platform,
+            top_entity    = "neorv32_litex_core_complex",
+            build_dir     = os.path.abspath(os.path.dirname(__file__)),
+            work_package  = "neorv32",
+            force_convert = True,
+        )
+
         # Add Verilog sources
-        self.add_sources(platform, variant)
+        self.add_sources(variant)
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
         assert reset_address == 0x0000_0000
 
-    @staticmethod
-    def add_sources(platform, variant):
+    def add_sources(self, variant):
         cdir = os.path.abspath(os.path.dirname(__file__))
         # List VHDL sources.
         sources = {
@@ -152,6 +160,7 @@ class NEORV32(CPU):
         # Download VHDL sources (if not already present).
         for directory, vhds in sources.items():
             for vhd in vhds:
+                self.vhdlwrapper.add_source(os.path.join(cdir, vhd))
                 if not os.path.exists(os.path.join(cdir, vhd)):
                     os.system(f"wget https://raw.githubusercontent.com/stnolting/neorv32/main/rtl/{directory}/{vhd} -P {cdir}")
 
@@ -188,22 +197,6 @@ class NEORV32(CPU):
             variant  = variant,
         )
 
-        # Convert VHDL to Verilog through GHDL/Yosys.
-        from litex.build import tools
-        import subprocess
-        cdir = os.path.dirname(__file__)
-        ys = []
-        ys.append("ghdl --ieee=synopsys -fexplicit -frelaxed-rules --std=08 --work=neorv32 \\")
-        for directory, vhds in sources.items():
-            for vhd in vhds:
-                ys.append(os.path.join(cdir, vhd) + " \\")
-        ys.append("-e neorv32_litex_core_complex")
-        ys.append("chformal -assert -remove")
-        ys.append("write_verilog {}".format(os.path.join(cdir, "neorv32_litex_core_complex.v")))
-        tools.write_to_file(os.path.join(cdir, "neorv32_litex_core_complex.ys"), "\n".join(ys))
-        if subprocess.call(["yosys", "-q", "-m", "ghdl", os.path.join(cdir, "neorv32_litex_core_complex.ys")]):
-            raise OSError("Unable to convert NEORV32 CPU to verilog, please check your GHDL-Yosys-plugin install.")
-        platform.add_source(os.path.join(cdir, "neorv32_litex_core_complex.v"))
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")

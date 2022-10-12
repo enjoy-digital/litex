@@ -323,6 +323,7 @@ class ConstraintManager:
 
 class GenericPlatform:
     def __init__(self, device, io, connectors=[], name=None):
+        self.toolchain          = None
         self.device             = device
         self.constraint_manager = ConstraintManager(io, connectors)
         if name is None:
@@ -462,3 +463,7 @@ class GenericPlatform:
 
     def create_programmer(self):
         raise NotImplementedError
+
+    @property
+    def support_mixed_language(self):
+        return self.toolchain.support_mixed_language
