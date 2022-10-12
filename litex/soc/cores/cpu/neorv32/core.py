@@ -69,13 +69,9 @@ class NEORV32(CPU):
 
         # CPU LiteX Core Complex Wrapper
         self.specials += Instance("neorv32_litex_core_complex",
-            # Parameters.
-            #p_CONFIG      = 2,
-            #p_DEBUG       = False,
-
             # Clk/Rst.
-            i_clk_i       = ClockSignal("sys"),
-            i_rstn_i      = ~(ResetSignal() | self.reset),
+            i_clk_i  = ClockSignal("sys"),
+            i_rstn_i = ~(ResetSignal() | self.reset),
 
             # JTAG.
             i_jtag_trst_i = 0,
@@ -88,15 +84,15 @@ class NEORV32(CPU):
             i_mext_irq_i  = 0,
 
             # I/D Wishbone Bus.
-            o_wb_adr_o    = Cat(Signal(2), idbus.adr),
-            i_wb_dat_i    = idbus.dat_r,
-            o_wb_dat_o    = idbus.dat_w,
-            o_wb_we_o     = idbus.we,
-            o_wb_sel_o    = idbus.sel,
-            o_wb_stb_o    = idbus.stb,
-            o_wb_cyc_o    = idbus.cyc,
-            i_wb_ack_i    = idbus.ack,
-            i_wb_err_i    = idbus.err,
+            o_wb_adr_o = Cat(Signal(2), idbus.adr),
+            i_wb_dat_i = idbus.dat_r,
+            o_wb_dat_o = idbus.dat_w,
+            o_wb_we_o  = idbus.we,
+            o_wb_sel_o = idbus.sel,
+            o_wb_stb_o = idbus.stb,
+            o_wb_cyc_o = idbus.cyc,
+            i_wb_ack_i = idbus.ack,
+            i_wb_err_i = idbus.err,
         )
 
         self.submodules.vhd2v_converter = VHD2VConverter(platform,
@@ -104,6 +100,15 @@ class NEORV32(CPU):
             build_dir     = os.path.abspath(os.path.dirname(__file__)),
             work_package  = "neorv32",
             force_convert = True,
+            params = dict(
+                p_CONFIG = {
+                    "minimal"  : 0,
+                    "lite"     : 1,
+                    "standard" : 2,
+                    "full"     : 3
+                }[variant],
+                p_DEBUG = False,
+            )
         )
 
         # Add Verilog sources
@@ -163,40 +168,6 @@ class NEORV32(CPU):
                 self.vhd2v_converter.add_source(os.path.join(cdir, vhd))
                 if not os.path.exists(os.path.join(cdir, vhd)):
                     os.system(f"wget https://raw.githubusercontent.com/stnolting/neorv32/main/rtl/{directory}/{vhd} -P {cdir}")
-
-        def configure_litex_core_complex(filename, variant):
-            # Read Wrapper.
-            lines = []
-            f = open(filename)
-            for l in f:
-                lines.append(l)
-            f.close()
-
-            # Configure.
-            _lines = []
-            for l in lines:
-                if "constant CONFIG" in l:
-                    config = {
-                        "minimal"  : "0",
-                        "lite"     : "1",
-                        "standard" : "2",
-                        "full"     : "3"
-                    }[variant]
-                    l = f"\tconstant CONFIG : natural := {config};\n"
-                _lines.append(l)
-            lines = _lines
-
-            # Write Wrapper.
-            f = open(filename, "w")
-            for l in lines:
-                f.write(l)
-            f.close()
-
-        configure_litex_core_complex(
-            filename = os.path.join(cdir, "neorv32_litex_core_complex.vhd"),
-            variant  = variant,
-        )
-
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
