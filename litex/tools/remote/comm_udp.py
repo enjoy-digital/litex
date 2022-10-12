@@ -6,6 +6,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import socket
+import time
 
 from litex.tools.remote.etherbone import EtherbonePacket, EtherboneRecord
 from litex.tools.remote.etherbone import EtherboneReads, EtherboneWrites
@@ -15,11 +16,12 @@ from litex.tools.remote.csr_builder import CSRBuilder
 # CommUDP ------------------------------------------------------------------------------------------
 
 class CommUDP(CSRBuilder):
-    def __init__(self, server="192.168.1.50", port=1234, csr_csv=None, debug=False):
+    def __init__(self, server="192.168.1.50", port=1234, csr_csv=None, debug=False, timeout=1.0):
         CSRBuilder.__init__(self, comm=self, csr_csv=csr_csv)
         self.server = server
         self.port   = port
         self.debug  = debug
+        self.timeout= timeout
 
     def open(self, probe=True):
         if hasattr(self, "socket"):
@@ -37,24 +39,38 @@ class CommUDP(CSRBuilder):
         del self.socket
 
     def probe(self, ip, port, loose=False):
-        try:
-            # Send probe request to server...
-            packet = EtherbonePacket()
-            packet.pf = 1
-            packet.encode()
-            packet.bytes += bytes([0x00, 0x00, 0x00, 0x00]) # Add Padding as payload.
-            self.socket.sendto(packet.bytes, (ip, port))
 
-            # ...and get/check server's response.
-            datas, dummy = self.socket.recvfrom(8192)
+        packet = EtherbonePacket()
+        packet.pf = 1
+        packet.encode()
+        packet.bytes += bytes([0x00, 0x00, 0x00, 0x00]) # Add Padding as payload.
+
+        retries = 10
+        self.socket.settimeout(self.timeout / retries)
+
+        # Send probe request to server and get server's response.
+        for r in range(retries):
+            try:
+                self.socket.sendto(packet.bytes, (ip, port))
+                datas, dummy = self.socket.recvfrom(8192)
+            except socket.timeout:
+                if self.debug:
+                    print("socket timeout, retrying ({}/{})".format(r+1, retries))
+                continue
+            break
+        else:
+            datas = None
+
+        # Check the response
+        if not loose and datas is None:
+            raise Exception(f"Unable to probe Etherbone server at {self.server}.")
+
+        if datas is not None:
             packet = EtherbonePacket(datas)
             packet.decode()
             assert packet.pr == 1
             return 1
-        except:
-            if not loose:
-                self.close()
-                raise Exception(f"Unable to probe Etherbone server at {self.server}.")
+
         return 0
 
     def scan(self, ip="192.168.1.x"):
@@ -77,9 +93,21 @@ class CommUDP(CSRBuilder):
         packet.records = [record]
         packet.encode()
 
-        self.socket.sendto(packet.bytes, (self.server, self.port))
+        retries = 10
 
-        datas, dummy = self.socket.recvfrom(8192)
+        self.socket.settimeout(self.timeout / retries)
+        for r in range(retries):
+            self.socket.sendto(packet.bytes, (self.server, self.port))
+            try:
+                datas, dummy = self.socket.recvfrom(8192)
+            except socket.timeout:
+                if self.debug:
+                    print("socket timeout, retrying ({}/{})".format(r+1, retries))
+                continue
+            break
+        else:
+            raise socket.timeout
+
         packet = EtherbonePacket(datas)
         packet.decode()
         datas = packet.records.pop().writes.get_datas()
