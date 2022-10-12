@@ -8,7 +8,7 @@ import os
 
 from migen import *
 
-from litex.build.VHDLWrapper import *
+from litex.build.vhd2v_converter import *
 
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
@@ -99,7 +99,7 @@ class NEORV32(CPU):
             i_wb_err_i    = idbus.err,
         )
 
-        self.submodules.vhdlwrapper = VHDLWrapper(platform,
+        self.submodules.vhd2v_converter = VHD2VConverter(platform,
             top_entity    = "neorv32_litex_core_complex",
             build_dir     = os.path.abspath(os.path.dirname(__file__)),
             work_package  = "neorv32",
@@ -160,7 +160,7 @@ class NEORV32(CPU):
         # Download VHDL sources (if not already present).
         for directory, vhds in sources.items():
             for vhd in vhds:
-                self.vhdlwrapper.add_source(os.path.join(cdir, vhd))
+                self.vhd2v_converter.add_source(os.path.join(cdir, vhd))
                 if not os.path.exists(os.path.join(cdir, vhd)):
                     os.system(f"wget https://raw.githubusercontent.com/stnolting/neorv32/main/rtl/{directory}/{vhd} -P {cdir}")
 

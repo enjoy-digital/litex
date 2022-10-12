@@ -9,11 +9,11 @@ import os
 
 from migen import *
 
-# VHDLWrapper --------------------------------------------------------------------------------------
+# VHD2V Converter ----------------------------------------------------------------------------------
 
-class VHDLWrapper(Module):
+class VHD2VConverter(Module):
     """
-    VHDLWrapper simplify use of VHDL code: used to convert with ghdl the code if
+    VHD2VConverter simplify use of VHDL code: used to convert with ghdl the code if
     needed or simply pass list of files to platform. May also add an Instance.
     Attributes
     ==========
