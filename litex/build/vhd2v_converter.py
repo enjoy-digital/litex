@@ -122,14 +122,11 @@ class VHD2VConverter(Module):
 
             ip_params = dict()
             generics = []
-            if self._add_instance:
-                for k, v in self._params.items():
-                    if k.startswith("p_"):
-                        ys.append("-g" + k[2:] + "=" + str(v) + " \\")
-                    else:
-                        ip_params[k] = v
-            else:
-                ip_params = self._params
+            for k, v in self._params.items():
+                if k.startswith("p_"):
+                    ys.append("-g" + k[2:] + "=" + str(v) + " \\")
+                else:
+                    ip_params[k] = v
 
             from litex.build import tools
             import subprocess
