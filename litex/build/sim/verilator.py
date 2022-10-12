@@ -182,6 +182,7 @@ def _run_sim(build_name, as_root=False, interactive=True):
 
 
 class SimVerilatorToolchain:
+    support_mixed_language = False
     def build(self, platform, fragment,
             build_dir        = "build",
             build_name       = "sim",
