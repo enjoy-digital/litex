@@ -9,12 +9,19 @@ import os
 
 from migen import *
 
+# FIXME/CHECKME:
+# --------------
+# - Ideally, sources should still be added to the platform (and not to VHD2VConverter). The sources
+# for the conversion could probably be collected from the LiteX's Module during the finalize.
+# - Check parameter names (ex: top_entity->top/top_level?, work_package->work_library?).
+# - Check if adding instance will be useful.
+
 # VHD2V Converter ----------------------------------------------------------------------------------
 
 class VHD2VConverter(Module):
     """
-    VHD2VConverter simplify use of VHDL code: used to convert with ghdl the code if
-    needed or simply pass list of files to platform. May also add an Instance.
+    VHD2VConverter simplify use of VHDL code: used to convert with ghdl the code if needed or simply
+    pass list of files to platform. May also add an Instance.
     Attributes
     ==========
     _top_entity: str
