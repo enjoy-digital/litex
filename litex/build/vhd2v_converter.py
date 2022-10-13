@@ -77,7 +77,7 @@ class VHD2VConverter(Module):
         """
         self._sources.append(filename)
 
-    def add_sources(self, path, filenames):
+    def add_sources(self, path, *filenames):
         """
         append the source list with a list of file after adding path
         Parameters
