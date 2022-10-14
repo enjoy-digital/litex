@@ -561,6 +561,13 @@ def generate_leds(csr, name, **kwargs):
 
     return result
 
+def handled_peripheral(csr, name, **kwargs):
+    """
+        Use this to silence warnings about unsupported peripherals, that are in reality emulated by other peripheral
+        e. g. mmc, ethmac
+    """
+    return ''
+
 peripherals_handlers = {
     'uart': {
         'handler': generate_peripheral,
@@ -630,13 +637,26 @@ peripherals_handlers = {
         'handler': generate_video_framebuffer,
     },
     'video_framebuffer_vtg': {
-        'handler': lambda *args, **kwargs: "", # This is handled by generate_video_framebuffer
+        'handler': handled_peripheral, # This is handled by generate_video_framebuffer
     },
     'leds': {
         'handler': generate_leds,
     },
     'switches': {
         'handler': generate_switches,
+    },
+    'ethphy': {
+        'handler': handled_peripheral # by generate_ethmac
+    },
+    # handled by generate_mmc
+    'sdblock2mem': {
+        'handler': handled_peripheral
+    },
+    'sdmem2block': {
+        'handler': handled_peripheral
+    },
+    'sdcore': {
+        'handler': handled_peripheral
     },
 }
 
