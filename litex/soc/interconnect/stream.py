@@ -648,7 +648,8 @@ class Monitor(Module, AutoCSR):
     def __init__(self, endpoint, count_width=32, clock_domain="sys",
         with_tokens     = False,
         with_overflows  = False,
-        with_underflows = False):
+        with_underflows = False,
+        with_packets    = False, packet_delimiter="last"):
 
         self.reset = CSR()
         self.latch = CSR()
@@ -658,6 +659,9 @@ class Monitor(Module, AutoCSR):
             self.overflows = CSRStatus(count_width)
         if with_underflows:
             self.underflows = CSRStatus(count_width)
+        if with_packets:
+            assert packet_delimiter in ["first", "last"]
+            self.packets = CSRStatus(count_width)
 
         # # #
 
@@ -698,18 +702,39 @@ class Monitor(Module, AutoCSR):
 
         # Tokens Count -----------------------------------------------------------------------------
         if with_tokens:
-            token_counter = MonitorCounter(reset, latch, endpoint.valid & endpoint.ready, self.tokens.status)
-            self.submodules += token_counter
+            self.submodules.token_counter = MonitorCounter(
+                reset  = reset,
+                latch  = latch,
+                enable = endpoint.valid & endpoint.ready,
+                count  = self.tokens.status,
+            )
 
         # Overflows Count (only useful when endpoint is expected to always be ready) ---------------
         if with_overflows:
-            overflow_counter = MonitorCounter(reset, latch, endpoint.valid & ~endpoint.ready, self.overflows.status)
-            self.submodules += overflow_counter
+            self.submodules.overflow_counter = MonitorCounter(
+                reset=reset,
+                latch=latch,
+                enable=endpoint.valid & ~endpoint.ready,
+                count = self.overflows.status,
+            )
 
         # Underflows Count (only useful when endpoint is expected to always be valid) --------------
         if with_underflows:
-            underflow_counter = MonitorCounter(reset, latch, ~endpoint.valid & endpoint.ready, self.underflows.status)
-            self.submodules += underflow_counter
+            self.submodules.underflow_counter = MonitorCounter(
+                reset  = reset,
+                latch  = latch,
+                enable = ~endpoint.valid & endpoint.ready,
+                count  = self.underflows.status,
+            )
+
+        # Packets Count ----------------------------------------------------------------------------
+        if with_underflows:
+            self.submodules.packet_counter = MonitorCounter(
+                reset=reset,
+                latch=latch,
+                enable=endpoint.valid & getattr(endpoint, packet_delimiter) & endpoint.ready,
+                count = self.underflows.status
+            )
 
 # Pipe ---------------------------------------------------------------------------------------------
 
