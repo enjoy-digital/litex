@@ -712,10 +712,10 @@ class Monitor(Module, AutoCSR):
         # Overflows Count (only useful when endpoint is expected to always be ready) ---------------
         if with_overflows:
             self.submodules.overflow_counter = MonitorCounter(
-                reset=reset,
-                latch=latch,
-                enable=endpoint.valid & ~endpoint.ready,
-                count = self.overflows.status,
+                reset  = reset,
+                latch  = latch,
+                enable = endpoint.valid & ~endpoint.ready,
+                count  = self.overflows.status,
             )
 
         # Underflows Count (only useful when endpoint is expected to always be valid) --------------
@@ -728,12 +728,12 @@ class Monitor(Module, AutoCSR):
             )
 
         # Packets Count ----------------------------------------------------------------------------
-        if with_underflows:
+        if with_packets:
             self.submodules.packet_counter = MonitorCounter(
-                reset=reset,
-                latch=latch,
-                enable=endpoint.valid & getattr(endpoint, packet_delimiter) & endpoint.ready,
-                count = self.underflows.status
+                reset  = reset,
+                latch  = latch,
+                enable = endpoint.valid & getattr(endpoint, packet_delimiter) & endpoint.ready,
+                count  = self.packets.status
             )
 
 # Pipe ---------------------------------------------------------------------------------------------
