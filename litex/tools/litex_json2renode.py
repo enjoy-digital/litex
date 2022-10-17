@@ -772,6 +772,8 @@ def filter_memory_regions(raw_regions, alignment=None, autoalign=[]):
             size_mismatch = r['size'] % alignment
             address_mismatch = r['base'] % alignment
 
+            def print_autoalign_hint():
+                print('Hint: use "--auto-align {}" to force automatic alignement of the region'.format(r['name']))
             if address_mismatch != 0:
                 if r['name'] in autoalign:
                     r['original_address'] = r['base']
@@ -779,6 +781,7 @@ def filter_memory_regions(raw_regions, alignment=None, autoalign=[]):
                     print('Re-aligning `{}` memory region base address from {} to {} due to limitations in Renode'.format(r['name'], hex(r['original_address']), hex(r['base'])))
                 else:
                     print('Error: `{}` memory region base address ({}) is not aligned to {}. This configuration cannot be currently simulated in Renode'.format(r['name'], hex(r['size']), hex(alignment)))
+                    print_autoalign_hint()
                     sys.exit(1)
 
             if size_mismatch != 0:
@@ -788,6 +791,7 @@ def filter_memory_regions(raw_regions, alignment=None, autoalign=[]):
                     print('Extending `{}` memory region size from {} to {} due to limitations in Renode'.format(r['name'], hex(r['original_size']), hex(r['size'])))
                 else:
                     print('Error: `{}` memory region size ({}) is not aligned to {}. This configuration cannot be currently simulated in Renode'.format(r['name'], hex(r['size']), hex(alignment)))
+                    print_autoalign_hint()
                     sys.exit(1)
 
         if r['size'] == 0:
