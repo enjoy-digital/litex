@@ -645,6 +645,12 @@ peripherals_handlers = {
     'switches': {
         'handler': generate_switches,
     },
+    'mmcm': {
+        'handler': generate_peripheral,
+        'model': 'Miscellaneous.LiteX_MMCM',
+        'model_CSR32': 'Miscellaneous.LiteX_MMCM_CSR32',
+        'ignored_constants': ['lock_timeout', 'drdy_timeout'],
+    },
     'ethphy': {
         'handler': handled_peripheral # by generate_ethmac
     },
