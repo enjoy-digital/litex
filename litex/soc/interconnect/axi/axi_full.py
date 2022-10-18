@@ -61,7 +61,7 @@ class AXIInterface:
     ):
         # Parameters checks.
         # ------------------
-        assert data_width in [32, 64, 128, 256, 512, 1024]
+        assert data_width in [8, 16, 32, 64, 128, 256, 512, 1024]
         assert version    in ["axi3", "axi4"]
 
         # Parameters.
