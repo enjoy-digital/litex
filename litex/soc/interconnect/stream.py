@@ -651,32 +651,34 @@ class Monitor(Module, AutoCSR):
         with_underflows = False,
         with_packets    = False, packet_delimiter="last"):
 
-        self.reset = CSR()
-        self.latch = CSR()
+        self._reset = CSR()
+        self._latch = CSR()
         if with_tokens:
-            self.tokens = CSRStatus(count_width)
+            self._tokens = CSRStatus(count_width)
         if with_overflows:
-            self.overflows = CSRStatus(count_width)
+            self._overflows = CSRStatus(count_width)
         if with_underflows:
-            self.underflows = CSRStatus(count_width)
+            self._underflows = CSRStatus(count_width)
         if with_packets:
             assert packet_delimiter in ["first", "last"]
-            self.packets = CSRStatus(count_width)
+            self._packets = CSRStatus(count_width)
+        self.reset = Signal() # Reset from logic (sys_clk).
+        self.latch = Signal() # Latch from logic (sys_clk).
 
         # # #
 
         reset = Signal()
         latch = Signal()
         if clock_domain == "sys":
-            self.comb += reset.eq(self.reset.re)
-            self.comb += latch.eq(self.latch.re)
+            self.comb += reset.eq(self._reset.re | self.reset)
+            self.comb += latch.eq(self._latch.re | self.latch)
         else:
             reset_ps = PulseSynchronizer("sys", clock_domain)
             latch_ps = PulseSynchronizer("sys", clock_domain)
             self.submodules += reset_ps, latch_ps
-            self.comb += reset_ps.i.eq(self.reset.re)
+            self.comb += reset_ps.i.eq(self._reset.re | self.reset)
             self.comb += reset.eq(reset_ps.o)
-            self.comb += latch_ps.i.eq(self.latch.re)
+            self.comb += latch_ps.i.eq(self._latch.re | self.latch)
             self.comb += latch.eq(latch_ps.o)
 
         # Generic Monitor Counter ------------------------------------------------------------------
@@ -706,7 +708,7 @@ class Monitor(Module, AutoCSR):
                 reset  = reset,
                 latch  = latch,
                 enable = endpoint.valid & endpoint.ready,
-                count  = self.tokens.status,
+                count  = self._tokens.status,
             )
 
         # Overflows Count (only useful when endpoint is expected to always be ready) ---------------
@@ -715,7 +717,7 @@ class Monitor(Module, AutoCSR):
                 reset  = reset,
                 latch  = latch,
                 enable = endpoint.valid & ~endpoint.ready,
-                count  = self.overflows.status,
+                count  = self._overflows.status,
             )
 
         # Underflows Count (only useful when endpoint is expected to always be valid) --------------
@@ -724,7 +726,7 @@ class Monitor(Module, AutoCSR):
                 reset  = reset,
                 latch  = latch,
                 enable = ~endpoint.valid & endpoint.ready,
-                count  = self.underflows.status,
+                count  = self._underflows.status,
             )
 
         # Packets Count ----------------------------------------------------------------------------
@@ -733,7 +735,7 @@ class Monitor(Module, AutoCSR):
                 reset  = reset,
                 latch  = latch,
                 enable = endpoint.valid & getattr(endpoint, packet_delimiter) & endpoint.ready,
-                count  = self.packets.status
+                count  = self._packets.status
             )
 
 # Pipe ---------------------------------------------------------------------------------------------
