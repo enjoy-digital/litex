@@ -11,7 +11,7 @@ from migen.genlib.cdc import MultiReg
 from litex.soc.integration.doc import ModuleDoc, AutoDoc
 from litex.soc.interconnect import wishbone, stream
 
-class Spi4WireDocumentation(ModuleDoc):
+class SPI4WireDocumentation(ModuleDoc):
     """4-Wire SPI Protocol
 
     The 4-wire SPI protocol does not require any pins to change direction, and
@@ -48,7 +48,7 @@ class Spi4WireDocumentation(ModuleDoc):
         ]}
     """
 
-class Spi3WireDocumentation(ModuleDoc):
+class SPI3WireDocumentation(ModuleDoc):
     """3-Wire SPI Protocol
 
     The 3-wire SPI protocol repurposes the ``MOSI`` line for both data input and
@@ -81,7 +81,7 @@ class Spi3WireDocumentation(ModuleDoc):
         ]}
         """
 
-class Spi2WireDocumentation(ModuleDoc):
+class SPI2WireDocumentation(ModuleDoc):
     """2-Wire SPI Protocol
 
     The 2-wire SPI protocol removes the ``CS`` line in favor of a sync byte.
@@ -112,7 +112,7 @@ class Spi2WireDocumentation(ModuleDoc):
         ]}
         """
 
-class SpiWishboneBridge(Module, ModuleDoc, AutoDoc):
+class SPIBone(Module, ModuleDoc, AutoDoc):
     """Wishbone Bridge over SPI
 
     This module allows for accessing a Wishbone bridge over a {}-wire protocol.
@@ -131,11 +131,11 @@ class SpiWishboneBridge(Module, ModuleDoc, AutoDoc):
         # # #
         self.__doc__ = self.__doc__.format(wires)
         if wires == 4:
-            self.mod_doc = Spi4WireDocumentation()
+            self.mod_doc = SPI4WireDocumentation()
         elif wires == 3:
-            self.mod_doc = Spi3WireDocumentation()
+            self.mod_doc = SPI3WireDocumentation()
         elif wires == 2:
-            self.mod_doc = Spi2WireDocumentation()
+            self.mod_doc = SPI2WireDocumentation()
 
         clk = Signal()
         cs_n = Signal()
