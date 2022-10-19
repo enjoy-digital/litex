@@ -11,6 +11,8 @@ from migen.genlib.cdc import MultiReg
 from litex.soc.integration.doc import ModuleDoc, AutoDoc
 from litex.soc.interconnect import wishbone, stream
 
+# SPIBone Doc for 4, 3 and 2 wires modes  ----------------------------------------------------------
+
 class SPI4WireDocumentation(ModuleDoc):
     """4-Wire SPI Protocol
 
@@ -112,6 +114,8 @@ class SPI2WireDocumentation(ModuleDoc):
         ]}
         """
 
+# SPIBone Core -------------------------------------------------------------------------------------
+
 class SPIBone(Module, ModuleDoc, AutoDoc):
     """Wishbone Bridge over SPI
 
@@ -129,56 +133,63 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
         self.wishbone = wishbone.Interface()
 
         # # #
-        self.__doc__ = self.__doc__.format(wires)
-        if wires == 4:
-            self.mod_doc = SPI4WireDocumentation()
-        elif wires == 3:
-            self.mod_doc = SPI3WireDocumentation()
-        elif wires == 2:
-            self.mod_doc = SPI2WireDocumentation()
 
-        clk = Signal()
-        cs_n = Signal()
-        mosi = Signal()
-        miso = Signal()
+
+        # Parameters.
+        # -----------
+        if wires not in [2, 3, 4]:
+            raise ValueError("`wires` must be 2, 3, or 4")
+
+        # Doc.
+        # ----
+        self.__doc__ = self.__doc__.format(wires)
+        self.mod_doc = {
+            4 : SPI4WireDocumentation(),
+            3 : SPI3WireDocumentation(),
+            2 : SPI2WireDocumentation(),
+        }[wires]
+
+
+        # Signals.
+        # --------
+        clk     = Signal()
+        cs_n    = Signal()
+        mosi    = Signal()
+        miso    = Signal()
         miso_en = Signal()
 
-        counter = Signal(8)
+        counter      = Signal(8)
         write_offset = Signal(5)
-        command = Signal(8)
-        address = Signal(32)
-        value   = Signal(32)
-        wr      = Signal()
-        sync_byte = Signal(8)
+        command      = Signal(8)
+        address      = Signal(32)
+        value        = Signal(32)
+        wr           = Signal()
+        sync_byte    = Signal(8)
 
-        self.specials += [
-            MultiReg(pads.clk, clk),
-        ]
+        self.specials += MultiReg(pads.clk, clk)
         if wires == 2:
             io = TSTriple()
             self.specials += io.get_tristate(pads.mosi)
             self.specials += MultiReg(io.i, mosi)
             self.comb += io.o.eq(miso)
             self.comb += io.oe.eq(miso_en)
-        elif wires == 3:
+        if wires == 3:
             self.specials += MultiReg(pads.cs_n, cs_n),
             io = TSTriple()
             self.specials += io.get_tristate(pads.mosi)
             self.specials += MultiReg(io.i, mosi)
             self.comb += io.o.eq(miso)
             self.comb += io.oe.eq(miso_en)
-        elif wires == 4:
+        if wires == 4:
             self.specials += MultiReg(pads.cs_n, cs_n),
             self.specials += MultiReg(pads.mosi, mosi)
             if with_tristate:
                 self.specials += Tristate(pads.miso, miso, ~cs_n)
             else:
                 self.comb += pads.miso.eq(miso)
-        else:
-            raise ValueError("`wires` must be 2, 3, or 4")
 
-        clk_last = Signal()
-        clk_rising = Signal()
+        clk_last    = Signal()
+        clk_rising  = Signal()
         clk_falling = Signal()
         self.sync += clk_last.eq(clk)
         self.comb += clk_rising.eq(clk & ~clk_last)
@@ -189,18 +200,17 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
         self.submodules += fsm
         self.comb += fsm.reset.eq(cs_n)
 
-        # Connect the Wishbone bus up to our values
+        # Connect the Wishbone bus up to our values.
         self.comb += [
             self.wishbone.adr.eq(address[2:]),
             self.wishbone.dat_w.eq(value),
             self.wishbone.sel.eq(2**len(self.wishbone.sel) - 1)
         ]
 
-        # Constantly have the counter increase, except when it's reset
-        # in the IDLE state
+        # Constantly have the counter increase, except when it's reset in the IDLE state.
         self.sync += If(cs_n, counter.eq(0)).Elif(clk_rising, counter.eq(counter + 1))
 
-        if wires == 2:
+        if wires in [2]:
             fsm.act("IDLE",
                 miso_en.eq(0),
                 NextValue(miso, 1),
@@ -213,17 +223,15 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
                     NextValue(command, mosi),
                 )
             )
-        elif wires == 3 or wires == 4:
+        if wires in [3, 4]:
             fsm.act("IDLE",
                 miso_en.eq(0),
                 NextValue(miso, 1),
                 If(clk_rising,
                     NextState("GET_TYPE_BYTE"),
                     NextValue(command, mosi),
-                ),
+                )
             )
-        else:
-            raise ValueError("invalid `wires` count: {}".format(wires))
 
         # Determine if it's a read or a write
         fsm.act("GET_TYPE_BYTE",
@@ -343,15 +351,13 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
             ),
         )
 
-        if wires == 3 or wires == 4:
-            fsm.act("END",
-                miso_en.eq(1),
-            )
-        elif wires == 2:
+        if wires in [2]:
             fsm.act("END",
                 miso_en.eq(0),
                 NextValue(sync_byte, 0),
                 NextState("IDLE")
             )
-        else:
-            raise ValueError("invalid `wires` count: {}".format(wires))
+        if wires in [3, 4]:
+            fsm.act("END",
+                miso_en.eq(1),
+            )
