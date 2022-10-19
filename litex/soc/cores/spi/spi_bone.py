@@ -167,21 +167,16 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
         sync_byte    = Signal(8)
 
         self.specials += MultiReg(pads.clk, clk)
-        if wires == 2:
+        if wires in [2, 3]:
             io = TSTriple()
             self.specials += io.get_tristate(pads.mosi)
             self.specials += MultiReg(io.i, mosi)
             self.comb += io.o.eq(miso)
             self.comb += io.oe.eq(miso_en)
-        if wires == 3:
-            self.specials += MultiReg(pads.cs_n, cs_n),
-            io = TSTriple()
-            self.specials += io.get_tristate(pads.mosi)
-            self.specials += MultiReg(io.i, mosi)
-            self.comb += io.o.eq(miso)
-            self.comb += io.oe.eq(miso_en)
-        if wires == 4:
-            self.specials += MultiReg(pads.cs_n, cs_n),
+            if wires == 2:
+                self.specials += MultiReg(pads.cs_n, cs_n)
+        if wires in [4]:
+            self.specials += MultiReg(pads.cs_n, cs_n)
             self.specials += MultiReg(pads.mosi, mosi)
             if with_tristate:
                 self.specials += Tristate(pads.miso, miso, ~cs_n)
