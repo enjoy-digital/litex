@@ -130,10 +130,9 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
     The bridge core is designed to run at 1/4 the system clock.
     """
     def __init__(self, pads, wires=4, with_tristate=True):
-        self.wishbone = wishbone.Interface()
+        self.bus = bus = wishbone.Interface(address_width=32, data_width=32)
 
         # # #
-
 
         # Parameters.
         # -----------
@@ -193,7 +192,8 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
         wr           = Signal()
         sync_byte    = Signal(8)
 
-
+        # FSM.
+        # ----
         fsm = FSM(reset_state="IDLE")
         fsm = ResetInserter()(fsm)
         self.submodules += fsm
@@ -201,9 +201,9 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
 
         # Connect the Wishbone bus up to our values.
         self.comb += [
-            self.wishbone.adr.eq(address[2:]),
-            self.wishbone.dat_w.eq(value),
-            self.wishbone.sel.eq(2**len(self.wishbone.sel) - 1)
+            bus.adr.eq(address[2:]),
+            bus.dat_w.eq(value),
+            bus.sel.eq(2**len(bus.sel) - 1)
         ]
 
         # Constantly have the counter increase, except when it's reset in the IDLE state.
@@ -280,23 +280,23 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
         )
 
         fsm.act("WRITE_WISHBONE",
-            self.wishbone.stb.eq(1),
-            self.wishbone.we.eq(1),
-            self.wishbone.cyc.eq(1),
+            bus.stb.eq(1),
+            bus.we.eq(1),
+            bus.cyc.eq(1),
             miso_en.eq(1),
-            If(self.wishbone.ack | self.wishbone.err,
+            If(bus.ack | bus.err,
                 NextState("WAIT_BYTE_BOUNDARY"),
             ),
         )
 
         fsm.act("READ_WISHBONE",
-            self.wishbone.stb.eq(1),
-            self.wishbone.we.eq(0),
-            self.wishbone.cyc.eq(1),
+            bus.stb.eq(1),
+            bus.we.eq(0),
+            bus.cyc.eq(1),
             miso_en.eq(1),
-            If(self.wishbone.ack | self.wishbone.err,
+            If(bus.ack | bus.err,
                 NextState("WAIT_BYTE_BOUNDARY"),
-                NextValue(value, self.wishbone.dat_r),
+                NextValue(value, bus.dat_r),
             ),
         )
 
