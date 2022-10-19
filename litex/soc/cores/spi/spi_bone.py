@@ -156,17 +156,21 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
         miso    = Signal()
         miso_en = Signal()
 
+        # Clk (Resynchronize).
         self.specials += MultiReg(pads.clk, clk)
+
+        # CSn (Resynchronize).
+        if wires in [3, 4]:
+            self.specials += MultiReg(pads.cs_n, cs_n)
+
+        # MOSI/MISO (Resynchronize + Tristate)
         if wires in [2, 3]:
             io = TSTriple()
             self.specials += io.get_tristate(pads.mosi)
             self.specials += MultiReg(io.i, mosi)
             self.comb += io.o.eq(miso)
             self.comb += io.oe.eq(miso_en)
-            if wires == 2:
-                self.specials += MultiReg(pads.cs_n, cs_n)
         if wires in [4]:
-            self.specials += MultiReg(pads.cs_n, cs_n)
             self.specials += MultiReg(pads.mosi, mosi)
             if with_tristate:
                 self.specials += Tristate(pads.miso, miso, ~cs_n)
@@ -184,13 +188,13 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
 
         # Signals.
         # --------
-        counter      = Signal(8)
-        write_offset = Signal(5)
-        command      = Signal(8)
-        address      = Signal(32)
-        value        = Signal(32)
-        wr           = Signal()
-        sync_byte    = Signal(8)
+        count     = Signal(8)
+        offset    = Signal(5)
+        command   = Signal(8)
+        address   = Signal(32)
+        value     = Signal(32)
+        write     = Signal()
+        sync_byte = Signal(8)
 
         # FSM.
         # ----
@@ -206,8 +210,14 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
             bus.sel.eq(2**len(bus.sel) - 1)
         ]
 
-        # Constantly have the counter increase, except when it's reset in the IDLE state.
-        self.sync += If(cs_n, counter.eq(0)).Elif(clk_posedge, counter.eq(counter + 1))
+        # Constantly have the count increase, except when it's reset in the IDLE state.
+        self.sync += [
+            If(cs_n,
+                count.eq(0)
+            ).Elif(clk_posedge,
+                count.eq(count + 1)
+            )
+        ]
 
         if wires in [2]:
             fsm.act("IDLE",
@@ -218,8 +228,8 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
                 ),
                 If(sync_byte[0:7] == 0b101011,
                     NextState("GET_TYPE_BYTE"),
-                    NextValue(counter, 0),
-                    NextValue(command, mosi),
+                    NextValue(count, 0),
+                    NextValue(command, mosi)
                 )
             )
         if wires in [3, 4]:
@@ -228,7 +238,7 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
                 NextValue(miso, 1),
                 If(clk_posedge,
                     NextState("GET_TYPE_BYTE"),
-                    NextValue(command, mosi),
+                    NextValue(command, mosi)
                 )
             )
 
@@ -236,47 +246,47 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
         fsm.act("GET_TYPE_BYTE",
             miso_en.eq(0),
             NextValue(miso, 1),
-            If(counter == 8,
+            If(count == 8,
                 # Write value
                 If(command == 0,
-                    NextValue(wr, 1),
-                    NextState("READ_ADDRESS"),
+                    NextValue(write, 1),
+                    NextState("READ_ADDRESS")
 
                 # Read value
                 ).Elif(command == 1,
-                    NextValue(wr, 0),
-                    NextState("READ_ADDRESS"),
+                    NextValue(write, 0),
+                    NextState("READ_ADDRESS")
                 ).Else(
-                    NextState("END"),
+                    NextState("END")
                 ),
             ),
             If(clk_posedge,
-                NextValue(command, Cat(mosi, command)),
-            ),
+                NextValue(command, Cat(mosi, command))
+            )
         )
 
         fsm.act("READ_ADDRESS",
             miso_en.eq(0),
-            If(counter == 32 + 8,
-                If(wr,
+            If(count == (32 + 8),
+                If(write,
                     NextState("READ_VALUE"),
                 ).Else(
                     NextState("READ_WISHBONE"),
                 )
             ),
             If(clk_posedge,
-                NextValue(address, Cat(mosi, address)),
-            ),
+                NextValue(address, Cat(mosi, address))
+            )
         )
 
         fsm.act("READ_VALUE",
             miso_en.eq(0),
-            If(counter == 32 + 32 + 8,
+            If(count == (32 + 32 + 8),
                 NextState("WRITE_WISHBONE"),
             ),
             If(clk_posedge,
-                NextValue(value, Cat(mosi, value)),
-            ),
+                NextValue(value, Cat(mosi, value))
+            )
         )
 
         fsm.act("WRITE_WISHBONE",
@@ -285,8 +295,8 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
             bus.cyc.eq(1),
             miso_en.eq(1),
             If(bus.ack | bus.err,
-                NextState("WAIT_BYTE_BOUNDARY"),
-            ),
+                NextState("WAIT_BYTE_BOUNDARY")
+            )
         )
 
         fsm.act("READ_WISHBONE",
@@ -296,58 +306,58 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
             miso_en.eq(1),
             If(bus.ack | bus.err,
                 NextState("WAIT_BYTE_BOUNDARY"),
-                NextValue(value, bus.dat_r),
-            ),
+                NextValue(value, bus.dat_r)
+            )
         )
 
         fsm.act("WAIT_BYTE_BOUNDARY",
             miso_en.eq(1),
             If(clk_negedge,
-                If(counter[0:3] == 0,
+                If(count[0:3] == 0,
                     NextValue(miso, 0),
                     # For writes, fill in the 0 byte response
-                    If(wr,
+                    If(write,
                         NextState("WRITE_WR_RESPONSE"),
                     ).Else(
                         NextState("WRITE_RESPONSE"),
-                    ),
-                ),
-            ),
+                    )
+                )
+            )
         )
 
         # Write the "01" byte that indicates a response
         fsm.act("WRITE_RESPONSE",
             miso_en.eq(1),
             If(clk_negedge,
-                If(counter[0:3] == 0b111,
+                If(count[0:3] == 0b111,
                     NextValue(miso, 1),
-                ).Elif(counter[0:3] == 0,
-                    NextValue(write_offset, 31),
+                ).Elif(count[0:3] == 0,
+                    NextValue(offset, 31),
                     NextState("WRITE_VALUE")
-                ),
-            ),
+                )
+            )
         )
 
         # Write the actual value
         fsm.act("WRITE_VALUE",
             miso_en.eq(1),
-            NextValue(miso, value >> write_offset),
+            NextValue(miso, value >> offset),
             If(clk_negedge,
-                NextValue(write_offset, write_offset - 1),
-                If(write_offset == 0,
+                NextValue(offset, offset - 1),
+                If(offset == 0,
                     NextValue(miso, 0),
-                    NextState("END"),
-                ),
-            ),
+                    NextState("END")
+                )
+            )
         )
 
         fsm.act("WRITE_WR_RESPONSE",
             miso_en.eq(1),
             If(clk_negedge,
-                If(counter[0:3] == 0,
-                    NextState("END"),
-                ),
-            ),
+                If(count[0:3] == 0,
+                    NextState("END")
+                )
+            )
         )
 
         if wires in [2]:
@@ -358,5 +368,5 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
             )
         if wires in [3, 4]:
             fsm.act("END",
-                miso_en.eq(1),
+                miso_en.eq(1)
             )
