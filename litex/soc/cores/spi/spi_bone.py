@@ -149,22 +149,13 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
             2 : SPI2WireDocumentation(),
         }[wires]
 
-
-        # Signals.
-        # --------
+        # SPI IOs.
+        # -------
         clk     = Signal()
         cs_n    = Signal()
         mosi    = Signal()
         miso    = Signal()
         miso_en = Signal()
-
-        counter      = Signal(8)
-        write_offset = Signal(5)
-        command      = Signal(8)
-        address      = Signal(32)
-        value        = Signal(32)
-        wr           = Signal()
-        sync_byte    = Signal(8)
 
         self.specials += MultiReg(pads.clk, clk)
         if wires in [2, 3]:
@@ -182,6 +173,16 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
                 self.specials += Tristate(pads.miso, miso, ~cs_n)
             else:
                 self.comb += pads.miso.eq(miso)
+
+        # Signals.
+        # --------
+        counter      = Signal(8)
+        write_offset = Signal(5)
+        command      = Signal(8)
+        address      = Signal(32)
+        value        = Signal(32)
+        wr           = Signal()
+        sync_byte    = Signal(8)
 
         clk_last    = Signal()
         clk_rising  = Signal()
