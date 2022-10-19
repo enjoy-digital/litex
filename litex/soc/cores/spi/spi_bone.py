@@ -174,6 +174,15 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
             else:
                 self.comb += pads.miso.eq(miso)
 
+        # Clk Edges Detection.
+        # --------------------
+        clk_d       = Signal()
+        clk_negedge = Signal()
+        clk_posedge = Signal()
+        self.sync += clk_d.eq(clk)
+        self.comb += clk_posedge.eq( clk & ~clk_d)
+        self.comb += clk_negedge.eq(~clk &  clk_d)
+
         # Signals.
         # --------
         counter      = Signal(8)
@@ -184,12 +193,6 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
         wr           = Signal()
         sync_byte    = Signal(8)
 
-        clk_last    = Signal()
-        clk_rising  = Signal()
-        clk_falling = Signal()
-        self.sync += clk_last.eq(clk)
-        self.comb += clk_rising.eq(clk & ~clk_last)
-        self.comb += clk_falling.eq(~clk & clk_last)
 
         fsm = FSM(reset_state="IDLE")
         fsm = ResetInserter()(fsm)
@@ -204,13 +207,13 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
         ]
 
         # Constantly have the counter increase, except when it's reset in the IDLE state.
-        self.sync += If(cs_n, counter.eq(0)).Elif(clk_rising, counter.eq(counter + 1))
+        self.sync += If(cs_n, counter.eq(0)).Elif(clk_posedge, counter.eq(counter + 1))
 
         if wires in [2]:
             fsm.act("IDLE",
                 miso_en.eq(0),
                 NextValue(miso, 1),
-                If(clk_rising,
+                If(clk_posedge,
                     NextValue(sync_byte, Cat(mosi, sync_byte))
                 ),
                 If(sync_byte[0:7] == 0b101011,
@@ -223,7 +226,7 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
             fsm.act("IDLE",
                 miso_en.eq(0),
                 NextValue(miso, 1),
-                If(clk_rising,
+                If(clk_posedge,
                     NextState("GET_TYPE_BYTE"),
                     NextValue(command, mosi),
                 )
@@ -247,7 +250,7 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
                     NextState("END"),
                 ),
             ),
-            If(clk_rising,
+            If(clk_posedge,
                 NextValue(command, Cat(mosi, command)),
             ),
         )
@@ -261,7 +264,7 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
                     NextState("READ_WISHBONE"),
                 )
             ),
-            If(clk_rising,
+            If(clk_posedge,
                 NextValue(address, Cat(mosi, address)),
             ),
         )
@@ -271,7 +274,7 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
             If(counter == 32 + 32 + 8,
                 NextState("WRITE_WISHBONE"),
             ),
-            If(clk_rising,
+            If(clk_posedge,
                 NextValue(value, Cat(mosi, value)),
             ),
         )
@@ -299,7 +302,7 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
 
         fsm.act("WAIT_BYTE_BOUNDARY",
             miso_en.eq(1),
-            If(clk_falling,
+            If(clk_negedge,
                 If(counter[0:3] == 0,
                     NextValue(miso, 0),
                     # For writes, fill in the 0 byte response
@@ -315,7 +318,7 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
         # Write the "01" byte that indicates a response
         fsm.act("WRITE_RESPONSE",
             miso_en.eq(1),
-            If(clk_falling,
+            If(clk_negedge,
                 If(counter[0:3] == 0b111,
                     NextValue(miso, 1),
                 ).Elif(counter[0:3] == 0,
@@ -329,7 +332,7 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
         fsm.act("WRITE_VALUE",
             miso_en.eq(1),
             NextValue(miso, value >> write_offset),
-            If(clk_falling,
+            If(clk_negedge,
                 NextValue(write_offset, write_offset - 1),
                 If(write_offset == 0,
                     NextValue(miso, 0),
@@ -340,7 +343,7 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
 
         fsm.act("WRITE_WR_RESPONSE",
             miso_en.eq(1),
-            If(clk_falling,
+            If(clk_negedge,
                 If(counter[0:3] == 0,
                     NextState("END"),
                 ),
