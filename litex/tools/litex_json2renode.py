@@ -20,8 +20,6 @@ import argparse
 # and should not be generated automatically
 non_generated_mem_regions = ['ethmac', 'csr']
 
-# let's just fail if we access this prematurely
-number_of_cores = None
 
 def get_descriptor(csr, name, size=None):
     res = { 'base': csr['csr_bases'][name], 'constants': {} }
@@ -207,10 +205,9 @@ def get_cpu_type(csr):
     return (kind, variant)
 
 def get_cpu_count(csr):
-    config_cpu_count = csr['constants']['config_cpu_count']
-    return config_cpu_count
+    return csr['constants']['config_cpu_count']
 
-def generate_cpu(csr, time_provider):
+def generate_cpu(csr, time_provider, number_of_cores):
     """ Generates definition of a CPU.
 
     Returns:
@@ -424,7 +421,7 @@ mmc_controller: SD.LiteSDCard{} @ {{
     return result
 
 
-def generate_clint(clint, frequency):
+def generate_clint(clint, frequency, number_of_cores):
     # TODO: this is configuration for VexRiscv - add support for other CPU types
     result = """
 clint: IRQControllers.CoreLevelInterruptor @ {}
@@ -441,7 +438,7 @@ clint: IRQControllers.CoreLevelInterruptor @ {}
     return result
 
 
-def generate_plic(plic):
+def generate_plic(plic, number_of_cores):
     # TODO: this is configuration for linux-on-litex-vexriscv - add support for other CPU types
     result = """
 plic: IRQControllers.PlatformLevelInterruptController @ {}
@@ -675,7 +672,7 @@ def generate_etherbone_bridge(name, address, port):
 """.format(name, hex(address), port)
 
 
-def generate_repl(csr, etherbone_peripherals, autoalign):
+def generate_repl(csr, etherbone_peripherals, autoalign, number_of_cores):
     """ Generates platform definition.
 
     Args:
@@ -694,8 +691,6 @@ def generate_repl(csr, etherbone_peripherals, autoalign):
                 peripherals and memory regions
     """
     result = ""
-    global number_of_cores
-    number_of_cores = get_cpu_count(csr)
 
     # RISC-V CPU in Renode requires memory region size
     # to be a multiple of 4KB - this is a known limitation
@@ -715,16 +710,16 @@ def generate_repl(csr, etherbone_peripherals, autoalign):
 
     time_provider = None
     if 'clint' in csr['memories']:
-        result += generate_clint(csr['memories']['clint'], csr['constants']['config_clock_frequency'])
+        result += generate_clint(csr['memories']['clint'], csr['constants']['config_clock_frequency'], number_of_cores)
         time_provider = 'clint'
 
     if 'plic' in csr['memories']:
-        result += generate_plic(csr['memories']['plic'])
+        result += generate_plic(csr['memories']['plic'], number_of_cores)
 
     if not time_provider and 'cpu' in csr['csr_bases']:
         time_provider = 'cpu_timer'
 
-    result += generate_cpu(csr, time_provider)
+    result += generate_cpu(csr, time_provider, number_of_cores)
 
     for name, address in csr['csr_bases'].items():
         if name not in peripherals_handlers:
@@ -838,7 +833,7 @@ def find_memory_region(memory_regions, address):
     return None
 
 
-def generate_resc(csr, args, flash_binaries={}, tftp_binaries={}):
+def generate_resc(csr, number_of_cores, args, flash_binaries={}, tftp_binaries={}):
     """ Generates platform definition.
 
     Args:
@@ -1059,8 +1054,10 @@ def main():
 
     etherbone_peripherals = check_etherbone_peripherals(args.etherbone_peripherals)
 
+    number_of_cores = get_cpu_count(csr)
+
     if args.repl:
-        print_or_save(args.repl, generate_repl(csr, etherbone_peripherals, args.autoalign_memor_regions))
+        print_or_save(args.repl, generate_repl(csr, etherbone_peripherals, args.autoalign_memor_regions, number_of_cores))
 
     if args.resc:
         if not args.repl:
@@ -1070,7 +1067,7 @@ def main():
             flash_binaries = parse_flash_binaries(csr, args)
             tftp_binaries = check_tftp_binaries(args)
             
-            print_or_save(args.resc, generate_resc(csr, args,
+            print_or_save(args.resc, generate_resc(csr, number_of_cores, args,
                                                    flash_binaries,
                                                    tftp_binaries))
 
