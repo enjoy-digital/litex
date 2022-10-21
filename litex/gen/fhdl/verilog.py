@@ -145,9 +145,12 @@ def _print_constant(node):
 # Print Signal -------------------------------------------------------------------------------------
 
 def _print_signal(ns, s):
+    length = 8
+    vector = f"[{str(len(s)-1)}:0] "
+    vector = " "*(length-len(vector)) + vector
     return "{signed}{vector}{name}".format(
-        signed = "" if (not s.signed) else "signed ",
-        vector = "" if ( len(s) <= 1) else f"[{str(len(s)-1) }:0] ",
+        signed = " " if (not s.signed) else "signed ",
+        vector = " "*length if (len(s) <= 1) else vector,
         name   = ns.get_name(s)
     )
 
