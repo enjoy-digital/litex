@@ -225,9 +225,11 @@ class CSRBankArray(Module):
             # Collect CSR Registers.
             # ---------------------
             csrs = []
-            if hasattr(obj, "get_csrs"):
+            if hasattr(obj, "get_csrs"): # FIXME: Simplify.
                 if "sort" in obj.get_csrs.__code__.co_varnames:
                     csrs = obj.get_csrs(sort=True)
+                else:
+                    csrs = obj.get_csrs()
 
             # Collect CSR Memories.
             # ---------------------
@@ -252,10 +254,14 @@ class CSRBankArray(Module):
 
             # Collect CSR Constants.
             # ----------------------
-            if hasattr(obj, "get_constants"):
+            if hasattr(obj, "get_constants"): # FIXME: Simplify.
                 if "sort" in obj.get_constants.__code__.co_varnames:
                     for constant in obj.get_constants(sort=True):
                         self.constants.append((name, constant))
+                else:
+                    for constant in obj.get_constants():
+                        self.constants.append((name, constant))
+
 
             # Create CSRBank with CSRs found.
             # -------------------------------
