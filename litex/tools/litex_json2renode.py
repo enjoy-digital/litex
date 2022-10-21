@@ -20,6 +20,14 @@ import argparse
 # and should not be generated automatically
 non_generated_mem_regions = ['ethmac', 'csr']
 
+def get_soc_interrupt_parent(csr):
+    '''
+        We assume that for multi-core setups plic will be used hence cpu0 is enough
+    '''
+    if 'plic' in csr['memories']:
+        return 'plic'
+    else:
+        return 'cpu0'
 
 def get_descriptor(csr, name, size=None):
     res = { 'base': csr['csr_bases'][name], 'constants': {} }
@@ -110,7 +118,8 @@ ethmac: Network.LiteX_Ethernet{} @ {{
 
     interrupt_name = '{}_interrupt'.format(name)
     if interrupt_name in csr['constants']:
-        result += '    -> plic@{}\n'.format(
+        result += '    -> {}@{}\n'.format(
+            get_soc_interrupt_parent(csr),
             csr['constants'][interrupt_name])
 
     result += """
@@ -306,7 +315,7 @@ def generate_peripheral(csr, name, **kwargs):
     for constant, val in peripheral['constants'].items():
         if 'ignored_constants' not in kwargs or constant not in kwargs['ignored_constants']:
             if constant == 'interrupt':
-                result += '    -> plic@{}\n'.format(val)
+                result += '    -> {}@{}\n'.format(get_soc_interrupt_parent(csr), val)
             else:
                 result += '    {}: {}\n'.format(constant, val)
 
@@ -508,7 +517,7 @@ def generate_gpio_port(csr, name, **kwargs):
 
     ints = ''
     if 'interrupt' in kwargs:
-        ints += f'    IRQ -> plic@{kwargs["interrupt"]}'
+        ints += f'    IRQ -> {get_soc_interrupt_parent(csr)}@{kwargs["interrupt"]}'
     if 'connections' in kwargs:
         for irq, target in zip(kwargs['connections'], kwargs['connections_targets']):
             ints += f'    {irq} -> {target}\n'
