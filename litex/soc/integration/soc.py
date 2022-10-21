@@ -1326,10 +1326,10 @@ class LiteXSoC(SoC):
             "rx_fifo_depth": fifo_depth,
         }
         if (uart_pads is None) and (uart_name not in supported_uarts):
-            self.logger.error("{} UART {}, supported are: {}.".format(
+            self.logger.error("{} UART {}, supported are: \n{}.".format(
                 colorer(uart_name),
                 colorer("not supported/found on board", color="red"),
-                colorer(", ".join(supported_uarts))))
+                colorer("- " + "\n- ".join(supported_uarts))))
             raise SoCError()
 
         # Crossover.
