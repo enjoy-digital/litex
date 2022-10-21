@@ -525,7 +525,7 @@ def _sort_gathered_items(items):
     return sorted_items
 
 def _make_gatherer(method, cls, prefix_cb):
-    def gatherer(self, level=0):
+    def gatherer(self, sort=False):
         try:
             exclude = self.autocsr_exclude
         except AttributeError:
@@ -540,13 +540,12 @@ def _make_gatherer(method, cls, prefix_cb):
                 if isinstance(v, cls):
                     r.append(v)
                 elif hasattr(v, method) and callable(getattr(v, method)):
-                    items = getattr(v, method)(level=level+1)
+                    items = getattr(v, method)()
                     prefix_cb(k + "_", items, prefixed)
                     r += items
-        if level == 0:
-            return _sort_gathered_items(r)
-        else:
-            return r
+        if sort:
+            r = _sort_gathered_items(r)
+        return r
     return gatherer
 
 

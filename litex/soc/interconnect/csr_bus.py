@@ -226,7 +226,7 @@ class CSRBankArray(Module):
             # ---------------------
             csrs = []
             if hasattr(obj, "get_csrs"):
-                csrs = obj.get_csrs()
+                csrs = obj.get_csrs(sort=True)
 
             # Collect CSR Memories.
             # ---------------------
@@ -252,7 +252,7 @@ class CSRBankArray(Module):
             # Collect CSR Constants.
             # ----------------------
             if hasattr(obj, "get_constants"):
-                for constant in obj.get_constants():
+                for constant in obj.get_constants(sort=True):
                     self.constants.append((name, constant))
 
             # Create CSRBank with CSRs found.
