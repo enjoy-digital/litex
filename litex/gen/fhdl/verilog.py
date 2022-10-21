@@ -33,7 +33,7 @@ from litex.build.tools import get_litex_git_revision
 #                                     BANNER/TRAILER/SEPARATORS                                    #
 # ------------------------------------------------------------------------------------------------ #
 
-_tab = "\n"
+_tab = " "*4
 
 def _print_banner(filename, device):
     return """\
