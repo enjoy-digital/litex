@@ -241,10 +241,6 @@ CPU.VexRiscv @ sysbus
             cpu_string += """
     cpuType: "rv32im"
 """
-        if time_provider:
-            cpu_string += """
-    timeProvider: {}
-""".format(time_provider)
 
     elif kind == 'picorv32':
         cpu_string = """
@@ -271,10 +267,6 @@ CPU.CV32E40P @ sysbus
             cpu_string += """
     cpuType: "rv32imc"
 """
-        if time_provider:
-            cpu_string += """
-    timeProvider: {}
-""".format(time_provider)
 
     else:
         raise Exception('Unsupported cpu type: {}'.format(kind))
@@ -285,6 +277,8 @@ CPU.CV32E40P @ sysbus
 cpu{cpu_id}: {cpu_string.strip()}
     hartId: {cpu_id}
 """
+        if time_provider:
+            result += f'    timeProvider: {time_provider}\n'
 
     return result
 
