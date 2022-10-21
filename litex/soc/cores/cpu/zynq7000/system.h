@@ -7,7 +7,13 @@ extern "C" {
 
 #include "xuartps_hw.h"
 #include "xil_cache.h"
+#include <stdio.h>
 
+#include <ctype.h>
+#include <stdlib.h>
+#include "xil_printf.h"
+#include "xparameters.h"
+#include "xparameters_ps.h"
 __attribute__((unused)) static void flush_cpu_icache(void){};
 
 __attribute__((unused)) static void flush_cpu_dcache(void) {
@@ -21,6 +27,7 @@ void busy_wait_us(unsigned int us);
 
 #define CSR_UART_BASE
 #define UART_POLLING
+#define STDOUT_BASEADDRESS                  XPS_UART1_BASEADDR
 
 static inline void uart_rxtx_write(char c) {
     XUartPs_WriteReg(STDOUT_BASEADDRESS, XUARTPS_FIFO_OFFSET, (uint32_t) c);

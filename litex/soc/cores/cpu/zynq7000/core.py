@@ -51,7 +51,7 @@ class Zynq7000(CPU):
         self.axi_gp_masters = []    # General Purpose AXI Masters.
         self.axi_gp_slaves  = []    # General Purpose AXI Slaves.
         self.axi_hp_slaves  = []    # High Performance AXI Slaves.
-
+        self.use_rom        = True
         # # #
 
         # PS7 Clocking.
