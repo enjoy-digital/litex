@@ -216,6 +216,50 @@ def get_cpu_type(csr):
 def get_cpu_count(csr):
     return csr['constants']['config_cpu_count']
 
+vexriscv_common_kind = {
+    'name': 'VexRiscv',
+    'variants': {
+        'linux': {
+             'properties': ['cpuType: "rv32ima"', 'privilegeArchitecture: PrivilegeArchitecture.Priv1_10'],
+        },
+        'i': {
+             'properties': ['cpuType: "rv32i"'], 
+        },
+        'im': {
+             'properties': ['cpuType: "rv32im"'], 
+        },
+        'ima': {
+             'properties': ['cpuType: "rv32ima"'], 
+        },
+        'imac': {
+             'properties': ['cpuType: "rv32imac"'], 
+        },
+        'others': {
+             'properties': ['cpuType: "rv32im"'],
+        }
+    },
+    'supports_time_provider': True,
+}
+cpu_kinds = {
+    'vexriscv': vexriscv_common_kind,
+    'vexriscv_smp': vexriscv_common_kind,
+    'picorv32': {
+        'name': 'PicoRV32',
+        'properties': ['cpuType: "rv32imc"'],
+    },
+    'minerva': {
+        'name': 'Minerva',
+    },
+    'ibex': {
+        'name': 'IbexRiscV32',
+    },
+    'cv32e40p': {
+        'name': 'CV32E40P',
+        'supports_time_provider': True,
+        'properties': ['cpuType: "rv32imc"'],
+    }
+}
+
 def generate_cpu(csr, time_provider, number_of_cores):
     """ Generates definition of a CPU.
 
@@ -224,60 +268,36 @@ def generate_cpu(csr, time_provider, number_of_cores):
     """
     kind, variant = get_cpu_type(csr)
 
-    if kind == 'vexriscv' or kind == 'vexriscv_smp':
-        cpu_string = """
-CPU.VexRiscv @ sysbus
-"""
-        if variant == 'linux':
-            cpu_string += """
-    cpuType: "rv32ima"
-    privilegeArchitecture: PrivilegeArchitecture.Priv1_10
-"""
-        elif variant in ["i", "im", "ima", "imac"]:
-            cpu_string += """
-    cpuType: "rv32{}"
-""".format(variant)
-        else:
-            cpu_string += """
-    cpuType: "rv32im"
-"""
+    try:
+        cpu = cpu_kinds[kind]
 
-    elif kind == 'picorv32':
-        cpu_string = """
-CPU.PicoRV32 @ sysbus
-    cpuType: "rv32imc"
-"""
-    elif kind == 'minerva':
-        cpu_string = """
-CPU.Minerva @ sysbus
-"""
-    elif kind == 'ibex':
-        cpu_string = """
-CPU.IbexRiscV32 @ sysbus
-"""
-    elif kind == 'cv32e40p':
-        cpu_string = """
-CPU.CV32E40P @ sysbus
-"""
-        if variant == 'standard':
-            cpu_string += """
-    cpuType: "rv32imc"
-"""
-        else:
-            cpu_string += """
-    cpuType: "rv32imc"
-"""
+        cpu_string = f'{cpu["name"]} @ sysbus\n'
+        
+        def unpack_properties(prop_list):
+            return ''.join([f'    {prop}\n' for prop in prop_list])
 
-    else:
-        raise Exception('Unsupported cpu type: {}'.format(kind))
+        if 'properties' in cpu:
+            cpu_string += unpack_properties(cpu["properties"])
+
+        if 'variants' in cpu:
+            variant = cpu['variants'].get(variant)
+
+            if variant is None:
+                variant = cpu['variants'].get('others', [])
+
+            if 'properties' in variant:
+                cpu_string += unpack_properties(variant["properties"])
+
+    except KeyError:
+        raise Exception(f'Unsupported cpu type: {kind}')
 
     result = ''
     for cpu_id in range(0, number_of_cores):
         result += f"""
-cpu{cpu_id}: {cpu_string.strip()}
+cpu{cpu_id}: CPU.{cpu_string.strip()}
     hartId: {cpu_id}
 """
-        if time_provider:
+        if cpu.get('supports_time_provider', False):
             result += f'    timeProvider: {time_provider}\n'
 
     return result
