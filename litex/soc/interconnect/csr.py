@@ -517,6 +517,7 @@ def _sort_gathered_items(items):
         if sorted_items[i] is None:
             sorted_items[i] = CSR(name=f"reserved{i}")
 
+
     # Verify all locations are filled.
     assert None not in sorted_items
 
@@ -524,7 +525,7 @@ def _sort_gathered_items(items):
     return sorted_items
 
 def _make_gatherer(method, cls, prefix_cb):
-    def gatherer(self):
+    def gatherer(self, level=0):
         try:
             exclude = self.autocsr_exclude
         except AttributeError:
@@ -539,10 +540,13 @@ def _make_gatherer(method, cls, prefix_cb):
                 if isinstance(v, cls):
                     r.append(v)
                 elif hasattr(v, method) and callable(getattr(v, method)):
-                    items = getattr(v, method)()
+                    items = getattr(v, method)(level=level+1)
                     prefix_cb(k + "_", items, prefixed)
                     r += items
-        return _sort_gathered_items(r)
+        if level == 0:
+            return _sort_gathered_items(r)
+        else:
+            return r
     return gatherer
 
 
