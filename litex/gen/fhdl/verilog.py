@@ -340,25 +340,24 @@ def _print_node(ns, at, level, node, target_filter=None):
 
 def _print_attribute(attr, attr_translate):
     r = ""
-    firsta = True
-    for attr in sorted(attr,
-                       key=lambda x: ("", x) if isinstance(x, str) else x):
+    first = True
+    for attr in sorted(attr, key=lambda x: ("", x) if isinstance(x, str) else x):
         if isinstance(attr, tuple):
-            # platform-dependent attribute
+            # Platform-dependent attribute.
             attr_name, attr_value = attr
         else:
-            # translated attribute
+            # Translated attribute.
             at = attr_translate.get(attr, None)
             if at is None:
                 continue
             attr_name, attr_value = at
-        if not firsta:
+        if not first:
             r += ", "
-        firsta = False
+        first = False
         const_expr = "\"" + attr_value + "\"" if not isinstance(attr_value, int) else str(attr_value)
         r += attr_name + " = " + const_expr
     if r:
-        r = "(* " + r + " *)"
+        r = "(* " + r + " *)\n"
     return r
 
 # ------------------------------------------------------------------------------------------------ #
@@ -418,9 +417,7 @@ def _print_signals(f, ios, name, ns, attr_translate):
 
     r = ""
     for sig in sorted(sigs - ios, key=lambda x: x.duid):
-        attr = _print_attribute(sig.attr, attr_translate)
-        if attr:
-            r += attr + " "
+        r += _print_attribute(sig.attr, attr_translate)
         if sig in wires:
             r += "wire " + _print_signal(ns, sig) + ";\n"
         else:
@@ -494,9 +491,7 @@ def _print_specials(name, overrides, specials, namespace, add_data_file, attr_tr
     r = ""
     for special in sorted(specials, key=lambda x: x.duid):
         if hasattr(special, "attr"):
-            attr = _print_attribute(special.attr, attr_translate)
-            if attr:
-                r += attr + " "
+            r += _print_attribute(special.attr, attr_translate)
         # Replace Migen Memory's emit_verilog with LiteX's implementation.
         if isinstance(special, Memory):
             from litex.gen.fhdl.memory import memory_emit_verilog
