@@ -57,9 +57,6 @@ class SimPlatform(GenericPlatform):
         module.submodules.sim_trace = SimTrace(self.trace, reset=reset)
         module.submodules.sim_marker = SimMarker()
         module.submodules.sim_finish = SimFinish()
-        module.add_csr("sim_trace")
-        module.add_csr("sim_marker")
-        module.add_csr("sim_finish")
         self.trace = None
 
 # Sim debug modules --------------------------------------------------------------------------------
