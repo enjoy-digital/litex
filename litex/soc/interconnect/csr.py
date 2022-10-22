@@ -543,6 +543,7 @@ def _make_gatherer(method, cls, prefix_cb):
                     items = getattr(v, method)()
                     prefix_cb(k + "_", items, prefixed)
                     r += items
+        r = sorted(r, key=lambda x: x.duid)
         if sort:
             r = _sort_gathered_items(r)
         return r
