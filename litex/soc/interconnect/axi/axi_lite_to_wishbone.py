@@ -14,10 +14,19 @@ from litex.soc.interconnect.axi.axi_lite import *
 # AXI-Lite to Wishbone -----------------------------------------------------------------------------
 
 class AXILite2Wishbone(Module):
-    def __init__(self, axi_lite, wishbone, base_address=0x00000000):
+    def __init__(self, axi_lite, wishbone, base_address=0x00000000, options=[]):
         wishbone_adr_shift = log2_int(axi_lite.data_width//8)
         assert axi_lite.data_width    == len(wishbone.dat_r)
         assert axi_lite.address_width == len(wishbone.adr) + wishbone_adr_shift
+
+        estimate_latency = 2
+        if "early_cmd" in options:
+            estimate_latency -= 1
+        if "early_data" in options:
+            estimate_latency -= 1
+
+        self.bridge_desc = {"transmit_errors": False,
+                            "latency": estimate_latency}
 
         _data         = Signal(axi_lite.data_width)
         _r_addr       = Signal(axi_lite.address_width)
@@ -26,35 +35,61 @@ class AXILite2Wishbone(Module):
         self.comb += _r_addr.eq(axi_lite.ar.addr - base_address)
         self.comb += _w_addr.eq(axi_lite.aw.addr - base_address)
 
+        do_read = (wishbone.stb.eq(1),
+                   wishbone.cyc.eq(1),
+                   wishbone.adr.eq(_r_addr[wishbone_adr_shift:]),
+                   wishbone.sel.eq(2**len(wishbone.sel) - 1),)
+
+        do_write = (wishbone.stb.eq(axi_lite.w.valid),
+                    wishbone.cyc.eq(axi_lite.w.valid),
+                    wishbone.we.eq(1),
+                    wishbone.adr.eq(_w_addr[wishbone_adr_shift:]),
+                    wishbone.sel.eq(axi_lite.w.strb),
+                    wishbone.dat_w.eq(axi_lite.w.data),)
+
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             If(axi_lite.ar.valid & axi_lite.aw.valid,
                 # If last access was a read, do a write
                 If(_last_ar_aw_n,
                     NextValue(_last_ar_aw_n, 0),
-                    NextState("DO-WRITE")
+                    NextState("DO-WRITE"),
+                    # Start write req one cycle earlier to reduce latency
+                    do_write if 'early_cmd' in options else () 
                 # If last access was a write, do a read
                 ).Else(
                     NextValue(_last_ar_aw_n, 1),
-                    NextState("DO-READ")
+                    NextState("DO-READ"),
+                    # Start read req one cycle earlier to reduce latency
+                    do_read if 'early_cmd' in options else ()
                 )
             ).Elif(axi_lite.ar.valid,
                 NextValue(_last_ar_aw_n, 1),
-                NextState("DO-READ")
+                NextState("DO-READ"),
+                # Start read req one cycle earlier to reduce latency
+                do_read if 'early_cmd' in options else ()
             ).Elif(axi_lite.aw.valid,
                 NextValue(_last_ar_aw_n, 0),
-                NextState("DO-WRITE")
+                NextState("DO-WRITE"),
+                # Start write req one cycle earlier to reduce latency
+                do_write if 'early_cmd' in options else ()
             )
         )
         fsm.act("DO-READ",
-            wishbone.stb.eq(1),
-            wishbone.cyc.eq(1),
-            wishbone.adr.eq(_r_addr[wishbone_adr_shift:]),
-            wishbone.sel.eq(2**len(wishbone.sel) - 1),
+            do_read,
             If(wishbone.ack,
                 axi_lite.ar.ready.eq(1),
                 NextValue(_data, wishbone.dat_r),
-                NextState("SEND-READ-RESPONSE")
+                (NextState("SEND-READ-RESPONSE"),) if 'early_data' not in options else (
+                    # Write date to axi one cycle earlier
+                    axi_lite.r.valid.eq(1),
+                    axi_lite.r.resp.eq(RESP_OKAY),
+                    axi_lite.r.data.eq(wishbone.dat_r),
+                    If(axi_lite.r.ready,
+                        NextState("IDLE")
+                    ).Else(
+                        NextState("SEND-READ-RESPONSE")
+                    ),)
             )
         )
         fsm.act("SEND-READ-RESPONSE",
@@ -66,16 +101,19 @@ class AXILite2Wishbone(Module):
             )
         )
         fsm.act("DO-WRITE",
-            wishbone.stb.eq(axi_lite.w.valid),
-            wishbone.cyc.eq(axi_lite.w.valid),
-            wishbone.we.eq(1),
-            wishbone.adr.eq(_w_addr[wishbone_adr_shift:]),
-            wishbone.sel.eq(axi_lite.w.strb),
-            wishbone.dat_w.eq(axi_lite.w.data),
+            do_write,
             If(wishbone.ack,
                 axi_lite.aw.ready.eq(1),
                 axi_lite.w.ready.eq(1),
-                NextState("SEND-WRITE-RESPONSE")
+                (NextState("SEND-WRITE-RESPONSE"),) if 'early_data' not in options else (
+                    axi_lite.b.valid.eq(1),
+                    axi_lite.b.resp.eq(RESP_OKAY),
+                    If(axi_lite.b.ready,
+                        NextState("IDLE")
+                    ).Else(
+                        NextState("SEND-WRITE-RESPONSE"),
+                    ),
+                )
             )
         )
         fsm.act("SEND-WRITE-RESPONSE",

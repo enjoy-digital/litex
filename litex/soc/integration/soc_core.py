@@ -66,6 +66,7 @@ class SoCCore(LiteXSoC):
         bus_timeout              = 1e6,
         bus_bursting             = False,
         bus_interconnect         = "shared",
+        bus_std_converter_opts   = [],
 
         # CPU parameters
         cpu_type                 = "vexriscv",
@@ -126,6 +127,7 @@ class SoCCore(LiteXSoC):
             bus_timeout          = bus_timeout,
             bus_bursting         = bus_bursting,
             bus_interconnect     = bus_interconnect,
+            bus_std_converter_opts  = bus_std_converter_opts,
             bus_reserved_regions = {},
 
             csr_data_width       = csr_data_width,
@@ -310,6 +312,7 @@ def soc_core_args(parser):
     soc_group.add_argument("--bus-timeout",       default=int(1e6),   type=float,    help="Bus timeout in cycles.")
     soc_group.add_argument("--bus-bursting",      action="store_true",               help="Enable burst cycles on the bus if supported.")
     soc_group.add_argument("--bus-interconnect",  default="shared",                  help="Select bus interconnect: shared (default) or crossbar.")
+    soc_group.add_argument("--bus-std-converter-opts", nargs="+",                    help="Override options for converters used between different bus standards (early_cmd/early_data: Reduce command/data conversion latency by one)", choices=['early_cmd', 'early_data'])
 
     # CPU parameters
     soc_group.add_argument("--cpu-type",          default="vexriscv",               help="Select CPU: {}.".format(", ".join(iter(cpu.CPUS.keys()))))
