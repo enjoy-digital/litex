@@ -19,7 +19,8 @@ class GowinAsyncResetSynchronizerImpl(Module):
                 i_D      = 0,
                 i_PRESET = async_reset,
                 i_CLK    = cd.clk,
-                o_Q      = rst1),
+                o_Q      = rst1
+            ),
             Instance("DFFP",
                 i_D      = rst1,
                 i_PRESET = async_reset,
