@@ -337,6 +337,35 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
         cmd += "\n#---------- END PLL {} ---------\n\n".format(name)
         return cmd
 
+    def generate_jtag(self, block, verbose=True):
+        name = block["name"]
+        id   = block["id"]
+        pins = block["pins"]
+
+        def get_pin_name(pin):
+            return pin.backtrace[-1][0]
+
+        cmds = []
+        cmds.append(f"# ---------- JTAG {id} ---------")
+        cmds.append(f'jtag = design.create_block("jtag_soc", block_type="JTAG")')
+        cmds.append(f'design.assign_resource(jtag, "JTAG_USER{id}", "JTAG")')
+        cmds.append(f'jtag_config = {{')
+        cmds.append(f'    "CAPTURE" : "{get_pin_name(pins.CAPTURE)}",')
+        cmds.append(f'    "DRCK"    : "{get_pin_name(pins.DRCK.backtrace)}",')
+        cmds.append(f'    "RESET"   : "{get_pin_name(pins.RESET.backtrace)}",')
+        cmds.append(f'    "RUNTEST" : "{get_pin_name(pins.RUNTEST.backtrace)}",')
+        cmds.append(f'    "SEL"     : "{get_pin_name(pins.SEL.backtrace)}",')
+        cmds.append(f'    "SHIFT"   : "{get_pin_name(pins.SHIFT.backtrace)}",')
+        cmds.append(f'    "TCK"     : "{get_pin_name(pins.TCK.backtrace)}",')
+        cmds.append(f'    "TDI"     : "{get_pin_name(pins.TDI.backtrace)}",')
+        cmds.append(f'    "TMS"     : "{get_pin_name(pins.TMS.backtrace)}",')
+        cmds.append(f'    "UPDATE"  : "{get_pin_name(pins.UPDATE.backtrace)}",')
+        cmds.append(f'    "TDO"     : "{get_pin_name(pins.TDO.backtrace)}"')
+        cmds.append(f'}}')
+        cmds.append(f'design.set_property("jtag_soc", jtag_config, block_type="JTAG")')
+        cmds.append(f"# ---------- END JTAG {id} ---------\n")
+        return "\n".join(cmds)
+
     def generate(self, partnumber):
         output = ""
         for block in self.blocks:
@@ -351,6 +380,8 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                     output += self.generate_mipi_tx(block)
                 if block["type"] == "MIPI_RX_LANE":
                     output += self.generate_mipi_rx(block)
+                if block["type"] == "JTAG":
+                    output += self.generate_jtag(block)
         return output
 
     def footer(self):

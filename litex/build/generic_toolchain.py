@@ -18,6 +18,7 @@ class GenericToolchain:
     }
 
     supported_build_backend = ["litex"]
+    _support_mixed_language  = True
 
     def __init__(self):
         self.clocks      = dict()
@@ -26,6 +27,10 @@ class GenericToolchain:
         self.named_sc    = []
         self._vns        = None
         self._synth_opts = ""
+
+    @property
+    def support_mixed_language(self):
+        return self._support_mixed_language
 
     def finalize(self):
         pass # Pass since optional.

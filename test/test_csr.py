@@ -34,8 +34,8 @@ class CSRModule(Module, csr.AutoCSR):
         # # #
 
         # When csr is written:
-        # - set storage to 0xdeadbeef
-        # - set status to storage value
+        # - Set storage to 0xdeadbeef.
+        # - Set status to storage value.
         self.comb += [
             If(self._csr.re,
                 self._storage.we.eq(1),
@@ -55,11 +55,15 @@ class CSRDUT(Module):
 
     def __init__(self):
         self.csr = csr_bus.Interface()
-        self.submodules.csrmodule = CSRModule()
+        self.submodules.csrmodule    = CSRModule()
         self.submodules.csrbankarray = csr_bus.CSRBankArray(
-            self, self.address_map)
+            source      = self,
+            address_map = self.address_map,
+            )
         self.submodules.csrcon = csr_bus.Interconnect(
-            self.csr, self.csrbankarray.get_buses())
+            master = self.csr,
+            slaves = self.csrbankarray.get_buses()
+        )
 
 class TestCSR(unittest.TestCase):
     def test_csr_constant(self):

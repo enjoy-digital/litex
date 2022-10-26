@@ -19,12 +19,13 @@ from litex.soc.interconnect.axi.axi_stream import AXIStreamInterface
 
 # AXI Definition -----------------------------------------------------------------------------------
 
-def ax_description(address_width):
+def ax_description(address_width, version="axi4"):
+    len_width = {"axi3":4, "axi4":8}[version]
     # * present for interconnect with others cores but not used by LiteX.
     return [
         ("addr",   address_width),   # Address Width.
         ("burst",  2),               # Burst type.
-        ("len",    8),               # Number of data (-1) transfers (up to 256).
+        ("len",    len_width),       # Number of data (-1) transfers (up to 16 (AXI3) or 256 (AXI4)).
         ("size",   4),               # Number of bytes (-1) of each data transfer (up to 1024 bits).
         ("lock",   2),               # *
         ("prot",   3),               # *
@@ -49,30 +50,39 @@ def r_description(data_width):
     ]
 
 class AXIInterface:
-    def __init__(self, data_width=32, address_width=32, id_width=1, clock_domain="sys", name=None, bursting=False,
+    def __init__(self, data_width=32, address_width=32, id_width=1, version="axi4", clock_domain="sys",
+        name          = None,
+        bursting      = False,
         aw_user_width = 0,
         w_user_width  = 0,
         b_user_width  = 0,
         ar_user_width = 0,
         r_user_width  = 0
     ):
+        # Parameters checks.
+        # ------------------
+        assert data_width in [8, 16, 32, 64, 128, 256, 512, 1024]
+        assert version    in ["axi3", "axi4"]
+
         # Parameters.
+        # -----------
         self.data_width    = data_width
         self.address_width = address_width
         self.id_width      = id_width
+        self.version       = version
         self.clock_domain  = clock_domain
         self.bursting      = bursting # FIXME: Use or add check.
 
         # Write Channels.
         # ---------------
         self.aw = AXIStreamInterface(name=name,
-            layout     = ax_description(address_width),
+            layout     = ax_description(address_width=address_width, version=version),
             id_width   = id_width,
             user_width = aw_user_width
         )
         self.w = AXIStreamInterface(name=name,
             layout     = w_description(data_width),
-            id_width   = id_width,
+            id_width   = {"axi3":0,"axi4":id_width}[version], # No WID on AXI4.
             user_width = w_user_width
         )
         self.b = AXIStreamInterface(name=name,
@@ -84,7 +94,7 @@ class AXIInterface:
         # Read Channels.
         # --------------
         self.ar = AXIStreamInterface(name=name,
-            layout     = ax_description(address_width),
+            layout     = ax_description(address_width=address_width, version=version),
             id_width   = id_width,
             user_width = ar_user_width
         )
@@ -100,9 +110,16 @@ class AXIInterface:
     def get_ios(self, bus_name="wb"):
         subsignals = []
         for channel in ["aw", "w", "b", "ar", "r"]:
+            # Control Signals.
             for name in ["valid", "ready"] + (["last"] if channel in ["w", "r"] else []):
                 subsignals.append(Subsignal(channel + name, Pins(1)))
-            for name, width in getattr(self, channel).description.payload_layout:
+
+            # Payload/Params Signals.
+            channel_layout = (getattr(self, channel).description.payload_layout +
+                              getattr(self, channel).description.param_layout)
+            for name, width in channel_layout:
+                if (channel == "w") and (name == "id") and (self.version == "axi4"):
+                    continue # No WID on AXI4.
                 subsignals.append(Subsignal(channel + name, Pins(width)))
         ios = [(bus_name , 0) + tuple(subsignals)]
         return ios

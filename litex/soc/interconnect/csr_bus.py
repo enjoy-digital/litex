@@ -215,14 +215,24 @@ class CSRBankArray(Module):
         self.scan(ifargs, ifkwargs)
 
     def scan(self, ifargs, ifkwargs):
-        self.banks = []
-        self.srams = []
+
+        self.banks     = []
+        self.srams     = []
         self.constants = []
+
         for name, obj in xdir(self.source, True):
-            if hasattr(obj, "get_csrs"):
-                csrs = obj.get_csrs()
-            else:
-                csrs = []
+
+            # Collect CSR Registers.
+            # ---------------------
+            csrs = []
+            if hasattr(obj, "get_csrs"): # FIXME: Simplify.
+                if "sort" in obj.get_csrs.__code__.co_varnames:
+                    csrs = obj.get_csrs(sort=True)
+                else:
+                    csrs = obj.get_csrs()
+
+            # Collect CSR Memories.
+            # ---------------------
             if hasattr(obj, "get_memories"):
                 memories = obj.get_memories()
                 for memory in memories:
@@ -241,9 +251,20 @@ class CSRBankArray(Module):
                     self.submodules += mmap
                     csrs += mmap.get_csrs()
                     self.srams.append((name, memory, mapaddr, mmap))
-            if hasattr(obj, "get_constants"):
-                for constant in obj.get_constants():
-                    self.constants.append((name, constant))
+
+            # Collect CSR Constants.
+            # ----------------------
+            if hasattr(obj, "get_constants"): # FIXME: Simplify.
+                if "sort" in obj.get_constants.__code__.co_varnames:
+                    for constant in obj.get_constants(sort=True):
+                        self.constants.append((name, constant))
+                else:
+                    for constant in obj.get_constants():
+                        self.constants.append((name, constant))
+
+
+            # Create CSRBank with CSRs found.
+            # -------------------------------
             if csrs:
                 mapaddr = self.address_map(name, None)
                 if mapaddr is None:
