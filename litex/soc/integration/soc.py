@@ -15,6 +15,7 @@ import datetime
 from math import log2, ceil
 
 from migen import *
+from litex.gen import LiteXModule
 
 from litex.soc.cores import cpu
 
@@ -766,7 +767,7 @@ class SoCController(Module, AutoCSR):
 
 # SoC ----------------------------------------------------------------------------------------------
 
-class SoC(Module):
+class SoC(LiteXModule):
     mem_map = {}
     def __init__(self, platform, sys_clk_freq,
         bus_standard         = "wishbone",
