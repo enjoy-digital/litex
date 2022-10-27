@@ -172,12 +172,13 @@ class Microwatt(CPU):
 
             # Instruction/Data Cache.
             "cache_ram.vhdl",
-            "plru.vhdl",
+            "plrufn.vhdl",
             "dcache.vhdl",
             "icache.vhdl",
 
             # Decode.
             "insn_helpers.vhdl",
+            "predecode.vhdl",
             "decode1.vhdl",
             "control.vhdl",
             "decode2.vhdl",
@@ -219,8 +220,10 @@ class Microwatt(CPU):
         from litex.build.xilinx import XilinxPlatform
         if isinstance(platform, XilinxPlatform) and not use_ghdl_yosys_plugin:
             sources.append("xilinx-mult.vhdl")
+            sources.append("xilinx-mult-32s.vhdl")
         else:
             sources.append("multiply.vhdl")
+            sources.append("multiply-32s.vhdl")
         sdir = get_data_mod("cpu", "microwatt").data_location
         cdir = os.path.dirname(__file__)
         self.cpu_vhd2v_converter.add_sources(sdir, *sources)
@@ -303,8 +306,7 @@ class XICSSlave(Module, AutoCSR):
         # Add VHDL sources.
         self.add_sources(platform, use_ghdl_yosys_plugin="ghdl" in self.variant)
 
-    @staticmethod
-    def add_sources(platform, use_ghdl_yosys_plugin=False):
+    def add_sources(self, platform, use_ghdl_yosys_plugin=False):
         sources = [
             # Common / Types / Helpers
             "decode_types.vhdl",
@@ -320,8 +322,6 @@ class XICSSlave(Module, AutoCSR):
         cdir = os.path.dirname(__file__)
         self.ics_vhd2v_converter.add_sources(sdir, *sources)
         self.ics_vhd2v_converter.add_source(os.path.join(os.path.dirname(__file__), "xics_wrapper.vhdl"))
-        self.icp_vhd2v_converter.add_sources(sdir, *sources)
-        self.icp_vhd2v_converter.add_source(os.path.join(os.path.dirname(__file__), "xics_wrapper.vhdl"))
 
     def do_finalize(self):
         self.specials += Instance("xics_icp_wrapper", **self.icp_params)
