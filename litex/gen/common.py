@@ -9,6 +9,8 @@ from migen.fhdl.module import _ModuleProxy
 from migen.fhdl.specials import Special
 
 from litex.soc.interconnect.csr import AutoCSR
+from litex.soc.integration.doc import AutoDoc
+
 
 # Bit/Bytes Reversing ------------------------------------------------------------------------------
 
@@ -23,7 +25,7 @@ def reverse_bytes(s):
 
 # LiteX Module -------------------------------------------------------------------------------------
 
-class LiteXModule(Module, AutoCSR):
+class LiteXModule(Module, AutoCSR, AutoDoc):
     def __setattr__(m, name, value):
         # Migen:
         if name in ["comb", "sync", "specials", "submodules", "clock_domains"]:
