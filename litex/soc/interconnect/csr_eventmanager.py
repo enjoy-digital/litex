@@ -10,12 +10,11 @@ The event manager provides a systematic way to generate standard interrupt
 controllers.
 """
 
-from functools import reduce
-from operator import or_
-
 from migen import *
 from migen.util.misc import xdir
 from migen.fhdl.tracer import get_obj_var_name
+
+from litex.gen import *
 
 from litex.soc.interconnect.csr import *
 
@@ -218,7 +217,7 @@ class EventManager(Module, AutoCSR):
                 If(self.pending.re & self.pending.r[i], source.clear.eq(1)),
             ]
             irqs = [self.pending.status[i] & self.enable.storage[i] for i in range(n)]
-        self.comb += self.irq.eq(reduce(or_, irqs))
+        self.comb += self.irq.eq(Reduce("OR", irqs))
 
     def __setattr__(self, name, value):
         object.__setattr__(self, name, value)
@@ -233,4 +232,4 @@ class SharedIRQ(Module):
 
     def __init__(self, *event_managers):
         self.irq = Signal()
-        self.comb += self.irq.eq(reduce(or_, [ev.irq for ev in event_managers]))
+        self.comb += self.irq.eq(Reduce("OR", [ev.irq for ev in event_managers]))
