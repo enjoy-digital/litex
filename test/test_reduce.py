@@ -50,3 +50,12 @@ class TestReduce(unittest.TestCase):
         self.reduce_test(operator="XOR", value=Constant(0b01, 2), reduced=0b1)
         self.reduce_test(operator="XOR", value=Constant(0b10, 2), reduced=0b1)
         self.reduce_test(operator="XOR", value=Constant(0b11, 2), reduced=0b0)
+
+    def test_reduced_add(self):
+        self.reduce_test(operator="ADD", value=Constant(0b000, 3), reduced=0)
+        self.reduce_test(operator="ADD", value=Constant(0b001, 3), reduced=1)
+        self.reduce_test(operator="ADD", value=Constant(0b010, 3), reduced=1)
+        self.reduce_test(operator="ADD", value=Constant(0b100, 3), reduced=1)
+        self.reduce_test(operator="ADD", value=Constant(0b011, 3), reduced=2)
+        self.reduce_test(operator="ADD", value=Constant(0b110, 3), reduced=2)
+        self.reduce_test(operator="ADD", value=Constant(0b111, 3), reduced=3)

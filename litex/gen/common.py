@@ -26,7 +26,7 @@ def reverse_bytes(s):
 # Reduction ----------------------------------------------------------------------------------------
 
 from functools import reduce
-from operator import and_, or_, not_, xor
+from operator import and_, or_, not_, xor, add
 
 def Reduce(operator, value):
     # List of supported Operators.
@@ -35,6 +35,7 @@ def Reduce(operator, value):
         "OR"   : or_,
         "NOR"  : not_,
         "XOR"  : xor,
+        "ADD"  : add,
     }
 
     # Switch to upper-case.
