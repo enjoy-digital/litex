@@ -12,10 +12,9 @@ Hamming codes with additional parity (SECDED):
 - Double Error Detection
 """
 
-from functools import reduce
-from operator import xor
-
 from migen import *
+
+from litex.gen import *
 
 # Helpers ------------------------------------------------------------------------------------------
 
@@ -81,8 +80,7 @@ class SECDED:
             self.comb += codeword[p-1].eq(syndrome[i])
 
     def compute_parity(self, codeword, parity):
-        self.comb += parity.eq(reduce(xor,
-            [codeword[i] for i in range(len(codeword))]))
+        self.comb += parity.eq(Reduce("XOR", [codeword[i] for i in range(len(codeword))]))
 
 # ECC Encoder --------------------------------------------------------------------------------------
 

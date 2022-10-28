@@ -14,13 +14,12 @@ The CSR-2 bus is a low-bandwidth, resource-sensitive bus designed for accessing
 the configuration and status registers of cores from software.
 """
 
-from functools import reduce
-from operator import or_
-
 from migen import *
 from migen.genlib.record import *
 from migen.genlib.misc import chooser
 from migen.util.misc import xdir
+
+from litex.gen import *
 
 from litex.soc.interconnect import csr
 from litex.soc.interconnect.csr import CSRStorage
@@ -76,9 +75,9 @@ class InterconnectShared(Module):
     def __init__(self, masters, slaves):
         intermediate = Interface.like(masters[0])
         self.comb += [
-            intermediate.adr.eq(reduce(or_, [masters[i].adr for i in range(len(masters))])),
-            intermediate.we.eq(reduce(or_, [masters[i].we for i in range(len(masters))])),
-            intermediate.dat_w.eq(reduce(or_, [masters[i].dat_w for i in range(len(masters))]))
+            intermediate.adr.eq(  Reduce("OR", [masters[i].adr   for i in range(len(masters))])),
+            intermediate.we.eq(   Reduce("OR", [masters[i].we    for i in range(len(masters))])),
+            intermediate.dat_w.eq(Reduce("OR", [masters[i].dat_w for i in range(len(masters))]))
         ]
         for i in range(len(masters)):
             self.comb += masters[i].dat_r.eq(intermediate.dat_r)

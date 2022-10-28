@@ -11,13 +11,12 @@
 
 from math import log2
 
-from functools import reduce
-from operator import or_
-
 from migen import *
 from migen.genlib import roundrobin
 from migen.genlib.record import *
 from migen.genlib.misc import split, displacer, chooser, WaitTimer
+
+from litex.gen import *
 
 from litex.build.generic_platform import *
 
@@ -207,13 +206,13 @@ class Decoder(Module):
 
         # generate master ack (resp. err) by ORing all slave acks (resp. errs)
         self.comb += [
-            master.ack.eq(reduce(or_, [slave[1].ack for slave in slaves])),
-            master.err.eq(reduce(or_, [slave[1].err for slave in slaves]))
+            master.ack.eq(Reduce("OR", [slave[1].ack for slave in slaves])),
+            master.err.eq(Reduce("OR", [slave[1].err for slave in slaves]))
         ]
 
         # mux (1-hot) slave data return
         masked = [Replicate(slave_sel_r[i], len(master.dat_r)) & slaves[i][1].dat_r for i in range(ns)]
-        self.comb += master.dat_r.eq(reduce(or_, masked))
+        self.comb += master.dat_r.eq(Reduce("OR", masked))
 
 
 class InterconnectShared(Module):

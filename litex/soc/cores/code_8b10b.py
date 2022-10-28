@@ -19,10 +19,9 @@ Note: This encoding is *not* used by DVI/HDMI (that uses a *different* 8b/10b
 scheme called TMDS).
 """
 
-from functools import reduce
-from operator import add
-
 from migen import *
+
+from litex.gen import *
 
 from litex.soc.interconnect import stream
 
@@ -335,7 +334,7 @@ class Decoder(Module):
         # Basic invalid symbols detection: check that we have 4,5 or 6 ones in the symbol. This does
         # not report all invalid symbols but still allow detecting issues with the link.
         ones = Signal(4, reset_less=True)
-        self.sync += If(self.ce, ones.eq(reduce(add, [self.input[i] for i in range(10)])))
+        self.sync += If(self.ce, ones.eq(Reduce("ADD", [self.input[i] for i in range(10)])))
         self.comb += self.invalid.eq((ones != 4) & (ones != 5) & (ones != 6))
 
 

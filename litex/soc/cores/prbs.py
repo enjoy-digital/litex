@@ -5,12 +5,11 @@
 # Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
 # SPDX-License-Identifier: BSD-2-Clause
 
-from operator import xor, add
-from functools import reduce
-
 from migen import *
 from migen.genlib.misc import WaitTimer
 from migen.genlib.cdc import MultiReg
+
+from litex.gen import *
 
 # Constants ----------------------------------------------------------------------------------------
 
@@ -31,7 +30,7 @@ class PRBSGenerator(Module):
         curval = [state[i] for i in range(n_state)]
         curval += [0]*(n_out - n_state)
         for i in range(n_out):
-            nv = reduce(xor, [curval[tap] for tap in taps])
+            nv = Reduce("XOR", [curval[tap] for tap in taps])
             curval.insert(0, nv)
             curval.pop()
 
@@ -110,7 +109,7 @@ class PRBSChecker(Module):
         state  = Signal(n_state, reset=1)
         curval = [state[i] for i in range(n_state)]
         for i in reversed(range(n_in)):
-            correctv = reduce(xor, [curval[tap] for tap in taps])
+            correctv = Reduce("XOR", [curval[tap] for tap in taps])
             self.comb += self.errors[i].eq(self.i[i] != correctv)
             curval.insert(0, self.i[i])
             curval.pop()
