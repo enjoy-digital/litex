@@ -198,6 +198,19 @@ def _get_csr_addr(csr_base, addr, with_csr_base_define=True):
     else:
         return f"{hex(csr_base + addr)}L"
 
+def get_busword_type(busword_len):
+    num_bytes = busword_len//8
+    if num_bytes > 8:
+        return None
+    elif num_bytes > 4:
+        return "uint64_t"
+    elif num_bytes > 2:
+        return "uint32_t"
+    elif num_bytes > 1:
+        return "uint16_t"
+    else:
+        return "uint8_t"
+
 def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_only, csr_base, with_csr_base_define, with_access_functions):
     r = ""
 
@@ -208,17 +221,10 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_onl
     r += f"#define {size_str} {nwords}\n"
 
     size = nwords*busword//8
-    if size > 8:
+    ctype = get_busword_type(nwords*busword)
+    if ctype is None:
         # Downstream should select appropriate `csr_[rd|wr]_buf_uintX()` pair!
         return r
-    elif size > 4:
-        ctype = "uint64_t"
-    elif size > 2:
-        ctype = "uint32_t"
-    elif size > 1:
-        ctype = "uint16_t"
-    else:
-        ctype = "uint8_t"
 
     stride = alignment//8;
     if with_access_functions:
@@ -245,7 +251,7 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_onl
     return r
 
 
-def get_csr_header(regions, constants, csr_base=None, with_csr_base_define=True, with_access_functions=True):
+def get_csr_header(regions, constants, csr_base=None, with_csr_base_define=True, with_access_functions=True, with_csr_introspection=True):
     alignment = constants.get("CONFIG_CSR_ALIGNMENT", 32)
     r = generated_banner("//")
     if with_access_functions: # FIXME
@@ -262,11 +268,23 @@ def get_csr_header(regions, constants, csr_base=None, with_csr_base_define=True,
         r += "#ifndef CSR_BASE\n"
         r += f"#define CSR_BASE {hex(csr_base)}L\n"
         r += "#endif\n"
+
+    # We need this helper function for working with CSR addresses
+    if with_access_functions or with_csr_introspection:
+        # We force the mask type to be at least as large as the largest possible CSR.
+        max_csr_size = max([max([csr.size for csr in region.obj]) for region in regions.values() if not isinstance(region.obj, Memory)])
+        max_ctype = get_busword_type(max_csr_size)
+        r += f"\n#define CSR_WORD_EXTRACT(word, size, offset) (((word) >> (offset)) & (({max_ctype})((1 << (size)) - 1)))\n\n"
+
+    num_regions = 0
+    num_csrs = 0
+    num_fields = 0
     for name, region in regions.items():
         origin = region.origin - csr_base
         r += "\n/* "+name+" */\n"
         if with_csr_base_define:
             r += f"#define CSR_{name.upper()}_BASE {_get_csr_addr(csr_base, origin, with_csr_base_define)}\n"
+        num_regions += 1
         if not isinstance(region.obj, Memory):
             for csr in region.obj:
                 nr = (csr.size + region.busword - 1)//region.busword
@@ -282,31 +300,118 @@ def get_csr_header(regions, constants, csr_base=None, with_csr_base_define=True,
                     with_access_functions = with_access_functions,
                 )
                 origin += alignment//8*nr
+                num_csrs += 1
                 if hasattr(csr, "fields"):
                     for field in csr.fields.fields:
+                        num_fields += 1
                         offset = str(field.offset)
                         size = str(field.size)
                         r += f"#define CSR_{name.upper()}_{csr.name.upper()}_{field.name.upper()}_OFFSET {offset}\n"
                         r += f"#define CSR_{name.upper()}_{csr.name.upper()}_{field.name.upper()}_SIZE {size}\n"
+
                         if with_access_functions and csr.size <= 32: # FIXME: Implement extract/read functions for csr.size > 32-bit.
                             reg_name   = name + "_" + csr.name.lower()
                             field_name = reg_name + "_" + field.name.lower()
-                            r += "static inline uint32_t " + field_name + "_extract(uint32_t oldword) {\n"
-                            r += "\tuint32_t mask = ((uint32_t)(1 << " + size + ")-1);\n"
-                            r += "\treturn ( (oldword >> " + offset + ") & mask );\n}\n"
-                            r += "static inline uint32_t " + field_name + "_read(void) {\n"
-                            r += "\tuint32_t word = " + reg_name + "_read();\n"
-                            r += "\treturn " + field_name + "_extract(word);\n"
-                            r += "}\n"
+                            r += f"static inline uint32_t {field_name}_read(void) {{\n"
+                            r += f"\treturn CSR_WORD_EXTRACT({reg_name}_read(), {size}, {offset});\n"
+                            r +=  "}\n"
                             if not getattr(csr, "read_only", False):
-                                r += "static inline uint32_t " + field_name + "_replace(uint32_t oldword, uint32_t plain_value) {\n"
-                                r += "\tuint32_t mask = ((uint32_t)(1 << " + size + ")-1);\n"
-                                r += "\treturn (oldword & (~(mask << " + offset + "))) | (mask & plain_value)<< " + offset + " ;\n}\n"
-                                r += "static inline void " + field_name + "_write(uint32_t plain_value) {\n"
-                                r += "\tuint32_t oldword = " + reg_name + "_read();\n"
-                                r += "\tuint32_t newword = " + field_name + "_replace(oldword, plain_value);\n"
-                                r += "\t" + reg_name + "_write(newword);\n"
+                                r += f"static inline uint32_t {field_name}_replace(uint32_t oldword, uint32_t plain_value) {{\n"
+                                r += f"\tuint32_t mask = ((uint32_t)(1 << {size})-1);\n"
+                                r += f"\treturn (oldword & (~(mask << {offset}))) | (mask & plain_value) << {offset} ;\n}}\n"
+                                r += f"static inline void {field_name}_write(uint32_t plain_value) {{\n"
+                                r += f"\tuint32_t oldword = {reg_name}_read();\n"
+                                r += f"\t{reg_name}_write({field_name}_replace(oldword, plain_value));\n"
                                 r += "}\n"
+
+    # struct type to hold introspection
+    if with_csr_introspection:
+        r += "\n// Structures to hold CSR metadata for introspection\n"
+        # CSRRegion contains metadata on memory regions
+        r += "struct CSRRegionMetadata {\n"
+        r += "\tconst char *name;\n"
+        r += "\t// base is in bytes\n"
+        r += "\tuint32_t base;\n"
+        r += "\t// word_width is in bits\n"
+        r += "\tuint16_t word_width;\n"
+        r += "};\n\n"
+
+        # CSRMetadata contains metadata on the CSRs themselves
+        # Calculate address as region.base + csr.addr
+        r += "struct CSRMetadata {\n"
+        r += "\tconst char *name;\n"
+        r += "\t// addr is in bytes\n"
+        r += "\tuint32_t addr;\n"
+        r += "\t// size is in bits\n"
+        r += "\tuint32_t size;\n"
+        r += "\t// region is an index into CSR_REGIONS\n"
+        r += "\tuint32_t region_index;\n"
+        r += "};\n\n"
+
+        # CSRFieldMetadata contains metadata for CSR fields
+        # After fetching a CSR word, use CSR_EXTRACT_FIELD() with that word and the field's offset.
+        r += "struct CSRFieldMetadata {\n"
+        r += "\tconst char *name;\n"
+        r += "\t// offset is in bits\n"
+        r += "\tuint32_t offset;\n"
+        r += "\t// size is in bits\n"
+        r += "\tuint32_t size;\n"
+        r += "\t// csr_index is an index into CSR_\n"
+        r += "\tuint32_t csr_index;\n"
+        r += "};\n\n"
+
+        r += "// For CSR introspection (such as dumping all CSRs) these lists contain useful metadata\n"
+        r += f"#define CSR_REGIONS_LEN {num_regions}\n"
+        r += f"#define CSR_METADATA_LEN {num_csrs}\n"
+        r += f"#define CSR_FIELDS_LEN {num_fields}\n"
+
+        # Start by generating our list of regions:
+        regions_list = regions.items()
+        r += "static const struct CSRRegionMetadata CSR_REGION_METADATA[CSR_REGIONS_LEN] = {\n"
+        for region_idx, (name, region) in enumerate(regions.items()):
+            r +=  "\t(struct CSRRegionMetadata){\n"
+            r += f"\t\t.name       = \"{name}\",\n"
+            r += f"\t\t.base       = CSR_{name.upper()}_BASE,\n"
+            r += f"\t\t.word_width = {region.busword},\n"
+            r +=  "\t},\n"
+        r += "};\n\n"
+
+        # Next, our list of CSRs
+        r += "static const struct CSRMetadata CSR_METADATA[CSR_METADATA_LEN] = {\n"
+        for region_idx, (name, region) in enumerate(regions.items()):
+            if not isinstance(region.obj, Memory):
+                for csr in region.obj:
+                    # Emit the overall CSR as a single register we can get
+                    name_prefix = f"CSR_{name.upper()}_{csr.name.upper()}"
+                    r +=  "\t(struct CSRMetadata){\n"
+                    r += f"\t\t.name         = \"{csr.name}\",\n"
+                    r += f"\t\t.addr         = {name_prefix}_ADDR,\n"
+                    r += f"\t\t.size         = {name_prefix}_SIZE * {region.busword},\n"
+                    r += f"\t\t.region_index = {region_idx},\n"
+                    r +=  "\t},\n"
+        r += "};\n"
+
+        # Next, our list of CSR fields
+        r += "static const struct CSRFieldMetadata CSR_FIELD_METADATA[CSR_FIELDS_LEN] = {\n"
+        csr_idx = 0
+        for region_idx, (name, region) in enumerate(regions.items()):
+            if not isinstance(region.obj, Memory):
+                for csr in region.obj:
+                    csr_idx += 1
+                    if hasattr(csr, "fields"):
+                        for field in csr.fields.fields:
+                            # Also emit each field as a separate "thing" we can get
+                            name_prefix = f"CSR_{name.upper()}_{csr.name.upper()}_{field.name.upper()}"
+                            r +=  "\t(struct CSRFieldMetadata){\n"
+                            r += f"\t\t.name         = \"{field.name}\",\n"
+                            r += f"\t\t.offset       = {name_prefix}_OFFSET,\n"
+                            r += f"\t\t.size         = {name_prefix}_SIZE,\n"
+                            r += f"\t\t.csr_index    = {csr_idx},\n"
+                            r +=  "\t},\n"
+        r += "};\n"
+
+        # Generate a helpful function for extracting the bits from a CSR word:
+        r += f"\n#define CSR_EXTRACT_FIELD(word, csr) CSR_WORD_EXTRACT(word, (csr).size, (csr).offset)"
 
     r += "\n#endif\n"
     return r
