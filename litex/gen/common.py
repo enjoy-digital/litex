@@ -23,6 +23,31 @@ def reverse_bytes(s):
     return Cat(*[s[i*8:min((i + 1)*8, len(s))]
         for i in reversed(range(n))])
 
+# Reduction ----------------------------------------------------------------------------------------
+
+from functools import reduce
+from operator import and_, or_, not_, xor
+
+def Reduce(operator, value):
+    # List of supported Operators.
+    operators = {
+        "AND"  : and_,
+        "OR"   : or_,
+        "NOR"  : not_,
+        "XOR"  : xor,
+    }
+
+    # Switch to upper-case.
+    operator = operator.upper()
+
+    # Check if provided operator is supported.
+    if operator not in operators.keys():
+        supported = ", ".join(operators.keys())
+        raise ValueError(f"Reduce does not support {operator} operator; supported: {supported}.")
+
+    # Return Python's reduction.
+    return reduce(operators[operator], value)
+
 # LiteX Module -------------------------------------------------------------------------------------
 
 class LiteXModule(Module, AutoCSR, AutoDoc):
