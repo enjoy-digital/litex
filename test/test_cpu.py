@@ -45,6 +45,7 @@ class TestCPU(unittest.TestCase):
             "serv",         # (riscv   / softcore)
             "vexriscv",     # (riscv   / softcore)
             "vexriscv_smp", # (riscv   / softcore)
+            "microwatt",    # (ppc64   / softcore)
         ]
         untested_cpus = [
             "blackparrot",  # (riscv   / softcore) -> Broken install?
@@ -57,7 +58,6 @@ class TestCPU(unittest.TestCase):
             "gowin_emcu",   # (arm     / hardcore) -> Hardcore.
             "ibex",         # (riscv   / softcore) -> Broken since 2022.11.12.
             "lm32",         # (lm32    / softcore) -> Requires LM32 toolchain.
-            "microwatt",    # (ppc64   / softcore) -> Requires PPC toolchain + VHDL->Verilog (GHDL + Yosys).
             "minerva",      # (riscv   / softcore) -> Broken install? (Amaranth?)
             "mor1kx",       # (or1k    / softcore) -> Verilator compilation issue.
             "neorv32",      # (riscv   / softcore) -> Requires VHDL->Verilog (GHDL + Yosys).
