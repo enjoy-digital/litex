@@ -13,6 +13,10 @@ jobs:
       - name: Setup CCache
         uses: hendrikmuhs/ccache-action@v1
 
+      - uses: ghdl/setup-ghdl-ci@nightly
+        with:
+          backend: llvm
+
       # Install Tools
       - name: Install Tools
         run: |
