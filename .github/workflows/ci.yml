@@ -42,6 +42,7 @@ jobs:
           python3 litex_setup.py --gcc=openrisc
           sudo mkdir /usr/local/openrisc
           sudo cp -r $PWD/../openrisc-*/* /usr/local/openrisc
+          sudo apt install gcc-powerpc64le-linux-gnu binutils-multiarch
 
       # Build / Install Verilator
       - name: Build Verilator
