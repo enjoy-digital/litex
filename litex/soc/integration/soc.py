@@ -1190,6 +1190,21 @@ class SoC(LiteXModule):
                     colorer(len(self.dma_bus.slaves))))
             self.add_config("CPU_HAS_DMA_BUS")
 
+        # SoC Main CSRs collection -----------------------------------------------------------------
+
+        # Collect CSRs created on the Main Module.
+        main_csrs = dict()
+        for name, obj in self.__dict__.items():
+            if isinstance(obj, (CSR, CSRStorage, CSRStatus)):
+                main_csrs[name] = obj
+
+        # Add Main CSRs to a "main" Sub-Module and delete it from Main Module.
+        if main_csrs:
+            self.main = LiteXModule()
+            for name, csr in main_csrs.items():
+                setattr(self.main, name, csr)
+                delattr(self, name)
+
         # SoC CSR Interconnect ---------------------------------------------------------------------
         self.csr_bankarray = csr_bus.CSRBankArray(self,
             address_map        = self.csr.address_map,
