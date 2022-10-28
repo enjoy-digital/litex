@@ -22,14 +22,14 @@ CPU_VARIANTS = ["standard"]
 # GCC Flags ----------------------------------------------------------------------------------------
 
 GCC_FLAGS = {
-    #                       /-------- Base ISA
-    #                       |/------- Hardware Multiply + Divide
-    #                       ||/----- Atomics
-    #                       |||/---- Compressed ISA
-    #                       ||||/--- Single-Precision Floating-Point
-    #                       |||||/-- Double-Precision Floating-Point
-    #                       imacfd
-    "standard": "-march=rv32imc    -mabi=ilp32 ",
+    #                       /------------ Base ISA
+    #                       |    /------- Hardware Multiply + Divide
+    #                       |    |/----- Atomics
+    #                       |    ||/---- Compressed ISA
+    #                       |    |||/--- Single-Precision Floating-Point
+    #                       |    ||||/-- Double-Precision Floating-Point
+    #                       i    macfd
+    "standard": "-march=rv32i2p0_mc    -mabi=ilp32 ",
 }
 
 # OBI <> Wishbone ----------------------------------------------------------------------------------

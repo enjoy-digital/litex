@@ -20,17 +20,17 @@ CPU_VARIANTS = ["minimal", "lite", "standard", "full"]
 # GCC Flags ----------------------------------------------------------------------------------------
 
 GCC_FLAGS = {
-    #                               /-------- Base ISA
-    #                               |/------- Hardware Multiply + Divide
-    #                               ||/----- Atomics
-    #                               |||/---- Compressed ISA
-    #                               ||||/--- Single-Precision Floating-Point
-    #                               |||||/-- Double-Precision Floating-Point
-    #                               imacfd
-    "minimal":          "-march=rv32i     -mabi=ilp32",
-    "lite":             "-march=rv32imc   -mabi=ilp32",
-    "standard":         "-march=rv32imc   -mabi=ilp32",
-    "full":             "-march=rv32imc   -mabi=ilp32",
+    #                               /------------ Base ISA
+    #                               |    /------- Hardware Multiply + Divide
+    #                               |    |/----- Atomics
+    #                               |    ||/---- Compressed ISA
+    #                               |    |||/--- Single-Precision Floating-Point
+    #                               |    ||||/-- Double-Precision Floating-Point
+    #                               i    macfd
+    "minimal":          "-march=rv32i2p0      -mabi=ilp32",
+    "lite":             "-march=rv32i2p0_mc   -mabi=ilp32",
+    "standard":         "-march=rv32i2p0_mc   -mabi=ilp32",
+    "full":             "-march=rv32i2p0_mc   -mabi=ilp32",
 }
 
 # NEORV32 ------------------------------------------------------------------------------------------
