@@ -144,7 +144,7 @@ class GenericToolchain:
             edam = {
                 'name'         : self._build_name,
                 'files'        : files,
-                'tool_options' : {tool: tool_options},
+                **tool_options,
                 'toplevel'     : self._build_name,
             }
 

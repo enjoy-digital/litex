@@ -102,7 +102,7 @@ class LatticeIceStormToolchain(YosysNextPNRToolchain):
             "yosys_synth_options": self._synth_opts.split(' '),
             "nextpnr_options": self._pnr_opts.split(' '),
         }
-        return ("icestorm", tool_options)
+        return ("icestorm", {"tool_options": {"icestorm": tool_options}})
 
 
 def icestorm_args(parser):
