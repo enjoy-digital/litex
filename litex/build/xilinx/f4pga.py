@@ -64,7 +64,7 @@ class F4PGAToolchain(GenericToolchain):
     def build_io_constraints(self):
         # Generate design constraints
         tools.write_to_file(self._build_name + ".xdc", _build_xdc(self.named_sc, self.named_pc))
-        return (self._build_name + ".xdc", "XDC")
+        return (self._build_name + ".xdc", "xdc")
 
     def build_timing_constraints(self, vns):
         self.platform.add_platform_command(_xdc_separator("Clock constraints"))
