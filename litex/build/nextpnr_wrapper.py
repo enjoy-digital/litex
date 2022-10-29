@@ -62,6 +62,15 @@ class NextPNRWrapper():
                 if value != "":
                     self._pnr_opts += f"--{key} {value} "
 
+    @property
+    def pnr_opts(self):
+        """return PNR configuration options
+        Returns
+        =======
+        str containing configuration options passed to nextpnr-xxx
+        """
+        return self._pnr_opts
+
     def get_call(self, target="script"):
         """built a script command or a Makefile rule + command
 

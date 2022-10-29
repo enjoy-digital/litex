@@ -157,6 +157,19 @@ class YosysNextPNRToolchain(GenericToolchain):
             seed              = self.seed
         )
 
+    @property
+    def pnr_opts(self):
+        """return PNR configuration options
+        Returns
+        =======
+        str containing configuration options passed to nextpnr-xxx or None if
+            _nextpnr is not already instanciated
+        """
+        if self._nextpnr is None:
+            return None
+        else:
+            return self._nextpnr.pnr_opts
+
     def build_project(self):
         """ create project files (mainly Yosys ys file)
         """
