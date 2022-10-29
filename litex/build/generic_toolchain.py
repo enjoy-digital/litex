@@ -122,7 +122,7 @@ class GenericToolchain:
             from edalize import get_edatool
 
             # Get tool name and options
-            (tool, tool_options)= self.get_tool_options()
+            (tool, tool_options) = self.get_tool_options()
 
             # Files list
             files = []
@@ -144,7 +144,7 @@ class GenericToolchain:
             edam = {
                 'name'         : self._build_name,
                 'files'        : files,
-                'tool_options' : {tool: tool_options},
+                **tool_options,
                 'toplevel'     : self._build_name,
             }
 

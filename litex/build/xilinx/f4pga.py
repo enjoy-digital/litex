@@ -40,6 +40,7 @@ class F4PGAToolchain(GenericToolchain):
         "ars_ff2":         ("ars_ff2",    "true"), # user-defined attribute
         "no_shreg_extract": None
     }
+    supported_build_backend = ["litex", "edalize"]
 
     def __init__(self):
         super().__init__()
@@ -64,7 +65,7 @@ class F4PGAToolchain(GenericToolchain):
     def build_io_constraints(self):
         # Generate design constraints
         tools.write_to_file(self._build_name + ".xdc", _build_xdc(self.named_sc, self.named_pc))
-        return (self._build_name + ".xdc", "XDC")
+        return (self._build_name + ".xdc", "xdc")
 
     def build_timing_constraints(self, vns):
         self.platform.add_platform_command(_xdc_separator("Clock constraints"))
@@ -130,3 +131,20 @@ class F4PGAToolchain(GenericToolchain):
     def add_false_path_constraint(self, platform, from_, to):
         # FIXME: false path constraints are currently not supported by the F4PGA toolchain
         return
+
+    # Edalize tool name and tool options -----------------------------------------------------------
+    def get_tool_options(self):
+        device_name = {
+            "xc7a10": "xc7a100t_test",
+            "xc7a20": "xc7a200t_test",
+            "xc7z01": "xc7z010_test",
+            "xc7z02": "xc7z020_test",
+        }.get(self.platform.device[0:6], "xc7a50t_test")
+
+        tool_options = {
+                "arch"   : "xilinx",
+                "chip"   : device_name,
+                "device" : "artix7" if self.platform.device.startswith("xc7a") else "zynq",
+                "part"   : self._partname,
+        }
+        return ("f4pga", {"flow_options": tool_options})
