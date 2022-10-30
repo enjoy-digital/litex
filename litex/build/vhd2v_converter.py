@@ -62,10 +62,10 @@ class VHD2VConverter(Module):
         self._force_convert = force_convert
         self._add_instance  = add_instance
 
-        self._ghdl_opts    = "--ieee=synopsys -fexplicit -frelaxed-rules --std=08 "
+        self._ghdl_opts     = ["--std=08", "--no-formal"]
+
         if work_package is not None:
-            self._ghdl_opts += f"--work={self._work_package} "
-        self._ghdl_opts += "\\"
+            self._ghdl_opts.append(f"--work={self._work_package}")
 
     def add_source(self, filename):
         """
@@ -116,28 +116,28 @@ class VHD2VConverter(Module):
                 inst_name += f"_{len(v_list)}"
 
             verilog_out = os.path.join(self._build_dir, f"{inst_name}.v")
-            script = os.path.join(self._build_dir, f"{inst_name}.ys")
-            ys = []
-            ys.append("ghdl " + self._ghdl_opts)
 
             ip_params = dict()
             generics = []
             for k, v in self._params.items():
                 if k.startswith("p_"):
-                    ys.append("-g" + k[2:] + "=" + str(v) + " \\")
+                    generics.append("-g" + k[2:] + "=" + str(v))
                 else:
                     ip_params[k] = v
 
-            from litex.build import tools
+            cmd = ["ghdl", "--synth", "--out=verilog"]
+            cmd += self._ghdl_opts
+            cmd += generics
+            cmd += self._sources
+            cmd += ["-e", self._top_entity]
+
             import subprocess
-            for source in self._sources:
-                ys.append(source + " \\")
-            ys.append(f"-e {self._top_entity}")
-            ys.append("chformal -assert -remove")
-            ys.append("write_verilog {}".format(verilog_out))
-            tools.write_to_file(script, "\n".join(ys))
-            if subprocess.call(["yosys", "-q", "-m", "ghdl", script]):
-                raise OSError(f"Unable to convert {inst_name} to verilog, please check your GHDL-Yosys-plugin install")
+            from litex.build import tools
+
+            with open(verilog_out, 'w') as output:
+                s = subprocess.run(cmd, stdout=output)
+                if s.returncode:
+                    raise OSError(f"Unable to convert {inst_name} to verilog, please check your GHDL install")
 
             # more than one instance of this core? rename top entity to avoid conflict
             if inst_name != self._top_entity:
