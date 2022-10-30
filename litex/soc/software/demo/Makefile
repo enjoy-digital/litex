@@ -6,6 +6,7 @@ include $(SOC_DIRECTORY)/software/common.mak
 OBJECTS   = donut.o helloc.o crt0.o main.o
 ifdef WITH_CXX
 	OBJECTS += hellocpp.o
+	CFLAGS += -DWITH_CXX
 endif
 
 
