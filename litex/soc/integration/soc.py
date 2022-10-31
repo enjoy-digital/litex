@@ -480,6 +480,7 @@ class SoCBusHandler(LiteXModule):
             "axi"     : axi.AXICrossbar,
         }[self.standard]
 
+        self._interconnect = None
         if len(self.masters) and len(self.slaves):
             # If 1 bus_master, 1 bus_slave and no address translation, use InterconnectPointToPoint.
             if ((len(self.masters) == 1)  and
