@@ -35,13 +35,13 @@ void busy_wait_us(unsigned int us);
 	asm volatile ("csrrc x0, " #reg ", %0" :: "r"(bit)); })
 
 __attribute__((unused)) static void flush_cpu_icache(void) {
-    csrc(0x7c2, 0x33);
-    csrs(0x7c2, 0x11);
+    asm volatile (".long 0x0100000b"); /* icache.iall */
+    asm volatile (".long 0x01a0000b"); /* sync.i */
 };
 
 __attribute__((unused)) static void flush_cpu_dcache(void) {
-    csrc(0x7c2, 0x33);
-    csrs(0x7c2, 0x12);
+    asm volatile (".long 0x0030000b"); /* dcache.ciall */
+    asm volatile (".long 0x01a0000b"); /* sync.i */
 };
 
 #ifdef __cplusplus
