@@ -33,8 +33,8 @@ struct i2c_dev {
 #define I2C_ADDR_RD(addr) (((addr) << 1) | 1u)
 
 void i2c_reset(void);
-bool i2c_write(unsigned char slave_addr, unsigned char addr, const unsigned char *data, unsigned int len);
-bool i2c_read(unsigned char slave_addr, unsigned char addr, unsigned char *data, unsigned int len, bool send_stop);
+bool i2c_write(unsigned char slave_addr, unsigned int addr, const unsigned char *data, unsigned int len, unsigned int addr_size);
+bool i2c_read(unsigned char slave_addr, unsigned int addr, unsigned char *data, unsigned int len, bool send_stop, unsigned int addr_size);
 bool i2c_poll(unsigned char slave_addr);
 int i2c_send_init_cmds(void);
 struct i2c_dev *get_i2c_devs(void);
