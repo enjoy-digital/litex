@@ -56,8 +56,12 @@ crt_init:
   la sp, _fstack
   la t0, trap_entry
   csrw mtvec, t0
-  li t0, 0x3
-  csrs 0x7c1, t0 // enable L1I+L1D
+  li t0, 0x400000
+  csrs 0x7c0, t0 // enable THEADISAEE
+  li t0, 0x73
+  csrs 0x7c1, t0 // enable L1$ (I+D) + Branch Prediction + Return Stack
+  li t0, 0x504
+  csrs 0x7c5, t0 // enable L1$ prefetching
 
 data_init:
   la t0, _fdata
