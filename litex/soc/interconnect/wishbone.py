@@ -149,7 +149,12 @@ class InterconnectPointToPoint(Module):
 
 
 class Arbiter(Module):
-    def __init__(self, masters, target):
+    def __init__(self, masters=None, target=None, controllers=None):
+        assert target is not None
+        assert (masters is not None) or (controllers is not None)
+        if controllers is not None:
+            masters = controllers
+
         self.submodules.rr = roundrobin.RoundRobin(len(masters))
 
         # mux master->slave signals
