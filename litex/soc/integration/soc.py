@@ -15,6 +15,9 @@ import datetime
 from math import log2, ceil
 
 from migen import *
+
+from litex.gen import colorer
+
 from litex.gen import LiteXModule
 
 from litex.soc.cores import cpu
@@ -32,17 +35,6 @@ logging.basicConfig(level=logging.INFO)
 
 def auto_int(x):
     return int(x, 0)
-
-def colorer(s, color="bright"):
-    header  = {
-        "bright": "\x1b[1m",
-        "green":  "\x1b[32m",
-        "cyan":   "\x1b[36m",
-        "red":    "\x1b[31m",
-        "yellow": "\x1b[33m",
-        "underline": "\x1b[4m"}[color]
-    trailer = "\x1b[0m"
-    return header + str(s) + trailer
 
 def build_time(with_time=True):
     fmt = "%Y-%m-%d %H:%M:%S" if with_time else "%Y-%m-%d"
