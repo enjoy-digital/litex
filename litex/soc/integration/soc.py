@@ -1199,8 +1199,7 @@ class SoC(LiteXModule):
             address_width      = self.csr.address_width,
             alignment          = self.csr.alignment,
             paging             = self.csr.paging,
-            ordering           = self.csr.ordering,
-            soc_bus_data_width = self.bus.data_width)
+            ordering           = self.csr.ordering)
         if len(self.csr.masters):
             self.csr_interconnect = csr_bus.InterconnectShared(
                 masters = list(self.csr.masters.values()),
