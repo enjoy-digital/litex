@@ -416,6 +416,9 @@ class SoCBusHandler(LiteXModule):
             colorer(name,    color="underline"),
             colorer("added", color="green")))
 
+    def add_controller(self, name=None, controller=None):
+        self.add_master(self, name=name, master=controller)
+
     def add_slave(self, name=None, slave=None, region=None):
         no_name   = name is None
         no_region = region is None
@@ -447,6 +450,9 @@ class SoCBusHandler(LiteXModule):
         self.logger.info("{} {} as Bus Slave.".format(
             colorer(name, color="underline"),
             colorer("added", color="green")))
+
+    def add_peripheral(self, name=None, peripheral=None, region=None):
+        self.add_slave(self, name=name, slave=peripheral, region=region)
 
     def get_address_width(self, standard):
         standard_from = self.standard
