@@ -17,8 +17,8 @@ from math import log2, ceil
 from migen import *
 
 from litex.gen import colorer
-
 from litex.gen import LiteXModule
+from litex.gen.fhdl.hierarchy import LiteXHierarchyExplorer
 
 from litex.soc.cores import cpu
 
@@ -1271,6 +1271,13 @@ class SoC(LiteXModule):
 
         # Finalize submodules ----------------------------------------------------------------------
         Module.finalize(self)
+
+        # SoC Hierarchy ----------------------------------------------------------------------------
+        self.logger.info(colorer("-"*80, color="bright"))
+        self.logger.info(colorer("SoC Hierarchy:"))
+        self.logger.info(colorer("-"*80, color="bright"))
+        self.logger.info(LiteXHierarchyExplorer(top=self, depth=None))
+        self.logger.info(colorer("-"*80, color="bright"))
 
     # SoC build ------------------------------------------------------------------------------------
     def get_build_name(self):
