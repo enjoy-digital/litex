@@ -40,7 +40,7 @@ class OpenC906(CPU):
     gcc_triple           = CPU_GCC_TRIPLE_RISCV64
     linker_output_format = "elf64-littleriscv"
     nop                  = "nop"
-    io_regions           = {0xa000_0000: 0x2000_0000} # Origin, Length.
+    io_regions           = {0x9000_0000: 0x3000_0000} # Origin, Length.
 
     # GCC Flags.
     @property
@@ -59,7 +59,11 @@ class OpenC906(CPU):
             "main_ram":       0x0000_0000, # Region 0, Cacheable, Bufferable
             "rom":            0x8000_0000, # Region 0 too
             "sram":           0x8800_0000, # Region 0 too
-            # "internal_apb":   0x9000_0000, Region 1, Strong Order, Non-cacheable, Non-bufferable
+            # By default, internal APB (contains PLIC and CLINT) is mapped at 0x9000_0000
+            # Internal APB has a fixed size of 0x800_0000
+            "plic":           0x9000_0000, # Region 1, Strong Order, Non-cacheable, Non-bufferable
+            "clint":          0x9400_0000, # Region 1 too
+            "ethmac":         0x9800_0000, # Region 1 too
             "csr":            0xa000_0000, # Region 1 too
         }
 
@@ -155,6 +159,12 @@ class OpenC906(CPU):
         else:
             # Import a filelist for generic platforms
             add_manifest_sources(platform, "gen_rtl/filelists/generic_fpga.fl")
+
+    def add_soc_components(self, soc, soc_region_cls):
+        plic = soc_region_cls(origin=soc.mem_map.get("plic"), size=0x400_0000, cached=False)
+        clint = soc_region_cls(origin=soc.mem_map.get("clint"), size=0x400_0000, cached=False)
+        soc.bus.add_region(name="plic", region=plic)
+        soc.bus.add_region(name="clint", region=clint)
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
