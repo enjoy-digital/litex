@@ -20,14 +20,16 @@ from litex.soc.interconnect.axi.axi_stream import AXIStreamInterface
 # AXI Definition -----------------------------------------------------------------------------------
 
 def ax_description(address_width, version="axi4"):
-    len_width = {"axi3":4, "axi4":8}[version]
+    len_width  = {"axi3":4, "axi4":8}[version]
+    size_width = {"axi3":4, "axi4":3}[version]
+    lock_width = {"axi3":2, "axi4":1}[version]
     # * present for interconnect with others cores but not used by LiteX.
     return [
         ("addr",   address_width),   # Address Width.
         ("burst",  2),               # Burst type.
         ("len",    len_width),       # Number of data (-1) transfers (up to 16 (AXI3) or 256 (AXI4)).
-        ("size",   4),               # Number of bytes (-1) of each data transfer (up to 1024 bits).
-        ("lock",   2),               # *
+        ("size",   size_width),      # Number of bytes (-1) of each data transfer (up to 1024-bit).
+        ("lock",   lock_width),      # *
         ("prot",   3),               # *
         ("cache",  4),               # *
         ("qos",    4),               # *
