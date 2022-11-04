@@ -157,8 +157,9 @@ class GenericToolchain:
 
         return v_output.ns
 
-    def add_period_constraint(self, platform, clk, period):
-        clk.attr.add("keep")
+    def add_period_constraint(self, platform, clk, period, keep=True):
+        if keep:
+            clk.attr.add("keep")
         period = math.floor(period*1e3)/1e3 # Round to lowest picosecond.
         if clk in self.clocks:
             if period != self.clocks[clk]:

@@ -384,7 +384,6 @@ class XilinxVivadoToolchain(GenericToolchain):
         if tools.subprocess_call_filtered(shell + [script], common.colors) != 0:
             raise OSError("Error occured during Vivado's script execution.")
 
-
 def vivado_build_args(parser):
     toolchain_group = parser.add_argument_group(title="Toolchain options")
     toolchain_group.add_argument("--synth-mode",                           default="vivado",  help="Synthesis mode (vivado or yosys).")
