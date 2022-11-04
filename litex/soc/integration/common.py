@@ -84,7 +84,6 @@ def get_mem_data(filename_or_regions, data_width=32, endianness="big", mem_size=
                 for filled_data_width in range(0, data_width, 32):
                     cur_byte = filled_data_width//8
                     data[(base - offset)//bytes_per_data + i] |= (struct.unpack(unpack_order, w[cur_byte:cur_byte+4])[0] << filled_data_width)
-                    filled_data_width += 32
                 i += 1
     return data
 
