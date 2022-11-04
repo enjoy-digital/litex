@@ -368,6 +368,7 @@ def sim_args(parser):
     verilator_build_args(parser)
     parser.add_argument("--rom-init",             default=None,            help="ROM init file (.bin or .json).")
     parser.add_argument("--ram-init",             default=None,            help="RAM init file (.bin or .json).")
+    parser.add_argument("--main-ram-init-base",   default="0x40000000",    help="(SD)RAM base assumed in init file.")
     parser.add_argument("--with-sdram",           action="store_true",     help="Enable SDRAM support.")
     parser.add_argument("--sdram-module",         default="MT48LC16M16",   help="Select SDRAM chip.")
     parser.add_argument("--sdram-data-width",     default=32,              help="Set SDRAM chip data width.")
@@ -421,7 +422,7 @@ def main():
         )
 
     # RAM / SDRAM.
-    ram_boot_offset  = 0x40000000 # FIXME
+    ram_boot_offset  = int(args.main_ram_init_base, 0) # FIXME: use main_ram in memmap
     ram_boot_address = None
     soc_kwargs["integrated_main_ram_size"] = args.integrated_main_ram_size
     if args.integrated_main_ram_size:
