@@ -1581,7 +1581,7 @@ class LiteXSoC(SoC):
             port.data_width = 2**int(log2(port.data_width)) # Round to nearest power of 2.
 
             # Create Wishbone Slave.
-            wb_sdram = wishbone.Interface()
+            wb_sdram = wishbone.Interface(data_width=self.bus.data_width)
             self.bus.add_slave("main_ram", wb_sdram)
 
             # L2 Cache
