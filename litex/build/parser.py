@@ -11,7 +11,8 @@ import sys
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
 
-# LitexArgumentParser ------------------------------------------------------------------------------
+# Litex Argument Parser ----------------------------------------------------------------------------
+
 class LiteXArgumentParser(argparse.ArgumentParser):
     """
     ArgumentParser subclass used to intercept parse_args call and to simplify
