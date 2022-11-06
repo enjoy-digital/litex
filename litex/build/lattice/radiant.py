@@ -273,7 +273,7 @@ class LatticeRadiantToolchain(GenericToolchain):
 
 
 def radiant_build_args(parser):
-    toolchain_group = parser.add_argument_group(title="Toolchain options")
+    toolchain_group = parser.add_argument_group(title="Radiant toolchain options")
     toolchain_group.add_argument("--synth-mode", default="synplify", help="Synthesis mode (synplify or yosys).")
 
 def radiant_build_argdict(args):

@@ -16,6 +16,9 @@ from litex.soc.interconnect.csr import AutoCSR, CSR, CSRStorage
 
 
 class SimPlatform(GenericPlatform):
+
+    _supported_toolchains = ["verilator"]
+
     def __init__(self, device, io, name="sim", toolchain="verilator", **kwargs):
         if "sim_trace" not in (iface[0] for iface in io):
             io.append(("sim_trace", 0, Pins(1)))

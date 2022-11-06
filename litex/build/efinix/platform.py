@@ -18,6 +18,8 @@ from litex.build.efinix import EfinixDbParser
 class EfinixPlatform(GenericPlatform):
     bitstream_ext = ".bit"
 
+    _supported_toolchains = ["efinity"]
+
     def __init__(self, *args, iobank_info=None, toolchain="efinity", **kwargs):
         GenericPlatform.__init__(self, *args, **kwargs)
 

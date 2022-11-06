@@ -14,6 +14,8 @@ from litex.build.osfpga import common, osfpga
 class OSFPGAPlatform(GenericPlatform):
     bitstream_ext = ".bin"
 
+    _supported_toolchains = ["osfpga"]
+
     def __init__(self, device, *args, toolchain="foedag", devicename=None, **kwargs):
         GenericPlatform.__init__(self, device, *args, **kwargs)
         self.devicename = devicename
