@@ -17,7 +17,7 @@ class XilinxPlatform(GenericPlatform):
     bitstream_ext = ".bit"
 
     _supported_toolchains = {
-        "serie7":   ["vivado", "f4pga", "yosys+nextpnr"],
+        "7series":   ["vivado", "f4pga", "yosys+nextpnr"],
         "spartan6": ["ise"],
     }
 
@@ -128,7 +128,7 @@ class XilinxPlatform(GenericPlatform):
 # Xilinx7SeriesPlatform -----------------------------------------------------------------------------
 
 class Xilinx7SeriesPlatform(XilinxPlatform):
-    device_family = "serie7"
+    device_family = "7series"
 
 # XilinxSpartan6Platform ---------------------------------------------------------------------------
 
