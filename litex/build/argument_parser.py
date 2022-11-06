@@ -58,13 +58,13 @@ class LiteXArgumentParser(argparse.ArgumentParser):
         self._target_group = self.add_argument_group(title="Target options")
         if toolchains is not None:
             self.add_target_argument("--toolchain",
-                                     default=self._default_toolchain,
-                                     choices=toolchains,
-                                     help="FPGA toolchain ({}).".format(" or ".join(toolchains)))
+                default = self._default_toolchain,
+                choices = toolchains,
+                help    = "FPGA toolchain ({}).".format(" or ".join(toolchains)))
         else:
             self.add_target_argument("-toolchain", help="FPGA toolchain")
-        self.add_target_argument("--build",     action="store_true", help="Build design.")
-        self.add_target_argument("--load",      action="store_true", help="Load bitstream.")
+        self.add_target_argument("--build", action="store_true", help="Build design.")
+        self.add_target_argument("--load",  action="store_true", help="Load bitstream.")
         builder_args(self)
         soc_core_args(self)
 
@@ -147,13 +147,12 @@ class LiteXArgumentParser(argparse.ArgumentParser):
 
         # Intercept selected toolchain to fill arguments.
         if self._platform is not None:
-            self._toolchain = self.get_value_from_key("--toolchain",
-                                                      self._default_toolchain)
+            self._toolchain = self.get_value_from_key("--toolchain", self._default_toolchain)
             if self._toolchain is not None:
                 self._platform.fill_args(self._toolchain, self)
 
         # Intercept selected CPU to fill arguments.
-        cpu_cls = None
+        cpu_cls  = None
         cpu_name = self.get_value_from_key("--cpu-type")
         if cpu_name is not None:
             cpu_cls = cpu.CPUS[cpu_name]
