@@ -163,7 +163,7 @@ class LiteXArgumentParser(argparse.ArgumentParser):
 
         # Re-inject CPU read arguments.
         if cpu_cls is not None and hasattr(cpu_cls, "args_read"):
-            cpu_cls.args_read(args)
+            cpu_cls.args_read(self._args)
 
         return self._args
 
