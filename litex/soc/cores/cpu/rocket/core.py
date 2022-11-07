@@ -55,6 +55,8 @@ CPU_VARIANTS = {
     "full4d":   "freechips.rocketchip.system.LitexFull4DConfig",
     "fullq":    "freechips.rocketchip.system.LitexFullQConfig",
     "full4q":   "freechips.rocketchip.system.LitexFull4QConfig",
+    "hypervisor": "freechips.rocketchip.system.LitexHypervisorConfig",
+    "hypervisor4q": "freechips.rocketchip.system.LitexHypervisor4QConfig",
 }
 
 # GCC Flags-----------------------------------------------------------------------------------------
@@ -72,6 +74,8 @@ GCC_FLAGS = {
     "full4d":   "-march=rv64imafdc -mabi=lp64 ",
     "fullq":    "-march=rv64imafdc -mabi=lp64 ",
     "full4q":   "-march=rv64imafdc -mabi=lp64 ",
+    "hypervisor":"-march=rv64imafdc -mabi=lp64 ",
+    "hypervisor4q":"-march=rv64imafdc -mabi=lp64 ",
 }
 
 # CPU Size Params ----------------------------------------------------------------------------------
@@ -90,6 +94,8 @@ CPU_SIZE_PARAMS = {
     "full4d":   (   128,      64,         4),
     "fullq":    (   256,      64,         1),
     "full4q":   (   256,      64,         4),
+    "hypervisor": (  64,      64,         1),
+    "hypervisor4q":(256,      64,         4),
 }
 
 # Rocket  ------------------------------------------------------------------------------------------
