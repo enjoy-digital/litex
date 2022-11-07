@@ -52,6 +52,7 @@ class LiteXArgumentParser(argparse.ArgumentParser):
         self._default_toolchain = None
         self._args              = None
         self._toolchain         = None
+        self._target_group      = None
         if platform is not None:
             self.set_platform(platform)
             self.add_target_group()
@@ -82,7 +83,6 @@ class LiteXArgumentParser(argparse.ArgumentParser):
     def add_target_group(self):
         """ create target group and add --toolchain/build/load args.
         """
-        self._target_group = self.add_argument_group(title="Target options")
         if self.toolchains is not None:
             self.add_target_argument("--toolchain",
                 default = self._default_toolchain,
@@ -97,6 +97,8 @@ class LiteXArgumentParser(argparse.ArgumentParser):
         """ wrapper to add argument to "Target options group" from outer of this
         class
         """
+        if self._target_group is None:
+            self._target_group = self.add_argument_group(title="Target options")
         self._target_group.add_argument(*args, **kwargs)
 
     @property
