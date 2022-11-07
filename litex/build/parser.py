@@ -109,15 +109,15 @@ class LiteXArgumentParser(argparse.ArgumentParser):
         return builder_argdict(self._args)
 
     @property
-    def soc_core_argdict(self):
+    def soc_argdict(self):
         """
-        access to soc_core_argdict
+        access to soc_argdict
 
         Return
         ======
         soc_core arguments dict
         """
-        return soc_core_argdict(self._args)
+        return soc_core_argdict(self._args) # FIXME: Rename to soc_argdict in the future.
 
     @property
     def toolchain_argdict(self):
