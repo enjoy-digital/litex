@@ -93,7 +93,7 @@ class OpenC906(CPU):
         self.cpu_params = dict(
             # Clk / Rst.
             i_pll_core_cpuclk  = ClockSignal("sys"),
-            i_pad_cpu_rst_b    = ~ResetSignal("sys") | self.reset,
+            i_pad_cpu_rst_b    = ~ResetSignal("sys") & ~self.reset,
             i_axim_clk_en      = 1,
 
             # Debug (ignored).
