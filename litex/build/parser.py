@@ -2,6 +2,7 @@
 # This file is part of LiteX.
 #
 # This file is Copyright (c) 2022 Gwenhael Goavec-Merou <gwenhael.goavec-merou@trabucayre.com>
+# This file is Copyright (c) 2022 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import argparse
@@ -161,12 +162,11 @@ class LiteXArgumentParser(argparse.ArgumentParser):
                 self._platform.fill_args(self._toolchain, self)
 
         # Intercept selected CPU to fill arguments.
-        cpu_cls  = None
-        cpu_name = self.get_value_from_key("--cpu-type")
-        if cpu_name is not None:
-            cpu_cls = cpu.CPUS[cpu_name]
-            if cpu_cls is not None and hasattr(cpu_cls, "args_fill"):
-                cpu_cls.args_fill(self)
+        cpu_cls = cpu.CPUS.get(self.get_value_from_key("--cpu-type"), None)
+        if cpu_cls is not None and hasattr(cpu_cls, "args_fill"):
+            cpu_cls.args_fill(self)
+
+        # Parse args.
         self._args = argparse.ArgumentParser.parse_args(self, args, namespace)
 
         # Re-inject CPU read arguments.
