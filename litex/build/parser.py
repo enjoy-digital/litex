@@ -8,8 +8,9 @@ import argparse
 import importlib
 import sys
 
-from litex.soc.integration.soc_core import *
-from litex.soc.integration.builder import *
+from litex.soc.cores import cpu
+from litex.soc.integration import soc_core
+from litex.soc.integration import builder
 
 # Litex Argument Parser ----------------------------------------------------------------------------
 
@@ -44,30 +45,15 @@ class LiteXArgumentParser(argparse.ArgumentParser):
             all arguments passed to argparse.ArgumentParser CTOR
         """
         argparse.ArgumentParser.__init__(self, kwargs)
-        self._platform = platform
-        if platform is not None:
-            self._device            = platform.device_family
-            toolchains              = platform.toolchains(self._device)
-            self._default_toolchain = toolchains[0]
-        else:
-            self._device            = None
-            toolchains              = None
-            self._default_toolchain = None
+        self._platform          = None
+        self._device            = None
+        self.toolchains         = None
+        self._default_toolchain = None
         self._args              = None
         self._toolchain         = None
-
-        self._target_group = self.add_argument_group(title="Target options")
-        if toolchains is not None:
-            self.add_target_argument("--toolchain",
-                default = self._default_toolchain,
-                choices = toolchains,
-                help    = "FPGA toolchain ({}).".format(" or ".join(toolchains)))
-        else:
-            self.add_target_argument("-toolchain", help="FPGA toolchain")
-        self.add_target_argument("--build", action="store_true", help="Build design.")
-        self.add_target_argument("--load",  action="store_true", help="Load bitstream.")
-        builder_args(self)
-        soc_core_args(self)
+        if platform is not None:
+            self.set_platform(platform)
+            self.add_target_group()
 
     def set_platform(self, platform):
         """ set platform. Check first if not already set
@@ -80,8 +66,9 @@ class LiteXArgumentParser(argparse.ArgumentParser):
         assert self._platform is None
         self._platform          = platform
         self._device            = platform.device_family
-        toolchains              = platform.toolchains(self._device)
-        self._default_toolchain = toolchains[0]
+        self.toolchains         = platform.toolchains(self._device)
+        self._default_toolchain = self.toolchains[0]
+
     # add a setter (LitexArgumentParserInstance.platform = myPlatform)
     platform = property(None, set_platform)
 
@@ -90,6 +77,20 @@ class LiteXArgumentParser(argparse.ArgumentParser):
         """ return target_group
         """
         return self._target_group
+
+    def add_target_group(self):
+        """ create target group and add --toolchain/build/load args.
+        """
+        self._target_group = self.add_argument_group(title="Target options")
+        if self.toolchains is not None:
+            self.add_target_argument("--toolchain",
+                default = self._default_toolchain,
+                choices = self.toolchains,
+                help    = "FPGA toolchain ({}).".format(" or ".join(self.toolchains)))
+        else:
+            self.add_target_argument("-toolchain", help="FPGA toolchain")
+        self.add_target_argument("--build", action="store_true", help="Build design.")
+        self.add_target_argument("--load",  action="store_true", help="Load bitstream.")
 
     def add_target_argument(self, *args, **kwargs):
         """ wrapper to add argument to "Target options group" from outer of this
@@ -106,7 +107,7 @@ class LiteXArgumentParser(argparse.ArgumentParser):
         ======
         builder arguments dict
         """
-        return builder_argdict(self._args)
+        return builder.builder_argdict(self._args)
 
     @property
     def soc_argdict(self):
@@ -117,7 +118,7 @@ class LiteXArgumentParser(argparse.ArgumentParser):
         ======
         soc_core arguments dict
         """
-        return soc_core_argdict(self._args) # FIXME: Rename to soc_argdict in the future.
+        return soc_core.soc_core_argdict(self._args) # FIXME: Rename to soc_argdict in the future.
 
     @property
     def toolchain_argdict(self):
@@ -140,11 +141,18 @@ class LiteXArgumentParser(argparse.ArgumentParser):
         Checks first is platform is set: when platform is none: try to
         search for a platform argument
         """
+
         # When platform is None try to search for a user input
         if self._platform is None:
             platform = self.get_value_from_key("--platform", None)
             if platform is not None:
                 self.set_platform(importlib.import_module(platform).Platform)
+                self.add_target_group()
+
+        # When platform provided/set, set builder/soc_core args.
+        if self._platform is not None:
+            builder.builder_args(self)
+            soc_core.soc_core_args(self)
 
         # Intercept selected toolchain to fill arguments.
         if self._platform is not None:

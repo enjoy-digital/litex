@@ -2096,30 +2096,6 @@ class LiteXSoC(SoC):
 
 # LiteXSoCArgumentParser ---------------------------------------------------------------------------
 
-class LiteXSoCArgumentParser(argparse.ArgumentParser):
-    def parse_args(self):
+from litex.build.parser import LiteXArgumentParser
 
-        # FIXME: Use 2 stages parser?
-
-        def get_selected_cpu_name():
-            for name, cpu_cls in cpu.CPUS.items():
-                if f"--cpu-type={name}" in sys.argv:
-                    return cpu_cls
-                if f"--cpu-type" in sys.argv:
-                    if name in sys.argv:
-                        return cpu_cls
-            return None
-
-        # Intercept selected CPU to fill arguments.
-        cpu_cls = get_selected_cpu_name()
-        if cpu_cls is not None and hasattr(cpu_cls, "args_fill"):
-            cpu_cls.args_fill(self)
-
-        # Get Command-line arguments.
-        args = argparse.ArgumentParser.parse_args(self)
-
-        # Re-inject CPU read arguments.
-        if cpu_cls is not None and hasattr(cpu_cls, "args_read"):
-            cpu_cls.args_read(args)
-
-        return args
+class LiteXSoCArgumentParser(LiteXArgumentParser): pass # FIXME: Add compat and remove.
