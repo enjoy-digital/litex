@@ -120,6 +120,8 @@ class AXIInterface:
             channel_layout = (getattr(self, channel).description.payload_layout +
                               getattr(self, channel).description.param_layout)
             for name, width in channel_layout:
+                if (name == "dest"):
+                    continue # No DEST.
                 if (channel == "w") and (name == "id") and (self.version == "axi4"):
                     continue # No WID on AXI4.
                 subsignals.append(Subsignal(channel + name, Pins(width)))
