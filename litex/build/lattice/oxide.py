@@ -62,7 +62,7 @@ class LatticeOxideToolchain(YosysNextPNRToolchain):
         return (self._build_name + ".pdc", "PDC")
 
 def oxide_args(parser):
-    toolchain_group = parser.add_argument_group(title="Toolchain options")
+    toolchain_group = parser.add_argument_group(title="Oxide toolchain options")
     yosys_nextpnr_args(toolchain_group)
     toolchain_group.add_argument("--nexus-es-device", action="store_true", help="Use Nexus-ES1 part.")
 

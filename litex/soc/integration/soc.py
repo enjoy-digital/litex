@@ -15,7 +15,10 @@ import datetime
 from math import log2, ceil
 
 from migen import *
+
+from litex.gen import colorer
 from litex.gen import LiteXModule
+from litex.gen.fhdl.hierarchy import LiteXHierarchyExplorer
 
 from litex.soc.cores import cpu
 
@@ -32,17 +35,6 @@ logging.basicConfig(level=logging.INFO)
 
 def auto_int(x):
     return int(x, 0)
-
-def colorer(s, color="bright"):
-    header  = {
-        "bright": "\x1b[1m",
-        "green":  "\x1b[32m",
-        "cyan":   "\x1b[36m",
-        "red":    "\x1b[31m",
-        "yellow": "\x1b[33m",
-        "underline": "\x1b[4m"}[color]
-    trailer = "\x1b[0m"
-    return header + str(s) + trailer
 
 def build_time(with_time=True):
     fmt = "%Y-%m-%d %H:%M:%S" if with_time else "%Y-%m-%d"
@@ -416,6 +408,9 @@ class SoCBusHandler(LiteXModule):
             colorer(name,    color="underline"),
             colorer("added", color="green")))
 
+    def add_controller(self, name=None, controller=None):
+        self.add_master(self, name=name, master=controller)
+
     def add_slave(self, name=None, slave=None, region=None):
         no_name   = name is None
         no_region = region is None
@@ -447,6 +442,9 @@ class SoCBusHandler(LiteXModule):
         self.logger.info("{} {} as Bus Slave.".format(
             colorer(name, color="underline"),
             colorer("added", color="green")))
+
+    def add_peripheral(self, name=None, peripheral=None, region=None):
+        self.add_slave(self, name=name, slave=peripheral, region=region)
 
     def get_address_width(self, standard):
         standard_from = self.standard
@@ -1201,8 +1199,7 @@ class SoC(LiteXModule):
             address_width      = self.csr.address_width,
             alignment          = self.csr.alignment,
             paging             = self.csr.paging,
-            ordering           = self.csr.ordering,
-            soc_bus_data_width = self.bus.data_width)
+            ordering           = self.csr.ordering)
         if len(self.csr.masters):
             self.csr_interconnect = csr_bus.InterconnectShared(
                 masters = list(self.csr.masters.values()),
@@ -1279,6 +1276,13 @@ class SoC(LiteXModule):
 
         # Finalize submodules ----------------------------------------------------------------------
         Module.finalize(self)
+
+        # SoC Hierarchy ----------------------------------------------------------------------------
+        self.logger.info(colorer("-"*80, color="bright"))
+        self.logger.info(colorer("SoC Hierarchy:"))
+        self.logger.info(colorer("-"*80, color="bright"))
+        self.logger.info(LiteXHierarchyExplorer(top=self, depth=None))
+        self.logger.info(colorer("-"*80, color="bright"))
 
     # SoC build ------------------------------------------------------------------------------------
     def get_build_name(self):
@@ -1577,7 +1581,7 @@ class LiteXSoC(SoC):
             port.data_width = 2**int(log2(port.data_width)) # Round to nearest power of 2.
 
             # Create Wishbone Slave.
-            wb_sdram = wishbone.Interface()
+            wb_sdram = wishbone.Interface(data_width=self.bus.data_width)
             self.bus.add_slave("main_ram", wb_sdram)
 
             # L2 Cache
@@ -2092,30 +2096,6 @@ class LiteXSoC(SoC):
 
 # LiteXSoCArgumentParser ---------------------------------------------------------------------------
 
-class LiteXSoCArgumentParser(argparse.ArgumentParser):
-    def parse_args(self):
+from litex.build.parser import LiteXArgumentParser
 
-        # FIXME: Use 2 stages parser?
-
-        def get_selected_cpu_name():
-            for name, cpu_cls in cpu.CPUS.items():
-                if f"--cpu-type={name}" in sys.argv:
-                    return cpu_cls
-                if f"--cpu-type" in sys.argv:
-                    if name in sys.argv:
-                        return cpu_cls
-            return None
-
-        # Intercept selected CPU to fill arguments.
-        cpu_cls = get_selected_cpu_name()
-        if cpu_cls is not None and hasattr(cpu_cls, "args_fill"):
-            cpu_cls.args_fill(self)
-
-        # Get Command-line arguments.
-        args = argparse.ArgumentParser.parse_args(self)
-
-        # Re-inject CPU read arguments.
-        if cpu_cls is not None and hasattr(cpu_cls, "args_read"):
-            cpu_cls.args_read(args)
-
-        return args
+class LiteXSoCArgumentParser(LiteXArgumentParser): pass # FIXME: Add compat and remove.

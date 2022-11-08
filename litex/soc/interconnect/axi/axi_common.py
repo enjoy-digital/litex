@@ -72,6 +72,8 @@ def connect_to_pads(bus, pads, mode="master", axi_full=False):
         if channel in ["w", "r"] and axi_full:
             sig_list += [("last",  1)]
         for name, width in sig_list:
+            if (name == "dest"):
+                continue # No DEST.
             if (channel == "w") and (name == "id") and (bus.version == "axi4"):
                 continue # No WID on AXI4.
             sig  = getattr(ch, name)

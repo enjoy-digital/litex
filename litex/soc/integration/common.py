@@ -40,7 +40,7 @@ def get_mem_regions(filename_or_regions, offset):
     return regions
 
 def get_mem_data(filename_or_regions, data_width=32, endianness="big", mem_size=None, offset=0):
-    assert data_width in [32, 64]
+    assert data_width % 32 == 0
     assert endianness in ["big", "little"]
 
     # Return empty list if no filename or regions.
@@ -80,11 +80,10 @@ def get_mem_data(filename_or_regions, data_width=32, endianness="big", mem_size=
                     "little": "<I",
                     "big":    ">I"
                 }[endianness]
-                if data_width == 32:
-                    data[(base - offset)//bytes_per_data + i] = struct.unpack(unpack_order, w)[0]
-                if data_width == 64:
-                    data[(base - offset)//bytes_per_data + i]  = (struct.unpack(unpack_order, w[0:4])[0] <<  0)
-                    data[(base - offset)//bytes_per_data + i] |= (struct.unpack(unpack_order, w[4:8])[0] << 32)
+                data[(base - offset)//bytes_per_data + i] = 0
+                for filled_data_width in range(0, data_width, 32):
+                    cur_byte = filled_data_width//8
+                    data[(base - offset)//bytes_per_data + i] |= (struct.unpack(unpack_order, w[cur_byte:cur_byte+4])[0] << filled_data_width)
                 i += 1
     return data
 

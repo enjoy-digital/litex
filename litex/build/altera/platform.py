@@ -16,6 +16,8 @@ class AlteraPlatform(GenericPlatform):
     bitstream_ext = ".sof"
     create_rbf    = True
 
+    _supported_toolchains = ["quartus"]
+
     def __init__(self, *args, toolchain="quartus", **kwargs):
         GenericPlatform.__init__(self, *args, **kwargs)
         self.ips = set()

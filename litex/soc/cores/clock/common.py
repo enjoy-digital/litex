@@ -9,7 +9,7 @@ import math
 
 from migen import Record
 
-from litex.soc.integration.soc import colorer
+from litex.gen import colorer
 
 logging.basicConfig(level=logging.INFO)
 

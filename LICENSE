@@ -1,7 +1,10 @@
-LiteX is a Migen/MiSoC based Core/SoC builder that provides the infrastructure to
-easily create Cores/SoCs.
+BSD 2-Clause License
 
-Unless otherwise noted, LiteX is copyright (C) 2012-2022 Enjoy-Digital.
+The LiteX framework provides a convenient and efficient infrastructure to create
+FPGA Cores/SoCs, to explore various digital design architectures and create full
+FPGA based systems.
+
+Unless otherwise noted, LiteX is copyright (C) 2012-2022 Enjoy-Digital & LiteX developers.
 Unless otherwise noted, MiSoC is copyright (C) 2012-2015 Enjoy-Digital.
 Unless otherwise noted, MiSoC is copyright (C) 2007-2015 M-Labs Ltd.
 All rights reserved.
@@ -26,9 +29,20 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
 Other authors retain ownership of their contributions. If a submission can
 reasonably be considered independently copyrightable, it's yours and we
 encourage you to claim it with appropriate copyright notices. This submission
 then falls under the "otherwise noted" category. All submissions are strongly
 encouraged to use the two-clause BSD license reproduced above.
+
+Conditions: The project is shared with a permissive BSD 2-Clause License and we
+are encouraged to continue sharing it this way thanks to the awesome community
+and clients willing to support the project!
+
+To be able to continue doing so, in addition of the BSD 2-Clause License conditions,
+we are expecting users to behave with integrity:
+- Users making useful use of the project have to be coherent in their behaviour
+on social networks.
+- Clients using it for commercial use and with unpaid invoices (due to bankruptcy,
+liquidation or dissagrements) are not allowed to use/re-integrate post-conflict
+developments unless they want to discuss/regularize the situation.

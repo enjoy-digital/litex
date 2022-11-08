@@ -19,10 +19,12 @@ import struct
 import shutil
 
 from litex import get_data_mod
+from litex.gen import colorer
+
 from litex.build.tools import write_to_file
-from litex.soc.integration import export, soc_core
-from litex.soc.integration.soc import colorer
+
 from litex.soc.cores import cpu
+from litex.soc.integration import export, soc_core
 
 # Helpers ------------------------------------------------------------------------------------------
 

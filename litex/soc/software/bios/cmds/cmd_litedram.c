@@ -388,7 +388,7 @@ static void sdram_spd_handler(int nb_params, char **params)
 		}
 	}
 
-	if (!i2c_read(SPD_RW_ADDR(spdaddr), 0, buf, len, send_stop)) {
+	if (!i2c_read(SPD_RW_ADDR(spdaddr), 0, buf, len, send_stop, 1)) {
 		printf("Error when reading SPD EEPROM");
 		return;
 	}

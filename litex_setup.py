@@ -16,7 +16,7 @@ python3      = sys.executable
 
 # Helpers ------------------------------------------------------------------------------------------
 
-def colorer(s, color="bright"): # FIXME: Move colorer to litex.common?
+def colorer(s, color="bright"):
     header  = {
         "bright"    : "\x1b[1m",
         "green"     : "\x1b[1m\x1b[32m",

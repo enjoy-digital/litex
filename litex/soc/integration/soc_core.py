@@ -26,6 +26,8 @@ from litex.soc.interconnect import wishbone
 from litex.soc.integration.common import *
 from litex.soc.integration.soc import *
 
+from litex.compat.soc_core import *
+
 __all__ = [
     "mem_decoder",
     "get_mem_data",
@@ -37,18 +39,9 @@ __all__ = [
     "soc_mini_argdict",
 ]
 
-# Helpers ------------------------------------------------------------------------------------------
-
-def mem_decoder(address, size=0x10000000):
-    size = 2**log2_int(size, False)
-    assert (address & (size - 1)) == 0
-    address >>= 2 # bytes to words aligned
-    size    >>= 2 # bytes to words aligned
-    return lambda a: (a[log2_int(size):] == (address >> log2_int(size)))
-
 # SoCCore ------------------------------------------------------------------------------------------
 
-class SoCCore(LiteXSoC):
+class SoCCore(LiteXSoC, SoCCoreCompat):
     # Default register/interrupt/memory mappings (can be redefined by user)
     csr_map       = {}
     interrupt_map = {}
@@ -239,65 +232,23 @@ class SoCCore(LiteXSoC):
 
     # Methods --------------------------------------------------------------------------------------
 
-    def add_interrupt(self, interrupt_name, interrupt_id=None, use_loc_if_exists=False):
-        self.irq.add(interrupt_name, interrupt_id, use_loc_if_exists=use_loc_if_exists)
-
     def add_csr(self, csr_name, csr_id=None, use_loc_if_exists=False):
         self.csr.add(csr_name, csr_id, use_loc_if_exists=use_loc_if_exists)
 
     def initialize_rom(self, data):
         self.init_rom(name="rom", contents=data)
 
-    def add_wb_master(self, wbm):
-        self.bus.add_master(master=wbm)
-
-    def add_wb_slave(self, address, interface, size=None):
-        wb_name = None
-        for name, region in self.bus.regions.items():
-            if address == region.origin:
-                wb_name = name
-                break
-        if wb_name is None:
-            self.wb_slaves[address] = interface
-        else:
-            self.bus.add_slave(name=wb_name, slave=interface)
-
     def add_memory_region(self, name, origin, length, type="cached"):
         self.bus.add_region(name, SoCRegion(origin=origin, size=length,
             cached="cached" in type,
-            linker="linker" in type))
-
-    def register_mem(self, name, address, interface, size=0x10000000):
-        self.bus.add_slave(name, interface, SoCRegion(origin=address, size=size))
-
-    def register_rom(self, interface, rom_size=0xa000):
-        self.bus.add_slave("rom", interface, SoCRegion(origin=self.cpu.reset_address, size=rom_size))
+            linker="linker" in type)
+        )
 
     def add_csr_region(self, name, origin, busword, obj):
         self.csr_regions[name] = SoCCSRRegion(origin, busword, obj)
 
-    # Finalization ---------------------------------------------------------------------------------
-
     def do_finalize(self):
-        # Retro-compatibility
-        for address, interface in self.wb_slaves.items():
-            wb_name = None
-            for name, region in self.bus.regions.items():
-                if address == region.origin:
-                    wb_name = name
-                    break
-            self.bus.add_slave(name=wb_name, slave=interface)
-
-        SoC.do_finalize(self)
-        # Retro-compatibility
-        for region in self.bus.regions.values():
-            region.length = region.size
-            region.type   = "cached" if region.cached else "io"
-            if region.linker:
-                region.type += "+linker"
-        self.csr_regions = self.csr.regions
-        for name, value in self.config.items():
-            self.add_config(name, value)
+        SoCCoreCompat.do_finalize(self)
 
 # SoCCore arguments --------------------------------------------------------------------------------
 

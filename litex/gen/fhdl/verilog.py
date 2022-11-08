@@ -75,6 +75,14 @@ def _print_separator(msg=""):
     return r
 
 # ------------------------------------------------------------------------------------------------ #
+#                                         TIMESCALE                                                #
+# ------------------------------------------------------------------------------------------------ #
+
+def _print_timescale(time_unit="1ns", time_precision="1ps"):
+    r = f"`timescale {time_unit} / {time_precision}\n"
+    return r
+
+# ------------------------------------------------------------------------------------------------ #
 #                                    RESERVED KEYWORDS                                             #
 # ------------------------------------------------------------------------------------------------ #
 
@@ -517,9 +525,17 @@ class DummyAttrTranslate(dict):
         return (k, "true")
 
 def convert(f, ios=set(), name="top", platform=None,
-    special_overrides    = dict(),
-    attr_translate       = DummyAttrTranslate(),
-    regular_comb         = True):
+    # Verilog parameters.
+    special_overrides = dict(),
+    attr_translate    = DummyAttrTranslate(),
+    regular_comb      = True,
+    # Sim parameters.
+    time_unit      = "1ns",
+    time_precision = "1ps",
+    ):
+
+    # Build Logic.
+    # ------------
 
     # Create ConvOutput.
     r = ConvOutput()
@@ -584,9 +600,16 @@ def convert(f, ios=set(), name="top", platform=None,
     # Build Verilog.
     # --------------
     verilog = ""
+    # Banner.
     verilog += _print_banner(
         filename = name,
         device   = getattr(platform, "device", "Unknown")
+    )
+
+    # Timescale.
+    verilog += _print_timescale(
+        time_unit      = time_unit,
+        time_precision = time_precision
     )
 
     # Module Definition.
@@ -622,6 +645,7 @@ def convert(f, ios=set(), name="top", platform=None,
     # Module End.
     verilog += "endmodule\n"
 
+    # Trailer.
     verilog += _print_trailer()
 
     r.set_main_source(verilog)

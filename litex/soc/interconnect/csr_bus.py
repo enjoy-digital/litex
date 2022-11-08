@@ -86,11 +86,11 @@ class InterconnectShared(Module):
 # CSR SRAM -----------------------------------------------------------------------------------------
 
 class SRAM(Module):
-    def __init__(self, mem_or_size, address, read_only=None, init=None, bus=None, paging=0x800, soc_bus_data_width=32):
+    def __init__(self, mem_or_size, address, read_only=None, init=None, bus=None, paging=0x800):
         if bus is None:
             bus = Interface()
         self.bus = bus
-        aligned_paging = paging//(soc_bus_data_width//8)
+        aligned_paging = paging//4
         data_width = len(self.bus.dat_w)
         if isinstance(mem_or_size, Memory):
             mem = mem_or_size
@@ -165,11 +165,11 @@ class SRAM(Module):
 # CSR Bank -----------------------------------------------------------------------------------------
 
 class CSRBank(csr.GenericBank):
-    def __init__(self, description, address=0, bus=None, paging=0x800, ordering="big", soc_bus_data_width=32):
+    def __init__(self, description, address=0, bus=None, paging=0x800, ordering="big"):
         if bus is None:
             bus = Interface()
         self.bus = bus
-        aligned_paging = paging//(soc_bus_data_width//8)
+        aligned_paging = paging//4
 
         # # #
 
@@ -205,12 +205,11 @@ class CSRBank(csr.GenericBank):
 # address_map is called exactly once for each object at each call to
 # scan(), so it can have side effects.
 class CSRBankArray(Module):
-    def __init__(self, source, address_map, *ifargs, paging=0x800, ordering="big", soc_bus_data_width=32, **ifkwargs):
+    def __init__(self, source, address_map, *ifargs, paging=0x800, ordering="big", **ifkwargs):
         self.source             = source
         self.address_map        = address_map
         self.paging             = paging
         self.ordering           = ordering
-        self.soc_bus_data_width = soc_bus_data_width
         self.scan(ifargs, ifkwargs)
 
     def scan(self, ifargs, ifkwargs):
@@ -272,8 +271,7 @@ class CSRBankArray(Module):
                 rmap = CSRBank(csrs, mapaddr,
                     bus                = bank_bus,
                     paging             = self.paging,
-                    ordering           = self.ordering,
-                    soc_bus_data_width = self.soc_bus_data_width)
+                    ordering           = self.ordering)
                 self.submodules += rmap
                 self.banks.append((name, csrs, mapaddr, rmap))
 
