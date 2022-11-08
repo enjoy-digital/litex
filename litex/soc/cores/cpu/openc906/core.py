@@ -16,6 +16,42 @@ from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV64
 
 # Helpers ------------------------------------------------------------------------------------------
 
+apb_layout = [
+    ("paddr",  32),
+    ("pwdata", 32),
+    ("pwrite",  1),
+    ("psel",    1),
+    ("penable", 1),
+    ("prdata", 32),
+    ("pready",  1),
+    ("pslverr", 1),
+]
+
+# Wishbone <> APB ----------------------------------------------------------------------------------
+
+class Wishbone2APB(Module):
+    def __init__(self, wb, apb):
+        assert wb.data_width == 32
+        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        fsm.act("IDLE",
+            If(wb.cyc & wb.stb,
+                NextState("ACK"),
+            )
+        )
+        fsm.act("ACK",
+            apb.penable.eq(1),
+            wb.ack.eq(1),
+            NextState("IDLE"),
+        )
+
+        self.comb += [
+            apb.paddr.eq(Cat(Signal(2), wb.adr)),
+            apb.pwrite.eq(wb.we),
+            apb.psel.eq(1),
+            apb.pwdata.eq(wb.dat_w),
+            wb.dat_r.eq(apb.prdata),
+        ]
+
 def add_manifest_sources(platform, manifest):
     basedir = os.path.join(os.environ["OPENC906_DIR"], "C906_RTL_FACTORY")
     with open(os.path.join(basedir, manifest), 'r') as f:
@@ -34,7 +70,7 @@ class OpenC906(CPU):
     family               = "riscv"
     name                 = "openc906"
     human_name           = "OpenC906"
-    variants             = ["standard"]
+    variants             = ["standard", "debug"]
     data_width           = 128
     endianness           = "little"
     gcc_triple           = CPU_GCC_TRIPLE_RISCV64
@@ -64,6 +100,7 @@ class OpenC906(CPU):
             "plic":           0x9000_0000, # Region 1, Strong Order, Non-cacheable, Non-bufferable
             "clint":          0x9400_0000, # Region 1 too
             "ethmac":         0x9800_0000, # Region 1 too
+            "riscv_dm":       0x9fff_f000, # Region 1 too
             "csr":            0xa000_0000, # Region 1 too
         }
 
@@ -93,7 +130,7 @@ class OpenC906(CPU):
         self.cpu_params = dict(
             # Clk / Rst.
             i_pll_core_cpuclk  = ClockSignal("sys"),
-            i_pad_cpu_rst_b    = ~ResetSignal("sys") | self.reset,
+            i_pad_cpu_rst_b    = ~ResetSignal("sys") & ~self.reset,
             i_axim_clk_en      = 1,
 
             # Debug (ignored).
@@ -150,6 +187,9 @@ class OpenC906(CPU):
             i_pad_biu_rlast    = axi_if.r.last,
         )
 
+        if "debug" in variant:
+            self.add_debug()
+
         # Add Verilog sources.
         add_manifest_sources(platform, "gen_rtl/filelists/C906_asic_rtl.fl")
         from litex.build.xilinx import XilinxPlatform
@@ -160,11 +200,39 @@ class OpenC906(CPU):
             # Import a filelist for generic platforms
             add_manifest_sources(platform, "gen_rtl/filelists/generic_fpga.fl")
 
+    def add_debug(self):
+        self.debug_bus = wishbone.Interface()
+        debug_apb = Record(apb_layout)
+
+        self.submodules += Wishbone2APB(self.debug_bus, debug_apb)
+        self.cpu_params.update(
+            i_sys_apb_clk     = ClockSignal("sys"),
+            i_sys_apb_rst_b   = ~ResetSignal("sys") & ~self.reset,
+
+            i_tdt_dmi_paddr   = debug_apb.paddr,
+            i_tdt_dmi_penable = debug_apb.penable,
+            i_tdt_dmi_psel    = debug_apb.psel,
+            i_tdt_dmi_pwdata  = debug_apb.pwdata,
+            i_tdt_dmi_pwrite  = debug_apb.pwrite,
+            o_tdt_dmi_prdata  = debug_apb.prdata,
+            o_tdt_dmi_pready  = debug_apb.pready,
+            o_tdt_dmi_pslverr = debug_apb.pslverr,
+        )
+
     def add_soc_components(self, soc, soc_region_cls):
         plic = soc_region_cls(origin=soc.mem_map.get("plic"), size=0x400_0000, cached=False)
         clint = soc_region_cls(origin=soc.mem_map.get("clint"), size=0x400_0000, cached=False)
         soc.bus.add_region(name="plic", region=plic)
         soc.bus.add_region(name="clint", region=clint)
+
+        if "debug" in self.variant:
+            soc.bus.add_slave("riscv_dm", self.debug_bus, region=
+                soc_region_cls(
+                    origin = soc.mem_map.get("riscv_dm"),
+                    size   = 0x1000,
+                    cached = False
+                )
+            )
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
