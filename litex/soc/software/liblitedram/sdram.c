@@ -773,7 +773,7 @@ static void sdram_write_leveling_find_cmd_delay(unsigned int *best_error, unsign
 		int delay_count = 0;
 		for (int i=0; i < SDRAM_PHY_MODULES; ++i) {
 			if (delays[i] != -1) {
-				delay_mean  += delays[i] + _sdram_tck_taps/4;
+				delay_mean  += delays[i]*256 + _sdram_tck_taps*64;
 				delay_count += 1;
 			}
 		}
@@ -781,7 +781,7 @@ static void sdram_write_leveling_find_cmd_delay(unsigned int *best_error, unsign
 			delay_mean /= delay_count;
 
 		/* We want the higher number of valid modules and delay to be centered */
-		int ideal_delay = (SDRAM_PHY_DELAYS - _sdram_tck_taps/4)/2;
+		int ideal_delay = SDRAM_PHY_DELAYS*128 - _sdram_tck_taps*32;
 		int error = ideal_delay - delay_mean;
 		if (error < 0)
 			error *= -1;
@@ -794,7 +794,7 @@ static void sdram_write_leveling_find_cmd_delay(unsigned int *best_error, unsign
 			}
 		}
 #ifdef SDRAM_WRITE_LEVELING_CMD_DELAY_DEBUG
-		printf("Delay mean: %d, ideal: %d\n", delay_mean, ideal_delay);
+		printf("Delay mean: %d/256, ideal: %d/256\n", delay_mean, ideal_delay);
 #else
 		printf("%d", ok);
 #endif
