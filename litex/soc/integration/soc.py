@@ -20,6 +20,8 @@ from litex.gen import colorer
 from litex.gen import LiteXModule
 from litex.gen.fhdl.hierarchy import LiteXHierarchyExplorer
 
+from litex.compat.soc_core import *
+
 from litex.soc.cores import cpu
 
 from litex.soc.interconnect.csr import *
@@ -809,7 +811,7 @@ class SoCController(LiteXModule):
 
 # SoC ----------------------------------------------------------------------------------------------
 
-class SoC(LiteXModule):
+class SoC(LiteXModule, SoCCoreCompat):
     mem_map = {}
     def __init__(self, platform, sys_clk_freq,
         bus_standard         = "wishbone",
@@ -1147,6 +1149,8 @@ class SoC(LiteXModule):
     def finalize(self):
         if self.finalized:
             return
+        # Compat -----------------------------------------------------------------------------------
+        SoCCoreCompat.finalize_wb_slaves(self) # FIXME: Deprecate compat and remove.
 
         # SoC Reset --------------------------------------------------------------------------------
         # Connect soc_rst to CRG's rst if present.
@@ -1276,6 +1280,9 @@ class SoC(LiteXModule):
 
         # Finalize submodules ----------------------------------------------------------------------
         Module.finalize(self)
+
+        # Compat -----------------------------------------------------------------------------------
+        SoCCoreCompat.finalize_csr_regions(self) # FIXME: Deprecate compat and remove.
 
         # SoC Hierarchy ----------------------------------------------------------------------------
         self.logger.info(colorer("-"*80, color="bright"))

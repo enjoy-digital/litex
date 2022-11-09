@@ -41,7 +41,7 @@ __all__ = [
 
 # SoCCore ------------------------------------------------------------------------------------------
 
-class SoCCore(LiteXSoC, SoCCoreCompat):
+class SoCCore(LiteXSoC):
     # Default register/interrupt/memory mappings (can be redefined by user)
     csr_map       = {}
     interrupt_map = {}
@@ -246,9 +246,6 @@ class SoCCore(LiteXSoC, SoCCoreCompat):
 
     def add_csr_region(self, name, origin, busword, obj):
         self.csr_regions[name] = SoCCSRRegion(origin, busword, obj)
-
-    def do_finalize(self):
-        SoCCoreCompat.do_finalize(self)
 
 # SoCCore arguments --------------------------------------------------------------------------------
 
