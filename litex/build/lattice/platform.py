@@ -14,9 +14,9 @@ class LatticePlatform(GenericPlatform):
     bitstream_ext = ".bit"
 
     _supported_toolchains = {
-        "ice40": ["icestorm"],
-        "ecp5":  ["trellis", "diamond"],
-        "nexus": ["radiant", "oxide"],
+        "ice40" : ["icestorm"],
+        "ecp5"  : ["trellis", "diamond"],
+        "nexus" : ["radiant", "oxide"],
     }
 
     def __init__(self, *args, toolchain="diamond", **kwargs):

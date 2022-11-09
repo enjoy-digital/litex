@@ -106,7 +106,7 @@ class LatticeIceStormToolchain(YosysNextPNRToolchain):
 
 
 def icestorm_args(parser):
-    toolchain_group = parser.add_argument_group(title="Icestorm toolchain options")
+    toolchain_group = parser.add_argument_group(title="IceStorm toolchain options")
     yosys_nextpnr_args(toolchain_group)
 
 def icestorm_argdict(args):

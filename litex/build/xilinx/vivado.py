@@ -386,7 +386,7 @@ class XilinxVivadoToolchain(GenericToolchain):
 
 
 def vivado_build_args(parser):
-    toolchain_group = parser.add_argument_group(title="Toolchain options")
+    toolchain_group = parser.add_argument_group(title="Vivado toolchain options")
     toolchain_group.add_argument("--synth-mode",                           default="vivado",  help="Synthesis mode (vivado or yosys).")
     toolchain_group.add_argument("--vivado-synth-directive",               default="default", help="Specify synthesis directive.")
     toolchain_group.add_argument("--vivado-opt-directive",                 default="default", help="Specify opt directive.")

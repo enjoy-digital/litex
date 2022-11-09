@@ -269,7 +269,7 @@ class SimVerilatorToolchain:
             return v_output.ns
 
 def verilator_build_args(parser):
-    toolchain_group = parser.add_argument_group(title="Toolchain options")
+    toolchain_group = parser.add_argument_group(title="Verilator toolchain options")
     toolchain_group.add_argument("--jobs",         default=None,        help="Limit the number of compiler jobs.")
     toolchain_group.add_argument("--threads",      default=1,           help="Set number of simulation threads.")
     toolchain_group.add_argument("--trace",        action="store_true", help="Enable Tracing.")

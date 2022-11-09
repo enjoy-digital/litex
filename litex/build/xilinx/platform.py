@@ -17,8 +17,8 @@ class XilinxPlatform(GenericPlatform):
     bitstream_ext = ".bit"
 
     _supported_toolchains = {
-        "7series":   ["vivado", "f4pga", "yosys+nextpnr"],
-        "spartan6": ["ise"],
+        "7series"  : ["vivado", "f4pga", "yosys+nextpnr"],
+        "spartan6" : ["ise"],
     }
 
     def __init__(self, *args, toolchain="ise", **kwargs):
