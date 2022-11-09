@@ -67,10 +67,12 @@ class SoCCoreCompat:
 
     def register_mem(self, name, address, interface, size=0x10000000):
         compat_notice("SoCCore.register_mem", date="2022-11-03", info="Switch to SoC.bus.add_slave(...)")
+        from litex.soc.integration.soc import SoCRegion
         self.bus.add_slave(name, interface, SoCRegion(origin=address, size=size))
 
     def register_rom(self, interface, rom_size=0xa000):
         compat_notice("SoCCore.register_mem", date="2022-11-03", info="Switch to SoC.bus.add_slave(...)")
+        from litex.soc.integration.soc import SoCRegion
         self.bus.add_slave("rom", interface, SoCRegion(origin=self.cpu.reset_address, size=rom_size))
 
     # Finalization ---------------------------------------------------------------------------------
