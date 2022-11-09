@@ -16,7 +16,6 @@ from migen import *
 from litex.build.generic_platform import *
 from litex.build.sim import SimPlatform
 from litex.build.sim.config import SimConfig
-from litex.build.sim.verilator import verilator_build_args, verilator_build_argdict
 
 from litex.soc.integration.common import *
 from litex.soc.integration.soc_core import *
@@ -363,9 +362,6 @@ def generate_gtkw_savefile(builder, vns, trace_fst):
             dfi_group("dfi commands", ["rddata"])
 
 def sim_args(parser):
-    builder_args(parser)
-    soc_core_args(parser)
-    verilator_build_args(parser)
     parser.add_argument("--rom-init",             default=None,            help="ROM init file (.bin or .json).")
     parser.add_argument("--ram-init",             default=None,            help="RAM init file (.bin or .json).")
     parser.add_argument("--main-ram-init-base",   default="0x40000000",    help="(SD)RAM base assumed in init file.")
@@ -391,14 +387,13 @@ def sim_args(parser):
     parser.add_argument("--non-interactive",      action="store_true",     help="Run simulation without user input.")
 
 def main():
-    from litex.soc.integration.soc import LiteXSoCArgumentParser
-    parser = LiteXSoCArgumentParser(description="LiteX SoC Simulation utility")
+    from litex.build.parser import LiteXArgumentParser
+    parser = LiteXArgumentParser(description="LiteX SoC Simulation utility")
+    parser.set_platform(SimPlatform)
     sim_args(parser)
     args = parser.parse_args()
 
-    soc_kwargs             = soc_core_argdict(args)
-    builder_kwargs         = builder_argdict(args)
-    verilator_build_kwargs = verilator_build_argdict(args)
+    soc_kwargs = soc_core_argdict(args)
 
     sys_clk_freq = int(1e6)
     sim_config   = SimConfig()
@@ -493,12 +488,14 @@ def main():
         if args.trace:
             generate_gtkw_savefile(builder, vns, args.trace_fst)
 
-    builder = Builder(soc, **builder_kwargs)
+    builder = Builder(soc, **parser.builder_argdict)
+    print(parser.builder_argdict)
+
     builder.build(
         sim_config       = sim_config,
         interactive      = not args.non_interactive,
         pre_run_callback = pre_run_callback,
-        **verilator_build_kwargs,
+        **parser.toolchain_argdict,
     )
 
 if __name__ == "__main__":
