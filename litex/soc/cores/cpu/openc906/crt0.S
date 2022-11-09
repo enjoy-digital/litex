@@ -56,12 +56,21 @@ crt_init:
   la sp, _fstack
   la t0, trap_entry
   csrw mtvec, t0
-  li t0, 0x400000
-  csrs 0x7c0, t0 // enable THEADISAEE
+  # Invalidate L1I+L1D, Branch History Table, Branch Target Bufer
+  li t0, 0x70013
+  csrw 0x7c2, t0
+  # Enable L1I+L1D, Return Stack, BHT, BTB
   li t0, 0x73
-  csrs 0x7c1, t0 // enable L1$ (I+D) + Branch Prediction + Return Stack
-  li t0, 0x504
-  csrs 0x7c5, t0 // enable L1$ prefetching
+  csrs 0x7c1, t0
+  # Enable Unaligned Access, User-mode cache operation, CLINT S-mode
+  # interrupts, PTE memory attributes and T-HEAD extension
+  li t0, 0x638000
+  csrs 0x7c0, t0
+  # Enable L1I+L1D prefetch, Loop enhancement
+  # Bypass L1 for write operations larger than 3 cache lines
+  # Prefetch 8 cache lines
+  li t0, 0x450c
+  csrs 0x7c5, t0
 
 data_init:
   la t0, _fdata
