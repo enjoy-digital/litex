@@ -162,7 +162,7 @@ class SimSoC(SoCCore):
         sys_clk_freq = int(1e6)
 
         # CRG --------------------------------------------------------------------------------------
-        self.submodules.crg = CRG(platform.request("sys_clk"))
+        self.crg = CRG(platform.request("sys_clk"))
 
         # SoCCore ----------------------------------------------------------------------------------
         SoCCore.__init__(self, platform, clk_freq=sys_clk_freq,
@@ -185,7 +185,7 @@ class SimSoC(SoCCore):
                 sdram_module     = sdram_module_cls(sdram_clk_freq, sdram_rate)
             else:
                 sdram_module = litedram_modules.SDRAMModule.from_spd_data(sdram_spd_data, sdram_clk_freq)
-            self.submodules.sdrphy = SDRAMPHYModel(
+            self.sdrphy = SDRAMPHYModel(
                 module     = sdram_module,
                 data_width = sdram_data_width,
                 clk_freq   = sdram_clk_freq,
@@ -209,11 +209,11 @@ class SimSoC(SoCCore):
         # Ethernet / Etherbone PHY -----------------------------------------------------------------
         if with_ethernet or with_etherbone:
             if ethernet_phy_model == "sim":
-                self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth", 0))
+                self.ethphy = LiteEthPHYModel(self.platform.request("eth", 0))
             elif ethernet_phy_model == "xgmii":
-                self.submodules.ethphy = LiteEthPHYXGMII(None, self.platform.request("xgmii_eth", 0), model=True)
+                self.ethphy = LiteEthPHYXGMII(None, self.platform.request("xgmii_eth", 0), model=True)
             elif ethernet_phy_model == "gmii":
-                self.submodules.ethphy = LiteEthPHYGMII(None, self.platform.request("gmii_eth", 0), model=True)
+                self.ethphy = LiteEthPHYGMII(None, self.platform.request("gmii_eth", 0), model=True)
             else:
                 raise ValueError("Unknown Ethernet PHY model:", ethernet_phy_model)
 
@@ -221,7 +221,7 @@ class SimSoC(SoCCore):
         if with_ethernet and with_etherbone:
             etherbone_ip_address = convert_ip(etherbone_ip_address)
             # Ethernet MAC
-            self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=8,
+            self.ethmac = LiteEthMAC(phy=self.ethphy, dw=8,
                 interface  = "hybrid",
                 endianness = self.cpu.endianness,
                 hw_mac     = etherbone_mac_address)
@@ -233,18 +233,18 @@ class SimSoC(SoCCore):
             if self.irq.enabled:
                 self.irq.add("ethmac", use_loc_if_exists=True)
             # HW ethernet
-            self.submodules.arp  = LiteEthARP(self.ethmac, etherbone_mac_address, etherbone_ip_address, sys_clk_freq, dw=8)
-            self.submodules.ip   = LiteEthIP(self.ethmac, etherbone_mac_address, etherbone_ip_address, self.arp.table, dw=8)
-            self.submodules.icmp = LiteEthICMP(self.ip, etherbone_ip_address, dw=8)
-            self.submodules.udp  = LiteEthUDP(self.ip, etherbone_ip_address, dw=8)
+            self.arp  = LiteEthARP(self.ethmac, etherbone_mac_address, etherbone_ip_address, sys_clk_freq, dw=8)
+            self.ip   = LiteEthIP(self.ethmac, etherbone_mac_address, etherbone_ip_address, self.arp.table, dw=8)
+            self.icmp = LiteEthICMP(self.ip, etherbone_ip_address, dw=8)
+            self.udp  = LiteEthUDP(self.ip, etherbone_ip_address, dw=8)
             # Etherbone
-            self.submodules.etherbone = LiteEthEtherbone(self.udp, 1234, mode="master")
+            self.etherbone = LiteEthEtherbone(self.udp, 1234, mode="master")
             self.bus.add_master(master=self.etherbone.wishbone.bus)
 
         # Ethernet ---------------------------------------------------------------------------------
         elif with_ethernet:
             # Ethernet MAC
-            self.submodules.ethmac = ethmac = LiteEthMAC(
+            self.ethmac = ethmac = LiteEthMAC(
                 phy        = self.ethphy,
                 dw         = 64 if ethernet_phy_model == "xgmii" else 32,
                 interface  = "wishbone",
@@ -267,7 +267,7 @@ class SimSoC(SoCCore):
         # I2C --------------------------------------------------------------------------------------
         if with_i2c:
             pads = platform.request("i2c", 0)
-            self.submodules.i2c = I2CMasterSim(pads)
+            self.i2c = I2CMasterSim(pads)
 
         # SDCard -----------------------------------------------------------------------------------
         if with_sdcard:
@@ -282,12 +282,12 @@ class SimSoC(SoCCore):
             if spi_flash_init is None:
                 platform.add_sources(os.path.abspath(os.path.dirname(__file__)), "../build/sim/verilog/iddr_verilog.v")
                 platform.add_sources(os.path.abspath(os.path.dirname(__file__)), "../build/sim/verilog/oddr_verilog.v")
-            self.submodules.spiflash_phy = LiteSPIPHYModel(spiflash_module, init=spi_flash_init)
+            self.spiflash_phy = LiteSPIPHYModel(spiflash_module, init=spi_flash_init)
             self.add_spi_flash(phy=self.spiflash_phy, mode="4x", module=spiflash_module, with_master=True)
 
         # GPIO --------------------------------------------------------------------------------------
         if with_gpio:
-            self.submodules.gpio = GPIOTristate(platform.request("gpio"), with_irq=True)
+            self.gpio = GPIOTristate(platform.request("gpio"), with_irq=True)
             self.irq.add("gpio", use_loc_if_exists=True)
 
         # Simulation debugging ----------------------------------------------------------------------
@@ -318,7 +318,7 @@ class SimSoC(SoCCore):
                 self.cpu.dbus.dat_w,
                 self.cpu.dbus.dat_r,
             ]
-            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals,
+            self.analyzer = LiteScopeAnalyzer(analyzer_signals,
                 depth        = 512,
                 clock_domain = "sys",
                 csr_csv      = "analyzer.csv")
