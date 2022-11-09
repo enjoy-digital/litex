@@ -62,6 +62,37 @@ class SimPlatform(GenericPlatform):
         module.submodules.sim_finish = SimFinish()
         self.trace = None
 
+    @classmethod
+    def fill_args(cls, toolchain, parser):
+        """
+        pass parser to the specific toolchain to
+        fill this with toolchain args
+
+        Parameters
+        ==========
+        toolchain: str
+            toolchain name
+        parser: argparse.ArgumentParser
+            parser to be filled
+        """
+        verilator.verilator_build_args(parser)
+
+    @classmethod
+    def get_argdict(cls, toolchain, args):
+        """
+        return a dict of args
+
+        Parameters
+        ==========
+        toolchain: str
+            toolchain name
+
+        Return
+        ======
+        a dict of key/value for each args or an empty dict
+        """
+        return verilator.verilator_build_argdict(args)
+
 # Sim debug modules --------------------------------------------------------------------------------
 
 class SimTrace(Module, AutoCSR):
