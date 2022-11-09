@@ -362,26 +362,42 @@ def generate_gtkw_savefile(builder, vns, trace_fst):
             dfi_group("dfi commands", ["rddata"])
 
 def sim_args(parser):
+    # ROM / RAM.
     parser.add_argument("--rom-init",             default=None,            help="ROM init file (.bin or .json).")
     parser.add_argument("--ram-init",             default=None,            help="RAM init file (.bin or .json).")
-    parser.add_argument("--main-ram-init-base",   default="0x40000000",    help="(SD)RAM base assumed in init file.")
+
+    # DRAM.
     parser.add_argument("--with-sdram",           action="store_true",     help="Enable SDRAM support.")
     parser.add_argument("--sdram-module",         default="MT48LC16M16",   help="Select SDRAM chip.")
     parser.add_argument("--sdram-data-width",     default=32,              help="Set SDRAM chip data width.")
     parser.add_argument("--sdram-init",           default=None,            help="SDRAM init file (.bin or .json).")
     parser.add_argument("--sdram-from-spd-dump",  default=None,            help="Generate SDRAM module based on data from SPD EEPROM dump.")
     parser.add_argument("--sdram-verbosity",      default=0,               help="Set SDRAM checker verbosity.")
+
+    # Ethernet /Etherbone.
     parser.add_argument("--with-ethernet",        action="store_true",     help="Enable Ethernet support.")
     parser.add_argument("--ethernet-phy-model",   default="sim",           help="Ethernet PHY to simulate (sim, xgmii or gmii).")
     parser.add_argument("--with-etherbone",       action="store_true",     help="Enable Etherbone support.")
     parser.add_argument("--local-ip",             default="192.168.1.50",  help="Local IP address of SoC.")
     parser.add_argument("--remote-ip",            default="192.168.1.100", help="Remote IP address of TFTP server.")
-    parser.add_argument("--with-analyzer",        action="store_true",     help="Enable Analyzer support.")
-    parser.add_argument("--with-i2c",             action="store_true",     help="Enable I2C support.")
+
+    # SDCard.
     parser.add_argument("--with-sdcard",          action="store_true",     help="Enable SDCard support.")
+
+    # SPIFlash.
     parser.add_argument("--with-spi-flash",       action="store_true",     help="Enable SPI Flash (MMAPed).")
     parser.add_argument("--spi_flash-init",       default=None,            help="SPI Flash init file.")
+
+    # I2C.
+    parser.add_argument("--with-i2c",             action="store_true",     help="Enable I2C support.")
+
+    # GPIO.
     parser.add_argument("--with-gpio",            action="store_true",     help="Enable Tristate GPIO (32 pins).")
+
+    # Analyzer.
+    parser.add_argument("--with-analyzer",        action="store_true",     help="Enable Analyzer support.")
+
+    # Debug/Waveform.
     parser.add_argument("--sim-debug",            action="store_true",     help="Add simulation debugging modules.")
     parser.add_argument("--gtkwave-savefile",     action="store_true",     help="Generate GTKWave savefile.")
     parser.add_argument("--non-interactive",      action="store_true",     help="Run simulation without user input.")
@@ -401,31 +417,30 @@ def main():
 
     # Configuration --------------------------------------------------------------------------------
 
-    cpu            = CPUS.get(soc_kwargs.get("cpu_type", "vexriscv"))
-    bus_data_width = int(soc_kwargs["bus_data_width"])
-
     # UART.
     if soc_kwargs["uart_name"] == "serial":
         soc_kwargs["uart_name"] = "sim"
         sim_config.add_module("serial2console", "serial")
 
+    # Create config SoC that will be used to prepare/configure real one.
+    conf_soc = SimSoC(**soc_kwargs)
+
     # ROM.
     if args.rom_init:
         soc_kwargs["integrated_rom_init"] = get_mem_data(args.rom_init,
-            data_width = bus_data_width,
-            endianness = cpu.endianness
+            data_width = conf_soc.bus.data_width,
+            endianness = conf_soc.cpu.endianness
         )
 
     # RAM / SDRAM.
-    ram_boot_offset  = int(args.main_ram_init_base, 0) # FIXME: use main_ram in memmap
     ram_boot_address = None
     soc_kwargs["integrated_main_ram_size"] = args.integrated_main_ram_size
     if args.integrated_main_ram_size:
         if args.ram_init is not None:
             soc_kwargs["integrated_main_ram_init"] = get_mem_data(args.ram_init,
-                data_width = bus_data_width,
-                endianness = cpu.endianness,
-                offset     = ram_boot_offset
+                data_width = conf_soc.bus.data_width,
+                endianness = conf_soc.cpu.endianness,
+                offset     = conf_soc.mem_map["main_ram"]
             )
             ram_boot_address = get_boot_address(args.ram_init)
     elif args.with_sdram:
@@ -437,11 +452,11 @@ def main():
             soc_kwargs["sdram_spd_data"] = parse_spd_hexdump(args.sdram_from_spd_dump)
         if args.sdram_init is not None:
             soc_kwargs["sdram_init"] = get_mem_data(args.sdram_init,
-                data_width = bus_data_width,
-                endianness = cpu.endianness,
-                offset     = ram_boot_offset
+                data_width = conf_soc.bus.data_width,
+                endianness = conf_soc.cpu.endianness,
+                offset     = conf_soc.mem_map["main_ram"]
             )
-            ram_boot_address         = get_boot_address(args.sdram_init)
+            ram_boot_address = get_boot_address(args.sdram_init)
 
     # Ethernet.
     if args.with_ethernet or args.with_etherbone:
