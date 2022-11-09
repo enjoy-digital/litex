@@ -378,7 +378,7 @@ static void sdram_leveling_center_module(
 	int working;
 	unsigned int errors;
 	int delay, delay_mid, delay_range;
-	int delay_min = -1, delay_max = -1;
+	int delay_min = -1, delay_max = -1, cur_delay_min = -1;
 
 	if (show_long)
 		printf("m%d: |", module);
@@ -406,20 +406,9 @@ static void sdram_leveling_center_module(
 		inc_delay(module);
 	}
 
-	/* Get a bit further into the working zone */
-#if SDRAM_PHY_DELAYS > 32
-	#define	SDRAM_PHY_DELAY_JUMP 16
-#elif SDRAM_PHY_DELAYS > 8
-	#define SDRAM_PHY_DELAY_JUMP 4
-#else
-	#define SDRAM_PHY_DELAY_JUMP 1
-#endif
-	for(i=0;i<SDRAM_PHY_DELAY_JUMP;i++) {
-		delay += 1;
-		inc_delay(module);
-	}
-
-	/* Find largest working delay */
+	delay_max = delay_min;
+	cur_delay_min = delay_min;
+	/* Find largest working delay range */
 	while(1) {
 		errors  = sdram_write_read_check_test_pattern(module, 42);
 		errors += sdram_write_read_check_test_pattern(module, 84);
@@ -430,8 +419,16 @@ static void sdram_leveling_center_module(
 #endif
 		if (show)
 			print_scan_errors(errors);
-		if(!working && delay_max < 0) {
-			delay_max = delay;
+
+		if (working) {
+			int cur_delay_length = delay - cur_delay_min;
+			int best_delay_length = delay_max - delay_min;
+			if (cur_delay_length > best_delay_length) {
+				delay_min = cur_delay_min;
+				delay_max = delay;
+			}
+		} else {
+			cur_delay_min = delay + 1;
 		}
 		delay++;
 		if(delay >= SDRAM_PHY_DELAYS)
