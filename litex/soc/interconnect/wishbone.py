@@ -166,7 +166,8 @@ class Arbiter(Module):
         if controllers is not None:
             masters = controllers
 
-        self.submodules.rr = roundrobin.RoundRobin(len(masters))
+        self.submodules.rr = roundrobin.RoundRobin(len(masters), roundrobin.SP_CE)
+        cycs = Array(m.cyc for m in masters)
 
         # mux master->slave signals
         for name, size, direction in _layout:
@@ -184,6 +185,8 @@ class Arbiter(Module):
                         self.comb += dest.eq(source & (self.rr.grant == i))
                     else:
                         self.comb += dest.eq(source)
+
+        self.comb += self.rr.ce.eq(target.ack | ~cycs[self.rr.grant])
 
         # connect bus requests to round-robin selector
         reqs = [m.cyc for m in masters]
