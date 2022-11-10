@@ -671,9 +671,9 @@ static int sdram_write_leveling_scan(int *delays, int loops, int show)
 		one_window_best_start = 0;
 		one_window_best_count = -1;
 		delays[i] = -1;
-		for(j=0;j<err_ddrphy_wdly;j++) {
+		for(j=0;j<err_ddrphy_wdly+1;j++) {
 			if (one_window_active) {
-				if ((taps_scan[j] == 0) | (j == err_ddrphy_wdly - 1)) {
+				if ((j == err_ddrphy_wdly) || (taps_scan[j] == 0)) {
 					one_window_active = 0;
 					one_window_count = j - one_window_start;
 					if (one_window_count > one_window_best_count) {
@@ -682,7 +682,7 @@ static int sdram_write_leveling_scan(int *delays, int loops, int show)
 					}
 				}
 			} else {
-				if (taps_scan[j]) {
+				if (j != err_ddrphy_wdly && taps_scan[j]) {
 					one_window_active = 1;
 					one_window_start = j;
 				}
