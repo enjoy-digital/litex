@@ -847,7 +847,7 @@ class SoC(LiteXModule, SoCCoreCompat):
 
         # SoC attributes ---------------------------------------------------------------------------
         self.platform     = platform
-        self.sys_clk_freq = sys_clk_freq
+        self.sys_clk_freq = int(sys_clk_freq) # Do conversion to int here to allow passing float to SoC.
         self.constants    = {}
         self.csr_regions  = {}
 

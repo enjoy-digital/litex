@@ -111,7 +111,7 @@ class SoCCore(LiteXSoC):
         # Others
         **kwargs):
 
-        # New LiteXSoC class ----------------------------------------------------------------------------
+        # New LiteXSoC class -----------------------------------------------------------------------
         LiteXSoC.__init__(self, platform, clk_freq,
             bus_standard         = bus_standard,
             bus_data_width       = bus_data_width,
