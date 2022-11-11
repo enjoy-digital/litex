@@ -5,9 +5,10 @@
 # This file is Copyright (c) 2022 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import sys
+import logging
 import argparse
 import importlib
-import sys
 
 from litex.soc.cores import cpu
 from litex.soc.integration import soc_core
@@ -53,9 +54,11 @@ class LiteXArgumentParser(argparse.ArgumentParser):
         self._args              = None
         self._toolchain         = None
         self._target_group      = None
+        self._logging_group     = None
         if platform is not None:
             self.set_platform(platform)
             self.add_target_group()
+        self.add_logging_group()
 
     def set_platform(self, platform):
         """ set platform. Check first if not already set
@@ -100,6 +103,13 @@ class LiteXArgumentParser(argparse.ArgumentParser):
         if self._target_group is None:
             self._target_group = self.add_argument_group(title="Target options")
         self._target_group.add_argument(*args, **kwargs)
+
+    def add_logging_group(self):
+        """ create logging group and add --log-filename/log-level args.
+        """
+        self._logging_group = self.add_argument_group(title="Logging options")
+        self._logging_group.add_argument("--log-filename", default=None,   help="Logging filename.")
+        self._logging_group.add_argument("--log-level",    default="info", help="Logging level: debug, info (default), warning error or critical.")
 
     @property
     def builder_argdict(self):
@@ -174,6 +184,18 @@ class LiteXArgumentParser(argparse.ArgumentParser):
         # Re-inject CPU read arguments.
         if cpu_cls is not None and hasattr(cpu_cls, "args_read"):
             cpu_cls.args_read(self._args)
+
+        # Configure logging.
+        logging.basicConfig(
+            filename = self._args.log_filename,
+            level    = {
+                "debug"    : logging.DEBUG,
+                "info"     : logging.INFO,
+                "warning"  : logging.WARNING,
+                "error"    : logging.ERROR,
+                "critical" : logging.CRITICAL,
+            }[self._args.log_level]
+        )
 
         return self._args
 
