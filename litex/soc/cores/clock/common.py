@@ -11,8 +11,6 @@ from migen import Record
 
 from litex.gen import colorer
 
-logging.basicConfig(level=logging.INFO)
-
 # Logging ------------------------------------------------------------------------------------------
 
 def register_clkin_log(logger, clkin, freq):

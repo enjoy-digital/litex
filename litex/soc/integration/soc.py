@@ -31,7 +31,6 @@ from litex.soc.interconnect import stream
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect import axi
 
-logging.basicConfig(level=logging.INFO)
 
 # Helpers ------------------------------------------------------------------------------------------
 
@@ -831,7 +830,9 @@ class SoC(LiteXModule, SoCCoreCompat):
         irq_n_irqs           = 32,
         irq_reserved_irqs    = {},
         ):
-
+        # Create logging config only if not already configured.
+        if not len(logging.root.handlers):
+            logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger("SoC")
         self.logger.info(colorer("        __   _ __      _  __  ", color="bright"))
         self.logger.info(colorer("       / /  (_) /____ | |/_/  ", color="bright"))
