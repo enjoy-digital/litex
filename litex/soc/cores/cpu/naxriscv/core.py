@@ -260,8 +260,7 @@ class NaxRiscv(CPU):
         cmd = f"""cd {ndir} && sbt "runMain naxriscv.platform.LitexGen {" ".join(gen_args)}\""""
         print("NaxRiscv generation command :")
         print(cmd)
-        if os.system(cmd) != 0:
-            raise OSError('Failed to run sbt')
+        subprocess.check_call(cmd, shell=True)
 
 
     def add_sources(self, platform):
