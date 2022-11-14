@@ -147,16 +147,16 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=
             do_read.eq(axi_lite.ar.valid),
         ),
         # Start reading/writing immediately not to waste a cycle.
+        axi_lite.aw.ready.eq(last_was_read  | ~axi_lite.ar.valid),
+        axi_lite.ar.ready.eq(~last_was_read | ~axi_lite.aw.valid),
         If(do_write,
             port_adr.eq(axi_lite.aw.addr[adr_shift:]),
             If(axi_lite.w.valid,
-                axi_lite.aw.ready.eq(1),
                 axi_lite.w.ready.eq(1),
                 NextState("SEND-WRITE-RESPONSE")
             )
         ).Elif(do_read,
             port_adr.eq(axi_lite.ar.addr[adr_shift:]),
-            axi_lite.ar.ready.eq(1),
             NextState("SEND-READ-RESPONSE"),
         )
     )
