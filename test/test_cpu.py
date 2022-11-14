@@ -39,7 +39,6 @@ class TestCPU(unittest.TestCase):
             "cv32e40p",     # (riscv   / softcore)
             "femtorv",      # (riscv   / softcore)
             "firev",        # (riscv   / softcore)
-            "ibex",         # (riscv   / softcore)
             "marocchino",   # (or1k    / softcore)
             "naxriscv",     # (riscv   / softcore)
             "serv",         # (riscv   / softcore)
@@ -55,6 +54,7 @@ class TestCPU(unittest.TestCase):
             "cva6",         # (riscv   / softcore) -> Needs to be tested.
             "eos_s3",       # (arm     / hardcore) -> Hardcore.
             "gowin_emcu",   # (arm     / hardcore) -> Hardcore.
+            "ibex",         # (riscv   / softcore) -> Broken since 2022.11.12.
             "lm32",         # (lm32    / softcore) -> Requires LM32 toolchain.
             "microwatt",    # (ppc64   / softcore) -> Requires PPC toolchain + VHDL->Verilog (GHDL + Yosys).
             "minerva",      # (riscv   / softcore) -> Broken install? (Amaranth?)
