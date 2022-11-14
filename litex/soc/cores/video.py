@@ -1036,7 +1036,7 @@ class VideoS7GTPHDMIPHY(Module):
                     self.n = n
             tx_pads = GTPPads(p=getattr(pads, f"data{channel}_p"), n=getattr(pads, f"data{channel}_n"))
             # FIXME: Find a way to avoid RX pads.
-            rx_pads = GTPPads(p=getattr(pads, f"rx{channe}_p"),    n=getattr(pads, f"rx{channel}_n"))
+            rx_pads = GTPPads(p=getattr(pads, f"rx{channel}_p"),    n=getattr(pads, f"rx{channel}_n"))
             gtp = GTP(pll, tx_pads, rx_pads=rx_pads, sys_clk_freq=sys_clk_freq,
                 tx_polarity      = 1, # FIXME: Specific to Decklink Mini 4K, make it configurable.
                 tx_buffer_enable = True,
