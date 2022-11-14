@@ -766,7 +766,7 @@ class AXILiteCrossbar(Module):
     """
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
         matches, busses = zip(*slaves)
-        access_m_s = [[AXILiteInterface() for j in slaves] for i in masters]  # a[master][slave]
+        access_m_s = [[AXILiteInterface(data_width=masters[0].data_width) for j in slaves] for i in masters]  # a[master][slave]
         access_s_m = list(zip(*access_m_s))  # a[slave][master]
         # Decode each master into its access row.
         for slaves, master in zip(access_m_s, masters):

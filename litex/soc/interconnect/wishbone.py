@@ -232,7 +232,7 @@ class InterconnectShared(Module):
 class Crossbar(Module):
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
         matches, busses = zip(*slaves)
-        access = [[Interface() for j in slaves] for i in masters]
+        access = [[Interface(data_width=masters[0].data_width) for j in slaves] for i in masters]
         # decode each master into its access row
         for row, master in zip(access, masters):
             row = list(zip(matches, row))
