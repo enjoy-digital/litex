@@ -745,6 +745,21 @@ class AXILiteDecoder(Module):
 
 # AXI-Lite Interconnect ----------------------------------------------------------------------------
 
+def get_check_parameters(ports):
+    # Data-Width.
+    data_width = ports[0].data_width
+    if len(ports) > 1:
+        for port in ports[1:]:
+            assert port.data_width == data_width
+
+    # Address-Width.
+    address_width = ports[0].address_width
+    if len(ports) > 1:
+        for port in ports[1:]:
+            assert port.address_width == address_width
+
+    return data_width, address_width
+
 class AXILiteInterconnectPointToPoint(Module):
     """AXI Lite point to point interconnect"""
     def __init__(self, master, slave):
@@ -753,7 +768,8 @@ class AXILiteInterconnectPointToPoint(Module):
 class AXILiteInterconnectShared(Module):
     """AXI Lite shared interconnect"""
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
-        shared = AXILiteInterface(data_width=masters[0].data_width)
+        data_width, address_width = get_check_parameters(ports=masters + [s for _, s in slaves])
+        shared = AXILiteInterface(data_width=data_width, address_width=address_width)
         self.submodules.arbiter = AXILiteArbiter(masters, shared)
         self.submodules.decoder = AXILiteDecoder(shared, slaves)
         if timeout_cycles is not None:
@@ -765,8 +781,9 @@ class AXILiteCrossbar(Module):
     MxN crossbar for M masters and N slaves.
     """
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
+        data_width, address_width = get_check_parameters(ports=masters + [s for _, s in slaves])
         matches, busses = zip(*slaves)
-        access_m_s = [[AXILiteInterface(data_width=masters[0].data_width) for j in slaves] for i in masters]  # a[master][slave]
+        access_m_s = [[AXILiteInterface(data_width, address_width=address_width) for j in slaves] for i in masters]  # a[master][slave]
         access_s_m = list(zip(*access_m_s))  # a[slave][master]
         # Decode each master into its access row.
         for slaves, master in zip(access_m_s, masters):

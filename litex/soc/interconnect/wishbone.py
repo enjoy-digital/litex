@@ -143,6 +143,21 @@ class Timeout(Module):
 
 # Wishbone Interconnect ----------------------------------------------------------------------------
 
+def get_check_parameters(ports):
+    # Data-Width.
+    data_width = ports[0].data_width
+    if len(ports) > 1:
+        for port in ports[1:]:
+            assert port.data_width == data_width
+
+    # Address-Width.
+    adr_width = ports[0].adr_width
+    if len(ports) > 1:
+        for port in ports[1:]:
+            assert port.adr_width == adr_width
+
+    return data_width, adr_width
+
 class InterconnectPointToPoint(Module):
     def __init__(self, master, slave):
         self.comb += master.connect(slave)
@@ -222,7 +237,8 @@ class Decoder(Module):
 
 class InterconnectShared(Module):
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
-        shared = Interface(data_width=masters[0].data_width)
+        data_width, adr_width = get_check_parameters(ports=masters + [s for _, s in slaves])
+        shared = Interface(data_width=data_width, adr_width=adr_width)
         self.submodules.arbiter = Arbiter(masters, shared)
         self.submodules.decoder = Decoder(shared, slaves, register)
         if timeout_cycles is not None:
@@ -231,8 +247,9 @@ class InterconnectShared(Module):
 
 class Crossbar(Module):
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
+        data_width, adr_width = get_check_parameters(ports=masters + [s for _, s in slaves])
         matches, busses = zip(*slaves)
-        access = [[Interface(data_width=masters[0].data_width) for j in slaves] for i in masters]
+        access = [[Interface(data_width=data_width, adr_width=adr_width) for j in slaves] for i in masters]
         # decode each master into its access row
         for row, master in zip(access, masters):
             row = list(zip(matches, row))
