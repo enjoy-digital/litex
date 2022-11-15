@@ -32,6 +32,9 @@ class CPU(Module):
     csr_decode           = True
     reset_address_check  = True
 
+    def __init__(self, *args, **kwargs):
+        pass
+
     def set_reset_address(self, reset_address):
         pass # pass must be overloaded (if required)
 
