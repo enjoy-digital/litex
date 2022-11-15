@@ -65,6 +65,7 @@ class SoCCore(LiteXSoC):
         cpu_reset_address        = None,
         cpu_variant              = None,
         cpu_cfu                  = None,
+        cpu_custom_memory        = False,
 
         # CFU parameters
         cfu_filename             = None,
@@ -143,8 +144,9 @@ class SoCCore(LiteXSoC):
         cpu_type          = None if cpu_type == "None" else cpu_type
         cpu_reset_address = None if cpu_reset_address == "None" else cpu_reset_address
 
-        self.cpu_type     = cpu_type
-        self.cpu_variant  = cpu_variant
+        self.cpu_type          = cpu_type
+        self.cpu_variant       = cpu_variant
+        self.cpu_custom_memory = cpu_custom_memory
 
         # ROM.
         # Initialize ROM from binary file when provided.

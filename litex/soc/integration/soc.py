@@ -1241,7 +1241,7 @@ class SoC(LiteXModule, SoCCoreCompat):
                     cpu_reset_address_valid = True
                     if name == "rom":
                         self.cpu.use_rom = True
-            if not cpu_reset_address_valid:
+            if not cpu_reset_address_valid and not self.cpu_custom_memory:
                 self.logger.error("CPU needs {} to be in a {} Region.".format(
                     colorer("reset address 0x{:08x}".format(self.cpu.reset_address)),
                     colorer("defined", color="red")))
