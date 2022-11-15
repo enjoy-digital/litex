@@ -22,13 +22,14 @@ class CommUDP(CSRBuilder):
         self.port   = port
         self.debug  = debug
         self.timeout= timeout
+        self.read_counter = 0
 
     def open(self, probe=True):
         if hasattr(self, "socket"):
             return
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.bind(("", self.port))
-        self.socket.settimeout(2)
+        self.socket.settimeout(self.timeout)
         if probe:
             self.probe(self.server, self.port)
 
@@ -46,7 +47,6 @@ class CommUDP(CSRBuilder):
         packet.bytes += bytes([0x00, 0x00, 0x00, 0x00]) # Add Padding as payload.
 
         retries = 10
-        self.socket.settimeout(self.timeout / retries)
 
         # Send probe request to server and get server's response.
         for r in range(retries):
@@ -76,44 +76,60 @@ class CommUDP(CSRBuilder):
     def scan(self, ip="192.168.1.x"):
         print(f"Etherbone scan on {ip} network:")
         ip = ip.replace("x", "{}")
-        self.socket.settimeout(0.01)
         for i in range(1, 255):
             if self.probe(ip=ip.format(str(i)), port=self.port, loose=True):
                 print("- {}".format(ip.format(i)))
-        self.socket.settimeout(1)
 
     def read(self, addr, length=None, burst="incr"):
         assert burst == "incr"
         length_int = 1 if length is None else length
-        record = EtherboneRecord()
-        record.reads = EtherboneReads(addrs=[addr+4*j for j in range(length_int)])
-        record.rcount = len(record.reads)
-
-        packet = EtherbonePacket()
-        packet.records = [record]
-        packet.encode()
 
         retries = 10
 
-        self.socket.settimeout(self.timeout / retries)
         for r in range(retries):
+            self.read_counter += 1
+
+            record = EtherboneRecord()
+            record.reads = EtherboneReads(addrs=[addr+4*j for j in range(length_int)])
+            record.rcount = len(record.reads)
+            record.reads.base_ret_addr = self.read_counter
+
+            packet = EtherbonePacket()
+            packet.records = [record]
+            packet.encode()
+
             self.socket.sendto(packet.bytes, (self.server, self.port))
-            try:
-                datas, dummy = self.socket.recvfrom(8192)
-            except socket.timeout:
-                if self.debug:
-                    print("socket timeout, retrying ({}/{})".format(r+1, retries))
-                continue
-            break
+
+            timed_out = False
+            while True:
+                try:
+                    datas, dummy = self.socket.recvfrom(8192)
+                except socket.timeout:
+                    if self.debug:
+                        print("socket timeout, retrying ({}/{})".format(r+1, retries))
+                    timed_out = True
+                    break
+
+                packet = EtherbonePacket(datas)
+                packet.decode()
+                record = packet.records.pop()
+                datas = record.writes.get_datas()
+                if record.writes.base_addr == self.read_counter:
+                    break
+                else:
+                    if self.debug:
+                        print(f"WARNING: request/response id mismatch: 0x{self.read_counter:08x} != 0x{record.writes.base_addr:08x}")
+
+            if not timed_out:
+                break
+
         else:
             raise socket.timeout
 
-        packet = EtherbonePacket(datas)
-        packet.decode()
-        datas = packet.records.pop().writes.get_datas()
         if self.debug:
             for i, value in enumerate(datas):
                 print("read 0x{:08x} @ 0x{:08x}".format(value, addr + 4*i))
+
         return datas[0] if length is None else datas
 
     def write(self, addr, datas):
