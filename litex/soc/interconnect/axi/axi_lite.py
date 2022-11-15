@@ -538,7 +538,7 @@ class AXILiteTimeout(Module):
                 timer.wait.eq(wait_cond),
                 # done is updated in `sync`, so we must make sure that `ready` has not been issued
                 # by slave during that single cycle, by checking `timer.wait`.
-                If(timer.done & timer.wait,
+                If(timer.done & wait_cond, # timer.wait.eq(wait_cond)
                     error.eq(1),
                     NextState("RESPOND")
                 )
@@ -555,7 +555,7 @@ class AXILiteTimeout(Module):
                 master.w.ready.eq(master.w.valid),
                 master.b.valid.eq(~master.aw.valid & ~master.w.valid),
                 master.b.resp.eq(RESP_SLVERR),
-                If(master.b.valid & master.b.ready,
+                If((~master.aw.valid & ~master.w.valid) & master.b.ready, # master.b.valid.eq(~master.aw.valid & ~master.w.valid)
                     NextState("WAIT")
                 )
             ])
@@ -569,7 +569,7 @@ class AXILiteTimeout(Module):
                 master.r.valid.eq(~master.ar.valid),
                 master.r.resp.eq(RESP_SLVERR),
                 master.r.data.eq(2**len(master.r.data) - 1),
-                If(master.r.valid & master.r.ready,
+                If(~master.ar.valid & master.r.ready, # master.ar.ready.eq(master.ar.valid),
                     NextState("WAIT")
                 )
             ])
