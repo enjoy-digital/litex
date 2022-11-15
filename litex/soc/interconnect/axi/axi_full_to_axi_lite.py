@@ -81,7 +81,8 @@ class AXI2AXILite(Module):
             axi.r.data.eq(axi_lite.r.data),
             axi_lite.r.ready.eq(axi.r.ready),
             # Exit
-            If(axi.r.valid & axi.r.last & axi.r.ready,
+            # If(axi.r.valid & axi.r.last & axi.r.ready,   # Original semantic intent
+            If(axi_lite.r.valid & _cmd_done & axi.r.ready, # Revised so assignments not affecting always(@*) sensitivity list
                 ax_beat.ready.eq(1),
                 NextState("IDLE")
             )
@@ -105,7 +106,8 @@ class AXI2AXILite(Module):
             axi_lite.w.strb.eq(axi.w.strb),
             axi.w.ready.eq(axi_lite.w.ready),
             # Exit
-            If(axi.w.valid & axi.w.last & axi.w.ready,
+            # If(axi.w.valid & axi.w.last & axi.w.ready,    # Original semantic intent
+            If(axi.w.valid & axi.w.last & axi_lite.w.ready, # Revised so assignments not affecting always(@*) sensitivity list
                 NextState("WRITE-RESP")
             )
         )
