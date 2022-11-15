@@ -1074,14 +1074,13 @@ class SoC(LiteXModule, SoCCoreCompat):
         # Add Bus Masters/CSR/IRQs.
         if not isinstance(self.cpu, cpu.CPUNone):
             # Reset Address.
-            if hasattr(self.cpu, "set_reset_address"):
-                if reset_address is None:
-                    reset_address = self.mem_map["rom"]
-                self.logger.info("CPU {} {} reset address to {}.".format(
-                    colorer(name, color="underline"),
-                    colorer("setting", color="cyan"),
-                    colorer(f"0x{reset_address:08x}")))
-                self.cpu.set_reset_address(reset_address)
+            if reset_address is None:
+                reset_address = self.mem_map["rom"]
+            self.logger.info("CPU {} {} reset address to {}.".format(
+                colorer(name, color="underline"),
+                colorer("setting", color="cyan"),
+                colorer(f"0x{reset_address:08x}")))
+            self.cpu.set_reset_address(reset_address)
 
             # Bus Masters.
             self.logger.info("CPU {} {} Bus Master(s).".format(
@@ -1231,22 +1230,26 @@ class SoC(LiteXModule, SoCCoreCompat):
         for name, constant in self.csr_bankarray.constants:
             self.add_constant(name + "_" + constant.name, constant.value.value)
 
-        # SoC CPU Check ----------------------------------------------------------------------------
-        if not isinstance(self.cpu, cpu.CPUNone):
-            cpu_reset_address_valid = False
-            for name, container in self.bus.regions.items():
-                if self.bus.check_region_is_in(
-                    region    = SoCRegion(origin=self.cpu.reset_address, size=self.bus.data_width//8),
-                    container = container):
-                    cpu_reset_address_valid = True
-                    if name == "rom":
-                        self.cpu.use_rom = True
-            if not cpu_reset_address_valid:
-                self.logger.error("CPU needs {} to be in a {} Region.".format(
-                    colorer("reset address 0x{:08x}".format(self.cpu.reset_address)),
-                    colorer("defined", color="red")))
-                self.logger.error(self.bus)
-                raise SoCError()
+        # SoC CPU Reset Address Check --------------------------------------------------------------
+
+        # Check if CPU Reset Address is in a defined Region.
+        cpu_reset_address_valid = False
+        for name, container in self.bus.regions.items():
+            if self.bus.check_region_is_in(
+                region    = SoCRegion(origin=self.cpu.reset_address, size=self.bus.data_width//8),
+                container = container):
+                cpu_reset_address_valid = True
+                # If we have a ROM, make the CPU use it.
+                if name == "rom":
+                    self.cpu.use_rom = True
+
+        # If CPU Reset Address Check is enabled and Reset Address is invalid, raise SoCError.
+        if self.cpu.reset_address_check and (not cpu_reset_address_valid):
+            self.logger.error("CPU needs {} to be in a {} Region.".format(
+                colorer("reset address 0x{:08x}".format(self.cpu.reset_address)),
+                colorer("defined", color="red")))
+            self.logger.error(self.bus)
+            raise SoCError()
 
         # SoC IRQ Interconnect ---------------------------------------------------------------------
         if hasattr(self, "cpu") and hasattr(self.cpu, "interrupt"):
