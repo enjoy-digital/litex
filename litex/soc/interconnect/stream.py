@@ -398,7 +398,11 @@ class _UpConverter(Module):
         for i in range(ratio):
             n = ratio-i-1 if reverse else i
             cases[i] = source.data[n*nbits_from:(n+1)*nbits_from].eq(sink.data)
-        self.sync += If(load_part, Case(demux, cases))
+        self.sync += If(
+                load_part, Case(demux, cases)
+            ).Else(
+                source.data.eq(0)
+            )
 
         # Valid token count
         self.sync += If(load_part, source.valid_token_count.eq(demux + 1))
