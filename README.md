@@ -15,7 +15,7 @@ The LiteX framework provides a convenient and efficient infrastructure to create
 
 **Want to get started and/or looking for documentation? Make sure to visit the [Wiki](https://github.com/enjoy-digital/litex/wiki)!**
 
-**A question or want to get in touch? Our IRC channel is [#litex at irc.libera.chat]**.
+**A question or want to get in touch? Join us on [Discord](https://discord.gg/Qhz8yEZA) or on our IRC channel: [#litex at irc.libera.chat]**.
 
 LiteX provides all the common components required to easily create an FPGA Core/SoC:
  - :heavy_check_mark: Buses and Streams (Wishbone, AXI, Avalon-ST) and their  interconnect.
