@@ -346,6 +346,7 @@ class _UpConverter(Module):
         self.sink   = sink   = Endpoint([("data", nbits_from)])
         self.source = source = Endpoint([("data", nbits_to), ("valid_token_count", bits_for(ratio))])
         self.latency = 1
+        self.aw = Signal(32)
 
         # # #
 
@@ -353,19 +354,26 @@ class _UpConverter(Module):
         demux      = Signal(max=ratio)
         load_part  = Signal()
         strobe_all = Signal()
+        load_part_d = Signal()
         self.comb += [
             sink.ready.eq(~strobe_all | source.ready),
             source.valid.eq(strobe_all),
             load_part.eq(sink.valid & sink.ready)
         ]
+        self.sync += load_part_d.eq(load_part)
 
         demux_last = ((demux == (ratio - 1)) | sink.last)
-
+        # 0-3 should mux to the even channel
+        # 4-7 should mux to the odd channel
         self.sync += [
             If(source.ready, strobe_all.eq(0)),
             If(load_part,
                 If(demux_last,
-                    demux.eq(0),
+                    If(~load_part_d,
+                        demux.eq( (self.aw & 7) > 3 ),
+                    ).Else(
+                        demux.eq(0),
+                    ),
                     strobe_all.eq(1)
                 ).Else(
                     demux.eq(demux + 1)
@@ -478,6 +486,8 @@ class Converter(Module):
         converter = self.cls(nbits_from, nbits_to, self.ratio, reverse)
         self.submodules += converter
         self.latency = converter.latency
+        if self.cls == _UpConverter:
+            self.aw = converter.aw
 
         self.sink = converter.sink
         if report_valid_token_count:
@@ -491,6 +501,7 @@ class StrideConverter(Module):
     def __init__(self, description_from, description_to, reverse=False):
         self.sink   = sink   = Endpoint(description_from)
         self.source = source = Endpoint(description_to)
+        self.aw = Signal(32)
 
         # # #
 
@@ -528,6 +539,7 @@ class StrideConverter(Module):
             converter.source.ready.eq(source.ready)
         ]
         if converter.cls == _UpConverter:
+            self.comb += converter.aw.eq(self.aw)
             ratio = converter.ratio
             for i in range(ratio):
                 j = 0
