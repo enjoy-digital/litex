@@ -356,12 +356,14 @@ class _UpConverter(Module):
         demux_cnt  = Signal(max=ratio) # counts how many cycles we've cycled
         demux_val  = Signal(max=ratio) # tracks the actual value of the demux; may be primed with non-zero value
         prime_demux = Signal(reset=1)
-        load_part  = Signal()
+        load_data  = Signal()
+        load_addr  = Signal()
         strobe_all = Signal()
         self.comb += [
             sink.ready.eq(~strobe_all | source.ready),
             source.valid.eq(strobe_all),
-            load_part.eq(self.aw_valid & self.aw_ready)
+            load_data.eq(sink.valid & sink.ready),
+            load_addr.eq(self.aw_valid & self.aw_ready)
         ]
 
         demux_last = ((demux_cnt == (ratio - 1)) | sink.last)
@@ -370,18 +372,20 @@ class _UpConverter(Module):
         self.sync += [
             If(sink.last,
                 prime_demux.eq(1),
-            ).Elif(load_part,
+            ).Elif(load_data,
                 prime_demux.eq(0),
             ).Else(
                 prime_demux.eq(prime_demux),
             ),
             If(source.ready, strobe_all.eq(0)),
-            If(load_part,
+            If(load_addr,
                 If(prime_demux,
                     demux_val.eq( (self.aw & 7) > 3 ),
                 ).Else(
                     demux_val.eq(demux_val + 1),
                 ),
+            ),
+            If(load_data,
                 If(demux_last,
                     demux_cnt.eq(0),
                     strobe_all.eq(1)
@@ -409,12 +413,12 @@ class _UpConverter(Module):
             n = ratio-i-1 if reverse else i
             cases[i] = source.data[n*nbits_from:(n+1)*nbits_from].eq(sink.data)
         self.sync += If(
-                load_part,
+                load_data,
                 source.data.eq(0),
                 Case(demux_val, cases)
             )
         # Valid token count
-        self.sync += If(load_part, source.valid_token_count.eq(demux_cnt + 1))
+        self.sync += If(load_data, source.valid_token_count.eq(demux_cnt + 1))
 
 
 class _DownConverter(Module):
