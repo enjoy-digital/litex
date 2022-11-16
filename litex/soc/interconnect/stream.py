@@ -380,7 +380,7 @@ class _UpConverter(Module):
             If(source.ready, strobe_all.eq(0)),
             If(load_addr,
                 If(prime_demux,
-                    demux_val.eq( (self.aw & 7) > 3 ),
+                    demux_val.eq( (self.aw & 7) < 4 ),
                 ).Else(
                     demux_val.eq(demux_val + 1),
                 ),
@@ -453,7 +453,7 @@ class _DownConverter(Module):
         # Data path
         cases = {}
         for i in range(ratio):
-            n = ratio-i-1 if not reverse else i # FIXME: flipped polarity for AXI stream case. Need to figure out how to make more generic?
+            n = ratio-i-1 if reverse else i
             cases[i] = source.data.eq(sink.data[n*nbits_to:(n+1)*nbits_to])
         self.comb += Case(mux, cases).makedefault()
 
