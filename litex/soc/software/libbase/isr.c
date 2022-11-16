@@ -49,9 +49,20 @@ void plic_init(void)
 	*((unsigned int *)PLIC_THRSHLD) = 0;
 }
 
+static void dump_trap_csr(void)
+{
+	printf("# mepc:    %016lx\n", csrr(mepc));
+	printf("# mcause:  %016lx\n", csrr(mcause));
+	printf("# mtval:   %016lx\n", csrr(mtval));
+	printf("# mie:     %016lx\n", csrr(mie));
+	printf("# mip:     %016lx\n", csrr(mip));
+	printf("###########################\n\n");
+}
+
 void isr(void)
 {
 	unsigned int claim;
+	int handled = 0;
 
 	while ((claim = *((unsigned int *)PLIC_CLAIM))) {
 		switch (claim - PLIC_EXT_IRQ_BASE) {
@@ -62,15 +73,15 @@ void isr(void)
 			printf("## PLIC: Unhandled claim: %d\n", claim);
 			printf("# plic_enabled:    %08x\n", irq_getmask());
 			printf("# plic_pending:    %08x\n", irq_pending());
-			printf("# mepc:    %016lx\n", csrr(mepc));
-			printf("# mcause:  %016lx\n", csrr(mcause));
-			printf("# mtval:   %016lx\n", csrr(mtval));
-			printf("# mie:     %016lx\n", csrr(mie));
-			printf("# mip:     %016lx\n", csrr(mip));
-			printf("###########################\n\n");
+			dump_trap_csr();
 			break;
 		}
+		handled = 1;
 		*((unsigned int *)PLIC_CLAIM) = claim;
+	}
+	if (!handled) {
+		printf("## RISCV: Non-PLIC trap\n");
+		dump_trap_csr();
 	}
 }
 #elif defined(__cv32e40p__)
