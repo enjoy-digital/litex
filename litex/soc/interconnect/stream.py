@@ -453,7 +453,7 @@ class _DownConverter(Module):
         # Data path
         cases = {}
         for i in range(ratio):
-            n = ratio-i-1 if reverse else i
+            n = ratio-i-1 if not reverse else i # FIXME: flipped polarity for AXI stream case. Need to figure out how to make more generic?
             cases[i] = source.data.eq(sink.data[n*nbits_to:(n+1)*nbits_to])
         self.comb += Case(mux, cases).makedefault()
 
