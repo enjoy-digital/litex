@@ -347,36 +347,46 @@ class _UpConverter(Module):
         self.source = source = Endpoint([("data", nbits_to), ("valid_token_count", bits_for(ratio))])
         self.latency = 1
         self.aw = Signal(32)
+        self.aw_valid = Signal()
+        self.aw_ready = Signal()
 
         # # #
 
         # Control path
-        demux      = Signal(max=ratio)
+        demux_cnt  = Signal(max=ratio) # counts how many cycles we've cycled
+        demux_val  = Signal(max=ratio) # tracks the actual value of the demux; may be primed with non-zero value
+        prime_demux = Signal(reset=1)
         load_part  = Signal()
         strobe_all = Signal()
-        load_part_d = Signal()
         self.comb += [
             sink.ready.eq(~strobe_all | source.ready),
             source.valid.eq(strobe_all),
-            load_part.eq(sink.valid & sink.ready)
+            load_part.eq(self.aw_valid & self.aw_ready)
         ]
-        self.sync += load_part_d.eq(load_part)
 
-        demux_last = ((demux == (ratio - 1)) | sink.last)
+        demux_last = ((demux_cnt == (ratio - 1)) | sink.last)
         # 0-3 should mux to the even channel
         # 4-7 should mux to the odd channel
         self.sync += [
+            If(sink.last,
+                prime_demux.eq(1),
+            ).Elif(load_part,
+                prime_demux.eq(0),
+            ).Else(
+                prime_demux.eq(prime_demux),
+            ),
             If(source.ready, strobe_all.eq(0)),
             If(load_part,
+                If(prime_demux,
+                    demux_val.eq( (self.aw & 7) > 3 ),
+                ).Else(
+                    demux_val.eq(demux_val + 1),
+                ),
                 If(demux_last,
-                    If(~load_part_d,
-                        demux.eq( (self.aw & 7) > 3 ),
-                    ).Else(
-                        demux.eq(0),
-                    ),
+                    demux_cnt.eq(0),
                     strobe_all.eq(1)
                 ).Else(
-                    demux.eq(demux + 1)
+                    demux_cnt.eq(demux_cnt + 1)
                 )
             ),
             If(source.valid & source.ready,
@@ -399,13 +409,12 @@ class _UpConverter(Module):
             n = ratio-i-1 if reverse else i
             cases[i] = source.data[n*nbits_from:(n+1)*nbits_from].eq(sink.data)
         self.sync += If(
-                load_part, Case(demux, cases)
-            ).Else(
-                source.data.eq(0)
+                load_part,
+                source.data.eq(0),
+                Case(demux_val, cases)
             )
-
         # Valid token count
-        self.sync += If(load_part, source.valid_token_count.eq(demux + 1))
+        self.sync += If(load_part, source.valid_token_count.eq(demux_cnt + 1))
 
 
 class _DownConverter(Module):
@@ -492,6 +501,8 @@ class Converter(Module):
         self.latency = converter.latency
         if self.cls == _UpConverter:
             self.aw = converter.aw
+            self.aw_valid = converter.aw_valid
+            self.aw_ready = converter.aw_ready
 
         self.sink = converter.sink
         if report_valid_token_count:
@@ -506,6 +517,8 @@ class StrideConverter(Module):
         self.sink   = sink   = Endpoint(description_from)
         self.source = source = Endpoint(description_to)
         self.aw = Signal(32)
+        self.aw_valid = Signal()
+        self.aw_ready = Signal()
 
         # # #
 
@@ -543,7 +556,11 @@ class StrideConverter(Module):
             converter.source.ready.eq(source.ready)
         ]
         if converter.cls == _UpConverter:
-            self.comb += converter.aw.eq(self.aw)
+            self.comb += [
+                converter.aw.eq(self.aw),
+                converter.aw_valid.eq(self.aw_valid),
+                converter.aw_ready.eq(self.aw_ready),
+            ]
             ratio = converter.ratio
             for i in range(ratio):
                 j = 0
