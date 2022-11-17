@@ -160,13 +160,16 @@ class InterconnectPointToPoint(Module):
 
 
 class Arbiter(Module):
-    def __init__(self, masters=None, target=None, controllers=None):
+    def __init__(self, masters=None, target=None, controllers=None, policy=None):
         assert target is not None
         assert (masters is not None) or (controllers is not None)
         if controllers is not None:
             masters = controllers
 
-        self.submodules.rr = roundrobin.RoundRobin(len(masters), roundrobin.SP_CE)
+        if policy == roundrobin.SP_CE:
+            self.submodules.rr = roundrobin.RoundRobin(len(masters), policy)
+        else:
+            self.submodules.rr = roundrobin.RoundRobin(len(masters))
         cycs = Array(m.cyc for m in masters)
 
         # mux master->slave signals
@@ -186,7 +189,8 @@ class Arbiter(Module):
                     else:
                         self.comb += dest.eq(source)
 
-        self.comb += self.rr.ce.eq(target.ack | ~cycs[self.rr.grant])
+        if policy == roundrobin.SP_CE:
+            self.comb += self.rr.ce.eq(target.ack | ~cycs[self.rr.grant])
 
         # connect bus requests to round-robin selector
         reqs = [m.cyc for m in masters]
@@ -235,17 +239,17 @@ class Decoder(Module):
 
 
 class InterconnectShared(Module):
-    def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
+    def __init__(self, masters, slaves, register=False, timeout_cycles=1e6, policy=None):
         data_width = get_check_parameters(ports=masters + [s for _, s in slaves])
         shared = Interface(data_width=data_width)
-        self.submodules.arbiter = Arbiter(masters, shared)
+        self.submodules.arbiter = Arbiter(masters, shared, policy=policy)
         self.submodules.decoder = Decoder(shared, slaves, register)
         if timeout_cycles is not None:
             self.submodules.timeout = Timeout(shared, timeout_cycles)
 
 
 class Crossbar(Module):
-    def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
+    def __init__(self, masters, slaves, register=False, timeout_cycles=1e6, policy=None):
         data_width = get_check_parameters(ports=masters + [s for _, s in slaves])
         matches, busses = zip(*slaves)
         access = [[Interface(data_width=data_width) for j in slaves] for i in masters]
@@ -255,7 +259,7 @@ class Crossbar(Module):
             self.submodules += Decoder(master, row, register)
         # arbitrate each access column onto its slave
         for column, bus in zip(zip(*access), busses):
-            self.submodules += Arbiter(column, bus)
+            self.submodules += Arbiter(column, bus, policy=policy)
 
 # Wishbone Data Width Converter --------------------------------------------------------------------
 

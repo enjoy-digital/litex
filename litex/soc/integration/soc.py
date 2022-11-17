@@ -119,8 +119,10 @@ class SoCBusHandler(LiteXModule):
         timeout          = 1e6,
         bursting         = False,
         interconnect     = "shared", interconnect_register=True,
+        arbiter_policy   = None,
         reserved_regions = {}
     ):
+        self.arbiter_policy  = arbiter_policy,
         self.logger = logging.getLogger(name)
         self.logger.info("Creating Bus Handler...")
 
@@ -498,7 +500,8 @@ class SoCBusHandler(LiteXModule):
                     masters        = list(self.masters.values()),
                     slaves         = [(self.regions[n].decoder(self), s) for n, s in self.slaves.items()],
                     register       = self.interconnect_register,
-                    timeout_cycles = self.timeout
+                    timeout_cycles = self.timeout,
+                    policy         = self.arbiter_policy,
                 )
             self.logger.info("Interconnect: {} ({} <-> {}).".format(
                 colorer(self._interconnect.__class__.__name__),

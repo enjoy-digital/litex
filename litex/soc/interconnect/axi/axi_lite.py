@@ -763,7 +763,7 @@ class AXILiteInterconnectPointToPoint(Module):
 
 class AXILiteInterconnectShared(Module):
     """AXI Lite shared interconnect"""
-    def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
+    def __init__(self, masters, slaves, register=False, timeout_cycles=1e6, policy=None):
         data_width = get_check_parameters(ports=masters + [s for _, s in slaves])
         shared = AXILiteInterface(data_width=data_width)
         self.submodules.arbiter = AXILiteArbiter(masters, shared)
@@ -776,7 +776,7 @@ class AXILiteCrossbar(Module):
 
     MxN crossbar for M masters and N slaves.
     """
-    def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
+    def __init__(self, masters, slaves, register=False, timeout_cycles=1e6, policy=None):
         data_width = get_check_parameters(ports=masters + [s for _, s in slaves])
         matches, busses = zip(*slaves)
         access_m_s = [[AXILiteInterface(data_width=data_width) for j in slaves] for i in masters]  # a[master][slave]
