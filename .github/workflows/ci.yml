@@ -4,16 +4,16 @@ on: [push, pull_request]
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       # Checkout Repository
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Setup CCache
-        uses: hendrikmuhs/ccache-action@v1
+        uses: hendrikmuhs/ccache-action@v1.2
 
-      - uses: ghdl/setup-ghdl-ci@nightly
+      - uses: ghdl/setup-ghdl-ci@master
         with:
           backend: llvm
 
@@ -22,7 +22,7 @@ jobs:
         run: |
           sudo apt-get install wget build-essential python3 ninja-build
           sudo apt-get install libevent-dev libjson-c-dev flex bison
-          sudo apt-get install libfl-dev libfl2 zlibc zlib1g-dev
+          sudo apt-get install libfl-dev libfl2 zlib1g-dev
           pip3 install setuptools
           pip3 install requests
           pip3 install pexpect
