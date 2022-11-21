@@ -136,7 +136,7 @@ def _build_sim(build_name, sources, jobs, threads, coverage, opt_level="O3", tra
 
     cc_srcs = []
     for filename, language, library, *copy in sources:
-        if Path(filename).suffix not in [".hex"]:
+        if Path(filename).suffix not in [".hex", ".init"]:
             cc_srcs.append("--cc " + filename + " ")
 
     build_script_contents = """\
