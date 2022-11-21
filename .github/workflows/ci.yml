@@ -36,9 +36,9 @@ jobs:
       # Install GCC Toolchains
       - name: Install GCC Toolchains
         run: |
-          sudo apt install gcc-riscv64-linux-gnu
-          sudo apt install gcc-or1k-elf
-          sudo apt install gcc-powerpc64le-linux-gnu binutils-multiarch
+          sudo python3 litex_setup.py --gcc=riscv
+          sudo python3 litex_setup.py --gcc=openrisc
+          sudo python3 litex_setup.py --gcc=powerpc
 
       # Build / Install Verilator
       - name: Build Verilator
