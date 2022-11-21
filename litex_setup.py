@@ -112,7 +112,7 @@ git_repos = {
     "pythondata-cpu-marocchino":   GitRepo(url="https://github.com/litex-hub/"),
 
     # OpenPower CPU(s).
-    "pythondata-cpu-microwatt":    GitRepo(url="https://github.com/litex-hub/", sha1=0xb4986b23af6),
+    "pythondata-cpu-microwatt":    GitRepo(url="https://github.com/litex-hub/", sha1=0xc69953aff92),
 
     # RISC-V CPU(s).
     "pythondata-cpu-blackparrot":  GitRepo(url="https://github.com/litex-hub/"),
