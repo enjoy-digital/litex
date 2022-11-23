@@ -334,12 +334,14 @@ class XilinxVivadoToolchain(GenericToolchain):
         tcl.append(f"report_drc -file {self._build_name}_drc.rpt")
         tcl.append(f"report_timing_summary -datasheet -max_paths 10 -file {self._build_name}_timing.rpt")
         tcl.append(f"report_power -file {self._build_name}_power.rpt")
-        for bitstream_command in self.bitstream_commands:
-            tcl.append(bitstream_command.format(build_name=self._build_name))
 
         # Bitstream generation
+        for bitstream_command in self.bitstream_commands:
+            tcl.append(bitstream_command.format(build_name=self._build_name))
         tcl.append("\n# Bitstream generation\n")
         tcl.append(f"write_bitstream -force {self._build_name}.bit ")
+
+        # Additional commands
         for additional_command in self.additional_commands:
             tcl.append(additional_command.format(build_name=self._build_name))
 
