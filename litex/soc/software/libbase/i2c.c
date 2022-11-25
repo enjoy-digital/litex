@@ -188,9 +188,13 @@ void i2c_reset(void)
  * Some chips require that after transmiting the address, there will be no STOP in between:
  *   START WR(slaveaddr) WR(addr) START WR(slaveaddr) RD(data) RD(data) ... STOP
  */
-bool i2c_read(unsigned char slave_addr, unsigned char addr, unsigned char *data, unsigned int len, bool send_stop)
+bool i2c_read(unsigned char slave_addr, unsigned int addr, unsigned char *data, unsigned int len, bool send_stop, unsigned int addr_size)
 {
-	int i;
+	int i, j;
+
+	if ((addr_size<1) || (addr_size>4)) {
+		return false;
+	}
 
 	i2c_start();
 
@@ -198,9 +202,11 @@ bool i2c_read(unsigned char slave_addr, unsigned char addr, unsigned char *data,
 		i2c_stop();
 		return false;
 	}
-	if(!i2c_transmit_byte(addr)) {
-		i2c_stop();
-		return false;
+	for (j=addr_size-1;j>=0;j--) {
+		if(!i2c_transmit_byte((unsigned char)(0xff & (addr >> (8*j))))) {
+			i2c_stop();
+			return false;
+		}
 	}
 
 	if (send_stop) {
@@ -227,9 +233,13 @@ bool i2c_read(unsigned char slave_addr, unsigned char addr, unsigned char *data,
  * First writes the memory starting address, then writes the data:
  *   START WR(slaveaddr) WR(addr) WR(data) WR(data) ... STOP
  */
-bool i2c_write(unsigned char slave_addr, unsigned char addr, const unsigned char *data, unsigned int len)
+bool i2c_write(unsigned char slave_addr, unsigned int addr, const unsigned char *data, unsigned int len, unsigned int addr_size)
 {
-	int i;
+	int i, j;
+
+	if ((addr_size<1) || (addr_size>4)) {
+		return false;
+	}
 
 	i2c_start();
 
@@ -237,9 +247,11 @@ bool i2c_write(unsigned char slave_addr, unsigned char addr, const unsigned char
 		i2c_stop();
 		return false;
 	}
-	if(!i2c_transmit_byte(addr)) {
-		i2c_stop();
-		return false;
+	for (j=addr_size-1;j>=0;j--) {
+		if(!i2c_transmit_byte((unsigned char)(0xff & (addr >> (8*j))))) {
+			i2c_stop();
+			return false;
+		}
 	}
 	for (i = 0; i < len; ++i) {
 		if(!i2c_transmit_byte(data[i])) {

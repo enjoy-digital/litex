@@ -44,14 +44,16 @@ class EfinixAsyncResetSynchronizerImpl(Module):
                 i_SR  = async_reset,
                 i_CLK = cd.clk,
                 i_CE  = 1,
-                o_Q   = rst1),
+                o_Q   = rst1
+            ),
             Instance("EFX_FF",
                 p_SR_VALUE = 1,
                 i_D   = rst1,
                 i_SR  = async_reset,
                 i_CLK = cd.clk,
                 i_CE  = 1,
-                o_Q   = cd.rst)
+                o_Q   = cd.rst
+            )
         ]
 
 

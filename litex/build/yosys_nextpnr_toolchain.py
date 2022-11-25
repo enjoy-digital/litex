@@ -57,10 +57,13 @@ class YosysNextPNRToolchain(GenericToolchain):
         target package  (optional/target dependant)
     _speed_grade: str
         target speed grade (optional/target dependant)
+    _support_mixed_language: bool
+        informs if toolchain is able to use only verilog or verilog + vhdl
     """
     attr_translate = {
         "keep": ("keep", "true"),
     }
+    _support_mixed_language  = False
 
     family     = ""
     synth_fmt  = ""
@@ -153,6 +156,19 @@ class YosysNextPNRToolchain(GenericToolchain):
             ignore_loops      = self.ignoreloops,
             seed              = self.seed
         )
+
+    @property
+    def pnr_opts(self):
+        """return PNR configuration options
+        Returns
+        =======
+        str containing configuration options passed to nextpnr-xxx or None if
+            _nextpnr is not already instanciated
+        """
+        if self._nextpnr is None:
+            return None
+        else:
+            return self._nextpnr.pnr_opts
 
     def build_project(self):
         """ create project files (mainly Yosys ys file)

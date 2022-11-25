@@ -147,16 +147,16 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=
             do_read.eq(axi_lite.ar.valid),
         ),
         # Start reading/writing immediately not to waste a cycle.
+        axi_lite.aw.ready.eq(last_was_read  | ~axi_lite.ar.valid),
+        axi_lite.ar.ready.eq(~last_was_read | ~axi_lite.aw.valid),
         If(do_write,
             port_adr.eq(axi_lite.aw.addr[adr_shift:]),
             If(axi_lite.w.valid,
-                axi_lite.aw.ready.eq(1),
                 axi_lite.w.ready.eq(1),
                 NextState("SEND-WRITE-RESPONSE")
             )
         ).Elif(do_read,
             port_adr.eq(axi_lite.ar.addr[adr_shift:]),
-            axi_lite.ar.ready.eq(1),
             NextState("SEND-READ-RESPONSE"),
         )
     )
@@ -745,6 +745,17 @@ class AXILiteDecoder(Module):
 
 # AXI-Lite Interconnect ----------------------------------------------------------------------------
 
+def get_check_parameters(ports):
+    # FIXME: Add adr_width check.
+
+    # Data-Width.
+    data_width = ports[0].data_width
+    if len(ports) > 1:
+        for port in ports[1:]:
+            assert port.data_width == data_width
+
+    return data_width
+
 class AXILiteInterconnectPointToPoint(Module):
     """AXI Lite point to point interconnect"""
     def __init__(self, master, slave):
@@ -753,7 +764,8 @@ class AXILiteInterconnectPointToPoint(Module):
 class AXILiteInterconnectShared(Module):
     """AXI Lite shared interconnect"""
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
-        shared = AXILiteInterface(data_width=masters[0].data_width)
+        data_width = get_check_parameters(ports=masters + [s for _, s in slaves])
+        shared = AXILiteInterface(data_width=data_width)
         self.submodules.arbiter = AXILiteArbiter(masters, shared)
         self.submodules.decoder = AXILiteDecoder(shared, slaves)
         if timeout_cycles is not None:
@@ -765,8 +777,9 @@ class AXILiteCrossbar(Module):
     MxN crossbar for M masters and N slaves.
     """
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
+        data_width = get_check_parameters(ports=masters + [s for _, s in slaves])
         matches, busses = zip(*slaves)
-        access_m_s = [[AXILiteInterface() for j in slaves] for i in masters]  # a[master][slave]
+        access_m_s = [[AXILiteInterface(data_width=data_width) for j in slaves] for i in masters]  # a[master][slave]
         access_s_m = list(zip(*access_m_s))  # a[slave][master]
         # Decode each master into its access row.
         for slaves, master in zip(access_m_s, masters):

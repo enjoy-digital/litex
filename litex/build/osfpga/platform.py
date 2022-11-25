@@ -14,6 +14,8 @@ from litex.build.osfpga import common, osfpga
 class OSFPGAPlatform(GenericPlatform):
     bitstream_ext = ".bin"
 
+    _supported_toolchains = ["osfpga"]
+
     def __init__(self, device, *args, toolchain="foedag", devicename=None, **kwargs):
         GenericPlatform.__init__(self, device, *args, **kwargs)
         self.devicename = devicename
@@ -36,3 +38,6 @@ class OSFPGAPlatform(GenericPlatform):
     def add_period_constraint(self, clk, period):
         if clk is None: return
         self.toolchain.add_period_constraint(self, clk, period)
+
+    def add_false_path_constraint(self, from_, to):
+        pass # FIXME: Implement.

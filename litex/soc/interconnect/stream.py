@@ -242,7 +242,7 @@ class AsyncFIFO(_FIFOWrapper):
 # ClockDomainCrossing ------------------------------------------------------------------------------
 
 class ClockDomainCrossing(Module):
-    def __init__(self, layout, cd_from="sys", cd_to="sys", depth=None, with_common_rst=False):
+    def __init__(self, layout, cd_from="sys", cd_to="sys", depth=None, buffered=False, with_common_rst=False):
         self.sink   = Endpoint(layout)
         self.source = Endpoint(layout)
 
@@ -275,7 +275,7 @@ class ClockDomainCrossing(Module):
                 ]
 
             # Add Asynchronous FIFO
-            cdc = AsyncFIFO(layout, depth)
+            cdc = AsyncFIFO(layout, depth, buffered=buffered)
             cdc = ClockDomainsRenamer({"write": cd_from, "read": cd_to})(cdc)
             self.submodules += cdc
 
@@ -648,31 +648,37 @@ class Monitor(Module, AutoCSR):
     def __init__(self, endpoint, count_width=32, clock_domain="sys",
         with_tokens     = False,
         with_overflows  = False,
-        with_underflows = False):
+        with_underflows = False,
+        with_packets    = False, packet_delimiter="last"):
 
-        self.reset = CSR()
-        self.latch = CSR()
+        self._reset = CSR()
+        self._latch = CSR()
         if with_tokens:
-            self.tokens = CSRStatus(count_width)
+            self._tokens = CSRStatus(count_width)
         if with_overflows:
-            self.overflows = CSRStatus(count_width)
+            self._overflows = CSRStatus(count_width)
         if with_underflows:
-            self.underflows = CSRStatus(count_width)
+            self._underflows = CSRStatus(count_width)
+        if with_packets:
+            assert packet_delimiter in ["first", "last"]
+            self._packets = CSRStatus(count_width)
+        self.reset = Signal() # Reset from logic (sys_clk).
+        self.latch = Signal() # Latch from logic (sys_clk).
 
         # # #
 
         reset = Signal()
         latch = Signal()
         if clock_domain == "sys":
-            self.comb += reset.eq(self.reset.re)
-            self.comb += latch.eq(self.latch.re)
+            self.comb += reset.eq(self._reset.re | self.reset)
+            self.comb += latch.eq(self._latch.re | self.latch)
         else:
             reset_ps = PulseSynchronizer("sys", clock_domain)
             latch_ps = PulseSynchronizer("sys", clock_domain)
             self.submodules += reset_ps, latch_ps
-            self.comb += reset_ps.i.eq(self.reset.re)
+            self.comb += reset_ps.i.eq(self._reset.re | self.reset)
             self.comb += reset.eq(reset_ps.o)
-            self.comb += latch_ps.i.eq(self.latch.re)
+            self.comb += latch_ps.i.eq(self._latch.re | self.latch)
             self.comb += latch.eq(latch_ps.o)
 
         # Generic Monitor Counter ------------------------------------------------------------------
@@ -698,18 +704,39 @@ class Monitor(Module, AutoCSR):
 
         # Tokens Count -----------------------------------------------------------------------------
         if with_tokens:
-            token_counter = MonitorCounter(reset, latch, endpoint.valid & endpoint.ready, self.tokens.status)
-            self.submodules += token_counter
+            self.submodules.token_counter = MonitorCounter(
+                reset  = reset,
+                latch  = latch,
+                enable = endpoint.valid & endpoint.ready,
+                count  = self._tokens.status,
+            )
 
         # Overflows Count (only useful when endpoint is expected to always be ready) ---------------
         if with_overflows:
-            overflow_counter = MonitorCounter(reset, latch, endpoint.valid & ~endpoint.ready, self.overflows.status)
-            self.submodules += overflow_counter
+            self.submodules.overflow_counter = MonitorCounter(
+                reset  = reset,
+                latch  = latch,
+                enable = endpoint.valid & ~endpoint.ready,
+                count  = self._overflows.status,
+            )
 
         # Underflows Count (only useful when endpoint is expected to always be valid) --------------
         if with_underflows:
-            underflow_counter = MonitorCounter(reset, latch, ~endpoint.valid & endpoint.ready, self.underflows.status)
-            self.submodules += underflow_counter
+            self.submodules.underflow_counter = MonitorCounter(
+                reset  = reset,
+                latch  = latch,
+                enable = ~endpoint.valid & endpoint.ready,
+                count  = self._underflows.status,
+            )
+
+        # Packets Count ----------------------------------------------------------------------------
+        if with_packets:
+            self.submodules.packet_counter = MonitorCounter(
+                reset  = reset,
+                latch  = latch,
+                enable = endpoint.valid & getattr(endpoint, packet_delimiter) & endpoint.ready,
+                count  = self._packets.status
+            )
 
 # Pipe ---------------------------------------------------------------------------------------------
 

@@ -11,13 +11,12 @@
 
 from math import log2
 
-from functools import reduce
-from operator import or_
-
 from migen import *
 from migen.genlib import roundrobin
 from migen.genlib.record import *
 from migen.genlib.misc import split, displacer, chooser, WaitTimer
+
+from litex.gen import *
 
 from litex.build.generic_platform import *
 
@@ -144,13 +143,29 @@ class Timeout(Module):
 
 # Wishbone Interconnect ----------------------------------------------------------------------------
 
+def get_check_parameters(ports):
+    # FIXME: Add adr_width check.
+
+    # Data-Width.
+    data_width = ports[0].data_width
+    if len(ports) > 1:
+        for port in ports[1:]:
+            assert port.data_width == data_width
+
+    return data_width
+
 class InterconnectPointToPoint(Module):
     def __init__(self, master, slave):
         self.comb += master.connect(slave)
 
 
 class Arbiter(Module):
-    def __init__(self, masters, target):
+    def __init__(self, masters=None, target=None, controllers=None):
+        assert target is not None
+        assert (masters is not None) or (controllers is not None)
+        if controllers is not None:
+            masters = controllers
+
         self.submodules.rr = roundrobin.RoundRobin(len(masters))
 
         # mux master->slave signals
@@ -207,18 +222,19 @@ class Decoder(Module):
 
         # generate master ack (resp. err) by ORing all slave acks (resp. errs)
         self.comb += [
-            master.ack.eq(reduce(or_, [slave[1].ack for slave in slaves])),
-            master.err.eq(reduce(or_, [slave[1].err for slave in slaves]))
+            master.ack.eq(Reduce("OR", [slave[1].ack for slave in slaves])),
+            master.err.eq(Reduce("OR", [slave[1].err for slave in slaves]))
         ]
 
         # mux (1-hot) slave data return
         masked = [Replicate(slave_sel_r[i], len(master.dat_r)) & slaves[i][1].dat_r for i in range(ns)]
-        self.comb += master.dat_r.eq(reduce(or_, masked))
+        self.comb += master.dat_r.eq(Reduce("OR", masked))
 
 
 class InterconnectShared(Module):
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
-        shared = Interface(data_width=masters[0].data_width)
+        data_width = get_check_parameters(ports=masters + [s for _, s in slaves])
+        shared = Interface(data_width=data_width)
         self.submodules.arbiter = Arbiter(masters, shared)
         self.submodules.decoder = Decoder(shared, slaves, register)
         if timeout_cycles is not None:
@@ -227,8 +243,9 @@ class InterconnectShared(Module):
 
 class Crossbar(Module):
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
+        data_width = get_check_parameters(ports=masters + [s for _, s in slaves])
         matches, busses = zip(*slaves)
-        access = [[Interface() for j in slaves] for i in masters]
+        access = [[Interface(data_width=data_width) for j in slaves] for i in masters]
         # decode each master into its access row
         for row, master in zip(access, masters):
             row = list(zip(matches, row))

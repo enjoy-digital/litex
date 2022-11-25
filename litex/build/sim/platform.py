@@ -16,6 +16,9 @@ from litex.soc.interconnect.csr import AutoCSR, CSR, CSRStorage
 
 
 class SimPlatform(GenericPlatform):
+
+    _supported_toolchains = ["verilator"]
+
     def __init__(self, device, io, name="sim", toolchain="verilator", **kwargs):
         if "sim_trace" not in (iface[0] for iface in io):
             io.append(("sim_trace", 0, Pins(1)))
@@ -57,10 +60,38 @@ class SimPlatform(GenericPlatform):
         module.submodules.sim_trace = SimTrace(self.trace, reset=reset)
         module.submodules.sim_marker = SimMarker()
         module.submodules.sim_finish = SimFinish()
-        module.add_csr("sim_trace")
-        module.add_csr("sim_marker")
-        module.add_csr("sim_finish")
         self.trace = None
+
+    @classmethod
+    def fill_args(cls, toolchain, parser):
+        """
+        pass parser to the specific toolchain to
+        fill this with toolchain args
+
+        Parameters
+        ==========
+        toolchain: str
+            toolchain name
+        parser: argparse.ArgumentParser
+            parser to be filled
+        """
+        verilator.verilator_build_args(parser)
+
+    @classmethod
+    def get_argdict(cls, toolchain, args):
+        """
+        return a dict of args
+
+        Parameters
+        ==========
+        toolchain: str
+            toolchain name
+
+        Return
+        ======
+        a dict of key/value for each args or an empty dict
+        """
+        return verilator.verilator_build_argdict(args)
 
 # Sim debug modules --------------------------------------------------------------------------------
 

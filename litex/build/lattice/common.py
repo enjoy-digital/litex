@@ -25,7 +25,8 @@ class LatticeECP5AsyncResetSynchronizerImpl(Module):
                 i_D  = 0,
                 i_PD = async_reset,
                 i_CK = cd.clk,
-                o_Q  = rst1),
+                o_Q  = rst1
+            ),
             Instance("FD1S3BX",
                 i_D  = rst1,
                 i_PD = async_reset,
@@ -191,7 +192,8 @@ class LatticeNXsyncResetSynchronizerImpl(Module):
                 i_PD = async_reset,
                 i_CK = cd.clk,
                 i_SP = 1,
-                o_Q  = rst1),
+                o_Q  = rst1
+            ),
             Instance("FD1P3BX",
                 i_D  = rst1,
                 i_PD = async_reset,
@@ -343,12 +345,14 @@ class LatticeiCE40AsyncResetSynchronizerImpl(Module):
                 i_D = 0,
                 i_S = async_reset,
                 i_C = cd.clk,
-                o_Q = rst1),
+                o_Q = rst1
+            ),
             Instance("SB_DFFS",
                 i_D = rst1,
                 i_S = async_reset,
                 i_C = cd.clk,
-                o_Q = cd.rst)
+                o_Q = cd.rst
+            )
         ]
 
 

@@ -7,10 +7,11 @@
 import unittest
 import pexpect
 import sys
+import os
 
 class TestCPU(unittest.TestCase):
-    def boot_test(self, cpu_type, cpu_variant="standard"):
-        cmd = f'litex_sim --cpu-type={cpu_type} --cpu-variant={cpu_variant} --opt-level=O0'
+    def boot_test(self, cpu_type, jobs, cpu_variant="standard"):
+        cmd = f'litex_sim --cpu-type={cpu_type} --cpu-variant={cpu_variant} --opt-level=O0 --jobs {jobs}'
         litex_prompt = [b'\033\[[0-9;]+mlitex\033\[[0-9;]+m>']
         is_success = True
         with open("/tmp/test_boot_log", "wb") as result_file:
@@ -39,12 +40,13 @@ class TestCPU(unittest.TestCase):
             "cv32e40p",     # (riscv   / softcore)
             "femtorv",      # (riscv   / softcore)
             "firev",        # (riscv   / softcore)
-            "ibex",         # (riscv   / softcore)
             "marocchino",   # (or1k    / softcore)
             "naxriscv",     # (riscv   / softcore)
+            "neorv32",      # (riscv   / softcore)
             "serv",         # (riscv   / softcore)
             "vexriscv",     # (riscv   / softcore)
             "vexriscv_smp", # (riscv   / softcore)
+            "microwatt",    # (ppc64   / softcore)
         ]
         untested_cpus = [
             "blackparrot",  # (riscv   / softcore) -> Broken install?
@@ -55,16 +57,16 @@ class TestCPU(unittest.TestCase):
             "cva6",         # (riscv   / softcore) -> Needs to be tested.
             "eos_s3",       # (arm     / hardcore) -> Hardcore.
             "gowin_emcu",   # (arm     / hardcore) -> Hardcore.
+            "ibex",         # (riscv   / softcore) -> Broken since 2022.11.12.
             "lm32",         # (lm32    / softcore) -> Requires LM32 toolchain.
-            "microwatt",    # (ppc64   / softcore) -> Requires PPC toolchain + VHDL->Verilog (GHDL + Yosys).
             "minerva",      # (riscv   / softcore) -> Broken install? (Amaranth?)
             "mor1kx",       # (or1k    / softcore) -> Verilator compilation issue.
-            "neorv32",      # (riscv   / softcore) -> Requires VHDL->Verilog (GHDL + Yosys).
             "picorv32",     # (riscv   / softcore) -> Verilator compilation issue.
             "rocket",       # (riscv   / softcore) -> Not enough RAM in CI.
             "zynq7000",     # (arm     / hardcore) -> Hardcore.
             "zynqmp",       # (aarch64 / hardcore) -> Hardcore.
         ]
+        jobs = os.cpu_count()
         for cpu in tested_cpus:
              with self.subTest(target=cpu):
-                self.assertTrue(self.boot_test(cpu))
+                self.assertTrue(self.boot_test(cpu, jobs))

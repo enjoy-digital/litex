@@ -18,6 +18,7 @@ class GenericToolchain:
     }
 
     supported_build_backend = ["litex"]
+    _support_mixed_language  = True
 
     def __init__(self):
         self.clocks      = dict()
@@ -26,6 +27,10 @@ class GenericToolchain:
         self.named_sc    = []
         self._vns        = None
         self._synth_opts = ""
+
+    @property
+    def support_mixed_language(self):
+        return self._support_mixed_language
 
     def finalize(self):
         pass # Pass since optional.
@@ -117,7 +122,7 @@ class GenericToolchain:
             from edalize import get_edatool
 
             # Get tool name and options
-            (tool, tool_options)= self.get_tool_options()
+            (tool, tool_options) = self.get_tool_options()
 
             # Files list
             files = []
@@ -139,7 +144,7 @@ class GenericToolchain:
             edam = {
                 'name'         : self._build_name,
                 'files'        : files,
-                'tool_options' : {tool: tool_options},
+                **tool_options,
                 'toplevel'     : self._build_name,
             }
 
@@ -152,8 +157,9 @@ class GenericToolchain:
 
         return v_output.ns
 
-    def add_period_constraint(self, platform, clk, period):
-        clk.attr.add("keep")
+    def add_period_constraint(self, platform, clk, period, keep=True):
+        if keep:
+            clk.attr.add("keep")
         period = math.floor(period*1e3)/1e3 # Round to lowest picosecond.
         if clk in self.clocks:
             if period != self.clocks[clk]:
@@ -161,8 +167,9 @@ class GenericToolchain:
                     .format(self.clocks[clk], period))
         self.clocks[clk] = period
 
-    def add_false_path_constraint(self, platform, from_, to):
-        from_.attr.add("keep")
-        to.attr.add("keep")
+    def add_false_path_constraint(self, platform, from_, to, keep=True):
+        if keep:
+            from_.attr.add("keep")
+            to.attr.add("keep")
         if (to, from_) not in self.false_paths:
             self.false_paths.add((from_, to))

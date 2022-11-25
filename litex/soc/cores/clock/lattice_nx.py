@@ -15,8 +15,6 @@ from migen import *
 
 from litex.soc.cores.clock.common import *
 
-logging.basicConfig(level=logging.INFO)
-
 io_i2 = namedtuple('io_i2',['io', 'i2', 'IPP_CTRL', 'BW_CTL_BIAS', 'IPP_SEL'])
 nx_pll_param_permutation = namedtuple("nx_pll_param_permutation",[
                                 "C1","C2","C3","C4","C5","C6",

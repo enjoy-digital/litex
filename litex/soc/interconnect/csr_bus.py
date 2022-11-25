@@ -14,13 +14,12 @@ The CSR-2 bus is a low-bandwidth, resource-sensitive bus designed for accessing
 the configuration and status registers of cores from software.
 """
 
-from functools import reduce
-from operator import or_
-
 from migen import *
 from migen.genlib.record import *
 from migen.genlib.misc import chooser
 from migen.util.misc import xdir
+
+from litex.gen import *
 
 from litex.soc.interconnect import csr
 from litex.soc.interconnect.csr import CSRStorage
@@ -76,9 +75,9 @@ class InterconnectShared(Module):
     def __init__(self, masters, slaves):
         intermediate = Interface.like(masters[0])
         self.comb += [
-            intermediate.adr.eq(reduce(or_, [masters[i].adr for i in range(len(masters))])),
-            intermediate.we.eq(reduce(or_, [masters[i].we for i in range(len(masters))])),
-            intermediate.dat_w.eq(reduce(or_, [masters[i].dat_w for i in range(len(masters))]))
+            intermediate.adr.eq(  Reduce("OR", [masters[i].adr   for i in range(len(masters))])),
+            intermediate.we.eq(   Reduce("OR", [masters[i].we    for i in range(len(masters))])),
+            intermediate.dat_w.eq(Reduce("OR", [masters[i].dat_w for i in range(len(masters))]))
         ]
         for i in range(len(masters)):
             self.comb += masters[i].dat_r.eq(intermediate.dat_r)
@@ -87,11 +86,11 @@ class InterconnectShared(Module):
 # CSR SRAM -----------------------------------------------------------------------------------------
 
 class SRAM(Module):
-    def __init__(self, mem_or_size, address, read_only=None, init=None, bus=None, paging=0x800, soc_bus_data_width=32):
+    def __init__(self, mem_or_size, address, read_only=None, init=None, bus=None, paging=0x800):
         if bus is None:
             bus = Interface()
         self.bus = bus
-        aligned_paging = paging//(soc_bus_data_width//8)
+        aligned_paging = paging//4
         data_width = len(self.bus.dat_w)
         if isinstance(mem_or_size, Memory):
             mem = mem_or_size
@@ -166,11 +165,11 @@ class SRAM(Module):
 # CSR Bank -----------------------------------------------------------------------------------------
 
 class CSRBank(csr.GenericBank):
-    def __init__(self, description, address=0, bus=None, paging=0x800, ordering="big", soc_bus_data_width=32):
+    def __init__(self, description, address=0, bus=None, paging=0x800, ordering="big"):
         if bus is None:
             bus = Interface()
         self.bus = bus
-        aligned_paging = paging//(soc_bus_data_width//8)
+        aligned_paging = paging//4
 
         # # #
 
@@ -206,23 +205,32 @@ class CSRBank(csr.GenericBank):
 # address_map is called exactly once for each object at each call to
 # scan(), so it can have side effects.
 class CSRBankArray(Module):
-    def __init__(self, source, address_map, *ifargs, paging=0x800, ordering="big", soc_bus_data_width=32, **ifkwargs):
+    def __init__(self, source, address_map, *ifargs, paging=0x800, ordering="big", **ifkwargs):
         self.source             = source
         self.address_map        = address_map
         self.paging             = paging
         self.ordering           = ordering
-        self.soc_bus_data_width = soc_bus_data_width
         self.scan(ifargs, ifkwargs)
 
     def scan(self, ifargs, ifkwargs):
-        self.banks = []
-        self.srams = []
+
+        self.banks     = []
+        self.srams     = []
         self.constants = []
+
         for name, obj in xdir(self.source, True):
-            if hasattr(obj, "get_csrs"):
-                csrs = obj.get_csrs()
-            else:
-                csrs = []
+
+            # Collect CSR Registers.
+            # ---------------------
+            csrs = []
+            if hasattr(obj, "get_csrs"): # FIXME: Simplify.
+                if "sort" in obj.get_csrs.__code__.co_varnames:
+                    csrs = obj.get_csrs(sort=True)
+                else:
+                    csrs = obj.get_csrs()
+
+            # Collect CSR Memories.
+            # ---------------------
             if hasattr(obj, "get_memories"):
                 memories = obj.get_memories()
                 for memory in memories:
@@ -241,9 +249,20 @@ class CSRBankArray(Module):
                     self.submodules += mmap
                     csrs += mmap.get_csrs()
                     self.srams.append((name, memory, mapaddr, mmap))
-            if hasattr(obj, "get_constants"):
-                for constant in obj.get_constants():
-                    self.constants.append((name, constant))
+
+            # Collect CSR Constants.
+            # ----------------------
+            if hasattr(obj, "get_constants"): # FIXME: Simplify.
+                if "sort" in obj.get_constants.__code__.co_varnames:
+                    for constant in obj.get_constants(sort=True):
+                        self.constants.append((name, constant))
+                else:
+                    for constant in obj.get_constants():
+                        self.constants.append((name, constant))
+
+
+            # Create CSRBank with CSRs found.
+            # -------------------------------
             if csrs:
                 mapaddr = self.address_map(name, None)
                 if mapaddr is None:
@@ -252,8 +271,7 @@ class CSRBankArray(Module):
                 rmap = CSRBank(csrs, mapaddr,
                     bus                = bank_bus,
                     paging             = self.paging,
-                    ordering           = self.ordering,
-                    soc_bus_data_width = self.soc_bus_data_width)
+                    ordering           = self.ordering)
                 self.submodules += rmap
                 self.banks.append((name, csrs, mapaddr, rmap))
 

@@ -100,13 +100,13 @@ class LatticeIceStormToolchain(YosysNextPNRToolchain):
         tool_options = {
             "icepack_options": ["-s"],
             "yosys_synth_options": self._synth_opts.split(' '),
-            "nextpnr_options": self._pnr_opts.split(' '),
+            "nextpnr_options": self.pnr_opts.split(' '),
         }
-        return ("icestorm", tool_options)
+        return ("icestorm", {"tool_options": {"icestorm": tool_options}})
 
 
 def icestorm_args(parser):
-    toolchain_group = parser.add_argument_group(title="Toolchain options")
+    toolchain_group = parser.add_argument_group(title="IceStorm toolchain options")
     yosys_nextpnr_args(toolchain_group)
 
 def icestorm_argdict(args):

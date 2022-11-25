@@ -19,14 +19,17 @@ from litex.soc.interconnect.axi.axi_stream import AXIStreamInterface
 
 # AXI Definition -----------------------------------------------------------------------------------
 
-def ax_description(address_width):
+def ax_description(address_width, version="axi4"):
+    len_width  = {"axi3":4, "axi4":8}[version]
+    size_width = {"axi3":4, "axi4":3}[version]
+    lock_width = {"axi3":2, "axi4":1}[version]
     # * present for interconnect with others cores but not used by LiteX.
     return [
         ("addr",   address_width),   # Address Width.
         ("burst",  2),               # Burst type.
-        ("len",    8),               # Number of data (-1) transfers (up to 256).
-        ("size",   4),               # Number of bytes (-1) of each data transfer (up to 1024 bits).
-        ("lock",   2),               # *
+        ("len",    len_width),       # Number of data (-1) transfers (up to 16 (AXI3) or 256 (AXI4)).
+        ("size",   size_width),      # Number of bytes (-1) of each data transfer (up to 1024-bit).
+        ("lock",   lock_width),      # *
         ("prot",   3),               # *
         ("cache",  4),               # *
         ("qos",    4),               # *
@@ -49,30 +52,39 @@ def r_description(data_width):
     ]
 
 class AXIInterface:
-    def __init__(self, data_width=32, address_width=32, id_width=1, clock_domain="sys", name=None, bursting=False,
+    def __init__(self, data_width=32, address_width=32, id_width=1, version="axi4", clock_domain="sys",
+        name          = None,
+        bursting      = False,
         aw_user_width = 0,
         w_user_width  = 0,
         b_user_width  = 0,
         ar_user_width = 0,
         r_user_width  = 0
     ):
+        # Parameters checks.
+        # ------------------
+        assert data_width in [8, 16, 32, 64, 128, 256, 512, 1024]
+        assert version    in ["axi3", "axi4"]
+
         # Parameters.
+        # -----------
         self.data_width    = data_width
         self.address_width = address_width
         self.id_width      = id_width
+        self.version       = version
         self.clock_domain  = clock_domain
         self.bursting      = bursting # FIXME: Use or add check.
 
         # Write Channels.
         # ---------------
         self.aw = AXIStreamInterface(name=name,
-            layout     = ax_description(address_width),
+            layout     = ax_description(address_width=address_width, version=version),
             id_width   = id_width,
             user_width = aw_user_width
         )
         self.w = AXIStreamInterface(name=name,
             layout     = w_description(data_width),
-            id_width   = id_width,
+            id_width   = {"axi3":0,"axi4":id_width}[version], # No WID on AXI4.
             user_width = w_user_width
         )
         self.b = AXIStreamInterface(name=name,
@@ -84,7 +96,7 @@ class AXIInterface:
         # Read Channels.
         # --------------
         self.ar = AXIStreamInterface(name=name,
-            layout     = ax_description(address_width),
+            layout     = ax_description(address_width=address_width, version=version),
             id_width   = id_width,
             user_width = ar_user_width
         )
@@ -108,6 +120,10 @@ class AXIInterface:
             channel_layout = (getattr(self, channel).description.payload_layout +
                               getattr(self, channel).description.param_layout)
             for name, width in channel_layout:
+                if (name == "dest"):
+                    continue # No DEST.
+                if (channel == "w") and (name == "id") and (self.version == "axi4"):
+                    continue # No WID on AXI4.
                 subsignals.append(Subsignal(channel + name, Pins(width)))
         ios = [(bus_name , 0) + tuple(subsignals)]
         return ios
@@ -253,9 +269,11 @@ class AXIDownConverter(Module):
             description_to   = [("data",   dw_to), ("strb",   dw_to//8)],
         )
         self.submodules += w_converter
-        self.comb += axi_from.w.connect(w_converter.sink, omit={"id"})
+        self.comb += axi_from.w.connect(w_converter.sink, omit={"id", "dest", "user"})
         self.comb += w_converter.source.connect(axi_to.w)
         self.comb += axi_to.w.id.eq(axi_from.w.id)
+        self.comb += axi_to.w.dest.eq(axi_from.w.dest)
+        self.comb += axi_to.w.user.eq(axi_from.w.user)
 
         # B Channel.
         self.comb += axi_to.b.connect(axi_from.b)
@@ -275,9 +293,11 @@ class AXIDownConverter(Module):
             description_to   = [("data", dw_from)],
         )
         self.submodules += r_converter
-        self.comb += axi_to.r.connect(r_converter.sink, omit={"id", "resp"})
+        self.comb += axi_to.r.connect(r_converter.sink, omit={"id", "dest", "user", "resp"})
         self.comb += r_converter.source.connect(axi_from.r)
         self.comb += axi_from.r.resp.eq(axi_to.r.resp)
+        self.comb += axi_from.r.user.eq(axi_to.r.user)
+        self.comb += axi_from.r.dest.eq(axi_to.r.dest)
         self.comb += axi_from.r.id.eq(axi_to.r.id)
 
 
@@ -533,6 +553,17 @@ class AXIDecoder(Module):
 
 # AXI Interconnect ---------------------------------------------------------------------------------
 
+def get_check_parameters(ports):
+    # FIXME: Add adr_width check.
+
+    # Data-Width.
+    data_width = ports[0].data_width
+    if len(ports) > 1:
+        for port in ports[1:]:
+            assert port.data_width == data_width
+
+    return data_width
+
 class AXIInterconnectPointToPoint(Module):
     """AXI point to point interconnect"""
     def __init__(self, master, slave):
@@ -541,7 +572,8 @@ class AXIInterconnectPointToPoint(Module):
 class AXIInterconnectShared(Module):
     """AXI shared interconnect"""
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
-        shared = AXIInterface(data_width=masters[0].data_width)
+        data_width = get_check_parameters(ports=masters + [s for _, s in slaves])
+        shared = AXIInterface(data_width=data_width)
         self.submodules.arbiter = AXIArbiter(masters, shared)
         self.submodules.decoder = AXIDecoder(shared, slaves)
         if timeout_cycles is not None:
@@ -553,8 +585,9 @@ class AXICrossbar(Module):
     MxN crossbar for M masters and N slaves.
     """
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
+        data_width = get_check_parameters(ports=masters + [s for _, s in slaves])
         matches, busses = zip(*slaves)
-        access_m_s = [[AXIInterface() for j in slaves] for i in masters]  # a[master][slave]
+        access_m_s = [[AXIInterface(data_width=data_width) for j in slaves] for i in masters]  # a[master][slave]
         access_s_m = list(zip(*access_m_s))  # a[slave][master]
         # Decode each master into its access row.
         for slaves, master in zip(access_m_s, masters):

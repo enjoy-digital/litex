@@ -30,10 +30,17 @@ static void i2c_write_handler(int nb_params, char **params)
 {
 	int i;
 	char *c;
+	unsigned int addr;
 	unsigned char write_params[32];  // also indirectly limited by CMD_LINE_BUFFER_SIZE
 
-	if (nb_params < 2) {
-		printf("i2c_write <slaveaddr7bit> <addr> [<data>, ...]");
+	if (nb_params < 3) {
+		printf("i2c_write <slaveaddr7bit> <addr> <addr_size> [<data>, ...]");
+		return;
+	}
+
+	addr = strtoul(params[1], &c, 0);
+	if (*c != 0) {
+		printf("Incorrect value of parameter addr");
 		return;
 	}
 
@@ -50,7 +57,7 @@ static void i2c_write_handler(int nb_params, char **params)
 		}
 	}
 
-	if (!i2c_write(write_params[0], write_params[1], &write_params[2], nb_params - 2)) {
+	if (!i2c_write(write_params[0], addr, &write_params[3], nb_params - 3, write_params[2])) {
 		printf("Error during I2C write");
 		return;
 	}
@@ -60,19 +67,21 @@ define_command(i2c_write, i2c_write_handler, "Write over I2C", I2C_CMDS);
 /**
  * Command "i2c_read"
  *
- * Read I2C slave memory using 7-bit slave address and 8-bit memory address.
+ * Read I2C slave memory using 7-bit slave address and 8*<addr_size>-bit memory address.
  *
  */
 static void i2c_read_handler(int nb_params, char **params)
 {
 	char *c;
 	int len;
-	unsigned char slave_addr, addr;
+	unsigned char slave_addr;
+	unsigned int addr;
 	unsigned char buf[256];
 	bool send_stop = true;
+	unsigned int addr_size = 1;
 
 	if (nb_params < 3) {
-		printf("i2c_read <slaveaddr7bit> <addr> <len> [<send_stop>]");
+		printf("i2c_read <slaveaddr7bit> <addr> <len> [<send_stop>] [<addr_size>]");
 		return;
 	}
 
@@ -106,7 +115,19 @@ static void i2c_read_handler(int nb_params, char **params)
 		}
 	}
 
-	if (!i2c_read(slave_addr, addr, buf, len, send_stop)) {
+	if (nb_params > 4) {
+		addr_size = strtoul(params[4], &c, 0);
+		if (*c != 0) {
+			printf("Incorrect addr_size value");
+			return;
+		}
+		if ((addr_size<1) || (addr_size>4)) {
+			printf("addr_size needs to be between 1 and 4");
+			return;
+		}
+	}
+
+	if (!i2c_read(slave_addr, addr, buf, len, send_stop, addr_size)) {
 		printf("Error during I2C read");
 		return;
 	}

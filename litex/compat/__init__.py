@@ -1,22 +1,10 @@
 import sys
 import time
 
-# Helpers ------------------------------------------------------------------------------------------
-
-def colorer(s, color="bright"): # FIXME: Move colorer to litex.common?
-    header  = {
-        "bright": "\x1b[1m",
-        "green":  "\x1b[32m",
-        "cyan":   "\x1b[36m",
-        "red":    "\x1b[31m",
-        "yellow": "\x1b[33m",
-        "underline": "\x1b[4m"}[color]
-    trailer = "\x1b[0m"
-    return header + str(s) + trailer
-
-# Compat -------------------------------------------------------------------------------------------
+# Compatibility Layer ------------------------------------------------------------------------------
 
 def compat_notice(name, date, info=""):
+    from litex.gen import colorer
     print("Compat: {name} is {deprecated} since {date} and will soon no longer work, please {update}. {info}".format(
         name       = colorer(name),
         deprecated = colorer("deprecated", color="red"),

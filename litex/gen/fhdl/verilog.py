@@ -33,6 +33,8 @@ from litex.build.tools import get_litex_git_revision
 #                                     BANNER/TRAILER/SEPARATORS                                    #
 # ------------------------------------------------------------------------------------------------ #
 
+_tab = " "*4
+
 def _print_banner(filename, device):
     return """\
 // -----------------------------------------------------------------------------
@@ -70,6 +72,14 @@ def _print_separator(msg=""):
     r += f"// {msg}\n"
     r +=  "//" + "-"*78 + "\n"
     r += "\n"
+    return r
+
+# ------------------------------------------------------------------------------------------------ #
+#                                         TIMESCALE                                                #
+# ------------------------------------------------------------------------------------------------ #
+
+def _print_timescale(time_unit="1ns", time_precision="1ps"):
+    r = f"`timescale {time_unit} / {time_precision}\n"
     return r
 
 # ------------------------------------------------------------------------------------------------ #
@@ -145,9 +155,12 @@ def _print_constant(node):
 # Print Signal -------------------------------------------------------------------------------------
 
 def _print_signal(ns, s):
+    length = 8
+    vector = f"[{str(len(s)-1)}:0] "
+    vector = " "*(length-len(vector)) + vector
     return "{signed}{vector}{name}".format(
-        signed = "" if (not s.signed) else "signed ",
-        vector = "" if ( len(s) <= 1) else f"[{str(len(s)-1) }:0] ",
+        signed = " " if (not s.signed) else "signed ",
+        vector = " "*length if (len(s) <= 1) else vector,
         name   = ns.get_name(s)
     )
 
@@ -280,7 +293,7 @@ def _print_node(ns, at, level, node, target_filter=None):
             assignment = " = "
         else:
             assignment = " <= "
-        return "\t"*level + _print_expression(ns, node.l)[0] + assignment + _print_expression(ns, node.r)[0] + ";\n"
+        return _tab*level + _print_expression(ns, node.l)[0] + assignment + _print_expression(ns, node.r)[0] + ";\n"
 
     # Iterable.
     elif isinstance(node, collections.abc.Iterable):
@@ -288,29 +301,29 @@ def _print_node(ns, at, level, node, target_filter=None):
 
     # If.
     elif isinstance(node, If):
-        r = "\t"*level + "if (" + _print_expression(ns, node.cond)[0] + ") begin\n"
+        r = _tab*level + "if (" + _print_expression(ns, node.cond)[0] + ") begin\n"
         r += _print_node(ns, at, level + 1, node.t, target_filter)
         if node.f:
-            r += "\t"*level + "end else begin\n"
+            r += _tab*level + "end else begin\n"
             r += _print_node(ns, at, level + 1, node.f, target_filter)
-        r += "\t"*level + "end\n"
+        r += _tab*level + "end\n"
         return r
 
     # Case.
     elif isinstance(node, Case):
         if node.cases:
-            r = "\t"*level + "case (" + _print_expression(ns, node.test)[0] + ")\n"
+            r = _tab*level + "case (" + _print_expression(ns, node.test)[0] + ")\n"
             css = [(k, v) for k, v in node.cases.items() if isinstance(k, Constant)]
             css = sorted(css, key=lambda x: x[0].value)
             for choice, statements in css:
-                r += "\t"*(level + 1) + _print_expression(ns, choice)[0] + ": begin\n"
+                r += _tab*(level + 1) + _print_expression(ns, choice)[0] + ": begin\n"
                 r += _print_node(ns, at, level + 2, statements, target_filter)
-                r += "\t"*(level + 1) + "end\n"
+                r += _tab*(level + 1) + "end\n"
             if "default" in node.cases:
-                r += "\t"*(level + 1) + "default: begin\n"
+                r += _tab*(level + 1) + "default: begin\n"
                 r += _print_node(ns, at, level + 2, node.cases["default"], target_filter)
-                r += "\t"*(level + 1) + "end\n"
-            r += "\t"*level + "endcase\n"
+                r += _tab*(level + 1) + "end\n"
+            r += _tab*level + "endcase\n"
             return r
         else:
             return ""
@@ -324,11 +337,11 @@ def _print_node(ns, at, level, node, target_filter=None):
                 s += ns.get_name(arg)
             else:
                 s += str(arg)
-        return "\t"*level + "$display(" + s + ");\n"
+        return _tab*level + "$display(" + s + ");\n"
 
     # Finish.
     elif isinstance(node, Finish):
-        return "\t"*level + "$finish;\n"
+        return _tab*level + "$finish;\n"
 
     # Unknown.
     else:
@@ -340,25 +353,24 @@ def _print_node(ns, at, level, node, target_filter=None):
 
 def _print_attribute(attr, attr_translate):
     r = ""
-    firsta = True
-    for attr in sorted(attr,
-                       key=lambda x: ("", x) if isinstance(x, str) else x):
+    first = True
+    for attr in sorted(attr, key=lambda x: ("", x) if isinstance(x, str) else x):
         if isinstance(attr, tuple):
-            # platform-dependent attribute
+            # Platform-dependent attribute.
             attr_name, attr_value = attr
         else:
-            # translated attribute
+            # Translated attribute.
             at = attr_translate.get(attr, None)
             if at is None:
                 continue
             attr_name, attr_value = at
-        if not firsta:
+        if not first:
             r += ", "
-        firsta = False
+        first = False
         const_expr = "\"" + attr_value + "\"" if not isinstance(attr_value, int) else str(attr_value)
         r += attr_name + " = " + const_expr
     if r:
-        r = "(* " + r + " *)"
+        r = "(* " + r + " *)\n"
     return r
 
 # ------------------------------------------------------------------------------------------------ #
@@ -388,23 +400,23 @@ def _print_module(f, ios, name, ns, attr_translate):
         firstp = False
         attr = _print_attribute(sig.attr, attr_translate)
         if attr:
-            r += "\t" + attr
+            r += _tab + attr
         sig.type = "wire"
         sig.name = ns.get_name(sig)
         sig.port = True
         if sig in inouts:
             sig.direction = "inout"
-            r += "\tinout  wire " + _print_signal(ns, sig)
+            r += _tab + "inout  wire " + _print_signal(ns, sig)
         elif sig in targets:
             sig.direction = "output"
             if sig in wires:
-                r += "\toutput wire " + _print_signal(ns, sig)
+                r += _tab + "output wire " + _print_signal(ns, sig)
             else:
                 sig.type = "reg"
-                r += "\toutput reg  " + _print_signal(ns, sig)
+                r += _tab + "output reg  " + _print_signal(ns, sig)
         else:
             sig.direction = "input"
-            r += "\tinput  wire " + _print_signal(ns, sig)
+            r += _tab + "input  wire " + _print_signal(ns, sig)
     r += "\n);\n\n"
 
     return r
@@ -418,9 +430,7 @@ def _print_signals(f, ios, name, ns, attr_translate):
 
     r = ""
     for sig in sorted(sigs - ios, key=lambda x: x.duid):
-        attr = _print_attribute(sig.attr, attr_translate)
-        if attr:
-            r += attr + " "
+        r += _print_attribute(sig.attr, attr_translate)
         if sig in wires:
             r += "wire " + _print_signal(ns, sig) + ";\n"
         else:
@@ -451,7 +461,7 @@ def _print_combinatorial_logic_sim(f, ns):
                 r += "assign " + _print_node(ns, _AT_BLOCKING, 0, stmts[0])
             else:
                 r += "always @(*) begin\n"
-                r += "\t" + ns.get_name(t) + " <= " + _print_expression(ns, t.reset)[0] + ";\n"
+                r += _tab + ns.get_name(t) + " <= " + _print_expression(ns, t.reset)[0] + ";\n"
                 r += _print_node(ns, _AT_NONBLOCKING, 1, stmts, t)
                 r += "end\n"
     r += "\n"
@@ -468,7 +478,7 @@ def _print_combinatorial_logic_synth(f, ns):
             else:
                 r += "always @(*) begin\n"
                 for t in g[0]:
-                    r += "\t" + ns.get_name(t) + " <= " + _print_expression(ns, t.reset)[0] + ";\n"
+                    r += _tab + ns.get_name(t) + " <= " + _print_expression(ns, t.reset)[0] + ";\n"
                 r += _print_node(ns, _AT_NONBLOCKING, 1, g[1])
                 r += "end\n"
     r += "\n"
@@ -494,9 +504,7 @@ def _print_specials(name, overrides, specials, namespace, add_data_file, attr_tr
     r = ""
     for special in sorted(specials, key=lambda x: x.duid):
         if hasattr(special, "attr"):
-            attr = _print_attribute(special.attr, attr_translate)
-            if attr:
-                r += attr + " "
+            r += _print_attribute(special.attr, attr_translate)
         # Replace Migen Memory's emit_verilog with LiteX's implementation.
         if isinstance(special, Memory):
             from litex.gen.fhdl.memory import memory_emit_verilog
@@ -517,9 +525,17 @@ class DummyAttrTranslate(dict):
         return (k, "true")
 
 def convert(f, ios=set(), name="top", platform=None,
-    special_overrides    = dict(),
-    attr_translate       = DummyAttrTranslate(),
-    regular_comb         = True):
+    # Verilog parameters.
+    special_overrides = dict(),
+    attr_translate    = DummyAttrTranslate(),
+    regular_comb      = True,
+    # Sim parameters.
+    time_unit      = "1ns",
+    time_precision = "1ps",
+    ):
+
+    # Build Logic.
+    # ------------
 
     # Create ConvOutput.
     r = ConvOutput()
@@ -584,9 +600,16 @@ def convert(f, ios=set(), name="top", platform=None,
     # Build Verilog.
     # --------------
     verilog = ""
+    # Banner.
     verilog += _print_banner(
         filename = name,
         device   = getattr(platform, "device", "Unknown")
+    )
+
+    # Timescale.
+    verilog += _print_timescale(
+        time_unit      = time_unit,
+        time_precision = time_precision
     )
 
     # Module Definition.
@@ -622,6 +645,7 @@ def convert(f, ios=set(), name="top", platform=None,
     # Module End.
     verilog += "endmodule\n"
 
+    # Trailer.
     verilog += _print_trailer()
 
     r.set_main_source(verilog)

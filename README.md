@@ -15,7 +15,7 @@ The LiteX framework provides a convenient and efficient infrastructure to create
 
 **Want to get started and/or looking for documentation? Make sure to visit the [Wiki](https://github.com/enjoy-digital/litex/wiki)!**
 
-**A question or want to get in touch? Our IRC channel is [#litex at irc.libera.chat]**.
+**A question or want to get in touch? Join us on [Discord](https://discord.gg/PkJwjDbxeG) or on our IRC channel: [#litex at irc.libera.chat]**.
 
 LiteX provides all the common components required to easily create an FPGA Core/SoC:
  - :heavy_check_mark: Buses and Streams (Wishbone, AXI, Avalon-ST) and their  interconnect.
@@ -53,6 +53,10 @@ You already have a FPGA board(s)? Visit [LiteX-Boards](https://github.com/litex-
 The framework is also far from perfect and we'll be happy to have your [feedback or/and contributions](https://github.com/enjoy-digital/litex/wiki/Feedback-Contribution-Support).
 
 Have fun! :wink:
+
+**Moral precisions**: The project is shared with a permissive BSD 2-Clause License and we are encouraged to continue sharing it this way thanks to the awesome community and clients willing to support the project!
+If the projet is useful for your research, hobby or commercial projects, we are just asking you to be coherent and behave with integrity: Don't expect free support or that the community will be welcoming if your spent your time complaining about the project (and then direspect developers) or don't pay the custom developments you asked for... (While it's probably natural for 99% of users/clients, it  does seems useful to add this for the 1% remaining that are eating lots of our energy/time).
+
 
 # Typical LiteX design flow:
 ```

@@ -26,20 +26,20 @@ CPU_VARIANTS = {
 # GCC Flags ----------------------------------------------------------------------------------------
 
 GCC_FLAGS = {
-    #                               /-------- Base ISA
-    #                               |/------- Hardware Multiply + Divide
-    #                               ||/----- Atomics
-    #                               |||/---- Compressed ISA
-    #                               ||||/--- Single-Precision Floating-Point
-    #                               |||||/-- Double-Precision Floating-Point
-    #                               imacfd
-    "standard":         "-march=rv32i     -mabi=ilp32",
-    "quark":            "-march=rv32i     -mabi=ilp32",
-    "tachyon":          "-march=rv32i     -mabi=ilp32",
-    "electron":         "-march=rv32im    -mabi=ilp32",
-    "intermissum":      "-march=rv32im    -mabi=ilp32",
-    "gracilis":         "-march=rv32imc   -mabi=ilp32",
-    "petitbateau":      "-march=rv32imfc  -mabi=ilp32f",
+    #                               /------------ Base ISA
+    #                               |    /------- Hardware Multiply + Divide
+    #                               |    |/----- Atomics
+    #                               |    ||/---- Compressed ISA
+    #                               |    |||/--- Single-Precision Floating-Point
+    #                               |    ||||/-- Double-Precision Floating-Point
+    #                               i    macfd
+    "standard":         "-march=rv32i2p0      -mabi=ilp32",
+    "quark":            "-march=rv32i2p0      -mabi=ilp32",
+    "tachyon":          "-march=rv32i2p0      -mabi=ilp32",
+    "electron":         "-march=rv32i2p0_m    -mabi=ilp32",
+    "intermissum":      "-march=rv32i2p0_m    -mabi=ilp32",
+    "gracilis":         "-march=rv32i2p0_mc   -mabi=ilp32",
+    "petitbateau":      "-march=rv32i2p0_mfc  -mabi=ilp32f",
 }
 
 # FemtoRV ------------------------------------------------------------------------------------------

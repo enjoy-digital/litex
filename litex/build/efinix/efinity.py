@@ -229,7 +229,7 @@ class EfinityToolchain(GenericToolchain):
         root.attrib["xmlns:efx"]        = "http://www.efinixinc.com/enf_proj"
         root.attrib["name"]             = self._build_name
         root.attrib["location"]         = str(pathlib.Path().resolve())
-        root.attrib["sw_version"]       = "2021.1.165.2.19" # TODO: read it from sw_version.txt
+        root.attrib["sw_version"]       = "2022.1.226" # TODO: read it from sw_version.txt
         root.attrib["last_change_date"] = f"Date : {now.strftime('%Y-%m-%d %H:%M')}"
 
         # Add Device.

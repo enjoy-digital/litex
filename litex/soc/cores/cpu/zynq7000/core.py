@@ -270,8 +270,64 @@ class Zynq7000(CPU):
 
     # AXI General Purpose Slave --------------------------------------------------------------------
 
-    def add_axi_gp_slave(self):
-        raise NotImplementedError
+    def add_axi_gp_slave(self, clock_domain="ps7"):
+        assert len(self.axi_gp_slaves) < 2
+        n       = len(self.axi_gp_slaves)
+        axi_gpn = axi.AXIInterface(data_width=32, address_width=32, id_width=12, clock_domain=clock_domain)
+        self.axi_gp_slaves.append(axi_gpn)
+        self.cpu_params.update({
+            #AXI S GP clk.
+            f"i_S_AXI_GP{n}_ACLK" : ClockSignal(clock_domain),
+
+            #AXI S GP aw.
+            f"i_S_AXI_GP{n}_AWVALID" : axi_gpn.aw.valid,
+            f"i_S_AXI_GP{n}_AWADDR"  : axi_gpn.aw.addr,
+            f"o_S_AXI_GP{n}_AWREADY" : axi_gpn.aw.ready,
+            f"i_S_AXI_GP{n}_AWBURST" : axi_gpn.aw.burst,
+            f"i_S_AXI_GP{n}_AWLEN"   : axi_gpn.aw.len,
+            f"i_S_AXI_GP{n}_AWSIZE"  : axi_gpn.aw.size,
+            f"i_S_AXI_GP{n}_AWID"    : axi_gpn.aw.id,
+            f"i_S_AXI_GP{n}_AWLOCK"  : axi_gpn.aw.lock,
+            f"i_S_AXI_GP{n}_AWPROT"  : axi_gpn.aw.prot,
+            f"i_S_AXI_GP{n}_AWCACHE" : axi_gpn.aw.cache,
+            f"i_S_AXI_GP{n}_AWQOS"   : axi_gpn.aw.qos,
+
+            #AXI S GP w.
+            f"i_S_AXI_GP{n}_WVALID"  : axi_gpn.w.valid,
+            f"i_S_AXI_GP{n}_WLAST"   : axi_gpn.w.last,
+            f"o_S_AXI_GP{n}_WREADY"  : axi_gpn.w.ready,
+            f"i_S_AXI_GP{n}_WID"     : axi_gpn.w.id,
+            f"i_S_AXI_GP{n}_WDATA"   : axi_gpn.w.data,
+            f"i_S_AXI_GP{n}_WSTRB"   : axi_gpn.w.strb,
+
+            #AXI S GP b.
+            f"o_S_AXI_GP{n}_BVALID"  : axi_gpn.b.valid,
+            f"i_S_AXI_GP{n}_BREADY"  : axi_gpn.b.ready,
+            f"o_S_AXI_GP{n}_BID"     : axi_gpn.b.id,
+            f"o_S_AXI_GP{n}_BRESP"   : axi_gpn.b.resp,
+
+            #AXI S GP ar.
+            f"i_S_AXI_GP{n}_ARVALID" : axi_gpn.ar.valid,
+            f"i_S_AXI_GP{n}_ARADDR"  : axi_gpn.ar.addr,
+            f"o_S_AXI_GP{n}_ARREADY" : axi_gpn.ar.ready,
+            f"i_S_AXI_GP{n}_ARBURST" : axi_gpn.ar.burst,
+            f"i_S_AXI_GP{n}_ARLEN"   : axi_gpn.ar.len,
+            f"i_S_AXI_GP{n}_ARSIZE"  : axi_gpn.ar.size,
+            f"i_S_AXI_GP{n}_ARID"    : axi_gpn.ar.id,
+            f"i_S_AXI_GP{n}_ARLOCK"  : axi_gpn.ar.lock,
+            f"i_S_AXI_GP{n}_ARPROT"  : axi_gpn.ar.prot,
+            f"i_S_AXI_GP{n}_ARCACHE" : axi_gpn.ar.cache,
+            f"i_S_AXI_GP{n}_ARQOS"   : axi_gpn.ar.qos,
+
+            #AXI S GP r.
+            f"o_S_AXI_GP{n}_RVALID"  : axi_gpn.r.valid,
+            f"i_S_AXI_GP{n}_RREADY"  : axi_gpn.r.ready,
+            f"o_S_AXI_GP{n}_RLAST"   : axi_gpn.r.last,
+            f"o_S_AXI_GP{n}_RID"     : axi_gpn.r.id,
+            f"o_S_AXI_GP{n}_RRESP"   : axi_gpn.r.resp,
+            f"o_S_AXI_GP{n}_RDATA"   : axi_gpn.r.data,
+        })
+        return axi_gpn
 
     # AXI High Performance Slave -------------------------------------------------------------------
 

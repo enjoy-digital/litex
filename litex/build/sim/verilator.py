@@ -8,6 +8,7 @@
 import os
 import sys
 import subprocess
+from pathlib import Path
 from shutil import which
 
 from migen.fhdl.structure import _Fragment
@@ -132,9 +133,12 @@ def _generate_sim_config(config):
 
 def _build_sim(build_name, sources, jobs, threads, coverage, opt_level="O3", trace_fst=False):
     makefile = os.path.join(core_directory, 'Makefile')
+
     cc_srcs = []
     for filename, language, library, *copy in sources:
-        cc_srcs.append("--cc " + filename + " ")
+        if Path(filename).suffix not in [".hex", ".init"]:
+            cc_srcs.append("--cc " + filename + " ")
+
     build_script_contents = """\
 rm -rf obj_dir/
 make -C . -f {} {} {} {} {} {} {}
@@ -182,6 +186,7 @@ def _run_sim(build_name, as_root=False, interactive=True):
 
 
 class SimVerilatorToolchain:
+    support_mixed_language = False
     def build(self, platform, fragment,
             build_dir        = "build",
             build_name       = "sim",
@@ -264,7 +269,7 @@ class SimVerilatorToolchain:
             return v_output.ns
 
 def verilator_build_args(parser):
-    toolchain_group = parser.add_argument_group(title="Toolchain options")
+    toolchain_group = parser.add_argument_group(title="Verilator toolchain options")
     toolchain_group.add_argument("--jobs",         default=None,        help="Limit the number of compiler jobs.")
     toolchain_group.add_argument("--threads",      default=1,           help="Set number of simulation threads.")
     toolchain_group.add_argument("--trace",        action="store_true", help="Enable Tracing.")

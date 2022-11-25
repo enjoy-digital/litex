@@ -16,7 +16,7 @@ python3      = sys.executable
 
 # Helpers ------------------------------------------------------------------------------------------
 
-def colorer(s, color="bright"): # FIXME: Move colorer to litex.common?
+def colorer(s, color="bright"):
     header  = {
         "bright"    : "\x1b[1m",
         "green"     : "\x1b[1m\x1b[32m",
@@ -112,7 +112,7 @@ git_repos = {
     "pythondata-cpu-marocchino":   GitRepo(url="https://github.com/litex-hub/"),
 
     # OpenPower CPU(s).
-    "pythondata-cpu-microwatt":    GitRepo(url="https://github.com/litex-hub/", sha1=0xb940b55acff),
+    "pythondata-cpu-microwatt":    GitRepo(url="https://github.com/litex-hub/", sha1=0xc69953aff92),
 
     # RISC-V CPU(s).
     "pythondata-cpu-blackparrot":  GitRepo(url="https://github.com/litex-hub/"),
@@ -309,74 +309,72 @@ def litex_setup_freeze_repos(config="standard"):
     r += "}\n"
     print(r)
 
-# GCC toolchains download --------------------------------------------------------------------------
-
-def gcc_toolchain_download(url, filename):
-    print_status("Downloading GCC toolchain...", underline=True)
-    if not os.path.exists(filename):
-        full_url = url + filename
-        print_status(f"Downloading {full_url} to {filename}...")
-        urllib.request.urlretrieve(full_url, filename)
-    else:
-        print_status(f"Using existing file {filename}.")
-
-    print_status(f"Extracting {filename}...")
-    shutil.unpack_archive(filename)
+# GCC toolchains install ---------------------------------------------------------------------------
 
 # RISC-V toolchain.
 # -----------------
 
-def riscv_gcc_toolchain_download():
-    base_url  = "https://static.dev.sifive.com/dev-tools/freedom-tools/v2020.08/"
-    base_file = "riscv64-unknown-elf-gcc-10.1.0-2020.08.2-x86_64-"
-
-    # Windows
-    if (sys.platform.startswith("win") or sys.platform.startswith("cygwin")):
-        end_file = "w64-mingw32.zip"
-    # Linux
-    elif sys.platform.startswith("linux"):
+def riscv_gcc_install():
+    # Linux.
+    # ------
+    if sys.platform.startswith("linux"):
         os_release = (open("/etc/os-release").read()).lower()
+        # Fedora.
         if "fedora" in os_release:
-            end_file = "linux-centos6.tar.gz"
+            os.system("dnf install gcc-riscv64-linux-gnu")
+        # Ubuntu.
         else:
-            end_file = "linux-ubuntu14.tar.gz"
+            os.system("apt install gcc-riscv64-linux-gnu")
 
-    # Mac OS
+    # Mac OS.
+    # -------
     elif sys.platform.startswith("darwin"):
-        end_file = "apple-darwin.tar.gz"
+        os.system("brew install riscv-tools")
+
+    # Manual installation.
+    # --------------------
     else:
-        raise NotImplementedError(sys.platform)
+        NotImplementedError(f"RISC-V GCC requires manual installation on {sys.platform}.")
 
-    # Download/Extract.
-    gcc_toolchain_download(url=base_url, filename=base_file + end_file)
+# PowerPC toolchain.
+# -----------------
 
-# PowerPC toolchain download.
-# ---------------------------
+def powerpc_gcc_install():
+    # Linux.
+    # ------
+    if sys.platform.startswith("linux"):
+        os_release = (open("/etc/os-release").read()).lower()
+        # Fedora.
+        if "fedora" in os_release:
+            os.system("dnf install gcc-powerpc64le-linux-gnu") # FIXME: binutils-multiarch?
+        # Ubuntu.
+        else:
+            os.system("apt install gcc-powerpc64le-linux-gnu binutils-multiarch")
 
-def powerpc_gcc_toolchain_download():
-    base_url  = "https://toolchains.bootlin.com/downloads/releases/toolchains/powerpc64le-power8/tarballs/"
-    base_file = "powerpc64le-power8--musl--stable-2020.08-1.tar.bz2"
+    # Manual installation.
+    # --------------------
+    else:
+        NotImplementedError(f"PowerPC GCC requires manual installation on {sys.platform}.")
 
-    # Download/Extract.
-    gcc_toolchain_download(url=base_url, filename=base_file)
+# OpenRISC toolchain.
+# -------------------
 
-# OpenRISC toolchain download.
-# ----------------------------
+def openrisc_gcc_install():
+    # Linux.
+    # ------
+    if sys.platform.startswith("linux"):
+        os_release = (open("/etc/os-release").read()).lower()
+        # Fedora.
+        if "fedora" in os_release:
+            os.system("dnf install gcc-or1k-elf")
+        # Ubuntu.
+        else:
+            os.system("apt install gcc-or1k-elf")
 
-def openrisc_gcc_toolchain_download():
-    base_url  = "https://toolchains.bootlin.com/downloads/releases/toolchains/openrisc/tarballs/"
-    base_file = "openrisc--musl--stable-2020.08-1.tar.bz2"
-
-    # Download/Extract.
-    gcc_toolchain_download(url=base_url, filename=base_file)
-
-# LM32 toolchain download.
-
-def lm32_gcc_toolchain_download():
-    base_url  = ""
-    base_file = ""
-
-    raise NotImplementedError
+    # Manual installation.
+    # --------------------
+    else:
+        NotImplementedError(f"OpenRISC GCC requires manual installation on {sys.platform}.")
 
 # Run ----------------------------------------------------------------------------------------------
 
@@ -393,9 +391,8 @@ def main():
     parser.add_argument("--tag",       default=None,        help="Use version from release tag.")
     parser.add_argument("--freeze",    action="store_true", help="Freeze and display current config.")
 
-
     # GCC toolchains.
-    parser.add_argument("--gcc", default=None, help="Download/Extract GCC Toolchain (riscv, powerpc, openrisc or lm32).")
+    parser.add_argument("--gcc", default=None, help="Install GCC Toolchain (riscv, powerpc or openrisc).")
 
     # Development mode.
     parser.add_argument("--dev", action="store_true", help="Development-Mode (no Auto-Update of litex_setup.py / Switch to git@github.com URLs).")
@@ -436,13 +433,11 @@ def main():
     # GCC.
     os.chdir(os.path.join(current_path))
     if args.gcc == "riscv":
-        riscv_gcc_toolchain_download()
+        riscv_gcc_install()
     if args.gcc == "powerpc":
-        powerpc_gcc_toolchain_download()
+        powerpc_gcc_install()
     if args.gcc == "openrisc":
-        openrisc_gcc_toolchain_download()
-    if args.gcc == "lm32":
-        lm32_gcc_toolchain_download()
+        openrisc_gcc_install()
 
 if __name__ == "__main__":
     main()

@@ -68,10 +68,14 @@ def connect_to_pads(bus, pads, mode="master", axi_full=False):
     }
     for channel, mode in channel_modes.items():
         ch = getattr(bus, channel)
-        sig_list = [("valid", 1)] + ch.description.payload_layout
+        sig_list = [("valid", 1)] + ch.description.payload_layout + ch.description.param_layout
         if channel in ["w", "r"] and axi_full:
             sig_list += [("last",  1)]
         for name, width in sig_list:
+            if (name == "dest"):
+                continue # No DEST.
+            if (channel == "w") and (name == "id") and (bus.version == "axi4"):
+                continue # No WID on AXI4.
             sig  = getattr(ch, name)
             pad  = getattr(pads, channel + name)
             if mode == "master":
