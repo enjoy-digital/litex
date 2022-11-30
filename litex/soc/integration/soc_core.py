@@ -315,7 +315,7 @@ def soc_core_argdict(args):
             arg = not getattr(args, a.replace("with", "no"), True)
         # Handle specific ident_version case (--no-ident-version is exposed).
         elif a in ["ident_version"]:
-            arg = not getattr(args, "no_ident_version")
+            arg = not getattr(args, "no_ident_version", True)
         # Regular cases.
         else:
             arg = getattr(args, a, None)
