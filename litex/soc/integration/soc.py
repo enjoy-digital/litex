@@ -1529,6 +1529,10 @@ class LiteXSoC(SoC):
                 # Check if bus is an AXI bus and connect it.
                 if isinstance(mem_bus, axi.AXIInterface):
                     data_width_ratio = int(port.data_width/mem_bus.data_width)
+                    if data_width_ratio != 1:
+                        self.logger.warning("Converting MemBus({}) data width to LiteDRAM({}).".format(
+                            colorer(mem_bus.data_width, color="yellow"),
+                            colorer(port.data_width,    color="yellow")))
                     # If same data_width, connect it directly.
                     if data_width_ratio == 1:
                         self.submodules += LiteDRAMAXI2Native(
