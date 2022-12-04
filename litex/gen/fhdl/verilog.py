@@ -13,6 +13,8 @@
 # This file is Copyright (c) 2018 Robin Ole Heinemann <robin.ole.heinemann@t-online.de>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import functools
+import math
 import time
 import datetime
 
@@ -145,10 +147,107 @@ _ieee_1800_2017_verilog_reserved_keywords = {
 
 # Print Constant -----------------------------------------------------------------------------------
 
+
+def _decimal_entropy(buf):
+    """Get the entropy of a decimal byte-string [0-9]"""
+    freqs = [0] * 10
+    norm_buf = []
+    for b in buf:
+        if 0x30 <= b <= 0x39: # ascii 0 and 9
+            norm_buf.append(b - 0x30)
+        else:
+            raise ValueError(f"not a decimal digit: '{b}'")
+    for b in norm_buf:
+        freqs[b] += 1
+    num_bytes = len(norm_buf)
+    freqs = map(lambda cnt: cnt / num_bytes, freqs)
+    ent, nsyms = 0, 0
+    for freq in freqs:
+        if freq == 0:
+            continue
+        nsyms += 1
+        ent += freq * math.log2(freq)
+    if ent == -0.0: # avoid -0.0
+        ent = 0.0
+    return ent, nsyms
+
+def _hex_entropy(buf):
+    """Get the entropy of a hexadecimal byte-string [0-9a-z] (no 0c prefix)"""
+    freqs = [0] * 16
+    norm_buf = []
+    for b in buf:
+        if 0x30 <= b <= 0x39: # ascii 0 and 9
+            norm_buf.append(b - 0x30)
+        elif 0x61 <= b <= 0x66: # ascii a and f
+            norm_buf.append(b - 0x57) # subtract ascii a and add 10
+        else:
+            raise ValueError(f"not a hex digit: '{b}'")
+    for b in norm_buf:
+        freqs[b] += 1
+    num_bytes = len(norm_buf)
+    freqs = map(lambda cnt: cnt / num_bytes, freqs)
+    ent, nsyms = 0, 0
+    for freq in freqs:
+        if freq == 0:
+            continue
+        nsyms += 1
+        ent += freq * math.log2(freq)
+    if ent == -0.0: # avoid -0.0
+        ent = 0.0
+    return ent, nsyms
+
+@functools.cache
+def _is_pretty_base_hex(n: int) -> bool:
+    if n < 0:
+        # normalize to positive for simplicity
+        n = -n
+
+    if n == 0:
+        return False
+    if math.log10(n) == int(math.log10(n)):
+        # power of 10
+        return False
+    if math.log2(n) == int(math.log2(n)) and n >= 16:
+        # power of two >= 16
+        return True
+
+    d, h = str(n), hex(n)[2:]
+    # encdode as bytes to avoid slower string comparisons
+    d, h = d.encode("utf-8"), h.encode("utf-8")
+    dl, hl = len(d), len(h)
+    ent_d, nsyms_d = _decimal_entropy(d)
+    ent_h, nsyms_h = _hex_entropy(h)
+    # fraction of digits that are unique
+    frac_unique_d = nsyms_d / dl
+    frac_unique_h = nsyms_h / hl
+
+    # less unique = more repetitive = prettier
+    if frac_unique_d < frac_unique_h:
+        return False
+    elif frac_unique_h < frac_unique_d:
+        return True
+    # tie on fraction of unqiue digits
+
+    if n < 1000:
+        # I can coun't to 1000 at least
+        return False
+
+    if ent_d < ent_h:
+        return False
+    elif ent_h < ent_d:
+        return True
+    # overall entropy is tied
+
+    # default decimal
+    return False
+
 def _print_constant(node):
-    return "{sign}{bits}'d{value}".format(
+    is_hex = _is_pretty_base_hex(node.value)
+    base_fmt = "x" if is_hex else "d"
+    return ("{sign}{bits}'{base}{value:" + base_fmt + "}").format(
         sign  = "" if node.value >= 0 else "-",
         bits  = str(node.nbits),
+        base  = "h" if is_hex else "d",
         value = abs(node.value),
     ), node.signed
 
