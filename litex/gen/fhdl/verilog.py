@@ -172,7 +172,7 @@ def _decimal_entropy(buf):
     return ent, nsyms
 
 def _hex_entropy(buf):
-    """Get the entropy of a hexadecimal byte-string [0-9a-z] (no 0c prefix)"""
+    """Get the entropy of a hexadecimal byte-string [0-9a-z] (no 0x prefix)"""
     freqs = [0] * 16
     norm_buf = []
     for b in buf:
@@ -229,7 +229,7 @@ def _is_pretty_base_hex(n: int) -> bool:
     # tie on fraction of unqiue digits
 
     if n < 1000:
-        # I can coun't to 1000 at least
+        # I can count to 1000 at least
         return False
 
     if ent_d < ent_h:
@@ -241,8 +241,13 @@ def _is_pretty_base_hex(n: int) -> bool:
     # default decimal
     return False
 
-def _print_constant(node):
-    is_hex = _is_pretty_base_hex(node.value)
+def _print_constant(node, force_hex=False, force_dec=False):
+    if force_hex:
+        is_hex = True
+    elif force_dec:
+        is_hex = False
+    else:
+        is_hex = _is_pretty_base_hex(node.value)
     base_fmt = "x" if is_hex else "d"
     return ("{sign}{bits}'{base}{value:" + base_fmt + "}").format(
         sign  = "" if node.value >= 0 else "-",
@@ -343,10 +348,10 @@ def _print_replicate(ns, node):
 
 # Print Expression ---------------------------------------------------------------------------------
 
-def _print_expression(ns, node):
+def _print_expression(ns, node, **kwargs):
     # Constant.
     if isinstance(node, Constant):
-        return _print_constant(node)
+        return _print_constant(node, **kwargs)
 
     # Signal.
     elif isinstance(node, Signal):
@@ -411,7 +416,7 @@ def _print_node(ns, at, level, node, target_filter=None):
     # Case.
     elif isinstance(node, Case):
         if node.cases:
-            r = _tab*level + "case (" + _print_expression(ns, node.test)[0] + ")\n"
+            r = _tab*level + "case (" + _print_expression(ns, node.test, force_dec=True)[0] + ")\n"
             css = [(k, v) for k, v in node.cases.items() if isinstance(k, Constant)]
             css = sorted(css, key=lambda x: x[0].value)
             for choice, statements in css:
