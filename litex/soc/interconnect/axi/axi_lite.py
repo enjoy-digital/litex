@@ -135,9 +135,8 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=
                 comb.append(port_we[i].eq(axi_lite.w.valid & axi_lite.w.ready & axi_lite.w.strb[i]))
         else:
             comb.append(port_we.eq(axi_lite.w.valid & axi_lite.w.ready & (axi_lite.w.strb != 0)))
-
-    fsm = FSM()
-    fsm.act("START-TRANSACTION",
+    # Compute do_write/do_read as `comb`, so they do not affect the sensitivity list of the FSM
+    comb += [
         # If the last access was a read, do a write, and vice versa.
         If(axi_lite.aw.valid & axi_lite.ar.valid,
             do_write.eq(last_was_read),
@@ -146,24 +145,35 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=
             do_write.eq(axi_lite.aw.valid),
             do_read.eq(axi_lite.ar.valid),
         ),
+    ]
+    fsm = FSM()
+    fsm.act("START-TRANSACTION",
         # Start reading/writing immediately not to waste a cycle.
-        axi_lite.aw.ready.eq(last_was_read  | ~axi_lite.ar.valid),
-        axi_lite.ar.ready.eq(~last_was_read | ~axi_lite.aw.valid),
         If(do_write,
             port_adr.eq(axi_lite.aw.addr[adr_shift:]),
             If(axi_lite.w.valid,
+                axi_lite.aw.ready.eq(1),
                 axi_lite.w.ready.eq(1),
                 NextState("SEND-WRITE-RESPONSE")
             )
         ).Elif(do_read,
-            port_adr.eq(axi_lite.ar.addr[adr_shift:]),
+            If(axi_lite.r.valid,
+                port_adr.eq(axi_lite.ar.addr[adr_shift:]),
+            ).Else(
+                port_adr.eq(0),
+            ),
+            axi_lite.ar.ready.eq(1),
             NextState("SEND-READ-RESPONSE"),
         )
     )
     fsm.act("SEND-READ-RESPONSE",
         NextValue(last_was_read, 1),
         # As long as we have correct address port.dat_r will be valid.
-        port_adr.eq(axi_lite.ar.addr[adr_shift:]),
+        If(axi_lite.r.valid,
+            port_adr.eq(axi_lite.ar.addr[adr_shift:]),
+        ).Else(
+            port_adr.eq(0),
+        ),
         axi_lite.r.data.eq(port_dat_r),
         axi_lite.r.resp.eq(RESP_OKAY),
         axi_lite.r.valid.eq(1),
@@ -536,7 +546,7 @@ class AXILiteTimeout(Module):
                 timer.wait.eq(wait_cond),
                 # done is updated in `sync`, so we must make sure that `ready` has not been issued
                 # by slave during that single cycle, by checking `timer.wait`.
-                If(timer.done & timer.wait,
+                If(timer.done & wait_cond, # timer.wait.eq(wait_cond)
                     error.eq(1),
                     NextState("RESPOND")
                 )
@@ -553,7 +563,7 @@ class AXILiteTimeout(Module):
                 master.w.ready.eq(master.w.valid),
                 master.b.valid.eq(~master.aw.valid & ~master.w.valid),
                 master.b.resp.eq(RESP_SLVERR),
-                If(master.b.valid & master.b.ready,
+                If((~master.aw.valid & ~master.w.valid) & master.b.ready, # master.b.valid.eq(~master.aw.valid & ~master.w.valid)
                     NextState("WAIT")
                 )
             ])
@@ -567,7 +577,7 @@ class AXILiteTimeout(Module):
                 master.r.valid.eq(~master.ar.valid),
                 master.r.resp.eq(RESP_SLVERR),
                 master.r.data.eq(2**len(master.r.data) - 1),
-                If(master.r.valid & master.r.ready,
+                If(~master.ar.valid & master.r.ready, # master.ar.ready.eq(master.ar.valid),
                     NextState("WAIT")
                 )
             ])
