@@ -1197,13 +1197,19 @@ class SoC(LiteXModule, SoCCoreCompat):
                 delattr(self, name)
 
         # SoC CSR Interconnect ---------------------------------------------------------------------
+        if self.bus.standard == 'axi-lite':
+            reg = False
+        else:
+            reg = True
         self.csr_bankarray = csr_bus.CSRBankArray(self,
             address_map        = self.csr.address_map,
             data_width         = self.csr.data_width,
             address_width      = self.csr.address_width,
             alignment          = self.csr.alignment,
             paging             = self.csr.paging,
-            ordering           = self.csr.ordering)
+            ordering           = self.csr.ordering,
+            reg                = reg
+        )
         if len(self.csr.masters):
             self.csr_interconnect = csr_bus.InterconnectShared(
                 masters = list(self.csr.masters.values()),

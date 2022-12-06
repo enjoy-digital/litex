@@ -165,7 +165,7 @@ class SRAM(Module):
 # CSR Bank -----------------------------------------------------------------------------------------
 
 class CSRBank(csr.GenericBank):
-    def __init__(self, description, address=0, bus=None, paging=0x800, ordering="big"):
+    def __init__(self, description, address=0, bus=None, paging=0x800, ordering="big", reg=True):
         if bus is None:
             bus = Interface()
         self.bus = bus
@@ -192,10 +192,16 @@ class CSRBank(csr.GenericBank):
             ]
 
         brcases = dict((i, self.bus.dat_r.eq(c.w)) for i, c in enumerate(self.simple_csrs))
-        self.sync += [
-            self.bus.dat_r.eq(0),
-            If(sel, Case(self.bus.adr[:log2_int(aligned_paging)], brcases))
-        ]
+        if reg:
+            self.sync += [
+                self.bus.dat_r.eq(0),
+                If(sel, Case(self.bus.adr[:log2_int(aligned_paging)], brcases))
+            ]
+        else:
+            self.comb += [
+                self.bus.dat_r.eq(0),
+                If(sel, Case(self.bus.adr[:log2_int(aligned_paging)], brcases))
+            ]
 
 
 # address_map(name, memory) returns the CSR offset at which to map
@@ -205,11 +211,12 @@ class CSRBank(csr.GenericBank):
 # address_map is called exactly once for each object at each call to
 # scan(), so it can have side effects.
 class CSRBankArray(Module):
-    def __init__(self, source, address_map, *ifargs, paging=0x800, ordering="big", **ifkwargs):
+    def __init__(self, source, address_map, *ifargs, paging=0x800, ordering="big", reg=True, **ifkwargs):
         self.source             = source
         self.address_map        = address_map
         self.paging             = paging
         self.ordering           = ordering
+        self.reg                = reg
         self.scan(ifargs, ifkwargs)
 
     def scan(self, ifargs, ifkwargs):
@@ -271,7 +278,9 @@ class CSRBankArray(Module):
                 rmap = CSRBank(csrs, mapaddr,
                     bus                = bank_bus,
                     paging             = self.paging,
-                    ordering           = self.ordering)
+                    ordering           = self.ordering,
+                    reg                = self.reg,
+                )
                 self.submodules += rmap
                 self.banks.append((name, csrs, mapaddr, rmap))
 
