@@ -26,6 +26,8 @@ SECTIONS
 		_frodata = .;
 		*(.rodata .rodata.* .gnu.linkonce.r.*)
 		*(.rodata1)
+		*(.got .got.*)
+		*(.toc .toc.*)
 		. = ALIGN(8);
 		_erodata = .;
 	} > main_ram
