@@ -64,12 +64,13 @@ class AXI2AXILite(Module):
         )
         fsm.act("READ",
             # ar (read command)
-            axi_lite.ar.valid.eq(ax_beat.valid & ~_cmd_done),
+            axi_lite.ar.valid.eq(ax_beat.valid & ~_cmd_done
+                & ~(ax_beat.valid & ax_beat.last & axi_lite.ar.ready)
+            ),
             axi_lite.ar.addr.eq(ax_beat.addr),
-            ax_beat.ready.eq(axi_lite.ar.ready & ~_cmd_done),
+            ax_beat.ready.eq(axi_lite.ar.ready),
             If(ax_beat.valid & ax_beat.last,
                 If(axi_lite.ar.ready,
-                    ax_beat.ready.eq(0),
                     NextValue(_cmd_done, 1)
                 )
             ),
@@ -81,7 +82,8 @@ class AXI2AXILite(Module):
             axi.r.data.eq(axi_lite.r.data),
             axi_lite.r.ready.eq(axi.r.ready),
             # Exit
-            If(axi.r.valid & axi.r.last & axi.r.ready,
+            # If(axi.r.valid & axi.r.last & axi.r.ready,   # Original semantic intent
+            If(axi_lite.r.valid & _cmd_done & axi.r.ready, # Revised so assignments not affecting always(@*) sensitivity list
                 ax_beat.ready.eq(1),
                 NextState("IDLE")
             )
@@ -90,7 +92,9 @@ class AXI2AXILite(Module):
         self.comb += axi_lite.b.ready.eq(1)
         fsm.act("WRITE",
             # aw (write command)
-            axi_lite.aw.valid.eq(ax_beat.valid & ~_cmd_done),
+            axi_lite.aw.valid.eq(ax_beat.valid & ~_cmd_done
+                & ~(ax_beat.valid & ax_beat.last & axi_lite.aw.ready)
+            ),
             axi_lite.aw.addr.eq(ax_beat.addr),
             ax_beat.ready.eq(axi_lite.aw.ready & ~_cmd_done),
             If(ax_beat.valid & ax_beat.last,
@@ -105,7 +109,8 @@ class AXI2AXILite(Module):
             axi_lite.w.strb.eq(axi.w.strb),
             axi.w.ready.eq(axi_lite.w.ready),
             # Exit
-            If(axi.w.valid & axi.w.last & axi.w.ready,
+            # If(axi.w.valid & axi.w.last & axi.w.ready,    # Original semantic intent
+            If(axi.w.valid & axi.w.last & axi_lite.w.ready, # Revised so assignments not affecting always(@*) sensitivity list
                 NextState("WRITE-RESP")
             )
         )
