@@ -355,7 +355,7 @@ class _UpConverter(Module):
         # Control path
         demux_cnt  = Signal(max=ratio) # counts how many cycles we've cycled
         demux_val  = Signal(max=ratio) # tracks the actual value of the demux; may be primed with non-zero value
-        prime_demux = Signal(reset=1)
+        prime_demux = Signal(reset=1)  # indicates that the demux should be primed wit the current address value
         load_data  = Signal()
         load_addr  = Signal()
         strobe_all = Signal()
@@ -367,8 +367,6 @@ class _UpConverter(Module):
         ]
 
         demux_last = ((demux_cnt == (ratio - 1)) | sink.last)
-        # 0-3 should mux to the even channel
-        # 4-7 should mux to the odd channel
         self.sync += [
             If(sink.last,
                 prime_demux.eq(1),
@@ -380,7 +378,8 @@ class _UpConverter(Module):
             If(source.ready, strobe_all.eq(0)),
             If(load_addr,
                 If(prime_demux,
-                    demux_val.eq( (self.aw & 7) < 4 ),
+                    # pluck the range of bits from the source addr that correspond to the byte lane offset in the destination data path
+                    demux_val.eq( self.aw[log2_int(nbits_from // 8):log2_int(nbits_from // 8) + log2_int(ratio)] ),
                 ).Else(
                     demux_val.eq(demux_val + 1),
                 ),
@@ -415,7 +414,12 @@ class _UpConverter(Module):
         self.sync += If(
                 load_data,
                 source.data.eq(0),
-                Case(demux_val, cases)
+                Case(
+                    # This is demux_val, but re-computed here so we can have it one cycle earlier
+                    prime_demux & ( self.aw[log2_int(nbits_from // 8):log2_int(nbits_from // 8) + log2_int(ratio)] ) |
+                    ~prime_demux & (demux_val + 1),
+                    cases
+                )
             )
         # Valid token count
         self.sync += If(load_data, source.valid_token_count.eq(demux_cnt + 1))
