@@ -340,11 +340,10 @@ class TestAXI(unittest.TestCase):
         class DUT(Module):
             def __init__(self, dw_from=64, dw_to=32):
                 self.axi_master = axi_master = AXIInterface(data_width=dw_from)
-                self.axi_slave = axi_slave = AXIInterface(data_width=dw_to)
+                self.axi_slave  = axi_slave  = AXIInterface(data_width=dw_to)
                 converter = AXIConverter(axi_master, axi_slave)
                 self.submodules += converter
-                wb = wishbone.Interface(data_width=dw_to,
-                                        adr_width=axi_slave.address_width - log2_int(axi_slave.data_width // 8))
+                wb = wishbone.Interface(data_width=dw_to, address_width=axi_slave.address_width)
                 axi2wb = AXI2Wishbone(axi_slave, wb)
                 self.submodules += axi2wb
                 self.mem = mem = wishbone.SRAM(1024, bus=wb, init=range(256))
@@ -358,12 +357,10 @@ class TestAXI(unittest.TestCase):
             """
             def __init__(self, dw_from=64, dw_to=32):
                 self.axi_master = axi_master = AXIInterface(data_width=dw_from)
-                wb_from = wishbone.Interface(data_width=dw_from,
-                                             adr_width=axi_master.address_width - log2_int(axi_master.data_width // 8))
+                wb_from = wishbone.Interface(data_width=dw_from, address_width=axi_master.address_width)
                 axi2wb = AXI2Wishbone(axi_master, wb_from)
                 self.submodules += axi2wb
-                wb_to = wishbone.Interface(data_width=dw_to,
-                                           adr_width=wb_from.adr_width - log2_int(wb_from.data_width // dw_to))
+                wb_to = wishbone.Interface(data_width=dw_to, address_width=axi_master.address_width)
                 wb2wb = wishbone.Converter(wb_from, wb_to)
                 self.submodules += wb2wb
                 self.mem = mem = wishbone.SRAM(1024, bus=wb_to, init=range(256))
@@ -418,4 +415,4 @@ class TestAXI(unittest.TestCase):
 
         #dut = DUT(64, 32)
         dut = DUT_ref(64, 32)
-        run_simulation(dut, [generator_rd(dut), generator_wr(dut)])
+        run_simulation(dut, [generator_rd(dut), generator_wr(dut)], vcd_name="sim.vcd")
