@@ -378,7 +378,7 @@ static void sdram_leveling_center_module(
 	int working;
 	unsigned int errors;
 	int delay, delay_mid, delay_range;
-	int delay_min = -1, delay_max = -1;
+	int delay_min = -1, delay_max = -1, cur_delay_min = -1;
 
 	if (show_long)
 		printf("m%d: |", module);
@@ -406,20 +406,9 @@ static void sdram_leveling_center_module(
 		inc_delay(module);
 	}
 
-	/* Get a bit further into the working zone */
-#if SDRAM_PHY_DELAYS > 32
-	#define	SDRAM_PHY_DELAY_JUMP 16
-#elif SDRAM_PHY_DELAYS > 8
-	#define SDRAM_PHY_DELAY_JUMP 4
-#else
-	#define SDRAM_PHY_DELAY_JUMP 1
-#endif
-	for(i=0;i<SDRAM_PHY_DELAY_JUMP;i++) {
-		delay += 1;
-		inc_delay(module);
-	}
-
-	/* Find largest working delay */
+	delay_max = delay_min;
+	cur_delay_min = delay_min;
+	/* Find largest working delay range */
 	while(1) {
 		errors  = sdram_write_read_check_test_pattern(module, 42);
 		errors += sdram_write_read_check_test_pattern(module, 84);
@@ -430,8 +419,16 @@ static void sdram_leveling_center_module(
 #endif
 		if (show)
 			print_scan_errors(errors);
-		if(!working && delay_max < 0) {
-			delay_max = delay;
+
+		if (working) {
+			int cur_delay_length = delay - cur_delay_min;
+			int best_delay_length = delay_max - delay_min;
+			if (cur_delay_length > best_delay_length) {
+				delay_min = cur_delay_min;
+				delay_max = delay;
+			}
+		} else {
+			cur_delay_min = delay + 1;
 		}
 		delay++;
 		if(delay >= SDRAM_PHY_DELAYS)
@@ -674,9 +671,9 @@ static int sdram_write_leveling_scan(int *delays, int loops, int show)
 		one_window_best_start = 0;
 		one_window_best_count = -1;
 		delays[i] = -1;
-		for(j=0;j<err_ddrphy_wdly;j++) {
+		for(j=0;j<err_ddrphy_wdly+1;j++) {
 			if (one_window_active) {
-				if ((taps_scan[j] == 0) | (j == err_ddrphy_wdly - 1)) {
+				if ((j == err_ddrphy_wdly) || (taps_scan[j] == 0)) {
 					one_window_active = 0;
 					one_window_count = j - one_window_start;
 					if (one_window_count > one_window_best_count) {
@@ -685,7 +682,7 @@ static int sdram_write_leveling_scan(int *delays, int loops, int show)
 					}
 				}
 			} else {
-				if (taps_scan[j]) {
+				if (j != err_ddrphy_wdly && taps_scan[j]) {
 					one_window_active = 1;
 					one_window_start = j;
 				}
@@ -776,7 +773,7 @@ static void sdram_write_leveling_find_cmd_delay(unsigned int *best_error, unsign
 		int delay_count = 0;
 		for (int i=0; i < SDRAM_PHY_MODULES; ++i) {
 			if (delays[i] != -1) {
-				delay_mean  += delays[i] + _sdram_tck_taps/4;
+				delay_mean  += delays[i]*256 + _sdram_tck_taps*64;
 				delay_count += 1;
 			}
 		}
@@ -784,7 +781,7 @@ static void sdram_write_leveling_find_cmd_delay(unsigned int *best_error, unsign
 			delay_mean /= delay_count;
 
 		/* We want the higher number of valid modules and delay to be centered */
-		int ideal_delay = (SDRAM_PHY_DELAYS - _sdram_tck_taps/4)/2;
+		int ideal_delay = SDRAM_PHY_DELAYS*128 - _sdram_tck_taps*32;
 		int error = ideal_delay - delay_mean;
 		if (error < 0)
 			error *= -1;
@@ -797,7 +794,7 @@ static void sdram_write_leveling_find_cmd_delay(unsigned int *best_error, unsign
 			}
 		}
 #ifdef SDRAM_WRITE_LEVELING_CMD_DELAY_DEBUG
-		printf("Delay mean: %d, ideal: %d\n", delay_mean, ideal_delay);
+		printf("Delay mean: %d/256, ideal: %d/256\n", delay_mean, ideal_delay);
 #else
 		printf("%d", ok);
 #endif
