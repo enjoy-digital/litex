@@ -49,3 +49,14 @@ class LiteXModule(Module, AutoCSR, AutoDoc):
         else:
             object.__iadd__(m, other)
         return m
+
+    def add_module(self, name, module):
+        assert isinstance(module, Module)
+        assert not hasattr(self, name)
+        setattr(self, name, module)
+
+    def get_module(self, name):
+        module = getattr(self, name, None)
+        if module is not None:
+            assert isinstance(module, Module)
+        return module
