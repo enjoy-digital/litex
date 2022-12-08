@@ -259,9 +259,12 @@ class AXIDownConverter(Module):
         # AW Channel.
         self.comb += [
             axi_from.aw.connect(axi_to.aw, omit={"len", "size"}),
-            axi_to.aw.len.eq( axi_from.aw.len << log2_int(ratio)),
+            axi_to.aw.len.eq(((axi_from.aw.len + 1) << log2_int(ratio)) - 1),
             axi_to.aw.size.eq(axi_from.aw.size - log2_int(ratio)),
         ]
+
+        # Upstream uses strb for unaligned accesses, so align Downstream address to Upstream.
+        self.comb += axi_to.aw.addr[:log2_int(dw_from//8)].eq(0),
 
         # W Channel.
         w_converter = stream.StrideConverter(
@@ -271,6 +274,7 @@ class AXIDownConverter(Module):
         self.submodules += w_converter
         self.comb += axi_from.w.connect(w_converter.sink, omit={"id", "dest", "user"})
         self.comb += w_converter.source.connect(axi_to.w)
+        # ID/Dest/User (self.comb since no latency in StrideConverter).
         self.comb += axi_to.w.id.eq(axi_from.w.id)
         self.comb += axi_to.w.dest.eq(axi_from.w.dest)
         self.comb += axi_to.w.user.eq(axi_from.w.user)
@@ -283,9 +287,11 @@ class AXIDownConverter(Module):
         # AR Channel.
         self.comb += [
             axi_from.ar.connect(axi_to.ar, omit={"len", "size"}),
-            axi_to.ar.len.eq( axi_from.ar.len << log2_int(ratio)),
+            axi_to.ar.len.eq(((axi_from.ar.len + 1) << log2_int(ratio)) - 1),
             axi_to.ar.size.eq(axi_from.ar.size - log2_int(ratio)),
         ]
+        # Upstream uses strb for unaligned accesses, so align Downstream address to Upstream.
+        self.comb += axi_to.ar.addr[:log2_int(dw_from//8)].eq(0),
 
         # R Channel.
         r_converter = stream.StrideConverter(
@@ -295,11 +301,11 @@ class AXIDownConverter(Module):
         self.submodules += r_converter
         self.comb += axi_to.r.connect(r_converter.sink, omit={"id", "dest", "user", "resp"})
         self.comb += r_converter.source.connect(axi_from.r)
-        self.comb += axi_from.r.resp.eq(axi_to.r.resp)
-        self.comb += axi_from.r.user.eq(axi_to.r.user)
-        self.comb += axi_from.r.dest.eq(axi_to.r.dest)
-        self.comb += axi_from.r.id.eq(axi_to.r.id)
-
+        # ID/Dest/User (self.sync since +1 cycle latency in StrideConverter).
+        self.sync += axi_from.r.resp.eq(axi_to.r.resp)
+        self.sync += axi_from.r.user.eq(axi_to.r.user)
+        self.sync += axi_from.r.dest.eq(axi_to.r.dest)
+        self.sync += axi_from.r.id.eq(axi_to.r.id)
 
 class AXIConverter(Module):
     """AXI data width converter"""
