@@ -254,17 +254,47 @@ class AXIDownConverter(Module):
 
         # # #
 
+        # Helpers ----------------------------------------------------------------------------------
+
+
+        # Addr Conversion: Clear MSBs to align accesses.
+        def convert_addr(ax_from, ax_to):
+            return [
+                ax_to.addr.eq(ax_from.addr),
+                ax_to.addr[:log2_int(dw_from//8)].eq(0)
+            ]
+
+        # Burst Conversion: Convert FIXED burst to Incr.
+        def convert_burst(ax_from, ax_to):
+            return Case(ax_from.burst, {
+                BURST_FIXED     : ax_to.burst.eq(BURST_INCR),
+                BURST_INCR      : ax_to.burst.eq(BURST_INCR),
+                BURST_WRAP      : ax_to.burst.eq(BURST_WRAP),
+                BURST_RESERVED  : ax_to.burst.eq(BURST_RESERVED),
+            })
+
+        # Len Conversion: X ratio.
+        def convert_len(ax_from, ax_to):
+            return ax_to.len.eq(((ax_from.len + 1) << log2_int(ratio)) - 1)
+
+        # Size Conversion: max(ax_from.size, log2_int(dw_to//8)).
+        def convert_size(ax_from, ax_to):
+            return If(ax_from.size <= log2_int(dw_to//8),
+                ax_to.size.eq(ax_from.size)
+            ).Else(
+                ax_to.size.eq(log2_int(dw_to//8))
+            )
+
         # Write path -------------------------------------------------------------------------------
 
         # AW Channel.
         self.comb += [
-            axi_from.aw.connect(axi_to.aw, omit={"len", "size"}),
-            axi_to.aw.len.eq(((axi_from.aw.len + 1) << log2_int(ratio)) - 1),
-            axi_to.aw.size.eq(axi_from.aw.size - log2_int(ratio)),
+            axi_from.aw.connect(axi_to.aw, omit={"addr", "len", "size", "burst"}),
+            *convert_addr( axi_from.aw, axi_to.aw),
+            convert_len(   axi_from.aw, axi_to.aw),
+            convert_size(  axi_from.aw, axi_to.aw),
+            convert_burst( axi_from.aw, axi_to.aw),
         ]
-
-        # Upstream uses strb for unaligned accesses, so align Downstream address to Upstream.
-        self.comb += axi_to.aw.addr[:log2_int(dw_from//8)].eq(0),
 
         # W Channel.
         w_converter = stream.StrideConverter(
@@ -286,12 +316,12 @@ class AXIDownConverter(Module):
 
         # AR Channel.
         self.comb += [
-            axi_from.ar.connect(axi_to.ar, omit={"len", "size"}),
-            axi_to.ar.len.eq(((axi_from.ar.len + 1) << log2_int(ratio)) - 1),
-            axi_to.ar.size.eq(axi_from.ar.size - log2_int(ratio)),
+            axi_from.ar.connect(axi_to.ar, omit={"addr", "len", "size", "burst"}),
+            *convert_addr( axi_from.ar, axi_to.ar),
+            convert_len(   axi_from.ar, axi_to.ar),
+            convert_size(  axi_from.ar, axi_to.ar),
+            convert_burst( axi_from.ar, axi_to.ar),
         ]
-        # Upstream uses strb for unaligned accesses, so align Downstream address to Upstream.
-        self.comb += axi_to.ar.addr[:log2_int(dw_from//8)].eq(0),
 
         # R Channel.
         r_converter = stream.StrideConverter(
