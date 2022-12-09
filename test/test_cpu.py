@@ -38,6 +38,7 @@ class TestCPU(unittest.TestCase):
     def test_cpu(self):
         tested_cpus = [
             "cv32e40p",     # (riscv   / softcore)
+            "cva6",         # (riscv   / softcore)
             "femtorv",      # (riscv   / softcore)
             "firev",        # (riscv   / softcore)
             "marocchino",   # (or1k    / softcore)
@@ -54,7 +55,6 @@ class TestCPU(unittest.TestCase):
             "cortex_m3",    # (arm     / softcore) -> Proprieraty code.
             "cv32e41p",     # (riscv   / softcore) -> Broken?
             "cva5",         # (riscv   / softcore) -> Needs to be tested.
-            "cva6",         # (riscv   / softcore) -> Needs to be tested.
             "eos_s3",       # (arm     / hardcore) -> Hardcore.
             "gowin_emcu",   # (arm     / hardcore) -> Hardcore.
             "ibex",         # (riscv   / softcore) -> Broken since 2022.11.12.
