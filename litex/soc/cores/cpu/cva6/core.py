@@ -80,20 +80,14 @@ class CVA6(CPU):
             "csr"  : 0x8000_0000,
         }
 
-    def __init__(self, platform, variant="standard", convert_periph_bus_to_wishbone=True):
+    def __init__(self, platform, variant="standard"):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
         self.interrupt    = Signal(32)
         # Peripheral bus (Connected to main SoC's bus).
-        self.axi_if = axi_if = axi.AXIInterface(data_width=64, address_width=32, id_width=4)
-        if convert_periph_bus_to_wishbone:
-            self.wb_if = wishbone.Interface(data_width=axi_if.data_width,
-                                            adr_width=axi_if.address_width - log2_int(axi_if.data_width // 8))
-            self.submodules += axi.AXI2Wishbone(axi_if, self.wb_if)
-            self.periph_buses = [self.wb_if]
-        else:
-            self.periph_buses = [axi_if]
+        axi_if = axi.AXIInterface(data_width=64, address_width=32, id_width=4)
+        self.periph_buses = [axi_if]
         # Memory buses (Connected directly to LiteDRAM).
         self.memory_buses = []
 
