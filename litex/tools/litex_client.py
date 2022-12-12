@@ -403,7 +403,7 @@ def main():
         try:
            addr = int(args.write[0], 0)
         except ValueError:
-            addr = reg2addr(csr_csv, args.write[0])
+            addr = reg2addr(host, csr_csv, args.write[0])
         write_memory(
             host    = args.host,
             csr_csv = csr_csv,
