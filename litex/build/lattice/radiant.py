@@ -203,7 +203,7 @@ class LatticeRadiantToolchain(GenericToolchain):
             fail_stmt = ""
 
         if self._synth_mode == "yosys":
-            script_contents += self._yosys.get_yosys_call(target="script")
+            script_contents += self._yosys.get_yosys_call(target="script") + "\n"
 
         script_contents += "{tool} {tcl_script}{fail_stmt}\n".format(
             tool = tool,
