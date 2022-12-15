@@ -130,9 +130,9 @@ class YosysWrapper():
         =======
         str containing instruction and/or rule
         """
-        base_cmd = f"yosys -l {self._build_name}.rpt {self._build_name}.ys\n"
+        base_cmd = f"yosys -l {self._build_name}.rpt {self._build_name}.ys"
         if target == "makefile":
-            return f"{self._build_name}.{self._synth_format}:\n\t" + base_cmd
+            return f"{self._build_name}.{self._synth_format}:\n\t" + base_cmd + "\n"
         elif target == "script":
             return base_cmd
         else:
