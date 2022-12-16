@@ -1,9 +1,15 @@
 include variables.mak
 UNAME_S := $(shell uname -s)
+UNAME_M := $(shell uname -m)
 
 ifeq ($(UNAME_S),Darwin)
-	CFLAGS += -I/usr/local/include/
-	LDFLAGS += -L/usr/local/lib
+	ifeq ($(UNAME_M),x86_64)
+		CFLAGS += -I/usr/local/include
+		LDFLAGS += -L/usr/local/lib
+	else
+		CFLAGS += -I/opt/homebrew/include
+		LDFLAGS += -L/opt/homebrew/lib
+	endif
 	LDFLAGS += -lpthread -ljson-c -lz -lm -lstdc++ -ldl -levent
 else
 	CC ?= gcc
