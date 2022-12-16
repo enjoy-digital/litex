@@ -135,7 +135,12 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=
                 comb.append(port_we[i].eq(axi_lite.w.valid & axi_lite.w.ready & axi_lite.w.strb[i]))
         else:
             comb.append(port_we.eq(axi_lite.w.valid & axi_lite.w.ready & (axi_lite.w.strb != 0)))
-    # Compute do_write/do_read as `comb`, so they do not affect the sensitivity list of the FSM
+    # Compute do_write/do_read/axi_lite.r.valid as `comb`, so they do not affect the sensitivity list of the FSM
+    nocomb_axl_r_valid = Signal()
+    nocomb_axl_w_ready = Signal()
+    nocomb_axl_aw_ready = Signal()
+    nocomb_axl_ar_ready = Signal()
+    nocomb_axl_b_valid = Signal()
     comb += [
         # If the last access was a read, do a write, and vice versa.
         If(axi_lite.aw.valid & axi_lite.ar.valid,
@@ -145,6 +150,11 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=
             do_write.eq(axi_lite.aw.valid),
             do_read.eq(axi_lite.ar.valid),
         ),
+        axi_lite.r.valid.eq(nocomb_axl_r_valid),
+        axi_lite.aw.ready.eq(nocomb_axl_aw_ready),
+        axi_lite.w.ready.eq(nocomb_axl_w_ready),
+        axi_lite.ar.ready.eq(nocomb_axl_ar_ready),
+        axi_lite.b.valid.eq(nocomb_axl_b_valid),
     ]
     fsm = FSM()
     fsm.act("START-TRANSACTION",
@@ -152,13 +162,13 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=
         If(do_write,
             port_adr.eq(axi_lite.aw.addr[adr_shift:]),
             If(axi_lite.w.valid,
-                axi_lite.aw.ready.eq(1),
-                axi_lite.w.ready.eq(1),
+                nocomb_axl_aw_ready.eq(1),
+                nocomb_axl_w_ready.eq(1),
                 NextState("SEND-WRITE-RESPONSE")
             )
         ).Elif(do_read,
             port_adr.eq(axi_lite.ar.addr[adr_shift:]),
-            axi_lite.ar.ready.eq(1),
+            nocomb_axl_ar_ready.eq(1),
             NextState("SEND-READ-RESPONSE"),
         )
     )
@@ -168,14 +178,14 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=
         port_adr.eq(axi_lite.ar.addr[adr_shift:]),
         axi_lite.r.data.eq(port_dat_r),
         axi_lite.r.resp.eq(RESP_OKAY),
-        axi_lite.r.valid.eq(1),
+        nocomb_axl_r_valid.eq(1),
         If(axi_lite.r.ready,
             NextState("START-TRANSACTION")
         )
     )
     fsm.act("SEND-WRITE-RESPONSE",
         NextValue(last_was_read, 0),
-        axi_lite.b.valid.eq(1),
+        nocomb_axl_b_valid.eq(1),
         axi_lite.b.resp.eq(RESP_OKAY),
         If(axi_lite.b.ready,
             NextState("START-TRANSACTION")
