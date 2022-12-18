@@ -118,7 +118,7 @@ class AXILiteInterface:
 
 # AXI-Lite to Simple Bus ---------------------------------------------------------------------------
 
-def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=None):
+def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=None, port_re=None):
     """Connection of AXILite to simple bus with 1-cycle latency, such as CSR bus or Memory port"""
     bus_data_width = axi_lite.data_width
     adr_shift      = log2_int(bus_data_width//8)

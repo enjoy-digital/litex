@@ -30,7 +30,8 @@ _layout = [
     ("adr",  "address_width", DIR_M_TO_S),
     ("we",                 1, DIR_M_TO_S),
     ("dat_w",   "data_width", DIR_M_TO_S),
-    ("dat_r",   "data_width", DIR_S_TO_M)
+    ("dat_r",   "data_width", DIR_S_TO_M),
+    ("re",                 1, DIR_M_TO_S),
 ]
 
 
@@ -77,7 +78,8 @@ class InterconnectShared(Module):
         self.comb += [
             intermediate.adr.eq(  Reduce("OR", [masters[i].adr   for i in range(len(masters))])),
             intermediate.we.eq(   Reduce("OR", [masters[i].we    for i in range(len(masters))])),
-            intermediate.dat_w.eq(Reduce("OR", [masters[i].dat_w for i in range(len(masters))]))
+            intermediate.dat_w.eq(Reduce("OR", [masters[i].dat_w for i in range(len(masters))])),
+            intermediate.re.eq(   Reduce("OR", [masters[i].re    for i in range(len(masters))])),
         ]
         for i in range(len(masters)):
             self.comb += masters[i].dat_r.eq(intermediate.dat_r)
@@ -165,7 +167,7 @@ class SRAM(Module):
 # CSR Bank -----------------------------------------------------------------------------------------
 
 class CSRBank(csr.GenericBank):
-    def __init__(self, description, address=0, bus=None, paging=0x800, ordering="big"):
+    def __init__(self, description, address=0, bus=None, paging=0x800, ordering="big", use_re=False):
         if bus is None:
             bus = Interface()
         self.bus = bus
@@ -182,12 +184,17 @@ class CSRBank(csr.GenericBank):
         sel = Signal()
         self.comb += sel.eq(self.bus.adr[log2_int(aligned_paging):] == address)
 
+        re = Signal()
+        if use_re:
+            self.comb += re.eq(self.bus.re)
+        else:
+            self.comb += re.eq(~self.bus.we)
         for i, c in enumerate(self.simple_csrs):
             self.comb += [
                 c.r.eq(self.bus.dat_w[:c.size]),
                 If(sel & (self.bus.adr[:log2_int(aligned_paging)] == i),
                     c.re.eq( self.bus.we),
-                    c.we.eq(~self.bus.we)
+                    c.we.eq(re)
                 )
             ]
 
@@ -205,11 +212,12 @@ class CSRBank(csr.GenericBank):
 # address_map is called exactly once for each object at each call to
 # scan(), so it can have side effects.
 class CSRBankArray(Module):
-    def __init__(self, source, address_map, *ifargs, paging=0x800, ordering="big", **ifkwargs):
+    def __init__(self, source, address_map, *ifargs, paging=0x800, ordering="big", use_re=False, **ifkwargs):
         self.source             = source
         self.address_map        = address_map
         self.paging             = paging
         self.ordering           = ordering
+        self.use_re             = use_re
         self.scan(ifargs, ifkwargs)
 
     def scan(self, ifargs, ifkwargs):
@@ -271,7 +279,9 @@ class CSRBankArray(Module):
                 rmap = CSRBank(csrs, mapaddr,
                     bus                = bank_bus,
                     paging             = self.paging,
-                    ordering           = self.ordering)
+                    ordering           = self.ordering,
+                    use_re             = self.use_re,
+                )
                 self.submodules += rmap
                 self.banks.append((name, csrs, mapaddr, rmap))
 

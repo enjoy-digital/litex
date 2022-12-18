@@ -32,6 +32,8 @@ class AXILite2CSR(Module):
             port_adr   = self.csr.adr,
             port_dat_r = self.csr.dat_r,
             port_dat_w = self.csr.dat_w,
-            port_we    = self.csr.we)
+            port_we    = self.csr.we,
+            port_re    = self.csr.re,
+        )
         self.submodules.fsm = fsm
         self.comb += comb
