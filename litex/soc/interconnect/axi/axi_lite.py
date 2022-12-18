@@ -135,7 +135,6 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=
                 comb.append(port_we[i].eq(axi_lite.w.valid & axi_lite.w.ready & axi_lite.w.strb[i]))
         else:
             comb.append(port_we.eq(axi_lite.w.valid & axi_lite.w.ready & (axi_lite.w.strb != 0)))
-<<<<<<< HEAD
     # Compute do_write/do_read/axi_lite.r.valid as `comb`, so they do not affect the sensitivity list of the FSM
     nocomb_axl_r_valid = Signal()
     nocomb_axl_w_ready = Signal()
@@ -143,11 +142,6 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=
     nocomb_axl_ar_ready = Signal()
     nocomb_axl_b_valid = Signal()
     comb += [
-=======
-
-    fsm = FSM()
-    fsm.act("START-TRANSACTION",
->>>>>>> parent of a41d3014... ensure that the address is valid for only one cycle on reads
         # If the last access was a read, do a write, and vice versa.
         If(axi_lite.aw.valid & axi_lite.ar.valid,
             do_write.eq(last_was_read),
@@ -156,7 +150,6 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=
             do_write.eq(axi_lite.aw.valid),
             do_read.eq(axi_lite.ar.valid),
         ),
-<<<<<<< HEAD
         axi_lite.r.valid.eq(nocomb_axl_r_valid),
         axi_lite.aw.ready.eq(nocomb_axl_aw_ready),
         axi_lite.w.ready.eq(nocomb_axl_w_ready),
@@ -165,28 +158,19 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=
     ]
     fsm = FSM()
     fsm.act("START-TRANSACTION",
-=======
->>>>>>> parent of a41d3014... ensure that the address is valid for only one cycle on reads
         # Start reading/writing immediately not to waste a cycle.
         axi_lite.aw.ready.eq(last_was_read  | ~axi_lite.ar.valid),
         axi_lite.ar.ready.eq(~last_was_read | ~axi_lite.aw.valid),
         If(do_write,
             port_adr.eq(axi_lite.aw.addr[adr_shift:]),
             If(axi_lite.w.valid,
-<<<<<<< HEAD
                 nocomb_axl_aw_ready.eq(1),
                 nocomb_axl_w_ready.eq(1),
-=======
-                axi_lite.w.ready.eq(1),
->>>>>>> parent of a41d3014... ensure that the address is valid for only one cycle on reads
                 NextState("SEND-WRITE-RESPONSE")
             )
         ).Elif(do_read,
             port_adr.eq(axi_lite.ar.addr[adr_shift:]),
-<<<<<<< HEAD
             nocomb_axl_ar_ready.eq(1),
-=======
->>>>>>> parent of a41d3014... ensure that the address is valid for only one cycle on reads
             NextState("SEND-READ-RESPONSE"),
         )
     )
