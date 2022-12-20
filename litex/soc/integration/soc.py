@@ -254,12 +254,13 @@ class SoCBusHandler(LiteXModule):
             search_regions = {"main": SoCRegion(origin=0x00000000, size=2**self.address_width-1)}
 
         # Iterate on Search_Regions to find a Candidate.
+        size_pow2 = 2**log2_int(size, False)
         for _, search_region in search_regions.items():
             origin = search_region.origin
             while (origin + size) < (search_region.origin + search_region.size_pow2):
                 # Align Origin on Size.
-                if (origin%size):
-                    origin += (origin - origin%size)
+                if (origin%size_pow2):
+                    origin += (origin - origin%size_pow2)
                     continue
                 # Create a Candidate.
                 candidate = SoCRegion(origin=origin, size=size, cached=cached)
