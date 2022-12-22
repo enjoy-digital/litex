@@ -1,21 +1,21 @@
 [> Changes since 2022.08
 ------------------------
 
-	[> Issues resolved
-	------------------
+	[> Fixed
+	--------
 
-	[> Added Features
-	-----------------
+	[> Added
+	--------
 
-	[> API changes/Deprecation
-	--------------------------
+	[> Changed
+	----------
 
 
 [> 2022.08, released on September 12th 2022
 -------------------------------------------
 
-	[> Issues resolved
-	------------------
+	[> Fixed
+	--------
 	- cpu/vexriscv:               Fix compilation with new binutils.
 	- soc/LiteXSocArgumentParser: Fix --cpu-type parsing.
 	- litex_sim:                  Fix --with-ethernet.
@@ -29,8 +29,8 @@
 	- litex_server/client:        Fix remapping over CommPCIe.
 	- LitePCIe:                   Fix LiteUART support with multi-boards.
 
-	[> Added Features
-	-----------------
+	[> Added
+	--------
 	- litex_setup:            Add -tag support for install/update.
 	- tools:                  Add initial LiteX standalone SoC generator.
 	- cores/ram:              Add Xilinx's FIFO_SYNC_MACRO equivalent.
@@ -85,8 +85,8 @@
 	- interconnect/axi:       Add missing optional signals.
 	- interconnect/wishbone:  Improve DownConverter efficiency.
 
-	[> API changes/Deprecation
-	--------------------------
+	[> Changed
+	----------
 	- LiteX-Boards : Remove short import support on platforms/targets.
 	- tools:         Rename litex_gen to litex_periph_gen.
 	- LiteX-Boards:  Only generate SoC/Software headers when --build is set
@@ -96,8 +96,8 @@
 [> 2022.04, released on May 3th 2022
 ------------------------------------
 
-	[> Issues resolved
-	------------------
+	[> Fixed
+	--------
 	- software/bios/mem_write: Fix write address increment.
 	- software/liblitedram:    Improve calibration corner case on 7-series (SDRAM_PHY_DELAY_JUMP).
 	- software/liblitedram:    Fix delay reconfiguration issue on ECP5/DDR3.
@@ -107,8 +107,8 @@
 	- libbase/i2c/i2c_poll:    Also check for write in i2c_scan (some chips are write only).
 	- build/vivado:            Fix timing constraints application on nets/ports.
 
-    [> Added Features
-	-----------------
+    [> Added
+	--------
 	- litex_setup:        Add minimal/standard/full install configs.
 	- soc/arguments:      Improve default/help, add parser groups.
 	- LiteSPI/phy:        Simplify integration on targets.
@@ -173,8 +173,8 @@
 	- soc/cpu:            Improve command line listing.
 	- soc/cores/uart:     Decouple data/address width on Stream2Wishbone.
 
-    [> API changes/Deprecation
-	--------------------------
+	[> Changed
+	----------
 	- Fully deprecate SoCSDRAM/SPIFlash core (replaced by LiteSPI).
 	- UART "bridge" name deprecated in favor of "crossover" (already supported).
 	- "external" CPU class support deprecated (replaced by out-of-tree support).
@@ -184,8 +184,8 @@
 [> 2021.12, released on January 5th 2022
 ----------------------------------------
 
-	[> Issues resolved
-	------------------
+	[> Fixed
+	--------
 	- software/linker:      Fix initialized global variables.
 	- build/xilinx:         Fix Ultrascale SDROutput/Input.
 	- cpu/rocket/crt0.s:    Fix alignements.
@@ -194,8 +194,8 @@
 	- build/lattice:        Fix LatticeiCE40SDROutputImpl.
 	- soc/interconnect/axi: Fix 4KB bursts.
 
-	[> Added Features
-	-----------------
+	[> Added
+	--------
 	- integration/builder:      Check if full software re-build is required when a CPU is used.
 	- cores/clock:              Add Gowin PLL support.
 	- build/gowin:              Add initial HyperRam support.
@@ -244,16 +244,16 @@
 	- LiteSPI/phy:              Simplify SDR/DDR PHYs.
 	- LiteHyperBus:             Add 16-bit support.
 
-	[> API changes/Deprecation
-	--------------------------
+	[> Changed
+	----------
 	- software: Replace libbase with picolibc (new requirements: meson/ninja).
 	- amaranth: Switch from nMigen to Amaranth HDL.
 
 [> 2021.08, released on September 15th 2021
 -------------------------------------------
 
-	[> Issues resolved
-	------------------
+	[> Fixed
+	--------
 	- wishbone/UpConverter: Fix SEL propagation.
 	- cores/i2s:            Fix SYNC sampling.
 	- BIOS/lib*:            Fix GCC warnings.
@@ -272,8 +272,8 @@
 	- BIOS:                 Fix build-id link error.
 	- LiteDRAM:             Fix Artix7/DDR3 calibraiton at low speed.
 
-	[> Added Features
-	-----------------
+	[> Added
+	--------
 	- cores/video:               Add 7-Series HDMI PHY over GTPs.
 	- cores/jtagbone:            Allow JTAG chain selection.
 	- programmer:                Add iCESugar programmer.
@@ -319,16 +319,16 @@
 	- LiteDRAM:                  Improve LPDDR4 support.
 	- LiteDRAM:                  Reduce ECC granularity.
 
-	[> API changes/Deprecation
-	--------------------------
+	[> Changed
+	----------
 	- soc_core: --integrated-rom-file argument renamed to --integrated-rom-init.
 
 
 [> 2021.04, released on May 3th 2021
 ------------------------------------
 
-	[> Issues resolved
-	------------------
+	[> Fixed
+	--------
 	- litex_term:         Fix Windows/OS-X support.
 	- soc/USB-ACM:        Fix reset clock domain.
 	- litex_json2dts:     Various fixes/improvements.
@@ -344,8 +344,8 @@
 	- Microwatt/Ethernet: Fix build.
 	- soc/software:       Link with compiler instead of ld.
 
-	[> Added Features
-	-----------------
+	[> Added
+	--------
 	- Lattice-NX:             Allow up to 320KB RAMs.
 	- BIOS:                   Allow compilation with UART disabled.
 	- litex_json2dts:         Simplify/Improve and allow VexRiscv/Mor1kx support.
@@ -390,8 +390,8 @@
 	- cores/clock:            Add initial Gowin GW1N PLL support.
 	- LiteSDCard:             Add IRQ support.
 
-	[> API changes/Deprecation
-	--------------------------
+	[> Changed
+	----------
 	- platforms/targets: Move all platforms/targets to https://github.com/litex-hub/litex-boards.
 	- litex_term:        Remove flashing capability.
 	- cores/uart:        Disable dynamic baudrate by default (Unused and save resources).
@@ -399,14 +399,14 @@
 [> 2020.12, released on December 30th 2020
 ------------------------------------------
 
-	[> Issues resolved
-	------------------
+	[> Fixed
+	--------
 	- fix SDCard writes.
 	- fix crt0 .data initialize on SERV/Minerva.
 	- fix Zynq7000 AXI HP Slave integration.
 
-	[> Added Features
-	------------------
+	[> Added
+	--------
 	- Wishbone2CSR: Add registered version and use it on system with SDRAM.
 	- litex_json2dts: Add Mor1kx DTS generation support.
 	- Build: Add initial Radiant support for NX FPGA family.
@@ -451,8 +451,8 @@
 	- LitePCIe: Allow AXI mastering from FPGA (AXI-Lite and Full).
 	- mor1kx: Add standard+fpu and linux+fpu variants.
 
-	[> API changes/Deprecation
-	--------------------------
+	[> Changed
+	----------
 	- BIOS: commands have been renamed/reorganized.
 	- LiteDRAM: rdcmdphase/wrcmdphase no longer exposed.
 	- CSR: change default csr_data_width from 8 to 32.
@@ -460,13 +460,13 @@
 [> 2020.08, released on August 7th 2020
 ---------------------------------------
 
-	[> Issues resolved
-	------------------
+	[> Fixed
+	--------
 	- Fix flush_cpu_icache on VexRiscv.
 	- Fix `.data` section placed in rom (#566)
 
-	[> Added Features
-	------------------
+	[> Added
+	--------
 	- Properly integrate Minerva CPU.
 	- Add nMigen dependency.
 	- Pluggable CPUs.
@@ -488,8 +488,8 @@
 	- Add AXI-Lite bus standard support.
 	- Add VexRiscv SMP CPU support.
 
-	[> API changes/Deprecation
-	--------------------------
+	[> Changed
+	----------
 	- Add --build --load arguments to targets.
 	- Deprecate soc.interconnect.wishbone.UpConverter (will be rewritten if useful).
 	- Deprecate soc.interconnect.wishbone.CSRBank (Does not seem to be used by anyone).
@@ -519,14 +519,14 @@
 
 	It also provides build backends for open-source and vendors toolchains.
 
-	[> Issues resolved
-	------------------
+	[> Fixed
+	--------
 	- NA
 
-	[> Added Features
-	------------------
+	[> Added
+	--------
 	- NA
 
-	[> API changes/Deprecation
-	--------------------------
+	[> Changed
+	----------
 	- https://github.com/enjoy-digital/litex/pull/399: Converting LiteX to use Python modules.
