@@ -3,12 +3,67 @@
 
 	[> Fixed
 	--------
+	- bios                              : Fix missing CONFIG_BIOS_NO_DELAYS update.
+	- axi/AXIDownConverter              : Fix unaligned accesses.
+	- cpu/rocket                        : Fix fulld/fullq variants typos.
+	- cores/video                       : Fix red/blue channel swap (and apply similar changes to litex_boards).
+	- software/demo                     : Fix compilation with Nix.
+	- cpu/cv32e41p                      : Fix IRQs.
+	- interconnect/csr                  : Allow CSR collection at the top-level.
+	- interconnect/csr                  : Fix CSR with 64-bit bus width.
+	- build/sim                         : Disable more useless warnings (-Wno-COMBDLY and -Wno-CASEINCOMPLETE).
+	- intel                             : Fix constraints issues preventing the build with some boards/versions.
+	- axi/axi_lite                      : Fix combinatorial loop on ax.valid/ax.ready.
+	- soc/cores/video/VideoS7GTPHDMIPHY : Fix typo.
+	- integration/export                : Fix CSR base address definition when with_csr_base_define=False.
+
 
 	[> Added
 	--------
+	- soc                        : Add new "x" (executable) mode to SoCRegion.
+	- cpu/NaRiscv                : Update to latest and add parameters.
+	- soc                        : Propagate address_width on dynamically created interfaces.
+	- get_mem_data               : Add data_width support.
+	- cores/dma                  : Allow defining ready behavior on idle.
+	- axi                        : Improvements/Simplifications.
+	- axi_stream                 : Improvements/Simplifications.
+	- yosys_nextpnr              : Add flow3 option to abc9 mode.
+	- yosys_nextpnr              : Refactor args.
+	- vivado                     : Allow directive configuration.
+	- jtag                       : Add Efinix JTAG support.
+	- clock/intel                : Improve pll calculation.
+	- stream/ClockDomainCrossing : Expose buffered parameter.
+	- tools/remote               : Add Etherbone packets retransmisson.
+	- build                      : Add VHDL2VConverter to simplify GHDL->Verilog conversion.
+	- cpu/microwatt              : Switch to VHDL2VConverter.
+	- cpu/neorv32                : Switch to VHDL2VConverter.
+	- axi                        : Differentiate AXI3/AXI4.
+	- stream/Monitor             : Add packet count and add reset/latch control from logic.
+	- spi                        : Create spi directory and integrate SPIBone + improvements.
+	- interconnect/csr           : Add optional fixed CSR mapping.
+	- fhdl/verilog               : Improve code presentation/attribute generation.
+	- gen/common                 : Add new LiteXModule to simplify user designs and avoid some Migen common issues.
+	- soc/SoCBusHandler          : Integrate interconnect code to simplify reuse.
+	- gen/common                 : Add reduction functions.
+	- vhd2v                      : Use GHDL directly (Instead of GHDL + Yosys).
+	- cpu/openc906               : Update, add more peripherals to mem_map and add debug variant.
+	- soc/software/i2c           : Add non 8bit i2c mem address support.
+	- gen/fhdl                   : Add LiteXHierarchyExplorer to generate SoC hierarchy.
+	- gen/fhd                    : Add timescale generation.
+	- build                      : Add LitexArgumentParser to customize/simplify argument parsing.
+	- json2renode                : Update.
+	- logging                    : Allow logging level to be configured from user scripts.
+	- soc/cores/cpu              : Allow enabling/disabling reset address check.
+	- integration/export         : Directly generate extract/replace mask from Python.
+	- cpu/zync7000               : Add axi_gp_slave support.
 
 	[> Changed
 	----------
+	- ci       : Bump to Ubutu 22.04.
+	- soc_core : Move add_interrupt/add_wb_master/add_wb_slave/register_mem/register_rom to compat.
+	- software : Do not build software as PIE.
+	- ci       : Add microwatt/neorv32 test + requirements (GHDL).
+	- ci       : Switch GCC toolchain installs to distro install.
 
 
 [> 2022.08, released on September 12th 2022
