@@ -281,7 +281,7 @@ class XilinxVivadoToolchain(GenericToolchain):
             tcl.append("\n# Synthesis\n")
             synth_cmd = f"synth_design -directive {self.vivado_synth_directive} -top {self._build_name} -part {self.platform.device}"
             if self.platform.verilog_include_paths:
-                synth_cmd += f" -include_dirs \{{" ".join(self.platform.verilog_include_paths)}\}"
+                synth_cmd += f" -include_dirs {{{' '.join(self.platform.verilog_include_paths)}}}"
             tcl.append(synth_cmd)
         elif self._synth_mode == "yosys":
             tcl.append("\n# Read Yosys EDIF\n")
