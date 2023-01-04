@@ -15,6 +15,7 @@ setup(
     license="BSD",
     python_requires="~=3.6",
     install_requires=[
+        "packaging",
         "pyserial",
         "requests",
     ],
