@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2018-2023 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2023 stone3311 <fenstein12@googlemail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
