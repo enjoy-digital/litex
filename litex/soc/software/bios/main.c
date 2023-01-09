@@ -40,6 +40,7 @@
 #include <libbase/i2c.h>
 
 #include <liblitedram/sdram.h>
+#include <liblitedram/utils.h>
 
 #include <libliteeth/udp.h>
 #include <libliteeth/mdio.h>
@@ -131,18 +132,28 @@ __attribute__((__used__)) int main(int i, char **c)
 		(1 << (CONFIG_BUS_ADDRESS_WIDTH - 30)));
 	printf("\e[1mCSR\e[0m:\t\t%d-bit data\n",
 		CONFIG_CSR_DATA_WIDTH);
-	printf("\e[1mROM\e[0m:\t\t%dKiB\n", ROM_SIZE/1024);
-	printf("\e[1mSRAM\e[0m:\t\t%dKiB\n", SRAM_SIZE/1024);
+	printf("\e[1mROM\e[0m:\t\t");
+	print_size(ROM_SIZE);
+	printf("\n");
+	printf("\e[1mSRAM\e[0m:\t\t");
+	print_size(SRAM_SIZE);
+	printf("\n");
 #ifdef CONFIG_L2_SIZE
-	printf("\e[1mL2\e[0m:\t\t%dKiB\n", CONFIG_L2_SIZE/1024);
+	printf("\e[1mL2\e[0m:\t\t");
+	print_size(CONFIG_L2_SIZE);
+	printf("\n");
 #endif
 #ifdef CSR_SPIFLASH_CORE_BASE
-	printf("\e[1mFLASH\e[0m:\t\t%dKiB\n", SPIFLASH_MODULE_TOTAL_SIZE/1024);
+	printf("\e[1mFLASH\e[0m:\t\t");
+	print_size(SPIFLASH_MODULE_TOTAL_SIZE);
+	printf("\n");
 #endif
 #ifdef MAIN_RAM_SIZE
 #ifdef CSR_SDRAM_BASE
-	printf("\e[1mSDRAM\e[0m:\t\t%dKiB %d-bit @ %dMT/s ",
-		MAIN_RAM_SIZE/1024,
+	uint64_t supported_memory = sdram_get_supported_memory();
+	printf("\e[1mSDRAM\e[0m:\t\t");
+	print_size(supported_memory);
+	printf(" %d-bit @ %dMT/s ",
 		sdram_get_databits(),
 		sdram_get_freq()/1000000);
 	printf("(CL-%d",
@@ -150,9 +161,10 @@ __attribute__((__used__)) int main(int i, char **c)
 	if (sdram_get_cwl() != -1)
 		printf(" CWL-%d", sdram_get_cwl());
 	printf(")\n");
-#else
-	printf("\e[1mMAIN-RAM\e[0m:\t%dKiB \n", MAIN_RAM_SIZE/1024);
 #endif
+	printf("\e[1mMAIN-RAM\e[0m:\t");
+	print_size(MAIN_RAM_SIZE);
+	printf("\n");
 #endif
 	printf("\n");
 #endif
