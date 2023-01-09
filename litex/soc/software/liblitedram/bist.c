@@ -10,6 +10,7 @@
 #include <console.h>
 
 #include <liblitedram/bist.h>
+#include <liblitedram/utils.h>
 #include <generated/sdram_phy.h>
 
 #define SDRAM_TEST_BASE 0x00000000
@@ -155,6 +156,54 @@ void sdram_bist(uint32_t burst_length, uint32_t random)
 			rd_errors = 0;
 		}
 	}
+}
+
+int sdram_hw_test(uint64_t origin, uint64_t size, uint64_t burst_length) {
+	uint64_t burst_size = SDRAM_TEST_DATA_BYTES * burst_length;
+	uint64_t old_burst_size = burst_size;
+	int errors = 0;
+
+	uint64_t supported_memory = sdram_get_supported_memory();
+
+	if (origin >= supported_memory) {
+		printf("Selected origin out of memory bounds! Supported memory: ");
+		print_size(supported_memory);
+		printf("\n");
+		return 0;
+	}
+
+	if (origin + size > supported_memory) {
+		printf("Test would go out of memory bounds. Clipping size to memory end: ");
+		print_size(supported_memory);
+		printf("\n");
+		size = supported_memory - origin;
+	}
+
+	for (uint64_t address = origin; address < origin + size; address += burst_size) {
+		if (address + burst_size > size) {
+			old_burst_size = burst_size;
+			burst_size = size - address;
+		}
+
+		if (burst_size < SDRAM_TEST_DATA_BYTES || old_burst_size < burst_size)
+			break;
+
+		sdram_bist_write(address, burst_size);
+
+		sdram_bist_read(address, burst_size);
+		errors += sdram_checker_errors_read();
+
+		print_progress("  SDRAM HW test:", origin, address - origin + burst_size);
+	}
+
+	if (burst_size < SDRAM_TEST_DATA_BYTES || old_burst_size < burst_size) {
+		printf("\nTest would go out of memory bounds. Finished early at the end: ");
+		print_size(supported_memory);
+	}
+
+	printf("\n");
+
+	return errors;
 }
 
 #endif
