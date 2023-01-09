@@ -227,7 +227,8 @@ class Builder:
             from litedram.init import get_sdram_phy_c_header
             sdram_contents = get_sdram_phy_c_header(
                 self.soc.sdram.controller.settings.phy,
-                self.soc.sdram.controller.settings.timing)
+                self.soc.sdram.controller.settings.timing,
+                self.soc.sdram.controller.settings.geom)
             write_to_file(os.path.join(self.generated_dir, "sdram_phy.h"), sdram_contents)
 
     def _generate_csr_map(self):
