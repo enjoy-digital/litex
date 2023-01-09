@@ -4,7 +4,7 @@
 #ifndef __SDRAM_BIST_H
 #define __SDRAM_BIST_H
 
-void sdram_bist_loop(uint32_t loop, uint32_t burst_length, uint32_t random);
+#include <stdint.h>
 void sdram_bist(uint32_t burst_length, uint32_t random);
 
 #endif /* __SDRAM_BIST_H */

@@ -5,31 +5,21 @@
 #if defined(CSR_SDRAM_GENERATOR_BASE) && defined(CSR_SDRAM_CHECKER_BASE)
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <uart.h>
 #include <time.h>
 #include <console.h>
 
 #include <liblitedram/bist.h>
+#include <generated/sdram_phy.h>
 
 #define SDRAM_TEST_BASE 0x00000000
-#define SDRAM_TEST_DATA_BYTES (CSR_SDRAM_DFII_PI0_RDDATA_SIZE*4)
+#define SDRAM_TEST_DATA_BYTES (SDRAM_PHY_DFI_DATABITS / 8 * SDRAM_PHY_PHASES)
 
-uint32_t wr_ticks;
-uint32_t wr_length;
-uint32_t rd_ticks;
-uint32_t rd_length;
-uint32_t rd_errors;
-
-__attribute__((unused)) static void cdelay(int i)
-{
-#ifndef CONFIG_BIOS_NO_DELAYS
-	while(i > 0) {
-		__asm__ volatile(CONFIG_CPU_NOP);
-		i--;
-	}
-#endif
-}
+static uint32_t wr_ticks = 0;
+static uint32_t wr_length = 0;
+static uint32_t rd_ticks = 0;
+static uint32_t rd_length = 0;
+static uint32_t rd_errors = 0;
 
 static uint32_t pseudo_random_bases[128] = {
 	0x000e4018,0x0003338d,0x00233429,0x001f589d,
@@ -66,65 +56,59 @@ static uint32_t pseudo_random_bases[128] = {
 	0x00027e36,0x000e51ae,0x002e7627,0x00275c9f,
 };
 
-void sdram_bist_loop(uint32_t loop, uint32_t burst_length, uint32_t random) {
+static void sdram_bist_write(uint32_t base, uint32_t length) {
+	/* Prepare write */
+	sdram_generator_reset_write(1);
+	sdram_generator_random_write(1); /* Random data */
+	sdram_generator_base_write(base);
+	sdram_generator_end_write(base + length);
+	sdram_generator_length_write(length);
+
+	/* Start write */
+	sdram_generator_start_write(1);
+
+	/* Wait write */
+	while(sdram_generator_done_read() == 0);
+}
+
+static void sdram_bist_read(uint32_t base, uint32_t length) {
+	/* Prepare read */
+	sdram_checker_reset_write(1);
+	sdram_checker_random_write(1); /* Random data */
+	sdram_checker_base_write(base);
+	sdram_checker_end_write(base + length);
+	sdram_checker_length_write(length);
+
+	/* Start read */
+
+	sdram_checker_start_write(1);
+	/* Wait read */
+	while(sdram_checker_done_read() == 0);
+}
+
+static void sdram_bist_loop(uint32_t loop, uint32_t burst_length, uint32_t random) {
 	int i;
 	uint32_t base;
 	uint32_t length;
-	length = burst_length*SDRAM_TEST_DATA_BYTES;
+	length = burst_length * SDRAM_TEST_DATA_BYTES;
 
 	rd_errors = 0;
-	for(i=0; i<128; i++) {
+	for (i = 0; i < 128; i++) {
 		if (random)
 			base = SDRAM_TEST_BASE + pseudo_random_bases[(i+loop)%128]*SDRAM_TEST_DATA_BYTES;
 		else
 			base = SDRAM_TEST_BASE + ((i+loop)%128)*SDRAM_TEST_DATA_BYTES;
-		if (i == 0) {
-			/* Prepare first write */
-			sdram_generator_reset_write(1);
-			sdram_generator_reset_write(0);
-			sdram_generator_random_write(1); /* Random data */
-			sdram_generator_base_write(base);
-			sdram_generator_end_write(base + length);
-			sdram_generator_length_write(length);
-			cdelay(100);
-		}
-		/* Start write */
-		sdram_generator_start_write(1);
-		/* Prepare next read */
-		sdram_checker_reset_write(1);
-		sdram_checker_reset_write(0);
-		sdram_checker_random_write(1); /* Random data */
-		sdram_checker_base_write(base);
-		sdram_checker_end_write(base + length);
-		sdram_checker_length_write(length);
-		cdelay(100);
-		/* Wait write */
-		while(sdram_generator_done_read() == 0);
+
+		sdram_bist_write(base, length);
 		/* Get write results */
 		wr_length += length;
 		wr_ticks += sdram_generator_ticks_read();
-		/* Start read */
-		sdram_checker_start_write(1);
-		if (i != 127) {
-			if (random)
-				base = SDRAM_TEST_BASE + pseudo_random_bases[(i+1+loop)%128]*SDRAM_TEST_DATA_BYTES;
-			else
-				base = SDRAM_TEST_BASE + ((i+1+loop)%128)*SDRAM_TEST_DATA_BYTES;
-			/* Prepare next write */
-			sdram_generator_reset_write(1);
-			sdram_generator_reset_write(0);
-			sdram_generator_random_write(1); /* Random data */
-			sdram_generator_base_write(base);
-			sdram_generator_end_write(base + length);
-			sdram_generator_length_write(length);
-			cdelay(100);
-		}
-		/* Wait read */
-		while(sdram_checker_done_read() == 0);
+
+		sdram_bist_read(base, length);
 		/* Get read results */
+		rd_length += length;
 		rd_ticks  += sdram_checker_ticks_read();
 		rd_errors += sdram_checker_errors_read();
-		rd_length += length;
 	}
 }
 
@@ -138,19 +122,14 @@ static uint32_t compute_speed_mibs(uint32_t length, uint32_t ticks) {
 void sdram_bist(uint32_t burst_length, uint32_t random)
 {
 	uint32_t i;
-	uint32_t total_length;
+	uint64_t total_length;
 	uint32_t total_errors;
 
-	printf("Starting SDRAM BIST with burst_length=%d and random=%d\n", burst_length, random);
+	printf("Starting SDRAM BIST with burst_length=%lu and random=%lu\n", burst_length, random);
 
-	i = 0;
 	total_length = 0;
 	total_errors = 0;
-	for(;;) {
-		/* Exit on key pressed */
-		if (readchar_nonblock())
-			break;
-
+	for (i = 0; !readchar_nonblock(); i++) { /* Exit on key pressed */
 		/* Bist loop */
 		sdram_bist_loop(i, burst_length, random);
 
@@ -159,11 +138,12 @@ void sdram_bist(uint32_t burst_length, uint32_t random)
 			printf("WR-SPEED(MiB/s) RD-SPEED(MiB/s)  TESTED(MiB)       ERRORS\n");
 		}
 		if (i%100 == 100-1) {
-			printf("%15u %15u %12u %12u\n",
-			compute_speed_mibs(wr_length, wr_ticks),
-			compute_speed_mibs(rd_length, rd_ticks),
-			total_length/(1024*1024),
-			total_errors);
+			printf("%15lu %15lu %12llu %12lu\n",
+				compute_speed_mibs(wr_length, wr_ticks),
+				compute_speed_mibs(rd_length, rd_ticks),
+				total_length/(1024*1024),
+				total_errors);
+
 			total_length += wr_length;
 			total_errors += rd_errors;
 
@@ -174,7 +154,6 @@ void sdram_bist(uint32_t burst_length, uint32_t random)
 			rd_ticks  = 0;
 			rd_errors = 0;
 		}
-		i++;
 	}
 }
 
