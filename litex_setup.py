@@ -341,9 +341,13 @@ def riscv_gcc_install():
     # ------
     if sys.platform.startswith("linux"):
         os_release = (open("/etc/os-release").read()).lower()
+        print(os_release)
         # Fedora.
         if "fedora" in os_release:
             os.system("dnf install gcc-riscv64-linux-gnu")
+        # Arch.
+        elif "arch" in os_release:
+            os.system("pacman -S riscv64-linux-gnu-gcc")
         # Ubuntu.
         else:
             os.system("apt install gcc-riscv64-linux-gnu")
@@ -389,6 +393,9 @@ def openrisc_gcc_install():
         # Fedora.
         if "fedora" in os_release:
             os.system("dnf install gcc-or1k-elf")
+        # Arch.
+        elif "arch" in os_release:
+            os.system("pacman -S or1k-elf-gcc")
         # Ubuntu.
         else:
             os.system("apt install gcc-or1k-elf")
