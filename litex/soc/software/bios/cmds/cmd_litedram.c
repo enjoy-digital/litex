@@ -12,6 +12,7 @@
 #include <libbase/i2c.h>
 
 #include <liblitedram/sdram.h>
+#include <liblitedram/sdram_spd.h>
 #include <liblitedram/bist.h>
 
 #include "../command.h"
@@ -354,14 +355,11 @@ define_command(sdram_mr_write, sdram_mr_write_handler, "Write SDRAM Mode Registe
  *
  */
 #ifdef CONFIG_HAS_I2C
-#define SPD_RW_PREAMBLE    0b1010
-#define SPD_RW_ADDR(a210)  ((SPD_RW_PREAMBLE << 3) | ((a210) & 0b111))
-
 static void sdram_spd_handler(int nb_params, char **params)
 {
 	char *c;
 	unsigned char spdaddr;
-	unsigned char buf[256];
+	unsigned char buf[SDRAM_SPD_SIZE];
 	int len = sizeof(buf);
 	bool send_stop = true;
 
@@ -388,7 +386,7 @@ static void sdram_spd_handler(int nb_params, char **params)
 		}
 	}
 
-	if (!i2c_read(SPD_RW_ADDR(spdaddr), 0, buf, len, send_stop, 1)) {
+	if (!sdram_read_spd(spdaddr, 0, buf, (uint16_t)len, send_stop)) {
 		printf("Error when reading SPD EEPROM");
 		return;
 	}
@@ -400,7 +398,7 @@ static void sdram_spd_handler(int nb_params, char **params)
 		int cmp_result;
 		cmp_result = memcmp(buf, (void *) SPD_BASE, SPD_SIZE);
 		if (cmp_result == 0) {
-			printf("Memory conents matches the data used for gateware generation\n");
+			printf("Memory contents matches the data used for gateware generation\n");
 		} else {
 			printf("\nWARNING: memory differs from the data used during gateware generation:\n");
 			dump_bytes((void *) SPD_BASE, SPD_SIZE, 0);
