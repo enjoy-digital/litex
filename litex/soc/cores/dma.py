@@ -58,7 +58,7 @@ class WishboneDMAReader(Module, AutoCSR):
             bus.sel.eq(2**(bus.data_width//8)-1),
             bus.adr.eq(sink.address),
             fifo.sink.last.eq(sink.last),
-            fifo.sink.data.eq(bus.dat_r),
+            fifo.sink.data.eq(format_bytes(bus.dat_r, endianness)),
             If(bus.stb & bus.ack,
                 sink.ready.eq(1),
                 fifo.sink.valid.eq(1),
