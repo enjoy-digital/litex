@@ -3,7 +3,7 @@
 
 #include <liblitedram/sdram_spd.h>
 
-#ifdef CONFIG_HAS_I2C
+#if defined(CSR_SDRAM_BASE) && defined(CONFIG_HAS_I2C)
 
 #if defined(SDRAM_PHY_DDR4)
 /*
@@ -55,8 +55,8 @@ bool sdram_read_spd(uint8_t spd, uint16_t addr, uint8_t *buf, uint16_t len, bool
 
 	return ok;
 }
-#else /* no CONFIG_HAS_I2C */
+#else /* no CSR_SDRAM_BASE && CONFIG_HAS_I2C */
 bool sdram_read_spd(uint8_t spd, uint16_t addr, uint8_t *buf, uint16_t len, bool send_stop) {
 	return false;
 }
-#endif /* CONFIG_HAS_I2C */
+#endif /* CSR_SDRAM_BASE && CONFIG_HAS_I2C */

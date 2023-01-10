@@ -7,6 +7,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <libbase/i2c.h>
+
+#include <generated/csr.h>
+
+#if defined(CSR_SDRAM_BASE) && defined(CONFIG_HAS_I2C)
+
 #include <generated/sdram_phy.h>
 
 #define SPD_RW_PREAMBLE    0b1010
@@ -24,6 +29,8 @@
 #endif
 
 #define SDRAM_SPD_SIZE (SDRAM_SPD_PAGES * SDRAM_SPD_PAGE_SIZE)
+
+#endif /* CSR_SDRAM_BASE && CONFIG_HAS_I2C */
 
 bool sdram_read_spd(uint8_t spd, uint16_t addr, uint8_t *buf, uint16_t len, bool send_stop);
 

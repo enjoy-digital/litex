@@ -8,8 +8,6 @@
 
 #include <libbase/i2c.h>
 
-#include <generated/sdram_phy.h>
-
 #define KIB 1024
 #define MIB (KIB*1024)
 #define GIB (MIB*1024)
@@ -31,6 +29,10 @@ void print_progress(const char * header, uint64_t origin, uint64_t size)
 	print_size(size);
 	printf("   \r");
 }
+
+#ifdef CSR_SDRAM_BASE
+
+#include <generated/sdram_phy.h>
 
 uint64_t sdram_get_supported_memory(void) {
 #ifdef CONFIG_HAS_I2C
@@ -59,3 +61,5 @@ uint64_t sdram_get_supported_memory(void) {
 	return SDRAM_PHY_SUPPORTED_MEMORY;
 #endif /* CONFIG_HAS_I2C */
 }
+
+#endif
