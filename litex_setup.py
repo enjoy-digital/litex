@@ -341,7 +341,6 @@ def riscv_gcc_install():
     # ------
     if sys.platform.startswith("linux"):
         os_release = (open("/etc/os-release").read()).lower()
-        print(os_release)
         # Fedora.
         if "fedora" in os_release:
             os.system("dnf install gcc-riscv64-linux-gnu")
@@ -475,3 +474,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
