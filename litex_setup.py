@@ -372,6 +372,9 @@ def powerpc_gcc_install():
         # Fedora.
         if "fedora" in os_release:
             os.system("dnf install gcc-powerpc64le-linux-gnu") # FIXME: binutils-multiarch?
+        # Arch (AUR repository).
+        elif "arch" in os_release:
+            os.system("yay -S powerpc64le-linux-gnu-gcc")
         # Ubuntu.
         else:
             os.system("apt install gcc-powerpc64le-linux-gnu binutils-multiarch")
