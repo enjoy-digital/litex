@@ -177,7 +177,14 @@ class LiteXArgumentParser(argparse.ArgumentParser):
             if platform is None: # no user selection: try default
                 platform = self.get_default_value_from_actions("platform", None)
             if platform is not None:
-                self.set_platform(importlib.import_module(platform).Platform)
+                try:
+                    platform_cls = importlib.import_module(platform).Platform
+                except ModuleNotFoundError as e:
+                    # platform not found: try litex-boards package
+                    platform = "litex_boards.platforms." + platform
+                    platform_cls = importlib.import_module(platform).Platform
+                self.set_platform(platform_cls)
+
                 self.add_target_group()
 
         # When platform provided/set, set builder/soc_core args.
