@@ -31,7 +31,7 @@ static bool sdram_select_spd_page(uint8_t page) {
 bool sdram_read_spd(uint8_t spd, uint16_t addr, uint8_t *buf, uint16_t len, bool send_stop) {
 	uint8_t page;
 	uint16_t offset;
-	uint16_t temp_len;
+	uint16_t temp_len, read_bytes = 0;
 	bool temp_send_stop = false;
 
 	bool ok = true;
@@ -48,8 +48,9 @@ bool sdram_read_spd(uint8_t spd, uint16_t addr, uint8_t *buf, uint16_t len, bool
 			temp_len = len;
 		}
 
-		ok &= i2c_read(SPD_RW_ADDR(spd), offset, &buf[page * SDRAM_SPD_PAGE_SIZE], len, temp_send_stop, 1);
+		ok &= i2c_read(SPD_RW_ADDR(spd), offset, &buf[read_bytes], len, temp_send_stop, 1);
 		len -= temp_len;
+		read_bytes += temp_len;
 		addr += temp_len;
 	}
 
