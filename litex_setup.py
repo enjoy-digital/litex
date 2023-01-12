@@ -344,6 +344,9 @@ def riscv_gcc_install():
         # Fedora.
         if "fedora" in os_release:
             os.system("dnf install gcc-riscv64-linux-gnu")
+        # Arch.
+        elif "arch" in os_release:
+            os.system("pacman -S riscv64-linux-gnu-gcc")
         # Ubuntu.
         else:
             os.system("apt install gcc-riscv64-linux-gnu")
@@ -369,6 +372,9 @@ def powerpc_gcc_install():
         # Fedora.
         if "fedora" in os_release:
             os.system("dnf install gcc-powerpc64le-linux-gnu") # FIXME: binutils-multiarch?
+        # Arch (AUR repository).
+        elif "arch" in os_release:
+            os.system("yay -S powerpc64le-linux-gnu-gcc")
         # Ubuntu.
         else:
             os.system("apt install gcc-powerpc64le-linux-gnu binutils-multiarch")
@@ -389,6 +395,9 @@ def openrisc_gcc_install():
         # Fedora.
         if "fedora" in os_release:
             os.system("dnf install gcc-or1k-elf")
+        # Arch.
+        elif "arch" in os_release:
+            os.system("pacman -S or1k-elf-gcc")
         # Ubuntu.
         else:
             os.system("apt install gcc-or1k-elf")
@@ -468,3 +477,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
