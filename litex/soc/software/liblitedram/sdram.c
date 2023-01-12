@@ -644,7 +644,14 @@ static int sdram_write_leveling_scan(int *delays, int loops, int show)
 				cdelay(100);
 				csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr(0), buf, DFII_PIX_DATA_BYTES);
 #if SDRAM_PHY_DQ_DQS_RATIO == 4
-				if (buf[SDRAM_PHY_MODULES-1-(i/2)] != 0)
+				/* For x4 memories, we need to test individual nibbles, not bytes */
+
+				/* Extract the byte containing the nibble from the tested module */
+				int module_byte = buf[SDRAM_PHY_MODULES-1-(i/2)];
+				/* Shift the byte by 4 bits right if the module number is odd */
+				module_byte >>= 4 * (i % 2);
+				/* Extract the nibble from the tested module */
+				if ((module_byte & 0xf) != 0)
 #else
 				if (buf[SDRAM_PHY_MODULES-1-i] != 0)
 #endif
