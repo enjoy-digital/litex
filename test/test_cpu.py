@@ -46,9 +46,9 @@ class TestCPU(unittest.TestCase):
             "serv",         # (riscv   / softcore)
             "vexriscv",     # (riscv   / softcore)
             "vexriscv_smp", # (riscv   / softcore)
-            "microwatt",    # (ppc64   / softcore)
         ]
         untested_cpus = [
+            "microwatt",    # (ppc64   / softcore) -> Broken 2022.01.12 -> https://github.com/enjoy-digital/litex/actions/runs/3900056883/jobs/6662146988
             "blackparrot",  # (riscv   / softcore) -> Broken install?
             "cortex_m1",    # (arm     / softcore) -> Proprietary code.
             "cortex_m3",    # (arm     / softcore) -> Proprieraty code.
