@@ -1,6 +1,19 @@
-from migen import *
-from misoc.interconnect import wishbone
+#
+# This file is part of MiSoC and has been adapted/modified for Litex.
+#
+# Copyright 2007-2023 / M-Labs Ltd
+# Copyright 2012-2015 / Enjoy-Digital
+# Copyright from Misoc LICENCE file added above
+#
+# Copyright 2023 Andrew Dennison <andrew@motec.com.au>
+#
+# SPDX-License-Identifier: BSD-2-Clause
 
+from migen import *
+from litex.soc.interconnect import wishbone
+
+
+# I2C-----------------------------------------------------------------------------------------------
 
 __all__ = [
     "I2CMaster",

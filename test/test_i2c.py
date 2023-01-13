@@ -1,9 +1,20 @@
+#
+# This file is part of MiSoC and has been adapted/modified for Litex.
+#
+# Copyright 2007-2023 / M-Labs Ltd
+# Copyright 2012-2015 / Enjoy-Digital
+# Copyright from Misoc LICENCE file added above
+#
+# Copyright 2023 Andrew Dennison <andrew@motec.com.au>
+#
+# SPDX-License-Identifier: BSD-2-Clause
+
 import unittest
 
 from migen import *
 from migen.fhdl.specials import Tristate
 
-from misoc.cores.i2c import *
+from litex.soc.cores.i2c import *
 
 
 class _MockPads:
