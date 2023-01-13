@@ -127,4 +127,4 @@ class TestI2C(unittest.TestCase):
             yield from check_trans(scl=False,  sda=False)
             yield from wait_idle()
 
-        run_simulation(dut, check(), special_overrides={Tristate: _MockTristate})
+        run_simulation(dut, check(), special_overrides={Tristate: _MockTristate}, vcd_name="i2c.vcd")
