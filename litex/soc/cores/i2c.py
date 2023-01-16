@@ -11,7 +11,7 @@
 
 from migen import *
 from litex.soc.interconnect import wishbone
-
+from litex.soc.interconnect.csr_eventmanager import *
 
 # I2C-----------------------------------------------------------------------------------------------
 
@@ -236,6 +236,12 @@ class I2CMaster(Module):
             self.sda_t.o.eq(0),
             i2c.sda_i.eq(self.sda_t.i),
         ]
+
+        # Event Manager.
+        self.submodules.ev = EventManager()
+        self.ev.idle       = EventSourceLevel()
+        self.ev.finalize()
+        self.comb += self.ev.idle.trigger.eq(i2c.idle)
 
 I2C_XFER_ADDR, I2C_CONFIG_ADDR = range(2)
 (
