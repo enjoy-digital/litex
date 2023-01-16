@@ -490,7 +490,7 @@ def main():
         **soc_kwargs)
     if ram_boot_address is not None:
         if ram_boot_address == 0:
-            ram_boot_address = ram_boot_offset
+            ram_boot_address = conf_soc.mem_map["main_ram"]
         soc.add_constant("ROM_BOOT_ADDRESS", ram_boot_address)
     if args.with_ethernet:
         for i in range(4):
