@@ -259,7 +259,7 @@ class SoCBusHandler(LiteXModule):
             while (origin + size) < (search_region.origin + search_region.size_pow2):
                 # Align Origin on Size.
                 if (origin%size):
-                    origin += (origin - origin%size)
+                    origin += (size - origin%size)
                     continue
                 # Create a Candidate.
                 candidate = SoCRegion(origin=origin, size=size, cached=cached)
