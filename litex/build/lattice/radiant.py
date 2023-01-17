@@ -92,6 +92,7 @@ class LatticeRadiantToolchain(GenericToolchain):
 
         self._timingstrict = timingstrict
         self._synth_mode   = synth_mode
+        self._quiet       = kwargs.pop("quiet", False)
 
         return GenericToolchain.build(self, platform, fragment, **kwargs)
 
@@ -123,7 +124,7 @@ class LatticeRadiantToolchain(GenericToolchain):
         self._yosys = YosysWrapper(self.platform, self._build_name,
                 output_name=self._build_name+"_yosys", target="nexus",
                 template=[], yosys_cmds=yosys_cmds,
-                yosys_opts=self._synth_opts, synth_format="vm")
+                yosys_opts=self._synth_opts, synth_format="vm", quiet = self._quiet)
 
     # Constraints (.ldc) ---------------------------------------------------------------------------
 
