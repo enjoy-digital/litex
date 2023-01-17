@@ -38,15 +38,20 @@ GCC_FLAGS = {
 # Helpers ------------------------------------------------------------------------------------------
 
 def add_manifest_sources(platform, manifest):
-    basedir = get_data_mod("cpu", "cva6").data_location
-    with open(os.path.join(basedir, manifest), 'r') as f:
+    cva6_dir = get_data_mod("cpu", "cva6").data_location
+    lx_core_dir = os.path.abspath(os.path.dirname(__file__))
+    with open(os.path.join(manifest), 'r') as f:
         for l in f:
-            res = re.search('\$\{CVA6_REPO_DIR\}/(.+)', l)
+            res = re.search('\$\{(CVA6_REPO_DIR|LX_CVA6_CORE_DIR)\}/(.+)', l)
             if res and not re.match('//', l):
-                if re.match('\+incdir\+', l):
-                    platform.add_verilog_include_path(os.path.join(basedir, res.group(1)))
+                if res.group(1) == "LX_CVA6_CORE_DIR":
+                    basedir = lx_core_dir
                 else:
-                    platform.add_source(os.path.join(basedir, res.group(1)))
+                    basedir = cva6_dir
+                if re.match('\+incdir\+', l):
+                    platform.add_verilog_include_path(os.path.join(basedir, res.group(2)))
+                else:
+                    platform.add_source(os.path.join(basedir, res.group(2)))
 
 # CVA6 ---------------------------------------------------------------------------------------------
 
@@ -154,9 +159,14 @@ class CVA6(CPU):
         )
 
         # Add Verilog sources.
+        # Defines must come first
+        wrapper_root = os.path.join(os.path.abspath(os.path.dirname(__file__)), "cva6_wrapper")
+        platform.add_source(os.path.join(wrapper_root, "cva6_defines.sv"))
         # TODO: use Flist.cv64a6_imafdc_sv39 and Flist.cv32a6_imac_sv0 instead
-        add_manifest_sources(platform, "Flist.cv64a6_imafdc_sv39")
-        add_manifest_sources(platform, "Flist.cva6_wrapper")
+        add_manifest_sources(platform, os.path.join(get_data_mod("cpu", "cva6").data_location,
+            "core", "Flist.cv64a6_imafdc_sv39"))
+        # Add wrapper sources
+        add_manifest_sources(platform, os.path.join(wrapper_root, "Flist.cva6_wrapper"))
 
     def add_jtag(self, pads):
         from migen.fhdl.specials import Tristate
