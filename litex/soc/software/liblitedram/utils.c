@@ -14,18 +14,18 @@
 
 void print_size(uint64_t size) {
 	if (size < KIB)
-		printf("%lluB", size);
+		printf("%" PRIu64 "B", size);
 	else if (size < MIB)
-		printf("%llu.%lluKiB", size/KIB, (size/1   - KIB*(size/KIB))/(KIB/10));
+		printf("%" PRIu64 ".%" PRIu64 "KiB", size/KIB, (size/1   - KIB*(size/KIB))/(KIB/10));
 	else if (size < GIB)
-		printf("%llu.%lluMiB", size/MIB, (size/KIB - KIB*(size/MIB))/(KIB/10));
+		printf("%" PRIu64 ".%" PRIu64 "MiB", size/MIB, (size/KIB - KIB*(size/MIB))/(KIB/10));
 	else
-		printf("%llu.%lluGiB", size/GIB, (size/MIB - KIB*(size/GIB))/(KIB/10));
+		printf("%" PRIu64 ".%" PRIu64 "GiB", size/GIB, (size/MIB - KIB*(size/GIB))/(KIB/10));
 }
 
 void print_progress(const char * header, uint64_t origin, uint64_t size)
 {
-	printf("%s 0x%llx-0x%llx ", header, origin, origin + size);
+	printf("%s 0x%" PRIx64 "-0x%" PRIx64 " ", header, origin, origin + size);
 	print_size(size);
 	printf("   \r");
 }
