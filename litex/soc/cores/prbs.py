@@ -110,7 +110,7 @@ class PRBSChecker(Module):
         curval = [state[i] for i in range(n_state)]
         for i in reversed(range(n_in)):
             correctv = Reduce("XOR", [curval[tap] for tap in taps])
-            self.comb += self.errors[i].eq(self.i[i] != correctv)
+            self.sync += self.errors[i].eq(self.i[i] != correctv)
             curval.insert(0, self.i[i])
             curval.pop()
         self.sync += state.eq(Cat(*curval[:n_state]))
@@ -121,7 +121,7 @@ class PRBSChecker(Module):
         self.submodules += idle_timer
         self.sync += i_last.eq(self.i)
         self.comb += idle_timer.wait.eq(self.i == i_last)
-        self.comb += If(idle_timer.done, self.errors.eq(2**n_in-1))
+        self.sync += If(idle_timer.done, self.errors.eq(2**n_in-1))
 
 class PRBS7Checker(PRBSChecker):
     def __init__(self, n_out):
