@@ -126,7 +126,7 @@ void sdram_bist(uint32_t burst_length, uint32_t random)
 	uint64_t total_length;
 	uint32_t total_errors;
 
-	printf("Starting SDRAM BIST with burst_length=%lu and random=%lu\n", burst_length, random);
+	printf("Starting SDRAM BIST with burst_length=%" PRIu32 " and random=%" PRIu32 "\n", burst_length, random);
 
 	total_length = 0;
 	total_errors = 0;
@@ -139,7 +139,7 @@ void sdram_bist(uint32_t burst_length, uint32_t random)
 			printf("WR-SPEED(MiB/s) RD-SPEED(MiB/s)  TESTED(MiB)       ERRORS\n");
 		}
 		if (i%100 == 100-1) {
-			printf("%15lu %15lu %12llu %12lu\n",
+			printf("%15" PRIu32 " %15" PRIu32 "%12" PRIu64 "%12" PRIu32 "\n",
 				compute_speed_mibs(wr_length, wr_ticks),
 				compute_speed_mibs(rd_length, rd_ticks),
 				total_length/(1024*1024),
