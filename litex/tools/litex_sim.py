@@ -138,6 +138,7 @@ class Platform(SimPlatform):
 class SimSoC(SoCCore):
     def __init__(self,
         with_sdram            = False,
+        with_sdram_bist       = False,
         with_ethernet         = False,
         ethernet_phy_model    = "sim",
         with_etherbone        = False,
@@ -149,7 +150,6 @@ class SimSoC(SoCCore):
         sdram_data_width      = 32,
         sdram_spd_data        = None,
         sdram_verbosity       = 0,
-        with_bist             = False,
         with_i2c              = False,
         with_sdcard           = False,
         with_spi_flash        = False,
@@ -197,7 +197,7 @@ class SimSoC(SoCCore):
                 l2_cache_size           = kwargs.get("l2_size", 8192),
                 l2_cache_min_data_width = kwargs.get("min_l2_data_width", 128),
                 l2_cache_reverse        = False,
-                with_bist               = with_bist
+                with_bist               = with_sdram_bist
             )
             if sdram_init != []:
                 # Skip SDRAM test to avoid corrupting pre-initialized contents.
@@ -370,12 +370,12 @@ def sim_args(parser):
 
     # DRAM.
     parser.add_argument("--with-sdram",           action="store_true",     help="Enable SDRAM support.")
+    parser.add_argument("--with-sdram-bist",      action="store_true",     help="Enable SDRAM BIST Generator/Checker modules.")
     parser.add_argument("--sdram-module",         default="MT48LC16M16",   help="Select SDRAM chip.")
     parser.add_argument("--sdram-data-width",     default=32,              help="Set SDRAM chip data width.")
     parser.add_argument("--sdram-init",           default=None,            help="SDRAM init file (.bin or .json).")
     parser.add_argument("--sdram-from-spd-dump",  default=None,            help="Generate SDRAM module based on data from SPD EEPROM dump.")
     parser.add_argument("--sdram-verbosity",      default=0,               help="Set SDRAM checker verbosity.")
-    parser.add_argument("--with-bist",            action="store_true",     help="Enable SDRAM BIST modules.")
 
     # Ethernet /Etherbone.
     parser.add_argument("--with-ethernet",        action="store_true",     help="Enable Ethernet support.")
@@ -479,7 +479,7 @@ def main():
     # SoC ------------------------------------------------------------------------------------------
     soc = SimSoC(
         with_sdram         = args.with_sdram,
-        with_bist          = args.with_bist,
+        with_sdram_bist    = args.with_sdram_bist,
         with_ethernet      = args.with_ethernet,
         ethernet_phy_model = args.ethernet_phy_model,
         with_etherbone     = args.with_etherbone,
