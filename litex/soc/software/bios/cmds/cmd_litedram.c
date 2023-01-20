@@ -89,6 +89,46 @@ static void sdram_bist_handler(int nb_params, char **params)
 define_command(sdram_bist, sdram_bist_handler, "Run SDRAM Build-In Self-Test", LITEDRAM_CMDS);
 #endif
 
+/**
+ * Command "sdram_hw_test"
+ *
+ * Run SDRAM HW-accelerated memtest
+ *
+ */
+#if defined(CSR_SDRAM_GENERATOR_BASE) && defined(CSR_SDRAM_CHECKER_BASE)
+static void sdram_hw_test_handler(int nb_params, char **params)
+{
+	char *c;
+	uint64_t origin;
+	uint64_t size;
+	uint64_t burst_length = 1;
+	if (nb_params < 2) {
+		printf("sdram_hw_test <origin> <size> [<burst_length>]");
+		return;
+	}
+	origin = strtoull(params[0], &c, 0);
+	if (*c != 0) {
+		printf("Incorrect origin");
+		return;
+	}
+	size = strtoull(params[1], &c, 0);
+	if (*c != 0) {
+		printf("Incorrect size");
+		return;
+	}
+	if (nb_params > 2) {
+		burst_length = strtoull(params[2], &c, 0);
+		if (*c != 0) {
+			printf("Incorrect burst length");
+			return;
+		}
+	}
+	int errors = sdram_hw_test(origin, size, burst_length);
+	printf("%d errors found\n", errors);
+}
+define_command(sdram_hw_test, sdram_hw_test_handler, "Run SDRAM HW-accelerated memtest", LITEDRAM_CMDS);
+#endif
+
 #ifdef CSR_DDRPHY_RDPHASE_ADDR
 /**
  * Command "sdram_force_rdphase"
