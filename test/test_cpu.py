@@ -42,13 +42,13 @@ class TestCPU(unittest.TestCase):
             "firev",        # (riscv   / softcore)
             "marocchino",   # (or1k    / softcore)
             "naxriscv",     # (riscv   / softcore)
-            "neorv32",      # (riscv   / softcore)
             "serv",         # (riscv   / softcore)
             "vexriscv",     # (riscv   / softcore)
             "vexriscv_smp", # (riscv   / softcore)
         ]
         untested_cpus = [
             "microwatt",    # (ppc64   / softcore) -> Broken 2022.01.12 -> https://github.com/enjoy-digital/litex/actions/runs/3900056883/jobs/6662146988
+            "neorv32",      # (riscv   / softcore) -> Broken 2022.01.20 -> https://github.com/enjoy-digital/litex/actions/runs/3970180588/jobs/6805602574
             "blackparrot",  # (riscv   / softcore) -> Broken install?
             "cortex_m1",    # (arm     / softcore) -> Proprietary code.
             "cortex_m3",    # (arm     / softcore) -> Proprieraty code.
