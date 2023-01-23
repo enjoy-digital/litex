@@ -15,7 +15,7 @@
 
 int current_i2c_dev = DEFAULT_I2C_DEV;
 
-struct i2c_dev *get_i2c_devs(void) { return &i2c_devs; }
+struct i2c_dev *get_i2c_devs(void) { return i2c_devs; }
 int get_i2c_devs_count(void)       { return I2C_DEVS_COUNT; }
 void set_i2c_active_dev(int dev)   { current_i2c_dev = dev; }
 int get_i2c_active_dev(void)       { return current_i2c_dev; }
