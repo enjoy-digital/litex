@@ -274,7 +274,12 @@ bool i2c_poll(unsigned char slave_addr)
 
     i2c_start();
     result  = i2c_transmit_byte(I2C_ADDR_WR(slave_addr));
-    result |= i2c_transmit_byte(I2C_ADDR_RD(slave_addr));
+    if (!result) {
+        i2c_start();
+        result |= i2c_transmit_byte(I2C_ADDR_RD(slave_addr));
+        if (result)
+           i2c_receive_byte(false);
+    }
     i2c_stop();
 
     return result;
