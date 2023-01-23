@@ -7,11 +7,14 @@
 #include <generated/soc.h>
 #include <generated/csr.h>
 
+#include <system.h>
+
 #ifdef CONFIG_HAS_I2C
 #include <generated/i2c.h>
 
-#define I2C_PERIOD_CYCLES (CONFIG_CLOCK_FREQUENCY / I2C_FREQ_HZ)
-#define I2C_DELAY(n)	  cdelay((n)*I2C_PERIOD_CYCLES/4)
+#define U_SECOND	(1000000)
+#define I2C_PERIOD	(U_SECOND / I2C_FREQ_HZ)
+#define I2C_DELAY(n)	busy_wait_us(n * I2C_PERIOD / 4)
 
 int current_i2c_dev = DEFAULT_I2C_DEV;
 
@@ -19,14 +22,6 @@ struct i2c_dev *get_i2c_devs(void) { return i2c_devs; }
 int get_i2c_devs_count(void)       { return I2C_DEVS_COUNT; }
 void set_i2c_active_dev(int dev)   { current_i2c_dev = dev; }
 int get_i2c_active_dev(void)       { return current_i2c_dev; }
-
-static inline void cdelay(int i)
-{
-	while(i > 0) {
-		__asm__ volatile(CONFIG_CPU_NOP);
-		i--;
-	}
-}
 
 int i2c_send_init_cmds(void)
 {
