@@ -108,7 +108,6 @@ static void i2c_transmit_bit(int value)
 	I2C_DELAY(2);
 	i2c_oe_scl_sda(1, 0, value);
 	I2C_DELAY(1);
-	i2c_oe_scl_sda(0, 0, 0);  // release line
 }
 
 // Call when in the middle of SCL low, advances one clk period
@@ -134,12 +133,14 @@ static bool i2c_transmit_byte(unsigned char data)
 	int ack;
 
 	// SCL should have already been low for 1/4 cycle
-	i2c_oe_scl_sda(0, 0, 0);
+	// Keep SDA low to avoid short spikes from the pull-ups
+	i2c_oe_scl_sda(1, 0, 0);
 	for (i = 0; i < 8; ++i) {
 		// MSB first
 		i2c_transmit_bit((data & (1 << 7)) != 0);
 		data <<= 1;
 	}
+	i2c_oe_scl_sda(0, 0, 0); // release line
 	ack = i2c_receive_bit();
 
 	// 0 from slave means ack
@@ -157,6 +158,7 @@ static unsigned char i2c_receive_byte(bool ack)
 		data |= i2c_receive_bit();
 	}
 	i2c_transmit_bit(!ack);
+	i2c_oe_scl_sda(0, 0, 0); // release line
 
 	return data;
 }
