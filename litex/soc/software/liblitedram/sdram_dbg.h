@@ -1,6 +1,10 @@
 #ifndef __SDRAM_DBG_H
 #define __SDRAM_DBG_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <generated/csr.h>
 
 #ifdef CSR_SDRAM_BASE
@@ -53,5 +57,9 @@ int readback_add(struct readback *readback, unsigned int max_len, struct memory_
 int readback_compare(struct readback *readback, struct readback *other, int verbose);
 
 #endif /* CSR_SDRAM_BASE */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __SDRAM_DBG_H */
