@@ -1,6 +1,10 @@
 #ifndef __UDP_H
 #define __UDP_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define ETHMAC_EV_SRAM_WRITER	0x1
 #define ETHMAC_EV_SRAM_READER	0x1
 
@@ -21,5 +25,9 @@ void udp_service(void);
 
 void eth_init(void);
 void eth_mode(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __UDP_H */

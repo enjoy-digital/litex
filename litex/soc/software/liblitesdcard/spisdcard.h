@@ -5,6 +5,10 @@
 #ifndef __SPISDCARD_H
 #define __SPISDCARD_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <generated/csr.h>
 
 #ifdef CSR_SPISDCARD_BASE
@@ -53,5 +57,9 @@ uint8_t spisdcard_init(void);
 void fatfs_set_ops_spisdcard(void);
 
 #endif /* CSR_SPISDCARD_BASE */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __SPISDCARD_H */
