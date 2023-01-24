@@ -34,6 +34,12 @@
 
 #ifdef CSR_SDRAM_BASE
 
+#if SDRAM_PHY_DELAYS > 32
+#define MODULO (SDRAM_PHY_DELAYS/32)
+#else
+#define MODULO (1)
+#endif
+
 /*-----------------------------------------------------------------------*/
 /* Helpers                                                               */
 /*-----------------------------------------------------------------------*/
@@ -431,10 +437,7 @@ static void sdram_leveling_center_module(
 		errors = run_test_pattern(module);
 		last_working = working;
 		working = errors == 0;
-		show = show_long;
-#if SDRAM_PHY_DELAYS > 32
-		show = show && (delay%16 == 0);
-#endif
+		show = show_long && (delay%MODULO == 0);
 		if (show)
 			print_scan_errors(errors);
 		if(working && last_working && delay_min < 0) {
@@ -453,10 +456,7 @@ static void sdram_leveling_center_module(
 	while(1) {
 		errors = run_test_pattern(module);
 		working = errors == 0;
-		show = show_long;
-#if SDRAM_PHY_DELAYS > 32
-		show = show && (delay%16 == 0);
-#endif
+		show = show_long && (delay%MODULO == 0);
 		if (show)
 			print_scan_errors(errors);
 
@@ -674,10 +674,8 @@ static int sdram_write_leveling_scan(int *delays, int loops, int show)
 		for(j=0;j<err_ddrphy_wdly;j++) {
 			int zero_count = 0;
 			int one_count = 0;
-			int show_iter = show;
-#if SDRAM_PHY_DELAYS > 32
-			show_iter = (j%16 == 0) && show;
-#endif
+			int show_iter = (j%MODULO == 0) && show;
+
 			for (k=0; k<loops; k++) {
 				ddrphy_wlevel_strobe_write(1);
 				cdelay(100);
@@ -1000,10 +998,7 @@ static unsigned int sdram_read_leveling_scan_module(int module, int bitslip, int
 	sdram_read_leveling_rst_delay(module);
 	for(i=0;i<SDRAM_PHY_DELAYS;i++) {
 		int working;
-		int _show = show;
-#if SDRAM_PHY_DELAYS > 32
-		_show = (i%16 == 0) & show;
-#endif
+		int _show = (i%MODULO == 0) & show;
 		errors = run_test_pattern(module);
 		working = errors == 0;
 		/* When any scan is working then the final score will always be higher then if no scan was working */
