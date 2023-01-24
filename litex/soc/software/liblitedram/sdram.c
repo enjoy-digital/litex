@@ -34,6 +34,12 @@
 
 #ifdef CSR_SDRAM_BASE
 
+#ifdef SDRAM_WRITE_LATENCY_CALIBRATION_DEBUG
+#define SDRAM_WLC_DEBUG 1
+#else
+#define SDRAM_WLC_DEBUG 0
+#endif
+
 #if SDRAM_PHY_DELAYS > 32
 #define MODULO (SDRAM_PHY_DELAYS/32)
 #else
@@ -1085,9 +1091,9 @@ static void sdram_write_latency_calibration(void) {
 		best_score   = 0;
 		best_bitslip = -1;
 		for(bitslip=0; bitslip<SDRAM_PHY_BITSLIPS; bitslip+=2) { /* +2 for tCK steps */
-#ifdef SDRAM_WRITE_LATENCY_CALIBRATION_DEBUG
-			printf("m%d wb%02d:\n", module, bitslip);
-#endif
+			if (SDRAM_WLC_DEBUG)
+				printf("m%d wb%02d:\n", module, bitslip);
+
 			score = 0;
 			/* Select module */
 			ddrphy_dly_sel_write(1 << module);
@@ -1102,12 +1108,11 @@ static void sdram_write_latency_calibration(void) {
 			sdram_read_leveling_rst_bitslip(module);
 			for(i=0; i<SDRAM_PHY_BITSLIPS; i++) {
 				/* Compute score */
-#ifdef SDRAM_WRITE_LATENCY_CALIBRATION_DEBUG
-				subscore = sdram_read_leveling_scan_module(module, i, 1);
-				printf("\n");
-#else
-				subscore = sdram_read_leveling_scan_module(module, i, 0);
-#endif
+				const int debug = SDRAM_WLC_DEBUG; // Local variable should be optimized out
+				subscore = sdram_read_leveling_scan_module(module, i, debug);
+				// If SDRAM_WRITE_LATENCY_CALIBRATION_DEBUG was not defined, SDRAM_WLC_DEBUG will be defined as 0, so if(0) should be optimized out
+				if (debug)
+					printf("\n");
 				score = subscore > score ? subscore : score;
 				/* Increment bitslip */
 				sdram_read_leveling_inc_bitslip(module);
@@ -1130,9 +1135,9 @@ static void sdram_write_latency_calibration(void) {
 			printf("m%d:- ", module);
 		else
 			printf("m%d:%d ", module, bitslip);
-#ifdef SDRAM_WRITE_LATENCY_CALIBRATION_DEBUG
-		printf("\n");
-#endif
+
+		if (SDRAM_WLC_DEBUG)
+			printf("\n");
 
 		/* Select best write window */
 		ddrphy_dly_sel_write(1 << module);
