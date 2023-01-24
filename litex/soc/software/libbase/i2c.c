@@ -7,26 +7,21 @@
 #include <generated/soc.h>
 #include <generated/csr.h>
 
+#include <system.h>
+
 #ifdef CONFIG_HAS_I2C
 #include <generated/i2c.h>
 
-#define I2C_PERIOD_CYCLES (CONFIG_CLOCK_FREQUENCY / I2C_FREQ_HZ)
-#define I2C_DELAY(n)	  cdelay((n)*I2C_PERIOD_CYCLES/4)
+#define U_SECOND	(1000000)
+#define I2C_PERIOD	(U_SECOND / I2C_FREQ_HZ)
+#define I2C_DELAY(n)	busy_wait_us(n * I2C_PERIOD / 4)
 
 int current_i2c_dev = DEFAULT_I2C_DEV;
 
-struct i2c_dev *get_i2c_devs(void) { return &i2c_devs; }
+struct i2c_dev *get_i2c_devs(void) { return i2c_devs; }
 int get_i2c_devs_count(void)       { return I2C_DEVS_COUNT; }
 void set_i2c_active_dev(int dev)   { current_i2c_dev = dev; }
 int get_i2c_active_dev(void)       { return current_i2c_dev; }
-
-static inline void cdelay(int i)
-{
-	while(i > 0) {
-		__asm__ volatile(CONFIG_CPU_NOP);
-		i--;
-	}
-}
 
 int i2c_send_init_cmds(void)
 {
@@ -108,7 +103,6 @@ static void i2c_transmit_bit(int value)
 	I2C_DELAY(2);
 	i2c_oe_scl_sda(1, 0, value);
 	I2C_DELAY(1);
-	i2c_oe_scl_sda(0, 0, 0);  // release line
 }
 
 // Call when in the middle of SCL low, advances one clk period
@@ -134,12 +128,14 @@ static bool i2c_transmit_byte(unsigned char data)
 	int ack;
 
 	// SCL should have already been low for 1/4 cycle
-	i2c_oe_scl_sda(0, 0, 0);
+	// Keep SDA low to avoid short spikes from the pull-ups
+	i2c_oe_scl_sda(1, 0, 0);
 	for (i = 0; i < 8; ++i) {
 		// MSB first
 		i2c_transmit_bit((data & (1 << 7)) != 0);
 		data <<= 1;
 	}
+	i2c_oe_scl_sda(0, 0, 0); // release line
 	ack = i2c_receive_bit();
 
 	// 0 from slave means ack
@@ -157,6 +153,7 @@ static unsigned char i2c_receive_byte(bool ack)
 		data |= i2c_receive_bit();
 	}
 	i2c_transmit_bit(!ack);
+	i2c_oe_scl_sda(0, 0, 0); // release line
 
 	return data;
 }
@@ -274,7 +271,12 @@ bool i2c_poll(unsigned char slave_addr)
 
     i2c_start();
     result  = i2c_transmit_byte(I2C_ADDR_WR(slave_addr));
-    result |= i2c_transmit_byte(I2C_ADDR_RD(slave_addr));
+    if (!result) {
+        i2c_start();
+        result |= i2c_transmit_byte(I2C_ADDR_RD(slave_addr));
+        if (result)
+           i2c_receive_byte(false);
+    }
     i2c_stop();
 
     return result;
