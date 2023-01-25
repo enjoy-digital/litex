@@ -175,16 +175,16 @@ class GW1NPLL(Module):
             p_CLKOUTD3_SRC     = "CLKOUT",                 # Recopy CLKOUT to CLKOUTD3.
 
             # Inputs.
-            i_CLKIN   = self.clkin, # Clk Input.
-            i_CLKFB   = 0,          # Clk Feedback.
-            i_RESET   = self.reset, # PLL Reset.
-            i_RESET_P = 0,          # PLL Power Down.
-            i_ODSEL   = 0,          # Dynamic ODIV control.
-            i_FBDSEL  = 0,          # Dynamic IDIV control.
-            i_IDSEL   = 0,          # Dynamic FDIV control.
-            i_PSDA    = 0,          # Dynamic phase control.
-            i_DUTYDA  = 0,          # Dynamic duty cycle control.
-            i_FDLY    = 0,          # Dynamic CLKOUTP delay control.
+            i_CLKIN   = self.clkin,     # Clk Input.
+            i_CLKFB   = 0,              # Clk Feedback.
+            i_RESET   = self.reset,     # PLL Reset.
+            i_RESET_P = 0,              # PLL Power Down.
+            i_ODSEL   = Constant(0, 6), # Dynamic ODIV control.
+            i_FBDSEL  = Constant(0, 6), # Dynamic IDIV control.
+            i_IDSEL   = Constant(0, 6), # Dynamic FDIV control.
+            i_PSDA    = Constant(0, 4), # Dynamic phase control.
+            i_DUTYDA  = Constant(0, 4), # Dynamic duty cycle control.
+            i_FDLY    = Constant(0, 4), # Dynamic CLKOUTP delay control.
         )
         if self.device.startswith('GW1NS'):
             instance_name = 'PLLVR'
