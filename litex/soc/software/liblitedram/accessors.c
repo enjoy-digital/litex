@@ -124,11 +124,16 @@ void write_rst_dq_bitslip(int module) {
 
 #endif // defined(SDRAM_PHY_BITSLIPS)
 
-void sdram_select(int module) {
+void sdram_select(int module, int dq_line) {
 	ddrphy_dly_sel_write(1 << module);
+
+#ifdef SDRAM_DELAY_PER_DQ
+	/* Select DQ line */
+	ddrphy_dq_dly_sel_write(1 << dq_line);
+#endif
 }
 
-void sdram_deselect(int module) {
+void sdram_deselect(int module, int dq_line) {
 	ddrphy_dly_sel_write(0);
 
 #if defined(SDRAM_PHY_ECP5DDRPHY) || defined(SDRAM_PHY_GW2DDRPHY)
@@ -136,17 +141,22 @@ void sdram_deselect(int module) {
 	ddrphy_dly_sel_write(0xff);
 	ddrphy_dly_sel_write(0);
 #endif //SDRAM_PHY_ECP5DDRPHY
+
+#ifdef SDRAM_DELAY_PER_DQ
+	/* Un-select DQ line */
+	ddrphy_dq_dly_sel_write(0);
+#endif
 }
 
-void sdram_leveling_action(int module, action_callback action) {
+void sdram_leveling_action(int module, int dq_line, action_callback action) {
 	/* Select module */
-	sdram_select(module);
+	sdram_select(module, dq_line);
 
 	/* Action */
 	action(module);
 
 	/* Un-select module */
-	sdram_deselect(module);
+	sdram_deselect(module, dq_line);
 }
 
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE

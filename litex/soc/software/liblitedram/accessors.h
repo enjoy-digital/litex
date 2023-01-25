@@ -49,9 +49,9 @@ void write_rst_dq_bitslip(int module);
 
 #endif // defined(SDRAM_PHY_BITSLIPS)
 
-void sdram_select(int module);
-void sdram_deselect(int module);
-void sdram_leveling_action(int module, action_callback action);
+void sdram_select(int module, int dq_line);
+void sdram_deselect(int module, int dq_line);
+void sdram_leveling_action(int module, int dq_line, action_callback action);
 
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
 extern int _sdram_write_leveling_dat_delays[16];
