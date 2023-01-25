@@ -7,6 +7,7 @@
 
 import os
 from os import path
+import subprocess
 
 from migen import *
 
@@ -270,8 +271,8 @@ class VexRiscvSMP(CPU):
         gen_args.append(f"--itlb-size={VexRiscvSMP.itlb_size}")
 
         cmd = 'cd {path} && sbt "runMain vexriscv.demo.smp.VexRiscvLitexSmpClusterCmdGen {args}"'.format(path=os.path.join(vdir, "ext", "VexRiscv"), args=" ".join(gen_args))
-        if os.system(cmd) != 0:
-            raise OSError('Failed to run sbt')
+        subprocess.check_call(cmd, shell=True)
+
 
     def __init__(self, platform, variant):
         self.platform         = platform
