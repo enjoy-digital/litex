@@ -301,9 +301,10 @@ static void print_scan_errors(unsigned int errors) {
 #define MODULE_BITMASK ((1<<SDRAM_PHY_DQ_DQS_RATIO)-1)
 
 static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int seed) {
-	int p, i;
+	int p, i, bit;
 	unsigned int errors;
 	unsigned int prv;
+	unsigned char value;
 	unsigned char tst[DFII_PIX_DATA_BYTES];
 	unsigned char prs[SDRAM_PHY_PHASES][DFII_PIX_DATA_BYTES];
 
@@ -311,8 +312,12 @@ static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int
 	prv = seed;
 	for(p=0;p<SDRAM_PHY_PHASES;p++) {
 		for(i=0;i<DFII_PIX_DATA_BYTES;i++) {
-			prv = lfsr(32, prv);
-			prs[p][i] = prv;
+			value = 0;
+			for (bit=0;bit<8;bit++) {
+				prv = lfsr(32, prv);
+				value |= (prv&1) << bit;
+			}
+			prs[p][i] = value;
 		}
 	}
 
