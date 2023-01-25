@@ -415,7 +415,7 @@ static void sdram_leveling_center_module(
 {
 	int i;
 	int show;
-	int working;
+	int working, last_working;
 	unsigned int errors;
 	int delay, delay_mid, delay_range;
 	int delay_min = -1, delay_max = -1, cur_delay_min = -1;
@@ -425,9 +425,11 @@ static void sdram_leveling_center_module(
 
 	/* Find smallest working delay */
 	delay = 0;
+	working = 0;
 	rst_delay(module);
 	while(1) {
 		errors = run_test_pattern(module);
+		last_working = working;
 		working = errors == 0;
 		show = show_long;
 #if SDRAM_PHY_DELAYS > 32
@@ -435,8 +437,8 @@ static void sdram_leveling_center_module(
 #endif
 		if (show)
 			print_scan_errors(errors);
-		if(working && delay_min < 0) {
-			delay_min = delay;
+		if(working && last_working && delay_min < 0) {
+			delay_min = delay - 1; // delay on edges can be spotty
 			break;
 		}
 		delay++;
