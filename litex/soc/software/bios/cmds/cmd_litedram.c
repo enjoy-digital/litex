@@ -14,6 +14,7 @@
 #include <liblitedram/sdram.h>
 #include <liblitedram/sdram_spd.h>
 #include <liblitedram/bist.h>
+#include <liblitedram/accessors.h>
 
 #include "../command.h"
 #include "../helpers.h"
@@ -228,7 +229,7 @@ define_command(sdram_force_cmd_delay, sdram_force_cmd_delay_handler, "Force writ
 
 #endif
 
-#ifdef CSR_DDRPHY_WDLY_DQ_RST_ADDR
+#ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
 
 /**
  * Command "sdram_rst_dat_delay"
@@ -290,6 +291,9 @@ static void sdram_force_dat_delay_handler(int nb_params, char **params)
 define_command(sdram_force_dat_delay, sdram_force_dat_delay_handler, "Force write leveling Dat delay", LITEDRAM_CMDS);
 #endif
 
+#endif
+
+#ifdef SDRAM_PHY_BITSLIPS
 /**
  * Command "sdram_rst_bitslip"
  *
