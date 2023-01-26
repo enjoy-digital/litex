@@ -31,10 +31,6 @@ void sdram_mode_register_write(char reg, int value);
 /*-----------------------------------------------------------------------*/
 void sdram_write_leveling_rst_cmd_delay(int show);
 void sdram_write_leveling_force_cmd_delay(int taps, int show);
-void sdram_write_leveling_rst_dat_delay(int module, int show);
-void sdram_write_leveling_force_dat_delay(int module, int taps, int show);
-void sdram_write_leveling_rst_bitslip(int module, int show);
-void sdram_write_leveling_force_bitslip(int module, int bitslip, int show);
 int sdram_write_leveling(void);
 
 /*-----------------------------------------------------------------------*/

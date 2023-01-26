@@ -14,49 +14,10 @@
 #include <liblitedram/sdram.h>
 #include <liblitedram/sdram_spd.h>
 #include <liblitedram/bist.h>
+#include <liblitedram/accessors.h>
 
 #include "../command.h"
 #include "../helpers.h"
-
-/**
- * Command "sdram_init"
- *
- * Initialize SDRAM (Init + Calibration)
- *
- */
-#if defined(CSR_SDRAM_BASE)
-define_command(sdram_init, sdram_init, "Initialize SDRAM (Init + Calibration)", LITEDRAM_CMDS);
-#endif
-
-/**
- * Command "sdram_cal"
- *
- * Calibrate SDRAM
- *
- */
-#if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE)
-static void sdram_cal_handler(int nb_params, char **params)
-{
-	sdram_software_control_on();
-	sdram_leveling();
-	sdram_software_control_off();
-}
-define_command(sdram_cal, sdram_cal_handler, "Calibrate SDRAM", LITEDRAM_CMDS);
-#endif
-
-/**
- * Command "sdram_test"
- *
- * Test SDRAM
- *
- */
-#if defined(CSR_SDRAM_BASE)
-static void sdram_test_handler(int nb_params, char **params)
-{
-	memtest((unsigned int *)MAIN_RAM_BASE, MAIN_RAM_SIZE/32);
-}
-define_command(sdram_test, sdram_test_handler, "Test SDRAM", LITEDRAM_CMDS);
-#endif
 
 /**
  * Command "sdram_bist"
@@ -228,7 +189,44 @@ define_command(sdram_force_cmd_delay, sdram_force_cmd_delay_handler, "Force writ
 
 #endif
 
-#ifdef CSR_DDRPHY_WDLY_DQ_RST_ADDR
+#if defined(CSR_SDRAM_BASE)
+/**
+ * Command "sdram_init"
+ *
+ * Initialize SDRAM (Init + Calibration)
+ *
+ */
+define_command(sdram_init, sdram_init, "Initialize SDRAM (Init + Calibration)", LITEDRAM_CMDS);
+
+/**
+ * Command "sdram_test"
+ *
+ * Test SDRAM
+ *
+ */
+static void sdram_test_handler(int nb_params, char **params)
+{
+	memtest((unsigned int *)MAIN_RAM_BASE, MAIN_RAM_SIZE/32);
+}
+define_command(sdram_test, sdram_test_handler, "Test SDRAM", LITEDRAM_CMDS);
+
+/**
+ * Command "sdram_cal"
+ *
+ * Calibrate SDRAM
+ *
+ */
+#if defined(CSR_DDRPHY_BASE)
+static void sdram_cal_handler(int nb_params, char **params)
+{
+	sdram_software_control_on();
+	sdram_leveling();
+	sdram_software_control_off();
+}
+define_command(sdram_cal, sdram_cal_handler, "Calibrate SDRAM", LITEDRAM_CMDS);
+#endif
+
+#ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
 
 /**
  * Command "sdram_rst_dat_delay"
@@ -236,7 +234,7 @@ define_command(sdram_force_cmd_delay, sdram_force_cmd_delay_handler, "Force writ
  * Reset write leveling Dat delay
  *
  */
-#if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE)
+#if defined(CSR_DDRPHY_BASE)
 static void sdram_rst_dat_delay_handler(int nb_params, char **params)
 {
 	char *c;
@@ -263,7 +261,7 @@ define_command(sdram_rst_dat_delay, sdram_rst_dat_delay_handler, "Reset write le
  * Force write leveling Dat delay
  *
  */
-#if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE)
+#if defined(CSR_DDRPHY_BASE)
 static void sdram_force_dat_delay_handler(int nb_params, char **params)
 {
 	char *c;
@@ -288,15 +286,18 @@ static void sdram_force_dat_delay_handler(int nb_params, char **params)
 	sdram_software_control_off();
 }
 define_command(sdram_force_dat_delay, sdram_force_dat_delay_handler, "Force write leveling Dat delay", LITEDRAM_CMDS);
-#endif
+#endif /* defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE) */
 
+#endif /* SDRAM_PHY_WRITE_LEVELING_CAPABLE */
+
+#if defined(SDRAM_PHY_BITSLIPS) && defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE)
 /**
  * Command "sdram_rst_bitslip"
  *
  * Reset write leveling Bitslip
  *
  */
-#if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE)
+#if defined(CSR_DDRPHY_BASE)
 static void sdram_rst_bitslip_handler(int nb_params, char **params)
 {
 	char *c;
@@ -323,7 +324,7 @@ define_command(sdram_rst_bitslip, sdram_rst_bitslip_handler, "Reset write leveli
  * Force write leveling Bitslip
  *
  */
-#if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE)
+#if defined(CSR_DDRPHY_BASE)
 static void sdram_force_bitslip_handler(int nb_params, char **params)
 {
 	char *c;
@@ -350,7 +351,7 @@ static void sdram_force_bitslip_handler(int nb_params, char **params)
 define_command(sdram_force_bitslip, sdram_force_bitslip_handler, "Force write leveling Bitslip", LITEDRAM_CMDS);
 #endif
 
-#endif
+#endif /* defined(SDRAM_PHY_BITSLIPS) && defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) */
 
 /**
  * Command "sdram_mr_write"
@@ -358,7 +359,6 @@ define_command(sdram_force_bitslip, sdram_force_bitslip_handler, "Force write le
  * Write SDRAM Mode Register
  *
  */
-#if defined(CSR_SDRAM_BASE)
 static void sdram_mr_write_handler(int nb_params, char **params)
 {
 	char *c;
@@ -385,7 +385,8 @@ static void sdram_mr_write_handler(int nb_params, char **params)
 	sdram_software_control_off();
 }
 define_command(sdram_mr_write, sdram_mr_write_handler, "Write SDRAM Mode Register", LITEDRAM_CMDS);
-#endif
+
+#endif /* CSR_SDRAM_BASE */
 
 /**
  * Command "sdram_spd"
