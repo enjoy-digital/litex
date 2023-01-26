@@ -94,7 +94,7 @@ void write_rst_delay(int module) {
 
 #endif // defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE)
 
-#if defined(SDRAM_PHY_WRITE_LATENCY_CALIBRATION_CAPABLE) || defined(SDRAM_BITSLIP_CAPABLE)
+#if defined(SDRAM_PHY_BITSLIPS)
 
 int read_dq_bitslip[SDRAM_PHY_MODULES];
 void read_inc_dq_bitslip(int module) {
@@ -122,10 +122,7 @@ void write_rst_dq_bitslip(int module) {
 	ddrphy_wdly_dq_bitslip_rst_write(1);
 }
 
-#endif // defined(SDRAM_PHY_WRITE_LATENCY_CALIBRATION_CAPABLE) || defined(SDRAM_BITSLIP_CAPABLE)
-
-#if defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) || defined(SDRAM_PHY_WRITE_LATENCY_CALIBRATION_CAPABLE) || \
-defined(SDRAM_PHY_READ_LEVELING_CAPABLE) || defined(SDRAM_BITSLIP_CAPABLE)
+#endif // defined(SDRAM_PHY_BITSLIPS)
 
 void sdram_select(int module) {
 	ddrphy_dly_sel_write(1 << module);
@@ -152,11 +149,7 @@ void sdram_leveling_action(int module, action_callback action) {
 	sdram_deselect(module);
 }
 
-#endif // defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) || defined(SDRAM_PHY_WRITE_LATENCY_CALIBRATION_CAPABLE) || defined(SDRAM_PHY_READ_LEVELING_CAPABLE) ...
-
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
-
-int _sdram_write_leveling_bitslips[16];
 int _sdram_write_leveling_dat_delays[16];
 
 void sdram_write_leveling_rst_dat_delay(int module, int show) {
@@ -171,6 +164,8 @@ void sdram_write_leveling_force_dat_delay(int module, int taps, int show) {
 		printf("Forcing Dat delay of module %d to %d taps\n", module, taps);
 }
 
+#if defined(SDRAM_PHY_BITSLIPS)
+int _sdram_write_leveling_bitslips[16];
 void sdram_write_leveling_rst_bitslip(int module, int show) {
 	_sdram_write_leveling_bitslips[module] = -1;
 	if (show)
@@ -182,6 +177,7 @@ void sdram_write_leveling_force_bitslip(int module, int bitslip, int show) {
 	if (show)
 		printf("Forcing Bitslip of module %d to %d\n", module, bitslip);
 }
+#endif // defined(SDRAM_PHY_BITSLIPS)
 #endif // SDRAM_PHY_WRITE_LEVELING_CAPABLE
 
 #endif // defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE)

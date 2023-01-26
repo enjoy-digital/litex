@@ -10,6 +10,7 @@
 // License: BSD
 
 #include <generated/csr.h>
+#ifdef CSR_SDRAM_BASE
 #include <generated/mem.h>
 
 #include <stdio.h>
@@ -18,9 +19,7 @@
 #include <libbase/memtest.h>
 #include <libbase/lfsr.h>
 
-#ifdef CSR_SDRAM_BASE
 #include <generated/sdram_phy.h>
-#endif
 #include <generated/mem.h>
 #include <system.h>
 
@@ -33,19 +32,17 @@
 //#define SDRAM_WRITE_LATENCY_CALIBRATION_DEBUG
 //#define SDRAM_LEVELING_SCAN_DISPLAY_HEX_DIV 10
 
-#ifdef CSR_SDRAM_BASE
-
 #ifdef SDRAM_WRITE_LATENCY_CALIBRATION_DEBUG
 #define SDRAM_WLC_DEBUG 1
 #else
 #define SDRAM_WLC_DEBUG 0
-#endif
+#endif // SDRAM_WRITE_LATENCY_CALIBRATION_DEBUG
 
 #if SDRAM_PHY_DELAYS > 32
 #define MODULO (SDRAM_PHY_DELAYS/32)
 #else
 #define MODULO (1)
-#endif
+#endif // SDRAM_PHY_DELAYS > 32
 
 /*-----------------------------------------------------------------------*/
 /* Helpers                                                               */
@@ -54,14 +51,13 @@
 #define max(x, y) (((x) > (y)) ? (x) : (y))
 #define min(x, y) (((x) < (y)) ? (x) : (y))
 
-__attribute__((unused)) void cdelay(int i)
-{
+__attribute__((unused)) void cdelay(int i) {
 #ifndef CONFIG_BIOS_NO_DELAYS
 	while(i > 0) {
 		__asm__ volatile(CONFIG_CPU_NOP);
 		i--;
 	}
-#endif
+#endif // CONFIG_BIOS_NO_DELAYS
 }
 
 /*-----------------------------------------------------------------------*/
@@ -81,9 +77,9 @@ int sdram_get_freq(void) {
 int sdram_get_cl(void) {
 #ifdef SDRAM_PHY_CL
 	return SDRAM_PHY_CL;
-#else
+#else // not SDRAM_PHY_CL
 	return -1;
-#endif
+#endif // SDRAM_PHY_CL
 }
 
 int sdram_get_cwl(void) {
@@ -91,7 +87,7 @@ int sdram_get_cwl(void) {
 	return SDRAM_PHY_CWL;
 #else
 	return -1;
-#endif
+#endif // SDRAM_PHY_CWL
 }
 
 /*-----------------------------------------------------------------------*/
@@ -99,13 +95,12 @@ int sdram_get_cwl(void) {
 /*-----------------------------------------------------------------------*/
 
 #ifdef CSR_DDRPHY_BASE
-
 static unsigned char sdram_dfii_get_rdphase(void) {
 #ifdef CSR_DDRPHY_RDPHASE_ADDR
 	return ddrphy_rdphase_read();
 #else
 	return SDRAM_PHY_RDPHASE;
-#endif
+#endif // CSR_DDRPHY_RDPHASE_ADDR
 }
 
 static unsigned char sdram_dfii_get_wrphase(void) {
@@ -113,27 +108,27 @@ static unsigned char sdram_dfii_get_wrphase(void) {
 	return ddrphy_wrphase_read();
 #else
 	return SDRAM_PHY_WRPHASE;
-#endif
+#endif // CSR_DDRPHY_WRPHASE_ADDR
 }
 
 static void sdram_dfii_pix_address_write(unsigned char phase, unsigned int value) {
 #if (SDRAM_PHY_PHASES > 8)
 	#error "More than 8 DFI phases not supported"
-#endif
+#endif // (SDRAM_PHY_PHASES > 8)
 	switch (phase) {
 #if (SDRAM_PHY_PHASES > 4)
 	case 7: sdram_dfii_pi7_address_write(value); break;
 	case 6: sdram_dfii_pi6_address_write(value); break;
 	case 5: sdram_dfii_pi5_address_write(value); break;
 	case 4: sdram_dfii_pi4_address_write(value); break;
-#endif
+#endif // (SDRAM_PHY_PHASES > 4)
 #if (SDRAM_PHY_PHASES > 2)
 	case 3: sdram_dfii_pi3_address_write(value); break;
 	case 2: sdram_dfii_pi2_address_write(value); break;
-#endif
+#endif // (SDRAM_PHY_PHASES > 2)
 #if (SDRAM_PHY_PHASES > 1)
 	case 1: sdram_dfii_pi1_address_write(value); break;
-#endif
+#endif // (SDRAM_PHY_PHASES > 1)
 	default: sdram_dfii_pi0_address_write(value);
 	}
 }
@@ -151,21 +146,21 @@ static void sdram_dfii_piwr_address_write(unsigned int value) {
 static void sdram_dfii_pix_baddress_write(unsigned char phase, unsigned int value) {
 #if (SDRAM_PHY_PHASES > 8)
 	#error "More than 8 DFI phases not supported"
-#endif
+#endif // (SDRAM_PHY_PHASES > 8)
 	switch (phase) {
 #if (SDRAM_PHY_PHASES > 4)
 	case 7: sdram_dfii_pi7_baddress_write(value); break;
 	case 6: sdram_dfii_pi6_baddress_write(value); break;
 	case 5: sdram_dfii_pi5_baddress_write(value); break;
 	case 4: sdram_dfii_pi4_baddress_write(value); break;
-#endif
+#endif // (SDRAM_PHY_PHASES > 4)
 #if (SDRAM_PHY_PHASES > 2)
 	case 3: sdram_dfii_pi3_baddress_write(value); break;
 	case 2: sdram_dfii_pi2_baddress_write(value); break;
-#endif
+#endif // (SDRAM_PHY_PHASES > 2)
 #if (SDRAM_PHY_PHASES > 1)
 	case 1: sdram_dfii_pi1_baddress_write(value); break;
-#endif
+#endif // (SDRAM_PHY_PHASES > 1)
 	default: sdram_dfii_pi0_baddress_write(value);
 	}
 }
@@ -183,21 +178,21 @@ static void sdram_dfii_piwr_baddress_write(unsigned int value) {
 static void command_px(unsigned char phase, unsigned int value) {
 #if (SDRAM_PHY_PHASES > 8)
 	#error "More than 8 DFI phases not supported"
-#endif
+#endif // (SDRAM_PHY_PHASES > 8)
 	switch (phase) {
 #if (SDRAM_PHY_PHASES > 4)
 	case 7: command_p7(value); break;
 	case 6: command_p6(value); break;
 	case 5: command_p5(value); break;
 	case 4: command_p4(value); break;
-#endif
+#endif // (SDRAM_PHY_PHASES > 4)
 #if (SDRAM_PHY_PHASES > 2)
 	case 3: command_p3(value); break;
 	case 2: command_p2(value); break;
-#endif
+#endif // (SDRAM_PHY_PHASES > 2)
 #if (SDRAM_PHY_PHASES > 1)
 	case 1: command_p1(value); break;
-#endif
+#endif // (SDRAM_PHY_PHASES > 1)
 	default: command_p0(value);
 	}
 }
@@ -211,8 +206,7 @@ static void command_pwr(unsigned int value) {
 	unsigned char wrphase = sdram_dfii_get_wrphase();
 	command_px(wrphase, value);
 }
-
-#endif
+#endif // CSR_DDRPHY_BASE
 
 /*-----------------------------------------------------------------------*/
 /* Software/Hardware Control                                             */
@@ -221,8 +215,7 @@ static void command_pwr(unsigned int value) {
 #define DFII_CONTROL_SOFTWARE (DFII_CONTROL_CKE|DFII_CONTROL_ODT|DFII_CONTROL_RESET_N)
 #define DFII_CONTROL_HARDWARE (DFII_CONTROL_SEL)
 
-void sdram_software_control_on(void)
-{
+void sdram_software_control_on(void) {
 	unsigned int previous;
 	previous = sdram_dfii_control_read();
 	/* Switch DFII to software control */
@@ -234,11 +227,10 @@ void sdram_software_control_on(void)
 #if CSR_DDRPHY_EN_VTC_ADDR
 	/* Disable Voltage/Temperature compensation */
 	ddrphy_en_vtc_write(0);
-#endif
+#endif // CSR_DDRPHY_EN_VTC_ADDR
 }
 
-void sdram_software_control_off(void)
-{
+void sdram_software_control_off(void) {
 	unsigned int previous;
 	previous = sdram_dfii_control_read();
 	/* Switch DFII to hardware control */
@@ -249,7 +241,7 @@ void sdram_software_control_off(void)
 #if CSR_DDRPHY_EN_VTC_ADDR
 	/* Enable Voltage/Temperature compensation */
 	ddrphy_en_vtc_write(1);
-#endif
+#endif // CSR_DDRPHY_EN_VTC_ADDR
 }
 
 /*-----------------------------------------------------------------------*/
@@ -305,7 +297,7 @@ static void print_scan_errors(unsigned int errors) {
 		printf("%x", errors);
 #else
 		printf("%d", errors == 0);
-#endif
+#endif // SDRAM_LEVELING_SCAN_DISPLAY_HEX_DIV
 }
 
 #define READ_CHECK_TEST_PATTERN_MAX_ERRORS (8*SDRAM_PHY_PHASES*DFII_PIX_DATA_BYTES/SDRAM_PHY_MODULES)
@@ -346,7 +338,7 @@ static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int
 
 #if defined(SDRAM_PHY_ECP5DDRPHY) || defined(SDRAM_PHY_GW2DDRPHY)
 	ddrphy_burstdet_clr_write(1);
-#endif
+#endif // defined(SDRAM_PHY_ECP5DDRPHY) || defined(SDRAM_PHY_GW2DDRPHY)
 
 	/* Read/Check pseudo-random sequence */
 	sdram_dfii_pird_address_write(0);
@@ -397,13 +389,13 @@ static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int
 		if (SDRAM_PHY_DQ_DQS_RATIO == 16)
 			errors += popcount(((prs[p][nebo+1] >> ibo) & mask) ^
 			                   ((tst[nebo+1] >> ibo) & mask));
-#endif //SDRAM_PHY_XDR == 2
+#endif // SDRAM_PHY_XDR == 2
 	}
 
 #if defined(SDRAM_PHY_ECP5DDRPHY) || defined(SDRAM_PHY_GW2DDRPHY)
 	if (((ddrphy_burstdet_seen_read() >> module) & 0x1) != 1)
 		errors += 1;
-#endif
+#endif // defined(SDRAM_PHY_ECP5DDRPHY) || defined(SDRAM_PHY_GW2DDRPHY)
 
 	return errors;
 }
@@ -411,9 +403,7 @@ static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int
 static int _seed_array[] = {42, 84, 36, 72, 24, 48};
 static int _seed_array_length = sizeof(_seed_array) / sizeof(_seed_array[0]);
 
-
-static int run_test_pattern(int module)
-{
+static int run_test_pattern(int module) {
 	int errors = 0;
 	for (int i = 0; i < _seed_array_length; i++) {
 		errors += sdram_write_read_check_test_pattern(module, _seed_array[i]);
@@ -422,8 +412,8 @@ static int run_test_pattern(int module)
 }
 
 static void sdram_leveling_center_module(
-	int module, int show_short, int show_long, action_callback rst_delay, action_callback inc_delay)
-{
+	int module, int show_short, int show_long, action_callback rst_delay, action_callback inc_delay) {
+
 	int i;
 	int show;
 	int working, last_working;
@@ -524,9 +514,9 @@ static void sdram_leveling_center_module(
 /* Write Leveling                                                        */
 /*-----------------------------------------------------------------------*/
 
-int _sdram_tck_taps;
-
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
+
+int _sdram_tck_taps;
 
 int _sdram_write_leveling_cmd_scan  = 1;
 int _sdram_write_leveling_cmd_delay = 0;
@@ -534,8 +524,7 @@ int _sdram_write_leveling_cmd_delay = 0;
 int _sdram_write_leveling_cdly_range_start = -1;
 int _sdram_write_leveling_cdly_range_end   = -1;
 
-static void sdram_write_leveling_on(void)
-{
+static void sdram_write_leveling_on(void) {
 	// Flip write leveling bit in the Mode Register, as it is disabled by default
 	sdram_dfii_pi0_address_write(DDRX_MR_WRLVL_RESET ^ (1 << DDRX_MR_WRLVL_BIT));
 	sdram_dfii_pi0_baddress_write(DDRX_MR_WRLVL_ADDRESS);
@@ -545,13 +534,12 @@ static void sdram_write_leveling_on(void)
 	sdram_dfii_pi0_address_write((DDRX_MR_WRLVL_RESET ^ (1 << DDRX_MR_WRLVL_BIT)) ^ 0x2BF8) ;
 	sdram_dfii_pi0_baddress_write(DDRX_MR_WRLVL_ADDRESS ^ 0xF);
 	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
-#endif
+#endif // SDRAM_PHY_DDR4_RDIMM
 
 	ddrphy_wlevel_en_write(1);
 }
 
-static void sdram_write_leveling_off(void)
-{
+static void sdram_write_leveling_off(void) {
 	sdram_dfii_pi0_address_write(DDRX_MR_WRLVL_RESET);
 	sdram_dfii_pi0_baddress_write(DDRX_MR_WRLVL_ADDRESS);
 	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
@@ -560,7 +548,7 @@ static void sdram_write_leveling_off(void)
 	sdram_dfii_pi0_address_write(DDRX_MR_WRLVL_RESET ^ 0x2BF8);
 	sdram_dfii_pi0_baddress_write(DDRX_MR_WRLVL_ADDRESS ^ 0xF);
 	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
-#endif
+#endif // SDRAM_PHY_DDR4_RDIMM
 
 	ddrphy_wlevel_en_write(0);
 }
@@ -583,8 +571,7 @@ void sdram_write_leveling_force_cmd_delay(int taps, int show) {
 	}
 }
 
-static int sdram_write_leveling_scan(int *delays, int loops, int show)
-{
+static int sdram_write_leveling_scan(int *delays, int loops, int show) {
 	int i, j, k;
 
 	int err_ddrphy_wdly;
@@ -630,9 +617,9 @@ static int sdram_write_leveling_scan(int *delays, int loops, int show)
 				module_byte >>= 4 * (i % 2);
 				/* Extract the nibble from the tested module */
 				if ((module_byte & 0xf) != 0)
-#else
+#else // SDRAM_PHY_DQ_DQS_RATIO != 4
 				if (buf[SDRAM_PHY_MODULES-1-i] != 0)
-#endif
+#endif // SDRAM_PHY_DQ_DQS_RATIO == 4
 					one_count++;
 				else
 					zero_count++;
@@ -693,11 +680,11 @@ static int sdram_write_leveling_scan(int *delays, int loops, int show)
 			((one_window_best_start) > 0 && (one_window_best_count > 0)) ||
 			/* Start of 1s window indirectly seen before 0. */
 			((one_window_best_start == 0) && (one_window_best_count > _sdram_tck_taps/4))
-			){
+		) {
 #if SDRAM_PHY_DELAYS > 32
 			/* Ensure write delay is just before transition */
 			one_window_start -= min(one_window_start, 16);
-#endif
+#endif // SDRAM_PHY_DELAYS > 32
 			delays[i] = one_window_best_start;
 
 			/* Configure write delay */
@@ -725,14 +712,14 @@ static int sdram_write_leveling_scan(int *delays, int loops, int show)
 	return ok;
 }
 
-static void sdram_write_leveling_find_cmd_delay(unsigned int *best_error, unsigned int *best_count, int *best_cdly,
-		int cdly_start, int cdly_stop, int cdly_step)
-{
+static void sdram_write_leveling_find_cmd_delay(
+	unsigned int *best_error, unsigned int *best_count, int *best_cdly,
+	int cdly_start, int cdly_stop, int cdly_step) {
 	int cdly;
 	int delays[SDRAM_PHY_MODULES];
 #ifndef SDRAM_WRITE_LEVELING_CMD_DELAY_DEBUG
 	int ok;
-#endif
+#endif // SDRAM_WRITE_LEVELING_CMD_DELAY_DEBUG
 
 	/* Scan through the range */
 	sdram_rst_clock_delay();
@@ -747,7 +734,7 @@ static void sdram_write_leveling_find_cmd_delay(unsigned int *best_error, unsign
 		sdram_write_leveling_scan(delays, 8, 1);
 #else
 		ok = sdram_write_leveling_scan(delays, 8, 0);
-#endif
+#endif // SDRAM_WRITE_LEVELING_CMD_DELAY_DEBUG
 		/* Use the mean of delays for error calulation */
 		int delay_mean  = 0;
 		int delay_count = 0;
@@ -777,12 +764,11 @@ static void sdram_write_leveling_find_cmd_delay(unsigned int *best_error, unsign
 		printf("Delay mean: %d/256, ideal: %d/256\n", delay_mean, ideal_delay);
 #else
 		printf("%d", ok);
-#endif
+#endif // SDRAM_WRITE_LEVELING_CMD_DELAY_DEBUG
 	}
 }
 
-int sdram_write_leveling(void)
-{
+int sdram_write_leveling(void) {
 	int delays[SDRAM_PHY_MODULES];
 	unsigned int best_error = ~0u;
 	unsigned int best_count = 0;
@@ -852,16 +838,16 @@ int sdram_write_leveling(void)
 
 	return best_cdly >= 0;
 }
-
 #endif /*  SDRAM_PHY_WRITE_LEVELING_CAPABLE */
 
 /*-----------------------------------------------------------------------*/
 /* Read Leveling                                                         */
 /*-----------------------------------------------------------------------*/
 
-static unsigned int sdram_read_leveling_scan_module(int module, int bitslip, int show)
-{
-	const unsigned int max_errors = _seed_array_length * READ_CHECK_TEST_PATTERN_MAX_ERRORS;
+#if defined(SDRAM_PHY_WRITE_DQ_DQS_TRAINING_CAPABLE) || defined(SDRAM_PHY_WRITE_LATENCY_CALIBRATION_CAPABLE) || defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
+
+static unsigned int sdram_read_leveling_scan_module(int module, int bitslip, int show) {
+	const unsigned int max_errors = _seed_array_length*READ_CHECK_TEST_PATTERN_MAX_ERRORS;
 	int i;
 	unsigned int score;
 	unsigned int errors;
@@ -889,16 +875,11 @@ static unsigned int sdram_read_leveling_scan_module(int module, int bitslip, int
 	return score;
 }
 
-#endif /* CSR_DDRPHY_BASE */
+#endif // defined(SDRAM_PHY_WRITE_DQ_DQS_TRAINING_CAPABLE) || defined(SDRAM_PHY_WRITE_LATENCY_CALIBRATION_CAPABLE) || defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
 
-#endif /* CSR_SDRAM_BASE */
+#ifdef SDRAM_PHY_READ_LEVELING_CAPABLE
 
-#ifdef CSR_SDRAM_BASE
-
-#if defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) || defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
-
-void sdram_read_leveling(void)
-{
+void sdram_read_leveling(void) {
 	int module;
 	int bitslip;
 	unsigned int score;
@@ -939,6 +920,10 @@ void sdram_read_leveling(void)
 		printf("\n");
 	}
 }
+
+#endif // SDRAM_PHY_READ_LEVELING_CAPABLE
+
+#endif /* CSR_DDRPHY_BASE */
 
 /*-----------------------------------------------------------------------*/
 /* Write latency calibration                                             */
@@ -996,7 +981,7 @@ static void sdram_write_latency_calibration(void) {
 			bitslip = _sdram_write_leveling_bitslips[module];
 		#else
 			bitslip = best_bitslip;
-		#endif
+		#endif // SDRAM_PHY_WRITE_LEVELING_CAPABLE
 		if (bitslip == -1)
 			printf("m%d:- ", module);
 		else
@@ -1014,7 +999,7 @@ static void sdram_write_latency_calibration(void) {
 	printf("\n");
 }
 
-#endif
+#endif // SDRAM_PHY_WRITE_LATENCY_CALIBRATION_CAPABLE
 
 /*-----------------------------------------------------------------------*/
 /* Write DQ-DQS training                                                 */
@@ -1022,8 +1007,7 @@ static void sdram_write_latency_calibration(void) {
 
 #ifdef SDRAM_PHY_WRITE_DQ_DQS_TRAINING_CAPABLE
 
-static void sdram_read_leveling_best_bitslip(int module)
-{
+static void sdram_read_leveling_best_bitslip(int module) {
 	unsigned int score;
 	int bitslip;
 	int best_bitslip = 0;
@@ -1051,8 +1035,7 @@ static void sdram_read_leveling_best_bitslip(int module)
 		read_rst_dq_delay, read_inc_dq_delay);
 }
 
-static void sdram_write_dq_dqs_training(void)
-{
+static void sdram_write_dq_dqs_training(void) {
 	int module;
 
 	for(module=0; module<SDRAM_PHY_MODULES; module++) {
@@ -1070,71 +1053,77 @@ static void sdram_write_dq_dqs_training(void)
 /* Leveling                                                              */
 /*-----------------------------------------------------------------------*/
 
-int sdram_leveling(void)
-{
+int sdram_leveling(void) {
 	int module;
 	sdram_software_control_on();
 
 	for(module=0; module<SDRAM_PHY_MODULES; module++) {
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
 		sdram_leveling_action(module, write_rst_delay);
+#ifdef SDRAM_PHY_BITSLIPS
 		sdram_leveling_action(module, write_rst_dq_bitslip);
-#endif
+#endif // SDRAM_PHY_BITSLIPS
+#endif // SDRAM_PHY_WRITE_LEVELING_CAPABLE
+
+#ifdef SDRAM_PHY_READ_LEVELING_CAPABLE
 		sdram_leveling_action(module, read_rst_dq_delay);
+#ifdef SDRAM_PHY_BITSLIPS
 		sdram_leveling_action(module, read_rst_dq_bitslip);
+#endif // SDRAM_PHY_BITSLIPS
+#endif // SDRAM_PHY_READ_LEVELING_CAPABLE
 	}
 
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
 	printf("Write leveling:\n");
 	sdram_write_leveling();
-#endif
+#endif // SDRAM_PHY_WRITE_LEVELING_CAPABLE
 
 #ifdef SDRAM_PHY_WRITE_LATENCY_CALIBRATION_CAPABLE
 	printf("Write latency calibration:\n");
 	sdram_write_latency_calibration();
-#endif
+#endif // SDRAM_PHY_WRITE_LATENCY_CALIBRATION_CAPABLE
 
 #ifdef SDRAM_PHY_WRITE_DQ_DQS_TRAINING_CAPABLE
 	printf("Write DQ-DQS training:\n");
 	sdram_write_dq_dqs_training();
-#endif
+#endif // SDRAM_PHY_WRITE_DQ_DQS_TRAINING_CAPABLE
 
 #ifdef SDRAM_PHY_READ_LEVELING_CAPABLE
 	printf("Read leveling:\n");
 	sdram_read_leveling();
-#endif
+#endif // SDRAM_PHY_READ_LEVELING_CAPABLE
 
 	sdram_software_control_off();
 
 	return 1;
 }
-#endif
 
 /*-----------------------------------------------------------------------*/
 /* Initialization                                                        */
 /*-----------------------------------------------------------------------*/
 
-int sdram_init(void)
-{
+int sdram_init(void) {
 	/* Reset Cmd/Dat delays */
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
 	int i;
 	sdram_write_leveling_rst_cmd_delay(0);
 	for (i=0; i<16; i++) sdram_write_leveling_rst_dat_delay(i, 0);
+#ifdef SDRAM_PHY_BITSLIPS
 	for (i=0; i<16; i++) sdram_write_leveling_rst_bitslip(i, 0);
-#endif
+#endif // SDRAM_PHY_BITSLIPS
+#endif // SDRAM_PHY_WRITE_LEVELING_CAPABLE
 	/* Reset Read/Write phases */
 #ifdef CSR_DDRPHY_RDPHASE_ADDR
 	ddrphy_rdphase_write(SDRAM_PHY_RDPHASE);
-#endif
+#endif // CSR_DDRPHY_RDPHASE_ADDR
 #ifdef CSR_DDRPHY_WRPHASE_ADDR
 	ddrphy_wrphase_write(SDRAM_PHY_WRPHASE);
-#endif
+#endif // CSR_DDRPHY_WRPHASE_ADDR
 	/* Set Cmd delay if enforced at build time */
 #ifdef SDRAM_PHY_CMD_DELAY
 	_sdram_write_leveling_cmd_scan  = 0;
 	_sdram_write_leveling_cmd_delay = SDRAM_PHY_CMD_DELAY;
-#endif
+#endif // SDRAM_PHY_CMD_DELAY
 	printf("Initializing SDRAM @0x%08lx...\n", MAIN_RAM_BASE);
 	sdram_software_control_on();
 #if CSR_DDRPHY_RST_ADDR
@@ -1142,30 +1131,30 @@ int sdram_init(void)
 	cdelay(1000);
 	ddrphy_rst_write(0);
 	cdelay(1000);
-#endif
+#endif // CSR_DDRPHY_RST_ADDR
 
 #ifdef CSR_DDRCTRL_BASE
 	ddrctrl_init_done_write(0);
 	ddrctrl_init_error_write(0);
-#endif
+#endif // CSR_DDRCTRL_BASE
 	init_sequence();
 #if defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) || defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
 	sdram_leveling();
-#endif
+#endif // defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) || defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
 	sdram_software_control_off();
 #ifndef SDRAM_TEST_DISABLE
 	if(!memtest((unsigned int *) MAIN_RAM_BASE, MEMTEST_DATA_SIZE)) {
 #ifdef CSR_DDRCTRL_BASE
 		ddrctrl_init_error_write(1);
 		ddrctrl_init_done_write(1);
-#endif
+#endif // CSR_DDRCTRL_BASE
 		return 0;
 	}
 	memspeed((unsigned int *) MAIN_RAM_BASE, MEMTEST_DATA_SIZE, false, 0);
-#endif
+#endif // SDRAM_TEST_DISABLE
 #ifdef CSR_DDRCTRL_BASE
 	ddrctrl_init_done_write(1);
-#endif
+#endif // CSR_DDRCTRL_BASE
 
 	return 1;
 }
@@ -1182,7 +1171,7 @@ int sdram_init(void)
 #ifdef SDRAM_DEBUG_READBACK_MEM_ADDR
 #ifndef SDRAM_DEBUG_READBACK_MEM_SIZE
 #error "Provide readback memory size via SDRAM_DEBUG_READBACK_MEM_SIZE"
-#endif
+#endif // SDRAM_DEBUG_READBACK_MEM_SIZE
 #define SDRAM_DEBUG_READBACK_VERBOSE 1
 
 #define SDRAM_DEBUG_READBACK_COUNT 3
@@ -1191,11 +1180,10 @@ int sdram_init(void)
 #define _SINGLE_READBACK (SDRAM_DEBUG_READBACK_MEM_SIZE/SDRAM_DEBUG_READBACK_COUNT)
 #define _READBACK_ERRORS_SIZE (_SINGLE_READBACK - sizeof(struct readback))
 #define SDRAM_DEBUG_READBACK_LEN (_READBACK_ERRORS_SIZE / sizeof(struct memory_error))
-#endif
+#endif // SDRAM_DEBUG_READBACK_MEM_ADDR
 
 static int sdram_debug_error_stats_on_error(
-	unsigned int addr, unsigned int rdata, unsigned int refdata, void *arg)
-{
+	unsigned int addr, unsigned int rdata, unsigned int refdata, void *arg) {
 	struct error_stats *stats = (struct error_stats *) arg;
 	struct memory_error error = {
 		.addr = addr,
@@ -1232,8 +1220,7 @@ static void sdram_debug_error_stats(void) {
 
 #ifdef SDRAM_DEBUG_READBACK_MEM_ADDR
 static int sdram_debug_readback_on_error(
-	unsigned int addr, unsigned int rdata, unsigned int refdata, void *arg)
-{
+	unsigned int addr, unsigned int rdata, unsigned int refdata, void *arg) {
 	struct readback *readback = (struct readback *) arg;
 	struct memory_error error = {
 		.addr = addr,
@@ -1244,8 +1231,7 @@ static int sdram_debug_readback_on_error(
 	return readback_add(readback, SDRAM_DEBUG_READBACK_LEN, error) != 1;
 }
 
-static void sdram_debug_readback(void)
-{
+static void sdram_debug_readback(void) {
 	printf("Using storage @0x%08x with size 0x%08x for %d readbacks.\n",
 		SDRAM_DEBUG_READBACK_MEM_ADDR, SDRAM_DEBUG_READBACK_MEM_SIZE, SDRAM_DEBUG_READBACK_COUNT);
 
@@ -1294,20 +1280,19 @@ static void sdram_debug_readback(void)
 		}
 	}
 }
-#endif
+#endif // SDRAM_DEBUG_READBACK_MEM_ADDR
 
-void sdram_debug(void)
-{
+void sdram_debug(void) {
 #if defined(SDRAM_DEBUG_STATS_NUM_RUNS) && SDRAM_DEBUG_STATS_NUM_RUNS > 0
 	printf("\nError stats:\n");
 	sdram_debug_error_stats();
-#endif
+#endif // defined(SDRAM_DEBUG_STATS_NUM_RUNS) && SDRAM_DEBUG_STATS_NUM_RUNS > 0
 
 #ifdef SDRAM_DEBUG_READBACK_MEM_ADDR
 	printf("\nReadback:\n");
 	sdram_debug_readback();
-#endif
+#endif // SDRAM_DEBUG_READBACK_MEM_ADDR
 }
-#endif
+#endif // SDRAM_DEBUG
 
-#endif
+#endif // CSR_SDRAM_BASE
