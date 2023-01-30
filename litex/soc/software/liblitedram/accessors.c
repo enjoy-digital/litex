@@ -106,7 +106,7 @@ void write_rst_delay(int module) {
 /* Bitslip Delays Reset/Increment Functions                                   */
 /*----------------------------------------------------------------------------*/
 
-#if defined(SDRAM_PHY_BITSLIPS)
+#if defined(SDRAM_PHY_BITSLIPS) && defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
 
 int read_dq_bitslip[SDRAM_PHY_MODULES];
 void read_inc_dq_bitslip(int module) {
@@ -121,6 +121,10 @@ void read_rst_dq_bitslip(int module) {
 	ddrphy_rdly_dq_bitslip_rst_write(1);
 }
 
+#endif  // defined(SDRAM_PHY_BITSLIPS) && defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
+
+#if defined(SDRAM_PHY_BITSLIPS) && defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE)
+
 int write_dq_bitslip[SDRAM_PHY_MODULES];
 void write_inc_dq_bitslip(int module) {
 	/* Increment bitslip */
@@ -134,7 +138,7 @@ void write_rst_dq_bitslip(int module) {
 	ddrphy_wdly_dq_bitslip_rst_write(1);
 }
 
-#endif // defined(SDRAM_PHY_BITSLIPS)
+#endif // defined(SDRAM_PHY_BITSLIPS) && defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE)
 
 /*----------------------------------------------------------------------------*/
 /* SDRAM Module Selection Functions                                           */
