@@ -11,6 +11,10 @@ extern "C" {
 
 typedef void (*action_callback)(int module);
 
+/*----------------------------------------------------------------------------*/
+/* Read DQ Delays Reset/Increment Functions                                   */
+/*----------------------------------------------------------------------------*/
+
 #if defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
 
 extern int read_dq_delay[SDRAM_PHY_MODULES];
@@ -18,6 +22,11 @@ void read_inc_dq_delay(int module);
 void read_rst_dq_delay(int module);
 
 #endif // defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
+
+
+/*----------------------------------------------------------------------------*/
+/* Write DQ/DQS/Clk Delays Reset/Increment Functions                          */
+/*----------------------------------------------------------------------------*/
 
 #if defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE)
 
@@ -37,6 +46,10 @@ void write_rst_delay(int module);
 
 #endif // defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE)
 
+/*----------------------------------------------------------------------------*/
+/* Bitslip Delays Reset/Increment Functions                                   */
+/*----------------------------------------------------------------------------*/
+
 #if defined(SDRAM_PHY_BITSLIPS)
 
 extern int read_dq_bitslip[SDRAM_PHY_MODULES];
@@ -49,8 +62,17 @@ void write_rst_dq_bitslip(int module);
 
 #endif // defined(SDRAM_PHY_BITSLIPS)
 
+/*----------------------------------------------------------------------------*/
+/* SDRAM Module Selection Functions                                           */
+/*----------------------------------------------------------------------------*/
+
 void sdram_select(int module, int dq_line);
 void sdram_deselect(int module, int dq_line);
+
+/*----------------------------------------------------------------------------*/
+/* SDRAM Actions                                                              */
+/*----------------------------------------------------------------------------*/
+
 void sdram_leveling_action(int module, int dq_line, action_callback action);
 
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE

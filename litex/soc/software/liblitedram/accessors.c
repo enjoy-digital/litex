@@ -4,6 +4,10 @@
 
 #if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE)
 
+/*----------------------------------------------------------------------------*/
+/* Read DQ Delays Reset/Increment Functions                                   */
+/*----------------------------------------------------------------------------*/
+
 #if defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
 
 int read_dq_delay[SDRAM_PHY_MODULES];
@@ -20,6 +24,10 @@ void read_rst_dq_delay(int module) {
 }
 
 #endif // defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
+
+/*----------------------------------------------------------------------------*/
+/* Write DQ/DQS/Clk Delays Reset/Increment Functions                          */
+/*----------------------------------------------------------------------------*/
 
 #if defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE)
 
@@ -94,6 +102,10 @@ void write_rst_delay(int module) {
 
 #endif // defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE)
 
+/*----------------------------------------------------------------------------*/
+/* Bitslip Delays Reset/Increment Functions                                   */
+/*----------------------------------------------------------------------------*/
+
 #if defined(SDRAM_PHY_BITSLIPS)
 
 int read_dq_bitslip[SDRAM_PHY_MODULES];
@@ -124,6 +136,10 @@ void write_rst_dq_bitslip(int module) {
 
 #endif // defined(SDRAM_PHY_BITSLIPS)
 
+/*----------------------------------------------------------------------------*/
+/* SDRAM Module Selection Functions                                           */
+/*----------------------------------------------------------------------------*/
+
 void sdram_select(int module, int dq_line) {
 	ddrphy_dly_sel_write(1 << module);
 
@@ -147,6 +163,10 @@ void sdram_deselect(int module, int dq_line) {
 	ddrphy_dq_dly_sel_write(0);
 #endif
 }
+
+/*----------------------------------------------------------------------------*/
+/* SDRAM Actions                                                              */
+/*----------------------------------------------------------------------------*/
 
 void sdram_leveling_action(int module, int dq_line, action_callback action) {
 	/* Select module */
