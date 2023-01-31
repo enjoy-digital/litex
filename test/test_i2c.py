@@ -90,6 +90,8 @@ class TestI2C(unittest.TestCase):
 
         def check():
             yield from dut.bus.write(I2C_CONFIG_ADDR, 4)
+            data = (yield from dut.bus.read(I2C_CONFIG_ADDR)) & 0xff
+            self.assertEqual(data, 4)
 
             yield from dut.bus.write(I2C_XFER_ADDR, I2C_START)
             yield from check_trans(scl=True, sda=False)
