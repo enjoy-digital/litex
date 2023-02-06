@@ -22,6 +22,7 @@ class SPIMaster(Module, AutoCSR):
     pads_layout = [("clk", 1), ("cs_n", 1), ("mosi", 1), ("miso", 1)]
     def __init__(self, pads, data_width, sys_clk_freq, spi_clk_freq, with_csr=True, mode="raw"):
         assert mode in ["raw", "aligned"]
+        self.mode = mode
         if pads is None:
             pads = Record(self.pads_layout)
         if not hasattr(pads, "cs_n"):
@@ -147,12 +148,17 @@ class SPIMaster(Module, AutoCSR):
             CSRField("length", size=8, offset=8,             description="SPI Xfer Length (in bits).")
         ])
         self._status = CSRStatus(description="SPI Status.", fields=[
-            CSRField("done", size=1, offset=0, description="SPI Xfer Done (when read as ``1``).")
+            CSRField("done", size=1, offset=0, description="SPI Xfer Done (when read as ``1``)."),
+            CSRField("mode", size=1, offset=1, description="SPI mode", values=[
+                ("``0b0``", "Raw    : MOSI transfers aligned on core's data-width."),
+                ("``0b1``", "Aligned: MOSI transfers aligned on transfers' length."),
+            ]),
         ])
         self.comb += [
             self.start.eq(self._control.fields.start),
             self.length.eq(self._control.fields.length),
             self._status.fields.done.eq(self.done),
+            self._status.fields.mode.eq({"raw": 0b0, "aligned": 0b1}[self.mode]),
         ]
 
         # MOSI/MISO.
