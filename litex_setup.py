@@ -289,7 +289,8 @@ def litex_setup_install_repos(config="standard", user_mode=False):
     if user_mode:
         if ".local/bin" not in os.environ.get("PATH", ""):
             print_status("Make sure that ~/.local/bin is in your PATH")
-            print_status("export PATH=$PATH:~/.local/bin")
+            print_status("export PATH=$PATH:~/.local/bin # temporary (limited to the current terminal)")
+            print_status("or add the previous line into your ~/.bashrc to permanently update PATH")
 
 # Git repositories freeze --------------------------------------------------------------------------
 
