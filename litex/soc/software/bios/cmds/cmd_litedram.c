@@ -395,7 +395,8 @@ define_command(sdram_mr_write, sdram_mr_write_handler, "Write SDRAM Mode Registe
  * SPD address is a 3-bit address defined by the pins A0, A1, A2.
  *
  */
-#ifdef CONFIG_HAS_I2C
+#if defined(CSR_SDRAM_BASE) && defined(CONFIG_HAS_I2C)
+
 static void sdram_spd_handler(int nb_params, char **params)
 {
 	char *c;
