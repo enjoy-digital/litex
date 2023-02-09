@@ -100,6 +100,7 @@ class NaxRiscv(CPU):
         cpu_group.add_argument("--with-jtag-instruction", action="store_true", help="Add a JTAG instruction port which implement tunneling for debugging (TAP not included)")
         cpu_group.add_argument("--update-repo",   default="recommended", choices=["latest","wipe+latest","recommended","wipe+recommended","no"], help="Specify how the NaxRiscv & SpinalHDL repo should be updated (latest: update to HEAD, recommended: Update to known compatible version, no: Don't update, wipe+*: Do clean&reset before checkout)")
         cpu_group.add_argument("--no-netlist-cache", action="store_true", help="Always (re-)build the netlist")
+        cpu_group.add_argument("--with-fpu",      action="store_true", help="Enable the F32/F64 FPU")
 
     @staticmethod
     def args_read(args):
@@ -108,6 +109,7 @@ class NaxRiscv(CPU):
         NaxRiscv.jtag_instruction = args.with_jtag_instruction
         NaxRiscv.update_repo = args.update_repo
         NaxRiscv.no_netlist_cache = args.no_netlist_cache
+        NaxRiscv.with_fpu = args.with_fpu
         if args.scala_file:
             NaxRiscv.scala_files = args.scala_file
         if args.scala_args:
@@ -256,6 +258,8 @@ class NaxRiscv(CPU):
             gen_args.append(f"--with-debug")
         for file in NaxRiscv.scala_paths:
             gen_args.append(f"--scala-file={file}")
+        if(NaxRiscv.with_fpu):
+            gen_args.append(f"--scala-args='rvf=true,rvd=true")
 
         cmd = f"""cd {ndir} && sbt "runMain naxriscv.platform.LitexGen {" ".join(gen_args)}\""""
         print("NaxRiscv generation command :")
