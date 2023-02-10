@@ -13,11 +13,10 @@ from litex.gen import *
 
 from litex.soc.interconnect.csr import *
 
-
 # Xilinx DNA (Device Identifier) -------------------------------------------------------------------
 
 class XilinxDNA(Module, AutoCSR):
-    def __init__(self, nbits=57, primitive="DNA_PORT", clk_divider=16):
+    def __init__(self, nbits=57, primitive="DNA_PORT", clk_divider=2):
         self.nbits       = nbits
         self.clk_divider = clk_divider
         self._id = CSRStatus(nbits)
