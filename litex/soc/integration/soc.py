@@ -2084,7 +2084,14 @@ class LiteXSoC(SoC):
 
         # Video FrameBuffer.
         timings = timings if isinstance(timings, str) else timings[0]
-        base = self.mem_map.get(name, 0x40c00000)
+        base = self.mem_map.get(name, None)
+        if base is None:
+            self.bus.add_region(name, SoCRegion(
+                origin = 0x40c00000,
+                size   = 0x800000,
+                linker = True)
+            )
+            base = self.bus.regions[name].origin
         hres = int(timings.split("@")[0].split("x")[0])
         vres = int(timings.split("@")[0].split("x")[1])
         vfb = VideoFrameBuffer(self.sdram.crossbar.get_port(),
