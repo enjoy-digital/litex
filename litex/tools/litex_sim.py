@@ -538,7 +538,7 @@ def main():
 
     # Video.
     if args.with_video_framebuffer or args.with_video_terminal:
-            sim_config.add_module("video", "vga")
+        sim_config.add_module("video", "vga")
 
     # SoC ------------------------------------------------------------------------------------------
     soc = SimSoC(
@@ -574,11 +574,10 @@ def main():
             generate_gtkw_savefile(builder, vns, args.trace_fst)
 
     builder = Builder(soc, **parser.builder_argdict)
-    print(parser.builder_argdict)
-
     builder.build(
         sim_config       = sim_config,
         interactive      = not args.non_interactive,
+        video            = args.with_video_framebuffer or args.with_video_terminal,
         pre_run_callback = pre_run_callback,
         **parser.toolchain_argdict,
     )
