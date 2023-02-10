@@ -31,16 +31,18 @@ class USBOHCI(Module):
 
         # # #
 
-        pn = len(pads.dp)
+        # Parameters.
+        nports = len(pads.dp)
 
+        # USB IOs.
         usb_ios = {}
-
-        for i in range(len(pads.dp)):
+        for i in range(nports):
             usb_ios[i] = Record([
-                ("dp_i",  1), ("dp_o",  1), ("dp_oe", 1),
-                ("dm_i",  1), ("dm_o",  1), ("dm_oe", 1),
+                ("dp_i", 1), ("dp_o", 1), ("dp_oe", 1),
+                ("dm_i", 1), ("dm_o", 1), ("dm_oe", 1),
             ])
 
+        # USB OHCI Core Instance.
         self.specials += Instance(self.get_netlist_name(),
             # Clk / Rst.
             i_phy_clk    = ClockSignal("usb"),
@@ -75,16 +77,17 @@ class USBOHCI(Module):
             o_io_interrupt = self.interrupt,
 
             # USB
-            **{f"i_io_usb_{n}_dp_read": usb_ios[n].dp_i for n in range(pn)},
-            **{f"o_io_usb_{n}_dp_write": usb_ios[n].dp_o for n in range(pn)},
-            **{f"o_io_usb_{n}_dp_writeEnable": usb_ios[n].dp_oe for n in range(pn)},
-            **{f"i_io_usb_{n}_dm_read": usb_ios[n].dm_i for n in range(pn)},
-            **{f"o_io_usb_{n}_dm_write": usb_ios[n].dm_o for n in range(pn)},
-            **{f"o_io_usb_{n}_dm_writeEnable": usb_ios[n].dm_oe for n in range(pn)},
+            **{f"i_io_usb_{n}_dp_read"        : usb_ios[n].dp_i  for n in range(nports)},
+            **{f"o_io_usb_{n}_dp_write"       : usb_ios[n].dp_o  for n in range(nports)},
+            **{f"o_io_usb_{n}_dp_writeEnable" : usb_ios[n].dp_oe for n in range(nports)},
+            **{f"i_io_usb_{n}_dm_read"        : usb_ios[n].dm_i  for n in range(nports)},
+            **{f"o_io_usb_{n}_dm_write"       : usb_ios[n].dm_o  for n in range(nports)},
+            **{f"o_io_usb_{n}_dm_writeEnable" : usb_ios[n].dm_oe for n in range(nports)},
 
         )
 
-        for i in range(pn):
+        # USB Tristates.
+        for i in range(nports):
             self.specials += SDRTristate(
                 io = pads.dp[i],
                 o  = usb_ios[i].dp_o,
