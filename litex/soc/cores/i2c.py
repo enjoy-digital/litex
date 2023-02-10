@@ -177,7 +177,7 @@ class I2CMasterMachine(Module):
 #     ("stop",  1),
 #     ("idle",  1),
 # ])
-class I2CMaster(Module):
+class I2CMaster(Module, AutoCSR):
     def __init__(self, pads, bus=None):
         if bus is None:
             bus = wishbone.Interface(data_width=32)
