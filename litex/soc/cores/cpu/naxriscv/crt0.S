@@ -2,6 +2,11 @@
 .global isr
 .global _start
 
+#define MSTATUS_FS_INITIAL (1 << 13)
+#define MSTATUS_FS_CLEAN (2 << 13)
+#define MSTATUS_FS_DIRTY (3 << 13)
+#define MSTATUS_FS_MASK (3 << 13)
+
 _start:
   j crt_init
   nop
@@ -57,6 +62,10 @@ crt_init:
   la sp, _fstack
   la a0, trap_entry
   csrw mtvec, a0
+  
+enable_fpu:
+  li x1, MSTATUS_FS_INITIAL
+  csrs mstatus, x1
 
 data_init:
   la a0, _fdata
