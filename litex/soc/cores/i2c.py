@@ -239,7 +239,7 @@ class I2CMaster(Module, AutoCSR):
 
         # Event Manager.
         self.submodules.ev = EventManager()
-        self.ev.idle       = EventSourceLevel()
+        self.ev.idle       = EventSourceProcess(edge="rising")
         self.ev.finalize()
         self.comb += self.ev.idle.trigger.eq(i2c.idle)
 
