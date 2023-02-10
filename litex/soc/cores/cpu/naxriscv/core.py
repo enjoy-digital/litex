@@ -259,7 +259,7 @@ class NaxRiscv(CPU):
         for file in NaxRiscv.scala_paths:
             gen_args.append(f"--scala-file={file}")
         if(NaxRiscv.with_fpu):
-            gen_args.append(f"--scala-args='rvf=true,rvd=true")
+            gen_args.append(f"--scala-args=rvf=true,rvd=true")
 
         cmd = f"""cd {ndir} && sbt "runMain naxriscv.platform.LitexGen {" ".join(gen_args)}\""""
         print("NaxRiscv generation command :")
