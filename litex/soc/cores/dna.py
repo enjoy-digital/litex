@@ -63,3 +63,9 @@ class S7DNA(XilinxDNA):
         XilinxDNA.__init__(self, nbits=57, primitive="DNA_PORT", *args, **kwargs)
 
 class DNA(XilinxDNA): pass # Compat.
+
+# Xilinx Ultrascale DNA ----------------------------------------------------------------------------
+
+class USDNA(XilinxDNA):
+    def __init__(self, *args, **kwargs):
+        XilinxDNA.__init__(self, nbits=96, primitive="DNA_PORTE2", *args, **kwargs)
