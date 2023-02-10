@@ -191,7 +191,7 @@ USSystemMonitorChannels = [
 ]
 
 class USSystemMonitor(XilinxSystemMonitor):
-    def __init__(self, channels=USSystemMonitorChannels, primitive="SYSMONE1", sim_device="ULTRASCALE", analog_pads=None):
+    def __init__(self, channels=USSystemMonitorChannels, primitive="SYSMONE1", sim_device=None, analog_pads=None):
         # Channels.
         for channel in channels:
             self.add_channel(channel)
@@ -255,7 +255,7 @@ class USSystemMonitor(XilinxSystemMonitor):
             i_DI         = self.di,
             o_DO         = self.do
         )
-        self.specials += Instance(primitive, self.params)
+        self.specials += Instance(primitive, **self.params)
 
         # DRP.
         self.comb += If(~self.drp_en,
