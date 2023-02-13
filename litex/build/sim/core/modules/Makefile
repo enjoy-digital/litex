@@ -1,5 +1,5 @@
 include ../variables.mak
-MODULES = xgmii_ethernet ethernet serial2console serial2tcp clocker spdeeprom gmii_ethernet $(if $(VIDEO), video)
+MODULES = xgmii_ethernet ethernet serial2console serial2tcp clocker spdeeprom gmii_ethernet $(if $(VIDEO_MOD), video)
 
 .PHONY: $(MODULES) $(EXTRA_MOD_LIST)
 all: $(MODULES) $(EXTRA_MOD_LIST)

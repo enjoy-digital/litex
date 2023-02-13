@@ -115,7 +115,7 @@ def _generate_sim_variables(include_paths, extra_mods, extra_mods_path, video):
 SRC_DIR = {}
 INC_DIR = {}
 TAPCFG_DIRECTORY = {}
-VIDEO = {}
+VIDEO_MOD = {}
 """.format(core_directory, include, tapcfg_dir, int(video))
 
     if extra_mods:
@@ -151,7 +151,7 @@ make -C . -f {} {} {} {} {} {} {}
     "COVERAGE=1" if coverage else "",
     "OPT_LEVEL={}".format(opt_level),
     "TRACE_FST=1" if trace_fst else "",
-    "VIDEO=1" if video else "",
+    "VIDEO_MOD=1" if video else "",
     )
     build_script_file = "build_" + build_name + ".sh"
     tools.write_to_file(build_script_file, build_script_contents, force_unix=True)
