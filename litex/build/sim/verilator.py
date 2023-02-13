@@ -115,8 +115,8 @@ def _generate_sim_variables(include_paths, extra_mods, extra_mods_path, video):
 SRC_DIR = {}
 INC_DIR = {}
 TAPCFG_DIRECTORY = {}
-VIDEO = {}
-""".format(core_directory, include, tapcfg_dir, int(video))
+{}
+""".format(core_directory, include, tapcfg_dir, "VIDEO = 1" if video else "")
 
     if extra_mods:
         modlist = " ".join(extra_mods)
