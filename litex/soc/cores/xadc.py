@@ -321,10 +321,10 @@ class USPSystemMonitor(USSystemMonitor):
             analog_pads = analog_pads,
         )
 
-class ZyncUSPSystemMonitor(USSystemMonitor):
+class ZynqUSPSystemMonitor(USSystemMonitor):
     def __init__(self, analog_pads=None):
         USSystemMonitor.__init__(self,
-            channels    = ZyncUSPSystemMonitorChannels,
+            channels    = ZynqUSPSystemMonitorChannels,
             primitive   = "SYSMONE4",
             sim_device  = "ZYNQ_ULTRASCALE",
             analog_pads = analog_pads,
