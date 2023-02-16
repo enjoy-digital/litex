@@ -36,7 +36,7 @@ extern "C" {
 
 #endif /* CSR_SDRAM_BASE && CONFIG_HAS_I2C */
 
-bool sdram_read_spd(uint8_t spd, uint16_t addr, uint8_t *buf, uint16_t len, bool send_stop);
+bool sdram_read_spd(uint8_t spd, uint16_t addr, uint8_t *buf, uint16_t len);
 
 #ifdef __cplusplus
 }

@@ -403,10 +403,9 @@ static void sdram_spd_handler(int nb_params, char **params)
 	unsigned char spdaddr;
 	unsigned char buf[SDRAM_SPD_SIZE];
 	int len = sizeof(buf);
-	bool send_stop = true;
 
 	if (nb_params < 1) {
-		printf("sdram_spd <spdaddr> [<send_stop>]");
+		printf("sdram_spd <spdaddr>");
 		return;
 	}
 
@@ -420,15 +419,7 @@ static void sdram_spd_handler(int nb_params, char **params)
 		return;
 	}
 
-	if (nb_params > 1) {
-		send_stop = strtoul(params[1], &c, 0) != 0;
-		if (*c != 0) {
-			printf("Incorrect send_stop value");
-			return;
-		}
-	}
-
-	if (!sdram_read_spd(spdaddr, 0, buf, (uint16_t)len, send_stop)) {
+	if (!sdram_read_spd(spdaddr, 0, buf, (uint16_t)len)) {
 		printf("Error when reading SPD EEPROM");
 		return;
 	}

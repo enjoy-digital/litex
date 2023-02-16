@@ -40,7 +40,7 @@ uint64_t sdram_get_supported_memory(void) {
 #if defined(SDRAM_PHY_DDR3) || defined(SDRAM_PHY_DDR4)
 	uint8_t buf;
 
-	if (!sdram_read_spd(0x0, 4, &buf, 1, true)) {
+	if (!sdram_read_spd(0x0, 4, &buf, 1)) {
 		printf("Couldn't read SDRAM size from the SPD, defaulting to 256 MB.\n");
 		return 256 << 20;
 	}
