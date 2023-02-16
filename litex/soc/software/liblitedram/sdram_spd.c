@@ -48,7 +48,7 @@ bool sdram_read_spd(uint8_t spd, uint16_t addr, uint8_t *buf, uint16_t len, bool
 			temp_len = len;
 		}
 
-		ok &= i2c_read(SPD_RW_ADDR(spd), offset, &buf[read_bytes], len, temp_send_stop, 1);
+		ok &= i2c_read(SPD_RW_ADDR(spd), offset, &buf[read_bytes], temp_len, temp_send_stop, 1);
 		len -= temp_len;
 		read_bytes += temp_len;
 		addr += temp_len;
