@@ -24,7 +24,7 @@ ICAP_NOOP  = 0x20000000
 ICAP_WRITE = 0x30000000
 ICAP_READ  = 0x28000000
 
-# Configuration Registers (from UG470).
+# Configuration Registers (from UG470 & UG570).
 
 class ICAPRegisters(IntEnum):
     CRC     = 0b00000 # CRC Register.
@@ -48,7 +48,7 @@ class ICAPRegisters(IntEnum):
     CTL1    = 0b11000 # Control Register 1.
     BSPI    = 0b11111 # BPI/SPI Configuration Options Register.
 
-# Commands (from UG470).
+# Commands (from UG470 & UG570).
 
 class ICAPCMDs(IntEnum):
     MFW       = 0b00010 # Multiple Frame Write.
@@ -215,10 +215,10 @@ class ICAP(Module, AutoCSR):
 
         # ICAP Instance.
         if not simulation:
-            _i_icape = Signal(32)
-            _o_icape = Signal(32)
-            self.comb += _i_icape.eq(Cat(*[_i[8*i:8*(i+1)][::-1] for i in range(4)])),
-            self.comb += _o.eq(Cat(*[_o_icape[8*i:8*(i+1)][::-1] for i in range(4)])),
+            _i_icap = Signal(32)
+            _o_icap = Signal(32)
+            self.comb += _i_icap.eq(Cat(*[_i[8*i:8*(i+1)][::-1] for i in range(4)])),
+            self.comb += _o.eq(Cat(*[_o_icap[8*i:8*(i+1)][::-1] for i in range(4)])),
             self.params = dict()
             if primitive == "ICAPE2":
                 self.params.update(p_ICAP_WIDTH="X32")
@@ -226,8 +226,8 @@ class ICAP(Module, AutoCSR):
                 i_CLK   = ClockSignal("icap"),
                 i_CSIB  = _csib,
                 i_RDWRB = _rdwrb,
-                i_I     = _i_icape,
-                o_O     = _o_icape,
+                i_I     = _i_icap,
+                o_O     = _o_icap,
             )
             self.specials += Instance(primitive, **self.params)
 
