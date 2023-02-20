@@ -360,10 +360,10 @@ class Rocket(CPU):
         # Get CPU Params.
         mem_dw, mmio_dw, num_cores = CPU_PARAMS[self.variant]
 
-        # Add OpenSBI/PLIC/CLINT regions. # FIXME: Just here for .dts generation through json2ds.
-        soc.add_memory_region("opensbi", self.mem_map["main_ram"] + 0x00f0_0000,   0x8_0000, type="linker")
-        soc.add_memory_region("plic",    soc.mem_map.get("plic")               , 0x400_0000, type="cached+linker")
-        soc.add_memory_region("clint",   soc.mem_map.get("clint")              ,   0x1_0000, type="cached+linker")
+        # Add OpenSBI/PLIC/CLINT regions.
+        soc.bus.add_region("opensbi", soc_region_cls(origin=self.mem_map["main_ram"] + 0x00f0_0000, size= 0x8_0000, cached=False, linker=True)) # CHECKME.
+        soc.bus.add_region("plic",    soc_region_cls(origin=soc.mem_map.get("plic"),                size=0x40_0000, cached=True,  linker=True))
+        soc.bus.add_region("clint",   soc_region_cls(origin=soc.mem_map.get("clint"),               size= 0x1_0000, cached=True,  linker=True))
 
         # Define number of CPUs
         soc.add_config("CPU_COUNT", num_cores)

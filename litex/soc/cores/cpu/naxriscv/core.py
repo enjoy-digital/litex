@@ -298,7 +298,7 @@ class NaxRiscv(CPU):
         soc.irq.add("timer0", n=1)
 
         # Add OpenSBI region.
-        soc.add_memory_region("opensbi", self.mem_map["main_ram"] + 0x00f0_0000, 0x8_0000, type="cached+linker")
+        soc.bus.add_region("opensbi", soc_region_cls(origin=self.mem_map["main_ram"] + 0x00f0_0000, size=0x8_0000, cached=True, linker=True))
 
         # Define ISA.
         soc.add_config("CPU_ISA", NaxRiscv.get_arch())
