@@ -43,62 +43,62 @@ class Open(Signal): pass
 # Variants -----------------------------------------------------------------------------------------
 
 CPU_VARIANTS = {
-    "standard": "freechips.rocketchip.system.LitexConfig",
-    "linux":    "freechips.rocketchip.system.LitexLinuxConfig",
-    "linux4":   "freechips.rocketchip.system.LitexLinux4Config",
-    "linuxd":   "freechips.rocketchip.system.LitexLinuxDConfig",
-    "linux2d":  "freechips.rocketchip.system.LitexLinux2DConfig",
-    "linuxq":   "freechips.rocketchip.system.LitexLinuxQConfig",
-    "linux2q":  "freechips.rocketchip.system.LitexLinux2QConfig",
-    "full":     "freechips.rocketchip.system.LitexFullConfig",
-    "fulld":    "freechips.rocketchip.system.LitexFullDConfig",
-    "full4d":   "freechips.rocketchip.system.LitexFull4DConfig",
-    "fullq":    "freechips.rocketchip.system.LitexFullQConfig",
-    "full4q":   "freechips.rocketchip.system.LitexFull4QConfig",
-    "fullo":    "freechips.rocketchip.system.LitexFullOConfig",
-    "full4o":   "freechips.rocketchip.system.LitexFull4OConfig",
-    "full8o":   "freechips.rocketchip.system.LitexFull8OConfig",
+    "standard" : "freechips.rocketchip.system.LitexConfig",
+    "linux"    : "freechips.rocketchip.system.LitexLinuxConfig",
+    "linux4"   : "freechips.rocketchip.system.LitexLinux4Config",
+    "linuxd"   : "freechips.rocketchip.system.LitexLinuxDConfig",
+    "linux2d"  : "freechips.rocketchip.system.LitexLinux2DConfig",
+    "linuxq"   : "freechips.rocketchip.system.LitexLinuxQConfig",
+    "linux2q"  : "freechips.rocketchip.system.LitexLinux2QConfig",
+    "full"     : "freechips.rocketchip.system.LitexFullConfig",
+    "fulld"    : "freechips.rocketchip.system.LitexFullDConfig",
+    "full4d"   : "freechips.rocketchip.system.LitexFull4DConfig",
+    "fullq"    : "freechips.rocketchip.system.LitexFullQConfig",
+    "full4q"   : "freechips.rocketchip.system.LitexFull4QConfig",
+    "fullo"    : "freechips.rocketchip.system.LitexFullOConfig",
+    "full4o"   : "freechips.rocketchip.system.LitexFull4OConfig",
+    "full8o"   : "freechips.rocketchip.system.LitexFull8OConfig",
 }
 
 # GCC Flags-----------------------------------------------------------------------------------------
 
 GCC_FLAGS = {
-    "standard": "-march=rv64imac   -mabi=lp64 ",
-    "linux":    "-march=rv64imac   -mabi=lp64 ",
-    "linux4":   "-march=rv64imac   -mabi=lp64 ",
-    "linuxd":   "-march=rv64imac   -mabi=lp64 ",
-    "linux2d":  "-march=rv64imac   -mabi=lp64 ",
-    "linuxq":   "-march=rv64imac   -mabi=lp64 ",
-    "linux2q":  "-march=rv64imac   -mabi=lp64 ",
-    "full":     "-march=rv64imafdc -mabi=lp64 ",
-    "fulld":    "-march=rv64imafdc -mabi=lp64 ",
-    "full4d":   "-march=rv64imafdc -mabi=lp64 ",
-    "fullq":    "-march=rv64imafdc -mabi=lp64 ",
-    "full4q":   "-march=rv64imafdc -mabi=lp64 ",
-    "fullo":    "-march=rv64imafdc -mabi=lp64 ",
-    "full4o":   "-march=rv64imafdc -mabi=lp64 ",
-    "full8o":   "-march=rv64imafdc -mabi=lp64 ",
+    "standard" : "-march=rv64imac   -mabi=lp64 ",
+    "linux"    : "-march=rv64imac   -mabi=lp64 ",
+    "linux4"   : "-march=rv64imac   -mabi=lp64 ",
+    "linuxd"   : "-march=rv64imac   -mabi=lp64 ",
+    "linux2d"  : "-march=rv64imac   -mabi=lp64 ",
+    "linuxq"   : "-march=rv64imac   -mabi=lp64 ",
+    "linux2q"  : "-march=rv64imac   -mabi=lp64 ",
+    "full"     : "-march=rv64imafdc -mabi=lp64 ",
+    "fulld"    : "-march=rv64imafdc -mabi=lp64 ",
+    "full4d"   : "-march=rv64imafdc -mabi=lp64 ",
+    "fullq"    : "-march=rv64imafdc -mabi=lp64 ",
+    "full4q"   : "-march=rv64imafdc -mabi=lp64 ",
+    "fullo"    : "-march=rv64imafdc -mabi=lp64 ",
+    "full4o"   : "-march=rv64imafdc -mabi=lp64 ",
+    "full8o"   : "-march=rv64imafdc -mabi=lp64 ",
 }
 
-# CPU Size Params ----------------------------------------------------------------------------------
+# CPU Params ----------------------------------------------------------------------------------
 
-CPU_SIZE_PARAMS = {
-    # Variant : (mem_dw, mmio_dw, num_cores)
-    "standard": (    64,      64,         1),
-    "linux":    (    64,      64,         1),
-    "linux4":   (    64,      64,         4),
-    "linuxd":   (   128,      64,         1),
-    "linux2d":  (   128,      64,         2),
-    "linuxq":   (   256,      64,         1),
-    "linux2q":  (   256,      64,         2),
-    "full":     (    64,      64,         1),
-    "fulld":    (   128,      64,         1),
-    "full4d":   (   128,      64,         4),
-    "fullq":    (   256,      64,         1),
-    "full4q":   (   256,      64,         4),
-    "fullo":    (   512,      64,         1),
-    "full4o":   (   512,      64,         4),
-    "full8o":   (   512,      64,         8),
+CPU_PARAMS = {
+    # Variant  : (mem_dw, mmio_dw, num_cores)
+    "standard" : (    64,      64,         1),
+    "linux"    : (    64,      64,         1),
+    "linux4"   : (    64,      64,         4),
+    "linuxd"   : (   128,      64,         1),
+    "linux2d"  : (   128,      64,         2),
+    "linuxq"   : (   256,      64,         1),
+    "linux2q"  : (   256,      64,         2),
+    "full"     : (    64,      64,         1),
+    "fulld"    : (   128,      64,         1),
+    "full4d"   : (   128,      64,         4),
+    "fullq"    : (   256,      64,         1),
+    "full4q"   : (   256,      64,         4),
+    "fullo"    : (   512,      64,         1),
+    "full4o"   : (   512,      64,         4),
+    "full8o"   : (   512,      64,         8),
 }
 
 # Rocket  ------------------------------------------------------------------------------------------
@@ -116,6 +116,14 @@ class Rocket(CPU):
     nop                  = "nop"
     io_regions           = {0x1200_0000: 0x7000_0000} # Origin, Length.
 
+    # Arch.
+    @staticmethod
+    def get_arch(variant):
+        arch = "rv64imac"
+        if "full" in variant:
+            arch += "fdc"
+        return arch
+
     # Memory Mapping.
     @property
     def mem_map(self):
@@ -124,6 +132,8 @@ class Rocket(CPU):
             "rom"      : 0x1000_0000,
             "sram"     : 0x1100_0000,
             "csr"      : 0x1200_0000,
+            "clint"    : 0x1300_0000, # FIXME: Just here for .dts generation through json2ds.
+            "plic"     : 0x1400_0000, # FIXME: Just here for .dts generation through json2ds.
             "ethmac"   : 0x3000_0000,
             "main_ram" : 0x8000_0000,
         }
@@ -132,7 +142,7 @@ class Rocket(CPU):
     @property
     def gcc_flags(self):
         flags =  "-mno-save-restore "
-        flags += GCC_FLAGS[self.variant]
+        flags += f"-march={self.get_arch(self.variant)}   -mabi=lp64 "
         flags += "-D__rocket__ "
         flags += "-mcmodel=medany"
         return flags
@@ -144,7 +154,7 @@ class Rocket(CPU):
         self.reset     = Signal()
         self.interrupt = Signal(8)
 
-        mem_dw, mmio_dw, num_cores = CPU_SIZE_PARAMS[self.variant]
+        mem_dw, mmio_dw, num_cores = CPU_PARAMS[self.variant]
 
         self.mem_axi   =  mem_axi = axi.AXIInterface(data_width=mem_dw,  address_width=32, id_width=4)
         self.mmio_axi  = mmio_axi = axi.AXIInterface(data_width=mmio_dw, address_width=32, id_width=4)
@@ -345,6 +355,19 @@ class Rocket(CPU):
             "AsyncResetReg.v",
             "EICG_wrapper.v",
         )
+
+    def add_soc_components(self, soc, soc_region_cls):
+        # Get CPU Params.
+        mem_dw, mmio_dw, num_cores = CPU_PARAMS[self.variant]
+
+        # Add OpenSBI/PLIC/CLINT regions. # FIXME: Just here for .dts generation through json2ds.
+        soc.add_memory_region("opensbi", self.mem_map["main_ram"] + 0x00f0_0000,  0x8_0000, type="linker")
+        soc.add_memory_region("plic",    soc.mem_map.get("plic")               , 0x40_0000, type="linker")
+        soc.add_memory_region("clint",   soc.mem_map.get("clint")              ,  0x1_0000, type="linker")
+
+        # Define number of CPUs
+        soc.add_config("CPU_COUNT", num_cores)
+        soc.add_constant("CPU_ISA", self.get_arch(self.variant))
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
