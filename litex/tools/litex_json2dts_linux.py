@@ -81,8 +81,8 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     # CPU ------------------------------------------------------------------------------------------
 
-    # VexRiscv-SMP
-    # ------------
+    # RISC-V
+    # ------
     if cpu_arch == "riscv":
         # Cache description.
         cache_desc = ""
@@ -272,6 +272,15 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     # Interrupt Controller -------------------------------------------------------------------------
 
     if cpu_arch == "riscv":
+        # CHECKME: interrupts-extended.
+        dts += """
+            lintc0: clint@{clint_base:x} {{
+                compatible = "riscv,clint0";
+                interrupts-extended = <&L4 3 &L4 7>;
+                reg = <0x{clint_base:x} 0x10000>;
+                reg-names = "control";
+            }};
+""".format(clint_base=d["memories"]["clint"]["base"])
         dts += """
             intc0: interrupt-controller@{plic_base:x} {{
                 compatible = "sifive,fu540-c000-plic", "sifive,plic-1.0.0";
