@@ -129,11 +129,11 @@ class Rocket(CPU):
     def mem_map(self):
         # Rocket reserves the first 256Mbytes for internal use, so we must change default mem_map.
         return {
+            "clint"    : 0x0200_0000,
+            "plic"     : 0x0c00_0000,
             "rom"      : 0x1000_0000,
             "sram"     : 0x1100_0000,
             "csr"      : 0x1200_0000,
-            "clint"    : 0x1300_0000, # FIXME: Just here for .dts generation through json2ds.
-            "plic"     : 0x1400_0000, # FIXME: Just here for .dts generation through json2ds.
             "ethmac"   : 0x3000_0000,
             "main_ram" : 0x8000_0000,
         }
@@ -361,9 +361,9 @@ class Rocket(CPU):
         mem_dw, mmio_dw, num_cores = CPU_PARAMS[self.variant]
 
         # Add OpenSBI/PLIC/CLINT regions. # FIXME: Just here for .dts generation through json2ds.
-        soc.add_memory_region("opensbi", self.mem_map["main_ram"] + 0x00f0_0000,  0x8_0000, type="linker")
-        soc.add_memory_region("plic",    soc.mem_map.get("plic")               , 0x40_0000, type="linker")
-        soc.add_memory_region("clint",   soc.mem_map.get("clint")              ,  0x1_0000, type="linker")
+        soc.add_memory_region("opensbi", self.mem_map["main_ram"] + 0x00f0_0000,   0x8_0000, type="linker")
+        soc.add_memory_region("plic",    soc.mem_map.get("plic")               , 0x400_0000, type="cached+linker")
+        soc.add_memory_region("clint",   soc.mem_map.get("clint")              ,   0x1_0000, type="cached+linker")
 
         # Define number of CPUs
         soc.add_config("CPU_COUNT", num_cores)
