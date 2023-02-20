@@ -302,7 +302,7 @@ class NaxRiscv(CPU):
 
         # Define ISA.
         soc.add_config("CPU_ISA", NaxRiscv.get_arch())
-        soc.add_config("CPU_MMU", "sv39")
+        soc.add_config("CPU_MMU", {32 : "sv32", 64 : "sv39"}[NaxRiscv.xlen])
 
         # Add PLIC Bus (AXILite Slave).
         self.plicbus = plicbus  = axi.AXILiteInterface(address_width=32, data_width=32)
