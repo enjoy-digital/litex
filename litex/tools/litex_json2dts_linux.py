@@ -86,41 +86,41 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     if cpu_arch == "riscv":
         # Cache description.
         cache_desc = ""
-        if "cpu_dcache_size" in d["constants"]:
+        if "config_cpu_dcache_size" in d["constants"]:
             cache_desc += """
                 d-cache-size = <{d_cache_size}>;
                 d-cache-sets = <{d_cache_ways}>;
                 d-cache-block-size = <{d_cache_block_size}>;
 """.format(
-    d_cache_size       = d["constants"]["cpu_dcache_size"],
-    d_cache_ways       = d["constants"]["cpu_dcache_ways"],
-    d_cache_block_size = d["constants"]["cpu_dcache_block_size"])
-        if "cpu_icache_size" in d["constants"]:
+    d_cache_size       = d["constants"]["config_cpu_dcache_size"],
+    d_cache_ways       = d["constants"]["config_cpu_dcache_ways"],
+    d_cache_block_size = d["constants"]["config_cpu_dcache_block_size"])
+        if "config_cpu_icache_size" in d["constants"]:
             cache_desc += """
                 i-cache-size = <{i_cache_size}>;
                 i-cache-sets = <{i_cache_ways}>;
                 i-cache-block-size = <{i_cache_block_size}>;
 """.format(
-    i_cache_size       = d["constants"]["cpu_icache_size"],
-    i_cache_ways       = d["constants"]["cpu_icache_ways"],
-    i_cache_block_size = d["constants"]["cpu_icache_block_size"])
+    i_cache_size       = d["constants"]["config_cpu_icache_size"],
+    i_cache_ways       = d["constants"]["config_cpu_icache_ways"],
+    i_cache_block_size = d["constants"]["config_cpu_icache_block_size"])
 
         # TLB description.
         tlb_desc = ""
-        if "cpu_dtlb_size" in d["constants"]:
+        if "config_cpu_dtlb_size" in d["constants"]:
             tlb_desc += """
                 d-tlb-size = <{d_tlb_size}>;
                 d-tlb-sets = <{d_tlb_ways}>;
 """.format(
-    d_tlb_size = d["constants"]["cpu_dtlb_size"],
-    d_tlb_ways = d["constants"]["cpu_dtlb_ways"])
-        if "cpu_itlb_size" in d["constants"]:
+    d_tlb_size = d["constants"]["config_cpu_dtlb_size"],
+    d_tlb_ways = d["constants"]["config_cpu_dtlb_ways"])
+        if "config_cpu_itlb_size" in d["constants"]:
             tlb_desc += """
                 i-tlb-size = <{i_tlb_size}>;
                 i-tlb-sets = <{i_tlb_ways}>;
 """.format(
-    i_tlb_size = d["constants"]["cpu_itlb_size"],
-    i_tlb_ways = d["constants"]["cpu_itlb_ways"])
+    i_tlb_size = d["constants"]["config_cpu_itlb_size"],
+    i_tlb_ways = d["constants"]["config_cpu_itlb_ways"])
 
         # CPU(s) Count.
         ncpus = int(d["constants"].get("config_cpu_count", 1))
@@ -164,7 +164,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                     compatible = "riscv,cpu-intc";
                 }};
             }};
-""".format(cpu=cpu, irq=cpu, sys_clk_freq=d["constants"]["config_clock_frequency"], cpu_isa=d["constants"]["cpu_isa"], cache_desc=cache_desc, tlb_desc=tlb_desc)
+""".format(cpu=cpu, irq=cpu, sys_clk_freq=d["constants"]["config_clock_frequency"], cpu_isa=d["constants"]["config_cpu_isa"], cache_desc=cache_desc, tlb_desc=tlb_desc)
         dts += """
             {cpu_map}
         }};
