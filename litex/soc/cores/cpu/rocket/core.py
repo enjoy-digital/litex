@@ -369,6 +369,22 @@ class Rocket(CPU):
         soc.add_config("CPU_COUNT", num_cores)
         soc.add_config("CPU_ISA", self.get_arch(self.variant))
 
+        # Constants for Cache so we can add them in the DTS.
+        soc.add_config("CPU_DCACHE_SIZE",       4096) # CHECKME: correct/hardwired?
+        soc.add_config("CPU_DCACHE_WAYS",          2) # CHECKME: correct/hardwired?
+        soc.add_config("CPU_DCACHE_BLOCK_SIZE",   64) # CHECKME: correct/hardwired?
+
+        soc.add_config("CPU_ICACHE_SIZE",       4096) # CHECKME: correct/hardwired?
+        soc.add_config("CPU_ICACHE_WAYS",          2) # CHECKME: correct/hardwired?
+        soc.add_config("CPU_ICACHE_BLOCK_SIZE",   64) # CHECKME: correct/hardwired?
+
+        # Constants for TLB so we can add them in the DTS.
+        soc.add_config("CPU_DTLB_SIZE", 4) # CHECKME: correct/hardwired?
+        soc.add_config("CPU_DTLB_WAYS", 1) # CHECKME: correct/hardwired?
+
+        soc.add_config("CPU_ITLB_SIZE", 4) # CHECKME: correct/hardwired?
+        soc.add_config("CPU_ITLB_WAYS", 1) # CHECKME: correct/hardwired?
+
     def do_finalize(self):
         assert hasattr(self, "reset_address")
         self.specials += Instance("ExampleRocketSystem", **self.cpu_params)
