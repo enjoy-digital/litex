@@ -13,13 +13,27 @@ import argparse
 import os
 
 def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_device=None, polling=False):
-
     kB = 1024
     mB = kB*1024
 
-    cpu_name = d["constants"]["config_cpu_human_name"]
-
     aliases = {}
+
+    # CPU Architectures ----------------------------------------------------------------------------
+    # CHECKME: Move to core and generate a constant for each CPU?
+    cpu_architectures = {
+        "mor1kx"             : "or1k",
+        "marocchino"         : "or1k",
+        "vexriscv smp-linux" : "riscv",
+        "rocketrv64[imac]"   : "riscv",
+        "naxriscv"           : "riscv",
+    }
+
+    # CPU Parameters -------------------------------------------------------------------------------
+    ncpus    = int(d["constants"].get("config_cpu_count", 1))
+    cpu_name = d["constants"].get("config_cpu_human_name")
+    cpu_arch = cpu_architectures[cpu_name]
+    cpu_isa  = d["constants"].get("config_cpu_isa", None)
+    cpu_mmu  = d["constants"].get("config_cpu_mmu", None)
 
     # Header ---------------------------------------------------------------------------------------
     dts = """
@@ -32,19 +46,14 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 """
 
     # Boot Arguments -------------------------------------------------------------------------------
-    cpu_architectures = {
-        "mor1kx"             : "or1k",
-        "marocchino"         : "or1k",
-        "vexriscv smp-linux" : "riscv",
-        "rocketrv64[imac]"   : "riscv",
-    }
+
     default_initrd_start = {
         "or1k":   8*mB,
         "riscv": 16*mB,
     }
     default_initrd_size = 8*mB
 
-    cpu_arch = cpu_architectures[cpu_name]
+
     if initrd_start is None:
         initrd_start = default_initrd_start[cpu_arch]
 
@@ -122,9 +131,6 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     i_tlb_size = d["constants"]["config_cpu_itlb_size"],
     i_tlb_ways = d["constants"]["config_cpu_itlb_ways"])
 
-        # CPU(s) Count.
-        ncpus = int(d["constants"].get("config_cpu_count", 1))
-
         # CPU(s) Topology.
         cpu_map = ""
         if ncpus > 1:
@@ -152,7 +158,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 device_type = "cpu";
                 compatible = "riscv";
                 riscv,isa = "{cpu_isa}";
-                mmu-type = "riscv,sv32";
+                mmu-type = "riscv,{cpu_mmu}";
                 reg = <{cpu}>;
                 clock-frequency = <{sys_clk_freq}>;
                 status = "okay";
@@ -164,14 +170,19 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                     compatible = "riscv,cpu-intc";
                 }};
             }};
-""".format(cpu=cpu, irq=cpu, sys_clk_freq=d["constants"]["config_clock_frequency"], cpu_isa=d["constants"]["config_cpu_isa"], cache_desc=cache_desc, tlb_desc=tlb_desc)
+""".format(cpu=cpu, irq=cpu,
+    sys_clk_freq = d["constants"]["config_clock_frequency"],
+    cpu_isa      = cpu_isa,
+    cpu_mmu      = cpu_mmu,
+    cache_desc   = cache_desc,
+    tlb_desc     = tlb_desc)
         dts += """
             {cpu_map}
         }};
 """.format(cpu_map=cpu_map)
 
-    # Mor1kx
-    # ------
+    # Or1k
+    # ----
     elif cpu_arch == "or1k":
         dts += """
         cpus {{

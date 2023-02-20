@@ -401,7 +401,9 @@ class VexRiscvSMP(CPU):
 
         # Define number of CPUs
         soc.add_config("CPU_COUNT", VexRiscvSMP.cpu_count)
-        soc.add_config("CPU_ISA", VexRiscvSMP.get_arch())
+        soc.add_config("CPU_ISA",   VexRiscvSMP.get_arch())
+        soc.add_config("CPU_MMU",   "sv32")
+
         # Constants for cache so we can add them in the DTS.
         if (VexRiscvSMP.dcache_size > 0):
             soc.add_config("CPU_DCACHE_SIZE", VexRiscvSMP.dcache_size)

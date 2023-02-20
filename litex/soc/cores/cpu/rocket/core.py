@@ -367,7 +367,8 @@ class Rocket(CPU):
 
         # Define number of CPUs
         soc.add_config("CPU_COUNT", num_cores)
-        soc.add_config("CPU_ISA", self.get_arch(self.variant))
+        soc.add_config("CPU_ISA",   self.get_arch(self.variant))
+        soc.add_config("CPU_MMU",   "sv39")
 
         # Constants for Cache so we can add them in the DTS.
         soc.add_config("CPU_DCACHE_SIZE",       4096) # CHECKME: correct/hardwired?
