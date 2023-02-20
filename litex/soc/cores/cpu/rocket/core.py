@@ -119,10 +119,10 @@ class Rocket(CPU):
     # Arch.
     @staticmethod
     def get_arch(variant):
-        arch = "rv64imac"
         if "full" in variant:
-            arch += "fdc"
-        return arch
+            return "rv64imafdc"
+        else:
+            return "rv64imac"
 
     # Memory Mapping.
     @property
