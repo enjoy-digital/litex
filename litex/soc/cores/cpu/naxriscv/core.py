@@ -301,7 +301,7 @@ class NaxRiscv(CPU):
         soc.add_memory_region("opensbi", self.mem_map["main_ram"] + 0x00f0_0000, 0x8_0000, type="cached+linker")
 
         # Define ISA.
-        soc.add_constant("CPU_ISA", NaxRiscv.get_arch())
+        soc.add_config("CPU_ISA", NaxRiscv.get_arch())
 
         # Add PLIC Bus (AXILite Slave).
         self.plicbus = plicbus  = axi.AXILiteInterface(address_width=32, data_width=32)

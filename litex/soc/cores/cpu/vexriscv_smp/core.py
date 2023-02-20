@@ -401,24 +401,24 @@ class VexRiscvSMP(CPU):
 
         # Define number of CPUs
         soc.add_config("CPU_COUNT", VexRiscvSMP.cpu_count)
-        soc.add_constant("CPU_ISA", VexRiscvSMP.get_arch())
+        soc.add_config("CPU_ISA", VexRiscvSMP.get_arch())
         # Constants for cache so we can add them in the DTS.
         if (VexRiscvSMP.dcache_size > 0):
-            soc.add_constant("cpu_dcache_size", VexRiscvSMP.dcache_size)
-            soc.add_constant("cpu_dcache_ways", VexRiscvSMP.dcache_ways)
-            soc.add_constant("cpu_dcache_block_size", 64) # hardwired?
+            soc.add_config("CPU_DCACHE_SIZE", VexRiscvSMP.dcache_size)
+            soc.add_config("CPU_DCACHE_WAYS", VexRiscvSMP.dcache_ways)
+            soc.add_config("CPU_DCACHE_BLOCK_SIZE", 64) # hardwired?
         if (VexRiscvSMP.icache_size > 0):
-            soc.add_constant("cpu_icache_size", VexRiscvSMP.icache_size)
-            soc.add_constant("cpu_icache_ways", VexRiscvSMP.icache_ways)
-            soc.add_constant("cpu_icache_block_size", 64) # hardwired?
+            soc.add_config("CPU_ICACHE_SIZE", VexRiscvSMP.icache_size)
+            soc.add_config("CPU_ICACHE_WAYS", VexRiscvSMP.icache_ways)
+            soc.add_config("CPU_ICACHE_BLOCK_SIZE", 64) # hardwired?
         # Constants for TLB so we can add them in the DTS
         # full associative so only the size is described.
         if (VexRiscvSMP.dtlb_size > 0):
-            soc.add_constant("cpu_dtlb_size", VexRiscvSMP.dtlb_size)
-            soc.add_constant("cpu_dtlb_ways", VexRiscvSMP.dtlb_size)
+            soc.add_config("CPU_DTLB_SIZE", VexRiscvSMP.dtlb_size)
+            soc.add_config("CPU_DTLB_WAYS", VexRiscvSMP.dtlb_size)
         if (VexRiscvSMP.itlb_size > 0):
-            soc.add_constant("cpu_itlb_size", VexRiscvSMP.itlb_size)
-            soc.add_constant("cpu_itlb_ways", VexRiscvSMP.itlb_size)
+            soc.add_config("CPU_ITLB_SIZE", VexRiscvSMP.itlb_size)
+            soc.add_config("CPU_ITLB_WAYS", VexRiscvSMP.itlb_size)
 
         # Add PLIC as Bus Slave
         self.plicbus = plicbus  = wishbone.Interface()

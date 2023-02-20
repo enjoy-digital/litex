@@ -367,7 +367,7 @@ class Rocket(CPU):
 
         # Define number of CPUs
         soc.add_config("CPU_COUNT", num_cores)
-        soc.add_constant("CPU_ISA", self.get_arch(self.variant))
+        soc.add_config("CPU_ISA", self.get_arch(self.variant))
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
