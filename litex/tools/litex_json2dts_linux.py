@@ -36,6 +36,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         "mor1kx"             : "or1k",
         "marocchino"         : "or1k",
         "vexriscv smp-linux" : "riscv",
+        "rocketrv64[imac]"   : "riscv",
     }
     default_initrd_start = {
         "or1k":   8*mB,
@@ -122,15 +123,15 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     i_tlb_ways = d["constants"]["cpu_itlb_ways"])
 
         # CPU(s) Count.
-        cpus = range(int(d["constants"]["config_cpu_count"]))
+        ncpus = int(d["constants"].get("config_cpu_count", 1))
 
         # CPU(s) Topology.
         cpu_map = ""
-        if int(d["constants"]["config_cpu_count"]) > 1:
+        if ncpus > 1:
             cpu_map += """
             cpu-map {
                 cluster0 {"""
-            for cpu in cpus:
+            for cpu in range(ncpus):
                 cpu_map += """
                     core{cpu} {{
                         cpu = <&CPU{cpu}>;
@@ -145,7 +146,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
             #size-cells    = <0>;
             timebase-frequency = <{sys_clk_freq}>;
 """.format(sys_clk_freq=d["constants"]["config_clock_frequency"])
-        for cpu in cpus:
+        for cpu in range(ncpus):
             dts += """
             CPU{cpu}: cpu@{cpu} {{
                 device_type = "cpu";
@@ -284,7 +285,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
             }};
 """.format(
         plic_base   =d["memories"]["plic"]["base"],
-        cpu_mapping =("\n" + " "*20).join(["&L{} 11 &L{} 9".format(cpu, cpu) for cpu in cpus]))
+        cpu_mapping =("\n" + " "*20).join(["&L{} 11 &L{} 9".format(cpu, cpu) for cpu in range(ncpus)]))
 
     elif cpu_arch == "or1k":
         dts += """
