@@ -361,7 +361,7 @@ class Rocket(CPU):
         mem_dw, mmio_dw, num_cores = CPU_PARAMS[self.variant]
 
         # Add OpenSBI/PLIC/CLINT regions.
-        soc.bus.add_region("opensbi", soc_region_cls(origin=self.mem_map["main_ram"] + 0x00f0_0000, size= 0x8_0000, cached=False, linker=True)) # CHECKME.
+        soc.bus.add_region("opensbi", soc_region_cls(origin=self.mem_map["main_ram"] + 0x0000_0000, size=0x20_0000, cached=False, linker=True))
         soc.bus.add_region("plic",    soc_region_cls(origin=soc.mem_map.get("plic"),                size=0x40_0000, cached=True,  linker=True))
         soc.bus.add_region("clint",   soc_region_cls(origin=soc.mem_map.get("clint"),               size= 0x1_0000, cached=True,  linker=True))
 
