@@ -7,9 +7,9 @@
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from litex.soc.cores.clock.common import *
+from litex.gen import *
 
-class Open(Signal): pass
+from litex.soc.cores.clock.common import *
 
 # GoWin / GW1NOSC ----------------------------------------------------------------------------------
 

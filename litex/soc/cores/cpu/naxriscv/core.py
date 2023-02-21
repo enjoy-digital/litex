@@ -11,12 +11,12 @@ import subprocess
 
 from migen import *
 
+from litex.gen import *
+
 from litex import get_data_mod
 from litex.soc.interconnect import axi
 from litex.soc.interconnect.csr import *
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32, CPU_GCC_TRIPLE_RISCV64
-
-class Open(Signal): pass
 
 # Variants -----------------------------------------------------------------------------------------
 

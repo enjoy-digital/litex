@@ -10,6 +10,8 @@ import os
 
 from migen import *
 
+from litex.gen import *
+
 from litex import get_data_mod
 
 from litex.build.vhd2v_converter import *
@@ -18,8 +20,6 @@ from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr import *
 from litex.gen.common import reverse_bytes
 from litex.soc.cores.cpu import CPU
-
-class Open(Signal): pass
 
 # Variants -----------------------------------------------------------------------------------------
 

@@ -6,20 +6,17 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
-from os import path
 import subprocess
 
 from migen import *
+
+from litex.gen import *
 
 from litex import get_data_mod
 
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr import *
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
-
-import os
-
-class Open(Signal): pass
 
 # VexRiscv SMP -------------------------------------------------------------------------------------
 
@@ -363,7 +360,7 @@ class VexRiscvSMP(CPU):
     def add_sources(self, platform):
         vdir = get_data_mod("cpu", "vexriscv_smp").data_location
         print(f"VexRiscv cluster : {self.cluster_name}")
-        if not path.exists(os.path.join(vdir, self.cluster_name + ".v")):
+        if not os.path.exists(os.path.join(vdir, self.cluster_name + ".v")):
             self.generate_netlist()
 
 

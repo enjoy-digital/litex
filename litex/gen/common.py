@@ -19,6 +19,10 @@ def colorer(s, color="bright"):
     trailer = "\x1b[0m"
     return header + str(s) + trailer
 
+# Signals ------------------------------------------------------------------------------------------
+
+class Open(Signal) : pass
+
 # Bit/Bytes Reversing ------------------------------------------------------------------------------
 
 def reverse_bits(s):

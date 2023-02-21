@@ -8,10 +8,10 @@
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
+from litex.gen import *
+
 from litex.build.generic_platform import *
 from litex.soc.cores.clock.common import *
-
-class Open(Signal): pass
 
 # Efinix / TRIONPLL ----------------------------------------------------------------------------------
 
