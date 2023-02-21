@@ -22,8 +22,6 @@ from litex.gen.fhdl.hierarchy import LiteXHierarchyExplorer
 
 from litex.compat.soc_core import *
 
-from litex.soc.cores import cpu
-
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect.csr_eventmanager import *
 from litex.soc.interconnect import csr_bus
@@ -1011,6 +1009,8 @@ class SoC(LiteXModule, SoCCoreCompat):
         self.add_config("CSR_ALIGNMENT",  self.csr.alignment)
 
     def add_cpu(self, name="vexriscv", variant="standard", reset_address=None, cfu=None):
+        from litex.soc.cores import cpu
+
         # Check that CPU is supported.
         if name not in cpu.CPUS.keys():
             supported_cpus = []
@@ -1129,7 +1129,7 @@ class SoC(LiteXModule, SoCCoreCompat):
             self.logger.info("CPU {} {} SoC components.".format(
                 colorer(name, color="underline"),
                 colorer("adding", color="cyan")))
-            self.cpu.add_soc_components(soc=self, soc_region_cls=SoCRegion) # FIXME: avoid passing SoCRegion.
+            self.cpu.add_soc_components(soc=self)
 
         # Add constants.
         self.add_config(f"CPU_TYPE_{name}")

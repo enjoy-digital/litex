@@ -33,12 +33,16 @@ import os
 
 from migen import *
 
+from litex.gen import *
+
 from litex import get_data_mod
+
 from litex.soc.interconnect import axi
 from litex.soc.interconnect import wishbone
-from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV64
 
-class Open(Signal): pass
+from litex.soc.integration.soc import SoCRegion
+
+from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV64
 
 # Variants -----------------------------------------------------------------------------------------
 
@@ -356,14 +360,14 @@ class Rocket(CPU):
             "EICG_wrapper.v",
         )
 
-    def add_soc_components(self, soc, soc_region_cls):
+    def add_soc_components(self, soc):
         # Get CPU Params.
         mem_dw, mmio_dw, num_cores = CPU_PARAMS[self.variant]
 
         # Add OpenSBI/PLIC/CLINT regions.
-        soc.bus.add_region("opensbi", soc_region_cls(origin=self.mem_map["main_ram"] + 0x0000_0000, size=0x20_0000, cached=False, linker=True))
-        soc.bus.add_region("plic",    soc_region_cls(origin=soc.mem_map.get("plic"),                size=0x40_0000, cached=True,  linker=True))
-        soc.bus.add_region("clint",   soc_region_cls(origin=soc.mem_map.get("clint"),               size= 0x1_0000, cached=True,  linker=True))
+        soc.bus.add_region("opensbi", SoCRegion(origin=self.mem_map["main_ram"] + 0x0000_0000, size=0x20_0000, cached=False, linker=True))
+        soc.bus.add_region("plic",    SoCRegion(origin=soc.mem_map.get("plic"),                size=0x40_0000, cached=True,  linker=True))
+        soc.bus.add_region("clint",   SoCRegion(origin=soc.mem_map.get("clint"),               size= 0x1_0000, cached=True,  linker=True))
 
         # Define number of CPUs
         soc.add_config("CPU_COUNT", num_cores)

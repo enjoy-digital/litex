@@ -14,8 +14,11 @@ from migen import *
 from litex.gen import *
 
 from litex import get_data_mod
+
 from litex.soc.interconnect import axi
 from litex.soc.interconnect.csr import *
+from litex.soc.integration.soc import SoCRegion
+
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32, CPU_GCC_TRIPLE_RISCV64
 
 # Variants -----------------------------------------------------------------------------------------
@@ -105,15 +108,15 @@ class NaxRiscv(CPU):
     @staticmethod
     def args_read(args):
         print(args)
-        NaxRiscv.jtag_tap = args.with_jtag_tap
+        NaxRiscv.jtag_tap         = args.with_jtag_tap
         NaxRiscv.jtag_instruction = args.with_jtag_instruction
-        NaxRiscv.update_repo = args.update_repo
+        NaxRiscv.update_repo      = args.update_repo
         NaxRiscv.no_netlist_cache = args.no_netlist_cache
-        NaxRiscv.with_fpu = args.with_fpu
+        NaxRiscv.with_fpu         = args.with_fpu
         if args.scala_file:
             NaxRiscv.scala_files = args.scala_file
         if args.scala_args:
-            NaxRiscv.scala_args = args.scala_args
+            NaxRiscv.scala_args  = args.scala_args
             print(args.scala_args)
         if args.xlen:
             xlen = int(args.xlen)
@@ -289,7 +292,7 @@ class NaxRiscv(CPU):
         # Add Cluster.
         platform.add_source(os.path.join(vdir,  self.netlist_name + ".v"), "verilog")
 
-    def add_soc_components(self, soc, soc_region_cls):
+    def add_soc_components(self, soc):
         # Set UART/Timer0 CSRs/IRQs to the ones used by OpenSBI.
         soc.csr.add("uart",   n=2)
         soc.csr.add("timer0", n=3)
@@ -298,7 +301,7 @@ class NaxRiscv(CPU):
         soc.irq.add("timer0", n=1)
 
         # Add OpenSBI region.
-        soc.bus.add_region("opensbi", soc_region_cls(origin=self.mem_map["main_ram"] + 0x00f0_0000, size=0x8_0000, cached=True, linker=True))
+        soc.bus.add_region("opensbi", SoCRegion(origin=self.mem_map["main_ram"] + 0x00f0_0000, size=0x8_0000, cached=True, linker=True))
 
         # Define ISA.
         soc.add_config("CPU_ISA", NaxRiscv.get_arch())
@@ -327,7 +330,7 @@ class NaxRiscv(CPU):
             o_peripheral_plic_rdata   = plicbus.r.data,
             o_peripheral_plic_rresp   = plicbus.r.resp,
         )
-        soc.bus.add_slave("plic", self.plicbus, region=soc_region_cls(origin=soc.mem_map.get("plic"), size=0x40_0000, cached=False))
+        soc.bus.add_slave("plic", self.plicbus, region=SoCRegion(origin=soc.mem_map.get("plic"), size=0x40_0000, cached=False))
 
         if NaxRiscv.jtag_tap:
             self.jtag_tms = Signal()
@@ -409,7 +412,7 @@ class NaxRiscv(CPU):
             o_peripheral_clint_rdata   = clintbus.r.data,
             o_peripheral_clint_rresp   = clintbus.r.resp,
         )
-        soc.bus.add_slave("clint", clintbus, region=soc_region_cls(origin=soc.mem_map.get("clint"), size=0x1_0000, cached=False))
+        soc.bus.add_slave("clint", clintbus, region=SoCRegion(origin=soc.mem_map.get("clint"), size=0x1_0000, cached=False))
         self.soc = soc # FIXME: Save SoC instance to retrieve the final mem layout on finalization.
 
     def add_memory_buses(self, address_width, data_width):

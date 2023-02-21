@@ -10,8 +10,11 @@ import re
 from migen import *
 
 from litex import get_data_mod
+
 from litex.soc.interconnect import axi
 from litex.soc.interconnect import wishbone
+from litex.soc.integration.soc import SoCRegion
+
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV64
 
 # Helpers ------------------------------------------------------------------------------------------
@@ -219,15 +222,15 @@ class OpenC906(CPU):
             o_tdt_dmi_pslverr = debug_apb.pslverr,
         )
 
-    def add_soc_components(self, soc, soc_region_cls):
-        plic = soc_region_cls(origin=soc.mem_map.get("plic"), size=0x400_0000, cached=False)
-        clint = soc_region_cls(origin=soc.mem_map.get("clint"), size=0x400_0000, cached=False)
-        soc.bus.add_region(name="plic", region=plic)
+    def add_soc_components(self, soc):
+        plic  = SoCRegion(origin=soc.mem_map.get("plic"), size=0x400_0000, cached=False)
+        clint = SoCRegion(origin=soc.mem_map.get("clint"), size=0x400_0000, cached=False)
+        soc.bus.add_region(name="plic",  region=plic)
         soc.bus.add_region(name="clint", region=clint)
 
         if "debug" in self.variant:
             soc.bus.add_slave("riscv_dm", self.debug_bus, region=
-                soc_region_cls(
+                SoCRegion(
                     origin = soc.mem_map.get("riscv_dm"),
                     size   = 0x1000,
                     cached = False
