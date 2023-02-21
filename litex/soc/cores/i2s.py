@@ -119,6 +119,49 @@ class S7I2S(Module, AutoCSR, AutoDoc):
         - Sync can be longer than the wordlen, extra bits are just ignored
         - Tx is data to the codec (SDI pin on LM49352)
         - Rx is data from the codec (SDO pin on LM49352)
+
+        A loopback example in C which uses the same I2S instance for RX & TX and reduces volume to its half value:
+
+            ```
+            #include <generated/csr.h>
+            #include <generated/mem.h>
+
+            void get_audio_data(void) {
+                int AUDIO_FIFODEPTH = i2s_rx_stat_fifo_depth_read();
+
+                volatile unsigned int *rx_buffer = (unsigned int*)I2S_BASE; //defined in generated/mem.h
+                volatile unsigned int *tx_buffer = (unsigned int*)I2S_BASE; //defined in generated/mem.h
+                volatile signed int sample;
+
+                //flush the fifos; functions defined in generated/csr.h
+                i2s_rx_ctl_reset_write(1);
+                i2s_tx_ctl_reset_write(1);
+                //enable the fifos
+                i2s_rx_ctl_enable_write(1);
+                i2s_tx_ctl_enable_write(1);
+
+                int output_duration_seconds = 10;
+
+                uint32_t k = 0;
+                while(k < 48000 * output_duration_seconds / AUDIO_FIFODEPTH*2) { //48000 samplerate; 2 channels
+                    //from generated/csr.h
+                    if((i2s_rx_stat_dataready_read() && i2s_tx_stat_free_read()) == 1) {
+
+                        int i = 0;
+                        while(i < AUDIO_FIFODEPTH) {
+                            sample = ((*rx_buffer) << 8); //move the sign to the MSB
+                            sample = sample >> 8; //convert down to 24bit value
+
+                            *tx_buffer = sample>>1; //volume half as loud
+                            i++;
+                        }
+                        k++;
+                    }
+                }
+
+                return;
+            }
+            ```
         """)
 
         # One cache line is 8 32-bit words, need to always have enough space for one line or else

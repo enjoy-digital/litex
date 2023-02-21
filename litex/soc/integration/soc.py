@@ -23,6 +23,7 @@ from litex.gen.fhdl.hierarchy import LiteXHierarchyExplorer
 from litex.compat.soc_core import *
 
 from litex.soc.cores import cpu
+from litex.soc.cores.i2s import S7I2S, I2S_FORMAT
 
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect.csr_eventmanager import *
@@ -2115,6 +2116,22 @@ class LiteXSoC(SoC):
         self.add_constant("VIDEO_FRAMEBUFFER_HRES", hres)
         self.add_constant("VIDEO_FRAMEBUFFER_VRES", vres)
         self.add_constant("VIDEO_FRAMEBUFFER_DEPTH", vfb.depth)
+
+    # Add I2S ------------------------------------------------------------------------
+    def add_i2s_peripheral(self, name="i2s", sample_width=24, frame_format=I2S_FORMAT.I2S_STANDARD, concatenate_channels=False, toolchain=None):
+        channels = 2
+        i2s_mem_size = 16 * 1024 * channels # Size of the FIFO 16kB * channels
+        mem_origin = 0xb1000000 # use an origin which is not used yet in the current SoC's mem_map
+
+        self.submodules.i2s = i2s = S7I2S(
+            pads=self.platform.request(name),
+            sample_width=sample_width,
+            frame_format=frame_format,
+            concatenate_channels=concatenate_channels,
+            toolchain=toolchain
+        )
+        self.bus.add_slave(name, self.i2s.bus, SoCRegion(origin=mem_origin, size=i2s_mem_size, cached=False))
+
 
 # LiteXSoCArgumentParser ---------------------------------------------------------------------------
 
