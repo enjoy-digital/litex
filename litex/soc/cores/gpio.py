@@ -40,7 +40,7 @@ class _GPIOIRQ:
                 )
             ]
             setattr(self.ev, f"i{n}", esp)
-            self.ev.finalize()
+        self.ev.finalize()
 
 # GPIO Input ---------------------------------------------------------------------------------------
 
