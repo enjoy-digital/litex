@@ -9,6 +9,8 @@ import os
 
 from migen import *
 
+from litex.gen import *
+
 from litex.soc.cores.clock import *
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
@@ -31,8 +33,6 @@ class USPHBM2(Module, AutoCSR):
         self.init_done = CSRStatus()
 
         # # #
-
-        class Open(Signal): pass
 
         # Clocks -----------------------------------------------------------------------------------
         # Ref = 100 MHz (HBM: 900 (225-900) MHz), drives internal PLL (1 per stack).

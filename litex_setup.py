@@ -197,6 +197,11 @@ def git_checkout(sha1=None, tag=None):
         sha1_tag     = subprocess.check_output(sha1_tag_cmd).decode("UTF-8")[:-1]
         os.system(f"git checkout {sha1_tag}")
 
+def git_tag(tag=None):
+    assert tag is not None
+    os.system(f"git tag {tag}")
+    os.system(f"git push --tags")
+
 # Git repositories initialization ------------------------------------------------------------------
 
 def litex_setup_init_repos(config="standard", tag=None, dev_mode=False):
@@ -284,7 +289,8 @@ def litex_setup_install_repos(config="standard", user_mode=False):
     if user_mode:
         if ".local/bin" not in os.environ.get("PATH", ""):
             print_status("Make sure that ~/.local/bin is in your PATH")
-            print_status("export PATH=$PATH:~/.local/bin")
+            print_status("export PATH=$PATH:~/.local/bin # temporary (limited to the current terminal)")
+            print_status("or add the previous line into your ~/.bashrc to permanently update PATH")
 
 # Git repositories freeze --------------------------------------------------------------------------
 
@@ -309,6 +315,23 @@ def litex_setup_freeze_repos(config="standard"):
     r += "}\n"
     print(r)
 
+# Git repositories release -------------------------------------------------------------------------
+
+def litex_setup_release_repos(tag):
+    print_status(f"Making release {tag}...", underline=True)
+    confirm = input("Please confirm by pressing Y:")
+    if confirm.upper() == "Y":
+        for name in install_configs["full"]:
+            if name in ["migen"]:
+                continue
+            repo = git_repos[name]
+            os.chdir(os.path.join(current_path, name))
+            # Tag Repo.
+            print_status(f"Tagging {name} Git repository as {tag}...")
+            git_tag(tag=tag)
+    else:
+        print_status(f"Not confirmed, exiting.")
+
 # GCC toolchains install ---------------------------------------------------------------------------
 
 # RISC-V toolchain.
@@ -322,6 +345,9 @@ def riscv_gcc_install():
         # Fedora.
         if "fedora" in os_release:
             os.system("dnf install gcc-riscv64-linux-gnu")
+        # Arch.
+        elif "arch" in os_release:
+            os.system("pacman -S riscv64-linux-gnu-gcc")
         # Ubuntu.
         else:
             os.system("apt install gcc-riscv64-linux-gnu")
@@ -347,6 +373,9 @@ def powerpc_gcc_install():
         # Fedora.
         if "fedora" in os_release:
             os.system("dnf install gcc-powerpc64le-linux-gnu") # FIXME: binutils-multiarch?
+        # Arch (AUR repository).
+        elif "arch" in os_release:
+            os.system("yay -S powerpc64le-linux-gnu-gcc")
         # Ubuntu.
         else:
             os.system("apt install gcc-powerpc64le-linux-gnu binutils-multiarch")
@@ -367,6 +396,9 @@ def openrisc_gcc_install():
         # Fedora.
         if "fedora" in os_release:
             os.system("dnf install gcc-or1k-elf")
+        # Arch.
+        elif "arch" in os_release:
+            os.system("pacman -S or1k-elf-gcc")
         # Ubuntu.
         else:
             os.system("apt install gcc-or1k-elf")
@@ -389,13 +421,14 @@ def main():
     parser.add_argument("--user",      action="store_true", help="Install in User-Mode.")
     parser.add_argument("--config",    default="standard",  help="Install config (minimal, standard, full).")
     parser.add_argument("--tag",       default=None,        help="Use version from release tag.")
-    parser.add_argument("--freeze",    action="store_true", help="Freeze and display current config.")
 
     # GCC toolchains.
     parser.add_argument("--gcc", default=None, help="Install GCC Toolchain (riscv, powerpc or openrisc).")
 
     # Development mode.
-    parser.add_argument("--dev", action="store_true", help="Development-Mode (no Auto-Update of litex_setup.py / Switch to git@github.com URLs).")
+    parser.add_argument("--dev",     action="store_true", help="Development-Mode (no Auto-Update of litex_setup.py / Switch to git@github.com URLs).")
+    parser.add_argument("--freeze",  action="store_true", help="Freeze and display current config.")
+    parser.add_argument("--release", default=None,        help="Make release.")
 
     # Retro-compatibility.
     parser.add_argument("compat_args", nargs="*", help="Retro-Compatibility arguments (init, update, install or gcc).")
@@ -430,6 +463,10 @@ def main():
     if args.freeze:
         litex_setup_freeze_repos(config=args.config)
 
+    # Release.
+    if args.release:
+        litex_setup_release_repos(tag=args.release)
+
     # GCC.
     os.chdir(os.path.join(current_path))
     if args.gcc == "riscv":
@@ -441,3 +478,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    

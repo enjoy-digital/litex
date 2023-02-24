@@ -3,6 +3,7 @@
 #
 # Copyright (c) 2021 Dolu1990 <charles.papon.90@gmail.com>
 # Copyright (c) 2021 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2023 Lone Dynamics Corporation <info@lonedynamics.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
@@ -30,11 +31,18 @@ class USBOHCI(Module):
 
         # # #
 
-        usb_ios = Record([
-            ("dp_i",  1), ("dp_o",  1), ("dp_oe", 1),
-            ("dm_i",  1), ("dm_o",  1), ("dm_oe", 1),
-        ])
+        # Parameters.
+        nports = len(pads.dp)
 
+        # USB IOs.
+        usb_ios = {}
+        for i in range(nports):
+            usb_ios[i] = Record([
+                ("dp_i", 1), ("dp_o", 1), ("dp_oe", 1),
+                ("dm_i", 1), ("dm_o", 1), ("dm_oe", 1),
+            ])
+
+        # USB OHCI Core Instance.
         self.specials += Instance(self.get_netlist_name(),
             # Clk / Rst.
             i_phy_clk    = ClockSignal("usb"),
@@ -69,25 +77,29 @@ class USBOHCI(Module):
             o_io_interrupt = self.interrupt,
 
             # USB
-            i_io_usb_0_dp_read        = usb_ios.dp_i,
-            o_io_usb_0_dp_write       = usb_ios.dp_o,
-            o_io_usb_0_dp_writeEnable = usb_ios.dp_oe,
-            i_io_usb_0_dm_read        = usb_ios.dm_i,
-            o_io_usb_0_dm_write       = usb_ios.dm_o,
-            o_io_usb_0_dm_writeEnable = usb_ios.dm_oe,
+            **{f"i_io_usb_{n}_dp_read"        : usb_ios[n].dp_i  for n in range(nports)},
+            **{f"o_io_usb_{n}_dp_write"       : usb_ios[n].dp_o  for n in range(nports)},
+            **{f"o_io_usb_{n}_dp_writeEnable" : usb_ios[n].dp_oe for n in range(nports)},
+            **{f"i_io_usb_{n}_dm_read"        : usb_ios[n].dm_i  for n in range(nports)},
+            **{f"o_io_usb_{n}_dm_write"       : usb_ios[n].dm_o  for n in range(nports)},
+            **{f"o_io_usb_{n}_dm_writeEnable" : usb_ios[n].dm_oe for n in range(nports)},
+
         )
-        self.specials += SDRTristate(
-            io = pads.dp,
-            o  = usb_ios.dp_o,
-            oe = usb_ios.dp_oe,
-            i  = usb_ios.dp_i,
-        )
-        self.specials += SDRTristate(
-            io = pads.dm,
-            o  = usb_ios.dm_o,
-            oe = usb_ios.dm_oe,
-            i  = usb_ios.dm_i,
-        )
+
+        # USB Tristates.
+        for i in range(nports):
+            self.specials += SDRTristate(
+                io = pads.dp[i],
+                o  = usb_ios[i].dp_o,
+                oe = usb_ios[i].dp_oe,
+                i  = usb_ios[i].dp_i,
+            )
+            self.specials += SDRTristate(
+                io = pads.dm[i],
+                o  = usb_ios[i].dm_o,
+                oe = usb_ios[i].dm_oe,
+                i  = usb_ios[i].dm_i,
+            )
 
         self.add_sources(platform)
 
@@ -117,7 +129,7 @@ class USBOHCI(Module):
         gen_args.append(f"--netlist-name={self.get_netlist_name()}")
         gen_args.append(f"--netlist-directory={vdir}")
 
-        cmd = 'cd {path} && sbt "lib/runMain spinal.lib.com.usb.ohci.UsbOhciWishbone {args}"'.format(
+        cmd = 'cd {path} && sbt "runMain spinal.lib.com.usb.ohci.UsbOhciWishbone {args}"'.format(
             path=os.path.join(vdir, "ext", "SpinalHDL"), args=" ".join(gen_args))
         print("!!! "   + cmd)
         if os.system(cmd) != 0:

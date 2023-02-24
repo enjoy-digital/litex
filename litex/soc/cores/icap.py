@@ -1,9 +1,10 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2019-2021 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2019-2023 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import math
 from enum import IntEnum
 
 from migen import *
@@ -23,7 +24,7 @@ ICAP_NOOP  = 0x20000000
 ICAP_WRITE = 0x30000000
 ICAP_READ  = 0x28000000
 
-# Configuration Registers (from UG470).
+# Configuration Registers (from UG470 & UG570).
 
 class ICAPRegisters(IntEnum):
     CRC     = 0b00000 # CRC Register.
@@ -47,7 +48,7 @@ class ICAPRegisters(IntEnum):
     CTL1    = 0b11000 # Control Register 1.
     BSPI    = 0b11111 # BPI/SPI Configuration Options Register.
 
-# Commands (from UG470).
+# Commands (from UG470 & UG570).
 
 class ICAPCMDs(IntEnum):
     MFW       = 0b00010 # Multiple Frame Write.
@@ -68,7 +69,7 @@ class ICAPCMDs(IntEnum):
     BSPI_READ = 0b10010 # BPI/SPI re-initiate bitstream read.
     FALL_EDGE = 0b10011 # Switch to negative-edge clocking.
 
-# Xilinx 7-series ----------------------------------------------------------------------------------
+# Xilinx 7-series / Ultrascale (Plus) ICAP ---------------------------------------------------------
 
 class ICAP(Module, AutoCSR):
     """ICAP
@@ -77,7 +78,7 @@ class ICAP(Module, AutoCSR):
 
     A warm boot can for example be triggered by writing IPROG CMD (0xf) to CMD register (0b100).
     """
-    def __init__(self, with_csr=True, simulation=False):
+    def __init__(self, with_csr=True, clk_divider=16, primitive="ICAPE2", simulation=False):
         self.write      = Signal()
         self.read       = Signal()
         self.done       = Signal()
@@ -87,11 +88,16 @@ class ICAP(Module, AutoCSR):
 
         # # #
 
-        # Create slow ICAP Clk (sys_clk/16).
+        # Parameters check.
+        assert primitive in ["ICAPE2", "ICAPE3"]
+        assert clk_divider > 1
+        assert math.log2(clk_divider).is_integer()
+
+        # Create slow ICAP Clk.
         self.clock_domains.cd_icap = ClockDomain()
-        icap_clk_counter = Signal(4)
+        icap_clk_counter = Signal(int(math.log2(clk_divider)))
         self.sync += icap_clk_counter.eq(icap_clk_counter + 1)
-        self.sync += self.cd_icap.clk.eq(icap_clk_counter[3])
+        self.sync += self.cd_icap.clk.eq(icap_clk_counter[-1])
 
         # Generate ICAP bitstream sequence.
         self._csib  = _csib  = Signal(reset=1)
@@ -209,18 +215,21 @@ class ICAP(Module, AutoCSR):
 
         # ICAP Instance.
         if not simulation:
-            _i_icape2 = Signal(32)
-            _o_icape2 = Signal(32)
-            self.comb += _i_icape2.eq(Cat(*[_i[8*i:8*(i+1)][::-1] for i in range(4)])),
-            self.comb += _o.eq(Cat(*[_o_icape2[8*i:8*(i+1)][::-1] for i in range(4)])),
-            self.specials += Instance("ICAPE2",
-                p_ICAP_WIDTH = "X32",
+            _i_icap = Signal(32)
+            _o_icap = Signal(32)
+            self.comb += _i_icap.eq(Cat(*[_i[8*i:8*(i+1)][::-1] for i in range(4)])),
+            self.comb += _o.eq(Cat(*[_o_icap[8*i:8*(i+1)][::-1] for i in range(4)])),
+            self.params = dict()
+            if primitive == "ICAPE2":
+                self.params.update(p_ICAP_WIDTH="X32")
+            self.params.update(
                 i_CLK   = ClockSignal("icap"),
                 i_CSIB  = _csib,
                 i_RDWRB = _rdwrb,
-                i_I     = _i_icape2,
-                o_O     = _o_icape2,
+                i_I     = _i_icap,
+                o_O     = _o_icap,
             )
+            self.specials += Instance(primitive, **self.params)
 
         # CSR.
         if with_csr:

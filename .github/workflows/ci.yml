@@ -43,6 +43,7 @@ jobs:
       # Build / Install Verilator
       - name: Build Verilator
         run: |
+          sudo apt-get install help2man
           export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
           git clone https://github.com/verilator/verilator
           cd verilator

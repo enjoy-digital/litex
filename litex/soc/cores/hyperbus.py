@@ -65,7 +65,7 @@ class HyperRAM(Module):
         # Burst Timer ------------------------------------------------------------------------------
         sys_clk_freq = 10e6 if sys_clk_freq is None else sys_clk_freq
         burst_timer  = WaitTimer(int(sys_clk_freq*self.tCSM))
-        self.submodules += burst_timer
+        self.submodules.burst_timer = burst_timer
 
         # Clock Generation (sys_clk/4) -------------------------------------------------------------
         self.sync += clk_phase.eq(clk_phase + 1)

@@ -4,6 +4,10 @@
 #ifndef __SATA_H
 #define __SATA_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <generated/csr.h>
 
 /*-----------------------------------------------------------------------*/
@@ -27,6 +31,10 @@ void sata_read(uint32_t sector, uint32_t count, uint8_t* buf);
 
 void sata_write(uint32_t sector, uint32_t count, uint8_t* buf);
 
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif /* __SATA_H */

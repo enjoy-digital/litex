@@ -10,16 +10,17 @@ import os
 
 from migen import *
 
+from litex.gen import *
+
 from litex import get_data_mod
 
 from litex.build.vhd2v_converter import *
 
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr import *
-from litex.gen.common import reverse_bytes
-from litex.soc.cores.cpu import CPU
+from litex.soc.integration.soc import SoCRegion
 
-class Open(Signal): pass
+from litex.soc.cores.cpu import CPU
 
 # Variants -----------------------------------------------------------------------------------------
 
@@ -144,7 +145,7 @@ class Microwatt(CPU):
         self.reset_address = reset_address
         assert reset_address == 0x0000_0000
 
-    def add_soc_components(self, soc, soc_region_cls):
+    def add_soc_components(self, soc):
         if "irq" in self.variant:
             self.submodules.xics = XICSSlave(
                 platform     = self.platform,
@@ -152,8 +153,8 @@ class Microwatt(CPU):
                 core_irq_out = self.core_ext_irq,
                 int_level_in = self.interrupt,
             )
-            xicsicp_region = soc_region_cls(origin=soc.mem_map.get("xicsicp"), size=4096, cached=False)
-            xicsics_region = soc_region_cls(origin=soc.mem_map.get("xicsics"), size=4096, cached=False)
+            xicsicp_region = SoCRegion(origin=soc.mem_map.get("xicsicp"), size=4096, cached=False)
+            xicsics_region = SocRegion(origin=soc.mem_map.get("xicsics"), size=4096, cached=False)
             soc.bus.add_slave(name="xicsicp", slave=self.xics.icp_bus, region=xicsicp_region)
             soc.bus.add_slave(name="xicsics", slave=self.xics.ics_bus, region=xicsics_region)
 

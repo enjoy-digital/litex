@@ -40,7 +40,7 @@ class LiteXModule(Module, AutoCSR, AutoDoc):
             print(other)
             m.submodules += other
         # - m += special_x  equivalent of Migen's m.specials += special_x.
-        elif isinstnace(other, Special):
+        elif isinstance(other, Special):
             m.specials += other
         # - m += cd_x  equivalent of Migen's m.clock_domains += cd_x.
         elif isinstance(other, ClockDomain):

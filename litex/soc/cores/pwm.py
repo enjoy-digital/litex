@@ -25,6 +25,7 @@ class PWM(Module, AutoCSR):
         default_period = 0):
         if pwm is None:
             self.pwm = pwm = Signal()
+        self.reset  = Signal()
         self.enable = Signal(reset=default_enable)
         self.width  = Signal(32, reset=default_width)
         self.period = Signal(32, reset=default_period)
@@ -35,7 +36,7 @@ class PWM(Module, AutoCSR):
 
         sync = getattr(self.sync, clock_domain)
         sync += [
-            If(self.enable,
+            If(self.enable & ~self.reset,
                 counter.eq(counter + 1),
                 If(counter < self.width,
                     pwm.eq(1)

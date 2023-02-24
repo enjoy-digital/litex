@@ -9,10 +9,10 @@ import os
 
 from migen import *
 
+from litex.gen import *
+
 from litex.soc.cores.cpu import CPU
 from litex.soc.interconnect import axi
-
-class Open(Signal): pass
 
 # Cortex-M3 ----------------------------------------------------------------------------------------
 

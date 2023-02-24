@@ -174,8 +174,17 @@ class LiteXArgumentParser(argparse.ArgumentParser):
         # When platform is None try to search for a user input
         if self._platform is None:
             platform = self.get_value_from_key("--platform", None)
+            if platform is None: # no user selection: try default
+                platform = self.get_default_value_from_actions("platform", None)
             if platform is not None:
-                self.set_platform(importlib.import_module(platform).Platform)
+                try:
+                    platform_cls = importlib.import_module(platform).Platform
+                except ModuleNotFoundError as e:
+                    # platform not found: try litex-boards package
+                    platform = "litex_boards.platforms." + platform
+                    platform_cls = importlib.import_module(platform).Platform
+                self.set_platform(platform_cls)
+
                 self.add_target_group()
 
         # When platform provided/set, set builder/soc_core args.
@@ -244,3 +253,23 @@ class LiteXArgumentParser(argparse.ArgumentParser):
         except IndexError:
             value = default
         return value
+
+    def get_default_value_from_actions(self, key, default=None):
+        """
+        search key into ArgumentParser _actions list
+
+        Parameters
+        ==========
+        key: str
+            key to search
+        default: str
+            default value when key is not in _actions list
+
+        Return
+        ======
+            default value or default when key is not present
+        """
+        for act in self._actions:
+            if act.dest == key:
+                return act.default
+        return default

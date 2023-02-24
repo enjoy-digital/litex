@@ -138,10 +138,9 @@ class AlteraQuartusToolchain(GenericToolchain):
                     if fpath not in platform.verilog_include_paths:
                         platform.verilog_include_paths.append(fpath)
 
-        # Add ips
+        # Add IPs
         for filename in self.platform.ips:
-            tpl = "set_global_assignment -name QSYS_FILE {filename}"
-            qsf.append(tpl.replace(filename=filename.replace("\\", "/")))
+            qsf.append("set_global_assignment -name QSYS_FILE " + filename.replace("\\", "/"))
 
         # Add include paths
         for path in self.platform.verilog_include_paths:

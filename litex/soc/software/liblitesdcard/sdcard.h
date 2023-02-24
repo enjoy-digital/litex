@@ -4,6 +4,10 @@
 #ifndef __SDCARD_H
 #define __SDCARD_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <generated/csr.h>
 
 #define CLKGEN_STATUS_BUSY		0x1
@@ -106,5 +110,9 @@ void sdcard_write(uint32_t sector, uint32_t count, uint8_t* buf);
 void fatfs_set_ops_sdcard(void);
 
 #endif /* CSR_SDCORE_BASE */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __SDCARD_H */

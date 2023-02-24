@@ -106,7 +106,7 @@ extern "C" void litex_sim_init(void **out)
     tools.write_to_file("sim_init.cpp", content)
 
 
-def _generate_sim_variables(include_paths, extra_mods, extra_mods_path):
+def _generate_sim_variables(include_paths, extra_mods, extra_mods_path, video):
     tapcfg_dir = get_data_mod("misc", "tapcfg").data_location
     include = ""
     for path in include_paths:
@@ -115,13 +115,15 @@ def _generate_sim_variables(include_paths, extra_mods, extra_mods_path):
 SRC_DIR = {}
 INC_DIR = {}
 TAPCFG_DIRECTORY = {}
-""".format(core_directory, include, tapcfg_dir)
+{}
+""".format(core_directory, include, tapcfg_dir, "VIDEO = 1" if video else "")
 
     if extra_mods:
         modlist = " ".join(extra_mods)
         content += "EXTRA_MOD_LIST = " + modlist + "\n"
         content += "EXTRA_MOD_BASE_DIR = " + extra_mods_path + "\n"
         tools.write_to_file(extra_mods_path + "/variables.mak", content)
+
 
     tools.write_to_file("variables.mak", content)
 
@@ -131,7 +133,7 @@ def _generate_sim_config(config):
     tools.write_to_file("sim_config.js", content)
 
 
-def _build_sim(build_name, sources, jobs, threads, coverage, opt_level="O3", trace_fst=False):
+def _build_sim(build_name, sources, jobs, threads, coverage, opt_level="O3", trace_fst=False, video=False):
     makefile = os.path.join(core_directory, 'Makefile')
 
     cc_srcs = []
@@ -149,6 +151,7 @@ make -C . -f {} {} {} {} {} {} {}
     "COVERAGE=1" if coverage else "",
     "OPT_LEVEL={}".format(opt_level),
     "TRACE_FST=1" if trace_fst else "",
+    "VIDEO=1" if video else "",
     )
     build_script_file = "build_" + build_name + ".sh"
     tools.write_to_file(build_script_file, build_script_contents, force_unix=True)
@@ -200,6 +203,7 @@ class SimVerilatorToolchain:
             sim_config       = None,
             coverage         = False,
             opt_level        = "O0",
+            video            = False,
             trace            = False,
             trace_fst        = False,
             trace_start      = 0,
@@ -237,14 +241,24 @@ class SimVerilatorToolchain:
 
             _generate_sim_variables(platform.verilog_include_paths,
                                     extra_mods,
-                                    extra_mods_path)
+                                    extra_mods_path,
+                                    video)
 
             # Generate sim config
             if sim_config:
                 _generate_sim_config(sim_config)
 
             # Build
-            _build_sim(build_name, platform.sources, jobs, threads, coverage, opt_level, trace_fst)
+            _build_sim(
+                build_name = build_name,
+                sources    = platform.sources,
+                jobs       = jobs,
+                threads    = threads,
+                coverage   = coverage,
+                opt_level  = opt_level,
+                trace_fst  = trace_fst,
+                video      = video,
+            )
 
         # Run
         if run:

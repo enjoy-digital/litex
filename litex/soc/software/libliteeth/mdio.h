@@ -1,6 +1,10 @@
 #ifndef __MDIO_H
 #define __MDIO_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MDIO_CLK 0x01
 #define MDIO_OE	0x02
 #define MDIO_DO	0x04
@@ -15,5 +19,9 @@
 
 void mdio_write(int phyadr, int reg, int val);
 int mdio_read(int phyadr, int reg);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __MDIO_H */

@@ -84,7 +84,7 @@ class AXIInterface:
         )
         self.w = AXIStreamInterface(name=name,
             layout     = w_description(data_width),
-            id_width   = {"axi3":0,"axi4":id_width}[version], # No WID on AXI4.
+            id_width   = {"axi4":0,"axi3":id_width}[version], # No WID on AXI4.
             user_width = w_user_width
         )
         self.b = AXIStreamInterface(name=name,

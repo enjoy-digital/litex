@@ -9,11 +9,11 @@ import os
 
 from migen import *
 
+from litex.gen import *
+
 from litex import get_data_mod
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
-
-class Open(Signal): pass
 
 # Variants -----------------------------------------------------------------------------------------
 

@@ -8,6 +8,8 @@ import os
 
 from migen import *
 
+from litex.gen import *
+
 from litex.build.vhd2v_converter import *
 
 from litex.soc.interconnect import wishbone
@@ -64,8 +66,6 @@ class NEORV32(CPU):
         self.memory_buses = []      # Memory buses (Connected directly to LiteDRAM).
 
         # # #
-
-        class Open(Signal) : pass
 
         # CPU LiteX Core Complex Wrapper
         self.specials += Instance("neorv32_litex_core_complex",

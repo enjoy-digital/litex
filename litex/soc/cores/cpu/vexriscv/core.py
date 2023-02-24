@@ -15,8 +15,12 @@ import os
 from migen import *
 
 from litex import get_data_mod
+
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr import *
+
+from litex.soc.integration.soc import SoCRegion
+
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 
 # Variants -----------------------------------------------------------------------------------------
@@ -334,11 +338,11 @@ class VexRiscv(CPU, AutoCSR):
         vdir = get_data_mod("cpu", "vexriscv").data_location
         platform.add_source(os.path.join(vdir, cpu_filename))
 
-    def add_soc_components(self, soc, soc_region_cls):
+    def add_soc_components(self, soc):
         # Connect Debug interface to SoC.
         if "debug" in self.variant:
             soc.bus.add_slave("vexriscv_debug", self.debug_bus, region=
-                soc_region_cls(
+                SoCRegion(
                     origin = soc.mem_map.get("vexriscv_debug"),
                     size   = 0x100,
                     cached = False

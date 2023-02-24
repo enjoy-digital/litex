@@ -12,6 +12,8 @@ import math
 from migen import *
 from migen.genlib.cdc import MultiReg
 
+from litex.gen import *
+
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import stream
 from litex.soc.cores.code_tmds import TMDSEncoder
@@ -695,8 +697,6 @@ class VideoFrameBuffer(Module, AutoCSR):
         self.comb += self.underflow.eq(~source.valid)
 
 # Video PHYs ---------------------------------------------------------------------------------------
-
-class Open(Signal): pass
 
 # Generic (Very Generic PHY supporting VGA/DVI and variations).
 
