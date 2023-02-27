@@ -107,7 +107,7 @@ To discover more products/projects built with LiteX, visit the [projects page](h
 
 A huge shoutout to our awesome industrial clients who have given us the green light to incorporate some of the developments we initially created for them directly into LiteX! These innovative developments often provide the building blocks for the features that the wider community can then use and improve upon. Your support has been instrumental for the project, and we are incredibly grateful for your partnership. Thanks!
 
-![](https://user-images.githubusercontent.com/1450143/220726598-08e9262c-338c-4027-a70e-7cc8ad8acb51.png)
+![](https://user-images.githubusercontent.com/1450143/221533536-06252bf8-3cc1-4773-8947-d6cbf7242555.png)
 
 # Papers, Presentations, Tutorials, Links
 **FPGA lessons/tutorials:**
