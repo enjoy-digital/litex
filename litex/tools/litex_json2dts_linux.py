@@ -282,7 +282,8 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     # Interrupt Controller -------------------------------------------------------------------------
 
-    if cpu_arch == "riscv":
+    if (cpu_arch == "riscv") and ("rocket" in cpu_name):
+        # FIXME  : L4 definitiion?
         # CHECKME: interrupts-extended.
         dts += """
             lintc0: clint@{clint_base:x} {{
