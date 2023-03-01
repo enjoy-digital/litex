@@ -272,9 +272,9 @@ class SimSoC(SoCCore):
                 hw_mac     = etherbone_mac_address)
 
             # SoftCPU
-            ethmac_region_size = (ethmac.rx_slots.constant + ethmac.tx_slots.constant)*ethmac.slot_size.constant
+            ethmac_region_size = (self.ethmac.rx_slots.constant + self.ethmac.tx_slots.constant)*self.ethmac.slot_size.constant
             ethmac_region = SoCRegion(origin=self.mem_map.get("ethmac", None), size=ethmac_region_size, cached=False)
-            self.bus.add_slave(name="ethmac", slave=ethmac.bus, region=ethmac_region)
+            self.bus.add_slave(name="ethmac", slave=self.ethmac.bus, region=ethmac_region)
             if self.irq.enabled:
                 self.irq.add("ethmac", use_loc_if_exists=True)
             # HW ethernet
