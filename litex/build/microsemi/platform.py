@@ -10,7 +10,7 @@ from litex.build.microsemi import common, libero_soc
 # MicrosemiPlatform --------------------------------------------------------------------------------
 
 class MicrosemiPlatform(GenericPlatform):
-    bitstream_ext = ".bit"
+    _bitstream_ext = ".bit"
 
     _supported_toolchains = ["libero_soc_polarfire"]
 

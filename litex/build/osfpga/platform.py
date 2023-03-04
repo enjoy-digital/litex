@@ -12,7 +12,7 @@ from litex.build.osfpga import common, osfpga
 # OSFPGAPlatform -----------------------------------------------------------------------------------
 
 class OSFPGAPlatform(GenericPlatform):
-    bitstream_ext = ".bin"
+    _bitstream_ext = ".bin"
 
     _supported_toolchains = ["osfpga"]
 

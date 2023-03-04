@@ -13,7 +13,7 @@ from litex.build.gowin import common, gowin
 # GowinPlatform ------------------------------------------------------------------------------------
 
 class GowinPlatform(GenericPlatform):
-    bitstream_ext = ".fs"
+    _bitstream_ext = ".fs"
 
     _supported_toolchains = ["gowin", "apicula"]
 

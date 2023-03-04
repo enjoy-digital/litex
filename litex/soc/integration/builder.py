@@ -382,10 +382,7 @@ class Builder:
     def get_bitstream_filename(self, mode="sram", ext=None):
         assert mode in ["sram", "flash"]
         if ext is None:
-            ext = {
-                "sram"  : self.soc.platform.bitstream_ext,
-                "flash" : ".bin" # FIXME.
-            }[mode]
+            ext = self.soc.platform.get_bitstream_extension(mode)
         return os.path.join(self.gateware_dir, self.soc.get_build_name() + ext)
 
 # Builder Arguments --------------------------------------------------------------------------------

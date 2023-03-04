@@ -13,7 +13,7 @@ from litex.build.anlogic import common, anlogic
 # AnlogicPlatform ----------------------------------------------------------------------------------
 
 class AnlogicPlatform(GenericPlatform):
-    bitstream_ext = ".bit"
+    _bitstream_ext = ".bit"
 
     _supported_toolchains = ["td"]
 

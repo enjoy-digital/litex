@@ -16,7 +16,10 @@ from litex.build.efinix import EfinixDbParser
 # EfinixPlatform -----------------------------------------------------------------------------------
 
 class EfinixPlatform(GenericPlatform):
-    bitstream_ext = ".bit"
+    _bitstream_ext = {
+        "sram"  : ".bit",
+        "flash" : ".hex"
+    }
 
     _supported_toolchains = ["efinity"]
 

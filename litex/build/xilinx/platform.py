@@ -14,7 +14,10 @@ from litex.build.xilinx import common, vivado, ise, yosys_nextpnr
 # XilinxPlatform -----------------------------------------------------------------------------------
 
 class XilinxPlatform(GenericPlatform):
-    bitstream_ext = ".bit"
+    _bitstream_ext = {
+        "sram"  : ".bit",
+        "flash" : ".bin"
+    }
 
     _supported_toolchains = {
         "spartan6"    : ["ise"],
