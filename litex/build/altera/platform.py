@@ -13,7 +13,10 @@ from litex.build.altera import common, quartus
 # AlteraPlatform -----------------------------------------------------------------------------------
 
 class AlteraPlatform(GenericPlatform):
-    bitstream_ext = ".sof"
+    _bitstream_ext = {
+        "sram"  : ".sof",
+        "flash" : ".rbf"
+    }
     create_rbf    = True
 
     _supported_toolchains = ["quartus"]

@@ -323,6 +323,9 @@ class ConstraintManager:
 
 class GenericPlatform:
     device_family = None
+    _bitstream_ext = None # None by default, overridden by vendor platform, may
+                          # be a string when same extension is used for sram and
+                          # flash. A dict must be provided otherwise
 
     def __init__(self, device, io, connectors=[], name=None):
         self.toolchain          = None
@@ -462,6 +465,31 @@ class GenericPlatform:
 
     def build(self, fragment):
         raise NotImplementedError("GenericPlatform.build must be overloaded")
+
+    def get_bitstream_extension(self, mode="sram"):
+        """
+        Return the bitstream's extension according to mode (sram / flash).
+        The default (generic) implementation check if `self._bitstream_ext`
+        is a dict or a string. For former case it return extension using `mode`
+        parameter, in latter case simply return `self._bitstream_ext`'s value.
+        When this behaviour is not adapted this method must be overriden by
+        a specific one at vendor level.
+
+        Parameters
+        ----------
+        mode: str
+            bitstream destination (must be sram or flash)
+
+        Returns
+        -------
+            bitstream extension: str
+        """
+        if self._bitstream_ext is None:
+            return None
+        elif type(self._bitstream_ext) == dict:
+            return self._bitstream_ext[mode]
+        else:
+            return self._bitstream_ext
 
     def create_programmer(self):
         raise NotImplementedError

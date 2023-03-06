@@ -11,7 +11,7 @@ from litex.build.lattice import common, diamond, icestorm, trellis, radiant, oxi
 # LatticePlatform ----------------------------------------------------------------------------------
 
 class LatticePlatform(GenericPlatform):
-    bitstream_ext = ".bit"
+    _bitstream_ext = ".bit"
 
     _supported_toolchains = {
         "ice40" : ["icestorm"],
@@ -26,7 +26,7 @@ class LatticePlatform(GenericPlatform):
         elif toolchain == "trellis":
             self.toolchain = trellis.LatticeTrellisToolchain()
         elif toolchain == "icestorm":
-            self.bitstream_ext = ".bin"
+            self._bitstream_ext = ".bin"
             self.toolchain = icestorm.LatticeIceStormToolchain()
         elif toolchain == "radiant":
             self.toolchain = radiant.LatticeRadiantToolchain()
