@@ -19,7 +19,7 @@ from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV64
 
 # Variants -----------------------------------------------------------------------------------------
 
-CPU_VARIANTS = ["standard", "full"]
+CPU_VARIANTS = ["standard", "standard32", "full"]
 
 # GCC Flags ----------------------------------------------------------------------------------------
 
@@ -31,8 +31,9 @@ GCC_FLAGS = {
     #                       ||||/--- Single-Precision Floating-Point
     #                       |||||/-- Double-Precision Floating-Point
     #                       imacfd
-    "standard": "-march=rv64imac -mabi=lp64 ",
-    "full":     "-march=rv64gc   -mabi=lp64 ",
+    "standard":   "-march=rv64imac -mabi=lp64 ",
+    "standard32": "-march=rv32imac -mabi=ilp32 ",
+    "full":       "-march=rv64gc   -mabi=lp64 ",
 }
 
 # Helpers ------------------------------------------------------------------------------------------
@@ -61,12 +62,22 @@ class CVA6(CPU):
     name                 = "cva6"
     human_name           = "CVA6"
     variants             = CPU_VARIANTS
-    data_width           = 64
     endianness           = "little"
     gcc_triple           = CPU_GCC_TRIPLE_RISCV64
-    linker_output_format = "elf64-littleriscv"
     nop                  = "nop"
     io_regions           = {0x8000_0000: 0x8000_0000} # Origin, Length.
+
+    @property
+    def linker_output_format(self):
+        return f"elf{self.data_width}-littleriscv"
+
+    @property
+    def data_width(self):
+        if self.variant == "standard32":
+            return 32
+        else:
+            return 64
+
 
     # GCC Flags.
     @property
@@ -163,8 +174,12 @@ class CVA6(CPU):
         wrapper_root = os.path.join(os.path.abspath(os.path.dirname(__file__)), "cva6_wrapper")
         platform.add_source(os.path.join(wrapper_root, "cva6_defines.sv"))
         # TODO: use Flist.cv64a6_imafdc_sv39 and Flist.cv32a6_imac_sv0 instead
+        if self.variant == "standard32":
+            manifest = "Flist.cv32a6_imac_sv32"
+        else:
+            manifest = "Flist.cv64a6_imafdc_sv39"
         add_manifest_sources(platform, os.path.join(get_data_mod("cpu", "cva6").data_location,
-            "core", "Flist.cv64a6_imafdc_sv39"))
+            "core", manifest))
         # Add wrapper sources
         add_manifest_sources(platform, os.path.join(wrapper_root, "Flist.cva6_wrapper"))
 
