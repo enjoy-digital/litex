@@ -184,24 +184,20 @@ class CVA6(CPU):
         add_manifest_sources(platform, os.path.join(wrapper_root, "Flist.cva6_wrapper"))
 
     def add_jtag(self, pads):
-        from migen.fhdl.specials import Tristate
         self.jtag_tck  = Signal()
         self.jtag_tms  = Signal()
         self.jtag_trst = Signal()
         self.jtag_tdi  = Signal()
         self.jtag_tdo  = Signal()
 
-        tdo_o  = Signal()
         tdo_oe = Signal()
-        self.specials += Tristate(self.jtag_tdo, tdo_o, tdo_oe)
 
         self.cpu_params.update(
             i_trst_n = self.jtag_trst,
             i_tck    = self.jtag_tck,
             i_tms    = self.jtag_tms,
             i_tdi    = self.jtag_tdi,
-            o_tdo    = tdo_o,
-            o_tdo_oe = tdo_oe,
+            o_tdo    = self.jtag_tdo,
         )
 
     def set_reset_address(self, reset_address):
@@ -210,4 +206,6 @@ class CVA6(CPU):
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
+        if "i_trst_n" not in self.cpu_params:
+            self.cpu_params["i_trst_n"] = 1
         self.specials += Instance("cva6_wrapper", **self.cpu_params)

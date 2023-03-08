@@ -139,7 +139,8 @@ logic dmactive;
 logic [1:0] irq;
 assign test_en    = 1'b0;
 
-assign ndmreset_n = ~ndmreset;
+always @(posedge clk_i)
+    ndmreset_n <= ~ndmreset || rst_n;
 
 // ---------------
 // AXI Xbar
@@ -166,7 +167,7 @@ localparam axi_pkg::xbar_cfg_t AXI_XBAR_CFG = '{
   UniqueIds:          1'b0,
   AxiAddrWidth:       AxiAddrWidth,
   AxiDataWidth:       AxiDataWidth,
-  NoAddrRules:        NBSlave
+  NoAddrRules:        NBMaster
 };
 
 axi_xbar_intf #(
@@ -281,103 +282,76 @@ axi2mem #(
 
 if (riscv::XLEN==32 ) begin
 
-    axi_slave_req_t  axi_dmi_slv_req;
-    axi_slave_resp_t axi_dmi_slv_resp;
-
-    axi_dm_slave_req_t  axi_dmi_mst_req;
-    axi_dm_slave_resp_t axi_dmi_mst_resp;
-
-    `AXI_ASSIGN_TO_REQ(axi_dmi_slv_req, master[cva6_wrapper_pkg::Debug])
-    `AXI_ASSIGN_FROM_RESP(master[cva6_wrapper_pkg::Debug], axi_dmi_slv_resp)
-
-    `AXI_ASSIGN_FROM_REQ(master_to_dm[0], axi_dmi_mst_req)
-    `AXI_ASSIGN_TO_RESP(axi_dmi_mst_resp, master_to_dm[0])
-
-    assign master[cva6_wrapper_pkg::Debug].r_user ='0;
-    assign master[cva6_wrapper_pkg::Debug].b_user ='0;
- 
-    axi_dw_converter #(
-        .AxiMaxReads(1),
-        .AxiSlvPortDataWidth(64),
-        .AxiMstPortDataWidth(32),
-        .AxiAddrWidth(AxiAddrWidth),
-        .AxiIdWidth(5),
-        .aw_chan_t(ariane_axi::aw_chan_t),
-        .slv_w_chan_t(axi_slave_w_chan_t),
-        .mst_w_chan_t(axi_dm_slave_w_chan_t),
-        .b_chan_t(axi_slave_b_chan_t),
-        .ar_chan_t(axi_slave_ar_chan_t),
-        .mst_r_chan_t(axi_dm_slave_r_chan_t),
-        .slv_r_chan_t(axi_slave_r_chan_t),
-        .axi_slv_req_t(axi_slave_req_t),
-        .axi_slv_resp_t(axi_slave_resp_t),
-        .axi_mst_req_t(axi_dm_slave_req_t),
-        .axi_mst_resp_t(axi_dm_slave_resp_t)
-    ) i_downsizer_dm_slave (
-        .clk_i(clk_i),
+    axi_dw_converter_intf #(
+        .AXI_MAX_READS          (1                    ),
+        .AXI_ADDR_WIDTH         (64                   ),
+        .AXI_ID_WIDTH           (AxiIdWidthSlaves     ),
+        .AXI_SLV_PORT_DATA_WIDTH(64                   ),
+        .AXI_MST_PORT_DATA_WIDTH(32                   ),
+        .AXI_USER_WIDTH         (AxiUserWidth         )
+    ) i_dw_converter (
+        .clk_i (clk_i),
         .rst_ni(ndmreset_n),
-        .slv_req_i(axi_dmi_slv_req),
-        .slv_resp_o(axi_dmi_slv_resp),
-        .mst_req_o(axi_dmi_mst_req),
-        .mst_resp_i(axi_dmi_mst_resp)
+        .slv   (master[cva6_wrapper_pkg::Debug]),
+        .mst   (master_to_dm[0])
     );
 
 end else begin
 
-    assign master[cva6_wrapper_pkg::Debug].aw_id = master_to_dm[0].aw_id;
-    assign master[cva6_wrapper_pkg::Debug].aw_addr = master_to_dm[0].aw_addr;
-    assign master[cva6_wrapper_pkg::Debug].aw_len = master_to_dm[0].aw_len;
-    assign master[cva6_wrapper_pkg::Debug].aw_size = master_to_dm[0].aw_size;
-    assign master[cva6_wrapper_pkg::Debug].aw_burst = master_to_dm[0].aw_burst;
-    assign master[cva6_wrapper_pkg::Debug].aw_lock = master_to_dm[0].aw_lock;
-    assign master[cva6_wrapper_pkg::Debug].aw_cache = master_to_dm[0].aw_cache;
-    assign master[cva6_wrapper_pkg::Debug].aw_prot = master_to_dm[0].aw_prot;
-    assign master[cva6_wrapper_pkg::Debug].aw_qos = master_to_dm[0].aw_qos;
-    assign master[cva6_wrapper_pkg::Debug].aw_atop = master_to_dm[0].aw_atop;
-    assign master[cva6_wrapper_pkg::Debug].aw_region = master_to_dm[0].aw_region;
-    assign master[cva6_wrapper_pkg::Debug].aw_user = master_to_dm[0].aw_user;
-    assign master[cva6_wrapper_pkg::Debug].aw_valid = master_to_dm[0].aw_valid;
+    assign master_to_dm[0].aw_id = master[cva6_wrapper_pkg::Debug].aw_id;
+    assign master_to_dm[0].aw_addr = master[cva6_wrapper_pkg::Debug].aw_addr;
+    assign master_to_dm[0].aw_len = master[cva6_wrapper_pkg::Debug].aw_len;
+    assign master_to_dm[0].aw_size = master[cva6_wrapper_pkg::Debug].aw_size;
+    assign master_to_dm[0].aw_burst = master[cva6_wrapper_pkg::Debug].aw_burst;
+    assign master_to_dm[0].aw_lock = master[cva6_wrapper_pkg::Debug].aw_lock;
+    assign master_to_dm[0].aw_cache = master[cva6_wrapper_pkg::Debug].aw_cache;
+    assign master_to_dm[0].aw_prot = master[cva6_wrapper_pkg::Debug].aw_prot;
+    assign master_to_dm[0].aw_qos = master[cva6_wrapper_pkg::Debug].aw_qos;
+    assign master_to_dm[0].aw_atop = master[cva6_wrapper_pkg::Debug].aw_atop;
+    assign master_to_dm[0].aw_region = master[cva6_wrapper_pkg::Debug].aw_region;
+    assign master_to_dm[0].aw_user = master[cva6_wrapper_pkg::Debug].aw_user;
+    assign master_to_dm[0].aw_valid = master[cva6_wrapper_pkg::Debug].aw_valid;
 
-    assign master_to_dm[0].aw_ready =master[cva6_wrapper_pkg::Debug].aw_ready;
+    assign master[cva6_wrapper_pkg::Debug].aw_ready = master_to_dm[0].aw_ready;
 
-    assign master[cva6_wrapper_pkg::Debug].w_data = master_to_dm[0].w_data;
-    assign master[cva6_wrapper_pkg::Debug].w_strb = master_to_dm[0].w_strb;
-    assign master[cva6_wrapper_pkg::Debug].w_last = master_to_dm[0].w_last;
-    assign master[cva6_wrapper_pkg::Debug].w_user = master_to_dm[0].w_user;
-    assign master[cva6_wrapper_pkg::Debug].w_valid = master_to_dm[0].w_valid;
+    assign master_to_dm[0].w_data = master[cva6_wrapper_pkg::Debug].w_data;
+    assign master_to_dm[0].w_strb = master[cva6_wrapper_pkg::Debug].w_strb;
+    assign master_to_dm[0].w_last = master[cva6_wrapper_pkg::Debug].w_last;
+    assign master_to_dm[0].w_user = master[cva6_wrapper_pkg::Debug].w_user;
+    assign master_to_dm[0].w_valid = master[cva6_wrapper_pkg::Debug].w_valid;
 
-    assign master_to_dm[0].w_ready =master[cva6_wrapper_pkg::Debug].w_ready;
+    assign master[cva6_wrapper_pkg::Debug].w_ready = master_to_dm[0].w_ready;
 
-    assign master_to_dm[0].b_id =master[cva6_wrapper_pkg::Debug].b_id;
-    assign master_to_dm[0].b_resp =master[cva6_wrapper_pkg::Debug].b_resp;
-    assign master_to_dm[0].b_user =master[cva6_wrapper_pkg::Debug].b_user;
-    assign master_to_dm[0].b_valid =master[cva6_wrapper_pkg::Debug].b_valid;
+    assign master[cva6_wrapper_pkg::Debug].b_id = master_to_dm[0].b_id;
+    assign master[cva6_wrapper_pkg::Debug].b_resp = master_to_dm[0].b_resp;
+    assign master[cva6_wrapper_pkg::Debug].b_user = master_to_dm[0].b_user;
+    assign master[cva6_wrapper_pkg::Debug].b_valid = master_to_dm[0].b_valid;
 
-    assign master[cva6_wrapper_pkg::Debug].b_ready = master_to_dm[0].b_ready;
+    assign master_to_dm[0].b_ready = master[cva6_wrapper_pkg::Debug].b_ready;
 
-    assign master[cva6_wrapper_pkg::Debug].ar_id = master_to_dm[0].ar_id;
-    assign master[cva6_wrapper_pkg::Debug].ar_addr = master_to_dm[0].ar_addr;
-    assign master[cva6_wrapper_pkg::Debug].ar_len = master_to_dm[0].ar_len;
-    assign master[cva6_wrapper_pkg::Debug].ar_size = master_to_dm[0].ar_size;
-    assign master[cva6_wrapper_pkg::Debug].ar_burst = master_to_dm[0].ar_burst;
-    assign master[cva6_wrapper_pkg::Debug].ar_lock = master_to_dm[0].ar_lock;
-    assign master[cva6_wrapper_pkg::Debug].ar_cache = master_to_dm[0].ar_cache;
-    assign master[cva6_wrapper_pkg::Debug].ar_prot = master_to_dm[0].ar_prot;
-    assign master[cva6_wrapper_pkg::Debug].ar_qos = master_to_dm[0].ar_qos;
-    assign master[cva6_wrapper_pkg::Debug].ar_region = master_to_dm[0].ar_region;
-    assign master[cva6_wrapper_pkg::Debug].ar_user = master_to_dm[0].ar_user;
-    assign master[cva6_wrapper_pkg::Debug].ar_valid = master_to_dm[0].ar_valid;
+    assign master_to_dm[0].ar_id = master[cva6_wrapper_pkg::Debug].ar_id;
+    assign master_to_dm[0].ar_addr = master[cva6_wrapper_pkg::Debug].ar_addr;
+    assign master_to_dm[0].ar_len = master[cva6_wrapper_pkg::Debug].ar_len;
+    assign master_to_dm[0].ar_size = master[cva6_wrapper_pkg::Debug].ar_size;
+    assign master_to_dm[0].ar_burst = master[cva6_wrapper_pkg::Debug].ar_burst;
+    assign master_to_dm[0].ar_lock = master[cva6_wrapper_pkg::Debug].ar_lock;
+    assign master_to_dm[0].ar_cache = master[cva6_wrapper_pkg::Debug].ar_cache;
+    assign master_to_dm[0].ar_prot = master[cva6_wrapper_pkg::Debug].ar_prot;
+    assign master_to_dm[0].ar_qos = master[cva6_wrapper_pkg::Debug].ar_qos;
+    assign master_to_dm[0].ar_region = master[cva6_wrapper_pkg::Debug].ar_region;
+    assign master_to_dm[0].ar_user = master[cva6_wrapper_pkg::Debug].ar_user;
+    assign master_to_dm[0].ar_valid = master[cva6_wrapper_pkg::Debug].ar_valid;
 
-    assign master_to_dm[0].ar_ready =master[cva6_wrapper_pkg::Debug].ar_ready;
+    assign master[cva6_wrapper_pkg::Debug].ar_ready = master_to_dm[0].ar_ready;
 
-    assign master_to_dm[0].r_id =master[cva6_wrapper_pkg::Debug].r_id;
-    assign master_to_dm[0].r_data =master[cva6_wrapper_pkg::Debug].r_data;
-    assign master_to_dm[0].r_resp =master[cva6_wrapper_pkg::Debug].r_resp;
-    assign master_to_dm[0].r_last =master[cva6_wrapper_pkg::Debug].r_last;
-    assign master_to_dm[0].r_user =master[cva6_wrapper_pkg::Debug].r_user;
-    assign master_to_dm[0].r_valid =master[cva6_wrapper_pkg::Debug].r_valid;
+    assign master[cva6_wrapper_pkg::Debug].r_id = master_to_dm[0].r_id;
+    assign master[cva6_wrapper_pkg::Debug].r_data = master_to_dm[0].r_data;
+    assign master[cva6_wrapper_pkg::Debug].r_resp = master_to_dm[0].r_resp;
+    assign master[cva6_wrapper_pkg::Debug].r_last = master_to_dm[0].r_last;
+    assign master[cva6_wrapper_pkg::Debug].r_user = master_to_dm[0].r_user;
+    assign master[cva6_wrapper_pkg::Debug].r_valid = master_to_dm[0].r_valid;
 
-    assign master[cva6_wrapper_pkg::Debug].r_ready = master_to_dm[0].r_ready;
+    assign master_to_dm[0].r_ready = master[cva6_wrapper_pkg::Debug].r_ready;
 
 end 
 
@@ -427,7 +401,7 @@ ariane #(
     .ArianeCfg ( cva6_wrapper_pkg::CVA6Cfg )
 ) i_ariane (
     .clk_i        ( clk_i               ),
-    .rst_ni       ( rst_n /*ndmreset_n*/          ),
+    .rst_ni       ( ndmreset_n          ),
     .boot_addr_i  ( cva6_wrapper_pkg::ExternalBase ),
     .hart_id_i    ( '0                  ),
     .irq_i        ( irq                 ),
