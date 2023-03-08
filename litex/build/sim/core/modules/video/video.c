@@ -99,7 +99,6 @@ static int videosim_add_pads(void *sess, struct pad_list_s *plist)
     litex_sim_module_pads_get(pads, "hsync", (void**)&s->hsync);
     litex_sim_module_pads_get(pads, "vsync", (void**)&s->vsync);
     litex_sim_module_pads_get(pads, "de", (void**)&s->de);
-    litex_sim_module_pads_get(pads, "valid", (void**)&s->valid);
     litex_sim_module_pads_get(pads, "r", (void**)&s->r);
     litex_sim_module_pads_get(pads, "g", (void**)&s->g);
     litex_sim_module_pads_get(pads, "b", (void**)&s->b);
@@ -154,16 +153,12 @@ static int videosim_tick(void *sess, uint64_t time_ps) {
   {
     if(s->pbuf)
     {
-      if(*s->valid) //mitigate underflow
-      {
-        *s->pbuf++ = *s->r;
-        *s->pbuf++ = *s->g;
-        *s->pbuf++ = *s->b;
-        s->pbuf++;
-      }
+      *s->pbuf++ = *s->r;
+      *s->pbuf++ = *s->g;
+      *s->pbuf++ = *s->b;
+      s->pbuf++;
     }
-    if(*s->valid)
-      s->x = s->x + 1;
+    s->x = s->x + 1;
   }
   else if(s->x != 0)
   {

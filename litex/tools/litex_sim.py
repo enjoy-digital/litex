@@ -43,6 +43,8 @@ from liteeth.core import LiteEthUDPIPCore
 from liteeth.frontend.etherbone import LiteEthEtherbone
 from liteeth.common import *
 
+from litex.soc.cores.video import VideoGenericPHY
+
 from litescope import LiteScopeAnalyzer
 
 # IOs ----------------------------------------------------------------------------------------------
@@ -127,15 +129,14 @@ _io = [
         Subsignal("i",  Pins(32)),
     ),
 
-    # Video
+    # Video (VGA).
     ("vga", 0,
         Subsignal("hsync", Pins(1)),
         Subsignal("vsync", Pins(1)),
-        Subsignal("de", Pins(1)),
-        Subsignal("valid", Pins(1)),
-        Subsignal("r",  Pins(8)),
-        Subsignal("g",  Pins(8)),
-        Subsignal("b",  Pins(8)),
+        Subsignal("de",    Pins(1)),
+        Subsignal("r",     Pins(8)),
+        Subsignal("g",     Pins(8)),
+        Subsignal("b",     Pins(8)),
     )
 ]
 
@@ -144,36 +145,6 @@ _io = [
 class Platform(SimPlatform):
     def __init__(self):
         SimPlatform.__init__(self, "SIM", _io)
-
-# Video
-from litex.soc.cores.video import video_data_layout, video_timing_layout
-class VideoPHYModel(Module, AutoCSR):
-    def __init__(self, pads, clock_domain="sys"):
-        self.sink = sink = stream.Endpoint(video_data_layout)
-
-        # # #
-
-        # Always ack Sink, no backpressure.
-        self.comb += sink.ready.eq(1)
-
-        # Drive Clk.
-        if hasattr(pads, "clk"):
-            self.comb += pads.clk.eq(ClockSignal(clock_domain))
-
-        # Drive Controls.
-        self.comb += pads.valid.eq(1) #may be overriden with underflow from the framebuffer
-        self.comb += pads.de.eq(sink.de)
-        self.comb += pads.hsync.eq(sink.hsync)
-        self.comb += pads.vsync.eq(sink.vsync)
-
-        # Drive Datas.
-        cbits  = len(pads.r)
-        cshift = (8 - cbits)
-        for i in range(cbits):
-            self.comb += pads.r[i].eq(sink.r[cshift + i] & sink.de)
-            self.comb += pads.g[i].eq(sink.g[cshift + i] & sink.de)
-            self.comb += pads.b[i].eq(sink.b[cshift + i] & sink.de)
-
 
 # Simulation SoC -----------------------------------------------------------------------------------
 
@@ -338,13 +309,13 @@ class SimSoC(SoCCore):
         # Video Framebuffer ------------------------------------------------------------------------
         if with_video_framebuffer:
             video_pads = platform.request("vga")
-            self.submodules.videophy = VideoPHYModel(video_pads)
+            self.submodules.videophy = VideoGenericPHY(video_pads)
             self.add_video_framebuffer(phy=self.videophy, timings="640x480@60Hz", format="rgb888")
             self.videophy.comb += video_pads.valid.eq(~self.video_framebuffer.underflow)
 
         # Video Terminal ---------------------------------------------------------------------------
         if with_video_terminal:
-            self.submodules.videophy = VideoPHYModel(platform.request("vga"))
+            self.submodules.videophy = VideoGenericPHY(platform.request("vga"))
             self.add_video_terminal(phy=self.videophy, timings="640x480@60Hz")
 
         # Simulation debugging ----------------------------------------------------------------------
@@ -542,21 +513,21 @@ def main():
 
     # SoC ------------------------------------------------------------------------------------------
     soc = SimSoC(
-        with_sdram         = args.with_sdram,
-        with_sdram_bist    = args.with_sdram_bist,
-        with_ethernet      = args.with_ethernet,
-        ethernet_phy_model = args.ethernet_phy_model,
-        with_etherbone     = args.with_etherbone,
-        with_analyzer      = args.with_analyzer,
-        with_i2c           = args.with_i2c,
-        with_sdcard        = args.with_sdcard,
-        with_spi_flash     = args.with_spi_flash,
-        with_gpio          = args.with_gpio,
+        with_sdram             = args.with_sdram,
+        with_sdram_bist        = args.with_sdram_bist,
+        with_ethernet          = args.with_ethernet,
+        ethernet_phy_model     = args.ethernet_phy_model,
+        with_etherbone         = args.with_etherbone,
+        with_analyzer          = args.with_analyzer,
+        with_i2c               = args.with_i2c,
+        with_sdcard            = args.with_sdcard,
+        with_spi_flash         = args.with_spi_flash,
+        with_gpio              = args.with_gpio,
         with_video_framebuffer = args.with_video_framebuffer,
-        with_video_terminal = args.with_video_terminal,
-        sim_debug          = args.sim_debug,
-        trace_reset_on     = int(float(args.trace_start)) > 0 or int(float(args.trace_end)) > 0,
-        spi_flash_init     = None if args.spi_flash_init is None else get_mem_data(args.spi_flash_init, endianness="big"),
+        with_video_terminal    = args.with_video_terminal,
+        sim_debug              = args.sim_debug,
+        trace_reset_on         = int(float(args.trace_start)) > 0 or int(float(args.trace_end)) > 0,
+        spi_flash_init         = None if args.spi_flash_init is None else get_mem_data(args.spi_flash_init, endianness="big"),
         **soc_kwargs)
     if ram_boot_address is not None:
         if ram_boot_address == 0:
