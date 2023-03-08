@@ -61,7 +61,7 @@ out:
 
 static int litex_sim_module_pads_get( struct pad_s *pads, char *name, void **signal)
 {
-  int ret;
+  int ret = RC_OK;
   void *sig = NULL;
   int i;
 
