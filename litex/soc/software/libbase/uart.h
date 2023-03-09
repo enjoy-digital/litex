@@ -10,7 +10,7 @@ extern "C" {
 #ifdef CSR_UART0_BASE
 #define CSR_UART_BASE           CSR_UART0_BASE
 #define UART_INTERRUPT          UART0_INTERRUPT
-#define uart_txfull_read	    uart0_txfull_read
+#define uart_txfull_read        uart0_txfull_read
 #define uart_rxtx_read        	uart0_rxtx_read
 #define uart_rxtx_write       	uart0_rxtx_write
 #define uart_ev_enable_write  	uart0_ev_enable_write
