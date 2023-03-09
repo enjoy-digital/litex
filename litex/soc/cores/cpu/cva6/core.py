@@ -16,6 +16,7 @@ from litex import get_data_mod
 from litex.soc.interconnect import axi
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV64
+from litex.build.xilinx import XilinxPlatform
 
 # Variants -----------------------------------------------------------------------------------------
 
@@ -52,7 +53,12 @@ def add_manifest_sources(platform, manifest):
                 if re.match('\+incdir\+', l):
                     platform.add_verilog_include_path(os.path.join(basedir, res.group(2)))
                 else:
-                    platform.add_source(os.path.join(basedir, res.group(2)))
+                    filename = res.group(2)
+                    if isinstance(platform, XilinxPlatform): # TODO: other FPGAs
+                        if filename.endswith("tc_sram_wrapper.sv"):
+                            filename = filename.replace("tc_sram_wrapper.sv", "tc_sram_fpga_wrapper.sv")
+                            platform.add_source(os.path.join(basedir, "common/local/techlib/fpga/rtl/SyncSpRamBeNx64.sv"))
+                    platform.add_source(os.path.join(basedir, filename))
 
 # CVA6 ---------------------------------------------------------------------------------------------
 
