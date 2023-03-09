@@ -102,6 +102,9 @@ define_command(romboot, romboot, "Boot from ROM", BOOT_CMDS);
  * Boot software from serial interface
  *
  */
+#ifdef CSR_UART0_BASE
+#define CSR_UART_BASE           CSR_UART0_BASE
+#endif
 #ifdef CSR_UART_BASE
 define_command(serialboot, serialboot, "Boot from Serial (SFL)", BOOT_CMDS);
 #endif
