@@ -311,7 +311,6 @@ class SimSoC(SoCCore):
             video_pads = platform.request("vga")
             self.submodules.videophy = VideoGenericPHY(video_pads)
             self.add_video_framebuffer(phy=self.videophy, timings="640x480@60Hz", format="rgb888")
-            self.videophy.comb += video_pads.valid.eq(~self.video_framebuffer.underflow)
 
         # Video Terminal ---------------------------------------------------------------------------
         if with_video_terminal:
