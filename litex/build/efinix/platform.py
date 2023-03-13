@@ -23,12 +23,13 @@ class EfinixPlatform(GenericPlatform):
 
     _supported_toolchains = ["efinity"]
 
-    def __init__(self, *args, iobank_info=None, toolchain="efinity", **kwargs):
+    def __init__(self, *args, iobank_info=None, toolchain="efinity", spi_mode="active", **kwargs):
         GenericPlatform.__init__(self, *args, **kwargs)
 
         self.timing_model = self.device[-2:]
         self.device       = self.device[:-2]
         self.iobank_info  = iobank_info
+        self.spi_mode     = spi_mode
         if self.device[:2] == "Ti":
             self.family = "Titanium"
         else:
