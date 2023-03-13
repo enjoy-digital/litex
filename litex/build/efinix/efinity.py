@@ -344,7 +344,7 @@ class EfinityToolchain(GenericToolchain):
             "--spi_low_power_mode",       "off",
             "--io_weak_pullup",           "on",
             "--enable_roms",              "on",
-            "--mode",                     "active",
+            "--mode",                     self.platform.spi_mode,
             "--width",                    "1",
             "--enable_crc_check",         "on"
         ], common.colors)
