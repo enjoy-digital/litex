@@ -140,7 +140,7 @@ logic [1:0] irq;
 assign test_en    = 1'b0;
 
 always @(posedge clk_i)
-    ndmreset_n <= ~ndmreset || rst_n;
+    ndmreset_n <= ~ndmreset && rst_n;
 
 // ---------------
 // AXI Xbar
