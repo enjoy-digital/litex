@@ -1,7 +1,8 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2019-2023 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2023      Jeremy Herbert <jeremy.006@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
@@ -14,9 +15,9 @@ from litex.soc.interconnect.csr import *
 class I2CMaster(Module, AutoCSR):
     """I2C bus master (bit-banged).
 
-    This core provides minimal hardware for use as a software controlled bit-banged I2C bus master. I2C uses a
-    tristate/open-drain output driver configuration with pull-up resistors, and this core expects that the pull-ups will
-    be provided externally.
+    This core provides minimal hardware for use as a software controlled bit-banged I2C bus master.
+    I2C uses a tristate/open-drain output driver configuration with pull-up resistors, and this core
+    expects that the pull-ups will be provided externally.
 
     Further information about the I2C bus can be found in the I2C standard document from NXP, `UM10204`_.
 
@@ -28,25 +29,21 @@ class I2CMaster(Module, AutoCSR):
         """
         Class constructor.
 
-        :param pads: (optional) A ``Record`` object containing the pads ``scl`` and ``sda``.
-        :param default_dev: (optional) A `bool` indicating whether this I2C master should be used as the default I2C
-                            interface (default is ``False``)
+        :param pads        : (optional) A ``Record`` object containing the pads ``scl`` and ``sda``.
+        :param default_dev : (optional) A `bool` indicating whether this I2C master should be used as
+                             the default I2C interface (default is ``False``).
         """
         self.init = []
         if pads is None:
             pads = Record(self.pads_layout)
         self.pads = pads
         self._w = CSRStorage(fields=[
-            CSRField("scl", size=1, offset=0, reset=1, access=CSRAccess.WriteOnly,
-                     description="Drives the state of the SCL pad."),
-            CSRField("oe",  size=1, offset=1, access=CSRAccess.WriteOnly,
-                     description="Output Enable - if 0, both the SCL and SDA output drivers are disconnected."),
-            CSRField("sda", size=1, offset=2, reset=1, access=CSRAccess.WriteOnly,
-                     description="Drives the state of the SDA pad.")],
+            CSRField("scl", size=1, offset=0, reset=1, description="Drives the state of the SCL pad."),
+            CSRField("oe",  size=1, offset=1,          description="Output Enable - if 0, both the SCL and SDA output drivers are disconnected."),
+            CSRField("sda", size=1, offset=2, reset=1, description="Drives the state of the SDA pad.")],
             name="w")
         self._r = CSRStatus(fields=[
-            CSRField("sda", size=1, offset=0, access=CSRAccess.ReadOnly,
-                     description="Contains the current state of the SDA pad.")],
+            CSRField("sda", size=1, offset=0, description="Contains the current state of the SDA pad.")],
             name="r")
 
         self.default_dev = default_dev
@@ -55,31 +52,32 @@ class I2CMaster(Module, AutoCSR):
 
     def connect(self, pads):
         """
-        Attaches the signals from inside the core to the input/output pads. This function is normally only called from
-        inside the class constructor.
+        Attaches the signals from inside the core to the input/output pads. This function is normally
+        only called from inside the class constructor.
 
         :param pads: A ``Record`` object containing the pads ``scl`` and ``sda``.
         """
         # SCL
         self.specials += Tristate(pads.scl,
-            o  = 0,  # I2C uses Pull-ups, only drive low.
-            oe = ~self._w.fields.scl  # Drive when scl is low.
+            o  = 0,                  # I2C uses Pull-ups, only drive low.
+            oe = ~self._w.fields.scl # Drive when scl is low.
         )
         # SDA
         self.specials += Tristate(pads.sda,
-            o  = 0,  # I2C uses Pull-ups, only drive low.
-            oe = self._w.fields.oe & ~self._w.fields.sda,  # Drive when oe and sda is low.
+            o  = 0,                                       # I2C uses Pull-ups, only drive low.
+            oe = self._w.fields.oe & ~self._w.fields.sda, # Drive when oe and sda is low.
             i  = self._r.fields.sda
         )
 
     def add_init(self, addr, init, init_addr_len=1):
         """
-        Adds an I2C write transaction that will be executed on startup. This method can be called multiple times to add
-        multiple transactions that will be executed in order for this core instance.
+        Adds an I2C write transaction that will be executed on startup. This method can be called
+        multiple times to add multiple transactions that will be executed in order for this core
+        instance.
 
-        :param addr: The I2C slave address to write to
-        :param init: The bytes to write to the slave.
-        :param init_addr_len: (optional) The init address length in bytes (default is 1)
+        :param addr          : The I2C slave address to write to.
+        :param init          : The bytes to write to the slave.
+        :param init_addr_len : (optional) The init address length in bytes (default is 1).
         """
         if init_addr_len not in (1, 2):
             raise ValueError("I2C slave addresses can only have a length of one or two bytes")
@@ -124,15 +122,16 @@ class I2CMasterSim(I2CMaster):
 
 def collect_i2c_info(soc):
     """
-    Collects all the I2C write transactions that have been added to run on startup for all ``I2CMaster`` instances
-    into a single list. This information is used to generate C header files in ``litex.soc.integration.export``.
+    Collects all the I2C write transactions that have been added to run on startup for all ``I2CMaster``
+    instances into a single list. This information is used to generate C header files in
+    ``litex.soc.integration.export``.
 
     See ``I2CMaster.add_init`` for more information.
 
     :param soc: ``SoCBase`` instance to scan for ``I2CMaster`` instances.
-    :return: ``i2c_devs, i2c_init`` where ``i2c_devs`` is a list of all ``I2CMaster`` instances, and ``i2c_init`` is
-             a list of tuples, where each tuple is (core instance name, slave address, bytes to write, slave address
-             length in bytes)
+    :return: ``i2c_devs, i2c_init`` where ``i2c_devs`` is a list of all ``I2CMaster`` instances, and
+    ``i2c_init`` is a list of tuples, where each tuple is (core instance name, slave address, bytes
+    to write, slave address length in bytes).
     """
     i2c_init = []
     i2c_devs = []
@@ -151,8 +150,8 @@ class SPIMaster(Module, AutoCSR):
 
     This core provides minimal hardware for use as a software controlled bit-banged SPI bus master.
 
-    This core supports the typical SPI pads (MOSI, MISO, CLK) and a maximum of 4 CS outputs. If pull-up resistors are
-    needed for 3 wire operation, they must be added externally.
+    This core supports the typical SPI pads (MOSI, MISO, CLK) and a maximum of 4 CS outputs.
+    If pull-up resistors are needed for 3 wire operation, they must be added externally.
     """
     pads_layout = [("clk", 1), ("cs_n", 4), ("mosi", 1), ("miso", 1)]
 
@@ -170,20 +169,14 @@ class SPIMaster(Module, AutoCSR):
             raise ValueError("This core only supports a maximum of 4 CS outputs")
 
         self._w = CSRStorage(fields=[
-            CSRField("clk",  size=1, offset=0, access=CSRAccess.WriteOnly,
-                     description="Drives the state of the CLK pad."),
-            CSRField("mosi", size=1, offset=1, access=CSRAccess.WriteOnly,
-                     description="Drives the state of the MOSI pad."),
-            CSRField("oe",   size=1, offset=2, access=CSRAccess.WriteOnly,
-                     description="Output Enable for MOSI - if 0, the MOSI output driver is disconnected."),
-            CSRField("cs",   size=4, offset=4, access=CSRAccess.WriteOnly,
-                     description="Drives the state of the CS pads (up to 4, active high).")],
+            CSRField("clk",  size=1, offset=0, description="Drives the state of the CLK pad."),
+            CSRField("mosi", size=1, offset=1, description="Drives the state of the MOSI pad."),
+            CSRField("oe",   size=1, offset=2, description="Output Enable for MOSI - if 0, the MOSI output driver is disconnected."),
+            CSRField("cs",   size=4, offset=4, description="Drives the state of the CS pads (up to 4, active high).")],
             name="w", description="SPI master output pad controls.")
         self._r = CSRStatus(fields=[
-            CSRField("miso", size=1, offset=0, access=CSRAccess.ReadOnly,
-                     description="Contains the current state of the MISO pad."),
-            CSRField("mosi", size=1, offset=1, access=CSRAccess.ReadOnly,
-                     description="Contains the current state of the MOSI pad.")],
+            CSRField("miso", size=1, offset=0, description="Contains the current state of the MISO pad."),
+            CSRField("mosi", size=1, offset=1, description="Contains the current state of the MOSI pad.")],
             name="r", description="SPI master input pad states.")
 
         # # #
