@@ -54,7 +54,7 @@ def add_manifest_sources(platform, manifest):
                     platform.add_verilog_include_path(os.path.join(basedir, res.group(2)))
                 else:
                     filename = res.group(2)
-                    if isinstance(platform, XilinxPlatform): # TODO: other FPGAs
+                    if True: # TODO: other FPGAs
                         if filename.endswith("tc_sram_wrapper.sv"):
                             filename = filename.replace("tc_sram_wrapper.sv", "tc_sram_fpga_wrapper.sv")
                             platform.add_source(os.path.join(basedir, "common/local/techlib/fpga/rtl/SyncSpRamBeNx64.sv"))
@@ -119,7 +119,7 @@ class CVA6(CPU):
         self.cpu_params = dict(
             # Clk / Rst.
             i_clk_i       = ClockSignal("sys"),
-            i_rst_n       = ~ResetSignal("sys") | self.reset,
+            i_rst_n       = ~ResetSignal("sys") & ~self.reset,
 
             # Interrupts
             i_irq_sources = self.interrupt,
