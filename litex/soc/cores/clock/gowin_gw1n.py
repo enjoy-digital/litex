@@ -120,9 +120,9 @@ class GW1NPLL(Module):
         self.nclkouts += 1
 
     def compute_config(self):
-        config = {}
+        configs = [] # corresponding VCO/FBDIV/IDIV/ODIV params + diff
+
         for idiv in range(1, 64):
-            config["idiv"] = idiv
             pfd_freq = self.clkin_freq/idiv
             pfd_freq_min, pfd_freq_max = self.pfd_freq_range
             if (pfd_freq < pfd_freq_min) or (pfd_freq > pfd_freq_max):
@@ -130,19 +130,23 @@ class GW1NPLL(Module):
             for fdiv in range(1, 64):
                 out_freq = self.clkin_freq*fdiv/idiv
                 for odiv in [2, 4, 8, 16, 32, 48, 64, 80, 96, 112, 128]:
-                    config["odiv"] = odiv
                     vco_freq = out_freq*odiv
                     (vco_freq_min, vco_freq_max) = self.vco_freq_range
                     if (vco_freq >= vco_freq_min*(1 + self.vco_margin) and
                         vco_freq <= vco_freq_max*(1 - self.vco_margin)):
                             for _n, (clk, f, p, _m) in sorted(self.clkouts.items()):
-                                if abs(out_freq - f) <= f*_m:
-                                    config["clk{}_freq".format(_n)] = out_freq
-                                    config["vco"]  = vco_freq
-                                    config["fdiv"] = fdiv
-                                    compute_config_log(self.logger, config)
-                                    return config
-        raise ValueError("No PLL config found")
+                                diff = abs(out_freq - f)
+                                if diff <= f*_m:
+                                    configs.append({
+                                        "diff" : diff,
+                                        "idiv" : idiv,
+                                        "odiv" : odiv,
+                                        "vco"  : vco_freq,
+                                        "fdiv" : fdiv
+                                    })
+        if len(configs) == 0:
+            raise ValueError("No PLL config found")
+        return configs[min([(i, v["diff"]) for i, v in enumerate(configs)], key=lambda p: p[1])[0]]
 
     def do_finalize(self):
         assert hasattr(self, "clkin")
@@ -184,8 +188,14 @@ class GW1NPLL(Module):
             i_IDSEL   = Constant(0, 6), # Dynamic FDIV control.
             i_PSDA    = Constant(0, 4), # Dynamic phase control.
             i_DUTYDA  = Constant(0, 4), # Dynamic duty cycle control.
-            i_FDLY    = Constant(0, 4), # Dynamic CLKOUTP delay control.
         )
+
+        # Dynamic CLKOUTP delay control. UG286 table 5-9
+        if self.device.startswith("GW1N-1"):
+            self.params.update(i_FDLY=Constant(0, 4))
+        else:
+            self.params.update(i_FDLY=Constant(0xf, 4))
+
         if self.device.startswith('GW1NS'):
             instance_name = 'PLLVR'
             self.params.update(i_VREN=1)
