@@ -181,6 +181,10 @@ class NaxRiscv(CPU):
             i_peripheral_dbus_rresp   = dbus.r.resp,
         )
 
+        # IRQs (Note: 0 is reserved as a "No IRQ").
+        self.interrupts.update({"uart"   : 1})
+        self.interrupts.update({"timer0" : 2})
+
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
 
@@ -293,12 +297,9 @@ class NaxRiscv(CPU):
         platform.add_source(os.path.join(vdir,  self.netlist_name + ".v"), "verilog")
 
     def add_soc_components(self, soc):
-        # Set UART/Timer0 CSRs/IRQs to the ones used by OpenSBI.
+        # Set UART/Timer0 CSRs to the ones used by OpenSBI.
         soc.csr.add("uart",   n=2)
         soc.csr.add("timer0", n=3)
-
-        soc.irq.add("uart",   n=0)
-        soc.irq.add("timer0", n=1)
 
         # Add OpenSBI region.
         soc.bus.add_region("opensbi", SoCRegion(origin=self.mem_map["main_ram"] + 0x00f0_0000, size=0x8_0000, cached=True, linker=True))
