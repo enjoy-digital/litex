@@ -4,9 +4,16 @@ from setuptools import setup
 from setuptools import find_packages
 
 
+with open("README.md", "r") as fp:
+    long_description = fp.read()
+
+
 setup(
     name="litex",
+    version="2022.12",
     description="Python SoC/Core builder for building FPGA based systems.",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
     author="Florent Kermarrec",
     author_email="florent@enjoy-digital.fr",
     url="http://enjoy-digital.fr",
@@ -15,10 +22,19 @@ setup(
     license="BSD",
     python_requires="~=3.6",
     install_requires=[
+        "migen",
         "packaging",
         "pyserial",
         "requests",
     ],
+    extras_require={
+        "develop": [
+          "meson"
+          "pexpect"
+          "setuptools"
+          "requests"
+        ]
+    },
     packages=find_packages(exclude=("test*", "sim*", "doc*")),
     include_package_data=True,
     package_data={
@@ -29,7 +45,7 @@ setup(
     classifiers=[
         "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
         "Environment :: Console",
-        "Development Status :: Alpha",
+        "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
