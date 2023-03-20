@@ -31,19 +31,19 @@ class LedChaser(Module, AutoCSR):
         chaser = Signal(self.n)
         mode   = Signal(reset=_CHASER_MODE)
         timer  = WaitTimer(int(period*sys_clk_freq/(2*self.n)))
-        self.leds   = Signal(self.n)
+        leds   = Signal(self.n)
         self.submodules += timer
         self.comb += timer.wait.eq(~timer.done)
         self.sync += If(timer.done, chaser.eq(Cat(~chaser[-1], chaser)))
         self.sync += If(self._out.re, mode.eq(_CONTROL_MODE))
         self.comb += [
             If(mode == _CONTROL_MODE,
-                self.leds.eq(self._out.storage)
+                leds.eq(self._out.storage)
             ).Else(
-                self.leds.eq(chaser)
+                leds.eq(chaser)
             )
         ]
-        #self.comb += pads.eq(self.leds ^ (self.polarity*(2**self.n-1)))
+        self.comb += pads.eq(leds ^ (self.polarity*(2**self.n-1)))
 
     def add_pwm(self, default_width=512, default_period=1024, with_csr=True):
         from litex.soc.cores.pwm import PWM
@@ -54,8 +54,7 @@ class LedChaser(Module, AutoCSR):
             default_period = default_period
         )
         # Use PWM as Output Enable for pads.
-        #self.comb += If(~self.pwm.pwm, self.pads.eq((self.polarity*(2**self.n-1))))
-        self.comb += self.pads.eq(self.leds ^ (self.pwm.pwm*(2**self.n-1)))
+        self.comb += If(~self.pwm.pwm, self.pads.eq(self.polarity*(2**self.n-1)))
 
 
 # WS2812/NeoPixel ----------------------------------------------------------------------------------
