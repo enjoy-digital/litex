@@ -77,6 +77,16 @@ ${CVA6_REPO_DIR}/corev_apu/fpga/src/axi_slice/src/axi_w_buffer.sv
 ${CVA6_REPO_DIR}/corev_apu/clint/clint.sv
 ${CVA6_REPO_DIR}/corev_apu/clint/axi_lite_interface.sv
 
+${CVA6_REPO_DIR}/common/submodules/common_cells/src/stream_register.sv
+${CVA6_REPO_DIR}/common/submodules/common_cells/src/counter.sv
+${CVA6_REPO_DIR}/common/submodules/common_cells/src/delta_counter.sv
+${CVA6_REPO_DIR}/common/submodules/common_cells/src/spill_register.sv
+${CVA6_REPO_DIR}/common/submodules/common_cells/src/spill_register_flushable.sv
+${CVA6_REPO_DIR}/common/submodules/common_cells/src/onehot_to_bin.sv
+${CVA6_REPO_DIR}/common/submodules/common_cells/src/id_queue.sv
+${CVA6_REPO_DIR}/common/submodules/common_cells/src/addr_decode.sv
+${CVA6_REPO_DIR}/common/submodules/common_cells/src/cdc_2phase.sv
+
 ${CVA6_REPO_DIR}/common/submodules/common_cells/src/deprecated/fifo_v1.sv
 ${CVA6_REPO_DIR}/common/submodules/common_cells/src/deprecated/fifo_v2.sv
 ${CVA6_REPO_DIR}/corev_apu/src/tech_cells_generic/src/deprecated/pulp_clk_cells.sv
