@@ -330,6 +330,7 @@ class VexRiscvSMP(CPU):
             o_peripheral_BTE      = pbus.bte
         )
 
+        # DMA.
         if VexRiscvSMP.coherent_dma:
             self.dma_bus = dma_bus = wishbone.Interface(data_width=VexRiscvSMP.dcache_width)
             dma_bus_stall   = Signal()
@@ -354,6 +355,10 @@ class VexRiscvSMP(CPU):
                    dma_bus_inhibit.eq(0)
                 )
             ]
+
+        # IRQs (Note: 0 is reserved as a "No IRQ").
+        self.interrupts.update({"uart"   : 1})
+        self.interrupts.update({"timer0" : 2})
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
@@ -389,12 +394,9 @@ class VexRiscvSMP(CPU):
 
     def add_soc_components(self, soc):
         if self.variant == "linux":
-            # Set UART/Timer0 CSRs/IRQs to the ones used by OpenSBI.
+            # Set UART/Timer0 CSRs to the ones used by OpenSBI.
             soc.csr.add("uart",   n=2)
             soc.csr.add("timer0", n=3)
-
-            soc.irq.add("uart",   n=0)
-            soc.irq.add("timer0", n=1)
 
             # Add OpenSBI region.
             soc.bus.add_region("opensbi", SoCRegion(origin=self.mem_map["main_ram"] + 0x00f0_0000, size=0x8_0000, cached=True, linker=True))

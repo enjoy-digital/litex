@@ -293,6 +293,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 reg-names = "control";
             }};
 """.format(clint_base=d["memories"]["clint"]["base"])
+    if cpu_arch == "riscv":
         dts += """
             intc0: interrupt-controller@{plic_base:x} {{
                 compatible = "sifive,fu540-c000-plic", "sifive,plic-1.0.0";

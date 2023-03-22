@@ -410,7 +410,7 @@ static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int
 	return errors;
 }
 
-static int _seed_array[] = {42, 84, 36, 72, 24, 48};
+static int _seed_array[] = {42, 84, 36};
 static int _seed_array_length = sizeof(_seed_array) / sizeof(_seed_array[0]);
 
 static int run_test_pattern(int module, int dq_line) {
@@ -1028,9 +1028,15 @@ static void sdram_write_latency_calibration(void) {
 			for (i=0; i<bitslip; i++) {
 				sdram_leveling_action(module, dq_line, write_inc_dq_bitslip);
 			}
-		}
+#ifdef SDRAM_DELAY_PER_DQ
 		printf("\n");
+#endif
+		}
 	}
+#ifndef SDRAM_DELAY_PER_DQ
+	printf("\n");
+#endif
+
 }
 
 #endif // SDRAM_PHY_WRITE_LATENCY_CALIBRATION_CAPABLE
