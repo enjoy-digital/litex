@@ -67,21 +67,21 @@ CPU_VARIANTS = {
 # GCC Flags-----------------------------------------------------------------------------------------
 
 GCC_FLAGS = {
-    "standard" : "-march=rv64imac   -mabi=lp64 ",
-    "linux"    : "-march=rv64imac   -mabi=lp64 ",
-    "linux4"   : "-march=rv64imac   -mabi=lp64 ",
-    "linuxd"   : "-march=rv64imac   -mabi=lp64 ",
-    "linux2d"  : "-march=rv64imac   -mabi=lp64 ",
-    "linuxq"   : "-march=rv64imac   -mabi=lp64 ",
-    "linux2q"  : "-march=rv64imac   -mabi=lp64 ",
-    "full"     : "-march=rv64imafdc -mabi=lp64 ",
-    "fulld"    : "-march=rv64imafdc -mabi=lp64 ",
-    "full4d"   : "-march=rv64imafdc -mabi=lp64 ",
-    "fullq"    : "-march=rv64imafdc -mabi=lp64 ",
-    "full4q"   : "-march=rv64imafdc -mabi=lp64 ",
-    "fullo"    : "-march=rv64imafdc -mabi=lp64 ",
-    "full4o"   : "-march=rv64imafdc -mabi=lp64 ",
-    "full8o"   : "-march=rv64imafdc -mabi=lp64 ",
+    "standard" : "-march=rv64i2p0_mac   -mabi=lp64 ",
+    "linux"    : "-march=rv64i2p0_mac   -mabi=lp64 ",
+    "linux4"   : "-march=rv64i2p0_mac   -mabi=lp64 ",
+    "linuxd"   : "-march=rv64i2p0_mac   -mabi=lp64 ",
+    "linux2d"  : "-march=rv64i2p0_mac   -mabi=lp64 ",
+    "linuxq"   : "-march=rv64i2p0_mac   -mabi=lp64 ",
+    "linux2q"  : "-march=rv64i2p0_mac   -mabi=lp64 ",
+    "full"     : "-march=rv64i2p0_mafdc -mabi=lp64 ",
+    "fulld"    : "-march=rv64i2p0_mafdc -mabi=lp64 ",
+    "full4d"   : "-march=rv64i2p0_mafdc -mabi=lp64 ",
+    "fullq"    : "-march=rv64i2p0_mafdc -mabi=lp64 ",
+    "full4q"   : "-march=rv64i2p0_mafdc -mabi=lp64 ",
+    "fullo"    : "-march=rv64i2p0_mafdc -mabi=lp64 ",
+    "full4o"   : "-march=rv64i2p0_mafdc -mabi=lp64 ",
+    "full8o"   : "-march=rv64i2p0_mafdc -mabi=lp64 ",
 }
 
 # CPU Params ----------------------------------------------------------------------------------
@@ -146,7 +146,7 @@ class Rocket(CPU):
     @property
     def gcc_flags(self):
         flags =  "-mno-save-restore "
-        flags += f"-march={self.get_arch(self.variant)}   -mabi=lp64 "
+        flags += GCC_FLAGS[self.variant]
         flags += "-D__rocket__ "
         flags += "-mcmodel=medany"
         return flags
