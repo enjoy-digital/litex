@@ -30,6 +30,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import os
+import logging
 
 from migen import *
 
@@ -44,67 +45,6 @@ from litex.soc.integration.soc import SoCRegion
 
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV64
 
-# Variants -----------------------------------------------------------------------------------------
-
-CPU_VARIANTS = {
-    "standard" : "freechips.rocketchip.system.LitexConfig",
-    "linux"    : "freechips.rocketchip.system.LitexLinuxConfig",
-    "linux4"   : "freechips.rocketchip.system.LitexLinux4Config",
-    "linuxd"   : "freechips.rocketchip.system.LitexLinuxDConfig",
-    "linux2d"  : "freechips.rocketchip.system.LitexLinux2DConfig",
-    "linuxq"   : "freechips.rocketchip.system.LitexLinuxQConfig",
-    "linux2q"  : "freechips.rocketchip.system.LitexLinux2QConfig",
-    "full"     : "freechips.rocketchip.system.LitexFullConfig",
-    "fulld"    : "freechips.rocketchip.system.LitexFullDConfig",
-    "full4d"   : "freechips.rocketchip.system.LitexFull4DConfig",
-    "fullq"    : "freechips.rocketchip.system.LitexFullQConfig",
-    "full4q"   : "freechips.rocketchip.system.LitexFull4QConfig",
-    "fullo"    : "freechips.rocketchip.system.LitexFullOConfig",
-    "full4o"   : "freechips.rocketchip.system.LitexFull4OConfig",
-    "full8o"   : "freechips.rocketchip.system.LitexFull8OConfig",
-}
-
-# GCC Flags-----------------------------------------------------------------------------------------
-
-GCC_FLAGS = {
-    "standard" : "-march=rv64i2p0_mac   -mabi=lp64 ",
-    "linux"    : "-march=rv64i2p0_mac   -mabi=lp64 ",
-    "linux4"   : "-march=rv64i2p0_mac   -mabi=lp64 ",
-    "linuxd"   : "-march=rv64i2p0_mac   -mabi=lp64 ",
-    "linux2d"  : "-march=rv64i2p0_mac   -mabi=lp64 ",
-    "linuxq"   : "-march=rv64i2p0_mac   -mabi=lp64 ",
-    "linux2q"  : "-march=rv64i2p0_mac   -mabi=lp64 ",
-    "full"     : "-march=rv64i2p0_mafdc -mabi=lp64 ",
-    "fulld"    : "-march=rv64i2p0_mafdc -mabi=lp64 ",
-    "full4d"   : "-march=rv64i2p0_mafdc -mabi=lp64 ",
-    "fullq"    : "-march=rv64i2p0_mafdc -mabi=lp64 ",
-    "full4q"   : "-march=rv64i2p0_mafdc -mabi=lp64 ",
-    "fullo"    : "-march=rv64i2p0_mafdc -mabi=lp64 ",
-    "full4o"   : "-march=rv64i2p0_mafdc -mabi=lp64 ",
-    "full8o"   : "-march=rv64i2p0_mafdc -mabi=lp64 ",
-}
-
-# CPU Params ----------------------------------------------------------------------------------
-
-CPU_PARAMS = {
-    # Variant  : (mem_dw, mmio_dw, num_cores)
-    "standard" : (    64,      64,         1),
-    "linux"    : (    64,      64,         1),
-    "linux4"   : (    64,      64,         4),
-    "linuxd"   : (   128,      64,         1),
-    "linux2d"  : (   128,      64,         2),
-    "linuxq"   : (   256,      64,         1),
-    "linux2q"  : (   256,      64,         2),
-    "full"     : (    64,      64,         1),
-    "fulld"    : (   128,      64,         1),
-    "full4d"   : (   128,      64,         4),
-    "fullq"    : (   256,      64,         1),
-    "full4q"   : (   256,      64,         4),
-    "fullo"    : (   512,      64,         1),
-    "full4o"   : (   512,      64,         4),
-    "full8o"   : (   512,      64,         8),
-}
-
 # Rocket  ------------------------------------------------------------------------------------------
 
 class Rocket(CPU):
@@ -112,7 +52,7 @@ class Rocket(CPU):
     family               = "riscv"
     name                 = "rocket"
     human_name           = "RocketRV64[imac]"
-    variants             = CPU_VARIANTS
+    variants             = ["small", "medium", "linux", "full"]
     data_width           = 64
     endianness           = "little"
     gcc_triple           = CPU_GCC_TRIPLE_RISCV64
@@ -120,13 +60,38 @@ class Rocket(CPU):
     nop                  = "nop"
     io_regions           = {0x1200_0000: 0x7000_0000} # Origin, Length.
 
+    # Default parameters.
+    core_count = 1
+    mem_width  = 1
+
+    # Command line configuration arguments.
+    @staticmethod
+    def args_fill(parser):
+        cpu_group = parser.add_argument_group(title="CPU options")
+        cpu_group.add_argument("--core-count", default=1, help="Number of cores (1, 2, 4, 8).", type=int)
+        cpu_group.add_argument("--mem-width",  default=1, help="Width of memory port (1, 2, 4, 8).", type=int)
+
+    @staticmethod
+    def args_read(args):
+        logger = logging.getLogger("RocketArgs")
+        if int(args.core_count) in [1, 2, 4, 8]:
+            Rocket.core_count = int(args.core_count)
+        else:
+            logger.error("Invalid core count {} (should be 1, 2, 4, or 8)".format(args.core_count))
+            quit()
+        if int(args.mem_width) in [1, 2, 4, 8]:
+            Rocket.mem_width = int(args.mem_width)
+        else:
+            logger.error("Invalid memory port width {} (should be 1, 2, 4, or 8)".format(args.mem_width))
+            quit()
+
     # Arch.
     @staticmethod
     def get_arch(variant):
-        if "full" in variant:
-            return "rv64imafdc"
+        if variant in ["linux", "full"]:
+            return "rv64i2p0_mafdc"
         else:
-            return "rv64imac"
+            return "rv64i2p0_mac"
 
     # Memory Mapping.
     @property
@@ -146,19 +111,20 @@ class Rocket(CPU):
     @property
     def gcc_flags(self):
         flags =  "-mno-save-restore "
-        flags += GCC_FLAGS[self.variant]
+        flags += f"-march={self.get_arch(self.variant)} -mabi=lp64 "
         flags += "-D__rocket__ "
         flags += "-mcmodel=medany"
         return flags
 
-    def __init__(self, platform, variant="standard"):
+    def __init__(self, platform, variant="linux"):
         self.platform  = platform
         self.variant   = variant
 
         self.reset     = Signal()
         self.interrupt = Signal(8)
 
-        mem_dw, mmio_dw, num_cores = CPU_PARAMS[self.variant]
+        mem_dw = 64 * Rocket.mem_width
+        mmio_dw = 64
 
         self.mem_axi   =  mem_axi = axi.AXIInterface(data_width=mem_dw,  address_width=32, id_width=4)
         self.mmio_axi  = mmio_axi = axi.AXIInterface(data_width=mmio_dw, address_width=32, id_width=4)
@@ -329,7 +295,7 @@ class Rocket(CPU):
             o_l2_frontend_bus_axi4_0_r_bits_last   = l2fb_axi.r.last,
         )
         # additional per-core debug signals:
-        self.cpu_params.update({'i_resetctrl_hartIsInReset_%s'%i : Open() for i in range(num_cores)})
+        self.cpu_params.update({'i_resetctrl_hartIsInReset_%s'%i : Open() for i in range(Rocket.core_count)})
 
         # Adapt AXI interfaces to Wishbone.
         mmio_a2w = axi.AXI2Wishbone(mmio_axi, mmio_wb, base_address=0)
@@ -346,12 +312,14 @@ class Rocket(CPU):
         assert reset_address == 0x1000_0000, "cpu_reset_addr hardcoded in during elaboration!"
 
     @staticmethod
-    def add_sources(platform, variant="standard"):
+    def add_sources(platform, variant):
+        pfx = "freechips.rocketchip.system.LitexConfig"
+        fname = f"{pfx}_{variant}_{Rocket.core_count}_{Rocket.mem_width}"
         vdir = get_data_mod("cpu", "rocket").data_location
         platform.add_sources(
             os.path.join(vdir, "generated-src"),
-            CPU_VARIANTS[variant] + ".v",
-            CPU_VARIANTS[variant] + ".behav_srams.v",
+            f"{fname}.v",
+            f"{fname}.behav_srams.v",
         )
         platform.add_sources(
             os.path.join(vdir, "vsrc"),
@@ -361,16 +329,13 @@ class Rocket(CPU):
         )
 
     def add_soc_components(self, soc):
-        # Get CPU Params.
-        mem_dw, mmio_dw, num_cores = CPU_PARAMS[self.variant]
-
         # Add OpenSBI/PLIC/CLINT regions.
         soc.bus.add_region("opensbi", SoCRegion(origin=self.mem_map["main_ram"] + 0x0000_0000, size=0x20_0000, cached=False, linker=True))
         soc.bus.add_region("plic",    SoCRegion(origin=soc.mem_map.get("plic"),                size=0x40_0000, cached=True,  linker=True))
         soc.bus.add_region("clint",   SoCRegion(origin=soc.mem_map.get("clint"),               size= 0x1_0000, cached=True,  linker=True))
 
         # Define number of CPUs
-        soc.add_config("CPU_COUNT", num_cores)
+        soc.add_config("CPU_COUNT", Rocket.core_count)
         soc.add_config("CPU_ISA",   self.get_arch(self.variant))
         soc.add_config("CPU_MMU",   "sv39")
 
