@@ -56,12 +56,14 @@ class GenericToolchain:
     def build(self, platform, fragment,
         build_dir      = "build",
         build_name     = "top",
+        toplevel_name  = None,
         synth_opts     = "",
         run            = True,
         build_backend  = "litex",
         **kwargs):
 
         self._build_name = build_name
+        self._toplevel_name = build_name if toplevel_name is None else toplevel_name
         self._build_dir  = build_dir
         self._synth_opts += synth_opts
         self.platform    = platform
@@ -78,7 +80,7 @@ class GenericToolchain:
         platform.finalize(self.fragment)
 
         # Generate Verilog.
-        v_output = platform.get_verilog(self.fragment, name=build_name, **kwargs)
+        v_output = platform.get_verilog(self.fragment, name=self._toplevel_name, **kwargs)
         self._vns = v_output.ns
         v_file = build_name + ".v"
         v_output.write(v_file)
@@ -145,7 +147,7 @@ class GenericToolchain:
                 'name'         : self._build_name,
                 'files'        : files,
                 **tool_options,
-                'toplevel'     : self._build_name,
+                'toplevel'     : self._toplevel_name,
             }
 
             backend = get_edatool(tool)(edam=edam, work_root=self._build_dir)
