@@ -45,6 +45,7 @@ class DocumentedCSR:
         size                = 8,
         description         = None,
         access              = "read-write",
+        cluster             = None,
         fields              = []):
 
         self.name                = name
@@ -53,6 +54,7 @@ class DocumentedCSR:
         self.address             = address
         self.offset              = offset
         self.size                = size
+        self.cluster             = cluster
         if size == 0:
             print("!!! Warning: creating CSR of size 0 {}".format(name))
         self.description = self.trim(description)
@@ -337,6 +339,7 @@ class DocumentedCSRRegion:
             atomic_write = csr.atomic_write
         size = self.get_csr_size(csr)
         reset = self.get_csr_reset(csr)
+        cluster = csr.cluster
 
         # If the CSR is composed of multiple sub-CSRs, document each
         # one individually.
@@ -366,7 +369,8 @@ class DocumentedCSRRegion:
                         size                = self.csr_data_width,
                         description         = d,
                         fields              = self.split_fields(fields, start, start + length),
-                        access              = access
+                        access              = access,
+                        cluster             = cluster
                     ))
                 else:
                     self.csrs.append(DocumentedCSR(
@@ -379,7 +383,8 @@ class DocumentedCSRRegion:
                         size                = self.csr_data_width,
                         description         = bits_str,
                         fields              = self.split_fields(fields, start, start + length),
-                        access              = access
+                        access              = access,
+                        cluster             = cluster
                     ))
                 self.current_address += 4
         else:
@@ -392,7 +397,8 @@ class DocumentedCSRRegion:
                 size                = size,
                 description         = description,
                 fields              = fields,
-                access              = access
+                access              = access,
+                cluster             = cluster
             ))
             self.current_address += 4
 
