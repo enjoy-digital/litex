@@ -150,6 +150,11 @@ class VexRiscvSMP(CPU):
         flags += f" -DUART_POLLING"
         return flags
 
+    # Reserved Interrupts.
+    @property
+    def reserved_interrupts(self):
+        return {"noirq": 0}
+
     # Cluster Name Generation.
     @staticmethod
     def generate_cluster_name():
@@ -355,10 +360,6 @@ class VexRiscvSMP(CPU):
                    dma_bus_inhibit.eq(0)
                 )
             ]
-
-        # IRQs (Note: 0 is reserved as a "No IRQ").
-        self.interrupts.update({"uart"   : 1})
-        self.interrupts.update({"timer0" : 2})
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address

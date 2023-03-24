@@ -91,6 +91,10 @@ class NaxRiscv(CPU):
         flags += f" -DUART_POLLING"
         return flags
 
+    # Reserved Interrupts.
+    @property
+    def reserved_interrupts(self):
+        return {"noirq": 0}
 
     # Command line configuration arguments.
     @staticmethod
@@ -180,10 +184,6 @@ class NaxRiscv(CPU):
             i_peripheral_dbus_rdata   = dbus.r.data,
             i_peripheral_dbus_rresp   = dbus.r.resp,
         )
-
-        # IRQs (Note: 0 is reserved as a "No IRQ").
-        self.interrupts.update({"uart"   : 1})
-        self.interrupts.update({"timer0" : 2})
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
