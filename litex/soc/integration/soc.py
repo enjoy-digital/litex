@@ -1959,9 +1959,12 @@ class LiteXSoC(SoC):
     # Add PCIe -------------------------------------------------------------------------------------
     def add_pcie(self, name="pcie", phy=None, ndmas=0, max_pending_requests=8, address_width=32,
         with_dma_buffering = True, dma_buffering_depth=1024,
-        with_dma_loopback  = True,
-        with_msi           = True,
-        with_synchronizer  = False):
+        with_dma_loopback     = True,
+        with_dma_synchronizer = False,
+        with_dma_monitor      = False,
+        with_dma_status       = False,
+        with_msi              = True,
+):
         # Imports
         from litepcie.core import LitePCIeEndpoint, LitePCIeMSI
         from litepcie.frontend.dma import LitePCIeDMA
@@ -2000,7 +2003,9 @@ class LiteXSoC(SoC):
             dma = LitePCIeDMA(phy, endpoint,
                 with_buffering    = with_dma_buffering, buffering_depth=dma_buffering_depth,
                 with_loopback     = with_dma_loopback,
-                with_synchronizer = with_synchronizer,
+                with_synchronizer = with_dma_synchronizer,
+                with_monitor      = with_dma_monitor,
+                with_status       = with_dma_status,
                 address_width     = address_width
             )
             setattr(self, f"{name}_dma{i}", dma)
