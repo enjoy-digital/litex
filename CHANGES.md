@@ -1,3 +1,91 @@
+[> Changes since 2022.12
+------------------------
+
+	[> Fixed
+	--------
+	- build/xilinx/vivado : Fixed Verilog include path.
+	- builder/meson       : Fixed version comparison.
+	- liblitedram         : Fixed write leveling with x4 modules.
+	- integration/soc     : Fixed alignment of origin on size.
+	- litex_sim           : Fixed ram_init.
+	- libbase/i2c         : Fixed various issues.
+	- integration/soc     : Fixed/Removed soc_region_cls workaround.
+	- cores/gpio          : Fixed IRQ generation.
+	- litex_sim           : Fixed --with-etherbone.
+	- build/efinix        : Fixed iface.py execution order.
+	- cpu/Vex/NaxRiscv    : Fixed IRQ numbering (0 reserved).
+	- cpu/rocket          : Fixed compilation with newer binutils.
+	- cpu/soc             : Fixed CPU IRQ reservation.
+	- litepcie/software   : Fixed compilation with DMA_CHECK_DATA commented.
+	- litedram/dma        : Fixed rdata connection (omit list update since LiteX AXI changes).
+
+	[> Added
+	--------
+	- clock/intel         : Added StratixVPLL.
+	- cores/dma           : Added FIFO on WishboneDMAReader to pipeline reads and allow bursting.
+	- liblitedram         : Improved SPD read with sdram_read_spd function.
+	- bios/liblitedram    : Added utils and used them to print memory sizes.
+	- build/parser        : Added a method to search default value for an argument.
+	- litex_setup         : Added Arch Linux RISC-V/OR1K/POWER-PC GCC toolchain install.
+	- cores/pwm           : Added reset signal (to allow external reset/synchronization).
+	- cpu/cva6            : Updated.
+	- cores/prbs          : Improved timings.
+	- litex_sim           : Allowed enabling SDRAM BIST.
+	- liblitedram         : Refactored BIST functions and added sdram_hw_test.
+	- soc/software        : Added extern C (required to link with cpp code).
+	- cpu/VexRiscv-SMP    : Avoided silent generation failure.
+	- cores/spi_flash     : Added Ultrascale support.
+	- clock/gowin_gw1n    : Fixed simulation warnings.
+	- liblitedram         : Various improvements/cleanups.
+	- cpu/Naxriscv        : Exposed FPU parameter.
+	- cores/xadc          : Refactored/Cleaned up.
+	- cores/dna           : Added initial Ultrascale(+) support and reduced default clk_divider to 2.
+	- cores/usb_ohci      : Added support for multiple ports.
+	- litex_cli           : Added binary support for register dump.
+	- cpu/NaxRiscv        : Enabled FPU in crt0.S.
+	- core/icap           : Added initial Ultrascale(+) support and clk_divider parameter.
+	- litex_sim           : Added initial video support.
+	- soc/add_video       : Added framebuffer region definition.
+	- litex_term          : Avoided use of multiprocessing.
+	- cores/esc           : Added initial ESC core with DSHOT 150/300/600 support.
+	- litex_json2dts      : Allowed/Prepared Rocket support and made it more generic.
+	- gen/common          : Added Open/Unsigned/Signed signal definition and updated cores to use it.
+	- global              : Added initial list of sponsors/partners.
+	- build/xilinx        : Improved Xilinx US/US+ support.
+	- build/platform      : Added get_bitstream_extension method.
+	- cpu/VexRiscvSMP     : Added standard variant.
+	- cpu/cva6            : Added 32-bit variant support and various improvements.
+	- clock/gowin         : Added GW2AR support.
+	- build/efinix        : Added option to select active/passive SPI mode.
+	- cores/bitbang       : Added documentation.
+	- litex_term          : Improved connection setup.
+	- clock/gowin         : Improved VCO config computation and added CLKOUTP/CLKOUTD/CLKOUTD3 support.
+	- cpu/rocket          : Reworked variants.
+	- liblitesdcard       : Avoided use of stop transmission for writes when only one block.
+	- installation        : Simplified/Improved ci.yml/MANIFEST.in/setup.py.
+	- cores/pwm           : Added MultiChannelPWM support.
+	- soc/add_pcie        : Exposed more DMA parameters.
+	- litepcie/dma        : Improved LitePCIeDMAStatus timings.
+	- litepcie_gen        : Exposed 64-bit support.
+	- litepcie/dma        : Better configuration decoupling between DMAWriter/Reader.
+	- litepcie/dma        : Allowed software to get DMA status.
+	- litepcie/phy        : Replaced Xilinx generated core on 7-series Verilog with Migen/LiteX code.
+	- litepcie/msi        : Improved MSI filtering.
+	- litepcie_gen        : Added MSI rate limiting on Ultrascale(+) to avoid stall issues.
+	- liteiclink/prbs     : Improved PRBS RX timings.
+	- liteiclink/gty/gth  : Added power-down signal on GTYQuadPLL and GTHQuadPLL.
+	- litelclink/gty/gth  : Integrated 7-series improvements.
+	- litelclink/gty/gth  : Added DRP interface on QuadPLL.
+	- litedram/bist       : Ensured proper completion of writes.
+	- litedram/bist       : Replicated data for large data-width.
+	- litedram/ci         : Allowed tests to run in parallel.
+	- litedram/gw2ddrphy  : Improvements to remove warnings in simulation.
+
+	[> Changed
+	----------
+	- builder/export      : Added soc-csv/-json/--svd arguments (in addition to csr-xy).
+	- litepcie/phy        : Retained only Gen3/4 support and removed Gen2.
+
 [> 2022.12, released on January 2th 2023
 ----------------------------------------
 
@@ -21,7 +109,7 @@
 	[> Added
 	--------
 	- soc                        : Add new "x" (executable) mode to SoCRegion.
-	- cpu/NaRiscv                : Update to latest and add parameters.
+	- cpu/NaxRiscv               : Update to latest and add parameters.
 	- soc                        : Propagate address_width on dynamically created interfaces.
 	- get_mem_data               : Add data_width support.
 	- cores/dma                  : Allow defining ready behavior on idle.
