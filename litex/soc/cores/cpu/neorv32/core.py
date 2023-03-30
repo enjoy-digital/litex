@@ -163,11 +163,12 @@ class NEORV32(CPU):
         }
 
         # Download VHDL sources (if not already present).
+        sha1 = "5e0bdb20208c5d0c46ba56e7401b87af44c7170d"
         for directory, vhds in sources.items():
             for vhd in vhds:
                 self.vhd2v_converter.add_source(os.path.join(cdir, vhd))
                 if not os.path.exists(os.path.join(cdir, vhd)):
-                    os.system(f"wget https://raw.githubusercontent.com/stnolting/neorv32/main/rtl/{directory}/{vhd} -P {cdir}")
+                    os.system(f"wget https://raw.githubusercontent.com/stnolting/neorv32/{sha1}/rtl/{directory}/{vhd} -P {cdir}")
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
