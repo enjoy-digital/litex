@@ -15,6 +15,7 @@ import datetime
 from math import log2, ceil
 
 from migen import *
+from migen.genlib.misc import WaitTimer
 
 from litex.gen import colorer
 from litex.gen import LiteXModule
@@ -1966,6 +1967,8 @@ class LiteXSoC(SoC):
         with_msi              = True,
 ):
         # Imports
+        from litepcie.phy.uspciephy import USPCIEPHY
+        from litepcie.phy.usppciephy import USPPCIEPHY
         from litepcie.core import LitePCIeEndpoint, LitePCIeMSI
         from litepcie.frontend.dma import LitePCIeDMA
         from litepcie.frontend.wishbone import LitePCIeWishboneMaster
@@ -1993,7 +1996,14 @@ class LiteXSoC(SoC):
             self.check_if_exists(f"{name}_msi")
             msi = LitePCIeMSI()
             setattr(self, f"{name}_msi", msi)
-            self.comb += msi.source.connect(phy.msi)
+            # FIXME: On Ultrascale/Ultrascale+ limit rate of IRQs to 1MHz (to prevent issue with
+            # IRQs stalled).
+            if isinstance(phy, (USPCIEPHY, USPPCIEPHY)):
+                msi_timer = WaitTimer(int(self.sys_clk_freq/1e6))
+                self.comb += msi_timer.wait.eq(~msi_timer.done)
+                self.comb += If(msi_timer.done, msi.source.connect(phy.msi))
+            else:
+                self.comb += msi.source.connect(phy.msi)
             self.msis = {}
 
         # DMAs.
