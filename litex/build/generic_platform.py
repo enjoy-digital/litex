@@ -168,7 +168,11 @@ class ConnectorManager:
                 if pn.isdigit():
                     pn = int(pn)
                 assert conn in self.connector_table, f"No connector named '{conn}' is available"
-                assert pn in self.connector_table[conn], f"There is no pin '{pn}' on connector '{conn}'"
+                conn_entry = self.connector_table[conn]
+                if isinstance(conn_entry, dict):
+                    assert pn in conn_entry, f"There is no pin '{pn}' on connector '{conn}'"
+                else:
+                    assert pn < len(conn_entry), f"There is no pin with number '{pn}' on connector '{conn}', maximum is {len(conn_entry)-1}"
                 conn_pn = self.connector_table[conn][pn]
                 if ":" in conn_pn:
                     conn_pn = self.resolve_identifiers([conn_pn])[0]
