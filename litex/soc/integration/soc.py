@@ -490,18 +490,16 @@ class SoCBusHandler(LiteXModule):
                     slave  = next(iter(self.slaves.values())))
             # Otherwise, use InterconnectShared/Crossbar.
             else:
-                # If one region has the decoder disabled, force interconnect to crossbar since shared
-                # interconnect relies on the fact that all regions have decoder to optimize logic.
-                force_crossbar = False
-                for region in self.regions.values():
-                    if region.decode == False:
-                        force_crossbar = True
-                if force_crossbar:
-                    self.logger.info("{} interconnect to {}.".format(
-                        colorer("Forcing"),
-                        colorer("Crossbar"),
-                    ))
-                    self.interconnect = "crossbar"
+                # Check Region decoder use.
+                if len(self.regions) > 1:
+                    for region in self.regions.values():
+                        if region.decode == False:
+                            self.logger.error("Only {} Region can be used when {} Decoder.".format(
+                                colorer("one",       color="red"),
+                                colorer("disabling", color="red"),
+                            ))
+                            self.logger.error(self)
+                            raise SoCError()
                 # Interconnect Logic.
                 interconnect_cls = {
                     "shared"  : interconnect_shared_cls,

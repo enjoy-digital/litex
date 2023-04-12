@@ -31,7 +31,7 @@ class Zynq7000(CPU):
     linker_output_format = "elf32-littlearm"
     nop                  = "nop"
     io_regions           = {0x4000_0000: 0xbc00_0000} # Origin, Length.
-    csr_decode           = False # AXI address is decoded in AXI2Wishbone (target level).
+    csr_decode           = True # AXI address is decoded in AXI2Wishbone, offset needs to be added in Software.
 
     # Memory Mapping.
     @property
