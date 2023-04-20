@@ -596,6 +596,11 @@ static void sdram_write_leveling_on(void) {
 }
 
 static void sdram_write_leveling_off(void) {
+#ifndef SDRAM_PHY_CLAM_SHELL
+	sdram_dfii_pi0_address_write(DDRX_MR_WRLVL_RESET);
+	sdram_dfii_pi0_baddress_write(DDRX_MR_WRLVL_ADDRESS);
+	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
+#else
 	sdram_dfii_pi0_address_write(DDRX_MR_WRLVL_RESET);
 	sdram_dfii_pi0_baddress_write(DDRX_MR_WRLVL_ADDRESS);
 	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS_TOP);
@@ -610,6 +615,7 @@ static void sdram_write_leveling_off(void) {
 	sdram_dfii_pi0_address_write(addr);
 	sdram_dfii_pi0_baddress_write(baddr);
 	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS_BOTTOM);
+#endif
 
 #ifdef SDRAM_PHY_DDR4_RDIMM
 	sdram_dfii_pi0_address_write(DDRX_MR_WRLVL_RESET ^ 0x2BF8);
