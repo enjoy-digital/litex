@@ -138,9 +138,17 @@ class Avalon2Wishbone(Module):
             .Elif(avl.read,        read_access.eq(1)),
         ]
 
+        # Wishbone -> Avalon
         self.comb += [
+            avl.waitrequest.eq(~(wb.ack | wb.err)),
             readdatavalid.eq((wb.ack | wb.err) & read_access),
             readdata.eq(wb.dat_r),
+            avl.readdatavalid.eq(readdatavalid),
+            avl.readdata.eq(readdata),
+        ]
+
+        # Avalon -> Wishbone
+        self.comb += [
             wb.adr.eq(avl.address),
             wb.dat_w.eq(avl.writedata),
             wb.sel.eq(avl.byteenable),
@@ -149,10 +157,8 @@ class Avalon2Wishbone(Module):
             wb.stb.eq(read_access | avl.write),
             wb.cti.eq(wishbone.CTI_BURST_END),
             wb.bte.eq(Constant(0, 2)),
-            avl.waitrequest.eq(~(wb.ack | wb.err)),
-            avl.readdatavalid.eq(readdatavalid),
-            avl.readdata.eq(readdata),
         ]
+
 
 # Avalon-ST to/from native LiteX's stream ----------------------------------------------------------
 
