@@ -124,7 +124,7 @@ class MMInterface(Record):
         if chipselect is not None:
             yield self.chipselect.eq(0)
 
-class Avalon2Wishbone(Module):
+class AvalonMM2Wishbone(Module):
     def __init__(self, data_width=32, address_width=32):
         self.wishbone = wb  = wishbone.Interface(data_width=data_width, adr_width=address_width)
         self.avalon   = avl = MMInterface(data_width=data_width, adr_width=address_width)

@@ -29,7 +29,7 @@ class TestAvalon2Wishbone(unittest.TestCase):
 
         class DUT(Module):
             def __init__(self):
-                a2w = avalon.Avalon2Wishbone()
+                a2w = avalon.AvalonMM2Wishbone()
                 self.wb  = a2w.wishbone
                 self.avl = a2w.avalon
                 wishbone_mem = wishbone.SRAM(32, bus=self.wb)
