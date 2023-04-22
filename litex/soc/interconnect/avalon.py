@@ -136,12 +136,11 @@ class Avalon2Wishbone(Module):
         self.sync += [
              If  (wb.ack | wb.err, read_access.eq(0)) \
             .Elif(avl.read,        read_access.eq(1)),
-
-            readdatavalid.eq((wb.ack | wb.err) & read_access),
-            readdata.eq(wb.dat_r),
         ]
 
         self.comb += [
+            readdatavalid.eq((wb.ack | wb.err) & read_access),
+            readdata.eq(wb.dat_r),
             wb.adr.eq(avl.address),
             wb.dat_w.eq(avl.writedata),
             wb.sel.eq(avl.byteenable),
