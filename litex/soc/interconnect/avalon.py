@@ -9,6 +9,7 @@
 from migen import *
 
 from litex.soc.interconnect import stream
+from . import wishbone
 
 _layout = [
     ("address",          "adr_width", DIR_M_TO_S),
@@ -42,7 +43,7 @@ class MMInterface(Record):
 
     @staticmethod
     def like(other):
-        return Interface(len(other.writedata))
+        return MMInterface(len(other.writedata))
 
     def get_ios(self, bus_name="avl"):
         subsignals = []
@@ -69,7 +70,7 @@ class MMInterface(Record):
                     r.append(sig.eq(pad))
         return r
 
-    def read(self, address, byteenable=None, burstcount=None, chipselect=None):
+    def bus_read(self, address, byteenable=None, burstcount=None, chipselect=None):
         if byteenable is None:
             byteenable = 2**len(self.byteenable) - 1
         yield self.address.eq(address)
@@ -95,7 +96,7 @@ class MMInterface(Record):
             yield
         return (yield self.readdata)
 
-    def write(self, address, writedata, byteenable=None, chipselect=None):
+    def bus_write(self, address, writedata, byteenable=None, chipselect=None):
         if not isinstance(writedata, list):
             writedata = [ writedata ]
         burstcount = len(writedata)
@@ -122,6 +123,37 @@ class MMInterface(Record):
         yield self.byteenable.eq(0)
         if chipselect is not None:
             yield self.chipselect.eq(0)
+
+class Avalon2Wishbone(Module):
+    def __init__(self, data_width=32, address_width=32):
+        self.wishbone = wb  = wishbone.Interface(data_width=data_width, adr_width=address_width)
+        self.avalon   = avl = MMInterface(data_width=data_width, adr_width=address_width)
+
+        read_access   = Signal()
+        readdatavalid = Signal()
+        readdata      = Signal(data_width)
+
+        self.sync += [
+             If  (wb.ack | wb.err, read_access.eq(0)) \
+            .Elif(avl.read,        read_access.eq(1)),
+
+            readdatavalid.eq((wb.ack | wb.err) & read_access),
+            readdata.eq(wb.dat_r),
+        ]
+
+        self.comb += [
+            wb.adr.eq(avl.address),
+            wb.dat_w.eq(avl.writedata),
+            wb.sel.eq(avl.byteenable),
+            wb.we.eq(avl.write),
+            wb.cyc.eq(read_access | avl.write),
+            wb.stb.eq(read_access | avl.write),
+            wb.cti.eq(wishbone.CTI_BURST_END),
+            wb.bte.eq(Constant(0, 2)),
+            avl.waitrequest.eq(~(wb.ack | wb.err)),
+            avl.readdatavalid.eq(readdatavalid),
+            avl.readdata.eq(readdata),
+        ]
 
 # Avalon-ST to/from native LiteX's stream ----------------------------------------------------------
 
