@@ -2,6 +2,7 @@
 # This file is part of LiteX.
 #
 # Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2023 Hans Baier <hansfbaier@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import unittest
