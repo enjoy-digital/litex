@@ -26,7 +26,7 @@ _layout = [
     ("chipselect",                 1, DIR_M_TO_S), # this is optional
 ]
 
-class MMInterface(Record):
+class AvalonMMInterface(Record):
     def __init__(self, data_width=32, adr_width=30, bursting=False, **kwargs):
         self.data_width = data_width
         self.bursting   = bursting
@@ -44,7 +44,7 @@ class MMInterface(Record):
 
     @staticmethod
     def like(other):
-        return MMInterface(len(other.writedata))
+        return AvalonMMInterface(len(other.writedata))
 
     def get_ios(self, bus_name="avl"):
         subsignals = []
@@ -128,7 +128,7 @@ class MMInterface(Record):
 class AvalonMM2Wishbone(Module):
     def __init__(self, data_width=32, address_width=32):
         self.wishbone = wb  = wishbone.Interface(data_width=data_width, adr_width=address_width)
-        self.avalon   = avl = MMInterface(data_width=data_width, adr_width=address_width)
+        self.avalon   = avl = AvalonMMInterface(data_width=data_width, adr_width=address_width)
 
         read_access   = Signal()
         readdatavalid = Signal()
