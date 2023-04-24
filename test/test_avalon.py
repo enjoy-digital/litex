@@ -31,9 +31,8 @@ class TestAvalon2Wishbone(unittest.TestCase):
         class DUT(Module):
             def __init__(self):
                 a2w = avalon.AvalonMM2Wishbone()
-                self.wb  = a2w.wishbone
                 self.avl = a2w.avalon
-                wishbone_mem = wishbone.SRAM(32, bus=self.wb)
+                wishbone_mem = wishbone.SRAM(32, bus=a2w.wishbone)
                 self.submodules += a2w
                 self.submodules += wishbone_mem
 
@@ -53,11 +52,10 @@ class TestAvalon2Wishbone(unittest.TestCase):
         class DUT(Module):
             def __init__(self):
                 a2w = avalon.AvalonMM2Wishbone()
-                self.wb  = a2w.wishbone
                 self.avl = a2w.avalon
-                wishbone_mem = wishbone.SRAM(32, bus=self.wb)
+                wishbone_mem = wishbone.SRAM(32, bus=a2w.wishbone)
                 self.submodules += a2w
                 self.submodules += wishbone_mem
 
         dut = DUT()
-        run_simulation(dut, generator(dut)) # , vcd_name="avalon_burst.vcd")
+        run_simulation(dut, generator(dut)) #, vcd_name="avalon_burst.vcd")

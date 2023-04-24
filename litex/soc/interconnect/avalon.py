@@ -27,9 +27,8 @@ _layout = [
 ]
 
 class AvalonMMInterface(Record):
-    def __init__(self, data_width=32, adr_width=30, bursting=False, **kwargs):
+    def __init__(self, data_width=32, adr_width=30, **kwargs):
         self.data_width = data_width
-        self.bursting   = bursting
         if kwargs.get("adr_width", False):
             adr_width = kwargs["adr_width"] - int(log2(data_width//8))
         self.adr_width = adr_width
@@ -127,7 +126,7 @@ class AvalonMMInterface(Record):
 
 class AvalonMM2Wishbone(Module):
     def __init__(self, data_width=32, address_width=32):
-        self.wishbone = wb  = wishbone.Interface(data_width=data_width, adr_width=address_width)
+        self.wishbone = wb  = wishbone.Interface(data_width=data_width, adr_width=address_width, bursting=True)
         self.avalon   = avl = AvalonMMInterface(data_width=data_width, adr_width=address_width)
 
         word_width      = data_width // 8
@@ -188,10 +187,10 @@ class AvalonMM2Wishbone(Module):
             wb.cti.eq(Mux(burst_counter > 1,
                 wishbone.CTI_BURST_INCREMENTING,
                 Mux(burst_counter == 1, wishbone.CTI_BURST_END, wishbone.CTI_BURST_NONE))),
-            If (~avl.waitrequest,
+            If(~avl.waitrequest,
                 NextValue(burst_address, burst_address + word_width),
                 NextValue(burst_counter, burst_counter - 1)),
-            If (burst_counter == 0,
+            If(burst_counter == 0,
                 burst_cycle.eq(0),
                 NextState("IDLE"))
         )
