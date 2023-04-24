@@ -166,14 +166,16 @@ class AvalonMM2Wishbone(Module):
             wb.sel.eq(avl.byteenable),
             wb.we.eq(avl.write),
             wb.cyc.eq(read_access | avl.write | burst_cycle),
-            wb.stb.eq(read_access | (avl.write)),
-            wb.cti.eq(wishbone.CTI_BURST_END),
+            wb.stb.eq(read_access | avl.write),
             wb.bte.eq(Constant(0, 2)),
         ]
 
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             burst_cycle.eq(0),
+            wb.cti.eq(Mux(avl.burstcount > 1,
+                wishbone.CTI_BURST_INCREMENTING,
+                wishbone.CTI_BURST_NONE)),
             If(~avl.waitrequest & (avl.burstcount > 1),
                 NextValue(burst_counter, avl.burstcount - 1),
                 NextValue(burst_address, avl.address + word_width),
@@ -183,17 +185,21 @@ class AvalonMM2Wishbone(Module):
         )
         fsm.act("BURST_WRITE",
             burst_cycle.eq(1),
-            If (~avl.waitrequest, 
+            wb.cti.eq(Mux(burst_counter > 1,
+                wishbone.CTI_BURST_INCREMENTING,
+                Mux(burst_counter == 1, wishbone.CTI_BURST_END, wishbone.CTI_BURST_NONE))),
+            If (~avl.waitrequest,
                 NextValue(burst_address, burst_address + word_width),
                 NextValue(burst_counter, burst_counter - 1)),
-            If (burst_counter == 0, NextState("IDLE"))
+            If (burst_counter == 0,
+                burst_cycle.eq(0),
+                NextState("IDLE"))
         )
         fsm.act("BURST_READ", # TODO
             burst_cycle.eq(1),
             If (~avl.waitrequest, NextValue(burst_counter, burst_counter - 1)),
             If (burst_counter == 0, NextState("IDLE"))
         )
-
 
 # Avalon-ST to/from native LiteX's stream ----------------------------------------------------------
 

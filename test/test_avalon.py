@@ -21,6 +21,7 @@ class TestAvalon2Wishbone(unittest.TestCase):
             yield from dut.avl.bus_write(0x0008, 0xdeadbeef)
             yield from dut.avl.bus_write(0x000c, 0xc0ffee00)
             yield from dut.avl.bus_write(0x0010, 0x76543210)
+            yield
             self.assertEqual((yield from dut.avl.bus_read(0x0000)), 0x01234567)
             self.assertEqual((yield from dut.avl.bus_read(0x0004)), 0x89abcdef)
             self.assertEqual((yield from dut.avl.bus_read(0x0008)), 0xdeadbeef)
@@ -37,11 +38,12 @@ class TestAvalon2Wishbone(unittest.TestCase):
                 self.submodules += wishbone_mem
 
         dut = DUT()
-        run_simulation(dut, generator(dut)) # , vcd_name="avalon.vcd")
+        run_simulation(dut, generator(dut)) #, vcd_name="avalon.vcd")
 
     def test_sram_burst_write(self):
         def generator(dut):
             yield from dut.avl.bus_write(0x0, [0x01234567, 0x89abcdef, 0xdeadbeef, 0xc0ffee00, 0x76543210])
+            yield
             self.assertEqual((yield from dut.avl.bus_read(0x0000)), 0x01234567)
             self.assertEqual((yield from dut.avl.bus_read(0x0004)), 0x89abcdef)
             self.assertEqual((yield from dut.avl.bus_read(0x0008)), 0xdeadbeef)
