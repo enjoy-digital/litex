@@ -10,7 +10,7 @@
 from migen import *
 
 from litex.soc.interconnect import stream
-from . import wishbone
+from litex.soc.interconnect import wishbone
 
 _layout = [
     ("address",          "adr_width", DIR_M_TO_S),
