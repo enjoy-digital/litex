@@ -70,14 +70,14 @@ class AvalonMMInterface(Record):
                     r.append(sig.eq(pad))
         return r
 
-    def bus_read(self, address, byteenable=None, burstcount=None, chipselect=None):
+    def bus_read(self, address, byteenable=None, burstcount=1, chipselect=None):
         if byteenable is None:
             byteenable = 2**len(self.byteenable) - 1
         yield self.address.eq(address)
         yield self.write.eq(0)
         yield self.read.eq(1)
         yield self.byteenable.eq(byteenable)
-        if burstcount is not None:
+        if burstcount != 1:
             yield self.burstcount.eq(burstcount)
         if chipselect is not None:
             yield self.chipselect.eq(chipselect)
@@ -88,12 +88,17 @@ class AvalonMMInterface(Record):
         # actually don't care outside of a transaction
         # this makes the traces look neater
         yield self.byteenable.eq(0)
-        if burstcount is not None:
+        if burstcount != 1:
             yield self.burstcount.eq(0)
         if chipselect is not None:
             yield self.chipselect.eq(0)
+
         while not (yield self.readdatavalid):
             yield
+        return (yield self.readdata)
+
+    def continue_read_burst(self):
+        yield
         return (yield self.readdata)
 
     def bus_write(self, address, writedata, byteenable=None, chipselect=None):
@@ -140,6 +145,7 @@ class AvalonMM2Wishbone(Module):
         burst_cycle      = Signal()
         burst_counter    = Signal.like(avl.burstcount)
         burst_address    = Signal.like(avl.readdata)
+        burst_read       = Signal()
 
         self.sync += [
              If  (wb.ack | wb.err, read_access.eq(0)) \
@@ -149,7 +155,7 @@ class AvalonMM2Wishbone(Module):
 
         # Wishbone -> Avalon
         self.comb += [
-            avl.waitrequest.eq(~(wb.ack | wb.err)),
+            avl.waitrequest.eq(~(wb.ack | wb.err) | burst_read),
             readdatavalid.eq((wb.ack | wb.err) & read_access),
             readdata.eq(wb.dat_r),
             avl.readdatavalid.eq(readdatavalid),
@@ -176,11 +182,13 @@ class AvalonMM2Wishbone(Module):
                 wishbone.CTI_BURST_INCREMENTING,
                 wishbone.CTI_BURST_NONE)),
             If(~avl.waitrequest & (avl.burstcount > 1),
+                burst_cycle.eq(1),
                 NextValue(burst_counter, avl.burstcount - 1),
                 NextValue(burst_address, avl.address + word_width),
-                burst_cycle.eq(1),
                 If(avl.write, NextState("BURST_WRITE")),
-                If(avl.read,  NextState("BURST_READ")))
+                If(avl.read,
+                    NextValue(burst_read, 1),
+                    NextState("BURST_READ")))
         )
         fsm.act("BURST_WRITE",
             burst_cycle.eq(1),
@@ -196,8 +204,17 @@ class AvalonMM2Wishbone(Module):
         )
         fsm.act("BURST_READ", # TODO
             burst_cycle.eq(1),
-            If (~avl.waitrequest, NextValue(burst_counter, burst_counter - 1)),
-            If (burst_counter == 0, NextState("IDLE"))
+            wb.stb.eq(1),
+            wb.cti.eq(Mux(burst_counter > 1,
+                wishbone.CTI_BURST_INCREMENTING,
+                Mux(burst_counter == 1, wishbone.CTI_BURST_END, wishbone.CTI_BURST_NONE))),
+            If (wb.ack,
+                avl.readdatavalid.eq(1),
+                NextValue(burst_counter, burst_counter - 1)),
+            If (burst_counter == 0,
+                wb.cyc.eq(0),
+                wb.stb.eq(0),
+                NextState("IDLE"))
         )
 
 # Avalon-ST to/from native LiteX's stream ----------------------------------------------------------
