@@ -114,25 +114,30 @@ static void transfer_cmd(uint8_t *bs, uint8_t *resp, int len)
 	spiflash_core_master_phyconfig_mask_write(1);
 	spiflash_core_master_cs_write(1);
 
+	flush_cpu_dcache();
 	for (int i=0; i < len; i++) {
 		resp[i] = transfer_byte(bs[i]);
 	}
 
 	spiflash_core_master_cs_write(0);
+	flush_cpu_dcache();
 }
 
 static uint32_t spiflash_read_status_register(void)
 {
-	uint8_t buf[2];
+	volatile uint8_t buf[4];
 	w_buf[0] = 0x05;
 	w_buf[1] = 0x00;
-	transfer_cmd(w_buf, buf, 2);
-	flush_cpu_dcache();
+	transfer_cmd(w_buf, buf, 4);
 
-	/* FIXME hack: sometimes, the result is in buf[0].
-	 * not sure why this happens. timing? */
-	if (buf[1] == 0xff) return buf[0];
-	return buf[1];
+#if SPIFLASH_DEBUG
+	printf("[SR: %02x %02x %02x %02x]", buf[0], buf[1], buf[2], buf[3]);
+#endif
+
+	/* FIXME normally the status should be in buf[1],
+	   but we have to read it a few more times to be
+	   stable for unknown reasons */
+	return buf[3];
 }
 
 static void spiflash_write_enable(void)
@@ -149,7 +154,6 @@ static void page_program(uint32_t addr, uint8_t *data, int len)
 	w_buf[2] = addr>>8;
 	w_buf[3] = addr>>0;
 	memcpy(w_buf+4, data, len);
-	flush_cpu_dcache();
 	transfer_cmd(w_buf, r_buf, len+4);
 }
 
@@ -159,7 +163,6 @@ static void spiflash_sector_erase(uint32_t addr)
 	w_buf[1] = addr>>16;
 	w_buf[2] = addr>>8;
 	w_buf[3] = addr>>0;
-	flush_cpu_dcache();
 	transfer_cmd(w_buf, r_buf, 4);
 }
 
@@ -173,16 +176,15 @@ void spiflash_erase_range(uint32_t addr, uint32_t len)
 	uint32_t i = 0;
 	uint32_t j = 0;
 	for (i=0; i<len; i+=SPI_FLASH_ERASE_SIZE) {
-		printf("Erase SPI Flash @0x%08lx\n", ((uint32_t)addr+i));
+		printf("Erase SPI Flash @0x%08lx", ((uint32_t)addr+i));
 		spiflash_write_enable();
 		spiflash_sector_erase(addr+i);
-		/* wait two seconds, roughly */
-		cdelay(CONFIG_CLOCK_FREQUENCY/5);
 
-		flush_cpu_dcache();
 		while (spiflash_read_status_register() & 1) {
-			flush_cpu_dcache();
+			printf(".");
+			cdelay(CONFIG_CLOCK_FREQUENCY/25);
 		}
+		printf("\n");
 
 		/* check if region was really erased */
 		for (j = 0; j < SPI_FLASH_ERASE_SIZE; j++) {
@@ -199,24 +201,36 @@ int spiflash_write_stream(uint32_t addr, uint8_t *stream, uint32_t len)
 	int res = 0;
 	uint32_t w_len = min(len, SPI_FLASH_BLOCK_SIZE);
 	uint32_t offset = 0;
+	uint32_t j = 0;
 
 #if SPIFLASH_DEBUG
-	printf("Write SPI Flash @0x%08lx\n", ((uint32_t)addr));
+	printf("Write SPI Flash @0x%08lx", ((uint32_t)addr));
 #endif
 
 	while(w_len) {
 		spiflash_write_enable();
 		page_program(addr+offset, stream+offset, w_len);
 
-		flush_cpu_dcache();
 		while(spiflash_read_status_register() & 1) {
-			flush_cpu_dcache();
+#if SPIFLASH_DEBUG
+			printf(".");
+#endif
+		}
+
+		for (j = 0; j < w_len; j++) {
+			uint8_t* peek = (((uint8_t*)SPIFLASH_BASE)+addr+offset+j);
+			if (*peek != stream[offset+j]) {
+				printf("Error: verify failed at 0x%08lx (0x%02x should be 0x%02x)\n", (uint32_t)peek, *peek, stream[offset+j]);
+			}
 		}
 
 		offset += w_len;
 		w_len = min(len-offset, SPI_FLASH_BLOCK_SIZE);
 		res = offset;
 	}
+#if SPIFLASH_DEBUG
+  printf("\n");
+#endif
 	return res;
 }
 
