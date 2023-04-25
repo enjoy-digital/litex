@@ -215,6 +215,7 @@ class AvalonMM2Wishbone(Module):
             If (burst_counter == 0,
                 wb.cyc.eq(0),
                 wb.stb.eq(0),
+                NextValue(burst_read, 0),
                 NextState("IDLE"))
         )
 
