@@ -210,6 +210,7 @@ class AvalonMM2Wishbone(Module):
                 Mux(burst_counter == 1, wishbone.CTI_BURST_END, wishbone.CTI_BURST_NONE))),
             If (wb.ack,
                 avl.readdatavalid.eq(1),
+                NextValue(burst_address, burst_address + word_width),
                 NextValue(burst_counter, burst_counter - 1)),
             If (burst_counter == 0,
                 wb.cyc.eq(0),
