@@ -21,7 +21,7 @@ from litex.build.io import SDRTristate
 class USBOHCI(Module):
     def __init__(self, platform, pads, usb_clk_freq=48e6, dma_data_width=32):
         self.pads           = pads
-        self.usb_clk_freq   = usb_clk_freq
+        self.usb_clk_freq   = int(usb_clk_freq)
         self.dma_data_width = dma_data_width
 
         self.wb_ctrl = wb_ctrl = wishbone.Interface(data_width=32)
