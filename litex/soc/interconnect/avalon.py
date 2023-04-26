@@ -175,8 +175,8 @@ class AvalonMM2Wishbone(Module):
             wb.bte.eq(Constant(0, 2)),
         ]
 
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
-        fsm.act("IDLE",
+        self.submodules.fsm = fsm = FSM(reset_state="NORMAL")
+        fsm.act("NORMAL",
             burst_cycle.eq(0),
             wb.sel.eq(avl.byteenable),
             wb.cti.eq(Mux(avl.burstcount > 1,
@@ -205,7 +205,7 @@ class AvalonMM2Wishbone(Module):
                 burst_cycle.eq(0),
                 wb.sel.eq(avl.byteenable),
                 NextValue(burst_sel, 0),
-                NextState("IDLE"))
+                NextState("NORMAL"))
         )
         fsm.act("BURST_READ", # TODO
             burst_cycle.eq(1),
@@ -224,7 +224,7 @@ class AvalonMM2Wishbone(Module):
                 wb.sel.eq(avl.byteenable),
                 NextValue(burst_sel, 0),
                 NextValue(burst_read, 0),
-                NextState("IDLE"))
+                NextState("NORMAL"))
         )
 
 # Avalon-ST to/from native LiteX's stream ----------------------------------------------------------
