@@ -130,7 +130,7 @@ class AvalonMMInterface(Record):
             yield self.chipselect.eq(0)
 
 class AvalonMM2Wishbone(Module):
-    def __init__(self, data_width=32, address_width=32):
+    def __init__(self, data_width=32, address_width=32, avoid_combinatorial_loop=True):
         self.wishbone = wb  = wishbone.Interface(data_width=data_width, adr_width=address_width, bursting=True)
         self.avalon   = avl = AvalonMMInterface(data_width=data_width, adr_width=address_width)
 
@@ -148,17 +148,30 @@ class AvalonMM2Wishbone(Module):
         burst_read       = Signal()
         burst_sel        = Signal.like(avl.byteenable)
 
-        self.sync += [
-            last_burst_cycle.eq(burst_cycle)
-        ]
+        self.sync += last_burst_cycle.eq(burst_cycle)
+
+        # Some designs might have trouble with the combinatorial loop created
+        # by wb.ack, so cut it, incurring one clock cycle of overhead on each
+        # bus transaction
+        if avoid_combinatorial_loop:
+            self.sync += [
+                If  (wb.ack | wb.err,  read_access.eq(0)) \
+                .Elif(avl.read,        read_access.eq(1)),
+                readdata.eq(wb.dat_r),
+                readdatavalid.eq((wb.ack | wb.err) & read_access),
+            ]
+        else:
+            self.comb += [
+                read_access.eq(avl.read),
+                readdata.eq(wb.dat_r),
+                readdatavalid.eq((wb.ack | wb.err) & read_access),
+            ]
 
         # Wishbone -> Avalon
         self.comb += [
             avl.waitrequest.eq(~(wb.ack | wb.err) | burst_read),
-            readdatavalid.eq((wb.ack | wb.err) & avl.read),
-            readdata.eq(wb.dat_r),
-            avl.readdatavalid.eq(readdatavalid),
             avl.readdata.eq(readdata),
+            avl.readdatavalid.eq(readdatavalid),
         ]
 
         # Avalon -> Wishbone
@@ -168,8 +181,8 @@ class AvalonMM2Wishbone(Module):
                           burst_address, avl.address) >> word_width_bits),
             wb.dat_w.eq(avl.writedata),
             wb.we.eq(avl.write),
-            wb.cyc.eq(avl.read | avl.write | burst_cycle),
-            wb.stb.eq(avl.read | avl.write),
+            wb.cyc.eq(read_access | avl.write | burst_cycle),
+            wb.stb.eq(read_access | avl.write),
             wb.bte.eq(Constant(0, 2)),
         ]
 
