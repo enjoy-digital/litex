@@ -130,7 +130,7 @@ class AvalonMMInterface(Record):
             yield self.chipselect.eq(0)
 
 class AvalonMM2Wishbone(Module):
-    def __init__(self, data_width=32, address_width=32, avoid_combinatorial_loop=True):
+    def __init__(self, data_width=32, address_width=32, wishbone_base_address=0x0, avoid_combinatorial_loop=True):
         self.wishbone = wb  = wishbone.Interface(data_width=data_width, adr_width=address_width, bursting=True)
         self.avalon   = avl = AvalonMMInterface(data_width=data_width, adr_width=address_width)
 
@@ -177,8 +177,9 @@ class AvalonMM2Wishbone(Module):
         # Avalon -> Wishbone
         self.comb += [
             # avalon is byte addresses, wishbone word addressed
-            wb.adr.eq(Mux(burst_cycle & last_burst_cycle,
-                          burst_address, avl.address) >> word_width_bits),
+            wb.adr.eq((Mux(burst_cycle & last_burst_cycle,
+                          burst_address, avl.address) >> word_width_bits)
+                      + wishbone_base_address),
             wb.dat_w.eq(avl.writedata),
             wb.we.eq(avl.write),
             wb.cyc.eq(read_access | avl.write | burst_cycle),
