@@ -145,7 +145,7 @@ class AvalonMM2Wishbone(Module):
         last_burst_cycle = Signal()
         burst_cycle      = Signal()
         burst_counter    = Signal.like(avl.burstcount)
-        burst_address    = Signal.like(avl.readdata)
+        burst_address    = Signal(address_width)
         burst_read       = Signal()
         burst_sel        = Signal.like(avl.byteenable)
 
