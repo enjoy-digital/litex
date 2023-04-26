@@ -177,8 +177,8 @@ class AvalonMM2Wishbone(Module):
         # Avalon -> Wishbone
         self.comb += [
             # avalon is byte addresses, wishbone word addressed
-            wb.adr.eq((Mux(burst_cycle & last_burst_cycle,
-                          burst_address, avl.address) >> word_width_bits)
+            wb.adr.eq(Mux(burst_cycle & last_burst_cycle,
+                          burst_address, avl.address)[word_width_bits:]
                       + wishbone_base_address),
             wb.dat_w.eq(avl.writedata),
             wb.we.eq(avl.write),
