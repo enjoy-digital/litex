@@ -149,15 +149,13 @@ class AvalonMM2Wishbone(Module):
         burst_sel        = Signal.like(avl.byteenable)
 
         self.sync += [
-             If  (wb.ack | wb.err, read_access.eq(0)) \
-            .Elif(avl.read,        read_access.eq(1)),
             last_burst_cycle.eq(burst_cycle)
         ]
 
         # Wishbone -> Avalon
         self.comb += [
             avl.waitrequest.eq(~(wb.ack | wb.err) | burst_read),
-            readdatavalid.eq((wb.ack | wb.err) & read_access),
+            readdatavalid.eq((wb.ack | wb.err) & avl.read),
             readdata.eq(wb.dat_r),
             avl.readdatavalid.eq(readdatavalid),
             avl.readdata.eq(readdata),
@@ -170,8 +168,8 @@ class AvalonMM2Wishbone(Module):
                           burst_address, avl.address) >> word_width_bits),
             wb.dat_w.eq(avl.writedata),
             wb.we.eq(avl.write),
-            wb.cyc.eq(read_access | avl.write | burst_cycle),
-            wb.stb.eq(read_access | avl.write),
+            wb.cyc.eq(avl.read | avl.write | burst_cycle),
+            wb.stb.eq(avl.read | avl.write),
             wb.bte.eq(Constant(0, 2)),
         ]
 
