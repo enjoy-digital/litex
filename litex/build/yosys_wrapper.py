@@ -81,6 +81,8 @@ class YosysWrapper():
             # yosys has no such function read_systemverilog
             if language == "systemverilog":
                 language = "verilog -sv"
+            if language is None:
+                continue
             reads.append(f"read_{language}{includes} {filename}")
         return "\n".join(reads)
 
