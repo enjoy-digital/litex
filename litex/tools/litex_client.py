@@ -34,6 +34,7 @@ class RemoteClient(EtherboneIPC, CSRBuilder):
         self.host         = host
         self.port         = port
         self.debug        = debug
+        self.binded       = False
         self.base_address = base_address if base_address is not None else 0
 
     def _receive_server_info(self):
@@ -44,17 +45,19 @@ class RemoteClient(EtherboneIPC, CSRBuilder):
             self.base_address = -self.mems.csr.base
 
     def open(self):
-        if hasattr(self, "socket"):
+        if self.binded:
             return
         self.socket = socket.create_connection((self.host, self.port), 5.0)
         self.socket.settimeout(5.0)
         self._receive_server_info()
+        self.binded = True
 
     def close(self):
-        if not hasattr(self, "socket"):
+        if not self.binded:
             return
         self.socket.close()
         del self.socket
+        self.binded = False
 
     def read(self, addr, length=None, burst="incr"):
         length_int = 1 if length is None else length
