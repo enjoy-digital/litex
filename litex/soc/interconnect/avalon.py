@@ -135,8 +135,8 @@ class AvalonMM2Wishbone(Module):
         word_width_bits = log2_int(word_width)
         wishbone_address_width = address_width - word_width_bits + wishbone_extend_address_bits
 
-        self.wishbone = wb  = wishbone.Interface(data_width=data_width, adr_width=wishbone_address_width, bursting=True)
-        self.avalon   = avl = AvalonMMInterface(data_width=data_width, adr_width=address_width)
+        self.a2w_wb  = wb  = wishbone.Interface(data_width=data_width, adr_width=wishbone_address_width, bursting=True)
+        self.a2w_avl = avl = AvalonMMInterface (data_width=data_width, adr_width=address_width)
 
         read_access   = Signal()
         readdatavalid = Signal()
