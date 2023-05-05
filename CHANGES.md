@@ -18,6 +18,8 @@
 	- cpu/soc             : Fixed CPU IRQ reservation.
 	- litepcie/software   : Fixed compilation with DMA_CHECK_DATA commented.
 	- litedram/dma        : Fixed rdata connection (omit list update since LiteX AXI changes).
+	- litepcie/US(P)      : Fixed possible MSI deadlock.
+	- cores/usb_ohci      : Fixed build issue (usb_clk_freq wrapped as int).
 
 	[> Added
 	--------
@@ -80,6 +82,8 @@
 	- litedram/bist       : Replicated data for large data-width.
 	- litedram/ci         : Allowed tests to run in parallel.
 	- litedram/gw2ddrphy  : Improvements to remove warnings in simulation.
+	- liblitespi/spiflash : Add erasee and write functions.
+	- liblitespi/Spiflash : Add write from sdcard file function.
 
 	[> Changed
 	----------
