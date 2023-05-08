@@ -32,7 +32,6 @@ class AvalonMM2Wishbone(Module):
         burst_count      = Signal(len(avl.burstcount))
         burst_address    = Signal(address_width)
         burst_read       = Signal()
-        burst_sel        = Signal(len(avl.byteenable))
 
         self.sync += burst_cycle_last.eq(burst_cycle)
 
@@ -89,7 +88,6 @@ class AvalonMM2Wishbone(Module):
                 burst_cycle.eq(1),
                 NextValue(burst_count, avl.burstcount - 1),
                 NextValue(burst_address, avl.address + word_width),
-                NextValue(burst_sel, avl.byteenable),
                 If(avl.write,
                     NextState("BURST-WRITE")
                 ),
@@ -100,7 +98,7 @@ class AvalonMM2Wishbone(Module):
         )
         fsm.act("BURST-WRITE",
             burst_cycle.eq(1),
-            wb.sel.eq(burst_sel),
+            wb.sel.eq(avl.byteenable),
             wb.cti.eq(wishbone.CTI_BURST_INCREMENTING),
             If(burst_count == 1,
                 wb.cti.eq(wishbone.CTI_BURST_END)
@@ -110,7 +108,6 @@ class AvalonMM2Wishbone(Module):
                 NextValue(burst_count, burst_count - 1)),
             If(burst_count == 0,
                 burst_cycle.eq(0),
-                wb.sel.eq(avl.byteenable),
                 NextState("SINGLE")
             )
         )
@@ -118,7 +115,7 @@ class AvalonMM2Wishbone(Module):
             burst_cycle.eq(1),
             burst_read.eq(1),
             wb.stb.eq(1),
-            wb.sel.eq(burst_sel),
+            wb.sel.eq(2**len(wb.sel) - 1),
             wb.cti.eq(wishbone.CTI_BURST_INCREMENTING),
             If(burst_count == 1,
                 wb.cti.eq(wishbone.CTI_BURST_END)
@@ -131,6 +128,5 @@ class AvalonMM2Wishbone(Module):
             If(burst_count == 0,
                 wb.cyc.eq(0),
                 wb.stb.eq(0),
-                wb.sel.eq(avl.byteenable),
                 NextState("SINGLE"))
         )
