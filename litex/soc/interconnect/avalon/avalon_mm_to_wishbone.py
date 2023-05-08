@@ -105,7 +105,8 @@ class AvalonMM2Wishbone(Module):
             ),
             If(~avl.waitrequest,
                 NextValue(burst_address, burst_address + word_width),
-                NextValue(burst_count, burst_count - 1)),
+                NextValue(burst_count, burst_count - 1),
+            ),
             If(burst_count == 0,
                 burst_cycle.eq(0),
                 NextState("SINGLE")
@@ -121,7 +122,6 @@ class AvalonMM2Wishbone(Module):
                 wb.cti.eq(wishbone.CTI_BURST_END)
             ),
             If(wb.ack,
-                avl.readdatavalid.eq(1),
                 NextValue(burst_address, burst_address + word_width),
                 NextValue(burst_count, burst_count - 1)
             ),
