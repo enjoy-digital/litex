@@ -95,7 +95,6 @@ class AvalonMM2Wishbone(Module):
                 If(avl.write,
                     NextState("BURST-WRITE")),
                 If(avl.read,
-                    NextValue(burst_read, 1),
                     NextState("BURST-READ"))
                 )
         )
@@ -123,6 +122,7 @@ class AvalonMM2Wishbone(Module):
         )
         fsm.act("BURST-READ", # TODO
             burst_cycle.eq(1),
+            burst_read.eq(1),
             wb.stb.eq(1),
             wb.sel.eq(burst_sel),
             If(burst_counter > 1,
@@ -144,6 +144,5 @@ class AvalonMM2Wishbone(Module):
                 wb.stb.eq(0),
                 wb.sel.eq(avl.byteenable),
                 NextValue(burst_sel,  0),
-                NextValue(burst_read, 0),
                 NextState("SINGLE"))
         )
