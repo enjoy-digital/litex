@@ -27,14 +27,14 @@ class AvalonMM2Wishbone(Module):
         readdatavalid = Signal()
         readdata      = Signal(data_width)
 
-        last_burst_cycle = Signal()
         burst_cycle      = Signal()
-        burst_counter    = Signal.like(avl.burstcount)
+        burst_cycle_last = Signal()
+        burst_count      = Signal(len(avl.burstcount))
         burst_address    = Signal(address_width)
         burst_read       = Signal()
-        burst_sel        = Signal.like(avl.byteenable)
+        burst_sel        = Signal(len(avl.byteenable))
 
-        self.sync += last_burst_cycle.eq(burst_cycle)
+        self.sync += burst_cycle_last.eq(burst_cycle)
 
         # Some designs might have trouble with the combinatorial loop created
         # by wb.ack, so cut it, incurring one clock cycle of overhead on each
@@ -66,10 +66,9 @@ class AvalonMM2Wishbone(Module):
         # Avalon -> Wishbone
         self.comb += [
             # Avalon is byte addresses, Wishbone word addressed
-            If(burst_cycle & last_burst_cycle,
+            wb.adr.eq(avl.address[word_width_bits:] + wishbone_base_address),
+            If(burst_cycle & burst_cycle_last,
                 wb.adr.eq(burst_address[word_width_bits:] + wishbone_base_address)
-            ).Else(
-                wb.adr.eq(avl.address[word_width_bits:] + wishbone_base_address)
             ),
             wb.dat_w.eq(avl.writedata),
             wb.we.eq(avl.write),
@@ -88,46 +87,48 @@ class AvalonMM2Wishbone(Module):
             ),
             If(~avl.waitrequest & (avl.burstcount > 1),
                 burst_cycle.eq(1),
-                NextValue(burst_counter, avl.burstcount - 1),
+                NextValue(burst_count, avl.burstcount - 1),
                 NextValue(burst_address, avl.address + word_width),
                 NextValue(burst_sel, avl.byteenable),
                 If(avl.write,
-                    NextState("BURST-WRITE")),
+                    NextState("BURST-WRITE")
+                ),
                 If(avl.read,
-                    NextState("BURST-READ"))
+                    NextState("BURST-READ")
                 )
+            )
         )
         fsm.act("BURST-WRITE",
             burst_cycle.eq(1),
             wb.sel.eq(burst_sel),
             wb.cti.eq(wishbone.CTI_BURST_INCREMENTING),
-            If(burst_counter == 1,
+            If(burst_count == 1,
                 wb.cti.eq(wishbone.CTI_BURST_END)
             ),
             If(~avl.waitrequest,
                 NextValue(burst_address, burst_address + word_width),
-                NextValue(burst_counter, burst_counter - 1)),
-            If(burst_counter == 0,
+                NextValue(burst_count, burst_count - 1)),
+            If(burst_count == 0,
                 burst_cycle.eq(0),
                 wb.sel.eq(avl.byteenable),
                 NextState("SINGLE")
             )
         )
-        fsm.act("BURST-READ", # TODO
+        fsm.act("BURST-READ",
             burst_cycle.eq(1),
             burst_read.eq(1),
             wb.stb.eq(1),
             wb.sel.eq(burst_sel),
             wb.cti.eq(wishbone.CTI_BURST_INCREMENTING),
-            If(burst_counter == 1,
+            If(burst_count == 1,
                 wb.cti.eq(wishbone.CTI_BURST_END)
             ),
             If(wb.ack,
                 avl.readdatavalid.eq(1),
                 NextValue(burst_address, burst_address + word_width),
-                NextValue(burst_counter, burst_counter - 1)
+                NextValue(burst_count, burst_count - 1)
             ),
-            If(burst_counter == 0,
+            If(burst_count == 0,
                 wb.cyc.eq(0),
                 wb.stb.eq(0),
                 wb.sel.eq(avl.byteenable),
