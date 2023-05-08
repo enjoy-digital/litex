@@ -82,10 +82,9 @@ class AvalonMM2Wishbone(Module):
         fsm.act("SINGLE",
             burst_cycle.eq(0),
             wb.sel.eq(avl.byteenable),
+            wb.cti.eq(wishbone.CTI_BURST_NONE),
             If(avl.burstcount > 1,
                 wb.cti.eq(wishbone.CTI_BURST_INCREMENTING)
-            ).Else(
-                wb.cti.eq(wishbone.CTI_BURST_NONE)
             ),
             If(~avl.waitrequest & (avl.burstcount > 1),
                 burst_cycle.eq(1),
@@ -101,14 +100,9 @@ class AvalonMM2Wishbone(Module):
         fsm.act("BURST-WRITE",
             burst_cycle.eq(1),
             wb.sel.eq(burst_sel),
-            If(burst_counter > 1,
-                wb.cti.eq(wishbone.CTI_BURST_INCREMENTING)
-            ).Else(
-                If(burst_counter == 1,
-                    wb.cti.eq(wishbone.CTI_BURST_END)
-                ).Else(
-                    wb.cti.eq(wishbone.CTI_BURST_NONE)
-                )
+            wb.cti.eq(wishbone.CTI_BURST_INCREMENTING),
+            If(burst_counter == 1,
+                wb.cti.eq(wishbone.CTI_BURST_END)
             ),
             If(~avl.waitrequest,
                 NextValue(burst_address, burst_address + word_width),
@@ -124,14 +118,9 @@ class AvalonMM2Wishbone(Module):
             burst_read.eq(1),
             wb.stb.eq(1),
             wb.sel.eq(burst_sel),
-            If(burst_counter > 1,
-                wb.cti.eq(wishbone.CTI_BURST_INCREMENTING),
-            ).Else(
-                If(burst_counter == 1,
-                    wb.cti.eq(wishbone.CTI_BURST_END)
-                ).Else(
-                    wb.cti.eq(wishbone.CTI_BURST_NONE)
-                )
+            wb.cti.eq(wishbone.CTI_BURST_INCREMENTING),
+            If(burst_counter == 1,
+                wb.cti.eq(wishbone.CTI_BURST_END)
             ),
             If(wb.ack,
                 avl.readdatavalid.eq(1),
