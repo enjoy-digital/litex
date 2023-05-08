@@ -12,6 +12,9 @@ from migen import *
 from litex.soc.interconnect import stream
 from litex.soc.interconnect import wishbone
 
+
+# Avalon MM Layout ---------------------------------------------------------------------------------
+
 _layout = [
     ("address",          "adr_width", DIR_M_TO_S),
     ("writedata",       "data_width", DIR_M_TO_S),
@@ -21,10 +24,12 @@ _layout = [
     ("read",                       1, DIR_M_TO_S),
     ("write",                      1, DIR_M_TO_S),
     ("waitrequest",                1, DIR_S_TO_M),
-    ("burstbegin",                 1, DIR_M_TO_S), # this is optional
+    ("burstbegin",                 1, DIR_M_TO_S), # Optional.
     ("burstcount",                 8, DIR_M_TO_S),
-    ("chipselect",                 1, DIR_M_TO_S), # this is optional
+    ("chipselect",                 1, DIR_M_TO_S), # Optional.
 ]
+
+# Avalon MM Interface ------------------------------------------------------------------------------
 
 class AvalonMMInterface(Record):
     def __init__(self, data_width=32, adr_width=30, **kwargs):
@@ -85,8 +90,7 @@ class AvalonMMInterface(Record):
         while (yield self.waitrequest):
             yield
         yield self.read.eq(0)
-        # actually don't care outside of a transaction
-        # this makes the traces look neater
+        # Actually don't care outside of a transaction this makes the traces look neater.
         yield self.byteenable.eq(0)
         if burstcount != 1:
             yield self.burstcount.eq(0)
@@ -129,6 +133,8 @@ class AvalonMMInterface(Record):
         if chipselect is not None:
             yield self.chipselect.eq(0)
 
+# Avalon MM <--> Wishbone Bridge -------------------------------------------------------------------
+
 class AvalonMM2Wishbone(Module):
     def __init__(self, data_width=32, address_width=32, wishbone_base_address=0x0, wishbone_extend_address_bits=0, avoid_combinatorial_loop=True):
         word_width      = data_width // 8
@@ -156,8 +162,11 @@ class AvalonMM2Wishbone(Module):
         # bus transaction
         if avoid_combinatorial_loop:
             self.sync += [
-                If  (wb.ack | wb.err,  read_access.eq(0)) \
-                .Elif(avl.read,        read_access.eq(1)),
+                If(wb.ack | wb.err,
+                    read_access.eq(0)
+                ).Elif(avl.read,
+                    read_access.eq(1)
+                ),
                 readdata.eq(wb.dat_r),
                 readdatavalid.eq((wb.ack | wb.err) & read_access),
             ]
@@ -177,40 +186,52 @@ class AvalonMM2Wishbone(Module):
 
         # Avalon -> Wishbone
         self.comb += [
-            # avalon is byte addresses, wishbone word addressed
-            wb.adr.eq(Mux(burst_cycle & last_burst_cycle,
-                          burst_address, avl.address)[word_width_bits:]
-                      + Constant(wishbone_base_address, (wishbone_address_width, 0))),
+            # Avalon is byte addresses, Wishbone word addressed
+            If(burst_cycle & last_burst_cycle,
+                wb.adr.eq(burst_address[word_width_bits:] + wishbone_base_address)
+            ).Else(
+                wb.adr.eq(avl.address[word_width_bits:] + wishbone_base_address)
+            ),
             wb.dat_w.eq(avl.writedata),
             wb.we.eq(avl.write),
             wb.cyc.eq(read_access | avl.write | burst_cycle),
             wb.stb.eq(read_access | avl.write),
-            wb.bte.eq(Constant(0, 2)),
+            wb.bte.eq(0b00),
         ]
 
-        self.submodules.fsm = fsm = FSM(reset_state="NORMAL")
-        fsm.act("NORMAL",
+        self.submodules.fsm = fsm = FSM(reset_state="SINGLE")
+        fsm.act("SINGLE",
             burst_cycle.eq(0),
             wb.sel.eq(avl.byteenable),
-            wb.cti.eq(Mux(avl.burstcount > 1,
-                wishbone.CTI_BURST_INCREMENTING,
-                wishbone.CTI_BURST_NONE)),
+            If(avl.burstcount > 1,
+                wb.cti.eq(wishbone.CTI_BURST_INCREMENTING)
+            ).Else(
+                wb.cti.eq(wishbone.CTI_BURST_NONE)
+            ),
             If(~avl.waitrequest & (avl.burstcount > 1),
                 burst_cycle.eq(1),
                 NextValue(burst_counter, avl.burstcount - 1),
                 NextValue(burst_address, avl.address + word_width),
                 NextValue(burst_sel, avl.byteenable),
-                If(avl.write, NextState("BURST_WRITE")),
+                If(avl.write,
+                    NextState("BURST-WRITE")),
                 If(avl.read,
                     NextValue(burst_read, 1),
-                    NextState("BURST_READ")))
+                    NextState("BURST-READ"))
+                )
         )
-        fsm.act("BURST_WRITE",
+        fsm.act("BURST-WRITE",
             burst_cycle.eq(1),
             wb.sel.eq(burst_sel),
-            wb.cti.eq(Mux(burst_counter > 1,
-                wishbone.CTI_BURST_INCREMENTING,
-                Mux(burst_counter == 1, wishbone.CTI_BURST_END, wishbone.CTI_BURST_NONE))),
+            If(burst_counter > 1,
+                wb.cti.eq(wishbone.CTI_BURST_INCREMENTING)
+            ).Else(
+                If(burst_counter == 1,
+                    wb.cti.eq(wishbone.CTI_BURST_END)
+                ).Else(
+                    wb.cti.eq(wishbone.CTI_BURST_NONE)
+                )
+            ),
             If(~avl.waitrequest,
                 NextValue(burst_address, burst_address + word_width),
                 NextValue(burst_counter, burst_counter - 1)),
@@ -218,26 +239,34 @@ class AvalonMM2Wishbone(Module):
                 burst_cycle.eq(0),
                 wb.sel.eq(avl.byteenable),
                 NextValue(burst_sel, 0),
-                NextState("NORMAL"))
+                NextState("SINGLE")
+            )
         )
-        fsm.act("BURST_READ", # TODO
+        fsm.act("BURST-READ", # TODO
             burst_cycle.eq(1),
             wb.stb.eq(1),
             wb.sel.eq(burst_sel),
-            wb.cti.eq(Mux(burst_counter > 1,
-                wishbone.CTI_BURST_INCREMENTING,
-                Mux(burst_counter == 1, wishbone.CTI_BURST_END, wishbone.CTI_BURST_NONE))),
-            If (wb.ack,
+            If(burst_counter > 1,
+                wb.cti.eq(wishbone.CTI_BURST_INCREMENTING),
+            ).Else(
+                If(burst_counter == 1,
+                    wb.cti.eq(wishbone.CTI_BURST_END)
+                ).Else(
+                    wb.cti.eq(wishbone.CTI_BURST_NONE)
+                )
+            ),
+            If(wb.ack,
                 avl.readdatavalid.eq(1),
                 NextValue(burst_address, burst_address + word_width),
-                NextValue(burst_counter, burst_counter - 1)),
-            If (burst_counter == 0,
+                NextValue(burst_counter, burst_counter - 1)
+            ),
+            If(burst_counter == 0,
                 wb.cyc.eq(0),
                 wb.stb.eq(0),
                 wb.sel.eq(avl.byteenable),
-                NextValue(burst_sel, 0),
+                NextValue(burst_sel,  0),
                 NextValue(burst_read, 0),
-                NextState("NORMAL"))
+                NextState("SINGLE"))
         )
 
 # Avalon-ST to/from native LiteX's stream ----------------------------------------------------------
