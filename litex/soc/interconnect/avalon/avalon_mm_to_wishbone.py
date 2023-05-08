@@ -116,7 +116,6 @@ class AvalonMM2Wishbone(Module):
             If(burst_counter == 0,
                 burst_cycle.eq(0),
                 wb.sel.eq(avl.byteenable),
-                NextValue(burst_sel, 0),
                 NextState("SINGLE")
             )
         )
@@ -143,6 +142,5 @@ class AvalonMM2Wishbone(Module):
                 wb.cyc.eq(0),
                 wb.stb.eq(0),
                 wb.sel.eq(avl.byteenable),
-                NextValue(burst_sel,  0),
                 NextState("SINGLE"))
         )
