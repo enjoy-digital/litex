@@ -15,13 +15,9 @@ from litex.soc.interconnect.avalon import AvalonMMInterface
 # Avalon MM <--> Wishbone Bridge -------------------------------------------------------------------
 
 class AvalonMM2Wishbone(Module):
-    def __init__(self, data_width=32, address_width=32, wishbone_base_address=0x0, wishbone_extend_address_bits=0, avoid_combinatorial_loop=True):
-        word_width      = data_width // 8
-        word_width_bits = log2_int(word_width)
-        wishbone_address_width = address_width - word_width_bits + wishbone_extend_address_bits
-
+    def __init__(self, data_width=32, avalon_address_width=32, wishbone_address_width=32, wishbone_base_address=0x0, burst_increment=1, avoid_combinatorial_loop=True):
+        self.a2w_avl = avl = AvalonMMInterface (data_width=data_width, adr_width=avalon_address_width)
         self.a2w_wb  = wb  = wishbone.Interface(data_width=data_width, adr_width=wishbone_address_width, bursting=True)
-        self.a2w_avl = avl = AvalonMMInterface (data_width=data_width, adr_width=address_width)
 
         read_access   = Signal()
         readdatavalid = Signal()
@@ -30,7 +26,7 @@ class AvalonMM2Wishbone(Module):
         burst_cycle      = Signal()
         burst_cycle_last = Signal()
         burst_count      = Signal(len(avl.burstcount))
-        burst_address    = Signal(address_width)
+        burst_address    = Signal(wishbone_address_width)
         burst_read       = Signal()
 
         self.sync += burst_cycle_last.eq(burst_cycle)
@@ -65,9 +61,9 @@ class AvalonMM2Wishbone(Module):
         # Avalon -> Wishbone
         self.comb += [
             # Avalon is byte addresses, Wishbone word addressed
-            wb.adr.eq(avl.address[word_width_bits:] + wishbone_base_address),
+            wb.adr.eq(avl.address + wishbone_base_address),
             If(burst_cycle & burst_cycle_last,
-                wb.adr.eq(burst_address[word_width_bits:] + wishbone_base_address)
+                wb.adr.eq(burst_address + wishbone_base_address)
             ),
             wb.dat_w.eq(avl.writedata),
             wb.we.eq(avl.write),
@@ -87,7 +83,7 @@ class AvalonMM2Wishbone(Module):
             If(~avl.waitrequest & (avl.burstcount > 1),
                 burst_cycle.eq(1),
                 NextValue(burst_count, avl.burstcount - 1),
-                NextValue(burst_address, avl.address + word_width),
+                NextValue(burst_address, avl.address + burst_increment),
                 If(avl.write,
                     NextState("BURST-WRITE")
                 ),
@@ -104,7 +100,7 @@ class AvalonMM2Wishbone(Module):
                 wb.cti.eq(wishbone.CTI_BURST_END)
             ),
             If(~avl.waitrequest,
-                NextValue(burst_address, burst_address + word_width),
+                NextValue(burst_address, burst_address + burst_increment),
                 NextValue(burst_count, burst_count - 1),
             ),
             If(burst_count == 0,
@@ -122,7 +118,8 @@ class AvalonMM2Wishbone(Module):
                 wb.cti.eq(wishbone.CTI_BURST_END)
             ),
             If(wb.ack,
-                NextValue(burst_address, burst_address + word_width),
+                avl.readdatavalid.eq(1),
+                NextValue(burst_address, burst_address + burst_increment),
                 NextValue(burst_count, burst_count - 1)
             ),
             If(burst_count == 0,
