@@ -28,6 +28,28 @@ vbits = 12
 # Video Timings ------------------------------------------------------------------------------------
 
 video_timings = {
+    "160x100@60Hz" : {
+        "pix_clk"       : 1.655e6,
+        "h_active"      : 160,
+        "h_blanking"    : 80,
+        "h_sync_offset" : 8,
+        "h_sync_width"  : 32,
+        "v_active"      : 100,
+        "v_blanking"    : 15,
+        "v_sync_offset" : 1,
+        "v_sync_width"  : 8,
+    },
+    "320x200@60Hz" : {
+        "pix_clk"       : 5.16e6,
+        "h_active"      : 320,
+        "h_blanking"    : 80,
+        "h_sync_offset" : 8,
+        "h_sync_width"  : 32,
+        "v_active"      : 200,
+        "v_blanking"    : 15,
+        "v_sync_offset" : 1,
+        "v_sync_width"  : 8,
+    },
     "640x480@60Hz" : {
         "pix_clk"       : 25.175e6,
         "h_active"      : 640,
