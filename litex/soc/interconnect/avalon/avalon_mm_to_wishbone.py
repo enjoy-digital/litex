@@ -55,7 +55,6 @@ class AvalonMM2Wishbone(Module):
         self.comb += [
             avl.waitrequest.eq(~(wb.ack | wb.err) | burst_read),
             avl.readdata.eq(readdata),
-            avl.readdatavalid.eq(readdatavalid),
         ]
 
         # Avalon -> Wishbone
@@ -75,6 +74,7 @@ class AvalonMM2Wishbone(Module):
         self.submodules.fsm = fsm = FSM(reset_state="SINGLE")
         fsm.act("SINGLE",
             burst_cycle.eq(0),
+            avl.readdatavalid.eq(readdatavalid),
             wb.sel.eq(avl.byteenable),
             wb.cti.eq(wishbone.CTI_BURST_NONE),
             If(avl.burstcount > 1,
@@ -93,6 +93,7 @@ class AvalonMM2Wishbone(Module):
             )
         )
         fsm.act("BURST-WRITE",
+            avl.readdatavalid.eq(0),
             burst_cycle.eq(1),
             wb.sel.eq(avl.byteenable),
             wb.cti.eq(wishbone.CTI_BURST_INCREMENTING),
@@ -109,6 +110,7 @@ class AvalonMM2Wishbone(Module):
             )
         )
         fsm.act("BURST-READ",
+            avl.readdatavalid.eq(0),
             burst_cycle.eq(1),
             burst_read.eq(1),
             wb.stb.eq(1),

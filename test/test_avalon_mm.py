@@ -44,9 +44,13 @@ class TestAvalon2Wishbone(unittest.TestCase):
             yield from dut.avl.bus_write(0x0, [0x01234567, 0x89abcdef, 0xdeadbeef, 0xc0ffee00, 0x76543210])
             yield
             self.assertEqual((yield from dut.avl.bus_read(0x0000, burstcount=5)), 0x01234567)
+            self.assertEqual((yield dut.avl.readdatavalid), 1)
             self.assertEqual((yield from dut.avl.continue_read_burst()), 0x89abcdef)
+            self.assertEqual((yield dut.avl.readdatavalid), 1)
             self.assertEqual((yield from dut.avl.continue_read_burst()), 0xdeadbeef)
+            self.assertEqual((yield dut.avl.readdatavalid), 1)
             self.assertEqual((yield from dut.avl.continue_read_burst()), 0xc0ffee00)
+            self.assertEqual((yield dut.avl.readdatavalid), 1)
             self.assertEqual((yield from dut.avl.continue_read_burst()), 0x76543210)
             yield
             yield
