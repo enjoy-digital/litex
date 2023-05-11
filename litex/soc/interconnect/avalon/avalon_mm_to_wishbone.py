@@ -100,7 +100,7 @@ class AvalonMM2Wishbone(Module):
             If(burst_count == 1,
                 wb.cti.eq(wishbone.CTI_BURST_END)
             ),
-            If(~avl.waitrequest,
+            If(~avl.waitrequest & avl.write,
                 NextValue(burst_address, burst_address + burst_increment),
                 NextValue(burst_count, burst_count - 1),
             ),
