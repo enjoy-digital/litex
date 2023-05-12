@@ -112,7 +112,7 @@ class EfinixDbParser:
                         if i == None:
                             continue
                         if (i == inst) or (inst + '.' in i):
-                            refclk_no = 0
+                            refclk_no = 0 if self.device[:2] != "Ti" else c.get('index')
                             if c.get('index') == '3':
                                 refclk_no = 1
                             return (p.get('name'), refclk_no)
