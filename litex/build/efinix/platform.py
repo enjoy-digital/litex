@@ -16,14 +16,20 @@ from litex.build.efinix import EfinixDbParser
 # EfinixPlatform -----------------------------------------------------------------------------------
 
 class EfinixPlatform(GenericPlatform):
-    bitstream_ext = ".bit"
+    _bitstream_ext = {
+        "sram"  : ".bit",
+        "flash" : ".hex"
+    }
 
-    def __init__(self, *args, iobank_info=None, toolchain="efinity", **kwargs):
+    _supported_toolchains = ["efinity"]
+
+    def __init__(self, *args, iobank_info=None, toolchain="efinity", spi_mode="active", **kwargs):
         GenericPlatform.__init__(self, *args, **kwargs)
 
         self.timing_model = self.device[-2:]
         self.device       = self.device[:-2]
         self.iobank_info  = iobank_info
+        self.spi_mode     = spi_mode
         if self.device[:2] == "Ti":
             self.family = "Titanium"
         else:

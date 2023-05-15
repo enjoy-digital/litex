@@ -13,13 +13,27 @@ import argparse
 import os
 
 def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_device=None, polling=False):
-
     kB = 1024
     mB = kB*1024
 
-    cpu_name = d["constants"]["config_cpu_human_name"]
-
     aliases = {}
+
+    # CPU Architectures ----------------------------------------------------------------------------
+    # CHECKME: Move to core and generate a constant for each CPU?
+    cpu_architectures = {
+        "mor1kx"             : "or1k",
+        "marocchino"         : "or1k",
+        "vexriscv smp-linux" : "riscv",
+        "rocketrv64[imac]"   : "riscv",
+        "naxriscv"           : "riscv",
+    }
+
+    # CPU Parameters -------------------------------------------------------------------------------
+    ncpus    = int(d["constants"].get("config_cpu_count", 1))
+    cpu_name = d["constants"].get("config_cpu_human_name")
+    cpu_arch = cpu_architectures[cpu_name]
+    cpu_isa  = d["constants"].get("config_cpu_isa", None)
+    cpu_mmu  = d["constants"].get("config_cpu_mmu", None)
 
     # Header ---------------------------------------------------------------------------------------
     dts = """
@@ -32,18 +46,14 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 """
 
     # Boot Arguments -------------------------------------------------------------------------------
-    cpu_architectures = {
-        "mor1kx"             : "or1k",
-        "marocchino"         : "or1k",
-        "vexriscv smp-linux" : "riscv",
-    }
+
     default_initrd_start = {
         "or1k":   8*mB,
         "riscv": 16*mB,
     }
     default_initrd_size = 8*mB
 
-    cpu_arch = cpu_architectures[cpu_name]
+
     if initrd_start is None:
         initrd_start = default_initrd_start[cpu_arch]
 
@@ -80,57 +90,54 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     # CPU ------------------------------------------------------------------------------------------
 
-    # VexRiscv-SMP
-    # ------------
+    # RISC-V
+    # ------
     if cpu_arch == "riscv":
         # Cache description.
         cache_desc = ""
-        if "cpu_dcache_size" in d["constants"]:
+        if "config_cpu_dcache_size" in d["constants"]:
             cache_desc += """
                 d-cache-size = <{d_cache_size}>;
                 d-cache-sets = <{d_cache_ways}>;
                 d-cache-block-size = <{d_cache_block_size}>;
 """.format(
-    d_cache_size       = d["constants"]["cpu_dcache_size"],
-    d_cache_ways       = d["constants"]["cpu_dcache_ways"],
-    d_cache_block_size = d["constants"]["cpu_dcache_block_size"])
-        if "cpu_icache_size" in d["constants"]:
+    d_cache_size       = d["constants"]["config_cpu_dcache_size"],
+    d_cache_ways       = d["constants"]["config_cpu_dcache_ways"],
+    d_cache_block_size = d["constants"]["config_cpu_dcache_block_size"])
+        if "config_cpu_icache_size" in d["constants"]:
             cache_desc += """
                 i-cache-size = <{i_cache_size}>;
                 i-cache-sets = <{i_cache_ways}>;
                 i-cache-block-size = <{i_cache_block_size}>;
 """.format(
-    i_cache_size       = d["constants"]["cpu_icache_size"],
-    i_cache_ways       = d["constants"]["cpu_icache_ways"],
-    i_cache_block_size = d["constants"]["cpu_icache_block_size"])
+    i_cache_size       = d["constants"]["config_cpu_icache_size"],
+    i_cache_ways       = d["constants"]["config_cpu_icache_ways"],
+    i_cache_block_size = d["constants"]["config_cpu_icache_block_size"])
 
         # TLB description.
         tlb_desc = ""
-        if "cpu_dtlb_size" in d["constants"]:
+        if "config_cpu_dtlb_size" in d["constants"]:
             tlb_desc += """
                 d-tlb-size = <{d_tlb_size}>;
                 d-tlb-sets = <{d_tlb_ways}>;
 """.format(
-    d_tlb_size = d["constants"]["cpu_dtlb_size"],
-    d_tlb_ways = d["constants"]["cpu_dtlb_ways"])
-        if "cpu_itlb_size" in d["constants"]:
+    d_tlb_size = d["constants"]["config_cpu_dtlb_size"],
+    d_tlb_ways = d["constants"]["config_cpu_dtlb_ways"])
+        if "config_cpu_itlb_size" in d["constants"]:
             tlb_desc += """
                 i-tlb-size = <{i_tlb_size}>;
                 i-tlb-sets = <{i_tlb_ways}>;
 """.format(
-    i_tlb_size = d["constants"]["cpu_itlb_size"],
-    i_tlb_ways = d["constants"]["cpu_itlb_ways"])
-
-        # CPU(s) Count.
-        cpus = range(int(d["constants"]["config_cpu_count"]))
+    i_tlb_size = d["constants"]["config_cpu_itlb_size"],
+    i_tlb_ways = d["constants"]["config_cpu_itlb_ways"])
 
         # CPU(s) Topology.
         cpu_map = ""
-        if int(d["constants"]["config_cpu_count"]) > 1:
+        if ncpus > 1:
             cpu_map += """
             cpu-map {
                 cluster0 {"""
-            for cpu in cpus:
+            for cpu in range(ncpus):
                 cpu_map += """
                     core{cpu} {{
                         cpu = <&CPU{cpu}>;
@@ -145,13 +152,13 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
             #size-cells    = <0>;
             timebase-frequency = <{sys_clk_freq}>;
 """.format(sys_clk_freq=d["constants"]["config_clock_frequency"])
-        for cpu in cpus:
+        for cpu in range(ncpus):
             dts += """
             CPU{cpu}: cpu@{cpu} {{
                 device_type = "cpu";
                 compatible = "riscv";
                 riscv,isa = "{cpu_isa}";
-                mmu-type = "riscv,sv32";
+                mmu-type = "riscv,{cpu_mmu}";
                 reg = <{cpu}>;
                 clock-frequency = <{sys_clk_freq}>;
                 status = "okay";
@@ -163,14 +170,19 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                     compatible = "riscv,cpu-intc";
                 }};
             }};
-""".format(cpu=cpu, irq=cpu, sys_clk_freq=d["constants"]["config_clock_frequency"], cpu_isa=d["constants"]["cpu_isa"], cache_desc=cache_desc, tlb_desc=tlb_desc)
+""".format(cpu=cpu, irq=cpu,
+    sys_clk_freq = d["constants"]["config_clock_frequency"],
+    cpu_isa      = cpu_isa,
+    cpu_mmu      = cpu_mmu,
+    cache_desc   = cache_desc,
+    tlb_desc     = tlb_desc)
         dts += """
             {cpu_map}
         }};
 """.format(cpu_map=cpu_map)
 
-    # Mor1kx
-    # ------
+    # Or1k
+    # ----
     elif cpu_arch == "or1k":
         dts += """
         cpus {{
@@ -270,6 +282,17 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     # Interrupt Controller -------------------------------------------------------------------------
 
+    if (cpu_arch == "riscv") and ("rocket" in cpu_name):
+        # FIXME  : L4 definitiion?
+        # CHECKME: interrupts-extended.
+        dts += """
+            lintc0: clint@{clint_base:x} {{
+                compatible = "riscv,clint0";
+                interrupts-extended = <&L4 3 &L4 7>;
+                reg = <0x{clint_base:x} 0x10000>;
+                reg-names = "control";
+            }};
+""".format(clint_base=d["memories"]["clint"]["base"])
     if cpu_arch == "riscv":
         dts += """
             intc0: interrupt-controller@{plic_base:x} {{
@@ -284,7 +307,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
             }};
 """.format(
         plic_base   =d["memories"]["plic"]["base"],
-        cpu_mapping =("\n" + " "*20).join(["&L{} 11 &L{} 9".format(cpu, cpu) for cpu in cpus]))
+        cpu_mapping =("\n" + " "*20).join(["&L{} 11 &L{} 9".format(cpu, cpu) for cpu in range(ncpus)]))
 
     elif cpu_arch == "or1k":
         dts += """

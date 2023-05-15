@@ -8,6 +8,8 @@ import os
 
 from migen import *
 
+from litex.gen import *
+
 from litex.build.vhd2v_converter import *
 
 from litex.soc.interconnect import wishbone
@@ -64,8 +66,6 @@ class NEORV32(CPU):
         self.memory_buses = []      # Memory buses (Connected directly to LiteDRAM).
 
         # # #
-
-        class Open(Signal) : pass
 
         # CPU LiteX Core Complex Wrapper
         self.specials += Instance("neorv32_litex_core_complex",
@@ -163,11 +163,12 @@ class NEORV32(CPU):
         }
 
         # Download VHDL sources (if not already present).
+        sha1 = "d610a0bd777f55d17dd59f174566aa88e911a1ec"
         for directory, vhds in sources.items():
             for vhd in vhds:
                 self.vhd2v_converter.add_source(os.path.join(cdir, vhd))
                 if not os.path.exists(os.path.join(cdir, vhd)):
-                    os.system(f"wget https://raw.githubusercontent.com/stnolting/neorv32/main/rtl/{directory}/{vhd} -P {cdir}")
+                    os.system(f"wget https://raw.githubusercontent.com/stnolting/neorv32/{sha1}/rtl/{directory}/{vhd} -P {cdir}")
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")

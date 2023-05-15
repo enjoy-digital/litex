@@ -167,8 +167,9 @@ class GenericToolchain:
                     .format(self.clocks[clk], period))
         self.clocks[clk] = period
 
-    def add_false_path_constraint(self, platform, from_, to):
-        from_.attr.add("keep")
-        to.attr.add("keep")
+    def add_false_path_constraint(self, platform, from_, to, keep=True):
+        if keep:
+            from_.attr.add("keep")
+            to.attr.add("keep")
         if (to, from_) not in self.false_paths:
             self.false_paths.add((from_, to))

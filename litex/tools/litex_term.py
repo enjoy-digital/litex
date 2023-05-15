@@ -14,7 +14,6 @@ import os
 import time
 import serial
 import threading
-import multiprocessing
 import argparse
 import json
 import socket
@@ -100,23 +99,25 @@ class CrossoverUART:
     def open(self):
         self.bus.open()
         self.file, self.name = pty.openpty()
-        self.pty2crossover_thread = multiprocessing.Process(target=self.pty2crossover)
-        self.crossover2pty_thread = multiprocessing.Process(target=self.crossover2pty)
+        self.alive = True
+        self.pty2crossover_thread = threading.Thread(target=self.pty2crossover, daemon=True)
+        self.crossover2pty_thread = threading.Thread(target=self.crossover2pty, daemon=True)
         self.pty2crossover_thread.start()
         self.crossover2pty_thread.start()
 
     def close(self):
         self.bus.close()
-        self.pty2crossover_thread.terminate()
-        self.crossover2pty_thread.terminate()
+        self.alive = False
+        self.pty2crossover_thread.join(timeout=0.1)
+        self.crossover2pty_thread.join(timeout=0.1)
 
     def pty2crossover(self):
-        while True:
+        while self.alive:
             r = os.read(self.file, 1)
             self.rxtx.write(ord(r))
 
     def crossover2pty(self):
-        while True:
+        while self.alive:
             if self.rxfull.read():
                 length = 16
             elif not self.rxempty.read():
@@ -140,32 +141,38 @@ class JTAGUART:
 
     def open(self):
         self.file, self.name = pty.openpty()
-        self.jtag2tcp_thread = multiprocessing.Process(target=self.jtag2tcp)
+        self.alive = True
+        self.jtag2tcp_thread = threading.Thread(target=self.jtag2tcp, daemon=True)
         self.jtag2tcp_thread.start()
-        time.sleep(0.5)
-        self.pty2tcp_thread  = multiprocessing.Process(target=self.pty2tcp)
-        self.tcp2pty_thread  = multiprocessing.Process(target=self.tcp2pty)
+        self.pty2tcp_thread  = threading.Thread(target=self.pty2tcp, daemon=True)
+        self.tcp2pty_thread  = threading.Thread(target=self.tcp2pty, daemon=True)
         self.tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.tcp.connect(("localhost", self.port))
+        for _ in range(0, 50):
+            try:
+                self.tcp.connect(("localhost", self.port))
+                break
+            except ConnectionRefusedError:
+                time.sleep(0.1)
         self.pty2tcp_thread.start()
         self.tcp2pty_thread.start()
 
     def close(self):
-        self.jtag2tcp_thread.terminate()
-        self.pty2tcp_thread.terminate()
-        self.tcp2pty_thread.terminate()
+        self.alive = False
+        self.jtag2tcp_thread.join(timeout=0.1)
+        self.pty2tcp_thread.join(timeout=0.1)
+        self.tcp2pty_thread.join(timeout=0.1)
 
     def jtag2tcp(self):
         prog = OpenOCD(self.config)
         prog.stream(self.port, self.chain)
 
     def pty2tcp(self):
-        while True:
+        while self.alive:
             r = os.read(self.file, 1)
             self.tcp.send(r)
 
     def tcp2pty(self):
-        while True:
+        while self.alive:
             r = self.tcp.recv(1)
             os.write(self.file, bytes(r))
 

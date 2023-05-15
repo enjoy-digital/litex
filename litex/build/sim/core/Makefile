@@ -1,14 +1,20 @@
 include variables.mak
 UNAME_S := $(shell uname -s)
+UNAME_M := $(shell uname -m)
 
 ifeq ($(UNAME_S),Darwin)
-	CFLAGS += -I/usr/local/include/
-	LDFLAGS += -L/usr/local/lib
-	LDFLAGS += -lpthread -ljson-c -lz -lm -lstdc++ -ldl -levent
+	ifeq ($(UNAME_M),x86_64)
+		CFLAGS += -I/usr/local/include
+		LDFLAGS += -L/usr/local/lib
+	else
+		CFLAGS += -I/opt/homebrew/include
+		LDFLAGS += -L/opt/homebrew/lib
+	endif
+	LDFLAGS += -lpthread -ljson-c -lz -lm -lstdc++ -ldl -levent $(if $(VIDEO), -lSDL2)
 else
 	CC ?= gcc
 	CFLAGS += -ggdb
-	LDFLAGS += -lpthread -Wl,--no-as-needed -ljson-c -lz -lm -lstdc++ -Wl,--no-as-needed -ldl -levent
+	LDFLAGS += -lpthread -Wl,--no-as-needed -ljson-c -lz -lm -lstdc++ -Wl,--no-as-needed -ldl -levent $(if $(VIDEO), -lSDL2)
 endif
 
 CFLAGS += -Wall -$(OPT_LEVEL) $(if $(COVERAGE), -DVM_COVERAGE) $(if $(TRACE_FST), -DTRACE_FST)
@@ -52,6 +58,8 @@ sim: $(OBJS_SIM) | mkdir
 		$(INC_DIR) \
 		-Wno-BLKANDNBLK \
 		-Wno-WIDTH \
+		-Wno-COMBDLY \
+		-Wno-CASEINCOMPLETE \
 		--relative-includes
 	make -j$(JOBS) -C $(OBJ_DIR) -f Vsim.mk Vsim
 

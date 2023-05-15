@@ -11,12 +11,15 @@ import subprocess
 
 from migen import *
 
+from litex.gen import *
+
 from litex import get_data_mod
+
 from litex.soc.interconnect import axi
 from litex.soc.interconnect.csr import *
-from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32, CPU_GCC_TRIPLE_RISCV64
+from litex.soc.integration.soc import SoCRegion
 
-class Open(Signal): pass
+from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32, CPU_GCC_TRIPLE_RISCV64
 
 # Variants -----------------------------------------------------------------------------------------
 
@@ -88,6 +91,10 @@ class NaxRiscv(CPU):
         flags += f" -DUART_POLLING"
         return flags
 
+    # Reserved Interrupts.
+    @property
+    def reserved_interrupts(self):
+        return {"noirq": 0}
 
     # Command line configuration arguments.
     @staticmethod
@@ -100,18 +107,20 @@ class NaxRiscv(CPU):
         cpu_group.add_argument("--with-jtag-instruction", action="store_true", help="Add a JTAG instruction port which implement tunneling for debugging (TAP not included)")
         cpu_group.add_argument("--update-repo",   default="recommended", choices=["latest","wipe+latest","recommended","wipe+recommended","no"], help="Specify how the NaxRiscv & SpinalHDL repo should be updated (latest: update to HEAD, recommended: Update to known compatible version, no: Don't update, wipe+*: Do clean&reset before checkout)")
         cpu_group.add_argument("--no-netlist-cache", action="store_true", help="Always (re-)build the netlist")
+        cpu_group.add_argument("--with-fpu",      action="store_true", help="Enable the F32/F64 FPU")
 
     @staticmethod
     def args_read(args):
         print(args)
-        NaxRiscv.jtag_tap = args.with_jtag_tap
+        NaxRiscv.jtag_tap         = args.with_jtag_tap
         NaxRiscv.jtag_instruction = args.with_jtag_instruction
-        NaxRiscv.update_repo = args.update_repo
+        NaxRiscv.update_repo      = args.update_repo
         NaxRiscv.no_netlist_cache = args.no_netlist_cache
+        NaxRiscv.with_fpu         = args.with_fpu
         if args.scala_file:
             NaxRiscv.scala_files = args.scala_file
         if args.scala_args:
-            NaxRiscv.scala_args = args.scala_args
+            NaxRiscv.scala_args  = args.scala_args
             print(args.scala_args)
         if args.xlen:
             xlen = int(args.xlen)
@@ -236,8 +245,8 @@ class NaxRiscv(CPU):
         sdir = os.path.join(vdir, "ext", "SpinalHDL")
 
         if NaxRiscv.update_repo != "no":
-            NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git"  , "main", "518d2713" if NaxRiscv.update_repo=="recommended" else None)
-            NaxRiscv.git_setup("SpinalHDL", sdir, "https://github.com/SpinalHDL/SpinalHDL.git", "dev" , "56400992" if NaxRiscv.update_repo=="recommended" else None)
+            NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git"  , "main", "57e3bf59" if NaxRiscv.update_repo=="recommended" else None)
+            NaxRiscv.git_setup("SpinalHDL", sdir, "https://github.com/SpinalHDL/SpinalHDL.git", "dev" , "8511f126" if NaxRiscv.update_repo=="recommended" else None)
 
         gen_args = []
         gen_args.append(f"--netlist-name={NaxRiscv.netlist_name}")
@@ -256,12 +265,13 @@ class NaxRiscv(CPU):
             gen_args.append(f"--with-debug")
         for file in NaxRiscv.scala_paths:
             gen_args.append(f"--scala-file={file}")
+        if(NaxRiscv.with_fpu):
+            gen_args.append(f"--scala-args=rvf=true,rvd=true")
 
         cmd = f"""cd {ndir} && sbt "runMain naxriscv.platform.LitexGen {" ".join(gen_args)}\""""
         print("NaxRiscv generation command :")
         print(cmd)
-        if os.system(cmd) != 0:
-            raise OSError('Failed to run sbt')
+        subprocess.check_call(cmd, shell=True)
 
 
     def add_sources(self, platform):
@@ -286,19 +296,17 @@ class NaxRiscv(CPU):
         # Add Cluster.
         platform.add_source(os.path.join(vdir,  self.netlist_name + ".v"), "verilog")
 
-    def add_soc_components(self, soc, soc_region_cls):
-        # Set UART/Timer0 CSRs/IRQs to the ones used by OpenSBI.
+    def add_soc_components(self, soc):
+        # Set UART/Timer0 CSRs to the ones used by OpenSBI.
         soc.csr.add("uart",   n=2)
         soc.csr.add("timer0", n=3)
 
-        soc.irq.add("uart",   n=0)
-        soc.irq.add("timer0", n=1)
-
         # Add OpenSBI region.
-        soc.add_memory_region("opensbi", self.mem_map["main_ram"] + 0x00f0_0000, 0x8_0000, type="cached+linker")
+        soc.bus.add_region("opensbi", SoCRegion(origin=self.mem_map["main_ram"] + 0x00f0_0000, size=0x8_0000, cached=True, linker=True))
 
         # Define ISA.
-        soc.add_constant("CPU_ISA", NaxRiscv.get_arch())
+        soc.add_config("CPU_ISA", NaxRiscv.get_arch())
+        soc.add_config("CPU_MMU", {32 : "sv32", 64 : "sv39"}[NaxRiscv.xlen])
 
         # Add PLIC Bus (AXILite Slave).
         self.plicbus = plicbus  = axi.AXILiteInterface(address_width=32, data_width=32)
@@ -323,7 +331,7 @@ class NaxRiscv(CPU):
             o_peripheral_plic_rdata   = plicbus.r.data,
             o_peripheral_plic_rresp   = plicbus.r.resp,
         )
-        soc.bus.add_slave("plic", self.plicbus, region=soc_region_cls(origin=soc.mem_map.get("plic"), size=0x40_0000, cached=False))
+        soc.bus.add_slave("plic", self.plicbus, region=SoCRegion(origin=soc.mem_map.get("plic"), size=0x40_0000, cached=False))
 
         if NaxRiscv.jtag_tap:
             self.jtag_tms = Signal()
@@ -405,7 +413,7 @@ class NaxRiscv(CPU):
             o_peripheral_clint_rdata   = clintbus.r.data,
             o_peripheral_clint_rresp   = clintbus.r.resp,
         )
-        soc.bus.add_slave("clint", clintbus, region=soc_region_cls(origin=soc.mem_map.get("clint"), size=0x1_0000, cached=False))
+        soc.bus.add_slave("clint", clintbus, region=SoCRegion(origin=soc.mem_map.get("clint"), size=0x1_0000, cached=False))
         self.soc = soc # FIXME: Save SoC instance to retrieve the final mem layout on finalization.
 
     def add_memory_buses(self, address_width, data_width):

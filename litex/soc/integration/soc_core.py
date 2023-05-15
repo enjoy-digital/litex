@@ -41,7 +41,7 @@ __all__ = [
 
 # SoCCore ------------------------------------------------------------------------------------------
 
-class SoCCore(LiteXSoC, SoCCoreCompat):
+class SoCCore(LiteXSoC):
     # Default register/interrupt/memory mappings (can be redefined by user)
     csr_map       = {}
     interrupt_map = {}
@@ -111,7 +111,7 @@ class SoCCore(LiteXSoC, SoCCoreCompat):
         # Others
         **kwargs):
 
-        # New LiteXSoC class ----------------------------------------------------------------------------
+        # New LiteXSoC class -----------------------------------------------------------------------
         LiteXSoC.__init__(self, platform, clk_freq,
             bus_standard         = bus_standard,
             bus_data_width       = bus_data_width,
@@ -247,9 +247,6 @@ class SoCCore(LiteXSoC, SoCCoreCompat):
     def add_csr_region(self, name, origin, busword, obj):
         self.csr_regions[name] = SoCCSRRegion(origin, busword, obj)
 
-    def do_finalize(self):
-        SoCCoreCompat.do_finalize(self)
-
 # SoCCore arguments --------------------------------------------------------------------------------
 
 def soc_core_args(parser):
@@ -318,7 +315,7 @@ def soc_core_argdict(args):
             arg = not getattr(args, a.replace("with", "no"), True)
         # Handle specific ident_version case (--no-ident-version is exposed).
         elif a in ["ident_version"]:
-            arg = not getattr(args, "no_ident_version")
+            arg = not getattr(args, "no_ident_version", True)
         # Regular cases.
         else:
             arg = getattr(args, a, None)

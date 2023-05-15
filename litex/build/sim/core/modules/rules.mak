@@ -1,12 +1,19 @@
 CC ?= gcc
 UNAME_S := $(shell uname -s)
+UNAME_M := $(shell uname -m)
 
 ifeq ($(UNAME_S),Darwin)
-    CFLAGS += -I/usr/local/include/
-    LDFLAGS += -L/usr/local/lib -ljson-c
-    CFLAGS += -Wall -O3 -ggdb -fPIC
+	ifeq ($(UNAME_M),x86_64)
+		CFLAGS += -I/usr/local/include
+		LDFLAGS += -L/usr/local/lib
+	else
+		CFLAGS += -I/opt/homebrew/include
+		LDFLAGS += -L/opt/homebrew/lib
+	endif
+	LDFLAGS += -ljson-c
+	CFLAGS += -Wall -O3 -ggdb -fPIC
 else
-    CFLAGS += -Wall -O3 -ggdb -fPIC -Werror
+	CFLAGS += -Wall -O3 -ggdb -fPIC -Werror
 endif
 LDFLAGS += -levent -shared -fPIC
 

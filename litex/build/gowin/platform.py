@@ -13,7 +13,9 @@ from litex.build.gowin import common, gowin
 # GowinPlatform ------------------------------------------------------------------------------------
 
 class GowinPlatform(GenericPlatform):
-    bitstream_ext = ".fs"
+    _bitstream_ext = ".fs"
+
+    _supported_toolchains = ["gowin", "apicula"]
 
     def __init__(self, device, *args, toolchain="gowin", devicename=None, **kwargs):
         GenericPlatform.__init__(self, device, *args, **kwargs)

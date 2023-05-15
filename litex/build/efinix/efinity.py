@@ -204,21 +204,6 @@ class EfinityToolchain(GenericToolchain):
 
         tools.write_to_file("iface.py", header + gen + gpio + add + footer)
 
-        if tools.subprocess_call_filtered([self.efinity_path + "/bin/python3", "iface.py"], common.colors) != 0:
-            raise OSError("Error occurred during Efinity peri script execution.")
-
-        # Some IO blocks don't have Python API so we need to configure them
-        # directly in the peri.xml file
-        # We also need to configure the bank voltage here
-        if self.ifacewriter.xml_blocks or self.platform.iobank_info:
-            self.ifacewriter.generate_xml_blocks()
-
-        # Because the Python API is sometimes bugged, we need to tweak the generated xml
-        if self.ifacewriter.fix_xml:
-            self.ifacewriter.fix_xml_values()
-
-
-
     # Project configuration (.xml) -----------------------------------------------------------------
 
     def build_project(self):
@@ -267,6 +252,19 @@ class EfinityToolchain(GenericToolchain):
         xml_str = expatbuilder.parseString(xml_str, False)
         xml_str = xml_str.toprettyxml(indent="  ")
         tools.write_to_file("{}.xml".format(self._build_name), xml_str)
+
+        if tools.subprocess_call_filtered([self.efinity_path + "/bin/python3", "iface.py"], common.colors) != 0:
+            raise OSError("Error occurred during Efinity peri script execution.")
+
+        # Some IO blocks don't have Python API so we need to configure them
+        # directly in the peri.xml file
+        # We also need to configure the bank voltage here
+        if self.ifacewriter.xml_blocks or self.platform.iobank_info:
+            self.ifacewriter.generate_xml_blocks()
+
+        # Because the Python API is sometimes bugged, we need to tweak the generated xml
+        if self.ifacewriter.fix_xml:
+            self.ifacewriter.fix_xml_values()
 
     def build_script(self):
         return "" # not used
@@ -346,7 +344,7 @@ class EfinityToolchain(GenericToolchain):
             "--spi_low_power_mode",       "off",
             "--io_weak_pullup",           "on",
             "--enable_roms",              "on",
-            "--mode",                     "active",
+            "--mode",                     self.platform.spi_mode,
             "--width",                    "1",
             "--enable_crc_check",         "on"
         ], common.colors)

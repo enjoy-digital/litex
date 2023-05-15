@@ -67,16 +67,17 @@ class SoCCoreCompat:
 
     def register_mem(self, name, address, interface, size=0x10000000):
         compat_notice("SoCCore.register_mem", date="2022-11-03", info="Switch to SoC.bus.add_slave(...)")
+        from litex.soc.integration.soc import SoCRegion
         self.bus.add_slave(name, interface, SoCRegion(origin=address, size=size))
 
     def register_rom(self, interface, rom_size=0xa000):
         compat_notice("SoCCore.register_mem", date="2022-11-03", info="Switch to SoC.bus.add_slave(...)")
+        from litex.soc.integration.soc import SoCRegion
         self.bus.add_slave("rom", interface, SoCRegion(origin=self.cpu.reset_address, size=rom_size))
 
     # Finalization ---------------------------------------------------------------------------------
 
-    def do_finalize(self):
-        # Retro-compatibility
+    def finalize_wb_slaves(self):
         for address, interface in self.wb_slaves.items():
             wb_name = None
             for name, region in self.bus.regions.items():
@@ -84,8 +85,8 @@ class SoCCoreCompat:
                     wb_name = name
                     break
             self.bus.add_slave(name=wb_name, slave=interface)
-        SoC.do_finalize(self)
-        # Retro-compatibility
+
+    def finalize_csr_regions(self):
         for region in self.bus.regions.values():
             region.length = region.size
             region.type   = "cached" if region.cached else "io"

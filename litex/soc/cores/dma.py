@@ -39,7 +39,7 @@ class WishboneDMAReader(Module, AutoCSR):
     source : Record("data")
         Source for MMAP word results from reading.
     """
-    def __init__(self, bus, endianness="little", with_csr=False):
+    def __init__(self, bus, endianness="little", fifo_depth=16, with_csr=False):
         assert isinstance(bus, wishbone.Interface)
         self.bus    = bus
         self.sink   = sink   = stream.Endpoint([("address", bus.adr_width, ("last", 1))])
@@ -47,30 +47,28 @@ class WishboneDMAReader(Module, AutoCSR):
 
         # # #
 
-        data = Signal(bus.data_width)
+        # FIFO..
+        self.submodules.fifo = fifo = stream.SyncFIFO([("data", bus.data_width)], depth=fifo_depth)
 
-        self.submodules.fsm = fsm = FSM(reset_state="BUS-READ")
-        fsm.act("BUS-READ",
-            bus.stb.eq(sink.valid),
-            bus.cyc.eq(sink.valid),
+        # Reads -> FIFO.
+        self.comb += [
+            bus.stb.eq(sink.valid & fifo.sink.ready),
+            bus.cyc.eq(sink.valid & fifo.sink.ready),
             bus.we.eq(0),
             bus.sel.eq(2**(bus.data_width//8)-1),
             bus.adr.eq(sink.address),
+            fifo.sink.last.eq(sink.last),
+            fifo.sink.data.eq(format_bytes(bus.dat_r, endianness)),
             If(bus.stb & bus.ack,
-                NextValue(data, format_bytes(bus.dat_r, endianness)),
-                NextState("SOURCE-WRITE")
-            )
-        )
-        fsm.act("SOURCE-WRITE",
-            source.valid.eq(1),
-            source.last.eq(sink.last),
-            source.data.eq(data),
-            If(source.ready,
                 sink.ready.eq(1),
-                NextState("BUS-READ")
-            )
-        )
+                fifo.sink.valid.eq(1),
+            ),
+        ]
 
+        # FIFO -> Output.
+        self.comb += fifo.source.connect(source)
+
+        # CSRs.
         if with_csr:
             self.add_csr()
 
@@ -140,8 +138,8 @@ class WishboneDMAWriter(Module, AutoCSR):
 
         # # #
 
+        # Writes.
         data = Signal(bus.data_width)
-
         self.comb += [
             bus.stb.eq(sink.valid),
             bus.cyc.eq(sink.valid),
@@ -152,6 +150,7 @@ class WishboneDMAWriter(Module, AutoCSR):
             sink.ready.eq(bus.ack),
         ]
 
+        # CSRs.
         if with_csr:
             self.add_csr()
 

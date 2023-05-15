@@ -6,19 +6,19 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
-from os import path
+import subprocess
 
 from migen import *
+
+from litex.gen import *
 
 from litex import get_data_mod
 
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr import *
+from litex.soc.integration.soc import SoCRegion
+
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
-
-import os
-
-class Open(Signal): pass
 
 # VexRiscv SMP -------------------------------------------------------------------------------------
 
@@ -150,6 +150,11 @@ class VexRiscvSMP(CPU):
         flags += f" -DUART_POLLING"
         return flags
 
+    # Reserved Interrupts.
+    @property
+    def reserved_interrupts(self):
+        return {"noirq": 0}
+
     # Cluster Name Generation.
     @staticmethod
     def generate_cluster_name():
@@ -270,12 +275,12 @@ class VexRiscvSMP(CPU):
         gen_args.append(f"--itlb-size={VexRiscvSMP.itlb_size}")
 
         cmd = 'cd {path} && sbt "runMain vexriscv.demo.smp.VexRiscvLitexSmpClusterCmdGen {args}"'.format(path=os.path.join(vdir, "ext", "VexRiscv"), args=" ".join(gen_args))
-        if os.system(cmd) != 0:
-            raise OSError('Failed to run sbt')
+        subprocess.check_call(cmd, shell=True)
+
 
     def __init__(self, platform, variant):
         self.platform         = platform
-        self.variant          = "linux"
+        self.variant          = variant
         self.human_name       = self.human_name + "-" + self.variant.upper()
         self.reset            = Signal()
         self.jtag_clk         = Signal()
@@ -330,6 +335,7 @@ class VexRiscvSMP(CPU):
             o_peripheral_BTE      = pbus.bte
         )
 
+        # DMA.
         if VexRiscvSMP.coherent_dma:
             self.dma_bus = dma_bus = wishbone.Interface(data_width=VexRiscvSMP.dcache_width)
             dma_bus_stall   = Signal()
@@ -362,7 +368,7 @@ class VexRiscvSMP(CPU):
     def add_sources(self, platform):
         vdir = get_data_mod("cpu", "vexriscv_smp").data_location
         print(f"VexRiscv cluster : {self.cluster_name}")
-        if not path.exists(os.path.join(vdir, self.cluster_name + ".v")):
+        if not os.path.exists(os.path.join(vdir, self.cluster_name + ".v")):
             self.generate_netlist()
 
 
@@ -387,37 +393,37 @@ class VexRiscvSMP(CPU):
         # Add Cluster.
         platform.add_source(os.path.join(vdir,  self.cluster_name + ".v"), "verilog")
 
-    def add_soc_components(self, soc, soc_region_cls):
-        # Set UART/Timer0 CSRs/IRQs to the ones used by OpenSBI.
-        soc.csr.add("uart",   n=2)
-        soc.csr.add("timer0", n=3)
+    def add_soc_components(self, soc):
+        if self.variant == "linux":
+            # Set UART/Timer0 CSRs to the ones used by OpenSBI.
+            soc.csr.add("uart",   n=2)
+            soc.csr.add("timer0", n=3)
 
-        soc.irq.add("uart",   n=0)
-        soc.irq.add("timer0", n=1)
-
-        # Add OpenSBI region.
-        soc.add_memory_region("opensbi", self.mem_map["main_ram"] + 0x00f0_0000, 0x8_0000, type="cached+linker")
+            # Add OpenSBI region.
+            soc.bus.add_region("opensbi", SoCRegion(origin=self.mem_map["main_ram"] + 0x00f0_0000, size=0x8_0000, cached=True, linker=True))
 
         # Define number of CPUs
         soc.add_config("CPU_COUNT", VexRiscvSMP.cpu_count)
-        soc.add_constant("CPU_ISA", VexRiscvSMP.get_arch())
+        soc.add_config("CPU_ISA",   VexRiscvSMP.get_arch())
+        soc.add_config("CPU_MMU",   "sv32")
+
         # Constants for cache so we can add them in the DTS.
         if (VexRiscvSMP.dcache_size > 0):
-            soc.add_constant("cpu_dcache_size", VexRiscvSMP.dcache_size)
-            soc.add_constant("cpu_dcache_ways", VexRiscvSMP.dcache_ways)
-            soc.add_constant("cpu_dcache_block_size", 64) # hardwired?
+            soc.add_config("CPU_DCACHE_SIZE", VexRiscvSMP.dcache_size)
+            soc.add_config("CPU_DCACHE_WAYS", VexRiscvSMP.dcache_ways)
+            soc.add_config("CPU_DCACHE_BLOCK_SIZE", 64) # hardwired?
         if (VexRiscvSMP.icache_size > 0):
-            soc.add_constant("cpu_icache_size", VexRiscvSMP.icache_size)
-            soc.add_constant("cpu_icache_ways", VexRiscvSMP.icache_ways)
-            soc.add_constant("cpu_icache_block_size", 64) # hardwired?
+            soc.add_config("CPU_ICACHE_SIZE", VexRiscvSMP.icache_size)
+            soc.add_config("CPU_ICACHE_WAYS", VexRiscvSMP.icache_ways)
+            soc.add_config("CPU_ICACHE_BLOCK_SIZE", 64) # hardwired?
         # Constants for TLB so we can add them in the DTS
         # full associative so only the size is described.
         if (VexRiscvSMP.dtlb_size > 0):
-            soc.add_constant("cpu_dtlb_size", VexRiscvSMP.dtlb_size)
-            soc.add_constant("cpu_dtlb_ways", VexRiscvSMP.dtlb_size)
+            soc.add_config("CPU_DTLB_SIZE", VexRiscvSMP.dtlb_size)
+            soc.add_config("CPU_DTLB_WAYS", VexRiscvSMP.dtlb_size)
         if (VexRiscvSMP.itlb_size > 0):
-            soc.add_constant("cpu_itlb_size", VexRiscvSMP.itlb_size)
-            soc.add_constant("cpu_itlb_ways", VexRiscvSMP.itlb_size)
+            soc.add_config("CPU_ITLB_SIZE", VexRiscvSMP.itlb_size)
+            soc.add_config("CPU_ITLB_WAYS", VexRiscvSMP.itlb_size)
 
         # Add PLIC as Bus Slave
         self.plicbus = plicbus  = wishbone.Interface()
@@ -430,7 +436,7 @@ class VexRiscvSMP(CPU):
             o_plicWishbone_DAT_MISO  = plicbus.dat_r,
             i_plicWishbone_DAT_MOSI  = plicbus.dat_w
         )
-        soc.bus.add_slave("plic", self.plicbus, region=soc_region_cls(origin=soc.mem_map.get("plic"), size=0x40_0000, cached=False))
+        soc.bus.add_slave("plic", self.plicbus, region=SoCRegion(origin=soc.mem_map.get("plic"), size=0x40_0000, cached=False))
 
         # Add CLINT as Bus Slave
         self.clintbus = clintbus = wishbone.Interface()
@@ -443,7 +449,7 @@ class VexRiscvSMP(CPU):
             o_clintWishbone_DAT_MISO = clintbus.dat_r,
             i_clintWishbone_DAT_MOSI = clintbus.dat_w,
         )
-        soc.bus.add_slave("clint", clintbus, region=soc_region_cls(origin=soc.mem_map.get("clint"), size=0x1_0000, cached=False))
+        soc.bus.add_slave("clint", clintbus, region=SoCRegion(origin=soc.mem_map.get("clint"), size=0x1_0000, cached=False))
 
     def add_memory_buses(self, address_width, data_width):
         VexRiscvSMP.litedram_width = data_width
@@ -487,7 +493,10 @@ class VexRiscvSMP(CPU):
 
         # When no Direct Memory Bus, do memory accesses through Wishbone Peripheral Bus.
         if len(self.memory_buses) == 0:
-            VexRiscvSMP.wishbone_memory = True
+            if VexRiscvSMP.with_fpu and (not VexRiscvSMP.wishbone_memory and not VexRiscvSMP.wishbone_force_32b):
+                raise ValueError("No Direct Memory Bus found, please add --with-wishbone-memory or --wishbone-force-32b to your build command.")
+            else:
+                VexRiscvSMP.wishbone_memory = True
 
         # Generate cluster name.
         VexRiscvSMP.generate_cluster_name()

@@ -34,6 +34,7 @@ class RemoteClient(EtherboneIPC, CSRBuilder):
         self.host         = host
         self.port         = port
         self.debug        = debug
+        self.binded       = False
         self.base_address = base_address if base_address is not None else 0
 
     def _receive_server_info(self):
@@ -44,17 +45,19 @@ class RemoteClient(EtherboneIPC, CSRBuilder):
             self.base_address = -self.mems.csr.base
 
     def open(self):
-        if hasattr(self, "socket"):
+        if self.binded:
             return
         self.socket = socket.create_connection((self.host, self.port), 5.0)
         self.socket.settimeout(5.0)
         self._receive_server_info()
+        self.binded = True
 
     def close(self):
-        if not hasattr(self, "socket"):
+        if not self.binded:
             return
         self.socket.close()
         del self.socket
+        self.binded = False
 
     def read(self, addr, length=None, burst="incr"):
         length_int = 1 if length is None else length
@@ -119,13 +122,17 @@ def dump_identifier(host, csr_csv, port):
 
     bus.close()
 
-def dump_registers(host, csr_csv, port, filter=None):
+def dump_registers(host, csr_csv, port, filter=None, binary=False):
     bus = RemoteClient(host=host, csr_csv=csr_csv, port=port)
     bus.open()
 
     for name, register in bus.regs.__dict__.items():
         if (filter is None) or filter in name:
-            print("0x{:08x} : 0x{:08x} {}".format(register.addr, register.read(), name))
+            register_value = {
+                True  : f"{register.read():032b}",
+                False : f"{register.read():08x}",
+            }[binary]
+            print("0x{:08x} : 0x{} {}".format(register.addr, register_value, name))
 
     bus.close()
 
@@ -360,6 +367,7 @@ def main():
     parser.add_argument("--port",    default="1234",        help="Host bind port.")
     parser.add_argument("--ident",   action="store_true",   help="Dump SoC identifier.")
     parser.add_argument("--regs",    action="store_true",   help="Dump SoC registers.")
+    parser.add_argument("--binary",  action="store_true",   help="Use binary format for displayed values.")
     parser.add_argument("--filter",  default=None,          help="Registers filter (to be used with --regs).")
     parser.add_argument("--read",    default=None,          help="Do a MMAP Read to SoC bus (--read addr/reg).")
     parser.add_argument("--write",   default=None, nargs=2, help="Do a MMAP Write to SoC bus (--write addr/reg data).")
@@ -384,6 +392,7 @@ def main():
             csr_csv = csr_csv,
             port    = port,
             filter  = args.filter,
+            binary  = args.binary,
         )
 
     if args.read:
@@ -403,7 +412,7 @@ def main():
         try:
            addr = int(args.write[0], 0)
         except ValueError:
-            addr = reg2addr(csr_csv, args.write[0])
+            addr = reg2addr(host, csr_csv, args.write[0])
         write_memory(
             host    = args.host,
             csr_csv = csr_csv,

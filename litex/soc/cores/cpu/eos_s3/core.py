@@ -9,11 +9,11 @@ import os
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
+from litex.gen import *
+
 from litex.soc.interconnect import wishbone
 
 from litex.soc.cores.cpu import CPU
-
-class Open(Signal): pass
 
 # EOS-S3 -------------------------------------------------------------------------------------------
 

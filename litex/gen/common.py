@@ -30,6 +30,20 @@ def reverse_bytes(s):
     return Cat(*[s[i*8:min((i + 1)*8, len(s))]
         for i in reversed(range(n))])
 
+# Signals ------------------------------------------------------------------------------------------
+
+class Open(Signal): pass
+
+class Unsigned(Signal):
+    def __init__(self, bits=1, *args, **kwargs):
+        assert isinstance(bits, int)
+        Signal.__init__(self, bits_sign=(bits, 0), *args, **kwargs)
+
+class Signed(Signal):
+    def __init__(self, bits=1, *args, **kwargs):
+        assert isinstance(bits, int)
+        Signal.__init__(self, bits_sign=(bits, 1), *args, **kwargs)
+
 # Reduction ----------------------------------------------------------------------------------------
 
 from functools import reduce

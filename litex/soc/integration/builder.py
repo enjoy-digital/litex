@@ -18,6 +18,8 @@ import subprocess
 import struct
 import shutil
 
+from packaging.version import Version
+
 from litex import get_data_mod
 from litex.gen import colorer
 
@@ -225,7 +227,8 @@ class Builder:
             from litedram.init import get_sdram_phy_c_header
             sdram_contents = get_sdram_phy_c_header(
                 self.soc.sdram.controller.settings.phy,
-                self.soc.sdram.controller.settings.timing)
+                self.soc.sdram.controller.settings.timing,
+                self.soc.sdram.controller.settings.geom)
             write_to_file(os.path.join(self.generated_dir, "sdram_phy.h"), sdram_contents)
 
     def _generate_csr_map(self):
@@ -253,19 +256,17 @@ class Builder:
     def _check_meson(self):
         # Check Meson install/version.
         meson_present   = (shutil.which("meson") is not None)
-        meson_version   = [0, 0, 0]
-        meson_major_min = 0
-        meson_minor_min = 59
+        meson_req = '0.59'
         if meson_present:
-            meson_version = subprocess.check_output(["meson", "-v"]).decode("utf-8").split(".")
-        if (not meson_present):
+            meson_version = subprocess.check_output(["meson", "-v"]).decode("utf-8")
+            if not Version(meson_version) >= Version(meson_req):
+                msg = f"Meson version to old. Found: {meson_version}. Required: {meson_req}.\n"
+                msg += "Try updating with:\n"
+                msg += "- pip3 install -U meson.\n"
+                raise OSError(msg)
+        else:
             msg = "Unable to find valid Meson build system, please install it with:\n"
             msg += "- pip3 install meson.\n"
-            raise OSError(msg)
-        if (int(meson_version[0]) < meson_major_min) or (int(meson_version[1]) < meson_minor_min):
-            msg = f"Meson version to old. Found: {meson_version[0]}.{meson_version[1]}. Required: {meson_major_min}.{meson_minor_min}.\n"
-            msg += "Try updating with:\n"
-            msg += "- pip3 install -U meson.\n"
             raise OSError(msg)
 
     def _prepare_rom_software(self):
@@ -381,10 +382,7 @@ class Builder:
     def get_bitstream_filename(self, mode="sram", ext=None):
         assert mode in ["sram", "flash"]
         if ext is None:
-            ext = {
-                "sram"  : self.soc.platform.bitstream_ext,
-                "flash" : ".bin" # FIXME.
-            }[mode]
+            ext = self.soc.platform.get_bitstream_extension(mode)
         return os.path.join(self.gateware_dir, self.soc.get_build_name() + ext)
 
 # Builder Arguments --------------------------------------------------------------------------------
@@ -392,20 +390,20 @@ class Builder:
 def builder_args(parser):
     parser.formatter_class = lambda prog: argparse.ArgumentDefaultsHelpFormatter(prog, max_help_position=10, width=120)
     builder_group = parser.add_argument_group(title="Builder options")
-    builder_group.add_argument("--output-dir",          default=None,        help="Base Output directory.")
-    builder_group.add_argument("--gateware-dir",        default=None,        help="Output directory for Gateware files.")
-    builder_group.add_argument("--software-dir",        default=None,        help="Output directory for Software files.")
-    builder_group.add_argument("--include-dir",         default=None,        help="Output directory for Header files.")
-    builder_group.add_argument("--generated-dir",       default=None,        help="Output directory for Generated files.")
-    builder_group.add_argument("--build-backend",       default="litex",     help="Select build backend: litex or edalize.")
-    builder_group.add_argument("--no-compile",          action="store_true", help="Disable Software and Gateware compilation.")
-    builder_group.add_argument("--no-compile-software", action="store_true", help="Disable Software compilation only.")
-    builder_group.add_argument("--no-compile-gateware", action="store_true", help="Disable Gateware compilation only.")
-    builder_group.add_argument("--csr-csv",             default=None,        help="Write SoC mapping to the specified CSV file.")
-    builder_group.add_argument("--csr-json",            default=None,        help="Write SoC mapping to the specified JSON file.")
-    builder_group.add_argument("--csr-svd",             default=None,        help="Write SoC mapping to the specified SVD file.")
-    builder_group.add_argument("--memory-x",            default=None,        help="Write SoC Memory Regions to the specified Memory-X file.")
-    builder_group.add_argument("--doc",                 action="store_true", help="Generate SoC Documentation.")
+    builder_group.add_argument("--output-dir",            default=None,        help="Base Output directory.")
+    builder_group.add_argument("--gateware-dir",          default=None,        help="Output directory for Gateware files.")
+    builder_group.add_argument("--software-dir",          default=None,        help="Output directory for Software files.")
+    builder_group.add_argument("--include-dir",           default=None,        help="Output directory for Header files.")
+    builder_group.add_argument("--generated-dir",         default=None,        help="Output directory for Generated files.")
+    builder_group.add_argument("--build-backend",         default="litex",     help="Select build backend: litex or edalize.")
+    builder_group.add_argument("--no-compile",            action="store_true", help="Disable Software and Gateware compilation.")
+    builder_group.add_argument("--no-compile-software",   action="store_true", help="Disable Software compilation only.")
+    builder_group.add_argument("--no-compile-gateware",   action="store_true", help="Disable Gateware compilation only.")
+    builder_group.add_argument("--soc-csv", "--csr-csv",  default=None,        help="Write SoC mapping to the specified CSV file.")
+    builder_group.add_argument("--soc-json","--csr-json", default=None,        help="Write SoC mapping to the specified JSON file.")
+    builder_group.add_argument("--soc-svd", "--csr-svd",  default=None,        help="Write SoC mapping to the specified SVD file.")
+    builder_group.add_argument("--memory-x",              default=None,        help="Write SoC Memory Regions to the specified Memory-X file.")
+    builder_group.add_argument("--doc",                   action="store_true", help="Generate SoC Documentation.")
     bios_group = parser.add_argument_group(title="BIOS options") # FIXME: Move?
     bios_group.add_argument("--bios-lto",     action="store_true", help="Enable BIOS LTO (Link Time Optimization) compilation.")
     bios_group.add_argument("--bios-console", default="full"  ,    help="Select BIOS console config.", choices=["full", "no-history", "no-autocomplete", "lite", "disable"])
@@ -420,9 +418,9 @@ def builder_argdict(args):
         "build_backend"    : args.build_backend,
         "compile_software" : (not args.no_compile) and (not args.no_compile_software),
         "compile_gateware" : (not args.no_compile) and (not args.no_compile_gateware),
-        "csr_csv"          : args.csr_csv,
-        "csr_json"         : args.csr_json,
-        "csr_svd"          : args.csr_svd,
+        "csr_csv"          : args.soc_csv,
+        "csr_json"         : args.soc_json,
+        "csr_svd"          : args.soc_svd,
         "memory_x"         : args.memory_x,
         "generate_doc"     : args.doc,
         "bios_lto"         : args.bios_lto,

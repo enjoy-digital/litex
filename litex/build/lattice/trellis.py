@@ -150,7 +150,7 @@ class LatticeTrellisToolchain(YosysNextPNRToolchain):
             freq=str(float(1/period)*1000), clk="{clk}"), clk=clk)
 
 def trellis_args(parser):
-    toolchain_group = parser.add_argument_group(title="Toolchain options")
+    toolchain_group = parser.add_argument_group(title="Trellis toolchain options")
     yosys_nextpnr_args(toolchain_group)
     toolchain_group.add_argument("--ecppack-bootaddr",     default=0,           help="Set boot address for next image.")
     toolchain_group.add_argument("--ecppack-spimode",      default=None,        help="Set slave SPI programming mode.")

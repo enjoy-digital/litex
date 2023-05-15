@@ -9,12 +9,22 @@
 import os
 
 from litex.build.generic_platform import GenericPlatform
-from litex.build.xilinx import common
+from litex.build.xilinx import common, vivado, ise, yosys_nextpnr
 
 # XilinxPlatform -----------------------------------------------------------------------------------
 
 class XilinxPlatform(GenericPlatform):
-    bitstream_ext = ".bit"
+    _bitstream_ext = {
+        "sram"  : ".bit",
+        "flash" : ".bin"
+    }
+
+    _supported_toolchains = {
+        "spartan6"    : ["ise"],
+        "7series"     : ["vivado", "f4pga", "yosys+nextpnr"],
+        "ultrascale"  : ["vivado"],
+        "ultrascale+" : ["vivado"],
+    }
 
     def __init__(self, *args, toolchain="ise", **kwargs):
         GenericPlatform.__init__(self, *args, **kwargs)
@@ -60,6 +70,8 @@ class XilinxPlatform(GenericPlatform):
             so.update(common.xilinx_s7_special_overrides)
         if self.device[:4] == "xcku":
             so.update(common.xilinx_us_special_overrides)
+        if self.device[:4] == "xcau":
+            so.update(common.xilinx_us_special_overrides)
         so.update(special_overrides)
         return GenericPlatform.get_verilog(self, *args,
             special_overrides = so,
@@ -84,3 +96,58 @@ class XilinxPlatform(GenericPlatform):
         if hasattr(to, "p"):
             to = to.p
         self.toolchain.add_false_path_constraint(self, from_, to)
+
+    @classmethod
+    def fill_args(cls, toolchain, parser):
+        """
+        pass parser to the specific toolchain to
+        fill this with toolchain args
+
+        Parameters
+        ==========
+        toolchain: str
+            toolchain name
+        parser: argparse.ArgumentParser
+            parser to be filled
+        """
+        if toolchain == "vivado":
+            vivado.vivado_build_args(parser)
+
+    @classmethod
+    def get_argdict(cls, toolchain, args):
+        """
+        return a dict of args
+
+        Parameters
+        ==========
+        toolchain: str
+            toolchain name
+
+        Return
+        ======
+        a dict of key/value for each args or an empty dict
+        """
+        if toolchain == "vivado":
+            return vivado.vivado_build_argdict(args)
+        else:
+            return dict()
+
+# XilinxSpartan6Platform ---------------------------------------------------------------------------
+
+class XilinxSpartan6Platform(XilinxPlatform):
+    device_family = "spartan6"
+
+# Xilinx7SeriesPlatform ----------------------------------------------------------------------------
+
+class Xilinx7SeriesPlatform(XilinxPlatform):
+    device_family = "7series"
+
+# XilinxUSPlatform ---------------------------------------------------------------------------------
+
+class XilinxUSPlatform(XilinxPlatform):
+    device_family = "ultrascale"
+
+# XilinxUSPPlatform --------------------------------------------------------------------------------
+
+class XilinxUSPPlatform(XilinxPlatform):
+    device_family = "ultrascale+"

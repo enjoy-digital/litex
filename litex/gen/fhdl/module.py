@@ -40,7 +40,7 @@ class LiteXModule(Module, AutoCSR, AutoDoc):
             print(other)
             m.submodules += other
         # - m += special_x  equivalent of Migen's m.specials += special_x.
-        elif isinstnace(other, Special):
+        elif isinstance(other, Special):
             m.specials += other
         # - m += cd_x  equivalent of Migen's m.clock_domains += cd_x.
         elif isinstance(other, ClockDomain):
@@ -49,3 +49,14 @@ class LiteXModule(Module, AutoCSR, AutoDoc):
         else:
             object.__iadd__(m, other)
         return m
+
+    def add_module(self, name, module):
+        assert isinstance(module, Module)
+        assert not hasattr(self, name)
+        setattr(self, name, module)
+
+    def get_module(self, name):
+        module = getattr(self, name, None)
+        if module is not None:
+            assert isinstance(module, Module)
+        return module

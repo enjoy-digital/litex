@@ -13,8 +13,13 @@ from litex.build.altera import common, quartus
 # AlteraPlatform -----------------------------------------------------------------------------------
 
 class AlteraPlatform(GenericPlatform):
-    bitstream_ext = ".sof"
+    _bitstream_ext = {
+        "sram"  : ".sof",
+        "flash" : ".rbf"
+    }
     create_rbf    = True
+
+    _supported_toolchains = ["quartus"]
 
     def __init__(self, *args, toolchain="quartus", **kwargs):
         GenericPlatform.__init__(self, *args, **kwargs)
@@ -43,7 +48,7 @@ class AlteraPlatform(GenericPlatform):
         if clk is None: return
         if hasattr(clk, "p"):
             clk = clk.p
-        self.toolchain.add_period_constraint(self, clk, period)
+        self.toolchain.add_period_constraint(self, clk, period, keep=False)
 
     def add_false_path_constraint(self, from_, to):
         if hasattr(from_, "p"):

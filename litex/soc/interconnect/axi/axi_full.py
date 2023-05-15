@@ -20,14 +20,16 @@ from litex.soc.interconnect.axi.axi_stream import AXIStreamInterface
 # AXI Definition -----------------------------------------------------------------------------------
 
 def ax_description(address_width, version="axi4"):
-    len_width = {"axi3":4, "axi4":8}[version]
+    len_width  = {"axi3":4, "axi4":8}[version]
+    size_width = {"axi3":4, "axi4":3}[version]
+    lock_width = {"axi3":2, "axi4":1}[version]
     # * present for interconnect with others cores but not used by LiteX.
     return [
         ("addr",   address_width),   # Address Width.
         ("burst",  2),               # Burst type.
         ("len",    len_width),       # Number of data (-1) transfers (up to 16 (AXI3) or 256 (AXI4)).
-        ("size",   4),               # Number of bytes (-1) of each data transfer (up to 1024 bits).
-        ("lock",   2),               # *
+        ("size",   size_width),      # Number of bytes (-1) of each data transfer (up to 1024-bit).
+        ("lock",   lock_width),      # *
         ("prot",   3),               # *
         ("cache",  4),               # *
         ("qos",    4),               # *
@@ -82,7 +84,7 @@ class AXIInterface:
         )
         self.w = AXIStreamInterface(name=name,
             layout     = w_description(data_width),
-            id_width   = {"axi3":0,"axi4":id_width}[version], # No WID on AXI4.
+            id_width   = {"axi4":0,"axi3":id_width}[version], # No WID on AXI4.
             user_width = w_user_width
         )
         self.b = AXIStreamInterface(name=name,
@@ -118,6 +120,8 @@ class AXIInterface:
             channel_layout = (getattr(self, channel).description.payload_layout +
                               getattr(self, channel).description.param_layout)
             for name, width in channel_layout:
+                if (name == "dest"):
+                    continue # No DEST.
                 if (channel == "w") and (name == "id") and (self.version == "axi4"):
                     continue # No WID on AXI4.
                 subsignals.append(Subsignal(channel + name, Pins(width)))
@@ -250,13 +254,46 @@ class AXIDownConverter(Module):
 
         # # #
 
+        # Helpers ----------------------------------------------------------------------------------
+
+
+        # Addr Conversion: Clear MSBs to align accesses.
+        def convert_addr(ax_from, ax_to):
+            return [
+                ax_to.addr.eq(ax_from.addr),
+                ax_to.addr[:log2_int(dw_from//8)].eq(0)
+            ]
+
+        # Burst Conversion: Convert FIXED burst to Incr.
+        def convert_burst(ax_from, ax_to):
+            return Case(ax_from.burst, {
+                BURST_FIXED     : ax_to.burst.eq(BURST_INCR),
+                BURST_INCR      : ax_to.burst.eq(BURST_INCR),
+                BURST_WRAP      : ax_to.burst.eq(BURST_WRAP),
+                BURST_RESERVED  : ax_to.burst.eq(BURST_RESERVED),
+            })
+
+        # Len Conversion: X ratio.
+        def convert_len(ax_from, ax_to):
+            return ax_to.len.eq(((ax_from.len + 1) << log2_int(ratio)) - 1)
+
+        # Size Conversion: max(ax_from.size, log2_int(dw_to//8)).
+        def convert_size(ax_from, ax_to):
+            return If(ax_from.size <= log2_int(dw_to//8),
+                ax_to.size.eq(ax_from.size)
+            ).Else(
+                ax_to.size.eq(log2_int(dw_to//8))
+            )
+
         # Write path -------------------------------------------------------------------------------
 
         # AW Channel.
         self.comb += [
-            axi_from.aw.connect(axi_to.aw, omit={"len", "size"}),
-            axi_to.aw.len.eq( axi_from.aw.len << log2_int(ratio)),
-            axi_to.aw.size.eq(axi_from.aw.size - log2_int(ratio)),
+            axi_from.aw.connect(axi_to.aw, omit={"addr", "len", "size", "burst"}),
+            *convert_addr( axi_from.aw, axi_to.aw),
+            convert_len(   axi_from.aw, axi_to.aw),
+            convert_size(  axi_from.aw, axi_to.aw),
+            convert_burst( axi_from.aw, axi_to.aw),
         ]
 
         # W Channel.
@@ -267,6 +304,7 @@ class AXIDownConverter(Module):
         self.submodules += w_converter
         self.comb += axi_from.w.connect(w_converter.sink, omit={"id", "dest", "user"})
         self.comb += w_converter.source.connect(axi_to.w)
+        # ID/Dest/User (self.comb since no latency in StrideConverter).
         self.comb += axi_to.w.id.eq(axi_from.w.id)
         self.comb += axi_to.w.dest.eq(axi_from.w.dest)
         self.comb += axi_to.w.user.eq(axi_from.w.user)
@@ -278,9 +316,11 @@ class AXIDownConverter(Module):
 
         # AR Channel.
         self.comb += [
-            axi_from.ar.connect(axi_to.ar, omit={"len", "size"}),
-            axi_to.ar.len.eq( axi_from.ar.len << log2_int(ratio)),
-            axi_to.ar.size.eq(axi_from.ar.size - log2_int(ratio)),
+            axi_from.ar.connect(axi_to.ar, omit={"addr", "len", "size", "burst"}),
+            *convert_addr( axi_from.ar, axi_to.ar),
+            convert_len(   axi_from.ar, axi_to.ar),
+            convert_size(  axi_from.ar, axi_to.ar),
+            convert_burst( axi_from.ar, axi_to.ar),
         ]
 
         # R Channel.
@@ -291,11 +331,11 @@ class AXIDownConverter(Module):
         self.submodules += r_converter
         self.comb += axi_to.r.connect(r_converter.sink, omit={"id", "dest", "user", "resp"})
         self.comb += r_converter.source.connect(axi_from.r)
-        self.comb += axi_from.r.resp.eq(axi_to.r.resp)
-        self.comb += axi_from.r.user.eq(axi_to.r.user)
-        self.comb += axi_from.r.dest.eq(axi_to.r.dest)
-        self.comb += axi_from.r.id.eq(axi_to.r.id)
-
+        # ID/Dest/User (self.sync since +1 cycle latency in StrideConverter).
+        self.sync += axi_from.r.resp.eq(axi_to.r.resp)
+        self.sync += axi_from.r.user.eq(axi_to.r.user)
+        self.sync += axi_from.r.dest.eq(axi_to.r.dest)
+        self.sync += axi_from.r.id.eq(axi_to.r.id)
 
 class AXIConverter(Module):
     """AXI data width converter"""
@@ -549,6 +589,17 @@ class AXIDecoder(Module):
 
 # AXI Interconnect ---------------------------------------------------------------------------------
 
+def get_check_parameters(ports):
+    # FIXME: Add adr_width check.
+
+    # Data-Width.
+    data_width = ports[0].data_width
+    if len(ports) > 1:
+        for port in ports[1:]:
+            assert port.data_width == data_width
+
+    return data_width
+
 class AXIInterconnectPointToPoint(Module):
     """AXI point to point interconnect"""
     def __init__(self, master, slave):
@@ -557,7 +608,8 @@ class AXIInterconnectPointToPoint(Module):
 class AXIInterconnectShared(Module):
     """AXI shared interconnect"""
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
-        shared = AXIInterface(data_width=masters[0].data_width)
+        data_width = get_check_parameters(ports=masters + [s for _, s in slaves])
+        shared = AXIInterface(data_width=data_width)
         self.submodules.arbiter = AXIArbiter(masters, shared)
         self.submodules.decoder = AXIDecoder(shared, slaves)
         if timeout_cycles is not None:
@@ -569,8 +621,9 @@ class AXICrossbar(Module):
     MxN crossbar for M masters and N slaves.
     """
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
+        data_width = get_check_parameters(ports=masters + [s for _, s in slaves])
         matches, busses = zip(*slaves)
-        access_m_s = [[AXIInterface() for j in slaves] for i in masters]  # a[master][slave]
+        access_m_s = [[AXIInterface(data_width=data_width) for j in slaves] for i in masters]  # a[master][slave]
         access_s_m = list(zip(*access_m_s))  # a[slave][master]
         # Decode each master into its access row.
         for slaves, master in zip(access_m_s, masters):

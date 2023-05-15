@@ -44,13 +44,13 @@ class LiteXHierarchyExplorer:
                         if s in v._fragment.specials:
                             show = False
                     if show:
-                        r +=  f"{self.tree_ident*ident}{self.tree_entry}{colorer(s.of + '*', 'yellow')}\n"
+                        r +=  f"{self.tree_ident*ident}{self.tree_entry}{colorer(f'[{s.of}]', 'yellow')}\n"
         return r
 
     def __repr__(self):
         r = "\n"
         r += f"{colorer(self.top.__class__.__name__, 'underline')}\n"
         r += self.get_tree(self.top)
-        r += f"{colorer('*', 'cyan')}: Generated name.\n"
-        r += f"{colorer('*', 'yellow')}: BlackBox.\n"
+        r += f"{colorer('* ', 'cyan')}: Generated name.\n"
+        r += f"{colorer('[]', 'yellow')}: BlackBox.\n"
         return r

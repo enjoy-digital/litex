@@ -9,6 +9,19 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.build.io import *
 
-# OS-FPGA Special Overrides ------------------------------------------------------------------------
+# OS-FPGA AsyncResetSynchronizer -------------------------------------------------------------------
 
-osfpga_special_overrides = {}
+class OSFPGAAsyncResetSynchronizerImpl(Module):
+    def __init__(self, cd, async_reset):
+        self.comb += cd.rst.eq(async_reset) # FIXME: Implement.
+
+class OSFPGAAsyncResetSynchronizer:
+    @staticmethod
+    def lower(dr):
+        return OSFPGAAsyncResetSynchronizerImpl(dr.cd, dr.async_reset)
+
+# OS-FPGA Special Overrides -------------------------------------------------------------------------
+
+osfpga_special_overrides = {
+    AsyncResetSynchronizer: OSFPGAAsyncResetSynchronizer,
+}

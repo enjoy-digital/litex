@@ -552,7 +552,8 @@ void sdcard_write(uint32_t block, uint32_t count, uint8_t* buf)
 			sdcard_write_single_block(block);
 
 		/* Stop transmission (Only for multiple block writes) */
-		sdcard_stop_transmission();
+		if (nblocks > 1)
+			sdcard_stop_transmission();
 
 		/* Wait for DMA Reader to complete */
 		while ((sdmem2block_dma_done_read() & 0x1) == 0);

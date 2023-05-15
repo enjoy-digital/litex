@@ -13,7 +13,9 @@ from litex.build.anlogic import common, anlogic
 # AnlogicPlatform ----------------------------------------------------------------------------------
 
 class AnlogicPlatform(GenericPlatform):
-    bitstream_ext = ".fs"
+    _bitstream_ext = ".bit"
+
+    _supported_toolchains = ["td"]
 
     def __init__(self, device, *args, toolchain="td", **kwargs):
         GenericPlatform.__init__(self, device, *args, **kwargs)
