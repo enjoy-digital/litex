@@ -961,7 +961,7 @@ class VideoS7HDMI10to1Serializer(Module):
 
 
 class VideoS7HDMIPHY(Module):
-    def __init__(self, pads, clock_domain="sys"):
+    def __init__(self, pads, clock_domain="sys", flip_diff_pairs=False):
         self.sink = sink = stream.Endpoint(video_data_layout)
 
         # # #
@@ -994,7 +994,7 @@ class VideoS7HDMIPHY(Module):
             self.submodules += serializer
             pad_p = getattr(pads, f"data{channel}_p")
             pad_n = getattr(pads, f"data{channel}_n")
-            self.specials += Instance("OBUFDS", i_I=pad_o, o_O=pad_p, o_OB=pad_n)
+            self.specials += Instance("OBUFDS", i_I=(~pad_o if flip_diff_pairs else pad_o), o_O=pad_p, o_OB=pad_n)
 
 
 class VideoS7GTPHDMIPHY(Module):
