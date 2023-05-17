@@ -421,7 +421,7 @@ def _print_module(f, ios, name, ns, attr_translate):
 
     return r
 
-def _print_signals(f, ios, name, ns, attr_translate, asic=False):
+def _print_signals(f, ios, name, ns, attr_translate, regs_init):
     sigs = list_signals(f) | list_special_ios(f, ins=True, outs=True, inouts=True)
     special_outs = list_special_ios(f, ins=False, outs=True,  inouts=True)
     inouts       = list_special_ios(f, ins=False, outs=False, inouts=True)
@@ -434,10 +434,10 @@ def _print_signals(f, ios, name, ns, attr_translate, asic=False):
         if sig in wires:
             r += "wire " + _print_signal(ns, sig) + ";\n"
         else:
-            if asic:
-                r += "reg  " + _print_signal(ns, sig) + ";\n"  # ASICs can't assign an initial value to a reg, it is always X
-            else:
-                r += "reg  " + _print_signal(ns, sig) + " = " + _print_expression(ns, sig.reset)[0] + ";\n"
+            r += "reg  " + _print_signal(ns, sig)
+            if regs_init:
+                r += " = " + _print_expression(ns, sig.reset)[0]
+            r += ";\n"
     return r
 
 # ------------------------------------------------------------------------------------------------ #
@@ -532,11 +532,10 @@ def convert(f, ios=set(), name="top", platform=None,
     special_overrides = dict(),
     attr_translate    = DummyAttrTranslate(),
     regular_comb      = True,
+    regs_init         = True,
     # Sim parameters.
     time_unit      = "1ns",
     time_precision = "1ps",
-    # Generate for ASIC simulation (i.e. capture X-on-init for regs)
-    asic = False,
     ):
 
     # Build Logic.
@@ -623,7 +622,7 @@ def convert(f, ios=set(), name="top", platform=None,
 
     # Module Signals.
     verilog += _print_separator("Signals")
-    verilog += _print_signals(f, ios, name, ns, attr_translate, asic)
+    verilog += _print_signals(f, ios, name, ns, attr_translate, regs_init)
 
     # Combinatorial Logic.
     verilog += _print_separator("Combinatorial Logic")
@@ -640,7 +639,7 @@ def convert(f, ios=set(), name="top", platform=None,
     verilog += _print_separator("Specialized Logic")
     verilog += _print_specials(
         name           = name,
-        overrides      =special_overrides,
+        overrides      = special_overrides,
         specials       = f.specials - lowered_specials,
         namespace      = ns,
         add_data_file  = r.add_data_file,
