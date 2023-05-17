@@ -204,12 +204,3 @@ class TangDinastyToolchain(GenericToolchain):
 
         (architecture, family, package) = devices[device]
         return (architecture, family, package)
-
-    def add_period_constraint(self, platform, clk, period):
-        clk.attr.add("keep")
-        period = math.floor(period*1e3)/1e3 # round to lowest picosecond
-        if clk in self.clocks:
-            if period != self.clocks[clk]:
-                raise ValueError("Clock already constrained to {:.2f}ns, new constraint to {:.2f}ns"
-                    .format(self.clocks[clk], period))
-        self.clocks[clk] = period

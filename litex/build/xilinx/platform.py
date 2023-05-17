@@ -85,9 +85,6 @@ class XilinxPlatform(GenericPlatform):
         return self.toolchain.build(self, *args, **kwargs)
 
     def add_period_constraint(self, clk, period, keep=True):
-        if clk is None: return
-        if hasattr(clk, "p"):
-            clk = clk.p
         self.toolchain.add_period_constraint(self, clk, period, keep=keep)
 
     def add_false_path_constraint(self, from_, to):
