@@ -53,7 +53,7 @@ class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
                 self.f4pga_device = {
                     # FIXME: fine for now since only a few devices are supported, do more clever device re-mapping.
                     "xc7a35ticsg324-1L" : "xc7a35t",
-                    "xc7a100tcsg324-1"  : "xc7a35t",
+                    "xc7a100tcsg324-1"  : "xc7a100t",
                     "xc7z010clg400-1"   : "xc7z010",
                     "xc7z020clg400-1"   : "xc7z020",
                 }[self.platform.device]
