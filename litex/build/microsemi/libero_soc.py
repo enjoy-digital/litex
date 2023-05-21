@@ -236,13 +236,6 @@ class MicrosemiLiberoSoCPolarfireToolchain(GenericToolchain):
         if subprocess.call(shell + [script]) != 0:
             raise OSError("Subprocess failed")
 
-    def add_period_constraint(self, platform, clk, period):
-        if clk in self.clocks:
-            if period != self.clocks[clk]:
-                raise ValueError("Clock already constrained to {:.2f}ns, new constraint to {:.2f}ns"
-                    .format(self.clocks[clk], period))
-        self.clocks[clk] = period
-
     def add_false_path_constraint(self, platform, from_, to):
         if (to, from_) not in self.false_paths:
             self.false_paths.add((from_, to))
