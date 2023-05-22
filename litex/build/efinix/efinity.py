@@ -144,6 +144,9 @@ class EfinityToolchain(GenericToolchain):
             if "DRIVE_STRENGTH" in c.misc:
                 prop = "DRIVE_STRENGTH"
                 val = c.misc.split("=")[1]
+                valid = ["1", "2", "3", "4"] if self.platform.family == "Trion" else [
+                         "2", "4", "6", "8", "10", "12", "16" ]
+                assert val in valid, f"DRIVE_STRENGTH {val} is not in {valid}"
 
             if "SLEWRATE" in c.misc:
                 prop = "SLEW_RATE"
