@@ -15,7 +15,7 @@ from litex.soc.interconnect.avalon import AvalonMMInterface
 # Avalon MM <--> Wishbone Bridge -------------------------------------------------------------------
 
 class AvalonMM2Wishbone(Module):
-    def __init__(self, data_width=32, avalon_address_width=32, wishbone_address_width=32, wishbone_base_address=0x0, burst_increment=1, avoid_combinatorial_loop=True):
+    def __init__(self, data_width=32, avalon_address_width=32, wishbone_address_width=32, wishbone_base_address=0x0, burst_increment=1, avoid_combinatorial_loop=False):
         self.a2w_avl = avl = AvalonMMInterface (data_width=data_width, adr_width=avalon_address_width)
         self.a2w_wb  = wb  = wishbone.Interface(data_width=data_width, adr_width=wishbone_address_width, bursting=True)
 
@@ -125,6 +125,7 @@ class AvalonMM2Wishbone(Module):
                 NextValue(burst_count, burst_count - 1)
             ),
             If(burst_count == 0,
+                avl.readdatavalid.eq(int(avoid_combinatorial_loop)),
                 wb.cyc.eq(0),
                 wb.stb.eq(0),
                 NextState("SINGLE"))

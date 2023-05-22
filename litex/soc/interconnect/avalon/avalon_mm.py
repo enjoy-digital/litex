@@ -102,6 +102,8 @@ class AvalonMMInterface(Record):
 
     def continue_read_burst(self):
         yield
+        while not (yield self.readdatavalid):
+            yield
         return (yield self.readdata)
 
     def bus_write(self, address, writedata, byteenable=None, chipselect=None):
