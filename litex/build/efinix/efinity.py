@@ -150,7 +150,7 @@ class EfinityToolchain(GenericToolchain):
 
             if "SLEWRATE" in c.misc:
                 prop = "SLEW_RATE"
-                val = "1"
+                val = "1" # FAST
 
             if prop == "":
                 # Print error, warning ??
