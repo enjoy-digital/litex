@@ -254,10 +254,34 @@ void sdram_software_control_off(void) {
 /*  Mode Register                                                        */
 /*-----------------------------------------------------------------------*/
 
+int swap_bit(int num, int a, int b) {
+	if (((num >> a) & 1) != ((num >> b) & 1)) {
+		num ^= (1 << a);
+		num ^= (1 << b);
+	}
+	return num;
+}
+
 void sdram_mode_register_write(char reg, int value) {
+#ifndef SDRAM_PHY_CLAM_SHELL
 	sdram_dfii_pi0_address_write(value);
 	sdram_dfii_pi0_baddress_write(reg);
 	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
+#else
+	sdram_dfii_pi0_address_write(value);
+	sdram_dfii_pi0_baddress_write(reg);
+	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS_TOP);
+
+	value = swap_bit(value, 3, 4);
+	value = swap_bit(value, 5, 6);
+	value = swap_bit(value, 7, 8);
+	value = swap_bit(value, 11, 13);
+	reg = swap_bit(reg, 0, 1);
+
+	sdram_dfii_pi0_address_write(value);
+	sdram_dfii_pi0_baddress_write(reg);
+	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS_BOTTOM);
+#endif
 }
 
 #ifdef CSR_DDRPHY_BASE
@@ -541,9 +565,7 @@ int _sdram_write_leveling_cdly_range_end   = -1;
 
 static void sdram_write_leveling_on(void) {
 	// Flip write leveling bit in the Mode Register, as it is disabled by default
-	sdram_dfii_pi0_address_write(DDRX_MR_WRLVL_RESET ^ (1 << DDRX_MR_WRLVL_BIT));
-	sdram_dfii_pi0_baddress_write(DDRX_MR_WRLVL_ADDRESS);
-	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
+	sdram_mode_register_write(DDRX_MR_WRLVL_ADDRESS, DDRX_MR_WRLVL_RESET ^ (1 << DDRX_MR_WRLVL_BIT));
 
 #ifdef SDRAM_PHY_DDR4_RDIMM
 	sdram_dfii_pi0_address_write((DDRX_MR_WRLVL_RESET ^ (1 << DDRX_MR_WRLVL_BIT)) ^ 0x2BF8) ;
@@ -555,9 +577,7 @@ static void sdram_write_leveling_on(void) {
 }
 
 static void sdram_write_leveling_off(void) {
-	sdram_dfii_pi0_address_write(DDRX_MR_WRLVL_RESET);
-	sdram_dfii_pi0_baddress_write(DDRX_MR_WRLVL_ADDRESS);
-	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
+	sdram_mode_register_write(DDRX_MR_WRLVL_ADDRESS, DDRX_MR_WRLVL_RESET);
 
 #ifdef SDRAM_PHY_DDR4_RDIMM
 	sdram_dfii_pi0_address_write(DDRX_MR_WRLVL_RESET ^ 0x2BF8);
