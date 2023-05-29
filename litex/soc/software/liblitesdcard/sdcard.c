@@ -41,17 +41,16 @@ int sdcard_wait_cmd_done(void) {
 	unsigned int event;
 #ifdef SDCARD_DEBUG
 	uint32_t r[SD_CMD_RESPONSE_SIZE/4];
+	printf("cmdevt: wait for event & 0x1\n");
 #endif
 	for (;;) {
 		event = sdcore_cmd_event_read();
-#ifdef SDCARD_DEBUG
-		printf("cmdevt: %08x\n", event);
-#endif
 		busy_wait_us(10);
 		if (event & 0x1)
 			break;
 	}
 #ifdef SDCARD_DEBUG
+	printf("cmdevt: %08x\n", event);
 	csr_rd_buf_uint32(CSR_SDCORE_CMD_RESPONSE_ADDR,
 			  r, SD_CMD_RESPONSE_SIZE/4);
 	printf("%08x %08x %08x %08x\n", r[0], r[1], r[2], r[3]);
@@ -65,15 +64,18 @@ int sdcard_wait_cmd_done(void) {
 
 int sdcard_wait_data_done(void) {
 	unsigned int event;
+#ifdef SDCARD_DEBUG
+	printf("dataevt: wait for event & 0x1\n");
+#endif
 	for (;;) {
 		event = sdcore_data_event_read();
-#ifdef SDCARD_DEBUG
-		printf("dataevt: %08x\n", event);
-#endif
 		if (event & 0x1)
 			break;
 		busy_wait_us(10);
 	}
+#ifdef SDCARD_DEBUG
+	printf("dataevt: %08x\n", event);
+#endif
 	if (event & 0x4)
 		return SD_TIMEOUT;
 	else if (event & 0x8)
