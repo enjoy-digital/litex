@@ -1758,7 +1758,7 @@ class LiteXSoC(SoC):
                 self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk, eth_tx_clk)
 
     # Add SPI Flash --------------------------------------------------------------------------------
-    def add_spi_flash(self, name="spiflash", mode="4x", clk_freq=None, module=None, phy=None, rate="1:1", **kwargs):
+    def add_spi_flash(self, name="spiflash", mode="4x", clk_freq=None, module=None, phy=None, rate="1:1", software_debug=False, **kwargs):
         # Imports.
         from litespi import LiteSPI
         from litespi.phy.generic import LiteSPIPHY
@@ -1792,6 +1792,8 @@ class LiteXSoC(SoC):
             self.add_constant(f"{name}_MODULE_QUAD_CAPABLE")
         if SpiNorFlashOpCodes.READ_4_4_4 in module.supported_opcodes:
             self.add_constant(f"{name}_MODULE_QPI_CAPABLE")
+        if software_debug:
+            self.add_constant(f"{name}_DEBUG")
 
     # Add SPI SDCard -------------------------------------------------------------------------------
     def add_spi_sdcard(self, name="spisdcard", spi_clk_freq=400e3, with_tristate=False, software_debug=False):

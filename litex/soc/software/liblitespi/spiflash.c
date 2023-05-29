@@ -28,7 +28,7 @@ int spiflash_freq_init(void)
 	crc        = crc32((unsigned char *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE);
 	crc_test   = crc;
 
-#if SPIFLASH_DEBUG
+#ifdef SPIFLASH_DEBUG
 	printf("Testing against CRC32: %08x\n\r", crc);
 #endif
 
@@ -41,7 +41,7 @@ int spiflash_freq_init(void)
 	while((crc == crc_test) && (lowest_div-- > 0)) {
 		spiflash_phy_clk_divisor_write((uint32_t)lowest_div);
 		crc_test = crc32((unsigned char *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE);
-#if SPIFLASH_DEBUG
+#ifdef SPIFLASH_DEBUG
 		printf("[DIV: %d] %08x\n\r", lowest_div, crc_test);
 #endif
 	}
@@ -62,7 +62,7 @@ int spiflash_freq_init(void)
 void spiflash_dummy_bits_setup(unsigned int dummy_bits)
 {
 	spiflash_core_mmap_dummy_bits_write((uint32_t)dummy_bits);
-#if SPIFLASH_DEBUG
+#ifdef SPIFLASH_DEBUG
 	printf("Dummy bits set to: %d\n\r", spiflash_core_mmap_dummy_bits_read());
 #endif
 }
