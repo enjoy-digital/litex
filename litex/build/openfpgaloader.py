@@ -12,10 +12,12 @@ from litex.build.generic_programmer import GenericProgrammer
 class OpenFPGALoader(GenericProgrammer):
     needs_bitreverse = False
 
-    def __init__(self, board="", cable="", freq=0, index_chain=None):
+    def __init__(self, board="", cable="", freq=0, fpga_part="", index_chain=None):
         self.cmd = ["openFPGALoader"]
         if board:
             self.cmd += ["--board", board]
+        if fpga_part:
+            self.cmd += ["--fpga-part", fpga_part]
         if cable:
             self.cmd += ["--cable", cable]
         if freq:
