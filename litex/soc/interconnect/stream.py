@@ -941,8 +941,11 @@ class Pack(Module):
 class Pipeline(Module):
     def __init__(self, *modules):
         self.modules = list(modules)
+        if len(self.modules):
+            self.finalize()
 
     def add(self, module):
+        assert not self.finalized
         self.modules.append(module)
 
     def do_finalize(self):
