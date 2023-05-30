@@ -123,6 +123,23 @@ static void transfer_cmd(uint8_t *bs, uint8_t *resp, int len)
 	flush_cpu_dcache();
 }
 
+static uint32_t spiflash_read_id_register(void)
+{
+	volatile uint8_t buf[4];
+	w_buf[0] = 0x9F;
+	w_buf[1] = 0x00;
+	transfer_cmd(w_buf, buf, 4);
+
+#ifdef SPIFLASH_DEBUG
+	printf("[ID: %02x %02x %02x %02x]", buf[0], buf[1], buf[2], buf[3]);
+#endif
+
+	/* FIXME normally the status should be in buf[1],
+	   but we have to read it a few more times to be
+	   stable for unknown reasons */
+	return buf[3];
+}
+
 static uint32_t spiflash_read_status_register(void)
 {
 	volatile uint8_t buf[4];
@@ -253,6 +270,8 @@ void spiflash_init(void)
 #endif
 
 #ifdef CSR_SPIFLASH_CORE_MASTER_CS_ADDR
+
+	spiflash_read_id_register();
 
 	/* Quad / QPI Configuration. */
 #ifdef SPIFLASH_MODULE_QUAD_CAPABLE
