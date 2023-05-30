@@ -147,7 +147,7 @@ static uint32_t spiflash_read_status_register(void)
 	w_buf[1] = 0x00;
 	transfer_cmd(w_buf, buf, 4);
 
-#if SPIFLASH_DEBUG
+#ifdef SPIFLASH_DEBUG
 	printf("[SR: %02x %02x %02x %02x]", buf[0], buf[1], buf[2], buf[3]);
 #endif
 
@@ -220,7 +220,7 @@ int spiflash_write_stream(uint32_t addr, uint8_t *stream, uint32_t len)
 	uint32_t offset = 0;
 	uint32_t j = 0;
 
-#if SPIFLASH_DEBUG
+#ifdef SPIFLASH_DEBUG
 	printf("Write SPI Flash @0x%08lx", ((uint32_t)addr));
 #endif
 
@@ -229,7 +229,7 @@ int spiflash_write_stream(uint32_t addr, uint8_t *stream, uint32_t len)
 		page_program(addr+offset, stream+offset, w_len);
 
 		while(spiflash_read_status_register() & 1) {
-#if SPIFLASH_DEBUG
+#ifdef SPIFLASH_DEBUG
 			printf(".");
 #endif
 		}
@@ -245,7 +245,7 @@ int spiflash_write_stream(uint32_t addr, uint8_t *stream, uint32_t len)
 		w_len = min(len-offset, SPI_FLASH_BLOCK_SIZE);
 		res = offset;
 	}
-#if SPIFLASH_DEBUG
+#ifdef SPIFLASH_DEBUG
   printf("\n");
 #endif
 	return res;
