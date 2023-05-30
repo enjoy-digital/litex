@@ -169,12 +169,12 @@ class EcpDapProgrammer(GenericProgrammer):
     needs_bitreverse = False
 
     def __init__(self, frequency=8_000_000):
-        self.frequency_khz = frequency // 1000
+        self.frequency = frequency
 
     def flash(self, address, bitstream_file):
         self.call(["ecpdap",
             "flash", "write",
-            "--freq", str(self.frequency_khz),
+            "--freq", str(self.frequency),
             "--offset", str(address),
             bitstream_file
         ])
@@ -182,7 +182,7 @@ class EcpDapProgrammer(GenericProgrammer):
     def load_bitstream(self, bitstream_file):
         self.call(["ecpdap",
             "program",
-            "--freq", str(self.frequency_khz),
+            "--freq", str(self.frequency),
             bitstream_file
         ])
 
