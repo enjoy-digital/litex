@@ -10,9 +10,6 @@ extern "C" {
 #include <generated/csr.h>
 #include <generated/soc.h>
 
-#define max(x, y) (((x) > (y)) ? (x) : (y))
-#define min(x, y) (((x) < (y)) ? (x) : (y))
-
 #ifndef MEMTEST_DATA_SIZE
 #define MEMTEST_DATA_SIZE (2*1024*1024)
 #endif
