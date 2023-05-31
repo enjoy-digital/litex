@@ -4,6 +4,22 @@
 #include <stdint.h>
 #include <system.h>
 
+/*-----------------------------------------------------------------------*/
+/* Helpers                                                               */
+/*-----------------------------------------------------------------------*/
+
+#define max(x, y) (((x) > (y)) ? (x) : (y))
+#define min(x, y) (((x) < (y)) ? (x) : (y))
+
+static inline void cdelay(int i) {
+#ifndef CONFIG_BIOS_NO_DELAYS
+	while(i > 0) {
+		__asm__ volatile(CONFIG_CPU_NOP);
+		i--;
+	}
+#endif // CONFIG_BIOS_NO_DELAYS
+}
+
 /* To overwrite CSR subregister accessors, define extern, non-inlined versions
  * of csr_[read|write]_simple(), and define CSR_ACCESSORS_DEFINED.
  */
