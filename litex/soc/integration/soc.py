@@ -1813,7 +1813,6 @@ class LiteXSoC(SoC):
             self.specials += Tristate(spi_sdcard_tristate_pads.cs_n, spi_sdcard_pads.cs_n, ~tristate)
             self.specials += Tristate(spi_sdcard_tristate_pads.mosi, spi_sdcard_pads.mosi, ~tristate)
             self.comb += spi_sdcard_pads.miso.eq(spi_sdcard_tristate_pads.miso)
-            self.add_module(name=f"{name}_tristate", module=tristate)
 
         # Core.
         self.check_if_exists(name)
