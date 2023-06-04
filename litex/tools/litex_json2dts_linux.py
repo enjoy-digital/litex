@@ -341,6 +341,20 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     uart_csr_base  = d["csr_bases"]["uart"],
     uart_interrupt = "" if polling else "interrupts = <{}>;".format(d["constants"]["uart_interrupt"]))
 
+    # CAN -----------------------------------------------------------------------------------------
+
+    if "can" in d["csr_bases"]:
+        dts += """
+            CTU_CAN_FD_0: CTU_CAN_FD@{can_csr_base:x} {{
+                compatible = "ctu,ctucanfd";
+                reg = <0x{can_csr_base:x} 0x10000>;
+                interrupt-parent = <&intc0>;
+                {can_interrupt}
+            }};
+""".format(
+    can_csr_base  = d["csr_bases"]["can"],
+    can_interrupt = "" if polling else "interrupts = <{}>;".format(d["constants"]["can_interrupt"]))
+
     # Ethernet -------------------------------------------------------------------------------------
 
     if "ethphy" in d["csr_bases"] and "ethmac" in d["csr_bases"]:
