@@ -101,6 +101,7 @@ class XilinxVivadoToolchain(GenericToolchain):
         super().__init__()
         self.bitstream_commands         = []
         self.additional_commands        = []
+        self.project_commands           = XilinxVivadoCommands()
         self.pre_synthesis_commands     = XilinxVivadoCommands()
         self.pre_placement_commands     = XilinxVivadoCommands()
         self.pre_routing_commands       = XilinxVivadoCommands()
@@ -222,6 +223,10 @@ class XilinxVivadoToolchain(GenericToolchain):
 
         if self.vivado_max_threads:
             tcl.append(f"set_param general.maxThreads {self.vivado_max_threads}")
+
+        # Add project commands
+        tcl.append("\n# Add project commands\n")
+        tcl.extend(c.format(build_name=self._build_name) for c in self.project_commands.resolve(self._vns))
 
         # Enable Xilinx Parameterized Macros
         if self._enable_xpm:
