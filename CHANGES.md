@@ -1,3 +1,37 @@
+[> Changes since 2023.04
+------------------------
+
+	[> Fixed
+	--------
+	- lattice/programmer  : Fixed ECPDAP frequency specification.
+	- soc/add_spi_sdcard  : Fixed Tristate build.
+	- csr/fields          : Fixed access type checks.
+	- software/liblitespi : Fixed support with debug.
+
+	[> Added
+	--------
+	- soc/cores/video              : Added low resolution video modes.
+	- interconnect                 : Added initial AvalonMM support.
+	- soc/interconnect/packet      : Avoided bypass of dispatcher with a single slave.
+	- build/add_period_constraints : Improved generic platform and simplify specific platforms.
+	- gen/fhdl/verilog             : Added parameter to avoid register initialization (required for ASIC).
+	- litedram                     : Added clamshell topology support.
+	- stream/Pipeline              : Added dynamic pipeline creation capability.
+	- build/xilinx/vivado          : Added project commands to allow adding commands just after project creation.
+	- soc/software                 : Moved helpers to hw/common.h.
+	- tools/litex_json2dts_linux   : Added sys_clk to device tree and fixed dts warning.
+	- tools/litex_json2dts_zephyr  : Added LiteSD defines.
+	- build/yosys                  : Added quiet capability.
+	- build/efinix                 : Improved Titanium support (PLL, DRIVE_STRENGTH, SLEW).
+	- build/openfpgaloader         : Added -fpga-part and -index-chain support.
+	- soc/add_spi_flash            : Added software_debug support.
+	- software/liblitespi          : Added read_id support.
+	- litex_boards                 : Added QMtech XC7K325T, VCU128, SITLINV_STVL7325_V2, Enclustra XU8/PE3 support.
+
+	[> Changed
+	----------
+	-
+
 [> 2023.04, released on May 8th 2023
 ------------------------------------
 
