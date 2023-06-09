@@ -1732,7 +1732,7 @@ class LiteXSoC(SoC):
                 "eth_tx": phy_cd + "_tx",
                 "eth_rx": phy_cd + "_rx",
                 "sys":    phy_cd + "_rx"})(ethcore)
-        self.add_module(name=f"ethcode_{name}", module=ethcore)
+        self.add_module(name=f"ethcore_{name}", module=ethcore)
 
         etherbone_cd = "sys"
         if not with_sys_datapath:
