@@ -30,6 +30,9 @@ from litex.soc.interconnect import stream
 def K(x, y):
     return (y << 5) | x
 
+def D(x, y):
+    return (y << 5) | x
+
 def disparity(word, nbits):
     n0 = 0
     n1 = 0
