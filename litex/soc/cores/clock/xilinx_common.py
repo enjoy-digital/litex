@@ -53,10 +53,13 @@ class XilinxClocking(Module, AutoCSR):
         else:
             clkout_buf = Signal()
             self.comb += cd.clk.eq(clkout_buf)
+            buf = buf.lower()
             if buf == "bufg":
                 self.specials += Instance("BUFG", i_I=clkout, o_O=clkout_buf)
             elif buf == "bufr":
                 self.specials += Instance("BUFR", i_I=clkout, o_O=clkout_buf)
+            elif buf == "bufh":
+                self.specials += Instance("BUFH", i_I=clkout, o_O=clkout_buf)
             elif buf == "bufgce":
                 if ce is None:
                     raise ValueError("BUFGCE requires user to provide a clock enable ce Signal")
