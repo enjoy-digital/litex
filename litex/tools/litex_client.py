@@ -317,7 +317,7 @@ def run_gui(host, csr_csv, port):
             # CSR Update.
             for name, reg in bus.regs.__dict__.items():
                 value = reg.read()
-                dpg.set_value(item=name, value=f"0x{value():x}")
+                dpg.set_value(item=name, value=f"0x{value:x}")
 
             # XADC Update.
             if with_xadc:
