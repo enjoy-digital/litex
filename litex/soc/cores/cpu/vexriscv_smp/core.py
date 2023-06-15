@@ -391,7 +391,21 @@ class VexRiscvSMP(CPU):
         platform.add_source(os.path.join(vdir, ram_filename), "verilog")
 
         # Add Cluster.
-        platform.add_source(os.path.join(vdir,  self.cluster_name + ".v"), "verilog")
+        cluster_filename = os.path.join(vdir,  self.cluster_name + ".v")
+        def add_synthesis_define(filename):
+            """Add SYNTHESIS define to verilog for toolchains requiring it, ex Gowin"""
+            synthesis_define = "`define SYNTHESIS\n"
+            # Read file.
+            with open(filename, "r") as f:
+                lines = f.readlines()
+            # Modify file.
+            with open(filename, "w") as f:
+                if lines[0] != synthesis_define:
+                    f.write(synthesis_define)
+                for line in lines:
+                    f.write(line)
+        add_synthesis_define(cluster_filename)
+        platform.add_source(cluster_filename, "verilog")
 
     def add_soc_components(self, soc):
         if self.variant == "linux":
