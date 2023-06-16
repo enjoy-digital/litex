@@ -7,6 +7,7 @@
 	- soc/add_spi_sdcard  : Fixed Tristate build.
 	- csr/fields          : Fixed access type checks.
 	- software/liblitespi : Fixed support with debug.
+	- cpu/vexriscv_smp    : Fixed compilation with Gowin toolchain (ex for Tang Nano 20K Linux).
 
 	[> Added
 	--------
