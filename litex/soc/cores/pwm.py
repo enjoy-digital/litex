@@ -47,14 +47,7 @@ class PWM(Module, AutoCSR):
             ]
 
         # PWM Width logic.
-        sync += [
-            pwm.eq(0),
-            If(self.enable & ~self.reset,
-                If(counter < self.width,
-                    pwm.eq(1)
-                )
-            )
-        ]
+        sync += pwm.eq(self.enable & (counter < self.width))
 
         if with_csr:
             self.add_csr(clock_domain)
