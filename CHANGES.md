@@ -31,6 +31,7 @@
 	- liteeth                      : Added Ultrascale+ GTY/GTH SGMII/1000BaseX PHYs.
 	- soc/add_pcie                 : Added msi_type parameter to select MSI, MSI-Multi-Vector or MSI-X.
 	- soc/add_pcie                 : Added msi_width parameter to select MSI width.
+	- litepcie                     : Added 7-Series MSI-X capability/integration.
 
 	[> Changed
 	----------

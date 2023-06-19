@@ -2012,7 +2012,7 @@ class LiteXSoC(SoC):
             if msi_type == "msi-multi-vector":
                 msi = LitePCIeMSIMultiVector(width=msi_width)
             if msi_type == "msi-x":
-                msi = LitePCIeMSIX(endpoint=self.pcie_endpoint, width=msi_width)
+                msi = LitePCIeMSIX(endpoint=self.pcie_endpoint, width=msi_width, csr_ordering=self.csr.ordering)
             self.add_module(name=f"{name}_msi", module=msi)
             # FIXME: On Ultrascale/Ultrascale+ limit rate of IRQs to 1MHz (to prevent issue with
             # IRQs stalled).
