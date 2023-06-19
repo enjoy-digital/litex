@@ -1971,12 +1971,12 @@ class LiteXSoC(SoC):
 
     # Add PCIe -------------------------------------------------------------------------------------
     def add_pcie(self, name="pcie", phy=None, ndmas=0, max_pending_requests=8, address_width=32,
-        with_dma_buffering = True, dma_buffering_depth=1024,
+        with_dma_buffering    = True, dma_buffering_depth=1024,
         with_dma_loopback     = True,
         with_dma_synchronizer = False,
         with_dma_monitor      = False,
         with_dma_status       = False,
-        with_msi              = True, msi_type="msi",
+        with_msi              = True, msi_type="msi", msi_width=32,
 ):
         # Imports
         from litepcie.phy.uspciephy import USPCIEPHY
@@ -2008,11 +2008,11 @@ class LiteXSoC(SoC):
             assert msi_type in ["msi", "msi-multi-vector", "msi-x"]
             self.check_if_exists(f"{name}_msi")
             if msi_type == "msi":
-                msi = LitePCIeMSI()
+                msi = LitePCIeMSI(width=msi_width)
             if msi_type == "msi-multi-vector":
-                msi = LitePCIeMSIMultiVector()
+                msi = LitePCIeMSIMultiVector(width=msi_width)
             if msi_type == "msi-x":
-                msi = LitePCIeMSIX(endpoint=self.pcie_endpoint)
+                msi = LitePCIeMSIX(endpoint=self.pcie_endpoint, width=msi_width)
             self.add_module(name=f"{name}_msi", module=msi)
             # FIXME: On Ultrascale/Ultrascale+ limit rate of IRQs to 1MHz (to prevent issue with
             # IRQs stalled).
