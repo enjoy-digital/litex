@@ -29,6 +29,7 @@
 	- software/liblitespi          : Added read_id support.
 	- litex_boards                 : Added QMtech XC7K325T, VCU128, SITLINV_STVL7325_V2, Enclustra XU8/PE3 support.
 	- liteeth                      : Added Ultrascale+ GTY/GTH SGMII/1000BaseX PHYs.
+	- soc/add_pcie                 : Added msi_type parameter to select MSI, MSI-Multi-Vector or MSI-X.
 
 	[> Changed
 	----------

@@ -1976,12 +1976,12 @@ class LiteXSoC(SoC):
         with_dma_synchronizer = False,
         with_dma_monitor      = False,
         with_dma_status       = False,
-        with_msi              = True,
+        with_msi              = True, msi_type="msi",
 ):
         # Imports
         from litepcie.phy.uspciephy import USPCIEPHY
         from litepcie.phy.usppciephy import USPPCIEPHY
-        from litepcie.core import LitePCIeEndpoint, LitePCIeMSI
+        from litepcie.core import LitePCIeEndpoint, LitePCIeMSI, LitePCIeMSIMultiVector, LitePCIeMSIX
         from litepcie.frontend.dma import LitePCIeDMA
         from litepcie.frontend.wishbone import LitePCIeWishboneMaster
 
@@ -2005,18 +2005,25 @@ class LiteXSoC(SoC):
 
         # MSI.
         if with_msi:
+            assert msi_type in ["msi", "msi-multi-vector", "msi-x"]
             self.check_if_exists(f"{name}_msi")
-            msi = LitePCIeMSI()
+            if msi_type == "msi":
+                msi = LitePCIeMSI()
+            if msi_type == "msi-multi-vector":
+                msi = LitePCIeMSIMultiVector()
+            if msi_type == "msi-x":
+                msi = LitePCIeMSIX(endpoint=self.pcie_endpoint)
             self.add_module(name=f"{name}_msi", module=msi)
             # FIXME: On Ultrascale/Ultrascale+ limit rate of IRQs to 1MHz (to prevent issue with
             # IRQs stalled).
-            if isinstance(phy, (USPCIEPHY, USPPCIEPHY)):
-                msi_timer = WaitTimer(int(self.sys_clk_freq/1e6))
-                self.add_module(name=f"{name}_msi_timer", module=msi_timer)
-                self.comb += msi_timer.wait.eq(~msi_timer.done)
-                self.comb += If(msi_timer.done, msi.source.connect(phy.msi))
-            else:
-                self.comb += msi.source.connect(phy.msi)
+            if msi_type in ["msi", "msi-multi-vector"]:
+                if isinstance(phy, (USPCIEPHY, USPPCIEPHY)):
+                    msi_timer = WaitTimer(int(self.sys_clk_freq/1e6))
+                    self.add_module(name=f"{name}_msi_timer", module=msi_timer)
+                    self.comb += msi_timer.wait.eq(~msi_timer.done)
+                    self.comb += If(msi_timer.done, msi.source.connect(phy.msi))
+                else:
+                    self.comb += msi.source.connect(phy.msi)
             self.msis = {}
 
         # DMAs.
