@@ -154,7 +154,7 @@ class Microwatt(CPU):
                 int_level_in = self.interrupt,
             )
             xicsicp_region = SoCRegion(origin=soc.mem_map.get("xicsicp"), size=4096, cached=False)
-            xicsics_region = SocRegion(origin=soc.mem_map.get("xicsics"), size=4096, cached=False)
+            xicsics_region = SoCRegion(origin=soc.mem_map.get("xicsics"), size=4096, cached=False)
             soc.bus.add_slave(name="xicsicp", slave=self.xics.icp_bus, region=xicsicp_region)
             soc.bus.add_slave(name="xicsics", slave=self.xics.ics_bus, region=xicsics_region)
 
