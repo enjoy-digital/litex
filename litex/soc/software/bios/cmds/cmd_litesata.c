@@ -58,6 +58,44 @@ static void sata_read_handler(int nb_params, char **params)
 }
 
 define_command(sata_read, sata_read_handler, "Read SATA sector", LITESATA_CMDS);
+
+static void sata_sec2mem_handler(int nb_params, char **params)
+{
+	char *c;
+	unsigned int sec, cnt;
+	uint8_t *dst;
+
+	if (nb_params < 2) {
+		printf("sata_s2m <sector> <dst_addr> [count]");
+		return;
+	}
+
+	sec = strtoul(params[0], &c, 0);
+	if (*c != 0) {
+		printf("Incorrect sector number");
+		return;
+	}
+
+	dst = (uint8_t *)strtoul(params[1], &c, 0);
+	if (*c != 0) {
+		printf("Incorrect destination address");
+		return;
+	}
+
+	if (nb_params == 2) {
+		cnt = 1;
+	} else {
+		cnt = strtoul(params[2], &c, 0);
+		if (*c != 0) {
+			printf("Incorrect count");
+			return;
+		}
+	}
+
+	sata_read(sec, cnt, dst);
+}
+
+define_command(sata_sec2mem, sata_sec2mem_handler, "Read SATA into memory", LITESATA_CMDS);
 #endif
 
 /**
@@ -99,4 +137,42 @@ static void sata_write_handler(int nb_params, char **params)
 }
 
 define_command(sata_write, sata_write_handler, "Write SATA sector", LITESATA_CMDS);
+
+static void sata_mem2sec_handler(int nb_params, char **params)
+{
+	char *c;
+	unsigned int sec, cnt;
+	uint8_t *src;
+
+	if (nb_params < 2) {
+		printf("sata_s2m <src_addr> <sector> [count]");
+		return;
+	}
+
+	src = (uint8_t *)strtoul(params[0], &c, 0);
+	if (*c != 0) {
+		printf("Incorrect source address");
+		return;
+	}
+
+	sec = strtoul(params[1], &c, 0);
+	if (*c != 0) {
+		printf("Incorrect sector number");
+		return;
+	}
+
+	if (nb_params == 2) {
+		cnt = 1;
+	} else {
+		cnt = strtoul(params[2], &c, 0);
+		if (*c != 0) {
+			printf("Incorrect count");
+			return;
+		}
+	}
+
+	sata_write(sec, cnt, src);
+}
+
+define_command(sata_mem2sec, sata_mem2sec_handler, "Write SATA from memory", LITESATA_CMDS);
 #endif
