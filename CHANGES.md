@@ -8,6 +8,7 @@
 	- csr/fields          : Fixed access type checks.
 	- software/liblitespi : Fixed support with debug.
 	- cpu/vexriscv_smp    : Fixed compilation with Gowin toolchain (ex for Tang Nano 20K Linux).
+	- liteiclink/serwb    : Fixed 7-Series initialization corner cases.
 
 	[> Added
 	--------
@@ -32,6 +33,7 @@
 	- soc/add_pcie                 : Added msi_type parameter to select MSI, MSI-Multi-Vector or MSI-X.
 	- soc/add_pcie                 : Added msi_width parameter to select MSI width.
 	- litepcie                     : Added 7-Series MSI-X capability/integration.
+	- liteiclink                   : Improved GTH3/GTH4 support and similarity with Wizard's generated code.
 
 	[> Changed
 	----------
