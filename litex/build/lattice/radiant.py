@@ -153,7 +153,9 @@ class LatticeRadiantToolchain(GenericToolchain):
 
         # Add include paths
         vincpath = ";".join(map(lambda x: tcl_path(x), self.platform.verilog_include_paths))
-        tcl.append("prj_set_impl_opt {include path} {\"" + vincpath + "\"}")
+        if vincpath != "": # Do not add quotes if vincpath is empty, else Radiant complains
+            vincpath = "\"" + vincpath + "\"" 
+        tcl.append("prj_set_impl_opt {include path} {" + vincpath + "}")
 
         # Add sources
         if self._synth_mode == "yosys":
