@@ -156,8 +156,6 @@ class LatticeRadiantToolchain(GenericToolchain):
         if vincpath and vincpath.strip():
             tcl.append("prj_set_impl_opt {include path} {\"" + vincpath + "\"}")
 
-        tcl.append("prj_set_impl_opt {include path} {" + vincpath + "}")
-
         # Add sources
         if self._synth_mode == "yosys":
             # NOTE: it is seemingly impossible to skip synthesis using the Tcl flow
