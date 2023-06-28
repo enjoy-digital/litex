@@ -66,7 +66,7 @@ static void sata_sec2mem_handler(int nb_params, char **params)
 	uint8_t *dst;
 
 	if (nb_params < 2) {
-		printf("sata_s2m <sector> <dst_addr> [count]");
+		printf("sata_sec2mem <sector> <dst_addr> [count]");
 		return;
 	}
 
@@ -145,7 +145,7 @@ static void sata_mem2sec_handler(int nb_params, char **params)
 	uint8_t *src;
 
 	if (nb_params < 2) {
-		printf("sata_s2m <src_addr> <sector> [count]");
+		printf("sata_mem2sec <src_addr> <sector> [count]");
 		return;
 	}
 
