@@ -54,6 +54,7 @@ jobs:
           export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
           git clone https://github.com/verilator/verilator
           cd verilator
+          git checkout 7d2d32420a630befa4097170ecbf227e04e32522
           autoconf
           ./configure
           make -j$(nproc)
