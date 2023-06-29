@@ -297,7 +297,7 @@ def generate_cpu(csr, time_provider, number_of_cores):
 cpu{cpu_id}: CPU.{cpu_string.strip()}
     hartId: {cpu_id}
 """
-        if cpu.get('supports_time_provider', False):
+        if cpu.get('supports_time_provider', False) and time_provider:
             result += f'    timeProvider: {time_provider}\n'
 
     return result
