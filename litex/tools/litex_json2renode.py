@@ -214,7 +214,7 @@ def get_cpu_type(csr):
     return (kind, variant)
 
 def get_cpu_count(csr):
-    return csr['constants']['config_cpu_count']
+    return csr['constants'].get('config_cpu_count', 1)
 
 vexriscv_common_kind = {
     'name': 'VexRiscv',
@@ -297,7 +297,7 @@ def generate_cpu(csr, time_provider, number_of_cores):
 cpu{cpu_id}: CPU.{cpu_string.strip()}
     hartId: {cpu_id}
 """
-        if cpu.get('supports_time_provider', False):
+        if cpu.get('supports_time_provider', False) and time_provider:
             result += f'    timeProvider: {time_provider}\n'
 
     return result
@@ -889,8 +889,9 @@ showAnalyzer sysbus.uart Antmicro.Renode.Analyzers.LoggingUartAnalyzer
 sysbus LoadBinary @{} {}
 """.format(args.bios_binary, hex(opensbi_base))
 
-    for cpu_id in range(0, number_of_cores):
-        result += f"cpu{cpu_id} PC {hex(opensbi_base)}\n"
+    if opensbi_base:
+        for cpu_id in range(0, number_of_cores):
+            result += f"cpu{cpu_id} PC {hex(opensbi_base)}\n"
 
     if args.tftp_ip:
         result += """
