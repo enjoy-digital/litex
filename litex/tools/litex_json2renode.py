@@ -214,7 +214,7 @@ def get_cpu_type(csr):
     return (kind, variant)
 
 def get_cpu_count(csr):
-    return csr['constants']['config_cpu_count']
+    return csr['constants'].get('config_cpu_count', 1)
 
 vexriscv_common_kind = {
     'name': 'VexRiscv',
