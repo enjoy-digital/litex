@@ -1646,6 +1646,7 @@ class LiteXSoC(SoC):
         data_width              = 8,
         nrxslots                = 2,
         ntxslots                = 2,
+        tx_write_only           = False,
         with_timestamp          = False,
         with_timing_constraints = True):
         # Imports
@@ -1665,6 +1666,7 @@ class LiteXSoC(SoC):
             endianness = self.cpu.endianness,
             nrxslots   = nrxslots,
             ntxslots   = ntxslots,
+            tx_write_only = tx_write_only,
             timestamp  = None if not with_timestamp else self.timer0.uptime_cycles,
             with_preamble_crc = not software_debug,
             with_sys_datapath = with_sys_datapath)

@@ -362,7 +362,7 @@ class Converter(Module):
 # Wishbone SRAM ------------------------------------------------------------------------------------
 
 class SRAM(Module):
-    def __init__(self, mem_or_size, read_only=None, init=None, bus=None, name=None):
+    def __init__(self, mem_or_size, read_only=None, write_only=None, init=None, bus=None, name=None):
         if bus is None:
             bus = Interface()
         self.bus = bus
@@ -468,11 +468,12 @@ class SRAM(Module):
             self.comb += If(adr_burst & adr_latched,
                 port.adr.eq(adr_next[:len(port.adr)]),
             )
-        self.comb += [
-            self.bus.dat_r.eq(port.dat_r)
-        ]
+
+        if not write_only:
+            self.comb += self.bus.dat_r.eq(port.dat_r)
+
         if not read_only:
-            self.comb += port.dat_w.eq(self.bus.dat_w),
+            self.comb += port.dat_w.eq(self.bus.dat_w)
 
         # Generate Ack.
         self.sync += [
