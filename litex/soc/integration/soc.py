@@ -1644,9 +1644,8 @@ class LiteXSoC(SoC):
     # Add Ethernet ---------------------------------------------------------------------------------
     def add_ethernet(self, name="ethmac", phy=None, phy_cd="eth", dynamic_ip=False, software_debug=False,
         data_width              = 8,
-        nrxslots                = 2,
-        ntxslots                = 2,
-        tx_write_only           = False,
+        nrxslots                = 2, rxslots_read_only  = True,
+        ntxslots                = 2, txslots_write_only = False,
         with_timestamp          = False,
         with_timing_constraints = True):
         # Imports
@@ -1664,9 +1663,8 @@ class LiteXSoC(SoC):
             dw         = 32,
             interface  = "wishbone",
             endianness = self.cpu.endianness,
-            nrxslots   = nrxslots,
-            ntxslots   = ntxslots,
-            tx_write_only = tx_write_only,
+            nrxslots   = nrxslots, rxslots_read_only  = rxslots_read_only,
+            ntxslots   = ntxslots, txslots_write_only = txslots_write_only,
             timestamp  = None if not with_timestamp else self.timer0.uptime_cycles,
             with_preamble_crc = not software_debug,
             with_sys_datapath = with_sys_datapath)
