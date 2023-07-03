@@ -37,6 +37,7 @@
 	- liteeth_gen                  : Added SGMII/1000BaseX PHYs support.
 	- litesata/dma                 : Added multi-sector support.
 	- liteeth/mac                  : Added TX Slots write-only mode for improved resource usage when software does not read buffer.
+	- liteeth/core                 : Added DHCP support for CPU-less hardware stack.
 
 	[> Changed
 	----------
