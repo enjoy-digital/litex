@@ -35,7 +35,8 @@
 	- litepcie                     : Added 7-Series MSI-X capability/integration.
 	- liteiclink                   : Improved GTH3/GTH4 support and similarity with Wizard's generated code.
 	- liteeth_gen                  : Added SGMII/1000BaseX PHYs support.
-	- litesata/dma                 : Add multi-sector support.
+	- litesata/dma                 : Added multi-sector support.
+	- liteeth/mac                  : Added TX Slots write-only mode for improved resource usage when software does not read buffer.
 
 	[> Changed
 	----------
