@@ -8,7 +8,8 @@
 import math
 
 from migen import *
-from migen.genlib.misc import WaitTimer
+
+from litex.gen.genlib.misc import WaitTimer
 
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import wishbone

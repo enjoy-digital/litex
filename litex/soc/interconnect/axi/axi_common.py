@@ -9,10 +9,13 @@
 
 from migen import *
 from migen.genlib import roundrobin
-from migen.genlib.misc import WaitTimer
+
+from litex.gen.genlib.misc import WaitTimer
+
+from litex.build.generic_platform import *
 
 from litex.soc.interconnect import stream
-from litex.build.generic_platform import *
+
 
 # AXI Constants ------------------------------------------------------------------------------------
 

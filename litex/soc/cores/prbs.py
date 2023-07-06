@@ -6,10 +6,10 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
-from migen.genlib.misc import WaitTimer
 from migen.genlib.cdc import MultiReg
 
 from litex.gen import *
+from litex.gen.genlib.misc import WaitTimer
 
 # Constants ----------------------------------------------------------------------------------------
 

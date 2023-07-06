@@ -15,10 +15,10 @@ import datetime
 from math import log2, ceil
 
 from migen import *
-from migen.genlib.misc import WaitTimer
 
 from litex.gen import colorer
 from litex.gen import LiteXModule
+from litex.gen.genlib.misc import WaitTimer
 from litex.gen.fhdl.hierarchy import LiteXHierarchyExplorer
 
 from litex.compat.soc_core import *

@@ -14,9 +14,9 @@ from math import log2
 from migen import *
 from migen.genlib import roundrobin
 from migen.genlib.record import *
-from migen.genlib.misc import split, displacer, chooser, WaitTimer
 
 from litex.gen import *
+from litex.gen.genlib.misc import split, displacer, chooser, WaitTimer
 
 from litex.build.generic_platform import *
 
