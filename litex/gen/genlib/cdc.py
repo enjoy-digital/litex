@@ -5,6 +5,7 @@ from math import gcd
 
 from migen import *
 
+from migen.genlib.cdc import MultiReg, PulseSynchronizer
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.gen.genlib.misc import WaitTimer
