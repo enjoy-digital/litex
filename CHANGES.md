@@ -9,6 +9,7 @@
 	- software/liblitespi : Fixed support with debug.
 	- cpu/vexriscv_smp    : Fixed compilation with Gowin toolchain (ex for Tang Nano 20K Linux).
 	- liteiclink/serwb    : Fixed 7-Series initialization corner cases.
+	- liteeth/core/icmp   : Fixed length check on LiteEthICMPEcho before passing data to buffer.
 
 	[> Added
 	--------
@@ -38,10 +39,12 @@
 	- litesata/dma                 : Added multi-sector support.
 	- liteeth/mac                  : Added TX Slots write-only mode for improved resource usage when software does not read buffer.
 	- liteeth/core                 : Added DHCP support for CPU-less hardware stack.
+	- liteeth/core/icmp            : Added fifo_depth parameter on LiteEthICMPEcho.
+	- gen/fhdl/verilog             : Improved signal sort by name instead of duid to improve reproducibility.
 
 	[> Changed
 	----------
-	-
+	- litex/gen                    : Added local version of genlib.cdc/misc to better decouple with Migen and prepare Amaranth's compat use.
 
 [> 2023.04, released on May 8th 2023
 ------------------------------------
