@@ -394,7 +394,7 @@ def _print_module(f, ios, name, ns, attr_translate):
 
     r = f"module {name} (\n"
     firstp = True
-    for sig in sorted(ios, key=lambda x: x.duid):
+    for sig in sorted(ios, key=lambda x: ns.get_name(x)):
         if not firstp:
             r += ",\n"
         firstp = False
@@ -429,7 +429,7 @@ def _print_signals(f, ios, name, ns, attr_translate, regs_init):
     wires        = _list_comb_wires(f) | special_outs
 
     r = ""
-    for sig in sorted(sigs - ios, key=lambda x: x.duid):
+    for sig in sorted(sigs - ios, key=lambda x: ns.get_name(x)):
         r += _print_attribute(sig.attr, attr_translate)
         if sig in wires:
             r += "wire " + _print_signal(ns, sig) + ";\n"
@@ -480,7 +480,7 @@ def _print_combinatorial_logic_synth(f, ns):
                 r += "assign " + _print_node(ns, _AT_BLOCKING, 0, g[1][0])
             else:
                 r += "always @(*) begin\n"
-                for t in g[0]:
+                for t in sorted(g[0], key=lambda x: ns.get_name(x)):
                     r += _tab + ns.get_name(t) + " <= " + _print_expression(ns, t.reset)[0] + ";\n"
                 r += _print_node(ns, _AT_NONBLOCKING, 1, g[1])
                 r += "end\n"
