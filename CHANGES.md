@@ -41,6 +41,7 @@
 	- liteeth/core                 : Added DHCP support for CPU-less hardware stack.
 	- liteeth/core/icmp            : Added fifo_depth parameter on LiteEthICMPEcho.
 	- gen/fhdl/verilog             : Improved signal sort by name instead of duid to improve reproducibility.
+	- litedram/frontend/dma        : Added last generation on end of DMA for LiteDRAMDMAReader.
 
 	[> Changed
 	----------
