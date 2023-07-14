@@ -8,11 +8,13 @@
 from migen import *
 from migen.fhdl.specials import Tristate
 
+from litex.gen import *
+
 from litex.soc.interconnect.csr import *
 
 # I2C Master Bit-Banging ---------------------------------------------------------------------------
 
-class I2CMaster(Module, AutoCSR):
+class I2CMaster(LiteXModule):
     """I2C bus master (bit-banged).
 
     This core provides minimal hardware for use as a software controlled bit-banged I2C bus master.
@@ -145,7 +147,7 @@ def collect_i2c_info(soc):
 
 # SPI Master Bit-Banging ---------------------------------------------------------------------------
 
-class SPIMaster(Module, AutoCSR):
+class SPIMaster(LiteXModule):
     """3/4-wire SPI bus master (bit-banged).
 
     This core provides minimal hardware for use as a software controlled bit-banged SPI bus master.

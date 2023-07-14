@@ -10,6 +10,8 @@ from migen import *
 from migen.fhdl.specials import Tristate
 from migen.genlib.cdc import MultiReg
 
+from litex.gen import *
+
 from litex.soc.interconnect import stream
 
 from litex.build.io import SDRTristate
@@ -39,7 +41,7 @@ def anti_starvation(module, timeout):
 
 # FT245 Synchronous FIFO Mode ----------------------------------------------------------------------
 
-class FT245PHYSynchronous(Module):
+class FT245PHYSynchronous(LiteXModule):
     # FIXME: Check/Improve sampling timings.
     def __init__(self, pads, clk_freq,
         fifo_depth = 64,
@@ -60,12 +62,12 @@ class FT245PHYSynchronous(Module):
 
         # Read CDC/FIFO (FTDI --> SoC).
         # -----------------------------
-        self.submodules.read_cdc  = stream.ClockDomainCrossing(phy_description(dw),
+        self.read_cdc  = stream.ClockDomainCrossing(phy_description(dw),
             cd_from         = "usb",
             cd_to           = "sys",
             with_common_rst = True
         )
-        self.submodules.read_fifo = stream.SyncFIFO(phy_description(dw), fifo_depth)
+        self.read_fifo = stream.SyncFIFO(phy_description(dw), fifo_depth)
         self.comb += self.read_cdc.source.connect(self.read_fifo.sink)
         self.comb += self.read_fifo.source.connect(self.source)
         read_fifo_almost_full = (self.read_fifo.level > (fifo_depth - 4))
@@ -74,8 +76,8 @@ class FT245PHYSynchronous(Module):
 
         # Write FIFO/CDC (SoC --> FTDI).
         # ------------------------------
-        self.submodules.write_fifo = stream.SyncFIFO(phy_description(dw), fifo_depth)
-        self.submodules.write_cdc  = stream.ClockDomainCrossing(phy_description(dw),
+        self.write_fifo = stream.SyncFIFO(phy_description(dw), fifo_depth)
+        self.write_cdc  = stream.ClockDomainCrossing(phy_description(dw),
             cd_from         = "sys",
             cd_to           = "usb",
             with_common_rst = True
@@ -124,7 +126,7 @@ class FT245PHYSynchronous(Module):
         # -----------------
         fsm = FSM(reset_state="READ")
         fsm = ClockDomainsRenamer("usb")(fsm)
-        self.submodules.fsm = fsm
+        self.fsm = fsm
         fsm.act("READ",
             # Arbitration.
             read_time_en.eq(1),
@@ -190,11 +192,11 @@ class FT245PHYSynchronous(Module):
 
 # FT245 Asynchronous FIFO Mode ---------------------------------------------------------------------
 
-class FT245PHYAsynchronous(Module):
+class FT245PHYAsynchronous(LiteXModule):
     def __init__(self, pads, clk_freq,
-                 fifo_depth = 8,
-                 read_time  = 128,
-                 write_time = 128):
+        fifo_depth = 8,
+        read_time  = 128,
+        write_time = 128):
         dw = len(pads.data)
         self.clk_freq = clk_freq
 

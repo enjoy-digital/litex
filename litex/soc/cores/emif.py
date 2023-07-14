@@ -7,10 +7,12 @@
 from migen import *
 from migen.genlib.cdc import MultiReg
 
+from litex.gen import *
+
 from litex.soc.interconnect import wishbone
 
 
-class EMIF(Module):
+class EMIF(LiteXModule):
     """External Memory Interface core
 
     Provides a simple EMIF to Wishbone Master bridge.
@@ -83,13 +85,13 @@ class EMIF(Module):
         return t
 
 
-class EMIF16To32Adapter(Module):
+class EMIF16To32Adapter(LiteXModule):
     def __init__(self, emif):
         self.bus = bus = wishbone.Interface()
 
         # # #
 
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             If(emif.bus.stb & emif.bus.cyc,
                 If(emif.bus.we,

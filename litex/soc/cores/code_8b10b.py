@@ -153,7 +153,7 @@ table_4b3b_kp[0b0111] = 0b111
 # Single Encoder -----------------------------------------------------------------------------------
 
 @CEInserter()
-class SingleEncoder(Module):
+class SingleEncoder(LiteXModule):
     def __init__(self, lsb_first=False):
         self.d        = Signal(8)
         self.k        = Signal()
@@ -252,7 +252,7 @@ class SingleEncoder(Module):
 
 # Encoder ------------------------------------------------------------------------------------------
 
-class Encoder(Module):
+class Encoder(LiteXModule):
     def __init__(self, nwords=1, lsb_first=False):
         self.ce = Signal(reset=1)
         self.d  = [Signal(8) for _ in range(nwords)]
@@ -283,7 +283,7 @@ class Encoder(Module):
 
 # Decoder ------------------------------------------------------------------------------------------
 
-class Decoder(Module):
+class Decoder(LiteXModule):
     def __init__(self, lsb_first=False):
         self.ce      = Signal(reset=1)
         self.input   = Signal(10)

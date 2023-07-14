@@ -13,6 +13,7 @@ from migen import *
 from migen.genlib.record import Record
 from migen.genlib.cdc import MultiReg
 
+from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
 
 from litex.soc.interconnect.csr import *
@@ -39,7 +40,7 @@ RS232_STOP  = 1
 class RS232PHYInterface(UARTInterface): pass
 
 
-class RS232ClkPhaseAccum(Module):
+class RS232ClkPhaseAccum(LiteXModule):
     def __init__(self, tuning_word, mode="tx"):
         assert mode in ["tx", "rx"]
         self.enable = Signal()
@@ -52,7 +53,7 @@ class RS232ClkPhaseAccum(Module):
         self.sync += If(self.enable, Cat(phase, self.tick).eq(phase + tuning_word))
 
 
-class RS232PHYTX(Module):
+class RS232PHYTX(LiteXModule):
     def __init__(self, pads, tuning_word):
         self.sink = sink = stream.Endpoint([("data", 8)])
 
@@ -69,7 +70,7 @@ class RS232PHYTX(Module):
 
 
         # FSM
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             # Reset Count and set TX to Idle.
             NextValue(count,   0),
@@ -102,7 +103,7 @@ class RS232PHYTX(Module):
         )
 
 
-class RS232PHYRX(Module):
+class RS232PHYRX(LiteXModule):
     def __init__(self, pads, tuning_word):
         self.source = source = stream.Endpoint([("data", 8)])
 
@@ -122,7 +123,7 @@ class RS232PHYRX(Module):
         self.sync += rx_d.eq(rx)
 
         # FSM
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             # Reset Count.
             NextValue(count, 0),
@@ -151,18 +152,18 @@ class RS232PHYRX(Module):
         )
 
 
-class RS232PHY(Module, AutoCSR):
+class RS232PHY(LiteXModule):
     def __init__(self, pads, clk_freq, baudrate=115200, with_dynamic_baudrate=False):
         tuning_word = int((baudrate/clk_freq)*2**32)
         if with_dynamic_baudrate:
             self._tuning_word  = CSRStorage(32, reset=tuning_word)
             tuning_word = self._tuning_word.storage
-        self.submodules.tx = RS232PHYTX(pads, tuning_word)
-        self.submodules.rx = RS232PHYRX(pads, tuning_word)
+        self.tx = RS232PHYTX(pads, tuning_word)
+        self.rx = RS232PHYRX(pads, tuning_word)
         self.sink, self.source = self.tx.sink, self.rx.source
 
 
-class RS232PHYMultiplexer(Module):
+class RS232PHYMultiplexer(LiteXModule):
     def __init__(self, phys, phy):
         self.sel = Signal(max=len(phys))
 
@@ -180,7 +181,7 @@ class RS232PHYMultiplexer(Module):
         self.comb += Case(self.sel, cases)
 
 
-class RS232PHYModel(Module):
+class RS232PHYModel(LiteXModule):
     def __init__(self, pads):
         self.sink   = stream.Endpoint([("data", 8)])
         self.source = stream.Endpoint([("data", 8)])
@@ -213,7 +214,7 @@ def UARTPHY(pads, clk_freq, baudrate):
     else:
         return  RS232PHY(pads, clk_freq, baudrate)
 
-class UART(Module, AutoCSR, UARTInterface):
+class UART(LiteXModule, UARTInterface):
     def __init__(self, phy=None,
             tx_fifo_depth = 16,
             rx_fifo_depth = 16,
@@ -223,7 +224,7 @@ class UART(Module, AutoCSR, UARTInterface):
         self._txfull  = CSRStatus(description="TX FIFO Full.")
         self._rxempty = CSRStatus(description="RX FIFO Empty.")
 
-        self.submodules.ev = EventManager()
+        self.ev    = EventManager()
         self.ev.tx = EventSourceProcess(edge="rising")
         self.ev.rx = EventSourceProcess(edge="rising")
         self.ev.finalize()
@@ -243,7 +244,7 @@ class UART(Module, AutoCSR, UARTInterface):
 
         # TX
         # --
-        self.submodules.tx_fifo = tx_fifo = _get_uart_fifo(tx_fifo_depth, source_cd=phy_cd)
+        self.tx_fifo = tx_fifo = _get_uart_fifo(tx_fifo_depth, source_cd=phy_cd)
         self.comb += [
             # CSR --> FIFO.
             tx_fifo.sink.valid.eq(self._rxtx.re),
@@ -262,7 +263,7 @@ class UART(Module, AutoCSR, UARTInterface):
 
         # RX
         # --
-        self.submodules.rx_fifo = rx_fifo = _get_uart_fifo(rx_fifo_depth, sink_cd=phy_cd)
+        self.rx_fifo = rx_fifo = _get_uart_fifo(rx_fifo_depth, sink_cd=phy_cd)
         self.comb += [
             # Sink --> FIFO.
             self.sink.connect(rx_fifo.sink),
@@ -292,7 +293,7 @@ class UART(Module, AutoCSR, UARTInterface):
 
         # Flush TX FIFO when Source.ready is inactive for timeout (with interval cycles between
         # each ready).
-        self.submodules.timer = timer = WaitTimer(int(timeout*sys_clk_freq))
+        self.timer = timer = WaitTimer(int(timeout*sys_clk_freq))
         self.comb += timer.wait.eq(~self.source.ready)
         self.sync += flush_count.eq(flush_count + 1)
         self.comb += If(timer.done, flush_ep.ready.eq(flush_count == 0))
@@ -305,7 +306,7 @@ CMD_READ_BURST_INCR   = 0x02
 CMD_WRITE_BURST_FIXED = 0x03
 CMD_READ_BURST_FIXED  = 0x04
 
-class Stream2Wishbone(Module):
+class Stream2Wishbone(LiteXModule):
     def __init__(self, phy=None, clk_freq=None, data_width=32, address_width=32):
         self.sink     = sink   = stream.Endpoint([("data", 8)]) if phy is None else phy.source
         self.source   = source = stream.Endpoint([("data", 8)]) if phy is None else phy.sink
@@ -328,8 +329,8 @@ class Stream2Wishbone(Module):
         addr_bytes_count_done  = (addr_bytes_count == (address_width//8 - 1))
         words_count_done  = (words_count == (length - 1))
 
-        self.submodules.fsm   = fsm   = ResetInserter()(FSM(reset_state="RECEIVE-CMD"))
-        self.submodules.timer = timer = WaitTimer(int(100e-3*clk_freq))
+        self.fsm   = fsm   = ResetInserter()(FSM(reset_state="RECEIVE-CMD"))
+        self.timer = timer = WaitTimer(int(100e-3*clk_freq))
         self.comb += timer.wait.eq(~fsm.ongoing("RECEIVE-CMD"))
         self.comb += fsm.reset.eq(timer.done)
         fsm.act("RECEIVE-CMD",
@@ -435,12 +436,12 @@ class Stream2Wishbone(Module):
 class UARTBone(Stream2Wishbone):
     def __init__(self, phy, clk_freq, cd="sys"):
         if cd == "sys":
-            self.submodules.phy = phy
+            self.phy = phy
             Stream2Wishbone.__init__(self, self.phy, clk_freq=clk_freq)
         else:
-            self.submodules.phy = ClockDomainsRenamer(cd)(phy)
-            self.submodules.tx_cdc = stream.ClockDomainCrossing([("data", 8)], cd_from="sys", cd_to=cd)
-            self.submodules.rx_cdc = stream.ClockDomainCrossing([("data", 8)], cd_from=cd,    cd_to="sys")
+            self.phy = ClockDomainsRenamer(cd)(phy)
+            self.tx_cdc = stream.ClockDomainCrossing([("data", 8)], cd_from="sys", cd_to=cd)
+            self.rx_cdc = stream.ClockDomainCrossing([("data", 8)], cd_from=cd,    cd_to="sys")
             self.comb += self.phy.source.connect(self.rx_cdc.sink)
             self.comb += self.tx_cdc.source.connect(self.phy.sink)
             Stream2Wishbone.__init__(self, clk_freq=clk_freq)
@@ -449,12 +450,12 @@ class UARTBone(Stream2Wishbone):
 
 class UARTWishboneBridge(UARTBone):
     def __init__(self, pads, clk_freq, baudrate=115200, cd="sys"):
-        self.submodules.phy = RS232PHY(pads, clk_freq, baudrate)
+        self.phy = RS232PHY(pads, clk_freq, baudrate)
         UARTBone.__init__(self, self.phy, clk_freq, cd)
 
 # UART Multiplexer ---------------------------------------------------------------------------------
 
-class UARTMultiplexer(Module):
+class UARTMultiplexer(LiteXModule):
     def __init__(self, uarts, uart):
         self.sel = Signal(max=len(uarts))
 
@@ -480,7 +481,7 @@ class UARTCrossover(UART):
     def __init__(self, **kwargs):
         assert kwargs.get("phy", None) == None
         UART.__init__(self, **kwargs)
-        self.submodules.xover = UART(tx_fifo_depth=1, rx_fifo_depth=16, rx_fifo_rx_we=True)
+        self.xover = UART(tx_fifo_depth=1, rx_fifo_depth=16, rx_fifo_rx_we=True)
         self.comb += [
             self.source.connect(self.xover.sink),
             self.xover.source.connect(self.sink)

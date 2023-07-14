@@ -78,9 +78,9 @@ class USSPIFlash(LiteXModule):
 
 # Lattice ECP5 FPGAs SPI Flash (non-memory-mapped) -------------------------------------------------
 
-class ECP5SPIFlash(Module, AutoCSR):
+class ECP5SPIFlash(LiteXModule):
     def __init__(self, pads, sys_clk_freq, spi_clk_freq=25e6):
-        self.submodules.spi = spi = SPIMaster(None, 40, sys_clk_freq, spi_clk_freq)
+        self.spi = spi = SPIMaster(None, 40, sys_clk_freq, spi_clk_freq)
         self.specials += Instance("USRMCLK",
             i_USRMCLKI  = spi.pads.clk,
             i_USRMCLKTS = 0

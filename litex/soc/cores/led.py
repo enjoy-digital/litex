@@ -9,6 +9,7 @@ import math
 
 from migen import *
 
+from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
 
 from litex.soc.interconnect.csr import *
@@ -19,7 +20,7 @@ from litex.soc.interconnect import wishbone
 _CHASER_MODE  = 0
 _CONTROL_MODE = 1
 
-class LedChaser(Module, AutoCSR):
+class LedChaser(LiteXModule):
     def __init__(self, pads, sys_clk_freq, period=1e0, polarity=0):
         self.pads     = pads
         self.polarity = polarity
@@ -48,7 +49,7 @@ class LedChaser(Module, AutoCSR):
 
     def add_pwm(self, default_width=512, default_period=1024, with_csr=True):
         from litex.soc.cores.pwm import PWM
-        self.submodules.pwm = PWM(
+        self.pwm = PWM(
             with_csr       = with_csr,
             default_enable = 1,
             default_width  = default_width,
@@ -60,7 +61,7 @@ class LedChaser(Module, AutoCSR):
 
 # WS2812/NeoPixel ----------------------------------------------------------------------------------
 
-class WS2812(Module):
+class WS2812(LiteXModule):
     """WS2812/NeoPixel Led Driver.
 
     Description
@@ -114,7 +115,7 @@ class WS2812(Module):
                                ...        ...
 
      It can be simply integrated in a LiteX SoC with:
-         self.submodules.ws2812 = WS2812(platform.request("x"), nleds=32, sys_clk_freq=sys_clk_freq)
+         self.ws2812 = WS2812(platform.request("x"), nleds=32, sys_clk_freq=sys_clk_freq)
          self.bus.add_slave(name="ws2812", slave=self.ws2812.bus, region=SoCRegion(
              origin = 0x2000_0000,
              size   = 32*4,
@@ -141,7 +142,7 @@ class WS2812(Module):
             self.specials += mem, port
 
             # Wishone Memory.
-            self.submodules.wb_mem = wishbone.SRAM(
+            self.wb_mem = wishbone.SRAM(
                 mem_or_size = mem,
                 read_only   = False,
                 bus         = wishbone.Interface(data_width=32)
@@ -176,7 +177,7 @@ class WS2812(Module):
         self.submodules += t1h_timer, t1l_timer
 
         # Main FSM.
-        self.submodules.fsm = fsm = FSM(reset_state="RST")
+        self.fsm = fsm = FSM(reset_state="RST")
         fsm.act("RST",
             NextValue(led_count, 0),
             trst_timer.wait.eq(xfer_done),

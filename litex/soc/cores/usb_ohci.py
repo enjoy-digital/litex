@@ -12,13 +12,15 @@ from migen import *
 
 from litex import get_data_mod
 
+from litex.gen import *
+
 from litex.soc.interconnect import wishbone
 
 from litex.build.io import SDRTristate
 
 # USB OHCI -----------------------------------------------------------------------------------------
 
-class USBOHCI(Module):
+class USBOHCI(LiteXModule):
     def __init__(self, platform, pads, usb_clk_freq=48e6, dma_data_width=32):
         self.pads           = pads
         self.usb_clk_freq   = int(usb_clk_freq)

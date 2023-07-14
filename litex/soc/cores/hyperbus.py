@@ -8,6 +8,7 @@
 
 from migen import *
 
+from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
 
 from litex.build.io import DifferentialOutput
@@ -16,7 +17,7 @@ from litex.soc.interconnect import wishbone
 
 # HyperRAM -----------------------------------------------------------------------------------------
 
-class HyperRAM(Module):
+class HyperRAM(LiteXModule):
     tCSM = 4e-6
     """HyperRAM
 
@@ -66,7 +67,7 @@ class HyperRAM(Module):
         # Burst Timer ------------------------------------------------------------------------------
         sys_clk_freq = 10e6 if sys_clk_freq is None else sys_clk_freq
         burst_timer  = WaitTimer(int(sys_clk_freq*self.tCSM))
-        self.submodules.burst_timer = burst_timer
+        self.burst_timer = burst_timer
 
         # Clock Generation (sys_clk/4) -------------------------------------------------------------
         self.sync += clk_phase.eq(clk_phase + 1)
@@ -127,7 +128,7 @@ class HyperRAM(Module):
         # FSM (Sequencer) --------------------------------------------------------------------------
         cycles = Signal(8)
         first  = Signal()
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             NextValue(first, 1),
             If(bus.cyc & bus.stb,
