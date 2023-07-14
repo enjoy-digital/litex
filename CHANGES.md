@@ -10,6 +10,7 @@
 	- cpu/vexriscv_smp    : Fixed compilation with Gowin toolchain (ex for Tang Nano 20K Linux).
 	- liteiclink/serwb    : Fixed 7-Series initialization corner cases.
 	- liteeth/core/icmp   : Fixed length check on LiteEthICMPEcho before passing data to buffer.
+	- LiteXModule/CSR     : Fixed CSR collection order causing CSR clock domain to be changed.
 
 	[> Added
 	--------
