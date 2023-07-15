@@ -15,7 +15,7 @@ from litex.soc.cores.clock.common import *
 
 # Efinix / TRIONPLL ----------------------------------------------------------------------------------
 
-class EFINIXPLL(Module):
+class EFINIXPLL(LiteXModule):
     nclkouts_max = 3
     def __init__(self, platform, n=0, version="V1_V2"):
         self.logger = logging.getLogger("EFINIXPLL")

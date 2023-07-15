@@ -7,6 +7,8 @@
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
+from litex.gen import *
+
 from litex.build.io import DifferentialInput
 
 from litex.soc.interconnect.csr import *
@@ -15,7 +17,7 @@ from litex.soc.cores.clock.common import *
 
 # Xilinx / Generic ---------------------------------------------------------------------------------
 
-class XilinxClocking(Module, AutoCSR):
+class XilinxClocking(LiteXModule):
     clkfbout_mult_frange = (2,  64+1)
     clkout_divide_range  = (1, 128+1)
 

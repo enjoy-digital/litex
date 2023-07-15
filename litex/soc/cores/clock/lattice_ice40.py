@@ -7,6 +7,8 @@
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
+from litex.gen import *
+
 from litex.soc.cores.clock.common import *
 
 # Lattice / iCE40 ----------------------------------------------------------------------------------
@@ -15,7 +17,7 @@ from litex.soc.cores.clock.common import *
 # - add phase support.
 # - add support for GENCLK_HALF to be able to generate clock down to 8MHz.
 
-class iCE40PLL(Module):
+class iCE40PLL(LiteXModule):
     nclkouts_max = 1
     divr_range = (0,  16)
     divf_range = (0, 128)

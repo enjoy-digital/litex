@@ -8,11 +8,13 @@
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
+from litex.gen import *
+
 from litex.soc.cores.clock.common import *
 
 # Lattice / ECP5 PLL -------------------------------------------------------------------------------
 
-class ECP5PLL(Module):
+class ECP5PLL(LiteXModule):
     nclkouts_max    = 4
     clki_div_range  = (1, 128+1)
     clkfb_div_range = (1, 128+1)
@@ -171,7 +173,7 @@ class ECP5PLL(Module):
 
 # Lattice / ECP5 Dynamic Delay ---------------------------------------------------------------------
 
-class ECP5DynamicDelay(Module):
+class ECP5DynamicDelay(LiteXModule):
     tap_delay = 25e-12
     ntaps     = 128
 
@@ -203,7 +205,7 @@ class ECP5DynamicDelay(Module):
         # FSM.
         self.comb += done.eq(  self.taps == curr_taps)
         self.comb += change.eq(self.taps != curr_taps)
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             If(change,
                 NextState("DELAYF-RST")

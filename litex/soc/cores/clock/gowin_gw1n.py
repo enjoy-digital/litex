@@ -13,7 +13,7 @@ from litex.soc.cores.clock.common import *
 
 # GoWin / GW1NOSC ----------------------------------------------------------------------------------
 
-class GW1NOSC(Module):
+class GW1NOSC(LiteXModule):
     osc_div_range = (2,  128)
     def __init__(self, device, freq, margin=1e-2):
         self.logger = logging.getLogger("GW1NOSC")
@@ -47,7 +47,7 @@ class GW1NOSC(Module):
 
 # GoWin / GW1NPLL ----------------------------------------------------------------------------------
 
-class GW1NPLL(Module):
+class GW1NPLL(LiteXModule):
     nclkouts_max = 4
 
     def __init__(self, devicename, device, vco_margin=0):

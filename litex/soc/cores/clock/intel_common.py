@@ -12,6 +12,8 @@ from functools import reduce
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
+from litex.gen import *
+
 from litex.build.io import DifferentialInput
 
 from litex.soc.interconnect.csr import *
@@ -24,7 +26,7 @@ def geometric_mean(vals):
     return reduce(mul, vals, 1) ** (1 / len(vals))
 
 
-class IntelClocking(Module, AutoCSR):
+class IntelClocking(LiteXModule):
     def __init__(self, vco_margin=0):
         self.vco_margin = vco_margin
         self.reset      = Signal()
