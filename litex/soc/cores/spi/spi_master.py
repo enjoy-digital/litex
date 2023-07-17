@@ -9,11 +9,13 @@ import math
 from migen import *
 from migen.genlib.cdc import MultiReg
 
+from litex.gen import *
+
 from litex.soc.interconnect.csr import *
 
 # SPI Master ---------------------------------------------------------------------------------------
 
-class SPIMaster(Module, AutoCSR):
+class SPIMaster(LiteXModule):
     """4-wire SPI Master
 
     Provides a simple and minimal hardware SPI Master with CPOL=0, CPHA=0 and build time
@@ -70,7 +72,7 @@ class SPIMaster(Module, AutoCSR):
         ]
 
         # Control FSM ------------------------------------------------------------------------------
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             self.done.eq(1),
             If(self.start,

@@ -9,6 +9,8 @@ import math
 from migen import *
 from migen.genlib.cdc import MultiReg
 
+from litex.gen import *
+
 from litex.soc.interconnect.csr import *
 
 # SPI Slave ----------------------------------------------------------------------------------------
@@ -60,7 +62,7 @@ class SPISlave(Module):
         self.comb += clk_fall.eq(~clk & clk_d)
 
         # Control FSM ------------------------------------------------------------------------------
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             If(cs,
                 self.start.eq(1),
