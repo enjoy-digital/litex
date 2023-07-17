@@ -178,6 +178,7 @@ lattice_ecp5_trellis_special_overrides = {
     DDRInput:               LatticeECP5DDRInput,
     DDROutput:              LatticeECP5DDROutput,
     DifferentialInput:      LatticeECP5DifferentialInput,
+    DifferentialOutput:     LatticeECP5DifferentialOutput,
 }
 
 
