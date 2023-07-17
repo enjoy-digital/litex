@@ -8,6 +8,9 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
+
+from litex.gen import *
+
 from litex.soc.interconnect import wishbone
 
 kB = 1024
@@ -48,7 +51,7 @@ def initval_parameters(contents, width):
     return parameters
 
 
-class NXLRAM(Module):
+class NXLRAM(LiteXModule):
     def __init__(self, width=32, size=128*kB, init=[]):
         self.bus = wishbone.Interface(width)
         assert width in [32, 64]

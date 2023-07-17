@@ -19,7 +19,7 @@ from litex.soc.interconnect.csr import *
 
 # Ultrascale + HBM2 IP Wrapper ---------------------------------------------------------------------
 
-class USPHBM2(Module, AutoCSR):
+class USPHBM2(LiteXModule):
     """Xilinx Virtex US+ High Bandwidth Memory 2 IP wrapper"""
     def __init__(self, platform, hbm_ip_name="hbm_0"):
         self.platform = platform

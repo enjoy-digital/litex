@@ -7,6 +7,9 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
+
+from litex.gen import *
+
 from litex.soc.interconnect import wishbone
 
 kB = 1024
@@ -22,7 +25,7 @@ of 4 SPRAMs for this, so the only other valid config is using all 4 SPRAMs by de
 
 """
 
-class Up5kSPRAM(Module):
+class Up5kSPRAM(LiteXModule):
     def __init__(self, width=32, size=64*kB):
         self.bus = wishbone.Interface(width)
 
