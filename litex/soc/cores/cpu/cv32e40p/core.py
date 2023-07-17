@@ -10,6 +10,8 @@ import re
 from migen import *
 from migen.fhdl.specials import Tristate
 
+from litex.gen import *
+
 from litex import get_data_mod
 from litex.soc.interconnect import wishbone, stream
 from litex.soc.interconnect.csr import *
@@ -84,14 +86,14 @@ def add_manifest_sources(platform, manifest):
 
 # OBI <> Wishbone ----------------------------------------------------------------------------------
 
-class OBI2Wishbone(Module):
+class OBI2Wishbone(LiteXModule):
     def __init__(self, obi, wb):
         addr  = Signal.like(obi.addr)
         be    = Signal.like(obi.be)
         we    = Signal.like(obi.we)
         wdata = Signal.like(obi.wdata)
 
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             # On OBI request:
             If(obi.req,
@@ -134,9 +136,9 @@ class OBI2Wishbone(Module):
             )
         )
 
-class Wishbone2OBI(Module):
+class Wishbone2OBI(LiteXModule):
     def __init__(self, wb, obi):
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             If(wb.cyc & wb.stb,
                 obi.req.eq(1),
@@ -158,9 +160,9 @@ class Wishbone2OBI(Module):
 
 # Wishbone <> APB ----------------------------------------------------------------------------------
 
-class Wishbone2APB(Module):
+class Wishbone2APB(LiteXModule):
     def __init__(self, wb, apb):
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             If(wb.cyc & wb.stb,
                 NextState("ACK"),
@@ -182,7 +184,7 @@ class Wishbone2APB(Module):
 
 # Trace Collector ----------------------------------------------------------------------------------
 
-class TraceCollector(Module, AutoCSR):
+class TraceCollector(LiteXModule):
     def __init__(self, trace_depth=16384):
         self.bus  = bus  = wishbone.Interface()
         self.sink = sink = stream.Endpoint([("data", 32)])
@@ -228,7 +230,7 @@ class TraceCollector(Module, AutoCSR):
 
 # Trace Debugger -----------------------------------------------------------------------------------
 
-class TraceDebugger(Module):
+class TraceDebugger(LiteXModule):
     def __init__(self):
         self.bus      = wishbone.Interface()
         self.source   = source   = stream.Endpoint([("data", 32)])
@@ -236,7 +238,7 @@ class TraceDebugger(Module):
 
         apb = Record(apb_layout)
 
-        self.submodules.bus_conv = Wishbone2APB(self.bus, apb)
+        self.bus_conv = Wishbone2APB(self.bus, apb)
 
         self.trace_params = dict(
             # Clk / Rst.
@@ -278,7 +280,7 @@ class TraceDebugger(Module):
 
 # Debug Module -------------------------------------------------------------------------------------
 
-class DebugModule(Module):
+class DebugModule(LiteXModule):
     jtag_layout = [
         ("tck",  1),
         ("tms",  1),
@@ -295,8 +297,8 @@ class DebugModule(Module):
         dmbus = Record(obi_layout)
         sbbus = Record(obi_layout)
 
-        self.submodules.sbbus_conv = OBI2Wishbone(sbbus, self.sbbus)
-        self.submodules.dmbus_conv = Wishbone2OBI(self.dmbus, dmbus)
+        self.sbbus_conv = OBI2Wishbone(sbbus, self.sbbus)
+        self.dmbus_conv = Wishbone2OBI(self.dmbus, dmbus)
 
         self.debug_req = Signal()
         self.ndmreset  = Signal()
@@ -390,8 +392,8 @@ class CV32E40P(CPU):
         dbus = Record(obi_layout)
 
         # OBI <> Wishbone.
-        self.submodules.ibus_conv = OBI2Wishbone(ibus, self.ibus)
-        self.submodules.dbus_conv = OBI2Wishbone(dbus, self.dbus)
+        self.ibus_conv = OBI2Wishbone(ibus, self.ibus)
+        self.dbus_conv = OBI2Wishbone(dbus, self.dbus)
 
         self.comb += [
             ibus.we.eq(0),

@@ -11,6 +11,8 @@ import os
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
+from litex.gen import *
+
 from litex.soc.interconnect import axi
 
 from litex.soc.cores.cpu import CPU
@@ -55,7 +57,7 @@ class Zynq7000(CPU):
         # # #
 
         # PS7 Clocking.
-        self.clock_domains.cd_ps7 = ClockDomain()
+        self.cd_ps7 = ClockDomain()
 
         # PS7 (Minimal) ----------------------------------------------------------------------------
         self.ps7_name   = None

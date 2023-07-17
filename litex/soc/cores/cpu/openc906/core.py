@@ -9,6 +9,8 @@ import re
 
 from migen import *
 
+from litex.gen import *
+
 from litex import get_data_mod
 
 from litex.soc.interconnect import axi
@@ -35,7 +37,7 @@ apb_layout = [
 class Wishbone2APB(Module):
     def __init__(self, wb, apb):
         assert wb.data_width == 32
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             If(wb.cyc & wb.stb,
                 NextState("ACK"),

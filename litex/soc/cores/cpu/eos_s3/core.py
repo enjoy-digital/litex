@@ -59,8 +59,8 @@ class EOS_S3(CPU):
         eos_s3_0_rst = Signal()
         eos_s3_1_clk = Signal()
         eos_s3_1_rst = Signal()
-        self.clock_domains.cd_eos_s3_0 = ClockDomain()
-        self.clock_domains.cd_eos_s3_1 = ClockDomain()
+        self.cd_eos_s3_0 = ClockDomain()
+        self.cd_eos_s3_1 = ClockDomain()
         self.specials += Instance("gclkbuff",
             i_A = eos_s3_0_clk,
             o_Z = ClockSignal("eos_s3_0")

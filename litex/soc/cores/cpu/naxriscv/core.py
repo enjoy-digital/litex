@@ -369,7 +369,7 @@ class NaxRiscv(CPU):
 
         if NaxRiscv.jtag_instruction or NaxRiscv.jtag_tap:
             # Create PoR Clk Domain for debug_reset.
-            self.clock_domains.cd_debug_por = ClockDomain()
+            self.cd_debug_por = ClockDomain()
             self.comb += self.cd_debug_por.clk.eq(ClockSignal("sys"))
 
             # Create PoR debug_reset.

@@ -10,6 +10,8 @@ import re
 from migen import *
 from migen.fhdl.specials import Tristate
 
+from litex.gen import *
+
 from litex import get_data_mod
 from litex.soc.interconnect import wishbone, stream
 from litex.soc.interconnect.csr import *
@@ -78,7 +80,7 @@ class OBI2Wishbone(Module):
         we    = Signal.like(obi.we)
         wdata = Signal.like(obi.wdata)
 
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             # On OBI request:
             If(obi.req,
@@ -123,7 +125,7 @@ class OBI2Wishbone(Module):
 
 class Wishbone2OBI(Module):
     def __init__(self, wb, obi):
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             If(wb.cyc & wb.stb,
                 obi.req.eq(1),
@@ -147,7 +149,7 @@ class Wishbone2OBI(Module):
 
 class Wishbone2APB(Module):
     def __init__(self, wb, apb):
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             If(wb.cyc & wb.stb,
                 NextState("ACK"),
@@ -186,8 +188,8 @@ class DebugModule(Module):
         dmbus = Record(obi_layout)
         sbbus = Record(obi_layout)
 
-        self.submodules.sbbus_conv = OBI2Wishbone(sbbus, self.sbbus)
-        self.submodules.dmbus_conv = Wishbone2OBI(self.dmbus, dmbus)
+        self.sbbus_conv = OBI2Wishbone(sbbus, self.sbbus)
+        self.dmbus_conv = Wishbone2OBI(self.dmbus, dmbus)
 
         self.debug_req = Signal()
         self.ndmreset  = Signal()
@@ -276,8 +278,8 @@ class CV32E41P(CPU):
         dbus = Record(obi_layout)
 
         # OBI <> Wishbone.
-        self.submodules.ibus_conv = OBI2Wishbone(ibus, self.ibus)
-        self.submodules.dbus_conv = OBI2Wishbone(dbus, self.dbus)
+        self.ibus_conv = OBI2Wishbone(ibus, self.ibus)
+        self.dbus_conv = OBI2Wishbone(dbus, self.dbus)
 
         self.comb += [
             ibus.we.eq(0),

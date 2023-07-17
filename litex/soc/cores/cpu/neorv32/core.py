@@ -95,7 +95,7 @@ class NEORV32(CPU):
             i_wb_err_i = idbus.err,
         )
 
-        self.submodules.vhd2v_converter = VHD2VConverter(platform,
+        self.vhd2v_converter = VHD2VConverter(platform,
             top_entity    = "neorv32_litex_core_complex",
             build_dir     = os.path.abspath(os.path.dirname(__file__)),
             work_package  = "neorv32",

@@ -52,7 +52,7 @@ class OBI2Wishbone(Module):
         we    = Signal.like(obi.we)
         wdata = Signal.like(obi.wdata)
 
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             # On OBI request:
             If(obi.req,
@@ -131,8 +131,8 @@ class Ibex(CPU):
         dbus = Record(obi_layout)
 
         # OBI <> Wishbone.
-        self.submodules.ibus_conv = OBI2Wishbone(ibus, self.ibus)
-        self.submodules.dbus_conv = OBI2Wishbone(dbus, self.dbus)
+        self.ibus_conv = OBI2Wishbone(ibus, self.ibus)
+        self.dbus_conv = OBI2Wishbone(dbus, self.dbus)
 
         self.comb += [
             ibus.we.eq(0),

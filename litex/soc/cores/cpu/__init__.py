@@ -12,9 +12,11 @@ import importlib
 
 from migen import *
 
+from litex.gen import *
+
 # CPU (Generic) ------------------------------------------------------------------------------------
 
-class CPU(Module):
+class CPU(LiteXModule):
     category             = None
     family               = None
     name                 = None

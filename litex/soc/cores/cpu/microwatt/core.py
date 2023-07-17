@@ -132,7 +132,7 @@ class Microwatt(CPU):
         )
 
         # VHDL to Verilog Converter.
-        self.submodules.cpu_vhd2v_converter = VHD2VConverter(platform,
+        self.cpu_vhd2v_converter = VHD2VConverter(platform,
             top_entity    = "microwatt_wrapper",
             build_dir     = os.path.abspath(os.path.dirname(__file__)),
             force_convert = ("ghdl" in self.variant),
@@ -147,7 +147,7 @@ class Microwatt(CPU):
 
     def add_soc_components(self, soc):
         if "irq" in self.variant:
-            self.submodules.xics = XICSSlave(
+            self.xics = XICSSlave(
                 platform     = self.platform,
                 variant      = self.variant,
                 core_irq_out = self.core_ext_irq,
@@ -293,12 +293,12 @@ class XICSSlave(Module, AutoCSR):
         )
 
         # VHDL to Verilog Converter.
-        self.submodules.icp_vhd2v_converter = VHD2VConverter(platform,
+        self.icp_vhd2v_converter = VHD2VConverter(platform,
             top_entity    = "xics_icp_wrapper",
             build_dir     = os.path.abspath(os.path.dirname(__file__)),
             force_convert = ("ghdl" in self.variant),
         )
-        self.submodules.ics_vhd2v_converter = VHD2VConverter(platform,
+        self.ics_vhd2v_converter = VHD2VConverter(platform,
             top_entity    = "xics_ics_wrapper",
             build_dir     = os.path.abspath(os.path.dirname(__file__)),
             force_convert = ("ghdl" in self.variant),

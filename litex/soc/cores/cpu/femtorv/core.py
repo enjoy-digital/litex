@@ -8,6 +8,8 @@ import os
 
 from migen import *
 
+from litex.gen import *
+
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 
@@ -114,7 +116,7 @@ class FemtoRV(CPU):
         write = mbus.wmask != 0
         read  = mbus.rstrb
 
-        self.submodules.fsm = fsm = FSM(reset_state="WAIT")
+        self.fsm = fsm = FSM(reset_state="WAIT")
         fsm.act("WAIT",
             # Latch Address + Bytes to Words conversion.
             NextValue(idbus.adr, mbus.addr[2:]),

@@ -6,6 +6,8 @@
 
 from migen import *
 
+from litex.gen import *
+
 from litex.soc.interconnect import wishbone, ahb
 from litex.soc.cores.cpu import CPU
 
@@ -17,7 +19,7 @@ class AHBFlash(Module):
         read = Signal()
         self.comb += bus.resp.eq(0)
 
-        self.submodules.fsm = fsm = FSM()
+        self.fsm = fsm = FSM()
         fsm.act("IDLE",
             bus.readyout.eq(1),
             If(bus.sel & bus.trans[1],

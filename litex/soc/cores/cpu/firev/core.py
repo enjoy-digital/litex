@@ -8,6 +8,8 @@ import os
 
 from migen import *
 
+from litex.gen import *
+
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 
@@ -96,7 +98,7 @@ class FireV(CPU):
 
         # Adapt FireV Mem Bus to Wishbone.
         # --------------------------------
-        self.submodules.fsm = fsm = FSM(reset_state="WAIT")
+        self.fsm = fsm = FSM(reset_state="WAIT")
         fsm.act("WAIT",
             If(mbus.out_ram_in_valid,
                 idbus.stb.eq(1),

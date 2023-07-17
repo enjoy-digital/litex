@@ -9,6 +9,9 @@ import os
 from migen import *
 
 from litex import get_data_mod
+
+from litex.gen import *
+
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr import *
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32

@@ -14,6 +14,8 @@ import os
 
 from migen import *
 
+from litex.gen import *
+
 from litex import get_data_mod
 
 from litex.soc.interconnect import wishbone
@@ -192,7 +194,7 @@ class VexRiscv(CPU, AutoCSR):
         self.cpu_params.update(i_externalResetVector=Signal(32, reset=reset_address))
 
     def add_timer(self):
-        self.submodules.timer = VexRiscvTimer()
+        self.timer = VexRiscvTimer()
         self.cpu_params.update(i_timerInterrupt=self.timer.interrupt)
 
     def add_debug(self):
