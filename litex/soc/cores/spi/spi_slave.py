@@ -15,7 +15,7 @@ from litex.soc.interconnect.csr import *
 
 # SPI Slave ----------------------------------------------------------------------------------------
 
-class SPISlave(Module):
+class SPISlave(LiteXModule):
     """4-wire SPI Slave
 
     Provides a simple and minimal hardware SPI Slave with CPOL=0, CPHA=0 and build time configurable

@@ -355,7 +355,7 @@ class NaxRiscv(CPU):
             self.jtag_reset   = Signal()
             self.jtag_tdo     = Signal()
             self.jtag_tdi     = Signal()
-            
+
             self.cpu_params.update(
                 i_jtag_instruction_clk     = self.jtag_clk,
                 i_jtag_instruction_enable  = self.jtag_enable,
@@ -414,7 +414,7 @@ class NaxRiscv(CPU):
             o_peripheral_clint_rresp   = clintbus.r.resp,
         )
         soc.bus.add_slave("clint", clintbus, region=SoCRegion(origin=soc.mem_map.get("clint"), size=0x1_0000, cached=False))
-        self.soc = soc # FIXME: Save SoC instance to retrieve the final mem layout on finalization.
+        self.soc_bus = soc.bus # FIXME: Save SoC Bus instance to retrieve the final mem layout on finalization.
 
     def add_memory_buses(self, address_width, data_width):
         nax_data_width = 64
@@ -493,9 +493,9 @@ class NaxRiscv(CPU):
         # p        : peripheral
         # m        : memory
         NaxRiscv.memory_regions = []
-        for name, region in self.soc.bus.io_regions.items():
+        for name, region in self.soc_bus.io_regions.items():
             NaxRiscv.memory_regions.append( (region.origin, region.size, "io", "p") ) # IO is only allowed on the p bus
-        for name, region in self.soc.bus.regions.items():
+        for name, region in self.soc_bus.regions.items():
             if region.linker: # remove virtual regions
                 continue
             if len(self.memory_buses) and name == 'main_ram': # m bus
