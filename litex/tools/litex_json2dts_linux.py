@@ -246,18 +246,6 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         };
 """
 
-    # Clock ----------------------------------------------------------------------------------------
-
-    dts += """
-        clocks {{
-            sys_clk: litex_sys_clk {{
-                #clock-cells = <0>;
-                compatible = "fixed-clock";
-                clock-frequency = <{sys_clk_freq}>;
-            }};
-        }};
-""".format(sys_clk_freq=d["constants"]["config_clock_frequency"])
-
     # Voltage Regulator for LiteSDCard (if applicable) --------------------------------------------
     if "sdcore" in d["csr_bases"]:
         dts += """
