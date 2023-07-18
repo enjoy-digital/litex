@@ -10,6 +10,16 @@
 #include <libbase/uart.h>
 #include <stdio.h>
 
+// Weak function that can be overriden in own software for any IRQ that is not the uart.
+// Return true (not zero) if an IRQ was handled, or 0 if not.
+unsigned int __attribute__((weak)) handle_isr(int irqs);
+
+// Override by default with return 0
+unsigned int handle_isr(int irqs)
+{
+	return 0;
+}
+
 #if defined(__microwatt__)
 void isr(uint64_t vec);
 void isr_dec(void);
@@ -196,11 +206,13 @@ void isr(void)
 	__attribute__((unused)) unsigned int irqs;
 
 	irqs = irq_pending() & irq_getmask();
-
 #ifdef CSR_UART_BASE
 #ifndef UART_POLLING
 	if(irqs & (1 << UART_INTERRUPT))
 		uart_isr();
+	else
+		if(!handle_isr(irqs))
+			printf("Unhandled irq!\n");
 #endif
 #endif
 }
