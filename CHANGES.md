@@ -48,6 +48,7 @@
 	[> Changed
 	----------
 	- litex/gen                    : Added local version of genlib.cdc/misc to better decouple with Migen and prepare Amaranth's compat use.
+	- soc/add_uartbone             : Renamed name parameter to uart_name (for consistency with other cores).
 
 [> 2023.04, released on May 8th 2023
 ------------------------------------

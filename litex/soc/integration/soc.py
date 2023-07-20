@@ -966,7 +966,7 @@ class SoC(LiteXModule, SoCCoreCompat):
             bursting      = self.bus.bursting
         )
         ram     = ram_cls(size, bus=ram_bus, init=contents, read_only=("w" not in mode), name=name)
-        self.bus.add_slave(name, ram.bus, SoCRegion(origin=origin, size=size, mode=mode))
+        self.bus.add_slave(name=name, slave=ram.bus, region=SoCRegion(origin=origin, size=size, mode=mode))
         self.check_if_exists(name)
         self.logger.info("RAM {} {} {}.".format(
             colorer(name),
@@ -997,7 +997,7 @@ class SoC(LiteXModule, SoCCoreCompat):
             "axi-lite": axi.AXILite2CSR,
             "axi"     : axi.AXILite2CSR, # Note: CSR is a slow bus so using AXI-Lite is fine.
         }[self.bus.standard]
-        csr_bridge_name = name + "_bridge"
+        csr_bridge_name = f"{name}_bridge"
         self.check_if_exists(csr_bridge_name)
         csr_bridge = csr_bridge_cls(
             bus_csr = csr_bus.Interface(
@@ -1127,7 +1127,7 @@ class SoC(LiteXModule, SoCCoreCompat):
                     bursting         = self.bus.bursting
                 )
                 dma_bus = wishbone.Interface(data_width=self.bus.data_width)
-                self.dma_bus.add_slave("dma", slave=dma_bus, region=SoCRegion(origin=0x00000000, size=0x100000000)) # FIXME: covers lower 4GB only
+                self.dma_bus.add_slave(name="dma", slave=dma_bus, region=SoCRegion(origin=0x00000000, size=0x100000000)) # FIXME: covers lower 4GB only
                 self.submodules += wishbone.Converter(dma_bus, self.cpu.dma_bus)
 
             # Connect SoCController's reset to CPU reset.
@@ -1430,17 +1430,19 @@ class LiteXSoC(SoC):
             self.add_constant("UART_POLLING")
 
     # Add UARTbone ---------------------------------------------------------------------------------
-    def add_uartbone(self, name="serial", clk_freq=None, baudrate=115200, cd="sys"):
+    def add_uartbone(self, name="uartbone", uart_name="serial", clk_freq=None, baudrate=115200, cd="sys"):
         # Imports.
         from litex.soc.cores import uart
 
         # Core.
         if clk_freq is None:
             clk_freq = self.sys_clk_freq
-        self.check_if_exists("uartbone")
-        self.uartbone_phy = uart.UARTPHY(self.platform.request(name), clk_freq, baudrate)
-        self.uartbone = uart.UARTBone(phy=self.uartbone_phy, clk_freq=clk_freq, cd=cd)
-        self.bus.add_master(name="uartbone", master=self.uartbone.wishbone)
+        self.check_if_exists(name)
+        uartbone_phy = uart.UARTPHY(self.platform.request(uart_name), clk_freq, baudrate)
+        uartbone     = uart.UARTBone(phy=uartbone_phy, clk_freq=clk_freq, cd=cd)
+        self.add_module(name=f"{name}_phy", module=uartbone_phy)
+        self.add_module(name=name,          module=uartbone)
+        self.bus.add_master(name=name, master=uartbone.wishbone)
 
     # Add JTAGbone ---------------------------------------------------------------------------------
     def add_jtagbone(self, name="jtagbone", chain=1):
@@ -1612,7 +1614,7 @@ class LiteXSoC(SoC):
 
             # Create Wishbone Slave.
             wb_sdram = wishbone.Interface(data_width=self.bus.data_width)
-            self.bus.add_slave("main_ram", wb_sdram)
+            self.bus.add_slave(name="main_ram", slave=wb_sdram)
 
             # L2 Cache
             if l2_cache_size != 0:
@@ -1771,13 +1773,13 @@ class LiteXSoC(SoC):
         # PHY.
         spiflash_phy = phy
         if spiflash_phy is None:
-            self.check_if_exists(name + "_phy")
+            self.check_if_exists(f"{name}_phy")
             spiflash_pads = self.platform.request(name if mode == "1x" else name + mode)
             spiflash_phy = LiteSPIPHY(spiflash_pads, module, device=self.platform.device, default_divisor=int(self.sys_clk_freq/clk_freq), rate=rate)
             self.add_module(name=f"{name}_phy", module=spiflash_phy)
 
         # Core.
-        self.check_if_exists(name + "_mmap")
+        self.check_if_exists(f"{name}_mmap")
         spiflash_core = LiteSPI(spiflash_phy, mmap_endianness=self.cpu.endianness, **kwargs)
         self.add_module(name=f"{name}_core", module=spiflash_core)
         spiflash_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size)
