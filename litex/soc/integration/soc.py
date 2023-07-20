@@ -1746,7 +1746,7 @@ class LiteXSoC(SoC):
         self.check_if_exists(name)
         etherbone = LiteEthEtherbone(ethcore.udp, udp_port, buffer_depth=buffer_depth, cd=etherbone_cd)
         self.add_module(name=name, module=etherbone)
-        self.bus.add_master(master=etherbone.wishbone.bus)
+        self.bus.add_master(name=name, master=etherbone.wishbone.bus)
 
         # Timing constraints
         if with_timing_constraints:
@@ -1862,7 +1862,7 @@ class LiteXSoC(SoC):
             self.sdblock2mem = SDBlock2MemDMA(bus=bus, endianness=self.cpu.endianness)
             self.comb += self.sdcore.source.connect(self.sdblock2mem.sink)
             dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
-            dma_bus.add_master("sdblock2mem", master=bus)
+            dma_bus.add_master(name="sdblock2mem", master=bus)
 
         # Mem2Block DMA.
         if "write" in mode:
@@ -1870,7 +1870,7 @@ class LiteXSoC(SoC):
             self.sdmem2block = SDMem2BlockDMA(bus=bus, endianness=self.cpu.endianness)
             self.comb += self.sdmem2block.source.connect(self.sdcore.sink)
             dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
-            dma_bus.add_master("sdmem2block", master=bus)
+            dma_bus.add_master(name="sdmem2block", master=bus)
 
         # Interrupts.
         self.sdirq  = EventManager()
@@ -1935,7 +1935,7 @@ class LiteXSoC(SoC):
                bus        = bus,
                endianness = self.cpu.endianness)
             dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
-            dma_bus.add_master("sata_sector2mem", master=bus)
+            dma_bus.add_master(name="sata_sector2mem", master=bus)
 
         # Mem2Sector DMA.
         if "write" in mode:
@@ -1945,7 +1945,7 @@ class LiteXSoC(SoC):
                port       = self.sata_crossbar.get_port(),
                endianness = self.cpu.endianness)
             dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
-            dma_bus.add_master("sata_mem2sector", master=bus)
+            dma_bus.add_master(name="sata_mem2sector", master=bus)
 
         # Interrupts.
         self.sata_irq = EventManager()
@@ -2001,7 +2001,7 @@ class LiteXSoC(SoC):
         self.check_if_exists(f"{name}_mmap")
         mmap = LitePCIeWishboneMaster(self.pcie_endpoint, base_address=self.mem_map["csr"])
         self.add_module(name=f"{name}_mmap", module=mmap)
-        self.bus.add_master(master=mmap.wishbone)
+        self.bus.add_master(name=f"{name}_mmap", master=mmap.wishbone)
 
         # MSI.
         if with_msi:

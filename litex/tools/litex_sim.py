@@ -255,7 +255,7 @@ class SimSoC(SoCCore):
             self.udp  = LiteEthUDP(self.ip, etherbone_ip_address, dw=8)
             # Etherbone
             self.etherbone = LiteEthEtherbone(self.udp, 1234, mode="master")
-            self.bus.add_master(master=self.etherbone.wishbone.bus)
+            self.bus.add_master(name="etherbone", master=self.etherbone.wishbone.bus)
 
         # Ethernet ---------------------------------------------------------------------------------
         elif with_ethernet:
