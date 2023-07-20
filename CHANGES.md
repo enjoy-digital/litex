@@ -43,6 +43,7 @@
 	- liteeth/core/icmp            : Added fifo_depth parameter on LiteEthICMPEcho.
 	- gen/fhdl/verilog             : Improved signal sort by name instead of duid to improve reproducibility.
 	- litedram/frontend/dma        : Added last generation on end of DMA for LiteDRAMDMAReader.
+	- litepcie/frontend/dma        : Added optional integrated data-width converter and data_width parameters to simplify integration/user logic.
 
 	[> Changed
 	----------

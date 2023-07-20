@@ -1970,7 +1970,7 @@ class LiteXSoC(SoC):
             self.sata_phy.crg.cd_sata_rx.clk)
 
     # Add PCIe -------------------------------------------------------------------------------------
-    def add_pcie(self, name="pcie", phy=None, ndmas=0, max_pending_requests=8, address_width=32,
+    def add_pcie(self, name="pcie", phy=None, ndmas=0, max_pending_requests=8, address_width=32, data_width=None,
         with_dma_buffering    = True, dma_buffering_depth=1024,
         with_dma_loopback     = True,
         with_dma_synchronizer = False,
@@ -2036,7 +2036,8 @@ class LiteXSoC(SoC):
                 with_synchronizer = with_dma_synchronizer,
                 with_monitor      = with_dma_monitor,
                 with_status       = with_dma_status,
-                address_width     = address_width
+                address_width     = address_width,
+                data_width        = data_width,
             )
             self.add_module(name=f"{name}_dma{i}", module=dma)
             self.msis[f"{name.upper()}_DMA{i}_WRITER"] = dma.writer.irq
