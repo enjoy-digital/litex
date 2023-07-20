@@ -1834,7 +1834,7 @@ class LiteXSoC(SoC):
             self.add_constant("SPISDCARD_DEBUG")
 
     # Add SDCard -----------------------------------------------------------------------------------
-    def add_sdcard(self, name="sdcard", mode="read+write", use_emulator=False, software_debug=False):
+    def add_sdcard(self, name="sdcard", sdcard_name="sdcard", mode="read+write", use_emulator=False, software_debug=False):
         # Imports.
         from litesdcard.emulator import SDEmulator
         from litesdcard.phy import SDPHY
@@ -1850,53 +1850,61 @@ class LiteXSoC(SoC):
             self.submodules += sdemulator
             sdcard_pads = sdemulator.pads
         else:
-            sdcard_pads = self.platform.request(name)
+            sdcard_pads = self.platform.request(sdcard_name)
 
         # Core.
-        self.check_if_exists("sdphy")
-        self.check_if_exists("sdcore")
-        self.sdphy  = SDPHY(sdcard_pads, self.platform.device, self.clk_freq, cmd_timeout=10e-1, data_timeout=10e-1)
-        self.sdcore = SDCore(self.sdphy)
+        self.check_if_exists(f"{name}_phy")
+        self.check_if_exists(f"{name}_core")
+        sdcard_phy  = SDPHY(sdcard_pads, self.platform.device, self.clk_freq, cmd_timeout=10e-1, data_timeout=10e-1)
+        sdcard_core = SDCore(sdcard_phy)
+        self.add_module(name=f"{name}_phy",  module=sdcard_phy)
+        self.add_module(name=f"{name}_core", module=sdcard_core)
 
         # Block2Mem DMA.
         if "read" in mode:
+            self.check_if_exists(f"{name}_block2mem")
             bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.get_address_width(standard="wishbone"))
-            self.sdblock2mem = SDBlock2MemDMA(bus=bus, endianness=self.cpu.endianness)
-            self.comb += self.sdcore.source.connect(self.sdblock2mem.sink)
-            dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
-            dma_bus.add_master(name="sdblock2mem", master=bus)
+            sdcard_block2mem = SDBlock2MemDMA(bus=bus, endianness=self.cpu.endianness)
+            self.add_module(name=f"{name}_block2mem", module=sdcard_block2mem)
+            self.comb += sdcard_core.source.connect(sdcard_block2mem.sink)
+            dma_bus = getattr(self, "dma_bus", self.bus)
+            dma_bus.add_master(name=f"{name}_block2mem", master=bus)
 
         # Mem2Block DMA.
         if "write" in mode:
+            self.check_if_exists(f"{name}_mem2block")
             bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.get_address_width(standard="wishbone"))
-            self.sdmem2block = SDMem2BlockDMA(bus=bus, endianness=self.cpu.endianness)
-            self.comb += self.sdmem2block.source.connect(self.sdcore.sink)
-            dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
-            dma_bus.add_master(name="sdmem2block", master=bus)
+            sdcard_mem2block = SDMem2BlockDMA(bus=bus, endianness=self.cpu.endianness)
+            self.add_module(name=f"{name}_mem2block", module=sdcard_mem2block)
+            self.comb += sdcard_mem2block.source.connect(sdcard_core.sink)
+            dma_bus = getattr(self, "dma_bus", self.bus)
+            dma_bus.add_master(name=f"{name}_mem2block", master=bus)
 
         # Interrupts.
-        self.sdirq  = EventManager()
-        self.sdirq.card_detect = EventSourcePulse(description="SDCard has been ejected/inserted.")
+        self.check_if_exists(f"{name}_irq")
+        sdcard_irq  = EventManager()
+        self.add_module(name=f"{name}_irq", module=sdcard_irq)
+        sdcard_irq.card_detect = EventSourcePulse(description="SDCard has been ejected/inserted.")
         if "read" in mode:
-            self.sdirq.block2mem_dma = EventSourcePulse(description="Block2Mem DMA terminated.")
+            sdcard_irq.block2mem_dma = EventSourcePulse(description="Block2Mem DMA terminated.")
         if "write" in mode:
-            self.sdirq.mem2block_dma = EventSourcePulse(description="Mem2Block DMA terminated.")
-        self.sdirq.cmd_done  = EventSourceLevel(description="Command completed.")
-        self.sdirq.finalize()
+            sdcard_irq.mem2block_dma = EventSourcePulse(description="Mem2Block DMA terminated.")
+        sdcard_irq.cmd_done  = EventSourceLevel(description="Command completed.")
+        sdcard_irq.finalize()
         if "read" in mode:
-            self.comb += self.sdirq.block2mem_dma.trigger.eq(self.sdblock2mem.irq)
+            self.comb += sdcard_irq.block2mem_dma.trigger.eq(sdcard_block2mem.irq)
         if "write" in mode:
-            self.comb += self.sdirq.mem2block_dma.trigger.eq(self.sdmem2block.irq)
+            self.comb += sdcard_irq.mem2block_dma.trigger.eq(sdcard_mem2block.irq)
         self.comb += [
-            self.sdirq.card_detect.trigger.eq(self.sdphy.card_detect_irq),
-            self.sdirq.cmd_done.trigger.eq(self.sdcore.cmd_event.fields.done)
+            sdcard_irq.card_detect.trigger.eq(sdcard_phy.card_detect_irq),
+            sdcard_irq.cmd_done.trigger.eq(sdcard_core.cmd_event.fields.done)
         ]
         if self.irq.enabled:
-            self.irq.add("sdirq", use_loc_if_exists=True)
+            self.irq.add(f"{name}_irq", use_loc_if_exists=True)
 
         # Debug.
         if software_debug:
-            self.add_constant("SDCARD_DEBUG")
+            self.add_constant(f"{name}_DEBUG")
 
     # Add SATA -------------------------------------------------------------------------------------
     def add_sata(self, name="sata", phy=None, mode="read+write", with_identify=True):
@@ -1958,6 +1966,7 @@ class LiteXSoC(SoC):
             dma_bus.add_master(name=f"{name}_mem2sector", master=bus)
 
         # Interrupts.
+        self.check_if_exists(f"{name}_irq")
         sata_irq = EventManager()
         self.add_module(name=f"{name}_irq", module=sata_irq)
         if "read" in mode:
