@@ -1917,59 +1917,69 @@ class LiteXSoC(SoC):
         assert self.clk_freq >= sata_clk_freq/2 # FIXME: /2 for 16-bit data-width, add support for 32-bit.
 
         # Core.
-        self.check_if_exists("sata_core")
-        self.sata_core = LiteSATACore(phy)
+        self.check_if_exists(f"{name}_core")
+        sata_core = LiteSATACore(phy)
+        self.add_module(name=f"{name}_core", module=sata_core)
 
         # Crossbar.
-        self.check_if_exists("sata_crossbar")
-        self.sata_crossbar = LiteSATACrossbar(self.sata_core)
+        self.check_if_exists(f"{name}_crossbar")
+        sata_crossbar = LiteSATACrossbar(sata_core)
+        self.add_module(name=f"{name}_crossbar", module=sata_crossbar)
 
         # Identify.
         if with_identify:
-            sata_identify = LiteSATAIdentify(self.sata_crossbar.get_port())
-            self.sata_identify = LiteSATAIdentifyCSR(sata_identify)
+            self.check_if_exists(f"{name}_identify")
+            _sata_identify = LiteSATAIdentify(sata_crossbar.get_port())
+            sata_identify  = LiteSATAIdentifyCSR(_sata_identify)
+            self.add_module(name=f"{name}_identify", module=sata_identify)
 
         # Sector2Mem DMA.
         if "read" in mode:
+            self.check_if_exists(f"{name}_sector2mem")
             bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.get_address_width(standard="wishbone"))
-            self.sata_sector2mem = LiteSATASector2MemDMA(
-               port       = self.sata_crossbar.get_port(),
+            sata_sector2mem = LiteSATASector2MemDMA(
+               port       = sata_crossbar.get_port(),
                bus        = bus,
                endianness = self.cpu.endianness)
-            dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
-            dma_bus.add_master(name="sata_sector2mem", master=bus)
+            self.add_module(name=f"{name}_sector2mem", module=sata_sector2mem)
+            dma_bus = getattr(self, "dma_bus", self.bus)
+            dma_bus.add_master(name=f"{name}_sector2mem", master=bus)
 
         # Mem2Sector DMA.
         if "write" in mode:
+            self.check_if_exists(f"{name}_mem2sector")
             bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.get_address_width(standard="wishbone"))
-            self.sata_mem2sector = LiteSATAMem2SectorDMA(
+            sata_mem2sector = LiteSATAMem2SectorDMA(
                bus        = bus,
-               port       = self.sata_crossbar.get_port(),
+               port       = sata_crossbar.get_port(),
                endianness = self.cpu.endianness)
-            dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
-            dma_bus.add_master(name="sata_mem2sector", master=bus)
+            self.add_module(name=f"{name}_mem2sector", module=sata_mem2sector)
+            dma_bus = getattr(self, "dma_bus", self.bus)
+            dma_bus.add_master(name=f"{name}_mem2sector", master=bus)
 
         # Interrupts.
-        self.sata_irq = EventManager()
+        sata_irq = EventManager()
+        self.add_module(name=f"{name}_irq", module=sata_irq)
         if "read" in mode:
-            self.sata_irq.sector2mem_dma = EventSourcePulse(description="Sector2Mem DMA terminated.")
+            sata_irq.sector2mem_dma = EventSourcePulse(description="Sector2Mem DMA terminated.")
         if "write" in mode:
-            self.sata_irq.mem2sector_dma = EventSourcePulse(description="Mem2Sector DMA terminated.")
-        self.sata_irq.finalize()
+            sata_irq.mem2sector_dma = EventSourcePulse(description="Mem2Sector DMA terminated.")
+        sata_irq.finalize()
         if "read" in mode:
-            self.comb += self.sata_irq.sector2mem_dma.trigger.eq(self.sata_sector2mem.irq)
+            self.comb += sata_irq.sector2mem_dma.trigger.eq(sata_sector2mem.irq)
         if "write" in mode:
-            self.comb += self.sata_irq.mem2sector_dma.trigger.eq(self.sata_mem2sector.irq)
+            self.comb += sata_irq.mem2sector_dma.trigger.eq(sata_mem2sector.irq)
         if self.irq.enabled:
-            self.irq.add("sata_irq", use_loc_if_exists=True)
+            self.irq.add(f"{name}_irq", use_loc_if_exists=True)
 
         # Timing constraints.
-        self.platform.add_period_constraint(self.sata_phy.crg.cd_sata_tx.clk, 1e9/sata_clk_freq)
-        self.platform.add_period_constraint(self.sata_phy.crg.cd_sata_rx.clk, 1e9/sata_clk_freq)
+        self.platform.add_period_constraint(phy.crg.cd_sata_tx.clk, 1e9/sata_clk_freq)
+        self.platform.add_period_constraint(phy.crg.cd_sata_rx.clk, 1e9/sata_clk_freq)
         self.platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
-            self.sata_phy.crg.cd_sata_tx.clk,
-            self.sata_phy.crg.cd_sata_rx.clk)
+            phy.crg.cd_sata_tx.clk,
+            phy.crg.cd_sata_rx.clk,
+        )
 
     # Add PCIe -------------------------------------------------------------------------------------
     def add_pcie(self, name="pcie", phy=None, ndmas=0, max_pending_requests=8, address_width=32, data_width=None,
