@@ -44,6 +44,7 @@
 	- gen/fhdl/verilog             : Improved signal sort by name instead of duid to improve reproducibility.
 	- litedram/frontend/dma        : Added last generation on end of DMA for LiteDRAMDMAReader.
 	- litepcie/frontend/dma        : Added optional integrated data-width converter and data_width parameters to simplify integration/user logic.
+	- soc/add_uartbone/sata/sdcard : Added support for multiple instances in gateware as for the other cores.
 
 	[> Changed
 	----------
