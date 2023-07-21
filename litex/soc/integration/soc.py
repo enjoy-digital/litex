@@ -2035,16 +2035,8 @@ class LiteXSoC(SoC):
             if msi_type == "msi-x":
                 msi = LitePCIeMSIX(endpoint=self.pcie_endpoint, width=msi_width)
             self.add_module(name=f"{name}_msi", module=msi)
-            # FIXME: On Ultrascale/Ultrascale+ limit rate of IRQs to 1MHz (to prevent issue with
-            # IRQs stalled).
             if msi_type in ["msi", "msi-multi-vector"]:
-                if isinstance(phy, (USPCIEPHY, USPPCIEPHY)):
-                    msi_timer = WaitTimer(int(self.sys_clk_freq/1e6))
-                    self.add_module(name=f"{name}_msi_timer", module=msi_timer)
-                    self.comb += msi_timer.wait.eq(~msi_timer.done)
-                    self.comb += If(msi_timer.done, msi.source.connect(phy.msi))
-                else:
-                    self.comb += msi.source.connect(phy.msi)
+                self.comb += msi.source.connect(phy.msi)
             self.msis = {}
 
         # DMAs.
