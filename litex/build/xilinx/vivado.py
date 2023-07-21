@@ -298,6 +298,7 @@ class XilinxVivadoToolchain(GenericToolchain):
         tcl.append(f"report_timing_summary -file {self._build_name}_timing_synth.rpt")
         tcl.append(f"report_utilization -hierarchical -file {self._build_name}_utilization_hierarchical_synth.rpt")
         tcl.append(f"report_utilization -file {self._build_name}_utilization_synth.rpt")
+        tcl.append(f"write_checkpoint -force {self._build_name}_synth.dcp")
 
         # Optimize
         tcl.append("\n# Optimize design\n")
@@ -323,6 +324,7 @@ class XilinxVivadoToolchain(GenericToolchain):
         tcl.append(f"report_io -file {self._build_name}_io.rpt")
         tcl.append(f"report_control_sets -verbose -file {self._build_name}_control_sets.rpt")
         tcl.append(f"report_clock_utilization -file {self._build_name}_clock_utilization.rpt")
+        tcl.append(f"write_checkpoint -force {self._build_name}_place.dcp")
 
         # Add pre-routing commands
         tcl.append("\n# Add pre-routing commands\n")
