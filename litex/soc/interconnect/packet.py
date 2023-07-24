@@ -62,7 +62,7 @@ class Dispatcher(Module):
     def __init__(self, master, slaves, one_hot=False):
         if len(slaves) == 0:
             self.sel = Signal()
-        elif len(slaves) == 1 and not one_hot:
+        elif len(slaves) == 1:
             self.comb += master.connect(slaves.pop())
             self.sel = Signal()
         else:
