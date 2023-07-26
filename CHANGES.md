@@ -12,6 +12,7 @@
 	- liteeth/core/icmp   : Fixed length check on LiteEthICMPEcho before passing data to buffer.
 	- LiteXModule/CSR     : Fixed CSR collection order causing CSR clock domain to be changed.
 	- litepcie/US(P)      : Fixed root cause of possible MSI deadlock.
+	- soc/add_uart        : Fixed stub behavior (sink/source swap).
 
 	[> Added
 	--------

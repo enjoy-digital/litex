@@ -1394,7 +1394,7 @@ class LiteXSoC(SoC):
         # Stub / Stream.
         elif uart_name in ["stub", "stream"]:
             uart = UART(tx_fifo_depth=0, rx_fifo_depth=0)
-            self.comb += uart.sink.ready.eq(uart_name == "stub")
+            self.comb += uart.source.ready.eq(uart_name == "stub")
 
         # UARTBone.
         elif uart_name in ["uartbone"]:
