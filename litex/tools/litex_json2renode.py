@@ -420,9 +420,9 @@ def generate_mmc(csr, name, **kwargs):
     # FIXME: Get litex to generate CSR region size into output information
     # currently only a base address is present
     peripheral = get_descriptor(csr, name)
-    core = get_descriptor(csr, 'sdcore', 0x100)
-    reader = get_descriptor(csr, 'sdblock2mem', 0x100)
-    writer = get_descriptor(csr, 'sdmem2block', 0x100)
+    core = get_descriptor(csr, 'sdcard_core', 0x100)
+    reader = get_descriptor(csr, 'sdcard_block2mem', 0x100)
+    writer = get_descriptor(csr, 'sdcard_mem2block', 0x100)
 
     result = """
 mmc_controller: SD.LiteSDCard{} @ {{
@@ -645,7 +645,7 @@ peripherals_handlers = {
         'handler': generate_peripheral,
         'model': 'I2C.LiteX_I2C'
     },
-    'sdphy': {
+    'sdcard_phy': {
         'handler': generate_mmc,
     },
     'spisdcard': {
@@ -675,13 +675,13 @@ peripherals_handlers = {
         'handler': handled_peripheral # by generate_ethmac
     },
     # handled by generate_mmc
-    'sdblock2mem': {
+    'sdcard_block2mem': {
         'handler': handled_peripheral
     },
-    'sdmem2block': {
+    'sdcard_mem2block': {
         'handler': handled_peripheral
     },
-    'sdcore': {
+    'sdcard_core': {
         'handler': handled_peripheral
     },
 }

@@ -966,7 +966,7 @@ class SoC(LiteXModule, SoCCoreCompat):
             bursting      = self.bus.bursting
         )
         ram     = ram_cls(size, bus=ram_bus, init=contents, read_only=("w" not in mode), name=name)
-        self.bus.add_slave(name, ram.bus, SoCRegion(origin=origin, size=size, mode=mode))
+        self.bus.add_slave(name=name, slave=ram.bus, region=SoCRegion(origin=origin, size=size, mode=mode))
         self.check_if_exists(name)
         self.logger.info("RAM {} {} {}.".format(
             colorer(name),
@@ -997,7 +997,7 @@ class SoC(LiteXModule, SoCCoreCompat):
             "axi-lite": axi.AXILite2CSR,
             "axi"     : axi.AXILite2CSR, # Note: CSR is a slow bus so using AXI-Lite is fine.
         }[self.bus.standard]
-        csr_bridge_name = name + "_bridge"
+        csr_bridge_name = f"{name}_bridge"
         self.check_if_exists(csr_bridge_name)
         csr_bridge = csr_bridge_cls(
             bus_csr = csr_bus.Interface(
@@ -1127,7 +1127,7 @@ class SoC(LiteXModule, SoCCoreCompat):
                     bursting         = self.bus.bursting
                 )
                 dma_bus = wishbone.Interface(data_width=self.bus.data_width)
-                self.dma_bus.add_slave("dma", slave=dma_bus, region=SoCRegion(origin=0x00000000, size=0x100000000)) # FIXME: covers lower 4GB only
+                self.dma_bus.add_slave(name="dma", slave=dma_bus, region=SoCRegion(origin=0x00000000, size=0x100000000)) # FIXME: covers lower 4GB only
                 self.submodules += wishbone.Converter(dma_bus, self.cpu.dma_bus)
 
             # Connect SoCController's reset to CPU reset.
@@ -1394,7 +1394,7 @@ class LiteXSoC(SoC):
         # Stub / Stream.
         elif uart_name in ["stub", "stream"]:
             uart = UART(tx_fifo_depth=0, rx_fifo_depth=0)
-            self.comb += uart.sink.ready.eq(uart_name == "stub")
+            self.comb += uart.source.ready.eq(uart_name == "stub")
 
         # UARTBone.
         elif uart_name in ["uartbone"]:
@@ -1430,17 +1430,19 @@ class LiteXSoC(SoC):
             self.add_constant("UART_POLLING")
 
     # Add UARTbone ---------------------------------------------------------------------------------
-    def add_uartbone(self, name="serial", clk_freq=None, baudrate=115200, cd="sys"):
+    def add_uartbone(self, name="uartbone", uart_name="serial", clk_freq=None, baudrate=115200, cd="sys"):
         # Imports.
         from litex.soc.cores import uart
 
         # Core.
         if clk_freq is None:
             clk_freq = self.sys_clk_freq
-        self.check_if_exists("uartbone")
-        self.uartbone_phy = uart.UARTPHY(self.platform.request(name), clk_freq, baudrate)
-        self.uartbone = uart.UARTBone(phy=self.uartbone_phy, clk_freq=clk_freq, cd=cd)
-        self.bus.add_master(name="uartbone", master=self.uartbone.wishbone)
+        self.check_if_exists(name)
+        uartbone_phy = uart.UARTPHY(self.platform.request(uart_name), clk_freq, baudrate)
+        uartbone     = uart.UARTBone(phy=uartbone_phy, clk_freq=clk_freq, cd=cd)
+        self.add_module(name=f"{name}_phy", module=uartbone_phy)
+        self.add_module(name=name,          module=uartbone)
+        self.bus.add_master(name=name, master=uartbone.wishbone)
 
     # Add JTAGbone ---------------------------------------------------------------------------------
     def add_jtagbone(self, name="jtagbone", chain=1):
@@ -1612,7 +1614,7 @@ class LiteXSoC(SoC):
 
             # Create Wishbone Slave.
             wb_sdram = wishbone.Interface(data_width=self.bus.data_width)
-            self.bus.add_slave("main_ram", wb_sdram)
+            self.bus.add_slave(name="main_ram", slave=wb_sdram)
 
             # L2 Cache
             if l2_cache_size != 0:
@@ -1746,7 +1748,7 @@ class LiteXSoC(SoC):
         self.check_if_exists(name)
         etherbone = LiteEthEtherbone(ethcore.udp, udp_port, buffer_depth=buffer_depth, cd=etherbone_cd)
         self.add_module(name=name, module=etherbone)
-        self.bus.add_master(master=etherbone.wishbone.bus)
+        self.bus.add_master(name=name, master=etherbone.wishbone.bus)
 
         # Timing constraints
         if with_timing_constraints:
@@ -1771,13 +1773,13 @@ class LiteXSoC(SoC):
         # PHY.
         spiflash_phy = phy
         if spiflash_phy is None:
-            self.check_if_exists(name + "_phy")
+            self.check_if_exists(f"{name}_phy")
             spiflash_pads = self.platform.request(name if mode == "1x" else name + mode)
             spiflash_phy = LiteSPIPHY(spiflash_pads, module, device=self.platform.device, default_divisor=int(self.sys_clk_freq/clk_freq), rate=rate)
             self.add_module(name=f"{name}_phy", module=spiflash_phy)
 
         # Core.
-        self.check_if_exists(name + "_mmap")
+        self.check_if_exists(f"{name}_mmap")
         spiflash_core = LiteSPI(spiflash_phy, mmap_endianness=self.cpu.endianness, **kwargs)
         self.add_module(name=f"{name}_core", module=spiflash_core)
         spiflash_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size)
@@ -1832,7 +1834,7 @@ class LiteXSoC(SoC):
             self.add_constant("SPISDCARD_DEBUG")
 
     # Add SDCard -----------------------------------------------------------------------------------
-    def add_sdcard(self, name="sdcard", mode="read+write", use_emulator=False, software_debug=False):
+    def add_sdcard(self, name="sdcard", sdcard_name="sdcard", mode="read+write", use_emulator=False, software_debug=False):
         # Imports.
         from litesdcard.emulator import SDEmulator
         from litesdcard.phy import SDPHY
@@ -1848,53 +1850,61 @@ class LiteXSoC(SoC):
             self.submodules += sdemulator
             sdcard_pads = sdemulator.pads
         else:
-            sdcard_pads = self.platform.request(name)
+            sdcard_pads = self.platform.request(sdcard_name)
 
         # Core.
-        self.check_if_exists("sdphy")
-        self.check_if_exists("sdcore")
-        self.sdphy  = SDPHY(sdcard_pads, self.platform.device, self.clk_freq, cmd_timeout=10e-1, data_timeout=10e-1)
-        self.sdcore = SDCore(self.sdphy)
+        self.check_if_exists(f"{name}_phy")
+        self.check_if_exists(f"{name}_core")
+        sdcard_phy  = SDPHY(sdcard_pads, self.platform.device, self.clk_freq, cmd_timeout=10e-1, data_timeout=10e-1)
+        sdcard_core = SDCore(sdcard_phy)
+        self.add_module(name=f"{name}_phy",  module=sdcard_phy)
+        self.add_module(name=f"{name}_core", module=sdcard_core)
 
         # Block2Mem DMA.
         if "read" in mode:
+            self.check_if_exists(f"{name}_block2mem")
             bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.get_address_width(standard="wishbone"))
-            self.sdblock2mem = SDBlock2MemDMA(bus=bus, endianness=self.cpu.endianness)
-            self.comb += self.sdcore.source.connect(self.sdblock2mem.sink)
-            dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
-            dma_bus.add_master("sdblock2mem", master=bus)
+            sdcard_block2mem = SDBlock2MemDMA(bus=bus, endianness=self.cpu.endianness)
+            self.add_module(name=f"{name}_block2mem", module=sdcard_block2mem)
+            self.comb += sdcard_core.source.connect(sdcard_block2mem.sink)
+            dma_bus = getattr(self, "dma_bus", self.bus)
+            dma_bus.add_master(name=f"{name}_block2mem", master=bus)
 
         # Mem2Block DMA.
         if "write" in mode:
+            self.check_if_exists(f"{name}_mem2block")
             bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.get_address_width(standard="wishbone"))
-            self.sdmem2block = SDMem2BlockDMA(bus=bus, endianness=self.cpu.endianness)
-            self.comb += self.sdmem2block.source.connect(self.sdcore.sink)
-            dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
-            dma_bus.add_master("sdmem2block", master=bus)
+            sdcard_mem2block = SDMem2BlockDMA(bus=bus, endianness=self.cpu.endianness)
+            self.add_module(name=f"{name}_mem2block", module=sdcard_mem2block)
+            self.comb += sdcard_mem2block.source.connect(sdcard_core.sink)
+            dma_bus = getattr(self, "dma_bus", self.bus)
+            dma_bus.add_master(name=f"{name}_mem2block", master=bus)
 
         # Interrupts.
-        self.sdirq  = EventManager()
-        self.sdirq.card_detect = EventSourcePulse(description="SDCard has been ejected/inserted.")
+        self.check_if_exists(f"{name}_irq")
+        sdcard_irq  = EventManager()
+        self.add_module(name=f"{name}_irq", module=sdcard_irq)
+        sdcard_irq.card_detect = EventSourcePulse(description="SDCard has been ejected/inserted.")
         if "read" in mode:
-            self.sdirq.block2mem_dma = EventSourcePulse(description="Block2Mem DMA terminated.")
+            sdcard_irq.block2mem_dma = EventSourcePulse(description="Block2Mem DMA terminated.")
         if "write" in mode:
-            self.sdirq.mem2block_dma = EventSourcePulse(description="Mem2Block DMA terminated.")
-        self.sdirq.cmd_done  = EventSourceLevel(description="Command completed.")
-        self.sdirq.finalize()
+            sdcard_irq.mem2block_dma = EventSourcePulse(description="Mem2Block DMA terminated.")
+        sdcard_irq.cmd_done  = EventSourceLevel(description="Command completed.")
+        sdcard_irq.finalize()
         if "read" in mode:
-            self.comb += self.sdirq.block2mem_dma.trigger.eq(self.sdblock2mem.irq)
+            self.comb += sdcard_irq.block2mem_dma.trigger.eq(sdcard_block2mem.irq)
         if "write" in mode:
-            self.comb += self.sdirq.mem2block_dma.trigger.eq(self.sdmem2block.irq)
+            self.comb += sdcard_irq.mem2block_dma.trigger.eq(sdcard_mem2block.irq)
         self.comb += [
-            self.sdirq.card_detect.trigger.eq(self.sdphy.card_detect_irq),
-            self.sdirq.cmd_done.trigger.eq(self.sdcore.cmd_event.fields.done)
+            sdcard_irq.card_detect.trigger.eq(sdcard_phy.card_detect_irq),
+            sdcard_irq.cmd_done.trigger.eq(sdcard_core.cmd_event.fields.done)
         ]
         if self.irq.enabled:
-            self.irq.add("sdirq", use_loc_if_exists=True)
+            self.irq.add(f"{name}_irq", use_loc_if_exists=True)
 
         # Debug.
         if software_debug:
-            self.add_constant("SDCARD_DEBUG")
+            self.add_constant(f"{name}_DEBUG")
 
     # Add SATA -------------------------------------------------------------------------------------
     def add_sata(self, name="sata", phy=None, mode="read+write", with_identify=True):
@@ -1915,62 +1925,73 @@ class LiteXSoC(SoC):
         assert self.clk_freq >= sata_clk_freq/2 # FIXME: /2 for 16-bit data-width, add support for 32-bit.
 
         # Core.
-        self.check_if_exists("sata_core")
-        self.sata_core = LiteSATACore(phy)
+        self.check_if_exists(f"{name}_core")
+        sata_core = LiteSATACore(phy)
+        self.add_module(name=f"{name}_core", module=sata_core)
 
         # Crossbar.
-        self.check_if_exists("sata_crossbar")
-        self.sata_crossbar = LiteSATACrossbar(self.sata_core)
+        self.check_if_exists(f"{name}_crossbar")
+        sata_crossbar = LiteSATACrossbar(sata_core)
+        self.add_module(name=f"{name}_crossbar", module=sata_crossbar)
 
         # Identify.
         if with_identify:
-            sata_identify = LiteSATAIdentify(self.sata_crossbar.get_port())
-            self.sata_identify = LiteSATAIdentifyCSR(sata_identify)
+            self.check_if_exists(f"{name}_identify")
+            _sata_identify = LiteSATAIdentify(sata_crossbar.get_port())
+            sata_identify  = LiteSATAIdentifyCSR(_sata_identify)
+            self.add_module(name=f"{name}_identify", module=sata_identify)
 
         # Sector2Mem DMA.
         if "read" in mode:
+            self.check_if_exists(f"{name}_sector2mem")
             bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.get_address_width(standard="wishbone"))
-            self.sata_sector2mem = LiteSATASector2MemDMA(
-               port       = self.sata_crossbar.get_port(),
+            sata_sector2mem = LiteSATASector2MemDMA(
+               port       = sata_crossbar.get_port(),
                bus        = bus,
                endianness = self.cpu.endianness)
-            dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
-            dma_bus.add_master("sata_sector2mem", master=bus)
+            self.add_module(name=f"{name}_sector2mem", module=sata_sector2mem)
+            dma_bus = getattr(self, "dma_bus", self.bus)
+            dma_bus.add_master(name=f"{name}_sector2mem", master=bus)
 
         # Mem2Sector DMA.
         if "write" in mode:
+            self.check_if_exists(f"{name}_mem2sector")
             bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.get_address_width(standard="wishbone"))
-            self.sata_mem2sector = LiteSATAMem2SectorDMA(
+            sata_mem2sector = LiteSATAMem2SectorDMA(
                bus        = bus,
-               port       = self.sata_crossbar.get_port(),
+               port       = sata_crossbar.get_port(),
                endianness = self.cpu.endianness)
-            dma_bus = self.bus if not hasattr(self, "dma_bus") else self.dma_bus
-            dma_bus.add_master("sata_mem2sector", master=bus)
+            self.add_module(name=f"{name}_mem2sector", module=sata_mem2sector)
+            dma_bus = getattr(self, "dma_bus", self.bus)
+            dma_bus.add_master(name=f"{name}_mem2sector", master=bus)
 
         # Interrupts.
-        self.sata_irq = EventManager()
+        self.check_if_exists(f"{name}_irq")
+        sata_irq = EventManager()
+        self.add_module(name=f"{name}_irq", module=sata_irq)
         if "read" in mode:
-            self.sata_irq.sector2mem_dma = EventSourcePulse(description="Sector2Mem DMA terminated.")
+            sata_irq.sector2mem_dma = EventSourcePulse(description="Sector2Mem DMA terminated.")
         if "write" in mode:
-            self.sata_irq.mem2sector_dma = EventSourcePulse(description="Mem2Sector DMA terminated.")
-        self.sata_irq.finalize()
+            sata_irq.mem2sector_dma = EventSourcePulse(description="Mem2Sector DMA terminated.")
+        sata_irq.finalize()
         if "read" in mode:
-            self.comb += self.sata_irq.sector2mem_dma.trigger.eq(self.sata_sector2mem.irq)
+            self.comb += sata_irq.sector2mem_dma.trigger.eq(sata_sector2mem.irq)
         if "write" in mode:
-            self.comb += self.sata_irq.mem2sector_dma.trigger.eq(self.sata_mem2sector.irq)
+            self.comb += sata_irq.mem2sector_dma.trigger.eq(sata_mem2sector.irq)
         if self.irq.enabled:
-            self.irq.add("sata_irq", use_loc_if_exists=True)
+            self.irq.add(f"{name}_irq", use_loc_if_exists=True)
 
         # Timing constraints.
-        self.platform.add_period_constraint(self.sata_phy.crg.cd_sata_tx.clk, 1e9/sata_clk_freq)
-        self.platform.add_period_constraint(self.sata_phy.crg.cd_sata_rx.clk, 1e9/sata_clk_freq)
+        self.platform.add_period_constraint(phy.crg.cd_sata_tx.clk, 1e9/sata_clk_freq)
+        self.platform.add_period_constraint(phy.crg.cd_sata_rx.clk, 1e9/sata_clk_freq)
         self.platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
-            self.sata_phy.crg.cd_sata_tx.clk,
-            self.sata_phy.crg.cd_sata_rx.clk)
+            phy.crg.cd_sata_tx.clk,
+            phy.crg.cd_sata_rx.clk,
+        )
 
     # Add PCIe -------------------------------------------------------------------------------------
-    def add_pcie(self, name="pcie", phy=None, ndmas=0, max_pending_requests=8, address_width=32,
+    def add_pcie(self, name="pcie", phy=None, ndmas=0, max_pending_requests=8, address_width=32, data_width=None,
         with_dma_buffering    = True, dma_buffering_depth=1024,
         with_dma_loopback     = True,
         with_dma_synchronizer = False,
@@ -2001,7 +2022,7 @@ class LiteXSoC(SoC):
         self.check_if_exists(f"{name}_mmap")
         mmap = LitePCIeWishboneMaster(self.pcie_endpoint, base_address=self.mem_map["csr"])
         self.add_module(name=f"{name}_mmap", module=mmap)
-        self.bus.add_master(master=mmap.wishbone)
+        self.bus.add_master(name=f"{name}_mmap", master=mmap.wishbone)
 
         # MSI.
         if with_msi:
@@ -2014,16 +2035,8 @@ class LiteXSoC(SoC):
             if msi_type == "msi-x":
                 msi = LitePCIeMSIX(endpoint=self.pcie_endpoint, width=msi_width)
             self.add_module(name=f"{name}_msi", module=msi)
-            # FIXME: On Ultrascale/Ultrascale+ limit rate of IRQs to 1MHz (to prevent issue with
-            # IRQs stalled).
             if msi_type in ["msi", "msi-multi-vector"]:
-                if isinstance(phy, (USPCIEPHY, USPPCIEPHY)):
-                    msi_timer = WaitTimer(int(self.sys_clk_freq/1e6))
-                    self.add_module(name=f"{name}_msi_timer", module=msi_timer)
-                    self.comb += msi_timer.wait.eq(~msi_timer.done)
-                    self.comb += If(msi_timer.done, msi.source.connect(phy.msi))
-                else:
-                    self.comb += msi.source.connect(phy.msi)
+                self.comb += msi.source.connect(phy.msi)
             self.msis = {}
 
         # DMAs.
@@ -2036,7 +2049,8 @@ class LiteXSoC(SoC):
                 with_synchronizer = with_dma_synchronizer,
                 with_monitor      = with_dma_monitor,
                 with_status       = with_dma_status,
-                address_width     = address_width
+                address_width     = address_width,
+                data_width        = data_width,
             )
             self.add_module(name=f"{name}_dma{i}", module=dma)
             self.msis[f"{name.upper()}_DMA{i}_WRITER"] = dma.writer.irq

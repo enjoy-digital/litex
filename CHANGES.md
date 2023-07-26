@@ -11,6 +11,8 @@
 	- liteiclink/serwb    : Fixed 7-Series initialization corner cases.
 	- liteeth/core/icmp   : Fixed length check on LiteEthICMPEcho before passing data to buffer.
 	- LiteXModule/CSR     : Fixed CSR collection order causing CSR clock domain to be changed.
+	- litepcie/US(P)      : Fixed root cause of possible MSI deadlock.
+	- soc/add_uart        : Fixed stub behavior (sink/source swap).
 
 	[> Added
 	--------
@@ -43,10 +45,15 @@
 	- liteeth/core/icmp            : Added fifo_depth parameter on LiteEthICMPEcho.
 	- gen/fhdl/verilog             : Improved signal sort by name instead of duid to improve reproducibility.
 	- litedram/frontend/dma        : Added last generation on end of DMA for LiteDRAMDMAReader.
+	- litepcie/frontend/dma        : Added optional integrated data-width converter and data_width parameters to simplify integration/user logic.
+	- soc/add_uartbone/sata/sdcard : Added support for multiple instances in gateware as for the other cores.
+	- liteeth_gen                  : Added raw UDP port support.
+	- build/vivado                 : Added .dcp generation also after synthesis and placement.
 
 	[> Changed
 	----------
 	- litex/gen                    : Added local version of genlib.cdc/misc to better decouple with Migen and prepare Amaranth's compat use.
+	- soc/add_uartbone             : Renamed name parameter to uart_name (for consistency with other cores).
 
 [> 2023.04, released on May 8th 2023
 ------------------------------------
