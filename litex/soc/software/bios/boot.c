@@ -657,7 +657,7 @@ void flashboot(void)
 /* SDCard Boot                                                           */
 /*-----------------------------------------------------------------------*/
 
-#if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCORE_BASE)
+#if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCARD_CORE_BASE)
 
 static int copy_file_from_sdcard_to_ram(const char * filename, unsigned long ram_address)
 {
@@ -814,7 +814,7 @@ void sdcardboot(void)
 	printf("Booting from SDCard in SPI-Mode...\n");
 	fatfs_set_ops_spisdcard();	/* use spisdcard disk access ops */
 #endif
-#ifdef CSR_SDCORE_BASE
+#ifdef CSR_SDCARD_CORE_BASE
 	printf("Booting from SDCard in SD-Mode...\n");
 	fatfs_set_ops_sdcard();		/* use sdcard disk access ops */
 #endif
