@@ -217,7 +217,7 @@ class EfinityToolchain(GenericToolchain):
         root.attrib["xmlns:efx"]        = "http://www.efinixinc.com/enf_proj"
         root.attrib["name"]             = self._build_name
         root.attrib["location"]         = str(pathlib.Path().resolve())
-        root.attrib["sw_version"]       = "2022.1.226" # TODO: read it from sw_version.txt
+        root.attrib["sw_version"]       = "2023.1.150" # TODO: read it from sw_version.txt
         root.attrib["last_change_date"] = f"Date : {now.strftime('%Y-%m-%d %H:%M')}"
 
         # Add Device.
@@ -268,6 +268,9 @@ class EfinityToolchain(GenericToolchain):
         # Because the Python API is sometimes bugged, we need to tweak the generated xml
         if self.ifacewriter.fix_xml:
             self.ifacewriter.fix_xml_values()
+
+        # FIXME: peri.xml is generated from Efinity, why does it require patching?
+        tools.replace_in_file(f"{self._build_name}.peri.xml", 'adv_out_phase_shift="0.0"', 'adv_out_phase_shift="0"')
 
     def build_script(self):
         return "" # not used
