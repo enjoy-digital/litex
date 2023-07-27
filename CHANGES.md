@@ -13,6 +13,7 @@
 	- LiteXModule/CSR     : Fixed CSR collection order causing CSR clock domain to be changed.
 	- litepcie/US(P)      : Fixed root cause of possible MSI deadlock.
 	- soc/add_uart        : Fixed stub behavior (sink/source swap).
+	- build/efinix        : Fixed AsyncFIFO issues (Minimum of 2 buffer stages).
 
 	[> Added
 	--------
@@ -49,6 +50,7 @@
 	- soc/add_uartbone/sata/sdcard : Added support for multiple instances in gateware as for the other cores.
 	- liteeth_gen                  : Added raw UDP port support.
 	- build/vivado                 : Added .dcp generation also after synthesis and placement.
+	- gen:                         : Added initial LiteXContext to easily get build properties (platform, device, toolchain, etc...)
 
 	[> Changed
 	----------
