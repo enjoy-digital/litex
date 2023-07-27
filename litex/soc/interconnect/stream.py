@@ -13,6 +13,8 @@ from migen.util.misc import xdir
 from migen.genlib import fifo
 from migen.genlib.cdc import MultiReg, PulseSynchronizer, AsyncResetSynchronizer
 
+from litex.gen import *
+
 from litex.soc.interconnect.csr import *
 
 # Endpoint -----------------------------------------------------------------------------------------
@@ -230,14 +232,73 @@ class SyncFIFO(_FIFOWrapper):
             self.level = Signal()
 
 
-class AsyncFIFO(_FIFOWrapper):
+
+            s_axis = AXIStreamInterface(data_width=32)
+            m_axis = AXIStreamInterface(data_width=32)
+            self.submodules.axis_async_fifo = AXISAsyncFIFO(platform, s_axis, m_axis, depth=4096)
+
+class _AsyncFIFOWrapper(LiteXModule):
+    def __init__(self, layout, depth, buffered):
+        self.sink   = sink   = Endpoint(layout)
+        self.source = source = Endpoint(layout)
+
+        # # #
+
+        description = sink.description
+        fifo_layout = [
+            ("payload", description.payload_layout),
+            ("param",   description.param_layout),
+        ]
+
+        fifo_record = Record(fifo_layout)
+
+        from litex.soc.interconnect.axi import AXIStreamInterface
+        from verilog_axis.axis_async_fifo import AXISAsyncFIFO
+
+        s_axis = AXIStreamInterface(data_width=len(fifo_record.raw_bits()), clock_domain="write")
+        m_axis = AXIStreamInterface(data_width=len(fifo_record.raw_bits()), clock_domain="read")
+        self.fifo = fifo = AXISAsyncFIFO(
+            platform        = None,
+            s_axis          = s_axis,
+            m_axis          = m_axis,
+            depth           = (depth*len(s_axis.data)//8),
+            pipeline_output = {True: 2, False: 1}[buffered]
+        )
+
+        self.comb += [
+            sink.ready.eq(s_axis.ready),
+            s_axis.valid.eq(sink.valid),
+            s_axis.last.eq(sink.last),
+            s_axis.data.eq(Cat(sink.payload.raw_bits(), sink.param.raw_bits())),
+
+            source.valid.eq(m_axis.valid),
+            source.last.eq(m_axis.last),
+            Cat(source.payload.raw_bits(), source.param.raw_bits()).eq(m_axis.data),
+            m_axis.ready.eq(source.ready)
+        ]
+
+        # FIXME: Still requires to add in target file:
+        #from verilog_axis.axis_async_fifo import AXISAsyncFIFO
+        #AXISAsyncFIFO.add_sources(platform)
+
+class AsyncFIFO(_AsyncFIFOWrapper):
     def __init__(self, layout, depth=None, buffered=False):
         depth = 4 if depth is None else depth
         assert depth >= 4
-        _FIFOWrapper.__init__(self,
-            fifo_class = fifo.AsyncFIFOBuffered if buffered else fifo.AsyncFIFO,
+        _AsyncFIFOWrapper.__init__(self,
             layout     = layout,
-            depth      = depth)
+            depth      = depth,
+            buffered   = buffered
+        )
+
+#class AsyncFIFO(_FIFOWrapper):
+#    def __init__(self, layout, depth=None, buffered=False):
+#        depth = 4 if depth is None else depth
+#        assert depth >= 4
+#        _FIFOWrapper.__init__(self,
+#            fifo_class = fifo.AsyncFIFOBuffered if buffered else fifo.AsyncFIFO,
+#            layout     = layout,
+#            depth      = depth)
 
 # ClockDomainCrossing ------------------------------------------------------------------------------
 
