@@ -10,10 +10,10 @@ import math
 
 from migen import *
 from migen.util.misc import xdir
-from migen.genlib import fifo
 from migen.genlib.cdc import MultiReg, PulseSynchronizer, AsyncResetSynchronizer
 
 from litex.gen import *
+from litex.gen.genlib import fifo
 
 from litex.soc.interconnect.csr import *
 
