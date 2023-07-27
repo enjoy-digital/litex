@@ -24,58 +24,7 @@ def colorer(s, color="bright"):
 def reverse_bits(s):
     return s[::-1]
 
-
 def reverse_bytes(s):
     n = (len(s) + 7)//8
     return Cat(*[s[i*8:min((i + 1)*8, len(s))]
         for i in reversed(range(n))])
-
-# Context ------------------------------------------------------------------------------------------
-
-# FIXME: PoC to fix Efinix AsyncFIFO issue, think a bit more about it to see how to do it properly.
-
-class LiteXContext:
-    platform  = None
-    toolchain = None
-    device    = None
-    soc       = None
-
-# Signals ------------------------------------------------------------------------------------------
-
-class Open(Signal): pass
-
-class Unsigned(Signal):
-    def __init__(self, bits=1, *args, **kwargs):
-        assert isinstance(bits, int)
-        Signal.__init__(self, bits_sign=(bits, 0), *args, **kwargs)
-
-class Signed(Signal):
-    def __init__(self, bits=1, *args, **kwargs):
-        assert isinstance(bits, int)
-        Signal.__init__(self, bits_sign=(bits, 1), *args, **kwargs)
-
-# Reduction ----------------------------------------------------------------------------------------
-
-from functools import reduce
-from operator import and_, or_, not_, xor, add
-
-def Reduce(operator, value):
-    # List of supported Operators.
-    operators = {
-        "AND"  : and_,
-        "OR"   : or_,
-        "NOR"  : not_,
-        "XOR"  : xor,
-        "ADD"  : add,
-    }
-
-    # Switch to upper-case.
-    operator = operator.upper()
-
-    # Check if provided operator is supported.
-    if operator not in operators.keys():
-        supported = ", ".join(operators.keys())
-        raise ValueError(f"Reduce does not support {operator} operator; supported: {supported}.")
-
-    # Return Python's reduction.
-    return reduce(operators[operator], value)
