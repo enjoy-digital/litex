@@ -6,9 +6,10 @@
 
 from migen import *
 
-# Generic Helpers ----------------------------------------------------------------------------------
+# Coloring Helpers ---------------------------------------------------------------------------------
 
 def colorer(s, color="bright"):
+    """Apply ANSI colors to a string."""
     header  = {
         "bright": "\x1b[1m",
         "green":  "\x1b[32m",
@@ -22,9 +23,11 @@ def colorer(s, color="bright"):
 # Bit/Bytes Reversing ------------------------------------------------------------------------------
 
 def reverse_bits(s):
+    """Return a signal with reversed bit order."""
     return s[::-1]
 
 def reverse_bytes(s):
+    """Return a signal with reversed byte order."""
     n = (len(s) + 7)//8
     return Cat(*[s[i*8:min((i + 1)*8, len(s))]
         for i in reversed(range(n))])
