@@ -285,6 +285,7 @@ class AsyncFIFO(_AsyncFIFOWrapper):
     def __init__(self, layout, depth=None, buffered=False):
         depth = 4 if depth is None else depth
         assert depth >= 4
+        buffered = True
         _AsyncFIFOWrapper.__init__(self,
             layout     = layout,
             depth      = depth,
