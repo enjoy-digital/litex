@@ -281,25 +281,29 @@ class _AsyncFIFOWrapper(LiteXModule):
         #from verilog_axis.axis_async_fifo import AXISAsyncFIFO
         #AXISAsyncFIFO.add_sources(platform)
 
-class AsyncFIFO(_AsyncFIFOWrapper):
-    def __init__(self, layout, depth=None, buffered=False):
-        depth = 4 if depth is None else depth
-        assert depth >= 4
-        buffered = True
-        _AsyncFIFOWrapper.__init__(self,
-            layout     = layout,
-            depth      = depth,
-            buffered   = buffered
-        )
-
-#class AsyncFIFO(_FIFOWrapper):
+#class AsyncFIFO(_AsyncFIFOWrapper):
 #    def __init__(self, layout, depth=None, buffered=False):
 #        depth = 4 if depth is None else depth
 #        assert depth >= 4
-#        _FIFOWrapper.__init__(self,
-#            fifo_class = fifo.AsyncFIFOBuffered if buffered else fifo.AsyncFIFO,
+#        buffered = True
+#        _AsyncFIFOWrapper.__init__(self,
 #            layout     = layout,
-#            depth      = depth)
+#            depth      = depth,
+#            buffered   = buffered
+#        )
+
+class AsyncFIFO(_FIFOWrapper):
+    def __init__(self, layout, depth=None, buffered=False):
+        depth = 4 if depth is None else depth
+        assert depth >= 4
+        buffered = True # FIXME: Required on Efinix...
+        _FIFOWrapper.__init__(self,
+            fifo_class = fifo.AsyncFIFOBuffered if buffered else fifo.AsyncFIFO,
+            layout     = layout,
+            depth      = depth
+        )
+        # FIXME: Additional buffer required on Efinix...
+        ClockDomainsRenamer("read")(BufferizeEndpoints({"source": DIR_SOURCE})(self))
 
 # ClockDomainCrossing ------------------------------------------------------------------------------
 
