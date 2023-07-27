@@ -13,6 +13,7 @@ import re
 from migen.fhdl.structure import Signal, Cat
 from migen.genlib.record import Record
 
+from litex.gen import LiteXContext
 from litex.gen.fhdl import verilog
 
 from litex.build.io import CRG
@@ -327,7 +328,7 @@ class ConstraintManager:
 # Generic Platform ---------------------------------------------------------------------------------
 
 class GenericPlatform:
-    device_family = None
+    device_family  = None
     _bitstream_ext = None # None by default, overridden by vendor platform, may
                           # be a string when same extension is used for sram and
                           # flash. A dict must be provided otherwise
@@ -348,6 +349,10 @@ class GenericPlatform:
         self.output_dir            = None
         self.finalized             = False
         self.use_default_clk       = False
+
+        # Set Platform/Device to LiteXContext.
+        LiteXContext.platform  = self
+        LiteXContext.device    = device
 
     def request(self, *args, **kwargs):
         return self.constraint_manager.request(*args, **kwargs)

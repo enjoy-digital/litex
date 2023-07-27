@@ -10,6 +10,8 @@ import math
 
 from migen.fhdl.structure import _Fragment
 
+from litex.gen import LiteXContext
+
 # Generic Toolchain --------------------------------------------------------------------------------
 
 class GenericToolchain:
@@ -27,6 +29,9 @@ class GenericToolchain:
         self.named_sc    = []
         self._vns        = None
         self._synth_opts = ""
+
+        # Set Toolchain to LiteXContext.
+        LiteXContext.toolchain = self
 
     @property
     def support_mixed_language(self):

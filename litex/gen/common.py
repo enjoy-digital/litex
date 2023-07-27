@@ -30,6 +30,16 @@ def reverse_bytes(s):
     return Cat(*[s[i*8:min((i + 1)*8, len(s))]
         for i in reversed(range(n))])
 
+# Context ------------------------------------------------------------------------------------------
+
+# FIXME: PoC to fix Efinix AsyncFIFO issue, think a bit more about it to see how to do it properly.
+
+class LiteXContext:
+    platform  = None
+    toolchain = None
+    device    = None
+    soc       = None
+
 # Signals ------------------------------------------------------------------------------------------
 
 class Open(Signal): pass
