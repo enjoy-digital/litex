@@ -19,24 +19,25 @@ from litex.soc.interconnect import stream
 
 # AXI Constants ------------------------------------------------------------------------------------
 
-BURST_FIXED    = 0b00
-BURST_INCR     = 0b01
-BURST_WRAP     = 0b10
-BURST_RESERVED = 0b11
+BURST_FIXED    = 0b00 # FIXED    : No address increment in burst.
+BURST_INCR     = 0b01 # INCR     : Increment address per transfer in burst.
+BURST_WRAP     = 0b10 # WRAP     : Wrap address back to boundary after set transfers.
+BURST_RESERVED = 0b11 # RESERVED : Future use.
 
-RESP_OKAY      = 0b00
-RESP_EXOKAY    = 0b01
-RESP_SLVERR    = 0b10
-RESP_DECERR    = 0b11
+RESP_OKAY      = 0b00 # OKAY   : Operation completed successfully.
+RESP_EXOKAY    = 0b01 # EXOKAY : Operation success, exclusive access granted.
+RESP_SLVERR    = 0b10 # SLVERR : Slave not responding/cannot complete request.
+RESP_DECERR    = 0b11 # DECERR : Decoding error occurred, operation not routed to a slave.
 
+# AXI transaction size (AXSIZE) constants (left: bytes, right: AXI representation).
 AXSIZE = {
-     1 : 0b000,
-     2 : 0b001,
-     4 : 0b010,
-     8 : 0b011,
-    16 : 0b100,
-    32 : 0b110,
-    64 : 0b111,
+     1 : 0b000, #  1-byte transaction.
+     2 : 0b001, #  2-byte transaction.
+     4 : 0b010, #  4-byte transaction.
+     8 : 0b011, #  8-byte transaction.
+    16 : 0b100, # 16-byte transaction.
+    32 : 0b110, # 32-byte transaction.
+    64 : 0b111, # 64-byte transaction.
 }
 
 # AXI Connection Helpers ---------------------------------------------------------------------------
