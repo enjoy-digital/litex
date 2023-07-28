@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2018-2022 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2018-2023 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2020 Antmicro <www.antmicro.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
@@ -10,6 +10,7 @@
 from migen import *
 from migen.genlib import roundrobin
 
+from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
 
 from litex.build.generic_platform import *
@@ -137,7 +138,7 @@ class AXIInterface:
 
 # AXI Bursts to Beats ------------------------------------------------------------------------------
 
-class AXIBurst2Beat(Module):
+class AXIBurst2Beat(LiteXModule):
     def __init__(self, ax_burst, ax_beat, capabilities={BURST_FIXED, BURST_INCR, BURST_WRAP}):
         assert BURST_FIXED in capabilities
 
@@ -189,7 +190,7 @@ class AXIBurst2Beat(Module):
 
 # AXI Data-Width Converter -------------------------------------------------------------------------
 
-class AXIUpConverter(Module):
+class AXIUpConverter(LiteXModule):
     def __init__(self, axi_from, axi_to):
         dw_from  = len(axi_from.r.data)
         dw_to    = len(axi_to.r.data)
@@ -246,7 +247,7 @@ class AXIUpConverter(Module):
         self.comb += axi_from.r.user.eq(axi_to.r.user)
         self.comb += axi_from.r.dest.eq(axi_to.r.dest)
 
-class AXIDownConverter(Module):
+class AXIDownConverter(LiteXModule):
     def __init__(self, axi_from, axi_to):
         dw_from  = len(axi_from.r.data)
         dw_to    = len(axi_to.r.data)
@@ -338,7 +339,7 @@ class AXIDownConverter(Module):
         self.sync += axi_from.r.dest.eq(axi_to.r.dest)
         self.sync += axi_from.r.id.eq(axi_to.r.id)
 
-class AXIConverter(Module):
+class AXIConverter(LiteXModule):
     """AXI data width converter"""
     def __init__(self, master, slave):
         self.master = master
@@ -359,7 +360,7 @@ class AXIConverter(Module):
 
 # AXI Timeout --------------------------------------------------------------------------------------
 
-class AXITimeout(Module):
+class AXITimeout(LiteXModule):
     """Protect master against slave timeouts (master _has_ to respond correctly)"""
     def __init__(self, master, cycles):
         self.error = Signal()
@@ -388,7 +389,7 @@ class AXITimeout(Module):
             fsm.act("RESPOND", *response)
             return fsm
 
-        self.submodules.wr_fsm = channel_fsm(
+        self.wr_fsm = channel_fsm(
             timer     = wr_timer,
             wait_cond = (master.aw.valid & ~master.aw.ready) | (master.w.valid & ~master.w.ready),
             error     = wr_error,
@@ -402,7 +403,7 @@ class AXITimeout(Module):
                 )
             ])
 
-        self.submodules.rd_fsm = channel_fsm(
+        self.rd_fsm = channel_fsm(
             timer     = rd_timer,
             wait_cond = master.ar.valid & ~master.ar.ready,
             error     = rd_error,
@@ -419,7 +420,7 @@ class AXITimeout(Module):
 
 # AXI Interconnect Components ----------------------------------------------------------------------
 
-class _AXIRequestCounter(Module):
+class _AXIRequestCounter(LiteXModule):
     def __init__(self, request, response, max_requests=256):
         self.counter = counter = Signal(max=max_requests)
         self.full = full = Signal()
@@ -443,7 +444,7 @@ class _AXIRequestCounter(Module):
             ),
         ]
 
-class AXIArbiter(Module):
+class AXIArbiter(LiteXModule):
     """AXI arbiter
 
     Arbitrate between master interfaces and connect one to the target. New master will not be
@@ -451,8 +452,8 @@ class AXIArbiter(Module):
     done separately.
     """
     def __init__(self, masters, target):
-        self.submodules.rr_write = roundrobin.RoundRobin(len(masters), roundrobin.SP_CE)
-        self.submodules.rr_read  = roundrobin.RoundRobin(len(masters), roundrobin.SP_CE)
+        self.rr_write = roundrobin.RoundRobin(len(masters), roundrobin.SP_CE)
+        self.rr_read  = roundrobin.RoundRobin(len(masters), roundrobin.SP_CE)
 
         def get_sig(interface, channel, name):
             return getattr(getattr(interface, channel), name)
@@ -477,11 +478,11 @@ class AXIArbiter(Module):
                         self.comb += dest.eq(source)
 
         # Allow to change rr.grant only after all requests from a master have been responded to.
-        self.submodules.wr_lock = wr_lock = _AXIRequestCounter(
+        self.wr_lock = wr_lock = _AXIRequestCounter(
             request  = target.aw.valid & target.aw.ready,
             response = target.b.valid  & target.b.ready
         )
-        self.submodules.rd_lock = rd_lock = _AXIRequestCounter(
+        self.rd_lock = rd_lock = _AXIRequestCounter(
             request  = target.ar.valid & target.ar.ready,
             response = target.r.valid  & target.r.ready & target.r.last
         )
@@ -498,7 +499,7 @@ class AXIArbiter(Module):
             self.rr_read.request.eq(Cat(*[m.ar.valid | m.r.valid for m in masters])),
         ]
 
-class AXIDecoder(Module):
+class AXIDecoder(LiteXModule):
     """AXI decoder
 
     Decode master access to particular slave based on its decoder function.
@@ -611,12 +612,12 @@ class AXIInterconnectShared(Module):
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
         data_width = get_check_parameters(ports=masters + [s for _, s in slaves])
         shared = AXIInterface(data_width=data_width)
-        self.submodules.arbiter = AXIArbiter(masters, shared)
-        self.submodules.decoder = AXIDecoder(shared, slaves)
+        self.arbiter = AXIArbiter(masters, shared)
+        self.decoder = AXIDecoder(shared, slaves)
         if timeout_cycles is not None:
-            self.submodules.timeout = AXITimeout(shared, timeout_cycles)
+            self.timeout = AXITimeout(shared, timeout_cycles)
 
-class AXICrossbar(Module):
+class AXICrossbar(LiteXModule):
     """AXI crossbar
 
     MxN crossbar for M masters and N slaves.

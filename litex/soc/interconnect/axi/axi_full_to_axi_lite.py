@@ -1,13 +1,15 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2018-2022 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2018-2023 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2020 Antmicro <www.antmicro.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 """AXI4-Full/Lite support for LiteX"""
 
 from migen import *
+
+from litex.gen import *
 
 from litex.soc.interconnect import stream
 
@@ -17,7 +19,7 @@ from litex.soc.interconnect.axi.axi_full import *
 
 # AXI to AXI-Lite ----------------------------------------------------------------------------------
 
-class AXI2AXILite(Module):
+class AXI2AXILite(LiteXModule):
     # Note: Since this AXI bridge will mostly be used to target buses that are not supporting
     # simultaneous writes/reads, to reduce ressource usage the AXIBurst2Beat module is shared
     # between writes/reads.
@@ -37,7 +39,7 @@ class AXI2AXILite(Module):
         _cmd_done     = Signal()
         _last_ar_aw_n = Signal()
 
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             NextValue(_cmd_done, 0),
             If(axi.ar.valid & axi.aw.valid,
@@ -121,7 +123,7 @@ class AXI2AXILite(Module):
 
 # AXI-Lite to AXI ----------------------------------------------------------------------------------
 
-class AXILite2AXI(Module):
+class AXILite2AXI(LiteXModule):
     def __init__(self, axi_lite, axi, write_id=0, read_id=0, prot=0, burst_type="INCR"):
         assert isinstance(axi_lite, AXILiteInterface)
         assert isinstance(axi, AXIInterface)
