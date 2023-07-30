@@ -51,6 +51,7 @@
 	- liteeth_gen                  : Added raw UDP port support.
 	- build/vivado                 : Added .dcp generation also after synthesis and placement.
 	- gen:                         : Added initial LiteXContext to easily get build properties (platform, device, toolchain, etc...)
+	- litepcie/endpoint/tlp        : Added optional Configuration/PTM TLP support to Packetizer/Depacketizer.
 
 	[> Changed
 	----------

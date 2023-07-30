@@ -2001,6 +2001,7 @@ class LiteXSoC(SoC):
         with_dma_monitor      = False,
         with_dma_status       = False,
         with_msi              = True, msi_type="msi", msi_width=32,
+        with_ptm              = False,
 ):
         # Imports
         from litepcie.phy.uspciephy import USPCIEPHY
@@ -2017,7 +2018,8 @@ class LiteXSoC(SoC):
         endpoint = LitePCIeEndpoint(phy,
             max_pending_requests = max_pending_requests,
             endianness           = phy.endianness,
-            address_width        = address_width
+            address_width        = address_width,
+            with_ptm             = with_ptm,
         )
         self.add_module(name=f"{name}_endpoint", module=endpoint)
 
