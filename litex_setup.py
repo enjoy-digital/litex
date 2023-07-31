@@ -350,7 +350,7 @@ def riscv_gcc_install():
             os.system("pacman -S riscv64-linux-gnu-gcc")
         # Ubuntu.
         else:
-            os.system("apt install gcc-riscv64-linux-gnu")
+            os.system("apt install gcc-riscv64-unknown-elf")
 
     # Mac OS.
     # -------
