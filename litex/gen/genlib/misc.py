@@ -80,12 +80,20 @@ class WaitTimer(Module):
 
         # # #
 
+        # Cast t to int.
+        t     = int(t)
         count = Signal(bits_for(t), reset=t)
+
         self.comb += self.done.eq(count == 0)
-        self.sync += \
+        self.sync += [
             If(self.wait,
-                If(~self.done, count.eq(count - 1))
-            ).Else(count.eq(count.reset))
+                If(~self.done,
+                    count.eq(count - 1)
+                )
+            ).Else(
+                count.eq(count.reset)
+            )
+        ]
 
 
 class BitSlip(Module):
