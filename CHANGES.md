@@ -14,6 +14,7 @@
 	- litepcie/US(P)      : Fixed root cause of possible MSI deadlock.
 	- soc/add_uart        : Fixed stub behavior (sink/source swap).
 	- build/efinix        : Fixed AsyncFIFO issues (Minimum of 2 buffer stages).
+	- software/gcc        : Fixed Ubuntu 22.04 GCC compilation issues.
 
 	[> Added
 	--------
@@ -52,6 +53,7 @@
 	- build/vivado                 : Added .dcp generation also after synthesis and placement.
 	- gen:                         : Added initial LiteXContext to easily get build properties (platform, device, toolchain, etc...)
 	- litepcie/endpoint/tlp        : Added optional Configuration/PTM TLP support to Packetizer/Depacketizer.
+	- liteth/arp                   : Added proper multi-entries ARP table.
 
 	[> Changed
 	----------
