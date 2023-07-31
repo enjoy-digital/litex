@@ -66,7 +66,7 @@ class HyperRAM(LiteXModule):
 
         # Burst Timer ------------------------------------------------------------------------------
         sys_clk_freq = 10e6 if sys_clk_freq is None else sys_clk_freq
-        burst_timer  = WaitTimer(int(sys_clk_freq*self.tCSM))
+        burst_timer  = WaitTimer(sys_clk_freq*self.tCSM)
         self.burst_timer = burst_timer
 
         # Clock Generation (sys_clk/4) -------------------------------------------------------------

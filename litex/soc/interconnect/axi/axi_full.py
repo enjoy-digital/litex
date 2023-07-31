@@ -371,8 +371,8 @@ class AXITimeout(LiteXModule):
 
         self.comb += self.error.eq(wr_error | rd_error)
 
-        wr_timer = WaitTimer(int(cycles))
-        rd_timer = WaitTimer(int(cycles))
+        wr_timer = WaitTimer(cycles)
+        rd_timer = WaitTimer(cycles)
         self.submodules += wr_timer, rd_timer
 
         def channel_fsm(timer, wait_cond, error, response):

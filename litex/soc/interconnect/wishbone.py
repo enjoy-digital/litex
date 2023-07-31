@@ -130,7 +130,7 @@ class Timeout(Module):
 
         # # #
 
-        timer = WaitTimer(int(cycles))
+        timer = WaitTimer(cycles)
         self.submodules += timer
         self.comb += [
             timer.wait.eq(master.stb & master.cyc & ~master.ack),

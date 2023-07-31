@@ -293,7 +293,7 @@ class UART(LiteXModule, UARTInterface):
 
         # Flush TX FIFO when Source.ready is inactive for timeout (with interval cycles between
         # each ready).
-        self.timer = timer = WaitTimer(int(timeout*sys_clk_freq))
+        self.timer = timer = WaitTimer(timeout*sys_clk_freq)
         self.comb += timer.wait.eq(~self.source.ready)
         self.sync += flush_count.eq(flush_count + 1)
         self.comb += If(timer.done, flush_ep.ready.eq(flush_count == 0))
@@ -330,7 +330,7 @@ class Stream2Wishbone(LiteXModule):
         words_count_done  = (words_count == (length - 1))
 
         self.fsm   = fsm   = ResetInserter()(FSM(reset_state="RECEIVE-CMD"))
-        self.timer = timer = WaitTimer(int(100e-3*clk_freq))
+        self.timer = timer = WaitTimer(100e-3*clk_freq)
         self.comb += timer.wait.eq(~fsm.ongoing("RECEIVE-CMD"))
         self.comb += fsm.reset.eq(timer.done)
         fsm.act("RECEIVE-CMD",

@@ -32,7 +32,7 @@ class LedChaser(LiteXModule):
 
         chaser = Signal(self.n)
         mode   = Signal(reset=_CHASER_MODE)
-        timer  = WaitTimer(int(period*sys_clk_freq/(2*self.n)))
+        timer  = WaitTimer(period*sys_clk_freq/(2*self.n))
         leds   = Signal(self.n)
         self.submodules += timer
         self.comb += timer.wait.eq(~timer.done)
@@ -165,15 +165,15 @@ class WS2812(LiteXModule):
         self.t1l  = t1l  = 0.45e-6
 
         # Timers.
-        trst_timer = WaitTimer(int(trst*sys_clk_freq))
+        trst_timer = WaitTimer(trst*sys_clk_freq)
         self.submodules += trst_timer
 
-        t0h_timer = WaitTimer(int(t0h*sys_clk_freq))
-        t0l_timer = WaitTimer(int(t0l*sys_clk_freq) - 1) # Compensate Xfer FSM latency.
+        t0h_timer = WaitTimer(t0h*sys_clk_freq)
+        t0l_timer = WaitTimer(t0l*sys_clk_freq - 1) # Compensate Xfer FSM latency.
         self.submodules += t0h_timer, t0l_timer
 
-        t1h_timer = WaitTimer(int(t1h*sys_clk_freq))
-        t1l_timer = WaitTimer(int(t1l*sys_clk_freq) - 1) # Compensate Xfer FSM latency.
+        t1h_timer = WaitTimer(t1h*sys_clk_freq)
+        t1l_timer = WaitTimer(t1l*sys_clk_freq - 1) # Compensate Xfer FSM latency.
         self.submodules += t1h_timer, t1l_timer
 
         # Main FSM.
