@@ -411,7 +411,7 @@ def builder_args(parser):
     builder_group.add_argument("--soc-svd", "--csr-svd",  default=None,        help="Write SoC mapping to the specified SVD file.")
     builder_group.add_argument("--memory-x",              default=None,        help="Write SoC Memory Regions to the specified Memory-X file.")
     builder_group.add_argument("--doc",                   action="store_true", help="Generate SoC Documentation.")
-    builder_group.add_argument('--doc-project-name',      default=None,        help="Project name for SoC Documentation.")
+    builder_group.add_argument('--doc-project',           default=None,        help="Project name for SoC Documentation.")
     builder_group.add_argument('--doc-author',            default=None,        help="Author for SoC Documentation.")
     builder_group.add_argument('--doc-extra-config',      default=None,        help="Extra configuration for SoC Documentation.")
     bios_group = parser.add_argument_group(title="BIOS options") # FIXME: Move?
