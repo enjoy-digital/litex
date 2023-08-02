@@ -89,7 +89,11 @@ class Builder:
         bios_console     = "full",
 
         # Documentation.
-        generate_doc     = False):
+        generate_doc     = False,
+        doc_project      = None,
+        doc_author       = None,
+        doc_extra_config = None,
+        ):
 
         self.soc = soc
 
@@ -116,7 +120,10 @@ class Builder:
         self.bios_console = bios_console
 
         # Documentation.
-        self.generate_doc = generate_doc
+        self.generate_doc       = generate_doc
+        self.doc_project        = doc_project
+        self.doc_author         = doc_author
+        self.doc_extra_config   = doc_extra_config
 
         # Software packages and libraries.
         self.software_packages  = []
@@ -371,7 +378,7 @@ class Builder:
         if self.generate_doc:
             from litex.soc.doc import generate_docs
             doc_dir = os.path.join(self.output_dir, "doc")
-            generate_docs(self.soc, doc_dir)
+            generate_docs(self.soc, doc_dir, project_name=self.doc_project or self.soc.platform.name, author = self.doc_author or "LiteX", sphinx_extra_config = self.doc_extra_config or "") 
             os.system(f"sphinx-build -M html {doc_dir} {doc_dir}/_build")
 
         return vns
@@ -404,6 +411,9 @@ def builder_args(parser):
     builder_group.add_argument("--soc-svd", "--csr-svd",  default=None,        help="Write SoC mapping to the specified SVD file.")
     builder_group.add_argument("--memory-x",              default=None,        help="Write SoC Memory Regions to the specified Memory-X file.")
     builder_group.add_argument("--doc",                   action="store_true", help="Generate SoC Documentation.")
+    builder_group.add_argument('--doc-project-name',      default=None,        help="Project name for SoC Documentation.")
+    builder_group.add_argument('--doc-author',            default=None,        help="Author for SoC Documentation.")
+    builder_group.add_argument('--doc-extra-config',      default=None,        help="Extra configuration for SoC Documentation.")
     bios_group = parser.add_argument_group(title="BIOS options") # FIXME: Move?
     bios_group.add_argument("--bios-lto",     action="store_true", help="Enable BIOS LTO (Link Time Optimization) compilation.")
     bios_group.add_argument("--bios-console", default="full"  ,    help="Select BIOS console config.", choices=["full", "no-history", "no-autocomplete", "lite", "disable"])
@@ -423,6 +433,9 @@ def builder_argdict(args):
         "csr_svd"          : args.soc_svd,
         "memory_x"         : args.memory_x,
         "generate_doc"     : args.doc,
+        "doc_project"      : args.doc_project,
+        "doc_author"       : args.doc_author,
+        "doc_extra_config" : args.doc_extra_config,
         "bios_lto"         : args.bios_lto,
         "bios_console"     : args.bios_console,
     }
