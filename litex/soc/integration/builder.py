@@ -388,8 +388,11 @@ class Builder:
                 self._prepare_rom_software()
                 self._generate_rom_software(compile_bios=use_bios)
 
+                # Allow soc to override the memory initialisation.
+                self.soc.initialize_memory(self.software_dir, **kwargs)
+
                 # Initialize ROM.
-                if use_bios and self.soc.integrated_rom_size:
+                if use_bios and self.soc.integrated_rom_size and not getattr(self.soc, "rom").mem.init:
                     self._initialize_rom_software()
 
         # Translate compile_gateware to run.

@@ -282,6 +282,48 @@ class SoCCore(LiteXSoC):
     def add_csr_region(self, name, origin, busword, obj):
         self.csr_regions[name] = SoCCSRRegion(origin, busword, obj)
 
+    def initialize_memory(self, software_dir, **kwargs):
+        """initialize_memory
+        The target SoC can implement this function to override the memory initialisation
+        during the build to load a program or data to main_ram and/or rom.
+
+        Parameters
+        ----------
+        software_dir : str
+            Builder software_dir where the soc libs and bios are built.
+
+        kwargs
+            Builder kwargs for any additional context if required
+.
+        Example:
+
+        class MySoC(SoCCore):
+            def __init__(self,
+                ...
+                self.add_config("MAIN_RAM_INIT") # firmware is in ram
+
+            def initialize_memory(self, software_dir, **kwargs):
+                if self.cpu_type is None:
+                    return
+
+                filename  = os.path.join(software_dir, "firmware", "firmware.bin")
+                data = get_mem_data(filename, endianness=self.cpu.endianness)
+                self.init_rom(name="main_ram", contents=data, auto_size=False)
+
+        def main():
+            ...
+
+            builder = Builder(soc, **parser.builder_argdict)
+
+            # add custom firmware: compiled by connecting here and stored in initialize_memory()
+            src="firmware"
+            src_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), src)
+            builder.add_software_package(src, src_dir)
+
+            builder.build(**parser.toolchain_argdict)
+        """
+        pass
+
 # SoCCore arguments --------------------------------------------------------------------------------
 
 def soc_core_args(parser):
