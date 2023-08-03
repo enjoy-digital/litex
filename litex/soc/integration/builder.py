@@ -353,8 +353,14 @@ class Builder:
                 self._prepare_rom_software()
                 self._generate_rom_software(compile_bios=use_bios)
 
+                # Allow soc to override the memory initialisation.
+                # For example load a program to rom and/or main ram
+                # TODO: add initialize_memory() stub to the soc and document the usage
+                if hasattr(self.soc, 'initialize_memory') and callable(self.soc.initialize_memory):
+                    self.soc.initialize_memory(self.software_dir)
+
                 # Initialize ROM.
-                if use_bios and self.soc.integrated_rom_size:
+                if use_bios and self.soc.integrated_rom_size and not getattr(self.soc, "rom").mem.init:
                     self._initialize_rom_software()
 
         # Translate compile_gateware to run.
