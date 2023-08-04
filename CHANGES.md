@@ -55,6 +55,7 @@
 	- litepcie/endpoint/tlp        : Added optional Configuration/PTM TLP support to Packetizer/Depacketizer.
 	- liteth/arp                   : Added proper multi-entries ARP table.
 	- liteiclink/serdes            : Added tx/rx_clk sharing capabilities on Xilinx transceivers.
+	- soc/cores/spi                : Added new SPIMMAP core allowing SPI accesses through MMAP.
 
 	[> Changed
 	----------
