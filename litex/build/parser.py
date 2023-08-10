@@ -99,8 +99,9 @@ class LiteXArgumentParser(argparse.ArgumentParser):
                 help    = "FPGA toolchain ({}).".format(" or ".join(self.toolchains)))
         else:
             self.add_target_argument("-toolchain", help="FPGA toolchain")
-        self.add_target_argument("--build", action="store_true", help="Build design.")
-        self.add_target_argument("--load",  action="store_true", help="Load bitstream.")
+        bool_action = argparse.BooleanOptionalAction
+        self.add_target_argument("--build", action=bool_action, default=False, help="Build design.")
+        self.add_target_argument("--load",  action=bool_action, default=False, help="Load bitstream.")
 
     def add_target_argument(self, *args, **kwargs):
         """ wrapper to add argument to "Target options group" from outer of this
