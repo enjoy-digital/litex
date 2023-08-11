@@ -44,3 +44,7 @@ class GowinPlatform(GenericPlatform):
 
     def add_period_constraint(self, clk, period):
         self.toolchain.add_period_constraint(self, clk, period)
+
+    def add_false_path_constraint(self, from_, to):
+        # TODO: Really implement it, currently a no-op to allow Ethernet
+        pass
