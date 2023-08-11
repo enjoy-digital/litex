@@ -90,7 +90,13 @@ class GowinToolchain(GenericToolchain):
     def build_timing_constraints(self, vns):
         sdc = []
         for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
-            sdc.append(f"create_clock -name {vns.get_name(clk)} -period {str(period)} [get_ports {{{vns.get_name(clk)}}}]")
+            clk_name = vns.get_name(clk)
+            # FIXME: Hack for Ethernet requesting a net name instead of port name
+            if clk_name == "eth_rx_clk":
+                clk_name = "eth_clocks_rx"
+            if clk_name == "eth_tx_clk":
+                clk_name = "eth_clocks_tx"
+            sdc.append(f"create_clock -name {clk_name} -period {str(period)} [get_ports {{{clk_name}}}]")
         tools.write_to_file(f"{self._build_name}.sdc", "\n".join(sdc))
         return (f"{self._build_name}.sdc", "SDC")
 
