@@ -25,8 +25,10 @@ class OpenFPGALoader(GenericProgrammer):
         if index_chain is not None:
             self.cmd += ["--index-chain", str(int(index_chain))]
 
-    def load_bitstream(self, bitstream_file):
+    def load_bitstream(self, bitstream_file, mcu_firmware=None):
         cmd = self.cmd + ["--bitstream", bitstream_file]
+        if mcu_firmware is not None:
+            cmd += ["--mcufw", mcu_firmware]
         self.call(cmd)
 
     def flash(self, address, data_file, external=False):
