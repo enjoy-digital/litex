@@ -196,7 +196,7 @@ class EcpprogProgrammer(GenericProgrammer):
     needs_bitreverse = False
 
     def flash(self, address, bitstream_file):
-        self.call(["ecpprog", "-o", str(address), bitstream_file])
+        self.call(["ecpprog", "-s", "-o", str(address), bitstream_file])
 
     def load_bitstream(self, bitstream_file):
-        self.call(["ecpprog", "-S", bitstream_file])
+        self.call(["ecpprog", "-s", "-S", bitstream_file])
