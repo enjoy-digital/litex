@@ -207,11 +207,6 @@ overlay_handlers = {
         'alias': 'eth0',
         'config_entry': 'ETH_LITEETH'
     },
-    'spiflash': {
-        'handler': peripheral_handler,
-        'alias': 'spi0',
-        'config_entry': 'SPI_LITESPI'
-    },
     'i2c0' : {
         'handler': i2c_handler,
         'config_entry': 'I2C_LITEX'
@@ -232,6 +227,11 @@ overlay_handlers = {
     'main_ram': {
         'handler': ram_handler,
         'alias': 'ram0',
+    },
+    'spiflash': {
+        'handler': ram_handler,
+        'alias': 'flash0',
+        'config_entry': 'XIP'
     },
     'identifier_mem': {
         'handler': peripheral_handler,
