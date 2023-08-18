@@ -74,7 +74,7 @@ class NaxRiscv(CPU):
 
     # Memory Mapping.
     @property
-    def mem_map(self):
+    def mem_map(self): # TODO
         return {
             "rom":      0x0000_0000,
             "sram":     0x1000_0000,
@@ -154,7 +154,7 @@ class NaxRiscv(CPU):
             i_reset = ResetSignal("sys") | self.reset,
 
             # Interrupt.
-            #i_peripheral_interrupt = self.interrupt, # FIXME: Check what is expected. => interrupt(0) is dummy and should not be used (PLIC stuff), need to reserve interrupt(0)
+            i_peripheral_externalInterrupts_port = self.interrupt,
 
             # Peripheral Memory Bus (AXI Lite Slave).
             o_pBus_awvalid = pbus.aw.valid,
@@ -301,8 +301,12 @@ class NaxRiscv(CPU):
         soc.bus.add_region("opensbi", SoCRegion(origin=self.mem_map["main_ram"] + 0x00f0_0000, size=0x8_0000, cached=True, linker=True))
 
         # Define ISA.
+        soc.add_config("CPU_COUNT", NaxRiscv.cpu_count)
         soc.add_config("CPU_ISA", NaxRiscv.get_arch())
         soc.add_config("CPU_MMU", {32 : "sv32", 64 : "sv39"}[NaxRiscv.xlen])
+
+        soc.bus.add_region("plic",  SoCRegion(origin=soc.mem_map.get("plic"),  size=0x40_0000, cached=False,  linker=True))
+        soc.bus.add_region("clint", SoCRegion(origin=soc.mem_map.get("clint"), size= 0x1_0000, cached=False,  linker=True))
 
         if NaxRiscv.jtag_tap:
             self.jtag_tms = Signal()
