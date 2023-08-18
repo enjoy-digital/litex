@@ -208,9 +208,9 @@ overlay_handlers = {
         'config_entry': 'ETH_LITEETH'
     },
     'spiflash': {
-        'handler': peripheral_handler,
-        'alias': 'spi0',
-        'config_entry': 'SPI_LITESPI'
+        'handler': ram_handler,
+        'alias': 'flash0',
+        'config_entry': 'XIP'
     },
     'sdcard_block2mem': {
         'handler': peripheral_handler,
