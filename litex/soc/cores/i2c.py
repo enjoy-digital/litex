@@ -141,7 +141,7 @@ class I2CMasterMachine(Module):
                 NextValue(self.sda_o, ~self.ack),
                 NextState("WRITEACK0"),
             ).Else(
-                NextValue(self.sda_o, 1),
+                #NextValue(self.sda_o, 1), must already be high
                 NextState("READ2"),
             )
         )
