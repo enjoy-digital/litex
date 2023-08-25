@@ -232,9 +232,17 @@ class I2CMaster(Module, AutoCSR):
         self.sda_t = TSTriple()
         self.specials += self.sda_t.get_tristate(pads.sda)
         self.comb += [
-            self.sda_t.oe.eq(~i2c.sda_o),
             self.sda_t.o.eq(0),
             i2c.sda_i.eq(self.sda_t.i),
+        ]
+
+        # only change SDA when SCL is stable
+        self.scl_i_n = Signal() # previous scl_i
+        self.sync += [
+            self.scl_i_n.eq(self.scl_t.i),
+            If(self.scl_i_n == i2c.scl_o,
+                self.sda_t.oe.eq(~i2c.sda_o),
+            ),
         ]
 
         # Event Manager.
