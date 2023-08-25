@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 #
 # This file is part of MiSoC and has been adapted/modified for Litex.
 #
@@ -130,3 +131,6 @@ class TestI2C(unittest.TestCase):
             yield from wait_idle()
 
         run_simulation(dut, check(), special_overrides={Tristate: _MockTristate}, vcd_name="i2c.vcd")
+
+if __name__ == "__main__":
+    unittest.main()
