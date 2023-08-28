@@ -26,14 +26,48 @@ class _MockPads:
 
 class _MockTristateImpl(Module):
     def __init__(self, t):
-        oe = Signal()
+        t.i_mock = Signal(reset=True)
         self.comb += [
-            t.target.eq(t.o),
-            oe.eq(t.oe),
+            If(t.oe,
+               t.target.eq(t.o),
+               t.i.eq(t.o),
+            ).Else(
+               t.target.eq(t.i_mock),
+               t.i.eq(t.i_mock),
+            ),
         ]
 
 
 class _MockTristate:
+    """A mock `Tristate` for simulation
+
+    This simulation ensures the TriState input (_i) tracks the output (_o) when output enable
+    (_oe) = 1. A new i_mock `Signal` is added  - this can be written to in the simulation to represent
+    input from the external device.
+
+    Example usage:
+
+    class TestMyModule(unittest.TestCase):
+        def test_mymodule(self):
+            dut = MyModule()
+            io = Signal()
+            dut.io_t = TSTriple()
+            self.io_tristate = self.io_t.get_tristate(io)
+
+            dut.comb += [
+                dut.io_t.oe.eq(signal_for_oe),
+                dut.io_t.o.eq(signal_for_o),
+                signal_for_i.eq(dut.io_t.i),
+            ]
+
+    def generator()
+        yield dut.io_tristate.i_mock.eq(some_value)
+        if (yield dut.io_t.oe):
+            self.assertEqual((yield dut.scl_t.i), (yield dut.io_t.o))
+        else:
+            self.assertEqual((yield dut.scl_t.i), some_value)
+
+    """
     @staticmethod
     def lower(t):
         return _MockTristateImpl(t)
