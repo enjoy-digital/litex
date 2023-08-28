@@ -10,6 +10,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
+from litex.gen import *
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr_eventmanager import *
 
@@ -22,7 +23,7 @@ __all__ = [
 ]
 
 
-class I2CClockGen(Module):
+class I2CClockGen(LiteXModule):
     def __init__(self, width):
         self.load  = Signal(width)
         self.clk2x = Signal()
@@ -40,13 +41,13 @@ class I2CClockGen(Module):
         ]
 
 
-class I2CMasterMachine(Module):
+class I2CMasterMachine(LiteXModule):
     def __init__(self, clock_width):
         self.scl_o = Signal(reset=1)
         self.sda_o = Signal(reset=1)
         self.sda_i = Signal()
 
-        self.submodules.cg  = CEInserter()(I2CClockGen(clock_width))
+        self.cg    = CEInserter()(I2CClockGen(clock_width))
         self.idle  = Signal()
         self.start = Signal()
         self.stop  = Signal()
@@ -61,7 +62,7 @@ class I2CMasterMachine(Module):
         bits = Signal(4)
 
         fsm = CEInserter()(FSM("IDLE"))
-        self.submodules += fsm
+        self.fsm = fsm
 
         fsm.act("IDLE",
             If(self.start,
@@ -177,7 +178,7 @@ class I2CMasterMachine(Module):
 #     ("stop",  1),
 #     ("idle",  1),
 # ])
-class I2CMaster(Module, AutoCSR):
+class I2CMaster(LiteXModule):
     def __init__(self, pads, bus=None):
         if bus is None:
             bus = wishbone.Interface(data_width=32)
@@ -186,7 +187,7 @@ class I2CMaster(Module, AutoCSR):
         ###
 
         # Wishbone
-        self.submodules.i2c = i2c = I2CMasterMachine(
+        self.i2c = i2c = I2CMasterMachine(
             clock_width=20)
 
         self.sync += [
@@ -223,14 +224,14 @@ class I2CMaster(Module, AutoCSR):
 
         # I/O
         self.scl_t = TSTriple()
-        self.specials += self.scl_t.get_tristate(pads.scl)
+        self.scl_tristate = self.scl_t.get_tristate(pads.scl)
         self.comb += [
             self.scl_t.oe.eq(~i2c.scl_o),
             self.scl_t.o.eq(0),
         ]
 
         self.sda_t = TSTriple()
-        self.specials += self.sda_t.get_tristate(pads.sda)
+        self.sda_tristate = self.sda_t.get_tristate(pads.sda)
         self.comb += [
             self.sda_t.o.eq(0),
             i2c.sda_i.eq(self.sda_t.i),
@@ -246,8 +247,8 @@ class I2CMaster(Module, AutoCSR):
         ]
 
         # Event Manager.
-        self.submodules.ev = EventManager()
-        self.ev.idle       = EventSourceProcess(edge="rising")
+        self.ev = EventManager()
+        self.ev.idle = EventSourceProcess(edge="rising")
         self.ev.finalize()
         self.comb += self.ev.idle.trigger.eq(i2c.idle)
 
