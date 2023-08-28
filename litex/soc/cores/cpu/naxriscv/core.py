@@ -53,6 +53,7 @@ class NaxRiscv(CPU):
     cpu_count        = 1
     jtag_tap         = False
     jtag_instruction = False
+    with_dma = False
 
     # ABI.
     @staticmethod
@@ -105,6 +106,7 @@ class NaxRiscv(CPU):
         cpu_group.add_argument("--scala-args",    action="append",     help="Add arguements for the scala run time. Ex : --scala-args 'rvc=true,mmu=false'")
         cpu_group.add_argument("--xlen",          default=32,          help="Specify the RISC-V data width.")
         cpu_group.add_argument("--cpu-count",     default=1,           help="How many NaxRiscv CPU")
+        cpu_group.add_argument("--with-coherent-dma", action="store_true", help="Enable coherent DMA accesses")
         cpu_group.add_argument("--with-jtag-tap", action="store_true", help="Add a embedded JTAG tap for debugging")
         cpu_group.add_argument("--with-jtag-instruction", action="store_true", help="Add a JTAG instruction port which implement tunneling for debugging (TAP not included)")
         cpu_group.add_argument("--update-repo",   default="recommended", choices=["latest","wipe+latest","recommended","wipe+recommended","no"], help="Specify how the NaxRiscv & SpinalHDL repo should be updated (latest: update to HEAD, recommended: Update to known compatible version, no: Don't update, wipe+*: Do clean&reset before checkout)")
@@ -116,6 +118,7 @@ class NaxRiscv(CPU):
         print(args)
         NaxRiscv.jtag_tap         = args.with_jtag_tap
         NaxRiscv.jtag_instruction = args.with_jtag_instruction
+        NaxRiscv.with_dma         = args.with_coherent_dma
         NaxRiscv.update_repo      = args.update_repo
         NaxRiscv.no_netlist_cache = args.no_netlist_cache
         NaxRiscv.with_fpu         = args.with_fpu
@@ -144,6 +147,8 @@ class NaxRiscv(CPU):
 
         self.periph_buses     = [pbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses     = []           # Memory buses (Connected directly to LiteDRAM).
+
+        self.dma_bus = dma_bus = axi.AXIInterface(data_width=64, address_width=32, id_width=4)
 
         # # #
 
@@ -176,6 +181,49 @@ class NaxRiscv(CPU):
             o_pBus_rready  = pbus.r.ready,
             i_pBus_rdata   = pbus.r.data,
             i_pBus_rresp   = pbus.r.resp,
+
+            # DMA
+            o_dma_bus_awready=dma_bus.aw.ready,
+            i_dma_bus_awvalid=dma_bus.aw.valid,
+            i_dma_bus_awid=dma_bus.aw.id,
+            i_dma_bus_awaddr=dma_bus.aw.addr,
+            i_dma_bus_awlen=dma_bus.aw.len,
+            i_dma_bus_awsize=dma_bus.aw.size,
+            i_dma_bus_awburst=dma_bus.aw.burst,
+            i_dma_bus_awlock=dma_bus.aw.lock,
+            i_dma_bus_awcache=dma_bus.aw.cache,
+            i_dma_bus_awprot=dma_bus.aw.prot,
+            i_dma_bus_awqos=dma_bus.aw.qos,
+
+            o_dma_bus_wready=dma_bus.w.ready,
+            i_dma_bus_wvalid=dma_bus.w.valid,
+            i_dma_bus_wdata=dma_bus.w.data,
+            i_dma_bus_wstrb=dma_bus.w.strb,
+            i_dma_bus_wlast=dma_bus.w.last,
+
+            i_dma_bus_bready=dma_bus.b.ready,
+            o_dma_bus_bvalid=dma_bus.b.valid,
+            o_dma_bus_bid=dma_bus.b.id,
+            o_dma_bus_bresp=dma_bus.b.resp,
+
+            o_dma_bus_arready=dma_bus.ar.ready,
+            i_dma_bus_arvalid=dma_bus.ar.valid,
+            i_dma_bus_arid=dma_bus.ar.id,
+            i_dma_bus_araddr=dma_bus.ar.addr,
+            i_dma_bus_arlen=dma_bus.ar.len,
+            i_dma_bus_arsize=dma_bus.ar.size,
+            i_dma_bus_arburst=dma_bus.ar.burst,
+            i_dma_bus_arlock=dma_bus.ar.lock,
+            i_dma_bus_arcache=dma_bus.ar.cache,
+            i_dma_bus_arprot=dma_bus.ar.prot,
+            i_dma_bus_arqos=dma_bus.ar.qos,
+
+            i_dma_bus_rready=dma_bus.r.ready,
+            o_dma_bus_rvalid=dma_bus.r.valid,
+            o_dma_bus_rid=dma_bus.r.id,
+            o_dma_bus_rdata=dma_bus.r.data,
+            o_dma_bus_rresp=dma_bus.r.resp,
+            o_dma_bus_rlast=dma_bus.r.last,
         )
 
     def set_reset_address(self, reset_address):
@@ -203,6 +251,7 @@ class NaxRiscv(CPU):
         md5_hash.update(str(NaxRiscv.cpu_count).encode('utf-8'))
         md5_hash.update(str(NaxRiscv.jtag_tap).encode('utf-8'))
         md5_hash.update(str(NaxRiscv.jtag_instruction).encode('utf-8'))
+        md5_hash.update(str(NaxRiscv.with_dma).encode('utf-8'))
         md5_hash.update(str(NaxRiscv.memory_regions).encode('utf-8'))
         for args in NaxRiscv.scala_args:
             md5_hash.update(args.encode('utf-8'))
@@ -258,6 +307,8 @@ class NaxRiscv(CPU):
             gen_args.append(f"--with-jtag-instruction")
         if(NaxRiscv.jtag_tap or NaxRiscv.jtag_instruction):
             gen_args.append(f"--with-debug")
+        if(NaxRiscv.with_dma) :
+            gen_args.append(f"--with-dma")
         for file in NaxRiscv.scala_paths:
             gen_args.append(f"--scala-file={file}")
         if(NaxRiscv.with_fpu):
