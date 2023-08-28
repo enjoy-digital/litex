@@ -232,18 +232,22 @@ class I2CMaster(LiteXModule):
 
         self.sda_t = TSTriple()
         self.sda_tristate = self.sda_t.get_tristate(pads.sda)
-        self.comb += [
-            self.sda_t.o.eq(0),
-            i2c.sda_i.eq(self.sda_t.i),
-        ]
 
-        # only change SDA when SCL is stable
-        self.scl_i_n = Signal() # previous scl_i
+        self.scl_i_n = Signal() # previous scl_t.i
+        self.sda_oe_n = Signal() # previous sda_t.oe
         self.sync += [
             self.scl_i_n.eq(self.scl_t.i),
+            self.sda_oe_n.eq(self.sda_t.oe),
+        ]
+
+        self.comb += [
+            self.sda_t.oe.eq(self.sda_oe_n),
+            # only change SDA when SCL is stable
             If(self.scl_i_n == i2c.scl_o,
                 self.sda_t.oe.eq(~i2c.sda_o),
             ),
+            self.sda_t.o.eq(0),
+            i2c.sda_i.eq(self.sda_t.i),
         ]
 
         # Event Manager.
