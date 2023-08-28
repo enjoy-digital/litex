@@ -985,7 +985,7 @@ class Pipeline(Module):
 
 # Add buffers on Endpoints (can be used to improve timings)
 class BufferizeEndpoints(ModuleTransformer):
-    def __init__(self, endpoint_dict):
+    def __init__(self, endpoint_dict, pipe_valid=True, pipe_ready=False):
         self.endpoint_dict = endpoint_dict
 
     def transform_instance(self, submodule):
@@ -993,13 +993,20 @@ class BufferizeEndpoints(ModuleTransformer):
             endpoint = getattr(submodule, name)
             # add buffer on sinks
             if direction == DIR_SINK:
-                buf = Buffer(endpoint.description)
+                buf = Buffer(
+                    endpoint.description,
+                    pipe_valid=pipe_valid,
+                    pipe_ready=pipe_ready
+                )
                 submodule.submodules += buf
                 setattr(submodule, name, buf.sink)
                 submodule.comb += buf.source.connect(endpoint)
             # add buffer on sources
             elif direction == DIR_SOURCE:
-                buf = Buffer(endpoint.description)
+                buf = Buffer(endpoint.description,
+                    pipe_valid=pipe_valid,
+                    pipe_ready=pipe_ready
+                )
                 submodule.submodules += buf
                 submodule.comb += endpoint.connect(buf.sink)
                 setattr(submodule, name, buf.source)
