@@ -15,6 +15,7 @@
 	- soc/add_uart        : Fixed stub behavior (sink/source swap).
 	- build/efinix        : Fixed AsyncFIFO issues (Minimum of 2 buffer stages).
 	- software/gcc        : Fixed Ubuntu 22.04 GCC compilation issues.
+	- build/efinix        : Fixed hardcoded version.
 
 	[> Added
 	--------
@@ -56,6 +57,7 @@
 	- liteth/arp                   : Added proper multi-entries ARP table.
 	- liteiclink/serdes            : Added tx/rx_clk sharing capabilities on Xilinx transceivers.
 	- soc/cores/spi                : Added new SPIMMAP core allowing SPI accesses through MMAP.
+	- soc/interconnect/stream      : Added pipe_valid/pipe_ready parameters to BufferizeEndpoints.
 
 	[> Changed
 	----------
