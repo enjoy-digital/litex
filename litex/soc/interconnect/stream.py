@@ -987,6 +987,8 @@ class Pipeline(Module):
 class BufferizeEndpoints(ModuleTransformer):
     def __init__(self, endpoint_dict, pipe_valid=True, pipe_ready=False):
         self.endpoint_dict = endpoint_dict
+        self.pipe_valid    = pipe_valid
+        self.pipe_ready    = pipe_ready
 
     def transform_instance(self, submodule):
         for name, direction in self.endpoint_dict.items():
@@ -995,8 +997,8 @@ class BufferizeEndpoints(ModuleTransformer):
             if direction == DIR_SINK:
                 buf = Buffer(
                     layout     = endpoint.description,
-                    pipe_valid = pipe_valid,
-                    pipe_ready = pipe_ready,
+                    pipe_valid = self.pipe_valid,
+                    pipe_ready = self.pipe_ready,
                 )
                 submodule.submodules += buf
                 setattr(submodule, name, buf.sink)
@@ -1005,8 +1007,8 @@ class BufferizeEndpoints(ModuleTransformer):
             elif direction == DIR_SOURCE:
                 buf = Buffer(
                     layout     = endpoint.description,
-                    pipe_valid = pipe_valid,
-                    pipe_ready = pipe_ready,
+                    pipe_valid = self.pipe_valid,
+                    pipe_ready = self.pipe_ready,
                 )
                 submodule.submodules += buf
                 submodule.comb += endpoint.connect(buf.sink)
