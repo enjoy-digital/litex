@@ -991,21 +991,22 @@ class BufferizeEndpoints(ModuleTransformer):
     def transform_instance(self, submodule):
         for name, direction in self.endpoint_dict.items():
             endpoint = getattr(submodule, name)
-            # add buffer on sinks
+            # Add Buffer on Sinks.
             if direction == DIR_SINK:
                 buf = Buffer(
-                    endpoint.description,
-                    pipe_valid=pipe_valid,
-                    pipe_ready=pipe_ready
+                    layout     = endpoint.description,
+                    pipe_valid = pipe_valid,
+                    pipe_ready = pipe_ready,
                 )
                 submodule.submodules += buf
                 setattr(submodule, name, buf.sink)
                 submodule.comb += buf.source.connect(endpoint)
-            # add buffer on sources
+            # Add Buffer on Sources.
             elif direction == DIR_SOURCE:
-                buf = Buffer(endpoint.description,
-                    pipe_valid=pipe_valid,
-                    pipe_ready=pipe_ready
+                buf = Buffer(
+                    layout     = endpoint.description,
+                    pipe_valid = pipe_valid,
+                    pipe_ready = pipe_ready,
                 )
                 submodule.submodules += buf
                 submodule.comb += endpoint.connect(buf.sink)
