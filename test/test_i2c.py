@@ -192,6 +192,18 @@ class TestI2C(unittest.TestCase):
             yield from i2c_write(0x41<<1 | 1)
             yield from i2c_read(0x18, ack=False)
 
+            print("write 2 bytes 0x10 0x00 to address 0x11")
+            yield from i2c_restart()
+            yield from i2c_write(0x11 << 1 | 0)
+            yield from i2c_write(0x10, ack=True)
+            yield from i2c_write(0x00, ack=False)
+            yield from i2c_stop()
+
+            print("read 1 byte from address 0x11")
+            yield from i2c_start()
+            yield from i2c_write(0x11 << 1 | 1)
+            yield from i2c_read(0x81, ack=False)
+
             print("read 2 bytes from address 0x55")
             yield from i2c_restart()
             yield from i2c_write(0x55<<1 | 1)
