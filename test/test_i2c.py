@@ -78,7 +78,7 @@ class TestI2C(unittest.TestCase):
         pads = _MockPads()
         dut = I2CMaster(pads)
 
-        def check_trans(scl, sda):
+        def check_trans(scl, sda, msg=""):
             scl, sda = int(scl), int(sda)
             scl_init, sda_init = (yield dut.scl_t.i), (yield dut.sda_t.i)
             timeout = 0
@@ -88,7 +88,7 @@ class TestI2C(unittest.TestCase):
                     return
                 timeout += 1
                 self.assertLess(timeout, 20,
-                    "\n*** timeout waiting for: " +
+                    f"\n*** {msg} timeout. Waiting for: " +
                     f"scl:{scl_now} checking:{scl_init}=>{scl} " +
                     f"sda:{sda_now} checking:{sda_init}=>{sda} ***"
                 )
@@ -116,11 +116,11 @@ class TestI2C(unittest.TestCase):
             yield from wait_idle()
 
         def read_bit(value):
-            #print(f"read_bit:{value}")
-            yield from check_trans(scl=False, sda=(yield dut.sda_tristate.i_mock))
+            print(f"read_bit:{value}")
             yield dut.sda_tristate.i_mock.eq(value)
-            yield from check_trans(scl=True,  sda=value)
-            # need to restore i_mock elsewhere
+            yield from check_trans(scl=True, sda=value)
+            yield from check_trans(scl=False, sda=value)
+            yield dut.sda_tristate.i_mock.eq(True)
 
         def read_ack(value):
             #print(f"read_ack:{value}")
@@ -131,6 +131,28 @@ class TestI2C(unittest.TestCase):
             yield dut.sda_tristate.i_mock.eq(True)
             ack = ((yield from dut.bus.read(I2C_XFER_ADDR)) & I2C_ACK) != 0
             self.assertEqual(ack, value)
+
+        def i2c_restart():
+            yield from check_trans(scl=False, sda=True, msg="checking restart precondition")
+            yield from dut.bus.write(I2C_XFER_ADDR, I2C_START)
+            yield from check_trans(scl=False, sda=True, msg="checking restart0")
+            yield from check_trans(scl=True, sda=True, msg="checking restart1")
+            yield from check_trans(scl=True, sda=False, msg="checking start0")
+            yield from wait_idle()
+
+        def i2c_start():
+            yield from check_trans(scl=True, sda=True, msg="checking start precondition")
+            yield from dut.bus.write(I2C_XFER_ADDR, I2C_START)
+            yield from check_trans(scl=True, sda=False, msg="checking start0")
+            yield from wait_idle()
+
+        def i2c_stop():
+            yield from check_trans(scl=False, sda=True, msg="checking stop after read or write")
+            yield from dut.bus.write(I2C_XFER_ADDR, I2C_STOP)
+            yield from check_trans(scl=False, sda=False, msg="checking STOP0")
+            yield from check_trans(scl=True, sda=False, msg="checking STOP1")
+            yield from check_trans(scl=True, sda=True, msg="checking STOP2")
+            yield from wait_idle()
 
         def i2c_write(value, ack=True):
             value = int(value)
@@ -144,7 +166,7 @@ class TestI2C(unittest.TestCase):
         def i2c_read(value, ack=True):
             value = int(value)
             test_bin = '{0:08b}'.format(value)
-            #print(f"I2C_READ | {hex(value)}:0x{test_bin}")
+            print(f"I2C_READ | {hex(value)}:0x{test_bin}")
             yield from dut.bus.write(I2C_XFER_ADDR, I2C_READ | (I2C_ACK if ack else 0))
             for i in list(test_bin):
                 yield from read_bit(int(i))
@@ -159,23 +181,23 @@ class TestI2C(unittest.TestCase):
             data = (yield from dut.bus.read(I2C_CONFIG_ADDR)) & 0xff
             self.assertEqual(data, 4)
 
-            yield from dut.bus.write(I2C_XFER_ADDR, I2C_START)
-            yield from check_trans(scl=True, sda=False)
-            yield from wait_idle()
-
-            yield from i2c_write(0x82)
+            print("write 1 byte 0x18 to address 0x41")
+            yield from i2c_start()
+            yield from i2c_write(0x41<<1 | 0)
             yield from i2c_write(0x18, ack=False)
+            yield from i2c_stop()
 
-            yield from dut.bus.write(I2C_XFER_ADDR, I2C_START | I2C_STOP)
-            yield from check_trans(scl=True,  sda=False)
-            yield from wait_idle()
-
+            print("read 1 byte from address 0x41")
+            yield from i2c_start()
+            yield from i2c_write(0x41<<1 | 1)
             yield from i2c_read(0x18, ack=False)
-            yield from i2c_read(0x88)
 
-            yield from dut.bus.write(I2C_XFER_ADDR, I2C_STOP)
-            yield from check_trans(scl=False,  sda=False)
-            yield from wait_idle()
+            print("read 2 bytes from address 0x55")
+            yield from i2c_restart()
+            yield from i2c_write(0x55<<1 | 1)
+            yield from i2c_read(0xDE, ack=True)
+            yield from i2c_read(0xAD, ack=False)
+            yield from i2c_stop()
 
         clocks = {
             "sys": 10,

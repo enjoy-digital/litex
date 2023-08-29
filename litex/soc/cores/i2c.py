@@ -65,41 +65,57 @@ class I2CMasterMachine(LiteXModule):
         self.fsm = fsm
 
         fsm.act("IDLE",
-            If(self.start,
-                NextState("START0"),
-            ).Elif(self.stop & self.start,
-                NextState("RESTART0"),
-            ).Elif(self.stop,
+            # Valid combinations (lowest to highest priority):
+            # stop: lowest priority
+            # read (& optional stop with automatic NACK)
+            # write (& optional stop)
+            # start (indicates start or restart)
+            # start & write (& optional stop)
+            # start & write & read (& optional stop)
+            # lowest priority
+            # *** TODO: support compound commands with I2CMaster ***
+            If(self.stop & ~self.scl_o,
+                # stop is only valid after an ACK
                 NextState("STOP0"),
-            ).Elif(self.write,
+            ),
+            If(self.read,
+                # post decrement so read first bit and shift in 7
+                NextValue(bits, 8-1),
+                NextState("READ0"),
+            ),
+            If(self.write,
                 NextValue(bits, 8),
                 NextState("WRITE0"),
-            ).Elif(self.read,
-                NextValue(bits, 8),
-                NextState("READ0"),
-            )
+            ),
+            # start could be requesting a restart
+            If(self.start,
+                NextState("RESTART0"),
+            ),
+            # highest priority: start only if scl is high
+            If(self.start & self.scl_o,
+                NextState("START0"),
+            ),
         )
 
         fsm.act("START0",
-            NextValue(self.scl_o, 1),
-            NextState("START1"))
-        fsm.act("START1",
+            # Always entered with scl_o = 1
             NextValue(self.sda_o, 0),
             NextState("IDLE"))
 
         fsm.act("RESTART0",
-            NextValue(self.scl_o, 0),
+            # Only entered from IDLE with scl_o = 0
+            NextValue(self.sda_o, 1),
             NextState("RESTART1"))
         fsm.act("RESTART1",
-            NextValue(self.sda_o, 1),
+            NextValue(self.scl_o, 1),
             NextState("START0"))
 
         fsm.act("STOP0",
-            NextValue(self.scl_o, 0),
+            # Only entered from IDLE with scl_o = 0
+            NextValue(self.sda_o, 0),
             NextState("STOP1"))
         fsm.act("STOP1",
             NextValue(self.scl_o, 1),
-            NextValue(self.sda_o, 0),
             NextState("STOP2"))
         fsm.act("STOP2",
             NextValue(self.sda_o, 1),
@@ -126,13 +142,15 @@ class I2CMasterMachine(LiteXModule):
             NextState("READACK1"),
         )
         fsm.act("READACK1",
+            # ACK => IDLE always with scl_o = 0
+            NextValue(self.scl_o, 0),
             NextValue(self.ack, ~self.sda_i),
             NextState("IDLE")
         )
 
         fsm.act("READ0",
-            NextValue(self.scl_o, 0),
-            NextValue(self.sda_o, 1),
+            # ACK => IDLE => READ0 always with scl_o = 0
+            NextValue(self.scl_o, 1),
             NextState("READ1"),
         )
         fsm.act("READ1",
@@ -154,7 +172,13 @@ class I2CMasterMachine(LiteXModule):
         )
         fsm.act("WRITEACK0",
             NextValue(self.scl_o, 1),
-            NextState("IDLE"),
+            NextState("WRITEACK1"),
+        )
+        fsm.act("WRITEACK1",
+            # ACK => IDLE always with scl_o = 0
+            NextValue(self.scl_o, 0),
+            NextValue(self.sda_o, 1),
+            NextState("IDLE")
         )
 
         run = Signal()
