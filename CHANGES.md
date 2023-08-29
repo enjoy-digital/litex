@@ -16,6 +16,7 @@
 	- build/efinix        : Fixed AsyncFIFO issues (Minimum of 2 buffer stages).
 	- software/gcc        : Fixed Ubuntu 22.04 GCC compilation issues.
 	- build/efinix        : Fixed hardcoded version.
+	- litedram/gw2ddrphy  : Fixed latencies and tested on Tang Primer 20K.
 
 	[> Added
 	--------
@@ -58,6 +59,7 @@
 	- liteiclink/serdes            : Added tx/rx_clk sharing capabilities on Xilinx transceivers.
 	- soc/cores/spi                : Added new SPIMMAP core allowing SPI accesses through MMAP.
 	- soc/interconnect/stream      : Added pipe_valid/pipe_ready parameters to BufferizeEndpoints.
+	- soc/cores/clock              : Added initial GW5A support.
 
 	[> Changed
 	----------
