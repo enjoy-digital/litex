@@ -60,6 +60,7 @@
 	- soc/cores/spi                : Added new SPIMMAP core allowing SPI accesses through MMAP.
 	- soc/interconnect/stream      : Added pipe_valid/pipe_ready parameters to BufferizeEndpoints.
 	- soc/cores/clock              : Added initial GW5A support.
+	- build/efinix                 : Added initial EfinixDDROutput/Input and simplified IOs exclusion.
 
 	[> Changed
 	----------
