@@ -119,6 +119,11 @@ class EfinixPlatform(GenericPlatform):
                     return ret
         return None
 
+    def get_pin(self, sig):
+        while isinstance(sig, _Slice) and hasattr(sig, "value"):
+            sig = sig.value
+        return sig
+
     def get_pin_name(self, sig, without_index=False):
         if sig is None:
             return None

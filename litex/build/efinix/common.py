@@ -88,13 +88,7 @@ class EfinixTristateImpl(Module):
             }
 
             platform.toolchain.ifacewriter.blocks.append(block)
-
-        # Exclude IO.
-        if isinstance(io, Signal):
-            exclude_io = io
-        else:
-            exclude_io = platform.get_pin_name(io[0], without_index=True)
-        platform.toolchain.excluded_ios.append(exclude_io)
+        platform.toolchain.excluded_ios.append(platform.get_pin(io))
 
 class EfinixTristate(Module):
     @staticmethod
@@ -144,7 +138,7 @@ class EfinixDDROutputImpl(Module):
             "drive_strength"    : 4 # FIXME: Get it from constraints.
         }
         platform.toolchain.ifacewriter.blocks.append(block)
-        # FIXME: Integrate IO exclusion.
+        platform.toolchain.excluded_ios.append(platform.get_pin(o))
 
 class EfinixDDROutput:
     @staticmethod
@@ -174,7 +168,7 @@ class EfinixDDRInputImpl(Module):
             "is_inclk_inverted" : False
         }
         platform.toolchain.ifacewriter.blocks.append(block)
-        # FIXME: Integrate IO exclusion.
+        platform.toolchain.excluded_ios.append(platform.get_pin(i))
 
 class EfinixDDRInput:
     @staticmethod
