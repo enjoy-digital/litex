@@ -89,16 +89,12 @@ class EfinixTristateImpl(Module):
 
             platform.toolchain.ifacewriter.blocks.append(block)
 
-        # Remove the group from the io list
-        exclude = platform.get_pin_name(io[0], without_index=True)
-
-        # In case of a single signal, there is still a '0' index
-        # to be remove at the end
-        if (nbits == 1) and (exclude[:-1] == '0'):
-            exclude = exclude[:-1]
-
-        platform.toolchain.excluded_ios.append(exclude)
-
+        # Exclude IO.
+        if isinstance(io, Signal):
+            exclude_io = io
+        else:
+            exclude_io = platform.get_pin_name(io[0], without_index=True)
+        platform.toolchain.excluded_ios.append(exclude_io)
 
 class EfinixTristate(Module):
     @staticmethod
