@@ -79,6 +79,8 @@ class EfinityToolchain(GenericToolchain):
         for from_, to in sorted(self.false_paths, key=lambda x: (x[0].duid, x[1].duid)):
             tpl = "set_false_path -from [get_clocks {{{from_}}}] -to [get_clocks {{{to}}}]"
             sdc.append(tpl.format(from_=self._vns.get_name(from_), to=self._vns.get_name(to)))
+            tpl = "set_false_path -from [get_clocks {{{to}}}] -to [get_clocks {{{from_}}}]"
+            sdc.append(tpl.format(to=self._vns.get_name(to), from_=self._vns.get_name(from_)))
 
         # Add additional commands
         sdc += self.additional_sdc_commands
