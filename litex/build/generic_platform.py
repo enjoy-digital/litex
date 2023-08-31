@@ -366,8 +366,8 @@ class GenericPlatform:
     def lookup_request(self, *args, **kwargs):
         return self.constraint_manager.lookup_request(*args, **kwargs)
 
-    def add_period_constraint(self, clk, period):
-        raise NotImplementedError
+    def add_period_constraint(self, clk, period, keep=True):
+        self.toolchain.add_period_constraint(self, clk, period, keep=keep)
 
     def add_false_path_constraint(self, from_, to):
         raise NotImplementedError
