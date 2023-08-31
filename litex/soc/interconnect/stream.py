@@ -236,19 +236,11 @@ class AsyncFIFO(_FIFOWrapper):
     def __init__(self, layout, depth=None, buffered=False):
         depth = 4 if depth is None else depth
         assert depth >= 4
-        nbuffers = 0
-        if buffered:
-            nbuffers = 1
-        from litex.build.efinix import EfinixPlatform
-        if isinstance(LiteXContext.platform, EfinixPlatform):
-            nbuffers = 2 # Minimum of 2 buffers required on Efinix FPGAs.
         _FIFOWrapper.__init__(self,
-            fifo_class = fifo.AsyncFIFOBuffered if nbuffers > 0 else fifo.AsyncFIFO,
+            fifo_class = fifo.AsyncFIFOBuffered if buffered else fifo.AsyncFIFO,
             layout     = layout,
             depth      = depth
         )
-        if nbuffers > 1:
-            ClockDomainsRenamer("read")(BufferizeEndpoints({"source": DIR_SOURCE})(self))
 
 # ClockDomainCrossing ------------------------------------------------------------------------------
 
