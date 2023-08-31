@@ -44,8 +44,8 @@ class AlteraPlatform(GenericPlatform):
     def build(self, *args, **kwargs):
         return self.toolchain.build(self, *args, **kwargs)
 
-    def add_period_constraint(self, clk, period, keep=False):
-        self.toolchain.add_period_constraint(self, clk, period, keep=False)
+    def add_period_constraint(self, clk, period, keep=False, name=None):
+        self.toolchain.add_period_constraint(self, clk, period, keep=keep, name=name)
 
     def add_false_path_constraint(self, from_, to):
         if hasattr(from_, "p"):
