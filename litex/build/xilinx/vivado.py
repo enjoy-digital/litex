@@ -170,9 +170,8 @@ class XilinxVivadoToolchain(GenericToolchain):
                 True  : "ports",
             }[hasattr(clk, "port")]
         for clk, [period, name] in sorted(self.clocks.items(), key=lambda x: x[0].duid):
-            clk_sig = self._vns.get_name(clk)
             if name is None:
-                name = clk_sig
+                name = clk
             self.platform.add_platform_command(
                 "create_clock -name {name} -period " + str(period) +
                 " [get_" + get_clk_type(clk) + " {clk}]", name=name, clk=clk)
