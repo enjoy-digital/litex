@@ -169,10 +169,13 @@ class XilinxVivadoToolchain(GenericToolchain):
                 False :  "nets",
                 True  : "ports",
             }[hasattr(clk, "port")]
-        for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
+        for clk, [period, name] in sorted(self.clocks.items(), key=lambda x: x[0].duid):
+            clk_sig = self._vns.get_name(clk)
+            if name is None:
+                name = clk_sig
             self.platform.add_platform_command(
-                "create_clock -name {clk} -period " + str(period) +
-                " [get_" + get_clk_type(clk) + " {clk}]", clk=clk)
+                "create_clock -name {name} -period " + str(period) +
+                " [get_" + get_clk_type(clk) + " {clk}]", name=name, clk=clk)
         for _from, _to in sorted(self.false_paths, key=lambda x: (x[0].duid, x[1].duid)):
             self.platform.add_platform_command(
                 "set_clock_groups "

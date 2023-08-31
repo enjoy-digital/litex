@@ -89,8 +89,11 @@ class GowinToolchain(GenericToolchain):
 
     def build_timing_constraints(self, vns):
         sdc = []
-        for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
-            sdc.append(f"create_clock -name {vns.get_name(clk)} -period {str(period)} [get_ports {{{vns.get_name(clk)}}}]")
+        for clk, [period, name] in sorted(self.clocks.items(), key=lambda x: x[0].duid):
+            clk_sig = self._vns.get_name(clk)
+            if name is None:
+                name = clk_sig
+            sdc.append(f"create_clock -name {name} -period {str(period)} [get_ports {{{clk_sig}}}]")
         tools.write_to_file(f"{self._build_name}.sdc", "\n".join(sdc))
         return (f"{self._build_name}.sdc", "SDC")
 

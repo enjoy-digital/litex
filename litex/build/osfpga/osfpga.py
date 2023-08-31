@@ -35,8 +35,11 @@ class OSFPGAToolchain(GenericToolchain):
 
     def build_timing_constraints(self, vns):
         sdc = []
-        for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
-            sdc.append(f"create_clock -name {vns.get_name(clk)} -period {str(period)} [get_ports {{{vns.get_name(clk)}}}]")
+        for clk, [period, name] in sorted(self.clocks.items(), key=lambda x: x[0].duid):
+            clk_sig = self._vns.get_name(clk)
+            if name is None:
+                name = clk_sig
+            sdc.append(f"create_clock -name {name} -period {str(period)} [get_ports {{{clk_sig}}}]")
         with open(f"{self._build_name}.sdc", "w") as f:
             f.write("\n".join(sdc))
         return (self._build_name + ".sdc", "SDC")

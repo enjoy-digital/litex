@@ -56,13 +56,15 @@ def _build_pdc(named_sc, named_pc, clocks, vns, build_name):
         pdc.append("\n".join(named_pc))
 
     # Note: .pdc is only used post-synthesis, Synplify constraints clocks by default to 200MHz.
-    for clk, period in clocks.items():
-        clk_name = vns.get_name(clk)
+    for clk, [period, clk_name] in clocks.items():
+        clk_sig = vns.get_name(clk)
+        if clk_name is None:
+            clk_name = clk_sig
         pdc.append("create_clock -period {} -name {} [{} {}];".format(
             str(period),
             clk_name,
-            "get_ports" if clk_name in [name for name, _, _, _ in named_sc] else "get_nets",
-            clk_name
+            "get_ports" if clk_sig in [name for name, _, _, _ in named_sc] else "get_nets",
+            clk_sig
             ))
 
     tools.write_to_file(build_name + ".pdc", "\n".join(pdc))
