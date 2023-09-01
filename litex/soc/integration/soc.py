@@ -1119,19 +1119,26 @@ class SoC(LiteXModule, SoCCoreCompat):
 
             # Create optional DMA Bus (for Cache Coherence).
             if hasattr(self.cpu, "dma_bus"):
+                if isinstance(self.cpu.dma_bus, wishbone.Interface):
+                    dma_bus_standard = "wishbone"
+                elif isinstance(self.cpu.dma_bus, axi.AXILiteInterface):
+                    dma_bus_standard = "axi_lite"
+                elif isinstance(self.cpu.dma_bus, axi.AXIInterface):
+                    dma_bus_standard = "axi"
+                else:
+                    raise NotImplementedError
                 self.logger.info("CPU {} {} DMA Bus.".format(
                     colorer(name, color="underline"),
-                    colorer("adding", color="cyan")))
+                    colorer("adding", color="cyan"))
+                )
                 self.dma_bus = SoCBusHandler(
                     name             = "SoCDMABusHandler",
-                    standard         = "wishbone",
-                    data_width       = self.bus.data_width,
-                    address_width    = self.bus.get_address_width(standard="wishbone"),
-                    bursting         = self.bus.bursting
+                    standard         = dma_bus_standard,
+                    data_width       = self.cpu.dma_bus.data_width,
+                    address_width    = self.cpu.dma_bus.address_width,
+                    bursting         = self.cpu.dma_bus.bursting
                 )
-                dma_bus = wishbone.Interface(data_width=self.bus.data_width)
-                self.dma_bus.add_slave(name="dma", slave=dma_bus, region=SoCRegion(origin=0x00000000, size=0x100000000)) # FIXME: covers lower 4GB only
-                self.submodules += wishbone.Converter(dma_bus, self.cpu.dma_bus)
+                self.dma_bus.add_slave(name="dma", slave=self.cpu.dma_bus, region=SoCRegion(origin=0x00000000, size=0x100000000)) # FIXME: covers lower 4GB only
 
             # Connect SoCController's reset to CPU reset.
             if hasattr(self, "ctrl"):
