@@ -124,7 +124,7 @@ class SPIMaster(LiteXModule):
         self.sync += [
             If(clk_enable,
                 clk_count.eq(clk_count + 1),
-                If(clk_count == self.clk_divider[2:],
+                If(clk_count == self.clk_divider[1:],
                     clk.eq(~clk),
                     clk_count.eq(0)
                 ),
