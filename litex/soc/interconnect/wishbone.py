@@ -50,8 +50,9 @@ class Interface(Record):
         if kwargs.get("address_width", False):
             # FIXME: Improve or switch Wishbone to byte addressing instead of word addressing.
             adr_width = kwargs["address_width"] - int(log2(data_width//8))
-        self.adr_width = adr_width
-        self.bursting   = bursting
+        self.adr_width     = adr_width
+        self.address_width = adr_width +  int(log2(data_width//8))
+        self.bursting      = bursting
         Record.__init__(self, set_layout_parameters(_layout,
             adr_width  = adr_width,
             data_width = data_width,
