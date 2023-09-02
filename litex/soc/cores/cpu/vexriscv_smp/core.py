@@ -337,7 +337,7 @@ class VexRiscvSMP(CPU):
 
         # DMA.
         if VexRiscvSMP.coherent_dma:
-            self.dma_bus = dma_bus = wishbone.Interface(data_width=VexRiscvSMP.dcache_width)
+            self.dma_bus = dma_bus = wishbone.Interface(data_width=VexRiscvSMP.dcache_width, address_width=32)
             dma_bus_stall   = Signal()
             dma_bus_inhibit = Signal()
             self.cpu_params.update(
