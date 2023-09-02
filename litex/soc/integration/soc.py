@@ -1113,8 +1113,8 @@ class SoC(LiteXModule, SoCCoreCompat):
                 self.irq.enable()
                 if hasattr(self.cpu, "reserved_interrupts"):
                     self.cpu.interrupts.update(self.cpu.reserved_interrupts)
-                for name, loc in self.cpu.interrupts.items():
-                    self.irq.add(name, loc)
+                for irq_name, loc in self.cpu.interrupts.items():
+                    self.irq.add(irq_name, loc)
                 self.add_config("CPU_HAS_INTERRUPT")
 
             # Create optional DMA Bus (for Cache Coherence).
