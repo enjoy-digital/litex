@@ -29,11 +29,11 @@ class _MockTristateImpl(Module):
         t.i_mock = Signal(reset=True)
         self.comb += [
             If(t.oe,
-               t.target.eq(t.o),
-               t.i.eq(t.o),
+                t.target.eq(t.o),
+                t.i.eq(t.o),
             ).Else(
-               t.target.eq(t.i_mock),
-               t.i.eq(t.i_mock),
+                t.target.eq(t.i_mock),
+                t.i.eq(t.i_mock),
             ),
         ]
 
@@ -68,6 +68,7 @@ class _MockTristate:
             self.assertEqual((yield dut.scl_t.i), some_value)
 
     """
+
     @staticmethod
     def lower(t):
         return _MockTristateImpl(t)
@@ -105,14 +106,14 @@ class TestI2C(unittest.TestCase):
                 yield
 
         def write_bit(value):
-            #print(f"write_bit:{value}")
+            # print(f"write_bit:{value}")
             yield from check_trans(scl=False, sda=value)
-            yield from check_trans(scl=True,  sda=value)
+            yield from check_trans(scl=True, sda=value)
 
         def write_ack(value):
-            #print(f"write_ack:{value}")
+            # print(f"write_ack:{value}")
             yield from check_trans(scl=False, sda=not value)
-            yield from check_trans(scl=True,  sda=not value)
+            yield from check_trans(scl=True, sda=not value)
             yield from wait_idle()
 
         def read_bit(value):
@@ -156,8 +157,8 @@ class TestI2C(unittest.TestCase):
 
         def i2c_write(value, ack=True):
             value = int(value)
-            test_bin = '{0:08b}'.format(value)
-            #print(f"I2C_WRITE | {hex(value)}:0x{test_bin}")
+            test_bin = "{0:08b}".format(value)
+            # print(f"I2C_WRITE | {hex(value)}:0x{test_bin}")
             yield from dut.bus.write(I2C_XFER_ADDR, I2C_WRITE | value)
             for i in list(test_bin):
                 yield from write_bit(int(i))
@@ -165,31 +166,30 @@ class TestI2C(unittest.TestCase):
 
         def i2c_read(value, ack=True):
             value = int(value)
-            test_bin = '{0:08b}'.format(value)
+            test_bin = "{0:08b}".format(value)
             print(f"I2C_READ | {hex(value)}:0x{test_bin}")
             yield from dut.bus.write(I2C_XFER_ADDR, I2C_READ | (I2C_ACK if ack else 0))
             for i in list(test_bin):
                 yield from read_bit(int(i))
             yield dut.sda_tristate.i_mock.eq(True)
-            data = (yield from dut.bus.read(I2C_XFER_ADDR)) & 0xff
+            data = (yield from dut.bus.read(I2C_XFER_ADDR)) & 0xFF
             self.assertEqual(data, value)
             yield from write_ack(ack)
 
         def check():
-
             yield from dut.bus.write(I2C_CONFIG_ADDR, 4)
-            data = (yield from dut.bus.read(I2C_CONFIG_ADDR)) & 0xff
+            data = (yield from dut.bus.read(I2C_CONFIG_ADDR)) & 0xFF
             self.assertEqual(data, 4)
 
             print("write 1 byte 0x18 to address 0x41")
             yield from i2c_start()
-            yield from i2c_write(0x41<<1 | 0)
+            yield from i2c_write(0x41 << 1 | 0)
             yield from i2c_write(0x18, ack=False)
             yield from i2c_stop()
 
             print("read 1 byte from address 0x41")
             yield from i2c_start()
-            yield from i2c_write(0x41<<1 | 1)
+            yield from i2c_write(0x41 << 1 | 1)
             yield from i2c_read(0x18, ack=False)
 
             print("write 2 bytes 0x10 0x00 to address 0x11")
@@ -206,7 +206,7 @@ class TestI2C(unittest.TestCase):
 
             print("read 2 bytes from address 0x55")
             yield from i2c_restart()
-            yield from i2c_write(0x55<<1 | 1)
+            yield from i2c_write(0x55 << 1 | 1)
             yield from i2c_read(0xDE, ack=True)
             yield from i2c_read(0xAD, ack=False)
             yield from i2c_stop()
