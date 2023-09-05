@@ -53,7 +53,8 @@ class NaxRiscv(CPU):
     cpu_count        = 1
     jtag_tap         = False
     jtag_instruction = False
-    with_dma = False
+    with_dma         = False
+    litedram_width   = 32
 
     # ABI.
     @staticmethod
@@ -247,6 +248,7 @@ class NaxRiscv(CPU):
     def generate_netlist_name(reset_address):
         md5_hash = hashlib.md5()
         md5_hash.update(str(reset_address).encode('utf-8'))
+        md5_hash.update(str(NaxRiscv.litedram_width).encode('utf-8'))
         md5_hash.update(str(NaxRiscv.xlen).encode('utf-8'))
         md5_hash.update(str(NaxRiscv.cpu_count).encode('utf-8'))
         md5_hash.update(str(NaxRiscv.jtag_tap).encode('utf-8'))
@@ -297,6 +299,7 @@ class NaxRiscv(CPU):
         gen_args.append(f"--reset-vector={reset_address}")
         gen_args.append(f"--xlen={NaxRiscv.xlen}")
         gen_args.append(f"--cpu-count={NaxRiscv.cpu_count}")
+        gen_args.append(f"--litedram-width={NaxRiscv.litedram_width}")
         for region in NaxRiscv.memory_regions:
             gen_args.append(f"--memory-region={region[0]},{region[1]},{region[2]},{region[3]}")
         for args in NaxRiscv.scala_args:
@@ -419,13 +422,14 @@ class NaxRiscv(CPU):
         self.soc_bus = soc.bus # FIXME: Save SoC Bus instance to retrieve the final mem layout on finalization.
 
     def add_memory_buses(self, address_width, data_width):
+        NaxRiscv.litedram_width = data_width
         nax_data_width = 64
         nax_burst_size = 64
         assert data_width >= nax_data_width   # FIXME: Only supporting up-conversion for now.
         assert data_width <= nax_burst_size*8 # FIXME: AXIUpConverter doing assumptions on minimal burst_size.
 
         mbus = axi.AXIInterface(
-            data_width    = nax_data_width,
+            data_width    = NaxRiscv.litedram_width,
             address_width = 32,
             id_width      = 8, #TODO
         )
