@@ -15,6 +15,8 @@
 	- soc/add_uart        : Fixed stub behavior (sink/source swap).
 	- build/efinix        : Fixed AsyncFIFO issues (Minimum of 2 buffer stages).
 	- software/gcc        : Fixed Ubuntu 22.04 GCC compilation issues.
+	- build/efinix        : Fixed hardcoded version.
+	- litedram/gw2ddrphy  : Fixed latencies and tested on Tang Primer 20K.
 
 	[> Added
 	--------
@@ -56,6 +58,12 @@
 	- liteth/arp                   : Added proper multi-entries ARP table.
 	- liteiclink/serdes            : Added tx/rx_clk sharing capabilities on Xilinx transceivers.
 	- soc/cores/spi                : Added new SPIMMAP core allowing SPI accesses through MMAP.
+	- soc/interconnect/stream      : Added pipe_valid/pipe_ready parameters to BufferizeEndpoints.
+	- soc/cores/clock              : Added initial GW5A support.
+	- build/efinix                 : Added initial EfinixDDROutput/Input and simplified IOs exclusion.
+	- soc/interconnect             : Improved DMA Bus to use the same Bus Standard than the CPU DMA Bus.
+	- liteeth/phy                  : Added Artix7 2500BASE-X PHY.
+	- liteeth/phy                  : Added Gowin Arora V RGMII PHY (GW5RGMII).
 
 	[> Changed
 	----------

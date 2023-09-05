@@ -88,17 +88,7 @@ class EfinixTristateImpl(Module):
             }
 
             platform.toolchain.ifacewriter.blocks.append(block)
-
-        # Remove the group from the io list
-        exclude = platform.get_pin_name(io[0], without_index=True)
-
-        # In case of a single signal, there is still a '0' index
-        # to be remove at the end
-        if (nbits == 1) and (exclude[:-1] == '0'):
-            exclude = exclude[:-1]
-
-        platform.toolchain.excluded_ios.append(exclude)
-
+        platform.toolchain.excluded_ios.append(platform.get_pin(io))
 
 class EfinixTristate(Module):
     @staticmethod
@@ -124,10 +114,73 @@ class EfinixSDRTristate(Module):
     def lower(dr):
         return EfinixSDRTristateImpl(dr.platform, dr.io, dr.o, dr.oe, dr.i, dr.clk)
 
+# Efinix DDROutput ---------------------------------------------------------------------------------
+
+class EfinixDDROutputImpl(Module):
+    def __init__(self, platform, i1, i2, o, clk):
+        io_name = platform.get_pin_name(o)
+        io_pad  = platform.get_pin_location(o)
+        io_prop = platform.get_pin_properties(o)
+        io_data_h  = platform.add_iface_io(io_name + "_HI")
+        io_data_l  = platform.add_iface_io(io_name + "_LO")
+        self.comb += io_data_h.eq(i1)
+        self.comb += io_data_l.eq(i2)
+        block = {
+            "type"              : "GPIO",
+            "mode"              : "OUTPUT",
+            "name"              : io_name,
+            "location"          : io_pad,
+            "properties"        : io_prop,
+            "size"              : 1,
+            "out_reg"           : "DDIO_RESYNC",
+            "out_clk_pin"       : clk, # FIXME.
+            "is_inclk_inverted" : False,
+            "drive_strength"    : 4 # FIXME: Get it from constraints.
+        }
+        platform.toolchain.ifacewriter.blocks.append(block)
+        platform.toolchain.excluded_ios.append(platform.get_pin(o))
+
+class EfinixDDROutput:
+    @staticmethod
+    def lower(dr):
+        return EfinixDDROutputImpl(dr.platform, dr.i1, dr.i2, dr.o, dr.clk)
+
+# Efinix DDRInput ----------------------------------------------------------------------------------
+
+class EfinixDDRInputImpl(Module):
+    def __init__(self, platform, i, o1, o2, clk):
+        io_name   = platform.get_pin_name(i)
+        io_pad    = platform.get_pin_location(i)
+        io_prop   = platform.get_pin_properties(i)
+        io_data_h = platform.add_iface_io(io_name + "_HI")
+        io_data_l = platform.add_iface_io(io_name + "_LO")
+        self.comb += o1.eq(io_data_h)
+        self.comb += o2.eq(io_data_l)
+        block = {
+            "type"              : "GPIO",
+            "mode"              : "INPUT",
+            "name"              : io_name,
+            "location"          : io_pad,
+            "properties"        : io_prop,
+            "size"              : 1,
+            "in_reg"            : "DDIO_RESYNC",
+            "in_clk_pin"        : clk, # FIXME.
+            "is_inclk_inverted" : False
+        }
+        platform.toolchain.ifacewriter.blocks.append(block)
+        platform.toolchain.excluded_ios.append(platform.get_pin(i))
+
+class EfinixDDRInput:
+    @staticmethod
+    def lower(dr):
+        return EfinixDDRInputImpl(dr.platform, dr.i, dr.o1, dr.o2, dr.clk)
+
 # Efinix Special Overrides -------------------------------------------------------------------------
 
 efinix_special_overrides = {
     AsyncResetSynchronizer : EfinixAsyncResetSynchronizer,
     Tristate               : EfinixTristate,
     SDRTristate            : EfinixSDRTristate,
+    DDROutput              : EfinixDDROutput,
+    DDRInput               : EfinixDDRInput,
 }

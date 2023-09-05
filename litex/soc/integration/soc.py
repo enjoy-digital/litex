@@ -1113,37 +1113,32 @@ class SoC(LiteXModule, SoCCoreCompat):
                 self.irq.enable()
                 if hasattr(self.cpu, "reserved_interrupts"):
                     self.cpu.interrupts.update(self.cpu.reserved_interrupts)
-                for name, loc in self.cpu.interrupts.items():
-                    self.irq.add(name, loc)
+                for irq_name, loc in self.cpu.interrupts.items():
+                    self.irq.add(irq_name, loc)
                 self.add_config("CPU_HAS_INTERRUPT")
 
             # Create optional DMA Bus (for Cache Coherence).
             if hasattr(self.cpu, "dma_bus"):
+                if isinstance(self.cpu.dma_bus, wishbone.Interface):
+                    dma_bus_standard = "wishbone"
+                elif isinstance(self.cpu.dma_bus, axi.AXILiteInterface):
+                    dma_bus_standard = "axi_lite"
+                elif isinstance(self.cpu.dma_bus, axi.AXIInterface):
+                    dma_bus_standard = "axi"
+                else:
+                    raise NotImplementedError
                 self.logger.info("CPU {} {} DMA Bus.".format(
                     colorer(name, color="underline"),
-                    colorer("adding", color="cyan")))
-
-                # self.dma_bus = SoCBusHandler(
-                #     name             = "SoCDMABusHandler",
-                #     standard         = "wishbone",
-                #     data_width       = self.bus.data_width,
-                #     address_width    = self.bus.get_address_width(standard="wishbone"),
-                #     bursting         = self.bus.bursting
-                # )
-                # dma_bus = wishbone.Interface(data_width=self.bus.data_width)
-                # self.dma_bus.add_slave(name="dma", slave=dma_bus, region=SoCRegion(origin=0x00000000, size=0x100000000)) # FIXME: covers lower 4GB only
-                # self.submodules += wishbone.Converter(dma_bus, self.cpu.dma_bus)
-
+                    colorer("adding", color="cyan"))
+                )
                 self.dma_bus = SoCBusHandler(
                     name             = "SoCDMABusHandler",
-                    standard         = "axi",
-                    data_width       = self.bus.data_width,
-                    address_width    = self.bus.get_address_width(standard="axi"),
-                    bursting         = self.bus.bursting
+                    standard         = dma_bus_standard,
+                    data_width       = self.cpu.dma_bus.data_width,
+                    address_width    = self.cpu.dma_bus.address_width,
+                    bursting         = self.cpu.dma_bus.bursting
                 )
-                dma_bus = axi.AXIInterface(data_width=self.bus.data_width, address_width=32, id_width=4)
-                self.dma_bus.add_slave(name="dma", slave=dma_bus, region=SoCRegion(origin=0x00000000, size=0x100000000)) # FIXME: covers lower 4GB only
-                self.submodules += axi.AXIConverter(dma_bus, self.cpu.dma_bus)
+                self.dma_bus.add_slave(name="dma", slave=self.cpu.dma_bus, region=SoCRegion(origin=0x00000000, size=0x100000000)) # FIXME: covers lower 4GB only
 
             # Connect SoCController's reset to CPU reset.
             if hasattr(self, "ctrl"):
@@ -1714,8 +1709,11 @@ class LiteXSoC(SoC):
             eth_tx_clk = getattr(phy, "crg", phy).cd_eth_tx.clk
             if not isinstance(phy, LiteEthPHYModel) and not getattr(phy, "model", False):
                 self.platform.add_period_constraint(eth_rx_clk, 1e9/phy.rx_clk_freq)
-                self.platform.add_period_constraint(eth_tx_clk, 1e9/phy.tx_clk_freq)
-                self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk, eth_tx_clk)
+                if not eth_rx_clk is eth_tx_clk:
+                    self.platform.add_period_constraint(eth_tx_clk, 1e9/phy.tx_clk_freq)
+                    self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk, eth_tx_clk)
+                else:
+                    self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk)
 
     # Add Etherbone --------------------------------------------------------------------------------
     def add_etherbone(self, name="etherbone", phy=None, phy_cd="eth", data_width=8,
@@ -1773,8 +1771,11 @@ class LiteXSoC(SoC):
             eth_tx_clk = getattr(phy, "crg", phy).cd_eth_tx.clk
             if not isinstance(phy, LiteEthPHYModel) and not getattr(phy, "model", False):
                 self.platform.add_period_constraint(eth_rx_clk, 1e9/phy.rx_clk_freq)
-                self.platform.add_period_constraint(eth_tx_clk, 1e9/phy.tx_clk_freq)
-                self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk, eth_tx_clk)
+                if not eth_rx_clk is eth_tx_clk:
+                    self.platform.add_period_constraint(eth_tx_clk, 1e9/phy.tx_clk_freq)
+                    self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk, eth_tx_clk)
+                else:
+                    self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk)
 
     # Add SPI Flash --------------------------------------------------------------------------------
     def add_spi_flash(self, name="spiflash", mode="4x", clk_freq=None, module=None, phy=None, rate="1:1", software_debug=False, **kwargs):

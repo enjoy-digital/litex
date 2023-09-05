@@ -145,7 +145,7 @@ class LatticeTrellisToolchain(YosysNextPNRToolchain):
         "lfe5um5g-85f": "um5g-85k",
     }
 
-    def add_period_constraint(self, platform, clk, period):
+    def add_period_constraint(self, platform, clk, period, keep=True, name=None):
         if clk is None:
             return
         if hasattr(clk, "p"):

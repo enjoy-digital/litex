@@ -63,22 +63,29 @@ class EfinityToolchain(GenericToolchain):
         sdc = []
 
         # Clock constraints
-        for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
+        for clk, [period, name] in sorted(self.clocks.items(), key=lambda x: x[0].duid):
             is_port = False
             for sig, pins, others, resname in self.named_sc:
                 if sig == self._vns.get_name(clk):
                     is_port = True
+
+            clk_sig = self._vns.get_name(clk)
+            if name is None:
+                name = clk_sig
+
             if is_port:
-                tpl = "create_clock -name {clk} -period {period} [get_ports {{{clk}}}]"
-                sdc.append(tpl.format(clk=self._vns.get_name(clk), period=str(period)))
+                tpl = "create_clock -name {name} -period {period} [get_ports {{{clk}}}]"
+                sdc.append(tpl.format(name=name, clk=clk_sig, period=str(period)))
             else:
-                tpl = "create_clock -name {clk} -period {period} [get_nets {{{clk}}}]"
-                sdc.append(tpl.format(clk=self._vns.get_name(clk), period=str(period)))
+                tpl = "create_clock -name {name} -period {period} [get_nets {{{clk}}}]"
+                sdc.append(tpl.format(name=name, clk=clk_sig, period=str(period)))
 
         # False path constraints
         for from_, to in sorted(self.false_paths, key=lambda x: (x[0].duid, x[1].duid)):
             tpl = "set_false_path -from [get_clocks {{{from_}}}] -to [get_clocks {{{to}}}]"
             sdc.append(tpl.format(from_=self._vns.get_name(from_), to=self._vns.get_name(to)))
+            tpl = "set_false_path -from [get_clocks {{{to}}}] -to [get_clocks {{{from_}}}]"
+            sdc.append(tpl.format(to=self._vns.get_name(to), from_=self._vns.get_name(from_)))
 
         # Add additional commands
         sdc += self.additional_sdc_commands
@@ -217,7 +224,9 @@ class EfinityToolchain(GenericToolchain):
         root.attrib["xmlns:efx"]        = "http://www.efinixinc.com/enf_proj"
         root.attrib["name"]             = self._build_name
         root.attrib["location"]         = str(pathlib.Path().resolve())
-        root.attrib["sw_version"]       = "2023.1.150" # TODO: read it from sw_version.txt
+        # read efinity version  in scripts/sw_version.txt
+        with open(os.path.join(self.efinity_path, "scripts/sw_version.txt"), "r") as fd:
+           root.attrib["sw_version"]= fd.readline().strip()
         root.attrib["last_change_date"] = f"Date : {now.strftime('%Y-%m-%d %H:%M')}"
 
         # Add Device.

@@ -602,12 +602,12 @@ def get_check_parameters(ports):
 
     return data_width
 
-class AXIInterconnectPointToPoint(Module):
+class AXIInterconnectPointToPoint(LiteXModule):
     """AXI point to point interconnect"""
     def __init__(self, master, slave):
         self.comb += master.connect(slave)
 
-class AXIInterconnectShared(Module):
+class AXIInterconnectShared(LiteXModule):
     """AXI shared interconnect"""
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
         data_width = get_check_parameters(ports=masters + [s for _, s in slaves])

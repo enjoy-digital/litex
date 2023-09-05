@@ -238,7 +238,7 @@ void sdram_software_control_off(void) {
 /*  Mode Register                                                        */
 /*-----------------------------------------------------------------------*/
 
-int swap_bit(int num, int a, int b) {
+__attribute__((unused)) static int swap_bit(int num, int a, int b) {
 	if (((num >> a) & 1) != ((num >> b) & 1)) {
 		num ^= (1 << a);
 		num ^= (1 << b);

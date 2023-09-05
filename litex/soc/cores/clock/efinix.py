@@ -96,11 +96,13 @@ class EFINIXPLL(LiteXModule):
         assert self.nclkouts < self.nclkouts_max
 
         clk_out_name = f"{self.name}_clkout{self.nclkouts}" if name == "" else name
-        self.platform.toolchain.additional_sdc_commands.append(f"create_clock -period {1e9/freq} {clk_out_name}")
 
         if cd is not None:
             self.platform.add_extension([(clk_out_name, 0, Pins(1))])
-            self.comb += cd.clk.eq(self.platform.request(clk_out_name))
+            clk_name = f"{cd.name}_clk"
+            clk_out = self.platform.request(clk_out_name)
+            self.comb += cd.clk.eq(clk_out)
+            self.platform.add_period_constraint(clk=clk_out, period=1e9/freq, name=clk_name)
             if with_reset:
                 self.specials += AsyncResetSynchronizer(cd, ~self.locked)
             self.platform.toolchain.excluded_ios.append(clk_out_name)

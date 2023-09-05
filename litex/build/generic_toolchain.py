@@ -162,7 +162,7 @@ class GenericToolchain:
 
         return v_output.ns
 
-    def add_period_constraint(self, platform, clk, period, keep=True):
+    def add_period_constraint(self, platform, clk, period, keep=True, name=None):
         if clk is None:
             return
         if hasattr(clk, "p"):
@@ -171,10 +171,10 @@ class GenericToolchain:
             clk.attr.add("keep")
         period = math.floor(period*1e3)/1e3 # Round to lowest picosecond.
         if clk in self.clocks:
-            if period != self.clocks[clk]:
+            if period != self.clocks[clk][0]:
                 raise ValueError("Clock already constrained to {:.2f}ns, new constraint to {:.2f}ns"
                     .format(self.clocks[clk], period))
-        self.clocks[clk] = period
+        self.clocks[clk] = [period, name]
 
     def add_false_path_constraint(self, platform, from_, to, keep=True):
         if keep:

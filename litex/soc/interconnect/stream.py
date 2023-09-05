@@ -236,19 +236,11 @@ class AsyncFIFO(_FIFOWrapper):
     def __init__(self, layout, depth=None, buffered=False):
         depth = 4 if depth is None else depth
         assert depth >= 4
-        nbuffers = 0
-        if buffered:
-            nbuffers = 1
-        from litex.build.efinix import EfinixPlatform
-        if isinstance(LiteXContext.platform, EfinixPlatform):
-            nbuffers = 2 # Minimum of 2 buffers required on Efinix FPGAs.
         _FIFOWrapper.__init__(self,
-            fifo_class = fifo.AsyncFIFOBuffered if nbuffers > 0 else fifo.AsyncFIFO,
+            fifo_class = fifo.AsyncFIFOBuffered if buffered else fifo.AsyncFIFO,
             layout     = layout,
             depth      = depth
         )
-        if nbuffers > 1:
-            ClockDomainsRenamer("read")(BufferizeEndpoints({"source": DIR_SOURCE})(self))
 
 # ClockDomainCrossing ------------------------------------------------------------------------------
 
@@ -985,21 +977,31 @@ class Pipeline(Module):
 
 # Add buffers on Endpoints (can be used to improve timings)
 class BufferizeEndpoints(ModuleTransformer):
-    def __init__(self, endpoint_dict):
+    def __init__(self, endpoint_dict, pipe_valid=True, pipe_ready=False):
         self.endpoint_dict = endpoint_dict
+        self.pipe_valid    = pipe_valid
+        self.pipe_ready    = pipe_ready
 
     def transform_instance(self, submodule):
         for name, direction in self.endpoint_dict.items():
             endpoint = getattr(submodule, name)
-            # add buffer on sinks
+            # Add Buffer on Sinks.
             if direction == DIR_SINK:
-                buf = Buffer(endpoint.description)
+                buf = Buffer(
+                    layout     = endpoint.description,
+                    pipe_valid = self.pipe_valid,
+                    pipe_ready = self.pipe_ready,
+                )
                 submodule.submodules += buf
                 setattr(submodule, name, buf.sink)
                 submodule.comb += buf.source.connect(endpoint)
-            # add buffer on sources
+            # Add Buffer on Sources.
             elif direction == DIR_SOURCE:
-                buf = Buffer(endpoint.description)
+                buf = Buffer(
+                    layout     = endpoint.description,
+                    pipe_valid = self.pipe_valid,
+                    pipe_ready = self.pipe_ready,
+                )
                 submodule.submodules += buf
                 submodule.comb += endpoint.connect(buf.sink)
                 setattr(submodule, name, buf.source)

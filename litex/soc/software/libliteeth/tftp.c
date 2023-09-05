@@ -145,7 +145,7 @@ int tftp_get(uint32_t ip, uint16_t server_port, const char *filename,
 	if(!udp_arp_resolve(ip))
 		return -1;
 
-	udp_set_callback(rx_callback);
+	udp_set_callback((udp_callback) rx_callback);
 
 	dst_buffer = buffer;
 
@@ -201,7 +201,7 @@ int tftp_put(uint32_t ip, uint16_t server_port, const char *filename,
 	if(!udp_arp_resolve(ip))
 		return -1;
 
-	udp_set_callback(rx_callback);
+	udp_set_callback((udp_callback) rx_callback);
 
 	packet_data = udp_get_tx_buffer();
 

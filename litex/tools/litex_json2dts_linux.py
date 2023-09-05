@@ -247,7 +247,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 """
 
     # Voltage Regulator for LiteSDCard (if applicable) --------------------------------------------
-    if "sdcore" in d["csr_bases"]:
+    if "sdcard_core" in d["csr_bases"]:
         dts += """
         vreg_mmc: vreg_mmc {{
             compatible = "regulator-fixed";
@@ -419,7 +419,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     # SDCard ---------------------------------------------------------------------------------------
 
-    if "sdcore" in d["csr_bases"]:
+    if "sdcard_core" in d["csr_bases"]:
         dts += """
             mmc0: mmc@{mmc_csr_base:x} {{
                 compatible = "litex,mmc";

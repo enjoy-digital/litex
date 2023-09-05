@@ -48,7 +48,7 @@ class GowinDDRInputImpl(Module):
 class GowinDDRInput:
     @staticmethod
     def lower(dr):
-        return GowinInputImpl(dr.i, dr.o1, dr.o2, dr.clk)
+        return GowinDDRInputImpl(dr.i, dr.o1, dr.o2, dr.clk)
 
 # Gowin DDR Output ---------------------------------------------------------------------------------
 

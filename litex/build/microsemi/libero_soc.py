@@ -187,10 +187,13 @@ class MicrosemiLiberoSoCPolarfireToolchain(GenericToolchain):
     def build_timing_constraints(self, vns):
         sdc = []
 
-        for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
+        for clk, [period, name] in sorted(self.clocks.items(), key=lambda x: x[0].duid):
+            clk_sig = self._vns.get_name(clk)
+            if name is None:
+                name = clk_sig
             sdc.append(
-                "create_clock -name {clk} -period " + str(period) +
-                " [get_nets {clk}]".format(clk=vns.get_name(clk)))
+                "create_clock -name {name} -period " + str(period) +
+                " [get_nets {clk}]".format(name=name, clk=clk_sig))
         for from_, to in sorted(self.false_paths,
                                 key=lambda x: (x[0].duid, x[1].duid)):
             sdc.append(
