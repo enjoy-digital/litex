@@ -311,6 +311,7 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
         cmd += "target_freq = {\n"
         for i, clock in enumerate(block["clk_out"]):
             cmd += '    "CLKOUT{}_FREQ": "{}",\n'.format(i, clock[1] / 1e6)
+            cmd += '    "CLKOUT{}_PHASE": "{}",\n'.format(i, clock[2])
         cmd += "}\n"
         cmd += 'calc_result = design.auto_calc_pll_clock("{}", target_freq)\n'.format(name)
 
