@@ -65,6 +65,9 @@ setup(
             # Simulation.
             "litex_sim=litex.tools.litex_sim:main",
 
+            # Export.
+            "litex_export_verilog = litex.tools.litex_export_verilog:main",
+
             # Demos.
             "litex_bare_metal_demo=litex.soc.software.demo.demo:main",
 
