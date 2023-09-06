@@ -481,8 +481,8 @@ def _print_combinatorial_logic_synth(f, ns):
             else:
                 r += "always @(*) begin\n"
                 for t in sorted(g[0], key=lambda x: ns.get_name(x)):
-                    r += _tab + ns.get_name(t) + " <= " + _print_expression(ns, t.reset)[0] + ";\n"
-                r += _print_node(ns, _AT_NONBLOCKING, 1, g[1])
+                    r += _tab + ns.get_name(t) + " = " + _print_expression(ns, t.reset)[0] + ";\n"
+                r += _print_node(ns, _AT_BLOCKING, 0, g[1])
                 r += "end\n"
     r += "\n"
     return r
