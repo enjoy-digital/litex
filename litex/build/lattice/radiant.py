@@ -210,7 +210,7 @@ class LatticeRadiantToolchain(GenericToolchain):
             script_contents += self._yosys.get_yosys_call(target="script") + "\n"
 
         # Radiant installed on Windows, executed from WSL2
-        if "microsoft-standard" in uname().release and which("pnmainc.exe") is not None:
+        if "microsoft-standard" in os.uname().release and which("pnmainc.exe") is not None:
             tool = "pnmainc.exe"
 
         script_contents += "{tool} {tcl_script}{fail_stmt}\n".format(
@@ -237,7 +237,7 @@ class LatticeRadiantToolchain(GenericToolchain):
             tool  = "radiantc"
 
         # Radiant installed on Windows, executed from WSL2
-        if "microsoft-standard" in uname().release and which("pnmainc.exe") is not None:
+        if "microsoft-standard" in os.uname().release and which("pnmainc.exe") is not None:
             tool = "pnmainc.exe"
 
         if which(tool) is None:
