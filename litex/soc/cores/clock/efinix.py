@@ -16,8 +16,9 @@ from litex.soc.cores.clock.common import *
 # Efinix / TRIONPLL ----------------------------------------------------------------------------------
 
 class EFINIXPLL(LiteXModule):
+    n            = 0
     nclkouts_max = 3
-    def __init__(self, platform, n=0, version="V1_V2"):
+    def __init__(self, platform,version="V1_V2"):
         self.logger = logging.getLogger("EFINIXPLL")
 
         if version == "V1_V2":
@@ -33,7 +34,8 @@ class EFINIXPLL(LiteXModule):
         self.nclkouts   = 0
         self.reset      = Signal()
         self.locked     = Signal()
-        self.name       = f"pll{n}"
+        self.name       = f"pll{self.n}"
+        EFINIXPLL.n += 1 # FIXME: Improve.
 
         # Create PLL block.
         block = {}
@@ -131,12 +133,12 @@ class EFINIXPLL(LiteXModule):
 
 class TITANIUMPLL(EFINIXPLL):
     nclkouts_max = 5
-    def __init__(self, platform, n=0):
-        EFINIXPLL.__init__(self, platform, n, version="V3")
+    def __init__(self, platform):
+        EFINIXPLL.__init__(self, platform, version="V3")
 
 # Efinix / TRION ----------------------------------------------------------------------------------
 
 class TRIONPLL(EFINIXPLL):
     nclkouts_max = 3
-    def __init__(self, platform, n=0):
-        EFINIXPLL.__init__(self, platform, n, version="V1_V2")
+    def __init__(self, platform):
+        EFINIXPLL.__init__(self, platform, version="V1_V2")
