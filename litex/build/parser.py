@@ -217,7 +217,8 @@ class LiteXArgumentParser(argparse.ArgumentParser):
                 self._platform.fill_args(self._toolchain, self)
 
         # Intercept selected CPU to fill arguments.
-        cpu_cls = cpu.CPUS.get(self.get_value_from_key("--cpu-type"), None)
+        default_cpu_type = self._args_default.get("cpu_type", None)
+        cpu_cls = cpu.CPUS.get(self.get_value_from_key("--cpu-type", default_cpu_type))
         if cpu_cls is not None and hasattr(cpu_cls, "args_fill"):
             cpu_cls.args_fill(self)
 
