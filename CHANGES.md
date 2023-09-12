@@ -65,6 +65,7 @@
 	- liteeth/phy                  : Added Artix7 2500BASE-X PHY.
 	- liteeth/phy                  : Added Gowin Arora V RGMII PHY (GW5RGMII).
 	- liteeth/phy                  : Added Titanium RGMII PHY (Tested with Ti60 F225 + RGMII adapter board).
+	- build/io                     : Added ClkInput/Ouput IO abstraction to simplify some Efinix designs.
 
 	[> Changed
 	----------
