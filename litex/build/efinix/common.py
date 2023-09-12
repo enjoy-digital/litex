@@ -62,6 +62,49 @@ class EfinixAsyncResetSynchronizer:
     def lower(dr):
         return EfinixAsyncResetSynchronizerImpl(dr.cd, dr.async_reset)
 
+# Efinix Clk Input ---------------------------------------------------------------------------------
+
+class EfinixClkInputImpl(Module):
+    def __init__(self, platform, i, o):
+        o_clk  = platform.add_iface_io(o) # FIXME.
+        block = {
+            "type"       : "GPIO",
+            "size"       : 1,
+            "location"   : platform.get_pin_location(i)[0],
+            "properties" : platform.get_pin_properties(i),
+            "name"       : platform.get_pin_name(o_clk),
+            "mode"       : "INPUT_CLK",
+        }
+        platform.toolchain.ifacewriter.blocks.append(block)
+        platform.toolchain.excluded_ios.append(i)
+
+
+class EfinixClkInput(Module):
+    @staticmethod
+    def lower(dr):
+        return EfinixClkInputImpl(dr.platform, dr.i, dr.o)
+
+# Efinix Clk Output ---------------------------------------------------------------------------------
+
+class EfinixClkOutputImpl(Module):
+    def __init__(self, platform, i, o):
+        block = {
+            "type"       : "GPIO",
+            "size"       : 1,
+            "location"   : platform.get_pin_location(o)[0],
+            "properties" : platform.get_pin_properties(o),
+            "name"       : i, # FIXME.
+            "mode"       : "OUTPUT_CLK",
+        }
+        platform.toolchain.ifacewriter.blocks.append(block)
+        platform.toolchain.excluded_ios.append(o)
+
+
+class EfinixClkOutput(Module):
+    @staticmethod
+    def lower(dr):
+        return EfinixClkOutputImpl(dr.platform, dr.i, dr.o)
+
 # Efinix Tristate ----------------------------------------------------------------------------------
 
 class EfinixTristateImpl(Module):
@@ -179,6 +222,8 @@ class EfinixDDRInput:
 
 efinix_special_overrides = {
     AsyncResetSynchronizer : EfinixAsyncResetSynchronizer,
+    ClkInput               : EfinixClkInput,
+    ClkOutput              : EfinixClkOutput,
     Tristate               : EfinixTristate,
     SDRTristate            : EfinixSDRTristate,
     DDROutput              : EfinixDDROutput,
