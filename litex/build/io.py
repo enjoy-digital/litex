@@ -43,6 +43,37 @@ class DifferentialOutput(Special):
     def lower(dr):
         raise NotImplementedError("Attempted to use a Differential Output, but platform does not support them")
 
+# Clk Input/Output ---------------------------------------------------------------------------------
+
+class ClkInput(Special):
+    def __init__(self, i, o):
+        Special.__init__(self)
+        self.i = wrap(i)
+        self.o = o if isinstance(o, str) else wrap(o)
+
+    def iter_expressions(self):
+        yield self, "i", SPECIAL_INPUT
+        yield self, "o", SPECIAL_OUTPUT
+
+    @staticmethod
+    def lower(dr):
+        raise NotImplementedError("Attempted to use a Clk Input, but platform does not support them")
+
+
+class ClkOutput(Special):
+    def __init__(self, i, o):
+        Special.__init__(self)
+        self.i = i if isinstance(i, str) else wrap(i)
+        self.o = wrap(o)
+
+    def iter_expressions(self):
+        yield self, "i", SPECIAL_INPUT
+        yield self, "o", SPECIAL_OUTPUT
+
+    @staticmethod
+    def lower(dr):
+        raise NotImplementedError("Attempted to use a Clk Output, but platform does not support them")
+
 # SDR Input/Output ---------------------------------------------------------------------------------
 
 class InferedSDRIO(Module):
