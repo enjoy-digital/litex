@@ -288,7 +288,7 @@ class NaxRiscv(CPU):
         os.chdir(os.path.join(dir))
         wipe_cmd = "&& git clean --force -d -x && git reset --hard" if "wipe" in NaxRiscv.update_repo else ""
         checkout_cmd = f"&& git checkout {hash}" if hash is not None else ""
-        subprocess.check_call(f"cd {dir} {wipe_cmd} && git checkout {branch} && git pull {checkout_cmd}", shell=True)
+        subprocess.check_call(f"cd {dir} {wipe_cmd} && git checkout {branch} && git submodule init && git pull --recurse-submodules {checkout_cmd}", shell=True)
 
     # Netlist Generation.
     @staticmethod
@@ -296,12 +296,10 @@ class NaxRiscv(CPU):
         vdir = get_data_mod("cpu", "naxriscv").data_location
         ndir = os.path.join(vdir, "ext", "NaxRiscv")
         sdir = os.path.join(vdir, "ext", "SpinalHDL")
-        rdir = os.path.join(vdir, "ext", "NaxRiscv/ext/rvls")
 
         if NaxRiscv.update_repo != "no":
             NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git", "coherency", "abe0c3bc" if NaxRiscv.update_repo=="recommended" else None)
             NaxRiscv.git_setup("SpinalHDL", sdir, "https://github.com/SpinalHDL/SpinalHDL.git", "bus-fabric" , "d1f0b637" if NaxRiscv.update_repo=="recommended" else None)
-            NaxRiscv.git_setup("Rvls", rdir, "https://github.com/SpinalHDL/rvls.git", "main", "d7e8d845" if NaxRiscv.update_repo=="recommended" else None)
 
         gen_args = []
         gen_args.append(f"--netlist-name={NaxRiscv.netlist_name}")
