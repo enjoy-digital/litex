@@ -153,11 +153,17 @@ class NaxRiscv(CPU):
 
         # # #
 
+        self.tracer_valid = Signal()
+        self.tracer_payload = Signal(8)
+
         # CPU Instance.
         self.cpu_params = dict(
             # Clk/Rst.
             i_clk   = ClockSignal("sys"),
             i_reset = ResetSignal("sys") | self.reset,
+
+            o_patcher_tracer_valid=self.tracer_valid,
+            o_patcher_tracer_payload=self.tracer_payload,
 
             # Interrupt.
             i_peripheral_externalInterrupts_port = self.interrupt,
@@ -289,9 +295,9 @@ class NaxRiscv(CPU):
         ndir = os.path.join(vdir, "ext", "NaxRiscv")
         sdir = os.path.join(vdir, "ext", "SpinalHDL")
 
-        # if NaxRiscv.update_repo != "no":
-        #     NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git"  , "main", "57e3bf59" if NaxRiscv.update_repo=="recommended" else None)
-        #     NaxRiscv.git_setup("SpinalHDL", sdir, "https://github.com/SpinalHDL/SpinalHDL.git", "dev" , "8511f126" if NaxRiscv.update_repo=="recommended" else None)
+         if NaxRiscv.update_repo != "no":
+             NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git"  , "coherency", "abe0c3bc" if NaxRiscv.update_repo=="recommended" else None)
+             NaxRiscv.git_setup("SpinalHDL", sdir, "https://github.com/SpinalHDL/SpinalHDL.git", "bus-fabric" , "d1f0b637" if NaxRiscv.update_repo=="recommended" else None)
 
         gen_args = []
         gen_args.append(f"--netlist-name={NaxRiscv.netlist_name}")
