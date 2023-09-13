@@ -149,8 +149,6 @@ class NaxRiscv(CPU):
         self.periph_buses     = [pbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses     = []           # Memory buses (Connected directly to LiteDRAM).
 
-        self.dma_bus = dma_bus = axi.AXIInterface(data_width=64, address_width=32, id_width=4)
-
         # # #
 
         self.tracer_valid = Signal()
@@ -187,51 +185,55 @@ class NaxRiscv(CPU):
             i_pBus_rvalid  = pbus.r.valid,
             o_pBus_rready  = pbus.r.ready,
             i_pBus_rdata   = pbus.r.data,
-            i_pBus_rresp   = pbus.r.resp,
-
-            # DMA
-            o_dma_bus_awready=dma_bus.aw.ready,
-            i_dma_bus_awvalid=dma_bus.aw.valid,
-            i_dma_bus_awid=dma_bus.aw.id,
-            i_dma_bus_awaddr=dma_bus.aw.addr,
-            i_dma_bus_awlen=dma_bus.aw.len,
-            i_dma_bus_awsize=dma_bus.aw.size,
-            i_dma_bus_awburst=dma_bus.aw.burst,
-            i_dma_bus_awlock=dma_bus.aw.lock,
-            i_dma_bus_awcache=dma_bus.aw.cache,
-            i_dma_bus_awprot=dma_bus.aw.prot,
-            i_dma_bus_awqos=dma_bus.aw.qos,
-
-            o_dma_bus_wready=dma_bus.w.ready,
-            i_dma_bus_wvalid=dma_bus.w.valid,
-            i_dma_bus_wdata=dma_bus.w.data,
-            i_dma_bus_wstrb=dma_bus.w.strb,
-            i_dma_bus_wlast=dma_bus.w.last,
-
-            i_dma_bus_bready=dma_bus.b.ready,
-            o_dma_bus_bvalid=dma_bus.b.valid,
-            o_dma_bus_bid=dma_bus.b.id,
-            o_dma_bus_bresp=dma_bus.b.resp,
-
-            o_dma_bus_arready=dma_bus.ar.ready,
-            i_dma_bus_arvalid=dma_bus.ar.valid,
-            i_dma_bus_arid=dma_bus.ar.id,
-            i_dma_bus_araddr=dma_bus.ar.addr,
-            i_dma_bus_arlen=dma_bus.ar.len,
-            i_dma_bus_arsize=dma_bus.ar.size,
-            i_dma_bus_arburst=dma_bus.ar.burst,
-            i_dma_bus_arlock=dma_bus.ar.lock,
-            i_dma_bus_arcache=dma_bus.ar.cache,
-            i_dma_bus_arprot=dma_bus.ar.prot,
-            i_dma_bus_arqos=dma_bus.ar.qos,
-
-            i_dma_bus_rready=dma_bus.r.ready,
-            o_dma_bus_rvalid=dma_bus.r.valid,
-            o_dma_bus_rid=dma_bus.r.id,
-            o_dma_bus_rdata=dma_bus.r.data,
-            o_dma_bus_rresp=dma_bus.r.resp,
-            o_dma_bus_rlast=dma_bus.r.last,
+            i_pBus_rresp   = pbus.r.resp
         )
+
+        if NaxRiscv.with_dma:
+            self.dma_bus = dma_bus = axi.AXIInterface(data_width=64, address_width=32, id_width=4)
+
+            self.cpu_params.update(
+                o_dma_bus_awready=dma_bus.aw.ready,
+                i_dma_bus_awvalid=dma_bus.aw.valid,
+                i_dma_bus_awid=dma_bus.aw.id,
+                i_dma_bus_awaddr=dma_bus.aw.addr,
+                i_dma_bus_awlen=dma_bus.aw.len,
+                i_dma_bus_awsize=dma_bus.aw.size,
+                i_dma_bus_awburst=dma_bus.aw.burst,
+                i_dma_bus_awlock=dma_bus.aw.lock,
+                i_dma_bus_awcache=dma_bus.aw.cache,
+                i_dma_bus_awprot=dma_bus.aw.prot,
+                i_dma_bus_awqos=dma_bus.aw.qos,
+
+                o_dma_bus_wready=dma_bus.w.ready,
+                i_dma_bus_wvalid=dma_bus.w.valid,
+                i_dma_bus_wdata=dma_bus.w.data,
+                i_dma_bus_wstrb=dma_bus.w.strb,
+                i_dma_bus_wlast=dma_bus.w.last,
+
+                i_dma_bus_bready=dma_bus.b.ready,
+                o_dma_bus_bvalid=dma_bus.b.valid,
+                o_dma_bus_bid=dma_bus.b.id,
+                o_dma_bus_bresp=dma_bus.b.resp,
+
+                o_dma_bus_arready=dma_bus.ar.ready,
+                i_dma_bus_arvalid=dma_bus.ar.valid,
+                i_dma_bus_arid=dma_bus.ar.id,
+                i_dma_bus_araddr=dma_bus.ar.addr,
+                i_dma_bus_arlen=dma_bus.ar.len,
+                i_dma_bus_arsize=dma_bus.ar.size,
+                i_dma_bus_arburst=dma_bus.ar.burst,
+                i_dma_bus_arlock=dma_bus.ar.lock,
+                i_dma_bus_arcache=dma_bus.ar.cache,
+                i_dma_bus_arprot=dma_bus.ar.prot,
+                i_dma_bus_arqos=dma_bus.ar.qos,
+
+                i_dma_bus_rready=dma_bus.r.ready,
+                o_dma_bus_rvalid=dma_bus.r.valid,
+                o_dma_bus_rid=dma_bus.r.id,
+                o_dma_bus_rdata=dma_bus.r.data,
+                o_dma_bus_rresp=dma_bus.r.resp,
+                o_dma_bus_rlast=dma_bus.r.last
+            )
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
