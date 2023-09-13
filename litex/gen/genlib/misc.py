@@ -74,9 +74,10 @@ def timeline(trigger, events):
 
 
 class WaitTimer(Module):
-    def __init__(self, t):
-        self.wait = Signal()
-        self.done = Signal()
+    def __init__(self, t, has_ce=False):
+        self.wait = Signal() # i
+        self.ce   = Signal() # i
+        self.done = Signal() # o
 
         # # #
 
@@ -84,10 +85,16 @@ class WaitTimer(Module):
         t     = int(t)
         count = Signal(bits_for(t), reset=t)
 
+        tick = Signal()
+        if has_ce:
+            self.comb += tick.eq(~self.done & self.ce)
+        else:
+            self.comb += tick.eq(~self.done)
+
         self.comb += self.done.eq(count == 0)
         self.sync += [
             If(self.wait,
-                If(~self.done,
+                If(tick,
                     count.eq(count - 1)
                 )
             ).Else(
