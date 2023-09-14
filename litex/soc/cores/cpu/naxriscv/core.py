@@ -299,7 +299,7 @@ class NaxRiscv(CPU):
 
         if NaxRiscv.update_repo != "no":
             NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git", "coherency", "ee4c6fb7" if NaxRiscv.update_repo=="recommended" else None)
-            NaxRiscv.git_setup("SpinalHDL", sdir, "https://github.com/SpinalHDL/SpinalHDL.git", "bus-fabric" , "d1f0b637" if NaxRiscv.update_repo=="recommended" else None)
+            NaxRiscv.git_setup("SpinalHDL", sdir, "https://github.com/SpinalHDL/SpinalHDL.git", "bus-fabric" , "ee95492a" if NaxRiscv.update_repo=="recommended" else None)
 
         gen_args = []
         gen_args.append(f"--netlist-name={NaxRiscv.netlist_name}")
