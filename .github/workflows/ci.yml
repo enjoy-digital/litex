@@ -38,7 +38,7 @@ jobs:
       # Install (n)Migen / LiteX / Cores
       - name: Install LiteX
         run: |
-          python3 litex_setup.py --config=full --init --install --user
+          python3 litex_setup.py --config=full --init --install --user --disable-auto-update
 
       # Install GCC Toolchains
       - name: Install GCC Toolchains

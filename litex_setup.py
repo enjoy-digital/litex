@@ -429,6 +429,7 @@ def main():
     parser.add_argument("--dev",     action="store_true", help="Development-Mode (no Auto-Update of litex_setup.py / Switch to git@github.com URLs).")
     parser.add_argument("--freeze",  action="store_true", help="Freeze and display current config.")
     parser.add_argument("--release", default=None,        help="Make release.")
+    parser.add_argument("--disable-auto-update", action="store_true", help="Disables Auto-Update of litex_setup.py")
 
     # Retro-compatibility.
     parser.add_argument("compat_args", nargs="*", help="Retro-Compatibility arguments (init, update, install or gcc).")
@@ -444,7 +445,7 @@ def main():
 
     # Location/Auto-Update.
     litex_setup_location_check()
-    if not args.dev:
+    if not args.dev and not args.disable_auto_update:
         litex_setup_auto_update()
 
     # Init.
