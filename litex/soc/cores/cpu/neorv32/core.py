@@ -17,7 +17,16 @@ from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 
 # Variants -----------------------------------------------------------------------------------------
 
-CPU_VARIANTS = ["minimal", "lite", "standard", "full"]
+CPU_VARIANTS = [
+    "minimal",
+    "minimal+debug",
+    "lite",
+    "lite+debug",
+    "standard",
+    "standard+debug",
+    "full",
+    "full+debug",
+]
 
 # GCC Flags ----------------------------------------------------------------------------------------
 
@@ -30,9 +39,13 @@ GCC_FLAGS = {
     #                               |    ||||/-- Double-Precision Floating-Point
     #                               i    macfd
     "minimal":          "-march=rv32i2p0      -mabi=ilp32",
+    "minimal+debug":    "-march=rv32i2p0      -mabi=ilp32",
     "lite":             "-march=rv32i2p0_mc   -mabi=ilp32",
+    "lite+debug":       "-march=rv32i2p0_mc   -mabi=ilp32",
     "standard":         "-march=rv32i2p0_mc   -mabi=ilp32",
+    "standard+debug":   "-march=rv32i2p0_mc   -mabi=ilp32",
     "full":             "-march=rv32i2p0_mc   -mabi=ilp32",
+    "full+debug":       "-march=rv32i2p0_mc   -mabi=ilp32",
 }
 
 # NEORV32 ------------------------------------------------------------------------------------------
@@ -67,8 +80,8 @@ class NEORV32(CPU):
 
         # # #
 
-        # CPU LiteX Core Complex Wrapper
-        self.specials += Instance("neorv32_litex_core_complex",
+        # CPU Instance.
+        self.cpu_params = dict(
             # Clk/Rst.
             i_clk_i  = ClockSignal("sys"),
             i_rstn_i = ~(ResetSignal() | self.reset),
@@ -95,30 +108,51 @@ class NEORV32(CPU):
             i_wb_err_i = idbus.err,
         )
 
-        self.vhd2v_converter = VHD2VConverter(platform,
+        if "debug" in variant:
+            self.add_debug()
+
+        self.vhd2v_converter = VHD2VConverter(self.platform,
             top_entity    = "neorv32_litex_core_complex",
             build_dir     = os.path.abspath(os.path.dirname(__file__)),
             work_package  = "neorv32",
             force_convert = True,
             params = dict(
                 p_CONFIG = {
-                    "minimal"  : 0,
-                    "lite"     : 1,
-                    "standard" : 2,
-                    "full"     : 3
-                }[variant],
-                p_DEBUG = False,
+                    "minimal"        : 0,
+                    "minimal+debug"  : 0,
+                    "lite"           : 1,
+                    "lite+debug"     : 1,
+                    "standard"       : 2,
+                    "standard+debug" : 2,
+                    "full"           : 3,
+                    "full+debug"     : 3
+                }[self.variant],
+                p_DEBUG = "debug" in self.variant,
             )
         )
 
-        # Add Verilog sources
-        self.add_sources(variant)
+        self.add_sources()
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
         assert reset_address == 0x0000_0000
 
-    def add_sources(self, variant):
+    def add_debug(self):
+        self.i_jtag_trst = Signal()
+        self.i_jtag_tck = Signal()
+        self.i_jtag_tdi = Signal()
+        self.o_jtag_tdo = Signal()
+        self.i_jtag_tms = Signal()
+
+        self.cpu_params.update(
+            i_jtag_trst_i = self.i_jtag_trst,
+            i_jtag_tck_i  = self.i_jtag_tck,
+            i_jtag_tdi_i  = self.i_jtag_tdi,
+            o_jtag_tdo_o  = self.o_jtag_tdo,
+            i_jtag_tms_i  = self.i_jtag_tms,
+        )
+
+    def add_sources(self):
         cdir = os.path.abspath(os.path.dirname(__file__))
         # List VHDL sources.
         sources = {
@@ -172,3 +206,6 @@ class NEORV32(CPU):
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
+
+        # CPU LiteX Core Complex Wrapper
+        self.specials += Instance("neorv32_litex_core_complex", **self.cpu_params)
