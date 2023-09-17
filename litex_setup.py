@@ -199,7 +199,11 @@ def git_checkout(sha1=None, tag=None):
 
 def git_tag(tag=None):
     assert tag is not None
-    os.system(f"git tag {tag}")
+    if os.path.exists(".bumpversion.cfg"):
+        # Use bump2version to increment tag
+        os.system(f"bump2version --new-version {tag} setup.py")
+    else:
+        os.system(f"git tag {tag}")
     os.system(f"git push --tags")
 
 # Git repositories initialization ------------------------------------------------------------------

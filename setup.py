@@ -10,7 +10,7 @@ with open("README.md", "r") as fp:
 
 setup(
     name="litex",
-    version="2023.04",
+    version="2023.08",
     description="Python SoC/Core builder for building FPGA based systems.",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -29,10 +29,11 @@ setup(
     ],
     extras_require={
         "develop": [
-          "meson"
-          "pexpect"
-          "setuptools"
-          "requests"
+          "bump2version",
+          "meson",
+          "pexpect",
+          "setuptools",
+          "requests",
         ]
     },
     packages=find_packages(exclude=("test*", "sim*", "doc*")),
