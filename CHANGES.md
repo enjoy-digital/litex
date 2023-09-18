@@ -5,6 +5,7 @@
 
 	[> Added
 	--------
+	cpu/naxriscv: Added SMP support.
 
 	[> Changed
 	----------
