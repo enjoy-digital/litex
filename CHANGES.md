@@ -1,3 +1,16 @@
+[> Changes since 2023.08
+------------------------
+	[> Fixed
+	--------
+
+	[> Added
+	--------
+
+	[> Changed
+	----------
+	build/osfpga: Removed initial support (would need feedbacks/updates).
+
+
 [> 2023.08, released on September 14th 2023
 -------------------------------------------
 
