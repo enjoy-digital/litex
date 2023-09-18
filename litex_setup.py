@@ -449,7 +449,9 @@ def main():
 
     # Init.
     if args.init:
-        litex_setup_init_repos(config=args.config, tag=args.tag, dev_mode=args.dev)
+        ci_run   = (os.environ.get("GITHUB_ACTIONS") == "true")
+        dev_mode = args.dev and (not ci_run)
+        litex_setup_init_repos(config=args.config, tag=args.tag, dev_mode=dev_mode)
 
     # Update.
     if args.update:
