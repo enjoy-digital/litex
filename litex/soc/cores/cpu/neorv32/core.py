@@ -2,6 +2,7 @@
 # This file is part of LiteX.
 #
 # Copyright (c) 2022 Florent Kermarrec <florent@enjoy-digital.fr>
+#               2023 Protech Engineering <m.marzaro@protechgoup.it>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
@@ -60,7 +61,7 @@ class NEORV32(CPU):
     gcc_triple           = CPU_GCC_TRIPLE_RISCV32
     linker_output_format = "elf32-littleriscv"
     nop                  = "nop"
-    io_regions           = {0x8000_0000: 0x8000_0000} # Origin, Length.
+    io_regions           = {0xF000_0000: 0x0FFF_BFFF} # Origin, Length.
 
     # GCC Flags.
     @property
@@ -133,6 +134,16 @@ class NEORV32(CPU):
 
         self.add_sources()
 
+    # Memory Mapping.
+    @property
+    def mem_map(self):
+        return {
+            "rom"       : 0x0000_0000,
+            "sram"      : 0x0100_0000,
+            "main_ram"  : 0x4000_0000,
+            "csr"       : 0xF000_0000,
+        }
+
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
         assert reset_address == 0x0000_0000
@@ -157,33 +168,51 @@ class NEORV32(CPU):
         # List VHDL sources.
         sources = {
             "core" : [
-                # CPU & Processors Packages/Cores.
-                "neorv32_package.vhd",
-                "neorv32_fifo.vhd",
-
-                # CPU components.
+                "neorv32_application_image.vhd",
+                "neorv32_bootloader_image.vhd",
+                "neorv32_boot_rom.vhd",
+                "neorv32_cfs.vhd",
+                "neorv32_cpu_alu.vhd",
+                "neorv32_cpu_control.vhd",
+                "neorv32_cpu_cp_bitmanip.vhd",
+                "neorv32_cpu_cp_cfu.vhd",
+                "neorv32_cpu_cp_fpu.vhd",
+                "neorv32_cpu_cp_muldiv.vhd",
+                "neorv32_cpu_cp_shifter.vhd",
+                "neorv32_cpu_decompressor.vhd",
+                "neorv32_cpu_lsu.vhd",
+                "neorv32_cpu_pmp.vhd",
+                "neorv32_cpu_regfile.vhd",
                 "neorv32_cpu.vhd",
-                    "neorv32_cpu_alu.vhd",
-                        "neorv32_cpu_cp_bitmanip.vhd",
-                        "neorv32_cpu_cp_cfu.vhd",
-                        "neorv32_cpu_cp_fpu.vhd",
-                        "neorv32_cpu_cp_muldiv.vhd",
-                        "neorv32_cpu_cp_shifter.vhd",
-                    "neorv32_cpu_bus.vhd",
-                    "neorv32_cpu_control.vhd",
-                        "neorv32_cpu_decompressor.vhd",
-                    "neorv32_cpu_regfile.vhd",
-
-                # Processor components.
+                "neorv32_crc.vhd",
+                "neorv32_dcache.vhd",
+                "neorv32_debug_dm.vhd",
+                "neorv32_debug_dtm.vhd",
+                "neorv32_dma.vhd",
+                "neorv32_dmem.entity.vhd",
+                "neorv32_fifo.vhd",
+                "neorv32_gpio.vhd",
+                "neorv32_gptmr.vhd",
+                "neorv32_icache.vhd",
+                "neorv32_imem.entity.vhd",
+                "neorv32_intercon.vhd",
+                "neorv32_mtime.vhd",
+                "neorv32_neoled.vhd",
+                "neorv32_onewire.vhd",
+                "neorv32_package.vhd",
+                "neorv32_pwm.vhd",
+                "neorv32_sdi.vhd",
+                "neorv32_slink.vhd",
+                "neorv32_spi.vhd",
+                "neorv32_sysinfo.vhd",
                 "neorv32_top.vhd",
-                    "neorv32_icache.vhd",
-                    "neorv32_busswitch.vhd",
-                    "neorv32_bus_keeper.vhd",
-                    "neorv32_wishbone.vhd",
-                    "neorv32_mtime.vhd",
-                    "neorv32_sysinfo.vhd",
-                    "neorv32_debug_dm.vhd",
-                    "neorv32_debug_dtm.vhd",
+                "neorv32_trng.vhd",
+                "neorv32_twi.vhd",
+                "neorv32_uart.vhd",
+                "neorv32_wdt.vhd",
+                "neorv32_wishbone.vhd",
+                "neorv32_xip.vhd",
+                "neorv32_xirq.vhd",
             ],
 
             "core/mem": [
@@ -197,7 +226,8 @@ class NEORV32(CPU):
         }
 
         # Download VHDL sources (if not already present).
-        sha1 = "d610a0bd777f55d17dd59f174566aa88e911a1ec"
+        # Version 1.8.9
+        sha1 = "fdb00a5d24e256ac9a9cb29410f2653c95068c91"
         for directory, vhds in sources.items():
             for vhd in vhds:
                 self.vhd2v_converter.add_source(os.path.join(cdir, vhd))
