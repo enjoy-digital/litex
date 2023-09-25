@@ -1907,7 +1907,7 @@ class LiteXSoC(SoC):
             sdcard_irq.block2mem_dma = EventSourcePulse(description="Block2Mem DMA terminated.")
         if "write" in mode:
             sdcard_irq.mem2block_dma = EventSourcePulse(description="Mem2Block DMA terminated.")
-        sdcard_irq.cmd_done  = EventSourceLevel(description="Command completed.")
+        sdcard_irq.cmd_done  = EventSourcePulse(description="Command completed.")
         sdcard_irq.finalize()
         if "read" in mode:
             self.comb += sdcard_irq.block2mem_dma.trigger.eq(sdcard_block2mem.irq)
@@ -1915,7 +1915,7 @@ class LiteXSoC(SoC):
             self.comb += sdcard_irq.mem2block_dma.trigger.eq(sdcard_mem2block.irq)
         self.comb += [
             sdcard_irq.card_detect.trigger.eq(sdcard_phy.card_detect_irq),
-            sdcard_irq.cmd_done.trigger.eq(sdcard_core.cmd_event.fields.done)
+            sdcard_irq.cmd_done.trigger.eq(sdcard_core.irq)
         ]
         if self.irq.enabled:
             self.irq.add(f"{name}_irq", use_loc_if_exists=True)
