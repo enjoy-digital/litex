@@ -157,6 +157,44 @@ class EfinixSDRTristate(Module):
     def lower(dr):
         return EfinixSDRTristateImpl(dr.platform, dr.io, dr.o, dr.oe, dr.i, dr.clk)
 
+# Efinix DifferentialOutput ------------------------------------------------------------------------
+
+class EfinixDifferentialOutputImpl(Module):
+    def __init__(self, platform, i, o_p, o_n):
+        # only keep _p
+        io_name = platform.get_pin_name(o_p)
+        io_pad  = platform.get_pad_name(o_p) # need real pad name
+        io_prop = platform.get_pin_properties(o_p)
+
+        # _p has _P_ and _n has _N_ followed by an optional function
+        # lvds block needs _PN_
+        pad_split = io_pad.split('_')
+        assert pad_split[1] == 'P'
+        io_pad = f"{pad_split[0]}_PN_{pad_split[2]}"
+
+        platform.add_extension([(io_name, 0, Pins(1))])
+        i_data = platform.request(io_name)
+
+        self.comb += i_data.eq(i)
+        block = {
+            "type"              : "LVDS",
+            "mode"              : "INPUT",
+            "tx_mode"           : "DATA",
+            "name"              : io_name,
+            "sig"               : i_data,
+            "location"          : io_pad,
+            "size"              : 1,
+        }
+        platform.toolchain.ifacewriter.blocks.append(block)
+        platform.toolchain.excluded_ios.append(platform.get_pin(o_p))
+        platform.toolchain.excluded_ios.append(platform.get_pin(o_n))
+        platform.toolchain.excluded_ios.append(i_data)
+
+class EfinixDifferentialOutput:
+    @staticmethod
+    def lower(dr):
+        return EfinixDifferentialOutputImpl(dr.platform, dr.i, dr.o_p, dr.o_n)
+
 # Efinix DDROutput ---------------------------------------------------------------------------------
 
 class EfinixDDROutputImpl(Module):
@@ -225,6 +263,7 @@ efinix_special_overrides = {
     ClkInput               : EfinixClkInput,
     ClkOutput              : EfinixClkOutput,
     Tristate               : EfinixTristate,
+    DifferentialOutput     : EfinixDifferentialOutput,
     SDRTristate            : EfinixSDRTristate,
     DDROutput              : EfinixDDROutput,
     DDRInput               : EfinixDDRInput,
