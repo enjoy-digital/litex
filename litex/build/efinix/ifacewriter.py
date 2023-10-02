@@ -373,7 +373,7 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
         sig      = block["sig"]
         cmd      = []
 
-        if mode == "INPUT":
+        if mode == "OUTPUT":
             block_type = "LVDS_TX"
             tx_mode    = block["tx_mode"]
             cmd.append('design.create_block("{}", block_type="{}", tx_mode="{}")'.format(name, block_type, tx_mode))
@@ -394,32 +394,35 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
             # FIXME: untested
             block_type = "LVDS_RX"
             rx_mode    = block["rx_mode"]
+            term       = block["term"]
+            ena        = block["ena"]
             cmd.append('design.create_block("{}", block_type="{}", rx_conn_type="{}")'.format(name, block_type, rx_mode))
             cmd.append('design.set_property("{}","GBUF","","{}")'.format(name, block_type))
-            cmd.append('design.set_property("{}","RX_CONN_TYPE","{}","{}")'.format(name, block_type, rx_mode))
+            cmd.append('design.set_property("{}","RX_CONN_TYPE","{}","{}")'.format(name, rx_mode, block_type))
             cmd.append('design.set_property("{}","RX_DBG_PIN","","{}")'.format(name, block_type))
             cmd.append('design.set_property("{}","RX_DELAY","16","{}")'.format(name, block_type))
             cmd.append('design.set_property("{}","RX_DELAY_MODE","STATIC","{}")'.format(name, block_type))
             cmd.append('design.set_property("{}","RX_DESER","1","{}")'.format(name, block_type))
-            cmd.append('design.set_property("{}","RX_DLY_ENA_PIN","lvds_rx_inst1_RX_DLY_ENA","{}")'.format(name, block_type))
-            cmd.append('design.set_property("{}","RX_DLY_INC_PIN","lvds_rx_inst1_RX_DLY_INC","{}")'.format(name, block_type))
-            cmd.append('design.set_property("{}","RX_DLY_RST_PIN","lvds_rx_inst1_RX_DLY_RST","{}")'.format(name, block_type))
-            cmd.append('design.set_property("{}","RX_ENA_PIN","","{}")'.format(name, block_type))
+            cmd.append('design.set_property("{}","RX_ENA_PIN","{}","{}")'.format(name, ena.name, block_type))
             cmd.append('design.set_property("{}","RX_EN_DESER","0","{}")'.format(name, block_type))
             cmd.append('design.set_property("{}","RX_FASTCLK_PIN","","{}")'.format(name, block_type))
             cmd.append('design.set_property("{}","RX_FIFO","0","{}")'.format(name, block_type))
-            cmd.append('design.set_property("{}","RX_FIFOCLK_PIN","","{}")'.format(name, block_type))
-            cmd.append('design.set_property("{}","RX_FIFO_EMPTY_PIN","lvds_rx_inst1_RX_FIFO_EMPTY","{}")'.format(name, block_type))
-            cmd.append('design.set_property("{}","RX_FIFO_RD_PIN","lvds_rx_inst1_RX_FIFO_RD","{}")'.format(name, block_type))
             cmd.append('design.set_property("{}","RX_HALF_RATE","0","{}")'.format(name, block_type))
-            cmd.append('design.set_property("{}","RX_IN_PIN","lvds_rx_inst1_RX_DATA","{}")'.format(name, block_type))
-            cmd.append('design.set_property("{}","RX_LOCK_PIN","lvds_rx_inst1_RX_LOCK","{}")'.format(name, block_type))
-            cmd.append('design.set_property("{}","RX_RST_PIN","lvds_rx_inst1_RX_RST","{}")'.format(name, block_type))
+            cmd.append('design.set_property("{}","RX_IN_PIN","{}","{}")'.format(name, sig.name, block_type))
             cmd.append('design.set_property("{}","RX_SLOWCLK_PIN","","{}")'.format(name, block_type))
             cmd.append('design.set_property("{}","RX_SLVS","0","{}")'.format(name, block_type))
-            cmd.append('design.set_property("{}","RX_TERM","ON","{}")'.format(name, block_type))
-            cmd.append('design.set_property("{}","RX_TERM_PIN","lvds_rx_inst1_RX_TERM","{}")'.format(name, block_type))
+            cmd.append('design.set_property("{}","RX_TERM","OFF","{}")'.format(name, block_type))
+            cmd.append('design.set_property("{}","RX_TERM_PIN","{}","{}")'.format(name, term.name, block_type))
             cmd.append('design.set_property("{}","RX_VOC_DRIVER","0","{}")'.format(name, block_type))
+            # Optional
+            #cmd.append('design.set_property("{}","RX_DLY_ENA_PIN","lvds_rx_inst1_RX_DLY_ENA","{}")'.format(name, block_type))
+            #cmd.append('design.set_property("{}","RX_DLY_INC_PIN","lvds_rx_inst1_RX_DLY_INC","{}")'.format(name, block_type))
+            #cmd.append('design.set_property("{}","RX_DLY_RST_PIN","lvds_rx_inst1_RX_DLY_RST","{}")'.format(name, block_type))
+            #cmd.append('design.set_property("{}","RX_FIFOCLK_PIN","","{}")'.format(name, block_type))
+            #cmd.append('design.set_property("{}","RX_FIFO_EMPTY_PIN","lvds_rx_inst1_RX_FIFO_EMPTY","{}")'.format(name, block_type))
+            #cmd.append('design.set_property("{}","RX_FIFO_RD_PIN","lvds_rx_inst1_RX_FIFO_RD","{}")'.format(name, block_type))
+            #cmd.append('design.set_property("{}","RX_LOCK_PIN","lvds_rx_inst1_RX_LOCK","{}")'.format(name, block_type))
+            #cmd.append('design.set_property("{}","RX_RST_PIN","lvds_rx_inst1_RX_RST","{}")'.format(name, block_type))
 
         cmd.append('design.assign_resource("{}", "{}", "{}")\n'.format(name, location, block_type))
 
