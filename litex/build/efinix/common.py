@@ -10,6 +10,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.build.io import *
 
+from litex.build.generic_platform import Pins
 from litex.build.efinix.efinity import EfinityToolchain
 
 # Colorama -----------------------------------------------------------------------------------------
@@ -178,7 +179,7 @@ class EfinixDifferentialOutputImpl(Module):
         self.comb += i_data.eq(i)
         block = {
             "type"              : "LVDS",
-            "mode"              : "INPUT",
+            "mode"              : "OUTPUT",
             "tx_mode"           : "DATA",
             "name"              : io_name,
             "sig"               : i_data,
@@ -194,6 +195,59 @@ class EfinixDifferentialOutput:
     @staticmethod
     def lower(dr):
         return EfinixDifferentialOutputImpl(dr.platform, dr.i, dr.o_p, dr.o_n)
+
+# Efinix DifferentialInput -------------------------------------------------------------------------
+
+class EfinixDifferentialInputImpl(Module):
+    def __init__(self, platform, i_p, i_n, o):
+        # only keep _p
+        io_name = platform.get_pin_name(i_p)
+        io_pad  = platform.get_pad_name(i_p) # need real pad name
+        io_prop = platform.get_pin_properties(i_p)
+
+        # _p has _P_ and _n has _N_ followed by an optional function
+        # lvds block needs _PN_
+        pad_split = io_pad.split('_')
+        assert pad_split[1] == 'P'
+        io_pad = f"{pad_split[0]}_PN_{pad_split[2]}"
+
+        platform.add_extension([
+            (io_name,           0, Pins(1)),
+            (f"{io_name}_ena",  0, Pins(1)),
+            (f"{io_name}_term", 0, Pins(1)),
+        ])
+        o_data = platform.request(io_name)
+        i_ena  = platform.request(io_name + "_ena")
+        i_term = platform.request(io_name + "_term")
+
+        self.comb += [
+           o.eq(o_data),
+           i_ena.eq(1),
+           i_term.eq(1),
+        ]
+
+        block = {
+            "type"     : "LVDS",
+            "mode"     : "INPUT",
+            "rx_mode"  : "NORMAL",
+            "name"     : io_name,
+            "sig"      : o_data,
+            "ena"      : i_ena,
+            "term"     : i_term,
+            "location" : io_pad,
+            "size"     : 1,
+        }
+        platform.toolchain.ifacewriter.blocks.append(block)
+        platform.toolchain.excluded_ios.append(platform.get_pin(i_p))
+        platform.toolchain.excluded_ios.append(platform.get_pin(i_n))
+        platform.toolchain.excluded_ios.append(o_data)
+        platform.toolchain.excluded_ios.append(i_term)
+        platform.toolchain.excluded_ios.append(i_ena)
+
+class EfinixDifferentialInput:
+    @staticmethod
+    def lower(dr):
+        return EfinixDifferentialInputImpl(dr.platform, dr.i_p, dr.i_n, dr.o)
 
 # Efinix DDROutput ---------------------------------------------------------------------------------
 
@@ -264,6 +318,7 @@ efinix_special_overrides = {
     ClkOutput              : EfinixClkOutput,
     Tristate               : EfinixTristate,
     DifferentialOutput     : EfinixDifferentialOutput,
+    DifferentialInput      : EfinixDifferentialInput,
     SDRTristate            : EfinixSDRTristate,
     DDROutput              : EfinixDDROutput,
     DDRInput               : EfinixDDRInput,
