@@ -103,6 +103,7 @@ class XilinxVivadoToolchain(GenericToolchain):
         self.additional_commands        = []
         self.project_commands           = XilinxVivadoCommands()
         self.pre_synthesis_commands     = XilinxVivadoCommands()
+        self.pre_optimize_commands      = XilinxVivadoCommands()
         self.pre_placement_commands     = XilinxVivadoCommands()
         self.pre_routing_commands       = XilinxVivadoCommands()
         self.incremental_implementation = False
@@ -301,6 +302,10 @@ class XilinxVivadoToolchain(GenericToolchain):
         tcl.append(f"report_utilization -hierarchical -file {self._build_name}_utilization_hierarchical_synth.rpt")
         tcl.append(f"report_utilization -file {self._build_name}_utilization_synth.rpt")
         tcl.append(f"write_checkpoint -force {self._build_name}_synth.dcp")
+
+        # Add pre-optimize commands
+        tcl.append("\n# Add pre-optimize commands\n")
+        tcl.extend(c.format(build_name=self._build_name) for c in self.pre_optimize_commands.resolve(self._vns))
 
         # Optimize
         tcl.append("\n# Optimize design\n")
