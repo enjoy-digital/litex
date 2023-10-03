@@ -167,11 +167,17 @@ class EfinixDifferentialOutputImpl(Module):
         io_pad  = platform.get_pad_name(o_p) # need real pad name
         io_prop = platform.get_pin_properties(o_p)
 
-        # _p has _P_ and _n has _N_ followed by an optional function
-        # lvds block needs _PN_
-        pad_split = io_pad.split('_')
-        assert pad_split[1] == 'P'
-        io_pad = f"{pad_split[0]}_PN_{pad_split[2]}"
+        if platform.family == "Titanium":
+            # _p has _P_ and _n has _N_ followed by an optional function
+            # lvds block needs _PN_
+            pad_split = io_pad.split('_')
+            assert pad_split[1] == 'P'
+            io_pad = f"{pad_split[0]}_PN_{pad_split[2]}"
+        else:
+            assert "TXP" in io_pad
+            # diff output pins are TXPYY and TXNYY
+            # lvds block needs TXYY
+            io_pad = io_pad.replace("TXP", "TX")
 
         platform.add_extension([(io_name, 0, Pins(1))])
         i_data = platform.request(io_name)
@@ -205,11 +211,17 @@ class EfinixDifferentialInputImpl(Module):
         io_pad  = platform.get_pad_name(i_p) # need real pad name
         io_prop = platform.get_pin_properties(i_p)
 
-        # _p has _P_ and _n has _N_ followed by an optional function
-        # lvds block needs _PN_
-        pad_split = io_pad.split('_')
-        assert pad_split[1] == 'P'
-        io_pad = f"{pad_split[0]}_PN_{pad_split[2]}"
+        if platform.family == "Titanium":
+            # _p has _P_ and _n has _N_ followed by an optional function
+            # lvds block needs _PN_
+            pad_split = io_pad.split('_')
+            assert pad_split[1] == 'P'
+            io_pad = f"{pad_split[0]}_PN_{pad_split[2]}"
+        else:
+            assert "RXP" in io_pad
+            # diff input pins are RXPYY and RXNYY
+            # lvds block needs RXYY
+            io_pad = io_pad.replace("RXP", "RX")
 
         platform.add_extension([
             (io_name,           0, Pins(1)),
