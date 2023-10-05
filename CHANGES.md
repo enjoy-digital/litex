@@ -5,9 +5,10 @@
 
 	[> Added
 	--------
-	cpu/naxriscv     : Added SMP support.
-	cpu/neorv32      : Added Debug support and update core complex.
-	cpu/vexriscv_smp : Added hardware breakpoints support.
+	cpu/naxriscv      : Added SMP support.
+	cpu/neorv32       : Added Debug support and update core complex.
+	cpu/vexriscv_smp  : Added hardware breakpoints support.
+	build/colognechip : Added initial support.
 
 	[> Changed
 	----------
