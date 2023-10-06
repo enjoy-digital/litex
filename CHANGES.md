@@ -10,6 +10,7 @@
 	cpu/vexriscv_smp  : Added hardware breakpoints support.
 	build/colognechip : Added initial support.
 	soc/cores/video   : Added VTG/DMA synchronization stage to VideoFramebuffer.
+	litepcie/dma      : Improved LitePCIeDMADescriptorSplitter timings.
 
 	[> Changed
 	----------
