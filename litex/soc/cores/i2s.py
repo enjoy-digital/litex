@@ -160,7 +160,7 @@ class S7I2S(LiteXModule):
         self.sync += clk_d.eq(clk_pin)
         rising_edge  = Signal()
         falling_edge = Signal()
-        self.comb += [rising_edge.eq(clk_pin & ~clk_d), falling_edge.eq(~clk_pin & clk_d)]
+        self.sync += [rising_edge.eq(clk_pin & ~clk_d), falling_edge.eq(~clk_pin & clk_d)]
 
         # Wishbone bus
         self.bus = bus = wishbone.Interface()
@@ -538,7 +538,7 @@ class S7I2S(LiteXModule):
                             If((tx_cnt == 0),
                                 If((sync_pin if frame_format == I2S_FORMAT.I2S_STANDARD else ~sync_pin),
                                     NextValue(tx_cnt, sample_width),
-                                    NextState("RIGHT"),
+                                    NextState("RIGHT_FALL"),
                                 ).Else(
                                     NextState("LEFT_WAIT"),
                                 )
