@@ -285,8 +285,21 @@ class DownConverter(Module):
         # Control Path.
         self.comb += [
             done.eq(count == (ratio - 1)),
+
+            Case(master.cti, {
+                # incrementing address burst cycle
+                CTI_BURST_INCREMENTING: slave.cti.eq(CTI_BURST_INCREMENTING),
+                # end current burst cycle
+                CTI_BURST_END: slave.cti.eq(Mux(done, CTI_BURST_END,
+                                                CTI_BURST_INCREMENTING)),
+                # unsupported burst cycle
+                "default": slave.cti.eq(CTI_BURST_NONE),
+            }),
+            # wrap conversion not supported
+            If(master.bte != 0, slave.cti.eq(CTI_BURST_NONE)),
+
             If(master.stb & master.cyc,
-                skip.eq(slave.sel == 0),
+                skip.eq((slave.sel == 0) & (slave.cti == CTI_BURST_NONE)),
                 slave.cyc.eq(~skip),
                 slave.stb.eq(~skip),
                 slave.we.eq(master.we),
