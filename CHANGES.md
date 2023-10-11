@@ -2,6 +2,7 @@
 ------------------------
 	[> Fixed
 	--------
+	liteeth/arp : Fixed response on table update.
 
 	[> Added
 	--------
