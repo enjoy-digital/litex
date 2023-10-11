@@ -6,12 +6,13 @@
 
 	[> Added
 	--------
-	cpu/naxriscv      : Added SMP support.
-	cpu/neorv32       : Added Debug support and update core complex.
-	cpu/vexriscv_smp  : Added hardware breakpoints support.
-	build/colognechip : Added initial support.
-	soc/cores/video   : Added VTG/DMA synchronization stage to VideoFramebuffer.
-	litepcie/dma      : Improved LitePCIeDMADescriptorSplitter timings.
+	cpu/naxriscv          : Added SMP support.
+	cpu/neorv32           : Added Debug support and update core complex.
+	cpu/vexriscv_smp      : Added hardware breakpoints support.
+	build/colognechip     : Added initial support.
+	soc/cores/video       : Added VTG/DMA synchronization stage to VideoFramebuffer.
+	litepcie/dma          : Improved LitePCIeDMADescriptorSplitter timings.
+	interconnect/wishbone : Added linear burst support to DownConverter.
 
 	[> Changed
 	----------
