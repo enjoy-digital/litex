@@ -129,19 +129,23 @@ def dump_registers(host, csr_csv, port, filter=None, binary=False):
     for name, register in bus.regs.__dict__.items():
         if (filter is None) or filter in name:
             register_value = {
-                True  : f"{register.read():032b}",
-                False : f"{register.read():08x}",
+                True  : f"0b{register.read():032b}",
+                False : f"0x{register.read():08x}",
             }[binary]
-            print("0x{:08x} : 0x{} {}".format(register.addr, register_value, name))
+            print("0x{:08x} : {} {}".format(register.addr, register_value, name))
 
     bus.close()
 
-def read_memory(host, csr_csv, port, addr, length):
+def read_memory(host, csr_csv, port, addr, length, binary=False):
     bus = RemoteClient(host=host, csr_csv=csr_csv, port=port)
     bus.open()
 
     for offset in range(length//4):
-        print(f"0x{addr + 4*offset:08x} : 0x{bus.read(addr + 4*offset):08x}")
+        register_value = {
+            True  : f"0b{bus.read(addr + 4*offset):032b}",
+            False : f"0x{bus.read(addr + 4*offset):08x}",
+        }[binary]
+        print(f"0x{addr + 4*offset:08x} : {register_value}")
 
     bus.close()
 
@@ -406,6 +410,7 @@ def main():
             port    = port,
             addr    = addr,
             length  = int(args.length, 0),
+            binary  = args.binary,
         )
 
     if args.write:

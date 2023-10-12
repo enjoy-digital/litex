@@ -72,8 +72,6 @@ class InterfaceWriter:
             if isinstance(block, InterfaceWriterXMLBlock):
                 block.generate(root, namespaces)
             else:
-                if block["type"] == "LVDS":
-                    self.add_lvds_xml(root, block)
                 if block["type"] == "DRAM":
                     self.add_dram_xml(root, block)
 
@@ -367,6 +365,80 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
         cmds.append(f"# ---------- END JTAG {id} ---------\n")
         return "\n".join(cmds)
 
+    def generate_lvds(self, block, verbose=True):
+        name     = block["name"]
+        mode     = block["mode"]
+        location = block["location"]
+        size     = block["size"]
+        sig      = block["sig"]
+        cmd      = []
+
+        if mode == "OUTPUT":
+            block_type = "LVDS_TX"
+            tx_mode    = block["tx_mode"]
+            cmd.append('design.create_block("{}", block_type="{}", tx_mode="{}")'.format(name, block_type, tx_mode))
+            if self.platform.family == "Titanium":
+                cmd.append('design.set_property("{}", "TX_DELAY", "0", "{}")'.format(name, block_type))
+                cmd.append('design.set_property("{}", "TX_DIFF_TYPE", "LVDS", "{}")'.format(name, block_type))
+                cmd.append('design.set_property("{}", "TX_HALF_RATE", "0", "{}")'.format(name, block_type))
+                cmd.append('design.set_property("{}", "TX_PRE_EMP", "MEDIUM_LOW", "{}")'.format(name, block_type))
+                cmd.append('design.set_property("{}", "TX_SER", "{}", "{}")'.format(name, size, block_type))
+                cmd.append('design.set_property("{}", "TX_VOD", "TYPICAL", "{}")'.format(name, block_type))
+            else:
+                cmd.append('design.set_property("{}","TX_OUTPUT_LOAD","3","{}")'.format(name, block_type))
+                cmd.append('design.set_property("{}","TX_REDUCED_SWING","0","{}")'.format(name, block_type))
+                cmd.append('design.set_property("{}","TX_SLOWCLK_DIV","1","{}")'.format(name, block_type))
+                cmd.append('design.set_property("{}","TX_EN_SER","0","{}")'.format(name, block_type))
+            cmd.append('design.set_property("{}", "TX_EN_SER", "0", "{}")'.format(name, block_type))
+            cmd.append('design.set_property("{}", "TX_FASTCLK_PIN", "", "{}")'.format(name, block_type))
+            cmd.append('design.set_property("{}", "TX_MODE", "{}", "{}")'.format(name, tx_mode, block_type))
+            cmd.append('design.set_property("{}", "TX_OE_PIN", "", "{}")'.format(name, block_type))
+            cmd.append('design.set_property("{}", "TX_OUT_PIN", "{}", "{}")'.format(name, sig.name, block_type))
+            cmd.append('design.set_property("{}", "TX_RST_PIN", "", "{}")'.format(name, block_type))
+            cmd.append('design.set_property("{}", "TX_SLOWCLK_PIN", "", "{}")'.format(name, block_type))
+        else:
+            block_type = "LVDS_RX"
+            rx_mode    = block["rx_mode"]
+            term       = block["term"]
+            ena        = block["ena"]
+
+            cmd.append('design.create_block("{}", block_type="{}", rx_conn_type="{}")'.format(name, block_type, rx_mode))
+            if self.platform.family == "Titanium":
+                cmd.append('design.set_property("{}","GBUF","","{}")'.format(name, block_type))
+                cmd.append('design.set_property("{}","RX_DBG_PIN","","{}")'.format(name, block_type))
+                cmd.append('design.set_property("{}","RX_TERM_PIN","{}","{}")'.format(name, term.name, block_type))
+                cmd.append('design.set_property("{}","RX_VOC_DRIVER","0","{}")'.format(name, block_type))
+                cmd.append('design.set_property("{}","RX_SLVS","0","{}")'.format(name, block_type))
+                cmd.append('design.set_property("{}","RX_FIFO","0","{}")'.format(name, block_type))
+                cmd.append('design.set_property("{}","RX_HALF_RATE","0","{}")'.format(name, block_type))
+                cmd.append('design.set_property("{}","RX_ENA_PIN","{}","{}")'.format(name, ena.name, block_type))
+                cmd.append('design.set_property("{}","RX_DELAY_MODE","STATIC","{}")'.format(name, block_type))
+                cmd.append('design.set_property("{}","RX_DESER","1","{}")'.format(name, block_type))
+                # Optional
+                #cmd.append('design.set_property("{}","RX_DLY_ENA_PIN","lvds_rx_inst1_RX_DLY_ENA","{}")'.format(name, block_type))
+                #cmd.append('design.set_property("{}","RX_DLY_INC_PIN","lvds_rx_inst1_RX_DLY_INC","{}")'.format(name, block_type))
+                #cmd.append('design.set_property("{}","RX_DLY_RST_PIN","lvds_rx_inst1_RX_DLY_RST","{}")'.format(name, block_type))
+                #cmd.append('design.set_property("{}","RX_FIFOCLK_PIN","","{}")'.format(name, block_type))
+                #cmd.append('design.set_property("{}","RX_FIFO_EMPTY_PIN","lvds_rx_inst1_RX_FIFO_EMPTY","{}")'.format(name, block_type))
+                #cmd.append('design.set_property("{}","RX_FIFO_RD_PIN","lvds_rx_inst1_RX_FIFO_RD","{}")'.format(name, block_type))
+                #cmd.append('design.set_property("{}","RX_LOCK_PIN","lvds_rx_inst1_RX_LOCK","{}")'.format(name, block_type))
+            else:
+                cmd.append('design.set_property("{}","RX_EN_DELAY","0","{}")'.format(name, block_type))
+
+            cmd.append('design.set_property("{}","RX_CONN_TYPE","{}","{}")'.format(name, rx_mode, block_type))
+            cmd.append('design.set_property("{}","RX_DELAY","16","{}")'.format(name, block_type))
+            cmd.append('design.set_property("{}","RX_EN_DESER","0","{}")'.format(name, block_type))
+            cmd.append('design.set_property("{}","RX_FASTCLK_PIN","","{}")'.format(name, block_type))
+            cmd.append('design.set_property("{}","RX_IN_PIN","{}","{}")'.format(name, sig.name, block_type))
+            cmd.append('design.set_property("{}","RX_SLOWCLK_PIN","","{}")'.format(name, block_type))
+            cmd.append('design.set_property("{}","RX_TERM","OFF","{}")'.format(name, block_type))
+            # Optional
+            #cmd.append('design.set_property("{}","RX_RST_PIN","lvds_rx_inst1_RX_RST","{}")'.format(name, block_type))
+
+        cmd.append('design.assign_resource("{}", "{}", "{}")\n'.format(name, location, block_type))
+
+        return '\n'.join(cmd)
+
     def generate(self, partnumber):
         output = ""
         for block in self.blocks:
@@ -381,6 +453,8 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                     output += self.generate_mipi_tx(block)
                 if block["type"] == "MIPI_RX_LANE":
                     output += self.generate_mipi_rx(block)
+                if block["type"] == "LVDS":
+                    output += self.generate_lvds(block)
                 if block["type"] == "JTAG":
                     output += self.generate_jtag(block)
         return output
@@ -392,45 +466,6 @@ design.generate(enable_bitstream=True)
 # Save the configured periphery design
 design.save()"""
 
-
-    def add_lvds_xml(self, root, params):
-        lvds_info = root.find("efxpt:lvds_info", namespaces)
-        if params["mode"] == "OUTPUT":
-            dir  = "tx"
-            mode = "out"
-        else:
-            dir  = "rx"
-            mode = "in"
-
-        pad = self.platform.parser.get_pad_name_from_pin(params["location"][0])
-        pad = pad.replace("TXP", "TX")
-        pad = pad.replace("TXN", "TX")
-        pad = pad.replace("RXP", "RX")
-        pad = pad.replace("RXN", "RX")
-        # Sometimes there is an extra identifier at the end
-        # TODO: do a better parser
-        if pad.count("_") == 2:
-            pad = pad.rsplit("_", 1)[0]
-
-        lvds = et.SubElement(lvds_info, "efxpt:lvds",
-            name     = params["name"],
-            lvds_def = pad,
-            ops_type = dir
-        )
-
-        et.SubElement(lvds, "efxpt:ltx_info",
-            pll_instance    = "",
-            fast_clock_name = "{}".format(params["fast_clk"]),
-            slow_clock_name = "{}".format(params["slow_clk"]),
-            reset_name      = "",
-            out_bname       = "{}".format(params["name"]),
-            oe_name         = "",
-            clock_div       = "1",
-            mode            = "{}".format(mode),
-            serialization   = "{}".format(params["serialisation"]),
-            reduced_swing   = "false",
-            load            = "3"
-        )
 
     def add_iobank_info_xml(self, root, iobank_info):
         dev = root.find("efxpt:device_info", namespaces)

@@ -131,7 +131,7 @@ class USBOHCI(LiteXModule):
         gen_args.append(f"--netlist-name={self.get_netlist_name()}")
         gen_args.append(f"--netlist-directory={vdir}")
 
-        cmd = 'cd {path} && sbt "runMain spinal.lib.com.usb.ohci.UsbOhciWishbone {args}"'.format(
+        cmd = 'cd {path} && sbt "lib/runMain spinal.lib.com.usb.ohci.UsbOhciWishbone {args}"'.format(
             path=os.path.join(vdir, "ext", "SpinalHDL"), args=" ".join(gen_args))
         print("!!! "   + cmd)
         if os.system(cmd) != 0:

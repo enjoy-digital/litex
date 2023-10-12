@@ -1,5 +1,26 @@
-[> Changes since 2023.04
+[> Changes since 2023.08
 ------------------------
+	[> Fixed
+	--------
+	liteeth/arp : Fixed response on table update.
+
+	[> Added
+	--------
+	cpu/naxriscv          : Added SMP support.
+	cpu/neorv32           : Added Debug support and update core complex.
+	cpu/vexriscv_smp      : Added hardware breakpoints support.
+	build/colognechip     : Added initial support.
+	soc/cores/video       : Added VTG/DMA synchronization stage to VideoFramebuffer.
+	litepcie/dma          : Improved LitePCIeDMADescriptorSplitter timings.
+	interconnect/wishbone : Added linear burst support to DownConverter.
+
+	[> Changed
+	----------
+	build/osfpga: Removed initial support (would need feedbacks/updates).
+
+
+[> 2023.08, released on September 14th 2023
+-------------------------------------------
 
 	[> Fixed
 	--------
@@ -64,6 +85,8 @@
 	- soc/interconnect             : Improved DMA Bus to use the same Bus Standard than the CPU DMA Bus.
 	- liteeth/phy                  : Added Artix7 2500BASE-X PHY.
 	- liteeth/phy                  : Added Gowin Arora V RGMII PHY (GW5RGMII).
+	- liteeth/phy                  : Added Titanium RGMII PHY (Tested with Ti60 F225 + RGMII adapter board).
+	- build/io                     : Added ClkInput/Ouput IO abstraction to simplify some Efinix designs.
 
 	[> Changed
 	----------

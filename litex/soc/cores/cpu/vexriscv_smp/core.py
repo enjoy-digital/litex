@@ -46,7 +46,10 @@ class VexRiscvSMP(CPU):
     dcache_width         = 32
     icache_width         = 32
     aes_instruction      = False
+    expose_time          = False
     out_of_order_decoder = True
+    privileged_debug     = False
+    hardware_breakpoints = 0
     wishbone_memory      = False
     wishbone_force_32b   = False
     with_fpu             = False
@@ -71,12 +74,15 @@ class VexRiscvSMP(CPU):
         cpu_group.add_argument("--aes-instruction",              default=None,        help="Enable AES instruction acceleration.")
         cpu_group.add_argument("--without-out-of-order-decoder", action="store_true", help="Reduce area at cost of peripheral access speed")
         cpu_group.add_argument("--with-wishbone-memory",         action="store_true", help="Disable native LiteDRAM interface")
+        cpu_group.add_argument("--with-privileged-debug",        action="store_true", help="Enable official RISC-V debug spec")
+        cpu_group.add_argument("--hardware-breakpoints",        default=1,           help="Number of hardware breapoints", type=int)
         cpu_group.add_argument("--wishbone-force-32b",           action="store_true", help="Force the wishbone bus to be 32 bits")
         cpu_group.add_argument("--with-fpu",                     action="store_true", help="Enable the F32/F64 FPU")
         cpu_group.add_argument("--cpu-per-fpu",                  default="4",         help="Maximal ratio between CPU count and FPU count. Will instanciate as many FPU as necessary.")
         cpu_group.add_argument("--with-rvc",                     action="store_true", help="Enable RISC-V compressed instruction support")
         cpu_group.add_argument("--dtlb-size",                    default=4,           help="Data TLB size.")
         cpu_group.add_argument("--itlb-size",                    default=4,           help="Instruction TLB size.")
+        cpu_group.add_argument("--expose-time",                  action="store_true", help="Add CLINT time output.")
 
     @staticmethod
     def args_read(args):
@@ -98,7 +104,10 @@ class VexRiscvSMP(CPU):
         if(args.dcache_ways):                  VexRiscvSMP.dcache_ways           = int(args.dcache_ways)
         if(args.icache_ways):                  VexRiscvSMP.icache_ways           = int(args.icache_ways)
         if(args.aes_instruction):              VexRiscvSMP.aes_instruction       = bool(args.aes_instruction)
+        if(args.expose_time):                  VexRiscvSMP.expose_time           = bool(args.expose_time)
         if(args.without_out_of_order_decoder): VexRiscvSMP.out_of_order_decoder  = False
+        if(args.with_privileged_debug):        VexRiscvSMP.privileged_debug      = True
+        if(args.hardware_breakpoints):         VexRiscvSMP.hardware_breakpoints  = args.hardware_breakpoints
         if(args.with_wishbone_memory):         VexRiscvSMP.wishbone_memory       = True
         if(args.wishbone_force_32b):           VexRiscvSMP.wishbone_force_32b    = True
         if(args.with_fpu):
@@ -175,10 +184,13 @@ class VexRiscvSMP(CPU):
         f"{'_'+ldw if not VexRiscvSMP.wishbone_memory  else ''}" \
         f"{'_Cdma' if VexRiscvSMP.coherent_dma         else ''}" \
         f"{'_Aes'  if VexRiscvSMP.aes_instruction      else ''}" \
+        f"{'_Time'  if VexRiscvSMP.expose_time      else ''}" \
         f"{'_Ood'  if VexRiscvSMP.out_of_order_decoder else ''}" \
         f"{'_Wm'   if VexRiscvSMP.wishbone_memory      else ''}" \
         f"{'_Wf32' if VexRiscvSMP.wishbone_force_32b   else ''}" \
         f"{'_Fpu' + str(VexRiscvSMP.cpu_per_fpu)  if VexRiscvSMP.with_fpu else ''}" \
+        f"{'_Pd'   if VexRiscvSMP.privileged_debug else ''}" \
+        f"{'_Hb' + str(VexRiscvSMP.hardware_breakpoints) if VexRiscvSMP.hardware_breakpoints > 0 else ''}" \
         f"{'_Rvc'  if VexRiscvSMP.with_rvc else ''}"
 
     # Default Configs Generation.
@@ -263,7 +275,10 @@ class VexRiscvSMP(CPU):
         gen_args.append(f"--icache-ways={VexRiscvSMP.icache_ways}")
         gen_args.append(f"--litedram-width={VexRiscvSMP.litedram_width}")
         gen_args.append(f"--aes-instruction={VexRiscvSMP.aes_instruction}")
+        gen_args.append(f"--expose-time={VexRiscvSMP.expose_time}")
         gen_args.append(f"--out-of-order-decoder={VexRiscvSMP.out_of_order_decoder}")
+        gen_args.append(f"--privileged-debug={VexRiscvSMP.privileged_debug}")
+        gen_args.append(f"--hardware-breakpoints={VexRiscvSMP.hardware_breakpoints}")
         gen_args.append(f"--wishbone-memory={VexRiscvSMP.wishbone_memory}")
         if(VexRiscvSMP.wishbone_force_32b): gen_args.append(f"--wishbone-force-32b={VexRiscvSMP.wishbone_force_32b}")
         gen_args.append(f"--fpu={VexRiscvSMP.with_fpu}")
@@ -360,6 +375,13 @@ class VexRiscvSMP(CPU):
                    dma_bus_inhibit.eq(0)
                 )
             ]
+
+        # expose CLINT time
+        if VexRiscvSMP.expose_time:
+            self.clint_time = Signal(64)
+            self.cpu_params.update(
+                o_clint_time    = self.clint_time
+            )
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address

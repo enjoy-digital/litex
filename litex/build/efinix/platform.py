@@ -143,6 +143,19 @@ class EfinixPlatform(GenericPlatform):
                     return resource[0] + (f"{idx}" if slc else "")
         return None
 
+    def get_pad_name(self, sig):
+        """ Return pin name (GPIOX_Y_ZZZ).
+
+        Parameters
+        ==========
+        sig: Signal
+            Signal for which pad name is searched.
+        """
+        if sig is None:
+            return None
+        pin = self.get_pin_location(sig)[0]
+        return self.parser.get_pad_name_from_pin(pin)
+
     def get_sig_constraint(self, sig):
         sc = self.constraint_manager.get_sig_constraints()
         for s, pins, others, resource in sc:

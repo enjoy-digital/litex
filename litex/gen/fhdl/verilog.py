@@ -377,11 +377,15 @@ def _print_attribute(attr, attr_translate):
 #                                           MODULE                                                 #
 # ------------------------------------------------------------------------------------------------ #
 
+def _use_wire(stmts):
+    return (len(stmts) == 1 and isinstance(stmts[0], _Assign) and
+            not isinstance(stmts[0].l, _Slice))
+
 def _list_comb_wires(f):
     r = set()
     groups = group_by_targets(f.comb)
     for g in groups:
-        if len(g[1]) == 1 and isinstance(g[1][0], _Assign):
+        if _use_wire(g[1]):
             r |= g[0]
     return r
 
@@ -460,7 +464,7 @@ def _print_combinatorial_logic_sim(f, ns):
 
         for n, (t, stmts) in enumerate(target_stmt_map.items()):
             assert isinstance(t, Signal)
-            if len(stmts) == 1 and isinstance(stmts[0], _Assign):
+            if _use_wire(stmts):
                 r += "assign " + _print_node(ns, _AT_BLOCKING, 0, stmts[0])
             else:
                 r += "always @(*) begin\n"
@@ -476,7 +480,7 @@ def _print_combinatorial_logic_synth(f, ns):
         groups = group_by_targets(f.comb)
 
         for n, g in enumerate(groups):
-            if len(g[1]) == 1 and isinstance(g[1][0], _Assign):
+            if _use_wire(g[1]):
                 r += "assign " + _print_node(ns, _AT_BLOCKING, 0, g[1][0])
             else:
                 r += "always @(*) begin\n"
