@@ -482,6 +482,54 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
 
         return '\n'.join(cmd) + '\n'
 
+    def generate_spiflash(self, block, verbose=True):
+        pads       = block["pads"]
+        name       = block["name"]
+        location   = block["location"]
+        mode       = block["mode"]
+
+        assert mode in ["x1"] # FIXME: support x4
+        assert location == "SPI_FLASH0"
+
+        dq0 = pads.mosi.name
+        dq1 = pads.miso.name
+        dq2 = pads.wp.name
+        dq3 = pads.hold.name
+
+        cmd = []
+        cmd.append('design.create_block("{}", "SPI_FLASH")'.format(name))
+        cmd.append('design.set_property("{}", "MULT_CTRL_EN","0","SPI_FLASH")'.format(name))
+        cmd.append('design.set_property("{}", "REG_EN","0","SPI_FLASH")'.format(name))
+        cmd.append('design.set_property("{}", "CLK_PIN","","SPI_FLASH")'.format(name)) # only required when REG_EN==1
+        cmd.append('design.set_property("{}", "RW_WIDTH","{}","SPI_FLASH")'.format(name, mode))
+
+        cmd.append('design.set_property("{}", "CS_N_OUT_PIN","{}","SPI_FLASH")'.format(name, pads.cs_n.name))
+        cmd.append('design.set_property("{}", "SCLK_OUT_PIN","{}","SPI_FLASH")'.format(name, pads.clk.name))
+        cmd.append('design.set_property("{}", "MOSI_OUT_PIN","{}","SPI_FLASH")'.format(name, dq0))
+        cmd.append('design.set_property("{}", "MISO_IN_PIN","{}","SPI_FLASH")'.format(name, dq1))
+        cmd.append('design.set_property("{}", "WP_N_OUT_PIN","{}","SPI_FLASH")'.format(name, dq2))
+        cmd.append('design.set_property("{}", "HOLD_N_OUT_PIN","{}","SPI_FLASH")'.format(name, dq3))
+
+        if mode == "x4":
+            cmd.append('design.set_property("{}", "HOLD_N_IN_PIN","{}","SPI_FLASH")'.format(name, dq3_i))
+            cmd.append('design.set_property("{}", "HOLD_N_OE_PIN","{}","SPI_FLASH")'.format(name, dq3_oe))
+            cmd.append('design.set_property("{}", "MISO_OUT_PIN","{}","SPI_FLASH")'.format(name, dq1_o))
+            cmd.append('design.set_property("{}", "MISO_OE_PIN","{}","SPI_FLASH")'.format(name, dq1_oe))
+            cmd.append('design.set_property("{}", "MOSI_IN_PIN","{}","SPI_FLASH")'.format(name, dq0_i))
+            cmd.append('design.set_property("{}", "MOSI_OE_PIN","{}","SPI_FLASH")'.format(name, dq0_oe))
+            cmd.append('design.set_property("{}", "WP_N_IN_PIN","{}","SPI_FLASH")'.format(name, dq2_i))
+            cmd.append('design.set_property("{}", "WP_N_OE_PIN","{}","SPI_FLASH")'.format(name, dq2_oe))
+
+        # mult ctrl en only
+        #cmd.append('design.set_property("{}", "CS_N_OE_PIN","{}","SPI_FLASH")'.format(name, cs_n_oe))
+        #cmd.append('design.set_property("{}", "SCLK_OE_PIN","{}","SPI_FLASH")'.format(name, clk_oe))
+
+        cmd.append('design.assign_resource("{}", "{}","SPI_FLASH")\n'.format(name, location))
+
+        cmd.append('design.set_device_property("ext_flash","EXT_FLASH_CTRL_EN","0","EXT_FLASH")')
+
+        return '\n'.join(cmd) + '\n'
+
     def generate(self, partnumber):
         output = ""
         for block in self.blocks:
@@ -502,6 +550,8 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                     output += self.generate_hyperram(block)
                 if block["type"] == "JTAG":
                     output += self.generate_jtag(block)
+                if block["type"] == "SPI_FLASH":
+                    output += self.generate_spiflash(block)
         return output
 
     def footer(self):
