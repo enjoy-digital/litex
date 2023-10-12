@@ -94,3 +94,10 @@ class F4PGAToolchain(GenericToolchain):
 
         if subprocess.call(make_cmd) != 0:
             raise OSError("Error occured during QuickLogic Symbiflow's script execution.")
+
+        make_cmd.append("--target")
+        if subprocess.call(make_cmd + ["bitstream_openocd"]) != 0:
+            raise OSError("Error occured during QuickLogic Symbiflow's script execution.")
+
+        if subprocess.call(make_cmd + ["bitstream_jlink"]) != 0:
+            raise OSError("Error occured during QuickLogic Symbiflow's script execution.")
