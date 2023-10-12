@@ -52,6 +52,9 @@ class F4PGAToolchain(GenericToolchain):
 
     def build_timing_constraints(self, vns):
         sdc = []
+        for clk, [period, name] in sorted(self.clocks.items(), key=lambda x: x[0].duid):
+            clk_sig = vns.get_name(clk)
+            sdc.append("create_clock -period {} {}".format(str(period), clk_sig))
         tools.write_to_file(self._build_name + ".sdc", "\n".join(sdc))
         return (self._build_name + ".sdc", "SDC")
 
