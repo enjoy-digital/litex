@@ -55,6 +55,8 @@ class NaxRiscv(CPU):
     jtag_instruction = False
     with_dma         = False
     litedram_width   = 32
+    l2_bytes        = 128*1024
+    l2_ways         = 8
 
     # ABI.
     @staticmethod
@@ -113,6 +115,8 @@ class NaxRiscv(CPU):
         cpu_group.add_argument("--update-repo",   default="recommended", choices=["latest","wipe+latest","recommended","wipe+recommended","no"], help="Specify how the NaxRiscv & SpinalHDL repo should be updated (latest: update to HEAD, recommended: Update to known compatible version, no: Don't update, wipe+*: Do clean&reset before checkout)")
         cpu_group.add_argument("--no-netlist-cache", action="store_true", help="Always (re-)build the netlist")
         cpu_group.add_argument("--with-fpu",      action="store_true", help="Enable the F32/F64 FPU")
+        cpu_group.add_argument("--l2-bytes",      default=128*1024, help="NaxRiscv L2 bytes, default 128 KB")
+        cpu_group.add_argument("--l2-ways",       default=8, help="NaxRiscv L2 ways, default 8")
 
     @staticmethod
     def args_read(args):
@@ -136,6 +140,10 @@ class NaxRiscv(CPU):
             NaxRiscv.linker_output_format = f"elf{xlen}-littleriscv"
         if args.cpu_count:
             NaxRiscv.cpu_count = args.cpu_count
+        if args.l2_bytes:
+            NaxRiscv.l2_bytes = args.l2_bytes
+        if args.l2_ways:
+            NaxRiscv.l2_ways = args.l2_ways
 
 
     def __init__(self, platform, variant):
@@ -259,6 +267,8 @@ class NaxRiscv(CPU):
         md5_hash.update(str(NaxRiscv.litedram_width).encode('utf-8'))
         md5_hash.update(str(NaxRiscv.xlen).encode('utf-8'))
         md5_hash.update(str(NaxRiscv.cpu_count).encode('utf-8'))
+        md5_hash.update(str(NaxRiscv.l2_bytes).encode('utf-8'))
+        md5_hash.update(str(NaxRiscv.l2_ways).encode('utf-8'))
         md5_hash.update(str(NaxRiscv.jtag_tap).encode('utf-8'))
         md5_hash.update(str(NaxRiscv.jtag_instruction).encode('utf-8'))
         md5_hash.update(str(NaxRiscv.with_dma).encode('utf-8'))
@@ -298,8 +308,8 @@ class NaxRiscv(CPU):
         sdir = os.path.join(vdir, "ext", "SpinalHDL")
 
         if NaxRiscv.update_repo != "no":
-            NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git", "coherency", "ee4c6fb7" if NaxRiscv.update_repo=="recommended" else None)
-            NaxRiscv.git_setup("SpinalHDL", sdir, "https://github.com/SpinalHDL/SpinalHDL.git", "bus-fabric" , "ee95492a" if NaxRiscv.update_repo=="recommended" else None)
+            NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git", "coherency", "4da1cd82" if NaxRiscv.update_repo=="recommended" else None)
+            NaxRiscv.git_setup("SpinalHDL", sdir, "https://github.com/SpinalHDL/SpinalHDL.git", "bus-fabric" , "8eed9583" if NaxRiscv.update_repo=="recommended" else None)
 
         gen_args = []
         gen_args.append(f"--netlist-name={NaxRiscv.netlist_name}")
@@ -307,6 +317,8 @@ class NaxRiscv(CPU):
         gen_args.append(f"--reset-vector={reset_address}")
         gen_args.append(f"--xlen={NaxRiscv.xlen}")
         gen_args.append(f"--cpu-count={NaxRiscv.cpu_count}")
+        gen_args.append(f"--l2-bytes={NaxRiscv.l2_bytes}")
+        gen_args.append(f"--l2-ways={NaxRiscv.l2_ways}")
         gen_args.append(f"--litedram-width={NaxRiscv.litedram_width}")
         for region in NaxRiscv.memory_regions:
             gen_args.append(f"--memory-region={region[0]},{region[1]},{region[2]},{region[3]}")
