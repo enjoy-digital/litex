@@ -29,13 +29,15 @@ class OpenFPGALoader(GenericProgrammer):
         cmd = self.cmd + ["--bitstream", bitstream_file]
         self.call(cmd)
 
-    def flash(self, address, data_file, external=False, verify=False):
+    def flash(self, address, data_file, external=False, unprotect_flash=False, verify=False):
         cmd = self.cmd + ["--write-flash", "--bitstream", data_file]
         if external:
             cmd += ["--external-flash"]
         if address:
             cmd += ["--offset"]
             cmd += [str(address)]
+        if unprotect_flash:
+            cmd += ["--unprotect-flash"]
         if verify:
             cmd += ["--verify"]
         self.call(cmd)
