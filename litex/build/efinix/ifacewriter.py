@@ -291,6 +291,11 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
         if block["rstn"] != "":
             cmd += 'design.set_property("{}","RSTN_PIN","{}", block_type="PLL")\n\n'.format(name, block["rstn"])
 
+        if block.get("shift_ena", None) is not None:
+            cmd += 'design.set_property("{}","PHASE_SHIFT_ENA_PIN","{}","PLL")\n'.format(name, block["shift_ena"].name)
+            cmd += 'design.set_property("{}","PHASE_SHIFT_PIN","{}","PLL")\n'.format(name, block["shift"].name)
+            cmd += 'design.set_property("{}","PHASE_SHIFT_SEL_PIN","{}","PLL")\n'.format(name, block["shift_sel"].name)
+
          # Output clock 0 is enabled by default
         for i, clock in enumerate(block["clk_out"]):
             if i > 0:
@@ -310,7 +315,10 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
         for i, clock in enumerate(block["clk_out"]):
             cmd += '    "CLKOUT{}_FREQ": "{}",\n'.format(i, clock[1] / 1e6)
             cmd += '    "CLKOUT{}_PHASE": "{}",\n'.format(i, clock[2])
+            if clock[4] == 1:
+                cmd += '    "CLKOUT{}_DYNPHASE_EN": "1",\n'.format(i)
         cmd += "}\n"
+
         cmd += 'calc_result = design.auto_calc_pll_clock("{}", target_freq)\n'.format(name)
 
         if "extra" in block:
