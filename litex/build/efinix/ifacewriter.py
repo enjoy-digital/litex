@@ -447,6 +447,41 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
 
         return '\n'.join(cmd)
 
+    def generate_hyperram(self, block, verbose=True):
+        block_type = "HYPERRAM"
+        pads       = block["pads"]
+        name       = block["name"]
+        location   = block["location"]
+        ctl_clk    = block["ctl_clk"].name_override
+        cal_clk    = block["cal_clk"].name_override
+        clk90_clk  = block["clk90_clk"].name_override
+
+        cmd = []
+        cmd.append('design.create_block("{}", "{}")'.format(name, block_type))
+        cmd.append('design.set_property("{}", "CK_N_HI_PIN", "{}", "{}")'.format(name, pads.clkn_h.name, block_type))
+        cmd.append('design.set_property("{}", "CK_N_LO_PIN", "{}", "{}")'.format(name, pads.clkn_l.name, block_type))
+        cmd.append('design.set_property("{}", "CK_P_HI_PIN", "{}", "{}")'.format(name, pads.clkp_h.name, block_type))
+        cmd.append('design.set_property("{}", "CK_P_LO_PIN", "{}", "{}")'.format(name, pads.clkp_l.name, block_type))
+        cmd.append('design.set_property("{}", "CLK90_PIN", "{}", "{}")'.format(name, clk90_clk, block_type))
+        cmd.append('design.set_property("{}", "CLKCAL_PIN", "{}", "{}")'.format(name, cal_clk, block_type))
+        cmd.append('design.set_property("{}", "CLK_PIN", "{}", "{}")'.format(name, ctl_clk, block_type))
+        cmd.append('design.set_property("{}", "CS_N_PIN", "{}", "{}")'.format(name, pads.csn.name, block_type))
+        cmd.append('design.set_property("{}", "DQ_IN_HI_PIN", "{}", "{}")'.format(name, pads.dq_i_h.name, block_type))
+        cmd.append('design.set_property("{}", "DQ_IN_LO_PIN", "{}", "{}")'.format(name, pads.dq_i_l.name, block_type))
+        cmd.append('design.set_property("{}", "DQ_OE_PIN", "{}", "{}")'.format(name, pads.dq_oe.name, block_type))
+        cmd.append('design.set_property("{}", "DQ_OUT_HI_PIN", "{}", "{}")'.format(name, pads.dq_o_h.name, block_type))
+        cmd.append('design.set_property("{}", "DQ_OUT_LO_PIN", "{}", "{}")'.format(name, pads.dq_o_l.name, block_type))
+        cmd.append('design.set_property("{}", "RST_N_PIN", "{}", "{}")'.format(name, pads.rstn.name, block_type))
+        cmd.append('design.set_property("{}", "RWDS_IN_HI_PIN", "{}", "{}")'.format(name, pads.rwds_i_h.name, block_type))
+        cmd.append('design.set_property("{}", "RWDS_IN_LO_PIN", "{}", "{}")'.format(name, pads.rwds_i_l.name, block_type))
+        cmd.append('design.set_property("{}", "RWDS_OE_PIN", "{}", "{}")'.format(name, pads.rwds_oe.name, block_type))
+        cmd.append('design.set_property("{}", "RWDS_OUT_HI_PIN", "{}", "{}")'.format(name, pads.rwds_o_h.name, block_type))
+        cmd.append('design.set_property("{}", "RWDS_OUT_LO_PIN", "{}", "{}")'.format(name, pads.rwds_o_l.name, block_type))
+
+        cmd.append('design.assign_resource("{}", "{}", "{}")\n'.format(name, location, block_type))
+
+        return '\n'.join(cmd) + '\n'
+
     def generate(self, partnumber):
         output = ""
         for block in self.blocks:
@@ -463,6 +498,8 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                     output += self.generate_mipi_rx(block)
                 if block["type"] == "LVDS":
                     output += self.generate_lvds(block)
+                if block["type"] == "HYPERRAM":
+                    output += self.generate_hyperram(block)
                 if block["type"] == "JTAG":
                     output += self.generate_jtag(block)
         return output
