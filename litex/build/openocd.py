@@ -56,6 +56,11 @@ class OpenOCD(GenericProgrammer):
                 3: 0x922, # USER3.
                 4: 0x923, # USER4.
             }[chain]
+        # Efinix titanium
+        elif "titanium" in cfg_str:
+            chain = {
+                1: 0x08,
+            }[chain]
         # Xilinx 7-Series.
         else:
             chain = {
