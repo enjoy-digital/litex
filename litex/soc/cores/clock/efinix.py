@@ -18,7 +18,7 @@ from litex.soc.cores.clock.common import *
 class EFINIXPLL(LiteXModule):
     n            = 0
     nclkouts_max = 3
-    def __init__(self, platform,version="V1_V2"):
+    def __init__(self, platform,version="V1_V2", dyn_phase_shift_pads=[]):
         self.logger = logging.getLogger("EFINIXPLL")
 
         if version == "V1_V2":
@@ -45,6 +45,10 @@ class EFINIXPLL(LiteXModule):
         block["locked"]  = self.name + "_locked"
         block["rstn"]    = self.name + "_rstn"
         block["version"] = version
+        if len(dyn_phase_shift_pads) > 0:
+            block["shift_ena"] = dyn_phase_shift_pads["shift_ena"]
+            block["shift"]     = dyn_phase_shift_pads["shift"]
+            block["shift_sel"] = dyn_phase_shift_pads["shift_sel"]
         self.platform.toolchain.ifacewriter.blocks.append(block)
 
         # Connect PLL's rstn/locked.
@@ -94,7 +98,7 @@ class EFINIXPLL(LiteXModule):
 
         self.logger.info("Use {}".format(colorer(block["resource"], "green")))
 
-    def create_clkout(self, cd, freq, phase=0, margin=0, name="", with_reset=True):
+    def create_clkout(self, cd, freq, phase=0, margin=0, name="", with_reset=True, dyn_phase=False):
         assert self.nclkouts < self.nclkouts_max
 
         clk_out_name = f"{self.name}_clkout{self.nclkouts}" if name == "" else name
@@ -114,7 +118,7 @@ class EFINIXPLL(LiteXModule):
         self.nclkouts += 1
 
         block = self.platform.toolchain.ifacewriter.get_block(self.name)
-        block["clk_out"].append([clk_out_name, freq, phase, margin])
+        block["clk_out"].append([clk_out_name, freq, phase, margin, dyn_phase])
 
     def extra(self, extra):
         block = self.platform.toolchain.ifacewriter.get_block(self.name)
@@ -133,8 +137,8 @@ class EFINIXPLL(LiteXModule):
 
 class TITANIUMPLL(EFINIXPLL):
     nclkouts_max = 5
-    def __init__(self, platform):
-        EFINIXPLL.__init__(self, platform, version="V3")
+    def __init__(self, platform, dyn_phase_shift_pads=[]):
+        EFINIXPLL.__init__(self, platform, version="V3", dyn_phase_shift_pads=dyn_phase_shift_pads)
 
 # Efinix / TRION ----------------------------------------------------------------------------------
 
