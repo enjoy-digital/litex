@@ -13,6 +13,11 @@ from migen import *
 
 from litex.soc.integration.builder import *
 
+import os
+import inspect
+import litex_boards
+litex_boards_path = os.path.dirname(inspect.getfile(litex_boards))
+
 class TestTargets(unittest.TestCase):
     excluded_platforms = [
         "qmtech_daughterboard",              # Reason: Not a real platform.
@@ -46,7 +51,7 @@ class TestTargets(unittest.TestCase):
     def test_platforms(self):
         # Collect platforms.
         platforms = []
-        for file in os.listdir("./litex_boards/platforms/"):
+        for file in os.listdir(f"{litex_boards_path}/platforms/"):
             if file.endswith(".py"):
                 file = file.replace(".py", "")
                 if file not in ["__init__"] + self.excluded_platforms:
@@ -68,7 +73,7 @@ python3 -m litex_boards.targets.simple litex_boards.platforms.{} \
     def test_targets(self):
         # Collect targets.
         targets = []
-        for file in os.listdir("./litex_boards/targets/"):
+        for file in os.listdir(f"{litex_boards_path}/targets/"):
             if file.endswith(".py"):
                 file = file.replace(".py", "")
                 if file not in ["__init__"] + self.excluded_targets:
