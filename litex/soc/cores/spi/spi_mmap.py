@@ -245,6 +245,10 @@ class SPICtrl(LiteXModule):
         self.slot_controls = []
         self.slot_status   = []
 
+        version = "SPI0"
+        self._version = CSRStatus(size=32, description="""SPI Module Version.""",
+            reset=int.from_bytes(str.encode(version), 'little'))
+
         # Create TX/RX Control/Status registers.
         self.tx_control  = CSRStorage(fields=[
             CSRField("enable", size=1, offset=0, values=[
