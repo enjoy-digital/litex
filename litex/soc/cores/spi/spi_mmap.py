@@ -239,6 +239,7 @@ class SPICtrl(LiteXModule):
         default_slot_bitorder = SPI_SLOT_BITORDER_MSB_FIRST,
         default_slot_loopback = 0b1,
         default_slot_divider  = 2,
+        default_enable        = 0b1,
     ):
         self.nslots        = nslots
         self.slot_controls = []
@@ -301,6 +302,13 @@ class SPICtrl(LiteXModule):
             # RX IRQ when FIFO's level > RX Threshold.
             self.ev.rx.trigger.eq(self.rx_status.fields.level > self.rx_control.fields.threshold),
         ]
+
+        self.engine  = CSRStorage(fields=[
+            CSRField("enable", size=1, offset=0, values=[
+                    ("``0b0``", "SPI Engine Disabled."),
+                    ("``0b1``", "SPI Engine Enabled."),
+            ], reset=default_enable),
+        ])
 
         # Create Slots Control/Status registers.
         for slot in range(nslots):
@@ -487,7 +495,7 @@ class SPIRXMMAP(LiteXModule):
 # SPI Engine ---------------------------------------------------------------------------------------
 
 class SPIEngine(LiteXModule):
-    def __init__(self, pads, ctrl, data_width, sys_clk_freq, default_enable=0b1):
+    def __init__(self, pads, ctrl, data_width, sys_clk_freq):
         self.sink = sink = stream.Endpoint(spi_layout(
             data_width = data_width,
             be_width   = data_width//8,
@@ -498,13 +506,6 @@ class SPIEngine(LiteXModule):
             be_width   = data_width//8,
             cs_width   = len(pads.cs_n)
         ))
-
-        self.control  = CSRStorage(fields=[
-            CSRField("enable", size=1, offset=0, values=[
-                    ("``0b0``", "SPI Engine Disabled."),
-                    ("``0b1``", "SPI Engine Enabled."),
-            ], reset=default_enable),
-        ])
 
         # # #
 
@@ -544,7 +545,7 @@ class SPIEngine(LiteXModule):
         ]
 
         # SPI CS. (Use Manual CS to allow back-to-back Xfers).
-        self.comb += If(self.control.fields.enable & sink.valid,
+        self.comb += If(ctrl.engine.fields.enable & sink.valid,
             spi.cs.eq(sink.cs)
         )
 
@@ -555,7 +556,7 @@ class SPIEngine(LiteXModule):
         # Control-Path.
         self.fsm = fsm = FSM(reset_state="START")
         fsm.act("START",
-            If(self.control.fields.enable & sink.valid,
+            If(ctrl.engine.fields.enable & sink.valid,
                 spi.start.eq(1),
                 NextState("XFER")
             )
