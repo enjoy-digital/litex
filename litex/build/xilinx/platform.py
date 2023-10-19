@@ -26,6 +26,12 @@ class XilinxPlatform(GenericPlatform):
         "ultrascale+" : ["vivado"],
     }
 
+    _jtag_support = [
+        "xc6",
+        "xc7a", "xc7k", "xc7v", "xc7z",
+        "xcau", "xcku", "xcvu", "xczu"
+    ]
+
     def __init__(self, *args, toolchain="ise", **kwargs):
         GenericPlatform.__init__(self, *args, **kwargs)
         self.edifs = set()
@@ -125,6 +131,7 @@ class XilinxPlatform(GenericPlatform):
             return vivado.vivado_build_argdict(args)
         else:
             return dict()
+
 
 # XilinxSpartan6Platform ---------------------------------------------------------------------------
 

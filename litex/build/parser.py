@@ -9,10 +9,13 @@ import sys
 import logging
 import argparse
 import importlib
+import time
 
 from litex.soc.cores import cpu
 from litex.soc.integration import soc_core
 from litex.soc.integration import builder
+
+from litex.gen.common import *
 
 # Litex Argument Parser ----------------------------------------------------------------------------
 
@@ -63,6 +66,9 @@ class LiteXArgumentParser(argparse.ArgumentParser):
             self.set_platform(platform)
             self.add_target_group()
         self.add_logging_group()
+        # workaround for backward compatibility
+        self._rm_jtagbone = False
+        self._rm_uartbone = False
 
     def set_platform(self, platform):
         """ set platform. Check first if not already set
@@ -104,8 +110,21 @@ class LiteXArgumentParser(argparse.ArgumentParser):
         """ wrapper to add argument to "Target options group" from outer of this
         class
         """
+        arg = args[0]
+        if arg in ["--with-jtagbone", "--with-uartbone"]:
+            if arg == "--with-jtagbone":
+                self._rm_jtagbone = True
+            else:
+                self._rm_uartbone = True
+            print("Warning {} {} {}".format(
+                colorer(arg, color="red"),
+                colorer(" is added by SoCCore. ", color="red"),
+                colorer("Please remove this option from target", color="yellow")))
+            time.sleep(2)
+            return # bypass insert
         if self._target_group is None:
             self._target_group = self.add_argument_group(title="Target options")
+
         self._target_group.add_argument(*args, **kwargs)
 
     def add_logging_group(self):
@@ -147,7 +166,14 @@ class LiteXArgumentParser(argparse.ArgumentParser):
         ======
         soc_core arguments dict
         """
-        return soc_core.soc_core_argdict(self._args) # FIXME: Rename to soc_argdict in the future.
+        soc_arg = soc_core.soc_core_argdict(self._args) # FIXME: Rename to soc_argdict in the future.
+
+        # Work around for backward compatibility
+        if self._rm_jtagbone:
+            soc_arg.pop("with_jtagbone")
+        if self._rm_uartbone:
+            soc_arg.pop("with_uartbone")
+        return soc_arg
 
     @property
     def toolchain_argdict(self):
