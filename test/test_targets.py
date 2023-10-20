@@ -67,7 +67,10 @@ python3 -m litex_boards.targets.simple litex_boards.platforms.{} \
     --no-compile       \
     --uart-name="stub" \
 """.format(name)
-                subprocess.check_call(cmd, shell=True)
+                try:
+                    subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT, universal_newlines=True)
+                except subprocess.CalledProcessError as exc:
+                    raise self.failureException(exc.output) from None
 
     # Build default configuration for all targets.
     def test_targets(self):
@@ -90,4 +93,10 @@ python3 -m litex_boards.targets.{} \
     --build                 \
     --no-compile            \
 """.format(name)
-                subprocess.check_call(cmd, shell=True)
+                try:
+                    subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT, universal_newlines=True)
+                except subprocess.CalledProcessError as exc:
+                    raise self.failureException(exc.output) from None
+
+if __name__ == '__main__':
+    unittest.main()
