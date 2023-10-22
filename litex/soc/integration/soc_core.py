@@ -251,12 +251,13 @@ class SoCCore(LiteXSoC):
 
 def soc_core_args(parser):
     soc_group = parser.add_argument_group(title="SoC options")
+    bool_action = argparse.BooleanOptionalAction
     # Bus parameters
     soc_group.add_argument("--bus-standard",      default="wishbone",                help="Select bus standard: {}.".format(", ".join(SoCBusHandler.supported_standard)))
     soc_group.add_argument("--bus-data-width",    default=32,         type=auto_int, help="Bus data-width.")
     soc_group.add_argument("--bus-address-width", default=32,         type=auto_int, help="Bus address-width.")
     soc_group.add_argument("--bus-timeout",       default=int(1e6),   type=float,    help="Bus timeout in cycles.")
-    soc_group.add_argument("--bus-bursting",      action="store_true",               help="Enable burst cycles on the bus if supported.")
+    soc_group.add_argument("--bus-bursting",      action=bool_action, default=False, help="Enable burst cycles on the bus if supported.")
     soc_group.add_argument("--bus-interconnect",  default="shared",                  help="Select bus interconnect: shared (default) or crossbar.")
 
     # CPU parameters
@@ -266,7 +267,7 @@ def soc_core_args(parser):
     soc_group.add_argument("--cpu-cfu",           default=None,                     help="Optional CPU CFU file/instance to add to the CPU.")
 
     # Controller parameters
-    soc_group.add_argument("--no-ctrl", action="store_true", help="Disable Controller.")
+    soc_group.add_argument("--ctrl",              action=bool_action, default=True, help="Include Controller.")
 
     # ROM parameters
     soc_group.add_argument("--integrated-rom-size", default=0x20000, type=auto_int, help="Size/Enable the integrated (BIOS) ROM (Automatically resized to BIOS size when smaller).")
@@ -285,18 +286,18 @@ def soc_core_args(parser):
     soc_group.add_argument("--csr-ordering",      default="big",                help="CSR registers ordering (big or little).")
 
     # Identifier parameters
-    soc_group.add_argument("--ident",             default=None,  type=str, help="SoC identifier.")
-    soc_group.add_argument("--no-ident-version",  action="store_true",     help="Disable date/time in SoC identifier.")
+    soc_group.add_argument("--ident",           default=None,  type=str,            help="SoC identifier.")
+    soc_group.add_argument("--ident-version",   action=bool_action, default=True,   help="Include date/time in SoC identifier.")
 
     # UART parameters
-    soc_group.add_argument("--no-uart",         action="store_true",                help="Disable UART.")
+    soc_group.add_argument("--uart",            action=bool_action,  default=True,  help="Include a UART.")
     soc_group.add_argument("--uart-name",       default="serial",    type=str,      help="UART type/name.")
     soc_group.add_argument("--uart-baudrate",   default=115200,      type=auto_int, help="UART baudrate.")
     soc_group.add_argument("--uart-fifo-depth", default=16,          type=auto_int, help="UART FIFO depth.")
 
     # Timer parameters
-    soc_group.add_argument("--no-timer",        action="store_true", help="Disable Timer.")
-    soc_group.add_argument("--timer-uptime",    action="store_true", help="Add an uptime capability to Timer.")
+    soc_group.add_argument("--timer",           action=bool_action, default=True, help="Include a Timer.")
+    soc_group.add_argument("--timer-uptime",    action=bool_action, default=False, help="Add an uptime capability to Timer.")
 
     # L2 Cache
     soc_group.add_argument("--l2-size", default=8192, type=auto_int, help="L2 cache size.")
@@ -312,10 +313,7 @@ def soc_core_argdict(args):
             continue
         # Handle specific with_xy case (--no_xy is exposed).
         if a in ["with_uart", "with_timer", "with_ctrl"]:
-            arg = not getattr(args, a.replace("with", "no"), True)
-        # Handle specific ident_version case (--no-ident-version is exposed).
-        elif a in ["ident_version"]:
-            arg = not getattr(args, "no_ident_version", True)
+            arg = getattr(args, a.replace("with_", ""), False)
         # Regular cases.
         else:
             arg = getattr(args, a, None)

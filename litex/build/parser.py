@@ -9,6 +9,7 @@ import sys
 import logging
 import argparse
 import importlib
+import inspect
 
 from litex.soc.cores import cpu
 from litex.soc.integration import soc_core
@@ -36,7 +37,7 @@ class LiteXArgumentParser(argparse.ArgumentParser):
         couple argument name / default value to apply just before to call
         parse_args()
     """
-    def __init__(self, platform=None, **kwargs):
+    def __init__(self, platform=None, soc=None, **kwargs):
         """
         CTOR: create a Target options group, adds toolchain, build and load
         arguments. Call builder_args and soc_core_args for fill parser with
@@ -51,6 +52,7 @@ class LiteXArgumentParser(argparse.ArgumentParser):
         """
         argparse.ArgumentParser.__init__(self, kwargs)
         self._platform          = None
+        self._soc               = soc
         self._device            = None
         self.toolchains         = None
         self._default_toolchain = None
@@ -97,8 +99,9 @@ class LiteXArgumentParser(argparse.ArgumentParser):
                 help    = "FPGA toolchain ({}).".format(" or ".join(self.toolchains)))
         else:
             self.add_target_argument("-toolchain", help="FPGA toolchain")
-        self.add_target_argument("--build", action="store_true", help="Build design.")
-        self.add_target_argument("--load",  action="store_true", help="Load bitstream.")
+        bool_action = argparse.BooleanOptionalAction
+        self.add_target_argument("--build", action=bool_action, default=False, help="Build design.")
+        self.add_target_argument("--load",  action=bool_action, default=False, help="Load bitstream.")
 
     def add_target_argument(self, *args, **kwargs):
         """ wrapper to add argument to "Target options group" from outer of this
@@ -145,9 +148,20 @@ class LiteXArgumentParser(argparse.ArgumentParser):
 
         Return
         ======
-        soc_core arguments dict
+        soc_core arguments dict plus soc args when soc has been supplied.
         """
-        return soc_core.soc_core_argdict(self._args) # FIXME: Rename to soc_argdict in the future.
+        argdict = soc_core.soc_core_argdict(self._args) # FIXME: Rename to soc_argdict in the future.
+
+        # when _soc is set, iterate on _soc args adding supplied args to argdict.
+        if self._soc:
+            for a in inspect.getfullargspec(self._soc.__init__).args:
+                arg = getattr(self._args, a, None)
+                # Fill Dict.
+                if arg is not None:
+                    argdict[a] = arg
+                    print(f"arg {a}={arg}")
+
+        return argdict
 
     @property
     def toolchain_argdict(self):
