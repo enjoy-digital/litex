@@ -21,7 +21,7 @@ class XilinxPlatform(GenericPlatform):
 
     _supported_toolchains = {
         "spartan6"    : ["ise"],
-        "7series"     : ["vivado", "f4pga", "yosys+nextpnr"],
+        "7series"     : ["vivado", "f4pga", "yosys+nextpnr", "openxc7"],
         "ultrascale"  : ["vivado"],
         "ultrascale+" : ["vivado"],
     }
@@ -42,6 +42,9 @@ class XilinxPlatform(GenericPlatform):
         elif toolchain == "yosys+nextpnr":
             from litex.build.xilinx import yosys_nextpnr
             self.toolchain = yosys_nextpnr.XilinxYosysNextpnrToolchain()
+        elif toolchain == "openxc7":
+            from litex.build.xilinx import openxc7
+            self.toolchain = openxc7.XilinxOpenXC7Toolchain()
         else:
             raise ValueError(f"Unknown toolchain {toolchain}")
 

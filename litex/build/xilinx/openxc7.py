@@ -1,0 +1,146 @@
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2020 Antmicro <www.antmicro.com>
+# Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2022 Victor Suarez Rovere <suarezvictor@gmail.com>
+# Copyright (c) 2023 Hans Baier <hansfbaier@gmail.com>
+# SPDX-License-Identifier: BSD-2-Clause
+
+import os
+import subprocess
+import sys
+import math
+from typing import NamedTuple, Union, List
+import re
+from shutil import which
+
+from migen.fhdl.structure import _Fragment, wrap, Constant
+from migen.fhdl.specials import Instance
+
+from litex.build.yosys_nextpnr_toolchain import YosysNextPNRToolchain
+from litex.build.generic_platform import *
+from litex.build.xilinx.vivado import _xdc_separator, _format_xdc, _build_xdc
+from litex.build import tools
+from litex.build.xilinx import common
+
+
+def _unwrap(value):
+    return value.value if isinstance(value, Constant) else value
+
+
+# XilinxOpenXC7Toolchain ----------------------------------------------------------------------------
+
+class XilinxOpenXC7Toolchain(YosysNextPNRToolchain):
+    attr_translate = {}
+
+    synth_fmt  = "json"
+    constr_fmt = "xdc"
+    pnr_fmt    = "fasm"
+    packer_cmd = "xc7frames2bit"
+
+    def __init__(self):
+        super().__init__()
+        self.dbpart = None
+        self.family = "xilinx"
+        self._xc7family = None
+        self._clock_constraints = ""
+        self.additional_xdc_commands = []
+        self._pre_packer_cmd = ["fasm2frames"]
+        self._synth_opts = "-flatten -abc9 -arch xc7 "
+
+    xc7_family_map = {
+        "a": "artix7",
+        "k": "kintex7",
+        "s": "spartan7",
+        "z": "zynq7"
+    }
+
+    def _check_properties(self):
+        pattern = re.compile("xc7([aksz])([0-9]+)(.*)-([0-9])")
+        g = pattern.search(self.platform.device)
+        if not self.dbpart:
+            self.dbpart = f"xc7{g.group(1)}{g.group(2)}{g.group(3)}"
+
+        if not self._xc7family:
+            fam = g.group(1)
+            self._xc7family = self.xc7_family_map[fam]
+
+    def build_timing_constraints(self, vns):
+        xdc = []
+        xdc.append(_xdc_separator("Clock constraints"))
+
+        for clk, [period, name] in sorted(self.clocks.items(), key=lambda x: x[0].duid):
+            clk_sig = self._vns.get_name(clk)
+            if name is None:
+                name = clk_sig
+            xdc.append(
+                "create_clock -name {name} -period " + str(period) +
+                " [get_ports {clk}]".format(name=name, clk=clk_sig))
+
+        # generate sdc
+        xdc += self.additional_xdc_commands
+        self._clock_constraints = "\n".join(xdc)
+
+    def build_io_constraints(self):
+        tools.write_to_file(self._build_name + ".xdc", _build_xdc(self.named_sc, self.named_pc) + self._clock_constraints)
+        return (self._build_name + ".xdc", "XDC")
+
+    def _fix_instance(self, instance):
+        pass
+
+    def finalize(self):
+        # toolchain-specific fixes
+        for instance in self.fragment.specials:
+            if isinstance(instance, Instance):
+                self._fix_instance(instance)
+
+        chipdb_dir = os.environ.get('CHIPDB')
+        if chipdb_dir is None or chipdb_dir == "":
+            print("Error: please specify the directory, where you store your nextpnr-xilinx chipdb files in the environment variable CHIPDB (may be empty)")
+            exit(1)
+
+        # pnr options
+        self._pnr_opts += "--chipdb {chipdb_dir}/{dbpart}.bin --write {top}_routed.json".format(
+            top        = self._build_name,
+            chipdb_dir = chipdb_dir,
+            dbpart     = self.dbpart,
+        )
+
+        prjxray_db_dir = os.environ.get('PRJXRAY_DB_DIR')
+        if prjxray_db_dir is None or prjxray_db_dir == "":
+            prjxray_db_dir = '/snap/openxc7/current/opt/nextpnr-xilinx/external/prjxray-db/'
+
+        if not os.path.isdir(prjxray_db_dir):
+            print(f"{prjxray_db_dir} does not exist on your system. \n" + \
+                    "Do you have the openXC7 toolchain installed? \n" + \
+                    "You can get it here: https://github.com/openXC7/toolchain-installer")
+            exit(1)
+
+        # pre packer options
+        self._pre_packer_opts["fasm2frames"] = "--part {part} --db-root {db_root} {top}.fasm > {top}.frames".format(
+            part    = self.platform.device,
+            db_root = os.path.join(prjxray_db_dir, self._xc7family),
+            top     = self._build_name
+        )
+        # packer options
+        self._packer_opts += "--part_file {db_dir}/{part}/part.yaml --part_name {part} --frm_file {top}.frames --output_file {top}.bit".format(
+            db_dir = os.path.join(prjxray_db_dir, self._xc7family),
+            part   = self.platform.device,
+            top    = self._build_name
+        )
+
+        return YosysNextPNRToolchain.finalize(self)
+
+    def build(self, platform, fragment,
+        enable_xpm = False,
+        **kwargs):
+
+        self.platform = platform
+        self._check_properties()
+
+        return YosysNextPNRToolchain.build(self, platform, fragment, **kwargs)
+
+    def add_false_path_constraint(self, platform, from_, to):
+        # FIXME: false path constraints are currently not supported by the openXC7 toolchain
+        return

@@ -45,7 +45,7 @@ class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
         self.bitstream_device = None
         self._partname = None
         self._pre_packer_cmd = ["fasm2frames.py"]
-        self._synth_opts = "-flatten -abc9 -nobram -arch xc7 "
+        self._synth_opts = "-flatten -abc9 -arch xc7 "
 
     def _check_properties(self):
         if not self.f4pga_device:
@@ -64,12 +64,14 @@ class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
                 # bitstream_device points to a directory in prjxray database
                 # available bitstream_devices: artix7, kintex7, zynq7
                 self.bitstream_device = {
-                    "xc7a": "artix7", # xc7a35t, xc7a50t, xc7a100t, xc7a200t
-                    "xc7z": "zynq7", # xc7z010, xc7z020
+                    "xc7s": "spartan7",
+                    "xc7a": "artix7",
+                    "xc7k": "kintex7",
+                    "xc7z": "zynq7",
                 }[self.platform.device[:4]]
             except KeyError:
                 raise ValueError(f"Unsupported device: {self.platform.device}")
-        # FIXME: prjxray-db doesn't have xc7a35ticsg324-1L - use closest replacement
+
         self._partname = {
             "xc7a35ticsg324-1L" : "xc7a35tcsg324-1",
             "xc7a100tcsg324-1"  : "xc7a100tcsg324-1",
@@ -132,12 +134,5 @@ class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
         return YosysNextPNRToolchain.build(self, platform, fragment, **kwargs)
 
     def add_false_path_constraint(self, platform, from_, to):
-        # FIXME: false path constraints are currently not supported by the F4PGA toolchain
+        # FIXME: false path constraints are currently not supported by nextpnr-xilinx
         return
-
-def f4pga_build_args(parser):
-    pass
-
-
-def f4pga_build_argdict(args):
-    return dict()
