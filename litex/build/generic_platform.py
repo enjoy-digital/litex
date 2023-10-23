@@ -507,7 +507,7 @@ class GenericPlatform:
 
     @property
     def jtag_support(self):
-        if isinstance(self._jtag_support, str):
+        if isinstance(self._jtag_support, bool):
             return self._jtag_support
         else:
             for dev in self._jtag_support:
