@@ -1460,6 +1460,15 @@ class LiteXSoC(SoC):
         from litex.soc.cores import uart
         from litex.soc.cores.jtag import JTAGPHY
 
+        # Check if JTAGBone is supported (SPI only device or no user access).
+        if not self.platform.jtag_support:
+            self.logger.error("{} {} on {} device.".format(
+                colorer("JTAGBone"),
+                colorer("not supported", color="red"),
+                colorer(self.platform.device)
+            ))
+            raise SoCError()
+
         # Core.
         self.check_if_exists(name)
         jtagbone_phy = JTAGPHY(device=self.platform.device, chain=chain, platform=self.platform)

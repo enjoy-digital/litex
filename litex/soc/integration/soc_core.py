@@ -183,15 +183,10 @@ class SoCCore(LiteXSoC):
 
         # Parameters check validity ----------------------------------------------------------------
 
-        # Check if jtagbone is supported (SPI only device or no user access).
-        if with_jtagbone:
-            if not platform.jtag_support:
-                self.logger.error("{} {} with {} FPGA".format(
-                    colorer("JTAGBone isn't supported for platform", color="red"),
-                    platform.name, platform.device))
-                raise SoCError()
+        # FIXME: Move to soc.py?
+
         if with_uart:
-            # crossover+uartbone is kept as backward compatibility
+            # crossover+uartbone is kept as backward compatibility
             if uart_name == "crossover+uartbone":
                 self.logger.warning("{} UART: is deprecated {}".format(
                     colorer(uart_name, color="yellow"),
@@ -201,9 +196,9 @@ class SoCCore(LiteXSoC):
                 self._uartbone = True
                 uart_name      = "crossover"
 
-            # JTAGBone and jtag_uart can't be used at the same time.
+            # JTAGBone and jtag_uart can't be used at the same time.
             assert not (with_jtagbone and uart_name == "jtag_uart")
-            # UARTBone and serial can't be used at the same time.
+            # UARTBone and serial can't be used at the same time.
             assert not (with_uartbone and uart_name == "serial")
 
         # Modules instances ------------------------------------------------------------------------
