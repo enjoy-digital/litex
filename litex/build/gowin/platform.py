@@ -14,6 +14,7 @@ from litex.build.gowin import common, gowin
 
 class GowinPlatform(GenericPlatform):
     _bitstream_ext = ".fs"
+    _jtag_support  = False
 
     _supported_toolchains = ["gowin", "apicula"]
 
