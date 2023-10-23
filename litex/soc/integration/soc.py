@@ -1732,7 +1732,9 @@ class LiteXSoC(SoC):
         udp_port                = 1234,
         buffer_depth            = 16,
         with_ip_broadcast       = True,
-        with_timing_constraints = True):
+        with_timing_constraints = True,
+        interface               = "crossbar",
+        endianness              = "big"):
         # Imports
         from liteeth.core import LiteEthUDPIPCore
         from liteeth.frontend.etherbone import LiteEthEtherbone
@@ -1751,6 +1753,8 @@ class LiteXSoC(SoC):
             dw          = data_width,
             with_ip_broadcast = with_ip_broadcast,
             with_sys_datapath = with_sys_datapath,
+            interface   = interface,
+            endianness  = endianness,
         )
         if not with_sys_datapath:
             # Use PHY's eth_tx/eth_rx clock domains.
