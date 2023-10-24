@@ -21,7 +21,7 @@ class XilinxPlatform(GenericPlatform):
 
     _supported_toolchains = {
         "spartan6"    : ["ise"],
-        "7series"     : ["vivado", "f4pga", "yosys+nextpnr"],
+        "7series"     : ["vivado", "f4pga", "yosys+nextpnr", "openxc7"],
         "ultrascale"  : ["vivado"],
         "ultrascale+" : ["vivado"],
     }
@@ -45,9 +45,9 @@ class XilinxPlatform(GenericPlatform):
         elif toolchain == "symbiflow" or toolchain == "f4pga":
             from litex.build.xilinx import f4pga
             self.toolchain = f4pga.F4PGAToolchain()
-        elif toolchain == "yosys+nextpnr":
+        elif toolchain in ["yosys+nextpnr", "openxc7"]:
             from litex.build.xilinx import yosys_nextpnr
-            self.toolchain = yosys_nextpnr.XilinxYosysNextpnrToolchain()
+            self.toolchain = yosys_nextpnr.XilinxYosysNextpnrToolchain(toolchain)
         else:
             raise ValueError(f"Unknown toolchain {toolchain}")
 
@@ -64,6 +64,12 @@ class XilinxPlatform(GenericPlatform):
             # FIXME: Add support for INTERNAL_VREF to yosys+nextpnr flow.
             if "set_property INTERNAL_VREF" in command:
                 print("WARNING: INTERNAL_VREF constraint removed since not yet supported by yosys-nextpnr flow.")
+                skip = True
+            if "set_property CFGBVS" in command:
+                print("WARNING: CFGBVS constraint removed since not yet supported by yosys-nextpnr flow.")
+                skip = True
+            if "set_property CONFIG_VOLTAGE" in command:
+                print("WARNING: CONFIG_VOLTAGE constraint removed since not yet supported by yosys-nextpnr flow.")
                 skip = True
         if not skip:
             GenericPlatform.add_platform_command(self, command, **signals)
