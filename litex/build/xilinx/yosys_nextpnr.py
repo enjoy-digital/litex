@@ -117,7 +117,7 @@ class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
             if prjxray_db_dir is None or prjxray_db_dir == "":
                 prjxray_db_dir = '/snap/openxc7/current/opt/nextpnr-xilinx/external/prjxray-db/'
         else:
-            prjxray_db_dir = f"/usr/share/nextpnr/prjxray-db/
+            prjxray_db_dir = "/usr/share/nextpnr/prjxray-db/"
 
         if not os.path.isdir(prjxray_db_dir):
             print(f"{prjxray_db_dir} does not exist on your system. \n" + \
@@ -126,7 +126,7 @@ class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
             exit(1)
 
         # pre packer options
-        self._pre_packer_opts[self._pre_packer_cmd] = "--part {part} --db-root {db_root} {top}.fasm > {top}.frames".format(
+        self._pre_packer_opts[self._pre_packer_cmd[0]] = "--part {part} --db-root {db_root} {top}.fasm > {top}.frames".format(
             part    = self.platform.device,
             db_root = os.path.join(prjxray_db_dir, self._xc7family),
             top     = self._build_name
