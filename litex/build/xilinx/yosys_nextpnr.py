@@ -100,16 +100,38 @@ class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
         if self.is_openxc7:
             chipdb_dir = os.environ.get('CHIPDB')
             if chipdb_dir is None or chipdb_dir == "":
-                print("Error: please specify the directory, where you store your nextpnr-xilinx chipdb files in the environment variable CHIPDB (may be empty)")
+                print("Error: please specify the directory, where you store your nextpnr-xilinx chipdb files in the environment variable CHIPDB (directory may be empty)")
                 exit(1)
         else:
             chipdb_dir = "/usr/share/nextpnr/xilinx-chipdb"
 
+        chipdb = os.path.join(chipdb_dir, self.dbpart) + ".bin"
+        if not os.path.exists(chipdb):
+            if self.is_openxc7:
+                print(f"Chip database file '{chipdb}' not found, generating...")
+                pypy3 = os.environ.get('PYPY3')
+                if pypy3 is None or pypy3 == "":
+                    pypy3 = which("pypy3")
+                    if pypy3 is None:
+                        pypy3 = "python3"
+
+                nextpnr_xilinx_python_dir = os.environ.get('NEXTPNR_XILINX_PYTHON_DIR')
+                if nextpnr_xilinx_python_dir is None or nextpnr_xilinx_python_dir == "":
+                    nextpnr_xilinx_python_dir = "/snap/openxc7/current/opt/nextpnr-xilinx/python"
+                bba = self.dbpart + ".bba"
+                bbaexport = [pypy3, os.path.join(nextpnr_xilinx_python_dir, "bbaexport.py"), "--device", self.platform.device, "--bba", bba]
+                print(str(bbaexport))
+                subprocess.run(bbaexport)
+                subprocess.run(["bbasm", "-l", bba, chipdb])
+                os.remove(bba)
+            else:
+                print("Chip database file '{chipdb}' not found. Please check your toolchain installation!")
+                exit(1)
+
         # pnr options
-        self._pnr_opts += "--chipdb {chipdb_dir}/{dbpart}.bin --write {top}_routed.json".format(
-            top        = self._build_name,
-            chipdb_dir = chipdb_dir,
-            dbpart     = self.dbpart,
+        self._pnr_opts += "--chipdb {chipdb} --write {top}_routed.json".format(
+            top    = self._build_name,
+            chipdb = chipdb
         )
 
         if self.is_openxc7:
