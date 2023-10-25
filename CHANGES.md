@@ -2,22 +2,26 @@
 ------------------------
 	[> Fixed
 	--------
-	liteeth/arp : Fixed response on table update.
+	- liteeth/arp           : Fixed response on table update.
+	- litesata/us(p)sataphy : Fixed data_width=32 case.
 
 	[> Added
 	--------
-	cpu/naxriscv          : Added SMP support.
-	cpu/neorv32           : Added Debug support and update core complex.
-	cpu/vexriscv_smp      : Added hardware breakpoints support.
-	build/colognechip     : Added initial support.
-	soc/cores/video       : Added VTG/DMA synchronization stage to VideoFramebuffer.
-	litepcie/dma          : Improved LitePCIeDMADescriptorSplitter timings.
-	interconnect/wishbone : Added linear burst support to DownConverter.
+	- cpu/naxriscv          : Added SMP support.
+	- cpu/neorv32           : Added Debug support and update core complex.
+	- cpu/vexriscv_smp      : Added hardware breakpoints support.
+	- build/colognechip     : Added initial support.
+	- soc/cores/video       : Added VTG/DMA synchronization stage to VideoFramebuffer.
+	- litepcie/dma          : Improved LitePCIeDMADescriptorSplitter timings.
+	- interconnect/wishbone : Added linear burst support to DownConverter.
+	- integration/SoC       : Added with_jtagbone/with_uartbone support.
+	- soc/cores             : Added Ti60F100 HyperRAM support.
+	- build/xilinx          : Added initial OpenXC7 support (and improved Yosys-NextPnr).
+	- build/efinix          : Added JTAG-UART/JTAGBone support.
 
 	[> Changed
 	----------
-	build/osfpga: Removed initial support (would need feedbacks/updates).
-
+	- build/osfpga: Removed initial support (would need feedbacks/updates).
 
 [> 2023.08, released on September 14th 2023
 -------------------------------------------
