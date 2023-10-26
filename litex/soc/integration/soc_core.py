@@ -195,6 +195,9 @@ class SoCCore(LiteXSoC):
                 # Already configured.
                 self._uartbone = True
                 uart_name      = "crossover"
+            elif uart_name == "uartbone":
+                with_uart      = False
+                with_uartbone  = True
 
             # JTAGBone and jtag_uart can't be used at the same time.
             assert not (with_jtagbone and uart_name == "jtag_uart")
