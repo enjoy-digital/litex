@@ -312,7 +312,7 @@ class VexRiscvSMP(CPU):
             False : 32,
             # Else max of I/DCache-width.
             True  : max(VexRiscvSMP.icache_width, VexRiscvSMP.dcache_width),
-        }[VexRiscvSMP.wishbone_memory and not VexRiscvSMP.wishbone_force_32b])
+        }[VexRiscvSMP.wishbone_memory and not VexRiscvSMP.wishbone_force_32b], addressing="word")
         self.periph_buses     = [pbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses     = []     # Memory buses (Connected directly to LiteDRAM).
 
@@ -320,8 +320,8 @@ class VexRiscvSMP(CPU):
 
         self.cpu_params = dict(
             # Clk / Rst.
-            i_debugCd_external_clk   = ClockSignal(),
-            i_debugCd_external_reset = ResetSignal() | self.reset,
+            i_debugCd_external_clk   = ClockSignal("sys"),
+            i_debugCd_external_reset = ResetSignal("sys") | self.reset,
 
             # Interrupts.
             i_interrupts = self.interrupt,
@@ -352,7 +352,7 @@ class VexRiscvSMP(CPU):
 
         # DMA.
         if VexRiscvSMP.coherent_dma:
-            self.dma_bus = dma_bus = wishbone.Interface(data_width=VexRiscvSMP.dcache_width, address_width=32)
+            self.dma_bus = dma_bus = wishbone.Interface(data_width=VexRiscvSMP.dcache_width, address_width=32, addressing="word")
             dma_bus_stall   = Signal()
             dma_bus_inhibit = Signal()
             self.cpu_params.update(
@@ -462,7 +462,7 @@ class VexRiscvSMP(CPU):
             soc.add_config("CPU_ITLB_WAYS", VexRiscvSMP.itlb_size)
 
         # Add PLIC as Bus Slave
-        self.plicbus = plicbus  = wishbone.Interface()
+        self.plicbus = plicbus  = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.cpu_params.update(
             i_plicWishbone_CYC       = plicbus.cyc,
             i_plicWishbone_STB       = plicbus.stb,
@@ -475,7 +475,7 @@ class VexRiscvSMP(CPU):
         soc.bus.add_slave("plic", self.plicbus, region=SoCRegion(origin=soc.mem_map.get("plic"), size=0x40_0000, cached=False))
 
         # Add CLINT as Bus Slave
-        self.clintbus = clintbus = wishbone.Interface()
+        self.clintbus = clintbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.cpu_params.update(
             i_clintWishbone_CYC      = clintbus.cyc,
             i_clintWishbone_STB      = clintbus.stb,

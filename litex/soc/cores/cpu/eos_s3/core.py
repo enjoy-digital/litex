@@ -47,7 +47,7 @@ class EOS_S3(CPU):
         self.platform       = platform
         self.reset          = Signal()
         self.interrupt      = Signal(4)
-        self.pbus           = wishbone.Interface(data_width=32, adr_width=15)
+        self.pbus           = wishbone.Interface(data_width=32, adr_width=15, addressing="word")
         self.periph_buses   = [self.pbus]
         self.memory_buses   = []
 

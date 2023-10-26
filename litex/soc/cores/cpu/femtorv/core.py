@@ -71,7 +71,7 @@ class FemtoRV(CPU):
         self.variant      = variant
         self.human_name   = f"FemtoRV-{variant.upper()}"
         self.reset        = Signal()
-        self.idbus        = idbus = wishbone.Interface()
+        self.idbus        = idbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.periph_buses = [idbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses = []      # Memory buses (Connected directly to LiteDRAM).
 

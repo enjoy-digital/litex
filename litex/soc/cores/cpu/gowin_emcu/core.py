@@ -168,7 +168,7 @@ class GowinEMCU(CPU):
 
         # Extension AHB -> Wishbone CSR via bridge
 
-        self.pbus = wishbone.Interface(data_width=32, adr_width=30)
+        self.pbus = wishbone.Interface(data_width=32, adr_width=30, addressing="word")
         self.periph_buses = [self.pbus]
         ahb_targexp0 = ahb.Interface()
         for s, _ in ahb_targexp0.master_signals:

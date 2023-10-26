@@ -84,8 +84,8 @@ class Marocchino(CPU):
         self.variant      = variant
         self.reset        = Signal()
         self.interrupt    = Signal(32)
-        self.ibus         = ibus = wishbone.Interface()
-        self.dbus         = dbus = wishbone.Interface()
+        self.ibus         = ibus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+        self.dbus         = dbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.periph_buses = [ibus, dbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses = []           # Memory buses (Connected directly to LiteDRAM).
 
@@ -117,8 +117,8 @@ class Marocchino(CPU):
             **cpu_args,
 
             # Clk / Rst.
-            i_wb_clk = ClockSignal("sys"),
-            i_wb_rst = ResetSignal("sys") | self.reset,
+            i_wb_clk  = ClockSignal("sys"),
+            i_wb_rst  = ResetSignal("sys") | self.reset,
             i_cpu_clk = ClockSignal("sys"),
             i_cpu_rst = ResetSignal("sys") | self.reset,
 

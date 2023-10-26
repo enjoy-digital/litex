@@ -183,8 +183,8 @@ class DebugModule(Module):
         if pads is None:
             pads = Record(self.jtag_layout)
         self.pads = pads
-        self.dmbus = wishbone.Interface()
-        self.sbbus = wishbone.Interface()
+        self.dmbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+        self.sbbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         dmbus = Record(obi_layout)
         sbbus = Record(obi_layout)
 
@@ -267,8 +267,8 @@ class CV32E41P(CPU):
         self.platform          = platform
         self.variant           = variant
         self.reset             = Signal()
-        self.ibus              = wishbone.Interface()
-        self.dbus              = wishbone.Interface()
+        self.ibus              = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+        self.dbus              = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.periph_buses      = [self.ibus, self.dbus]
         self.memory_buses      = []
         self.interrupt         = Signal(16)
@@ -321,7 +321,7 @@ class CV32E41P(CPU):
             i_apu_rvalid_i = 0,
 
             # IRQ.
-            i_irq_i          = Cat(self.interrupt_padding,self.interrupt),
+            i_irq_i          = Cat(self.interrupt_padding, self.interrupt),
 
             # Debug.
             i_debug_req_i    = 0,
@@ -335,7 +335,7 @@ class CV32E41P(CPU):
 
     def add_debug_module(self, dm):
         self.cpu_params.update(i_debug_req_i=dm.debug_req)
-        self.cpu_params.update(i_rst_ni=~(ResetSignal() | dm.ndmreset))
+        self.cpu_params.update(i_rst_ni=~(ResetSignal("sys") | dm.ndmreset))
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address

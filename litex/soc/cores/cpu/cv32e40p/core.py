@@ -232,7 +232,7 @@ class TraceCollector(LiteXModule):
 
 class TraceDebugger(LiteXModule):
     def __init__(self):
-        self.bus      = wishbone.Interface()
+        self.bus      = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.source   = source   = stream.Endpoint([("data", 32)])
         self.trace_if = trace_if = Record(trace_layout)
 
@@ -292,8 +292,8 @@ class DebugModule(LiteXModule):
         if pads is None:
             pads = Record(self.jtag_layout)
         self.pads = pads
-        self.dmbus = wishbone.Interface()
-        self.sbbus = wishbone.Interface()
+        self.dmbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+        self.sbbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         dmbus = Record(obi_layout)
         sbbus = Record(obi_layout)
 
@@ -382,8 +382,8 @@ class CV32E40P(CPU):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
-        self.ibus         = wishbone.Interface()
-        self.dbus         = wishbone.Interface()
+        self.ibus         = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+        self.dbus         = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.periph_buses = [self.ibus, self.dbus]
         self.memory_buses = []
         self.interrupt    = Signal(15)
@@ -458,7 +458,7 @@ class CV32E40P(CPU):
 
     def add_debug_module(self, dm):
         self.cpu_params.update(i_debug_req_i=dm.debug_req)
-        self.cpu_params.update(i_rst_ni=~(ResetSignal() | dm.ndmreset))
+        self.cpu_params.update(i_rst_ni=~(ResetSignal("sys") | dm.ndmreset))
 
     def add_trace_core(self, trace):
         trace_if = trace.trace_if
