@@ -249,7 +249,7 @@ class SoCCore(LiteXSoC):
 
         # Add UARTBone
         if with_uartbone:
-            self.add_uartbone(baudrate=uart_baudrate)
+            self.add_uartbone(baudrate=uart_baudrate, address_width=bus_address_width)
 
         # Add UART
         if with_uart:
