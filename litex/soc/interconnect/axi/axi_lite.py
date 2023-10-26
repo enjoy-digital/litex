@@ -44,13 +44,22 @@ def r_lite_description(data_width):
     ]
 
 class AXILiteInterface:
-    def __init__(self, data_width=32, address_width=32, clock_domain="sys", name=None, bursting=False):
-        self.data_width    = data_width
-        self.address_width = address_width
-        self.clock_domain  = clock_domain
+    def __init__(self, data_width=32, address_width=32, addressing="byte", clock_domain="sys", name=None, bursting=False):
+        # Parameters checks.
+        # ------------------
+        assert addressing == "byte"
         if bursting is not False:
             raise NotImplementedError("AXI-Lite does not support bursting")
 
+        # Parameters.
+        # -----------
+        self.data_width    = data_width
+        self.address_width = address_width
+        self.addressing    = addressing
+        self.clock_domain  = clock_domain
+
+        # Channels.
+        # ---------
         self.aw = stream.Endpoint(ax_lite_description(address_width), name=name)
         self.w  = stream.Endpoint(w_lite_description(data_width),     name=name)
         self.b  = stream.Endpoint(b_lite_description(),               name=name)
