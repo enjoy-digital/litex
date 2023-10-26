@@ -52,6 +52,7 @@ _layout = [
 ]
 
 class Interface(Record):
+    addressing = "word"
     def __init__(self, data_width=8, address_width=14, alignment=32):
         self.data_width    = data_width
         self.address_width = address_width
