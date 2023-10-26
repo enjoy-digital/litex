@@ -303,7 +303,7 @@ class Builder:
         self.soc.platform.output_dir = self.output_dir
 
         # Check if BIOS is used and add software package if so.
-        with_bios = self.soc.cpu_type is not None
+        with_bios = (self.soc.cpu_type is not None) and (not self.soc.cpu_type in ["None64"])
         if with_bios:
             self.add_software_package("bios")
 

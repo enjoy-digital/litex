@@ -1043,7 +1043,7 @@ class SoC(LiteXModule, SoCCoreCompat):
 
         # Add CPU.
         cpu_cls = cpu.CPUS[name]
-        if (variant not in cpu_cls.variants) and (cpu_cls is not cpu.CPUNone):
+        if (variant not in cpu_cls.variants) and (cpu_cls not in [cpu.CPUNone, cpu.CPUNone64]):
             self.logger.error("{} CPU variant {}, supported are: \n - {}".format(
                 colorer(variant),
                 colorer("not supported", color="red"),
@@ -1070,7 +1070,7 @@ class SoC(LiteXModule, SoCCoreCompat):
                 colorer(f"0x{size:08x}")))
             self.bus.add_region("io{}".format(n), SoCIORegion(origin=origin, size=size, cached=False))
         # Mapping.
-        if isinstance(self.cpu, cpu.CPUNone):
+        if isinstance(self.cpu, cpu.CPUNone) or isinstance(self.cpu, cpu.CPUNone64):
             # With CPUNone, give priority to User's mapping.
             self.mem_map = {**self.cpu.mem_map, **self.mem_map}
             # With CPUNone, disable IO regions check.
@@ -1088,7 +1088,7 @@ class SoC(LiteXModule, SoCCoreCompat):
             self.mem_map.update(self.cpu.mem_map)
 
         # Add Bus Masters/CSR/IRQs.
-        if not isinstance(self.cpu, cpu.CPUNone):
+        if not isinstance(self.cpu, cpu.CPUNone) and not isinstance(self.cpu, cpu.CPUNone64):
             # Reset Address.
             if reset_address is None:
                 reset_address = self.mem_map["rom"]
