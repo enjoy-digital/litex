@@ -74,7 +74,7 @@ class PicoRV32(CPU):
         self.trap         = Signal()
         self.reset        = Signal()
         self.interrupt    = Signal(32)
-        self.idbus        = idbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+        self.idbus        = idbus = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
         self.periph_buses = [idbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses = []      # Memory buses (Connected directly to LiteDRAM).
 
@@ -166,7 +166,7 @@ class PicoRV32(CPU):
 
         # Adapt Memory Interface to Wishbone.
         self.comb += [
-            idbus.adr.eq(mem_addr[2:]),
+            idbus.adr.eq(mem_addr),
             idbus.dat_w.eq(mem_wdata),
             idbus.we.eq(mem_wstrb != 0),
             idbus.sel.eq(mem_wstrb),

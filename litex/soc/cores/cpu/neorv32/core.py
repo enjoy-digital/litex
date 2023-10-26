@@ -75,7 +75,7 @@ class NEORV32(CPU):
         self.variant      = variant
         self.human_name   = f"NEORV32-{variant}"
         self.reset        = Signal()
-        self.ibus         = idbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+        self.ibus         = idbus = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
         self.periph_buses = [idbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses = []      # Memory buses (Connected directly to LiteDRAM).
 
@@ -98,7 +98,7 @@ class NEORV32(CPU):
             i_mext_irq_i  = 0,
 
             # I/D Wishbone Bus.
-            o_wb_adr_o = Cat(Signal(2), idbus.adr),
+            o_wb_adr_o = idbus.adr,
             i_wb_dat_i = idbus.dat_r,
             o_wb_dat_o = idbus.dat_w,
             o_wb_we_o  = idbus.we,

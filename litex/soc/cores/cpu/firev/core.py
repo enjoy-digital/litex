@@ -59,7 +59,7 @@ class FireV(CPU):
         self.variant      = variant
         self.human_name   = f"FireV-{variant.upper()}"
         self.reset        = Signal()
-        self.idbus        = idbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+        self.idbus        = idbus = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
         self.periph_buses = [idbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses = []      # Memory buses (Connected directly to LiteDRAM).
 
@@ -115,7 +115,7 @@ class FireV(CPU):
         )
         self.comb += [
             idbus.we.eq(mbus.out_ram_rw),
-            idbus.adr.eq(mbus.out_ram_addr[2:]),
+            idbus.adr.eq(mbus.out_ram_addr),
             idbus.sel.eq(mbus.out_ram_wmask),
             idbus.dat_w.eq(mbus.out_ram_data_in),
 
