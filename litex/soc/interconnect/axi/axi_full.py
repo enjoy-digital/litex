@@ -54,7 +54,7 @@ def r_description(data_width):
     ]
 
 class AXIInterface:
-    def __init__(self, data_width=32, address_width=32, id_width=1, version="axi4", clock_domain="sys",
+    def __init__(self, data_width=32, address_width=32, addressing="byte", id_width=1, version="axi4", clock_domain="sys",
         name          = None,
         bursting      = False,
         aw_user_width = 0,
@@ -66,12 +66,14 @@ class AXIInterface:
         # Parameters checks.
         # ------------------
         assert data_width in [8, 16, 32, 64, 128, 256, 512, 1024]
+        assert addressing in ["byte"]
         assert version    in ["axi3", "axi4"]
 
         # Parameters.
         # -----------
         self.data_width    = data_width
         self.address_width = address_width
+        self.addressing    = addressing
         self.id_width      = id_width
         self.version       = version
         self.clock_domain  = clock_domain
