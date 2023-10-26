@@ -314,7 +314,7 @@ class Stream2Wishbone(LiteXModule):
 
         # # #
         assert data_width    in [8, 16, 32]
-        assert address_width in [8, 16, 32]
+        assert address_width in [8, 16, 32, 64]
 
         cmd              = Signal(8,                           reset_less=True)
         incr             = Signal()
@@ -434,10 +434,11 @@ class Stream2Wishbone(LiteXModule):
 
 
 class UARTBone(Stream2Wishbone):
-    def __init__(self, phy, clk_freq, cd="sys"):
+    def __init__(self, phy, clk_freq, cd="sys", address_width=32):
         if cd == "sys":
             self.phy = phy
-            Stream2Wishbone.__init__(self, self.phy, clk_freq=clk_freq)
+            Stream2Wishbone.__init__(self, self.phy, clk_freq=clk_freq,
+                address_width=address_width)
         else:
             self.phy = ClockDomainsRenamer(cd)(phy)
             self.tx_cdc = stream.ClockDomainCrossing([("data", 8)], cd_from="sys", cd_to=cd)
