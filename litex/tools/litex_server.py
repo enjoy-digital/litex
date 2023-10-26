@@ -181,6 +181,7 @@ def main():
     # Common arguments
     parser.add_argument("--bind-ip",         default="localhost",    help="Host bind address.")
     parser.add_argument("--bind-port",       default=1234,           help="Host bind port.")
+    parser.add_argument("--addr-width",      default=32,             help="bus address width.")
     parser.add_argument("--debug",           action="store_true",    help="Enable debug.")
 
     # UART arguments
@@ -220,7 +221,7 @@ def main():
         uart_port = args.uart_port
         uart_baudrate = int(float(args.uart_baudrate))
         print("[CommUART] port: {} / baudrate: {} / ".format(uart_port, uart_baudrate), end="")
-        comm = CommUART(uart_port, uart_baudrate, debug=args.debug)
+        comm = CommUART(uart_port, uart_baudrate, debug=args.debug, addr_width=int(args.addr_width))
 
     # JTAG mode
     elif args.jtag:
