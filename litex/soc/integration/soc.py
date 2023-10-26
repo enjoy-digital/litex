@@ -108,7 +108,7 @@ class SoCCSRRegion:
 class SoCBusHandler(LiteXModule):
     supported_standard      = ["wishbone", "axi-lite", "axi"]
     supported_data_width    = [32, 64, 128, 256, 512]
-    supported_address_width = [32]
+    supported_address_width = [32, 64]
 
     # Creation -------------------------------------------------------------------------------------
     def __init__(self, name="SoCBusHandler",
@@ -1632,7 +1632,7 @@ class LiteXSoC(SoC):
             port.data_width = 2**int(log2(port.data_width)) # Round to nearest power of 2.
 
             # Create Wishbone Slave.
-            wb_sdram = wishbone.Interface(data_width=self.bus.data_width)
+            wb_sdram = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.address_width)
             self.bus.add_slave(name="main_ram", slave=wb_sdram)
 
             # L2 Cache
