@@ -165,8 +165,8 @@ class NaxRiscv(CPU):
         # CPU Instance.
         self.cpu_params = dict(
             # Clk/Rst.
-            i_clk   = ClockSignal("sys"),
-            i_reset = ResetSignal("sys") | self.reset,
+            i_socClk   = ClockSignal("sys"),
+            i_asyncReset = ResetSignal("sys") | self.reset,
 
             o_patcher_tracer_valid=self.tracer_valid,
             o_patcher_tracer_payload=self.tracer_payload,
@@ -308,8 +308,7 @@ class NaxRiscv(CPU):
         sdir = os.path.join(vdir, "ext", "SpinalHDL")
 
         if NaxRiscv.update_repo != "no":
-            NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git", "coherency", "2948aa4d" if NaxRiscv.update_repo=="recommended" else None)
-            NaxRiscv.git_setup("SpinalHDL", sdir, "https://github.com/SpinalHDL/SpinalHDL.git", "bus-fabric" , "74c5d7de" if NaxRiscv.update_repo=="recommended" else None)
+            NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git", "main", "b6d0712f" if NaxRiscv.update_repo=="recommended" else None)
 
         gen_args = []
         gen_args.append(f"--netlist-name={NaxRiscv.netlist_name}")
