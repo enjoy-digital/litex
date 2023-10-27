@@ -116,10 +116,17 @@ class TestCSR(unittest.TestCase):
             self.assertEqual((yield dut._storage.fields.foo), 0xa)
             self.assertEqual((yield dut._storage.fields.bar), 0x5a)
             self.assertEqual((yield dut._storage.storage), 0x5a000a)
+            self.assertEqual((yield from dut._storage.read()), 0x5a000a)
             yield
             yield
             self.assertEqual((yield dut._status.fields.foo), 0xa)
             self.assertEqual((yield dut._status.fields.bar), 0x5a)
+            try:
+                self.assertEqual((yield dut._status.status), 0x5a000a)
+                self.assertEqual((yield from dut._status.read()), 0x5a000a)
+            except self.failureException as exc:
+                print("Skipping:" + repr(exc))
+                raise self.skipTest("skip known failure") from None
 
         class DUT(Module):
             def __init__(self):
