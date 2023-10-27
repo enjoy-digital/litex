@@ -470,7 +470,7 @@ def _get_converter_ratio(nbits_from, nbits_to):
     return converter_cls, ratio
 
 
-class Converter(LiteXModule):
+class Converter(Module): # FIXME: Switch to LiteXModule.
     def __init__(self, nbits_from, nbits_to,
         reverse                  = False,
         report_valid_token_count = False):
