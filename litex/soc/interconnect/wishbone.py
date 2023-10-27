@@ -128,7 +128,7 @@ class Interface(Record):
 
 # Wishbone Timeout ---------------------------------------------------------------------------------
 
-class Timeout(Module):
+class Timeout(LiteXModule):
     def __init__(self, master, cycles):
         self.error = Signal()
 
@@ -158,19 +158,19 @@ def get_check_parameters(ports):
 
     return data_width
 
-class InterconnectPointToPoint(Module):
+class InterconnectPointToPoint(LiteXModule):
     def __init__(self, master, slave):
         self.comb += master.connect(slave)
 
 
-class Arbiter(Module):
+class Arbiter(LiteXModule):
     def __init__(self, masters=None, target=None, controllers=None):
         assert target is not None
         assert (masters is not None) or (controllers is not None)
         if controllers is not None:
             masters = controllers
 
-        self.submodules.rr = roundrobin.RoundRobin(len(masters))
+        self.rr = roundrobin.RoundRobin(len(masters))
 
         # mux master->slave signals
         for name, size, direction in _layout:
@@ -194,7 +194,7 @@ class Arbiter(Module):
         self.comb += self.rr.request.eq(Cat(*reqs))
 
 
-class Decoder(Module):
+class Decoder(LiteXModule):
     # slaves is a list of pairs:
     # 0) function that takes the address signal and returns a FHDL expression
     #    that evaluates to 1 when the slave is selected and 0 otherwise.
@@ -235,17 +235,17 @@ class Decoder(Module):
         self.comb += master.dat_r.eq(Reduce("OR", masked))
 
 
-class InterconnectShared(Module):
+class InterconnectShared(LiteXModule):
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
         data_width = get_check_parameters(ports=masters + [s for _, s in slaves])
         shared = Interface(data_width=data_width)
-        self.submodules.arbiter = Arbiter(masters, shared)
-        self.submodules.decoder = Decoder(shared, slaves, register)
+        self.arbiter = Arbiter(masters, shared)
+        self.decoder = Decoder(shared, slaves, register)
         if timeout_cycles is not None:
-            self.submodules.timeout = Timeout(shared, timeout_cycles)
+            self.timeout = Timeout(shared, timeout_cycles)
 
 
-class Crossbar(Module):
+class Crossbar(LiteXModule):
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
         data_width = get_check_parameters(ports=masters + [s for _, s in slaves])
         matches, busses = zip(*slaves)
@@ -260,7 +260,7 @@ class Crossbar(Module):
 
 # Wishbone Data Width Converter --------------------------------------------------------------------
 
-class DownConverter(Module):
+class DownConverter(LiteXModule):
     """DownConverter
 
     This module splits Wishbone accesses from a master interface to a smaller slave interface.
@@ -336,7 +336,7 @@ class DownConverter(Module):
         self.comb += master.dat_r.eq(Cat(dat_r[dw_to:], slave.dat_r))
         self.sync += If(slave.ack | skip, dat_r.eq(master.dat_r))
 
-class UpConverter(Module):
+class UpConverter(LiteXModule):
     """UpConverter"""
     def __init__(self, master, slave):
         # Parameters/Checks.
@@ -359,7 +359,7 @@ class UpConverter(Module):
         ]
         self.comb += Case(master.adr[:int(log2(ratio))], cases)
 
-class Converter(Module):
+class Converter(LiteXModule):
     """Converter
 
     This module is a wrapper for DownConverter and UpConverter.
@@ -392,7 +392,7 @@ class Converter(Module):
 
 # Wishbone SRAM ------------------------------------------------------------------------------------
 
-class SRAM(Module):
+class SRAM(LiteXModule):
     def __init__(self, mem_or_size, read_only=None, write_only=None, init=None, bus=None, name=None):
         if bus is None:
             bus = Interface(data_width=32, address_width=32, addressing="word")
@@ -515,7 +515,7 @@ class SRAM(Module):
 
 # Wishbone To CSR ----------------------------------------------------------------------------------
 
-class Wishbone2CSR(Module):
+class Wishbone2CSR(LiteXModule):
     def __init__(self, bus_wishbone=None, bus_csr=None, register=True):
         self.csr = bus_csr
         if self.csr is None:
@@ -535,7 +535,7 @@ class Wishbone2CSR(Module):
 
         # Registered Access.
         if register:
-            self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+            self.fsm = fsm = FSM(reset_state="IDLE")
             fsm.act("IDLE",
                 NextValue(self.csr.dat_w, self.wishbone.dat_w),
                 If(self.wishbone.cyc & self.wishbone.stb,
@@ -556,7 +556,7 @@ class Wishbone2CSR(Module):
             )
         # Un-Registered Access.
         else:
-            self.submodules.fsm = fsm = FSM(reset_state="WRITE-READ")
+            self.fsm = fsm = FSM(reset_state="WRITE-READ")
             fsm.act("WRITE-READ",
                 self.csr.dat_w.eq(self.wishbone.dat_w),
                 If(self.wishbone.cyc & self.wishbone.stb,
@@ -573,7 +573,7 @@ class Wishbone2CSR(Module):
 
 # Wishbone Cache -----------------------------------------------------------------------------------
 
-class Cache(Module):
+class Cache(LiteXModule):
     """Cache
 
     This module is a write-back wishbone cache that can be used as a L2 cache.
@@ -581,7 +581,7 @@ class Cache(Module):
     """
     def __init__(self, cachesize, master, slave, reverse=True):
         self.master = master
-        self.slave = slave
+        self.slave  = slave
 
         # # #
 
@@ -671,7 +671,7 @@ class Cache(Module):
                 return 1
 
         # Control FSM
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             If(master.cyc & master.stb,
                 NextState("TEST_HIT")
