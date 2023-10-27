@@ -352,8 +352,7 @@ class StreamEncoder(stream.PipelinedActor):
         # # #
 
         # Encoders
-        encoder = Encoder(nwords, True)
-        self.submodules += encoder
+        self.encoder = encoder = Encoder(nwords, True)
 
         # Control
         self.comb += encoder.ce.eq(self.pipe_ce)

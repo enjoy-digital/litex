@@ -65,9 +65,7 @@ class RS232PHYTX(LiteXModule):
         count = Signal(4, reset_less=True)
 
         # Clock Phase Accumulator.
-        clk_phase_accum = RS232ClkPhaseAccum(tuning_word, mode="tx")
-        self.submodules += clk_phase_accum
-
+        self.clk_phase_accum = clk_phase_accum = RS232ClkPhaseAccum(tuning_word, mode="tx")
 
         # FSM
         self.fsm = fsm = FSM(reset_state="IDLE")
@@ -113,8 +111,7 @@ class RS232PHYRX(LiteXModule):
         count = Signal(4, reset_less=True)
 
         # Clock Phase Accumulator.
-        clk_phase_accum = RS232ClkPhaseAccum(tuning_word, mode="rx")
-        self.submodules += clk_phase_accum
+        self.clk_phase_accum = clk_phase_accum = RS232ClkPhaseAccum(tuning_word, mode="rx")
 
         # Resynchronize pads.rx and generate delayed version.
         rx   = Signal()

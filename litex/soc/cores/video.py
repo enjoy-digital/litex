@@ -835,7 +835,7 @@ class VideoHDMIPHY(LiteXModule):
             for color, channel in _dvi_c2d.items():
                 # TMDS Encoding.
                 encoder = ClockDomainsRenamer(clock_domain)(TMDSEncoder())
-                setattr(self.submodules, f"{color}_encoder", encoder)
+                self.add_module(name=f"{color}_encoder", module=encoder)
                 self.comb += encoder.d.eq(getattr(sink, color))
                 self.comb += encoder.c.eq(Cat(sink.hsync, sink.vsync) if channel == 0 else 0)
                 self.comb += encoder.de.eq(sink.de)
@@ -848,7 +848,7 @@ class VideoHDMIPHY(LiteXModule):
                     data_o       = data_o,
                     clock_domain = clock_domain,
                 )
-                setattr(self.submodules, f"{color}_serializer", serializer)
+                self.add_module(name=f"{color}_serializer", module=serializer)
 
 # HDMI (Gowin).
 
@@ -872,7 +872,7 @@ class VideoGowinHDMIPHY(LiteXModule):
         for color, channel in _dvi_c2d.items():
             # TMDS Encoding.
             encoder = ClockDomainsRenamer(clock_domain)(TMDSEncoder())
-            setattr(self.submodules, f"{color}_encoder", encoder)
+            self.add_module(name=f"{color}_encoder", module=encoder)
             self.comb += encoder.d.eq(getattr(sink, color))
             self.comb += encoder.c.eq(Cat(sink.hsync, sink.vsync) if channel == 0 else 0)
             self.comb += encoder.de.eq(sink.de)
@@ -916,7 +916,7 @@ class VideoS6HDMIPHY(LiteXModule):
 
             # TMDS Encoding.
             encoder = ClockDomainsRenamer(clock_domain)(TMDSEncoder())
-            setattr(self.submodules, f"{color}_encoder", encoder)
+            self.add_module(name=f"{color}_encoder", module=encoder)
             self.comb += encoder.d.eq(getattr(sink, color))
             self.comb += encoder.c.eq(Cat(sink.hsync, sink.vsync) if channel == 0 else 0)
             self.comb += encoder.de.eq(sink.de)
@@ -928,7 +928,7 @@ class VideoS6HDMIPHY(LiteXModule):
                 data_o       = pad_o,
                 clock_domain = clock_domain,
             )
-            setattr(self.submodules, f"{color}_serializer", serializer)
+            self.add_module(name=f"{color}_serializer", module=serializer)
             pad_p = getattr(pads, f"data{channel}_p")
             pad_n = getattr(pads, f"data{channel}_n")
             self.specials += Instance("OBUFDS", i_I=pad_o, o_O=pad_p, o_OB=pad_n)

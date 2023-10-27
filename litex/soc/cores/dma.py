@@ -92,9 +92,7 @@ class WishboneDMAReader(LiteXModule):
 
         self.comb += self._offset.status.eq(offset)
 
-        fsm = FSM(reset_state="IDLE")
-        fsm = ResetInserter()(fsm)
-        self.submodules += fsm
+        self.fsm = fsm = ResetInserter()(FSM(reset_state="IDLE"))
         self.comb += fsm.reset.eq(~self._enable.storage)
         fsm.act("IDLE",
             NextValue(offset, 0),
@@ -177,9 +175,7 @@ class WishboneDMAWriter(LiteXModule):
 
         self.comb += self._offset.status.eq(offset)
 
-        fsm = FSM(reset_state="IDLE")
-        fsm = ResetInserter()(fsm)
-        self.submodules += fsm
+        self.fsm = fsm = ResetInserter()(FSM(reset_state="IDLE"))
         self.comb += fsm.reset.eq(~self._enable.storage)
         fsm.act("IDLE",
             self.sink.ready.eq(ready_on_idle),

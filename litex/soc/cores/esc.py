@@ -87,7 +87,7 @@ class ESCDShot(LiteXModule):
         esc_pad = Signal() # Or platform.request("X") with X = esc pin name.
 
         from litex.soc.cores.esc import ESCDShot
-        self.submodules.esc0 = ESCDShot(esc_pad, sys_clk_freq, protocol="DSHOT150")
+        self.esc0 = ESCDShot(esc_pad, sys_clk_freq, protocol="DSHOT150")
 
         # Test script:
         # ------------

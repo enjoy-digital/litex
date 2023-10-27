@@ -102,8 +102,7 @@ class SPIMaster(LiteXModule):
         clk_settle = WaitTimer(int(sys_clk_freq*clk_settle_time))
         self.submodules += clk_settle
 
-        clk_fsm = FSM(reset_state="IDLE")
-        self.submodules += clk_fsm
+        self.clk_fsm = clk_fsm = FSM(reset_state="IDLE")
         clk_fsm.act("IDLE",
             If(self.start,
                 NextState("SETTLE")
@@ -686,12 +685,12 @@ class SPIMMAP(LiteXModule):
 
         # Pipelines --------------------------------------------------------------------------------
 
-        self.submodules += stream.Pipeline(
+        self.tx_pipeline = stream.Pipeline(
             tx_mmap,
             tx_fifo,
             tx_rx_engine
         )
-        self.submodules += stream.Pipeline(
+        self.rx_pipeline = stream.Pipeline(
             tx_rx_engine,
             rx_fifo,
             rx_mmap

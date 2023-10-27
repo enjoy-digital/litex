@@ -207,19 +207,17 @@ class FT245PHYAsynchronous(LiteXModule):
         tWR          = self.ns(30) # WR# active pulse width (t10)
         tMultiReg    = 2
 
-        # read fifo (FTDI --> SoC)
-        read_fifo = stream.SyncFIFO(phy_description(dw), fifo_depth)
+        # Read fifo (FTDI --> SoC).
+        self.read_fifo = read_fifo = stream.SyncFIFO(phy_description(dw), fifo_depth)
 
-        # write fifo (SoC --> FTDI)
-        write_fifo = stream.SyncFIFO(phy_description(dw), fifo_depth)
+        # Write fifo (SoC --> FTDI).
+        self.write_fifo = write_fifo = stream.SyncFIFO(phy_description(dw), fifo_depth)
 
-        self.submodules += read_fifo, write_fifo
-
-        # sink / source interfaces
+        # Sink / Source interfaces.
         self.sink   = write_fifo.sink
         self.source = read_fifo.source
 
-        # read / write arbitration
+        # Read / Write arbitration.
         wants_write = Signal()
         wants_read  = Signal()
 
@@ -239,13 +237,11 @@ class FT245PHYAsynchronous(LiteXModule):
         read_time_en,  max_read_time  = anti_starvation(self, read_time)
         write_time_en, max_write_time = anti_starvation(self, write_time)
 
-        fsm = FSM(reset_state="READ")
-        self.submodules += fsm
-
-        read_done = Signal()
+        read_done  = Signal()
         write_done = Signal()
-        commuting = Signal()
+        commuting  = Signal()
 
+        self.fsm = fsm = FSM(reset_state="READ")
         fsm.act("READ",
             read_time_en.eq(1),
             If(wants_write & read_done,
@@ -284,9 +280,9 @@ class FT245PHYAsynchronous(LiteXModule):
         # read actions
         pads.rd_n.reset = 1
 
-        read_fsm = FSM(reset_state="IDLE")
-        self.submodules += read_fsm
         read_counter = Signal(8)
+
+        self.read_fsm = read_fsm = FSM(reset_state="IDLE")
         read_fsm.act("IDLE",
             read_done.eq(1),
             NextValue(read_counter, 0),
@@ -317,9 +313,9 @@ class FT245PHYAsynchronous(LiteXModule):
         # write actions
         pads.wr_n.reset = 1
 
-        write_fsm = FSM(reset_state="IDLE")
-        self.submodules += write_fsm
         write_counter = Signal(8)
+
+        self.write_fsm = write_fsm = FSM(reset_state="IDLE")
         write_fsm.act("IDLE",
             write_done.eq(1),
             NextValue(write_counter, 0),
