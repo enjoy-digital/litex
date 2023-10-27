@@ -4,6 +4,7 @@
 	--------
 	- liteeth/arp           : Fixed response on table update.
 	- litesata/us(p)sataphy : Fixed data_width=32 case.
+	- clock/lattice_ecp5    : Fixed phase calculation.
 
 	[> Added
 	--------
@@ -18,6 +19,7 @@
 	- soc/cores             : Added Ti60F100 HyperRAM support.
 	- build/xilinx          : Added initial OpenXC7 support (and improved Yosys-NextPnr).
 	- build/efinix          : Added JTAG-UART/JTAGBone support.
+	- interconnect/wishbone : Added byte/word addressing support.
 
 	[> Changed
 	----------
