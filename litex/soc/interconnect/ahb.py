@@ -28,6 +28,7 @@ class Interface(Record):
     """Sets up the AHB interface signals for master and slave."""
     adr_width      = 32
     data_width     = 32
+    addressing     = "byte"
     master_signals = [
         ("addr",     adr_width),
         ("burst",    3),
@@ -56,22 +57,25 @@ class AHB2Wishbone(LiteXModule):
     It takes as input an AHB interface and a Wishbone interface and does the conversion.
     """
     def __init__(self, ahb, wishbone):
-        wishbone_adr_shift = log2_int(ahb.data_width // 8)
+        # Parameters/Checks.
+        wishbone_adr_shift = {
+            "word" : log2_int(ahb.data_width//8),
+            "byte" : 0
+        }[wishbone.addressing]
         assert ahb.data_width == wishbone.data_width
-        assert ahb.adr_width == wishbone.adr_width + wishbone_adr_shift
+        assert ahb.adr_width  == wishbone.adr_width + wishbone_adr_shift
 
-        self.comb += ahb.resp.eq(wishbone.err)
-
+        # FSM.
         self.fsm = fsm = FSM()
         fsm.act("IDLE",
             ahb.readyout.eq(1),
             If(ahb.sel &
               (ahb.size  == wishbone_adr_shift) &
               (ahb.trans == TransferType.NONSEQUENTIAL),
-               NextValue(wishbone.adr, ahb.addr[2:]),
+               NextValue(wishbone.adr,   ahb.addr[wishbone_adr_shift:]),
                NextValue(wishbone.dat_w, ahb.wdata),
-               NextValue(wishbone.we, ahb.write),
-               NextValue(wishbone.sel, 2**len(wishbone.sel) - 1),
+               NextValue(wishbone.we,    ahb.write),
+               NextValue(wishbone.sel,   2**len(wishbone.sel) - 1),
                NextState("ACT"),
             )
         )
@@ -85,3 +89,5 @@ class AHB2Wishbone(LiteXModule):
                 NextState("IDLE")
             )
         )
+
+        self.comb += ahb.resp.eq(wishbone.err)

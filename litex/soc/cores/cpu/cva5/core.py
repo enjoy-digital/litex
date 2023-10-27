@@ -85,8 +85,8 @@ class CVA5(CPU):
         if variant == "minimal":
             # Minimal variant has no caches, no multiply or divide support, and no branch predictor.
             # It also uses separate fetch and load-store wishbone interfaces.
-            self.ibus = ibus = wishbone.Interface()
-            self.dbus = dbus = wishbone.Interface()
+            self.ibus = ibus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+            self.dbus = dbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
             self.periph_buses.append(ibus)
             self.periph_buses.append(dbus)
             self.cpu_params.update(
@@ -117,7 +117,7 @@ class CVA5(CPU):
         if variant == "standard":
             # Standard variant includes instruction and data caches, multiply and divide support
             # along with the branch predictor. It uses a shared wishbone interface.
-            self.idbus = idbus = wishbone.Interface()
+            self.idbus = idbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
             self.periph_buses.append(idbus)
             self.cpu_params.update(
                 o_idbus_adr   = idbus.adr,

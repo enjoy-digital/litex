@@ -45,18 +45,21 @@ CTI_BURST_END          = 0b111
 
 
 class Interface(Record):
-    def __init__(self, data_width=32, adr_width=30, bursting=False, **kwargs):
+    def __init__(self, data_width=32, adr_width=30, bursting=False, addressing="word", **kwargs):
         self.data_width = data_width
         if kwargs.get("address_width", False):
             # FIXME: Improve or switch Wishbone to byte addressing instead of word addressing.
             adr_width = kwargs["address_width"] - int(log2(data_width//8))
         self.adr_width     = adr_width
-        self.address_width = adr_width +  int(log2(data_width//8))
+        self.address_width = adr_width + int(log2(data_width//8))
         self.bursting      = bursting
+        assert addressing in ["word", "byte"]
+        self.addressing    = addressing
         Record.__init__(self, set_layout_parameters(_layout,
-            adr_width  = adr_width,
+            adr_width  = adr_width + (int(log2(data_width//8)) if (addressing == "byte") else 0),
             data_width = data_width,
-            sel_width  = data_width//8))
+            sel_width  = data_width//8,
+        ))
         self.adr.reset_less   = True
         self.dat_w.reset_less = True
         self.dat_r.reset_less = True
@@ -272,12 +275,16 @@ class DownConverter(Module):
 
     """
     def __init__(self, master, slave):
+        # Parameters/Checks.
+        assert master.addressing == "word" # FIXME: Test/Remove byte addressing limitation.
+        assert master.addressing == "word" # FIXME: Test/Remove byte addressing limitation.
         dw_from = len(master.dat_w)
         dw_to   = len(slave.dat_w)
         ratio   = dw_from//dw_to
 
         # # #
 
+        # Signals.
         skip  = Signal()
         done  = Signal()
         count = Signal(max=ratio)
@@ -332,6 +339,9 @@ class DownConverter(Module):
 class UpConverter(Module):
     """UpConverter"""
     def __init__(self, master, slave):
+        # Parameters/Checks.
+        assert master.addressing == "word" # FIXME: Test/Remove byte addressing limitation.
+        assert master.addressing == "word" # FIXME: Test/Remove byte addressing limitation.
         dw_from = len(master.dat_w)
         dw_to   = len(slave.dat_w)
         ratio   = dw_to//dw_from
@@ -359,17 +369,24 @@ class Converter(Module):
     def __init__(self, master, slave):
         self.master = master
         self.slave = slave
+        assert master.addressing == "word" # FIXME: Test/Remove byte addressing limitation.
+        assert master.addressing == "word" # FIXME: Test/Remove byte addressing limitation.
 
         # # #
 
+        # Signals.
         dw_from = len(master.dat_r)
-        dw_to = len(slave.dat_r)
+        dw_to   = len(slave.dat_r)
+
+        # DownConverter.
         if dw_from > dw_to:
             downconverter = DownConverter(master, slave)
             self.submodules += downconverter
+        # UpConverter.
         elif dw_from < dw_to:
             upconverter = UpConverter(master, slave)
             self.submodules += upconverter
+        # Direct Connect.
         else:
             self.comb += master.connect(slave)
 
@@ -379,6 +396,7 @@ class SRAM(Module):
     def __init__(self, mem_or_size, read_only=None, write_only=None, init=None, bus=None, name=None):
         if bus is None:
             bus = Interface()
+        assert bus.addressing == "word" # FIXME: Test/Remove byte addressing limitation.
         self.bus = bus
         bus_data_width = len(self.bus.dat_r)
         if isinstance(mem_or_size, Memory):
@@ -510,13 +528,18 @@ class Wishbone2CSR(Module):
 
         # # #
 
+        wishbone_adr_shift = {
+            "word" : 0,
+            "byte" : log2_int(self.wishbone.data_width//8),
+        }[self.wishbone.addressing]
+
+        # Registered Access.
         if register:
-            fsm = FSM(reset_state="IDLE")
-            self.submodules += fsm
+            self.submodules.fsm = fsm = FSM(reset_state="IDLE")
             fsm.act("IDLE",
                 NextValue(self.csr.dat_w, self.wishbone.dat_w),
                 If(self.wishbone.cyc & self.wishbone.stb,
-                    NextValue(self.csr.adr, self.wishbone.adr),
+                    NextValue(self.csr.adr, self.wishbone.adr[wishbone_adr_shift:]),
                     NextValue(self.csr.we, self.wishbone.we & (self.wishbone.sel != 0)),
                     NextState("WRITE-READ")
                 )
@@ -531,13 +554,13 @@ class Wishbone2CSR(Module):
                 self.wishbone.dat_r.eq(self.csr.dat_r),
                 NextState("IDLE")
             )
+        # Un-Registered Access.
         else:
-            fsm = FSM(reset_state="WRITE-READ")
-            self.submodules += fsm
+            self.submodules.fsm = fsm = FSM(reset_state="WRITE-READ")
             fsm.act("WRITE-READ",
                 self.csr.dat_w.eq(self.wishbone.dat_w),
                 If(self.wishbone.cyc & self.wishbone.stb,
-                    self.csr.adr.eq(self.wishbone.adr),
+                    self.csr.adr.eq(self.wishbone.adr[wishbone_adr_shift:]),
                     self.csr.we.eq(self.wishbone.we & (self.wishbone.sel != 0)),
                     NextState("ACK")
                 )

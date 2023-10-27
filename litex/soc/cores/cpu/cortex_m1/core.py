@@ -64,7 +64,7 @@ class CortexM1(CPU):
         self.cpu_params = dict(
             # Clk/Rst.
             i_HCLK      = ClockSignal("sys"),
-            i_SYSRESETn = ~(ResetSignal() | self.reset),
+            i_SYSRESETn = ~(ResetSignal("sys") | self.reset),
 
             # Control/Status.
             o_LOCKUP      = Open(),
@@ -85,7 +85,7 @@ class CortexM1(CPU):
             # Debug.
             p_SMALL_DEBUG  = True,
             i_DBGRESTART   = 0,
-            i_DBGRESETn    = ~(ResetSignal() | self.reset),
+            i_DBGRESETn    = ~(ResetSignal("sys") | self.reset),
             p_DEBUG_SEL    = 1, # JTAG
             o_DBGRESTARTED = Open(),
 

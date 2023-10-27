@@ -71,8 +71,8 @@ class Microwatt(CPU):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
-        self.ibus         = ibus = wishbone.Interface(data_width=64, adr_width=29)
-        self.dbus         = dbus = wishbone.Interface(data_width=64, adr_width=29)
+        self.ibus         = ibus = wishbone.Interface(data_width=64, adr_width=29, addressing="word")
+        self.dbus         = dbus = wishbone.Interface(data_width=64, adr_width=29, addressing="word")
         self.periph_buses = [ibus, dbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses = []           # Memory buses (Connected directly to LiteDRAM).
         if "irq" in variant:
@@ -240,8 +240,8 @@ class XICSSlave(Module, AutoCSR):
     def __init__(self, platform, core_irq_out=Signal(), int_level_in=Signal(16), variant="standard"):
         self.variant = variant
 
-        self.icp_bus = icp_bus = wishbone.Interface(data_width=32, adr_width=12)
-        self.ics_bus = ics_bus = wishbone.Interface(data_width=32, adr_width=12)
+        self.icp_bus = icp_bus = wishbone.Interface(data_width=32, adr_width=12, addressing="word")
+        self.ics_bus = ics_bus = wishbone.Interface(data_width=32, adr_width=12, addressing="word")
 
         # XICS Signals.
         self.ics_icp_xfer_src = Signal(4)

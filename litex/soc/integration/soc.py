@@ -151,6 +151,11 @@ class SoCBusHandler(LiteXModule):
         self.standard              = standard
         self.data_width            = data_width
         self.address_width         = address_width
+        self.addressing            = {
+            "wishbone" : "word", # FIXME: Allow selection for Wishbone.
+            "axi-lite" : "byte",
+            "axi"      : "byte",
+        }[standard]
         self.bursting              = bursting
         self.interconnect          = interconnect
         self.interconnect_register = interconnect_register
@@ -329,7 +334,8 @@ class SoCBusHandler(LiteXModule):
                 }[interface_cls]
                 adapted_interface = interface_cls(
                     data_width    = self.data_width,
-                    address_width = self.address_width
+                    address_width = self.address_width,
+                    addressing    = self.addressing,
                 )
                 if direction == "m2s":
                     master, slave = interface, adapted_interface
@@ -353,7 +359,8 @@ class SoCBusHandler(LiteXModule):
             else:
                 adapted_interface = main_bus_cls(
                     data_width    = self.data_width,
-                    address_width = self.address_width
+                    address_width = self.address_width,
+                    addressing    = self.addressing,
                 )
                 if direction == "m2s":
                     master, slave = interface, adapted_interface
@@ -372,10 +379,35 @@ class SoCBusHandler(LiteXModule):
                 self.submodules += bridge
                 return adapted_interface
 
+        # Addressing conversion helper.
+        def addressing_convert(interface, direction):
+            # Same Addressing, return un-modified interface.
+            if interface.addressing == self.addressing:
+                return interface
+            # Different Addressing: Return adapted interface.
+            else:
+                assert interface.addressing == "byte" # FIXME: Remove limitation.
+                assert      self.addressing == "word" # FIXME: Remove limitation.
+                interface_cls = type(interface)
+                adapted_interface = interface_cls(
+                    data_width    = self.data_width,
+                    address_width = self.address_width,
+                    addressing    = self.addressing,
+                )
+                address_shift = log2_int(interface.data_width//8)
+                if direction == "m2s":
+                    self.comb += interface.connect(adapted_interface)
+                    self.comb += adapted_interface.adr.eq(interface.adr[address_shift:])
+                elif direction == "s2m":
+                    self.comb += adapted_interface.connect(interface)
+                    self.comb += interface.adr.eq(adapted_interface.adr[address_shift:])
+                return adapted_interface
+
         # Interface conversion.
         adapted_interface = interface
-        adapted_interface = data_width_convert(adapted_interface, direction)
+        adapted_interface =   data_width_convert(adapted_interface, direction)
         adapted_interface = bus_standard_convert(adapted_interface, direction)
+        adapted_interface =   addressing_convert(adapted_interface, direction)
 
         if type(interface) != type(adapted_interface) or interface.data_width != adapted_interface.data_width:
             fmt = "{name} Bus {adapted} from {from_bus} {from_bits}-bit to {to_bus} {to_bits}-bit."

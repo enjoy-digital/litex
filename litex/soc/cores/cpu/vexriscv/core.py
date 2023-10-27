@@ -140,8 +140,8 @@ class VexRiscv(CPU, AutoCSR):
         self.external_variant = None
         self.reset            = Signal()
         self.interrupt        = Signal(32)
-        self.ibus             = ibus = wishbone.Interface()
-        self.dbus             = dbus = wishbone.Interface()
+        self.ibus             = ibus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+        self.dbus             = dbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.periph_buses     = [ibus, dbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses     = []           # Memory buses (Connected directly to LiteDRAM).
 
@@ -217,7 +217,7 @@ class VexRiscv(CPU, AutoCSR):
         self.transfer_in_progress  = Signal()
         self.transfer_wait_for_ack = Signal()
 
-        self.debug_bus = wishbone.Interface()
+        self.debug_bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
 
         self.sync += self.debug_bus.dat_r.eq(self.o_rsp_data)
         self.sync += debug_reset.eq(reset_debug_logic | ResetSignal())
@@ -268,10 +268,10 @@ class VexRiscv(CPU, AutoCSR):
         ]
 
         self.cpu_params.update(
-            i_reset = ResetSignal() | self.reset | debug_reset,
+            i_reset                         = ResetSignal("sys") | self.reset | debug_reset,
             i_iBusWishbone_ERR              = self.ibus.err | ibus_err,
             i_dBusWishbone_ERR              = self.dbus.err | dbus_err,
-            i_debugReset                    = ResetSignal(),
+            i_debugReset                    = ResetSignal("sys"),
             i_debug_bus_cmd_valid           = self.i_cmd_valid,
             i_debug_bus_cmd_payload_wr      = self.i_cmd_payload_wr,
             i_debug_bus_cmd_payload_address = self.i_cmd_payload_address,

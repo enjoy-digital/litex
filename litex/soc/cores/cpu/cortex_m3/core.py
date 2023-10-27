@@ -65,7 +65,7 @@ class CortexM3(CPU):
         self.cpu_params = dict(
             # Clk/Rst.
             i_HCLK      = ClockSignal("sys"),
-            i_SYSRESETn = ~(ResetSignal() | self.reset),
+            i_SYSRESETn = ~(ResetSignal("sys") | self.reset),
 
             # Control/Status.
             p_MPU_PRESENT = 0,
@@ -82,7 +82,7 @@ class CortexM3(CPU):
             i_CFGITCMEN = 0,  # 1 = alias ITCM at 0x0
 
             # Debug.
-            i_DBGRESETn = ~(ResetSignal() | self.reset),
+            i_DBGRESETn = ~(ResetSignal("sys") | self.reset),
 
             # Instruction Bus (AXI).
             o_AWVALIDC = ibus.aw.valid,

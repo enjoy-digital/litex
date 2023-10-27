@@ -57,7 +57,7 @@ class OBI2Wishbone(Module):
             # On OBI request:
             If(obi.req,
                 # Drive Wishbone bus from OBI bus.
-                wb.adr.eq(obi.addr[2:32]),
+                wb.adr.eq(     obi.addr),
                 wb.stb.eq(            1),
                 wb.dat_w.eq(  obi.wdata),
                 wb.cyc.eq(            1),
@@ -77,7 +77,7 @@ class OBI2Wishbone(Module):
         )
         fsm.act("ACK",
             # Drive Wishbone bus from stored OBI bus values.
-            wb.adr.eq(addr[2:32]),
+            wb.adr.eq(      addr),
             wb.stb.eq(         1),
             wb.dat_w.eq(   wdata),
             wb.cyc.eq(         1),
@@ -121,8 +121,8 @@ class Ibex(CPU):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
-        self.ibus         = wishbone.Interface()
-        self.dbus         = wishbone.Interface()
+        self.ibus         = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
+        self.dbus         = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
         self.periph_buses = [self.ibus, self.dbus]
         self.memory_buses = []
         self.interrupt    = Signal(15)
