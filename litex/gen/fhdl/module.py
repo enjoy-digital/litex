@@ -20,6 +20,14 @@ class LiteXModule(Module, AutoCSR, AutoDoc):
     AutoDoc for CSR and documentation automation, respectively.
     """
 
+    @staticmethod
+    def _is_class_instance(_obj, _cls):
+        # If obj is cls, it is not an instance and not initialized.
+        if _obj is _cls:
+            return False
+        # Else check if object is an instance of cls.
+        return isinstance(_obj, _cls)
+
     def __setattr__(m, name, value):
         """
         Overrides the default behavior of attribute assignment in Python. This method simplifies the
@@ -33,13 +41,13 @@ class LiteXModule(Module, AutoCSR, AutoDoc):
         # Automatic handling for adding submodules, specials, and clock domains in LiteX.
         # - m.module_x  = .. equivalent of Migen's m.submodules.module_x = ..
         # Note: Do an exception for CSRs that have a specific collection mechanism.
-        elif (isinstance(value, Module)      and ((name, value) not in m._submodules) and (not isinstance(value, _CSRBase))):
+        elif (m._is_class_instance(value, Module) and ((name, value) not in m._submodules) and (not isinstance(value, _CSRBase))):
             setattr(m.submodules, name, value)
         # - m.special_x = .. equivalent of Migen's m.specials.special_x  = ..
-        elif isinstance(value, Special)     and (value not in m._fragment.specials):
+        elif m._is_class_instance(value, Special) and (value not in m._fragment.specials):
             setattr(m.specials, name, value)
         # - m.cd_x      = .. equivalent of Migen's m.clock_domains.cd_x  = ..
-        elif isinstance(value, ClockDomain) and (value not in m._fragment.clock_domains):
+        elif m._is_class_instance(value, ClockDomain) and (value not in m._fragment.clock_domains):
             setattr(m.clock_domains, name, value)
         # Else use default __setattr__.
         else:
