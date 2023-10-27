@@ -392,7 +392,7 @@ class Converter(LiteXModule):
 
 # Wishbone SRAM ------------------------------------------------------------------------------------
 
-class SRAM(LiteXModule):
+class SRAM(Module): # FIXME: Switch to LiteXModule.
     def __init__(self, mem_or_size, read_only=None, write_only=None, init=None, bus=None, name=None):
         if bus is None:
             bus = Interface(data_width=32, address_width=32, addressing="word")
