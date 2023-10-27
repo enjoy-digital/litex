@@ -107,17 +107,22 @@ class Packet(list):
 
 
 class PacketStreamer(Module):
-    def __init__(self, description, last_be=None, packet_cls=Packet):
+    def __init__(self, description, packet_cls=Packet, dw=8, assertStall=False):
         self.source = stream.Endpoint(description)
-        self.last_be = last_be
 
         # # #
 
+        self.assertStall = assertStall
         self.packets = []
         self.packet = packet_cls()
         self.packet.done = True
+        self.chunk = None
+        self.dw = dw
 
     def send(self, packet):
+        '''
+        packet must always be organized in bytes (not words)
+        '''
         packet = deepcopy(packet)
         self.packets.append(packet)
         return packet
@@ -129,35 +134,59 @@ class PacketStreamer(Module):
 
     @passive
     def generator(self):
+        chunk_size = self.dw // 8
         while True:
-            if len(self.packets) and self.packet.done:
-                self.packet = self.packets.pop(0)
-            if not self.packet.ongoing and not self.packet.done:
+            while len(self.packets) <= 0:
+                yield
+            self.packet = self.packets.pop(0)
+            n_chunks = len(self.packet) // chunk_size
+            n_remainder = len(self.packet) % chunk_size
+
+            if n_remainder > 0 or n_chunks > 0:
                 yield self.source.valid.eq(1)
-                yield self.source.data.eq(self.packet.pop(0))
-                self.packet.ongoing = True
-            elif (yield self.source.valid) and (yield self.source.ready):
-                yield self.source.last.eq(len(self.packet) == 1)
-                if self.last_be is not None:
-                    yield self.source.last_be.eq(self.last_be & (len(self.packet) == 1))
-                if len(self.packet):
-                    yield self.source.valid.eq(1)
-                    yield self.source.data.eq(self.packet.pop(0))
-                else:
-                    self.packet.done = True
-                    yield self.source.valid.eq(0)
-            yield
+
+            # Output complete chunks
+            for i in range(n_chunks):
+                tmp = self.packet[i * chunk_size: (i + 1) * chunk_size]
+                yield self.source.data.eq(merge_bytes(tmp, 'little'))
+                if (i == (n_chunks - 1)) and (n_remainder == 0):
+                    yield self.source.last.eq(1)
+                    yield self.source.last_be.eq(1 << (chunk_size - 1))
+                yield
+                while not (yield self.source.ready):
+                    if i > 0 and self.assertStall:
+                        raise RuntimeError("PacketStreamer: PHY got stalled!")
+                    yield
+
+            # Output optional partial chunk
+            if n_remainder > 0:
+                tmp = self.packet[-n_remainder:]
+                yield self.source.data.eq(merge_bytes(tmp, 'little'))
+                yield self.source.last_be.eq(1 << (n_remainder - 1))
+                yield self.source.last.eq(1)
+                yield
+                while not (yield self.source.ready):
+                    if i > 0 and self.assertStall:
+                        raise RuntimeError("PacketStreamer: PHY got stalled!")
+                    yield
+
+            yield self.source.valid.eq(0)
+            yield self.source.last.eq(0)
+            yield self.source.last_be.eq(0)
+            yield self.source.data.eq(0)
 
 
 class PacketLogger(Module):
-    def __init__(self, description, packet_cls=Packet):
+    def __init__(self, description, packet_cls=Packet, dw=8, assertStall=False):
         self.sink = stream.Endpoint(description)
 
         # # #
 
+        self.assertStall = assertStall
         self.packet_cls = packet_cls
         self.packet = packet_cls()
         self.first = True
+        self.dw = dw
 
     def receive(self, length=None):
         self.packet.done = False
@@ -170,16 +199,30 @@ class PacketLogger(Module):
 
     @passive
     def generator(self):
+        chunk_size = self.dw // 8
         while True:
             yield self.sink.ready.eq(1)
             if (yield self.sink.valid):
                 if self.first:
                     self.packet = self.packet_cls()
                     self.first = False
-                self.packet.append((yield self.sink.data))
-                if (yield self.sink.last):
+                # Split data word into bytes
+                bs = split_bytes((yield self.sink.data), chunk_size, "little")
+                if (yield self.sink.last) or (yield self.sink.last_be):
+                    # TODO 8 bit datapath doesn't handle last_be correctly?
+                    if chunk_size == 1:
+                        n = 1
+                    else:
+                        n = (yield self.sink.last_be).bit_length()
+                    self.packet += bs[:n]
+                    # print('last part', bs, bs[:n])
                     self.packet.done = True
                     self.first = True
+                else:
+                    self.packet += bs
+            else:
+                if not self.first and self.assertStall:
+                    raise RuntimeError("PacketLogger: PHY got stalled!")
             yield
 
 

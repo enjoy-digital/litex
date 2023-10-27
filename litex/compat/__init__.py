@@ -11,7 +11,7 @@ def compat_notice(name, date, info=""):
         date       = colorer(date),
         update     = colorer("update", color="red"),
         info       = info,
-    ), end="")
+    ))
     # Annoy user to force update :)
     for i in range(10):
         time.sleep(0.2)
