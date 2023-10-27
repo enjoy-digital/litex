@@ -133,7 +133,7 @@ class SPIBone(LiteXModule, ModuleDoc):
     The bridge core is designed to run at 1/4 the system clock.
     """
     def __init__(self, pads, wires=4, with_tristate=True):
-        self.bus = bus = wishbone.Interface(address_width=32, data_width=32)
+        self.bus = bus = wishbone.Interface(address_width=32, data_width=32, addressing="word")
 
         # # #
 

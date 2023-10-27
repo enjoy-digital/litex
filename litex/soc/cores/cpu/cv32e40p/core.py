@@ -186,7 +186,7 @@ class Wishbone2APB(LiteXModule):
 
 class TraceCollector(LiteXModule):
     def __init__(self, trace_depth=16384):
-        self.bus  = bus  = wishbone.Interface()
+        self.bus  = bus  = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.sink = sink = stream.Endpoint([("data", 32)])
 
         clear   = Signal()

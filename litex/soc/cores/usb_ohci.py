@@ -26,8 +26,8 @@ class USBOHCI(LiteXModule):
         self.usb_clk_freq   = int(usb_clk_freq)
         self.dma_data_width = dma_data_width
 
-        self.wb_ctrl = wb_ctrl = wishbone.Interface(data_width=32)
-        self.wb_dma  = wb_dma  = wishbone.Interface(data_width=dma_data_width)
+        self.wb_ctrl = wb_ctrl = wishbone.Interface(data_width=32,             address_width=32, addressing="word")
+        self.wb_dma  = wb_dma  = wishbone.Interface(data_width=dma_data_width, address_width=32, addressing="word")
 
         self.interrupt = Signal()
 

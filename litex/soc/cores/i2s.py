@@ -163,7 +163,7 @@ class S7I2S(LiteXModule):
         self.comb += [rising_edge.eq(clk_pin & ~clk_d), falling_edge.eq(~clk_pin & clk_d)]
 
         # Wishbone bus
-        self.bus = bus = wishbone.Interface()
+        self.bus = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         rd_ack = Signal()
         wr_ack = Signal()
         self.comb += [

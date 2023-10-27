@@ -18,7 +18,7 @@ class EMIF(LiteXModule):
     Provides a simple EMIF to Wishbone Master bridge.
     """
     def __init__(self, pads):
-        self.bus = bus = wishbone.Interface()
+        self.bus = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
 
         # # #
 
@@ -87,7 +87,7 @@ class EMIF(LiteXModule):
 
 class EMIF16To32Adapter(LiteXModule):
     def __init__(self, emif):
-        self.bus = bus = wishbone.Interface()
+        self.bus = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
 
         # # #
 

@@ -134,7 +134,7 @@ class WS2812(LiteXModule):
     """
     def __init__(self, pad, nleds, sys_clk_freq, bus_mastering=False, bus_base=None, revision="new", init=None):
         if bus_mastering:
-            self.bus  = bus = wishbone.Interface(data_width=32)
+            self.bus  = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         else:
             # Memory.
             mem = Memory(32, nleds, init=init)
@@ -145,7 +145,7 @@ class WS2812(LiteXModule):
             self.wb_mem = wishbone.SRAM(
                 mem_or_size = mem,
                 read_only   = False,
-                bus         = wishbone.Interface(data_width=32)
+                bus         = wishbone.Interface(data_width=32, address_width=32, addressing="word")
             )
             self.bus = self.wb_mem.bus
 

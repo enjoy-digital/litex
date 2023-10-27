@@ -435,7 +435,7 @@ class S7SPIOPI(LiteXModule):
              bit of additional logic and pipelining, we can aggregate data into 32-bit words going into a
              32-bit FIFO_SYNC_MACRO, which is what we do in this implementation.
         """)
-        self.bus = bus = wishbone.Interface()
+        self.bus = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
 
         self.command = CSRStorage(description="Write individual bits to issue special commands to SPI; setting multiple bits at once leads to undefined behavior.",
             fields=[

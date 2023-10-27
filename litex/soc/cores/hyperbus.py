@@ -29,7 +29,7 @@ class HyperRAM(LiteXModule):
     """
     def __init__(self, pads, latency=6, sys_clk_freq=None):
         self.pads = pads
-        self.bus  = bus = wishbone.Interface()
+        self.bus  = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
 
         # # #
 

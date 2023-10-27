@@ -310,7 +310,7 @@ class Stream2Wishbone(LiteXModule):
     def __init__(self, phy=None, clk_freq=None, data_width=32, address_width=32):
         self.sink     = sink   = stream.Endpoint([("data", 8)]) if phy is None else phy.source
         self.source   = source = stream.Endpoint([("data", 8)]) if phy is None else phy.sink
-        self.wishbone = wishbone.Interface(data_width=data_width, adr_width=address_width)
+        self.wishbone = wishbone.Interface(data_width=data_width, address_width=address_width, addressing="word")
 
         # # #
         assert data_width    in [8, 16, 32]

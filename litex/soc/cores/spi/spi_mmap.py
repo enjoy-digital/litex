@@ -361,7 +361,7 @@ class SPICtrl(LiteXModule):
 
 class SPITXMMAP(LiteXModule):
     def __init__(self, ctrl, data_width=32, nslots=1, origin=0x0000_0000):
-        self.bus    = bus    = wishbone.Interface(data_width=data_width)
+        self.bus    = bus    = wishbone.Interface(data_width=data_width, address_width=32, addressing="word")
         self.source = source = stream.Endpoint(spi_layout(
             data_width = data_width,
             be_width   = data_width//8,
@@ -429,7 +429,7 @@ class SPITXMMAP(LiteXModule):
 
 class SPIRXMMAP(LiteXModule):
     def __init__(self, ctrl, data_width=32, nslots=1, origin=0x0000_0000):
-        self.bus  = bus  = wishbone.Interface(data_width=data_width)
+        self.bus  = bus  = wishbone.Interface(data_width=data_width, address_width=32, addressing="word")
         self.sink = sink = stream.Endpoint(spi_layout(
             data_width = data_width,
             be_width   = data_width//8,

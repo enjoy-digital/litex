@@ -1627,7 +1627,9 @@ class LiteXSoC(SoC):
                     else:
                         mem_wb  = wishbone.Interface(
                             data_width = self.cpu.mem_axi.data_width,
-                            adr_width  = 32-log2_int(mem_bus.data_width//8))
+                            adr_width  = 32-log2_int(mem_bus.data_width//8,
+                            addressing = "word",
+                        ))
                         mem_a2w = axi.AXI2Wishbone(
                             axi          = mem_bus,
                             wishbone     = mem_wb,
@@ -1664,7 +1666,7 @@ class LiteXSoC(SoC):
             port.data_width = 2**int(log2(port.data_width)) # Round to nearest power of 2.
 
             # Create Wishbone Slave.
-            wb_sdram = wishbone.Interface(data_width=self.bus.data_width)
+            wb_sdram = wishbone.Interface(data_width=self.bus.data_width, address_width=32, addressing="word")
             self.bus.add_slave(name="main_ram", slave=wb_sdram)
 
             # L2 Cache
@@ -1676,7 +1678,7 @@ class LiteXSoC(SoC):
                 l2_cache = wishbone.Cache(
                     cachesize = l2_cache_size//4,
                     master    = wb_sdram,
-                    slave     = wishbone.Interface(l2_cache_data_width),
+                    slave     = wishbone.Interface(data_width=l2_cache_data_width, address_width=32, addressing="word"),
                     reverse   = l2_cache_reverse)
                 if l2_cache_full_memory_we:
                     l2_cache = FullMemoryWE()(l2_cache)
@@ -1684,7 +1686,7 @@ class LiteXSoC(SoC):
                 litedram_wb = self.l2_cache.slave
                 self.add_config("L2_SIZE", l2_cache_size)
             else:
-                litedram_wb = wishbone.Interface(port.data_width)
+                litedram_wb = wishbone.Interface(data_width=port.data_width, address_width=32, addressing="word")
                 self.submodules += wishbone.Converter(wb_sdram, litedram_wb)
 
             # Wishbone Slave <--> LiteDRAM bridge.
@@ -1926,7 +1928,11 @@ class LiteXSoC(SoC):
         # Block2Mem DMA.
         if "read" in mode:
             self.check_if_exists(f"{name}_block2mem")
-            bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.get_address_width(standard="wishbone"))
+            bus = wishbone.Interface(
+                data_width = self.bus.data_width,
+                adr_width  = self.bus.get_address_width(standard="wishbone"),
+                addressing = "word",
+            )
             sdcard_block2mem = SDBlock2MemDMA(bus=bus, endianness=self.cpu.endianness)
             self.add_module(name=f"{name}_block2mem", module=sdcard_block2mem)
             self.comb += sdcard_core.source.connect(sdcard_block2mem.sink)
@@ -1936,7 +1942,11 @@ class LiteXSoC(SoC):
         # Mem2Block DMA.
         if "write" in mode:
             self.check_if_exists(f"{name}_mem2block")
-            bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.get_address_width(standard="wishbone"))
+            bus = wishbone.Interface(
+                data_width = self.bus.data_width,
+                adr_width  = self.bus.get_address_width(standard="wishbone"),
+                addressing = "word",
+            )
             sdcard_mem2block = SDMem2BlockDMA(bus=bus, endianness=self.cpu.endianness)
             self.add_module(name=f"{name}_mem2block", module=sdcard_mem2block)
             self.comb += sdcard_mem2block.source.connect(sdcard_core.sink)
@@ -2007,11 +2017,16 @@ class LiteXSoC(SoC):
         # Sector2Mem DMA.
         if "read" in mode:
             self.check_if_exists(f"{name}_sector2mem")
-            bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.get_address_width(standard="wishbone"))
+            bus = wishbone.Interface(
+                data_width = self.bus.data_width,
+                adr_width  = self.bus.get_address_width(standard="wishbone"),
+                addressing = "word",
+            )
             sata_sector2mem = LiteSATASector2MemDMA(
                port       = sata_crossbar.get_port(),
                bus        = bus,
-               endianness = self.cpu.endianness)
+               endianness = self.cpu.endianness,
+            )
             self.add_module(name=f"{name}_sector2mem", module=sata_sector2mem)
             dma_bus = getattr(self, "dma_bus", self.bus)
             dma_bus.add_master(name=f"{name}_sector2mem", master=bus)
@@ -2019,11 +2034,16 @@ class LiteXSoC(SoC):
         # Mem2Sector DMA.
         if "write" in mode:
             self.check_if_exists(f"{name}_mem2sector")
-            bus = wishbone.Interface(data_width=self.bus.data_width, adr_width=self.bus.get_address_width(standard="wishbone"))
+            bus = wishbone.Interface(
+                data_width = self.bus.data_width,
+                adr_width  = self.bus.get_address_width(standard="wishbone"),
+                addressing = "word",
+            )
             sata_mem2sector = LiteSATAMem2SectorDMA(
                bus        = bus,
                port       = sata_crossbar.get_port(),
-               endianness = self.cpu.endianness)
+               endianness = self.cpu.endianness,
+            )
             self.add_module(name=f"{name}_mem2sector", module=sata_mem2sector)
             dma_bus = getattr(self, "dma_bus", self.bus)
             dma_bus.add_master(name=f"{name}_mem2sector", master=bus)

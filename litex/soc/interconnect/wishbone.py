@@ -67,7 +67,7 @@ class Interface(Record):
 
     @staticmethod
     def like(other):
-        return Interface(len(other.dat_w))
+        return Interface(data_width=other.data_width, address_width=other.address_width, addressing=other.addressing)
 
     def _do_transaction(self):
         yield self.cyc.eq(1)
@@ -395,7 +395,7 @@ class Converter(Module):
 class SRAM(Module):
     def __init__(self, mem_or_size, read_only=None, write_only=None, init=None, bus=None, name=None):
         if bus is None:
-            bus = Interface()
+            bus = Interface(data_width=32, address_width=32, addressing="word")
         assert bus.addressing == "word" # FIXME: Test/Remove byte addressing limitation.
         self.bus = bus
         bus_data_width = len(self.bus.dat_r)
