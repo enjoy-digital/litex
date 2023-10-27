@@ -14,6 +14,7 @@ from litex.soc.interconnect.csr_eventmanager import *
 
 from litex.soc.integration.doc import AutoDoc, ModuleDoc
 
+# 7-Series SPI OPI ---------------------------------------------------------------------------------
 
 class S7SPIOPI(LiteXModule):
     def __init__(self, pads,

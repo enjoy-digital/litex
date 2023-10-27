@@ -82,7 +82,7 @@ GCC_FLAGS = {
 
 # VexRiscv Timer -----------------------------------------------------------------------------------
 
-class VexRiscvTimer(Module, AutoCSR):
+class VexRiscvTimer(LiteXModule):
     def __init__(self):
         self._latch    = CSR()
         self._time     = CSRStatus(64)

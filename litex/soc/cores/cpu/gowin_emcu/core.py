@@ -13,7 +13,7 @@ from litex.soc.cores.cpu import CPU
 
 # AHB Flash ----------------------------------------------------------------------------------------
 
-class AHBFlash(Module):
+class AHBFlash(LiteXModule):
     def __init__(self, bus):
         addr = Signal(13)
         read = Signal()

@@ -45,7 +45,7 @@ obi_layout = [
     ("rdata", 32),
 ]
 
-class OBI2Wishbone(Module):
+class OBI2Wishbone(LiteXModule):
     def __init__(self, obi, wb):
         addr  = Signal.like(obi.addr)
         be    = Signal.like(obi.be)

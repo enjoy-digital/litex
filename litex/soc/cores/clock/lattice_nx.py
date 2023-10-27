@@ -106,7 +106,7 @@ class NXOSCA(LiteXModule):
 
 # Lattice / NX PLL ---------------------------------------------------------------------------------
 
-class NXPLL(Module):
+class NXPLL(LiteXModule):
     nclkouts_max        = 5
     clki_div_range      = ( 1, 128+1)
     clkfb_div_range     = ( 1, 128+1)

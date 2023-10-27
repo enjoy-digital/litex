@@ -236,7 +236,7 @@ class Microwatt(CPU):
 
 # XICS Slave ---------------------------------------------------------------------------------------
 
-class XICSSlave(Module, AutoCSR):
+class XICSSlave(LiteXModule):
     def __init__(self, platform, core_irq_out=Signal(), int_level_in=Signal(16), variant="standard"):
         self.variant = variant
 

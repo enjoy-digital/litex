@@ -34,7 +34,7 @@ apb_layout = [
 
 # Wishbone <> APB ----------------------------------------------------------------------------------
 
-class Wishbone2APB(Module):
+class Wishbone2APB(LiteXModule):
     def __init__(self, wb, apb):
         assert wb.data_width == 32
         self.fsm = fsm = FSM(reset_state="IDLE")

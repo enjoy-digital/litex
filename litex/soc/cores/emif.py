@@ -11,6 +11,7 @@ from litex.gen import *
 
 from litex.soc.interconnect import wishbone
 
+# EMIF (External Memory Interface) -----------------------------------------------------------------
 
 class EMIF(LiteXModule):
     """External Memory Interface core

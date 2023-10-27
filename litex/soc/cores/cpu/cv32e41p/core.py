@@ -73,7 +73,7 @@ def add_manifest_sources(platform, manifest):
 
 # OBI <> Wishbone ----------------------------------------------------------------------------------
 
-class OBI2Wishbone(Module):
+class OBI2Wishbone(LiteXModule):
     def __init__(self, obi, wb):
         addr  = Signal.like(obi.addr)
         be    = Signal.like(obi.be)
@@ -123,7 +123,7 @@ class OBI2Wishbone(Module):
             )
         )
 
-class Wishbone2OBI(Module):
+class Wishbone2OBI(LiteXModule):
     def __init__(self, wb, obi):
         self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
@@ -147,7 +147,7 @@ class Wishbone2OBI(Module):
 
 # Wishbone <> APB ----------------------------------------------------------------------------------
 
-class Wishbone2APB(Module):
+class Wishbone2APB(LiteXModule):
     def __init__(self, wb, apb):
         self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
@@ -171,7 +171,7 @@ class Wishbone2APB(Module):
 
 # Debug Module -------------------------------------------------------------------------------------
 
-class DebugModule(Module):
+class DebugModule(LiteXModule):
     jtag_layout = [
         ("tck",  1),
         ("tms",  1),
