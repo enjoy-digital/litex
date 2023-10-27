@@ -70,11 +70,12 @@ def _read_merger(addrs, max_length=256, bursts=["incr", "fixed"]):
 # Remote Server ------------------------------------------------------------------------------------
 
 class RemoteServer(EtherboneIPC):
-    def __init__(self, comm, bind_ip, bind_port=1234):
+    def __init__(self, comm, bind_ip, bind_port=1234, addr_width=64):
         self.comm      = comm
         self.bind_ip   = bind_ip
         self.bind_port = bind_port
         self.lock      = False
+        self.addr_width=addr_width
 
     def open(self):
         if hasattr(self, "socket"):
@@ -115,14 +116,13 @@ class RemoteServer(EtherboneIPC):
                 while True:
                     # Receive packet.
                     try:
-                        packet = self.receive_packet(client_socket)
+                        packet = self.receive_packet(client_socket, self.addr_width)
                         if packet == 0:
                             break
                     except:
                         break
-
                     # Decode Packet.
-                    packet = EtherbonePacket(packet)
+                    packet = EtherbonePacket(self.addr_width, packet)
                     packet.decode()
 
                     # Get Packet's Record.
@@ -152,11 +152,11 @@ class RemoteServer(EtherboneIPC):
                             bursts      = bursts):
                             reads += self.comm.read(addr, length, burst)
 
-                        record = EtherboneRecord()
-                        record.writes = EtherboneWrites(datas=reads)
+                        record = EtherboneRecord(self.addr_width)
+                        record.writes = EtherboneWrites(addr_width=self.addr_width, datas=reads)
                         record.wcount = len(record.writes)
 
-                        packet = EtherbonePacket()
+                        packet = EtherbonePacket(self.addr_width)
                         packet.records = [record]
                         packet.encode()
                         self.send_packet(client_socket, packet)

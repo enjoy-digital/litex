@@ -21,16 +21,21 @@ from litex.tools.remote.csr_builder import CSRBuilder
 # Remote Client ------------------------------------------------------------------------------------
 
 class RemoteClient(EtherboneIPC, CSRBuilder):
-    def __init__(self, host="localhost", port=1234, base_address=0, csr_csv=None, csr_data_width=None, debug=False):
+    def __init__(self, host="localhost", port=1234, base_address=0, csr_csv=None, csr_data_width=None,
+        csr_bus_address_width=None, debug=False):
         # If csr_csv set to None and local csr.csv file exists, use it.
         if csr_csv is None and os.path.exists("csr.csv"):
             csr_csv = "csr.csv"
         # If valid csr_csv file found, build the CSRs.
         if csr_csv is not None:
             CSRBuilder.__init__(self, self, csr_csv, csr_data_width)
-        # Else if csr_data_width set to None, force to csr_data_width 32-bit.
-        elif csr_data_width is None:
-            csr_data_width = 32
+        else:
+            # Else if csr_data_width set to None, force to csr_data_width 32-bit.
+            if csr_data_width is None:
+                csr_data_width = 32
+            # Else if csr_bus_address_width set to None, force to csr_bus_address_width 32-bit.
+            if csr_bus_address_width is None:
+                csr_bus_address_width = 32
         self.host         = host
         self.port         = port
         self.debug        = debug
@@ -62,19 +67,25 @@ class RemoteClient(EtherboneIPC, CSRBuilder):
     def read(self, addr, length=None, burst="incr"):
         length_int = 1 if length is None else length
         # Prepare packet
-        record = EtherboneRecord()
+        record = EtherboneRecord(self.csr_bus_address_width)
         incr = (burst == "incr")
-        record.reads  = EtherboneReads(addrs=[self.base_address + addr + 4*incr*j for j in range(length_int)])
+        record.reads  = EtherboneReads(
+            addr_width = self.csr_bus_address_width,
+            addrs      = [self.base_address + addr + 4*incr*j for j in range(length_int)]
+        )
         record.rcount = len(record.reads)
 
         # Send packet
-        packet = EtherbonePacket()
+        packet = EtherbonePacket(self.csr_bus_address_width)
         packet.records = [record]
         packet.encode()
         self.send_packet(self.socket, packet)
 
         # Receive response
-        packet = EtherbonePacket(self.receive_packet(self.socket))
+        packet = EtherbonePacket(
+            addr_width = self.csr_bus_address_width,
+            init       = self.receive_packet(self.socket, self.csr_bus_address_width)
+        )
         packet.decode()
         datas = packet.records.pop().writes.get_datas()
         if self.debug:
@@ -84,11 +95,15 @@ class RemoteClient(EtherboneIPC, CSRBuilder):
 
     def write(self, addr, datas):
         datas = datas if isinstance(datas, list) else [datas]
-        record = EtherboneRecord()
-        record.writes = EtherboneWrites(base_addr=self.base_address + addr, datas=[d for d in datas])
+        record = EtherboneRecord(self.csr_bus_address_width)
+        record.writes = EtherboneWrites(
+            base_addr  = self.base_address + addr,
+            addr_width = self.csr_bus_address_width,
+            datas      = [d for d in datas]
+        )
         record.wcount = len(record.writes)
 
-        packet = EtherbonePacket()
+        packet = EtherbonePacket(self.csr_bus_address_width)
         packet.records = [record]
         packet.encode()
         self.send_packet(self.socket, packet)
