@@ -1481,7 +1481,11 @@ class LiteXSoC(SoC):
             clk_freq = self.sys_clk_freq
         self.check_if_exists(name)
         uartbone_phy = uart.UARTPHY(self.platform.request(uart_name), clk_freq, baudrate)
-        uartbone     = uart.UARTBone(phy=uartbone_phy, clk_freq=clk_freq, cd=cd)
+        uartbone     = uart.UARTBone(
+            phy        = uartbone_phy,
+            clk_freq   = clk_freq,
+            cd         = cd,
+            addr_width = self.bus.address_width)
         self.add_module(name=f"{name}_phy", module=uartbone_phy)
         self.add_module(name=name,          module=uartbone)
         self.bus.add_master(name=name, master=uartbone.wishbone)
