@@ -1082,7 +1082,10 @@ class SoC(LiteXModule, SoCCoreCompat):
                 colorer("\n - ".join(sorted(cpu_cls.variants)))))
             raise SoCError()
         self.check_if_exists("cpu")
-        self.cpu = cpu_cls(self.platform, variant)
+        if cpu_cls is cpu.CPUNone:
+            self.cpu = cpu_cls(self.bus.data_width, self.bus.address_width)
+        else:
+            self.cpu = cpu_cls(self.platform, variant)
         self.logger.info("CPU {} {}.".format(
             colorer(name, color="underline"),
             colorer("added", color="green")))
