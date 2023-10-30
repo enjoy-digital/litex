@@ -431,17 +431,17 @@ class Stream2Wishbone(LiteXModule):
 
 
 class UARTBone(Stream2Wishbone):
-    def __init__(self, phy, clk_freq, cd="sys"):
+    def __init__(self, phy, clk_freq, cd="sys", address_width=32):
         if cd == "sys":
             self.phy = phy
-            Stream2Wishbone.__init__(self, self.phy, clk_freq=clk_freq)
+            Stream2Wishbone.__init__(self, self.phy, clk_freq=clk_freq, address_width=address_width)
         else:
             self.phy = ClockDomainsRenamer(cd)(phy)
             self.tx_cdc = stream.ClockDomainCrossing([("data", 8)], cd_from="sys", cd_to=cd)
             self.rx_cdc = stream.ClockDomainCrossing([("data", 8)], cd_from=cd,    cd_to="sys")
             self.comb += self.phy.source.connect(self.rx_cdc.sink)
             self.comb += self.tx_cdc.source.connect(self.phy.sink)
-            Stream2Wishbone.__init__(self, clk_freq=clk_freq)
+            Stream2Wishbone.__init__(self, clk_freq=clk_freq, address_width=address_width)
             self.comb += self.rx_cdc.source.connect(self.sink)
             self.comb += self.source.connect(self.tx_cdc.sink)
 
