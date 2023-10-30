@@ -311,7 +311,7 @@ class Stream2Wishbone(LiteXModule):
 
         # # #
         assert data_width    in [8, 16, 32]
-        assert address_width in [8, 16, 32]
+        assert address_width in [8, 16, 32, 64]
 
         cmd              = Signal(8,                           reset_less=True)
         incr             = Signal()
