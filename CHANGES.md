@@ -20,6 +20,9 @@
 	- build/xilinx          : Added initial OpenXC7 support (and improved Yosys-NextPnr).
 	- build/efinix          : Added JTAG-UART/JTAGBone support.
 	- interconnect/wishbone : Added byte/word addressing support.
+	- cores/uart            : Added 64-bit addressing support to Stream2Wishbone.
+	- tools                 : Added 64-bit addressing support to litex_server/client.
+	- cores/cpu             : Added 64-bit support to CPUNone.
 
 	[> Changed
 	----------
