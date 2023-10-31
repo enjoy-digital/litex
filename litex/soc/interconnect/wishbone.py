@@ -238,7 +238,8 @@ class Decoder(LiteXModule):
 class InterconnectShared(LiteXModule):
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
         data_width = get_check_parameters(ports=masters + [s for _, s in slaves])
-        shared = Interface(data_width=data_width)
+        adr_width = max([m.adr_width for m in masters])
+        shared = Interface(data_width=data_width, adr_width=adr_width)
         self.arbiter = Arbiter(masters, shared)
         self.decoder = Decoder(shared, slaves, register)
         if timeout_cycles is not None:
@@ -249,7 +250,8 @@ class Crossbar(LiteXModule):
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
         data_width = get_check_parameters(ports=masters + [s for _, s in slaves])
         matches, busses = zip(*slaves)
-        access = [[Interface(data_width=data_width) for j in slaves] for i in masters]
+        adr_width = max([m.adr_width for m in masters])
+        access = [[Interface(data_width=data_width, adr_width=adr_width) for j in slaves] for i in masters]
         # decode each master into its access row
         for row, master in zip(access, masters):
             row = list(zip(matches, row))
