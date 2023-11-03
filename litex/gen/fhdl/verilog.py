@@ -89,11 +89,11 @@ def _generate_timescale(time_unit="1ns", time_precision="1ps"):
 # ------------------------------------------------------------------------------------------------ #
 
 def _generate_hierarchy(top):
-    hierarchy = LiteXHierarchyExplorer(top=top, depth=None, with_colors=False).__repr__()
+    hierarchy_explorer = LiteXHierarchyExplorer(top=top, depth=None, with_colors=False)
     r = "/*\n"
-    for l in hierarchy.split("\n"):
+    for l in hierarchy_explorer.get_hierarchy().split("\n"):
         r += l + "\n"
-        #r += "//" + l + "\n"
+    r = r[:-1]
     r += "*/\n"
     return r
 

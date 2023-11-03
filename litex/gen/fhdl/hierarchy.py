@@ -26,7 +26,8 @@ class LiteXHierarchyExplorer:
         r = ""
         names = set()
         names.add(None)
-        # Modules / SubModules.
+
+        # Modules / Sub-Modules.
         for name, mod in module._submodules:
             if name is None:
                 n = 0
@@ -51,10 +52,13 @@ class LiteXHierarchyExplorer:
                         r +=  f"{self.tree_ident*ident}{self.tree_entry}{self._colorer(f'[{s.of}]', 'yellow')}\n"
         return r
 
-    def __repr__(self):
-        r = "\n"
+    def get_hierarchy(self):
+        r = ""
         r += f"{self._colorer(self.top.__class__.__name__, 'underline')}\n"
         r += self.get_tree(self.top)
-        r += f"{self._colorer('* ', 'cyan')}: Generated name.\n"
+        r += f"{self._colorer('* ',   'cyan')}: Generated name.\n"
         r += f"{self._colorer('[]', 'yellow')}: BlackBox.\n"
         return r
+
+    def __repr__(self):
+        return f"\n{self.get_hierarchy()}"
