@@ -527,8 +527,8 @@ def _generate_specials(name, overrides, specials, namespace, add_data_file, attr
             r += _generate_attribute(special.attr, attr_translate)
         # Replace Migen Memory's emit_verilog with LiteX's implementation.
         if isinstance(special, Memory):
-            from litex.gen.fhdl.memory import memory_emit_verilog
-            pr = memory_emit_verilog(name, special, namespace, add_data_file)
+            from litex.gen.fhdl.memory import _memory_generate_verilog
+            pr = _memory_generate_verilog(name, special, namespace, add_data_file)
         else:
             pr = call_special_classmethod(overrides, special, "emit_verilog", namespace, add_data_file)
         if pr is None:
