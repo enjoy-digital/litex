@@ -11,7 +11,17 @@ from migen.fhdl.specials  import *
 # LiteX Instance Verilog Generation ----------------------------------------------------------------
 
 def _instance_generate_verilog(instance, ns, add_data_file):
-    r = instance.of + " "
+    r = ""
+
+    # Instance Description.
+    # ---------------------
+    r += "//" + "-"*78 + "\n"
+    r += f"// Instance {ns.get_name(instance)} of {instance.of} Module.\n"
+    r += "//" + "-"*78 + "\n"
+
+    # Instance Name.
+    # --------------
+    r += instance.of + " "
 
     # Instance Parameters.
     # --------------------
@@ -23,7 +33,7 @@ def _instance_generate_verilog(instance, ns, add_data_file):
             if not first:
                 r += ",\n"
             first = False
-            r += "\t." + p.name + "("
+            r += f"\t.{p.name}("
             # Constant.
             if isinstance(p.value, Constant):
                 r += verilog_printexpr(ns, p.value)[0]
@@ -35,7 +45,7 @@ def _instance_generate_verilog(instance, ns, add_data_file):
                 r += p.value
             # String.
             elif isinstance(p.value, str):
-                r += "\"" + p.value + "\""
+                r += f"\"{p.value}\""
             else:
                 raise TypeError
             r += ")"
