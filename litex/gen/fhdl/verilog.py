@@ -25,7 +25,9 @@ from migen.fhdl.tools       import *
 from migen.fhdl.conv_output import ConvOutput
 from migen.fhdl.specials    import Memory
 
-from litex.gen.fhdl.namer import build_namespace
+from litex.gen import LiteXContext
+from litex.gen.fhdl.namer     import build_namespace
+from litex.gen.fhdl.hierarchy import LiteXHierarchyExplorer
 
 from litex.build.tools import get_litex_git_revision
 
@@ -80,6 +82,19 @@ def _generate_separator(msg=""):
 
 def _generate_timescale(time_unit="1ns", time_precision="1ps"):
     r = f"`timescale {time_unit} / {time_precision}\n"
+    return r
+
+# ------------------------------------------------------------------------------------------------ #
+#                                         HIERARCHY                                                #
+# ------------------------------------------------------------------------------------------------ #
+
+def _generate_hierarchy(top):
+    hierarchy = LiteXHierarchyExplorer(top=top, depth=None, with_colors=False).__repr__()
+    r = "/*\n"
+    for l in hierarchy.split("\n"):
+        r += l + "\n"
+        #r += "//" + l + "\n"
+    r += "*/\n"
     return r
 
 # ------------------------------------------------------------------------------------------------ #
@@ -623,6 +638,10 @@ def convert(f, ios=set(), name="top", platform=None,
     # Module Definition.
     verilog += _generate_separator("Module")
     verilog += _generate_module(f, ios, name, ns, attr_translate)
+
+    # Module Hierarchy.
+    verilog += _generate_separator("Hierarchy")
+    verilog += _generate_hierarchy(top=LiteXContext.top)
 
     # Module Signals.
     verilog += _generate_separator("Signals")
