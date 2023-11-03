@@ -228,7 +228,7 @@ class SimVerilatorToolchain:
             # Generate verilog
             v_output = platform.get_verilog(fragment,
                 name         = build_name,
-                regular_comb = regular_comb
+                regular_comb = regular_comb,
             )
             named_sc, named_pc = platform.resolve_signals(v_output.ns)
             v_file = build_name + ".v"
