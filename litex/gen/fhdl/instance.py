@@ -2,11 +2,21 @@
 # This file is part of LiteX (Adapted from Migen for LiteX usage).
 #
 # This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
+# This file is Copyright (c) 2023 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen.fhdl.structure import *
 from migen.fhdl.verilog   import _printexpr as verilog_printexpr
 from migen.fhdl.specials  import *
+
+# Helpers ------------------------------------------------------------------------------------------
+
+def get_max_name_length(ios):
+    r = 0
+    for io in ios:
+        if len(io.name) > r:
+            r = len(io.name)
+    return r
 
 # LiteX Instance Verilog Generation ----------------------------------------------------------------
 
@@ -26,6 +36,7 @@ def _instance_generate_verilog(instance, ns, add_data_file):
     # Instance Parameters.
     # --------------------
     parameters = list(filter(lambda i: isinstance(i, Instance.Parameter), instance.items))
+    ident      = get_max_name_length(parameters)
     if parameters:
         r += "#(\n"
         first = True
@@ -34,7 +45,7 @@ def _instance_generate_verilog(instance, ns, add_data_file):
             if not first:
                 r += ",\n"
             first = False
-            r += f"\t.{p.name}("
+            r += f"\t.{p.name}{' '*(ident-len(p.name))} ("
             # Constant.
             if isinstance(p.value, Constant):
                 r += verilog_printexpr(ns, p.value)[0]
@@ -61,7 +72,8 @@ def _instance_generate_verilog(instance, ns, add_data_file):
     inputs  = list(filter(lambda i: isinstance(i, Instance.Input),  instance.items))
     outputs = list(filter(lambda i: isinstance(i, Instance.Output), instance.items))
     inouts  = list(filter(lambda i: isinstance(i, Instance.InOut),  instance.items))
-    first = True
+    first   = True
+    ident   = get_max_name_length(inputs + outputs + inouts)
     for io in (inputs + outputs + inouts):
         if not first:
             r += ",\n"
@@ -74,7 +86,7 @@ def _instance_generate_verilog(instance, ns, add_data_file):
         name_inst   = io.name
         name_design = verilog_printexpr(ns, io.expr)[0]
         first = False
-        r += f"\t.{name_inst}({name_design})"
+        r += f"\t.{name_inst}{' '*(ident-len(name_inst))} ({name_design})"
     if not first:
         r += "\n"
 
