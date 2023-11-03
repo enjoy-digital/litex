@@ -2,7 +2,7 @@
 # This file is part of LiteX (Adapted from Migen for LiteX usage).
 #
 # This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2013-2021 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2013-2023 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2013-2017 Robert Jordens <jordens@gmail.com>
 # This file is Copyright (c) 2016-2018 whitequark <whitequark@whitequark.org>
 # This file is Copyright (c) 2017 Adam Greig <adam@adamgreig.com>
@@ -23,7 +23,7 @@ from migen.fhdl.structure   import *
 from migen.fhdl.structure   import _Operator, _Slice, _Assign, _Fragment
 from migen.fhdl.tools       import *
 from migen.fhdl.conv_output import ConvOutput
-from migen.fhdl.specials    import Memory
+from migen.fhdl.specials    import Instance, Memory
 
 from litex.gen import LiteXContext
 from litex.gen.fhdl.namer     import build_namespace
@@ -529,6 +529,10 @@ def _generate_specials(name, overrides, specials, namespace, add_data_file, attr
         if isinstance(special, Memory):
             from litex.gen.fhdl.memory import _memory_generate_verilog
             pr = _memory_generate_verilog(name, special, namespace, add_data_file)
+        # Replace Migen Instance's emit_verilog with LiteX's implementation.
+        elif isinstance(special, Instance):
+            from litex.gen.fhdl.instance import _instance_generate_verilog
+            pr = _instance_generate_verilog(special, namespace, add_data_file)
         else:
             pr = call_special_classmethod(overrides, special, "emit_verilog", namespace, add_data_file)
         if pr is None:
