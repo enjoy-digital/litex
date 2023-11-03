@@ -19,9 +19,9 @@ class LiteXContext:
         platform  : The FPGA Platform of the project.
         toolchain : The FPGA Toolchain to be used for synthesis and place-and-route.
         device    : The FPGA Device of the LiteX project.
-        soc       : The FPGA SoC of the LiteX project.
+        top       : The FPGA Top-Level Module of the LiteX project.
     """
     platform  = None
     toolchain = None
     device    = None
-    soc       = None
+    top       = None
