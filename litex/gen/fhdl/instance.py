@@ -29,6 +29,7 @@ def _instance_generate_verilog(instance, ns, add_data_file):
     if parameters:
         r += "#(\n"
         first = True
+        r += "\t// Parameters.\n"
         for p in parameters:
             if not first:
                 r += ",\n"
@@ -56,16 +57,24 @@ def _instance_generate_verilog(instance, ns, add_data_file):
     r += ns.get_name(instance)
     if parameters:
         r += " "
-    r += "(\n"
+    r += "("
+    inputs  = list(filter(lambda i: isinstance(i, Instance.Input),  instance.items))
+    outputs = list(filter(lambda i: isinstance(i, Instance.Output), instance.items))
+    inouts  = list(filter(lambda i: isinstance(i, Instance.InOut),  instance.items))
     first = True
-    for io in instance.items:
-        if isinstance(io, Instance._IO):
-            name_inst   = io.name
-            name_design = verilog_printexpr(ns, io.expr)[0]
-            if not first:
-                r += ",\n"
-            first = False
-            r += "\t." + name_inst + "(" + name_design + ")"
+    for io in (inputs + outputs + inouts):
+        if not first:
+            r += ",\n"
+        if len(inputs) and (io is inputs[0]):
+            r += "\n\t// Inputs.\n"
+        if len(outputs) and (io is outputs[0]):
+            r += "\n\t// Outputs.\n"
+        if len(inouts) and (io is inouts[0]):
+            r += "\n\t// InOuts.\n"
+        name_inst   = io.name
+        name_design = verilog_printexpr(ns, io.expr)[0]
+        first = False
+        r += f"\t.{name_inst}({name_design})"
     if not first:
         r += "\n"
 
@@ -73,7 +82,7 @@ def _instance_generate_verilog(instance, ns, add_data_file):
     # -----------------------------
     if instance.synthesis_directive is not None:
         synthesis_directive = f"/* synthesis {instance.synthesis_directive} */"
-        r += ")" + synthesis_directive + ";\n"
+        r += f"){synthesis_directive};\n"
     else:
         r += ");\n"
 
