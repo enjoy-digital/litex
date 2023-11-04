@@ -702,7 +702,8 @@ class VideoFrameBuffer(LiteXModule):
             vtg_sink.ready.eq(~fsm.reset),
             If(vtg_sink.valid & vtg_sink.last,
                 NextState("RUN")
-            )
+            ),
+            vtg_sink.connect(source, keep={"hsync", "vsync"}),
         )
         fsm.act("RUN",
             vtg_sink.ready.eq(1),
