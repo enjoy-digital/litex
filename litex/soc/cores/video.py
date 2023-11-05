@@ -693,13 +693,18 @@ class VideoFrameBuffer(LiteXModule):
             video_pipe_source = self.cdc.source
 
         # Video Synchronization/Generation.
+        first = Signal()
         fsm = FSM(reset_state="SYNC")
         fsm = ClockDomainsRenamer(clock_domain)(fsm)
         fsm = ResetInserter()(fsm)
         self.submodules += fsm
         self.specials += MultiReg(self.dma.fsm.reset, fsm.reset, clock_domain)
         fsm.act("SYNC",
-            vtg_sink.ready.eq(~fsm.reset),
+            vtg_sink.ready.eq(1),
+            If(fsm.reset,
+                vtg_sink.ready.eq(0),
+                NextValue(first, 1)
+            ),
             If(vtg_sink.valid & vtg_sink.last,
                 NextState("RUN")
             ),
@@ -709,9 +714,13 @@ class VideoFrameBuffer(LiteXModule):
             vtg_sink.ready.eq(1),
             If(vtg_sink.valid & vtg_sink.de,
                 video_pipe_source.connect(source, keep={"valid", "ready"}),
+                If(first,
+                    source.valid.eq(0)
+                ),
                 vtg_sink.ready.eq(source.valid & source.ready),
                 If(video_pipe_source.valid & video_pipe_source.last,
-                    NextState("SYNC")
+                    NextValue(first, 0),
+                    NextState("SYNC"),
                 )
             ),
             vtg_sink.connect(source, keep={"de", "hsync", "vsync"}),
