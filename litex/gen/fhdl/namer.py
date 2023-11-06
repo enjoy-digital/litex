@@ -26,6 +26,7 @@ class HierarchyNode:
         self.use_name     = False
         self.use_number   = False
         self.children     = {}
+        self.all_numbers  = []
 
     def update(self, name, number, use_number, current_base=None):
         """
@@ -140,7 +141,7 @@ def build_signal_name_dict_from_tree(tree, signals):
             # Navigate the tree according to the signal's path.
             treepos = treepos.children.get((step_name, step_n)) or treepos.children.get(step_name)
             # Check if the number is part of the name based on the tree node.
-            use_number = step_n in treepos.all_numbers if hasattr(treepos, 'all_numbers') else False
+            use_number = step_n in treepos.all_numbers
 
             # If the tree node's name is to be used, add it to the elements.
             if treepos.use_name:
