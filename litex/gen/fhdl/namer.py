@@ -70,8 +70,7 @@ def build_hierarchy_tree(signals, base_tree=None):
 
     # Iterate over each signal to be included in the tree.
     for signal in signals:
-        current = root
-        current.signal_count += 1
+        current      = root
         current_base = base_tree
 
         # Traverse or build the hierarchy of nodes based on the signal's backtrace.
@@ -285,10 +284,6 @@ def build_signal_groups(signals):
         for group, sig in zip(grouped_signals, chain):
             group.add(sig)
 
-    # Ensure signals only appear in their most specific group.
-    for i in range(len(grouped_signals) - 1):
-        grouped_signals[i] -= grouped_signals[i + 1]
-
     return grouped_signals
 
 def build_signal_name_dict(signals):
@@ -390,10 +385,11 @@ class SignalNamespace:
                 n = 0
             self.sigs[sig] = n
             self.counts[sig_name] = n + 1
-        suffix = "" if n == 0 else f"_{n}"
+        if n > 0:
+            sig_name += f"_{n}"
 
         # Return Name.
-        return sig_name + suffix
+        return sig_name
 
 def build_signal_namespace(signals, reserved_keywords=set()):
     """Constructs a namespace where each signal is given a unique hierarchical name.
@@ -413,8 +409,6 @@ def build_signal_namespace(signals, reserved_keywords=set()):
 
     # Handle signals with overridden names, ensuring they are processed in a consistent order.
     signals_with_name_override = filter(lambda s: s.name_override is not None, signals)
-    for signal in sorted(signals_with_name_override, key=lambda s: s.duid):
-        namespace.get_name(signal)
 
     return namespace
 
