@@ -25,43 +25,46 @@ class _Node:
         self.use_number   = False
         self.children     = {}
 
-def _build_tree(signals, basic_tree=None):
-    """Builds a hierarchical tree of nodes based on the provided signals.
+def _build_tree(signals, base_tree=None):
+    """
+    Constructs a hierarchical tree from signals, where each signal's backtrace contributes to the tree structure.
 
     Parameters:
-        signals           (iterable): An iterable of signals to be organized into a tree.
-        basic_tree (_Node, optional): A basic tree structure that the new tree is based upon.
+    - signals (list): A list of signals to process.
+    - base_tree (Node, optional): A base tree to refine with number usage information.
 
     Returns:
-        _Node: The root node of the constructed hierarchical tree.
+    - Node: The root node of the constructed tree.
     """
     root = _Node()
-    for signal in signals:
-        current_b = basic_tree
-        current   = root
-        current.signal_count += 1
-        for name, number in signal.backtrace:
-            if basic_tree is None:
-                use_number = False
-            else:
-                current_b  = current_b.children[name]
-                use_number = current_b.use_number
-            if use_number:
-                key = (name, number)
-            else:
-                key = name
-            try:
-                current = current.children[key]
-            except KeyError:
-                new = _Node()
-                current.children[key] = new
-                current = new
-            current.numbers.add(number)
-            if use_number:
-                current.all_numbers = sorted(current_b.numbers)
-            current.signal_count += 1
-    return root
 
+    # Iterate over each signal to be included in the tree.
+    for signal in signals:
+        current = root
+        current.signal_count += 1
+        current_base = base_tree
+
+        # Traverse or build the hierarchy of nodes based on the signal's backtrace.
+        for name, number in signal.backtrace:
+            # Decide whether to use a numbered key based on the base tree.
+            use_number = False
+            if current_base:
+                current_base = current_base.children.get(name)
+                use_number   = current_base.use_number if current_base else False
+
+            # Create the appropriate key for the node.
+            key = (name, number) if use_number else name
+            # Use setdefault to either get the existing child node or create a new one.
+            current = current.children.setdefault(key, _Node())
+            # Add the number to the set of numbers associated with this node.
+            current.numbers.add(number)
+            # Increment the count of signals that have traversed this node.
+            current.signal_count += 1
+            # If numbering is used, sort and store all numbers associated with the base node.
+            if use_number:
+                current.all_numbers = sorted(current_base.numbers)
+
+    return root
 
 def _set_use_name(node, node_name=""):
     """Determines whether names should be used in signal naming by examining child nodes.
@@ -192,15 +195,15 @@ def _build_pnd_for_group(group_n, signals):
     Returns:
         dict: A dictionary mapping signals to their hierarchical names.
     """
-    basic_tree = _build_tree(signals)
-    _set_use_name(basic_tree)
-    pnd = _build_pnd_from_tree(basic_tree, signals)
+    base_tree = _build_tree(signals)
+    _set_use_name(base_tree)
+    pnd = _build_pnd_from_tree(base_tree, signals)
 
     # If there are conflicts, try splitting the tree by numbers on paths taken by conflicting signals.
     conflicting_signals = _list_conflicting_signals(pnd)
     if conflicting_signals:
-        _set_use_number(basic_tree, conflicting_signals)
-        numbered_tree = _build_tree(signals, basic_tree)
+        _set_use_number(base_tree, conflicting_signals)
+        numbered_tree = _build_tree(signals, base_tree)
         _set_use_name(numbered_tree)
         pnd = _build_pnd_from_tree(numbered_tree, signals)
     # ...then add number suffixes by DUID.
