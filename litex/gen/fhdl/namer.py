@@ -232,29 +232,36 @@ def build_signal_name_dict_for_group(group_number, signals):
         dict: A dictionary mapping signals to their hierarchical names.
     """
 
+    def resolve_conflicts_and_rebuild_tree():
+        conflicts = list_conflicting_signals(name_dict)
+        if conflicts:
+            set_number_usage(tree, conflicts)
+            return build_hierarchy_tree(signals, tree)
+        return tree
+
+    def disambiguate_signals_with_duid():
+        inv_name_dict = invert_signal_name_dict(name_dict)
+        for names, sigs in inv_name_dict.items():
+            if len(sigs) > 1:
+                for idx, sig in enumerate(sorted(sigs, key=lambda s: s.duid)):
+                    name_dict[sig] += f"{idx}"
+
     # Construct initial naming tree and name dictionary.
     tree = build_hierarchy_tree(signals)
     determine_name_usage(tree)
     name_dict = build_signal_name_dict_from_tree(tree, signals)
 
     # Address naming conflicts by introducing numbers.
-    conflicts = list_conflicting_signals(name_dict)
-    if conflicts:
-        set_number_usage(tree, conflicts)
-        # Rebuild tree and name dictionary if there were conflicts.
-        tree = build_hierarchy_tree(signals, tree)
-        determine_name_usage(tree)
-        name_dict = build_signal_name_dict_from_tree(tree, signals)
+    tree = resolve_conflicts_and_rebuild_tree()
+
+    # Re-determine name usage and rebuild the name dictionary.
+    determine_name_usage(tree)
+    name_dict = build_signal_name_dict_from_tree(tree, signals)
 
     # Disambiguate remaining conflicts using signal's unique identifier (DUID).
-    inv_name_dict = invert_signal_name_dict(name_dict)
-    for names, sigs in inv_name_dict.items():
-        if len(sigs) > 1:
-            for idx, sig in enumerate(sorted(sigs, key=lambda s: s.duid)):
-                name_dict[sig] += f"{idx}"
+    disambiguate_signals_with_duid()
 
     return name_dict
-
 
 def build_signal_groups(signals):
     """Organizes signals into related groups.
