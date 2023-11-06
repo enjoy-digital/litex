@@ -8,7 +8,7 @@ from migen import *
 
 # Coloring Helpers ---------------------------------------------------------------------------------
 
-def colorer(s, color="bright"):
+def colorer(s, color="bright", enable=True):
     """Apply ANSI colors to a string."""
     header  = {
         "bright": "\x1b[1m",
@@ -18,7 +18,7 @@ def colorer(s, color="bright"):
         "yellow": "\x1b[33m",
         "underline": "\x1b[4m"}[color]
     trailer = "\x1b[0m"
-    return header + str(s) + trailer
+    return (header + str(s) + trailer) if enable else str(s)
 
 # Bit/Bytes Reversing ------------------------------------------------------------------------------
 

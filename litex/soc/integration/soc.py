@@ -895,8 +895,8 @@ class SoC(LiteXModule, SoCCoreCompat):
         self.constants    = {}
         self.csr_regions  = {}
 
-        # Set SoC to LiteXContext.
-        LiteXContext.soc = self
+        # Set Top-Level to LiteXContext.
+        LiteXContext.top = self
 
         # SoC Bus Handler --------------------------------------------------------------------------
         self.bus = SoCBusHandler(

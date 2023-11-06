@@ -2,18 +2,19 @@
 # This file is part of LiteX (Adapted from Migen for LiteX usage).
 #
 # This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2021 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2021-2023 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-from migen.fhdl.structure import *
-from migen.fhdl.module import *
+from migen.fhdl.structure    import *
+from migen.fhdl.module       import *
 from migen.fhdl.bitcontainer import bits_for
-from migen.fhdl.tools import *
-from migen.fhdl.verilog import _printexpr as verilog_printexpr
-from migen.fhdl.specials import *
+from migen.fhdl.tools        import *
+from migen.fhdl.verilog      import _printexpr as verilog_printexpr
+from migen.fhdl.specials     import *
 
+# LiteX Memory Verilog Generation ------------------------------------------------------------------
 
-def memory_emit_verilog(name, memory, namespace, add_data_file):
+def _memory_generate_verilog(name, memory, namespace, add_data_file):
     # Helpers.
     # --------
 
