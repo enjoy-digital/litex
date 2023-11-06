@@ -136,20 +136,24 @@ def _build_pnd_from_tree(tree, signals):
     return pnd
 
 def _invert_pnd(pnd):
-    """Inverts a signal-to-name dictionary to a name-to-signals dictionary.
+    """
+    Inverts a signal-to-name dictionary to a name-to-signals dictionary.
 
     Parameters:
         pnd (dict): A dictionary mapping signals to names.
 
     Returns:
-        dict: An inverted dictionary where keys are names and values are lists of signals.
+        dict: An inverted dictionary where keys are names and values are lists of signals with that name.
     """
-    inv_pnd = dict()
-    for k, v in pnd.items():
-        inv_pnd[v] = inv_pnd.get(v, [])
-        inv_pnd[v].append(k)
+    inv_pnd = {}
+    for signal, name in pnd.items():
+        # Get the list of signals for the current name, or initialize it if not present.
+        signals_with_name = inv_pnd.get(name, [])
+        # Add the current signal to the list.
+        signals_with_name.append(signal)
+        # Place the updated list back in the dictionary.
+        inv_pnd[name] = signals_with_name
     return inv_pnd
-
 
 def _list_conflicting_signals(pnd):
     """Lists signals that have conflicting names in the provided mapping.
@@ -160,29 +164,43 @@ def _list_conflicting_signals(pnd):
     Returns:
         set: A set of signals that have name conflicts.
     """
+    # Invert the signal-to-name mapping to a name-to-signals mapping.
     inv_pnd = _invert_pnd(pnd)
-    r = set()
-    for k, v in inv_pnd.items():
-        if len(v) > 1:
-            r.update(v)
-    return r
 
+    # Prepare a set to hold signals with conflicting names.
+    conflicts = set()
+
+    # Iterate through the inverted dictionary.
+    for name, signals in inv_pnd.items():
+        # If there is more than one signal for this name, it means there is a conflict.
+        if len(signals) > 1:
+            # Add all conflicting signals to our set.
+            conflicts.update(signals)
+
+    # Return the set of all signals that have name conflicts.
+    return conflicts
 
 def _set_use_number(tree, signals):
-    """Sets nodes in the tree to use numbers based on signal counts to resolve name conflicts.
+    """
+    Updates nodes to use number suffixes to resolve naming conflicts when necessary.
 
     Parameters:
-        tree       (_Node): The tree that contains naming information.
-        signals (iterable): An iterable of signals that may have name conflicts.
+        tree    (_Node): The root node of the naming tree.
+        signals (iterable): Signals potentially causing naming conflicts.
 
     Returns:
-        None
+        None: Tree is modified in place.
     """
     for signal in signals:
-        current = tree
-        for step_name, step_n in signal.backtrace:
-            current = current.children[step_name]
-            current.use_number = current.signal_count > len(current.numbers) and len(current.numbers) > 1
+        node = tree  # Start traversal from the root node.
+
+        # Traverse the signal's path and decide if numbering is needed.
+        for step_name, _ in signal.backtrace:
+            node = node.children[step_name]  # Proceed to the next node.
+            # Set use_number if signal count exceeds unique identifiers.
+            if not node.use_number:
+                node.use_number = node.signal_count > len(node.numbers) > 1
+            # Once use_number is True, it stays True.
 
 def _build_pnd_for_group(group_n, signals):
     """Builds a signal-to-name dictionary for a specific group of signals.
@@ -194,26 +212,29 @@ def _build_pnd_for_group(group_n, signals):
     Returns:
         dict: A dictionary mapping signals to their hierarchical names.
     """
-    base_tree = _build_tree(signals)
-    _set_use_name(base_tree)
-    pnd = _build_pnd_from_tree(base_tree, signals)
 
-    # If there are conflicts, try splitting the tree by numbers on paths taken by conflicting signals.
-    conflicting_signals = _list_conflicting_signals(pnd)
-    if conflicting_signals:
-        _set_use_number(base_tree, conflicting_signals)
-        numbered_tree = _build_tree(signals, base_tree)
-        _set_use_name(numbered_tree)
-        pnd = _build_pnd_from_tree(numbered_tree, signals)
-    # ...then add number suffixes by DUID.
-    inv_pnd       = _invert_pnd(pnd)
-    duid_suffixed = False
-    for name, signals in inv_pnd.items():
-        if len(signals) > 1:
-            duid_suffixed = True
-            for n, signal in enumerate(sorted(signals, key=lambda x: x.duid)):
-                pnd[signal] += str(n)
-    return pnd
+    # Construct initial naming tree and name dictionary.
+    tree = _build_tree(signals)
+    _set_use_name(tree)
+    name_dict = _build_pnd_from_tree(tree, signals)
+
+    # Address naming conflicts by introducing numbers.
+    conflicts = _list_conflicting_signals(name_dict)
+    if conflicts:
+        _set_use_number(tree, conflicts)
+        # Rebuild tree and name dictionary if there were conflicts.
+        tree = _build_tree(signals, tree)
+        _set_use_name(tree)
+        name_dict = _build_pnd_from_tree(tree, signals)
+
+    # Disambiguate remaining conflicts using signal's unique identifier (DUID).
+    inv_name_dict = _invert_pnd(name_dict)
+    for names, sigs in inv_name_dict.items():
+        if len(sigs) > 1:
+            for idx, sig in enumerate(sorted(sigs, key=lambda s: s.duid)):
+                name_dict[sig] += f"{idx}"
+
+    return name_dict
 
 
 def _build_signal_groups(signals):
