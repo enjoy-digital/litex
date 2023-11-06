@@ -244,8 +244,9 @@ class AsyncFIFO(_FIFOWrapper):
 
 # ClockDomainCrossing ------------------------------------------------------------------------------
 
-class ClockDomainCrossing(LiteXModule):
+class ClockDomainCrossing(LiteXModule, DUID):
     def __init__(self, layout, cd_from="sys", cd_to="sys", depth=None, buffered=False, with_common_rst=False):
+        DUID.__init__(self)
         self.sink   = Endpoint(layout)
         self.source = Endpoint(layout)
 
@@ -259,7 +260,7 @@ class ClockDomainCrossing(LiteXModule):
         else:
             if with_common_rst:
                 # Create intermediate Clk Domains and generate a common Rst.
-                _cd_id   = id(self) # FIXME: Improve, used to allow build with anonymous modules.
+                _cd_id   = self.duid # Use duid for a deterministic unique ID.
                 _cd_rst  = Signal()
                 _cd_from = ClockDomain(f"from{_cd_id}")
                 _cd_to   = ClockDomain(f"to{_cd_id}")
