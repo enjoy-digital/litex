@@ -8,6 +8,8 @@ from itertools import combinations
 
 from migen.fhdl.structure import *
 
+# Private Classes/Helpers --------------------------------------------------------------------------
+
 class _Node:
     """A node in a hierarchy tree used for signal name resolution.
 
@@ -308,25 +310,7 @@ def _build_pnd(signals):
 
     return pnd
 
-
-def build_namespace(signals, reserved_keywords=set()):
-    """Constructs a namespace where each signal is given a unique hierarchical name.
-
-    Parameters:
-        signals                (iterable): An iterable of all signals to be named.
-        reserved_keywords (set, optional): A set of keywords that cannot be used as signal names.
-
-    Returns:
-        Namespace: An object that contains the mapping of signals to unique names and provides methods to access them.
-    """
-    pnd = _build_pnd(signals)
-    ns  = Namespace(pnd, reserved_keywords)
-    # Register Signals with name_override.
-    swno = {signal for signal in signals if signal.name_override is not None}
-    for signal in sorted(swno, key=lambda x: x.duid):
-        ns.get_name(signal)
-    return ns
-
+# Public Classes/Helpers ---------------------------------------------------------------------------
 
 class Namespace:
     """
@@ -392,3 +376,27 @@ class Namespace:
 
         # Return Name.
         return sig_name + suffix
+
+def build_namespace(signals, reserved_keywords=set()):
+    """Constructs a namespace where each signal is given a unique hierarchical name.
+
+    Parameters:
+        signals                (iterable): An iterable of all signals to be named.
+        reserved_keywords (set, optional): A set of keywords that cannot be used as signal names.
+
+    Returns:
+        Namespace: An object that contains the mapping of signals to unique names and provides methods to access them.
+    """
+
+    # Create the primary signal-to-name dictionary.
+    pnd = _build_pnd(signals)
+
+    # Initialize the namespace with reserved keywords and the primary mapping.
+    namespace = Namespace(pnd, reserved_keywords)
+
+    # Handle signals with overridden names, ensuring they are processed in a consistent order.
+    signals_with_name_override = filter(lambda s: s.name_override is not None, signals)
+    for signal in sorted(signals_with_name_override, key=lambda s: s.duid):
+        namespace.get_name(signal)
+
+    return namespace
