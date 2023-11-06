@@ -286,6 +286,49 @@ def build_signal_groups(signals):
 
     return grouped_signals
 
+def build_hierarchical_name(signal, group_number, group_name_dict_mappings):
+    """Builds the hierarchical name for a signal.
+
+    Parameters:
+        signal                 (Signal): The signal to build the name for.
+        group_number              (int): The group number of the signal.
+        group_name_dict_mappings (list): The list of all group name dictionaries.
+
+    Returns:
+        str: The hierarchical name for the signal.
+    """
+    hierarchical_name    = group_name_dict_mappings[group_number][signal]
+    current_group_number = group_number
+    current_signal       = signal
+
+    # Traverse up the signal's group relationships to prepend parent names.
+    while current_signal.related is not None:
+        current_signal       = current_signal.related
+        current_group_number -= 1
+        parent_name          = group_name_dict_mappings[current_group_number][current_signal]
+        hierarchical_name = f"{parent_name}_{hierarchical_name}"
+
+    return hierarchical_name
+
+def update_name_dict_with_group(name_dict, group_number, group_name_dict, group_name_dict_mappings):
+    """Updates the name dictionary with hierarchical names for a specific group.
+
+    Parameters:
+        name_dict                (dict): The dictionary to update.
+        group_number              (int): The current group number.
+        group_name_dict          (dict): The name dictionary for the current group.
+        group_name_dict_mappings (list): The list of all group name dictionaries.
+
+    Returns:
+        None: The name_dict is updated in place.
+    """
+    for signal, name in group_name_dict.items():
+        hierarchical_name = build_hierarchical_name(
+            signal, group_number, group_name_dict_mappings
+        )
+        name_dict[signal] = hierarchical_name
+
+
 def build_signal_name_dict(signals):
     """Builds a complete signal-to-name dictionary using a hierarchical tree.
 
@@ -300,26 +343,15 @@ def build_signal_name_dict(signals):
     groups = build_signal_groups(signals)
 
     # Generate a name mapping for each group.
-    group_name_dict_mappings = [build_signal_name_dict_for_group(group_number, group_signals)
-                                for group_number, group_signals in enumerate(groups)]
+    group_name_dict_mappings = [
+        build_signal_name_dict_for_group(group_number, group_signals)
+        for group_number, group_signals in enumerate(groups)
+    ]
 
     # Create the final signal-to-name mapping.
     name_dict = {}
     for group_number, group_name_dict in enumerate(group_name_dict_mappings):
-        for signal, name in group_name_dict.items():
-            # Build the full hierarchical name for each signal.
-            hierarchical_name    = name
-            current_group_number = group_number
-            current_signal       = signal
-
-            # Traverse up the signal's group relationships to prepend parent names.
-            while current_signal.related is not None:
-                current_signal       = current_signal.related
-                current_group_number -= 1
-                hierarchical_name    = f"{group_name_dict_mappings[current_group_number][current_signal]}_{hierarchical_name}"
-
-            # Map the signal to its full hierarchical name.
-            name_dict[signal] = hierarchical_name
+        update_name_dict_with_group(name_dict, group_number, group_name_dict, group_name_dict_mappings)
 
     return name_dict
 
