@@ -246,24 +246,29 @@ def _build_signal_groups(signals):
     Returns:
         list: A list of sets, each containing related signals.
     """
-    r = []
+    grouped_signals = []
+
+    # Create groups of related signals.
     for signal in signals:
-        # Build chain of related signals.
-        related_list = []
-        cur_signal   = signal
-        while cur_signal is not None:
-            related_list.insert(0, cur_signal)
-            cur_signal = cur_signal.related
-        # Add to groups.
-        for _ in range(len(related_list) - len(r)):
-            r.append(set())
-        for target_set, source_signal in zip(r, related_list):
-            target_set.add(source_signal)
-    # With the algorithm above and a list of all signals, a signal appears in all groups of a lower
-    # number than its. Make signals appear only in their group of highest number.
-    for s1, s2 in zip(r, r[1:]):
-        s1 -= s2
-    return r
+        chain = []
+        # Trace back the chain of related signals.
+        while signal is not None:
+            chain.insert(0, signal)
+            signal = signal.related
+
+        # Ensure there's a set for each level of relation.
+        while len(grouped_signals) < len(chain):
+            grouped_signals.append(set())
+
+        # Assign signals to their respective group.
+        for group, sig in zip(grouped_signals, chain):
+            group.add(sig)
+
+    # Ensure signals only appear in their most specific group.
+    for i in range(len(grouped_signals) - 1):
+        grouped_signals[i] -= grouped_signals[i + 1]
+
+    return grouped_signals
 
 
 def _build_pnd(signals):
@@ -276,19 +281,31 @@ def _build_pnd(signals):
     Returns:
         dict: A complete dictionary mapping signals to their hierarchical names.
     """
+    # Group the signals based on their relationships.
     groups = _build_signal_groups(signals)
-    gpnds  = [_build_pnd_for_group(n, gsignals) for n, gsignals in enumerate(groups)]
-    pnd    = dict()
-    for gn, gpnd in enumerate(gpnds):
-        for signal, name in gpnd.items():
-            result     = name
-            cur_gn     = gn
-            cur_signal = signal
-            while cur_signal.related is not None:
-                cur_signal = cur_signal.related
-                cur_gn     -= 1
-                result     = gpnds[cur_gn][cur_signal] + "_" + result
-            pnd[signal] = result
+
+    # Generate a name mapping for each group.
+    group_pnd_mappings = [_build_pnd_for_group(group_number, group_signals)
+                          for group_number, group_signals in enumerate(groups)]
+
+    # Create the final signal-to-name mapping.
+    pnd = {}
+    for group_number, group_pnd in enumerate(group_pnd_mappings):
+        for signal, name in group_pnd.items():
+            # Build the full hierarchical name for each signal.
+            hierarchical_name = name
+            current_group_number = group_number
+            current_signal = signal
+
+            # Traverse up the signal's group relationships to prepend parent names.
+            while current_signal.related is not None:
+                current_signal = current_signal.related
+                current_group_number -= 1
+                hierarchical_name = f"{group_pnd_mappings[current_group_number][current_signal]}_{hierarchical_name}"
+
+            # Map the signal to its full hierarchical name.
+            pnd[signal] = hierarchical_name
+
     return pnd
 
 
