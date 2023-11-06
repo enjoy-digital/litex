@@ -27,33 +27,32 @@ class HierarchyNode:
         self.use_number   = False
         self.children     = {}
 
-def update_hierarchy_node(current, name, number, use_number, current_base):
-    """
-    Updates or creates a hierarchy node based on the current position, name, and number.
-    If numbering is used, sorts and stores all numbers associated with the base node.
+    def update(self, name, number, use_number, current_base=None):
+        """
+        Updates or creates a hierarchy node based on the current position, name, and number.
+        If numbering is used, sorts and stores all numbers associated with the base node.
 
-    Parameters:
-        curren     t (HierarchyNode): The current node in the hierarchy.
-        name                   (str): The name of the current hierarchy level.
-        number                 (int): The number associated with the current hierarchy level.
-        use_number            (bool): Flag indicating whether to use the number in the hierarchy.
-        current_base (HierarchyNode): The base node for number usage information.
+        Parameters:
+            name                             (str): The name of the current hierarchy level.
+            number                           (int): The number associated with the current hierarchy level.
+            use_number                      (bool): Flag indicating whether to use the number in the hierarchy.
+            current_base (HierarchyNode, optional): The base node for number usage information.
 
-    Returns:
-        HierarchyNode: The updated or created node.
-    """
-    # Create the appropriate key for the node.
-    key = (name, number) if use_number else name
-    # Use setdefault to either get the existing child node or create a new one.
-    current = current.children.setdefault(key, HierarchyNode())
-    # Add the number to the set of numbers associated with this node.
-    current.numbers.add(number)
-    # Increment the count of signals that have traversed this node.
-    current.signal_count += 1
-    # If numbering is used, sort and store all numbers associated with the base node.
-    if use_number and current_base:
-        current.all_numbers = sorted(current_base.numbers)
-    return current
+        Returns:
+            HierarchyNode: The updated or created child node.
+        """
+        # Create the appropriate key for the node.
+        key = (name, number) if use_number else name
+        # Use setdefault to either get the existing child node or create a new one.
+        child = self.children.setdefault(key, HierarchyNode())
+        # Add the number to the set of numbers associated with this node.
+        child.numbers.add(number)
+        # Increment the count of signals that have traversed this node.
+        child.signal_count += 1
+        # If numbering is used, sort and store all numbers associated with the base node.
+        if use_number and current_base:
+            child.all_numbers = sorted(current_base.numbers)
+        return child
 
 def build_hierarchy_tree(signals, base_tree=None):
     """
@@ -82,7 +81,7 @@ def build_hierarchy_tree(signals, base_tree=None):
                 use_number = current_base.use_number if current_base else False
 
             # Update the current node in the hierarchy.
-            current = update_hierarchy_node(current, name, number, use_number, current_base)
+            current = current.update(name, number, use_number, current_base)
 
     return root
 
