@@ -67,74 +67,73 @@ def _build_tree(signals, base_tree=None):
     return root
 
 def _set_use_name(node, node_name=""):
-    """Determines whether names should be used in signal naming by examining child nodes.
-
-    Parameters:
-        node    (_Node): The current node in the tree.
-        node_name (str): The name of the node, used when the node's name needs to be included.
-
-    Returns:
-        set: A set of tuples representing the names that are to be used.
     """
-    cnames = [(k, _set_use_name(v, k)) for k, v in node.children.items()]
-    for (c1_prefix, c1_names), (c2_prefix, c2_names) in combinations(cnames, 2):
-        if not c1_names.isdisjoint(c2_names):
-            node.children[c1_prefix].use_name = True
-            node.children[c2_prefix].use_name = True
-    r = set()
-    for c_prefix, c_names in cnames:
-        if node.children[c_prefix].use_name:
-            for c_name in c_names:
-                r.add((c_prefix, ) + c_name)
+    Recursively determines if node names should be used to ensure unique signal naming.
+    """
+    required_names = set()  # This will accumulate all names that ensure unique identification of signals.
+
+    # Recursively collect names from children, identifying if any naming conflicts occur.
+    child_name_sets = {
+        child_name: _set_use_name(child_node, child_name)
+        for child_name, child_node in node.children.items()
+    }
+
+    # Check for naming conflicts between all pairs of children.
+    for (child1_name, names1), (child2_name, names2) in combinations(child_name_sets.items(), 2):
+        if names1 & names2:  # If there's an intersection, we have a naming conflict.
+            node.children[child1_name].use_name = node.children[child2_name].use_name = True
+
+    # Collect names, prepending child's name if necessary.
+    for child_name, child_names in child_name_sets.items():
+        if node.children[child_name].use_name:
+            # Prepend the child's name to ensure uniqueness.
+            required_names.update((child_name,) + name for name in child_names)
         else:
-            r |= c_names
+            required_names.update(child_names)
 
-    if node.signal_count > sum(c.signal_count for c in node.children.values()):
+    # If this node has its own signals, ensure its name is used.
+    if node.signal_count > sum(child.signal_count for child in node.children.values()):
         node.use_name = True
-        r.add((node_name, ))
+        required_names.add((node_name,))  # Add this node's name only if it has additional signals.
 
-    return r
-
-
-def _name_signal(tree, signal):
-    """Generates a hierarchical name for a given signal based on the tree structure.
-
-    Parameters:
-        tree (_Node): The root node of the tree used for name resolution.
-        signal      : The signal object whose name is to be generated.
-
-    Returns:
-        str: The generated hierarchical name for the signal.
-    """
-    elements = []
-    treepos  = tree
-    for step_name, step_n in signal.backtrace:
-        try:
-            treepos    = treepos.children[(step_name, step_n)]
-            use_number = True
-        except KeyError:
-            treepos    = treepos.children[step_name]
-            use_number = False
-        if treepos.use_name:
-            elname = step_name
-            if use_number:
-                elname += str(treepos.all_numbers.index(step_n))
-            elements.append(elname)
-    return "_".join(elements)
-
+    return required_names
 
 def _build_pnd_from_tree(tree, signals):
-    """Builds a dictionary mapping signals to their hierarchical names from a tree.
-
-    Parameters:
-        tree       (_Node): The tree that contains naming information.
-        signals (iterable): An iterable of signals that need to be named.
-
-    Returns:
-        dict: A dictionary where keys are signals and values are their hierarchical names.
     """
-    return dict((signal, _name_signal(tree, signal)) for signal in signals)
+    Constructs a mapping of signals to their names derived from a tree structure.
 
+    This mapping is used to identify signals by their unique hierarchical path within the tree. The
+    tree structure has 'use_name' flags that influence the naming process.
+    """
+
+    # Initialize a dictionary to hold the signal names.
+    pnd = {}
+
+    # Process each signal to build its hierarchical name.
+    for signal in signals:
+        # Collect name parts for the hierarchical name.
+        elements = []
+        # Start traversing the tree from the root.
+        treepos = tree
+
+        # Walk through the signal's history to assemble its name.
+        for step_name, step_n in signal.backtrace:
+            # Navigate the tree according to the signal's path.
+            treepos = treepos.children.get((step_name, step_n)) or treepos.children.get(step_name)
+            # Check if the number is part of the name based on the tree node.
+            use_number = step_n in treepos.all_numbers if hasattr(treepos, 'all_numbers') else False
+
+            # If the tree node's name is to be used, add it to the elements.
+            if treepos.use_name:
+                # Create the name part, including the number if necessary.
+                element_name = step_name if not use_number else f"{step_name}{treepos.all_numbers.index(step_n)}"
+                elements.append(element_name)
+
+        # Combine the name parts into the signal's full name.
+        pnd[signal] = "_".join(elements)
+
+    # Return the completed name dictionary.
+    return pnd
 
 def _invert_pnd(pnd):
     """Inverts a signal-to-name dictionary to a name-to-signals dictionary.
