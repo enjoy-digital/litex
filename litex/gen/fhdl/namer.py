@@ -2,6 +2,7 @@
 # This file is part of LiteX (Adapted from Migen for LiteX usage).
 #
 # This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
+# This file is Copyright (c) 2023 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from itertools import combinations
