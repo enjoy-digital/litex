@@ -26,7 +26,7 @@ from migen.fhdl.conv_output import ConvOutput
 from migen.fhdl.specials    import Instance, Memory
 
 from litex.gen import LiteXContext
-from litex.gen.fhdl.namer     import build_namespace
+from litex.gen.fhdl.namer     import build_signal_namespace
 from litex.gen.fhdl.hierarchy import LiteXHierarchyExplorer
 
 from litex.build.tools import get_litex_git_revision
@@ -611,9 +611,9 @@ def convert(f, ios=set(), name="top", platform=None,
             if io_name:
                 io.name_override = io_name
 
-    # Build NameSpace.
-    # ----------------
-    ns = build_namespace(
+    # Build Signal Namespace.
+    # ----------------------
+    ns = build_signal_namespace(
         signals = (
             list_signals(f) |
             list_special_ios(f, ins=True, outs=True, inouts=True) |

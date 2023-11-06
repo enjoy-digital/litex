@@ -8,9 +8,9 @@ from itertools import combinations
 
 from migen.fhdl.structure import *
 
-# Private Classes/Helpers --------------------------------------------------------------------------
+# Hierarchy Node Class -----------------------------------------------------------------------------
 
-class HierarchyNode:
+class _HierarchyNode:
     """A node in a hierarchy tree used for signal name resolution.
 
     Attributes:
@@ -34,18 +34,18 @@ class HierarchyNode:
         If numbering is used, sorts and stores all numbers associated with the base node.
 
         Parameters:
-            name                             (str): The name of the current hierarchy level.
-            number                           (int): The number associated with the current hierarchy level.
-            use_number                      (bool): Flag indicating whether to use the number in the hierarchy.
-            current_base (HierarchyNode, optional): The base node for number usage information.
+            name                              (str): The name of the current hierarchy level.
+            number                            (int): The number associated with the current hierarchy level.
+            use_number                       (bool): Flag indicating whether to use the number in the hierarchy.
+            current_base (_HierarchyNode, optional): The base node for number usage information.
 
         Returns:
-            HierarchyNode: The updated or created child node.
+            _HierarchyNode: The updated or created child node.
         """
         # Create the appropriate key for the node.
         key = (name, number) if use_number else name
         # Use setdefault to either get the existing child node or create a new one.
-        child = self.children.setdefault(key, HierarchyNode())
+        child = self.children.setdefault(key, _HierarchyNode())
         # Add the number to the set of numbers associated with this node.
         child.numbers.add(number)
         # Increment the count of signals that have traversed this node.
@@ -55,18 +55,20 @@ class HierarchyNode:
             child.all_numbers = sorted(current_base.numbers)
         return child
 
-def build_hierarchy_tree(signals, base_tree=None):
+# Build Hierarchy Tree Function --------------------------------------------------------------------
+
+def _build_hierarchy_tree(signals, base_tree=None):
     """
     Constructs a hierarchical tree from signals, where each signal's backtrace contributes to the tree structure.
 
     Parameters:
-    - signals                      (list): A list of signals to process.
-    - base_tree (HierarchyNode, optional): A base tree to refine with number usage information.
+    - signals                       (list): A list of signals to process.
+    - base_tree (_HierarchyNode, optional): A base tree to refine with number usage information.
 
     Returns:
-    - HierarchyNode: The root node of the constructed tree.
+    - _HierarchyNode: The root node of the constructed tree.
     """
-    root = HierarchyNode()
+    root = _HierarchyNode()
 
     # Iterate over each signal to be included in the tree.
     for signal in signals:
@@ -86,7 +88,9 @@ def build_hierarchy_tree(signals, base_tree=None):
 
     return root
 
-def determine_name_usage(node, node_name=""):
+# Determine Name Usage Function --------------------------------------------------------------------
+
+def _determine_name_usage(node, node_name=""):
     """
     Recursively determines if node names should be used to ensure unique signal naming.
     """
@@ -94,7 +98,7 @@ def determine_name_usage(node, node_name=""):
 
     # Recursively collect names from children, identifying if any naming conflicts occur.
     child_name_sets = {
-        child_name: determine_name_usage(child_node, child_name)
+        child_name: _determine_name_usage(child_node, child_name)
         for child_name, child_node in node.children.items()
     }
 
@@ -118,7 +122,9 @@ def determine_name_usage(node, node_name=""):
 
     return required_names
 
-def build_signal_name_dict_from_tree(tree, signals):
+# Build Signal Name Dict From Tree Function --------------------------------------------------------
+
+def _build_signal_name_dict_from_tree(tree, signals):
     """
     Constructs a mapping of signals to their names derived from a tree structure.
 
@@ -155,7 +161,9 @@ def build_signal_name_dict_from_tree(tree, signals):
     # Return the completed name dictionary.
     return name_dict
 
-def invert_signal_name_dict(name_dict):
+# Invert Signal Name Dict Function -----------------------------------------------------------------
+
+def _invert_signal_name_dict(name_dict):
     """
     Inverts a signal-to-name dictionary to a name-to-signals dictionary.
 
@@ -175,7 +183,9 @@ def invert_signal_name_dict(name_dict):
         inverted_dict[name] = signals_with_name
     return inverted_dict
 
-def list_conflicting_signals(name_dict):
+# List Conflicting Signals Function ----------------------------------------------------------------
+
+def _list_conflicting_signals(name_dict):
     """Lists signals that have conflicting names in the provided mapping.
 
     Parameters:
@@ -185,7 +195,7 @@ def list_conflicting_signals(name_dict):
         set: A set of signals that have name conflicts.
     """
     # Invert the signal-to-name mapping to a name-to-signals mapping.
-    inverted_dict = invert_signal_name_dict(name_dict)
+    inverted_dict = _invert_signal_name_dict(name_dict)
 
     # Prepare a set to hold signals with conflicting names.
     conflicts = set()
@@ -200,13 +210,15 @@ def list_conflicting_signals(name_dict):
     # Return the set of all signals that have name conflicts.
     return conflicts
 
-def set_number_usage(tree, signals):
+# Set Number Usage Function ------------------------------------------------------------------------
+
+def _set_number_usage(tree, signals):
     """
     Updates nodes to use number suffixes to resolve naming conflicts when necessary.
 
     Parameters:
-        tree (HierarchyNode): The root node of the naming tree.
-        signals   (iterable): Signals potentially causing naming conflicts.
+        tree (_HierarchyNode): The root node of the naming tree.
+        signals    (iterable): Signals potentially causing naming conflicts.
 
     Returns:
         None: Tree is modified in place.
@@ -222,7 +234,9 @@ def set_number_usage(tree, signals):
                 node.use_number = node.signal_count > len(node.numbers) > 1
             # Once use_number is True, it stays True.
 
-def build_signal_name_dict_for_group(group_number, signals):
+# Build Signal Name Dict For Group Function --------------------------------------------------------
+
+def _build_signal_name_dict_for_group(group_number, signals):
     """Builds a signal-to-name dictionary for a specific group of signals.
 
     Parameters:
@@ -234,37 +248,39 @@ def build_signal_name_dict_for_group(group_number, signals):
     """
 
     def resolve_conflicts_and_rebuild_tree():
-        conflicts = list_conflicting_signals(name_dict)
+        conflicts = _list_conflicting_signals(name_dict)
         if conflicts:
-            set_number_usage(tree, conflicts)
-            return build_hierarchy_tree(signals, tree)
+            _set_number_usage(tree, conflicts)
+            return _build_hierarchy_tree(signals, tree)
         return tree
 
     def disambiguate_signals_with_duid():
-        inv_name_dict = invert_signal_name_dict(name_dict)
+        inv_name_dict = _invert_signal_name_dict(name_dict)
         for names, sigs in inv_name_dict.items():
             if len(sigs) > 1:
                 for idx, sig in enumerate(sorted(sigs, key=lambda s: s.duid)):
                     name_dict[sig] += f"{idx}"
 
     # Construct initial naming tree and name dictionary.
-    tree = build_hierarchy_tree(signals)
-    determine_name_usage(tree)
-    name_dict = build_signal_name_dict_from_tree(tree, signals)
+    tree = _build_hierarchy_tree(signals)
+    _determine_name_usage(tree)
+    name_dict = _build_signal_name_dict_from_tree(tree, signals)
 
     # Address naming conflicts by introducing numbers.
     tree = resolve_conflicts_and_rebuild_tree()
 
     # Re-determine name usage and rebuild the name dictionary.
-    determine_name_usage(tree)
-    name_dict = build_signal_name_dict_from_tree(tree, signals)
+    _determine_name_usage(tree)
+    name_dict = _build_signal_name_dict_from_tree(tree, signals)
 
     # Disambiguate remaining conflicts using signal's unique identifier (DUID).
     disambiguate_signals_with_duid()
 
     return name_dict
 
-def build_signal_groups(signals):
+# Build Signal Groups Function ---------------------------------------------------------------------
+
+def _build_signal_groups(signals):
     """Organizes signals into related groups.
 
     Parameters:
@@ -293,7 +309,9 @@ def build_signal_groups(signals):
 
     return grouped_signals
 
-def build_hierarchical_name(signal, group_number, group_name_dict_mappings):
+# Build Hierarchical Name Function -----------------------------------------------------------------
+
+def _build_hierarchical_name(signal, group_number, group_name_dict_mappings):
     """Builds the hierarchical name for a signal.
 
     Parameters:
@@ -317,7 +335,9 @@ def build_hierarchical_name(signal, group_number, group_name_dict_mappings):
 
     return hierarchical_name
 
-def update_name_dict_with_group(name_dict, group_number, group_name_dict, group_name_dict_mappings):
+# Update Name Dict With Group Function -------------------------------------------------------------
+
+def _update_name_dict_with_group(name_dict, group_number, group_name_dict, group_name_dict_mappings):
     """Updates the name dictionary with hierarchical names for a specific group.
 
     Parameters:
@@ -330,43 +350,44 @@ def update_name_dict_with_group(name_dict, group_number, group_name_dict, group_
         None: The name_dict is updated in place.
     """
     for signal, name in group_name_dict.items():
-        hierarchical_name = build_hierarchical_name(
+        hierarchical_name = _build_hierarchical_name(
             signal, group_number, group_name_dict_mappings
         )
         name_dict[signal] = hierarchical_name
 
+# Build Signal Name Dict Function ------------------------------------------------------------------
 
-def build_signal_name_dict(signals):
+def _build_signal_name_dict(signals):
     """Builds a complete signal-to-name dictionary using a hierarchical tree.
 
     Parameters:
-        signals   (iterable): An iterable of all signals to be named.
-        tree (HierarchyNode): The root node of the tree used for name resolution.
+        signals    (iterable): An iterable of all signals to be named.
+        tree (_HierarchyNode): The root node of the tree used for name resolution.
 
     Returns:
         dict: A complete dictionary mapping signals to their hierarchical names.
     """
     # Group the signals based on their relationships.
-    groups = build_signal_groups(signals)
+    groups = _build_signal_groups(signals)
 
     # Generate a name mapping for each group.
     group_name_dict_mappings = [
-        build_signal_name_dict_for_group(group_number, group_signals)
+        _build_signal_name_dict_for_group(group_number, group_signals)
         for group_number, group_signals in enumerate(groups)
     ]
 
     # Create the final signal-to-name mapping.
     name_dict = {}
     for group_number, group_name_dict in enumerate(group_name_dict_mappings):
-        update_name_dict_with_group(name_dict, group_number, group_name_dict, group_name_dict_mappings)
+        _update_name_dict_with_group(name_dict, group_number, group_name_dict, group_name_dict_mappings)
 
     return name_dict
 
-# Public Classes/Helpers ---------------------------------------------------------------------------
+# Signal Namespace Class ---------------------------------------------------------------------------
 
-class SignalNamespace:
+class _SignalNamespace:
     """
-    A SignalNamespace object manages unique naming for signals within a hardware design.
+    A _SignalNamespace object manages unique naming for signals within a hardware design.
 
     It ensures that each signal has a unique, conflict-free name within the design's namespace. This
     includes taking into account reserved keywords and handling signals that may share the same name
@@ -432,6 +453,8 @@ class SignalNamespace:
         # Return Name.
         return sig_name
 
+# Build Signal Namespace function ------------------------------------------------------------------
+
 def build_signal_namespace(signals, reserved_keywords=set()):
     """Constructs a namespace where each signal is given a unique hierarchical name.
     Parameters:
@@ -443,14 +466,12 @@ def build_signal_namespace(signals, reserved_keywords=set()):
     """
 
     # Create the primary signal-to-name dictionary.
-    pnd = build_signal_name_dict(signals)
+    pnd = _build_signal_name_dict(signals)
 
     # Initialize the namespace with reserved keywords and the primary mapping.
-    namespace = SignalNamespace(pnd, reserved_keywords)
+    namespace = _SignalNamespace(pnd, reserved_keywords)
 
     # Handle signals with overridden names, ensuring they are processed in a consistent order.
     signals_with_name_override = filter(lambda s: s.name_override is not None, signals)
 
     return namespace
-
-build_namespace = build_signal_namespace
