@@ -391,18 +391,18 @@ class SignalNamespace:
         self.clock_domains = dict()
 
     def get_name(self, sig):
-        # Get name of a Clock Signal.
-        # ---------------------------
-        if isinstance(sig, ClockSignal):
-            sig = self.clock_domains[sig.cd].clk
-
-        # Get name of a Reset Signal.
-        # ---------------------------
-        if isinstance(sig, ResetSignal):
-            sig = self.clock_domains[sig.cd].rst
+        # Handle Clock and Reset Signals.
+        # -------------------------------
+        if isinstance(sig, (ClockSignal, ResetSignal)):
+            # Retrieve the clock domain from the dictionary.
+            domain = self.clock_domains.get(sig.cd)
+            if domain is None:
+                raise ValueError(f"Clock Domain '{sig.cd}' not found.")
+            # Assign the appropriate signal from the clock domain.
+            sig = domain.clk if isinstance(sig, ClockSignal) else domain.rst
+            # If the signal is None, the clock domain is missing a clock or reset.
             if sig is None:
-                msg = f"Clock Domain {sig.cd} is reset-less, can't obtain name"
-                raise ValueError(msg)
+                raise ValueError(f"Clock Domain '{sig.cd}' is reset-less, can't obtain name.")
 
         # Get name of a Regular Signal.
         # -----------------------------
@@ -411,19 +411,21 @@ class SignalNamespace:
             sig_name = sig.name_override
         # ... else get Name from name_dict.
         else:
-            sig_name = self.name_dict[sig]
+            sig_name = self.name_dict.get(sig)
+            # If the signal is not in the name_dict, raise an error.
+            if sig_name is None:
+                raise ValueError(f"Signal '{sig}' not found in name dictionary.")
 
-        # Check/Add numbering suffix when required.
-        # -----------------------------------------
-        try:
-            n = self.sigs[sig]
-        except KeyError:
-            try:
-                n = self.counts[sig_name]
-            except KeyError:
-                n = 0
+
+        # Check/Add numbering when required.
+        # ----------------------------------
+        # Retrieve the current count for the signal name, defaulting to 0.
+        n = self.sigs.get(sig)
+        if n is None:
+            n = self.counts.get(sig_name, 0)
             self.sigs[sig] = n
             self.counts[sig_name] = n + 1
+        # If the count is greater than 0, append it to the signal name.
         if n > 0:
             sig_name += f"_{n}"
 
