@@ -17,6 +17,7 @@ import time
 import datetime
 import collections
 
+from enum import IntEnum
 from operator import itemgetter
 
 from migen.fhdl.structure   import *
@@ -26,7 +27,7 @@ from migen.fhdl.conv_output import ConvOutput
 from migen.fhdl.specials    import Instance, Memory
 
 from litex.gen import LiteXContext
-from litex.gen.fhdl.namer     import build_namespace
+from litex.gen.fhdl.namer     import build_signal_namespace
 from litex.gen.fhdl.hierarchy import LiteXHierarchyExplorer
 
 from litex.build.tools import get_litex_git_revision
@@ -181,19 +182,22 @@ def _generate_signal(ns, s):
 
 # Print Operator -----------------------------------------------------------------------------------
 
-(UNARY, BINARY, TERNARY) = (1, 2, 3)
+class OperatorType(IntEnum):
+   UNARY   = 1
+   BINARY  = 2
+   TERNARY = 3
 
 def _generate_operator(ns, node):
     operator = node.op
     operands = node.operands
     arity    = len(operands)
-    assert arity in [UNARY, BINARY, TERNARY]
+    assert arity in [item.value for item in OperatorType]
 
     def to_signed(r):
         return f"$signed({{1'd0, {r}}})"
 
     # Unary Operator.
-    if arity == UNARY:
+    if arity == OperatorType.UNARY:
         r1, s1 = _generate_expression(ns, operands[0])
         # Negation Operator.
         if operator == "-":
@@ -206,7 +210,7 @@ def _generate_operator(ns, node):
             s = s1
 
     # Binary Operator.
-    if arity == BINARY:
+    if arity == OperatorType.BINARY:
         r1, s1 = _generate_expression(ns, operands[0])
         r2, s2 = _generate_expression(ns, operands[1])
         # Convert all expressions to signed when at least one is signed.
@@ -219,7 +223,7 @@ def _generate_operator(ns, node):
         s = s1 or s2
 
     # Ternary Operator.
-    if arity == TERNARY:
+    if arity == OperatorType.TERNARY:
         assert operator == "m"
         r1, s1 = _generate_expression(ns, operands[0])
         r2, s2 = _generate_expression(ns, operands[1])
@@ -292,17 +296,21 @@ def _generate_expression(ns, node):
 #                                          NODES                                                   #
 # ------------------------------------------------------------------------------------------------ #
 
-(_AT_BLOCKING, _AT_NONBLOCKING, _AT_SIGNAL) = range(3)
+class AssignType(IntEnum):
+    BLOCKING     = 0
+    NON_BLOCKING = 1
+    SIGNAL       = 2
 
 def _generate_node(ns, at, level, node, target_filter=None):
+    assert at in [item.value for item in AssignType]
     if target_filter is not None and target_filter not in list_targets(node):
         return ""
 
     # Assignment.
     elif isinstance(node, _Assign):
-        if at == _AT_BLOCKING:
+        if at == AssignType.BLOCKING:
             assignment = " = "
-        elif at == _AT_NONBLOCKING:
+        elif at == AssignType.NON_BLOCKING:
             assignment = " <= "
         elif is_variable(node.l):
             assignment = " = "
@@ -478,11 +486,11 @@ def _generate_combinatorial_logic_sim(f, ns):
         for n, (t, stmts) in enumerate(target_stmt_map.items()):
             assert isinstance(t, Signal)
             if _use_wire(stmts):
-                r += "assign " + _generate_node(ns, _AT_BLOCKING, 0, stmts[0])
+                r += "assign " + _generate_node(ns, AssignType.BLOCKING, 0, stmts[0])
             else:
                 r += "always @(*) begin\n"
                 r += _tab + ns.get_name(t) + " <= " + _generate_expression(ns, t.reset)[0] + ";\n"
-                r += _generate_node(ns, _AT_NONBLOCKING, 1, stmts, t)
+                r += _generate_node(ns, AssignType.NON_BLOCKING, 1, stmts, t)
                 r += "end\n"
     r += "\n"
     return r
@@ -494,12 +502,12 @@ def _generate_combinatorial_logic_synth(f, ns):
 
         for n, g in enumerate(groups):
             if _use_wire(g[1]):
-                r += "assign " + _generate_node(ns, _AT_BLOCKING, 0, g[1][0])
+                r += "assign " + _generate_node(ns, AssignType.BLOCKING, 0, g[1][0])
             else:
                 r += "always @(*) begin\n"
                 for t in sorted(g[0], key=lambda x: ns.get_name(x)):
                     r += _tab + ns.get_name(t) + " <= " + _generate_expression(ns, t.reset)[0] + ";\n"
-                r += _generate_node(ns, _AT_NONBLOCKING, 1, g[1])
+                r += _generate_node(ns, AssignType.NON_BLOCKING, 1, g[1])
                 r += "end\n"
     r += "\n"
     return r
@@ -512,7 +520,7 @@ def _generate_synchronous_logic(f, ns):
     r = ""
     for k, v in sorted(f.sync.items(), key=itemgetter(0)):
         r += "always @(posedge " + ns.get_name(f.clock_domains[k].clk) + ") begin\n"
-        r += _generate_node(ns, _AT_SIGNAL, 1, v)
+        r += _generate_node(ns, AssignType.SIGNAL, 1, v)
         r += "end\n\n"
     return r
 
@@ -611,9 +619,9 @@ def convert(f, ios=set(), name="top", platform=None,
             if io_name:
                 io.name_override = io_name
 
-    # Build NameSpace.
-    # ----------------
-    ns = build_namespace(
+    # Build Signal Namespace.
+    # ----------------------
+    ns = build_signal_namespace(
         signals = (
             list_signals(f) |
             list_special_ios(f, ins=True, outs=True, inouts=True) |
