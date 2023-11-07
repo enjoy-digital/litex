@@ -44,11 +44,13 @@ class XilinxClocking(LiteXModule):
         self.clkin_freq = freq
         register_clkin_log(self.logger, clkin, freq)
 
-    def create_clkout(self, cd, freq, phase=0, buf="bufg", margin=1e-2, with_reset=True, ce=None):
+    def create_clkout(self, cd, freq, phase=0, buf="bufg", margin=1e-2, with_reset=True, reset_buf=None, ce=None):
         assert self.nclkouts < self.nclkouts_max
         clkout = Signal()
         self.clkouts[self.nclkouts] = (clkout, freq, phase, margin)
         if with_reset:
+            assert reset_buf in [None, "bufg"]
+            cd.rst_buf = reset_buf # FIXME: Improve.
             self.specials += AsyncResetSynchronizer(cd, ~self.locked)
         if buf is None:
             self.comb += cd.clk.eq(clkout)
