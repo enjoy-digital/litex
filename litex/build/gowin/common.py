@@ -96,6 +96,25 @@ class GowinDifferentialOutput:
     def lower(dr):
         return GowinDifferentialOutputImpl(dr.i, dr.o_p, dr.o_n)
 
+# Gowin Tristate -----------------------------------------------------------------------------------
+
+class GowinTristateImpl(Module):
+    def __init__(self, io, o, oe, i):
+        nbits, _ = value_bits_sign(io)
+        for bit in range(nbits):
+            self.specials += Instance("IOBUF",
+                io_IO = io[bit] if nbits > 1 else io,
+                o_O   = i[bit]  if nbits > 1 else i,
+                i_I   = o[bit]  if nbits > 1 else o,
+                i_OEN = ~oe,
+            )
+
+class GowinTristate:
+    @staticmethod
+    def lower(dr):
+        print(dr)
+        return GowinTristateImpl(dr.target, dr.o, dr.oe, dr.i)
+
 # Gowin Special Overrides --------------------------------------------------------------------------
 
 gowin_special_overrides = {
@@ -104,4 +123,5 @@ gowin_special_overrides = {
     DDROutput:              GowinDDROutput,
     DifferentialInput:      GowinDifferentialInput,
     DifferentialOutput:     GowinDifferentialOutput,
+    Tristate:               GowinTristate,
 }
