@@ -23,6 +23,7 @@
 	- cores/uart            : Added 64-bit addressing support to Stream2Wishbone.
 	- tools                 : Added 64-bit addressing support to litex_server/client.
 	- cores/cpu             : Added 64-bit support to CPUNone.
+	- cores/cpu             : Added KianV (RV32IMA) initial support.
 
 	[> Changed
 	----------
