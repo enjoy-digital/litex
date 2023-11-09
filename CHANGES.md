@@ -24,6 +24,8 @@
 	- tools                 : Added 64-bit addressing support to litex_server/client.
 	- cores/cpu             : Added 64-bit support to CPUNone.
 	- cores/cpu             : Added KianV (RV32IMA) initial support.
+	- litedram              : Added initial GW5DDRPHY (compiles but not yet working).
+	- build/gowin           : Added GowinTristate implementation.
 
 	[> Changed
 	----------
