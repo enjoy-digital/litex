@@ -335,7 +335,7 @@ class SoCBusHandler(LiteXModule):
                 adapted_interface = interface_cls(
                     data_width    = self.data_width,
                     address_width = self.address_width,
-                    addressing    = self.addressing,
+                    addressing    = interface.addressing,
                 )
                 if direction == "m2s":
                     master, slave = interface, adapted_interface
@@ -343,6 +343,32 @@ class SoCBusHandler(LiteXModule):
                     master, slave = adapted_interface, interface
                 converter = converter_cls(master=master, slave=slave)
                 self.submodules += converter
+                return adapted_interface
+
+        # Addressing conversion helper.
+        def addressing_convert(interface, direction):
+            # Same Addressing, return un-modified interface.
+            if interface.addressing == self.addressing:
+                return interface
+            # Different Addressing: Return adapted interface.
+            else:
+                interface_cls = type(interface)
+                assert interface_cls == wishbone.Interface # FIXME: Remove limitation.
+                adapted_interface = interface_cls(
+                    data_width    = self.data_width,
+                    address_width = self.address_width,
+                    addressing    = self.addressing,
+                )
+                address_shift = log2_int(interface.data_width//8)
+                print(adapted_interface)
+                print(adapted_interface.addressing)
+                print(address_shift)
+                if direction == "m2s":
+                    self.comb += interface.connect(adapted_interface, omit={"adr"})
+                    self.comb += adapted_interface.adr.eq(interface.adr[address_shift:])
+                elif direction == "s2m":
+                    self.comb += adapted_interface.connect(interface, omit={"adr"})
+                    self.comb += interface.adr.eq(adapted_interface.adr[address_shift:])
                 return adapted_interface
 
         # Bus-Standard conversion helper.
@@ -379,35 +405,11 @@ class SoCBusHandler(LiteXModule):
                 self.submodules += bridge
                 return adapted_interface
 
-        # Addressing conversion helper.
-        def addressing_convert(interface, direction):
-            # Same Addressing, return un-modified interface.
-            if interface.addressing == self.addressing:
-                return interface
-            # Different Addressing: Return adapted interface.
-            else:
-                assert interface.addressing == "byte" # FIXME: Remove limitation.
-                assert      self.addressing == "word" # FIXME: Remove limitation.
-                interface_cls = type(interface)
-                adapted_interface = interface_cls(
-                    data_width    = self.data_width,
-                    address_width = self.address_width,
-                    addressing    = self.addressing,
-                )
-                address_shift = log2_int(interface.data_width//8)
-                if direction == "m2s":
-                    self.comb += interface.connect(adapted_interface)
-                    self.comb += adapted_interface.adr.eq(interface.adr[address_shift:])
-                elif direction == "s2m":
-                    self.comb += adapted_interface.connect(interface)
-                    self.comb += interface.adr.eq(adapted_interface.adr[address_shift:])
-                return adapted_interface
-
         # Interface conversion.
         adapted_interface = interface
         adapted_interface =   data_width_convert(adapted_interface, direction)
-        adapted_interface = bus_standard_convert(adapted_interface, direction)
         adapted_interface =   addressing_convert(adapted_interface, direction)
+        adapted_interface = bus_standard_convert(adapted_interface, direction)
 
         if type(interface) != type(adapted_interface) or interface.data_width != adapted_interface.data_width:
             fmt = "{name} Bus {adapted} from {from_bus} {from_bits}-bit to {to_bus} {to_bits}-bit."
