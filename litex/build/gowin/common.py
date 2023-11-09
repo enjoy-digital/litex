@@ -112,7 +112,6 @@ class GowinTristateImpl(Module):
 class GowinTristate:
     @staticmethod
     def lower(dr):
-        print(dr)
         return GowinTristateImpl(dr.target, dr.o, dr.oe, dr.i)
 
 # Gowin Special Overrides --------------------------------------------------------------------------
