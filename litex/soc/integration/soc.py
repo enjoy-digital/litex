@@ -350,24 +350,22 @@ class SoCBusHandler(LiteXModule):
             # Same Addressing, return un-modified interface.
             if interface.addressing == self.addressing:
                 return interface
+            # AXI/AXI-Lite interface, Bus-Addressing conversion already handled in Bus-Standard conversion.
+            elif isinstance(interface, (axi.AXIInterface, axi.AXILiteInterface)):
+                return interface
             # Different Addressing: Return adapted interface.
             else:
                 interface_cls = type(interface)
-                assert interface_cls == wishbone.Interface # FIXME: Remove limitation.
                 adapted_interface = interface_cls(
                     data_width    = self.data_width,
                     address_width = self.address_width,
                     addressing    = self.addressing,
                 )
                 address_shift = log2_int(interface.data_width//8)
-                print(adapted_interface)
-                print(adapted_interface.addressing)
-                print(address_shift)
+                self.comb += adapted_interface.connect(interface, omit={"adr"})
                 if direction == "m2s":
-                    self.comb += interface.connect(adapted_interface, omit={"adr"})
                     self.comb += adapted_interface.adr.eq(interface.adr[address_shift:])
-                elif direction == "s2m":
-                    self.comb += adapted_interface.connect(interface, omit={"adr"})
+                if direction == "s2m":
                     self.comb += interface.adr.eq(adapted_interface.adr[address_shift:])
                 return adapted_interface
 
