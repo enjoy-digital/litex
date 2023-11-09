@@ -364,9 +364,15 @@ class SoCBusHandler(LiteXModule):
                 address_shift = log2_int(interface.data_width//8)
                 self.comb += adapted_interface.connect(interface, omit={"adr"})
                 if direction == "m2s":
-                    self.comb += adapted_interface.adr.eq(interface.adr[address_shift:])
+                    if (interface.addressing == "word") and (self.addressing == "byte"):
+                        self.comb += adapted_interface.adr[address_shift:].eq(interface.adr)
+                    if (interface.addressing == "byte") and (self.addressing == "word"):
+                        self.comb += adapted_interface.adr.eq(interface.adr[address_shift:])
                 if direction == "s2m":
-                    self.comb += interface.adr.eq(adapted_interface.adr[address_shift:])
+                    if (interface.addressing == "word") and (self.addressing == "byte"):
+                        self.comb += interface.adr[address_shift:].eq(adapted_interface.adr)
+                    if (interface.addressing == "byte") and (self.addressing == "word"):
+                        self.comb += interface.adr.eq(adapted_interface.adr[address_shift:])
                 return adapted_interface
 
         # Bus-Standard conversion helper.
