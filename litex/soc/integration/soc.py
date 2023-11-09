@@ -319,8 +319,8 @@ class SoCBusHandler(LiteXModule):
     def add_adapter(self, name, interface, direction="m2s"):
         assert direction in ["m2s", "s2m"]
 
-        # Data-Width conversion helper.
-        def data_width_convert(interface, direction):
+        # Bus-Data-Width conversion helper.
+        def bus_data_width_convert(interface, direction):
             # Same Data-Width, return un-modified interface.
             if interface.data_width == self.data_width:
                 return interface
@@ -345,8 +345,8 @@ class SoCBusHandler(LiteXModule):
                 self.submodules += converter
                 return adapted_interface
 
-        # Addressing conversion helper.
-        def addressing_convert(interface, direction):
+        # Bus-Addressing conversion helper.
+        def bus_addressing_convert(interface, direction):
             # Same Addressing, return un-modified interface.
             if interface.addressing == self.addressing:
                 return interface
@@ -407,9 +407,9 @@ class SoCBusHandler(LiteXModule):
 
         # Interface conversion.
         adapted_interface = interface
-        adapted_interface =   data_width_convert(adapted_interface, direction)
-        adapted_interface =   addressing_convert(adapted_interface, direction)
-        adapted_interface = bus_standard_convert(adapted_interface, direction)
+        adapted_interface = bus_data_width_convert(adapted_interface, direction)
+        adapted_interface = bus_addressing_convert(adapted_interface, direction)
+        adapted_interface =   bus_standard_convert(adapted_interface, direction)
 
         if type(interface) != type(adapted_interface) or interface.data_width != adapted_interface.data_width:
             fmt = "{name} Bus {adapted} from {from_bus} {from_bits}-bit to {to_bus} {to_bits}-bit."
