@@ -243,7 +243,7 @@ def main():
             assert len(udp_ip) == 4
             udp_ip[3] = "x"
             udp_ip = ".".join(udp_ip)
-            comm = CommUDP(udp_ip, udp_port, debug=args.debug)
+            comm = CommUDP(udp_ip, udp_port, debug=args.debug, addr_width=int(args.addr_width))
             comm.open(probe=False)
             comm.scan(udp_ip)
             comm.close()
