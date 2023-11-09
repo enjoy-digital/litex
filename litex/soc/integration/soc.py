@@ -362,13 +362,14 @@ class SoCBusHandler(LiteXModule):
                     addressing    = self.addressing,
                 )
                 address_shift = log2_int(interface.data_width//8)
-                self.comb += adapted_interface.connect(interface, omit={"adr"})
                 if direction == "m2s":
+                    self.comb += interface.connect(adapted_interface, omit={"adr"})
                     if (interface.addressing == "word") and (self.addressing == "byte"):
                         self.comb += adapted_interface.adr[address_shift:].eq(interface.adr)
                     if (interface.addressing == "byte") and (self.addressing == "word"):
                         self.comb += adapted_interface.adr.eq(interface.adr[address_shift:])
                 if direction == "s2m":
+                    self.comb += adapted_interface.connect(interface, omit={"adr"})
                     if (interface.addressing == "word") and (self.addressing == "byte"):
                         self.comb += interface.adr[address_shift:].eq(adapted_interface.adr)
                     if (interface.addressing == "byte") and (self.addressing == "word"):
