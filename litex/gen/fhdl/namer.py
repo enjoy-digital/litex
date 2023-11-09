@@ -386,7 +386,7 @@ def _build_signal_name_dict(signals):
 
 # Signal Namespace Class ---------------------------------------------------------------------------
 
-class _SignalNamespace:
+class SignalNamespace:
     """
     A _SignalNamespace object manages unique naming for signals within a hardware design.
 
@@ -463,14 +463,14 @@ def build_signal_namespace(signals, reserved_keywords=set()):
         reserved_keywords (set, optional): A set of keywords that cannot be used as signal names.
 
     Returns:
-        Namespace: An object that contains the mapping of signals to unique names and provides methods to access them.
+        SignalNamespace: An object that contains the mapping of signals to unique names and provides methods to access them.
     """
 
     # Create the primary signal-to-name dictionary.
     pnd = _build_signal_name_dict(signals)
 
     # Initialize the namespace with reserved keywords and the primary mapping.
-    namespace = _SignalNamespace(pnd, reserved_keywords)
+    namespace = SignalNamespace(pnd, reserved_keywords)
 
     # Handle signals with overridden names, ensuring they are processed in a consistent order.
     signals_with_name_override = filter(lambda s: s.name_override is not None, signals)
