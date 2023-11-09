@@ -842,7 +842,7 @@ class VideoHDMIPHY(LiteXModule):
             for color, channel in _dvi_c2d.items():
                 # TMDS Encoding.
                 encoder = ClockDomainsRenamer(clock_domain)(TMDSEncoder())
-                self.add_module(name=f"{color}_encoder", module=encoder)
+                self.add_module(name=f"{color}_encoder_{pol}", module=encoder)
                 self.comb += encoder.d.eq(getattr(sink, color))
                 self.comb += encoder.c.eq(Cat(sink.hsync, sink.vsync) if channel == 0 else 0)
                 self.comb += encoder.de.eq(sink.de)
@@ -855,7 +855,7 @@ class VideoHDMIPHY(LiteXModule):
                     data_o       = data_o,
                     clock_domain = clock_domain,
                 )
-                self.add_module(name=f"{color}_serializer", module=serializer)
+                self.add_module(name=f"{color}_serializer_{pol}", module=serializer)
 
 # HDMI (Gowin).
 
