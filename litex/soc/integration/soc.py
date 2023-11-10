@@ -1804,6 +1804,8 @@ class LiteXSoC(SoC):
             interface   = interface,
             endianness  = endianness,
         )
+        if interface == "hybrid":
+            ethcore.autocsr_exclude = {"mac"} # Exclude MAC here since added externally.
         if not with_sys_datapath:
             # Use PHY's eth_tx/eth_rx clock domains.
             ethcore = ClockDomainsRenamer({
