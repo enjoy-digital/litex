@@ -317,7 +317,7 @@ class EtherboneRecord(Packet):
 # Etherbone Packet ---------------------------------------------------------------------------------
 
 class EtherbonePacket(Packet):
-    def __init__(self, addr_width, init=[]):
+    def __init__(self, addr_width=32, init=[]):
         assert addr_width in [8, 16, 32, 64]
 
         Packet.__init__(self, init)
