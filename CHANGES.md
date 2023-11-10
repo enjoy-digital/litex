@@ -26,6 +26,7 @@
 	- cores/cpu             : Added KianV (RV32IMA) initial support.
 	- litedram              : Added initial GW5DDRPHY (compiles but not yet working).
 	- build/gowin           : Added GowinTristate implementation.
+	- litepcie              : Simplify/Cleanup Ultrascale(+) integration and allow .xci generation from .tcl.
 
 	[> Changed
 	----------
