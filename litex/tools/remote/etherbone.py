@@ -90,7 +90,7 @@ class EtherboneRead:
 # Etherbone Writes ---------------------------------------------------------------------------------
 
 class EtherboneWrites(Packet):
-    def __init__(self, addr_size, init=[], base_addr=0, datas=[]):
+    def __init__(self, addr_size=4, init=[], base_addr=0, datas=[]):
         if isinstance(datas, list) and len(datas) > 255:
             raise ValueError(f"Burst size of {len(datas)} exceeds maximum of 255 allowed by Etherbone.")
         assert addr_size in [1, 2, 4, 8]
@@ -152,7 +152,7 @@ class EtherboneWrites(Packet):
 # Etherbone Reads ----------------------------------------------------------------------------------
 
 class EtherboneReads(Packet):
-    def __init__(self, addr_size, init=[], base_ret_addr=0, addrs=[]):
+    def __init__(self, addr_size=4, init=[], base_ret_addr=0, addrs=[]):
         if isinstance(addrs, list) and len(addrs) > 255:
             raise ValueError(f"Burst size of {len(addrs)} exceeds maximum of 255 allowed by Etherbone.")
         assert addr_size in [1, 2, 4, 8]
@@ -221,7 +221,7 @@ class EtherboneReads(Packet):
 # Etherbone Record ---------------------------------------------------------------------------------
 
 class EtherboneRecord(Packet):
-    def __init__(self, addr_size, init=[]):
+    def __init__(self, addr_size=4, init=[]):
         assert addr_size in [1, 2, 4, 8]
 
         Packet.__init__(self, init)
