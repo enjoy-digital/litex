@@ -10,6 +10,16 @@
 #include <libbase/uart.h>
 #include <stdio.h>
 
+// Weak function that can be overriden in own software for any IRQ that is not the uart.
+// Return true (not zero) if an IRQ was handled, or 0 if not.
+unsigned int __attribute__((weak)) isr_handler(int irqs);
+
+// Override by default with return 0
+unsigned int isr_handler(int irqs)
+{
+	return 0;
+}
+
 #if defined(__microwatt__)
 void isr(uint64_t vec);
 void isr_dec(void);
@@ -59,15 +69,18 @@ void isr(void)
 			uart_isr();
 			break;
 		default:
-			printf("## PLIC: Unhandled claim: %d\n", claim);
-			printf("# plic_enabled:    %08x\n", irq_getmask());
-			printf("# plic_pending:    %08x\n", irq_pending());
-			printf("# mepc:    %016lx\n", csrr(mepc));
-			printf("# mcause:  %016lx\n", csrr(mcause));
-			printf("# mtval:   %016lx\n", csrr(mtval));
-			printf("# mie:     %016lx\n", csrr(mie));
-			printf("# mip:     %016lx\n", csrr(mip));
-			printf("###########################\n\n");
+			if(!isr_handler())
+			{
+				printf("## PLIC: Unhandled claim: %d\n", claim);
+				printf("# plic_enabled:    %08x\n", irq_getmask());
+				printf("# plic_pending:    %08x\n", irq_pending());
+				printf("# mepc:    %016lx\n", csrr(mepc));
+				printf("# mcause:  %016lx\n", csrr(mcause));
+				printf("# mtval:   %016lx\n", csrr(mtval));
+				printf("# mie:     %016lx\n", csrr(mie));
+				printf("# mip:     %016lx\n", csrr(mip));
+				printf("###########################\n\n");
+			}
 			break;
 		}
 		*((unsigned int *)PLIC_CLAIM) = claim;
@@ -175,15 +188,18 @@ void isr(void)
 			uart_isr();
 			break;
 		default:
-			printf("## PLIC: Unhandled claim: %d\n", claim);
-			printf("# plic_enabled:    %08x\n", irq_getmask());
-			printf("# plic_pending:    %08x\n", irq_pending());
-			printf("# mepc:    %016lx\n", csrr(mepc));
-			printf("# mcause:  %016lx\n", csrr(mcause));
-			printf("# mtval:   %016lx\n", csrr(mtval));
-			printf("# mie:     %016lx\n", csrr(mie));
-			printf("# mip:     %016lx\n", csrr(mip));
-			printf("###########################\n\n");
+			if(!isr_handler())
+			{
+				printf("## PLIC: Unhandled claim: %d\n", claim);
+				printf("# plic_enabled:    %08x\n", irq_getmask());
+				printf("# plic_pending:    %08x\n", irq_pending());
+				printf("# mepc:    %016lx\n", csrr(mepc));
+				printf("# mcause:  %016lx\n", csrr(mcause));
+				printf("# mtval:   %016lx\n", csrr(mtval));
+				printf("# mie:     %016lx\n", csrr(mie));
+				printf("# mip:     %016lx\n", csrr(mip));
+				printf("###########################\n\n");
+			}
 			break;
 		}
 		*((unsigned int *)PLIC_M_CLAIM) = claim;
@@ -196,11 +212,13 @@ void isr(void)
 	__attribute__((unused)) unsigned int irqs;
 
 	irqs = irq_pending() & irq_getmask();
-
 #ifdef CSR_UART_BASE
 #ifndef UART_POLLING
 	if(irqs & (1 << UART_INTERRUPT))
 		uart_isr();
+	else
+		if(!isr_handler(irqs))
+			printf("Unhandled irq!\n");
 #endif
 #endif
 }
