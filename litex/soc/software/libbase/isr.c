@@ -194,11 +194,11 @@ void isr(void)
 struct irq_table
 {
 	isr_t isr;
-} irq_table[NR_IRQ];
+} irq_table[CONFIG_CPU_INTERRUPTS];
 
 int irq_attach(unsigned int irq, isr_t isr)
 {
-	if (irq >= NR_IRQ) {
+	if (irq >= CONFIG_CPU_INTERRUPTS) {
 		printf("Inv irq %d\n", irq);
 		return -1;
 	}
@@ -222,7 +222,7 @@ void isr(void)
 	while (irqs)
 	{
 		const unsigned int irq = __builtin_ctz(irqs);
-		if (irq < NR_IRQ && irq_table[irq].isr)
+		if ((irq < CONFIG_CPU_INTERRUPTS) && irq_table[irq].isr)
 			irq_table[irq].isr();
 		else {
 			irq_setmask(irq_getmask() & ~(1<<irq));
