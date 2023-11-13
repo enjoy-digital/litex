@@ -1781,8 +1781,7 @@ class LiteXSoC(SoC):
         buffer_depth            = 16,
         with_ip_broadcast       = True,
         with_timing_constraints = True,
-        interface               = "crossbar",
-        endianness              = "big"):
+        ethernet                = False):
         # Imports
         from liteeth.core import LiteEthUDPIPCore
         from liteeth.frontend.etherbone import LiteEthEtherbone
@@ -1801,10 +1800,10 @@ class LiteXSoC(SoC):
             dw          = data_width,
             with_ip_broadcast = with_ip_broadcast,
             with_sys_datapath = with_sys_datapath,
-            interface   = interface,
-            endianness  = endianness,
+            interface   = "hybrid" if ethernet else "crossbar",
+            endianness  = self.cpu.endianness if ethernet else "big",
         )
-        if interface == "hybrid":
+        if ethernet:
             ethcore.autocsr_exclude = {"mac"} # Exclude MAC here since added externally.
         if not with_sys_datapath:
             # Use PHY's eth_tx/eth_rx clock domains.
@@ -1839,6 +1838,18 @@ class LiteXSoC(SoC):
                     self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk, eth_tx_clk)
                 else:
                     self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk)
+
+        if ethernet:
+            # Software Interface.
+            self.ethmac = ethmac = ethcore.mac
+            ethmac_region_size = (ethmac.rx_slots.constant + ethmac.tx_slots.constant)*ethmac.slot_size.constant
+            ethmac_region = SoCRegion(origin=self.mem_map.get("ethmac", None), size=ethmac_region_size, cached=False)
+            self.bus.add_slave(name="ethmac", slave=ethmac.bus, region=ethmac_region)
+            # Add IRQs (if enabled).
+            if self.irq.enabled:
+                self.irq.add("ethmac", use_loc_if_exists=True)
+
+            self.add_constant("ETH_PHY_NO_RESET") # Disable reset from BIOS to avoid disabling Hardware Interface.
 
     # Add SPI Flash --------------------------------------------------------------------------------
     def add_spi_flash(self, name="spiflash", mode="4x", clk_freq=None, module=None, phy=None, rate="1:1", software_debug=False, **kwargs):
