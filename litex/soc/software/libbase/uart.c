@@ -110,6 +110,8 @@ void uart_init(void)
 
 	uart_ev_pending_write(uart_ev_pending_read());
 	uart_ev_enable_write(UART_EV_TX | UART_EV_RX);
+	if (irq_attach)
+		irq_attach(UART_INTERRUPT, uart_isr);
 	irq_setmask(irq_getmask() | (1 << UART_INTERRUPT));
 }
 

@@ -1320,6 +1320,7 @@ class SoC(LiteXModule, SoCCoreCompat):
 
         # SoC IRQ Interconnect ---------------------------------------------------------------------
         if hasattr(self, "cpu") and hasattr(self.cpu, "interrupt"):
+            self.add_constant("NR_IRQ", max(self.irq.locs.values()) + 1)
             for name, loc in sorted(self.irq.locs.items()):
                 if name in self.cpu.interrupts.keys():
                     continue
