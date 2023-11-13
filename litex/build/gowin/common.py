@@ -122,5 +122,5 @@ gowin_special_overrides = {
     DDROutput:              GowinDDROutput,
     DifferentialInput:      GowinDifferentialInput,
     DifferentialOutput:     GowinDifferentialOutput,
-    Tristate:               GowinTristate,
+    #Tristate:               GowinTristate, # FIXME: issue with tangNano9k hyperram
 }
