@@ -233,29 +233,16 @@ class SimSoC(SoCCore):
             else:
                 raise ValueError("Unknown Ethernet PHY model:", ethernet_phy_model)
 
-        # Ethernet and Etherbone -------------------------------------------------------------------
-        if with_ethernet and with_etherbone:
-            # Etherbone.
+        # Etherbone with optional Ethernet ---------------------------------------------------------
+        if with_etherbone:
             self.add_etherbone(
                 phy         = self.ethphy,
                 ip_address  = etherbone_ip_address,
                 mac_address = etherbone_mac_address,
                 data_width  = 8,
-                interface   = "hybrid",
-                endianness  = self.cpu.endianness
+                ethernet    = with_ethernet,
             )
-
-            # Software Interface.
-            self.ethmac = ethmac = self.get_module("ethcore_etherbone").mac
-            ethmac_region_size = (ethmac.rx_slots.constant + ethmac.tx_slots.constant)*ethmac.slot_size.constant
-            ethmac_region = SoCRegion(origin=self.mem_map.get("ethmac", None), size=ethmac_region_size, cached=False)
-            self.bus.add_slave(name="ethmac", slave=ethmac.bus, region=ethmac_region)
-
-            # Add IRQs (if enabled).
-            if self.irq.enabled:
-                self.irq.add("ethmac", use_loc_if_exists=True)
-
-        # Ethernet ---------------------------------------------------------------------------------
+        # Ethernet only ----------------------------------------------------------------------------
         elif with_ethernet:
             # Ethernet MAC
             self.ethmac = ethmac = LiteEthMAC(
@@ -271,14 +258,6 @@ class SimSoC(SoCCore):
             # Add IRQs (if enabled).
             if self.irq.enabled:
                 self.irq.add("ethmac", use_loc_if_exists=True)
-
-        # Etherbone --------------------------------------------------------------------------------
-        elif with_etherbone:
-            self.add_etherbone(
-                phy         = self.ethphy,
-                ip_address  = etherbone_ip_address,
-                mac_address = etherbone_mac_address
-            )
 
         # I2C --------------------------------------------------------------------------------------
         if with_i2c:
