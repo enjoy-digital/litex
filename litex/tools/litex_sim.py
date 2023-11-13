@@ -240,7 +240,7 @@ class SimSoC(SoCCore):
                 ip_address  = etherbone_ip_address,
                 mac_address = etherbone_mac_address,
                 data_width  = 8,
-                ethernet    = with_ethernet,
+                with_ethmac = with_ethernet,
             )
         # Ethernet only ----------------------------------------------------------------------------
         elif with_ethernet:

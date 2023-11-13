@@ -1782,7 +1782,7 @@ class LiteXSoC(SoC):
         buffer_depth            = 16,
         with_ip_broadcast       = True,
         with_timing_constraints = True,
-        ethernet                = False):
+        with_ethmac             = False):
         # Imports
         from liteeth.core import LiteEthUDPIPCore
         from liteeth.frontend.etherbone import LiteEthEtherbone
@@ -1801,11 +1801,9 @@ class LiteXSoC(SoC):
             dw          = data_width,
             with_ip_broadcast = with_ip_broadcast,
             with_sys_datapath = with_sys_datapath,
-            interface   = "hybrid" if ethernet else "crossbar",
-            endianness  = self.cpu.endianness if ethernet else "big",
+            interface   = {True :            "hybrid", False: "crossbar"}[with_ethmac],
+            endianness  = {True : self.cpu.endianness, False:      "big"}[with_ethmac],
         )
-        if ethernet:
-            ethcore.autocsr_exclude = {"mac"} # Exclude MAC here since added externally.
         if not with_sys_datapath:
             # Use PHY's eth_tx/eth_rx clock domains.
             ethcore = ClockDomainsRenamer({
@@ -1840,7 +1838,10 @@ class LiteXSoC(SoC):
                 else:
                     self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk)
 
-        if ethernet:
+        # Ethernet MAC (CPU).
+        if with_ethmac:
+            self.check_if_exists("ethmac")
+            ethcore.autocsr_exclude = {"mac"}
             # Software Interface.
             self.ethmac = ethmac = ethcore.mac
             ethmac_region_size = (ethmac.rx_slots.constant + ethmac.tx_slots.constant)*ethmac.slot_size.constant
