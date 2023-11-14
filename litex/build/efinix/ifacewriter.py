@@ -12,6 +12,8 @@ import datetime
 from xml.dom import expatbuilder
 import xml.etree.ElementTree as et
 
+from migen import *
+
 from litex.build import tools
 
 namespaces = {
