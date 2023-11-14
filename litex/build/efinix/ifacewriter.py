@@ -277,7 +277,11 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
         cmd += 'pll_config = {{ "REFCLK_FREQ":"{}" }}\n'.format(block["input_freq"] / 1e6)
         cmd += 'design.set_property("{}", pll_config, block_type="PLL")\n\n'.format(name)
 
-        if block["input_clock"] == "EXTERNAL":
+        if block["input_clock"] == "LVDS_RX":
+            cmd += 'design.gen_pll_ref_clock("{}", pll_res="{}", refclk_src="EXTERNAL", refclk_name="{}", ext_refclk_no="{}", ext_refclk_type="LVDS_RX")\n\n' \
+                    .format(name, block["resource"], block["input_clock_pad"], block["clock_no"])
+            cmd += 'design.set_property("{}","FEEDBACK_MODE","CORE","PLL")\n\n'.format(name)
+        elif block["input_clock"] == "EXTERNAL":
             # PLL V1 has a different configuration
             if partnumber[0:2] in ["T4", "T8"]:
                 cmd += 'design.gen_pll_ref_clock("{}", pll_res="{}", refclk_res="{}", refclk_name="{}", ext_refclk_no="{}")\n\n' \
