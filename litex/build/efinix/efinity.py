@@ -280,6 +280,7 @@ class EfinityToolchain(GenericToolchain):
 
         # FIXME: peri.xml is generated from Efinity, why does it require patching?
         tools.replace_in_file(f"{self._build_name}.peri.xml", 'adv_out_phase_shift="0.0"', 'adv_out_phase_shift="0"')
+        tools.replace_in_file(f"{self._build_name}.peri.xml", 'adv_out_phase_shift="90.0"', 'adv_out_phase_shift="90"')
 
     def build_script(self):
         return "" # not used
