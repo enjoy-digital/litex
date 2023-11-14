@@ -55,7 +55,7 @@ class EFINIXPLL(LiteXModule):
         self.comb += self.platform.add_iface_io(self.name + "_rstn").eq(~self.reset)
         self.comb += self.locked.eq(self.platform.add_iface_io(self.name + "_locked"))
 
-    def register_clkin(self, clkin, freq, name=""):
+    def register_clkin(self, clkin, freq, name="", lvds_input=False):
         block = self.platform.toolchain.ifacewriter.get_block(self.name)
 
         block["input_clock_name"] = self.platform.get_pin_name(clkin)
@@ -79,7 +79,7 @@ class EFINIXPLL(LiteXModule):
                 self.logger.error("Cannot find a pll with {} as input".format(pad_name))
                 quit()
 
-            block["input_clock"]     = "EXTERNAL"
+            block["input_clock"]     = "EXTERNAL" if not lvds_input else "LVDS_RX"
             block["input_clock_pad"] = pin_name
             block["resource"]        = pll_res
             block["clock_no"]        = clock_no
