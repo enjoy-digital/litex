@@ -379,16 +379,30 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
         location = block["location"]
         size     = block["size"]
         sig      = block["sig"]
+        serdes   = block.get("serdes", 1 if size > 1 else 0)
+        rst_pin  = block.get("rst", "")
+        delay    = block.get("delay", 0)
         cmd      = []
+        fast_clk = ""
+        if size > 2:
+            fast_clk = block.get("fast_clk", "")
+        slow_clk = block.get("slow_clk", "")
+        half_rate= block.get("half_rate", "0")
 
         if mode == "OUTPUT":
             block_type = "LVDS_TX"
             tx_mode    = block["tx_mode"]
+            oe_pin     = block.get("oe", "")
+            if isinstance(oe_pin, Signal):
+                oe_pin = oe_pin.name
+            if isinstance(rst_pin, Signal):
+                rst_pin = rst_pin.name
+
             cmd.append('design.create_block("{}", block_type="{}", tx_mode="{}")'.format(name, block_type, tx_mode))
             if self.platform.family == "Titanium":
-                cmd.append('design.set_property("{}", "TX_DELAY", "0", "{}")'.format(name, block_type))
+                cmd.append('design.set_property("{}", "TX_DELAY", "{}", "{}")'.format(name, delay, block_type))
                 cmd.append('design.set_property("{}", "TX_DIFF_TYPE", "LVDS", "{}")'.format(name, block_type))
-                cmd.append('design.set_property("{}", "TX_HALF_RATE", "0", "{}")'.format(name, block_type))
+                cmd.append('design.set_property("{}", "TX_HALF_RATE", "{}", "{}")'.format(name, half_rate, block_type))
                 cmd.append('design.set_property("{}", "TX_PRE_EMP", "MEDIUM_LOW", "{}")'.format(name, block_type))
                 cmd.append('design.set_property("{}", "TX_SER", "{}", "{}")'.format(name, size, block_type))
                 cmd.append('design.set_property("{}", "TX_VOD", "TYPICAL", "{}")'.format(name, block_type))
@@ -396,52 +410,73 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                 cmd.append('design.set_property("{}","TX_OUTPUT_LOAD","3","{}")'.format(name, block_type))
                 cmd.append('design.set_property("{}","TX_REDUCED_SWING","0","{}")'.format(name, block_type))
                 cmd.append('design.set_property("{}","TX_SLOWCLK_DIV","1","{}")'.format(name, block_type))
-                cmd.append('design.set_property("{}","TX_EN_SER","0","{}")'.format(name, block_type))
-            cmd.append('design.set_property("{}", "TX_EN_SER", "0", "{}")'.format(name, block_type))
-            cmd.append('design.set_property("{}", "TX_FASTCLK_PIN", "", "{}")'.format(name, block_type))
+                #cmd.append('design.set_property("{}","TX_EN_SER","0","{}")'.format(name, block_type))
+            cmd.append('design.set_property("{}", "TX_EN_SER", "{}", "{}")'.format(name, serdes, block_type))
+            cmd.append('design.set_property("{}", "TX_FASTCLK_PIN", "{}", "{}")'.format(name, fast_clk, block_type))
             cmd.append('design.set_property("{}", "TX_MODE", "{}", "{}")'.format(name, tx_mode, block_type))
-            cmd.append('design.set_property("{}", "TX_OE_PIN", "", "{}")'.format(name, block_type))
+            cmd.append('design.set_property("{}", "TX_OE_PIN", "{}", "{}")'.format(name, oe_pin, block_type))
             cmd.append('design.set_property("{}", "TX_OUT_PIN", "{}", "{}")'.format(name, sig.name, block_type))
-            cmd.append('design.set_property("{}", "TX_RST_PIN", "", "{}")'.format(name, block_type))
-            cmd.append('design.set_property("{}", "TX_SLOWCLK_PIN", "", "{}")'.format(name, block_type))
+            cmd.append('design.set_property("{}", "TX_RST_PIN", "{}", "{}")'.format(name, rst_pin, block_type))
+            cmd.append('design.set_property("{}", "TX_SLOWCLK_PIN", "{}", "{}")'.format(name, slow_clk, block_type))
         else:
             block_type = "LVDS_RX"
             rx_mode    = block["rx_mode"]
-            term       = block["term"]
-            ena        = block["ena"]
+            term       = block.get("term", "")
+            ena        = block.get("ena", "")
+            rx_delay   = block.get("rx_delay", "STATIC")
+            if isinstance(term, Signal):
+                term = term.name
+            if isinstance(ena, Signal):
+                ena = ena.name
+
+            if rx_delay == "STATIC":
+                delay_ena = ""
+                delay_inc = ""
+                delay_rst = ""
+            else:
+                delay_ena = block.get("delay_ena", "")
+                delay_inc = block.get("delay_inc", "")
+                delay_rst = block.get("delay_rst", "")
+
+                if isinstance(delay_ena, Signal):
+                    delay_ena = delay_ena.name
+                if isinstance(delay_rst, Signal):
+                    delay_rst = delay_rst.name
+                if isinstance(delay_inc, Signal):
+                    delay_inc = delay_inc.name
 
             cmd.append('design.create_block("{}", block_type="{}", rx_conn_type="{}")'.format(name, block_type, rx_mode))
             if self.platform.family == "Titanium":
                 cmd.append('design.set_property("{}","GBUF","","{}")'.format(name, block_type))
                 cmd.append('design.set_property("{}","RX_DBG_PIN","","{}")'.format(name, block_type))
-                cmd.append('design.set_property("{}","RX_TERM_PIN","{}","{}")'.format(name, term.name, block_type))
+                cmd.append('design.set_property("{}","RX_TERM_PIN","{}","{}")'.format(name, term, block_type))
                 cmd.append('design.set_property("{}","RX_VOC_DRIVER","0","{}")'.format(name, block_type))
                 cmd.append('design.set_property("{}","RX_SLVS","0","{}")'.format(name, block_type))
                 cmd.append('design.set_property("{}","RX_FIFO","0","{}")'.format(name, block_type))
-                cmd.append('design.set_property("{}","RX_HALF_RATE","0","{}")'.format(name, block_type))
-                cmd.append('design.set_property("{}","RX_ENA_PIN","{}","{}")'.format(name, ena.name, block_type))
-                cmd.append('design.set_property("{}","RX_DELAY_MODE","STATIC","{}")'.format(name, block_type))
-                cmd.append('design.set_property("{}","RX_DESER","1","{}")'.format(name, block_type))
+                cmd.append('design.set_property("{}","RX_HALF_RATE","{}","{}")'.format(name, half_rate, block_type))
+                cmd.append('design.set_property("{}","RX_ENA_PIN","{}","{}")'.format(name, ena, block_type))
+                cmd.append('design.set_property("{}","RX_DESER","{}","{}")'.format(name, size, block_type))
+                cmd.append('design.set_property("{}","RX_DELAY_MODE","{}","{}")'.format(name, rx_delay, block_type))
+                cmd.append('design.set_property("{}","RX_DLY_ENA_PIN","{}","{}")'.format(name, delay_ena, block_type))
+                cmd.append('design.set_property("{}","RX_DLY_INC_PIN","{}","{}")'.format(name, delay_inc, block_type))
+                cmd.append('design.set_property("{}","RX_DLY_RST_PIN","{}","{}")'.format(name, delay_rst, block_type))
                 # Optional
-                #cmd.append('design.set_property("{}","RX_DLY_ENA_PIN","lvds_rx_inst1_RX_DLY_ENA","{}")'.format(name, block_type))
-                #cmd.append('design.set_property("{}","RX_DLY_INC_PIN","lvds_rx_inst1_RX_DLY_INC","{}")'.format(name, block_type))
-                #cmd.append('design.set_property("{}","RX_DLY_RST_PIN","lvds_rx_inst1_RX_DLY_RST","{}")'.format(name, block_type))
                 #cmd.append('design.set_property("{}","RX_FIFOCLK_PIN","","{}")'.format(name, block_type))
                 #cmd.append('design.set_property("{}","RX_FIFO_EMPTY_PIN","lvds_rx_inst1_RX_FIFO_EMPTY","{}")'.format(name, block_type))
                 #cmd.append('design.set_property("{}","RX_FIFO_RD_PIN","lvds_rx_inst1_RX_FIFO_RD","{}")'.format(name, block_type))
                 #cmd.append('design.set_property("{}","RX_LOCK_PIN","lvds_rx_inst1_RX_LOCK","{}")'.format(name, block_type))
             else:
-                cmd.append('design.set_property("{}","RX_EN_DELAY","0","{}")'.format(name, block_type))
+                rx_delay = "0" if rx_delay == "STATIC" else "1"
+                cmd.append('design.set_property("{}","RX_EN_DELAY","{}","{}")'.format(name, rx_delay, block_type))
 
             cmd.append('design.set_property("{}","RX_CONN_TYPE","{}","{}")'.format(name, rx_mode, block_type))
-            cmd.append('design.set_property("{}","RX_DELAY","16","{}")'.format(name, block_type))
-            cmd.append('design.set_property("{}","RX_EN_DESER","0","{}")'.format(name, block_type))
-            cmd.append('design.set_property("{}","RX_FASTCLK_PIN","","{}")'.format(name, block_type))
+            cmd.append('design.set_property("{}","RX_DELAY","{}","{}")'.format(name, delay, block_type))
+            cmd.append('design.set_property("{}","RX_EN_DESER","{}","{}")'.format(name, serdes, block_type))
+            cmd.append('design.set_property("{}","RX_FASTCLK_PIN","{}","{}")'.format(name, fast_clk, block_type))
             cmd.append('design.set_property("{}","RX_IN_PIN","{}","{}")'.format(name, sig.name, block_type))
-            cmd.append('design.set_property("{}","RX_SLOWCLK_PIN","","{}")'.format(name, block_type))
-            cmd.append('design.set_property("{}","RX_TERM","OFF","{}")'.format(name, block_type))
-            # Optional
-            #cmd.append('design.set_property("{}","RX_RST_PIN","lvds_rx_inst1_RX_RST","{}")'.format(name, block_type))
+            cmd.append('design.set_property("{}","RX_SLOWCLK_PIN","{}","{}")'.format(name, slow_clk, block_type))
+            cmd.append('design.set_property("{}","RX_TERM","ON","{}")'.format(name, block_type))
+            cmd.append('design.set_property("{}","RX_RST_PIN","{}","{}")'.format(name, rst_pin, block_type))
 
         cmd.append('design.assign_resource("{}", "{}", "{}")\n'.format(name, location, block_type))
 
