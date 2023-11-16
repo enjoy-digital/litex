@@ -27,6 +27,8 @@
 	- litedram              : Added initial GW5DDRPHY (compiles but not yet working).
 	- build/gowin           : Added GowinTristate implementation.
 	- litepcie              : Simplify/Cleanup Ultrascale(+) integration and allow .xci generation from .tcl.
+	- litepcie              : Initial 64-bit DMA suppport.
+	- bios                  : Added bios_format / --bios-format to allow enabling float/double printf.
 
 	[> Changed
 	----------
