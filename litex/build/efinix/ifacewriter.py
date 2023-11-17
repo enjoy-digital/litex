@@ -278,9 +278,18 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
         cmd += 'design.set_property("{}", pll_config, block_type="PLL")\n\n'.format(name)
 
         if block["input_clock"] == "LVDS_RX":
-            cmd += 'design.gen_pll_ref_clock("{}", pll_res="{}", refclk_src="EXTERNAL", refclk_name="{}", ext_refclk_no="{}", ext_refclk_type="LVDS_RX")\n\n' \
-                    .format(name, block["resource"], block["input_clock_pad"], block["clock_no"])
-            cmd += 'design.set_property("{}","FEEDBACK_MODE","CORE","PLL")\n\n'.format(name)
+            if block["version"] == "V3":
+                cmd += 'design.gen_pll_ref_clock("{}", pll_res="{}", refclk_src="EXTERNAL", refclk_name="{}", ext_refclk_no="{}", ext_refclk_type="LVDS_RX")\n\n' \
+                        .format(name, block["resource"], block["input_clock_pad"], block["clock_no"])
+                cmd += 'design.set_property("{}","FEEDBACK_MODE","CORE","PLL")\n\n'.format(name)
+
+            else:
+                cmd += 'design.set_property("{}","EXT_CLK","EXT_CLK{}","PLL")\n'.format(name, block["clock_no"])
+                # FIXME: pll feedback
+                cmd += 'design.set_property("{}","FEEDBACK_MODE","INTERNAL","PLL")\n'.format(name)
+                cmd += 'design.assign_resource("{}","{}","PLL")\n'.format(name, block["resource"])
+
+
         elif block["input_clock"] == "EXTERNAL":
             # PLL V1 has a different configuration
             if partnumber[0:2] in ["T4", "T8"]:
@@ -410,13 +419,12 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                 cmd.append('design.set_property("{}", "TX_DIFF_TYPE", "LVDS", "{}")'.format(name, block_type))
                 cmd.append('design.set_property("{}", "TX_HALF_RATE", "{}", "{}")'.format(name, half_rate, block_type))
                 cmd.append('design.set_property("{}", "TX_PRE_EMP", "MEDIUM_LOW", "{}")'.format(name, block_type))
-                cmd.append('design.set_property("{}", "TX_SER", "{}", "{}")'.format(name, size, block_type))
                 cmd.append('design.set_property("{}", "TX_VOD", "TYPICAL", "{}")'.format(name, block_type))
             else:
                 cmd.append('design.set_property("{}","TX_OUTPUT_LOAD","3","{}")'.format(name, block_type))
                 cmd.append('design.set_property("{}","TX_REDUCED_SWING","0","{}")'.format(name, block_type))
                 cmd.append('design.set_property("{}","TX_SLOWCLK_DIV","1","{}")'.format(name, block_type))
-                #cmd.append('design.set_property("{}","TX_EN_SER","0","{}")'.format(name, block_type))
+            cmd.append('design.set_property("{}", "TX_SER", "{}", "{}")'.format(name, size, block_type))
             cmd.append('design.set_property("{}", "TX_EN_SER", "{}", "{}")'.format(name, serdes, block_type))
             cmd.append('design.set_property("{}", "TX_FASTCLK_PIN", "{}", "{}")'.format(name, fast_clk, block_type))
             cmd.append('design.set_property("{}", "TX_MODE", "{}", "{}")'.format(name, tx_mode, block_type))
@@ -461,7 +469,6 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                 cmd.append('design.set_property("{}","RX_FIFO","0","{}")'.format(name, block_type))
                 cmd.append('design.set_property("{}","RX_HALF_RATE","{}","{}")'.format(name, half_rate, block_type))
                 cmd.append('design.set_property("{}","RX_ENA_PIN","{}","{}")'.format(name, ena, block_type))
-                cmd.append('design.set_property("{}","RX_DESER","{}","{}")'.format(name, size, block_type))
                 cmd.append('design.set_property("{}","RX_DELAY_MODE","{}","{}")'.format(name, rx_delay, block_type))
                 cmd.append('design.set_property("{}","RX_DLY_ENA_PIN","{}","{}")'.format(name, delay_ena, block_type))
                 cmd.append('design.set_property("{}","RX_DLY_INC_PIN","{}","{}")'.format(name, delay_inc, block_type))
@@ -472,9 +479,11 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                 #cmd.append('design.set_property("{}","RX_FIFO_RD_PIN","lvds_rx_inst1_RX_FIFO_RD","{}")'.format(name, block_type))
                 #cmd.append('design.set_property("{}","RX_LOCK_PIN","lvds_rx_inst1_RX_LOCK","{}")'.format(name, block_type))
             else:
-                rx_delay = "0" if rx_delay == "STATIC" else "1"
+                rx_delay = "0"
                 cmd.append('design.set_property("{}","RX_EN_DELAY","{}","{}")'.format(name, rx_delay, block_type))
 
+            if not (self.platform.family == "Trion" and serdes == 0):
+                cmd.append('design.set_property("{}","RX_DESER","{}","{}")'.format(name, size, block_type))
             cmd.append('design.set_property("{}","RX_CONN_TYPE","{}","{}")'.format(name, rx_mode, block_type))
             cmd.append('design.set_property("{}","RX_DELAY","{}","{}")'.format(name, delay, block_type))
             cmd.append('design.set_property("{}","RX_EN_DESER","{}","{}")'.format(name, serdes, block_type))
