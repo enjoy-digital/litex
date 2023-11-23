@@ -32,9 +32,9 @@ class RemoteClient(EtherboneIPC, CSRBuilder):
         else:
             # Else if csr_data_width set to None, force to csr_data_width 32-bit.
             if csr_data_width is None:
-                csr_data_width = 32
+                self.csr_data_width = 32
             # Else if csr_bus_address_width set to None, force to csr_bus_address_width 32-bit.
-            if self.csr_bus_address_width is None:
+            if csr_bus_address_width is None:
                 self.csr_bus_address_width = 32
         self.host         = host
         self.port         = port
