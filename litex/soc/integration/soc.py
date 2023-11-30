@@ -108,7 +108,7 @@ class SoCCSRRegion:
 class SoCBusHandler(LiteXModule):
     supported_standard      = ["wishbone", "axi-lite", "axi"]
     supported_data_width    = [32, 64, 128, 256, 512]
-    supported_address_width = [32]
+    supported_address_width = [32, 64]
 
     # Creation -------------------------------------------------------------------------------------
     def __init__(self, name="SoCBusHandler",
