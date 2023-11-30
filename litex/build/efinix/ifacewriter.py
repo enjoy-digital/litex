@@ -479,7 +479,7 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                 #cmd.append('design.set_property("{}", "RX_FIFO_RD_PIN",    "lvds_rx_inst1_RX_FIFO_RD",    "{}")'.format(name, block_type))
                 #cmd.append('design.set_property("{}", "RX_LOCK_PIN",       "lvds_rx_inst1_RX_LOCK",       "{}")'.format(name, block_type))
             else:
-                rx_delay = "0"
+                rx_delay = "0" if delay == 0 else "1"
                 cmd.append('design.set_property("{}","RX_EN_DELAY","{}","{}")'.format(name, rx_delay, block_type))
 
             if not (self.platform.family == "Trion" and serdes == 0):
