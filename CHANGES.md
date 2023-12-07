@@ -29,6 +29,9 @@
 	- litepcie              : Simplify/Cleanup Ultrascale(+) integration and allow .xci generation from .tcl.
 	- litepcie              : Initial 64-bit DMA suppport.
 	- bios                  : Added bios_format / --bios-format to allow enabling float/double printf.
+	- soc/cores/clock       : Added proper clock feedback support on Efinix TRIONPLL.
+	- liteiclink/phy        : Added Efinix support/examples on Trion/Titanium.
+	- liteiclink/serwb      : Reused Etherbone from LiteEth to avoid code duplication.
 
 	[> Changed
 	----------
