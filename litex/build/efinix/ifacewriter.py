@@ -285,8 +285,11 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
 
             else:
                 cmd += 'design.set_property("{}","EXT_CLK","EXT_CLK{}","PLL")\n'.format(name, block["clock_no"])
-                # FIXME: pll feedback
-                cmd += 'design.set_property("{}","FEEDBACK_MODE","INTERNAL","PLL")\n'.format(name)
+                if block["feedback"] != -1:
+                    cmd += 'design.set_property("{}","FEEDBACK_MODE","{}","PLL")\n'.format(name, "CORE" if block["feedback"] == 0 else "LOCAL")
+                    cmd += 'design.set_property("{}","FEEDBACK_CLK","CLK{}","PLL")\n'.format(name, block["feedback"])
+                else:
+                    cmd += 'design.set_property("{}","FEEDBACK_MODE","INTERNAL","PLL")\n'.format(name)
                 cmd += 'design.assign_resource("{}","{}","PLL")\n'.format(name, block["resource"])
 
 
@@ -326,15 +329,26 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
             else:
                 cmd += 'design.set_property("{}","CLKOUT{}_PHASE_SETTING","{}","PLL")\n'.format(name, i, clock[2] // 45)
 
-        cmd += "target_freq = {\n"
-        for i, clock in enumerate(block["clk_out"]):
-            cmd += '    "CLKOUT{}_FREQ": "{}",\n'.format(i, clock[1] / 1e6)
-            cmd += '    "CLKOUT{}_PHASE": "{}",\n'.format(i, clock[2])
-            if clock[4] == 1:
-                cmd += '    "CLKOUT{}_DYNPHASE_EN": "1",\n'.format(i)
-        cmd += "}\n"
+        if block["feedback"] == -1:
+            cmd += "target_freq = {\n"
+            for i, clock in enumerate(block["clk_out"]):
+                cmd += '    "CLKOUT{}_FREQ": "{}",\n'.format(i, clock[1] / 1e6)
+                cmd += '    "CLKOUT{}_PHASE": "{}",\n'.format(i, clock[2])
+                if clock[4] == 1:
+                    cmd += '    "CLKOUT{}_DYNPHASE_EN": "1",\n'.format(i)
+            cmd += "}\n"
 
-        cmd += 'calc_result = design.auto_calc_pll_clock("{}", target_freq)\n'.format(name)
+            cmd += 'calc_result = design.auto_calc_pll_clock("{}", target_freq)\n'.format(name)
+            cmd += 'for c in calc_result:\n'
+            cmd += '    print(c)\n'
+        else:
+            cmd += 'design.set_property("{}","M","{}","PLL")\n'.format(name, block["M"])
+            cmd += 'design.set_property("{}","N","{}","PLL")\n'.format(name, block["N"])
+            cmd += 'design.set_property("{}","O","{}","PLL")\n'.format(name, block["O"])
+            for i, clock in enumerate(block["clk_out"]):
+                cmd += 'design.set_property("{}","CLKOUT{}_PHASE","{}","PLL")\n'.format(name, i, clock[2])
+                #cmd += 'design.set_property("{}","CLKOUT{}_FREQ","{}","PLL")\n'.format(name, i, clock[2])
+                cmd += 'design.set_property("{}","CLKOUT{}_DIV","{}","PLL")\n'.format(name, i, block[f"CLKOUT{i}_DIV"])
 
         if "extra" in block:
             cmd += block["extra"]
