@@ -371,9 +371,9 @@ class SoCBusHandler(LiteXModule):
                 if direction == "s2m":
                     self.comb += adapted_interface.connect(interface, omit={"adr"})
                     if (interface.addressing == "word") and (self.addressing == "byte"):
-                        self.comb += interface.adr[address_shift:].eq(adapted_interface.adr)
-                    if (interface.addressing == "byte") and (self.addressing == "word"):
                         self.comb += interface.adr.eq(adapted_interface.adr[address_shift:])
+                    if (interface.addressing == "byte") and (self.addressing == "word"):
+                        self.comb += interface.adr[address_shift:].eq(adapted_interface.adr)
                 return adapted_interface
 
         # Bus-Standard conversion helper.
@@ -1756,6 +1756,7 @@ class LiteXSoC(SoC):
         ethmac_region_size = (ethmac.rx_slots.constant + ethmac.tx_slots.constant)*ethmac.slot_size.constant
         ethmac_region = SoCRegion(origin=self.mem_map.get(name, None), size=ethmac_region_size, cached=False)
         self.bus.add_slave(name=name, slave=ethmac.bus, region=ethmac_region)
+
         # Add IRQs (if enabled).
         if self.irq.enabled:
             self.irq.add(name, use_loc_if_exists=True)
