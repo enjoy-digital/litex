@@ -613,7 +613,8 @@ class AXIInterconnectShared(LiteXModule):
     """AXI shared interconnect"""
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
         data_width = get_check_parameters(ports=masters + [s for _, s in slaves])
-        shared = AXIInterface(data_width=data_width)
+        adr_width = max([m.address_width for m in masters])
+        shared = AXIInterface(data_width=data_width, address_width=adr_width)
         self.arbiter = AXIArbiter(masters, shared)
         self.decoder = AXIDecoder(shared, slaves)
         if timeout_cycles is not None:
@@ -626,8 +627,9 @@ class AXICrossbar(LiteXModule):
     """
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
         data_width = get_check_parameters(ports=masters + [s for _, s in slaves])
+        adr_width = max([m.address_width for m in masters])
         matches, busses = zip(*slaves)
-        access_m_s = [[AXIInterface(data_width=data_width) for j in slaves] for i in masters]  # a[master][slave]
+        access_m_s = [[AXIInterface(data_width=data_width, address_width=adr_width) for j in slaves] for i in masters]  # a[master][slave]
         access_s_m = list(zip(*access_m_s))  # a[slave][master]
         # Decode each master into its access row.
         for slaves, master in zip(access_m_s, masters):
