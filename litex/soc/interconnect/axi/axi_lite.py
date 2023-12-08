@@ -132,11 +132,12 @@ class AXILiteInterface:
 
 def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=None):
     """Connection of AXILite to simple bus with 1-cycle latency, such as CSR bus or Memory port"""
-    bus_data_width = axi_lite.data_width
-    adr_shift      = log2_int(bus_data_width//8)
-    do_read        = Signal()
-    do_write       = Signal()
-    last_was_read  = Signal()
+    bus_data_width     = axi_lite.data_width
+    adr_shift          = log2_int(bus_data_width//8)
+    do_read            = Signal()
+    do_write           = Signal()
+    last_was_read      = Signal()
+    port_dat_r_latched = Signal(axi_lite.data_width)
 
     comb = []
     if port_dat_w is not None:
@@ -169,14 +170,17 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=
             )
         ).Elif(do_read,
             port_adr.eq(axi_lite.ar.addr[adr_shift:]),
-            NextState("SEND-READ-RESPONSE"),
+            NextState("LATCH-READ-RESPONSE"),
         )
     )
+    fsm.act("LATCH-READ-RESPONSE",
+        NextValue(port_dat_r_latched, port_dat_r),
+        NextState("SEND-READ-RESPONSE")
+    ),
     fsm.act("SEND-READ-RESPONSE",
         NextValue(last_was_read, 1),
         # As long as we have correct address port.dat_r will be valid.
-        port_adr.eq(axi_lite.ar.addr[adr_shift:]),
-        axi_lite.r.data.eq(port_dat_r),
+        axi_lite.r.data.eq(port_dat_r_latched),
         axi_lite.r.resp.eq(RESP_OKAY),
         axi_lite.r.valid.eq(1),
         If(axi_lite.r.ready,
