@@ -132,11 +132,12 @@ class AXILiteInterface:
 
 def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=None):
     """Connection of AXILite to simple bus with 1-cycle latency, such as CSR bus or Memory port"""
-    bus_data_width     = axi_lite.data_width
-    adr_shift          = log2_int(bus_data_width//8)
-    do_read            = Signal()
-    do_write           = Signal()
-    last_was_read      = Signal()
+    bus_data_width = axi_lite.data_width
+    adr_shift      = log2_int(bus_data_width//8)
+    do_read        = Signal()
+    do_write       = Signal()
+    last_was_read  = Signal()
+
     port_dat_r_latched = Signal(axi_lite.data_width)
 
     comb = []
@@ -777,7 +778,8 @@ class AXILiteInterconnectShared(LiteXModule):
     """AXI Lite shared interconnect"""
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
         data_width = get_check_parameters(ports=masters + [s for _, s in slaves])
-        shared = AXILiteInterface(data_width=data_width)
+        adr_width = max([m.address_width for m in masters])
+        shared = AXILiteInterface(data_width=data_width, address_width=adr_width)
         self.arbiter = AXILiteArbiter(masters, shared)
         self.decoder = AXILiteDecoder(shared, slaves)
         if timeout_cycles is not None:
@@ -790,8 +792,9 @@ class AXILiteCrossbar(LiteXModule):
     """
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
         data_width = get_check_parameters(ports=masters + [s for _, s in slaves])
+        adr_width = max([m.address_width for m in masters])
         matches, busses = zip(*slaves)
-        access_m_s = [[AXILiteInterface(data_width=data_width) for j in slaves] for i in masters]  # a[master][slave]
+        access_m_s = [[AXILiteInterface(data_width=data_width, address_width=adr_width) for j in slaves] for i in masters]  # a[master][slave]
         access_s_m = list(zip(*access_m_s))  # a[slave][master]
         # Decode each master into its access row.
         for slaves, master in zip(access_m_s, masters):
