@@ -1039,9 +1039,17 @@ class SoC(LiteXModule, SoCCoreCompat):
             "axi-lite": axi.AXILite2CSR,
             "axi"     : axi.AXILite2CSR, # Note: CSR is a slow bus so using AXI-Lite is fine.
         }[self.bus.standard]
+        bus_bridge_cls = {
+            "wishbone": wishbone.Interface,
+            "axi-lite": axi.AXILiteInterface,
+            "axi"     : axi.AXILiteInterface,
+        }[self.bus.standard]
         csr_bridge_name = f"{name}_bridge"
         self.check_if_exists(csr_bridge_name)
         csr_bridge = csr_bridge_cls(
+            bus_bridge_cls(
+                address_width = self.bus.address_width,
+                data_width    = self.bus.data_width),
             bus_csr = csr_bus.Interface(
                 address_width = self.csr.address_width,
                 data_width    = self.csr.data_width),
