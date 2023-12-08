@@ -5,6 +5,7 @@
 	- liteeth/arp           : Fixed response on table update.
 	- litesata/us(p)sataphy : Fixed data_width=32 case.
 	- clock/lattice_ecp5    : Fixed phase calculation.
+	- interconnect/axi      : Fixed AXILite2CSR read access (1 CSR cycle instead of 2).
 
 	[> Added
 	--------
@@ -32,6 +33,7 @@
 	- soc/cores/clock       : Added proper clock feedback support on Efinix TRIONPLL.
 	- liteiclink/phy        : Added Efinix support/examples on Trion/Titanium.
 	- liteiclink/serwb      : Reused Etherbone from LiteEth to avoid code duplication.
+	- interconnect          : Added 64-bit support to Wishbone/AXI-Lite/AXI.
 
 	[> Changed
 	----------
