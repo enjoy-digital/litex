@@ -1527,7 +1527,11 @@ class LiteXSoC(SoC):
         # Core.
         self.check_if_exists(name)
         jtagbone_phy = JTAGPHY(device=self.platform.device, chain=chain, platform=self.platform)
-        jtagbone = uart.UARTBone(phy=jtagbone_phy, clk_freq=self.sys_clk_freq)
+        jtagbone = uart.UARTBone(
+            phy           = jtagbone_phy,
+            clk_freq      = self.sys_clk_freq,
+            address_width = self.bus.address_width
+        )
         self.add_module(name=f"{name}_phy", module=jtagbone_phy)
         self.add_module(name=name,          module=jtagbone)
         self.bus.add_master(name=name, master=jtagbone.wishbone)
