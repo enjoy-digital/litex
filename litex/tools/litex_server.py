@@ -231,7 +231,7 @@ def main():
         jtag_uart = JTAGUART(config=args.jtag_config, chain=int(args.jtag_chain))
         jtag_uart.open()
         print("[CommUART] port: JTAG / ", end="")
-        comm = CommUART(os.ttyname(jtag_uart.name), debug=args.debug)
+        comm = CommUART(os.ttyname(jtag_uart.name), debug=args.debug, addr_width=int(args.addr_width))
 
     # UDP mode
     elif args.udp:
@@ -250,7 +250,7 @@ def main():
             exit()
         else:
             print("[CommUDP] ip: {} / port: {} / ".format(udp_ip, udp_port), end="")
-            comm = CommUDP(udp_ip, udp_port, debug=args.debug)
+            comm = CommUDP(udp_ip, udp_port, debug=args.debug, addr_width=int(args.addr_width))
 
     # PCIe mode
     elif args.pcie:
