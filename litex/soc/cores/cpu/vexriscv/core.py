@@ -220,7 +220,7 @@ class VexRiscv(CPU, AutoCSR):
         self.debug_bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
 
         self.sync += self.debug_bus.dat_r.eq(self.o_rsp_data)
-        self.sync += debug_reset.eq(reset_debug_logic | ResetSignal())
+        self.sync += debug_reset.eq(reset_debug_logic)
 
         self.sync += [
             # CYC is held high for the duration of the transfer.
@@ -271,7 +271,7 @@ class VexRiscv(CPU, AutoCSR):
             i_reset                         = ResetSignal("sys") | self.reset | debug_reset,
             i_iBusWishbone_ERR              = self.ibus.err | ibus_err,
             i_dBusWishbone_ERR              = self.dbus.err | dbus_err,
-            i_debugReset                    = ResetSignal("sys"),
+            i_debugReset                    = ResetSignal("sys") | self.reset,
             i_debug_bus_cmd_valid           = self.i_cmd_valid,
             i_debug_bus_cmd_payload_wr      = self.i_cmd_payload_wr,
             i_debug_bus_cmd_payload_address = self.i_cmd_payload_address,
@@ -320,7 +320,7 @@ class VexRiscv(CPU, AutoCSR):
             i_rsp_ready                = cfu_bus.rsp.ready,
             o_rsp_payload_outputs_0    = cfu_bus.rsp.payload.outputs_0,
             i_clk                      = ClockSignal("sys"),
-            i_reset                    = ResetSignal("sys"),
+            i_reset                    = ResetSignal("sys") | self.reset,
         )
         self.platform.add_source(cfu_filename)
 
