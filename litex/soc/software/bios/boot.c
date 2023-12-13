@@ -99,7 +99,7 @@ void romboot(void)
 #ifdef CSR_UART_BASE
 
 #define ACK_TIMEOUT_DELAY CONFIG_CLOCK_FREQUENCY/4
-#define CMD_TIMEOUT_DELAY CONFIG_CLOCK_FREQUENCY/16
+#define CMD_TIMEOUT_DELAY CONFIG_CLOCK_FREQUENCY/4
 
 static void timer0_load(unsigned int value) {
 	timer0_en_write(0);
