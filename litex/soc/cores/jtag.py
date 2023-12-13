@@ -448,12 +448,16 @@ class JTAGPHY(LiteXModule):
 
         # JTAG clock domain crossing ---------------------------------------------------------------
         if clock_domain != "jtag":
-            tx_cdc = stream.AsyncFIFO([("data", data_width)], 4)
-            tx_cdc = ClockDomainsRenamer({"write": clock_domain, "read": "jtag"})(tx_cdc)
-            rx_cdc = stream.AsyncFIFO([("data", data_width)], 4)
-            rx_cdc = ClockDomainsRenamer({"write": "jtag", "read": clock_domain})(rx_cdc)
-            self.tx_cdc = tx_cdc
-            self.rx_cdc = rx_cdc
+            self.tx_cdc = tx_cdc = stream.ClockDomainCrossing([("data", data_width)],
+                cd_from         = clock_domain,
+                cd_to           = "jtag",
+                with_common_rst = True
+            )
+            self.rx_cdc = rx_cdc = stream.ClockDomainCrossing([("data", data_width)],
+                cd_from         = "jtag",
+                cd_to           = clock_domain,
+                with_common_rst = True
+            )
             self.comb += [
                 sink.connect(tx_cdc.sink),
                 rx_cdc.source.connect(source)
