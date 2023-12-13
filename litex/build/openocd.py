@@ -144,8 +144,8 @@ proc jtagstream_drain {tap tx chunk_rx max_rx} {
 
 proc jtagstream_rxtx {tap client is_poll} {
     if {![$client eof]} {
-        set tx [$client read 512]
-        set rx [jtagstream_drain $tap $tx 512 4096]
+        set tx [$client read 16]
+        set rx [jtagstream_drain $tap $tx 128 4096]
         if {[string length $rx]} {
             #echo [string length $rx]
             $client puts -nonewline $rx
