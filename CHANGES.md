@@ -34,6 +34,8 @@
 	- liteiclink/phy        : Added Efinix support/examples on Trion/Titanium.
 	- liteiclink/serwb      : Reused Etherbone from LiteEth to avoid code duplication.
 	- interconnect          : Added 64-bit support to Wishbone/AXI-Lite/AXI.
+	- jtag                  : Fixed firmware upload over JTAG-UART.
+	- jtag                  : Improved speed (~X16) on JTABone/JTAGUART on all supported devices (Xilinx, Altera, Efinix, etc...)
 
 	[> Changed
 	----------
