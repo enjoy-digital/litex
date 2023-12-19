@@ -36,6 +36,7 @@
 	- interconnect          : Added 64-bit support to Wishbone/AXI-Lite/AXI.
 	- jtag                  : Fixed firmware upload over JTAG-UART.
 	- jtag                  : Improved speed (~X16) on JTABone/JTAGUART on all supported devices (Xilinx, Altera, Efinix, etc...)
+	- litesata/phy          : Added GTHE4 support on Ultrascale+.
 
 	[> Changed
 	----------
