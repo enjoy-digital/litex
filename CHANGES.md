@@ -40,7 +40,8 @@
 
 	[> Changed
 	----------
-	- build/osfpga: Removed initial support (would need feedbacks/updates).
+	- build/osfpga          : Removed initial support (would need feedbacks/updates).
+	- python3               : Updated minimum python3 version to 3.7 (To allow more than 255 arguments in functions).
 
 [> 2023.08, released on September 14th 2023
 -------------------------------------------

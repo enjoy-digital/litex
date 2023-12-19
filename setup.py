@@ -20,7 +20,7 @@ setup(
     download_url                  = "https://github.com/enjoy-digital/litex",
     test_suite                    = "test",
     license                       = "BSD",
-    python_requires               = "~=3.6",
+    python_requires               = "~=3.7",
     install_requires              = [
         "migen",
         "packaging",
