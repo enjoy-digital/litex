@@ -284,11 +284,6 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
 
             else:
                 cmd += 'design.set_property("{}","EXT_CLK","EXT_CLK{}","PLL")\n'.format(name, block["clock_no"])
-                if block["feedback"] != -1:
-                    cmd += 'design.set_property("{}","FEEDBACK_MODE","{}","PLL")\n'.format(name, "CORE" if block["feedback"] == 0 else "LOCAL")
-                    cmd += 'design.set_property("{}","FEEDBACK_CLK","CLK{}","PLL")\n'.format(name, block["feedback"])
-                else:
-                    cmd += 'design.set_property("{}","FEEDBACK_MODE","INTERNAL","PLL")\n'.format(name)
                 cmd += 'design.assign_resource("{}","{}","PLL")\n'.format(name, block["resource"])
 
 
@@ -344,6 +339,9 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                     cmd += '    "CLKOUT{}_DYNPHASE_EN": "1",\n'.format(i)
             cmd += "}\n"
 
+            if block["version"] == "V1_V2":
+                cmd += 'design.set_property("{}","FEEDBACK_MODE","INTERNAL","PLL")\n'.format(name)
+
             cmd += 'calc_result = design.auto_calc_pll_clock("{}", target_freq)\n'.format(name)
             cmd += 'for c in calc_result:\n'
             cmd += '    print(c)\n'
@@ -355,6 +353,8 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                 cmd += 'design.set_property("{}","CLKOUT{}_PHASE","{}","PLL")\n'.format(name, i, clock[2])
                 #cmd += 'design.set_property("{}","CLKOUT{}_FREQ","{}","PLL")\n'.format(name, i, clock[2])
                 cmd += 'design.set_property("{}","CLKOUT{}_DIV","{}","PLL")\n'.format(name, i, block[f"CLKOUT{i}_DIV"])
+            cmd += 'design.set_property("{}","FEEDBACK_MODE","{}","PLL")\n'.format(name, "LOCAL" if block["feedback"] == 0 else "CORE")
+            cmd += 'design.set_property("{}","FEEDBACK_CLK","CLK{}","PLL")\n'.format(name, block["feedback"])
 
         if "extra" in block:
             cmd += block["extra"]
