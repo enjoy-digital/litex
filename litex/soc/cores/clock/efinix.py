@@ -240,23 +240,24 @@ class EFINIXPLL(LiteXModule):
                             # no solution found for this clk: params are uncompatibles
                             if found == False:
                                 break
-                        if len(cx_list) == 2:
-                            params_list.append([n, m, o, c, cx_list[0], cx_list[1]])
+                        if len(cx_list) == n_out:
+                            params_list.append([n, m, o, c, cx_list])
         vco_max_freq = 0
         o_div_max    = 0
         params_list2 = []
         for p in params_list:
-            (n, m, o, c, c0, c1) = p
+            (n, m, o, c, cx_list) = p
             fpfd_tmp             = clk_in_freq / n
             fvco_tmp             = fpfd_tmp * m * o * c
-            if o > o_div_max:
-                o_div_max = o
             # Interface designer always select high VCO freq
             if fvco_tmp > vco_max_freq:
                 vco_max_freq = fvco_tmp
                 params_list2.clear()
+                o_div_max = 0
             fpll_tmp = fvco_tmp / o
             if fvco_tmp == vco_max_freq:
+                if o > o_div_max:
+                    o_div_max = o
                 params_list2.append({
                     "fvco" : fvco_tmp,
                     "fpll" : fpll_tmp,
@@ -265,8 +266,7 @@ class EFINIXPLL(LiteXModule):
                     "N"    : n,
                     "O"    : o,
                     "Cfbk" : c,
-                    "c0"   : c0,
-                    "c1"   : c1,
+                     **{f"c{n}" : cx_list[n] for n in range(n_out)},
                 })
 
         # Again: Interface Designer prefers high O divider.
