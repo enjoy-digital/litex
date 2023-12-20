@@ -38,6 +38,7 @@
 	- jtag                  : Improved speed (~X16) on JTABone/JTAGUART on all supported devices (Xilinx, Altera, Efinix, etc...)
 	- litesata/phy          : Added GTHE4 support on Ultrascale+.
 	- litex_boards          : Added Machdyne's Mozart with the Sechzig ML1 module support.
+	- liteiclink            : Added clk_ratio of 1:2, 1:4 on Efinix/SerWB to allow make clocking more flexible.
 
 	[> Changed
 	----------
