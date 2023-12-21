@@ -83,6 +83,7 @@ class MicrosemiLiberoSoCPolarfireToolchain(GenericToolchain):
     def build_project(self):
         tcl = []
 
+        die, package, speed = self.platform.device.split("-")
         # Create project
         tcl.append(" ".join([
             "new_project",
@@ -96,36 +97,18 @@ class MicrosemiLiberoSoCPolarfireToolchain(GenericToolchain):
             "-use_enhanced_constraint_flow 1",
             "-hdl {VERILOG}",
             "-family {PolarFire}",
-            "-die {}",
-            "-package {}",
-            "-speed {}",
-            "-die_voltage {}",
-            "-part_range {}",
-            "-adv_options {}"
-            ]))
-
-        die, package, speed = self.platform.device.split("-")
-        tcl.append(" ".join([
-            "set_device",
-            "-family {PolarFire}",
-            "-die {}".format(self.tcl_name(die)),
+	    "-die {}".format(self.tcl_name(die)),
             "-package {}".format(self.tcl_name(package)),
             "-speed {}".format(self.tcl_name("-" + speed)),
-            # FIXME: common to all PolarFire devices?
             "-die_voltage {1.0}",
-            "-part_range {EXT}",
-            "-adv_options {IO_DEFT_STD:LVCMOS 1.8V}",
-            "-adv_options {RESTRICTPROBEPINS:1}",
-            "-adv_options {RESTRICTSPIPINS:0}",
-            "-adv_options {TEMPR:EXT}",
-            "-adv_options {UNUSED_MSS_IO_RESISTOR_PULL:None}",
+            "-part_range {IND}",
             "-adv_options {VCCI_1.2_VOLTR:EXT}",
             "-adv_options {VCCI_1.5_VOLTR:EXT}",
             "-adv_options {VCCI_1.8_VOLTR:EXT}",
             "-adv_options {VCCI_2.5_VOLTR:EXT}",
             "-adv_options {VCCI_3.3_VOLTR:EXT}",
             "-adv_options {VOLTR:EXT} "
-        ]))
+            ]))
 
         # Add sources
         for filename, language, library, *copy in self.platform.sources:
