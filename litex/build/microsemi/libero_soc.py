@@ -103,12 +103,11 @@ class MicrosemiLiberoSoCPolarfireToolchain(GenericToolchain):
             "-speed {}".format(self.tcl_name("-" + speed)),
             "-die_voltage {1.0}",
             "-part_range {IND}",
-            "-adv_options {VCCI_1.2_VOLTR:EXT}",
-            "-adv_options {VCCI_1.5_VOLTR:EXT}",
-            "-adv_options {VCCI_1.8_VOLTR:EXT}",
-            "-adv_options {VCCI_2.5_VOLTR:EXT}",
-            "-adv_options {VCCI_3.3_VOLTR:EXT}",
-            "-adv_options {VOLTR:EXT} "
+            "-adv_options {VCCI_1.2_VOLTR:IND}",
+            "-adv_options {VCCI_1.5_VOLTR:IND}",
+            "-adv_options {VCCI_1.8_VOLTR:IND}",
+            "-adv_options {VCCI_2.5_VOLTR:IND}",
+            "-adv_options {VCCI_3.3_VOLTR:IND}"
             ]))
 
         # Add sources
