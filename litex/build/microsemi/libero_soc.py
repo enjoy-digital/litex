@@ -115,13 +115,16 @@ class MicrosemiLiberoSoCPolarfireToolchain(GenericToolchain):
             filename_tcl = "{" + filename + "}"
             tcl.append("import_files -hdl_source " + filename_tcl)
 
+	# Building the design Hierarchy
+        tcl.append("build_design_hierarchy")
         # Set top level
-        tcl.append("set_root -module {}".format(self.tcl_name(self._build_name)))
+        tcl.append("set_root -module {}".format(self.tcl_name(self._build_name + "::work")))
 
         # Copy init files FIXME: support for include path on LiberoSoC?
-        for file in os.listdir(self._build_dir):
-            if file.endswith(".init"):
-                tcl.append("file copy -- {} impl/synthesis".format(file))
+        # Commenting out copy init file as this breaks the LiberoSoC flow.
+#        for file in os.listdir(self._build_dir):
+#            if file.endswith(".init"):
+#                tcl.append("file copy -- {} impl/synthesis".format(file))
 
         # Import io constraints
         tcl.append("import_files -io_pdc {}".format(self.tcl_name(self._build_name + "_io.pdc")))
