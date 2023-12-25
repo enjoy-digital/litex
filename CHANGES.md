@@ -1,5 +1,5 @@
-[> Changes since 2023.08
-------------------------
+[> 2023.12, released on December 25th 2023
+------------------------------------------
 	[> Fixed
 	--------
 	- liteeth/arp           : Fixed response on table update.
