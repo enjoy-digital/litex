@@ -1651,9 +1651,9 @@ class LiteXSoC(SoC):
                     else:
                         mem_wb  = wishbone.Interface(
                             data_width = self.cpu.mem_axi.data_width,
-                            adr_width  = 32-log2_int(mem_bus.data_width//8,
+                            adr_width  = 32-log2_int(mem_bus.data_width//8),
                             addressing = "word",
-                        ))
+                        )
                         mem_a2w = axi.AXI2Wishbone(
                             axi          = mem_bus,
                             wishbone     = mem_wb,
