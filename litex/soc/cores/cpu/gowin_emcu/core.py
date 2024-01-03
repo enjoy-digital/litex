@@ -23,7 +23,6 @@ class GowinEMCU(CPU):
     data_width           = 32
     endianness           = "little"
     gcc_triple           = "arm-none-eabi"
-    gcc_flags            = "-mcpu=cortex-m3 -mthumb"
     linker_output_format = "elf32-littlearm"
     nop                  = "nop"
     io_regions           = {
@@ -32,6 +31,7 @@ class GowinEMCU(CPU):
         0xa000_0000: 0x6000_0000
     }
 
+    # Memory Mapping.
     @property
     def mem_map(self):
         return {
@@ -40,6 +40,13 @@ class GowinEMCU(CPU):
             "peripherals" : 0x4000_0000,
             "csr"         : 0xa000_0000,
         }
+
+    # GCC Flags.
+    @property
+    def gcc_flags(self):
+        flags =  f" -mcpu=cortex-m3 -mthumb"
+        flags += f" -DUART_POLLING"
+        return flags
 
     def __init__(self, platform, variant, *args, **kwargs):
         super().__init__(*args, **kwargs)

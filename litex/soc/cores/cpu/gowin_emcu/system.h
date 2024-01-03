@@ -16,7 +16,6 @@ void busy_wait_us(unsigned int us);
 
 // FIXME
 #define CSR_UART_BASE
-#define UART_POLLING
 
 struct EMCU_UART
 {
