@@ -161,7 +161,7 @@ class GowinEMCU(CPU):
                     i_NVSTR = 0
                 )
 
-        ahb_flash = ahb.AHBInterface()
+        ahb_flash = ahb.AHBInterface(data_width=32, address_width=32)
         self.cpu_params.update(
             o_TARGFLASH0HADDR     = ahb_flash.addr,
             o_TARGFLASH0HBURST    = ahb_flash.burst,
@@ -179,7 +179,7 @@ class GowinEMCU(CPU):
 
         # Peripheral Bus (AHB -> Wishbone).
         # ---------------------------------
-        ahb_targexp0 = ahb.AHBInterface()
+        ahb_targexp0 = ahb.AHBInterface(data_width=32, address_width=32)
         self.cpu_params.update(
             o_TARGEXP0HADDR     = ahb_targexp0.addr,
             o_TARGEXP0HBURST    = ahb_targexp0.burst,
