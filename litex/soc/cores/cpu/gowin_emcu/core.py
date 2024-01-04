@@ -62,8 +62,7 @@ class GowinEMCU(CPU):
         # -------------
 
         bus_reset_n = Signal()
-        self.cpu_params = dict()
-        self.cpu_params.update(
+        self.cpu_params = dict(
             # Clk/Rst.
             i_FCLK           = ClockSignal("sys"),
             i_PORESETN       = ~ (ResetSignal("sys") | self.reset),
@@ -88,18 +87,13 @@ class GowinEMCU(CPU):
             i_FLASHINT       = Signal(),
         )
 
-        # SRAM (32-bit RAM split between 8 SRAMs x 4 bit each).
+        # SRAM (32-bit RAM split between 8 SRAMs x 4-bit each).
         # -----------------------------------------------------
-
-        # Parameters.
-        sram_dw        = 32
-        single_sram_dw = 4
-        nsrams         = sram_dw // single_sram_dw
 
         # CPU SRAM Interface.
         sram0_addr  = Signal(13)
-        sram0_rdata = Signal(sram_dw)
-        sram0_wdata = Signal(sram_dw)
+        sram0_rdata = Signal(32)
+        sram0_wdata = Signal(32)
         sram0_cs    = Signal()
         sram0_wren  = Signal(4)
         self.cpu_params.update(
@@ -111,27 +105,23 @@ class GowinEMCU(CPU):
         )
 
         # SRAMS Instances.
-        for i in range(nsrams):
+        for i in range(8):
             self.specials += Instance("SDPB",
                 p_READ_MODE   = 0,
-                p_BIT_WIDTH_0 = single_sram_dw,
-                p_BIT_WIDTH_1 = single_sram_dw,
+                p_BIT_WIDTH_0 = 4,
+                p_BIT_WIDTH_1 = 4,
                 p_RESET_MODE  = "SYNC",
-                p_BLK_SEL_0   = 0b111,
-                p_BLK_SEL_1   = 0b111,
-                o_DO      = Cat(sram0_rdata[i * single_sram_dw: (i + 1) * single_sram_dw], Signal(sram_dw - single_sram_dw)),
-                i_DI      = Cat(sram0_wdata[i * single_sram_dw: (i + 1) * single_sram_dw], Signal(sram_dw - single_sram_dw)),
-                i_ADA     = Cat(Signal(2), sram0_addr[:-1]),
-                i_ADB     = Cat(Signal(2), sram0_addr[:-1]),
-                i_CEA     = sram0_wren[i // 2],
-                i_CEB     = ~sram0_wren[i // 2],
+                o_DO      = sram0_rdata[4*i:4*(i + 1)],
+                i_DI      = sram0_wdata[4*i:4*(i + 1)],
+                i_ADA     = Cat(Signal(2), sram0_addr),
+                i_ADB     = Cat(Signal(2), sram0_addr),
+                i_CEA     = sram0_cs &  sram0_wren[i//2],
+                i_CEB     = sram0_cs & ~sram0_wren[i//2],
                 i_CLKA    = ClockSignal("sys"),
                 i_CLKB    = ClockSignal("sys"),
                 i_RESETA  = ~bus_reset_n,
                 i_RESETB  = ~bus_reset_n,
                 i_OCE     = 1,
-                i_BLKSELA = Cat(sram0_cs, sram0_cs, sram0_cs),
-                i_BLKSELB = Cat(sram0_cs, sram0_cs, sram0_cs),
             )
 
         # Flash (Boot Flash memory connected via AHB).
