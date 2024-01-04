@@ -47,7 +47,6 @@ class GowinEMCU(CPU):
     def gcc_flags(self):
         flags =  f" -march=armv7-m -mthumb"
         flags += f" -D__CortexM3__"
-        flags += f" -DUART_POLLING"
         return flags
 
     def __init__(self, platform, variant="standard"):
@@ -64,8 +63,8 @@ class GowinEMCU(CPU):
         self.cpu_params = dict(
             # Clk/Rst.
             i_FCLK           = ClockSignal("sys"),
-            i_PORESETN       = ~ (ResetSignal("sys") | self.reset),
-            i_SYSRESETN      = ~ (ResetSignal("sys") | self.reset),
+            i_PORESETN       = ~(ResetSignal("sys") | self.reset),
+            i_SYSRESETN      = ~(ResetSignal("sys") | self.reset),
             i_MTXREMAP       = Signal(4, reset=0b1111),
             o_MTXHRESETN     = bus_reset_n,
 

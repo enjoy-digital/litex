@@ -19,9 +19,6 @@ void _start(void) {
     for (uint32_t *x = &_fbss; x < &_ebss; x ++)
         *x = 0;
 
-    UART0->ctrl = 0b11; // set rx and tx enable bits
-    UART0->baud_div = CONFIG_CLOCK_FREQUENCY / 115200; // FIXME
-
     __asm__("bl main");
     while(1);
 }
