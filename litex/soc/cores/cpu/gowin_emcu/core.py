@@ -87,7 +87,7 @@ class GowinEMCU(CPU):
             i_FLASHINT       = Signal(),
         )
 
-        # SRAM (32-bit RAM split between 8 SRAMs x 4-bit each).
+        # SRAM (32-bit RAM split between 4 SRAMs x 8-bit each).
         # -----------------------------------------------------
 
         # CPU SRAM Interface.
@@ -105,18 +105,18 @@ class GowinEMCU(CPU):
         )
 
         # SRAMS Instances.
-        for i in range(8):
+        for i in range(4):
             self.specials += Instance("SDPB",
                 p_READ_MODE   = 0,
-                p_BIT_WIDTH_0 = 4,
-                p_BIT_WIDTH_1 = 4,
+                p_BIT_WIDTH_0 = 8,
+                p_BIT_WIDTH_1 = 8,
                 p_RESET_MODE  = "SYNC",
-                o_DO      = sram0_rdata[4*i:4*(i + 1)],
-                i_DI      = sram0_wdata[4*i:4*(i + 1)],
-                i_ADA     = Cat(Signal(2), sram0_addr),
-                i_ADB     = Cat(Signal(2), sram0_addr),
-                i_CEA     = sram0_cs &  sram0_wren[i//2],
-                i_CEB     = sram0_cs & ~sram0_wren[i//2],
+                o_DO      = sram0_rdata[8*i:8*(i + 1)],
+                i_DI      = sram0_wdata[8*i:8*(i + 1)],
+                i_ADA     = Cat(Signal(3), sram0_addr),
+                i_ADB     = Cat(Signal(3), sram0_addr),
+                i_CEA     = sram0_cs &  sram0_wren[i],
+                i_CEB     = sram0_cs,
                 i_CLKA    = ClockSignal("sys"),
                 i_CLKB    = ClockSignal("sys"),
                 i_RESETA  = ~bus_reset_n,
