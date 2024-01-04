@@ -1,3 +1,19 @@
+[> Changes since 2023.12
+------------------------
+	[> Fixed
+	--------
+	- integration/soc               : Fixed typo in cpu mem_bus axi-via-wb downconvert
+	- interconnect/ahb/AHB2Wishbone : Fix size check that was too restrictive.
+
+	[> Added
+	--------
+	- build/openfpgaloader          : Added kwargs support to flash for specific/less common cases.
+	- cpu/gowin_emcu                : Improved/Cleaned-up.
+	- interconnect/ahb              : Added data_width/address_width parameters.
+
+	[> Changed
+	----------
+
 [> 2023.12, released on December 25th 2023
 ------------------------------------------
 	[> Fixed
