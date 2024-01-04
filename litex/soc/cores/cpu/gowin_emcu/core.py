@@ -53,7 +53,7 @@ class GowinEMCU(CPU):
     def __init__(self, platform, variant="standard"):
         self.platform      = platform
         self.reset         = Signal()
-        self.pbus          = wishbone.Interface(data_width=32, adr_width=30, addressing="word")
+        self.pbus          = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
         self.periph_buses  = [self.pbus]
         self.memory_buses  = []
 
