@@ -13,7 +13,7 @@ from litex.soc.cores.cpu import CPU
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect import ahb
 
-# Gowin EMCU ---------------------------------------------------------------------------------------
+# Gowin EMCU (Enhanced MCU / Cortex M3) ------------------------------------------------------------
 
 class GowinEMCU(CPU):
     variants             = ["standard"]
@@ -61,7 +61,10 @@ class GowinEMCU(CPU):
         # CPU Instance.
         # -------------
 
-        bus_reset_n = Signal()
+        bus_reset_n  = Signal()
+        ahb_flash    = ahb.AHBInterface(data_width=32, address_width=32)
+        ahb_targexp0 = ahb.AHBInterface(data_width=32, address_width=32)
+
         self.cpu_params = dict(
             # Clk/Rst.
             i_FCLK           = ClockSignal("sys"),
@@ -71,20 +74,95 @@ class GowinEMCU(CPU):
             o_MTXHRESETN     = bus_reset_n,
 
             # RTC.
-            i_RTCSRCCLK      = Signal(),  # TODO: RTC Clk In.
+            i_RTCSRCCLK      = 0b0, # RTC Clk In.
 
             # GPIOs.
-            i_IOEXPINPUTI    = Signal(), # TODO: GPIO Input  (16-bit).
-            o_IOEXPOUTPUTO   = Signal(), # TODO: GPIO Output (16-bit).
-            o_IOEXPOUTPUTENO = Signal(), # TODO: GPIO Output Enable (16-bit).
+            i_IOEXPINPUTI    = 0x0000,   # GPIO Input  (16-bit).
+            o_IOEXPOUTPUTO   = Open(16), # GPIO Output (16-bit).
+            o_IOEXPOUTPUTENO = Open(16), # GPIO Output Enable (16-bit).
+
+            # UART0.
+            i_UART0RXDI     = 0b0,
+            o_UART0TXDO     = Open(),
+            o_UART0BAUDTICK = Open(),
+
+            # UART1.
+            i_UART1RXDI     = 0b0,
+            o_UART1TXDO     = Open(),
+            o_UART1BAUDTICK = Open(),
 
             # Interrupts.
-            i_GPINT          = Open(),
-            o_INTMONITOR     = Signal(),
+            i_GPINT          = 0,
+            o_INTMONITOR     = Open(),
 
             # Flash.
             i_FLASHERR       = Signal(),
             i_FLASHINT       = Signal(),
+
+            # Debug/JTAG.
+            o_DAPTDO      = Open(),
+            o_DAPJTAGNSW  = Open(),
+            o_DAPNTDOEN   = Open(),
+            i_DAPSWDITMS  = 0,
+            i_DAPTDI      = 0,
+            i_DAPNTRST    = 0,
+            i_DAPSWCLKTCK = 0,
+
+            # TARGFLASH0 / AHBLite Master.
+            o_TARGFLASH0HSEL      = ahb_flash.sel,
+            o_TARGFLASH0HADDR     = ahb_flash.addr,
+            o_TARGFLASH0HTRANS    = ahb_flash.trans,
+            o_TARGFLASH0HSIZE     = ahb_flash.size,
+            o_TARGFLASH0HBURST    = ahb_flash.burst,
+            o_TARGFLASH0HREADYMUX = Open(),
+            i_TARGFLASH0HRDATA    = ahb_flash.rdata,
+            i_TARGFLASH0HRUSER    = 0b000,
+            i_TARGFLASH0HRESP     = ahb_flash.resp,
+            i_TARGFLASH0EXRESP    = 0b0,
+            i_TARGFLASH0HREADYOUT = ahb_flash.readyout,
+
+            # TARGEXP0 / AHBLite Master.
+            o_TARGEXP0HSEL        = ahb_targexp0.sel,
+            o_TARGEXP0HADDR       = ahb_targexp0.addr,
+            o_TARGEXP0HTRANS      = ahb_targexp0.trans,
+            o_TARGEXP0HWRITE      = ahb_targexp0.write,
+            o_TARGEXP0HSIZE       = ahb_targexp0.size,
+            o_TARGEXP0HBURST      = ahb_targexp0.burst,
+            o_TARGEXP0HPROT       = ahb_targexp0.prot,
+            o_TARGEXP0MEMATTR     = Open(2),
+            o_TARGEXP0EXREQ       = Open(),
+            o_TARGEXP0HMASTER     = Open(4),
+            o_TARGEXP0HWDATA      = ahb_targexp0.wdata,
+            o_TARGEXP0HMASTLOCK   = ahb_targexp0.mastlock,
+            o_TARGEXP0HREADYMUX   = Open(),
+            o_TARGEXP0HAUSER      = Open(),
+            o_TARGEXP0HWUSER      = Open(4),
+            i_TARGEXP0HRDATA      = ahb_targexp0.rdata,
+            i_TARGEXP0HREADYOUT   = ahb_targexp0.readyout,
+            i_TARGEXP0HRESP       = ahb_targexp0.resp,
+            i_TARGEXP0EXRESP      = 0b0,
+            i_TARGEXP0HRUSER      = 0b000,
+
+            # INITEXP0 / AHBLite Slave.
+            o_INITEXP0HRDATA    = Open(32),
+            o_INITEXP0HREADY    = Open(),
+            o_INITEXP0HRESP     = Open(),
+            o_INITEXP0EXRESP    = Open(),
+            o_INITEXP0HRUSER    = Open(3),
+            i_INITEXP0HSEL      = 0b0,
+            i_INITEXP0HADDR     = 0x00000000,
+            i_INITEXP0HTRANS    = 0b00,
+            i_INITEXP0HWRITE    = 0b0,
+            i_INITEXP0HSIZE     = 0b000,
+            i_INITEXP0HBURST    = 0b000,
+            i_INITEXP0HPROT     = 0b0000,
+            i_INITEXP0MEMATTR   = 0b00,
+            i_INITEXP0EXREQ     = 0b0,
+            i_INITEXP0HMASTER   = 0b0000,
+            i_INITEXP0HWDATA    = 0x00000000,
+            i_INITEXP0HMASTLOCK = 0b0,
+            i_INITEXP0HAUSER    = 0b0,
+            i_INITEXP0HWUSER    = 0b0000,
         )
 
         # SRAM (32-bit RAM split between 4 SRAMs x 8-bit each).
@@ -111,6 +189,10 @@ class GowinEMCU(CPU):
                 p_BIT_WIDTH_0 = 8,
                 p_BIT_WIDTH_1 = 8,
                 p_RESET_MODE  = "SYNC",
+                p_BLK_SEL_0   = Constant(0, 3),
+                p_BLK_SEL_1   = Constant(0, 3),
+                i_BLKSELA = 0b000,
+                i_BLKSELB = 0b000,
                 o_DO      = sram0_rdata[8*i:8*(i + 1)],
                 i_DI      = sram0_wdata[8*i:8*(i + 1)],
                 i_ADA     = Cat(Signal(3), sram0_addr),
@@ -161,39 +243,12 @@ class GowinEMCU(CPU):
                     i_NVSTR = 0
                 )
 
-        ahb_flash = ahb.AHBInterface(data_width=32, address_width=32)
-        self.cpu_params.update(
-            o_TARGFLASH0HADDR     = ahb_flash.addr,
-            o_TARGFLASH0HBURST    = ahb_flash.burst,
-            o_TARGFLASH0HSIZE     = ahb_flash.size,
-            o_TARGFLASH0HTRANS    = ahb_flash.trans,
-            o_TARGFLASH0HSEL      = ahb_flash.sel,
-            i_TARGFLASH0HRDATA    = ahb_flash.rdata,
-            i_TARGFLASH0HREADYOUT = ahb_flash.readyout,
-            i_TARGFLASH0HRESP     = ahb_flash.resp,
-        )
         flash = ResetInserter()(AHBFlash(ahb_flash))
         self.comb += flash.reset.eq(~bus_reset_n)
         self.submodules += flash
 
-
         # Peripheral Bus (AHB -> Wishbone).
         # ---------------------------------
-        ahb_targexp0 = ahb.AHBInterface(data_width=32, address_width=32)
-        self.cpu_params.update(
-            o_TARGEXP0HADDR     = ahb_targexp0.addr,
-            o_TARGEXP0HBURST    = ahb_targexp0.burst,
-            o_TARGEXP0HMASTLOCK = ahb_targexp0.mastlock,
-            o_TARGEXP0HPROT     = ahb_targexp0.prot,
-            o_TARGEXP0HSIZE     = ahb_targexp0.size,
-            o_TARGEXP0HTRANS    = ahb_targexp0.trans,
-            o_TARGEXP0HWDATA    = ahb_targexp0.wdata,
-            o_TARGEXP0HWRITE    = ahb_targexp0.write,
-            o_TARGEXP0HSEL      = ahb_targexp0.sel,
-            i_TARGEXP0HRDATA    = ahb_targexp0.rdata,
-            i_TARGEXP0HREADYOUT = ahb_targexp0.readyout,
-            i_TARGEXP0HRESP     = ahb_targexp0.resp,
-        )
         self.submodules += ahb.AHB2Wishbone(ahb_targexp0, self.pbus)
 
     def connect_uart(self, pads, n=0):
