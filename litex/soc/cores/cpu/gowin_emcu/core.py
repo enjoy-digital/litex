@@ -53,7 +53,6 @@ class GowinEMCU(CPU):
     def __init__(self, platform, variant="standard"):
         self.platform      = platform
         self.reset         = Signal()
-        self.interrupt     = Signal(5)
         self.pbus          = wishbone.Interface(data_width=32, adr_width=30, addressing="word")
         self.periph_buses  = [self.pbus]
         self.memory_buses  = []
@@ -79,7 +78,7 @@ class GowinEMCU(CPU):
             o_IOEXPOUTPUTENO = Signal(), # TODO: GPIO Output Enable (16-bit).
 
             # Interrupts.
-            i_GPINT          = self.interrupt,
+            i_GPINT          = Open(),
             o_INTMONITOR     = Signal(),
 
             # Flash.
