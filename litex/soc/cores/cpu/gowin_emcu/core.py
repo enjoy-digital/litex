@@ -162,12 +162,16 @@ class GowinEMCU(CPU):
                 )
 
         ahb_flash = ahb.Interface()
-        for s, _ in ahb_flash.master_signals:
-            if s in ["wdata", "write", "mastlock", "prot"]:
-                continue
-            self.cpu_params[f"o_TARGFLASH0H{s.upper()}"] = getattr(ahb_flash, s)
-        for s, _ in ahb_flash.slave_signals:
-            self.cpu_params[f"i_TARGFLASH0H{s.upper()}"] = getattr(ahb_flash, s)
+        self.cpu_params.update(
+            o_TARGFLASH0HADDR     = ahb_flash.addr,
+            o_TARGFLASH0HBURST    = ahb_flash.burst,
+            o_TARGFLASH0HSIZE     = ahb_flash.size,
+            o_TARGFLASH0HTRANS    = ahb_flash.trans,
+            o_TARGFLASH0HSEL      = ahb_flash.sel,
+            i_TARGFLASH0HRDATA    = ahb_flash.rdata,
+            i_TARGFLASH0HREADYOUT = ahb_flash.readyout,
+            i_TARGFLASH0HRESP     = ahb_flash.resp,
+        )
         flash = ResetInserter()(AHBFlash(ahb_flash))
         self.comb += flash.reset.eq(~bus_reset_n)
         self.submodules += flash
@@ -176,10 +180,20 @@ class GowinEMCU(CPU):
         # Peripheral Bus (AHB -> Wishbone).
         # ---------------------------------
         ahb_targexp0 = ahb.Interface()
-        for s, _ in ahb_targexp0.master_signals:
-            self.cpu_params[f"o_TARGEXP0H{s.upper()}"] = getattr(ahb_targexp0, s)
-        for s, _ in ahb_targexp0.slave_signals:
-            self.cpu_params[f"i_TARGEXP0H{s.upper()}"] = getattr(ahb_targexp0, s)
+        self.cpu_params.update(
+            o_TARGEXP0HADDR     = ahb_targexp0.addr,
+            o_TARGEXP0HBURST    = ahb_targexp0.burst,
+            o_TARGEXP0HMASTLOCK = ahb_targexp0.mastlock,
+            o_TARGEXP0HPROT     = ahb_targexp0.prot,
+            o_TARGEXP0HSIZE     = ahb_targexp0.size,
+            o_TARGEXP0HTRANS    = ahb_targexp0.trans,
+            o_TARGEXP0HWDATA    = ahb_targexp0.wdata,
+            o_TARGEXP0HWRITE    = ahb_targexp0.write,
+            o_TARGEXP0HSEL      = ahb_targexp0.sel,
+            i_TARGEXP0HRDATA    = ahb_targexp0.rdata,
+            i_TARGEXP0HREADYOUT = ahb_targexp0.readyout,
+            i_TARGEXP0HRESP     = ahb_targexp0.resp,
+        )
         self.submodules += ahb.AHB2Wishbone(ahb_targexp0, self.pbus)
 
     def connect_uart(self, pads, n=0):
