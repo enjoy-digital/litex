@@ -9,8 +9,8 @@ from migen import *
 
 from litex.gen import *
 
-from litex.soc.interconnect import wishbone, ahb
 from litex.soc.cores.cpu import CPU
+from litex.soc.interconnect import wishbone, ahb
 
 # Gowin EMCU ---------------------------------------------------------------------------------------
 
@@ -22,38 +22,41 @@ class GowinEMCU(CPU):
     human_name           = "Gowin EMCU"
     data_width           = 32
     endianness           = "little"
+    reset_address        = 0x0000_0000
     gcc_triple           = "arm-none-eabi"
     linker_output_format = "elf32-littlearm"
     nop                  = "nop"
     io_regions           = {
         # Origin, Length.
-        0x4000_0000: 0x2000_0000,
-        0xa000_0000: 0x6000_0000
+        0x4000_0000 : 0x2000_0000,
+        0xa000_0000 : 0x6000_0000,
     }
 
     # Memory Mapping.
     @property
     def mem_map(self):
         return {
-            "rom"         : 0x0000_0000,
-            "sram"        : 0x2000_0000,
-            "peripherals" : 0x4000_0000,
-            "csr"         : 0xa000_0000,
+            "rom"      : 0x0000_0000,
+            "sram"     : 0x2000_0000,
+            "main_ram" : 0x1000_0000,
+            "csr"      : 0xa000_0000,
         }
 
     # GCC Flags.
     @property
     def gcc_flags(self):
-        flags =  f" -mcpu=cortex-m3 -mthumb"
+        flags =  f" -march=armv7-m -mthumb"
+        flags += f" -D__CortexM3__"
         flags += f" -DUART_POLLING"
         return flags
 
-    def __init__(self, platform, variant, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, platform, variant="standard"):
+        self.platform      = platform
         self.reset         = Signal()
         self.interrupt     = Signal(5)
-        self.reset_address = self.mem_map["rom"] + 0
-        self.periph_buses  = []
+        self.pbus          = wishbone.Interface(data_width=32, adr_width=30, addressing="word")
+        self.periph_buses  = [self.pbus]
+        self.memory_buses  = []
 
         # CPU Instance.
         # -------------
@@ -63,8 +66,8 @@ class GowinEMCU(CPU):
         self.cpu_params.update(
             # Clk/Rst.
             i_FCLK           = ClockSignal("sys"),
-            i_PORESETN       = ~ResetSignal("sys") & ~self.reset,
-            i_SYSRESETN      = ~ResetSignal("sys") & ~self.reset,
+            i_PORESETN       = ~ (ResetSignal("sys") | self.reset),
+            i_SYSRESETN      = ~ (ResetSignal("sys") | self.reset),
             i_MTXREMAP       = Signal(4, reset=0b1111),
             o_MTXHRESETN     = bus_reset_n,
 
@@ -182,15 +185,12 @@ class GowinEMCU(CPU):
 
         # Peripheral Bus (AHB -> Wishbone).
         # ---------------------------------
-
-        self.pbus = wishbone.Interface(data_width=32, adr_width=30, addressing="word")
         ahb_targexp0 = ahb.Interface()
         for s, _ in ahb_targexp0.master_signals:
             self.cpu_params[f"o_TARGEXP0H{s.upper()}"] = getattr(ahb_targexp0, s)
         for s, _ in ahb_targexp0.slave_signals:
             self.cpu_params[f"i_TARGEXP0H{s.upper()}"] = getattr(ahb_targexp0, s)
         self.submodules += ahb.AHB2Wishbone(ahb_targexp0, self.pbus)
-        self.periph_buses.append(self.pbus)
 
     def connect_uart(self, pads, n=0):
         assert n in (0, 1), "this CPU has 2 built-in UARTs, 0 and 1"

@@ -5,8 +5,6 @@
 # Copyright (c) 2022 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-import os
-
 from migen import *
 
 from litex.gen import *
