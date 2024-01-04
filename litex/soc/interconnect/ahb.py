@@ -70,7 +70,7 @@ class AHB2Wishbone(LiteXModule):
         fsm.act("IDLE",
             ahb.readyout.eq(1),
             If(ahb.sel &
-              (ahb.size  == wishbone_adr_shift) &
+              (ahb.size  <= log2_int(ahb.data_width//8)) &
               (ahb.trans == TransferType.NONSEQUENTIAL),
                NextValue(wishbone.adr,   ahb.addr[wishbone_adr_shift:]),
                NextValue(wishbone.dat_w, ahb.wdata),
