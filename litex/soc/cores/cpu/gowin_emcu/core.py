@@ -10,7 +10,8 @@ from migen import *
 from litex.gen import *
 
 from litex.soc.cores.cpu import CPU
-from litex.soc.interconnect import wishbone, ahb
+from litex.soc.interconnect import wishbone
+from litex.soc.interconnect import ahb
 
 # Gowin EMCU ---------------------------------------------------------------------------------------
 
@@ -160,7 +161,7 @@ class GowinEMCU(CPU):
                     i_NVSTR = 0
                 )
 
-        ahb_flash = ahb.Interface()
+        ahb_flash = ahb.AHBInterface()
         self.cpu_params.update(
             o_TARGFLASH0HADDR     = ahb_flash.addr,
             o_TARGFLASH0HBURST    = ahb_flash.burst,
@@ -178,7 +179,7 @@ class GowinEMCU(CPU):
 
         # Peripheral Bus (AHB -> Wishbone).
         # ---------------------------------
-        ahb_targexp0 = ahb.Interface()
+        ahb_targexp0 = ahb.AHBInterface()
         self.cpu_params.update(
             o_TARGEXP0HADDR     = ahb_targexp0.addr,
             o_TARGEXP0HBURST    = ahb_targexp0.burst,

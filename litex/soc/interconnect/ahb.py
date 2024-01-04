@@ -15,7 +15,7 @@ from litex.gen import *
 
 # Helpers ------------------------------------------------------------------------------------------
 
-class TransferType(IntEnum):
+class AHBTransferType(IntEnum):
     """Defines types of AHB transfers."""
     IDLE          = 0
     BUSY          = 1
@@ -24,7 +24,7 @@ class TransferType(IntEnum):
 
 # AHB Interface ------------------------------------------------------------------------------------
 
-class Interface(Record):
+class AHBInterface(Record):
     """Sets up the AHB interface signals for master and slave."""
     adr_width      = 32
     data_width     = 32
@@ -71,7 +71,7 @@ class AHB2Wishbone(LiteXModule):
             ahb.readyout.eq(1),
             If(ahb.sel &
               (ahb.size  <= log2_int(ahb.data_width//8)) &
-              (ahb.trans == TransferType.NONSEQUENTIAL),
+              (ahb.trans == AHBTransferType.NONSEQUENTIAL),
                NextValue(wishbone.adr,   ahb.addr[wishbone_adr_shift:]),
                NextValue(wishbone.dat_w, ahb.wdata),
                NextValue(wishbone.we,    ahb.write),
