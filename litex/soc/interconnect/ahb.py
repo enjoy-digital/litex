@@ -22,31 +22,30 @@ class AHBTransferType(IntEnum):
     NONSEQUENTIAL = 2
     SEQUENTIAL    = 3
 
-# AHB Interface ------------------------------------------------------------------------------------
+# AHB Definition -----------------------------------------------------------------------------------
+
+def ahb_description(data_width, address_width):
+    return [
+        ("addr",     address_width, DIR_M_TO_S),
+        ("burst",                3, DIR_M_TO_S),
+        ("mastlock",             1, DIR_M_TO_S),
+        ("prot",                 4, DIR_M_TO_S),
+        ("size",                 3, DIR_M_TO_S),
+        ("trans",                2, DIR_M_TO_S),
+        ("wdata",       data_width, DIR_M_TO_S),
+        ("write",                1, DIR_M_TO_S),
+        ("sel",                  1, DIR_M_TO_S),
+        ("rdata",       data_width, DIR_S_TO_M),
+        ("readyout",             1, DIR_S_TO_M),
+        ("resp",                 1, DIR_S_TO_M),
+]
 
 class AHBInterface(Record):
-    """Sets up the AHB interface signals for master and slave."""
-    adr_width      = 32
-    data_width     = 32
-    addressing     = "byte"
-    master_signals = [
-        ("addr",     adr_width),
-        ("burst",    3),
-        ("mastlock", 1),
-        ("prot",     4),
-        ("size",     3),
-        ("trans",    2),
-        ("wdata",    data_width),
-        ("write",    1),
-        ("sel",      1),
-    ]
-    slave_signals = [
-        ("rdata",    data_width),
-        ("readyout", 1),
-        ("resp",     1),
-    ]
-    def __init__(self):
-        Record.__init__(self, set_layout_parameters(self.master_signals + self.slave_signals))
+    def __init__(self, data_width=32, address_width=32):
+        Record.__init__(self, ahb_description(data_width, address_width))
+        self.data_width    = data_width
+        self.address_width = address_width
+        self.addressing    = "byte"
 
 # AHB to Wishbone  ---------------------------------------------------------------------------------
 
@@ -62,8 +61,8 @@ class AHB2Wishbone(LiteXModule):
             "word" : log2_int(ahb.data_width//8),
             "byte" : 0
         }[wishbone.addressing]
-        assert ahb.data_width == wishbone.data_width
-        assert ahb.adr_width  == wishbone.adr_width + wishbone_adr_shift
+        assert ahb.data_width     == wishbone.data_width
+        assert ahb.address_width  == wishbone.adr_width + wishbone_adr_shift
 
         # FSM.
         self.fsm = fsm = FSM()
