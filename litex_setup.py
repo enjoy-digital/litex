@@ -222,7 +222,10 @@ def litex_setup_init_repos(config="standard", tag=None, dev_mode=False):
                 ), shell=True)
             os.chdir(os.path.join(current_path, name))
             # Use specific Branch.
-            subprocess.check_call("git checkout " + repo.branch, shell=True)
+            try:
+                subprocess.check_call("git checkout " + repo.branch, shell=True)
+            except subprocess.CalledProcessError:
+                pass
             # Use specific Tag (Optional).
             if repo.tag is not None:
                 # Priority to passed tag (if specified).
@@ -281,12 +284,21 @@ def litex_setup_install_repos(config="standard", user_mode=False):
         os.chdir(os.path.join(current_path))
         # Install Repo.
         if repo.develop:
-            print_status(f"Installing {name} Git repository...")
-            os.chdir(os.path.join(current_path, name))
-            subprocess.check_call("\"{python3}\" -m pip install --editable . {options}".format(
-                python3 = sys.executable,
-                options = "--user" if user_mode else "",
-                ), shell=True)
+            if name  == "ctucan_migen_wb_wrapper":
+                print_status(f"Installing CAN IP {name} Git repository...")
+                os.chdir(os.path.join(current_path, name))
+                subprocess.check_call("make generate-vhdl", shell=True)
+                subprocess.check_call("\"{python3}\" setup.py install {options}".format(
+                    python3 = sys.executable,
+                    options = "--user" if user_mode else "",
+                    ), shell=True)
+            else:
+                print_status(f"Installing {name} Git repository...")
+                os.chdir(os.path.join(current_path, name))
+                subprocess.check_call("\"{python3}\" -m pip install --editable . {options}".format(
+                    python3 = sys.executable,
+                    options = "--user" if user_mode else "",
+                    ), shell=True)
     if user_mode:
         if ".local/bin" not in os.environ.get("PATH", ""):
             print_status("Make sure that ~/.local/bin is in your PATH")
