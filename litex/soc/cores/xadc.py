@@ -14,10 +14,6 @@ from litex.gen import LiteXModule
 
 from litex.soc.interconnect.csr import *
 
-# Layouts  -----------------------------------------------------------------------------------------
-
-analog_layout = [("vauxp", 16), ("vauxn", 16), ("vp", 1), ("vn", 1)]
-
 # Xilinx System Monitor ----------------------------------------------------------------------------
 
 class XilinxSystemMonitorChannel:
@@ -83,10 +79,18 @@ S7SystemMonitorChannels = [
         "Raw VCCBRAM value from XADC.",
         "VCCBRAM (V) = ``Value`` x 3 / 4096.",
     ]),
+    XilinxSystemMonitorChannel(name="anavpvn",     addr=0x3, bits=12, desc=[
+        "Raw ANAVPVN value from XADC.",
+        "ANAVPVN (V) = ``Value`` x 3 / 4096.",
+    ]),
+    XilinxSystemMonitorChannel(name="vaux4",     addr=0x14, bits=12, desc=[
+        "Raw VAUX4 value from XADC.",
+        "VAUX4 (V) = ``Value`` x 3 / 4096.",
+    ]),
 ]
 
 class S7SystemMonitor(XilinxSystemMonitor):
-    def __init__(self, channels=S7SystemMonitorChannels, analog_pads=None):
+    def __init__(self, channels=S7SystemMonitorChannels, analog=None, analog_pads=None):
         # Channels.
         for channel in channels:
             self.add_channel(channel)
@@ -153,6 +157,40 @@ class S7SystemMonitor(XilinxSystemMonitor):
             self.den.eq(eoc),
             self.dadr.eq(channel),
         )
+        
+        # Connect up external signals to XADC.
+        self.comb += [
+            analog_pads.vp.eq(analog.ana_vp),
+            analog_pads.vn.eq(analog.ana_vn),
+        ]
+        
+        # use explicit dummies to tie the analog inputs, otherwise the name space during finalization changes
+        # (e.g. FHDL adds 'betrustedsoc_' to the beginning of every netlist name to give a prefix to unnamed signals)
+        # notet that the added prefix messes up the .XDC constraints
+        dummy4 = Signal(4, reset=0)
+        dummy5 = Signal(5, reset=0)
+        dummy1 = Signal(1, reset=0)
+      
+        self.comb += analog_pads.vauxp.eq(Cat(dummy4,          # 0,1,2,3
+                                             analog.vaux4_p,    # 4
+                                             dummy1,           # 5
+                                             dummy1,           # 6
+                                             dummy5,           # 7,8,9,10,11
+                                             dummy1,           # 12
+                                             dummy1,           # 13
+                                             dummy1,           # 14
+                                             dummy1,           # 15
+                                        )),
+        self.comb += analog_pads.vauxn.eq(Cat(dummy4,          # 0,1,2,3
+                                             analog.vaux4_n,    # 4
+                                             dummy1,           # 5
+                                             dummy1,           # 6
+                                             dummy5,           # 7,8,9,10,11
+                                             dummy1,           # 12
+                                             dummy1,           # 13
+                                             dummy1,           # 14
+                                             dummy1,           # 15
+                                        )),
 
         # Channels update.
         channel_cases = dict(zip(
@@ -187,6 +225,14 @@ USSystemMonitorChannels = [
     XilinxSystemMonitorChannel(name="vccbram",     addr=0x6, bits=10, desc=[
         "Raw VCCBRAM value from SYSMONE1.",
         "VCCBRAM (V) = ``Value`` x 3 / 1024.",
+    ]),
+    XilinxSystemMonitorChannel(name="anavpvn",     addr=0x3, bits=12, desc=[
+        "Raw ANAVPVN value from XADC.",
+        "ANAVPVN (V) = ``Value`` x 3 / 4096.",
+    ]),
+    XilinxSystemMonitorChannel(name="vaux4",     addr=0x14, bits=12, desc=[
+        "Raw VAUX4 value from XADC.",
+        "VAUX4 (V) = ``Value`` x 3 / 4096.",
     ]),
 ]
 
