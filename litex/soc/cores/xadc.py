@@ -83,9 +83,29 @@ S7SystemMonitorChannels = [
         "Raw ANAVPVN value from XADC.",
         "ANAVPVN (V) = ``Value`` x 3 / 4096.",
     ]),
+    XilinxSystemMonitorChannel(name="vaux0",     addr=0x10, bits=12, desc=[
+        "Raw VAUX0 value from XADC.",
+        "VAUX0 (V) = ``Value`` x 3 / 4096.",
+    ]),
     XilinxSystemMonitorChannel(name="vaux4",     addr=0x14, bits=12, desc=[
         "Raw VAUX4 value from XADC.",
         "VAUX4 (V) = ``Value`` x 3 / 4096.",
+    ]),
+    XilinxSystemMonitorChannel(name="vaux5",     addr=0x15, bits=12, desc=[
+        "Raw VAUX5 value from XADC.",
+        "VAUX5 (V) = ``Value`` x 3 / 4096.",
+    ]),
+    XilinxSystemMonitorChannel(name="vaux6",     addr=0x16, bits=12, desc=[
+        "Raw VAUX6 value from XADC.",
+        "VAUX6 (V) = ``Value`` x 3 / 4096.",
+    ]),
+    XilinxSystemMonitorChannel(name="vaux7",     addr=0x17, bits=12, desc=[
+        "Raw VAUX7 value from XADC.",
+        "VAUX7 (V) = ``Value`` x 3 / 4096.",
+    ]),
+    XilinxSystemMonitorChannel(name="vaux15",     addr=0x1F, bits=12, desc=[
+        "Raw VAUX15 value from XADC.",
+        "VAUX15 (V) = ``Value`` x 3 / 4096.",
     ]),
 ]
 
@@ -167,30 +187,31 @@ class S7SystemMonitor(XilinxSystemMonitor):
         # use explicit dummies to tie the analog inputs, otherwise the name space during finalization changes
         # (e.g. FHDL adds 'betrustedsoc_' to the beginning of every netlist name to give a prefix to unnamed signals)
         # notet that the added prefix messes up the .XDC constraints
+        dummy1 = Signal(1, reset=0)
+        dummy3 = Signal(3, reset=0)
         dummy4 = Signal(4, reset=0)
         dummy5 = Signal(5, reset=0)
-        dummy1 = Signal(1, reset=0)
       
-        self.comb += analog_pads.vauxp.eq(Cat(dummy4,          # 0,1,2,3
-                                             analog.vaux4_p,    # 4
-                                             dummy1,           # 5
-                                             dummy1,           # 6
-                                             dummy5,           # 7,8,9,10,11
-                                             dummy1,           # 12
-                                             dummy1,           # 13
-                                             dummy1,           # 14
-                                             dummy1,           # 15
-                                        )),
-        self.comb += analog_pads.vauxn.eq(Cat(dummy4,          # 0,1,2,3
-                                             analog.vaux4_n,    # 4
-                                             dummy1,           # 5
-                                             dummy1,           # 6
-                                             dummy5,           # 7,8,9,10,11
-                                             dummy1,           # 12
-                                             dummy1,           # 13
-                                             dummy1,           # 14
-                                             dummy1,           # 15
-                                        )),
+        self.comb += analog_pads.vauxp.eq(Cat(analog.vaux0_p,  # 0
+                                             dummy3,           # 1,2,3
+                                             analog.vaux4_p,   # 4
+                                             analog.vaux5_p,   # 5
+                                             analog.vaux6_p,   # 6
+                                             analog.vaux7_p,   # 7
+                                             dummy4,           # 8,9,10,11
+                                             dummy3,           # 12,13,14
+                                             analog.vaux15_p,  # 15
+                                        ))
+        self.comb += analog_pads.vauxn.eq(Cat(analog.vaux0_n,  # 0
+                                             dummy3,           # 1,2,3
+                                             analog.vaux4_n,   # 4
+                                             analog.vaux5_n,   # 5
+                                             analog.vaux6_n,   # 6
+                                             analog.vaux7_n,   # 7
+                                             dummy4,           # 8,9,10,11
+                                             dummy3,           # 12,13,14
+                                             analog.vaux15_n,  # 15
+                                        ))
 
         # Channels update.
         channel_cases = dict(zip(
@@ -230,9 +251,29 @@ USSystemMonitorChannels = [
         "Raw ANAVPVN value from XADC.",
         "ANAVPVN (V) = ``Value`` x 3 / 4096.",
     ]),
+        XilinxSystemMonitorChannel(name="vaux0",     addr=0x10, bits=12, desc=[
+        "Raw VAUX0 value from XADC.",
+        "VAUX0 (V) = ``Value`` x 3 / 4096.",
+    ]),
     XilinxSystemMonitorChannel(name="vaux4",     addr=0x14, bits=12, desc=[
         "Raw VAUX4 value from XADC.",
         "VAUX4 (V) = ``Value`` x 3 / 4096.",
+    ]),
+    XilinxSystemMonitorChannel(name="vaux5",     addr=0x15, bits=12, desc=[
+        "Raw VAUX5 value from XADC.",
+        "VAUX5 (V) = ``Value`` x 3 / 4096.",
+    ]),
+    XilinxSystemMonitorChannel(name="vaux6",     addr=0x16, bits=12, desc=[
+        "Raw VAUX6 value from XADC.",
+        "VAUX6 (V) = ``Value`` x 3 / 4096.",
+    ]),
+    XilinxSystemMonitorChannel(name="vaux7",     addr=0x17, bits=12, desc=[
+        "Raw VAUX7 value from XADC.",
+        "VAUX7 (V) = ``Value`` x 3 / 4096.",
+    ]),
+    XilinxSystemMonitorChannel(name="vaux15",     addr=0x1F, bits=12, desc=[
+        "Raw VAUX15 value from XADC.",
+        "VAUX15 (V) = ``Value`` x 3 / 4096.",
     ]),
 ]
 
