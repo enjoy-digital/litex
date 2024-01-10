@@ -26,6 +26,7 @@ class GowinToolchain(GenericToolchain):
     def __init__(self):
         super().__init__()
         self.options = {}
+        self.additional_cst_commands = []
 
     def finalize(self):
         if self.platform.verilog_include_paths:
@@ -107,6 +108,8 @@ class GowinToolchain(GenericToolchain):
 
         if self.named_pc:
             cst.extend(self.named_pc)
+
+        cst.extend(self.additional_cst_commands)
 
         tools.write_to_file(f"{self._build_name}.cst", "\n".join(cst))
         return (f"{self._build_name}.cst", "CST")
