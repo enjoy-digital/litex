@@ -43,3 +43,6 @@ class GowinPlatform(GenericPlatform):
 
     def build(self, *args, **kwargs):
         return self.toolchain.build(self, *args, **kwargs)
+
+    def add_false_path_constraint(self, from_, to):
+        pass
