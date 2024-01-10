@@ -66,27 +66,24 @@ class AHB2Wishbone(LiteXModule):
 
         # FSM.
         self.fsm = fsm = FSM()
-        fsm.act("IDLE",
+        fsm.act("ADDRESS-PHASE",
             ahb.readyout.eq(1),
             If(ahb.sel &
               (ahb.size  <= log2_int(ahb.data_width//8)) &
               (ahb.trans == AHBTransferType.NONSEQUENTIAL),
-               NextValue(wishbone.adr,   ahb.addr[wishbone_adr_shift:]),
-               NextValue(wishbone.dat_w, ahb.wdata),
-               NextValue(wishbone.we,    ahb.write),
-               NextValue(wishbone.sel,   2**len(wishbone.sel) - 1),
-               NextState("ACT"),
+               NextValue(wishbone.adr, ahb.addr[wishbone_adr_shift:]),
+               NextValue(wishbone.we,  ahb.write),
+               NextState("DATA-PHASE"),
             )
         )
-        fsm.act("ACT",
+        fsm.act("DATA-PHASE",
             wishbone.stb.eq(1),
             wishbone.cyc.eq(1),
+            wishbone.dat_w.eq(ahb.wdata),
+            wishbone.sel.eq(2**len(wishbone.sel) - 1),
+            ahb.resp.eq(wishbone.err),
             If(wishbone.ack,
-                If(~wishbone.we,
-                    NextValue(ahb.rdata, wishbone.dat_r)
-                ),
-                NextState("IDLE")
+                NextValue(ahb.rdata, wishbone.dat_r),
+                NextState("ADDRESS-PHASE")
             )
         )
-
-        self.comb += ahb.resp.eq(wishbone.err)
