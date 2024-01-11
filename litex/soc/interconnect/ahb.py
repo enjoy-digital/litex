@@ -64,6 +64,37 @@ class AHB2Wishbone(LiteXModule):
         assert ahb.data_width     == wishbone.data_width
         assert ahb.address_width  == wishbone.adr_width + wishbone_adr_shift
 
+        def wishbone_sel_decoder(ahb_size, ahb_addr):
+            wishbone_sel = Signal(8)
+            self.comb += Case(ahb_size, {
+                # 8-bit access.
+                0b00 : Case(ahb_addr[0:3], {
+                    0b000 : wishbone_sel.eq(0b0000_0001),
+                    0b001 : wishbone_sel.eq(0b0000_0010),
+                    0b010 : wishbone_sel.eq(0b0000_0100),
+                    0b011 : wishbone_sel.eq(0b0000_1000),
+                    0b100 : wishbone_sel.eq(0b0001_0000),
+                    0b101 : wishbone_sel.eq(0b0010_0000),
+                    0b110 : wishbone_sel.eq(0b0100_0000),
+                    0b111 : wishbone_sel.eq(0b1000_0000),
+                }),
+                # 16-bit access.
+                0b01 : Case(ahb_addr[1:3], {
+                    0b00 : wishbone_sel.eq(0b0000_0011),
+                    0b01 : wishbone_sel.eq(0b0000_1100),
+                    0b10 : wishbone_sel.eq(0b0011_0000),
+                    0b11 : wishbone_sel.eq(0b1100_0000),
+                }),
+                # 32-bit access.
+                0b10 : Case(ahb_addr[2:3], {
+                    0b0 : wishbone_sel.eq(0b0000_1111),
+                    0b1 : wishbone_sel.eq(0b1111_0000),
+                }),
+                # 64-bit access.
+                0b11 : wishbone_sel.eq(0b1111_1111),
+            })
+            return wishbone_sel
+
         # FSM.
         self.fsm = fsm = FSM()
         fsm.act("ADDRESS-PHASE",
@@ -71,16 +102,16 @@ class AHB2Wishbone(LiteXModule):
             If(ahb.sel &
               (ahb.size  <= log2_int(ahb.data_width//8)) &
               (ahb.trans == AHBTransferType.NONSEQUENTIAL),
-               NextValue(wishbone.adr, ahb.addr[wishbone_adr_shift:]),
-               NextValue(wishbone.we,  ahb.write),
-               NextState("DATA-PHASE"),
+                NextValue(wishbone.adr, ahb.addr[wishbone_adr_shift:]),
+                NextValue(wishbone.we,  ahb.write),
+                NextValue(wishbone.sel, wishbone_sel_decoder(ahb.size, ahb.addr)),
+                NextState("DATA-PHASE"),
             )
         )
         fsm.act("DATA-PHASE",
             wishbone.stb.eq(1),
             wishbone.cyc.eq(1),
             wishbone.dat_w.eq(ahb.wdata),
-            wishbone.sel.eq(2**len(wishbone.sel) - 1),
             ahb.resp.eq(wishbone.err),
             If(wishbone.ack,
                 NextValue(ahb.rdata, wishbone.dat_r),
