@@ -251,14 +251,6 @@ class GowinEMCU(CPU):
         # ---------------------------------
         self.submodules += ahb.AHB2Wishbone(ahb_targexp0, self.pbus)
 
-    def connect_uart(self, pads, n=0):
-        assert n in (0, 1), "this CPU has 2 built-in UARTs, 0 and 1"
-        self.cpu_params.update({
-            f"i_UART{n}RXDI"     : pads.rx,
-            f"o_UART{n}TXDO"     : pads.tx,
-            f"o_UART{n}BAUDTICK" : Signal()
-        })
-
     def connect_jtag(self, pads):
         self.cpu_params.update(
             i_DAPSWDITMS  = pads.tms,
