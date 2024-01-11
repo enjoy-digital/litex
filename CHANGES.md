@@ -10,6 +10,8 @@
 	- build/openfpgaloader          : Added kwargs support to flash for specific/less common cases.
 	- cpu/gowin_emcu                : Improved/Cleaned-up.
 	- interconnect/ahb              : Added data_width/address_width parameters.
+	- interconnect/ahb              : Added proper byte/sel support to AHB2Wishbone.
+	- cpu/gowin_ae350               : Added initial support.
 
 	[> Changed
 	----------

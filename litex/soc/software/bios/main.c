@@ -125,7 +125,11 @@ __attribute__((__used__)) int main(int i, char **c)
 	printf("--=============== \e[1mSoC\e[0m ==================--\n");
 	printf("\e[1mCPU\e[0m:\t\t%s @ %dMHz\n",
 		CONFIG_CPU_HUMAN_NAME,
+#ifdef CONFIG_CPU_CLK_FREQ
+		CONFIG_CPU_CLK_FREQ/1000000);
+#else
 		CONFIG_CLOCK_FREQUENCY/1000000);
+#endif
 	printf("\e[1mBUS\e[0m:\t\t%s %d-bit @ %dGiB\n",
 		CONFIG_BUS_STANDARD,
 		CONFIG_BUS_DATA_WIDTH,
