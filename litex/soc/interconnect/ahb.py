@@ -61,39 +61,62 @@ class AHB2Wishbone(LiteXModule):
             "word" : log2_int(ahb.data_width//8),
             "byte" : 0
         }[wishbone.addressing]
+        assert ahb.data_width in [32, 64]
         assert ahb.data_width     == wishbone.data_width
         assert ahb.address_width  == wishbone.adr_width + wishbone_adr_shift
 
         def wishbone_sel_decoder(ahb_size, ahb_addr):
-            wishbone_sel = Signal(8)
-            self.comb += Case(ahb_size, {
-                # 8-bit access.
-                0b00 : Case(ahb_addr[0:3], {
-                    0b000 : wishbone_sel.eq(0b0000_0001),
-                    0b001 : wishbone_sel.eq(0b0000_0010),
-                    0b010 : wishbone_sel.eq(0b0000_0100),
-                    0b011 : wishbone_sel.eq(0b0000_1000),
-                    0b100 : wishbone_sel.eq(0b0001_0000),
-                    0b101 : wishbone_sel.eq(0b0010_0000),
-                    0b110 : wishbone_sel.eq(0b0100_0000),
-                    0b111 : wishbone_sel.eq(0b1000_0000),
-                }),
-                # 16-bit access.
-                0b01 : Case(ahb_addr[1:3], {
-                    0b00 : wishbone_sel.eq(0b0000_0011),
-                    0b01 : wishbone_sel.eq(0b0000_1100),
-                    0b10 : wishbone_sel.eq(0b0011_0000),
-                    0b11 : wishbone_sel.eq(0b1100_0000),
-                }),
-                # 32-bit access.
-                0b10 : Case(ahb_addr[2:3], {
-                    0b0 : wishbone_sel.eq(0b0000_1111),
-                    0b1 : wishbone_sel.eq(0b1111_0000),
-                }),
-                # 64-bit access.
-                0b11 : wishbone_sel.eq(0b1111_1111),
-            })
-            return wishbone_sel
+            if ahb.data_width == 64:
+                wishbone_sel = Signal(8)
+                self.comb += Case(ahb_size, {
+                    # 8-bit access.
+                    0b00 : Case(ahb_addr[0:3], {
+                        0b000 : wishbone_sel.eq(0b0000_0001),
+                        0b001 : wishbone_sel.eq(0b0000_0010),
+                        0b010 : wishbone_sel.eq(0b0000_0100),
+                        0b011 : wishbone_sel.eq(0b0000_1000),
+                        0b100 : wishbone_sel.eq(0b0001_0000),
+                        0b101 : wishbone_sel.eq(0b0010_0000),
+                        0b110 : wishbone_sel.eq(0b0100_0000),
+                        0b111 : wishbone_sel.eq(0b1000_0000),
+                    }),
+                    # 16-bit access.
+                    0b01 : Case(ahb_addr[1:3], {
+                        0b00 : wishbone_sel.eq(0b0000_0011),
+                        0b01 : wishbone_sel.eq(0b0000_1100),
+                        0b10 : wishbone_sel.eq(0b0011_0000),
+                        0b11 : wishbone_sel.eq(0b1100_0000),
+                    }),
+                    # 32-bit access.
+                    0b10 : Case(ahb_addr[2:3], {
+                        0b0 : wishbone_sel.eq(0b0000_1111),
+                        0b1 : wishbone_sel.eq(0b1111_0000),
+                    }),
+                    # 64-bit access.
+                    0b11 : wishbone_sel.eq(0b1111_1111),
+                })
+                return wishbone_sel
+            if ahb.data_width == 32:
+                wishbone_sel = Signal(4)
+                self.comb += Case(ahb_size, {
+                    # 8-bit access.
+                    0b00 : Case(ahb_addr[0:2], {
+                        0b00 : wishbone_sel.eq(0b0001),
+                        0b01 : wishbone_sel.eq(0b0010),
+                        0b10 : wishbone_sel.eq(0b0100),
+                        0b11 : wishbone_sel.eq(0b1000),
+                    }),
+                    # 16-bit access.
+                    0b01 : Case(ahb_addr[1:2], {
+                        0b0 : wishbone_sel.eq(0b0011),
+                        0b1 : wishbone_sel.eq(0b1100),
+                    }),
+                    # 32-bit access.
+                    0b10 : wishbone_sel.eq(0b1111),
+                    # 64-bit access (Should not happen but do a full 32-bit access).
+                    0b11 : wishbone_sel.eq(0b1111),
+                })
+                return wishbone_sel
 
         # FSM.
         self.fsm = fsm = FSM()
