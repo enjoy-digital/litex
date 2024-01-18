@@ -69,7 +69,7 @@ class NaxRiscv(CPU):
     # Arch.
     @staticmethod
     def get_arch():
-        arch = f"rv{NaxRiscv.xlen}ima"
+        arch = f"rv{NaxRiscv.xlen}i2p0_ma"
         if NaxRiscv.with_fpu:
             arch += "fd"
         if NaxRiscv.with_rvc:
