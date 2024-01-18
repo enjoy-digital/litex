@@ -302,10 +302,12 @@ class NaxRiscv(CPU):
             ), shell=True)
             # Use specific SHA1 (Optional).
         print(f"Updating {name} Git repository...")
+        cwd = os.getcwd()
         os.chdir(os.path.join(dir))
         wipe_cmd = "&& git clean --force -d -x && git reset --hard" if "wipe" in NaxRiscv.update_repo else ""
         checkout_cmd = f"&& git checkout {hash}" if hash is not None else ""
         subprocess.check_call(f"cd {dir} {wipe_cmd} && git checkout {branch} && git submodule init && git pull --recurse-submodules {checkout_cmd}", shell=True)
+        os.chdir(cwd)
 
     # Netlist Generation.
     @staticmethod
