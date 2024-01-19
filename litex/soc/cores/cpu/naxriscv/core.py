@@ -115,6 +115,7 @@ class NaxRiscv(CPU):
         cpu_group.add_argument("--update-repo",           default="recommended", choices=["latest","wipe+latest","recommended","wipe+recommended","no"], help="Specify how the NaxRiscv & SpinalHDL repo should be updated (latest: update to HEAD, recommended: Update to known compatible version, no: Don't update, wipe+*: Do clean&reset before checkout)")
         cpu_group.add_argument("--no-netlist-cache",      action="store_true",   help="Always (re-)build the netlist.")
         cpu_group.add_argument("--with-fpu",              action="store_true",   help="Enable the F32/F64 FPU.")
+        cpu_group.add_argument("--with-rvc",              action="store_true",   help="Enable the Compress ISA extension.")
         cpu_group.add_argument("--l2-bytes",              default=128*1024,      help="NaxRiscv L2 bytes, default 128 KB.")
         cpu_group.add_argument("--l2-ways",               default=8,             help="NaxRiscv L2 ways, default 8.")
 
@@ -127,6 +128,7 @@ class NaxRiscv(CPU):
         NaxRiscv.update_repo      = args.update_repo
         NaxRiscv.no_netlist_cache = args.no_netlist_cache
         NaxRiscv.with_fpu         = args.with_fpu
+        NaxRiscv.with_rvc         = args.with_rvc
         if args.scala_file:
             NaxRiscv.scala_files = args.scala_file
         if args.scala_args:
@@ -344,6 +346,8 @@ class NaxRiscv(CPU):
             gen_args.append(f"--scala-file={file}")
         if(NaxRiscv.with_fpu):
             gen_args.append(f"--scala-args=rvf=true,rvd=true")
+        if(NaxRiscv.with_rvc):
+            gen_args.append(f"--scala-args=rvc=true")
 
         cmd = f"""cd {ndir} && sbt "runMain naxriscv.platform.litex.NaxGen {" ".join(gen_args)}\""""
         print("NaxRiscv generation command :")
