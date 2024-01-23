@@ -12,6 +12,9 @@
 	- interconnect/ahb              : Added data_width/address_width parameters.
 	- interconnect/ahb              : Added proper byte/sel support to AHB2Wishbone.
 	- cpu/gowin_ae350               : Added initial support.
+	- cpu/naxriscv                  : Updated arch definition and added rvc configuration parameters.
+	- cpu/vexriscv_smp              : Added csr/clint/plic base address configuration parameters.
+	- liteeth/phy                   : Added 7-Series/Ultrascale(+) 2500BaseX PHYs.
 
 	[> Changed
 	----------
