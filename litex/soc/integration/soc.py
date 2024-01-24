@@ -1769,19 +1769,17 @@ class LiteXSoC(SoC):
             assert local_ip is None
             self.add_constant("ETH_DYNAMIC_IP")
 
+        # Local/Remote IP Configuration (optional).
+        def add_ip_constants(name, ip):
+            _ip = ip.split(".")
+            assert len(_ip) == 4
+            for n in range(4):
+                assert int(_ip[n]) < 256
+                self.add_constant(f"{name}{n+1}", _ip[n])
         if local_ip:
-            local_ip = local_ip.split(".")
-            self.add_constant("LOCALIP1", int(local_ip[0]))
-            self.add_constant("LOCALIP2", int(local_ip[1]))
-            self.add_constant("LOCALIP3", int(local_ip[2]))
-            self.add_constant("LOCALIP4", int(local_ip[3]))
-
+            add_ip_constants("LOCALIP", local_ip)
         if remote_ip:
-            remote_ip = remote_ip.split(".")
-            self.add_constant("REMOTEIP1", int(remote_ip[0]))
-            self.add_constant("REMOTEIP2", int(remote_ip[1]))
-            self.add_constant("REMOTEIP3", int(remote_ip[2]))
-            self.add_constant("REMOTEIP4", int(remote_ip[3]))
+            add_ip_constants("REMOTEIP", remote_ip)
 
         # Software Debug
         if software_debug:
