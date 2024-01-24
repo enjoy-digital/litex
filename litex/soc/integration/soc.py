@@ -1726,7 +1726,9 @@ class LiteXSoC(SoC):
         nrxslots                = 2, rxslots_read_only  = True,
         ntxslots                = 2, txslots_write_only = False,
         with_timestamp          = False,
-        with_timing_constraints = True):
+        with_timing_constraints = True,
+        local_ip                = None,
+        remote_ip               = None):
         # Imports
         from liteeth.mac import LiteEthMAC
         from liteeth.phy.model import LiteEthPHYModel
@@ -1764,7 +1766,22 @@ class LiteXSoC(SoC):
 
         # Dynamic IP (if enabled).
         if dynamic_ip:
+            assert local_ip is None
             self.add_constant("ETH_DYNAMIC_IP")
+
+        if local_ip:
+            local_ip = local_ip.split(".")
+            self.add_constant("LOCALIP1", int(local_ip[0]))
+            self.add_constant("LOCALIP2", int(local_ip[1]))
+            self.add_constant("LOCALIP3", int(local_ip[2]))
+            self.add_constant("LOCALIP4", int(local_ip[3]))
+
+        if remote_ip:
+            remote_ip = remote_ip.split(".")
+            self.add_constant("REMOTEIP1", int(remote_ip[0]))
+            self.add_constant("REMOTEIP2", int(remote_ip[1]))
+            self.add_constant("REMOTEIP3", int(remote_ip[2]))
+            self.add_constant("REMOTEIP4", int(remote_ip[3]))
 
         # Software Debug
         if software_debug:
