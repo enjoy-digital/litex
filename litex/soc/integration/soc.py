@@ -1775,7 +1775,7 @@ class LiteXSoC(SoC):
             assert len(_ip) == 4
             for n in range(4):
                 assert int(_ip[n]) < 256
-                self.add_constant(f"{name}{n+1}", _ip[n])
+                self.add_constant(f"{name}{n+1}", int(_ip[n]))
         if local_ip:
             add_ip_constants("LOCALIP", local_ip)
         if remote_ip:
