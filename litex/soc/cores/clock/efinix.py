@@ -88,7 +88,7 @@ class EFINIXPLL(LiteXModule):
             self.logger.info("Clock source: {}, using EXT_CLK{}".format(block["input_clock"], clock_no))
             self.platform.get_pll_resource(pll_res)
         else:
-            block["input_clock"]  = "INTERNAL"
+            block["input_clock"]  = "INTERNAL" if self.type == "TITANIUMPLL" else "CORE"
             block["resource"]     = self.platform.get_free_pll_resource()
             block["input_signal"] = name
             self.logger.info("Clock source: {}".format(block["input_clock"]))
