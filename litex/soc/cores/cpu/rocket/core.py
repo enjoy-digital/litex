@@ -29,6 +29,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import glob
 import os
 import logging
 
@@ -314,13 +315,17 @@ class Rocket(CPU):
     @staticmethod
     def add_sources(platform, variant):
         pfx = "freechips.rocketchip.system.LitexConfig"
-        fname = f"{pfx}_{variant}_{Rocket.cpu_num_cores}_{Rocket.cpu_mem_width}"
         vdir = get_data_mod("cpu", "rocket").data_location
-        platform.add_sources(
-            os.path.join(vdir, "generated-src"),
-            f"{fname}.v",
-            f"{fname}.behav_srams.v",
-        )
+        vpath = os.path.join(vdir, "generated-src")
+        vsubpaths = (f"{pfx}", f"{variant}", f"{Rocket.cpu_num_cores}", f"{Rocket.cpu_mem_width}")
+
+        for vsubpath in vsubpaths:
+            vpath = os.path.join(vpath, vsubpath)
+            platform.add_sources(
+                vpath,
+                *glob.glob("*.sv", root_dir=vpath)
+            )
+
         platform.add_sources(
             os.path.join(vdir, "vsrc"),
             "plusarg_reader.v",
