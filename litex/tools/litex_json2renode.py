@@ -214,7 +214,7 @@ def get_cpu_type(csr):
     return (kind, variant)
 
 def get_cpu_count(csr):
-    return csr['constants']['config_cpu_count']
+    return csr['constants'].get('config_cpu_count', 1)
 
 vexriscv_common_kind = {
     'name': 'VexRiscv',
@@ -297,7 +297,7 @@ def generate_cpu(csr, time_provider, number_of_cores):
 cpu{cpu_id}: CPU.{cpu_string.strip()}
     hartId: {cpu_id}
 """
-        if cpu.get('supports_time_provider', False):
+        if cpu.get('supports_time_provider', False) and time_provider:
             result += f'    timeProvider: {time_provider}\n'
 
     return result
@@ -420,9 +420,9 @@ def generate_mmc(csr, name, **kwargs):
     # FIXME: Get litex to generate CSR region size into output information
     # currently only a base address is present
     peripheral = get_descriptor(csr, name)
-    core = get_descriptor(csr, 'sdcore', 0x100)
-    reader = get_descriptor(csr, 'sdblock2mem', 0x100)
-    writer = get_descriptor(csr, 'sdmem2block', 0x100)
+    core = get_descriptor(csr, 'sdcard_core', 0x100)
+    reader = get_descriptor(csr, 'sdcard_block2mem', 0x100)
+    writer = get_descriptor(csr, 'sdcard_mem2block', 0x100)
 
     result = """
 mmc_controller: SD.LiteSDCard{} @ {{
@@ -645,7 +645,7 @@ peripherals_handlers = {
         'handler': generate_peripheral,
         'model': 'I2C.LiteX_I2C'
     },
-    'sdphy': {
+    'sdcard_phy': {
         'handler': generate_mmc,
     },
     'spisdcard': {
@@ -675,13 +675,13 @@ peripherals_handlers = {
         'handler': handled_peripheral # by generate_ethmac
     },
     # handled by generate_mmc
-    'sdblock2mem': {
+    'sdcard_block2mem': {
         'handler': handled_peripheral
     },
-    'sdmem2block': {
+    'sdcard_mem2block': {
         'handler': handled_peripheral
     },
-    'sdcore': {
+    'sdcard_core': {
         'handler': handled_peripheral
     },
 }
@@ -883,14 +883,22 @@ showAnalyzer sysbus.uart Antmicro.Renode.Analyzers.LoggingUartAnalyzer
 """.format(cpu_type, args.repl)
 
     opensbi_base = csr['memories']['opensbi']['base'] if 'opensbi' in csr['memories'] else None
-    if opensbi_base is not None and args.bios_binary:
-        # load LiteX BIOS to ROM
+    if opensbi_base is not None and args.opensbi_binary:
+        # load OpenSBI to opensbi base
         result += """
 sysbus LoadBinary @{} {}
-""".format(args.bios_binary, hex(opensbi_base))
+""".format(args.opensbi_binary, hex(opensbi_base))
+        for cpu_id in range(0, number_of_cores):
+            result += f"cpu{cpu_id} PC {hex(opensbi_base)}\n"
 
-    for cpu_id in range(0, number_of_cores):
-        result += f"cpu{cpu_id} PC {hex(opensbi_base)}\n"
+    rom_base = csr['memories']['rom']['base'] if 'rom' in csr['memories'] else None
+    if rom_base is not None and args.bios_binary:
+        # load LiteX BIOS to ROM base
+        result += """
+sysbus LoadBinary @{} {}
+""".format(args.bios_binary, hex(rom_base))
+        for cpu_id in range(0, number_of_cores):
+            result += f"cpu{cpu_id} PC {hex(rom_base)}\n"
 
     if args.tftp_ip:
         result += """
@@ -1046,8 +1054,12 @@ def parse_args():
                         help='Output platform definition file')
     parser.add_argument('--configure-network', action='store',
                         help='Generate virtual network and connect it to host')
-    parser.add_argument('--bios-binary', action='store',
+    bios_group = parser.add_mutually_exclusive_group()
+    bios_group.add_argument('--bios-binary', action='store',
                         help='Path to the BIOS binary')
+    bios_group.add_argument('--opensbi-binary', action='store',
+                        help='Path to the OpenSBI binary')
+
     parser.add_argument('--firmware-binary', action='store',
                         help='Path to the binary to load into boot flash')
     parser.add_argument('--flash-binary', action='append', dest='flash_binaries_args',

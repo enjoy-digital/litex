@@ -8,8 +8,9 @@
 from migen import *
 from migen.genlib.cdc import MultiReg
 
-from litex.soc.interconnect.csr import *
+from litex.gen import *
 
+from litex.soc.interconnect.csr import *
 from litex.soc.interconnect.csr_eventmanager import *
 
 # Helpers ------------------------------------------------------------------------------------------
@@ -18,14 +19,14 @@ def _to_signal(obj):
     return obj.raw_bits() if isinstance(obj, Record) else obj
 
 
-class _GPIOIRQ:
+class _GPIOIRQ(LiteXModule):
     def add_irq(self, in_pads):
         self._mode = CSRStorage(len(in_pads), description="GPIO IRQ Mode: 0: Edge, 1: Change.")
         self._edge = CSRStorage(len(in_pads), description="GPIO IRQ Edge (when in Edge mode): 0: Rising Edge, 1: Falling Edge.")
 
         # # #
 
-        self.submodules.ev = EventManager()
+        self.ev = EventManager()
         for n in range(len(in_pads)):
             in_pads_n_d = Signal()
             self.sync += in_pads_n_d.eq(in_pads[n])
@@ -44,7 +45,7 @@ class _GPIOIRQ:
 
 # GPIO Input ---------------------------------------------------------------------------------------
 
-class GPIOIn(_GPIOIRQ, Module, AutoCSR):
+class GPIOIn(_GPIOIRQ):
     def __init__(self, pads, with_irq=False):
         pads = _to_signal(pads)
         self._in = CSRStatus(len(pads), description="GPIO Input(s) Status.")
@@ -54,7 +55,7 @@ class GPIOIn(_GPIOIRQ, Module, AutoCSR):
 
 # GPIO Output --------------------------------------------------------------------------------------
 
-class GPIOOut(Module, AutoCSR):
+class GPIOOut(LiteXModule):
     def __init__(self, pads, reset=0):
         pads = _to_signal(pads)
         self.out = CSRStorage(len(pads), reset=reset, description="GPIO Output(s) Control.")
@@ -62,17 +63,17 @@ class GPIOOut(Module, AutoCSR):
 
 # GPIO Input/Output --------------------------------------------------------------------------------
 
-class GPIOInOut(Module):
+class GPIOInOut(LiteXModule):
     def __init__(self, in_pads, out_pads):
-        self.submodules.gpio_in  = GPIOIn(in_pads)
-        self.submodules.gpio_out = GPIOOut(out_pads)
+        self.gpio_in  = GPIOIn(in_pads)
+        self.gpio_out = GPIOOut(out_pads)
 
     def get_csrs(self):
         return self.gpio_in.get_csrs() + self.gpio_out.get_csrs()
 
 # GPIO Tristate ------------------------------------------------------------------------------------
 
-class GPIOTristate(_GPIOIRQ, Module, AutoCSR):
+class GPIOTristate(_GPIOIRQ):
     def __init__(self, pads, with_irq=False):
         internal = not (hasattr(pads, "o") and hasattr(pads, "oe") and hasattr(pads, "i"))
         nbits    = len(pads) if internal else len(pads.o)

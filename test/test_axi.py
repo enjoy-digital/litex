@@ -248,7 +248,7 @@ class TestAXI(unittest.TestCase):
         class DUT(Module):
             def __init__(self):
                 self.axi      = AXIInterface(data_width=32, address_width=32, id_width=8)
-                self.wishbone = wishbone.Interface(data_width=32, adr_width=30)
+                self.wishbone = wishbone.Interface(data_width=32, adr_width=30, addressing="word")
 
                 axi2wishbone = AXI2Wishbone(self.axi, self.wishbone)
                 self.submodules += axi2wishbone
@@ -343,7 +343,7 @@ class TestAXI(unittest.TestCase):
             def __init__(self, dw_from=64, dw_to=32):
                 self.axi_master = AXIInterface(data_width=dw_from)
                 axi_slave       = AXIInterface(data_width=dw_to)
-                wb_slave        = wishbone.Interface(data_width=dw_to, address_width=axi_slave.address_width)
+                wb_slave        = wishbone.Interface(data_width=dw_to, address_width=axi_slave.address_width, addressing="word")
                 self.converter = AXIConverter(self.axi_master, axi_slave)
                 self.axi2wb    = AXI2Wishbone(axi_slave, wb_slave)
                 self.mem       = wishbone.SRAM(1024, bus=wb_slave, init=range(256))

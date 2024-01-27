@@ -8,6 +8,7 @@
 
 from migen import *
 
+from litex.gen import *
 from litex.gen.common import reverse_bytes
 
 from litex.soc.interconnect.csr import *
@@ -21,7 +22,7 @@ def format_bytes(s, endianness):
 
 # WishboneDMAReader --------------------------------------------------------------------------------
 
-class WishboneDMAReader(Module, AutoCSR):
+class WishboneDMAReader(LiteXModule):
     """Read data from Wishbone MMAP memory.
 
     For every address written to the sink, one word will be produced on the source.
@@ -48,7 +49,7 @@ class WishboneDMAReader(Module, AutoCSR):
         # # #
 
         # FIFO..
-        self.submodules.fifo = fifo = stream.SyncFIFO([("data", bus.data_width)], depth=fifo_depth)
+        self.fifo = fifo = stream.SyncFIFO([("data", bus.data_width)], depth=fifo_depth)
 
         # Reads -> FIFO.
         self.comb += [
@@ -91,9 +92,7 @@ class WishboneDMAReader(Module, AutoCSR):
 
         self.comb += self._offset.status.eq(offset)
 
-        fsm = FSM(reset_state="IDLE")
-        fsm = ResetInserter()(fsm)
-        self.submodules += fsm
+        self.fsm = fsm = ResetInserter()(FSM(reset_state="IDLE"))
         self.comb += fsm.reset.eq(~self._enable.storage)
         fsm.act("IDLE",
             NextValue(offset, 0),
@@ -118,7 +117,7 @@ class WishboneDMAReader(Module, AutoCSR):
 
 # WishboneDMAWriter --------------------------------------------------------------------------------
 
-class WishboneDMAWriter(Module, AutoCSR):
+class WishboneDMAWriter(LiteXModule):
     """Write data to Wishbone MMAP memory.
 
     Parameters
@@ -176,9 +175,7 @@ class WishboneDMAWriter(Module, AutoCSR):
 
         self.comb += self._offset.status.eq(offset)
 
-        fsm = FSM(reset_state="IDLE")
-        fsm = ResetInserter()(fsm)
-        self.submodules += fsm
+        self.fsm = fsm = ResetInserter()(FSM(reset_state="IDLE"))
         self.comb += fsm.reset.eq(~self._enable.storage)
         fsm.act("IDLE",
             self.sink.ready.eq(ready_on_idle),

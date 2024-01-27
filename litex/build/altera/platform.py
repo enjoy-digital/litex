@@ -38,14 +38,14 @@ class AlteraPlatform(GenericPlatform):
         return GenericPlatform.get_verilog(self, *args,
             special_overrides = so,
             attr_translate    = self.toolchain.attr_translate,
-            **kwargs)
-
+            **kwargs
+        )
 
     def build(self, *args, **kwargs):
         return self.toolchain.build(self, *args, **kwargs)
 
-    def add_period_constraint(self, clk, period):
-        self.toolchain.add_period_constraint(self, clk, period, keep=False)
+    def add_period_constraint(self, clk, period, keep=False, name=None):
+        self.toolchain.add_period_constraint(self, clk, period, keep=keep, name=name)
 
     def add_false_path_constraint(self, from_, to):
         if hasattr(from_, "p"):

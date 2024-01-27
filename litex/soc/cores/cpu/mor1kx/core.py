@@ -11,6 +11,8 @@ import os
 
 from migen import *
 
+from litex.gen import *
+
 from litex import get_data_mod
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU
@@ -82,8 +84,8 @@ class MOR1KX(CPU):
         self.variant      = variant
         self.reset        = Signal()
         self.interrupt    = Signal(32)
-        self.ibus         = ibus = wishbone.Interface()
-        self.dbus         = dbus = wishbone.Interface()
+        self.ibus         = ibus = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
+        self.dbus         = dbus = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
         self.periph_buses = [ibus, dbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses = []           # Memory buses (Connected directly to LiteDRAM).
 
@@ -158,7 +160,7 @@ class MOR1KX(CPU):
             i_irq_i=self.interrupt,
 
             # IBus.
-            o_iwbm_adr_o = Cat(Signal(2), ibus.adr),
+            o_iwbm_adr_o = ibus.adr,
             o_iwbm_dat_o = ibus.dat_w,
             o_iwbm_sel_o = ibus.sel,
             o_iwbm_cyc_o = ibus.cyc,
@@ -172,7 +174,7 @@ class MOR1KX(CPU):
             i_iwbm_rty_i = 0,
 
             # DBus.
-            o_dwbm_adr_o = Cat(Signal(2), dbus.adr),
+            o_dwbm_adr_o = dbus.adr,
             o_dwbm_dat_o = dbus.dat_w,
             o_dwbm_sel_o = dbus.sel,
             o_dwbm_cyc_o = dbus.cyc,

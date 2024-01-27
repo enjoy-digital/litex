@@ -1,7 +1,7 @@
 <p align="center"><img src="https://raw.githubusercontent.com/enjoy-digital/litex/master/doc/litex.png"></p>
 
 ```
-             Copyright 2012-2023 / Enjoy-Digital & LiteX developers
+             Copyright 2012-2024 / Enjoy-Digital & LiteX developers
 ```
 [![](https://github.com/enjoy-digital/litex/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litex/actions)
 ![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)
@@ -107,7 +107,7 @@ To discover more products/projects built with LiteX, visit the [projects page](h
 
 A huge shoutout to our awesome industrial clients who have given us the green light to incorporate some of the developments we initially created for them directly into LiteX! These innovative developments often provide the building blocks for the features that the wider community can then use and improve upon. Your support has been instrumental for the project, and we are incredibly grateful for your partnership. Thanks!
 
-![](https://user-images.githubusercontent.com/1450143/221536924-5b6511f9-084a-4c94-9bb3-4653094d2723.png)
+![](https://github.com/enjoy-digital/litex/assets/1450143/444d8fc2-3092-487c-b52f-bdd776b790a4.png)
 
 # Papers, Presentations, Tutorials, Links
 **FPGA lessons/tutorials:**

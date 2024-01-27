@@ -108,6 +108,13 @@ class SoCCore(LiteXSoC):
         # Controller parameters
         with_ctrl                = True,
 
+        # JTAGBone
+        with_jtagbone            = False,
+        jtagbone_chain           = 1,
+
+        # UARTBone
+        with_uartbone            = False,
+
         # Others
         **kwargs):
 
@@ -174,6 +181,26 @@ class SoCCore(LiteXSoC):
         # Wishbone Slaves.
         self.wb_slaves = {}
 
+        # Parameters check validity ----------------------------------------------------------------
+
+        # FIXME: Move to soc.py?
+
+        if with_uart:
+            # crossover+uartbone is kept as backward compatibility
+            if uart_name == "crossover+uartbone":
+                self.logger.warning("{} UART: is deprecated {}".format(
+                    colorer(uart_name, color="yellow"),
+                    colorer("please use --uart-name=\"crossover\" --with-uartbone", color="red")))
+                time.sleep(2)
+                # Already configured.
+                self._uartbone = True
+                uart_name      = "crossover"
+
+            # JTAGBone and jtag_uart can't be used at the same time.
+            assert not (with_jtagbone and uart_name == "jtag_uart")
+            # UARTBone and serial can't be used at the same time.
+            assert not (with_uartbone and uart_name == "serial")
+
         # Modules instances ------------------------------------------------------------------------
 
         # Add SoCController
@@ -220,9 +247,17 @@ class SoCCore(LiteXSoC):
         if ident != "":
             self.add_identifier("identifier", identifier=ident, with_build_time=ident_version)
 
+        # Add UARTBone
+        if with_uartbone:
+            self.add_uartbone(baudrate=uart_baudrate)
+
         # Add UART
         if with_uart:
             self.add_uart(name="uart", uart_name=uart_name, baudrate=uart_baudrate, fifo_depth=uart_fifo_depth)
+
+        # Add JTAGBone
+        if with_jtagbone:
+            self.add_jtagbone(chain=jtagbone_chain)
 
         # Add Timer
         if with_timer:
@@ -293,6 +328,13 @@ def soc_core_args(parser):
     soc_group.add_argument("--uart-name",       default="serial",    type=str,      help="UART type/name.")
     soc_group.add_argument("--uart-baudrate",   default=115200,      type=auto_int, help="UART baudrate.")
     soc_group.add_argument("--uart-fifo-depth", default=16,          type=auto_int, help="UART FIFO depth.")
+
+    # UARTBone parameters
+    soc_group.add_argument("--with-uartbone",   action="store_true",                help="Enable UARTbone.")
+
+    # JTAGBone parameters
+    soc_group.add_argument("--with-jtagbone",  action="store_true", help="Enable Jtagbone support.")
+    soc_group.add_argument("--jtagbone-chain", default=1, type=int, help="Jtagbone chain index.")
 
     # Timer parameters
     soc_group.add_argument("--no-timer",        action="store_true", help="Disable Timer.")

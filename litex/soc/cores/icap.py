@@ -11,6 +11,8 @@ from migen import *
 
 from migen.genlib.cdc import PulseSynchronizer
 
+from litex.gen import *
+
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import stream
 
@@ -71,7 +73,7 @@ class ICAPCMDs(IntEnum):
 
 # Xilinx 7-series / Ultrascale (Plus) ICAP ---------------------------------------------------------
 
-class ICAP(Module, AutoCSR):
+class ICAP(LiteXModule):
     """ICAP
 
     Allow writing/reading ICAPE2's registers of Xilinx 7-Series FPGAs.
@@ -94,7 +96,7 @@ class ICAP(Module, AutoCSR):
         assert math.log2(clk_divider).is_integer()
 
         # Create slow ICAP Clk.
-        self.clock_domains.cd_icap = ClockDomain()
+        self.cd_icap = ClockDomain()
         icap_clk_counter = Signal(int(math.log2(clk_divider)))
         self.sync += icap_clk_counter.eq(icap_clk_counter + 1)
         self.sync += self.cd_icap.clk.eq(icap_clk_counter[-1])
@@ -257,7 +259,7 @@ class ICAP(Module, AutoCSR):
     def add_reload(self):
         self.reload = Signal() # Set to 1 to reload FPGA from logic.
 
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             If(self.reload,
                 NextState("RELOAD")
@@ -274,7 +276,7 @@ class ICAP(Module, AutoCSR):
         platform.add_false_path_constraints(self.cd_icap.clk, sys_clk)
 
 
-class ICAPBitstream(Module, AutoCSR):
+class ICAPBitstream(LiteXModule):
     """ICAP Bitstream
 
     Allow sending bitstreams to ICAPE2 of Xilinx 7-Series FPGAs.
@@ -294,7 +296,7 @@ class ICAPBitstream(Module, AutoCSR):
 
         # Create slow icap_clk (sys_clk/4) ---------------------------------------------------------
         icap_clk_counter = Signal(log2_int(icap_clk_div))
-        self.clock_domains.cd_icap = ClockDomain()
+        self.cd_icap = ClockDomain()
         self.sync += icap_clk_counter.eq(icap_clk_counter + 1)
         self.sync += self.cd_icap.clk.eq(icap_clk_counter[-1])
 

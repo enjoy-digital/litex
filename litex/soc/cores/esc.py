@@ -7,9 +7,9 @@
 import math
 
 from migen import *
-from migen.genlib.misc import WaitTimer
 
 from litex.gen import LiteXModule
+from litex.gen.genlib.misc import WaitTimer
 
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import wishbone
@@ -87,7 +87,7 @@ class ESCDShot(LiteXModule):
         esc_pad = Signal() # Or platform.request("X") with X = esc pin name.
 
         from litex.soc.cores.esc import ESCDShot
-        self.submodules.esc0 = ESCDShot(esc_pad, sys_clk_freq, protocol="DSHOT150")
+        self.esc0 = ESCDShot(esc_pad, sys_clk_freq, protocol="DSHOT150")
 
         # Test script:
         # ------------
@@ -141,15 +141,15 @@ class ESCDShot(LiteXModule):
         timings.compute()
 
         # Timers.
-        t0h_timer = WaitTimer(int(timings.t0h*sys_clk_freq))
-        t0l_timer = WaitTimer(int(timings.t0l*sys_clk_freq) - 1) # Compensate Xfer FSM latency.
+        t0h_timer = WaitTimer(timings.t0h*sys_clk_freq)
+        t0l_timer = WaitTimer(timings.t0l*sys_clk_freq - 1) # Compensate Xfer FSM latency.
         self.submodules += t0h_timer, t0l_timer
 
-        t1h_timer = WaitTimer(int(timings.t1h*sys_clk_freq))
-        t1l_timer = WaitTimer(int(timings.t1l*sys_clk_freq) - 1) # Compensate Xfer FSM latency.
+        t1h_timer = WaitTimer(timings.t1h*sys_clk_freq)
+        t1l_timer = WaitTimer(timings.t1l*sys_clk_freq - 1) # Compensate Xfer FSM latency.
         self.submodules += t1h_timer, t1l_timer
 
-        tgap_timer = WaitTimer(int(timings.tgap*sys_clk_freq))
+        tgap_timer = WaitTimer(timings.tgap*sys_clk_freq)
         self.submodules += tgap_timer
 
         # XFER FSM.

@@ -7,6 +7,8 @@
 from migen.fhdl.module import Module
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
+from litex.gen import *
+
 from litex.build.io import *
 
 # Gowin AsyncResetSynchronizer ---------------------------------------------------------------------
@@ -48,7 +50,7 @@ class GowinDDRInputImpl(Module):
 class GowinDDRInput:
     @staticmethod
     def lower(dr):
-        return GowinInputImpl(dr.i, dr.o1, dr.o2, dr.clk)
+        return GowinDDRInputImpl(dr.i, dr.o1, dr.o2, dr.clk)
 
 # Gowin DDR Output ---------------------------------------------------------------------------------
 
@@ -58,7 +60,9 @@ class GowinDDROutputImpl(Module):
             i_CLK = clk,
             i_D0  = i1,
             i_D1  = i2,
+            i_TX  = 0,
             o_Q0  = o,
+            o_Q1  = Open(),
         )
 
 class GowinDDROutput:
@@ -96,6 +100,24 @@ class GowinDifferentialOutput:
     def lower(dr):
         return GowinDifferentialOutputImpl(dr.i, dr.o_p, dr.o_n)
 
+# Gowin Tristate -----------------------------------------------------------------------------------
+
+class GowinTristateImpl(Module):
+    def __init__(self, io, o, oe, i):
+        nbits, _ = value_bits_sign(io)
+        for bit in range(nbits):
+            self.specials += Instance("IOBUF",
+                io_IO = io[bit] if nbits > 1 else io,
+                o_O   = i[bit]  if nbits > 1 else i,
+                i_I   = o[bit]  if nbits > 1 else o,
+                i_OEN = ~oe,
+            )
+
+class GowinTristate:
+    @staticmethod
+    def lower(dr):
+        return GowinTristateImpl(dr.target, dr.o, dr.oe, dr.i)
+
 # Gowin Special Overrides --------------------------------------------------------------------------
 
 gowin_special_overrides = {
@@ -104,4 +126,5 @@ gowin_special_overrides = {
     DDROutput:              GowinDDROutput,
     DifferentialInput:      GowinDifferentialInput,
     DifferentialOutput:     GowinDifferentialOutput,
+    #Tristate:               GowinTristate, # FIXME: issue with tangNano9k hyperram
 }

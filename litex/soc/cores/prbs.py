@@ -6,10 +6,10 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
-from migen.genlib.misc import WaitTimer
 from migen.genlib.cdc import MultiReg
 
 from litex.gen import *
+from litex.gen.genlib.misc import WaitTimer
 
 # Constants ----------------------------------------------------------------------------------------
 
@@ -20,7 +20,7 @@ PRBS_CONFIG_PRBS31 = 0b11
 
 # PRBS Generators ----------------------------------------------------------------------------------
 
-class PRBSGenerator(Module):
+class PRBSGenerator(LiteXModule):
     def __init__(self, n_out, n_state=23, taps=[17, 22]):
         self.o = Signal(n_out)
 
@@ -56,7 +56,7 @@ class PRBS31Generator(PRBSGenerator):
 
 # PRBS TX ------------------------------------------------------------------------------------------
 
-class PRBSTX(Module):
+class PRBSTX(LiteXModule):
     def __init__(self, width, reverse=False):
         self.config = Signal(2)
         self.i      = Signal(width)
@@ -98,7 +98,7 @@ class PRBSTX(Module):
 
 # PRBS Checkers ------------------------------------------------------------------------------------
 
-class PRBSChecker(Module):
+class PRBSChecker(LiteXModule):
     def __init__(self, n_in, n_state=23, taps=[17, 22]):
         self.i      = Signal(n_in)
         self.errors = Signal(n_in)
@@ -139,7 +139,7 @@ class PRBS31Checker(PRBSChecker):
 
 # PRBS RX ------------------------------------------------------------------------------------------
 
-class PRBSRX(Module):
+class PRBSRX(LiteXModule):
     def __init__(self, width, reverse=False, with_errors_saturation=False):
         self.config = Signal(2)
         self.pause  = Signal()

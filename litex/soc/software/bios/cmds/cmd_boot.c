@@ -122,7 +122,7 @@ define_command(netboot, netboot, "Boot via Ethernet (TFTP)", BOOT_CMDS);
  * Boot software from SDcard
  *
  */
-#if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCORE_BASE)
+#if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCARD_CORE_BASE)
 define_command(sdcardboot, sdcardboot, "Boot from SDCard", BOOT_CMDS);
 #endif
 

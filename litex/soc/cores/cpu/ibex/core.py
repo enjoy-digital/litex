@@ -45,19 +45,19 @@ obi_layout = [
     ("rdata", 32),
 ]
 
-class OBI2Wishbone(Module):
+class OBI2Wishbone(LiteXModule):
     def __init__(self, obi, wb):
         addr  = Signal.like(obi.addr)
         be    = Signal.like(obi.be)
         we    = Signal.like(obi.we)
         wdata = Signal.like(obi.wdata)
 
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             # On OBI request:
             If(obi.req,
                 # Drive Wishbone bus from OBI bus.
-                wb.adr.eq(obi.addr[2:32]),
+                wb.adr.eq(     obi.addr),
                 wb.stb.eq(            1),
                 wb.dat_w.eq(  obi.wdata),
                 wb.cyc.eq(            1),
@@ -77,7 +77,7 @@ class OBI2Wishbone(Module):
         )
         fsm.act("ACK",
             # Drive Wishbone bus from stored OBI bus values.
-            wb.adr.eq(addr[2:32]),
+            wb.adr.eq(      addr),
             wb.stb.eq(         1),
             wb.dat_w.eq(   wdata),
             wb.cyc.eq(         1),
@@ -121,8 +121,8 @@ class Ibex(CPU):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
-        self.ibus         = wishbone.Interface()
-        self.dbus         = wishbone.Interface()
+        self.ibus         = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
+        self.dbus         = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
         self.periph_buses = [self.ibus, self.dbus]
         self.memory_buses = []
         self.interrupt    = Signal(15)
@@ -131,8 +131,8 @@ class Ibex(CPU):
         dbus = Record(obi_layout)
 
         # OBI <> Wishbone.
-        self.submodules.ibus_conv = OBI2Wishbone(ibus, self.ibus)
-        self.submodules.dbus_conv = OBI2Wishbone(dbus, self.dbus)
+        self.ibus_conv = OBI2Wishbone(ibus, self.ibus)
+        self.dbus_conv = OBI2Wishbone(dbus, self.dbus)
 
         self.comb += [
             ibus.we.eq(0),

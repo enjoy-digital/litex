@@ -86,6 +86,7 @@ class Builder:
 
         # BIOS.
         bios_lto         = False,
+        bios_format      = "integer",
         bios_console     = "full",
 
         # Documentation.
@@ -113,6 +114,7 @@ class Builder:
 
         # BIOS.
         self.bios_lto     = bios_lto
+        self.bios_format  = bios_format
         self.bios_console = bios_console
 
         # Documentation.
@@ -159,6 +161,7 @@ class Builder:
 
         define("SOC_DIRECTORY",         soc_directory)
         define("PICOLIBC_DIRECTORY",    picolibc_directory)
+        define("PICOLIBC_FORMAT",       self.bios_format)
         define("COMPILER_RT_DIRECTORY", compiler_rt_directory)
         variables_contents.append("export BUILDINC_DIRECTORY")
         define("BUILDINC_DIRECTORY", self.include_dir)
@@ -406,6 +409,7 @@ def builder_args(parser):
     builder_group.add_argument("--doc",                   action="store_true", help="Generate SoC Documentation.")
     bios_group = parser.add_argument_group(title="BIOS options") # FIXME: Move?
     bios_group.add_argument("--bios-lto",     action="store_true", help="Enable BIOS LTO (Link Time Optimization) compilation.")
+    bios_group.add_argument("--bios-format",  default="integer",   help="Select BIOS printf format.",  choices=["integer", "float", "double"])
     bios_group.add_argument("--bios-console", default="full"  ,    help="Select BIOS console config.", choices=["full", "no-history", "no-autocomplete", "lite", "disable"])
 
 def builder_argdict(args):
@@ -424,5 +428,6 @@ def builder_argdict(args):
         "memory_x"         : args.memory_x,
         "generate_doc"     : args.doc,
         "bios_lto"         : args.bios_lto,
+        "bios_format"      : args.bios_format,
         "bios_console"     : args.bios_console,
     }

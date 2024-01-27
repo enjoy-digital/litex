@@ -26,6 +26,7 @@ class GowinToolchain(GenericToolchain):
     def __init__(self):
         super().__init__()
         self.options = {}
+        self.additional_cst_commands = []
 
     def finalize(self):
         if self.platform.verilog_include_paths:
@@ -69,18 +70,46 @@ class GowinToolchain(GenericToolchain):
             else:
                 flat_sc.append((name, pins[0], other))
 
+        def _search_pin_entry(pin_lst, pin_name):
+            for name, pin, other in pin_lst:
+                if pin_name == name:
+                    return (name, pin, other)
+            return (None, None, None)
+
         for name, pin, other in flat_sc:
             if pin != "X":
+                t_name = name.split('[') # avoid index pins
+                tmp_name = t_name[0]
+                if tmp_name[-2:] == "_p":
+                    pn = tmp_name[:-2] + "_n"
+                    if len(t_name) > 1:
+                        pn += '[' + t_name[1]
+                    (_, n_pin, _) = _search_pin_entry(flat_sc, pn)
+                    if n_pin is not None:
+                        pin = f"{pin},{n_pin}"
+                elif tmp_name[-2:] == "_n":
+                    pp = tmp_name[:-2] + "_p"
+                    if len(t_name) > 1:
+                        pp += '[' + t_name[1]
+                    (p_name, _, _) = _search_pin_entry(flat_sc, pp)
+                    if p_name is not None:
+                        continue
                 cst.append(f"IO_LOC \"{name}\" {pin};")
 
+            other_cst = []
             for c in other:
                 if isinstance(c, IOStandard):
-                    cst.append(f"IO_PORT \"{name}\" IO_TYPE={c.name};")
+                    other_cst.append(f"IO_TYPE={c.name}")
                 elif isinstance(c, Misc):
-                    cst.append(f"IO_PORT \"{name}\" {c.misc};")
+                    other_cst.append(f"{c.misc}")
+            if len(other_cst):
+                t = " ".join(other_cst)
+                cst.append(f"IO_PORT \"{name}\" {t};")
 
         if self.named_pc:
             cst.extend(self.named_pc)
+
+        cst.extend(self.additional_cst_commands)
 
         tools.write_to_file(f"{self._build_name}.cst", "\n".join(cst))
         return (f"{self._build_name}.cst", "CST")
@@ -89,8 +118,11 @@ class GowinToolchain(GenericToolchain):
 
     def build_timing_constraints(self, vns):
         sdc = []
-        for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
-            sdc.append(f"create_clock -name {vns.get_name(clk)} -period {str(period)} [get_ports {{{vns.get_name(clk)}}}]")
+        for clk, [period, name] in sorted(self.clocks.items(), key=lambda x: x[0].duid):
+            clk_sig = self._vns.get_name(clk)
+            if name is None:
+                name = clk_sig
+            sdc.append(f"create_clock -name {name} -period {str(period)} [get_ports {{{clk_sig}}}]")
         tools.write_to_file(f"{self._build_name}.sdc", "\n".join(sdc))
         return (f"{self._build_name}.sdc", "SDC")
 

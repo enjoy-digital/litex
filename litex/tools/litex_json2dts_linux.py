@@ -246,20 +246,8 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         };
 """
 
-    # Clock ----------------------------------------------------------------------------------------
-
-    dts += """
-        clocks {{
-            sys_clk: litex_sys_clk {{
-                #clock-cells = <0>;
-                compatible = "fixed-clock";
-                clock-frequency = <{sys_clk_freq}>;
-            }};
-        }};
-""".format(sys_clk_freq=d["constants"]["config_clock_frequency"])
-
     # Voltage Regulator for LiteSDCard (if applicable) --------------------------------------------
-    if "sdcore" in d["csr_bases"]:
+    if "sdcard_core" in d["csr_bases"]:
         dts += """
         vreg_mmc: vreg_mmc {{
             compatible = "regulator-fixed";
@@ -431,30 +419,30 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     # SDCard ---------------------------------------------------------------------------------------
 
-    if "sdcore" in d["csr_bases"]:
+    if "sdcard_core" in d["csr_bases"]:
         dts += """
             mmc0: mmc@{mmc_csr_base:x} {{
                 compatible = "litex,mmc";
-                reg = <0x{sdphy_csr_base:x} 0x100>,
-                      <0x{sdcore_csr_base:x} 0x100>,
-                      <0x{sdblock2mem:x} 0x100>,
-                      <0x{sdmem2block:x} 0x100>,
-                      <0x{sdirq:x} 0x100>;
+                reg = <0x{sdcard_phy_csr_base:x} 0x100>,
+                      <0x{sdcard_core_csr_base:x} 0x100>,
+                      <0x{sdcard_block2mem:x} 0x100>,
+                      <0x{sdcard_mem2block:x} 0x100>,
+                      <0x{sdcard_irq:x} 0x100>;
                 reg-names = "phy", "core", "reader", "writer", "irq";
                 clocks = <&sys_clk>;
                 vmmc-supply = <&vreg_mmc>;
                 bus-width = <0x04>;
-                {sdirq_interrupt}
+                {sdcard_irq_interrupt}
                 status = "okay";
             }};
 """.format(
-        mmc_csr_base    = d["csr_bases"]["sdphy"],
-        sdphy_csr_base  = d["csr_bases"]["sdphy"],
-        sdcore_csr_base = d["csr_bases"]["sdcore"],
-        sdblock2mem     = d["csr_bases"]["sdblock2mem"],
-        sdmem2block     = d["csr_bases"]["sdmem2block"],
-        sdirq           = d["csr_bases"]["sdirq"],
-        sdirq_interrupt = "" if polling else "interrupts = <{}>;".format(d["constants"]["sdirq_interrupt"])
+        mmc_csr_base         = d["csr_bases"]["sdcard_phy"],
+        sdcard_phy_csr_base  = d["csr_bases"]["sdcard_phy"],
+        sdcard_core_csr_base = d["csr_bases"]["sdcard_core"],
+        sdcard_block2mem     = d["csr_bases"]["sdcard_block2mem"],
+        sdcard_mem2block     = d["csr_bases"]["sdcard_mem2block"],
+        sdcard_irq           = d["csr_bases"]["sdcard_irq"],
+        sdcard_irq_interrupt = "" if polling else "interrupts = <{}>;".format(d["constants"]["sdcard_irq_interrupt"])
 )
     # Leds -----------------------------------------------------------------------------------------
 

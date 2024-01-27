@@ -13,6 +13,7 @@ from litex.build.quicklogic import common, f4pga
 
 class QuickLogicPlatform(GenericPlatform):
     _bitstream_ext = ".bit"
+    _jtag_support  = False
 
     _supported_toolchains = ["f4pga"]
 

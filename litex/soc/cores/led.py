@@ -8,7 +8,9 @@
 import math
 
 from migen import *
-from migen.genlib.misc import WaitTimer
+
+from litex.gen import *
+from litex.gen.genlib.misc import WaitTimer
 
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import wishbone
@@ -18,7 +20,7 @@ from litex.soc.interconnect import wishbone
 _CHASER_MODE  = 0
 _CONTROL_MODE = 1
 
-class LedChaser(Module, AutoCSR):
+class LedChaser(LiteXModule):
     def __init__(self, pads, sys_clk_freq, period=1e0, polarity=0):
         self.pads     = pads
         self.polarity = polarity
@@ -30,7 +32,7 @@ class LedChaser(Module, AutoCSR):
 
         chaser = Signal(self.n)
         mode   = Signal(reset=_CHASER_MODE)
-        timer  = WaitTimer(int(period*sys_clk_freq/(2*self.n)))
+        timer  = WaitTimer(period*sys_clk_freq/(2*self.n))
         leds   = Signal(self.n)
         self.submodules += timer
         self.comb += timer.wait.eq(~timer.done)
@@ -47,7 +49,7 @@ class LedChaser(Module, AutoCSR):
 
     def add_pwm(self, default_width=512, default_period=1024, with_csr=True):
         from litex.soc.cores.pwm import PWM
-        self.submodules.pwm = PWM(
+        self.pwm = PWM(
             with_csr       = with_csr,
             default_enable = 1,
             default_width  = default_width,
@@ -59,7 +61,7 @@ class LedChaser(Module, AutoCSR):
 
 # WS2812/NeoPixel ----------------------------------------------------------------------------------
 
-class WS2812(Module):
+class WS2812(LiteXModule):
     """WS2812/NeoPixel Led Driver.
 
     Description
@@ -113,7 +115,7 @@ class WS2812(Module):
                                ...        ...
 
      It can be simply integrated in a LiteX SoC with:
-         self.submodules.ws2812 = WS2812(platform.request("x"), nleds=32, sys_clk_freq=sys_clk_freq)
+         self.ws2812 = WS2812(platform.request("x"), nleds=32, sys_clk_freq=sys_clk_freq)
          self.bus.add_slave(name="ws2812", slave=self.ws2812.bus, region=SoCRegion(
              origin = 0x2000_0000,
              size   = 32*4,
@@ -132,7 +134,7 @@ class WS2812(Module):
     """
     def __init__(self, pad, nleds, sys_clk_freq, bus_mastering=False, bus_base=None, revision="new", init=None):
         if bus_mastering:
-            self.bus  = bus = wishbone.Interface(data_width=32)
+            self.bus  = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         else:
             # Memory.
             mem = Memory(32, nleds, init=init)
@@ -140,10 +142,10 @@ class WS2812(Module):
             self.specials += mem, port
 
             # Wishone Memory.
-            self.submodules.wb_mem = wishbone.SRAM(
+            self.wb_mem = wishbone.SRAM(
                 mem_or_size = mem,
                 read_only   = False,
-                bus         = wishbone.Interface(data_width=32)
+                bus         = wishbone.Interface(data_width=32, address_width=32, addressing="word")
             )
             self.bus = self.wb_mem.bus
 
@@ -163,19 +165,19 @@ class WS2812(Module):
         self.t1l  = t1l  = 0.45e-6
 
         # Timers.
-        trst_timer = WaitTimer(int(trst*sys_clk_freq))
+        trst_timer = WaitTimer(trst*sys_clk_freq)
         self.submodules += trst_timer
 
-        t0h_timer = WaitTimer(int(t0h*sys_clk_freq))
-        t0l_timer = WaitTimer(int(t0l*sys_clk_freq) - 1) # Compensate Xfer FSM latency.
+        t0h_timer = WaitTimer(t0h*sys_clk_freq)
+        t0l_timer = WaitTimer(t0l*sys_clk_freq - 1) # Compensate Xfer FSM latency.
         self.submodules += t0h_timer, t0l_timer
 
-        t1h_timer = WaitTimer(int(t1h*sys_clk_freq))
-        t1l_timer = WaitTimer(int(t1l*sys_clk_freq) - 1) # Compensate Xfer FSM latency.
+        t1h_timer = WaitTimer(t1h*sys_clk_freq)
+        t1l_timer = WaitTimer(t1l*sys_clk_freq - 1) # Compensate Xfer FSM latency.
         self.submodules += t1h_timer, t1l_timer
 
         # Main FSM.
-        self.submodules.fsm = fsm = FSM(reset_state="RST")
+        self.fsm = fsm = FSM(reset_state="RST")
         fsm.act("RST",
             NextValue(led_count, 0),
             trst_timer.wait.eq(xfer_done),

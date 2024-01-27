@@ -92,6 +92,10 @@ class EfinixDbParser:
             if p.get('block') == block:
                 names.append(p.get('name'))
 
+        # Ti60F100S3F2 has only 3 PLLs
+        if block == "pll" and self.device == "Ti60F100S3F2":
+            names.remove("PLL_BL0")
+
         print(f"block {block}: names:{names}")
         return names
 

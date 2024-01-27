@@ -12,9 +12,11 @@ import importlib
 
 from migen import *
 
+from litex.gen import *
+
 # CPU (Generic) ------------------------------------------------------------------------------------
 
-class CPU(Module):
+class CPU(LiteXModule):
     category             = None
     family               = None
     name                 = None
@@ -48,11 +50,9 @@ class CPU(Module):
 
 class CPUNone(CPU):
     variants            = ["standard"]
-    data_width          = 32
     endianness          = "little"
     reset_address       = 0x00000000
     reset_address_check = False
-    io_regions          = {0x0000_0000: 0x1_0000_0000} # origin, length
     periph_buses        = []
     memory_buses        = []
     mem_map             = {
@@ -60,6 +60,10 @@ class CPUNone(CPU):
         "ethmac"   : 0x0002_0000, # FIXME: Remove.
         "spiflash" : 0x1000_0000, # FIXME: Remove.
     }
+
+    def __init__(self, data_width=32, addr_width=32):
+        self.io_regions = {0: int(2**float(addr_width))} # origin, length
+        self.data_width = data_width
 
 # CPUs GCC Triples ---------------------------------------------------------------------------------
 

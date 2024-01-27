@@ -63,7 +63,7 @@ static void boot_sequence(void)
 #ifdef ROM_BOOT_ADDRESS
 	romboot();
 #endif
-#if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCORE_BASE)
+#if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCARD_CORE_BASE)
 	sdcardboot();
 #endif
 #if defined(CSR_SATA_SECTOR2MEM_BASE)
@@ -110,7 +110,7 @@ __attribute__((__used__)) int main(int i, char **c)
 	printf("\e[1m     /____/_/\\__/\\__/_/|_|\e[0m\n");
 	printf("\e[1m   Build your hardware, easily!\e[0m\n");
 	printf("\n");
-	printf(" (c) Copyright 2012-2023 Enjoy-Digital\n");
+	printf(" (c) Copyright 2012-2024 Enjoy-Digital\n");
 	printf(" (c) Copyright 2007-2015 M-Labs\n");
 	printf("\n");
 #ifndef CONFIG_BIOS_NO_BUILD_TIME
@@ -125,7 +125,11 @@ __attribute__((__used__)) int main(int i, char **c)
 	printf("--=============== \e[1mSoC\e[0m ==================--\n");
 	printf("\e[1mCPU\e[0m:\t\t%s @ %dMHz\n",
 		CONFIG_CPU_HUMAN_NAME,
+#ifdef CONFIG_CPU_CLK_FREQ
+		CONFIG_CPU_CLK_FREQ/1000000);
+#else
 		CONFIG_CLOCK_FREQUENCY/1000000);
+#endif
 	printf("\e[1mBUS\e[0m:\t\t%s %d-bit @ %dGiB\n",
 		CONFIG_BUS_STANDARD,
 		CONFIG_BUS_DATA_WIDTH,

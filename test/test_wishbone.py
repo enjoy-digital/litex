@@ -26,8 +26,8 @@ class TestWishbone(unittest.TestCase):
 
         class DUT(Module):
             def __init__(self):
-                self.wb16 = wishbone.Interface(data_width=16)
-                wb32      = wishbone.Interface(data_width=32)
+                self.wb16 = wishbone.Interface(data_width=16, address_width=32, addressing="word")
+                wb32      = wishbone.Interface(data_width=32, address_width=32, addressing="word")
                 up_converter = wishbone.UpConverter(self.wb16, wb32)
                 self.submodules += up_converter
                 wishbone_mem = wishbone.SRAM(32, bus=wb32)
@@ -45,9 +45,9 @@ class TestWishbone(unittest.TestCase):
 
         class DUT(Module):
             def __init__(self):
-                self.wb32 = wishbone.Interface(data_width=32)
-                wb64      = wishbone.Interface(data_width=64)
-                wb32      = wishbone.Interface(data_width=32)
+                self.wb32 = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                wb64      = wishbone.Interface(data_width=64, address_width=32, addressing="word")
+                wb32      = wishbone.Interface(data_width=32, address_width=32, addressing="word")
                 up_converter   = wishbone.UpConverter(self.wb32, wb64)
                 down_converter = wishbone.DownConverter(wb64, wb32)
                 self.submodules += up_converter, down_converter
@@ -70,7 +70,7 @@ class TestWishbone(unittest.TestCase):
 
         class DUT(Module):
             def __init__(self):
-                self.wb = wishbone.Interface(bursting=True)
+                self.wb = wishbone.Interface(data_width=32, address_width=32, addressing="word", bursting=True)
                 wishbone_mem = wishbone.SRAM(32, bus=self.wb)
                 self.submodules += wishbone_mem
 
@@ -91,7 +91,7 @@ class TestWishbone(unittest.TestCase):
 
         class DUT(Module):
             def __init__(self):
-                self.wb = wishbone.Interface(bursting=True)
+                self.wb = wishbone.Interface(data_width=32, address_width=32, addressing="word", bursting=True)
                 wishbone_mem = wishbone.SRAM(32, bus=self.wb)
                 self.submodules += wishbone_mem
 
@@ -111,7 +111,7 @@ class TestWishbone(unittest.TestCase):
 
         class DUT(Module):
             def __init__(self):
-                self.wb = wishbone.Interface(bursting=True)
+                self.wb = wishbone.Interface(data_width=32, address_width=32, addressing="word", bursting=True)
                 wishbone_mem = wishbone.SRAM(32, bus=self.wb)
                 self.submodules += wishbone_mem
 

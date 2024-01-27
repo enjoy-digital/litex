@@ -12,6 +12,8 @@ import os
 
 from migen import *
 
+from litex.gen import *
+
 from litex import get_data_mod
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU
@@ -49,8 +51,8 @@ class LM32(CPU):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
-        self.ibus         = ibus = wishbone.Interface()
-        self.dbus         = dbus = wishbone.Interface()
+        self.ibus         = ibus = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
+        self.dbus         = dbus = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
         self.interrupt    = Signal(32)
         self.periph_buses = [ibus, dbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses = []           # Memory buses (Connected directly to LiteDRAM).
@@ -66,7 +68,7 @@ class LM32(CPU):
             i_interrupt=self.interrupt,
 
             # IBus.
-            o_I_ADR_O = Cat(Signal(2), ibus.adr),
+            o_I_ADR_O = ibus.adr,
             o_I_DAT_O = ibus.dat_w,
             o_I_SEL_O = ibus.sel,
             o_I_CYC_O = ibus.cyc,
@@ -80,7 +82,7 @@ class LM32(CPU):
             i_I_RTY_I = 0,
 
             # DBus.
-            o_D_ADR_O = Cat(Signal(2), dbus.adr),
+            o_D_ADR_O = dbus.adr,
             o_D_DAT_O = dbus.dat_w,
             o_D_SEL_O = dbus.sel,
             o_D_CYC_O = dbus.cyc,

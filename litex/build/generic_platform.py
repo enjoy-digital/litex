@@ -13,6 +13,7 @@ import re
 from migen.fhdl.structure import Signal, Cat
 from migen.genlib.record import Record
 
+from litex.gen import LiteXContext
 from litex.gen.fhdl import verilog
 
 from litex.build.io import CRG
@@ -327,7 +328,8 @@ class ConstraintManager:
 # Generic Platform ---------------------------------------------------------------------------------
 
 class GenericPlatform:
-    device_family = None
+    device_family  = None
+    _jtag_support  = True # JTAGBone can't be used with all FPGAs.
     _bitstream_ext = None # None by default, overridden by vendor platform, may
                           # be a string when same extension is used for sram and
                           # flash. A dict must be provided otherwise
@@ -349,6 +351,10 @@ class GenericPlatform:
         self.finalized             = False
         self.use_default_clk       = False
 
+        # Set Platform/Device to LiteXContext.
+        LiteXContext.platform  = self
+        LiteXContext.device    = device
+
     def request(self, *args, **kwargs):
         return self.constraint_manager.request(*args, **kwargs)
 
@@ -361,8 +367,8 @@ class GenericPlatform:
     def lookup_request(self, *args, **kwargs):
         return self.constraint_manager.lookup_request(*args, **kwargs)
 
-    def add_period_constraint(self, clk, period):
-        raise NotImplementedError
+    def add_period_constraint(self, clk, period, keep=True, name=None):
+        self.toolchain.add_period_constraint(self, clk, period, keep=keep, name=name)
 
     def add_false_path_constraint(self, from_, to):
         raise NotImplementedError
@@ -498,6 +504,16 @@ class GenericPlatform:
 
     def create_programmer(self):
         raise NotImplementedError
+
+    @property
+    def jtag_support(self):
+        if isinstance(self._jtag_support, bool):
+            return self._jtag_support
+        else:
+            for dev in self._jtag_support:
+                if self.device.startswith(dev):
+                    return True
+            return False
 
     @property
     def support_mixed_language(self):

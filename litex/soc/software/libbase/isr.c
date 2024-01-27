@@ -191,18 +191,45 @@ void isr(void)
 }
 
 #else
+struct irq_table
+{
+	isr_t isr;
+} irq_table[CONFIG_CPU_INTERRUPTS];
+
+int irq_attach(unsigned int irq, isr_t isr)
+{
+	if (irq >= CONFIG_CPU_INTERRUPTS) {
+		printf("Inv irq %d\n", irq);
+		return -1;
+	}
+
+	unsigned int ie = irq_getie();
+	irq_setie(0);
+	irq_table[irq].isr = isr;
+	irq_setie(ie);
+	return irq;
+}
+
+int irq_detach(unsigned int irq)
+{
+	return irq_attach(irq, NULL);
+}
+
 void isr(void)
 {
-	__attribute__((unused)) unsigned int irqs;
+	unsigned int irqs = irq_pending() & irq_getmask();
 
-	irqs = irq_pending() & irq_getmask();
-
-#ifdef CSR_UART_BASE
-#ifndef UART_POLLING
-	if(irqs & (1 << UART_INTERRUPT))
-		uart_isr();
-#endif
-#endif
+	while (irqs)
+	{
+		const unsigned int irq = __builtin_ctz(irqs);
+		if ((irq < CONFIG_CPU_INTERRUPTS) && irq_table[irq].isr)
+			irq_table[irq].isr();
+		else {
+			irq_setmask(irq_getmask() & ~(1<<irq));
+			printf("\n*** disabled spurious irq %d ***\n", irq);
+		}
+		irqs &= irqs - 1; // clear this irq (the first bit set)
+	}
 }
 #endif
 

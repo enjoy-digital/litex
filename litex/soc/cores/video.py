@@ -190,7 +190,7 @@ video_data_layout = [
 # DVI Color <-> channel mapping --------------------------------------------------------------------
 _dvi_c2d = {"b": 0, "g": 1, "r": 2}
 
-class VideoTimingGenerator(Module, AutoCSR):
+class VideoTimingGenerator(LiteXModule):
     def __init__(self, default_video_timings="800x600@60Hz"):
         # Check / Get Video Timings (can be str or dict)
         if isinstance(default_video_timings, str):
@@ -251,7 +251,7 @@ class VideoTimingGenerator(Module, AutoCSR):
         vactive = Signal()
         fsm = FSM(reset_state="IDLE")
         fsm = ResetInserter()(fsm)
-        self.submodules.fsm = fsm
+        self.fsm = fsm
         self.comb += fsm.reset.eq(~enable)
         fsm.act("IDLE",
             NextValue(hactive, 0),
@@ -292,7 +292,7 @@ class VideoTimingGenerator(Module, AutoCSR):
 
 # Video Patterns -----------------------------------------------------------------------------------
 
-class ColorBarsPattern(Module):
+class ColorBarsPattern(LiteXModule):
     """Color Bars Pattern"""
     def __init__(self):
         self.enable   = Signal(reset=1)
@@ -310,7 +310,7 @@ class ColorBarsPattern(Module):
 
         fsm = FSM(reset_state="IDLE")
         fsm = ResetInserter()(fsm)
-        self.submodules.fsm = fsm
+        self.fsm = fsm
         self.comb += fsm.reset.eq(~self.enable)
         fsm.act("IDLE",
             NextValue(pix, 0),
@@ -380,7 +380,7 @@ def import_bdf_font(filename):
                 bitmap_index  = 0
     return font
 
-class CSIInterpreter(Module):
+class CSIInterpreter(LiteXModule):
     # FIXME: Very basic/minimal implementation for now.
     esc_start     = 0x1b
     csi_start     = ord("[")
@@ -403,7 +403,7 @@ class CSIInterpreter(Module):
         csi_bytes = Array([Signal(8) for _ in range(8)])
         csi_final = Signal(8)
 
-        self.submodules.fsm = fsm = FSM(reset_state="RECOPY")
+        self.fsm = fsm = FSM(reset_state="RECOPY")
         fsm.act("RECOPY",
             sink.connect(source),
             If(sink.valid & (sink.data == self.esc_start),
@@ -453,7 +453,7 @@ class CSIInterpreter(Module):
             NextState("RECOPY")
         )
 
-class VideoTerminal(Module):
+class VideoTerminal(LiteXModule):
     def __init__(self, hres=800, vres=600, with_csi_interpreter=True):
         self.enable    = Signal(reset=1)
         self.vtg_sink  = vtg_sink   = stream.Endpoint(video_timing_layout)
@@ -492,12 +492,12 @@ class VideoTerminal(Module):
         # -------------------
 
         # Optional CSI Interpreter.
-        self.submodules.csi_interpreter = CSIInterpreter(enable=with_csi_interpreter)
+        self.csi_interpreter = CSIInterpreter(enable=with_csi_interpreter)
         self.comb += uart_sink.connect(self.csi_interpreter.sink)
         uart_sink = self.csi_interpreter.source
         self.comb += term_wrport.dat_w[font_width:].eq(self.csi_interpreter.color)
 
-        self.submodules.uart_fifo = stream.SyncFIFO([("data", 8)], 8)
+        self.uart_fifo = stream.SyncFIFO([("data", 8)], 8)
         self.comb += uart_sink.connect(self.uart_fifo.sink)
         uart_sink = self.uart_fifo.source
 
@@ -505,7 +505,7 @@ class VideoTerminal(Module):
         x_term = term_wrport.adr[:7]
         y_term = term_wrport.adr[7:]
         y_term_rollover = Signal()
-        self.submodules.uart_fsm = uart_fsm = FSM(reset_state="RESET")
+        self.uart_fsm = uart_fsm = FSM(reset_state="RESET")
         uart_fsm.act("RESET",
             NextValue(x_term, 0),
             NextValue(y_term, 0),
@@ -644,7 +644,7 @@ class VideoTerminal(Module):
 
 # Video FrameBuffer --------------------------------------------------------------------------------
 
-class VideoFrameBuffer(Module, AutoCSR):
+class VideoFrameBuffer(LiteXModule):
     """Video FrameBuffer"""
     def __init__(self, dram_port, hres=800, vres=600, base=0x00000000, fifo_depth=65536, clock_domain="sys", clock_faster_than_sys=False, format="rgb888"):
         self.vtg_sink  = vtg_sink = stream.Endpoint(video_timing_layout)
@@ -660,7 +660,7 @@ class VideoFrameBuffer(Module, AutoCSR):
 
         # Video DMA.
         from litedram.frontend.dma import LiteDRAMDMAReader
-        self.submodules.dma = LiteDRAMDMAReader(dram_port, fifo_depth=fifo_depth//(dram_port.data_width//8), fifo_buffered=True)
+        self.dma = LiteDRAMDMAReader(dram_port, fifo_depth=fifo_depth//(dram_port.data_width//8), fifo_buffered=True)
         self.dma.add_csr(
             default_base   = base,
             default_length = hres*vres*depth//8, # 32-bit RGB-888 or 16-bit RGB-565
@@ -671,19 +671,19 @@ class VideoFrameBuffer(Module, AutoCSR):
         # If DRAM Data Width > depth and Video clock is faster than sys_clk:
         if (dram_port.data_width > depth) and clock_faster_than_sys:
             # Do Clock Domain Crossing first...
-            self.submodules.cdc = stream.ClockDomainCrossing([("data", dram_port.data_width)], cd_from="sys", cd_to=clock_domain)
+            self.cdc = stream.ClockDomainCrossing([("data", dram_port.data_width)], cd_from="sys", cd_to=clock_domain)
             self.comb += self.dma.source.connect(self.cdc.sink)
             # ... and then Data-Width Conversion.
-            self.submodules.conv = ClockDomainsRenamer(clock_domain)(stream.Converter(dram_port.data_width, depth))
+            self.conv = ClockDomainsRenamer(clock_domain)(stream.Converter(dram_port.data_width, depth))
             self.comb += self.cdc.source.connect(self.conv.sink)
             video_pipe_source = self.conv.source
         # Elsif DRAM Data Width <= depth or Video clock is slower than sys_clk:
         else:
             # Do Data-Width Conversion first...
-            self.submodules.conv = stream.Converter(dram_port.data_width, depth)
+            self.conv = stream.Converter(dram_port.data_width, depth)
             self.comb += self.dma.source.connect(self.conv.sink)
             # ... and then Clock Domain Crossing.
-            self.submodules.cdc = stream.ClockDomainCrossing([("data", depth)], cd_from="sys", cd_to=clock_domain)
+            self.cdc = stream.ClockDomainCrossing([("data", depth)], cd_from="sys", cd_to=clock_domain)
             self.comb += self.conv.source.connect(self.cdc.sink)
             if (dram_port.data_width < depth) and (depth == 32): # FIXME.
                 self.comb += [
@@ -692,16 +692,40 @@ class VideoFrameBuffer(Module, AutoCSR):
                 ]
             video_pipe_source = self.cdc.source
 
-        # Video Generation.
-        self.comb += [
+        # Video Synchronization/Generation.
+        first = Signal()
+        fsm = FSM(reset_state="SYNC")
+        fsm = ClockDomainsRenamer(clock_domain)(fsm)
+        fsm = ResetInserter()(fsm)
+        self.submodules += fsm
+        self.specials += MultiReg(self.dma.fsm.reset, fsm.reset, clock_domain)
+        fsm.act("SYNC",
+            vtg_sink.ready.eq(1),
+            If(fsm.reset,
+                vtg_sink.ready.eq(0),
+                NextValue(first, 1)
+            ),
+            If(vtg_sink.valid & vtg_sink.last,
+                NextState("RUN")
+            ),
+            vtg_sink.connect(source, keep={"hsync", "vsync"}),
+        )
+        fsm.act("RUN",
             vtg_sink.ready.eq(1),
             If(vtg_sink.valid & vtg_sink.de,
                 video_pipe_source.connect(source, keep={"valid", "ready"}),
+                If(first,
+                    source.valid.eq(0)
+                ),
                 vtg_sink.ready.eq(source.valid & source.ready),
-
+                If(video_pipe_source.valid & video_pipe_source.last,
+                    NextValue(first, 0),
+                    NextState("SYNC"),
+                )
             ),
             vtg_sink.connect(source, keep={"de", "hsync", "vsync"}),
-        ]
+        )
+
         if (depth == 32):
             self.comb += [
                source.r.eq(video_pipe_source.data[ 0: 8]),
@@ -722,7 +746,7 @@ class VideoFrameBuffer(Module, AutoCSR):
 
 # Generic (Very Generic PHY supporting VGA/DVI and variations).
 
-class VideoGenericPHY(Module):
+class VideoGenericPHY(LiteXModule):
     def __init__(self, pads, clock_domain="sys", with_clk_ddr_output=True):
         self.sink = sink = stream.Endpoint(video_data_layout)
 
@@ -767,15 +791,15 @@ class VideoDVIPHY(VideoGenericPHY): pass
 
 # HDMI (Generic).
 
-class VideoHDMI10to1Serializer(Module):
+class VideoHDMI10to1Serializer(LiteXModule):
     def __init__(self, data_i, data_o, clock_domain):
         # Clock Domain Crossing.
-        self.submodules.cdc = stream.ClockDomainCrossing([("data", 10)], cd_from=clock_domain, cd_to=clock_domain + "5x")
+        self.cdc = stream.ClockDomainCrossing([("data", 10)], cd_from=clock_domain, cd_to=clock_domain + "5x")
         self.comb += self.cdc.sink.valid.eq(1)
         self.comb += self.cdc.sink.data.eq(data_i)
 
         # 10:2 Gearbox.
-        self.submodules.gearbox = ClockDomainsRenamer(clock_domain + "5x")(stream.Gearbox(i_dw=10, o_dw=2, msb_first=False))
+        self.gearbox = ClockDomainsRenamer(clock_domain + "5x")(stream.Gearbox(i_dw=10, o_dw=2, msb_first=False))
         self.comb += self.cdc.source.connect(self.gearbox.sink)
 
         # 2:1 Output DDR.
@@ -787,7 +811,7 @@ class VideoHDMI10to1Serializer(Module):
             o   = data_o,
         )
 
-class VideoHDMIPHY(Module):
+class VideoHDMIPHY(LiteXModule):
     def __init__(self, pads, clock_domain="sys", pn_swap=[]):
         self.sink = sink = stream.Endpoint(video_data_layout)
 
@@ -818,7 +842,7 @@ class VideoHDMIPHY(Module):
             for color, channel in _dvi_c2d.items():
                 # TMDS Encoding.
                 encoder = ClockDomainsRenamer(clock_domain)(TMDSEncoder())
-                setattr(self.submodules, f"{color}_encoder", encoder)
+                self.add_module(name=f"{color}_encoder_{pol}", module=encoder)
                 self.comb += encoder.d.eq(getattr(sink, color))
                 self.comb += encoder.c.eq(Cat(sink.hsync, sink.vsync) if channel == 0 else 0)
                 self.comb += encoder.de.eq(sink.de)
@@ -831,11 +855,11 @@ class VideoHDMIPHY(Module):
                     data_o       = data_o,
                     clock_domain = clock_domain,
                 )
-                setattr(self.submodules, f"{color}_serializer", serializer)
+                self.add_module(name=f"{color}_serializer_{pol}", module=serializer)
 
 # HDMI (Gowin).
 
-class VideoGowinHDMIPHY(Module):
+class VideoGowinHDMIPHY(LiteXModule):
     def __init__(self, pads, clock_domain="sys", pn_swap=[]):
         self.sink = sink = stream.Endpoint(video_data_layout)
 
@@ -855,7 +879,7 @@ class VideoGowinHDMIPHY(Module):
         for color, channel in _dvi_c2d.items():
             # TMDS Encoding.
             encoder = ClockDomainsRenamer(clock_domain)(TMDSEncoder())
-            setattr(self.submodules, f"{color}_encoder", encoder)
+            self.add_module(name=f"{color}_encoder", module=encoder)
             self.comb += encoder.d.eq(getattr(sink, color))
             self.comb += encoder.c.eq(Cat(sink.hsync, sink.vsync) if channel == 0 else 0)
             self.comb += encoder.de.eq(sink.de)
@@ -880,7 +904,7 @@ class VideoGowinHDMIPHY(Module):
 
 # HDMI (Xilinx Spartan6).
 
-class VideoS6HDMIPHY(Module):
+class VideoS6HDMIPHY(LiteXModule):
     def __init__(self, pads, clock_domain="sys"):
         self.sink = sink = stream.Endpoint(video_data_layout)
 
@@ -899,7 +923,7 @@ class VideoS6HDMIPHY(Module):
 
             # TMDS Encoding.
             encoder = ClockDomainsRenamer(clock_domain)(TMDSEncoder())
-            setattr(self.submodules, f"{color}_encoder", encoder)
+            self.add_module(name=f"{color}_encoder", module=encoder)
             self.comb += encoder.d.eq(getattr(sink, color))
             self.comb += encoder.c.eq(Cat(sink.hsync, sink.vsync) if channel == 0 else 0)
             self.comb += encoder.de.eq(sink.de)
@@ -911,14 +935,14 @@ class VideoS6HDMIPHY(Module):
                 data_o       = pad_o,
                 clock_domain = clock_domain,
             )
-            setattr(self.submodules, f"{color}_serializer", serializer)
+            self.add_module(name=f"{color}_serializer", module=serializer)
             pad_p = getattr(pads, f"data{channel}_p")
             pad_n = getattr(pads, f"data{channel}_n")
             self.specials += Instance("OBUFDS", i_I=pad_o, o_O=pad_p, o_OB=pad_n)
 
 # HDMI (Xilinx 7-Series).
 
-class VideoS7HDMI10to1Serializer(Module):
+class VideoS7HDMI10to1Serializer(LiteXModule):
     def __init__(self, data_i, data_o, clock_domain):
         # Note: 2 OSERDESE2 are coupled for 10:1 Serialization (8:1 Max with one).
 
@@ -960,7 +984,7 @@ class VideoS7HDMI10to1Serializer(Module):
             )
 
 
-class VideoS7HDMIPHY(Module):
+class VideoS7HDMIPHY(LiteXModule):
     def __init__(self, pads, clock_domain="sys"):
         self.sink = sink = stream.Endpoint(video_data_layout)
 
@@ -997,7 +1021,7 @@ class VideoS7HDMIPHY(Module):
             self.specials += Instance("OBUFDS", i_I=pad_o, o_O=pad_p, o_OB=pad_n)
 
 
-class VideoS7GTPHDMIPHY(Module):
+class VideoS7GTPHDMIPHY(LiteXModule):
     def __init__(self, pads, sys_clk_freq, clock_domain="sys", clk_freq=148.5e6, refclk=None):
         assert sys_clk_freq >= clk_freq
         self.sink = sink = stream.Endpoint(video_data_layout)
@@ -1028,7 +1052,7 @@ class VideoS7GTPHDMIPHY(Module):
                 o_O   = refclk_se
             )
             refclk = refclk_se
-        self.submodules.pll = pll = GTPQuadPLL(refclk, clk_freq, 1.485e9)
+        self.pll = pll = GTPQuadPLL(refclk, clk_freq, 1.485e9)
 
         # Encode/Serialize Datas.
         for color, channel in _dvi_c2d.items():

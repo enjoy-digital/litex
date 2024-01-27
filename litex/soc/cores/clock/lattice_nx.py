@@ -13,18 +13,20 @@ from cmath import phase
 
 from migen import *
 
+from litex.gen import *
+
 from litex.soc.cores.clock.common import *
 
 io_i2 = namedtuple('io_i2',['io', 'i2', 'IPP_CTRL', 'BW_CTL_BIAS', 'IPP_SEL'])
 nx_pll_param_permutation = namedtuple("nx_pll_param_permutation",[
-                                "C1","C2","C3","C4","C5","C6",
-                                "IPP_CTRL","BW_CTL_BIAS","IPP_SEL","CSET","CRIPPLE","V2I_PP_RES","IPI_CMP"])
+    "C1","C2","C3","C4","C5","C6",
+    "IPP_CTRL","BW_CTL_BIAS","IPP_SEL","CSET","CRIPPLE","V2I_PP_RES","IPI_CMP"])
 
 
 # Lattice / NX OSCA --------------------------------------------------------------------------------
 # NOTE This clock has +/- 15% accuracy
 
-class NXOSCA(Module):
+class NXOSCA(LiteXModule):
     nclkouts_max = 2
     clk_hf_div_range = (0, 255)
     clk_hf_freq_range = (1.76, 450e6)
@@ -104,7 +106,7 @@ class NXOSCA(Module):
 
 # Lattice / NX PLL ---------------------------------------------------------------------------------
 
-class NXPLL(Module):
+class NXPLL(LiteXModule):
     nclkouts_max        = 5
     clki_div_range      = ( 1, 128+1)
     clkfb_div_range     = ( 1, 128+1)

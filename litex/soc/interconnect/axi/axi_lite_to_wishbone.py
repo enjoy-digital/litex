@@ -9,16 +9,23 @@
 
 from migen import *
 
+from litex.gen import *
+
 from litex.soc.interconnect.axi.axi_lite import *
 
 # AXI-Lite to Wishbone -----------------------------------------------------------------------------
 
-class AXILite2Wishbone(Module):
+class AXILite2Wishbone(LiteXModule):
     def __init__(self, axi_lite, wishbone, base_address=0x00000000):
-        wishbone_adr_shift = log2_int(axi_lite.data_width//8)
+        # Parameters/Checks.
+        wishbone_adr_shift = {
+            "word" : log2_int(axi_lite.data_width//8),
+            "byte" : 0
+        }[wishbone.addressing]
         assert axi_lite.data_width    == len(wishbone.dat_r)
         assert axi_lite.address_width == len(wishbone.adr) + wishbone_adr_shift
 
+        # Signals.
         _data         = Signal(axi_lite.data_width)
         _r_addr       = Signal(axi_lite.address_width)
         _w_addr       = Signal(axi_lite.address_width)
@@ -26,7 +33,8 @@ class AXILite2Wishbone(Module):
         self.comb += _r_addr.eq(axi_lite.ar.addr - base_address)
         self.comb += _w_addr.eq(axi_lite.aw.addr - base_address)
 
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        # FSM.
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             If(axi_lite.ar.valid & axi_lite.aw.valid,
                 # If last access was a read, do a write
@@ -88,18 +96,24 @@ class AXILite2Wishbone(Module):
 
 # Wishbone to AXI-Lite -----------------------------------------------------------------------------
 
-class Wishbone2AXILite(Module):
+class Wishbone2AXILite(LiteXModule):
     def __init__(self, wishbone, axi_lite, base_address=0x00000000):
-        wishbone_adr_shift = log2_int(axi_lite.data_width//8)
+        # Parameters/Checks.
+        wishbone_adr_shift = {
+            "word" : log2_int(axi_lite.data_width//8),
+            "byte" : 0
+        }[wishbone.addressing]
         assert axi_lite.data_width    == len(wishbone.dat_r)
         assert axi_lite.address_width == len(wishbone.adr) + wishbone_adr_shift
 
+        # Signals.
         _cmd_done  = Signal()
         _data_done = Signal()
         _addr      = Signal(len(wishbone.adr))
         self.comb += _addr.eq(wishbone.adr - base_address//4)
 
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        # FSM.
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             NextValue(_cmd_done,  0),
             NextValue(_data_done, 0),

@@ -10,6 +10,8 @@ import subprocess
 
 from migen import *
 
+from litex.gen import *
+
 from litex import get_data_mod
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
@@ -46,8 +48,8 @@ class Minerva(CPU):
         self.variant      = variant
         self.reset        = Signal()
         self.interrupt    = Signal(32)
-        self.ibus         = ibus = wishbone.Interface()
-        self.dbus         = dbus = wishbone.Interface()
+        self.ibus         = ibus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+        self.dbus         = dbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.periph_buses = [self.ibus, self.dbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses = []                     # Memory buses (Connected directly to LiteDRAM).
 

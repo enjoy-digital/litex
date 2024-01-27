@@ -11,7 +11,7 @@ from typing import Optional, Sequence, Any, Callable, Generator, Dict, Tuple
 
 from migen import *
 
-from litex.gen.fhdl.namer import Namespace
+from litex.gen.fhdl.namer import SignalNamespace
 
 from litex.soc.interconnect import stream
 
@@ -52,7 +52,7 @@ class GTKWSave:
     """
 
     def __init__(self,
-            vns: Namespace,
+            vns: SignalNamespace,
             savefile: str,
             dumpfile: str,
             filtersdir: str = None,
@@ -62,7 +62,7 @@ class GTKWSave:
 
         `prefix` is prepended to all signal names and defaults to the one used by Litex simulator.
         """
-        self.vns = vns   # Namespace output of Builder.build, required to resolve signal names
+        self.vns = vns   # SignalNamespace output of Builder.build, required to resolve signal names
         self.prefix = prefix
         self.savefile = savefile
         self.dumpfile = dumpfile

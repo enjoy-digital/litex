@@ -9,6 +9,8 @@ import re
 
 from migen import *
 
+from litex.gen import *
+
 from litex import get_data_mod
 
 from litex.soc.interconnect import axi
@@ -32,10 +34,10 @@ apb_layout = [
 
 # Wishbone <> APB ----------------------------------------------------------------------------------
 
-class Wishbone2APB(Module):
+class Wishbone2APB(LiteXModule):
     def __init__(self, wb, apb):
         assert wb.data_width == 32
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             If(wb.cyc & wb.stb,
                 NextState("ACK"),
@@ -115,8 +117,11 @@ class OpenC906(CPU):
         # Peripheral bus (Connected to main SoC's bus).
         self.axi_if = axi_if = axi.AXIInterface(data_width=128, address_width=40, id_width=8)
         if convert_periph_bus_to_wishbone:
-            self.wb_if = wishbone.Interface(data_width=axi_if.data_width,
-                                            adr_width=axi_if.address_width - log2_int(axi_if.data_width // 8))
+            self.wb_if = wishbone.Interface(
+                data_width = axi_if.data_width,
+                adr_width  = axi_if.address_width - log2_int(axi_if.data_width // 8),
+                addressing = "word",
+            )
             self.submodules += axi.AXI2Wishbone(axi_if, self.wb_if)
             self.periph_buses = [self.wb_if]
         else:
@@ -204,7 +209,7 @@ class OpenC906(CPU):
             add_manifest_sources(platform, "gen_rtl/filelists/generic_fpga.fl")
 
     def add_debug(self):
-        self.debug_bus = wishbone.Interface()
+        self.debug_bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         debug_apb = Record(apb_layout)
 
         self.submodules += Wishbone2APB(self.debug_bus, debug_apb)

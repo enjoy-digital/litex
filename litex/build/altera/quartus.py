@@ -89,17 +89,20 @@ class AlteraQuartusToolchain(GenericToolchain):
         sdc = []
 
         # Clock constraints
-        for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
+        for clk, [period, name] in sorted(self.clocks.items(), key=lambda x: x[0].duid):
             is_port = False
             for sig, pins, others, resname in self.named_sc:
                 if sig == vns.get_name(clk):
                     is_port = True
+            clk_sig = self._vns.get_name(clk)
+            if name is None:
+                name = clk_sig
             if is_port:
-                tpl = "create_clock -name {clk} -period {period} [get_ports {{{clk}}}]"
-                sdc.append(tpl.format(clk=vns.get_name(clk), period=str(period)))
+                tpl = "create_clock -name {name} -period {period} [get_ports {{{clk}}}]"
+                sdc.append(tpl.format(name=name, clk=clk_sig, period=str(period)))
             else:
-                tpl = "create_clock -name {clk} -period {period} [get_nets {{{clk}}}]"
-                sdc.append(tpl.format(clk=vns.get_name(clk), period=str(period)))
+                tpl = "create_clock -name {name} -period {period} [get_nets {{{clk}}}]"
+                sdc.append(tpl.format(name=name, clk=clk_sig, period=str(period)))
 
         # Enable automatical constraint generation for PLLs
         sdc.append("derive_pll_clocks -use_net_name")

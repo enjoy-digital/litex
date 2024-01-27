@@ -2,6 +2,11 @@
 .global isr
 .global _start
 
+.global smp_lottery_target
+.global smp_lottery_lock
+.global smp_lottery_args
+.global smp_slave
+
 #define MSTATUS_FS_INITIAL (1 << 13)
 #define MSTATUS_FS_CLEAN (2 << 13)
 #define MSTATUS_FS_DIRTY (3 << 13)
@@ -67,6 +72,24 @@ enable_fpu:
   li x1, MSTATUS_FS_INITIAL
   csrs mstatus, x1
 
+  sw x0, smp_lottery_lock, a1
+smp_tyranny:
+  csrr a0, mhartid
+  beqz a0, data_init
+
+smp_slave:
+  lw a0, smp_lottery_lock
+  beqz a0, smp_slave
+  fence r, r
+
+  .word(0x100F) //i$ flush
+  lw x10, smp_lottery_args
+  lw x11, smp_lottery_args+4
+  lw x12, smp_lottery_args+8
+  lw x13, smp_lottery_target
+  jr x13
+
+
 data_init:
   la a0, _fdata
   la a1, _edata
@@ -96,3 +119,10 @@ bss_done:
   call main
 infinit_loop:
   j infinit_loop
+
+//Initialized to avoid having them set to zero by BSS clear
+.bss
+  smp_lottery_target: .word 0
+  smp_lottery_args:   .word 0; .word 0; .word 0
+  smp_lottery_lock:   .word 0
+

@@ -14,6 +14,7 @@ from litex.build.gowin import common, gowin
 
 class GowinPlatform(GenericPlatform):
     _bitstream_ext = ".fs"
+    _jtag_support  = False
 
     _supported_toolchains = ["gowin", "apicula"]
 
@@ -37,10 +38,11 @@ class GowinPlatform(GenericPlatform):
         return GenericPlatform.get_verilog(self, *args,
             special_overrides = so,
             attr_translate    = self.toolchain.attr_translate,
-            **kwargs)
+            **kwargs
+        )
 
     def build(self, *args, **kwargs):
         return self.toolchain.build(self, *args, **kwargs)
 
-    def add_period_constraint(self, clk, period):
-        self.toolchain.add_period_constraint(self, clk, period)
+    def add_false_path_constraint(self, from_, to):
+        pass

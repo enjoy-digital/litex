@@ -233,52 +233,31 @@ class SimSoC(SoCCore):
             else:
                 raise ValueError("Unknown Ethernet PHY model:", ethernet_phy_model)
 
-        # Ethernet and Etherbone -------------------------------------------------------------------
-        if with_ethernet and with_etherbone:
-            etherbone_ip_address = convert_ip(etherbone_ip_address)
-            # Ethernet MAC
-            self.ethmac = LiteEthMAC(phy=self.ethphy, dw=8,
-                interface  = "hybrid",
-                endianness = self.cpu.endianness,
-                hw_mac     = etherbone_mac_address)
-
-            # SoftCPU
-            ethmac_region_size = (self.ethmac.rx_slots.constant + self.ethmac.tx_slots.constant)*self.ethmac.slot_size.constant
-            ethmac_region = SoCRegion(origin=self.mem_map.get("ethmac", None), size=ethmac_region_size, cached=False)
-            self.bus.add_slave(name="ethmac", slave=self.ethmac.bus, region=ethmac_region)
-            if self.irq.enabled:
-                self.irq.add("ethmac", use_loc_if_exists=True)
-            # HW ethernet
-            self.arp  = LiteEthARP(self.ethmac, etherbone_mac_address, etherbone_ip_address, sys_clk_freq, dw=8)
-            self.ip   = LiteEthIP(self.ethmac, etherbone_mac_address, etherbone_ip_address, self.arp.table, dw=8)
-            self.icmp = LiteEthICMP(self.ip, etherbone_ip_address, dw=8)
-            self.udp  = LiteEthUDP(self.ip, etherbone_ip_address, dw=8)
-            # Etherbone
-            self.etherbone = LiteEthEtherbone(self.udp, 1234, mode="master")
-            self.bus.add_master(master=self.etherbone.wishbone.bus)
-
-        # Ethernet ---------------------------------------------------------------------------------
+        # Etherbone with optional Ethernet ---------------------------------------------------------
+        if with_etherbone:
+            self.add_etherbone(
+                phy         = self.ethphy,
+                ip_address  = etherbone_ip_address,
+                mac_address = etherbone_mac_address,
+                data_width  = 8,
+                with_ethmac = with_ethernet,
+            )
+        # Ethernet only ----------------------------------------------------------------------------
         elif with_ethernet:
             # Ethernet MAC
             self.ethmac = ethmac = LiteEthMAC(
                 phy        = self.ethphy,
                 dw         = 64 if ethernet_phy_model == "xgmii" else 32,
                 interface  = "wishbone",
-                endianness = self.cpu.endianness)
-            # Compute Regions size and add it to the SoC.
+                endianness = self.cpu.endianness
+            )
             ethmac_region_size = (ethmac.rx_slots.constant + ethmac.tx_slots.constant)*ethmac.slot_size.constant
             ethmac_region = SoCRegion(origin=self.mem_map.get("ethmac", None), size=ethmac_region_size, cached=False)
             self.bus.add_slave(name="ethmac", slave=ethmac.bus, region=ethmac_region)
+
+            # Add IRQs (if enabled).
             if self.irq.enabled:
                 self.irq.add("ethmac", use_loc_if_exists=True)
-
-        # Etherbone --------------------------------------------------------------------------------
-        elif with_etherbone:
-            self.add_etherbone(
-                phy         = self.ethphy,
-                ip_address  = etherbone_ip_address,
-                mac_address = etherbone_mac_address
-            )
 
         # I2C --------------------------------------------------------------------------------------
         if with_i2c:

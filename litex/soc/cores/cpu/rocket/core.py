@@ -130,8 +130,8 @@ class Rocket(CPU):
         self.mmio_axi  = mmio_axi = axi.AXIInterface(data_width=mmio_dw, address_width=32, id_width=4)
         self.l2fb_axi  = l2fb_axi = axi.AXIInterface(data_width=mmio_dw, address_width=32, id_width=4)
 
-        self.mmio_wb   = mmio_wb = wishbone.Interface(data_width=mmio_dw, adr_width=32-log2_int(mmio_dw//8))
-        self.l2fb_wb   = l2fb_wb = wishbone.Interface(data_width=mmio_dw, adr_width=32-log2_int(mmio_dw//8))
+        self.mmio_wb   = mmio_wb = wishbone.Interface(data_width=mmio_dw, adr_width=32-log2_int(mmio_dw//8), addressing="word")
+        self.l2fb_wb   = l2fb_wb = wishbone.Interface(data_width=mmio_dw, adr_width=32-log2_int(mmio_dw//8), addressing="word")
 
         self.memory_buses = [mem_axi] # Peripheral buses (Connected to main SoC's bus).
         self.periph_buses = [mmio_wb] # Memory buses (Connected directly to LiteDRAM).

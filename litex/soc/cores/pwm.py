@@ -7,11 +7,13 @@
 from migen import *
 from migen.genlib.cdc import MultiReg
 
+from litex.gen import *
+
 from litex.soc.interconnect.csr import *
 
 # Pulse Width Modulation ---------------------------------------------------------------------------
 
-class PWM(Module, AutoCSR):
+class PWM(LiteXModule):
     """Pulse Width Modulation
 
     Provides the minimal hardware to do Pulse Width Modulation.
@@ -47,14 +49,7 @@ class PWM(Module, AutoCSR):
             ]
 
         # PWM Width logic.
-        sync += [
-            pwm.eq(0),
-            If(self.enable & ~self.reset,
-                If(counter < self.width,
-                    pwm.eq(1)
-                )
-            )
-        ]
+        sync += pwm.eq(self.enable & (counter < self.width))
 
         if with_csr:
             self.add_csr(clock_domain)
@@ -88,7 +83,7 @@ class PWM(Module, AutoCSR):
 
 # Multi Channel Pulse Width Modulation -------------------------------------------------------------
 
-class MultiChannelPWM(Module, AutoCSR):
+class MultiChannelPWM(LiteXModule):
     """Multi-Channel Pulse Width Modulation
 
     PWM module with Multi-Channel support.
