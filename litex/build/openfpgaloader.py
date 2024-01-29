@@ -71,4 +71,8 @@ class OpenFPGALoader(GenericProgrammer):
                 cmd.append(str(value))
 
         # Execute Command.
-        self.call(cmd)
+        try:
+            self.call(cmd)
+        except OSError as e:
+            print(' '.join(cmd))
+            raise
