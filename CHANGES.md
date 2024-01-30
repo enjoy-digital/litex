@@ -3,7 +3,9 @@
 	[> Fixed
 	--------
 	- integration/soc               : Fixed typo in cpu mem_bus axi-via-wb downconvert
-	- interconnect/ahb/AHB2Wishbone : Fix size check that was too restrictive.
+	- interconnect/ahb/AHB2Wishbone : Fixed size check that was too restrictive.
+	- liteeth/phy/gw5rgmii          : Fixed Clk assignments.
+	- build/efinix/programmer       : Updated for compatibility with latest Efinity versions.
 
 	[> Added
 	--------
