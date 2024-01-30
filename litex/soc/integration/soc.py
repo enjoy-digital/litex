@@ -1909,10 +1909,11 @@ class LiteXSoC(SoC):
         self.add_constant(f"{name}_MODULE_NAME",       module.name.upper())
         self.add_constant(f"{name}_MODULE_TOTAL_SIZE", module.total_size)
         self.add_constant(f"{name}_MODULE_PAGE_SIZE",  module.page_size)
-        if SpiNorFlashOpCodes.READ_1_1_4 in module.supported_opcodes:
-            self.add_constant(f"{name}_MODULE_QUAD_CAPABLE")
-        if SpiNorFlashOpCodes.READ_4_4_4 in module.supported_opcodes:
-            self.add_constant(f"{name}_MODULE_QPI_CAPABLE")
+        if mode in [ "4x" ]:
+            if SpiNorFlashOpCodes.READ_1_1_4 in module.supported_opcodes:
+                self.add_constant(f"{name}_MODULE_QUAD_CAPABLE")
+            if SpiNorFlashOpCodes.READ_4_4_4 in module.supported_opcodes:
+                self.add_constant(f"{name}_MODULE_QPI_CAPABLE")
         if software_debug:
             self.add_constant(f"{name}_DEBUG")
 
