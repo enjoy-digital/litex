@@ -1879,7 +1879,7 @@ class LiteXSoC(SoC):
             self.add_constant("ETH_PHY_NO_RESET") # Disable reset from BIOS to avoid disabling Hardware Interface.
 
     # Add SPI Flash --------------------------------------------------------------------------------
-    def add_spi_flash(self, name="spiflash", mode="4x", clk_freq=None, module=None, phy=None, rate="1:1", software_debug=False, **kwargs):
+    def add_spi_flash(self, name="spiflash", mode="4x", clk_freq=20e6, module=None, phy=None, rate="1:1", software_debug=False, **kwargs):
         # Imports.
         from litespi import LiteSPI
         from litespi.phy.generic import LiteSPIPHY
@@ -1888,7 +1888,6 @@ class LiteXSoC(SoC):
 
         # Checks/Parameters.
         assert mode in ["1x", "4x"]
-        if clk_freq is None: clk_freq = self.sys_clk_freq
         # From LiteSPIClkGen: clk_freq will be ``sys_clk_freq/(2*(1+div))``.
         default_divisor = math.ceil(self.sys_clk_freq/(clk_freq*2))-1
         clk_freq = int(self.sys_clk_freq/(2*(1+default_divisor)))
