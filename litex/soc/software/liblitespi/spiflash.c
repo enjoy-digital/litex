@@ -1,6 +1,7 @@
 // This file is Copyright (c) 2020 Antmicro <www.antmicro.com>
 // License: BSD
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -67,7 +68,7 @@ void spiflash_dummy_bits_setup(unsigned int dummy_bits)
 {
 	spiflash_core_mmap_dummy_bits_write((uint32_t)dummy_bits);
 #ifdef SPIFLASH_DEBUG
-	printf("Dummy bits set to: %d\n\r", spiflash_core_mmap_dummy_bits_read());
+	printf("Dummy bits set to: %" PRIx32 "\n\r", spiflash_core_mmap_dummy_bits_read());
 #endif
 }
 
@@ -111,7 +112,7 @@ static uint32_t transfer_byte(uint8_t b)
 	return spiflash_core_master_rxtx_read();
 }
 
-static void transfer_cmd(uint8_t *bs, uint8_t *resp, int len)
+static void transfer_cmd(volatile uint8_t *bs, volatile uint8_t *resp, int len)
 {
 	spiflash_core_master_phyconfig_len_write(8);
 	spiflash_core_master_phyconfig_width_write(1);
@@ -174,7 +175,7 @@ static void page_program(uint32_t addr, uint8_t *data, int len)
 	w_buf[1] = addr>>16;
 	w_buf[2] = addr>>8;
 	w_buf[3] = addr>>0;
-	memcpy(w_buf+4, data, len);
+	memcpy((void *)w_buf+4, (void *)data, len);
 	transfer_cmd(w_buf, r_buf, len+4);
 }
 
