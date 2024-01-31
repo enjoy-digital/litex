@@ -46,13 +46,13 @@ int spiflash_freq_init(void)
 #endif
 	}
 	lowest_div++;
-	printf("SPI Flash clk configured to %d MHz\n", (SPIFLASH_PHY_FREQUENCY/(2*(1 + lowest_div)))/1000000);
+	printf("SPI Flash clk configured to %d MHz\n", CONFIG_CLOCK_FREQUENCY/(2*(1+lowest_div)*1000000));
 
 	spiflash_phy_clk_divisor_write(lowest_div);
 
 #else
 
-	printf("SPI Flash clk configured to %ld MHz\n", (unsigned long)(SPIFLASH_PHY_FREQUENCY/1e6));
+	printf("SPI Flash clk configured to %ld MHz\n", SPIFLASH_PHY_FREQUENCY/1000000);
 
 #endif
 
