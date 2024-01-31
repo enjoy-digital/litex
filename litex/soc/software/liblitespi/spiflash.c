@@ -25,6 +25,8 @@ int spiflash_freq_init(void)
 	unsigned int lowest_div, crc, crc_test;
 
 	lowest_div = spiflash_phy_clk_divisor_read();
+	flush_cpu_dcache();
+	flush_l2_cache();
 	crc        = crc32((unsigned char *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE);
 	crc_test   = crc;
 
@@ -40,6 +42,8 @@ int spiflash_freq_init(void)
 
 	while((crc == crc_test) && (lowest_div-- > 0)) {
 		spiflash_phy_clk_divisor_write((uint32_t)lowest_div);
+		flush_cpu_dcache();
+		flush_l2_cache();
 		crc_test = crc32((unsigned char *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE);
 #ifdef SPIFLASH_DEBUG
 		printf("[DIV: %d] %08x\n\r", lowest_div, crc_test);
