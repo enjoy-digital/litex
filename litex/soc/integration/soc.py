@@ -1884,17 +1884,21 @@ class LiteXSoC(SoC):
         from litespi import LiteSPI
         from litespi.phy.generic import LiteSPIPHY
         from litespi.opcodes import SpiNorFlashOpCodes
+        import math
 
         # Checks/Parameters.
         assert mode in ["1x", "4x"]
         if clk_freq is None: clk_freq = self.sys_clk_freq
+        # From LiteSPIClkGen: clk_freq will be ``sys_clk_freq/(2*(1+div))``.
+        default_divisor = math.ceil(self.sys_clk_freq/(clk_freq*2))-1
+        clk_freq = int(self.sys_clk_freq/(2*(1+default_divisor)))
 
         # PHY.
         spiflash_phy = phy
         if spiflash_phy is None:
             self.check_if_exists(f"{name}_phy")
             spiflash_pads = self.platform.request(name if mode == "1x" else name + mode)
-            spiflash_phy = LiteSPIPHY(spiflash_pads, module, device=self.platform.device, default_divisor=int(self.sys_clk_freq/clk_freq), rate=rate)
+            spiflash_phy = LiteSPIPHY(spiflash_pads, module, device=self.platform.device, default_divisor=default_divisor, rate=rate)
             self.add_module(name=f"{name}_phy", module=spiflash_phy)
 
         # Core.
