@@ -115,6 +115,8 @@ static void crc_handler(int nb_params, char **params)
 		return;
 	}
 
+	flush_cpu_dcache();
+	flush_l2_cache();
 	printf("CRC32: %08x", crc32((unsigned char *)addr, length));
 }
 
