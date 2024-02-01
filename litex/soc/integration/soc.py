@@ -1247,7 +1247,7 @@ class SoC(LiteXModule, SoCCoreCompat):
         if hasattr(self, "ctrl") and self.bus.timeout is not None:
             if hasattr(self.ctrl, "bus_error") and hasattr(self.bus._interconnect, "timeout"):
                 self.comb += self.ctrl.bus_error.eq(self.bus._interconnect.timeout.error)
-        self.add_config("BUS_STANDARD",      self.bus.standard.upper())
+        self.add_config("BUS_STANDARD",      self.bus.standard)
         self.add_config("BUS_DATA_WIDTH",    self.bus.data_width)
         self.add_config("BUS_ADDRESS_WIDTH", self.bus.address_width)
         self.add_config("BUS_BURSTING",      int(self.bus.bursting))
@@ -1907,7 +1907,7 @@ class LiteXSoC(SoC):
         self.bus.add_slave(name=name, slave=spiflash_core.bus, region=spiflash_region)
 
         # Constants.
-        self.add_constant(f"{name}_MODULE_NAME",       module.name.upper())
+        self.add_constant(f"{name}_MODULE_NAME",       module.name)
         self.add_constant(f"{name}_MODULE_TOTAL_SIZE", module.total_size)
         self.add_constant(f"{name}_MODULE_PAGE_SIZE",  module.page_size)
         if mode in [ "4x" ]:
