@@ -6,6 +6,7 @@
 	- interconnect/ahb/AHB2Wishbone : Fixed size check that was too restrictive.
 	- liteeth/phy/gw5rgmii          : Fixed Clk assignments.
 	- build/efinix/programmer       : Updated for compatibility with latest Efinity versions.
+	- litespi/software:             : Fixed SPI Flash Clk Divider computation when with L2 Cache.
 
 	[> Added
 	--------
@@ -17,6 +18,8 @@
 	- cpu/naxriscv                  : Updated arch definition and added rvc configuration parameters.
 	- cpu/vexriscv_smp              : Added csr/clint/plic base address configuration parameters.
 	- liteeth/phy                   : Added 7-Series/Ultrascale(+) 2500BaseX PHYs.
+	- litespi/sdrphy:               : Allowed flash parameter to be None.
+	- litespi/integration           : Improved integration and simplifications.
 
 	[> Changed
 	----------
