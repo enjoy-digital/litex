@@ -66,9 +66,13 @@ class OpenFPGALoader(GenericProgrammer):
 
         # Handle kwargs for specific, less common cases.
         for key, value in kwargs.items():
-            cmd.append(f"--{key}")
+            cmd.append(f"--{key.replace('_', '-')}")
             if value is not None:
                 cmd.append(str(value))
 
         # Execute Command.
-        self.call(cmd)
+        try:
+            self.call(cmd)
+        except OSError as e:
+            print(' '.join(cmd))
+            raise

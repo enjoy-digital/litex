@@ -1879,22 +1879,25 @@ class LiteXSoC(SoC):
             self.add_constant("ETH_PHY_NO_RESET") # Disable reset from BIOS to avoid disabling Hardware Interface.
 
     # Add SPI Flash --------------------------------------------------------------------------------
-    def add_spi_flash(self, name="spiflash", mode="4x", clk_freq=None, module=None, phy=None, rate="1:1", software_debug=False, **kwargs):
+    def add_spi_flash(self, name="spiflash", mode="4x", clk_freq=20e6, module=None, phy=None, rate="1:1", software_debug=False, **kwargs):
         # Imports.
         from litespi import LiteSPI
         from litespi.phy.generic import LiteSPIPHY
         from litespi.opcodes import SpiNorFlashOpCodes
+        import math
 
         # Checks/Parameters.
         assert mode in ["1x", "4x"]
-        if clk_freq is None: clk_freq = self.sys_clk_freq
+        # From LiteSPIClkGen: clk_freq will be ``sys_clk_freq/(2*(1+div))``.
+        default_divisor = math.ceil(self.sys_clk_freq/(clk_freq*2))-1
+        clk_freq = int(self.sys_clk_freq/(2*(1+default_divisor)))
 
         # PHY.
         spiflash_phy = phy
         if spiflash_phy is None:
             self.check_if_exists(f"{name}_phy")
             spiflash_pads = self.platform.request(name if mode == "1x" else name + mode)
-            spiflash_phy = LiteSPIPHY(spiflash_pads, module, device=self.platform.device, default_divisor=int(self.sys_clk_freq/clk_freq), rate=rate)
+            spiflash_phy = LiteSPIPHY(spiflash_pads, module, device=self.platform.device, default_divisor=default_divisor, rate=rate)
             self.add_module(name=f"{name}_phy", module=spiflash_phy)
 
         # Core.
@@ -1909,10 +1912,11 @@ class LiteXSoC(SoC):
         self.add_constant(f"{name}_MODULE_NAME",       module.name.upper())
         self.add_constant(f"{name}_MODULE_TOTAL_SIZE", module.total_size)
         self.add_constant(f"{name}_MODULE_PAGE_SIZE",  module.page_size)
-        if SpiNorFlashOpCodes.READ_1_1_4 in module.supported_opcodes:
-            self.add_constant(f"{name}_MODULE_QUAD_CAPABLE")
-        if SpiNorFlashOpCodes.READ_4_4_4 in module.supported_opcodes:
-            self.add_constant(f"{name}_MODULE_QPI_CAPABLE")
+        if mode in [ "4x" ]:
+            if SpiNorFlashOpCodes.READ_1_1_4 in module.supported_opcodes:
+                self.add_constant(f"{name}_MODULE_QUAD_CAPABLE")
+            if SpiNorFlashOpCodes.READ_4_4_4 in module.supported_opcodes:
+                self.add_constant(f"{name}_MODULE_QPI_CAPABLE")
         if software_debug:
             self.add_constant(f"{name}_DEBUG")
 
