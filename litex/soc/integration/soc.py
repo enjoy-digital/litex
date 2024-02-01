@@ -8,6 +8,7 @@
 
 import os
 import sys
+import math
 import time
 import logging
 import argparse
@@ -1884,13 +1885,11 @@ class LiteXSoC(SoC):
         from litespi import LiteSPI
         from litespi.phy.generic import LiteSPIPHY
         from litespi.opcodes import SpiNorFlashOpCodes
-        import math
 
         # Checks/Parameters.
         assert mode in ["1x", "4x"]
-        # From LiteSPIClkGen: clk_freq will be ``sys_clk_freq/(2*(1+div))``.
-        default_divisor = math.ceil(self.sys_clk_freq/(clk_freq*2))-1
-        clk_freq = int(self.sys_clk_freq/(2*(1+default_divisor)))
+        default_divisor = math.ceil(self.sys_clk_freq/(2*clk_freq)) - 1
+        clk_freq        = int(self.sys_clk_freq/(2*(default_divisor + 1)))
 
         # PHY.
         spiflash_phy = phy
@@ -1908,7 +1907,6 @@ class LiteXSoC(SoC):
         self.bus.add_slave(name=name, slave=spiflash_core.bus, region=spiflash_region)
 
         # Constants.
-        self.add_constant(f"{name}_PHY_FREQUENCY",     clk_freq)
         self.add_constant(f"{name}_MODULE_NAME",       module.name.upper())
         self.add_constant(f"{name}_MODULE_TOTAL_SIZE", module.total_size)
         self.add_constant(f"{name}_MODULE_PAGE_SIZE",  module.page_size)
