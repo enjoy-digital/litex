@@ -366,3 +366,14 @@ class EfinityToolchain(GenericToolchain):
         ], common.colors)
         if r != 0:
             raise OSError("Error occurred during efx_pgm execution.")
+
+        # BINARY
+        os.environ['EFXPGM_HOME'] = self.efinity_path + "/pgm"
+        r = tools.subprocess_call_filtered([self.efinity_path + "/bin/python3",
+            self.efinity_path + "/pgm/bin/efx_pgm/export_bitstream.py",
+            "hex_to_bin",
+            f"{self._build_name}.hex",
+            f"{self._build_name}.bin"
+        ], common.colors)
+        if r != 0:
+           raise OSError("Error occurred during export_bitstream execution.")
