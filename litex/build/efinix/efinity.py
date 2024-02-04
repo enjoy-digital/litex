@@ -361,7 +361,7 @@ class EfinityToolchain(GenericToolchain):
             "--io_weak_pullup",           "on",
             "--enable_roms",              "on",
             "--mode",                     self.platform.spi_mode,
-            "--width",                    "1",
+            "--width",                    self.platform.spi_width,
             "--enable_crc_check",         "on"
         ], common.colors)
         if r != 0:
