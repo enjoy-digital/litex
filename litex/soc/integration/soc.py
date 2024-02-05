@@ -652,7 +652,7 @@ class SoCCSRHandler(SoCLocHandler):
     supported_data_width    = [8, 32]
     supported_address_width = [14+i for i in range(4)]
     supported_alignment     = [32]
-    supported_paging        = [0x800*2**i for i in range(4)]
+    supported_paging        = [0x400*2**i for i in range(5)]
     supported_ordering      = ["big", "little"]
 
     # Creation -------------------------------------------------------------------------------------
