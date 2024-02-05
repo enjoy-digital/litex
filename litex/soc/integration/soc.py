@@ -650,9 +650,9 @@ class SoCLocHandler(LiteXModule):
 
 class SoCCSRHandler(SoCLocHandler):
     supported_data_width    = [8, 32]
-    supported_address_width = [14+i for i in range(4)]
+    supported_address_width = [14, 15, 16, 17, 18]
     supported_alignment     = [32]
-    supported_paging        = [0x400*2**i for i in range(5)]
+    supported_paging        = [0x400, 0x800, 0x1000, 0x2000, 0x4000]
     supported_ordering      = ["big", "little"]
 
     # Creation -------------------------------------------------------------------------------------
