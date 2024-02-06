@@ -109,9 +109,9 @@ class Builder:
         self.build_backend    = build_backend
 
         # Exports.
-        self.csr_csv  = csr_csv
-        self.csr_json = csr_json
-        self.csr_svd  = csr_svd
+        self.csr_csv  = os.path.join(self.output_dir, csr_csv)  if output_dir and csr_csv  else csr_csv
+        self.csr_json = os.path.join(self.output_dir, csr_json) if output_dir and csr_json else csr_json
+        self.csr_svd  = os.path.join(self.output_dir, csr_svd)  if output_dir and csr_svd  else csr_svd
         self.memory_x = memory_x
 
         # BIOS.
