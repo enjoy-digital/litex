@@ -41,6 +41,18 @@ def build_time(with_time=True):
     fmt = "%Y-%m-%d %H:%M:%S" if with_time else "%Y-%m-%d"
     return datetime.datetime.fromtimestamp(time.time()).strftime(fmt)
 
+def add_ip_address_constants(soc, name, ip_address):
+    _ip_address = ip_address.split(".")
+    assert len(_ip_address) == 4
+    for n in range(4):
+        assert int(_ip_address[n]) < 256
+        soc.add_constant(f"{name}{n+1}", int(_ip_address[n]))
+
+def add_mac_address_constants(soc, name, mac_address):
+    assert mac_address < 2**48
+    for n in range(6):
+        soc.add_constant(f"{name}{n+1}", (mac_address >> ((5 - n) * 8)) & 0xff)
+
 # SoCError -----------------------------------------------------------------------------------------
 
 class SoCError(Exception):
@@ -1771,16 +1783,10 @@ class LiteXSoC(SoC):
             self.add_constant("ETH_DYNAMIC_IP")
 
         # Local/Remote IP Configuration (optional).
-        def add_ip_constants(name, ip):
-            _ip = ip.split(".")
-            assert len(_ip) == 4
-            for n in range(4):
-                assert int(_ip[n]) < 256
-                self.add_constant(f"{name}{n+1}", int(_ip[n]))
         if local_ip:
-            add_ip_constants("LOCALIP", local_ip)
+            add_ip_address_constants(self, "LOCALIP", local_ip)
         if remote_ip:
-            add_ip_constants("REMOTEIP", remote_ip)
+            add_ip_address_constants(self, "REMOTEIP", remote_ip)
 
         # Software Debug
         if software_debug:
