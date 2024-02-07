@@ -41,6 +41,18 @@ def build_time(with_time=True):
     fmt = "%Y-%m-%d %H:%M:%S" if with_time else "%Y-%m-%d"
     return datetime.datetime.fromtimestamp(time.time()).strftime(fmt)
 
+def add_ip_address_constants(soc, name, ip_address):
+    _ip_address = ip_address.split(".")
+    assert len(_ip_address) == 4
+    for n in range(4):
+        assert int(_ip_address[n]) < 256
+        soc.add_constant(f"{name}{n+1}", int(_ip_address[n]))
+
+def add_mac_address_constants(soc, name, mac_address):
+    assert mac_address < 2**48
+    for n in range(6):
+        soc.add_constant(f"{name}{n+1}", (mac_address >> ((5 - n) * 8)) & 0xff)
+
 # SoCError -----------------------------------------------------------------------------------------
 
 class SoCError(Exception):
@@ -1771,16 +1783,10 @@ class LiteXSoC(SoC):
             self.add_constant("ETH_DYNAMIC_IP")
 
         # Local/Remote IP Configuration (optional).
-        def add_ip_constants(name, ip):
-            _ip = ip.split(".")
-            assert len(_ip) == 4
-            for n in range(4):
-                assert int(_ip[n]) < 256
-                self.add_constant(f"{name}{n+1}", int(_ip[n]))
         if local_ip:
-            add_ip_constants("LOCALIP", local_ip)
+            add_ip_address_constants(self, "LOCALIP", local_ip)
         if remote_ip:
-            add_ip_constants("REMOTEIP", remote_ip)
+            add_ip_address_constants(self, "REMOTEIP", remote_ip)
 
         # Software Debug
         if software_debug:
@@ -1803,6 +1809,9 @@ class LiteXSoC(SoC):
     def add_etherbone(self, name="etherbone", phy=None, phy_cd="eth", data_width=8,
         mac_address             = 0x10e2d5000000,
         ip_address              = "192.168.1.50",
+        ethernet_mac_address    = 0x10e2d5000001,
+        ethernet_local_ip       = "192.168.1.51",
+        ethernet_remote_ip      = "192.168.1.100",
         arp_entries             = 1,
         udp_port                = 1234,
         buffer_depth            = 16,
@@ -1865,6 +1874,9 @@ class LiteXSoC(SoC):
 
         # Ethernet MAC (CPU).
         if with_ethmac:
+            assert mac_address != ethernet_mac_address
+            assert ip_address  != ethernet_local_ip
+
             self.check_if_exists("ethmac")
             ethcore.autocsr_exclude = {"mac"}
             # Software Interface.
@@ -1877,6 +1889,10 @@ class LiteXSoC(SoC):
                 self.irq.add("ethmac", use_loc_if_exists=True)
 
             self.add_constant("ETH_PHY_NO_RESET") # Disable reset from BIOS to avoid disabling Hardware Interface.
+
+            add_ip_address_constants(self, "LOCALIP", ethernet_local_ip)
+            add_ip_address_constants(self, "REMOTEIP", ethernet_remote_ip)
+            add_mac_address_constants(self, "MACADDR", ethernet_mac_address)
 
     # Add SPI Flash --------------------------------------------------------------------------------
     def add_spi_flash(self, name="spiflash", mode="4x", clk_freq=20e6, module=None, phy=None, rate="1:1", software_debug=False, **kwargs):
