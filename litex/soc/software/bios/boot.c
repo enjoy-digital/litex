@@ -7,6 +7,7 @@
 // This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
 // License: BSD
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -589,14 +590,14 @@ static unsigned int check_image_in_flash(unsigned int base_address)
 
 	length = MMPTR(base_address);
 	if((length < 32) || (length > 16*1024*1024)) {
-		printf("Error: Invalid image length 0x%08x\n", length);
+		printf("Error: Invalid image length 0x%" PRIx32 "\n", length);
 		return 0;
 	}
 
 	crc = MMPTR(base_address + 4);
 	got_crc = crc32((unsigned char *)(base_address + 8), length);
 	if(crc != got_crc) {
-		printf("CRC failed (expected %08x, got %08x)\n", crc, got_crc);
+		printf("CRC failed (expected 0x%" PRIx32 ", got 0x%" PRIx32 ")\n", crc, got_crc);
 		return 0;
 	}
 
@@ -611,7 +612,7 @@ static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned lon
 
 	length = check_image_in_flash(flash_address);
 	if(length > 0) {
-		printf("Copying 0x%08x to 0x%08lx (%d bytes)...\n", flash_address, ram_address, length);
+		printf("Copying 0x%08x to 0x%08lx (%" PRIu32 " bytes)...\n", flash_address, ram_address, length);
 		offset = 0;
 		init_progression_bar(length);
 		while (length > 0) {
