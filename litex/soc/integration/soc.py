@@ -1844,7 +1844,9 @@ class LiteXSoC(SoC):
             # Use PHY's eth_tx/eth_rx clock domains.
             ethcore = ClockDomainsRenamer({
                 "eth_tx": phy_cd + "_tx",
-                "eth_rx": phy_cd + "_rx"})(ethcore)
+                "eth_rx": phy_cd + "_rx",
+                "sys"   : {True: "sys", False: phy_cd + "_rx"}[with_ethmac],
+            })(ethcore)
         self.add_module(name=f"ethcore_{name}", module=ethcore)
 
         etherbone_cd = "sys"
