@@ -81,6 +81,7 @@ class SoCRegion:
         self.mode      = mode
         self.cached    = cached
         self.linker    = linker
+        self.type      = ""
 
     def decoder(self, bus):
         origin = self.origin
