@@ -2,7 +2,7 @@
 # This file is part of LiteX.
 #
 # This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2015-2021 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2015-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2018-2019 Antmicro <www.antmicro.com>
 # This file is Copyright (c) 2018 Sergiusz Bazanski <q3k@q3k.org>
 # This file is Copyright (c) 2016-2017 Tim 'mithro' Ansell <mithro@mithis.com>
@@ -127,6 +127,9 @@ class Builder:
             self.add_software_package(name)
             self.add_software_library(name)
 
+        # JSONs.
+        self.jsons = []
+
     def add_software_package(self, name, src_dir=None):
         if src_dir is None:
             src_dir = os.path.join(soc_directory, "software", name)
@@ -134,6 +137,30 @@ class Builder:
 
     def add_software_library(self, name):
         self.software_libraries.append(name)
+
+    def add_json(self, filename, name="", origin=0):
+        self.jsons.append((filename, name, origin))
+
+    def _get_json_mem_regions(self):
+        mem_regions = {}
+        for filename, name, origin in self.jsons:
+            _, _, _mem_regions = export.load_csr_json(filename, name, origin)
+            mem_regions.update(_mem_regions)
+        return mem_regions
+
+    def _get_json_constants(self):
+        constants = {}
+        for filename, name, origin in self.jsons:
+            _, _constants, _ = export.load_csr_json(filename, name, origin)
+            constants.update(_constants)
+        return constants
+
+    def _get_json_csr_regions(self):
+        csr_regions = {}
+        for filename, name, origin in self.jsons:
+            _csr_regions, _, _ = export.load_csr_json(filename, name, origin)
+            csr_regions.update(_csr_regions)
+        return csr_regions
 
     def _get_variables_contents(self):
         # Helper.
@@ -147,7 +174,7 @@ class Builder:
                 raise e
 
         # Define packages and libraries.
-        define("PACKAGES",     " ".join(name for name, src_dir in self.software_packages))
+        define("PACKAGES",     " ".join(name    for name, src_dir in self.software_packages))
         define("PACKAGE_DIRS", " ".join(src_dir for name, src_dir in self.software_packages))
         define("LIBS",         " ".join(self.software_libraries))
 
@@ -179,6 +206,11 @@ class Builder:
         # Generate Include/Generated directories.
         _create_dir(self.include_dir)
         _create_dir(self.generated_dir)
+
+        # Integrate JSON files.
+        self.soc.mem_regions.update(self._get_json_mem_regions())
+        self.soc.constants.update(  self._get_json_constants())
+        self.soc.csr_regions.update(self._get_json_csr_regions())
 
         # Generate BIOS files when the SoC uses it.
         if with_bios:
