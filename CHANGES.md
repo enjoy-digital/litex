@@ -7,6 +7,7 @@
 	- liteeth/phy/gw5rgmii          : Fixed Clk assignments.
 	- build/efinix/programmer       : Updated for compatibility with latest Efinity versions.
 	- litespi/software:             : Fixed SPI Flash Clk Divider computation when with L2 Cache.
+	- litepcie/us(p)pciephy         : Fixed x8 / 256-bit wide case.
 
 	[> Added
 	--------
@@ -20,6 +21,7 @@
 	- liteeth/phy                   : Added 7-Series/Ultrascale(+) 2500BaseX PHYs.
 	- litespi/sdrphy:               : Allowed flash parameter to be None.
 	- litespi/integration           : Improved integration and simplifications.
+	- export/builder                : Add import/merge of Sub-SoCs .json files.
 
 	[> Changed
 	----------
