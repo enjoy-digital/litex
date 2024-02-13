@@ -21,7 +21,10 @@
 	- liteeth/phy                   : Added 7-Series/Ultrascale(+) 2500BaseX PHYs.
 	- litespi/sdrphy:               : Allowed flash parameter to be None.
 	- litespi/integration           : Improved integration and simplifications.
-	- export/builder                : Add import/merge of Sub-SoCs .json files.
+	- export/builder                : Added import/merge of Sub-SoCs .json files.
+	- cpu/vexriscv_smp              : Added reset_address/vector support.
+	- litex_sim                     : Added jtagremote support.
+	- soc/add_master                : Added region support to allow/limit access to a specific region.
 
 	[> Changed
 	----------
