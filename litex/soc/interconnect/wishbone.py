@@ -149,7 +149,7 @@ class Remapper(LiteXModule):
 
 class RegionsRemapper(LiteXModule):
     """Remaps Wishbone addresses from specified source regions to destination regions"""
-    def __init__(self, master, slave, src_regions, dst_regions):
+    def __init__(self, master, slave, src_regions=[], dst_regions=[]):
         assert len(src_regions)  == len(dst_regions)
         assert master.addressing == slave.addressing
 
