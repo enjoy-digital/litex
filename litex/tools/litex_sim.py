@@ -129,6 +129,14 @@ _io = [
         Subsignal("i",  Pins(32)),
     ),
 
+    # JTAG.
+    ("jtag", 0,
+        Subsignal("tck", Pins(1)),
+        Subsignal("tms", Pins(1)),
+        Subsignal("tdi", Pins(1)),
+        Subsignal("tdo", Pins(1)),
+    ),
+
     # Video (VGA).
     ("vga", 0,
         Subsignal("hsync", Pins(1)),
@@ -172,6 +180,7 @@ class SimSoC(SoCCore):
         with_video_terminal = False,
         sim_debug             = False,
         trace_reset_on        = False,
+        with_jtag             = False,
         **kwargs):
         platform     = Platform()
         sys_clk_freq = int(1e6)
@@ -263,6 +272,14 @@ class SimSoC(SoCCore):
         if with_i2c:
             pads = platform.request("i2c", 0)
             self.i2c = I2CMasterSim(pads)
+
+        # JTAG -------------------------------------------------------------------------------------
+        if with_jtag:
+            jtag_pads = platform.request("jtag")
+            self.comb += self.cpu.jtag_clk.eq(jtag_pads.tck)
+            self.comb += self.cpu.jtag_tms.eq(jtag_pads.tms)
+            self.comb += self.cpu.jtag_tdi.eq(jtag_pads.tdi)
+            self.comb += jtag_pads.tdo.eq(self.cpu.jtag_tdo)
 
         # SDCard -----------------------------------------------------------------------------------
         if with_sdcard:
@@ -399,6 +416,9 @@ def sim_args(parser):
     # I2C.
     parser.add_argument("--with-i2c",             action="store_true",     help="Enable I2C support.")
 
+    # JTAG
+    parser.add_argument("--with-jtagremote",      action="store_true", help="Enable jtagremote support")
+
     # GPIO.
     parser.add_argument("--with-gpio",            action="store_true",     help="Enable Tristate GPIO (32 pins).")
 
@@ -485,6 +505,10 @@ def main():
     if args.with_i2c:
         sim_config.add_module("spdeeprom", "i2c")
 
+    # JTAG
+    if args.with_jtagremote:
+        sim_config.add_module("jtagremote", "jtag", args={'port': 44853})
+
     # Video.
     if args.with_video_framebuffer or args.with_video_terminal:
         sim_config.add_module("video", "vga")
@@ -498,6 +522,7 @@ def main():
         with_etherbone         = args.with_etherbone,
         with_analyzer          = args.with_analyzer,
         with_i2c               = args.with_i2c,
+        with_jtag              = args.with_jtagremote,
         with_sdcard            = args.with_sdcard,
         with_spi_flash         = args.with_spi_flash,
         with_gpio              = args.with_gpio,

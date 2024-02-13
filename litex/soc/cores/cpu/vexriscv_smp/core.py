@@ -55,6 +55,7 @@ class VexRiscvSMP(CPU):
     with_fpu             = False
     cpu_per_fpu          = 4
     with_rvc             = False
+    jtag_tap             = False
     dtlb_size            = 4
     itlb_size            = 4
 
@@ -83,6 +84,7 @@ class VexRiscvSMP(CPU):
         cpu_group.add_argument("--dtlb-size",                    default=4,           help="Data TLB size.")
         cpu_group.add_argument("--itlb-size",                    default=4,           help="Instruction TLB size.")
         cpu_group.add_argument("--expose-time",                  action="store_true", help="Add CLINT time output.")
+        cpu_group.add_argument("--jtag-tap",                     action="store_true", help="Add the jtag tap instead of jtag instruction interface")
 
     @staticmethod
     def args_read(args):
@@ -120,6 +122,7 @@ class VexRiscvSMP(CPU):
             VexRiscvSMP.with_rvc = True
         if(args.dtlb_size): VexRiscvSMP.dtlb_size = int(args.dtlb_size)
         if(args.itlb_size): VexRiscvSMP.itlb_size = int(args.itlb_size)
+        if(args.jtag_tap):  VexRiscvSMP.jtag_tap = int(args.jtag_tap)
 
     # ABI.
     @staticmethod
@@ -191,7 +194,8 @@ class VexRiscvSMP(CPU):
         f"{'_Fpu' + str(VexRiscvSMP.cpu_per_fpu)  if VexRiscvSMP.with_fpu else ''}" \
         f"{'_Pd'   if VexRiscvSMP.privileged_debug else ''}" \
         f"{'_Hb' + str(VexRiscvSMP.hardware_breakpoints) if VexRiscvSMP.hardware_breakpoints > 0 else ''}" \
-        f"{'_Rvc'  if VexRiscvSMP.with_rvc else ''}"
+        f"{'_Rvc'  if VexRiscvSMP.with_rvc else ''}" \
+        f"{'_JtagT'  if VexRiscvSMP.jtag_tap else ''}"
 
     # Default Configs Generation.
     @staticmethod
@@ -288,6 +292,7 @@ class VexRiscvSMP(CPU):
         gen_args.append(f"--netlist-directory={vdir}")
         gen_args.append(f"--dtlb-size={VexRiscvSMP.dtlb_size}")
         gen_args.append(f"--itlb-size={VexRiscvSMP.itlb_size}")
+        gen_args.append(f"--jtag-tap={VexRiscvSMP.jtag_tap}")
 
         cmd = 'cd {path} && sbt "runMain vexriscv.demo.smp.VexRiscvLitexSmpClusterCmdGen {args}"'.format(path=os.path.join(vdir, "ext", "VexRiscv"), args=" ".join(gen_args))
         subprocess.check_call(cmd, shell=True)
@@ -298,14 +303,22 @@ class VexRiscvSMP(CPU):
         self.variant          = variant
         self.human_name       = self.human_name + "-" + self.variant.upper()
         self.reset            = Signal()
-        self.jtag_clk         = Signal()
-        self.jtag_enable      = Signal()
-        self.jtag_capture     = Signal()
-        self.jtag_shift       = Signal()
-        self.jtag_update      = Signal()
-        self.jtag_reset       = Signal()
-        self.jtag_tdo         = Signal()
-        self.jtag_tdi         = Signal()
+
+        if VexRiscvSMP.jtag_tap:
+            self.jtag_clk = Signal()
+            self.jtag_tdo = Signal()
+            self.jtag_tdi = Signal()
+            self.jtag_tms = Signal()
+        else:
+            self.jtag_clk     = Signal()
+            self.jtag_tdo     = Signal()
+            self.jtag_tdi     = Signal()
+            self.jtag_reset   = Signal()
+            self.jtag_enable  = Signal()
+            self.jtag_capture = Signal()
+            self.jtag_shift   = Signal()
+            self.jtag_update  = Signal()
+
         self.interrupt        = Signal(32)
         self.pbus             = pbus = wishbone.Interface(data_width={
             # Always 32-bit when using direct LiteDRAM interfaces.
@@ -326,16 +339,6 @@ class VexRiscvSMP(CPU):
             # Interrupts.
             i_interrupts = self.interrupt,
 
-            # JTAG.
-            i_jtag_clk          = self.jtag_clk,
-            i_debugPort_enable  = self.jtag_enable,
-            i_debugPort_capture = self.jtag_capture,
-            i_debugPort_shift   = self.jtag_shift,
-            i_debugPort_update  = self.jtag_update,
-            i_debugPort_reset   = self.jtag_reset,
-            i_debugPort_tdi     = self.jtag_tdi,
-            o_debugPort_tdo     = self.jtag_tdo,
-
             # Peripheral Bus (Master).
             o_peripheral_CYC      = pbus.cyc,
             o_peripheral_STB      = pbus.stb,
@@ -349,6 +352,25 @@ class VexRiscvSMP(CPU):
             o_peripheral_CTI      = pbus.cti,
             o_peripheral_BTE      = pbus.bte
         )
+
+        if VexRiscvSMP.jtag_tap:
+            self.cpu_params.update(
+                i_debugPort_tck     = self.jtag_clk,
+                i_debugPort_tms     = self.jtag_tms,
+                i_debugPort_tdi     = self.jtag_tdi,
+                o_debugPort_tdo     = self.jtag_tdo
+            )
+        else:
+            self.cpu_params.update(
+                i_jtag_clk          = self.jtag_clk,
+                i_debugPort_enable  = self.jtag_enable,
+                i_debugPort_capture = self.jtag_capture,
+                i_debugPort_shift   = self.jtag_shift,
+                i_debugPort_update  = self.jtag_update,
+                i_debugPort_reset   = self.jtag_reset,
+                i_debugPort_tdi     = self.jtag_tdi,
+                o_debugPort_tdo     = self.jtag_tdo
+            )
 
         # DMA.
         if VexRiscvSMP.coherent_dma:
