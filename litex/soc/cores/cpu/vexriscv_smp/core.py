@@ -60,6 +60,7 @@ class VexRiscvSMP(CPU):
     csr_base             = 0xf000_0000
     clint_base           = 0xf001_0000
     plic_base            = 0xf0c0_0000
+    reset_vector         = 0
 
     # Command line configuration arguments.
     @staticmethod
@@ -178,6 +179,7 @@ class VexRiscvSMP(CPU):
     def generate_cluster_name():
         ldw = f"Ldw{VexRiscvSMP.litedram_width}"
         VexRiscvSMP.cluster_name = f"VexRiscvLitexSmpCluster_" \
+        f"{'R' + hex(VexRiscvSMP.reset_vector) if VexRiscvSMP.reset_vector else ''}"\
         f"Cc{VexRiscvSMP.cpu_count}"    \
         "_" \
         f"Iw{VexRiscvSMP.icache_width}" \
@@ -276,6 +278,7 @@ class VexRiscvSMP(CPU):
         if(VexRiscvSMP.coherent_dma):
             gen_args.append("--coherent-dma")
         gen_args.append(f"--cpu-count={VexRiscvSMP.cpu_count}")
+        gen_args.append(f"--reset-vector={VexRiscvSMP.reset_vector}")
         gen_args.append(f"--ibus-width={VexRiscvSMP.icache_width}")
         gen_args.append(f"--dbus-width={VexRiscvSMP.dcache_width}")
         gen_args.append(f"--dcache-size={VexRiscvSMP.dcache_size}")
@@ -394,7 +397,7 @@ class VexRiscvSMP(CPU):
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
-        assert reset_address == 0x0000_0000
+        VexRiscvSMP.reset_vector = reset_address
 
     def add_sources(self, platform):
         vdir = get_data_mod("cpu", "vexriscv_smp").data_location
