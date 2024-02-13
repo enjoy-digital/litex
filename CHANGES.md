@@ -1,5 +1,33 @@
-[> Changes since 2023.08
+[> Changes since 2023.12
 ------------------------
+	[> Fixed
+	--------
+	- integration/soc               : Fixed typo in cpu mem_bus axi-via-wb downconvert
+	- interconnect/ahb/AHB2Wishbone : Fixed size check that was too restrictive.
+	- liteeth/phy/gw5rgmii          : Fixed Clk assignments.
+	- build/efinix/programmer       : Updated for compatibility with latest Efinity versions.
+	- litespi/software:             : Fixed SPI Flash Clk Divider computation when with L2 Cache.
+	- litepcie/us(p)pciephy         : Fixed x8 / 256-bit wide case.
+
+	[> Added
+	--------
+	- build/openfpgaloader          : Added kwargs support to flash for specific/less common cases.
+	- cpu/gowin_emcu                : Improved/Cleaned-up.
+	- interconnect/ahb              : Added data_width/address_width parameters.
+	- interconnect/ahb              : Added proper byte/sel support to AHB2Wishbone.
+	- cpu/gowin_ae350               : Added initial support.
+	- cpu/naxriscv                  : Updated arch definition and added rvc configuration parameters.
+	- cpu/vexriscv_smp              : Added csr/clint/plic base address configuration parameters.
+	- liteeth/phy                   : Added 7-Series/Ultrascale(+) 2500BaseX PHYs.
+	- litespi/sdrphy:               : Allowed flash parameter to be None.
+	- litespi/integration           : Improved integration and simplifications.
+	- export/builder                : Add import/merge of Sub-SoCs .json files.
+
+	[> Changed
+	----------
+
+[> 2023.12, released on December 25th 2023
+------------------------------------------
 	[> Fixed
 	--------
 	- liteeth/arp           : Fixed response on table update.
@@ -30,16 +58,20 @@
 	- litepcie              : Simplify/Cleanup Ultrascale(+) integration and allow .xci generation from .tcl.
 	- litepcie              : Initial 64-bit DMA suppport.
 	- bios                  : Added bios_format / --bios-format to allow enabling float/double printf.
-	- soc/cores/clock       : Added proper clock feedback support on Efinix TRIONPLL.
+	- soc/cores/clock       : Added proper clock feedback support on Efinix TRIONPLL/TITANIUMPLL.
 	- liteiclink/phy        : Added Efinix support/examples on Trion/Titanium.
 	- liteiclink/serwb      : Reused Etherbone from LiteEth to avoid code duplication.
 	- interconnect          : Added 64-bit support to Wishbone/AXI-Lite/AXI.
 	- jtag                  : Fixed firmware upload over JTAG-UART.
 	- jtag                  : Improved speed (~X16) on JTABone/JTAGUART on all supported devices (Xilinx, Altera, Efinix, etc...)
+	- litesata/phy          : Added GTHE4 support on Ultrascale+.
+	- litex_boards          : Added Machdyne's Mozart with the Sechzig ML1 module support.
+	- liteiclink            : Added clk_ratio of 1:2, 1:4 on Efinix/SerWB to make clocking more flexible.
 
 	[> Changed
 	----------
-	- build/osfpga: Removed initial support (would need feedbacks/updates).
+	- build/osfpga          : Removed initial support (would need feedbacks/updates).
+	- python3               : Updated minimum python3 version to 3.7 (To allow more than 255 arguments in functions).
 
 [> 2023.08, released on September 14th 2023
 -------------------------------------------

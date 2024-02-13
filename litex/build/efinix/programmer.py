@@ -28,7 +28,8 @@ class EfinixProgrammer(GenericProgrammer):
         os.environ["EFINITY_HOME"] = self.efinity_path
 
     def load_bitstream(self, bitstream_file, cable_suffix=""):
-        os.environ['EFXPGM_HOME'] = self.efinity_path + '/pgm'
+        os.environ['EFXPGM_HOME'] = self.efinity_path + "/pgm"
+        os.environ["EFXDBG_HOME"] = self.efinity_path + "/debugger"
         if (subprocess.call([self.efinity_path + '/bin/python3', self.efinity_path +
                    '/pgm/bin/efx_pgm/ftdi_program.py', bitstream_file,
                    "-m", "jtag"], env=os.environ.copy()) != 0):

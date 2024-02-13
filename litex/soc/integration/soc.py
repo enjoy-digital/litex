@@ -8,6 +8,7 @@
 
 import os
 import sys
+import math
 import time
 import logging
 import argparse
@@ -40,6 +41,18 @@ def build_time(with_time=True):
     fmt = "%Y-%m-%d %H:%M:%S" if with_time else "%Y-%m-%d"
     return datetime.datetime.fromtimestamp(time.time()).strftime(fmt)
 
+def add_ip_address_constants(soc, name, ip_address):
+    _ip_address = ip_address.split(".")
+    assert len(_ip_address) == 4
+    for n in range(4):
+        assert int(_ip_address[n]) < 256
+        soc.add_constant(f"{name}{n+1}", int(_ip_address[n]))
+
+def add_mac_address_constants(soc, name, mac_address):
+    assert mac_address < 2**48
+    for n in range(6):
+        soc.add_constant(f"{name}{n+1}", (mac_address >> ((5 - n) * 8)) & 0xff)
+
 # SoCError -----------------------------------------------------------------------------------------
 
 class SoCError(Exception):
@@ -68,6 +81,7 @@ class SoCRegion:
         self.mode      = mode
         self.cached    = cached
         self.linker    = linker
+        self.type      = ""
 
     def decoder(self, bus):
         origin = self.origin
@@ -649,9 +663,9 @@ class SoCLocHandler(LiteXModule):
 
 class SoCCSRHandler(SoCLocHandler):
     supported_data_width    = [8, 32]
-    supported_address_width = [14+i for i in range(4)]
+    supported_address_width = [14, 15, 16, 17, 18]
     supported_alignment     = [32]
-    supported_paging        = [0x800*2**i for i in range(4)]
+    supported_paging        = [0x400, 0x800, 0x1000, 0x2000, 0x4000]
     supported_ordering      = ["big", "little"]
 
     # Creation -------------------------------------------------------------------------------------
@@ -1246,7 +1260,7 @@ class SoC(LiteXModule, SoCCoreCompat):
         if hasattr(self, "ctrl") and self.bus.timeout is not None:
             if hasattr(self.ctrl, "bus_error") and hasattr(self.bus._interconnect, "timeout"):
                 self.comb += self.ctrl.bus_error.eq(self.bus._interconnect.timeout.error)
-        self.add_config("BUS_STANDARD",      self.bus.standard.upper())
+        self.add_config("BUS_STANDARD",      self.bus.standard)
         self.add_config("BUS_DATA_WIDTH",    self.bus.data_width)
         self.add_config("BUS_ADDRESS_WIDTH", self.bus.address_width)
         self.add_config("BUS_BURSTING",      int(self.bus.bursting))
@@ -1651,9 +1665,9 @@ class LiteXSoC(SoC):
                     else:
                         mem_wb  = wishbone.Interface(
                             data_width = self.cpu.mem_axi.data_width,
-                            adr_width  = 32-log2_int(mem_bus.data_width//8,
+                            adr_width  = 32-log2_int(mem_bus.data_width//8),
                             addressing = "word",
-                        ))
+                        )
                         mem_a2w = axi.AXI2Wishbone(
                             axi          = mem_bus,
                             wishbone     = mem_wb,
@@ -1726,7 +1740,9 @@ class LiteXSoC(SoC):
         nrxslots                = 2, rxslots_read_only  = True,
         ntxslots                = 2, txslots_write_only = False,
         with_timestamp          = False,
-        with_timing_constraints = True):
+        with_timing_constraints = True,
+        local_ip                = None,
+        remote_ip               = None):
         # Imports
         from liteeth.mac import LiteEthMAC
         from liteeth.phy.model import LiteEthPHYModel
@@ -1764,7 +1780,14 @@ class LiteXSoC(SoC):
 
         # Dynamic IP (if enabled).
         if dynamic_ip:
+            assert local_ip is None
             self.add_constant("ETH_DYNAMIC_IP")
+
+        # Local/Remote IP Configuration (optional).
+        if local_ip:
+            add_ip_address_constants(self, "LOCALIP", local_ip)
+        if remote_ip:
+            add_ip_address_constants(self, "REMOTEIP", remote_ip)
 
         # Software Debug
         if software_debug:
@@ -1792,7 +1815,11 @@ class LiteXSoC(SoC):
         buffer_depth            = 16,
         with_ip_broadcast       = True,
         with_timing_constraints = True,
-        with_ethmac             = False):
+        with_ethmac             = False,
+        ethmac_address          = 0x10e2d5000001,
+        ethmac_local_ip         = "192.168.1.51",
+        ethmac_remote_ip        = "192.168.1.100"):
+
         # Imports
         from liteeth.core import LiteEthUDPIPCore
         from liteeth.frontend.etherbone import LiteEthEtherbone
@@ -1819,7 +1846,8 @@ class LiteXSoC(SoC):
             ethcore = ClockDomainsRenamer({
                 "eth_tx": phy_cd + "_tx",
                 "eth_rx": phy_cd + "_rx",
-                "sys":    phy_cd + "_rx"})(ethcore)
+                "sys"   : {True: "sys", False: phy_cd + "_rx"}[with_ethmac],
+            })(ethcore)
         self.add_module(name=f"ethcore_{name}", module=ethcore)
 
         etherbone_cd = "sys"
@@ -1850,6 +1878,9 @@ class LiteXSoC(SoC):
 
         # Ethernet MAC (CPU).
         if with_ethmac:
+            assert mac_address != ethmac_address
+            assert ip_address  != ethmac_local_ip
+
             self.check_if_exists("ethmac")
             ethcore.autocsr_exclude = {"mac"}
             # Software Interface.
@@ -1863,8 +1894,12 @@ class LiteXSoC(SoC):
 
             self.add_constant("ETH_PHY_NO_RESET") # Disable reset from BIOS to avoid disabling Hardware Interface.
 
+            add_ip_address_constants(self,  "LOCALIP",  ethmac_local_ip)
+            add_ip_address_constants(self,  "REMOTEIP", ethmac_remote_ip)
+            add_mac_address_constants(self, "MACADDR",  ethmac_address)
+
     # Add SPI Flash --------------------------------------------------------------------------------
-    def add_spi_flash(self, name="spiflash", mode="4x", clk_freq=None, module=None, phy=None, rate="1:1", software_debug=False, **kwargs):
+    def add_spi_flash(self, name="spiflash", mode="4x", clk_freq=20e6, module=None, phy=None, rate="1:1", software_debug=False, **kwargs):
         # Imports.
         from litespi import LiteSPI
         from litespi.phy.generic import LiteSPIPHY
@@ -1872,14 +1907,15 @@ class LiteXSoC(SoC):
 
         # Checks/Parameters.
         assert mode in ["1x", "4x"]
-        if clk_freq is None: clk_freq = self.sys_clk_freq
+        default_divisor = math.ceil(self.sys_clk_freq/(2*clk_freq)) - 1
+        clk_freq        = int(self.sys_clk_freq/(2*(default_divisor + 1)))
 
         # PHY.
         spiflash_phy = phy
         if spiflash_phy is None:
             self.check_if_exists(f"{name}_phy")
             spiflash_pads = self.platform.request(name if mode == "1x" else name + mode)
-            spiflash_phy = LiteSPIPHY(spiflash_pads, module, device=self.platform.device, default_divisor=int(self.sys_clk_freq/clk_freq), rate=rate)
+            spiflash_phy = LiteSPIPHY(spiflash_pads, module, device=self.platform.device, default_divisor=default_divisor, rate=rate)
             self.add_module(name=f"{name}_phy", module=spiflash_phy)
 
         # Core.
@@ -1890,14 +1926,14 @@ class LiteXSoC(SoC):
         self.bus.add_slave(name=name, slave=spiflash_core.bus, region=spiflash_region)
 
         # Constants.
-        self.add_constant(f"{name}_PHY_FREQUENCY",     clk_freq)
-        self.add_constant(f"{name}_MODULE_NAME",       module.name.upper())
+        self.add_constant(f"{name}_MODULE_NAME",       module.name)
         self.add_constant(f"{name}_MODULE_TOTAL_SIZE", module.total_size)
         self.add_constant(f"{name}_MODULE_PAGE_SIZE",  module.page_size)
-        if SpiNorFlashOpCodes.READ_1_1_4 in module.supported_opcodes:
-            self.add_constant(f"{name}_MODULE_QUAD_CAPABLE")
-        if SpiNorFlashOpCodes.READ_4_4_4 in module.supported_opcodes:
-            self.add_constant(f"{name}_MODULE_QPI_CAPABLE")
+        if mode in [ "4x" ]:
+            if SpiNorFlashOpCodes.READ_1_1_4 in module.supported_opcodes:
+                self.add_constant(f"{name}_MODULE_QUAD_CAPABLE")
+            if SpiNorFlashOpCodes.READ_4_4_4 in module.supported_opcodes:
+                self.add_constant(f"{name}_MODULE_QPI_CAPABLE")
         if software_debug:
             self.add_constant(f"{name}_DEBUG")
 

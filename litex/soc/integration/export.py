@@ -2,7 +2,7 @@
 # This file is part of LiteX.
 #
 # This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2014-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2018 Dolu1990 <charles.papon.90@gmail.com>
 # This file is Copyright (c) 2019 Gabriel L. Somlo <gsomlo@gmail.com>
 # This file is Copyright (c) 2018 Jean-François Nguyen <jf@lambdaconcept.fr>
@@ -29,6 +29,7 @@ from sysconfig import get_platform
 from migen import *
 
 from litex.soc.interconnect.csr import CSRStatus
+from litex.soc.integration.soc import SoCRegion
 
 from litex.build.tools import generated_banner
 
@@ -149,7 +150,7 @@ def get_mem_header(regions):
     for name, region in regions.items():
         r += f"#ifndef {name.upper()}_BASE\n"
         r += f"#define {name.upper()}_BASE 0x{region.origin:08x}L\n"
-        r += f"#define {name.upper()}_SIZE 0x{region.length:08x}\n"
+        r += f"#define {name.upper()}_SIZE 0x{region.size:08x}\n"
         r += "#endif\n\n"
 
     r += "#ifndef MEM_REGIONS\n"
@@ -370,7 +371,7 @@ def get_i2c_header(i2c_init_values):
     r += "\n#endif\n"
     return r
 
-# JSON Export --------------------------------------------------------------------------------------
+# JSON Export / Import  ----------------------------------------------------------------------------
 
 def get_csr_json(csr_regions={}, constants={}, mem_regions={}):
     alignment = constants.get("CONFIG_CSR_ALIGNMENT", 32)
@@ -382,6 +383,7 @@ def get_csr_json(csr_regions={}, constants={}, mem_regions={}):
         "memories":      {},
     }
 
+    # Get CSR Regions.
     for name, region in csr_regions.items():
         d["csr_bases"][name] = region.origin
         region_origin = region.origin
@@ -398,18 +400,64 @@ def get_csr_json(csr_regions={}, constants={}, mem_regions={}):
                 }
                 region_origin += alignment//8*_size
 
+    # Get Constants.
     for name, value in constants.items():
         d["constants"][name.lower()] = value.lower() if isinstance(value, str) else value
 
+    # Get Mem Regions.
     for name, region in mem_regions.items():
         d["memories"][name.lower()] = {
             "base": region.origin,
-            "size": region.length,
+            "size": region.size,
             "type": region.type,
         }
 
+    # Return JSON Dump.
     return json.dumps(d, indent=4)
 
+class MockCSR:
+    def __init__(self, name, size, type):
+        self.name = name
+        self.size = size
+        self.type = type
+
+class MockCSRRegion:
+    def __init__(self, origin, obj):
+        self.origin  = origin
+        self.obj     = obj
+        self.busword = 32
+
+def load_csr_json(filename, origin=0, name=""):
+    if len(name):
+        name += "_"
+    # Read File.
+    with open(filename, 'r') as json_file:
+        config_data = json.load(json_file)
+
+    # Load CSR Regions.
+    csr_regions = {}
+    for region_name, addr in config_data.get("csr_bases", {}).items():
+        csrs = []
+        for csr_name, info in config_data.get("csr_registers", {}).items():
+            region_prefix, _, csr_suffix = csr_name.rpartition("_")
+            if region_prefix.startswith(region_name):
+                if region_prefix == region_name:
+                    final_name = csr_suffix
+                else:
+                    final_name = f"{region_prefix[len(region_name) + 1:]}_{csr_suffix}"
+                csrs.append(MockCSR(final_name, info["size"], info["type"]))
+        csr_regions[name + region_name] = MockCSRRegion(origin + addr, csrs)
+
+    # Load Constants.
+    constants = {(name + const_name).upper(): value for const_name, value in config_data.get("constants", {}).items()}
+
+    # Load Memory Regions.
+    mem_regions = {}
+    for mem_name, info in config_data.get("memories", {}).items():
+        mem_regions[name + mem_name.lower()] = SoCRegion(origin + info["base"], info["size"], info["type"])
+
+    # Return CSR Regions, Constants, Mem Regions.
+    return csr_regions, constants, mem_regions
 
 # CSV Export --------------------------------------------------------------------------------------
 

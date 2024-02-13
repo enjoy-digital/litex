@@ -7,6 +7,8 @@
 from migen.fhdl.module import Module
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
+from litex.gen import *
+
 from litex.build.io import *
 
 # Gowin AsyncResetSynchronizer ---------------------------------------------------------------------
@@ -58,7 +60,9 @@ class GowinDDROutputImpl(Module):
             i_CLK = clk,
             i_D0  = i1,
             i_D1  = i2,
+            i_TX  = 0,
             o_Q0  = o,
+            o_Q1  = Open(),
         )
 
 class GowinDDROutput:

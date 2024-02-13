@@ -58,32 +58,38 @@ class VexRiscvSMP(CPU):
     jtag_tap             = False
     dtlb_size            = 4
     itlb_size            = 4
+    csr_base             = 0xf000_0000
+    clint_base           = 0xf001_0000
+    plic_base            = 0xf0c0_0000
 
     # Command line configuration arguments.
     @staticmethod
     def args_fill(parser):
         cpu_group = parser.add_argument_group(title="CPU options")
-        cpu_group.add_argument("--cpu-count",                    default=1,           help="Number of CPU(s) in the cluster.", type=int)
-        cpu_group.add_argument("--with-coherent-dma",            action="store_true", help="Enable Coherent DMA Slave interface.")
-        cpu_group.add_argument("--without-coherent-dma",         action="store_true", help="Disable Coherent DMA Slave interface.")
-        cpu_group.add_argument("--dcache-width",                 default=None,        help="L1 data cache bus width.")
-        cpu_group.add_argument("--icache-width",                 default=None,        help="L1 instruction cache bus width.")
-        cpu_group.add_argument("--dcache-size",                  default=None,        help="L1 data cache size in byte per CPU.")
-        cpu_group.add_argument("--dcache-ways",                  default=None,        help="L1 data cache ways per CPU.")
-        cpu_group.add_argument("--icache-size",                  default=None,        help="L1 instruction cache size in byte per CPU.")
-        cpu_group.add_argument("--icache-ways",                  default=None,        help="L1 instruction cache ways per CPU")
-        cpu_group.add_argument("--aes-instruction",              default=None,        help="Enable AES instruction acceleration.")
-        cpu_group.add_argument("--without-out-of-order-decoder", action="store_true", help="Reduce area at cost of peripheral access speed")
-        cpu_group.add_argument("--with-wishbone-memory",         action="store_true", help="Disable native LiteDRAM interface")
-        cpu_group.add_argument("--with-privileged-debug",        action="store_true", help="Enable official RISC-V debug spec")
-        cpu_group.add_argument("--hardware-breakpoints",        default=1,           help="Number of hardware breapoints", type=int)
-        cpu_group.add_argument("--wishbone-force-32b",           action="store_true", help="Force the wishbone bus to be 32 bits")
-        cpu_group.add_argument("--with-fpu",                     action="store_true", help="Enable the F32/F64 FPU")
-        cpu_group.add_argument("--cpu-per-fpu",                  default="4",         help="Maximal ratio between CPU count and FPU count. Will instanciate as many FPU as necessary.")
-        cpu_group.add_argument("--with-rvc",                     action="store_true", help="Enable RISC-V compressed instruction support")
-        cpu_group.add_argument("--dtlb-size",                    default=4,           help="Data TLB size.")
-        cpu_group.add_argument("--itlb-size",                    default=4,           help="Instruction TLB size.")
-        cpu_group.add_argument("--expose-time",                  action="store_true", help="Add CLINT time output.")
+        cpu_group.add_argument("--cpu-count",                    default=1,            help="Number of CPU(s) in the cluster.", type=int)
+        cpu_group.add_argument("--with-coherent-dma",            action="store_true",  help="Enable Coherent DMA Slave interface.")
+        cpu_group.add_argument("--without-coherent-dma",         action="store_true",  help="Disable Coherent DMA Slave interface.")
+        cpu_group.add_argument("--dcache-width",                 default=None,         help="L1 data cache bus width.")
+        cpu_group.add_argument("--icache-width",                 default=None,         help="L1 instruction cache bus width.")
+        cpu_group.add_argument("--dcache-size",                  default=None,         help="L1 data cache size in byte per CPU.")
+        cpu_group.add_argument("--dcache-ways",                  default=None,         help="L1 data cache ways per CPU.")
+        cpu_group.add_argument("--icache-size",                  default=None,         help="L1 instruction cache size in byte per CPU.")
+        cpu_group.add_argument("--icache-ways",                  default=None,         help="L1 instruction cache ways per CPU")
+        cpu_group.add_argument("--aes-instruction",              default=None,         help="Enable AES instruction acceleration.")
+        cpu_group.add_argument("--without-out-of-order-decoder", action="store_true",  help="Reduce area at cost of peripheral access speed")
+        cpu_group.add_argument("--with-wishbone-memory",         action="store_true",  help="Disable native LiteDRAM interface")
+        cpu_group.add_argument("--with-privileged-debug",        action="store_true",  help="Enable official RISC-V debug spec")
+        cpu_group.add_argument("--hardware-breakpoints",         default=1,            help="Number of hardware breapoints", type=int)
+        cpu_group.add_argument("--wishbone-force-32b",           action="store_true",  help="Force the wishbone bus to be 32 bits")
+        cpu_group.add_argument("--with-fpu",                     action="store_true",  help="Enable the F32/F64 FPU")
+        cpu_group.add_argument("--cpu-per-fpu",                  default="4",          help="Maximal ratio between CPU count and FPU count. Will instanciate as many FPU as necessary.")
+        cpu_group.add_argument("--with-rvc",                     action="store_true",  help="Enable RISC-V compressed instruction support")
+        cpu_group.add_argument("--dtlb-size",                    default=4,            help="Data TLB size.")
+        cpu_group.add_argument("--itlb-size",                    default=4,            help="Instruction TLB size.")
+        cpu_group.add_argument("--expose-time",                  action="store_true",  help="Add CLINT time output.")
+        cpu_group.add_argument("--csr-base",                     default="0xf0000000", help="CSR base address.")
+        cpu_group.add_argument("--clint-base",                   default="0xf0010000", help="CLINT base address.")
+        cpu_group.add_argument("--plic-base",                    default="0xf0c00000", help="PLIC base address.")
         cpu_group.add_argument("--jtag-tap",                     action="store_true", help="Add the jtag tap instead of jtag instruction interface")
 
     @staticmethod
@@ -120,8 +126,11 @@ class VexRiscvSMP(CPU):
             VexRiscvSMP.cpu_per_fpu = args.cpu_per_fpu
         if(args.with_rvc):
             VexRiscvSMP.with_rvc = True
-        if(args.dtlb_size): VexRiscvSMP.dtlb_size = int(args.dtlb_size)
-        if(args.itlb_size): VexRiscvSMP.itlb_size = int(args.itlb_size)
+        if(args.dtlb_size):  VexRiscvSMP.dtlb_size  = int(args.dtlb_size)
+        if(args.itlb_size):  VexRiscvSMP.itlb_size  = int(args.itlb_size)
+        if(args.csr_base):   VexRiscvSMP.csr_base   = int(args.csr_base, 16)
+        if(args.clint_base): VexRiscvSMP.clint_base = int(args.clint_base, 16)
+        if(args.plic_base):  VexRiscvSMP.plic_base  = int(args.plic_base, 16)
         if(args.jtag_tap):  VexRiscvSMP.jtag_tap = int(args.jtag_tap)
 
     # ABI.
@@ -149,9 +158,9 @@ class VexRiscvSMP(CPU):
             "rom":      0x0000_0000,
             "sram":     0x1000_0000,
             "main_ram": 0x4000_0000,
-            "csr":      0xf000_0000,
-            "clint":    0xf001_0000,
-            "plic":     0xf0c0_0000,
+            "csr":      VexRiscvSMP.csr_base,
+            "clint":    VexRiscvSMP.clint_base,
+            "plic":     VexRiscvSMP.plic_base,
         }
 
     # GCC Flags.

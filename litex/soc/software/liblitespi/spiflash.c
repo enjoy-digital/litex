@@ -1,6 +1,7 @@
 // This file is Copyright (c) 2020 Antmicro <www.antmicro.com>
 // License: BSD
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,6 +26,8 @@ int spiflash_freq_init(void)
 	unsigned int lowest_div, crc, crc_test;
 
 	lowest_div = spiflash_phy_clk_divisor_read();
+	flush_cpu_dcache();
+	flush_l2_cache();
 	crc        = crc32((unsigned char *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE);
 	crc_test   = crc;
 
@@ -40,19 +43,21 @@ int spiflash_freq_init(void)
 
 	while((crc == crc_test) && (lowest_div-- > 0)) {
 		spiflash_phy_clk_divisor_write((uint32_t)lowest_div);
+		flush_cpu_dcache();
+		flush_l2_cache();
 		crc_test = crc32((unsigned char *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE);
 #ifdef SPIFLASH_DEBUG
 		printf("[DIV: %d] %08x\n\r", lowest_div, crc_test);
 #endif
 	}
 	lowest_div++;
-	printf("SPI Flash clk configured to %d MHz\n", (SPIFLASH_PHY_FREQUENCY/(2*(1 + lowest_div)))/1000000);
+	printf("SPI Flash clk configured to %d MHz\n", CONFIG_CLOCK_FREQUENCY/(2*(1+lowest_div)*1000000));
 
 	spiflash_phy_clk_divisor_write(lowest_div);
 
 #else
 
-	printf("SPI Flash clk configured to %ld MHz\n", (unsigned long)(SPIFLASH_PHY_FREQUENCY/1e6));
+	printf("SPI Flash clk configured to %ld MHz\n", SPIFLASH_PHY_FREQUENCY/1000000);
 
 #endif
 
@@ -63,7 +68,7 @@ void spiflash_dummy_bits_setup(unsigned int dummy_bits)
 {
 	spiflash_core_mmap_dummy_bits_write((uint32_t)dummy_bits);
 #ifdef SPIFLASH_DEBUG
-	printf("Dummy bits set to: %d\n\r", spiflash_core_mmap_dummy_bits_read());
+	printf("Dummy bits set to: %" PRIx32 "\n\r", spiflash_core_mmap_dummy_bits_read());
 #endif
 }
 
@@ -107,7 +112,7 @@ static uint32_t transfer_byte(uint8_t b)
 	return spiflash_core_master_rxtx_read();
 }
 
-static void transfer_cmd(uint8_t *bs, uint8_t *resp, int len)
+static void transfer_cmd(volatile uint8_t *bs, volatile uint8_t *resp, int len)
 {
 	spiflash_core_master_phyconfig_len_write(8);
 	spiflash_core_master_phyconfig_width_write(1);
@@ -170,7 +175,7 @@ static void page_program(uint32_t addr, uint8_t *data, int len)
 	w_buf[1] = addr>>16;
 	w_buf[2] = addr>>8;
 	w_buf[3] = addr>>0;
-	memcpy(w_buf+4, data, len);
+	memcpy((void *)w_buf+4, (void *)data, len);
 	transfer_cmd(w_buf, r_buf, len+4);
 }
 
