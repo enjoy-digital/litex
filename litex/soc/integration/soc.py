@@ -447,7 +447,34 @@ class SoCBusHandler(LiteXModule):
 
         return adapted_interface
 
-    def add_master(self, name=None, master=None):
+    # Add Remapper ---------------------------------------------------------------------------------
+    def add_remapper(self, name, interface, origin, size):
+        interface_cls = type(interface)
+        remapper_cls  = {
+            wishbone.Interface   : wishbone.Remapper,
+            axi.AXILiteInterface : axi.AXILiteRemapper,
+            axi.AXIInterface     : axi.AXIRemapper,
+        }[interface_cls]
+
+        adapted_interface = interface_cls(
+            data_width    = interface.data_width,
+            address_width = interface.address_width,
+            addressing    = interface.addressing,
+        )
+
+        self.submodules += remapper_cls(interface, adapted_interface, origin, size)
+
+        fmt = "{name} Bus {remapped} to {origin} (Size: {size})."
+        self.logger.info(fmt.format(
+            name     = colorer(name),
+            remapped = colorer("remapped", color="cyan"),
+            origin   = colorer(f"0x{origin:08x}"),
+            size     = colorer(f"0x{size:08x}"),
+        ))
+
+        return adapted_interface
+
+    def add_master(self, name=None, master=None, region=None):
         if name is None:
             name = "master{:d}".format(len(self.masters))
         if name in self.masters.keys():
@@ -456,6 +483,8 @@ class SoCBusHandler(LiteXModule):
                 colorer("already declared", color="red")))
             self.logger.error(self)
             raise SoCError()
+        if region:
+            master = self.add_remapper(name, master, region.origin, region.size)
         master = self.add_adapter(name, master, "m2s")
         self.masters[name] = master
         self.logger.info("{} {} as Bus Master.".format(
@@ -466,7 +495,7 @@ class SoCBusHandler(LiteXModule):
         self.add_master(self, name=name, master=controller)
 
     def add_slave(self, name=None, slave=None, region=None):
-        no_name   = name is None
+        no_name   = name   is None
         no_region = region is None
         if no_name and no_region:
             self.logger.error("Please {} {} or/and {} of Bus Slave.".format(

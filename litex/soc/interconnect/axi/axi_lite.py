@@ -7,6 +7,8 @@
 
 """AXI4-Full/Lite support for LiteX"""
 
+from math import log2
+
 from migen import *
 from migen.genlib import roundrobin
 
@@ -127,6 +129,19 @@ class AXILiteInterface:
         resp = (yield self.r.resp)
         yield self.r.ready.eq(0)
         return (data, resp)
+
+
+# AXI-Lite Remapper --------------------------------------------------------------------------------
+
+class AXILiteRemapper(LiteXModule):
+    def __init__(self, master, slave, origin, size):
+        # Mask.
+        mask = 2**int(log2(size)) - 1
+
+        # Address Mask and Shift.
+        self.comb += master.connect(slave)
+        self.comb += slave.aw.addr.eq(origin | master.aw.addr & mask)
+        self.comb += slave.ar.addr.eq(origin | master.ar.addr & mask)
 
 # AXI-Lite to Simple Bus ---------------------------------------------------------------------------
 

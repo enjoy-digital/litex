@@ -7,6 +7,8 @@
 
 """AXI4-Full/Lite support for LiteX"""
 
+from math import log2
+
 from migen import *
 from migen.genlib import roundrobin
 
@@ -137,6 +139,18 @@ class AXIInterface:
 
     def layout_flat(self):
         return list(axi_layout_flat(self))
+
+# AXI Remapper -------------------------------------------------------------------------------------
+
+class AXIRemapper(LiteXModule):
+    def __init__(self, master, slave, origin, size):
+        # Mask.
+        mask = 2**int(log2(size)) - 1
+
+        # Address Mask and Shift.
+        self.comb += master.connect(slave)
+        self.comb += slave.aw.addr.eq(origin | master.aw.addr & mask)
+        self.comb += slave.ar.addr.eq(origin | master.ar.addr & mask)
 
 # AXI Bursts to Beats ------------------------------------------------------------------------------
 

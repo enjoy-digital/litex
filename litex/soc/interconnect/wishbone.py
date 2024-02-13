@@ -126,6 +126,24 @@ class Interface(Record):
                     r.append(sig.eq(pad))
         return r
 
+# Wishbone Remapper --------------------------------------------------------------------------------
+
+class Remapper(LiteXModule):
+    def __init__(self, master, slave, origin, size):
+        # Parameters.
+        addressing = master.addressing
+        assert master.addressing == slave.addressing
+
+        # Mask.
+        log2_size = int(log2(size))
+        if addressing == "word":
+            log2_size -= int(log2(len(master.dat_w)//8))
+        mask = 2**log2_size - 1
+
+        # Address Mask and Shift.
+        self.comb += master.connect(slave, omit={"adr"})
+        self.comb += slave.adr.eq(origin | (master.adr & mask))
+
 # Wishbone Timeout ---------------------------------------------------------------------------------
 
 class Timeout(LiteXModule):
