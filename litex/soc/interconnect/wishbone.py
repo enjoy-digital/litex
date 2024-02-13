@@ -160,7 +160,7 @@ class RegionsRemapper(LiteXModule):
         }[master.addressing]
 
         # Connect Master to Slave.
-        self.comb += master.connect(slave, omit={"adr"})
+        self.comb += master.connect(slave)
 
         # Remap Regions.
         for src_region, dst_region in zip(src_regions, dst_regions):
