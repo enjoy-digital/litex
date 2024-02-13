@@ -135,15 +135,39 @@ class Remapper(LiteXModule):
         addressing = master.addressing
         assert master.addressing == slave.addressing
 
-        # Mask.
+        # Compute Mask.
         log2_size = int(log2(size))
         if addressing == "word":
             log2_size -= int(log2(len(master.dat_w)//8))
         mask = 2**log2_size - 1
 
-        # Address Mask and Shift.
+        # Connect Master to Slave.
         self.comb += master.connect(slave, omit={"adr"})
+
+        # Connect Address with Mask and Shift.
         self.comb += slave.adr.eq(origin | (master.adr & mask))
+
+class RegionsRemapper(LiteXModule):
+    """Remaps Wishbone addresses from specified source regions to destination regions"""
+    def __init__(self, master, slave, src_regions, dst_regions):
+        assert len(src_regions)  == len(dst_regions)
+        assert master.addressing == slave.addressing
+
+        # Parameters.
+        adr_shift = {
+            "byte" : 0,
+            "word" : int(log2(len(master.dat_w)//8)),
+        }[master.addressing]
+
+        # Connect Master to Slave.
+        self.comb += master.connect(slave, omit={"adr"})
+
+        # Remap Regions.
+        for src_region, dst_region in zip(src_regions, dst_regions):
+            src_adr = master.adr << adr_shift
+            dst_adr = dst_region.origin + src_adr - src_region.origin
+            active  = (src_adr >= src_region.origin) & (src_adr < (src_region.origin + src_region.size))
+            self.comb += If(active, slave.adr.eq(dst_adr >> adr_shift))
 
 # Wishbone Timeout ---------------------------------------------------------------------------------
 
