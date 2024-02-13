@@ -99,12 +99,12 @@ class SoCRegion:
     def __str__(self):
         r = ""
         if self.origin is not None:
-            r += "Origin: {}, ".format(colorer("0x{:08x}".format(self.origin)))
+            r += "Origin: {:>16}, ".format(colorer("0x{:08x}".format(self.origin)))
         if self.size is not None:
-            r += "Size: {}, ".format(colorer("0x{:08x}".format(self.size)))
-        r += "Mode: {}, ".format(colorer(self.mode.upper()))
-        r += "Cached: {} ".format(colorer(self.cached))
-        r += "Linker: {}".format(colorer(self.linker))
+            r += "Size: {:>16}, ".format(colorer("0x{:08x}".format(self.size)))
+        r += "Mode: {:>11}, ".format(colorer(self.mode.upper()))
+        r += "Cached: {:>13}, ".format(colorer(self.cached))
+        r += "Linker: {:>13}".format(colorer(self.linker))
         return r
 
 class SoCIORegion(SoCRegion): pass
