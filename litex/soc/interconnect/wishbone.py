@@ -129,6 +129,7 @@ class Interface(Record):
 # Wishbone Remapper --------------------------------------------------------------------------------
 
 class Remapper(LiteXModule):
+    """Remaps Wishbone addresses by applying an origin offset and address mask."""
     def __init__(self, master, slave, origin, size):
         # Parameters.
         addressing = master.addressing

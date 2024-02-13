@@ -134,6 +134,7 @@ class AXILiteInterface:
 # AXI-Lite Remapper --------------------------------------------------------------------------------
 
 class AXILiteRemapper(LiteXModule):
+    """Remaps AXI Lite addresses by applying an origin offset and address mask."""
     def __init__(self, master, slave, origin, size):
         # Mask.
         mask = 2**int(log2(size)) - 1
