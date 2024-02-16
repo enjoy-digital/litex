@@ -129,7 +129,7 @@ def get_linker_output_format(cpu):
 def get_linker_regions(regions):
     r = "MEMORY {\n"
     for name, region in regions.items():
-        r += f"\t{name} : ORIGIN = 0x{region.origin:08x}, LENGTH = 0x{region.length:08x}\n"
+        r += f"\t{name} : ORIGIN = 0x{region.origin:08x}, LENGTH = 0x{region.size:08x}\n"
     r += "}\n"
     return r
 
