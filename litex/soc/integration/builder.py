@@ -138,8 +138,8 @@ class Builder:
     def add_software_library(self, name):
         self.software_libraries.append(name)
 
-    def add_json(self, filename, name="", origin=0):
-        self.jsons.append((filename, name, origin))
+    def add_json(self, filename, origin=0, name=""):
+        self.jsons.append((filename, origin, name))
 
     def _get_json_mem_regions(self):
         mem_regions = {}
