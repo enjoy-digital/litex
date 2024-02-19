@@ -57,7 +57,7 @@ int spiflash_freq_init(void)
 
 #else
 
-	printf("SPI Flash clk configured to %ld MHz\n", SPIFLASH_PHY_FREQUENCY/1000000);
+	printf("SPI Flash clk configured to %ld MHz\n", CONFIG_CLOCK_FREQUENCY/1000000);
 
 #endif
 
