@@ -128,46 +128,54 @@ class Interface(Record):
 
 # Wishbone Remapper --------------------------------------------------------------------------------
 
-class Remapper(LiteXModule):
-    """Remaps Wishbone addresses by applying an origin offset and address mask."""
-    def __init__(self, master, slave, origin, size):
+class Remapper(Module):
+    """
+    Wishbone Remapper that supports sequential application of:
+    - An initial origin offset and address mask.
+    - Region-based remapping from specified source regions to destination regions.
+    This allows for an initial origin remap followed by more complex/specific region-based remapping.
+    """
+    def __init__(self, master, slave, origin=0, size=None, src_regions=[], dst_regions=[]):
         # Parameters.
-        addressing = master.addressing
+        # -----------
         assert master.addressing == slave.addressing
-
-        # Compute Mask.
-        log2_size = int(log2(size))
-        if addressing == "word":
-            log2_size -= int(log2(len(master.dat_w)//8))
-        mask = 2**log2_size - 1
-
-        # Connect Master to Slave.
-        self.comb += master.connect(slave, omit={"adr"})
-
-        # Connect Address with Mask and Shift.
-        self.comb += slave.adr.eq(origin | (master.adr & mask))
-
-class RegionsRemapper(LiteXModule):
-    """Remaps Wishbone addresses from specified source regions to destination regions"""
-    def __init__(self, master, slave, src_regions=[], dst_regions=[]):
         assert len(src_regions)  == len(dst_regions)
-        assert master.addressing == slave.addressing
 
-        # Parameters.
+        # Master to Slave.
+        # ----------------
+        self.comb += master.connect(slave)
+
+        # Origin Remapping.
+        # -----------------
+        # Compute Address Mask.
+        if size is None:
+            size = 2**master.address_width
+        log2_size = int(log2(size))
+        if master.addressing == "word":
+            log2_size -= int(log2(len(master.dat_w)//8))
+        adr_mask  = 2**log2_size - 1
+        # Apply Address Origin/Mask Remapping.
+        adr_remap = (origin | (master.adr & adr_mask))
+        self.comb += slave.adr.eq(adr_remap)
+
+        # Regions Remapping.
+        # ------------------
+        # Compute Address Shift.
         adr_shift = {
             "byte" : 0,
             "word" : int(log2(len(master.dat_w)//8)),
         }[master.addressing]
-
-        # Connect Master to Slave.
-        self.comb += master.connect(slave)
-
-        # Remap Regions.
+        # Apply Address Regions Remapping.
         for src_region, dst_region in zip(src_regions, dst_regions):
-            src_adr = master.adr << adr_shift
-            dst_adr = dst_region.origin + src_adr - src_region.origin
-            active  = (src_adr >= src_region.origin) & (src_adr < (src_region.origin + src_region.size))
-            self.comb += If(active, slave.adr.eq(dst_adr >> adr_shift))
+            src_adr = Signal.like(master.adr)
+            dst_adr = Signal.like(master.adr)
+            active  = Signal()
+            self.comb += [
+                src_adr.eq(adr_remap << adr_shift),
+                dst_adr.eq(dst_region.origin + src_adr - src_region.origin),
+                active.eq((src_adr >= src_region.origin) & (src_adr < (src_region.origin + src_region.size))),
+                If(active, slave.adr.eq(dst_adr >> adr_shift))
+            ]
 
 # Wishbone Timeout ---------------------------------------------------------------------------------
 
