@@ -8,7 +8,11 @@ import unittest
 
 from migen import *
 
+from litex.gen import *
+
 from litex.soc.interconnect import wishbone
+
+from litex.soc.integration.soc_core import SoCRegion
 
 # TestWishbone -------------------------------------------------------------------------------------
 
@@ -24,7 +28,7 @@ class TestWishbone(unittest.TestCase):
             self.assertEqual((yield from dut.wb16.read(0x0002)), 0xdead)
             self.assertEqual((yield from dut.wb16.read(0x0003)), 0xbeef)
 
-        class DUT(Module):
+        class DUT(LiteXModule):
             def __init__(self):
                 self.wb16 = wishbone.Interface(data_width=16, address_width=32, addressing="word")
                 wb32      = wishbone.Interface(data_width=32, address_width=32, addressing="word")
@@ -43,7 +47,7 @@ class TestWishbone(unittest.TestCase):
             self.assertEqual((yield from dut.wb32.read(0x0000)), 0x12345678)
             self.assertEqual((yield from dut.wb32.read(0x0001)), 0xdeadbeef)
 
-        class DUT(Module):
+        class DUT(LiteXModule):
             def __init__(self):
                 self.wb32 = wishbone.Interface(data_width=32, address_width=32, addressing="word")
                 wb64      = wishbone.Interface(data_width=64, address_width=32, addressing="word")
@@ -68,7 +72,7 @@ class TestWishbone(unittest.TestCase):
             self.assertEqual((yield from dut.wb.read(0x0002, cti=wishbone.CTI_BURST_INCREMENTING)), 0xdeadbeef)
             self.assertEqual((yield from dut.wb.read(0x0003, cti=wishbone.CTI_BURST_END)), 0xc0ffee00)
 
-        class DUT(Module):
+        class DUT(LiteXModule):
             def __init__(self):
                 self.wb = wishbone.Interface(data_width=32, address_width=32, addressing="word", bursting=True)
                 wishbone_mem = wishbone.SRAM(32, bus=self.wb)
@@ -89,7 +93,7 @@ class TestWishbone(unittest.TestCase):
             self.assertEqual((yield from dut.wb.read(0x0003, cti=wishbone.CTI_BURST_INCREMENTING, bte=bte)), 0xdeadbeef)
             self.assertEqual((yield from dut.wb.read(0x0000, cti=wishbone.CTI_BURST_END, bte=bte)), 0xc0ffee00)
 
-        class DUT(Module):
+        class DUT(LiteXModule):
             def __init__(self):
                 self.wb = wishbone.Interface(data_width=32, address_width=32, addressing="word", bursting=True)
                 wishbone_mem = wishbone.SRAM(32, bus=self.wb)
@@ -109,7 +113,7 @@ class TestWishbone(unittest.TestCase):
             self.assertEqual((yield from dut.wb.read(0x0003, cti=wishbone.CTI_BURST_CONSTANT)), 0xdeadbeef)
             self.assertEqual((yield from dut.wb.read(0x0000, cti=wishbone.CTI_BURST_END)), 0xc0ffee00)
 
-        class DUT(Module):
+        class DUT(LiteXModule):
             def __init__(self):
                 self.wb = wishbone.Interface(data_width=32, address_width=32, addressing="word", bursting=True)
                 wishbone_mem = wishbone.SRAM(32, bus=self.wb)
@@ -117,3 +121,123 @@ class TestWishbone(unittest.TestCase):
 
         dut = DUT()
         run_simulation(dut, generator(dut))
+
+    def test_origin_remap(self):
+        def generator(dut):
+            yield from dut.master.write(0x0000_0000, 0)
+            yield from dut.master.write(0x0000_0004, 0)
+            yield from dut.master.write(0x0000_0008, 0)
+            yield from dut.master.write(0x0000_000c, 0)
+            yield from dut.master.write(0x1000_0000, 0)
+            yield from dut.master.write(0x1000_0004, 0)
+            yield from dut.master.write(0x1000_0008, 0)
+            yield from dut.master.write(0x1000_000c, 0)
+
+        def checker(dut):
+            yield dut.slave.ack.eq(1)
+            while (yield dut.slave.stb) == 0:
+                yield
+            self.assertEqual((yield dut.slave.adr), 0x0001_0000)
+            yield
+            self.assertEqual((yield dut.slave.adr), 0x0001_0004)
+            yield
+            self.assertEqual((yield dut.slave.adr), 0x0001_0008)
+            yield
+            self.assertEqual((yield dut.slave.adr), 0x0001_000c)
+            yield
+            self.assertEqual((yield dut.slave.adr), 0x0001_0000)
+            yield
+            self.assertEqual((yield dut.slave.adr), 0x0001_0004)
+            yield
+            self.assertEqual((yield dut.slave.adr), 0x0001_0008)
+            yield
+            self.assertEqual((yield dut.slave.adr), 0x0001_000c)
+            print((yield dut.slave.adr))
+
+        class DUT(LiteXModule):
+            def __init__(self):
+                self.master    = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
+                self.slave     = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
+                self.remapper  = wishbone.Remapper(self.master, self.slave,
+                    origin = 0x0001_0000,
+                    size   = 0x1000_0000,
+                )
+        dut = DUT()
+        run_simulation(dut, [generator(dut), checker(dut)])
+
+    def test_region_remap(self):
+        def generator(dut):
+            yield from dut.master.write(0x0000_0000, 0)
+            yield from dut.master.write(0x0001_0004, 0)
+            yield from dut.master.write(0x0002_0008, 0)
+            yield from dut.master.write(0x0003_000c, 0)
+
+        def checker(dut):
+            yield dut.slave.ack.eq(1)
+            while (yield dut.slave.stb) == 0:
+                yield
+            self.assertEqual((yield dut.slave.adr), 0x0000_0000)
+            yield
+            self.assertEqual((yield dut.slave.adr), 0x1000_0004)
+            yield
+            self.assertEqual((yield dut.slave.adr), 0x2000_0008)
+            yield
+            self.assertEqual((yield dut.slave.adr), 0x3000_000c)
+            yield
+
+        class DUT(LiteXModule):
+            def __init__(self):
+                self.master    = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
+                self.slave     = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
+                self.remapper  = wishbone.Remapper(self.master, self.slave,
+                    src_regions = [
+                        SoCRegion(origin=0x0000_0000, size=0x1000),
+                        SoCRegion(origin=0x0001_0000, size=0x1000),
+                        SoCRegion(origin=0x0002_0000, size=0x1000),
+                        SoCRegion(origin=0x0003_0000, size=0x1000),
+                    ],
+                    dst_regions = [
+                        SoCRegion(origin=0x0000_0000, size=0x1000),
+                        SoCRegion(origin=0x1000_0000, size=0x1000),
+                        SoCRegion(origin=0x2000_0000, size=0x1000),
+                        SoCRegion(origin=0x3000_0000, size=0x1000),
+                    ]
+                )
+        dut = DUT()
+        run_simulation(dut, [generator(dut), checker(dut)], vcd_name="sim.vcd")
+
+    def test_origin_region_remap(self):
+        def generator(dut):
+            yield from dut.master.write(0x0000_0000, 0)
+            yield from dut.master.write(0x0002_0000, 0)
+            #yield from dut.master.write(0x0001_0004, 0)
+            #yield from dut.master.write(0x0002_0008, 0)
+            #yield from dut.master.write(0x0003_000c, 0)
+
+        def checker(dut):
+            yield dut.slave.ack.eq(1)
+            while (yield dut.slave.stb) == 0:
+                yield
+            self.assertEqual((yield dut.slave.adr), 0x1000_0000)
+            yield
+            self.assertEqual((yield dut.slave.adr), 0x0003_0000)
+            yield
+            for i in range(128):
+                yield
+
+        class DUT(LiteXModule):
+            def __init__(self):
+                self.master    = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
+                self.slave     = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
+                self.remapper  = wishbone.Remapper(self.master, self.slave,
+                    origin = 0x1_0000,
+                    size   = 0x8_0000,
+                    src_regions = [
+                        SoCRegion(origin=0x0001_0000, size=0x1_0000),
+                    ],
+                    dst_regions = [
+                        SoCRegion(origin=0x1000_0000, size=0x1_0000),
+                    ]
+                )
+        dut = DUT()
+        run_simulation(dut, [generator(dut), checker(dut)], vcd_name="sim.vcd")
