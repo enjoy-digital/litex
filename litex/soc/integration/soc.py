@@ -1955,6 +1955,7 @@ class LiteXSoC(SoC):
         self.bus.add_slave(name=name, slave=spiflash_core.bus, region=spiflash_region)
 
         # Constants.
+        self.add_constant(f"{name}_PHY_FREQUENCY",     clk_freq)
         self.add_constant(f"{name}_MODULE_NAME",       module.name)
         self.add_constant(f"{name}_MODULE_TOTAL_SIZE", module.total_size)
         self.add_constant(f"{name}_MODULE_PAGE_SIZE",  module.page_size)
