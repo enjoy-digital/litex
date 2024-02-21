@@ -122,7 +122,7 @@ class TestWishbone(unittest.TestCase):
         dut = DUT()
         run_simulation(dut, generator(dut))
 
-    def test_origin_remap(self):
+    def test_origin_remap_byte(self):
         def generator(dut):
             yield from dut.master.write(0x0000_0000, 0)
             yield from dut.master.write(0x0000_0004, 0)
@@ -152,7 +152,6 @@ class TestWishbone(unittest.TestCase):
             self.assertEqual((yield dut.slave.adr), 0x0001_0008)
             yield
             self.assertEqual((yield dut.slave.adr), 0x0001_000c)
-            print((yield dut.slave.adr))
 
         class DUT(LiteXModule):
             def __init__(self):
@@ -165,7 +164,49 @@ class TestWishbone(unittest.TestCase):
         dut = DUT()
         run_simulation(dut, [generator(dut), checker(dut)])
 
-    def test_region_remap(self):
+    def test_origin_remap_word(self):
+        def generator(dut):
+            yield from dut.master.write(0x0000_0000//4, 0)
+            yield from dut.master.write(0x0000_0004//4, 0)
+            yield from dut.master.write(0x0000_0008//4, 0)
+            yield from dut.master.write(0x0000_000c//4, 0)
+            yield from dut.master.write(0x1000_0000//4, 0)
+            yield from dut.master.write(0x1000_0004//4, 0)
+            yield from dut.master.write(0x1000_0008//4, 0)
+            yield from dut.master.write(0x1000_000c//4, 0)
+
+        def checker(dut):
+            yield dut.slave.ack.eq(1)
+            while (yield dut.slave.stb) == 0:
+                yield
+            self.assertEqual((yield dut.slave.adr), 0x0001_0000//4)
+            yield
+            self.assertEqual((yield dut.slave.adr), 0x0001_0004//4)
+            yield
+            self.assertEqual((yield dut.slave.adr), 0x0001_0008//4)
+            yield
+            self.assertEqual((yield dut.slave.adr), 0x0001_000c//4)
+            yield
+            self.assertEqual((yield dut.slave.adr), 0x0001_0000//4)
+            yield
+            self.assertEqual((yield dut.slave.adr), 0x0001_0004//4)
+            yield
+            self.assertEqual((yield dut.slave.adr), 0x0001_0008//4)
+            yield
+            self.assertEqual((yield dut.slave.adr), 0x0001_000c//4)
+
+        class DUT(LiteXModule):
+            def __init__(self):
+                self.master    = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                self.slave     = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                self.remapper  = wishbone.Remapper(self.master, self.slave,
+                    origin = 0x0001_0000,
+                    size   = 0x1000_0000,
+                )
+        dut = DUT()
+        run_simulation(dut, [generator(dut), checker(dut)])
+
+    def test_region_remap_byte(self):
         def generator(dut):
             yield from dut.master.write(0x0000_0000, 0)
             yield from dut.master.write(0x0001_0004, 0)
@@ -204,15 +245,53 @@ class TestWishbone(unittest.TestCase):
                     ]
                 )
         dut = DUT()
-        run_simulation(dut, [generator(dut), checker(dut)], vcd_name="sim.vcd")
+        run_simulation(dut, [generator(dut), checker(dut)])
 
-    def test_origin_region_remap(self):
+    def test_region_remap_word(self):
+        def generator(dut):
+            yield from dut.master.write(0x0000_0000//4, 0)
+            yield from dut.master.write(0x0001_0004//4, 0)
+            yield from dut.master.write(0x0002_0008//4, 0)
+            yield from dut.master.write(0x0003_000c//4, 0)
+
+        def checker(dut):
+            yield dut.slave.ack.eq(1)
+            while (yield dut.slave.stb) == 0:
+                yield
+            self.assertEqual((yield dut.slave.adr), 0x0000_0000//4)
+            yield
+            self.assertEqual((yield dut.slave.adr), 0x1000_0004//4)
+            yield
+            self.assertEqual((yield dut.slave.adr), 0x2000_0008//4)
+            yield
+            self.assertEqual((yield dut.slave.adr), 0x3000_000c//4)
+            yield
+
+        class DUT(LiteXModule):
+            def __init__(self):
+                self.master    = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                self.slave     = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                self.remapper  = wishbone.Remapper(self.master, self.slave,
+                    src_regions = [
+                        SoCRegion(origin=0x0000_0000, size=0x1000),
+                        SoCRegion(origin=0x0001_0000, size=0x1000),
+                        SoCRegion(origin=0x0002_0000, size=0x1000),
+                        SoCRegion(origin=0x0003_0000, size=0x1000),
+                    ],
+                    dst_regions = [
+                        SoCRegion(origin=0x0000_0000, size=0x1000),
+                        SoCRegion(origin=0x1000_0000, size=0x1000),
+                        SoCRegion(origin=0x2000_0000, size=0x1000),
+                        SoCRegion(origin=0x3000_0000, size=0x1000),
+                    ]
+                )
+        dut = DUT()
+        run_simulation(dut, [generator(dut), checker(dut)])
+
+    def test_origin_region_remap_byte(self):
         def generator(dut):
             yield from dut.master.write(0x0000_0000, 0)
             yield from dut.master.write(0x0002_0000, 0)
-            #yield from dut.master.write(0x0001_0004, 0)
-            #yield from dut.master.write(0x0002_0008, 0)
-            #yield from dut.master.write(0x0003_000c, 0)
 
         def checker(dut):
             yield dut.slave.ack.eq(1)
@@ -240,4 +319,4 @@ class TestWishbone(unittest.TestCase):
                     ]
                 )
         dut = DUT()
-        run_simulation(dut, [generator(dut), checker(dut)], vcd_name="sim.vcd")
+        run_simulation(dut, [generator(dut), checker(dut)])
