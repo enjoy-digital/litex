@@ -74,7 +74,7 @@ def _calculate_timebase_ps(clockers):
     Currently we allow only for integer periods (in ps), which it's quite restrictive.
     """
     # convert to picoseconds, 1ps is our finest timebase for dumping simulation data
-    periods_ps = [1e12 / c["args"]["freq_hz"] for c in clockers]
+    periods_ps = [int(1e12 / c["args"]["freq_hz"]) for c in clockers]
     phase_shifts_ps = [p * c["args"]["phase_deg"]/360 for c, p in zip(clockers, periods_ps)]
 
     # calculate timebase as greatest common denominator
