@@ -152,7 +152,8 @@ class Remapper(Module):
             size = 2**master.address_width
         log2_size = int(log2(size))
         if master.addressing == "word":
-            log2_size -= int(log2(len(master.dat_w)//8))
+            log2_size -=  int(log2(len(master.dat_w)//8))
+            origin    >>= int(log2(len(master.dat_w)//8))
         adr_mask  = 2**log2_size - 1
         # Apply Address Origin/Mask Remapping.
         adr_remap = (origin | (master.adr & adr_mask))
