@@ -68,14 +68,23 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         initrd_enabled = True
         initrd_size = os.path.getsize(initrd)
 
+    # if json constants contains localip ethernet has been enabled
+    if "localip1" in d["constants"]:
+        localip  = '.'.join([str(d["constants"][f"localip{i}"]) for i in range(1,5)])
+        remoteip = '.'.join([str(d["constants"][f"remoteip{i}"]) for i in range(1,5)])
+        ip       = f" ip={localip}:{remoteip}:{remoteip}:255.255.255.0::eth0:off:::"
+    else:
+        ip = ""
+
     if root_device is None:
         root_device = "ram0"
 
     dts += """
         chosen {{
-            bootargs = "{console} {rootfs}";""".format(
+            bootargs = "{console} {rootfs}{ip}";""".format(
     console = "console=liteuart earlycon=liteuart,0x{:x}".format(d["csr_bases"]["uart"]),
-    rootfs  = "rootwait root=/dev/{}".format(root_device))
+    rootfs  = "rootwait root=/dev/{}".format(root_device),
+    ip      = ip)
 
     if initrd_enabled is True:
         dts += """
