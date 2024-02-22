@@ -8,6 +8,7 @@
 	- build/efinix/programmer       : Updated for compatibility with latest Efinity versions.
 	- litespi/software:             : Fixed SPI Flash Clk Divider computation when with L2 Cache.
 	- litepcie/us(p)pciephy         : Fixed x8 / 256-bit wide case.
+	- litex_sim/serial2console      : Fixed RX backpressure handling.
 
 	[> Added
 	--------
@@ -25,6 +26,7 @@
 	- cpu/vexriscv_smp              : Added reset_address/vector support.
 	- litex_sim                     : Added jtagremote support.
 	- soc/add_master                : Added region support to allow/limit access to a specific region.
+	- litex_json2dts_linux          : Added ip= bootarg when local/remote ips are defined.
 
 	[> Changed
 	----------
