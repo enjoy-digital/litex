@@ -6,27 +6,28 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import unittest
-import random
 
-from migen import *
+from migen import Record
 
-from litex.gen.sim import *
+from litex.gen.sim import run_simulation
 
 from litex.soc.cores.spi.spi_mmap import SPIMaster
+
 
 class TestSPIMMAP(unittest.TestCase):
     def test_spi_master(self):
         pads = Record([("clk", 1), ("cs_n", 4), ("mosi", 1), ("miso", 1)])
-        dut  = SPIMaster(pads=pads, data_width=32, sys_clk_freq=int(100e6))
+        dut = SPIMaster(pads=pads, data_width=32, sys_clk_freq=int(100e6))
+
         def generator(dut):
             data = [
                 0x12345678,
-                0xdeadbeef,
+                0xDEADBEEF,
             ]
-            #data = [
+            # data = [
             #    0x80000001,
             #    0x80000001,
-            #]
+            # ]
 
             # Config: Mode0, Loopback, Sys-Clk/4
             yield dut.loopback.eq(1)
