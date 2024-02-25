@@ -591,7 +591,7 @@ class SPIEngine(LiteXModule):
             # MSB First.
             If(spi_bitorder == SPI_SLOT_BITORDER_MSB_FIRST,
                 # TX copy/bitshift.
-                Case(spi_length, {
+                Case(spi.length, {
                      8 : spi.mosi[24:32].eq(sink.data[0: 8]),
                     16 : spi.mosi[16:32].eq(sink.data[0:16]),
                     32 : spi.mosi[ 0:32].eq(sink.data[0:32]),
@@ -604,7 +604,7 @@ class SPIEngine(LiteXModule):
                 # TX copy.
                 spi.mosi.eq(sink.data[::-1]),
                 # RX copy/bitshift.
-                Case(spi_length, {
+                Case(spi.length, {
                      8 : source.data[0: 8].eq(spi.miso[::-1][24:32]),
                     16 : source.data[0:16].eq(spi.miso[::-1][16:32]),
                     32 : source.data[0:32].eq(spi.miso[::-1][ 0:32]),
