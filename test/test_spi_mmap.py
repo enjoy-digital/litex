@@ -18,6 +18,7 @@ from litex.soc.cores.spi.spi_mmap import (
     SPI_SLOT_BITORDER_LSB_FIRST,
     SPI_SLOT_BITORDER_MSB_FIRST,
     SPI_SLOT_LENGTH_16B,
+    SPI_SLOT_LENGTH_24B,
     SPI_SLOT_LENGTH_32B,
     SPI_SLOT_LENGTH_8B,
     SPI_SLOT_MODE_0,
@@ -165,6 +166,10 @@ class TestSPIMMAP(unittest.TestCase):
                 spi_length = 32
                 sel = 0b1111
                 width = 8
+            if length == SPI_SLOT_LENGTH_24B:
+                spi_length = 24
+                sel = 0b1111
+                width = 6
             if length == SPI_SLOT_LENGTH_16B:
                 spi_length = 16
                 sel = 0b0011
@@ -231,6 +236,14 @@ class TestSPIMMAP(unittest.TestCase):
     def test_spi_mmap_32_msb(self):
         data = [0x12345678, 0x9ABCDEF0]
         self.mmap_test(SPI_SLOT_LENGTH_32B, SPI_SLOT_BITORDER_MSB_FIRST, data, "mmap_32_msb.vcd")
+
+    def test_spi_mmap_24_lsb(self):
+        data = [0x123456, 0x789ABC, 0xDEF012]
+        self.mmap_test(SPI_SLOT_LENGTH_24B, SPI_SLOT_BITORDER_LSB_FIRST, data, "mmap_24_lsb.vcd")
+
+    def test_spi_mmap_24_msb(self):
+        data = [0x123456, 0x789ABC, 0xDEF012]
+        self.mmap_test(SPI_SLOT_LENGTH_24B, SPI_SLOT_BITORDER_MSB_FIRST, data, "mmap_24_msb.vcd")
 
     # 16 bit write to 16bit slot
     def test_spi_mmap_16_lsb(self):

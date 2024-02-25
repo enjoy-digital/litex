@@ -35,6 +35,7 @@ SPI_SLOT_MODE_3             = 0b11
 SPI_SLOT_LENGTH_32B         = 0b00
 SPI_SLOT_LENGTH_16B         = 0b01
 SPI_SLOT_LENGTH_8B          = 0b10
+SPI_SLOT_LENGTH_24B         = 0b11
 
 SPI_SLOT_BITORDER_MSB_FIRST = 0b0
 SPI_SLOT_BITORDER_LSB_FIRST = 0b1
@@ -337,7 +338,7 @@ class SPICtrl(LiteXModule):
                     ("``0b00``", "32-bit Max."),
                     ("``0b01``", "16-bit Max."),
                     ("``0b10``", " 8-bit Max."),
-                    ("``0b11``", "Reserved."),
+                    ("``0b11``", "24-bit Max."),
                 ], reset=default_slot_length),
                 CSRField("bitorder", size=1, offset=5, values=[
                     ("``0b0``", "MSB-First."),
@@ -543,6 +544,7 @@ class SPIEngine(LiteXModule):
         })
         self.comb += Case(ctrl.get_ctrl("length",  cs=sink.cs), {
             SPI_SLOT_LENGTH_32B : spi_length_max.eq(32), # 32-bit access max.
+            SPI_SLOT_LENGTH_24B : spi_length_max.eq(24), # 24-bit access max.
             SPI_SLOT_LENGTH_16B : spi_length_max.eq(16), # 16-bit access max.
             SPI_SLOT_LENGTH_8B  : spi_length_max.eq( 8), #  8-bit access max.
         })
@@ -594,6 +596,7 @@ class SPIEngine(LiteXModule):
                 Case(spi.length, {
                      8 : spi.mosi[24:32].eq(sink.data[0: 8]),
                     16 : spi.mosi[16:32].eq(sink.data[0:16]),
+                    24 : spi.mosi[ 8:32].eq(sink.data[0:24]),
                     32 : spi.mosi[ 0:32].eq(sink.data[0:32]),
                 }),
                 # RX copy.
@@ -607,6 +610,7 @@ class SPIEngine(LiteXModule):
                 Case(spi.length, {
                      8 : source.data[0: 8].eq(spi.miso[::-1][24:32]),
                     16 : source.data[0:16].eq(spi.miso[::-1][16:32]),
+                    24 : source.data[0:24].eq(spi.miso[::-1][ 8:32]),
                     32 : source.data[0:32].eq(spi.miso[::-1][ 0:32]),
                 })
             )
