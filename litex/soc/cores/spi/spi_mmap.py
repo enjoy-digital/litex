@@ -244,10 +244,10 @@ class SPICtrl(LiteXModule):
         default_slot_loopback = 0b1,
         default_slot_divider  = 2,
         default_enable        = 0b1,
+        default_slot_wait     = 0,
     ):
         self.nslots        = nslots
         self.slot_controls = []
-        self.slot_status   = []
 
         version = "SPI0"
         self._version = CSRStatus(size=32, description="""SPI Module Version.""",
@@ -354,13 +354,15 @@ class SPICtrl(LiteXModule):
                     ("``0x0002``", "SPI-Clk = Sys-Clk/2."),
                     ("``0x0004``", "SPI-Clk = Sys-Clk/4."),
                     ("``0xxxxx``", "SPI-Clk = Sys-Clk/xxxxx."),
-                ], reset=default_slot_divider)
+                ], reset=default_slot_divider),
+                CSRField("wait", size=16, offset=32, values=[
+                    ("``0x0000``", "No wait time."),
+                    ("``0x0001``", "wait = 1 / Sys-Clk."),
+                    ("``0xxxxx``", "wait = xxxx / Sys-Clk."),
+                ], reset=default_slot_wait),
             ])
-            status = CSRStatus(name=f"slot_status{slot}") # CHECKME: Useful?
             setattr(self, f"slot_control{slot}", control)
-            setattr(self, f"slot_status{slot}",  status)
             self.slot_controls.append(control)
-            self.slot_status.append(status)
 
     def get_ctrl(self, name, slot=None, cs=None):
         assert not ((slot is None) and (cs is None))
@@ -556,8 +558,15 @@ class SPIEngine(LiteXModule):
             )
         ]
 
+        # Wait between transfers.
+        ctrl_wait = ctrl.get_ctrl("wait", cs=sink.cs)
+        wait_ticks = Signal.like(ctrl_wait)
+        wait_count = Signal.like(ctrl_wait)
+        self.comb += wait_ticks.eq(ctrl_wait)
+        cs_wait = Signal()
+
         # SPI CS. (Use Manual CS to allow back-to-back Xfers).
-        self.comb += If(ctrl.engine.fields.enable & sink.valid,
+        self.comb += If(ctrl.engine.fields.enable & sink.valid & ~cs_wait,
             spi.cs.eq(sink.cs)
         )
 
@@ -584,6 +593,20 @@ class SPIEngine(LiteXModule):
             source.be.eq(sink.be),
             If(source.ready,
                 sink.ready.eq(1),
+                If(wait_ticks,
+                    cs_wait.eq(1),
+                    NextValue(wait_count, wait_ticks-1),
+                    NextState("WAIT")
+                ).Else(
+                    NextState("START")
+                )
+            )
+        )
+        fsm.act("WAIT",
+            If(wait_count,
+                cs_wait.eq(1),
+                NextValue(wait_count, wait_count-1)
+            ).Else(
                 NextState("START")
             )
         )

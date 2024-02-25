@@ -139,7 +139,7 @@ class TestSPIMMAP(unittest.TestCase):
 
         run_simulation(dut, generator(dut), vcd_name="sim.vcd")
 
-    def mmap_test(self, length, bitorder, data, vcd_name=None, sel_override=None):
+    def mmap_test(self, length, bitorder, data, vcd_name=None, sel_override=None, wait=0):
         pads = Record([("clk", 1), ("cs_n", 4), ("mosi", 1), ("miso", 1)])
         dut = SPIMMAP(
             pads=pads,
@@ -151,7 +151,7 @@ class TestSPIMMAP(unittest.TestCase):
 
         def generator(dut):
             # Minimal setup - spi_mmap ctrl defaults are everything enabled and:
-            # SPI_SLOT_MODE_3, SPI_SLOT_LENGTH_32B, SPI_SLOT_BITORDER_MSB_FIRST, loopback, divider=2,
+            # SPI_SLOT_MODE_3, SPI_SLOT_LENGTH_32B, SPI_SLOT_BITORDER_MSB_FIRST, loopback, divider=2, wait=0
             version = yield dut.ctrl._version.status
             vprint(f"version: {version}")
             vprint(f"slot_count: {(yield dut.ctrl.slot_count.status)}")
@@ -162,6 +162,7 @@ class TestSPIMMAP(unittest.TestCase):
             # yield dut.ctrl.slot_control0.fields.loopback.eq(1)
             # yield dut.ctrl.slot_control0.fields.divider.eq(2)
             # yield dut.ctrl.slot_control0.fields.enable.eq(1)
+            yield dut.ctrl.slot_control0.fields.wait.eq(wait)
             if length == SPI_SLOT_LENGTH_32B:
                 spi_length = 32
                 sel = 0b1111
@@ -284,6 +285,13 @@ class TestSPIMMAP(unittest.TestCase):
         data = [0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0]
         self.mmap_test(SPI_SLOT_LENGTH_8B, SPI_SLOT_BITORDER_MSB_FIRST, data, "mmap_8_msb.vcd")
 
+    def test_spi_mmap_8_msb_wait1(self):
+        data = [0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0]
+        self.mmap_test(SPI_SLOT_LENGTH_8B, SPI_SLOT_BITORDER_MSB_FIRST, data, "mmap_8_msb_wait1.vcd", wait=1)
+
+    def test_spi_mmap_8_msb_wait8(self):
+        data = [0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0]
+        self.mmap_test(SPI_SLOT_LENGTH_8B, SPI_SLOT_BITORDER_MSB_FIRST, data, "mmap_8_msb_wait8.vcd", wait=8)
 
 if __name__ == "__main__":
     unittest.main()
