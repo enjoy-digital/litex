@@ -206,7 +206,10 @@ class SPIMaster(LiteXModule):
         self.sync += [
             If(miso_shift,
                 miso_data.eq(Cat(miso, miso_data))
-            )
+            ),
+            If(self.start,
+                miso_data.eq(0)
+            ),
         ]
         self.comb += self.miso.eq(miso_data)
 
