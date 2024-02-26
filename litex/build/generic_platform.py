@@ -205,8 +205,11 @@ class ConstraintManager:
         self.platform_commands = []
         self.connector_manager = ConnectorManager(connectors)
 
-    def add_extension(self, io):
-        self.available.extend(io)
+    def add_extension(self, io, prepend=False):
+        if prepend:
+            self.available = list(io) + self.available
+        else:
+            self.available.extend(io)
 
     def add_connector(self, connectors):
         self.connector_manager.add_connector(connectors)
