@@ -125,26 +125,24 @@ class EfinixPlatform(GenericPlatform):
             sig = sig.value
         return sig
 
-    def get_pin_name(self, sig, without_index=False):
+    def get_pin_name(self, sig):
         if sig is None:
             return None
         assert len(sig) == 1
         idx = 0
         slc = False
         while isinstance(sig, _Slice) and hasattr(sig, "value"):
-            slc = True
             idx = sig.start
             sig = sig.value
+            slc = hasattr(sig, "nbits") and sig.nbits > 1
         sc = self.constraint_manager.get_sig_constraints()
         for s, pins, others, resource in sc:
             if s == sig:
+                name = resource[0] + (f"{resource[1]}" if resource[1] is not None else "")
                 if resource[2]:
-                    name = resource[0] + "_" + resource[2]
-                    if without_index is False:
-                        name = name + (f"{idx}" if slc else "")
-                    return name
-                else:
-                    return resource[0] + (f"{idx}" if slc else "")
+                    name = name + "_" + resource[2]
+                name = name + (f"{idx}" if slc else "")
+                return name
         return None
 
     def get_pad_name(self, sig):
