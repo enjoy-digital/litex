@@ -298,7 +298,7 @@ class NaxRiscv(CPU):
         if not os.path.exists(dir):
             # Clone Repo.
             print(f"Cloning {name} Git repository...")
-            subprocess.check_call("git clone {url} {options}".format(
+            subprocess.check_call("git clone {url} {options} --recursive".format(
                 url     = repo,
                 options = dir
             ), shell=True)
