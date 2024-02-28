@@ -94,7 +94,7 @@ class Dispatcher(LiteXModule):
                     idx = 2**i
                 else:
                     idx = i
-                cases[idx] = [master.connect(slave)]
+                cases[idx] = [master.connect(slave, **kwargs)]
             cases["default"] = [master.ready.eq(1)]
             self.comb += Case(sel, cases)
 
