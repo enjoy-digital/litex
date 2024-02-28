@@ -168,8 +168,8 @@ class Remapper(Module):
         }[master.addressing]
         # Apply Address Regions Remapping.
         for src_region, dst_region in zip(src_regions, dst_regions):
-            src_adr = Signal.like(master.adr)
-            dst_adr = Signal.like(master.adr)
+            src_adr = Signal.like(master.adr + adr_shift + 1)
+            dst_adr = Signal.like(master.adr + adr_shift + 1)
             active  = Signal()
             self.comb += [
                 src_adr.eq(adr_remap << adr_shift),
