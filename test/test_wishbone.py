@@ -274,16 +274,19 @@ class TestWishbone(unittest.TestCase):
             "word": 4,
         }[addressing]
         def generator(dut):
-            yield from dut.master.write(0x0000_0000//adr_div, 0)
-            yield from dut.master.write(0x0002_0000//adr_div, 0)
+            yield from dut.master.write(0x6000_0000//adr_div, 0)
+            yield from dut.master.write(0x6001_0000//adr_div, 0)
+            yield from dut.master.write(0x6001_0040//adr_div, 0)
 
         def checker(dut):
             yield dut.slave.ack.eq(1)
             while (yield dut.slave.stb) == 0:
                 yield
-            self.assertEqual((yield dut.slave.adr), 0x1000_0000//adr_div)
+            self.assertEqual((yield dut.slave.adr), 0xf000_0000//adr_div)
             yield
-            self.assertEqual((yield dut.slave.adr), 0x0003_0000//adr_div)
+            self.assertEqual((yield dut.slave.adr), 0x8100_0000//adr_div)
+            yield
+            self.assertEqual((yield dut.slave.adr), 0x2000_0000//adr_div)
             yield
             for i in range(128):
                 yield
@@ -293,13 +296,17 @@ class TestWishbone(unittest.TestCase):
                 self.master    = wishbone.Interface(data_width=32, address_width=32, addressing=addressing)
                 self.slave     = wishbone.Interface(data_width=32, address_width=32, addressing=addressing)
                 self.remapper  = wishbone.Remapper(self.master, self.slave,
-                    origin = 0x1_0000,
-                    size   = 0x8_0000,
+                    origin = 0x0000_0000,
+                    size   = 0x2000_0000,
                     src_regions = [
-                        SoCRegion(origin=0x0001_0000, size=0x1_0000),
+                        SoCRegion(origin=0x0000_0000, size=65536),
+                        SoCRegion(origin=0x0001_0000, size=64),
+                        SoCRegion(origin=0x0001_0040, size=8),
                     ],
                     dst_regions = [
-                        SoCRegion(origin=0x1000_0000, size=0x1_0000),
+                        SoCRegion(origin=0xf000_0000, size=65536),
+                        SoCRegion(origin=0x8100_0000,  size=64),
+                        SoCRegion(origin=0x2000_0000,  size=8),
                     ]
                 )
         dut = DUT()
