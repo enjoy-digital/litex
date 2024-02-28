@@ -23,7 +23,7 @@ class GateMatePLL(LiteXModule):
     low_jitter: int
         Low Jitter Mode (0,1) (default: 1)
     lock_req: int
-        Lock status required before PLL output enable (0,1) (default: 0)
+        Lock status required before PLL output enable (0,1) (default: 1)
 
     Attributes
     ----------
@@ -34,7 +34,7 @@ class GateMatePLL(LiteXModule):
     def __init__(self,
         perf_mode  = "undefined",
         low_jitter = 1,
-        lock_req   = 0):
+        lock_req   = 1):
 
         assert perf_mode.lower() in ["undefined", "lowpower", "economy", "speed"]
         assert low_jitter in [0, 1]
@@ -143,8 +143,8 @@ class GateMatePLL(LiteXModule):
             i_CLK_FEEDBACK        = 0,
             i_USR_LOCKED_STDY_RST = self.reset,
             o_CLK_REF_OUT         = Open(),
-            o_USR_PLL_LOCKED_STDY = Open(),
-            o_USR_PLL_LOCKED      = self.locked,
+            o_USR_PLL_LOCKED_STDY = self.locked,
+            o_USR_PLL_LOCKED      = Open(),
             **{f"o_CLK{p}"        : c for (p, (c, _)) in self._clkouts.items()},
             **{f"p_CLK{p}_DOUB"   : v for (p, v) in clk_doub.items()},
         )
