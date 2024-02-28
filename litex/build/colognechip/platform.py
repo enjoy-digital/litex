@@ -12,8 +12,8 @@ from litex.build.colognechip import common, colognechip
 # CologneChipPlatform ------------------------------------------------------------------------------
 
 class CologneChipPlatform(GenericPlatform):
-    bitstream_ext = "_00.cfg.bit"
-    _jtag_support = False
+    _bitstream_ext = "_00.cfg.bit"
+    _jtag_support  = False
 
     _supported_toolchains = ["colognechip"]
 
