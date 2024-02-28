@@ -131,8 +131,8 @@ class GateMatePLL(LiteXModule):
         freqOutMHz = clkout_freq/1e6
 
         self.specials += Instance("CC_PLL",
-            p_REF_CLK             = freqInMHz,        # reference input in MHz
-            p_OUT_CLK             = freqOutMHz,       # pll output frequency in MHz
+            p_REF_CLK             = str(freqInMHz),   # reference input in MHz
+            p_OUT_CLK             = str(freqOutMHz),  # pll output frequency in MHz
             p_LOW_JITTER          = self._low_jitter, # 0: disable, 1: enable low jitter mode
             p_PERF_MD             = self._perf_mode,  # FPGA operation mode for VDD_PLL
             p_LOCK_REQ            = self._lock_req,   # Lock status required before PLL output enable
