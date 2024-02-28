@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2015-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2019 Vamsi K Vytla <vkvytla@lbl.gov>
 # SPDX-License-Identifier: BSD-2-Clause
 
@@ -37,12 +37,12 @@ class Status(LiteXModule):
 # Arbiter ------------------------------------------------------------------------------------------
 
 class Arbiter(LiteXModule):
-    def __init__(self, masters, slave):
+    def __init__(self, masters, slave, **kwargs):
         if len(masters) == 0:
             pass
         elif len(masters) == 1:
             self.grant = Signal()
-            self.comb += masters.pop().connect(slave)
+            self.comb += masters.pop().connect(slave, **kwargs)
         else:
             self.rr = RoundRobin(len(masters))
             self.grant = self.rr.grant
@@ -57,11 +57,11 @@ class Arbiter(LiteXModule):
 # Dispatcher ---------------------------------------------------------------------------------------
 
 class Dispatcher(LiteXModule):
-    def __init__(self, master, slaves, one_hot=False):
+    def __init__(self, master, slaves, one_hot=False, **kwargs):
         if len(slaves) == 0:
             self.sel = Signal()
         elif len(slaves) == 1 and not one_hot:
-            self.comb += master.connect(slaves.pop())
+            self.comb += master.connect(slaves.pop(), **kwargs)
             self.sel = Signal()
         else:
             if one_hot:
