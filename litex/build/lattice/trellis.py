@@ -128,6 +128,8 @@ class LatticeTrellisToolchain(YosysNextPNRToolchain):
             package = "CABGA554"
         elif "756" in package:
             package = "CABGA756"
+        elif "144" in package:
+            package = "TQFP144"
         else:
            raise ValueError("Invalid package {}".format(package))
         return (family, size, speed_grade, package)
