@@ -580,7 +580,7 @@ void netboot(int nb_params, char **params)
 /* Flash Boot                                                            */
 /*-----------------------------------------------------------------------*/
 
-#ifdef FLASH_BOOT_ADDRESS
+#if defined(FLASH_BOOT_ADDRESS) || defined(MAIN_RAM_BASE)
 
 static unsigned int check_image_in_flash(unsigned int base_address)
 {
@@ -603,9 +603,10 @@ static unsigned int check_image_in_flash(unsigned int base_address)
 
 	return length;
 }
+#endif
 
-#if defined(MAIN_RAM_BASE) && defined(FLASH_BOOT_ADDRESS)
-static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned long ram_address)
+#if defined(MAIN_RAM_BASE)
+int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned long ram_address)
 {
 	uint32_t length;
 	uint32_t offset;
@@ -632,6 +633,7 @@ static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned lon
 }
 #endif
 
+#if defined(FLASH_BOOT_ADDRESS)
 void flashboot(void)
 {
 	uint32_t length;
