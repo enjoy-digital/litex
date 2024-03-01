@@ -4,6 +4,8 @@
 # Copyright (c) 2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+# Github project: https://github.com/meiniKi/FazyRV
+
 import os
 
 from migen import *
@@ -47,6 +49,25 @@ class FazyRV(CPU):
     nop                  = "nop"
     io_regions           = {0x8000_0000: 0x8000_0000} # Origin, Length.
 
+    # Default parameters.
+    chunksize = 8
+    conf      = "MIN"
+    rftype    = "BRAM_DP_BP"
+
+    # Command line configuration arguments.
+    @staticmethod
+    def args_fill(parser):
+        cpu_group = parser.add_argument_group(title="CPU options.")
+        cpu_group.add_argument("--cpu-chunksize", default=8,            help="Size of the chunks, i.e., the data path.", type=int,  choices=[1, 2, 4, 8])
+        cpu_group.add_argument("--cpu-conf",      default="MIN",        help="Configuration of the processor.",          type=str,  choices=["MIN", "INT", "CSR"])
+        cpu_group.add_argument("--cpu-rftype",    default="BRAM_DP_BP", help="Implementation of the register file.",     type=str,  choices=["LOGIC", "BRAM", "BRAM_BP", "BRAM_DP", "BRAM_DP_BP"])
+
+    @staticmethod
+    def args_read(args):
+        if(args.cpu_chunksize): FazyRV.chunksize = args.cpu_chunksize
+        if(args.cpu_conf)     : FazyRV.conf      = args.cpu_conf
+        if(args.cpu_rftype)   : FazyRV.rftype    = args.cpu_rftype
+
     # GCC Flags.
     @property
     def gcc_flags(self):
@@ -68,11 +89,11 @@ class FazyRV(CPU):
         # -----------------
         self.cpu_params = dict(
             # Parameters.
-            p_CHUNKSIZE = 8,
-            p_CONF      = "MIN",
+            p_CHUNKSIZE = FazyRV.chunksize,
+            p_CONF      = FazyRV.conf,
             p_MTVAL     = 0,
             p_BOOTADR   = 0,
-            p_RFTYPE    = "BRAM_DP_BP",
+            p_RFTYPE    = FazyRV.rftype,
             p_MEMDLY1   = 0,
 
             # Clk / Rst.
@@ -113,7 +134,7 @@ class FazyRV(CPU):
     def add_sources(platform, variant):
         if not os.path.exists("FazyR"):
             os.system(f"git clone https://github.com/meiniKi/FazyRV")
-        vdir = "/home/florent/dev/FazyRV/rtl"
+        vdir = "FazyRV/rtl"
         platform.add_verilog_include_path(vdir)
         platform.add_source_dir(vdir)
 
