@@ -93,9 +93,10 @@ class CologneChipToolchain(GenericToolchain):
         self._yosys.build_script()
 
         # p_r complains about missing cc_worst_spd_dly.dly -> copy it in gateware directory
-        p_r_path              = which("p_r")
-        cc_worst_spd_dly_path = os.path.join(os.path.dirname(p_r_path), "cc_worst_spd_dly.dly")
-        copyfile(cc_worst_spd_dly_path, os.path.join(self._build_dir, "cc_worst_spd_dly.dly"))
+        if which("p_r"):
+            p_r_path              = which("p_r")
+            cc_worst_spd_dly_path = os.path.join(os.path.dirname(p_r_path), "cc_worst_spd_dly.dly")
+            copyfile(cc_worst_spd_dly_path, os.path.join(self._build_dir, "cc_worst_spd_dly.dly"))
  
     # Script ---------------------------------------------------------------------------------------
 
