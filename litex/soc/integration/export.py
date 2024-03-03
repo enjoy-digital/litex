@@ -28,6 +28,7 @@ from sysconfig import get_platform
 
 from migen import *
 
+from litex.gen.format import format_constant
 from litex.soc.interconnect.csr import CSRStatus
 from litex.soc.integration.soc import SoCRegion
 
@@ -181,7 +182,7 @@ def get_soc_header(constants, with_access_functions=True):
             value = "\"" + value + "\""
             ctype = "const char *"
         else:
-            value = str(value)
+            value = format_constant(value)
             ctype = "int"
         r += "#define "+name+" "+value+"\n"
         if with_access_functions:
