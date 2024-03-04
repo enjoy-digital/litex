@@ -182,3 +182,20 @@ class GenericToolchain:
             to.attr.add("keep")
         if (to, from_) not in self.false_paths:
             self.false_paths.add((from_, to))
+
+    def custom_attributes(self):
+        return CustomAttributes(self.attr_translate)
+
+class CustomAttributes:
+    def __init__(self, attributes):
+        self.attributes = attributes
+
+    def get(self, k, v=None):
+        if k in self.attributes:
+            return self.attributes[k]
+        elif "=" in k:
+            parts = k.split("=", 1)
+            return parts[0].strip(), parts[1].strip()
+        elif v is not None:
+            return k, v
+        return None
