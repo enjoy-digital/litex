@@ -132,7 +132,7 @@ class FazyRV(CPU):
 
     @staticmethod
     def add_sources(platform, variant):
-        if not os.path.exists("FazyR"):
+        if not os.path.exists("FazyRV"):
             os.system(f"git clone https://github.com/meiniKi/FazyRV")
         vdir = "FazyRV/rtl"
         platform.add_verilog_include_path(vdir)
