@@ -296,11 +296,14 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         dts += """
             lintc0: clint@{clint_base:x} {{
                 compatible = "riscv,clint0";
-                interrupts-extended = <&L4 3 &L4 7>;
+                interrupts-extended = <
+                    {cpu_mapping}>;
                 reg = <0x{clint_base:x} 0x10000>;
                 reg-names = "control";
             }};
-""".format(clint_base=d["memories"]["clint"]["base"])
+""".format(
+        clint_base=d["memories"]["clint"]["base"],
+        cpu_mapping =("\n" + " "*20).join(["&L{} 3 &L{} 7".format(cpu, cpu) for cpu in range(ncpus)]))
     if cpu_arch == "riscv":
         dts += """
             intc0: interrupt-controller@{plic_base:x} {{
