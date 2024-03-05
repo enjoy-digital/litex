@@ -185,6 +185,7 @@ proc jtagstream_serve {tap port} {
         write_to_file("stream.cfg", cfg)
         script = "; ".join([
             "init",
+            "poll off",
             "irscan $_CHIPNAME.tap {:d}".format(ir),
             "jtagstream_serve $_CHIPNAME.tap {:d}".format(port),
             "exit",
