@@ -151,7 +151,6 @@ class NaxRiscv(CPU):
     def __init__(self, platform, variant):
         self.platform         = platform
         self.variant          = "standard"
-        self.human_name       = self.human_name
         self.reset            = Signal()
         self.interrupt        = Signal(32)
         self.pbus             = pbus = axi.AXILiteInterface(address_width=32, data_width=32)
@@ -167,11 +166,12 @@ class NaxRiscv(CPU):
         # CPU Instance.
         self.cpu_params = dict(
             # Clk/Rst.
-            i_socClk   = ClockSignal("sys"),
+            i_socClk     = ClockSignal("sys"),
             i_asyncReset = ResetSignal("sys") | self.reset,
 
-            o_patcher_tracer_valid=self.tracer_valid,
-            o_patcher_tracer_payload=self.tracer_payload,
+            # Patcher/Tracer.
+            o_patcher_tracer_valid   = self.tracer_valid,
+            o_patcher_tracer_payload = self.tracer_payload,
 
             # Interrupt.
             i_peripheral_externalInterrupts_port = self.interrupt,
@@ -195,7 +195,7 @@ class NaxRiscv(CPU):
             i_pBus_rvalid  = pbus.r.valid,
             o_pBus_rready  = pbus.r.ready,
             i_pBus_rdata   = pbus.r.data,
-            i_pBus_rresp   = pbus.r.resp
+            i_pBus_rresp   = pbus.r.resp,
         )
 
         if NaxRiscv.with_dma:
@@ -249,7 +249,7 @@ class NaxRiscv(CPU):
                 o_dma_bus_rid     = dma_bus.r.id,
                 o_dma_bus_rdata   = dma_bus.r.data,
                 o_dma_bus_rresp   = dma_bus.r.resp,
-                o_dma_bus_rlast   = dma_bus.r.last
+                o_dma_bus_rlast   = dma_bus.r.last,
             )
 
     def set_reset_address(self, reset_address):
@@ -379,6 +379,9 @@ class NaxRiscv(CPU):
         platform.add_source(os.path.join(vdir,  self.netlist_name + ".v"), "verilog")
 
     def add_soc_components(self, soc):
+        # Set Human-name.
+        self.human_name = f"{self.human_name} {self.xlen}-bit"
+
         # Set UART/Timer0 CSRs to the ones used by OpenSBI.
         soc.csr.add("uart",   n=2)
         soc.csr.add("timer0", n=3)
@@ -522,7 +525,7 @@ class NaxRiscv(CPU):
         for name, region in self.soc_bus.io_regions.items():
             NaxRiscv.memory_regions.append( (region.origin, region.size, "io", "p") ) # IO is only allowed on the p bus
         for name, region in self.soc_bus.regions.items():
-            if region.linker: # remove virtual regions
+            if region.linker: # Remove virtual regions.
                 continue
             if len(self.memory_buses) and name == 'main_ram': # m bus
                 bus = "m"
