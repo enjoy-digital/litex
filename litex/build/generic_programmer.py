@@ -24,6 +24,7 @@ class GenericProgrammer:
         self.flash_proxy_repos = [
             "https://github.com/quartiq/bscan_spi_bitstreams/raw/master/",
         ]
+        self.config_dirs = ["prog"]
         self.config_repos = [
             "https://raw.githubusercontent.com/litex-hub/litex-boards/master/litex_boards/prog/",
         ]
@@ -65,9 +66,11 @@ class GenericProgrammer:
         if os.path.exists(fullname):
             return self.config
         # Search in local config directory
-        fullname = tools.cygpath(os.path.join(self.prog_local, self.config))
-        if os.path.exists(fullname):
-            return fullname
+        for d in self.config_dirs:
+            fulldir  = os.path.abspath(os.path.expanduser(d))
+            fullname = tools.cygpath(os.path.join(fulldir, self.config))
+            if os.path.exists(fullname):
+                return fullname
         # Search in repositories and download it
         import requests
         os.makedirs(self.prog_local, exist_ok=True)
