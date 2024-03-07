@@ -150,6 +150,19 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     i_tlb_size = d["constants"]["config_cpu_itlb_size"],
     i_tlb_ways = d["constants"]["config_cpu_itlb_ways"])
 
+        # Rocket specific attributes
+        if ("rocket" in cpu_name):
+            cpu_isa = cpu_isa.replace("2p0_", "")
+            extra_attr = """
+                hardware-exec-breakpoint-count = <1>;
+                next-level-cache = <&memory>;
+                riscv,pmpgranularity = <4>;
+                riscv,pmpregions = <8>;
+                tlb-split;
+"""
+        else:
+            extra_attr = ""
+
         # CPU(s) Topology.
         cpu_map = ""
         if ncpus > 1:
@@ -183,6 +196,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 status = "okay";
                 {cache_desc}
                 {tlb_desc}
+                {extra_attr}
                 L{irq}: interrupt-controller {{
                     #address-cells = <0>;
                     #interrupt-cells = <0x00000001>;
@@ -195,7 +209,8 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     cpu_isa      = cpu_isa,
     cpu_mmu      = cpu_mmu,
     cache_desc   = cache_desc,
-    tlb_desc     = tlb_desc)
+    tlb_desc     = tlb_desc,
+    extra_attr   = extra_attr)
         dts += """
             {cpu_map}
         }};
@@ -219,7 +234,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     # Memory ---------------------------------------------------------------------------------------
 
     dts += """
-        memory@{main_ram_base:x} {{
+        memory: memory@{main_ram_base:x} {{
             device_type = "memory";
             reg = <0x{main_ram_base:x} 0x{main_ram_size:x}>;
         }};
@@ -305,6 +320,14 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         clint_base=d["memories"]["clint"]["base"],
         cpu_mapping =("\n" + " "*20).join(["&L{} 3 &L{} 7".format(cpu, cpu) for cpu in range(ncpus)]))
     if cpu_arch == "riscv":
+        if "rocket" in cpu_name:
+            extra_attr = """
+                reg-names = "control";
+                riscv,max-priority = <7>;
+"""
+        else:
+            extra_attr = ""
+
         dts += """
             intc0: interrupt-controller@{plic_base:x} {{
                 compatible = "sifive,fu540-c000-plic", "sifive,plic-1.0.0";
@@ -315,10 +338,12 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 interrupts-extended = <
                     {cpu_mapping}>;
                 riscv,ndev = <32>;
+                {extra_attr}
             }};
 """.format(
         plic_base   =d["memories"]["plic"]["base"],
-        cpu_mapping =("\n" + " "*20).join(["&L{} 11 &L{} 9".format(cpu, cpu) for cpu in range(ncpus)]))
+        cpu_mapping =("\n" + " "*20).join(["&L{} 11 &L{} 9".format(cpu, cpu) for cpu in range(ncpus)]),
+        extra_attr  =extra_attr)
 
     elif cpu_arch == "or1k":
         dts += """
@@ -329,6 +354,29 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 status = "okay";
             };
 """
+    if (cpu_arch == "riscv") and ("rocket" in cpu_name):
+        dts += """
+            dbg_ctl: debug-controller@0 {{
+                compatible = "sifive,debug-013", "riscv,debug-013";
+                interrupts-extended = <
+                    {cpu_mapping}>;
+                reg = <0x0 0x1000>;
+                reg-names = "control";
+            }};
+            err_dev: error-device@3000 {{
+                compatible = "sifive,error0";
+                reg = <0x3000 0x1000>;
+            }};
+            ext_it: external-interrupts {{
+                interrupts = <1 2 3 4 5 6 7 8>;
+            }};
+            rom: rom@10000 {{
+                compatible = "sifive,rom0";
+                reg = <0x10000 0x10000>;
+                reg-names = "mem";
+            }};
+""".format(
+        cpu_mapping =("\n" + " "*20).join(["&L{} 0x3F".format(cpu) for cpu in range(ncpus)]))
     # UART -----------------------------------------------------------------------------------------
 
     if "uart" in d["csr_bases"]:
