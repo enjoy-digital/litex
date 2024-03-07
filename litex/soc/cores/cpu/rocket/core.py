@@ -340,20 +340,20 @@ class Rocket(CPU):
         soc.add_config("CPU_MMU",   "sv39")
 
         # Constants for Cache so we can add them in the DTS.
-        soc.add_config("CPU_DCACHE_SIZE",       4096) # CHECKME: correct/hardwired?
-        soc.add_config("CPU_DCACHE_WAYS",          2) # CHECKME: correct/hardwired?
+        soc.add_config("CPU_DCACHE_SIZE",      16384) # CHECKME: correct/hardwired?
+        soc.add_config("CPU_DCACHE_WAYS",         64) # CHECKME: correct/hardwired?
         soc.add_config("CPU_DCACHE_BLOCK_SIZE",   64) # CHECKME: correct/hardwired?
 
-        soc.add_config("CPU_ICACHE_SIZE",       4096) # CHECKME: correct/hardwired?
-        soc.add_config("CPU_ICACHE_WAYS",          2) # CHECKME: correct/hardwired?
+        soc.add_config("CPU_ICACHE_SIZE",      16384) # CHECKME: correct/hardwired?
+        soc.add_config("CPU_ICACHE_WAYS",         64) # CHECKME: correct/hardwired?
         soc.add_config("CPU_ICACHE_BLOCK_SIZE",   64) # CHECKME: correct/hardwired?
 
         # Constants for TLB so we can add them in the DTS.
-        soc.add_config("CPU_DTLB_SIZE", 4) # CHECKME: correct/hardwired?
-        soc.add_config("CPU_DTLB_WAYS", 1) # CHECKME: correct/hardwired?
+        soc.add_config("CPU_DTLB_SIZE", 32) # CHECKME: correct/hardwired?
+        soc.add_config("CPU_DTLB_WAYS",  1) # CHECKME: correct/hardwired?
 
-        soc.add_config("CPU_ITLB_SIZE", 4) # CHECKME: correct/hardwired?
-        soc.add_config("CPU_ITLB_WAYS", 1) # CHECKME: correct/hardwired?
+        soc.add_config("CPU_ITLB_SIZE", 32) # CHECKME: correct/hardwired?
+        soc.add_config("CPU_ITLB_WAYS",  1) # CHECKME: correct/hardwired?
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
