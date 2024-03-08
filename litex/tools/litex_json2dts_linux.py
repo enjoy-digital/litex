@@ -21,16 +21,16 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     # CPU Architectures ----------------------------------------------------------------------------
     # CHECKME: Move to core and generate a constant for each CPU?
     cpu_architectures = {
-        "mor1kx"             : "or1k",
-        "marocchino"         : "or1k",
-        "vexriscv smp-linux" : "riscv",
-        "rocketrv64[imac]"   : "riscv",
-        "naxriscv"           : "riscv",
+        "mor1kx"     : "or1k",
+        "marocchino" : "or1k",
+        "vexriscv"   : "riscv",
+        "rocket"     : "riscv",
+        "naxriscv"   : "riscv",
     }
 
     # CPU Parameters -------------------------------------------------------------------------------
     ncpus    = int(d["constants"].get("config_cpu_count", 1))
-    cpu_name = d["constants"].get("config_cpu_human_name")
+    cpu_name = d["constants"].get("config_cpu_name")
     cpu_arch = cpu_architectures[cpu_name]
     cpu_isa  = d["constants"].get("config_cpu_isa", None)
     cpu_mmu  = d["constants"].get("config_cpu_mmu", None)
