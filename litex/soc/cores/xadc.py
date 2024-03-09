@@ -14,10 +14,6 @@ from litex.gen import LiteXModule
 
 from litex.soc.interconnect.csr import *
 
-# Layouts  -----------------------------------------------------------------------------------------
-
-analog_layout = [("vauxp", 16), ("vauxn", 16), ("vp", 1), ("vn", 1)]
-
 # Xilinx System Monitor ----------------------------------------------------------------------------
 
 class XilinxSystemMonitorChannel:
@@ -83,10 +79,38 @@ S7SystemMonitorChannels = [
         "Raw VCCBRAM value from XADC.",
         "VCCBRAM (V) = ``Value`` x 3 / 4096.",
     ]),
+    XilinxSystemMonitorChannel(name="anavpvn",     addr=0x3, bits=12, desc=[
+        "Raw ANAVPVN value from XADC.",
+        "ANAVPVN (V) = ``Value`` x 3 / 4096.",
+    ]),
+    XilinxSystemMonitorChannel(name="vaux0",     addr=0x10, bits=12, desc=[
+        "Raw VAUX0 value from XADC.",
+        "VAUX0 (V) = ``Value`` x 3 / 4096.",
+    ]),
+    XilinxSystemMonitorChannel(name="vaux4",     addr=0x14, bits=12, desc=[
+        "Raw VAUX4 value from XADC.",
+        "VAUX4 (V) = ``Value`` x 3 / 4096.",
+    ]),
+    XilinxSystemMonitorChannel(name="vaux5",     addr=0x15, bits=12, desc=[
+        "Raw VAUX5 value from XADC.",
+        "VAUX5 (V) = ``Value`` x 3 / 4096.",
+    ]),
+    XilinxSystemMonitorChannel(name="vaux6",     addr=0x16, bits=12, desc=[
+        "Raw VAUX6 value from XADC.",
+        "VAUX6 (V) = ``Value`` x 3 / 4096.",
+    ]),
+    XilinxSystemMonitorChannel(name="vaux7",     addr=0x17, bits=12, desc=[
+        "Raw VAUX7 value from XADC.",
+        "VAUX7 (V) = ``Value`` x 3 / 4096.",
+    ]),
+    XilinxSystemMonitorChannel(name="vaux15",     addr=0x1F, bits=12, desc=[
+        "Raw VAUX15 value from XADC.",
+        "VAUX15 (V) = ``Value`` x 3 / 4096.",
+    ]),
 ]
 
 class S7SystemMonitor(XilinxSystemMonitor):
-    def __init__(self, channels=S7SystemMonitorChannels, analog_pads=None):
+    def __init__(self, channels=S7SystemMonitorChannels, analog=None, analog_pads=None):
         # Channels.
         for channel in channels:
             self.add_channel(channel)
@@ -153,6 +177,41 @@ class S7SystemMonitor(XilinxSystemMonitor):
             self.den.eq(eoc),
             self.dadr.eq(channel),
         )
+        
+        # Connect up external signals to XADC.
+        self.comb += [
+            analog_pads.vp.eq(analog.ana_vp),
+            analog_pads.vn.eq(analog.ana_vn),
+        ]
+        
+        # use explicit dummies to tie the analog inputs, otherwise the name space during finalization changes
+        # (e.g. FHDL adds 'betrustedsoc_' to the beginning of every netlist name to give a prefix to unnamed signals)
+        # notet that the added prefix messes up the .XDC constraints
+        dummy1 = Signal(1, reset=0)
+        dummy3 = Signal(3, reset=0)
+        dummy4 = Signal(4, reset=0)
+        dummy5 = Signal(5, reset=0)
+      
+        self.comb += analog_pads.vauxp.eq(Cat(analog.vaux0_p,  # 0
+                                             dummy3,           # 1,2,3
+                                             analog.vaux4_p,   # 4
+                                             analog.vaux5_p,   # 5
+                                             analog.vaux6_p,   # 6
+                                             analog.vaux7_p,   # 7
+                                             dummy4,           # 8,9,10,11
+                                             dummy3,           # 12,13,14
+                                             analog.vaux15_p,  # 15
+                                        ))
+        self.comb += analog_pads.vauxn.eq(Cat(analog.vaux0_n,  # 0
+                                             dummy3,           # 1,2,3
+                                             analog.vaux4_n,   # 4
+                                             analog.vaux5_n,   # 5
+                                             analog.vaux6_n,   # 6
+                                             analog.vaux7_n,   # 7
+                                             dummy4,           # 8,9,10,11
+                                             dummy3,           # 12,13,14
+                                             analog.vaux15_n,  # 15
+                                        ))
 
         # Channels update.
         channel_cases = dict(zip(
@@ -187,6 +246,34 @@ USSystemMonitorChannels = [
     XilinxSystemMonitorChannel(name="vccbram",     addr=0x6, bits=10, desc=[
         "Raw VCCBRAM value from SYSMONE1.",
         "VCCBRAM (V) = ``Value`` x 3 / 1024.",
+    ]),
+    XilinxSystemMonitorChannel(name="anavpvn",     addr=0x3, bits=12, desc=[
+        "Raw ANAVPVN value from XADC.",
+        "ANAVPVN (V) = ``Value`` x 3 / 4096.",
+    ]),
+        XilinxSystemMonitorChannel(name="vaux0",     addr=0x10, bits=12, desc=[
+        "Raw VAUX0 value from XADC.",
+        "VAUX0 (V) = ``Value`` x 3 / 4096.",
+    ]),
+    XilinxSystemMonitorChannel(name="vaux4",     addr=0x14, bits=12, desc=[
+        "Raw VAUX4 value from XADC.",
+        "VAUX4 (V) = ``Value`` x 3 / 4096.",
+    ]),
+    XilinxSystemMonitorChannel(name="vaux5",     addr=0x15, bits=12, desc=[
+        "Raw VAUX5 value from XADC.",
+        "VAUX5 (V) = ``Value`` x 3 / 4096.",
+    ]),
+    XilinxSystemMonitorChannel(name="vaux6",     addr=0x16, bits=12, desc=[
+        "Raw VAUX6 value from XADC.",
+        "VAUX6 (V) = ``Value`` x 3 / 4096.",
+    ]),
+    XilinxSystemMonitorChannel(name="vaux7",     addr=0x17, bits=12, desc=[
+        "Raw VAUX7 value from XADC.",
+        "VAUX7 (V) = ``Value`` x 3 / 4096.",
+    ]),
+    XilinxSystemMonitorChannel(name="vaux15",     addr=0x1F, bits=12, desc=[
+        "Raw VAUX15 value from XADC.",
+        "VAUX15 (V) = ``Value`` x 3 / 4096.",
     ]),
 ]
 
