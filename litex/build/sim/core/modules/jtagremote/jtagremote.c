@@ -84,7 +84,7 @@ out:
   return ret;
 }
 
-static int jtagremote_start(void *b)
+static int jtagremote_start(void *b, void *sh)
 {
   base = (struct event_base *)b;
   printf("[jtagremote] loaded (%p)\n", base);
@@ -254,7 +254,8 @@ static struct ext_module_s ext_mod = {
   jtagremote_new,
   jtagremote_add_pads,
   NULL,
-  jtagremote_tick
+  jtagremote_tick,
+  NULL,
 };
 
 int litex_sim_ext_module_init(int (*register_module)(struct ext_module_s *))
