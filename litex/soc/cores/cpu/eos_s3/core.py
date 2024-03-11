@@ -110,10 +110,10 @@ class EOS_S3(CPU):
 
             # Clocking.
             # ---------
-            o_Sys_Clk0     = eos_s3_0_clk,
-            o_Sys_Clk0_Rst = eos_s3_0_rst,
-            o_Sys_Clk1     = eos_s3_1_clk,
-            o_Sys_Clk1_Rst = eos_s3_1_rst,
+            o_Clk_C16     = eos_s3_0_clk,
+            o_Clk_C16_Rst = eos_s3_0_rst,
+            o_Clk_C21     = eos_s3_1_clk,
+            o_Clk_C21_Rst = eos_s3_1_rst,
 
             # Packet FIFO.
             # ------------
