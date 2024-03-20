@@ -174,6 +174,7 @@ class SoCBusHandler(LiteXModule):
         self.interconnect          = interconnect
         self.interconnect_register = interconnect_register
         self.masters               = {}
+        self.required_mode = {}        
         self.slaves                = {}
         self.regions               = {}
         self.io_regions            = {}
@@ -474,7 +475,7 @@ class SoCBusHandler(LiteXModule):
 
         return adapted_interface
 
-    def add_master(self, name=None, master=None, region=None):
+    def add_master(self, name=None, master=None, region=None, required_mode=None):
         if name is None:
             name = "master{:d}".format(len(self.masters))
         if name in self.masters.keys():
@@ -487,6 +488,7 @@ class SoCBusHandler(LiteXModule):
             master = self.add_remapper(name, master, region.origin, region.size)
         master = self.add_adapter(name, master, "m2s")
         self.masters[name] = master
+        self.required_mode[master] = required_mode
         self.logger.info("{} {} as Bus Master.".format(
             colorer(name,    color="underline"),
             colorer("added", color="green")))
@@ -583,15 +585,26 @@ class SoCBusHandler(LiteXModule):
                             self.logger.error(self)
                             raise SoCError()
                 # Interconnect Logic.
+
+                def is_connected(master, decoder_slave):
+                    name = decoder_slave[2]
+                    ret = True
+                    if self.required_mode[master] is not None:
+                        ret = self.required_mode[master] in self.regions[name].mode
+
+                    if ret:
+                        self.logger.info("Connect: {} <-> {}".format(master.name, name))
+                    return ret
                 interconnect_cls = {
                     "shared"  : interconnect_shared_cls,
                     "crossbar": interconnect_crossbar_cls,
                 }[self.interconnect]
                 self._interconnect = interconnect_cls(
                     masters        = list(self.masters.values()),
-                    slaves         = [(self.regions[n].decoder(self), s) for n, s in self.slaves.items()],
+                    slaves         = [(self.regions[n].decoder(self), s, n) for n, s in self.slaves.items()],
                     register       = self.interconnect_register,
-                    timeout_cycles = self.timeout
+                    timeout_cycles = self.timeout,
+                    is_connected = is_connected
                 )
             self.logger.info("Interconnect: {} ({} <-> {}).".format(
                 colorer(self._interconnect.__class__.__name__),
@@ -756,6 +769,7 @@ class SoCCSRHandler(SoCLocHandler):
         self.paging        = paging
         self.ordering      = ordering
         self.masters       = {}
+
         self.regions       = {}
         self.logger.info("{}-bit CSR Bus, {}-bit Aligned, {}KiB Address Space, {}B Paging, {} Ordering (Up to {} Locations).".format(
             colorer(self.data_width),
@@ -1196,7 +1210,10 @@ class SoC(LiteXModule, SoCCoreCompat):
                 colorer(name, color="underline"),
                 colorer("adding", color="cyan")))
             for n, cpu_bus in enumerate(self.cpu.periph_buses):
-                self.bus.add_master(name="cpu_bus{}".format(n), master=cpu_bus)
+                if type(cpu_bus) is tuple:
+                    self.bus.add_master(name="cpu_bus{}".format(n), master=cpu_bus[0], required_mode=cpu_bus[1])
+                else:
+                    self.bus.add_master(name="cpu_bus{}".format(n), master=cpu_bus)
 
             # Interrupts.
             if hasattr(self.cpu, "interrupt"):
@@ -1952,7 +1969,7 @@ class LiteXSoC(SoC):
         self.check_if_exists(f"{name}_mmap")
         spiflash_core = LiteSPI(spiflash_phy, mmap_endianness=self.cpu.endianness, **kwargs)
         self.add_module(name=f"{name}_core", module=spiflash_core)
-        spiflash_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size)
+        spiflash_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size, mode="rwx")
         self.bus.add_slave(name=name, slave=spiflash_core.bus, region=spiflash_region)
 
         # Constants.

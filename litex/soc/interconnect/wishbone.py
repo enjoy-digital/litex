@@ -299,11 +299,11 @@ class InterconnectShared(LiteXModule):
 
 
 class Crossbar(LiteXModule):
-    def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
-        data_width = get_check_parameters(ports=masters + [s for _, s in slaves])
-        matches, busses = zip(*slaves)
+    def __init__(self, masters, slaves, register=False, timeout_cycles=1e6, is_connected = None):
+        data_width = get_check_parameters(ports=masters + [s for _, s, _ in slaves])
+        matches, busses, _ = zip(*slaves)
         adr_width = max([m.adr_width for m in masters])
-        access = [[Interface(data_width=data_width, adr_width=adr_width) for j in slaves] for i in masters]
+        access = [[Interface(data_width=data_width, adr_width=adr_width) for j in slaves if is_connected is None or is_connected(i, j)] for i in masters]
         # decode each master into its access row
         for row, master in zip(access, masters):
             row = list(zip(matches, row))
