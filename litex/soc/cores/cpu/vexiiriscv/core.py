@@ -8,6 +8,7 @@
 import os
 import hashlib
 import subprocess
+import re
 
 from migen import *
 
@@ -46,15 +47,17 @@ class VexiiRiscv(CPU):
     # Default parameters.
     netlist_name     = None
     xlen             = 32
-    internal_bus_width   = 32
+    internal_bus_width = 32
     litedram_width   = 32
     l2_bytes         = 0
-    l2_ways          = 8
+    l2_ways          = 0
     with_fpu         = False
     with_rvc         = False
+    with_rvm         = False
     with_dma         = False
     jtag_tap         = False
     jtag_instruction = False
+    vexii_args       = ""
 
     # ABI.
     @staticmethod
@@ -67,7 +70,10 @@ class VexiiRiscv(CPU):
     # Arch.
     @staticmethod
     def get_arch():
-        arch = f"rv{VexiiRiscv.xlen}i2p0_ma"
+        arch = f"rv{VexiiRiscv.xlen}i2p0_"
+        if VexiiRiscv.with_rvm:
+            arch += "m"
+        arch += "a"
         if VexiiRiscv.with_fpu:
             arch += "fd"
         if VexiiRiscv.with_rvc:
@@ -103,36 +109,55 @@ class VexiiRiscv(CPU):
     @staticmethod
     def args_fill(parser):
         cpu_group = parser.add_argument_group(title="CPU options")
-        cpu_group.add_argument("--xlen",                  default=32,            help="Specify the RISC-V data width.")
+
+        cpu_group.add_argument("--vexii-args",            default="",            help="Specify the CPU configuration")
+        # cpu_group.add_argument("--xlen",                  default=32,            help="Specify the RISC-V data width.")
         cpu_group.add_argument("--cpu-count",             default=1,             help="How many VexiiRiscv CPU.")
         cpu_group.add_argument("--with-coherent-dma",     action="store_true",   help="Enable coherent DMA accesses.")
         cpu_group.add_argument("--with-jtag-tap",         action="store_true",   help="Add a embedded JTAG tap for debugging.")
         cpu_group.add_argument("--with-jtag-instruction", action="store_true",   help="Add a JTAG instruction port which implement tunneling for debugging (TAP not included).")
         cpu_group.add_argument("--update-repo",           default="recommended", choices=["latest","wipe+latest","recommended","wipe+recommended","no"], help="Specify how the VexiiRiscv & SpinalHDL repo should be updated (latest: update to HEAD, recommended: Update to known compatible version, no: Don't update, wipe+*: Do clean&reset before checkout)")
         cpu_group.add_argument("--no-netlist-cache",      action="store_true",   help="Always (re-)build the netlist.")
-        cpu_group.add_argument("--with-fpu",              action="store_true",   help="Enable the F32/F64 FPU.")
-        cpu_group.add_argument("--with-rvc",              action="store_true",   help="Enable the Compress ISA extension.")
-        cpu_group.add_argument("--l2-bytes",              default=128*1024,      help="VexiiRiscv L2 bytes, default 128 KB.")
-        cpu_group.add_argument("--l2-ways",               default=8,             help="VexiiRiscv L2 ways, default 8.")
+        # cpu_group.add_argument("--with-fpu",              action="store_true",   help="Enable the F32/F64 FPU.")
+        # cpu_group.add_argument("--with-rvc",              action="store_true",   help="Enable the Compress ISA extension.")
+        cpu_group.add_argument("--l2-bytes",              default=0,             help="VexiiRiscv L2 bytes, default 128 KB.")
+        cpu_group.add_argument("--l2-ways",               default=0,             help="VexiiRiscv L2 ways, default 8.")
+
+
 
     @staticmethod
     def args_read(args):
         print(args)
+
+        # if args.update_repo != "no":
+        #    NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "main", "ec3ee4dc" if args.update_repo=="recommended" else None)
+
+
 
         VexiiRiscv.jtag_tap         = args.with_jtag_tap
         VexiiRiscv.jtag_instruction = args.with_jtag_instruction
         VexiiRiscv.with_dma         = args.with_coherent_dma
         VexiiRiscv.update_repo      = args.update_repo
         VexiiRiscv.no_netlist_cache = args.no_netlist_cache
-        VexiiRiscv.with_fpu         = args.with_fpu
-        VexiiRiscv.with_rvc         = args.with_rvc
-        if args.xlen:
-            xlen = int(args.xlen)
-            VexiiRiscv.internal_bus_width   = xlen
-            VexiiRiscv.xlen                 = xlen
-            VexiiRiscv.data_width           = xlen
+        VexiiRiscv.vexii_args       = args.vexii_args
+
+
+        vdir = get_data_mod("cpu", "vexiiriscv").data_location
+        md5_hash = hashlib.md5()
+        md5_hash.update(args.vexii_args.encode('utf-8'))
+        vexii_args_hash = md5_hash.hexdigest()
+        ppath = os.path.join(vdir, str(vexii_args_hash) + ".py")
+        if VexiiRiscv.no_netlist_cache or not os.path.exists(ppath):
+            ndir = os.path.join(vdir, "ext", "VexiiRiscv")
+
+            cmd = f"""cd {ndir} && sbt "runMain vexiiriscv.soc.litex.PythonArgsGen {args.vexii_args} --python-file={str(ppath)}\""""
+            subprocess.check_call(cmd, shell=True)
+        with open(ppath) as file:
+            exec(file.read())
+
+        if VexiiRiscv.xlen == 64:
             VexiiRiscv.gcc_triple           = CPU_GCC_TRIPLE_RISCV64
-            VexiiRiscv.linker_output_format = f"elf{xlen}-littleriscv"
+        VexiiRiscv.linker_output_format = f"elf{VexiiRiscv.xlen}-littleriscv"
         if args.cpu_count:
             VexiiRiscv.cpu_count = args.cpu_count
         if args.l2_bytes:
@@ -262,7 +287,8 @@ class VexiiRiscv(CPU):
         md5_hash.update(str(VexiiRiscv.jtag_instruction).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.with_dma).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.memory_regions).encode('utf-8'))
-        md5_hash.update(str(VexiiRiscv.internal_bus_width).encode('utf-8'))
+        md5_hash.update(str(VexiiRiscv.vexii_args).encode('utf-8'))
+        # md5_hash.update(str(VexiiRiscv.internal_bus_width).encode('utf-8'))
 
 
         digest = md5_hash.hexdigest()
@@ -275,39 +301,29 @@ class VexiiRiscv(CPU):
         ndir = os.path.join(vdir, "ext", "VexiiRiscv")
         sdir = os.path.join(vdir, "ext", "SpinalHDL")
 
-        #if VexiiRiscv.update_repo != "no":
-        #    NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "main", "ec3ee4dc" if VexiiRiscv.update_repo=="recommended" else None)
-
         gen_args = []
         gen_args.append(f"--netlist-name={VexiiRiscv.netlist_name}")
         gen_args.append(f"--netlist-directory={vdir}")
-        gen_args.append(f"--reset-vector={reset_address}")
-        gen_args.append(f"--xlen={VexiiRiscv.xlen}")
+        gen_args.append(VexiiRiscv.vexii_args)
         gen_args.append(f"--cpu-count={VexiiRiscv.cpu_count}")
         gen_args.append(f"--l2-bytes={VexiiRiscv.l2_bytes}")
         gen_args.append(f"--l2-ways={VexiiRiscv.l2_ways}")
         gen_args.append(f"--litedram-width={VexiiRiscv.litedram_width}")
-        gen_args.append(f"--internal_bus_width={VexiiRiscv.internal_bus_width}")
+        # gen_args.append(f"--internal_bus_width={VexiiRiscv.internal_bus_width}")
         for region in VexiiRiscv.memory_regions:
             gen_args.append(f"--memory-region={region[0]},{region[1]},{region[2]},{region[3]}")
-        for args in VexiiRiscv.scala_args:
-            gen_args.append(f"--scala-args={args}")
         if(VexiiRiscv.jtag_tap) :
             gen_args.append(f"--with-jtag-tap")
         if(VexiiRiscv.jtag_instruction) :
             gen_args.append(f"--with-jtag-instruction")
-        if(VexiiRiscv.jtag_tap or VexiiRiscv.jtag_instruction):
-            gen_args.append(f"--with-debug")
         if(VexiiRiscv.with_dma) :
             gen_args.append(f"--with-dma")
-        for file in VexiiRiscv.scala_paths:
-            gen_args.append(f"--scala-file={file}")
-        if(VexiiRiscv.with_fpu):
-            gen_args.append(f"--scala-args=rvf=true,rvd=true")
-        if(VexiiRiscv.with_rvc):
-            gen_args.append(f"--scala-args=rvc=true")
+        # if(VexiiRiscv.with_fpu):
+        #     gen_args.append(f"--scala-args=rvf=true,rvd=true")
+        # if(VexiiRiscv.with_rvc):
+        #     gen_args.append(f"--scala-args=rvc=true")
 
-        cmd = f"""cd {ndir} && sbt "runMain vexiiriscv.platform.litex.VexiiGen {" ".join(gen_args)}\""""
+        cmd = f"""cd {ndir} && sbt "runMain vexiiriscv.soc.litex.SocGen {" ".join(gen_args)}\""""
         print("VexiiRiscv generation command :")
         print(cmd)
         subprocess.check_call(cmd, shell=True)
@@ -357,15 +373,15 @@ class VexiiRiscv(CPU):
 
         if VexiiRiscv.jtag_tap:
             self.jtag_tms = Signal()
-            self.jtag_tck = Signal()
+            self.jtag_clk = Signal()
             self.jtag_tdi = Signal()
             self.jtag_tdo = Signal()
 
             self.cpu_params.update(
-                i_jtag_tms = self.jtag_tms,
-                i_jtag_tck = self.jtag_tck,
-                i_jtag_tdi = self.jtag_tdi,
-                o_jtag_tdo = self.jtag_tdo,
+                i_debug_tap_jtag_tms = self.jtag_tms,
+                i_debug_tap_jtag_tck = self.jtag_clk,
+                i_debug_tap_jtag_tdi = self.jtag_tdi,
+                o_debug_tap_jtag_tdo = self.jtag_tdo,
             )
 
         if VexiiRiscv.jtag_instruction:
@@ -403,14 +419,15 @@ class VexiiRiscv(CPU):
             debug_ndmreset_last = Signal()
             debug_ndmreset_rise = Signal()
             self.cpu_params.update(
-                i_debug_reset    = debug_reset,
-                o_debug_ndmreset = debug_ndmreset,
+                # i_debug_reset    = debug_reset, FIXME
+                o_debug_dm_ndmreset = debug_ndmreset,
             )
 
             # Reset SoC's CRG when debug_ndmreset rising edge.
-            self.sync.debug_por += debug_ndmreset_last.eq(debug_ndmreset)
-            self.comb += debug_ndmreset_rise.eq(debug_ndmreset & ~debug_ndmreset_last)
-            self.comb += If(debug_ndmreset_rise, soc.crg.rst.eq(1))
+            # self.sync.debug_por += debug_ndmreset_last.eq(debug_ndmreset)
+            # self.comb += debug_ndmreset_rise.eq(debug_ndmreset & ~debug_ndmreset_last)
+            # self.comb += If(debug_ndmreset_rise, soc.crg.rst.eq(1))
+            # FIXME
 
         self.soc_bus = soc.bus # FIXME: Save SoC Bus instance to retrieve the final mem layout on finalization.
 
@@ -475,8 +492,8 @@ class VexiiRiscv(CPU):
         # p        : peripheral
         # m        : memory
         VexiiRiscv.memory_regions = []
-        for name, region in self.soc_bus.io_regions.items():
-            VexiiRiscv.memory_regions.append( (region.origin, region.size, "io", "p") ) # IO is only allowed on the p bus
+        # for name, region in self.soc_bus.io_regions.items():
+        #     VexiiRiscv.memory_regions.append( (region.origin, region.size, "io", "p") ) # IO is only allowed on the p bus
         for name, region in self.soc_bus.regions.items():
             if region.linker: # Remove virtual regions.
                 continue
