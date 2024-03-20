@@ -17,8 +17,6 @@ class OpenOCD(GenericProgrammer):
     def __init__(self, config, flash_proxy_basename=None):
         GenericProgrammer.__init__(self, flash_proxy_basename)
         self.config = config
-        self.config_dirs.append("/usr/share/openocd/scripts")
-        self.config_dirs.append("/usr/local/share/openocd/scripts")
 
     def load_bitstream(self, bitstream):
         config = self.find_config()
