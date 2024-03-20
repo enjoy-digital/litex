@@ -17,6 +17,8 @@ class OpenOCD(GenericProgrammer):
     def __init__(self, config, flash_proxy_basename=None):
         GenericProgrammer.__init__(self, flash_proxy_basename)
         self.config = config
+        self.config_dirs.append("/usr/share/openocd/scripts")
+        self.config_dirs.append("/usr/local/share/openocd/scripts")
 
     def load_bitstream(self, bitstream):
         config = self.find_config()
@@ -39,6 +41,12 @@ class OpenOCD(GenericProgrammer):
             "exit"
         ])
         self.call(["openocd", "-f", config, "-c", script])
+
+    def get_tap_name(self, config):
+        cfg_str = open(config).read()
+        if "zynq_7000" in cfg_str:
+            return "zynq_pl.bs"
+        return "$_CHIPNAME.tap"
 
     def get_ir(self, chain, config):
         cfg_str = open(config).read()
@@ -98,6 +106,7 @@ class OpenOCD(GenericProgrammer):
           - TX valid : bit 9
         """
         config   = self.find_config()
+        tap_name = self.get_tap_name(config)
         ir       = self.get_ir(chain, config)
         endstate = self.get_endstate(config)
         cfg = """
@@ -185,8 +194,9 @@ proc jtagstream_serve {tap port} {
         write_to_file("stream.cfg", cfg)
         script = "; ".join([
             "init",
-            "irscan $_CHIPNAME.tap {:d}".format(ir),
-            "jtagstream_serve $_CHIPNAME.tap {:d}".format(port),
+            "poll off",
+            "irscan {} {:d}".format(tap_name, ir),
+            "jtagstream_serve {} {:d}".format(tap_name, port),
             "exit",
         ])
         self.call(["openocd", "-f", config, "-f", "stream.cfg", "-c", script])
