@@ -79,10 +79,10 @@ class NXLRAM(LiteXModule):
                 wren    = Signal()
                 self.comb += [
                     datain.eq(self.bus.dat_w[32*w:32*(w+1)]),
+                    self.bus.dat_r[32*w:32*(w+1)].eq(dataout),
                     If(self.bus.adr[14:14+self.depth_cascading.bit_length()] == d,
                         cs.eq(1),
-                        wren.eq(self.bus.we & self.bus.stb & self.bus.cyc),
-                        self.bus.dat_r[32*w:32*(w+1)].eq(dataout)
+                        wren.eq(self.bus.we & self.bus.stb & self.bus.cyc)
                     ),
                 ]
                 lram_block = Instance("SP512K",
