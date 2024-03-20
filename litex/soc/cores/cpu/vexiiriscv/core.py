@@ -184,8 +184,8 @@ class VexiiRiscv(CPU):
         # CPU Instance.
         self.cpu_params = dict(
             # Clk/Rst.
-            i_socClk     = ClockSignal("sys"),
-            i_asyncReset = ResetSignal("sys") | self.reset,
+            i_system_clk   = ClockSignal("sys"),
+            i_system_reset = ResetSignal("sys") | self.reset,
 
             # Patcher/Tracer.
             # o_patcher_tracer_valid   = self.tracer_valid,
@@ -417,17 +417,15 @@ class VexiiRiscv(CPU):
             # Debug resets.
             debug_ndmreset      = Signal()
             debug_ndmreset_last = Signal()
-            debug_ndmreset_rise = Signal()
             self.cpu_params.update(
-                # i_debug_reset    = debug_reset, FIXME
+                i_debugReset        = debug_reset,
                 o_debug_dm_ndmreset = debug_ndmreset,
             )
 
             # Reset SoC's CRG when debug_ndmreset rising edge.
-            # self.sync.debug_por += debug_ndmreset_last.eq(debug_ndmreset)
-            # self.comb += debug_ndmreset_rise.eq(debug_ndmreset & ~debug_ndmreset_last)
-            # self.comb += If(debug_ndmreset_rise, soc.crg.rst.eq(1))
-            # FIXME
+            self.sync.debug_por += debug_ndmreset_last.eq(debug_ndmreset)
+            self.comb += If(debug_ndmreset, soc.crg.cd_sys.rst.eq(1))
+
 
         self.soc_bus = soc.bus # FIXME: Save SoC Bus instance to retrieve the final mem layout on finalization.
 
