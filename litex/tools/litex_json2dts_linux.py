@@ -386,6 +386,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     if "uart" in d["csr_bases"]:
         aliases["serial0"] = "liteuart0"
+        it_incr = {True: 1, False: 0}["rocket" in cpu_name]
         dts += """
             liteuart0: serial@{uart_csr_base:x} {{
                 compatible = "litex,liteuart";
@@ -395,11 +396,12 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
             }};
 """.format(
     uart_csr_base  = d["csr_bases"]["uart"],
-    uart_interrupt = "" if polling else "interrupts = <{}>;".format(d["constants"]["uart_interrupt"]))
+    uart_interrupt = "" if polling else "interrupts = <{}>;".format(int(d["constants"]["uart_interrupt"]) + it_incr))
 
     # Ethernet -------------------------------------------------------------------------------------
 
     if "ethphy" in d["csr_bases"] and "ethmac" in d["csr_bases"]:
+        it_incr = {True: 1, False: 0}["rocket" in cpu_name]
         dts += """
             mac0: mac@{ethmac_csr_base:x} {{
                 compatible = "litex,liteeth";
@@ -421,7 +423,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     ethmac_rx_slots  = d["constants"]["ethmac_rx_slots"],
     ethmac_tx_slots  = d["constants"]["ethmac_tx_slots"],
     ethmac_slot_size  = d["constants"]["ethmac_slot_size"],
-    ethmac_interrupt = "" if polling else "interrupts = <{}>;".format(d["constants"]["ethmac_interrupt"]))
+    ethmac_interrupt = "" if polling else "interrupts = <{}>;".format(int(d["constants"]["ethmac_interrupt"]) + it_incr))
 
     # USB OHCI -------------------------------------------------------------------------------------
 
