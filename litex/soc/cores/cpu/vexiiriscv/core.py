@@ -417,6 +417,7 @@ class VexiiRiscv(CPU):
             # Debug resets.
             debug_ndmreset      = Signal()
             debug_ndmreset_last = Signal()
+            debug_ndmreset_rise = Signal() # debug_ndmreset_rise is necessary because the PLL which generate the clock will be reseted aswell, so we need to sneak in a single cycle reset :(
             self.cpu_params.update(
                 i_debugReset        = debug_reset,
                 o_debug_dm_ndmreset = debug_ndmreset,
@@ -424,7 +425,8 @@ class VexiiRiscv(CPU):
 
             # Reset SoC's CRG when debug_ndmreset rising edge.
             self.sync.debug_por += debug_ndmreset_last.eq(debug_ndmreset)
-            self.comb += If(debug_ndmreset, soc.crg.cd_sys.rst.eq(1))
+            self.comb += debug_ndmreset_rise.eq(debug_ndmreset & ~debug_ndmreset_last)
+            self.comb += If(debug_ndmreset_rise, soc.crg.rst.eq(1)) # FIXME crg.rst for HW crg.cd_sys.rst for SIM ?
 
 
         self.soc_bus = soc.bus # FIXME: Save SoC Bus instance to retrieve the final mem layout on finalization.
