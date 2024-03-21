@@ -271,13 +271,14 @@ class VexiiRiscv(CPU):
             )
 
     def set_reset_address(self, reset_address):
-        self.reset_address = reset_address
+        VexiiRiscv.reset_address = reset_address
+        VexiiRiscv.vexii_args += f" --reset-vector {reset_address}"
 
     # Cluster Name Generation.
     @staticmethod
-    def generate_netlist_name(reset_address):
+    def generate_netlist_name():
         md5_hash = hashlib.md5()
-        md5_hash.update(str(reset_address).encode('utf-8'))
+        md5_hash.update(str(VexiiRiscv.reset_address).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.litedram_width).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.xlen).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.cpu_count).encode('utf-8'))
@@ -296,7 +297,7 @@ class VexiiRiscv(CPU):
 
     # Netlist Generation.
     @staticmethod
-    def generate_netlist(reset_address):
+    def generate_netlist():
         vdir = get_data_mod("cpu", "vexiiriscv").data_location
         ndir = os.path.join(vdir, "ext", "VexiiRiscv")
         sdir = os.path.join(vdir, "ext", "SpinalHDL")
@@ -334,7 +335,7 @@ class VexiiRiscv(CPU):
         print(f"VexiiRiscv netlist : {self.netlist_name}")
 
         if VexiiRiscv.no_netlist_cache or not os.path.exists(os.path.join(vdir, self.netlist_name + ".v")):
-            self.generate_netlist(self.reset_address)
+            self.generate_netlist()
 
         # Add RAM.
         # By default, use Generic RAM implementation.
@@ -393,16 +394,15 @@ class VexiiRiscv(CPU):
             self.jtag_reset   = Signal()
             self.jtag_tdo     = Signal()
             self.jtag_tdi     = Signal()
-
             self.cpu_params.update(
-                i_jtag_instruction_clk     = self.jtag_clk,
-                i_jtag_instruction_enable  = self.jtag_enable,
-                i_jtag_instruction_capture = self.jtag_capture,
-                i_jtag_instruction_shift   = self.jtag_shift,
-                i_jtag_instruction_update  = self.jtag_update,
-                i_jtag_instruction_reset   = self.jtag_reset,
-                i_jtag_instruction_tdi     = self.jtag_tdi,
-                o_jtag_instruction_tdo     = self.jtag_tdo,
+                i_debug_tck                             = self.jtag_clk,
+                i_debug_instruction_instruction_enable  = self.jtag_enable,
+                i_debug_instruction_instruction_capture = self.jtag_capture,
+                i_debug_instruction_instruction_shift   = self.jtag_shift,
+                i_debug_instruction_instruction_update  = self.jtag_update,
+                i_debug_instruction_instruction_reset   = self.jtag_reset,
+                i_debug_instruction_instruction_tdi     = self.jtag_tdi,
+                o_debug_instruction_instruction_tdo     = self.jtag_tdo,
             )
 
         if VexiiRiscv.jtag_instruction or VexiiRiscv.jtag_tap:
@@ -426,8 +426,10 @@ class VexiiRiscv(CPU):
             # Reset SoC's CRG when debug_ndmreset rising edge.
             self.sync.debug_por += debug_ndmreset_last.eq(debug_ndmreset)
             self.comb += debug_ndmreset_rise.eq(debug_ndmreset & ~debug_ndmreset_last)
-            self.comb += If(debug_ndmreset_rise, soc.crg.rst.eq(1)) # FIXME crg.rst for HW crg.cd_sys.rst for SIM ?
-
+            if soc.get_build_name() == "sim":
+                self.comb += If(debug_ndmreset_rise, soc.crg.cd_sys.rst.eq(1))
+            else:
+                self.comb += If(debug_ndmreset_rise, soc.crg.rst.eq(1))
 
         self.soc_bus = soc.bus # FIXME: Save SoC Bus instance to retrieve the final mem layout on finalization.
 
@@ -505,7 +507,7 @@ class VexiiRiscv(CPU):
             mode += "c" if region.cached else ""
             VexiiRiscv.memory_regions.append( (region.origin, region.size, mode, bus) )
 
-        self.generate_netlist_name(self.reset_address)
+        self.generate_netlist_name()
 
         # Do verilog instance.
         self.specials += Instance(self.netlist_name, **self.cpu_params)
