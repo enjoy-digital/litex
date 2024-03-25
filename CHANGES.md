@@ -9,6 +9,7 @@
 	- litespi/software:             : Fixed SPI Flash Clk Divider computation when with L2 Cache.
 	- litepcie/us(p)pciephy         : Fixed x8 / 256-bit wide case.
 	- litex_sim/serial2console      : Fixed RX backpressure handling.
+	- litedram/frontend/avalon      : Fixed and cleaned-up.
 
 	[> Added
 	--------
@@ -27,6 +28,9 @@
 	- litex_sim                     : Added jtagremote support.
 	- soc/add_master                : Added region support to allow/limit access to a specific region.
 	- litex_json2dts_linux          : Added ip= bootarg when local/remote ips are defined.
+	- cores/jtag                    : Added JTAGBone support for Zynq.
+	- cores/ram/lattice_nx          : Improved timings.
+	- liteeth_gen                   : Added QPLL/BUFH/BUFG parameters for A7 1000BaseX PHY.
 
 	[> Changed
 	----------
