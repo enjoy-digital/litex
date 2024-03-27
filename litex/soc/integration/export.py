@@ -279,7 +279,7 @@ def get_csr_header(regions, constants, csr_base=None, with_csr_base_define=True,
                     alignment             = alignment,
                     read_only             = getattr(csr, "read_only", False),
                     csr_base              = csr_base,
-                    with_csr_base_define  = with_csr_base_define,
+                    with_csr_base_define  = with_csr_base_define and (not isinstance(region, MockCSRRegion)),
                     with_access_functions = with_access_functions,
                 )
                 origin += alignment//8*nr
