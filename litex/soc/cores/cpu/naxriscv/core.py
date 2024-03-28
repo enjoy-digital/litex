@@ -399,13 +399,13 @@ class NaxRiscv(CPU):
 
         if NaxRiscv.jtag_tap:
             self.jtag_tms = Signal()
-            self.jtag_tck = Signal()
+            self.jtag_clk = Signal()
             self.jtag_tdi = Signal()
             self.jtag_tdo = Signal()
 
             self.cpu_params.update(
                 i_jtag_tms = self.jtag_tms,
-                i_jtag_tck = self.jtag_tck,
+                i_jtag_tck = self.jtag_clk,
                 i_jtag_tdi = self.jtag_tdi,
                 o_jtag_tdo = self.jtag_tdo,
             )
