@@ -17,7 +17,7 @@ bool fb_init(unsigned width, unsigned height, bool vsync, fb_handle_t *handle)
     if (!handle->renderer)
       return false;
 
-    handle->texture = SDL_CreateTexture(handle->renderer, SDL_PIXELFORMAT_BGRA32, SDL_TEXTUREACCESS_TARGET, width, height);
+    handle->texture = SDL_CreateTexture(handle->renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, width, height);
     if (!handle->texture)
       return false;
 
