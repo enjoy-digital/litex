@@ -10,6 +10,7 @@
 	- litepcie/us(p)pciephy         : Fixed x8 / 256-bit wide case.
 	- litex_sim/serial2console      : Fixed RX backpressure handling.
 	- litedram/frontend/avalon      : Fixed and cleaned-up.
+	- litex_sim/video               : Fixed pixel format to RGBA.
 
 	[> Added
 	--------
@@ -31,6 +32,8 @@
 	- cores/jtag                    : Added JTAGBone support for Zynq.
 	- cores/ram/lattice_nx          : Improved timings.
 	- liteeth_gen                   : Added QPLL/BUFH/BUFG parameters for A7 1000BaseX PHY.
+	- litex_sim                     : Added Video Color Bar support.
+	- cpu/neorv32                   : Updated to v1.9.7.
 
 	[> Changed
 	----------
