@@ -1069,11 +1069,12 @@ class SoC(LiteXModule, SoCCoreCompat):
             True  : "ROM",
             False : "RAM",
         }["w" not in ram_region.mode]
+        contents_size = 4*len(contents) # FIXME.
 
         # Size Check.
-        if ram_region.size < 4*len(contents):
+        if ram_region.size < contents_size:
             self.logger.error("Contents Size ({}) {} {} Size ({}).".format(
-                colorer(f"0x{4*len(contents):x}"),
+                colorer(f"0x{contents_size:x}"),
                 colorer("exceeds", color="red"),
                 ram_type,
                 colorer(f"0x{ram_region.size:x}"),
@@ -1084,7 +1085,7 @@ class SoC(LiteXModule, SoCCoreCompat):
         self.logger.info("Initializing {} {} with contents (Size: {}).".format(
             ram_type,
             colorer(name),
-            colorer(f"0x{4*len(contents):x}")))
+            colorer(f"0x{contents_size:x}")))
         ram.mem.init = contents
 
         # RAM Auto-Resize (Optional).
@@ -1093,7 +1094,7 @@ class SoC(LiteXModule, SoCCoreCompat):
                 ram_type,
                 colorer(name),
                 colorer(f"0x{ram_region.size:x}"),
-                colorer(f"0x{4*len(contents):x}")))
+                colorer(f"0x{contents_size:x}")))
             ram.mem.depth = len(contents)
 
     def add_rom(self, name, origin, size, contents=[], mode="rx"):
