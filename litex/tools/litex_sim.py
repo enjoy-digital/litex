@@ -435,6 +435,7 @@ def sim_args(parser):
     parser.add_argument("--with-video-framebuffer", action="store_true",   help="Enable Video Framebuffer.")
     parser.add_argument("--with-video-terminal",    action="store_true",   help="Enable Video Terminal.")
     parser.add_argument("--with-video-colorbars",   action="store_true",   help="Enable Video test pattern.")
+    parser.add_argument("--video-vsync",            action="store_true",   help="Only render on frame vsync.")
 
     # Debug/Waveform.
     parser.add_argument("--sim-debug",            action="store_true",     help="Add simulation debugging modules.")
@@ -518,7 +519,7 @@ def main():
 
     # Video.
     if args.with_video_framebuffer or args.with_video_terminal or args.with_video_colorbars:
-        sim_config.add_module("video", "vga")
+        sim_config.add_module("video", "vga", args={"render_on_vsync": args.video_vsync})
 
     # SoC ------------------------------------------------------------------------------------------
     soc = SimSoC(
