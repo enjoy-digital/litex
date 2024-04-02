@@ -1061,27 +1061,46 @@ class SoC(LiteXModule, SoCCoreCompat):
         if contents != []:
             self.add_config(f"{name}_INIT", 1)
 
+    def init_ram(self, name, contents=[], auto_size=False):
+        # RAM Parameters.
+        ram        = getattr(self, name)
+        ram_region = self.bus.regions[name]
+        ram_type   = {
+            True  : "ROM",
+            False : "RAM",
+        }["w" not in ram_region.mode]
+
+        # Size Check.
+        if ram_region.size < 4*len(contents):
+            self.logger.error("Contents Size ({}) {} {} Size ({}).".format(
+                colorer(f"0x{4*len(contents):x}"),
+                colorer("exceeds", color="red"),
+                ram_type,
+                colorer(f"0x{ram_region.size:x}"),
+            ))
+            raise SoCError()
+
+        # RAM Initialization.
+        self.logger.info("Initializing {} {} with contents (Size: {}).".format(
+            ram_type,
+            colorer(name),
+            colorer(f"0x{4*len(contents):x}")))
+        ram.mem.init = contents
+
+        # RAM Auto-Resize (Optional).
+        if auto_size and ("w" not in ram_region.mode):
+            self.logger.info("Auto-Resizing {} {} from {} to {}.".format(
+                ram_type,
+                colorer(name),
+                colorer(f"0x{ram_region.size:x}"),
+                colorer(f"0x{4*len(contents):x}")))
+            ram.mem.depth = len(contents)
+
     def add_rom(self, name, origin, size, contents=[], mode="rx"):
         self.add_ram(name, origin, size, contents, mode=mode)
 
     def init_rom(self, name, contents=[], auto_size=True):
-        self.logger.info("Initializing ROM {} with contents (Size: {}).".format(
-            colorer(name),
-            colorer(f"0x{4*len(contents):x}")))
-        if self.bus.regions[name].size < 4*len(contents):
-            self.logger.error("Contents Size ({}) {} ROM Size ({}).".format(
-                colorer(f"0x{4*len(contents):x}"),
-                colorer("exceeds", color="red"),
-                colorer(f"0x{self.bus.regions[name].size:x}"),
-            ))
-            raise SoCError()
-        getattr(self, name).mem.init = contents
-        if auto_size and ("w" not in self.bus.regions[name].mode):
-            self.logger.info("Auto-Resizing ROM {} from {} to {}.".format(
-                colorer(name),
-                colorer(f"0x{self.bus.regions[name].size:x}"),
-                colorer(f"0x{4*len(contents):x}")))
-            getattr(self, name).mem.depth = len(contents)
+        self.init_ram(name, contents, auto_size)
 
     def add_csr_bridge(self, name="csr", origin=None, register=False):
         csr_bridge_cls = {
