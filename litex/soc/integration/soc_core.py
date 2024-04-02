@@ -271,9 +271,6 @@ class SoCCore(LiteXSoC):
     def add_csr(self, csr_name, csr_id=None, use_loc_if_exists=False):
         self.csr.add(csr_name, csr_id, use_loc_if_exists=use_loc_if_exists)
 
-    def initialize_rom(self, data):
-        self.init_rom(name="rom", contents=data)
-
     def add_memory_region(self, name, origin, length, type="cached"):
         self.bus.add_region(name, SoCRegion(origin=origin, size=length,
             cached="cached" in type,

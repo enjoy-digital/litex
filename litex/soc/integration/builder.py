@@ -331,7 +331,7 @@ class Builder:
         )
 
         # Initialize SoC with with BIOS data.
-        self.soc.initialize_rom(bios_data)
+        self.soc.init_rom(name="rom", contents=bios_data)
 
     def build(self, **kwargs):
         # Pass Output Directory to Platform.
