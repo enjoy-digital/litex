@@ -1027,6 +1027,8 @@ class SoC(LiteXModule, SoCCoreCompat):
                 raise SoCError()
 
     # SoC Main Components --------------------------------------------------------------------------
+
+    # Add Controller -------------------------------------------------------------------------------
     def add_controller(self, name="ctrl", **kwargs):
         self.check_if_exists(name)
         self.logger.info("Controller {} {}.".format(
@@ -1034,6 +1036,7 @@ class SoC(LiteXModule, SoCCoreCompat):
             colorer("added", color="green")))
         self.add_module(name=name, module=SoCController(**kwargs))
 
+    # Add/Init RAM ---------------------------------------------------------------------------------
     def add_ram(self, name, origin, size, contents=[], mode="rwx"):
         ram_cls = {
             "wishbone": wishbone.SRAM,
@@ -1097,12 +1100,14 @@ class SoC(LiteXModule, SoCCoreCompat):
                 colorer(f"0x{contents_size:x}")))
             ram.mem.depth = len(contents)
 
+    # Add/Init ROM ---------------------------------------------------------------------------------
     def add_rom(self, name, origin, size, contents=[], mode="rx"):
         self.add_ram(name, origin, size, contents, mode=mode)
 
     def init_rom(self, name, contents=[], auto_size=True):
         self.init_ram(name, contents, auto_size)
 
+    # Add CSR Bridge -------------------------------------------------------------------------------
     def add_csr_bridge(self, name="csr", origin=None, register=False):
         csr_bridge_cls = {
             "wishbone": wishbone.Wishbone2CSR,
@@ -1141,6 +1146,7 @@ class SoC(LiteXModule, SoCCoreCompat):
         self.add_config("CSR_DATA_WIDTH", self.csr.data_width)
         self.add_config("CSR_ALIGNMENT",  self.csr.alignment)
 
+    # Add CPU --------------------------------------------------------------------------------------
     def add_cpu(self, name="vexriscv", variant="standard", reset_address=None, cfu=None):
         from litex.soc.cores import cpu
 
@@ -1284,6 +1290,7 @@ class SoC(LiteXModule, SoCCoreCompat):
         if hasattr(self.cpu, "nop"):
             self.add_config("CPU_NOP", self.cpu.nop)
 
+    # Add Timer ------------------------------------------------------------------------------------
     def add_timer(self, name="timer0"):
         from litex.soc.cores.timer import Timer
         self.check_if_exists(name)
