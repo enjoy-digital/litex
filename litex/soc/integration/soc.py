@@ -2363,9 +2363,19 @@ class LiteXSoC(SoC):
         timings = timings if isinstance(timings, str) else timings[0]
         base = self.mem_map.get(name, None)
         if base is None:
+            base = 0x40c00000
+            size = 0x800000
+            # If the intended region isn't contained in the main_ram region, adjust it to fit.
+            main_ram_region = self.bus.regions.get("main_ram", None)
+            if main_ram_region is not None and not (
+                main_ram_region.origin < base
+                and base + size < main_ram_region.origin + main_ram_region.size
+            ):
+                size = min(size, main_ram_region.size // 2)
+                base = main_ram_region.origin + main_ram_region.size - size
             self.bus.add_region(name, SoCRegion(
-                origin = 0x40c00000,
-                size   = 0x800000,
+                origin = base,
+                size   = size,
                 linker = True)
             )
             base = self.bus.regions[name].origin
