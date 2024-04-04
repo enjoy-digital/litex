@@ -159,6 +159,8 @@ class TestSPIMMAP(unittest.TestCase):
             # yield dut.ctrl.slot_control0.fields.mode.eq(SPI_SLOT_MODE_3)
             yield dut.ctrl.slot_control0.fields.length.eq(length)
             yield dut.ctrl.slot_control0.fields.bitorder.eq(bitorder)
+            yield dut.ctrl.slot_control1.fields.length.eq(length)
+            yield dut.ctrl.slot_control1.fields.bitorder.eq(bitorder)
             # yield dut.ctrl.slot_control0.fields.loopback.eq(1)
             # yield dut.ctrl.slot_control0.fields.divider.eq(2)
             # yield dut.ctrl.slot_control0.fields.enable.eq(1)
@@ -194,9 +196,9 @@ class TestSPIMMAP(unittest.TestCase):
             self.assertEqual((yield dut_rx_status.full), 0)
             self.assertEqual((yield dut_rx_status.ongoing), 0)
             self.assertEqual((yield dut_rx_status.level), 0)
-            for d in data:
-                vprint(f"write {d:0{width}x}")
-                yield from dut.tx_mmap.bus.write(0, d, sel)
+            for slot, d in data:
+                vprint(f"write({slot}):{d:0{width}x}")
+                yield from dut.tx_mmap.bus.write(slot, d, sel)
             yield
             self.assertEqual((yield dut_tx_status.empty), 0)
             self.assertEqual((yield dut_tx_status.full), 0)
@@ -223,41 +225,69 @@ class TestSPIMMAP(unittest.TestCase):
                 yield
 
             yield
-            for d in data:
-                read = yield from dut.rx_mmap.bus.read(0)
-                self.assertEqual(read, d, f"read {read:0{width}x} expect: {d:0{width}x}")
+            for slot, d in data:
+                read = yield from dut.rx_mmap.bus.read(slot)
+                self.assertEqual(read, d, f"read({slot}) {read:0{width}x} expect: {d:0{width}x}")
 
         run_simulation(dut, generator(dut), vcd_name=vcd_name)
 
     # 32 bit write to 32bit slot
     def test_spi_mmap_32_lsb(self):
-        data = [0x12345678, 0x9ABCDEF0]
+        data = [(0, 0x12345678), (0, 0x9ABCDEF0)]
         self.mmap_test(SPI_SLOT_LENGTH_32B, SPI_SLOT_BITORDER_LSB_FIRST, data, "mmap_32_lsb.vcd")
 
     def test_spi_mmap_32_msb(self):
-        data = [0x12345678, 0x9ABCDEF0]
+        data = [(0, 0x12345678), (0, 0x9ABCDEF0)]
         self.mmap_test(SPI_SLOT_LENGTH_32B, SPI_SLOT_BITORDER_MSB_FIRST, data, "mmap_32_msb.vcd")
 
+    def test_spi_mmap_32_slot0_1_lsb(self):
+        data = [
+            (0, 0x12345678), (0, 0x9ABCDEF0), (0, 0x87654321), (0, 0x0FEDCBA9),
+            (1, 0x0FEDCBA9), (1, 0x87654321), (1, 0x9ABCDEF0), (1, 0x12345678)
+        ]
+        self.mmap_test(SPI_SLOT_LENGTH_32B, SPI_SLOT_BITORDER_LSB_FIRST, data, "mmap_32_slot_0_1_lsb.vcd")
+
+    def test_spi_mmap_32_slot0_1_msb(self):
+        data = [
+            (0, 0x12345678), (0, 0x9ABCDEF0), (0, 0x87654321), (0, 0x0FEDCBA9),
+            (1, 0x0FEDCBA9), (1, 0x87654321), (1, 0x9ABCDEF0), (1, 0x12345678)
+        ]
+        self.mmap_test(SPI_SLOT_LENGTH_32B, SPI_SLOT_BITORDER_MSB_FIRST, data, "mmap_32_slot_0_1_msb.vcd")
+
     def test_spi_mmap_24_lsb(self):
-        data = [0x123456, 0x789ABC, 0xDEF012]
+        data = [(0, 0x123456), (0, 0x789ABC), (0, 0xDEF012)]
         self.mmap_test(SPI_SLOT_LENGTH_24B, SPI_SLOT_BITORDER_LSB_FIRST, data, "mmap_24_lsb.vcd")
 
     def test_spi_mmap_24_msb(self):
-        data = [0x123456, 0x789ABC, 0xDEF012]
+        data = [(0, 0x123456), (0, 0x789ABC), (0, 0xDEF012)]
         self.mmap_test(SPI_SLOT_LENGTH_24B, SPI_SLOT_BITORDER_MSB_FIRST, data, "mmap_24_msb.vcd")
+
+    def test_spi_mmap_24_slot0_1_lsb(self):
+        data = [
+            (0, 0x123456), (0, 0x9ABCDE), (0, 0x876543), (0, 0x0FEDCB),
+            (1, 0x0FEDCB), (1, 0x876543), (1, 0x9ABCDE), (1, 0x123456)
+        ]
+        self.mmap_test(SPI_SLOT_LENGTH_24B, SPI_SLOT_BITORDER_LSB_FIRST, data, "mmap_24_slot_0_1_lsb.vcd")
+
+    def test_spi_mmap_24_slot0_1_msb(self):
+        data = [
+            (0, 0x123456), (0, 0x9ABCDE), (0, 0x876543), (0, 0x0FEDCB),
+            (1, 0x0FEDCB), (1, 0x876543), (1, 0x9ABCDE), (1, 0x123456)
+        ]
+        self.mmap_test(SPI_SLOT_LENGTH_24B, SPI_SLOT_BITORDER_MSB_FIRST, data, "mmap_24_slot_0_1_msb.vcd")
 
     # 16 bit write to 16bit slot
     def test_spi_mmap_16_lsb(self):
-        data = [0x1234, 0x5678, 0x9ABC, 0xDEF0]
+        data = [(0, 0x1234), (0, 0x5678), (0, 0x9ABC), (0, 0xDEF0)]
         self.mmap_test(SPI_SLOT_LENGTH_16B, SPI_SLOT_BITORDER_LSB_FIRST, data, "mmap_16_lsb.vcd")
 
     def test_spi_mmap_16_msb(self):
-        data = [0x1234, 0x5678, 0x9ABC, 0xDEF0]
+        data = [(0, 0x1234), (0, 0x5678), (0, 0x9ABC), (0, 0xDEF0)]
         self.mmap_test(SPI_SLOT_LENGTH_16B, SPI_SLOT_BITORDER_MSB_FIRST, data, "mmap_16_msb.vcd")
 
     # 32 bit write to 16bit slot
     def test_spi_mmap_16_lsb_wb32(self):
-        data = [0x1234, 0x5678, 0x9ABC, 0xDEF0]
+        data = [(0, 0x1234), (0, 0x5678), (0, 0x9ABC), (0, 0xDEF0)]
         self.mmap_test(
             SPI_SLOT_LENGTH_16B,
             SPI_SLOT_BITORDER_LSB_FIRST,
@@ -267,7 +297,7 @@ class TestSPIMMAP(unittest.TestCase):
         )
 
     def test_spi_mmap_16_msb_wb32(self):
-        data = [0x1234, 0x5678, 0x9ABC, 0xDEF0]
+        data = [(0, 0x1234), (0, 0x5678), (0, 0x9ABC), (0, 0xDEF0)]
         self.mmap_test(
             SPI_SLOT_LENGTH_16B,
             SPI_SLOT_BITORDER_MSB_FIRST,
@@ -278,19 +308,19 @@ class TestSPIMMAP(unittest.TestCase):
 
     # 8 bit write to 8bit slot
     def test_spi_mmap_8_lsb(self):
-        data = [0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0]
+        data = [(0, 0x12), (0, 0x34), (0, 0x56), (0, 0x78), (0, 0x9A), (0, 0xBC), (0, 0xDE), (0, 0xF0)]
         self.mmap_test(SPI_SLOT_LENGTH_8B, SPI_SLOT_BITORDER_LSB_FIRST, data, "mmap_8_lsb.vcd")
 
     def test_spi_mmap_8_msb(self):
-        data = [0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0]
+        data = [(0, 0x12), (0, 0x34), (0, 0x56), (0, 0x78), (0, 0x9A), (0, 0xBC), (0, 0xDE), (0, 0xF0)]
         self.mmap_test(SPI_SLOT_LENGTH_8B, SPI_SLOT_BITORDER_MSB_FIRST, data, "mmap_8_msb.vcd")
 
     def test_spi_mmap_8_msb_wait1(self):
-        data = [0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0]
+        data = [(0, 0x12), (0, 0x34), (0, 0x56), (0, 0x78), (0, 0x9A), (0, 0xBC), (0, 0xDE), (0, 0xF0)]
         self.mmap_test(SPI_SLOT_LENGTH_8B, SPI_SLOT_BITORDER_MSB_FIRST, data, "mmap_8_msb_wait1.vcd", wait=1)
 
     def test_spi_mmap_8_msb_wait8(self):
-        data = [0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0]
+        data = [(0, 0x12), (0, 0x34), (0, 0x56), (0, 0x78), (0, 0x9A), (0, 0xBC), (0, 0xDE), (0, 0xF0)]
         self.mmap_test(SPI_SLOT_LENGTH_8B, SPI_SLOT_BITORDER_MSB_FIRST, data, "mmap_8_msb_wait8.vcd", wait=8)
 
 if __name__ == "__main__":
