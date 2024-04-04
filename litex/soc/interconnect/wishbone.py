@@ -90,6 +90,8 @@ class Interface(Record):
             yield self.bte.eq(bte)
         yield self.we.eq(1)
         yield from self._do_transaction()
+        if (yield self.err):
+            raise ValueError("bus error")
 
     def read(self, adr, cti=None, bte=None):
         yield self.adr.eq(adr)
@@ -99,6 +101,8 @@ class Interface(Record):
         if bte is not None:
             yield self.bte.eq(bte)
         yield from self._do_transaction()
+        if (yield self.err):
+            raise ValueError("bus error")
         return (yield self.dat_r)
 
     def get_ios(self, bus_name="wb"):
