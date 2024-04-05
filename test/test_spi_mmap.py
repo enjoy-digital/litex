@@ -50,6 +50,14 @@ def vprint(*args):
         print(*args)
 
 
+def vvprint(*args):
+    global verbose
+    if verbose is None:
+        verbose = unittest_verbosity()
+    if verbose > 2:
+        print(*args)
+
+
 class TestSPIMMAP(unittest.TestCase):
     def test_spi_master(self):
         pads = Record([("clk", 1), ("cs_n", 4), ("mosi", 1), ("miso", 1)])
@@ -219,9 +227,9 @@ class TestSPIMMAP(unittest.TestCase):
                 if tx_empty != (tx_empty := (yield dut_tx_status.empty)):
                     vprint(f"tx_empty:{tx_empty}")
                 if mosi != (mosi := (yield dut.tx_rx_engine.spi.mosi)):
-                    vprint(f"mosi => {mosi:0{width}x}")
+                    vvprint(f"mosi => {mosi:0{width}x}")
                 if miso != (miso := (yield dut.tx_rx_engine.spi.miso)):
-                    vprint(f"miso <= {miso:0{width}x}")
+                    vvprint(f"miso <= {miso:0{width}x}")
                 yield
 
             yield
