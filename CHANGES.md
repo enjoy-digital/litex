@@ -11,6 +11,7 @@
 	- litex_sim/serial2console      : Fixed RX backpressure handling.
 	- litedram/frontend/avalon      : Fixed and cleaned-up.
 	- litex_sim/video               : Fixed pixel format to RGBA.
+	- build/xilinx/common           : Fixed missing clk parameter on XilinxSDRTristateImpl.
 
 	[> Added
 	--------
