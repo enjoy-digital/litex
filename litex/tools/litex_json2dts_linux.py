@@ -33,8 +33,25 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     cpu_name = d["constants"].get("config_cpu_name")
     cpu_arch = cpu_architectures[cpu_name]
     cpu_isa  = d["constants"].get("config_cpu_isa", None) # kernel < 6.6.0
-    cpu_isa_base = cpu_isa[:5]                            # kernel >= 6.6.0
-    cpu_isa_extensions = "\"i\", \"m\", \"a\""            # kernel >= 6.6.0
+
+    # kernel >= 6.6.0
+    cpu_isa_base = cpu_isa[:5]
+    cpu_isa_extensions = "\"i\"" # default
+    # Append with optionals
+    if "m" in cpu_isa[5:]:
+        cpu_isa_extensions += ", \"m\""
+    if "a" in cpu_isa[5:]:
+        cpu_isa_extensions += ", \"a\""
+    if "f" in cpu_isa[5:]:
+        cpu_isa_extensions += ", \"f\""
+    if "d" in cpu_isa[5:]:
+        cpu_isa_extensions += ", \"d\""
+    if "d" in cpu_isa[5:]:
+        cpu_isa_extensions += ", \"c\""
+    # rocket specific extensions
+    if "rocket" in cpu_name:
+        cpu_isa_extensions += ", \"zicsr\", \"zifencei\", \"zihpm\""
+
     cpu_mmu  = d["constants"].get("config_cpu_mmu", None)
 
     # Header ---------------------------------------------------------------------------------------
