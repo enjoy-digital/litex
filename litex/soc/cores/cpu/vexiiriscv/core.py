@@ -50,7 +50,7 @@ class VexiiRiscv(CPU):
     internal_bus_width = 32
     litedram_width   = 32
     l2_bytes         = 0
-    l2_ways          = 0
+    l2_ways          = 4
     with_fpu         = False
     with_rvc         = False
     with_rvm         = False
