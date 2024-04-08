@@ -217,7 +217,7 @@ class VexiiRiscv(CPU):
         )
 
         if VexiiRiscv.with_dma:
-            self.dma_bus = dma_bus = axi.AXIInterface(data_width=VexiiRiscv.perf_bus_width, address_width=32, id_width=4)
+            self.dma_bus = dma_bus = axi.AXIInterface(data_width=VexiiRiscv.internal_bus_width, address_width=32, id_width=4)
 
             self.cpu_params.update(
                 # DMA Bus.
