@@ -199,7 +199,7 @@ def _get_csr_addr(csr_base, addr, with_csr_base_define=True):
     else:
         return f"{hex(csr_base + addr)}L"
 
-def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_only, csr_base, with_csr_base_define, with_access_functions):
+def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, ordering, read_only, csr_base, with_csr_base_define, with_access_functions):
     r = ""
 
     addr_str = f"CSR_{reg_name.upper()}_ADDR"
@@ -225,8 +225,10 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_onl
     if with_access_functions:
         r += f"static inline {ctype} {reg_name}_read(void) {{\n"
         if nwords > 1:
-            r += f"\t{ctype} r = csr_read_simple({_get_csr_addr(csr_base, reg_base, with_csr_base_define)});\n"
-            for sub in range(1, nwords):
+            start, stop, step = (0, nwords, 1) if ordering == "big" else (nwords-1, -1, -1)
+            r += f"\t{ctype} r = csr_read_simple({_get_csr_addr(csr_base, reg_base+start*stride, with_csr_base_define)});\n"
+            start += step
+            for sub in range(start, stop, step):
                 r += f"\tr <<= {busword};\n"
                 r += f"\tr |= csr_read_simple({_get_csr_addr(csr_base, reg_base+sub*stride, with_csr_base_define)});\n"
             r += "\treturn r;\n}\n"
@@ -236,18 +238,19 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_onl
         if not read_only:
             r += f"static inline void {reg_name}_write({ctype} v) {{\n"
             for sub in range(nwords):
-                shift = (nwords-sub-1)*busword
+                shift = ((nwords-sub-1)*busword) if ordering == "big" else (sub*busword)
                 if shift:
                     v_shift = "v >> {}".format(shift)
                 else:
                     v_shift = "v"
-                r += f"\tcsr_write_simple({v_shift}, {_get_csr_addr(csr_base, reg_base+sub*stride, with_csr_base_define)});\n"
+                r += f"\tcsr_write_simple((uint32_t)({v_shift}), {_get_csr_addr(csr_base, reg_base+sub*stride, with_csr_base_define)});\n"
             r += "}\n"
     return r
 
 
 def get_csr_header(regions, constants, csr_base=None, with_csr_base_define=True, with_access_functions=True):
     alignment = constants.get("CONFIG_CSR_ALIGNMENT", 32)
+    ordering = constants.get("CONFIG_CSR_ORDERING", "big")
     r = generated_banner("//")
     if with_access_functions: # FIXME
         r += "#include <generated/soc.h>\n"
@@ -278,6 +281,7 @@ def get_csr_header(regions, constants, csr_base=None, with_csr_base_define=True,
                     nwords                = nr,
                     busword               = region.busword,
                     alignment             = alignment,
+                    ordering              = ordering,
                     read_only             = getattr(csr, "read_only", False),
                     csr_base              = csr_base,
                     with_csr_base_define  = base_define,
