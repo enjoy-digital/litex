@@ -192,7 +192,7 @@ proc jtagstream_serve {tap port} {
         write_to_file("stream.cfg", cfg)
         script = "; ".join([
             "init",
-            "poll off",
+            #"poll off", # FIXME: not supported for ECP5
             "irscan {} {:d}".format(tap_name, ir),
             "jtagstream_serve {} {:d}".format(tap_name, port),
             "exit",
