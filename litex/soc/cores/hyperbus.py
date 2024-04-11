@@ -52,6 +52,8 @@ class HyperRAM(LiteXModule):
         self.reg_wdata = CSRStorage(16, description="Register Write Data.")
         self.reg_rdata = CSRStatus( 16, description="Register Read Data.")
 
+        self.reg_debug = CSRStatus(32)
+
         # # #
 
         clk       = Signal()
@@ -148,6 +150,13 @@ class HyperRAM(LiteXModule):
             self.reg_status.fields.read_done.eq(reg_read_done),
         ]
 
+        self.comb += [
+            self.reg_debug.status[0].eq(reg_write_req),
+            self.reg_debug.status[1].eq(reg_write_done),
+            self.reg_debug.status[2].eq(reg_read_req),
+            self.reg_debug.status[3].eq(reg_read_done),
+        ]
+
         # Command generation -----------------------------------------------------------------------
         ashift = {8:1, 16:0}[dw]
         self.comb += [
@@ -159,7 +168,7 @@ class HyperRAM(LiteXModule):
                     0 : ca[0:40].eq(0x00_00_00_00_00), # Identification Register 0 (Read Only).
                     1 : ca[0:40].eq(0x00_00_00_00_01), # Identification Register 1 (Read Only).
                     2 : ca[0:40].eq(0x00_01_00_00_00), # Configuration Register 0.
-                    3 : ca[0:40].eq(0x00_01_00_00_00), # Configuration Register 1.
+                    3 : ca[0:40].eq(0x00_01_00_00_01), # Configuration Register 1.
                 }),
             ).Else(
                 ca[47].eq(~bus.we),                # R/W#
@@ -263,6 +272,7 @@ class HyperRAM(LiteXModule):
                 burst_timer.wait.eq(1),
                 # Set CSn.
                 cs.eq(1),
+                ca_active.eq(reg_read_req),
                 # Send Data on DQ/RWDS (for write).
                 If(bus_we,
                     dq.oe.eq(1),
@@ -290,7 +300,7 @@ class HyperRAM(LiteXModule):
                     # Read Ack (when dat_r ready).
                     If((n == 0) & ~first,
                         If(reg_read_req,
-                            reg_buffer.source.valid.eq(1),
+                            reg_buffer.source.ready.eq(1),
                             NextValue(reg_read_done, 1),
                             NextValue(self.reg_rdata.status, bus.dat_r),
                             NextState("IDLE"),

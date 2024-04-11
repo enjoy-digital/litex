@@ -175,6 +175,44 @@ __attribute__((__used__)) int main(int i, char **c)
 
         sdr_ok = 1;
 
+	/* HyperRAM Register access test */
+	hyperram_reg_control_write(
+		0 << CSR_HYPERRAM_REG_CONTROL_WRITE_OFFSET |
+		1 << CSR_HYPERRAM_REG_CONTROL_READ_OFFSET  |
+		0 << CSR_HYPERRAM_REG_CONTROL_REG_OFFSET
+	);
+	while ((hyperram_reg_status_read() & (1 << CSR_HYPERRAM_REG_STATUS_READ_DONE_OFFSET)) == 0);
+	printf("Identification Register 0 : %08lx\n", hyperram_reg_rdata_read());
+
+	hyperram_reg_control_write(
+		0 << CSR_HYPERRAM_REG_CONTROL_WRITE_OFFSET |
+		1 << CSR_HYPERRAM_REG_CONTROL_READ_OFFSET  |
+		1 << CSR_HYPERRAM_REG_CONTROL_REG_OFFSET
+	);
+	while ((hyperram_reg_status_read() & (1 << CSR_HYPERRAM_REG_STATUS_READ_DONE_OFFSET)) == 0);
+	printf("Identification Register 1 : %08lx\n", hyperram_reg_rdata_read());
+
+	hyperram_reg_control_write(
+		0 << CSR_HYPERRAM_REG_CONTROL_WRITE_OFFSET |
+		1 << CSR_HYPERRAM_REG_CONTROL_READ_OFFSET  |
+		2 << CSR_HYPERRAM_REG_CONTROL_REG_OFFSET
+	);
+	while ((hyperram_reg_status_read() & (1 << CSR_HYPERRAM_REG_STATUS_READ_DONE_OFFSET)) == 0);
+	printf("Configuration Register 0  : %08lx\n", hyperram_reg_rdata_read());
+
+	hyperram_reg_control_write(
+		0 << CSR_HYPERRAM_REG_CONTROL_WRITE_OFFSET |
+		1 << CSR_HYPERRAM_REG_CONTROL_READ_OFFSET  |
+		3 << CSR_HYPERRAM_REG_CONTROL_REG_OFFSET
+	);
+	while ((hyperram_reg_status_read() & (1 << CSR_HYPERRAM_REG_STATUS_READ_DONE_OFFSET)) == 0);
+	printf("Configuration Register 1  : %08lx\n", hyperram_reg_rdata_read());
+
+	printf("reg_control: %x\n", hyperram_reg_control_read());
+	printf("reg_status:  %x\n", hyperram_reg_status_read());
+	printf("reg_debug:   %x\n", hyperram_reg_debug_read());
+
+
 #if defined(CSR_ETHMAC_BASE) || defined(MAIN_RAM_BASE) || defined(CSR_SPIFLASH_CORE_BASE)
     printf("--========== \e[1mInitialization\e[0m ============--\n");
 #ifdef CSR_ETHMAC_BASE
