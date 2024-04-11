@@ -1,7 +1,7 @@
 #
-# This file is part of LiteHyperBus
+# This file is part of LiteX.
 #
-# Copyright (c) 2019-2022 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2019-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2019 Antti Lukats <antti.lukats@gmail.com>
 # Copyright (c) 2021 Franck Jullien <franck.jullien@collshade.fr>
 # SPDX-License-Identifier: BSD-2-Clause
@@ -10,6 +10,9 @@ from migen import *
 
 from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
+
+from litex.soc.interconnect.csr import *
+from litex.soc.interconnect import stream
 
 from litex.build.io import DifferentialOutput
 
@@ -30,6 +33,24 @@ class HyperRAM(LiteXModule):
     def __init__(self, pads, latency=6, sys_clk_freq=None):
         self.pads = pads
         self.bus  = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+
+        # Register Access CSRs.
+        self.reg_control = CSRStorage(fields=[
+            CSRField("write", offset=0, size=1, pulse=True, description="Issue Register Write."),
+            CSRField("read",  offset=1, size=1, pulse=True, description="Issue Register Read."),
+            CSRField("reg",   offset=8, size=4, values=[
+                ("``0``", "Identification Register 0 (Read Only)."),
+                ("``1``", "Identification Register 1 (Read Only)."),
+                ("``2``", "Configuration Register 0."),
+                ("``3``", "Configuration Register 1."),
+            ]),
+        ])
+        self.reg_status = CSRStatus(fields=[
+            CSRField("write_done", offset=0, size=1, description="Register Write Done."),
+            CSRField("read_done",  offset=1, size=1, description="Register Read Done."),
+        ])
+        self.reg_wdata = CSRStorage(16, description="Register Write Data.")
+        self.reg_rdata = CSRStatus( 16, description="Register Read Data.")
 
         # # #
 
@@ -98,13 +119,55 @@ class HyperRAM(LiteXModule):
             )
         ]
 
+        # Register Access/Buffer -------------------------------------------------------------------
+
+        reg_write_req  = Signal()
+        reg_write_done = Signal()
+        reg_read_req   = Signal()
+        reg_read_done  = Signal()
+
+        self.reg_buffer = reg_buffer = stream.SyncFIFO(
+            layout = [("write", 1), ("read", 1), ("reg", 4), ("data", 16)],
+            depth  = 4,
+        )
+        self.comb += [
+            reg_buffer.sink.valid.eq(self.reg_control.fields.write | self.reg_control.fields.read),
+            reg_buffer.sink.write.eq(self.reg_control.fields.write),
+            reg_buffer.sink.read.eq(self.reg_control.fields.read),
+            reg_buffer.sink.reg.eq(self.reg_control.fields.reg),
+            reg_buffer.sink.data.eq(self.reg_wdata.storage),
+            reg_write_req.eq(reg_buffer.source.valid & reg_buffer.source.write),
+            reg_read_req.eq( reg_buffer.source.valid & reg_buffer.source.read),
+        ]
+        self.sync += If(reg_buffer.sink.valid,
+            reg_write_done.eq(0),
+            reg_read_done.eq(0),
+        )
+        self.comb += [
+            self.reg_status.fields.write_done.eq(reg_write_done),
+            self.reg_status.fields.read_done.eq(reg_read_done),
+        ]
+
         # Command generation -----------------------------------------------------------------------
         ashift = {8:1, 16:0}[dw]
         self.comb += [
-            ca[47].eq(~bus.we),               # R/W#
-            ca[45].eq(1),                     # Burst Type (Linear)
-            ca[16:45].eq(bus.adr[3-ashift:]), # Row & Upper Column Address
-            ca[ashift:3].eq(bus.adr),         # Lower Column Address
+            If(reg_write_req | reg_read_req,
+                ca[47].eq(reg_buffer.source.read), # R/W#
+                ca[46].eq(1),                      # Register Space.
+                ca[45].eq(1),                      # Burst Type (Linear)
+                Case(reg_buffer.source.reg, {
+                    0 : ca[0:40].eq(0x00_00_00_00_00), # Identification Register 0 (Read Only).
+                    1 : ca[0:40].eq(0x00_00_00_00_01), # Identification Register 1 (Read Only).
+                    2 : ca[0:40].eq(0x00_01_00_00_00), # Configuration Register 0.
+                    3 : ca[0:40].eq(0x00_01_00_00_00), # Configuration Register 1.
+                }),
+            ).Else(
+                ca[47].eq(~bus.we),                # R/W#
+                ca[46].eq(0),                      # Memory Space.
+                ca[45].eq(1),                      # Burst Type (Linear)
+                ca[16:45].eq(bus.adr[3-ashift:]),  # Row & Upper Column Address
+                ca[ashift:3].eq(bus.adr),          # Lower Column Address
+            )
         ]
 
         # Latency count starts from the middle of the command (thus the -4). In fixed latency mode
@@ -131,8 +194,8 @@ class HyperRAM(LiteXModule):
         self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             NextValue(first, 1),
-            If(bus.cyc & bus.stb,
-                If(clk_phase == 0,
+            If(clk_phase == 0,
+                If((bus.cyc & bus.stb) | reg_write_req | reg_read_req,
                     NextValue(sr, ca),
                     NextState("SEND-COMMAND-ADDRESS")
                 )
@@ -146,7 +209,37 @@ class HyperRAM(LiteXModule):
             dq.oe.eq(1),
             # Wait for 6*2 cycles...
             If(cycles == (6*2 - 1),
-                NextState("WAIT-LATENCY")
+                If(reg_write_req,
+                    NextValue(sr, Cat(Signal(40), self.reg_wdata.storage[:8])),
+                    NextState("REG-WRITE-0")
+                ).Else(
+                    NextState("WAIT-LATENCY")
+                )
+            )
+        )
+        fsm.act("REG-WRITE-0",
+            # Set CSn.
+            cs.eq(1),
+            # Send Reg on DQ.
+            ca_active.eq(1),
+            dq.oe.eq(1),
+            # Wait for 2 cycles...
+            If(cycles == (2 - 1),
+                NextValue(sr, Cat(Signal(40), self.reg_wdata.storage[8:])),
+                NextState("REG-WRITE-1")
+            )
+        )
+        fsm.act("REG-WRITE-1",
+            # Set CSn.
+            cs.eq(1),
+            # Send Reg on DQ.
+            ca_active.eq(1),
+            dq.oe.eq(1),
+            # Wait for 2 cycles...
+            If(cycles == (2 - 1),
+                reg_buffer.source.ready.eq(1),
+                NextValue(reg_write_done, 1),
+                NextState("IDLE")
             )
         )
         fsm.act("WAIT-LATENCY",
@@ -157,7 +250,9 @@ class HyperRAM(LiteXModule):
                 # Latch Bus.
                 bus_latch.eq(1),
                 # Early Write Ack (to allow bursting).
-                bus.ack.eq(bus.we),
+                If(~reg_read_req,
+                    bus.ack.eq(bus.we),
+                ),
                 NextState("READ-WRITE-DATA0")
             )
         )
@@ -182,7 +277,7 @@ class HyperRAM(LiteXModule):
                     If(n == (states - 1),
                         NextValue(first, 0),
                         # Continue burst when a consecutive access is ready.
-                        If(bus.stb & bus.cyc & (bus.we == bus_we) & (bus.adr == (bus_adr + 1)) & (~burst_timer.done),
+                        If(~reg_read_req & bus.stb & bus.cyc & (bus.we == bus_we) & (bus.adr == (bus_adr + 1)) & (~burst_timer.done),
                             # Latch Bus.
                             bus_latch.eq(1),
                             # Early Write Ack (to allow bursting).
@@ -194,7 +289,14 @@ class HyperRAM(LiteXModule):
                     ),
                     # Read Ack (when dat_r ready).
                     If((n == 0) & ~first,
-                        bus.ack.eq(~bus_we),
+                        If(reg_read_req,
+                            reg_buffer.source.valid.eq(1),
+                            NextValue(reg_read_done, 1),
+                            NextValue(self.reg_rdata.status, bus.dat_r),
+                            NextState("IDLE"),
+                        ).Else(
+                            bus.ack.eq(~bus_we),
+                        )
                     )
                 )
             )
