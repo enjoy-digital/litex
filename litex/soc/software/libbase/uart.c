@@ -49,11 +49,11 @@ void uart_isr(void)
 	}
 
 	if(stat & UART_EV_TX) {
-		uart_ev_pending_write(UART_EV_TX);
 		while((tx_consume != tx_produce) && !uart_txfull_read()) {
 			uart_rxtx_write(tx_buf[tx_consume]);
 			tx_consume = (tx_consume + 1) & UART_RINGBUFFER_MASK_TX;
 		}
+		uart_ev_pending_write(UART_EV_TX);
 	}
 }
 
