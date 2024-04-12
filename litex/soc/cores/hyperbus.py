@@ -30,27 +30,19 @@ class HyperRAM(LiteXModule):
 
     This core favors portability and ease of use over performance.
     """
-    def __init__(self, pads, latency=6, sys_clk_freq=None):
+    def __init__(self, pads, latency=6, sys_clk_freq=None, with_csr=True):
         self.pads = pads
         self.bus  = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
 
-        # Register Access CSRs.
-        self.reg_control = CSRStorage(fields=[
-            CSRField("write", offset=0, size=1, pulse=True, description="Issue Register Write."),
-            CSRField("read",  offset=1, size=1, pulse=True, description="Issue Register Read."),
-            CSRField("reg",   offset=8, size=4, values=[
-                ("``0``", "Identification Register 0 (Read Only)."),
-                ("``1``", "Identification Register 1 (Read Only)."),
-                ("``2``", "Configuration Register 0."),
-                ("``3``", "Configuration Register 1."),
-            ]),
-        ])
-        self.reg_status = CSRStatus(fields=[
-            CSRField("write_done", offset=0, size=1, description="Register Write Done."),
-            CSRField("read_done",  offset=1, size=1, description="Register Read Done."),
-        ])
-        self.reg_wdata = CSRStorage(16, description="Register Write Data.")
-        self.reg_rdata = CSRStatus( 16, description="Register Read Data.")
+        # Reg Interface.
+        # --------------
+        self.reg_write      = Signal()
+        self.reg_read       = Signal()
+        self.reg_addr       = Signal(2)
+        self.reg_write_done = Signal()
+        self.reg_read_done  = Signal()
+        self.reg_write_data = Signal(16)
+        self.reg_read_data  = Signal(16)
 
         self.reg_debug = CSRStatus(32)
 
@@ -129,15 +121,15 @@ class HyperRAM(LiteXModule):
         reg_read_done  = Signal()
 
         self.reg_buffer = reg_buffer = stream.SyncFIFO(
-            layout = [("write", 1), ("read", 1), ("reg", 4), ("data", 16)],
+            layout = [("write", 1), ("read", 1), ("addr", 4), ("data", 16)],
             depth  = 4,
         )
         self.comb += [
-            reg_buffer.sink.valid.eq(self.reg_control.fields.write | self.reg_control.fields.read),
-            reg_buffer.sink.write.eq(self.reg_control.fields.write),
-            reg_buffer.sink.read.eq(self.reg_control.fields.read),
-            reg_buffer.sink.reg.eq(self.reg_control.fields.reg),
-            reg_buffer.sink.data.eq(self.reg_wdata.storage),
+            reg_buffer.sink.valid.eq(self.reg_write | self.reg_read),
+            reg_buffer.sink.write.eq(self.reg_write),
+            reg_buffer.sink.read.eq(self.reg_read),
+            reg_buffer.sink.addr.eq(self.reg_addr),
+            reg_buffer.sink.data.eq(self.reg_write_data),
             reg_write_req.eq(reg_buffer.source.valid & reg_buffer.source.write),
             reg_read_req.eq( reg_buffer.source.valid & reg_buffer.source.read),
         ]
@@ -146,8 +138,8 @@ class HyperRAM(LiteXModule):
             reg_read_done.eq(0),
         )
         self.comb += [
-            self.reg_status.fields.write_done.eq(reg_write_done),
-            self.reg_status.fields.read_done.eq(reg_read_done),
+            self.reg_write_done.eq(reg_write_done),
+            self.reg_read_done.eq(reg_read_done),
         ]
 
         self.comb += [
@@ -164,7 +156,7 @@ class HyperRAM(LiteXModule):
                 ca[47].eq(reg_buffer.source.read), # R/W#
                 ca[46].eq(1),                      # Register Space.
                 ca[45].eq(1),                      # Burst Type (Linear)
-                Case(reg_buffer.source.reg, {
+                Case(reg_buffer.source.addr, {
                     0 : ca[0:40].eq(0x00_00_00_00_00), # Identification Register 0 (Read Only).
                     1 : ca[0:40].eq(0x00_00_00_00_01), # Identification Register 1 (Read Only).
                     2 : ca[0:40].eq(0x00_01_00_00_00), # Configuration Register 0.
@@ -219,7 +211,7 @@ class HyperRAM(LiteXModule):
             # Wait for 6*2 cycles...
             If(cycles == (6*2 - 1),
                 If(reg_write_req,
-                    NextValue(sr, Cat(Signal(40), self.reg_wdata.storage[:8])),
+                    NextValue(sr, Cat(Signal(40), self.reg_write_data[:8])),
                     NextState("REG-WRITE-0")
                 ).Else(
                     NextState("WAIT-LATENCY")
@@ -234,7 +226,7 @@ class HyperRAM(LiteXModule):
             dq.oe.eq(1),
             # Wait for 2 cycles...
             If(cycles == (2 - 1),
-                NextValue(sr, Cat(Signal(40), self.reg_wdata.storage[8:])),
+                NextValue(sr, Cat(Signal(40), self.reg_write_data[8:])),
                 NextState("REG-WRITE-1")
             )
         )
@@ -302,7 +294,7 @@ class HyperRAM(LiteXModule):
                         If(reg_read_req,
                             reg_buffer.source.ready.eq(1),
                             NextValue(reg_read_done, 1),
-                            NextValue(self.reg_rdata.status, bus.dat_r),
+                            NextValue(self.reg_read_data, bus.dat_r),
                             NextState("IDLE"),
                         ).Else(
                             bus.ack.eq(~bus_we),
@@ -318,3 +310,36 @@ class HyperRAM(LiteXModule):
         t = TSTriple(len(pad))
         self.specials += t.get_tristate(pad)
         return t
+
+    def add_csr(self):
+        self.reg_control = CSRStorage(fields=[
+            CSRField("write", offset=0, size=1, pulse=True, description="Issue Register Write."),
+            CSRField("read",  offset=1, size=1, pulse=True, description="Issue Register Read."),
+            CSRField("reg",   offset=8, size=4, values=[
+                ("``0``", "Identification Register 0 (Read Only)."),
+                ("``1``", "Identification Register 1 (Read Only)."),
+                ("``2``", "Configuration Register 0."),
+                ("``3``", "Configuration Register 1."),
+            ]),
+        ])
+        self.reg_status = CSRStatus(fields=[
+            CSRField("write_done", offset=0, size=1, description="Register Write Done."),
+            CSRField("read_done",  offset=1, size=1, description="Register Read Done."),
+        ])
+        self.reg_wdata = CSRStorage(16, description="Register Write Data.")
+        self.reg_rdata = CSRStatus( 16, description="Register Read Data.")
+
+        self.comb += [
+            # Control.
+            self.reg_write.eq(self.reg_control.fields.write),
+            self.reg_read.eq( self.reg_control.fields.read),
+            self.reg_addr.eq( self.reg_control.fields.addr),
+
+            # Status.
+            self.reg_status.fields.write_done.eq(self.reg_write_done),
+            self.reg_status.fields.read_done.eq( self.reg_read_done),
+
+            # Data.
+            self.reg_write_data.eq(self.reg_wdata.storage),
+            self.reg_rdata.status.eq(self.reg_read_data),
+        ]
