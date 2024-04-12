@@ -1027,6 +1027,8 @@ class SoC(LiteXModule, SoCCoreCompat):
                 raise SoCError()
 
     # SoC Main Components --------------------------------------------------------------------------
+
+    # Add Controller -------------------------------------------------------------------------------
     def add_controller(self, name="ctrl", **kwargs):
         self.check_if_exists(name)
         self.logger.info("Controller {} {}.".format(
@@ -1034,6 +1036,7 @@ class SoC(LiteXModule, SoCCoreCompat):
             colorer("added", color="green")))
         self.add_module(name=name, module=SoCController(**kwargs))
 
+    # Add/Init RAM ---------------------------------------------------------------------------------
     def add_ram(self, name, origin, size, contents=[], mode="rwx"):
         ram_cls = {
             "wishbone": wishbone.SRAM,
@@ -1050,7 +1053,7 @@ class SoC(LiteXModule, SoCCoreCompat):
             address_width = self.bus.address_width,
             bursting      = self.bus.bursting
         )
-        ram     = ram_cls(size, bus=ram_bus, init=contents, read_only=("w" not in mode), name=name)
+        ram = ram_cls(size, bus=ram_bus, init=contents, read_only=("w" not in mode), name=name)
         self.bus.add_slave(name=name, slave=ram.bus, region=SoCRegion(origin=origin, size=size, mode=mode))
         self.check_if_exists(name)
         self.logger.info("RAM {} {} {}.".format(
@@ -1061,21 +1064,50 @@ class SoC(LiteXModule, SoCCoreCompat):
         if contents != []:
             self.add_config(f"{name}_INIT", 1)
 
+    def init_ram(self, name, contents=[], auto_size=False):
+        # RAM Parameters.
+        ram        = getattr(self, name)
+        ram_region = self.bus.regions[name]
+        ram_type   = {
+            True  : "ROM",
+            False : "RAM",
+        }["w" not in ram_region.mode]
+        contents_size = 4*len(contents) # FIXME.
+
+        # Size Check.
+        if ram_region.size < contents_size:
+            self.logger.error("Contents Size ({}) {} {} Size ({}).".format(
+                colorer(f"0x{contents_size:x}"),
+                colorer("exceeds", color="red"),
+                ram_type,
+                colorer(f"0x{ram_region.size:x}"),
+            ))
+            raise SoCError()
+
+        # RAM Initialization.
+        self.logger.info("Initializing {} {} with contents (Size: {}).".format(
+            ram_type,
+            colorer(name),
+            colorer(f"0x{contents_size:x}")))
+        ram.mem.init = contents
+
+        # RAM Auto-Resize (Optional).
+        if auto_size and ("w" not in ram_region.mode):
+            self.logger.info("Auto-Resizing {} {} from {} to {}.".format(
+                ram_type,
+                colorer(name),
+                colorer(f"0x{ram_region.size:x}"),
+                colorer(f"0x{contents_size:x}")))
+            ram.mem.depth = len(contents)
+
+    # Add/Init ROM ---------------------------------------------------------------------------------
     def add_rom(self, name, origin, size, contents=[], mode="rx"):
         self.add_ram(name, origin, size, contents, mode=mode)
 
     def init_rom(self, name, contents=[], auto_size=True):
-        self.logger.info("Initializing ROM {} with contents (Size: {}).".format(
-            colorer(name),
-            colorer(f"0x{4*len(contents):x}")))
-        getattr(self, name).mem.init = contents
-        if auto_size and "w" not in self.bus.regions[name].mode:
-            self.logger.info("Auto-Resizing ROM {} from {} to {}.".format(
-                colorer(name),
-                colorer(f"0x{self.bus.regions[name].size:x}"),
-                colorer(f"0x{4*len(contents):x}")))
-            getattr(self, name).mem.depth = len(contents)
+        self.init_ram(name, contents, auto_size)
 
+    # Add CSR Bridge -------------------------------------------------------------------------------
     def add_csr_bridge(self, name="csr", origin=None, register=False):
         csr_bridge_cls = {
             "wishbone": wishbone.Wishbone2CSR,
@@ -1114,6 +1146,7 @@ class SoC(LiteXModule, SoCCoreCompat):
         self.add_config("CSR_DATA_WIDTH", self.csr.data_width)
         self.add_config("CSR_ALIGNMENT",  self.csr.alignment)
 
+    # Add CPU --------------------------------------------------------------------------------------
     def add_cpu(self, name="vexriscv", variant="standard", reset_address=None, cfu=None):
         from litex.soc.cores import cpu
 
@@ -1257,6 +1290,7 @@ class SoC(LiteXModule, SoCCoreCompat):
         if hasattr(self.cpu, "nop"):
             self.add_config("CPU_NOP", self.cpu.nop)
 
+    # Add Timer ------------------------------------------------------------------------------------
     def add_timer(self, name="timer0"):
         from litex.soc.cores.timer import Timer
         self.check_if_exists(name)

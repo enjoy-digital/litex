@@ -141,9 +141,9 @@ class XilinxSDRTristateImpl(Module):
         _o    = Signal()
         _oe_n = Signal()
         _i    = Signal()
-        self.specials += SDROutput(o, _o)
-        self.specials += SDROutput(~oe, _oe_n)
-        self.specials += SDRInput(_i, i)
+        self.specials += SDROutput(o, _o, clk)
+        self.specials += SDROutput(~oe, _oe_n, clk)
+        self.specials += SDRInput(_i, i, clk)
         self.specials += Instance("IOBUF",
             io_IO = io,
             o_O   = _i,

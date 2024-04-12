@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <json-c/json.h>
 #include "error.h"
 #include <unistd.h>
 #include <event2/listener.h>
@@ -29,6 +30,7 @@ struct session_s {
   unsigned frame, stride;
   uint8_t *buf, *pbuf;
   fb_handle_t fb;
+  char render_on_vsync;
 };
 
 static int litex_sim_module_pads_get(struct pad_s *pads, char *name, void **signal)
@@ -56,6 +58,30 @@ out:
   return ret;
 }
 
+static int videosim_parse_args(struct session_s *s, const char *args)
+{
+  int ret = RC_OK;
+  json_object *args_json = NULL;
+  json_object *render_on_vsync_json = NULL;
+
+  args_json = json_tokener_parse(args);
+  if (!args_json) {
+    ret = RC_JSERROR;
+    fprintf(stderr, "[video] Could not parse args: %s\n", args);
+    goto out;
+  }
+
+  if(json_object_object_get_ex(args_json, "render_on_vsync", &render_on_vsync_json)) {
+    s->render_on_vsync = json_object_get_boolean(render_on_vsync_json);
+  } else {
+    s->render_on_vsync = false;
+  }
+
+out:
+  if(args_json) json_object_put(args_json);
+  return ret;
+}
+
 static int videosim_start(void *b)
 {
   printf("[video] loaded (%p)\n", (struct event_base *)b);
@@ -79,6 +105,7 @@ static int videosim_new(void **sess, char *args)
   }
   memset(s, 0, sizeof(struct session_s));
 
+  if (args) videosim_parse_args(s, args);
 out:
   *sess = (void*) s;
   return ret;
@@ -143,6 +170,14 @@ static int videosim_tick(void *sess, uint64_t time_ps) {
         fb_init(s->hres, s->vres, false, &s->fb);
         s->stride = s->hres*sizeof(uint32_t);
       }
+      if (s->render_on_vsync) {
+        if(fb_should_quit())
+        {
+          fb_deinit(&s->fb);
+          exit(1); //FIXME: end gracefully
+        }
+        fb_update(&s->fb, s->buf, s->stride);
+      }
       s->y = 0;
       s->pbuf = s->buf;
       ++s->frame;
@@ -164,12 +199,14 @@ static int videosim_tick(void *sess, uint64_t time_ps) {
   {
     if(s->buf) //update each horizontal line
     {
-      if(fb_should_quit())
-      {
-        fb_deinit(&s->fb);
-        exit(1); //FIXME: end gracefully
+      if (!s->render_on_vsync) {
+        if(fb_should_quit())
+        {
+          fb_deinit(&s->fb);
+          exit(1); //FIXME: end gracefully
+        }
+        fb_update(&s->fb, s->buf, s->stride);
       }
-      fb_update(&s->fb, s->buf, s->stride);
       s->pbuf = s->buf + s->y*s->stride;
     }
 

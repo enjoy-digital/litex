@@ -178,6 +178,7 @@ class SimSoC(SoCCore):
         with_gpio             = False,
         with_video_framebuffer = False,
         with_video_terminal = False,
+        with_video_colorbars = False,
         sim_debug             = False,
         trace_reset_on        = False,
         with_jtag             = False,
@@ -313,6 +314,11 @@ class SimSoC(SoCCore):
             self.submodules.videophy = VideoGenericPHY(platform.request("vga"))
             self.add_video_terminal(phy=self.videophy, timings="640x480@60Hz")
 
+        # Video test pattern -----------------------------------------------------------------------
+        if with_video_colorbars:
+            self.submodules.videophy = VideoGenericPHY(platform.request("vga"))
+            self.add_video_colorbars(phy=self.videophy, timings="640x480@60Hz")
+
         # Simulation debugging ----------------------------------------------------------------------
         if sim_debug:
             platform.add_debug(self, reset=1 if trace_reset_on else 0)
@@ -428,6 +434,8 @@ def sim_args(parser):
     # Video.
     parser.add_argument("--with-video-framebuffer", action="store_true",   help="Enable Video Framebuffer.")
     parser.add_argument("--with-video-terminal",    action="store_true",   help="Enable Video Terminal.")
+    parser.add_argument("--with-video-colorbars",   action="store_true",   help="Enable Video test pattern.")
+    parser.add_argument("--video-vsync",            action="store_true",   help="Only render on frame vsync.")
 
     # Debug/Waveform.
     parser.add_argument("--sim-debug",            action="store_true",     help="Add simulation debugging modules.")
@@ -510,8 +518,8 @@ def main():
         sim_config.add_module("jtagremote", "jtag", args={'port': 44853})
 
     # Video.
-    if args.with_video_framebuffer or args.with_video_terminal:
-        sim_config.add_module("video", "vga")
+    if args.with_video_framebuffer or args.with_video_terminal or args.with_video_colorbars:
+        sim_config.add_module("video", "vga", args={"render_on_vsync": args.video_vsync})
 
     # SoC ------------------------------------------------------------------------------------------
     soc = SimSoC(
@@ -528,6 +536,7 @@ def main():
         with_gpio              = args.with_gpio,
         with_video_framebuffer = args.with_video_framebuffer,
         with_video_terminal    = args.with_video_terminal,
+        with_video_colorbars   = args.with_video_colorbars,
         sim_debug              = args.sim_debug,
         trace_reset_on         = int(float(args.trace_start)) > 0 or int(float(args.trace_end)) > 0,
         spi_flash_init         = None if args.spi_flash_init is None else get_mem_data(args.spi_flash_init, endianness="big"),
@@ -551,7 +560,7 @@ def main():
     builder.build(
         sim_config       = sim_config,
         interactive      = not args.non_interactive,
-        video            = args.with_video_framebuffer or args.with_video_terminal,
+        video            = args.with_video_framebuffer or args.with_video_terminal or args.with_video_colorbars,
         pre_run_callback = pre_run_callback,
         **parser.toolchain_argdict,
     )

@@ -265,9 +265,10 @@ def get_csr_header(regions, constants, csr_base=None, with_csr_base_define=True,
         r += f"#define CSR_BASE {hex(csr_base)}L\n"
         r += "#endif\n"
     for name, region in regions.items():
-        origin = region.origin - _csr_base
+        origin      = region.origin - _csr_base
+        base_define = not isinstance(region, MockCSRRegion)
         r += "\n/* "+name+" */\n"
-        r += f"#define CSR_{name.upper()}_BASE {_get_csr_addr(csr_base, origin, with_csr_base_define)}\n"
+        r += f"#define CSR_{name.upper()}_BASE {_get_csr_addr(csr_base, origin, base_define)}\n"
         if not isinstance(region.obj, Memory):
             for csr in region.obj:
                 nr = (csr.size + region.busword - 1)//region.busword
@@ -279,7 +280,7 @@ def get_csr_header(regions, constants, csr_base=None, with_csr_base_define=True,
                     alignment             = alignment,
                     read_only             = getattr(csr, "read_only", False),
                     csr_base              = csr_base,
-                    with_csr_base_define  = with_csr_base_define,
+                    with_csr_base_define  = base_define,
                     with_access_functions = with_access_functions,
                 )
                 origin += alignment//8*nr
