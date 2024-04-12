@@ -175,44 +175,15 @@ __attribute__((__used__)) int main(int i, char **c)
 
         sdr_ok = 1;
 
-    uint16_t config_reg_0;
-
-	/* HyperRAM Register access test */
-	hyperram_reg_control_write(
-		0 << CSR_HYPERRAM_REG_CONTROL_WRITE_OFFSET |
-		1 << CSR_HYPERRAM_REG_CONTROL_READ_OFFSET  |
-		0 << CSR_HYPERRAM_REG_CONTROL_ADDR_OFFSET
-	);
-	while ((hyperram_reg_status_read() & (1 << CSR_HYPERRAM_REG_STATUS_READ_DONE_OFFSET)) == 0);
-	printf("Identification Register 0 : %08lx\n", hyperram_reg_rdata_read());
-
-	hyperram_reg_control_write(
-		0 << CSR_HYPERRAM_REG_CONTROL_WRITE_OFFSET |
-		1 << CSR_HYPERRAM_REG_CONTROL_READ_OFFSET  |
-		1 << CSR_HYPERRAM_REG_CONTROL_ADDR_OFFSET
-	);
-	while ((hyperram_reg_status_read() & (1 << CSR_HYPERRAM_REG_STATUS_READ_DONE_OFFSET)) == 0);
-	printf("Identification Register 1 : %08lx\n", hyperram_reg_rdata_read());
-
-	hyperram_reg_control_write(
-		0 << CSR_HYPERRAM_REG_CONTROL_WRITE_OFFSET |
-		1 << CSR_HYPERRAM_REG_CONTROL_READ_OFFSET  |
-		2 << CSR_HYPERRAM_REG_CONTROL_ADDR_OFFSET
-	);
-	while ((hyperram_reg_status_read() & (1 << CSR_HYPERRAM_REG_STATUS_READ_DONE_OFFSET)) == 0);
-	printf("Configuration Register 0  : %08lx\n", hyperram_reg_rdata_read());
-	config_reg_0 = hyperram_reg_rdata_read();
-
-	hyperram_reg_control_write(
-		0 << CSR_HYPERRAM_REG_CONTROL_WRITE_OFFSET |
-		1 << CSR_HYPERRAM_REG_CONTROL_READ_OFFSET  |
-		3 << CSR_HYPERRAM_REG_CONTROL_ADDR_OFFSET
-	);
-	while ((hyperram_reg_status_read() & (1 << CSR_HYPERRAM_REG_STATUS_READ_DONE_OFFSET)) == 0);
-	printf("Configuration Register 1  : %08lx\n", hyperram_reg_rdata_read());
-
-	config_reg_0 &= ~(1 << 3); /* Enable Variable Latency */
-	printf("New config_reg_0: %08lx\n", config_reg_0);
+#ifdef CSR_HYPERRAM_BASE
+    /* HyperRAM Configuration */
+    uint16_t config_reg_0 = 0x8f2f;
+	printf("Configuration Register 0 prev : %08lx\n", config_reg_0);
+	config_reg_0 &= ~(0b1    << 3); /* Enable Variable Latency */
+	config_reg_0 &= ~(0b1111 << 4);  /* Clear Initial Latency */
+	config_reg_0 |=  (0b0010 << 4);  /* Initial Latency of 7 */
+	//config_reg_0 |=  (0b111  << 12); /* 19 ohm */
+	printf("Configuration Register 0 new : %08lx\n", config_reg_0);
 	hyperram_reg_wdata_write(config_reg_0);
 	hyperram_reg_control_write(
 		1 << CSR_HYPERRAM_REG_CONTROL_WRITE_OFFSET |
@@ -220,15 +191,7 @@ __attribute__((__used__)) int main(int i, char **c)
 		2 << CSR_HYPERRAM_REG_CONTROL_ADDR_OFFSET
 	);
 	while ((hyperram_reg_status_read() & (1 << CSR_HYPERRAM_REG_STATUS_WRITE_DONE_OFFSET)) == 0);
-
-	hyperram_reg_control_write(
-		0 << CSR_HYPERRAM_REG_CONTROL_WRITE_OFFSET |
-		1 << CSR_HYPERRAM_REG_CONTROL_READ_OFFSET  |
-		2 << CSR_HYPERRAM_REG_CONTROL_ADDR_OFFSET
-	);
-	while ((hyperram_reg_status_read() & (1 << CSR_HYPERRAM_REG_STATUS_READ_DONE_OFFSET)) == 0);
-	printf("Configuration Register 0 after update : %08lx\n", hyperram_reg_rdata_read());
-
+#endif
 
 #if defined(CSR_ETHMAC_BASE) || defined(MAIN_RAM_BASE) || defined(CSR_SPIFLASH_CORE_BASE)
     printf("--========== \e[1mInitialization\e[0m ============--\n");
