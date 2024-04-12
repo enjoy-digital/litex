@@ -44,6 +44,9 @@ class HyperRAM(LiteXModule):
         self.reg_write_data = Signal(16)
         self.reg_read_data  = Signal(16)
 
+        if with_csr:
+            self.add_csr()
+
         self.reg_debug = CSRStatus(32)
 
         # # #
@@ -211,7 +214,7 @@ class HyperRAM(LiteXModule):
             # Wait for 6*2 cycles...
             If(cycles == (6*2 - 1),
                 If(reg_write_req,
-                    NextValue(sr, Cat(Signal(40), self.reg_write_data[:8])),
+                    NextValue(sr, Cat(Signal(40), self.reg_write_data[8:])),
                     NextState("REG-WRITE-0")
                 ).Else(
                     NextState("WAIT-LATENCY")
@@ -226,7 +229,7 @@ class HyperRAM(LiteXModule):
             dq.oe.eq(1),
             # Wait for 2 cycles...
             If(cycles == (2 - 1),
-                NextValue(sr, Cat(Signal(40), self.reg_write_data[8:])),
+                NextValue(sr, Cat(Signal(40), self.reg_write_data[:8])),
                 NextState("REG-WRITE-1")
             )
         )
@@ -315,7 +318,7 @@ class HyperRAM(LiteXModule):
         self.reg_control = CSRStorage(fields=[
             CSRField("write", offset=0, size=1, pulse=True, description="Issue Register Write."),
             CSRField("read",  offset=1, size=1, pulse=True, description="Issue Register Read."),
-            CSRField("reg",   offset=8, size=4, values=[
+            CSRField("addr",  offset=8, size=4, values=[
                 ("``0``", "Identification Register 0 (Read Only)."),
                 ("``1``", "Identification Register 1 (Read Only)."),
                 ("``2``", "Configuration Register 0."),
