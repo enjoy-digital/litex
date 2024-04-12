@@ -416,11 +416,14 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     uart_interrupt = "" if polling else "interrupts = <{}>;".format(int(d["constants"]["uart_interrupt"]) + it_incr))
 
     # Ethernet -------------------------------------------------------------------------------------
-
-    if "ethphy" in d["csr_bases"] and "ethmac" in d["csr_bases"]:
+    for i in [''] + list(range(0, 10)):
+        idx = (0 if i == '' else i)
+        ethphy_name = "ethphy" + str(i)
+        ethmac_name = "ethmac" + str(i)
         it_incr = {True: 1, False: 0}["rocket" in cpu_name]
-        dts += """
-            mac0: mac@{ethmac_csr_base:x} {{
+        if ethphy_name in d["csr_bases"] and ethmac_name in d["csr_bases"]:
+            dts += """
+            mac{idx}: mac@{ethmac_csr_base:x} {{
                 compatible = "litex,liteeth";
                 reg = <0x{ethmac_csr_base:x} 0x7c>,
                       <0x{ethphy_csr_base:x} 0x0a>,
@@ -433,14 +436,15 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 status = "okay";
             }};
 """.format(
-    ethphy_csr_base  = d["csr_bases"]["ethphy"],
-    ethmac_csr_base  = d["csr_bases"]["ethmac"],
-    ethmac_mem_base  = d["memories"]["ethmac"]["base"],
-    ethmac_mem_size  = d["memories"]["ethmac"]["size"],
-    ethmac_rx_slots  = d["constants"]["ethmac_rx_slots"],
-    ethmac_tx_slots  = d["constants"]["ethmac_tx_slots"],
-    ethmac_slot_size  = d["constants"]["ethmac_slot_size"],
-    ethmac_interrupt = "" if polling else "interrupts = <{}>;".format(int(d["constants"]["ethmac_interrupt"]) + it_incr))
+    idx = idx,
+    ethphy_csr_base  = d["csr_bases"][ethphy_name],
+    ethmac_csr_base  = d["csr_bases"][ethmac_name],
+    ethmac_mem_base  = d["memories"][ethmac_name]["base"],
+    ethmac_mem_size  = d["memories"][ethmac_name]["size"],
+    ethmac_rx_slots  = d["constants"][ethmac_name + "_rx_slots"],
+    ethmac_tx_slots  = d["constants"][ethmac_name + "_tx_slots"],
+    ethmac_slot_size  = d["constants"][ethmac_name + "_slot_size"],
+    ethmac_interrupt = "" if polling else "interrupts = <{}>;".format(int(d["constants"][ethmac_name + "_interrupt"]) + it_incr))
 
     # USB OHCI -------------------------------------------------------------------------------------
 
