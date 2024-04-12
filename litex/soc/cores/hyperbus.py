@@ -176,7 +176,8 @@ class HyperRAM(LiteXModule):
 
         # Latency count starts from the middle of the command (thus the -4). In fixed latency mode
         # (default), latency is 2 x Latency count. We have 4 x sys_clk per RAM clock:
-        latency_cycles = (latency * 2 * 4) - 4
+        latency_cycles_0 = latency * 4
+        latency_cycles_1 = latency * 4 - 4
 
         # Bus Latch --------------------------------------------------------------------------------
         bus_adr   = Signal(32)
@@ -217,7 +218,11 @@ class HyperRAM(LiteXModule):
                     NextValue(sr, Cat(Signal(40), self.reg_write_data[8:])),
                     NextState("REG-WRITE-0")
                 ).Else(
-                    NextState("WAIT-LATENCY")
+                    If(rwds.i,
+                        NextState("WAIT-LATENCY-0")
+                    ).Else(
+                        NextState("WAIT-LATENCY-1")
+                    )
                 )
             )
         )
@@ -246,11 +251,19 @@ class HyperRAM(LiteXModule):
                 NextState("IDLE")
             )
         )
-        fsm.act("WAIT-LATENCY",
+        fsm.act("WAIT-LATENCY-0",
             # Set CSn.
             cs.eq(1),
             # Wait for Latency cycles...
-            If(cycles == (latency_cycles - 1),
+            If(cycles == (latency_cycles_0 - 1),
+                NextState("WAIT-LATENCY-1")
+            )
+        )
+        fsm.act("WAIT-LATENCY-1",
+            # Set CSn.
+            cs.eq(1),
+            # Wait for Latency cycles...
+            If(cycles == (latency_cycles_1 - 1),
                 # Latch Bus.
                 bus_latch.eq(1),
                 # Early Write Ack (to allow bursting).
