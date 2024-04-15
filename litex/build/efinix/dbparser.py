@@ -107,9 +107,9 @@ class EfinixDbParser:
         peri = root.findall('efxpt:periphery_instance', namespaces)
         for p in peri:
             # T20/T120 have instance attribute in single_conn
-            # not true for T4/T8 -> search in dependency subnode
+            # not true for T4/T8 (except for TQFP144 package) -> search in dependency subnode
             if p.get('block') == 'pll':
-                if self.device[0:2] not in ['T4', 'T8']:
+                if self.device[0:2] not in ['T4', 'T8'] or self.device[0:6] == "T8Q144":
                     conn = p.findall('efxpt:single_conn', namespaces)
                     for c in conn:
                         i = c.get('instance')
