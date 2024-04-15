@@ -177,13 +177,25 @@ __attribute__((__used__)) int main(int i, char **c)
 
 #ifdef CSR_HYPERRAM_BASE
     /* HyperRAM Configuration */
-    uint16_t config_reg_0 = 0x8f2f;
+
+    uint16_t config_reg_0;
+    hyperram_latency_write(7);
+	hyperram_reg_control_write(
+		0 << CSR_HYPERRAM_REG_CONTROL_WRITE_OFFSET |
+		1 << CSR_HYPERRAM_REG_CONTROL_READ_OFFSET  |
+		2 << CSR_HYPERRAM_REG_CONTROL_ADDR_OFFSET
+	);
+	while ((hyperram_reg_status_read() & (1 << CSR_HYPERRAM_REG_STATUS_READ_DONE_OFFSET)) == 0);
+	config_reg_0 = hyperram_reg_rdata_read();
 	printf("Configuration Register 0 prev : %08lx\n", config_reg_0);
 	config_reg_0 &= ~(0b1    << 3); /* Enable Variable Latency */
 	config_reg_0 &= ~(0b1111 << 4);  /* Clear Initial Latency */
-	config_reg_0 |=  (0b0010 << 4);  /* Initial Latency of 7 */
-	//config_reg_0 |=  (0b111  << 12); /* 19 ohm */
-	printf("Configuration Register 0 new : %08lx\n", config_reg_0);
+    //config_reg_0 |=  (0b0010 << 4);  /* Initial Latency of 7 */
+	//config_reg_0 |=  (0b0001 << 4);  /* Initial Latency of 6 */
+	//config_reg_0 |=  (0b0000 << 4);  /* Initial Latency of 5 */
+	//config_reg_0 |=  (0b1111 << 4);  /* Initial Latency of 4 */
+	config_reg_0 |=  (0b1110 << 4);  /* Initial Latency of 3 */
+	printf("Configuration Register 0 update : %08lx\n", config_reg_0);
 	hyperram_reg_wdata_write(config_reg_0);
 	hyperram_reg_control_write(
 		1 << CSR_HYPERRAM_REG_CONTROL_WRITE_OFFSET |
@@ -191,6 +203,20 @@ __attribute__((__used__)) int main(int i, char **c)
 		2 << CSR_HYPERRAM_REG_CONTROL_ADDR_OFFSET
 	);
 	while ((hyperram_reg_status_read() & (1 << CSR_HYPERRAM_REG_STATUS_WRITE_DONE_OFFSET)) == 0);
+	//hyperram_latency_write(7);
+	//hyperram_latency_write(6);
+	//hyperram_latency_write(5);
+	//hyperram_latency_write(4);
+	hyperram_latency_write(3);
+	hyperram_reg_control_write(
+		0 << CSR_HYPERRAM_REG_CONTROL_WRITE_OFFSET |
+		1 << CSR_HYPERRAM_REG_CONTROL_READ_OFFSET  |
+		2 << CSR_HYPERRAM_REG_CONTROL_ADDR_OFFSET
+	);
+	while ((hyperram_reg_status_read() & (1 << CSR_HYPERRAM_REG_STATUS_READ_DONE_OFFSET)) == 0);
+	config_reg_0 = hyperram_reg_rdata_read();
+	printf("Configuration Register 0 new : %08lx\n", config_reg_0);
+
 #endif
 
 #if defined(CSR_ETHMAC_BASE) || defined(MAIN_RAM_BASE) || defined(CSR_SPIFLASH_CORE_BASE)
