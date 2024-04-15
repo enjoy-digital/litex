@@ -289,7 +289,7 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
 
         elif block["input_clock"] == "EXTERNAL":
             # PLL V1 has a different configuration
-            if partnumber[0:2] in ["T4", "T8"]:
+            if partnumber[0:2] in ["T4", "T8"] and partnumber != "T8Q144":
                 cmd += 'design.gen_pll_ref_clock("{}", pll_res="{}", refclk_res="{}", refclk_name="{}", ext_refclk_no="{}")\n\n' \
                     .format(name, block["resource"], block["input_clock_pad"], block["input_clock_name"], block["clock_no"])
             else:
