@@ -122,42 +122,34 @@ class HyperRAM(LiteXModule):
         ]
 
         # Register Access/Buffer -------------------------------------------------------------------
-
-        reg_write_req  = Signal()
-        reg_write_done = Signal()
-        reg_read_req   = Signal()
-        reg_read_done  = Signal()
-
-        self.reg_buffer = reg_buffer = stream.SyncFIFO(
+        reg_write_req = Signal()
+        reg_read_req  = Signal()
+        self.reg_buf = reg_buf = stream.SyncFIFO(
             layout = [("write", 1), ("read", 1), ("addr", 4), ("data", 16)],
             depth  = 4,
         )
         self.comb += [
-            reg_buffer.sink.valid.eq(self.reg_write | self.reg_read),
-            reg_buffer.sink.write.eq(self.reg_write),
-            reg_buffer.sink.read.eq(self.reg_read),
-            reg_buffer.sink.addr.eq(self.reg_addr),
-            reg_buffer.sink.data.eq(self.reg_write_data),
-            reg_write_req.eq(reg_buffer.source.valid & reg_buffer.source.write),
-            reg_read_req.eq( reg_buffer.source.valid & reg_buffer.source.read),
+            reg_buf.sink.valid.eq(self.reg_write | self.reg_read),
+            reg_buf.sink.write.eq(self.reg_write),
+            reg_buf.sink.read.eq(self.reg_read),
+            reg_buf.sink.addr.eq(self.reg_addr),
+            reg_buf.sink.data.eq(self.reg_write_data),
+            reg_write_req.eq(reg_buf.source.valid & reg_buf.source.write),
+            reg_read_req.eq( reg_buf.source.valid & reg_buf.source.read),
         ]
-        self.sync += If(reg_buffer.sink.valid,
-            reg_write_done.eq(0),
-            reg_read_done.eq(0),
+        self.sync += If(reg_buf.sink.valid,
+            self.reg_write_done.eq(0),
+            self.reg_read_done.eq(0),
         )
-        self.comb += [
-            self.reg_write_done.eq(reg_write_done),
-            self.reg_read_done.eq(reg_read_done),
-        ]
 
         # Command generation -----------------------------------------------------------------------
         ashift = {8:1, 16:0}[dw]
         self.comb += [
             If(reg_write_req | reg_read_req,
-                ca[47].eq(reg_buffer.source.read), # R/W#
+                ca[47].eq(reg_buf.source.read), # R/W#
                 ca[46].eq(1),                      # Register Space.
                 ca[45].eq(1),                      # Burst Type (Linear)
-                Case(reg_buffer.source.addr, {
+                Case(reg_buf.source.addr, {
                     0 : ca[0:40].eq(0x00_00_00_00_00), # Identification Register 0 (Read Only).
                     1 : ca[0:40].eq(0x00_00_00_00_01), # Identification Register 1 (Read Only).
                     2 : ca[0:40].eq(0x00_01_00_00_00), # Configuration Register 0.
@@ -238,8 +230,8 @@ class HyperRAM(LiteXModule):
             dq.oe.eq(1),
             # Wait for 2 cycles...
             If(cycles == (2 - 1),
-                reg_buffer.source.ready.eq(1),
-                NextValue(reg_write_done, 1),
+                reg_buf.source.ready.eq(1),
+                NextValue(self.reg_write_done, 1),
                 NextState("IDLE")
             )
         )
@@ -293,8 +285,8 @@ class HyperRAM(LiteXModule):
                     # Read Ack (when dat_r ready).
                     If((n == 0) & ~first,
                         If(reg_read_req,
-                            reg_buffer.source.ready.eq(1),
-                            NextValue(reg_read_done, 1),
+                            reg_buf.source.ready.eq(1),
+                            NextValue(self.reg_read_done, 1),
                             NextValue(self.reg_read_data, bus.dat_r),
                             NextState("IDLE"),
                         ).Else(

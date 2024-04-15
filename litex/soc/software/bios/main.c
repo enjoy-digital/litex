@@ -179,7 +179,7 @@ __attribute__((__used__)) int main(int i, char **c)
     /* HyperRAM Configuration */
 
     uint16_t config_reg_0;
-    hyperram_latency_write(7);
+    hyperram_config_write(7 << CSR_HYPERRAM_CONFIG_LATENCY_OFFSET);
 	hyperram_reg_control_write(
 		0 << CSR_HYPERRAM_REG_CONTROL_WRITE_OFFSET |
 		1 << CSR_HYPERRAM_REG_CONTROL_READ_OFFSET  |
@@ -203,11 +203,11 @@ __attribute__((__used__)) int main(int i, char **c)
 		2 << CSR_HYPERRAM_REG_CONTROL_ADDR_OFFSET
 	);
 	while ((hyperram_reg_status_read() & (1 << CSR_HYPERRAM_REG_STATUS_WRITE_DONE_OFFSET)) == 0);
-	//hyperram_latency_write(7);
-	//hyperram_latency_write(6);
-	//hyperram_latency_write(5);
-	//hyperram_latency_write(4);
-	hyperram_latency_write(3);
+	//hyperram_config_write(7 << CSR_HYPERRAM_CONFIG_LATENCY_OFFSET);
+	//hyperram_config_write(6 << CSR_HYPERRAM_CONFIG_LATENCY_OFFSET);
+	//hyperram_config_write(5 << CSR_HYPERRAM_CONFIG_LATENCY_OFFSET);
+	//hyperram_config_write(4 << CSR_HYPERRAM_CONFIG_LATENCY_OFFSET);
+	hyperram_config_write(3 << CSR_HYPERRAM_CONFIG_LATENCY_OFFSET);
 	hyperram_reg_control_write(
 		0 << CSR_HYPERRAM_REG_CONTROL_WRITE_OFFSET |
 		1 << CSR_HYPERRAM_REG_CONTROL_READ_OFFSET  |
