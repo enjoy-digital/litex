@@ -37,6 +37,7 @@ class HyperRAM(LiteXModule):
         # Parameters.
         # -----------
         assert latency_mode in ["fixed", "variable"]
+        self.latency = Signal(8, reset=latency)
 
         # Reg Interface.
         # --------------
@@ -49,7 +50,7 @@ class HyperRAM(LiteXModule):
         self.reg_read_data  = Signal(16)
 
         if with_csr:
-            self.add_csr()
+            self.add_csr(default_latency=latency)
 
         self.reg_debug = CSRStatus(32)
 
@@ -180,8 +181,8 @@ class HyperRAM(LiteXModule):
 
         # Latency count starts from the middle of the command (thus the -4). In fixed latency mode
         # (default), latency is 2 x Latency count. We have 4 x sys_clk per RAM clock:
-        latency_cycles_0 = latency * 4
-        latency_cycles_1 = latency * 4 - 4
+        latency_cycles_0 = (self.latency * 4)
+        latency_cycles_1 = (self.latency * 4) - 4
 
         # Bus Latch --------------------------------------------------------------------------------
         bus_adr   = Signal(32)
@@ -331,7 +332,9 @@ class HyperRAM(LiteXModule):
         self.specials += t.get_tristate(pad)
         return t
 
-    def add_csr(self):
+    def add_csr(self, default_latency=6):
+        self._latency    = CSRStorage(8, reset=default_latency)
+        self.comb += self.latency.eq(self._latency.storage)
         self.reg_control = CSRStorage(fields=[
             CSRField("write", offset=0, size=1, pulse=True, description="Issue Register Write."),
             CSRField("read",  offset=1, size=1, pulse=True, description="Issue Register Read."),
