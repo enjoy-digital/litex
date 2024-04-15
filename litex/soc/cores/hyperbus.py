@@ -30,9 +30,13 @@ class HyperRAM(LiteXModule):
 
     This core favors portability and ease of use over performance.
     """
-    def __init__(self, pads, latency=6, sys_clk_freq=None, with_csr=True):
+    def __init__(self, pads, latency=6, latency_mode="fixed", sys_clk_freq=None, with_csr=True):
         self.pads = pads
         self.bus  = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+
+        # Parameters.
+        # -----------
+        assert latency_mode in ["fixed", "variable"]
 
         # Reg Interface.
         # --------------
@@ -218,7 +222,7 @@ class HyperRAM(LiteXModule):
                     NextValue(sr, Cat(Signal(40), self.reg_write_data[8:])),
                     NextState("REG-WRITE-0")
                 ).Else(
-                    If(rwds.i,
+                    If((latency_mode in ["fixed"]) | rwds.i,
                         NextState("WAIT-LATENCY-0")
                     ).Else(
                         NextState("WAIT-LATENCY-1")
