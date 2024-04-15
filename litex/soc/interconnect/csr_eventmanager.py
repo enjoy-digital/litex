@@ -85,13 +85,13 @@ class EventSourceProcess(Module, _EventSource):
     def __init__(self, name=None, description=None, edge="falling"):
         assert edge in ["falling", "rising"]
         _EventSource.__init__(self, name, description)
+        trigger_d   = Signal()
+        trigger_irq = Signal()
         self.comb += self.status.eq(self.trigger)
-        trigger_d = Signal()
         self.sync += If(self.clear, trigger_d.eq(0)).Else(trigger_d.eq(self.trigger))
-        if edge == "falling":
-            self.sync += If(self.clear, self.pending.eq(0)).Elif(~self.trigger &  trigger_d, self.pending.eq(1))
-        if edge == "rising":
-            self.sync += If(self.clear, self.pending.eq(0)).Elif( self.trigger & ~trigger_d, self.pending.eq(1))
+        self.sync += If(trigger_irq, self.pending.eq(1)).Elif(self.clear, self.pending.eq(0))
+        if edge == "falling": self.comb += trigger_irq.eq(~self.trigger &  trigger_d)
+        if edge == "rising" : self.comb += trigger_irq.eq( self.trigger & ~trigger_d)
 
 
 class EventSourceLevel(Module, _EventSource):
