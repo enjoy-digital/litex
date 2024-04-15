@@ -52,8 +52,6 @@ class HyperRAM(LiteXModule):
         if with_csr:
             self.add_csr(default_latency=latency)
 
-        self.reg_debug = CSRStatus(32)
-
         # # #
 
         clk       = Signal()
@@ -150,13 +148,6 @@ class HyperRAM(LiteXModule):
             self.reg_read_done.eq(reg_read_done),
         ]
 
-        self.comb += [
-            self.reg_debug.status[0].eq(reg_write_req),
-            self.reg_debug.status[1].eq(reg_write_done),
-            self.reg_debug.status[2].eq(reg_read_req),
-            self.reg_debug.status[3].eq(reg_read_done),
-        ]
-
         # Command generation -----------------------------------------------------------------------
         ashift = {8:1, 16:0}[dw]
         self.comb += [
@@ -179,11 +170,6 @@ class HyperRAM(LiteXModule):
             )
         ]
 
-        # Latency count starts from the middle of the command (thus the -4). In fixed latency mode
-        # (default), latency is 2 x Latency count. We have 4 x sys_clk per RAM clock:
-        latency_cycles_0 = (self.latency * 4)
-        latency_cycles_1 = (self.latency * 4) - 4
-
         # Bus Latch --------------------------------------------------------------------------------
         bus_adr   = Signal(32)
         bus_we    = Signal()
@@ -199,8 +185,9 @@ class HyperRAM(LiteXModule):
         )
 
         # FSM (Sequencer) --------------------------------------------------------------------------
-        cycles = Signal(8)
-        first  = Signal()
+        cycles  = Signal(8)
+        first   = Signal()
+        refresh = Signal()
         self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             NextValue(first, 1),
@@ -223,11 +210,9 @@ class HyperRAM(LiteXModule):
                     NextValue(sr, Cat(Signal(40), self.reg_write_data[8:])),
                     NextState("REG-WRITE-0")
                 ).Else(
-                    If((latency_mode in ["fixed"]) | rwds.i,
-                        NextState("WAIT-LATENCY-0")
-                    ).Else(
-                        NextState("WAIT-LATENCY-1")
-                    )
+                    # Sample RWDS to know if 1X/2X Latency should be used (Refresh).
+                    NextValue(refresh, rwds.i | (latency_mode in ["fixed"])),
+                    NextState("WAIT-LATENCY")
                 )
             )
         )
@@ -256,19 +241,12 @@ class HyperRAM(LiteXModule):
                 NextState("IDLE")
             )
         )
-        fsm.act("WAIT-LATENCY-0",
+        fsm.act("WAIT-LATENCY",
             # Set CSn.
             cs.eq(1),
-            # Wait for Latency cycles...
-            If(cycles == (latency_cycles_0 - 1),
-                NextState("WAIT-LATENCY-1")
-            )
-        )
-        fsm.act("WAIT-LATENCY-1",
-            # Set CSn.
-            cs.eq(1),
-            # Wait for Latency cycles...
-            If(cycles == (latency_cycles_1 - 1),
+            # Wait for 1X or 2X Latency cycles... (-4 since count start in the middle of the command).
+            If(((cycles == 2*(self.latency * 4) - 4 - 1) &  refresh) | # 2X Latency (No DRAM refresh required).
+               ((cycles == 1*(self.latency * 4) - 4 - 1) & ~refresh) , # 1X Latency (   DRAM refresh required).
                 # Latch Bus.
                 bus_latch.eq(1),
                 # Early Write Ack (to allow bursting).
