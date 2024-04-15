@@ -128,14 +128,15 @@ class HyperRAM(LiteXModule):
             layout = [("write", 1), ("read", 1), ("addr", 4), ("data", 16)],
             depth  = 4,
         )
+        reg_ep = reg_buf.source
         self.comb += [
             reg_buf.sink.valid.eq(self.reg_write | self.reg_read),
             reg_buf.sink.write.eq(self.reg_write),
             reg_buf.sink.read.eq(self.reg_read),
             reg_buf.sink.addr.eq(self.reg_addr),
             reg_buf.sink.data.eq(self.reg_write_data),
-            reg_write_req.eq(reg_buf.source.valid & reg_buf.source.write),
-            reg_read_req.eq( reg_buf.source.valid & reg_buf.source.read),
+            reg_write_req.eq(reg_ep.valid & reg_ep.write),
+            reg_read_req.eq( reg_ep.valid & reg_ep.read),
         ]
         self.sync += If(reg_buf.sink.valid,
             self.reg_write_done.eq(0),
@@ -146,10 +147,10 @@ class HyperRAM(LiteXModule):
         ashift = {8:1, 16:0}[dw]
         self.comb += [
             If(reg_write_req | reg_read_req,
-                ca[47].eq(reg_buf.source.read), # R/W#
-                ca[46].eq(1),                      # Register Space.
-                ca[45].eq(1),                      # Burst Type (Linear)
-                Case(reg_buf.source.addr, {
+                ca[47].eq(reg_ep.read), # R/W#
+                ca[46].eq(1),           # Register Space.
+                ca[45].eq(1),           # Burst Type (Linear)
+                Case(reg_ep.addr, {
                     0 : ca[0:40].eq(0x00_00_00_00_00), # Identification Register 0 (Read Only).
                     1 : ca[0:40].eq(0x00_00_00_00_01), # Identification Register 1 (Read Only).
                     2 : ca[0:40].eq(0x00_01_00_00_00), # Configuration Register 0.
@@ -230,7 +231,7 @@ class HyperRAM(LiteXModule):
             dq.oe.eq(1),
             # Wait for 2 cycles...
             If(cycles == (2 - 1),
-                reg_buf.source.ready.eq(1),
+                reg_ep.ready.eq(1),
                 NextValue(self.reg_write_done, 1),
                 NextState("IDLE")
             )
@@ -285,7 +286,7 @@ class HyperRAM(LiteXModule):
                     # Read Ack (when dat_r ready).
                     If((n == 0) & ~first,
                         If(reg_read_req,
-                            reg_buf.source.ready.eq(1),
+                            reg_ep.ready.eq(1),
                             NextValue(self.reg_read_done, 1),
                             NextValue(self.reg_read_data, bus.dat_r),
                             NextState("IDLE"),
