@@ -62,7 +62,7 @@ class HyperRAM(LiteXModule):
         ca        = Signal(48)
         ca_active = Signal()
         sr        = Signal(48)
-        sr_new    = Signal(48)
+        sr_next   = Signal(48)
         dq        = self.add_tristate(pads.dq)   if not hasattr(pads.dq,   "oe") else pads.dq
         rwds      = self.add_tristate(pads.rwds) if not hasattr(pads.rwds, "oe") else pads.rwds
         dw        = len(pads.dq)                 if not hasattr(pads.dq,   "oe") else len(pads.dq.o)
@@ -103,16 +103,16 @@ class HyperRAM(LiteXModule):
         dqi = Signal(dw)
         self.sync += dqi.eq(dq.i) # Sample on 90° and 270°
         self.comb += [
-            sr_new.eq(Cat(dqi, sr[:-dw])),
+            sr_next.eq(Cat(dqi, sr[:-dw])),
             If(ca_active,
-                sr_new.eq(Cat(dqi[:8], sr[:-8])) # Only 8-bit during Command/Address.
+                sr_next.eq(Cat(dqi[:8], sr[:-8])) # Only 8-bit during Command/Address.
             )
         ]
-        self.sync += If(clk_phase[0] == 0, sr.eq(sr_new)) # Shift on 0° and 180°
+        self.sync += If(clk_phase[0] == 0, sr.eq(sr_next)) # Shift on 0° and 180°
 
         # Data Shift-Out Register ------------------------------------------------------------------
         self.comb += [
-            bus.dat_r.eq(sr_new),
+            bus.dat_r.eq(sr_next),
             If(dq.oe,
                 dq.o.eq(sr[-dw:]),
                 If(ca_active,
@@ -146,6 +146,7 @@ class HyperRAM(LiteXModule):
         # Command generation -----------------------------------------------------------------------
         ashift = {8:1, 16:0}[dw]
         self.comb += [
+            # Register Command Generation.
             If(reg_write_req | reg_read_req,
                 ca[47].eq(reg_ep.read), # R/W#
                 ca[46].eq(1),           # Register Space.
@@ -156,6 +157,7 @@ class HyperRAM(LiteXModule):
                     2 : ca[0:40].eq(0x00_01_00_00_00), # Configuration Register 0.
                     3 : ca[0:40].eq(0x00_01_00_00_01), # Configuration Register 1.
                 }),
+            # Wishbone Command Generation.
             ).Else(
                 ca[47].eq(~bus.we),                # R/W#
                 ca[46].eq(0),                      # Memory Space.
@@ -171,9 +173,7 @@ class HyperRAM(LiteXModule):
         bus_sel   = Signal(4)
         bus_latch = Signal()
         self.sync += If(bus_latch,
-            If(bus.we,
-                sr.eq(Cat(Signal(16), bus.dat_w)),
-            ),
+            If(bus.we, sr.eq(Cat(Signal(16), bus.dat_w))),
             bus_we.eq(bus.we),
             bus_sel.eq(bus.sel),
             bus_adr.eq(bus.adr)
