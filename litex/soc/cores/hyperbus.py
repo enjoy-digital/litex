@@ -24,12 +24,23 @@ class HyperRAM(LiteXModule):
     tCSM = 4e-6
     """HyperRAM
 
-    Provides a very simple/minimal HyperRAM core that should work with all FPGA/HyperRam chips:
-    - FPGA vendor agnostic.
-    - no setup/chip configuration (use default latency).
+    Provides a very simple/minimal HyperRAM core with a Wishbone Interface that can work with all
+    FPGA/HyperRam chips:
+    - Vendor agnostic.
+    - Fixed/Variable latency.
+    - Latency/Registers (re-)configuration.
 
-    This core favors portability and ease of use over performance.
-    """
+    Parameters:
+        pads (Record)                  : Interface to the HyperRAM connection pads.
+        latency (int, optional)        : Initial latency setting, defaults to 6.
+        latency_mode (str, optional)   : Specifies the latency mode ('fixed' or 'variable'), defaults to 'fixed'.
+        sys_clk_freq (float, optional) : System clock frequency in Hz.
+        with_csr (bool, optional)      : Enables CSR interface for Latency/Registers configuration, defaults to True.
+
+    Attributes:
+        pads (Record)            : Platform pads of HyperRAM.
+        bus (wishbone.Interface) : Wishbone Interface.
+"""
     def __init__(self, pads, latency=6, latency_mode="fixed", sys_clk_freq=None, with_csr=True):
         self.pads = pads
         self.bus  = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
