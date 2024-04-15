@@ -34,13 +34,10 @@ class HyperRAM(LiteXModule):
         self.pads = pads
         self.bus  = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
 
-        # Parameters.
-        # -----------
-        assert latency_mode in ["fixed", "variable"]
-        self.latency = Signal(8, reset=latency)
-
-        # Reg Interface.
-        # --------------
+        # Config/Reg Interface.
+        # ---------------------
+        self.conf_rst       = Signal()
+        self.conf_latency   = Signal(8, reset=latency)
         self.reg_write      = Signal()
         self.reg_read       = Signal()
         self.reg_addr       = Signal(2)
@@ -48,12 +45,17 @@ class HyperRAM(LiteXModule):
         self.reg_read_done  = Signal()
         self.reg_write_data = Signal(16)
         self.reg_read_data  = Signal(16)
-
         if with_csr:
             self.add_csr(default_latency=latency)
 
         # # #
 
+        # Parameters.
+        # -----------
+        assert latency_mode in ["fixed", "variable"]
+
+        # Internal Signals.
+        # -----------------
         clk       = Signal()
         clk_phase = Signal(2)
         cs        = Signal()
@@ -71,7 +73,7 @@ class HyperRAM(LiteXModule):
 
         # Rst.
         if hasattr(pads, "rst_n"):
-            self.comb += pads.rst_n.eq(1)
+            self.comb += pads.rst_n.eq(1 & ~self.conf_rst)
 
         # CSn.
         self.comb += pads.cs_n[0].eq(~cs)
@@ -245,8 +247,8 @@ class HyperRAM(LiteXModule):
             # Set CSn.
             cs.eq(1),
             # Wait for 1X or 2X Latency cycles... (-4 since count start in the middle of the command).
-            If(((cycles == 2*(self.latency * 4) - 4 - 1) &  refresh) | # 2X Latency (No DRAM refresh required).
-               ((cycles == 1*(self.latency * 4) - 4 - 1) & ~refresh) , # 1X Latency (   DRAM refresh required).
+            If(((cycles == 2*(self.conf_latency * 4) - 4 - 1) &  refresh) | # 2X Latency (No DRAM refresh required).
+               ((cycles == 1*(self.conf_latency * 4) - 4 - 1) & ~refresh) , # 1X Latency (   DRAM refresh required).
                 # Latch Bus.
                 bus_latch.eq(1),
                 # Early Write Ack (to allow bursting).
@@ -311,16 +313,27 @@ class HyperRAM(LiteXModule):
         return t
 
     def add_csr(self, default_latency=6):
-        self._latency    = CSRStorage(8, reset=default_latency)
-        self.comb += self.latency.eq(self._latency.storage)
+        # Config Interface.
+        # -----------------
+        self.config = CSRStorage(fields=[
+            CSRField("rst",     offset=0, size=1, pulse=True, description="HyperRAM Rst."),
+            CSRField("latency", offset=8, size=8,             description="HyperRAM Latency (X1).", reset=default_latency),
+        ])
+        self.comb += [
+            self.conf_rst.eq(    self.config.fields.rst),
+            self.conf_latency.eq(self.config.fields.latency),
+        ]
+
+        # Reg Interface.
+        # --------------
         self.reg_control = CSRStorage(fields=[
             CSRField("write", offset=0, size=1, pulse=True, description="Issue Register Write."),
             CSRField("read",  offset=1, size=1, pulse=True, description="Issue Register Read."),
             CSRField("addr",  offset=8, size=4, values=[
-                ("``0``", "Identification Register 0 (Read Only)."),
-                ("``1``", "Identification Register 1 (Read Only)."),
-                ("``2``", "Configuration Register 0."),
-                ("``3``", "Configuration Register 1."),
+                ("``0b00``", "Identification Register 0 (Read Only)."),
+                ("``0b01``", "Identification Register 1 (Read Only)."),
+                ("``0b10``", "Configuration Register 0."),
+                ("``0b11``", "Configuration Register 1."),
             ]),
         ])
         self.reg_status = CSRStatus(fields=[
