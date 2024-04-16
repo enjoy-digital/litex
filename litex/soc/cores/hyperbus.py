@@ -47,15 +47,16 @@ class HyperRAM(LiteXModule):
 
         # Config/Reg Interface.
         # ---------------------
-        self.conf_rst       = Signal()
-        self.conf_latency   = Signal(8, reset=latency)
-        self.reg_write      = Signal()
-        self.reg_read       = Signal()
-        self.reg_addr       = Signal(2)
-        self.reg_write_done = Signal()
-        self.reg_read_done  = Signal()
-        self.reg_write_data = Signal(16)
-        self.reg_read_data  = Signal(16)
+        self.conf_rst          = Signal()
+        self.conf_latency      = Signal(8, reset=latency)
+        self.stat_latency_mode = Signal(reset={"fixed": 0, "variable": 1}[latency_mode])
+        self.reg_write         = Signal()
+        self.reg_read          = Signal()
+        self.reg_addr          = Signal(2)
+        self.reg_write_done    = Signal()
+        self.reg_read_done     = Signal()
+        self.reg_write_data    = Signal(16)
+        self.reg_read_data     = Signal(16)
         if with_csr:
             self.add_csr(default_latency=latency)
 
@@ -317,8 +318,8 @@ class HyperRAM(LiteXModule):
         return t
 
     def add_csr(self, default_latency=6):
-        # Config Interface.
-        # -----------------
+        # Config/Status Interface.
+        # ------------------------
         self.config = CSRStorage(fields=[
             CSRField("rst",     offset=0, size=1, pulse=True, description="HyperRAM Rst."),
             CSRField("latency", offset=8, size=8,             description="HyperRAM Latency (X1).", reset=default_latency),
@@ -327,6 +328,13 @@ class HyperRAM(LiteXModule):
             self.conf_rst.eq(    self.config.fields.rst),
             self.conf_latency.eq(self.config.fields.latency),
         ]
+        self.status = CSRStatus(fields=[
+            CSRField("latency_mode", offset=0, size=1, values=[
+                ("``0b0``", "Fixed Latency."),
+                ("``0b1``", "Variable Latency."),
+            ])
+        ])
+        self.comb += self.status.fields.latency_mode.eq(self.stat_latency_mode)
 
         # Reg Interface.
         # --------------

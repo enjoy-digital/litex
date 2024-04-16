@@ -239,7 +239,8 @@ __attribute__((__used__)) int main(int i, char **c)
         hyperram_config_write(core_latency_setting << CSR_HYPERRAM_CONFIG_LATENCY_OFFSET);
 
         /* Enable Variable Latency on HyperRAM Chip */
-        config_reg_0 &= ~(0b1 << 3); /* Enable Variable Latency */
+        if (hyperram_status_read() & 0x1)
+            config_reg_0 &= ~(0b1 << 3); /* Enable Variable Latency */
 
         /* Update Latency on HyperRAM Chip */
         config_reg_0 &= ~(0b1111 << 4);
