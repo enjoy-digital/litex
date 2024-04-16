@@ -35,6 +35,7 @@
 	- liteeth_gen                   : Added QPLL/BUFH/BUFG parameters for A7 1000BaseX PHY.
 	- litex_sim                     : Added Video Color Bar support.
 	- cpu/neorv32                   : Updated to v1.9.7.
+	- cores/hyperbus                : Added latency configuration and variable latency support.
 
 	[> Changed
 	----------
