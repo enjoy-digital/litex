@@ -67,13 +67,14 @@ class EventSourcePulse(Module, _EventSource):
     of a character in a UART.
     """
 
-    def __init__(self, name=None, description=None):
+    def __init__(self, name=None, description=None, level="high"):
+        assert level in ["high", "low"]
         _EventSource.__init__(self, name, description)
+
         self.comb += self.status.eq(0)
-        self.sync += [
-            If(self.clear, self.pending.eq(0)),
-            If(self.trigger, self.pending.eq(1))
-        ]
+
+        if level == "high": self.sync += If( self.trigger, self.pending.eq(1)).Elif(self.clear, self.pending.eq(0))
+        if level == "low" : self.sync += If(~self.trigger, self.pending.eq(1)).Elif(self.clear, self.pending.eq(0))
 
 
 class EventSourceProcess(Module, _EventSource):
@@ -85,14 +86,15 @@ class EventSourceProcess(Module, _EventSource):
     def __init__(self, name=None, description=None, edge="falling"):
         assert edge in ["falling", "rising"]
         _EventSource.__init__(self, name, description)
-        self.comb += self.status.eq(self.trigger)
         trigger_d = Signal()
-        self.sync += If(self.clear, self.pending.eq(0))
+        trigger_irq = Signal()
+
+        self.comb += self.status.eq(self.trigger)
         self.sync += trigger_d.eq(self.trigger)
-        if edge == "falling":
-            self.sync += If(~self.trigger & trigger_d, self.pending.eq(1))
-        if edge == "rising":
-            self.sync += If(self.trigger & ~trigger_d, self.pending.eq(1))
+        self.sync += If(trigger_irq, self.pending.eq(1)).Elif(self.clear, self.pending.eq(0))
+
+        if edge == "falling": self.comb += trigger_irq.eq( trigger_d & ~self.trigger)
+        if edge == "rising" : self.comb += trigger_irq.eq(~trigger_d &  self.trigger)
 
 
 class EventSourceLevel(Module, _EventSource):
@@ -102,12 +104,14 @@ class EventSourceLevel(Module, _EventSource):
     controller with several slots can use this event source to signal that one
     or more slots require CPU attention.
     """
-    def __init__(self, name=None, description=None):
+    def __init__(self, name=None, description=None, level="high"):
+        assert level in ["high", "low"]
         _EventSource.__init__(self, name, description)
-        self.comb += [
-            self.status.eq(self.trigger),
-            self.pending.eq(self.trigger)
-        ]
+
+        self.comb += self.status.eq(self.trigger)
+
+        if level == "high": self.comb += self.pending.eq(~self.trigger)
+        if level == "low" : self.comb += self.pending.eq( self.trigger)
 
 
 class EventManager(Module, AutoCSR):
