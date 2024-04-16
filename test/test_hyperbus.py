@@ -56,7 +56,7 @@ class TestHyperBus(unittest.TestCase):
                 self.assertEqual(c2bool(rwds_o[i]), (yield dut.pads.rwds.o))
                 yield
 
-        dut = HyperRAM(HyperRamPads(), latency=5)
+        dut = HyperRAM(HyperRamPads(), latency=5, latency_mode="fixed")
         run_simulation(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
 
     def test_hyperram_write_latency_6_2x(self):
@@ -82,7 +82,7 @@ class TestHyperBus(unittest.TestCase):
                 self.assertEqual(c2bool(rwds_o[i]), (yield dut.pads.rwds.o))
                 yield
 
-        dut = HyperRAM(HyperRamPads(), latency=6)
+        dut = HyperRAM(HyperRamPads(), latency=6, latency_mode="fixed")
         run_simulation(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
 
     def test_hyperram_write_latency_7_2x(self):
@@ -108,7 +108,7 @@ class TestHyperBus(unittest.TestCase):
                 self.assertEqual(c2bool(rwds_o[i]), (yield dut.pads.rwds.o))
                 yield
 
-        dut = HyperRAM(HyperRamPads(), latency=7)
+        dut = HyperRAM(HyperRamPads(), latency=7, latency_mode="fixed")
         run_simulation(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
 
     def test_hyperram_write_latency_7_1x(self):
@@ -162,7 +162,7 @@ class TestHyperBus(unittest.TestCase):
                 self.assertEqual(c2bool(rwds_oe[i]), (yield dut.pads.rwds.oe))
                 yield
 
-        dut = HyperRAM(HyperRamPads(), latency=5)
+        dut = HyperRAM(HyperRamPads(), latency=5, latency_mode="fixed")
         run_simulation(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
 
     def test_hyperram_read_latency_6_2x(self):
@@ -190,7 +190,7 @@ class TestHyperBus(unittest.TestCase):
                 self.assertEqual(c2bool(rwds_oe[i]), (yield dut.pads.rwds.oe))
                 yield
 
-        dut = HyperRAM(HyperRamPads(), latency=6)
+        dut = HyperRAM(HyperRamPads(), latency=6, latency_mode="fixed")
         run_simulation(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
 
     def test_hyperram_read_latency_7_2x(self):
@@ -218,7 +218,7 @@ class TestHyperBus(unittest.TestCase):
                 self.assertEqual(c2bool(rwds_oe[i]), (yield dut.pads.rwds.oe))
                 yield
 
-        dut = HyperRAM(HyperRamPads(), latency=7)
+        dut = HyperRAM(HyperRamPads(), latency=7, latency_mode="fixed")
         run_simulation(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
 
     def test_hyperram_read_latency_7_1x(self):
