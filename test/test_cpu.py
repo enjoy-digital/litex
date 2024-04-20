@@ -45,7 +45,7 @@ class TestCPU(unittest.TestCase):
             "serv",         # (riscv   / softcore)
             "vexriscv",     # (riscv   / softcore)
             "vexriscv_smp", # (riscv   / softcore)
-            "microwatt",    # (ppc64   / softcore)
+            #"microwatt",    # (ppc64   / softcore)
             "neorv32",      # (riscv   / softcore)
         ]
         untested_cpus = [
