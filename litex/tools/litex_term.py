@@ -553,8 +553,7 @@ class LiteXTerm:
 
     def start_reader(self):
         self.reader_alive = True
-        self.reader_thread = threading.Thread(target=self.reader)
-        self.reader_thread.setDaemon(True)
+        self.reader_thread = threading.Thread(target=self.reader, daemon=True)
         self.reader_thread.start()
 
     def stop_reader(self):
@@ -582,8 +581,7 @@ class LiteXTerm:
 
     def start_writer(self):
         self.writer_alive = True
-        self.writer_thread = threading.Thread(target=self.writer)
-        self.writer_thread.setDaemon(True)
+        self.writer_thread = threading.Thread(target=self.writer, daemon=True)
         self.writer_thread.start()
 
     def stop_writer(self):
