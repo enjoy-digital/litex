@@ -319,7 +319,7 @@ class NaxRiscv(CPU):
         sdir = os.path.join(vdir, "ext", "SpinalHDL")
 
         if NaxRiscv.update_repo != "no":
-            NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git", "main", "ec3ee4dc" if NaxRiscv.update_repo=="recommended" else None)
+            NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git", "main", "f3357383" if NaxRiscv.update_repo=="recommended" else None)
 
         gen_args = []
         gen_args.append(f"--netlist-name={NaxRiscv.netlist_name}")
