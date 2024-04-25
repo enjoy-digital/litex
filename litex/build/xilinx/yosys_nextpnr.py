@@ -132,7 +132,7 @@ class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
                 subprocess.run(["bbasm", "-l", bba, chipdb])
                 os.remove(bba)
             else:
-                print("Chip database file '{chipdb}' not found. Please check your toolchain installation!")
+                print(f"Chip database file '{chipdb}' not found. Please check your toolchain installation!")
                 exit(1)
 
         # pnr options
