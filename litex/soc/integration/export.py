@@ -187,12 +187,7 @@ def get_soc_header(constants, with_access_functions=True):
 
     if with_access_functions:
         r += "\n#ifndef __ASSEMBLER__\n"
-        r += "#ifndef LITEX_ACCESS_FUNCTIONS\n"
-        r += "#define LITEX_ACCESS_FUNCTIONS 1\n"
-        r += "#endif\n"
-        r += "#if LITEX_ACCESS_FUNCTIONS\n"
         r += funcs
-        r += "#endif // !LITEX_ACCESS_FUNCTIONS\n"
         r += "#endif // !__ASSEMBLER__\n"
 
     r += "\n#endif\n"
@@ -228,7 +223,6 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_onl
 
     stride = alignment//8;
     if with_access_functions:
-        r += "\n#if LITEX_ACCESS_FUNCTIONS\n"
         r += f"static inline {ctype} {reg_name}_read(void) {{\n"
         if nwords > 1:
             r += f"\t{ctype} r = csr_read_simple({_get_csr_addr(csr_base, reg_base, with_csr_base_define)});\n"
@@ -249,7 +243,6 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_onl
                     v_shift = "v"
                 r += f"\tcsr_write_simple({v_shift}, {_get_csr_addr(csr_base, reg_base+sub*stride, with_csr_base_define)});\n"
             r += "}\n"
-        r += "#endif // !LITEX_ACCESS_FUNCTIONS\n\n"
     return r
 
 
@@ -257,21 +250,14 @@ def get_csr_header(regions, constants, csr_base=None, with_csr_base_define=True,
     alignment = constants.get("CONFIG_CSR_ALIGNMENT", 32)
     r = generated_banner("//")
     if with_access_functions: # FIXME
-        r += "#ifndef LITEX_ACCESS_FUNCTIONS\n"
-        r += "#define LITEX_ACCESS_FUNCTIONS 1\n"
-        r += "#endif // !LITEX_ACCESS_FUNCTIONS\n\n"
-        r += "#if LITEX_ACCESS_FUNCTIONS\n"
         r += "#include <generated/soc.h>\n"
-        r += "#endif // LITEX_ACCESS_FUNCTIONS\n\n"
     r += "#ifndef __GENERATED_CSR_H\n#define __GENERATED_CSR_H\n"
     if with_access_functions:
-        r += "#if LITEX_ACCESS_FUNCTIONS\n"
         r += "#include <stdint.h>\n"
         r += "#include <system.h>\n"
         r += "#ifndef CSR_ACCESSORS_DEFINED\n"
         r += "#include <hw/common.h>\n"
         r += "#endif /* ! CSR_ACCESSORS_DEFINED */\n"
-        r += "#endif // LITEX_ACCESS_FUNCTIONS\n\n"
     _csr_base = regions[next(iter(regions))].origin
     csr_base = csr_base if csr_base is not None else _csr_base
     if with_csr_base_define:
@@ -305,7 +291,6 @@ def get_csr_header(regions, constants, csr_base=None, with_csr_base_define=True,
                         r += f"#define CSR_{name.upper()}_{csr.name.upper()}_{field.name.upper()}_OFFSET {offset}\n"
                         r += f"#define CSR_{name.upper()}_{csr.name.upper()}_{field.name.upper()}_SIZE {size}\n"
                         if with_access_functions and csr.size <= 32: # FIXME: Implement extract/read functions for csr.size > 32-bit.
-                            r += "\n#if LITEX_ACCESS_FUNCTIONS\n"
                             reg_name   = name + "_" + csr.name.lower()
                             field_name = reg_name + "_" + field.name.lower()
                             r += "static inline uint32_t " + field_name + "_extract(uint32_t oldword) {\n"
@@ -324,7 +309,6 @@ def get_csr_header(regions, constants, csr_base=None, with_csr_base_define=True,
                                 r += "\tuint32_t newword = " + field_name + "_replace(oldword, plain_value);\n"
                                 r += "\t" + reg_name + "_write(newword);\n"
                                 r += "}\n"
-                            r += "#endif // !LITEX_ACCESS_FUNCTIONS\n\n"
 
     r += "\n#endif\n"
     return r
