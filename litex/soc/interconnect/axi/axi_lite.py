@@ -303,10 +303,10 @@ class _AXILiteDownConverterWrite(LiteXModule):
             skip.eq(slave.w.strb == 0),
             slave.aw.valid.eq(~skip & ~aw_ready),
             slave.w.valid.eq(~skip & ~w_ready),
-            If(slave.aw.ready,
+            If(slave.aw.ready & ~skip,
                 NextValue(aw_ready, 1)
             ),
-            If(slave.w.ready,
+            If(slave.w.ready & ~skip,
                 NextValue(w_ready, 1)
             ),
             # When skipping, we just increment the counter.
