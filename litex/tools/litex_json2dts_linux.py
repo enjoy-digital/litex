@@ -54,6 +54,11 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     cpu_mmu  = d["constants"].get("config_cpu_mmu", None)
 
+    # CSR Parameters -------------------------------------------------------------------------------
+    csr_ordering = d["constants"].get("config_csr_ordering", "big")
+    assert csr_ordering in ["big", "little"]
+    dts_endian = f"{csr_ordering}-endian;"
+
     # Header ---------------------------------------------------------------------------------------
     dts = """
 /dts-v1/;
@@ -521,6 +526,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 vmmc-supply = <&vreg_mmc>;
                 bus-width = <0x04>;
                 {sdcard_irq_interrupt}
+                {dts_endian}
                 status = "okay";
             }};
 """.format(
@@ -530,6 +536,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         sdcard_block2mem     = d["csr_bases"]["sdcard_block2mem"],
         sdcard_mem2block     = d["csr_bases"]["sdcard_mem2block"],
         sdcard_irq           = d["csr_bases"]["sdcard_irq"],
+        dts_endian           = dts_endian,
         sdcard_irq_interrupt = "" if polling else "interrupts = <{}>;".format(d["constants"]["sdcard_irq_interrupt"])
 )
     # Leds -----------------------------------------------------------------------------------------
