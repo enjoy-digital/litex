@@ -73,7 +73,7 @@ void isr(void)
 		*((unsigned int *)PLIC_CLAIM) = claim;
 	}
 }
-#elif defined(__cv32e40p__)
+#elif defined(__cv32e40p__)  || defined(__cv32e41p__)
 
 #define FIRQ_OFFSET 16
 #define IRQ_MASK 0x7FFFFFFF
