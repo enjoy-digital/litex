@@ -266,7 +266,7 @@ def get_csr_header(regions, constants, csr_base=None, with_csr_base_define=True,
         r += "#endif\n"
     for name, region in regions.items():
         origin      = region.origin - _csr_base
-        base_define = not isinstance(region, MockCSRRegion)
+        base_define = with_csr_base_define and (not isinstance(region, MockCSRRegion))
         r += "\n/* "+name+" */\n"
         r += f"#define CSR_{name.upper()}_BASE {_get_csr_addr(csr_base, origin, base_define)}\n"
         if not isinstance(region.obj, Memory):
