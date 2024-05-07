@@ -218,7 +218,7 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=
 
 # AXI-Lite SRAM ------------------------------------------------------------------------------------
 
-class AXILiteSRAM(LiteXModule):
+class AXILiteSRAM(Module):
     def __init__(self, mem_or_size, read_only=None, init=None, bus=None, name=None):
         if bus is None:
             bus = AXILiteInterface()
@@ -257,7 +257,7 @@ class AXILiteSRAM(LiteXModule):
             port_dat_r = port.dat_r,
             port_dat_w = port.dat_w if not read_only else None,
             port_we    = port.we if not read_only else None)
-        self.fsm = fsm
+        self.submodules.fsm = fsm
         self.comb += comb
 
 # AXI-Lite Data-Width Converter --------------------------------------------------------------------
