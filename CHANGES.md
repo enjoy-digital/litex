@@ -36,6 +36,8 @@
 	- litex_sim                     : Added Video Color Bar support.
 	- cpu/neorv32                   : Updated to v1.9.7.
 	- cores/hyperbus                : Added latency configuration and variable latency support.
+	- cpu/cv32e41p                  : Added ISR support.
+	- litesdcard                    : Improved SDPHYClocker (Timings).
 
 	[> Changed
 	----------
