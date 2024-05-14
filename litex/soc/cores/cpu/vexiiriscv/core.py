@@ -130,7 +130,7 @@ class VexiiRiscv(CPU):
         print(args)
 
         if args.update_repo != "no":
-           NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "fpu_internal", "b4e86579" if args.update_repo=="recommended" else None)
+           NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "fpu_internal", "c330b794" if args.update_repo=="recommended" else None)
 
 
 
