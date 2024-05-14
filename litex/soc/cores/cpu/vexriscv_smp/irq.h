@@ -18,7 +18,7 @@ extern "C" {
 #define PLIC_THRSHLD 0xf0e00000L // Per-pin priority must be >= this to trigger
 #define PLIC_CLAIM   0xf0e00004L // Claim & completion register address
 
-#define PLIC_EXT_IRQ_BASE 0 // CHECKME/FIXME.
+#define PLIC_EXT_IRQ_BASE 0
 
 static inline unsigned int irq_getie(void)
 {
