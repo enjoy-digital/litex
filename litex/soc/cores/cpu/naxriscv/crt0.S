@@ -113,8 +113,10 @@ bss_loop:
   j bss_loop
 bss_done:
 
-  li a0, 0x880  //880 enable timer + external interrupt sources (until mstatus.MIE is set, they will never trigger an interrupt)
-  csrw mie,a0
+  call plic_init // initialize external interrupt controller
+  li t0, 0x800   // external interrupt sources only (using LiteX timer);
+                 // NOTE: must still enable mstatus.MIE!
+  csrw mie,t0
 
   call main
 infinit_loop:
