@@ -116,10 +116,8 @@ bss_loop:
   add a0,a0,4
   j bss_loop
 bss_done:
-
-  li a0, 0x7FFF0880  //7FFF0880 enable timer + external interrupt + fast interrupt sources (until mstatus.MIE is set, they will never trigger an interrupt)
+  li a0, 0xFFFF0880  //FFFF0880 enable timer + external interrupt + fast interrupt sources (until mstatus.MIE is set, they will never trigger an interrupt)
   csrw mie,a0
-
   j main
 infinit_loop:
   j infinit_loop
