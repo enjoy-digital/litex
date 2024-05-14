@@ -89,6 +89,7 @@ class OpenC906(CPU):
         flags =  "-mno-save-restore "
         flags += "-march=rv64gc -mabi=lp64d "
         flags += "-D__openc906__ "
+        flags += "-D__riscv_plic__ "
         flags += "-mcmodel=medany"
         return flags
 

@@ -169,6 +169,7 @@ class VexRiscvSMP(CPU):
     def gcc_flags(self):
         flags =  f" -march={VexRiscvSMP.get_arch()} -mabi={VexRiscvSMP.get_abi()}"
         flags += f" -D__vexriscv_smp__"
+        flags += f" -D__riscv_plic__"
         return flags
 
     # Reserved Interrupts.

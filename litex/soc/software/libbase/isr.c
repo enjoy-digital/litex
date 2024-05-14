@@ -29,7 +29,7 @@ void isr(void)
     onetime++;
   }
 }
-#elif defined(__rocket__) || defined(__openc906__) || defined(__vexriscv_smp__)
+#elif defined(__riscv_plic__)
 
 // PLIC initialization.
 void plic_init(void);
