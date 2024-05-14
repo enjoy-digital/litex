@@ -239,7 +239,7 @@ def _generate_read_function_c(reg_name, reg_base, nwords, busword, ctype, stride
         for sub in range(1, nwords):
             read_function += f"\tr <<= {busword};\n"
             read_function += f"\tr |= csr_read_simple({_get_csr_addr(csr_base, reg_base + sub * stride, with_csr_base_define)});\n"
-        read_function += "\treturn r;\n}}\n"
+        read_function += "\treturn r;\n}\n"
     else:
         read_function += f"\treturn csr_read_simple({_get_csr_addr(csr_base, reg_base, with_csr_base_define)});\n}}\n"
     return read_function
