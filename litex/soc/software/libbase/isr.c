@@ -30,35 +30,37 @@ void isr(void)
   }
 }
 #elif defined(__rocket__) || defined(__openc906__)
-#if defined(__openc906__)
-#define PLIC_EXT_IRQ_BASE 16
-#else
-#define PLIC_EXT_IRQ_BASE 1
-#endif
+
+// PLIC initialization.
 void plic_init(void);
 void plic_init(void)
 {
 	int i;
 
-	// priorities for first 8 external interrupts
+	// Set priorities for the first 8 external interrupts to 1.
 	for (i = 0; i < 8; i++)
 		*((unsigned int *)PLIC_BASE + PLIC_EXT_IRQ_BASE + i) = 1;
-	// enable first 8 external interrupts
+
+	// Enable the first 8 external interrupts
 	*((unsigned int *)PLIC_ENABLED) = 0xff << PLIC_EXT_IRQ_BASE;
-	// set priority threshold to 0 (any priority > 0 triggers interrupt)
+
+	// Set priority threshold to 0 (any priority > 0 triggers an interrupt).
 	*((unsigned int *)PLIC_THRSHLD) = 0;
 }
 
+// Interrupt Service Routine.
 void isr(void)
 {
 	unsigned int claim;
 
+	// Claim and handle pending interrupts.
 	while ((claim = *((unsigned int *)PLIC_CLAIM))) {
 		switch (claim - PLIC_EXT_IRQ_BASE) {
 		case UART_INTERRUPT:
-			uart_isr();
+			uart_isr(); // Handle UART interrupt.
 			break;
 		default:
+			// Unhandled interrupt source, print diagnostic information.
 			printf("## PLIC: Unhandled claim: %d\n", claim);
 			printf("# plic_enabled:    %08x\n", irq_getmask());
 			printf("# plic_pending:    %08x\n", irq_pending());
@@ -70,6 +72,7 @@ void isr(void)
 			printf("###########################\n\n");
 			break;
 		}
+		// Acknowledge the interrupt.
 		*((unsigned int *)PLIC_CLAIM) = claim;
 	}
 }
