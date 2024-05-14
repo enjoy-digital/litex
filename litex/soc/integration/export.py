@@ -297,7 +297,7 @@ def _generate_csr_base_define_c(csr_base, with_csr_base_define):
         return f"\n#ifndef CSR_BASE\n#define CSR_BASE {hex(csr_base)}L\n#endif\n"
     return ""
 
-def _generate_field_definitions_c(csr, name):
+def _generate_field_definitions_c(csr, name, with_fields_access_functions):
     """
     Generate definitions for CSR fields.
     """
@@ -307,7 +307,8 @@ def _generate_field_definitions_c(csr, name):
         size   = str(field.size)
         field_defs += f"#define CSR_{name.upper()}_{csr.name.upper()}_{field.name.upper()}_OFFSET {offset}\n"
         field_defs += f"#define CSR_{name.upper()}_{csr.name.upper()}_{field.name.upper()}_SIZE {size}\n"
-        field_defs += _generate_field_accessors_c(name, csr, field)
+        if with_fields_access_functions:
+            field_defs += _generate_field_accessors_c(name, csr, field)
     return field_defs
 
 def _generate_field_accessors_c(name, csr, field):
@@ -336,7 +337,7 @@ def _generate_field_accessors_c(name, csr, field):
             accessors += f"\t{reg_name}_write(newword);\n}}\n"
     return accessors
 
-def _generate_csr_region_definitions_c(name, region, origin, alignment, csr_base, with_csr_base_define, with_access_functions):
+def _generate_csr_region_definitions_c(name, region, origin, alignment, csr_base, with_csr_base_define, with_access_functions, with_fields_access_functions):
     """
     Generate CSR address and size definitions for a region.
     """
@@ -360,10 +361,10 @@ def _generate_csr_region_definitions_c(name, region, origin, alignment, csr_base
             )
             origin += alignment // 8 * nr
             if hasattr(csr, "fields"):
-                region_defs += _generate_field_definitions_c(csr, name)
+                region_defs += _generate_field_definitions_c(csr, name, with_access_functions and with_fields_access_functions)
     return region_defs
 
-def get_csr_header(regions, constants, csr_base=None, with_csr_base_define=True, with_access_functions=True):
+def get_csr_header(regions, constants, csr_base=None, with_csr_base_define=True, with_access_functions=True, with_fields_access_functions=True):
     """
     Generate the CSR header file content.
     """
@@ -379,7 +380,7 @@ def get_csr_header(regions, constants, csr_base=None, with_csr_base_define=True,
 
     for name, region in regions.items():
         origin = region.origin - _csr_base
-        r += _generate_csr_region_definitions_c(name, region, origin, alignment, csr_base, with_csr_base_define, with_access_functions)
+        r += _generate_csr_region_definitions_c(name, region, origin, alignment, csr_base, with_csr_base_define, with_access_functions, with_fields_access_functions)
 
     r += "\n#endif\n"
     return r
