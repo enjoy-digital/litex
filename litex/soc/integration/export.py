@@ -278,7 +278,9 @@ def _generate_csr_header_includes_c(with_access_functions):
     """
     Generate the necessary include directives for the CSR header file.
     """
-    includes = "#include <generated/soc.h>\n"
+    includes = ""
+    if with_access_functions:
+        includes += "#include <generated/soc.h>\n"
     includes += "#ifndef __GENERATED_CSR_H\n"
     includes += "#define __GENERATED_CSR_H\n"
     if with_access_functions:
