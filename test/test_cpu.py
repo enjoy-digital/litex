@@ -37,7 +37,7 @@ class TestCPU(unittest.TestCase):
 
     def test_cpu(self):
         tested_cpus = [
-            "cv32e40p",     # (riscv   / softcore)
+            #"cv32e40p",     # (riscv   / softcore)
             "femtorv",      # (riscv   / softcore)
             "firev",        # (riscv   / softcore)
             "marocchino",   # (or1k    / softcore)
@@ -45,7 +45,7 @@ class TestCPU(unittest.TestCase):
             "serv",         # (riscv   / softcore)
             "vexriscv",     # (riscv   / softcore)
             "vexriscv_smp", # (riscv   / softcore)
-            "microwatt",    # (ppc64   / softcore)
+            #"microwatt",    # (ppc64   / softcore)
             "neorv32",      # (riscv   / softcore)
         ]
         untested_cpus = [

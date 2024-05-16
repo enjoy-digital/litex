@@ -33,7 +33,33 @@ class TestHyperBus(unittest.TestCase):
         pads = Record([("clk_p", 1), ("clk_n", 1), ("cs_n", 1), ("dq", 8), ("rwds", 1)])
         hyperram = HyperRAM(pads)
 
-    def test_hyperram_write(self):
+    def test_hyperram_write_latency_5_2x(self):
+        def fpga_gen(dut):
+            yield from dut.bus.write(0x1234, 0xdeadbeef, sel=0b1001)
+            yield
+
+        def hyperram_gen(dut):
+            clk     = "___--__--__--__--__--__--__--__--__--__--__--__--__--__--_______"
+            cs_n    = "--________________________________________________________------"
+            dq_oe   = "__------------____________________________________--------______"
+            dq_o    = "002000048d0000000000000000000000000000000000000000deadbeef000000"
+            rwds_oe = "__________________________________________________--------______"
+            rwds_o  = "____________________________________________________----________"
+            for i in range(3):
+                yield
+            for i in range(len(clk)):
+                self.assertEqual(c2bool(clk[i]), (yield dut.pads.clk))
+                self.assertEqual(c2bool(cs_n[i]), (yield dut.pads.cs_n))
+                self.assertEqual(c2bool(dq_oe[i]), (yield dut.pads.dq.oe))
+                self.assertEqual(int(dq_o[2*(i//2):2*(i//2)+2], 16), (yield dut.pads.dq.o))
+                self.assertEqual(c2bool(rwds_oe[i]), (yield dut.pads.rwds.oe))
+                self.assertEqual(c2bool(rwds_o[i]), (yield dut.pads.rwds.o))
+                yield
+
+        dut = HyperRAM(HyperRamPads(), latency=5, latency_mode="fixed")
+        run_simulation(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
+
+    def test_hyperram_write_latency_6_2x(self):
         def fpga_gen(dut):
             yield from dut.bus.write(0x1234, 0xdeadbeef, sel=0b1001)
             yield
@@ -56,10 +82,90 @@ class TestHyperBus(unittest.TestCase):
                 self.assertEqual(c2bool(rwds_o[i]), (yield dut.pads.rwds.o))
                 yield
 
-        dut = HyperRAM(HyperRamPads())
+        dut = HyperRAM(HyperRamPads(), latency=6, latency_mode="fixed")
         run_simulation(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
 
-    def test_hyperram_read(self):
+    def test_hyperram_write_latency_7_2x(self):
+        def fpga_gen(dut):
+            yield from dut.bus.write(0x1234, 0xdeadbeef, sel=0b1001)
+            yield
+
+        def hyperram_gen(dut):
+            clk     = "___--__--__--__--__--__--__--__--__--__--__--__--__--__--__--__--__--__--_______"
+            cs_n    = "--________________________________________________________________________------"
+            dq_oe   = "__------------____________________________________________________--------______"
+            dq_o    = "002000048d00000000000000000000000000000000000000000000000000000000deadbeef000000"
+            rwds_oe = "__________________________________________________________________--------______"
+            rwds_o  = "____________________________________________________________________----________"
+            for i in range(3):
+                yield
+            for i in range(len(clk)):
+                self.assertEqual(c2bool(clk[i]), (yield dut.pads.clk))
+                self.assertEqual(c2bool(cs_n[i]), (yield dut.pads.cs_n))
+                self.assertEqual(c2bool(dq_oe[i]), (yield dut.pads.dq.oe))
+                self.assertEqual(int(dq_o[2*(i//2):2*(i//2)+2], 16), (yield dut.pads.dq.o))
+                self.assertEqual(c2bool(rwds_oe[i]), (yield dut.pads.rwds.oe))
+                self.assertEqual(c2bool(rwds_o[i]), (yield dut.pads.rwds.o))
+                yield
+
+        dut = HyperRAM(HyperRamPads(), latency=7, latency_mode="fixed")
+        run_simulation(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
+
+    def test_hyperram_write_latency_7_1x(self):
+        def fpga_gen(dut):
+            yield from dut.bus.write(0x1234, 0xdeadbeef, sel=0b1001)
+            yield
+
+        def hyperram_gen(dut):
+            clk     = "___--__--__--__--__--__--__--__--__--__--__--_______"
+            cs_n    = "--____________________________________________------"
+            dq_oe   = "__------------________________________--------______"
+            dq_o    = "002000048d0000000000000000000000000000deadbeef000000"
+            rwds_oe = "______________________________________--------______"
+            rwds_o  = "________________________________________----________"
+            for i in range(3):
+                yield
+            for i in range(len(clk)):
+                self.assertEqual(c2bool(clk[i]), (yield dut.pads.clk))
+                self.assertEqual(c2bool(cs_n[i]), (yield dut.pads.cs_n))
+                self.assertEqual(c2bool(dq_oe[i]), (yield dut.pads.dq.oe))
+                self.assertEqual(int(dq_o[2*(i//2):2*(i//2)+2], 16), (yield dut.pads.dq.o))
+                self.assertEqual(c2bool(rwds_oe[i]), (yield dut.pads.rwds.oe))
+                self.assertEqual(c2bool(rwds_o[i]), (yield dut.pads.rwds.o))
+                yield
+
+        dut = HyperRAM(HyperRamPads(), latency=7, latency_mode="variable")
+        run_simulation(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
+
+    def test_hyperram_read_latency_5_2x(self):
+        def fpga_gen(dut):
+            dat = yield from dut.bus.read(0x1234)
+            self.assertEqual(dat, 0xdeadbeef)
+            dat = yield from dut.bus.read(0x1235)
+            self.assertEqual(dat, 0xcafefade)
+
+        def hyperram_gen(dut):
+            clk     = "___--__--__--__--__--__--__--__--__--__--__--__--__--__--__--__--__--__--_"
+            cs_n    = "--________________________________________________________________________"
+            dq_oe   = "__------------____________________________________________________________"
+            dq_o    = "00a000048d0000000000000000000000000000000000000000000000000000000000000000"
+            dq_i    = "00000000000000000000000000000000000000000000000000deadbeefcafefade00000000"
+            rwds_oe = "__________________________________________________________________________"
+            for i in range(3):
+                yield
+            for i in range(len(clk)):
+                yield dut.pads.dq.i.eq(int(dq_i[2*(i//2):2*(i//2)+2], 16))
+                self.assertEqual(c2bool(clk[i]), (yield dut.pads.clk))
+                self.assertEqual(c2bool(cs_n[i]), (yield dut.pads.cs_n))
+                self.assertEqual(c2bool(dq_oe[i]), (yield dut.pads.dq.oe))
+                self.assertEqual(int(dq_o[2*(i//2):2*(i//2)+2], 16), (yield dut.pads.dq.o))
+                self.assertEqual(c2bool(rwds_oe[i]), (yield dut.pads.rwds.oe))
+                yield
+
+        dut = HyperRAM(HyperRamPads(), latency=5, latency_mode="fixed")
+        run_simulation(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
+
+    def test_hyperram_read_latency_6_2x(self):
         def fpga_gen(dut):
             dat = yield from dut.bus.read(0x1234)
             self.assertEqual(dat, 0xdeadbeef)
@@ -84,5 +190,93 @@ class TestHyperBus(unittest.TestCase):
                 self.assertEqual(c2bool(rwds_oe[i]), (yield dut.pads.rwds.oe))
                 yield
 
-        dut = HyperRAM(HyperRamPads())
+        dut = HyperRAM(HyperRamPads(), latency=6, latency_mode="fixed")
+        run_simulation(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
+
+    def test_hyperram_read_latency_7_2x(self):
+        def fpga_gen(dut):
+            dat = yield from dut.bus.read(0x1234)
+            self.assertEqual(dat, 0xdeadbeef)
+            dat = yield from dut.bus.read(0x1235)
+            self.assertEqual(dat, 0xcafefade)
+
+        def hyperram_gen(dut):
+            clk     = "___--__--__--__--__--__--__--__--__--__--__--__--__--__--__--__--__--__--__--__--__--__--_"
+            cs_n    = "--________________________________________________________________________________________"
+            dq_oe   = "__------------____________________________________________________________________________"
+            dq_o    = "00a000048d00000000000000000000000000000000000000000000000000000000000000000000000000000000"
+            dq_i    = "000000000000000000000000000000000000000000000000000000000000000000deadbeefcafefade00000000"
+            rwds_oe = "__________________________________________________________________________________________"
+            for i in range(3):
+                yield
+            for i in range(len(clk)):
+                yield dut.pads.dq.i.eq(int(dq_i[2*(i//2):2*(i//2)+2], 16))
+                self.assertEqual(c2bool(clk[i]), (yield dut.pads.clk))
+                self.assertEqual(c2bool(cs_n[i]), (yield dut.pads.cs_n))
+                self.assertEqual(c2bool(dq_oe[i]), (yield dut.pads.dq.oe))
+                self.assertEqual(int(dq_o[2*(i//2):2*(i//2)+2], 16), (yield dut.pads.dq.o))
+                self.assertEqual(c2bool(rwds_oe[i]), (yield dut.pads.rwds.oe))
+                yield
+
+        dut = HyperRAM(HyperRamPads(), latency=7, latency_mode="fixed")
+        run_simulation(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
+
+    def test_hyperram_read_latency_7_1x(self):
+        def fpga_gen(dut):
+            dat = yield from dut.bus.read(0x1234)
+            self.assertEqual(dat, 0xdeadbeef)
+            dat = yield from dut.bus.read(0x1235)
+            self.assertEqual(dat, 0xcafefade)
+
+        def hyperram_gen(dut):
+            clk     = "___--__--__--__--__--__--__--__--__--__--__--__--__--__--__--_"
+            cs_n    = "--____________________________________________________________"
+            dq_oe   = "__------------________________________________________________"
+            dq_o    = "00a000048d0000000000000000000000000000000000000000000000000000"
+            dq_i    = "00000000000000000000000000000000000000deadbeefcafefade00000000"
+            rwds_oe = "______________________________________________________________"
+            for i in range(3):
+                yield
+            for i in range(len(clk)):
+                yield dut.pads.dq.i.eq(int(dq_i[2*(i//2):2*(i//2)+2], 16))
+                self.assertEqual(c2bool(clk[i]), (yield dut.pads.clk))
+                self.assertEqual(c2bool(cs_n[i]), (yield dut.pads.cs_n))
+                self.assertEqual(c2bool(dq_oe[i]), (yield dut.pads.dq.oe))
+                self.assertEqual(int(dq_o[2*(i//2):2*(i//2)+2], 16), (yield dut.pads.dq.o))
+                self.assertEqual(c2bool(rwds_oe[i]), (yield dut.pads.rwds.oe))
+                yield
+
+        dut = HyperRAM(HyperRamPads(), latency=7, latency_mode="variable")
+        run_simulation(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
+
+    def test_hyperram_reg_write(self):
+        def fpga_gen(dut):
+            yield dut.reg_addr.eq(2)
+            yield dut.reg_write_data.eq(0x1234)
+            yield
+            yield dut.reg_write.eq(1)
+            yield
+            yield dut.reg_write.eq(0)
+            for i in range(128):
+                yield
+
+        def hyperram_gen(dut):
+            clk     = "___--__--__--__--___________"
+            cs_n    = "--________________----------"
+            dq_oe   = "__----------------__________"
+            dq_o    = "0060000100000012340000000000"
+            rwds_oe = "____________________________"
+            rwds_o  = "____________________________"
+            for i in range(3):
+                yield
+            for i in range(len(clk)):
+                self.assertEqual(c2bool(clk[i]), (yield dut.pads.clk))
+                self.assertEqual(c2bool(cs_n[i]), (yield dut.pads.cs_n))
+                self.assertEqual(c2bool(dq_oe[i]), (yield dut.pads.dq.oe))
+                self.assertEqual(int(dq_o[2*(i//2):2*(i//2)+2], 16), (yield dut.pads.dq.o))
+                self.assertEqual(c2bool(rwds_oe[i]), (yield dut.pads.rwds.oe))
+                self.assertEqual(c2bool(rwds_o[i]), (yield dut.pads.rwds.o))
+                yield
+
+        dut = HyperRAM(HyperRamPads(), with_csr=False)
         run_simulation(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")

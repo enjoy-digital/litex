@@ -79,9 +79,13 @@ CPU_GCC_TRIPLE_RISCV64 = (
 )
 
 CPU_GCC_TRIPLE_RISCV32 = CPU_GCC_TRIPLE_RISCV64 + (
+    "riscv32-pc-linux-musl",
     "riscv32-unknown-elf",
     "riscv32-unknown-linux-gnu",
     "riscv32-elf",
+    "riscv32-linux",
+    "riscv32-linux-gnu",
+    "riscv32-none-elf",
     "riscv-none-embed",
     "riscv-none-elf",
 )

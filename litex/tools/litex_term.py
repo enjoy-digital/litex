@@ -81,7 +81,7 @@ else:
         def handle_escape(self, b):
             return None
 
-# Crossover UART  -------------------------------------------------------------------------------------
+# Crossover UART  ----------------------------------------------------------------------------------
 
 from litex import RemoteClient
 
@@ -553,8 +553,7 @@ class LiteXTerm:
 
     def start_reader(self):
         self.reader_alive = True
-        self.reader_thread = threading.Thread(target=self.reader)
-        self.reader_thread.setDaemon(True)
+        self.reader_thread = threading.Thread(target=self.reader, daemon=True)
         self.reader_thread.start()
 
     def stop_reader(self):
@@ -582,8 +581,7 @@ class LiteXTerm:
 
     def start_writer(self):
         self.writer_alive = True
-        self.writer_thread = threading.Thread(target=self.writer)
-        self.writer_thread.setDaemon(True)
+        self.writer_thread = threading.Thread(target=self.writer, daemon=True)
         self.writer_thread.start()
 
     def stop_writer(self):
@@ -607,21 +605,21 @@ class LiteXTerm:
 
 def _get_args():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("port",                                               help="Serial port (eg /dev/tty*, crossover, jtag).")
-    parser.add_argument("--speed",        default=115200,                     help="Serial baudrate.")
-    parser.add_argument("--serial-boot",  default=False, action='store_true', help="Automatically initiate serial boot.")
-    parser.add_argument("--kernel",       default=None,                       help="Kernel image.")
-    parser.add_argument("--kernel-adr",   default="0x40000000",               help="Kernel address.")
-    parser.add_argument("--images",       default=None,                       help="JSON description of the images to load to memory.")
-    parser.add_argument("--safe",         action="store_true",                help="Safe serial boot mode, disable upload speed optimizations.")
+    parser.add_argument("port",                                                 help="Serial port (eg /dev/tty*, crossover, jtag).")
+    parser.add_argument("--speed",          default=115200,                     help="Serial baudrate.")
+    parser.add_argument("--serial-boot",    default=False, action='store_true', help="Automatically initiate serial boot.")
+    parser.add_argument("--kernel",         default=None,                       help="Kernel image.")
+    parser.add_argument("--kernel-adr",     default="0x40000000",               help="Kernel address.")
+    parser.add_argument("--images",         default=None,                       help="JSON description of the images to load to memory.")
+    parser.add_argument("--safe",           action="store_true",                help="Safe serial boot mode, disable upload speed optimizations.")
 
     parser.add_argument("--csr-csv",        default=None,                       help="SoC CSV file.")
     parser.add_argument("--base-address",   default=None,                       help="CSR base address.")
     parser.add_argument("--crossover-name", default="uart_xover",               help="Crossover UART name to use (present in design/csr.csv).")
 
-    parser.add_argument("--jtag-name",    default="jtag_uart",                help="JTAG UART type (jtag_uart).")
-    parser.add_argument("--jtag-config",  default="openocd_xc7_ft2232.cfg",   help="OpenOCD JTAG configuration file for jtag_uart.")
-    parser.add_argument("--jtag-chain",   default=1,                          help="JTAG chain.")
+    parser.add_argument("--jtag-name",      default="jtag_uart",                help="JTAG UART type (jtag_uart).")
+    parser.add_argument("--jtag-config",    default="openocd_xc7_ft2232.cfg",   help="OpenOCD JTAG configuration file for jtag_uart.")
+    parser.add_argument("--jtag-chain",     default=1,                          help="JTAG chain.")
     return parser.parse_args()
 
 def main():

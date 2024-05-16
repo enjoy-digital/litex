@@ -23,10 +23,10 @@ class Status(LiteXModule):
         self.ongoing = Signal()
 
         ongoing = Signal()
-        self.comb += If(endpoint.valid, self.last.eq(endpoint.last & endpoint.ready))
-        self.sync += ongoing.eq((endpoint.valid | ongoing) & ~self.last)
+        self.comb += self.last.eq(endpoint.valid & endpoint.last & endpoint.ready)
         self.comb += self.ongoing.eq((endpoint.valid | ongoing) & ~self.last)
         self.sync += [
+            ongoing.eq(self.ongoing),
             If(self.last,
                 self.first.eq(1)
             ).Elif(endpoint.valid & endpoint.ready,

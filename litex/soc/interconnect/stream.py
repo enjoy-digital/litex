@@ -254,8 +254,16 @@ class ClockDomainCrossing(LiteXModule, DUID):
 
         # Same Clk Domains.
         if cd_from == cd_to:
-            # No adaptation.
-            self.comb += self.sink.connect(self.source)
+            if buffered:
+                # Add Buffer.
+                self.buffer = ClockDomainsRenamer(cd_from)(Buffer(layout))
+                self.comb += [
+                    self.sink.connect(self.buffer.sink),
+                    self.buffer.source.connect(self.source),
+                ]
+            else:
+                # No adaptation.
+                self.comb += self.sink.connect(self.source)
         # Different Clk Domains.
         else:
             if with_common_rst:

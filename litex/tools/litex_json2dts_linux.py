@@ -33,7 +33,26 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     ncpus    = int(d["constants"].get("config_cpu_count", 1))
     cpu_name = d["constants"].get("config_cpu_name")
     cpu_arch = cpu_architectures[cpu_name]
-    cpu_isa  = d["constants"].get("config_cpu_isa", None)
+    cpu_isa  = d["constants"].get("config_cpu_isa", None) # kernel < 6.6.0
+
+    # kernel >= 6.6.0
+    cpu_isa_base = cpu_isa[:5]
+    cpu_isa_extensions = "\"i\"" # default
+    # Append with optionals
+    if "m" in cpu_isa[5:]:
+        cpu_isa_extensions += ", \"m\""
+    if "a" in cpu_isa[5:]:
+        cpu_isa_extensions += ", \"a\""
+    if "f" in cpu_isa[5:]:
+        cpu_isa_extensions += ", \"f\""
+    if "d" in cpu_isa[5:]:
+        cpu_isa_extensions += ", \"d\""
+    if "d" in cpu_isa[5:]:
+        cpu_isa_extensions += ", \"c\""
+    # rocket specific extensions
+    if "rocket" in cpu_name:
+        cpu_isa_extensions += ", \"zicsr\", \"zifencei\", \"zihpm\""
+
     cpu_mmu  = d["constants"].get("config_cpu_mmu", None)
 
     # Header ---------------------------------------------------------------------------------------
@@ -153,7 +172,6 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
         # Rocket specific attributes
         if ("rocket" in cpu_name):
-            cpu_isa = cpu_isa.replace("2p0_", "")
             extra_attr = """
                 hardware-exec-breakpoint-count = <1>;
                 next-level-cache = <&memory>;
@@ -191,6 +209,8 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 device_type = "cpu";
                 compatible = "riscv";
                 riscv,isa = "{cpu_isa}";
+                riscv,isa-base = "{cpu_isa_base}";
+                riscv,isa-extensions = {cpu_isa_extensions};
                 mmu-type = "riscv,{cpu_mmu}";
                 reg = <{cpu}>;
                 clock-frequency = <{sys_clk_freq}>;
@@ -206,12 +226,14 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 }};
             }};
 """.format(cpu=cpu, irq=cpu,
-    sys_clk_freq = d["constants"]["config_clock_frequency"],
-    cpu_isa      = cpu_isa,
-    cpu_mmu      = cpu_mmu,
-    cache_desc   = cache_desc,
-    tlb_desc     = tlb_desc,
-    extra_attr   = extra_attr)
+    sys_clk_freq       = d["constants"]["config_clock_frequency"],
+    cpu_isa            = cpu_isa, # for kernel < 6.6.0
+    cpu_isa_base       = cpu_isa_base, # for kernel >= 6.6.0
+    cpu_isa_extensions = cpu_isa_extensions, # for kernel >= 6.6.0
+    cpu_mmu            = cpu_mmu,
+    cache_desc         = cache_desc,
+    tlb_desc           = tlb_desc,
+    extra_attr         = extra_attr)
         dts += """
             {cpu_map}
         }};
@@ -382,6 +404,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     if "uart" in d["csr_bases"]:
         aliases["serial0"] = "liteuart0"
+        it_incr = {True: 1, False: 0}["rocket" in cpu_name]
         dts += """
             liteuart0: serial@{uart_csr_base:x} {{
                 compatible = "litex,liteuart";
@@ -391,13 +414,17 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
             }};
 """.format(
     uart_csr_base  = d["csr_bases"]["uart"],
-    uart_interrupt = "" if polling else "interrupts = <{}>;".format(d["constants"]["uart_interrupt"]))
+    uart_interrupt = "" if polling else "interrupts = <{}>;".format(int(d["constants"]["uart_interrupt"]) + it_incr))
 
     # Ethernet -------------------------------------------------------------------------------------
-
-    if "ethphy" in d["csr_bases"] and "ethmac" in d["csr_bases"]:
-        dts += """
-            mac0: mac@{ethmac_csr_base:x} {{
+    for i in [''] + list(range(0, 10)):
+        idx = (0 if i == '' else i)
+        ethphy_name = "ethphy" + str(i)
+        ethmac_name = "ethmac" + str(i)
+        it_incr = {True: 1, False: 0}["rocket" in cpu_name]
+        if ethphy_name in d["csr_bases"] and ethmac_name in d["csr_bases"]:
+            dts += """
+            mac{idx}: mac@{ethmac_csr_base:x} {{
                 compatible = "litex,liteeth";
                 reg = <0x{ethmac_csr_base:x} 0x7c>,
                       <0x{ethphy_csr_base:x} 0x0a>,
@@ -410,14 +437,15 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 status = "okay";
             }};
 """.format(
-    ethphy_csr_base  = d["csr_bases"]["ethphy"],
-    ethmac_csr_base  = d["csr_bases"]["ethmac"],
-    ethmac_mem_base  = d["memories"]["ethmac"]["base"],
-    ethmac_mem_size  = d["memories"]["ethmac"]["size"],
-    ethmac_rx_slots  = d["constants"]["ethmac_rx_slots"],
-    ethmac_tx_slots  = d["constants"]["ethmac_tx_slots"],
-    ethmac_slot_size  = d["constants"]["ethmac_slot_size"],
-    ethmac_interrupt = "" if polling else "interrupts = <{}>;".format(d["constants"]["ethmac_interrupt"]))
+    idx = idx,
+    ethphy_csr_base  = d["csr_bases"][ethphy_name],
+    ethmac_csr_base  = d["csr_bases"][ethmac_name],
+    ethmac_mem_base  = d["memories"][ethmac_name]["base"],
+    ethmac_mem_size  = d["memories"][ethmac_name]["size"],
+    ethmac_rx_slots  = d["constants"][ethmac_name + "_rx_slots"],
+    ethmac_tx_slots  = d["constants"][ethmac_name + "_tx_slots"],
+    ethmac_slot_size  = d["constants"][ethmac_name + "_slot_size"],
+    ethmac_interrupt = "" if polling else "interrupts = <{}>;".format(int(d["constants"][ethmac_name + "_interrupt"]) + it_incr))
 
     # USB OHCI -------------------------------------------------------------------------------------
 
