@@ -450,7 +450,8 @@ class Converter(LiteXModule):
 
 # Wishbone SRAM ------------------------------------------------------------------------------------
 
-class SRAM(Module): # FIXME: Switch to LiteXModule.
+class SRAM(LiteXModule):
+    autocsr_exclude = {"mem"}
     def __init__(self, mem_or_size, read_only=None, write_only=None, init=None, bus=None, name=None):
         if bus is None:
             bus = Interface(data_width=32, address_width=32, addressing="word")
@@ -545,8 +546,11 @@ class SRAM(Module): # FIXME: Switch to LiteXModule.
 
         # Memory.
         # -------
-        port = self.mem.get_port(write_capable=not read_only, we_granularity=8,
-            mode=READ_FIRST if read_only else WRITE_FIRST)
+        port = self.mem.get_port(
+            write_capable  = not read_only,
+            we_granularity = 8,
+            mode           = READ_FIRST if read_only else WRITE_FIRST,
+        )
         self.specials += self.mem, port
         # Generate write enable signal
         if not read_only:
