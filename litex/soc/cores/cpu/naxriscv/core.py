@@ -93,7 +93,7 @@ class NaxRiscv(CPU):
     def gcc_flags(self):
         flags =  f" -march={NaxRiscv.get_arch()} -mabi={NaxRiscv.get_abi()}"
         flags += f" -D__NaxRiscv__"
-        flags += f" -DUART_POLLING"
+        flags += f" -D__riscv_plic__"
         return flags
 
     # Reserved Interrupts.

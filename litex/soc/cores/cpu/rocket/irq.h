@@ -18,6 +18,8 @@ extern "C" {
 #define PLIC_THRSHLD 0x0c200000L // Per-pin priority must be >= this to trigger
 #define PLIC_CLAIM   0x0c200004L // Claim & completion register address
 
+#define PLIC_EXT_IRQ_BASE 1
+
 static inline unsigned int irq_getie(void)
 {
 	return (csrr(mstatus) & CSR_MSTATUS_MIE) != 0;
