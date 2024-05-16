@@ -97,7 +97,7 @@ class VexiiRiscv(CPU):
     def gcc_flags(self):
         flags =  f" -march={VexiiRiscv.get_arch()} -mabi={VexiiRiscv.get_abi()}"
         flags += f" -D__VexiiRiscv__"
-        flags += f" -DUART_POLLING"
+        flags += f" -D__riscv_plic__"
         return flags
 
     # Reserved Interrupts.
