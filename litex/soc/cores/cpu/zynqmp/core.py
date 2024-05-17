@@ -50,6 +50,7 @@ class ZynqMP(CPU):
         self.memory_buses   = []          # Memory buses (Connected directly to LiteDRAM).
         self.axi_gp_masters = [None] * 3  # General Purpose AXI Masters.
         self.gem_mac        = []          # GEM MAC reserved ports.
+        self.i2c_use        = []          # I2c reserved ports.
 
         self.cd_ps = ClockDomain()
 
@@ -253,6 +254,47 @@ class ZynqMP(CPU):
 
             self.specials += Instance(f"gem{n}", **mac_params)
             self.gem_mac.append(n)
+
+    def add_i2c(self, n, pads):
+        assert n < 2 and not n in self.i2c_use
+        assert pads is not None
+
+        # PSU configuration.
+        self.config[f"PSU__I2C{n}__PERIPHERAL__ENABLE"] = 1
+        self.config[f"PSU__I2C{n}__PERIPHERAL__IO"]     = "EMIO"
+
+        # Signals.
+        scl_i   = Signal()
+        scl_o   = Signal()
+        scl_t   = Signal()
+        sda_i   = Signal()
+        sda_o   = Signal()
+        sda_t   = Signal()
+
+        # PSU connections.
+        self.specials += [
+            Instance("IOBUF",
+                i_I   = sda_o,
+                o_O   = sda_i,
+                i_T   = sda_t,
+                io_IO = pads.sda
+            ),
+            Instance("IOBUF",
+                i_I   = scl_o,
+                o_O   = scl_i,
+                i_T   = scl_t,
+                io_IO = pads.scl
+            ),
+        ]
+
+        self.cpu_params.update({
+            f"i_emio_i2c{n}_scl_i" : scl_i,
+            f"o_emio_i2c{n}_scl_o" : scl_o,
+            f"o_emio_i2c{n}_scl_t" : scl_t,
+            f"i_emio_i2c{n}_sda_i" : sda_i,
+            f"o_emio_i2c{n}_sda_o" : sda_o,
+            f"o_emio_i2c{n}_sda_t" : sda_t,
+        })
 
     def do_finalize(self):
         if len(self.ps_tcl):
