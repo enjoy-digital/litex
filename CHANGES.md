@@ -12,6 +12,7 @@
 	- litedram/frontend/avalon      : Fixed and cleaned-up.
 	- litex_sim/video               : Fixed pixel format to RGBA.
 	- build/xilinx/common           : Fixed missing clk parameter on XilinxSDRTristateImpl.
+	- soc/interconnect              : Fixed CSR/LiteXModule issue on WishboneSRAM/AXILiteSRAM.
 
 	[> Added
 	--------
@@ -38,6 +39,9 @@
 	- cores/hyperbus                : Added latency configuration and variable latency support.
 	- cpu/cv32e41p                  : Added ISR support.
 	- litesdcard                    : Improved SDPHYClocker (Timings).
+	- cpu/vexriscv_smp              : Added baremetal IRQ support.
+	- cpu/naxriscv                  : Added baremetal IRQ support.
+	- cpu/zynqmp                    : Added Ethernet, UART, I2C support and improved AXI Master.
 
 	[> Changed
 	----------
