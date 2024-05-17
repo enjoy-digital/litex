@@ -49,6 +49,7 @@ class ZynqMP(CPU):
         self.periph_buses   = []          # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses   = []          # Memory buses (Connected directly to LiteDRAM).
         self.axi_gp_masters = [None] * 3  # General Purpose AXI Masters.
+        self.gem_mac        = []          # GEM MAC reserved ports.
 
         self.cd_ps = ClockDomain()
 
@@ -133,6 +134,126 @@ class ZynqMP(CPU):
 
         return axi_gpn
 
+    def add_ethernet(self, n=0, pads=None, if_type="gmii"):
+        assert n < 3 and not n in self.gem_mac
+        assert pads is not None
+
+        # psu configuration
+        self.config[f"PSU__ENET{n}__PERIPHERAL__ENABLE"] = 1
+        self.config[f"PSU__ENET{n}__PERIPHERAL__IO"]     = "EMIO"
+        self.config[f"PSU__ENET{n}__GRP_MDIO__ENABLE"]   = 1
+        self.config[f"PSU__ENET{n}__GRP_MDIO__IO"]       = "EMIO"
+
+        # psu GMII connection
+        gmii_rx_clk = Signal()
+        speed_mode  = Signal(3)
+        gmii_crs    = Signal()
+        gmii_col    = Signal()
+        gmii_rxd    = Signal(8)
+        gmii_rx_er  = Signal()
+        gmii_rx_dv  = Signal()
+        gmii_tx_clk = Signal()
+        gmii_txd    = Signal(8)
+        gmii_tx_en  = Signal()
+        gmii_tx_er  = Signal()
+
+        self.cpu_params.update({
+            f"i_emio_enet{n}_gmii_rx_clk" : gmii_rx_clk,
+            f"o_emio_enet{n}_speed_mode"  : speed_mode,
+            f"i_emio_enet{n}_gmii_crs"    : gmii_crs,
+            f"i_emio_enet{n}_gmii_col"    : gmii_col,
+            f"i_emio_enet{n}_gmii_rxd"    : gmii_rxd,
+            f"i_emio_enet{n}_gmii_rx_er"  : gmii_rx_er,
+            f"i_emio_enet{n}_gmii_rx_dv"  : gmii_rx_dv,
+            f"i_emio_enet{n}_gmii_tx_clk" : gmii_tx_clk,
+            f"o_emio_enet{n}_gmii_txd"    : gmii_txd,
+            f"o_emio_enet{n}_gmii_tx_en"  : gmii_tx_en,
+            f"o_emio_enet{n}_gmii_tx_er"  : gmii_tx_er,
+        })
+
+        # psu MDIO connection
+        mdio_mdc = Signal()
+        mdio_i   = Signal()
+        mdio_o   = Signal()
+        mdio_t   = Signal()
+        self.cpu_params.update({
+            f"o_emio_enet{n}_mdio_mdc" : mdio_mdc,
+            f"i_emio_enet{n}_mdio_i"   : mdio_i,
+            f"o_emio_enet{n}_mdio_o"   : mdio_o,
+            f"o_emio_enet{n}_mdio_t"   : mdio_t,
+        })
+
+        if if_type == "gmii":
+            self.comb += pads.mdc.eq(mdio_mdc)
+
+            self.specials += Instance("IOBUF",
+                i_I   = mdio_o,
+                o_O   = mdio_i,
+                i_T   = mdio_t,
+                io_IO = pads.mdio
+            )
+        else:
+            phys_mdio_i = Signal()
+            phys_mdio_o = Signal()
+            phys_mdio_t = Signal()
+
+            self.specials += Instance("IOBUF",
+                i_I   = phys_mdio_o,
+                o_O   = phys_mdio_i,
+                i_T   = phys_mdio_t,
+                io_IO = pads.mdio
+            )
+
+            self.comb += pads.rst_n.eq(~ResetSignal("sys"))
+
+            mac_params = dict(
+                i_tx_reset          = ResetSignal("sys"),
+                i_rx_reset          = ResetSignal("sys"),
+                i_clkin             = ClockSignal("rgmii"),
+
+                # PS GEM: MDIO
+                i_mdio_gem_mdc      = mdio_mdc,
+                o_mdio_gem_i        = mdio_i,
+                i_mdio_gem_o        = mdio_o,
+                i_mdio_gem_t        = mdio_t,
+                # PS GEM: GMII
+                o_gmii_tx_clk       = gmii_tx_clk,
+                i_gmii_tx_en        = gmii_tx_en,
+                i_gmii_txd          = gmii_txd,
+                i_gmii_tx_er        = gmii_tx_er,
+                o_gmii_crs          = gmii_crs,
+                o_gmii_col          = gmii_col,
+                o_gmii_rx_clk       = gmii_rx_clk,
+                o_gmii_rx_dv        = gmii_rx_dv,
+                o_gmii_rxd          = gmii_rxd,
+                o_gmii_rx_er        = gmii_rx_er,
+                # PHY: RGMII
+                o_rgmii_txd         = pads.tx_data,
+                o_rgmii_tx_ctl      = pads.tx_ctl,
+                o_rgmii_txc         = pads.txc,
+                i_rgmii_rxd         = pads.rx_data,
+                i_rgmii_rx_ctl      = pads.rx_ctl,
+                i_rgmii_rxc         = pads.rxc,
+                # PHY: MDIO
+                o_mdio_phy_mdc      = pads.mdc,
+                i_mdio_phy_i        = phys_mdio_i,
+                o_mdio_phy_o        = phys_mdio_o,
+                o_mdio_phy_t        = phys_mdio_t,
+
+                o_ref_clk_out       = Open(),
+                o_mmcm_locked_out   = Open(),
+                o_gmii_clk_125m_out = Open(),
+                o_gmii_clk_25m_out  = Open(),
+                o_gmii_clk_2_5m_out = Open(),
+                o_link_status       = Open(),
+                o_clock_speed       = Open(2),
+                o_duplex_status     = Open(),
+                o_speed_mode        = Open(2),
+            )
+
+            self.specials += Instance(f"gem{n}", **mac_params)
+            self.gem_mac.append(n)
+
     def do_finalize(self):
         if len(self.ps_tcl):
             self.ps_tcl.append("set_property -dict [list \\")
@@ -146,3 +267,23 @@ class ZynqMP(CPU):
             ]
             self.platform.toolchain.pre_synthesis_commands += self.ps_tcl
         self.specials += Instance(self.ps_name, **self.cpu_params)
+
+        # ethernet
+
+        if len(self.gem_mac):
+            mac_tcl = []
+            for i in self.gem_mac:
+                mac_tcl.append(f"set gem{i} [create_ip -vendor xilinx.com -name gmii_to_rgmii -module_name gem{i}]")
+                mac_tcl.append("set_property -dict [ list \\")
+                # FIXME: when more this sequence differs for the first and others
+                mac_tcl.append("CONFIG.{} {} \\".format("C_EXTERNAL_CLOCK", '{{false}}'))
+                mac_tcl.append("CONFIG.{} {} \\".format("C_USE_IDELAY_CTRL", '{{true}}'))
+                mac_tcl.append("CONFIG.{} {} \\".format("C_PHYADDR", '{{' + str(8 + i) + '}}'))
+                mac_tcl.append("CONFIG.{} {} \\".format("RGMII_TXC_SKEW", '{{' + str(0) + '}}'))
+                mac_tcl.append("CONFIG.{} {} \\".format("SupportLevel", '{{Include_Shared_Logic_in_Core}}'))
+                mac_tcl += [
+                    f"] [get_ips gem{i}]",
+                    f"generate_target all [get_ips gem{i}]",
+                    f"synth_ip [get_ips gem{i}]"
+                ]
+            self.platform.toolchain.pre_synthesis_commands += mac_tcl
