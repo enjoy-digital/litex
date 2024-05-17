@@ -4,6 +4,8 @@
 # Copyright (c) 2022 Ilia Sergachev <ilia.sergachev@protonmail.ch>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import os
+
 from migen import *
 
 from litex.gen import *
@@ -60,6 +62,12 @@ class ZynqMP(CPU):
         )
         self.comb += ResetSignal("ps").eq(~rst_n)
         self.ps_tcl.append(f"set ps [create_ip -vendor xilinx.com -name zynq_ultra_ps_e -module_name {self.ps_name}]")
+
+    def set_preset(self, preset):
+        preset = os.path.abspath(preset)
+        self.ps_tcl.append(f"source {preset}")
+        self.ps_tcl.append("set psu_cfg [apply_preset IPINST]")
+        self.ps_tcl.append("set_property -dict $psu_cfg [get_ips {}]".format(self.ps_name))
 
     def add_axi_gp_master(self, n=0, data_width=32):
         assert n < 3 and self.axi_gp_masters[n] is None
