@@ -73,19 +73,63 @@ class ZynqMP(CPU):
         assert n < 3 and self.axi_gp_masters[n] is None
         assert data_width in [32, 64, 128]
         axi_gpn = axi.AXIInterface(data_width=data_width, address_width=32, id_width=16)
-        self.config[f'PSU__USE__M_AXI_GP{n}'] = 1
+        xpd     = {0 : "fpd", 1 : "fpd", 2 : "lpd"}[n]
+        self.config[f'PSU__USE__M_AXI_GP{n}']      = 1
         self.config[f'PSU__MAXIGP{n}__DATA_WIDTH'] = data_width
         self.axi_gp_masters.append(axi_gpn)
-        xpd = {0 : "fpd", 1 : "fpd", 2 : "lpd"}[n]
-        self.cpu_params[f"i_maxihpm0_{xpd}_aclk"] = ClockSignal("ps")
-        layout = axi_gpn.layout_flat()
-        dir_map = {DIR_M_TO_S: 'o', DIR_S_TO_M: 'i'}
-        for group, signal, direction in layout:
-            sig_name = group + signal
-            if sig_name in ['bfirst', 'blast', 'rfirst', 'arfirst', 'arlast', 'awfirst', 'awlast', 'wfirst', 'wid']:
-                continue
-            direction = dir_map[direction]
-            self.cpu_params[f'{direction}_maxigp{n}_{group}{signal}'] = getattr(getattr(axi_gpn, group), signal)
+        self.cpu_params.update({
+            # AXI GPx clk.
+            f"i_maxihpm0_{xpd}_aclk" : ClockSignal("ps"),
+
+            # AXI GPx aw.
+            f"o_maxigp{n}_awid"      : axi_gpn.aw.id,
+            f"o_maxigp{n}_awaddr"    : axi_gpn.aw.addr,
+            f"o_maxigp{n}_awlen"     : axi_gpn.aw.len,
+            f"o_maxigp{n}_awsize"    : axi_gpn.aw.size,
+            f"o_maxigp{n}_awburst"   : axi_gpn.aw.burst,
+            f"o_maxigp{n}_awlock"    : axi_gpn.aw.lock,
+            f"o_maxigp{n}_awcache"   : axi_gpn.aw.cache,
+            f"o_maxigp{n}_awprot"    : axi_gpn.aw.prot,
+            f"o_maxigp{n}_awvalid"   : axi_gpn.aw.valid,
+            f"o_maxigp{n}_awuser"    : axi_gpn.aw.user,
+            f"i_maxigp{n}_awready"   : axi_gpn.aw.ready,
+            f"o_maxigp{n}_awqos"     : axi_gpn.aw.qos,
+
+            # AXI GPx w.
+            f"o_maxigp{n}_wdata"     : axi_gpn.w.data,
+            f"o_maxigp{n}_wstrb"     : axi_gpn.w.strb,
+            f"o_maxigp{n}_wlast"     : axi_gpn.w.last,
+            f"o_maxigp{n}_wvalid"    : axi_gpn.w.valid,
+            f"i_maxigp{n}_wready"    : axi_gpn.w.ready,
+
+            # AXI GPx b.
+            f"i_maxigp{n}_bid"       : axi_gpn.b.id,
+            f"i_maxigp{n}_bresp"     : axi_gpn.b.resp,
+            f"i_maxigp{n}_bvalid"    : axi_gpn.b.valid,
+            f"o_maxigp{n}_bready"    : axi_gpn.b.ready,
+
+            # AXI GPx ar.
+            f"o_maxigp{n}_arid"      : axi_gpn.ar.id,
+            f"o_maxigp{n}_araddr"    : axi_gpn.ar.addr,
+            f"o_maxigp{n}_arlen"     : axi_gpn.ar.len,
+            f"o_maxigp{n}_arsize"    : axi_gpn.ar.size,
+            f"o_maxigp{n}_arburst"   : axi_gpn.ar.burst,
+            f"o_maxigp{n}_arlock"    : axi_gpn.ar.lock,
+            f"o_maxigp{n}_arcache"   : axi_gpn.ar.cache,
+            f"o_maxigp{n}_arprot"    : axi_gpn.ar.prot,
+            f"o_maxigp{n}_arvalid"   : axi_gpn.ar.valid,
+            f"o_maxigp{n}_aruser"    : axi_gpn.ar.user,
+            f"i_maxigp{n}_arready"   : axi_gpn.ar.ready,
+            f"o_maxigp{n}_arqos"     : axi_gpn.ar.qos,
+
+            # AXI GPx r.
+            f"i_maxigp{n}_rid"       : axi_gpn.r.id,
+            f"i_maxigp{n}_rdata"     : axi_gpn.r.data,
+            f"i_maxigp{n}_rresp"     : axi_gpn.r.resp,
+            f"i_maxigp{n}_rlast"     : axi_gpn.r.last,
+            f"i_maxigp{n}_rvalid"    : axi_gpn.r.valid,
+            f"o_maxigp{n}_rready"    : axi_gpn.r.ready,
+        })
 
         return axi_gpn
 
