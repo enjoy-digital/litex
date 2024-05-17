@@ -51,6 +51,7 @@ class ZynqMP(CPU):
         self.axi_gp_masters = [None] * 3  # General Purpose AXI Masters.
         self.gem_mac        = []          # GEM MAC reserved ports.
         self.i2c_use        = []          # I2c reserved ports.
+        self.uart_use       = []          # UART reserved ports.
 
         self.cd_ps = ClockDomain()
 
@@ -294,6 +295,18 @@ class ZynqMP(CPU):
             f"i_emio_i2c{n}_sda_i" : sda_i,
             f"o_emio_i2c{n}_sda_o" : sda_o,
             f"o_emio_i2c{n}_sda_t" : sda_t,
+        })
+
+    def add_uart(self, n, pads):
+        assert n < 2 and not n in self.uart_use
+        assert pads is not None
+
+        self.config[f"PSU__UART{n}__PERIPHERAL__ENABLE"] = 1
+        self.config[f"PSU__UART{n}__PERIPHERAL__IO"]     = "EMIO"
+
+        self.cpu_params.update({
+            f"i_emio_uart{n}_rxd" : pads.rx,
+            f"o_emio_uart{n}_txd" : pads.tx,
         })
 
     def do_finalize(self):
