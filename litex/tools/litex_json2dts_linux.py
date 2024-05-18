@@ -46,7 +46,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         cpu_isa_extensions += ", \"f\""
     if "d" in cpu_isa[5:]:
         cpu_isa_extensions += ", \"d\""
-    if "d" in cpu_isa[5:]:
+    if "c" in cpu_isa[5:]:
         cpu_isa_extensions += ", \"c\""
     # rocket specific extensions
     if "rocket" in cpu_name:
