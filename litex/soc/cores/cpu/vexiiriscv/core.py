@@ -132,7 +132,7 @@ class VexiiRiscv(CPU):
         vdir = get_data_mod("cpu", "vexiiriscv").data_location
         ndir = os.path.join(vdir, "ext", "VexiiRiscv")
 
-        NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "fpu_internal", "8a239d10", args.update_repo)
+        NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "dev", "4d2ff4b2", args.update_repo)
 
         VexiiRiscv.jtag_tap         = args.with_jtag_tap
         VexiiRiscv.jtag_instruction = args.with_jtag_instruction
