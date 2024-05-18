@@ -294,7 +294,11 @@ class NaxRiscv(CPU):
 
 
     @staticmethod
-    def git_setup(name, dir, repo, branch, hash):
+    def git_setup(name, dir, repo, branch, hash, update):
+        if update == "no":
+            return
+        if "recommended" not in update:
+            hash = ""
         if not os.path.exists(dir):
             # Clone Repo.
             print(f"Cloning {name} Git repository...")
@@ -306,7 +310,7 @@ class NaxRiscv(CPU):
         print(f"Updating {name} Git repository...")
         cwd = os.getcwd()
         os.chdir(os.path.join(dir))
-        wipe_cmd = "&& git clean --force -d -x && git reset --hard" if "wipe" in NaxRiscv.update_repo else ""
+        wipe_cmd = "&& git clean --force -d -x && git reset --hard" if "wipe" in update else ""
         checkout_cmd = f"&& git checkout {hash}" if hash is not None else ""
         subprocess.check_call(f"cd {dir} {wipe_cmd} && git checkout {branch} && git submodule init && git pull --recurse-submodules {checkout_cmd}", shell=True)
         os.chdir(cwd)
@@ -318,8 +322,7 @@ class NaxRiscv(CPU):
         ndir = os.path.join(vdir, "ext", "NaxRiscv")
         sdir = os.path.join(vdir, "ext", "SpinalHDL")
 
-        if NaxRiscv.update_repo != "no":
-            NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git", "main", "f3357383" if NaxRiscv.update_repo=="recommended" else None)
+        NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git", "main", "f3357383", NaxRiscv.update_repo)
 
         gen_args = []
         gen_args.append(f"--netlist-name={NaxRiscv.netlist_name}")

@@ -129,10 +129,10 @@ class VexiiRiscv(CPU):
     def args_read(args):
         print(args)
 
-        if args.update_repo != "no":
-           NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "fpu_internal", "8a239d10" if args.update_repo=="recommended" else None)
+        vdir = get_data_mod("cpu", "vexiiriscv").data_location
+        ndir = os.path.join(vdir, "ext", "VexiiRiscv")
 
-
+        NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "fpu_internal", "8a239d10", args.update_repo)
 
         VexiiRiscv.jtag_tap         = args.with_jtag_tap
         VexiiRiscv.jtag_instruction = args.with_jtag_instruction
@@ -141,15 +141,11 @@ class VexiiRiscv(CPU):
         VexiiRiscv.no_netlist_cache = args.no_netlist_cache
         VexiiRiscv.vexii_args       = args.vexii_args
 
-
-        vdir = get_data_mod("cpu", "vexiiriscv").data_location
         md5_hash = hashlib.md5()
         md5_hash.update(args.vexii_args.encode('utf-8'))
         vexii_args_hash = md5_hash.hexdigest()
         ppath = os.path.join(vdir, str(vexii_args_hash) + ".py")
         if VexiiRiscv.no_netlist_cache or not os.path.exists(ppath):
-            ndir = os.path.join(vdir, "ext", "VexiiRiscv")
-
             cmd = f"""cd {ndir} && sbt "runMain vexiiriscv.soc.litex.PythonArgsGen {args.vexii_args} --python-file={str(ppath)}\""""
             subprocess.check_call(cmd, shell=True)
         with open(ppath) as file:
