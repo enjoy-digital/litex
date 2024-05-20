@@ -476,6 +476,16 @@ class NaxRiscv(CPU):
         )
         self.memory_buses.append(mbus)
 
+        self.comb += mbus.aw.cache.eq(0xF)
+        self.comb += mbus.aw.lock.eq(0)
+        self.comb += mbus.aw.prot.eq(1)
+        self.comb += mbus.aw.qos.eq(0)
+
+        self.comb += mbus.ar.cache.eq(0xF)
+        self.comb += mbus.ar.lock.eq(0)
+        self.comb += mbus.ar.prot.eq(1)
+        self.comb += mbus.ar.qos.eq(0)
+
         self.cpu_params.update(
             # Memory Bus (Master).
             # --------------------
