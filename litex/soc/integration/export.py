@@ -31,7 +31,7 @@ from migen import *
 from litex.soc.interconnect.csr import CSRStatus
 from litex.soc.integration.soc import SoCRegion
 
-from litex.build.tools import generated_banner
+from litex.build.tools import generated_separator, generated_banner
 
 from litex.soc.doc.rst import reflow
 from litex.soc.doc.module import gather_submodules, ModuleNotDocumented, DocumentedModule, DocumentedInterrupts
@@ -261,7 +261,7 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_onl
     Generate C code for CSR read/write functions and definitions.
     """
     result = _generate_csr_definitions_c(reg_name, reg_base, nwords, csr_base, with_csr_base_define)
-    size = nwords * busword // 8
+    size   = nwords * busword // 8
 
     ctype, stride = _determine_ctype_and_stride_c(size, alignment)
     if ctype is None:
@@ -295,9 +295,13 @@ def _generate_csr_base_define_c(csr_base, with_csr_base_define):
     """
     Generate the CSR base address define directive.
     """
+    includes = ""
     if with_csr_base_define:
-        return f"\n#ifndef CSR_BASE\n#define CSR_BASE {hex(csr_base)}L\n#endif\n"
-    return ""
+        includes += "\n"
+        includes += "#ifndef CSR_BASE\n"
+        includes += f"#define CSR_BASE {hex(csr_base)}L\n"
+        includes += "#endif /* ! CSR_BASE */\n"
+    return includes
 
 def _generate_field_definitions_c(csr, name, with_fields_access_functions):
     """
@@ -344,7 +348,7 @@ def _generate_csr_region_definitions_c(name, region, origin, alignment, csr_base
     Generate CSR address and size definitions for a region.
     """
     base_define = with_csr_base_define and not isinstance(region, MockCSRRegion)
-    region_defs = f"\n/* {name} */\n"
+    region_defs = f"\n/* {name.upper()} */\n"
     region_defs += f"#define CSR_{name.upper()}_BASE {_get_csr_addr(csr_base, origin, base_define)}\n"
 
     if not isinstance(region.obj, Memory):
@@ -373,18 +377,28 @@ def get_csr_header(regions, constants, csr_base=None, with_csr_base_define=True,
     alignment = constants.get("CONFIG_CSR_ALIGNMENT", 32)
     r = generated_banner("//")
 
+    r += "\n"
+    r += generated_separator("//", "CSR Includes.")
+    r += "\n"
     r += _generate_csr_header_includes_c(with_access_functions)
-
     _csr_base = regions[next(iter(regions))].origin
-    csr_base = csr_base if csr_base is not None else _csr_base
-
+    csr_base  = csr_base if csr_base is not None else _csr_base
     r += _generate_csr_base_define_c(csr_base, with_csr_base_define)
 
+
+    r += "\n"
+    r += generated_separator("//", "CSR Registers/Fields Definition.")
     for name, region in regions.items():
         origin = region.origin - _csr_base
         r += _generate_csr_region_definitions_c(name, region, origin, alignment, csr_base, with_csr_base_define, with_access_functions, with_fields_access_functions)
 
-    r += "\n#endif\n"
+    r += "\n"
+    r += generated_separator("//", "CSR Registers Access Functions.")
+
+    r += "\n"
+    r += generated_separator("//", "CSR Registers Field Access Functions.")
+
+    r += "\n#endif /* ! __GENERATED_CSR_H */\n"
     return r
 
 # C I2C Export -------------------------------------------------------------------------------------
