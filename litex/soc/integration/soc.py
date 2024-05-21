@@ -944,6 +944,7 @@ class SoC(LiteXModule, SoCCoreCompat):
         self.sys_clk_freq = int(sys_clk_freq) # Do conversion to int here to allow passing float to SoC.
         self.constants    = {}
         self.csr_regions  = {}
+        self.add_constant("platform", platform.name)
 
         # Set Top-Level to LiteXContext.
         LiteXContext.top = self

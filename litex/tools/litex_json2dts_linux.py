@@ -55,14 +55,20 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     cpu_mmu  = d["constants"].get("config_cpu_mmu", None)
 
     # Header ---------------------------------------------------------------------------------------
+    platform = d["constants"]["platform"]
     dts = """
 /dts-v1/;
 
-/ {
+/ {{
+        compatible = "litex,{platform}", "litex,soc";
+        model = "{identifier}";
         #address-cells = <1>;
         #size-cells    = <1>;
 
-"""
+""".format(
+        platform=platform,
+        identifier=d["constants"].get("identifier", platform),
+    )
 
     # Boot Arguments -------------------------------------------------------------------------------
 
