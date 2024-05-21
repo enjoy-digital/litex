@@ -161,6 +161,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         tlb_desc = ""
         if "config_cpu_dtlb_size" in d["constants"]:
             tlb_desc += """
+                tlb-split;
                 d-tlb-size = <{d_tlb_size}>;
                 d-tlb-sets = <{d_tlb_ways}>;
 """.format(
@@ -181,7 +182,6 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 next-level-cache = <&memory>;
                 riscv,pmpgranularity = <4>;
                 riscv,pmpregions = <8>;
-                tlb-split;
 """
         else:
             extra_attr = ""
