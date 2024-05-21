@@ -412,17 +412,31 @@ def get_csr_header(regions, constants, csr_base=None, with_csr_base_define=True,
     if with_access_functions:
         r += "\n"
         r += generated_separator("//", "CSR Registers Access Functions.")
+        r += "\n"
+        r += "#ifndef LITEX_CSR_ACCESS_FUNCTIONS\n"
+        r += "#define LITEX_CSR_ACCESS_FUNCTIONS 1\n"
+        r += "#endif\n"
+        r += "\n"
+        r += "#if LITEX_CSR_ACCESS_FUNCTIONS\n"
         for name, region in regions.items():
             origin = region.origin - _csr_base
             r += _generate_csr_region_access_functions_c(name, region, origin, alignment, csr_base, with_csr_base_define)
+        r += "#endif /* LITEX_CSR_ACCESS_FUNCTIONS */\n"
 
     # CSR Registers Field Access Functions.
     if with_fields_access_functions:
         r += "\n"
         r += generated_separator("//", "CSR Registers Field Access Functions.")
+        r += "\n"
+        r += "#ifndef LITEX_CSR_FIELDS_ACCESS_FUNCTIONS\n"
+        r += "#define LITEX_CSR_FIELDS_ACCESS_FUNCTIONS 1\n"
+        r += "#endif\n"
+        r += "\n"
+        r += "#if LITEX_CSR_FIELDS_ACCESS_FUNCTIONS\n"
         for name, region in regions.items():
             origin = region.origin - _csr_base
             r += _generate_csr_fields_access_functions_c(name, region, origin, alignment, csr_base, with_csr_base_define)
+        r += "#endif /* LITEX_CSR_FIELDS_ACCESS_FUNCTIONS */\n"
 
     r += "\n#endif /* ! __GENERATED_CSR_H */\n"
     return r
