@@ -384,7 +384,7 @@ def _generate_csr_fields_access_functions_c(name, region, origin, alignment, csr
 
 # CSR Header.
 
-def get_csr_header(regions, constants, csr_base=None, with_csr_base_define=True, with_access_functions=True, with_fields_access_functions=True):
+def get_csr_header(regions, constants, csr_base=None, with_csr_base_define=True, with_access_functions=True, with_fields_access_functions=False):
     """
     Generate the CSR header file content.
     """
