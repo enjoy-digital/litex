@@ -309,6 +309,36 @@ class ZynqMP(CPU):
             f"o_emio_uart{n}_txd" : pads.tx,
         })
 
+    def add_gpios(self, pads):
+        assert pads is not None
+
+        # Parameters.
+        pads_len = len(pads)
+
+        # PSU configuration.
+        self.config["PSU__GPIO_EMIO__PERIPHERAL__ENABLE"] = 1
+        self.config["PSU__GPIO_EMIO__PERIPHERAL__IO"]     = len(pads)
+
+        # Signals.
+        gpio_i = Signal(pads_len)
+        gpio_o = Signal(pads_len)
+        gpio_t = Signal(pads_len)
+
+        # PSU connections.
+        for i in range(pads_len):
+            self.specials += Instance("IOBUF",
+                i_I   = gpio_o[i],
+                o_O   = gpio_i[i],
+                i_T   = gpio_t[i],
+                io_IO = pads[i]
+            )
+
+        self.cpu_params.update({
+            "i_emio_gpio_i" : gpio_i,
+            "o_emio_gpio_o" : gpio_o,
+            "o_emio_gpio_t" : gpio_t,
+        })
+
     def do_finalize(self):
         if len(self.ps_tcl):
             self.ps_tcl.append("set_property -dict [list \\")
