@@ -1563,7 +1563,7 @@ class LiteXSoC(SoC):
         if self.irq.enabled:
             self.irq.add(name, use_loc_if_exists=True)
         else:
-            self.add_constant("UART_POLLING")
+            self.add_constant("UART_POLLING", check_duplicate=False)
 
     # Add UARTbone ---------------------------------------------------------------------------------
     def add_uartbone(self, name="uartbone", uart_name="serial", clk_freq=None, baudrate=115200, cd="sys"):
