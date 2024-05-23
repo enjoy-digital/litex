@@ -25,9 +25,7 @@ from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32, CPU_GCC_TRIPLE_RISC
 
 # Variants -----------------------------------------------------------------------------------------
 
-CPU_VARIANTS = {
-    "standard": "VexiiRiscv",
-}
+CPU_VARIANTS = ["cached", "linux", "debian"]
 
 # VexiiRiscv -----------------------------------------------------------------------------------------
 
@@ -132,21 +130,40 @@ class VexiiRiscv(CPU):
         vdir = get_data_mod("cpu", "vexiiriscv").data_location
         ndir = os.path.join(vdir, "ext", "VexiiRiscv")
 
-        NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "dev", "4d2ff4b2", args.update_repo)
+        NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "dev", "6912d4c5", args.update_repo)
+
+        if not args.cpu_variant:
+            args.cpu_variant = "standard"
+
+        VexiiRiscv.vexii_args += " --with-mul --with-div --allow-bypass-from=0 --performance-counters=0"
+        VexiiRiscv.vexii_args += " --fetch-l1 --fetch-l1-ways=2"
+        VexiiRiscv.vexii_args += " --lsu-l1 --lsu-l1-ways=2  --with-lsu-bypass"
+        VexiiRiscv.vexii_args += " --relaxed-branch --relaxed-btb"
+
+        if args.cpu_variant in ["linux", "debian"]:
+            VexiiRiscv.vexii_args += " --with-rva --with-supervisor"
+
+        if args.cpu_variant in ["debian"]:
+            VexiiRiscv.vexii_args += " --xlen=64 --with-rvc --with-rvf --with-rvd --fma-reduced-accuracy"
+
+        if args.cpu_variant in ["linux", "debian"]:
+            VexiiRiscv.vexii_args += " --with-btb --with-ras --with-gshare"
+
+
 
         VexiiRiscv.jtag_tap         = args.with_jtag_tap
         VexiiRiscv.jtag_instruction = args.with_jtag_instruction
         VexiiRiscv.with_dma         = args.with_coherent_dma
         VexiiRiscv.update_repo      = args.update_repo
         VexiiRiscv.no_netlist_cache = args.no_netlist_cache
-        VexiiRiscv.vexii_args       = args.vexii_args
+        VexiiRiscv.vexii_args      += " " + args.vexii_args
 
         md5_hash = hashlib.md5()
-        md5_hash.update(args.vexii_args.encode('utf-8'))
+        md5_hash.update(VexiiRiscv.vexii_args.encode('utf-8'))
         vexii_args_hash = md5_hash.hexdigest()
         ppath = os.path.join(vdir, str(vexii_args_hash) + ".py")
         if VexiiRiscv.no_netlist_cache or not os.path.exists(ppath):
-            cmd = f"""cd {ndir} && sbt "runMain vexiiriscv.soc.litex.PythonArgsGen {args.vexii_args} --python-file={str(ppath)}\""""
+            cmd = f"""cd {ndir} && sbt "runMain vexiiriscv.soc.litex.PythonArgsGen {VexiiRiscv.vexii_args} --python-file={str(ppath)}\""""
             subprocess.check_call(cmd, shell=True)
         with open(ppath) as file:
             exec(file.read())
