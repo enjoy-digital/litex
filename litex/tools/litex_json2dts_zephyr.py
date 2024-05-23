@@ -193,6 +193,10 @@ def peripheral_handler(name, parm, csr):
 
 
 overlay_handlers = {
+    'ctrl': {
+        'handler': peripheral_handler,
+        'alias': 'ctrl0',
+    },
     'uart': {
         'handler': peripheral_handler,
         'alias': 'uart0',
