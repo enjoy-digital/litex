@@ -2092,6 +2092,48 @@ class LiteXSoC(SoC):
         self.add_module(name=f"{name}_core", module=spiflash_core)
         spiflash_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size)
         self.bus.add_slave(name=name, slave=spiflash_core.bus, region=spiflash_region)
+        self.comb += spiflash_core.mmap.offset.eq(self.bus.regions.get(name, None).origin)
+
+        # Constants.
+        self.add_constant(f"{name}_PHY_FREQUENCY",     clk_freq)
+        self.add_constant(f"{name}_MODULE_NAME",       module.name)
+        self.add_constant(f"{name}_MODULE_TOTAL_SIZE", module.total_size)
+        self.add_constant(f"{name}_MODULE_PAGE_SIZE",  module.page_size)
+        if mode in [ "4x" ]:
+            if SpiNorFlashOpCodes.READ_1_1_4 in module.supported_opcodes:
+                self.add_constant(f"{name}_MODULE_QUAD_CAPABLE")
+            if SpiNorFlashOpCodes.READ_4_4_4 in module.supported_opcodes:
+                self.add_constant(f"{name}_MODULE_QPI_CAPABLE")
+        if software_debug:
+            self.add_constant(f"{name}_DEBUG")
+
+    # Add SPI RAM --------------------------------------------------------------------------------
+    def add_spi_ram(self, name="spiram", mode="4x", clk_freq=20e6, module=None, phy=None, rate="1:1", software_debug=False, **kwargs):
+        # Imports.
+        from litespi import LiteSPI
+        from litespi.phy.generic import LiteSPIPHY
+        from litespi.opcodes import SpiNorFlashOpCodes
+
+        # Checks/Parameters.
+        assert mode in ["1x", "4x"]
+        default_divisor = math.ceil(self.sys_clk_freq/(2*clk_freq)) - 1
+        clk_freq        = int(self.sys_clk_freq/(2*(default_divisor + 1)))
+
+        # PHY.
+        spiram_phy = phy
+        if spiram_phy is None:
+            self.check_if_exists(f"{name}_phy")
+            spiram_pads = self.platform.request(name if mode == "1x" else name + mode)
+            spiram_phy = LiteSPIPHY(spiram_pads, module, device=self.platform.device, default_divisor=default_divisor, rate=rate)
+            self.add_module(name=f"{name}_phy", module=spiram_phy)
+
+        # Core.
+        self.check_if_exists(f"{name}_mmap")
+        spiram_core = LiteSPI(spiram_phy, mmap_endianness=self.cpu.endianness, with_mmap_write=True, **kwargs)
+        self.add_module(name=f"{name}_core", module=spiram_core)
+        spiram_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size)
+        self.bus.add_slave(name=name, slave=spiram_core.bus, region=spiram_region)
+        self.comb += spiram_core.mmap.offset.eq(self.bus.regions.get(name, None).origin)
 
         # Constants.
         self.add_constant(f"{name}_PHY_FREQUENCY",     clk_freq)
