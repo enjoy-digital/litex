@@ -45,7 +45,7 @@ def indent(line, levels=1):
 
 
 def indent_all(text, levels=1):
-    return '\n'.join(map(indent, text.splitlines()))
+    return '\n'.join([indent(line, levels) for line in text.splitlines()])
 
 
 def indent_all_but_first(text, levels=1):
@@ -66,13 +66,12 @@ def dts_close():
     return "};\n"
 
 
-def dts_intr(name, csr):
-    return indent("interrupts = <{} 0>;\n".format(
-        hex(csr['constants'][name + '_interrupt'])
-    ))
+def dts_intr(name, csr, levels=1):
+    irq = csr['constants'].get(name + '_interrupt', None)
+    return indent(f"interrupts = <{irq} 0>;\n" if irq else "", levels)
 
 
-def dts_reg(regs):
+def dts_reg(regs, levels=1):
     dtsi = 'reg = <'
 
     formatted_registers = '\n'.join(
@@ -80,13 +79,13 @@ def dts_reg(regs):
         for reg in regs
     )
 
-    dtsi += indent_all_but_first(formatted_registers)
+    dtsi += indent_all_but_first(formatted_registers, 1)
     dtsi += '>;'
 
-    return indent_all(dtsi) + '\n'
+    return indent_all(dtsi, levels) + '\n'
 
 
-def dts_reg_names(regs):
+def dts_reg_names(regs, levels=1):
     dtsi = 'reg-names = '
 
     formatted_registers = ',\n'.join(
@@ -94,10 +93,10 @@ def dts_reg_names(regs):
         for reg in regs
     )
 
-    dtsi += indent_all_but_first(formatted_registers)
+    dtsi += indent_all_but_first(formatted_registers, 1)
     dtsi += ';'
 
-    return indent_all(dtsi) + '\n'
+    return indent_all(dtsi, levels) + '\n'
 
 
 # DTS handlers
