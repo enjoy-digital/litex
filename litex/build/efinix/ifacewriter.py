@@ -425,6 +425,7 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
             fast_clk = block.get("fast_clk", "")
         slow_clk = block.get("slow_clk", "")
         half_rate= block.get("half_rate", "0")
+        tx_output_load=block.get("output_load", "3")
 
         if mode == "OUTPUT":
             block_type = "LVDS_TX"
@@ -443,7 +444,7 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                 cmd.append('design.set_property("{}", "TX_PRE_EMP",   "MEDIUM_LOW", "{}")'.format(name, block_type))
                 cmd.append('design.set_property("{}", "TX_VOD",       "TYPICAL",    "{}")'.format(name, block_type))
             else:
-                cmd.append('design.set_property("{}", "TX_OUTPUT_LOAD",   "3", "{}")'.format(name, block_type))
+                cmd.append('design.set_property("{}", "TX_OUTPUT_LOAD",   "{}", "{}")'.format(name, tx_output_load, block_type))
                 cmd.append('design.set_property("{}", "TX_REDUCED_SWING", "0", "{}")'.format(name, block_type))
                 cmd.append('design.set_property("{}", "TX_SLOWCLK_DIV",   "1", "{}")'.format(name, block_type))
             cmd.append('design.set_property("{}", "TX_SER",         "{}", "{}")'.format(name, size, block_type))
