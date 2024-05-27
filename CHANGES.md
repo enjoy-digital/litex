@@ -42,6 +42,8 @@
 	- cpu/vexriscv_smp              : Added baremetal IRQ support.
 	- cpu/naxriscv                  : Added baremetal IRQ support.
 	- cpu/zynqmp                    : Added Ethernet, UART, I2C support and improved AXI Master.
+	- build/efinix                  : Added reconfiguration interface support.
+	- build/efinix                  : Added tx_output_load configuration support.
 
 	[> Changed
 	----------
