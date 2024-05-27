@@ -104,6 +104,10 @@ def dts_reg_names(regs):
 def disabled_handler(name, parm, csr):
     return indent('status = "disabled";\n')
 
+def cpu_handler(name, parm, csr):
+    return indent("clock-frequency = <{}>;\n".format(
+        csr['constants']['config_clock_frequency']
+    ))
 
 def ram_handler(name, parm, csr):
     mem_reg = {
@@ -193,6 +197,10 @@ def peripheral_handler(name, parm, csr):
 
 
 overlay_handlers = {
+    'cpu': {
+        'handler': cpu_handler,
+        'alias': 'cpu0',
+    },
     'ctrl': {
         'handler': peripheral_handler,
         'alias': 'ctrl0',
