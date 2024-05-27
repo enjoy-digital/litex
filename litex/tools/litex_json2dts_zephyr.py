@@ -74,7 +74,7 @@ def dts_intr(name, csr, levels=1):
 def dts_reg(regs, levels=1):
     dtsi = 'reg = <'
 
-    formatted_registers = '\n'.join(
+    formatted_registers = '>,\n<'.join(
         '0x{:x} 0x{:x}'.format(reg['addr'], reg['size'])
         for reg in regs
     )
