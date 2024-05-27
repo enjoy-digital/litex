@@ -49,6 +49,7 @@ class VexiiRiscv(CPU):
     litedram_width   = 32
     l2_bytes         = 0
     l2_ways          = 4
+    l2_self_flush    = None
     with_fpu         = False
     with_rvc         = False
     with_rvm         = False
@@ -56,6 +57,7 @@ class VexiiRiscv(CPU):
     jtag_tap         = False
     jtag_instruction = False
     vexii_args       = ""
+
 
     # ABI.
     @staticmethod
@@ -120,6 +122,8 @@ class VexiiRiscv(CPU):
         # cpu_group.add_argument("--with-rvc",              action="store_true",   help="Enable the Compress ISA extension.")
         cpu_group.add_argument("--l2-bytes",              default=0,             help="VexiiRiscv L2 bytes, default 128 KB.")
         cpu_group.add_argument("--l2-ways",               default=0,             help="VexiiRiscv L2 ways, default 8.")
+        cpu_group.add_argument("--l2-self-flush",         default=None,          help="VexiiRiscv L2 ways will self flush on from,to,cycles")
+
 
 
 
@@ -130,7 +134,7 @@ class VexiiRiscv(CPU):
         vdir = get_data_mod("cpu", "vexiiriscv").data_location
         ndir = os.path.join(vdir, "ext", "VexiiRiscv")
 
-        NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "dev", "6912d4c5", args.update_repo)
+        NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "dev", "0ec757d2", args.update_repo)
 
         if not args.cpu_variant:
             args.cpu_variant = "standard"
@@ -177,6 +181,8 @@ class VexiiRiscv(CPU):
             VexiiRiscv.l2_bytes = args.l2_bytes
         if args.l2_ways:
             VexiiRiscv.l2_ways = args.l2_ways
+        if args.l2_self_flush:
+            VexiiRiscv.l2_self_flush = args.l2_self_flush
 
 
     def __init__(self, platform, variant):
@@ -297,6 +303,7 @@ class VexiiRiscv(CPU):
         md5_hash.update(str(VexiiRiscv.cpu_count).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.l2_bytes).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.l2_ways).encode('utf-8'))
+        md5_hash.update(str(VexiiRiscv.l2_self_flush).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.jtag_tap).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.jtag_instruction).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.with_dma).encode('utf-8'))
@@ -322,6 +329,8 @@ class VexiiRiscv(CPU):
         gen_args.append(f"--cpu-count={VexiiRiscv.cpu_count}")
         gen_args.append(f"--l2-bytes={VexiiRiscv.l2_bytes}")
         gen_args.append(f"--l2-ways={VexiiRiscv.l2_ways}")
+        if VexiiRiscv.l2_self_flush:
+            gen_args.append(f"--l2-self-flush={VexiiRiscv.l2_self_flush}")
         gen_args.append(f"--litedram-width={VexiiRiscv.litedram_width}")
         # gen_args.append(f"--internal_bus_width={VexiiRiscv.internal_bus_width}")
         for region in VexiiRiscv.memory_regions:
