@@ -50,9 +50,11 @@ class VexiiRiscv(CPU):
     l2_bytes         = 0
     l2_ways          = 4
     l2_self_flush    = None
-    with_fpu         = False
     with_rvc         = False
     with_rvm         = False
+    with_rvf         = False
+    with_rvd         = False
+    with_rva         = False
     with_dma         = False
     jtag_tap         = False
     jtag_instruction = False
@@ -63,8 +65,10 @@ class VexiiRiscv(CPU):
     @staticmethod
     def get_abi():
         abi = "lp64" if VexiiRiscv.xlen == 64 else "ilp32"
-        if VexiiRiscv.with_fpu:
+        if VexiiRiscv.with_rvd:
             abi +="d"
+        elif VexiiRiscv.with_rvf:
+            abi +="f"
         return abi
 
     # Arch.
@@ -73,11 +77,19 @@ class VexiiRiscv(CPU):
         arch = f"rv{VexiiRiscv.xlen}i2p0_"
         if VexiiRiscv.with_rvm:
             arch += "m"
-        arch += "a"
-        if VexiiRiscv.with_fpu:
-            arch += "fd"
+        if VexiiRiscv.with_rva:
+            arch += "a"
+        if VexiiRiscv.with_rvf:
+            arch += "f"
+        if VexiiRiscv.with_rvd:
+            arch += "d"
         if VexiiRiscv.with_rvc:
             arch += "c"
+        # arch += "zicntr"
+        # arch += "zicsr"
+        # arch += "zifencei"
+        # arch += "zihpm"
+        # arch += "sscofpmf"
         return arch
 
     # Memory Mapping.
@@ -134,7 +146,7 @@ class VexiiRiscv(CPU):
         vdir = get_data_mod("cpu", "vexiiriscv").data_location
         ndir = os.path.join(vdir, "ext", "VexiiRiscv")
 
-        NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "dev", "0ec757d2", args.update_repo)
+        NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "dev", "61ed758d", args.update_repo)
 
         if not args.cpu_variant:
             args.cpu_variant = "standard"
@@ -341,10 +353,6 @@ class VexiiRiscv(CPU):
             gen_args.append(f"--with-jtag-instruction")
         if(VexiiRiscv.with_dma) :
             gen_args.append(f"--with-dma")
-        # if(VexiiRiscv.with_fpu):
-        #     gen_args.append(f"--scala-args=rvf=true,rvd=true")
-        # if(VexiiRiscv.with_rvc):
-        #     gen_args.append(f"--scala-args=rvc=true")
 
         cmd = f"""cd {ndir} && sbt "runMain vexiiriscv.soc.litex.SocGen {" ".join(gen_args)}\""""
         print("VexiiRiscv generation command :")
