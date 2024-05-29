@@ -12,6 +12,7 @@ import sys
 import site
 import inspect
 import datetime
+import itertools
 
 from xml.dom import expatbuilder
 import xml.etree.ElementTree as et
@@ -43,6 +44,21 @@ class EfinityToolchain(GenericToolchain):
         self.excluded_ios              = []
         self.additional_sdc_commands   = []
         self.additional_iface_commands = []
+        
+        self.map_opts = {
+            'mode': 'speed',
+            'max_ram': '-1',
+            'max_mult': '-1',
+            'infer-clk-enable': '3',
+            'infer-sync-set-reset': '1',
+            'fanout-limit': '0',
+            'bram_output_regs_packing': '1',
+            'retiming': '1',
+            'seq_opt': '1',
+            'blast_const_operand_adders': '1',
+            'mult_input_regs_packing': '1',
+            'mult_output_regs_packing': '1',
+        }
 
     def finalize(self):
         self.ifacewriter.set_build_params(self.platform, self._build_name)
@@ -295,23 +311,12 @@ class EfinityToolchain(GenericToolchain):
             "--binary-db",                  f"{self._build_name}.vdb",
             "--family",                     self.platform.family,
             "--device",                     self.platform.device,
-            "--mode",                       "speed",
-            "--max_ram",                    "-1",
-            "--max_mult",                   "-1",
-            "--infer-clk-enable",           "3",
-            "--infer-sync-set-reset",       "1",
-            "--fanout-limit",               "0",
-            "--bram_output_regs_packing",   "1",
-            "--retiming",                   "1",
-            "--seq_opt",                    "1",
-            "--blast_const_operand_adders", "1",
-            "--mult_input_regs_packing",    "1",
-            "--mult_output_regs_packing",   "1",
             "--veri_option",                "verilog_mode=verilog_2k,vhdl_mode=vhdl_2008",
             "--work-dir",                   "work_syn",
             "--output-dir",                 "outflow",
             "--project-xml",                f"{self._build_name}.xml",
-            "--I",                          "./"
+            "--I",                          "./",
+            *itertools.chain.from_iterable([(f"--{k}", v) for k,v in self.map_opts.items()])
         ], common.colors)
         if r != 0:
             raise OSError("Error occurred during efx_map execution.")
