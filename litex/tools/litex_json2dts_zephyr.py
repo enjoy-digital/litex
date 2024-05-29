@@ -181,6 +181,26 @@ def i2s_handler(name, parm, csr):
     return dtsi
 
 
+def spimaster_handler(name, parm, csr):
+    registers = get_registers_of(name, csr)
+    if len(registers) == 0:
+        raise KeyError
+
+    dtsi = dts_reg(registers)
+    dtsi += dts_reg_names(registers)
+
+    dtsi += indent("clock-frequency = <{}>;\n".format(
+        csr['constants'][name + '_frequency']))
+
+    dtsi += indent("data-width = <{}>;\n".format(
+        csr['constants'][name + '_data_width']))
+
+    dtsi += indent("max-cs = <{}>;\n".format(
+        csr['constants'][name + '_max_cs']))
+
+    return dtsi
+
+
 def peripheral_handler(name, parm, csr):
     registers = get_registers_of(name, csr)
     if len(registers) == 0:
@@ -219,10 +239,13 @@ overlay_handlers = {
         'alias': 'eth0',
         'config_entry': 'ETH_LITEETH'
     },
+    'spimaster': {
+        'handler': spimaster_handler,
+        'alias': 'spi0',
+    },
     'spiflash': {
         'handler': peripheral_handler,
-        'alias': 'spi0',
-        'config_entry': 'SPI_LITESPI'
+        'alias': 'spi1',
     },
     'sdcard_block2mem': {
         'handler': peripheral_handler,
