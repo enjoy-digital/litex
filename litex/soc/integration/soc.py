@@ -944,7 +944,6 @@ class SoC(LiteXModule, SoCCoreCompat):
         self.sys_clk_freq = int(sys_clk_freq) # Do conversion to int here to allow passing float to SoC.
         self.constants    = {}
         self.csr_regions  = {}
-        self.add_constant("platform", platform.name)
 
         # Set Top-Level to LiteXContext.
         LiteXContext.top = self
@@ -984,6 +983,8 @@ class SoC(LiteXModule, SoCCoreCompat):
         self.logger.info(self.irq)
         self.logger.info(colorer("-"*80, color="bright"))
 
+        # SoC Configs ------------------------------------------------------------------------------
+        self.add_config("PLATFORM_NAME", platform.name)
         self.add_config("CLOCK_FREQUENCY", int(sys_clk_freq))
 
     # SoC Helpers ----------------------------------------------------------------------------------
@@ -1473,7 +1474,7 @@ class LiteXSoC(SoC):
         else:
             self.add_config("BIOS_NO_BUILD_TIME")
         self.add_module(name=name, module=Identifier(identifier))
-        self.add_constant(name, identifier)
+        self.add_config(name, identifier)
 
     # Add UART -------------------------------------------------------------------------------------
     def add_uart(self, name="uart", uart_name="serial", baudrate=115200, fifo_depth=16):
