@@ -5,6 +5,9 @@
 # Copyright (c) 2021 Gwenhael Goavec-Merou <gwenhael.goavec-merou@trabucayre.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
+# See: https://f4pga-examples.readthedocs.io/en/latest/getting.html#toolchain-installation
+# To install toolchain
+
 import os
 import sys
 import subprocess
@@ -49,14 +52,13 @@ class F4PGAToolchain(GenericToolchain):
 
     # Build Makefile -------------------------------------------------------------------------------
 
+    # FIXME: Makefile approach is deprecated and must replaced by the use of f4pga script + a json file.
     def build_script(self):
         makefile = []
 
         # Define Paths.
         makefile.append("mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))")
         makefile.append("current_dir := $(patsubst %/,%,$(dir $(mkfile_path)))")
-        # bit -> h and bit -> bin requires TOP_F
-        makefile.append(f"TOP_F={self._build_name}")
 
         # Create Project.
         # FIXME: Only use top file for now and ignore .init files.
@@ -72,10 +74,10 @@ class F4PGAToolchain(GenericToolchain):
         ))
         # build header to include in CPU firmware
         makefile.append("{top}_bit.h: build/{top}.bit".format(top=self._build_name))
-        makefile.append(f"\t(cd build; TOP_F=$(TOP_F) symbiflow_write_bitheader)")
+        makefile.append(f"\tsymbiflow_write_bitheader $^ $@")
         # build binary to write in dedicated FLASH area
         makefile.append("{top}.bin: build/{top}.bit".format(top=self._build_name))
-        makefile.append(f"\t(cd build; TOP_F=$(TOP_F) symbiflow_write_binary)")
+        makefile.append(f"\tsymbiflow_write_binary $^ $@")
 
         # Generate Makefile.
         tools.write_to_file("Makefile", "\n".join(makefile))
