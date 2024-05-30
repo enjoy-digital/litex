@@ -46,6 +46,7 @@
 	- build/efinix                  : Added tx_output_load configuration support.
     - cpu/eos_s3                    : Updated qlal4s3b_cell_macro clock and reset signals.
     - build/quicklogic              : Updated f4pga Makefile.
+    - build/microsemi               : Updated libero_soc toolchain.
 
 	[> Changed
 	----------
