@@ -44,6 +44,8 @@
 	- cpu/zynqmp                    : Added Ethernet, UART, I2C support and improved AXI Master.
 	- build/efinix                  : Added reconfiguration interface support.
 	- build/efinix                  : Added tx_output_load configuration support.
+    - cpu/eos_s3                    : Updated qlal4s3b_cell_macro clock and reset signals.
+    - build/quicklogic              : Updated f4pga Makefile.
 
 	[> Changed
 	----------
