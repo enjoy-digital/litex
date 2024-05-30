@@ -118,13 +118,18 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     # Clocks ------------------------------------------------------------------------------------------
 
-    dts += """
-        sys_clk: pll {{
+    for c in [c for c in d["constants"].keys() if c.endswith("config_clock_frequency")]:
+        name = c.removesuffix("config_clock_frequency") + "sys_clk"
+        dts += """
+        {name}: clock-{freq} {{
             compatible = "fixed-clock";
             #clock-cells = <0>;
-            clock-frequency  = <{sys_clk_freq}>;
+            clock-frequency  = <{freq}>;
         }};
-""".format(sys_clk_freq=d["constants"]["config_clock_frequency"])
+""".format(
+            name=name,
+            freq=d["constants"][c],
+        )
 
     # CPU ------------------------------------------------------------------------------------------
 
