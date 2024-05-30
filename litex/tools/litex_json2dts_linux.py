@@ -55,7 +55,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     cpu_mmu  = d["constants"].get("config_cpu_mmu", None)
 
     # Header ---------------------------------------------------------------------------------------
-    platform = d["constants"]["platform"]
+    platform = d["constants"]["config_platform_name"]
     dts = """
 /dts-v1/;
 
