@@ -1473,6 +1473,7 @@ class LiteXSoC(SoC):
         else:
             self.add_config("BIOS_NO_BUILD_TIME")
         self.add_module(name=name, module=Identifier(identifier))
+        self.add_constant(name, identifier)
 
     # Add UART -------------------------------------------------------------------------------------
     def add_uart(self, name="uart", uart_name="serial", baudrate=115200, fifo_depth=16):

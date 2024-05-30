@@ -247,7 +247,6 @@ class SoCCore(LiteXSoC):
         # Add Identifier.
         if ident != "":
             self.add_identifier("identifier", identifier=ident, with_build_time=ident_version)
-            self.add_constant("identifier", ident)
 
         # Add UARTBone.
         if with_uartbone:
