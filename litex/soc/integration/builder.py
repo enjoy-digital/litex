@@ -145,22 +145,22 @@ class Builder:
 
     def _get_json_mem_regions(self):
         mem_regions = {}
-        for filename, name, origin in self.jsons:
-            _, _, _mem_regions = export.load_csr_json(filename, name, origin)
+        for filename, origin, name in self.jsons:
+            _, _, _mem_regions = export.load_csr_json(filename, origin, name)
             mem_regions.update(_mem_regions)
         return mem_regions
 
     def _get_json_constants(self):
         constants = {}
-        for filename, name, origin in self.jsons:
-            _, _constants, _ = export.load_csr_json(filename, name, origin)
+        for filename, origin, name in self.jsons:
+            _, _constants, _ = export.load_csr_json(filename, origin, name)
             constants.update(_constants)
         return constants
 
     def _get_json_csr_regions(self):
         csr_regions = {}
-        for filename, name, origin in self.jsons:
-            _csr_regions, _, _ = export.load_csr_json(filename, name, origin)
+        for filename, origin, name in self.jsons:
+            _csr_regions, _, _ = export.load_csr_json(filename, origin, name)
             csr_regions.update(_csr_regions)
         return csr_regions
 
