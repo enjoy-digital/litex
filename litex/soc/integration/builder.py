@@ -140,26 +140,27 @@ class Builder:
     def add_software_library(self, name):
         self.software_libraries.append(name)
 
-    def add_json(self, filename, origin=0, name=""):
-        self.jsons.append((filename, origin, name))
+    def add_json(self, filename, origin=0, name="", exclude_constants=["_INTERRUPT"]):
+        self.jsons.append((filename, origin, name, exclude_constants))
 
     def _get_json_mem_regions(self):
         mem_regions = {}
-        for filename, origin, name in self.jsons:
+        for filename, origin, name, _ in self.jsons:
             _, _, _mem_regions = export.load_csr_json(filename, origin, name)
             mem_regions.update(_mem_regions)
         return mem_regions
 
     def _get_json_constants(self):
         constants = {}
-        for filename, origin, name in self.jsons:
+        for filename, origin, name, exclude in self.jsons:
             _, _constants, _ = export.load_csr_json(filename, origin, name)
+            _constants = {k: v for k, v in _constants.items() if not any(ex in k for ex in exclude)}
             constants.update(_constants)
         return constants
 
     def _get_json_csr_regions(self):
         csr_regions = {}
-        for filename, origin, name in self.jsons:
+        for filename, origin, name, _ in self.jsons:
             _csr_regions, _, _ = export.load_csr_json(filename, origin, name)
             csr_regions.update(_csr_regions)
         return csr_regions
