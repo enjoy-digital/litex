@@ -1,5 +1,5 @@
-[> Changes since 2023.12
-------------------------
+[> 2024.04, released on June 5th 2024
+-------------------------------------
 	[> Fixed
 	--------
 	- integration/soc               : Fixed typo in cpu mem_bus axi-via-wb downconvert
