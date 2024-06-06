@@ -158,8 +158,8 @@ class VexiiRiscv(CPU):
 
         if args.cpu_variant in ["linux", "debian"]:
             VexiiRiscv.vexii_args += " --with-rva --with-supervisor"
-            VexiiRiscv.vexii_args += " --fetch-l1-ways=4"
-            VexiiRiscv.vexii_args += " --lsu-l1-ways=4"
+            VexiiRiscv.vexii_args += " --fetch-l1-ways=4 --fetch-l1-mem-data-width-min=64"
+            VexiiRiscv.vexii_args += " --lsu-l1-ways=4 --lsu-l1-mem-data-width-min=64"
 
         if args.cpu_variant in ["debian"]:
             VexiiRiscv.vexii_args += " --xlen=64 --with-rvc --with-rvf --with-rvd --fma-reduced-accuracy"
