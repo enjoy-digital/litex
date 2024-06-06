@@ -61,6 +61,7 @@ class VHD2VConverter(Module):
         self._params        = params
         self._force_convert = force_convert
         self._add_instance  = add_instance
+        self._work_package  = work_package
 
         self._ghdl_opts     = ["--std=08", "--no-formal"]
 
@@ -103,7 +104,7 @@ class VHD2VConverter(Module):
         if self._platform.support_mixed_language and not self._force_convert:
             ip_params = self._params
             for file in self._sources:
-                self._platform.add_source(file)
+                self._platform.add_source(file, library=self._work_package)
         else: # platform is only able to synthesis verilog -> convert vhdl to verilog
             # check if more than one core is instanciated
             # if so -> append with _X
