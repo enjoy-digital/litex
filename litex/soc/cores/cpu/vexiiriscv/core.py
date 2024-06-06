@@ -146,7 +146,7 @@ class VexiiRiscv(CPU):
         vdir = get_data_mod("cpu", "vexiiriscv").data_location
         ndir = os.path.join(vdir, "ext", "VexiiRiscv")
 
-        NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "dev", "61ed758d", args.update_repo)
+        NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "dev", "d9917133", args.update_repo)
 
         if not args.cpu_variant:
             args.cpu_variant = "standard"
@@ -158,6 +158,8 @@ class VexiiRiscv(CPU):
 
         if args.cpu_variant in ["linux", "debian"]:
             VexiiRiscv.vexii_args += " --with-rva --with-supervisor"
+            VexiiRiscv.vexii_args += " --fetch-l1-ways=4"
+            VexiiRiscv.vexii_args += " --lsu-l1-ways=4"
 
         if args.cpu_variant in ["debian"]:
             VexiiRiscv.vexii_args += " --xlen=64 --with-rvc --with-rvf --with-rvd --fma-reduced-accuracy"
