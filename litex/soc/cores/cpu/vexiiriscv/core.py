@@ -146,7 +146,7 @@ class VexiiRiscv(CPU):
         vdir = get_data_mod("cpu", "vexiiriscv").data_location
         ndir = os.path.join(vdir, "ext", "VexiiRiscv")
 
-        NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "dev", "d9917133", args.update_repo)
+        NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "dev", "32ec8bd1", args.update_repo)
 
         if not args.cpu_variant:
             args.cpu_variant = "standard"
@@ -479,11 +479,13 @@ class VexiiRiscv(CPU):
         self.comb += mbus.aw.lock.eq(0)
         self.comb += mbus.aw.prot.eq(1)
         self.comb += mbus.aw.qos.eq(0)
+        #self.comb += mbus.aw.region.eq(0)
 
         self.comb += mbus.ar.cache.eq(0xF)
         self.comb += mbus.ar.lock.eq(0)
         self.comb += mbus.ar.prot.eq(1)
         self.comb += mbus.ar.qos.eq(0)
+        #self.comb += mbus.ar.region.eq(0)
 
         self.cpu_params.update(
             # Memory Bus (Master).
