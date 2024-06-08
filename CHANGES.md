@@ -5,6 +5,10 @@
 
 	[> Added
 	--------
+	- cpu/vexiiriscv                : Added initial support.
+
+	[> Changed
+	----------
 
 [> 2024.04, released on June 5th 2024
 -------------------------------------
