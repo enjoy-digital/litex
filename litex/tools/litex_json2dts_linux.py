@@ -24,6 +24,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         "mor1kx"     : "or1k",
         "marocchino" : "or1k",
         "vexriscv"   : "riscv",
+        "vexiiriscv" : "riscv",
         "rocket"     : "riscv",
         "naxriscv"   : "riscv",
     }
