@@ -328,7 +328,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     # Interrupt Controller -------------------------------------------------------------------------
 
-    if (cpu_arch == "riscv") and ("rocket" in cpu_name):
+    if (cpu_arch == "riscv") and ("rocket" in cpu_name or "vexiiriscv" in cpu_name):
         # FIXME  : L4 definitiion?
         # CHECKME: interrupts-extended.
         dts += """
