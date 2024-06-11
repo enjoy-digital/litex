@@ -50,7 +50,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     if "c" in cpu_isa[5:]:
         cpu_isa_extensions += ", \"c\""
     # rocket specific extensions
-    if "rocket" in cpu_name:
+    if cpu_name == "rocket":
         cpu_isa_extensions += ", \"zicsr\", \"zifencei\", \"zihpm\""
 
     cpu_mmu  = d["constants"].get("config_cpu_mmu", None)
@@ -183,7 +183,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     i_tlb_ways = d["constants"]["config_cpu_itlb_ways"])
 
         # Rocket specific attributes
-        if ("rocket" in cpu_name):
+        if (cpu_name == "rocket"):
             extra_attr = """
                 hardware-exec-breakpoint-count = <1>;
                 next-level-cache = <&memory>;
@@ -339,7 +339,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     # Interrupt Controller -------------------------------------------------------------------------
 
-    if (cpu_arch == "riscv") and ("rocket" in cpu_name):
+    if (cpu_arch == "riscv") and (cpu_name in ["rocket",  "vexiiriscv"]):
         # FIXME  : L4 definitiion?
         # CHECKME: interrupts-extended.
         dts += """
@@ -354,7 +354,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         clint_base=d["memories"]["clint"]["base"],
         cpu_mapping =("\n" + " "*20).join(["&L{} 3 &L{} 7".format(cpu, cpu) for cpu in range(ncpus)]))
     if cpu_arch == "riscv":
-        if "rocket" in cpu_name:
+        if cpu_name == "rocket":
             extra_attr = """
                 reg-names = "control";
                 riscv,max-priority = <7>;
@@ -388,7 +388,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 status = "okay";
             };
 """
-    if (cpu_arch == "riscv") and ("rocket" in cpu_name):
+    if (cpu_arch == "riscv") and (cpu_name == "rocket"):
         dts += """
             dbg_ctl: debug-controller@0 {{
                 compatible = "sifive,debug-013", "riscv,debug-013";
@@ -415,7 +415,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     if "uart" in d["csr_bases"]:
         aliases["serial0"] = "liteuart0"
-        it_incr = {True: 1, False: 0}["rocket" in cpu_name]
+        it_incr = {True: 1, False: 0}[cpu_name == "rocket"]
         dts += """
             liteuart0: serial@{uart_csr_base:x} {{
                 compatible = "litex,liteuart";
@@ -432,7 +432,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         idx = (0 if i == '' else i)
         ethphy_name = "ethphy" + str(i)
         ethmac_name = "ethmac" + str(i)
-        it_incr = {True: 1, False: 0}["rocket" in cpu_name]
+        it_incr = {True: 1, False: 0}[cpu_name == "rocket"]
         if ethphy_name in d["csr_bases"] and ethmac_name in d["csr_bases"]:
             dts += """
             mac{idx}: mac@{ethmac_csr_base:x} {{
