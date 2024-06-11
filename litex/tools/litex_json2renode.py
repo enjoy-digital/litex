@@ -219,23 +219,29 @@ def get_cpu_count(csr):
 vexriscv_common_kind = {
     'name': 'VexRiscv',
     'variants': {
-        'linux': {
-             'properties': ['cpuType: "rv32ima"', 'privilegeArchitecture: PrivilegeArchitecture.Priv1_10'],
+        'minimal': {
+             'properties': ['cpuType: "rv32i_zicsr_zifencei"'],
         },
-        'i': {
-             'properties': ['cpuType: "rv32i"'], 
+        'lite': {
+             'properties': ['cpuType: "rv32im_zicsr_zifencei"'],
         },
-        'im': {
-             'properties': ['cpuType: "rv32im"'], 
-        },
-        'ima': {
-             'properties': ['cpuType: "rv32ima"'], 
+        'standard': {
+             'properties': ['cpuType: "rv32im_zicsr_zifencei"'],
         },
         'imac': {
-             'properties': ['cpuType: "rv32imac"'], 
+             'properties': ['cpuType: "rv32imac_zicsr_zifencei"'],
+        },
+        'full': {
+             'properties': ['cpuType: "rv32im_zicsr_zifencei"'],
+        },
+        'linux': {
+             'properties': ['cpuType: "rv32ima_zicsr_zifencei"'],
+        },
+        'secure': {
+             'properties': ['cpuType: "rv32ima_zicsr_zifencei"'],
         },
         'others': {
-             'properties': ['cpuType: "rv32im"'],
+             'properties': ['cpuType: "rv32im_zicsr_zifencei"'],
         }
     },
     'supports_time_provider': True,
