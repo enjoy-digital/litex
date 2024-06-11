@@ -900,6 +900,12 @@ sysbus LoadBinary @{} {}
         for cpu_id in range(0, number_of_cores):
             result += f"cpu{cpu_id} PC {hex(rom_base)}\n"
 
+    if args.bios_elf:
+        # load LiteX BIOS to ROM base
+        result += """
+sysbus LoadELF @{}
+""".format(args.bios_elf)
+
     if args.tftp_ip:
         result += """
 
@@ -1057,6 +1063,8 @@ def parse_args():
     bios_group = parser.add_mutually_exclusive_group()
     bios_group.add_argument('--bios-binary', action='store',
                         help='Path to the BIOS binary')
+    bios_group.add_argument('--bios-elf', action='store',
+                        help='Path to the BIOS ELF file')
     bios_group.add_argument('--opensbi-binary', action='store',
                         help='Path to the OpenSBI binary')
 
