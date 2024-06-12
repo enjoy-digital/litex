@@ -56,6 +56,7 @@ class VexiiRiscv(CPU):
     with_rvd         = False
     with_rva         = False
     with_dma         = False
+    with_axi3        = False
     jtag_tap         = False
     jtag_instruction = False
     vexii_args       = ""
@@ -135,6 +136,7 @@ class VexiiRiscv(CPU):
         cpu_group.add_argument("--l2-bytes",              default=0,             help="VexiiRiscv L2 bytes, default 128 KB.")
         cpu_group.add_argument("--l2-ways",               default=0,             help="VexiiRiscv L2 ways, default 8.")
         cpu_group.add_argument("--l2-self-flush",         default=None,          help="VexiiRiscv L2 ways will self flush on from,to,cycles")
+        cpu_group.add_argument("--with-axi3",             action="store_true",   help="mbus will be axi3 instead of axi4")
 
 
 
@@ -146,7 +148,7 @@ class VexiiRiscv(CPU):
         vdir = get_data_mod("cpu", "vexiiriscv").data_location
         ndir = os.path.join(vdir, "ext", "VexiiRiscv")
 
-        NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "dev", "32ec8bd1", args.update_repo)
+        NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "dev", "66974d1e", args.update_repo)
 
         if not args.cpu_variant:
             args.cpu_variant = "standard"
@@ -172,6 +174,7 @@ class VexiiRiscv(CPU):
         VexiiRiscv.jtag_tap         = args.with_jtag_tap
         VexiiRiscv.jtag_instruction = args.with_jtag_instruction
         VexiiRiscv.with_dma         = args.with_coherent_dma
+        VexiiRiscv.with_axi3        = args.with_axi3
         VexiiRiscv.update_repo      = args.update_repo
         VexiiRiscv.no_netlist_cache = args.no_netlist_cache
         VexiiRiscv.vexii_args      += " " + args.vexii_args
@@ -321,6 +324,7 @@ class VexiiRiscv(CPU):
         md5_hash.update(str(VexiiRiscv.jtag_tap).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.jtag_instruction).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.with_dma).encode('utf-8'))
+        md5_hash.update(str(VexiiRiscv.with_axi3).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.memory_regions).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.vexii_args).encode('utf-8'))
         # md5_hash.update(str(VexiiRiscv.internal_bus_width).encode('utf-8'))
@@ -355,6 +359,8 @@ class VexiiRiscv(CPU):
             gen_args.append(f"--with-jtag-instruction")
         if(VexiiRiscv.with_dma) :
             gen_args.append(f"--with-dma")
+        if(VexiiRiscv.with_axi3) :
+            gen_args.append(f"--with-axi3")
 
         cmd = f"""cd {ndir} && sbt "runMain vexiiriscv.soc.litex.SocGen {" ".join(gen_args)}\""""
         print("VexiiRiscv generation command :")
@@ -471,7 +477,8 @@ class VexiiRiscv(CPU):
         mbus = axi.AXIInterface(
             data_width    = VexiiRiscv.litedram_width,
             address_width = 32,
-            id_width      = 8, #TODO
+            id_width      = 8,
+            version       = "axi3" if VexiiRiscv.with_axi3 else "axi4"
         )
         self.memory_buses.append(mbus)
 
