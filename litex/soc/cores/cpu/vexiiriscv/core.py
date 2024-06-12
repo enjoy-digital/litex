@@ -534,6 +534,11 @@ class VexiiRiscv(CPU):
             i_mBus_rlast     = mbus.r.last,
         )
 
+        if VexiiRiscv.with_axi3:
+            self.cpu_params.update(
+                o_mBus_wid=mbus.w.id
+            )
+
     def do_finalize(self):
         assert hasattr(self, "reset_address")
 
