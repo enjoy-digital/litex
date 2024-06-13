@@ -1965,6 +1965,27 @@ class LiteXSoC(SoC):
             add_ip_address_constants(self,  "REMOTEIP", ethmac_remote_ip)
             add_mac_address_constants(self, "MACADDR",  ethmac_address)
 
+    # Add SPI Master --------------------------------------------------------------------------------
+    def add_spi_master(self, name="spimaster", pads=None, data_width=8, spi_clk_freq=1e6, with_clk_divider=True, **kwargs):
+        # Imports.
+        from litex.soc.cores.spi import SPIMaster
+
+        self.check_if_exists(f"{name}")
+
+        if pads is None:
+            pads = self.platform.request(name)
+
+        spim = SPIMaster(pads, data_width, self.sys_clk_freq, spi_clk_freq, **kwargs)
+
+        if with_clk_divider:
+            spim.add_clk_divider()
+
+        self.add_module(name=f"{name}", module=spim)
+
+        self.add_constant(f"{name}_FREQUENCY",     spi_clk_freq)
+        self.add_constant(f"{name}_DATA_WIDTH",     data_width)
+        self.add_constant(f"{name}_MAX_CS",    len(pads.cs_n))
+
     # Add SPI Flash --------------------------------------------------------------------------------
     def add_spi_flash(self, name="spiflash", mode="4x", clk_freq=20e6, module=None, phy=None, rate="1:1", software_debug=False, **kwargs):
         # Imports.

@@ -181,6 +181,51 @@ def i2s_handler(name, parm, csr):
     return dtsi
 
 
+def spimaster_handler(name, parm, csr):
+    registers = get_registers_of(name, csr)
+    if len(registers) == 0:
+        raise KeyError
+
+    dtsi = dts_reg(registers)
+    dtsi += dts_reg_names(registers)
+
+    dtsi += indent("clock-frequency = <{}>;\n".format(
+        csr['constants'][name + '_frequency']))
+
+    dtsi += indent("data-width = <{}>;\n".format(
+        csr['constants'][name + '_data_width']))
+
+    dtsi += indent("max-cs = <{}>;\n".format(
+        csr['constants'][name + '_max_cs']))
+
+    return dtsi
+
+
+def spiflash_handler(name, parm, csr):
+    registers = get_registers_of(name, csr)
+    if len(registers) == 0:
+        raise KeyError
+
+    # Add memory mapped region for spiflash, the linker script in zephyr expects this region to be
+    # the entry with the name flash_mmap in the reg property of the spi controller.
+    try:
+        registers.append({
+            'addr': csr['memories'][name]['base'],
+            'size': csr['memories'][name]['size'],
+            'name': 'flash_mmap',
+        })
+    except KeyError as e:
+        print('memory mapped', e, 'not found')
+
+    dtsi = dts_reg(registers)
+    dtsi += dts_reg_names(registers)
+
+    dtsi += indent("clock-frequency = <{}>;\n".format(
+        csr['constants'][name + '_phy_frequency']))
+
+    return dtsi
+
+
 def peripheral_handler(name, parm, csr):
     registers = get_registers_of(name, csr)
     if len(registers) == 0:
@@ -219,10 +264,13 @@ overlay_handlers = {
         'alias': 'eth0',
         'config_entry': 'ETH_LITEETH'
     },
-    'spiflash': {
-        'handler': peripheral_handler,
+    'spimaster': {
+        'handler': spimaster_handler,
         'alias': 'spi0',
-        'config_entry': 'SPI_LITESPI'
+    },
+    'spiflash': {
+        'handler': spiflash_handler,
+        'alias': 'spi1',
     },
     'sdcard_block2mem': {
         'handler': peripheral_handler,
