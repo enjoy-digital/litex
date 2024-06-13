@@ -30,10 +30,10 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     }
 
     # CPU Parameters -------------------------------------------------------------------------------
-    ncpus    = int(d["constants"].get("config_cpu_count", 1))
-    cpu_name = d["constants"].get("config_cpu_name")
-    cpu_arch = cpu_architectures[cpu_name]
-    cpu_isa  = d["constants"].get("config_cpu_isa", None) # kernel < 6.6.0
+    cpu_count = int(d["constants"].get("config_cpu_count", 1))
+    cpu_name  = d["constants"].get("config_cpu_name")
+    cpu_arch  = cpu_architectures[cpu_name]
+    cpu_isa   = d["constants"].get("config_cpu_isa", None) # kernel < 6.6.0
 
     # kernel >= 6.6.0
     cpu_isa_base = cpu_isa[:5]
@@ -195,11 +195,11 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
         # CPU(s) Topology.
         cpu_map = ""
-        if ncpus > 1:
+        if cpu_count > 1:
             cpu_map += """
             cpu-map {
                 cluster0 {"""
-            for cpu in range(ncpus):
+            for cpu in range(cpu_count):
                 cpu_map += """
                     core{cpu} {{
                         cpu = <&CPU{cpu}>;
@@ -214,7 +214,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
             #size-cells    = <0>;
             timebase-frequency = <{sys_clk_freq}>;
 """.format(sys_clk_freq=d["constants"]["config_clock_frequency"])
-        for cpu in range(ncpus):
+        for cpu in range(cpu_count):
             dts += """
             CPU{cpu}: cpu@{cpu} {{
                 device_type = "cpu";
@@ -352,7 +352,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
             }};
 """.format(
         clint_base=d["memories"]["clint"]["base"],
-        cpu_mapping =("\n" + " "*20).join(["&L{} 3 &L{} 7".format(cpu, cpu) for cpu in range(ncpus)]))
+        cpu_mapping =("\n" + " "*20).join(["&L{} 3 &L{} 7".format(cpu, cpu) for cpu in range(cpu_count)]))
     if cpu_arch == "riscv":
         if cpu_name == "rocket":
             extra_attr = """
@@ -376,7 +376,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
             }};
 """.format(
         plic_base   =d["memories"]["plic"]["base"],
-        cpu_mapping =("\n" + " "*20).join(["&L{} 11 &L{} 9".format(cpu, cpu) for cpu in range(ncpus)]),
+        cpu_mapping =("\n" + " "*20).join(["&L{} 11 &L{} 9".format(cpu, cpu) for cpu in range(cpu_count)]),
         extra_attr  =extra_attr)
 
     elif cpu_arch == "or1k":
@@ -410,7 +410,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 reg-names = "mem";
             }};
 """.format(
-        cpu_mapping =("\n" + " "*20).join(["&L{} 0x3F".format(cpu) for cpu in range(ncpus)]))
+        cpu_mapping =("\n" + " "*20).join(["&L{} 0x3F".format(cpu) for cpu in range(cpu_count)]))
     # UART -----------------------------------------------------------------------------------------
 
     if "uart" in d["csr_bases"]:
