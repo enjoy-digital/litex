@@ -20,6 +20,18 @@ def colorer(s, color="bright", enable=True):
     trailer = "\x1b[0m"
     return (header + str(s) + trailer) if enable else str(s)
 
+# Byte Size Definitions ----------------------------------------------------------------------------
+
+# Short.
+KB = 1024
+MB = KB * 1024
+GB = MB * 1024
+
+# Long.
+KILOBYTE = 1024
+MEGABYTE = KILOBYTE * 1024
+GIGABYTE = MEGABYTE * 1024
+
 # Bit/Bytes Reversing ------------------------------------------------------------------------------
 
 def reverse_bits(s):
