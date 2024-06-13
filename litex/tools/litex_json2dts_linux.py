@@ -21,27 +21,8 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     cpu_count  = int(d["constants"].get("config_cpu_count", 1))
     cpu_name   = d["constants"].get("config_cpu_name")
     cpu_family = d["constants"].get("config_cpu_family")
-    cpu_isa    = d["constants"].get("config_cpu_isa", None) # kernel < 6.6.0
-
-    # kernel >= 6.6.0
-    cpu_isa_base = cpu_isa[:5]
-    cpu_isa_extensions = "\"i\"" # default
-    # Append with optionals
-    if "m" in cpu_isa[5:]:
-        cpu_isa_extensions += ", \"m\""
-    if "a" in cpu_isa[5:]:
-        cpu_isa_extensions += ", \"a\""
-    if "f" in cpu_isa[5:]:
-        cpu_isa_extensions += ", \"f\""
-    if "d" in cpu_isa[5:]:
-        cpu_isa_extensions += ", \"d\""
-    if "c" in cpu_isa[5:]:
-        cpu_isa_extensions += ", \"c\""
-    # rocket specific extensions
-    if cpu_name == "rocket":
-        cpu_isa_extensions += ", \"zicsr\", \"zifencei\", \"zihpm\""
-
-    cpu_mmu  = d["constants"].get("config_cpu_mmu", None)
+    cpu_isa    = d["constants"].get("config_cpu_isa", None)
+    cpu_mmu    = d["constants"].get("config_cpu_mmu", None)
 
     # Header ---------------------------------------------------------------------------------------
     platform = d["constants"]["config_platform_name"]
@@ -131,6 +112,26 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     # RISC-V
     # ------
     if cpu_family == "riscv":
+
+        def get_riscv_cpu_isa_base(cpu_isa):
+            return cpu_isa[:5]
+
+        def get_riscv_cpu_isa_extensions(cpu_isa, cpu_name):
+            isa_extensions = set(["i"])
+
+            # Collect common extensions.
+            common_extensions = {'i', 'm', 'a', 'f', 'd', 'c'}
+            for extension in cpu_isa[5:]:
+                if extension in common_extensions:
+                    isa_extensions.update({extension})
+
+            # Add rocket-specific extensions.
+            if cpu_name == "rocket":
+                isa_extensions.update({"zicsr", "zifencei", "zihpm"})
+
+            # Format extensions.
+            return ", ".join(f"\"{extension}\"" for extension in sorted(isa_extensions))
+
         # Cache description.
         cache_desc = ""
         if "config_cpu_dcache_size" in d["constants"]:
@@ -226,9 +227,9 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
             }};
 """.format(cpu=cpu, irq=cpu,
     sys_clk_freq       = d["constants"]["config_clock_frequency"],
-    cpu_isa            = cpu_isa, # for kernel < 6.6.0
-    cpu_isa_base       = cpu_isa_base, # for kernel >= 6.6.0
-    cpu_isa_extensions = cpu_isa_extensions, # for kernel >= 6.6.0
+    cpu_isa            = cpu_isa,
+    cpu_isa_base       = get_riscv_cpu_isa_base(cpu_isa),                 # Required for kernel >= 6.6.0
+    cpu_isa_extensions = get_riscv_cpu_isa_extensions(cpu_isa, cpu_name), # Required for kernel >= 6.6.0
     cpu_mmu            = cpu_mmu,
     cache_desc         = cache_desc,
     tlb_desc           = tlb_desc,
