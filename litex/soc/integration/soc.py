@@ -2375,7 +2375,7 @@ class LiteXSoC(SoC):
         self.comb += vt.source.connect(phy if isinstance(phy, stream.Endpoint) else phy.sink)
 
     # Add Video Framebuffer ------------------------------------------------------------------------
-    def add_video_framebuffer(self, name="video_framebuffer", phy=None, timings="800x600@60Hz", clock_domain="sys", format="rgb888"):
+    def add_video_framebuffer(self, name="video_framebuffer", phy=None, timings="800x600@60Hz", clock_domain="sys", format="rgb888", fifo_depth=64*KILOBYTE):
         # Imports.
         from litex.soc.cores.video import VideoTimingGenerator, VideoFrameBuffer
 
@@ -2397,10 +2397,11 @@ class LiteXSoC(SoC):
         hres = int(timings.split("@")[0].split("x")[0])
         vres = int(timings.split("@")[0].split("x")[1])
         vfb = VideoFrameBuffer(self.sdram.crossbar.get_port(),
-            hres   = hres,
-            vres   = vres,
-            base   = base,
-            format = format,
+            hres                  = hres,
+            vres                  = vres,
+            base                  = base,
+            fifo_depth            = fifo_depth,
+            format                = format,
             clock_domain          = clock_domain,
             clock_faster_than_sys = vtg.video_timings["pix_clk"] >= self.sys_clk_freq,
         )

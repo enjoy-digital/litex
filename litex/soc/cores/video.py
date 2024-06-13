@@ -646,7 +646,7 @@ class VideoTerminal(LiteXModule):
 
 class VideoFrameBuffer(LiteXModule):
     """Video FrameBuffer"""
-    def __init__(self, dram_port, hres=800, vres=600, base=0x00000000, fifo_depth=65536, clock_domain="sys", clock_faster_than_sys=False, format="rgb888"):
+    def __init__(self, dram_port, hres=800, vres=600, base=0x00000000, fifo_depth=64*KILOBYTE, clock_domain="sys", clock_faster_than_sys=False, format="rgb888"):
         self.vtg_sink  = vtg_sink = stream.Endpoint(video_timing_layout)
         self.source    = source   = stream.Endpoint(video_data_layout)
         self.underflow = Signal()
