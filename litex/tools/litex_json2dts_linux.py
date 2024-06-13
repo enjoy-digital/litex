@@ -7,15 +7,14 @@
 # Copyright (c) 2020 Antmicro <www.antmicro.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import os
 import sys
 import json
 import argparse
-import os
+
+from litex.gen.common import KILOBYTE, MEGABYTE
 
 def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_device=None, polling=False):
-    kB = 1024
-    mB = kB*1024
-
     aliases = {}
 
     # CPU Parameters -------------------------------------------------------------------------------
@@ -63,10 +62,10 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     # Boot Arguments -------------------------------------------------------------------------------
 
     default_initrd_start = {
-        "or1k":   8*mB,
-        "riscv": 16*mB,
+        "or1k":   8 * MEGABYTE,
+        "riscv": 16 * MEGABYTE,
     }
-    default_initrd_size = 8*mB
+    default_initrd_size = 8 * MEGABYTE
 
 
     if initrd_start is None:
