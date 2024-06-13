@@ -42,12 +42,12 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     # Boot Arguments -------------------------------------------------------------------------------
 
+    # Init Ram Disk.
     default_initrd_start = {
         "or1k":   8 * MEGABYTE,
         "riscv": 16 * MEGABYTE,
     }
     default_initrd_size = 8 * MEGABYTE
-
 
     if initrd_start is None:
         initrd_start = default_initrd_start[cpu_family]
@@ -63,23 +63,28 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         initrd_enabled = True
         initrd_size = os.path.getsize(initrd)
 
-    # if json constants contains localip ethernet has been enabled
-    if "localip1" in d["constants"]:
-        localip  = '.'.join([str(d["constants"][f"localip{i}"]) for i in range(1,5)])
-        remoteip = '.'.join([str(d["constants"][f"remoteip{i}"]) for i in range(1,5)])
-        ip       = f" ip={localip}:{remoteip}:{remoteip}:255.255.255.0::eth0:off:::"
-    else:
-        ip = ""
-
+    # Root Filesystem.
     if root_device is None:
         root_device = "ram0"
 
+    # Ethernet IP Address.
+    def get_eth_ip_config():
+        def get_ip_address(prefix):
+            return '.'.join(str(d["constants"][f"{prefix}{i+1}"]) for i in range(4))
+        ip_config = ""
+        if all(f"localip{i + 1}" in d["constants"] for i in range(4)):
+            local_ip  = get_ip_address("localip")
+            remote_ip = get_ip_address("remoteip")
+            ip_config = f" ip={local_ip}:{remote_ip}:{remote_ip}:255.255.255.0::eth0:off:::"
+        return ip_config
+
+    # Bootargs Generation.
     dts += """
         chosen {{
             bootargs = "{console} {rootfs}{ip}";""".format(
     console = "console=liteuart earlycon=liteuart,0x{:x}".format(d["csr_bases"]["uart"]),
     rootfs  = "rootwait root=/dev/{}".format(root_device),
-    ip      = ip)
+    ip      = get_eth_ip_config())
 
     if initrd_enabled is True:
         dts += """
@@ -92,7 +97,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         };
 """
 
-    # Clocks ------------------------------------------------------------------------------------------
+    # Clocks ---------------------------------------------------------------------------------------
 
     for c in [c for c in d["constants"].keys() if c.endswith("config_clock_frequency")]:
         name = c.removesuffix("config_clock_frequency") + "sys_clk"
@@ -340,8 +345,8 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 reg-names = "control";
             }};
 """.format(
-        clint_base=d["memories"]["clint"]["base"],
-        cpu_mapping =("\n" + " "*20).join(["&L{} 3 &L{} 7".format(cpu, cpu) for cpu in range(cpu_count)]))
+        clint_base  = d["memories"]["clint"]["base"],
+        cpu_mapping = ("\n" + " "*20).join(["&L{} 3 &L{} 7".format(cpu, cpu) for cpu in range(cpu_count)]))
     if cpu_family == "riscv":
         if cpu_name == "rocket":
             extra_attr = """
@@ -364,9 +369,9 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 {extra_attr}
             }};
 """.format(
-        plic_base   =d["memories"]["plic"]["base"],
-        cpu_mapping =("\n" + " "*20).join(["&L{} 11 &L{} 9".format(cpu, cpu) for cpu in range(cpu_count)]),
-        extra_attr  =extra_attr)
+        plic_base   = d["memories"]["plic"]["base"],
+        cpu_mapping = ("\n" + " "*20).join(["&L{} 11 &L{} 9".format(cpu, cpu) for cpu in range(cpu_count)]),
+        extra_attr  = extra_attr)
 
     elif cpu_family == "or1k":
         dts += """
@@ -444,7 +449,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     ethmac_mem_size  = d["memories"][ethmac_name]["size"],
     ethmac_rx_slots  = d["constants"][ethmac_name + "_rx_slots"],
     ethmac_tx_slots  = d["constants"][ethmac_name + "_tx_slots"],
-    ethmac_slot_size  = d["constants"][ethmac_name + "_slot_size"],
+    ethmac_slot_size = d["constants"][ethmac_name + "_slot_size"],
     ethmac_interrupt = "" if polling else "interrupts = <{}>;".format(int(d["constants"][ethmac_name + "_interrupt"]) + it_incr))
 
     # USB OHCI -------------------------------------------------------------------------------------
@@ -723,14 +728,14 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 litex,clkout-divide-max = <{clkout_divide_range[1]}>;
                 litex,vco-margin = <{vco_margin}>;
 """.format(
-    mmcm_lock_timeout    = d["constants"]["mmcm_lock_timeout"],
-    mmcm_drdy_timeout    = d["constants"]["mmcm_drdy_timeout"],
-    sys_clk              = d["constants"]["config_clock_frequency"],
+    mmcm_lock_timeout    =  d["constants"]["mmcm_lock_timeout"],
+    mmcm_drdy_timeout    =  d["constants"]["mmcm_drdy_timeout"],
+    sys_clk              =  d["constants"]["config_clock_frequency"],
     divclk_divide_range  = (d["constants"]["divclk_divide_range_min"], d["constants"]["divclk_divide_range_max"]),
     clkfbout_mult_frange = (d["constants"]["clkfbout_mult_frange_min"], d["constants"]["clkfbout_mult_frange_max"]),
     vco_freq_range       = (d["constants"]["vco_freq_range_min"], d["constants"]["vco_freq_range_max"]),
     clkout_divide_range  = (d["constants"]["clkout_divide_range_min"], d["constants"]["clkout_divide_range_max"]),
-    vco_margin           = d["constants"]["vco_margin"])
+    vco_margin           =  d["constants"]["vco_margin"])
         for clkout_nr in range(nclkout):
             dts += add_clkout(clkout_nr,
                 d["constants"]["clkout_def_freq"],
