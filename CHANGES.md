@@ -7,6 +7,7 @@
 	--------
 	- cpu/vexiiriscv                : Added initial support.
 	- builder                       : Added default generation of exports with default names to output_dir.
+	- litex.gen                     : Added byte size definitions and use them in targets/json2dts.
 
 	[> Changed
 	----------
