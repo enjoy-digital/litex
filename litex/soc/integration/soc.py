@@ -1287,6 +1287,7 @@ class SoC(LiteXModule, SoCCoreCompat):
         # Add constants.
         self.add_config(f"CPU_TYPE_{name}")
         self.add_config(f"CPU_VARIANT_{str(variant.split('+')[0])}")
+        self.add_config("CPU_FAMILY",     getattr(self.cpu, "family",     "Unknown"))
         self.add_config("CPU_NAME",       getattr(self.cpu, "name",       "Unknown"))
         self.add_config("CPU_HUMAN_NAME", getattr(self.cpu, "human_name", "Unknown"))
         if hasattr(self.cpu, "nop"):

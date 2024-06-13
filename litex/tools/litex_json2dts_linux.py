@@ -18,22 +18,11 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     aliases = {}
 
-    # CPU Architectures ----------------------------------------------------------------------------
-    # CHECKME: Move to core and generate a constant for each CPU?
-    cpu_architectures = {
-        "mor1kx"     : "or1k",
-        "marocchino" : "or1k",
-        "vexriscv"   : "riscv",
-        "vexiiriscv" : "riscv",
-        "rocket"     : "riscv",
-        "naxriscv"   : "riscv",
-    }
-
     # CPU Parameters -------------------------------------------------------------------------------
-    cpu_count = int(d["constants"].get("config_cpu_count", 1))
-    cpu_name  = d["constants"].get("config_cpu_name")
-    cpu_arch  = cpu_architectures[cpu_name]
-    cpu_isa   = d["constants"].get("config_cpu_isa", None) # kernel < 6.6.0
+    cpu_count  = int(d["constants"].get("config_cpu_count", 1))
+    cpu_name   = d["constants"].get("config_cpu_name")
+    cpu_family = d["constants"].get("config_cpu_family")
+    cpu_isa    = d["constants"].get("config_cpu_isa", None) # kernel < 6.6.0
 
     # kernel >= 6.6.0
     cpu_isa_base = cpu_isa[:5]
@@ -81,7 +70,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
 
     if initrd_start is None:
-        initrd_start = default_initrd_start[cpu_arch]
+        initrd_start = default_initrd_start[cpu_family]
 
     if initrd_size is None:
         initrd_size = default_initrd_size
@@ -142,7 +131,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     # RISC-V
     # ------
-    if cpu_arch == "riscv":
+    if cpu_family == "riscv":
         # Cache description.
         cache_desc = ""
         if "config_cpu_dcache_size" in d["constants"]:
@@ -252,7 +241,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     # Or1k
     # ----
-    elif cpu_arch == "or1k":
+    elif cpu_family == "or1k":
         dts += """
         cpus {{
             #address-cells = <1>;
@@ -339,7 +328,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     # Interrupt Controller -------------------------------------------------------------------------
 
-    if (cpu_arch == "riscv") and (cpu_name in ["rocket",  "vexiiriscv"]):
+    if (cpu_family == "riscv") and (cpu_name in ["rocket",  "vexiiriscv"]):
         # FIXME  : L4 definitiion?
         # CHECKME: interrupts-extended.
         dts += """
@@ -353,7 +342,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 """.format(
         clint_base=d["memories"]["clint"]["base"],
         cpu_mapping =("\n" + " "*20).join(["&L{} 3 &L{} 7".format(cpu, cpu) for cpu in range(cpu_count)]))
-    if cpu_arch == "riscv":
+    if cpu_family == "riscv":
         if cpu_name == "rocket":
             extra_attr = """
                 reg-names = "control";
@@ -379,7 +368,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         cpu_mapping =("\n" + " "*20).join(["&L{} 11 &L{} 9".format(cpu, cpu) for cpu in range(cpu_count)]),
         extra_attr  =extra_attr)
 
-    elif cpu_arch == "or1k":
+    elif cpu_family == "or1k":
         dts += """
             intc0: interrupt-controller {
                 interrupt-controller;
@@ -388,7 +377,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 status = "okay";
             };
 """
-    if (cpu_arch == "riscv") and (cpu_name == "rocket"):
+    if (cpu_family == "riscv") and (cpu_name == "rocket"):
         dts += """
             dbg_ctl: debug-controller@0 {{
                 compatible = "sifive,debug-013", "riscv,debug-013";
