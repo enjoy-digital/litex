@@ -153,47 +153,8 @@ void isr_dec(void)
 	mtdec(0x000000000ffffff);
 }
 
-#elif defined(__cva6__)
-void plic_init(void);
-void plic_init(void)
-{
-	int i;
-
-	// priorities for interrupt pins 0...7
-	for (i = 0; i < 8; i++)
-		*((unsigned int *)PLIC_SOURCE_0 + i) = 1;
-	// enable interrupt pins 0...7 (M-mode)
-	*((unsigned int *)PLIC_M_ENABLE) = 0xff;
-	// set priority threshold to 0 (any priority > 0 triggers interrupt)
-	*((unsigned int *)PLIC_M_THRESHOLD) = 0;
-}
-
-void isr(void)
-{
-	unsigned int claim;
-
-	while ((claim = *((unsigned int *)PLIC_M_CLAIM))) {
-		switch (claim - 1) {
-		case UART_INTERRUPT:
-			uart_isr();
-			break;
-		default:
-			printf("## PLIC: Unhandled claim: %d\n", claim);
-			printf("# plic_enabled:    %08x\n", irq_getmask());
-			printf("# plic_pending:    %08x\n", irq_pending());
-			printf("# mepc:    %016lx\n", csrr(mepc));
-			printf("# mcause:  %016lx\n", csrr(mcause));
-			printf("# mtval:   %016lx\n", csrr(mtval));
-			printf("# mie:     %016lx\n", csrr(mie));
-			printf("# mip:     %016lx\n", csrr(mip));
-			printf("###########################\n\n");
-			break;
-		}
-		*((unsigned int *)PLIC_M_CLAIM) = claim;
-	}
-}
-
 #else
+
 struct irq_table
 {
 	isr_t isr;
