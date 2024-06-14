@@ -18,24 +18,10 @@ void isr(void);
 
 #ifdef CONFIG_CPU_HAS_INTERRUPT
 
-/*************************************/
-/* ISR Handling for BlackParrot CPU. */
-/*************************************/
-
-#if defined(__blackparrot__) /*TODO: Update this function for BP.*/
-void isr(void)
-{
-    static int onetime = 0;
-    if (onetime == 0) {
-        printf("ISR blackparrot\n");
-        printf("TRAP!!\n");
-        onetime++;
-    }
-}
 /***********************************************************/
 /* ISR and PLIC Initialization for RISC-V PLIC-based CPUs. */
 /***********************************************************/
-#elif defined(__riscv_plic__)
+#if defined(__riscv_plic__)
 
 /* PLIC initialization. */
 void plic_init(void)
@@ -116,6 +102,21 @@ void isr(void)
             csrw(mepc, csrr(mepc) + 4);
         }
 #endif
+    }
+}
+
+/*************************************/
+/* ISR Handling for BlackParrot CPU. */
+/*************************************/
+
+#elif defined(__blackparrot__) /*TODO: Update this function for BP.*/
+void isr(void)
+{
+    static int onetime = 0;
+    if (onetime == 0) {
+        printf("ISR blackparrot\n");
+        printf("TRAP!!\n");
+        onetime++;
     }
 }
 
