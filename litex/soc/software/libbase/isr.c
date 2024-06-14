@@ -18,6 +18,33 @@ void isr(void);
 
 #ifdef CONFIG_CPU_HAS_INTERRUPT
 
+/*******************************************************/
+/* Common Interrupt Table for All CPUs.                */
+/*******************************************************/
+struct irq_table
+{
+    isr_t isr;
+} irq_table[CONFIG_CPU_INTERRUPTS];
+
+int irq_attach(unsigned int irq, isr_t isr)
+{
+    if (irq >= CONFIG_CPU_INTERRUPTS) {
+        printf("Inv irq %d\n", irq);
+        return -1;
+    }
+
+    unsigned int ie = irq_getie();
+    irq_setie(0);
+    irq_table[irq].isr = isr;
+    irq_setie(ie);
+    return irq;
+}
+
+int irq_detach(unsigned int irq)
+{
+    return irq_attach(irq, NULL);
+}
+
 /***********************************************************/
 /* ISR and PLIC Initialization for RISC-V PLIC-based CPUs. */
 /***********************************************************/
@@ -45,11 +72,10 @@ void isr(void)
 
     /* Claim and handle pending interrupts. */
     while ((claim = *((unsigned int *)PLIC_CLAIM))) {
-        switch (claim - PLIC_EXT_IRQ_BASE) {
-        case UART_INTERRUPT:
-            uart_isr(); /* Handle UART interrupt. */
-            break;
-        default:
+        unsigned int irq = claim - PLIC_EXT_IRQ_BASE;
+        if (irq < CONFIG_CPU_INTERRUPTS && irq_table[irq].isr) {
+            irq_table[irq].isr();
+        } else {
             /* Unhandled interrupt source, print diagnostic information. */
             printf("## PLIC: Unhandled claim: %d\n", claim);
             printf("# plic_enabled:    %08x\n", irq_getmask());
@@ -60,7 +86,6 @@ void isr(void)
             printf("# mie:     %016lx\n", csrr(mie));
             printf("# mip:     %016lx\n", csrr(mip));
             printf("###########################\n\n");
-            break;
         }
         /* Acknowledge the interrupt. */
         *((unsigned int *)PLIC_CLAIM) = claim;
@@ -78,17 +103,19 @@ void isr(void)
 #define ECALL 11
 #define RISCV_TEST
 
+/* Interrupt Service Routine. */
 void isr(void)
 {
     unsigned int cause = csrr(mcause) & IRQ_MASK;
 
     if (csrr(mcause) & 0x80000000) {
-#ifndef UART_POLLING
-        if (cause == (UART_INTERRUPT + FIRQ_OFFSET)) {
-            uart_isr();
+        /* Handle fast interrupts (FIRQ). */
+        unsigned int irq = cause - FIRQ_OFFSET;
+        if (irq < CONFIG_CPU_INTERRUPTS && irq_table[irq].isr) {
+            irq_table[irq].isr();
         }
-#endif
     } else {
+        /* Handle regular exceptions and system calls. */
 #ifdef RISCV_TEST
         int gp;
         asm volatile("mv %0, gp" : "=r"(gp));
@@ -110,6 +137,7 @@ void isr(void)
 /*************************************/
 
 #elif defined(__blackparrot__) /*TODO: Update this function for BP.*/
+/* Interrupt Service Routine. */
 void isr(void)
 {
     static int onetime = 0;
@@ -145,10 +173,16 @@ void isr(uint64_t vec)
             /* External interrupt. */
             irqs = irq_pending() & irq_getmask();
 
-#ifndef UART_POLLING
-            if (irqs & (1 << UART_INTERRUPT))
-                uart_isr();
-#endif
+            if (irqs) {
+                const unsigned int irq = __builtin_ctz(irqs);
+                if (irq < CONFIG_CPU_INTERRUPTS && irq_table[irq].isr) {
+                    irq_table[irq].isr();
+                } else {
+                    irq_setmask(irq_getmask() & ~(1 << irq));
+                    printf("\n*** disabled spurious irq %d ***\n", irq);
+                }
+                irqs &= irqs - 1; /* Clear this IRQ (the first bit set). */
+            }
         }
 
         /* Clear interrupt. */
@@ -168,30 +202,6 @@ void isr_dec(void)
 /* Generic ISR Handling for CPUs with Interrupt Table. */
 /*******************************************************/
 #else
-
-struct irq_table
-{
-    isr_t isr;
-} irq_table[CONFIG_CPU_INTERRUPTS];
-
-int irq_attach(unsigned int irq, isr_t isr)
-{
-    if (irq >= CONFIG_CPU_INTERRUPTS) {
-        printf("Inv irq %d\n", irq);
-        return -1;
-    }
-
-    unsigned int ie = irq_getie();
-    irq_setie(0);
-    irq_table[irq].isr = isr;
-    irq_setie(ie);
-    return irq;
-}
-
-int irq_detach(unsigned int irq)
-{
-    return irq_attach(irq, NULL);
-}
 
 /* Interrupt Service Routine. */
 void isr(void)
@@ -220,3 +230,4 @@ void isr(void) {};
 #endif
 
 #endif
+
