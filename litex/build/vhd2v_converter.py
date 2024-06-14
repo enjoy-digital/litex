@@ -143,6 +143,7 @@ class VHD2VConverter(Module):
             # more than one instance of this core? rename top entity to avoid conflict
             if inst_name != self._top_entity:
                 tools.replace_in_file(verilog_out, f"module {self._top_entity}", f"module {inst_name}")
+            tools.replace_in_file(verilog_out, f"\\", f"ghdl_") # FIXME: GHDL synth workaround, improve.
             self._platform.add_source(verilog_out)
 
         if self._add_instance:
