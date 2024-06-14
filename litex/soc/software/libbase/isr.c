@@ -56,7 +56,7 @@ void plic_init(void)
     int i;
     /* Set priorities for the first 8 external interrupts to 1. */
     for (i = 0; i < 8; i++)
-        *((unsigned int *)(PLIC_BASE + PLIC_EXT_IRQ_BASE + i)) = 1;
+        *((unsigned int *)PLIC_BASE + PLIC_EXT_IRQ_BASE + i) = 1;
 
     /* Enable the first 8 external interrupts. */
     *((unsigned int *)PLIC_ENABLED) = 0xff << PLIC_EXT_IRQ_BASE;
