@@ -275,7 +275,7 @@ class Zynq7000(CPU):
     def add_axi_gp_slave(self, clock_domain="ps7"):
         assert len(self.axi_gp_slaves) < 2
         n       = len(self.axi_gp_slaves)
-        axi_gpn = axi.AXIInterface(data_width=32, address_width=32, id_width=12, clock_domain=clock_domain)
+        axi_gpn = axi.AXIInterface(data_width=32, address_width=32, id_width=12, version = "axi3", clock_domain=clock_domain)
         self.axi_gp_slaves.append(axi_gpn)
         self.cpu_params.update({
             #AXI S GP clk.
@@ -333,14 +333,14 @@ class Zynq7000(CPU):
 
     # AXI High Performance Slave -------------------------------------------------------------------
 
-    def add_axi_hp_slave(self):
+    def add_axi_hp_slave(self, clock_domain="ps7"):
         assert len(self.axi_hp_slaves) < 4
         n       = len(self.axi_hp_slaves)
-        axi_hpn = axi.AXIInterface(data_width=64, address_width=32, id_width=6)
+        axi_hpn = axi.AXIInterface(data_width=64, address_width=32, id_width=6, version = "axi3", clock_domain=clock_domain)
         self.axi_hp_slaves.append(axi_hpn)
         self.cpu_params.update({
             # AXI HP0 clk.
-            f"i_S_AXI_HP{n}_ACLK"    : ClockSignal("ps7"),
+            f"i_S_AXI_HP{n}_ACLK"    : ClockSignal(clock_domain),
 
             # AXI HP0 aw.
             f"i_S_AXI_HP{n}_AWVALID" : axi_hpn.aw.valid,
