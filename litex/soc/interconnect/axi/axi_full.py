@@ -137,6 +137,13 @@ class AXIInterface:
     def connect(self, slave, **kwargs):
         return connect_axi(self, slave, **kwargs)
 
+    def connect_mapped(self, slave, map_fct):
+        comb = []
+        comb += self.connect(slave, omit={"addr"})
+        comb += [slave.ar.addr.eq(map_fct(self.ar.addr))]
+        comb += [slave.aw.addr.eq(map_fct(self.aw.addr))]
+        return comb
+
     def layout_flat(self):
         return list(axi_layout_flat(self))
 
