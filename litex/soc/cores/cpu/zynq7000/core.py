@@ -214,7 +214,7 @@ class Zynq7000(CPU):
     def add_axi_gp_master(self):
         assert len(self.axi_gp_masters) < 2
         n       = len(self.axi_gp_masters)
-        axi_gpn = axi.AXIInterface(data_width=32, address_width=32, id_width=12)
+        axi_gpn = axi.AXIInterface(data_width=32, address_width=32, id_width=12, version = "axi3")
         self.axi_gp_masters.append(axi_gpn)
         self.cpu_params.update({
             # AXI GP clk.
