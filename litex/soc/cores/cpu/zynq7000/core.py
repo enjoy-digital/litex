@@ -54,6 +54,10 @@ class Zynq7000(CPU):
         self.axi_gp_slaves  = []    # General Purpose AXI Slaves.
         self.axi_hp_slaves  = []    # High Performance AXI Slaves.
 
+        # [ 7: 0]: SPI Numbers [68:61]
+        # [15: 8]: SPI Numbers [91:84]
+        self.interrupt      = Signal(16)
+
         # # #
 
         # PS7 Clocking.
@@ -62,7 +66,12 @@ class Zynq7000(CPU):
         # PS7 (Minimal) ----------------------------------------------------------------------------
         self.ps7_name   = None
         self.ps7_tcl    = []
-        self.config     = {}
+        self.config     = {
+            # Enable interrupts by default
+            "PCW_USE_FABRIC_INTERRUPT" : 1,
+            "PCW_IRQ_F2P_INTR"         : 1,
+            "PCW_NUM_F2P_INTR_INPUTS"  : 16,
+        }
         ps7_rst_n       = Signal()
         ps7_ddram_pads  = platform.request("ps7_ddram")
         self.cpu_params = dict(
@@ -95,6 +104,9 @@ class Zynq7000(CPU):
 
             # USB0.
             i_USB0_VBUS_PWRFAULT = 0,
+
+            # Interrupts PL -> PS.
+            i_IRQ_F2P       = self.interrupt,
 
             # Fabric Clk / Rst.
             o_FCLK_CLK0     = ClockSignal("ps7"),
