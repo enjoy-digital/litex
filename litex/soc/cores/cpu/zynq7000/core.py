@@ -62,6 +62,7 @@ class Zynq7000(CPU):
         # PS7 (Minimal) ----------------------------------------------------------------------------
         self.ps7_name   = None
         self.ps7_tcl    = []
+        self.config     = {}
         ps7_rst_n       = Signal()
         ps7_ddram_pads  = platform.request("ps7_ddram")
         self.cpu_params = dict(
@@ -166,11 +167,7 @@ class Zynq7000(CPU):
             raise Exception("Please set PS7 with set_ps7 method first.")
         # Config must be provided as a config, value dict.
         assert isinstance(config, dict)
-        # Add configs to PS7.
-        self.ps7_tcl.append("set_property -dict [list \\")
-        for config, value in config.items():
-            self.ps7_tcl.append("CONFIG.{} {} \\".format(config, '{{' + str(value) + '}}'))
-        self.ps7_tcl.append(f"] [get_ips {self.ps7_name}]")
+        self.config.update(config)
 
     def set_ps7(self, name=None, xci=None, preset=None, config=None):
         # Check that PS7 has not already been set.
@@ -413,6 +410,14 @@ class Zynq7000(CPU):
         if self.ps7_name is None:
             raise Exception("PS7 must be set with set_ps7 or set_ps7_xci methods.")
         if len(self.ps7_tcl):
+            # Add configs to PS7.
+            if len(self.config):
+                self.ps7_tcl.append("set_property -dict [list \\")
+                for config, value in self.config.items():
+                    self.ps7_tcl.append("CONFIG.{} {} \\".format(
+                        config, '{{' + str(value) + '}}'))
+                self.ps7_tcl.append(f"] [get_ips {self.ps7_name}]")
+
             self.ps7_tcl += [
                 f"upgrade_ip [get_ips {self.ps7_name}]",
                 f"generate_target all [get_ips {self.ps7_name}]",
