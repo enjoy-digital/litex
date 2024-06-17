@@ -51,10 +51,10 @@ static void ident_handler(int nb_params, char **params)
 	const int IDENT_SIZE = 256;
 	char buffer[IDENT_SIZE];
 
-#ifdef CSR_IDENTIFIER_MEM_BASE
+#ifdef CSR_IDENTIFIER_MEM_BASE_VA
 	int i;
 	for(i=0;i<IDENT_SIZE;i++)
-		buffer[i] = MMPTR(CSR_IDENTIFIER_MEM_BASE + CONFIG_CSR_ALIGNMENT/8*i);
+		buffer[i] = MMPTR(CSR_IDENTIFIER_MEM_BASE_VA + CONFIG_CSR_ALIGNMENT/8*i);
 #else
 	buffer[0] = 0;
 #endif
