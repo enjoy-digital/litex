@@ -54,6 +54,9 @@ class Zynq7000(CPU):
         self.axi_gp_slaves  = []    # General Purpose AXI Slaves.
         self.axi_hp_slaves  = []    # High Performance AXI Slaves.
 
+        # PS7 peripherals.
+        self.can_use        = []
+
         # [ 7: 0]: SPI Numbers [68:61]
         # [15: 8]: SPI Numbers [91:84]
         self.interrupt      = Signal(16)
@@ -427,6 +430,46 @@ class Zynq7000(CPU):
             f"o_S_AXI_HP{n}_RDATA"  : axi_hpn.r.data,
         })
         return axi_hpn
+
+    """
+    Enable CANx peripheral. Peripheral may be optionally set
+    Attributes
+    ==========
+    n: int
+        CAN id (0, 1)
+    pads:
+        Physicals pads (tx and rx)
+    ext_clk: int or None
+        When unset/None CAN is clocked by internal clock (IO PLL).
+        value must be 0 <= ext_clk < 54.
+    ext_clk_freq: float
+        when ext_clk is set, external clock frequency (Hz)
+    """
+    def add_can(self, n, pads, ext_clk=None, ext_clk_freq=None):
+        assert n < 2 and not n in self.can_use
+        assert ext_clk is None or (ext_clk < 54 and ext_clk is not None)
+        assert pads is not None
+
+        # Mark as used
+        self.can_use.append(n)
+
+        # PS7 configuration.
+        self.add_ps7_config({
+            f"PCW_CAN{n}_PERIPHERAL_ENABLE": 1,
+            f"PCW_CAN{n}_GRP_CLK_ENABLE":    {True: 0, False: 1}[ext_clk == None],
+        })
+
+        if ext_clk:
+            self.add_ps7_config({
+                f"PCW_CAN{n}_GRP_CLK_IO"         : f"MIO {ext_clk}",
+                f"PCW_CAN{n}_PERIPHERAL_FREQMHZ" : int(clk_freq / 1e6),
+            })
+
+        # PS7 connections.
+        self.cpu_params.update({
+            f"i_CAN{n}_PHY_RX": pads.rx,
+            f"o_CAN{n}_PHY_TX": pads.tx,
+        })
 
     def do_finalize(self):
         if self.ps7_name is None:
