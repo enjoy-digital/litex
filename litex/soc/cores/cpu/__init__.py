@@ -40,6 +40,9 @@ class CPU(LiteXModule):
     def set_reset_address(self, reset_address):
         pass # pass must be overloaded (if required)
 
+    def bios_map(self, addr, cached):
+        return addr
+
     def enable_reset_address_check(self):
         self.reset_address_check = True
 
