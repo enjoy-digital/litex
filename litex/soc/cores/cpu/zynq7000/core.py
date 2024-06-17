@@ -230,6 +230,16 @@ class Zynq7000(CPU):
             version       = "axi3"
         )
         self.axi_gp_masters.append(axi_gpn)
+
+        self.add_ps7_config({
+            f"PCW_USE_M_AXI_GP{n}":                  1,
+            #f"PCW_M_AXI_GP{n}_FREQMHZ":              100, # FIXME: parameter?
+            f"PCW_M_AXI_GP{n}_ID_WIDTH":             12,
+            f"PCW_M_AXI_GP{n}_ENABLE_STATIC_REMAP":  0,
+            f"PCW_M_AXI_GP{n}_SUPPORT_NARROW_BURST": 0,
+            f"PCW_M_AXI_GP{n}_THREAD_ID_WIDTH":      12,
+        })
+
         self.cpu_params.update({
             # AXI GP clk.
             f"i_M_AXI_GP{n}_ACLK"    : ClockSignal("ps7"),
