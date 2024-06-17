@@ -41,11 +41,12 @@ def ahb_description(data_width, address_width):
 ]
 
 class AHBInterface(Record):
-    def __init__(self, data_width=32, address_width=32):
+    def __init__(self, data_width=32, address_width=32, addressing="byte"):
+        assert addressing == "byte"
         Record.__init__(self, ahb_description(data_width, address_width))
         self.data_width    = data_width
         self.address_width = address_width
-        self.addressing    = "byte"
+        self.addressing    = addressing
 
 # AHB to Wishbone  ---------------------------------------------------------------------------------
 
