@@ -93,6 +93,37 @@ CPU_GCC_TRIPLE_RISCV32 = CPU_GCC_TRIPLE_RISCV64 + (
     "riscv-none-elf",
 )
 
+CPU_GCC_TRIPLE_MIPS = (
+    "mips-unknown-elf",
+    "mips-sde-elf",
+    "mips-mti-elf",
+    "mips-img-elf",
+    "mips-linux-musl",
+    "mips-linux-musln32sf",
+    "mips-linux-muslsf",
+    "mipsel-linux-musl",
+    "mipsel-linux-musln32sf",
+    "mipsel-linux-muslsf",
+    "mips64-linux-musl",
+    "mips64-linux-musln32",
+    "mips64-linux-musln32sf",
+    "mips64-linux-muslsf",
+    "mips64el-linux-musl",
+    "mips64el-linux-musln32",
+    "mips64el-linux-musln32sf",
+    "mips64el-linux-muslsf",
+    "mips-linux-gnu",
+    "mipsel-linux-gnu",
+    "mips64-linux-gnu",
+    "mips64-linux-gnuabi64",
+    "mips64el-linux-gnu",
+    "mips64el-linux-gnuabi64",
+    "mipsisa32r6-linux-gnu",
+    "mipsisa32r6el-linux-gnu",
+    "mipsisa64r6-linux-gnuabi64",
+    "mipsisa64r6el-linux-gnuabi64",
+)
+
 # CPUs Collection ----------------------------------------------------------------------------------
 
 def collect_cpus():
