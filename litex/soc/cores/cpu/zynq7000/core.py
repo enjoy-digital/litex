@@ -456,6 +456,7 @@ class Zynq7000(CPU):
         # PS7 configuration.
         self.add_ps7_config({
             f"PCW_CAN{n}_PERIPHERAL_ENABLE": 1,
+            f"PCW_CAN{n}_CAN{n}_IO":         "EMIO",
             f"PCW_CAN{n}_GRP_CLK_ENABLE":    {True: 0, False: 1}[ext_clk == None],
         })
 
