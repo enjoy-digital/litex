@@ -527,6 +527,14 @@ class VexiiRiscv(CPU):
             i_mBus_rlast     = mbus.r.last,
         )
 
+    def add_jtag(self, pads):
+        self.comb += [
+            self.jtag_tms.eq(pads.tms),
+            self.jtag_clk.eq(pads.tck),
+            self.jtag_tdi.eq(pads.tdi),
+            pads.tdo.eq(self.jtag_tdo),
+        ]
+
     def do_finalize(self):
         assert hasattr(self, "reset_address")
 
