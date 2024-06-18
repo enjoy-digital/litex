@@ -41,6 +41,7 @@ class OpenFPGALoader(GenericProgrammer):
         cmd = self.cmd + ["--bitstream", bitstream_file]
 
         # Execute command.
+        print(" ".join(cmd))
         self.call(cmd)
 
     def flash(self, address, data_file, external=False, unprotect_flash=False, verify=False, **kwargs):
@@ -72,6 +73,7 @@ class OpenFPGALoader(GenericProgrammer):
 
         # Execute Command.
         try:
+            print(" ".join(cmd))
             self.call(cmd)
         except OSError as e:
             print(' '.join(cmd))
