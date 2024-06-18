@@ -53,15 +53,27 @@ class ZynqMP(CPU):
         self.i2c_use        = []          # I2c reserved ports.
         self.uart_use       = []          # UART reserved ports.
 
+        # [ 7: 0]: PL_PS_Group0 [128:121]
+        # [15: 8]: PL_PS_Group1 [143:136]
+        self.interrupt      = Signal(16)
+
         self.cd_ps = ClockDomain()
 
         self.ps_name = "ps"
         self.ps_tcl = []
-        self.config = {'PSU__FPGA_PL0_ENABLE': 1}  # enable pl_clk0
+        self.config = {
+            'PSU__FPGA_PL0_ENABLE'       : 1, # enable pl_clk0
+            'PSU__USE__IRQ0'             : 1, # enable PL_PS_Group0
+            'PSU__NUM_F2P0__INTR__INPUTS': 8,
+            'PSU__USE__IRQ1'             : 1, # enable PL_PS_Group1
+            'PSU__NUM_F2P1__INTR__INPUTS': 8,
+        }
         rst_n = Signal()
         self.cpu_params = dict(
             o_pl_clk0=ClockSignal("ps"),
-            o_pl_resetn0=rst_n
+            o_pl_resetn0=rst_n,
+            i_pl_ps_irq0 = self.interrupt[0: 8],
+            i_pl_ps_irq1 = self.interrupt[8:16]
         )
         self.comb += ResetSignal("ps").eq(~rst_n)
         self.ps_tcl.append(f"set ps [create_ip -vendor xilinx.com -name zynq_ultra_ps_e -module_name {self.ps_name}]")
