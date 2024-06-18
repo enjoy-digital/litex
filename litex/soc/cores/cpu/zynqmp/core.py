@@ -52,6 +52,7 @@ class ZynqMP(CPU):
         self.gem_mac        = []          # GEM MAC reserved ports.
         self.i2c_use        = []          # I2c reserved ports.
         self.uart_use       = []          # UART reserved ports.
+        self.can_use        = []          # CAN reserved/used ports.
 
         # [ 7: 0]: PL_PS_Group0 [128:121]
         # [15: 8]: PL_PS_Group1 [143:136]
@@ -349,6 +350,43 @@ class ZynqMP(CPU):
             "i_emio_gpio_i" : gpio_i,
             "o_emio_gpio_o" : gpio_o,
             "o_emio_gpio_t" : gpio_t,
+        })
+
+    """
+    Enable CANx peripheral. Peripheral may be optionally set
+    Attributes
+    ==========
+    n: int
+        CAN id (0, 1)
+    pads:
+        Physicals pads (tx and rx)
+    ext_clk: int or None
+        When unset/None CAN is clocked by internal clock (IO PLL).
+        value must be 0 <= ext_clk < 54.
+    ext_clk_freq: float
+        when ext_clk is set, external clock frequency (Hz)
+    """
+    def add_can(self, n, pads, ext_clk=None, ext_clk_freq=None):
+        assert n < 2 and not n in self.can_use
+        assert ext_clk is None or (ext_clk < 54 and ext_clk is not None)
+        assert pads is not None
+
+        # Mark as used
+        self.can_use.append(n)
+
+        # PSU configuration.
+        self.config[f"PSU__CAN{n}__PERIPHERAL__ENABLE"] = 1
+        self.config[f"PSU__CAN{n}__PERIPHERAL__IO"]     = "EMIO"
+        self.config[f"PSU__CAN{n}__GRP_CLK__ENABLE"]    = {True: 0, False: 1}[ext_clk == None]
+
+        if ext_clk:
+            self.config[f"PSU__CAN{n}__GRP_CLK__IO"]               = f"MIO {ext_clk}"
+            self.config[f"PSU__CRL_APB__CAN{n}_REF_CTRL__FREQMHZ"] = int(clk_freq / 1e6)
+
+        # PS7 connections.
+        self.cpu_params.update({
+            f"i_emio_can{n}_phy_rx": pads.rx,
+            f"o_emio_can{n}_phy_tx": pads.tx,
         })
 
     def do_finalize(self):
