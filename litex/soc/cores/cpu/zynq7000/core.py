@@ -40,6 +40,7 @@ class Zynq7000(CPU):
     def mem_map(self):
         return {
             "sram": 0x0010_0000,  # DDR in fact
+            "csr":  0x4000_0000,  # default GP0 address on Zynq
             "rom":  0xfc00_0000,
         }
 
@@ -170,6 +171,10 @@ class Zynq7000(CPU):
         if ps7_sdio0_wp_pads is not None:
             self.cpu_params.update(i_SDIO0_WP = ps7_sdio0_wp_pads.wp)
 
+        # GP0 as Bus master ------------------------------------------------------------------------
+        self.pbus = self.add_axi_gp_master()
+        self.periph_buses.append(self.pbus)
+
     def set_ps7_xci(self, xci):
         # Add .xci as Vivado IP and set ps7_name from .xci filename.
         self.ps7_xci  = xci
@@ -177,9 +182,6 @@ class Zynq7000(CPU):
         self.platform.add_ip(xci)
 
     def add_ps7_config(self, config):
-        # Check that PS7 has been set.
-        if self.ps7_name is None:
-            raise Exception("Please set PS7 with set_ps7 method first.")
         # Config must be provided as a config, value dict.
         assert isinstance(config, dict)
         self.config.update(config)
