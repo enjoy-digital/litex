@@ -135,6 +135,7 @@ _io = [
         Subsignal("tms", Pins(1)),
         Subsignal("tdi", Pins(1)),
         Subsignal("tdo", Pins(1)),
+        Subsignal("ntrst", Pins(1)),
     ),
 
     # Video (VGA).
@@ -277,10 +278,7 @@ class SimSoC(SoCCore):
         # JTAG -------------------------------------------------------------------------------------
         if with_jtag:
             jtag_pads = platform.request("jtag")
-            self.comb += self.cpu.jtag_clk.eq(jtag_pads.tck)
-            self.comb += self.cpu.jtag_tms.eq(jtag_pads.tms)
-            self.comb += self.cpu.jtag_tdi.eq(jtag_pads.tdi)
-            self.comb += jtag_pads.tdo.eq(self.cpu.jtag_tdo)
+            self.cpu.add_jtag(jtag_pads)
 
         # SDCard -----------------------------------------------------------------------------------
         if with_sdcard:

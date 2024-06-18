@@ -15,6 +15,7 @@ struct session_s {
 	char *tdo;
 	char *tck;
 	char *tms;
+	char *ntrst;
 	char *sys_clk;
 	struct event *ev;
 	char databuf[2048];
@@ -199,6 +200,7 @@ static int jtagremote_add_pads(void *sess, struct pad_list_s *plist)
     litex_sim_module_pads_get(pads, "tdi", (void**)&s->tdi);
     litex_sim_module_pads_get(pads, "tdo", (void**)&s->tdo);
     litex_sim_module_pads_get(pads, "tms", (void**)&s->tms);
+    litex_sim_module_pads_get(pads, "ntrst", (void**)&s->ntrst);
   }
 
   if(!strcmp(plist->name, "sys_clk"))
@@ -227,19 +229,34 @@ static int jtagremote_tick(void *sess, uint64_t time_ps)
   {
 	  c = s->databuf[s->data_start];
 
-	  if((c >= '0') && (c <= '7')){
-		  *s->tck = ((c - '0') >> 2) & 1;
-		  *s->tms = ((c - '0') >> 1) & 1;
-		  *s->tdi = (c - '0')  & 1;
+	  switch(c) {
+	  case '0'...'7':
+		*s->tck = ((c - '0') >> 2) & 1;
+		*s->tms = ((c - '0') >> 1) & 1;
+		*s->tdi = (c - '0')  & 1;
+		break;
+	  case 'r':
+	  case 's':
+		/* Deassert reset */
+		*s->ntrst = 1;
+		break;
+	  case 't':
+	  case 'u':
+		/* Assert reset */
+		*s->ntrst = 0;
+		break;
+	  case 'R':
+		val = *s->tdo + '0';
+		if(write(s->fd, &val, 1) == -1) {
+			eprintf("Error writing on socket\n");
+			ret = RC_ERROR;
+			goto out;
+		}
+		break;
+	  default:
+		break;
 	  }
-	  if(c == 'R'){
-		  val = *s->tdo + '0';
-		  if(-1 == write(s->fd, &val, 1)) {
-			  eprintf("Error writing on socket\n");
-			  ret = RC_ERROR;
-			  goto out;
-		  }
-	  }
+
 	  s->data_start = (s->data_start + 1) % 2048;
 	  s->datalen--;
   }
