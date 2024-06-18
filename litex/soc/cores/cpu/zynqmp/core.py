@@ -39,6 +39,7 @@ class ZynqMP(CPU):
     def mem_map(self):
         return {
             "sram": 0x0000_0000,  # DDR low in fact
+            "csr":  0xA000_0000,  # ZynqMP M_AXI_HPM0_FPD (HPM0)
             "rom":  0xc000_0000,  # Quad SPI memory
         }
 
@@ -68,6 +69,7 @@ class ZynqMP(CPU):
             'PSU__NUM_F2P0__INTR__INPUTS': 8,
             'PSU__USE__IRQ1'             : 1, # enable PL_PS_Group1
             'PSU__NUM_F2P1__INTR__INPUTS': 8,
+            'PSU__USE__M_AXI_GP1'        : 0,
         }
         rst_n = Signal()
         self.cpu_params = dict(
@@ -76,6 +78,11 @@ class ZynqMP(CPU):
             i_pl_ps_irq0 = self.interrupt[0: 8],
             i_pl_ps_irq1 = self.interrupt[8:16]
         )
+
+        # Use GP0 as peripheral bus / CSR
+        self.pbus = self.add_axi_gp_master(0)
+        self.periph_buses.append(self.pbus)
+
         self.comb += ResetSignal("ps").eq(~rst_n)
         self.ps_tcl.append(f"set ps [create_ip -vendor xilinx.com -name zynq_ultra_ps_e -module_name {self.ps_name}]")
 
