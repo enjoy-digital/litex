@@ -83,9 +83,10 @@ class LatticeRadiantToolchain(GenericToolchain):
     def __init__(self):
         super().__init__()
 
-        self._timingstrict = False
-        self._synth_mode   = "radiant"
-        self._yosys        = None
+        self._timingstrict      = False
+        self._synth_mode        = "radiant"
+        self._yosys             = None
+        self._prj_strategy_opts = {}
 
     def build(self, platform, fragment,
         timingstrict   = False,
@@ -175,6 +176,10 @@ class LatticeRadiantToolchain(GenericToolchain):
 
         # Set top level
         tcl.append("prj_set_impl_opt top \"{}\"".format(self._build_name))
+
+        # Set user project extra configurations
+        for k,v in self._prj_strategy_opts.items():
+            tcl.append(f"prj_set_strategy_value {k}={v}")
 
         # Save project
         tcl.append("prj_save")
@@ -282,6 +287,16 @@ class LatticeRadiantToolchain(GenericToolchain):
                 # XXX is this necessarily the run from which outputs will be used?
                 return
         raise Exception("Failed to meet timing")
+
+    """
+    Set optional configuration for syn, par, bit.
+    Attributes
+    ==========
+    strategy_opts: dict
+        keys/values to inject at script creation time
+    """
+    def set_prj_strategy_opts(self, strategy_opts={}):
+        self._prj_strategy_opts.update(strategy_opts)
 
 
 def radiant_build_args(parser):
