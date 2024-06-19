@@ -2,15 +2,28 @@
 ------------------------
 	[> Fixed
 	--------
+	- cpu/zynq7000                  : Fixed AXI verison to AXI3.
+	- build/vhd2v_converter         : Fixed instance replace robustness.
+	- tools/litex_json2renode       : Corrected VexRiscv variants.
 
 	[> Added
 	--------
 	- cpu/vexiiriscv                : Added initial support.
 	- builder                       : Added default generation of exports with default names to output_dir.
 	- litex.gen                     : Added byte size definitions and use them in targets/json2dts.
+	- litepcie                      : Added external QPLL support/sharing for Xilinx Artix7.
+	- cores/zynq7000/mp             : Improved integration, added peripherals supports.
+	- software/bios                 : Generalized IRQ handling approach between CPUs.
+	- cores/video                   : Added fifo_depth parameter to add_video_framebuffer.
+	- gen/common                    : Added byte size definitions (KILOBYTE, MEGABYTE, GIGABYTE).
+	- tools/litex_json2dts_linux    : Simplified CPU architecture/RISC-V ISA.
+	- soc                           : Added add_spi_master method.
+	- tools/litex_json2dts_zephyr   : Added spimaster/spiflash handlers.
+	- tools/litex_json2renode       : Added .elf bios option.
 
 	[> Changed
 	----------
+	- integration/builder           : Changed export behavior to now generate csr.csv and csr.json by default to output_dir.
 
 [> 2024.04, released on June 5th 2024
 -------------------------------------
