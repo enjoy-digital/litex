@@ -236,8 +236,9 @@ def _generate_csr_definitions_c(reg_name, reg_base, nwords, csr_base, with_csr_b
 
 def _generate_csr_region_definitions_c(name, region, origin, alignment, csr_base, with_csr_base_define):
     base_define = with_csr_base_define and not isinstance(region, MockCSRRegion)
+    base = csr_base if not isinstance(region, MockCSRRegion) else 0
     region_defs = f"\n/* {name.upper()} Registers */\n"
-    region_defs += f"#define CSR_{name.upper()}_BASE {_get_csr_addr(csr_base, origin, base_define)}\n"
+    region_defs += f"#define CSR_{name.upper()}_BASE {_get_csr_addr(base, origin, base_define)}\n"
 
     if not isinstance(region.obj, Memory):
         for csr in region.obj:
@@ -246,7 +247,7 @@ def _generate_csr_region_definitions_c(name, region, origin, alignment, csr_base
                 reg_name              = name + "_" + csr.name,
                 reg_base              = origin,
                 nwords                = nr,
-                csr_base              = csr_base,
+                csr_base              = base,
                 with_csr_base_define  = base_define,
             )
             origin += alignment // 8 * nr
