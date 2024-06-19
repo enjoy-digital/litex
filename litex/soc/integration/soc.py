@@ -1973,6 +1973,8 @@ class LiteXSoC(SoC):
 
         self.check_if_exists(f"{name}")
 
+        spi_clk_freq = int(spi_clk_freq)
+
         if pads is None:
             pads = self.platform.request(name)
 
