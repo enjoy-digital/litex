@@ -314,6 +314,10 @@ overlay_handlers = {
         'handler': i2s_handler,
         'config_entry': 'I2S_LITEX'
     },
+    'watchdog0': {
+        'handler': peripheral_handler,
+        'alias': 'wdt0',
+    },
     'mmcm' : {
         'alias': 'clock0',
         'handler': peripheral_handler,
