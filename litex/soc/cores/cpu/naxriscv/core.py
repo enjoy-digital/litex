@@ -462,6 +462,14 @@ class NaxRiscv(CPU):
 
         self.soc_bus = soc.bus # FIXME: Save SoC Bus instance to retrieve the final mem layout on finalization.
 
+    def add_jtag(self, pads):
+        self.comb += [
+            self.jtag_tms.eq(pads.tms),
+            self.jtag_clk.eq(pads.tck),
+            self.jtag_tdi.eq(pads.tdi),
+            pads.tdo.eq(self.jtag_tdo),
+        ]
+
     def add_memory_buses(self, address_width, data_width):
         NaxRiscv.litedram_width = data_width
         nax_data_width = 64
