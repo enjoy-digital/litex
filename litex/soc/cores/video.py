@@ -642,6 +642,106 @@ class VideoTerminal(LiteXModule):
             )
         ]
 
+# Video TextGrid --------------------------------------------------------------------------------
+class VideoTextGrid(Module, AutoCSR):
+    def __init__(self, hres=800, vres=600):
+        self.enable    = Signal(reset=1)
+        self.vtg_sink  = vtg_sink   = stream.Endpoint(video_timing_layout)
+        self.source    = source     = stream.Endpoint(video_data_layout)
+
+        # Font Mem.
+        # ---------
+        os.system("wget https://github.com/enjoy-digital/litex/files/6076336/ter-u16b.txt") # FIXME: Store Font in LiteX?
+        os.system("mv ter-u16b.txt ter-u16b.bdf")
+        font        = import_bdf_font("ter-u16b.bdf")
+        font_width  = 8
+        font_heigth = 16
+        font_mem    = Memory(width=8, depth=4096, init=font)
+        font_rdport = font_mem.get_port(has_re=True)
+        self.specials += font_mem, font_rdport
+
+        # TextGrid Mem.
+        # -------------
+        term_colums_vis = 80
+        term_lines_vis  = 40
+        term_colums = 128 # 80 rounded to next power of two.
+        term_lines  = 64 # 40 rounded to the next power of two.
+        attr_width  = 8
+        term_depth  = term_colums * term_lines
+        term_init   = [ord(c) for c in [" "]*term_colums*term_lines]
+        term_mem    = Memory(width=font_width + attr_width, depth=term_depth, init=term_init)
+        term_wrport = term_mem.get_port(write_capable=True, clock_domain="csr")
+        term_rdport = term_mem.get_port(has_re=True)
+        self.specials += term_mem, term_wrport, term_rdport
+
+        # Registers
+        # ---------
+        self._yxac    = yxac    = CSR(size=32)
+        self._xscroll = xscroll = CSRStorage(size=7)
+        self._yscroll = yscroll = CSRStorage(size=6)
+
+        # yxac (Y,X,ATTR,CHAR) writes into textgrid memory
+        self.comb += term_wrport.we.eq(yxac.re)
+        self.comb += term_wrport.dat_w.eq(yxac.r[0:15])
+        self.comb += term_wrport.adr[:7].eq(yxac.r[16:23])
+        self.comb += term_wrport.adr[7:].eq(yxac.r[24:31])
+
+        # Video Generation.
+        # -----------------
+        ce = (vtg_sink.valid & vtg_sink.ready)
+
+        # Timing delay line.
+        latency     = 2
+        timing_bufs = [stream.Buffer(video_timing_layout) for i in range(latency)]
+        self.comb += vtg_sink.connect(timing_bufs[0].sink)
+        for i in range(len(timing_bufs) - 1):
+            self.comb += timing_bufs[i].source.connect(timing_bufs[i+1].sink)
+        self.comb += timing_bufs[-1].source.connect(source, keep={"valid", "ready", "last", "de", "hsync", "vsync"})
+        self.submodules += timing_bufs
+
+        # Compute X/Y position.
+        x = vtg_sink.hcount[int(math.log2(font_width)):]
+        y = vtg_sink.vcount[int(math.log2(font_heigth)):]
+
+        # Get character from Terminal Mem.
+        term_dat_r = Signal(font_width)
+        self.comb += term_rdport.re.eq(ce)
+        self.comb += term_rdport.adr[:7].eq(x + xscroll.storage)
+        self.comb += term_rdport.adr[7:].eq(y + yscroll.storage)
+        self.comb += [
+            term_dat_r.eq(term_rdport.dat_r[:font_width]),
+            If((x >= term_colums_vis) | (y >= term_lines_vis),
+                term_dat_r.eq(ord(" ")), # Out of range, generate space.
+            )
+        ]
+
+        # Translate character to video data through Font Mem.
+        self.comb += font_rdport.re.eq(ce)
+        self.comb += font_rdport.adr.eq(term_dat_r*font_heigth + timing_bufs[0].source.vcount[:4])
+        bit = Signal()
+        cases = {}
+        for i in range(font_width):
+            cases[i] = [bit.eq(font_rdport.dat_r[font_width-1-i])]
+        self.comb += Case(timing_bufs[1].source.hcount[:int(math.log2(font_width))], cases)
+
+        # extract fg and bg colors from attribute
+        br = term_rdport.dat_r[14]
+        bg = term_rdport.dat_r[13]
+        bb = term_rdport.dat_r[12]
+        fr = term_rdport.dat_r[10]
+        fg = term_rdport.dat_r[9]
+        fb = term_rdport.dat_r[8]
+
+        self.comb += [
+            If(bit,
+                Cat(source.r, source.g, source.b).eq(
+                    Cat(Replicate(fr,8),Replicate(fg,8),Replicate(fb,8)))
+            ).Else(
+                Cat(source.r, source.g, source.b).eq(
+                    Cat(Replicate(br,8),Replicate(bg,8),Replicate(bb,8)))
+            )
+        ]
+
 # Video FrameBuffer --------------------------------------------------------------------------------
 
 class VideoFrameBuffer(LiteXModule):
