@@ -57,6 +57,8 @@ static void boot_sequence(void)
 	if (serialboot() == 0)
 		return;
 #endif
+	if (target_boot)
+		target_boot();
 #ifdef FLASH_BOOT_ADDRESS
 	flashboot();
 #endif
@@ -296,6 +298,10 @@ __attribute__((__used__)) int main(int i, char **c)
 
 	/* Execute  initialization functions */
 	init_dispatcher();
+
+	/* Execute any target specific initialisation (if linked) */
+	if (target_init)
+		target_init();
 
 	/* Execute Boot sequence */
 #ifndef CONFIG_BIOS_NO_BOOT

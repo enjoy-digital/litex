@@ -12,5 +12,8 @@ void flashboot(void);
 void romboot(void);
 void sdcardboot(void);
 void sataboot(void);
+extern void target_init(void) __attribute__((weak));
+extern void target_boot(void) __attribute__((weak));
+extern int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned long ram_address);
 
 #endif /* __BOOT_H */

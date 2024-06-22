@@ -73,13 +73,13 @@ define_command(ident, ident_handler, "Identifier of the system", SYSTEM_CMDS);
 #ifdef CSR_TIMER0_UPTIME_CYCLES_ADDR
 static void uptime_handler(int nb_params, char **params)
 {
-	unsigned long uptime;
+	uint64_t uptime;
 
 	timer0_uptime_latch_write(1);
 	uptime = timer0_uptime_cycles_read();
-	printf("Uptime: %ld sys_clk cycles / %ld seconds",
-		uptime,
-		uptime/CONFIG_CLOCK_FREQUENCY
+	printf("Uptime: %" PRIu64 " sys_clk cycles / %" PRIu64 " seconds\n",
+				uptime,
+				uptime / CONFIG_CLOCK_FREQUENCY
 	);
 }
 
