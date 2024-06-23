@@ -148,7 +148,7 @@ class AXILiteRemapper(LiteXModule):
 
 # AXI-Lite to Simple Bus ---------------------------------------------------------------------------
 
-def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=None):
+def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_re=None, port_we=None):
     """Connection of AXILite to simple bus with 1-cycle latency, such as CSR bus or Memory port"""
     bus_data_width = axi_lite.data_width
     adr_shift      = log2_int(bus_data_width//8)
@@ -167,6 +167,9 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=
                 comb.append(port_we[i].eq(axi_lite.w.valid & axi_lite.w.ready & axi_lite.w.strb[i]))
         else:
             comb.append(port_we.eq(axi_lite.w.valid & axi_lite.w.ready & (axi_lite.w.strb != 0)))
+
+    if port_re is not None:
+        comb.append(port_re.eq(axi_lite.ar.valid & axi_lite.ar.ready))
 
     port_adr_reg = Signal(len(port_adr))
 
