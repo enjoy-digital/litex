@@ -76,11 +76,11 @@ void spiflash_dummy_bits_setup(unsigned int dummy_bits)
 
 static void spiflash_len_mask_width_write(uint32_t len, uint32_t width, uint32_t mask)
 {
-	uint32_t tmp = len & ((2 ^ CSR_SPIFLASH_CORE_MASTER_PHYCONFIG_LEN_SIZE) - 1);
+	uint32_t tmp = len & ((1 <<  CSR_SPIFLASH_CORE_MASTER_PHYCONFIG_LEN_SIZE) - 1);
 	uint32_t word = tmp << CSR_SPIFLASH_CORE_MASTER_PHYCONFIG_LEN_OFFSET;
-	tmp = width & ((2 ^ CSR_SPIFLASH_CORE_MASTER_PHYCONFIG_WIDTH_SIZE) - 1);
+	tmp = width & ((1 << CSR_SPIFLASH_CORE_MASTER_PHYCONFIG_WIDTH_SIZE) - 1);
 	word |= tmp << CSR_SPIFLASH_CORE_MASTER_PHYCONFIG_WIDTH_OFFSET;
-	tmp = mask & ((2 ^ CSR_SPIFLASH_CORE_MASTER_PHYCONFIG_MASK_SIZE) - 1);
+	tmp = mask & ((1 <<  CSR_SPIFLASH_CORE_MASTER_PHYCONFIG_MASK_SIZE) - 1);
 	word |= tmp << CSR_SPIFLASH_CORE_MASTER_PHYCONFIG_MASK_OFFSET;
 	spiflash_core_master_phyconfig_write(word);
 }
