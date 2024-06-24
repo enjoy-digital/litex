@@ -117,10 +117,6 @@ class CTUCANFD(LiteXModule, EventManager):
         )
 
         # CTU CAN-FD Signals.
-        self.mr_int_ena_set_int_ena_set_o   = Signal(12)
-        self.mr_int_mask_set_int_mask_set_o = Signal(12)
-        self.int_status_i                   = Signal(12)
-
         self.core_params.update(
             # Clk / Rst.
             i_clk_sys   = ClockSignal("sys"),
@@ -143,15 +139,11 @@ class CTUCANFD(LiteXModule, EventManager):
             o_data_out = mem_data_out,
 
             # Interrupt.
-            o_irq = self.irq,
+            o_int = self.irq,
 
             # CAN Bus.
             o_can_tx = pads.tx,
             i_can_rx = pads.rx,
-            o_dbg_mr_int_ena_set_int_ena_set_o    = self.mr_int_ena_set_int_ena_set_o,
-            o_dbg_mr_int_mask_set_int_mask_set_o  = self.mr_int_mask_set_int_mask_set_o, 
-            o_dbg_int_status_i                    = self.int_status_i,
-
 
             # Debug.
             #o_test_probe = ,
@@ -161,9 +153,10 @@ class CTUCANFD(LiteXModule, EventManager):
 
     def add_sources(self, platform):
         sources = []
+        sdir = "CTU-CAN-FD"
         cdir = os.path.dirname(__file__)
-        sdir = os.path.abspath(os.path.join(cdir, "CTU-CAN-FD"))
-
+        if not os.path.exists(sdir):
+            os.system(f"git clone https://github.com/enjoy-digital/CTU-CAN-FD")
         with open(os.path.join(cdir, 'rtl_lst.txt')) as f:
             for line in f:
                 srcfile = os.path.join(sdir, line.strip().replace('rtl', 'src'))
