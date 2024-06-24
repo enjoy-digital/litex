@@ -1317,6 +1317,24 @@ class SoC(LiteXModule, SoCCoreCompat):
         if self.irq.enabled:
             self.irq.add(name, use_loc_if_exists=True)
 
+    # Add Watchdog ---------------------------------------------------------------------------------
+    def add_watchdog(self, name="watchdog0", width=32, crg_rst=None, reset_delay=None):
+        from litex.soc.cores.watchdog import Watchdog
+
+        if crg_rst is None:
+            crg_rst = getattr(self.crg, "rst", None) if hasattr(self, "crg") else None
+        if reset_delay is None:
+            reset_delay = self.sys_clk_freq
+
+        halted = getattr(self.cpu, "o_halted", None) if hasattr(self, "cpu") else None
+
+        self.check_if_exists(name)
+        watchdog = Watchdog(width=width, crg_rst=crg_rst, reset_delay=int(reset_delay), halted=halted)
+        self.add_module(name=name, module=watchdog)
+
+        if self.irq.enabled:
+            self.irq.add(name, use_loc_if_exists=True)
+
     # SoC finalization -----------------------------------------------------------------------------
     def finalize(self):
         if self.finalized:
