@@ -347,20 +347,20 @@ class SoCBusHandler(LiteXModule):
                     axi.AXIInterface     : axi.AXIConverter,
                 }[interface_cls]
                 args = {
-                    'data_width': self.data_width,
-                    'address_width': self.address_width,
-                    'addressing': interface.addressing,
-                    'bursting' : interface.bursting,
+                    "data_width"    : self.data_width,
+                    "address_width" : self.address_width,
+                    "addressing"    : interface.addressing,
+                    "bursting"      : interface.bursting,
                 }
                 if isinstance(interface, axi.AXIInterface):
                     args.update({
-                        'version' : interface.version,
-                        'id_width': interface.id_width,
-                        'aw_user_width': interface.aw.user_width,
-                        'w_user_width': interface.w.user_width,
-                        'b_user_width': interface.b.user_width,
-                        'ar_user_width': interface.ar.user_width,
-                        'r_user_width': interface.r.user_width,
+                        "version"       : interface.version,
+                        "id_width"      : interface.id_width,
+                        "aw_user_width" : interface.aw.user_width,
+                        "w_user_width"  : interface.w.user_width,
+                        "b_user_width"  : interface.b.user_width,
+                        "ar_user_width" : interface.ar.user_width,
+                        "r_user_width"  : interface.r.user_width,
                     })
                 adapted_interface = interface_cls(**args)
 
