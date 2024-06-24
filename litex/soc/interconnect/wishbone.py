@@ -602,12 +602,14 @@ class Wishbone2CSR(LiteXModule):
                 NextValue(self.csr.dat_w, self.wishbone.dat_w),
                 If(self.wishbone.cyc & self.wishbone.stb,
                     NextValue(self.csr.adr, self.wishbone.adr[wishbone_adr_shift:]),
-                    NextValue(self.csr.we, self.wishbone.we & (self.wishbone.sel != 0)),
+                    NextValue(self.csr.re, ~self.wishbone.we & (self.wishbone.sel != 0)),
+                    NextValue(self.csr.we,  self.wishbone.we & (self.wishbone.sel != 0)),
                     NextState("WRITE-READ")
                 )
             )
             fsm.act("WRITE-READ",
                 NextValue(self.csr.adr, 0),
+                NextValue(self.csr.re, 0),
                 NextValue(self.csr.we, 0),
                 NextState("ACK")
             )
@@ -623,7 +625,8 @@ class Wishbone2CSR(LiteXModule):
                 self.csr.dat_w.eq(self.wishbone.dat_w),
                 If(self.wishbone.cyc & self.wishbone.stb,
                     self.csr.adr.eq(self.wishbone.adr[wishbone_adr_shift:]),
-                    self.csr.we.eq(self.wishbone.we & (self.wishbone.sel != 0)),
+                    self.csr.re.eq(~self.wishbone.we & (self.wishbone.sel != 0)),
+                    self.csr.we.eq( self.wishbone.we & (self.wishbone.sel != 0)),
                     NextState("ACK")
                 )
             )

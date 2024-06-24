@@ -18,9 +18,11 @@ sys_clk domain of the SoC, completing writes in a single cycle and reads in two 
                          ┌───────────┐                  Write in 1 cycle:
                          │           │                  - adr/we/dat_w set by bridge.
                          │           ├───► adr
-                         │           │                  Read in 2 cycles:
-       Main SoC Bus ◄────►    CSR    ├───► we           - adr set by bridge
-                         │   Bridge  │                  - dat_r set returned by user logic.
+                         |           |                  Read in 2 cycles:
+                         │           ├───► re           - adr and re set by bridge.
+       Main SoC Bus ◄────►           │                  - User logic can ignore re if there is no reading side effect.
+                         |    CSR    ├───► we           - dat_r set returned by user logic.
+                         │   Bridge  │
                          │           ├───► dat_w
                          │           │
                          │           ◄──── dat_r
@@ -46,6 +48,7 @@ from litex.soc.interconnect.csr import CSRStorage
 
 _layout = [
     ("adr",  "address_width", DIR_M_TO_S),
+    ("re",                 1, DIR_M_TO_S),
     ("we",                 1, DIR_M_TO_S),
     ("dat_w",   "data_width", DIR_M_TO_S),
     ("dat_r",   "data_width", DIR_S_TO_M)
@@ -81,9 +84,11 @@ class Interface(Record):
 
     def read(self, adr):
         yield self.adr.eq(adr)
+        yield self.re.eq(1)
         yield
-        yield
-        return (yield self.dat_r)
+        value = (yield self.dat_r)
+        yield self.re.eq(0)
+        return value
 
 # CSR Interconnect ---------------------------------------------------------------------------------
 
@@ -97,6 +102,7 @@ class InterconnectShared(Module):
         intermediate = Interface.like(masters[0])
         self.comb += [
             intermediate.adr.eq(  Reduce("OR", [masters[i].adr   for i in range(len(masters))])),
+            intermediate.re.eq(   Reduce("OR", [masters[i].re    for i in range(len(masters))])),
             intermediate.we.eq(   Reduce("OR", [masters[i].we    for i in range(len(masters))])),
             intermediate.dat_w.eq(Reduce("OR", [masters[i].dat_w for i in range(len(masters))]))
         ]
@@ -207,8 +213,8 @@ class CSRBank(csr.GenericBank):
             self.comb += [
                 c.r.eq(self.bus.dat_w[:c.size]),
                 If(sel & (self.bus.adr[:log2_int(aligned_paging)] == i),
-                    c.re.eq( self.bus.we),
-                    c.we.eq(~self.bus.we)
+                    c.re.eq(self.bus.we),
+                    c.we.eq(self.bus.re)
                 )
             ]
 
