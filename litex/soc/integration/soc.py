@@ -30,6 +30,7 @@ from litex.soc.interconnect import csr_bus
 from litex.soc.interconnect import stream
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect import axi
+from litex.soc.interconnect import ahb
 
 
 # Helpers ------------------------------------------------------------------------------------------
@@ -377,8 +378,8 @@ class SoCBusHandler(LiteXModule):
             # Same Addressing, return un-modified interface.
             if interface.addressing == self.addressing:
                 return interface
-            # AXI/AXI-Lite interface, Bus-Addressing conversion already handled in Bus-Standard conversion.
-            elif isinstance(interface, (axi.AXIInterface, axi.AXILiteInterface)):
+            # AXI/AXI-Lite/AHB interface, Bus-Addressing conversion already handled in Bus-Standard conversion.
+            elif isinstance(interface, (axi.AXIInterface, axi.AXILiteInterface, ahb.AHBInterface)):
                 return interface
             # Different Addressing: Return adapted interface.
             else:
@@ -432,6 +433,7 @@ class SoCBusHandler(LiteXModule):
                     (axi.AXILiteInterface, axi.AXIInterface)    : axi.AXILite2AXI,
                     (axi.AXIInterface,     axi.AXILiteInterface): axi.AXI2AXILite,
                     (axi.AXIInterface,     wishbone.Interface)  : axi.AXI2Wishbone,
+                    (ahb.AHBInterface,     wishbone.Interface)  : ahb.AHB2Wishbone,
                 }[type(master), type(slave)]
                 bridge = bridge_cls(master, slave)
                 self.submodules += bridge
@@ -449,6 +451,7 @@ class SoCBusHandler(LiteXModule):
                 wishbone.Interface:   "Wishbone",
                 axi.AXILiteInterface: "AXI-Lite",
                 axi.AXIInterface:     "AXI",
+                ahb.AHBInterface:     "AHB",
             }
             self.logger.info(fmt.format(
                 name      = colorer(name),
