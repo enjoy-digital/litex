@@ -262,9 +262,29 @@ class SimSoC(SoCCore):
                 interface  = "wishbone",
                 endianness = self.cpu.endianness
             )
-            ethmac_region_size = (ethmac.rx_slots.constant + ethmac.tx_slots.constant)*ethmac.slot_size.constant
-            ethmac_region = SoCRegion(origin=self.mem_map.get("ethmac", None), size=ethmac_region_size, cached=False)
-            self.bus.add_slave(name="ethmac", slave=ethmac.bus, region=ethmac_region)
+            ethmac_rx_region_size = ethmac.rx_slots.constant*ethmac.slot_size.constant
+            ethmac_tx_region_size = ethmac.tx_slots.constant*ethmac.slot_size.constant
+            ethmac_region_size    = ethmac_rx_region_size + ethmac_tx_region_size
+            self.bus.add_region("ethmac", SoCRegion(
+                origin = self.mem_map.get("ethmac", None),
+                size   = ethmac_region_size,
+                linker = True,
+                cached = False,
+            ))
+            ethmac_rx_region = SoCRegion(
+                origin = self.bus.regions["ethmac"].origin + 0,
+                size   = ethmac_rx_region_size,
+                linker = True,
+                cached = False,
+            )
+            self.bus.add_slave(name="ethmac_rx", slave=ethmac.bus_rx, region=ethmac_rx_region)
+            ethmac_tx_region = SoCRegion(
+                origin = self.bus.regions["ethmac"].origin + ethmac_rx_region_size,
+                size   = ethmac_tx_region_size,
+                linker = True,
+                cached = False,
+            )
+            self.bus.add_slave(name="ethmac_tx", slave=ethmac.bus_tx, region=ethmac_tx_region)
 
             # Add IRQs (if enabled).
             if self.irq.enabled:
