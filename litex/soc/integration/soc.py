@@ -2281,7 +2281,8 @@ class LiteXSoC(SoC):
         with_dma_synchronizer = False,
         with_dma_monitor      = False,
         with_dma_status       = False,
-        with_msi              = True, msi_type="msi", msi_width=32,
+        with_dma_table        = True,
+        with_msi              = True, msi_type="msi", msi_width=32, msis={},
         with_ptm              = False,
 ):
         # Imports
@@ -2323,7 +2324,7 @@ class LiteXSoC(SoC):
             self.add_module(name=f"{name}_msi", module=msi)
             if msi_type in ["msi", "msi-multi-vector"]:
                 self.comb += msi.source.connect(phy.msi)
-            self.msis = {}
+            self.msis = msis
 
         # DMAs.
         for i in range(ndmas):
@@ -2335,16 +2336,18 @@ class LiteXSoC(SoC):
                 with_synchronizer = with_dma_synchronizer,
                 with_monitor      = with_dma_monitor,
                 with_status       = with_dma_status,
+                with_table        = with_dma_table,
                 address_width     = address_width,
                 data_width        = data_width,
             )
             self.add_module(name=f"{name}_dma{i}", module=dma)
-            self.msis[f"{name.upper()}_DMA{i}_WRITER"] = dma.writer.irq
-            self.msis[f"{name.upper()}_DMA{i}_READER"] = dma.reader.irq
+            if with_dma_table:
+                self.msis[f"{name.upper()}_DMA{i}_WRITER"] = dma.writer.irq
+                self.msis[f"{name.upper()}_DMA{i}_READER"] = dma.reader.irq
         self.add_constant("DMA_CHANNELS",   ndmas)
         self.add_constant("DMA_ADDR_WIDTH", address_width)
 
-        # Map/Connect IRQs.
+        # Map/Connect MSI IRQs.
         if with_msi:
             for i, (k, v) in enumerate(sorted(self.msis.items())):
                 self.comb += msi.irqs[i].eq(v)
