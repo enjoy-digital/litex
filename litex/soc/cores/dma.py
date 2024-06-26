@@ -74,12 +74,12 @@ class WishboneDMAReader(LiteXModule):
             self.add_ctrl()
             self.add_csr()
 
-    def add_ctrl(self):
-        self.base   = Signal(64)
-        self.length = Signal(32)
-        self.enable = Signal()
+    def add_ctrl(self, default_base=0, default_length=0, default_enable=0, default_loop=0):
+        self.base   = Signal(64, reset=default_base)
+        self.length = Signal(32, reset=default_length)
+        self.enable = Signal(reset=default_enable)
         self.done   = Signal()
-        self.loop   = Signal()
+        self.loop   = Signal(reset=default_loop)
         self.offset = Signal(32)
 
         # # #
@@ -176,15 +176,15 @@ class WishboneDMAWriter(LiteXModule):
             self.add_ctrl()
             self.add_csr()
 
-    def add_ctrl(self, ready_on_idle=1):
+    def add_ctrl(self, default_base=0, default_length=0, default_enable=0, default_loop=0, ready_on_idle=1):
         self._sink = self.sink
         self.sink  = stream.Endpoint([("data", self.bus.data_width)])
 
-        self.base   = Signal(64)
-        self.length = Signal(32)
-        self.enable = Signal()
+        self.base   = Signal(64, reset=default_base)
+        self.length = Signal(32, reset=default_length)
+        self.enable = Signal(reset=default_enable)
         self.done   = Signal()
-        self.loop   = Signal()
+        self.loop   = Signal(reset=default_loop)
         self.offset = Signal(32)
 
         # # #
