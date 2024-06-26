@@ -71,15 +71,16 @@ class WishboneDMAReader(LiteXModule):
 
         # CSRs.
         if with_csr:
+            self.add_ctrl()
             self.add_csr()
 
-    def add_csr(self, default_base=0, default_length=0, default_enable=0, default_loop=0):
-        self._base   = CSRStorage(64, reset=default_base)
-        self._length = CSRStorage(32, reset=default_length)
-        self._enable = CSRStorage(reset=default_enable)
-        self._done   = CSRStatus()
-        self._loop   = CSRStorage(reset=default_loop)
-        self._offset = CSRStatus(32)
+    def add_ctrl(self, default_base=0, default_length=0, default_enable=0, default_loop=0):
+        self.base   = Signal(64, reset=default_base)
+        self.length = Signal(32, reset=default_length)
+        self.enable = Signal(reset=default_enable)
+        self.done   = Signal()
+        self.loop   = Signal(reset=default_loop)
+        self.offset = Signal(32)
 
         # # #
 
@@ -87,13 +88,13 @@ class WishboneDMAReader(LiteXModule):
         base    = Signal(self.bus.adr_width)
         offset  = Signal(self.bus.adr_width)
         length  = Signal(self.bus.adr_width)
-        self.comb += base.eq(self._base.storage[shift:])
-        self.comb += length.eq(self._length.storage[shift:])
+        self.comb += base.eq(self.base[shift:])
+        self.comb += length.eq(self.length[shift:])
 
-        self.comb += self._offset.status.eq(offset)
+        self.comb += self.offset.eq(offset)
 
         self.fsm = fsm = ResetInserter()(FSM(reset_state="IDLE"))
-        self.comb += fsm.reset.eq(~self._enable.storage)
+        self.comb += fsm.reset.eq(~self.enable)
         fsm.act("IDLE",
             NextValue(offset, 0),
             NextState("RUN"),
@@ -105,7 +106,7 @@ class WishboneDMAReader(LiteXModule):
             If(self.sink.ready,
                 NextValue(offset, offset + 1),
                 If(self.sink.last,
-                    If(self._loop.storage,
+                    If(self.loop,
                         NextValue(offset, 0)
                     ).Else(
                         NextState("DONE")
@@ -113,7 +114,28 @@ class WishboneDMAReader(LiteXModule):
                 )
             )
         )
-        fsm.act("DONE", self._done.status.eq(1))
+        fsm.act("DONE", self.done.eq(1))
+
+    def add_csr(self, default_base=0, default_length=0, default_enable=0, default_loop=0):
+        self._base   = CSRStorage(64, reset=default_base)
+        self._length = CSRStorage(32, reset=default_length)
+        self._enable = CSRStorage(reset=default_enable)
+        self._done   = CSRStatus()
+        self._loop   = CSRStorage(reset=default_loop)
+        self._offset = CSRStatus(32)
+
+        # # #
+
+        self.comb += [
+            # Control.
+            self.base.eq(self._base.storage),
+            self.length.eq(self._length.storage),
+            self.enable.eq(self._enable.storage),
+            self.loop.eq(self._loop.storage),
+            # Status.
+            self._done.status.eq(self.done),
+            self._offset.status.eq(self.offset),
+        ]
 
 # WishboneDMAWriter --------------------------------------------------------------------------------
 
@@ -151,18 +173,19 @@ class WishboneDMAWriter(LiteXModule):
 
         # CSRs.
         if with_csr:
+            self.add_ctrl()
             self.add_csr()
 
-    def add_csr(self, default_base=0, default_length=0, default_enable=0, default_loop=0, ready_on_idle=1):
+    def add_ctrl(self, default_base=0, default_length=0, default_enable=0, default_loop=0, ready_on_idle=1):
         self._sink = self.sink
         self.sink  = stream.Endpoint([("data", self.bus.data_width)])
 
-        self._base   = CSRStorage(64, reset=default_base)
-        self._length = CSRStorage(32, reset=default_length)
-        self._enable = CSRStorage(reset=default_enable)
-        self._done   = CSRStatus()
-        self._loop   = CSRStorage(reset=default_loop)
-        self._offset = CSRStatus(32)
+        self.base   = Signal(64, reset=default_base)
+        self.length = Signal(32, reset=default_length)
+        self.enable = Signal(reset=default_enable)
+        self.done   = Signal()
+        self.loop   = Signal(reset=default_loop)
+        self.offset = Signal(32)
 
         # # #
 
@@ -170,13 +193,13 @@ class WishboneDMAWriter(LiteXModule):
         base    = Signal(self.bus.adr_width)
         offset  = Signal(self.bus.adr_width)
         length  = Signal(self.bus.adr_width)
-        self.comb += base.eq(self._base.storage[shift:])
-        self.comb += length.eq(self._length.storage[shift:])
+        self.comb += base.eq(self.base[shift:])
+        self.comb += length.eq(self.length[shift:])
 
-        self.comb += self._offset.status.eq(offset)
+        self.comb += self.offset.eq(offset)
 
         self.fsm = fsm = ResetInserter()(FSM(reset_state="IDLE"))
-        self.comb += fsm.reset.eq(~self._enable.storage)
+        self.comb += fsm.reset.eq(~self.enable)
         fsm.act("IDLE",
             self.sink.ready.eq(ready_on_idle),
             NextValue(offset, 0),
@@ -191,7 +214,7 @@ class WishboneDMAWriter(LiteXModule):
             If(self.sink.valid & self.sink.ready,
                 NextValue(offset, offset + 1),
                 If(self._sink.last,
-                    If(self._loop.storage,
+                    If(self.loop,
                         NextValue(offset, 0)
                     ).Else(
                         NextState("DONE")
@@ -199,4 +222,25 @@ class WishboneDMAWriter(LiteXModule):
                 )
             )
         )
-        fsm.act("DONE", self._done.status.eq(1))
+        fsm.act("DONE", self.done.eq(1))
+
+    def add_csr(self, default_base=0, default_length=0, default_enable=0, default_loop=0):
+        self._base   = CSRStorage(64, reset=default_base)
+        self._length = CSRStorage(32, reset=default_length)
+        self._enable = CSRStorage(reset=default_enable)
+        self._done   = CSRStatus()
+        self._loop   = CSRStorage(reset=default_loop)
+        self._offset = CSRStatus(32)
+
+        # # #
+
+        self.comb += [
+            # Control.
+            self.base.eq(self._base.storage),
+            self.length.eq(self._length.storage),
+            self.enable.eq(self._enable.storage),
+            self.loop.eq(self._loop.storage),
+            # Status.
+            self._done.status.eq(self.done),
+            self._offset.status.eq(self.offset),
+        ]
