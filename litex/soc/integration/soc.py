@@ -1850,14 +1850,14 @@ class LiteXSoC(SoC):
         from liteeth.phy.model import LiteEthPHYModel
 
         # MAC.
-        assert data_width in [8, 32]
+        assert data_width in [8, 32, 64]
         with_sys_datapath = (data_width == 32)
         self.check_if_exists(name)
         if with_timestamp:
             self.timer0.add_uptime()
         ethmac = LiteEthMAC(
             phy        = phy,
-            dw         = 32,
+            dw         = {8: 32, 32: 32, 64: 64}[data_width],
             interface  = "wishbone",
             endianness = self.cpu.endianness,
             nrxslots   = nrxslots, rxslots_read_only  = rxslots_read_only,
