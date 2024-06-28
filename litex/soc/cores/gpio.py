@@ -8,7 +8,7 @@
 from migen import *
 from migen.genlib.cdc import MultiReg
 
-from litex.gen import *
+from litex.gen import dts_property, LiteXModule
 
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect.csr_eventmanager import *
@@ -46,27 +46,49 @@ class _GPIOIRQ(LiteXModule):
 # GPIO Input ---------------------------------------------------------------------------------------
 
 class GPIOIn(_GPIOIRQ):
+    dts_compatible = "litex,gpio"
+    # the values below are based on json2dts_linux "switches" and match the linux driver
+    dts_properties = dts_property("gpio-controller")
+    dts_properties += dts_property("#gpio-cells", 2)
+    dts_properties += dts_property("litex,direction", "in")
+
     def __init__(self, pads, with_irq=False):
         pads = _to_signal(pads)
         self._in = CSRStatus(len(pads), description="GPIO Input(s) Status.")
         self.specials += MultiReg(pads, self._in.status)
+        self.dts_properties += dts_property("litex,ngpio", len(pads))
         if with_irq:
             self.add_irq(self._in.status)
 
 # GPIO Output --------------------------------------------------------------------------------------
 
 class GPIOOut(LiteXModule):
+    dts_compatible = "litex,gpio"
+    # the values below are based on json2dts_linux "leds" and match the linux driver
+    dts_properties = dts_property("gpio-controller")
+    dts_properties += dts_property("#gpio-cells", 2)
+    dts_properties += dts_property("litex,direction", "out")
+
     def __init__(self, pads, reset=0):
         pads = _to_signal(pads)
         self.out = CSRStorage(len(pads), reset=reset, description="GPIO Output(s) Control.")
         self.comb += pads.eq(self.out.storage)
+        self.dts_properties += dts_property("litex,ngpio", len(pads))
 
 # GPIO Input/Output --------------------------------------------------------------------------------
 
 class GPIOInOut(LiteXModule):
+    dts_compatible = "litex,gpio"
+    dts_properties = dts_property("gpio-controller")
+    dts_properties += dts_property("#gpio-cells", 2)
+    dts_properties += dts_property("litex,direction", "in,out")
+
     def __init__(self, in_pads, out_pads):
         self.gpio_in  = GPIOIn(in_pads)
         self.gpio_out = GPIOOut(out_pads)
+        # TODO: conceptual only - no linux driver support
+        self.dts_properties += dts_property("litex,ngpi", len(in_pads))
+        self.dts_properties += dts_property("litex,ngpo", len(out_pads))
 
     def get_csrs(self):
         return self.gpio_in.get_csrs() + self.gpio_out.get_csrs()
@@ -74,6 +96,12 @@ class GPIOInOut(LiteXModule):
 # GPIO Tristate ------------------------------------------------------------------------------------
 
 class GPIOTristate(_GPIOIRQ):
+    dts_compatible = "litex,gpio"
+    # below is supported in Nuttx
+    dts_properties = dts_property("gpio-controller")
+    dts_properties += dts_property("#gpio-cells", 2)
+    dts_properties += dts_property("litex,direction", "oe,in,out")
+
     def __init__(self, pads, with_irq=False):
         internal = not (hasattr(pads, "o") and hasattr(pads, "oe") and hasattr(pads, "i"))
         nbits    = len(pads) if internal else len(pads.o)
@@ -103,6 +131,7 @@ class GPIOTristate(_GPIOIRQ):
                 self.comb += pads.oe[i].eq(self._oe.storage[i])
                 self.comb += pads.o[i].eq(self._out.storage[i])
                 self.specials += MultiReg(pads.i[i], self._in.status[i])
+        self.dts_properties += dts_property("litex,ngpio", nbits)
 
         if with_irq:
             self.add_irq(self._in.status)
