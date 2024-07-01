@@ -71,7 +71,6 @@ class WishboneDMAReader(LiteXModule):
 
         # CSRs.
         if with_csr:
-            self.add_ctrl()
             self.add_csr()
 
     def add_ctrl(self, default_base=0, default_length=0, default_enable=0, default_loop=0):
@@ -117,6 +116,8 @@ class WishboneDMAReader(LiteXModule):
         fsm.act("DONE", self.done.eq(1))
 
     def add_csr(self, default_base=0, default_length=0, default_enable=0, default_loop=0):
+        if not hasattr(self, "base"):
+            self.add_ctrl()
         self._base   = CSRStorage(64, reset=default_base)
         self._length = CSRStorage(32, reset=default_length)
         self._enable = CSRStorage(reset=default_enable)
@@ -173,7 +174,6 @@ class WishboneDMAWriter(LiteXModule):
 
         # CSRs.
         if with_csr:
-            self.add_ctrl()
             self.add_csr()
 
     def add_ctrl(self, default_base=0, default_length=0, default_enable=0, default_loop=0, ready_on_idle=1):
@@ -225,6 +225,8 @@ class WishboneDMAWriter(LiteXModule):
         fsm.act("DONE", self.done.eq(1))
 
     def add_csr(self, default_base=0, default_length=0, default_enable=0, default_loop=0):
+        if not hasattr(self, "base"):
+            self.add_ctrl()
         self._base   = CSRStorage(64, reset=default_base)
         self._length = CSRStorage(32, reset=default_length)
         self._enable = CSRStorage(reset=default_enable)
