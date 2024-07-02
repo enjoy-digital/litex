@@ -2108,7 +2108,11 @@ class LiteXSoC(SoC):
             self.add_constant(f"{name}_DEBUG")
 
     # Add SPI RAM --------------------------------------------------------------------------------
-    def add_spi_ram(self, name="spiram", mode="4x", clk_freq=20e6, module=None, phy=None, rate="1:1", software_debug=False, **kwargs):
+    def add_spi_ram(self, name="spiram", mode="4x", clk_freq=20e6, module=None, phy=None, rate="1:1", software_debug=False,
+        l2_cache_size           = 8192,
+        l2_cache_reverse        = False,
+        l2_cache_full_memory_we = True,
+        **kwargs):
         # Imports.
         from litespi import LiteSPI
         from litespi.phy.generic import LiteSPIPHY
@@ -2132,8 +2136,28 @@ class LiteXSoC(SoC):
         spiram_core = LiteSPI(spiram_phy, mmap_endianness=self.cpu.endianness, with_mmap_write=True, **kwargs)
         self.add_module(name=f"{name}_core", module=spiram_core)
         spiram_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size)
-        self.bus.add_slave(name=name, slave=spiram_core.bus, region=spiram_region)
+        
+        # Create Wishbone Slave.
+        wb_spiram = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+        self.bus.add_slave(name=name, slave=wb_spiram, region=spiram_region)
         self.comb += spiram_core.mmap.offset.eq(self.bus.regions.get(name, None).origin)
+        
+        # L2 Cache
+        if l2_cache_size != 0:
+            # Insert L2 cache inbetween Wishbone bus and LiteSPI
+            l2_cache_size = max(l2_cache_size, int(2*32/8))              # Use minimal size if lower
+            l2_cache_size = 2**int(log2(l2_cache_size))                  # Round to nearest power of 2
+            l2_cache = wishbone.Cache(
+                cachesize = l2_cache_size//4,
+                master    = wb_spiram,
+                slave     = spiram_core.bus,
+                reverse   = l2_cache_reverse)
+            if l2_cache_full_memory_we:
+                l2_cache = FullMemoryWE()(l2_cache)
+            self.l2_cache = l2_cache
+            self.add_config("L2_SIZE", l2_cache_size)
+        else:
+            self.submodules += wishbone.Converter(wb_spiram, spiram_core.bus)
 
         # Constants.
         self.add_constant(f"{name}_PHY_FREQUENCY",     clk_freq)
