@@ -253,16 +253,13 @@ overlay_handlers = {
     'uart': {
         'handler': peripheral_handler,
         'alias': 'uart0',
-        'config_entry': 'UART_LITEUART'
     },
     'timer0': {
         'handler': peripheral_handler,
-        'config_entry': 'LITEX_TIMER'
     },
     'ethmac': {
         'handler': ethmac_handler,
         'alias': 'eth0',
-        'config_entry': 'ETH_LITEETH'
     },
     'spimaster': {
         'handler': spimaster_handler,
@@ -276,43 +273,35 @@ overlay_handlers = {
         'handler': peripheral_handler,
         'alias': 'sdcard_block2mem',
         'size': 0x18,
-        'config_entry': 'SD_LITESD'
     },
     'sdcard_core': {
         'handler': peripheral_handler,
         'alias': 'sdcard_core',
         'size': 0x2C,
-        'config_entry': 'SD_LITESD'
     },
     'sdcard_irq': {
         'handler': peripheral_handler,
         'alias': 'sdcard_irq',
         'size': 0x0C,
-        'config_entry': 'SD_LITESD'
     },
     'sdcard_mem2block': {
         'handler': peripheral_handler,
         'alias': 'sdcard_mem2block',
         'size': 0x18,
-        'config_entry': 'SD_LITESD'
     },
     'sdcard_phy': {
         'handler': peripheral_handler,
         'alias': 'sdcard_phy',
         'size': 0x10,
-        'config_entry': 'SD_LITESD'
     },
     'i2c0' : {
         'handler': i2c_handler,
-        'config_entry': 'I2C_LITEX'
     },
     'i2s_rx' : {
         'handler': i2s_handler,
-        'config_entry': 'I2S_LITEX'
     },
     'i2s_tx' : {
         'handler': i2s_handler,
-        'config_entry': 'I2S_LITEX'
     },
     'watchdog0': {
         'handler': peripheral_handler,
@@ -321,7 +310,6 @@ overlay_handlers = {
     'mmcm' : {
         'alias': 'clock0',
         'handler': peripheral_handler,
-        'config_entry': 'CLOCK_CONTROL_LITEX'
     },
     'main_ram': {
         'handler': ram_handler,
