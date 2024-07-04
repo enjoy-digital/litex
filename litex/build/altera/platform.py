@@ -62,3 +62,11 @@ class AlteraPlatform(GenericPlatform):
         for pad in common.altera_reserved_jtag_pads:
             r[pad] = self.request(pad)
         return r
+
+    @classmethod
+    def fill_args(cls, toolchain, parser):
+        quartus.fill_args(parser)
+
+    @classmethod
+    def get_argdict(cls, toolchain, args):
+        return quartus.get_argdict(args)
