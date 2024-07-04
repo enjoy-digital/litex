@@ -152,7 +152,8 @@ class AlteraQuartusToolchain(GenericToolchain):
 
         # Add IPs
         for filename in self.platform.ips:
-            qsf.append("set_global_assignment -name QSYS_FILE " + filename.replace("\\", "/"))
+            file_ext = os.path.splitext(filename)[1][1:].upper()
+            qsf.append(f"set_global_assignment -name {file_ext}_FILE " + filename.replace("\\", "/"))
 
         # Add include paths
         for path in self.platform.verilog_include_paths:
