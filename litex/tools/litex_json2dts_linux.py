@@ -633,6 +633,25 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
             }};
 """.format(xadc_csr_base=d["csr_bases"]["xadc"])
 
+    # CAN ------------------------------------------------------------------------------------------
+
+    for mem in d["memories"]:
+        if "can" in mem:
+            dts += """
+            {name}: can@{can_mem_base:x} {{
+                compatible = "ctu,ctucanfd";
+                reg = <0x{can_mem_base:x} 0x{can_mem_size:x}>;
+                interrupt-parent = <&intc0>;
+                interrupts = <{can_interrupt}>;
+                clocks = <&sys_clk>;
+                status = "okay";
+            }};
+""".format(name=mem,
+                can_mem_base=d["memories"][mem]["base"],
+                can_mem_size=d["memories"][mem]["size"],
+                can_interrupt = int(d["constants"][f"{mem}_interrupt"]),
+            )
+
     # Framebuffer ----------------------------------------------------------------------------------
 
     if "video_framebuffer" in d["csr_bases"]:
