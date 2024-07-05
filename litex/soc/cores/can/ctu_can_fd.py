@@ -149,8 +149,6 @@ class CTUCANFD(LiteXModule, EventManager):
             #o_test_probe = ,
         )
 
-        self.comb += pads.irq.eq(self.irq)
-
     def add_sources(self, platform):
         sources = []
         sdir = "CTU-CAN-FD"
