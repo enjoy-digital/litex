@@ -185,3 +185,34 @@ class EfinixPlatform(GenericPlatform):
         pll = self.pll_available[0]
         self.get_pll_resource(pll)
         return pll
+
+    @classmethod
+    def fill_args(cls, toolchain, parser):
+        """
+        pass parser to the specific toolchain to
+        fill this with toolchain args
+
+        Parameters
+        ==========
+        toolchain: str
+            toolchain name
+        parser: argparse.ArgumentParser
+            parser to be filled
+        """
+        efinity.build_args(parser)
+
+    @classmethod
+    def get_argdict(cls, toolchain, args):
+        """
+        return a dict of args
+
+        Parameters
+        ==========
+        toolchain: str
+            toolchain name
+
+        Return
+        ======
+        a dict of key/value for each args or an empty dict
+        """
+        return efinity.build_argdict(args)
