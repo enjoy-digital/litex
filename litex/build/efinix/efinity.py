@@ -51,22 +51,22 @@ class EfinityToolchain(GenericToolchain):
             self.options["includ_path"] = "{" + ";".join(self.platform.verilog_include_paths) + "}"
 
     def build(self, platform, fragment,
-        synth_mode,
-        infer_clk_enable,
-        bram_output_regs_packing,
-        retiming,
-        seq_opt,
-        mult_input_regs_packing,
-        mult_output_regs_packing,
+        synth_mode               = "speed",
+        infer_clk_enable         = "3",
+        bram_output_regs_packing = "1",
+        retiming                 = "1",
+        seq_opt                  = "1",
+        mult_input_regs_packing  = "1",
+        mult_output_regs_packing = "1",
         **kwargs):
 
-        self._synth_mode               = synth_mode,
-        self._infer_clk_enable         = infer_clk_enable,
-        self._bram_output_regs_packing = bram_output_regs_packing,
-        self._retiming                 = retiming,
-        self._seq_opt                  = seq_opt,
-        self._mult_input_regs_packing  = mult_input_regs_packing,
-        self._mult_output_regs_packing = mult_output_regs_packing,
+        self._synth_mode               = synth_mode
+        self._infer_clk_enable         = infer_clk_enable
+        self._bram_output_regs_packing = bram_output_regs_packing
+        self._retiming                 = retiming
+        self._seq_opt                  = seq_opt
+        self._mult_input_regs_packing  = mult_input_regs_packing
+        self._mult_output_regs_packing = mult_output_regs_packing
 
         # Apply FullMemoryWE on Design (Efiniy does not infer memories correctly otherwise).
         FullMemoryWE()(fragment)
