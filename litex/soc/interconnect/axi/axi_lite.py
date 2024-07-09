@@ -57,6 +57,7 @@ class AXILiteInterface:
         # -----------
         self.data_width    = data_width
         self.address_width = address_width
+        self.bursting      = bursting
         self.addressing    = addressing
         self.clock_domain  = clock_domain
 
