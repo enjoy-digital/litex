@@ -317,12 +317,12 @@ class EfinityToolchain(GenericToolchain):
             "--infer-clk-enable",           self._infer_clk_enable,
             "--infer-sync-set-reset",       "1",
             "--fanout-limit",               "0",
-            "--bram_output_regs_packing",   self._bram_output_regs_packaging,
+            "--bram_output_regs_packing",   self._bram_output_regs_packing,
             "--retiming",                   self._retiming,
             "--seq_opt",                    self._seq_opt,
             "--blast_const_operand_adders", "1",
-            "--mult_input_regs_packing",    self._mult_input_regs_packaging,
-            "--mult_output_regs_packing",   self._mult_output_regs_packaing,
+            "--mult_input_regs_packing",    self._mult_input_regs_packing,
+            "--mult_output_regs_packing",   self._mult_output_regs_packing,
             "--veri_option",                "verilog_mode=verilog_2k,vhdl_mode=vhdl_2008",
             "--work-dir",                   "work_syn",
             "--output-dir",                 "outflow",
@@ -412,6 +412,7 @@ def build_args(parser):
         choices=["0", "1"]),
     toolchain.add_argument("--mult-output-regs-packing", default="1",     help="Allow packing of multiplier output registers.",
         choices=["0", "1"])
+
 def build_argdict(args):
     return {
         "synth_mode"               : args.synth_mode,
