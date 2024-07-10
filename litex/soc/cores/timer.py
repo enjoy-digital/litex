@@ -19,6 +19,8 @@ from litex.soc.integration.doc import AutoDoc, ModuleDoc
 
 class Timer(LiteXModule):
     with_uptime = False
+    dts_compatible = "litex,timer"
+
     def __init__(self, width=32):
         self.intro = ModuleDoc("""Timer
 

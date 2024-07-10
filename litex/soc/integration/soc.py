@@ -1325,6 +1325,7 @@ class SoC(LiteXModule, SoCCoreCompat):
         self.add_module(name=name, module=Timer())
         if self.irq.enabled:
             self.irq.add(name, use_loc_if_exists=True)
+        self.add_dts_node(name, self.get_module(name))
 
     # Add Watchdog ---------------------------------------------------------------------------------
     def add_watchdog(self, name="watchdog0", width=32, crg_rst=None, reset_delay=None):
