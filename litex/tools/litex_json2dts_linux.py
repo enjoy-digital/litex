@@ -14,6 +14,8 @@ import json
 import argparse
 
 from litex.gen.common import KILOBYTE, MEGABYTE
+from litex.tools.litex_json2dts_zephyr import dts_reg, dts_reg_names, indent, indent_all
+from litex.gen import dts_property
 
 def csr_base_size(d: dict, name: str) -> int:
     """Calculate size in bytes of csr_base `name` from the contents of d["csr_registers"]."""
@@ -513,6 +515,54 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 """.format(
     usb_ohci_mem_base  = d["memories"]["usb_ohci_ctrl"]["base"],
     usb_ohci_interrupt = "" if polling else "interrupts = <{}>;".format(16)) # FIXME
+
+    # GENERIC device mode ---------------------------------------------------------------------------
+    for constant, value in [(k,v) for (k,v) in d["constants"].items() if k.endswith("_dts_compatible")]:
+        prefix = constant.removesuffix("compatible")
+        name = prefix.removesuffix("_dts_")
+
+        # compatible property is first
+        properties = dts_property("compatible", value)
+        # get default node name from first compatible string
+        if isinstance(value, list):
+            node_name = value[0].split(",")[-1]
+        else:
+            node_name = value.split(",")[-1]
+
+        # reg property is second
+        reg = csr_regions(d, name) + mem_regions(d, name)
+        if reg == []:
+            raise ValueError(f"no csr or mem regions for {name}")
+        properties += dts_reg(reg, levels=0)
+        # only add reg_names property for > 1 region
+        if len(reg) > 1 or True:
+            properties += dts_reg_names(reg, levels=0)
+
+        soc = soc_name(name)
+        for constant, value in [(k,v) for (k,v) in d["constants"].items() if k.startswith(prefix)]:
+            constant = constant.removeprefix(prefix)
+            if constant == "compatible":
+                pass
+            elif constant == "node":
+                node_name = value
+            elif constant == "properties":
+                # includes fixup of phandle references when node is in downstream soc
+                properties += value.replace("&", f"&{soc}")
+            else:
+                raise ValueError(f"unexpected constant {name}_dts_{constant}")
+
+        properties += dts_interrupt(d, name)
+        properties += dts_property("clocks", f"&{soc}sys_clk")
+        # omit status property - okay is the default
+        # properties += dts_property("status", "okay")
+
+        dts += indent("{label}: {node_name}@{unit_address:x} {{\n".format(
+            label=name,
+            node_name=node_name,
+            unit_address=reg[0]["addr"],
+        ), levels=3)
+        dts += indent_all(properties, levels=4) + "\n"
+        dts += indent("};\n", levels=3)
 
     # SPI Flash ------------------------------------------------------------------------------------
 

@@ -1025,6 +1025,15 @@ class SoC(LiteXModule, SoCCoreCompat):
         name = "CONFIG_" + name
         self.add_constant(name, value, check_duplicate=check_duplicate)
 
+    def add_dts_node(self, name: str, module) -> None:
+        """Adds device tree information to generate entries for a core / module."""
+        prefix = name + "_dts_"
+        self.add_constant(prefix + "compatible", module.dts_compatible)
+        if hasattr(module, "dts_node"):
+            self.add_constant(prefix + "node", module.dts_node)
+        if hasattr(module, "dts_properties"):
+            self.add_constant(prefix + "properties", module.dts_properties)
+
     def check_bios_requirements(self):
         # Check for required Peripherals.
         for periph in [ "timer0"]:
