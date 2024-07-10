@@ -148,7 +148,7 @@ class VexiiRiscv(CPU):
         vdir = get_data_mod("cpu", "vexiiriscv").data_location
         ndir = os.path.join(vdir, "ext", "VexiiRiscv")
 
-        NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "dev", "e991b315", args.update_repo)
+        NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "dev", "ee92608a", args.update_repo)
 
         if not args.cpu_variant:
             args.cpu_variant = "standard"
@@ -378,6 +378,7 @@ class VexiiRiscv(CPU):
         # Add RAM.
         # By default, use Generic RAM implementation.
         ram_filename = "Ram_1w_1rs_Generic.v"
+        lutram_filename = "Ram_1w_1ra_Generic.v"
         # On Altera/Intel platforms, use specific implementation.
         from litex.build.altera import AlteraPlatform
         if isinstance(platform, AlteraPlatform):
@@ -387,6 +388,7 @@ class VexiiRiscv(CPU):
         if isinstance(platform, EfinixPlatform):
             ram_filename = "Ram_1w_1rs_Efinix.v"
         platform.add_source(os.path.join(vdir, ram_filename), "verilog")
+        platform.add_source(os.path.join(vdir, lutram_filename), "verilog")
 
         # Add Cluster.
         platform.add_source(os.path.join(vdir,  self.netlist_name + ".v"), "verilog")

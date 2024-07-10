@@ -322,7 +322,7 @@ class NaxRiscv(CPU):
         ndir = os.path.join(vdir, "ext", "NaxRiscv")
         sdir = os.path.join(vdir, "ext", "SpinalHDL")
 
-        NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git", "main", "f3357383", NaxRiscv.update_repo)
+        NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git", "main", "43195dd1", NaxRiscv.update_repo)
 
         gen_args = []
         gen_args.append(f"--netlist-name={NaxRiscv.netlist_name}")
@@ -368,6 +368,7 @@ class NaxRiscv(CPU):
         # Add RAM.
         # By default, use Generic RAM implementation.
         ram_filename = "Ram_1w_1rs_Generic.v"
+        lutram_filename = "Ram_1w_1ra_Generic.v"
         # On Altera/Intel platforms, use specific implementation.
         from litex.build.altera import AlteraPlatform
         if isinstance(platform, AlteraPlatform):
@@ -377,6 +378,8 @@ class NaxRiscv(CPU):
         if isinstance(platform, EfinixPlatform):
             ram_filename = "Ram_1w_1rs_Efinix.v"
         platform.add_source(os.path.join(vdir, ram_filename), "verilog")
+        platform.add_source(os.path.join(vdir, lutram_filename), "verilog")
+
 
         # Add Cluster.
         platform.add_source(os.path.join(vdir,  self.netlist_name + ".v"), "verilog")
