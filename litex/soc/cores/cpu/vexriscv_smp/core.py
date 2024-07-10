@@ -463,6 +463,14 @@ class VexRiscvSMP(CPU):
         add_synthesis_define(cluster_filename)
         platform.add_source(cluster_filename, "verilog")
 
+    def add_jtag(self, pads):
+        self.comb += [
+            self.jtag_tms.eq(pads.tms),
+            self.jtag_clk.eq(pads.tck),
+            self.jtag_tdi.eq(pads.tdi),
+            pads.tdo.eq(self.jtag_tdo),
+        ]
+
     def add_soc_components(self, soc):
         if self.variant == "linux":
             # Set UART/Timer0 CSRs to the ones used by OpenSBI.

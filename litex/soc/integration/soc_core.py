@@ -115,6 +115,11 @@ class SoCCore(LiteXSoC):
         # UARTBone.
         with_uartbone            = False,
 
+        # Watchdog.
+        with_watchdog            = False,
+        watchdog_width           = 32,
+        watchdog_reset_delay     = None,
+
         # Others.
         **kwargs):
 
@@ -266,6 +271,10 @@ class SoCCore(LiteXSoC):
             if timer_uptime:
                 self.timer0.add_uptime()
 
+        # Add Watchdog.
+        if with_watchdog:
+            self.add_watchdog(name="watchdog0" ,width=watchdog_width, reset_delay=watchdog_reset_delay)
+
     # Methods --------------------------------------------------------------------------------------
 
     def add_csr(self, csr_name, csr_id=None, use_loc_if_exists=False):
@@ -337,6 +346,11 @@ def soc_core_args(parser):
     # Timer parameters.
     soc_group.add_argument("--no-timer",        action="store_true", help="Disable Timer.")
     soc_group.add_argument("--timer-uptime",    action="store_true", help="Add an uptime capability to Timer.")
+
+    # Watchdog parameters.
+    soc_group.add_argument("--with-watchdog",        action="store_true",         help="Enable Watchdog.")
+    soc_group.add_argument("--watchdog-width",       default=32,   type=auto_int, help="Watchdog width.")
+    soc_group.add_argument("--watchdog-reset-delay", default=None, type=auto_int, help="Watchdog width.")
 
     # L2 Cache.
     soc_group.add_argument("--l2-size", default=8192, type=auto_int, help="L2 cache size.")

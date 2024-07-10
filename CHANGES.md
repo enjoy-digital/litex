@@ -1,5 +1,37 @@
-[> Changes since 2023.12
+[> Changes since 2024.04
 ------------------------
+	[> Fixed
+	--------
+	- cpu/zynq7000                  : Fixed AXI version to AXI3.
+	- build/vhd2v_converter         : Fixed instance replace robustness.
+	- tools/litex_json2renode       : Corrected VexRiscv variants (#1984).
+	- software/liblitespi           : Fixed xor-used-pow bug (#2001).
+	- soc                           : Fixed AHB2Wishbone bridge creation (#1998).
+	- soc                           : Fixed parameters propagation for AXI data-width conversion (#1997).
+
+	[> Added
+	--------
+	- cpu/vexiiriscv                : Added initial support (#1923).
+	- builder                       : Added default generation of exports with default names to output_dir (#1978).
+	- litex.gen                     : Added byte size definitions and use them in targets/json2dts.
+	- litepcie                      : Added external QPLL support/sharing for Xilinx Artix7.
+	- cores/zynq7000/mp             : Improved integration, added peripherals supports (#1994).
+	- software/bios                 : Generalized IRQ handling approach between CPUs.
+	- cores/video                   : Added fifo_depth parameter to add_video_framebuffer (#1931).
+	- gen/common                    : Added byte size definitions (KILOBYTE, MEGABYTE, GIGABYTE).
+	- tools/litex_json2dts_linux    : Simplified CPU architecture/RISC-V ISA.
+	- soc                           : Added add_spi_master method (#1985).
+	- tools/litex_json2dts_zephyr   : Added spimaster/spiflash handlers (#1985).
+	- tools/litex_json2renode       : Added .elf bios option (#1984).
+	- core                          : Added Watchdog core and Zephyr support (#1996).
+
+	[> Changed
+	----------
+	- integration/builder           : Changed export behavior to now generate csr.csv and csr.json by default to output_dir.
+	- csr_bus                       : Added .re signal (#1999).
+
+[> 2024.04, released on June 5th 2024
+-------------------------------------
 	[> Fixed
 	--------
 	- integration/soc               : Fixed typo in cpu mem_bus axi-via-wb downconvert
@@ -12,6 +44,7 @@
 	- litedram/frontend/avalon      : Fixed and cleaned-up.
 	- litex_sim/video               : Fixed pixel format to RGBA.
 	- build/xilinx/common           : Fixed missing clk parameter on XilinxSDRTristateImpl.
+	- soc/interconnect              : Fixed CSR/LiteXModule issue on WishboneSRAM/AXILiteSRAM.
 
 	[> Added
 	--------
@@ -38,6 +71,14 @@
 	- cores/hyperbus                : Added latency configuration and variable latency support.
 	- cpu/cv32e41p                  : Added ISR support.
 	- litesdcard                    : Improved SDPHYClocker (Timings).
+	- cpu/vexriscv_smp              : Added baremetal IRQ support.
+	- cpu/naxriscv                  : Added baremetal IRQ support.
+	- cpu/zynqmp                    : Added Ethernet, UART, I2C support and improved AXI Master.
+	- build/efinix                  : Added reconfiguration interface support.
+	- build/efinix                  : Added tx_output_load configuration support.
+    - cpu/eos_s3                    : Updated qlal4s3b_cell_macro clock and reset signals.
+    - build/quicklogic              : Updated f4pga Makefile.
+    - build/microsemi               : Updated libero_soc toolchain.
 
 	[> Changed
 	----------

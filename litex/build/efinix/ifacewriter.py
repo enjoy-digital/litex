@@ -425,6 +425,7 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
             fast_clk = block.get("fast_clk", "")
         slow_clk = block.get("slow_clk", "")
         half_rate= block.get("half_rate", "0")
+        tx_output_load=block.get("output_load", "3")
 
         if mode == "OUTPUT":
             block_type = "LVDS_TX"
@@ -443,7 +444,7 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                 cmd.append('design.set_property("{}", "TX_PRE_EMP",   "MEDIUM_LOW", "{}")'.format(name, block_type))
                 cmd.append('design.set_property("{}", "TX_VOD",       "TYPICAL",    "{}")'.format(name, block_type))
             else:
-                cmd.append('design.set_property("{}", "TX_OUTPUT_LOAD",   "3", "{}")'.format(name, block_type))
+                cmd.append('design.set_property("{}", "TX_OUTPUT_LOAD",   "{}", "{}")'.format(name, tx_output_load, block_type))
                 cmd.append('design.set_property("{}", "TX_REDUCED_SWING", "0", "{}")'.format(name, block_type))
                 cmd.append('design.set_property("{}", "TX_SLOWCLK_DIV",   "1", "{}")'.format(name, block_type))
             cmd.append('design.set_property("{}", "TX_SER",         "{}", "{}")'.format(name, size, block_type))
@@ -602,6 +603,31 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
 
         return '\n'.join(cmd) + '\n'
 
+    def generate_remote_update(self, block, verbose=True):
+        name = block["name"]
+        pins = block["pins"]
+        clock = block["clock"]
+        invert_clk = block["invert_clock"]
+        enable = block["enable"]
+
+        def get_pin_name(pin):
+            return pin.backtrace[-1][0]
+
+        cmds = []
+        cmds.append(f"# ---------- REMOTE UPDATE ---------")
+        cmds.append(f'design.set_device_property("ru", "RECONFIG_EN", "{enable}", "RU")')
+        if enable:
+            cmds.append(f'design.set_device_property("ru", "CBSEL_PIN", "{get_pin_name(pins.CBSEL)}", "RU")')
+            cmds.append(f'design.set_device_property("ru", "CLK_PIN", "{clock}", "RU")')
+            cmds.append(f'design.set_device_property("ru", "CONFIG_PIN", "{get_pin_name(pins.CONFIG)}", "RU")')
+            cmds.append(f'design.set_device_property("ru", "ENA_PIN", "{get_pin_name(pins.ENA)}", "RU")')
+            cmds.append(f'design.set_device_property("ru", "ERROR_PIN", "{get_pin_name(pins.ERROR)}", "RU")')
+            if hasattr(pins, 'IN_USER'):
+                cmds.append(f'design.set_device_property("ru", "IN_USER_PIN", "{get_pin_name(pins.IN_USER)}", "RU")')
+            cmds.append(f'design.set_device_property("ru", "INVERT_CLK_EN", "{invert_clk}", "RU")')
+        cmds.append(f"# ---------- END REMOTE UPDATE ---------\n")
+        return "\n".join(cmds)
+
     def generate(self, partnumber):
         output = ""
         for block in self.blocks:
@@ -624,6 +650,8 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                     output += self.generate_jtag(block)
                 if block["type"] == "SPI_FLASH":
                     output += self.generate_spiflash(block)
+                if block["type"] == "REMOTE_UPDATE":
+                    output += self.generate_remote_update(block)
         return output
 
     def footer(self):

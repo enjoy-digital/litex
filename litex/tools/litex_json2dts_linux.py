@@ -7,75 +7,50 @@
 # Copyright (c) 2020 Antmicro <www.antmicro.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import os
 import sys
 import json
 import argparse
-import os
+
+from litex.gen.common import KILOBYTE, MEGABYTE
 
 def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_device=None, polling=False):
-    kB = 1024
-    mB = kB*1024
-
     aliases = {}
 
-    # CPU Architectures ----------------------------------------------------------------------------
-    # CHECKME: Move to core and generate a constant for each CPU?
-    cpu_architectures = {
-        "mor1kx"     : "or1k",
-        "marocchino" : "or1k",
-        "vexriscv"   : "riscv",
-        "vexiiriscv" : "riscv",
-        "rocket"     : "riscv",
-        "naxriscv"   : "riscv",
-    }
-
     # CPU Parameters -------------------------------------------------------------------------------
-    ncpus    = int(d["constants"].get("config_cpu_count", 1))
-    cpu_name = d["constants"].get("config_cpu_name")
-    cpu_arch = cpu_architectures[cpu_name]
-    cpu_isa  = d["constants"].get("config_cpu_isa", None) # kernel < 6.6.0
-
-    # kernel >= 6.6.0
-    cpu_isa_base = cpu_isa[:5]
-    cpu_isa_extensions = "\"i\"" # default
-    # Append with optionals
-    if "m" in cpu_isa[5:]:
-        cpu_isa_extensions += ", \"m\""
-    if "a" in cpu_isa[5:]:
-        cpu_isa_extensions += ", \"a\""
-    if "f" in cpu_isa[5:]:
-        cpu_isa_extensions += ", \"f\""
-    if "d" in cpu_isa[5:]:
-        cpu_isa_extensions += ", \"d\""
-    if "d" in cpu_isa[5:]:
-        cpu_isa_extensions += ", \"c\""
-    # rocket specific extensions
-    if cpu_name == "rocket":
-        cpu_isa_extensions += ", \"zicsr\", \"zifencei\", \"zihpm\""
-
-    cpu_mmu  = d["constants"].get("config_cpu_mmu", None)
+    cpu_count  = int(d["constants"].get("config_cpu_count", 1))
+    cpu_name   = d["constants"].get("config_cpu_name")
+    cpu_family = d["constants"].get("config_cpu_family")
+    cpu_isa    = d["constants"].get("config_cpu_isa", None)
+    cpu_mmu    = d["constants"].get("config_cpu_mmu", None)
 
     # Header ---------------------------------------------------------------------------------------
+    platform = d["constants"]["config_platform_name"]
     dts = """
 /dts-v1/;
 
-/ {
+/ {{
+        compatible = "litex,{platform}", "litex,soc";
+        model = "{identifier}";
         #address-cells = <1>;
         #size-cells    = <1>;
 
-"""
+""".format(
+        platform=platform,
+        identifier=d["constants"].get("identifier", platform),
+    )
 
     # Boot Arguments -------------------------------------------------------------------------------
 
+    # Init Ram Disk.
     default_initrd_start = {
-        "or1k":   8*mB,
-        "riscv": 16*mB,
+        "or1k":   8 * MEGABYTE,
+        "riscv": 16 * MEGABYTE,
     }
-    default_initrd_size = 8*mB
-
+    default_initrd_size = 8 * MEGABYTE
 
     if initrd_start is None:
-        initrd_start = default_initrd_start[cpu_arch]
+        initrd_start = default_initrd_start[cpu_family]
 
     if initrd_size is None:
         initrd_size = default_initrd_size
@@ -88,23 +63,28 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         initrd_enabled = True
         initrd_size = os.path.getsize(initrd)
 
-    # if json constants contains localip ethernet has been enabled
-    if "localip1" in d["constants"]:
-        localip  = '.'.join([str(d["constants"][f"localip{i}"]) for i in range(1,5)])
-        remoteip = '.'.join([str(d["constants"][f"remoteip{i}"]) for i in range(1,5)])
-        ip       = f" ip={localip}:{remoteip}:{remoteip}:255.255.255.0::eth0:off:::"
-    else:
-        ip = ""
-
+    # Root Filesystem.
     if root_device is None:
         root_device = "ram0"
 
+    # Ethernet IP Address.
+    def get_eth_ip_config():
+        def get_ip_address(prefix):
+            return '.'.join(str(d["constants"][f"{prefix}{i+1}"]) for i in range(4))
+        ip_config = ""
+        if all(f"localip{i + 1}" in d["constants"] for i in range(4)):
+            local_ip  = get_ip_address("localip")
+            remote_ip = get_ip_address("remoteip")
+            ip_config = f" ip={local_ip}:{remote_ip}:{remote_ip}:255.255.255.0::eth0:off:::"
+        return ip_config
+
+    # Bootargs Generation.
     dts += """
         chosen {{
             bootargs = "{console} {rootfs}{ip}";""".format(
     console = "console=liteuart earlycon=liteuart,0x{:x}".format(d["csr_bases"]["uart"]),
     rootfs  = "rootwait root=/dev/{}".format(root_device),
-    ip      = ip)
+    ip      = get_eth_ip_config())
 
     if initrd_enabled is True:
         dts += """
@@ -117,21 +97,46 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         };
 """
 
-    # Clocks ------------------------------------------------------------------------------------------
+    # Clocks ---------------------------------------------------------------------------------------
 
-    dts += """
-        sys_clk: pll {{
+    for c in [c for c in d["constants"].keys() if c.endswith("config_clock_frequency")]:
+        name = c.removesuffix("config_clock_frequency") + "sys_clk"
+        dts += """
+        {name}: clock-{freq} {{
             compatible = "fixed-clock";
             #clock-cells = <0>;
-            clock-frequency  = <{sys_clk_freq}>;
+            clock-frequency  = <{freq}>;
         }};
-""".format(sys_clk_freq=d["constants"]["config_clock_frequency"])
+""".format(
+            name=name,
+            freq=d["constants"][c],
+        )
 
     # CPU ------------------------------------------------------------------------------------------
 
     # RISC-V
     # ------
-    if cpu_arch == "riscv":
+    if cpu_family == "riscv":
+
+        def get_riscv_cpu_isa_base(cpu_isa):
+            return cpu_isa[:5]
+
+        def get_riscv_cpu_isa_extensions(cpu_isa, cpu_name):
+            isa_extensions = set(["i"])
+
+            # Collect common extensions.
+            common_extensions = {'i', 'm', 'a', 'f', 'd', 'c'}
+            for extension in cpu_isa[5:]:
+                if extension in common_extensions:
+                    isa_extensions.update({extension})
+
+            # Add rocket-specific extensions.
+            if cpu_name == "rocket":
+                isa_extensions.update({"zicsr", "zifencei", "zihpm"})
+
+            # Format extensions.
+            return ", ".join(f"\"{extension}\"" for extension in sorted(isa_extensions))
+
         # Cache description.
         cache_desc = ""
         if "config_cpu_dcache_size" in d["constants"]:
@@ -157,6 +162,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         tlb_desc = ""
         if "config_cpu_dtlb_size" in d["constants"]:
             tlb_desc += """
+                tlb-split;
                 d-tlb-size = <{d_tlb_size}>;
                 d-tlb-sets = <{d_tlb_ways}>;
 """.format(
@@ -177,18 +183,17 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 next-level-cache = <&memory>;
                 riscv,pmpgranularity = <4>;
                 riscv,pmpregions = <8>;
-                tlb-split;
 """
         else:
             extra_attr = ""
 
         # CPU(s) Topology.
         cpu_map = ""
-        if ncpus > 1:
+        if cpu_count > 1:
             cpu_map += """
             cpu-map {
                 cluster0 {"""
-            for cpu in range(ncpus):
+            for cpu in range(cpu_count):
                 cpu_map += """
                     core{cpu} {{
                         cpu = <&CPU{cpu}>;
@@ -203,7 +208,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
             #size-cells    = <0>;
             timebase-frequency = <{sys_clk_freq}>;
 """.format(sys_clk_freq=d["constants"]["config_clock_frequency"])
-        for cpu in range(ncpus):
+        for cpu in range(cpu_count):
             dts += """
             CPU{cpu}: cpu@{cpu} {{
                 device_type = "cpu";
@@ -227,9 +232,9 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
             }};
 """.format(cpu=cpu, irq=cpu,
     sys_clk_freq       = d["constants"]["config_clock_frequency"],
-    cpu_isa            = cpu_isa, # for kernel < 6.6.0
-    cpu_isa_base       = cpu_isa_base, # for kernel >= 6.6.0
-    cpu_isa_extensions = cpu_isa_extensions, # for kernel >= 6.6.0
+    cpu_isa            = cpu_isa,
+    cpu_isa_base       = get_riscv_cpu_isa_base(cpu_isa),                 # Required for kernel >= 6.6.0
+    cpu_isa_extensions = get_riscv_cpu_isa_extensions(cpu_isa, cpu_name), # Required for kernel >= 6.6.0
     cpu_mmu            = cpu_mmu,
     cache_desc         = cache_desc,
     tlb_desc           = tlb_desc,
@@ -241,7 +246,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     # Or1k
     # ----
-    elif cpu_arch == "or1k":
+    elif cpu_family == "or1k":
         dts += """
         cpus {{
             #address-cells = <1>;
@@ -328,7 +333,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     # Interrupt Controller -------------------------------------------------------------------------
 
-    if (cpu_arch == "riscv") and (cpu_name in ["rocket",  "vexiiriscv"]):
+    if (cpu_family == "riscv") and (cpu_name in ["rocket",  "vexiiriscv"]):
         # FIXME  : L4 definitiion?
         # CHECKME: interrupts-extended.
         dts += """
@@ -340,9 +345,9 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 reg-names = "control";
             }};
 """.format(
-        clint_base=d["memories"]["clint"]["base"],
-        cpu_mapping =("\n" + " "*20).join(["&L{} 3 &L{} 7".format(cpu, cpu) for cpu in range(ncpus)]))
-    if cpu_arch == "riscv":
+        clint_base  = d["memories"]["clint"]["base"],
+        cpu_mapping = ("\n" + " "*20).join(["&L{} 3 &L{} 7".format(cpu, cpu) for cpu in range(cpu_count)]))
+    if cpu_family == "riscv":
         if cpu_name == "rocket":
             extra_attr = """
                 reg-names = "control";
@@ -364,11 +369,11 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 {extra_attr}
             }};
 """.format(
-        plic_base   =d["memories"]["plic"]["base"],
-        cpu_mapping =("\n" + " "*20).join(["&L{} 11 &L{} 9".format(cpu, cpu) for cpu in range(ncpus)]),
-        extra_attr  =extra_attr)
+        plic_base   = d["memories"]["plic"]["base"],
+        cpu_mapping = ("\n" + " "*20).join(["&L{} 11 &L{} 9".format(cpu, cpu) for cpu in range(cpu_count)]),
+        extra_attr  = extra_attr)
 
-    elif cpu_arch == "or1k":
+    elif cpu_family == "or1k":
         dts += """
             intc0: interrupt-controller {
                 interrupt-controller;
@@ -377,7 +382,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 status = "okay";
             };
 """
-    if (cpu_arch == "riscv") and (cpu_name == "rocket"):
+    if (cpu_family == "riscv") and (cpu_name == "rocket"):
         dts += """
             dbg_ctl: debug-controller@0 {{
                 compatible = "sifive,debug-013", "riscv,debug-013";
@@ -399,7 +404,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 reg-names = "mem";
             }};
 """.format(
-        cpu_mapping =("\n" + " "*20).join(["&L{} 0x3F".format(cpu) for cpu in range(ncpus)]))
+        cpu_mapping =("\n" + " "*20).join(["&L{} 0x3F".format(cpu) for cpu in range(cpu_count)]))
     # UART -----------------------------------------------------------------------------------------
 
     if "uart" in d["csr_bases"]:
@@ -444,7 +449,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     ethmac_mem_size  = d["memories"][ethmac_name]["size"],
     ethmac_rx_slots  = d["constants"][ethmac_name + "_rx_slots"],
     ethmac_tx_slots  = d["constants"][ethmac_name + "_tx_slots"],
-    ethmac_slot_size  = d["constants"][ethmac_name + "_slot_size"],
+    ethmac_slot_size = d["constants"][ethmac_name + "_slot_size"],
     ethmac_interrupt = "" if polling else "interrupts = <{}>;".format(int(d["constants"][ethmac_name + "_interrupt"]) + it_incr))
 
     # USB OHCI -------------------------------------------------------------------------------------
@@ -628,6 +633,25 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
             }};
 """.format(xadc_csr_base=d["csr_bases"]["xadc"])
 
+    # CAN ------------------------------------------------------------------------------------------
+
+    for mem in d["memories"]:
+        if "can" in mem:
+            dts += """
+            {name}: can@{can_mem_base:x} {{
+                compatible = "ctu,ctucanfd";
+                reg = <0x{can_mem_base:x} 0x{can_mem_size:x}>;
+                interrupt-parent = <&intc0>;
+                interrupts = <{can_interrupt}>;
+                clocks = <&sys_clk>;
+                status = "okay";
+            }};
+""".format(name=mem,
+                can_mem_base=d["memories"][mem]["base"],
+                can_mem_size=d["memories"][mem]["size"],
+                can_interrupt = int(d["constants"][f"{mem}_interrupt"]),
+            )
+
     # Framebuffer ----------------------------------------------------------------------------------
 
     if "video_framebuffer" in d["csr_bases"]:
@@ -723,14 +747,14 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 litex,clkout-divide-max = <{clkout_divide_range[1]}>;
                 litex,vco-margin = <{vco_margin}>;
 """.format(
-    mmcm_lock_timeout    = d["constants"]["mmcm_lock_timeout"],
-    mmcm_drdy_timeout    = d["constants"]["mmcm_drdy_timeout"],
-    sys_clk              = d["constants"]["config_clock_frequency"],
+    mmcm_lock_timeout    =  d["constants"]["mmcm_lock_timeout"],
+    mmcm_drdy_timeout    =  d["constants"]["mmcm_drdy_timeout"],
+    sys_clk              =  d["constants"]["config_clock_frequency"],
     divclk_divide_range  = (d["constants"]["divclk_divide_range_min"], d["constants"]["divclk_divide_range_max"]),
     clkfbout_mult_frange = (d["constants"]["clkfbout_mult_frange_min"], d["constants"]["clkfbout_mult_frange_max"]),
     vco_freq_range       = (d["constants"]["vco_freq_range_min"], d["constants"]["vco_freq_range_max"]),
     clkout_divide_range  = (d["constants"]["clkout_divide_range_min"], d["constants"]["clkout_divide_range_max"]),
-    vco_margin           = d["constants"]["vco_margin"])
+    vco_margin           =  d["constants"]["vco_margin"])
         for clkout_nr in range(nclkout):
             dts += add_clkout(clkout_nr,
                 d["constants"]["clkout_def_freq"],

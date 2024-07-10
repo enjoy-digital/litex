@@ -57,6 +57,7 @@ class AXILiteInterface:
         # -----------
         self.data_width    = data_width
         self.address_width = address_width
+        self.bursting      = bursting
         self.addressing    = addressing
         self.clock_domain  = clock_domain
 
@@ -148,7 +149,7 @@ class AXILiteRemapper(LiteXModule):
 
 # AXI-Lite to Simple Bus ---------------------------------------------------------------------------
 
-def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=None):
+def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_re=None, port_we=None):
     """Connection of AXILite to simple bus with 1-cycle latency, such as CSR bus or Memory port"""
     bus_data_width = axi_lite.data_width
     adr_shift      = log2_int(bus_data_width//8)
@@ -168,6 +169,11 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=
         else:
             comb.append(port_we.eq(axi_lite.w.valid & axi_lite.w.ready & (axi_lite.w.strb != 0)))
 
+    if port_re is not None:
+        comb.append(port_re.eq(axi_lite.ar.valid & axi_lite.ar.ready))
+
+    port_adr_reg = Signal(len(port_adr))
+
     fsm = FSM()
     fsm.act("START-TRANSACTION",
         # If the last access was a read, do a write, and vice versa.
@@ -186,12 +192,24 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_we=
             If(axi_lite.w.valid,
                 axi_lite.w.ready.eq(1),
                 NextState("SEND-WRITE-RESPONSE")
+            ).Else(
+                # write data is not yet available - register the address
+                # and wait until the master provides the data
+                NextValue(port_adr_reg, port_adr),
+                NextState("WAIT-FOR-WRITE-DATA")
             )
         ).Elif(do_read,
             port_adr.eq(axi_lite.ar.addr[adr_shift:]),
             NextState("LATCH-READ-RESPONSE"),
         )
     )
+    fsm.act("WAIT-FOR-WRITE-DATA",
+        port_adr.eq(port_adr_reg),
+        If(axi_lite.w.valid,
+            axi_lite.w.ready.eq(1),
+            NextState("SEND-WRITE-RESPONSE")
+        )
+    ),
     fsm.act("LATCH-READ-RESPONSE",
         NextValue(port_dat_r_latched, port_dat_r),
         NextState("SEND-READ-RESPONSE")

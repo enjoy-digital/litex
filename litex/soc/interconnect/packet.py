@@ -101,7 +101,7 @@ class Dispatcher(LiteXModule):
 # Header -------------------------------------------------------------------------------------------
 
 class HeaderField:
-    def __init__(self, byte, offset, width):
+    def __init__(self, byte=0, offset=0, width=1):
         self.byte   = byte
         self.offset = offset
         self.width  = width

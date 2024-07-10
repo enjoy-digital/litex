@@ -41,7 +41,7 @@ class LiteXHierarchyExplorer:
                 r += self.get_tree(mod, ident + 1)
 
         # Instances.
-        for s in module._fragment.specials:
+        for s in sorted(module._fragment.specials, key=lambda x: str(x)):
             if (self.depth is None) or (ident <= self.depth):
                 if isinstance(s, Instance):
                     show = with_instances

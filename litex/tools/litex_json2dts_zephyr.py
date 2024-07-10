@@ -104,6 +104,10 @@ def dts_reg_names(regs):
 def disabled_handler(name, parm, csr):
     return indent('status = "disabled";\n')
 
+def cpu_handler(name, parm, csr):
+    return indent("clock-frequency = <{}>;\n".format(
+        csr['constants']['config_clock_frequency']
+    ))
 
 def ram_handler(name, parm, csr):
     mem_reg = {
@@ -177,6 +181,51 @@ def i2s_handler(name, parm, csr):
     return dtsi
 
 
+def spimaster_handler(name, parm, csr):
+    registers = get_registers_of(name, csr)
+    if len(registers) == 0:
+        raise KeyError
+
+    dtsi = dts_reg(registers)
+    dtsi += dts_reg_names(registers)
+
+    dtsi += indent("clock-frequency = <{}>;\n".format(
+        csr['constants'][name + '_frequency']))
+
+    dtsi += indent("data-width = <{}>;\n".format(
+        csr['constants'][name + '_data_width']))
+
+    dtsi += indent("max-cs = <{}>;\n".format(
+        csr['constants'][name + '_max_cs']))
+
+    return dtsi
+
+
+def spiflash_handler(name, parm, csr):
+    registers = get_registers_of(name, csr)
+    if len(registers) == 0:
+        raise KeyError
+
+    # Add memory mapped region for spiflash, the linker script in zephyr expects this region to be
+    # the entry with the name flash_mmap in the reg property of the spi controller.
+    try:
+        registers.append({
+            'addr': csr['memories'][name]['base'],
+            'size': csr['memories'][name]['size'],
+            'name': 'flash_mmap',
+        })
+    except KeyError as e:
+        print('memory mapped', e, 'not found')
+
+    dtsi = dts_reg(registers)
+    dtsi += dts_reg_names(registers)
+
+    dtsi += indent("clock-frequency = <{}>;\n".format(
+        csr['constants'][name + '_phy_frequency']))
+
+    return dtsi
+
+
 def peripheral_handler(name, parm, csr):
     registers = get_registers_of(name, csr)
     if len(registers) == 0:
@@ -193,71 +242,74 @@ def peripheral_handler(name, parm, csr):
 
 
 overlay_handlers = {
+    'cpu': {
+        'handler': cpu_handler,
+        'alias': 'cpu0',
+    },
+    'ctrl': {
+        'handler': peripheral_handler,
+        'alias': 'ctrl0',
+    },
     'uart': {
         'handler': peripheral_handler,
         'alias': 'uart0',
-        'config_entry': 'UART_LITEUART'
     },
     'timer0': {
         'handler': peripheral_handler,
-        'config_entry': 'LITEX_TIMER'
     },
     'ethmac': {
         'handler': ethmac_handler,
         'alias': 'eth0',
-        'config_entry': 'ETH_LITEETH'
+    },
+    'spimaster': {
+        'handler': spimaster_handler,
+        'alias': 'spi0',
     },
     'spiflash': {
-        'handler': peripheral_handler,
-        'alias': 'spi0',
-        'config_entry': 'SPI_LITESPI'
+        'handler': spiflash_handler,
+        'alias': 'spi1',
     },
     'sdcard_block2mem': {
         'handler': peripheral_handler,
         'alias': 'sdcard_block2mem',
         'size': 0x18,
-        'config_entry': 'SD_LITESD'
     },
     'sdcard_core': {
         'handler': peripheral_handler,
         'alias': 'sdcard_core',
         'size': 0x2C,
-        'config_entry': 'SD_LITESD'
     },
     'sdcard_irq': {
         'handler': peripheral_handler,
         'alias': 'sdcard_irq',
         'size': 0x0C,
-        'config_entry': 'SD_LITESD'
     },
     'sdcard_mem2block': {
         'handler': peripheral_handler,
         'alias': 'sdcard_mem2block',
         'size': 0x18,
-        'config_entry': 'SD_LITESD'
     },
     'sdcard_phy': {
         'handler': peripheral_handler,
         'alias': 'sdcard_phy',
         'size': 0x10,
-        'config_entry': 'SD_LITESD'
     },
     'i2c0' : {
         'handler': i2c_handler,
-        'config_entry': 'I2C_LITEX'
     },
     'i2s_rx' : {
         'handler': i2s_handler,
-        'config_entry': 'I2S_LITEX'
     },
     'i2s_tx' : {
         'handler': i2s_handler,
-        'config_entry': 'I2S_LITEX'
+    },
+    'watchdog0': {
+        'handler': peripheral_handler,
+        'alias': 'wdt0',
     },
     'mmcm' : {
         'alias': 'clock0',
         'handler': peripheral_handler,
-        'config_entry': 'CLOCK_CONTROL_LITEX'
     },
     'main_ram': {
         'handler': ram_handler,

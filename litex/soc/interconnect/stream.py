@@ -696,19 +696,22 @@ class Monitor(LiteXModule):
         # Generic Monitor Counter ------------------------------------------------------------------
         class MonitorCounter(Module):
             def __init__(self, reset, latch, enable, count):
-                _count         = Signal.like(count)
-                _count_latched = Signal.like(count)
+                _count         = Signal(len(count), reset_less=True)
+                _count_latched = Signal(len(count), reset_less=True)
                 _sync = getattr(self.sync, clock_domain)
                 _sync += [
+                    # Count.
                     If(reset,
                         _count.eq(0),
-                        _count_latched.eq(0),
                     ).Elif(enable,
                         If(_count != (2**len(count)-1),
                             _count.eq(_count + 1)
                         )
                     ),
-                    If(latch,
+                    # Latch.
+                    If(reset,
+                        _count_latched.eq(0),
+                    ).Elif(latch,
                         _count_latched.eq(_count)
                     )
                 ]

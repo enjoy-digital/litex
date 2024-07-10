@@ -32,6 +32,7 @@ class AXILite2CSR(LiteXModule):
         fsm, comb = axi_lite_to_simple(
             axi_lite   = self.axi_lite,
             port_adr   = self.csr.adr,
+            port_re    = self.csr.re,
             port_dat_r = self.csr.dat_r,
             port_dat_w = self.csr.dat_w,
             port_we    = self.csr.we)
