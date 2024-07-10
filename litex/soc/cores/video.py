@@ -653,7 +653,10 @@ class VideoFrameBuffer(LiteXModule):
 
         self.depth = depth = {
             "rgb888" : 32,
-            "rgb565" : 16
+            "rgb565" : 16,
+            "rgb332" : 8,
+            "mono8"  : 8,
+            "mono1"  : 1,
         }[format]
 
         # # #
@@ -728,15 +731,33 @@ class VideoFrameBuffer(LiteXModule):
 
         if (depth == 32):
             self.comb += [
-               source.r.eq(video_pipe_source.data[ 0: 8]),
-               source.g.eq(video_pipe_source.data[ 8:16]),
-               source.b.eq(video_pipe_source.data[16:24]),
+                source.r.eq(video_pipe_source.data[ 0: 8]),
+                source.g.eq(video_pipe_source.data[ 8:16]),
+                source.b.eq(video_pipe_source.data[16:24]),
             ]
-        else: # depth == 16
+        elif (depth == 16):
             self.comb += [
                 source.r.eq(Cat(Signal(3, reset = 0), video_pipe_source.data[11:16])),
                 source.g.eq(Cat(Signal(2, reset = 0), video_pipe_source.data[ 5:11])),
                 source.b.eq(Cat(Signal(3, reset = 0), video_pipe_source.data[ 0: 5])),
+            ]
+        elif (depth == 8 and format == "rgb332"):
+            self.comb += [
+                source.r.eq(Cat(Signal(5, reset = 0), video_pipe_source.data[5:8])),
+                source.g.eq(Cat(Signal(5, reset = 0), video_pipe_source.data[2:5])),
+                source.b.eq(Cat(Signal(6, reset = 0), video_pipe_source.data[0:2])),
+            ]
+        elif (depth == 8 and format == "mono8"):
+            self.comb += [
+                source.r.eq(video_pipe_source.data[0:8]),
+                source.g.eq(video_pipe_source.data[0:8]),
+                source.b.eq(video_pipe_source.data[0:8]),
+            ]
+        else: # depth == 1
+            self.comb += [
+               source.r.eq(Cat(Signal(7, reset = 0), video_pipe_source.data[0:1])),
+               source.g.eq(Cat(Signal(7, reset = 0), video_pipe_source.data[0:1])),
+               source.b.eq(Cat(Signal(7, reset = 0), video_pipe_source.data[0:1])),
             ]
 
         # Underflow.
