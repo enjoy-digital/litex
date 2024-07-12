@@ -56,6 +56,7 @@ class VexiiRiscv(CPU):
     with_rvd         = False
     with_rva         = False
     with_dma         = False
+    with_axi3        = False
     jtag_tap         = False
     jtag_instruction = False
     vexii_args       = ""
@@ -135,6 +136,7 @@ class VexiiRiscv(CPU):
         cpu_group.add_argument("--l2-bytes",              default=0,             help="VexiiRiscv L2 bytes, default 128 KB.")
         cpu_group.add_argument("--l2-ways",               default=0,             help="VexiiRiscv L2 ways, default 8.")
         cpu_group.add_argument("--l2-self-flush",         default=None,          help="VexiiRiscv L2 ways will self flush on from,to,cycles")
+        cpu_group.add_argument("--with-axi3",             action="store_true",   help="mbus will be axi3 instead of axi4")
 
 
 
@@ -146,7 +148,7 @@ class VexiiRiscv(CPU):
         vdir = get_data_mod("cpu", "vexiiriscv").data_location
         ndir = os.path.join(vdir, "ext", "VexiiRiscv")
 
-        NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "dev", "32ec8bd1", args.update_repo)
+        NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "dev", "ee92608a", args.update_repo)
 
         if not args.cpu_variant:
             args.cpu_variant = "standard"
@@ -154,7 +156,7 @@ class VexiiRiscv(CPU):
         VexiiRiscv.vexii_args += " --with-mul --with-div --allow-bypass-from=0 --performance-counters=0"
         VexiiRiscv.vexii_args += " --fetch-l1 --fetch-l1-ways=2"
         VexiiRiscv.vexii_args += " --lsu-l1 --lsu-l1-ways=2  --with-lsu-bypass"
-        VexiiRiscv.vexii_args += " --relaxed-branch --relaxed-btb"
+        VexiiRiscv.vexii_args += " --relaxed-branch"
 
         if args.cpu_variant in ["linux", "debian"]:
             VexiiRiscv.vexii_args += " --with-rva --with-supervisor"
@@ -162,7 +164,7 @@ class VexiiRiscv(CPU):
             VexiiRiscv.vexii_args += " --lsu-l1-ways=4 --lsu-l1-mem-data-width-min=64"
 
         if args.cpu_variant in ["debian"]:
-            VexiiRiscv.vexii_args += " --xlen=64 --with-rvc --with-rvf --with-rvd --fma-reduced-accuracy"
+            VexiiRiscv.vexii_args += " --xlen=64 --with-rvc --with-rvf --with-rvd --fma-reduced-accuracy --fpu-ignore-subnormal"
 
         if args.cpu_variant in ["linux", "debian"]:
             VexiiRiscv.vexii_args += " --with-btb --with-ras --with-gshare"
@@ -172,6 +174,7 @@ class VexiiRiscv(CPU):
         VexiiRiscv.jtag_tap         = args.with_jtag_tap
         VexiiRiscv.jtag_instruction = args.with_jtag_instruction
         VexiiRiscv.with_dma         = args.with_coherent_dma
+        VexiiRiscv.with_axi3        = args.with_axi3
         VexiiRiscv.update_repo      = args.update_repo
         VexiiRiscv.no_netlist_cache = args.no_netlist_cache
         VexiiRiscv.vexii_args      += " " + args.vexii_args
@@ -321,6 +324,7 @@ class VexiiRiscv(CPU):
         md5_hash.update(str(VexiiRiscv.jtag_tap).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.jtag_instruction).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.with_dma).encode('utf-8'))
+        md5_hash.update(str(VexiiRiscv.with_axi3).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.memory_regions).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.vexii_args).encode('utf-8'))
         # md5_hash.update(str(VexiiRiscv.internal_bus_width).encode('utf-8'))
@@ -355,6 +359,8 @@ class VexiiRiscv(CPU):
             gen_args.append(f"--with-jtag-instruction")
         if(VexiiRiscv.with_dma) :
             gen_args.append(f"--with-dma")
+        if(VexiiRiscv.with_axi3) :
+            gen_args.append(f"--with-axi3")
 
         cmd = f"""cd {ndir} && sbt "runMain vexiiriscv.soc.litex.SocGen {" ".join(gen_args)}\""""
         print("VexiiRiscv generation command :")
@@ -372,6 +378,7 @@ class VexiiRiscv(CPU):
         # Add RAM.
         # By default, use Generic RAM implementation.
         ram_filename = "Ram_1w_1rs_Generic.v"
+        lutram_filename = "Ram_1w_1ra_Generic.v"
         # On Altera/Intel platforms, use specific implementation.
         from litex.build.altera import AlteraPlatform
         if isinstance(platform, AlteraPlatform):
@@ -381,6 +388,7 @@ class VexiiRiscv(CPU):
         if isinstance(platform, EfinixPlatform):
             ram_filename = "Ram_1w_1rs_Efinix.v"
         platform.add_source(os.path.join(vdir, ram_filename), "verilog")
+        platform.add_source(os.path.join(vdir, lutram_filename), "verilog")
 
         # Add Cluster.
         platform.add_source(os.path.join(vdir,  self.netlist_name + ".v"), "verilog")
@@ -471,7 +479,8 @@ class VexiiRiscv(CPU):
         mbus = axi.AXIInterface(
             data_width    = VexiiRiscv.litedram_width,
             address_width = 32,
-            id_width      = 8, #TODO
+            id_width      = 8,
+            version       = "axi3" if VexiiRiscv.with_axi3 else "axi4"
         )
         self.memory_buses.append(mbus)
 
@@ -526,6 +535,11 @@ class VexiiRiscv(CPU):
             i_mBus_rresp     = mbus.r.resp,
             i_mBus_rlast     = mbus.r.last,
         )
+
+        if VexiiRiscv.with_axi3:
+            self.cpu_params.update(
+                o_mBus_wid=mbus.w.id
+            )
 
     def add_jtag(self, pads):
         self.comb += [
