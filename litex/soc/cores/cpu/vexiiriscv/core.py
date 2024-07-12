@@ -156,7 +156,7 @@ class VexiiRiscv(CPU):
         VexiiRiscv.vexii_args += " --with-mul --with-div --allow-bypass-from=0 --performance-counters=0"
         VexiiRiscv.vexii_args += " --fetch-l1 --fetch-l1-ways=2"
         VexiiRiscv.vexii_args += " --lsu-l1 --lsu-l1-ways=2  --with-lsu-bypass"
-        VexiiRiscv.vexii_args += " --relaxed-branch --relaxed-btb"
+        VexiiRiscv.vexii_args += " --relaxed-branch"
 
         if args.cpu_variant in ["linux", "debian"]:
             VexiiRiscv.vexii_args += " --with-rva --with-supervisor"
@@ -164,7 +164,7 @@ class VexiiRiscv(CPU):
             VexiiRiscv.vexii_args += " --lsu-l1-ways=4 --lsu-l1-mem-data-width-min=64"
 
         if args.cpu_variant in ["debian"]:
-            VexiiRiscv.vexii_args += " --xlen=64 --with-rvc --with-rvf --with-rvd --fma-reduced-accuracy"
+            VexiiRiscv.vexii_args += " --xlen=64 --with-rvc --with-rvf --with-rvd --fma-reduced-accuracy --fpu-ignore-subnormal"
 
         if args.cpu_variant in ["linux", "debian"]:
             VexiiRiscv.vexii_args += " --with-btb --with-ras --with-gshare"

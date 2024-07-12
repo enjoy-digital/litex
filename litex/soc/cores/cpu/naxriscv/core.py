@@ -320,9 +320,8 @@ class NaxRiscv(CPU):
     def generate_netlist(reset_address):
         vdir = get_data_mod("cpu", "naxriscv").data_location
         ndir = os.path.join(vdir, "ext", "NaxRiscv")
-        sdir = os.path.join(vdir, "ext", "SpinalHDL")
 
-        NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git", "main", "43195dd1", NaxRiscv.update_repo)
+        NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git", "main", "ba63ee6d", NaxRiscv.update_repo)
 
         gen_args = []
         gen_args.append(f"--netlist-name={NaxRiscv.netlist_name}")
