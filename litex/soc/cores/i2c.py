@@ -10,7 +10,8 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
-from litex.gen import *
+
+from litex.gen import LiteXModule, dts_property
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr_eventmanager import *
 
@@ -203,6 +204,10 @@ class I2CMasterMachine(LiteXModule):
 #     ("idle",  1),
 # ])
 class I2CMaster(LiteXModule):
+    dts_compatible = "litex,cores-i2c" # litex,i2c is used for bitbang.I2CMaster()
+    dts_properties = dts_property("#address-cells", 1)
+    dts_properties += dts_property("#size-cells", 0)
+
     def __init__(self, pads, bus=None):
         if bus is None:
             bus = wishbone.Interface(data_width=32)
