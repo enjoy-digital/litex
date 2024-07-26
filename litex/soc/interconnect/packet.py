@@ -386,7 +386,7 @@ class PacketFIFO(LiteXModule):
             sink.connect(param_fifo.sink,   keep=set([e[0] for e in param_layout])),
             sink.connect(payload_fifo.sink, keep=set([e[0] for e in payload_layout] + ["last"])),
             param_fifo.sink.valid.eq(sink.valid & sink.last),
-            payload_fifo.sink.valid.eq(sink.valid & payload_fifo.sink.ready),
+            payload_fifo.sink.valid.eq(sink.valid & param_fifo.sink.ready),
             sink.ready.eq(param_fifo.sink.ready & payload_fifo.sink.ready),
         ]
 
