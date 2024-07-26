@@ -99,7 +99,6 @@ class AlteraDDROutputImpl(Module):
             o_dataout  = o,
         )
 
-
 class AlteraDDROutput:
     @staticmethod
     def lower(dr):
@@ -146,4 +145,74 @@ altera_special_overrides = {
     DDRInput:               AlteraDDRInput,
     SDROutput:              AlteraSDROutput,
     SDRInput:               AlteraSDRInput,
+}
+
+# Agilex5 DDROutput --------------------------------------------------------------------------------
+
+class Agilex5DDROutputImpl(Module):
+    def __init__(self, i1, i2, o, clk):
+        self.specials += Instance("tennm_ph2_ddio_out",
+            p_mode      = "MODE_DDR",
+            p_asclr_ena = "ASCLR_ENA_NONE",
+            p_sclr_ena  = "SCLR_ENA_NONE",
+            o_dataout   = o,
+            i_datainlo  = i2,
+            i_datainhi  = i1,
+            i_clk       = clk,
+            i_ena       = Constant(1, 1),
+            i_areset    = Constant(1, 1),
+            i_sreset    = Constant(1, 1),
+        )
+
+class Agilex5DDROutput:
+    @staticmethod
+    def lower(dr):
+        return Agilex5DDROutputImpl(dr.i1, dr.i2, dr.o, dr.clk)
+
+# Agilex5 DDRInput ---------------------------------------------------------------------------------
+
+class Agilex5DDRInputImpl(Module):
+    def __init__(self, i, o1, o2, clk):
+        self.specials += Instance("tennm_ph2_ddio_in",
+            p_mode      = "MODE_DDR",
+            p_asclr_ena = "ASCLR_ENA_NONE",
+            p_sclr_ena  = "SCLR_ENA_NONE",
+            i_clk       = clk,
+            i_datain    = i,
+            o_regouthi  = o1,
+            o_regoutlo  = o2,
+            i_ena       = Constant(1, 1),
+            i_areset    = Constant(1, 1),
+            i_sreset    = Constant(1, 1),
+        )
+
+class Agilex5DDRInput:
+    @staticmethod
+    def lower(dr):
+        return Agilex5DDRInputImpl(dr.i, dr.o1, dr.o2, dr.clk)
+
+# Agilex5 SDROutput --------------------------------------------------------------------------------
+
+class Agilex5SDROutput:
+    @staticmethod
+    def lower(dr):
+        return Agilex5DDROutputImpl(dr.i, dr.i, dr.o, dr.clk)
+
+# Agilex5 SDRInput ---------------------------------------------------------------------------------
+
+class Agilex5SDRInput:
+    @staticmethod
+    def lower(dr):
+        return Agilex5DDRInputImpl(dr.i, dr.o, Signal(), dr.clk)
+
+# Agilex5 Special Overrides ------------------------------------------------------------------------
+
+agilex5_special_overrides = {
+    AsyncResetSynchronizer: AlteraAsyncResetSynchronizer,
+    DifferentialInput:      AlteraDifferentialInput,
+    DifferentialOutput:     AlteraDifferentialOutput,
+    DDROutput:              Agilex5DDROutput,
+    DDRInput:               Agilex5DDRInput,
+    SDROutput:              Agilex5SDROutput,
+    SDRInput:               Agilex5SDRInput,
 }
