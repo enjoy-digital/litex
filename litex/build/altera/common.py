@@ -205,6 +205,35 @@ class Agilex5SDRInput:
     def lower(dr):
         return Agilex5DDRInputImpl(dr.i, dr.o, Signal(), dr.clk)
 
+# Agilex5 SDRTristate ------------------------------------------------------------------------------
+
+class Agilex5SDRTristateImpl(Module):
+    def __init__(self, io, o, oe, i, clk):
+        _i  = Signal()
+        _o  = Signal()
+        _oe = Signal()
+        self.specials += [
+            SDRIO(o, _o, clk),
+            SDRIO(oe, _oe, clk),
+            SDRIO(_i, i, clk),
+            Instance("tennm_ph2_io_ibuf",
+                p_bus_hold = "BUS_HOLD_OFF",
+                io_i       = io, # FIXME: its an input but io is needed to have correct dir at top module
+                o_o        = _i,
+            ),
+            Instance("tennm_ph2_io_obuf",
+                p_open_drain = "OPEN_DRAIN_OFF",
+                i_i          = _o,
+                i_oe         = _oe,
+                io_o         = io, # FIXME: its an output but io is needed to have correct dir at top module
+            ),
+        ]
+
+class Agilex5SDRTristate(Module):
+    @staticmethod
+    def lower(dr):
+        return Agilex5SDRTristateImpl(dr.io, dr.o, dr.oe, dr.i, dr.clk)
+
 # Agilex5 Special Overrides ------------------------------------------------------------------------
 
 agilex5_special_overrides = {
@@ -215,4 +244,5 @@ agilex5_special_overrides = {
     DDRInput:               Agilex5DDRInput,
     SDROutput:              Agilex5SDROutput,
     SDRInput:               Agilex5SDRInput,
+    SDRTristate:            Agilex5SDRTristate,
 }
