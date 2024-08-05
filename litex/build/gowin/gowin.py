@@ -78,7 +78,7 @@ class GowinToolchain(GenericToolchain):
 
         for name, pin, other in flat_sc:
             if pin != "X":
-                t_name = name.split('[') # avoid index pins
+                t_name = name.split('[') # avoid index pins
                 tmp_name = t_name[0]
                 if tmp_name[-2:] == "_p":
                     pn = tmp_name[:-2] + "_n"

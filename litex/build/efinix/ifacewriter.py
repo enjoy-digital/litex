@@ -329,7 +329,7 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
             cmd += 'design.set_property("{}", "FEEDBACK_MODE", "{}", "PLL")\n'.format(name, "LOCAL" if feedback_clk < 1 else "CORE")
             cmd += 'design.set_property("{}", "FEEDBACK_CLK", "CLK{}", "PLL")\n'.format(name, 0 if feedback_clk < 1 else feedback_clk)
 
-        # auto_calc_pll_clock is always working with Titanium and only working when feedback is unused for Trion
+        # auto_calc_pll_clock is always working with Titanium and only working when feedback is unused for Trion
         if block["feedback"] == -1 or block["version"] == "V3":
             cmd += "target_freq = {\n"
             for i, clock in enumerate(block["clk_out"]):

@@ -15,35 +15,35 @@ import argparse
 from migen import *
 
 from litex.build.generic_platform import *
-from litex.build.sim import SimPlatform
-from litex.build.sim.config import SimConfig
+from litex.build.sim              import SimPlatform
+from litex.build.sim.config       import SimConfig
 
-from litex.soc.integration.common import *
+from litex.soc.integration.common   import *
 from litex.soc.integration.soc_core import *
-from litex.soc.integration.builder import *
-from litex.soc.integration.soc import *
-from litex.soc.cores.bitbang import *
-from litex.soc.cores.gpio import GPIOTristate
-from litex.soc.cores.cpu import CPUS
+from litex.soc.integration.builder  import *
+from litex.soc.integration.soc      import *
 
-from litedram import modules as litedram_modules
-from litedram.modules import parse_spd_hexdump
+from litex.soc.cores.bitbang import *
+from litex.soc.cores.gpio    import GPIOTristate
+from litex.soc.cores.cpu     import CPUS
+from litex.soc.cores.video   import VideoGenericPHY
+
+from litedram           import modules as litedram_modules
+from litedram.modules   import parse_spd_hexdump
 from litedram.phy.model import sdram_module_nphases, get_sdram_phy_settings
 from litedram.phy.model import SDRAMPHYModel
 
-from liteeth.phy.gmii import LiteEthPHYGMII
-from liteeth.phy.xgmii import LiteEthPHYXGMII
-from liteeth.phy.model import LiteEthPHYModel
-from liteeth.mac import LiteEthMAC
-from liteeth.core.arp import LiteEthARP
-from liteeth.core.ip import LiteEthIP
-from liteeth.core.udp import LiteEthUDP
-from liteeth.core.icmp import LiteEthICMP
-from liteeth.core import LiteEthUDPIPCore
+from liteeth.common             import *
+from liteeth.phy.gmii           import LiteEthPHYGMII
+from liteeth.phy.xgmii          import LiteEthPHYXGMII
+from liteeth.phy.model          import LiteEthPHYModel
+from liteeth.mac                import LiteEthMAC
+from liteeth.core.arp           import LiteEthARP
+from liteeth.core.ip            import LiteEthIP
+from liteeth.core.udp           import LiteEthUDP
+from liteeth.core.icmp          import LiteEthICMP
+from liteeth.core               import LiteEthUDPIPCore
 from liteeth.frontend.etherbone import LiteEthEtherbone
-from liteeth.common import *
-
-from litex.soc.cores.video import VideoGenericPHY
 
 from litescope import LiteScopeAnalyzer
 

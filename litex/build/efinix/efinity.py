@@ -286,11 +286,11 @@ class EfinityToolchain(GenericToolchain):
 
         # Some IO blocks don't have Python API so we need to configure them
         # directly in the peri.xml file
-        # We also need to configure the bank voltage here
+        # We also need to configure the bank voltage here
         if self.ifacewriter.xml_blocks or self.platform.iobank_info:
             self.ifacewriter.generate_xml_blocks()
 
-        # Because the Python API is sometimes bugged, we need to tweak the generated xml
+        # Because the Python API is sometimes bugged, we need to tweak the generated xml
         if self.ifacewriter.fix_xml:
             self.ifacewriter.fix_xml_values()
 

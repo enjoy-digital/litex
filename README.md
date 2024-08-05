@@ -54,9 +54,9 @@ The framework is also far from perfect and we'll be happy to have your [feedback
 
 Have fun! :wink:
 
-**Moral precisions**: The project is shared with a permissive BSD 2-Clause License and we are encouraged to continue sharing it this way thanks to the awesome community and clients willing to support the project!
-If the projet is useful for your research, hobby or commercial projects, we are just asking you to be coherent and behave with integrity: Don't expect free support or that the community will be welcoming if your spent your time complaining about the project (and then direspect developers) or don't pay the custom developments you asked for... (While it's probably natural for 99% of users/clients, it  does seems useful to add this for the 1% remaining that are eating lots of our energy/time).
+We share this project under a permissive BSD 2-Clause License, inspired by our fantastic community and supportive clients. If LiteX benefits your research, hobby, or commercial projects, we kindly ask for your positive collaboration and respect for the effort involved.
 
+Thank you for helping us improve LiteX and being part of our community!
 
 # Typical LiteX design flow:
 ```
