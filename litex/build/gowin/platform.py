@@ -34,6 +34,8 @@ class GowinPlatform(GenericPlatform):
 
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
         so = dict(common.gowin_special_overrides)
+        if self.device[:4] == "GW5A":
+            so.update(common.gw5a_special_overrides)
         so.update(special_overrides)
         return GenericPlatform.get_verilog(self, *args,
             special_overrides = so,
