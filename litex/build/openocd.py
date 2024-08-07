@@ -27,12 +27,13 @@ class OpenOCD(GenericProgrammer):
         ])
         self.call(["openocd", "-f", config, "-c", script])
 
-    def flash(self, address, data, set_qe=False):
+    def flash(self, address, data, set_qe=False, init_commands=[]):
         config      = self.find_config()
         flash_proxy = self.find_flash_proxy()
         script = "; ".join([
             "init",
-            "jtagspi_init 0 {{{}}}".format(flash_proxy),
+            "jtagspi_init 0 {{{}}}".format(flash_proxy)
+        ] + init_commands + [
             "jtagspi set_qe 0 1" if set_qe else "",
             "jtagspi_program {{{}}} 0x{:x}".format(data, address),
             "fpga_program",
