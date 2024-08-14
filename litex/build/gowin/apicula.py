@@ -13,10 +13,6 @@ class GowinApiculaToolchain(YosysNextPNRToolchain):
         super().__init__()
         self.additional_cst_commands = []
 
-    def build_timing_constraints(self, vns):
-        # nextpnr-himbaechel for gowin currently doesnt supports timing constaints
-        pass
-
     def build_io_constraints(self):
         _build_cst(self.named_sc, self.named_pc, self.additional_cst_commands, self._build_name)
         return (self._build_name + ".cst", "CST")
