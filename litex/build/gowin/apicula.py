@@ -1,3 +1,9 @@
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2024 Mai Lapyst
+# SPDX-License-Identifier: BSD-2-Clause
+
 from litex.build.generic_platform import *
 from litex.build import tools
 from litex.build.gowin.gowin import _build_cst
