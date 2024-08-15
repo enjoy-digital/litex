@@ -8,7 +8,7 @@
 import os
 
 from litex.build.generic_platform import GenericPlatform
-from litex.build.gowin import common, gowin
+from litex.build.gowin import common, gowin, apicula
 
 # GowinPlatform ------------------------------------------------------------------------------------
 
@@ -28,7 +28,7 @@ class GowinPlatform(GenericPlatform):
         if toolchain == "gowin":
             self.toolchain = gowin.GowinToolchain()
         elif toolchain == "apicula":
-            raise ValueError("Apicula toolchain needs more work")
+            self.toolchain = apicula.GowinApiculaToolchain()
         else:
             raise ValueError(f"Unknown toolchain {toolchain}")
 
