@@ -17,6 +17,7 @@ class GowinApiculaToolchain(YosysNextPNRToolchain):
 
     def __init__(self):
         super().__init__()
+        self.options = {}
         self.additional_cst_commands = []
 
     def build_io_constraints(self):
@@ -36,6 +37,11 @@ class GowinApiculaToolchain(YosysNextPNRToolchain):
             devicename = self.platform.devicename,
             top        = self._build_name
         )
+
+        # use_mspi_as_gpio and friends
+        for option, value in self.options.items():
+            if option.startswith("use_") and value:
+                self._packer_opts += " --" + option[4:]
 
         YosysNextPNRToolchain.finalize(self)
 
