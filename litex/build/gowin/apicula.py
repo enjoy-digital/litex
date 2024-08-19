@@ -25,16 +25,27 @@ class GowinApiculaToolchain(YosysNextPNRToolchain):
         return (self._build_name + ".cst", "CST")
 
     def finalize(self):
+        devicename = self.platform.devicename
+        # Non-exhaustive list of family aliases that Gowin IDE supports but don't have a unique database
+        if devicename == "GW1NR-9C":
+            devicename = "GW1N-9C"
+        elif devicename == "GW1NR-9":
+            devicename = "GW1N-9"
+        elif devicename == "GW1NSR-4C" or devicename == "GW1NSR-4":
+            devicename = "GW1NS-4"
+        elif devicename == "GW1NR-4C" or devicename == "GW1NR-4":
+            devicename = "GW1N-4"
+
         pnr_opts = "--write {top}_routed.json --top {top} --device {device}" + \
             " --vopt family={devicename} --vopt cst={top}.cst"
         self._pnr_opts += pnr_opts.format(
             top        = self._build_name,
             device     = self.platform.device,
-            devicename = self.platform.devicename
+            devicename = devicename
         )
 
         self._packer_opts += "-d {devicename} -o {top}.fs {top}_routed.json".format(
-            devicename = self.platform.devicename,
+            devicename = devicename,
             top        = self._build_name
         )
 
