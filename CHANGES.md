@@ -23,7 +23,11 @@
 	- soc                           : Added add_spi_master method (#1985).
 	- tools/litex_json2dts_zephyr   : Added spimaster/spiflash handlers (#1985).
 	- tools/litex_json2renode       : Added .elf bios option (#1984).
-	- core                          : Added Watchdog core and Zephyr support (#1996).
+	- cores                         : Added Watchdog core and Zephyr support (#1996).
+	- soc                           : Added add_spi_ram method (#2028).
+	- build                         : Added initial Apicula (Gowin) Platform support (#2036).
+	- build                         : Added initial Agilex5 support.
+	- liteeth/mac                   : Improved broadcast filtering logic in Hybrid Mode (https://github.com/enjoy-digital/liteeth/pull/165).
 
 	[> Changed
 	----------
