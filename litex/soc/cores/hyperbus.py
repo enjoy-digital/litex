@@ -92,15 +92,20 @@ class HyperRAM(LiteXModule):
         dq        = self.add_tristate(pads.dq,   register=False) if not hasattr(pads.dq,   "oe") else pads.dq
         rwds      = self.add_tristate(pads.rwds, register=False) if not hasattr(pads.rwds, "oe") else pads.rwds
         self.comb += [
-            # DQ.
+            # DQ O/OE.
             dq.o.eq( dq_o),
             dq.oe.eq(dq_oe),
-            dq_i.eq( dq.i),
 
-            # RWDS.
+            # RWDS O/OE.
             rwds.o.eq( rwds_o),
             rwds.oe.eq(rwds_oe),
-            rwds_i.eq( rwds.i),
+        ]
+        self.sync += [
+            # DQ I.
+            dq_i.eq(dq.i),
+
+            # RWDS I.
+            rwds_i.eq(rwds.i)
         ]
 
         # Drive Control Signals --------------------------------------------------------------------
@@ -151,20 +156,18 @@ class HyperRAM(LiteXModule):
         self.comb += Case(clk_phase, cases)
 
         # Data Shift-In Register -------------------------------------------------------------------
-        dqi = Signal(dw)
-        self.sync += dqi.eq(dq_i) # Sample on 90° and 270° Clk Phases.
         self.comb += [
             # Command/Address: On 8-bit, so 8-bit shift and no input.
             If(ca_oe,
                 sr_next[8:].eq(sr),
             # Data: On dw-bit, so dw-bit shift.
             ).Else(
-                sr_next[:dw].eq(dqi),
+                sr_next[:dw].eq(dq_i),
                 sr_next[dw:].eq(sr),
 
             )
         ]
-        self.sync += If(clk_phase[0] == 0, sr.eq(sr_next)) # Shift on 0° and 180° Clk Phases.
+        self.sync += If(clk_phase[0] == 0, sr.eq(sr_next)) # Shift on 0°/180° (and sampled on 90°/270°).
 
         # Data Shift-Out Register ------------------------------------------------------------------
         self.comb += [
