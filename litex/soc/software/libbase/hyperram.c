@@ -7,6 +7,8 @@
 
 #include <generated/csr.h>
 
+#ifdef CSR_HYPERRAM_BASE
+
 static void hyperram_write_reg(uint16_t reg_addr, uint16_t data) {
     /* Write data to the register */
     hyperram_reg_wdata_write(data);
@@ -87,3 +89,5 @@ void hyperram_init(void) {
 	hyperram_configure_latency();
 	printf("\n");
 }
+
+#endif
