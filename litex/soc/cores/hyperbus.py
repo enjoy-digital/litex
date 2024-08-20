@@ -67,6 +67,8 @@ class HyperRAM(LiteXModule):
 
         # Parameters.
         # -----------
+        dw = len(pads.dq) if not hasattr(pads.dq, "oe") else len(pads.dq.o)
+        assert dw in [8, 16]
         assert latency_mode in ["fixed", "variable"]
 
         # Internal Signals.
@@ -78,11 +80,28 @@ class HyperRAM(LiteXModule):
         ca_active = Signal()
         sr        = Signal(48)
         sr_next   = Signal(48)
+        dq_o      = Signal(dw)
+        dq_oe     = Signal()
+        dq_i      = Signal(dw)
+        rwds_o    = Signal(dw//8)
+        rwds_oe   = Signal()
+        rwds_i    = Signal(dw//8)
+
+        # Tristates.
+        # ----------
         dq        = self.add_tristate(pads.dq)   if not hasattr(pads.dq,   "oe") else pads.dq
         rwds      = self.add_tristate(pads.rwds) if not hasattr(pads.rwds, "oe") else pads.rwds
-        dw        = len(pads.dq)                 if not hasattr(pads.dq,   "oe") else len(pads.dq.o)
+        self.comb += [
+            # DQ.
+            dq.o.eq( dq_o),
+            dq.oe.eq(dq_oe),
+            dq_i.eq( dq.i),
 
-        assert dw in [8, 16]
+            # RWDS.
+            rwds.o.eq( rwds_o),
+            rwds.oe.eq(rwds_oe),
+            rwds_i.eq( rwds.i),
+        ]
 
         # Drive Control Signals --------------------------------------------------------------------
 
@@ -122,7 +141,7 @@ class HyperRAM(LiteXModule):
 
         # Data Shift-In Register -------------------------------------------------------------------
         dqi = Signal(dw)
-        self.sync += dqi.eq(dq.i) # Sample on 90° and 270° Clk Phases.
+        self.sync += dqi.eq(dq_i) # Sample on 90° and 270° Clk Phases.
         self.comb += [
             sr_next.eq(Cat(dqi, sr[:-dw])),
             If(ca_active,
@@ -134,10 +153,10 @@ class HyperRAM(LiteXModule):
         # Data Shift-Out Register ------------------------------------------------------------------
         self.comb += [
             bus.dat_r.eq(sr_next),
-            If(dq.oe,
-                dq.o.eq(sr[-dw:]),
+            If(dq_oe,
+                dq_o.eq(sr[-dw:]),
                 If(ca_active,
-                    dq.o.eq(sr[-8:]) # Only use 8-bit for Command/Address.
+                    dq_o.eq(sr[-8:]) # Only use 8-bit for Command/Address.
                 )
             )
         ]
@@ -219,7 +238,7 @@ class HyperRAM(LiteXModule):
             cs.eq(1),
             # Send Command on DQ.
             ca_active.eq(1),
-            dq.oe.eq(1),
+            dq_oe.eq(1),
             # Wait for 6*2 cycles...
             If(cycles == (6*2 - 1),
                 If(reg_write_req,
@@ -227,7 +246,7 @@ class HyperRAM(LiteXModule):
                     NextState("REG-WRITE-0")
                 ).Else(
                     # Sample RWDS to know if 1X/2X Latency should be used (Refresh).
-                    NextValue(refresh, rwds.i | (latency_mode in ["fixed"])),
+                    NextValue(refresh, rwds_i | (latency_mode in ["fixed"])),
                     NextState("WAIT-LATENCY")
                 )
             )
@@ -237,7 +256,7 @@ class HyperRAM(LiteXModule):
             cs.eq(1),
             # Send Reg on DQ.
             ca_active.eq(1),
-            dq.oe.eq(1),
+            dq_oe.eq(1),
             # Wait for 2 cycles...
             If(cycles == (2 - 1),
                 NextValue(sr, Cat(Signal(40), self.reg_write_data[:8])),
@@ -249,7 +268,7 @@ class HyperRAM(LiteXModule):
             cs.eq(1),
             # Send Reg on DQ.
             ca_active.eq(1),
-            dq.oe.eq(1),
+            dq_oe.eq(1),
             # Wait for 2 cycles...
             If(cycles == (2 - 1),
                 reg_ep.ready.eq(1),
@@ -282,9 +301,9 @@ class HyperRAM(LiteXModule):
                 ca_active.eq(reg_read_req),
                 # Send Data on DQ/RWDS (for write).
                 If(bus_we,
-                    dq.oe.eq(1),
-                    rwds.oe.eq(1),
-                    *[rwds.o[dw//8-1-i].eq(~bus_sel[4-1-n*dw//8-i]) for i in range(dw//8)],
+                    dq_oe.eq(1),
+                    rwds_oe.eq(1),
+                    *[rwds_o[dw//8-1-i].eq(~bus_sel[4-1-n*dw//8-i]) for i in range(dw//8)],
                 ),
                 # Wait for 2 cycles (since HyperRAM's Clk = sys_clk/4).
                 If(cycles == (2 - 1),
