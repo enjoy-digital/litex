@@ -133,12 +133,20 @@ class HyperRAM(LiteXModule):
         self.burst_timer = burst_timer = WaitTimer(sys_clk_freq * self.tCSM)
 
         # Clock Generation (sys_clk/4) -------------------------------------------------------------
-        self.sync += clk_phase.eq(clk_phase + 1)
+        self.sync += [
+            If(cs,
+                # Increment Clk Phase on CS.
+                clk_phase.eq(clk_phase + 1)
+            ).Else(
+                # Else set Clk Phase to default value.
+                clk_phase.eq(0b01)
+            )
+        ]
         cases = {
-            0 : clk.eq(0),  #   0°
-            1 : clk.eq(cs), #  90° / Set Clk.
-            2 : clk.eq(cs), # 180°
-            3 : clk.eq(0),  # 270° / Clr Clk.
+            0b00 : clk.eq(0),  #   0°
+            0b01 : clk.eq(cs), #  90° / Set Clk.
+            0b10 : clk.eq(cs), # 180°
+            0b11 : clk.eq(0),  # 270° / Clr Clk.
         }
         self.comb += Case(clk_phase, cases)
 
@@ -237,11 +245,9 @@ class HyperRAM(LiteXModule):
         self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             NextValue(first, 1),
-            If(clk_phase == 0,
-                If((bus.cyc & bus.stb) | reg_write_req | reg_read_req,
-                    NextValue(sr, ca),
-                    NextState("SEND-COMMAND-ADDRESS")
-                )
+            If((bus.cyc & bus.stb) | reg_write_req | reg_read_req,
+                NextValue(sr, ca),
+                NextState("SEND-COMMAND-ADDRESS")
             )
         )
         fsm.act("SEND-COMMAND-ADDRESS",
