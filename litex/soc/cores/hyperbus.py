@@ -118,12 +118,14 @@ class HyperRAM(LiteXModule):
         ]
 
         # Clk.
+        pads_clk = Signal()
+        self.sync += pads_clk.eq(clk)
         if hasattr(pads, "clk"):
             # Single Ended Clk.
-            self.comb += pads.clk.eq(clk)
+            self.comb += pads.clk.eq(pads_clk)
         elif hasattr(pads, "clk_p"):
             # Differential Clk.
-            self.specials += DifferentialOutput(clk, pads.clk_p, pads.clk_n)
+            self.specials += DifferentialOutput(pads_clk, pads.clk_p, pads.clk_n)
         else:
             raise ValueError
 
@@ -132,10 +134,13 @@ class HyperRAM(LiteXModule):
 
         # Clock Generation (sys_clk/4) -------------------------------------------------------------
         self.sync += clk_phase.eq(clk_phase + 1)
-        cases = {}
-        cases[1] = clk.eq(cs) # Set   pads Clk on  90° (When CS is set).
-        cases[3] = clk.eq(0)  # Clear pads Clk on 270°.
-        self.sync += Case(clk_phase, cases)
+        cases = {
+            0 : clk.eq(0),  #   0°
+            1 : clk.eq(cs), #  90° / Set Clk.
+            2 : clk.eq(cs), # 180°
+            3 : clk.eq(0),  # 270° / Clr Clk.
+        }
+        self.comb += Case(clk_phase, cases)
 
         # Data Shift-In Register -------------------------------------------------------------------
         dqi = Signal(dw)
