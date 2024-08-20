@@ -45,8 +45,6 @@ class TestHyperBus(unittest.TestCase):
             dq_o    = "002000048d0000000000000000000000000000000000000000deadbeef000000"
             rwds_oe = "__________________________________________________--------______"
             rwds_o  = "____________________________________________________----________"
-            for i in range(3):
-                yield
             for i in range(len(clk)):
                 self.assertEqual(c2bool(clk[i]), (yield dut.pads.clk))
                 self.assertEqual(c2bool(cs_n[i]), (yield dut.pads.cs_n))
@@ -71,8 +69,6 @@ class TestHyperBus(unittest.TestCase):
             dq_o    = "002000048d000000000000000000000000000000000000000000000000deadbeef000000"
             rwds_oe = "__________________________________________________________--------______"
             rwds_o  = "____________________________________________________________----________"
-            for i in range(3):
-                yield
             for i in range(len(clk)):
                 self.assertEqual(c2bool(clk[i]), (yield dut.pads.clk))
                 self.assertEqual(c2bool(cs_n[i]), (yield dut.pads.cs_n))
@@ -97,8 +93,6 @@ class TestHyperBus(unittest.TestCase):
             dq_o    = "002000048d00000000000000000000000000000000000000000000000000000000deadbeef000000"
             rwds_oe = "__________________________________________________________________--------______"
             rwds_o  = "____________________________________________________________________----________"
-            for i in range(3):
-                yield
             for i in range(len(clk)):
                 self.assertEqual(c2bool(clk[i]), (yield dut.pads.clk))
                 self.assertEqual(c2bool(cs_n[i]), (yield dut.pads.cs_n))
@@ -123,8 +117,6 @@ class TestHyperBus(unittest.TestCase):
             dq_o    = "002000048d0000000000000000000000000000deadbeef000000"
             rwds_oe = "______________________________________--------______"
             rwds_o  = "________________________________________----________"
-            for i in range(3):
-                yield
             for i in range(len(clk)):
                 self.assertEqual(c2bool(clk[i]), (yield dut.pads.clk))
                 self.assertEqual(c2bool(cs_n[i]), (yield dut.pads.cs_n))
@@ -151,8 +143,6 @@ class TestHyperBus(unittest.TestCase):
             dq_o    = "00a000048d0000000000000000000000000000000000000000000000000000000000000000"
             dq_i    = "00000000000000000000000000000000000000000000000000deadbeefcafefade00000000"
             rwds_oe = "__________________________________________________________________________"
-            for i in range(3):
-                yield
             for i in range(len(clk)):
                 yield dut.pads.dq.i.eq(int(dq_i[2*(i//2):2*(i//2)+2], 16))
                 self.assertEqual(c2bool(clk[i]), (yield dut.pads.clk))
@@ -179,8 +169,6 @@ class TestHyperBus(unittest.TestCase):
             dq_o    = "00a000048d000000000000000000000000000000000000000000000000000000000000000000000000"
             dq_i    = "0000000000000000000000000000000000000000000000000000000000deadbeefcafefade00000000"
             rwds_oe = "__________________________________________________________________________________"
-            for i in range(3):
-                yield
             for i in range(len(clk)):
                 yield dut.pads.dq.i.eq(int(dq_i[2*(i//2):2*(i//2)+2], 16))
                 self.assertEqual(c2bool(clk[i]), (yield dut.pads.clk))
@@ -207,8 +195,6 @@ class TestHyperBus(unittest.TestCase):
             dq_o    = "00a000048d00000000000000000000000000000000000000000000000000000000000000000000000000000000"
             dq_i    = "000000000000000000000000000000000000000000000000000000000000000000deadbeefcafefade00000000"
             rwds_oe = "__________________________________________________________________________________________"
-            for i in range(3):
-                yield
             for i in range(len(clk)):
                 yield dut.pads.dq.i.eq(int(dq_i[2*(i//2):2*(i//2)+2], 16))
                 self.assertEqual(c2bool(clk[i]), (yield dut.pads.clk))
@@ -235,8 +221,6 @@ class TestHyperBus(unittest.TestCase):
             dq_o    = "00a000048d0000000000000000000000000000000000000000000000000000"
             dq_i    = "00000000000000000000000000000000000000deadbeefcafefade00000000"
             rwds_oe = "______________________________________________________________"
-            for i in range(3):
-                yield
             for i in range(len(clk)):
                 yield dut.pads.dq.i.eq(int(dq_i[2*(i//2):2*(i//2)+2], 16))
                 self.assertEqual(c2bool(clk[i]), (yield dut.pads.clk))
@@ -261,14 +245,12 @@ class TestHyperBus(unittest.TestCase):
                 yield
 
         def hyperram_gen(dut):
-            clk     = "___--__--__--__--___________"
-            cs_n    = "--________________----------"
-            dq_oe   = "__----------------__________"
-            dq_o    = "0060000100000012340000000000"
-            rwds_oe = "____________________________"
-            rwds_o  = "____________________________"
-            for i in range(3):
-                yield
+            clk     = "_____--__--__--__--___________"
+            cs_n    = "----________________----------"
+            dq_oe   = "____----------------__________"
+            dq_o    = "000060000100000012340000000000"
+            rwds_oe = "______________________________"
+            rwds_o  = "______________________________"
             for i in range(len(clk)):
                 self.assertEqual(c2bool(clk[i]), (yield dut.pads.clk))
                 self.assertEqual(c2bool(cs_n[i]), (yield dut.pads.cs_n))

@@ -7,6 +7,9 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
+from migen.fhdl.specials import Tristate
+
+from litex.build.io import SDRTristate
 
 from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
@@ -41,7 +44,7 @@ class HyperRAM(LiteXModule):
         pads (Record)            : Platform pads of HyperRAM.
         bus (wishbone.Interface) : Wishbone Interface.
 """
-    def __init__(self, pads, latency=6, latency_mode="variable", sys_clk_freq=None, with_csr=True):
+    def __init__(self, pads, latency=6, latency_mode="variable", sys_clk_freq=10e6, with_csr=True):
         self.pads = pads
         self.bus  = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
 
@@ -64,6 +67,8 @@ class HyperRAM(LiteXModule):
 
         # Parameters.
         # -----------
+        dw = len(pads.dq) if not hasattr(pads.dq, "oe") else len(pads.dq.o)
+        assert dw in [8, 16]
         assert latency_mode in ["fixed", "variable"]
 
         # Internal Signals.
@@ -72,63 +77,104 @@ class HyperRAM(LiteXModule):
         clk_phase = Signal(2)
         cs        = Signal()
         ca        = Signal(48)
-        ca_active = Signal()
+        ca_oe     = Signal()
         sr        = Signal(48)
         sr_next   = Signal(48)
-        dq        = self.add_tristate(pads.dq)   if not hasattr(pads.dq,   "oe") else pads.dq
-        rwds      = self.add_tristate(pads.rwds) if not hasattr(pads.rwds, "oe") else pads.rwds
-        dw        = len(pads.dq)                 if not hasattr(pads.dq,   "oe") else len(pads.dq.o)
+        dq_o      = Signal(dw)
+        dq_oe     = Signal()
+        dq_i      = Signal(dw)
+        rwds_o    = Signal(dw//8)
+        rwds_oe   = Signal()
+        rwds_i    = Signal(dw//8)
 
-        assert dw in [8, 16]
+        # Tristates.
+        # ----------
+        dq        = self.add_tristate(pads.dq,   register=False) if not hasattr(pads.dq,   "oe") else pads.dq
+        rwds      = self.add_tristate(pads.rwds, register=False) if not hasattr(pads.rwds, "oe") else pads.rwds
+        self.comb += [
+            # DQ O/OE.
+            dq.o.eq( dq_o),
+            dq.oe.eq(dq_oe),
+
+            # RWDS O/OE.
+            rwds.o.eq( rwds_o),
+            rwds.oe.eq(rwds_oe),
+        ]
+        self.sync += [
+            # DQ I.
+            dq_i.eq(dq.i),
+
+            # RWDS I.
+            rwds_i.eq(rwds.i)
+        ]
 
         # Drive Control Signals --------------------------------------------------------------------
 
         # Rst.
         if hasattr(pads, "rst_n"):
-            self.comb += pads.rst_n.eq(1 & ~self.conf_rst)
+            self.sync += pads.rst_n.eq(1 & ~self.conf_rst)
 
         # CSn.
-        self.comb += pads.cs_n[0].eq(~cs)
-        assert len(pads.cs_n) <= 2
-        if len(pads.cs_n) == 2:
-            self.comb += pads.cs_n[1].eq(1)
+        pads.cs_n.reset = 2**len(pads.cs_n) - 1
+        self.sync += pads.cs_n[0].eq(~cs) # Only supporting 1 CS.
 
         # Clk.
+        pads_clk = Signal()
+        self.sync += pads_clk.eq(clk)
         if hasattr(pads, "clk"):
-            self.comb += pads.clk.eq(clk)
+            # Single Ended Clk.
+            self.comb += pads.clk.eq(pads_clk)
+        elif hasattr(pads, "clk_p"):
+            # Differential Clk.
+            self.specials += DifferentialOutput(pads_clk, pads.clk_p, pads.clk_n)
         else:
-            self.specials += DifferentialOutput(clk, pads.clk_p, pads.clk_n)
+            raise ValueError
 
         # Burst Timer ------------------------------------------------------------------------------
-        sys_clk_freq = 10e6 if sys_clk_freq is None else sys_clk_freq
-        burst_timer  = WaitTimer(sys_clk_freq*self.tCSM)
-        self.burst_timer = burst_timer
+        self.burst_timer = burst_timer = WaitTimer(sys_clk_freq * self.tCSM)
 
         # Clock Generation (sys_clk/4) -------------------------------------------------------------
-        self.sync += clk_phase.eq(clk_phase + 1)
-        cases = {}
-        cases[1] = clk.eq(cs) # Set pads clk on 90° (if cs is set)
-        cases[3] = clk.eq(0)  # Clear pads clk on 270°
-        self.sync += Case(clk_phase, cases)
-
-        # Data Shift-In Register -------------------------------------------------------------------
-        dqi = Signal(dw)
-        self.sync += dqi.eq(dq.i) # Sample on 90° and 270°
-        self.comb += [
-            sr_next.eq(Cat(dqi, sr[:-dw])),
-            If(ca_active,
-                sr_next.eq(Cat(dqi[:8], sr[:-8])) # Only 8-bit during Command/Address.
+        self.sync += [
+            If(cs,
+                # Increment Clk Phase on CS.
+                clk_phase.eq(clk_phase + 1)
+            ).Else(
+                # Else set Clk Phase to default value.
+                clk_phase.eq(0b00)
             )
         ]
-        self.sync += If(clk_phase[0] == 0, sr.eq(sr_next)) # Shift on 0° and 180°
+        cases = {
+            0b00 : clk.eq(0),  #   0°
+            0b01 : clk.eq(cs), #  90° / Set Clk.
+            0b10 : clk.eq(cs), # 180°
+            0b11 : clk.eq(0),  # 270° / Clr Clk.
+        }
+        self.comb += Case(clk_phase, cases)
+
+        # Data Shift-In Register -------------------------------------------------------------------
+        self.comb += [
+            # Command/Address: On 8-bit, so 8-bit shift and no input.
+            If(ca_oe,
+                sr_next[8:].eq(sr),
+            # Data: On dw-bit, so dw-bit shift.
+            ).Else(
+                sr_next[:dw].eq(dq_i),
+                sr_next[dw:].eq(sr),
+
+            )
+        ]
+        self.sync += If(clk_phase[0] == 0, sr.eq(sr_next)) # Shift on 0°/180° (and sampled on 90°/270°).
 
         # Data Shift-Out Register ------------------------------------------------------------------
         self.comb += [
             bus.dat_r.eq(sr_next),
-            If(dq.oe,
-                dq.o.eq(sr[-dw:]),
-                If(ca_active,
-                    dq.o.eq(sr[-8:]) # Only 8-bit during Command/Address.
+            If(dq_oe,
+                # Command/Address: 8-bit.
+                If(ca_oe,
+                    dq_o.eq(sr[-8:]),
+                # Data: dw-bit.
+                ).Else(
+                    dq_o.eq(sr[-dw:]),
                 )
             )
         ]
@@ -198,19 +244,15 @@ class HyperRAM(LiteXModule):
         self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             NextValue(first, 1),
-            If(clk_phase == 0,
-                If((bus.cyc & bus.stb) | reg_write_req | reg_read_req,
-                    NextValue(sr, ca),
-                    NextState("SEND-COMMAND-ADDRESS")
-                )
+            If((bus.cyc & bus.stb) | reg_write_req | reg_read_req,
+                NextValue(sr, ca),
+                NextState("SEND-COMMAND-ADDRESS")
             )
         )
         fsm.act("SEND-COMMAND-ADDRESS",
-            # Set CSn.
-            cs.eq(1),
             # Send Command on DQ.
-            ca_active.eq(1),
-            dq.oe.eq(1),
+            ca_oe.eq(1),
+            dq_oe.eq(1),
             # Wait for 6*2 cycles...
             If(cycles == (6*2 - 1),
                 If(reg_write_req,
@@ -218,17 +260,15 @@ class HyperRAM(LiteXModule):
                     NextState("REG-WRITE-0")
                 ).Else(
                     # Sample RWDS to know if 1X/2X Latency should be used (Refresh).
-                    NextValue(refresh, rwds.i | (latency_mode in ["fixed"])),
+                    NextValue(refresh, rwds_i | (latency_mode in ["fixed"])),
                     NextState("WAIT-LATENCY")
                 )
             )
         )
         fsm.act("REG-WRITE-0",
-            # Set CSn.
-            cs.eq(1),
             # Send Reg on DQ.
-            ca_active.eq(1),
-            dq.oe.eq(1),
+            ca_oe.eq(1),
+            dq_oe.eq(1),
             # Wait for 2 cycles...
             If(cycles == (2 - 1),
                 NextValue(sr, Cat(Signal(40), self.reg_write_data[:8])),
@@ -236,11 +276,9 @@ class HyperRAM(LiteXModule):
             )
         )
         fsm.act("REG-WRITE-1",
-            # Set CSn.
-            cs.eq(1),
             # Send Reg on DQ.
-            ca_active.eq(1),
-            dq.oe.eq(1),
+            ca_oe.eq(1),
+            dq_oe.eq(1),
             # Wait for 2 cycles...
             If(cycles == (2 - 1),
                 reg_ep.ready.eq(1),
@@ -249,8 +287,6 @@ class HyperRAM(LiteXModule):
             )
         )
         fsm.act("WAIT-LATENCY",
-            # Set CSn.
-            cs.eq(1),
             # Wait for 1X or 2X Latency cycles... (-4 since count start in the middle of the command).
             If(((cycles == 2*(self.conf_latency * 4) - 4 - 1) &  refresh) | # 2X Latency (No DRAM refresh required).
                ((cycles == 1*(self.conf_latency * 4) - 4 - 1) & ~refresh) , # 1X Latency (   DRAM refresh required).
@@ -268,14 +304,12 @@ class HyperRAM(LiteXModule):
             fsm.act(f"READ-WRITE-DATA{n}",
                 # Enable Burst Timer.
                 burst_timer.wait.eq(1),
-                # Set CSn.
-                cs.eq(1),
-                ca_active.eq(reg_read_req),
+                ca_oe.eq(reg_read_req),
                 # Send Data on DQ/RWDS (for write).
                 If(bus_we,
-                    dq.oe.eq(1),
-                    rwds.oe.eq(1),
-                    *[rwds.o[dw//8-1-i].eq(~bus_sel[4-1-n*dw//8-i]) for i in range(dw//8)],
+                    dq_oe.eq(1),
+                    rwds_oe.eq(1),
+                    *[rwds_o[dw//8-1-i].eq(~bus_sel[4-1-n*dw//8-i]) for i in range(dw//8)],
                 ),
                 # Wait for 2 cycles (since HyperRAM's Clk = sys_clk/4).
                 If(cycles == (2 - 1),
@@ -308,13 +342,38 @@ class HyperRAM(LiteXModule):
                     )
                 )
             )
+
+        # CS --------------------------------------------------------------------------------------
+        self.comb += If(~fsm.ongoing("IDLE"),        cs.eq(1)) # CS when not in IDLE state.
+        self.comb += If(fsm.before_leaving("IDLE"),  cs.eq(1)) # Early Set.
+        self.comb += If(fsm.before_entering("IDLE"), cs.eq(0)) # Early Clr.
+
+        # FSM Cycles -------------------------------------------------------------------------------
         fsm.finalize()
         self.sync += cycles.eq(cycles + 1)
         self.sync += If(fsm.next_state != fsm.state, cycles.eq(0))
 
-    def add_tristate(self, pad):
-        t = TSTriple(len(pad))
-        self.specials += t.get_tristate(pad)
+    def add_tristate(self, pad, register=False):
+        class TristatePads:
+            def __init__(self, width):
+                self.o  = Signal(len(pad))
+                self.oe = Signal()
+                self.i  = Signal(len(pad))
+        t = TristatePads(len(pad))
+        if register:
+            for n in range(len(pad)):
+                self.specials += SDRTristate(pad[n],
+                    o   = t.o[n],
+                    oe  = t.oe,
+                    i   = t.i[n],
+                    clk = ClockSignal("sys"),
+                )
+        else:
+            self.specials += Tristate(pad,
+                o  = t.o,
+                oe = t.oe,
+                i  = t.i,
+            )
         return t
 
     def add_csr(self, default_latency=6):
