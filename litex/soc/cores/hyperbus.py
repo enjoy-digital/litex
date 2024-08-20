@@ -91,20 +91,20 @@ class HyperRAM(LiteXModule):
         # ----------
         dq   = self.add_tristate(pads.dq,   register=False) if not hasattr(pads.dq,   "oe") else pads.dq
         rwds = self.add_tristate(pads.rwds, register=False) if not hasattr(pads.rwds, "oe") else pads.rwds
-        self.comb += [
-            # DQ O/OE.
+        self.comb += [ # FIXME: Try to move to sync to allow switching to SDRTristate.
+            # DQ.
             dq.o.eq( dq_o),
             dq.oe.eq(dq_oe),
 
-            # RWDS O/OE.
+            # RWDS.
             rwds.o.eq( rwds_o),
             rwds.oe.eq(rwds_oe),
         ]
         self.sync += [
-            # DQ I.
+            # DQ.
             dq_i.eq(dq.i),
 
-            # RWDS I.
+            # RWDS.
             rwds_i.eq(rwds.i)
         ]
 
@@ -165,14 +165,14 @@ class HyperRAM(LiteXModule):
         self.sync += If(clk_phase[0] == 0, sr.eq(sr_next)) # Shift on 0°/180° (and sampled on 90°/270°).
 
         # Data Shift-Out Register ------------------------------------------------------------------
+        self.comb += bus.dat_r.eq(sr_next)
         self.comb += [
-            bus.dat_r.eq(sr_next),
             # Command/Address: 8-bit.
             If(ca_oe,
-                dq_o.eq(sr[-8:]),
+                dq_o.eq(sr[-8:])
             # Data: dw-bit.
             ).Else(
-                dq_o.eq(sr[-dw:]),
+                dq_o.eq(sr[-dw:])
             )
         ]
 
