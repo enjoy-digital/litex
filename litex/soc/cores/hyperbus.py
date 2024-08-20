@@ -107,7 +107,7 @@ class HyperRAM(LiteXModule):
 
         # Rst.
         if hasattr(pads, "rst_n"):
-            self.comb += pads.rst_n.eq(1 & ~self.conf_rst)
+            self.sync += pads.rst_n.eq(1 & ~self.conf_rst)
 
         # CSn.
         self.comb += [
