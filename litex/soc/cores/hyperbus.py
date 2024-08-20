@@ -91,16 +91,22 @@ class HyperRAM(LiteXModule):
             self.comb += pads.rst_n.eq(1 & ~self.conf_rst)
 
         # CSn.
-        self.comb += pads.cs_n[0].eq(~cs)
-        assert len(pads.cs_n) <= 2
-        if len(pads.cs_n) == 2:
-            self.comb += pads.cs_n[1].eq(1)
+        self.comb += [
+            # Set reset value.
+            pads.cs_n.eq(2**len(pads.cs_n)),
+            # Set CSn.
+            pads.cs_n[0].eq(~cs)
+        ]
 
         # Clk.
         if hasattr(pads, "clk"):
+            # Single Ended Clk.
             self.comb += pads.clk.eq(clk)
-        else:
+        elif hastattr(pads, "clk_p"):
+            # Differential Clk.
             self.specials += DifferentialOutput(clk, pads.clk_p, pads.clk_n)
+        else:
+            raise ValueError
 
         # Burst Timer ------------------------------------------------------------------------------
         if sys_clk_freq is None:
