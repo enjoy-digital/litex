@@ -44,7 +44,7 @@ class HyperRAM(LiteXModule):
         pads (Record)            : Platform pads of HyperRAM.
         bus (wishbone.Interface) : Wishbone Interface.
 """
-    def __init__(self, pads, latency=6, latency_mode="variable", sys_clk_freq=None, with_csr=True):
+    def __init__(self, pads, latency=6, latency_mode="variable", sys_clk_freq=10e6, with_csr=True):
         self.pads = pads
         self.bus  = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
 
@@ -128,8 +128,6 @@ class HyperRAM(LiteXModule):
             raise ValueError
 
         # Burst Timer ------------------------------------------------------------------------------
-        if sys_clk_freq is None:
-            sys_clk_freq = 10e6 # Defaults to 10MHz if not specified.
         self.burst_timer = burst_timer = WaitTimer(sys_clk_freq * self.tCSM)
 
         # Clock Generation (sys_clk/4) -------------------------------------------------------------
