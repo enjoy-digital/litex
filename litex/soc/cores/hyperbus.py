@@ -121,7 +121,7 @@ class HyperRAM(LiteXModule):
         if hasattr(pads, "clk"):
             # Single Ended Clk.
             self.comb += pads.clk.eq(clk)
-        elif hastattr(pads, "clk_p"):
+        elif hasattr(pads, "clk_p"):
             # Differential Clk.
             self.specials += DifferentialOutput(clk, pads.clk_p, pads.clk_n)
         else:
@@ -146,7 +146,7 @@ class HyperRAM(LiteXModule):
             # Command/Address: On 8-bit, so 8-bit shift and no input.
             If(ca_oe,
                 sr_next[8:].eq(sr),
-            # Data: dw-bit shift.
+            # Data: On dw-bit, so dw-bit shift.
             ).Else(
                 sr_next[:dw].eq(dqi),
                 sr_next[dw:].eq(sr),
@@ -159,9 +159,12 @@ class HyperRAM(LiteXModule):
         self.comb += [
             bus.dat_r.eq(sr_next),
             If(dq_oe,
-                dq_o.eq(sr[-dw:]),
+                # Command/Address: 8-bit.
                 If(ca_oe,
-                    dq_o.eq(sr[-8:]) # Only use 8-bit for Command/Address.
+                    dq_o.eq(sr[-8:]),
+                # Data: dw-bit.
+                ).Else(
+                    dq_o.eq(sr[-dw:]),
                 )
             )
         ]
