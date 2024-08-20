@@ -115,12 +115,8 @@ class HyperRAM(LiteXModule):
             self.sync += pads.rst_n.eq(1 & ~self.conf_rst)
 
         # CSn.
-        self.comb += [
-            # Set reset value.
-            pads.cs_n.eq(2**len(pads.cs_n)),
-            # Set CSn.
-            pads.cs_n[0].eq(~cs)
-        ]
+        pads.cs_n.reset = 2**len(pads.cs_n) - 1
+        self.sync += pads.cs_n[0].eq(~cs) # Only supporting 1 CS.
 
         # Clk.
         pads_clk = Signal()
@@ -144,7 +140,7 @@ class HyperRAM(LiteXModule):
                 clk_phase.eq(clk_phase + 1)
             ).Else(
                 # Else set Clk Phase to default value.
-                clk_phase.eq(0b01)
+                clk_phase.eq(0b00)
             )
         ]
         cases = {
@@ -254,8 +250,6 @@ class HyperRAM(LiteXModule):
             )
         )
         fsm.act("SEND-COMMAND-ADDRESS",
-            # Set CSn.
-            cs.eq(1),
             # Send Command on DQ.
             ca_oe.eq(1),
             dq_oe.eq(1),
@@ -272,8 +266,6 @@ class HyperRAM(LiteXModule):
             )
         )
         fsm.act("REG-WRITE-0",
-            # Set CSn.
-            cs.eq(1),
             # Send Reg on DQ.
             ca_oe.eq(1),
             dq_oe.eq(1),
@@ -284,8 +276,6 @@ class HyperRAM(LiteXModule):
             )
         )
         fsm.act("REG-WRITE-1",
-            # Set CSn.
-            cs.eq(1),
             # Send Reg on DQ.
             ca_oe.eq(1),
             dq_oe.eq(1),
@@ -297,8 +287,6 @@ class HyperRAM(LiteXModule):
             )
         )
         fsm.act("WAIT-LATENCY",
-            # Set CSn.
-            cs.eq(1),
             # Wait for 1X or 2X Latency cycles... (-4 since count start in the middle of the command).
             If(((cycles == 2*(self.conf_latency * 4) - 4 - 1) &  refresh) | # 2X Latency (No DRAM refresh required).
                ((cycles == 1*(self.conf_latency * 4) - 4 - 1) & ~refresh) , # 1X Latency (   DRAM refresh required).
@@ -316,8 +304,6 @@ class HyperRAM(LiteXModule):
             fsm.act(f"READ-WRITE-DATA{n}",
                 # Enable Burst Timer.
                 burst_timer.wait.eq(1),
-                # Set CSn.
-                cs.eq(1),
                 ca_oe.eq(reg_read_req),
                 # Send Data on DQ/RWDS (for write).
                 If(bus_we,
@@ -356,6 +342,13 @@ class HyperRAM(LiteXModule):
                     )
                 )
             )
+
+        # CS --------------------------------------------------------------------------------------
+        self.comb += If(~fsm.ongoing("IDLE"),        cs.eq(1)) # CS when not in IDLE state.
+        self.comb += If(fsm.before_leaving("IDLE"),  cs.eq(1)) # Early Set.
+        self.comb += If(fsm.before_entering("IDLE"), cs.eq(0)) # Early Clr.
+
+        # FSM Cycles -------------------------------------------------------------------------------
         fsm.finalize()
         self.sync += cycles.eq(cycles + 1)
         self.sync += If(fsm.next_state != fsm.state, cycles.eq(0))
