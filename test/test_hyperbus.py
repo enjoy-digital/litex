@@ -49,7 +49,8 @@ class TestHyperBus(unittest.TestCase):
                 self.assertEqual(c2bool(clk[i]), (yield dut.pads.clk))
                 self.assertEqual(c2bool(cs_n[i]), (yield dut.pads.cs_n))
                 self.assertEqual(c2bool(dq_oe[i]), (yield dut.pads.dq.oe))
-                self.assertEqual(int(dq_o[2*(i//2):2*(i//2)+2], 16), (yield dut.pads.dq.o))
+                if (yield dut.pads.dq.oe):
+                    self.assertEqual(int(dq_o[2*(i//2):2*(i//2)+2], 16), (yield dut.pads.dq.o))
                 self.assertEqual(c2bool(rwds_oe[i]), (yield dut.pads.rwds.oe))
                 self.assertEqual(c2bool(rwds_o[i]), (yield dut.pads.rwds.o))
                 yield
@@ -73,7 +74,8 @@ class TestHyperBus(unittest.TestCase):
                 self.assertEqual(c2bool(clk[i]), (yield dut.pads.clk))
                 self.assertEqual(c2bool(cs_n[i]), (yield dut.pads.cs_n))
                 self.assertEqual(c2bool(dq_oe[i]), (yield dut.pads.dq.oe))
-                self.assertEqual(int(dq_o[2*(i//2):2*(i//2)+2], 16), (yield dut.pads.dq.o))
+                if (yield dut.pads.dq.oe):
+                    self.assertEqual(int(dq_o[2*(i//2):2*(i//2)+2], 16), (yield dut.pads.dq.o))
                 self.assertEqual(c2bool(rwds_oe[i]), (yield dut.pads.rwds.oe))
                 self.assertEqual(c2bool(rwds_o[i]), (yield dut.pads.rwds.o))
                 yield
@@ -97,7 +99,8 @@ class TestHyperBus(unittest.TestCase):
                 self.assertEqual(c2bool(clk[i]), (yield dut.pads.clk))
                 self.assertEqual(c2bool(cs_n[i]), (yield dut.pads.cs_n))
                 self.assertEqual(c2bool(dq_oe[i]), (yield dut.pads.dq.oe))
-                self.assertEqual(int(dq_o[2*(i//2):2*(i//2)+2], 16), (yield dut.pads.dq.o))
+                if (yield dut.pads.dq.oe):
+                    self.assertEqual(int(dq_o[2*(i//2):2*(i//2)+2], 16), (yield dut.pads.dq.o))
                 self.assertEqual(c2bool(rwds_oe[i]), (yield dut.pads.rwds.oe))
                 self.assertEqual(c2bool(rwds_o[i]), (yield dut.pads.rwds.o))
                 yield
@@ -121,7 +124,8 @@ class TestHyperBus(unittest.TestCase):
                 self.assertEqual(c2bool(clk[i]), (yield dut.pads.clk))
                 self.assertEqual(c2bool(cs_n[i]), (yield dut.pads.cs_n))
                 self.assertEqual(c2bool(dq_oe[i]), (yield dut.pads.dq.oe))
-                self.assertEqual(int(dq_o[2*(i//2):2*(i//2)+2], 16), (yield dut.pads.dq.o))
+                if (yield dut.pads.dq.oe):
+                    self.assertEqual(int(dq_o[2*(i//2):2*(i//2)+2], 16), (yield dut.pads.dq.o))
                 self.assertEqual(c2bool(rwds_oe[i]), (yield dut.pads.rwds.oe))
                 self.assertEqual(c2bool(rwds_o[i]), (yield dut.pads.rwds.o))
                 yield
@@ -148,7 +152,8 @@ class TestHyperBus(unittest.TestCase):
                 self.assertEqual(c2bool(clk[i]), (yield dut.pads.clk))
                 self.assertEqual(c2bool(cs_n[i]), (yield dut.pads.cs_n))
                 self.assertEqual(c2bool(dq_oe[i]), (yield dut.pads.dq.oe))
-                self.assertEqual(int(dq_o[2*(i//2):2*(i//2)+2], 16), (yield dut.pads.dq.o))
+                if (yield dut.pads.dq.oe):
+                    self.assertEqual(int(dq_o[2*(i//2):2*(i//2)+2], 16), (yield dut.pads.dq.o))
                 self.assertEqual(c2bool(rwds_oe[i]), (yield dut.pads.rwds.oe))
                 yield
 
@@ -174,7 +179,8 @@ class TestHyperBus(unittest.TestCase):
                 self.assertEqual(c2bool(clk[i]), (yield dut.pads.clk))
                 self.assertEqual(c2bool(cs_n[i]), (yield dut.pads.cs_n))
                 self.assertEqual(c2bool(dq_oe[i]), (yield dut.pads.dq.oe))
-                self.assertEqual(int(dq_o[2*(i//2):2*(i//2)+2], 16), (yield dut.pads.dq.o))
+                if (yield dut.pads.dq.oe):
+                    self.assertEqual(int(dq_o[2*(i//2):2*(i//2)+2], 16), (yield dut.pads.dq.o))
                 self.assertEqual(c2bool(rwds_oe[i]), (yield dut.pads.rwds.oe))
                 yield
 
@@ -200,7 +206,8 @@ class TestHyperBus(unittest.TestCase):
                 self.assertEqual(c2bool(clk[i]), (yield dut.pads.clk))
                 self.assertEqual(c2bool(cs_n[i]), (yield dut.pads.cs_n))
                 self.assertEqual(c2bool(dq_oe[i]), (yield dut.pads.dq.oe))
-                self.assertEqual(int(dq_o[2*(i//2):2*(i//2)+2], 16), (yield dut.pads.dq.o))
+                if (yield dut.pads.dq.oe):
+                    self.assertEqual(int(dq_o[2*(i//2):2*(i//2)+2], 16), (yield dut.pads.dq.o))
                 self.assertEqual(c2bool(rwds_oe[i]), (yield dut.pads.rwds.oe))
                 yield
 
@@ -226,7 +233,8 @@ class TestHyperBus(unittest.TestCase):
                 self.assertEqual(c2bool(clk[i]), (yield dut.pads.clk))
                 self.assertEqual(c2bool(cs_n[i]), (yield dut.pads.cs_n))
                 self.assertEqual(c2bool(dq_oe[i]), (yield dut.pads.dq.oe))
-                self.assertEqual(int(dq_o[2*(i//2):2*(i//2)+2], 16), (yield dut.pads.dq.o))
+                if (yield dut.pads.dq.oe):
+                    self.assertEqual(int(dq_o[2*(i//2):2*(i//2)+2], 16), (yield dut.pads.dq.o))
                 self.assertEqual(c2bool(rwds_oe[i]), (yield dut.pads.rwds.oe))
                 yield
 
@@ -255,7 +263,8 @@ class TestHyperBus(unittest.TestCase):
                 self.assertEqual(c2bool(clk[i]), (yield dut.pads.clk))
                 self.assertEqual(c2bool(cs_n[i]), (yield dut.pads.cs_n))
                 self.assertEqual(c2bool(dq_oe[i]), (yield dut.pads.dq.oe))
-                self.assertEqual(int(dq_o[2*(i//2):2*(i//2)+2], 16), (yield dut.pads.dq.o))
+                if (yield dut.pads.dq.oe):
+                    self.assertEqual(int(dq_o[2*(i//2):2*(i//2)+2], 16), (yield dut.pads.dq.o))
                 self.assertEqual(c2bool(rwds_oe[i]), (yield dut.pads.rwds.oe))
                 self.assertEqual(c2bool(rwds_o[i]), (yield dut.pads.rwds.o))
                 yield
