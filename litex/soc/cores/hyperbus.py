@@ -77,7 +77,7 @@ class HyperRAM(LiteXModule):
         clk_phase = Signal(2)
         cs        = Signal()
         ca        = Signal(48)
-        ca_active = Signal()
+        ca_oe     = Signal()
         sr        = Signal(48)
         sr_next   = Signal(48)
         dq_o      = Signal(dw)
@@ -143,9 +143,14 @@ class HyperRAM(LiteXModule):
         dqi = Signal(dw)
         self.sync += dqi.eq(dq_i) # Sample on 90° and 270° Clk Phases.
         self.comb += [
-            sr_next.eq(Cat(dqi, sr[:-dw])),
-            If(ca_active,
-                sr_next.eq(Cat(dqi[:8], sr[:-8])) # Only 8-bit during Command/Address.
+            # Command/Address: On 8-bit, so 8-bit shift and no input.
+            If(ca_oe,
+                sr_next[8:].eq(sr),
+            # Data: dw-bit shift.
+            ).Else(
+                sr_next[:dw].eq(dqi),
+                sr_next[dw:].eq(sr),
+
             )
         ]
         self.sync += If(clk_phase[0] == 0, sr.eq(sr_next)) # Shift on 0° and 180° Clk Phases.
@@ -155,7 +160,7 @@ class HyperRAM(LiteXModule):
             bus.dat_r.eq(sr_next),
             If(dq_oe,
                 dq_o.eq(sr[-dw:]),
-                If(ca_active,
+                If(ca_oe,
                     dq_o.eq(sr[-8:]) # Only use 8-bit for Command/Address.
                 )
             )
@@ -237,7 +242,7 @@ class HyperRAM(LiteXModule):
             # Set CSn.
             cs.eq(1),
             # Send Command on DQ.
-            ca_active.eq(1),
+            ca_oe.eq(1),
             dq_oe.eq(1),
             # Wait for 6*2 cycles...
             If(cycles == (6*2 - 1),
@@ -255,7 +260,7 @@ class HyperRAM(LiteXModule):
             # Set CSn.
             cs.eq(1),
             # Send Reg on DQ.
-            ca_active.eq(1),
+            ca_oe.eq(1),
             dq_oe.eq(1),
             # Wait for 2 cycles...
             If(cycles == (2 - 1),
@@ -267,7 +272,7 @@ class HyperRAM(LiteXModule):
             # Set CSn.
             cs.eq(1),
             # Send Reg on DQ.
-            ca_active.eq(1),
+            ca_oe.eq(1),
             dq_oe.eq(1),
             # Wait for 2 cycles...
             If(cycles == (2 - 1),
@@ -298,7 +303,7 @@ class HyperRAM(LiteXModule):
                 burst_timer.wait.eq(1),
                 # Set CSn.
                 cs.eq(1),
-                ca_active.eq(reg_read_req),
+                ca_oe.eq(reg_read_req),
                 # Send Data on DQ/RWDS (for write).
                 If(bus_we,
                     dq_oe.eq(1),
