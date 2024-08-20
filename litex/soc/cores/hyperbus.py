@@ -7,6 +7,9 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
+from migen.fhdl.specials import Tristate
+
+from litex.build.io import SDRTristate
 
 from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
@@ -312,9 +315,26 @@ class HyperRAM(LiteXModule):
         self.sync += cycles.eq(cycles + 1)
         self.sync += If(fsm.next_state != fsm.state, cycles.eq(0))
 
-    def add_tristate(self, pad):
-        t = TSTriple(len(pad))
-        self.specials += t.get_tristate(pad)
+    def add_tristate(self, pad, register=False):
+        class TristatePads:
+            def __init__(self, width):
+                self.o  = Signal(len(pad))
+                self.oe = Signal()
+                self.i  = Signal(len(pad))
+        t = TristatePads(len(pad))
+        if register:
+            for n in range(len(pad)):
+                self.specials += SDRTristate(pad,
+                    o  = t.o[n],
+                    oe = t.oe,
+                    i  = t.i[n],
+                )
+        else:
+            self.specials += Tristate(pad,
+                o  = t.o,
+                oe = t.oe,
+                i  = t.i,
+            )
         return t
 
     def add_csr(self, default_latency=6):
