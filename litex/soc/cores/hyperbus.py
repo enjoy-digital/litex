@@ -103,27 +103,27 @@ class HyperRAM(LiteXModule):
             self.specials += DifferentialOutput(clk, pads.clk_p, pads.clk_n)
 
         # Burst Timer ------------------------------------------------------------------------------
-        sys_clk_freq = 10e6 if sys_clk_freq is None else sys_clk_freq
-        burst_timer  = WaitTimer(sys_clk_freq*self.tCSM)
-        self.burst_timer = burst_timer
+        if sys_clk_freq is None:
+            sys_clk_freq = 10e6 # Defaults to 10MHz if not specified.
+        self.burst_timer = burst_timer = WaitTimer(sys_clk_freq * self.tCSM)
 
         # Clock Generation (sys_clk/4) -------------------------------------------------------------
         self.sync += clk_phase.eq(clk_phase + 1)
         cases = {}
-        cases[1] = clk.eq(cs) # Set pads clk on 90° (if cs is set)
-        cases[3] = clk.eq(0)  # Clear pads clk on 270°
+        cases[1] = clk.eq(cs) # Set   pads Clk on  90° (When CS is set).
+        cases[3] = clk.eq(0)  # Clear pads Clk on 270°.
         self.sync += Case(clk_phase, cases)
 
         # Data Shift-In Register -------------------------------------------------------------------
         dqi = Signal(dw)
-        self.sync += dqi.eq(dq.i) # Sample on 90° and 270°
+        self.sync += dqi.eq(dq.i) # Sample on 90° and 270° Clk Phases.
         self.comb += [
             sr_next.eq(Cat(dqi, sr[:-dw])),
             If(ca_active,
                 sr_next.eq(Cat(dqi[:8], sr[:-8])) # Only 8-bit during Command/Address.
             )
         ]
-        self.sync += If(clk_phase[0] == 0, sr.eq(sr_next)) # Shift on 0° and 180°
+        self.sync += If(clk_phase[0] == 0, sr.eq(sr_next)) # Shift on 0° and 180° Clk Phases.
 
         # Data Shift-Out Register ------------------------------------------------------------------
         self.comb += [
@@ -131,7 +131,7 @@ class HyperRAM(LiteXModule):
             If(dq.oe,
                 dq.o.eq(sr[-dw:]),
                 If(ca_active,
-                    dq.o.eq(sr[-8:]) # Only 8-bit during Command/Address.
+                    dq.o.eq(sr[-8:]) # Only use 8-bit for Command/Address.
                 )
             )
         ]
