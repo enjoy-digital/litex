@@ -89,8 +89,8 @@ class HyperRAM(LiteXModule):
 
         # Tristates.
         # ----------
-        dq        = self.add_tristate(pads.dq)   if not hasattr(pads.dq,   "oe") else pads.dq
-        rwds      = self.add_tristate(pads.rwds) if not hasattr(pads.rwds, "oe") else pads.rwds
+        dq        = self.add_tristate(pads.dq,   register=False) if not hasattr(pads.dq,   "oe") else pads.dq
+        rwds      = self.add_tristate(pads.rwds, register=False) if not hasattr(pads.rwds, "oe") else pads.rwds
         self.comb += [
             # DQ.
             dq.o.eq( dq_o),
@@ -357,10 +357,11 @@ class HyperRAM(LiteXModule):
         t = TristatePads(len(pad))
         if register:
             for n in range(len(pad)):
-                self.specials += SDRTristate(pad,
-                    o  = t.o[n],
-                    oe = t.oe,
-                    i  = t.i[n],
+                self.specials += SDRTristate(pad[n],
+                    o   = t.o[n],
+                    oe  = t.oe,
+                    i   = t.i[n],
+                    clk = ClockSignal("sys"),
                 )
         else:
             self.specials += Tristate(pad,
