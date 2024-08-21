@@ -44,7 +44,7 @@ class HyperRAM(LiteXModule):
         pads (Record)            : Platform pads of HyperRAM.
         bus (wishbone.Interface) : Wishbone Interface.
 """
-    def __init__(self, pads, latency=6, latency_mode="variable", sys_clk_freq=10e6, clk_ratio="2:1", with_csr=True):
+    def __init__(self, pads, latency=6, latency_mode="variable", sys_clk_freq=10e6, clk_ratio="4:1", with_csr=True):
         self.pads = pads
         self.bus  = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
 
@@ -76,7 +76,7 @@ class HyperRAM(LiteXModule):
         ]
         self.cd_io = cd_io = {
             "4:1": "sys",
-            "2:1": "sys_2x"
+            "2:1": "sys2x"
         }[clk_ratio]
         self.sync_io = sync_io = getattr(self.sync, cd_io)
 
@@ -158,7 +158,10 @@ class HyperRAM(LiteXModule):
             0b10 : clk.eq(cs), # 180°
             0b11 : clk.eq(0),  # 270° / Clr Clk.
         }
-        self.sync_io += Case(clk_phase, cases)
+        if clk_ratio in ["4:1"]:
+            self.comb += Case(clk_phase, cases)
+        if clk_ratio in ["2:1"]:
+            self.sync_io += Case(clk_phase, cases)
 
         # Data Shift-In Register -------------------------------------------------------------------
         self.comb += [
@@ -171,7 +174,10 @@ class HyperRAM(LiteXModule):
                 sr_next[dw:].eq(sr),
             )
         ]
-        self.sync += sr.eq(sr_next)
+        if clk_ratio in ["4:1"]:
+            self.sync += If(clk_phase[0] == 0, sr.eq(sr_next))
+        if clk_ratio in ["2:1"]:
+            self.sync += sr.eq(sr_next)
 
         # Data Shift-Out Register ------------------------------------------------------------------
         self.comb += bus.dat_r.eq(sr_next)
