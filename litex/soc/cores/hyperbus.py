@@ -44,9 +44,26 @@ class HyperRAM(LiteXModule):
         pads (Record)            : Platform pads of HyperRAM.
         bus (wishbone.Interface) : Wishbone Interface.
 """
-    def __init__(self, pads, latency=6, latency_mode="variable", sys_clk_freq=10e6, with_csr=True):
+    def __init__(self, pads, latency=6, latency_mode="variable", sys_clk_freq=10e6, clk_ratio="4:1", with_csr=True):
         self.pads = pads
         self.bus  = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+
+        # # #
+
+        # Parameters.
+        # -----------
+        dw = len(pads.dq) if not hasattr(pads.dq, "oe") else len(pads.dq.o)
+        assert dw in [8, 16]
+        assert latency_mode in ["fixed", "variable"]
+        assert clk_ratio in [
+            "4:1", # HyperRAM Clk = Sys Clk/4.
+            "2:1", # HyperRAM Clk = Sys Clk/2.
+        ]
+        self.cd_io = cd_io = {
+            "4:1": "sys",
+            "2:1": "sys2x"
+        }[clk_ratio]
+        self.sync_io = sync_io = getattr(self.sync, cd_io)
 
         # Config/Reg Interface.
         # ---------------------
@@ -62,14 +79,6 @@ class HyperRAM(LiteXModule):
         self.reg_read_data     = Signal(16)
         if with_csr:
             self.add_csr(default_latency=latency)
-
-        # # #
-
-        # Parameters.
-        # -----------
-        dw = len(pads.dq) if not hasattr(pads.dq, "oe") else len(pads.dq.o)
-        assert dw in [8, 16]
-        assert latency_mode in ["fixed", "variable"]
 
         # Internal Signals.
         # -----------------
@@ -100,7 +109,7 @@ class HyperRAM(LiteXModule):
             rwds.o.eq( rwds_o),
             rwds.oe.eq(rwds_oe),
         ]
-        self.sync += [
+        self.sync_io += [
             # DQ.
             dq_i.eq(dq.i),
 
@@ -112,15 +121,15 @@ class HyperRAM(LiteXModule):
 
         # Rst.
         if hasattr(pads, "rst_n"):
-            self.sync += pads.rst_n.eq(1 & ~self.conf_rst)
+            self.sync_io += pads.rst_n.eq(1 & ~self.conf_rst)
 
         # CSn.
         pads.cs_n.reset = 2**len(pads.cs_n) - 1
-        self.sync += pads.cs_n[0].eq(~cs) # Only supporting 1 CS.
+        self.sync_io += pads.cs_n[0].eq(~cs) # Only supporting 1 CS.
 
         # Clk.
         pads_clk = Signal()
-        self.sync += pads_clk.eq(clk)
+        self.sync_io += pads_clk.eq(clk)
         if hasattr(pads, "clk"):
             # Single Ended Clk.
             self.comb += pads.clk.eq(pads_clk)
@@ -133,14 +142,11 @@ class HyperRAM(LiteXModule):
         # Burst Timer ------------------------------------------------------------------------------
         self.burst_timer = burst_timer = WaitTimer(sys_clk_freq * self.tCSM)
 
-        # Clock Generation (sys_clk/4) -------------------------------------------------------------
-        self.sync += [
+        # Clk Generation ---------------------------------------------------------------------------
+        self.sync_io += [
+            clk_phase.eq(0b00),
             If(cs,
-                # Increment Clk Phase on CS.
                 clk_phase.eq(clk_phase + 1)
-            ).Else(
-                # Else set Clk Phase to default value.
-                clk_phase.eq(0b00)
             )
         ]
         cases = {
@@ -149,7 +155,10 @@ class HyperRAM(LiteXModule):
             0b10 : clk.eq(cs), # 180°
             0b11 : clk.eq(0),  # 270° / Clr Clk.
         }
-        self.comb += Case(clk_phase, cases)
+        if clk_ratio in ["4:1"]:
+            self.comb += Case(clk_phase, cases)
+        if clk_ratio in ["2:1"]:
+            self.sync_io += Case(clk_phase, cases)
 
         # Data Shift-In Register -------------------------------------------------------------------
         self.comb += [
@@ -162,7 +171,10 @@ class HyperRAM(LiteXModule):
                 sr_next[dw:].eq(sr),
             )
         ]
-        self.sync += If(clk_phase[0] == 0, sr.eq(sr_next)) # Shift on 0°/180° (and sampled on 90°/270°).
+        if clk_ratio in ["4:1"]:
+            self.sync += If(clk_phase[0] == 0, sr.eq(sr_next))
+        if clk_ratio in ["2:1"]:
+            self.sync += sr.eq(sr_next)
 
         # Data Shift-Out Register ------------------------------------------------------------------
         self.comb += bus.dat_r.eq(sr_next)
@@ -250,7 +262,7 @@ class HyperRAM(LiteXModule):
             # Send Command on DQ.
             ca_oe.eq(1),
             dq_oe.eq(1),
-            # Wait for 6*2 cycles...
+            # Wait for 6*2 cycles.
             If(cycles == (6*2 - 1),
                 If(reg_write_req,
                     NextValue(sr, Cat(Signal(40), self.reg_write_data[8:])),
@@ -266,7 +278,7 @@ class HyperRAM(LiteXModule):
             # Send Reg on DQ.
             ca_oe.eq(1),
             dq_oe.eq(1),
-            # Wait for 2 cycles...
+            # Wait for 2 cycles.
             If(cycles == (2 - 1),
                 NextValue(sr, Cat(Signal(40), self.reg_write_data[:8])),
                 NextState("REG-WRITE-1")
@@ -276,7 +288,7 @@ class HyperRAM(LiteXModule):
             # Send Reg on DQ.
             ca_oe.eq(1),
             dq_oe.eq(1),
-            # Wait for 2 cycles...
+            # Wait for 2 cycles.
             If(cycles == (2 - 1),
                 reg_ep.ready.eq(1),
                 NextValue(self.reg_write_done, 1),
@@ -308,7 +320,7 @@ class HyperRAM(LiteXModule):
                     rwds_oe.eq(1),
                     *[rwds_o[dw//8-1-i].eq(~bus_sel[4-1-n*dw//8-i]) for i in range(dw//8)],
                 ),
-                # Wait for 2 cycles (since HyperRAM's Clk = sys_clk/4).
+                # Wait for 2 cycles.
                 If(cycles == (2 - 1),
                     # Set next default state (with rollover for bursts).
                     NextState(f"READ-WRITE-DATA{(n + 1)%states}"),
@@ -347,8 +359,16 @@ class HyperRAM(LiteXModule):
 
         # FSM Cycles -------------------------------------------------------------------------------
         fsm.finalize()
-        self.sync += cycles.eq(cycles + 1)
-        self.sync += If(fsm.next_state != fsm.state, cycles.eq(0))
+        cycles_rst = {
+            "4:1" : 0,
+            "2:1" : 1,
+        }[clk_ratio]
+        cycles_inc = {
+            "4:1" : 1,
+            "2:1" : 2,
+        }[clk_ratio]
+        self.sync += cycles.eq(cycles + cycles_inc)
+        self.sync += If(fsm.next_state != fsm.state, cycles.eq(cycles_rst))
 
     def add_tristate(self, pad, register=False):
         class TristatePads:
@@ -363,7 +383,7 @@ class HyperRAM(LiteXModule):
                     o   = t.o[n],
                     oe  = t.oe,
                     i   = t.i[n],
-                    clk = ClockSignal("sys"),
+                    clk = ClockSignal(cd_io),
                 )
         else:
             self.specials += Tristate(pad,
@@ -388,9 +408,19 @@ class HyperRAM(LiteXModule):
             CSRField("latency_mode", offset=0, size=1, values=[
                 ("``0b0``", "Fixed Latency."),
                 ("``0b1``", "Variable Latency."),
-            ])
+            ]),
+            CSRField("clk_ratio", offset=1, size=4, values=[
+                ("``4``", "HyperRAM Clk = Sys Clk/4."),
+                ("``2``", "HyperRAM Clk = Sys Clk/2."),
+            ]),
         ])
-        self.comb += self.status.fields.latency_mode.eq(self.stat_latency_mode)
+        self.comb += [
+            self.status.fields.latency_mode.eq(self.stat_latency_mode),
+            self.status.fields.clk_ratio.eq({
+                "sys"  : 4,
+                "sys2x": 2,
+            }[self.cd_io]),
+        ]
 
         # Reg Interface.
         # --------------
