@@ -169,9 +169,9 @@ class TestHyperBus(unittest.TestCase):
     def test_hyperram_read_latency_5_2x(self):
         def fpga_gen(dut):
             dat = yield from dut.bus.read(0x1234)
-            #self.assertEqual(dat, 0xdeadbeef)
+            self.assertEqual(dat, 0xdeadbeef)
             dat = yield from dut.bus.read(0x1235)
-            #self.assertEqual(dat, 0xcafefade)
+            self.assertEqual(dat, 0xcafefade)
 
         def hyperram_gen(dut):
             clk     = "___--__--__--__--__--__--__--__--__--__--__--__--__--__--__--__--__--__--_"
@@ -191,7 +191,7 @@ class TestHyperBus(unittest.TestCase):
                 yield
 
         dut = HyperRAM(HyperRamPads(), latency=5, latency_mode="fixed")
-        run_simulation(dut, [fpga_gen(dut), hyperram_gen(dut)], {"sys": 4, "sys_2x": 2}, vcd_name="sim.vcd")
+        run_simulation(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
 
     def test_hyperram_read_latency_6_2x(self):
         def fpga_gen(dut):
