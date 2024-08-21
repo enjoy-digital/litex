@@ -57,12 +57,15 @@ static uint16_t hyperram_get_chip_latency_setting(uint32_t clk_freq) {
 
 static void hyperram_configure_latency(void) {
     uint16_t config_reg_0 = 0x8f2f;
+    uint8_t  core_clk_ratio;
     uint16_t core_latency_setting;
     uint16_t chip_latency_setting;
 
     /* Compute Latency settings */
-    core_latency_setting = hyperram_get_core_latency_setting(CONFIG_CLOCK_FREQUENCY/2);
-    chip_latency_setting = hyperram_get_chip_latency_setting(CONFIG_CLOCK_FREQUENCY/2);
+    core_clk_ratio = (hyperram_status_read() >> CSR_HYPERRAM_STATUS_CLK_RATIO_OFFSET & 0xf);
+    printf("HyperRAM Clk Ratio %d:1.\n", core_clk_ratio);
+    core_latency_setting = hyperram_get_core_latency_setting(CONFIG_CLOCK_FREQUENCY/core_clk_ratio);
+    chip_latency_setting = hyperram_get_chip_latency_setting(CONFIG_CLOCK_FREQUENCY/core_clk_ratio);
 
     /* Write Latency to HyperRAM Core */
     printf("HyperRAM Core Latency: %d CK (X1).\n", core_latency_setting);

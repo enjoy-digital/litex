@@ -48,21 +48,6 @@ class HyperRAM(LiteXModule):
         self.pads = pads
         self.bus  = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
 
-        # Config/Reg Interface.
-        # ---------------------
-        self.conf_rst          = Signal()
-        self.conf_latency      = Signal(8, reset=latency)
-        self.stat_latency_mode = Signal(reset={"fixed": 0, "variable": 1}[latency_mode])
-        self.reg_write         = Signal()
-        self.reg_read          = Signal()
-        self.reg_addr          = Signal(2)
-        self.reg_write_done    = Signal()
-        self.reg_read_done     = Signal()
-        self.reg_write_data    = Signal(16)
-        self.reg_read_data     = Signal(16)
-        if with_csr:
-            self.add_csr(default_latency=latency)
-
         # # #
 
         # Parameters.
@@ -79,6 +64,21 @@ class HyperRAM(LiteXModule):
             "2:1": "sys2x"
         }[clk_ratio]
         self.sync_io = sync_io = getattr(self.sync, cd_io)
+
+        # Config/Reg Interface.
+        # ---------------------
+        self.conf_rst          = Signal()
+        self.conf_latency      = Signal(8, reset=latency)
+        self.stat_latency_mode = Signal(reset={"fixed": 0, "variable": 1}[latency_mode])
+        self.reg_write         = Signal()
+        self.reg_read          = Signal()
+        self.reg_addr          = Signal(2)
+        self.reg_write_done    = Signal()
+        self.reg_read_done     = Signal()
+        self.reg_write_data    = Signal(16)
+        self.reg_read_data     = Signal(16)
+        if with_csr:
+            self.add_csr(default_latency=latency)
 
         # Internal Signals.
         # -----------------
@@ -411,9 +411,19 @@ class HyperRAM(LiteXModule):
             CSRField("latency_mode", offset=0, size=1, values=[
                 ("``0b0``", "Fixed Latency."),
                 ("``0b1``", "Variable Latency."),
-            ])
+            ]),
+            CSRField("clk_ratio", offset=1, size=4, values=[
+                ("``4``", "HyperRAM Clk = Sys Clk/4."),
+                ("``2``", "HyperRAM Clk = Sys Clk/2."),
+            ]),
         ])
-        self.comb += self.status.fields.latency_mode.eq(self.stat_latency_mode)
+        self.comb += [
+            self.status.fields.latency_mode.eq(self.stat_latency_mode),
+            self.status.fields.clk_ratio.eq({
+                "sys"  : 4,
+                "sys2x": 2,
+            }[self.cd_io]),
+        ]
 
         # Reg Interface.
         # --------------
