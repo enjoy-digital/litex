@@ -142,14 +142,11 @@ class HyperRAM(LiteXModule):
         # Burst Timer ------------------------------------------------------------------------------
         self.burst_timer = burst_timer = WaitTimer(sys_clk_freq * self.tCSM)
 
-        # Clock Generation (sys_clk/4) -------------------------------------------------------------
+        # Clk Generation ---------------------------------------------------------------------------
         self.sync_io += [
+            clk_phase.eq(0b00),
             If(cs,
-                # Increment Clk Phase on CS.
                 clk_phase.eq(clk_phase + 1)
-            ).Else(
-                # Else set Clk Phase to default value.
-                clk_phase.eq(0b00)
             )
         ]
         cases = {
