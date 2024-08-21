@@ -116,7 +116,7 @@ class HyperRAM(LiteXModule):
 
         # CSn.
         pads.cs_n.reset = 2**len(pads.cs_n) - 1
-        self.sync.sys += pads.cs_n[0].eq(~cs) # Only supporting 1 CS.
+        self.sync += pads.cs_n[0].eq(~cs) # Only supporting 1 CS.
 
         # Clk.
         pads_clk = Signal()
@@ -145,9 +145,9 @@ class HyperRAM(LiteXModule):
         ]
         cases = {
             0b00 : clk.eq(0),  #   0°
-            0b01 : clk.eq(cs), #  90°
+            0b01 : clk.eq(cs), #  90° / Set Clk.
             0b10 : clk.eq(cs), # 180°
-            0b11 : clk.eq(0),  # 270°
+            0b11 : clk.eq(0),  # 270° / Clr Clk.
         }
         self.sync.sys_2x += Case(clk_phase, cases)
 
