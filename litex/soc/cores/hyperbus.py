@@ -100,7 +100,7 @@ class HyperRAM(LiteXModule):
             rwds.o.eq( rwds_o),
             rwds.oe.eq(rwds_oe),
         ]
-        self.sync += [
+        self.sync.sys_2x += [
             # DQ.
             dq_i.eq(dq.i),
 
@@ -116,11 +116,11 @@ class HyperRAM(LiteXModule):
 
         # CSn.
         pads.cs_n.reset = 2**len(pads.cs_n) - 1
-        self.sync += pads.cs_n[0].eq(~cs) # Only supporting 1 CS.
+        self.sync.sys += pads.cs_n[0].eq(~cs) # Only supporting 1 CS.
 
         # Clk.
         pads_clk = Signal()
-        self.sync += pads_clk.eq(clk)
+        self.sync.sys_2x += pads_clk.eq(clk)
         if hasattr(pads, "clk"):
             # Single Ended Clk.
             self.comb += pads.clk.eq(pads_clk)
@@ -134,7 +134,7 @@ class HyperRAM(LiteXModule):
         self.burst_timer = burst_timer = WaitTimer(sys_clk_freq * self.tCSM)
 
         # Clock Generation (sys_clk/4) -------------------------------------------------------------
-        self.sync += [
+        self.sync.sys_2x += [
             If(cs,
                 # Increment Clk Phase on CS.
                 clk_phase.eq(clk_phase + 1)
@@ -145,11 +145,11 @@ class HyperRAM(LiteXModule):
         ]
         cases = {
             0b00 : clk.eq(0),  #   0°
-            0b01 : clk.eq(cs), #  90° / Set Clk.
+            0b01 : clk.eq(cs), #  90°
             0b10 : clk.eq(cs), # 180°
-            0b11 : clk.eq(0),  # 270° / Clr Clk.
+            0b11 : clk.eq(0),  # 270°
         }
-        self.comb += Case(clk_phase, cases)
+        self.sync.sys_2x += Case(clk_phase, cases)
 
         # Data Shift-In Register -------------------------------------------------------------------
         self.comb += [
@@ -162,7 +162,7 @@ class HyperRAM(LiteXModule):
                 sr_next[dw:].eq(sr),
             )
         ]
-        self.sync += If(clk_phase[0] == 0, sr.eq(sr_next)) # Shift on 0°/180° (and sampled on 90°/270°).
+        self.sync += sr.eq(sr_next)
 
         # Data Shift-Out Register ------------------------------------------------------------------
         self.comb += bus.dat_r.eq(sr_next)
@@ -250,8 +250,8 @@ class HyperRAM(LiteXModule):
             # Send Command on DQ.
             ca_oe.eq(1),
             dq_oe.eq(1),
-            # Wait for 6*2 cycles...
-            If(cycles == (6*2 - 1),
+            # Wait for 6 cycles...
+            If(cycles == (6 - 1),
                 If(reg_write_req,
                     NextValue(sr, Cat(Signal(40), self.reg_write_data[8:])),
                     NextState("REG-WRITE-0")
@@ -266,27 +266,21 @@ class HyperRAM(LiteXModule):
             # Send Reg on DQ.
             ca_oe.eq(1),
             dq_oe.eq(1),
-            # Wait for 2 cycles...
-            If(cycles == (2 - 1),
-                NextValue(sr, Cat(Signal(40), self.reg_write_data[:8])),
-                NextState("REG-WRITE-1")
-            )
+            NextValue(sr, Cat(Signal(40), self.reg_write_data[:8])),
+            NextState("REG-WRITE-1")
         )
         fsm.act("REG-WRITE-1",
             # Send Reg on DQ.
             ca_oe.eq(1),
             dq_oe.eq(1),
-            # Wait for 2 cycles...
-            If(cycles == (2 - 1),
-                reg_ep.ready.eq(1),
-                NextValue(self.reg_write_done, 1),
-                NextState("IDLE")
-            )
+            reg_ep.ready.eq(1),
+            NextValue(self.reg_write_done, 1),
+            NextState("IDLE")
         )
         fsm.act("WAIT-LATENCY",
-            # Wait for 1X or 2X Latency cycles... (-4 since count start in the middle of the command).
-            If(((cycles == 2*(self.conf_latency * 4) - 4 - 1) &  refresh) | # 2X Latency (No DRAM refresh required).
-               ((cycles == 1*(self.conf_latency * 4) - 4 - 1) & ~refresh) , # 1X Latency (   DRAM refresh required).
+            # Wait for 1X or 2X Latency cycles... (-2 since count start in the middle of the command).
+            If(((cycles == 2*(self.conf_latency * 2) - 2 - 1) &  refresh) | # 2X Latency (No DRAM refresh required).
+               ((cycles == 1*(self.conf_latency * 2) - 2 - 1) & ~refresh) , # 1X Latency (   DRAM refresh required).
                 # Latch Bus.
                 bus_latch.eq(1),
                 # Early Write Ack (to allow bursting).
@@ -308,34 +302,31 @@ class HyperRAM(LiteXModule):
                     rwds_oe.eq(1),
                     *[rwds_o[dw//8-1-i].eq(~bus_sel[4-1-n*dw//8-i]) for i in range(dw//8)],
                 ),
-                # Wait for 2 cycles (since HyperRAM's Clk = sys_clk/4).
-                If(cycles == (2 - 1),
-                    # Set next default state (with rollover for bursts).
-                    NextState(f"READ-WRITE-DATA{(n + 1)%states}"),
-                    # On last state, see if we can continue the burst or if we should end it.
-                    If(n == (states - 1),
-                        NextValue(first, 0),
-                        # Continue burst when a consecutive access is ready.
-                        If(~reg_read_req & bus.stb & bus.cyc & (bus.we == bus_we) & (bus.adr == (bus_adr + 1)) & (~burst_timer.done),
-                            # Latch Bus.
-                            bus_latch.eq(1),
-                            # Early Write Ack (to allow bursting).
-                            bus.ack.eq(bus.we)
-                        # Else end the burst.
-                        ).Elif(bus_we | (~first) | burst_timer.done,
-                            NextState("IDLE")
-                        )
-                    ),
-                    # Read Ack (when dat_r ready).
-                    If((n == 0) & ~first,
-                        If(reg_read_req,
-                            reg_ep.ready.eq(1),
-                            NextValue(self.reg_read_done, 1),
-                            NextValue(self.reg_read_data, bus.dat_r),
-                            NextState("IDLE"),
-                        ).Else(
-                            bus.ack.eq(~bus_we),
-                        )
+                # Set next default state (with rollover for bursts).
+                NextState(f"READ-WRITE-DATA{(n + 1)%states}"),
+                # On last state, see if we can continue the burst or if we should end it.
+                If(n == (states - 1),
+                    NextValue(first, 0),
+                    # Continue burst when a consecutive access is ready.
+                    If(~reg_read_req & bus.stb & bus.cyc & (bus.we == bus_we) & (bus.adr == (bus_adr + 1)) & (~burst_timer.done),
+                        # Latch Bus.
+                        bus_latch.eq(1),
+                        # Early Write Ack (to allow bursting).
+                        bus.ack.eq(bus.we)
+                    # Else end the burst.
+                    ).Elif(bus_we | (~first) | burst_timer.done,
+                        NextState("IDLE")
+                    )
+                ),
+                # Read Ack (when dat_r ready).
+                If((n == 0) & ~first,
+                    If(reg_read_req,
+                        reg_ep.ready.eq(1),
+                        NextValue(self.reg_read_done, 1),
+                        NextValue(self.reg_read_data, bus.dat_r),
+                        NextState("IDLE"),
+                    ).Else(
+                        bus.ack.eq(~bus_we),
                     )
                 )
             )

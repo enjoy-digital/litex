@@ -61,8 +61,8 @@ static void hyperram_configure_latency(void) {
     uint16_t chip_latency_setting;
 
     /* Compute Latency settings */
-    core_latency_setting = hyperram_get_core_latency_setting(CONFIG_CLOCK_FREQUENCY/4);
-    chip_latency_setting = hyperram_get_chip_latency_setting(CONFIG_CLOCK_FREQUENCY/4);
+    core_latency_setting = hyperram_get_core_latency_setting(CONFIG_CLOCK_FREQUENCY/2);
+    chip_latency_setting = hyperram_get_chip_latency_setting(CONFIG_CLOCK_FREQUENCY/2);
 
     /* Write Latency to HyperRAM Core */
     printf("HyperRAM Core Latency: %d CK (X1).\n", core_latency_setting);
