@@ -74,6 +74,11 @@ class HyperRAM(LiteXModule):
             "4:1", # HyperRAM Clk = Sys Clk/4.
             "2:1", # HyperRAM Clk = Sys Clk/2.
         ]
+        self.cd_io = cd_io = {
+            "4:1": "sys",
+            "2:1": "sys_2x"
+        }[clk_ratio]
+        self.sync_io = sync_io = getattr(self.sync, cd_io)
 
         # Internal Signals.
         # -----------------
@@ -104,7 +109,7 @@ class HyperRAM(LiteXModule):
             rwds.o.eq( rwds_o),
             rwds.oe.eq(rwds_oe),
         ]
-        self.sync.sys_2x += [
+        self.sync_io += [
             # DQ.
             dq_i.eq(dq.i),
 
@@ -116,15 +121,15 @@ class HyperRAM(LiteXModule):
 
         # Rst.
         if hasattr(pads, "rst_n"):
-            self.sync += pads.rst_n.eq(1 & ~self.conf_rst)
+            self.sync_io += pads.rst_n.eq(1 & ~self.conf_rst)
 
         # CSn.
         pads.cs_n.reset = 2**len(pads.cs_n) - 1
-        self.sync += pads.cs_n[0].eq(~cs) # Only supporting 1 CS.
+        self.sync_io += pads.cs_n[0].eq(~cs) # Only supporting 1 CS.
 
         # Clk.
         pads_clk = Signal()
-        self.sync.sys_2x += pads_clk.eq(clk)
+        self.sync_io += pads_clk.eq(clk)
         if hasattr(pads, "clk"):
             # Single Ended Clk.
             self.comb += pads.clk.eq(pads_clk)
@@ -138,7 +143,7 @@ class HyperRAM(LiteXModule):
         self.burst_timer = burst_timer = WaitTimer(sys_clk_freq * self.tCSM)
 
         # Clock Generation (sys_clk/4) -------------------------------------------------------------
-        self.sync.sys_2x += [
+        self.sync_io += [
             If(cs,
                 # Increment Clk Phase on CS.
                 clk_phase.eq(clk_phase + 1)
@@ -153,7 +158,7 @@ class HyperRAM(LiteXModule):
             0b10 : clk.eq(cs), # 180°
             0b11 : clk.eq(0),  # 270° / Clr Clk.
         }
-        self.sync.sys_2x += Case(clk_phase, cases)
+        self.sync_io += Case(clk_phase, cases)
 
         # Data Shift-In Register -------------------------------------------------------------------
         self.comb += [
@@ -375,7 +380,7 @@ class HyperRAM(LiteXModule):
                     o   = t.o[n],
                     oe  = t.oe,
                     i   = t.i[n],
-                    clk = ClockSignal("sys"),
+                    clk = ClockSignal(cd_io),
                 )
         else:
             self.specials += Tristate(pad,
