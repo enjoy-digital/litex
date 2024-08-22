@@ -32,6 +32,7 @@ class HyperRAMPHY(LiteXModule):
         self.rwds_o  = Signal(data_width//8) # i.
         self.rwds_oe = Signal()              # i.
         self.rwds_i  = Signal(data_width//8) # o.
+        self.shift   = Signal()              # o.
 
         # # #
 
@@ -52,9 +53,9 @@ class HyperRAMPHY(LiteXModule):
 
         # Clk Gen.
         # --------
-        self.clk       = clk       = Signal()
-        self.clk_d     = clk_d     = Signal()
-        self.clk_phase = clk_phase = Signal(2)
+        clk       = Signal()
+        clk_d     = Signal()
+        clk_phase = Signal(2)
         _sync += [
             clk_phase.eq(0b00),
             If(self.cs,
@@ -68,6 +69,7 @@ class HyperRAMPHY(LiteXModule):
             })
         ]
         self.specials += MultiReg(clk, clk_d, clk_domain, n={"sys": 0, "sys2x": 1}[clk_domain])
+        self.comb += self.shift.eq(clk_phase[0] == 0 | (clk_domain == "sys2x"))
 
         # Clk Out.
         # --------
@@ -180,7 +182,7 @@ class HyperRAM(LiteXModule):
         shift_reg_load      = Signal()
         shift_reg_load_data = Signal(48)
         shift_reg_data      = Signal(48)
-        shift_reg_next_data = Signal(48)
+        shift_reg_data_next = Signal(48)
 
         # Rst --------------------------------------------------------------------------------------
         self.comb += phy.rst.eq(self.conf_rst)
@@ -195,20 +197,17 @@ class HyperRAM(LiteXModule):
             # During Command/Address Phase, only shift 8-bit per cycle.
             If(cmd_addr_oe,
                 phy.dq_o.eq(shift_reg_data[-8:]),                    # -> Output.
-                shift_reg_next_data[:8].eq(0),                       # <- Input (No Data).
-                shift_reg_next_data[8:].eq(shift_reg_data),          # Shift.
+                shift_reg_data_next[:8].eq(0),                       # <- Input (No Data).
+                shift_reg_data_next[8:].eq(shift_reg_data),          # Shift.
             ),
             # During Data Phase, shift data_width-bit per cycle.
             If(~cmd_addr_oe,
                 phy.dq_o.eq(shift_reg_data[-data_width:]),           # -> Output.
-                shift_reg_next_data[:data_width].eq(phy.dq_i),       # <- Input.
-                shift_reg_next_data[data_width:].eq(shift_reg_data), # Shift.
+                shift_reg_data_next[:data_width].eq(phy.dq_i),       # <- Input.
+                shift_reg_data_next[data_width:].eq(shift_reg_data), # Shift.
             )
         ]
-        if clk_ratio in ["4:1"]:
-            self.sync += If(phy.clk_phase[0] == 0, shift_reg_data.eq(shift_reg_next_data))
-        if clk_ratio in ["2:1"]:
-            self.sync += shift_reg_data.eq(shift_reg_next_data)
+        self.sync += If(phy.shift, shift_reg_data.eq(shift_reg_data_next))
 
         # Load.
         self.sync += If(shift_reg_load,
@@ -274,7 +273,7 @@ class HyperRAM(LiteXModule):
             shift_reg_load.eq(1),
             shift_reg_load_data.eq(Cat(Signal(16), bus.dat_w)),
         )
-        self.comb += bus.dat_r.eq(shift_reg_next_data)
+        self.comb += bus.dat_r.eq(shift_reg_data_next)
 
         # FSM (Sequencer) --------------------------------------------------------------------------
         cycles  = Signal(8)
