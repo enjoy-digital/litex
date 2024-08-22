@@ -175,12 +175,12 @@ class HyperRAM(LiteXModule):
 
         # Internal Signals.
         # -----------------
-        ca            = Signal(48)
-        ca_oe         = Signal()
-        sr_load       = Signal()
-        sr_load_value = Signal(48)
-        sr            = Signal(48)
-        sr_next       = Signal(48)
+        cmd_addr            = Signal(48)
+        cmd_addr_oe         = Signal()
+        shift_reg_load      = Signal()
+        shift_reg_load_data = Signal(48)
+        shift_reg_data      = Signal(48)
+        shift_reg_next_data = Signal(48)
 
         # Rst --------------------------------------------------------------------------------------
         self.comb += phy.rst.eq(self.conf_rst)
@@ -188,36 +188,32 @@ class HyperRAM(LiteXModule):
         # Burst Timer ------------------------------------------------------------------------------
         self.burst_timer = burst_timer = WaitTimer(sys_clk_freq * self.tCSM)
 
-        # Data Shift-In Register -------------------------------------------------------------------
+        # Shift Register ---------------------------------------------------------------------------
+
+        # Shift & Input/Output Data.
         self.comb += [
-            # Command/Address: On 8-bit, so 8-bit shift and no input.
-            If(ca_oe,
-                sr_next[8:].eq(sr),
-            # Data: On data_width-bit, so data_width-bit shift.
-            ).Else(
-                sr_next[:data_width].eq(phy.dq_i),
-                sr_next[data_width:].eq(sr),
+            # During Command/Address Phase, only shift 8-bit per cycle.
+            If(cmd_addr_oe,
+                phy.dq_o.eq(shift_reg_data[-8:]),                    # -> Output.
+                shift_reg_next_data[:8].eq(0),                       # <- Input (No Data).
+                shift_reg_next_data[8:].eq(shift_reg_data),          # Shift.
+            ),
+            # During Data Phase, shift data_width-bit per cycle.
+            If(~cmd_addr_oe,
+                phy.dq_o.eq(shift_reg_data[-data_width:]),           # -> Output.
+                shift_reg_next_data[:data_width].eq(phy.dq_i),       # <- Input.
+                shift_reg_next_data[data_width:].eq(shift_reg_data), # Shift.
             )
         ]
         if clk_ratio in ["4:1"]:
-            self.sync += If(phy.clk_phase[0] == 0, sr.eq(sr_next))
+            self.sync += If(phy.clk_phase[0] == 0, shift_reg_data.eq(shift_reg_next_data))
         if clk_ratio in ["2:1"]:
-            self.sync += sr.eq(sr_next)
-        self.sync += If(sr_load,
-            sr.eq(sr_load_value)
-        )
+            self.sync += shift_reg_data.eq(shift_reg_next_data)
 
-        # Data Shift-Out Register ------------------------------------------------------------------
-        self.comb += bus.dat_r.eq(sr_next)
-        self.comb += [
-            # Command/Address: 8-bit.
-            If(ca_oe,
-                phy.dq_o.eq(sr[-8:])
-            # Data: data_width-bit.
-            ).Else(
-                phy.dq_o.eq(sr[-data_width:])
-            )
-        ]
+        # Load.
+        self.sync += If(shift_reg_load,
+            shift_reg_data.eq(shift_reg_load_data)
+        )
 
         # Register Access/Buffer -------------------------------------------------------------------
         reg_wr_req = Signal()
@@ -245,22 +241,22 @@ class HyperRAM(LiteXModule):
         self.comb += [
             # Register Command Generation.
             If(reg_wr_req | reg_rd_req,
-                ca[47].eq(reg_ep.read), # R/W#
-                ca[46].eq(1),           # Register Space.
-                ca[45].eq(1),           # Burst Type (Linear)
+                cmd_addr[47].eq(reg_ep.read), # R/W#
+                cmd_addr[46].eq(1),           # Register Space.
+                cmd_addr[45].eq(1),           # Burst Type (Linear)
                 Case(reg_ep.addr, {
-                    0 : ca[0:40].eq(0x00_00_00_00_00), # Identification Register 0 (Read Only).
-                    1 : ca[0:40].eq(0x00_00_00_00_01), # Identification Register 1 (Read Only).
-                    2 : ca[0:40].eq(0x00_01_00_00_00), # Configuration Register 0.
-                    3 : ca[0:40].eq(0x00_01_00_00_01), # Configuration Register 1.
+                    0 : cmd_addr[0:40].eq(0x00_00_00_00_00), # Identification Register 0 (Read Only).
+                    1 : cmd_addr[0:40].eq(0x00_00_00_00_01), # Identification Register 1 (Read Only).
+                    2 : cmd_addr[0:40].eq(0x00_01_00_00_00), # Configuration Register 0.
+                    3 : cmd_addr[0:40].eq(0x00_01_00_00_01), # Configuration Register 1.
                 }),
             # Wishbone Command Generation.
             ).Else(
-                ca[47].eq(~bus.we),                # R/W#
-                ca[46].eq(0),                      # Memory Space.
-                ca[45].eq(1),                      # Burst Type (Linear)
-                ca[16:45].eq(bus.adr[3-ashift:]),  # Row & Upper Column Address
-                ca[ashift:3].eq(bus.adr),          # Lower Column Address
+                cmd_addr[47].eq(~bus.we),                # R/W#
+                cmd_addr[46].eq(0),                      # Memory Space.
+                cmd_addr[45].eq(1),                      # Burst Type (Linear)
+                cmd_addr[16:45].eq(bus.adr[3-ashift:]),  # Row & Upper Column Address
+                cmd_addr[ashift:3].eq(bus.adr),          # Lower Column Address
             )
         ]
 
@@ -275,9 +271,10 @@ class HyperRAM(LiteXModule):
             bus_adr.eq(bus.adr)
         )
         self.comb += If(bus_latch & bus.we,
-            sr_load.eq(1),
-            sr_load_value.eq(Cat(Signal(16), bus.dat_w)),
+            shift_reg_load.eq(1),
+            shift_reg_load_data.eq(Cat(Signal(16), bus.dat_w)),
         )
+        self.comb += bus.dat_r.eq(shift_reg_next_data)
 
         # FSM (Sequencer) --------------------------------------------------------------------------
         cycles  = Signal(8)
@@ -287,20 +284,20 @@ class HyperRAM(LiteXModule):
         fsm.act("IDLE",
             NextValue(first, 1),
             If((bus.cyc & bus.stb) | reg_wr_req | reg_rd_req,
-                sr_load.eq(1),
-                sr_load_value.eq(ca),
+                shift_reg_load.eq(1),
+                shift_reg_load_data.eq(cmd_addr),
                 NextState("SEND-COMMAND-ADDRESS")
             )
         )
         fsm.act("SEND-COMMAND-ADDRESS",
             # Send Command on DQ.
-            ca_oe.eq(1),
+            cmd_addr_oe.eq(1),
             phy.dq_oe.eq(1),
             # Wait for 6*2 cycles.
             If(cycles == (6*2 - 1),
                 If(reg_wr_req,
-                    sr_load.eq(1),
-                    sr_load_value.eq(Cat(Signal(40), self.reg_wr_data[8:])),
+                    shift_reg_load.eq(1),
+                    shift_reg_load_data.eq(Cat(Signal(40), self.reg_wr_data[8:])),
                     NextState("REG-WRITE-0")
                 ).Else(
                     # Sample RWDS to know if 1X/2X Latency should be used (Refresh).
@@ -311,18 +308,18 @@ class HyperRAM(LiteXModule):
         )
         fsm.act("REG-WRITE-0",
             # Send Reg on DQ.
-            ca_oe.eq(1),
+            cmd_addr_oe.eq(1),
             phy.dq_oe.eq(1),
             # Wait for 2 cycles.
             If(cycles == (2 - 1),
-                sr_load.eq(1),
-                sr_load_value.eq(Cat(Signal(40), self.reg_wr_data[:8])),
+                shift_reg_load.eq(1),
+                shift_reg_load_data.eq(Cat(Signal(40), self.reg_wr_data[:8])),
                 NextState("REG-WRITE-1")
             )
         )
         fsm.act("REG-WRITE-1",
             # Send Reg on DQ.
-            ca_oe.eq(1),
+            cmd_addr_oe.eq(1),
             phy.dq_oe.eq(1),
             # Wait for 2 cycles.
             If(cycles == (2 - 1),
@@ -349,7 +346,7 @@ class HyperRAM(LiteXModule):
             fsm.act(f"READ-WRITE-DATA{n}",
                 # Enable Burst Timer.
                 burst_timer.wait.eq(1),
-                ca_oe.eq(reg_rd_req),
+                cmd_addr_oe.eq(reg_rd_req),
                 # Send Data on DQ/RWDS (for write).
                 If(bus_we,
                     phy.dq_oe.eq(1),
