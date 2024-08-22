@@ -176,7 +176,6 @@ class HyperRAM(LiteXModule):
 
         # Internal Signals.
         # -----------------
-        cs            = Signal()
         ca            = Signal(48)
         ca_oe         = Signal()
         sr_load       = Signal()
@@ -184,11 +183,8 @@ class HyperRAM(LiteXModule):
         sr            = Signal(48)
         sr_next       = Signal(48)
 
-        # Drive Control Signals --------------------------------------------------------------------
-        self.comb += [
-            phy.rst.eq(self.conf_rst),
-            phy.cs.eq(cs),
-        ]
+        # Rst --------------------------------------------------------------------------------------
+        self.comb += phy.rst.eq(self.conf_rst)
 
         # Burst Timer ------------------------------------------------------------------------------
         self.burst_timer = burst_timer = WaitTimer(sys_clk_freq * self.tCSM)
@@ -397,9 +393,9 @@ class HyperRAM(LiteXModule):
             )
 
         # CS --------------------------------------------------------------------------------------
-        self.comb += If(~fsm.ongoing("IDLE"),        cs.eq(1)) # CS when not in IDLE state.
-        self.comb += If(fsm.before_leaving("IDLE"),  cs.eq(1)) # Early Set.
-        self.comb += If(fsm.before_entering("IDLE"), cs.eq(0)) # Early Clr.
+        self.comb += If(~fsm.ongoing("IDLE"),        phy.cs.eq(1)) # CS when not in IDLE state.
+        self.comb += If(fsm.before_leaving("IDLE"),  phy.cs.eq(1)) # Early Set.
+        self.comb += If(fsm.before_entering("IDLE"), phy.cs.eq(0)) # Early Clr.
 
         # FSM Cycles -------------------------------------------------------------------------------
         fsm.finalize()
