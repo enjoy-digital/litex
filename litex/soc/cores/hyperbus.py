@@ -210,9 +210,7 @@ class HyperRAM(LiteXModule):
         self.sync += If(phy.shift, shift_reg_data.eq(shift_reg_data_next))
 
         # Load.
-        self.sync += If(shift_reg_load,
-            shift_reg_data.eq(shift_reg_load_data)
-        )
+        self.sync += If(shift_reg_load, shift_reg_data.eq(shift_reg_load_data))
 
         # Register Access/Buffer -------------------------------------------------------------------
         reg_wr_req = Signal()
@@ -259,7 +257,9 @@ class HyperRAM(LiteXModule):
             )
         ]
 
-        # Bus Latch --------------------------------------------------------------------------------
+        # Bus Latch/Output -------------------------------------------------------------------------
+
+        # Latch.
         bus_adr   = Signal(32)
         bus_we    = Signal()
         bus_sel   = Signal(4)
@@ -273,6 +273,7 @@ class HyperRAM(LiteXModule):
             shift_reg_load.eq(1),
             shift_reg_load_data.eq(Cat(Signal(16), bus.dat_w)),
         )
+        # Output.
         self.comb += bus.dat_r.eq(shift_reg_data_next)
 
         # FSM (Sequencer) --------------------------------------------------------------------------
