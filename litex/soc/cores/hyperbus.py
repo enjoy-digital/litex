@@ -8,6 +8,7 @@
 
 from migen import *
 from migen.fhdl.specials import Tristate
+from migen.genlib.cdc    import MultiReg
 
 from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
@@ -25,7 +26,6 @@ class HyperRAMPHY(LiteXModule):
     def __init__(self, pads, data_width, clk_domain="sys"):
         self.rst     = Signal()              # i.
         self.cs      = Signal()              # i.
-        self.clk     = Signal()              # i.
         self.dq_o    = Signal(data_width)    # i.
         self.dq_oe   = Signal()              # i.
         self.dq_i    = Signal(data_width)    # o.
@@ -47,17 +47,33 @@ class HyperRAMPHY(LiteXModule):
         pads.cs_n.reset = 2**len(pads.cs_n) - 1
         _sync += pads.cs_n[0].eq(~self.cs) # Only supporting one Chip.
 
-        # Clk.
-        # ----
-        clk = Signal()
-        _sync += clk.eq(self.clk)
+        # Clk Gen.
+        # --------
+        self.clk       = clk       = Signal()
+        self.clk_d     = clk_d     = Signal()
+        self.clk_phase = clk_phase = Signal(2)
+        _sync += [
+            clk_phase.eq(0b00),
+            If(self.cs,
+                clk_phase.eq(clk_phase + 1)
+            ),
+            Case(clk_phase, {
+                0b00 : clk.eq(0),       #   0°.
+                0b01 : clk.eq(self.cs), #  90°.
+                0b10 : clk.eq(self.cs), # 180°.
+                0b11 : clk.eq(0),       # 270°.
+            })
+        ]
+        self.specials += MultiReg(clk, clk_d, clk_domain, n={"sys": 0, "sys2x": 1}[clk_domain])
 
+        # Clk Out.
+        # --------
         # Single Ended Clk.
         if hasattr(pads, "clk"):
-            self.comb += pads.clk.eq(clk)
+            self.comb += pads.clk.eq(clk_d)
         # Differential Clk.
         elif hasattr(pads, "clk_p"):
-            self.specials += DifferentialOutput(clk, pads.clk_p, pads.clk_n)
+            self.specials += DifferentialOutput(clk_d, pads.clk_p, pads.clk_n)
         else:
             raise ValueError
 
@@ -154,8 +170,6 @@ class HyperRAM(LiteXModule):
 
         # Internal Signals.
         # -----------------
-        clk           = Signal()
-        clk_phase     = Signal(2)
         cs            = Signal()
         ca            = Signal(48)
         ca_oe         = Signal()
@@ -173,29 +187,12 @@ class HyperRAM(LiteXModule):
         self.comb += [
             phy.rst.eq(self.conf_rst),
             phy.cs.eq(cs),
-            phy.clk.eq(clk),
         ]
 
         # Burst Timer ------------------------------------------------------------------------------
         self.burst_timer = burst_timer = WaitTimer(sys_clk_freq * self.tCSM)
 
         # Clk Generation ---------------------------------------------------------------------------
-        self.sync_io += [
-            clk_phase.eq(0b00),
-            If(cs,
-                clk_phase.eq(clk_phase + 1)
-            )
-        ]
-        cases = {
-            0b00 : clk.eq(0),  #   0°
-            0b01 : clk.eq(cs), #  90° / Set Clk.
-            0b10 : clk.eq(cs), # 180°
-            0b11 : clk.eq(0),  # 270° / Clr Clk.
-        }
-        if clk_ratio in ["4:1"]:
-            self.comb += Case(clk_phase, cases)
-        if clk_ratio in ["2:1"]:
-            self.sync_io += Case(clk_phase, cases)
 
         # Data Shift-In Register -------------------------------------------------------------------
         self.comb += [
@@ -209,7 +206,7 @@ class HyperRAM(LiteXModule):
             )
         ]
         if clk_ratio in ["4:1"]:
-            self.sync += If(clk_phase[0] == 0, sr.eq(sr_next))
+            self.sync += If(phy.clk_phase[0] == 0, sr.eq(sr_next))
         if clk_ratio in ["2:1"]:
             self.sync += sr.eq(sr_next)
         self.sync += If(sr_load,
