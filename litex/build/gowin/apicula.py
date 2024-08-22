@@ -35,6 +35,10 @@ class GowinApiculaToolchain(YosysNextPNRToolchain):
             devicename = "GW1NS-4"
         elif devicename == "GW1NR-4C" or devicename == "GW1NR-4":
             devicename = "GW1N-4"
+        elif devicename == "GW2AR-18C":
+            devicename = "GW2A-18C"
+        elif devicename == "GW2AR-18":
+            devicename = "GW2A-18"
 
         pnr_opts = "--write {top}_routed.json --top {top} --device {device}" + \
             " --vopt family={devicename} --vopt cst={top}.cst"
