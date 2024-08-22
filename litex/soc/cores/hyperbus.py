@@ -23,7 +23,7 @@ from litex.soc.interconnect import wishbone
 # HyperRAMPHY --------------------------------------------------------------------------------------
 
 class HyperRAMPHY(LiteXModule):
-    def __init__(self, pads, data_width, clk_domain="sys"):
+    def __init__(self, pads, data_width, clk_domain_o="sys", clk_domain_i="sys"):
         self.rst     = Signal()              # i.
         self.cs      = Signal()              # i.
         self.dq_o    = Signal(data_width)    # i.
@@ -38,25 +38,27 @@ class HyperRAMPHY(LiteXModule):
 
         # Parameters.
         # ----------
-        self.clk_domain = clk_domain
-        _sync = getattr(self.sync, clk_domain)
+        self.clk_domain_o = clk_domain_o
+        self.clk_domain_i = clk_domain_i
+        _sync_o = getattr(self.sync, clk_domain_o)
+        _sync_i = getattr(self.sync, clk_domain_i)
 
         # Rst.
         # ----
         if hasattr(pads, "rst_n"):
-            _sync += pads.rst_n.eq(~self.rst)
+            _sync_o += pads.rst_n.eq(~self.rst)
 
         # CS_n.
         # -----
         pads.cs_n.reset = 2**len(pads.cs_n) - 1
-        _sync += pads.cs_n[0].eq(~self.cs) # Only supporting one Chip.
+        _sync_o += pads.cs_n[0].eq(~self.cs) # Only supporting one Chip.
 
         # Clk Gen.
         # --------
         clk       = Signal()
         clk_d     = Signal()
         clk_phase = Signal(2)
-        _sync += [
+        _sync_o += [
             clk_phase.eq(0b00),
             If(self.cs,
                 clk_phase.eq(clk_phase + 1)
@@ -68,8 +70,8 @@ class HyperRAMPHY(LiteXModule):
                 0b11 : clk.eq(0),       # 270°.
             })
         ]
-        self.specials += MultiReg(clk, clk_d, clk_domain, n={"sys": 0, "sys2x": 1}[clk_domain])
-        self.comb += self.shift.eq(clk_phase[0] == 0 | (clk_domain == "sys2x"))
+        self.specials += MultiReg(clk, clk_d, clk_domain_o, n={"sys": 0, "sys2x": 1}[clk_domain_o])
+        self.comb += self.shift.eq(clk_phase[0] == 0 | (clk_domain_o == "sys2x"))
 
         # Clk Out.
         # --------
@@ -89,7 +91,8 @@ class HyperRAMPHY(LiteXModule):
             dq = self.add_tristate(dq)
         self.comb += dq.o.eq(  self.dq_o)
         self.comb += dq.oe.eq(self.dq_oe)
-        _sync += self.dq_i.eq(dq.i) # FIXME: Use phase-shifted Clk?
+        _sync_i += self.dq_i.eq(dq.i)
+        #self.specials += MultiReg(dq.i, self.dq_i, clk_domain_i, n={"sys": 1, "sys2x_ps": 1}[clk_domain_i])
 
         # RWDS.
         # -----
@@ -98,7 +101,8 @@ class HyperRAMPHY(LiteXModule):
             rwds = self.add_tristate(pads.rwds)
         self.comb += rwds.o.eq(  self.rwds_o)
         self.comb += rwds.oe.eq( self.rwds_oe)
-        _sync += self.rwds_i.eq(rwds.i) # FIXME: Use phase-shifted Clk?
+        _sync_i += self.rwds_i.eq(rwds.i)
+        #self.specials += MultiReg(rwds.i, self.rwds_i, clk_domain_i, n={"sys": 1, "sys2x_ps": 1}[clk_domain_i])
 
     def add_tristate(self, pad):
         class TristatePads:
@@ -155,10 +159,11 @@ class HyperRAM(LiteXModule):
 
         # PHY.
         # ----
-        self.phy = phy = HyperRAMPHY(
-            pads       = pads,
-            data_width = data_width,
-            clk_domain = {"4:1": "sys", "2:1": "sys2x"}[clk_ratio],
+        self.phy = phy   = HyperRAMPHY(
+            pads         = pads,
+            data_width   = data_width,
+            clk_domain_o = {"4:1": "sys", "2:1":    "sys2x"}[clk_ratio],
+            clk_domain_i = {"4:1": "sys", "2:1": "sys2x_ps"}[clk_ratio],
         )
 
         # Config/Reg Interface.
@@ -429,7 +434,7 @@ class HyperRAM(LiteXModule):
             self.status.fields.clk_ratio.eq({
                 "sys"  : 4,
                 "sys2x": 2,
-            }[self.phy.clk_domain]),
+            }[self.phy.clk_domain_o]),
         ]
 
         # Reg Interface.

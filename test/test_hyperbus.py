@@ -86,8 +86,9 @@ class TestHyperBus(unittest.TestCase):
             "sys2x" : hyperram_gen(dut),
         }
         clocks = {
-            "sys"   : 4,
-            "sys2x" : 2,
+            "sys"      : 4,
+            "sys2x"    : 2,
+            "sys2x_ps" : 2,
         }
         run_simulation(dut, generators, clocks, vcd_name="sim.vcd")
 
