@@ -87,6 +87,8 @@ class HyperRAM(LiteXModule):
         cs        = Signal()
         ca        = Signal(48)
         ca_oe     = Signal()
+        sr_load   = Signal()
+        sr_load_value = Signal(48)
         sr        = Signal(48)
         sr_next   = Signal(48)
         dq_o      = Signal(dw)
@@ -175,6 +177,9 @@ class HyperRAM(LiteXModule):
             self.sync += If(clk_phase[0] == 0, sr.eq(sr_next))
         if clk_ratio in ["2:1"]:
             self.sync += sr.eq(sr_next)
+        self.sync += If(sr_load,
+            sr.eq(sr_load_value)
+        )
 
         # Data Shift-Out Register ------------------------------------------------------------------
         self.comb += bus.dat_r.eq(sr_next)
@@ -240,10 +245,13 @@ class HyperRAM(LiteXModule):
         bus_sel   = Signal(4)
         bus_latch = Signal()
         self.sync += If(bus_latch,
-            If(bus.we, sr.eq(Cat(Signal(16), bus.dat_w))),
             bus_we.eq(bus.we),
             bus_sel.eq(bus.sel),
             bus_adr.eq(bus.adr)
+        )
+        self.comb += If(bus_latch & bus.we,
+            sr_load.eq(1),
+            sr_load_value.eq(Cat(Signal(16), bus.dat_w)),
         )
 
         # FSM (Sequencer) --------------------------------------------------------------------------
@@ -254,7 +262,8 @@ class HyperRAM(LiteXModule):
         fsm.act("IDLE",
             NextValue(first, 1),
             If((bus.cyc & bus.stb) | reg_write_req | reg_read_req,
-                NextValue(sr, ca),
+                sr_load.eq(1),
+                sr_load_value.eq(ca),
                 NextState("SEND-COMMAND-ADDRESS")
             )
         )
@@ -265,7 +274,8 @@ class HyperRAM(LiteXModule):
             # Wait for 6*2 cycles.
             If(cycles == (6*2 - 1),
                 If(reg_write_req,
-                    NextValue(sr, Cat(Signal(40), self.reg_write_data[8:])),
+                    sr_load.eq(1),
+                    sr_load_value.eq(Cat(Signal(40), self.reg_write_data[8:])),
                     NextState("REG-WRITE-0")
                 ).Else(
                     # Sample RWDS to know if 1X/2X Latency should be used (Refresh).
@@ -280,7 +290,8 @@ class HyperRAM(LiteXModule):
             dq_oe.eq(1),
             # Wait for 2 cycles.
             If(cycles == (2 - 1),
-                NextValue(sr, Cat(Signal(40), self.reg_write_data[:8])),
+                sr_load.eq(1),
+                sr_load_value.eq(Cat(Signal(40), self.reg_write_data[:8])),
                 NextState("REG-WRITE-1")
             )
         )
