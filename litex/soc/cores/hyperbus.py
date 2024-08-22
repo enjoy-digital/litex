@@ -35,6 +35,9 @@ class HyperRAMPHY(LiteXModule):
 
         # # #
 
+        # Parameters.
+        # ----------
+        self.clk_domain = clk_domain
         _sync = getattr(self.sync, clk_domain)
 
         # Rst.
@@ -140,18 +143,21 @@ class HyperRAM(LiteXModule):
 
         # Parameters.
         # -----------
-        data_width = len(pads.dq) if not hasattr(pads.dq, "oe") else len(pads.dq.o)
-        assert data_width in [8, 16]
+        data_width = len(getattr(pads.dq, "o", pads.dq))
+        assert data_width   in [8, 16]
         assert latency_mode in ["fixed", "variable"]
-        assert clk_ratio in [
+        assert clk_ratio    in [
             "4:1", # HyperRAM Clk = Sys Clk/4.
             "2:1", # HyperRAM Clk = Sys Clk/2.
         ]
-        self.cd_io = cd_io = {
-            "4:1": "sys",
-            "2:1": "sys2x"
-        }[clk_ratio]
-        self.sync_io = sync_io = getattr(self.sync, cd_io)
+
+        # PHY.
+        # ----
+        self.phy = phy = HyperRAMPHY(
+            pads       = pads,
+            data_width = data_width,
+            clk_domain = {"4:1": "sys", "2:1": "sys2x"}[clk_ratio],
+        )
 
         # Config/Reg Interface.
         # ---------------------
@@ -178,12 +184,7 @@ class HyperRAM(LiteXModule):
         sr            = Signal(48)
         sr_next       = Signal(48)
 
-        # PHY.
-        # ----
-        self.phy = phy = HyperRAMPHY(pads=pads, data_width=data_width, clk_domain=cd_io)
-
         # Drive Control Signals --------------------------------------------------------------------
-
         self.comb += [
             phy.rst.eq(self.conf_rst),
             phy.cs.eq(cs),
@@ -439,7 +440,7 @@ class HyperRAM(LiteXModule):
             self.status.fields.clk_ratio.eq({
                 "sys"  : 4,
                 "sys2x": 2,
-            }[self.cd_io]),
+            }[self.phy.clk_domain]),
         ]
 
         # Reg Interface.
