@@ -277,11 +277,11 @@ class TestHyperBus(unittest.TestCase):
     def test_hyperram_reg_write(self):
         def fpga_gen(dut):
             yield dut.reg_addr.eq(2)
-            yield dut.reg_write_data.eq(0x1234)
+            yield dut.reg_wr_data.eq(0x1234)
             yield
-            yield dut.reg_write.eq(1)
+            yield dut.reg_wr.eq(1)
             yield
-            yield dut.reg_write.eq(0)
+            yield dut.reg_wr.eq(0)
             for i in range(128):
                 yield
 

@@ -18,7 +18,7 @@ static void hyperram_write_reg(uint16_t reg_addr, uint16_t data) {
         reg_addr << CSR_HYPERRAM_REG_CONTROL_ADDR_OFFSET
     );
     /* Wait for write to complete */
-    while ((hyperram_reg_status_read() & (1 << CSR_HYPERRAM_REG_STATUS_WRITE_DONE_OFFSET)) == 0);
+    while ((hyperram_reg_status_read() & (1 << CSR_HYPERRAM_REG_STATUS_DONE_OFFSET)) == 0);
  }
 
 static uint16_t hyperram_read_reg(uint16_t reg_addr) {
@@ -29,7 +29,7 @@ static uint16_t hyperram_read_reg(uint16_t reg_addr) {
         reg_addr << CSR_HYPERRAM_REG_CONTROL_ADDR_OFFSET
     );
     /* Wait for read to complete */
-    while ((hyperram_reg_status_read() & (1 << CSR_HYPERRAM_REG_STATUS_READ_DONE_OFFSET)) == 0);
+    while ((hyperram_reg_status_read() & (1 << CSR_HYPERRAM_REG_STATUS_DONE_OFFSET)) == 0);
     return hyperram_reg_rdata_read();
 }
 

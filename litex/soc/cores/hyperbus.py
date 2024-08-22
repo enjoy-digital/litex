@@ -164,13 +164,12 @@ class HyperRAM(LiteXModule):
         self.conf_rst          = Signal()
         self.conf_latency      = Signal(8, reset=latency)
         self.stat_latency_mode = Signal(reset={"fixed": 0, "variable": 1}[latency_mode])
-        self.reg_write         = Signal()
-        self.reg_read          = Signal()
+        self.reg_wr            = Signal()
+        self.reg_rd            = Signal()
         self.reg_addr          = Signal(2)
-        self.reg_write_done    = Signal()
-        self.reg_read_done     = Signal()
-        self.reg_write_data    = Signal(16)
-        self.reg_read_data     = Signal(16)
+        self.reg_done          = Signal()
+        self.reg_wr_data       = Signal(16)
+        self.reg_rd_data       = Signal(16)
         if with_csr:
             self.add_csr(default_latency=latency)
 
@@ -188,8 +187,6 @@ class HyperRAM(LiteXModule):
 
         # Burst Timer ------------------------------------------------------------------------------
         self.burst_timer = burst_timer = WaitTimer(sys_clk_freq * self.tCSM)
-
-        # Clk Generation ---------------------------------------------------------------------------
 
         # Data Shift-In Register -------------------------------------------------------------------
         self.comb += [
@@ -223,32 +220,31 @@ class HyperRAM(LiteXModule):
         ]
 
         # Register Access/Buffer -------------------------------------------------------------------
-        reg_write_req = Signal()
-        reg_read_req  = Signal()
+        reg_wr_req = Signal()
+        reg_rd_req = Signal()
         self.reg_buf = reg_buf = stream.SyncFIFO(
             layout = [("write", 1), ("read", 1), ("addr", 4), ("data", 16)],
             depth  = 4,
         )
         reg_ep = reg_buf.source
         self.comb += [
-            reg_buf.sink.valid.eq(self.reg_write | self.reg_read),
-            reg_buf.sink.write.eq(self.reg_write),
-            reg_buf.sink.read.eq(self.reg_read),
+            reg_buf.sink.valid.eq(self.reg_wr | self.reg_rd),
+            reg_buf.sink.write.eq(self.reg_wr),
+            reg_buf.sink.read.eq(self.reg_rd),
             reg_buf.sink.addr.eq(self.reg_addr),
-            reg_buf.sink.data.eq(self.reg_write_data),
-            reg_write_req.eq(reg_ep.valid & reg_ep.write),
-            reg_read_req.eq( reg_ep.valid & reg_ep.read),
+            reg_buf.sink.data.eq(self.reg_wr_data),
+            reg_wr_req.eq(reg_ep.valid & reg_ep.write),
+            reg_rd_req.eq( reg_ep.valid & reg_ep.read),
         ]
         self.sync += If(reg_buf.sink.valid,
-            self.reg_write_done.eq(0),
-            self.reg_read_done.eq(0),
+            self.reg_done.eq(0),
         )
 
         # Command generation -----------------------------------------------------------------------
         ashift = {8:1, 16:0}[data_width]
         self.comb += [
             # Register Command Generation.
-            If(reg_write_req | reg_read_req,
+            If(reg_wr_req | reg_rd_req,
                 ca[47].eq(reg_ep.read), # R/W#
                 ca[46].eq(1),           # Register Space.
                 ca[45].eq(1),           # Burst Type (Linear)
@@ -290,7 +286,7 @@ class HyperRAM(LiteXModule):
         self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             NextValue(first, 1),
-            If((bus.cyc & bus.stb) | reg_write_req | reg_read_req,
+            If((bus.cyc & bus.stb) | reg_wr_req | reg_rd_req,
                 sr_load.eq(1),
                 sr_load_value.eq(ca),
                 NextState("SEND-COMMAND-ADDRESS")
@@ -302,9 +298,9 @@ class HyperRAM(LiteXModule):
             phy.dq_oe.eq(1),
             # Wait for 6*2 cycles.
             If(cycles == (6*2 - 1),
-                If(reg_write_req,
+                If(reg_wr_req,
                     sr_load.eq(1),
-                    sr_load_value.eq(Cat(Signal(40), self.reg_write_data[8:])),
+                    sr_load_value.eq(Cat(Signal(40), self.reg_wr_data[8:])),
                     NextState("REG-WRITE-0")
                 ).Else(
                     # Sample RWDS to know if 1X/2X Latency should be used (Refresh).
@@ -320,7 +316,7 @@ class HyperRAM(LiteXModule):
             # Wait for 2 cycles.
             If(cycles == (2 - 1),
                 sr_load.eq(1),
-                sr_load_value.eq(Cat(Signal(40), self.reg_write_data[:8])),
+                sr_load_value.eq(Cat(Signal(40), self.reg_wr_data[:8])),
                 NextState("REG-WRITE-1")
             )
         )
@@ -331,7 +327,7 @@ class HyperRAM(LiteXModule):
             # Wait for 2 cycles.
             If(cycles == (2 - 1),
                 reg_ep.ready.eq(1),
-                NextValue(self.reg_write_done, 1),
+                NextValue(self.reg_done, 1),
                 NextState("IDLE")
             )
         )
@@ -342,7 +338,7 @@ class HyperRAM(LiteXModule):
                 # Latch Bus.
                 bus_latch.eq(1),
                 # Early Write Ack (to allow bursting).
-                If(~reg_read_req,
+                If(~reg_rd_req,
                     bus.ack.eq(bus.we),
                 ),
                 NextState("READ-WRITE-DATA0")
@@ -353,7 +349,7 @@ class HyperRAM(LiteXModule):
             fsm.act(f"READ-WRITE-DATA{n}",
                 # Enable Burst Timer.
                 burst_timer.wait.eq(1),
-                ca_oe.eq(reg_read_req),
+                ca_oe.eq(reg_rd_req),
                 # Send Data on DQ/RWDS (for write).
                 If(bus_we,
                     phy.dq_oe.eq(1),
@@ -368,7 +364,7 @@ class HyperRAM(LiteXModule):
                     If(n == (states - 1),
                         NextValue(first, 0),
                         # Continue burst when a consecutive access is ready.
-                        If(~reg_read_req & bus.stb & bus.cyc & (bus.we == bus_we) & (bus.adr == (bus_adr + 1)) & (~burst_timer.done),
+                        If(~reg_rd_req & bus.stb & bus.cyc & (bus.we == bus_we) & (bus.adr == (bus_adr + 1)) & (~burst_timer.done),
                             # Latch Bus.
                             bus_latch.eq(1),
                             # Early Write Ack (to allow bursting).
@@ -380,10 +376,10 @@ class HyperRAM(LiteXModule):
                     ),
                     # Read Ack (when dat_r ready).
                     If((n == 0) & ~first,
-                        If(reg_read_req,
+                        If(reg_rd_req,
                             reg_ep.ready.eq(1),
-                            NextValue(self.reg_read_done, 1),
-                            NextValue(self.reg_read_data, bus.dat_r),
+                            NextValue(self.reg_done, 1),
+                            NextValue(self.reg_rd_data, bus.dat_r),
                             NextState("IDLE"),
                         ).Else(
                             bus.ack.eq(~bus_we),
@@ -452,23 +448,21 @@ class HyperRAM(LiteXModule):
             ]),
         ])
         self.reg_status = CSRStatus(fields=[
-            CSRField("write_done", offset=0, size=1, description="Register Write Done."),
-            CSRField("read_done",  offset=1, size=1, description="Register Read Done."),
+            CSRField("done", offset=0, size=1, description="Register Access Done."),
         ])
         self.reg_wdata = CSRStorage(16, description="Register Write Data.")
         self.reg_rdata = CSRStatus( 16, description="Register Read Data.")
 
         self.comb += [
             # Control.
-            self.reg_write.eq(self.reg_control.fields.write),
-            self.reg_read.eq( self.reg_control.fields.read),
+            self.reg_wr.eq(self.reg_control.fields.write),
+            self.reg_rd.eq( self.reg_control.fields.read),
             self.reg_addr.eq( self.reg_control.fields.addr),
 
             # Status.
-            self.reg_status.fields.write_done.eq(self.reg_write_done),
-            self.reg_status.fields.read_done.eq( self.reg_read_done),
+            self.reg_status.fields.done.eq(self.reg_done),
 
             # Data.
-            self.reg_write_data.eq(self.reg_wdata.storage),
-            self.reg_rdata.status.eq(self.reg_read_data),
+            self.reg_wr_data.eq(self.reg_wdata.storage),
+            self.reg_rdata.status.eq(self.reg_rd_data),
         ]
