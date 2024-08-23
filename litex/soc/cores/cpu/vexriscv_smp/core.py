@@ -168,8 +168,8 @@ class VexRiscvSMP(CPU):
     @property
     def gcc_flags(self):
         flags =  f" -march={VexRiscvSMP.get_arch()} -mabi={VexRiscvSMP.get_abi()}"
-        flags += f" -D__vexriscv__"
-        flags += f" -DUART_POLLING"
+        flags += f" -D__vexriscv_smp__"
+        flags += f" -D__riscv_plic__"
         return flags
 
     # Reserved Interrupts.
@@ -462,6 +462,14 @@ class VexRiscvSMP(CPU):
                     f.write(line)
         add_synthesis_define(cluster_filename)
         platform.add_source(cluster_filename, "verilog")
+
+    def add_jtag(self, pads):
+        self.comb += [
+            self.jtag_tms.eq(pads.tms),
+            self.jtag_clk.eq(pads.tck),
+            self.jtag_tdi.eq(pads.tdi),
+            pads.tdo.eq(self.jtag_tdo),
+        ]
 
     def add_soc_components(self, soc):
         if self.variant == "linux":

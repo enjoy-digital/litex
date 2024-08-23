@@ -23,10 +23,10 @@ class Status(LiteXModule):
         self.ongoing = Signal()
 
         ongoing = Signal()
-        self.comb += If(endpoint.valid, self.last.eq(endpoint.last & endpoint.ready))
-        self.sync += ongoing.eq((endpoint.valid | ongoing) & ~self.last)
+        self.comb += self.last.eq(endpoint.valid & endpoint.last & endpoint.ready)
         self.comb += self.ongoing.eq((endpoint.valid | ongoing) & ~self.last)
         self.sync += [
+            ongoing.eq(self.ongoing),
             If(self.last,
                 self.first.eq(1)
             ).Elif(endpoint.valid & endpoint.ready,
@@ -101,7 +101,7 @@ class Dispatcher(LiteXModule):
 # Header -------------------------------------------------------------------------------------------
 
 class HeaderField:
-    def __init__(self, byte, offset, width):
+    def __init__(self, byte=0, offset=0, width=1):
         self.byte   = byte
         self.offset = offset
         self.width  = width
@@ -386,7 +386,7 @@ class PacketFIFO(LiteXModule):
             sink.connect(param_fifo.sink,   keep=set([e[0] for e in param_layout])),
             sink.connect(payload_fifo.sink, keep=set([e[0] for e in payload_layout] + ["last"])),
             param_fifo.sink.valid.eq(sink.valid & sink.last),
-            payload_fifo.sink.valid.eq(sink.valid & payload_fifo.sink.ready),
+            payload_fifo.sink.valid.eq(sink.valid & param_fifo.sink.ready),
             sink.ready.eq(param_fifo.sink.ready & payload_fifo.sink.ready),
         ]
 

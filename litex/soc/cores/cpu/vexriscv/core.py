@@ -210,6 +210,7 @@ class VexRiscv(CPU, AutoCSR):
         self.o_cmd_ready           = Signal()
         self.o_rsp_data            = Signal(32)
         self.o_resetOut            = Signal()
+        self.o_halted              = Signal()
 
         reset_debug_logic = Signal()
 
@@ -278,7 +279,8 @@ class VexRiscv(CPU, AutoCSR):
             i_debug_bus_cmd_payload_data    = self.i_cmd_payload_data,
             o_debug_bus_cmd_ready           = self.o_cmd_ready,
             o_debug_bus_rsp_data            = self.o_rsp_data,
-            o_debug_resetOut                = self.o_resetOut
+            o_debug_resetOut                = self.o_resetOut,
+            o_halted                        = self.o_halted,
         )
 
     def add_cfu(self, cfu_filename):

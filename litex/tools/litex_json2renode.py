@@ -219,23 +219,29 @@ def get_cpu_count(csr):
 vexriscv_common_kind = {
     'name': 'VexRiscv',
     'variants': {
-        'linux': {
-             'properties': ['cpuType: "rv32ima"', 'privilegeArchitecture: PrivilegeArchitecture.Priv1_10'],
+        'minimal': {
+             'properties': ['cpuType: "rv32i_zicsr_zifencei"'],
         },
-        'i': {
-             'properties': ['cpuType: "rv32i"'], 
+        'lite': {
+             'properties': ['cpuType: "rv32im_zicsr_zifencei"'],
         },
-        'im': {
-             'properties': ['cpuType: "rv32im"'], 
-        },
-        'ima': {
-             'properties': ['cpuType: "rv32ima"'], 
+        'standard': {
+             'properties': ['cpuType: "rv32im_zicsr_zifencei"'],
         },
         'imac': {
-             'properties': ['cpuType: "rv32imac"'], 
+             'properties': ['cpuType: "rv32imac_zicsr_zifencei"'],
+        },
+        'full': {
+             'properties': ['cpuType: "rv32im_zicsr_zifencei"'],
+        },
+        'linux': {
+             'properties': ['cpuType: "rv32ima_zicsr_zifencei"'],
+        },
+        'secure': {
+             'properties': ['cpuType: "rv32ima_zicsr_zifencei"'],
         },
         'others': {
-             'properties': ['cpuType: "rv32im"'],
+             'properties': ['cpuType: "rv32im_zicsr_zifencei"'],
         }
     },
     'supports_time_provider': True,
@@ -900,6 +906,12 @@ sysbus LoadBinary @{} {}
         for cpu_id in range(0, number_of_cores):
             result += f"cpu{cpu_id} PC {hex(rom_base)}\n"
 
+    if args.bios_elf:
+        # load LiteX BIOS to ROM base
+        result += """
+sysbus LoadELF @{}
+""".format(args.bios_elf)
+
     if args.tftp_ip:
         result += """
 
@@ -1057,6 +1069,8 @@ def parse_args():
     bios_group = parser.add_mutually_exclusive_group()
     bios_group.add_argument('--bios-binary', action='store',
                         help='Path to the BIOS binary')
+    bios_group.add_argument('--bios-elf', action='store',
+                        help='Path to the BIOS ELF file')
     bios_group.add_argument('--opensbi-binary', action='store',
                         help='Path to the OpenSBI binary')
 

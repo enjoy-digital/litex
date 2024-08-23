@@ -93,7 +93,7 @@ class NaxRiscv(CPU):
     def gcc_flags(self):
         flags =  f" -march={NaxRiscv.get_arch()} -mabi={NaxRiscv.get_abi()}"
         flags += f" -D__NaxRiscv__"
-        flags += f" -DUART_POLLING"
+        flags += f" -D__riscv_plic__"
         return flags
 
     # Reserved Interrupts.
@@ -294,7 +294,11 @@ class NaxRiscv(CPU):
 
 
     @staticmethod
-    def git_setup(name, dir, repo, branch, hash):
+    def git_setup(name, dir, repo, branch, hash, update):
+        if update == "no":
+            return
+        if "recommended" not in update:
+            hash = ""
         if not os.path.exists(dir):
             # Clone Repo.
             print(f"Cloning {name} Git repository...")
@@ -306,7 +310,7 @@ class NaxRiscv(CPU):
         print(f"Updating {name} Git repository...")
         cwd = os.getcwd()
         os.chdir(os.path.join(dir))
-        wipe_cmd = "&& git clean --force -d -x && git reset --hard" if "wipe" in NaxRiscv.update_repo else ""
+        wipe_cmd = "&& git clean --force -d -x && git reset --hard" if "wipe" in update else ""
         checkout_cmd = f"&& git checkout {hash}" if hash is not None else ""
         subprocess.check_call(f"cd {dir} {wipe_cmd} && git checkout {branch} && git submodule init && git pull --recurse-submodules {checkout_cmd}", shell=True)
         os.chdir(cwd)
@@ -316,10 +320,8 @@ class NaxRiscv(CPU):
     def generate_netlist(reset_address):
         vdir = get_data_mod("cpu", "naxriscv").data_location
         ndir = os.path.join(vdir, "ext", "NaxRiscv")
-        sdir = os.path.join(vdir, "ext", "SpinalHDL")
 
-        if NaxRiscv.update_repo != "no":
-            NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git", "main", "ec3ee4dc" if NaxRiscv.update_repo=="recommended" else None)
+        NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git", "main", "ba63ee6d", NaxRiscv.update_repo)
 
         gen_args = []
         gen_args.append(f"--netlist-name={NaxRiscv.netlist_name}")
@@ -365,6 +367,7 @@ class NaxRiscv(CPU):
         # Add RAM.
         # By default, use Generic RAM implementation.
         ram_filename = "Ram_1w_1rs_Generic.v"
+        lutram_filename = "Ram_1w_1ra_Generic.v"
         # On Altera/Intel platforms, use specific implementation.
         from litex.build.altera import AlteraPlatform
         if isinstance(platform, AlteraPlatform):
@@ -374,6 +377,8 @@ class NaxRiscv(CPU):
         if isinstance(platform, EfinixPlatform):
             ram_filename = "Ram_1w_1rs_Efinix.v"
         platform.add_source(os.path.join(vdir, ram_filename), "verilog")
+        platform.add_source(os.path.join(vdir, lutram_filename), "verilog")
+
 
         # Add Cluster.
         platform.add_source(os.path.join(vdir,  self.netlist_name + ".v"), "verilog")
@@ -399,13 +404,13 @@ class NaxRiscv(CPU):
 
         if NaxRiscv.jtag_tap:
             self.jtag_tms = Signal()
-            self.jtag_tck = Signal()
+            self.jtag_clk = Signal()
             self.jtag_tdi = Signal()
             self.jtag_tdo = Signal()
 
             self.cpu_params.update(
                 i_jtag_tms = self.jtag_tms,
-                i_jtag_tck = self.jtag_tck,
+                i_jtag_tck = self.jtag_clk,
                 i_jtag_tdi = self.jtag_tdi,
                 o_jtag_tdo = self.jtag_tdo,
             )
@@ -452,9 +457,20 @@ class NaxRiscv(CPU):
             # Reset SoC's CRG when debug_ndmreset rising edge.
             self.sync.debug_por += debug_ndmreset_last.eq(debug_ndmreset)
             self.comb += debug_ndmreset_rise.eq(debug_ndmreset & ~debug_ndmreset_last)
-            self.comb += If(debug_ndmreset_rise, soc.crg.rst.eq(1))
+            if soc.get_build_name() == "sim":
+                self.comb += If(debug_ndmreset_rise, soc.crg.cd_sys.rst.eq(1))
+            else:
+                self.comb += If(debug_ndmreset_rise, soc.crg.rst.eq(1))
 
         self.soc_bus = soc.bus # FIXME: Save SoC Bus instance to retrieve the final mem layout on finalization.
+
+    def add_jtag(self, pads):
+        self.comb += [
+            self.jtag_tms.eq(pads.tms),
+            self.jtag_clk.eq(pads.tck),
+            self.jtag_tdi.eq(pads.tdi),
+            pads.tdo.eq(self.jtag_tdo),
+        ]
 
     def add_memory_buses(self, address_width, data_width):
         NaxRiscv.litedram_width = data_width
@@ -469,6 +485,16 @@ class NaxRiscv(CPU):
             id_width      = 8, #TODO
         )
         self.memory_buses.append(mbus)
+
+        self.comb += mbus.aw.cache.eq(0xF)
+        self.comb += mbus.aw.lock.eq(0)
+        self.comb += mbus.aw.prot.eq(1)
+        self.comb += mbus.aw.qos.eq(0)
+
+        self.comb += mbus.ar.cache.eq(0xF)
+        self.comb += mbus.ar.lock.eq(0)
+        self.comb += mbus.ar.prot.eq(1)
+        self.comb += mbus.ar.qos.eq(0)
 
         self.cpu_params.update(
             # Memory Bus (Master).

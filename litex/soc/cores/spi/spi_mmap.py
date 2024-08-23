@@ -35,6 +35,7 @@ SPI_SLOT_MODE_3             = 0b11
 SPI_SLOT_LENGTH_32B         = 0b00
 SPI_SLOT_LENGTH_16B         = 0b01
 SPI_SLOT_LENGTH_8B          = 0b10
+SPI_SLOT_LENGTH_24B         = 0b11
 
 SPI_SLOT_BITORDER_MSB_FIRST = 0b0
 SPI_SLOT_BITORDER_LSB_FIRST = 0b1
@@ -206,7 +207,10 @@ class SPIMaster(LiteXModule):
         self.sync += [
             If(miso_shift,
                 miso_data.eq(Cat(miso, miso_data))
-            )
+            ),
+            If(self.start,
+                miso_data.eq(0)
+            ),
         ]
         self.comb += self.miso.eq(miso_data)
 
@@ -239,10 +243,18 @@ class SPICtrl(LiteXModule):
         default_slot_bitorder = SPI_SLOT_BITORDER_MSB_FIRST,
         default_slot_loopback = 0b1,
         default_slot_divider  = 2,
+        default_enable        = 0b1,
+        default_slot_wait     = 0,
     ):
         self.nslots        = nslots
         self.slot_controls = []
-        self.slot_status   = []
+
+        version = "SPI0"
+        self._version = CSRStatus(size=32, description="""SPI Module Version.""",
+            reset=int.from_bytes(str.encode(version), 'little'))
+
+        self.slot_count = CSRStatus(size=32, description="""SPI Module Slot Count.""",
+            reset=nslots)
 
         # Create TX/RX Control/Status registers.
         self.tx_control  = CSRStorage(fields=[
@@ -302,6 +314,13 @@ class SPICtrl(LiteXModule):
             self.ev.rx.trigger.eq(self.rx_status.fields.level > self.rx_control.fields.threshold),
         ]
 
+        self.engine  = CSRStorage(fields=[
+            CSRField("enable", size=1, offset=0, values=[
+                    ("``0b0``", "SPI Engine Disabled."),
+                    ("``0b1``", "SPI Engine Enabled."),
+            ], reset=default_enable),
+        ])
+
         # Create Slots Control/Status registers.
         for slot in range(nslots):
             control = CSRStorage(name=f"slot_control{slot}", fields=[
@@ -319,7 +338,7 @@ class SPICtrl(LiteXModule):
                     ("``0b00``", "32-bit Max."),
                     ("``0b01``", "16-bit Max."),
                     ("``0b10``", " 8-bit Max."),
-                    ("``0b11``", "Reserved."),
+                    ("``0b11``", "24-bit Max."),
                 ], reset=default_slot_length),
                 CSRField("bitorder", size=1, offset=5, values=[
                     ("``0b0``", "MSB-First."),
@@ -335,13 +354,15 @@ class SPICtrl(LiteXModule):
                     ("``0x0002``", "SPI-Clk = Sys-Clk/2."),
                     ("``0x0004``", "SPI-Clk = Sys-Clk/4."),
                     ("``0xxxxx``", "SPI-Clk = Sys-Clk/xxxxx."),
-                ], reset=default_slot_divider)
+                ], reset=default_slot_divider),
+                CSRField("wait", size=16, offset=32, values=[
+                    ("``0x0000``", "No wait time."),
+                    ("``0x0001``", "wait = 1 / Sys-Clk."),
+                    ("``0xxxxx``", "wait = xxxx / Sys-Clk."),
+                ], reset=default_slot_wait),
             ])
-            status = CSRStatus(name=f"slot_status{slot}") # CHECKME: Useful?
             setattr(self, f"slot_control{slot}", control)
-            setattr(self, f"slot_status{slot}",  status)
             self.slot_controls.append(control)
-            self.slot_status.append(status)
 
     def get_ctrl(self, name, slot=None, cs=None):
         assert not ((slot is None) and (cs is None))
@@ -487,7 +508,7 @@ class SPIRXMMAP(LiteXModule):
 # SPI Engine ---------------------------------------------------------------------------------------
 
 class SPIEngine(LiteXModule):
-    def __init__(self, pads, ctrl, data_width, sys_clk_freq, default_enable=0b1):
+    def __init__(self, pads, ctrl, data_width, sys_clk_freq):
         self.sink = sink = stream.Endpoint(spi_layout(
             data_width = data_width,
             be_width   = data_width//8,
@@ -498,13 +519,6 @@ class SPIEngine(LiteXModule):
             be_width   = data_width//8,
             cs_width   = len(pads.cs_n)
         ))
-
-        self.control  = CSRStorage(fields=[
-            CSRField("enable", size=1, offset=0, values=[
-                    ("``0b0``", "SPI Engine Disabled."),
-                    ("``0b1``", "SPI Engine Enabled."),
-            ], reset=default_enable),
-        ])
 
         # # #
 
@@ -532,6 +546,7 @@ class SPIEngine(LiteXModule):
         })
         self.comb += Case(ctrl.get_ctrl("length",  cs=sink.cs), {
             SPI_SLOT_LENGTH_32B : spi_length_max.eq(32), # 32-bit access max.
+            SPI_SLOT_LENGTH_24B : spi_length_max.eq(24), # 24-bit access max.
             SPI_SLOT_LENGTH_16B : spi_length_max.eq(16), # 16-bit access max.
             SPI_SLOT_LENGTH_8B  : spi_length_max.eq( 8), #  8-bit access max.
         })
@@ -543,8 +558,15 @@ class SPIEngine(LiteXModule):
             )
         ]
 
+        # Wait between transfers.
+        ctrl_wait = ctrl.get_ctrl("wait", cs=sink.cs)
+        wait_ticks = Signal.like(ctrl_wait)
+        wait_count = Signal.like(ctrl_wait)
+        self.comb += wait_ticks.eq(ctrl_wait)
+        cs_wait = Signal()
+
         # SPI CS. (Use Manual CS to allow back-to-back Xfers).
-        self.comb += If(self.control.fields.enable & sink.valid,
+        self.comb += If(ctrl.engine.fields.enable & sink.valid & ~cs_wait,
             spi.cs.eq(sink.cs)
         )
 
@@ -555,7 +577,7 @@ class SPIEngine(LiteXModule):
         # Control-Path.
         self.fsm = fsm = FSM(reset_state="START")
         fsm.act("START",
-            If(self.control.fields.enable & sink.valid,
+            If(ctrl.engine.fields.enable & sink.valid,
                 spi.start.eq(1),
                 NextState("XFER")
             )
@@ -571,6 +593,20 @@ class SPIEngine(LiteXModule):
             source.be.eq(sink.be),
             If(source.ready,
                 sink.ready.eq(1),
+                If(wait_ticks,
+                    cs_wait.eq(1),
+                    NextValue(wait_count, wait_ticks-1),
+                    NextState("WAIT")
+                ).Else(
+                    NextState("START")
+                )
+            )
+        )
+        fsm.act("WAIT",
+            If(wait_count,
+                cs_wait.eq(1),
+                NextValue(wait_count, wait_count-1)
+            ).Else(
                 NextState("START")
             )
         )
@@ -580,9 +616,10 @@ class SPIEngine(LiteXModule):
             # MSB First.
             If(spi_bitorder == SPI_SLOT_BITORDER_MSB_FIRST,
                 # TX copy/bitshift.
-                Case(spi_length, {
+                Case(spi.length, {
                      8 : spi.mosi[24:32].eq(sink.data[0: 8]),
                     16 : spi.mosi[16:32].eq(sink.data[0:16]),
+                    24 : spi.mosi[ 8:32].eq(sink.data[0:24]),
                     32 : spi.mosi[ 0:32].eq(sink.data[0:32]),
                 }),
                 # RX copy.
@@ -593,9 +630,10 @@ class SPIEngine(LiteXModule):
                 # TX copy.
                 spi.mosi.eq(sink.data[::-1]),
                 # RX copy/bitshift.
-                Case(spi_length, {
+                Case(spi.length, {
                      8 : source.data[0: 8].eq(spi.miso[::-1][24:32]),
                     16 : source.data[0:16].eq(spi.miso[::-1][16:32]),
+                    24 : source.data[0:24].eq(spi.miso[::-1][ 8:32]),
                     32 : source.data[0:32].eq(spi.miso[::-1][ 0:32]),
                 })
             )

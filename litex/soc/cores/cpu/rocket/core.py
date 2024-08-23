@@ -113,6 +113,7 @@ class Rocket(CPU):
         flags =  "-mno-save-restore "
         flags += f"-march={self.get_arch(self.variant)} -mabi=lp64 "
         flags += "-D__rocket__ "
+        flags += "-D__riscv_plic__ "
         flags += "-mcmodel=medany"
         return flags
 

@@ -158,10 +158,10 @@ class EFINIXPLL(LiteXModule):
         # Pre-Divider (N).
         # -----------------
         # F_PFD is between 10e6 and 100e6
-        # so limit search to only acceptable factors
+        # so limit search to only acceptable factors
         N_min = int(math.ceil(clk_in_freq / pfd_range[1]))
         N_max = int(math.floor(clk_in_freq / pfd_range[0]))
-        ## limit
+        ## limit
         ### when fin is below FPLL_MAX min is < 1
         if N_min < 1:
             N_min = 1
@@ -200,7 +200,7 @@ class EFINIXPLL(LiteXModule):
         params_list = []
         for n in range(N_min, N_max + 1):
             fpfd_tmp = clk_in_freq / n
-            # limit range using FVCO_MAX & FVCO_MIN
+            # limit range using FVCO_MAX & FVCO_MIN
             # fVCO = fPFD * M * O * Cfbk
             # so:
             #          fVCO

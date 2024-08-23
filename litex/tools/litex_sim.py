@@ -15,35 +15,35 @@ import argparse
 from migen import *
 
 from litex.build.generic_platform import *
-from litex.build.sim import SimPlatform
-from litex.build.sim.config import SimConfig
+from litex.build.sim              import SimPlatform
+from litex.build.sim.config       import SimConfig
 
-from litex.soc.integration.common import *
+from litex.soc.integration.common   import *
 from litex.soc.integration.soc_core import *
-from litex.soc.integration.builder import *
-from litex.soc.integration.soc import *
-from litex.soc.cores.bitbang import *
-from litex.soc.cores.gpio import GPIOTristate
-from litex.soc.cores.cpu import CPUS
+from litex.soc.integration.builder  import *
+from litex.soc.integration.soc      import *
 
-from litedram import modules as litedram_modules
-from litedram.modules import parse_spd_hexdump
+from litex.soc.cores.bitbang import *
+from litex.soc.cores.gpio    import GPIOTristate
+from litex.soc.cores.cpu     import CPUS
+from litex.soc.cores.video   import VideoGenericPHY
+
+from litedram           import modules as litedram_modules
+from litedram.modules   import parse_spd_hexdump
 from litedram.phy.model import sdram_module_nphases, get_sdram_phy_settings
 from litedram.phy.model import SDRAMPHYModel
 
-from liteeth.phy.gmii import LiteEthPHYGMII
-from liteeth.phy.xgmii import LiteEthPHYXGMII
-from liteeth.phy.model import LiteEthPHYModel
-from liteeth.mac import LiteEthMAC
-from liteeth.core.arp import LiteEthARP
-from liteeth.core.ip import LiteEthIP
-from liteeth.core.udp import LiteEthUDP
-from liteeth.core.icmp import LiteEthICMP
-from liteeth.core import LiteEthUDPIPCore
+from liteeth.common             import *
+from liteeth.phy.gmii           import LiteEthPHYGMII
+from liteeth.phy.xgmii          import LiteEthPHYXGMII
+from liteeth.phy.model          import LiteEthPHYModel
+from liteeth.mac                import LiteEthMAC
+from liteeth.core.arp           import LiteEthARP
+from liteeth.core.ip            import LiteEthIP
+from liteeth.core.udp           import LiteEthUDP
+from liteeth.core.icmp          import LiteEthICMP
+from liteeth.core               import LiteEthUDPIPCore
 from liteeth.frontend.etherbone import LiteEthEtherbone
-from liteeth.common import *
-
-from litex.soc.cores.video import VideoGenericPHY
 
 from litescope import LiteScopeAnalyzer
 
@@ -135,6 +135,7 @@ _io = [
         Subsignal("tms", Pins(1)),
         Subsignal("tdi", Pins(1)),
         Subsignal("tdo", Pins(1)),
+        Subsignal("ntrst", Pins(1)),
     ),
 
     # Video (VGA).
@@ -178,6 +179,7 @@ class SimSoC(SoCCore):
         with_gpio             = False,
         with_video_framebuffer = False,
         with_video_terminal = False,
+        with_video_colorbars = False,
         sim_debug             = False,
         trace_reset_on        = False,
         with_jtag             = False,
@@ -260,9 +262,29 @@ class SimSoC(SoCCore):
                 interface  = "wishbone",
                 endianness = self.cpu.endianness
             )
-            ethmac_region_size = (ethmac.rx_slots.constant + ethmac.tx_slots.constant)*ethmac.slot_size.constant
-            ethmac_region = SoCRegion(origin=self.mem_map.get("ethmac", None), size=ethmac_region_size, cached=False)
-            self.bus.add_slave(name="ethmac", slave=ethmac.bus, region=ethmac_region)
+            ethmac_rx_region_size = ethmac.rx_slots.constant*ethmac.slot_size.constant
+            ethmac_tx_region_size = ethmac.tx_slots.constant*ethmac.slot_size.constant
+            ethmac_region_size    = ethmac_rx_region_size + ethmac_tx_region_size
+            self.bus.add_region("ethmac", SoCRegion(
+                origin = self.mem_map.get("ethmac", None),
+                size   = ethmac_region_size,
+                linker = True,
+                cached = False,
+            ))
+            ethmac_rx_region = SoCRegion(
+                origin = self.bus.regions["ethmac"].origin + 0,
+                size   = ethmac_rx_region_size,
+                linker = True,
+                cached = False,
+            )
+            self.bus.add_slave(name="ethmac_rx", slave=ethmac.bus_rx, region=ethmac_rx_region)
+            ethmac_tx_region = SoCRegion(
+                origin = self.bus.regions["ethmac"].origin + ethmac_rx_region_size,
+                size   = ethmac_tx_region_size,
+                linker = True,
+                cached = False,
+            )
+            self.bus.add_slave(name="ethmac_tx", slave=ethmac.bus_tx, region=ethmac_tx_region)
 
             # Add IRQs (if enabled).
             if self.irq.enabled:
@@ -276,10 +298,7 @@ class SimSoC(SoCCore):
         # JTAG -------------------------------------------------------------------------------------
         if with_jtag:
             jtag_pads = platform.request("jtag")
-            self.comb += self.cpu.jtag_clk.eq(jtag_pads.tck)
-            self.comb += self.cpu.jtag_tms.eq(jtag_pads.tms)
-            self.comb += self.cpu.jtag_tdi.eq(jtag_pads.tdi)
-            self.comb += jtag_pads.tdo.eq(self.cpu.jtag_tdo)
+            self.cpu.add_jtag(jtag_pads)
 
         # SDCard -----------------------------------------------------------------------------------
         if with_sdcard:
@@ -312,6 +331,11 @@ class SimSoC(SoCCore):
         if with_video_terminal:
             self.submodules.videophy = VideoGenericPHY(platform.request("vga"))
             self.add_video_terminal(phy=self.videophy, timings="640x480@60Hz")
+
+        # Video test pattern -----------------------------------------------------------------------
+        if with_video_colorbars:
+            self.submodules.videophy = VideoGenericPHY(platform.request("vga"))
+            self.add_video_colorbars(phy=self.videophy, timings="640x480@60Hz")
 
         # Simulation debugging ----------------------------------------------------------------------
         if sim_debug:
@@ -428,6 +452,8 @@ def sim_args(parser):
     # Video.
     parser.add_argument("--with-video-framebuffer", action="store_true",   help="Enable Video Framebuffer.")
     parser.add_argument("--with-video-terminal",    action="store_true",   help="Enable Video Terminal.")
+    parser.add_argument("--with-video-colorbars",   action="store_true",   help="Enable Video test pattern.")
+    parser.add_argument("--video-vsync",            action="store_true",   help="Only render on frame vsync.")
 
     # Debug/Waveform.
     parser.add_argument("--sim-debug",            action="store_true",     help="Add simulation debugging modules.")
@@ -510,8 +536,8 @@ def main():
         sim_config.add_module("jtagremote", "jtag", args={'port': 44853})
 
     # Video.
-    if args.with_video_framebuffer or args.with_video_terminal:
-        sim_config.add_module("video", "vga")
+    if args.with_video_framebuffer or args.with_video_terminal or args.with_video_colorbars:
+        sim_config.add_module("video", "vga", args={"render_on_vsync": args.video_vsync})
 
     # SoC ------------------------------------------------------------------------------------------
     soc = SimSoC(
@@ -528,6 +554,7 @@ def main():
         with_gpio              = args.with_gpio,
         with_video_framebuffer = args.with_video_framebuffer,
         with_video_terminal    = args.with_video_terminal,
+        with_video_colorbars   = args.with_video_colorbars,
         sim_debug              = args.sim_debug,
         trace_reset_on         = int(float(args.trace_start)) > 0 or int(float(args.trace_end)) > 0,
         spi_flash_init         = None if args.spi_flash_init is None else get_mem_data(args.spi_flash_init, endianness="big"),
@@ -551,7 +578,7 @@ def main():
     builder.build(
         sim_config       = sim_config,
         interactive      = not args.non_interactive,
-        video            = args.with_video_framebuffer or args.with_video_terminal,
+        video            = args.with_video_framebuffer or args.with_video_terminal or args.with_video_colorbars,
         pre_run_callback = pre_run_callback,
         **parser.toolchain_argdict,
     )

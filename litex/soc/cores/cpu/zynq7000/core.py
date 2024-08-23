@@ -40,6 +40,7 @@ class Zynq7000(CPU):
     def mem_map(self):
         return {
             "sram": 0x0010_0000,  # DDR in fact
+            "csr":  0x4000_0000,  # default GP0 address on Zynq
             "rom":  0xfc00_0000,
         }
 
@@ -54,6 +55,13 @@ class Zynq7000(CPU):
         self.axi_gp_slaves  = []    # General Purpose AXI Slaves.
         self.axi_hp_slaves  = []    # High Performance AXI Slaves.
 
+        # PS7 peripherals.
+        self.can_use        = []
+
+        # [ 7: 0]: SPI Numbers [68:61]
+        # [15: 8]: SPI Numbers [91:84]
+        self.interrupt      = Signal(16)
+
         # # #
 
         # PS7 Clocking.
@@ -62,6 +70,12 @@ class Zynq7000(CPU):
         # PS7 (Minimal) ----------------------------------------------------------------------------
         self.ps7_name   = None
         self.ps7_tcl    = []
+        self.config     = {
+            # Enable interrupts by default
+            "PCW_USE_FABRIC_INTERRUPT" : 1,
+            "PCW_IRQ_F2P_INTR"         : 1,
+            "PCW_NUM_F2P_INTR_INPUTS"  : 16,
+        }
         ps7_rst_n       = Signal()
         ps7_ddram_pads  = platform.request("ps7_ddram")
         self.cpu_params = dict(
@@ -94,6 +108,9 @@ class Zynq7000(CPU):
 
             # USB0.
             i_USB0_VBUS_PWRFAULT = 0,
+
+            # Interrupts PL -> PS.
+            i_IRQ_F2P       = self.interrupt,
 
             # Fabric Clk / Rst.
             o_FCLK_CLK0     = ClockSignal("ps7"),
@@ -154,6 +171,10 @@ class Zynq7000(CPU):
         if ps7_sdio0_wp_pads is not None:
             self.cpu_params.update(i_SDIO0_WP = ps7_sdio0_wp_pads.wp)
 
+        # GP0 as Bus master ------------------------------------------------------------------------
+        self.pbus = self.add_axi_gp_master()
+        self.periph_buses.append(self.pbus)
+
     def set_ps7_xci(self, xci):
         # Add .xci as Vivado IP and set ps7_name from .xci filename.
         self.ps7_xci  = xci
@@ -161,16 +182,9 @@ class Zynq7000(CPU):
         self.platform.add_ip(xci)
 
     def add_ps7_config(self, config):
-        # Check that PS7 has been set.
-        if self.ps7_name is None:
-            raise Exception("Please set PS7 with set_ps7 method first.")
         # Config must be provided as a config, value dict.
         assert isinstance(config, dict)
-        # Add configs to PS7.
-        self.ps7_tcl.append("set_property -dict [list \\")
-        for config, value in config.items():
-            self.ps7_tcl.append("CONFIG.{} {} \\".format(config, '{{' + str(value) + '}}'))
-        self.ps7_tcl.append(f"] [get_ips {self.ps7_name}]")
+        self.config.update(config)
 
     def set_ps7(self, name=None, xci=None, preset=None, config=None):
         # Check that PS7 has not already been set.
@@ -214,8 +228,23 @@ class Zynq7000(CPU):
     def add_axi_gp_master(self):
         assert len(self.axi_gp_masters) < 2
         n       = len(self.axi_gp_masters)
-        axi_gpn = axi.AXIInterface(data_width=32, address_width=32, id_width=12)
+        axi_gpn = axi.AXIInterface(
+            data_width    = 32,
+            address_width = 32,
+            id_width      = 12,
+            version       = "axi3"
+        )
         self.axi_gp_masters.append(axi_gpn)
+
+        self.add_ps7_config({
+            f"PCW_USE_M_AXI_GP{n}":                  1,
+            #f"PCW_M_AXI_GP{n}_FREQMHZ":              100, # FIXME: parameter?
+            f"PCW_M_AXI_GP{n}_ID_WIDTH":             12,
+            f"PCW_M_AXI_GP{n}_ENABLE_STATIC_REMAP":  0,
+            f"PCW_M_AXI_GP{n}_SUPPORT_NARROW_BURST": 0,
+            f"PCW_M_AXI_GP{n}_THREAD_ID_WIDTH":      12,
+        })
+
         self.cpu_params.update({
             # AXI GP clk.
             f"i_M_AXI_GP{n}_ACLK"    : ClockSignal("ps7"),
@@ -275,7 +304,13 @@ class Zynq7000(CPU):
     def add_axi_gp_slave(self, clock_domain="ps7"):
         assert len(self.axi_gp_slaves) < 2
         n       = len(self.axi_gp_slaves)
-        axi_gpn = axi.AXIInterface(data_width=32, address_width=32, id_width=12, clock_domain=clock_domain)
+        axi_gpn = axi.AXIInterface(
+            data_width    = 32,
+            address_width = 32,
+            id_width      = 12,
+            version       = "axi3",
+            clock_domain  = clock_domain
+        )
         self.axi_gp_slaves.append(axi_gpn)
         self.cpu_params.update({
             #AXI S GP clk.
@@ -333,14 +368,20 @@ class Zynq7000(CPU):
 
     # AXI High Performance Slave -------------------------------------------------------------------
 
-    def add_axi_hp_slave(self):
+    def add_axi_hp_slave(self, clock_domain="ps7"):
         assert len(self.axi_hp_slaves) < 4
         n       = len(self.axi_hp_slaves)
-        axi_hpn = axi.AXIInterface(data_width=64, address_width=32, id_width=6)
+        axi_hpn = axi.AXIInterface(
+            data_width    = 64,
+            address_width = 32,
+            id_width      = 6,
+            version       = "axi3",
+            clock_domain  = clock_domain
+        )
         self.axi_hp_slaves.append(axi_hpn)
         self.cpu_params.update({
             # AXI HP0 clk.
-            f"i_S_AXI_HP{n}_ACLK"    : ClockSignal("ps7"),
+            f"i_S_AXI_HP{n}_ACLK"    : ClockSignal(clock_domain),
 
             # AXI HP0 aw.
             f"i_S_AXI_HP{n}_AWVALID" : axi_hpn.aw.valid,
@@ -392,10 +433,59 @@ class Zynq7000(CPU):
         })
         return axi_hpn
 
+    """
+    Enable CANx peripheral. Peripheral may be optionally set
+    Attributes
+    ==========
+    n: int
+        CAN id (0, 1)
+    pads:
+        Physicals pads (tx and rx)
+    ext_clk: int or None
+        When unset/None CAN is clocked by internal clock (IO PLL).
+        value must be 0 <= ext_clk < 54.
+    ext_clk_freq: float
+        when ext_clk is set, external clock frequency (Hz)
+    """
+    def add_can(self, n, pads, ext_clk=None, ext_clk_freq=None):
+        assert n < 2 and not n in self.can_use
+        assert ext_clk is None or (ext_clk < 54 and ext_clk is not None)
+        assert pads is not None
+
+        # Mark as used
+        self.can_use.append(n)
+
+        # PS7 configuration.
+        self.add_ps7_config({
+            f"PCW_CAN{n}_PERIPHERAL_ENABLE": 1,
+            f"PCW_CAN{n}_CAN{n}_IO":         "EMIO",
+            f"PCW_CAN{n}_GRP_CLK_ENABLE":    {True: 0, False: 1}[ext_clk == None],
+        })
+
+        if ext_clk:
+            self.add_ps7_config({
+                f"PCW_CAN{n}_GRP_CLK_IO"         : f"MIO {ext_clk}",
+                f"PCW_CAN{n}_PERIPHERAL_FREQMHZ" : int(clk_freq / 1e6),
+            })
+
+        # PS7 connections.
+        self.cpu_params.update({
+            f"i_CAN{n}_PHY_RX": pads.rx,
+            f"o_CAN{n}_PHY_TX": pads.tx,
+        })
+
     def do_finalize(self):
         if self.ps7_name is None:
             raise Exception("PS7 must be set with set_ps7 or set_ps7_xci methods.")
         if len(self.ps7_tcl):
+            # Add configs to PS7.
+            if len(self.config):
+                self.ps7_tcl.append("set_property -dict [list \\")
+                for config, value in self.config.items():
+                    self.ps7_tcl.append("CONFIG.{} {} \\".format(
+                        config, '{{' + str(value) + '}}'))
+                self.ps7_tcl.append(f"] [get_ips {self.ps7_name}]")
+
             self.ps7_tcl += [
                 f"upgrade_ip [get_ips {self.ps7_name}]",
                 f"generate_target all [get_ips {self.ps7_name}]",

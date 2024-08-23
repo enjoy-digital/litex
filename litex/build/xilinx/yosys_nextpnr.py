@@ -58,6 +58,13 @@ class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
         "z": "zynq7"
     }
 
+    @property
+    def device(self):
+        return  {
+            "xc7a35ticsg324-1L": "xc7a35tcsg324-1",
+            "xc7a200t-sbg484-1": "xc7a200tsbg484-1",
+        }.get(self.platform.device, self.platform.device)
+
     def _check_properties(self):
         pattern = re.compile("xc7([aksz])([0-9]+)(.*)-([0-9])")
         g = pattern.search(self.platform.device)
@@ -119,13 +126,13 @@ class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
                 if nextpnr_xilinx_python_dir is None or nextpnr_xilinx_python_dir == "":
                     nextpnr_xilinx_python_dir = "/snap/openxc7/current/opt/nextpnr-xilinx/python"
                 bba = self.dbpart + ".bba"
-                bbaexport = [pypy3, os.path.join(nextpnr_xilinx_python_dir, "bbaexport.py"), "--device", self.platform.device, "--bba", bba]
+                bbaexport = [pypy3, os.path.join(nextpnr_xilinx_python_dir, "bbaexport.py"), "--device", self.device, "--bba", bba]
                 print(str(bbaexport))
                 subprocess.run(bbaexport)
                 subprocess.run(["bbasm", "-l", bba, chipdb])
                 os.remove(bba)
             else:
-                print("Chip database file '{chipdb}' not found. Please check your toolchain installation!")
+                print(f"Chip database file '{chipdb}' not found. Please check your toolchain installation!")
                 exit(1)
 
         # pnr options
@@ -149,14 +156,14 @@ class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
 
         # pre packer options
         self._pre_packer_opts[self._pre_packer_cmd[0]] = "--part {part} --db-root {db_root} {top}.fasm > {top}.frames".format(
-            part    = self.platform.device,
+            part    = self.device,
             db_root = os.path.join(prjxray_db_dir, self._xc7family),
             top     = self._build_name
         )
         # packer options
         self._packer_opts += "--part_file {db_dir}/{part}/part.yaml --part_name {part} --frm_file {top}.frames --output_file {top}.bit".format(
             db_dir = os.path.join(prjxray_db_dir, self._xc7family),
-            part   = self.platform.device,
+            part   = self.device,
             top    = self._build_name
         )
 

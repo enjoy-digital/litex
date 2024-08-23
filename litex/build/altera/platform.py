@@ -34,6 +34,8 @@ class AlteraPlatform(GenericPlatform):
 
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
         so = dict(common.altera_special_overrides)
+        if self.device[:3] == "A5E":
+            so.update(common.agilex5_special_overrides)
         so.update(special_overrides)
         return GenericPlatform.get_verilog(self, *args,
             special_overrides = so,
@@ -62,3 +64,11 @@ class AlteraPlatform(GenericPlatform):
         for pad in common.altera_reserved_jtag_pads:
             r[pad] = self.request(pad)
         return r
+
+    @classmethod
+    def fill_args(cls, toolchain, parser):
+        quartus.fill_args(parser)
+
+    @classmethod
+    def get_argdict(cls, toolchain, args):
+        return quartus.get_argdict(args)

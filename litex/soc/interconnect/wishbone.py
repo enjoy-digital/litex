@@ -90,6 +90,8 @@ class Interface(Record):
             yield self.bte.eq(bte)
         yield self.we.eq(1)
         yield from self._do_transaction()
+        if (yield self.err):
+            raise ValueError("bus error")
 
     def read(self, adr, cti=None, bte=None):
         yield self.adr.eq(adr)
@@ -99,6 +101,8 @@ class Interface(Record):
         if bte is not None:
             yield self.bte.eq(bte)
         yield from self._do_transaction()
+        if (yield self.err):
+            raise ValueError("bus error")
         return (yield self.dat_r)
 
     def get_ios(self, bus_name="wb"):
@@ -459,7 +463,8 @@ class Converter(LiteXModule):
 
 # Wishbone SRAM ------------------------------------------------------------------------------------
 
-class SRAM(Module): # FIXME: Switch to LiteXModule.
+class SRAM(LiteXModule):
+    autocsr_exclude = {"mem"}
     def __init__(self, mem_or_size, read_only=None, write_only=None, init=None, bus=None, name=None):
         if bus is None:
             bus = Interface(data_width=32, address_width=32, addressing="word")
@@ -554,8 +559,11 @@ class SRAM(Module): # FIXME: Switch to LiteXModule.
 
         # Memory.
         # -------
-        port = self.mem.get_port(write_capable=not read_only, we_granularity=8,
-            mode=READ_FIRST if read_only else WRITE_FIRST)
+        port = self.mem.get_port(
+            write_capable  = not read_only,
+            we_granularity = 8,
+            mode           = READ_FIRST if read_only else WRITE_FIRST,
+        )
         self.specials += self.mem, port
         # Generate write enable signal
         if not read_only:
@@ -607,12 +615,14 @@ class Wishbone2CSR(LiteXModule):
                 NextValue(self.csr.dat_w, self.wishbone.dat_w),
                 If(self.wishbone.cyc & self.wishbone.stb,
                     NextValue(self.csr.adr, self.wishbone.adr[wishbone_adr_shift:]),
-                    NextValue(self.csr.we, self.wishbone.we & (self.wishbone.sel != 0)),
+                    NextValue(self.csr.re, ~self.wishbone.we & (self.wishbone.sel != 0)),
+                    NextValue(self.csr.we,  self.wishbone.we & (self.wishbone.sel != 0)),
                     NextState("WRITE-READ")
                 )
             )
             fsm.act("WRITE-READ",
                 NextValue(self.csr.adr, 0),
+                NextValue(self.csr.re, 0),
                 NextValue(self.csr.we, 0),
                 NextState("ACK")
             )
@@ -628,7 +638,8 @@ class Wishbone2CSR(LiteXModule):
                 self.csr.dat_w.eq(self.wishbone.dat_w),
                 If(self.wishbone.cyc & self.wishbone.stb,
                     self.csr.adr.eq(self.wishbone.adr[wishbone_adr_shift:]),
-                    self.csr.we.eq(self.wishbone.we & (self.wishbone.sel != 0)),
+                    self.csr.re.eq(~self.wishbone.we & (self.wishbone.sel != 0)),
+                    self.csr.we.eq( self.wishbone.we & (self.wishbone.sel != 0)),
                     NextState("ACK")
                 )
             )

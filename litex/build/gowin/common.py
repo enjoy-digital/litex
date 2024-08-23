@@ -100,9 +100,19 @@ class GowinDifferentialOutput:
     def lower(dr):
         return GowinDifferentialOutputImpl(dr.i, dr.o_p, dr.o_n)
 
-# Gowin Tristate -----------------------------------------------------------------------------------
+# Gowin Special Overrides --------------------------------------------------------------------------
 
-class GowinTristateImpl(Module):
+gowin_special_overrides = {
+    AsyncResetSynchronizer: GowinAsyncResetSynchronizer,
+    DDRInput:               GowinDDRInput,
+    DDROutput:              GowinDDROutput,
+    DifferentialInput:      GowinDifferentialInput,
+    DifferentialOutput:     GowinDifferentialOutput,
+}
+
+# Gw5A Tristate ------------------------------------------------------------------------------------
+
+class Gw5ATristateImpl(Module):
     def __init__(self, io, o, oe, i):
         nbits, _ = value_bits_sign(io)
         for bit in range(nbits):
@@ -113,18 +123,74 @@ class GowinTristateImpl(Module):
                 i_OEN = ~oe,
             )
 
-class GowinTristate:
+class Gw5ATristate:
     @staticmethod
     def lower(dr):
-        return GowinTristateImpl(dr.target, dr.o, dr.oe, dr.i)
+        return Gw5ATristateImpl(dr.target, dr.o, dr.oe, dr.i)
 
-# Gowin Special Overrides --------------------------------------------------------------------------
+# Gw5A SDROutput -----------------------------------------------------------------------------------
 
-gowin_special_overrides = {
-    AsyncResetSynchronizer: GowinAsyncResetSynchronizer,
-    DDRInput:               GowinDDRInput,
-    DDROutput:              GowinDDROutput,
-    DifferentialInput:      GowinDifferentialInput,
-    DifferentialOutput:     GowinDifferentialOutput,
-    #Tristate:               GowinTristate, # FIXME: issue with tangNano9k hyperram
+class Gw5ASDROutputImpl(Module):
+    def __init__(self, i, o, clk):
+        self.specials += Instance("DFFSE",
+                i_D   = i,
+                o_Q   = o,
+                i_CLK = clk,
+                i_SET = Constant(0,1),
+                i_CE  = Constant(1,1),
+        )
+
+class Gw5ASDROutput:
+    @staticmethod
+    def lower(dr):
+        return Gw5ASDROutputImpl(dr.i, dr.o, dr.clk)
+
+# Gw5A SDRInput ------------------------------------------------------------------------------------
+
+class Gw5ASDRInputImpl(Module):
+    def __init__(self, i, o, clk):
+        self.specials += Instance("DFFSE",
+                i_D   = i,
+                o_Q   = o,
+                i_CLK = clk,
+                i_SET = Constant(0,1),
+                i_CE  = Constant(1,1),
+        )
+
+class Gw5ASDRInput:
+    @staticmethod
+    def lower(dr):
+        return Gw5ASDRInputImpl(dr.i, dr.o, dr.clk)
+
+# Gw5A SDRTristate ---------------------------------------------------------------------------------
+
+class Gw5ASDRTristateImpl(Module):
+    def __init__(self, io, o, oe, i, clk):
+        _o    = Signal()
+        _oe_n = Signal()
+        _i    = Signal()
+        self.specials += [
+            SDROutput(o, _o, clk),
+            SDROutput(~oe, _oe_n, clk),
+            SDRInput(_i, i, clk),
+            Instance("IOBUF",
+                io_IO = io,
+                o_O   = _i,
+                i_I   = _o,
+                i_OEN = _oe_n,
+            ),
+        ]
+
+class Gw5ASDRTristate:
+    @staticmethod
+    def lower(dr):
+        return Gw5ASDRTristateImpl(dr.io, dr.o, dr.oe, dr.i, dr.clk)
+
+# Gw5A Special Overrides ---------------------------------------------------------------------------
+
+gw5a_special_overrides = {
+    SDRTristate: Gw5ASDRTristate,
+    SDROutput:   Gw5ASDROutput,
+    SDRInput:    Gw5ASDRInput,
+    Tristate:    Gw5ATristate,
 }

@@ -5,9 +5,13 @@
 # Copyright (c) 2021 Gwenhael Goavec-Merou <gwenhael.goavec-merou@trabucayre.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
+# See: https://f4pga-examples.readthedocs.io/en/latest/getting.html#toolchain-installation
+# To install toolchain
+
 import os
 import sys
 import subprocess
+import json
 from shutil import which
 
 from migen.fhdl.structure import _Fragment
@@ -47,48 +51,57 @@ class F4PGAToolchain(GenericToolchain):
         tools.write_to_file(self._build_name + ".pcf", pcf)
         return (self._build_name + ".pcf", "PCF")
 
-    # Build Makefile -------------------------------------------------------------------------------
+    # Timing constraints (.sdc) --------------------------------------------------------------------
+
+    def build_timing_constraints(self, vns):
+        sdc = []
+        for clk, [period, name] in sorted(self.clocks.items(), key=lambda x: x[0].duid):
+            clk_sig = vns.get_name(clk)
+            sdc.append("create_clock -period {} {}".format(str(period), clk_sig))
+        tools.write_to_file(self._build_name + "_in.sdc", "\n".join(sdc))
+        return (self._build_name + "_in.sdc", "SDC")
+
+    # Build flow.json ------------------------------------------------------------------------------
 
     def build_script(self):
-        makefile = []
+        part = {"ql-eos-s3": "PU64"}.get(self.platform.device)
+        flow = {
+            "default_part": "EOS3FF512-PDN64",
+            "values": {
+                "top": self._build_name
+            },
+            "dependencies": {
+                "sources": [
+                    f"{self._build_name}.v"
+                ],
+                "synth_log": "synth.log",
+                "pack_log": "pack.log",
+                "analysis_log": "analysis.log"
+            },
+            "EOS3FF512-PDN64": {
+                "default_target": "bitstream",
+                "dependencies": {
+                    "build_dir": self._build_dir,
+                    "pcf": f"{self._build_name}.pcf",
+                    "sdc-in": f"{self._build_name}_in.sdc"
+                },
+                "values": {
+                    "part": self.platform.device,
+                    "package": part
+                }
+            }
+        };
 
-        # Define Paths.
-        makefile.append("mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))")
-        makefile.append("current_dir := $(patsubst %/,%,$(dir $(mkfile_path)))")
-        # bit -> h and bit -> bin requires TOP_F
-        makefile.append(f"TOP_F={self._build_name}")
-
-        # Create Project.
-        # FIXME: Only use top file for now and ignore .init files.
-        makefile.append("all: {top}_bit.h {top}.bin build/{top}.bit".format(top=self._build_name))
-        # build bit file (default)
-        makefile.append(f"build/{self._build_name}.bit:")
-        makefile.append("\tql_symbiflow -compile -d {device} -P {part} -v {verilog} -t {top} -p {pcf}".format(
-            device  = self.platform.device,
-            part    = {"ql-eos-s3": "PU64"}.get(self.platform.device),
-            verilog = f"{self._build_name}.v",
-            top     = self._build_name,
-            pcf     = f"{self._build_name}.pcf"
-        ))
-        # build header to include in CPU firmware
-        makefile.append("{top}_bit.h: build/{top}.bit".format(top=self._build_name))
-        makefile.append(f"\t(cd build; TOP_F=$(TOP_F) symbiflow_write_bitheader)")
-        # build binary to write in dedicated FLASH area
-        makefile.append("{top}.bin: build/{top}.bit".format(top=self._build_name))
-        makefile.append(f"\t(cd build; TOP_F=$(TOP_F) symbiflow_write_binary)")
-
-        # Generate Makefile.
-        tools.write_to_file("Makefile", "\n".join(makefile))
-
-        return "Makefile"
+        tools.write_to_file("flow.json", json.dumps(flow))
+        return "flow.json"
 
     def run_script(self, script):
-        make_cmd = ["make", "-j1"]
-
-        if which("ql_symbiflow") is None:
-            msg = "Unable to find QuickLogic Symbiflow toolchain, please:\n"
-            msg += "- Add QuickLogic Symbiflow toolchain to your $PATH."
-            raise OSError(msg)
+        make_cmd = ["f4pga", "-vvv", "build", "--flow", "flow.json"]
 
         if subprocess.call(make_cmd) != 0:
             raise OSError("Error occured during QuickLogic Symbiflow's script execution.")
+
+        make_cmd.append("--target")
+        for target in ["bitstream_openocd", "bitstream_jlink", "bitstream_bitheader", "bitstream_binary"]:
+            if subprocess.call(make_cmd + [target]) != 0:
+                raise OSError(f"Error occured during QuickLogic Symbiflow's script execution for step {target}.")

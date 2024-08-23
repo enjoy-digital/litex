@@ -19,9 +19,9 @@ def csr32_write(dut, adr, dat):
 
 def csr32_read(dut, adr):
     dat = 0
-    for i in range(4):
+    for i in range(5):
         dat |= ((yield from dut.csr.read(adr + 3 - i)) << 8*i)
-    return dat
+    return dat >> 8
 
 
 class CSRModule(Module, csr.AutoCSR):

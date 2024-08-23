@@ -168,8 +168,13 @@ class PicoRV32(CPU):
         self.comb += [
             idbus.adr.eq(mem_addr),
             idbus.dat_w.eq(mem_wdata),
-            idbus.we.eq(mem_wstrb != 0),
-            idbus.sel.eq(mem_wstrb),
+            If(mem_wstrb != 0,
+                idbus.we.eq(1),
+                idbus.sel.eq(mem_wstrb),
+            ).Else(
+                idbus.we.eq(0),
+                idbus.sel.eq(0b1111),
+            ),
             idbus.cyc.eq(mem_valid),
             idbus.stb.eq(mem_valid),
             idbus.cti.eq(0),

@@ -32,7 +32,7 @@ class NXOSCA(LiteXModule):
     clk_hf_freq_range = (1.76, 450e6)
     clk_hf_freq = 450e6
 
-    def __init__(self):
+    def __init__(self, platform=None):
         self.logger = logging.getLogger("NXOSCA")
         self.logger.info("Creating NXOSCA.")
 
@@ -40,6 +40,7 @@ class NXOSCA(LiteXModule):
         self.hfsdc_clk_out = {}
         self.lf_clk_out    = None
         self.params        = {}
+        self.platform      = platform
 
     def create_hf_clk(self, cd, freq, margin=.05):
         """450 - 1.7 Mhz Clk"""
@@ -86,21 +87,29 @@ class NXOSCA(LiteXModule):
 
     def do_finalize(self):
         if self.hf_clk_out:
-            divisor = self.compute_divisor(self.hf_clk_out[1], self.hf_clk_out[2])
+            clk_freq = self.hf_clk_out[1]
+            divisor = self.compute_divisor(clk_freq, self.hf_clk_out[2])
             self.params["i_HFOUTEN"]      = 0b1
             self.params["p_HF_CLK_DIV"]   = divisor
             self.params["o_HFCLKOUT"]     = self.hf_clk_out[0]
             self.params["p_HF_OSC_EN"]    = "ENABLED"
+            if self.platform:
+                self.platform.add_platform_command("create_clock -period {} -name OSCA_HFCLKOUT [get_pins OSCA.OSCA_inst/HFCLKOUT]".format(str(1e9/clk_freq)))
 
         if self.hfsdc_clk_out:
-            divisor = self.compute_divisor(self.hfsdc_clk_out[1], self.hfsdc_clk_out[2])
+            clk_freq = self.hf_clk_out[1]
+            divisor = self.compute_divisor(clk_freq, self.hfsdc_clk_out[2])
             self.params["i_HFSDSCEN"]        = 0b1
             self.params["p_HF_SED_SEC_DIV"]  = divisor
             self.params["o_HFSDCOUT"]        = self.hfsdc_clk_out[0]
+            if self.platform:
+                self.platform.add_platform_command("create_clock -period {} -name OSCA_HFSDCOUT [get_pins OSCA.OSCA_inst/HFSDCOUT]".format(str(1e9/clk_freq)))
 
         if self.lf_clk_out is not None:
             self.params["o_LFCLKOUT"] = self.lf_clk_out[0]
             self.params["p_LF_OUTPUT_EN"] = "ENABLED"
+            if self.platform:
+                self.platform.add_platform_command("create_clock -period {} -name OSCA_LF_OUTPUT_EN [get_pins OSCA.OSCA_inst/LF_OUTPUT_EN]".format(str(1e9/128e3)))
 
         self.specials += Instance("OSCA", **self.params)
 

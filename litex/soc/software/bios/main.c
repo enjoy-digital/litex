@@ -38,6 +38,7 @@
 #include <libbase/spiflash.h>
 #include <libbase/uart.h>
 #include <libbase/i2c.h>
+#include <libbase/hyperram.h>
 
 #include <liblitedram/sdram.h>
 #include <liblitedram/utils.h>
@@ -173,7 +174,11 @@ __attribute__((__used__)) int main(int i, char **c)
 	printf("\n");
 #endif
 
-        sdr_ok = 1;
+    sdr_ok = 1;
+
+#ifdef CSR_HYPERRAM_BASE
+    hyperram_init();
+#endif
 
 #if defined(CSR_ETHMAC_BASE) || defined(MAIN_RAM_BASE) || defined(CSR_SPIFLASH_CORE_BASE)
     printf("--========== \e[1mInitialization\e[0m ============--\n");

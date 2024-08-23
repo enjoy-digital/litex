@@ -19,4 +19,4 @@ pythondata-{dt}-{dn} module not installed! Unable to use {dn} {dt}.
 
 You can install this by running;
  pip3 install git+https://github.com/litex-hub/pythondata-{dt}-{dn}.git
-""".format(dt=data_type, dn=data_name, e=e))
+""".format(dt=data_type, dn=data_name, e=e)) from None

@@ -13,10 +13,6 @@ jobs:
       - name: Setup CCache
         uses: hendrikmuhs/ccache-action@v1.2
 
-      - uses: ghdl/setup-ghdl-ci@master
-        with:
-          backend: llvm
-
       # Install Tools
       - name: Install Tools
         run: |
@@ -46,6 +42,16 @@ jobs:
           sudo python3 litex_setup.py --gcc=riscv
           sudo python3 litex_setup.py --gcc=openrisc
           sudo python3 litex_setup.py --gcc=powerpc
+
+      # Build / Install GHDL
+      - name: Build GHDL
+        run: |
+          sudo apt-get install gnat llvm
+          git clone https://github.com/ghdl/ghdl.git
+          cd ghdl
+          ./configure --with-llvm-config
+          make
+          sudo make install
 
       # Build / Install Verilator
       - name: Build Verilator
