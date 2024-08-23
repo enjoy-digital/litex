@@ -317,8 +317,8 @@ class Crossbar(LiteXModule):
                     columns[slave[2]].append(interface)
                     row.append((slave[0], interface))
 
-                    
-            self.submodules += Decoder(master, row, register)                
+            self.submodules += Decoder(master, row, register)
+            self.submodules += Timeout(master, timeout_cycles)            
 
         # arbitrate each access column onto its slave
         for (match, bus, name) in slaves:
