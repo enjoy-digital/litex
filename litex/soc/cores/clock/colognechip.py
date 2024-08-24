@@ -130,6 +130,8 @@ class GateMatePLL(LiteXModule):
         freqInMHz  = self._clkin_freq/1e6
         freqOutMHz = clkout_freq/1e6
 
+        locked_s1 = Signal()
+
         self.specials += Instance("CC_PLL",
             p_REF_CLK             = str(freqInMHz),   # reference input in MHz
             p_OUT_CLK             = str(freqOutMHz),  # pll output frequency in MHz
@@ -141,11 +143,12 @@ class GateMatePLL(LiteXModule):
             i_CLK_REF             = self._clkin if not self._usr_clk_ref else Open(),
             i_USR_CLK_REF         = self._clkin if self._usr_clk_ref else Open(),
             i_CLK_FEEDBACK        = 0,
-            i_USR_LOCKED_STDY_RST = self.reset,
+            i_USR_LOCKED_STDY_RST = 0,
             o_CLK_REF_OUT         = Open(),
-            o_USR_PLL_LOCKED_STDY = self.locked,
-            o_USR_PLL_LOCKED      = Open(),
+            o_USR_PLL_LOCKED_STDY = Open(),
+            o_USR_PLL_LOCKED      = locked_s1,
             **{f"o_CLK{p}"        : c for (p, (c, _)) in self._clkouts.items()},
             **{f"p_CLK{p}_DOUB"   : v for (p, v) in clk_doub.items()},
         )
 
+        self.comb += self.locked.eq(locked_s1 & ~self.reset)
