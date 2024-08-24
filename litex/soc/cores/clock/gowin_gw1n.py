@@ -255,11 +255,7 @@ class GW1NPLL(LiteXModule):
             instance_name = 'PLLVR'
             self.params.update(i_VREN=1)
         else:
-            instance_name = 'PLL'
-            self.params.update(
-                i_RESET_I = 0,          # IDIV reset.
-                i_RESET_S = 0,          # SDIV and DIV3 reset.
-            )
+            instance_name = 'rPLL'
         for clk_name in ["CLKOUT", "CLKOUTP", "CLKOUTD", "CLKOUTD3"]:
             self.params[f"o_{clk_name}"] = config.get(clk_name, Open()) # Clock output.
             if clk_name in ["CLKOUTD", "CLKOUTD3"]: # Recopy CLKOUTx to CLKOUTDx
