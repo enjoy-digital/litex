@@ -44,18 +44,6 @@ class CologneChipToolchain(GenericToolchain):
 
     # IO Constraints (.ccf) ------------------------------------------------------------------------
 
-    def _get_pin_direction(self, pinname):
-        pins = self.platform.constraint_manager.get_io_signals()
-        for pin in sorted(pins, key=lambda x: x.duid):
-            if (pinname.split("[")[0] == pin.name):
-                if pin.direction == "output":
-                    return "Pin_out"
-                elif pin.direction == "input":
-                    return "Pin_in"
-                else:
-                    return "Pin_inout"
-        return "Unknown"
-
     def build_io_constraints(self):
         ccf = []
 
@@ -70,8 +58,7 @@ class CologneChipToolchain(GenericToolchain):
         for name, pin, other in flat_sc:
             pin_cst = ""
             if pin != "X":
-                direction = self._get_pin_direction(name)
-                pin_cst = f"{direction} \"{name}\" Loc = \"{pin}\""
+                pin_cst = f"Net \"{name}\" Loc = \"{pin}\""
 
             for c in other:
                 if isinstance(c, Misc):
