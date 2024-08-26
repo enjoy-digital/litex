@@ -18,7 +18,7 @@ static void hyperram_write_reg(uint16_t reg_addr, uint16_t data) {
         reg_addr << CSR_HYPERRAM_REG_CONTROL_ADDR_OFFSET
     );
     /* Wait for write to complete */
-    while ((hyperram_reg_status_read() & (1 << CSR_HYPERRAM_REG_STATUS_WRITE_DONE_OFFSET)) == 0);
+    while ((hyperram_reg_status_read() & (1 << CSR_HYPERRAM_REG_STATUS_DONE_OFFSET)) == 0);
  }
 
 static uint16_t hyperram_read_reg(uint16_t reg_addr) {
@@ -29,7 +29,7 @@ static uint16_t hyperram_read_reg(uint16_t reg_addr) {
         reg_addr << CSR_HYPERRAM_REG_CONTROL_ADDR_OFFSET
     );
     /* Wait for read to complete */
-    while ((hyperram_reg_status_read() & (1 << CSR_HYPERRAM_REG_STATUS_READ_DONE_OFFSET)) == 0);
+    while ((hyperram_reg_status_read() & (1 << CSR_HYPERRAM_REG_STATUS_DONE_OFFSET)) == 0);
     return hyperram_reg_rdata_read();
 }
 
@@ -55,42 +55,60 @@ static uint16_t hyperram_get_chip_latency_setting(uint32_t clk_freq) {
     return 0b0010; /* Default to highest latency for safety */
 }
 
-static void hyperram_configure_latency(void) {
-    uint16_t config_reg_0 = 0x8f2f;
+void hyperram_init(void) {
+    uint16_t config_reg_0;
     uint8_t  core_clk_ratio;
+    uint8_t  core_latency_mode;
     uint16_t core_latency_setting;
     uint16_t chip_latency_setting;
 
-    /* Compute Latency settings */
-    core_clk_ratio = (hyperram_status_read() >> CSR_HYPERRAM_STATUS_CLK_RATIO_OFFSET & 0xf);
-    printf("HyperRAM Clk Ratio %d:1.\n", core_clk_ratio);
-    core_latency_setting = hyperram_get_core_latency_setting(CONFIG_CLOCK_FREQUENCY/core_clk_ratio);
-    chip_latency_setting = hyperram_get_chip_latency_setting(CONFIG_CLOCK_FREQUENCY/core_clk_ratio);
+    printf("HyperRAM init...\n");
 
-    /* Write Latency to HyperRAM Core */
-    printf("HyperRAM Core Latency: %d CK (X1).\n", core_latency_setting);
+    /* Compute Latency settings */
+    core_clk_ratio  = (hyperram_status_read() >> CSR_HYPERRAM_STATUS_CLK_RATIO_OFFSET) & 0xf;
+    printf("HyperRAM Clk Ratio %d:1\n", core_clk_ratio);
+    core_latency_setting = hyperram_get_core_latency_setting(CONFIG_CLOCK_FREQUENCY / core_clk_ratio);
+    chip_latency_setting = hyperram_get_chip_latency_setting(CONFIG_CLOCK_FREQUENCY / core_clk_ratio);
+
+    /* Configure Latency on HyperRAM Core */
+    core_latency_mode = (hyperram_status_read() >> CSR_HYPERRAM_STATUS_LATENCY_MODE_OFFSET) & 0b1;
+    printf("HyperRAM %s Latency: %d CK (X1)\n", (core_latency_mode == 0) ? "Fixed" : "Variable", core_latency_setting);
     hyperram_config_write(core_latency_setting << CSR_HYPERRAM_CONFIG_LATENCY_OFFSET);
 
+    /* Configure HyperRAM Chip */
+    config_reg_0 = (
+        /* Burst Length */
+        (HYPERRAM_CONFIG_0_REG_BL_32_BYTES        << HYPERRAM_CONFIG_0_REG_BL_OFFSET)   |
+
+        /* Hybrid Burst Enable */
+        (HYPERRAM_CONFIG_0_REG_HBE_LEGACY         << HYPERRAM_CONFIG_0_REG_HBE_OFFSET)  |
+
+        /* Initial Latency */
+        (chip_latency_setting                     << HYPERRAM_CONFIG_0_REG_IL_OFFSET)   |
+
+        /* Fixed Latency Enable */
+        (HYPERRAM_CONFIG_0_REG_FLE_ENABLED        << HYPERRAM_CONFIG_0_REG_FLE_OFFSET)  |
+
+        /* Reserved Bits (Set to 1 for future compatibility) */
+        (0b1111                                   << HYPERRAM_CONFIG_0_REG_RSD_OFFSET) |
+
+        /* Drive Strength */
+        (HYPERRAM_CONFIG_0_REG_DS_19_OHM          << HYPERRAM_CONFIG_0_REG_DS_OFFSET)   |
+
+        /* Deep Power Down: Normal operation */
+        (HYPERRAM_CONFIG_0_REG_DPD_DISABLED       << HYPERRAM_CONFIG_0_REG_DPD_OFFSET)
+    );
     /* Enable Variable Latency on HyperRAM Chip */
-    if (hyperram_status_read() & 0x1)
-        config_reg_0 &= ~(0b1 << 3); /* Enable Variable Latency */
+    if (hyperram_status_read() & 0x1) {
+        config_reg_0 &= ~(1                                  << HYPERRAM_CONFIG_0_REG_FLE_OFFSET);
+        config_reg_0 |=  (HYPERRAM_CONFIG_0_REG_FLE_DISABLED << HYPERRAM_CONFIG_0_REG_FLE_OFFSET);
+    }
+    hyperram_write_reg(HYPERRAM_CONFIG_0_REG, config_reg_0);
 
-    /* Update Latency on HyperRAM Chip */
-    config_reg_0 &= ~(0b1111 << 4);
-    config_reg_0 |= chip_latency_setting << 4;
-
-    /* Write Configuration Register 0 to HyperRAM Chip */
-    hyperram_write_reg(2, config_reg_0);
-
-    /* Read current configuration */
-    config_reg_0 = hyperram_read_reg(2);
-    printf("HyperRAM Configuration Register 0: %08x\n", config_reg_0);
-}
-
-void hyperram_init(void) {
-	printf("HyperRAM init...\n");
-	hyperram_configure_latency();
-	printf("\n");
+    /* Read current configuration to verify changes */
+    config_reg_0 = hyperram_read_reg(HYPERRAM_CONFIG_0_REG);
+    printf("HyperRAM Configuration Register 0: %04x\n", config_reg_0);
+    printf("\n");
 }
 
 #endif
