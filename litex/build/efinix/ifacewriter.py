@@ -295,6 +295,8 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
             else:
                 cmd += 'design.gen_pll_ref_clock("{}", pll_res="{}", refclk_src="{}", refclk_name="{}", ext_refclk_no="{}")\n\n' \
                     .format(name, block["resource"], block["input_clock"], block["input_clock_name"], block["clock_no"])
+            for p, val in block["input_properties"]:
+                cmd += 'design.set_property("{}","{}","{}")\n'.format(block["input_clock_name"], p, val)
         else:
             cmd += 'design.gen_pll_ref_clock("{}", pll_res="{}", refclk_name="{}", refclk_src="CORE")\n'.format(name, block["resource"], block["input_signal"])
             cmd += 'design.set_property("{}", "CORE_CLK_PIN", "{}", block_type="PLL")\n\n'.format(name, block["input_signal"])

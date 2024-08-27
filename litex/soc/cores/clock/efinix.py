@@ -85,6 +85,7 @@ class EFINIXPLL(LiteXModule):
             block["input_refclk_name"] = refclk_name
             block["resource"]        = pll_res
             block["clock_no"]        = clock_no
+            block["input_properties"] = self.platform.get_pin_properties(clkin)
             self.logger.info("Clock source: {}, using EXT_CLK{}".format(block["input_clock"], clock_no))
             self.platform.get_pll_resource(pll_res)
         else:
