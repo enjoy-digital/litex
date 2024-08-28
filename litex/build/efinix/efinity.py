@@ -164,6 +164,10 @@ class EfinityToolchain(GenericToolchain):
                 prop = "PULL_OPTION"
                 val = c.misc
 
+            if c.misc == "SCHMITT_TRIGGER":
+                prop = "SCHMITT_TRIGGER"
+                val = "1"
+
             if "DRIVE_STRENGTH" in c.misc:
                 prop = "DRIVE_STRENGTH"
                 val = c.misc.split("=")[1]
