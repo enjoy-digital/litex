@@ -308,17 +308,18 @@ class HyperRAMCore(LiteXModule):
 
         # Signals.
         # --------
-        self.cmd        = cmd        = Signal(48)
-        self.cycles     = cycles     = Signal(8)
-        self.latency_x2 = latency_x2 = Signal()
-        self.bus_latch  = bus_latch  = Signal()
-        self.bus_cti    = bus_cti    = Signal(3)
-        self.bus_we     = bus_we     = Signal()
-        self.bus_sel    = bus_sel    = Signal(4)
-        self.bus_adr    = bus_adr    = Signal(32)
-        self.bus_dat_w  = bus_dat_w  = Signal(32)
-        self.burst_w    = burst_w    = Signal()
-        self.burst_r    = burst_r    = Signal()
+        self.cmd           = cmd           = Signal(48)
+        self.cycles        = cycles        = Signal(8)
+        self.latency_x2    = latency_x2    = Signal()
+        self.bus_latch     = bus_latch     = Signal()
+        self.bus_cti       = bus_cti       = Signal(3)
+        self.bus_we        = bus_we        = Signal()
+        self.bus_sel       = bus_sel       = Signal(4)
+        self.bus_adr       = bus_adr       = Signal(32)
+        self.bus_dat_w     = bus_dat_w     = Signal(32)
+        self.burst_w       = burst_w       = Signal()
+        self.burst_r       = burst_r       = Signal()
+        self.burst_r_first = burst_r_first = Signal()
 
         # PHY.
         # ----
@@ -425,8 +426,9 @@ class HyperRAMCore(LiteXModule):
                     If(reg.stb & ~reg.we,
                         NextState("REG-READ")
                     ).Else(
+                        bus_latch.eq(1),
+                        NextValue(burst_r_first, 1),
                         If(bus.we,
-                            bus_latch.eq(1),
                             NextState("DAT-WRITE")
                         ).Else(
                             NextState("DAT-READ")
@@ -470,7 +472,7 @@ class HyperRAMCore(LiteXModule):
                 bus_dat_w.eq(bus.dat_w),
             )
         ]
-        self.comb += If(bus_latch, bus.ack.eq(1))
+        self.comb += If(bus_latch, bus.ack.eq(bus.we))
         self.comb += burst_w.eq(
             # Notified Incrementing Burst.
             (bus_cti == 0b010) |
@@ -500,16 +502,21 @@ class HyperRAMCore(LiteXModule):
         # Data Read State.
         self.comb += burst_r.eq(
             # Notified Incrementing Burst.
-            (bus.cti == 0b10)
+            (bus_cti == 0b10) |
+            # Detected Incrementing Burst.
+            ((bus.we == bus_we) & (bus.adr == (bus_adr + 1))),
         )
         fsm.act("DAT-READ",
-            source.valid.eq(bus.cyc & bus.stb),
+            source.valid.eq(1),
             source.dat_r.eq(1),
             If(dat_rx_conv.source.valid,
-                bus.ack.eq(1),
+                NextValue(burst_r_first, 0),
+                # Ack on first or while Incrementing Burst ongoing...
+                bus.ack.eq(burst_r_first | (with_bursting & bus.cyc & bus.stb & burst_r)),
                 bus.dat_r.eq(dat_rx_conv.source.dq),
-                # Stay in DAT-READ while Incrementing Burst ongoing...
-                If(with_bursting & bus.cyc & bus.stb & burst_r,
+                # If Ack, stay in DAT-READ to anticipate next read...
+                If(bus.ack,
+                    bus_latch.eq(1),
                     NextState("DAT-READ")
                 # ..else exit.
                 ).Else(
