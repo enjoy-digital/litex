@@ -23,6 +23,7 @@ Provides a HyperRAM Core with PHY, Core logic, and optional CSR interface for Li
 Supports variable latency, configurable clocking (4:1, 2:1), and burst operations.
 
 Features:
+- 8-bit or 16-bit Data-Width
 - Variable latency: "fixed" or "variable".
 - Configurable clock ratios: 4:1 or 2:1.
 - Burst read/write support.
@@ -311,6 +312,13 @@ class HyperRAMCore(LiteXModule):
         self.cycles     = cycles     = Signal(8)
         self.latency_x2 = latency_x2 = Signal()
         self.bus_latch  = bus_latch  = Signal()
+        self.bus_cti    = bus_cti    = Signal(3)
+        self.bus_we     = bus_we     = Signal()
+        self.bus_sel    = bus_sel    = Signal(4)
+        self.bus_adr    = bus_adr    = Signal(32)
+        self.bus_dat_w  = bus_dat_w  = Signal(32)
+        self.burst_w    = burst_w    = Signal()
+        self.burst_r    = burst_r    = Signal()
 
         # PHY.
         # ----
@@ -455,20 +463,31 @@ class HyperRAMCore(LiteXModule):
         # Data Write State.
         self.sync += [
             If(bus_latch,
-                dat_tx_conv.sink.dq.eq(bus.dat_w),
-                dat_tx_conv.sink.rwds.eq(~bus.sel),
+                bus_cti.eq(bus_cti),
+                bus_we.eq(bus.we),
+                bus_sel.eq(bus.sel),
+                bus_adr.eq(bus.adr),
+                bus_dat_w.eq(bus.dat_w),
             )
         ]
         self.comb += If(bus_latch, bus.ack.eq(1))
+        self.comb += burst_w.eq(
+            # Notified Incrementing Burst.
+            (bus_cti == 0b010) |
+            # Detected Incrementing Burst.
+            ((bus.we == bus_we) & (bus.adr == (bus_adr + 1))),
+        )
         fsm.act("DAT-WRITE",
             dat_tx_conv.sink.valid.eq(1),
+            dat_tx_conv.sink.dq.eq(bus_dat_w),
+            dat_tx_conv.sink.rwds.eq(~bus_sel),
             dat_tx_conv.source.connect(source),
             source.dq_oe.eq(1),
             source.rwds_oe.eq(1),
             source.dat_w.eq(1),
             If(dat_tx_conv.sink.ready,
-                # Stay in DAT-WRITE while incrementing burst ongoing...
-                If(with_bursting & bus.cyc & bus.stb & ((bus.cti == 0b10) | (bus.cti == 0b11)),
+                # Stay in DAT-WRITE while Incrementing Burst ongoing...
+                If(with_bursting & bus.cyc & bus.stb & burst_w,
                     bus_latch.eq(1),
                     NextState("DAT-WRITE")
                 # ..else exit.
@@ -479,14 +498,18 @@ class HyperRAMCore(LiteXModule):
         )
 
         # Data Read State.
+        self.comb += burst_r.eq(
+            # Notified Incrementing Burst.
+            (bus.cti == 0b10)
+        )
         fsm.act("DAT-READ",
             source.valid.eq(bus.cyc & bus.stb),
             source.dat_r.eq(1),
             If(dat_rx_conv.source.valid,
                 bus.ack.eq(1),
                 bus.dat_r.eq(dat_rx_conv.source.dq),
-                # Stay in DAT-READ while incrementing burst ongoing...
-                If(with_bursting & (bus.cti == 0b10),
+                # Stay in DAT-READ while Incrementing Burst ongoing...
+                If(with_bursting & bus.cyc & bus.stb & burst_r,
                     NextState("DAT-READ")
                 # ..else exit.
                 ).Else(
