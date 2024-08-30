@@ -59,6 +59,7 @@ class VexiiRiscv(CPU):
     with_axi3        = False
     jtag_tap         = False
     jtag_instruction = False
+    vexii_video      = []
     vexii_args       = ""
 
 
@@ -137,6 +138,7 @@ class VexiiRiscv(CPU):
         cpu_group.add_argument("--l2-ways",               default=0,             help="VexiiRiscv L2 ways, default 8.")
         cpu_group.add_argument("--l2-self-flush",         default=None,          help="VexiiRiscv L2 ways will self flush on from,to,cycles")
         cpu_group.add_argument("--with-axi3",             action="store_true",   help="mbus will be axi3 instead of axi4")
+        cpu_group.add_argument("--vexii-video",           action="append",  default=[], help="Add the memory coherent video controller")
 
 
 
@@ -200,6 +202,7 @@ class VexiiRiscv(CPU):
             VexiiRiscv.l2_ways = args.l2_ways
         if args.l2_self_flush:
             VexiiRiscv.l2_self_flush = args.l2_self_flush
+        VexiiRiscv.vexii_video = args.vexii_video
 
 
     def __init__(self, platform, variant):
@@ -306,6 +309,31 @@ class VexiiRiscv(CPU):
                 o_dma_bus_rlast   = dma_bus.r.last,
             )
 
+        for video in VexiiRiscv.vexii_video:
+            args = {}
+            for i, val in enumerate(video.split(",")):
+                name, value = val.split("=")
+                args.update({name: value})
+            name = args["name"]
+            clk = Signal()
+            hsync = Signal()
+            vsync = Signal()
+            color_en = Signal()
+            color = Signal(16)
+            setattr(self, name + "_clk", clk)
+            setattr(self, name + "_hsync", hsync)
+            setattr(self, name + "_vsync", vsync)
+            setattr(self, name + "_color_en", color_en)
+            setattr(self, name + "_color", color)
+            self.cpu_params["o_" + name + "_clk"] = clk
+            self.cpu_params["o_" + name + "_hSync"] = hsync
+            self.cpu_params["o_" + name + "_vSync"] = vsync
+            self.cpu_params["o_" + name + "_colorEn"] = color_en
+            self.cpu_params["o_" + name + "_color"] = color
+
+
+
+
     def set_reset_address(self, reset_address):
         VexiiRiscv.reset_address = reset_address
         VexiiRiscv.vexii_args += f" --reset-vector {reset_address}"
@@ -327,6 +355,8 @@ class VexiiRiscv(CPU):
         md5_hash.update(str(VexiiRiscv.with_axi3).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.memory_regions).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.vexii_args).encode('utf-8'))
+        md5_hash.update(str(VexiiRiscv.vexii_video).encode('utf-8'))
+
         # md5_hash.update(str(VexiiRiscv.internal_bus_width).encode('utf-8'))
 
 
@@ -361,6 +391,9 @@ class VexiiRiscv(CPU):
             gen_args.append(f"--with-dma")
         if(VexiiRiscv.with_axi3) :
             gen_args.append(f"--with-axi3")
+        for arg in VexiiRiscv.vexii_video:
+            gen_args.append(f"--video {arg}")
+
 
         cmd = f"""cd {ndir} && sbt "runMain vexiiriscv.soc.litex.SocGen {" ".join(gen_args)}\""""
         print("VexiiRiscv generation command :")
@@ -469,7 +502,12 @@ class VexiiRiscv(CPU):
             if soc.get_build_name() == "sim":
                 self.comb += If(debug_ndmreset_rise, soc.crg.cd_sys.rst.eq(1))
             else:
-                self.comb += If(debug_ndmreset_rise, soc.crg.rst.eq(1))
+                if hasattr(soc.crg, "rst"):
+                    self.comb += If(debug_ndmreset_rise, soc.crg.rst.eq(1))
+                elif hasattr(soc.crg.pll, "reset"):
+                    self.comb += If(debug_ndmreset_rise, soc.crg.pll.reset.eq(1))
+                else:
+                    raise Exception("Pll has no reset ?")
 
         self.soc_bus = soc.bus # FIXME: Save SoC Bus instance to retrieve the final mem layout on finalization.
 
@@ -482,6 +520,7 @@ class VexiiRiscv(CPU):
             id_width      = 8,
             version       = "axi3" if VexiiRiscv.with_axi3 else "axi4"
         )
+        self.mBus_awallStrb = Signal()
         self.memory_buses.append(mbus)
 
         self.comb += mbus.aw.cache.eq(0xF)
@@ -507,7 +546,7 @@ class VexiiRiscv(CPU):
             o_mBus_awlen     = mbus.aw.len,
             o_mBus_awsize    = mbus.aw.size,
             o_mBus_awburst   = mbus.aw.burst,
-            o_mBus_awallStrb = Open(),
+            o_mBus_awallStrb = self.mBus_awallStrb,
             # W Channel.
             o_mBus_wvalid    = mbus.w.valid,
             i_mBus_wready    = mbus.w.ready,
@@ -572,6 +611,10 @@ class VexiiRiscv(CPU):
             mode = region.mode
             mode += "c" if region.cached else ""
             VexiiRiscv.memory_regions.append( (region.origin, region.size, mode, bus) )
+
+        from litex.build.efinix import EfinixPlatform
+        if isinstance(self.platform, EfinixPlatform):
+            VexiiRiscv.vexii_args = "--mmu-sync-read " + VexiiRiscv.vexii_args
 
         self.generate_netlist_name()
 
