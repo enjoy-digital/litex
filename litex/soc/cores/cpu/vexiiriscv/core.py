@@ -59,6 +59,7 @@ class VexiiRiscv(CPU):
     with_axi3        = False
     jtag_tap         = False
     jtag_instruction = False
+    with_cpu_clk     = False
     vexii_video      = []
     vexii_args       = ""
 
@@ -132,6 +133,7 @@ class VexiiRiscv(CPU):
         cpu_group.add_argument("--with-jtag-instruction", action="store_true",   help="Add a JTAG instruction port which implement tunneling for debugging (TAP not included).")
         cpu_group.add_argument("--update-repo",           default="recommended", choices=["latest","wipe+latest","recommended","wipe+recommended","no"], help="Specify how the VexiiRiscv & SpinalHDL repo should be updated (latest: update to HEAD, recommended: Update to known compatible version, no: Don't update, wipe+*: Do clean&reset before checkout)")
         cpu_group.add_argument("--no-netlist-cache",      action="store_true",   help="Always (re-)build the netlist.")
+        cpu_group.add_argument("--with-cpu-clk",          action="store_true",   help="The CPUs will use a decoupled clock")
         # cpu_group.add_argument("--with-fpu",              action="store_true",   help="Enable the F32/F64 FPU.")
         # cpu_group.add_argument("--with-rvc",              action="store_true",   help="Enable the Compress ISA extension.")
         cpu_group.add_argument("--l2-bytes",              default=0,             help="VexiiRiscv L2 bytes, default 128 KB.")
@@ -198,6 +200,7 @@ class VexiiRiscv(CPU):
             VexiiRiscv.cpu_count = args.cpu_count
         if args.l2_bytes:
             VexiiRiscv.l2_bytes = args.l2_bytes
+        VexiiRiscv.with_cpu_clk = args.with_cpu_clk
         if args.l2_ways:
             VexiiRiscv.l2_ways = args.l2_ways
         if args.l2_self_flush:
@@ -223,8 +226,8 @@ class VexiiRiscv(CPU):
         # CPU Instance.
         self.cpu_params = dict(
             # Clk/Rst.
-            i_system_clk   = ClockSignal("sys"),
-            i_system_reset = ResetSignal("sys") | self.reset,
+            i_litex_clk   = ClockSignal("sys"),
+            i_litex_reset = ResetSignal("sys") | self.reset,
 
             # Patcher/Tracer.
             # o_patcher_tracer_valid   = self.tracer_valid,
@@ -254,6 +257,12 @@ class VexiiRiscv(CPU):
             i_pBus_rdata   = pbus.r.data,
             i_pBus_rresp   = pbus.r.resp,
         )
+
+        if VexiiRiscv.with_cpu_clk:
+            self.cpu_clk = Signal()
+            self.cpu_params.update(
+                i_cpu_clk = self.cpu_clk
+            )
 
         if VexiiRiscv.with_dma:
             self.dma_bus = dma_bus = axi.AXIInterface(data_width=VexiiRiscv.internal_bus_width, address_width=32, id_width=4)
@@ -347,6 +356,7 @@ class VexiiRiscv(CPU):
         md5_hash.update(str(VexiiRiscv.xlen).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.cpu_count).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.l2_bytes).encode('utf-8'))
+        md5_hash.update(str(VexiiRiscv.with_cpu_clk).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.l2_ways).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.l2_self_flush).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.jtag_tap).encode('utf-8'))
@@ -376,6 +386,8 @@ class VexiiRiscv(CPU):
         gen_args.append(VexiiRiscv.vexii_args)
         gen_args.append(f"--cpu-count={VexiiRiscv.cpu_count}")
         gen_args.append(f"--l2-bytes={VexiiRiscv.l2_bytes}")
+        if VexiiRiscv.with_cpu_clk:
+            gen_args.append("--with-cpu-clk")
         gen_args.append(f"--l2-ways={VexiiRiscv.l2_ways}")
         if VexiiRiscv.l2_self_flush:
             gen_args.append(f"--l2-self-flush={VexiiRiscv.l2_self_flush}")
