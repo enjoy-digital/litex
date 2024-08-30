@@ -543,7 +543,7 @@ class SoCBusHandler(LiteXModule):
             colorer("added", color="green")))
 
     def add_peripheral(self, name=None, peripheral=None, region=None):
-        self.add_slave(self, name=name, slave=peripheral, region=region)
+        self.add_slave(name=name, slave=peripheral, region=region)
 
     def get_address_width(self, standard):
         standard_from = self.standard
