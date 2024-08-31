@@ -7,6 +7,7 @@
 // This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
 // License: BSD
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -579,7 +580,7 @@ void netboot(int nb_params, char **params)
 /* Flash Boot                                                            */
 /*-----------------------------------------------------------------------*/
 
-#ifdef FLASH_BOOT_ADDRESS
+#if defined(FLASH_BOOT_ADDRESS) || defined(MAIN_RAM_BASE)
 
 static unsigned int check_image_in_flash(unsigned int base_address)
 {
@@ -589,29 +590,30 @@ static unsigned int check_image_in_flash(unsigned int base_address)
 
 	length = MMPTR(base_address);
 	if((length < 32) || (length > 16*1024*1024)) {
-		printf("Error: Invalid image length 0x%08x\n", length);
+		printf("Error: Invalid image length 0x%" PRIx32 "\n", length);
 		return 0;
 	}
 
 	crc = MMPTR(base_address + 4);
 	got_crc = crc32((unsigned char *)(base_address + 8), length);
 	if(crc != got_crc) {
-		printf("CRC failed (expected %08x, got %08x)\n", crc, got_crc);
+		printf("CRC failed (expected 0x%" PRIx32 ", got 0x%" PRIx32 ")\n", crc, got_crc);
 		return 0;
 	}
 
 	return length;
 }
+#endif
 
-#if defined(MAIN_RAM_BASE) && defined(FLASH_BOOT_ADDRESS)
-static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned long ram_address)
+#if defined(MAIN_RAM_BASE)
+int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned long ram_address)
 {
 	uint32_t length;
 	uint32_t offset;
 
 	length = check_image_in_flash(flash_address);
 	if(length > 0) {
-		printf("Copying 0x%08x to 0x%08lx (%d bytes)...\n", flash_address, ram_address, length);
+		printf("Copying 0x%08x to 0x%08lx (%" PRIu32 " bytes)...\n", flash_address, ram_address, length);
 		offset = 0;
 		init_progression_bar(length);
 		while (length > 0) {
@@ -631,6 +633,7 @@ static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned lon
 }
 #endif
 
+#if defined(FLASH_BOOT_ADDRESS)
 void flashboot(void)
 {
 	uint32_t length;
