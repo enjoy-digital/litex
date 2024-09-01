@@ -40,6 +40,10 @@ class GowinApiculaToolchain(YosysNextPNRToolchain):
         elif devicename == "GW2AR-18":
             devicename = "GW2A-18"
 
+        # yosys doesn't know that some variant doesn't have lutram so we tell it
+        if devicename in ["GW1NS-4"]:
+            self._synth_opts += " -nolutram"
+
         pnr_opts = "--write {top}_routed.json --top {top} --device {device}" + \
             " --vopt family={devicename} --vopt cst={top}.cst"
         self._pnr_opts += pnr_opts.format(
