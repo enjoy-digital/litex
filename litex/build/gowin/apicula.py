@@ -60,7 +60,9 @@ class GowinApiculaToolchain(YosysNextPNRToolchain):
         # use_mspi_as_gpio and friends
         for option, value in self.options.items():
             if option.startswith("use_") and value:
-                self._packer_opts += " --" + option[4:]
+                # Not all options are supported and may be just Gowin's software check
+                if option not in ["use_mode_as_gpio"]:
+                    self._packer_opts += " --" + option[4:]
 
         YosysNextPNRToolchain.finalize(self)
 
