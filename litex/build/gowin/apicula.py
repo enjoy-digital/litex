@@ -40,6 +40,10 @@ class GowinApiculaToolchain(YosysNextPNRToolchain):
         elif devicename == "GW2AR-18":
             devicename = "GW2A-18"
 
+        # yosys doesn't know that some variant doesn't have lutram so we tell it
+        if devicename in ["GW1NS-4"]:
+            self._synth_opts += " -nolutram"
+
         pnr_opts = "--write {top}_routed.json --top {top} --device {device}" + \
             " --vopt family={devicename} --vopt cst={top}.cst"
         self._pnr_opts += pnr_opts.format(
@@ -56,7 +60,9 @@ class GowinApiculaToolchain(YosysNextPNRToolchain):
         # use_mspi_as_gpio and friends
         for option, value in self.options.items():
             if option.startswith("use_") and value:
-                self._packer_opts += " --" + option[4:]
+                # Not all options are supported and may be just Gowin's software check
+                if option not in ["use_mode_as_gpio"]:
+                    self._packer_opts += " --" + option[4:]
 
         YosysNextPNRToolchain.finalize(self)
 
