@@ -8,6 +8,7 @@
 	- software/liblitespi           : Fixed xor-used-pow bug (#2001).
 	- soc                           : Fixed AHB2Wishbone bridge creation (#1998).
 	- soc                           : Fixed parameters propagation for AXI data-width conversion (#1997).
+	- soc/cores/clock/colognechip   : Fixed and reworked locked signal handling.
 
 	[> Added
 	--------
@@ -28,6 +29,8 @@
 	- build                         : Added initial Apicula (Gowin) Platform support (#2036).
 	- build                         : Added initial Agilex5 support.
 	- liteeth/mac                   : Improved broadcast filtering logic in Hybrid Mode (https://github.com/enjoy-digital/liteeth/pull/165).
+	- soc/cores/hyperbus            : Rewritten HyperRAM core to enhance performance and add new features (#2053).
+	- litedram                      : Added bank_byte_alignement parameter for improvded address mapping (https://github.com/enjoy-digital/litedram/pull/360).
 
 	[> Changed
 	----------
