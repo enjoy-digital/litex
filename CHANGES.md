@@ -9,6 +9,7 @@
 	- soc                           : Fixed AHB2Wishbone bridge creation (#1998).
 	- soc                           : Fixed parameters propagation for AXI data-width conversion (#1997).
 	- soc/cores/clock/colognechip   : Fixed and reworked locked signal handling.
+	- litesdcard                    : Fixed data_i sampling (https://github.com/enjoy-digital/litesdcard/pull/34).
 
 	[> Added
 	--------
