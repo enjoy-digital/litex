@@ -256,6 +256,7 @@ class EfinixDDRTristateImpl(Module):
         io_name = platform.get_pin_name(io)
         io_pad  = platform.get_pin_location(io)
         io_prop = platform.get_pin_properties(io)
+        io_prop_dict = dict(io_prop)
         io_data_i_h  = platform.add_iface_io(io_name + "_OUT_HI")
         io_data_i_l  = platform.add_iface_io(io_name + "_OUT_LO")
         io_data_o_h  = platform.add_iface_io(io_name + "_IN_HI")
@@ -279,7 +280,7 @@ class EfinixDDRTristateImpl(Module):
             "out_clk_pin"       : clk.name_override, # FIXME.
             "oe_reg"            : "REG",
             "is_inclk_inverted" : False,
-            "drive_strength"    : 4 # FIXME: Get it from constraints.
+            "drive_strength"    : io_prop_dict.get("DRIVE_STRENGTH", "4")
         }
         platform.toolchain.ifacewriter.blocks.append(block)
         platform.toolchain.excluded_ios.append(platform.get_pin(io))
@@ -296,6 +297,7 @@ class EfinixSDRTristateImpl(EfinixDDRTristateImpl):
         io_name = platform.get_pin_name(io)
         io_pad  = platform.get_pin_location(io)
         io_prop = platform.get_pin_properties(io)
+        io_prop_dict = dict(io_prop)
         io_data_i  = platform.add_iface_io(io_name + "_OUT")
         io_data_o  = platform.add_iface_io(io_name + "_IN")
         io_data_e  = platform.add_iface_io(io_name + "_OE")
@@ -315,7 +317,7 @@ class EfinixSDRTristateImpl(EfinixDDRTristateImpl):
             "out_clk_pin"       : clk.name_override, # FIXME.
             "oe_reg"            : "REG",
             "is_inclk_inverted" : False,
-            "drive_strength"    : 4 # FIXME: Get it from constraints.
+            "drive_strength"    : io_prop_dict.get("DRIVE_STRENGTH", "4")
         }
         platform.toolchain.ifacewriter.blocks.append(block)
         platform.toolchain.excluded_ios.append(platform.get_pin(io))
@@ -333,6 +335,7 @@ class EfinixSDROutputImpl(Module):
         io_name = platform.get_pin_name(o)
         io_pad  = platform.get_pin_location(o)
         io_prop = platform.get_pin_properties(o)
+        io_prop_dict = dict(io_prop)
         io_data_i  = platform.add_iface_io(io_name)
         self.comb += io_data_i.eq(i)
         block = {
@@ -345,7 +348,7 @@ class EfinixSDROutputImpl(Module):
             "out_reg"           : "REG",
             "out_clk_pin"       : clk.name_override, # FIXME.
             "is_inclk_inverted" : False,
-            "drive_strength"    : 4 # FIXME: Get it from constraints.
+            "drive_strength"    : io_prop_dict.get("DRIVE_STRENGTH", "4")
         }
         platform.toolchain.ifacewriter.blocks.append(block)
         platform.toolchain.excluded_ios.append(platform.get_pin(o))
@@ -364,6 +367,7 @@ class EfinixDDROutputImpl(Module):
         io_name = platform.get_pin_name(o)
         io_pad  = platform.get_pin_location(o)
         io_prop = platform.get_pin_properties(o)
+        io_prop_dict = dict(io_prop)
         io_data_h  = platform.add_iface_io(io_name + "_HI")
         io_data_l  = platform.add_iface_io(io_name + "_LO")
         self.comb += io_data_h.eq(i1)
@@ -378,7 +382,7 @@ class EfinixDDROutputImpl(Module):
             "out_reg"           : "DDIO_RESYNC",
             "out_clk_pin"       : clk.name_override, # FIXME.
             "is_inclk_inverted" : False,
-            "drive_strength"    : 4 # FIXME: Get it from constraints.
+            "drive_strength"    : io_prop_dict.get("DRIVE_STRENGTH", "4")
         }
         platform.toolchain.ifacewriter.blocks.append(block)
         platform.toolchain.excluded_ios.append(platform.get_pin(o))
