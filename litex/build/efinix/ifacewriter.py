@@ -192,6 +192,11 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
             if "oe_clk_pin" in block:
                 cmd += f'design.set_property("{name}","OE_CLK_PIN","{block["oe_clk_pin"]}")\n'
 
+            if "drive_strength" in block:
+                cmd += 'design.set_property("{}","DRIVE_STRENGTH","{}")\n'.format(name, block["drive_strength"])
+            if "slewrate" in block:
+                cmd += 'design.set_property("{}","SLEWRATE","{}")\n'.format(name, block["slewrate"])
+
             if prop:
                 for p, val in prop:
                     cmd += 'design.set_property("{}","{}","{}")\n'.format(name, p, val)
@@ -237,7 +242,9 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                 cmd += f'design.set_property("{name}","OE_CLK_PIN_INV","{block["out_clk_inv"]}")\n'
 
             if "drive_strength" in block:
-                cmd += 'design.set_property("{}","DRIVE_STRENGTH","4")\n'.format(name, block["drive_strength"])
+                cmd += 'design.set_property("{}","DRIVE_STRENGTH","{}")\n'.format(name, block["drive_strength"])
+            if "slewrate" in block:
+                cmd += 'design.set_property("{}","SLEWRATE","{}")\n'.format(name, block["slewrate"])
 
             if prop:
                 for p, val in prop:
