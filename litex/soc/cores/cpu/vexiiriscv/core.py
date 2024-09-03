@@ -514,10 +514,10 @@ class VexiiRiscv(CPU):
             if soc.get_build_name() == "sim":
                 self.comb += If(debug_ndmreset_rise, soc.crg.cd_sys.rst.eq(1))
             else:
-                if hasattr(soc.crg, "rst"):
+                if hasattr(soc.crg.pll, "locked"):
+                    self.comb += If(debug_ndmreset, soc.crg.pll.locked.eq(0))
+                elif hasattr(soc.crg, "rst"):
                     self.comb += If(debug_ndmreset_rise, soc.crg.rst.eq(1))
-                elif hasattr(soc.crg.pll, "reset"):
-                    self.comb += If(debug_ndmreset_rise, soc.crg.pll.reset.eq(1))
                 else:
                     raise Exception("Pll has no reset ?")
 
