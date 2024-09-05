@@ -95,12 +95,14 @@ class USBOHCI(LiteXModule):
                 o  = usb_ios[i].dp_o,
                 oe = usb_ios[i].dp_oe,
                 i  = usb_ios[i].dp_i,
+                clk = ClockSignal("usb")
             )
             self.specials += SDRTristate(
                 io = pads.dm[i],
                 o  = usb_ios[i].dm_o,
                 oe = usb_ios[i].dm_oe,
                 i  = usb_ios[i].dm_i,
+                clk = ClockSignal("usb")
             )
 
         self.add_sources(platform)
