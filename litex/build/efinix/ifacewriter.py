@@ -166,6 +166,9 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                     cmd += f'design.assign_pkg_pin("{name}[{i}]","{pad}")\n'
 
             if "out_reg" in block:
+                cmd += f'design.set_property("{name}","oe_REG","{block["out_reg"]}")\n'
+
+            if "oe_reg" in block:
                 cmd += f'design.set_property("{name}","OUT_REG","{block["out_reg"]}")\n'
                 cmd += f'design.set_property("{name}","OUT_CLK_PIN","{block["out_clk_pin"]}")\n'
                 if "out_delay" in block:
@@ -188,6 +191,11 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                 cmd += f'design.set_property("{name}","OE_REG","{block["oe_reg"]}")\n'
             if "oe_clk_pin" in block:
                 cmd += f'design.set_property("{name}","OE_CLK_PIN","{block["oe_clk_pin"]}")\n'
+
+            if "drive_strength" in block:
+                cmd += 'design.set_property("{}","DRIVE_STRENGTH","{}")\n'.format(name, block["drive_strength"])
+            if "slewrate" in block:
+                cmd += 'design.set_property("{}","SLEWRATE","{}")\n'.format(name, block["slewrate"])
 
             if prop:
                 for p, val in prop:
@@ -234,7 +242,9 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                 cmd += f'design.set_property("{name}","OE_CLK_PIN_INV","{block["out_clk_inv"]}")\n'
 
             if "drive_strength" in block:
-                cmd += 'design.set_property("{}","DRIVE_STRENGTH","4")\n'.format(name, block["drive_strength"])
+                cmd += 'design.set_property("{}","DRIVE_STRENGTH","{}")\n'.format(name, block["drive_strength"])
+            if "slewrate" in block:
+                cmd += 'design.set_property("{}","SLEWRATE","{}")\n'.format(name, block["slewrate"])
 
             if prop:
                 for p, val in prop:

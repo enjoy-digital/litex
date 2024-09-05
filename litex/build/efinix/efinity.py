@@ -164,6 +164,10 @@ class EfinityToolchain(GenericToolchain):
                 prop = "PULL_OPTION"
                 val = c.misc
 
+            if c.misc == "SCHMITT_TRIGGER":
+                prop = "SCHMITT_TRIGGER"
+                val = "1"
+
             if "DRIVE_STRENGTH" in c.misc:
                 prop = "DRIVE_STRENGTH"
                 val = c.misc.split("=")[1]
@@ -267,7 +271,7 @@ class EfinityToolchain(GenericToolchain):
 
         # Add Timing Constraints.
         constraint_info  = et.SubElement(root, "efx:constraint_info")
-        et.SubElement(constraint_info, "efx:sdc_file", name=f"{self._build_name}.sdc")
+        et.SubElement(constraint_info, "efx:sdc_file", name=f"{self._build_name}_merged.sdc")
 
         # Add Misc Info.
         misc_info  = et.SubElement(root, "efx:misc_info")
@@ -302,6 +306,26 @@ class EfinityToolchain(GenericToolchain):
         return "" # not used
 
     def run_script(self, script):
+        # Place and Route.
+        r = tools.subprocess_call_filtered([self.efinity_path + "/bin/python3",
+            self.efinity_path + "/scripts/efx_run_pt.py",
+            f"{self._build_name}",
+            self.platform.family,
+            self.platform.device
+        ], common.colors)
+        if r != 0:
+           raise OSError("Error occurred during efx_run_pt execution.")
+
+        # Merge SDC
+        with open(f"{self._build_name}_merged.sdc", 'w') as outfile:
+            with open(f"outflow/{self._build_name}.pt.sdc") as infile:
+                outfile.write(infile.read())
+            outfile.write("\n")
+            outfile.write("#########################\n")
+            outfile.write("\n")
+            with open(f"{self._build_name}.sdc") as infile:
+                outfile.write(infile.read())
+
         # Synthesis/Mapping.
         r = tools.subprocess_call_filtered([self.efinity_path + "/bin/efx_map",
             "--project",                    f"{self._build_name}",
@@ -332,15 +356,7 @@ class EfinityToolchain(GenericToolchain):
         if r != 0:
             raise OSError("Error occurred during efx_map execution.")
 
-        # Place and Route.
-        r = tools.subprocess_call_filtered([self.efinity_path + "/bin/python3",
-            self.efinity_path + "/scripts/efx_run_pt.py",
-            f"{self._build_name}",
-            self.platform.family,
-            self.platform.device
-        ], common.colors)
-        if r != 0:
-           raise OSError("Error occurred during efx_run_pt execution.")
+
 
         r = tools.subprocess_call_filtered([self.efinity_path + "/bin/efx_pnr",
             "--circuit",              f"{self._build_name}",
@@ -354,7 +370,7 @@ class EfinityToolchain(GenericToolchain):
             "--use_vdb_file",         "on",
             "--place_file",           f"outflow/{self._build_name}.place",
             "--route_file",           f"outflow/{self._build_name}.route",
-            "--sdc_file",             f"{self._build_name}.sdc",
+            "--sdc_file",             f"{self._build_name}_merged.sdc",
             "--sync_file",            f"outflow/{self._build_name}.interface.csv",
             "--seed",                 "1",
             "--work_dir",             "work_pnr",
