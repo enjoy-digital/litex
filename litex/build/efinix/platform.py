@@ -109,6 +109,10 @@ class EfinixPlatform(GenericPlatform):
                                 prop = "PULL_OPTION"
                                 val = o.misc
                                 ret.append((prop, val))
+                            if o.misc == "SCHMITT_TRIGGER":
+                                prop = "SCHMITT_TRIGGER"
+                                val = "1"
+                                ret.append((prop, val))
                             if "DRIVE_STRENGTH" in o.misc:
                                 prop = "DRIVE_STRENGTH"
                                 val = o.misc.split("=")[1]
