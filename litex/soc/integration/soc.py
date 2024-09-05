@@ -1842,6 +1842,7 @@ class LiteXSoC(SoC):
         data_width              = 8,
         nrxslots                = 2, rxslots_read_only  = True,
         ntxslots                = 2, txslots_write_only = False,
+        full_memory_we          = False,
         with_timestamp          = False,
         with_timing_constraints = True,
         local_ip                = None,
@@ -1857,13 +1858,14 @@ class LiteXSoC(SoC):
         if with_timestamp:
             self.timer0.add_uptime()
         ethmac = LiteEthMAC(
-            phy        = phy,
-            dw         = {8: 32, 32: 32, 64: 64}[data_width],
-            interface  = "wishbone",
-            endianness = self.cpu.endianness,
-            nrxslots   = nrxslots, rxslots_read_only  = rxslots_read_only,
-            ntxslots   = ntxslots, txslots_write_only = txslots_write_only,
-            timestamp  = None if not with_timestamp else self.timer0.uptime_cycles,
+            phy               = phy,
+            dw                = {8: 32, 32: 32, 64: 64}[data_width],
+            interface         = "wishbone",
+            endianness        = self.cpu.endianness,
+            nrxslots          = nrxslots, rxslots_read_only  = rxslots_read_only,
+            ntxslots          = ntxslots, txslots_write_only = txslots_write_only,
+            timestamp         = None if not with_timestamp else self.timer0.uptime_cycles,
+            full_memory_we    = full_memory_we,
             with_preamble_crc = not software_debug,
             with_sys_datapath = with_sys_datapath)
         if not with_sys_datapath:
