@@ -435,4 +435,5 @@ efinix_special_overrides = {
     SDRTristate            : EfinixSDRTristate,
     DDROutput              : EfinixDDROutput,
     DDRInput               : EfinixDDRInput,
+    DDRTristate            : EfinixDDRTristate,
 }
