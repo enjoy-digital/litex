@@ -47,6 +47,7 @@
 #include <libliteeth/mdio.h>
 
 #include <liblitespi/spiflash.h>
+#include <liblitespi/spiram.h>
 
 #include <liblitesdcard/sdcard.h>
 #include <liblitesata/sata.h>
@@ -185,6 +186,12 @@ __attribute__((__used__)) int main(int i, char **c)
 #ifdef CSR_ETHMAC_BASE
 	eth_init();
 #endif
+
+	/* Initialize and test SPIRAM */
+#ifdef CSR_SPIRAM_CORE_BASE
+	spiram_init();
+#endif
+	printf("\n");
 
 	/* Initialize and test DRAM */
 #ifdef CSR_SDRAM_BASE
