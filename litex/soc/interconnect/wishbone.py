@@ -659,6 +659,12 @@ class Cache(LiteXModule):
         if dw_to < dw_from and (dw_from % dw_to) != 0:
             raise ValueError("Master data width must be a multiple of {dw}".format(dw=dw_to))
 
+        # Bypass.
+        # -------
+        if (cachesize == 0) and (dw_to == dw_from):
+            self.comb += master.connect(slave)
+            return
+
         # Address Split.
         # --------------
         # TAG | LINE NUMBER | LINE OFFSET.
