@@ -641,8 +641,8 @@ class Wishbone2CSR(LiteXModule):
 class Cache(LiteXModule):
     """Cache
 
-    This module is a write-back wishbone cache that can be used as a L2 cache.
-    Cachesize (in 32-bit words) is the size of the data store and must be a power of 2
+    This module is a write-back wishbone cache that can be used as a L2 cache. Cachesize (in 32-bit
+    words) is the size of the data store and must be a power of 2.
     """
     def __init__(self, cachesize, master, slave, reverse=True):
         self.master = master
@@ -650,25 +650,29 @@ class Cache(LiteXModule):
 
         # # #
 
+        # Parameters.
+        # -----------
         dw_from = len(master.dat_r)
-        dw_to = len(slave.dat_r)
+        dw_to   = len(slave.dat_r)
         if dw_to > dw_from and (dw_to % dw_from) != 0:
             raise ValueError("Slave data width must be a multiple of {dw}".format(dw=dw_from))
         if dw_to < dw_from and (dw_from % dw_to) != 0:
             raise ValueError("Master data width must be a multiple of {dw}".format(dw=dw_to))
 
-        # Split address:
-        # TAG | LINE NUMBER | LINE OFFSET
-        offsetbits = log2_int(max(dw_to//dw_from, 1))
-        addressbits = len(slave.adr) + offsetbits
-        linebits = log2_int(cachesize) - offsetbits
-        tagbits = addressbits - linebits
-        wordbits = log2_int(max(dw_from//dw_to, 1))
+        # Address Split.
+        # --------------
+        # TAG | LINE NUMBER | LINE OFFSET.
+        offsetbits                    = log2_int(max(dw_to//dw_from, 1))
+        addressbits                   = len(slave.adr) + offsetbits
+        linebits                      = log2_int(cachesize) - offsetbits
+        tagbits                       = addressbits - linebits
+        wordbits                      = log2_int(max(dw_from//dw_to, 1))
         adr_offset, adr_line, adr_tag = split(master.adr, offsetbits, linebits, tagbits)
-        word = Signal(wordbits) if wordbits else None
+        word                          = Signal(wordbits) if wordbits else None
 
-        # Data memory
-        data_mem = Memory(dw_to*2**wordbits, 2**linebits)
+        # Data Memory.
+        # ------------
+        data_mem  = Memory(dw_to*2**wordbits, 2**linebits)
         data_port = data_mem.get_port(write_capable=True, we_granularity=8)
         self.specials += data_mem, data_port
 
@@ -696,10 +700,11 @@ class Cache(LiteXModule):
         ]
 
 
-        # Tag memory
+        # Tag memory.
+        # -----------
         tag_layout = [("tag", tagbits), ("dirty", 1)]
-        tag_mem = Memory(layout_len(tag_layout), 2**linebits)
-        tag_port = tag_mem.get_port(write_capable=True)
+        tag_mem    = Memory(layout_len(tag_layout), 2**linebits)
+        tag_port   = tag_mem.get_port(write_capable=True)
         self.specials += tag_mem, tag_port
         tag_do = Record(tag_layout)
         tag_di = Record(tag_layout)
@@ -717,17 +722,19 @@ class Cache(LiteXModule):
         else:
             self.comb += slave.adr.eq(Cat(adr_line, tag_do.tag))
 
-        # slave word computation, word_clr and word_inc will be simplified
-        # at synthesis when wordbits=0
+        # Slave word compute.
+        # -------------------
+        # word_clr and word_inc will be simplified at synthesis when wordbits=0.
         word_clr = Signal()
         word_inc = Signal()
         if word is not None:
-            self.sync += \
+            self.sync += [
                 If(word_clr,
                     word.eq(0),
                 ).Elif(word_inc,
                     word.eq(word+1)
                 )
+            ]
 
         def word_is_last(word):
             if word is not None:
@@ -735,7 +742,8 @@ class Cache(LiteXModule):
             else:
                 return 1
 
-        # Control FSM
+        # FSM.
+        # ----
         self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             If(master.cyc & master.stb,
