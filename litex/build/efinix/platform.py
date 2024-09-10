@@ -31,6 +31,7 @@ class EfinixPlatform(GenericPlatform):
         self.iobank_info  = iobank_info
         self.spi_mode     = spi_mode
         self.spi_width    = spi_width
+        self.clks         = {}
         if self.device[:2] == "Ti":
             self.family = "Titanium"
         else:
@@ -108,6 +109,10 @@ class EfinixPlatform(GenericPlatform):
                             if o.misc in ["WEAK_PULLUP", "WEAK_PULLDOWN"]:
                                 prop = "PULL_OPTION"
                                 val = o.misc
+                                ret.append((prop, val))
+                            if o.misc == "SCHMITT_TRIGGER":
+                                prop = "SCHMITT_TRIGGER"
+                                val = "1"
                                 ret.append((prop, val))
                             if "DRIVE_STRENGTH" in o.misc:
                                 prop = "DRIVE_STRENGTH"
