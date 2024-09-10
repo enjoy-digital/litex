@@ -31,6 +31,7 @@ class EfinixPlatform(GenericPlatform):
         self.iobank_info  = iobank_info
         self.spi_mode     = spi_mode
         self.spi_width    = spi_width
+        self.clks         = {}
         if self.device[:2] == "Ti":
             self.family = "Titanium"
         else:
