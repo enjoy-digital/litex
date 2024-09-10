@@ -439,6 +439,11 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
         half_rate= block.get("half_rate", "0")
         tx_output_load=block.get("output_load", "3")
 
+        if type(slow_clk) == ClockSignal:
+            slow_clk = self.platform.clks[slow_clk.cd]
+        if type(fast_clk) == ClockSignal:
+            fast_clk = self.platform.clks[fast_clk.cd]
+
         if mode == "OUTPUT":
             block_type = "LVDS_TX"
             tx_mode    = block["tx_mode"]
