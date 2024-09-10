@@ -94,7 +94,7 @@ class EfinixClkOutputImpl(Module):
             "size"       : 1,
             "location"   : platform.get_pin_location(o)[0],
             "properties" : platform.get_pin_properties(o),
-            "name"       : i, # FIXME.
+            "name"       : i.name_override, # FIXME
             "mode"       : "OUTPUT_CLK",
         }
         platform.toolchain.ifacewriter.blocks.append(block)
