@@ -107,7 +107,7 @@ class EFINIXPLL(LiteXModule):
         clk_out_name = f"{self.name}_clkout{self.nclkouts}" if name == "" else name
 
         if cd is not None:
-            clk_name = f"{cd.name}_clk"
+            clk_name = f"{cd.name}_pll{self.n}_clk"
             clk_out_name = clk_name # To unify constraints names
             self.platform.add_extension([(clk_out_name, 0, Pins(1))])
             clk_out = self.platform.request(clk_out_name)
@@ -115,6 +115,7 @@ class EFINIXPLL(LiteXModule):
             # Efinity will generate xxx.pt.sdc constraints automaticaly,
             # so, the user realy need to use the toplevel pin from the pll instead of an intermediate signal
             # This is a dirty workaround. But i don't have any better
+            self.platform.add_period_constraint(clk=clk_out, period=1e9/freq, name=clk_name)
             cd.clk = clk_out
             if with_reset:
                 self.specials += AsyncResetSynchronizer(cd, ~self.locked)
