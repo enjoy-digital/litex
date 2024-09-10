@@ -116,6 +116,7 @@ class EFINIXPLL(LiteXModule):
             # so, the user realy need to use the toplevel pin from the pll instead of an intermediate signal
             # This is a dirty workaround. But i don't have any better
             cd.clk = clk_out
+            self.platform.clks[cd.name] = clk_out_name
             if with_reset:
                 self.specials += AsyncResetSynchronizer(cd, ~self.locked)
             self.platform.toolchain.excluded_ios.append(clk_out_name)
