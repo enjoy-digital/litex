@@ -29,6 +29,7 @@ from migen.fhdl.specials    import Instance, Memory
 from litex.gen import LiteXContext
 from litex.gen.fhdl.namer     import build_signal_namespace
 from litex.gen.fhdl.hierarchy import LiteXHierarchyExplorer
+from litex.gen.format import format_constant
 
 from litex.build.tools import get_litex_git_revision
 
@@ -165,10 +166,10 @@ _ieee_1800_2017_verilog_reserved_keywords = {
 # Print Constant -----------------------------------------------------------------------------------
 
 def _generate_constant(node):
-    return "{sign}{bits}'d{value}".format(
+    return "{sign}{bits}'{value}".format(
         sign  = "" if node.value >= 0 else "-",
         bits  = str(node.nbits),
-        value = abs(node.value),
+        value = format_constant(abs(node.value), verilog=True),
     ), node.signed
 
 # Print Signal -------------------------------------------------------------------------------------
