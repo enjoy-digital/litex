@@ -89,9 +89,16 @@ class EFINIXPLL(LiteXModule):
             self.logger.info("Clock source: {}, using EXT_CLK{}".format(block["input_clock"], clock_no))
             self.platform.get_pll_resource(pll_res)
         else:
+            if name != "":
+                input_signal = name
+            elif clkin is not None:
+                input_signal = clkin.name_override
+            else:
+                self.logger.error("No clkin name nor clkin provided, can't continue")
+                quit()
             block["input_clock"]  = "INTERNAL" if self.type == "TITANIUMPLL" else "CORE"
             block["resource"]     = self.platform.get_free_pll_resource()
-            block["input_signal"] = name
+            block["input_signal"] = input_signal
             self.logger.info("Clock source: {}".format(block["input_clock"]))
 
         self.logger.info("PLL used     : " + colorer(str(self.platform.pll_used), "cyan"))
