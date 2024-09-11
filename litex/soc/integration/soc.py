@@ -1846,7 +1846,8 @@ class LiteXSoC(SoC):
         with_timestamp          = False,
         with_timing_constraints = True,
         local_ip                = None,
-        remote_ip               = None):
+        remote_ip               = None,
+        mac_address             = None):
         # Imports
         from liteeth.mac import LiteEthMAC
         from liteeth.phy.model import LiteEthPHYModel
@@ -1914,6 +1915,9 @@ class LiteXSoC(SoC):
             add_ip_address_constants(self, "LOCALIP", local_ip)
         if remote_ip:
             add_ip_address_constants(self, "REMOTEIP", remote_ip)
+        if mac_address:
+            add_mac_address_constants(self, "MACADDR", mac_address)
+        
 
         # Software Debug
         if software_debug:
