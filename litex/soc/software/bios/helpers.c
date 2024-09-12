@@ -15,6 +15,12 @@
 
 extern unsigned int _ftext, _edata_rom;
 
+void print_ip(uint32_t ip)
+{
+	printf("%d.%d.%d.%d", (uint8_t)(ip >> 24), (uint8_t)(ip >> 16),
+	    (uint8_t)(ip >> 8), (uint8_t)ip);
+}
+
 #define NUMBER_OF_BYTES_ON_A_LINE 16
 void dump_bytes(unsigned int *ptr, int count, unsigned long addr)
 {
