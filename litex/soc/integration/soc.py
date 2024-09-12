@@ -1956,7 +1956,7 @@ class LiteXSoC(SoC):
         from liteeth.phy.model import LiteEthPHYModel
 
         # Core
-        assert data_width in [8, 32]
+        assert data_width in [8, 32, 64]
         with_sys_datapath = (data_width == 32)
         self.check_if_exists(name + "_ethcore")
         ethcore = LiteEthUDPIPCore(
