@@ -9,6 +9,8 @@ from migen import *
 from migen.fhdl.specials import Tristate, TSTriple
 from migen.genlib.cdc import MultiReg
 
+from litex.gen import *
+
 from litex.soc.integration.doc import ModuleDoc, AutoDoc
 from litex.soc.interconnect import wishbone, stream
 
@@ -117,7 +119,7 @@ class SPI2WireDocumentation(ModuleDoc):
 
 # SPIBone Core -------------------------------------------------------------------------------------
 
-class SPIBone(Module, ModuleDoc, AutoDoc):
+class SPIBone(LiteXModule, ModuleDoc):
     """Wishbone Bridge over SPI
 
     This module allows for accessing a Wishbone bridge over a {}-wire protocol.
@@ -131,7 +133,7 @@ class SPIBone(Module, ModuleDoc, AutoDoc):
     The bridge core is designed to run at 1/4 the system clock.
     """
     def __init__(self, pads, wires=4, with_tristate=True):
-        self.bus = bus = wishbone.Interface(address_width=32, data_width=32)
+        self.bus = bus = wishbone.Interface(address_width=32, data_width=32, addressing="word")
 
         # # #
 

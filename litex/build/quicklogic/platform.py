@@ -13,15 +13,19 @@ from litex.build.quicklogic import common, f4pga
 
 class QuickLogicPlatform(GenericPlatform):
     _bitstream_ext = ".bit"
+    _jtag_support  = False
 
     _supported_toolchains = ["f4pga"]
 
     def __init__(self, *args, toolchain="f4pga", **kwargs):
         GenericPlatform.__init__(self, *args, **kwargs)
-        if toolchain == "symbiflow" or toolchain == "f4pga":
-            self.toolchain = f4pga.F4PGAToolchain()
+        if isinstance(toolchain, str):
+            if toolchain == "symbiflow" or toolchain == "f4pga":
+                self.toolchain = f4pga.F4PGAToolchain()
+            else:
+                raise ValueError(f"Unknown toolchain {toolchain}")
         else:
-            raise ValueError(f"Unknown toolchain {toolchain}")
+            self.toolchain = toolchain
 
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
         so = dict(common.quicklogic_special_overrides)

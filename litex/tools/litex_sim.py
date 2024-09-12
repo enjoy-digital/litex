@@ -15,35 +15,35 @@ import argparse
 from migen import *
 
 from litex.build.generic_platform import *
-from litex.build.sim import SimPlatform
-from litex.build.sim.config import SimConfig
+from litex.build.sim              import SimPlatform
+from litex.build.sim.config       import SimConfig
 
-from litex.soc.integration.common import *
+from litex.soc.integration.common   import *
 from litex.soc.integration.soc_core import *
-from litex.soc.integration.builder import *
-from litex.soc.integration.soc import *
-from litex.soc.cores.bitbang import *
-from litex.soc.cores.gpio import GPIOTristate
-from litex.soc.cores.cpu import CPUS
+from litex.soc.integration.builder  import *
+from litex.soc.integration.soc      import *
 
-from litedram import modules as litedram_modules
-from litedram.modules import parse_spd_hexdump
+from litex.soc.cores.bitbang import *
+from litex.soc.cores.gpio    import GPIOTristate
+from litex.soc.cores.cpu     import CPUS
+from litex.soc.cores.video   import VideoGenericPHY
+
+from litedram           import modules as litedram_modules
+from litedram.modules   import parse_spd_hexdump
 from litedram.phy.model import sdram_module_nphases, get_sdram_phy_settings
 from litedram.phy.model import SDRAMPHYModel
 
-from liteeth.phy.gmii import LiteEthPHYGMII
-from liteeth.phy.xgmii import LiteEthPHYXGMII
-from liteeth.phy.model import LiteEthPHYModel
-from liteeth.mac import LiteEthMAC
-from liteeth.core.arp import LiteEthARP
-from liteeth.core.ip import LiteEthIP
-from liteeth.core.udp import LiteEthUDP
-from liteeth.core.icmp import LiteEthICMP
-from liteeth.core import LiteEthUDPIPCore
+from liteeth.common             import *
+from liteeth.phy.gmii           import LiteEthPHYGMII
+from liteeth.phy.xgmii          import LiteEthPHYXGMII
+from liteeth.phy.model          import LiteEthPHYModel
+from liteeth.mac                import LiteEthMAC
+from liteeth.core.arp           import LiteEthARP
+from liteeth.core.ip            import LiteEthIP
+from liteeth.core.udp           import LiteEthUDP
+from liteeth.core.icmp          import LiteEthICMP
+from liteeth.core               import LiteEthUDPIPCore
 from liteeth.frontend.etherbone import LiteEthEtherbone
-from liteeth.common import *
-
-from litex.soc.cores.video import VideoGenericPHY
 
 from litescope import LiteScopeAnalyzer
 
@@ -129,6 +129,15 @@ _io = [
         Subsignal("i",  Pins(32)),
     ),
 
+    # JTAG.
+    ("jtag", 0,
+        Subsignal("tck", Pins(1)),
+        Subsignal("tms", Pins(1)),
+        Subsignal("tdi", Pins(1)),
+        Subsignal("tdo", Pins(1)),
+        Subsignal("ntrst", Pins(1)),
+    ),
+
     # Video (VGA).
     ("vga", 0,
         Subsignal("hsync", Pins(1)),
@@ -170,8 +179,10 @@ class SimSoC(SoCCore):
         with_gpio             = False,
         with_video_framebuffer = False,
         with_video_terminal = False,
+        with_video_colorbars = False,
         sim_debug             = False,
         trace_reset_on        = False,
+        with_jtag             = False,
         **kwargs):
         platform     = Platform()
         sys_clk_freq = int(1e6)
@@ -233,57 +244,61 @@ class SimSoC(SoCCore):
             else:
                 raise ValueError("Unknown Ethernet PHY model:", ethernet_phy_model)
 
-        # Ethernet and Etherbone -------------------------------------------------------------------
-        if with_ethernet and with_etherbone:
-            etherbone_ip_address = convert_ip(etherbone_ip_address)
-            # Ethernet MAC
-            self.ethmac = LiteEthMAC(phy=self.ethphy, dw=8,
-                interface  = "hybrid",
-                endianness = self.cpu.endianness,
-                hw_mac     = etherbone_mac_address)
-
-            # SoftCPU
-            ethmac_region_size = (self.ethmac.rx_slots.constant + self.ethmac.tx_slots.constant)*self.ethmac.slot_size.constant
-            ethmac_region = SoCRegion(origin=self.mem_map.get("ethmac", None), size=ethmac_region_size, cached=False)
-            self.bus.add_slave(name="ethmac", slave=self.ethmac.bus, region=ethmac_region)
-            if self.irq.enabled:
-                self.irq.add("ethmac", use_loc_if_exists=True)
-            # HW ethernet
-            self.arp  = LiteEthARP(self.ethmac, etherbone_mac_address, etherbone_ip_address, sys_clk_freq, dw=8)
-            self.ip   = LiteEthIP(self.ethmac, etherbone_mac_address, etherbone_ip_address, self.arp.table, dw=8)
-            self.icmp = LiteEthICMP(self.ip, etherbone_ip_address, dw=8)
-            self.udp  = LiteEthUDP(self.ip, etherbone_ip_address, dw=8)
-            # Etherbone
-            self.etherbone = LiteEthEtherbone(self.udp, 1234, mode="master")
-            self.bus.add_master(master=self.etherbone.wishbone.bus)
-
-        # Ethernet ---------------------------------------------------------------------------------
+        # Etherbone with optional Ethernet ---------------------------------------------------------
+        if with_etherbone:
+            self.add_etherbone(
+                phy         = self.ethphy,
+                ip_address  = etherbone_ip_address,
+                mac_address = etherbone_mac_address,
+                data_width  = 8,
+                with_ethmac = with_ethernet,
+            )
+        # Ethernet only ----------------------------------------------------------------------------
         elif with_ethernet:
             # Ethernet MAC
             self.ethmac = ethmac = LiteEthMAC(
                 phy        = self.ethphy,
                 dw         = 64 if ethernet_phy_model == "xgmii" else 32,
                 interface  = "wishbone",
-                endianness = self.cpu.endianness)
-            # Compute Regions size and add it to the SoC.
-            ethmac_region_size = (ethmac.rx_slots.constant + ethmac.tx_slots.constant)*ethmac.slot_size.constant
-            ethmac_region = SoCRegion(origin=self.mem_map.get("ethmac", None), size=ethmac_region_size, cached=False)
-            self.bus.add_slave(name="ethmac", slave=ethmac.bus, region=ethmac_region)
+                endianness = self.cpu.endianness
+            )
+            ethmac_rx_region_size = ethmac.rx_slots.constant*ethmac.slot_size.constant
+            ethmac_tx_region_size = ethmac.tx_slots.constant*ethmac.slot_size.constant
+            ethmac_region_size    = ethmac_rx_region_size + ethmac_tx_region_size
+            self.bus.add_region("ethmac", SoCRegion(
+                origin = self.mem_map.get("ethmac", None),
+                size   = ethmac_region_size,
+                linker = True,
+                cached = False,
+            ))
+            ethmac_rx_region = SoCRegion(
+                origin = self.bus.regions["ethmac"].origin + 0,
+                size   = ethmac_rx_region_size,
+                linker = True,
+                cached = False,
+            )
+            self.bus.add_slave(name="ethmac_rx", slave=ethmac.bus_rx, region=ethmac_rx_region)
+            ethmac_tx_region = SoCRegion(
+                origin = self.bus.regions["ethmac"].origin + ethmac_rx_region_size,
+                size   = ethmac_tx_region_size,
+                linker = True,
+                cached = False,
+            )
+            self.bus.add_slave(name="ethmac_tx", slave=ethmac.bus_tx, region=ethmac_tx_region)
+
+            # Add IRQs (if enabled).
             if self.irq.enabled:
                 self.irq.add("ethmac", use_loc_if_exists=True)
-
-        # Etherbone --------------------------------------------------------------------------------
-        elif with_etherbone:
-            self.add_etherbone(
-                phy         = self.ethphy,
-                ip_address  = etherbone_ip_address,
-                mac_address = etherbone_mac_address
-            )
 
         # I2C --------------------------------------------------------------------------------------
         if with_i2c:
             pads = platform.request("i2c", 0)
             self.i2c = I2CMasterSim(pads)
+
+        # JTAG -------------------------------------------------------------------------------------
+        if with_jtag:
+            jtag_pads = platform.request("jtag")
+            self.cpu.add_jtag(jtag_pads)
 
         # SDCard -----------------------------------------------------------------------------------
         if with_sdcard:
@@ -311,12 +326,16 @@ class SimSoC(SoCCore):
             video_pads = platform.request("vga")
             self.submodules.videophy = VideoGenericPHY(video_pads)
             self.add_video_framebuffer(phy=self.videophy, timings="640x480@60Hz", format="rgb888")
-            self.videophy.comb += video_pads.valid.eq(~self.video_framebuffer.underflow)
 
         # Video Terminal ---------------------------------------------------------------------------
         if with_video_terminal:
             self.submodules.videophy = VideoGenericPHY(platform.request("vga"))
             self.add_video_terminal(phy=self.videophy, timings="640x480@60Hz")
+
+        # Video test pattern -----------------------------------------------------------------------
+        if with_video_colorbars:
+            self.submodules.videophy = VideoGenericPHY(platform.request("vga"))
+            self.add_video_colorbars(phy=self.videophy, timings="640x480@60Hz")
 
         # Simulation debugging ----------------------------------------------------------------------
         if sim_debug:
@@ -421,6 +440,9 @@ def sim_args(parser):
     # I2C.
     parser.add_argument("--with-i2c",             action="store_true",     help="Enable I2C support.")
 
+    # JTAG
+    parser.add_argument("--with-jtagremote",      action="store_true", help="Enable jtagremote support")
+
     # GPIO.
     parser.add_argument("--with-gpio",            action="store_true",     help="Enable Tristate GPIO (32 pins).")
 
@@ -430,6 +452,8 @@ def sim_args(parser):
     # Video.
     parser.add_argument("--with-video-framebuffer", action="store_true",   help="Enable Video Framebuffer.")
     parser.add_argument("--with-video-terminal",    action="store_true",   help="Enable Video Terminal.")
+    parser.add_argument("--with-video-colorbars",   action="store_true",   help="Enable Video test pattern.")
+    parser.add_argument("--video-vsync",            action="store_true",   help="Only render on frame vsync.")
 
     # Debug/Waveform.
     parser.add_argument("--sim-debug",            action="store_true",     help="Add simulation debugging modules.")
@@ -507,9 +531,13 @@ def main():
     if args.with_i2c:
         sim_config.add_module("spdeeprom", "i2c")
 
+    # JTAG
+    if args.with_jtagremote:
+        sim_config.add_module("jtagremote", "jtag", args={'port': 44853})
+
     # Video.
-    if args.with_video_framebuffer or args.with_video_terminal:
-        sim_config.add_module("video", "vga")
+    if args.with_video_framebuffer or args.with_video_terminal or args.with_video_colorbars:
+        sim_config.add_module("video", "vga", args={"render_on_vsync": args.video_vsync})
 
     # SoC ------------------------------------------------------------------------------------------
     soc = SimSoC(
@@ -520,11 +548,13 @@ def main():
         with_etherbone         = args.with_etherbone,
         with_analyzer          = args.with_analyzer,
         with_i2c               = args.with_i2c,
+        with_jtag              = args.with_jtagremote,
         with_sdcard            = args.with_sdcard,
         with_spi_flash         = args.with_spi_flash,
         with_gpio              = args.with_gpio,
         with_video_framebuffer = args.with_video_framebuffer,
         with_video_terminal    = args.with_video_terminal,
+        with_video_colorbars   = args.with_video_colorbars,
         sim_debug              = args.sim_debug,
         trace_reset_on         = int(float(args.trace_start)) > 0 or int(float(args.trace_end)) > 0,
         spi_flash_init         = None if args.spi_flash_init is None else get_mem_data(args.spi_flash_init, endianness="big"),
@@ -548,7 +578,7 @@ def main():
     builder.build(
         sim_config       = sim_config,
         interactive      = not args.non_interactive,
-        video            = args.with_video_framebuffer or args.with_video_terminal,
+        video            = args.with_video_framebuffer or args.with_video_terminal or args.with_video_colorbars,
         pre_run_callback = pre_run_callback,
         **parser.toolchain_argdict,
     )

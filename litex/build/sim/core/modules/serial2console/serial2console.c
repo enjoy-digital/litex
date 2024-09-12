@@ -155,11 +155,13 @@ static int serial2console_tick(void *sess, uint64_t time_ps) {
   }
 
   *s->rx_valid = 0;
-  if(s->datalen) {
-    *s->rx = s->databuf[s->data_start];
-    s->data_start = (s->data_start + 1) % 2048;
-    s->datalen--;
-    *s->rx_valid = 1;
+  if(*s->rx_ready) {
+    if(s->datalen) {
+      *s->rx = s->databuf[s->data_start];
+      s->data_start = (s->data_start + 1) % 2048;
+      s->datalen--;
+      *s->rx_valid = 1;
+    }
   }
 
   return RC_OK;

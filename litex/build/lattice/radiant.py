@@ -56,13 +56,15 @@ def _build_pdc(named_sc, named_pc, clocks, vns, build_name):
         pdc.append("\n".join(named_pc))
 
     # Note: .pdc is only used post-synthesis, Synplify constraints clocks by default to 200MHz.
-    for clk, period in clocks.items():
-        clk_name = vns.get_name(clk)
+    for clk, [period, clk_name] in clocks.items():
+        clk_sig = vns.get_name(clk)
+        if clk_name is None:
+            clk_name = clk_sig
         pdc.append("create_clock -period {} -name {} [{} {}];".format(
             str(period),
             clk_name,
-            "get_ports" if clk_name in [name for name, _, _, _ in named_sc] else "get_nets",
-            clk_name
+            "get_ports" if clk_sig in [name for name, _, _, _ in named_sc] else "get_nets",
+            clk_sig
             ))
 
     tools.write_to_file(build_name + ".pdc", "\n".join(pdc))
@@ -81,9 +83,10 @@ class LatticeRadiantToolchain(GenericToolchain):
     def __init__(self):
         super().__init__()
 
-        self._timingstrict = False
-        self._synth_mode   = "radiant"
-        self._yosys        = None
+        self._timingstrict      = False
+        self._synth_mode        = "radiant"
+        self._yosys             = None
+        self._prj_strategy_opts = {}
 
     def build(self, platform, fragment,
         timingstrict   = False,
@@ -92,6 +95,7 @@ class LatticeRadiantToolchain(GenericToolchain):
 
         self._timingstrict = timingstrict
         self._synth_mode   = synth_mode
+        self._quiet       = kwargs.pop("quiet", False)
 
         return GenericToolchain.build(self, platform, fragment, **kwargs)
 
@@ -123,7 +127,7 @@ class LatticeRadiantToolchain(GenericToolchain):
         self._yosys = YosysWrapper(self.platform, self._build_name,
                 output_name=self._build_name+"_yosys", target="nexus",
                 template=[], yosys_cmds=yosys_cmds,
-                yosys_opts=self._synth_opts, synth_format="vm")
+                yosys_opts=self._synth_opts, synth_format="vm", quiet = self._quiet)
 
     # Constraints (.ldc) ---------------------------------------------------------------------------
 
@@ -152,7 +156,8 @@ class LatticeRadiantToolchain(GenericToolchain):
 
         # Add include paths
         vincpath = ";".join(map(lambda x: tcl_path(x), self.platform.verilog_include_paths))
-        tcl.append("prj_set_impl_opt {include path} {\"" + vincpath + "\"}")
+        if vincpath and vincpath.strip():
+            tcl.append("prj_set_impl_opt {include path} {\"" + vincpath + "\"}")
 
         # Add sources
         if self._synth_mode == "yosys":
@@ -171,6 +176,10 @@ class LatticeRadiantToolchain(GenericToolchain):
 
         # Set top level
         tcl.append("prj_set_impl_opt top \"{}\"".format(self._build_name))
+
+        # Set user project extra configurations
+        for k,v in self._prj_strategy_opts.items():
+            tcl.append(f"prj_set_strategy_value {k}={v}")
 
         # Save project
         tcl.append("prj_save")
@@ -205,6 +214,10 @@ class LatticeRadiantToolchain(GenericToolchain):
         if self._synth_mode == "yosys":
             script_contents += self._yosys.get_yosys_call(target="script") + "\n"
 
+        # Radiant installed on Windows, executed from WSL2
+        if "microsoft-standard" in os.uname().release and which("pnmainc.exe") is not None:
+            tool = "pnmainc.exe"
+
         script_contents += "{tool} {tcl_script}{fail_stmt}\n".format(
             tool = tool,
             tcl_script = self._build_name + ".tcl",
@@ -227,6 +240,10 @@ class LatticeRadiantToolchain(GenericToolchain):
         else:
             shell = ["bash"]
             tool  = "radiantc"
+
+        # Radiant installed on Windows, executed from WSL2
+        if "microsoft-standard" in os.uname().release and which("pnmainc.exe") is not None:
+            tool = "pnmainc.exe"
 
         if which(tool) is None:
             msg = "Unable to find Radiant toolchain, please:\n"
@@ -270,6 +287,16 @@ class LatticeRadiantToolchain(GenericToolchain):
                 # XXX is this necessarily the run from which outputs will be used?
                 return
         raise Exception("Failed to meet timing")
+
+    """
+    Set optional configuration for syn, par, bit.
+    Attributes
+    ==========
+    strategy_opts: dict
+        keys/values to inject at script creation time
+    """
+    def set_prj_strategy_opts(self, strategy_opts={}):
+        self._prj_strategy_opts.update(strategy_opts)
 
 
 def radiant_build_args(parser):

@@ -84,7 +84,7 @@ class LatticeDiamondToolchain(GenericToolchain):
             lpf.append("\n".join(self.named_pc))
 
         # Note: .lpf is only used post-synthesis, Synplify constraints clocks by default to 200MHz.
-        for clk, period in self.clocks.items():
+        for clk, [period, _] in self.clocks.items():
             clk_name = self._vns.get_name(clk)
             lpf.append("FREQUENCY {} \"{}\" {} MHz;".format(
                 "PORT" if clk_name in [name for name, _, _, _ in self.named_sc] else "NET",

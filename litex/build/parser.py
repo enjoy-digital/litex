@@ -14,6 +14,8 @@ from litex.soc.cores import cpu
 from litex.soc.integration import soc_core
 from litex.soc.integration import builder
 
+from litex.gen.common import *
+
 # Litex Argument Parser ----------------------------------------------------------------------------
 
 class LiteXArgumentParser(argparse.ArgumentParser):
@@ -104,8 +106,17 @@ class LiteXArgumentParser(argparse.ArgumentParser):
         """ wrapper to add argument to "Target options group" from outer of this
         class
         """
+        if args[0] in ["--with-jtagbone", "--with-uartbone"]:
+            if args[0] == "--with-jtagbone":
+                self._rm_jtagbone = True
+            if args[0] == "--with-uartbone":
+                self._rm_uartbone = True
+            from litex.compat import compat_notice
+            compat_notice(f"Adding {args[0]} in target", date="2023-10-23", info=f"{args[0]} is now directly added by SoCCore, please remove from target.")
+            return # bypass insert
         if self._target_group is None:
             self._target_group = self.add_argument_group(title="Target options")
+
         self._target_group.add_argument(*args, **kwargs)
 
     def add_logging_group(self):
@@ -147,7 +158,14 @@ class LiteXArgumentParser(argparse.ArgumentParser):
         ======
         soc_core arguments dict
         """
-        return soc_core.soc_core_argdict(self._args) # FIXME: Rename to soc_argdict in the future.
+        soc_arg = soc_core.soc_core_argdict(self._args) # FIXME: Rename to soc_argdict in the future.
+
+        # Work around for backward compatibility
+        if getattr(self, "_rm_jtagbone", False):
+            soc_arg.pop("with_jtagbone")
+        if getattr(self, "_rm_uartbone", False):
+            soc_arg.pop("with_uartbone")
+        return soc_arg
 
     @property
     def toolchain_argdict(self):
@@ -199,13 +217,21 @@ class LiteXArgumentParser(argparse.ArgumentParser):
                 self._platform.fill_args(self._toolchain, self)
 
         # Intercept selected CPU to fill arguments.
-        cpu_cls = cpu.CPUS.get(self.get_value_from_key("--cpu-type"), None)
+        default_cpu_type = self._args_default.get("cpu_type", None)
+        cpu_cls = cpu.CPUS.get(self.get_value_from_key("--cpu-type", default_cpu_type))
         if cpu_cls is not None and hasattr(cpu_cls, "args_fill"):
             cpu_cls.args_fill(self)
 
         # Injects arguments default values
         if len(self._args_default):
             argparse.ArgumentParser.set_defaults(self, **self._args_default)
+            # Catch defaults which do not match any arguments - typos?
+            remaining = list(self._args_default.keys())
+            for action in self._actions:
+                if action.dest in remaining:
+                    remaining.remove(action.dest)
+            if len(remaining) > 0:
+                raise ValueError(f"set_default() for invalid argument(s): {remaining}")
 
         # Parse args.
         self._args = argparse.ArgumentParser.parse_args(self, args, namespace)

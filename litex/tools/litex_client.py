@@ -21,19 +21,25 @@ from litex.tools.remote.csr_builder import CSRBuilder
 # Remote Client ------------------------------------------------------------------------------------
 
 class RemoteClient(EtherboneIPC, CSRBuilder):
-    def __init__(self, host="localhost", port=1234, base_address=0, csr_csv=None, csr_data_width=None, debug=False):
+    def __init__(self, host="localhost", port=1234, base_address=0, csr_csv=None, csr_data_width=None,
+        csr_bus_address_width=None, debug=False):
         # If csr_csv set to None and local csr.csv file exists, use it.
         if csr_csv is None and os.path.exists("csr.csv"):
             csr_csv = "csr.csv"
         # If valid csr_csv file found, build the CSRs.
         if csr_csv is not None:
             CSRBuilder.__init__(self, self, csr_csv, csr_data_width)
-        # Else if csr_data_width set to None, force to csr_data_width 32-bit.
-        elif csr_data_width is None:
-            csr_data_width = 32
+        else:
+            # Else if csr_data_width set to None, force to csr_data_width 32-bit.
+            if csr_data_width is None:
+                self.csr_data_width = 32
+            # Else if csr_bus_address_width set to None, force to csr_bus_address_width 32-bit.
+            if csr_bus_address_width is None:
+                self.csr_bus_address_width = 32
         self.host         = host
         self.port         = port
         self.debug        = debug
+        self.binded       = False
         self.base_address = base_address if base_address is not None else 0
 
     def _receive_server_info(self):
@@ -44,34 +50,43 @@ class RemoteClient(EtherboneIPC, CSRBuilder):
             self.base_address = -self.mems.csr.base
 
     def open(self):
-        if hasattr(self, "socket"):
+        if self.binded:
             return
         self.socket = socket.create_connection((self.host, self.port), 5.0)
         self.socket.settimeout(5.0)
         self._receive_server_info()
+        self.binded = True
 
     def close(self):
-        if not hasattr(self, "socket"):
+        if not self.binded:
             return
         self.socket.close()
         del self.socket
+        self.binded = False
 
     def read(self, addr, length=None, burst="incr"):
         length_int = 1 if length is None else length
+        addr_size  = self.csr_bus_address_width // 8
         # Prepare packet
-        record = EtherboneRecord()
+        record = EtherboneRecord(addr_size)
         incr = (burst == "incr")
-        record.reads  = EtherboneReads(addrs=[self.base_address + addr + 4*incr*j for j in range(length_int)])
+        record.reads  = EtherboneReads(
+            addr_size = addr_size,
+            addrs     = [self.base_address + addr + 4*incr*j for j in range(length_int)]
+        )
         record.rcount = len(record.reads)
 
         # Send packet
-        packet = EtherbonePacket()
+        packet = EtherbonePacket(self.csr_bus_address_width)
         packet.records = [record]
         packet.encode()
         self.send_packet(self.socket, packet)
 
         # Receive response
-        packet = EtherbonePacket(self.receive_packet(self.socket))
+        packet = EtherbonePacket(
+            addr_width = self.csr_bus_address_width,
+            init       = self.receive_packet(self.socket, addr_size)
+        )
         packet.decode()
         datas = packet.records.pop().writes.get_datas()
         if self.debug:
@@ -81,11 +96,16 @@ class RemoteClient(EtherboneIPC, CSRBuilder):
 
     def write(self, addr, datas):
         datas = datas if isinstance(datas, list) else [datas]
-        record = EtherboneRecord()
-        record.writes = EtherboneWrites(base_addr=self.base_address + addr, datas=[d for d in datas])
+        addr_size = self.csr_bus_address_width // 8
+        record = EtherboneRecord(addr_size)
+        record.writes = EtherboneWrites(
+            base_addr = self.base_address + addr,
+            addr_size = addr_size,
+            datas     = [d for d in datas]
+        )
         record.wcount = len(record.writes)
 
-        packet = EtherbonePacket()
+        packet = EtherbonePacket(self.csr_bus_address_width)
         packet.records = [record]
         packet.encode()
         self.send_packet(self.socket, packet)
@@ -126,19 +146,23 @@ def dump_registers(host, csr_csv, port, filter=None, binary=False):
     for name, register in bus.regs.__dict__.items():
         if (filter is None) or filter in name:
             register_value = {
-                True  : f"{register.read():032b}",
-                False : f"{register.read():08x}",
+                True  : f"0b{register.read():032b}",
+                False : f"0x{register.read():08x}",
             }[binary]
-            print("0x{:08x} : 0x{} {}".format(register.addr, register_value, name))
+            print("0x{:08x} : {} {}".format(register.addr, register_value, name))
 
     bus.close()
 
-def read_memory(host, csr_csv, port, addr, length):
+def read_memory(host, csr_csv, port, addr, length, binary=False):
     bus = RemoteClient(host=host, csr_csv=csr_csv, port=port)
     bus.open()
 
     for offset in range(length//4):
-        print(f"0x{addr + 4*offset:08x} : 0x{bus.read(addr + 4*offset):08x}")
+        register_value = {
+            True  : f"0b{bus.read(addr + 4*offset):032b}",
+            False : f"0x{bus.read(addr + 4*offset):08x}",
+        }[binary]
+        print(f"0x{addr + 4*offset:08x} : {register_value}")
 
     bus.close()
 
@@ -314,7 +338,7 @@ def run_gui(host, csr_csv, port):
             # CSR Update.
             for name, reg in bus.regs.__dict__.items():
                 value = reg.read()
-                dpg.set_value(item=name, value=f"0x{reg.read():x}")
+                dpg.set_value(item=name, value=f"0x{value:x}")
 
             # XADC Update.
             if with_xadc:
@@ -403,6 +427,7 @@ def main():
             port    = port,
             addr    = addr,
             length  = int(args.length, 0),
+            binary  = args.binary,
         )
 
     if args.write:

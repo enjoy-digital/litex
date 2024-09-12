@@ -92,6 +92,10 @@ class EfinixDbParser:
             if p.get('block') == block:
                 names.append(p.get('name'))
 
+        # Ti60F100S3F2 has only 3 PLLs
+        if block == "pll" and self.device == "Ti60F100S3F2":
+            names.remove("PLL_BL0")
+
         print(f"block {block}: names:{names}")
         return names
 
@@ -103,16 +107,16 @@ class EfinixDbParser:
         peri = root.findall('efxpt:periphery_instance', namespaces)
         for p in peri:
             # T20/T120 have instance attribute in single_conn
-            # not true for T4/T8 -> search in dependency subnode
+            # not true for T4/T8 (except for TQFP144 package) -> search in dependency subnode
             if p.get('block') == 'pll':
-                if self.device[0:2] not in ['T4', 'T8']:
+                if self.device[0:2] not in ['T4', 'T8'] or self.device[0:6] == "T8Q144":
                     conn = p.findall('efxpt:single_conn', namespaces)
                     for c in conn:
                         i = c.get('instance')
                         if i == None:
                             continue
                         if (i == inst) or (inst + '.' in i):
-                            refclk_no = 0
+                            refclk_no = 0 if self.device[:2] != "Ti" else c.get('index')
                             if c.get('index') == '3':
                                 refclk_no = 1
                             return (p.get('name'), refclk_no)

@@ -70,11 +70,12 @@ def _read_merger(addrs, max_length=256, bursts=["incr", "fixed"]):
 # Remote Server ------------------------------------------------------------------------------------
 
 class RemoteServer(EtherboneIPC):
-    def __init__(self, comm, bind_ip, bind_port=1234):
-        self.comm      = comm
-        self.bind_ip   = bind_ip
-        self.bind_port = bind_port
-        self.lock      = False
+    def __init__(self, comm, bind_ip, bind_port=1234, addr_width=32):
+        self.comm       = comm
+        self.bind_ip    = bind_ip
+        self.bind_port  = bind_port
+        self.lock       = False
+        self.addr_width = addr_width
 
     def open(self):
         if hasattr(self, "socket"):
@@ -115,14 +116,13 @@ class RemoteServer(EtherboneIPC):
                 while True:
                     # Receive packet.
                     try:
-                        packet = self.receive_packet(client_socket)
+                        packet = self.receive_packet(client_socket, self.addr_width // 8)
                         if packet == 0:
                             break
                     except:
                         break
-
                     # Decode Packet.
-                    packet = EtherbonePacket(packet)
+                    packet = EtherbonePacket(self.addr_width, packet)
                     packet.decode()
 
                     # Get Packet's Record.
@@ -152,11 +152,12 @@ class RemoteServer(EtherboneIPC):
                             bursts      = bursts):
                             reads += self.comm.read(addr, length, burst)
 
-                        record = EtherboneRecord()
-                        record.writes = EtherboneWrites(datas=reads)
+                        addr_size = self.addr_width // 8
+                        record = EtherboneRecord(addr_size)
+                        record.writes = EtherboneWrites(addr_size=addr_size, datas=reads)
                         record.wcount = len(record.writes)
 
-                        packet = EtherbonePacket()
+                        packet = EtherbonePacket(self.addr_width)
                         packet.records = [record]
                         packet.encode()
                         self.send_packet(client_socket, packet)
@@ -181,6 +182,7 @@ def main():
     # Common arguments
     parser.add_argument("--bind-ip",         default="localhost",    help="Host bind address.")
     parser.add_argument("--bind-port",       default=1234,           help="Host bind port.")
+    parser.add_argument("--addr-width",      default=32,             help="bus address width.")
     parser.add_argument("--debug",           action="store_true",    help="Enable debug.")
 
     # UART arguments
@@ -220,7 +222,7 @@ def main():
         uart_port = args.uart_port
         uart_baudrate = int(float(args.uart_baudrate))
         print("[CommUART] port: {} / baudrate: {} / ".format(uart_port, uart_baudrate), end="")
-        comm = CommUART(uart_port, uart_baudrate, debug=args.debug)
+        comm = CommUART(uart_port, uart_baudrate, debug=args.debug, addr_width=int(args.addr_width))
 
     # JTAG mode
     elif args.jtag:
@@ -229,7 +231,7 @@ def main():
         jtag_uart = JTAGUART(config=args.jtag_config, chain=int(args.jtag_chain))
         jtag_uart.open()
         print("[CommUART] port: JTAG / ", end="")
-        comm = CommUART(os.ttyname(jtag_uart.name), debug=args.debug)
+        comm = CommUART(os.ttyname(jtag_uart.name), debug=args.debug, addr_width=int(args.addr_width))
 
     # UDP mode
     elif args.udp:
@@ -241,14 +243,14 @@ def main():
             assert len(udp_ip) == 4
             udp_ip[3] = "x"
             udp_ip = ".".join(udp_ip)
-            comm = CommUDP(udp_ip, udp_port, debug=args.debug)
+            comm = CommUDP(udp_ip, udp_port, debug=args.debug, addr_width=int(args.addr_width))
             comm.open(probe=False)
             comm.scan(udp_ip)
             comm.close()
             exit()
         else:
             print("[CommUDP] ip: {} / port: {} / ".format(udp_ip, udp_port), end="")
-            comm = CommUDP(udp_ip, udp_port, debug=args.debug)
+            comm = CommUDP(udp_ip, udp_port, debug=args.debug, addr_width=int(args.addr_width))
 
     # PCIe mode
     elif args.pcie:
@@ -279,7 +281,7 @@ def main():
         parser.print_help()
         exit()
 
-    server = RemoteServer(comm, args.bind_ip, int(args.bind_port))
+    server = RemoteServer(comm, args.bind_ip, int(args.bind_port), addr_width=int(args.addr_width))
     server.open()
     server.start(4)
     try:

@@ -57,6 +57,7 @@ class YosysWrapper():
         self._synth_format = synth_format
         self._yosys_opts   = yosys_opts
         self._yosys_cmds   = yosys_cmds
+        self._quiet        = "" if not kwargs.pop("quiet", False) else '-Qq'
 
         self._target = target
 
@@ -81,6 +82,8 @@ class YosysWrapper():
             # yosys has no such function read_systemverilog
             if language == "systemverilog":
                 language = "verilog -sv"
+            if language is None:
+                continue
             reads.append(f"read_{language}{includes} {filename}")
         return "\n".join(reads)
 
@@ -130,7 +133,7 @@ class YosysWrapper():
         =======
         str containing instruction and/or rule
         """
-        base_cmd = f"yosys -l {self._build_name}.rpt {self._build_name}.ys"
+        base_cmd = f"yosys {self._quiet} -l {self._build_name}.rpt {self._build_name}.ys"
         if target == "makefile":
             return f"{self._build_name}.{self._synth_format}:\n\t" + base_cmd + "\n"
         elif target == "script":
@@ -142,10 +145,12 @@ def yosys_args(parser):
     parser.add_argument("--yosys-nowidelut", action="store_true", help="Use Yosys's nowidelut mode.")
     parser.add_argument("--yosys-abc9",      action="store_true", help="Use Yosys's abc9 mode.")
     parser.add_argument("--yosys-flow3",     action="store_true", help="Use Yosys's abc9 mode with the flow3 script.")
+    parser.add_argument("--yosys-quiet",     action="store_true", help="Use Yosys's '-Qq' to be quiet")
 
 def yosys_argdict(args):
     return {
         "nowidelut": args.yosys_nowidelut,
         "abc9":      args.yosys_abc9,
         "flow3":     args.yosys_flow3,
+        "quiet":     args.yosys_quiet,
     }

@@ -7,13 +7,16 @@
 from migen.genlib.cdc import MultiReg
 from migen.genlib.fifo import SyncFIFOBuffered
 
+from litex.gen import *
+
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr_eventmanager import *
 
 from litex.soc.integration.doc import AutoDoc, ModuleDoc
 
+# 7-Series SPI OPI ---------------------------------------------------------------------------------
 
-class S7SPIOPI(Module, AutoCSR, AutoDoc):
+class S7SPIOPI(LiteXModule):
     def __init__(self, pads,
         dq_delay_taps  = 0,
         sclk_name      = "SCLK_ODDR",
@@ -433,7 +436,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
              bit of additional logic and pipelining, we can aggregate data into 32-bit words going into a
              32-bit FIFO_SYNC_MACRO, which is what we do in this implementation.
         """)
-        self.bus = bus = wishbone.Interface()
+        self.bus = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
 
         self.command = CSRStorage(description="Write individual bits to issue special commands to SPI; setting multiple bits at once leads to undefined behavior.",
             fields=[
@@ -571,8 +574,8 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         bus_ack_w = Signal()
 
         #---------  Page write data responder -----------------------
-        self.submodules.txwr_fifo = SyncFIFOBuffered(width=16, depth=128)
-        self.submodules.pgwr = pgwr = FSM(reset_state="IDLE")
+        self.txwr_fifo = SyncFIFOBuffered(width=16, depth=128)
+        self.pgwr = pgwr = FSM(reset_state="IDLE")
         pgwr.act("IDLE",
             If(self.wdata.re,
                 self.txwr_fifo.we.eq(1),
@@ -605,7 +608,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         ]
 
         #---------  OPI Rx Phy machine ------------------------------
-        self.submodules.rxphy = rxphy = FSM(reset_state="IDLE")
+        self.rxphy = rxphy = FSM(reset_state="IDLE")
         rxphy_cnt = Signal(3)
         rxphy.act("IDLE",
             If(spi_mode,
@@ -689,7 +692,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         self.sync += txphy_bus.eq(bus.cyc & bus.stb & ~bus.we & ((bus.cti == 2) | (bus.cti == 0)))
         tx_resetcycle = Signal()
 
-        self.submodules.txphy = txphy = FSM(reset_state="RESET")
+        self.txphy = txphy = FSM(reset_state="RESET")
         txphy.act("RESET",
             NextValue(opi_rx_run, 0),
             NextValue(txphy_oe, 0),
@@ -902,7 +905,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
 
 
         #---------  OPI CMD machine ------------------------------
-        self.submodules.opicmd = opicmd = FSM(reset_state="RESET")
+        self.opicmd = opicmd = FSM(reset_state="RESET")
         opicmd.act("RESET",
             NextValue(txcmd_do, 0),
             NextValue(txcmd_oe, 0),
@@ -1012,7 +1015,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         ]
         self.comb += self.copi.eq(spi_so[7])
         self.sync += spi_si.eq(Cat(self.cipo, spi_si[:-1]))
-        self.submodules.spiphy = spiphy = FSM(reset_state="RESET")
+        self.spiphy = spiphy = FSM(reset_state="RESET")
         spiphy.act("RESET",
             If(spi_req,
                 NextState("REQ"),
@@ -1078,7 +1081,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         d_to_wb      = Signal(32) # data going back to wishbone
         mac_count    = Signal(5)
         new_cycle    = Signal(1)
-        self.submodules.mac = mac = FSM(reset_state="RESET")
+        self.mac = mac = FSM(reset_state="RESET")
         mac.act("RESET",
                 NextValue(spi_mode, 1),
                 NextValue(addr_updated, 0),
@@ -1379,7 +1382,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         ecs_n = Signal()
         self.specials += MultiReg(pads.ecs_n, ecs_n)
 
-        self.submodules.ev = EventManager()
+        self.ev = EventManager()
         self.ev.ecc_error = EventSourceProcess(description="An ECC event has happened on the current block; triggered by falling edge of ECC_N")
         self.ev.finalize()
         self.comb += self.ev.ecc_error.trigger.eq(ecs_n)

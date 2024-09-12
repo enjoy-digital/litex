@@ -1,8 +1,16 @@
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2022 Antmicro <www.antmicro.com>
+# SPDX-License-Identifier: BSD-2-Clause
+
 from migen import *
+
+from litex.gen import *
 
 from litex.soc.interconnect.stream import SyncFIFO
 
-class FIFOSyncMacro(Module, Record):
+class FIFOSyncMacro(LiteXModule, Record):
     """FIFOSyncMacro
 
     Provides an equivalent of Xilinx' FIFO_SYNC_MACRO which is a unimacro dedicated for 7 series
@@ -86,7 +94,7 @@ class FIFOSyncMacro(Module, Record):
 
             self.fifo_depth = fifo_depth = (int)(fifo_size * 1024 / macro_data_width)
 
-            self.submodules.fifo = fifo = ResetInserter()(SyncFIFO([("data", data_width)], fifo_depth))
+            self.fifo = fifo = ResetInserter()(SyncFIFO([("data", data_width)], fifo_depth))
 
             self.comb += [
                 fifo.reset.eq(self.reset),

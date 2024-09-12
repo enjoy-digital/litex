@@ -12,6 +12,8 @@ import os
 
 from migen import *
 
+from litex.gen import *
+
 from litex import get_data_mod
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
@@ -72,7 +74,7 @@ class PicoRV32(CPU):
         self.trap         = Signal()
         self.reset        = Signal()
         self.interrupt    = Signal(32)
-        self.idbus        = idbus = wishbone.Interface()
+        self.idbus        = idbus = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
         self.periph_buses = [idbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses = []      # Memory buses (Connected directly to LiteDRAM).
 
@@ -164,10 +166,15 @@ class PicoRV32(CPU):
 
         # Adapt Memory Interface to Wishbone.
         self.comb += [
-            idbus.adr.eq(mem_addr[2:]),
+            idbus.adr.eq(mem_addr),
             idbus.dat_w.eq(mem_wdata),
-            idbus.we.eq(mem_wstrb != 0),
-            idbus.sel.eq(mem_wstrb),
+            If(mem_wstrb != 0,
+                idbus.we.eq(1),
+                idbus.sel.eq(mem_wstrb),
+            ).Else(
+                idbus.we.eq(0),
+                idbus.sel.eq(0b1111),
+            ),
             idbus.cyc.eq(mem_valid),
             idbus.stb.eq(mem_valid),
             idbus.cti.eq(0),

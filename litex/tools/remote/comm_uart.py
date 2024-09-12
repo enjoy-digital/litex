@@ -19,11 +19,12 @@ CMD_READ_BURST_FIXED  = 0x04
 # CommUART -----------------------------------------------------------------------------------------
 
 class CommUART(CSRBuilder):
-    def __init__(self, port, baudrate=115200, csr_csv=None, debug=False):
+    def __init__(self, port, baudrate=115200, csr_csv=None, debug=False, addr_width=32):
         CSRBuilder.__init__(self, comm=self, csr_csv=csr_csv)
-        self.port     = serial.serial_for_url(port, baudrate)
-        self.baudrate = str(baudrate)
-        self.debug    = debug
+        self.port       = serial.serial_for_url(port, baudrate)
+        self.baudrate   = str(baudrate)
+        self.debug      = debug
+        self.addr_bytes = addr_width // 8
 
     def open(self):
         if hasattr(self, "port"):
@@ -63,7 +64,7 @@ class CommUART(CSRBuilder):
             "fixed": CMD_READ_BURST_FIXED,
         }[burst]
         self._write([cmd, length_int])
-        self._write(list((addr//4).to_bytes(4, byteorder="big")))
+        self._write(list((addr//4).to_bytes(self.addr_bytes, byteorder="big")))
         for i in range(length_int):
             value = int.from_bytes(self._read(4), "big")
             if self.debug:
@@ -85,7 +86,7 @@ class CommUART(CSRBuilder):
                 "fixed": CMD_WRITE_BURST_FIXED,
             }[burst]
             self._write([cmd, size])
-            self._write(list(((addr//4 + offset).to_bytes(4, byteorder="big"))))
+            self._write(list(((addr//4 + offset).to_bytes(self.addr_bytes, byteorder="big"))))
             for i, value in enumerate(data[offset:offset+size]):
                 self._write(list(value.to_bytes(4, byteorder="big")))
                 if self.debug:

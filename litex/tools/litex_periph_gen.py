@@ -76,8 +76,8 @@ class LiteXSoCGenerator(SoCMini):
 
         # MMAP Slave Interface ---------------------------------------------------------------------
         s_bus = {
-            "wishbone" : wishbone.Interface(),
-            "axi-lite" : axi.AXILiteInterface(),
+            "wishbone" : wishbone.Interface(data_width=32, address_width=32, addressing="word"),
+            "axi-lite" : axi.AXILiteInterface(data_width=32, address_width=32),
 
         }[kwargs["bus_standard"]]
         self.bus.add_master(name="mmap_s", master=s_bus)
@@ -88,8 +88,8 @@ class LiteXSoCGenerator(SoCMini):
         # MMAP Master Interface --------------------------------------------------------------------
         # FIXME: Allow Region configuration.
         m_bus = {
-            "wishbone" : wishbone.Interface(),
-            "axi-lite" : axi.AXILiteInterface(),
+            "wishbone" : wishbone.Interface(data_width=32, address_width=32, addressing="word"),
+            "axi-lite" : axi.AXILiteInterface(data_width=32, address_width=32),
 
         }[kwargs["bus_standard"]]
         wb_region = SoCRegion(origin=0x2000_0000, size=0x1000_0000, cached=True) # FIXME.

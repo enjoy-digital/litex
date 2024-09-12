@@ -1,7 +1,7 @@
 <p align="center"><img src="https://raw.githubusercontent.com/enjoy-digital/litex/master/doc/litex.png"></p>
 
 ```
-             Copyright 2012-2023 / Enjoy-Digital & LiteX developers
+             Copyright 2012-2024 / Enjoy-Digital & LiteX developers
 ```
 [![](https://github.com/enjoy-digital/litex/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litex/actions)
 ![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)
@@ -54,9 +54,9 @@ The framework is also far from perfect and we'll be happy to have your [feedback
 
 Have fun! :wink:
 
-**Moral precisions**: The project is shared with a permissive BSD 2-Clause License and we are encouraged to continue sharing it this way thanks to the awesome community and clients willing to support the project!
-If the projet is useful for your research, hobby or commercial projects, we are just asking you to be coherent and behave with integrity: Don't expect free support or that the community will be welcoming if your spent your time complaining about the project (and then direspect developers) or don't pay the custom developments you asked for... (While it's probably natural for 99% of users/clients, it  does seems useful to add this for the 1% remaining that are eating lots of our energy/time).
+We share this project under a permissive BSD 2-Clause License, inspired by our fantastic community and supportive clients. If LiteX benefits your research, hobby, or commercial projects, we kindly ask for your positive collaboration and respect for the effort involved.
 
+Thank you for helping us improve LiteX and being part of our community!
 
 # Typical LiteX design flow:
 ```
@@ -107,7 +107,7 @@ To discover more products/projects built with LiteX, visit the [projects page](h
 
 A huge shoutout to our awesome industrial clients who have given us the green light to incorporate some of the developments we initially created for them directly into LiteX! These innovative developments often provide the building blocks for the features that the wider community can then use and improve upon. Your support has been instrumental for the project, and we are incredibly grateful for your partnership. Thanks!
 
-![](https://user-images.githubusercontent.com/1450143/221536924-5b6511f9-084a-4c94-9bb3-4653094d2723.png)
+![](https://github.com/enjoy-digital/litex/assets/1450143/444d8fc2-3092-487c-b52f-bdd776b790a4.png)
 
 # Papers, Presentations, Tutorials, Links
 **FPGA lessons/tutorials:**

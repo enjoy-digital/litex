@@ -48,7 +48,7 @@ int i2c_send_init_cmds(void)
 				data[0] = i2c_cmd->init_table[(i*2) + 1] & 0xff;
 			}
 
-			if (!i2c_write(i2c_cmd->i2c_addr, addr, data, len))
+			if (!i2c_write(i2c_cmd->i2c_addr, addr, data, len, 1))
 				printf("Error during write at address 0x%04x on i2c dev %d\n",
 						addr, current_i2c_dev);
 		}

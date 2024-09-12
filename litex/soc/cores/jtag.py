@@ -12,14 +12,16 @@
 from migen import *
 from migen.genlib.cdc import AsyncResetSynchronizer, MultiReg
 
+from litex.gen import *
+
 from litex.build.generic_platform import *
 from litex.soc.interconnect import stream
 
 # JTAG TAP FSM -------------------------------------------------------------------------------------
 
-class JTAGTAPFSM(Module):
+class JTAGTAPFSM(LiteXModule):
     def __init__(self, tms):
-        self.submodules.fsm = fsm = FSM(reset_state="TEST_LOGIC_RESET")
+        self.fsm = fsm = FSM(reset_state="TEST_LOGIC_RESET")
 
         def JTAGTAPFSMState(name, transitions={}):
             logic = []
@@ -158,7 +160,7 @@ class JTAGTAPFSM(Module):
 
 # Altera JTAG --------------------------------------------------------------------------------------
 
-class AlteraJTAG(Module):
+class AlteraJTAG(LiteXModule):
     def __init__(self, primitive, pads):
         # Common with Xilinx.
         self.reset   = reset   = Signal() # Provided by our own TAP FSM.
@@ -192,12 +194,12 @@ class AlteraJTAG(Module):
         # # #
 
         # Create falling-edge JTAG clock domain for TAP FSM.
-        self.clock_domains.cd_jtag_inv = cd_jtag_inv = ClockDomain("jtag_inv")
+        self.cd_jtag_inv = cd_jtag_inv = ClockDomain("jtag_inv")
         self.comb += ClockSignal("jtag_inv").eq(~ClockSignal("jtag"))
         self.comb += ResetSignal("jtag_inv").eq(ResetSignal("jtag"))
 
         # Connect the TAP state signals that LiteX expects but the HW IP doesn't provide.
-        self.submodules.tap_fsm = ClockDomainsRenamer("jtag")(JTAGTAPFSM(tms))
+        self.tap_fsm = ClockDomainsRenamer("jtag")(JTAGTAPFSM(tms))
         self.sync.jtag_inv += reset.eq(self.tap_fsm.TEST_LOGIC_RESET)
         self.sync.jtag_inv += capture.eq(self.tap_fsm.CAPTURE_DR)
 
@@ -286,7 +288,7 @@ class AlteraJTAG(Module):
 
 # Xilinx JTAG --------------------------------------------------------------------------------------
 
-class XilinxJTAG(Module):
+class XilinxJTAG(LiteXModule):
     def __init__(self, primitive, chain=1):
         self.reset   = Signal()
         self.capture = Signal()
@@ -338,7 +340,7 @@ class XilinxJTAG(Module):
 
 # ECP5 JTAG ----------------------------------------------------------------------------------------
 
-class ECP5JTAG(Module):
+class ECP5JTAG(LiteXModule):
     def __init__(self, tck_delay_luts=8):
         self.reset   = Signal()
         self.capture = Signal()
@@ -389,7 +391,7 @@ class ECP5JTAG(Module):
 
 # JTAG PHY -----------------------------------------------------------------------------------------
 
-class JTAGPHY(Module):
+class JTAGPHY(LiteXModule):
     def __init__(self, jtag=None, device=None, data_width=8, clock_domain="sys", chain=1, platform=None):
         """JTAG PHY
 
@@ -424,6 +426,9 @@ class JTAGPHY(Module):
             # Lattice.
             elif device[:5] == "LFE5U":
                 jtag = ECP5JTAG()
+            # Efinix
+            elif device[:2] == "Ti":
+                jtag = EfinixJTAG(platform)
             # Altera/Intel.
             elif AlteraJTAG.get_primitive(device) is not None:
                 platform.add_reserved_jtag_decls()
@@ -434,21 +439,25 @@ class JTAGPHY(Module):
             else:
                 print(device)
                 raise NotImplementedError
-            self.submodules.jtag = jtag
+            self.jtag = jtag
 
         # JTAG clock domain ------------------------------------------------------------------------
-        self.clock_domains.cd_jtag = ClockDomain()
+        self.cd_jtag = ClockDomain()
         self.comb += ClockSignal("jtag").eq(jtag.tck)
         self.specials += AsyncResetSynchronizer(self.cd_jtag, ResetSignal(clock_domain))
 
         # JTAG clock domain crossing ---------------------------------------------------------------
         if clock_domain != "jtag":
-            tx_cdc = stream.AsyncFIFO([("data", data_width)], 4)
-            tx_cdc = ClockDomainsRenamer({"write": clock_domain, "read": "jtag"})(tx_cdc)
-            rx_cdc = stream.AsyncFIFO([("data", data_width)], 4)
-            rx_cdc = ClockDomainsRenamer({"write": "jtag", "read": clock_domain})(rx_cdc)
-            self.submodules.tx_cdc = tx_cdc
-            self.submodules.rx_cdc = rx_cdc
+            self.tx_cdc = tx_cdc = stream.ClockDomainCrossing([("data", data_width)],
+                cd_from         = clock_domain,
+                cd_to           = "jtag",
+                with_common_rst = True
+            )
+            self.rx_cdc = rx_cdc = stream.ClockDomainCrossing([("data", data_width)],
+                cd_from         = "jtag",
+                cd_to           = clock_domain,
+                with_common_rst = True
+            )
             self.comb += [
                 sink.connect(tx_cdc.sink),
                 rx_cdc.source.connect(source)
@@ -506,9 +515,19 @@ class JTAGPHY(Module):
 
 # Efinix / TRION -----------------------------------------------------------------------------------
 
-class EfinixJTAG(Module):
+class EfinixJTAG(LiteXModule):
     # id refer to the JTAG_USER{id}
     def __init__(self, platform, id=1):
+        self.reset   = Signal()
+        self.capture = Signal()
+        self.shift   = Signal()
+        self.update  = Signal()
+
+        self.tck = Signal()
+        self.tms = Signal()
+        self.tdi = Signal()
+        self.tdo = Signal()
+
         self.name     = f"jtag_{id}"
         self.platform = platform
         self.id       = id
@@ -540,6 +559,18 @@ class EfinixJTAG(Module):
         block["id"]   = self.id
         block["pins"] = pins
         self.platform.toolchain.ifacewriter.blocks.append(block)
+
+        self.comb += [
+            self.reset.eq(pins.RESET),
+            self.capture.eq(pins.CAPTURE),
+            self.shift.eq(pins.SHIFT),
+            self.update.eq(pins.UPDATE),
+
+            self.tck.eq(pins.TCK),
+            self.tms.eq(pins.TMS),
+            self.tdi.eq(pins.TDI),
+            pins.TDO.eq(self.tdo),
+        ]
 
     def bind_vexriscv_smp(self, cpu):
         self.comb += [

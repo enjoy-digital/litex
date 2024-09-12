@@ -8,11 +8,13 @@
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
+from litex.gen import *
+
 from litex.soc.cores.clock.common import *
 
 # Lattice / ECP5 PLL -------------------------------------------------------------------------------
 
-class ECP5PLL(Module):
+class ECP5PLL(LiteXModule):
     nclkouts_max    = 4
     clki_div_range  = (1, 128+1)
     clkfb_div_range = (1, 128+1)
@@ -157,11 +159,11 @@ class ECP5PLL(Module):
         self.comb += self.locked.eq(locked & ~self.reset)
         for n, (clk, f, p, m, dpa) in sorted(self.clkouts.items()):
             div    = config[f"clko{n}_div"]
-            cphase = int(p*(div + 1)/360 + div - 1)
+            phase = round(p*div/45)
             self.params[f"p_CLKO{n_to_l[n]}_ENABLE"] = "ENABLED"
             self.params[f"p_CLKO{n_to_l[n]}_DIV"]    = div
-            self.params[f"p_CLKO{n_to_l[n]}_FPHASE"] = 0
-            self.params[f"p_CLKO{n_to_l[n]}_CPHASE"] = cphase
+            self.params[f"p_CLKO{n_to_l[n]}_FPHASE"] = phase & 7
+            self.params[f"p_CLKO{n_to_l[n]}_CPHASE"] = (phase >> 3) + (div - 1)
             self.params[f"o_CLKO{n_to_l[n]}"]        = clk
             if f > 0:  # i.e. not a feedback-only clock
                 self.params["attr"].append((f"FREQUENCY_PIN_CLKO{n_to_l[n]}", str(f/1e6)))
@@ -171,7 +173,7 @@ class ECP5PLL(Module):
 
 # Lattice / ECP5 Dynamic Delay ---------------------------------------------------------------------
 
-class ECP5DynamicDelay(Module):
+class ECP5DynamicDelay(LiteXModule):
     tap_delay = 25e-12
     ntaps     = 128
 
@@ -203,7 +205,7 @@ class ECP5DynamicDelay(Module):
         # FSM.
         self.comb += done.eq(  self.taps == curr_taps)
         self.comb += change.eq(self.taps != curr_taps)
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             If(change,
                 NextState("DELAYF-RST")

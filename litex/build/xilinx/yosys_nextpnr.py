@@ -4,6 +4,7 @@
 # Copyright (c) 2020 Antmicro <www.antmicro.com>
 # Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2022 Victor Suarez Rovere <suarezvictor@gmail.com>
+# Copyright (c) 2023 Hans Baier <hansfbaier@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
@@ -39,55 +40,59 @@ class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
     pnr_fmt    = "fasm"
     packer_cmd = "xc7frames2bit"
 
-    def __init__(self):
+    def __init__(self, toolchain):
+        assert toolchain in ["yosys+nextpnr", "openxc7"]
+        self.is_openxc7 = toolchain == "openxc7"
         super().__init__()
-        self.f4pga_device = None
-        self.bitstream_device = None
-        self._partname = None
-        self._pre_packer_cmd = ["fasm2frames.py"]
-        self._synth_opts = "-flatten -abc9 -nobram -arch xc7 "
+        self.dbpart = None
+        self._xc7family = None
+        self._clock_constraints = ""
+        self.additional_xdc_commands = []
+        self._pre_packer_cmd = ["fasm2frames" if self.is_openxc7 else "fasm2frames.py"]
+        self._synth_opts = "-flatten -abc9 -arch xc7 "
 
-    def _check_properties(self):
-        if not self.f4pga_device:
-            try:
-                self.f4pga_device = {
-                    # FIXME: fine for now since only a few devices are supported, do more clever device re-mapping.
-                    "xc7a35ticsg324-1L" : "xc7a35t",
-                    "xc7a100tcsg324-1"  : "xc7a35t",
-                    "xc7z010clg400-1"   : "xc7z010",
-                    "xc7z020clg400-1"   : "xc7z020",
-                }[self.platform.device]
-            except KeyError:
-                raise ValueError(f"f4pga_device is not specified")
-        if not self.bitstream_device:
-            try:
-                # bitstream_device points to a directory in prjxray database
-                # available bitstream_devices: artix7, kintex7, zynq7
-                self.bitstream_device = {
-                    "xc7a": "artix7", # xc7a35t, xc7a50t, xc7a100t, xc7a200t
-                    "xc7z": "zynq7", # xc7z010, xc7z020
-                }[self.platform.device[:4]]
-            except KeyError:
-                raise ValueError(f"Unsupported device: {self.platform.device}")
-        # FIXME: prjxray-db doesn't have xc7a35ticsg324-1L - use closest replacement
-        self._partname = {
-            "xc7a35ticsg324-1L" : "xc7a35tcsg324-1",
-            "xc7a100tcsg324-1"  : "xc7a100tcsg324-1",
-            "xc7a200t-sbg484-1" : "xc7a200tsbg484-1",
-            "xc7z010clg400-1"   : "xc7z010clg400-1",
-            "xc7z020clg400-1"   : "xc7z020clg400-1",
+    xc7_family_map = {
+        "a": "artix7",
+        "k": "kintex7",
+        "s": "spartan7",
+        "z": "zynq7"
+    }
+
+    @property
+    def device(self):
+        return  {
+            "xc7a35ticsg324-1L": "xc7a35tcsg324-1",
+            "xc7a200t-sbg484-1": "xc7a200tsbg484-1",
         }.get(self.platform.device, self.platform.device)
 
+    def _check_properties(self):
+        pattern = re.compile("xc7([aksz])([0-9]+)(.*)-([0-9])")
+        g = pattern.search(self.platform.device)
+        if not self.dbpart:
+            self.dbpart = f"xc7{g.group(1)}{g.group(2)}{g.group(3)}"
+
+        if not self._xc7family:
+            fam = g.group(1)
+            self._xc7family = self.xc7_family_map[fam]
+
     def build_timing_constraints(self, vns):
-        self.platform.add_platform_command(_xdc_separator("Clock constraints"))
-        #for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
-        #    platform.add_platform_command(
-        #        "create_clock -period " + str(period) +
-        #        " {clk}", clk=clk)
-        pass #clock constraints not supported
+        xdc = []
+        xdc.append(_xdc_separator("Clock constraints"))
+
+        for clk, [period, name] in sorted(self.clocks.items(), key=lambda x: x[0].duid):
+            clk_sig = self._vns.get_name(clk)
+            if name is None:
+                name = clk_sig
+            xdc.append(
+                "create_clock -name {name} -period " + str(period) +
+                " [get_ports {clk}]".format(name=name, clk=clk_sig))
+
+        # generate sdc
+        xdc += self.additional_xdc_commands
+        self._clock_constraints = "\n".join(xdc)
 
     def build_io_constraints(self):
-        tools.write_to_file(self._build_name + ".xdc", _build_xdc(self.named_sc, self.named_pc))
+        tools.write_to_file(self._build_name + ".xdc", _build_xdc(self.named_sc, self.named_pc) + self._clock_constraints)
         return (self._build_name + ".xdc", "XDC")
 
     def _fix_instance(self, instance):
@@ -99,23 +104,66 @@ class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
             if isinstance(instance, Instance):
                 self._fix_instance(instance)
 
+        if self.is_openxc7:
+            chipdb_dir = os.environ.get('CHIPDB')
+            if chipdb_dir is None or chipdb_dir == "":
+                print("Error: please specify the directory, where you store your nextpnr-xilinx chipdb files in the environment variable CHIPDB (directory may be empty)")
+                exit(1)
+        else:
+            chipdb_dir = "/usr/share/nextpnr/xilinx-chipdb"
+
+        chipdb = os.path.join(chipdb_dir, self.dbpart) + ".bin"
+        if not os.path.exists(chipdb):
+            if self.is_openxc7:
+                print(f"Chip database file '{chipdb}' not found, generating...")
+                pypy3 = os.environ.get('PYPY3')
+                if pypy3 is None or pypy3 == "":
+                    pypy3 = which("pypy3")
+                    if pypy3 is None:
+                        pypy3 = "python3"
+
+                nextpnr_xilinx_python_dir = os.environ.get('NEXTPNR_XILINX_PYTHON_DIR')
+                if nextpnr_xilinx_python_dir is None or nextpnr_xilinx_python_dir == "":
+                    nextpnr_xilinx_python_dir = "/snap/openxc7/current/opt/nextpnr-xilinx/python"
+                bba = self.dbpart + ".bba"
+                bbaexport = [pypy3, os.path.join(nextpnr_xilinx_python_dir, "bbaexport.py"), "--device", self.device, "--bba", bba]
+                print(str(bbaexport))
+                subprocess.run(bbaexport)
+                subprocess.run(["bbasm", "-l", bba, chipdb])
+                os.remove(bba)
+            else:
+                print(f"Chip database file '{chipdb}' not found. Please check your toolchain installation!")
+                exit(1)
+
         # pnr options
-        self._pnr_opts += "--chipdb {chipdb_dir}/{device}.bin --write {top}_routed.json".format(
-            top        = self._build_name,
-            chipdb_dir = "/usr/share/nextpnr/xilinx-chipdb",
-            device     = self.f4pga_device,
+        self._pnr_opts += "--chipdb {chipdb} --write {top}_routed.json".format(
+            top    = self._build_name,
+            chipdb = chipdb
         )
 
+        if self.is_openxc7:
+            prjxray_db_dir = os.environ.get('PRJXRAY_DB_DIR')
+            if prjxray_db_dir is None or prjxray_db_dir == "":
+                prjxray_db_dir = '/snap/openxc7/current/opt/nextpnr-xilinx/external/prjxray-db/'
+        else:
+            prjxray_db_dir = "/usr/share/nextpnr/prjxray-db/"
+
+        if not os.path.isdir(prjxray_db_dir):
+            print(f"{prjxray_db_dir} does not exist on your system. \n" + \
+                    "Do you have the openXC7 toolchain installed? \n" + \
+                    "You can get it here: https://github.com/openXC7/toolchain-installer")
+            exit(1)
+
         # pre packer options
-        self._pre_packer_opts["fasm2frames.py"] = "--part {part} --db-root {db_root} {top}.fasm > {top}.frames".format(
-            part    = self._partname,
-            db_root = f"/usr/share/nextpnr/prjxray-db/{self.bitstream_device}",
+        self._pre_packer_opts[self._pre_packer_cmd[0]] = "--part {part} --db-root {db_root} {top}.fasm > {top}.frames".format(
+            part    = self.device,
+            db_root = os.path.join(prjxray_db_dir, self._xc7family),
             top     = self._build_name
         )
         # packer options
         self._packer_opts += "--part_file {db_dir}/{part}/part.yaml --part_name {part} --frm_file {top}.frames --output_file {top}.bit".format(
-            db_dir = f"/usr/share/nextpnr/prjxray-db/{self.bitstream_device}",
-            part   = self._partname,
+            db_dir = os.path.join(prjxray_db_dir, self._xc7family),
+            part   = self.device,
             top    = self._build_name
         )
 
@@ -125,19 +173,11 @@ class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
         enable_xpm = False,
         **kwargs):
 
-        #FIXME
         self.platform = platform
         self._check_properties()
 
         return YosysNextPNRToolchain.build(self, platform, fragment, **kwargs)
 
     def add_false_path_constraint(self, platform, from_, to):
-        # FIXME: false path constraints are currently not supported by the F4PGA toolchain
+        # FIXME: false path constraints are currently not supported by the toolchain
         return
-
-def f4pga_build_args(parser):
-    pass
-
-
-def f4pga_build_argdict(args):
-    return dict()

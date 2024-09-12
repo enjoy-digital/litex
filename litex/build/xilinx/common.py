@@ -71,6 +71,7 @@ class XilinxAsyncResetSynchronizerImpl(Module):
         if not hasattr(async_reset, "attr"):
             i, async_reset = async_reset, Signal()
             self.comb += async_reset.eq(i)
+        rst_buf  = Signal()
         rst_meta = Signal()
         self.specials += [
             Instance("FDPE",
@@ -89,10 +90,12 @@ class XilinxAsyncResetSynchronizerImpl(Module):
                 i_CE   = 1,
                 i_C    = cd.clk,
                 i_D    = rst_meta,
-                o_Q    = cd.rst
+                o_Q    = cd.rst if getattr(cd, "rst_buf", None) is None else rst_buf
             )
         ]
-
+        # Add optional BUFG.
+        if getattr(cd, "rst_buf", None) is not None:
+            self.specials += Instance("BUFG", i_I=rst_buf,o_O= cd.rst)
 
 class XilinxAsyncResetSynchronizer:
     @staticmethod
@@ -138,9 +141,9 @@ class XilinxSDRTristateImpl(Module):
         _o    = Signal()
         _oe_n = Signal()
         _i    = Signal()
-        self.specials += SDROutput(o, _o)
-        self.specials += SDROutput(~oe, _oe_n)
-        self.specials += SDRInput(_i, i)
+        self.specials += SDROutput(o, _o, clk)
+        self.specials += SDROutput(~oe, _oe_n, clk)
+        self.specials += SDRInput(_i, i, clk)
         self.specials += Instance("IOBUF",
             io_IO = io,
             o_O   = _i,

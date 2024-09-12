@@ -14,7 +14,7 @@ extern "C" {
 #define CLKGEN_STATUS_PROGDONE	0x2
 #define CLKGEN_STATUS_LOCKED	0x4
 
-#ifdef CSR_SDCORE_BASE
+#ifdef CSR_SDCARD_CORE_BASE
 
 #define SD_CMD_RESPONSE_SIZE 16
 
@@ -109,7 +109,7 @@ void sdcard_read(uint32_t sector, uint32_t count, uint8_t* buf);
 void sdcard_write(uint32_t sector, uint32_t count, uint8_t* buf);
 void fatfs_set_ops_sdcard(void);
 
-#endif /* CSR_SDCORE_BASE */
+#endif /* CSR_SDCARD_CORE_BASE */
 
 #ifdef __cplusplus
 }

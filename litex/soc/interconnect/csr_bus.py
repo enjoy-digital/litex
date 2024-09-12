@@ -2,24 +2,44 @@
 # This file is part of LiteX.
 #
 # Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
-# Copyright (c) 2015-2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2015-2023 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2016-2019 Tim 'mithro' Ansell <me@mith.ro>
 # SPDX-License-Identifier: BSD-2-Clause
 
 """
-CSR-2 bus
-=========
+CSR-Bus support for LiteX.
 
-The CSR-2 bus is a low-bandwidth, resource-sensitive bus designed for accessing
-the configuration and status registers of cores from software.
+The CSR Bus is a lightweight and low-bandwidth bus design for accessing Configuration and Status
+Registers (CSRs).
+
+It takes a minimalist approach, featuring only adr, we, dat_w, and dat_r signals and operate on
+sys_clk domain of the SoC, completing writes in a single cycle and reads in two cycles.
+
+                         ┌───────────┐                  Write in 1 cycle:
+                         │           │                  - adr/we/dat_w set by bridge.
+                         │           ├───► adr
+                         |           |                  Read in 2 cycles:
+                         │           ├───► re           - adr and re set by bridge.
+       Main SoC Bus ◄────►           │                  - User logic can ignore re if there is no reading side effect.
+                         |    CSR    ├───► we           - dat_r set returned by user logic.
+                         │   Bridge  │
+                         │           ├───► dat_w
+                         │           │
+                         │           ◄──── dat_r
+                         └───────────┘
+
+Think of it as LiteX's version of a local bus usually used in FPGA/SoC design to simplify creation
+of registers in SoCs.
+
+More information available at: https://github.com/enjoy-digital/litex/wiki/CSR-Bus
 """
 
 from migen import *
 from migen.genlib.record import *
-from migen.genlib.misc import chooser
 from migen.util.misc import xdir
 
 from litex.gen import *
+from litex.gen.genlib.misc import chooser
 
 from litex.soc.interconnect import csr
 from litex.soc.interconnect.csr import CSRStorage
@@ -28,28 +48,32 @@ from litex.soc.interconnect.csr import CSRStorage
 
 _layout = [
     ("adr",  "address_width", DIR_M_TO_S),
+    ("re",                 1, DIR_M_TO_S),
     ("we",                 1, DIR_M_TO_S),
     ("dat_w",   "data_width", DIR_M_TO_S),
     ("dat_r",   "data_width", DIR_S_TO_M)
 ]
 
-
 class Interface(Record):
+    addressing = "word"
     def __init__(self, data_width=8, address_width=14, alignment=32):
         self.data_width    = data_width
         self.address_width = address_width
         self.alignment     = alignment
         Record.__init__(self, set_layout_parameters(_layout,
             data_width    = data_width,
-            address_width = address_width))
+            address_width = address_width,
+        ))
         self.adr.reset_less   = True
         self.dat_w.reset_less = True
         self.dat_r.reset_less = True
 
     @classmethod
     def like(self, other):
-        return Interface(len(other.dat_w),
-                         len(other.adr))
+        return Interface(
+            data_width    = len(other.dat_w),
+            address_width = len(other.adr),
+        )
 
     def write(self, adr, dat):
         yield self.adr.eq(adr)
@@ -60,9 +84,11 @@ class Interface(Record):
 
     def read(self, adr):
         yield self.adr.eq(adr)
+        yield self.re.eq(1)
         yield
-        yield
-        return (yield self.dat_r)
+        value = (yield self.dat_r)
+        yield self.re.eq(0)
+        return value
 
 # CSR Interconnect ---------------------------------------------------------------------------------
 
@@ -76,6 +102,7 @@ class InterconnectShared(Module):
         intermediate = Interface.like(masters[0])
         self.comb += [
             intermediate.adr.eq(  Reduce("OR", [masters[i].adr   for i in range(len(masters))])),
+            intermediate.re.eq(   Reduce("OR", [masters[i].re    for i in range(len(masters))])),
             intermediate.we.eq(   Reduce("OR", [masters[i].we    for i in range(len(masters))])),
             intermediate.dat_w.eq(Reduce("OR", [masters[i].dat_w for i in range(len(masters))]))
         ]
@@ -186,8 +213,8 @@ class CSRBank(csr.GenericBank):
             self.comb += [
                 c.r.eq(self.bus.dat_w[:c.size]),
                 If(sel & (self.bus.adr[:log2_int(aligned_paging)] == i),
-                    c.re.eq( self.bus.we),
-                    c.we.eq(~self.bus.we)
+                    c.re.eq(self.bus.we),
+                    c.we.eq(self.bus.re)
                 )
             ]
 
@@ -204,6 +231,7 @@ class CSRBank(csr.GenericBank):
 # Otherwise, it is a memory object belonging to source.name.
 # address_map is called exactly once for each object at each call to
 # scan(), so it can have side effects.
+
 class CSRBankArray(Module):
     def __init__(self, source, address_map, *ifargs, paging=0x800, ordering="big", **ifkwargs):
         self.source             = source

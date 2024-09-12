@@ -13,6 +13,7 @@ import re
 from migen.fhdl.structure import Signal, Cat
 from migen.genlib.record import Record
 
+from litex.gen import LiteXContext
 from litex.gen.fhdl import verilog
 
 from litex.build.io import CRG
@@ -167,7 +168,12 @@ class ConnectorManager:
                     raise ValueError(f"\"{identifier}\" {err}") from err
                 if pn.isdigit():
                     pn = int(pn)
-
+                assert conn in self.connector_table, f"No connector named '{conn}' is available"
+                conn_entry = self.connector_table[conn]
+                if isinstance(conn_entry, dict):
+                    assert pn in conn_entry, f"There is no pin '{pn}' on connector '{conn}'"
+                else:
+                    assert pn < len(conn_entry), f"There is no pin with number '{pn}' on connector '{conn}', maximum is {len(conn_entry)-1}"
                 conn_pn = self.connector_table[conn][pn]
                 if ":" in conn_pn:
                     conn_pn = self.resolve_identifiers([conn_pn])[0]
@@ -199,8 +205,11 @@ class ConstraintManager:
         self.platform_commands = []
         self.connector_manager = ConnectorManager(connectors)
 
-    def add_extension(self, io):
-        self.available.extend(io)
+    def add_extension(self, io, prepend=False):
+        if prepend:
+            self.available = list(io) + self.available
+        else:
+            self.available.extend(io)
 
     def add_connector(self, connectors):
         self.connector_manager.add_connector(connectors)
@@ -322,7 +331,8 @@ class ConstraintManager:
 # Generic Platform ---------------------------------------------------------------------------------
 
 class GenericPlatform:
-    device_family = None
+    device_family  = None
+    _jtag_support  = True # JTAGBone can't be used with all FPGAs.
     _bitstream_ext = None # None by default, overridden by vendor platform, may
                           # be a string when same extension is used for sram and
                           # flash. A dict must be provided otherwise
@@ -344,6 +354,10 @@ class GenericPlatform:
         self.finalized             = False
         self.use_default_clk       = False
 
+        # Set Platform/Device to LiteXContext.
+        LiteXContext.platform  = self
+        LiteXContext.device    = device
+
     def request(self, *args, **kwargs):
         return self.constraint_manager.request(*args, **kwargs)
 
@@ -356,8 +370,8 @@ class GenericPlatform:
     def lookup_request(self, *args, **kwargs):
         return self.constraint_manager.lookup_request(*args, **kwargs)
 
-    def add_period_constraint(self, clk, period):
-        raise NotImplementedError
+    def add_period_constraint(self, clk, period, keep=True, name=None):
+        self.toolchain.add_period_constraint(self, clk, period, keep=keep, name=name)
 
     def add_false_path_constraint(self, from_, to):
         raise NotImplementedError
@@ -493,6 +507,16 @@ class GenericPlatform:
 
     def create_programmer(self):
         raise NotImplementedError
+
+    @property
+    def jtag_support(self):
+        if isinstance(self._jtag_support, bool):
+            return self._jtag_support
+        else:
+            for dev in self._jtag_support:
+                if self.device.startswith(dev):
+                    return True
+            return False
 
     @property
     def support_mixed_language(self):

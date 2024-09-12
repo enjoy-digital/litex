@@ -38,6 +38,7 @@
 #include <libbase/spiflash.h>
 #include <libbase/uart.h>
 #include <libbase/i2c.h>
+#include <libbase/hyperram.h>
 
 #include <liblitedram/sdram.h>
 #include <liblitedram/utils.h>
@@ -46,6 +47,7 @@
 #include <libliteeth/mdio.h>
 
 #include <liblitespi/spiflash.h>
+#include <liblitespi/spiram.h>
 
 #include <liblitesdcard/sdcard.h>
 #include <liblitesata/sata.h>
@@ -63,7 +65,7 @@ static void boot_sequence(void)
 #ifdef ROM_BOOT_ADDRESS
 	romboot();
 #endif
-#if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCORE_BASE)
+#if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCARD_CORE_BASE)
 	sdcardboot();
 #endif
 #if defined(CSR_SATA_SECTOR2MEM_BASE)
@@ -110,7 +112,7 @@ __attribute__((__used__)) int main(int i, char **c)
 	printf("\e[1m     /____/_/\\__/\\__/_/|_|\e[0m\n");
 	printf("\e[1m   Build your hardware, easily!\e[0m\n");
 	printf("\n");
-	printf(" (c) Copyright 2012-2023 Enjoy-Digital\n");
+	printf(" (c) Copyright 2012-2024 Enjoy-Digital\n");
 	printf(" (c) Copyright 2007-2015 M-Labs\n");
 	printf("\n");
 #ifndef CONFIG_BIOS_NO_BUILD_TIME
@@ -125,7 +127,11 @@ __attribute__((__used__)) int main(int i, char **c)
 	printf("--=============== \e[1mSoC\e[0m ==================--\n");
 	printf("\e[1mCPU\e[0m:\t\t%s @ %dMHz\n",
 		CONFIG_CPU_HUMAN_NAME,
+#ifdef CONFIG_CPU_CLK_FREQ
+		CONFIG_CPU_CLK_FREQ/1000000);
+#else
 		CONFIG_CLOCK_FREQUENCY/1000000);
+#endif
 	printf("\e[1mBUS\e[0m:\t\t%s %d-bit @ %dGiB\n",
 		CONFIG_BUS_STANDARD,
 		CONFIG_BUS_DATA_WIDTH,
@@ -169,13 +175,23 @@ __attribute__((__used__)) int main(int i, char **c)
 	printf("\n");
 #endif
 
-        sdr_ok = 1;
+    sdr_ok = 1;
+
+#ifdef CSR_HYPERRAM_BASE
+    hyperram_init();
+#endif
 
 #if defined(CSR_ETHMAC_BASE) || defined(MAIN_RAM_BASE) || defined(CSR_SPIFLASH_CORE_BASE)
     printf("--========== \e[1mInitialization\e[0m ============--\n");
 #ifdef CSR_ETHMAC_BASE
 	eth_init();
 #endif
+
+	/* Initialize and test SPIRAM */
+#ifdef CSR_SPIRAM_CORE_BASE
+	spiram_init();
+#endif
+	printf("\n");
 
 	/* Initialize and test DRAM */
 #ifdef CSR_SDRAM_BASE

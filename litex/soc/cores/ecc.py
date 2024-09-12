@@ -193,7 +193,7 @@ class SECDED:
 
 # ECC Encoder --------------------------------------------------------------------------------------
 
-class ECCEncoder(SECDED, Module):
+class ECCEncoder(SECDED, LiteXModule):
     """
     ECCEncoder
 
@@ -233,7 +233,7 @@ class ECCEncoder(SECDED, Module):
 
 # ECC Decoder --------------------------------------------------------------------------------------
 
-class ECCDecoder(SECDED, Module):
+class ECCDecoder(SECDED, LiteXModule):
     """
     ECCDecoder
 

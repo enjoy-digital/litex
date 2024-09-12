@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2019-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2019-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import math
@@ -9,15 +9,35 @@ import math
 from migen import *
 from migen.genlib.cdc import MultiReg
 
+from litex.gen import *
+
 from litex.soc.interconnect.csr import *
 
 # SPI Master ---------------------------------------------------------------------------------------
 
-class SPIMaster(Module, AutoCSR):
+class SPIMaster(LiteXModule):
     """4-wire SPI Master
 
-    Provides a simple and minimal hardware SPI Master with CPOL=0, CPHA=0 and build time
-    configurable data_width and frequency.
+    Implements a 4-wire SPI Master with CPOL=0 and CPHA=0, tailored for FPGA designs. It allows
+    configurable data_width and SPI clock frequency at build time. Supports Raw and Aligned modes
+    for data transfer and software-controlled Chip Select (CS) for extended SPI operations.
+
+    Parameters:
+        pads (Record)             : Interface pads for SPI signals. If None, a default layout is used.
+        data_width (int)          : Maximum Data width of SPI transactions.
+        sys_clk_freq (int)        : System clock frequency in Hz.
+        spi_clk_freq (int)        : Desired SPI clock frequency in Hz.
+        with_csr (bool, optional) : Enables CSR interface if True.
+        mode (str, optional)      : 'raw' for as-is data transfer or 'aligned' for transaction length-based alignment.
+
+    Modes:
+        Raw     : MOSI data is aligned to the core's data-width. Optimal for data-width matching SPI transactions.
+        Aligned : MOSI data is aligned based on the transaction's length. Suitable for variable-length SPI transactions.
+
+    CS Control:
+        Software-controlled CS is available for scenarios requiring precise control over CS assertion, like
+        SPI Flash page programming or when hardware CS lines are insufficient. It allows manual CS management,
+        enabling complex transaction sequences and extended device communication.
     """
     pads_layout = [("clk", 1), ("cs_n", 1), ("mosi", 1), ("miso", 1)]
     def __init__(self, pads, data_width, sys_clk_freq, spi_clk_freq, with_csr=True, mode="raw"):
@@ -70,7 +90,7 @@ class SPIMaster(Module, AutoCSR):
         ]
 
         # Control FSM ------------------------------------------------------------------------------
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             self.done.eq(1),
             If(self.start,

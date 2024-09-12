@@ -91,7 +91,7 @@ class BlackParrot(CPU):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
-        self.idbus        = idbus = wishbone.Interface(data_width=64, adr_width=37)
+        self.idbus        = idbus = wishbone.Interface(data_width=64, adr_width=37, addressing="word")
         self.periph_buses = [idbus]
         self.memory_buses = []
 

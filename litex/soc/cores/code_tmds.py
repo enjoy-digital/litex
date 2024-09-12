@@ -15,7 +15,7 @@ control_tokens = [0b1101010100, 0b0010101011, 0b0101010100, 0b1010101011]
 
 # TMDS Encoder -------------------------------------------------------------------------------------
 
-class TMDSEncoder(Module):
+class TMDSEncoder(LiteXModule):
     def __init__(self):
         self.d   = Signal(8)
         self.c   = Signal(2)

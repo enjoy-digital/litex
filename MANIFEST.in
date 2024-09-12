@@ -1,29 +1,9 @@
-graft litex/build/sim
-graft litex/soc/software
-graft litex/soc/cores/cpu/blackparrot
-graft litex/soc/cores/cpu/cortex_m1
-graft litex/soc/cores/cpu/cortex_m3
-graft litex/soc/cores/cpu/cv32e40p
-graft litex/soc/cores/cpu/cv32e41p
-graft litex/soc/cores/cpu/cva5
-graft litex/soc/cores/cpu/cva6
-graft litex/soc/cores/cpu/eos_s3
-graft litex/soc/cores/cpu/femtorv
-graft litex/soc/cores/cpu/firev
-graft litex/soc/cores/cpu/gowin_emcu
-graft litex/soc/cores/cpu/ibex
-graft litex/soc/cores/cpu/lm32
-graft litex/soc/cores/cpu/marocchino
-graft litex/soc/cores/cpu/microwatt
-graft litex/soc/cores/cpu/minerva
-graft litex/soc/cores/cpu/mor1kx
-graft litex/soc/cores/cpu/naxriscv
-graft litex/soc/cores/cpu/neorv32
-graft litex/soc/cores/cpu/openc906
-graft litex/soc/cores/cpu/picorv32
-graft litex/soc/cores/cpu/rocket
-graft litex/soc/cores/cpu/serv
-graft litex/soc/cores/cpu/vexriscv
-graft litex/soc/cores/cpu/vexriscv_smp
-graft litex/soc/cores/cpu/zynq7000
-graft litex/soc/cores/cpu/zynqmp
+graft litex
+include CHANGES.md
+include CONTRIBUTORS
+graft doc
+
+exclude litex_setup.py
+
+prune test
+

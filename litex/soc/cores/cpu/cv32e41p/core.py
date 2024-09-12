@@ -10,6 +10,8 @@ import re
 from migen import *
 from migen.fhdl.specials import Tristate
 
+from litex.gen import *
+
 from litex import get_data_mod
 from litex.soc.interconnect import wishbone, stream
 from litex.soc.interconnect.csr import *
@@ -71,14 +73,14 @@ def add_manifest_sources(platform, manifest):
 
 # OBI <> Wishbone ----------------------------------------------------------------------------------
 
-class OBI2Wishbone(Module):
+class OBI2Wishbone(LiteXModule):
     def __init__(self, obi, wb):
         addr  = Signal.like(obi.addr)
         be    = Signal.like(obi.be)
         we    = Signal.like(obi.we)
         wdata = Signal.like(obi.wdata)
 
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             # On OBI request:
             If(obi.req,
@@ -121,9 +123,9 @@ class OBI2Wishbone(Module):
             )
         )
 
-class Wishbone2OBI(Module):
+class Wishbone2OBI(LiteXModule):
     def __init__(self, wb, obi):
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             If(wb.cyc & wb.stb,
                 obi.req.eq(1),
@@ -145,9 +147,9 @@ class Wishbone2OBI(Module):
 
 # Wishbone <> APB ----------------------------------------------------------------------------------
 
-class Wishbone2APB(Module):
+class Wishbone2APB(LiteXModule):
     def __init__(self, wb, apb):
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             If(wb.cyc & wb.stb,
                 NextState("ACK"),
@@ -169,7 +171,7 @@ class Wishbone2APB(Module):
 
 # Debug Module -------------------------------------------------------------------------------------
 
-class DebugModule(Module):
+class DebugModule(LiteXModule):
     jtag_layout = [
         ("tck",  1),
         ("tms",  1),
@@ -181,13 +183,13 @@ class DebugModule(Module):
         if pads is None:
             pads = Record(self.jtag_layout)
         self.pads = pads
-        self.dmbus = wishbone.Interface()
-        self.sbbus = wishbone.Interface()
+        self.dmbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+        self.sbbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         dmbus = Record(obi_layout)
         sbbus = Record(obi_layout)
 
-        self.submodules.sbbus_conv = OBI2Wishbone(sbbus, self.sbbus)
-        self.submodules.dmbus_conv = Wishbone2OBI(self.dmbus, dmbus)
+        self.sbbus_conv = OBI2Wishbone(sbbus, self.sbbus)
+        self.dmbus_conv = Wishbone2OBI(self.dmbus, dmbus)
 
         self.debug_req = Signal()
         self.ndmreset  = Signal()
@@ -265,8 +267,8 @@ class CV32E41P(CPU):
         self.platform          = platform
         self.variant           = variant
         self.reset             = Signal()
-        self.ibus              = wishbone.Interface()
-        self.dbus              = wishbone.Interface()
+        self.ibus              = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+        self.dbus              = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.periph_buses      = [self.ibus, self.dbus]
         self.memory_buses      = []
         self.interrupt         = Signal(16)
@@ -276,8 +278,8 @@ class CV32E41P(CPU):
         dbus = Record(obi_layout)
 
         # OBI <> Wishbone.
-        self.submodules.ibus_conv = OBI2Wishbone(ibus, self.ibus)
-        self.submodules.dbus_conv = OBI2Wishbone(dbus, self.dbus)
+        self.ibus_conv = OBI2Wishbone(ibus, self.ibus)
+        self.dbus_conv = OBI2Wishbone(dbus, self.dbus)
 
         self.comb += [
             ibus.we.eq(0),
@@ -319,7 +321,7 @@ class CV32E41P(CPU):
             i_apu_rvalid_i = 0,
 
             # IRQ.
-            i_irq_i          = Cat(self.interrupt_padding,self.interrupt),
+            i_irq_i          = Cat(self.interrupt_padding, self.interrupt),
 
             # Debug.
             i_debug_req_i    = 0,
@@ -333,7 +335,7 @@ class CV32E41P(CPU):
 
     def add_debug_module(self, dm):
         self.cpu_params.update(i_debug_req_i=dm.debug_req)
-        self.cpu_params.update(i_rst_ni=~(ResetSignal() | dm.ndmreset))
+        self.cpu_params.update(i_rst_ni=~(ResetSignal("sys") | dm.ndmreset))
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address

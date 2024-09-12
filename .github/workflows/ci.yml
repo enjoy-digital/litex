@@ -13,25 +13,28 @@ jobs:
       - name: Setup CCache
         uses: hendrikmuhs/ccache-action@v1.2
 
-      - uses: ghdl/setup-ghdl-ci@master
-        with:
-          backend: llvm
-
       # Install Tools
       - name: Install Tools
         run: |
-          sudo apt-get install wget build-essential python3 ninja-build
+          sudo apt-get install wget build-essential ninja-build
           sudo apt-get install libevent-dev libjson-c-dev flex bison
           sudo apt-get install libfl-dev libfl2 zlib1g-dev
-          pip3 install setuptools
-          pip3 install requests
-          pip3 install pexpect
-          pip3 install meson
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+          cache: "pip"
+          cache-dependency-path: "setup.py"
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install setuptools requests pexpect meson
 
       # Install (n)Migen / LiteX / Cores
       - name: Install LiteX
         run: |
-          python3 litex_setup.py --config=full --init --install --user
+          python3 litex_setup.py --config=full --init --install --user --dev
 
       # Install GCC Toolchains
       - name: Install GCC Toolchains
@@ -40,6 +43,16 @@ jobs:
           sudo python3 litex_setup.py --gcc=openrisc
           sudo python3 litex_setup.py --gcc=powerpc
 
+      # Build / Install GHDL
+      - name: Build GHDL
+        run: |
+          sudo apt-get install gnat llvm
+          git clone https://github.com/ghdl/ghdl.git
+          cd ghdl
+          ./configure --with-llvm-config
+          make
+          sudo make install
+
       # Build / Install Verilator
       - name: Build Verilator
         run: |
@@ -47,6 +60,7 @@ jobs:
           export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
           git clone https://github.com/verilator/verilator
           cd verilator
+          git checkout 7d2d32420a630befa4097170ecbf227e04e32522
           autoconf
           ./configure
           make -j$(nproc)

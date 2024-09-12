@@ -64,7 +64,7 @@ class CSRMemoryRegion:
 # CSR Builder --------------------------------------------------------------------------------------
 
 class CSRBuilder:
-    def __init__(self, comm, csr_csv, csr_data_width=None):
+    def __init__(self, comm, csr_csv, csr_data_width=None, csr_bus_address_width=None):
         if csr_csv is not None:
             self.items     = self.get_csr_items(csr_csv)
             self.constants = self.build_constants()
@@ -79,7 +79,18 @@ class CSRBuilder:
                 raise KeyError("csr_data_width of {} provided but {} found in constants".format(
                     csr_data_width, constant_csr_data_width))
 
-            self.csr_data_width = csr_data_width
+            # Load csr_data_width from the constants, otherwise it must be provided
+            constant_csr_bus_address_width = self.constants.d.get("config_bus_address_width", None)
+            if csr_bus_address_width is None:
+                csr_bus_address_width = constant_csr_bus_address_width
+            if csr_bus_address_width is None:
+                raise KeyError("csr_bus_address_width not found in constants, please provide!")
+            if csr_bus_address_width != constant_csr_bus_address_width:
+                raise KeyError("csr_bus_address_width of {} provided but {} found in constants".format(
+                    csr_bus_address_width, constant_csr_bus_address_width))
+
+            self.csr_data_width        = csr_data_width
+            self.csr_bus_address_width = csr_bus_address_width
             self.bases = self.build_bases()
             self.regs  = self.build_registers(comm.read, comm.write)
             self.mems  = self.build_memories()

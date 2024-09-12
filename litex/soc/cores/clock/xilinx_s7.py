@@ -6,6 +6,8 @@
 
 from migen import *
 
+from litex.gen import *
+
 from litex.soc.cores.clock.common import *
 from litex.soc.cores.clock.xilinx_common import *
 
@@ -104,7 +106,7 @@ class S7MMCM(XilinxClocking):
         self.specials += Instance("MMCME2_ADV", **self.params)
 
 
-class S7IDELAYCTRL(Module):
+class S7IDELAYCTRL(LiteXModule):
     def __init__(self, cd, reset_cycles=16):
         reset_counter = Signal(log2_int(reset_cycles), reset=reset_cycles - 1)
         ic_reset      = Signal(reset=1)

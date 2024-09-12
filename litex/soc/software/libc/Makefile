@@ -49,7 +49,7 @@ __libc.a: cross.txt
 		-Datomic-ungetc=false \
 		-Dthread-local-storage=false \
 		-Dio-long-long=true \
-		-Dformat-default=integer \
+		-Dformat-default=$(PICOLIBC_FORMAT) \
 		-Dincludedir=picolibc/$(TRIPLE)/include \
 		-Dlibdir=picolibc/$(TRIPLE)/lib \
 		--cross-file cross.txt

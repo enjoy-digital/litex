@@ -67,7 +67,7 @@ class LatticeIceStormToolchain(YosysNextPNRToolchain):
 
     def build_timing_constraints(self, vns):
         r = ""
-        for clk, period in self.clocks.items():
+        for clk, [period, _] in self.clocks.items():
             r += """ctx.addClock("{}", {})\n""".format(vns.get_name(clk), 1e3/period)
         tools.write_to_file(self._build_name + "_pre_pack.py", r)
         return (self._build_name + "_pre_pack.py", "PY")

@@ -69,7 +69,7 @@ class F4PGAToolchain(GenericToolchain):
 
     def build_timing_constraints(self, vns):
         self.platform.add_platform_command(_xdc_separator("Clock constraints"))
-        for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
+        for clk, [period, name] in sorted(self.clocks.items(), key=lambda x: x[0].duid):
             self.platform.add_platform_command(
                 "create_clock -period " + str(period) +
                 " {clk}", clk=clk)

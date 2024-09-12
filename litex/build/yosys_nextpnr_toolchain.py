@@ -122,6 +122,7 @@ class YosysNextPNRToolchain(GenericToolchain):
         self.timingstrict = timingstrict
         self.ignoreloops  = ignoreloops
         self.seed         = seed
+        self._quiet       = kwargs.pop("quiet", False)
 
         return GenericToolchain.build(self, platform, fragment, **kwargs)
 
@@ -139,6 +140,7 @@ class YosysNextPNRToolchain(GenericToolchain):
             synth_format = self.synth_fmt,
             nowidelut    = self._nowidelut,
             abc9         = self._abc9,
+            quiet        = self._quiet,
         )
 
         # NextPnr options

@@ -8,12 +8,13 @@
 import os
 
 from litex.build.generic_platform import GenericPlatform
-from litex.build.gowin import common, gowin
+from litex.build.gowin import common, gowin, apicula
 
 # GowinPlatform ------------------------------------------------------------------------------------
 
 class GowinPlatform(GenericPlatform):
     _bitstream_ext = ".fs"
+    _jtag_support  = False
 
     _supported_toolchains = ["gowin", "apicula"]
 
@@ -27,21 +28,23 @@ class GowinPlatform(GenericPlatform):
         if toolchain == "gowin":
             self.toolchain = gowin.GowinToolchain()
         elif toolchain == "apicula":
-            raise ValueError("Apicula toolchain needs more work")
+            self.toolchain = apicula.GowinApiculaToolchain()
         else:
             raise ValueError(f"Unknown toolchain {toolchain}")
 
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
         so = dict(common.gowin_special_overrides)
+        if self.device[:4] == "GW5A":
+            so.update(common.gw5a_special_overrides)
         so.update(special_overrides)
         return GenericPlatform.get_verilog(self, *args,
             special_overrides = so,
             attr_translate    = self.toolchain.attr_translate,
-            **kwargs)
+            **kwargs
+        )
 
     def build(self, *args, **kwargs):
         return self.toolchain.build(self, *args, **kwargs)
 
-    def add_period_constraint(self, clk, period):
-        if clk is None: return
-        self.toolchain.add_period_constraint(self, clk, period)
+    def add_false_path_constraint(self, from_, to):
+        pass

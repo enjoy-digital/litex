@@ -20,7 +20,7 @@ class DifferentialInput(Special):
     def iter_expressions(self):
         yield self, "i_p", SPECIAL_INPUT
         yield self, "i_n", SPECIAL_INPUT
-        yield self, "o", SPECIAL_OUTPUT
+        yield self, "o"  , SPECIAL_OUTPUT
 
     @staticmethod
     def lower(dr):
@@ -35,13 +35,44 @@ class DifferentialOutput(Special):
         self.o_n = wrap(o_n)
 
     def iter_expressions(self):
-        yield self, "i", SPECIAL_INPUT
+        yield self, "i"  , SPECIAL_INPUT
         yield self, "o_p", SPECIAL_OUTPUT
         yield self, "o_n", SPECIAL_OUTPUT
 
     @staticmethod
     def lower(dr):
         raise NotImplementedError("Attempted to use a Differential Output, but platform does not support them")
+
+# Clk Input/Output ---------------------------------------------------------------------------------
+
+class ClkInput(Special):
+    def __init__(self, i, o):
+        Special.__init__(self)
+        self.i = wrap(i)
+        self.o = o if isinstance(o, str) else wrap(o)
+
+    def iter_expressions(self):
+        yield self, "i", SPECIAL_INPUT
+        yield self, "o", SPECIAL_OUTPUT
+
+    @staticmethod
+    def lower(dr):
+        raise NotImplementedError("Attempted to use a Clk Input, but platform does not support them")
+
+
+class ClkOutput(Special):
+    def __init__(self, i, o):
+        Special.__init__(self)
+        self.i = i if isinstance(i, str) else wrap(i)
+        self.o = wrap(o)
+
+    def iter_expressions(self):
+        yield self, "i", SPECIAL_INPUT
+        yield self, "o", SPECIAL_OUTPUT
+
+    @staticmethod
+    def lower(dr):
+        raise NotImplementedError("Attempted to use a Clk Output, but platform does not support them")
 
 # SDR Input/Output ---------------------------------------------------------------------------------
 
@@ -61,8 +92,8 @@ class SDRIO(Special):
         self.clk_domain   = None if not hasattr(clk, "cd") else clk.cd
 
     def iter_expressions(self):
-        yield self, "i",   SPECIAL_INPUT
-        yield self, "o",   SPECIAL_OUTPUT
+        yield self, "i"  , SPECIAL_INPUT
+        yield self, "o"  , SPECIAL_OUTPUT
         yield self, "clk", SPECIAL_INPUT
 
     @staticmethod
@@ -80,26 +111,26 @@ class InferedSDRTristate(Module):
         _o  = Signal()
         _oe = Signal()
         _i  = Signal()
-        self.specials += SDROutput(o, _o, clk)
-        self.specials += SDRInput(_i, i, clk)
+        self.specials   += SDROutput(o, _o, clk)
+        self.specials   += SDRInput(_i, i, clk)
         self.submodules += InferedSDRIO(oe, _oe, clk)
-        self.specials += Tristate(io, _o, _oe, _i)
+        self.specials   += Tristate(io, _o, _oe, _i)
 
 class SDRTristate(Special):
     def __init__(self, io, o, oe, i, clk=ClockSignal()):
         assert len(i) == len(o) == len(oe)
         Special.__init__(self)
-        self.io           = wrap(io)
-        self.o            = wrap(o)
-        self.oe           = wrap(oe)
-        self.i            = wrap(i)
-        self.clk          = wrap(clk)
+        self.io  = wrap(io)
+        self.o   = wrap(o)
+        self.oe  = wrap(oe)
+        self.i   = wrap(i)
+        self.clk = wrap(clk)
 
     def iter_expressions(self):
-        yield self, "io",  SPECIAL_INOUT
-        yield self, "o",   SPECIAL_INPUT
-        yield self, "oe",  SPECIAL_INPUT
-        yield self, "i",   SPECIAL_OUTPUT
+        yield self, "io" , SPECIAL_INOUT
+        yield self, "o"  , SPECIAL_INPUT
+        yield self, "oe" , SPECIAL_INPUT
+        yield self, "i"  , SPECIAL_OUTPUT
         yield self, "clk", SPECIAL_INPUT
 
     @staticmethod
@@ -114,12 +145,12 @@ class DDRInput(Special):
         self.i   = wrap(i)
         self.o1  = wrap(o1)
         self.o2  = wrap(o2)
-        self.clk = wrap(clk)
+        self.clk = clk if isinstance(clk, str) else wrap(clk)
 
     def iter_expressions(self):
-        yield self, "i", SPECIAL_INPUT
-        yield self, "o1", SPECIAL_OUTPUT
-        yield self, "o2", SPECIAL_OUTPUT
+        yield self, "i"  , SPECIAL_INPUT
+        yield self, "o1" , SPECIAL_OUTPUT
+        yield self, "o2" , SPECIAL_OUTPUT
         yield self, "clk", SPECIAL_INPUT
 
     @staticmethod
@@ -130,15 +161,15 @@ class DDRInput(Special):
 class DDROutput(Special):
     def __init__(self, i1, i2, o, clk=ClockSignal()):
         Special.__init__(self)
-        self.i1  = i1
-        self.i2  = i2
-        self.o   = o
-        self.clk = clk
+        self.i1  = wrap(i1)
+        self.i2  = wrap(i2)
+        self.o   = wrap(o)
+        self.clk = clk if isinstance(clk, str) else wrap(clk)
 
     def iter_expressions(self):
-        yield self, "i1", SPECIAL_INPUT
-        yield self, "i2", SPECIAL_INPUT
-        yield self, "o", SPECIAL_OUTPUT
+        yield self, "i1" , SPECIAL_INPUT
+        yield self, "i2" , SPECIAL_INPUT
+        yield self, "o"  , SPECIAL_OUTPUT
         yield self, "clk", SPECIAL_INPUT
 
     @staticmethod
@@ -170,13 +201,13 @@ class DDRTristate(Special):
         self.clk = clk
 
     def iter_expressions(self):
-        yield self, "io",  SPECIAL_INOUT
-        yield self, "o1",  SPECIAL_INPUT
-        yield self, "o2",  SPECIAL_INPUT
+        yield self, "io" , SPECIAL_INOUT
+        yield self, "o1" , SPECIAL_INPUT
+        yield self, "o2" , SPECIAL_INPUT
         yield self, "oe1", SPECIAL_INPUT
         yield self, "oe2", SPECIAL_INPUT
-        yield self, "i1",  SPECIAL_OUTPUT
-        yield self, "i2",  SPECIAL_OUTPUT
+        yield self, "i1" , SPECIAL_OUTPUT
+        yield self, "i2" , SPECIAL_OUTPUT
         yield self, "clk", SPECIAL_INPUT
 
     @staticmethod

@@ -16,10 +16,11 @@ from litex import get_data_mod
 from litex.soc.interconnect import axi
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV64
+from litex.build.xilinx import XilinxPlatform
 
 # Variants -----------------------------------------------------------------------------------------
 
-CPU_VARIANTS = ["standard", "full"]
+CPU_VARIANTS = ["standard", "standard32", "full"]
 
 # GCC Flags ----------------------------------------------------------------------------------------
 
@@ -31,8 +32,9 @@ GCC_FLAGS = {
     #                       ||||/--- Single-Precision Floating-Point
     #                       |||||/-- Double-Precision Floating-Point
     #                       imacfd
-    "standard": "-march=rv64imac -mabi=lp64 ",
-    "full":     "-march=rv64gc   -mabi=lp64 ",
+    "standard"   : "-march=rv64i2p0_mac -mabi=lp64 ",
+    "standard32" : "-march=rv32imac -mabi=ilp32 ",
+    "full"       : "-march=rv64gc   -mabi=lp64 ",
 }
 
 # Helpers ------------------------------------------------------------------------------------------
@@ -51,7 +53,12 @@ def add_manifest_sources(platform, manifest):
                 if re.match('\+incdir\+', l):
                     platform.add_verilog_include_path(os.path.join(basedir, res.group(2)))
                 else:
-                    platform.add_source(os.path.join(basedir, res.group(2)))
+                    filename = res.group(2)
+                    if True: # TODO: other FPGAs
+                        if filename.endswith("tc_sram_wrapper.sv"):
+                            filename = filename.replace("tc_sram_wrapper.sv", "tc_sram_fpga_wrapper.sv")
+                            platform.add_source(os.path.join(basedir, "common/local/techlib/fpga/rtl/SyncSpRamBeNx64.sv"))
+                    platform.add_source(os.path.join(basedir, filename))
 
 # CVA6 ---------------------------------------------------------------------------------------------
 
@@ -61,18 +68,29 @@ class CVA6(CPU):
     name                 = "cva6"
     human_name           = "CVA6"
     variants             = CPU_VARIANTS
-    data_width           = 64
     endianness           = "little"
     gcc_triple           = CPU_GCC_TRIPLE_RISCV64
-    linker_output_format = "elf64-littleriscv"
     nop                  = "nop"
     io_regions           = {0x8000_0000: 0x8000_0000} # Origin, Length.
+
+    @property
+    def linker_output_format(self):
+        return f"elf{self.data_width}-littleriscv"
+
+    @property
+    def data_width(self):
+        if self.variant == "standard32":
+            return 32
+        else:
+            return 64
+
 
     # GCC Flags.
     @property
     def gcc_flags(self):
         flags = GCC_FLAGS[self.variant]
         flags += "-D__cva6__ "
+        flags += "-D__riscv_plic__ "
         #flags += f" -DUART_POLLING"
         return flags
 
@@ -102,7 +120,7 @@ class CVA6(CPU):
         self.cpu_params = dict(
             # Clk / Rst.
             i_clk_i       = ClockSignal("sys"),
-            i_rst_n       = ~ResetSignal("sys") | self.reset,
+            i_rst_n       = ~ResetSignal("sys") & ~self.reset,
 
             # Interrupts
             i_irq_sources = self.interrupt,
@@ -163,30 +181,30 @@ class CVA6(CPU):
         wrapper_root = os.path.join(os.path.abspath(os.path.dirname(__file__)), "cva6_wrapper")
         platform.add_source(os.path.join(wrapper_root, "cva6_defines.sv"))
         # TODO: use Flist.cv64a6_imafdc_sv39 and Flist.cv32a6_imac_sv0 instead
+        if self.variant == "standard32":
+            manifest = "Flist.cv32a6_imac_sv32"
+        else:
+            manifest = "Flist.cv64a6_imafdc_sv39"
         add_manifest_sources(platform, os.path.join(get_data_mod("cpu", "cva6").data_location,
-            "core", "Flist.cv64a6_imafdc_sv39"))
+            "core", manifest))
         # Add wrapper sources
         add_manifest_sources(platform, os.path.join(wrapper_root, "Flist.cva6_wrapper"))
 
     def add_jtag(self, pads):
-        from migen.fhdl.specials import Tristate
         self.jtag_tck  = Signal()
         self.jtag_tms  = Signal()
         self.jtag_trst = Signal()
         self.jtag_tdi  = Signal()
         self.jtag_tdo  = Signal()
 
-        tdo_o  = Signal()
         tdo_oe = Signal()
-        self.specials += Tristate(self.jtag_tdo, tdo_o, tdo_oe)
 
         self.cpu_params.update(
             i_trst_n = self.jtag_trst,
             i_tck    = self.jtag_tck,
             i_tms    = self.jtag_tms,
             i_tdi    = self.jtag_tdi,
-            o_tdo    = tdo_o,
-            o_tdo_oe = tdo_oe,
+            o_tdo    = self.jtag_tdo,
         )
 
     def set_reset_address(self, reset_address):
@@ -195,4 +213,6 @@ class CVA6(CPU):
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
+        if "i_trst_n" not in self.cpu_params:
+            self.cpu_params["i_trst_n"] = 1
         self.specials += Instance("cva6_wrapper", **self.cpu_params)

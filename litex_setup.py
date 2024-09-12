@@ -70,7 +70,7 @@ class GitRepo:
 git_repos = {
     # HDL.
     # ----
-    "migen":    GitRepo(url="https://github.com/m-labs/", clone="recursive"),
+    "migen":    GitRepo(url="https://github.com/m-labs/", clone="recursive", sha1=0xccaee68e14d3636e1d8fb2e0864dd89b1b1f7384),
 
     # LiteX SoC builder.
     # ------------------
@@ -80,12 +80,12 @@ git_repos = {
 
     # LiteX Cores Ecosystem.
     # ----------------------
+    "liteiclink":   GitRepo(url="https://github.com/enjoy-digital/", tag=True),
     "liteeth":      GitRepo(url="https://github.com/enjoy-digital/", tag=True),
     "litedram":     GitRepo(url="https://github.com/enjoy-digital/", tag=True),
     "litepcie":     GitRepo(url="https://github.com/enjoy-digital/", tag=True),
     "litesata":     GitRepo(url="https://github.com/enjoy-digital/", tag=True),
     "litesdcard":   GitRepo(url="https://github.com/enjoy-digital/", tag=True),
-    "liteiclink":   GitRepo(url="https://github.com/enjoy-digital/", tag=True),
     "litescope":    GitRepo(url="https://github.com/enjoy-digital/", tag=True),
     "litejesd204b": GitRepo(url="https://github.com/enjoy-digital/", tag=True),
     "litespi":      GitRepo(url="https://github.com/litex-hub/",     tag=True),
@@ -122,10 +122,11 @@ git_repos = {
     "pythondata-cpu-cva6":         GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
     "pythondata-cpu-ibex":         GitRepo(url="https://github.com/litex-hub/", clone="recursive", sha1=0xd3d53df),
     "pythondata-cpu-minerva":      GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-naxriscv":     GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-cpu-naxriscv":     GitRepo(url="https://github.com/litex-hub/", branch="smp"),
     "pythondata-cpu-picorv32":     GitRepo(url="https://github.com/litex-hub/"),
     "pythondata-cpu-rocket":       GitRepo(url="https://github.com/litex-hub/"),
     "pythondata-cpu-serv":         GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-cpu-vexiiriscv":   GitRepo(url="https://github.com/litex-hub/", branch="main"),
     "pythondata-cpu-vexriscv":     GitRepo(url="https://github.com/litex-hub/"),
     "pythondata-cpu-vexriscv-smp": GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
 }
@@ -350,7 +351,7 @@ def riscv_gcc_install():
             os.system("pacman -S riscv64-linux-gnu-gcc")
         # Ubuntu.
         else:
-            os.system("apt install gcc-riscv64-linux-gnu")
+            os.system("apt install gcc-riscv64-unknown-elf")
 
     # Mac OS.
     # -------
@@ -449,7 +450,9 @@ def main():
 
     # Init.
     if args.init:
-        litex_setup_init_repos(config=args.config, tag=args.tag, dev_mode=args.dev)
+        ci_run   = (os.environ.get("GITHUB_ACTIONS") == "true")
+        dev_mode = args.dev and (not ci_run)
+        litex_setup_init_repos(config=args.config, tag=args.tag, dev_mode=dev_mode)
 
     # Update.
     if args.update:

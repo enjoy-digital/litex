@@ -100,20 +100,16 @@ int sata_init(int show) {
 
 void sata_read(uint32_t sector, uint32_t count, uint8_t* buf)
 {
-	uint32_t i;
+	uint8_t done = 0;
 
-	/* Write sectors */
-	for (i=0; i<count; i++) {
-		uint8_t done = 0;
-		while (done == 0) {
-			sata_sector2mem_base_write((uint64_t)(uintptr_t) buf);
-			sata_sector2mem_sector_write(sector + i);
-			sata_sector2mem_start_write(1);
-			while ((sata_sector2mem_done_read() & 0x1) == 0);
-			done = ((sata_sector2mem_error_read() & 0x1) == 0);
-			busy_wait_us(10);
-		}
-		buf += 512;
+	while (done == 0) {
+		sata_sector2mem_base_write((uint64_t)(uintptr_t) buf);
+		sata_sector2mem_sector_write(sector);
+		sata_sector2mem_nsectors_write(count);
+		sata_sector2mem_start_write(1);
+		while ((sata_sector2mem_done_read() & 0x1) == 0);
+		done = ((sata_sector2mem_error_read() & 0x1) == 0);
+		busy_wait_us(10);
 	}
 
 #ifndef CONFIG_CPU_HAS_DMA_BUS
@@ -129,20 +125,17 @@ void sata_read(uint32_t sector, uint32_t count, uint8_t* buf)
 
 void sata_write(uint32_t sector, uint32_t count, uint8_t* buf)
 {
-	uint32_t i;
+	uint8_t done = 0;
 
 	/* Write sectors */
-	for (i=0; i<count; i++) {
-		uint8_t done = 0;
-		while (done == 0) {
-			sata_mem2sector_base_write((uint64_t)(uintptr_t) buf);
-			sata_mem2sector_sector_write(sector + i);
-			sata_mem2sector_start_write(1);
-			while ((sata_sector2mem_done_read() & 0x1) == 0);
-			done = ((sata_sector2mem_error_read() & 0x1) == 0);
-			busy_wait_us(10);
-		}
-		buf += 512;
+	while (done == 0) {
+		sata_mem2sector_base_write((uint64_t)(uintptr_t) buf);
+		sata_mem2sector_sector_write(sector);
+		sata_mem2sector_nsectors_write(count);
+		sata_mem2sector_start_write(1);
+		while ((sata_mem2sector_done_read() & 0x1) == 0);
+		done = ((sata_mem2sector_error_read() & 0x1) == 0);
+		busy_wait_us(10);
 	}
 }
 

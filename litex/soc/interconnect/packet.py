@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2015-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2019 Vamsi K Vytla <vkvytla@lbl.gov>
 # SPDX-License-Identifier: BSD-2-Clause
 
@@ -9,8 +9,6 @@ from math import log2
 
 from migen import *
 from migen.genlib.roundrobin import *
-from migen.genlib.record import *
-from migen.genlib.fsm import FSM, NextState
 
 from litex.gen import *
 
@@ -18,17 +16,17 @@ from litex.soc.interconnect import stream
 
 # Status -------------------------------------------------------------------------------------------
 
-class Status(Module):
+class Status(LiteXModule):
     def __init__(self, endpoint):
         self.first   = Signal(reset=1)
         self.last    = Signal()
         self.ongoing = Signal()
 
         ongoing = Signal()
-        self.comb += If(endpoint.valid, self.last.eq(endpoint.last & endpoint.ready))
-        self.sync += ongoing.eq((endpoint.valid | ongoing) & ~self.last)
+        self.comb += self.last.eq(endpoint.valid & endpoint.last & endpoint.ready)
         self.comb += self.ongoing.eq((endpoint.valid | ongoing) & ~self.last)
         self.sync += [
+            ongoing.eq(self.ongoing),
             If(self.last,
                 self.first.eq(1)
             ).Elif(endpoint.valid & endpoint.ready,
@@ -38,15 +36,15 @@ class Status(Module):
 
 # Arbiter ------------------------------------------------------------------------------------------
 
-class Arbiter(Module):
-    def __init__(self, masters, slave):
+class Arbiter(LiteXModule):
+    def __init__(self, masters, slave, **kwargs):
         if len(masters) == 0:
             pass
         elif len(masters) == 1:
             self.grant = Signal()
-            self.comb += masters.pop().connect(slave)
+            self.comb += masters.pop().connect(slave, **kwargs)
         else:
-            self.submodules.rr = RoundRobin(len(masters))
+            self.rr = RoundRobin(len(masters))
             self.grant = self.rr.grant
             cases = {}
             for i, master in enumerate(masters):
@@ -58,12 +56,12 @@ class Arbiter(Module):
 
 # Dispatcher ---------------------------------------------------------------------------------------
 
-class Dispatcher(Module):
-    def __init__(self, master, slaves, one_hot=False):
+class Dispatcher(LiteXModule):
+    def __init__(self, master, slaves, one_hot=False, **kwargs):
         if len(slaves) == 0:
             self.sel = Signal()
-        elif len(slaves) == 1:
-            self.comb += master.connect(slaves.pop())
+        elif len(slaves) == 1 and not one_hot:
+            self.comb += master.connect(slaves.pop(), **kwargs)
             self.sel = Signal()
         else:
             if one_hot:
@@ -96,14 +94,14 @@ class Dispatcher(Module):
                     idx = 2**i
                 else:
                     idx = i
-                cases[idx] = [master.connect(slave)]
+                cases[idx] = [master.connect(slave, **kwargs)]
             cases["default"] = [master.ready.eq(1)]
             self.comb += Case(sel, cases)
 
 # Header -------------------------------------------------------------------------------------------
 
 class HeaderField:
-    def __init__(self, byte, offset, width):
+    def __init__(self, byte=0, offset=0, width=1):
         self.byte   = byte
         self.offset = offset
         self.width  = width
@@ -157,7 +155,7 @@ class Header:
 
 # Packetizer ---------------------------------------------------------------------------------------
 
-class Packetizer(Module):
+class Packetizer(LiteXModule):
     def __init__(self, sink_description, source_description, header):
         self.sink   = sink   = stream.Endpoint(sink_description)
         self.source = source = stream.Endpoint(source_description)
@@ -186,7 +184,7 @@ class Packetizer(Module):
             self.sync += If(sr_shift, sr.eq(sr[data_width:]))
 
         # FSM.
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm_from_idle = Signal()
         fsm.act("IDLE",
             sink.ready.eq(1),
@@ -260,7 +258,7 @@ class Packetizer(Module):
 
 # Depacketizer -------------------------------------------------------------------------------------
 
-class Depacketizer(Module):
+class Depacketizer(LiteXModule):
     def __init__(self, sink_description, source_description, header):
         self.sink   = sink   = stream.Endpoint(sink_description)
         self.source = source = stream.Endpoint(source_description)
@@ -294,7 +292,7 @@ class Depacketizer(Module):
         self.comb += header.decode(self.header, source)
 
         # FSM.
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm_from_idle = Signal()
         fsm.act("IDLE",
             sink.ready.eq(1),
@@ -361,7 +359,7 @@ class Depacketizer(Module):
 
 # PacketFIFO ---------------------------------------------------------------------------------------
 
-class PacketFIFO(Module):
+class PacketFIFO(LiteXModule):
     def __init__(self, layout, payload_depth, param_depth=None, buffered=False):
         self.sink   = sink   = stream.Endpoint(layout)
         self.source = source = stream.Endpoint(layout)
@@ -380,15 +378,15 @@ class PacketFIFO(Module):
         payload_description = stream.EndpointDescription(payload_layout=payload_layout)
         param_description   = stream.EndpointDescription(param_layout=param_layout)
         param_depth         = param_depth + 1 # +1 to allow dequeuing current while enqueuing next.
-        self.submodules.payload_fifo = payload_fifo = stream.SyncFIFO(payload_description, payload_depth, buffered)
-        self.submodules.param_fifo   = param_fifo   = stream.SyncFIFO(param_description,   param_depth,   buffered)
+        self.payload_fifo = payload_fifo = stream.SyncFIFO(payload_description, payload_depth, buffered)
+        self.param_fifo   = param_fifo   = stream.SyncFIFO(param_description,   param_depth,   buffered)
 
         # Connect Sink to FIFOs.
         self.comb += [
             sink.connect(param_fifo.sink,   keep=set([e[0] for e in param_layout])),
             sink.connect(payload_fifo.sink, keep=set([e[0] for e in payload_layout] + ["last"])),
             param_fifo.sink.valid.eq(sink.valid & sink.last),
-            payload_fifo.sink.valid.eq(sink.valid & payload_fifo.sink.ready),
+            payload_fifo.sink.valid.eq(sink.valid & param_fifo.sink.ready),
             sink.ready.eq(param_fifo.sink.ready & payload_fifo.sink.ready),
         ]
 

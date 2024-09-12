@@ -6,9 +6,11 @@
 
 from migen import *
 
+from litex.gen import *
+
 # Identifier ---------------------------------------------------------------------------------------
 
-class Identifier(Module):
+class Identifier(LiteXModule):
     def __init__(self, ident):
         contents = list(ident.encode())
         l = len(contents)

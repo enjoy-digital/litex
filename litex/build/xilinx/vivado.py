@@ -101,7 +101,9 @@ class XilinxVivadoToolchain(GenericToolchain):
         super().__init__()
         self.bitstream_commands         = []
         self.additional_commands        = []
+        self.project_commands           = XilinxVivadoCommands()
         self.pre_synthesis_commands     = XilinxVivadoCommands()
+        self.pre_optimize_commands      = XilinxVivadoCommands()
         self.pre_placement_commands     = XilinxVivadoCommands()
         self.pre_routing_commands       = XilinxVivadoCommands()
         self.incremental_implementation = False
@@ -168,10 +170,12 @@ class XilinxVivadoToolchain(GenericToolchain):
                 False :  "nets",
                 True  : "ports",
             }[hasattr(clk, "port")]
-        for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
+        for clk, [period, name] in sorted(self.clocks.items(), key=lambda x: x[0].duid):
+            if name is None:
+                name = clk
             self.platform.add_platform_command(
-                "create_clock -name {clk} -period " + str(period) +
-                " [get_" + get_clk_type(clk) + " {clk}]", clk=clk)
+                "create_clock -name {name} -period " + str(period) +
+                " [get_" + get_clk_type(clk) + " {clk}]", name=name, clk=clk)
         for _from, _to in sorted(self.false_paths, key=lambda x: (x[0].duid, x[1].duid)):
             self.platform.add_platform_command(
                 "set_clock_groups "
@@ -222,6 +226,10 @@ class XilinxVivadoToolchain(GenericToolchain):
 
         if self.vivado_max_threads:
             tcl.append(f"set_param general.maxThreads {self.vivado_max_threads}")
+
+        # Add project commands
+        tcl.append("\n# Add project commands\n")
+        tcl.extend(c.format(build_name=self._build_name) for c in self.project_commands.resolve(self._vns))
 
         # Enable Xilinx Parameterized Macros
         if self._enable_xpm:
@@ -293,6 +301,11 @@ class XilinxVivadoToolchain(GenericToolchain):
         tcl.append(f"report_timing_summary -file {self._build_name}_timing_synth.rpt")
         tcl.append(f"report_utilization -hierarchical -file {self._build_name}_utilization_hierarchical_synth.rpt")
         tcl.append(f"report_utilization -file {self._build_name}_utilization_synth.rpt")
+        tcl.append(f"write_checkpoint -force {self._build_name}_synth.dcp")
+
+        # Add pre-optimize commands
+        tcl.append("\n# Add pre-optimize commands\n")
+        tcl.extend(c.format(build_name=self._build_name) for c in self.pre_optimize_commands.resolve(self._vns))
 
         # Optimize
         tcl.append("\n# Optimize design\n")
@@ -318,6 +331,7 @@ class XilinxVivadoToolchain(GenericToolchain):
         tcl.append(f"report_io -file {self._build_name}_io.rpt")
         tcl.append(f"report_control_sets -verbose -file {self._build_name}_control_sets.rpt")
         tcl.append(f"report_clock_utilization -file {self._build_name}_clock_utilization.rpt")
+        tcl.append(f"write_checkpoint -force {self._build_name}_place.dcp")
 
         # Add pre-routing commands
         tcl.append("\n# Add pre-routing commands\n")
@@ -385,7 +399,6 @@ class XilinxVivadoToolchain(GenericToolchain):
 
         if tools.subprocess_call_filtered(shell + [script], common.colors) != 0:
             raise OSError("Error occured during Vivado's script execution.")
-
 
 def vivado_build_args(parser):
     toolchain_group = parser.add_argument_group(title="Vivado toolchain options")

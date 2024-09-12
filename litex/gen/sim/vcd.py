@@ -12,7 +12,7 @@ import os
 from collections import OrderedDict
 import shutil
 
-from litex.gen.fhdl.namer import build_namespace
+from litex.gen.fhdl.namer import build_signal_namespace
 
 def vcd_codes():
     codechars = [chr(i) for i in range(33, 127)]
@@ -71,7 +71,7 @@ class VCDWriter:
 
         # write vcd header
         header = ""
-        ns = build_namespace(self.codes.keys())
+        ns = build_signal_namespace(self.codes.keys())
         for signal, code in self.codes.items():
             name = ns.get_name(signal)
             header += "$var wire {len} {code} {name} $end\n".format(name=name, code=code, len=len(signal))

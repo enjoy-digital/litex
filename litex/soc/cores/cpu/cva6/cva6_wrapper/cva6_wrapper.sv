@@ -87,6 +87,13 @@ module cva6_wrapper (
                  logic [(AxiDataWidth/8)-1:0],
                  logic [    AxiUserWidth-1:0])
 
+`AXI_TYPEDEF_ALL(axi_dm_slave,
+                 logic [    AxiAddrWidth-1:0],
+                 logic [AxiIdWidthSlaves-1:0],
+                 logic [    riscv::XLEN-1:0],
+                 logic [(riscv::XLEN/8)-1:0],
+                 logic [    AxiUserWidth-1:0])
+
 AXI_BUS #(
     .AXI_ADDR_WIDTH ( AxiAddrWidth     ),
     .AXI_DATA_WIDTH ( AxiDataWidth     ),
@@ -132,7 +139,8 @@ logic dmactive;
 logic [1:0] irq;
 assign test_en    = 1'b0;
 
-assign ndmreset_n = ~ndmreset;
+always @(posedge clk_i)
+    ndmreset_n <= ~ndmreset && rst_n;
 
 // ---------------
 // AXI Xbar
@@ -159,7 +167,7 @@ localparam axi_pkg::xbar_cfg_t AXI_XBAR_CFG = '{
   UniqueIds:          1'b0,
   AxiAddrWidth:       AxiAddrWidth,
   AxiDataWidth:       AxiDataWidth,
-  NoAddrRules:        NBSlave
+  NoAddrRules:        NBMaster
 };
 
 axi_xbar_intf #(
@@ -274,151 +282,76 @@ axi2mem #(
 
 if (riscv::XLEN==32 ) begin
 
-    assign master_to_dm[0].aw_user = '0;
-    assign master_to_dm[0].w_user = '0;
-    assign master_to_dm[0].ar_user = '0;
-
-    assign master_to_dm[0].aw_id = dm_axi_m_req.aw.id;
-    assign master_to_dm[0].ar_id = dm_axi_m_req.ar.id;
-
-    assign master[cva6_wrapper_pkg::Debug].r_user ='0;
-    assign master[cva6_wrapper_pkg::Debug].b_user ='0;
- 
-    xlnx_axi_dwidth_converter_dm_slave  i_axi_dwidth_converter_dm_slave( 
-        .s_axi_aclk(clk_i),
-        .s_axi_aresetn(ndmreset_n),
-        .s_axi_awid(master[cva6_wrapper_pkg::Debug].aw_id),
-        .s_axi_awaddr(master[cva6_wrapper_pkg::Debug].aw_addr[31:0]),
-        .s_axi_awlen(master[cva6_wrapper_pkg::Debug].aw_len),
-        .s_axi_awsize(master[cva6_wrapper_pkg::Debug].aw_size),
-        .s_axi_awburst(master[cva6_wrapper_pkg::Debug].aw_burst),
-        .s_axi_awlock(master[cva6_wrapper_pkg::Debug].aw_lock),
-        .s_axi_awcache(master[cva6_wrapper_pkg::Debug].aw_cache),
-        .s_axi_awprot(master[cva6_wrapper_pkg::Debug].aw_prot),
-        .s_axi_awregion(master[cva6_wrapper_pkg::Debug].aw_region),
-        .s_axi_awqos(master[cva6_wrapper_pkg::Debug].aw_qos),
-        .s_axi_awvalid(master[cva6_wrapper_pkg::Debug].aw_valid),
-        .s_axi_awready(master[cva6_wrapper_pkg::Debug].aw_ready),
-        .s_axi_wdata(master[cva6_wrapper_pkg::Debug].w_data),
-        .s_axi_wstrb(master[cva6_wrapper_pkg::Debug].w_strb),
-        .s_axi_wlast(master[cva6_wrapper_pkg::Debug].w_last),
-        .s_axi_wvalid(master[cva6_wrapper_pkg::Debug].w_valid),
-        .s_axi_wready(master[cva6_wrapper_pkg::Debug].w_ready),
-        .s_axi_bid(master[cva6_wrapper_pkg::Debug].b_id),
-        .s_axi_bresp(master[cva6_wrapper_pkg::Debug].b_resp),
-        .s_axi_bvalid(master[cva6_wrapper_pkg::Debug].b_valid),
-        .s_axi_bready(master[cva6_wrapper_pkg::Debug].b_ready),
-        .s_axi_arid(master[cva6_wrapper_pkg::Debug].ar_id),
-        .s_axi_araddr(master[cva6_wrapper_pkg::Debug].ar_addr[31:0]),
-        .s_axi_arlen(master[cva6_wrapper_pkg::Debug].ar_len),
-        .s_axi_arsize(master[cva6_wrapper_pkg::Debug].ar_size),
-        .s_axi_arburst(master[cva6_wrapper_pkg::Debug].ar_burst),
-        .s_axi_arlock(master[cva6_wrapper_pkg::Debug].ar_lock),
-        .s_axi_arcache(master[cva6_wrapper_pkg::Debug].ar_cache),
-        .s_axi_arprot(master[cva6_wrapper_pkg::Debug].ar_prot),
-        .s_axi_arregion(master[cva6_wrapper_pkg::Debug].ar_region),
-        .s_axi_arqos(master[cva6_wrapper_pkg::Debug].ar_qos),
-        .s_axi_arvalid(master[cva6_wrapper_pkg::Debug].ar_valid),
-        .s_axi_arready(master[cva6_wrapper_pkg::Debug].ar_ready),
-        .s_axi_rid(master[cva6_wrapper_pkg::Debug].r_id),
-        .s_axi_rdata(master[cva6_wrapper_pkg::Debug].r_data),
-        .s_axi_rresp(master[cva6_wrapper_pkg::Debug].r_resp),
-        .s_axi_rlast(master[cva6_wrapper_pkg::Debug].r_last),
-        .s_axi_rvalid(master[cva6_wrapper_pkg::Debug].r_valid),
-        .s_axi_rready(master[cva6_wrapper_pkg::Debug].r_ready),
-        .m_axi_awaddr(master_to_dm[0].aw_addr),
-        .m_axi_awlen(master_to_dm[0].aw_len),
-        .m_axi_awsize(master_to_dm[0].aw_size),
-        .m_axi_awburst(master_to_dm[0].aw_burst),
-        .m_axi_awlock(master_to_dm[0].aw_lock),
-        .m_axi_awcache(master_to_dm[0].aw_cache),
-        .m_axi_awprot(master_to_dm[0].aw_prot),
-        .m_axi_awregion(master_to_dm[0].aw_region),
-        .m_axi_awqos(master_to_dm[0].aw_qos),
-        .m_axi_awvalid(master_to_dm[0].aw_valid),
-        .m_axi_awready(master_to_dm[0].aw_ready),
-        .m_axi_wdata(master_to_dm[0].w_data ),
-        .m_axi_wstrb(master_to_dm[0].w_strb),
-        .m_axi_wlast(master_to_dm[0].w_last),
-        .m_axi_wvalid(master_to_dm[0].w_valid),
-        .m_axi_wready(master_to_dm[0].w_ready),
-        .m_axi_bresp(master_to_dm[0].b_resp),
-        .m_axi_bvalid(master_to_dm[0].b_valid),
-        .m_axi_bready(master_to_dm[0].b_ready),
-        .m_axi_araddr(master_to_dm[0].ar_addr),
-        .m_axi_arlen(master_to_dm[0].ar_len),
-        .m_axi_arsize(master_to_dm[0].ar_size),
-        .m_axi_arburst(master_to_dm[0].ar_burst),
-        .m_axi_arlock(master_to_dm[0].ar_lock),
-        .m_axi_arcache(master_to_dm[0].ar_cache),
-        .m_axi_arprot(master_to_dm[0].ar_prot),
-        .m_axi_arregion(master_to_dm[0].ar_region),
-        .m_axi_arqos(master_to_dm[0].ar_qos),
-        .m_axi_arvalid(master_to_dm[0].ar_valid),
-        .m_axi_arready(master_to_dm[0].ar_ready),
-        .m_axi_rdata(master_to_dm[0].r_data),
-        .m_axi_rresp(master_to_dm[0].r_resp),
-        .m_axi_rlast(master_to_dm[0].r_last),
-        .m_axi_rvalid(master_to_dm[0].r_valid),
-        .m_axi_rready(master_to_dm[0].r_ready)
+    axi_dw_converter_intf #(
+        .AXI_MAX_READS          (1                    ),
+        .AXI_ADDR_WIDTH         (64                   ),
+        .AXI_ID_WIDTH           (AxiIdWidthSlaves     ),
+        .AXI_SLV_PORT_DATA_WIDTH(64                   ),
+        .AXI_MST_PORT_DATA_WIDTH(32                   ),
+        .AXI_USER_WIDTH         (AxiUserWidth         )
+    ) i_dw_converter (
+        .clk_i (clk_i),
+        .rst_ni(ndmreset_n),
+        .slv   (master[cva6_wrapper_pkg::Debug]),
+        .mst   (master_to_dm[0])
     );
 
 end else begin
 
-    assign master[cva6_wrapper_pkg::Debug].aw_id = master_to_dm[0].aw_id;
-    assign master[cva6_wrapper_pkg::Debug].aw_addr = master_to_dm[0].aw_addr;
-    assign master[cva6_wrapper_pkg::Debug].aw_len = master_to_dm[0].aw_len;
-    assign master[cva6_wrapper_pkg::Debug].aw_size = master_to_dm[0].aw_size;
-    assign master[cva6_wrapper_pkg::Debug].aw_burst = master_to_dm[0].aw_burst;
-    assign master[cva6_wrapper_pkg::Debug].aw_lock = master_to_dm[0].aw_lock;
-    assign master[cva6_wrapper_pkg::Debug].aw_cache = master_to_dm[0].aw_cache;
-    assign master[cva6_wrapper_pkg::Debug].aw_prot = master_to_dm[0].aw_prot;
-    assign master[cva6_wrapper_pkg::Debug].aw_qos = master_to_dm[0].aw_qos;
-    assign master[cva6_wrapper_pkg::Debug].aw_atop = master_to_dm[0].aw_atop;
-    assign master[cva6_wrapper_pkg::Debug].aw_region = master_to_dm[0].aw_region;
-    assign master[cva6_wrapper_pkg::Debug].aw_user = master_to_dm[0].aw_user;
-    assign master[cva6_wrapper_pkg::Debug].aw_valid = master_to_dm[0].aw_valid;
+    assign master_to_dm[0].aw_id = master[cva6_wrapper_pkg::Debug].aw_id;
+    assign master_to_dm[0].aw_addr = master[cva6_wrapper_pkg::Debug].aw_addr;
+    assign master_to_dm[0].aw_len = master[cva6_wrapper_pkg::Debug].aw_len;
+    assign master_to_dm[0].aw_size = master[cva6_wrapper_pkg::Debug].aw_size;
+    assign master_to_dm[0].aw_burst = master[cva6_wrapper_pkg::Debug].aw_burst;
+    assign master_to_dm[0].aw_lock = master[cva6_wrapper_pkg::Debug].aw_lock;
+    assign master_to_dm[0].aw_cache = master[cva6_wrapper_pkg::Debug].aw_cache;
+    assign master_to_dm[0].aw_prot = master[cva6_wrapper_pkg::Debug].aw_prot;
+    assign master_to_dm[0].aw_qos = master[cva6_wrapper_pkg::Debug].aw_qos;
+    assign master_to_dm[0].aw_atop = master[cva6_wrapper_pkg::Debug].aw_atop;
+    assign master_to_dm[0].aw_region = master[cva6_wrapper_pkg::Debug].aw_region;
+    assign master_to_dm[0].aw_user = master[cva6_wrapper_pkg::Debug].aw_user;
+    assign master_to_dm[0].aw_valid = master[cva6_wrapper_pkg::Debug].aw_valid;
 
-    assign master_to_dm[0].aw_ready =master[cva6_wrapper_pkg::Debug].aw_ready;
+    assign master[cva6_wrapper_pkg::Debug].aw_ready = master_to_dm[0].aw_ready;
 
-    assign master[cva6_wrapper_pkg::Debug].w_data = master_to_dm[0].w_data;
-    assign master[cva6_wrapper_pkg::Debug].w_strb = master_to_dm[0].w_strb;
-    assign master[cva6_wrapper_pkg::Debug].w_last = master_to_dm[0].w_last;
-    assign master[cva6_wrapper_pkg::Debug].w_user = master_to_dm[0].w_user;
-    assign master[cva6_wrapper_pkg::Debug].w_valid = master_to_dm[0].w_valid;
+    assign master_to_dm[0].w_data = master[cva6_wrapper_pkg::Debug].w_data;
+    assign master_to_dm[0].w_strb = master[cva6_wrapper_pkg::Debug].w_strb;
+    assign master_to_dm[0].w_last = master[cva6_wrapper_pkg::Debug].w_last;
+    assign master_to_dm[0].w_user = master[cva6_wrapper_pkg::Debug].w_user;
+    assign master_to_dm[0].w_valid = master[cva6_wrapper_pkg::Debug].w_valid;
 
-    assign master_to_dm[0].w_ready =master[cva6_wrapper_pkg::Debug].w_ready;
+    assign master[cva6_wrapper_pkg::Debug].w_ready = master_to_dm[0].w_ready;
 
-    assign master_to_dm[0].b_id =master[cva6_wrapper_pkg::Debug].b_id;
-    assign master_to_dm[0].b_resp =master[cva6_wrapper_pkg::Debug].b_resp;
-    assign master_to_dm[0].b_user =master[cva6_wrapper_pkg::Debug].b_user;
-    assign master_to_dm[0].b_valid =master[cva6_wrapper_pkg::Debug].b_valid;
+    assign master[cva6_wrapper_pkg::Debug].b_id = master_to_dm[0].b_id;
+    assign master[cva6_wrapper_pkg::Debug].b_resp = master_to_dm[0].b_resp;
+    assign master[cva6_wrapper_pkg::Debug].b_user = master_to_dm[0].b_user;
+    assign master[cva6_wrapper_pkg::Debug].b_valid = master_to_dm[0].b_valid;
 
-    assign master[cva6_wrapper_pkg::Debug].b_ready = master_to_dm[0].b_ready;
+    assign master_to_dm[0].b_ready = master[cva6_wrapper_pkg::Debug].b_ready;
 
-    assign master[cva6_wrapper_pkg::Debug].ar_id = master_to_dm[0].ar_id;
-    assign master[cva6_wrapper_pkg::Debug].ar_addr = master_to_dm[0].ar_addr;
-    assign master[cva6_wrapper_pkg::Debug].ar_len = master_to_dm[0].ar_len;
-    assign master[cva6_wrapper_pkg::Debug].ar_size = master_to_dm[0].ar_size;
-    assign master[cva6_wrapper_pkg::Debug].ar_burst = master_to_dm[0].ar_burst;
-    assign master[cva6_wrapper_pkg::Debug].ar_lock = master_to_dm[0].ar_lock;
-    assign master[cva6_wrapper_pkg::Debug].ar_cache = master_to_dm[0].ar_cache;
-    assign master[cva6_wrapper_pkg::Debug].ar_prot = master_to_dm[0].ar_prot;
-    assign master[cva6_wrapper_pkg::Debug].ar_qos = master_to_dm[0].ar_qos;
-    assign master[cva6_wrapper_pkg::Debug].ar_region = master_to_dm[0].ar_region;
-    assign master[cva6_wrapper_pkg::Debug].ar_user = master_to_dm[0].ar_user;
-    assign master[cva6_wrapper_pkg::Debug].ar_valid = master_to_dm[0].ar_valid;
+    assign master_to_dm[0].ar_id = master[cva6_wrapper_pkg::Debug].ar_id;
+    assign master_to_dm[0].ar_addr = master[cva6_wrapper_pkg::Debug].ar_addr;
+    assign master_to_dm[0].ar_len = master[cva6_wrapper_pkg::Debug].ar_len;
+    assign master_to_dm[0].ar_size = master[cva6_wrapper_pkg::Debug].ar_size;
+    assign master_to_dm[0].ar_burst = master[cva6_wrapper_pkg::Debug].ar_burst;
+    assign master_to_dm[0].ar_lock = master[cva6_wrapper_pkg::Debug].ar_lock;
+    assign master_to_dm[0].ar_cache = master[cva6_wrapper_pkg::Debug].ar_cache;
+    assign master_to_dm[0].ar_prot = master[cva6_wrapper_pkg::Debug].ar_prot;
+    assign master_to_dm[0].ar_qos = master[cva6_wrapper_pkg::Debug].ar_qos;
+    assign master_to_dm[0].ar_region = master[cva6_wrapper_pkg::Debug].ar_region;
+    assign master_to_dm[0].ar_user = master[cva6_wrapper_pkg::Debug].ar_user;
+    assign master_to_dm[0].ar_valid = master[cva6_wrapper_pkg::Debug].ar_valid;
 
-    assign master_to_dm[0].ar_ready =master[cva6_wrapper_pkg::Debug].ar_ready;
+    assign master[cva6_wrapper_pkg::Debug].ar_ready = master_to_dm[0].ar_ready;
 
-    assign master_to_dm[0].r_id =master[cva6_wrapper_pkg::Debug].r_id;
-    assign master_to_dm[0].r_data =master[cva6_wrapper_pkg::Debug].r_data;
-    assign master_to_dm[0].r_resp =master[cva6_wrapper_pkg::Debug].r_resp;
-    assign master_to_dm[0].r_last =master[cva6_wrapper_pkg::Debug].r_last;
-    assign master_to_dm[0].r_user =master[cva6_wrapper_pkg::Debug].r_user;
-    assign master_to_dm[0].r_valid =master[cva6_wrapper_pkg::Debug].r_valid;
+    assign master[cva6_wrapper_pkg::Debug].r_id = master_to_dm[0].r_id;
+    assign master[cva6_wrapper_pkg::Debug].r_data = master_to_dm[0].r_data;
+    assign master[cva6_wrapper_pkg::Debug].r_resp = master_to_dm[0].r_resp;
+    assign master[cva6_wrapper_pkg::Debug].r_last = master_to_dm[0].r_last;
+    assign master[cva6_wrapper_pkg::Debug].r_user = master_to_dm[0].r_user;
+    assign master[cva6_wrapper_pkg::Debug].r_valid = master_to_dm[0].r_valid;
 
-    assign master[cva6_wrapper_pkg::Debug].r_ready = master_to_dm[0].r_ready;
+    assign master_to_dm[0].r_ready = master[cva6_wrapper_pkg::Debug].r_ready;
 
 end 
 
@@ -455,108 +388,8 @@ axi_adapter #(
     .axi_resp_i            ( dm_axi_m_resp             )
 );
 
-if (riscv::XLEN==32 ) begin
-    logic [31 : 0] dm_master_m_awaddr;
-    logic [31 : 0] dm_master_m_araddr;
-
-    assign slave[1].aw_addr = {32'h0000_0000, dm_master_m_awaddr};
-    assign slave[1].ar_addr = {32'h0000_0000, dm_master_m_araddr};
-
-    logic [31 : 0] dm_master_s_rdata;
-
-    assign dm_axi_m_resp.r.data = {32'h0000_0000, dm_master_s_rdata}; 
-
-    assign slave[1].aw_user = '0;
-    assign slave[1].w_user = '0;
-    assign slave[1].ar_user = '0;
-
-    assign slave[1].aw_id = dm_axi_m_req.aw.id;
-    assign slave[1].ar_id = dm_axi_m_req.ar.id;
-    assign slave[1].aw_atop = dm_axi_m_req.aw.atop;
-
-    xlnx_axi_dwidth_converter_dm_master  i_axi_dwidth_converter_dm_master( 
-        .s_axi_aclk(clk_i),
-        .s_axi_aresetn(ndmreset_n),
-        .s_axi_awid(dm_axi_m_req.aw.id),
-        .s_axi_awaddr(dm_axi_m_req.aw.addr[31:0]),
-        .s_axi_awlen(dm_axi_m_req.aw.len),
-        .s_axi_awsize(dm_axi_m_req.aw.size),
-        .s_axi_awburst(dm_axi_m_req.aw.burst),
-        .s_axi_awlock(dm_axi_m_req.aw.lock),
-        .s_axi_awcache(dm_axi_m_req.aw.cache),
-        .s_axi_awprot(dm_axi_m_req.aw.prot),
-        .s_axi_awregion(dm_axi_m_req.aw.region),
-        .s_axi_awqos(dm_axi_m_req.aw.qos),
-        .s_axi_awvalid(dm_axi_m_req.aw_valid),
-        .s_axi_awready(dm_axi_m_resp.aw_ready),
-        .s_axi_wdata(dm_axi_m_req.w.data[31:0]),
-        .s_axi_wstrb(dm_axi_m_req.w.strb[3:0]),
-        .s_axi_wlast(dm_axi_m_req.w.last),
-        .s_axi_wvalid(dm_axi_m_req.w_valid),
-        .s_axi_wready(dm_axi_m_resp.w_ready),
-        .s_axi_bid(dm_axi_m_resp.b.id),
-        .s_axi_bresp(dm_axi_m_resp.b.resp),
-        .s_axi_bvalid(dm_axi_m_resp.b_valid),
-        .s_axi_bready(dm_axi_m_req.b_ready),
-        .s_axi_arid(dm_axi_m_req.ar.id),
-        .s_axi_araddr(dm_axi_m_req.ar.addr[31:0]),
-        .s_axi_arlen(dm_axi_m_req.ar.len),
-        .s_axi_arsize(dm_axi_m_req.ar.size),
-        .s_axi_arburst(dm_axi_m_req.ar.burst),
-        .s_axi_arlock(dm_axi_m_req.ar.lock),
-        .s_axi_arcache(dm_axi_m_req.ar.cache),
-        .s_axi_arprot(dm_axi_m_req.ar.prot),
-        .s_axi_arregion(dm_axi_m_req.ar.region),
-        .s_axi_arqos(dm_axi_m_req.ar.qos),
-        .s_axi_arvalid(dm_axi_m_req.ar_valid),
-        .s_axi_arready(dm_axi_m_resp.ar_ready),
-        .s_axi_rid(dm_axi_m_resp.r.id),
-        .s_axi_rdata(dm_master_s_rdata),
-        .s_axi_rresp(dm_axi_m_resp.r.resp),
-        .s_axi_rlast(dm_axi_m_resp.r.last),
-        .s_axi_rvalid(dm_axi_m_resp.r_valid),
-        .s_axi_rready(dm_axi_m_req.r_ready),
-        .m_axi_awaddr(dm_master_m_awaddr),
-        .m_axi_awlen(slave[1].aw_len),
-        .m_axi_awsize(slave[1].aw_size),
-        .m_axi_awburst(slave[1].aw_burst),
-        .m_axi_awlock(slave[1].aw_lock),
-        .m_axi_awcache(slave[1].aw_cache),
-        .m_axi_awprot(slave[1].aw_prot),
-        .m_axi_awregion(slave[1].aw_region),
-        .m_axi_awqos(slave[1].aw_qos),
-        .m_axi_awvalid(slave[1].aw_valid),
-        .m_axi_awready(slave[1].aw_ready),
-        .m_axi_wdata(slave[1].w_data ),
-        .m_axi_wstrb(slave[1].w_strb),
-        .m_axi_wlast(slave[1].w_last),
-        .m_axi_wvalid(slave[1].w_valid),
-        .m_axi_wready(slave[1].w_ready),
-        .m_axi_bresp(slave[1].b_resp),
-        .m_axi_bvalid(slave[1].b_valid),
-        .m_axi_bready(slave[1].b_ready),
-        .m_axi_araddr(dm_master_m_araddr),
-        .m_axi_arlen(slave[1].ar_len),
-        .m_axi_arsize(slave[1].ar_size),
-        .m_axi_arburst(slave[1].ar_burst),
-        .m_axi_arlock(slave[1].ar_lock),
-        .m_axi_arcache(slave[1].ar_cache),
-        .m_axi_arprot(slave[1].ar_prot),
-        .m_axi_arregion(slave[1].ar_region),
-        .m_axi_arqos(slave[1].ar_qos),
-        .m_axi_arvalid(slave[1].ar_valid),
-        .m_axi_arready(slave[1].ar_ready),
-        .m_axi_rdata(slave[1].r_data),
-        .m_axi_rresp(slave[1].r_resp),
-        .m_axi_rlast(slave[1].r_last),
-        .m_axi_rvalid(slave[1].r_valid),
-        .m_axi_rready(slave[1].r_ready)
-      );
-end else begin
-    `AXI_ASSIGN_FROM_REQ(slave[1], dm_axi_m_req)
-    `AXI_ASSIGN_TO_RESP(dm_axi_m_resp, slave[1])
-end
-
+`AXI_ASSIGN_FROM_REQ(slave[1], dm_axi_m_req)
+`AXI_ASSIGN_TO_RESP(dm_axi_m_resp, slave[1])
 
 // ---------------
 // Core
@@ -568,7 +401,7 @@ ariane #(
     .ArianeCfg ( cva6_wrapper_pkg::CVA6Cfg )
 ) i_ariane (
     .clk_i        ( clk_i               ),
-    .rst_ni       ( rst_n /*ndmreset_n*/          ),
+    .rst_ni       ( ndmreset_n          ),
     .boot_addr_i  ( cva6_wrapper_pkg::ExternalBase ),
     .hart_id_i    ( '0                  ),
     .irq_i        ( irq                 ),

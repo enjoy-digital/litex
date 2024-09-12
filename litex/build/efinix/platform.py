@@ -23,12 +23,15 @@ class EfinixPlatform(GenericPlatform):
 
     _supported_toolchains = ["efinity"]
 
-    def __init__(self, *args, iobank_info=None, toolchain="efinity", **kwargs):
+    def __init__(self, *args, iobank_info=None, toolchain="efinity", spi_mode="active", spi_width="1", **kwargs):
         GenericPlatform.__init__(self, *args, **kwargs)
 
         self.timing_model = self.device[-2:]
         self.device       = self.device[:-2]
         self.iobank_info  = iobank_info
+        self.spi_mode     = spi_mode
+        self.spi_width    = spi_width
+        self.clks         = {}
         if self.device[:2] == "Ti":
             self.family = "Titanium"
         else:
@@ -55,17 +58,14 @@ class EfinixPlatform(GenericPlatform):
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
         so = dict(common.efinix_special_overrides)
         so.update(special_overrides)
-        return GenericPlatform.get_verilog(self, *args, special_overrides=so,
-            attr_translate=self.toolchain.attr_translate, **kwargs)
+        return GenericPlatform.get_verilog(self, *args,
+            special_overrides = so,
+            attr_translate    = self.toolchain.attr_translate,
+            **kwargs
+        )
 
     def build(self, *args, **kwargs):
         return self.toolchain.build(self, *args, **kwargs)
-
-    def add_period_constraint(self, clk, period):
-        if clk is None: return
-        if hasattr(clk, "p"):
-            clk = clk.p
-        self.toolchain.add_period_constraint(self, clk, period)
 
     def add_false_path_constraint(self, from_, to):
         if hasattr(from_, "p"):
@@ -110,6 +110,10 @@ class EfinixPlatform(GenericPlatform):
                                 prop = "PULL_OPTION"
                                 val = o.misc
                                 ret.append((prop, val))
+                            if o.misc == "SCHMITT_TRIGGER":
+                                prop = "SCHMITT_TRIGGER"
+                                val = "1"
+                                ret.append((prop, val))
                             if "DRIVE_STRENGTH" in o.misc:
                                 prop = "DRIVE_STRENGTH"
                                 val = o.misc.split("=")[1]
@@ -121,27 +125,43 @@ class EfinixPlatform(GenericPlatform):
                     return ret
         return None
 
-    def get_pin_name(self, sig, without_index=False):
+    def get_pin(self, sig):
+        while isinstance(sig, _Slice) and hasattr(sig, "value"):
+            sig = sig.value
+        return sig
+
+    def get_pin_name(self, sig):
         if sig is None:
             return None
         assert len(sig) == 1
         idx = 0
         slc = False
         while isinstance(sig, _Slice) and hasattr(sig, "value"):
-            slc = True
             idx = sig.start
             sig = sig.value
+            slc = hasattr(sig, "nbits") and sig.nbits > 1
         sc = self.constraint_manager.get_sig_constraints()
         for s, pins, others, resource in sc:
             if s == sig:
+                name = resource[0] + (f"{resource[1]}" if resource[1] is not None else "")
                 if resource[2]:
-                    name = resource[0] + "_" + resource[2]
-                    if without_index is False:
-                        name = name + (f"{idx}" if slc else "")
-                    return name
-                else:
-                    return resource[0] + (f"{idx}" if slc else "")
+                    name = name + "_" + resource[2]
+                name = name + (f"{idx}" if slc else "")
+                return name
         return None
+
+    def get_pad_name(self, sig):
+        """ Return pin name (GPIOX_Y_ZZZ).
+
+        Parameters
+        ==========
+        sig: Signal
+            Signal for which pad name is searched.
+        """
+        if sig is None:
+            return None
+        pin = self.get_pin_location(sig)[0]
+        return self.parser.get_pad_name_from_pin(pin)
 
     def get_sig_constraint(self, sig):
         sc = self.constraint_manager.get_sig_constraints()
@@ -170,3 +190,34 @@ class EfinixPlatform(GenericPlatform):
         pll = self.pll_available[0]
         self.get_pll_resource(pll)
         return pll
+
+    @classmethod
+    def fill_args(cls, toolchain, parser):
+        """
+        pass parser to the specific toolchain to
+        fill this with toolchain args
+
+        Parameters
+        ==========
+        toolchain: str
+            toolchain name
+        parser: argparse.ArgumentParser
+            parser to be filled
+        """
+        efinity.build_args(parser)
+
+    @classmethod
+    def get_argdict(cls, toolchain, args):
+        """
+        return a dict of args
+
+        Parameters
+        ==========
+        toolchain: str
+            toolchain name
+
+        Return
+        ======
+        a dict of key/value for each args or an empty dict
+        """
+        return efinity.build_argdict(args)

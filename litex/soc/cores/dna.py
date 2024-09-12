@@ -15,7 +15,7 @@ from litex.soc.interconnect.csr import *
 
 # Xilinx DNA (Device Identifier) -------------------------------------------------------------------
 
-class XilinxDNA(Module, AutoCSR):
+class XilinxDNA(LiteXModule):
     def __init__(self, nbits=57, primitive="DNA_PORT", clk_divider=2):
         self.nbits       = nbits
         self.clk_divider = clk_divider
@@ -29,7 +29,7 @@ class XilinxDNA(Module, AutoCSR):
         assert math.log2(clk_divider).is_integer()
 
         # Create slow DNA Clk.
-        self.clock_domains.cd_dna = ClockDomain()
+        self.cd_dna = ClockDomain()
         dna_clk_count = Signal(int(math.log2(clk_divider)))
         self.sync += dna_clk_count.eq(dna_clk_count + 1)
         self.sync += self.cd_dna.clk.eq(dna_clk_count[-1])

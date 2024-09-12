@@ -4,6 +4,8 @@
 # Copyright (c) 2018-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+from litex.gen import *
+
 from litex.soc.cores.clock.common import *
 from litex.soc.cores.clock.xilinx_common import *
 
@@ -107,9 +109,9 @@ class USMMCM(XilinxClocking):
         self.specials += Instance("MMCME2_ADV", **self.params)
 
 
-class USIDELAYCTRL(Module):
+class USIDELAYCTRL(LiteXModule):
     def __init__(self, cd_ref, cd_sys, reset_cycles=64, ready_cycles=64):
-        self.clock_domains.cd_ic = ClockDomain()
+        self.cd_ic = ClockDomain()
         ic_reset_counter = Signal(max=reset_cycles, reset=reset_cycles-1)
         ic_reset         = Signal(reset=1)
         cd_ref_sync      = getattr(self.sync, cd_ref.name)

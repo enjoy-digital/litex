@@ -47,7 +47,7 @@ class EOS_S3(CPU):
         self.platform       = platform
         self.reset          = Signal()
         self.interrupt      = Signal(4)
-        self.pbus           = wishbone.Interface(data_width=32, adr_width=15)
+        self.pbus           = wishbone.Interface(data_width=32, adr_width=15, addressing="byte")
         self.periph_buses   = [self.pbus]
         self.memory_buses   = []
 
@@ -59,8 +59,8 @@ class EOS_S3(CPU):
         eos_s3_0_rst = Signal()
         eos_s3_1_clk = Signal()
         eos_s3_1_rst = Signal()
-        self.clock_domains.cd_eos_s3_0 = ClockDomain()
-        self.clock_domains.cd_eos_s3_1 = ClockDomain()
+        self.cd_eos_s3_0 = ClockDomain()
+        self.cd_eos_s3_1 = ClockDomain()
         self.specials += Instance("gclkbuff",
             i_A = eos_s3_0_clk,
             o_Z = ClockSignal("eos_s3_0")
@@ -84,7 +84,7 @@ class EOS_S3(CPU):
             # -----------
             i_WB_CLK       = ClockSignal("eos_s3_0"),
             o_WB_RST       = pbus_rst,
-            o_WBs_ADR      = Cat(Signal(2), self.pbus.adr),
+            o_WBs_ADR      = self.pbus.adr,
             o_WBs_CYC      = self.pbus.cyc,
             o_WBs_BYTE_STB = self.pbus.sel,
             o_WBs_WE       = self.pbus.we,
@@ -110,10 +110,10 @@ class EOS_S3(CPU):
 
             # Clocking.
             # ---------
-            o_Sys_Clk0     = eos_s3_0_clk,
-            o_Sys_Clk0_Rst = eos_s3_0_rst,
-            o_Sys_Clk1     = eos_s3_1_clk,
-            o_Sys_Clk1_Rst = eos_s3_1_rst,
+            o_Clk_C16     = eos_s3_0_clk,
+            o_Clk_C16_Rst = eos_s3_0_rst,
+            o_Clk_C21     = eos_s3_1_clk,
+            o_Clk_C21_Rst = eos_s3_1_rst,
 
             # Packet FIFO.
             # ------------

@@ -11,6 +11,8 @@ import os
 
 from migen import *
 
+from litex.gen import *
+
 from litex import get_data_mod
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU
@@ -82,8 +84,8 @@ class Marocchino(CPU):
         self.variant      = variant
         self.reset        = Signal()
         self.interrupt    = Signal(32)
-        self.ibus         = ibus = wishbone.Interface()
-        self.dbus         = dbus = wishbone.Interface()
+        self.ibus         = ibus = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
+        self.dbus         = dbus = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
         self.periph_buses = [ibus, dbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses = []           # Memory buses (Connected directly to LiteDRAM).
 
@@ -115,13 +117,13 @@ class Marocchino(CPU):
             **cpu_args,
 
             # Clk / Rst.
-            i_wb_clk = ClockSignal("sys"),
-            i_wb_rst = ResetSignal("sys") | self.reset,
+            i_wb_clk  = ClockSignal("sys"),
+            i_wb_rst  = ResetSignal("sys") | self.reset,
             i_cpu_clk = ClockSignal("sys"),
             i_cpu_rst = ResetSignal("sys") | self.reset,
 
             # IBus.
-            o_iwbm_adr_o = Cat(Signal(2), ibus.adr),
+            o_iwbm_adr_o = ibus.adr,
             o_iwbm_stb_o = ibus.stb,
             o_iwbm_cyc_o = ibus.cyc,
             o_iwbm_sel_o = ibus.sel,
@@ -135,7 +137,7 @@ class Marocchino(CPU):
             i_iwbm_rty_i = 0,
 
             # DBus.
-            o_dwbm_adr_o = Cat(Signal(2), dbus.adr),
+            o_dwbm_adr_o = dbus.adr,
             o_dwbm_stb_o = dbus.stb,
             o_dwbm_cyc_o = dbus.cyc,
             o_dwbm_sel_o = dbus.sel,

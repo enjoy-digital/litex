@@ -8,6 +8,7 @@ import os
 import sys
 import subprocess
 import shutil
+from shutil import which
 
 from migen.fhdl.structure import _Fragment
 
@@ -83,6 +84,7 @@ class MicrosemiLiberoSoCPolarfireToolchain(GenericToolchain):
     def build_project(self):
         tcl = []
 
+        die, package, speed = self.platform.device.split("-")
         # Create project
         tcl.append(" ".join([
             "new_project",
@@ -96,49 +98,33 @@ class MicrosemiLiberoSoCPolarfireToolchain(GenericToolchain):
             "-use_enhanced_constraint_flow 1",
             "-hdl {VERILOG}",
             "-family {PolarFire}",
-            "-die {}",
-            "-package {}",
-            "-speed {}",
-            "-die_voltage {}",
-            "-part_range {}",
-            "-adv_options {}"
-            ]))
-
-        die, package, speed = self.platform.device.split("-")
-        tcl.append(" ".join([
-            "set_device",
-            "-family {PolarFire}",
             "-die {}".format(self.tcl_name(die)),
             "-package {}".format(self.tcl_name(package)),
             "-speed {}".format(self.tcl_name("-" + speed)),
-            # FIXME: common to all PolarFire devices?
             "-die_voltage {1.0}",
-            "-part_range {EXT}",
-            "-adv_options {IO_DEFT_STD:LVCMOS 1.8V}",
-            "-adv_options {RESTRICTPROBEPINS:1}",
-            "-adv_options {RESTRICTSPIPINS:0}",
-            "-adv_options {TEMPR:EXT}",
-            "-adv_options {UNUSED_MSS_IO_RESISTOR_PULL:None}",
-            "-adv_options {VCCI_1.2_VOLTR:EXT}",
-            "-adv_options {VCCI_1.5_VOLTR:EXT}",
-            "-adv_options {VCCI_1.8_VOLTR:EXT}",
-            "-adv_options {VCCI_2.5_VOLTR:EXT}",
-            "-adv_options {VCCI_3.3_VOLTR:EXT}",
-            "-adv_options {VOLTR:EXT} "
-        ]))
+            "-part_range {IND}",
+            "-adv_options {VCCI_1.2_VOLTR:IND}",
+            "-adv_options {VCCI_1.5_VOLTR:IND}",
+            "-adv_options {VCCI_1.8_VOLTR:IND}",
+            "-adv_options {VCCI_2.5_VOLTR:IND}",
+            "-adv_options {VCCI_3.3_VOLTR:IND}"
+            ]))
 
         # Add sources
         for filename, language, library, *copy in self.platform.sources:
             filename_tcl = "{" + filename + "}"
             tcl.append("import_files -hdl_source " + filename_tcl)
 
+        # Building the design Hierarchy
+        tcl.append("build_design_hierarchy")
         # Set top level
-        tcl.append("set_root -module {}".format(self.tcl_name(self._build_name)))
+        tcl.append("set_root -module {}".format(self.tcl_name(self._build_name + "::work")))
 
         # Copy init files FIXME: support for include path on LiberoSoC?
-        for file in os.listdir(self._build_dir):
-            if file.endswith(".init"):
-                tcl.append("file copy -- {} impl/synthesis".format(file))
+        # Commenting out copy init file as this breaks the LiberoSoC flow.
+        #for file in os.listdir(self._build_dir):
+        #    if file.endswith(".init"):
+        #        tcl.append("file copy -- {} impl/synthesis".format(file))
 
         # Import io constraints
         tcl.append("import_files -io_pdc {}".format(self.tcl_name(self._build_name + "_io.pdc")))
@@ -177,6 +163,23 @@ class MicrosemiLiberoSoCPolarfireToolchain(GenericToolchain):
         tcl.append("run_tool -name {PLACEROUTE}")
         tcl.append("run_tool -name {GENERATEPROGRAMMINGDATA}")
         tcl.append("run_tool -name {GENERATEPROGRAMMINGFILE}")
+        
+        # Export the FPExpress programming file to Libero SoC default location
+        tcl.append(" export_prog_job \
+         -job_file_name {top} \
+         -export_dir {./impl/designer/top/export} \
+         -bitstream_file_type {TRUSTED_FACILITY} \
+         -bitstream_file_components {FABRIC SNVM} \
+         -zeroization_likenew_action 0 \
+         -zeroization_unrecoverable_action 0 \
+         -program_design 1 \
+         -program_spi_flash 0 \
+         -include_plaintext_passkey 0 \
+         -design_bitstream_format {PPD} \
+         -prog_optional_procedures {} \
+         -skip_recommended_procedures {} \
+         -sanitize_snvm 0 ")
+        
 
         # Generate tcl
         tools.write_to_file(self._build_name + ".tcl", "\n".join(tcl))
@@ -187,10 +190,13 @@ class MicrosemiLiberoSoCPolarfireToolchain(GenericToolchain):
     def build_timing_constraints(self, vns):
         sdc = []
 
-        for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
+        for clk, [period, name] in sorted(self.clocks.items(), key=lambda x: x[0].duid):
+            clk_sig = self._vns.get_name(clk)
+            if name is None:
+                name = clk_sig
             sdc.append(
-                "create_clock -name {clk} -period " + str(period) +
-                " [get_nets {clk}]".format(clk=vns.get_name(clk)))
+                "create_clock -name {name} -period " + str(period) +
+                " [get_nets {clk}]".format(name=name, clk=clk_sig))
         for from_, to in sorted(self.false_paths,
                                 key=lambda x: (x[0].duid, x[1].duid)):
             sdc.append(
@@ -218,6 +224,7 @@ class MicrosemiLiberoSoCPolarfireToolchain(GenericToolchain):
             copy_stmt = "cp"
             fail_stmt = " || exit 1"
 
+        script_contents += "libero script:" + self._build_name + ".tcl\n"
         script_file = "build_" + self._build_name + script_ext
         tools.write_to_file(script_file, script_contents,
                             force_unix=False)
@@ -233,15 +240,12 @@ class MicrosemiLiberoSoCPolarfireToolchain(GenericToolchain):
         else:
             shell = ["bash"]
 
-        if subprocess.call(shell + [script]) != 0:
-            raise OSError("Subprocess failed")
+        if which("libero") is None:
+           msg = "Unable to find or source Libero SoC toolchain, please make sure libero has been installed corectly.\n"
+           raise OSError(msg)
 
-    def add_period_constraint(self, platform, clk, period):
-        if clk in self.clocks:
-            if period != self.clocks[clk]:
-                raise ValueError("Clock already constrained to {:.2f}ns, new constraint to {:.2f}ns"
-                    .format(self.clocks[clk], period))
-        self.clocks[clk] = period
+        if subprocess.call(shell + [script]) != 0:
+           raise OSError("Subprocess failed")
 
     def add_false_path_constraint(self, platform, from_, to):
         if (to, from_) not in self.false_paths:

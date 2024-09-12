@@ -4,7 +4,7 @@
 # Copyright (c) 2019-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-"""Avalon support for LiteX"""
+"""Avalon ST support for LiteX"""
 
 from migen import *
 

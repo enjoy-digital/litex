@@ -62,8 +62,11 @@ class TangDinastyToolchain(GenericToolchain):
 
     def build_timing_constraints(self, vns):
         sdc = []
-        for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
-            sdc.append(f"create_clock -name {vns.get_name(clk)} -period {str(period)} [get_ports {{{vns.get_name(clk)}}}]")
+        for clk, [period, name] in sorted(self.clocks.items(), key=lambda x: x[0].duid):
+            clk_sig = self._vns.get_name(clk)
+            if name is None:
+                name = clk_sig
+            sdc.append(f"create_clock -name {name} -period {str(period)} [get_ports {{{clk_sig}}}]")
         tools.write_to_file("top.sdc", "\n".join(sdc))
         return ("top.sdc", "SDC")
 
@@ -204,12 +207,3 @@ class TangDinastyToolchain(GenericToolchain):
 
         (architecture, family, package) = devices[device]
         return (architecture, family, package)
-
-    def add_period_constraint(self, platform, clk, period):
-        clk.attr.add("keep")
-        period = math.floor(period*1e3)/1e3 # round to lowest picosecond
-        if clk in self.clocks:
-            if period != self.clocks[clk]:
-                raise ValueError("Clock already constrained to {:.2f}ns, new constraint to {:.2f}ns"
-                    .format(self.clocks[clk], period))
-        self.clocks[clk] = period

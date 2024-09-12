@@ -71,8 +71,8 @@ class Microwatt(CPU):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
-        self.ibus         = ibus = wishbone.Interface(data_width=64, adr_width=29)
-        self.dbus         = dbus = wishbone.Interface(data_width=64, adr_width=29)
+        self.ibus         = ibus = wishbone.Interface(data_width=64, adr_width=29, addressing="word")
+        self.dbus         = dbus = wishbone.Interface(data_width=64, adr_width=29, addressing="word")
         self.periph_buses = [ibus, dbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses = []           # Memory buses (Connected directly to LiteDRAM).
         if "irq" in variant:
@@ -132,7 +132,7 @@ class Microwatt(CPU):
         )
 
         # VHDL to Verilog Converter.
-        self.submodules.cpu_vhd2v_converter = VHD2VConverter(platform,
+        self.cpu_vhd2v_converter = VHD2VConverter(platform,
             top_entity    = "microwatt_wrapper",
             build_dir     = os.path.abspath(os.path.dirname(__file__)),
             force_convert = ("ghdl" in self.variant),
@@ -147,14 +147,14 @@ class Microwatt(CPU):
 
     def add_soc_components(self, soc):
         if "irq" in self.variant:
-            self.submodules.xics = XICSSlave(
+            self.xics = XICSSlave(
                 platform     = self.platform,
                 variant      = self.variant,
                 core_irq_out = self.core_ext_irq,
                 int_level_in = self.interrupt,
             )
             xicsicp_region = SoCRegion(origin=soc.mem_map.get("xicsicp"), size=4096, cached=False)
-            xicsics_region = SocRegion(origin=soc.mem_map.get("xicsics"), size=4096, cached=False)
+            xicsics_region = SoCRegion(origin=soc.mem_map.get("xicsics"), size=4096, cached=False)
             soc.bus.add_slave(name="xicsicp", slave=self.xics.icp_bus, region=xicsicp_region)
             soc.bus.add_slave(name="xicsics", slave=self.xics.ics_bus, region=xicsics_region)
 
@@ -236,12 +236,12 @@ class Microwatt(CPU):
 
 # XICS Slave ---------------------------------------------------------------------------------------
 
-class XICSSlave(Module, AutoCSR):
+class XICSSlave(LiteXModule):
     def __init__(self, platform, core_irq_out=Signal(), int_level_in=Signal(16), variant="standard"):
         self.variant = variant
 
-        self.icp_bus = icp_bus = wishbone.Interface(data_width=32, adr_width=12)
-        self.ics_bus = ics_bus = wishbone.Interface(data_width=32, adr_width=12)
+        self.icp_bus = icp_bus = wishbone.Interface(data_width=32, adr_width=12, addressing="word")
+        self.ics_bus = ics_bus = wishbone.Interface(data_width=32, adr_width=12, addressing="word")
 
         # XICS Signals.
         self.ics_icp_xfer_src = Signal(4)
@@ -293,12 +293,12 @@ class XICSSlave(Module, AutoCSR):
         )
 
         # VHDL to Verilog Converter.
-        self.submodules.icp_vhd2v_converter = VHD2VConverter(platform,
+        self.icp_vhd2v_converter = VHD2VConverter(platform,
             top_entity    = "xics_icp_wrapper",
             build_dir     = os.path.abspath(os.path.dirname(__file__)),
             force_convert = ("ghdl" in self.variant),
         )
-        self.submodules.ics_vhd2v_converter = VHD2VConverter(platform,
+        self.ics_vhd2v_converter = VHD2VConverter(platform,
             top_entity    = "xics_ics_wrapper",
             build_dir     = os.path.abspath(os.path.dirname(__file__)),
             force_convert = ("ghdl" in self.variant),

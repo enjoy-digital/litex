@@ -46,37 +46,52 @@ class VexRiscvSMP(CPU):
     dcache_width         = 32
     icache_width         = 32
     aes_instruction      = False
+    expose_time          = False
     out_of_order_decoder = True
+    privileged_debug     = False
+    hardware_breakpoints = 0
     wishbone_memory      = False
     wishbone_force_32b   = False
     with_fpu             = False
     cpu_per_fpu          = 4
     with_rvc             = False
+    jtag_tap             = False
     dtlb_size            = 4
     itlb_size            = 4
+    csr_base             = 0xf000_0000
+    clint_base           = 0xf001_0000
+    plic_base            = 0xf0c0_0000
+    reset_vector         = 0
 
     # Command line configuration arguments.
     @staticmethod
     def args_fill(parser):
         cpu_group = parser.add_argument_group(title="CPU options")
-        cpu_group.add_argument("--cpu-count",                    default=1,           help="Number of CPU(s) in the cluster.", type=int)
-        cpu_group.add_argument("--with-coherent-dma",            action="store_true", help="Enable Coherent DMA Slave interface.")
-        cpu_group.add_argument("--without-coherent-dma",         action="store_true", help="Disable Coherent DMA Slave interface.")
-        cpu_group.add_argument("--dcache-width",                 default=None,        help="L1 data cache bus width.")
-        cpu_group.add_argument("--icache-width",                 default=None,        help="L1 instruction cache bus width.")
-        cpu_group.add_argument("--dcache-size",                  default=None,        help="L1 data cache size in byte per CPU.")
-        cpu_group.add_argument("--dcache-ways",                  default=None,        help="L1 data cache ways per CPU.")
-        cpu_group.add_argument("--icache-size",                  default=None,        help="L1 instruction cache size in byte per CPU.")
-        cpu_group.add_argument("--icache-ways",                  default=None,        help="L1 instruction cache ways per CPU")
-        cpu_group.add_argument("--aes-instruction",              default=None,        help="Enable AES instruction acceleration.")
-        cpu_group.add_argument("--without-out-of-order-decoder", action="store_true", help="Reduce area at cost of peripheral access speed")
-        cpu_group.add_argument("--with-wishbone-memory",         action="store_true", help="Disable native LiteDRAM interface")
-        cpu_group.add_argument("--wishbone-force-32b",           action="store_true", help="Force the wishbone bus to be 32 bits")
-        cpu_group.add_argument("--with-fpu",                     action="store_true", help="Enable the F32/F64 FPU")
-        cpu_group.add_argument("--cpu-per-fpu",                  default="4",         help="Maximal ratio between CPU count and FPU count. Will instanciate as many FPU as necessary.")
-        cpu_group.add_argument("--with-rvc",                     action="store_true", help="Enable RISC-V compressed instruction support")
-        cpu_group.add_argument("--dtlb-size",                    default=4,           help="Data TLB size.")
-        cpu_group.add_argument("--itlb-size",                    default=4,           help="Instruction TLB size.")
+        cpu_group.add_argument("--cpu-count",                    default=1,            help="Number of CPU(s) in the cluster.", type=int)
+        cpu_group.add_argument("--with-coherent-dma",            action="store_true",  help="Enable Coherent DMA Slave interface.")
+        cpu_group.add_argument("--without-coherent-dma",         action="store_true",  help="Disable Coherent DMA Slave interface.")
+        cpu_group.add_argument("--dcache-width",                 default=None,         help="L1 data cache bus width.")
+        cpu_group.add_argument("--icache-width",                 default=None,         help="L1 instruction cache bus width.")
+        cpu_group.add_argument("--dcache-size",                  default=None,         help="L1 data cache size in byte per CPU.")
+        cpu_group.add_argument("--dcache-ways",                  default=None,         help="L1 data cache ways per CPU.")
+        cpu_group.add_argument("--icache-size",                  default=None,         help="L1 instruction cache size in byte per CPU.")
+        cpu_group.add_argument("--icache-ways",                  default=None,         help="L1 instruction cache ways per CPU")
+        cpu_group.add_argument("--aes-instruction",              default=None,         help="Enable AES instruction acceleration.")
+        cpu_group.add_argument("--without-out-of-order-decoder", action="store_true",  help="Reduce area at cost of peripheral access speed")
+        cpu_group.add_argument("--with-wishbone-memory",         action="store_true",  help="Disable native LiteDRAM interface")
+        cpu_group.add_argument("--with-privileged-debug",        action="store_true",  help="Enable official RISC-V debug spec")
+        cpu_group.add_argument("--hardware-breakpoints",         default=1,            help="Number of hardware breapoints", type=int)
+        cpu_group.add_argument("--wishbone-force-32b",           action="store_true",  help="Force the wishbone bus to be 32 bits")
+        cpu_group.add_argument("--with-fpu",                     action="store_true",  help="Enable the F32/F64 FPU")
+        cpu_group.add_argument("--cpu-per-fpu",                  default="4",          help="Maximal ratio between CPU count and FPU count. Will instanciate as many FPU as necessary.")
+        cpu_group.add_argument("--with-rvc",                     action="store_true",  help="Enable RISC-V compressed instruction support")
+        cpu_group.add_argument("--dtlb-size",                    default=4,            help="Data TLB size.")
+        cpu_group.add_argument("--itlb-size",                    default=4,            help="Instruction TLB size.")
+        cpu_group.add_argument("--expose-time",                  action="store_true",  help="Add CLINT time output.")
+        cpu_group.add_argument("--csr-base",                     default="0xf0000000", help="CSR base address.")
+        cpu_group.add_argument("--clint-base",                   default="0xf0010000", help="CLINT base address.")
+        cpu_group.add_argument("--plic-base",                    default="0xf0c00000", help="PLIC base address.")
+        cpu_group.add_argument("--jtag-tap",                     action="store_true", help="Add the jtag tap instead of jtag instruction interface")
 
     @staticmethod
     def args_read(args):
@@ -98,7 +113,10 @@ class VexRiscvSMP(CPU):
         if(args.dcache_ways):                  VexRiscvSMP.dcache_ways           = int(args.dcache_ways)
         if(args.icache_ways):                  VexRiscvSMP.icache_ways           = int(args.icache_ways)
         if(args.aes_instruction):              VexRiscvSMP.aes_instruction       = bool(args.aes_instruction)
+        if(args.expose_time):                  VexRiscvSMP.expose_time           = bool(args.expose_time)
         if(args.without_out_of_order_decoder): VexRiscvSMP.out_of_order_decoder  = False
+        if(args.with_privileged_debug):        VexRiscvSMP.privileged_debug      = True
+        if(args.hardware_breakpoints):         VexRiscvSMP.hardware_breakpoints  = args.hardware_breakpoints
         if(args.with_wishbone_memory):         VexRiscvSMP.wishbone_memory       = True
         if(args.wishbone_force_32b):           VexRiscvSMP.wishbone_force_32b    = True
         if(args.with_fpu):
@@ -109,8 +127,12 @@ class VexRiscvSMP(CPU):
             VexRiscvSMP.cpu_per_fpu = args.cpu_per_fpu
         if(args.with_rvc):
             VexRiscvSMP.with_rvc = True
-        if(args.dtlb_size): VexRiscvSMP.dtlb_size = int(args.dtlb_size)
-        if(args.itlb_size): VexRiscvSMP.itlb_size = int(args.itlb_size)
+        if(args.dtlb_size):  VexRiscvSMP.dtlb_size  = int(args.dtlb_size)
+        if(args.itlb_size):  VexRiscvSMP.itlb_size  = int(args.itlb_size)
+        if(args.csr_base):   VexRiscvSMP.csr_base   = int(args.csr_base, 16)
+        if(args.clint_base): VexRiscvSMP.clint_base = int(args.clint_base, 16)
+        if(args.plic_base):  VexRiscvSMP.plic_base  = int(args.plic_base, 16)
+        if(args.jtag_tap):  VexRiscvSMP.jtag_tap = int(args.jtag_tap)
 
     # ABI.
     @staticmethod
@@ -137,24 +159,30 @@ class VexRiscvSMP(CPU):
             "rom":      0x0000_0000,
             "sram":     0x1000_0000,
             "main_ram": 0x4000_0000,
-            "csr":      0xf000_0000,
-            "clint":    0xf001_0000,
-            "plic":     0xf0c0_0000,
+            "csr":      VexRiscvSMP.csr_base,
+            "clint":    VexRiscvSMP.clint_base,
+            "plic":     VexRiscvSMP.plic_base,
         }
 
     # GCC Flags.
     @property
     def gcc_flags(self):
         flags =  f" -march={VexRiscvSMP.get_arch()} -mabi={VexRiscvSMP.get_abi()}"
-        flags += f" -D__vexriscv__"
-        flags += f" -DUART_POLLING"
+        flags += f" -D__vexriscv_smp__"
+        flags += f" -D__riscv_plic__"
         return flags
+
+    # Reserved Interrupts.
+    @property
+    def reserved_interrupts(self):
+        return {"noirq": 0}
 
     # Cluster Name Generation.
     @staticmethod
     def generate_cluster_name():
         ldw = f"Ldw{VexRiscvSMP.litedram_width}"
         VexRiscvSMP.cluster_name = f"VexRiscvLitexSmpCluster_" \
+        f"{'R' + hex(VexRiscvSMP.reset_vector) if VexRiscvSMP.reset_vector else ''}"\
         f"Cc{VexRiscvSMP.cpu_count}"    \
         "_" \
         f"Iw{VexRiscvSMP.icache_width}" \
@@ -170,11 +198,15 @@ class VexRiscvSMP(CPU):
         f"{'_'+ldw if not VexRiscvSMP.wishbone_memory  else ''}" \
         f"{'_Cdma' if VexRiscvSMP.coherent_dma         else ''}" \
         f"{'_Aes'  if VexRiscvSMP.aes_instruction      else ''}" \
+        f"{'_Time'  if VexRiscvSMP.expose_time      else ''}" \
         f"{'_Ood'  if VexRiscvSMP.out_of_order_decoder else ''}" \
         f"{'_Wm'   if VexRiscvSMP.wishbone_memory      else ''}" \
         f"{'_Wf32' if VexRiscvSMP.wishbone_force_32b   else ''}" \
         f"{'_Fpu' + str(VexRiscvSMP.cpu_per_fpu)  if VexRiscvSMP.with_fpu else ''}" \
-        f"{'_Rvc'  if VexRiscvSMP.with_rvc else ''}"
+        f"{'_Pd'   if VexRiscvSMP.privileged_debug else ''}" \
+        f"{'_Hb' + str(VexRiscvSMP.hardware_breakpoints) if VexRiscvSMP.hardware_breakpoints > 0 else ''}" \
+        f"{'_Rvc'  if VexRiscvSMP.with_rvc else ''}" \
+        f"{'_JtagT'  if VexRiscvSMP.jtag_tap else ''}"
 
     # Default Configs Generation.
     @staticmethod
@@ -250,6 +282,7 @@ class VexRiscvSMP(CPU):
         if(VexRiscvSMP.coherent_dma):
             gen_args.append("--coherent-dma")
         gen_args.append(f"--cpu-count={VexRiscvSMP.cpu_count}")
+        gen_args.append(f"--reset-vector={VexRiscvSMP.reset_vector}")
         gen_args.append(f"--ibus-width={VexRiscvSMP.icache_width}")
         gen_args.append(f"--dbus-width={VexRiscvSMP.dcache_width}")
         gen_args.append(f"--dcache-size={VexRiscvSMP.dcache_size}")
@@ -258,7 +291,10 @@ class VexRiscvSMP(CPU):
         gen_args.append(f"--icache-ways={VexRiscvSMP.icache_ways}")
         gen_args.append(f"--litedram-width={VexRiscvSMP.litedram_width}")
         gen_args.append(f"--aes-instruction={VexRiscvSMP.aes_instruction}")
+        gen_args.append(f"--expose-time={VexRiscvSMP.expose_time}")
         gen_args.append(f"--out-of-order-decoder={VexRiscvSMP.out_of_order_decoder}")
+        gen_args.append(f"--privileged-debug={VexRiscvSMP.privileged_debug}")
+        gen_args.append(f"--hardware-breakpoints={VexRiscvSMP.hardware_breakpoints}")
         gen_args.append(f"--wishbone-memory={VexRiscvSMP.wishbone_memory}")
         if(VexRiscvSMP.wishbone_force_32b): gen_args.append(f"--wishbone-force-32b={VexRiscvSMP.wishbone_force_32b}")
         gen_args.append(f"--fpu={VexRiscvSMP.with_fpu}")
@@ -268,6 +304,7 @@ class VexRiscvSMP(CPU):
         gen_args.append(f"--netlist-directory={vdir}")
         gen_args.append(f"--dtlb-size={VexRiscvSMP.dtlb_size}")
         gen_args.append(f"--itlb-size={VexRiscvSMP.itlb_size}")
+        gen_args.append(f"--jtag-tap={VexRiscvSMP.jtag_tap}")
 
         cmd = 'cd {path} && sbt "runMain vexriscv.demo.smp.VexRiscvLitexSmpClusterCmdGen {args}"'.format(path=os.path.join(vdir, "ext", "VexRiscv"), args=" ".join(gen_args))
         subprocess.check_call(cmd, shell=True)
@@ -278,21 +315,29 @@ class VexRiscvSMP(CPU):
         self.variant          = variant
         self.human_name       = self.human_name + "-" + self.variant.upper()
         self.reset            = Signal()
-        self.jtag_clk         = Signal()
-        self.jtag_enable      = Signal()
-        self.jtag_capture     = Signal()
-        self.jtag_shift       = Signal()
-        self.jtag_update      = Signal()
-        self.jtag_reset       = Signal()
-        self.jtag_tdo         = Signal()
-        self.jtag_tdi         = Signal()
+
+        if VexRiscvSMP.jtag_tap:
+            self.jtag_clk = Signal()
+            self.jtag_tdo = Signal()
+            self.jtag_tdi = Signal()
+            self.jtag_tms = Signal()
+        else:
+            self.jtag_clk     = Signal()
+            self.jtag_tdo     = Signal()
+            self.jtag_tdi     = Signal()
+            self.jtag_reset   = Signal()
+            self.jtag_enable  = Signal()
+            self.jtag_capture = Signal()
+            self.jtag_shift   = Signal()
+            self.jtag_update  = Signal()
+
         self.interrupt        = Signal(32)
         self.pbus             = pbus = wishbone.Interface(data_width={
             # Always 32-bit when using direct LiteDRAM interfaces.
             False : 32,
             # Else max of I/DCache-width.
             True  : max(VexRiscvSMP.icache_width, VexRiscvSMP.dcache_width),
-        }[VexRiscvSMP.wishbone_memory and not VexRiscvSMP.wishbone_force_32b])
+        }[VexRiscvSMP.wishbone_memory and not VexRiscvSMP.wishbone_force_32b], addressing="word")
         self.periph_buses     = [pbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses     = []     # Memory buses (Connected directly to LiteDRAM).
 
@@ -300,21 +345,11 @@ class VexRiscvSMP(CPU):
 
         self.cpu_params = dict(
             # Clk / Rst.
-            i_debugCd_external_clk   = ClockSignal(),
-            i_debugCd_external_reset = ResetSignal() | self.reset,
+            i_debugCd_external_clk   = ClockSignal("sys"),
+            i_debugCd_external_reset = ResetSignal("sys") | self.reset,
 
             # Interrupts.
             i_interrupts = self.interrupt,
-
-            # JTAG.
-            i_jtag_clk          = self.jtag_clk,
-            i_debugPort_enable  = self.jtag_enable,
-            i_debugPort_capture = self.jtag_capture,
-            i_debugPort_shift   = self.jtag_shift,
-            i_debugPort_update  = self.jtag_update,
-            i_debugPort_reset   = self.jtag_reset,
-            i_debugPort_tdi     = self.jtag_tdi,
-            o_debugPort_tdo     = self.jtag_tdo,
 
             # Peripheral Bus (Master).
             o_peripheral_CYC      = pbus.cyc,
@@ -330,8 +365,28 @@ class VexRiscvSMP(CPU):
             o_peripheral_BTE      = pbus.bte
         )
 
+        if VexRiscvSMP.jtag_tap:
+            self.cpu_params.update(
+                i_debugPort_tck     = self.jtag_clk,
+                i_debugPort_tms     = self.jtag_tms,
+                i_debugPort_tdi     = self.jtag_tdi,
+                o_debugPort_tdo     = self.jtag_tdo
+            )
+        else:
+            self.cpu_params.update(
+                i_jtag_clk          = self.jtag_clk,
+                i_debugPort_enable  = self.jtag_enable,
+                i_debugPort_capture = self.jtag_capture,
+                i_debugPort_shift   = self.jtag_shift,
+                i_debugPort_update  = self.jtag_update,
+                i_debugPort_reset   = self.jtag_reset,
+                i_debugPort_tdi     = self.jtag_tdi,
+                o_debugPort_tdo     = self.jtag_tdo
+            )
+
+        # DMA.
         if VexRiscvSMP.coherent_dma:
-            self.dma_bus = dma_bus = wishbone.Interface(data_width=VexRiscvSMP.dcache_width)
+            self.dma_bus = dma_bus = wishbone.Interface(data_width=VexRiscvSMP.dcache_width, address_width=32, addressing="word")
             dma_bus_stall   = Signal()
             dma_bus_inhibit = Signal()
             self.cpu_params.update(
@@ -355,9 +410,16 @@ class VexRiscvSMP(CPU):
                 )
             ]
 
+        # expose CLINT time
+        if VexRiscvSMP.expose_time:
+            self.clint_time = Signal(64)
+            self.cpu_params.update(
+                o_clint_time    = self.clint_time
+            )
+
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
-        assert reset_address == 0x0000_0000
+        VexRiscvSMP.reset_vector = reset_address
 
     def add_sources(self, platform):
         vdir = get_data_mod("cpu", "vexriscv_smp").data_location
@@ -385,16 +447,35 @@ class VexRiscvSMP(CPU):
         platform.add_source(os.path.join(vdir, ram_filename), "verilog")
 
         # Add Cluster.
-        platform.add_source(os.path.join(vdir,  self.cluster_name + ".v"), "verilog")
+        cluster_filename = os.path.join(vdir,  self.cluster_name + ".v")
+        def add_synthesis_define(filename):
+            """Add SYNTHESIS define to verilog for toolchains requiring it, ex Gowin"""
+            synthesis_define = "`define SYNTHESIS\n"
+            # Read file.
+            with open(filename, "r") as f:
+                lines = f.readlines()
+            # Modify file.
+            with open(filename, "w") as f:
+                if lines[0] != synthesis_define:
+                    f.write(synthesis_define)
+                for line in lines:
+                    f.write(line)
+        add_synthesis_define(cluster_filename)
+        platform.add_source(cluster_filename, "verilog")
+
+    def add_jtag(self, pads):
+        self.comb += [
+            self.jtag_tms.eq(pads.tms),
+            self.jtag_clk.eq(pads.tck),
+            self.jtag_tdi.eq(pads.tdi),
+            pads.tdo.eq(self.jtag_tdo),
+        ]
 
     def add_soc_components(self, soc):
         if self.variant == "linux":
-            # Set UART/Timer0 CSRs/IRQs to the ones used by OpenSBI.
+            # Set UART/Timer0 CSRs to the ones used by OpenSBI.
             soc.csr.add("uart",   n=2)
             soc.csr.add("timer0", n=3)
-
-            soc.irq.add("uart",   n=0)
-            soc.irq.add("timer0", n=1)
 
             # Add OpenSBI region.
             soc.bus.add_region("opensbi", SoCRegion(origin=self.mem_map["main_ram"] + 0x00f0_0000, size=0x8_0000, cached=True, linker=True))
@@ -423,7 +504,7 @@ class VexRiscvSMP(CPU):
             soc.add_config("CPU_ITLB_WAYS", VexRiscvSMP.itlb_size)
 
         # Add PLIC as Bus Slave
-        self.plicbus = plicbus  = wishbone.Interface()
+        self.plicbus = plicbus  = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.cpu_params.update(
             i_plicWishbone_CYC       = plicbus.cyc,
             i_plicWishbone_STB       = plicbus.stb,
@@ -436,7 +517,7 @@ class VexRiscvSMP(CPU):
         soc.bus.add_slave("plic", self.plicbus, region=SoCRegion(origin=soc.mem_map.get("plic"), size=0x40_0000, cached=False))
 
         # Add CLINT as Bus Slave
-        self.clintbus = clintbus = wishbone.Interface()
+        self.clintbus = clintbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.cpu_params.update(
             i_clintWishbone_CYC      = clintbus.cyc,
             i_clintWishbone_STB      = clintbus.stb,

@@ -13,7 +13,8 @@ from litex.build.anlogic import common, anlogic
 # AnlogicPlatform ----------------------------------------------------------------------------------
 
 class AnlogicPlatform(GenericPlatform):
-    _bitstream_ext = ".bit"
+    _bitstream_ext  = ".bit"
+    _jtag_support  = False
 
     _supported_toolchains = ["td"]
 
@@ -30,11 +31,8 @@ class AnlogicPlatform(GenericPlatform):
         return GenericPlatform.get_verilog(self, *args,
             special_overrides = so,
             attr_translate    = self.toolchain.attr_translate,
-            **kwargs)
+            **kwargs
+        )
 
     def build(self, *args, **kwargs):
         return self.toolchain.build(self, *args, **kwargs)
-
-    def add_period_constraint(self, clk, period):
-        if clk is None: return
-        self.toolchain.add_period_constraint(self, clk, period)

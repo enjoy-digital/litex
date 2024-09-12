@@ -51,22 +51,6 @@
 #endif // SDRAM_PHY_DELAYS > 32
 
 /*-----------------------------------------------------------------------*/
-/* Helpers                                                               */
-/*-----------------------------------------------------------------------*/
-
-#define max(x, y) (((x) > (y)) ? (x) : (y))
-#define min(x, y) (((x) < (y)) ? (x) : (y))
-
-__attribute__((unused)) void cdelay(int i) {
-#ifndef CONFIG_BIOS_NO_DELAYS
-	while(i > 0) {
-		__asm__ volatile(CONFIG_CPU_NOP);
-		i--;
-	}
-#endif // CONFIG_BIOS_NO_DELAYS
-}
-
-/*-----------------------------------------------------------------------*/
 /* Constants                                                             */
 /*-----------------------------------------------------------------------*/
 
@@ -254,10 +238,34 @@ void sdram_software_control_off(void) {
 /*  Mode Register                                                        */
 /*-----------------------------------------------------------------------*/
 
+__attribute__((unused)) static int swap_bit(int num, int a, int b) {
+	if (((num >> a) & 1) != ((num >> b) & 1)) {
+		num ^= (1 << a);
+		num ^= (1 << b);
+	}
+	return num;
+}
+
 void sdram_mode_register_write(char reg, int value) {
+#ifndef SDRAM_PHY_CLAM_SHELL
 	sdram_dfii_pi0_address_write(value);
 	sdram_dfii_pi0_baddress_write(reg);
 	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
+#else
+	sdram_dfii_pi0_address_write(value);
+	sdram_dfii_pi0_baddress_write(reg);
+	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS_TOP);
+
+	value = swap_bit(value, 3, 4);
+	value = swap_bit(value, 5, 6);
+	value = swap_bit(value, 7, 8);
+	value = swap_bit(value, 11, 13);
+	reg = swap_bit(reg, 0, 1);
+
+	sdram_dfii_pi0_address_write(value);
+	sdram_dfii_pi0_baddress_write(reg);
+	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS_BOTTOM);
+#endif
 }
 
 #ifdef CSR_DDRPHY_BASE
@@ -410,7 +418,7 @@ static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int
 	return errors;
 }
 
-static int _seed_array[] = {42, 84, 36, 72, 24, 48};
+static int _seed_array[] = {42, 84, 36};
 static int _seed_array_length = sizeof(_seed_array) / sizeof(_seed_array[0]);
 
 static int run_test_pattern(int module, int dq_line) {
@@ -541,9 +549,7 @@ int _sdram_write_leveling_cdly_range_end   = -1;
 
 static void sdram_write_leveling_on(void) {
 	// Flip write leveling bit in the Mode Register, as it is disabled by default
-	sdram_dfii_pi0_address_write(DDRX_MR_WRLVL_RESET ^ (1 << DDRX_MR_WRLVL_BIT));
-	sdram_dfii_pi0_baddress_write(DDRX_MR_WRLVL_ADDRESS);
-	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
+	sdram_mode_register_write(DDRX_MR_WRLVL_ADDRESS, DDRX_MR_WRLVL_RESET ^ (1 << DDRX_MR_WRLVL_BIT));
 
 #ifdef SDRAM_PHY_DDR4_RDIMM
 	sdram_dfii_pi0_address_write((DDRX_MR_WRLVL_RESET ^ (1 << DDRX_MR_WRLVL_BIT)) ^ 0x2BF8) ;
@@ -555,9 +561,7 @@ static void sdram_write_leveling_on(void) {
 }
 
 static void sdram_write_leveling_off(void) {
-	sdram_dfii_pi0_address_write(DDRX_MR_WRLVL_RESET);
-	sdram_dfii_pi0_baddress_write(DDRX_MR_WRLVL_ADDRESS);
-	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
+	sdram_mode_register_write(DDRX_MR_WRLVL_ADDRESS, DDRX_MR_WRLVL_RESET);
 
 #ifdef SDRAM_PHY_DDR4_RDIMM
 	sdram_dfii_pi0_address_write(DDRX_MR_WRLVL_RESET ^ 0x2BF8);
@@ -1028,9 +1032,15 @@ static void sdram_write_latency_calibration(void) {
 			for (i=0; i<bitslip; i++) {
 				sdram_leveling_action(module, dq_line, write_inc_dq_bitslip);
 			}
-		}
+#ifdef SDRAM_DELAY_PER_DQ
 		printf("\n");
+#endif
+		}
 	}
+#ifndef SDRAM_DELAY_PER_DQ
+	printf("\n");
+#endif
+
 }
 
 #endif // SDRAM_PHY_WRITE_LATENCY_CALIBRATION_CAPABLE

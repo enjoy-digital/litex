@@ -83,9 +83,10 @@ class NextPNRWrapper():
         =======
         str containing instruction and/or rule
         """
-        cmd = "{pnr_name} --{in_fmt} {build_name}.{in_fmt} --{constr_fmt}" + \
-            " {build_name}.{constr_fmt}" + \
-            " --{out_fmt} {build_name}.{out_ext} {pnr_opts}"
+        cmd = "{pnr_name} --{in_fmt} {build_name}.{in_fmt}"
+        if self._constr_format != "":
+            cmd += " --{constr_fmt} {build_name}.{constr_fmt}"
+        cmd += " --{out_fmt} {build_name}.{out_ext} {pnr_opts}"
         base_cmd = cmd.format(
             pnr_name   = self.name,
             build_name = self._build_name,

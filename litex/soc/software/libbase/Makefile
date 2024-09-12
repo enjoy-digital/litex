@@ -11,7 +11,8 @@ OBJECTS =  \
 	uart.o     \
 	spiflash.o \
 	i2c.o \
-	isr.o
+	isr.o \
+	hyperram.o
 
 all: libbase.a
 

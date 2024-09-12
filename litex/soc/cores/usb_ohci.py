@@ -12,20 +12,22 @@ from migen import *
 
 from litex import get_data_mod
 
+from litex.gen import *
+
 from litex.soc.interconnect import wishbone
 
 from litex.build.io import SDRTristate
 
 # USB OHCI -----------------------------------------------------------------------------------------
 
-class USBOHCI(Module):
+class USBOHCI(LiteXModule):
     def __init__(self, platform, pads, usb_clk_freq=48e6, dma_data_width=32):
         self.pads           = pads
-        self.usb_clk_freq   = usb_clk_freq
+        self.usb_clk_freq   = int(usb_clk_freq)
         self.dma_data_width = dma_data_width
 
-        self.wb_ctrl = wb_ctrl = wishbone.Interface(data_width=32)
-        self.wb_dma  = wb_dma  = wishbone.Interface(data_width=dma_data_width)
+        self.wb_ctrl = wb_ctrl = wishbone.Interface(data_width=32,             address_width=32, addressing="word")
+        self.wb_dma  = wb_dma  = wishbone.Interface(data_width=dma_data_width, address_width=32, addressing="word")
 
         self.interrupt = Signal()
 
@@ -93,12 +95,14 @@ class USBOHCI(Module):
                 o  = usb_ios[i].dp_o,
                 oe = usb_ios[i].dp_oe,
                 i  = usb_ios[i].dp_i,
+                clk = ClockSignal("usb")
             )
             self.specials += SDRTristate(
                 io = pads.dm[i],
                 o  = usb_ios[i].dm_o,
                 oe = usb_ios[i].dm_oe,
                 i  = usb_ios[i].dm_i,
+                clk = ClockSignal("usb")
             )
 
         self.add_sources(platform)
@@ -129,7 +133,7 @@ class USBOHCI(Module):
         gen_args.append(f"--netlist-name={self.get_netlist_name()}")
         gen_args.append(f"--netlist-directory={vdir}")
 
-        cmd = 'cd {path} && sbt "runMain spinal.lib.com.usb.ohci.UsbOhciWishbone {args}"'.format(
+        cmd = 'cd {path} && sbt "lib/runMain spinal.lib.com.usb.ohci.UsbOhciWishbone {args}"'.format(
             path=os.path.join(vdir, "ext", "SpinalHDL"), args=" ".join(gen_args))
         print("!!! "   + cmd)
         if os.system(cmd) != 0:

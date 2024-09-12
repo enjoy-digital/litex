@@ -16,10 +16,10 @@
  * Detect SDcard
  *
  */
-#ifdef CSR_SDPHY_BASE
+#ifdef CSR_SDCARD_PHY_BASE
 static void sdcard_detect_handler(int nb_params, char **params)
 {
-	uint8_t cd = sdphy_card_detect_read();
+	uint8_t cd = sdcard_phy_card_detect_read();
 	printf("SDCard %sinserted.\n", cd ? "not " : "");
 }
 
@@ -32,7 +32,7 @@ define_command(sdcard_detect, sdcard_detect_handler, "Detect SDCard", LITESDCARD
  * Initialize SDcard
  *
  */
-#ifdef CSR_SDCORE_BASE
+#ifdef CSR_SDCARD_CORE_BASE
 static void sdcard_init_handler(int nb_params, char **params)
 {
 	printf("Initialize SDCard... ");
@@ -51,7 +51,7 @@ define_command(sdcard_init, sdcard_init_handler, "Initialize SDCard", LITESDCARD
  * Set SDcard clock frequency
  *
  */
-#ifdef CSR_SDCORE_BASE
+#ifdef CSR_SDCARD_CORE_BASE
 static void sdcard_freq_handler(int nb_params, char **params)
 {
 	unsigned int freq;
@@ -79,7 +79,7 @@ define_command(sdcard_freq, sdcard_freq_handler, "Set SDCard clock freq", LITESD
  * Perform SDcard block read
  *
  */
-#ifdef CSR_SDBLOCK2MEM_BASE
+#ifdef CSR_SDCARD_BLOCK2MEM_BASE
 static void sdcard_read_handler(int nb_params, char **params)
 {
 	unsigned int block;
@@ -110,7 +110,7 @@ define_command(sdcard_read, sdcard_read_handler, "Read SDCard block", LITESDCARD
  * Perform SDcard block write
  *
  */
-#ifdef CSR_SDMEM2BLOCK_BASE
+#ifdef CSR_SDCARD_MEM2BLOCK_BASE
 static void sdcard_write_handler(int nb_params, char **params)
 {
 	int i;

@@ -8,6 +8,7 @@
 
 from migen import *
 
+from litex.gen import *
 from litex.gen.common import reverse_bytes
 
 from litex.soc.interconnect.csr import *
@@ -21,7 +22,7 @@ def format_bytes(s, endianness):
 
 # WishboneDMAReader --------------------------------------------------------------------------------
 
-class WishboneDMAReader(Module, AutoCSR):
+class WishboneDMAReader(LiteXModule):
     """Read data from Wishbone MMAP memory.
 
     For every address written to the sink, one word will be produced on the source.
@@ -48,7 +49,7 @@ class WishboneDMAReader(Module, AutoCSR):
         # # #
 
         # FIFO..
-        self.submodules.fifo = fifo = stream.SyncFIFO([("data", bus.data_width)], depth=fifo_depth)
+        self.fifo = fifo = stream.SyncFIFO([("data", bus.data_width)], depth=fifo_depth)
 
         # Reads -> FIFO.
         self.comb += [
@@ -72,13 +73,13 @@ class WishboneDMAReader(Module, AutoCSR):
         if with_csr:
             self.add_csr()
 
-    def add_csr(self, default_base=0, default_length=0, default_enable=0, default_loop=0):
-        self._base   = CSRStorage(64, reset=default_base)
-        self._length = CSRStorage(32, reset=default_length)
-        self._enable = CSRStorage(reset=default_enable)
-        self._done   = CSRStatus()
-        self._loop   = CSRStorage(reset=default_loop)
-        self._offset = CSRStatus(32)
+    def add_ctrl(self, default_base=0, default_length=0, default_enable=0, default_loop=0):
+        self.base   = Signal(64, reset=default_base)
+        self.length = Signal(32, reset=default_length)
+        self.enable = Signal(reset=default_enable)
+        self.done   = Signal()
+        self.loop   = Signal(reset=default_loop)
+        self.offset = Signal(32)
 
         # # #
 
@@ -86,15 +87,13 @@ class WishboneDMAReader(Module, AutoCSR):
         base    = Signal(self.bus.adr_width)
         offset  = Signal(self.bus.adr_width)
         length  = Signal(self.bus.adr_width)
-        self.comb += base.eq(self._base.storage[shift:])
-        self.comb += length.eq(self._length.storage[shift:])
+        self.comb += base.eq(self.base[shift:])
+        self.comb += length.eq(self.length[shift:])
 
-        self.comb += self._offset.status.eq(offset)
+        self.comb += self.offset.eq(offset)
 
-        fsm = FSM(reset_state="IDLE")
-        fsm = ResetInserter()(fsm)
-        self.submodules += fsm
-        self.comb += fsm.reset.eq(~self._enable.storage)
+        self.fsm = fsm = ResetInserter()(FSM(reset_state="IDLE"))
+        self.comb += fsm.reset.eq(~self.enable)
         fsm.act("IDLE",
             NextValue(offset, 0),
             NextState("RUN"),
@@ -106,7 +105,7 @@ class WishboneDMAReader(Module, AutoCSR):
             If(self.sink.ready,
                 NextValue(offset, offset + 1),
                 If(self.sink.last,
-                    If(self._loop.storage,
+                    If(self.loop,
                         NextValue(offset, 0)
                     ).Else(
                         NextState("DONE")
@@ -114,11 +113,34 @@ class WishboneDMAReader(Module, AutoCSR):
                 )
             )
         )
-        fsm.act("DONE", self._done.status.eq(1))
+        fsm.act("DONE", self.done.eq(1))
+
+    def add_csr(self, default_base=0, default_length=0, default_enable=0, default_loop=0):
+        if not hasattr(self, "base"):
+            self.add_ctrl()
+        self._base   = CSRStorage(64, reset=default_base)
+        self._length = CSRStorage(32, reset=default_length)
+        self._enable = CSRStorage(reset=default_enable)
+        self._done   = CSRStatus()
+        self._loop   = CSRStorage(reset=default_loop)
+        self._offset = CSRStatus(32)
+
+        # # #
+
+        self.comb += [
+            # Control.
+            self.base.eq(self._base.storage),
+            self.length.eq(self._length.storage),
+            self.enable.eq(self._enable.storage),
+            self.loop.eq(self._loop.storage),
+            # Status.
+            self._done.status.eq(self.done),
+            self._offset.status.eq(self.offset),
+        ]
 
 # WishboneDMAWriter --------------------------------------------------------------------------------
 
-class WishboneDMAWriter(Module, AutoCSR):
+class WishboneDMAWriter(LiteXModule):
     """Write data to Wishbone MMAP memory.
 
     Parameters
@@ -154,16 +176,16 @@ class WishboneDMAWriter(Module, AutoCSR):
         if with_csr:
             self.add_csr()
 
-    def add_csr(self, default_base=0, default_length=0, default_enable=0, default_loop=0, ready_on_idle=1):
+    def add_ctrl(self, default_base=0, default_length=0, default_enable=0, default_loop=0, ready_on_idle=1):
         self._sink = self.sink
         self.sink  = stream.Endpoint([("data", self.bus.data_width)])
 
-        self._base   = CSRStorage(64, reset=default_base)
-        self._length = CSRStorage(32, reset=default_length)
-        self._enable = CSRStorage(reset=default_enable)
-        self._done   = CSRStatus()
-        self._loop   = CSRStorage(reset=default_loop)
-        self._offset = CSRStatus(32)
+        self.base   = Signal(64, reset=default_base)
+        self.length = Signal(32, reset=default_length)
+        self.enable = Signal(reset=default_enable)
+        self.done   = Signal()
+        self.loop   = Signal(reset=default_loop)
+        self.offset = Signal(32)
 
         # # #
 
@@ -171,15 +193,13 @@ class WishboneDMAWriter(Module, AutoCSR):
         base    = Signal(self.bus.adr_width)
         offset  = Signal(self.bus.adr_width)
         length  = Signal(self.bus.adr_width)
-        self.comb += base.eq(self._base.storage[shift:])
-        self.comb += length.eq(self._length.storage[shift:])
+        self.comb += base.eq(self.base[shift:])
+        self.comb += length.eq(self.length[shift:])
 
-        self.comb += self._offset.status.eq(offset)
+        self.comb += self.offset.eq(offset)
 
-        fsm = FSM(reset_state="IDLE")
-        fsm = ResetInserter()(fsm)
-        self.submodules += fsm
-        self.comb += fsm.reset.eq(~self._enable.storage)
+        self.fsm = fsm = ResetInserter()(FSM(reset_state="IDLE"))
+        self.comb += fsm.reset.eq(~self.enable)
         fsm.act("IDLE",
             self.sink.ready.eq(ready_on_idle),
             NextValue(offset, 0),
@@ -194,7 +214,7 @@ class WishboneDMAWriter(Module, AutoCSR):
             If(self.sink.valid & self.sink.ready,
                 NextValue(offset, offset + 1),
                 If(self._sink.last,
-                    If(self._loop.storage,
+                    If(self.loop,
                         NextValue(offset, 0)
                     ).Else(
                         NextState("DONE")
@@ -202,4 +222,27 @@ class WishboneDMAWriter(Module, AutoCSR):
                 )
             )
         )
-        fsm.act("DONE", self._done.status.eq(1))
+        fsm.act("DONE", self.done.eq(1))
+
+    def add_csr(self, default_base=0, default_length=0, default_enable=0, default_loop=0):
+        if not hasattr(self, "base"):
+            self.add_ctrl()
+        self._base   = CSRStorage(64, reset=default_base)
+        self._length = CSRStorage(32, reset=default_length)
+        self._enable = CSRStorage(reset=default_enable)
+        self._done   = CSRStatus()
+        self._loop   = CSRStorage(reset=default_loop)
+        self._offset = CSRStatus(32)
+
+        # # #
+
+        self.comb += [
+            # Control.
+            self.base.eq(self._base.storage),
+            self.length.eq(self._length.storage),
+            self.enable.eq(self._enable.storage),
+            self.loop.eq(self._loop.storage),
+            # Status.
+            self._done.status.eq(self.done),
+            self._offset.status.eq(self.offset),
+        ]

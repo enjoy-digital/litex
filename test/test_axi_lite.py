@@ -149,13 +149,20 @@ class TestAXILite(unittest.TestCase):
     def test_wishbone2axilite2wishbone(self, data_width=32, address_width=32):
         class DUT(Module):
             def __init__(self):
-                self.wishbone = wishbone.Interface(data_width=data_width,
-                                                   adr_width=address_width - log2_int(data_width // 8))
+                self.wishbone = wishbone.Interface(
+                    data_width = data_width,
+                    adr_width  = address_width - log2_int(data_width // 8),
+                    addressing = "word",
+                )
 
                 # # #
 
                 axi_lite = AXILiteInterface(data_width=data_width, address_width=address_width)
-                wb  = wishbone.Interface(data_width=data_width, adr_width=address_width - log2_int(data_width // 8))
+                wb  = wishbone.Interface(
+                    data_width = data_width,
+                    adr_width  = address_width - log2_int(data_width // 8),
+                    addressing = "word",
+                )
 
                 wishbone2axi = Wishbone2AXILite(self.wishbone, axi_lite)
                 axi2wishbone = AXILite2Wishbone(axi_lite, wb)
