@@ -119,7 +119,7 @@ class XilinxVivadoToolchain(GenericToolchain):
         synth_mode                           = "vivado",
         enable_xpm                           = False,
         vivado_synth_directive               = "default",
-        opt_directive                        = "default",
+        vivado_opt_directive                 = "default",
         vivado_place_directive               = "default",
         vivado_post_place_phys_opt_directive = None,
         vivado_route_directive               = "default",
@@ -131,7 +131,7 @@ class XilinxVivadoToolchain(GenericToolchain):
         self._enable_xpm = enable_xpm
 
         self.vivado_synth_directive               = vivado_synth_directive
-        self.opt_directive                        = opt_directive
+        self.vivado_opt_directive                 = vivado_opt_directive
         self.vivado_place_directive               = vivado_place_directive
         self.vivado_post_place_phys_opt_directive = vivado_post_place_phys_opt_directive
         self.vivado_route_directive               = vivado_route_directive
@@ -309,7 +309,7 @@ class XilinxVivadoToolchain(GenericToolchain):
 
         # Optimize
         tcl.append("\n# Optimize design\n")
-        tcl.append(f"opt_design -directive {self.opt_directive}")
+        tcl.append(f"opt_design -directive {self.vivado_opt_directive}")
 
         # Incremental implementation
         if self.incremental_implementation:
@@ -415,7 +415,7 @@ def vivado_build_argdict(args):
     return {
         "synth_mode"                           : args.synth_mode,
         "vivado_synth_directive"               : args.vivado_synth_directive,
-        "opt_directive"                        : args.vivado_opt_directive,
+        "vivado_opt_directive"                 : args.vivado_vivado_opt_directive,
         "vivado_place_directive"               : args.vivado_place_directive,
         "vivado_post_place_phys_opt_directive" : args.vivado_post_place_phys_opt_directive,
         "vivado_route_directive"               : args.vivado_route_directive,
