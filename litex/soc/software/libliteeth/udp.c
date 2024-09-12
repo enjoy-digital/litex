@@ -173,6 +173,11 @@ void udp_set_ip(uint32_t ip)
 	my_ip = ip;
 }
 
+uint32_t udp_get_ip(void)
+{
+	return my_ip;
+}
+
 void udp_set_mac(const uint8_t *macaddr)
 {
 	int i;
@@ -183,6 +188,14 @@ void udp_set_mac(const uint8_t *macaddr)
 /* ARP cache - one entry only */
 static uint8_t cached_mac[6];
 static uint32_t cached_ip;
+
+void udp_set_broadcast(void)
+{
+	int i;
+	for(i=0;i<6;i++)
+		cached_mac[i] = 0xFF;
+	cached_ip = IPTOINT(255, 255, 255, 255);
+}
 
 static void process_arp(void)
 {
@@ -366,6 +379,7 @@ int udp_send(uint16_t src_port, uint16_t dst_port, uint32_t length)
 }
 
 static udp_callback rx_callback;
+static udp_callback bx_callback;
 
 static void process_ip(void)
 {
@@ -379,17 +393,32 @@ static void process_ip(void)
 	// check disabled for QEMU compatibility
 	//if(ntohs(rxbuffer->frame.contents.udp.ip.fragment_offset) != IP_DONT_FRAGMENT) return;
 	if(udp_ip->ip.proto != IP_PROTO_UDP) return;
-	if(ntohl(udp_ip->ip.dst_ip) != my_ip) return;
 	if(ntohs(udp_ip->udp.length) < sizeof(struct udp_header)) return;
+	if(ntohl(udp_ip->ip.dst_ip) != my_ip) {
+		if(ntohl(udp_ip->ip.dst_ip) == IPTOINT(255, 255, 255, 255) && bx_callback) {
+			bx_callback(ntohl(udp_ip->ip.src_ip), ntohs(udp_ip->udp.src_port), ntohs(udp_ip->udp.dst_port),
+				    udp_ip->payload, ntohs(udp_ip->udp.length)-sizeof(struct udp_header));
+		}
+	} else {
 
-	if(rx_callback)
-		rx_callback(ntohl(udp_ip->ip.src_ip), ntohs(udp_ip->udp.src_port), ntohs(udp_ip->udp.dst_port),
-			    udp_ip->payload, ntohs(udp_ip->udp.length)-sizeof(struct udp_header));
+		if(rx_callback) {
+			rx_callback(ntohl(udp_ip->ip.src_ip), ntohs(udp_ip->udp.src_port), ntohs(udp_ip->udp.dst_port),
+				    udp_ip->payload, ntohs(udp_ip->udp.length)-sizeof(struct udp_header));
+		} else if(bx_callback) {
+			bx_callback(ntohl(udp_ip->ip.src_ip), ntohs(udp_ip->udp.src_port), ntohs(udp_ip->udp.dst_port),
+				    udp_ip->payload, ntohs(udp_ip->udp.length)-sizeof(struct udp_header));
+		}
+	}
 }
 
 void udp_set_callback(udp_callback callback)
 {
 	rx_callback = callback;
+}
+
+void udp_set_broadcast_callback(udp_callback callback)
+{
+	bx_callback = callback;
 }
 
 static void process_frame(void)
@@ -447,6 +476,7 @@ void udp_start(const uint8_t *macaddr, uint32_t ip)
 	rxslot = 0;
 	rxbuffer = (ethernet_buffer *)(ETHMAC_BASE + ETHMAC_SLOT_SIZE * rxslot);
 	rx_callback = (udp_callback)0;
+	bx_callback = (udp_callback)0;
 }
 
 void udp_service(void)
