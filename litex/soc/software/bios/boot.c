@@ -21,6 +21,8 @@
 #include "sfl.h"
 #include "boot.h"
 
+#include <bios/helpers.h>
+
 #include <libbase/uart.h>
 
 #include <libbase/console.h>
@@ -29,6 +31,7 @@
 #include <libbase/progress.h>
 
 #include <libliteeth/udp.h>
+#include <libliteeth/bootp.h>
 #include <libliteeth/tftp.h>
 
 #include <liblitesdcard/spisdcard.h>
@@ -538,34 +541,82 @@ static void netboot_from_bin(const char * filename, unsigned int ip, unsigned sh
 }
 #endif
 
+void bootp(void)
+{
+	uint32_t client_ip;
+	uint32_t server_ip;
+	char bootp_filename[64];
+	int ret;
+
+	printf("Requesting ip...\n");
+	udp_start(macadr, IPTOINT(local_ip[0], local_ip[1], local_ip[2], local_ip[3]));
+	ret = bootp_get(macadr, &client_ip, &server_ip, (char *) &bootp_filename, sizeof(bootp_filename), 1);
+	if (ret == 0) {
+		printf("Local IP: ");
+		print_ip(client_ip);
+		printf("\n");
+		printf("Remote IP: ");
+		print_ip(server_ip);
+		printf("\n");
+	}
+	printf("BOOTP done.\n");
+}
+
 void netboot(int nb_params, char **params)
 {
-	unsigned int ip;
 	char * filename = NULL;
+	char bootp_name[64];
+	uint8_t bootp_len;
+	uint8_t bootp_ret;
+	uint32_t client_ip;
+	uint32_t server_ip;
 
 	if (nb_params > 0 )
 		filename = params[0];
 
 	printf("Booting from network...\n");
 
-	printf("Local IP: %d.%d.%d.%d\n", local_ip[0], local_ip[1], local_ip[2], local_ip[3]);
-	printf("Remote IP: %d.%d.%d.%d\n", remote_ip[0], remote_ip[1], remote_ip[2], remote_ip[3]);
+	server_ip = IPTOINT(remote_ip[0], remote_ip[1], remote_ip[2], remote_ip[3]);
+	if(udp_get_ip() == 0)
+		udp_start(macadr, IPTOINT(local_ip[0], local_ip[1], local_ip[2], local_ip[3]));
 
-	ip = IPTOINT(remote_ip[0], remote_ip[1], remote_ip[2], remote_ip[3]);
-	udp_start(macadr, IPTOINT(local_ip[0], local_ip[1], local_ip[2], local_ip[3]));
+	bootp_ret = bootp_get(macadr, &client_ip, &server_ip, (char *) &bootp_name, sizeof(bootp_name), 0);
+	bootp_len = strlen(bootp_name);
 
-	if (filename) {
+	if(bootp_ret == 0)
+		printf("Received configuration via BOOTP.\n");
+	printf("Local IP: ");
+	print_ip(client_ip);
+	printf("\n");
+	printf("Remote IP: ");
+	print_ip(server_ip);
+	printf("\n");
+
+	if(bootp_ret == 0 && bootp_len > 0 && bootp_len < sizeof(bootp_name)) {
+#ifdef MAIN_RAM_BASE
+		if(bootp_name[bootp_len - 4] == '.' && bootp_name[bootp_len - 3] == 'b' &&
+		    bootp_name[bootp_len - 2] == 'i' && bootp_name[bootp_len - 1] == 'n'){
+			printf("Booting from %s...\n", bootp_name);
+			netboot_from_bin(bootp_name, server_ip, TFTP_SERVER_PORT);
+		} else {
+#else
+		if(1){
+#endif
+			printf("Booting from %s (JSON)...\n", bootp_name);
+			netboot_from_json(bootp_name, server_ip, TFTP_SERVER_PORT);
+		}
+	} else if (filename) {
 		printf("Booting from %s (JSON)...\n", filename);
-		netboot_from_json(filename, ip, TFTP_SERVER_PORT);
+		netboot_from_json(filename, server_ip, TFTP_SERVER_PORT);
 	} else {
 		/* Boot from boot.json */
 		printf("Booting from boot.json...\n");
-		netboot_from_json("boot.json", ip, TFTP_SERVER_PORT);
+		netboot_from_json("boot.json", server_ip, TFTP_SERVER_PORT);
 
 #ifdef MAIN_RAM_BASE
 		/* Boot from boot.bin */
 		printf("Booting from boot.bin...\n");
-		netboot_from_bin("boot.bin", ip, TFTP_SERVER_PORT);
+		netboot_from_bin("boot.bin", server_ip, TFTP_SERVER_PORT);
 #endif
 	}
 
