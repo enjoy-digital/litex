@@ -1,7 +1,7 @@
 include ../include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
-OBJECTS=udp.o tftp.o mdio.o
+OBJECTS=udp.o bootp.o tftp.o mdio.o
 
 all: libliteeth.a
 
