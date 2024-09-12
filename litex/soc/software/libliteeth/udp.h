@@ -12,14 +12,14 @@ extern "C" {
 
 #define UDP_BUFSIZE (5*1532)
 
-typedef void (*udp_callback)(unsigned int src_ip, unsigned short src_port, unsigned short dst_port, void *data, unsigned int length);
+typedef void (*udp_callback)(uint32_t src_ip, uint16_t src_port, uint16_t dst_port, void *data, uint32_t length);
 
-void udp_set_ip(unsigned int ip);
-void udp_set_mac(const unsigned char *macaddr);
-void udp_start(const unsigned char *macaddr, unsigned int ip);
-int udp_arp_resolve(unsigned int ip);
+void udp_set_ip(uint32_t ip);
+void udp_set_mac(const uint8_t *macaddr);
+void udp_start(const uint8_t *macaddr, uint32_t ip);
+int udp_arp_resolve(uint32_t ip);
 void *udp_get_tx_buffer(void);
-int udp_send(unsigned short src_port, unsigned short dst_port, unsigned int length);
+int udp_send(uint16_t src_port, uint16_t dst_port, uint32_t length);
 void udp_set_callback(udp_callback callback);
 void udp_service(void);
 
