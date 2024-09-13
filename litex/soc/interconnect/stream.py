@@ -298,14 +298,16 @@ class ClockDomainCrossing(LiteXModule, DUID):
 # Mux/Demux ----------------------------------------------------------------------------------------
 
 class Multiplexer(LiteXModule):
-    def __init__(self, layout, n):
+    def __init__(self, layout, n, with_csr=False):
         self.source = Endpoint(layout)
         sinks = []
         for i in range(n):
             sink = Endpoint(layout)
-            setattr(self, "sink"+str(i), sink)
+            setattr(self, f"sink{i}", sink)
             sinks.append(sink)
         self.sel = Signal(max=max(n, 2))
+        if with_csr:
+            self.add_csr()
 
         # # #
 
@@ -314,16 +316,21 @@ class Multiplexer(LiteXModule):
             cases[i] = sink.connect(self.source)
         self.comb += Case(self.sel, cases)
 
+    def add_csr(self, sel_default=0):
+        self._sel = CSRStorage(len(self.sel), reset=sel_default)
+        self.comb += self.sel.eq(self._sel.storage)
 
 class Demultiplexer(LiteXModule):
-    def __init__(self, layout, n):
+    def __init__(self, layout, n, with_csr=False):
         self.sink = Endpoint(layout)
         sources = []
         for i in range(n):
             source = Endpoint(layout)
-            setattr(self, "source"+str(i), source)
+            setattr(self, f"source{i}", source)
             sources.append(source)
         self.sel = Signal(max=max(n, 2))
+        if with_csr:
+            self.add_csr()
 
         # # #
 
@@ -332,6 +339,14 @@ class Demultiplexer(LiteXModule):
             cases[i] = self.sink.connect(source)
         self.comb += Case(self.sel, cases)
 
+    def add_csr(self, sel_default=0):
+        self._sel = CSRStorage(len(self.sel), reset=sel_default)
+        self.comb += self.sel.eq(self._sel.storage)
+
+class Crossbar(LiteXModule):
+    def __init__(self, layout, n, with_csr=False):
+        self.mux   = Multiplexer(  layout, n, with_csr)
+        self.demux = Demultiplexer(layout, n, with_csr)
 
 # Gate ---------------------------------------------------------------------------------------------
 
