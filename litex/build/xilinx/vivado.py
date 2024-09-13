@@ -415,7 +415,7 @@ def vivado_build_argdict(args):
     return {
         "synth_mode"                           : args.synth_mode,
         "vivado_synth_directive"               : args.vivado_synth_directive,
-        "vivado_opt_directive"                 : args.vivado_vivado_opt_directive,
+        "vivado_opt_directive"                 : args.vivado_opt_directive,
         "vivado_place_directive"               : args.vivado_place_directive,
         "vivado_post_place_phys_opt_directive" : args.vivado_post_place_phys_opt_directive,
         "vivado_route_directive"               : args.vivado_route_directive,
