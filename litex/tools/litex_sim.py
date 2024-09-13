@@ -237,6 +237,7 @@ class SimSoC(SoCCore):
         if with_ethernet or with_etherbone:
             if ethernet_phy_model == "sim":
                 self.ethphy = LiteEthPHYModel(self.platform.request("eth", 0))
+                self.add_constant("HW_PREAMBLE_CRC");
             elif ethernet_phy_model == "xgmii":
                 self.ethphy = LiteEthPHYXGMII(None, self.platform.request("xgmii_eth", 0), model=True)
             elif ethernet_phy_model == "gmii":
