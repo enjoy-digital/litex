@@ -66,19 +66,34 @@ class EfinixAsyncResetSynchronizer:
 # Efinix Clk Input ---------------------------------------------------------------------------------
 
 class EfinixClkInputImpl(Module):
+    n = 0
     def __init__(self, platform, i, o):
-        o_clk  = platform.add_iface_io(o) # FIXME.
+        self.name = f"clk_input{self.n}"
+        if isinstance(o, Signal):
+            clk_out_name = f"{o.name_override}{self.name}_clk"
+            platform.add_extension([(clk_out_name, 0, Pins(1))])
+            platform.toolchain.excluded_ios.append(clk_out_name)
+            clk_out                        = platform.request(clk_out_name)
+            platform.clks[o.name_override] = clk_out_name
+        else:
+            clk_out      = platform.add_iface_io(o) # FIXME.
+            clk_out_name = platform.get_pin_name(clk_out)
+
         block = {
             "type"       : "GPIO",
             "size"       : 1,
             "location"   : platform.get_pin_location(i)[0],
             "properties" : platform.get_pin_properties(i),
-            "name"       : platform.get_pin_name(o_clk),
+            "name"       : clk_out_name,
             "mode"       : "INPUT_CLK",
         }
         platform.toolchain.ifacewriter.blocks.append(block)
         platform.toolchain.excluded_ios.append(i)
 
+        if isinstance(o, Signal):
+            self.comb += o.eq(clk_out)
+            o = clk_out
+        EfinixClkInputImpl.n += 1 # FIXME: Improve.
 
 class EfinixClkInput(Module):
     @staticmethod
