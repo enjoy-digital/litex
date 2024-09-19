@@ -427,10 +427,13 @@ class HyperRAMCore(LiteXModule):
                         NextState("REG-READ")
                     ).Else(
                         bus_latch.eq(1),
-                        NextValue(burst_r_first, 1),
+                        # Bus Write.
                         If(bus.we,
+                            bus.ack.eq(1),
                             NextState("DAT-WRITE")
+                        # Bus Read.
                         ).Else(
+                            NextValue(burst_r_first, 1),
                             NextState("DAT-READ")
                         )
                     )
@@ -472,7 +475,6 @@ class HyperRAMCore(LiteXModule):
                 bus_dat_w.eq(bus.dat_w),
             )
         ]
-        self.comb += If(bus_latch, bus.ack.eq(bus.we))
         self.comb += burst_w.eq(
             # Notified Incrementing Burst.
             (bus_cti == 0b010) |
@@ -488,8 +490,10 @@ class HyperRAMCore(LiteXModule):
             source.rwds_oe.eq(1),
             source.dat_w.eq(1),
             If(dat_tx_conv.sink.ready,
-                # Stay in DAT-WRITE while Incrementing Burst ongoing...
-                If(with_bursting & bus.cyc & bus.stb & burst_w,
+                # Ack while Incrementing Burst ongoing...
+                bus.ack.eq(with_bursting & bus.cyc & bus.stb & burst_w),
+                # If Ack, stay in DAT-WRITE.
+                If(bus.ack,
                     bus_latch.eq(1),
                     NextState("DAT-WRITE")
                 # ..else exit.
