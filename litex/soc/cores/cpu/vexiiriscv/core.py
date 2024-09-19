@@ -25,7 +25,7 @@ from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32, CPU_GCC_TRIPLE_RISC
 
 # Variants -----------------------------------------------------------------------------------------
 
-CPU_VARIANTS = ["cached", "linux", "debian"]
+CPU_VARIANTS = ["standard", "cached", "linux", "debian"]
 
 # VexiiRiscv -----------------------------------------------------------------------------------------
 
