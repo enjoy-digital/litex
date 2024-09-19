@@ -214,6 +214,117 @@ class DDRTristate(Special):
     def lower(dr):
         return InferedDDRTristate(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk)
 
+# QDR Input/Output ---------------------------------------------------------------------------------
+
+class QDRInput(Special):
+    def __init__(self, i, o1, o2, o3, o4, clk=ClockSignal(), fastclk=None):
+        Special.__init__(self)
+        self.i   = wrap(i)
+        self.o1  = wrap(o1)
+        self.o2  = wrap(o2)
+        self.o3  = wrap(o3)
+        self.o4  = wrap(o4)
+        self.clk = clk if isinstance(clk, str) else wrap(clk)
+        self.fastclk = fastclk if isinstance(fastclk, str) else wrap(fastclk)
+
+    def iter_expressions(self):
+        yield self, "i"  , SPECIAL_INPUT
+        yield self, "o1" , SPECIAL_OUTPUT
+        yield self, "o2" , SPECIAL_OUTPUT
+        yield self, "o3" , SPECIAL_OUTPUT
+        yield self, "o4" , SPECIAL_OUTPUT
+        yield self, "clk", SPECIAL_INPUT
+        yield self, "fastclk", SPECIAL_INPUT
+
+    @staticmethod
+    def lower(dr):
+        raise NotImplementedError("Attempted to use a QDR input, but platform does not support them")
+
+
+class QDROutput(Special):
+    def __init__(self, i1, i2, i3, i4, o, clk=ClockSignal(), fastclk=None):
+        Special.__init__(self)
+        self.i1  = wrap(i1)
+        self.i2  = wrap(i2)
+        self.i3  = wrap(i3)
+        self.i4  = wrap(i4)
+        self.o   = wrap(o)
+        self.clk = clk if isinstance(clk, str) else wrap(clk)
+        self.fastclk = fastclk if isinstance(fastclk, str) else wrap(fastclk)
+
+    def iter_expressions(self):
+        yield self, "i1" , SPECIAL_INPUT
+        yield self, "i2" , SPECIAL_INPUT
+        yield self, "i3" , SPECIAL_INPUT
+        yield self, "i4" , SPECIAL_INPUT
+        yield self, "o"  , SPECIAL_OUTPUT
+        yield self, "clk", SPECIAL_INPUT
+        yield self, "fastclk", SPECIAL_INPUT
+
+    @staticmethod
+    def lower(dr):
+        raise NotImplementedError("Attempted to use a QDR output, but platform does not support them")
+
+# QDR Tristate -------------------------------------------------------------------------------------
+
+class InferedQDRTristate(Module):
+    def __init__(self, io, o1, o2, o3, o4, oe1, oe2, oe3, oe4, i1, i2, i3, i4, clk, fastclk_in, fastclk_out):
+        _o  = Signal()
+        _oe = Signal()
+        _i  = Signal()
+        self.specials += QDROutput(o1, o2, o3, o4, _o, clk, fastclk_out)
+        self.specials += QDROutput(oe1, oe2, oe3, oe4, _oe, clk, fastclk_out) if (oe2 is not None) or (oe3 is not None) or (oe3 is not None) else SDROutput(oe1, _oe, clk)
+        self.specials += QDRInput(_i, i1, i2, i3, i4, clk, fastclk_in)
+        self.specials += Tristate(io, _o, _oe, _i)
+
+class QDRTristate(Special):
+    def __init__(self, io, o1, o2, o3, o4,
+                 oe1, oe2=None, oe3=None, oe4=None,
+                 i1=Signal(), i2=Signal(), i3=Signal(), i4=Signal(),
+                 clk=ClockSignal(), fastclk=None, fastclk_in=None, fastclk_out=None):
+        Special.__init__(self)
+        self.io  = io
+        self.o1  = o1
+        self.o2  = o2
+        self.o3  = o3
+        self.o4  = o4
+        self.oe1 = oe1
+        self.oe2 = oe2
+        self.oe3 = oe3
+        self.oe4 = oe4
+        self.i1  = i1
+        self.i2  = i2
+        self.i3  = i3
+        self.i4  = i4
+        self.clk = clk
+        self.fastclk_in = fastclk_in if fastclk_in is not None else fastclk
+        self.fastclk_out = fastclk_out if fastclk_out is not None else fastclk
+
+    def iter_expressions(self):
+        yield self, "io" , SPECIAL_INOUT
+        yield self, "o1" , SPECIAL_INPUT
+        yield self, "o2" , SPECIAL_INPUT
+        yield self, "o3" , SPECIAL_INPUT
+        yield self, "o4" , SPECIAL_INPUT
+        yield self, "oe1", SPECIAL_INPUT
+        yield self, "oe2", SPECIAL_INPUT
+        yield self, "oe3", SPECIAL_INPUT
+        yield self, "oe4", SPECIAL_INPUT
+        yield self, "i1" , SPECIAL_OUTPUT
+        yield self, "i2" , SPECIAL_OUTPUT
+        yield self, "i3" , SPECIAL_OUTPUT
+        yield self, "i4" , SPECIAL_OUTPUT
+        yield self, "clk", SPECIAL_INPUT
+        yield self, "fastclk_in", SPECIAL_INPUT
+        yield self, "fastclk_out", SPECIAL_INPUT
+
+    @staticmethod
+    def lower(dr):
+        return InferedDDRTristate(dr.io, dr.o1, dr.o2, dr.o3, dr.o4, 
+                                  dr.oe1, dr.oe2, dr.oe3, dr.oe4,
+                                  dr.i1, dr.i2, dr.i3, dr.i4, 
+                                  dr.clk, dr.fastclk_in, dr.fastclk_out)
+
 # Clock Reset Generator ----------------------------------------------------------------------------
 
 class CRG(Module):
