@@ -28,7 +28,7 @@ class XilinxPlatform(GenericPlatform):
 
     _jtag_support = [
         "xc6",
-        "xc7a", "xc7k", "xc7v", "xc7z",
+        "xc7a", "xc7k", "xc7s", "xc7v", "xc7z",
         "xcau", "xcku", "xcvu", "xczu"
     ]
 
