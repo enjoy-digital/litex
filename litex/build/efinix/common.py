@@ -422,6 +422,130 @@ class EfinixDDRInput:
     def lower(dr):
         return EfinixDDRInputImpl(dr.platform, dr.i, dr.o1, dr.o2, dr.clk)
 
+# Efinix QDROutput ---------------------------------------------------------------------------------
+
+class EfinixQDROutputImpl(Module):
+    def __init__(self, platform, i1, i2, i3, i4, o, clk, fastclk):
+        assert fastclk is not None
+        io_name = platform.get_pin_name(o)
+        io_pad  = platform.get_pin_location(o)
+        io_prop = platform.get_pin_properties(o)
+        io_prop_dict = dict(io_prop)
+        io_data  = platform.add_iface_io(io_name, 4)
+        self.comb += io_data[0].eq(i1)
+        self.comb += io_data[1].eq(i2)
+        self.comb += io_data[2].eq(i3)
+        self.comb += io_data[3].eq(i4)
+        block = {
+            "type"              : "GPIO",
+            "mode"              : "OUTPUT",
+            "name"              : io_name,
+            "location"          : io_pad,
+            "properties"        : io_prop,
+            "size"              : 1,
+            "out_reg"           : "SERIAL",
+            "out_clk_pin"       : clk.name_override, # FIXME.
+            "outfastclk_pin"    : fastclk.name_override, # FIXME.
+            "is_inclk_inverted" : False,
+            "drive_strength"    : io_prop_dict.get("DRIVE_STRENGTH", "4")
+        }
+        platform.toolchain.ifacewriter.blocks.append(block)
+        platform.toolchain.excluded_ios.append(platform.get_pin(o))
+
+class EfinixQDROutput:
+    @staticmethod
+    def lower(dr):
+        if dr.platform.family == "Trion":
+            raise NotImplementedError("Attempted to use a QDR output, but platform does not support them")
+        return EfinixQDROutputImpl(dr.platform, dr.i1, dr.i2, dr.i3, dr.i4, dr.o, dr.clk, dr.fastclk)
+
+# Efinix QDRInput ----------------------------------------------------------------------------------
+
+class EfinixQDRInputImpl(Module):
+    def __init__(self, platform, i, o1, o2, o3, o4, clk, fastclk):
+        assert fastclk is not None
+        io_name = platform.get_pin_name(i)
+        io_pad  = platform.get_pin_location(i)
+        io_prop = platform.get_pin_properties(i)
+        io_data  = platform.add_iface_io(io_name, 4)
+        self.comb += o1.eq(io_data[0])
+        self.comb += o2.eq(io_data[1])
+        self.comb += o3.eq(io_data[2])
+        self.comb += o4.eq(io_data[3])
+        block = {
+            "type"              : "GPIO",
+            "mode"              : "INPUT",
+            "name"              : io_name,
+            "location"          : io_pad,
+            "properties"        : io_prop,
+            "size"              : 1,
+            "in_reg"            : "SERIAL",
+            "in_clk_pin"        : clk.name_override, # FIXME.
+            "infastclk_pin"     : fastclk.name_override, # FIXME.
+            "is_inclk_inverted" : False,
+        }
+        platform.toolchain.ifacewriter.blocks.append(block)
+        platform.toolchain.excluded_ios.append(platform.get_pin(i))
+
+class EfinixQDRInput:
+    @staticmethod
+    def lower(dr):
+        if dr.platform.family == "Trion":
+            raise NotImplementedError("Attempted to use a QDR input, but platform does not support them")
+        return EfinixQDRInputImpl(dr.platform, dr.i, dr.o1, dr.o2, dr.o3, dr.o4, dr.clk, dr.fastclk)
+    
+# Efinix QDRTristate ---------------------------------------------------------------------------------
+
+class EfinixQDRTristateImpl(Module):
+    def __init__(self, platform, io, o1, o2, o3, o4, oe, i1, i2, i3, i4, clk, fastclk_in, fastclk_out):
+        assert fastclk_in is not None
+        assert fastclk_out is not None
+        io_name = platform.get_pin_name(io)
+        io_pad  = platform.get_pin_location(io)
+        io_prop = platform.get_pin_properties(io)
+        io_prop_dict = dict(io_prop)
+        io_data_i  = platform.add_iface_io(io_name + "_OUT", 4)
+        io_data_o  = platform.add_iface_io(io_name + "_IN", 4)
+        io_data_e  = platform.add_iface_io(io_name + "_OE")
+        self.comb += io_data_i[0].eq(o1)
+        self.comb += io_data_i[1].eq(o2)
+        self.comb += io_data_i[2].eq(o3)
+        self.comb += io_data_i[3].eq(o4)
+        self.comb += io_data_e.eq(oe)
+        self.comb += i1.eq(io_data_o[0])
+        self.comb += i2.eq(io_data_o[1])
+        self.comb += i3.eq(io_data_o[2])
+        self.comb += i4.eq(io_data_o[3])
+        block = {
+            "type"              : "GPIO",
+            "mode"              : "INOUT",
+            "name"              : io_name,
+            "location"          : io_pad,
+            "properties"        : io_prop,
+            "size"              : 1,
+            "in_reg"            : "SERIAL",
+            "in_clk_pin"        : clk.name_override, # FIXME.
+            "infastclk_pin"     : fastclk_in.name_override, # FIXME.
+            "out_reg"           : "SERIAL",
+            "out_clk_pin"       : clk.name_override, # FIXME.
+            "outfastclk_pin"    : fastclk_out.name_override, # FIXME.
+            "oe_reg"            : "REG",
+            "is_inclk_inverted" : False,
+            "drive_strength"    : io_prop_dict.get("DRIVE_STRENGTH", "4")
+        }
+        platform.toolchain.ifacewriter.blocks.append(block)
+        platform.toolchain.excluded_ios.append(platform.get_pin(io))
+
+class EfinixQDRTristate:
+    @staticmethod
+    def lower(dr):
+        assert dr.oe2 is None
+        assert dr.oe3 is None
+        assert dr.oe4 is None
+        if dr.platform.family == "Trion":
+            raise NotImplementedError("Attempted to use a QDR tristate, but platform does not support them")
+        return EfinixQDRTristateImpl(dr.platform, dr.io, dr.o1, dr.o2, dr.o3, dr.o4, dr.oe1, dr.i1, dr.i2, dr.i3, dr.i4, dr.clk, dr.fastclk_in, dr.fastclk_out)
+
 # Efinix Special Overrides -------------------------------------------------------------------------
 
 efinix_special_overrides = {
@@ -436,4 +560,7 @@ efinix_special_overrides = {
     DDROutput              : EfinixDDROutput,
     DDRInput               : EfinixDDRInput,
     DDRTristate            : EfinixDDRTristate,
+    QDRInput               : EfinixQDRInput,
+    QDROutput              : EfinixQDROutput,
+    QDRTristate            : EfinixQDRTristate,
 }
