@@ -321,7 +321,7 @@ class XilinxJTAG(LiteXModule):
         prim_dict = {
             # Primitive Name   Ðevice (startswith)
             "BSCAN_SPARTAN6" : ["xc6"],
-            "BSCANE2"        : ["xc7a", "xc7k", "xc7v", "xc7z"] +  ["xcau", "xcku", "xcvu", "xczu"],
+            "BSCANE2"        : ["xc7a", "xc7k", "xc7s", "xc7v", "xc7z"] +  ["xcau", "xcku", "xcvu", "xczu"],
         }
         for prim, prim_devs in prim_dict.items():
             for prim_dev in prim_devs:
