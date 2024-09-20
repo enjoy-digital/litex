@@ -14,10 +14,10 @@ Copyright (c) 2023      Adam Henault <henault.adam@gmail.com>
 Copyright (c) 2023      AEW2015 <lavatech.co@gmail.com>
 Copyright (c) 2011-2015 Alain Péteut <alain.peteut@yahoo.com>
 Copyright (c) 2022      Alan Green <alan.green@gmail.com>
-Copyright (c) 2023      Alexey Morozov <31707428+alexey-morozov@users.noreply.github.com>
+Copyright (c) 2023-2024 Alexey Morozov <31707428+alexey-morozov@users.noreply.github.com>
 Copyright (c) 2019      Ambroz Bizjak <ambrop7@gmail.com>
 Copyright (c) 2021      Andreas Galauner <andreas@galauner.de>
-Copyright (c) 2021-2023 Andrew Dennison <andrew.dennison@motec.com.au>
+Copyright (c) 2021-2024 Andrew Dennison <andrew.dennison@motec.com.au>
 Copyright (c) 2021-2022 Andrew E Wilson <lavatech.co@gmail.com>
 Copyright (c) 2021      Andy Kitchen <kitchen.andy+git@gmail.com>
 Copyright (c) 2018-2023 Antmicro <Antmicro.com>
@@ -25,6 +25,7 @@ Copyright (c) 2019      Antony Pavlov <antonynpavlov@gmail.com>
 Copyright (c) 2019      Antti Lukats <Antti.Lukats@googlemail.com>
 Copyright (c) 2019-2020 Arnaud Durand <arnaud.durand@unifr.ch>
 Copyright (c) 2022-2023 Arne Jansen <arne@die-jansens.de>
+Copyright (c) 2023      Artur Kowalski <artur.kowalski@3mdeb.com>
 Copyright (c) 2019      atommann <atommann@gmail.com>
 Copyright (c) 2023      awyxx <robyawyx@gmail.com>
 Copyright (c) 2022      Bastian Löher <b.loeher@gsi.de>
@@ -37,15 +38,17 @@ Copyright (c) 2022      Brian Swetland <swetland@frotz.net>
 Copyright (c) 2017-2023 bunnie <bunnie@kosagi.com>
 Copyright (c) 2019      Caleb Jamison <cbjamo@gmail.com>
 Copyright (c) 2021      Camilo Andres Vera Ruiz <camilovera9811@gmail.com>
-Copyright (c) 2021-2022 Charles-Henri Mousset <ch.mousset@gmail.com>
+Copyright (c) 2021-2024 Charles-Henri Mousset <ch.mousset@gmail.com>
 Copyright (c) 2019      chmousset <ch.mousset@gmail.com>
 Copyright (c) 2018      Chris Ballance <chris.ballance@physics.ox.ac.uk>
 Copyright (c) 2021      Chris Osterwood <osterwood@capablerobot.com>
 Copyright (c) 2020-2022 Christian Klarhorst <cklarhor@techfak.uni-bielefeld.de>
+Copyright (c) 2024      CLappin <ciaran.lappin@microsemi.com>
 Copyright (c) 2022      curliph <curliph@gmail.com>
 Copyright (c) 2019      Daniel Kucera <daniel.kucera@gmail.com>
 Copyright (c) 2023      dasdgw <michifrank2@gmx.de>
 Copyright (c) 2020      Dave Marples <dave@marples.net>
+Copyright (c) 2024      David A Roberts <d@vidr.cc>
 Copyright (c) 2013      David Carne <davidcarne@gmail.com>
 Copyright (c) 2020-2021 David Jablonski <dayjaby@gmail.com>
 Copyright (c) 2020-2021 David Lattimore <dml@chromium.org>
@@ -55,7 +58,8 @@ Copyright (c) 2018-2020 David Shah <dave@ds0.me>
 Copyright (c) 2020      davidcorrigan714 <davidcorrigan714@gmail.com>
 Copyright (c) 2018      Deano Calver <me@deanoc.com>
 Copyright (c) 2021-2022 developandplay <34752929+developandplay@users.noreply.github.com>
-Copyright (c) 2018-2023 Dolu1990 <charles.papon.90@gmail.com>
+Copyright (c) 2024      Dmitry Derevyanko <nrndda@gmail.com>
+Copyright (c) 2018-2024 Dolu1990 <charles.papon.90@gmail.com>
 Copyright (c) 2023      Eli Schwartz <eschwartz93@gmail.com>
 Copyright (c) 2022      Eric Matthews <ematthew@sfu.ca>
 Copyright (c) 2021      Evan Lojewski <github@meklort.com>
@@ -64,11 +68,13 @@ Copyright (c) 2014      Fabien Marteau <fabien.marteau@armadeus.com>
 Copyright (c) 2019      fb@frank-buss.de <fb@frank-buss.de>
 Copyright (c) 2020      Feliks <feliks.montez@gmail.com>
 Copyright (c) 2017-2018 Felix Held <felix-github@felixheld.de>
+Copyright (c) 2024      Fernando Oleo Blanco <irvise@irvise.xyz>
 Copyright (c) 2020      Filipe Laíns <lains@archlinux.org>
-Copyright (c) 2012-2023 Florent Kermarrec <florent@enjoy-digital.fr>
+Copyright (c) 2024      Fin Maaß <f.maass@vogl-electronic.com>
+Copyright (c) 2012-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 Copyright (c) 2019      Francis Lam <flam@alum.mit.edu>
 Copyright (c) 2020-2022 Franck Jullien <franck.jullien@collshade.fr>
-Copyright (c) 2019-2023 Gabriel L. Somlo <gsomlo@gmail.com>
+Copyright (c) 2019-2024 Gabriel L. Somlo <gsomlo@gmail.com>
 Copyright (c) 2021      Gary Wong <gtw@gnu.org>
 Copyright (c) 2018-2023 gatecat <gatecat@ds0.me>
 Copyright (c) 2020-2021 Geert Uytterhoeven <geert@linux-m68k.org>
@@ -80,18 +86,20 @@ Copyright (c) 2017      Greg Darke <greg@tsukasa.net.au>
 Copyright (c) 2020-2022 Greg Davill <greg.davill@gmail.com>
 Copyright (c) 2021      Guillaume REMBERT <zguig52@gmail.com>
 Copyright (c) 2014-2015 Guy Hutchison <ghutchis@gmail.com>
-Copyright (c) 2020-2023 Gwenhael Goavec-Merou <gwenhael.goavec-merou@trabucayre.com>
-Copyright (c) 2021-2023 Hans Baier <hansfbaier@gmail.com>
+Copyright (c) 2020-2024 Gwenhael Goavec-Merou <gwenhael@enjoy-digital.fr>
+Copyright (c) 2021-2024 Hans Baier <foss@hans-baier.de>
 Copyright (c) 2022-2023 Icenowy Zheng <icenowy@aosc.io>
 Copyright (c) 2019-2022 Ilia Sergachev <ilia@sergachev.ch>
 Copyright (c) 2020      Ilya Epifanov <elijah.epifanov@gmail.com>
 Copyright (c) 2021      Jakub Piecuch <j.piecuch96@gmail.com>
 Copyright (c) 2021      Jan Luebbe <jlu@pengutronix.de>
 Copyright (c) 2014      Jannis Harder <jix@jixco.de>
+Copyright (c) 2024      jdavidberger <j.david.berger@gmail.com>
 Copyright (c) 2018      Jean-François Nguyen <jf@lambdaconcept.com>
 Copyright (c) 2023      Jeremy Herbert <jeremy.006@gmail.com>
 Copyright (c) 2022      Jevin Sweval <jevinsweval@gmail.com>
 Copyright (c) 2023      Jiajie Chen <c@jia.je>
+Copyright (c) 2024      Jiaxun Yang <jiaxun.yang@flygoat.com>
 Copyright (c) 2015      Joe Britton <joe.britton@gmail.com>
 Copyright (c) 2017      Joel Addison <joel@addison.net.au>
 Copyright (c) 2020-2023 Joel Stanley <joel@jms.id.au>
@@ -99,7 +107,9 @@ Copyright (c) 2023      Johan Carlsson <johan.carlsson@teenage.engineering>
 Copyright (c) 2022      Johannes Rudolph <johannes.rudolph@gmail.com>
 Copyright (c) 2023      Jonathan Bisson <bjonnh@users.noreply.github.com>
 Copyright (c) 2023      Joris Lee <lqq@sioiot.com>
+Copyright (c) 2024      Joshua Wise <joshua@joshuawise.com>
 Copyright (c) 2023      Josuah Demangeon <me@josuah.net>
+Copyright (c) 2024      JoyBed <46244284+JoyBed@users.noreply.github.com>
 Copyright (c) 2020      Jędrzej Boczar <yendreij@gmail.com>
 Copyright (c) 2019      Kees Jongenburger <kees.jongenburger@gmail.com>
 Copyright (c) 2013      Kenneth Ryerson <kryerson@vermeer.com>
@@ -111,7 +121,10 @@ Copyright (c) 2019      Larry Doolittle <ldoolitt@recycle.lbl.gov>
 Copyright (c) 2012-2013 Lars-Peter Clausen <lars@metafoo.de>
 Copyright (c) 2023      Lasse Dalegaard <dalegaard@gmail.com>
 Copyright (c) 2020-2022 Leon Schuermann <leon@is.currently.online>
+Copyright (c) 2024      Liam Murphy <liampm32@gmail.com>
 Copyright (c) 2023      Lukas F. Hartmann <lukas@mntre.com>
+Copyright (c) 2024      Mai-Lapyst <67418776+Mai-Lapyst@users.noreply.github.com>
+Copyright (c) 2024      Marcin Dawidowicz <40853321+mdejw@users.noreply.github.com>
 Copyright (c) 2022-2023 Marcus Comstedt <marcus@mc.pp.se>
 Copyright (c) 2021      Marek Czerski <m.czerski@ap-tech.pl>
 Copyright (c) 2021      Marek Materzok <tilk@tilk.eu>
@@ -120,6 +133,8 @@ Copyright (c) 2022      Massimiliano Giacometti <massimiliano.giacometti@planv.t
 Copyright (c) 2021      Matt Johnston <matt@codeconstruct.com.au>
 Copyright (c) 2017      Matt Kelly <Matthew.Joseph.Kelly@gmail.com>
 Copyright (c) 2023      Matteo Marzaro <m.marzaro@protechgroup.it>
+Copyright (c) 2024      Matthias Breithaupt <m.breithaupt@vogl-electronic.com>
+Copyright (c) 2024      Meinhard Kissich <privat@meinhard-kissich.at>
 Copyright (c) 2019-2022 Michael Betz <michibetz@gmail.com>
 Copyright (c) 2012      Michael Walle <michael@walle.cc>
 Copyright (c) 2022      Mikolaj Sowinski <mikolaj.sowinski@gmail.com>
@@ -130,11 +145,12 @@ Copyright (c) 2022      mohamedElbouazzati <elbouazzati.mohamed.2e@gmail.com>
 Copyright (c) 2019      msloniewski <marcin.sloniewski@gmail.com>
 Copyright (c) 2023      Nate Slager <slagernate@gmail.com>
 Copyright (c) 2021      Nathaniel R. Lewis <linux.robotdude@gmail.com>
-Copyright (c) 2021      Navaneeth <navan93@gmail.com>
-Copyright (c) 2021      Navaneeth Bhardwaj <navan93@gmail.com>
+Copyright (c) 2021-2022 Navaneeth Bhardwaj <navan93@gmail.com>
 Copyright (c) 2021      Nick Østergaard <oe.nick@gmail.com>
+Copyright (c) 2024      Nicolas Gaudin <67331098+Nicolas-Gaudin@users.noreply.github.com>
 Copyright (c) 2013      Nina Engelhardt <nakengelhardt@gmail.com>
 Copyright (c) 2015      numato <sales@numato.com>
+Copyright (c) 2024      Nuntipat Narkthong <nuntipat@gmail.com>
 Copyright (c) 2021      Nick Østergaard <oe.nick@gmail.com>
 Copyright (c) 2020      Owen Kirby <oskirby@gmail.com>
 Copyright (c) 2015      Olof Kindgren <olof.kindgren@gmail.com>
@@ -142,7 +158,7 @@ Copyright (c) 2019-2022 Pascal Cotret <pascal.cotret@gmail.com>
 Copyright (c) 2021      Paul Mackerras <paulus@ozlabs.org>
 Copyright (c) 2020      Paul Sajna <sajattack@gmail.com>
 Copyright (c) 2018      Paul Schulz <paul@mawsonlakes.org>
-Copyright (c) 2020      Pepijn de Vos <pepijndevos@gmail.com>
+Copyright (c) 2020-2024 Pepijn de Vos <pepijndevos@gmail.com>
 Copyright (c) 2018      phlipped <phlipped@gmail.com>
 Copyright (c) 2020      Piense <piense@gmail.com>
 Copyright (c) 2017      Pierre-Olivier Vauboin <po@lambdaconcept>
@@ -154,7 +170,7 @@ Copyright (c) 2021-2022 RapidSilicon <RapidSilicon.com>
 Copyright (c) 2020-2021 Raptor Engineering Development Team <support@raptorengineering.com>
 Copyright (c) 2023      Rasmus Pedersen <rasmus.pedersen@sky.uk>
 Copyright (c) 2021      Ray Molenkamp <github@lazydodo.com>
-Copyright (c) 2022-2023 Richard Tucker <richard.tucker@motec.com.au>
+Copyright (c) 2022-2024 Richard Tucker <richard.tucker@motec.com.au>
 Copyright (c) 2023      riktw <rik@justanotherelectronicsblog.com>
 Copyright (c) 2020      rob-ng15 <58272847+rob-ng15@users.noreply.github.com>
 Copyright (c) 2013-2016 Robert Jordens <jordens@gmail.com>
@@ -182,7 +198,7 @@ Copyright (c) 2022      stnolting <stnolting@gmail.com>
 Copyright (c) 2022-2023 stone3311 <fenstein12@googlemail.com>
 Copyright (c) 2020      Stéphane Gourichon <stephane.gourichon@fidergo.fr>
 Copyright (c) 2022      Sylvain Lefebvre <sylvain.lefebvre@inria.fr>
-Copyright (c) 2021-2022 Sylvain Munaut <tnt@246tNt.com>
+Copyright (c) 2021-2024 Sylvain Munaut <tnt@246tNt.com>
 Copyright (c) 2022-2023 Thomas Watson <twatson52@icloud.com>
 Copyright (c) 2017-2021 Tim 'mithro' Ansell <me@mith.ro>
 Copyright (c) 2023      Tim Paine <3105306+timkpaine@users.noreply.github.com>
