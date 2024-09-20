@@ -10,6 +10,7 @@
 	- soc                           : Fixed parameters propagation for AXI data-width conversion (#1997).
 	- soc/cores/clock/colognechip   : Fixed and reworked locked signal handling.
 	- litesdcard                    : Fixed data_i sampling (https://github.com/enjoy-digital/litesdcard/pull/34).
+	- litespi/mmap                  : Fixed dummy bits (https://github.com/litex-hub/litespi/pull/71).
 
 	[> Added
 	--------
@@ -32,6 +33,18 @@
 	- liteeth/mac                   : Improved broadcast filtering logic in Hybrid Mode (https://github.com/enjoy-digital/liteeth/pull/165).
 	- soc/cores/hyperbus            : Rewritten HyperRAM core to enhance performance and add new features (#2053).
 	- litedram                      : Added bank_byte_alignement parameter for improvded address mapping (https://github.com/enjoy-digital/litedram/pull/360).
+	- build/efinix                  : Added support for more primitives and improved clocking support. (#2060, #2075).
+	- software/bios                 : Added spiram support (#2058).
+	- liteeth/etherbone             : Added 64-bit support to Etherbone.
+	- liteeth/liteeth_gen           : Added XGMII support (PHY handled externally).
+	- soc/interconnect/stream       : Added optional CSR to Multiplexer/Demultiplexer and Crossbar module.
+	- tools/litex_json2dts_zephyr   : Improved support/update ((#1974).
+	- soc/cores/jtag                : Added Spartan7 support (#2076).
+	- liteeth/phy                   : Added 1000BASEX support for Virtex7 (https://github.com/enjoy-digital/liteeth/pull/171).
+	- liteeth/phy                   : Improved RGMII support on Efinix Titanium/Trion (https://github.com/enjoy-digital/liteeth/pull/168).
+	- liteiclink/serdes             : Added GTH/Virtex7 support (https://github.com/enjoy-digital/liteeth/pull/23).
+	- litespi/phy                   : Improved logic and cleanup (https://github.com/litex-hub/litespi/pull/73).
+	- litespi/mmap                  : Added write support for SPIRAM devices (https://github.com/litex-hub/litespi/pull/70).
 
 	[> Changed
 	----------
