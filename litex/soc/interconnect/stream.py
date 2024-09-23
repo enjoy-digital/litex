@@ -850,6 +850,19 @@ class Buffer(LiteXModule):
             source
         )
 
+# Delay --------------------------------------------------------------------------------------------
+
+class Delay(LiteXModule):
+    def __init__(self, layout, n):
+        self.sink   = sink   = Endpoint(layout)
+        self.source = source = Endpoint(layout)
+
+        # # #
+
+        buffers = [Buffer(layout, pipe_valid=True, pipe_ready=False) for _ in range(n)]
+        self.submodules += buffers
+        self.submodules += Pipeline(sink, *buffers, source)
+
 # Cast ---------------------------------------------------------------------------------------------
 
 class Cast(CombinatorialActor):
