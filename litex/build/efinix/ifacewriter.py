@@ -173,7 +173,6 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
 
             if "out_clk_inv" in block:
                 cmd += f'design.set_property("{name}","IS_OUTCLK_INVERTED","{block["out_clk_inv"]}")\n'
-                cmd += f'design.set_property("{name}","OE_CLK_PIN_INV","{block["out_clk_inv"]}")\n'
 
             if "in_reg" in block:
                 cmd += f'design.set_property("{name}","IN_REG","{block["in_reg"]}")\n'
@@ -186,8 +185,6 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
 
             if "oe_reg" in block:
                 cmd += f'design.set_property("{name}","OE_REG","{block["oe_reg"]}")\n'
-            if "oe_clk_pin" in block:
-                cmd += f'design.set_property("{name}","OE_CLK_PIN","{block["oe_clk_pin"]}")\n'
 
             if "drive_strength" in block:
                 cmd += 'design.set_property("{}","DRIVE_STRENGTH","{}")\n'.format(name, block["drive_strength"])
@@ -247,7 +244,6 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
 
             if "out_clk_inv" in block:
                 cmd += f'design.set_property("{name}","IS_OUTCLK_INVERTED","{block["out_clk_inv"]}")\n'
-                cmd += f'design.set_property("{name}","OE_CLK_PIN_INV","{block["out_clk_inv"]}")\n'
 
             if "drive_strength" in block:
                 cmd += 'design.set_property("{}","DRIVE_STRENGTH","{}")\n'.format(name, block["drive_strength"])
