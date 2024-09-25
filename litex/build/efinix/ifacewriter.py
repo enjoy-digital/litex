@@ -166,9 +166,6 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                     cmd += f'design.assign_pkg_pin("{name}[{i}]","{pad}")\n'
 
             if "out_reg" in block:
-                cmd += f'design.set_property("{name}","oe_REG","{block["out_reg"]}")\n'
-
-            if "oe_reg" in block:
                 cmd += f'design.set_property("{name}","OUT_REG","{block["out_reg"]}")\n'
                 cmd += f'design.set_property("{name}","OUT_CLK_PIN","{block["out_clk_pin"]}")\n'
                 if "out_delay" in block:
