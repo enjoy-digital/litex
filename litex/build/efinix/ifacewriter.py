@@ -222,6 +222,8 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                 cmd += f'design.set_property("{name}","IN_CLK_PIN","{in_clk_pin}")\n'
                 if "in_delay" in block:
                     cmd += f'design.set_property("{name}","INDELAY","{block["in_delay"]}")\n'
+            if "in_clk_inv" in block:
+                cmd += f'design.set_property("{name}","IS_INCLK_INVERTED","{block["in_clk_inv"]}")\n'
             if prop:
                 for p, val in prop:
                     cmd += 'design.set_property("{}","{}","{}")\n'.format(name, p, val)
