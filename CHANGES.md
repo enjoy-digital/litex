@@ -11,6 +11,7 @@
 	- soc/cores/clock/colognechip   : Fixed and reworked locked signal handling.
 	- litesdcard                    : Fixed data_i sampling (https://github.com/enjoy-digital/litesdcard/pull/34).
 	- litespi/mmap                  : Fixed dummy bits (https://github.com/litex-hub/litespi/pull/71).
+	- sim/verilator                 : Fixed .fst empty dump with short simulation.
 
 	[> Added
 	--------

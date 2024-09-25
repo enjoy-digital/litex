@@ -78,6 +78,7 @@ extern "C" void litex_sim_tracer_dump()
 
 extern "C" int litex_sim_got_finish()
 {
+  tfp->flush();
   return Verilated::gotFinish();
 }
 
