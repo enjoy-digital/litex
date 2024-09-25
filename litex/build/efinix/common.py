@@ -407,6 +407,34 @@ class EfinixDDROutput:
     def lower(dr):
         return EfinixDDROutputImpl(dr.platform, dr.i1, dr.i2, dr.o, dr.clk)
 
+# Efinix SDRInput ----------------------------------------------------------------------------------
+
+class EfinixSDRInputImpl(Module):
+    def __init__(self, platform, i, o, clk):
+        io_name   = platform.get_pin_name(i)
+        io_pad    = platform.get_pin_location(i)
+        io_prop   = platform.get_pin_properties(i)
+        io_data   = platform.add_iface_io(io_name)
+        self.comb += o.eq(io_data)
+        block = {
+            "type"              : "GPIO",
+            "mode"              : "INPUT",
+            "name"              : io_name,
+            "location"          : io_pad,
+            "properties"        : io_prop,
+            "size"              : 1,
+            "in_reg"            : "REG",
+            "in_clk_pin"        : clk.name_override, # FIXME.
+            "in_clk_inv"        : 0
+        }
+        platform.toolchain.ifacewriter.blocks.append(block)
+        platform.toolchain.excluded_ios.append(platform.get_pin(i))
+
+class EfinixSDRInput:
+    @staticmethod
+    def lower(dr):
+        return EfinixSDRInputImpl(dr.platform, dr.i, dr.o, dr.clk)
+
 # Efinix DDRInput ----------------------------------------------------------------------------------
 
 class EfinixDDRInputImpl(Module):
@@ -447,6 +475,7 @@ efinix_special_overrides = {
     DifferentialOutput     : EfinixDifferentialOutput,
     DifferentialInput      : EfinixDifferentialInput,
     SDROutput              : EfinixSDROutput,
+    SDRInput               : EfinixSDRInput,
     SDRTristate            : EfinixSDRTristate,
     DDROutput              : EfinixDDROutput,
     DDRInput               : EfinixDDRInput,
