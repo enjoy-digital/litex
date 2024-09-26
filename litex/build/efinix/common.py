@@ -41,7 +41,7 @@ def assert_is_signal_or_clocksignal(obj):
 
 # Efinix AsyncResetSynchronizer --------------------------------------------------------------------
 
-class EfinixAsyncResetSynchronizerImpl(Module):
+class EfinixAsyncResetSynchronizerImpl(LiteXModule):
     def __init__(self, cd, async_reset):
         rst1 = Signal()
         self.specials += [
@@ -71,7 +71,7 @@ class EfinixAsyncResetSynchronizer:
 
 # Efinix Clk Input ---------------------------------------------------------------------------------
 
-class EfinixClkInputImpl(Module):
+class EfinixClkInputImpl(LiteXModule):
     n = 0
     def __init__(self, i, o):
         platform = LiteXContext.platform
@@ -102,14 +102,14 @@ class EfinixClkInputImpl(Module):
             o = clk_out
         EfinixClkInputImpl.n += 1 # FIXME: Improve.
 
-class EfinixClkInput(Module):
+class EfinixClkInput(LiteXModule):
     @staticmethod
     def lower(dr):
         return EfinixClkInputImpl(dr.i, dr.o)
 
 # Efinix Clk Output --------------------------------------------------------------------------------
 
-class EfinixClkOutputImpl(Module):
+class EfinixClkOutputImpl(LiteXModule):
     def __init__(self, i, o):
         assert_is_signal_or_clocksignal(i)
         platform = LiteXContext.platform
@@ -124,14 +124,14 @@ class EfinixClkOutputImpl(Module):
         platform.toolchain.ifacewriter.blocks.append(block)
         platform.toolchain.excluded_ios.append(o)
 
-class EfinixClkOutput(Module):
+class EfinixClkOutput(LiteXModule):
     @staticmethod
     def lower(dr):
         return EfinixClkOutputImpl(dr.i, dr.o)
 
 # Efinix Tristate ----------------------------------------------------------------------------------
 
-class EfinixTristateImpl(Module):
+class EfinixTristateImpl(LiteXModule):
     def __init__(self, io, o, oe, i=None):
         platform = LiteXContext.platform
         if len(io) == 1:
@@ -162,14 +162,14 @@ class EfinixTristateImpl(Module):
         platform.toolchain.ifacewriter.blocks.append(block)
         platform.toolchain.excluded_ios.append(platform.get_pin(io))
 
-class EfinixTristate(Module):
+class EfinixTristate(LiteXModule):
     @staticmethod
     def lower(dr):
         return EfinixTristateImpl(dr.target, dr.o, dr.oe, dr.i)
 
 # Efinix DifferentialOutput ------------------------------------------------------------------------
 
-class EfinixDifferentialOutputImpl(Module):
+class EfinixDifferentialOutputImpl(LiteXModule):
     def __init__(self, i, o_p, o_n):
         platform = LiteXContext.platform
         # only keep _p
@@ -214,7 +214,7 @@ class EfinixDifferentialOutput:
 
 # Efinix DifferentialInput -------------------------------------------------------------------------
 
-class EfinixDifferentialInputImpl(Module):
+class EfinixDifferentialInputImpl(LiteXModule):
     def __init__(self, i_p, i_n, o):
         platform = LiteXContext.platform
         # only keep _p
@@ -274,7 +274,7 @@ class EfinixDifferentialInput:
 
 # Efinix DDRTristate -------------------------------------------------------------------------------
 
-class EfinixDDRTristateImpl(Module):
+class EfinixDDRTristateImpl(LiteXModule):
     def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk):
         assert oe1 == oe2
         assert_is_signal_or_clocksignal(clk)
@@ -319,7 +319,7 @@ class EfinixDDRTristate:
 
 # Efinix SDRTristate -------------------------------------------------------------------------------
 
-class EfinixSDRTristateImpl(Module):
+class EfinixSDRTristateImpl(LiteXModule):
     def __init__(self, io, o, oe, i, clk):
         assert_is_signal_or_clocksignal(clk)
         platform = LiteXContext.platform
@@ -353,14 +353,14 @@ class EfinixSDRTristateImpl(Module):
         platform.toolchain.excluded_ios.append(platform.get_pin(io))
 
 
-class EfinixSDRTristate(Module):
+class EfinixSDRTristate(LiteXModule):
     @staticmethod
     def lower(dr):
         return EfinixSDRTristateImpl(dr.io, dr.o, dr.oe, dr.i, dr.clk)
 
 # Efinix SDROutput ---------------------------------------------------------------------------------
 
-class EfinixSDROutputImpl(Module):
+class EfinixSDROutputImpl(LiteXModule):
     def __init__(self, i, o, clk):
         assert_is_signal_or_clocksignal(clk)
         platform = LiteXContext.platform
@@ -386,14 +386,14 @@ class EfinixSDROutputImpl(Module):
         platform.toolchain.excluded_ios.append(platform.get_pin(o))
 
 
-class EfinixSDROutput(Module):
+class EfinixSDROutput(LiteXModule):
     @staticmethod
     def lower(dr):
         return EfinixSDROutputImpl(dr.i, dr.o, dr.clk)
 
 # Efinix DDROutput ---------------------------------------------------------------------------------
 
-class EfinixDDROutputImpl(Module):
+class EfinixDDROutputImpl(LiteXModule):
     def __init__(self, i1, i2, o, clk):
         assert_is_signal_or_clocksignal(clk)
         platform = LiteXContext.platform
@@ -427,7 +427,7 @@ class EfinixDDROutput:
 
 # Efinix SDRInput ----------------------------------------------------------------------------------
 
-class EfinixSDRInputImpl(Module):
+class EfinixSDRInputImpl(LiteXModule):
     def __init__(self, i, o, clk):
         assert_is_signal_or_clocksignal(clk)
         platform = LiteXContext.platform
@@ -457,7 +457,7 @@ class EfinixSDRInput:
 
 # Efinix DDRInput ----------------------------------------------------------------------------------
 
-class EfinixDDRInputImpl(Module):
+class EfinixDDRInputImpl(LiteXModule):
     def __init__(self, i, o1, o2, clk):
         assert_is_signal_or_clocksignal(clk)
         platform = LiteXContext.platform
