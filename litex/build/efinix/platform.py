@@ -91,6 +91,15 @@ class EfinixPlatform(GenericPlatform):
                     return [pins[idx]]
         return None
 
+    def get_pins_location(self, sig):
+        if sig is None:
+            return None
+        sc = self.constraint_manager.get_sig_constraints()
+        for s, pins, others, resource in sc:
+            if (s == sig) and (pins[0] != 'X'):
+                    return pins
+        return None
+
     def get_pin_properties(self, sig):
         ret = []
         if sig is None:
@@ -147,6 +156,18 @@ class EfinixPlatform(GenericPlatform):
                 if resource[2]:
                     name = name + "_" + resource[2]
                 name = name + (f"{idx}" if slc else "")
+                return name
+        return None
+
+    def get_pins_name(self, sig):
+        if sig is None:
+            return None
+        sc = self.constraint_manager.get_sig_constraints()
+        for s, pins, others, resource in sc:
+            if s == sig:
+                name = resource[0] + (f"{resource[1]}" if resource[1] is not None else "")
+                if resource[2]:
+                    name = name + "_" + resource[2]
                 return name
         return None
 
