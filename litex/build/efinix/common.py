@@ -480,7 +480,7 @@ efinix_special_overrides = {
     DifferentialOutput     : EfinixDifferentialOutput,
     DifferentialInput      : EfinixDifferentialInput,
     SDROutput              : EfinixSDROutput,
-    SDRInput               : EfinixSDRInput,
+    #SDRInput               : EfinixSDRInput, # FIXME: Naming/Excluded IO isuse?
     SDRTristate            : EfinixSDRTristate,
     DDROutput              : EfinixDDROutput,
     DDRInput               : EfinixDDRInput,
