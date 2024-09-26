@@ -134,28 +134,32 @@ class EfinixClkOutput(Module):
 class EfinixTristateImpl(Module):
     def __init__(self, io, o, oe, i=None):
         platform = LiteXContext.platform
-        nbits, sign = value_bits_sign(io)
-
-        for bit in range(nbits):
-            io_name = platform.get_pin_name(io[bit])
-            io_loc  = platform.get_pin_location(io[bit])
-            io_prop = platform.get_pin_properties(io[bit])
-            io_o    = platform.add_iface_io(io_name + "_OUT")
-            io_oe   = platform.add_iface_io(io_name +  "_OE")
-            io_i    = platform.add_iface_io(io_name +  "_IN")
-            self.comb += io_o.eq(o >> bit)
-            self.comb += io_oe.eq(oe)
-            if i is not None:
-                self.comb += i[bit].eq(io_i)
-            block = {
-                "type"       : "GPIO",
-                "mode"       : "INOUT",
-                "name"       : io_name,
-                "location"   : [io_loc[0]],
-                "properties" : io_prop
-            }
-
-            platform.toolchain.ifacewriter.blocks.append(block)
+        if len(io) == 1:
+            io_name = platform.get_pin_name(io)
+            io_pad  = platform.get_pin_location(io)
+            io_prop = platform.get_pin_properties(io)
+        else:
+            io_name = platform.get_pins_name(io)
+            io_pad  = platform.get_pins_location(io)
+            io_prop = platform.get_pin_properties(io[0])
+        io_prop_dict = dict(io_prop)
+        io_data_i  = platform.add_iface_io(io_name + "_OUT")
+        io_data_o  = platform.add_iface_io(io_name + "_IN")
+        io_data_e  = platform.add_iface_io(io_name + "_OE")
+        self.comb += io_data_i.eq(o)
+        self.comb += io_data_e.eq(oe)
+        if i is not None:
+            self.comb += i.eq(io_data_o)
+        block = {
+            "type"              : "GPIO",
+            "mode"              : "INOUT",
+            "name"              : io_name,
+            "location"          : io_pad,
+            "properties"        : io_prop,
+            "size"              : len(io),
+            "drive_strength"    : io_prop_dict.get("DRIVE_STRENGTH", "4")
+        }
+        platform.toolchain.ifacewriter.blocks.append(block)
         platform.toolchain.excluded_ios.append(platform.get_pin(io))
 
 class EfinixTristate(Module):
