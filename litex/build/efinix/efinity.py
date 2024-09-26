@@ -222,8 +222,32 @@ class EfinityToolchain(GenericToolchain):
 
         return "\n".join(conf)
 
+    def resolve_iface_signal_names(self):
+        # Iterate over each block
+        for block in self.platform.toolchain.ifacewriter.blocks:
+
+            # Iterate over each key-value pair in the block
+            for key, value in block.items():
+
+                # Only process specific keys, skip others.
+                if key not in ["name", "in_clk_pin", "out_clk_pin"]:
+                    continue
+
+                # If the value is a ClockSignal, resolve its name
+                if isinstance(value, ClockSignal):
+                    clock_domain = value.cd
+                    signal_name = self._vns.get_name(self._vns.clock_domains[clock_domain].clk)
+                    block[key] = signal_name  # Replace with the resolved name
+
+                # If the value is a Signal, directly resolve its name
+                elif isinstance(value, Signal):
+                    signal_name = self._vns.get_name(value)
+                    block[key] = signal_name  # Replace with the resolved name
+
     def build_io_constraints(self):
         pythonpath = ""
+
+        self.resolve_iface_signal_names()
 
         header = self.ifacewriter.header(self._build_name, self.platform.device)
         gen    = self.ifacewriter.generate(self.platform.device)
