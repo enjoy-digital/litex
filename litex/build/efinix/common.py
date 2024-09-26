@@ -33,6 +33,11 @@ if _have_colorama:
          r"\g<0>" + colorama.Style.RESET_ALL),
     ]
 
+# Helpers ------------------------------------------------------------------------------------------
+
+def assert_is_signal_or_clocksignal(obj):
+    assert isinstance(obj, (ClockSignal, Signal)), f"Object {obj} is not a ClockSignal or Signal"
+
 # Efinix AsyncResetSynchronizer --------------------------------------------------------------------
 
 class EfinixAsyncResetSynchronizerImpl(Module):
@@ -104,12 +109,13 @@ class EfinixClkInput(Module):
 
 class EfinixClkOutputImpl(Module):
     def __init__(self, platform, i, o):
+        assert_is_signal_or_clocksignal(i)
         block = {
             "type"       : "GPIO",
             "size"       : 1,
             "location"   : platform.get_pin_location(o)[0],
             "properties" : platform.get_pin_properties(o),
-            "name"       : i.name_override, # FIXME
+            "name"       : i,
             "mode"       : "OUTPUT_CLK",
         }
         platform.toolchain.ifacewriter.blocks.append(block)
@@ -268,6 +274,7 @@ class EfinixDifferentialInput:
 class EfinixDDRTristateImpl(Module):
     def __init__(self, platform, io, o1, o2, oe1, oe2, i1, i2, clk):
         assert oe1 == oe2
+        assert_is_signal_or_clocksignal(clk)
         io_name = platform.get_pin_name(io)
         io_pad  = platform.get_pin_location(io)
         io_prop = platform.get_pin_properties(io)
@@ -290,9 +297,9 @@ class EfinixDDRTristateImpl(Module):
             "properties"        : io_prop,
             "size"              : 1,
             "in_reg"            : "DDIO_RESYNC",
-            "in_clk_pin"        : clk.name_override, # FIXME.
+            "in_clk_pin"        : clk,
             "out_reg"           : "DDIO_RESYNC",
-            "out_clk_pin"       : clk.name_override, # FIXME.
+            "out_clk_pin"       : clk,
             "oe_reg"            : "REG",
             "is_inclk_inverted" : False,
             "drive_strength"    : io_prop_dict.get("DRIVE_STRENGTH", "4")
@@ -309,6 +316,7 @@ class EfinixDDRTristate:
 
 class EfinixSDRTristateImpl(EfinixDDRTristateImpl):
     def __init__(self, platform, io, o, oe, i, clk):
+        assert_is_signal_or_clocksignal(clk)
         io_name = platform.get_pin_name(io)
         io_pad  = platform.get_pin_location(io)
         io_prop = platform.get_pin_properties(io)
@@ -327,9 +335,9 @@ class EfinixSDRTristateImpl(EfinixDDRTristateImpl):
             "properties"        : io_prop,
             "size"              : 1,
             "in_reg"            : "REG",
-            "in_clk_pin"        : clk.name_override, # FIXME.
+            "in_clk_pin"        : clk,
             "out_reg"           : "REG",
-            "out_clk_pin"       : clk.name_override, # FIXME.
+            "out_clk_pin"       : clk,
             "oe_reg"            : "REG",
             "is_inclk_inverted" : False,
             "drive_strength"    : io_prop_dict.get("DRIVE_STRENGTH", "4")
@@ -347,6 +355,7 @@ class EfinixSDRTristate(Module):
 
 class EfinixSDROutputImpl(Module):
     def __init__(self, platform, i, o, clk):
+        assert_is_signal_or_clocksignal(clk)
         io_name = platform.get_pin_name(o)
         io_pad  = platform.get_pin_location(o)
         io_prop = platform.get_pin_properties(o)
@@ -361,7 +370,7 @@ class EfinixSDROutputImpl(Module):
             "properties"        : io_prop,
             "size"              : 1,
             "out_reg"           : "REG",
-            "out_clk_pin"       : clk.name_override, # FIXME.
+            "out_clk_pin"       : clk,
             "is_inclk_inverted" : False,
             "drive_strength"    : io_prop_dict.get("DRIVE_STRENGTH", "4")
         }
@@ -379,6 +388,7 @@ class EfinixSDROutput(Module):
 
 class EfinixDDROutputImpl(Module):
     def __init__(self, platform, i1, i2, o, clk):
+        assert_is_signal_or_clocksignal(clk)
         io_name = platform.get_pin_name(o)
         io_pad  = platform.get_pin_location(o)
         io_prop = platform.get_pin_properties(o)
@@ -395,7 +405,7 @@ class EfinixDDROutputImpl(Module):
             "properties"        : io_prop,
             "size"              : 1,
             "out_reg"           : "DDIO_RESYNC",
-            "out_clk_pin"       : clk.name_override, # FIXME.
+            "out_clk_pin"       : clk,
             "is_inclk_inverted" : False,
             "drive_strength"    : io_prop_dict.get("DRIVE_STRENGTH", "4")
         }
@@ -411,6 +421,7 @@ class EfinixDDROutput:
 
 class EfinixDDRInputImpl(Module):
     def __init__(self, platform, i, o1, o2, clk):
+        assert_is_signal_or_clocksignal(clk)
         io_name   = platform.get_pin_name(i)
         io_pad    = platform.get_pin_location(i)
         io_prop   = platform.get_pin_properties(i)
@@ -426,7 +437,7 @@ class EfinixDDRInputImpl(Module):
             "properties"        : io_prop,
             "size"              : 1,
             "in_reg"            : "DDIO_RESYNC",
-            "in_clk_pin"        : clk.name_override, # FIXME.
+            "in_clk_pin"        : clk,
             "is_inclk_inverted" : False
         }
         platform.toolchain.ifacewriter.blocks.append(block)
