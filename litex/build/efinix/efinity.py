@@ -27,6 +27,7 @@ from litex.build.generic_toolchain import GenericToolchain
 
 from litex.build.efinix import common
 from litex.build.efinix import InterfaceWriter
+from litex.build.efinix import IPMWriter
 
 
 # Efinity Toolchain --------------------------------------------------------------------------------
@@ -40,6 +41,7 @@ class EfinityToolchain(GenericToolchain):
         self.efinity_path              = efinity_path
         os.environ["EFXPT_HOME"]       = self.efinity_path + "/pt"
         self.ifacewriter               = InterfaceWriter(efinity_path)
+        self.ipmwriter                 = IPMWriter(efinity_path)
         self.excluded_ios              = []
         self.additional_sdc_commands   = []
         self.additional_iface_commands = []
@@ -308,6 +310,15 @@ class EfinityToolchain(GenericToolchain):
         xml_str = expatbuilder.parseString(xml_str, False)
         xml_str = xml_str.toprettyxml(indent="  ")
         tools.write_to_file("{}.xml".format(self._build_name), xml_str)
+
+        if len(self.ipmwriter.blocks) > 0:
+            ipm_header = self.ipmwriter.header(self._build_name, self.platform.device, self.platform.family)
+            ipm    = self.ipmwriter.generate(self.platform.device)
+
+            tools.write_to_file("ipm.py", ipm_header + ipm )
+
+            if tools.subprocess_call_filtered([self.efinity_path + "/bin/python3", "ipm.py"], common.colors) != 0:
+                raise OSError("Error occurred during Efinity ip script execution.")
 
         if tools.subprocess_call_filtered([self.efinity_path + "/bin/python3", "iface.py"], common.colors) != 0:
             raise OSError("Error occurred during Efinity peri script execution.")
