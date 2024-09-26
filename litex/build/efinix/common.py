@@ -295,7 +295,8 @@ class EfinixDDRTristateImpl(Module):
             "out_reg"           : "DDIO_RESYNC",
             "out_clk_pin"       : clk,
             "oe_reg"            : "REG",
-            "is_inclk_inverted" : False,
+            "in_clk_inv"        : 0,
+            "out_clk_inv"       : 0,
             "drive_strength"    : io_prop_dict.get("DRIVE_STRENGTH", "4")
         }
         platform.toolchain.ifacewriter.blocks.append(block)
@@ -333,7 +334,8 @@ class EfinixSDRTristateImpl(EfinixDDRTristateImpl):
             "out_reg"           : "REG",
             "out_clk_pin"       : clk,
             "oe_reg"            : "REG",
-            "is_inclk_inverted" : False,
+            "in_clk_inv"        : 0,
+            "out_clk_inv"       : 0,
             "drive_strength"    : io_prop_dict.get("DRIVE_STRENGTH", "4")
         }
         platform.toolchain.ifacewriter.blocks.append(block)
@@ -365,7 +367,7 @@ class EfinixSDROutputImpl(Module):
             "size"              : 1,
             "out_reg"           : "REG",
             "out_clk_pin"       : clk,
-            "is_inclk_inverted" : False,
+            "out_clk_inv"       : 0,
             "drive_strength"    : io_prop_dict.get("DRIVE_STRENGTH", "4")
         }
         platform.toolchain.ifacewriter.blocks.append(block)
@@ -399,7 +401,7 @@ class EfinixDDROutputImpl(Module):
             "size"              : 1,
             "out_reg"           : "DDIO_RESYNC",
             "out_clk_pin"       : clk,
-            "is_inclk_inverted" : False,
+            "out_clk_inv"       : 0,
             "drive_strength"    : io_prop_dict.get("DRIVE_STRENGTH", "4")
         }
         platform.toolchain.ifacewriter.blocks.append(block)
@@ -460,7 +462,7 @@ class EfinixDDRInputImpl(Module):
             "size"              : 1,
             "in_reg"            : "DDIO_RESYNC",
             "in_clk_pin"        : clk,
-            "is_inclk_inverted" : False
+            "in_clk_inv"        : 0
         }
         platform.toolchain.ifacewriter.blocks.append(block)
         platform.toolchain.excluded_ios.append(platform.get_pin(i))
