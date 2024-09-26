@@ -105,7 +105,7 @@ class EfinixClkInput(Module):
     def lower(dr):
         return EfinixClkInputImpl(dr.platform, dr.i, dr.o)
 
-# Efinix Clk Output ---------------------------------------------------------------------------------
+# Efinix Clk Output --------------------------------------------------------------------------------
 
 class EfinixClkOutputImpl(Module):
     def __init__(self, platform, i, o):
@@ -159,8 +159,6 @@ class EfinixTristate(Module):
     @staticmethod
     def lower(dr):
         return EfinixTristateImpl(dr.platform, dr.target, dr.o, dr.oe, dr.i)
-
-
 
 # Efinix DifferentialOutput ------------------------------------------------------------------------
 
@@ -265,11 +263,7 @@ class EfinixDifferentialInput:
     def lower(dr):
         return EfinixDifferentialInputImpl(dr.platform, dr.i_p, dr.i_n, dr.o)
 
-
-
-
-
-# Efinix DDRTristate ---------------------------------------------------------------------------------
+# Efinix DDRTristate -------------------------------------------------------------------------------
 
 class EfinixDDRTristateImpl(Module):
     def __init__(self, platform, io, o1, o2, oe1, oe2, i1, i2, clk):
@@ -351,7 +345,7 @@ class EfinixSDRTristate(Module):
     def lower(dr):
         return EfinixSDRTristateImpl(dr.platform, dr.io, dr.o, dr.oe, dr.i, dr.clk)
 
-# Efinix SDROutput -------------------------------------------------------------------------------
+# Efinix SDROutput ---------------------------------------------------------------------------------
 
 class EfinixSDROutputImpl(Module):
     def __init__(self, platform, i, o, clk):
@@ -382,7 +376,6 @@ class EfinixSDROutput(Module):
     @staticmethod
     def lower(dr):
         return EfinixSDROutputImpl(dr.platform, dr.i, dr.o, dr.clk)
-
 
 # Efinix DDROutput ---------------------------------------------------------------------------------
 
@@ -421,6 +414,7 @@ class EfinixDDROutput:
 
 class EfinixSDRInputImpl(Module):
     def __init__(self, platform, i, o, clk):
+        assert_is_signal_or_clocksignal(clk)
         io_name   = platform.get_pin_name(i)
         io_pad    = platform.get_pin_location(i)
         io_prop   = platform.get_pin_properties(i)
@@ -434,7 +428,7 @@ class EfinixSDRInputImpl(Module):
             "properties"        : io_prop,
             "size"              : 1,
             "in_reg"            : "REG",
-            "in_clk_pin"        : clk.name_override, # FIXME.
+            "in_clk_pin"        : clk,
             "in_clk_inv"        : 0
         }
         platform.toolchain.ifacewriter.blocks.append(block)
