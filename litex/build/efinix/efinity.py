@@ -447,22 +447,14 @@ class EfinityToolchain(GenericToolchain):
 
 def build_args(parser):
     toolchain = parser.add_argument_group(title="Efinity toolchain options")
-    toolchain.add_argument("--synth-mode",               default="speed", help="Synthesis optimization mode.",
-        choices=["speed", "area", "area2"])
-    toolchain.add_argument("--infer-clk-enable",         default="3",     help="infers the flip-flop clock enable signal.",
-        choices=["0", "1", "2", "3", "4",])
-    toolchain.add_argument("--infer-sync-set-reset",     default="1",     help="Infer synchronous set/reset signals.",
-        choices=["0", "1"])
-    toolchain.add_argument("--bram-output-regs-packing", default="1",     help="Pack registers into the output of BRAM.",
-        choices=["0", "1"])
-    toolchain.add_argument("--retiming",                 default="1",     help="Perform retiming optimization.",
-        choices=["0", "1", "2"])
-    toolchain.add_argument("--seq-opt",                  default="1",     help="Turn on sequential optimization.",
-        choices=["0", "1"])
-    toolchain.add_argument("--mult-input-regs-packing",  default="1",     help="Allow packing of multiplier input registers.",
-        choices=["0", "1"]),
-    toolchain.add_argument("--mult-output-regs-packing", default="1",     help="Allow packing of multiplier output registers.",
-        choices=["0", "1"])
+    toolchain.add_argument("--synth-mode",               default="speed", help="Synthesis optimization mode.",                  choices=["speed", "area", "area2"])
+    toolchain.add_argument("--infer-clk-enable",         default="3",     help="infers the flip-flop clock enable signal.",     choices=["0", "1", "2", "3", "4",])
+    toolchain.add_argument("--infer-sync-set-reset",     default="1",     help="Infer synchronous set/reset signals.",          choices=["0", "1"])
+    toolchain.add_argument("--bram-output-regs-packing", default="1",     help="Pack registers into the output of BRAM.",       choices=["0", "1"])
+    toolchain.add_argument("--retiming",                 default="1",     help="Perform retiming optimization.",                choices=["0", "1", "2"])
+    toolchain.add_argument("--seq-opt",                  default="1",     help="Turn on sequential optimization.",              choices=["0", "1"])
+    toolchain.add_argument("--mult-input-regs-packing",  default="1",     help="Allow packing of multiplier input registers.",  choices=["0", "1"]),
+    toolchain.add_argument("--mult-output-regs-packing", default="1",     help="Allow packing of multiplier output registers.", choices=["0", "1"])
 
 def build_argdict(args):
     return {
