@@ -1,5 +1,5 @@
-[> Changes since 2024.04
-------------------------
+[> 2024.08, released on September 27th 2024
+-------------------------------------------
 	[> Fixed
 	--------
 	- cpu/zynq7000                  : Fixed AXI version to AXI3.
