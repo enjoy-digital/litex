@@ -46,6 +46,7 @@
 	- liteiclink/serdes             : Added GTH/Virtex7 support (https://github.com/enjoy-digital/liteeth/pull/23).
 	- litespi/phy                   : Improved logic and cleanup (https://github.com/litex-hub/litespi/pull/73).
 	- litespi/mmap                  : Added write support for SPIRAM devices (https://github.com/litex-hub/litespi/pull/70).
+	- build/efinix                  : Improved name elaboration for Signals/Clocks to simplify user design.
 
 	[> Changed
 	----------
