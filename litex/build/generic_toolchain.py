@@ -180,5 +180,6 @@ class GenericToolchain:
         if keep:
             from_.attr.add("keep")
             to.attr.add("keep")
-        if (to, from_) not in self.false_paths:
-            self.false_paths.add((from_, to))
+        clk_tuple = (to, from_)
+        if clk_tuple not in self.false_paths:
+            self.false_paths.add(clk_tuple)
