@@ -192,14 +192,14 @@ class SoCCore(LiteXSoC):
 
         if with_uart:
             # crossover+uartbone is kept as backward compatibility
-            if uart_name == "crossover+uartbone":
-                self.logger.warning("{} UART: is deprecated {}".format(
-                    colorer(uart_name, color="yellow"),
-                    colorer("please use --uart-name=\"crossover\" --with-uartbone", color="red")))
-                time.sleep(2)
-                # Already configured.
-                self._uartbone = True
-                uart_name      = "crossover"
+            #if uart_name == "crossover+uartbone":
+            #    self.logger.warning("{} UART: is deprecated {}".format(
+            #        colorer(uart_name, color="yellow"),
+            #        colorer("please use --uart-name=\"crossover\" --with-uartbone", color="red")))
+            #    time.sleep(2)
+            #    # Already configured.
+            #    self._uartbone = True
+            #    uart_name      = "crossover"
 
             # JTAGBone and jtag_uart can't be used at the same time.
             assert not (with_jtagbone and uart_name == "jtag_uart")
