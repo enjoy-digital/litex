@@ -275,7 +275,7 @@ class EfinixDifferentialInput:
 # Efinix DDRTristate -------------------------------------------------------------------------------
 
 class EfinixDDRTristateImpl(LiteXModule):
-    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk, out_clk_inv=False, in_clk_inv=False):
+    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk, out_clk_inv=False, in_clk_inv=False, in_clk=None):
         assert oe1 == oe2
         assert_is_signal_or_clocksignal(clk)
         platform     = LiteXContext.platform
@@ -301,7 +301,7 @@ class EfinixDDRTristateImpl(LiteXModule):
             "properties"     : io_prop,
             "size"           : 1,
             "in_reg"         : "DDIO_RESYNC",
-            "in_clk_pin"     : clk,
+            "in_clk_pin"     : clk if in_clk is None else in_clk,
             "out_reg"        : "DDIO_RESYNC",
             "out_clk_pin"    : clk,
             "oe_reg"         : "REG",
@@ -320,7 +320,7 @@ class EfinixDDRTristate:
 # Efinix SDRTristate -------------------------------------------------------------------------------
 
 class EfinixSDRTristateImpl(LiteXModule):
-    def __init__(self, io, o, oe, i, clk, out_clk_inv=False, in_clk_inv=False):
+    def __init__(self, io, o, oe, i, clk, out_clk_inv=False, in_clk_inv=False, in_clk=None):
         assert_is_signal_or_clocksignal(clk)
         platform     = LiteXContext.platform
         io_name      = platform.get_pin_name(io)
@@ -341,7 +341,7 @@ class EfinixSDRTristateImpl(LiteXModule):
             "properties"     : io_prop,
             "size"           : 1,
             "in_reg"         : "REG",
-            "in_clk_pin"     : clk,
+            "in_clk_pin"     : clk if in_clk is None else in_clk,
             "out_reg"        : "REG",
             "out_clk_pin"    : clk,
             "oe_reg"         : "REG",
