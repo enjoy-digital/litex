@@ -83,11 +83,13 @@ class InferedSDRIO(Module):
         self.sync.sdrio += o.eq(i)
 
 class SDRIO(Special):
-    def __init__(self, i, o, clk=ClockSignal()):
+    def __init__(self, i, o, clk=None):
         assert len(i) == len(o) == 1
         Special.__init__(self)
         self.i            = wrap(i)
         self.o            = wrap(o)
+        if clk is None:
+            clk = ClockSignal()
         self.clk          = wrap(clk)
         self.clk_domain   = None if not hasattr(clk, "cd") else clk.cd
 
@@ -117,14 +119,14 @@ class InferedSDRTristate(Module):
         self.specials   += Tristate(io, _o, _oe, _i)
 
 class SDRTristate(Special):
-    def __init__(self, io, o, oe, i, clk=ClockSignal()):
+    def __init__(self, io, o, oe, i, clk=None):
         assert len(i) == len(o) == len(oe)
         Special.__init__(self)
         self.io  = wrap(io)
         self.o   = wrap(o)
         self.oe  = wrap(oe)
         self.i   = wrap(i)
-        self.clk = wrap(clk)
+        self.clk = wrap(clk) if clk is not None else ClockSignal()
 
     def iter_expressions(self):
         yield self, "io" , SPECIAL_INOUT
@@ -140,11 +142,13 @@ class SDRTristate(Special):
 # DDR Input/Output ---------------------------------------------------------------------------------
 
 class DDRInput(Special):
-    def __init__(self, i, o1, o2, clk=ClockSignal()):
+    def __init__(self, i, o1, o2, clk=None):
         Special.__init__(self)
         self.i   = wrap(i)
         self.o1  = wrap(o1)
         self.o2  = wrap(o2)
+        if clk is None:
+            clk = ClockSignal()
         self.clk = clk if isinstance(clk, str) else wrap(clk)
 
     def iter_expressions(self):
@@ -159,11 +163,13 @@ class DDRInput(Special):
 
 
 class DDROutput(Special):
-    def __init__(self, i1, i2, o, clk=ClockSignal()):
+    def __init__(self, i1, i2, o, clk=None):
         Special.__init__(self)
         self.i1  = wrap(i1)
         self.i2  = wrap(i2)
         self.o   = wrap(o)
+        if clk is None:
+            clk = ClockSignal()
         self.clk = clk if isinstance(clk, str) else wrap(clk)
 
     def iter_expressions(self):
@@ -189,7 +195,7 @@ class InferedDDRTristate(Module):
         self.specials += Tristate(io, _o, _oe, _i)
 
 class DDRTristate(Special):
-    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk=ClockSignal()):
+    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk=None):
         Special.__init__(self)
         self.io  = io
         self.o1  = o1
@@ -198,7 +204,7 @@ class DDRTristate(Special):
         self.oe2 = oe2
         self.i1  = i1
         self.i2  = i2
-        self.clk = clk
+        self.clk = clk if clk is not None else ClockSignal()
 
     def iter_expressions(self):
         yield self, "io" , SPECIAL_INOUT
