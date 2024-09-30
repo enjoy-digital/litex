@@ -275,7 +275,7 @@ class EfinixDifferentialInput:
 # Efinix DDRTristate -------------------------------------------------------------------------------
 
 class EfinixDDRTristateImpl(LiteXModule):
-    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk):
+    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk, out_clk_inv=False, in_clk_inv=False):
         assert oe1 == oe2
         assert_is_signal_or_clocksignal(clk)
         platform     = LiteXContext.platform
@@ -305,8 +305,8 @@ class EfinixDDRTristateImpl(LiteXModule):
             "out_reg"        : "DDIO_RESYNC",
             "out_clk_pin"    : clk,
             "oe_reg"         : "REG",
-            "in_clk_inv"     : 0,
-            "out_clk_inv"    : 0,
+            "in_clk_inv"     : 1 if in_clk_inv else 0,
+            "out_clk_inv"    : 1 if out_clk_inv else 0,
             "drive_strength" : io_prop_dict.get("DRIVE_STRENGTH", "4")
         }
         platform.toolchain.ifacewriter.blocks.append(block)
@@ -315,12 +315,12 @@ class EfinixDDRTristateImpl(LiteXModule):
 class EfinixDDRTristate:
     @staticmethod
     def lower(dr):
-        return EfinixDDRTristateImpl(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk)
+        return EfinixDDRTristateImpl(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk, **dr.kwargs)
 
 # Efinix SDRTristate -------------------------------------------------------------------------------
 
 class EfinixSDRTristateImpl(LiteXModule):
-    def __init__(self, io, o, oe, i, clk):
+    def __init__(self, io, o, oe, i, clk, out_clk_inv=False, in_clk_inv=False):
         assert_is_signal_or_clocksignal(clk)
         platform     = LiteXContext.platform
         io_name      = platform.get_pin_name(io)
@@ -345,8 +345,8 @@ class EfinixSDRTristateImpl(LiteXModule):
             "out_reg"        : "REG",
             "out_clk_pin"    : clk,
             "oe_reg"         : "REG",
-            "in_clk_inv"     : 0,
-            "out_clk_inv"    : 0,
+            "in_clk_inv"     : 1 if in_clk_inv else 0,
+            "out_clk_inv"    : 1 if out_clk_inv else 0,
             "drive_strength" : io_prop_dict.get("DRIVE_STRENGTH", "4")
         }
         platform.toolchain.ifacewriter.blocks.append(block)
@@ -356,12 +356,12 @@ class EfinixSDRTristateImpl(LiteXModule):
 class EfinixSDRTristate(LiteXModule):
     @staticmethod
     def lower(dr):
-        return EfinixSDRTristateImpl(dr.io, dr.o, dr.oe, dr.i, dr.clk)
+        return EfinixSDRTristateImpl(dr.io, dr.o, dr.oe, dr.i, dr.clk, **dr.kwargs)
 
 # Efinix SDROutput ---------------------------------------------------------------------------------
 
 class EfinixSDROutputImpl(LiteXModule):
-    def __init__(self, i, o, clk):
+    def __init__(self, i, o, clk, out_clk_inv=False):
         assert_is_signal_or_clocksignal(clk)
         platform     = LiteXContext.platform
         io_name      = platform.get_pin_name(o)
@@ -379,7 +379,7 @@ class EfinixSDROutputImpl(LiteXModule):
             "size"           : 1,
             "out_reg"        : "REG",
             "out_clk_pin"    : clk,
-            "out_clk_inv"    : 0,
+            "out_clk_inv"    : 1 if out_clk_inv else 0,
             "drive_strength" : io_prop_dict.get("DRIVE_STRENGTH", "4")
         }
         platform.toolchain.ifacewriter.blocks.append(block)
@@ -389,12 +389,12 @@ class EfinixSDROutputImpl(LiteXModule):
 class EfinixSDROutput(LiteXModule):
     @staticmethod
     def lower(dr):
-        return EfinixSDROutputImpl(dr.i, dr.o, dr.clk)
+        return EfinixSDROutputImpl(dr.i, dr.o, dr.clk, **dr.kwargs)
 
 # Efinix DDROutput ---------------------------------------------------------------------------------
 
 class EfinixDDROutputImpl(LiteXModule):
-    def __init__(self, i1, i2, o, clk):
+    def __init__(self, i1, i2, o, clk, out_clk_inv=False):
         assert_is_signal_or_clocksignal(clk)
         platform     = LiteXContext.platform
         io_name      = platform.get_pin_name(o)
@@ -414,7 +414,7 @@ class EfinixDDROutputImpl(LiteXModule):
             "size"              : 1,
             "out_reg"           : "DDIO_RESYNC",
             "out_clk_pin"       : clk,
-            "out_clk_inv"       : 0,
+            "out_clk_inv"       : 1 if out_clk_inv else 0,
             "drive_strength"    : io_prop_dict.get("DRIVE_STRENGTH", "4")
         }
         platform.toolchain.ifacewriter.blocks.append(block)
@@ -423,12 +423,12 @@ class EfinixDDROutputImpl(LiteXModule):
 class EfinixDDROutput:
     @staticmethod
     def lower(dr):
-        return EfinixDDROutputImpl(dr.i1, dr.i2, dr.o, dr.clk)
+        return EfinixDDROutputImpl(dr.i1, dr.i2, dr.o, dr.clk, **dr.kwargs)
 
 # Efinix SDRInput ----------------------------------------------------------------------------------
 
 class EfinixSDRInputImpl(LiteXModule):
-    def __init__(self, i, o, clk):
+    def __init__(self, i, o, clk, in_clk_inv=False):
         assert_is_signal_or_clocksignal(clk)
         platform = LiteXContext.platform
         io_name  = platform.get_pin_name(i)
@@ -445,7 +445,7 @@ class EfinixSDRInputImpl(LiteXModule):
             "size"              : 1,
             "in_reg"            : "REG",
             "in_clk_pin"        : clk,
-            "in_clk_inv"        : 0
+            "in_clk_inv"        : 1 if in_clk_inv else 0,
         }
         platform.toolchain.ifacewriter.blocks.append(block)
         platform.toolchain.excluded_ios.append(platform.get_pin(i))
@@ -453,12 +453,12 @@ class EfinixSDRInputImpl(LiteXModule):
 class EfinixSDRInput:
     @staticmethod
     def lower(dr):
-        return EfinixSDRInputImpl(dr.i, dr.o, dr.clk)
+        return EfinixSDRInputImpl(dr.i, dr.o, dr.clk, **dr.kwargs)
 
 # Efinix DDRInput ----------------------------------------------------------------------------------
 
 class EfinixDDRInputImpl(LiteXModule):
-    def __init__(self, i, o1, o2, clk):
+    def __init__(self, i, o1, o2, clk, in_clk_inv=False):
         assert_is_signal_or_clocksignal(clk)
         platform  = LiteXContext.platform
         io_name   = platform.get_pin_name(i)
@@ -477,7 +477,7 @@ class EfinixDDRInputImpl(LiteXModule):
             "size"              : 1,
             "in_reg"            : "DDIO_RESYNC",
             "in_clk_pin"        : clk,
-            "in_clk_inv"        : 0
+            "in_clk_inv"        : 1 if in_clk_inv else 0,
         }
         platform.toolchain.ifacewriter.blocks.append(block)
         platform.toolchain.excluded_ios.append(platform.get_pin(i))
@@ -485,7 +485,7 @@ class EfinixDDRInputImpl(LiteXModule):
 class EfinixDDRInput:
     @staticmethod
     def lower(dr):
-        return EfinixDDRInputImpl(dr.i, dr.o1, dr.o2, dr.clk)
+        return EfinixDDRInputImpl(dr.i, dr.o1, dr.o2, dr.clk, **dr.kwargs)
 
 # Efinix Special Overrides -------------------------------------------------------------------------
 
