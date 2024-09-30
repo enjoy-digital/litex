@@ -159,7 +159,7 @@ class CologneChipSDROutput:
 # CologneChip SDRTristate ---------------------------------------------------------------------------------
 
 class CologneChipSDRTristateImpl(Module):
-    def __init__(self, io, o, oe, i, clk):
+    def __init__(self, io, o, oe, i, clk, in_clk):
         _o    = Signal().like(o)
         _oe_n = Signal().like(oe)
         _i    = Signal().like(i if i is not None else o)
@@ -168,7 +168,7 @@ class CologneChipSDRTristateImpl(Module):
             SDROutput(~oe, _oe_n, clk),
         ]
         if i is not None:
-            self.specials += SDRInput(i, _i, clk)
+            self.specials += SDRInput(i, _i, in_clk)
         for j in range(len(io)):
             self.specials += Instance("CC_IOBUF",
                     p_FF_OBF = 1,
@@ -182,7 +182,7 @@ class CologneChipSDRTristateImpl(Module):
 class CologneChipSDRTristate:
     @staticmethod
     def lower(dr):
-        return CologneChipSDRTristateImpl(dr.io, dr.o, dr.oe, dr.i, dr.clk)
+        return CologneChipSDRTristateImpl(dr.io, dr.o, dr.oe, dr.i, dr.clk, dr.in_clk)
 
 
 # CologneChip Tristate -----------------------------------------------------------------------------

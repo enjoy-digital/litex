@@ -108,24 +108,25 @@ class SDROutput(SDRIO): pass
 # SDR Tristate -------------------------------------------------------------------------------------
 
 class InferedSDRTristate(Module):
-    def __init__(self, io, o, oe, i, clk):
+    def __init__(self, io, o, oe, i, clk, in_clk):
         _o  = Signal().like(o)
         _oe = Signal().like(oe)
         _i  = Signal().like(i) if i is not None else None
         self.specials   += SDROutput(o, _o, clk)
         if _i is not None:
-            self.specials   += SDRInput(_i, i, clk)
+            self.specials   += SDRInput(_i, i, in_clk)
         self.submodules += InferedSDRIO(oe, _oe, clk)
         self.specials   += Tristate(io, _o, _oe, _i)
 
 class SDRTristate(Special):
-    def __init__(self, io, o, oe, i=None, clk=None):
+    def __init__(self, io, o, oe, i=None, clk=None, in_clk=None):
         Special.__init__(self)
         self.io  = wrap(io)
         self.o   = wrap(o)
         self.oe  = wrap(oe)
         self.i   = wrap(i) if i is not None else None
         self.clk = wrap(clk) if clk is not None else ClockSignal()
+        self.in_clk = wrap(in_clk) if in_clk is not None else self.clk
         if self.i is not None:
             assert len(self.i) == len(self.o) == len(self.oe)
         else:
@@ -138,10 +139,11 @@ class SDRTristate(Special):
         if self.i is not None:
             yield self, "i"  , SPECIAL_OUTPUT
         yield self, "clk", SPECIAL_INPUT
+        yield self, "in_clk", SPECIAL_INPUT
 
     @staticmethod
     def lower(dr):
-        return InferedSDRTristate(dr.io, dr.o, dr.oe, dr.i, dr.clk)
+        return InferedSDRTristate(dr.io, dr.o, dr.oe, dr.i, dr.clk, dr.in_clk)
 
 # DDR Input/Output ---------------------------------------------------------------------------------
 
@@ -189,14 +191,14 @@ class DDROutput(Special):
 # DDR Tristate -------------------------------------------------------------------------------------
 
 class InferedDDRTristate(Module):
-    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk, i_async):
+    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk, in_clk, i_async):
         _o  = Signal().like(o1)
         _oe = Signal().like(oe1)
         _i  = Signal().like(_o) if i1 is not None and i2 is not None else None
         self.specials += DDROutput(o1, o2, _o, clk)
         self.specials += DDROutput(oe1, oe2, _oe, clk) if oe2 is not None else SDROutput(oe1, _oe, clk)
         if _i is not None:
-            self.specials += DDRInput(_i, i1, i2, clk)
+            self.specials += DDRInput(_i, i1, i2, in_clk)
             if i_async is not None:
                 self.comb += i_async.eq(_i)
         elif i_async is not None:
@@ -204,7 +206,7 @@ class InferedDDRTristate(Module):
         self.specials += Tristate(io, _o, _oe, _i)
 
 class DDRTristate(Special):
-    def __init__(self, io, o1, o2, oe1, oe2=None, i1=None, i2=None, clk=None, i_async=None):
+    def __init__(self, io, o1, o2, oe1, oe2=None, i1=None, i2=None, clk=None, in_clk=None, i_async=None):
         Special.__init__(self)
         self.io      = io
         self.o1      = o1
@@ -214,6 +216,7 @@ class DDRTristate(Special):
         self.i1      = i1
         self.i2      = i2
         self.clk     = clk     if     clk is not None else ClockSignal()
+        self.in_clk  = in_clk
         self.i_async = i_async
 
     def iter_expressions(self):
@@ -226,6 +229,7 @@ class DDRTristate(Special):
             ("i1" ,     SPECIAL_OUTPUT),
             ("i2" ,     SPECIAL_OUTPUT),
             ("clk",     SPECIAL_INPUT),
+            ("in_clk",  SPECIAL_INPUT),
             ("i_async", SPECIAL_OUTPUT)
         ]
         for attr, target_context in attr_context:
@@ -234,7 +238,7 @@ class DDRTristate(Special):
 
     @staticmethod
     def lower(dr):
-        return InferedDDRTristate(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk, dr.i_async)
+        return InferedDDRTristate(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk, dr.in_clk, dr.i_async)
 
 # Clock Reset Generator ----------------------------------------------------------------------------
 

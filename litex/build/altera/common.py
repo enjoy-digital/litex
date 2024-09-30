@@ -230,7 +230,7 @@ class Agilex5SDRInput:
 # Agilex5 SDRTristate ------------------------------------------------------------------------------
 
 class Agilex5SDRTristateImpl(Module):
-    def __init__(self, io, o, oe, i, clk):
+    def __init__(self, io, o, oe, i, clk, in_clk):
         _i  = Signal().like(i) if i is not None else None
         _o  = Signal().like(o)
         _oe = Signal().like(oe)
@@ -239,7 +239,7 @@ class Agilex5SDRTristateImpl(Module):
             SDRIO(oe, _oe, clk)
         ]
         if _i is not None:
-            self.specials += SDRIO(_i, i, clk)
+            self.specials += SDRIO(_i, i, in_clk)
 
         for j in range(len(io)):
             if _i is not None:
@@ -259,7 +259,7 @@ class Agilex5SDRTristateImpl(Module):
 class Agilex5SDRTristate(Module):
     @staticmethod
     def lower(dr):
-        return Agilex5SDRTristateImpl(dr.io, dr.o, dr.oe, dr.i, dr.clk)
+        return Agilex5SDRTristateImpl(dr.io, dr.o, dr.oe, dr.i, dr.clk, dr.in_clk)
 
 # Agilex5 Special Overrides ------------------------------------------------------------------------
 

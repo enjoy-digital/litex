@@ -137,14 +137,14 @@ class XilinxDifferentialOutput:
 # Common SDRTristate -------------------------------------------------------------------------------
 
 class XilinxSDRTristateImpl(Module):
-    def __init__(self, io, o, oe, i, clk):
+    def __init__(self, io, o, oe, i, clk, in_clk):
         _o    = Signal().like(o)
         _oe_n = Signal().like(oe)
         _i    = Signal().like(i if i is not None else o)
         self.specials += SDROutput(o, _o, clk)
         self.specials += SDROutput(~oe, _oe_n, clk)
         if i is not None:
-            self.specials += SDRInput(_i, i, clk)
+            self.specials += SDRInput(_i, i, in_clk)
         for j in range(len(io)):
             self.specials += Instance("IOBUF",
                 io_IO = io[j],
@@ -156,19 +156,19 @@ class XilinxSDRTristateImpl(Module):
 class XilinxSDRTristate:
     @staticmethod
     def lower(dr):
-        return XilinxSDRTristateImpl(dr.io, dr.o, dr.oe, dr.i, dr.clk)
+        return XilinxSDRTristateImpl(dr.io, dr.o, dr.oe, dr.i, dr.clk, dr.in_clk)
 
 # Common DDRTristate -------------------------------------------------------------------------------
 
 class XilinxDDRTristateImpl(Module):
-    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk, i_async):
+    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk, in_clk, i_async):
         _o    = Signal().like(o1)
         _oe_n = Signal().like(oe1)
         _i    = Signal().like(_o)
         self.specials += DDROutput(o1, o2, _o, clk)
         self.specials += DDROutput(~oe1, ~oe2, _oe_n, clk) if oe2 is not None else SDROutput(~oe1, _oe_n, clk)
         if i1 is not None and i2 is not None:
-            self.specials += DDRInput(_i, i1, i2, clk)
+            self.specials += DDRInput(_i, i1, i2, in_clk)
         for j in range(len(io)):
             self.specials += Instance("IOBUF",
                 io_IO = io[j],
@@ -182,7 +182,8 @@ class XilinxDDRTristateImpl(Module):
 class XilinxDDRTristate:
     @staticmethod
     def lower(dr):
-        return XilinxDDRTristateImpl(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk, dr.i_async)
+        return XilinxDDRTristateImpl(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk, dr.in_clk, dr.i_async)
+
 
 # Common Special Overrides -------------------------------------------------------------------------
 
