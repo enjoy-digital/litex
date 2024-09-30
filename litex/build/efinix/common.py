@@ -109,7 +109,7 @@ class EfinixClkInput(LiteXModule):
 # Efinix Clk Output --------------------------------------------------------------------------------
 
 class EfinixClkOutputImpl(LiteXModule):
-    def __init__(self, i, o):
+    def __init__(self, i, o, out_clk_inv=False):
         assert_is_signal_or_clocksignal(i)
         platform = LiteXContext.platform
         block = {
@@ -119,6 +119,7 @@ class EfinixClkOutputImpl(LiteXModule):
             "properties" : platform.get_pin_properties(o),
             "name"       : i,
             "mode"       : "OUTPUT_CLK",
+            "out_clk_inv": 1 if out_clk_inv else 0,
         }
         platform.toolchain.ifacewriter.blocks.append(block)
         platform.toolchain.excluded_ios.append(o)
@@ -126,7 +127,7 @@ class EfinixClkOutputImpl(LiteXModule):
 class EfinixClkOutput(LiteXModule):
     @staticmethod
     def lower(dr):
-        return EfinixClkOutputImpl(dr.i, dr.o)
+        return EfinixClkOutputImpl(dr.i, dr.o, **dr.kwargs)
 
 # Efinix Tristate ----------------------------------------------------------------------------------
 
