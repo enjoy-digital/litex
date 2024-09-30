@@ -308,6 +308,7 @@ class EfinixDifferentialInput:
 class EfinixTrionDDRTristateImpl(LiteXModule):
     def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk):
         assert oe2 is None
+        clk, out_clk_inv = check_clk_inverted(clk)
         assert_is_signal_or_clocksignal(clk)
         platform     = LiteXContext.platform
         if len(io) == 1:
@@ -348,8 +349,8 @@ class EfinixTrionDDRTristateImpl(LiteXModule):
             "out_reg"        : "DDIO_RESYNC",
             "out_clk_pin"    : clk,
             "oe_reg"         : "REG",
-            "in_clk_inv"     : 0,
-            "out_clk_inv"    : 0,
+            "in_clk_inv"     : out_clk_inv,
+            "out_clk_inv"    : out_clk_inv,
             "drive_strength" : io_prop_dict.get("DRIVE_STRENGTH", "4")
         }
         if i1 is None and i2 is None:
@@ -360,6 +361,7 @@ class EfinixTrionDDRTristateImpl(LiteXModule):
 class EfinixTitaniumDDRTristateImpl(LiteXModule):
     def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk):
         assert oe2 is None
+        clk, out_clk_inv = check_clk_inverted(clk)
         assert_is_signal_or_clocksignal(clk)
         platform     = LiteXContext.platform
         if len(io) == 1:
@@ -399,8 +401,8 @@ class EfinixTitaniumDDRTristateImpl(LiteXModule):
             "out_reg"        : "DDIO_RESYNC",
             "out_clk_pin"    : clk,
             "oe_reg"         : "REG",
-            "in_clk_inv"     : 0,
-            "out_clk_inv"    : 0,
+            "in_clk_inv"     : out_clk_inv,
+            "out_clk_inv"    : out_clk_inv,
             "drive_strength" : io_prop_dict.get("DRIVE_STRENGTH", "4")
         }
         if i1 is None and i2 is None:
@@ -419,6 +421,7 @@ class EfinixDDRTristate:
 class EfinixDDRResyncTristateImpl(LiteXModule):
     def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk):
         assert oe2 is None
+        clk, out_clk_inv = check_clk_inverted(clk)
         assert_is_signal_or_clocksignal(clk)
         platform     = LiteXContext.platform
         if len(io) == 1:
@@ -458,8 +461,8 @@ class EfinixDDRResyncTristateImpl(LiteXModule):
             "out_reg"        : "DDIO_RESYNC",
             "out_clk_pin"    : clk,
             "oe_reg"         : "REG",
-            "in_clk_inv"     : 0,
-            "out_clk_inv"    : 0,
+            "in_clk_inv"     : out_clk_inv,
+            "out_clk_inv"    : out_clk_inv,
             "drive_strength" : io_prop_dict.get("DRIVE_STRENGTH", "4")
         }
         if i1 is None and i2 is None:
@@ -476,6 +479,7 @@ class EfinixDDRResyncTristate(DDRTristate):
 
 class EfinixSDRTristateImpl(LiteXModule):
     def __init__(self, io, o, oe, i, clk):
+        clk, out_clk_inv = check_clk_inverted(clk)
         assert_is_signal_or_clocksignal(clk)
         platform     = LiteXContext.platform
         if len(io) == 1:
@@ -513,8 +517,8 @@ class EfinixSDRTristateImpl(LiteXModule):
             "out_clk_pin"    : clk,
             "const_output"   : const_output,
             "oe_reg"         : "REG",
-            "in_clk_inv"     : 0,
-            "out_clk_inv"    : 0,
+            "in_clk_inv"     : out_clk_inv,
+            "out_clk_inv"    : out_clk_inv,
             "drive_strength" : io_prop_dict.get("DRIVE_STRENGTH", "4")
         }
         if i is None:
@@ -532,6 +536,7 @@ class EfinixSDRTristate(LiteXModule):
 
 class EfinixSDROutputImpl(LiteXModule):
     def __init__(self, i, o, clk):
+        clk, out_clk_inv = check_clk_inverted(clk)
         assert_is_signal_or_clocksignal(clk)
         platform     = LiteXContext.platform
         if len(o) == 1:
@@ -559,7 +564,7 @@ class EfinixSDROutputImpl(LiteXModule):
             "out_reg"        : "REG",
             "out_clk_pin"    : clk,
             "const_output"   : const_output,
-            "out_clk_inv"    : 0,
+            "out_clk_inv"    : out_clk_inv,
             "drive_strength" : io_prop_dict.get("DRIVE_STRENGTH", "4")
         }
         platform.toolchain.ifacewriter.blocks.append(block)
@@ -575,6 +580,7 @@ class EfinixSDROutput(LiteXModule):
 
 class EfinixDDROutputImpl(LiteXModule):
     def __init__(self, i1, i2, o, clk):
+        clk, out_clk_inv = check_clk_inverted(clk)
         assert_is_signal_or_clocksignal(clk)
         platform     = LiteXContext.platform
         if len(o) == 1:
@@ -599,7 +605,7 @@ class EfinixDDROutputImpl(LiteXModule):
             "size"              : len(o),
             "out_reg"           : "DDIO_RESYNC",
             "out_clk_pin"       : clk,
-            "out_clk_inv"       : 0,
+            "out_clk_inv"       : out_clk_inv,
             "drive_strength"    : io_prop_dict.get("DRIVE_STRENGTH", "4")
         }
         platform.toolchain.ifacewriter.blocks.append(block)
@@ -614,6 +620,7 @@ class EfinixDDROutput:
 
 class EfinixSDRInputImpl(LiteXModule):
     def __init__(self, i, o, clk):
+        clk, in_clk_inv = check_clk_inverted(clk)
         assert_is_signal_or_clocksignal(clk)
         platform = LiteXContext.platform
         if len(i) == 1:
@@ -635,7 +642,7 @@ class EfinixSDRInputImpl(LiteXModule):
             "size"              : len(i),
             "in_reg"            : "REG",
             "in_clk_pin"        : clk,
-            "in_clk_inv"        : 0
+            "in_clk_inv"        : in_clk_inv,
         }
         platform.toolchain.ifacewriter.blocks.append(block)
         platform.toolchain.excluded_ios.append(platform.get_pin(i))
@@ -718,6 +725,7 @@ class EfinixDDRInput:
 
 class EfinixDDRResyncInputImpl(LiteXModule):
     def __init__(self, i, o1, o2, clk):
+        clk, in_clk_inv = check_clk_inverted(clk)
         assert_is_signal_or_clocksignal(clk)
         platform  = LiteXContext.platform
         if len(i) == 1:
@@ -741,7 +749,7 @@ class EfinixDDRResyncInputImpl(LiteXModule):
             "size"              : len(i),
             "in_reg"            : "DDIO_RESYNC",
             "in_clk_pin"        : clk,
-            "in_clk_inv"        : 0
+            "in_clk_inv"        : in_clk_inv,
         }
         platform.toolchain.ifacewriter.blocks.append(block)
         platform.toolchain.excluded_ios.append(platform.get_pin(i))
