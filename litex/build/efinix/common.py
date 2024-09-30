@@ -13,6 +13,8 @@ from litex.build.io import *
 from litex.build.generic_platform import Pins
 from litex.build.efinix.efinity   import EfinityToolchain
 
+from migen.fhdl.structure import _Operator
+
 # Colorama -----------------------------------------------------------------------------------------
 
 try:
@@ -34,6 +36,12 @@ if _have_colorama:
     ]
 
 # Helpers ------------------------------------------------------------------------------------------
+
+def check_clk_inverted(obj):
+    if isinstance(obj, _Operator):
+        if obj.op == "~":
+            return (obj.operands[0]), 1
+    return obj, 0
 
 def assert_is_signal_or_clocksignal(obj):
     assert isinstance(obj, (ClockSignal, Signal)), f"Object {obj} is not a ClockSignal or Signal"
@@ -122,6 +130,7 @@ class EfinixClkInput(LiteXModule):
 
 class EfinixClkOutputImpl(LiteXModule):
     def __init__(self, i, o):
+        i, out_clk_inv = check_clk_inverted(i)
         assert_is_signal_or_clocksignal(i)
         platform = LiteXContext.platform
         block = {
@@ -131,6 +140,7 @@ class EfinixClkOutputImpl(LiteXModule):
             "properties" : platform.get_pin_properties(o),
             "name"       : i,
             "mode"       : "OUTPUT_CLK",
+            "out_clk_inv": out_clk_inv,
         }
         platform.toolchain.ifacewriter.blocks.append(block)
         platform.toolchain.excluded_ios.append(o)
