@@ -226,14 +226,14 @@ class Agilex5SDRInput:
 # Agilex5 SDRTristate ------------------------------------------------------------------------------
 
 class Agilex5SDRTristateImpl(Module):
-    def __init__(self, io, o, oe, i, clk):
+    def __init__(self, io, o, oe, i, clk, in_clk):
         _i  = Signal()
         _o  = Signal()
         _oe = Signal()
         self.specials += [
             SDRIO(o, _o, clk),
             SDRIO(oe, _oe, clk),
-            SDRIO(_i, i, clk),
+            SDRIO(_i, i, in_clk),
             Instance("tennm_ph2_io_ibuf",
                 p_bus_hold = "BUS_HOLD_OFF",
                 io_i       = io, # FIXME: its an input but io is needed to have correct dir at top module
@@ -250,7 +250,7 @@ class Agilex5SDRTristateImpl(Module):
 class Agilex5SDRTristate(Module):
     @staticmethod
     def lower(dr):
-        return Agilex5SDRTristateImpl(dr.io, dr.o, dr.oe, dr.i, dr.clk)
+        return Agilex5SDRTristateImpl(dr.io, dr.o, dr.oe, dr.i, dr.clk, dr.in_clk)
 
 # Agilex5 Special Overrides ------------------------------------------------------------------------
 

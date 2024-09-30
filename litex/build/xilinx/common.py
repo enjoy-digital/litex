@@ -137,13 +137,13 @@ class XilinxDifferentialOutput:
 # Common SDRTristate -------------------------------------------------------------------------------
 
 class XilinxSDRTristateImpl(Module):
-    def __init__(self, io, o, oe, i, clk):
+    def __init__(self, io, o, oe, i, clk, in_clk):
         _o    = Signal()
         _oe_n = Signal()
         _i    = Signal()
         self.specials += SDROutput(o, _o, clk)
         self.specials += SDROutput(~oe, _oe_n, clk)
-        self.specials += SDRInput(_i, i, clk)
+        self.specials += SDRInput(_i, i, in_clk)
         self.specials += Instance("IOBUF",
             io_IO = io,
             o_O   = _i,
@@ -154,18 +154,18 @@ class XilinxSDRTristateImpl(Module):
 class XilinxSDRTristate:
     @staticmethod
     def lower(dr):
-        return XilinxSDRTristateImpl(dr.io, dr.o, dr.oe, dr.i, dr.clk)
+        return XilinxSDRTristateImpl(dr.io, dr.o, dr.oe, dr.i, dr.clk, dr.in_clk)
 
 # Common DDRTristate -------------------------------------------------------------------------------
 
 class XilinxDDRTristateImpl(Module):
-    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk):
+    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk, in_clk):
         _o    = Signal()
         _oe_n = Signal()
         _i    = Signal()
         self.specials += DDROutput(o1, o2, _o, clk)
         self.specials += DDROutput(~oe1, ~oe2, _oe_n, clk) if oe2 is not None else SDROutput(~oe1, _oe_n, clk)
-        self.specials += DDRInput(_i, i1, i2, clk)
+        self.specials += DDRInput(_i, i1, i2, in_clk)
         self.specials += Instance("IOBUF",
             io_IO = io,
             o_O   = _i,
@@ -176,7 +176,7 @@ class XilinxDDRTristateImpl(Module):
 class XilinxDDRTristate:
     @staticmethod
     def lower(dr):
-        return XilinxDDRTristateImpl(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk)
+        return XilinxDDRTristateImpl(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk, dr.in_clk)
 
 # Common Special Overrides -------------------------------------------------------------------------
 
