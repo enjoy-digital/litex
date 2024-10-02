@@ -13,24 +13,23 @@ import time
 import logging
 import argparse
 import datetime
-from math import log2, ceil
 
 from migen import *
 
-from litex.gen import colorer
-from litex.gen import LiteXModule, LiteXContext
-from litex.gen.genlib.misc import WaitTimer
+from litex.gen                import colorer
+from litex.gen                import LiteXModule, LiteXContext
+from litex.gen.genlib.misc    import WaitTimer
 from litex.gen.fhdl.hierarchy import LiteXHierarchyExplorer
 
 from litex.compat.soc_core import *
 
-from litex.soc.interconnect.csr import *
+from litex.soc.interconnect.csr              import *
 from litex.soc.interconnect.csr_eventmanager import *
-from litex.soc.interconnect import csr_bus
-from litex.soc.interconnect import stream
-from litex.soc.interconnect import wishbone
-from litex.soc.interconnect import axi
-from litex.soc.interconnect import ahb
+from litex.soc.interconnect                  import csr_bus
+from litex.soc.interconnect                  import stream
+from litex.soc.interconnect                  import wishbone
+from litex.soc.interconnect                  import axi
+from litex.soc.interconnect                  import ahb
 
 
 # Helpers ------------------------------------------------------------------------------------------
@@ -93,8 +92,8 @@ class SoCRegion:
             raise SoCError()
         if (not self.decode) or ((origin == 0) and (size == 2**bus.address_width)):
             return lambda a: True
-        origin >>= int(log2(bus.data_width//8)) # bytes to words aligned.
-        size   >>= int(log2(bus.data_width//8)) # bytes to words aligned.
+        origin >>= int(math.log2(bus.data_width//8)) # bytes to words aligned.
+        size   >>= int(math.log2(bus.data_width//8)) # bytes to words aligned.
         return lambda a: (a[log2_int(size):] == (origin >> log2_int(size)))
 
     def __str__(self):
@@ -1681,7 +1680,7 @@ class LiteXSoC(SoC):
         if hasattr(module, "_spd_data"):
             # Pack the data into words of bus width.
             bytes_per_word = self.bus.data_width // 8
-            mem = [0] * ceil(len(module._spd_data) / bytes_per_word)
+            mem = [0] * math.ceil(len(module._spd_data) / bytes_per_word)
             for i in range(len(mem)):
                 for offset in range(bytes_per_word):
                     mem[i] <<= 8
@@ -1733,7 +1732,7 @@ class LiteXSoC(SoC):
             for mem_bus in self.cpu.memory_buses:
                 # Request a LiteDRAM native port.
                 port = sdram.crossbar.get_port()
-                port.data_width = 2**int(log2(port.data_width)) # Round to nearest power of 2.
+                port.data_width = 2**int(math.log2(port.data_width)) # Round to nearest power of 2.
 
                 # Check if bus is an AXI bus and connect it.
                 if isinstance(mem_bus, axi.AXIInterface):
@@ -1804,7 +1803,7 @@ class LiteXSoC(SoC):
         if connect_main_bus_to_dram:
             # Request a LiteDRAM native port.
             port = sdram.crossbar.get_port()
-            port.data_width = 2**int(log2(port.data_width)) # Round to nearest power of 2.
+            port.data_width = 2**int(math.log2(port.data_width)) # Round to nearest power of 2.
 
             # Create Wishbone Slave.
             wb_sdram = wishbone.Interface(data_width=self.bus.data_width, address_width=32, addressing="word")
@@ -1814,7 +1813,7 @@ class LiteXSoC(SoC):
             if l2_cache_size != 0:
                 # Insert L2 cache inbetween Wishbone bus and LiteDRAM
                 l2_cache_size = max(l2_cache_size, int(2*port.data_width/8)) # Use minimal size if lower
-                l2_cache_size = 2**int(log2(l2_cache_size))                  # Round to nearest power of 2
+                l2_cache_size = 2**int(math.log2(l2_cache_size))                  # Round to nearest power of 2
                 l2_cache_data_width = max(port.data_width, l2_cache_min_data_width)
                 l2_cache = wishbone.Cache(
                     cachesize = l2_cache_size//4,
@@ -2152,7 +2151,7 @@ class LiteXSoC(SoC):
         if l2_cache_size != 0:
             # Insert L2 cache inbetween Wishbone bus and LiteSPI
             l2_cache_size = max(l2_cache_size, int(2*32/8))              # Use minimal size if lower
-            l2_cache_size = 2**int(log2(l2_cache_size))                  # Round to nearest power of 2
+            l2_cache_size = 2**int(math.log2(l2_cache_size))                  # Round to nearest power of 2
             l2_cache = wishbone.Cache(
                 cachesize = l2_cache_size//4,
                 master    = wb_spiram,
