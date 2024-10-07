@@ -38,7 +38,7 @@ from enum import IntEnum
 
 from migen import *
 from migen.util.misc import xdir
-from migen.fhdl.tracer import get_obj_var_name
+from migen.fhdl.tracer import get_obj_var_name, remove_underscore
 
 # CSRBase ------------------------------------------------------------------------------------------
 
@@ -49,6 +49,7 @@ class _CSRBase(DUID):
         self.fixed = n is not None
         self.size = size
         self.name = get_obj_var_name(name)
+        self.cluster = None
         if self.name is None:
             raise ValueError("Cannot extract CSR name from code, need to specify.")
 # CSRConstant --------------------------------------------------------------------------------------
@@ -448,6 +449,100 @@ class CSRStorage(_CompoundCSR):
                 if field.pulse:
                     yield getattr(self.fields, field.name).eq(0)
 
+
+# CSRCluster ---------------------------------------------------------------------------------------
+
+class CSRCluster:
+    """CSR Cluster.
+
+    A ``CSRCluster`` can be used to express repeated subgroups of a peripheral. Especially when
+    exporting to SVD this can be very useful for generating (nested) trees of peripheral registers
+    instead of a flat list of registers.
+
+    A cluster acts like an array: after creation, items can be added to it and accessed by index.
+
+    To maximize ergonomics, ``CSRClusters`` can be created in multiple ways:
+      - All items can be specified upfront by passing `items` to the constructor.
+      - Items can be added with the `append` method.
+      - Items can be assigned by indexing.
+
+    All elements in a ``CSRCluster`` must provide the same set of registers. If this is unwanted,
+    for example if one simply wants to use ``CSRCluster`` as a simple way to express a list of
+    modules, one can pass `always_flatten=True` to the constructor.
+
+    A cluster can be flattened in to lists of memories, CSRs, and constants. In this case, each
+    item will be prefixed by their index like this: ``2_``.
+    """
+    def __init__(self, items=None, always_flatten=False, name=None, description=None):
+        self.name = get_obj_var_name(name)
+        self.items = [] if items is None else items
+        self.description = description
+        self.always_flatten = always_flatten
+
+    def append(self, item):
+        self.items.append(item)
+
+    def __getitem__(self, idx):
+        return self.items[idx]
+
+    def __setitem__(self, idx, value):
+        while len(self.items) <= idx:
+            self.items.append(None)
+        self.items[idx] = value
+
+    def __iter__(self):
+        return self.items.__iter__()
+
+    def __len__(self):
+        return len(self.items)
+
+    def _check_layout(self, kind, idx, sub, extract):
+        old_layout = getattr(self, f"_layout_{kind}", None)
+        this_layout = [extract(csr) for csr in sub]
+        if old_layout:
+            if old_layout != this_layout:
+                raise ValueError(f"CSR cluster conflict, item {idx} doesn't match first item layout")
+        else:
+            setattr(self, f"_layout_{kind}", this_layout)
+
+    def _prefix_for(self, idx):
+        return f"{idx}_"
+
+    def get_memories(self):
+        ret = []
+        for (idx, item) in enumerate(self.items):
+            sub = item.get_memories()
+            memprefix(self._prefix_for(idx), sub, set())
+            ret += sub
+        return ret
+
+    def get_csrs(self):
+        ret = []
+        for (idx, item) in enumerate(self.items):
+            sub = item.get_csrs()
+            self._check_layout("csrs", idx, sub, lambda s: (s.name, s.size))
+            csrprefix(self._prefix_for(idx), sub, set())
+            ret += sub
+
+        if not self.always_flatten:
+            for csr in ret:
+                cur_cluster = getattr(csr, 'cluster', None)
+                if cur_cluster:
+                    csr.cluster = [self, *cur_cluster]
+                else:
+                    csr.cluster = [self]
+        return ret
+
+    def get_constants(self):
+        ret = []
+        layout = None
+        for (idx, item) in enumerate(self.items):
+            sub = item.get_constants()
+            csrprefix(self._prefix_for(idx), sub, set())
+            ret += sub
+        return ret
+
+
 # AutoCSR & Helpers --------------------------------------------------------------------------------
 
 def csrprefix(prefix, csrs, done):
@@ -541,6 +636,8 @@ def _make_gatherer(method, cls, prefix_cb):
                     r.append(v)
                 elif hasattr(v, method) and callable(getattr(v, method)):
                     items = getattr(v, method)()
+                    if isinstance(v, CSRCluster):
+                        k = v.name
                     prefix_cb(k + "_", items, prefixed)
                     r += items
         r = sorted(r, key=lambda x: x.duid)
