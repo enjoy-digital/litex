@@ -142,9 +142,9 @@ class EfinixTristateImpl(LiteXModule):
             io_pad  = platform.get_pins_location(io)
             io_prop = platform.get_pin_properties(io[0])
         io_prop_dict = dict(io_prop)
-        io_data_i    = platform.add_iface_io(io_name + "_OUT")
-        io_data_o    = platform.add_iface_io(io_name + "_IN")
-        io_data_e    = platform.add_iface_io(io_name + "_OE")
+        io_data_i    = platform.add_iface_io(io_name + "_OUT", len(io))
+        io_data_o    = platform.add_iface_io(io_name + "_IN", len(io))
+        io_data_e    = platform.add_iface_io(io_name + "_OE", len(io))
         self.comb += io_data_i.eq(o)
         self.comb += io_data_e.eq(oe)
         if i is not None:
