@@ -77,9 +77,6 @@ class InterfaceWriter:
                 if block["type"] == "DRAM":
                     self.add_dram_xml(root, block)
 
-        if self.platform.iobank_info:
-            self.add_iobank_info_xml(root, self.platform.iobank_info)
-
         xml_string = et.tostring(root, "utf-8")
         reparsed = expatbuilder.parseString(xml_string, False)
         print_string = reparsed.toprettyxml(indent="    ")
@@ -118,6 +115,13 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
 
 """
         return header.format(self.efinity_path, "True", build_name, partnumber)
+
+    def iobank_info(self, iobank_info):
+        cmd = "# ---------- IOBANK INFO ---------\n"
+        for name, iostd in iobank_info:
+            cmd += 'design.set_iobank_voltage("{0}", "{1}")\n'.format(name, iostd[:3])
+        cmd += "# ---------- END IOBANK INFO ---------\n\n"
+        return cmd
 
     def get_block(self, name):
         for b in self.blocks:
@@ -681,12 +685,3 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
 design.generate(enable_bitstream=True)
 # Save the configured periphery design
 design.save()"""
-
-
-    def add_iobank_info_xml(self, root, iobank_info):
-        dev = root.find("efxpt:device_info", namespaces)
-        bank_info = dev.find("efxpt:iobank_info", namespaces)
-        for name, iostd in iobank_info:
-            for child in bank_info:
-                    if name == child.get("name"):
-                        child.set("iostd", iostd)

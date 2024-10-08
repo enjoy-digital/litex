@@ -252,13 +252,14 @@ class EfinityToolchain(GenericToolchain):
         self.resolve_iface_signal_names()
 
         header = self.ifacewriter.header(self._build_name, self.platform.device)
+        iobank = self.ifacewriter.iobank_info(self.platform.iobank_info)
         gen    = self.ifacewriter.generate(self.platform.device)
         #TODO  : move this to ifacewriter
         gpio   = self._build_iface_gpio()
         add    = "\n".join(self.additional_iface_commands)
         footer = self.ifacewriter.footer()
 
-        tools.write_to_file("iface.py", header + gen + gpio + add + footer)
+        tools.write_to_file("iface.py", header + iobank + gen + gpio + add + footer)
 
     # Project configuration (.xml) -----------------------------------------------------------------
 
@@ -325,8 +326,7 @@ class EfinityToolchain(GenericToolchain):
 
         # Some IO blocks don't have Python API so we need to configure them
         # directly in the peri.xml file
-        # We also need to configure the bank voltage here
-        if self.ifacewriter.xml_blocks or self.platform.iobank_info:
+        if self.ifacewriter.xml_blocks:
             self.ifacewriter.generate_xml_blocks()
 
         # Because the Python API is sometimes bugged, we need to tweak the generated xml
