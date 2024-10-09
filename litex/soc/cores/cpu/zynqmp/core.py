@@ -8,10 +8,11 @@ import os
 
 from migen import *
 
-from litex.gen import *
+from litex.gen                  import *
 
-from litex.soc.cores.cpu import CPU
-from litex.soc.interconnect import axi
+from litex.soc.cores.cpu        import CPU
+from litex.soc.interconnect     import axi
+from litex.soc.interconnect.csr import *
 
 
 # Zynq MP ------------------------------------------------------------------------------------------
@@ -50,7 +51,7 @@ class ZynqMP(CPU):
         self.periph_buses   = []          # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses   = []          # Memory buses (Connected directly to LiteDRAM).
         self.axi_gp_masters = [None] * 3  # General Purpose AXI Masters.
-        self.gem_mac        = []          # GEM MAC reserved ports.
+        self.gem_mac        = {}          # GEM MAC reserved ports.
         self.i2c_use        = []          # I2c reserved ports.
         self.uart_use       = []          # UART reserved ports.
         self.can_use        = []          # CAN reserved/used ports.
@@ -156,15 +157,39 @@ class ZynqMP(CPU):
 
         return axi_gpn
 
-    def add_ethernet(self, n=0, pads=None, if_type="gmii"):
+    """
+    Enable GEMx peripheral.
+    ==========
+    n: int
+        GEM id (0, 1, 2, 3)
+    pads:
+        Physicals pads.
+    clock_pads:
+        Physicals tx/rx clock pads (required for SGMII).
+    if_type: str
+        Physical ethernet interface (gmii, rgmii, sgmii).
+    reset: Signal
+        Reset signal between PS and converter (required for SGMII).
+    with_ptp: bool
+        Enable PTP support.
+    """
+    def add_ethernet(self, n=0,
+        pads       = None,
+        clock_pads = None,
+        if_type    = "gmii",
+        reset      = None,
+        with_ptp   = False):
         assert n < 3 and not n in self.gem_mac
         assert pads is not None
+        assert if_type in ["gmii", "rgmii", "sgmii"]
 
         # psu configuration
         self.config[f"PSU__ENET{n}__PERIPHERAL__ENABLE"] = 1
         self.config[f"PSU__ENET{n}__PERIPHERAL__IO"]     = "EMIO"
         self.config[f"PSU__ENET{n}__GRP_MDIO__ENABLE"]   = 1
         self.config[f"PSU__ENET{n}__GRP_MDIO__IO"]       = "EMIO"
+        if with_ptp:
+            self.config[f"PSU__ENET{n}__PTP__ENABLE"]    = 1
 
         # psu GMII connection
         gmii_rx_clk = Signal()
@@ -214,7 +239,7 @@ class ZynqMP(CPU):
                 i_T   = mdio_t,
                 io_IO = pads.mdio
             )
-        else:
+        elif if_type == "rgmii":
             phys_mdio_i = Signal()
             phys_mdio_o = Signal()
             phys_mdio_t = Signal()
@@ -272,9 +297,137 @@ class ZynqMP(CPU):
                 o_duplex_status     = Open(),
                 o_speed_mode        = Open(2),
             )
+            self.specials += Instance(f"gem{n}", **mac_params)
+            self.gem_mac[n] = "rgmii"
+        else:
+            pwrgood         = Signal()
+            status          = Signal(16)
+            reset_done      = Signal(1)
+            pma_reset_out   = Signal(1)
+            mmcm_locked_out = Signal(1)
+            gem_reset       = Signal()
+            self.cd_sl_clk  = ClockDomain("sl_clk")
+
+
+            sgmii_control = CSRStorage(fields=[
+                CSRField("reset", size=1, reset=0, values=[
+                    ("``0b0``", "Normal operations."),
+                    ("``0b1``", "Reset mode."),
+                ]),
+                CSRField("tsu_inc_ctrl", size=2, reset=3, values=[
+                    ("``0b00``", "Timer register increments based on the gem_tsu_ms value."),
+                    ("``0b01``", "Timer register increments by an additional nanosecond."),
+                    ("``0b10``", "Timer register increments by one nanosecond fewer."),
+                    ("``0b11``", "Timer register increments as normal."),
+                ])
+            ])
+            setattr(self, f"sgmii_control{n}", sgmii_control)
+
+            sgmii_status = CSRStatus(fields=[
+                CSRField("status",          size=16, offset=0),
+                CSRField("pwrgood",         size=1,  offset=16),
+                CSRField("reset_done",      size=1,  offset=17),
+                CSRField("pma_reset_out",   size=1,  offset=18),
+                CSRField("mmcm_locked_out", size=1,  offset=19),
+            ])
+            setattr(self, f"sgmii_status{n}", sgmii_status)
+
+            if reset is not None:
+                self.comb += gem_reset.eq(ResetSignal("sys") | sgmii_control.fields.reset | reset)
+            else:
+                self.comb += gem_reset.eq(ResetSignal("sys") | sgmii_control.fields.reset)
+
+            self.comb += [
+                sgmii_status.fields.status.eq(         status),
+                sgmii_status.fields.pwrgood.eq(        pwrgood),
+                sgmii_status.fields.reset_done.eq(     reset_done),
+                sgmii_status.fields.pma_reset_out.eq(  pma_reset_out),
+                sgmii_status.fields.mmcm_locked_out.eq(mmcm_locked_out),
+            ]
+
+            # FIXME: needs to add another PSU->FPGA Clock @50MHz
+            from migen.genlib.resetsync import AsyncResetSynchronizer
+            self.specials += [
+                Instance("BUFGCE_DIV",
+                    p_BUFGCE_DIVIDE = 2,
+                    i_CE = 1,
+                    i_I  = ClockSignal("sys"),
+                    o_O  = ClockSignal("sl_clk"),
+                ),
+                AsyncResetSynchronizer(self.cd_sl_clk, ResetSignal("sys")),
+            ]
+
+            mac_params = dict(
+                # Clk/Reset
+                i_independent_clock_bufg = ClockSignal("sl_clk"),
+                i_reset                  = gem_reset,              # Asynchronous reset for entire core
+                o_userclk_out            = Open(),
+                o_userclk2_out           = Open(),
+                o_rxuserclk_out          = Open(),
+                o_rxuserclk2_out         = Open(),
+
+                # Transceiver Interface: Clk
+                i_gtrefclk_p             = clock_pads.p,
+                i_gtrefclk_n             = clock_pads.n,
+                o_gtrefclk_out           = Open(),
+                o_resetdone              = reset_done,             # The GT transceiver has completed its reset cycle
+
+                # SGMII
+                o_txp                    = pads.txp,               # Differential +ve of serial transmission from PMA to PMD.
+                o_txn                    = pads.txn,               # Differential -ve of serial transmission from PMA to PMD.
+                i_rxp                    = pads.rxp,               # Differential +ve for serial reception from PMD to PMA.
+                i_rxn                    = pads.rxn,               # Differential -ve for serial reception from PMD to PMA.
+                o_pma_reset_out          = pma_reset_out,          # transceiver PMA reset signal
+                o_mmcm_locked_out        = mmcm_locked_out,        # MMCM Locked
+
+                # PS GEM: GMII
+                o_sgmii_clk_r            = Open(),
+                o_sgmii_clk_f            = Open(),
+                o_gmii_txclk             = gmii_tx_clk,
+                o_gmii_rxclk             = gmii_rx_clk,
+                i_gmii_txd               = gmii_txd,               # Transmit data from client MAC.
+                i_gmii_tx_en             = gmii_tx_en,             # Transmit control signal from client MAC.
+                i_gmii_tx_er             = gmii_tx_er,             # Transmit control signal from client MAC.
+                o_gmii_rxd               = gmii_rxd,               # Received Data to client MAC.
+                o_gmii_rx_dv             = gmii_rx_dv,             # Received control signal to client MAC.
+                o_gmii_rx_er             = gmii_rx_er,             # Received control signal to client MAC.
+                o_gmii_isolate           = Open(),                 # Tristate control to electrically isolate GMII.
+
+                # PS GEM: MDIO
+                i_mdc                    = mdio_mdc,               # Management Data Clock
+                i_mdio_i                 = mdio_o,                 # Management Data In
+                o_mdio_o                 = mdio_i,                 # Management Data Out
+                o_mdio_t                 = Open(),                 # Management Data Tristate
+
+                # Configuration
+                i_phyaddr                = Constant(9, 5),
+                i_configuration_vector   = Constant(0, 5),         # Alternative to MDIO interface.
+                i_configuration_valid    = Constant(0, 1),         # Validation signal for Config vector
+                o_an_interrupt           = Open(),                 # Interrupt to processor to signal that Auto-Negotiation has completed
+                i_an_adv_config_vector   = Constant(55297, 16),    # Alternate interface to program REG4 (AN ADV)
+                i_an_adv_config_val      = Constant(0, 1),         # Validation signal for AN ADV
+                i_an_restart_config      = Constant(0, 1),         # Alternate signal to modify AN restart bit in REG0
+                o_status_vector          = status,                 # Core status.
+
+                o_gtpowergood            = pwrgood,
+                i_signal_detect          = Constant(1, 1),         # Input from PMD to indicate presence of optical input.
+            )
+
+            if with_ptp:
+                tsu_inc_ctrl  = Signal(2)
+                tsu_timer_cnt = Signal(94)
+                self.cpu_params.update({
+                    # TSU
+                    f"o_emio_enet{n}_enet_tsu_timer_cnt" : tsu_timer_cnt,
+                    f"i_emio_enet{n}_tsu_inc_ctrl"       : tsu_inc_ctrl,
+                })
+                self.comb += [
+                    tsu_inc_ctrl.eq(sgmii_control.fields.tsu_inc_ctrl),
+                    self.pps[n].eq( tsu_timer_cnt[45])
+                ]
 
             self.specials += Instance(f"gem{n}", **mac_params)
-            self.gem_mac.append(n)
+            self.gem_mac[n] = "sgmii"
 
     def add_i2c(self, n, pads):
         assert n < 2 and not n in self.i2c_use
@@ -414,18 +567,30 @@ class ZynqMP(CPU):
 
         if len(self.gem_mac):
             mac_tcl = []
-            for i in self.gem_mac:
-                mac_tcl.append(f"set gem{i} [create_ip -vendor xilinx.com -name gmii_to_rgmii -module_name gem{i}]")
+            for i, if_type in self.gem_mac.items():
+                ip_name = {"rgmii": "gmii_to_rgmii", "sgmii": "gig_ethernet_pcs_pma"}[if_type]
+                mac_tcl.append(f"set gem{i} [create_ip -vendor xilinx.com -name {ip_name} -module_name gem{i}]")
                 mac_tcl.append("set_property -dict [ list \\")
-                # FIXME: when more this sequence differs for the first and others
-                mac_tcl.append("CONFIG.{} {} \\".format("C_EXTERNAL_CLOCK", '{{false}}'))
-                mac_tcl.append("CONFIG.{} {} \\".format("C_USE_IDELAY_CTRL", '{{true}}'))
-                mac_tcl.append("CONFIG.{} {} \\".format("C_PHYADDR", '{{' + str(8 + i) + '}}'))
-                mac_tcl.append("CONFIG.{} {} \\".format("RGMII_TXC_SKEW", '{{' + str(0) + '}}'))
-                mac_tcl.append("CONFIG.{} {} \\".format("SupportLevel", '{{Include_Shared_Logic_in_Core}}'))
+                if if_type == "rgmii":
+                    # FIXME: when more this sequence differs for the first and others
+                    mac_tcl.append("CONFIG.{} {} \\".format("C_EXTERNAL_CLOCK", '{{false}}'))
+                    mac_tcl.append("CONFIG.{} {} \\".format("C_USE_IDELAY_CTRL", '{{true}}'))
+                    mac_tcl.append("CONFIG.{} {} \\".format("C_PHYADDR", '{{' + str(8 + i) + '}}'))
+                    mac_tcl.append("CONFIG.{} {} \\".format("RGMII_TXC_SKEW", '{{' + str(0) + '}}'))
+                    mac_tcl.append("CONFIG.{} {} \\".format("SupportLevel", '{{Include_Shared_Logic_in_Core}}'))
+                elif if_type == "sgmii":
+                    mac_tcl.append("CONFIG.{} {} \\".format("DIFFCLK_BOARD_INTERFACE", '{{Custom}}'))
+                    mac_tcl.append("CONFIG.{} {} \\".format("DrpClkRate",              '{{50.0000}}'))
+                    mac_tcl.append("CONFIG.{} {} \\".format("EMAC_IF_TEMAC",           '{{GEM}}'))
+                    mac_tcl.append("CONFIG.{} {} \\".format("GT_Location",             '{{X1Y13}}'))
+                    mac_tcl.append("CONFIG.{} {} \\".format("RefClkRate",              '{{156.25}}'))
+                    mac_tcl.append("CONFIG.{} {} \\".format("Standard",                '{{SGMII}}'))
+                    mac_tcl.append("CONFIG.{} {} \\".format("SupportLevel",            '{{Include_Shared_Logic_in_Core}}'))
+
                 mac_tcl += [
                     f"] [get_ips gem{i}]",
                     f"generate_target all [get_ips gem{i}]",
                     f"synth_ip [get_ips gem{i}]"
                 ]
+
             self.platform.toolchain.pre_synthesis_commands += mac_tcl
