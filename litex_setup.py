@@ -349,6 +349,9 @@ def riscv_gcc_install():
         # Arch.
         elif "arch" in os_release:
             os.system("pacman -S riscv64-linux-gnu-gcc")
+        # Alpine.
+        elif "alpine" in os_release:
+            os.system("apk add gcc-cross-embedded")
         # Ubuntu.
         else:
             os.system("apt install gcc-riscv64-unknown-elf")
@@ -377,6 +380,9 @@ def powerpc_gcc_install():
         # Arch (AUR repository).
         elif "arch" in os_release:
             os.system("yay -S powerpc64le-linux-gnu-gcc")
+        # Alpine.
+        elif "alpine" in os_release:
+            os.system("apk add gcc binutils-ppc64le")
         # Ubuntu.
         else:
             os.system("apt install gcc-powerpc64le-linux-gnu binutils-multiarch")
@@ -400,6 +406,9 @@ def openrisc_gcc_install():
         # Arch.
         elif "arch" in os_release:
             os.system("pacman -S or1k-elf-gcc")
+        # Alpine.
+        elif "alpine" in os_release:
+            os.system("apk add gcc-cross-embedded")
         # Ubuntu.
         else:
             os.system("apt install gcc-or1k-elf")
