@@ -5,6 +5,7 @@
 
 	[> Added
 	--------
+	- cpu/zynqmp : Added SGMII support via PL andoptional PTP (#2095).
 
 	[> Changed
 	----------
