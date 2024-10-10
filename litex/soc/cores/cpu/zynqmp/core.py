@@ -55,6 +55,7 @@ class ZynqMP(CPU):
         self.i2c_use        = []          # I2c reserved ports.
         self.uart_use       = []          # UART reserved ports.
         self.can_use        = []          # CAN reserved/used ports.
+        self.pps            = Signal(4)   # Optional PPS (with gemX and PTP enabled)
 
         # [ 7: 0]: PL_PS_Group0 [128:121]
         # [15: 8]: PL_PS_Group1 [143:136]
