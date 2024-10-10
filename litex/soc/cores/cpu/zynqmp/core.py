@@ -171,6 +171,8 @@ class ZynqMP(CPU):
         Physical ethernet interface (gmii, rgmii, sgmii).
     reset: Signal
         Reset signal between PS and converter (required for SGMII).
+    gt_location: str
+        for SGMII Pads location (XaYb) (Required for SGMII).
     with_ptp: bool
         Enable PTP support.
     """
@@ -178,6 +180,7 @@ class ZynqMP(CPU):
         pads       = None,
         clock_pads = None,
         if_type    = "gmii",
+        gt_location= None,
         reset      = None,
         with_ptp   = False):
         assert n < 3 and not n in self.gem_mac
@@ -299,8 +302,10 @@ class ZynqMP(CPU):
                 o_speed_mode        = Open(2),
             )
             self.specials += Instance(f"gem{n}", **mac_params)
-            self.gem_mac[n] = "rgmii"
+            self.gem_mac[n] = ("rgmii", None)
         else:
+            assert gt_location is not None
+
             pwrgood         = Signal()
             status          = Signal(16)
             reset_done      = Signal(1)
@@ -428,7 +433,7 @@ class ZynqMP(CPU):
                 ]
 
             self.specials += Instance(f"gem{n}", **mac_params)
-            self.gem_mac[n] = "sgmii"
+            self.gem_mac[n] = ("sgmii", gt_location)
 
     def add_i2c(self, n, pads):
         assert n < 2 and not n in self.i2c_use
@@ -568,7 +573,7 @@ class ZynqMP(CPU):
 
         if len(self.gem_mac):
             mac_tcl = []
-            for i, if_type in self.gem_mac.items():
+            for i, (if_type, gt_location) in self.gem_mac.items():
                 ip_name = {"rgmii": "gmii_to_rgmii", "sgmii": "gig_ethernet_pcs_pma"}[if_type]
                 mac_tcl.append(f"set gem{i} [create_ip -vendor xilinx.com -name {ip_name} -module_name gem{i}]")
                 mac_tcl.append("set_property -dict [ list \\")
@@ -583,7 +588,7 @@ class ZynqMP(CPU):
                     mac_tcl.append("CONFIG.{} {} \\".format("DIFFCLK_BOARD_INTERFACE", '{{Custom}}'))
                     mac_tcl.append("CONFIG.{} {} \\".format("DrpClkRate",              '{{50.0000}}'))
                     mac_tcl.append("CONFIG.{} {} \\".format("EMAC_IF_TEMAC",           '{{GEM}}'))
-                    mac_tcl.append("CONFIG.{} {} \\".format("GT_Location",             '{{X1Y13}}'))
+                    mac_tcl.append("CONFIG.{} {} \\".format(f"GT_Location",             '{{' + gt_location + '}}'))
                     mac_tcl.append("CONFIG.{} {} \\".format("RefClkRate",              '{{156.25}}'))
                     mac_tcl.append("CONFIG.{} {} \\".format("Standard",                '{{SGMII}}'))
                     mac_tcl.append("CONFIG.{} {} \\".format("SupportLevel",            '{{Include_Shared_Logic_in_Core}}'))
