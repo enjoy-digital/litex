@@ -303,18 +303,31 @@ class InterconnectShared(LiteXModule):
 
 
 class Crossbar(LiteXModule):
-    def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
-        data_width = get_check_parameters(ports=masters + [s for _, s in slaves])
-        matches, busses = zip(*slaves)
+    def __init__(self, masters, slaves, register=False, timeout_cycles=1e6, is_connected = None):
+        data_width = get_check_parameters(ports=masters + [s for _, s, _ in slaves])
+        matches, busses, _ = zip(*slaves)
         adr_width = max([m.adr_width for m in masters])
-        access = [[Interface(data_width=data_width, adr_width=adr_width) for j in slaves] for i in masters]
-        # decode each master into its access row
-        for row, master in zip(access, masters):
-            row = list(zip(matches, row))
+
+        columns = {}
+        for slave in slaves:
+            columns[slave[2]] = []
+        
+        for master in masters:
+            row = []
+            for slave in slaves:
+                if is_connected is None or is_connected(master, slave):
+                    interface = Interface(data_width=data_width, adr_width=adr_width)
+                    interface.name = master.name + "_" + slave[2]
+                    columns[slave[2]].append(interface)
+                    row.append((slave[0], interface))
+
             self.submodules += Decoder(master, row, register)
+            self.submodules += Timeout(master, timeout_cycles)            
+
         # arbitrate each access column onto its slave
-        for column, bus in zip(zip(*access), busses):
-            self.submodules += Arbiter(column, bus)
+        for (match, bus, name) in slaves:
+            col = columns[name]
+            self.submodules += Arbiter(col, bus) 
 
 # Wishbone Data Width Converter --------------------------------------------------------------------
 
