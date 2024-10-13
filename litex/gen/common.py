@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
+from typing import Union, List
 
 # Coloring Helpers ---------------------------------------------------------------------------------
 
@@ -43,3 +44,32 @@ def reverse_bytes(s):
     n = (len(s) + 7)//8
     return Cat(*[s[i*8:min((i + 1)*8, len(s))]
         for i in reversed(range(n))])
+
+
+# DTS  ---------------------------------------------------------------------------------------------
+
+
+def dts_property(name: str, value: Union[int, str, List[Union[int, str]], List[str], None] = None) -> str:
+    """Returns property 'name' formatted in Devicetree syntax
+
+    value can be:
+      None (default)
+      int
+      str
+      list of str
+      list of int and str: in this case the str is expected to be a phandle.
+    """
+    if value is None:
+        return f"{name};\n"
+    elif isinstance(value, list):
+        if all(isinstance(v, int) or v.startswith("&") for v in value):
+            dts_value = "<" + " ".join(f"{v}" for v in value) + ">"
+        elif all(isinstance(v, str) for v in value):
+            dts_value = ", ".join(f'"{v}"' for v in value)
+        else:
+            raise ValueError(f"unsupported elements in {value}")
+    elif isinstance(value, int) or value.startswith("&"):
+        dts_value = f"<{value}>"
+    else:
+        dts_value = f'"{value}"'
+    return f"{name} = {dts_value};\n"
