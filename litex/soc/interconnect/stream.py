@@ -373,29 +373,50 @@ class _UpConverter(LiteXModule):
         self.sink   = sink   = Endpoint([("data", nbits_from)])
         self.source = source = Endpoint([("data", nbits_to), ("valid_token_count", bits_for(ratio))])
         self.latency = 1
+        self.aw = Signal(32)
+        self.aw_valid = Signal()
+        self.aw_ready = Signal()
 
         # # #
 
         # Control path
-        demux      = Signal(max=ratio)
-        load_part  = Signal()
+        demux_cnt  = Signal(max=ratio) # counts how many cycles we've cycled
+        demux_val  = Signal(max=ratio) # tracks the actual value of the demux; may be primed with non-zero value
+        prime_demux = Signal(reset=1)  # indicates that the demux should be primed wit the current address value
+        load_data  = Signal()
+        load_addr  = Signal()
         strobe_all = Signal()
         self.comb += [
             sink.ready.eq(~strobe_all | source.ready),
             source.valid.eq(strobe_all),
-            load_part.eq(sink.valid & sink.ready)
+            load_data.eq(sink.valid & sink.ready),
+            load_addr.eq(self.aw_valid & self.aw_ready)
         ]
 
-        demux_last = ((demux == (ratio - 1)) | sink.last)
-
+        demux_last = ((demux_cnt == (ratio - 1)) | sink.last)
         self.sync += [
+            If(sink.last,
+                prime_demux.eq(1),
+            ).Elif(load_data,
+                prime_demux.eq(0),
+            ).Else(
+                prime_demux.eq(prime_demux),
+            ),
             If(source.ready, strobe_all.eq(0)),
-            If(load_part,
+            If(load_addr,
+                If(prime_demux,
+                    # pluck the range of bits from the source addr that correspond to the byte lane offset in the destination data path
+                    demux_val.eq( self.aw[log2_int(nbits_from // 8):log2_int(nbits_from // 8) + log2_int(ratio)] ),
+                ).Else(
+                    demux_val.eq(demux_val + 1),
+                ),
+            ),
+            If(load_data,
                 If(demux_last,
-                    demux.eq(0),
+                    demux_cnt.eq(0),
                     strobe_all.eq(1)
                 ).Else(
-                    demux.eq(demux + 1)
+                    demux_cnt.eq(demux_cnt + 1)
                 )
             ),
             If(source.valid & source.ready,
@@ -417,10 +438,18 @@ class _UpConverter(LiteXModule):
         for i in range(ratio):
             n = ratio-i-1 if reverse else i
             cases[i] = source.data[n*nbits_from:(n+1)*nbits_from].eq(sink.data)
-        self.sync += If(load_part, Case(demux, cases))
-
+        self.sync += If(
+                load_data,
+                source.data.eq(0),
+                Case(
+                    # This is demux_val, but re-computed here so we can have it one cycle earlier
+                    prime_demux & ( self.aw[log2_int(nbits_from // 8):log2_int(nbits_from // 8) + log2_int(ratio)] ) |
+                    ~prime_demux & (demux_val + 1),
+                    cases
+                )
+            )
         # Valid token count
-        self.sync += If(load_part, source.valid_token_count.eq(demux + 1))
+        self.sync += If(load_data, source.valid_token_count.eq(demux_cnt + 1))
 
 
 class _DownConverter(LiteXModule):
@@ -505,6 +534,10 @@ class Converter(Module): # FIXME: Switch to LiteXModule.
         converter = self.cls(nbits_from, nbits_to, self.ratio, reverse)
         self.submodules += converter
         self.latency = converter.latency
+        if self.cls == _UpConverter:
+            self.aw = converter.aw
+            self.aw_valid = converter.aw_valid
+            self.aw_ready = converter.aw_ready
 
         self.sink = converter.sink
         if report_valid_token_count:
@@ -518,6 +551,9 @@ class StrideConverter(LiteXModule):
     def __init__(self, description_from, description_to, reverse=False):
         self.sink   = sink   = Endpoint(description_from)
         self.source = source = Endpoint(description_to)
+        self.aw = Signal(32)
+        self.aw_valid = Signal()
+        self.aw_ready = Signal()
 
         # # #
 
@@ -555,6 +591,11 @@ class StrideConverter(LiteXModule):
             converter.source.ready.eq(source.ready)
         ]
         if converter.cls == _UpConverter:
+            self.comb += [
+                converter.aw.eq(self.aw),
+                converter.aw_valid.eq(self.aw_valid),
+                converter.aw_ready.eq(self.aw_ready),
+            ]
             ratio = converter.ratio
             for i in range(ratio):
                 j = 0
