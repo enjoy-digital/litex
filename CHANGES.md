@@ -5,7 +5,8 @@
 
 	[> Added
 	--------
-	- cpu/zynqmp : Added SGMII support via PL andoptional PTP (#2095).
+	- cpu/zynqmp   : Added SGMII support via PL andoptional PTP (#2095).
+	- liteeth/phy  : Improved 1000BaseX/2500BaseX PCS/PHYs (https://github.com/enjoy-digital/liteeth/pull/174).
 
 	[> Changed
 	----------
