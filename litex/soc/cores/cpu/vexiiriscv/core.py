@@ -12,6 +12,7 @@ import re
 
 from migen import *
 
+from litex.build.efinix.efinity import EfinityToolchain
 from litex.gen import *
 
 from litex import get_data_mod
@@ -514,7 +515,7 @@ class VexiiRiscv(CPU):
             if soc.get_build_name() == "sim":
                 self.comb += If(debug_ndmreset_rise, soc.crg.cd_sys.rst.eq(1))
             else:
-                if hasattr(soc.crg.pll, "locked"):
+                if hasattr(soc.crg.pll, "locked") and isinstance(self.platform.toolchain, EfinityToolchain):
                     self.comb += If(debug_ndmreset, soc.crg.pll.locked.eq(0))
                 elif hasattr(soc.crg, "rst"):
                     self.comb += If(debug_ndmreset_rise, soc.crg.rst.eq(1))
