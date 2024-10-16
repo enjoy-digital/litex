@@ -121,6 +121,10 @@ class LatticeDiamondToolchain(GenericToolchain):
         for filename in self.platform.ips:
             tcl.append("prj_src add \"{}\" -work {}".format(tcl_path(filename), library))
 
+        # Add Strategy
+        for filename, strategy_name in self.platform.strategy:
+            tcl.append("prj_strgy import -name {} -file {}".format(strategy_name, tcl_path(filename)))
+
         # Set top level
         tcl.append("prj_impl option top \"{}\"".format(self._build_name))
 

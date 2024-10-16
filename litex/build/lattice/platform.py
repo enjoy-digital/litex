@@ -24,6 +24,7 @@ class LatticePlatform(GenericPlatform):
     def __init__(self, *args, toolchain="diamond", **kwargs):
         GenericPlatform.__init__(self, *args, **kwargs)
         self.ips      = set()
+        self.strategy = set()
         if toolchain == "diamond":
             self.toolchain = diamond.LatticeDiamondToolchain()
         elif toolchain == "trellis":
@@ -40,6 +41,9 @@ class LatticePlatform(GenericPlatform):
 
     def add_ip(self, filename):
         self.ips.add((os.path.abspath(filename)))
+
+    def add_strategy(self, filename, strategy_name):
+        self.strategy.add((os.path.abspath(filename), strategy_name))
 
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
         so = dict()  # No common overrides between ECP5 and iCE40.
