@@ -5,6 +5,8 @@
 # Copyright (c) 2017 William D. Jones <thor0505@comcast.net>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import os
+
 from litex.build.generic_platform import GenericPlatform
 from litex.build.lattice import common, diamond, icestorm, trellis, radiant, oxide
 
@@ -21,6 +23,7 @@ class LatticePlatform(GenericPlatform):
 
     def __init__(self, *args, toolchain="diamond", **kwargs):
         GenericPlatform.__init__(self, *args, **kwargs)
+        self.ips      = set()
         if toolchain == "diamond":
             self.toolchain = diamond.LatticeDiamondToolchain()
         elif toolchain == "trellis":
@@ -34,6 +37,9 @@ class LatticePlatform(GenericPlatform):
             self.toolchain = oxide.LatticeOxideToolchain()
         else:
             raise ValueError(f"Unknown toolchain {toolchain}")
+
+    def add_ip(self, filename):
+        self.ips.add((os.path.abspath(filename)))
 
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
         so = dict()  # No common overrides between ECP5 and iCE40.
