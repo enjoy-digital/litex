@@ -36,6 +36,7 @@ class LatticeDiamondToolchain(GenericToolchain):
 
     def __init__(self):
         super().__init__()
+        self.additional_ldf_commands = []
 
     def build(self, platform, fragment,
         timingstrict   = False,
@@ -118,6 +119,9 @@ class LatticeDiamondToolchain(GenericToolchain):
 
         # Set top level
         tcl.append("prj_impl option top \"{}\"".format(self._build_name))
+
+        # Add additional commands
+        tcl += self.additional_ldf_commands
 
         # Save project
         tcl.append("prj_project save")
