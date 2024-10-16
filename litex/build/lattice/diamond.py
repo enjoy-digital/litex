@@ -36,6 +36,7 @@ class LatticeDiamondToolchain(GenericToolchain):
 
     def __init__(self):
         super().__init__()
+        self.additional_ldf_commands = []
 
     def build(self, platform, fragment,
         timingstrict   = False,
@@ -116,8 +117,19 @@ class LatticeDiamondToolchain(GenericToolchain):
         for filename, language, library, *copy in self.platform.sources:
             tcl.append("prj_src add \"{}\" -work {}".format(tcl_path(filename), library))
 
+        # Add IPs
+        for filename in self.platform.ips:
+            tcl.append("prj_src add \"{}\" -work {}".format(tcl_path(filename), library))
+
+        # Add Strategy
+        for filename, strategy_name in self.platform.strategy:
+            tcl.append("prj_strgy import -name {} -file {}".format(strategy_name, tcl_path(filename)))
+
         # Set top level
         tcl.append("prj_impl option top \"{}\"".format(self._build_name))
+
+        # Add additional commands
+        tcl += self.additional_ldf_commands
 
         # Save project
         tcl.append("prj_project save")
