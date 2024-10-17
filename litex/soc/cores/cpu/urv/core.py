@@ -10,6 +10,8 @@ from migen import *
 
 from litex.gen import *
 
+from litex.soc.interconnect import stream
+
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 
@@ -62,14 +64,14 @@ class uRV(CPU):
         self.ibus         = ibus = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
         self.dbus         = dbus = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
         self.periph_buses = [ibus, dbus] # Peripheral buses (Connected to main SoC's bus).
-        self.memory_buses = []      # Memory buses (Connected directly to LiteDRAM).
+        self.memory_buses = []           # Memory buses (Connected directly to LiteDRAM).
 
         # uRV Signals.
         # ------------
         im_addr  = Signal(32)
-        im_rd    = Signal(1)
+        im_rd    = Signal()
         im_data  = Signal(32)
-        im_valid = Signal(1)
+        im_valid = Signal()
 
         dm_addr        = Signal(32)
         dm_data_s      = Signal(32)
@@ -79,9 +81,6 @@ class uRV(CPU):
         dm_load        = Signal()
         dm_load_done   = Signal()
         dm_store_done  = Signal()
-
-        rst_count = Signal(8, reset=16)
-        self.sync += If(rst_count != 0, rst_count.eq(rst_count - 1))
 
         # uRV Instance.
         # -------------
@@ -97,8 +96,8 @@ class uRV(CPU):
             p_g_with_compressed_insns = 0,
 
             # Clk / Rst.
-            i_clk_i            =  ClockSignal("sys"),
-            i_rst_i            = ~(ResetSignal("sys") | self.reset | (rst_count != 0)),
+            i_clk_i            = ClockSignal("sys"),
+            i_rst_i            = ResetSignal("sys") | self.reset,
 
             # Instruction Mem Bus.
             o_im_addr_o        = im_addr,
@@ -120,55 +119,92 @@ class uRV(CPU):
 
         # uRV Instruction Bus.
         # --------------------
-        self.i_fsm = i_fsm = FSM(reset_state="IDLE")
-        i_fsm.act("IDLE",
-            If(im_rd,
-                NextValue(im_valid, 0),
-                NextState("READ")
+        from litex.soc.integration.common import get_mem_data
+
+        try:
+            # FIXME.
+            rom_init = get_mem_data("build/sim/software/bios/bios.bin",
+                data_width = 32,
+                endianness = "little"
             )
-        )
-        i_fsm.act("READ",
-            ibus.stb.eq(1),
-            ibus.cyc.eq(1),
-            ibus.we.eq(0),
-            ibus.adr.eq(im_addr),
-            ibus.sel.eq(0b1111),
-            If(ibus.ack,
-                NextValue(im_valid, 1),
-                NextValue(im_data, ibus.dat_r),
-                NextState("IDLE")
-            )
-        )
+        except:
+            rom_init = []
+        rom      = Memory(32, depth=131072//4, init=rom_init)
+        rom_port = rom.get_port()
+        self.specials += rom, rom_port
+
+        self.sync += im_valid.eq(1),
+        self.comb += [
+            rom_port.adr.eq(im_addr[2:]),
+            im_data.eq(rom_port.dat_r),
+        ]
+
+#        im_addr_d = Signal(32, reset=0xffffffff)
+#        self.sync += im_addr_d.eq(im_addr)
+#        self.i_fsm = i_fsm = FSM(reset_state="IDLE")
+#        i_fsm.act("IDLE",
+#            If(im_addr != im_addr_d,
+#                NextValue(im_valid, 0),
+#                NextState("READ")
+#            )
+#        )
+#        i_fsm.act("READ",
+#            ibus.stb.eq(1),
+#            ibus.cyc.eq(1),
+#            ibus.we.eq(0),
+#            ibus.adr.eq(im_addr),
+#            ibus.sel.eq(0b1111),
+#            If(ibus.ack,
+#                NextValue(im_valid, 1),
+#                NextValue(im_data, ibus.dat_r),
+#                NextState("IDLE")
+#            )
+#        )
 
         # uRV Data Bus.
         # -------------
-        self.d_fsm = d_fsm = FSM(reset_state="IDLE")
-        d_fsm.act("IDLE",
-            If(dm_store,
-                NextState("WRITE")
-            ),
-            If(dm_load,
-                NextState("READ")
+        self.dm_fifo = dm_fifo = stream.SyncFIFO(
+            layout = [("addr", 32), ("we", 1), ("data", 32), ("sel", 4)],
+            depth = 16,
+        )
+        self.comb += [
+            dm_fifo.sink.valid.eq(dm_store | dm_load),
+            dm_fifo.sink.we.eq(dm_store),
+            dm_fifo.sink.addr.eq(dm_addr),
+            dm_fifo.sink.data.eq(dm_data_s),
+            dm_fifo.sink.sel.eq(dm_data_select),
+        ]
+        self.dm_fsm = dm_fsm = FSM(reset_state="IDLE")
+        dm_fsm.act("IDLE",
+            If(dm_fifo.source.valid,
+                If(dm_fifo.source.we,
+                    NextState("WRITE")
+                ).Else(
+                    NextState("READ")
+                )
             )
         )
-        d_fsm.act("WRITE",
+        dm_fsm.act("WRITE",
             dbus.stb.eq(1),
             dbus.cyc.eq(1),
             dbus.we.eq(1),
-            dbus.adr.eq(dm_addr),
-            dbus.sel.eq(dm_data_select),
-            dbus.dat_w.eq(dm_data_s),
+            dbus.adr.eq(dm_fifo.source.addr),
+            dbus.sel.eq(dm_fifo.source.sel),
+            dbus.dat_w.eq(dm_fifo.source.data),
             If(dbus.ack,
+                dm_fifo.source.ready.eq(1),
+                dm_store_done.eq(1),
                 NextState("IDLE")
             )
         )
-        d_fsm.act("READ",
+        dm_fsm.act("READ",
             dbus.stb.eq(1),
             dbus.cyc.eq(1),
             dbus.we.eq(0),
-            dbus.adr.eq(dm_addr),
-            dbus.sel.eq(dm_data_select),
+            dbus.adr.eq(dm_fifo.source.addr),
+            dbus.sel.eq(dm_fifo.source.sel),
             If(dbus.ack,
+                dm_fifo.source.ready.eq(1),
                 dm_load_done.eq(1),
                 dm_data_l.eq(dbus.dat_r),
                 NextState("IDLE")
