@@ -86,8 +86,8 @@ class uRV(CPU):
         # -------------
         self.cpu_params = dict(
             # Parameters.
-            p_g_timer_frequency       = 1000,
-            p_g_clock_frequency       = 100000000,
+            p_g_timer_frequency       = 1000,      # FIXME.
+            p_g_clock_frequency       = 100000000, # FIXME.
             p_g_with_hw_div           = 1,
             p_g_with_hw_mulh          = 1,
             p_g_with_hw_mul           = 1,
@@ -119,47 +119,39 @@ class uRV(CPU):
 
         # uRV Instruction Bus.
         # --------------------
-        from litex.soc.integration.common import get_mem_data
+        if True:
+            from litex.soc.integration.common import get_mem_data
+            self.rom      = Memory(32, depth=131072//4)
+            self.rom_port = self.rom.get_port()
 
-        try:
-            # FIXME.
-            rom_init = get_mem_data("build/sim/software/bios/bios.bin",
-                data_width = 32,
-                endianness = "little"
+            self.sync += im_valid.eq(1),
+            self.comb += [
+                self.rom_port.adr.eq(im_addr[2:]),
+                im_data.eq(self.rom_port.dat_r),
+            ]
+        else:
+            # FIXME: Try to implement im_bus -> Wishbone correctly (if possible).
+            im_addr_d = Signal(32, reset=0xffffffff)
+            self.sync += im_addr_d.eq(im_addr)
+            self.i_fsm = i_fsm = FSM(reset_state="IDLE")
+            i_fsm.act("IDLE",
+                If(im_addr != im_addr_d,
+                    NextValue(im_valid, 0),
+                    NextState("READ")
+                )
             )
-        except:
-            rom_init = []
-        rom      = Memory(32, depth=131072//4, init=rom_init)
-        rom_port = rom.get_port()
-        self.specials += rom, rom_port
-
-        self.sync += im_valid.eq(1),
-        self.comb += [
-            rom_port.adr.eq(im_addr[2:]),
-            im_data.eq(rom_port.dat_r),
-        ]
-
-#        im_addr_d = Signal(32, reset=0xffffffff)
-#        self.sync += im_addr_d.eq(im_addr)
-#        self.i_fsm = i_fsm = FSM(reset_state="IDLE")
-#        i_fsm.act("IDLE",
-#            If(im_addr != im_addr_d,
-#                NextValue(im_valid, 0),
-#                NextState("READ")
-#            )
-#        )
-#        i_fsm.act("READ",
-#            ibus.stb.eq(1),
-#            ibus.cyc.eq(1),
-#            ibus.we.eq(0),
-#            ibus.adr.eq(im_addr),
-#            ibus.sel.eq(0b1111),
-#            If(ibus.ack,
-#                NextValue(im_valid, 1),
-#                NextValue(im_data, ibus.dat_r),
-#                NextState("IDLE")
-#            )
-#        )
+            i_fsm.act("READ",
+                ibus.stb.eq(1),
+                ibus.cyc.eq(1),
+                ibus.we.eq(0),
+                ibus.adr.eq(im_addr),
+                ibus.sel.eq(0b1111),
+                If(ibus.ack,
+                    NextValue(im_valid, 1),
+                    NextValue(im_data, ibus.dat_r),
+                    NextState("IDLE")
+                )
+            )
 
         # uRV Data Bus.
         # -------------
