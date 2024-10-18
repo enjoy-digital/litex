@@ -58,6 +58,7 @@ class VexiiRiscv(CPU):
     with_rva         = False
     with_dma         = False
     with_axi3        = False
+    with_opensbi     = False
     jtag_tap         = False
     jtag_instruction = False
     with_cpu_clk     = False
@@ -137,6 +138,7 @@ class VexiiRiscv(CPU):
         cpu_group.add_argument("--with-cpu-clk",          action="store_true",   help="The CPUs will use a decoupled clock")
         # cpu_group.add_argument("--with-fpu",              action="store_true",   help="Enable the F32/F64 FPU.")
         # cpu_group.add_argument("--with-rvc",              action="store_true",   help="Enable the Compress ISA extension.")
+        cpu_group.add_argument("--with-rva",              action="store_true",   help="Enable the RV32A (atomic) extension.")
         cpu_group.add_argument("--l2-bytes",              default=0,             help="VexiiRiscv L2 bytes, default 128 KB.")
         cpu_group.add_argument("--l2-ways",               default=0,             help="VexiiRiscv L2 ways, default 8.")
         cpu_group.add_argument("--l2-self-flush",         default=None,          help="VexiiRiscv L2 ways will self flush on from,to,cycles")
@@ -164,7 +166,9 @@ class VexiiRiscv(CPU):
         VexiiRiscv.vexii_args += " --relaxed-branch"
 
         if args.cpu_variant in ["linux", "debian"]:
-            VexiiRiscv.vexii_args += " --with-rva --with-supervisor"
+            args.with_rva = True
+            VexiiRiscv.with_opensbi = True
+            VexiiRiscv.vexii_args += " --with-supervisor"
             VexiiRiscv.vexii_args += " --fetch-l1-ways=4 --fetch-l1-mem-data-width-min=64"
             VexiiRiscv.vexii_args += " --lsu-l1-ways=4 --lsu-l1-mem-data-width-min=64"
 
@@ -182,6 +186,7 @@ class VexiiRiscv(CPU):
         VexiiRiscv.with_axi3        = args.with_axi3
         VexiiRiscv.update_repo      = args.update_repo
         VexiiRiscv.no_netlist_cache = args.no_netlist_cache
+        VexiiRiscv.with_rva         = args.with_rva
         VexiiRiscv.vexii_args      += " " + args.vexii_args
 
         md5_hash = hashlib.md5()
@@ -404,6 +409,8 @@ class VexiiRiscv(CPU):
             gen_args.append(f"--with-dma")
         if(VexiiRiscv.with_axi3) :
             gen_args.append(f"--with-axi3")
+        if(VexiiRiscv.with_rva) :
+            gen_args.append(f"--with-rva")
         for arg in VexiiRiscv.vexii_video:
             gen_args.append(f"--video {arg}")
 
@@ -443,12 +450,13 @@ class VexiiRiscv(CPU):
         # Set Human-name.
         self.human_name = f"{self.human_name} {self.xlen}-bit"
 
-        # Set UART/Timer0 CSRs to the ones used by OpenSBI.
-        soc.csr.add("uart",   n=2)
-        soc.csr.add("timer0", n=3)
+        if VexiiRiscv.with_opensbi:
+            # Set UART/Timer0 CSRs to the ones used by OpenSBI.
+            soc.csr.add("uart",   n=2)
+            soc.csr.add("timer0", n=3)
 
-        # Add OpenSBI region.
-        soc.bus.add_region("opensbi", SoCRegion(origin=self.mem_map["main_ram"] + 0x00f0_0000, size=0x8_0000, cached=True, linker=True))
+            # Add OpenSBI region.
+            soc.bus.add_region("opensbi", SoCRegion(origin=self.mem_map["main_ram"] + 0x00f0_0000, size=0x8_0000, cached=True, linker=True))
 
         # Define ISA.
         soc.add_config("CPU_COUNT", VexiiRiscv.cpu_count)
