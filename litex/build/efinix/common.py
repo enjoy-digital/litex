@@ -38,6 +38,20 @@ if _have_colorama:
 def assert_is_signal_or_clocksignal(obj):
     assert isinstance(obj, (ClockSignal, Signal)), f"Object {obj} is not a ClockSignal or Signal"
 
+def const_output_calc(o, io):
+    if o.value == 0:
+        const_output = 0
+    elif len(o) == 1:
+        const_output = 1
+    else:
+        const_output = []
+        for bit in range(len(io)):
+            if o.value & (1 << bit):
+                const_output.append(1)
+            else:
+                const_output.append(0)
+    return const_output
+
 # Efinix AsyncResetSynchronizer --------------------------------------------------------------------
 
 class EfinixAsyncResetSynchronizerImpl(LiteXModule):
@@ -142,12 +156,16 @@ class EfinixTristateImpl(LiteXModule):
             io_pad  = platform.get_pins_location(io)
             io_prop = platform.get_pin_properties(io[0])
         io_prop_dict = dict(io_prop)
-        io_data_i    = platform.add_iface_io(io_name + "_OUT", len(io))
-        io_data_o    = platform.add_iface_io(io_name + "_IN", len(io))
+        if isinstance(o, Constant):
+            const_output = const_output_calc(o, io)
+        else:
+            const_output = "NONE"
+            io_data_i = platform.add_iface_io(io_name + "_OUT", len(io))
+            self.comb += io_data_i.eq(o)
         io_data_e    = platform.add_iface_io(io_name + "_OE", len(io))
-        self.comb += io_data_i.eq(o)
         self.comb += io_data_e.eq(oe)
         if i is not None:
+            io_data_o  = platform.add_iface_io(io_name + "_IN", len(io))
             self.comb += i.eq(io_data_o)
         block = {
             "type"           : "GPIO",
@@ -156,6 +174,7 @@ class EfinixTristateImpl(LiteXModule):
             "location"       : io_pad,
             "properties"     : io_prop,
             "size"           : len(io),
+            "const_output"   : const_output,
             "drive_strength" : io_prop_dict.get("DRIVE_STRENGTH", "4")
         }
         platform.toolchain.ifacewriter.blocks.append(block)
@@ -326,10 +345,14 @@ class EfinixSDRTristateImpl(LiteXModule):
         io_pad       = platform.get_pin_location(io)
         io_prop      = platform.get_pin_properties(io)
         io_prop_dict = dict(io_prop)
-        io_data_i    = platform.add_iface_io(io_name + "_OUT")
+        if isinstance(o, Constant):
+            const_output = const_output_calc(o, io)
+        else:
+            const_output = "NONE"
+            io_data_i = platform.add_iface_io(io_name + "_OUT")
+            self.comb += io_data_i.eq(o)                
         io_data_o    = platform.add_iface_io(io_name + "_IN")
         io_data_e    = platform.add_iface_io(io_name + "_OE")
-        self.comb += io_data_i.eq(o)
         self.comb += io_data_e.eq(oe)
         self.comb += i.eq(io_data_o)
         block = {
@@ -343,6 +366,7 @@ class EfinixSDRTristateImpl(LiteXModule):
             "in_clk_pin"     : clk,
             "out_reg"        : "REG",
             "out_clk_pin"    : clk,
+            "const_output"   : const_output,
             "oe_reg"         : "REG",
             "in_clk_inv"     : 0,
             "out_clk_inv"    : 0,
@@ -367,8 +391,12 @@ class EfinixSDROutputImpl(LiteXModule):
         io_pad       = platform.get_pin_location(o)
         io_prop      = platform.get_pin_properties(o)
         io_prop_dict = dict(io_prop)
-        io_data_i    = platform.add_iface_io(io_name)
-        self.comb += io_data_i.eq(i)
+        if isinstance(i, Constant):
+            const_output = const_output_calc(i, o)
+        else:
+            const_output = "NONE"
+            io_data_i    = platform.add_iface_io(io_name)
+            self.comb += io_data_i.eq(i)
         block = {
             "type"           : "GPIO",
             "mode"           : "OUTPUT",
@@ -378,6 +406,7 @@ class EfinixSDROutputImpl(LiteXModule):
             "size"           : 1,
             "out_reg"        : "REG",
             "out_clk_pin"    : clk,
+            "const_output"   : const_output,
             "out_clk_inv"    : 0,
             "drive_strength" : io_prop_dict.get("DRIVE_STRENGTH", "4")
         }

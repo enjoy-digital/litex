@@ -222,6 +222,12 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                 cmd += 'design.set_property("{}","DRIVE_STRENGTH","{}")\n'.format(name, block["drive_strength"])
             if "slewrate" in block:
                 cmd += 'design.set_property("{}","SLEWRATE","{}")\n'.format(name, block["slewrate"])
+            if "const_output" in block:
+                if not isinstance(block["const_output"], list):
+                    cmd += f'design.set_property("{name}","CONST_OUTPUT","{block["const_output"]}")\n'
+                else:
+                    for i, val in enumerate(block["const_output"]):
+                        cmd += f'design.set_property("{name}[{i}]","CONST_OUTPUT","{val}")\n'
 
         if mode == "INOUT" or mode == "INPUT" or mode == "OUTPUT":
             if prop:
