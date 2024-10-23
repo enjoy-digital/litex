@@ -204,7 +204,7 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                 cmd += 'design.create_output_gpio("{}")\n'.format(name)
                 cmd += 'design.assign_pkg_pin("{}","{}")\n'.format(name, block["location"][0])
             else:
-                cmd += 'design.create_input_gpio("{}",{},0)\n'.format(name, block["size"]-1)
+                cmd += 'design.create_output_gpio("{}",{},0)\n'.format(name, block["size"]-1)
                 for i, pad in enumerate(block["location"]):
                     cmd += 'design.assign_pkg_pin("{}[{}]","{}")\n'.format(name, i, pad)
 
