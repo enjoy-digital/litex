@@ -111,6 +111,9 @@ static void spiflash_master_write(uint32_t val, size_t len, size_t width, uint32
 	spiflash_core_master_rxtx_write(val);
 	while (!spiflash_rx_ready());
 
+	/* Clear RX queue. */
+	spiflash_core_master_rxtx_read();
+
 	/* Clear CS. */
 	spiflash_core_master_cs_write(0);
 }
