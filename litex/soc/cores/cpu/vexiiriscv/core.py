@@ -62,6 +62,7 @@ class VexiiRiscv(CPU):
     jtag_instruction = False
     with_cpu_clk     = False
     vexii_video      = []
+    vexii_macsg      = []
     vexii_args       = ""
 
 
@@ -142,6 +143,7 @@ class VexiiRiscv(CPU):
         cpu_group.add_argument("--l2-self-flush",         default=None,          help="VexiiRiscv L2 ways will self flush on from,to,cycles")
         cpu_group.add_argument("--with-axi3",             action="store_true",   help="mbus will be axi3 instead of axi4")
         cpu_group.add_argument("--vexii-video",           action="append",  default=[], help="Add the memory coherent video controller")
+        cpu_group.add_argument("--vexii-macsg",           action="append",  default=[], help="Add the memory coherent ethernet mac")
 
 
 
@@ -153,7 +155,7 @@ class VexiiRiscv(CPU):
         vdir = get_data_mod("cpu", "vexiiriscv").data_location
         ndir = os.path.join(vdir, "ext", "VexiiRiscv")
 
-        NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "dev", "e7c9f4a3", args.update_repo)
+        NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "dev", "ca10ab58", args.update_repo)
 
         if not args.cpu_variant:
             args.cpu_variant = "standard"
@@ -207,6 +209,7 @@ class VexiiRiscv(CPU):
         if args.l2_self_flush:
             VexiiRiscv.l2_self_flush = args.l2_self_flush
         VexiiRiscv.vexii_video = args.vexii_video
+        VexiiRiscv.vexii_macsg = args.vexii_macsg
 
 
     def __init__(self, platform, variant):
@@ -229,6 +232,8 @@ class VexiiRiscv(CPU):
             # Clk/Rst.
             i_litex_clk   = ClockSignal("sys"),
             i_litex_reset = ResetSignal("sys") | self.reset,
+
+            o_debug=self.tracer_payload,
 
             # Patcher/Tracer.
             # o_patcher_tracer_valid   = self.tracer_valid,
@@ -341,6 +346,28 @@ class VexiiRiscv(CPU):
             self.cpu_params["o_" + name + "_colorEn"] = color_en
             self.cpu_params["o_" + name + "_color"] = color
 
+        def add_io(direction, prefix, name, width):
+            composed = prefix + "_" + name
+            sig = Signal(width, name = composed)
+            setattr(self, composed, sig)
+            self.cpu_params[direction + "_" + composed] = sig
+
+        for macsg in VexiiRiscv.vexii_macsg:
+            args = {}
+            for i, val in enumerate(macsg.split(",")):
+                name, value = val.split("=")
+                args.update({name: value})
+            name = args["name"]
+            add_io("i", name, "tx_ref_clk", 1)
+            add_io("o", name, "tx_ctl", 2)
+            add_io("o", name, "tx_d", 8)
+            add_io("o", name, "tx_clk", 2)
+
+            add_io("i", name, "rx_ctl", 2)
+            add_io("i", name, "rx_d", 8)
+            add_io("i", name, "rx_clk", 1)
+
+
 
 
 
@@ -367,6 +394,7 @@ class VexiiRiscv(CPU):
         md5_hash.update(str(VexiiRiscv.memory_regions).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.vexii_args).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.vexii_video).encode('utf-8'))
+        md5_hash.update(str(VexiiRiscv.vexii_macsg).encode('utf-8'))
 
         # md5_hash.update(str(VexiiRiscv.internal_bus_width).encode('utf-8'))
 
@@ -406,6 +434,8 @@ class VexiiRiscv(CPU):
             gen_args.append(f"--with-axi3")
         for arg in VexiiRiscv.vexii_video:
             gen_args.append(f"--video {arg}")
+        for arg in VexiiRiscv.vexii_macsg:
+            gen_args.append(f"--mac-sg {arg}")
 
 
         cmd = f"""cd {ndir} && sbt "runMain vexiiriscv.soc.litex.SocGen {" ".join(gen_args)}\""""
