@@ -137,7 +137,8 @@ class WS2812(LiteXModule):
             self.bus  = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         else:
             # Memory.
-            mem = Memory(32, nleds, init=init)
+            mem_depth = max(nleds, 2)
+            mem = Memory(32, mem_depth, init=init)
             port = mem.get_port()
             self.specials += mem, port
 
