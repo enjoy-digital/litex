@@ -58,6 +58,7 @@ class VexiiRiscv(CPU):
     with_rva         = False
     with_dma         = False
     with_axi3        = False
+    with_opensbi     = False
     jtag_tap         = False
     jtag_instruction = False
     with_cpu_clk     = False
@@ -164,6 +165,7 @@ class VexiiRiscv(CPU):
         VexiiRiscv.vexii_args += " --relaxed-branch"
 
         if args.cpu_variant in ["linux", "debian"]:
+            VexiiRiscv.with_opensbi = True
             VexiiRiscv.vexii_args += " --with-rva --with-supervisor"
             VexiiRiscv.vexii_args += " --fetch-l1-ways=4 --fetch-l1-mem-data-width-min=64"
             VexiiRiscv.vexii_args += " --lsu-l1-ways=4 --lsu-l1-mem-data-width-min=64"
@@ -367,6 +369,7 @@ class VexiiRiscv(CPU):
         md5_hash.update(str(VexiiRiscv.memory_regions).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.vexii_args).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.vexii_video).encode('utf-8'))
+        md5_hash.update(str(VexiiRiscv.with_opensbi).encode('utf-8'))
 
         # md5_hash.update(str(VexiiRiscv.internal_bus_width).encode('utf-8'))
 
@@ -443,12 +446,13 @@ class VexiiRiscv(CPU):
         # Set Human-name.
         self.human_name = f"{self.human_name} {self.xlen}-bit"
 
-        # Set UART/Timer0 CSRs to the ones used by OpenSBI.
-        soc.csr.add("uart",   n=2)
-        soc.csr.add("timer0", n=3)
+        if VexiiRiscv.with_opensbi:
+            # Set UART/Timer0 CSRs to the ones used by OpenSBI.
+            soc.csr.add("uart",   n=2)
+            soc.csr.add("timer0", n=3)
 
-        # Add OpenSBI region.
-        soc.bus.add_region("opensbi", SoCRegion(origin=self.mem_map["main_ram"] + 0x00f0_0000, size=0x8_0000, cached=True, linker=True))
+            # Add OpenSBI region.
+            soc.bus.add_region("opensbi", SoCRegion(origin=self.mem_map["main_ram"] + 0x00f0_0000, size=0x8_0000, cached=True, linker=True))
 
         # Define ISA.
         soc.add_config("CPU_COUNT", VexiiRiscv.cpu_count)
