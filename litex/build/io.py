@@ -84,7 +84,7 @@ class InferedSDRIO(Module):
 
 class SDRIO(Special):
     def __init__(self, i, o, clk=None):
-        assert len(i) == len(o) == 1
+        assert len(i) == len(o)
         Special.__init__(self)
         self.i            = wrap(i)
         self.o            = wrap(o)
@@ -102,7 +102,6 @@ class SDRIO(Special):
     def lower(dr):
         return InferedSDRIO(dr.i, dr.o, dr.clk)
 
-
 class SDRInput(SDRIO):  pass
 class SDROutput(SDRIO): pass
 
@@ -110,9 +109,9 @@ class SDROutput(SDRIO): pass
 
 class InferedSDRTristate(Module):
     def __init__(self, io, o, oe, i, clk):
-        _o  = Signal()
-        _oe = Signal()
-        _i  = Signal()
+        _o  = Signal().like(o)
+        _oe = Signal().like(oe)
+        _i  = Signal().like(i)
         self.specials   += SDROutput(o, _o, clk)
         self.specials   += SDRInput(_i, i, clk)
         self.submodules += InferedSDRIO(oe, _oe, clk)
@@ -186,9 +185,9 @@ class DDROutput(Special):
 
 class InferedDDRTristate(Module):
     def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk):
-        _o  = Signal()
-        _oe = Signal()
-        _i  = Signal()
+        _o  = Signal().like(o1)
+        _oe = Signal().like(oe1)
+        _i  = Signal().like(i1)
         self.specials += DDROutput(o1, o2, _o, clk)
         self.specials += DDROutput(oe1, oe2, _oe, clk) if oe2 is not None else SDROutput(oe1, _oe, clk)
         self.specials += DDRInput(_i, i1, i2, clk)
