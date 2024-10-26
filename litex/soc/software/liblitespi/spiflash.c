@@ -131,7 +131,7 @@ static uint32_t transfer_byte(uint8_t b)
 	return spiflash_core_master_rxtx_read();
 }
 
-static void transfer_cmd(volatile uint8_t *bs, volatile uint8_t *resp, int len)
+void transfer_cmd(volatile uint8_t *bs, volatile uint8_t *resp, int len)
 {
 	spiflash_len_mask_width_write(8, 1, 1);
 	spiflash_core_master_cs_write(1);
