@@ -13,6 +13,7 @@ from litex.soc.cores.led import WS2812
 
 class TestWS2812(unittest.TestCase):
     test_clk_freqs = [75e6, 50e6, 25e6]
+    test_led_data = [0x100000, 0x200000, 0x300000, 0x400000, 0x500000, 0x600000, 0x700000, 0x800000, 0x900000]
 
     def generator(self, dut, led_signal, led_data, sys_clk_freq, iterations):
         # Error Margin from WS2812 datasheet.
@@ -71,17 +72,21 @@ class TestWS2812(unittest.TestCase):
         return ( int(x) for x in bin(num)[2:].zfill(length) )
 
 
-    def run_test(self, revision, sys_clk_freq):
+    def run_test(self, revision, sys_clk_freq, led_data):
         led_signal = Signal()
-        led_data   = [0x100000, 0x200000, 0x300000, 0x400000, 0x500000, 0x600000, 0x700000, 0x800000, 0x900000]
         iterations = 2
         dut = WS2812(led_signal, len(led_data), sys_clk_freq, revision=revision, init=led_data)
         run_simulation(dut, self.generator(dut, led_signal, led_data, sys_clk_freq, iterations), vcd_name="sim.vcd")
 
     def test_WS2812_old(self):
         for sys_clk_freq in self.test_clk_freqs:
-            self.run_test("old", sys_clk_freq)
+            self.run_test("old", sys_clk_freq, self.test_led_data)
 
     def test_WS2812_new(self):
         for sys_clk_freq in self.test_clk_freqs:
-            self.run_test("new", sys_clk_freq)
+            self.run_test("new", sys_clk_freq, self.test_led_data)
+
+    def test_WS2812_1led(self):
+        led_data = [0x100000]
+        for sys_clk_freq in self.test_clk_freqs:
+            self.run_test("old", sys_clk_freq, led_data)
