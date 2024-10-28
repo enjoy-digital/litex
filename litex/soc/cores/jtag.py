@@ -379,7 +379,7 @@ class ECP5JTAG(LiteXModule):
             new_tck = Signal()
             self.specials += Instance("LUT4",
                 attr   = {"keep"},
-                p_INIT = 2,
+                p_init = 2,
                 i_A = tck,
                 i_B = 0,
                 i_C = 0,
