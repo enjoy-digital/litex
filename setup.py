@@ -26,6 +26,7 @@ setup(
         "packaging",
         "pyserial",
         "requests",
+        "numpy",
     ],
     extras_require                = {
         "develop": [

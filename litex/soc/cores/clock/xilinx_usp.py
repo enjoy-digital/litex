@@ -8,6 +8,7 @@ from litex.gen import *
 
 from litex.soc.cores.clock.common import *
 from litex.soc.cores.clock.xilinx_common import *
+import numpy as np
 
 # Xilinx / Ultrascale Plus -------------------------------------------------------------------------
 
@@ -108,6 +109,62 @@ class USPMMCM(XilinxClocking):
             self.params["o_CLKOUT{}".format(n)]       = clk
         self.specials += Instance("MMCME2_ADV", **self.params)
 
+    def compute_config(self):
+        config = {}
+        # import pdb; pdb.set_trace()
+        for divclk_divide in range(*self.divclk_divide_range):
+            config["divclk_divide"] = divclk_divide
+            for clkfbout_mult in reversed(np.arange(2, 128.1, 0.125).tolist()): # reversed(range(*self.clkfbout_mult_frange)):
+                # if clkfbout_mult == 102.625 and divclk_divide == 7:
+                #     import pdb; pdb.set_trace()
+                # print (clkfbout_mult, divclk_divide)
+                all_valid = True
+                vco_freq = self.clkin_freq*clkfbout_mult/divclk_divide
+                breakpoint
+                (vco_freq_min, vco_freq_max) = self.vco_freq_range
+                if (vco_freq >= vco_freq_min*(1 + self.vco_margin) and
+                    vco_freq <= vco_freq_max*(1 - self.vco_margin)):
+                    for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+                        # import pdb; pdb.set_trace()
+                        valid = False
+                        d_ranges = [self.clkout_divide_range]
+                        if getattr(self, "clkout{}_divide_range".format(n), None) is not None:
+                            d_ranges += [getattr(self, "clkout{}_divide_range".format(n))]
+                            
+                        if n == 0:
+                            for d in np.arange(2, 128.1, 0.125).tolist():
+                                clk_freq = vco_freq/d
+                                if abs(clk_freq - f) <= f*m:
+                                    config["clkout{}_freq".format(n)]   = clk_freq
+                                    config["clkout{}_divide".format(n)] = d
+                                    config["clkout{}_phase".format(n)]  = p
+                                    valid = True
+                                    break
+                                if valid:
+                                    break
+                        else:
+                            for d_range in d_ranges:
+                                for d in clkdiv_range(*d_range):
+                                    clk_freq = vco_freq/d
+                                    if abs(clk_freq - f) <= f*m:
+                                        config["clkout{}_freq".format(n)]   = clk_freq
+                                        config["clkout{}_divide".format(n)] = d
+                                        config["clkout{}_phase".format(n)]  = p
+                                        valid = True
+                                        break
+                                    if valid:
+                                        break
+                        if not valid:
+                            all_valid = False
+                else:
+                    all_valid = False
+                if all_valid:
+                    config["vco"]           = vco_freq
+                    config["clkfbout_mult"] = clkfbout_mult
+                    compute_config_log(self.logger, config)
+                    # import pdb; pdb.set_trace()
+                    return config
+        raise ValueError("No PLL config found")
 
 class USPIDELAYCTRL(LiteXModule):
     def __init__(self, cd_ref, cd_sys, reset_cycles=64, ready_cycles=64):
