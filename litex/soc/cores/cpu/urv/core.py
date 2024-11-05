@@ -201,24 +201,23 @@ class uRV(CPU):
     def add_sources(platform, variant):
         if not os.path.exists("urv-core"):
             os.system(f"git clone https://ohwr.org/project/urv-core/")
-        vdir = "urv-core/rtl"
         platform.add_verilog_include_path("urv-core/rtl")
-        platform.add_sources([
-            "urv-core/rtl/urv_cpu.v",
-            "urv-core/rtl/urv_exec.v",
-            "urv-core/rtl/urv_fetch.v",
-            "urv-core/rtl/urv_decode.v",
-            "urv-core/rtl/urv_regfile.v",
-            "urv-core/rtl/urv_writeback.v",
-            "urv-core/rtl/urv_shifter.v",
-            "urv-core/rtl/urv_multiply.v",
-            "urv-core/rtl/urv_divide.v",
-            "urv-core/rtl/urv_csr.v",
-            "urv-core/rtl/urv_timer.v",
-            "urv-core/rtl/urv_exceptions.v",
-            "urv-core/rtl/urv_iram.v",
-            "urv-core/rtl/urv_ecc.v",
-        ])
+        platform.add_sources("urv-core/rtl",
+            "urv_cpu.v",
+            "urv_exec.v",
+            "urv_fetch.v",
+            "urv_decode.v",
+            "urv_regfile.v",
+            "urv_writeback.v",
+            "urv_shifter.v",
+            "urv_multiply.v",
+            "urv_divide.v",
+            "urv_csr.v",
+            "urv_timer.v",
+            "urv_exceptions.v",
+            "urv_iram.v",
+            "urv_ecc.v",
+        )
 
     def do_finalize(self):
         self.specials += Instance("urv_cpu", **self.cpu_params)
