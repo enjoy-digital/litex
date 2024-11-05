@@ -119,39 +119,25 @@ class uRV(CPU):
 
         # uRV Instruction Bus.
         # --------------------
-        if True:
-            from litex.soc.integration.common import get_mem_data
-            self.rom      = Memory(32, depth=131072//4)
-            self.rom_port = self.rom.get_port()
-
-            self.sync += im_valid.eq(1),
-            self.comb += [
-                self.rom_port.adr.eq(im_addr[2:]),
-                im_data.eq(self.rom_port.dat_r),
-            ]
-        else:
-            # FIXME: Try to implement im_bus -> Wishbone correctly (if possible).
-            im_addr_d = Signal(32, reset=0xffffffff)
-            self.sync += im_addr_d.eq(im_addr)
-            self.i_fsm = i_fsm = FSM(reset_state="IDLE")
-            i_fsm.act("IDLE",
-                If(im_addr != im_addr_d,
-                    NextValue(im_valid, 0),
-                    NextState("READ")
-                )
+        self.i_fsm = i_fsm = FSM(reset_state="IDLE")
+        i_fsm.act("IDLE",
+            If(im_rd,
+                NextValue(im_valid, 0),
+                NextState("READ")
             )
-            i_fsm.act("READ",
-                ibus.stb.eq(1),
-                ibus.cyc.eq(1),
-                ibus.we.eq(0),
-                ibus.adr.eq(im_addr),
-                ibus.sel.eq(0b1111),
-                If(ibus.ack,
-                    NextValue(im_valid, 1),
-                    NextValue(im_data, ibus.dat_r),
-                    NextState("IDLE")
-                )
+        )
+        i_fsm.act("READ",
+            ibus.stb.eq(1),
+            ibus.cyc.eq(1),
+            ibus.we.eq(0),
+            ibus.adr.eq(im_addr),
+            ibus.sel.eq(0b1111),
+            If(ibus.ack,
+                NextValue(im_valid, 1),
+                NextValue(im_data,  ibus.dat_r),
+                NextState("IDLE")
             )
+        )
 
         # uRV Data Bus.
         # -------------

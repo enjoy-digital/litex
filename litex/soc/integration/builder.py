@@ -339,11 +339,6 @@ class Builder:
         # Initialize SoC with with BIOS data.
         self.soc.init_rom(name="rom", contents=bios_data)
 
-        # FIXME: Remove uRV ROM Init Workaround.
-        from litex.soc.cores.cpu.urv import uRV
-        if isinstance(self.soc.cpu, uRV):
-            self.soc.cpu.rom.init = bios_data
-
     def build(self, **kwargs):
         # Pass Output Directory to Platform.
         self.soc.platform.output_dir = self.output_dir
