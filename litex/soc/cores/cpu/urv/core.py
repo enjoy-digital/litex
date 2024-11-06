@@ -34,7 +34,38 @@ GCC_FLAGS = {
     "standard": "-march=rv32i2p0_m    -mabi=ilp32",
 }
 
-# uRV ------------------------------------------------------------------------------------------
+# uRV Instruction Bus To Wishbone ------------------------------------------------------------------
+
+instruction_bus_layout = [
+    ("addr", 32),
+    ("rd",    1),
+    ("data", 32),
+    ("valid", 1)
+]
+
+class InstructionBusToWishbone(LiteXModule):
+    def __init__(self, ibus, wb_ibus):
+        self.fsm = fsm = FSM(reset_state="IDLE")
+        fsm.act("IDLE",
+            If(ibus.rd,
+                NextValue(ibus.valid, 0),
+                NextState("READ")
+            )
+        )
+        fsm.act("READ",
+            wb_ibus.stb.eq(1),
+            wb_ibus.cyc.eq(1),
+            wb_ibus.we.eq(0),
+            wb_ibus.adr.eq(ibus.addr),
+            wb_ibus.sel.eq(0b1111),
+            If(wb_ibus.ack,
+                NextValue(ibus.valid, 1),
+                NextValue(ibus.data, wb_ibus.dat_r),
+                NextState("IDLE")
+            )
+        )
+
+# uRV ----------------------------------------------------------------------------------------------
 
 class uRV(CPU):
     category             = "softcore"
@@ -68,10 +99,7 @@ class uRV(CPU):
 
         # uRV Signals.
         # ------------
-        im_addr  = Signal(32)
-        im_rd    = Signal()
-        im_data  = Signal(32)
-        im_valid = Signal()
+        im_bus = Record(instruction_bus_layout)
 
         dm_addr        = Signal(32)
         dm_data_s      = Signal(32)
@@ -100,10 +128,10 @@ class uRV(CPU):
             i_rst_i            = ResetSignal("sys") | self.reset,
 
             # Instruction Mem Bus.
-            o_im_addr_o        = im_addr,
-            o_im_rd_o          = im_rd,
-            i_im_data_i        = im_data,
-            i_im_valid_i       = im_valid,
+            o_im_addr_o        = im_bus.addr,
+            o_im_rd_o          = im_bus.rd,
+            i_im_data_i        = im_bus.data,
+            i_im_valid_i       = im_bus.valid,
 
             # Data Mem Bus.
             o_dm_addr_o        = dm_addr,
@@ -117,27 +145,9 @@ class uRV(CPU):
             i_dm_store_done_i  = dm_store_done,
         )
 
-        # uRV Instruction Bus.
-        # --------------------
-        self.i_fsm = i_fsm = FSM(reset_state="IDLE")
-        i_fsm.act("IDLE",
-            If(im_rd,
-                NextValue(im_valid, 0),
-                NextState("READ")
-            )
-        )
-        i_fsm.act("READ",
-            ibus.stb.eq(1),
-            ibus.cyc.eq(1),
-            ibus.we.eq(0),
-            ibus.adr.eq(im_addr),
-            ibus.sel.eq(0b1111),
-            If(ibus.ack,
-                NextValue(im_valid, 1),
-                NextValue(im_data,  ibus.dat_r),
-                NextState("IDLE")
-            )
-        )
+        # uRV Bus Adaptation.
+        # -------------------
+        self.submodules += InstructionBusToWishbone(im_bus, ibus)
 
         # uRV Data Bus.
         # -------------
