@@ -119,39 +119,25 @@ class uRV(CPU):
 
         # uRV Instruction Bus.
         # --------------------
-        if True:
-            from litex.soc.integration.common import get_mem_data
-            self.rom      = Memory(32, depth=131072//4)
-            self.rom_port = self.rom.get_port()
-
-            self.sync += im_valid.eq(1),
-            self.comb += [
-                self.rom_port.adr.eq(im_addr[2:]),
-                im_data.eq(self.rom_port.dat_r),
-            ]
-        else:
-            # FIXME: Try to implement im_bus -> Wishbone correctly (if possible).
-            im_addr_d = Signal(32, reset=0xffffffff)
-            self.sync += im_addr_d.eq(im_addr)
-            self.i_fsm = i_fsm = FSM(reset_state="IDLE")
-            i_fsm.act("IDLE",
-                If(im_addr != im_addr_d,
-                    NextValue(im_valid, 0),
-                    NextState("READ")
-                )
+        self.i_fsm = i_fsm = FSM(reset_state="IDLE")
+        i_fsm.act("IDLE",
+            If(im_rd,
+                NextValue(im_valid, 0),
+                NextState("READ")
             )
-            i_fsm.act("READ",
-                ibus.stb.eq(1),
-                ibus.cyc.eq(1),
-                ibus.we.eq(0),
-                ibus.adr.eq(im_addr),
-                ibus.sel.eq(0b1111),
-                If(ibus.ack,
-                    NextValue(im_valid, 1),
-                    NextValue(im_data, ibus.dat_r),
-                    NextState("IDLE")
-                )
+        )
+        i_fsm.act("READ",
+            ibus.stb.eq(1),
+            ibus.cyc.eq(1),
+            ibus.we.eq(0),
+            ibus.adr.eq(im_addr),
+            ibus.sel.eq(0b1111),
+            If(ibus.ack,
+                NextValue(im_valid, 1),
+                NextValue(im_data,  ibus.dat_r),
+                NextState("IDLE")
             )
+        )
 
         # uRV Data Bus.
         # -------------
@@ -215,24 +201,23 @@ class uRV(CPU):
     def add_sources(platform, variant):
         if not os.path.exists("urv-core"):
             os.system(f"git clone https://ohwr.org/project/urv-core/")
-        vdir = "urv-core/rtl"
         platform.add_verilog_include_path("urv-core/rtl")
-        platform.add_sources([
-            "urv-core/rtl/urv_cpu.v",
-            "urv-core/rtl/urv_exec.v",
-            "urv-core/rtl/urv_fetch.v",
-            "urv-core/rtl/urv_decode.v",
-            "urv-core/rtl/urv_regfile.v",
-            "urv-core/rtl/urv_writeback.v",
-            "urv-core/rtl/urv_shifter.v",
-            "urv-core/rtl/urv_multiply.v",
-            "urv-core/rtl/urv_divide.v",
-            "urv-core/rtl/urv_csr.v",
-            "urv-core/rtl/urv_timer.v",
-            "urv-core/rtl/urv_exceptions.v",
-            "urv-core/rtl/urv_iram.v",
-            "urv-core/rtl/urv_ecc.v",
-        ])
+        platform.add_sources("urv-core/rtl",
+            "urv_cpu.v",
+            "urv_exec.v",
+            "urv_fetch.v",
+            "urv_decode.v",
+            "urv_regfile.v",
+            "urv_writeback.v",
+            "urv_shifter.v",
+            "urv_multiply.v",
+            "urv_divide.v",
+            "urv_csr.v",
+            "urv_timer.v",
+            "urv_exceptions.v",
+            "urv_iram.v",
+            "urv_ecc.v",
+        )
 
     def do_finalize(self):
         self.specials += Instance("urv_cpu", **self.cpu_params)

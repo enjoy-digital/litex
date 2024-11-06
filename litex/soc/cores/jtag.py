@@ -373,13 +373,17 @@ class ECP5JTAG(LiteXModule):
             i_JTDO1 = self.tdo, # FF(negedge TCK, JTDO1) if (IR==0x32 && FSM==Shift-DR)
         )
 
+        # NextPnr/Diamond LUT4 p_INIT/p_init workaround.
+        from litex.build.lattice.diamond import LatticeDiamondToolchain
+        p_init_name = {False: "p_INIT", True: "p_init"}[isinstance(LiteXContext.toolchain, LatticeDiamondToolchain)]
+
         # TDI/TCK are synchronous on JTAGG output (TDI being registered with TCK). Introduce a delay
         # on TCK with multiple LUT4s to allow its use as the JTAG Clk.
         for i in range(tck_delay_luts):
             new_tck = Signal()
             self.specials += Instance("LUT4",
                 attr   = {"keep"},
-                p_INIT = 2,
+                **{f"{p_init_name}": 2},  # Use toolchain-specific INIT parameter name.
                 i_A = tck,
                 i_B = 0,
                 i_C = 0,
