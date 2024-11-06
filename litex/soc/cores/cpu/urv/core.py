@@ -65,6 +65,70 @@ class InstructionBusToWishbone(LiteXModule):
             )
         )
 
+# uRV Data Bus To Wishbone -------------------------------------------------------------------------
+
+data_bus_layout = [
+    ("addr",      32),
+    ("data_s",    32),
+    ("data_l",    32),
+    ("sel",        4),
+    ("store",      1),
+    ("load",       1),
+    ("load_done",  1),
+    ("store_done", 1)
+]
+
+class DataBusToWishbone(LiteXModule):
+    def __init__(self, dbus, wb_dbus):
+        self.fifo = fifo = stream.SyncFIFO(
+            layout=[("addr", 32), ("we", 1), ("data", 32), ("sel", 4)],
+            depth=16,
+        )
+        self.comb += [
+            fifo.sink.valid.eq(dbus.store | dbus.load),
+            fifo.sink.we.eq(dbus.store),
+            fifo.sink.addr.eq(dbus.addr),
+            fifo.sink.data.eq(dbus.data_s),
+            fifo.sink.sel.eq(dbus.sel),
+        ]
+
+        self.fsm = fsm = FSM(reset_state="IDLE")
+        fsm.act("IDLE",
+            If(fifo.source.valid,
+                If(fifo.source.we,
+                    NextState("WRITE")
+                ).Else(
+                    NextState("READ")
+                )
+            )
+        )
+        fsm.act("WRITE",
+            wb_dbus.stb.eq(1),
+            wb_dbus.cyc.eq(1),
+            wb_dbus.we.eq(1),
+            wb_dbus.adr.eq(fifo.source.addr),
+            wb_dbus.sel.eq(fifo.source.sel),
+            wb_dbus.dat_w.eq(fifo.source.data),
+            If(wb_dbus.ack,
+                fifo.source.ready.eq(1),
+                dbus.store_done.eq(1),
+                NextState("IDLE")
+            )
+        )
+        fsm.act("READ",
+            wb_dbus.stb.eq(1),
+            wb_dbus.cyc.eq(1),
+            wb_dbus.we.eq(0),
+            wb_dbus.adr.eq(fifo.source.addr),
+            wb_dbus.sel.eq(fifo.source.sel),
+            If(wb_dbus.ack,
+                fifo.source.ready.eq(1),
+                dbus.load_done.eq(1),
+                dbus.data_l.eq(wb_dbus.dat_r),
+                NextState("IDLE")
+            )
+        )
+
 # uRV ----------------------------------------------------------------------------------------------
 
 class uRV(CPU):
@@ -97,18 +161,10 @@ class uRV(CPU):
         self.periph_buses = [ibus, dbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses = []           # Memory buses (Connected directly to LiteDRAM).
 
-        # uRV Signals.
-        # ------------
+        # uRV Buses.
+        # ----------
         im_bus = Record(instruction_bus_layout)
-
-        dm_addr        = Signal(32)
-        dm_data_s      = Signal(32)
-        dm_data_l      = Signal(32)
-        dm_data_select = Signal(4)
-        dm_store       = Signal()
-        dm_load        = Signal()
-        dm_load_done   = Signal()
-        dm_store_done  = Signal()
+        dm_bus = Record(data_bus_layout)
 
         # uRV Instance.
         # -------------
@@ -134,70 +190,21 @@ class uRV(CPU):
             i_im_valid_i       = im_bus.valid,
 
             # Data Mem Bus.
-            o_dm_addr_o        = dm_addr,
-            o_dm_data_s_o      = dm_data_s,
-            i_dm_data_l_i      = dm_data_l,
-            o_dm_data_select_o = dm_data_select,
+            o_dm_addr_o        = dm_bus.addr,
+            o_dm_data_s_o      = dm_bus.data_s,
+            i_dm_data_l_i      = dm_bus.data_l,
+            o_dm_data_select_o = dm_bus.sel,
 
-            o_dm_store_o       = dm_store,
-            o_dm_load_o        = dm_load,
-            i_dm_load_done_i   = dm_load_done,
-            i_dm_store_done_i  = dm_store_done,
+            o_dm_store_o       = dm_bus.store,
+            o_dm_load_o        = dm_bus.load,
+            i_dm_load_done_i   = dm_bus.load_done,
+            i_dm_store_done_i  = dm_bus.store_done,
         )
 
         # uRV Bus Adaptation.
         # -------------------
         self.submodules += InstructionBusToWishbone(im_bus, ibus)
-
-        # uRV Data Bus.
-        # -------------
-        self.dm_fifo = dm_fifo = stream.SyncFIFO(
-            layout = [("addr", 32), ("we", 1), ("data", 32), ("sel", 4)],
-            depth = 16,
-        )
-        self.comb += [
-            dm_fifo.sink.valid.eq(dm_store | dm_load),
-            dm_fifo.sink.we.eq(dm_store),
-            dm_fifo.sink.addr.eq(dm_addr),
-            dm_fifo.sink.data.eq(dm_data_s),
-            dm_fifo.sink.sel.eq(dm_data_select),
-        ]
-        self.dm_fsm = dm_fsm = FSM(reset_state="IDLE")
-        dm_fsm.act("IDLE",
-            If(dm_fifo.source.valid,
-                If(dm_fifo.source.we,
-                    NextState("WRITE")
-                ).Else(
-                    NextState("READ")
-                )
-            )
-        )
-        dm_fsm.act("WRITE",
-            dbus.stb.eq(1),
-            dbus.cyc.eq(1),
-            dbus.we.eq(1),
-            dbus.adr.eq(dm_fifo.source.addr),
-            dbus.sel.eq(dm_fifo.source.sel),
-            dbus.dat_w.eq(dm_fifo.source.data),
-            If(dbus.ack,
-                dm_fifo.source.ready.eq(1),
-                dm_store_done.eq(1),
-                NextState("IDLE")
-            )
-        )
-        dm_fsm.act("READ",
-            dbus.stb.eq(1),
-            dbus.cyc.eq(1),
-            dbus.we.eq(0),
-            dbus.adr.eq(dm_fifo.source.addr),
-            dbus.sel.eq(dm_fifo.source.sel),
-            If(dbus.ack,
-                dm_fifo.source.ready.eq(1),
-                dm_load_done.eq(1),
-                dm_data_l.eq(dbus.dat_r),
-                NextState("IDLE")
-            )
-        )
+        self.submodules += DataBusToWishbone(dm_bus, dbus)
 
         # Add Verilog sources.
         # --------------------
