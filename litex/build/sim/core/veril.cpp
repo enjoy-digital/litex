@@ -78,7 +78,11 @@ extern "C" void litex_sim_tracer_dump()
 
 extern "C" int litex_sim_got_finish()
 {
+  int finished;
   tfp->flush();
+  if(finished = Verilated::gotFinish()) {
+    tfp->close();
+  }
   return Verilated::gotFinish();
 }
 
