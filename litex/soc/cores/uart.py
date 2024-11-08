@@ -474,12 +474,53 @@ class UARTCrossover(UART):
 
     Creates a fully compatible UART that can be used by the CPU as a regular UART and adds a second
     UART, cross-connected to the main one to allow terminal emulation over a Wishbone bridge.
+
+    If a pad_phy is provided, a debug_en register is created that enables a
+    mux to interpose the pads.  When debug_en is 0, then the internal UART
+    is routed to the pads (and the crossover UART is unused); when debug_en
+    is 1, then the pad_phy is passed through to its original destination,
+    and the crossover is also passed through as usual (i.e., the behavior as
+    if no pad_phy were provided).
     """
-    def __init__(self, **kwargs):
+    def __init__(self, pad_phy=None, **kwargs):
         assert kwargs.get("phy", None) == None
         UART.__init__(self, **kwargs)
         self.xover = UART(tx_fifo_depth=1, rx_fifo_depth=16, rx_fifo_rx_we=True)
-        self.comb += [
-            self.source.connect(self.xover.sink),
-            self.xover.source.connect(self.sink)
-        ]
+
+        if pad_phy is not None:
+            # Steal the pads from the pad_phy.
+            replaced_source = stream.Endpoint([("data", 8)])
+            replaced_sink   = stream.Endpoint([("data", 8)])
+
+            self.debug_en = CSRStorage(1, reset=1)
+            # debug_en = 0:
+            #   pad_phy <-> self
+            #   xover dangles, uartbone_phy dangles
+            # debug_en = 1:
+            #   xover <-> self
+            #   pad_phy <-> uartbone_phy
+
+            self.comb += If(self.debug_en.storage == 0,
+                            pad_phy.source.connect(self.sink),
+                            self.source.connect(pad_phy.sink),
+                            self.xover.source.ready.eq(0),
+                            self.xover.sink.valid.eq(0),
+                            replaced_source.valid.eq(0),
+                            replaced_sink.ready.eq(0),
+                           ).Else(
+                            replaced_source.valid.eq(pad_phy.source.valid),
+                            replaced_source.data.eq(pad_phy.source.data),
+                            pad_phy.source.ready.eq(replaced_source.ready),
+                            pad_phy.sink.valid.eq(replaced_sink.valid),
+                            pad_phy.sink.data.eq(replaced_sink.data),
+                            replaced_sink.ready.eq(pad_phy.sink.ready),
+                            self.source.connect(self.xover.sink),
+                            self.xover.source.connect(self.sink),
+                           )
+            pad_phy.source = replaced_source
+            pad_phy.sink = replaced_sink
+        else:
+            self.comb += [
+                self.source.connect(self.xover.sink),
+                self.xover.source.connect(self.sink)
+            ]

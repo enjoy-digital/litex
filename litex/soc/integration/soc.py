@@ -1550,8 +1550,7 @@ class LiteXSoC(SoC):
 
         # Crossover + UARTBone.
         elif uart_name in ["crossover+uartbone"]:
-            self.add_uartbone(baudrate=baudrate)
-            uart = UARTCrossover(**uart_kwargs)
+            uart = self.add_uartbone(baudrate=baudrate, with_crossover=True, **uart_kwargs)
 
         # JTAG UART.
         elif uart_name in ["jtag_uart"]:
@@ -1604,16 +1603,21 @@ class LiteXSoC(SoC):
             self.add_constant("UART_POLLING", check_duplicate=False)
 
     # Add UARTbone ---------------------------------------------------------------------------------
-    def add_uartbone(self, name="uartbone", uart_name="serial", clk_freq=None, baudrate=115200, cd="sys"):
+    def add_uartbone(self, name="uartbone", uart_name="serial", clk_freq=None, baudrate=115200, cd="sys", with_crossover=False, **uart_kwargs):
         # Imports.
         from litex.soc.cores import uart
 
         # Core.
         if clk_freq is None:
             clk_freq = self.sys_clk_freq
+
         self.check_if_exists(name)
         uartbone_phy = uart.UARTPHY(self.platform.request(uart_name), clk_freq, baudrate)
-        uartbone     = uart.UARTBone(
+
+        if with_crossover:
+            crossover = uart.UARTCrossover(pad_phy=uartbone_phy, **uart_kwargs)
+
+        uartbone = uart.UARTBone(
             phy           = uartbone_phy,
             clk_freq      = clk_freq,
             cd            = cd,
@@ -1621,6 +1625,9 @@ class LiteXSoC(SoC):
         self.add_module(name=f"{name}_phy", module=uartbone_phy)
         self.add_module(name=name,          module=uartbone)
         self.bus.add_master(name=name, master=uartbone.wishbone)
+
+        if with_crossover:
+            return crossover
 
     # Add JTAGbone ---------------------------------------------------------------------------------
     def add_jtagbone(self, name="jtagbone", chain=1):
