@@ -43,13 +43,16 @@ class VHD2VConverter(Module):
         force use of GHDL even if the platform supports VHDL
     _ghdl_opts: str
         options to pass to ghdl
+    _libraries: list of str or tuple
+        list of libraries (library_name, library_path) to compile before conversion.
     """
     def __init__(self, platform, top_entity, build_dir,
         work_package  = None,
         force_convert = False,
         add_instance  = False,
         params        = dict(),
-        files         = list()):
+        files         = list(),
+        libraries     = list()):
         """
         constructor (see class attributes)
         """
@@ -62,11 +65,14 @@ class VHD2VConverter(Module):
         self._force_convert = force_convert
         self._add_instance  = add_instance
         self._work_package  = work_package
+        self._libraries     = list()
 
         self._ghdl_opts     = ["--std=08", "--no-formal"]
 
         if work_package is not None:
             self._ghdl_opts.append(f"--work={self._work_package}")
+
+        self.add_libraries(libraries)
 
     def add_source(self, filename):
         """
@@ -90,6 +96,24 @@ class VHD2VConverter(Module):
         """
         self._sources += [os.path.join(path, f) for f in filenames]
 
+    def add_libraries(self, libraries=[]):
+        """
+        append the library list with a list of tuple (work, file).
+        Parameters
+        ==========
+        libraries: list of str or tuple
+            when str a vhdl library full path, when tuple the work package name
+            and the vhdl libary path
+        """
+        for lib in libraries:
+            # when lib is a str -> convert to a tupple based on lib name
+            if type(lib) == str:
+                work_pkg = os.path.splitext(os.path.basename(lib))[0]
+                lib      = (work_pkg, lib)
+            elif type(lib) != tuple:
+                raise OSError(f"{lib} must a string or a set")
+            self._libraries.append(lib)
+
     def do_finalize(self):
         """
         - convert vhdl to verilog when toolchain can't deal with VHDL or
@@ -106,6 +130,18 @@ class VHD2VConverter(Module):
             for file in self._sources:
                 self._platform.add_source(file, library=self._work_package)
         else: # platform is only able to synthesis verilog -> convert vhdl to verilog
+            import subprocess
+            from litex.build import tools
+
+            # First: compile external libraries (if requested)
+            for lib in self._libraries:
+                (work_pkg, filename) = lib
+                cmd = ["ghdl", "-a", "--std=08", f"--work={work_pkg}", filename]
+                print(cmd)
+                s   = subprocess.run(cmd)
+                if s.returncode:
+                    raise OSError(f"Unable to compile {filename}, please check your GHDL install.")
+
             # check if more than one core is instanciated
             # if so -> append with _X
             # FIXME: better solution ?
@@ -131,9 +167,6 @@ class VHD2VConverter(Module):
             cmd += generics
             cmd += self._sources
             cmd += ["-e", self._top_entity]
-
-            import subprocess
-            from litex.build import tools
 
             with open(verilog_out, 'w') as output:
                 s = subprocess.run(cmd, stdout=output)
