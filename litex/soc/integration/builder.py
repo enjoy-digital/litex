@@ -317,8 +317,8 @@ class Builder:
 
     def _generate_rom_software(self, compile_bios=True):
         # Compile all software packages.
-         for name, src_dir in self.software_packages:
-
+        cpu_count = os.cpu_count()
+        for name, src_dir in self.software_packages:
             # Skip BIOS compilation when disabled.
             if name == "bios" and not compile_bios:
                 continue
@@ -326,7 +326,7 @@ class Builder:
             dst_dir  = os.path.join(self.software_dir, name)
             makefile = os.path.join(src_dir, "Makefile")
             if self.compile_software:
-                subprocess.check_call(["make", "-C", dst_dir, "-f", makefile])
+                subprocess.check_call(["make", f"-j{cpu_count}", "-C", dst_dir, "-f", makefile])
 
     def _initialize_rom_software(self):
         # Get BIOS data from compiled BIOS binary.
