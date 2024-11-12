@@ -8,6 +8,8 @@ from litex.gen import *
 
 from litex.soc.cores.clock.common import *
 from litex.soc.cores.clock.xilinx_common import *
+from typing import Dict, Any
+import math
 
 # Xilinx / Ultrascale Plus -------------------------------------------------------------------------
 
@@ -106,7 +108,69 @@ class USPMMCM(XilinxClocking):
                 self.params["p_CLKOUT{}_DIVIDE".format(n)] = config["clkout{}_divide".format(n)]
             self.params["p_CLKOUT{}_PHASE".format(n)] = config["clkout{}_phase".format(n)]
             self.params["o_CLKOUT{}".format(n)]       = clk
-        self.specials += Instance("MMCME2_ADV", **self.params)
+        self.specials += Instance("MMCME4_ADV", **self.params)
+
+    def compute_config(self) -> Dict[str, Any]:
+        """
+        Computes the MMCM configuration based on input parameters.
+
+        Returns:
+            Dict[str, Any]: A dictionary containing MMCM configuration parameters.
+
+        Raises:
+            ValueError: If no valid MMCM configuration is found.
+        """
+        vco_min_margin = self.vco_freq_range[0] * (1 + self.vco_margin)
+        vco_max_margin = self.vco_freq_range[1] * (1 - self.vco_margin)
+        # ref: https://docs.amd.com/r/en-US/ug572-ultrascale-clocking/MMCM-Attributes
+        # CLKFBOUT_MULT_F: 2.0 to 128.0 with step 0.125
+        clkfbout_mult_f_values = [x / 8 for x in range(16, 1025)]
+
+        for divclk_divide in range(*self.divclk_divide_range):
+            for clkfbout_mult in reversed(clkfbout_mult_f_values):
+                vco_freq = self.clkin_freq * clkfbout_mult / divclk_divide
+                if not (vco_min_margin <= vco_freq <= vco_max_margin):
+                    continue # vco_freq out of range
+
+                config: Dict[str, Any] = {
+                    "divclk_divide": divclk_divide,
+                    "clkfbout_mult": clkfbout_mult,
+                    "vco": vco_freq
+                }
+                all_valid = True
+                for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+                    valid = False
+
+                    dividers = list(clkdiv_range(*self.clkout_divide_range))
+                    # Add specific range dividers if they exist
+                    if specific_div_range := getattr(self, f"clkout{n}_divide_range", None):
+                        dividers.extend(clkdiv_range(*specific_div_range))
+
+                    # For clkout0, CLKOUT[0]_DIVIDE_F also has range 2.0 to 128.0 with step 0.125
+                    if n == 0:
+                        dividers = [x / 8 for x in range(16, 1025)]
+
+                    for d in dividers:
+                        clk_freq = vco_freq / d
+                        if not math.isclose(clk_freq, f, rel_tol=m):
+                        # if abs(clk_freq - f) <= f * m:
+                            continue
+
+                        config[f"clkout{n}_freq"] = clk_freq
+                        config[f"clkout{n}_divide"] = d
+                        config[f"clkout{n}_phase"] = p
+                        valid = True
+                        break # Valid divider found
+
+                    if not valid:
+                        all_valid = False
+                        break # Exit early if any clock output is invalid
+
+                if all_valid:
+                    compute_config_log(self.logger, config)
+                    return config
+
+        raise ValueError("No MMCM config found")
 
 
 class USPIDELAYCTRL(LiteXModule):
