@@ -111,6 +111,9 @@ static void spiflash_master_write(uint32_t val, size_t len, size_t width, uint32
 	spiflash_core_master_rxtx_write(val);
 	while (!spiflash_rx_ready());
 
+	/* Clear RX queue. */
+	spiflash_core_master_rxtx_read();
+
 	/* Clear CS. */
 	spiflash_core_master_cs_write(0);
 }
@@ -153,7 +156,7 @@ static uint32_t spiflash_read_id_register(void)
 	transfer_cmd(w_buf, buf, 4);
 
 #ifdef SPIFLASH_DEBUG
-	printf("[ID: %02x %02x %02x %02x]", buf[0], buf[1], buf[2], buf[3]);
+	printf("[ID: %02x %02x %02x %02x]\n", buf[0], buf[1], buf[2], buf[3]);
 #endif
 
 	/* FIXME normally the status should be in buf[1],
@@ -170,7 +173,7 @@ static uint32_t spiflash_read_status_register(void)
 	transfer_cmd(w_buf, buf, 4);
 
 #ifdef SPIFLASH_DEBUG
-	printf("[SR: %02x %02x %02x %02x]", buf[0], buf[1], buf[2], buf[3]);
+	printf("[SR: %02x %02x %02x %02x]\n", buf[0], buf[1], buf[2], buf[3]);
 #endif
 
 	/* FIXME normally the status should be in buf[1],
