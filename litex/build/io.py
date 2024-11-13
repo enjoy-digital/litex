@@ -11,11 +11,12 @@ from migen.fhdl.specials import Special, Tristate
 # Differential Input/Output ------------------------------------------------------------------------
 
 class DifferentialInput(Special):
-    def __init__(self, i_p, i_n, o):
+    def __init__(self, i_p, i_n, o, **kwargs):
         Special.__init__(self)
         self.i_p = wrap(i_p)
         self.i_n = wrap(i_n)
         self.o   = wrap(o)
+        self.kwargs = kwargs
 
     def iter_expressions(self):
         yield self, "i_p", SPECIAL_INPUT
@@ -28,11 +29,12 @@ class DifferentialInput(Special):
 
 
 class DifferentialOutput(Special):
-    def __init__(self, i, o_p, o_n):
+    def __init__(self, i, o_p, o_n, **kwargs):
         Special.__init__(self)
         self.i   = wrap(i)
         self.o_p = wrap(o_p)
         self.o_n = wrap(o_n)
+        self.kwargs = kwargs
 
     def iter_expressions(self):
         yield self, "i"  , SPECIAL_INPUT
@@ -46,10 +48,11 @@ class DifferentialOutput(Special):
 # Clk Input/Output ---------------------------------------------------------------------------------
 
 class ClkInput(Special):
-    def __init__(self, i, o):
+    def __init__(self, i, o, **kwargs):
         Special.__init__(self)
         self.i = wrap(i)
         self.o = o if isinstance(o, str) else wrap(o)
+        self.kwargs = kwargs
 
     def iter_expressions(self):
         yield self, "i", SPECIAL_INPUT
@@ -61,10 +64,11 @@ class ClkInput(Special):
 
 
 class ClkOutput(Special):
-    def __init__(self, i, o):
+    def __init__(self, i, o, **kwargs):
         Special.__init__(self)
         self.i = i if isinstance(i, str) else wrap(i)
         self.o = wrap(o)
+        self.kwargs = kwargs
 
     def iter_expressions(self):
         yield self, "i", SPECIAL_INPUT
@@ -83,7 +87,7 @@ class InferedSDRIO(Module):
         self.sync.sdrio += o.eq(i)
 
 class SDRIO(Special):
-    def __init__(self, i, o, clk=None):
+    def __init__(self, i, o, clk=None, **kwargs):
         assert len(i) == len(o) == 1
         Special.__init__(self)
         self.i            = wrap(i)
@@ -92,6 +96,7 @@ class SDRIO(Special):
             clk = ClockSignal()
         self.clk          = wrap(clk)
         self.clk_domain   = None if not hasattr(clk, "cd") else clk.cd
+        self.kwargs       = kwargs
 
     def iter_expressions(self):
         yield self, "i"  , SPECIAL_INPUT
@@ -119,7 +124,7 @@ class InferedSDRTristate(Module):
         self.specials   += Tristate(io, _o, _oe, _i)
 
 class SDRTristate(Special):
-    def __init__(self, io, o, oe, i, clk=None):
+    def __init__(self, io, o, oe, i, clk=None, **kwargs):
         assert len(i) == len(o) == len(oe)
         Special.__init__(self)
         self.io  = wrap(io)
@@ -127,6 +132,7 @@ class SDRTristate(Special):
         self.oe  = wrap(oe)
         self.i   = wrap(i)
         self.clk = wrap(clk) if clk is not None else ClockSignal()
+        self.kwargs = kwargs
 
     def iter_expressions(self):
         yield self, "io" , SPECIAL_INOUT
@@ -142,7 +148,7 @@ class SDRTristate(Special):
 # DDR Input/Output ---------------------------------------------------------------------------------
 
 class DDRInput(Special):
-    def __init__(self, i, o1, o2, clk=None):
+    def __init__(self, i, o1, o2, clk=None, **kwargs):
         Special.__init__(self)
         self.i   = wrap(i)
         self.o1  = wrap(o1)
@@ -150,6 +156,7 @@ class DDRInput(Special):
         if clk is None:
             clk = ClockSignal()
         self.clk = clk if isinstance(clk, str) else wrap(clk)
+        self.kwargs = kwargs
 
     def iter_expressions(self):
         yield self, "i"  , SPECIAL_INPUT
@@ -163,7 +170,7 @@ class DDRInput(Special):
 
 
 class DDROutput(Special):
-    def __init__(self, i1, i2, o, clk=None):
+    def __init__(self, i1, i2, o, clk=None, **kwargs):
         Special.__init__(self)
         self.i1  = wrap(i1)
         self.i2  = wrap(i2)
@@ -171,6 +178,7 @@ class DDROutput(Special):
         if clk is None:
             clk = ClockSignal()
         self.clk = clk if isinstance(clk, str) else wrap(clk)
+        self.kwargs = kwargs
 
     def iter_expressions(self):
         yield self, "i1" , SPECIAL_INPUT
@@ -195,7 +203,7 @@ class InferedDDRTristate(Module):
         self.specials += Tristate(io, _o, _oe, _i)
 
 class DDRTristate(Special):
-    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk=None):
+    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk=None, **kwargs):
         Special.__init__(self)
         self.io  = io
         self.o1  = o1
@@ -205,6 +213,7 @@ class DDRTristate(Special):
         self.i1  = i1
         self.i2  = i2
         self.clk = clk if clk is not None else ClockSignal()
+        self.kwargs = kwargs
 
     def iter_expressions(self):
         yield self, "io" , SPECIAL_INOUT
