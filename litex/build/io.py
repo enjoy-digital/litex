@@ -84,7 +84,6 @@ class InferedSDRIO(Module):
 
 class SDRIO(Special):
     def __init__(self, i, o, clk=None):
-        assert len(i) == len(o)
         Special.__init__(self)
         self.i            = wrap(i)
         self.o            = wrap(o)
@@ -92,6 +91,7 @@ class SDRIO(Special):
             clk = ClockSignal()
         self.clk          = wrap(clk)
         self.clk_domain   = None if not hasattr(clk, "cd") else clk.cd
+        assert len(self.i) == len(self.o)
 
     def iter_expressions(self):
         yield self, "i"  , SPECIAL_INPUT
