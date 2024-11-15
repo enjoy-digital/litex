@@ -120,13 +120,13 @@ class InferedSDRTristate(Module):
 
 class SDRTristate(Special):
     def __init__(self, io, o, oe, i, clk=None):
-        assert len(i) == len(o) == len(oe)
         Special.__init__(self)
         self.io  = wrap(io)
         self.o   = wrap(o)
         self.oe  = wrap(oe)
         self.i   = wrap(i)
         self.clk = wrap(clk) if clk is not None else ClockSignal()
+        assert len(self.i) == len(self.o) == len(self.oe)
 
     def iter_expressions(self):
         yield self, "io" , SPECIAL_INOUT
