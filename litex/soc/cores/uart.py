@@ -202,14 +202,14 @@ def _get_uart_fifo(depth, sink_cd="sys", source_cd="sys"):
     else:
         return stream.SyncFIFO([("data", 8)], depth, buffered=True)
 
-def UARTPHY(pads, clk_freq, baudrate):
+def UARTPHY(pads, clk_freq, baudrate, with_dynamic_baudrate=False):
     # FT245 Asynchronous FIFO mode (baudrate ignored)
     if hasattr(pads, "rd_n") and hasattr(pads, "wr_n"):
         from litex.soc.cores.usb_fifo import FT245PHYAsynchronous
         return FT245PHYAsynchronous(pads, clk_freq)
     # RS232
     else:
-        return  RS232PHY(pads, clk_freq, baudrate)
+        return  RS232PHY(pads, clk_freq, baudrate, with_dynamic_baudrate=with_dynamic_baudrate)
 
 class UART(LiteXModule, UARTInterface):
     def __init__(self, phy=None,

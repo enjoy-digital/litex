@@ -1511,7 +1511,7 @@ class LiteXSoC(SoC):
         self.add_config(name, identifier)
 
     # Add UART -------------------------------------------------------------------------------------
-    def add_uart(self, name="uart", uart_name="serial", uart_pads=None, baudrate=115200, fifo_depth=16):
+    def add_uart(self, name="uart", uart_name="serial", uart_pads=None, baudrate=115200, fifo_depth=16, with_dynamic_baudrate=False):
         # Imports.
         from litex.soc.cores.uart import UART, UARTCrossover
 
@@ -1550,7 +1550,7 @@ class LiteXSoC(SoC):
 
         # Crossover + UARTBone.
         elif uart_name in ["crossover+uartbone"]:
-            self.add_uartbone(baudrate=baudrate)
+            self.add_uartbone(baudrate=baudrate, with_dynamic_baudrate=with_dynamic_baudrate)
             uart = UARTCrossover(**uart_kwargs)
 
         # JTAG UART.
@@ -1588,7 +1588,7 @@ class LiteXSoC(SoC):
         # Regular UART.
         else:
             from litex.soc.cores.uart import UARTPHY
-            uart_phy  = UARTPHY(uart_pads, clk_freq=self.sys_clk_freq, baudrate=baudrate)
+            uart_phy  = UARTPHY(uart_pads, clk_freq=self.sys_clk_freq, baudrate=baudrate, with_dynamic_baudrate=with_dynamic_baudrate)
             uart      = UART(uart_phy, **uart_kwargs)
 
         # Add PHY/UART.
@@ -1604,7 +1604,7 @@ class LiteXSoC(SoC):
             self.add_constant("UART_POLLING", check_duplicate=False)
 
     # Add UARTbone ---------------------------------------------------------------------------------
-    def add_uartbone(self, name="uartbone", uart_name="serial", clk_freq=None, baudrate=115200, cd="sys"):
+    def add_uartbone(self, name="uartbone", uart_name="serial", clk_freq=None, baudrate=115200, cd="sys", with_dynamic_baudrate=False):
         # Imports.
         from litex.soc.cores import uart
 
@@ -1612,7 +1612,7 @@ class LiteXSoC(SoC):
         if clk_freq is None:
             clk_freq = self.sys_clk_freq
         self.check_if_exists(name)
-        uartbone_phy = uart.UARTPHY(self.platform.request(uart_name), clk_freq, baudrate)
+        uartbone_phy = uart.UARTPHY(self.platform.request(uart_name), clk_freq, baudrate, with_dynamic_baudrate=with_dynamic_baudrate)
         uartbone     = uart.UARTBone(
             phy           = uartbone_phy,
             clk_freq      = clk_freq,
