@@ -137,10 +137,29 @@ class LatticeECP5DifferentialOutput:
     def lower(dr):
         return LatticeECP5DifferentialOutputImpl(dr.i, dr.o_p, dr.o_n)
 
+# ECP5 Special Tristate ----------------------------------------------------------------------------
+
+class LatticeECP5TristateImpl(Module):
+    def __init__(self, io, o, oe, i):
+        nbits, sign = value_bits_sign(io)
+        for bit in range(nbits):
+            self.specials += Instance("BB",
+                io_B  = io[bit] if nbits > 1 else io,
+                i_I   = o[bit]  if nbits > 1 else o,
+                o_O   = i[bit]  if nbits > 1 else i,
+                i_T   = ~oe
+            )
+
+class LatticeECP5Tristate(Module):
+    @staticmethod
+    def lower(dr):
+        return LatticeECP5TristateImpl(dr.target, dr.o, dr.oe, dr.i)
+
 # ECP5 Special Overrides ---------------------------------------------------------------------------
 
 lattice_ecp5_special_overrides = {
     AsyncResetSynchronizer: LatticeECP5AsyncResetSynchronizer,
+    Tristate:               LatticeECP5Tristate,
     SDRInput:               LatticeECP5SDRInput,
     SDROutput:              LatticeECP5SDROutput,
     DDRInput:               LatticeECP5DDRInput,
