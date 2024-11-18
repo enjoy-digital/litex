@@ -256,7 +256,7 @@ class SoCCore(LiteXSoC):
 
         # Add UARTBone.
         if with_uartbone:
-            self.add_uartbone(baudrate=uart_baudrate, fifo_depth=uart_fifo_depth, with_dynamic_baudrate=with_dynamic_baudrate)
+            self.add_uartbone(baudrate=uart_baudrate, with_dynamic_baudrate=uart_with_dynamic_baudrate)
 
         # Add UART.
         if with_uart:
