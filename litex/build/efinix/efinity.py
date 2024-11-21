@@ -391,7 +391,9 @@ class EfinityToolchain(GenericToolchain):
         if r != 0:
             raise OSError("Error occurred during efx_map execution.")
 
-
+        vdbfile = f"work_syn/{self._build_name}.vdb"
+        if not os.path.exists(vdbfile):
+            vdbfile = f"outflow/{self._build_name}.vdb"
 
         r = tools.subprocess_call_filtered([self.efinity_path + "/bin/efx_pnr",
             "--circuit",              f"{self._build_name}",
@@ -401,7 +403,7 @@ class EfinityToolchain(GenericToolchain):
             "--pack",
             "--place",
             "--route",
-            "--vdb_file",             f"work_syn/{self._build_name}.vdb",
+            "--vdb_file",             vdbfile,
             "--use_vdb_file",         "on",
             "--place_file",           f"outflow/{self._build_name}.place",
             "--route_file",           f"outflow/{self._build_name}.route",
