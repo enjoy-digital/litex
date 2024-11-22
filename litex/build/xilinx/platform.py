@@ -87,7 +87,7 @@ class XilinxPlatform(GenericPlatform):
         so.update(special_overrides)
         return GenericPlatform.get_verilog(self, *args,
             special_overrides = so,
-            attr_translate    = self.toolchain.attr_translate,
+            attr_translate    = self.toolchain.custom_attributes(),
             **kwargs
         )
 
