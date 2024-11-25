@@ -629,6 +629,32 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
         cmds.append(f"# ---------- END REMOTE UPDATE ---------\n")
         return "\n".join(cmds)
 
+    def generate_seu(self, block, verbose=True):
+        name = block["name"]
+        pins = block["pins"]
+        enable = block["enable"]
+        mode = block["mode"].upper()
+
+        def get_pin_name(pin):
+            return pin.backtrace[-1][0]
+
+        cmds = []
+        cmds.append(f"# ---------- SINGLE-EVENT UPSET ---------")
+        cmds.append(f'design.set_device_property("seu", "ENA_DETECT", "{enable}", "SEU")')
+        if enable:
+            cmds.append(f'design.set_device_property("seu", "CONFIG_PIN", "{get_pin_name(pins.CONFIG)}", "SEU")')
+            cmds.append(f'design.set_device_property("seu", "DONE_PIN", "{get_pin_name(pins.DONE)}", "SEU")')
+            cmds.append(f'design.set_device_property("seu", "ERROR_PIN", "{get_pin_name(pins.ERROR)}", "SEU")')
+            cmds.append(f'design.set_device_property("seu", "INJECT_ERROR_PIN", "{get_pin_name(pins.INJECT_ERROR)}", "SEU")')
+            cmds.append(f'design.set_device_property("seu", "RST_PIN", "{get_pin_name(pins.RST)}", "SEU")')
+            if mode == "MANUAL":
+                cmds.append(f'design.set_device_property("seu", "START_PIN", "{get_pin_name(pins.START)}", "SEU")')
+            cmds.append(f'design.set_device_property("seu", "MODE", "{mode}", "SEU")')
+            if mode == "AUTO" and hasattr(block, "wait_interval"):
+                cmds.append(f'design.set_device_property("seu", "WAIT_INTERVAL", "{block["wait_interval"]}", "SEU")')
+        cmds.append(f"# ---------- END SINGLE-EVENT UPSET ---------\n")
+        return "\n".join(cmds)
+
     def generate(self, partnumber):
         output = ""
         for block in self.blocks:
@@ -653,6 +679,8 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                     output += self.generate_spiflash(block)
                 if block["type"] == "REMOTE_UPDATE":
                     output += self.generate_remote_update(block)
+                if block["type"] == "SEU":
+                    output += self.generate_seu(block)
         return output
 
     def footer(self):
