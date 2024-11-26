@@ -192,6 +192,8 @@ class AlteraQuartusToolchain(GenericToolchain):
 quartus_fit --read_settings_files=off --write_settings_files=off {build_name} -c {build_name}
 quartus_asm --read_settings_files=off --write_settings_files=off {build_name} -c {build_name}
 quartus_sta {build_name} -c {build_name}"""
+
+        # Create .rbf.
         if self.platform.create_rbf:
             if sys.platform in ["win32", "cygwin"]:
               script_contents += """
@@ -204,6 +206,21 @@ if exist "{build_name}.sof" (
 if [ -f "{build_name}.sof" ]
 then
     quartus_cpf -c {build_name}.sof {build_name}.rbf
+fi
+"""
+        # Create .svf.
+        if self.platform.create_svf:
+            if sys.platform in ["win32", "cygwin"]:
+              script_contents += """
+if exist "{build_name}.sof" (
+    quartus_cpf -c -q \"12.0MHz\" -g 3.3 -n p {build_name}.sof {build_name}.svf
+)
+"""
+            else:
+              script_contents += """
+if [ -f "{build_name}.sof" ]
+then
+    quartus_cpf -c -q \"12.0MHz\" -g 3.3 -n p {build_name}.sof {build_name}.svf
 fi
 """
         script_contents = script_contents.format(build_name=build_name, synth_tool=self._synth_tool)

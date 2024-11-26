@@ -18,6 +18,7 @@ class AlteraPlatform(GenericPlatform):
         "flash" : ".rbf"
     }
     create_rbf    = True
+    create_svf    = True
 
     _supported_toolchains = ["quartus"]
 
