@@ -98,7 +98,7 @@ static void spiram_master_write(uint32_t val, size_t len, size_t width, uint32_t
 	while (!spiram_rx_ready());
 
 	/* Clear RX queue. */
-	spiflash_core_master_rxtx_read();
+	spiram_core_master_rxtx_read();
 
 	/* Clear CS. */
 	spiram_core_master_cs_write(0);
