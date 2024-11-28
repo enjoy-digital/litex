@@ -152,6 +152,11 @@ class VHD2VConverter(Module):
             if len(v_list) != 0:
                 inst_name += f"_{len(v_list)}"
 
+
+            # Create build_dir if not existing.
+            if not os.path.exists(self._build_dir):
+                os.makedirs(self._build_dir)
+
             verilog_out = os.path.join(self._build_dir, f"{inst_name}.v")
 
             ip_params = dict()
