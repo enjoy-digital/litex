@@ -199,31 +199,44 @@ class XilinxVivadoToolchain(GenericToolchain):
         self.platform.add_platform_command(
             "set_false_path -quiet "
             "-to [get_pins -filter {{REF_PIN_NAME == PRE}} "
-                "-of_objects [get_cells -hierarchical -filter {{ars_ff1 == TRUE || ars_ff2 == TRUE}}]]"
+            "-of_objects [get_cells -hierarchical -filter {{ars_ff1 == TRUE || ars_ff2 == TRUE}}]]"
         )
 
         # Set a maximum delay for metastability resolution in AsyncResetSynchronizer.
         self.platform.add_platform_command(
             "set_max_delay 2 -quiet "
             "-from [get_pins -filter {{REF_PIN_NAME == C}} "
-                "-of_objects [get_cells -hierarchical -filter {{ars_ff1 == TRUE}}]] "
+            "-of_objects [get_cells -hierarchical -filter {{ars_ff1 == TRUE}}]] "
             "-to [get_pins -filter {{REF_PIN_NAME == D}} "
-                "-of_objects [get_cells -hierarchical -filter {{ars_ff2 == TRUE}}]]"
+            "-of_objects [get_cells -hierarchical -filter {{ars_ff2 == TRUE}}]]"
         )
 
         # Add false paths between asynchronous clock domains.
         def get_clk_type(clk):
             return {
-                False : "nets",
-                True  : "ports",
+                False: "nets",
+                True: "ports",
             }[hasattr(clk, "port")]
-        for _from, _to in sorted(self.false_paths, key=lambda x: (x[0].duid, x[1].duid)):
+
+        for _from, _to in sorted(self.false_paths, key=lambda x: (str(x[0]), str(x[1]))):
+            if isinstance(_from, str):
+                _from_cmd = f"[get_clocks {_from}]"
+            else:
+                _from_cmd = f"[get_clocks -include_generated_clocks -of [get_{get_clk_type(_from)} {{_from}}]]"
+
+            if isinstance(_to, str):
+                _to_cmd = f"[get_clocks {_to}]"
+            else:
+                _to_cmd = f"[get_clocks -include_generated_clocks -of [get_{get_clk_type(_to)} {{_to}}]]"
+
             self.platform.add_platform_command(
                 "set_clock_groups "
-                "-group [get_clocks -include_generated_clocks -of [get_" + get_clk_type(_from) + " {_from}]] "
-                "-group [get_clocks -include_generated_clocks -of [get_" + get_clk_type(_to)   + " {_to}]] "
+                f"-group {_from_cmd} "
+                f"-group {_to_cmd} "
                 "-asynchronous",
-                _from=_from, _to=_to)
+                _from = _from if not isinstance(_from, str) else None,
+                _to   = _to   if not isinstance(_to, str)   else None,
+            )
 
         # Clear false path constraints after generation.
         self.false_paths.clear()
