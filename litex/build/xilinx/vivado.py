@@ -176,16 +176,8 @@ class XilinxVivadoToolchain(GenericToolchain):
             self.platform.add_platform_command(
                 "create_clock -name {name} -period " + str(period) +
                 " [get_" + get_clk_type(clk) + " {clk}]", name=name, clk=clk)
-        for _from, _to in sorted(self.false_paths, key=lambda x: (x[0].duid, x[1].duid)):
-            self.platform.add_platform_command(
-                "set_clock_groups "
-                "-group [get_clocks -include_generated_clocks -of [get_" + get_clk_type(_from) + " {_from}]] "
-                "-group [get_clocks -include_generated_clocks -of [get_" + get_clk_type(_to)   + " {_to}]] "
-                "-asynchronous",
-                _from=_from, _to=_to)
-        # Make sure add_*_constraint cannot be used again
+        # Make sure add_period_constraint cannot be used again.
         self.clocks.clear()
-        self.false_paths.clear()
 
     def _build_false_path_constraints(self):
         self.platform.add_platform_command(_xdc_separator("False path constraints"))
@@ -194,7 +186,7 @@ class XilinxVivadoToolchain(GenericToolchain):
             "set_false_path -quiet "
             "-through [get_nets -hierarchical -filter {{mr_ff == TRUE}}]"
         )
-        # The asychronous reset input to the AsyncResetSynchronizer is a false path
+        # The asynchronous reset input to the AsyncResetSynchronizer is a false path
         self.platform.add_platform_command(
             "set_false_path -quiet "
             "-to [get_pins -filter {{REF_PIN_NAME == PRE}} "
@@ -208,6 +200,22 @@ class XilinxVivadoToolchain(GenericToolchain):
             "-to [get_pins -filter {{REF_PIN_NAME == D}} "
                 "-of_objects [get_cells -hierarchical -filter {{ars_ff2 == TRUE}}]]"
         )
+        # Add false paths between clocks
+        def get_clk_type(clk):
+            return {
+                False: "nets",
+                True: "ports",
+            }[hasattr(clk, "port")]
+        for _from, _to in sorted(self.false_paths, key=lambda x: (x[0].duid, x[1].duid)):
+            self.platform.add_platform_command(
+                "set_clock_groups "
+                "-group [get_clocks -include_generated_clocks -of [get_" + get_clk_type(_from) + " {_from}]] "
+                "-group [get_clocks -include_generated_clocks -of [get_" + get_clk_type(_to)   + " {_to}]] "
+                "-asynchronous",
+                _from=_from, _to=_to)
+        # Make sure add_false_path_constraint cannot be used again.
+        self.false_paths.clear()
+
 
     def build_timing_constraints(self, vns):
         # FIXME: -> self ?
