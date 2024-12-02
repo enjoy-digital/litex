@@ -141,4 +141,35 @@ static void flash_erase_range_handler(int nb_params, char **params)
 }
 
 define_command(flash_erase_range, flash_erase_range_handler, "Erase flash range", SPIFLASH_CMDS);
+
+static void flash_transfer_cmd(int nb_params, char **params)
+{
+	int i;
+	char *c;
+	uint8_t w_buf[MAX_PARAM];
+	uint8_t r_buf[MAX_PARAM];
+
+	if (nb_params == 0) {
+		printf("flash_transfer_cmd <CMD_BYTE_0>, ...");
+		return;
+	}
+
+	for (i = 0; i < nb_params; ++i) {
+		w_buf[i] = strtoul(params[i], &c, 0);
+		if (*c != 0) {
+			printf("Incorrect value of parameter %d", i);
+			return;
+		}
+	}
+
+	transfer_cmd(w_buf, r_buf, nb_params);
+
+	printf("Result:");
+	for (i = 0; i < nb_params; ++i) {
+		printf("%02x ", r_buf[i]);
+	}
+	printf("\n");
+}
+
+define_command(flash_transfer_cmd, flash_transfer_cmd, "Transfer CMD to/from flash", SPIFLASH_CMDS);
 #endif

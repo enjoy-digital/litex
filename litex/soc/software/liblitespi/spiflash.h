@@ -14,6 +14,7 @@ void spiflash_memspeed(void);
 void spiflash_init(void);
 int spiflash_write_stream(uint32_t addr, uint8_t *stream, uint32_t len);
 void spiflash_erase_range(uint32_t addr, uint32_t len);
+void transfer_cmd(volatile uint8_t *bs, volatile uint8_t *resp, int len);
 
 #ifdef __cplusplus
 }
