@@ -413,6 +413,11 @@ class SignalNamespace:
         self.clock_domains = dict()
 
     def get_name(self, sig):
+        # Return None if sig is None.
+        # ---------------------------
+        if sig is None:
+            return None
+
         # Handle Clock and Reset Signals.
         # -------------------------------
         if isinstance(sig, (ClockSignal, ResetSignal)):
