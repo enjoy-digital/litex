@@ -39,11 +39,13 @@ cross.txt:
 	@echo "$$CROSSFILE" > $@
 
 __libc.a: cross.txt
+	cp -a $(PICOLIBC_DIRECTORY) $(BUILDINC_DIRECTORY)/../picolibc_src
+
 	if [ -d "$(LIBC_DIRECTORY)/$(CPUFAMILY)" ]; then \
-		cp $(LIBC_DIRECTORY)/$(CPUFAMILY)/* $(PICOLIBC_DIRECTORY)/newlib/libc/machine/$(CPUFAMILY)/ ;\
+		cp $(LIBC_DIRECTORY)/$(CPUFAMILY)/* $(BUILDINC_DIRECTORY)/../picolibc_src/newlib/libc/machine/$(CPUFAMILY)/ ;\
 	fi
 
-	meson $(PICOLIBC_DIRECTORY) \
+	meson $(BUILDINC_DIRECTORY)/../picolibc_src \
 		-Dmultilib=false \
 		-Dpicocrt=false \
 		-Datomic-ungetc=false \
