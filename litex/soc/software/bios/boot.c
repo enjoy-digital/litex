@@ -527,14 +527,14 @@ static void netboot_from_json(const char * filename, unsigned int ip, unsigned s
 		boot(boot_r1, boot_r2, boot_r3, boot_addr);
 }
 
-#ifdef MAIN_RAM_BASE
+#ifdef MAIN_RAM_BASE_VA
 static void netboot_from_bin(const char * filename, unsigned int ip, unsigned short tftp_port)
 {
 	int size;
-	size = copy_file_from_tftp_to_ram(ip, tftp_port, filename, (void *)MAIN_RAM_BASE);
+	size = copy_file_from_tftp_to_ram(ip, tftp_port, filename, (void *)MAIN_RAM_BASE_VA);
 	if (size <= 0)
 		return;
-	boot(0, 0, 0, MAIN_RAM_BASE);
+	boot(0, 0, 0, MAIN_RAM_BASE_VA);
 }
 #endif
 
@@ -562,7 +562,7 @@ void netboot(int nb_params, char **params)
 		printf("Booting from boot.json...\n");
 		netboot_from_json("boot.json", ip, TFTP_SERVER_PORT);
 
-#ifdef MAIN_RAM_BASE
+#ifdef MAIN_RAM_BASE_VA
 		/* Boot from boot.bin */
 		printf("Booting from boot.bin...\n");
 		netboot_from_bin("boot.bin", ip, TFTP_SERVER_PORT);
@@ -603,7 +603,7 @@ static unsigned int check_image_in_flash(unsigned int base_address)
 	return length;
 }
 
-#if defined(MAIN_RAM_BASE) && defined(FLASH_BOOT_ADDRESS)
+#if defined(MAIN_RAM_BASE_VA) && defined(FLASH_BOOT_ADDRESS)
 static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned long ram_address)
 {
 	uint32_t length;
@@ -641,13 +641,13 @@ void flashboot(void)
 	if(!length)
 		return;
 
-#ifdef MAIN_RAM_BASE
+#ifdef MAIN_RAM_BASE_VA
 	/* When Main RAM is available, copy the code from the Flash and execute it
 	from Main RAM since faster */
-	result = copy_image_from_flash_to_ram(FLASH_BOOT_ADDRESS, MAIN_RAM_BASE);
+	result = copy_image_from_flash_to_ram(FLASH_BOOT_ADDRESS, MAIN_RAM_BASE_VA);
 	if(!result)
 		return;
-	boot(0, 0, 0, MAIN_RAM_BASE);
+	boot(0, 0, 0, MAIN_RAM_BASE_VA);
 #else
 	/* When Main RAM is not available, execute the code directly from Flash (XIP).
        The code starts after (a) length and (b) CRC -- both uint32_t */
@@ -801,14 +801,14 @@ static void sdcardboot_from_json(const char * filename)
 		boot(boot_r1, boot_r2, boot_r3, boot_addr);
 }
 
-#ifdef MAIN_RAM_BASE
+#ifdef MAIN_RAM_BASE_VA
 static void sdcardboot_from_bin(const char * filename)
 {
 	uint32_t result;
-	result = copy_file_from_sdcard_to_ram(filename, MAIN_RAM_BASE);
+	result = copy_file_from_sdcard_to_ram(filename, MAIN_RAM_BASE_VA);
 	if (result == 0)
 		return;
-	boot(0, 0, 0, MAIN_RAM_BASE);
+	boot(0, 0, 0, MAIN_RAM_BASE_VA);
 }
 #endif
 
@@ -827,7 +827,7 @@ void sdcardboot(void)
 	printf("Booting from boot.json...\n");
 	sdcardboot_from_json("boot.json");
 
-#ifdef MAIN_RAM_BASE
+#ifdef MAIN_RAM_BASE_VA
 	/* Boot from boot.bin */
 	printf("Booting from boot.bin...\n");
 	sdcardboot_from_bin("boot.bin");
@@ -985,10 +985,10 @@ static void sataboot_from_json(const char * filename)
 static void sataboot_from_bin(const char * filename)
 {
 	uint32_t result;
-	result = copy_file_from_sata_to_ram(filename, MAIN_RAM_BASE);
+	result = copy_file_from_sata_to_ram(filename, MAIN_RAM_BASE_VA);
 	if (result == 0)
 		return;
-	boot(0, 0, 0, MAIN_RAM_BASE);
+	boot(0, 0, 0, MAIN_RAM_BASE_VA);
 }
 
 void sataboot(void)
