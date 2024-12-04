@@ -190,20 +190,20 @@ class InferedDDRTristate(Module):
         _oe = Signal()
         _i  = Signal()
         self.specials += DDROutput(o1, o2, _o, clk)
-        self.specials += DDROutput(oe1, oe2, _oe, clk)
+        self.specials += DDROutput(oe1, oe2, _oe, clk) if oe2 is not None else SDROutput(oe1, _oe, clk)
         self.specials += DDRInput(_i, i1, i2, clk)
         self.specials += Tristate(io, _o, _oe, _i)
 
 class DDRTristate(Special):
-    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk=None):
+    def __init__(self, io, o1, o2, oe1, oe2=None, i1=None, i2=None, clk=None):
         Special.__init__(self)
         self.io  = io
         self.o1  = o1
         self.o2  = o2
         self.oe1 = oe1
         self.oe2 = oe2
-        self.i1  = i1
-        self.i2  = i2
+        self.i1  = i1 if i1 is not None else Signal()
+        self.i2  = i2 if i2 is not None else Signal()
         self.clk = clk if clk is not None else ClockSignal()
 
     def iter_expressions(self):

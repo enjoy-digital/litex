@@ -294,7 +294,7 @@ class EfinixDifferentialInput:
 
 class EfinixDDRTristateImpl(LiteXModule):
     def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk):
-        assert oe1 == oe2
+        assert oe2 is None
         assert_is_signal_or_clocksignal(clk)
         platform     = LiteXContext.platform
         io_name      = platform.get_pin_name(io)

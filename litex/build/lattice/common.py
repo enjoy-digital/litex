@@ -324,11 +324,12 @@ class LatticeNXDDROutput:
 
 class LatticeNXDDRTristateImpl(Module):
     def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk):
+        assert oe2 is None
         _o  = Signal()
         _oe = Signal()
         _i  = Signal()
         self.specials += DDROutput(o1, o2, _o, clk)
-        self.specials += SDROutput(oe1 | oe2, _oe, clk)
+        self.specials += SDROutput(oe1, _oe, clk)
         self.specials += DDRInput(_i, i1, i2, clk)
         self.specials += Tristate(io, _o, _oe, _i)
         _oe.attr.add("syn_useioff")
