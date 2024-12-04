@@ -238,6 +238,15 @@ void spiflash_erase_range(uint32_t addr, uint32_t len)
 	}
 }
 
+void spiflash_erase_4k_sector(uint32_t addr)
+{
+	w_buf[0] = 0x20;
+	w_buf[1] = addr>>16;
+	w_buf[2] = addr>>8;
+	w_buf[3] = addr>>0;
+	transfer_cmd(w_buf, r_buf, 4);
+}
+
 int spiflash_write_stream(uint32_t addr, uint8_t *stream, uint32_t len)
 {
 	int res = 0;
