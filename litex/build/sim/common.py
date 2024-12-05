@@ -25,12 +25,13 @@ class SimAsyncResetSynchronizer:
 
 class SimDDROutputImpl(Module):
     def __init__(self, o, i1, i2, clk):
-        self.specials += Instance("DDR_OUTPUT",
-            i_i1  = i1,
-            i_i2  = i2,
-            o_o   = o,
-            i_clk = clk
-        )
+        for j in range(len(o)):
+            self.specials += Instance("DDR_OUTPUT",
+                i_i1  = i1[j] if len(i1) > 1 else i1,
+                i_i2  = i2[j] if len(i2) > 1 else i2,
+                o_o   = o[j] if len(o) > 1 else o,
+                i_clk = clk
+            )
 
 class SimDDROutput:
     @staticmethod
@@ -41,12 +42,13 @@ class SimDDROutput:
 
 class SimDDRInputImpl(Module):
     def __init__(self, i, o1, o2, clk):
-        self.specials += Instance("DDR_INPUT",
-            o_o1  = o1,
-            o_o2  = o2,
-            i_i   = i,
-            i_clk = clk
-        )
+        for j in range(len(i)):
+            self.specials += Instance("DDR_INPUT",
+                o_o1  = o1[j] if len(o1) > 1 else o1,
+                o_o2  = o2[j] if len(o2) > 1 else o2,
+                i_i   = i[j] if len(i) > 1 else i,
+                i_clk = clk
+            )
 
 class SimDDRInput:
     @staticmethod

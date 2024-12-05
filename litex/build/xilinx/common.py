@@ -138,18 +138,19 @@ class XilinxDifferentialOutput:
 
 class XilinxSDRTristateImpl(Module):
     def __init__(self, io, o, oe, i, clk):
-        _o    = Signal()
-        _oe_n = Signal()
-        _i    = Signal()
+        _o    = Signal().like(o)
+        _oe_n = Signal().like(oe)
+        _i    = Signal().like(i)
         self.specials += SDROutput(o, _o, clk)
         self.specials += SDROutput(~oe, _oe_n, clk)
         self.specials += SDRInput(_i, i, clk)
-        self.specials += Instance("IOBUF",
-            io_IO = io,
-            o_O   = _i,
-            i_I   = _o,
-            i_T   = _oe_n,
-        )
+        for j in range(len(io)):
+            self.specials += Instance("IOBUF",
+                io_IO = io[j] if len(io) > 1 else io,
+                o_O   = _i[j] if len(_i) > 1 else _i,
+                i_I   = _o[j] if len(_o) > 1 else _o,
+                i_T   = _oe_n[j] if len(_oe_n) > 1 else _oe_n,
+            )
 
 class XilinxSDRTristate:
     @staticmethod
@@ -160,18 +161,19 @@ class XilinxSDRTristate:
 
 class XilinxDDRTristateImpl(Module):
     def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk):
-        _o    = Signal()
-        _oe_n = Signal()
-        _i    = Signal()
+        _o    = Signal().like(o1)
+        _oe_n = Signal().like(oe1)
+        _i    = Signal().like(i1)
         self.specials += DDROutput(o1, o2, _o, clk)
         self.specials += DDROutput(~oe1, ~oe2, _oe_n, clk) if oe2 is not None else SDROutput(~oe1, _oe_n, clk)
         self.specials += DDRInput(_i, i1, i2, clk)
-        self.specials += Instance("IOBUF",
-            io_IO = io,
-            o_O   = _i,
-            i_I   = _o,
-            i_T   = _oe_n,
-        )
+        for j in range(len(io)):
+            self.specials += Instance("IOBUF",
+                io_IO = io[j] if len(io) > 1 else io,
+                o_O   = _i[j] if len(_i) > 1 else _i,
+                i_I   = _o[j] if len(_o) > 1 else _o,
+                i_T   = _oe_n[j] if len(_oe_n) > 1 else _oe_n,
+            )
 
 class XilinxDDRTristate:
     @staticmethod
@@ -193,19 +195,20 @@ xilinx_special_overrides = {
 
 class XilinxDDROutputImplS6(Module):
     def __init__(self, i1, i2, o, clk):
-        self.specials += Instance("ODDR2",
-            p_DDR_ALIGNMENT = "C0",
-            p_INIT          = 0,
-            p_SRTYPE        = "ASYNC",
-            i_C0 = clk,
-            i_C1 = ~clk,
-            i_CE = 1,
-            i_S  = 0,
-            i_R  = 0,
-            i_D0 = i1,
-            i_D1 = i2,
-            o_Q  = o
-        )
+        for j in range(len(o)):
+            self.specials += Instance("ODDR2",
+                p_DDR_ALIGNMENT = "C0",
+                p_INIT          = 0,
+                p_SRTYPE        = "ASYNC",
+                i_C0 = clk,
+                i_C1 = ~clk,
+                i_CE = 1,
+                i_S  = 0,
+                i_R  = 0,
+                i_D0 = i1[j] if len(i1) > 1 else i1,
+                i_D1 = i2[j] if len(i2) > 1 else i2,
+                o_Q  = o[j] if len(o) > 1 else o
+            )
 
 
 class XilinxDDROutputS6:
@@ -217,20 +220,21 @@ class XilinxDDROutputS6:
 
 class XilinxDDRInputImplS6(Module):
     def __init__(self, i, o1, o2, clk):
-        self.specials += Instance("IDDR2",
-            p_DDR_ALIGNMENT = "C0",
-            p_INIT_Q0       = 0,
-            p_INIT_Q1       = 0,
-            p_SRTYPE        = "ASYNC",
-            i_C0 = clk,
-            i_C1 = ~clk,
-            i_CE = 1,
-            i_S  = 0,
-            i_R  = 0,
-            i_D  = i,
-            o_Q0 = o1,
-            o_Q1 = o2
-        )
+        for j in range(len(i)):
+            self.specials += Instance("IDDR2",
+                p_DDR_ALIGNMENT = "C0",
+                p_INIT_Q0       = 0,
+                p_INIT_Q1       = 0,
+                p_SRTYPE        = "ASYNC",
+                i_C0 = clk,
+                i_C1 = ~clk,
+                i_CE = 1,
+                i_S  = 0,
+                i_R  = 0,
+                i_D  = i[j] if len(i) > 1 else i,
+                o_Q0 = o1[j] if len(o1) > 1 else o1,
+                o_Q1 = o2[j] if len(o2) > 1 else o2
+            )
 
 
 class XilinxDDRInputS6:
@@ -266,16 +270,17 @@ xilinx_s6_special_overrides = {
 
 class XilinxDDROutputImplS7(Module):
     def __init__(self, i1, i2, o, clk):
-        self.specials += Instance("ODDR",
-            p_DDR_CLK_EDGE="SAME_EDGE",
-            i_C  = clk,
-            i_CE = 1,
-            i_S  = 0,
-            i_R  = 0,
-            i_D1 = i1,
-            i_D2 = i2,
-            o_Q  = o
-        )
+        for j in range(len(o)):
+            self.specials += Instance("ODDR",
+                p_DDR_CLK_EDGE="SAME_EDGE",
+                i_C  = clk,
+                i_CE = 1,
+                i_S  = 0,
+                i_R  = 0,
+                i_D1 = i1[j] if len(i1) > 1 else i1,
+                i_D2 = i2[j] if len(i2) > 1 else i2,
+                o_Q  = o[j] if len(o) > 1 else o
+            )
 
 
 class XilinxDDROutputS7:
@@ -287,16 +292,17 @@ class XilinxDDROutputS7:
 
 class XilinxDDRInputImplS7(Module):
     def __init__(self, i, o1, o2, clk):
-        self.specials += Instance("IDDR",
-            p_DDR_CLK_EDGE="SAME_EDGE",
-            i_C  = clk,
-            i_CE = 1,
-            i_S  = 0,
-            i_R  = 0,
-            i_D  = i,
-            o_Q1 = o1,
-            o_Q2 = o2
-        )
+        for j in range(len(i)):
+            self.specials += Instance("IDDR",
+                p_DDR_CLK_EDGE="SAME_EDGE",
+                i_C  = clk,
+                i_CE = 1,
+                i_S  = 0,
+                i_R  = 0,
+                i_D  = i[j] if len(i) > 1 else i,
+                o_Q1 = o1[j] if len(o1) > 1 else o1,
+                o_Q2 = o2[j] if len(o2) > 1 else o2
+            )
 
 
 class XilinxDDRInputS7:
@@ -332,13 +338,14 @@ xilinx_s7_special_overrides = {
 
 class XilinxDDROutputImplUS(Module):
     def __init__(self, i1, i2, o, clk):
-        self.specials += Instance("ODDRE1",
-            i_C  = clk,
-            i_SR = 0,
-            i_D1 = i1,
-            i_D2 = i2,
-            o_Q  = o
-        )
+        for j in range(len(o)):
+            self.specials += Instance("ODDRE1",
+                i_C  = clk,
+                i_SR = 0,
+                i_D1 = i1[j] if len(i1) > 1 else i1,
+                i_D2 = i2[j] if len(i2) > 1 else i2,
+                o_Q  = o[j] if len(o) > 1 else o
+            )
 
 
 class XilinxDDROutputUS:
@@ -350,17 +357,18 @@ class XilinxDDROutputUS:
 
 class XilinxDDRInputImplUS(Module):
     def __init__(self, i, o1, o2, clk):
-        self.specials += Instance("IDDRE1",
-            p_DDR_CLK_EDGE="SAME_EDGE_PIPELINED",
-            p_IS_C_INVERTED  = 0,
-            p_IS_CB_INVERTED = 1,
-            i_C  = clk,
-            i_CB = clk,
-            i_R  = 0,
-            i_D  = i,
-            o_Q1 = o1,
-            o_Q2 = o2
-        )
+        for j in range(len(i)):
+            self.specials += Instance("IDDRE1",
+                p_DDR_CLK_EDGE="SAME_EDGE_PIPELINED",
+                p_IS_C_INVERTED  = 0,
+                p_IS_CB_INVERTED = 1,
+                i_C  = clk,
+                i_CB = clk,
+                i_R  = 0,
+                i_D  = i[j] if len(i) > 1 else i,
+                o_Q1 = o1[j] if len(o1) > 1 else o1,
+                o_Q2 = o2[j] if len(o2) > 1 else o2
+            )
 
 
 class XilinxDDRInputUS:
@@ -372,13 +380,14 @@ class XilinxDDRInputUS:
 
 class XilinxSDROutputImplUS(Module):
     def __init__(self, i, o, clk):
-        self.specials += Instance("FDCE",
-            i_C   = clk,
-            i_CE  = 1,
-            i_CLR = 0,
-            i_D   = i,
-            o_Q   = o
-        )
+        for j in range(len(o)):
+            self.specials += Instance("FDCE",
+                i_C   = clk,
+                i_CE  = 1,
+                i_CLR = 0,
+                i_D   = i[j] if len(i) > 1 else i,
+                o_Q   = o[j] if len(o) > 1 else o
+            )
 
 class XilinxSDROutputUS:
     @staticmethod
@@ -388,13 +397,14 @@ class XilinxSDROutputUS:
 # Ultrascale SDRInput ------------------------------------------------------------------------------
 class XilinxSDRInputImplUS(Module):
     def __init__(self, i, o, clk): 
-        self.specials += Instance("FDCE",
-            i_C   = clk,
-            i_CE  = 1,
-            i_CLR = 0,
-            i_D   = i,
-            o_Q   = o
-        )
+        for j in range(len(i)):
+            self.specials += Instance("FDCE",
+                i_C   = clk,
+                i_CE  = 1,
+                i_CLR = 0,
+                i_D   = i[j] if len(i) > 1 else i,
+                o_Q   = o[j] if len(o) > 1 else o
+            )
 
 class XilinxSDRInputUS:
     @staticmethod

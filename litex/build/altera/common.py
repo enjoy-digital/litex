@@ -91,13 +91,14 @@ class AlteraDifferentialOutput:
 
 class AlteraDDROutputImpl(Module):
     def __init__(self, i1, i2, o, clk):
-        self.specials += Instance("ALTDDIO_OUT",
-            p_WIDTH    = 1,
-            i_outclock = clk,
-            i_datain_h = i1,
-            i_datain_l = i2,
-            o_dataout  = o,
-        )
+        for j in range(len(o)):
+            self.specials += Instance("ALTDDIO_OUT",
+                p_WIDTH    = 1,
+                i_outclock = clk,
+                i_datain_h = i1[j] if len(i1) > 1 else i1,
+                i_datain_l = i2[j] if len(i2) > 1 else i2,
+                o_dataout  = o[j] if len(o) > 1 else o,
+            )
 
 class AlteraDDROutput:
     @staticmethod
@@ -108,13 +109,14 @@ class AlteraDDROutput:
 
 class AlteraDDRInputImpl(Module):
     def __init__(self, i, o1, o2, clk):
-        self.specials += Instance("ALTDDIO_IN",
-            p_WIDTH     = 1,
-            i_inclock   = clk,
-            i_datain    = i,
-            o_dataout_h = o1,
-            o_dataout_l = o2
-        )
+        for j in range(len(i)):
+            self.specials += Instance("ALTDDIO_IN",
+                p_WIDTH     = 1,
+                i_inclock   = clk,
+                i_datain    = i[j] if len(i) > 1 else i,
+                o_dataout_h = o1[j] if len(o1) > 1 else o1,
+                o_dataout_l = o2[j] if len(o2) > 1 else o2,
+            )
 
 class AlteraDDRInput:
     @staticmethod
@@ -169,18 +171,19 @@ class Agilex5AsyncResetSynchronizer:
 
 class Agilex5DDROutputImpl(Module):
     def __init__(self, i1, i2, o, clk):
-        self.specials += Instance("tennm_ph2_ddio_out",
-            p_mode      = "MODE_DDR",
-            p_asclr_ena = "ASCLR_ENA_NONE",
-            p_sclr_ena  = "SCLR_ENA_NONE",
-            o_dataout   = o,
-            i_datainlo  = i2,
-            i_datainhi  = i1,
-            i_clk       = clk,
-            i_ena       = Constant(1, 1),
-            i_areset    = Constant(1, 1),
-            i_sreset    = Constant(1, 1),
-        )
+        for j in range(len(o)):
+            self.specials += Instance("tennm_ph2_ddio_out",
+                p_mode      = "MODE_DDR",
+                p_asclr_ena = "ASCLR_ENA_NONE",
+                p_sclr_ena  = "SCLR_ENA_NONE",
+                o_dataout   = o[j] if len(o) > 1 else o,
+                i_datainlo  = i2[j] if len(i2) > 1 else i2,
+                i_datainhi  = i1[j] if len(i1) > 1 else i1,
+                i_clk       = clk,
+                i_ena       = Constant(1, 1),
+                i_areset    = Constant(1, 1),
+                i_sreset    = Constant(1, 1),
+            )
 
 class Agilex5DDROutput:
     @staticmethod
@@ -191,18 +194,19 @@ class Agilex5DDROutput:
 
 class Agilex5DDRInputImpl(Module):
     def __init__(self, i, o1, o2, clk):
-        self.specials += Instance("tennm_ph2_ddio_in",
-            p_mode      = "MODE_DDR",
-            p_asclr_ena = "ASCLR_ENA_NONE",
-            p_sclr_ena  = "SCLR_ENA_NONE",
-            i_clk       = clk,
-            i_datain    = i,
-            o_regouthi  = o1,
-            o_regoutlo  = o2,
-            i_ena       = Constant(1, 1),
-            i_areset    = Constant(1, 1),
-            i_sreset    = Constant(1, 1),
-        )
+        for j in range(len(i)):
+            self.specials += Instance("tennm_ph2_ddio_in",
+                p_mode      = "MODE_DDR",
+                p_asclr_ena = "ASCLR_ENA_NONE",
+                p_sclr_ena  = "SCLR_ENA_NONE",
+                i_clk       = clk,
+                i_datain    = i[j] if len(i) > 1 else i,
+                o_regouthi  = o1[j] if len(o1) > 1 else o1,
+                o_regoutlo  = o2[j] if len(o2) > 1 else o2,
+                i_ena       = Constant(1, 1),
+                i_areset    = Constant(1, 1),
+                i_sreset    = Constant(1, 1),
+            )
 
 class Agilex5DDRInput:
     @staticmethod
@@ -227,25 +231,29 @@ class Agilex5SDRInput:
 
 class Agilex5SDRTristateImpl(Module):
     def __init__(self, io, o, oe, i, clk):
-        _i  = Signal()
-        _o  = Signal()
-        _oe = Signal()
+        _i  = Signal().like(i)
+        _o  = Signal().like(o)
+        _oe = Signal().like(oe)
         self.specials += [
             SDRIO(o, _o, clk),
             SDRIO(oe, _oe, clk),
-            SDRIO(_i, i, clk),
-            Instance("tennm_ph2_io_ibuf",
-                p_bus_hold = "BUS_HOLD_OFF",
-                io_i       = io, # FIXME: its an input but io is needed to have correct dir at top module
-                o_o        = _i,
-            ),
-            Instance("tennm_ph2_io_obuf",
-                p_open_drain = "OPEN_DRAIN_OFF",
-                i_i          = _o,
-                i_oe         = _oe,
-                io_o         = io, # FIXME: its an output but io is needed to have correct dir at top module
-            ),
+            SDRIO(_i, i, clk)
         ]
+        
+        for j in range(len(io)):
+            self.specials += [
+                Instance("tennm_ph2_io_ibuf",
+                    p_bus_hold = "BUS_HOLD_OFF",
+                    io_i       = io[j] if len(io) > 1 else io , # FIXME: its an input but io is needed to have correct dir at top module
+                    o_o        = _i[j] if len(_i) > 1 else _i,
+                ),
+                Instance("tennm_ph2_io_obuf",
+                    p_open_drain = "OPEN_DRAIN_OFF",
+                    i_i          = _o[j] if len(_o) > 1 else _o,
+                    i_oe         = _oe[j] if len(_oe) > 1 else _oe,
+                    io_o         = io[j] if len(io) > 1 else io, # FIXME: its an output but io is needed to have correct dir at top module
+                ),
+            ]
 
 class Agilex5SDRTristate(Module):
     @staticmethod
