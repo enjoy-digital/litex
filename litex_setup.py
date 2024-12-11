@@ -102,7 +102,7 @@ git_repos = {
     # -----------------
     # Generic.
     "pythondata-misc-tapcfg":      GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-misc-usb_ohci":    GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-misc-usb_ohci":    GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
 
     # LM32 CPU(s).
     "pythondata-cpu-lm32":         GitRepo(url="https://github.com/litex-hub/"),
