@@ -84,6 +84,8 @@ class XilinxPlatform(GenericPlatform):
             so.update(common.xilinx_us_special_overrides)
         if self.device[:4] == "xcau":
             so.update(common.xilinx_us_special_overrides)
+        if self.device[:4] == "xczu":
+            so.update(common.xilinx_us_special_overrides)
         so.update(special_overrides)
         return GenericPlatform.get_verilog(self, *args,
             special_overrides = so,
