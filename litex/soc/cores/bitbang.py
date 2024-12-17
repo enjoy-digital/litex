@@ -27,7 +27,7 @@ class I2CMaster(LiteXModule):
     """
     pads_layout = [("scl", 1), ("sda", 1)]
 
-    def __init__(self, pads=None, default_dev=False):
+    def __init__(self, pads=None, default_dev=False, connect_pads=True):
         """
         Class constructor.
 
@@ -50,7 +50,8 @@ class I2CMaster(LiteXModule):
 
         self.default_dev = default_dev
 
-        self.connect(pads)
+        if connect_pads:
+            self.connect(pads)
 
     def connect(self, pads):
         """
