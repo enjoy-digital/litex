@@ -588,6 +588,8 @@ class Wishbone2CSR(LiteXModule):
             # If no Wishbone bus provided, create it with default parameters.
             self.wishbone = Interface()
 
+        assert self.wishbone.data_width == self.csr.data_width
+
         # # #
 
         wishbone_adr_shift = {
