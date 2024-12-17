@@ -152,7 +152,7 @@ class WS2812(LiteXModule):
 
 
         # Internal Signals.
-        led_count  = Signal(max=nleds)
+        led_count  = Signal(max=max(nleds, 2))
         led_data   = Signal(24)
         xfer_start = Signal()
         xfer_done  = Signal()
