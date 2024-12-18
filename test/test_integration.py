@@ -6,16 +6,21 @@
 
 import unittest
 import pexpect
-import sys
 import os
+import sys
+import tempfile
 
-class TestCPU(unittest.TestCase):
-    def boot_test(self, cpu_type, jobs, cpu_variant="standard"):
-        cmd = f'litex_sim --cpu-type={cpu_type} --cpu-variant={cpu_variant} --opt-level=O0 --jobs {jobs}'
-        litex_prompt = [b'\033\[[0-9;]+mlitex\033\[[0-9;]+m>']
+class TestIntegration(unittest.TestCase):
+    def boot_test(self, cpu_type="vexriscv", cpu_variant="standard", args=""):
+        cmd = f'litex_sim --cpu-type={cpu_type} --cpu-variant={cpu_variant} {args} --opt-level=O0 --jobs {os.cpu_count()}'
+        litex_prompt = [r'\033\[[0-9;]+mlitex\033\[[0-9;]+m>']
         is_success = True
-        with open("/tmp/test_boot_log", "wb") as result_file:
-            p = pexpect.spawn(cmd, timeout=None, logfile=result_file)
+
+        with tempfile.TemporaryFile(mode='w', prefix="litex_test") as log_file:
+            log_file.writelines(f"Command: {cmd}")
+            log_file.flush()
+
+            p = pexpect.spawn(cmd, timeout=None, encoding=sys.getdefaultencoding(), logfile=log_file)
             try:
                 match_id = p.expect(litex_prompt, timeout=1200)
             except pexpect.EOF:
@@ -25,13 +30,13 @@ class TestCPU(unittest.TestCase):
                 print('\n*** Timeout ')
                 is_success = False
 
-        if not is_success:
-            print(f'*** {cpu_type} Boot Failure')
-            with open("/tmp/test_boot_log", "r") as result_file:
-                print(result_file.read())
-        else:
-            p.terminate(force=True)
-            print(f'*** {cpu_type} Boot Success')
+            if not is_success:
+                print(f'*** ({self.id()}) Boot Failure: {cmd}')
+                log_file.seek(0)
+                print(log_file.read())
+            else:
+                p.terminate(force=True)
+                print(f'*** ({self.id()}) Boot Success: {cmd}')
 
         return is_success
 
@@ -66,7 +71,7 @@ class TestCPU(unittest.TestCase):
             "zynq7000",     # (arm     / hardcore) -> Hardcore.
             "zynqmp",       # (aarch64 / hardcore) -> Hardcore.
         ]
-        jobs = os.cpu_count()
+
         for cpu in tested_cpus:
              with self.subTest(target=cpu):
-                self.assertTrue(self.boot_test(cpu, jobs))
+                self.assertTrue(self.boot_test(cpu))
