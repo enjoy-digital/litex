@@ -9,6 +9,7 @@ import pexpect
 import os
 import sys
 import tempfile
+import itertools
 
 class TestIntegration(unittest.TestCase):
     def boot_test(self, cpu_type="vexriscv", cpu_variant="standard", args=""):
@@ -75,3 +76,53 @@ class TestIntegration(unittest.TestCase):
         for cpu in tested_cpus:
              with self.subTest(target=cpu):
                 self.assertTrue(self.boot_test(cpu))
+
+    def test_buses(self):
+        options = [("--bus-standard", ["wishbone", "axi-lite", "axi"]),
+                ("--bus-data-width", [32, 64]),
+                ("--bus-address-width", [32, 64]),
+                ("--bus-interconnect", ["shared", "crossbar"])]
+
+        # TODO: Investigate those failures
+        blacklists = [
+            # AXI-Lite with 64-bit data width and crossbar
+            [
+                ("--bus-standard", ["axi-lite"]),
+                ("--bus-data-width", [64]),
+                ("--bus-interconnect", ["crossbar"])
+            ],
+            # AXI with 64-bit data width
+            [
+                ("--bus-standard", ["axi"]),
+                ("--bus-data-width", [64])
+            ]
+        ]
+
+        def is_blacklisted(config):
+            for blacklist in blacklists:
+                matches = True
+                for opt, values in blacklist:
+                    cfg_value = next(v for k,v in config if k == opt)
+                    if cfg_value not in values:
+                        matches = False
+                        break
+                if matches:
+                    return True
+            return False
+
+        # Generate all combinations
+        keys = [k for k,_ in options]
+        values = [v for _,v in options]
+
+        for combination in itertools.product(*values):
+            config = list(zip(keys, combination))
+
+            # Skip blacklisted combinations
+            if is_blacklisted(config):
+                continue
+
+            # Build args string
+            args = " ".join(f"{k}={v}" for k,v in config)
+
+            with self.subTest(args=args):
+                self.assertTrue(self.boot_test(args=args))
