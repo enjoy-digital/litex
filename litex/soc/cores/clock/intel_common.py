@@ -105,8 +105,15 @@ class IntelClocking(LiteXModule):
             return best_config
         raise ValueError("No PLL config found")
 
+    def add_reset_delay(self, cycles):
+        for _ in range(cycles):
+            reset = Signal()
+            self.specials += Instance("DFFE", i_clk=self.clkin, i_d=self.reset, o_q=reset, i_ena=1, i_clrn=1, i_prn=1)
+            self.reset = reset
+
     def do_finalize(self):
         assert hasattr(self, "clkin")
+        self.add_reset_delay(cycles=8) # Prevents interlock when reset driven from sys_clk.
         config = self.compute_config()
         clks = Signal(self.nclkouts)
         self.params.update(
@@ -116,7 +123,7 @@ class IntelClocking(LiteXModule):
             p_OPERATION_MODE         = "NORMAL",
             i_INCLK                  = self.clkin,
             o_CLK                    = clks,
-            i_ARESET                 = 0,
+            i_ARESET                 = self.reset,
             i_CLKENA                 = 2**self.nclkouts_max - 1,
             i_EXTCLKENA              = 0xf,
             i_FBIN                   = 1,
