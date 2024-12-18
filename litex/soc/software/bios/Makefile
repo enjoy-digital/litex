@@ -19,7 +19,8 @@ OBJECTS = boot-helper.o	\
 	  cmd_litesdcard.o  \
 	  cmd_litesata.o    \
 	  sim_debug.o		\
-	  main.o
+	  main.o            \
+	  crt0.o
 
 ifneq "$(or $(BIOS_CONSOLE_NO_AUTOCOMPLETE),$(BIOS_CONSOLE_LITE))" ""
 CFLAGS += -DBIOS_CONSOLE_NO_AUTOCOMPLETE
@@ -70,7 +71,6 @@ vpath %.a $(PACKAGES:%=../%)
 
 %.elf: crt0.o $(LIBS:%=%.a)
 	$(CC) $(LDFLAGS) -T $(BIOS_DIRECTORY)/$(LSCRIPT) -N -o $@ \
-		crt0.o \
 		$(OBJECTS) \
 		$(PACKAGES:%=-L../%) \
 		-Wl,--whole-archive \
