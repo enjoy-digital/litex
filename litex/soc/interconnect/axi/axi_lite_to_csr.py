@@ -29,6 +29,8 @@ class AXILite2CSR(LiteXModule):
         self.axi_lite = axi_lite
         self.csr      = bus_csr
 
+        assert axi_lite.data_width == bus_csr.data_width
+
         fsm, comb = axi_lite_to_simple(
             axi_lite   = self.axi_lite,
             port_adr   = self.csr.adr,

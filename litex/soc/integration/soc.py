@@ -1138,13 +1138,14 @@ class SoC(LiteXModule, SoCCoreCompat):
         }[self.bus.standard]
         csr_bridge_name = f"{name}_bridge"
         self.check_if_exists(csr_bridge_name)
+        data_width = self.csr.data_width
         csr_bridge = csr_bridge_cls(
             bus_bridge_cls(
                 address_width = self.bus.address_width,
-                data_width    = self.bus.data_width),
+                data_width    = data_width),
             bus_csr = csr_bus.Interface(
                 address_width = self.csr.address_width,
-                data_width    = self.csr.data_width),
+                data_width    = data_width),
             register = register)
         self.logger.info("CSR Bridge {} {}.".format(
             colorer(name, color="underline"),

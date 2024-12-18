@@ -258,8 +258,8 @@ class TestAXILite(unittest.TestCase):
 
         class DUT(Module):
             def __init__(self):
-                self.axi_lite = AXILiteInterface()
-                self.csr = csr_bus.Interface()
+                self.axi_lite = AXILiteInterface(data_width=32)
+                self.csr = csr_bus.Interface(data_width=32)
                 self.submodules.axilite2csr = AXILite2CSR(self.axi_lite, self.csr)
                 self.errors = 0
 
