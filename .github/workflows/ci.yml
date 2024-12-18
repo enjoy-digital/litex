@@ -2,16 +2,23 @@ name: ci
 
 on: [push, pull_request]
 
+
+env:
+  GHDL_VERSION: "v4.1.0"
+  VERILATOR_VERSION: "v5.030"
+
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       # Checkout Repository
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup CCache
         uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          create-symlink: true
 
       # Install Tools
       - name: Install Tools
@@ -19,22 +26,21 @@ jobs:
           sudo apt-get install wget build-essential ninja-build
           sudo apt-get install libevent-dev libjson-c-dev flex bison
           sudo apt-get install libfl-dev libfl2 zlib1g-dev
+          sudo apt-get install llvm gnat help2man mold clang lld
+
+      - name: Set up SBT
+        uses: sbt/setup-sbt@v1
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
-          python-version: "3.9"
+          python-version: "3.12"
           cache: "pip"
           cache-dependency-path: "setup.py"
 
       - name: Install Python dependencies
         run: |
           python3 -m pip install setuptools requests pexpect meson
-
-      # Install (n)Migen / LiteX / Cores
-      - name: Install LiteX
-        run: |
-          python3 litex_setup.py --config=full --init --install --user --dev
 
       # Install GCC Toolchains
       - name: Install GCC Toolchains
@@ -44,27 +50,66 @@ jobs:
           sudo python3 litex_setup.py --gcc=powerpc
 
       # Build / Install GHDL
+      - name: Cache GHDL
+        id: cache-ghdl
+        uses: actions/cache@v3
+        with:
+          path: ghdl
+          key: ghdl-${{ env.GHDL_VERSION }}-${{ runner.os }}
+
+      - name: Checkout GHDL
+        if: steps.cache-ghdl.outputs.cache-hit != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: ghdl/ghdl
+          ref: ${{ env.GHDL_VERSION }}
+          path: ghdl
+
       - name: Build GHDL
+        if: steps.cache-ghdl.outputs.cache-hit != 'true'
         run: |
-          sudo apt-get install gnat llvm
-          git clone https://github.com/ghdl/ghdl.git
           cd ghdl
           ./configure --with-llvm-config
-          make
+          make -j$(nproc)
+
+      - name: Install GHDL
+        run: |
+          cd ghdl
           sudo make install
 
       # Build / Install Verilator
+      - name: Cache Verilator
+        id: cache-verilator  
+        uses: actions/cache@v3
+        with:
+          path: verilator
+          key: verilator-${{ env.VERILATOR_VERSION }}-${{ runner.os }}
+
+      - name: Checkout Verilator
+        if: steps.cache-verilator.outputs.cache-hit != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: verilator/verilator
+          ref: ${{ env.VERILATOR_VERSION }}
+          path: verilator
+
       - name: Build Verilator
+        if: steps.cache-verilator.outputs.cache-hit != 'true'
         run: |
-          sudo apt-get install help2man
-          export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
-          git clone https://github.com/verilator/verilator
           cd verilator
-          git checkout 7d2d32420a630befa4097170ecbf227e04e32522
           autoconf
-          ./configure
+          ./configure CC=clang CXX=clang++ 
           make -j$(nproc)
+
+      - name: Install Verilator
+        run: |
+          cd verilator
           sudo make install
+
+      # Install (n)Migen / LiteX / Cores
+      - name: Install LiteX
+        run: |
+          python3 litex_setup.py --config=full --init --install --user --dev
 
       # Install Project
       - name: Install Project
@@ -72,5 +117,4 @@ jobs:
 
       # Test
       - name: Run Tests
-        run: |
-          python3 setup.py test
+        run: python3 -m unittest discover -v
