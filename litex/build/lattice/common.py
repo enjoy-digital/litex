@@ -45,13 +45,14 @@ class LatticeECP5AsyncResetSynchronizer:
 
 class LatticeECP5SDRInputImpl(Module):
     def __init__(self, i, o, clk):
-        self.specials += Instance("IFS1P3BX",
-            i_SCLK = clk,
-            i_PD   = 0,
-            i_SP   = 1,
-            i_D    = i,
-            o_Q    = o,
-        )
+        for j in range(len(i)):
+            self.specials += Instance("IFS1P3BX",
+                i_SCLK = clk,
+                i_PD   = 0,
+                i_SP   = 1,
+                i_D    = i[j] if len(i) > 1 else i,
+                o_Q    = o[j] if len(o) > 1 else o,
+            )
 
 class LatticeECP5SDRInput:
     @staticmethod
@@ -62,13 +63,14 @@ class LatticeECP5SDRInput:
 
 class LatticeECP5SDROutputImpl(Module):
     def __init__(self, i, o, clk):
-        self.specials += Instance("OFS1P3BX",
-            i_SCLK = clk,
-            i_PD   = 0,
-            i_SP   = 1,
-            i_D    = i,
-            o_Q    = o,
-        )
+        for j in range(len(o)):
+            self.specials += Instance("OFS1P3BX",
+                i_SCLK = clk,
+                i_PD   = 0,
+                i_SP   = 1,
+                i_D    = i[j] if len(i) > 1 else i,
+                o_Q    = o[j] if len(o) > 1 else o,
+            )
 
 class LatticeECP5SDROutput:
     @staticmethod
@@ -79,12 +81,13 @@ class LatticeECP5SDROutput:
 
 class LatticeECP5DDRInputImpl(Module):
     def __init__(self, i, o1, o2, clk):
-        self.specials += Instance("IDDRX1F",
-            i_SCLK = clk,
-            i_D    = i,
-            o_Q0   = o1,
-            o_Q1   = o2,
-        )
+        for j in range(len(i)):
+            self.specials += Instance("IDDRX1F",
+                i_SCLK = clk,
+                i_D    = i[j] if len(i) > 1 else i,
+                o_Q0   = o1[j] if len(o1) > 1 else o1,
+                o_Q1   = o2[j] if len(o2) > 1 else o2,
+            )
 
 class LatticeECP5DDRInput:
     @staticmethod
@@ -95,12 +98,13 @@ class LatticeECP5DDRInput:
 
 class LatticeECP5DDROutputImpl(Module):
     def __init__(self, i1, i2, o, clk):
-        self.specials += Instance("ODDRX1F",
-            i_SCLK = clk,
-            i_D0   = i1,
-            i_D1   = i2,
-            o_Q    = o,
-        )
+        for j in range(len(o)):
+            self.specials += Instance("ODDRX1F",
+                i_SCLK = clk,
+                i_D0   = i1[j] if len(i1) > 1 else i1,
+                i_D1   = i2[j] if len(i2) > 1 else i2,
+                o_Q    = o[j]  if len(o) > 1 else o,
+            )
 
 class LatticeECP5DDROutput:
     @staticmethod
@@ -233,13 +237,14 @@ class LatticeNXAsyncResetSynchronizer:
 
 class LatticeNXSDRInputImpl(Module):
     def __init__(self, i, o, clk):
-        self.specials += Instance("IFD1P3BX",
-            i_CK = clk,
-            i_PD   = 0,
-            i_SP   = 1,
-            i_D    = i,
-            o_Q    = o,
-        )
+        for j in range(len(i)):
+            self.specials += Instance("IFD1P3BX",
+                i_CK = clk,
+                i_PD   = 0,
+                i_SP   = 1,
+                i_D    = i[j] if len(i) > 1 else i,
+                o_Q    = o[j] if len(o) > 1 else o,
+            )
 
 class LatticeNXSDRInput:
     @staticmethod
@@ -250,13 +255,14 @@ class LatticeNXSDRInput:
 
 class LatticeNXSDROutputImpl(Module):
     def __init__(self, i, o, clk):
-        self.specials += Instance("OFD1P3BX",
-            i_CK = clk,
-            i_PD   = 0,
-            i_SP   = 1,
-            i_D    = i,
-            o_Q    = o,
-        )
+        for j in range(len(o)):
+            self.specials += Instance("OFD1P3BX",
+                i_CK = clk,
+                i_PD   = 0,
+                i_SP   = 1,
+                i_D    = i[j] if len(i) > 1 else i,
+                o_Q    = o[j] if len(o) > 1 else o,
+            )
 
 class LatticeNXSDROutput:
     @staticmethod
@@ -270,13 +276,14 @@ class LatticeNXSDROutput:
 
 class LatticeNXSDRFFImpl(Module):
     def __init__(self, i, o, clk):
-        self.specials += Instance("FD1P3BX",
-            i_CK = clk,
-            i_PD   = 0,
-            i_SP   = 1,
-            i_D    = i,
-            o_Q    = o,
-        )
+        for j in range(len(o)):
+            self.specials += Instance("FD1P3BX",
+                i_CK = clk,
+                i_PD   = 0,
+                i_SP   = 1,
+                i_D    = i[j] if len(i) > 1 else i,
+                o_Q    = o[j] if len(o) > 1 else o,
+            )
 
 class LatticeNXSDRInputViaFlipFlop:
     @staticmethod
@@ -292,12 +299,13 @@ class LatticeNXSDROutputViaFlipFlop:
 
 class LatticeNXDDRInputImpl(Module):
     def __init__(self, i, o1, o2, clk):
-        self.specials += Instance("IDDRX1",
-            i_SCLK = clk,
-            i_D    = i,
-            o_Q0   = o1,
-            o_Q1   = o2,
-        )
+        for j in range(len(i)):
+            self.specials += Instance("IDDRX1",
+                i_SCLK = clk,
+                i_D    = i[j] if len(i) > 1 else i,
+                o_Q0   = o1[j] if len(o1) > 1 else o1,
+                o_Q1   = o2[j] if len(o2) > 1 else o2,
+            )
 
 class LatticeNXDDRInput:
     @staticmethod
@@ -308,12 +316,13 @@ class LatticeNXDDRInput:
 
 class LatticeNXDDROutputImpl(Module):
     def __init__(self, i1, i2, o, clk):
-        self.specials += Instance("ODDRX1",
-            i_SCLK = clk,
-            i_D0   = i1,
-            i_D1   = i2,
-            o_Q    = o,
-        )
+        for j in range(len(o)):
+            self.specials += Instance("ODDRX1",
+                i_SCLK = clk,
+                i_D0   = i1[j] if len(i1) > 1 else i1,
+                i_D1   = i2[j] if len(i2) > 1 else i2,
+                o_Q    = o[j]  if len(o) > 1 else o,
+            )
 
 class LatticeNXDDROutput:
     @staticmethod
@@ -325,9 +334,9 @@ class LatticeNXDDROutput:
 class LatticeNXDDRTristateImpl(Module):
     def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk):
         assert oe2 is None
-        _o  = Signal()
-        _oe = Signal()
-        _i  = Signal()
+        _o  = Signal().like(o1)
+        _oe = Signal().like(oe1)
+        _i  = Signal().like(i1)
         self.specials += DDROutput(o1, o2, _o, clk)
         self.specials += SDROutput(oe1, _oe, clk)
         self.specials += DDRInput(_i, i1, i2, clk)
@@ -429,16 +438,17 @@ class LatticeiCE40DifferentialOutput:
 
 class LatticeiCE40DDROutputImpl(Module):
     def __init__(self, i1, i2, o, clk):
-        self.specials += Instance("SB_IO",
-            p_PIN_TYPE      = C(0b010000, 6), # PIN_OUTPUT_DDR
-            p_IO_STANDARD   = "SB_LVCMOS",
-            io_PACKAGE_PIN  = o,
-            i_CLOCK_ENABLE  = 1,
-            i_OUTPUT_CLK    = clk,
-            i_OUTPUT_ENABLE = 1,
-            i_D_OUT_0       = i1,
-            i_D_OUT_1       = i2
-        )
+        for j in range(len(o)):
+            self.specials += Instance("SB_IO",
+                p_PIN_TYPE      = C(0b010000, 6), # PIN_OUTPUT_DDR
+                p_IO_STANDARD   = "SB_LVCMOS",
+                io_PACKAGE_PIN  = o[j] if len(o) > 1 else o,
+                i_CLOCK_ENABLE  = 1,
+                i_OUTPUT_CLK    = clk,
+                i_OUTPUT_ENABLE = 1,
+                i_D_OUT_0       = i1[j] if len(i1) > 1 else i1,
+                i_D_OUT_1       = i2[j] if len(i2) > 1 else i2
+            )
 
 
 class LatticeiCE40DDROutput:
@@ -450,15 +460,16 @@ class LatticeiCE40DDROutput:
 
 class LatticeiCE40DDRInputImpl(Module):
     def __init__(self, i, o1, o2, clk):
-        self.specials += Instance("SB_IO",
-            p_PIN_TYPE      = C(0b000000, 6),  # PIN_INPUT_DDR
-            p_IO_STANDARD   = "SB_LVCMOS",
-            io_PACKAGE_PIN  = i,
-            i_CLOCK_ENABLE  = 1,
-            i_INPUT_CLK     = clk,
-            o_D_IN_0        = o1,
-            o_D_IN_1        = o2
-        )
+        for j in range(len(i)):
+            self.specials += Instance("SB_IO",
+                p_PIN_TYPE      = C(0b000000, 6),  # PIN_INPUT_DDR
+                p_IO_STANDARD   = "SB_LVCMOS",
+                io_PACKAGE_PIN  = i[j] if len(i) > 1 else i,
+                i_CLOCK_ENABLE  = 1,
+                i_INPUT_CLK     = clk,
+                o_D_IN_0        = o1[j] if len(o1) > 1 else o1,
+                o_D_IN_1        = o2[j] if len(o2) > 1 else o2
+            )
 
 
 class LatticeiCE40DDRInput:
@@ -470,18 +481,19 @@ class LatticeiCE40DDRInput:
 
 class LatticeiCE40SDROutputImpl(Module):
     def __init__(self, i, o, clk):
-        self.specials += Instance("SB_IO",
-            # i_INPUT_CLK must match between two SB_IOs in the same tile.
-            # In PIN_INPUT mode, this restriction is relaxed; an unconnected
-            # i_INPUT_CLK also works.
-            p_PIN_TYPE      = C(0b010101, 6), # PIN_OUTPUT_REGISTERED + PIN_INPUT
-            p_IO_STANDARD   = "SB_LVCMOS",
-            io_PACKAGE_PIN  = o,
-            i_CLOCK_ENABLE  = 1,
-            i_OUTPUT_CLK    = clk,
-            i_OUTPUT_ENABLE = 1,
-            i_D_OUT_0       = i
-        )
+        for j in range(len(o)):
+            self.specials += Instance("SB_IO",
+                # i_INPUT_CLK must match between two SB_IOs in the same tile.
+                # In PIN_INPUT mode, this restriction is relaxed; an unconnected
+                # i_INPUT_CLK also works.
+                p_PIN_TYPE      = C(0b010101, 6), # PIN_OUTPUT_REGISTERED + PIN_INPUT
+                p_IO_STANDARD   = "SB_LVCMOS",
+                io_PACKAGE_PIN  = o[j] if len(o) > 1 else o,
+                i_CLOCK_ENABLE  = 1,
+                i_OUTPUT_CLK    = clk,
+                i_OUTPUT_ENABLE = 1,
+                i_D_OUT_0       = i[j] if len(i) > 1 else i
+            )
 
 class LatticeiCE40SDROutput:
     @staticmethod
@@ -499,15 +511,16 @@ class LatticeiCE40SDRInput:
 
 class LatticeiCE40SDRTristateImpl(Module):
     def __init__(self, io, o, oe, i, clk):
-        self.specials += Instance("SB_IO",
-            p_PIN_TYPE      = C(0b110100, 6), # PIN_OUTPUT_REGISTERED_ENABLE_REGISTERED + PIN_INPUT_REGISTERED
-            io_PACKAGE_PIN  = io,
-            i_INPUT_CLK     = clk,
-            i_OUTPUT_CLK    = clk,
-            i_OUTPUT_ENABLE = oe,
-            i_D_OUT_0       = o,
-            o_D_IN_0        = i,
-        )
+        for j in range(len(io)):
+            self.specials += Instance("SB_IO",
+                p_PIN_TYPE      = C(0b110100, 6), # PIN_OUTPUT_REGISTERED_ENABLE_REGISTERED + PIN_INPUT_REGISTERED
+                io_PACKAGE_PIN  = io[j] if len(io) > 1 else io,
+                i_INPUT_CLK     = clk,
+                i_OUTPUT_CLK    = clk,
+                i_OUTPUT_ENABLE = oe[j] if len(oe) > 1 else oe,
+                i_D_OUT_0       = o[j]  if len(o) > 1 else o,
+                o_D_IN_0        = i[j]  if len(i) > 1 else i,
+            )
 
 class LatticeiCE40SDRTristate(Module):
     @staticmethod
