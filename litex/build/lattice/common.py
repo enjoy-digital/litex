@@ -323,21 +323,21 @@ class LatticeNXDDROutput:
 # NX DDR Tristate ----------------------------------------------------------------------------------
 
 class LatticeNXDDRTristateImpl(Module):
-    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk):
+    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk, in_clk):
         assert oe2 is None
         _o  = Signal()
         _oe = Signal()
         _i  = Signal()
         self.specials += DDROutput(o1, o2, _o, clk)
         self.specials += SDROutput(oe1, _oe, clk)
-        self.specials += DDRInput(_i, i1, i2, clk)
+        self.specials += DDRInput(_i, i1, i2, in_clk)
         self.specials += Tristate(io, _o, _oe, _i)
         _oe.attr.add("syn_useioff")
 
 class LatticeNXDDRTristate:
     @staticmethod
     def lower(dr):
-        return LatticeNXDDRTristateImpl(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk)
+        return LatticeNXDDRTristateImpl(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk, dr.in_clk)
 
 # NX Special Overrides -----------------------------------------------------------------------------
 
@@ -498,11 +498,11 @@ class LatticeiCE40SDRInput:
 # iCE40 SDR Tristate -------------------------------------------------------------------------------
 
 class LatticeiCE40SDRTristateImpl(Module):
-    def __init__(self, io, o, oe, i, clk):
+    def __init__(self, io, o, oe, i, clk, in_clk):
         self.specials += Instance("SB_IO",
             p_PIN_TYPE      = C(0b110100, 6), # PIN_OUTPUT_REGISTERED_ENABLE_REGISTERED + PIN_INPUT_REGISTERED
             io_PACKAGE_PIN  = io,
-            i_INPUT_CLK     = clk,
+            i_INPUT_CLK     = in_clk,
             i_OUTPUT_CLK    = clk,
             i_OUTPUT_ENABLE = oe,
             i_D_OUT_0       = o,
@@ -512,7 +512,7 @@ class LatticeiCE40SDRTristateImpl(Module):
 class LatticeiCE40SDRTristate(Module):
     @staticmethod
     def lower(dr):
-        return LatticeiCE40SDRTristateImpl(dr.io, dr.o, dr.oe, dr.i, dr.clk)
+        return LatticeiCE40SDRTristateImpl(dr.io, dr.o, dr.oe, dr.i, dr.clk, dr.in_clk)
 
 # iCE40 Trellis Special Overrides ------------------------------------------------------------------
 
