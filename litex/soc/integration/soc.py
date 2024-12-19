@@ -1842,7 +1842,7 @@ class LiteXSoC(SoC):
         data_width              = 8,
         nrxslots                = 2, rxslots_read_only  = True,
         ntxslots                = 2, txslots_write_only = False,
-        full_memory_we          = False,
+        full_memory_we          = None,
         with_timestamp          = False,
         with_timing_constraints = True,
         local_ip                = None,
@@ -1851,6 +1851,7 @@ class LiteXSoC(SoC):
         # Imports
         from liteeth.mac import LiteEthMAC
         from liteeth.phy.model import LiteEthPHYModel
+        from litex.build.altera.quartus import AlteraQuartusToolchain
 
         # MAC.
         assert data_width in [8, 32, 64]
@@ -1858,6 +1859,8 @@ class LiteXSoC(SoC):
         self.check_if_exists(name)
         if with_timestamp:
             self.timer0.add_uptime()
+        if full_memory_we is None:
+            full_memory_we = isinstance(self.platform.toolchain, AlteraQuartusToolchain)
         ethmac = LiteEthMAC(
             phy               = phy,
             dw                = {8: 32, 32: 32, 64: 64}[data_width],
