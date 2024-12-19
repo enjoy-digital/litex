@@ -114,6 +114,7 @@ define_command(serialboot, serialboot, "Boot from Serial (SFL)", BOOT_CMDS);
  */
 #ifdef CSR_ETHMAC_BASE
 define_command(netboot, netboot, "Boot via Ethernet (TFTP)", BOOT_CMDS);
+define_command(bootp, bootp, "Request IP (BOOTP)", BOOT_CMDS);
 #endif
 
 /**
