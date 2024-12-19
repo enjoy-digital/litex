@@ -138,7 +138,10 @@ class VHD2VConverter(Module):
 
         # platform able to synthesis verilog and vhdl -> no conversion
         if self._platform.support_mixed_language and not self._force_convert:
-            ip_params = self._params
+            if self._params:
+                ip_params = self._params
+            else:
+                ip_params = self._instance.items
             for file in self._sources:
                 self._platform.add_source(file, library=self._work_package)
         else: # platform is only able to synthesis verilog -> convert vhdl to verilog
