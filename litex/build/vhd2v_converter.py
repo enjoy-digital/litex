@@ -37,6 +37,8 @@ class VHD2VConverter(Module):
     _params: dict
         Instance like params (p_ generics, o_ output, ...) when add_instance,
         generics without prefix otherwise
+    _instance: class Instance
+        Another instance to convert
     _add_instance: bool
         add if True an Instance()
     _force_convert: bool
@@ -46,11 +48,12 @@ class VHD2VConverter(Module):
     _libraries: list of str or tuple
         list of libraries (library_name, library_path) to compile before conversion.
     """
-    def __init__(self, platform, top_entity, build_dir,
+    def __init__(self, platform, top_entity=None, build_dir=None,
         work_package  = None,
         force_convert = False,
         add_instance  = False,
-        params        = dict(),
+        params        = None,
+        instance      = None,
         files         = list(),
         libraries     = list()):
         """
@@ -62,10 +65,16 @@ class VHD2VConverter(Module):
         self._platform      = platform
         self._sources       = files
         self._params        = params
+        self._instance      = instance
         self._force_convert = force_convert
         self._add_instance  = add_instance
         self._work_package  = work_package
         self._libraries     = list()
+
+        assert (self._params is None) ^ (self._instance is None)
+
+        if self._instance is not None and self._top_entity is None:
+            self._top_entity = self._instance.name_override
 
         self._ghdl_opts     = ["--std=08", "--no-formal"]
 
@@ -124,6 +133,9 @@ class VHD2VConverter(Module):
         """
         inst_name = self._top_entity
 
+        if self._build_dir is None:
+            self._build_dir = os.path.join(os.path.abspath(self._platform.output_dir), "vhd2v")
+
         # platform able to synthesis verilog and vhdl -> no conversion
         if self._platform.support_mixed_language and not self._force_convert:
             ip_params = self._params
@@ -159,13 +171,21 @@ class VHD2VConverter(Module):
 
             verilog_out = os.path.join(self._build_dir, f"{inst_name}.v")
 
-            ip_params = dict()
             generics = []
-            for k, v in self._params.items():
-                if k.startswith("p_"):
-                    generics.append("-g" + k[2:] + "=" + str(v))
-                else:
-                    ip_params[k] = v
+            if self._params:
+                ip_params = dict()
+                for k, v in self._params.items():
+                    if k.startswith("p_"):
+                        generics.append("-g" + k[2:] + "=" + str(v))
+                    else:
+                        ip_params[k] = v
+            else:
+                ip_params = list()
+                for item in self._instance.items:
+                    if isinstance(item, Instance.Parameter):
+                        generics.append("-g" + item.name + "=" + str(item.value.value))
+                    else:
+                        ip_params.append(item)
 
             cmd = ["ghdl", "--synth", "--out=verilog"]
             cmd += self._ghdl_opts
@@ -185,4 +205,9 @@ class VHD2VConverter(Module):
             self._platform.add_source(verilog_out)
 
         if self._add_instance:
-            self.specials += Instance(inst_name, **ip_params)
+            if self._instance:
+                # remove current instance to avoid multiple definition
+                delattr(self, "_instance")
+                self.specials += Instance(inst_name, *ip_params)
+            else:
+                self.specials += Instance(inst_name, **ip_params)
