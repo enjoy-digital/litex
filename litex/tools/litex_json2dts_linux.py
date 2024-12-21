@@ -100,7 +100,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     # Clocks ---------------------------------------------------------------------------------------
 
     for c in [c for c in d["constants"].keys() if c.endswith("config_clock_frequency")]:
-        name = c.removesuffix("config_clock_frequency") + "sys_clk"
+        name = c[:len(c) - len("config_clock_frequency")] + "sys_clk"
         dts += """
         {name}: clock-{freq} {{
             compatible = "fixed-clock";

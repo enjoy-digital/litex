@@ -143,7 +143,8 @@ class USPMMCM(XilinxClocking):
 
                     dividers = list(clkdiv_range(*self.clkout_divide_range))
                     # Add specific range dividers if they exist
-                    if specific_div_range := getattr(self, f"clkout{n}_divide_range", None):
+                    specific_div_range = getattr(self, f"clkout{n}_divide_range", None)
+                    if specific_div_range:
                         dividers.extend(clkdiv_range(*specific_div_range))
 
                     # For clkout0, CLKOUT[0]_DIVIDE_F also has range 2.0 to 128.0 with step 0.125
