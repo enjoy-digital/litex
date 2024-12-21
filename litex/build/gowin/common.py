@@ -165,14 +165,14 @@ class Gw5ASDRInput:
 # Gw5A SDRTristate ---------------------------------------------------------------------------------
 
 class Gw5ASDRTristateImpl(Module):
-    def __init__(self, io, o, oe, i, clk):
+    def __init__(self, io, o, oe, i, clk, in_clk):
         _o    = Signal()
         _oe_n = Signal()
         _i    = Signal()
         self.specials += [
             SDROutput(o, _o, clk),
             SDROutput(~oe, _oe_n, clk),
-            SDRInput(_i, i, clk),
+            SDRInput(_i, i, in_clk),
             Instance("IOBUF",
                 io_IO = io,
                 o_O   = _i,
@@ -184,7 +184,7 @@ class Gw5ASDRTristateImpl(Module):
 class Gw5ASDRTristate:
     @staticmethod
     def lower(dr):
-        return Gw5ASDRTristateImpl(dr.io, dr.o, dr.oe, dr.i, dr.clk)
+        return Gw5ASDRTristateImpl(dr.io, dr.o, dr.oe, dr.i, dr.clk, dr.in_clk)
 
 # Gw5A Special Overrides ---------------------------------------------------------------------------
 
