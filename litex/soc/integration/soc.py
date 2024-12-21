@@ -2049,6 +2049,18 @@ class LiteXSoC(SoC):
             add_ip_address_constants(self,  "REMOTEIP", ethmac_remote_ip)
             add_mac_address_constants(self, "MACADDR",  ethmac_address)
 
+    # Add I2C Master -------------------------------------------------------------------------------
+    def add_i2c_master(self, name="i2cmaster", pads=None, **kwargs):
+        # Imports.
+        from litei2c import LiteI2C
+
+        # Core.
+        self.check_if_exists(name)
+        if pads is None:
+            pads = self.platform.request(name)
+        i2c = LiteI2C(self.sys_clk_freq, pads=pads, **kwargs)
+        self.add_module(name=name, module=i2c)
+
     # Add SPI Master --------------------------------------------------------------------------------
     def add_spi_master(self, name="spimaster", pads=None, data_width=8, spi_clk_freq=1e6, with_clk_divider=True, **kwargs):
         # Imports.
