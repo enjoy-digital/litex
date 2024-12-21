@@ -9,13 +9,19 @@ import sys
 from shutil import which
 
 from litex.build.generic_programmer import GenericProgrammer
-from litex.build import tools
 
 # GowinProgrammer ----------------------------------------------------------------------------------
 
-GOWIN_PMODE_SRAM = 4
+# SRAM Program
+GOWIN_PMODE_SRAM = 2
+# SRAM Program JTAG 1149
+GOWIN_PMODE_SRAM_JTAG = 16
+# embFlash Erase,Program
 GOWIN_PMODE_EMBFLASH = 5
-GOWIN_PMODE_EXTFLASH = 31 # for bin 
+# exFlash C Bin Erase,Program thru GAO-Bridge
+GOWIN_PMODE_EXFLASH_BIN = 38
+# exFlash Erase,Program thru GAO-Bridge
+GOWIN_PMODE_EXFLASH = 36
 
 GOWIN_CABLE_GWU2X = 0
 GOWIN_CABLE_FT2CH = 1
@@ -26,8 +32,12 @@ GOWIN_CABLE_FT2CH = 1
 class GowinProgrammer(GenericProgrammer):
     needs_bitreverse = False
 
-    def __init__(self, devname):
+    def __init__(self, devname, cable = GOWIN_CABLE_FT2CH):
         self.device = str(devname)
+        self.cable = cable
+
+        # Ref: Gowin Programmer User Guide https://cdn.gowinsemi.com.cn/SUG502E.pdf
+        self.has_embflash = self.device.startswith("GN1N")
 
         # windows/powershell or msys2
         self.is_win32 = True if sys.platform == "win32" else False
@@ -37,7 +47,7 @@ class GowinProgrammer(GenericProgrammer):
             self.is_wsl = os.uname().release.find("WSL") > 0
 
         self.programmer = "programmer_cli"
-        
+
         # note for WSL:
         # gowin programmer_cli not working out of it's directory
         if self.is_wsl or self.is_win32:
@@ -49,50 +59,63 @@ class GowinProgrammer(GenericProgrammer):
                 os.chdir(gw_dir)
 
     # follow the help information:
-    #  1. Gowin programmer does not support start address for embflash! 
-    #  2. External SPI FLASH programming is also not detailed (for programmer_cli) 
-    #  3. Verify usually got stuck, so we disable it by now. patch is welcome!
-    def flash(self, address = 0, data_file = None, external = False, fifile = None, verify = False, cable = GOWIN_CABLE_FT2CH):
-        pmode = (GOWIN_PMODE_EMBFLASH + 1) if verify else GOWIN_PMODE_EMBFLASH
+    #  1. Gowin programmer does not support start address for embflash!
+    #  2. Verify usually got stuck, so we disable it by now. patch is welcome!
+    def flash(self, address = 0, bitstream_file = None, external = False, fifile = None, mcufile = None, pmode = None):
 
-        if external is True:
-            pmode = (GOWIN_PMODE_EXTFLASH + 1) if verify else GOWIN_PMODE_EXTFLASH
+        if pmode is None:
+            if external:
+                pmode = GOWIN_PMODE_EXFLASH
+            elif self.has_embflash:
+                pmode = GOWIN_PMODE_EMBFLASH
+            else:
+                pmode = GOWIN_PMODE_EXFLASH
+                external = True
 
-        if data_file is None and fifile is None:
-            print("GowinProgrammer: fsFile or fiFile should be given!");
+        if bitstream_file is None and fifile is None and mcufile is None:
+            print("GowinProgrammer: fsFile, fiFile or mcuFile should be given!")
             exit(1)
 
-        if self.is_wsl is True and data_file is not None:
-            data_file = os.popen("wslpath -w {}".format(data_file)).read().strip("\n") 
+        if self.is_wsl is True and bitstream_file is not None:
+            bitstream_file = os.popen("wslpath -w {}".format(bitstream_file)).read().strip("\n")
 
         if self.is_wsl is True and fifile is not None:
             fifile = os.popen("wslpath -w {}".format(fifile)).read().strip("\n")
 
-        cmd_line = [self.programmer, 
-                "--spiaddr", str(address),
-                "--device", str(self.device)]
+        if self.is_wsl is True and mcufile is not None:
+            mcufile = os.popen("wslpath -w {}".format(mcufile)).read().strip("\n")
 
-        if data_file is not None:
-            if external is True:
-                cmd_line += ["--mcuFile", str(data_file)]
-            else:
-                cmd_line += ["--fsFile", str(data_file)]
+        cmd_line = [
+            self.programmer,
+            "--device", str(self.device)]
+
+        if external:
+            # accepts 0xXXX, at least 3 hex digits. Here we use 6 digits.
+            spiaddr = "0x{:05X}".format(address)
+            cmd_line += ["--spiaddr", spiaddr]
+
+        if bitstream_file is not None:
+            cmd_line += ["--fsFile", str(bitstream_file)]
 
         if fifile is not None:
             cmd_line += ["--fiFile", str(fifile)]
 
-        cmd_line += ["--cable-index", str(cable), "--operation_index", str(pmode)]
+        if mcufile is not None:
+            cmd_line += ["--mcuFile", str(mcufile)]
+
+        cmd_line += ["--cable-index", str(self.cable), "--operation_index", str(pmode)]
+        print(' '.join(cmd_line))
         self.call(cmd_line)
 
-    def load_bitstream(self, bitstream_file, verify = False, cable = GOWIN_CABLE_FT2CH):
-        pmode = 4 if verify else 2
+    def load_bitstream(self, bitstream_file):
+        pmode = GOWIN_PMODE_SRAM
         bitfile = bitstream_file
         if self.is_wsl is True:
             bitfile = os.popen("wslpath -w {}".format(bitstream_file)).read().strip("\n")
-            
+
         cmd_line = [self.programmer,
             "--device", str(self.device),
             "--fsFile", str(bitfile),
-            "--cable-index", str(cable),
+            "--cable-index", str(self.cable),
             "--operation_index", str(pmode)]
         self.call(cmd_line)
