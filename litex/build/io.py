@@ -201,7 +201,7 @@ class DDRTristate(Special):
         self.o1  = o1
         self.o2  = o2
         self.oe1 = oe1
-        self.oe2 = oe2
+        self.oe2 = oe2 if not (oe2 == oe1) else None
         self.i1  = i1 if i1 is not None else Signal()
         self.i2  = i2 if i2 is not None else Signal()
         self.clk = clk if clk is not None else ClockSignal()
