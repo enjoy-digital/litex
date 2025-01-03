@@ -52,8 +52,8 @@ class RemoteClient(EtherboneIPC, CSRBuilder):
     def open(self):
         if self.binded:
             return
-        self.socket = socket.create_connection((self.host, self.port), 5.0)
-        self.socket.settimeout(5.0)
+        self.socket = socket.create_connection((self.host, self.port))
+        self.socket.settimeout(2.0)
         self._receive_server_info()
         self.binded = True
 
