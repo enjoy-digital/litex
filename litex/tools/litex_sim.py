@@ -159,32 +159,36 @@ class Platform(SimPlatform):
 
 class SimSoC(SoCCore):
     def __init__(self,
-        with_sdram            = False,
-        with_sdram_bist       = False,
-        with_ethernet         = False,
-        ethernet_phy_model    = "sim",
-        with_etherbone        = False,
-        etherbone_mac_address = 0x10e2d5000001,
-        etherbone_ip_address  = "192.168.1.51",
-        with_analyzer         = False,
-        sdram_module          = "MT48LC16M16",
-        sdram_init            = [],
-        sdram_data_width      = 32,
-        sdram_spd_data        = None,
-        sdram_verbosity       = 0,
-        with_i2c              = False,
-        with_sdcard           = False,
-        with_spi_flash        = False,
-        spi_flash_init        = [],
-        with_gpio             = False,
+        with_sdram             = False,
+        with_sdram_bist        = False,
+        with_ethernet          = False,
+        ethernet_phy_model     = "sim",
+        ethernet_local_ip      = "192.168.1.50",
+        ethernet_remote_ip     = "192.168.1.100",
+        with_etherbone         = False,
+        with_analyzer          = False,
+        sdram_module           = "MT48LC16M16",
+        sdram_init             = [],
+        sdram_data_width       = 32,
+        sdram_spd_data         = None,
+        sdram_verbosity        = 0,
+        with_i2c               = False,
+        with_sdcard            = False,
+        with_spi_flash         = False,
+        spi_flash_init         = [],
+        with_gpio              = False,
         with_video_framebuffer = False,
-        with_video_terminal = False,
-        with_video_colorbars = False,
-        sim_debug             = False,
-        trace_reset_on        = False,
-        with_jtag             = False,
+        with_video_terminal    = False,
+        with_video_colorbars   = False,
+        sim_debug              = False,
+        trace_reset_on         = False,
+        with_jtag              = False,
         **kwargs):
-        platform     = Platform()
+
+        # Platform ---------------------------------------------------------------------------------
+        platform = Platform()
+
+        # Parameters -------------------------------------------------------------------------------
         sys_clk_freq = int(1e6)
 
         # CRG --------------------------------------------------------------------------------------
@@ -248,12 +252,18 @@ class SimSoC(SoCCore):
         # Etherbone with optional Ethernet ---------------------------------------------------------
         if with_etherbone:
             self.add_etherbone(
-                phy         = self.ethphy,
-                ip_address  = etherbone_ip_address,
-                mac_address = etherbone_mac_address,
-                data_width  = 8,
-                with_ethmac = with_ethernet,
+                phy              = self.ethphy,
+                # Etherbone Parameters.
+                ip_address       = convert_ip(ethernet_local_ip) + int(with_ethernet), # +1 when both to avoid conflict.
+                mac_address      = 0x10e2d5000001,
+                data_width       = 8,
+                # Ethernet Parameters.
+                with_ethmac      = with_ethernet,
+                ethmac_address   = 0x10e2d5000000,
+                ethmac_local_ip  = ethernet_local_ip,
+                ethmac_remote_ip = ethernet_remote_ip,
             )
+
         # Ethernet only ----------------------------------------------------------------------------
         elif with_ethernet:
             # Ethernet MAC
@@ -546,6 +556,8 @@ def main():
         with_sdram_bist        = args.with_sdram_bist,
         with_ethernet          = args.with_ethernet,
         ethernet_phy_model     = args.ethernet_phy_model,
+        ethernet_local_ip      = args.local_ip,
+        ethernet_remote_ip     = args.remote_ip,
         with_etherbone         = args.with_etherbone,
         with_analyzer          = args.with_analyzer,
         with_i2c               = args.with_i2c,
@@ -564,7 +576,7 @@ def main():
         if ram_boot_address == 0:
             ram_boot_address = conf_soc.mem_map["main_ram"]
         soc.add_constant("ROM_BOOT_ADDRESS", ram_boot_address)
-    if args.with_ethernet:
+    if args.with_ethernet and (not args.with_etherbone): # FIXME: Remove.
         for i in range(4):
             soc.add_constant("LOCALIP{}".format(i+1), int(args.local_ip.split(".")[i]))
         for i in range(4):
