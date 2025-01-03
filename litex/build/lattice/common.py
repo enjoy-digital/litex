@@ -425,6 +425,29 @@ class LatticeiCE40DifferentialOutput:
     def lower(dr):
         return LatticeiCE40DifferentialOutputImpl(dr.i, dr.o_p, dr.o_n)
 
+# iCE40 Differential Input -------------------------------------------------------------------------
+
+class LatticeiCE40DifferentialInputImpl(Module):
+    def __init__(self, i_p, o):
+        self.specials += [
+            Instance("SB_IO",
+                p_PIN_TYPE     = C(0b000001, 6), # PIN_INPUT
+                p_IO_STANDARD  = "SB_LVDS_INPUT",
+                p_PULLUP       = C(0b0, 1),
+                p_NEG_TRIGGER  = C(0b0, 1),
+                io_PACKAGE_PIN = i_p,
+                o_D_IN_0       = o,
+                i_OUTPUT_ENABLE= C(0b1, 1)
+            ),
+            # according to https://www.latticesemi.com/support/answerdatabase/6/1/6/6161 the n pin
+            # will get assigned to the LVDS input automatically
+        ]
+
+class LatticeiCE40DifferentialInput:
+    @staticmethod
+    def lower(dr):
+        return LatticeiCE40DifferentialInputImpl(dr.i_p, dr.o)
+
 # iCE40 DDR Output ---------------------------------------------------------------------------------
 
 class LatticeiCE40DDROutputImpl(Module):
@@ -520,6 +543,7 @@ lattice_ice40_special_overrides = {
     AsyncResetSynchronizer: LatticeiCE40AsyncResetSynchronizer,
     Tristate:               LatticeiCE40Tristate,
     DifferentialOutput:     LatticeiCE40DifferentialOutput,
+    DifferentialInput:      LatticeiCE40DifferentialInput,
     DDROutput:              LatticeiCE40DDROutput,
     DDRInput:               LatticeiCE40DDRInput,
     SDROutput:              LatticeiCE40SDROutput,
