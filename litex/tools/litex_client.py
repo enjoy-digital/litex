@@ -64,6 +64,15 @@ class RemoteClient(EtherboneIPC, CSRBuilder):
         del self.socket
         self.binded = False
 
+    def clear_socket_buffer(self):
+        try:
+            while True:
+                data = self.socket.recv(4096)
+                if not data:
+                    break
+        except (TimeoutError, socket.error):
+            pass
+
     def read(self, addr, length=None, burst="incr"):
         length_int = 1 if length is None else length
         addr_size  = self.csr_bus_address_width // 8
@@ -88,6 +97,7 @@ class RemoteClient(EtherboneIPC, CSRBuilder):
             # Handle error by returning default values
             if self.debug:
                 print("Timeout occurred during read. Returning default values.")
+            self.clear_socket_buffer()
             return 0 if length is None else [0] * length_int
 
         packet = EtherbonePacket(
