@@ -401,24 +401,31 @@ class EtherboneIPC:
     def receive_packet(self, socket, addr_size):
         assert addr_size in [1, 2, 4, 8]
         header_length = etherbone_packet_header_length + etherbone_record_header_length
-        packet        = bytes()
-        while len(packet) < header_length:
-            chunk = socket.recv(header_length - len(packet))
-            if len(chunk) == 0:
-                return 0
-            else:
-                packet += chunk
-        wcount, rcount = struct.unpack(">BB", packet[header_length-2:])
-        counts = wcount + rcount
-        packet_size = header_length
-        if wcount != 0:
-            packet_size += 4 * (wcount ) + addr_size
-        if rcount != 0:
-            packet_size += (rcount + 1 ) * addr_size
-        while len(packet) < packet_size:
-            chunk = socket.recv(packet_size - len(packet))
-            if len(chunk) == 0:
-                return 0
-            else:
-                packet += chunk
-        return packet
+        packet = bytes()
+        try:
+            while len(packet) < header_length:
+                chunk = socket.recv(header_length - len(packet))
+                if len(chunk) == 0:
+                    return 0
+                else:
+                    packet += chunk
+
+            wcount, rcount = struct.unpack(">BB", packet[header_length - 2:])
+            counts = wcount + rcount
+            packet_size = header_length
+            if wcount != 0:
+                packet_size += 4 * (wcount) + addr_size
+            if rcount != 0:
+                packet_size += (rcount + 1) * addr_size
+
+            while len(packet) < packet_size:
+                chunk = socket.recv(packet_size - len(packet))
+                if len(chunk) == 0:
+                    return 0
+                else:
+                    packet += chunk
+
+            return packet
+
+        except TimeoutError:
+            return 0
