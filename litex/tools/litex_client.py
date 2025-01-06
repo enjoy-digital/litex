@@ -282,6 +282,19 @@ def run_gui(host, csr_csv, port):
     # Memory.
     # -------
 
+    def convert_size(size_bytes):
+        """
+        Convert the size from bytes to a more human-readable format.
+        """
+        if size_bytes < 1024:
+            return f"{size_bytes} Bytes"
+        elif size_bytes < 1024**2:
+            return f"{size_bytes / 1024:.2f} KB"
+        elif size_bytes < 1024**3:
+            return f"{size_bytes / (1024 ** 2):.2f} MB"
+        else:
+            return f"{size_bytes / (1024 ** 3):.2f} GB"
+
     def read_memory_chunk(base, length):
         """Reads `length` bytes from `base` address (word-aligned)."""
         if length <= 0:
@@ -412,7 +425,7 @@ def run_gui(host, csr_csv, port):
                 with dpg.table_row():
                     dpg.add_text(f"{region_name}")
                     dpg.add_text(f"0x{region_obj.base:08X}")
-                    dpg.add_text(f"{region_obj.size}")
+                    dpg.add_text(f"{convert_size(region_obj.size)}")
                     dpg.add_text(f"{region_obj.type}")
 
         # Memory Read.
