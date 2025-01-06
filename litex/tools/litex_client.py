@@ -393,8 +393,31 @@ def run_gui(host, csr_csv, port):
     # Create Memory Window.
     # ---------------------
     with dpg.window(label="FPGA Memory", autosize=True, pos=(550, 150)):
+        # Memory Regions.
+        dpg.add_text("Mem Regions:")
+        with dpg.table(
+            tag            = "memory_regions_table",
+            header_row     = True,
+            row_background = True,
+            scrollY        = True,   # allow scrolling within the child
+            width          = -1,
+            height         = 100,
+        ):
+            dpg.add_table_column(label="Name")
+            dpg.add_table_column(label="Base")
+            dpg.add_table_column(label="Size")
+            dpg.add_table_column(label="Type")
+
+            for region_name, region_obj in bus.mems.__dict__.items():
+                with dpg.table_row():
+                    dpg.add_text(f"{region_name}")
+                    dpg.add_text(f"0x{region_obj.base:08X}")
+                    dpg.add_text(f"{region_obj.size}")
+                    dpg.add_text(f"{region_obj.type}")
+
         # Memory Read.
-        dpg.add_text("Mem Read (32-bit word)")
+        dpg.add_separator()
+        dpg.add_text("Mem Read:")
         with dpg.group(horizontal=True):
             dpg.add_text("Address:")
             dpg.add_input_text(
@@ -415,7 +438,8 @@ def run_gui(host, csr_csv, port):
             )
 
         # Memory Write.
-        dpg.add_text("Mem Write (32-bit word)")
+        dpg.add_separator()
+        dpg.add_text("Mem Write:")
         with dpg.group(horizontal=True):
             dpg.add_text("Address:")
             dpg.add_input_text(
@@ -434,7 +458,9 @@ def run_gui(host, csr_csv, port):
                 callback = lambda: bus.write(int(dpg.get_value("write_addr"), 0), int(dpg.get_value("write_value"), 0))
             )
 
+
         # Memory Dump
+        dpg.add_separator()
         dpg.add_text("Mem Dump")
         with dpg.group(horizontal=True):
             # Base.
