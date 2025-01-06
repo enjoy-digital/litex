@@ -14,6 +14,7 @@ import math
 from shutil import which
 
 from migen.fhdl.structure import _Fragment
+from migen.fhdl.simplify import FullMemoryWE
 
 from litex.build.generic_platform import Pins, IOStandard, Misc
 from litex.build.generic_toolchain import GenericToolchain
@@ -38,6 +39,9 @@ class AlteraQuartusToolchain(GenericToolchain):
         **kwargs):
 
         self._synth_tool = synth_tool
+
+        # Apply FullMemoryWE on Design (Quartus does not infer memories correctly otherwise).
+        FullMemoryWE()(fragment)
 
         return GenericToolchain.build(self, platform, fragment, **kwargs)
 
