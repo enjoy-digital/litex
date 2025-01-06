@@ -279,6 +279,61 @@ def run_gui(host, csr_csv, port):
                 xadc_data.insert(0, get_cls())
                 yield xadc_data
 
+    # Memory.
+    # -------
+
+    def read_memory_chunk(base, length):
+        """Reads `length` bytes from `base` address (word-aligned)."""
+        if length <= 0:
+            return []
+
+        aligned_len = (length + 3) & ~3  # Round up to nearest multiple of 4
+        words       = bus.read(base, aligned_len // 4, burst="incr")
+        out         = []
+
+        for word in words:
+            for byte_idx in range(4):
+                byte_val = (word >> (8 * byte_idx)) & 0xff
+                out.append(byte_val)
+
+        return out[:length]
+
+    def _printable_chr(bval):
+        c = chr(bval)
+        return c if 32 <= bval <= 126 else '.'
+
+    def refresh_dump_table():
+        """Refreshes the dump table with data from the specified base address and length."""
+        try:
+            base       = int(dpg.get_value("dump_base"), 0)
+            length_str = dpg.get_value("dump_length")
+            length     = int(length_str, 0) if length_str else 0
+        except ValueError:
+            print("Invalid base address or length.")
+            return
+
+        memory_data = read_memory_chunk(base, length)
+
+        # Clear existing ROWS (slot=1) but keep the columns in slot=0
+        for row_id in dpg.get_item_children("dump_table", 1):
+            dpg.delete_item(row_id)
+
+        # Add new rows
+        BYTES_PER_LINE = 16
+        for row_start in range(0, len(memory_data), BYTES_PER_LINE):
+            row_data = memory_data[row_start:row_start + BYTES_PER_LINE]
+            with dpg.table_row(parent="dump_table"):
+                # Address column
+                dpg.add_text(f"0x{base + row_start:08X}")
+
+                # Hex data column
+                hex_values = [f"{byte:02X}" for byte in row_data]
+                dpg.add_text(" ".join(hex_values))
+
+                # ASCII column
+                ascii_values = [_printable_chr(byte) for byte in row_data]
+                dpg.add_text("".join(ascii_values))
+
     # Create Main Window.
     # -------------------
     dpg.create_context()
@@ -378,6 +433,44 @@ def run_gui(host, csr_csv, port):
                 label    = "Write",
                 callback = lambda: bus.write(int(dpg.get_value("write_addr"), 0), int(dpg.get_value("write_value"), 0))
             )
+
+        # Memory Dump
+        dpg.add_text("Mem Dump")
+        with dpg.group(horizontal=True):
+            # Base.
+            dpg.add_text("Base:")
+            dpg.add_input_text(
+                tag           = "dump_base",
+                default_value = "0x00000000",
+                width         = 120
+            )
+
+            # Length.
+            dpg.add_text("Length (bytes):")
+            dpg.add_input_text(
+                tag           = "dump_length",
+                default_value = "256",
+                width         = 120
+            )
+
+            # Control
+            dpg.add_button(label="Read", callback=refresh_dump_table)
+
+        # Memory Table
+        with dpg.table(
+            tag            = "dump_table",
+            header_row     = True,
+            resizable      = False,
+            policy         = dpg.mvTable_SizingStretchProp,
+            scrollX        = True,
+            scrollY        = True,
+            row_background = True,
+            width          = -1,
+            height         = -1,
+        ):
+            dpg.add_table_column(label="Address")
+            dpg.add_table_column(label="Hex Data")
+            dpg.add_table_column(label="ASCII")
 
     # Create XADC Window.
     # -------------------
