@@ -191,7 +191,7 @@ def write_memory(host, csr_csv, port, addr, data):
 
     bus.close()
 
-# Gui ----------------------------------------------------------------------------------------------
+# GUI ----------------------------------------------------------------------------------------------
 
 def run_gui(host, csr_csv, port):
     import dearpygui.dearpygui as dpg
@@ -314,10 +314,54 @@ def run_gui(host, csr_csv, port):
                 for i in range(8): # FIXME: Get num.
                     dpg.add_checkbox(id=f"btn{i}")
 
+    # Create Memory Window.
+    # ---------------------
+    with dpg.window(label="FPGA Memory", autosize=True, pos=(550, 150)):
+        # Memory Read.
+        dpg.add_text("Mem Read (32-bit word)")
+        with dpg.group(horizontal=True):
+            dpg.add_text("Address:")
+            dpg.add_input_text(
+                tag           = "read_addr",
+                default_value = "0x00000000",
+                width         = 120
+            )
+            dpg.add_text("Value:")
+            dpg.add_input_text(
+                tag           = "read_value",
+                default_value = "0x00000000",
+                width         = 120,
+                readonly      = True
+            )
+            dpg.add_button(
+                label    = "Read",
+                callback = lambda: dpg.set_value("read_value", f"0x{bus.read(int(dpg.get_value('read_addr'), 0)):08X}")
+            )
+
+        # Memory Write.
+        dpg.add_text("Mem Write (32-bit word)")
+        with dpg.group(horizontal=True):
+            dpg.add_text("Address:")
+            dpg.add_input_text(
+                tag           = "write_addr",
+                default_value = "0x00000000",
+                width         = 120
+            )
+            dpg.add_text("Value:")
+            dpg.add_input_text(
+                tag           = "write_value",
+                default_value = "0x00000000",
+                width         = 120
+            )
+            dpg.add_button(
+                label    = "Write",
+                callback = lambda: bus.write(int(dpg.get_value("write_addr"), 0), int(dpg.get_value("write_value"), 0))
+            )
+
     # Create XADC Window.
     # -------------------
     if with_xadc:
-        with dpg.window(label="FPGA XADC", width=600, height=600, pos=(950, 0)):
+        with dpg.window(label="FPGA XADC", width=600, height=600, pos=(1000, 0)):
             with dpg.subplots(2, 2, label="", width=-1, height=-1) as subplot_id:
                 # Temperature.
                 with dpg.plot(label=f"Temperature (°C)"):
@@ -400,23 +444,35 @@ def run_gui(host, csr_csv, port):
 
 def main():
     parser = argparse.ArgumentParser(description="LiteX Client utility.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    # Common.
     parser.add_argument("--csr-csv", default="csr.csv",     help="CSR configuration file")
     parser.add_argument("--host",    default="localhost",   help="Host ip address")
     parser.add_argument("--port",    default="1234",        help="Host bind port.")
-    parser.add_argument("--ident",   action="store_true",   help="Dump SoC identifier.")
-    parser.add_argument("--regs",    action="store_true",   help="Dump SoC registers.")
     parser.add_argument("--binary",  action="store_true",   help="Use binary format for displayed values.")
+
+    # Identifier.
+    parser.add_argument("--ident",   action="store_true",   help="Dump SoC identifier.")
+
+    # Registers.
+    parser.add_argument("--regs",    action="store_true",   help="Dump SoC registers.")
     parser.add_argument("--filter",  default=None,          help="Registers filter (to be used with --regs).")
+
+    # Memory.
     parser.add_argument("--read",    default=None,          help="Do a MMAP Read to SoC bus (--read addr/reg).")
     parser.add_argument("--write",   default=None, nargs=2, help="Do a MMAP Write to SoC bus (--write addr/reg data).")
     parser.add_argument("--length",  default="4",           help="MMAP access length.")
+
+    # GUI.
     parser.add_argument("--gui",     action="store_true",   help="Run Gui.")
+
     args = parser.parse_args()
 
+    # Parameters.
     host    = args.host
     csr_csv = args.csr_csv
     port    = int(args.port, 0)
 
+    # Identifier.
     if args.ident:
         dump_identifier(
             host    = host,
@@ -424,22 +480,24 @@ def main():
             port    = port,
         )
 
+    # Registers.
     if args.regs:
         dump_registers(
-            host    = args.host,
+            host    = host,
             csr_csv = csr_csv,
             port    = port,
             filter  = args.filter,
             binary  = args.binary,
         )
 
+    # Memory Read.
     if args.read:
         try:
            addr = int(args.read, 0)
         except ValueError:
             addr = reg2addr(host, csr_csv, args.read)
         read_memory(
-            host    = args.host,
+            host    = host,
             csr_csv = csr_csv,
             port    = port,
             addr    = addr,
@@ -447,22 +505,24 @@ def main():
             binary  = args.binary,
         )
 
+    # Memory Write.
     if args.write:
         try:
            addr = int(args.write[0], 0)
         except ValueError:
             addr = reg2addr(host, csr_csv, args.write[0])
         write_memory(
-            host    = args.host,
+            host    = host,
             csr_csv = csr_csv,
             port    = port,
             addr    = addr,
             data    = int(args.write[1], 0),
         )
 
+    # GUI.
     if args.gui:
         run_gui(
-            host    = args.host,
+            host    = host,
             csr_csv = csr_csv,
             port    = port,
         )
