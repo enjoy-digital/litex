@@ -170,7 +170,7 @@ def dump_registers(host, csr_csv, port, filter=None, binary=False):
 
     bus.close()
 
-def read_memory(host, csr_csv, port, addr, length, binary=False, file=None):
+def read_memory(host, csr_csv, port, addr, length, binary=False, file=None, endianness="little"):
     bus = RemoteClient(host=host, csr_csv=csr_csv, port=port)
     bus.open()
 
@@ -179,7 +179,7 @@ def read_memory(host, csr_csv, port, addr, length, binary=False, file=None):
         with open(file, 'wb') as f:
             for offset in range(length // 4):
                 data = bus.read(addr + 4 * offset)
-                f.write(data.to_bytes(4, byteorder="little"))
+                f.write(data.to_bytes(4, byteorder=endianness))
     else:
         # Print to console
         for offset in range(length // 4):
@@ -191,7 +191,7 @@ def read_memory(host, csr_csv, port, addr, length, binary=False, file=None):
 
     bus.close()
 
-def write_memory(host, csr_csv, port, addr, data, file=None, length=None):
+def write_memory(host, csr_csv, port, addr, data, file=None, length=None, endianness="little"):
     bus = RemoteClient(host=host, csr_csv=csr_csv, port=port)
     bus.open()
 
@@ -204,7 +204,7 @@ def write_memory(host, csr_csv, port, addr, data, file=None, length=None):
                 data = f.read()
             # Write data in 32-bit chunks
             for i in range(0, len(data), 4):
-                word = int.from_bytes(data[i:i + 4], byteorder="little")
+                word = int.from_bytes(data[i:i + 4], byteorder=endianness)
                 bus.write(addr + i, word)
     else:
         # Write single data value to memory
@@ -466,26 +466,27 @@ def run_gui(host, csr_csv, port):
 def main():
     parser = argparse.ArgumentParser(description="LiteX Client utility.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     # Common.
-    parser.add_argument("--csr-csv", default="csr.csv",       help="CSR configuration file")
-    parser.add_argument("--host",    default="localhost",     help="Host ip address")
-    parser.add_argument("--port",    default="1234",          help="Host bind port.")
-    parser.add_argument("--binary",  action="store_true",     help="Use binary format for displayed values.")
-    parser.add_argument("--file",    default=None,            help="File to read from or write to in binary mode.")
+    parser.add_argument("--csr-csv",    default="csr.csv",       help="CSR configuration file")
+    parser.add_argument("--host",       default="localhost",     help="Host ip address")
+    parser.add_argument("--port",       default="1234",          help="Host bind port.")
+    parser.add_argument("--binary",     action="store_true",     help="Use binary format for displayed values.")
+    parser.add_argument("--file",       default=None,            help="File to read from or write to in binary mode.")
+    parser.add_argument("--endianness", default="little",        choices=["little", "big"], help="Endianness for memory accesses (little or big).")
 
     # Identifier.
-    parser.add_argument("--ident",   action="store_true",     help="Dump SoC identifier.")
+    parser.add_argument("--ident",      action="store_true",     help="Dump SoC identifier.")
 
     # Registers.
-    parser.add_argument("--regs",    action="store_true",     help="Dump SoC registers.")
-    parser.add_argument("--filter",  default=None,            help="Registers filter (to be used with --regs).")
+    parser.add_argument("--regs",       action="store_true",     help="Dump SoC registers.")
+    parser.add_argument("--filter",     default=None,            help="Registers filter (to be used with --regs).")
 
     # Memory.
-    parser.add_argument("--read",    default=None,            help="Do a MMAP Read to SoC bus (--read addr/reg).")
-    parser.add_argument("--write",   default=None, nargs="*", help="Do a MMAP Write to SoC bus (--write addr/reg [data]).")
-    parser.add_argument("--length",  default="4",             help="MMAP access length.")
+    parser.add_argument("--read",       default=None,            help="Do a MMAP Read to SoC bus (--read addr/reg).")
+    parser.add_argument("--write",      default=None, nargs="*", help="Do a MMAP Write to SoC bus (--write addr/reg [data]).")
+    parser.add_argument("--length",     default="4",             help="MMAP access length.")
 
     # GUI.
-    parser.add_argument("--gui",     action="store_true",     help="Run GUI.")
+    parser.add_argument("--gui",        action="store_true",     help="Run GUI.")
 
     args = parser.parse_args()
 
@@ -519,13 +520,14 @@ def main():
         except ValueError:
             addr = reg2addr(host, csr_csv, args.read)
         read_memory(
-            host    = host,
-            csr_csv = csr_csv,
-            port    = port,
-            addr    = addr,
-            length  = int(args.length, 0),
-            binary  = args.binary,
-            file    = args.file,
+            host       = host,
+            csr_csv    = csr_csv,
+            port       = port,
+            addr       = addr,
+            length     = int(args.length, 0),
+            binary     = args.binary,
+            file       = args.file,
+            endianness = args.endianness,
         )
 
     # Memory Write.
@@ -544,13 +546,14 @@ def main():
             data = int(args.write[1], 0)
 
         write_memory(
-            host    = host,
-            csr_csv = csr_csv,
-            port    = port,
-            addr    = addr,
-            data    = data,
-            file    = args.file,
-            length  = int(args.length, 0) if args.length else None,
+            host       = host,
+            csr_csv    = csr_csv,
+            port       = port,
+            addr       = addr,
+            data       = data,
+            file       = args.file,
+            length     = int(args.length, 0) if args.length else None,
+            endianness = args.endianness,
         )
 
     # GUI.
