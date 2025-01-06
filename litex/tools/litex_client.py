@@ -419,6 +419,10 @@ def run_gui(host, csr_csv, port):
         dpg.add_separator()
         dpg.add_text("Mem Read:")
         with dpg.group(horizontal=True):
+            dpg.add_checkbox(label="Auto-Refresh", tag="auto_refresh_mem_read", default_value=False)
+            dpg.add_text("Delay (s):")
+            dpg.add_input_float(tag="mem_read_delay", default_value=1.0, width=100)
+        with dpg.group(horizontal=True):
             dpg.add_text("Address:")
             dpg.add_input_text(
                 tag           = "read_addr",
@@ -462,6 +466,10 @@ def run_gui(host, csr_csv, port):
         # Memory Dump
         dpg.add_separator()
         dpg.add_text("Mem Dump")
+        with dpg.group(horizontal=True):
+            dpg.add_checkbox(label="Auto-Refresh", tag="auto_refresh_mem_dump", default_value=False)
+            dpg.add_text("Delay (s):")
+            dpg.add_input_float(tag="mem_dump_delay", default_value=1.0, width=100)
         with dpg.group(horizontal=True):
             # Base.
             dpg.add_text("Base:")
@@ -529,6 +537,9 @@ def run_gui(host, csr_csv, port):
                     dpg.set_axis_limits("vccbram_y", 0, 1.8)
 
     def timer_callback(refresh=1e-1, xadc_points=100):
+        last_mem_read_time = time.time()
+        last_mem_dump_time = time.time()
+
         if with_xadc:
             temp    = gen_xadc_data(get_xadc_temp,    n=xadc_points)
             vccint  = gen_xadc_data(get_xadc_vccint,  n=xadc_points)
@@ -536,6 +547,8 @@ def run_gui(host, csr_csv, port):
             vccbram = gen_xadc_data(get_xadc_vccbram, n=xadc_points)
 
         while dpg.is_dearpygui_running():
+            now = time.time()
+
             # CSR Update.
             for name, reg in bus.regs.__dict__.items():
                 value = reg.read()
@@ -565,6 +578,27 @@ def run_gui(host, csr_csv, port):
             if with_buttons:
                 for i in range(8): # FIXME; Get num.
                     dpg.set_value(f"btn{i}", bool(get_buttons(i)))
+
+            # Mem Read Auto-Refresh.
+            if dpg.does_item_exist("auto_refresh_mem_read"):
+                if dpg.get_value("auto_refresh_mem_read"):
+                    delay_sec = dpg.get_value("mem_read_delay")
+                    if (now - last_mem_read_time) >= delay_sec:
+                        try:
+                            read_addr = int(dpg.get_value("read_addr"), 0)
+                            val       = bus.read(read_addr)
+                            dpg.set_value("read_value", f"0x{val:08X}")
+                        except ValueError:
+                            pass
+                        last_mem_read_time = now
+
+            # Mem Dump Auto-Refresh.
+            if dpg.does_item_exist("auto_refresh_mem_dump"):
+                if dpg.get_value("auto_refresh_mem_dump"):
+                    delay_sec = dpg.get_value("mem_dump_delay")
+                    if (now - last_mem_dump_time) >= delay_sec:
+                        refresh_dump_table()
+                        last_mem_dump_time = now
 
             time.sleep(refresh)
 
