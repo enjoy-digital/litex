@@ -2,11 +2,11 @@
 ------------------------
 
 ### Fixed
-- **tools/litex_client**                     : Fixed error handling and timeout management ([#1225bf45](https://github.com/enjoy-digital/litex/commit/1225bf45), [#fc529dca](https://github.com/enjoy-digital/litex/commit/fc529dca), [#b9cc5c58](https://github.com/enjoy-digital/litex/commit/b9cc5c58)).
+- **tools/litex_client**                     : Fixed error handling and timeout management ([1225bf45](https://github.com/enjoy-digital/litex/commit/1225bf45), [fc529dca](https://github.com/enjoy-digital/litex/commit/fc529dca), [b9cc5c58](https://github.com/enjoy-digital/litex/commit/b9cc5c58)).
 - **soc/cores/led**                          : Fixed WS2812 LED count calculation ([PR #2142](https://github.com/enjoy-digital/litex/pull/2142)).
-- **build/vhd2v_converter**                  : Fixed instance handling and robustness ([PR #2145](https://github.com/enjoy-digital/litex/pull/2145)).
-- **soc/cores/jtag**                         : Fixed ECP5JTAG initialization for Diamond/Trellis toolchains ([#4368d5a9e](https://github.com/enjoy-digital/litex/commit/4368d5a9e)).
-- **litespi**                                : Fixed SPI Flash erase functionality and debug output ([#e61196b1c](https://github.com/enjoy-digital/litex/commit/e61196b1c), [#63fa4fda8](https://github.com/enjoy-digital/litex/commit/63fa4fda8)).
+- **build/vhd2v_converter**                  : Fixed instance handling and robustness ([PR #2145](https://github.com/enjoy-digital/litex/pull/2145), [8254a349f](https://github.com/enjoy-digital/litex/commit/8254a349f)).
+- **soc/cores/jtag**                         : Fixed ECP5JTAG initialization for Diamond/Trellis toolchains ([4368d5a9e](https://github.com/enjoy-digital/litex/commit/4368d5a9e)).
+- **litespi**                                : Fixed SPI Flash erase functionality and debug output ([e61196b1c](https://github.com/enjoy-digital/litex/commit/e61196b1c), [63fa4fda8](https://github.com/enjoy-digital/litex/commit/63fa4fda8)).
 - **liteeth/phy/pcs_1000basex**              : Fixed deadlock in AUTONEG_WAIT_ABI state and improved RX alignment ([e5746c8](https://github.com/enjoy-digital/liteeth/commit/e5746c8)).
 - **liteeth/phy/pcs_1000basex**              : Fixed RX Config consistency check and cleanup pass ([20e9ea6](https://github.com/enjoy-digital/liteeth/commit/20e9ea6), [cd2274d](https://github.com/enjoy-digital/liteeth/commit/cd2274d)).
 - **litepcie/software/kernel**               : Fixed compilation warnings and removed unused functions ([867c818](https://github.com/enjoy-digital/litepcie/commit/867c818)).
@@ -17,17 +17,21 @@
 - **cpu/zynqmp**                             : Added SGMII support via PL and optional PTP ([PR #2095](https://github.com/enjoy-digital/litex/pull/2095)).
 - **liteeth/phy**                            : Improved 1000BaseX/2500BaseX PCS/PHYs ([PR #174](https://github.com/enjoy-digital/liteeth/pull/174)).
 - **cpu/urv**                                : Added uRV CPU support (RISC-V CPU use in White Rabbit project) ([PR #2098](https://github.com/enjoy-digital/litex/pull/2098)).
-- **tools/litex_client**                     : Added memory regions table, auto-refresh, and binary file read/write support ([#d3258a398](https://github.com/enjoy-digital/litex/commit/d3258a398), [#3875a4c1f](https://github.com/enjoy-digital/litex/commit/3875a4c1f), [#95f37a82e](https://github.com/enjoy-digital/litex/commit/95f37a82e)).
-- **tools/litex_client**                     : Added endianness configuration for memory accesses ([#71e802aec](https://github.com/enjoy-digital/litex/commit/71e802aec)).
+- **tools/litex_client**                     : Added memory regions table, auto-refresh, and binary file read/write support ([d3258a398](https://github.com/enjoy-digital/litex/commit/d3258a398), [3875a4c1f](https://github.com/enjoy-digital/litex/commit/3875a4c1f), [95f37a82e](https://github.com/enjoy-digital/litex/commit/95f37a82e)).
+- **tools/litex_client**                     : Added endianness configuration for memory accesses ([71e802aec](https://github.com/enjoy-digital/litex/commit/71e802aec)).
 - **cores/clock/intel**                      : Added reset support to Intel PLLs ([PR #2139](https://github.com/enjoy-digital/litex/pull/2139)).
 - **cores/cpu/vexiiriscv**                   : Added PMP support and MACSG (DMA-based Ethernet) support ([PR #2130](https://github.com/enjoy-digital/litex/pull/2130)).
-- **build/altera/quartus**                   : Added `.svf` generation for OpenFPGALoader compatibility ([#e91d4d1a3](https://github.com/enjoy-digital/litex/commit/e91d4d1a3)).
+- **build/altera/quartus**                   : Added `.svf` generation for OpenFPGALoader compatibility ([e91d4d1a3](https://github.com/enjoy-digital/litex/commit/e91d4d1a3)).
 - **build/efinix**                           : Added SEU (Single Event Upset) interface ([PR #2128](https://github.com/enjoy-digital/litex/pull/2128)).
-- **liteeth/frontend/stream**                : Added `with_csr` parameter to LiteEthUDP2StreamRX and dynamic configuration for LiteEthStream2UDPTX ([2d5b333](https://github.com/enjoy-digital/liteeth/commit/2d5b333), [aad9de7](https://github.com/enjoy-digital/liteeth/commit/aad9de7)).
-- **liteeth/phy**                            : Added initial Ultrascale+ GTYE4 10GBASE-R PHY support ([9f4d9d2](https://github.com/enjoy-digital/liteeth/commit/9f4d9d2)).
-- **platforms/sqrl_acorn**                   : Added automatic FTDI Chip detection and OpenFPGALoader support ([041c160](https://github.com/litex-hub/litex-boards/commit/041c160)).
+- **soc/cores/bitbang/i2c**                  : Added `connect_pads` parameter for flexible I2C pad handling ([fdd7c97ce](https://github.com/enjoy-digital/litex/commit/fdd7c97ce)).
+- **platforms/xilinx_zcu102**                : Added all SFP connectors ([0eabebf](https://github.com/litex-hub/litex-boards/commit/0eabebf)).
 - **targets/sipeed_tang_nano_20k**           : Added SPI Flash and HDMI support ([2d25408](https://github.com/litex-hub/litex-boards/commit/2d25408)).
 - **targets/embedfire_rise_pro**             : Added support for EmbedFire Rise Pro ([d7f2b5a](https://github.com/litex-hub/litex-boards/commit/d7f2b5a)).
+- **targets/alibaba_vu13p**                  : Added support for Alibaba VU13P ([e8e833d](https://github.com/litex-hub/litex-boards/commit/e8e833d)).
+- **targets/efinix_ti375_c529_dev_kit**      : Added VexII Ethernet support ([4c61bac](https://github.com/litex-hub/litex-boards/commit/4c61bac)).
+- **targets/efinix_trion_t20_mipi_dev_kit**  : Added simple flash fix ([1727d30](https://github.com/litex-hub/litex-boards/commit/1727d30)).
+- **targets/machdyne_mozart_mx2**            : Added support for Mozart MX2 ([399f10f](https://github.com/litex-hub/litex-boards/commit/399f10f)).
+- **targets/tec0117**                        : Updated to work with Apicula ([9d68972](https://github.com/litex-hub/litex-boards/commit/9d68972)).
 
 ### Changed
 - **tools/litex_client**                     : Improved GUI presentation and memory region display ([5c156b499](https://github.com/enjoy-digital/litex/commit/5c156b499), [d3258a398](https://github.com/enjoy-digital/litex/commit/d3258a398)).
