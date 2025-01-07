@@ -1,7 +1,8 @@
 [> Changes since 2024.08
 ------------------------
 
-### Fixed
+[> Fixed
+--------
 - **tools/litex_client**                     : Fixed error handling and timeout management ([1225bf45](https://github.com/enjoy-digital/litex/commit/1225bf45), [fc529dca](https://github.com/enjoy-digital/litex/commit/fc529dca), [b9cc5c58](https://github.com/enjoy-digital/litex/commit/b9cc5c58)).
 - **soc/cores/led**                          : Fixed WS2812 LED count calculation ([PR #2142](https://github.com/enjoy-digital/litex/pull/2142)).
 - **build/vhd2v_converter**                  : Fixed instance handling and robustness ([PR #2145](https://github.com/enjoy-digital/litex/pull/2145), [8254a349f](https://github.com/enjoy-digital/litex/commit/8254a349f)).
@@ -13,7 +14,8 @@
 - **platforms/limesdr_mini_v2**              : Fixed SPI Flash pinout (MOSI <-> MISO) ([3b8c558](https://github.com/litex-hub/litex-boards/commit/3b8c558)).
 - **efinix_trion_t20_bga256_dev_kit**        : Fixed ClockSignal handling ([77cb9a5](https://github.com/litex-hub/litex-boards/commit/77cb9a5)).
 
-### Added
+[> Added
+--------
 - **cpu/zynqmp**                             : Added SGMII support via PL and optional PTP ([PR #2095](https://github.com/enjoy-digital/litex/pull/2095)).
 - **liteeth/phy**                            : Improved 1000BaseX/2500BaseX PCS/PHYs ([PR #174](https://github.com/enjoy-digital/liteeth/pull/174)).
 - **cpu/urv**                                : Added uRV CPU support (RISC-V CPU use in White Rabbit project) ([PR #2098](https://github.com/enjoy-digital/litex/pull/2098)).
@@ -33,7 +35,8 @@
 - **targets/machdyne_mozart_mx2**            : Added support for Mozart MX2 ([399f10f](https://github.com/litex-hub/litex-boards/commit/399f10f)).
 - **targets/tec0117**                        : Updated to work with Apicula ([9d68972](https://github.com/litex-hub/litex-boards/commit/9d68972)).
 
-### Changed
+[> Changed
+----------
 - **tools/litex_client**                     : Improved GUI presentation and memory region display ([5c156b499](https://github.com/enjoy-digital/litex/commit/5c156b499), [d3258a398](https://github.com/enjoy-digital/litex/commit/d3258a398)).
 - **liteeth/phy/pcs_1000basex**              : Refactored RX Config consistency check and improved timers ([b783639](https://github.com/enjoy-digital/liteeth/commit/b783639), [fe69248](https://github.com/enjoy-digital/liteeth/commit/fe69248)).
 - **liteeth/phy/a7_1000basex**               : Updated ALIGN_COMMA_WORD/RXCDR_CFG settings from Xilinx wizard ([04fc888](https://github.com/enjoy-digital/liteeth/commit/04fc888)).
