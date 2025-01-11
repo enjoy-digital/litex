@@ -10,6 +10,9 @@ env:
 jobs:
   build:
     runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.12"]
     steps:
       # Checkout Repository
       - name: Checkout
@@ -34,7 +37,7 @@ jobs:
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
           cache: "pip"
           cache-dependency-path: "setup.py"
 
