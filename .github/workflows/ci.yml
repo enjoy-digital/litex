@@ -6,6 +6,7 @@ on: [push, pull_request]
 env:
   GHDL_VERSION: "v4.1.0"
   VERILATOR_VERSION: "v5.030"
+  CT_NG_VERSION: "32f288e61fee8528931bcd55bf106cf0cfb4e2a1"
 
 jobs:
   build:
@@ -26,9 +27,9 @@ jobs:
       # Install Tools
       - name: Install Tools
         run: |
-          sudo apt-get install wget build-essential ninja-build
+          sudo apt-get install wget build-essential ninja-build libtool libtool-bin
           sudo apt-get install libevent-dev libjson-c-dev flex bison
-          sudo apt-get install libfl-dev libfl2 zlib1g-dev
+          sudo apt-get install libfl-dev libfl2 zlib1g-dev libncurses5-dev
           sudo apt-get install llvm gnat help2man mold clang lld
 
       - name: Set up SBT
@@ -51,6 +52,56 @@ jobs:
           sudo python3 litex_setup.py --gcc=riscv
           sudo python3 litex_setup.py --gcc=openrisc
           sudo python3 litex_setup.py --gcc=powerpc
+
+      # Build / Install crosstool-ng
+      - name: Cache crosstool-ng
+        id: cache-crosstool-ng
+        uses: actions/cache@v3
+        with:
+          path: crosstool-ng
+          key: crosstool-ng-${{ env.CT_NG_VERSION }}-${{ runner.os }}
+
+      - name: Checkout crosstool-ng
+        if: steps.cache-crosstool-ng.outputs.cache-hit != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: crosstool-ng/crosstool-ng
+          ref: ${{ env.CT_NG_VERSION }}
+          path: crosstool-ng
+
+      - name: Build crosstool-ng
+        if: steps.cache-crosstool-ng.outputs.cache-hit != 'true'
+        run: |
+          cd crosstool-ng
+          ./bootstrap
+          ./configure
+          make -j$(nproc)
+
+      - name: Install crosstool-ng
+        run: |
+          cd crosstool-ng
+          sudo make install
+
+      - name: Cache x-tools
+        id: cache-x-tools
+        uses: actions/cache@v3
+        with:
+          path: x-tools
+          key: x-tools-${{ runner.os }}
+
+      - name: Build lm32 toolchain
+        if: steps.cache-x-tools.outputs.cache-hit != 'true'
+        run: |
+          unset LD_LIBRARY_PATH
+          ct-ng lm32-unknown-elf
+          sed -i -e '/CT_LOG_PROGRESS_BAR/s/y$/n/' .config
+          sed -i -e '/CT_LOCAL_TARBALLS_DIR/s/HOME/CT_TOP_DIR/' .config
+          sed -i -e '/CT_PREFIX_DIR/s/HOME/CT_TOP_DIR/' .config
+          ct-ng build
+
+      - name: Add toolchains to PATH
+        run: |
+          for d in $(pwd)/x-tools/*/bin; do echo "$d" >> $GITHUB_PATH; done
 
       # Build / Install GHDL
       - name: Cache GHDL
@@ -82,7 +133,7 @@ jobs:
 
       # Build / Install Verilator
       - name: Cache Verilator
-        id: cache-verilator  
+        id: cache-verilator
         uses: actions/cache@v3
         with:
           path: verilator
@@ -101,7 +152,7 @@ jobs:
         run: |
           cd verilator
           autoconf
-          ./configure CC=clang CXX=clang++ 
+          ./configure CC=clang CXX=clang++
           make -j$(nproc)
 
       - name: Install Verilator

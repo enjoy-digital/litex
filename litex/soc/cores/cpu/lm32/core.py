@@ -32,7 +32,7 @@ class LM32(CPU):
     variants             = CPU_VARIANTS
     data_width           = 32
     endianness           = "big"
-    gcc_triple           = "lm32-elf"
+    gcc_triple           = ("lm32-elf", "lm32-unknown-elf")
     linker_output_format = "elf32-lm32"
     nop                  = "nop"
     io_regions           = {0x8000_0000: 0x8000_0000} # origin, length
