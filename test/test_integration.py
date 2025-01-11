@@ -11,6 +11,8 @@ import sys
 import tempfile
 import itertools
 
+from litex.soc.cores.cpu import CPUS
+
 class TestIntegration(unittest.TestCase):
     def boot_test(self, cpu_type="vexriscv", cpu_variant="standard", args=""):
         cmd = f'litex_sim --cpu-type={cpu_type} --cpu-variant={cpu_variant} {args} --opt-level=O0 --jobs {os.cpu_count()}'
@@ -42,39 +44,24 @@ class TestIntegration(unittest.TestCase):
         return is_success
 
     def test_cpu(self):
-        tested_cpus = [
-            #"cv32e40p",     # (riscv   / softcore)
-            "femtorv",      # (riscv   / softcore)
-            "firev",        # (riscv   / softcore)
-            "marocchino",   # (or1k    / softcore)
-            "naxriscv",     # (riscv   / softcore)
-            "serv",         # (riscv   / softcore)
-            "vexriscv",     # (riscv   / softcore)
-            "vexriscv_smp", # (riscv   / softcore)
-            #"microwatt",    # (ppc64   / softcore)
-            "neorv32",      # (riscv   / softcore)
-        ]
         untested_cpus = [
-            "blackparrot",  # (riscv   / softcore) -> Broken install?
             "cortex_m1",    # (arm     / softcore) -> Proprietary code.
             "cortex_m3",    # (arm     / softcore) -> Proprieraty code.
             "cv32e41p",     # (riscv   / softcore) -> Broken?
-            "cva5",         # (riscv   / softcore) -> Needs to be tested.
-            "cva6",         # (riscv   / softcore) -> Needs to be tested.
-            "eos_s3",       # (arm     / hardcore) -> Hardcore.
-            "gowin_emcu",   # (arm     / hardcore) -> Hardcore.
             "ibex",         # (riscv   / softcore) -> Broken since 2022.11.12.
-            "lm32",         # (lm32    / softcore) -> Requires LM32 toolchain.
             "minerva",      # (riscv   / softcore) -> Broken install? (Amaranth?)
-            "mor1kx",       # (or1k    / softcore) -> Verilator compilation issue.
-            "picorv32",     # (riscv   / softcore) -> Verilator compilation issue.
+            "microwatt",    # (powerpc / softcore) -> GHDL?
+            "openc906",     # (riscv   / softcore) -> Missing source.
             "rocket",       # (riscv   / softcore) -> Not enough RAM in CI.
-            "zynq7000",     # (arm     / hardcore) -> Hardcore.
-            "zynqmp",       # (aarch64 / hardcore) -> Hardcore.
+            "vexiiriscv",   # (riscv   / softcore) -> Broken?
         ]
 
-        for cpu in tested_cpus:
-             with self.subTest(target=cpu):
+        for cpu in CPUS.keys():
+            if cpu == "None" or CPUS[cpu].category != "softcore":
+                continue
+            if cpu in untested_cpus:
+                continue
+            with self.subTest(target=cpu):
                 self.assertTrue(self.boot_test(cpu))
 
     def test_buses(self):
