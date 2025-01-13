@@ -58,7 +58,8 @@ class Wishbone2APB(LiteXModule):
         ]
 
 def add_manifest_sources(platform, manifest):
-    basedir = os.path.join(os.environ["OPENC906_DIR"], "C906_RTL_FACTORY")
+    openc906_dir = get_data_mod("cpu", "openc906").data_location
+    basedir = os.path.join(openc906_dir, "C906_RTL_FACTORY")
     with open(os.path.join(basedir, manifest), 'r') as f:
         for l in f:
             res = re.search('\$\{CODE_BASE_PATH\}/(.+)', l)
@@ -75,7 +76,7 @@ class OpenC906(CPU):
     family               = "riscv"
     name                 = "openc906"
     human_name           = "OpenC906"
-    variants             = ["standard", "debug"]
+    variants             = ["standard"]
     data_width           = 128
     endianness           = "little"
     gcc_triple           = CPU_GCC_TRIPLE_RISCV64
@@ -105,28 +106,17 @@ class OpenC906(CPU):
             # Internal APB has a fixed size of 0x800_0000
             "plic":           0x9000_0000, # Region 1, Strong Order, Non-cacheable, Non-bufferable
             "clint":          0x9400_0000, # Region 1 too
-            "ethmac":         0x9800_0000, # Region 1 too
-            "riscv_dm":       0x9fff_f000, # Region 1 too
             "csr":            0xa000_0000, # Region 1 too
         }
 
-    def __init__(self, platform, variant="standard", convert_periph_bus_to_wishbone=True):
+    def __init__(self, platform, variant="standard"):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
         self.interrupt    = Signal(240)
         # Peripheral bus (Connected to main SoC's bus).
         self.axi_if = axi_if = axi.AXIInterface(data_width=128, address_width=40, id_width=8)
-        if convert_periph_bus_to_wishbone:
-            self.wb_if = wishbone.Interface(
-                data_width = axi_if.data_width,
-                adr_width  = axi_if.address_width - log2_int(axi_if.data_width // 8),
-                addressing = "word",
-            )
-            self.submodules += axi.AXI2Wishbone(axi_if, self.wb_if)
-            self.periph_buses = [self.wb_if]
-        else:
-            self.periph_buses = [axi_if]
+        self.periph_buses = [axi_if]
         self.memory_buses = []                 # Memory buses (Connected directly to LiteDRAM).
 
         # # #
@@ -196,24 +186,12 @@ class OpenC906(CPU):
             i_pad_biu_rlast    = axi_if.r.last,
         )
 
-        if "debug" in variant:
-            self.add_debug()
-
         # Add Verilog sources.
         add_manifest_sources(platform, "gen_rtl/filelists/C906_asic_rtl.fl")
-        from litex.build.xilinx import XilinxPlatform
-        if isinstance(platform, XilinxPlatform):
-            # Import a filelist for Xilinx FPGAs
-            add_manifest_sources(platform, "gen_rtl/filelists/xilinx_fpga.fl")
-        else:
-            # Import a filelist for generic platforms
-            add_manifest_sources(platform, "gen_rtl/filelists/generic_fpga.fl")
 
-    def add_debug(self):
-        self.debug_bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+    def add_jtag(self, pads):
         debug_apb = Record(apb_layout)
 
-        self.submodules += Wishbone2APB(self.debug_bus, debug_apb)
         self.cpu_params.update(
             i_sys_apb_clk     = ClockSignal("sys"),
             i_sys_apb_rst_b   = ~ResetSignal("sys") & ~self.reset,
@@ -228,20 +206,45 @@ class OpenC906(CPU):
             o_tdt_dmi_pslverr = debug_apb.pslverr,
         )
 
+        self.dmi_params = dict(
+            # Clock and reset
+            i_sys_apb_clk = ClockSignal("sys"),
+            i_sys_apb_rst_b = ~ResetSignal("sys") & ~self.reset,
+            
+            # APB interface 
+            i_tdt_dmi_prdata = debug_apb.prdata,
+            i_tdt_dmi_pready = debug_apb.pready,
+            i_tdt_dmi_pslverr = debug_apb.pslverr,
+            o_tdt_dmi_paddr = debug_apb.paddr,
+            o_tdt_dmi_penable = debug_apb.penable,
+            o_tdt_dmi_psel = debug_apb.psel,
+            o_tdt_dmi_pwdata = debug_apb.pwdata,
+            o_tdt_dmi_pwrite = debug_apb.pwrite,
+
+            # JTAG inputs
+            i_pad_tdt_dtm_jtag2_sel = 0,
+            i_pad_tdt_dtm_tap_en = 1,
+            i_pad_tdt_dtm_tclk = pads.tck,
+            i_pad_tdt_dtm_tdi = pads.tdi,
+            i_pad_tdt_dtm_tms_i = pads.tms,
+            i_pad_tdt_dtm_trst_b = pads.ntrst,
+            i_pad_tdt_icg_scan_en = 0,
+            i_pad_yy_scan_mode = 0,
+            i_pad_yy_scan_rst_b = 1,
+
+            # JTAG outputs
+            o_tdt_dtm_pad_tdo = pads.tdo,
+            o_tdt_dtm_pad_tdo_en = Open(),
+            o_tdt_dtm_pad_tms_o = Open(),
+            o_tdt_dtm_pad_tms_oe = Open(),
+        )
+        add_manifest_sources(self.platform, "gen_rtl/filelists/tdt_dmi_top_rtl.fl")
+
     def add_soc_components(self, soc):
         plic  = SoCRegion(origin=soc.mem_map.get("plic"), size=0x400_0000, cached=False)
         clint = SoCRegion(origin=soc.mem_map.get("clint"), size=0x400_0000, cached=False)
         soc.bus.add_region(name="plic",  region=plic)
         soc.bus.add_region(name="clint", region=clint)
-
-        if "debug" in self.variant:
-            soc.bus.add_slave("riscv_dm", self.debug_bus, region=
-                SoCRegion(
-                    origin = soc.mem_map.get("riscv_dm"),
-                    size   = 0x1000,
-                    cached = False
-                )
-            )
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
@@ -250,3 +253,5 @@ class OpenC906(CPU):
     def do_finalize(self):
         assert hasattr(self, "reset_address")
         self.specials += Instance("openC906", **self.cpu_params)
+        if hasattr(self, "dmi_params"):
+            self.specials += Instance("tdt_dmi_top", **self.dmi_params)
