@@ -97,11 +97,13 @@ def _generate_operator(ns, node):
 
 def _generate_slice(ns, node):
     assert (node.stop - node.start) >= 1
-    if (isinstance(node.value, Signal) and len(node.value) == 1):
-        assert node.start == 0
+    if hasattr(node.value, "__len__") and len(node.value) == 1:
         sr = "" # Avoid slicing 1-bit Signals.
     else:
-        sr = f"[{node.stop-1}:{node.start}]" if (node.stop - node.start) > 1 else f"[{node.start}]"
+        if (node.stop - node.start) > 1:
+            sr = f"[{node.stop-1}:{node.start}]"
+        else:
+            sr = f"[{node.start}]"
     r, s = _generate_expression(ns, node.value)
     return r + sr, s
 
