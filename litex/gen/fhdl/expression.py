@@ -96,15 +96,20 @@ def _generate_operator(ns, node):
 # Print Slice --------------------------------------------------------------------------------------
 
 def _generate_slice(ns, node):
-    assert (node.stop - node.start) >= 1
-    if hasattr(node.value, "__len__") and len(node.value) == 1:
+    length = len(node)
+    assert length >= 1
+    start = 0
+    while isinstance(node, _Slice):
+        start += node.start
+        node = node.value
+    if len(node) == 1:
         sr = "" # Avoid slicing 1-bit Signals.
     else:
-        if (node.stop - node.start) > 1:
-            sr = f"[{node.stop-1}:{node.start}]"
+        if length > 1:
+            sr = f"[{start+length-1}:{start}]"
         else:
-            sr = f"[{node.start}]"
-    r, s = _generate_expression(ns, node.value)
+            sr = f"[{start}]"
+    r, s = _generate_expression(ns, node)
     return r + sr, s
 
 # Print Cat ----------------------------------------------------------------------------------------
