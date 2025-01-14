@@ -132,13 +132,14 @@ class Gw5ATristate:
 
 class Gw5ASDROutputImpl(Module):
     def __init__(self, i, o, clk):
-        self.specials += Instance("DFFSE",
-                i_D   = i,
-                o_Q   = o,
-                i_CLK = clk,
-                i_SET = Constant(0,1),
-                i_CE  = Constant(1,1),
-        )
+        for j in range(len(o)):
+            self.specials += Instance("DFFSE",
+                    i_D   = i[j],
+                    o_Q   = o[j],
+                    i_CLK = clk,
+                    i_SET = Constant(0,1),
+                    i_CE  = Constant(1,1),
+            )
 
 class Gw5ASDROutput:
     @staticmethod
@@ -149,13 +150,14 @@ class Gw5ASDROutput:
 
 class Gw5ASDRInputImpl(Module):
     def __init__(self, i, o, clk):
-        self.specials += Instance("DFFSE",
-                i_D   = i,
-                o_Q   = o,
-                i_CLK = clk,
-                i_SET = Constant(0,1),
-                i_CE  = Constant(1,1),
-        )
+        for j in range(len(i)):
+            self.specials += Instance("DFFSE",
+                    i_D   = i[j],
+                    o_Q   = o[j],
+                    i_CLK = clk,
+                    i_SET = Constant(0,1),
+                    i_CE  = Constant(1,1),
+            )
 
 class Gw5ASDRInput:
     @staticmethod
@@ -166,20 +168,22 @@ class Gw5ASDRInput:
 
 class Gw5ASDRTristateImpl(Module):
     def __init__(self, io, o, oe, i, clk):
-        _o    = Signal()
-        _oe_n = Signal()
-        _i    = Signal()
+        _o    = Signal().like(o)
+        _oe_n = Signal().like(oe)
+        _i    = Signal().like(i)
         self.specials += [
             SDROutput(o, _o, clk),
             SDROutput(~oe, _oe_n, clk),
             SDRInput(_i, i, clk),
-            Instance("IOBUF",
-                io_IO = io,
-                o_O   = _i,
-                i_I   = _o,
-                i_OEN = _oe_n,
-            ),
         ]
+        for j in range(len(io)):
+            self.specials += Instance("IOBUF",
+                    io_IO = io[j],
+                    o_O   = _i[j],
+                    i_I   = _o[j],
+                    i_OEN = _oe_n[j],
+                )
+        
 
 class Gw5ASDRTristate:
     @staticmethod
