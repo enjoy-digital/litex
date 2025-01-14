@@ -123,6 +123,7 @@ git_repos = {
     "pythondata-cpu-ibex":         GitRepo(url="https://github.com/litex-hub/", clone="recursive", sha1=0xd3d53df),
     "pythondata-cpu-minerva":      GitRepo(url="https://github.com/litex-hub/"),
     "pythondata-cpu-naxriscv":     GitRepo(url="https://github.com/litex-hub/", branch="smp"),
+    "pythondata-cpu-openc906":     GitRepo(url="https://github.com/litex-hub/"),
     "pythondata-cpu-picorv32":     GitRepo(url="https://github.com/litex-hub/"),
     "pythondata-cpu-rocket":       GitRepo(url="https://github.com/litex-hub/"),
     "pythondata-cpu-serv":         GitRepo(url="https://github.com/litex-hub/"),
@@ -144,6 +145,7 @@ standard_repos.remove("pythondata-cpu-cv32e41p")
 standard_repos.remove("pythondata-cpu-cva5")
 standard_repos.remove("pythondata-cpu-cva6")
 standard_repos.remove("pythondata-cpu-ibex")
+standard_repos.remove("pythondata-cpu-openc906")
 standard_repos.remove("pythondata-cpu-marocchino")
 standard_repos.remove("pythondata-cpu-minerva")
 standard_repos.remove("pythondata-cpu-microwatt")
