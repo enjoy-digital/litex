@@ -1,3 +1,22 @@
+[> Changes since 2024.12 release
+--------------------------------
+
+[> Fixed
+--------
+- **build/io**                               : Fixed length check after wrapping for SDRIO/Tristate to handle int and bool types correctly ([PR #2105](https://github.com/enjoy-digital/litex/pull/2105)).
+
+[> Added
+--------
+- **cores/cpu/ibex**                         : Aligned with latest RTL, fixed file paths, and addressed Verilator parameter type limitation ([PR #2160](https://github.com/enjoy-digital/litex/pull/2160)).
+- **cores/cpu/openc906**                     : Aligned with latest RTL, removed unused file lists, and updated bus conversion logic ([PR #2159](https://github.com/enjoy-digital/litex/pull/2159)).
+- **build/io**                               : Added multibit/bus variants of SDR and DDR IO for Efinix and other platforms ([PR #2105](https://github.com/enjoy-digital/litex/pull/2105)).
+- **gen/fhdl/expression**                    : Resolved slice handling completely to reduce complexity in Verilog files ([PR #2161](https://github.com/enjoy-digital/litex/pull/2161)).
+
+[> Changed
+----------
+- **gen/fhdl/instance**                      : Switched to using `expression.py` for expression generation ([e71e404ef](https://github.com/enjoy-digital/litex/commit/e71e404ef)).
+- **gen/fhdl**                               : Moved expression generation functions to `expression.py` for better organization ([0bfaf39d5](https://github.com/enjoy-digital/litex/commit/0bfaf39d5)).
+
 [> 2024.12, released on January 7th 2025
 ----------------------------------------
 
