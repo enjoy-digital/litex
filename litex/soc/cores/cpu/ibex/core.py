@@ -141,7 +141,8 @@ class Ibex(CPU):
 
         self.cpu_params = dict(
             # Configuration.
-            p_RegFile        = 1, # RegFileFPGA
+            # Verilator is not happy with using number for enum parameters.
+            # p_RegFile        = 1, # RegFileFPGA
             i_test_en_i      = 0,
             i_hart_id_i      = 0,
 
@@ -181,7 +182,8 @@ class Ibex(CPU):
             # Control/Status.
             i_fetch_enable_i = 1,
             o_alert_minor_o  = Open(),
-            o_alert_major_o  = Open(),
+            o_alert_major_internal_o  = Open(),
+            o_alert_major_bus_o = Open(),
             o_core_sleep_o   = Open()
         )
 
@@ -198,34 +200,62 @@ class Ibex(CPU):
         platform.add_verilog_include_path(os.path.join(ibexdir,
             "vendor", "lowrisc_ip", "ip", "prim", "rtl")
         )
+        platform.add_verilog_include_path(os.path.join(ibexdir,
+            "dv", "uvm", "core_ibex", "common", "prim")
+        )
         platform.add_source(os.path.join(ibexdir, "syn", "rtl", "prim_clock_gating.v"))
         platform.add_sources(os.path.join(ibexdir, "vendor", "lowrisc_ip", "ip", "prim", "rtl"),
-            "prim_alert_pkg.sv",
-            "prim_assert.sv",
+            "prim_util_pkg.sv",
+            "prim_count_pkg.sv",
+            "prim_count.sv",
+            "prim_cipher_pkg.sv",
+            "prim_lfsr.sv",
+            "prim_secded_pkg.sv",
+            "prim_secded_22_16_dec.sv",
+            "prim_secded_22_16_enc.sv",
+            "prim_secded_28_22_dec.sv",
+            "prim_secded_28_22_enc.sv",
+            "prim_secded_39_32_dec.sv",
+            "prim_secded_39_32_enc.sv",
+            "prim_secded_64_57_dec.sv",
+            "prim_secded_64_57_enc.sv",
+            "prim_secded_72_64_dec.sv",
+            "prim_secded_72_64_enc.sv",
+            "prim_secded_hamming_22_16_dec.sv",
+            "prim_secded_hamming_22_16_enc.sv",
+            "prim_secded_hamming_39_32_dec.sv",
+            "prim_secded_hamming_39_32_enc.sv",
+            "prim_secded_hamming_72_64_dec.sv",
+            "prim_secded_hamming_72_64_enc.sv",
+            "prim_secded_inv_28_22_dec.sv",
+            "prim_secded_inv_28_22_enc.sv",
+            "prim_secded_inv_39_32_dec.sv",
+            "prim_secded_inv_39_32_enc.sv",
+            "prim_secded_inv_72_64_dec.sv",
+            "prim_secded_inv_72_64_enc.sv",
+            "prim_prince.sv",
+            "prim_subst_perm.sv",
+            "prim_onehot_check.sv",
+            "prim_onehot_enc.sv",
+            "prim_onehot_mux.sv",
+            "prim_mubi_pkg.sv",
             "prim_ram_1p_pkg.sv",
+            "prim_ram_1p_adv.sv",
+            "prim_ram_1p_scr.sv"
         )
-        platform.add_sources(os.path.join(ibexdir, "rtl"),
-            "ibex_pkg.sv",
-            "ibex_alu.sv",
-            "ibex_compressed_decoder.sv",
-            "ibex_controller.sv",
-            "ibex_counter.sv",
-            "ibex_cs_registers.sv",
-            "ibex_csr.sv",
-            "ibex_decoder.sv",
-            "ibex_ex_block.sv",
-            "ibex_id_stage.sv",
-            "ibex_if_stage.sv",
-            "ibex_load_store_unit.sv",
-            "ibex_multdiv_slow.sv",
-            "ibex_multdiv_fast.sv",
-            "ibex_prefetch_buffer.sv",
-            "ibex_fetch_fifo.sv",
-            "ibex_register_file_fpga.sv",
-            "ibex_wb_stage.sv",
-            "ibex_core.sv",
-            "ibex_top.sv"
+
+        platform.add_sources(os.path.join(ibexdir, "vendor", "lowrisc_ip", "ip", "prim_generic", "rtl"),
+            "prim_generic_ram_1p.sv",
+            "prim_generic_buf.sv"
         )
+
+        rtl_base = os.path.join(ibexdir, "rtl")
+        with open(os.path.join(rtl_base, "ibex_core.f")) as f:
+            for line in f:
+                # Skip comments and empty lines
+                if line.startswith("//") or not line.strip():
+                    continue
+                platform.add_source(os.path.join(rtl_base, line.strip()))
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
