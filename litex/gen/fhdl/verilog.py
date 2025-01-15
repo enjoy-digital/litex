@@ -456,9 +456,6 @@ def convert(f, ios=set(), name="top", platform=None,
                 msg += f"- {f.name}\n"
             raise Exception(msg)
 
-    # Lower complex slices.
-    f = lower_complex_slices(f)
-
     # Insert resets.
     insert_resets(f)
 
