@@ -1838,7 +1838,7 @@ class LiteXSoC(SoC):
             )
 
     # Add Ethernet ---------------------------------------------------------------------------------
-    def add_ethernet(self, name="ethmac", phy=None, phy_cd="eth", dynamic_ip=False, software_debug=False,
+    def add_ethernet(self, name="ethmac", phy=None, phy_cd=None, dynamic_ip=False, software_debug=False,
         data_width              = 8,
         nrxslots                = 2, rxslots_read_only  = True,
         ntxslots                = 2, txslots_write_only = False,
@@ -1871,9 +1871,15 @@ class LiteXSoC(SoC):
             with_sys_datapath = with_sys_datapath)
         if not with_sys_datapath:
             # Use PHY's eth_tx/eth_rx clock domains.
+            if phy_cd is None:
+                eth_tx_clk_name = getattr(phy, "crg", phy).cd_eth_tx.name
+                eth_rx_clk_name = getattr(phy, "crg", phy).cd_eth_rx.name
+            else:
+                eth_tx_clk_name = phy_cd + "_tx"
+                eth_rx_clk_name = phy_cd + "_rx"
             ethmac = ClockDomainsRenamer({
-                "eth_tx": phy_cd + "_tx",
-                "eth_rx": phy_cd + "_rx"})(ethmac)
+                "eth_tx": eth_tx_clk_name,
+                "eth_rx": eth_rx_clk_name})(ethmac)
         self.add_module(name=name, module=ethmac)
 
         # Compute Regions size and add it to the SoC.
@@ -1937,7 +1943,7 @@ class LiteXSoC(SoC):
                     self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk)
 
     # Add Etherbone --------------------------------------------------------------------------------
-    def add_etherbone(self, name="etherbone", phy=None, phy_cd="eth", data_width=8,
+    def add_etherbone(self, name="etherbone", phy=None, phy_cd=None, data_width=8,
         mac_address             = 0x10e2d5000000,
         ip_address              = "192.168.1.50",
         arp_entries             = 1,
@@ -1973,10 +1979,16 @@ class LiteXSoC(SoC):
         )
         if not with_sys_datapath:
             # Use PHY's eth_tx/eth_rx clock domains.
+            if phy_cd is None:
+                eth_tx_clk_name = getattr(phy, "crg", phy).cd_eth_tx.name
+                eth_rx_clk_name = getattr(phy, "crg", phy).cd_eth_rx.name
+            else:
+                eth_tx_clk_name = phy_cd + "_tx"
+                eth_rx_clk_name = phy_cd + "_rx"
             ethcore = ClockDomainsRenamer({
-                "eth_tx": phy_cd + "_tx",
-                "eth_rx": phy_cd + "_rx",
-                "sys"   : {True: "sys", False: phy_cd + "_rx"}[with_ethmac],
+                "eth_tx": eth_tx_clk_name,
+                "eth_rx": eth_rx_clk_name,
+                "sys"   : {True: "sys", False: eth_rx_clk_name}[with_ethmac],
             })(ethcore)
         self.add_module(name=f"ethcore_{name}", module=ethcore)
 
