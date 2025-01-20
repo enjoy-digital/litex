@@ -23,6 +23,7 @@ from operator import itemgetter
 from migen.fhdl.structure   import *
 from migen.fhdl.structure   import _Operator, _Slice, _Assign, _Fragment
 from migen.fhdl.tools       import *
+from migen.fhdl.tools       import _apply_lowerer, _Lowerer
 from migen.fhdl.conv_output import ConvOutput
 from migen.fhdl.specials    import Instance, Memory
 
@@ -414,6 +415,32 @@ def _generate_specials(name, overrides, specials, namespace, add_data_file, attr
             raise NotImplementedError("Special " + str(special) + " failed to implement emit_verilog")
         r += pr
     return r
+
+# ------------------------------------------------------------------------------------------------ #
+#                                       LOWERER                                                    #
+# ------------------------------------------------------------------------------------------------ #
+
+class _ComplexSliceLowerer(_Lowerer):
+    def visit_Slice(self, node):
+        length = len(node)
+        start = 0
+        while isinstance(node, _Slice):
+            start += node.start
+            node = node.value
+        if isinstance(node, Signal):
+            node = _Slice(node, start, start + length)
+        else:
+            slice_proxy = Signal(value_bits_sign(node))
+            if self.target_context:
+                a = _Assign(node, slice_proxy)
+            else:
+                a = _Assign(slice_proxy, node)
+            self.comb.append(self.visit_Assign(a))
+            node = _Slice(slice_proxy, start, start + length)
+        return NodeTransformer.visit_Slice(self, node)
+
+def lower_complex_slices(f):
+    return _apply_lowerer(_ComplexSliceLowerer(), f)
 
 # ------------------------------------------------------------------------------------------------ #
 #                                    FHDL --> VERILOG                                              #
