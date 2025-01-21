@@ -488,6 +488,32 @@ class SoCBusHandler(LiteXModule):
         ))
 
         return adapted_interface
+    
+    # Add Offset ---------------------------------------------------------------------------------
+    def add_offset(self, name, interface, offset):
+        interface_cls = type(interface)
+        offset_cls  = {
+            wishbone.Interface   : wishbone.Offset,
+            axi.AXILiteInterface : axi.AXILiteOffset,
+            axi.AXIInterface     : axi.AXIOffset,
+        }[interface_cls]
+
+        adapted_interface = interface_cls(
+            data_width    = interface.data_width,
+            address_width = interface.address_width,
+            addressing    = interface.addressing,
+        )
+
+        self.submodules += offset_cls(adapted_interface, interface, offset)
+
+        fmt = "{name} Bus {offseted} by {offset}."
+        self.logger.info(fmt.format(
+            name     = colorer(name),
+            offseted = colorer("offseted", color="cyan"),
+            offset   = colorer(f"0x{offset:08x}"),
+        ))
+
+        return adapted_interface
 
     def add_master(self, name=None, master=None, region=None):
         if name is None:
@@ -509,7 +535,7 @@ class SoCBusHandler(LiteXModule):
     def add_controller(self, name=None, controller=None):
         self.add_master(self, name=name, master=controller)
 
-    def add_slave(self, name=None, slave=None, region=None):
+    def add_slave(self, name=None, slave=None, region=None, offset_base=False):
         no_name   = name   is None
         no_region = region is None
         if no_name and no_region:
@@ -535,6 +561,8 @@ class SoCBusHandler(LiteXModule):
                 colorer("already declared", color="red")))
             self.logger.error(self)
             raise SoCError()
+        if offset_base:
+            slave = self.add_offset(name, slave, region.origin)
         slave = self.add_adapter(name, slave, "s2m")
         self.slaves[name] = slave
         self.logger.info("{} {} as Bus Slave.".format(

@@ -147,6 +147,17 @@ class AXILiteRemapper(LiteXModule):
         self.comb += slave.aw.addr.eq(origin | master.aw.addr & mask)
         self.comb += slave.ar.addr.eq(origin | master.ar.addr & mask)
 
+# AXI-Lite Offset ----------------------------------------------------------------------------------
+
+class AXILiteOffset(LiteXModule):
+    """Removes offset from AXI Lite addresses."""
+    def __init__(self, master, slave, offset=0x00000000):
+
+        # Address Mask and Shift.
+        self.comb += master.connect(slave)
+        self.comb += slave.aw.addr.eq(master.aw.addr - offset)
+        self.comb += slave.ar.addr.eq(master.ar.addr - offset)
+
 # AXI-Lite to Simple Bus ---------------------------------------------------------------------------
 
 def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_re=None, port_we=None):
