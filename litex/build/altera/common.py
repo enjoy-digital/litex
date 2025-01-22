@@ -135,7 +135,7 @@ class AlteraSDROutput:
 class AlteraSDRInput:
     @staticmethod
     def lower(dr):
-        return AlteraDDRInputImpl(dr.i, dr.o, Signal(), dr.clk)
+        return AlteraDDRInputImpl(dr.i, dr.o, Signal(len(dr.o)), dr.clk)
 
 # Special Overrides --------------------------------------------------------------------------------
 
@@ -225,7 +225,7 @@ class Agilex5SDROutput:
 class Agilex5SDRInput:
     @staticmethod
     def lower(dr):
-        return Agilex5DDRInputImpl(dr.i, dr.o, Signal(), dr.clk)
+        return Agilex5DDRInputImpl(dr.i, dr.o, Signal(len(dr.o)), dr.clk)
 
 # Agilex5 SDRTristate ------------------------------------------------------------------------------
 
