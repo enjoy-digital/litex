@@ -528,7 +528,7 @@ class LatticeiCE40SDROutput:
 class LatticeiCE40SDRInput:
     @staticmethod
     def lower(dr):
-        return LatticeiCE40DDRInputImpl(dr.i, dr.o, Signal(), dr.clk)
+        return LatticeiCE40DDRInputImpl(dr.i, dr.o, Signal(len(dr.o)), dr.clk)
 
 # iCE40 SDR Tristate -------------------------------------------------------------------------------
 

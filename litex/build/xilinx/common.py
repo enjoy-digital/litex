@@ -255,7 +255,7 @@ class XilinxSDROutputS6:
 class XilinxSDRInputS6:
     @staticmethod
     def lower(dr):
-        return XilinxDDRInputImplS6(dr.i, dr.o, Signal(), dr.clk)
+        return XilinxDDRInputImplS6(dr.i, dr.o, Signal(len(dr.o)), dr.clk)
 
 # Spartan6 Special Overrides -----------------------------------------------------------------------
 
@@ -323,7 +323,7 @@ class XilinxSDROutputS7:
 class XilinxSDRInputS7:
     @staticmethod
     def lower(dr):
-        return XilinxDDRInputImplS7(dr.i, dr.o, Signal(), dr.clk)
+        return XilinxDDRInputImplS7(dr.i, dr.o, Signal(len(dr.o)), dr.clk)
 
 # 7-Series Special Overrides -----------------------------------------------------------------------
 
