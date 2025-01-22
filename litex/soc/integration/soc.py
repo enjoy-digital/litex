@@ -2125,8 +2125,7 @@ class LiteXSoC(SoC):
         spiflash_core = LiteSPI(spiflash_phy, mmap_endianness=self.cpu.endianness, **kwargs)
         self.add_module(name=f"{name}_core", module=spiflash_core)
         spiflash_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size)
-        self.bus.add_slave(name=name, slave=spiflash_core.bus, region=spiflash_region)
-        self.comb += spiflash_core.mmap.offset.eq(self.bus.regions.get(name, None).origin)
+        self.bus.add_slave(name=name, slave=spiflash_core.bus, region=spiflash_region, offset_base=True)
 
         # Constants.
         self.add_constant(f"{name}_PHY_FREQUENCY",     clk_freq)
@@ -2173,8 +2172,7 @@ class LiteXSoC(SoC):
         
         # Create Wishbone Slave.
         wb_spiram = wishbone.Interface(data_width=32, address_width=32, addressing="word")
-        self.bus.add_slave(name=name, slave=wb_spiram, region=spiram_region)
-        self.comb += spiram_core.mmap.offset.eq(self.bus.regions.get(name, None).origin)
+        self.bus.add_slave(name=name, slave=wb_spiram, region=spiram_region, offset_base=True)
         
         # L2 Cache
         if l2_cache_size != 0:
