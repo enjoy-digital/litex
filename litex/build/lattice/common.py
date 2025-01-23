@@ -151,7 +151,7 @@ class LatticeECP5TristateImpl(Module):
                 io_B  = io[bit] if nbits > 1 else io,
                 i_I   = o[bit]  if nbits > 1 else o,
                 o_O   = i[bit]  if nbits > 1 else i,
-                i_T   = ~oe
+                i_T   = ~oe[bit] if len(oe) == nbits > 1 else ~oe
             )
 
 class LatticeECP5Tristate(Module):
@@ -183,7 +183,7 @@ class LatticeECP5TrellisTristateImpl(Module):
                 i_B   = io[bit] if nbits > 1 else io,
                 i_I   = o[bit]  if nbits > 1 else o,
                 o_O   = i[bit]  if nbits > 1 else i,
-                i_T   = ~oe
+                i_T   = ~oe[bit] if len(oe) == nbits > 1 else ~oe
             )
 
 class LatticeECP5TrellisTristate(Module):
@@ -400,7 +400,7 @@ class LatticeiCE40TristateImpl(Module):
             self.specials += Instance("SB_IO",
                 p_PIN_TYPE      = C(0b101001, 6), # PIN_OUTPUT_TRISTATE + PIN_INPUT
                 io_PACKAGE_PIN  = io[bit] if nbits > 1 else io,
-                i_OUTPUT_ENABLE = oe,
+                i_OUTPUT_ENABLE = oe[bit] if len(oe) == nbits > 1 else oe,
                 i_D_OUT_0       = o[bit]  if nbits > 1 else o,
                 o_D_IN_0        = i[bit]  if nbits > 1 else i,
             )

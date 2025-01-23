@@ -120,7 +120,7 @@ class Gw5ATristateImpl(Module):
                 io_IO = io[bit] if nbits > 1 else io,
                 o_O   = i[bit]  if nbits > 1 else i,
                 i_I   = o[bit]  if nbits > 1 else o,
-                i_OEN = ~oe,
+                i_OEN = ~oe[bit] if len(oe) == nbits > 1 else ~oe,
             )
 
 class Gw5ATristate:
