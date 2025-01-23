@@ -420,6 +420,28 @@ def _generate_specials(name, overrides, specials, namespace, add_data_file, attr
 #                                       LOWERER                                                    #
 # ------------------------------------------------------------------------------------------------ #
 
+def _lower_slice_cat(node, start, length):
+    while isinstance(node, Cat):
+        cat_start = 0
+        for e in node.l:
+            if cat_start <= start < cat_start + len(e) >= start + length:
+                start -= cat_start
+                node = e
+                break
+            cat_start += len(e)
+        else:
+            break
+    return node, start
+
+def _lower_slice_replicate(node, start, length):
+    while isinstance(node, Replicate):
+        if start//len(node.v) == (start + length - 1)//len(node.v):
+            start = start % len(node.v)
+            node = node.v
+        else:
+            break
+    return node, start
+
 class _ComplexSliceLowerer(_Lowerer):
     def visit_Slice(self, node):
         length = len(node)
@@ -427,6 +449,14 @@ class _ComplexSliceLowerer(_Lowerer):
         while isinstance(node, _Slice):
             start += node.start
             node = node.value
+            while True:
+                node, start = _lower_slice_cat(node, start, length)
+                former_node = node
+                node, start = _lower_slice_replicate(node, start, length)
+                if node is former_node:
+                    break
+        if start == 0 and len(node) == length:
+            return NodeTransformer.visit(self, node)
         if isinstance(node, Signal):
             node = _Slice(node, start, start + length)
         else:
