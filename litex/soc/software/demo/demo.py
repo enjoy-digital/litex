@@ -31,7 +31,7 @@ def main():
 
     # Compile demo
     build_path = args.build_path if os.path.isabs(args.build_path) else os.path.join("..", args.build_path)
-    os.system(f"export BUILD_DIR={build_path} && {'export WITH_CXX=1 &&' if args.with_cxx else ''} cd demo && make")
+    os.system(f"export BUILD_DIR={build_path} && {'export WITH_CXX=1 &&' if args.with_cxx else ''} cd demo && make clean && make") # Clean demo before make to handle case when switching to a different CPU.
 
     # Copy demo.bin
     os.system("cp demo/demo.bin ./")
