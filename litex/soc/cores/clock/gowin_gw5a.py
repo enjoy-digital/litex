@@ -234,7 +234,7 @@ class GW5APLL(LiteXModule):
             o_CLKFBOUT = Open()
         )
 
-        if self.device.startswith('GW5A-'): # GW5A-25, uses PLLA
+        if self.device.startswith('GW5A-') or self.device.startswith("GW5AT-"): # GW5A(T), uses PLLA
             instance_name = 'PLLA'
             self.params.update(
                 i_MDCLK  = 0,
