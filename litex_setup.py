@@ -70,7 +70,7 @@ class GitRepo:
 git_repos = {
     # HDL.
     # ----
-    "migen":    GitRepo(url="https://github.com/m-labs/", clone="recursive", sha1=0xccaee68e14d3636e1d8fb2e0864dd89b1b1f7384),
+    "migen":    GitRepo(url="https://github.com/m-labs/", clone="recursive", sha1=0x4c2ae8dfeea37f235b52acb8166f12acaaae4f7c),
 
     # LiteX SoC builder.
     # ------------------
