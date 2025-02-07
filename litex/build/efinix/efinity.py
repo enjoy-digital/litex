@@ -232,7 +232,7 @@ class EfinityToolchain(GenericToolchain):
             for key, value in block.items():
 
                 # Only process specific keys, skip others.
-                if key not in ["name", "in_clk_pin", "out_clk_pin"]:
+                if key not in ["name", "in_clk_pin", "out_clk_pin", "rx_fifoclk", "fast_clk", "slow_clk"]:
                     continue
 
                 # If the value is a ClockSignal, resolve its name
