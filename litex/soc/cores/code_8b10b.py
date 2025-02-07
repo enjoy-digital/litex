@@ -341,6 +341,55 @@ class Decoder(LiteXModule):
         self.comb += self.invalid.eq((ones != 4) & (ones != 5) & (ones != 6))
 
 
+class DecoderComb(LiteXModule):
+    def __init__(self, lsb_first=False):
+        self.input   = Signal(10)
+        self.d       = Signal(8)
+        self.k       = Signal()
+        self.invalid = Signal()
+
+        # # #
+
+        input_msb_first = Signal(10)
+        if lsb_first:
+            for i in range(10):
+                self.comb += input_msb_first[i].eq(self.input[9-i])
+        else:
+            self.comb += input_msb_first.eq(self.input)
+
+        code6b = input_msb_first[4:]
+        code5b = Signal(5)
+        code4b = input_msb_first[:4]
+        code3b = Signal(3, reset_less=True)
+
+        self.comb += [
+            If(code6b == 0b001111,
+                self.k.eq(1),
+                code3b.eq(Array(table_4b3b_kn)[code4b])
+            ).Elif(code6b == 0b110000,
+                self.k.eq(1),
+                code3b.eq(Array(table_4b3b_kp)[code4b])
+            ).Else(
+                If((code4b == 0b0111) | (code4b == 0b1000),  # D.x.A7/K.x.7
+                    If((code6b != 0b100011) &
+                       (code6b != 0b010011) &
+                       (code6b != 0b001011) &
+                       (code6b != 0b110100) &
+                       (code6b != 0b101100) &
+                       (code6b != 0b011100), self.k.eq(1))
+                ),
+                code3b.eq(Array(table_4b3b)[code4b])
+            ),
+            code5b.eq(Array(table_6b5b)[code6b]),
+            self.d.eq(Cat(code5b, code3b)),
+        ]
+
+        # Basic invalid symbols detection: check that we have 4,5 or 6 ones in the symbol. This does
+        # not report all invalid symbols but still allow detecting issues with the link.
+        ones = Signal(4, reset_less=True)
+        self.comb += ones.eq(Reduce("ADD", [self.input[i] for i in range(10)]))
+        self.comb += self.invalid.eq((ones != 4) & (ones != 5) & (ones != 6))
+
 # Stream Encoder -----------------------------------------------------------------------------------
 
 class StreamEncoder(stream.PipelinedActor):
