@@ -40,7 +40,7 @@ class Sentinel(CPU):
     gcc_triple           = CPU_GCC_TRIPLE_RISCV32
     linker_output_format = "elf32-littleriscv"
     nop                  = "nop"
-    io_regions           = {0x0000_0000: 32,  # Private data area.
+    io_regions           = {0x0000_0000: 0x1000_0000,  # Private data area.
                             0x8000_0000: 0x8000_0000} # Origin, Length.
 
     # GCC Flags.
@@ -54,6 +54,7 @@ class Sentinel(CPU):
     @property
     def mem_map(self):
         return {
+            "private"  : 0x0000_0000,
             "spiflash" : 0x1000_0000,
             "rom"      : 0x2000_0000,
             "sram"     : 0x2100_0000,
@@ -154,7 +155,7 @@ class SentinelLitexBridge(LiteXModule):
         bus_dat_r_override = Signal(32)
         bus_ack_override = Signal()
 
-        decode_expr = bus.adr < (self.io_lim // 4)
+        decode_expr = bus.adr[-4:] == 0
 
         self.comb += [
             bus.ack.eq(self.litex_bus.ack | bus_ack_override),
