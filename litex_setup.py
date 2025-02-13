@@ -57,20 +57,21 @@ class SetupError(Exception):
 # Get SHA1: git rev-parse --short=7 HEAD
 
 class GitRepo:
-    def __init__(self, url, clone="regular", develop=True, sha1=None, branch="master", tag=None):
+    def __init__(self, url, clone="regular", develop=True, editable=True, sha1=None, branch="master", tag=None):
         assert clone in ["regular", "recursive"]
-        self.url     = url
-        self.clone   = clone
-        self.develop = develop
-        self.sha1    = sha1
-        self.branch  = branch
-        self.tag     = tag
+        self.url      = url
+        self.clone    = clone
+        self.develop  = develop
+        self.editable = editable
+        self.sha1     = sha1
+        self.branch   = branch
+        self.tag      = tag
 
 
 git_repos = {
     # HDL.
     # ----
-    "migen":    GitRepo(url="https://github.com/m-labs/", clone="recursive", sha1=0x4c2ae8dfeea37f235b52acb8166f12acaaae4f7c),
+    "migen":    GitRepo(url="https://github.com/m-labs/", clone="recursive", editable=False, sha1=0x4c2ae8dfeea37f235b52acb8166f12acaaae4f7c),
 
     # LiteX SoC builder.
     # ------------------
@@ -286,9 +287,10 @@ def litex_setup_install_repos(config="standard", user_mode=False):
         if repo.develop:
             print_status(f"Installing {name} Git repository...")
             os.chdir(os.path.join(current_path, name))
-            subprocess.check_call("\"{python3}\" -m pip install --editable . {options}".format(
-                python3 = sys.executable,
-                options = "--user" if user_mode else "",
+            subprocess.check_call("\"{python3}\" -m pip install {editable} . {options}".format(
+                python3  = sys.executable,
+                editable = "--editable" if repo.editable else "",
+                options  = "--user"     if user_mode else "",
                 ), shell=True)
     if user_mode:
         if ".local/bin" not in os.environ.get("PATH", ""):
