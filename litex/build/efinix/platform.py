@@ -144,18 +144,16 @@ class EfinixPlatform(GenericPlatform):
             return None
         assert len(sig) == 1
         idx = 0
-        slc = False
         while isinstance(sig, _Slice) and hasattr(sig, "value"):
             idx = sig.start
             sig = sig.value
-            slc = hasattr(sig, "nbits") and sig.nbits > 1
         sc = self.constraint_manager.get_sig_constraints()
         for s, pins, others, resource in sc:
             if s == sig:
                 name = resource[0] + (f"{resource[1]}" if resource[1] is not None else "")
                 if resource[2]:
                     name = name + "_" + resource[2]
-                name = name + (f"{idx}" if slc else "")
+                name = name + f"{idx}"
                 return name
         return None
 
