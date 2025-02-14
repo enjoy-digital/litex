@@ -44,13 +44,13 @@ def add_manifest_sources(platform, manifest):
     lx_core_dir = os.path.abspath(os.path.dirname(__file__))
     with open(os.path.join(manifest), 'r') as f:
         for l in f:
-            res = re.search('\$\{(CVA6_REPO_DIR|LX_CVA6_CORE_DIR)\}/(.+)', l)
+            res = re.search(r'\$\{(CVA6_REPO_DIR|LX_CVA6_CORE_DIR)\}/(.+)', l)
             if res and not re.match('//', l):
                 if res.group(1) == "LX_CVA6_CORE_DIR":
                     basedir = lx_core_dir
                 else:
                     basedir = cva6_dir
-                if re.match('\+incdir\+', l):
+                if re.match(r'\+incdir\+', l):
                     platform.add_verilog_include_path(os.path.join(basedir, res.group(2)))
                 else:
                     filename = res.group(2)

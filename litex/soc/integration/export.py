@@ -98,7 +98,7 @@ def get_cpu_mak(cpu, compile_software):
         for i, l in enumerate(os.popen(selected_triple + "-ar -V")):
             # Version is last float reported in first line.
             if i == 0:
-                version = float(re.findall("\d+\.\d+", l)[-1])
+                version = float(re.findall(r"\d+\.\d+", l)[-1])
         return version
 
     def apply_riscv_zicsr_march_workaround(flags):
