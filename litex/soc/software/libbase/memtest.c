@@ -318,11 +318,24 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only, bool rando
 	start = timer0_value_read();
 
 	int num = size/sz;
+	int ones_cnt = 0;
+
+	for(int check = num; check != 0; check = ((check >> 1) & INT_MAX)) {
+		if(check & 0x1) {
+			ones_cnt += 1;
+		}
+	}
+
+	bool power_of_two = (ones_cnt == 1);
 
 	if (random) {
 		for (i = 0; i < size/sz; i++) {
 			seed_32 = seed_to_data_32(seed_32, i);
-			data = array[seed_32 % num];
+			if(power_of_two) {
+				data = array[seed_32 & (num - 1)];
+			} else {
+				data = array[seed_32 % num];
+			}
 		}
 	} else {
 		ptr = array;
