@@ -62,9 +62,9 @@ def add_manifest_sources(platform, manifest):
     basedir = os.path.join(openc906_dir, "C906_RTL_FACTORY")
     with open(os.path.join(basedir, manifest), 'r') as f:
         for l in f:
-            res = re.search('\$\{CODE_BASE_PATH\}/(.+)', l)
+            res = re.search(r'\$\{CODE_BASE_PATH\}/(.+)', l)
             if res and not re.match('//', l):
-                if re.match('\+incdir\+', l):
+                if re.match(r'\+incdir\+', l):
                     platform.add_verilog_include_path(os.path.join(basedir, res.group(1)))
                 else:
                     platform.add_source(os.path.join(basedir, res.group(1)))
