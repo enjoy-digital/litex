@@ -166,6 +166,7 @@ class EfinixPlatform(GenericPlatform):
                 name = resource[0] + (f"{resource[1]}" if resource[1] is not None else "")
                 if resource[2]:
                     name = name + "_" + resource[2]
+                name = name + "_gen" # Avoids to define a new signal with the same name
                 return name
         return None
 
