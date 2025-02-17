@@ -138,7 +138,7 @@ class NaxRiscv(CPU):
             xlen = int(args.xlen)
             NaxRiscv.xlen                 = xlen
             NaxRiscv.data_width           = xlen
-            NaxRiscv.gcc_triple           = CPU_GCC_TRIPLE_RISCV64
+            NaxRiscv.gcc_triple           = CPU_GCC_TRIPLE_RISCV64 if xlen == 64 else CPU_GCC_TRIPLE_RISCV32
             NaxRiscv.linker_output_format = f"elf{xlen}-littleriscv"
         if args.cpu_count:
             NaxRiscv.cpu_count = args.cpu_count
