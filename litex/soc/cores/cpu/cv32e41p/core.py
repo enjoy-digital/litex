@@ -64,9 +64,9 @@ def add_manifest_sources(platform, manifest):
     basedir = get_data_mod("cpu", "cv32e41p").data_location
     with open(os.path.join(basedir, manifest), 'r') as f:
         for l in f:
-            res = re.search('\$\{DESIGN_RTL_DIR\}/(.+)', l)
+            res = re.search(r'\$\{DESIGN_RTL_DIR\}/(.+)', l)
             if res and not re.match('//', l):
-                if re.match('\+incdir\+', l):
+                if re.match(r'\+incdir\+', l):
                     platform.add_verilog_include_path(os.path.join(basedir, 'rtl', res.group(1)))
                 else:
                     platform.add_source(os.path.join(basedir, 'rtl', res.group(1)))
