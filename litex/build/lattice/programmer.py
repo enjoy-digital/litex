@@ -159,6 +159,15 @@ class UJProg(GenericProgrammer):
     def load_bitstream(self, bitstream_file):
         self.call(["ujprog", bitstream_file])
 
+# fujprog -------------------------------------------------------------------------------------------
+
+class fujprog(GenericProgrammer):
+    needs_bitreverse = False
+
+    def load_bitstream(self, bitstream_file):
+        self.call(["fujprog", bitstream_file])
+
+
 # EcpDapProgrammer ---------------------------------------------------------------------------------
 
 class EcpDapProgrammer(GenericProgrammer):
