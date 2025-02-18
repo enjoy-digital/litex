@@ -3,6 +3,7 @@
 #
 # Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2020 Greg Davill <greg.davill@gmail.com>
+# Copyright (c) 2025 William D. Jones <thor0505@comcast.net>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os

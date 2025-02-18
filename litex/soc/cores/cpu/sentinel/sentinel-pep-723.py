@@ -1,3 +1,9 @@
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2025 William D. Jones <thor0505@comcast.net>
+# SPDX-License-Identifier: BSD-2-Clause
+
 """PEP-723-aware script for installing Sentinel."""
 
 # Deps must be kept in sync with Sentinel's pyproject.toml.
