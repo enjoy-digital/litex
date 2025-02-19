@@ -6,6 +6,8 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
+from pathlib import Path
+import shutil
 import subprocess
 
 from migen import *
@@ -47,7 +49,7 @@ class Minerva(CPU):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
-        self.interrupt    = Signal(32)
+        self.interrupt    = Signal(16)
         self.ibus         = ibus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.dbus         = dbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.periph_buses = [self.ibus, self.dbus] # Peripheral buses (Connected to main SoC's bus).
@@ -63,7 +65,8 @@ class Minerva(CPU):
             # IRQ.
             i_timer_interrupt    = 0,
             i_software_interrupt = 0,
-            i_external_interrupt = self.interrupt,
+            i_external_interrupt = 0,
+            i_fast_interrupt = self.interrupt,
 
             # Ibus.
             o_ibus__stb   = ibus.stb,
@@ -97,6 +100,11 @@ class Minerva(CPU):
 
     @staticmethod
     def elaborate(reset_address, with_icache, with_dcache, with_muldiv, verilog_filename):
+        pipx_or_pdm = shutil.which("pipx") or shutil.which("pdm")
+
+        if not pipx_or_pdm:
+            raise OSError("Unable to elaborate Minerva CPU. Make sure \"pipx\" or \"pdm\" is installed.")
+
         cli_params = []
         cli_params.append("--reset-addr={}".format(reset_address))
         if with_icache:
@@ -107,9 +115,13 @@ class Minerva(CPU):
             cli_params.append("--with-muldiv")
         cli_params.append("generate")
         cli_params.append("--type=v")
+
+        this_dir = Path(__file__).resolve().parent
         sdir = get_data_mod("cpu", "minerva").data_location
-        if subprocess.call(["python3", os.path.join(sdir, "cli.py"), *cli_params],
-            stdout=open(verilog_filename, "w")):
+
+        if subprocess.call([pipx_or_pdm, "run", this_dir / "minerva-pep-723.py", *cli_params],
+                            stdout=open(verilog_filename, "w"),
+                            cwd=sdir):
             raise OSError("Unable to elaborate Minerva CPU, please check your Amaranth/Yosys install")
 
     def do_finalize(self):
