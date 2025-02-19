@@ -4,6 +4,8 @@
 # This file is Copyright (c) 2022 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import sys
+
 from migen import *
 
 from litex.gen import *
@@ -11,8 +13,8 @@ from litex.gen import *
 # LiteX Hierarchy Explorer -------------------------------------------------------------------------
 
 class LiteXHierarchyExplorer:
-    tree_ident      = "│    "
-    tree_entry      = "└─── "
+    tree_ident      = "|    " if sys.platform == "win32" else "│    "
+    tree_entry      = "|___ " if sys.platform == "win32" else "└─── "
 
     def __init__(self, top, depth=None, with_colors=True):
         self.top         = top
