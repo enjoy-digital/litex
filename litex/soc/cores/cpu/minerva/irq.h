@@ -22,19 +22,19 @@ static inline void irq_setie(unsigned int ie)
 static inline unsigned int irq_getmask(void)
 {
 	unsigned int mask;
-	asm volatile ("csrr %0, %1" : "=r"(mask) : "i"(CSR_IRQ_MASK));
+	asm volatile ("csrr %0, %1" : "=r"(mask) : "i"(CSR_MIE));
 	return (mask >> FIRQ_OFFSET);
 }
 
 static inline void irq_setmask(unsigned int mask)
 {
-	asm volatile ("csrw %0, %1" :: "i"(CSR_IRQ_MASK), "r"(mask << FIRQ_OFFSET));
+	asm volatile ("csrw %0, %1" :: "i"(CSR_MIE), "r"(mask << FIRQ_OFFSET));
 }
 
 static inline unsigned int irq_pending(void)
 {
 	unsigned int pending;
-	asm volatile ("csrr %0, %1" : "=r"(pending) : "i"(CSR_IRQ_PENDING));
+	asm volatile ("csrr %0, %1" : "=r"(pending) : "i"(CSR_MIP));
 	return (pending >> FIRQ_OFFSET);
 }
 

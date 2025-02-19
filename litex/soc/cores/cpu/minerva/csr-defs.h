@@ -3,8 +3,8 @@
 
 #define CSR_MSTATUS_MIE 0x8
 
-#define CSR_IRQ_MASK    0x304
-#define CSR_IRQ_PENDING 0x344
+#define CSR_MIE   0x304
+#define CSR_MIP   0x344
 #define FIRQ_OFFSET     16
 
 #define CSR_DCACHE_INFO 0xCC0
