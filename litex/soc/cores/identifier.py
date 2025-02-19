@@ -12,6 +12,8 @@ from litex.gen import *
 
 class Identifier(LiteXModule):
     def __init__(self, ident):
+        if "," in ident:
+            raise ValueError("Identifier string must not contain commas")
         contents = list(ident.encode())
         l = len(contents)
         if l > 255:
