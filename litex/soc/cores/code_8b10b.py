@@ -342,7 +342,7 @@ class Decoder(LiteXModule):
 
 
 class DecoderComb(LiteXModule):
-    def __init__(self, lsb_first=False):
+    def __init__(self, lsb_first=False, input_valid=True):
         self.input   = Signal(10)
         self.d       = Signal(8)
         self.k       = Signal()
@@ -386,9 +386,26 @@ class DecoderComb(LiteXModule):
 
         # Basic invalid symbols detection: check that we have 4,5 or 6 ones in the symbol. This does
         # not report all invalid symbols but still allow detecting issues with the link.
-        ones = Signal(4, reset_less=True)
-        self.comb += ones.eq(Reduce("ADD", [self.input[i] for i in range(10)]))
-        self.comb += self.invalid.eq((ones != 4) & (ones != 5) & (ones != 6))
+        # ones = Signal(4, reset_less=True)
+        # self.comb += ones.eq(Reduce("ADD", [self.input[i] for i in range(10)]))
+        # self.comb += self.invalid.eq((ones != 4) & (ones != 5) & (ones != 6))
+
+        ones_1 = Signal(4, reset_less=True)
+        self.comb += ones_1.eq(Reduce("ADD", [self.input[i] for i in range(10)]))
+        invalid_1 = (ones_1 != 4) & (ones_1 != 5) & (ones_1 != 6)
+
+        last_input = Signal(10)
+        self.sync += If(input_valid, last_input.eq(self.input))
+
+        ones_2 = Signal(4, reset_less=True)
+        self.comb += ones_2.eq(Reduce("ADD", [last_input[i] for i in range(10)]))
+        invalid_2 = (ones_2 != 4) & (ones_2 != 5) & (ones_2 != 6)
+
+        ones_3 = Signal(5, reset_less=True)
+        self.comb += ones_3.eq(ones_1 + ones_2)
+        invalid_3 = (ones_3 != 9) & (ones_3 != 10) & (ones_3 != 11)
+
+        self.comb += self.invalid.eq(invalid_1 | invalid_2 | invalid_3)
 
 # Stream Encoder -----------------------------------------------------------------------------------
 
