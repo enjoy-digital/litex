@@ -143,6 +143,7 @@ int tftp_get(uint32_t ip, uint16_t server_port, const char *filename,
 	int length_before;
 
 	if(!udp_arp_resolve(ip))
+		printf("ARP failed\n");
 		return -1;
 
 	udp_set_callback((udp_callback) rx_callback);
