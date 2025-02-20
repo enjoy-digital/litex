@@ -1,6 +1,7 @@
 #ifndef __HELPERS_H__
 #define __HELPERS_H__
 
+void print_ip(uint32_t ip);
 void dump_bytes(unsigned int *ptr, int count, unsigned long addr);
 void crcbios(void);
 int get_param(char *buf, char **cmd, char **params);
