@@ -86,7 +86,7 @@ class RS232PHYTX(LiteXModule):
             # On Clock Phase Accumulator tick:
             If(clk_phase_accum.tick,
                 # Set TX data.
-                NextValue(pads.tx, data),
+                NextValue(pads.tx, data[0]),
                 # Increment Count.
                 NextValue(count, count + 1),
                 # Shift TX data.
