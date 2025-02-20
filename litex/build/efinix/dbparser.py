@@ -36,24 +36,18 @@ class EfinixDbParser:
         return None
 
     def get_package_file_name(self, dmap):
-        tree = et.parse(self.efinity_db_path + dmap[2])
-        root = tree.getroot()
-        inc = root.findall('xi:include', namespaces)
-        for i in inc:
-            if 'package' in i.get('href'):
-                return i.get('href').split('/')[1]
+        return dmap[2].split('_', 1)[1]
 
-        return None
+    def get_die_file_path(self, dmap):
+        diename = dmap[1]
+        filepath = self.efinity_db_path + 'die/' + diename + '.xml'
+        while not os.path.isfile(filepath):
+            if not '_' in diename:
+                return None
+            diename = diename.rsplit('_', 1)[0]
+            filepath = self.efinity_db_path + 'die/' + diename + '.xml'
 
-    def get_die_file_name(self, dmap):
-        tree = et.parse(self.efinity_db_path + dmap[2])
-        root = tree.getroot()
-        inc = root.findall('xi:include', namespaces)
-        for i in inc:
-            if 'die' in i.get('href'):
-                return i.get('href').split('/')[1]
-
-        return None
+        return filepath
 
     def get_pad_name_xml(self, dmap, pin):
         package_file = self.get_package_file_name(dmap)
@@ -68,8 +62,8 @@ class EfinixDbParser:
         return None
 
     def get_instance_name_xml(self, dmap, pad):
-        die = self.get_die_file_name(dmap)
-        tree = et.parse(self.efinity_db_path + 'die/' + die)
+        die = self.get_die_file_path(dmap)
+        tree = et.parse(die)
         root = tree.getroot()
 
         ipd = root.find('efxpt:io_pad_definition', namespaces)
@@ -82,8 +76,8 @@ class EfinixDbParser:
 
     def get_block_instance_names(self, block):
         dmap = self.get_device_map(self.device)
-        die = self.get_die_file_name(dmap)
-        tree = et.parse(self.efinity_db_path + 'die/' + die)
+        die = self.get_die_file_path(dmap)
+        tree = et.parse(die)
         root = tree.getroot()
 
         peri = root.findall('efxpt:periphery_instance', namespaces)
@@ -100,8 +94,8 @@ class EfinixDbParser:
         return names
 
     def get_pll_inst_from_gpio_inst(self, dmap, inst):
-        die = self.get_die_file_name(dmap)
-        tree = et.parse(self.efinity_db_path + 'die/' + die)
+        die = self.get_die_file_path(dmap)
+        tree = et.parse(die)
         root = tree.getroot()
 
         peri = root.findall('efxpt:periphery_instance', namespaces)
