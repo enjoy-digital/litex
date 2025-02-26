@@ -467,14 +467,15 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
             if isinstance(ena, Signal):
                 ena = ena.name
 
-            if rx_delay == "STATIC":
-                delay_ena = ""
-                delay_inc = ""
-                delay_rst = ""
-            else:
+            dynamic_delay = (rx_delay == "DYNAMIC")
+            dpa_delay = (rx_delay == "DPA")
+
+            if dynamic_delay or dpa_delay:
                 delay_ena = block.get("delay_ena", "")
                 delay_inc = block.get("delay_inc", "")
                 delay_rst = block.get("delay_rst", "")
+                dpa_lock  = block.get("dpa_lock", "")
+                dpa_dbg   = block.get("dpa_dbg", "")
 
                 if isinstance(delay_ena, Signal):
                     delay_ena = delay_ena.name
@@ -482,6 +483,10 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                     delay_rst = delay_rst.name
                 if isinstance(delay_inc, Signal):
                     delay_inc = delay_inc.name
+                if isinstance(dpa_lock, Signal):
+                    dpa_lock = dpa_lock.name
+                if isinstance(dpa_dbg, Signal):
+                    dpa_dbg = dpa_dbg.name
 
             cmd.append('design.create_block("{}", block_type="{}", rx_conn_type="{}")'.format(name, block_type, rx_mode))
             if self.platform.family == "Titanium":
@@ -494,9 +499,14 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                 cmd.append('design.set_property("{}", "RX_HALF_RATE",   "{}", "{}")'.format(name, half_rate, block_type))
                 cmd.append('design.set_property("{}", "RX_ENA_PIN",     "{}", "{}")'.format(name, ena, block_type))
                 cmd.append('design.set_property("{}", "RX_DELAY_MODE",  "{}", "{}")'.format(name, rx_delay, block_type))
-                cmd.append('design.set_property("{}", "RX_DLY_ENA_PIN", "{}", "{}")'.format(name, delay_ena, block_type))
-                cmd.append('design.set_property("{}", "RX_DLY_INC_PIN", "{}", "{}")'.format(name, delay_inc, block_type))
-                cmd.append('design.set_property("{}", "RX_DLY_RST_PIN", "{}", "{}")'.format(name, delay_rst, block_type))
+                if dynamic_delay or dpa_delay:
+                    cmd.append('design.set_property("{}", "RX_DLY_ENA_PIN", "{}", "{}")'.format(name, delay_ena, block_type))
+                    cmd.append('design.set_property("{}", "RX_DLY_RST_PIN", "{}", "{}")'.format(name, delay_rst, block_type))
+                if dynamic_delay:
+                    cmd.append('design.set_property("{}", "RX_DLY_INC_PIN", "{}", "{}")'.format(name, delay_inc, block_type))
+                if dpa_delay:
+                    cmd.append('design.set_property("{}", "RX_LOCK_PIN",    "{}", "{}")'.format(name, dpa_lock, block_type))
+                    cmd.append('design.set_property("{}", "RX_DBG_PIN",     "{}", "{}")'.format(name, dpa_dbg, block_type))
 
                 if rx_fifo:
                     rx_fifo_empty = block.get("rx_fifo_empty", "")
@@ -511,8 +521,6 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                     cmd.append('design.set_property("{}", "RX_FIFO_EMPTY_PIN",  "{}", "{}")'.format(name, rx_fifo_empty, block_type))
                     cmd.append('design.set_property("{}", "RX_FIFO_RD_PIN",     "{}", "{}")'.format(name, rx_fifo_rd, block_type))
                     cmd.append('design.set_property("{}", "RX_FIFOCLK_PIN",     "{}", "{}")'.format(name, rx_fifoclk, block_type))
-                # Optional
-                #cmd.append('design.set_property("{}", "RX_LOCK_PIN",       "lvds_rx_inst1_RX_LOCK",       "{}")'.format(name, block_type))
             else:
                 rx_delay = "0" if delay == 0 else "1"
                 cmd.append('design.set_property("{}","RX_EN_DELAY","{}","{}")'.format(name, rx_delay, block_type))
