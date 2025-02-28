@@ -11,7 +11,7 @@ from litex.gen import *
 from litex.soc.cores.clock.common import *
 from litex.soc.cores.clock.xilinx_common import *
 
-# Xilinx / 7-Series --------------------------------------------------------------------------------
+# Xilinx / 7-Series PLL ----------------------------------------------------------------------------
 
 class S7PLL(XilinxClocking):
     nclkouts_max = 6
@@ -54,6 +54,7 @@ class S7PLL(XilinxClocking):
             self.params["o_CLKOUT{}".format(n)] = clk
         self.specials += Instance("PLLE2_ADV", **self.params)
 
+# Xilinx / 7-Series MMCM ---------------------------------------------------------------------------
 
 class S7MMCM(XilinxClocking):
     nclkouts_max         = 7
@@ -105,6 +106,7 @@ class S7MMCM(XilinxClocking):
             self.params["o_CLKOUT{}".format(n)]       = clk
         self.specials += Instance("MMCME2_ADV", **self.params)
 
+# Xilinx / 7-Series IDELAY CTRL --------------------------------------------------------------------
 
 class S7IDELAYCTRL(LiteXModule):
     def __init__(self, cd, reset_cycles=16):

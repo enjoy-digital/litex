@@ -10,7 +10,7 @@ from migen import *
 from litex.soc.cores.clock.common import *
 from litex.soc.cores.clock.xilinx_common import *
 
-# Xilinx / Spartan6 --------------------------------------------------------------------------------
+# Xilinx / Spartan6 PLL ----------------------------------------------------------------------------
 
 class S6PLL(XilinxClocking):
     nclkouts_max = 6
@@ -58,6 +58,7 @@ class S6PLL(XilinxClocking):
             self.params["o_CLKOUT{}".format(n)]            = clk
         self.specials += Instance("PLL_ADV", **self.params)
 
+# Xilinx / Spartan6 DCM ----------------------------------------------------------------------------
 
 class S6DCM(XilinxClocking):
     """ single output with f_out = f_in * {2 .. 256} / {1 .. 256} """

@@ -11,7 +11,7 @@ from litex.soc.cores.clock.xilinx_common import *
 from typing import Dict, Any
 import math
 
-# Xilinx / Ultrascale Plus -------------------------------------------------------------------------
+# Xilinx / Ultrascale Plus PLL ---------------------------------------------------------------------
 
 # TODO:
 # - use Ultrascale Plus primitives instead of 7-Series' ones. (Vivado recognize and convert them).
@@ -61,6 +61,7 @@ class USPPLL(XilinxClocking):
             self.params["o_CLKOUT{}".format(n)]        = clk
         self.specials += Instance("PLLE2_ADV", **self.params)
 
+# Xilinx / Ultrascale Plus MMCM --------------------------------------------------------------------
 
 class USPMMCM(XilinxClocking):
     nclkouts_max = 7
@@ -173,6 +174,7 @@ class USPMMCM(XilinxClocking):
 
         raise ValueError("No MMCM config found")
 
+# Xilinx / Ultrascale Plus IDELAY CTRL -------------------------------------------------------------
 
 class USPIDELAYCTRL(LiteXModule):
     def __init__(self, cd_ref, cd_sys, reset_cycles=64, ready_cycles=64):

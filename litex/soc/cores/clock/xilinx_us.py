@@ -9,7 +9,7 @@ from litex.gen import *
 from litex.soc.cores.clock.common import *
 from litex.soc.cores.clock.xilinx_common import *
 
-# Xilinx / Ultrascale ------------------------------------------------------------------------------
+# Xilinx / Ultrascale PLL --------------------------------------------------------------------------
 
 # TODO:
 # - use Ultrascale primitives instead of 7-Series' ones. (Vivado recognize and convert them).
@@ -60,6 +60,8 @@ class USPLL(XilinxClocking):
         self.specials += Instance("PLLE2_ADV", **self.params)
 
 
+# Xilinx / Ultrascale MMCM -------------------------------------------------------------------------
+
 class USMMCM(XilinxClocking):
     nclkouts_max = 7
 
@@ -108,6 +110,7 @@ class USMMCM(XilinxClocking):
             self.params["o_CLKOUT{}".format(n)]       = clk
         self.specials += Instance("MMCME2_ADV", **self.params)
 
+# Xilinx / Ultrascale IDELAY CTRL ------------------------------------------------------------------
 
 class USIDELAYCTRL(LiteXModule):
     def __init__(self, cd_ref, cd_sys, reset_cycles=64, ready_cycles=64):
