@@ -147,7 +147,42 @@ class XilinxClocking(LiteXModule):
             )
         ]
         self.comb += self.drp_locked.status.eq(self.locked)
-        self.logger.info("Exposing DRP interface.")
+        self.logger.info("Exposing Dynamic Reconfiguration Port (DRP) interface.")
+
+    def expose_dps(self, with_csr=True):
+        self.psen     = Signal() # i.
+        self.psincdec = Signal() # i.
+        self.psdone   = Signal() # o.
+
+        self.params.update(
+            i_PSCLK    = ClockSignal(),
+            i_PSEN     = self.psen,
+            i_PSINCDEC = self.psincdec,
+            o_PSDONE   = self.psdone
+        )
+
+        if with_csr:
+            self.dps_psen     = CSRStorage()
+            self.dps_psincdec = CSRStorage()
+            self.dps_psdone   = CSRStatus()
+            self.dps_fsm = dps_fsm = FSM(reset_state="IDLE")
+            dps_fsm.act("IDLE",
+                If(self.dps_psen.storage,
+                    self.psen.eq(1),
+                    NextState("WAIT")
+                )
+            )
+            dps_fsm.act("WAIT",
+                If(self.psdone,
+                    NextState("IDLE")
+                )
+            )
+            self.comb += [
+                self.psincdec.eq(self.dps_psincdec.storage),
+                self.dps_psdone.status.eq(self.psdone),
+            ]
+
+        self.logger.info("Exposing Dynamic Phase Shift (DPS) interface.")
 
     def add_reset_delay(self, cycles):
         for i in range(cycles):
