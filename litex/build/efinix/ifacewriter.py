@@ -319,13 +319,13 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
             else:
                 cmd += 'design.set_property("{}","CLKOUT{}_PHASE_SETTING","{}","PLL")\n'.format(name, i, clock[2] // 45)
 
-        # Titanium has always a feedback (local: CLK0, CORE: any output)
+        # Titanium/Topaz has always a feedback (local: CLK0, CORE: any output)
         if block["version"] == "V3":
             feedback_clk = block["feedback"]
             cmd += 'design.set_property("{}", "FEEDBACK_MODE", "{}", "PLL")\n'.format(name, "LOCAL" if feedback_clk < 1 else "CORE")
             cmd += 'design.set_property("{}", "FEEDBACK_CLK", "CLK{}", "PLL")\n'.format(name, 0 if feedback_clk < 1 else feedback_clk)
 
-        # auto_calc_pll_clock is always working with Titanium and only working when feedback is unused for Trion
+        # auto_calc_pll_clock is always working with Titanium/Topaz and only working when feedback is unused for Trion
         if block["feedback"] == -1 or block["version"] == "V3":
             cmd += "target_freq = {\n"
             for i, clock in enumerate(block["clk_out"]):
@@ -438,7 +438,7 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                 rst_pin = rst_pin.name
 
             cmd.append('design.create_block("{}", block_type="{}", tx_mode="{}")'.format(name, block_type, tx_mode))
-            if self.platform.family == "Titanium":
+            if self.platform.family in ["Titanium", "Topaz"]:
                 cmd.append('design.set_property("{}", "TX_DELAY",     "{}",         "{}")'.format(name, delay, block_type))
                 cmd.append('design.set_property("{}", "TX_DIFF_TYPE", "LVDS",       "{}")'.format(name, block_type))
                 cmd.append('design.set_property("{}", "TX_HALF_RATE", "{}",         "{}")'.format(name, half_rate, block_type))
@@ -484,7 +484,7 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                     delay_inc = delay_inc.name
 
             cmd.append('design.create_block("{}", block_type="{}", rx_conn_type="{}")'.format(name, block_type, rx_mode))
-            if self.platform.family == "Titanium":
+            if self.platform.family in ["Titanium", "Topaz"]:
                 cmd.append('design.set_property("{}", "GBUF",           "",   "{}")'.format(name, block_type))
                 cmd.append('design.set_property("{}", "RX_DBG_PIN",     "",   "{}")'.format(name, block_type))
                 cmd.append('design.set_property("{}", "RX_TERM_PIN",    "{}", "{}")'.format(name, term, block_type))

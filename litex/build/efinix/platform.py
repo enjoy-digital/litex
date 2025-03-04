@@ -34,6 +34,8 @@ class EfinixPlatform(GenericPlatform):
         self.clks         = {}
         if self.device[:2] == "Ti":
             self.family = "Titanium"
+        elif self.device[:2] == "Tz":
+            self.family = "Topaz"
         else:
             self.family = "Trion"
 
@@ -51,7 +53,7 @@ class EfinixPlatform(GenericPlatform):
         else:
             raise ValueError(f"Unknown toolchain {toolchain}")
 
-        self.parser = EfinixDbParser(self.efinity_path, self.device)
+        self.parser = EfinixDbParser(self.efinity_path, self.device, self.family)
         self.pll_available = self.parser.get_block_instance_names('pll')
         self.pll_used = []
 

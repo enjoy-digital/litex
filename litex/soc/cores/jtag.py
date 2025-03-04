@@ -431,7 +431,7 @@ class JTAGPHY(LiteXModule):
             elif device[:5] == "LFE5U":
                 jtag = ECP5JTAG()
             # Efinix
-            elif device[:2] == "Ti":
+            elif device[:2] in ["Ti", "Tz"]:
                 jtag = EfinixJTAG(platform)
             # Altera/Intel.
             elif AlteraJTAG.get_primitive(device) is not None:
