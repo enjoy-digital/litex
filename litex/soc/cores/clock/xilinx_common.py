@@ -149,19 +149,20 @@ class XilinxClocking(LiteXModule):
         self.comb += self.drp_locked.status.eq(self.locked)
         self.logger.info("Exposing Dynamic Reconfiguration Port (DRP) interface.")
 
-    def expose_dps(self, with_csr=True):
+    def expose_dps(self, clk_domain="sys", with_csr=True):
         self.psen     = Signal() # i.
         self.psincdec = Signal() # i.
         self.psdone   = Signal() # o.
 
         self.params.update(
-            i_PSCLK    = ClockSignal(),
+            i_PSCLK    = ClockSignal(clk_domain),
             i_PSEN     = self.psen,
             i_PSINCDEC = self.psincdec,
             o_PSDONE   = self.psdone
         )
 
         if with_csr:
+            assert clk_domain == "sys"
             self.dps_psen     = CSRStorage()
             self.dps_psincdec = CSRStorage()
             self.dps_psdone   = CSRStatus()
