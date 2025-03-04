@@ -34,6 +34,8 @@ class EfinixPlatform(GenericPlatform):
         self.clks         = {}
         if self.device[:2] == "Ti":
             self.family = "Titanium"
+        elif self.device[:2] == "Tz":
+            self.family = "Topaz"
         else:
             self.family = "Trion"
 
