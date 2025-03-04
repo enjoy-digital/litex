@@ -558,9 +558,11 @@ void netboot(int nb_params, char **params)
 		printf("Booting from %s (JSON)...\n", filename);
 		netboot_from_json(filename, ip, TFTP_SERVER_PORT);
 	} else {
+#ifndef ETH_NETBOOT_SKIP_JSON
 		/* Boot from boot.json */
 		printf("Booting from boot.json...\n");
 		netboot_from_json("boot.json", ip, TFTP_SERVER_PORT);
+#endif /* ETH_NETBOOT_SKIP_JSON */
 
 #ifdef MAIN_RAM_BASE
 		/* Boot from boot.bin */
