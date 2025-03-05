@@ -322,6 +322,8 @@ static unsigned int remote_ip[4] = {REMOTEIP1, REMOTEIP2, REMOTEIP3, REMOTEIP4};
 static unsigned int remote_ip[4] = {192, 168, 1, 100};
 #endif
 
+static int upd_started;
+
 static int copy_file_from_tftp_to_ram(unsigned int ip, unsigned short server_port,
 const char *filename, char *buffer)
 {
@@ -383,6 +385,7 @@ static uint8_t parse_ip(const char * ip_address, unsigned int * ip_to_change)
 void set_local_ip(const char * ip_address)
 {
 	if (parse_ip(ip_address, local_ip) == 0) {
+		upd_started = 0;
 		udp_set_ip(IPTOINT(local_ip[0], local_ip[1], local_ip[2], local_ip[3]));
 		printf("Local IP: %d.%d.%d.%d", local_ip[0], local_ip[1], local_ip[2], local_ip[3]);
 	}
@@ -444,6 +447,7 @@ static uint8_t parse_mac_addr(const char * mac_address)
 void set_mac_addr(const char * mac_address)
 {
 	if (parse_mac_addr(mac_address) == 0) {
+		upd_started = 0;
 		udp_set_mac(macadr);
 		printf("MAC address : %x:%x:%x:%x:%x:%x", macadr[0], macadr[1], macadr[2], macadr[3], macadr[4], macadr[5]);
 	}
@@ -552,7 +556,10 @@ void netboot(int nb_params, char **params)
 	printf("Remote IP: %d.%d.%d.%d\n", remote_ip[0], remote_ip[1], remote_ip[2], remote_ip[3]);
 
 	ip = IPTOINT(remote_ip[0], remote_ip[1], remote_ip[2], remote_ip[3]);
-	udp_start(macadr, IPTOINT(local_ip[0], local_ip[1], local_ip[2], local_ip[3]));
+	if(!upd_started) {
+		udp_start(macadr, IPTOINT(local_ip[0], local_ip[1], local_ip[2], local_ip[3]));
+		upd_started = 1;
+	}
 
 	if (filename) {
 		printf("Booting from %s (JSON)...\n", filename);
