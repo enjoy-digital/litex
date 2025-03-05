@@ -20,9 +20,10 @@ namespaces = {
 # Efinix Database Parser ---------------------------------------------------------------------------
 
 class EfinixDbParser:
-    def __init__(self, efinity_path, device):
+    def __init__(self, efinity_path, device, family):
         self.efinity_db_path = efinity_path + '/pt/db/'
         self.device = device
+        self.family = family
 
     def get_device_map(self, device):
         with open(self.efinity_db_path + 'devicemap.csv') as f:
@@ -110,7 +111,7 @@ class EfinixDbParser:
                         if i == None:
                             continue
                         if (i == inst) or (inst + '.' in i):
-                            refclk_no = 0 if self.device[:2] != "Ti" else c.get('index')
+                            refclk_no = 0 if self.family == "Trion" else c.get('index')
                             if c.get('index') == '3':
                                 refclk_no = 1
                             return (p.get('name'), refclk_no)
