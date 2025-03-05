@@ -363,9 +363,11 @@ def generate_dts_config(csr):
         if name not in overlay_handlers.keys():
             print('No overlay handler for:', name, 'at', hex(value))
 
-    cnf += ' -DCONFIG_LITEX_CSR_DATA_WIDTH={}'.format(
-        csr['constants']['config_csr_data_width'],
-    )
+    # Default CSR data width in zephyr is 32 bits
+    if csr['constants']['config_csr_data_width'] != 32:
+        cnf += ' -DCONFIG_LITEX_CSR_DATA_WIDTH={}'.format(
+            csr['constants']['config_csr_data_width'],
+        )
 
     return dts, cnf
 
