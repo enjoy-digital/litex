@@ -246,7 +246,7 @@ def peripheral_handler(name, parm, csr):
     return dtsi
 
 
-overlay_handlers = {
+_overlay_handlers = {
     'cpu': {
         'handler': cpu_handler,
         'alias': 'cpu0',
@@ -335,7 +335,7 @@ overlay_handlers = {
 }
 
 
-def generate_dts_config(csr):
+def generate_dts_config(csr, overlay_handlers):
     dts = cnf = ''
 
     for name, parm in overlay_handlers.items():
@@ -404,7 +404,7 @@ def main():
 
     with open(args.conf_file) as f:
         csr = json.load(f)
-    dts, config = generate_dts_config(csr)
+    dts, config = generate_dts_config(csr, _overlay_handlers)
 
     print_or_save(args.dts, dts)
     print_or_save(args.config, config)
