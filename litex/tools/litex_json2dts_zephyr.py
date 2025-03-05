@@ -328,6 +328,9 @@ overlay_handlers = {
     'identifier_mem': {
         'handler': peripheral_handler,
         'alias': 'dna0',
+    },
+    'prbs0': {
+        'handler': peripheral_handler,
     }
 }
 
