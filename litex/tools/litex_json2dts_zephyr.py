@@ -126,13 +126,19 @@ def ethmac_handler(name, parm, csr):
     for reg in tx_registers:
         reg['name'] = 'tx_' + reg['name']
 
-    eth_buffers = {
-        'name': 'buffers',
-        'addr': csr['memories'][name]['base'],
-        'size': csr['memories'][name]['size'],
-        'type': csr['memories'][name]['type'],
-    }
-    registers = rx_registers + tx_registers + [eth_buffers]
+    eth_buffers = [{
+        'name': 'rx_buffers',
+        'addr': csr['memories'][name + '_rx']['base'],
+        'size': csr['memories'][name + '_rx']['size'],
+        'type': csr['memories'][name + '_rx']['type'],
+    },
+    {
+        'name': 'tx_buffers',
+        'addr': csr['memories'][name + '_tx']['base'],
+        'size': csr['memories'][name + '_tx']['size'],
+        'type': csr['memories'][name + '_tx']['type'],
+    }]
+    registers = rx_registers + tx_registers + eth_buffers
 
     dtsi = dts_reg(registers)
     dtsi += dts_reg_names(registers)
