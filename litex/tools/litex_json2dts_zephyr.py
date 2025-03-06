@@ -145,6 +145,14 @@ def ethmac_handler(name, parm, csr):
     dtsi += dts_intr(name, csr)
     return dtsi
 
+def ethphy_mdio_handler(name, parm, csr):
+    registers = get_registers_of(name + '_mdio', csr)
+    if len(registers) == 0:
+        raise KeyError
+
+    dtsi = dts_reg(registers)
+    dtsi += dts_reg_names(registers)
+    return dtsi
 
 def i2c_handler(name, parm, csr):
     registers = get_registers_of(name, csr)
@@ -265,6 +273,10 @@ _overlay_handlers = {
     'ethmac': {
         'handler': ethmac_handler,
         'alias': 'eth0',
+    },
+    'ethphy': {
+        'handler': ethphy_mdio_handler,
+        'alias': 'mdio0',
     },
     'spimaster': {
         'handler': spimaster_handler,
