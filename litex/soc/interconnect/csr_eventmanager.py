@@ -77,13 +77,14 @@ class EventSourcePulse(Module, _EventSource):
 
 
 class EventSourceProcess(Module, _EventSource):
-    """EventSource which triggers on a Falling or Rising edge.
+    """EventSource which triggers on a falling, rising or any edge.
 
     The purpose of this event source is to monitor the status of processes and
     generate an interrupt on their completion.
     """
     def __init__(self, name=None, description=None, edge="falling"):
-        assert edge in ["falling", "rising"]
+        assert edge in ["falling", "rising", "any"]
+        self.edge = edge
         _EventSource.__init__(self, name, description)
         self.comb += self.status.eq(self.trigger)
         trigger_d = Signal()
@@ -93,6 +94,8 @@ class EventSourceProcess(Module, _EventSource):
             self.sync += If(~self.trigger & trigger_d, self.pending.eq(1))
         if edge == "rising":
             self.sync += If(self.trigger & ~trigger_d, self.pending.eq(1))
+        if edge == "any":
+            self.sync += If(self.trigger ^ trigger_d, self.pending.eq(1))  
 
 
 class EventSourceLevel(Module, _EventSource):
@@ -164,7 +167,7 @@ class EventManager(Module, AutoCSR):
             elif isinstance(src, EventSourcePulse):
                 return r + "This Event is triggered on a **rising** edge."
             elif isinstance(src, EventSourceProcess):
-                return r + "This Event is triggered on a **falling** edge."
+                return r + f"This Event is triggered on **{src.edge}** edge."
             else:
                 return r + "This Event uses an unknown method of triggering."
 
