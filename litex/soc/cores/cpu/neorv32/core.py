@@ -15,6 +15,7 @@ from litex.build.vhd2v_converter import *
 
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
+from litex.soc.integration.soc import SoCRegion
 
 # Variants -----------------------------------------------------------------------------------------
 
@@ -164,6 +165,7 @@ class NEORV32(CPU):
             "rom"       : 0x0000_0000,
             "sram"      : 0x0100_0000,
             "main_ram"  : 0x4000_0000,
+            "dmem"      : 0x8000_0000,
             "csr"       : 0xF000_0000,
         }
 
@@ -254,7 +256,10 @@ class NEORV32(CPU):
             for vhd in vhds:
                 vhd2v_converter.add_source(os.path.join(cdir, vhd))
                 if not os.path.exists(os.path.join(cdir, vhd)):
-                    os.system(f"wget https://raw.githubusercontent.com/pepijndevos/neorv32/{sha1}/rtl/{directory}/{vhd} -P {cdir}")
+                    os.system(f"wget https://raw.githubusercontent.com/stnolting/neorv32/{sha1}/rtl/{directory}/{vhd} -P {cdir}")
+
+    def add_soc_components(self, soc):
+        soc.bus.add_region("dmem", SoCRegion(origin=self.mem_map["dmem"], size=8*1024, cached=True, linker=True))
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
