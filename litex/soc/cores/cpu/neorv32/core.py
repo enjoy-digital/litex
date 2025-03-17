@@ -100,6 +100,7 @@ class NEORV32(CPU):
         # # #
 
         # CPU Instance.
+        self.cores = []
         for i in range(self.cpu_count):
             cpu_params = dict(
                 # Clk/Rst.
@@ -144,7 +145,7 @@ class NEORV32(CPU):
 
             # TODO
             if "debug" in variant:
-                self.add_debug()
+                self.add_debug(cpu_params)
 
             vhd2v_converter = VHD2VConverter(self.platform,
                 top_entity    = f"neorv32_litex_core_complex",
@@ -173,13 +174,17 @@ class NEORV32(CPU):
         self.reset_address = reset_address
         assert reset_address == 0x0000_0000
 
-    def add_debug(self):
-        self.i_jtag_tck = Signal()
-        self.i_jtag_tdi = Signal()
-        self.o_jtag_tdo = Signal()
-        self.i_jtag_tms = Signal()
+    def add_debug(self, cpu_params):
+        if not hasattr(self, "i_jtag_tck"):
+            self.i_jtag_tck = Signal()
+            self.i_jtag_tdi = Signal()
+            self.o_jtag_tdo = Signal()
+            self.i_jtag_tms = Signal()
+        else:
+            self.o_jtag_tdi = self.i_jtag_tdo
+            self.i_jtag_tdo = Signal()
 
-        self.cpu_params.update(
+        cpu_params.update(
             i_jtag_tck_i  = self.i_jtag_tck,
             i_jtag_tdi_i  = self.i_jtag_tdi,
             o_jtag_tdo_o  = self.o_jtag_tdo,
