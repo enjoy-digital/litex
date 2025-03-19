@@ -9,6 +9,17 @@ extern "C" {
 #include <generated/csr.h>
 #include <generated/soc.h>
 
+// The CVA5 uses a Platform-Level Interrupt Controller (PLIC) which
+// is programmed and queried via a set of MMIO registers.
+
+#define PLIC_BASE    0xf8000000L // Base address and per-pin priority array
+#define PLIC_PENDING 0xf8001000L // Bit field matching currently pending pins
+#define PLIC_ENABLED 0xf8002000L // Bit field corresponding to the current mask
+#define PLIC_THRSHLD 0xf8200000L // Per-pin priority must be >= this to trigger
+#define PLIC_CLAIM   0xf8200004L // Claim & completion register address
+
+#define PLIC_EXT_IRQ_BASE 1
+
 static inline unsigned int irq_getie(void)
 {
     return (csrr(mstatus) & CSR_MSTATUS_MIE) != 0;
