@@ -198,6 +198,59 @@ void isr_dec(void)
     mtdec(0x000000000ffffff);
 }
 
+/***********************************/
+/* ISR Handling for CVA5 CPU. */
+/***********************************/
+#elif defined(__cva5__)
+
+// PLIC initialization.
+void plic_init(void);
+void plic_init(void)
+{
+	int i;
+
+	// Set priorities for the first 8 external interrupts to 1.
+	for (i = 0; i < 8; i++)
+		*((unsigned int *)PLIC_BASE + PLIC_EXT_IRQ_BASE + i) = 1;
+
+	// Enable the first 8 external interrupts
+	*((unsigned int *)PLIC_ENABLED) = 0xff << PLIC_EXT_IRQ_BASE;
+
+	// Set priority threshold to 0 (any priority > 0 triggers an interrupt).
+	*((unsigned int *)PLIC_THRSHLD) = 0;
+}
+
+// Interrupt Service Routine.
+void isr(void)
+{
+	unsigned int claim = 1;
+
+	while (claim) {
+		claim = *((unsigned int *)PLIC_CLAIM);
+		if(claim - PLIC_EXT_IRQ_BASE == UART_INTERRUPT+1) {
+			uart_isr(); // Handle UART interrupt.
+			*((unsigned int *)PLIC_CLAIM) = claim;
+			csrr(mip);
+			break;
+		}else if(claim) {
+			printf("## PLIC: Unhandled claim: %d\n", claim);
+			printf("# plic_enabled:    %08x\n", irq_getmask());
+			printf("# plic_pending:    %08x\n", irq_pending());
+			printf("# mepc:    %016lx\n", csrr(mepc));
+			printf("# mcause:  %016lx\n", csrr(mcause));
+			printf("# mtval:   %016lx\n", csrr(mtval));
+			printf("# mie:     %016lx\n", csrr(mie));
+			printf("# mip:     %016lx\n", csrr(mip));
+			printf("###########################\n\n");
+			break;
+		}
+		// Acknowledge the interrupt.
+		*((unsigned int *)PLIC_CLAIM) = claim;
+		csrr(mip);
+		break;
+	}
+}
+
 /*******************************************************/
 /* Generic ISR Handling for CPUs with Interrupt Table. */
 /*******************************************************/
