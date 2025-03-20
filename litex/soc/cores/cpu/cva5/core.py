@@ -51,6 +51,30 @@ class CVA5(CPU):
     io_regions           = {0x80000000: 0x80000000} # origin, length
     plic_base            = 0xf800_0000
     clint_base           = 0xf001_0000
+    cpu_count           = 1
+    bus_type             = "wishbone" #either wishbone or axi
+    cpu_variant          = "Linux" #either linux or default
+
+
+
+    @staticmethod
+    def args_fill(parser):
+        cpu_group = parser.add_argument_group(title="CPU options")
+        cpu_group.add_argument("--cpu-count",                    default=1,            help="Number of CPU(s) in the cluster.", type=int)
+        cpu_group.add_argument("--clint-base",                   default="0xf0010000", help="CLINT base address.")
+        cpu_group.add_argument("--plic-base",                    default="0xf0c00000", help="PLIC base address.")
+        cpu_group.add_argument("--bus-type",                    default="wishbone", help="Bus type can be either wishbone or axi")
+        cpu_group.add_argument("--variant",                    default="Linux", help="The CPU type for now it has the linux type")#TODO add other configs
+
+    @staticmethod
+    def args_read(args):
+        CVA5.cpu_count = args.cpu_count
+        CVA5.bus_type = args.bus_type
+        CVA5.cpu_variant = args.variant
+        if(args.clint_base): CVA5.clint_base = int(args.clint_base, 16)
+        if(args.plic_base):  CVA5.plic_base  = int(args.plic_base, 16)
+
+
 
     # Memory Mapping.
     @property
@@ -84,75 +108,76 @@ class CVA5(CPU):
             p_RESET_VEC      = 0,
             p_NON_CACHABLE_L = 0x80000000, # FIXME: Use io_regions.
             p_NON_CACHABLE_H = 0xFFFFFFFF, # FIXME: Use io_regions.
-            p_NUM_CORES      = 4,
-            p_AXI = 1,
+            p_NUM_CORES      = CVA5.cpu_count,
+            p_AXI = 0 if CVA5.bus_type == "wishbone" else 1,
 
             # Clk/Rst.
             i_clk = ClockSignal("sys"),
             i_rst = ResetSignal("sys"),
         )
-       
-        # Standard variant includes instruction and data caches, multiply and divide support
-        # along with the branch predictor. It uses a shared wishbone interface.
-        # self.idbus = idbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
-        # self.periph_buses.append(idbus)
-        self.axi_if = axi_if = axi.AXIInterface(data_width=32, address_width=32, id_width=4)
-        self.periph_buses.append(axi_if)
 
-        self.cpu_params.update(
-            # o_idbus_adr   = idbus.adr,
-            # o_idbus_dat_w = idbus.dat_w,
-            # o_idbus_sel   = idbus.sel,
-            # o_idbus_cyc   = idbus.cyc,
-            # o_idbus_stb   = idbus.stb,
-            # o_idbus_we    = idbus.we,
-            # o_idbus_cti   = idbus.cti,
-            # o_idbus_bte   = idbus.bte,
-            # i_idbus_dat_r = idbus.dat_r,
-            # i_idbus_ack   = idbus.ack,
-            # i_idbus_err   = idbus.err,
+        if(CVA5.bus_type == "wishbone"):
+            self.idbus = idbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+            self.periph_buses.append(idbus)
+            self.cpu_params.update(
+                o_idbus_adr   = idbus.adr,
+                o_idbus_dat_w = idbus.dat_w,
+                o_idbus_sel   = idbus.sel,
+                o_idbus_cyc   = idbus.cyc,
+                o_idbus_stb   = idbus.stb,
+                o_idbus_we    = idbus.we,
+                o_idbus_cti   = idbus.cti,
+                o_idbus_bte   = idbus.bte,
+                i_idbus_dat_r = idbus.dat_r,
+                i_idbus_ack   = idbus.ack,
+                i_idbus_err   = idbus.err,
+            )
+        else:
+            self.axi_if = axi_if = axi.AXIInterface(data_width=32, address_width=32, id_width=4)
+            self.periph_buses.append(axi_if)
 
-            # AXI read address channel
-            i_m_axi_arready  = axi_if.ar.ready,
-            o_m_axi_arvalid  = axi_if.ar.valid,
-            o_m_axi_araddr   = axi_if.ar.addr,
-            o_m_axi_arlen    = axi_if.ar.len,
-            o_m_axi_arsize   = axi_if.ar.size,
-            o_m_axi_arburst  = axi_if.ar.burst,
-            o_m_axi_arcache  = axi_if.ar.cache,
-            o_m_axi_arid     = axi_if.ar.id,
+            self.cpu_params.update(
+                # AXI read address channel
+                i_m_axi_arready  = axi_if.ar.ready,
+                o_m_axi_arvalid  = axi_if.ar.valid,
+                o_m_axi_araddr   = axi_if.ar.addr,
+                o_m_axi_arlen    = axi_if.ar.len,
+                o_m_axi_arsize   = axi_if.ar.size,
+                o_m_axi_arburst  = axi_if.ar.burst,
+                o_m_axi_arcache  = axi_if.ar.cache,
+                o_m_axi_arid     = axi_if.ar.id,
 
-            # AXI read data channel
-            o_m_axi_rready   = axi_if.r.ready,
-            i_m_axi_rvalid   = axi_if.r.valid,
-            i_m_axi_rdata    = axi_if.r.data,
-            i_m_axi_rresp    = axi_if.r.resp,
-            i_m_axi_rlast    = axi_if.r.last,
-            i_m_axi_rid      = axi_if.r.id,
+                # AXI read data channel
+                o_m_axi_rready   = axi_if.r.ready,
+                i_m_axi_rvalid   = axi_if.r.valid,
+                i_m_axi_rdata    = axi_if.r.data,
+                i_m_axi_rresp    = axi_if.r.resp,
+                i_m_axi_rlast    = axi_if.r.last,
+                i_m_axi_rid      = axi_if.r.id,
 
-            # AXI write address channel
-            i_m_axi_awready  = axi_if.aw.ready,
-            o_m_axi_awvalid  = axi_if.aw.valid,
-            o_m_axi_awaddr   = axi_if.aw.addr,
-            o_m_axi_awlen    = axi_if.aw.len,
-            o_m_axi_awsize   = axi_if.aw.size,
-            o_m_axi_awburst  = axi_if.aw.burst,
-            o_m_axi_awcache  = axi_if.aw.cache,
-            o_m_axi_awid     = axi_if.aw.id,
+                # AXI write address channel
+                i_m_axi_awready  = axi_if.aw.ready,
+                o_m_axi_awvalid  = axi_if.aw.valid,
+                o_m_axi_awaddr   = axi_if.aw.addr,
+                o_m_axi_awlen    = axi_if.aw.len,
+                o_m_axi_awsize   = axi_if.aw.size,
+                o_m_axi_awburst  = axi_if.aw.burst,
+                o_m_axi_awcache  = axi_if.aw.cache,
+                o_m_axi_awid     = axi_if.aw.id,
 
-            # AXI write data channel
-            i_m_axi_wready   = axi_if.w.ready,
-            o_m_axi_wvalid   = axi_if.w.valid,
-            o_m_axi_wdata    = axi_if.w.data,
-            o_m_axi_wstrb    = axi_if.w.strb,
-            o_m_axi_wlast    = axi_if.w.last,
+                # AXI write data channel
+                i_m_axi_wready   = axi_if.w.ready,
+                o_m_axi_wvalid   = axi_if.w.valid,
+                o_m_axi_wdata    = axi_if.w.data,
+                o_m_axi_wstrb    = axi_if.w.strb,
+                o_m_axi_wlast    = axi_if.w.last,
 
-            # AXI write response channel
-            o_m_axi_bready   = axi_if.b.ready,
-            i_m_axi_bvalid   = axi_if.b.valid,
-            i_m_axi_bresp    = axi_if.b.resp,
-            i_m_axi_bid      = axi_if.b.id,
-        )
+                # AXI write response channel
+                o_m_axi_bready   = axi_if.b.ready,
+                i_m_axi_bvalid   = axi_if.b.valid,
+                i_m_axi_bresp    = axi_if.b.resp,
+                i_m_axi_bid      = axi_if.b.id,
+            )
         self.add_sources(platform)
 
     def set_reset_address(self, reset_address):
@@ -162,7 +187,6 @@ class CVA5(CPU):
 
     @staticmethod
     def add_sources(platform):
-        platform.add_source("/media/CVA5_PLIC/CLINT/Clint.sv")
         cva5_path = get_data_mod("cpu", "cva5").data_location
         with open(os.path.join(cva5_path, "tools/compile_order"), "r") as f:
             for line in f:
@@ -175,60 +199,65 @@ class CVA5(CPU):
         self.specials += Instance("litex_wrapper", **self.cpu_params)
 
     def add_soc_components(self, soc):
-        # soc.csr.add("sdram", n=1)
+        soc.csr.add("sdram", n=1)
         soc.csr.add("uart", n=2)
         soc.csr.add("timer0", n=3)
         soc.csr.add("supervisor", n=4)
-
-        # Unused signals
-        one_b0_i = Signal(reset=0)
-        thirtytwo_b0_i = Signal(32, reset=0)
-        fourteen_b0_i = Signal(14, reset=0)
-        twentyfour_b0_i = Signal(24, reset=0)
-        one_b0_o = Signal()
-        thirtytwo_b0_o = Signal(32)
 
         # PLIC
         seip = Signal(int(self.cpu_params["p_NUM_CORES"]))
         meip = Signal(int(self.cpu_params["p_NUM_CORES"]))
         eip = Signal(2*int(self.cpu_params["p_NUM_CORES"]))
         es = Signal(2, reset=0)
-
-        # self.plicbus = plicbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
-        self.plicbus = plicbus = axi.AXIInterface(data_width=32, address_width=32, id_width=4)
-        self.specials += Instance("plic_wrapper",
-            p_NUM_SOURCES = 1,
-            p_NUM_TARGETS = 2*int(self.cpu_params["p_NUM_CORES"]),
-            p_PRIORITY_W = 8,
-            p_REG_STAGE = 1,
-            p_AXI = 1,
-            i_clk = ClockSignal("sys"),
-            i_rst = ResetSignal("sys"),
-            # i_wb_cyc = plicbus.cyc,
-            # i_wb_stb = plicbus.stb,
-            # i_wb_we = plicbus.we,
-            # i_wb_adr = plicbus.adr,
-            # i_wb_dat_i = plicbus.dat_w,
-            # o_wb_dat_o = plicbus.dat_r,
-            # o_wb_ack = plicbus.ack,
-            i_irq_srcs = self.interrupt,
-            i_edge_sensitive = es,
-            o_eip = eip,
-            i_s_axi_awvalid = plicbus.aw.valid,
-            i_s_axi_awaddr = plicbus.aw.addr,
-            i_s_axi_wvalid = plicbus.w.valid,
-            i_s_axi_wdata = plicbus.w.data,
-            i_s_axi_bready = plicbus.b.ready,
-            i_s_axi_arvalid = plicbus.ar.valid,
-            i_s_axi_araddr = plicbus.ar.addr,
-            i_s_axi_rready = plicbus.r.ready,
-            o_s_axi_awready = plicbus.aw.ready,
-            o_s_axi_wready = plicbus.w.ready,
-            o_s_axi_bvalid = plicbus.b.valid,
-            o_s_axi_arready = plicbus.ar.ready,
-            o_s_axi_rvalid = plicbus.r.valid,
-            o_s_axi_rdata = plicbus.r.data
-        )
+        if(CVA5.bus_type == "wishbone"):
+            self.plicbus = plicbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+            self.specials += Instance("plic_wrapper",
+                p_NUM_SOURCES = 1,
+                p_NUM_TARGETS = 2*int(self.cpu_params["p_NUM_CORES"]),
+                p_PRIORITY_W = 8,
+                p_REG_STAGE = 1,
+                p_AXI = 0,
+                i_clk = ClockSignal("sys"),
+                i_rst = ResetSignal("sys"),
+                i_irq_srcs = self.interrupt,
+                i_edge_sensitive = es,
+                o_eip = eip,
+                i_wb_cyc = plicbus.cyc,
+                i_wb_stb = plicbus.stb,
+                i_wb_we = plicbus.we,
+                i_wb_adr = plicbus.adr,
+                i_wb_dat_i = plicbus.dat_w,
+                o_wb_dat_o = plicbus.dat_r,
+                o_wb_ack = plicbus.ack,
+            )
+        else:
+            self.plicbus = plicbus = axi.AXIInterface(data_width=32, address_width=32, id_width=4)
+            self.specials += Instance("plic_wrapper",
+                p_NUM_SOURCES = 1,
+                p_NUM_TARGETS = 2*int(self.cpu_params["p_NUM_CORES"]),
+                p_PRIORITY_W = 8,
+                p_REG_STAGE = 1,
+                p_AXI = 1,
+                i_clk = ClockSignal("sys"),
+                i_rst = ResetSignal("sys"),
+                i_irq_srcs = self.interrupt,
+                i_edge_sensitive = es,
+                o_eip = eip,
+                i_s_axi_awvalid = plicbus.aw.valid,
+                i_s_axi_awaddr = plicbus.aw.addr,
+                i_s_axi_wvalid = plicbus.w.valid,
+                i_s_axi_wdata = plicbus.w.data,
+                i_s_axi_bready = plicbus.b.ready,
+                i_s_axi_arvalid = plicbus.ar.valid,
+                i_s_axi_araddr = plicbus.ar.addr,
+                i_s_axi_rready = plicbus.r.ready,
+                o_s_axi_awready = plicbus.aw.ready,
+                o_s_axi_wready = plicbus.w.ready,
+                o_s_axi_bvalid = plicbus.b.valid,
+                o_s_axi_arready = plicbus.ar.ready,
+                o_s_axi_rvalid = plicbus.r.valid,
+                o_s_axi_rdata = plicbus.r.data
+            )
 
         self.comb += [
             meip.eq(Cat(*[eip[i*2] for i in range(int(self.cpu_params["p_NUM_CORES"]))])),
@@ -243,47 +272,57 @@ class CVA5(CPU):
         soc.bus.add_slave("plic", self.plicbus, region=SoCRegion(origin=self.plic_base, size=0x40_0000, cached=False))
 
         # CLINT
-        mtime = Signal(64)
-        msip = Signal(int(self.cpu_params["p_NUM_CORES"]))
-        mtip = Signal(int(self.cpu_params["p_NUM_CORES"]))
-        
-        # self.clintbus = clintbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
-        self.clintbus = clintbus = axi.AXIInterface(data_width=32, address_width=32, id_width=4)
-        
-        self.specials += Instance("clint_wrapper",
-            p_NUM_CORES = int(self.cpu_params["p_NUM_CORES"]),
-            p_AXI = 1,
-            i_clk = ClockSignal("sys"),
-            i_rst = ResetSignal("sys"),
-            # i_wb_cyc = clintbus.cyc,
-            # i_wb_stb = clintbus.stb,
-            # i_wb_we = clintbus.we,
-            # i_wb_adr = clintbus.adr,
-            # i_wb_dat_i = clintbus.dat_w,
-            # o_wb_dat_o = clintbus.dat_r,
-            # o_wb_ack = clintbus.ack,
-            o_mtip = mtip,
-            o_msip = msip,
-            o_mtime  = mtime,
-            i_s_axi_awvalid = clintbus.aw.valid,
-            i_s_axi_awaddr = clintbus.aw.addr,
-            i_s_axi_wvalid = clintbus.w.valid,
-            i_s_axi_wdata = clintbus.w.data,
-            i_s_axi_bready = clintbus.b.ready,
-            i_s_axi_arvalid = clintbus.ar.valid,
-            i_s_axi_araddr = clintbus.ar.addr,
-            i_s_axi_rready = clintbus.r.ready,
-            o_s_axi_awready = clintbus.aw.ready,
-            o_s_axi_wready = clintbus.w.ready,
-            o_s_axi_bvalid = clintbus.b.valid,
-            o_s_axi_arready = clintbus.ar.ready,
-            o_s_axi_rvalid = clintbus.r.valid,
-            o_s_axi_rdata = clintbus.r.data
-        )
-        self.cpu_params.update(
-            i_mtime = mtime,
-            i_msip = msip,
-            i_mtip = mtip
-        )
+        if(CVA5.cpu_variant == "Linux"):
+            mtime = Signal(64)
+            msip = Signal(int(self.cpu_params["p_NUM_CORES"]))
+            mtip = Signal(int(self.cpu_params["p_NUM_CORES"]))
+            if(CVA5.bus_type == "wishbone"):
+                self.clintbus = clintbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                self.specials += Instance("clint_wrapper",
+                    p_NUM_CORES = int(self.cpu_params["p_NUM_CORES"]),
+                    p_AXI = 0,
+                    i_clk = ClockSignal("sys"),
+                    i_rst = ResetSignal("sys"),
+                    o_mtip = mtip,
+                    o_msip = msip,
+                    o_mtime  = mtime,
+                    i_wb_cyc = clintbus.cyc,
+                    i_wb_stb = clintbus.stb,
+                    i_wb_we = clintbus.we,
+                    i_wb_adr = clintbus.adr,
+                    i_wb_dat_i = clintbus.dat_w,
+                    o_wb_dat_o = clintbus.dat_r,
+                    o_wb_ack = clintbus.ack,
+                )
+            else:
+                self.clintbus = clintbus = axi.AXIInterface(data_width=32, address_width=32, id_width=4)
+                self.specials += Instance("clint_wrapper",
+                    p_NUM_CORES = int(self.cpu_params["p_NUM_CORES"]),
+                    p_AXI = 1,
+                    i_clk = ClockSignal("sys"),
+                    i_rst = ResetSignal("sys"),
+                    o_mtip = mtip,
+                    o_msip = msip,
+                    o_mtime  = mtime,
+                    i_s_axi_awvalid = clintbus.aw.valid,
+                    i_s_axi_awaddr = clintbus.aw.addr,
+                    i_s_axi_wvalid = clintbus.w.valid,
+                    i_s_axi_wdata = clintbus.w.data,
+                    i_s_axi_bready = clintbus.b.ready,
+                    i_s_axi_arvalid = clintbus.ar.valid,
+                    i_s_axi_araddr = clintbus.ar.addr,
+                    i_s_axi_rready = clintbus.r.ready,
+                    o_s_axi_awready = clintbus.aw.ready,
+                    o_s_axi_wready = clintbus.w.ready,
+                    o_s_axi_bvalid = clintbus.b.valid,
+                    o_s_axi_arready = clintbus.ar.ready,
+                    o_s_axi_rvalid = clintbus.r.valid,
+                    o_s_axi_rdata = clintbus.r.data
+                )
+            self.cpu_params.update(
+                i_mtime = mtime,
+                i_msip = msip,
+                i_mtip = mtip
+            )
 
-        soc.bus.add_slave("clint", clintbus, region=SoCRegion(origin=self.clint_base, size=0x1_0000, cached=False))
+            soc.bus.add_slave("clint", clintbus, region=SoCRegion(origin=self.clint_base, size=0x1_0000, cached=False))
