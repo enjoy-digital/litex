@@ -255,8 +255,8 @@ class NEORV32(CPU):
         }
 
         # Download VHDL sources (if not already present).
-        # Version 1.9.7
-        sha1 = "2dc9002c4dab58a92c37075d40de416a6efc8556"
+        # Version 1.11.2
+        sha1 = "d7b97527997d1d16a4d1207713425b92d7d69271"
         for directory, vhds in sources.items():
             for vhd in vhds:
                 vhd2v_converter.add_source(os.path.join(cdir, vhd))
