@@ -199,58 +199,56 @@ void isr_dec(void)
 }
 
 /***********************************/
-/* ISR Handling for CVA5 CPU. */
+/* ISR Handling for CVA5 CPU in Baremetal Mode. */
 /***********************************/
 #elif defined(__cva5__)
 
-// PLIC initialization.
 void plic_init(void);
+
 void plic_init(void)
 {
-	int i;
+}
+struct irq_table
+{
+	isr_t isr;
+} irq_table[CONFIG_CPU_INTERRUPTS];
 
-	// Set priorities for the first 8 external interrupts to 1.
-	for (i = 0; i < 8; i++)
-		*((unsigned int *)PLIC_BASE + PLIC_EXT_IRQ_BASE + i) = 1;
+int irq_attach(unsigned int irq, isr_t isr)
+{
+	if (irq >= CONFIG_CPU_INTERRUPTS) {
+		printf("Inv irq %d\n", irq);
+		return -1;
+	}
 
-	// Enable the first 8 external interrupts
-	*((unsigned int *)PLIC_ENABLED) = 0xff << PLIC_EXT_IRQ_BASE;
-
-	// Set priority threshold to 0 (any priority > 0 triggers an interrupt).
-	*((unsigned int *)PLIC_THRSHLD) = 0;
+	unsigned int ie = irq_getie();
+	irq_setie(0);
+	irq_table[irq].isr = isr;
+	irq_setie(ie);
+	return irq;
 }
 
-// Interrupt Service Routine.
+int irq_detach(unsigned int irq)
+{
+	return irq_attach(irq, NULL);
+}
+
 void isr(void)
 {
-	unsigned int claim = 1;
+	// irq_setie(1);
+	unsigned int irqs = irq_pending() & irq_getmask();
 
-	while (claim) {
-		claim = *((unsigned int *)PLIC_CLAIM);
-		if(claim - PLIC_EXT_IRQ_BASE == UART_INTERRUPT+1) {
-			uart_isr(); // Handle UART interrupt.
-			*((unsigned int *)PLIC_CLAIM) = claim;
-			csrr(mip);
-			break;
-		}else if(claim) {
-			printf("## PLIC: Unhandled claim: %d\n", claim);
-			printf("# plic_enabled:    %08x\n", irq_getmask());
-			printf("# plic_pending:    %08x\n", irq_pending());
-			printf("# mepc:    %016lx\n", csrr(mepc));
-			printf("# mcause:  %016lx\n", csrr(mcause));
-			printf("# mtval:   %016lx\n", csrr(mtval));
-			printf("# mie:     %016lx\n", csrr(mie));
-			printf("# mip:     %016lx\n", csrr(mip));
-			printf("###########################\n\n");
-			break;
+	while (irqs)
+	{
+		const unsigned int irq = __builtin_ctz(irqs);
+		if ((irq < CONFIG_CPU_INTERRUPTS) && irq_table[irq].isr)
+			irq_table[irq].isr();
+		else {
+			irq_setmask(irq_getmask() & ~(1<<irq));
+			printf("\n*** disabled spurious irq %d ***\n", irq);
 		}
-		// Acknowledge the interrupt.
-		*((unsigned int *)PLIC_CLAIM) = claim;
-		csrr(mip);
-		break;
+		irqs &= irqs - 1; // clear this irq (the first bit set)
 	}
 }
-
 /*******************************************************/
 /* Generic ISR Handling for CPUs with Interrupt Table. */
 /*******************************************************/

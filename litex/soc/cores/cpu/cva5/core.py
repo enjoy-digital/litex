@@ -20,7 +20,7 @@ from litex.soc.integration.soc import SoCRegion
 
 # Variants -----------------------------------------------------------------------------------------
 
-CPU_VARIANTS = ["minimal", "standard"]
+CPU_VARIANTS = ["minimal", "standard","standard+atomic","standard+atomic+float+double"]
 
 # GCC Flags ----------------------------------------------------------------------------------------
 
@@ -34,6 +34,8 @@ GCC_FLAGS = {
     #                        i    macfd
     "minimal"  : "-march=rv32i2p0   -mabi=ilp32 ",
     "standard" : "-march=rv32i2p0_m -mabi=ilp32 ",
+    "standard+atomic" : "-march=rv32i2p0_ma -mabi=ilp32 ",
+    "standard+atomic+float+double" : "-march=rv32i2p0_mafd -mabi=ilp32 ",
 }
 
 # CVA5 ----------------------------------------------------------------------------------------------
@@ -62,7 +64,7 @@ class CVA5(CPU):
         cpu_group = parser.add_argument_group(title="CPU options")
         cpu_group.add_argument("--cpu-count",                    default=1,            help="Number of CPU(s) in the cluster.", type=int)
         cpu_group.add_argument("--clint-base",                   default="0xf0010000", help="CLINT base address.")
-        cpu_group.add_argument("--plic-base",                    default="0xf8000000", help="PLIC base address.")
+        cpu_group.add_argument("--plic-base",                    default="0xf800_0000", help="PLIC base address.")
         cpu_group.add_argument("--bus-type",                    default="wishbone", help="Bus type can be either wishbone or axi")
         cpu_group.add_argument("--variant",                    default="Linux", help="The CPU type for now it has the linux type")#TODO add other configs
 
@@ -90,7 +92,10 @@ class CVA5(CPU):
     @property
     def gcc_flags(self):
         flags = GCC_FLAGS[self.variant]
-        flags += "-D__riscv_plic__"
+        if(CVA5.cpu_variant=="Linux"):
+            flags += "-D__riscv_plic__"
+        else:
+            flags += "-D__cva5__"
         return flags
 
     def __init__(self, platform, variant="standard"):
@@ -101,6 +106,7 @@ class CVA5(CPU):
         self.interrupt    = Signal(2)
         self.periph_buses = [] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses = [] # Memory buses (Connected directly to LiteDRAM).
+        self.reset        = Signal()
 
         # CPU Instance.
         self.cpu_params = dict(
@@ -113,7 +119,7 @@ class CVA5(CPU):
 
             # Clk/Rst.
             i_clk = ClockSignal("sys"),
-            i_rst = ResetSignal("sys"),
+            i_rst = ResetSignal("sys") | self.reset,
         )
 
         if(CVA5.bus_type == "wishbone"):
@@ -209,67 +215,74 @@ class CVA5(CPU):
         meip = Signal(int(self.cpu_params["p_NUM_CORES"]))
         eip = Signal(2*int(self.cpu_params["p_NUM_CORES"]))
         es = Signal(2, reset=0)
-        if(CVA5.bus_type == "wishbone"):
-            self.plicbus = plicbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
-            self.specials += Instance("plic_wrapper",
-                p_NUM_SOURCES = 1,
-                p_NUM_TARGETS = 2*int(self.cpu_params["p_NUM_CORES"]),
-                p_PRIORITY_W = 8,
-                p_REG_STAGE = 1,
-                p_AXI = 0,
-                i_clk = ClockSignal("sys"),
-                i_rst = ResetSignal("sys"),
-                i_irq_srcs = self.interrupt,
-                i_edge_sensitive = es,
-                o_eip = eip,
-                i_wb_cyc = plicbus.cyc,
-                i_wb_stb = plicbus.stb,
-                i_wb_we = plicbus.we,
-                i_wb_adr = plicbus.adr,
-                i_wb_dat_i = plicbus.dat_w,
-                o_wb_dat_o = plicbus.dat_r,
-                o_wb_ack = plicbus.ack,
+
+        if(CVA5.cpu_variant == "Linux"):
+            if(CVA5.bus_type == "wishbone"):
+                self.plicbus = plicbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                self.specials += Instance("plic_wrapper",
+                    p_NUM_SOURCES = 1,
+                    p_NUM_TARGETS = 2*int(self.cpu_params["p_NUM_CORES"]),
+                    p_PRIORITY_W = 8,
+                    p_REG_STAGE = 1,
+                    p_AXI = 0,
+                    i_clk = ClockSignal("sys"),
+                    i_rst = ResetSignal("sys"),
+                    i_irq_srcs = self.interrupt,
+                    i_edge_sensitive = es,
+                    o_eip = eip,
+                    i_wb_cyc = plicbus.cyc,
+                    i_wb_stb = plicbus.stb,
+                    i_wb_we = plicbus.we,
+                    i_wb_adr = plicbus.adr,
+                    i_wb_dat_i = plicbus.dat_w,
+                    o_wb_dat_o = plicbus.dat_r,
+                    o_wb_ack = plicbus.ack,
+                )
+            else:
+                self.plicbus = plicbus = axi.AXIInterface(data_width=32, address_width=32, id_width=4)
+                self.specials += Instance("plic_wrapper",
+                    p_NUM_SOURCES = 1,
+                    p_NUM_TARGETS = 2*int(self.cpu_params["p_NUM_CORES"]),
+                    p_PRIORITY_W = 8,
+                    p_REG_STAGE = 1,
+                    p_AXI = 1,
+                    i_clk = ClockSignal("sys"),
+                    i_rst = ResetSignal("sys"),
+                    i_irq_srcs = self.interrupt,
+                    i_edge_sensitive = es,
+                    o_eip = eip,
+                    i_s_axi_awvalid = plicbus.aw.valid,
+                    i_s_axi_awaddr = plicbus.aw.addr,
+                    i_s_axi_wvalid = plicbus.w.valid,
+                    i_s_axi_wdata = plicbus.w.data,
+                    i_s_axi_bready = plicbus.b.ready,
+                    i_s_axi_arvalid = plicbus.ar.valid,
+                    i_s_axi_araddr = plicbus.ar.addr,
+                    i_s_axi_rready = plicbus.r.ready,
+                    o_s_axi_awready = plicbus.aw.ready,
+                    o_s_axi_wready = plicbus.w.ready,
+                    o_s_axi_bvalid = plicbus.b.valid,
+                    o_s_axi_arready = plicbus.ar.ready,
+                    o_s_axi_rvalid = plicbus.r.valid,
+                    o_s_axi_rdata = plicbus.r.data
+                )
+
+            self.comb += [
+                meip.eq(Cat(*[eip[i*2] for i in range(int(self.cpu_params["p_NUM_CORES"]))])),
+                seip.eq(Cat(*[eip[i*2 + 1] for i in range(int(self.cpu_params["p_NUM_CORES"]))]))
+            ]
+
+            self.cpu_params.update(
+                i_seip = seip,
+                i_meip = meip
             )
+            soc.bus.add_slave("plic", self.plicbus, region=SoCRegion(origin=self.plic_base, size=0x40_0000, cached=False))
         else:
-            self.plicbus = plicbus = axi.AXIInterface(data_width=32, address_width=32, id_width=4)
-            self.specials += Instance("plic_wrapper",
-                p_NUM_SOURCES = 1,
-                p_NUM_TARGETS = 2*int(self.cpu_params["p_NUM_CORES"]),
-                p_PRIORITY_W = 8,
-                p_REG_STAGE = 1,
-                p_AXI = 1,
-                i_clk = ClockSignal("sys"),
-                i_rst = ResetSignal("sys"),
-                i_irq_srcs = self.interrupt,
-                i_edge_sensitive = es,
-                o_eip = eip,
-                i_s_axi_awvalid = plicbus.aw.valid,
-                i_s_axi_awaddr = plicbus.aw.addr,
-                i_s_axi_wvalid = plicbus.w.valid,
-                i_s_axi_wdata = plicbus.w.data,
-                i_s_axi_bready = plicbus.b.ready,
-                i_s_axi_arvalid = plicbus.ar.valid,
-                i_s_axi_araddr = plicbus.ar.addr,
-                i_s_axi_rready = plicbus.r.ready,
-                o_s_axi_awready = plicbus.aw.ready,
-                o_s_axi_wready = plicbus.w.ready,
-                o_s_axi_bvalid = plicbus.b.valid,
-                o_s_axi_arready = plicbus.ar.ready,
-                o_s_axi_rvalid = plicbus.r.valid,
-                o_s_axi_rdata = plicbus.r.data
+            self.cpu_params.update(
+                i_meip = self.interrupt[0]
             )
 
-        self.comb += [
-            meip.eq(Cat(*[eip[i*2] for i in range(int(self.cpu_params["p_NUM_CORES"]))])),
-            seip.eq(Cat(*[eip[i*2 + 1] for i in range(int(self.cpu_params["p_NUM_CORES"]))]))
-        ]
 
-        self.cpu_params.update(
-            i_seip = seip,
-            i_meip = meip
-        )
-
-        soc.bus.add_slave("plic", self.plicbus, region=SoCRegion(origin=self.plic_base, size=0x40_0000, cached=False))
 
         # CLINT
         if(CVA5.cpu_variant == "Linux"):
@@ -324,5 +337,9 @@ class CVA5(CPU):
                 i_msip = msip,
                 i_mtip = mtip
             )
-
             soc.bus.add_slave("clint", clintbus, region=SoCRegion(origin=self.clint_base, size=0x1_0000, cached=False))
+        else:
+            self.cpu_params.update(
+                i_mtip = self.interrupt[1]
+            )
+
