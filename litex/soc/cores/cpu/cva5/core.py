@@ -62,7 +62,7 @@ class CVA5(CPU):
         cpu_group = parser.add_argument_group(title="CPU options")
         cpu_group.add_argument("--cpu-count",                    default=1,            help="Number of CPU(s) in the cluster.", type=int)
         cpu_group.add_argument("--clint-base",                   default="0xf0010000", help="CLINT base address.")
-        cpu_group.add_argument("--plic-base",                    default="0xf0c00000", help="PLIC base address.")
+        cpu_group.add_argument("--plic-base",                    default="0xf8000000", help="PLIC base address.")
         cpu_group.add_argument("--bus-type",                    default="wishbone", help="Bus type can be either wishbone or axi")
         cpu_group.add_argument("--variant",                    default="Linux", help="The CPU type for now it has the linux type")#TODO add other configs
 
