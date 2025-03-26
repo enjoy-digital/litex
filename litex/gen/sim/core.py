@@ -22,7 +22,7 @@ from migen.fhdl.bitcontainer import value_bits_sign
 from migen.fhdl.tools import (list_targets, list_signals,
                               insert_resets, lower_specials)
 from migen.fhdl.simplify import MemoryToArray
-from migen.fhdl.specials import _MemoryLocation
+from migen.fhdl.specials import _MemoryLocation, Tristate
 from migen.fhdl.module import Module
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
@@ -254,6 +254,55 @@ class DummyAsyncResetSynchronizer:
         return DummyAsyncResetSynchronizerImpl(dr.cd, dr.async_reset)
 
 
+class _MockTristateImpl(Module):
+    def __init__(self, t):
+        t.i_mock = Signal(reset=True)
+        self.comb += [
+            If(t.oe,
+               t.target.eq(t.o),
+               t.i.eq(t.o),
+            ).Else(
+               t.target.eq(t.i_mock),
+               t.i.eq(t.i_mock),
+            ),
+        ]
+
+
+class _MockTristate:
+    """A mock `Tristate` for simulation
+
+    This simulation ensures the TriState input (_i) tracks the output (_o) when output enable
+    (_oe) = 1. A new i_mock `Signal` is added  - this can be written to in the simulation to represent
+    input from the external device.
+
+    Example usage:
+
+    class TestMyModule(unittest.TestCase):
+        def test_mymodule(self):
+            dut = MyModule()
+            io = Signal()
+            dut.io_t = TSTriple()
+            self.io_tristate = self.io_t.get_tristate(io)
+
+            dut.comb += [
+                dut.io_t.oe.eq(signal_for_oe),
+                dut.io_t.o.eq(signal_for_o),
+                signal_for_i.eq(dut.io_t.i),
+            ]
+
+    def generator()
+        yield dut.io_tristate.i_mock.eq(some_value)
+        if (yield dut.io_t.oe):
+            self.assertEqual((yield dut.scl_t.i), (yield dut.io_t.o))
+        else:
+            self.assertEqual((yield dut.scl_t.i), some_value)
+
+    """
+    @staticmethod
+    def lower(t):
+        return _MockTristateImpl(t)
+
+
 # TODO: instances via Iverilog/VPI
 class Simulator:
     def __init__(self, fragment_or_module, generators, clocks={"sys": 10}, vcd_name=None,
@@ -266,7 +315,10 @@ class Simulator:
         mta = MemoryToArray()
         mta.transform_fragment(None, self.fragment)
 
-        overrides = {AsyncResetSynchronizer: DummyAsyncResetSynchronizer}
+        overrides = {
+            AsyncResetSynchronizer: DummyAsyncResetSynchronizer,
+            Tristate: _MockTristate,
+        }
         overrides.update(special_overrides)
         f, lowered = lower_specials(overrides, self.fragment)
         if self.fragment.specials:
