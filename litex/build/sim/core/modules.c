@@ -157,3 +157,23 @@ out:
   *found = list;
   return ret;
 }
+
+const char* msg_return_strerror(msg_return_t err) {
+    switch (err) {
+    case MSGRET_SUCCESS:
+        return "success";
+        break;
+    case MSGRET_FAIL:
+        return "fail";
+        break;
+    case MSGRET_MODSESSION_NOT_FOUND:
+        return "modsession_not_found";
+        break;
+    case MSGRET_INVALID_OP:
+        return "invalid_op";
+        break;
+    default:
+        return "unknown";
+        break;
+    }
+}
