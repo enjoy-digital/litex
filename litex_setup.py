@@ -220,10 +220,19 @@ def litex_setup_init_repos(config="standard", tag=None, dev_mode=False):
             repo_url = repo.url
             if dev_mode:
                 repo_url = repo_url.replace("https://github.com/", "git@github.com:")
+
+            clone_options = ["--depth 1"]
+            if repo.clone == "recursive":
+                clone_options.append("--recursive")
+            if repo.branch is not None:
+                clone_options.append(f"-b {repo.branch}")
+            options_str = " ".join(clone_options)
+
             subprocess.check_call("git clone {url} {options}".format(
                 url     = repo_url + name + ".git",
-                options = "--recursive" if repo.clone == "recursive" else ""
+                options = options_str
                 ), shell=True)
+
             os.chdir(os.path.join(current_path, name))
             # Use specific Branch.
             subprocess.check_call("git checkout " + repo.branch, shell=True)
@@ -495,4 +504,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
