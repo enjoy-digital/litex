@@ -109,9 +109,11 @@ static void rx_callback(uint32_t src_ip, uint16_t src_port,
 		return;
 	}
 	if (opcode == TFTP_OACK) { /* Option Acknowledgement */
+		data_port = src_port;
 		packet_data = udp_get_tx_buffer();
 		length = format_ack(packet_data, 0);
 		udp_send(PORT_IN, src_port, length);
+		last_ack = 0;
 		return;
 	}
 	if(block < 1) return;
