@@ -4,11 +4,9 @@ import os
 import sys
 import time
 import subprocess
-import shutil
 import hashlib
 import argparse
 
-import urllib.request
 
 start_time   = time.time()
 current_path = os.path.abspath(os.curdir)
@@ -207,6 +205,34 @@ def git_tag(tag=None):
     os.system(f"git tag {tag}")
     os.system(f"git push --tags")
 
+# Python Build helpers -----------------------------------------------------------------------------
+def bump_version(version):
+    with open("setup.py", "r") as f:
+        content = f.readlines()
+    with open("setup.py", "w") as f:
+        for line in content:
+            # Find the version line
+            if line.strip().startswith("version"):
+                # Get the current version
+                current_version = line.strip().split('=')[1].strip(" ,\"")
+                # Print the current version for debugging
+                print_status(f"Current version: {current_version}")
+                # Print the new version for debugging
+                print_status(f"New version: {version}")
+
+                line = line.replace(current_version, version)
+            f.write(line)
+    os.system("git add setup.py")
+    os.system(f"git commit -m 'Bump version to {version}'")
+    os.system("git push")
+
+def build_repo():
+    os.system(f"python -m build --sdist --wheel")
+    os.system(f"python -m twine check dist/*")
+
+def push_to_pypi():
+    os.system(f"python -m twine upload dist/*")
+
 # Git repositories initialization ------------------------------------------------------------------
 
 def litex_setup_init_repos(config="standard", tag=None, dev_mode=False):
@@ -327,14 +353,37 @@ def litex_setup_release_repos(tag):
     print_status(f"Making release {tag}...", underline=True)
     confirm = input("Please confirm by pressing Y:")
     if confirm.upper() == "Y":
+        should_bump = input("Do you want to bump the version of the repositories? (Y/n):") == "Y"
+        should_dist = input("Do you want to build the repositories and publish to PyPI? (Y/n):") == "Y"
+        should_tag = input("Do you want to git tag the repositories? (Y/n):") == "Y"
         for name in install_configs["full"]:
             if name in ["migen"]:
                 continue
-            repo = git_repos[name]
+
             os.chdir(os.path.join(current_path, name))
-            # Tag Repo.
-            print_status(f"Tagging {name} Git repository as {tag}...")
-            git_tag(tag=tag)
+
+            # TODO: Not all repos have been uplifted for redistribution.
+            # Eventually, this "if" check should be removed and the bump
+            # versioning part moved above the git tag
+            if name in ("litex", "litedram", "liteeth", "litei2c", "liteiclink", "litejesd204b", "litepcie", "litesata", "litescope", "litesdcard", "litespi"):
+                if should_bump:
+                    # Bump the version
+                    print_status(f"Bumping the version of {name} python package...")
+                    bump_version(version=tag)
+
+                if should_dist:
+                    # Make sure the repo builds for distribution
+                    print_status(f"Building {name} python package...")
+                    build_repo()
+
+                    # Push disted artifacts to pypi
+                    print_status(f"Publishing {name} to pypi...")
+                    push_to_pypi()
+
+            if should_tag:
+                # Tag Repo.
+                print_status(f"Tagging {name} Git repository as {tag}...")
+                git_tag(tag=tag)
     else:
         print_status(f"Not confirmed, exiting.")
 
@@ -495,4 +544,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
