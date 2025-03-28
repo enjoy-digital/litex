@@ -115,12 +115,29 @@ class Wishbone2AXILite(LiteXModule):
         # FSM.
         self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
-            NextValue(_cmd_done,  0),
-            NextValue(_data_done, 0),
             If(wishbone.stb & wishbone.cyc,
                 If(wishbone.we,
+                    # aw (write command)
+                    axi_lite.aw.valid.eq(1),
+                    axi_lite.aw.addr[wishbone_adr_shift:].eq(_addr),
+                    If(axi_lite.aw.ready,
+                        NextValue(_cmd_done, 1)
+                    ),
+                    # w (write data)
+                    axi_lite.w.valid.eq(1),
+                    axi_lite.w.data.eq(wishbone.dat_w),
+                    axi_lite.w.strb.eq(wishbone.sel),
+                    If(axi_lite.w.ready,
+                        NextValue(_data_done, 1),
+                    ),
                     NextState("WRITE")
                 ).Else(
+                    # ar (read command)
+                    axi_lite.ar.valid.eq(1),
+                    axi_lite.ar.addr[wishbone_adr_shift:].eq(_addr),
+                    If(axi_lite.ar.ready,
+                        NextValue(_cmd_done, 1)
+                    ),
                     NextState("READ")
                 )
             )
@@ -142,6 +159,8 @@ class Wishbone2AXILite(LiteXModule):
             # b (write response)
             axi_lite.b.ready.eq(_cmd_done & _data_done),
             If(axi_lite.b.valid & axi_lite.b.ready,
+                NextValue(_cmd_done,  0),
+                NextValue(_data_done, 0),
                 If(axi_lite.b.resp == RESP_OKAY,
                     wishbone.ack.eq(1),
                     NextState("IDLE")
@@ -160,6 +179,7 @@ class Wishbone2AXILite(LiteXModule):
             # r (read data & response)
             axi_lite.r.ready.eq(_cmd_done),
             If(axi_lite.r.valid & axi_lite.r.ready,
+                NextValue(_cmd_done,  0),
                 If(axi_lite.r.resp == RESP_OKAY,
                     wishbone.dat_r.eq(axi_lite.r.data),
                     wishbone.ack.eq(1),
