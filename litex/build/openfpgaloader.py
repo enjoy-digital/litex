@@ -81,3 +81,11 @@ class OpenFPGALoader(GenericProgrammer):
         except OSError as e:
             print(' '.join(cmd))
             raise
+
+    def reset(self):
+        # Reset base command.
+        cmd = self.cmd + ["--reset"]
+
+        # Execute command.
+        print(" ".join(cmd))
+        self.call(cmd)
