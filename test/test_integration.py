@@ -43,6 +43,7 @@ class TestIntegration(unittest.TestCase):
 
     def test_cpu(self):
         tested_cpus = [
+            "coreblocks",   # (riscv   / softcore)
             #"cv32e40p",     # (riscv   / softcore)
             "femtorv",      # (riscv   / softcore)
             "firev",        # (riscv   / softcore)

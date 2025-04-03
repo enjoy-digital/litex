@@ -118,6 +118,7 @@ git_repos = {
 
     # RISC-V CPU(s).
     "pythondata-cpu-blackparrot":  GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-cpu-coreblocks":   GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
     "pythondata-cpu-cv32e40p":     GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
     "pythondata-cpu-cv32e41p":     GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
     "pythondata-cpu-cva5":         GitRepo(url="https://github.com/litex-hub/"),
@@ -143,6 +144,7 @@ minimal_repos = ["migen", "litex"]
 # Standard: Migen + LiteX + Cores + Software + Popular CPUs (LM32, Mor1kx, SERV, VexRiscv).
 standard_repos = list(git_repos.keys())
 standard_repos.remove("pythondata-cpu-blackparrot")
+standard_repos.remove("pythondata-cpu-coreblocks")
 standard_repos.remove("pythondata-cpu-cv32e40p")
 standard_repos.remove("pythondata-cpu-cv32e41p")
 standard_repos.remove("pythondata-cpu-cva5")
@@ -495,4 +497,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
+
