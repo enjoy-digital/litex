@@ -160,7 +160,7 @@ class XilinxSDRTristate:
 # Common DDRTristate -------------------------------------------------------------------------------
 
 class XilinxDDRTristateImpl(Module):
-    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk):
+    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk, i_async):
         _o    = Signal().like(o1)
         _oe_n = Signal().like(oe1)
         _i    = Signal().like(i1)
@@ -174,11 +174,12 @@ class XilinxDDRTristateImpl(Module):
                 i_I   = _o[j],
                 i_T   = _oe_n[j],
             )
+        self.comb += i_async.eq(_i)
 
 class XilinxDDRTristate:
     @staticmethod
     def lower(dr):
-        return XilinxDDRTristateImpl(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk)
+        return XilinxDDRTristateImpl(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk, dr.i_async)
 
 # Common Special Overrides -------------------------------------------------------------------------
 
