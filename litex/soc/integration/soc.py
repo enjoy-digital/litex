@@ -2308,12 +2308,13 @@ class LiteXSoC(SoC):
             self.add_constant(f"{name}_DEBUG")
 
     # Add SATA -------------------------------------------------------------------------------------
-    def add_sata(self, name="sata", phy=None, mode="read+write", with_identify=True):
+    def add_sata(self, name="sata", phy=None, mode="read+write", with_identify=True, with_bist=False):
         # Imports.
-        from litesata.core import LiteSATACore
+        from litesata.core                 import LiteSATACore
         from litesata.frontend.arbitration import LiteSATACrossbar
-        from litesata.frontend.identify import LiteSATAIdentify, LiteSATAIdentifyCSR
-        from litesata.frontend.dma import LiteSATASector2MemDMA, LiteSATAMem2SectorDMA
+        from litesata.frontend.identify    import LiteSATAIdentify, LiteSATAIdentifyCSR
+        from litesata.frontend.bist        import LiteSATABIST
+        from litesata.frontend.dma         import LiteSATASector2MemDMA, LiteSATAMem2SectorDMA
 
         # Checks.
         assert mode in ["read", "write", "read+write"]
@@ -2334,6 +2335,11 @@ class LiteXSoC(SoC):
         self.check_if_exists(f"{name}_crossbar")
         sata_crossbar = LiteSATACrossbar(sata_core)
         self.add_module(name=f"{name}_crossbar", module=sata_crossbar)
+
+        # BIST.
+        if with_bist:
+            sata_bist =  LiteSATABIST(sata_crossbar, with_csr=True)
+            self.add_module(name=f"{name}_bist", module=sata_bist)
 
         # Identify.
         if with_identify:
