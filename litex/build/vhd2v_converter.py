@@ -196,15 +196,19 @@ class VHD2VConverter(Module):
             cmd += self._sources
             cmd += ["-e", self._top_entity]
 
+            # Flatten and rename verilog entity to avoid conflicts
+            yscmd = ["yosys", "-p",
+                     f"read_verilog {verilog_out}; hierarchy -top {self._top_entity}; flatten; proc; rename {self._top_entity} {inst_name}; write_verilog {verilog_out};"]
+
             with open(verilog_out, 'w') as output:
                 s = subprocess.run(cmd, stdout=output)
                 if s.returncode:
                     raise OSError(f"Unable to convert {inst_name} to verilog, please check your GHDL install")
 
-            # more than one instance of this core? rename top entity to avoid conflict
-            if inst_name != self._top_entity:
-                tools.replace_in_file(verilog_out, f"module {self._top_entity}", f"module {inst_name}")
-            tools.replace_in_file(verilog_out, f"\\", f"ghdl_") # FIXME: GHDL synth workaround, improve.
+            s = subprocess.run(yscmd)
+            if s.returncode:
+                raise OSError(f"Unable to flatten {inst_name}, please check your yosys install")
+
             self._platform.add_source(verilog_out)
 
         if self._add_instance:
