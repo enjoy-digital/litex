@@ -43,15 +43,9 @@ jobs:
           sudo python3 litex_setup.py --gcc=openrisc
           sudo python3 litex_setup.py --gcc=powerpc
 
-      # Build / Install GHDL
-      - name: Build GHDL
-        run: |
-          sudo apt-get install gnat llvm
-          git clone https://github.com/ghdl/ghdl.git
-          cd ghdl
-          ./configure --with-llvm-config
-          make
-          sudo make install
+      # Install OSS CAD Suite
+      - name: Install OSS CAD Suite
+        uses: YosysHQ/setup-oss-cad-suite@v3
 
       # Build / Install Verilator
       - name: Build Verilator
