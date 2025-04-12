@@ -507,7 +507,7 @@ class SoCBusHandler(LiteXModule):
             colorer("added", color="green")))
 
     def add_controller(self, name=None, controller=None):
-        self.add_master(self, name=name, master=controller)
+        self.add_master(name=name, master=controller)
 
     def add_slave(self, name=None, slave=None, region=None):
         no_name   = name   is None
