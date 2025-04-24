@@ -71,7 +71,10 @@ class VHD2VConverter(Module):
         self._work_package  = work_package
         self._libraries     = list()
 
-        assert (self._params is None) ^ (self._instance is None)
+        # Params and instance can't be provided at the same time.
+        assert not ((self._params is not None) and (self._instance is not None))
+        # When add_instance params or instance must be set.
+        assert not (self._add_instance and ((self._params is None) and (self._instance is None)))
 
         if self._instance is not None and self._top_entity is None:
             self._top_entity = self._instance.name_override
@@ -140,7 +143,7 @@ class VHD2VConverter(Module):
         if self._platform.support_mixed_language and not self._force_convert:
             if self._params:
                 ip_params = self._params
-            else:
+            elif self._instance:
                 ip_params = self._instance.items
             for file in self._sources:
                 self._platform.add_source(file, library=self._work_package)
@@ -182,7 +185,7 @@ class VHD2VConverter(Module):
                         generics.append("-g" + k[2:] + "=" + str(v))
                     else:
                         ip_params[k] = v
-            else:
+            elif self._instance:
                 ip_params = list()
                 for item in self._instance.items:
                     if isinstance(item, Instance.Parameter):
