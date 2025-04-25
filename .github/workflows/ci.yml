@@ -49,6 +49,7 @@ jobs:
           sudo apt-get install gnat llvm
           git clone https://github.com/ghdl/ghdl.git
           cd ghdl
+          git checkout 1fc1bccd1a7c256c531bdd6dc8f9641f90eb8ea0
           ./configure --with-llvm-config
           make
           sudo make install
