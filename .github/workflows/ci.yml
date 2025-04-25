@@ -43,6 +43,12 @@ jobs:
           sudo python3 litex_setup.py --gcc=openrisc
           sudo python3 litex_setup.py --gcc=powerpc
 
+      # Install OSS CAD Suite (Fixed version to avoid issue with GHDL)
+      - name: Install OSS CAD Suite
+        uses: YosysHQ/setup-oss-cad-suite@v3
+        with:
+          version: '2025-04-17'
+
       # Build / Install GHDL
       - name: Build GHDL
         run: |
