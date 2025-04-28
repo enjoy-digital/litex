@@ -7,6 +7,8 @@
 
 import os
 
+from shutil import which
+
 from migen import *
 
 # FIXME/CHECKME:
@@ -204,10 +206,32 @@ class VHD2VConverter(Module):
                 if s.returncode:
                     raise OSError(f"Unable to convert {inst_name} to verilog, please check your GHDL install")
 
-            # more than one instance of this core? rename top entity to avoid conflict
-            if inst_name != self._top_entity:
-                tools.replace_in_file(verilog_out, f"module {self._top_entity}", f"module {inst_name}")
-            tools.replace_in_file(verilog_out, f"\\", f"ghdl_") # FIXME: GHDL synth workaround, improve.
+            flatten_source = False
+            if which("yosys") is not None:
+                s = subprocess.run(["yosys", "-V"], capture_output=True)
+                if not s.returncode:
+                    # yosys version is the second word in the answer
+                    ret = str(s.stdout).split(" ")[1]
+                    # case a -yy is added too (ubuntu sub-version)
+                    version = float(ret.split("+")[0].split("-")[0])
+                    # yosys 0.9 is too old and can't support following command
+                    if version != 0.9:
+                        flatten_source = True
+
+            # Flatten and rename verilog entity to avoid conflicts
+            if flatten_source:
+                yscmd = ["yosys", "-p",
+                    f"read_verilog {verilog_out}; hierarchy -top {self._top_entity}; flatten; proc; rename {self._top_entity} {inst_name}; write_verilog {verilog_out};"]
+
+                s = subprocess.run(yscmd)
+                if s.returncode:
+                    raise OSError(f"Unable to flatten {inst_name}, please check your yosys install")
+            else:
+                # more than one instance of this core? rename top entity to avoid conflict
+                if inst_name != self._top_entity:
+                    tools.replace_in_file(verilog_out, f"module {self._top_entity}", f"module {inst_name}")
+                tools.replace_in_file(verilog_out, f"\\", f"ghdl_") # FIXME: GHDL synth workaround, improve.
+
             self._platform.add_source(verilog_out)
 
         if self._add_instance:
