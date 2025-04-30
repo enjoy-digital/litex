@@ -76,17 +76,25 @@ class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
             self._xc7family = self.xc7_family_map[fam]
 
     def build_timing_constraints(self, vns):
-        xdc = []
+        max_freq = 0
+        xdc      = []
         xdc.append(_xdc_separator("Clock constraints"))
 
         for clk, [period, name] in sorted(self.clocks.items(), key=lambda x: x[0].duid):
             clk_sig = self._vns.get_name(clk)
+            # Search for the highest frequency.
+            freq = int(1e3 / period)
+            if freq > max_freq:
+                max_freq = freq
             if name is None:
                 name = clk_sig
             xdc.append(
                 "create_clock -name {name} -period " + str(period) +
                 " [get_ports {clk}]".format(name=name, clk=clk_sig))
 
+        # FIXME: NextPNRWrapper is constructed at finalize level, too early
+        # to update self._pnr_opts. The solution is to update _nextpnr instance.
+        self._nextpnr._pnr_opts += f" --freq {max_freq}"
         # generate sdc
         xdc += self.additional_xdc_commands
         self._clock_constraints = "\n".join(xdc)
