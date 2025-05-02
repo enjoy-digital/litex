@@ -66,9 +66,6 @@ class GowinApiculaToolchain(YosysNextPNRToolchain):
 
         YosysNextPNRToolchain.finalize(self)
 
-        # family is gowin but NextPNRWrapper needs to call 'nextpnr-himbaechel' not 'nextpnr-gowin'
-        self._nextpnr.name = "nextpnr-himbaechel"
-
     def build(self, platform, fragment, **kwargs):
         self.platform = platform
 
