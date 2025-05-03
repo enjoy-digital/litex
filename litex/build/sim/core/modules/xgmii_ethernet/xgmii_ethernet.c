@@ -882,7 +882,7 @@ out:
     return ret;
 }
 
-static int xgmii_ethernet_start(void *b) {
+static int xgmii_ethernet_start(void *b, void *sh) {
   base = (struct event_base *) b;
   printf("[xgmii_ethernet] loaded (%p)\n", base);
   return RC_OK;
@@ -939,7 +939,8 @@ static struct ext_module_s ext_mod = {
     xgmii_ethernet_new,
     xgmii_ethernet_add_pads,
     NULL,
-    xgmii_ethernet_tick
+    xgmii_ethernet_tick,
+    NULL,
 };
 
 int litex_sim_ext_module_init(int (*register_module)(struct ext_module_s *)) {
