@@ -17,6 +17,33 @@ from litex.build import tools
 from litex.build.generic_toolchain import GenericToolchain
 from litex.build.yosys_wrapper import YosysWrapper, yosys_args, yosys_argdict
 
+# Constraints (.ccf) -------------------------------------------------------------------------------
+def _build_ccf(named_sc, named_pc):
+    ccf = []
+
+    flat_sc = []
+    for name, pins, other, resource in named_sc:
+        if len(pins) > 1:
+            for i, p in enumerate(pins):
+                flat_sc.append((f"{name}[{i}]", p, other))
+        else:
+            flat_sc.append((name, pins[0], other))
+
+    for name, pin, other in flat_sc:
+        pin_cst = ""
+        if pin != "X":
+            pin_cst = f"Net \"{name}\" Loc = \"{pin}\""
+
+        for c in other:
+            if isinstance(c, Misc):
+                pin_cst += f" | {c.misc}"
+        pin_cst += ";"
+        ccf.append(pin_cst)
+
+    if named_pc:
+        ccf.extend(named_pc)
+
+    return ccf
 
 # CologneChipToolchain -----------------------------------------------------------------------------
 
@@ -45,30 +72,7 @@ class CologneChipToolchain(GenericToolchain):
     # IO Constraints (.ccf) ------------------------------------------------------------------------
 
     def build_io_constraints(self):
-        ccf = []
-
-        flat_sc = []
-        for name, pins, other, resource in self.named_sc:
-            if len(pins) > 1:
-                for i, p in enumerate(pins):
-                    flat_sc.append((f"{name}[{i}]", p, other))
-            else:
-                flat_sc.append((name, pins[0], other))
-
-        for name, pin, other in flat_sc:
-            pin_cst = ""
-            if pin != "X":
-                pin_cst = f"Net \"{name}\" Loc = \"{pin}\""
-
-            for c in other:
-                if isinstance(c, Misc):
-                    pin_cst += f" | {c.misc}"
-            pin_cst += ";"
-            ccf.append(pin_cst)
-
-        if self.named_pc:
-            ccf.extend(self.named_pc)
-
+        ccf = _build_ccf(self.named_sc, self.named_pc)
         tools.write_to_file(f"{self._build_name}.ccf", "\n".join(ccf))
         return (f"{self._build_name}.ccf", "CCF")
 
