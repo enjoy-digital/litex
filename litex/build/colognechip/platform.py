@@ -7,7 +7,7 @@
 import os
 
 from litex.build.generic_platform import GenericPlatform
-from litex.build.colognechip import common, colognechip
+from litex.build.colognechip import common, colognechip, peppercorn
 
 # CologneChipPlatform ------------------------------------------------------------------------------
 
@@ -15,12 +15,18 @@ class CologneChipPlatform(GenericPlatform):
     _bitstream_ext = "_00.cfg.bit"
     _jtag_support  = False
 
-    _supported_toolchains = ["colognechip"]
+    _supported_toolchains = ["colognechip", "peppercorn"]
 
     def __init__(self, device, *args, toolchain="colognechip", devicename=None, **kwargs):
         GenericPlatform.__init__(self, device, *args, **kwargs)
 
-        self.toolchain = colognechip.CologneChipToolchain()
+        if toolchain == "colognechip":
+            self.toolchain = colognechip.CologneChipToolchain()
+        elif toolchain == "peppercorn":
+            self._bitstream_ext = ".bit"
+            self.toolchain = peppercorn.PeppercornToolchain()
+        else:
+            raise ValueError(f"Unknown toolchain {toolchain}")
 
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
         so = dict(common.colognechip_special_overrides)
@@ -51,7 +57,10 @@ class CologneChipPlatform(GenericPlatform):
         parser: argparse.ArgumentParser
             parser to be filled
         """
-        colognechip.colognechip_args(parser)
+        if toolchain == "colognechip":
+            colognechip.colognechip_args(parser)
+        else:
+            peppercorn.peppercorn_args(parser)
 
     @classmethod
     def get_argdict(cls, toolchain, args):
@@ -67,4 +76,7 @@ class CologneChipPlatform(GenericPlatform):
         ======
         a dict of key/value for each args or an empty dict
         """
-        return colognechip.colognechip_argdict(args)
+        if toolchain == "colognechip":
+            return colognechip.colognechip_argdict(args)
+        else:
+            return peppercorn.peppercorn_argdict(args)
