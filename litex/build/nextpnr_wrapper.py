@@ -64,7 +64,7 @@ class NextPNRWrapper():
                     self._pnr_opts += f"--{key} {value} "
 
         # Gowin toolchain differs from others: it is supported by himbaechel architecture
-        if family in ["gowin"]:
+        if family in ["gowin", "gatemate"]:
             self.name = "nextpnr-himbaechel"
             # For Himbächel architecture:
             # one binary may be build supporting all uarch or
@@ -98,12 +98,14 @@ class NextPNRWrapper():
         cmd = "{pnr_name} --{in_fmt} {build_name}.{in_fmt}"
         if self._constr_format != "":
             cmd += " --{constr_fmt} {build_name}.{constr_fmt}"
-        cmd += " --{out_fmt} {build_name}.{out_ext} {pnr_opts}"
+        cmd += " --{out_fmt}{build_name}.{out_ext} {pnr_opts}"
         base_cmd = cmd.format(
             pnr_name   = self.name,
             build_name = self._build_name,
             in_fmt     = self._in_format,
-            out_fmt    = "textcfg" if self._out_format == "config" else self._out_format,
+            out_fmt    = {
+                "config" : "textcfg ",
+                "txt"    : "vopt out="}.get(self._out_format, self._out_format + " "),
             out_ext    = self._out_format,
             constr_fmt = self._constr_format,
             pnr_opts   = self._pnr_opts
