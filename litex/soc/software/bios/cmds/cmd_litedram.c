@@ -150,7 +150,7 @@ define_command(sdram_force_wrphase, sdram_force_wrphase_handler, "Force write ph
  * Reset write leveling Cmd delay
  *
  */
-#if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE)
+#if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE) && defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE)
 static void sdram_rst_cmd_delay_handler(int nb_params, char **params)
 {
 	sdram_software_control_on();
@@ -166,7 +166,7 @@ define_command(sdram_rst_cmd_delay, sdram_rst_cmd_delay_handler, "Reset write le
  * Force write leveling Cmd delay
  *
  */
-#if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE)
+#if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE) && defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE)
 static void sdram_force_cmd_delay_handler(int nb_params, char **params)
 {
 	char *c;
