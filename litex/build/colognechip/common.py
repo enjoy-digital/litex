@@ -123,6 +123,24 @@ class CologneChipSDRInput:
     def lower(dr):
         return CologneChipSDRInput(dr.i, dr.o)
 
+# CologneChip Tristate -----------------------------------------------------------------------------
+
+class CologneChipTristateImpl(Module):
+    def __init__(self, io, o, oe, i):
+        nbits, _ = value_bits_sign(io)
+        for bit in range(nbits):
+            self.specials += Instance("CC_IOBUF",
+                io_IO = io[bit] if nbits > 1 else io,
+                o_Y   = i[bit]  if nbits > 1 else i,
+                i_A   = o[bit]  if nbits > 1 else o,
+                i_T   = ~oe[bit] if len(oe) == nbits > 1 else ~oe,
+            )
+
+class CologneChipTristate:
+    @staticmethod
+    def lower(dr):
+        return CologneChipTristateImpl(dr.target, dr.o, dr.oe, dr.i)
+
 # CologneChip Special Overrides --------------------------------------------------------------------
 
 colognechip_special_overrides = {
@@ -132,4 +150,5 @@ colognechip_special_overrides = {
     DifferentialInput:      CologneChipDifferentialInput,
     DifferentialOutput:     CologneChipDifferentialOutput,
     SDRInput:               CologneChipSDRInput,
+    Tristate:               CologneChipTristate,
 }
