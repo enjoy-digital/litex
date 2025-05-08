@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import os
+import pathlib
 import subprocess
 import sys
 import time
@@ -430,7 +431,7 @@ def main():
     parser.add_argument("--update",    action="store_true", help="Update Git repositories.")
     parser.add_argument("--install",   action="store_true", help="Install Git repositories.")
     parser.add_argument("--user",      action="store_true", help="Install in User-Mode.")
-    parser.add_argument("--config",    default="standard",  help="Install config (minimal, standard, full, comma-separated repo list).")
+    parser.add_argument("--config",    default="standard",  help="Install config (minimal, standard, full, comma-separated repo list or a file with a list).")
     parser.add_argument("--config-list-repos", action="store_true", help="List available repos to include in a custom config.")
     parser.add_argument("--tag",       default=None,        help="Use version from release tag.")
 
@@ -464,17 +465,24 @@ def main():
     # Handle custom config.
     config = args.config
     if config not in install_configs:
-        custom_config = set(minimal_repos)
-        for line in args.config.split(","):
-            if line in git_repos.keys():
-                custom_config.add(line)
-            else:
+        config_file = pathlib.Path(config)
+        custom_config = set(minimal_repos) | set(
+            (line.strip() for line in config_file.read_text("utf-8").splitlines())
+            if config_file.exists()
+            else args.config.split(",")
+        )
+        custom_config.discard("")
+
+        for repo in custom_config:
+            if repo not in git_repos.keys():
                 print_error(
-                    f"Unknown repository: {line}. "
-                    "Custom config should be a comma-separated list of repositories. "
+                    f'Unknown repository: "{repo}". '
+                    "For a custom config, the `--config` argument should be a "
+                    "comma-separated list of repositories or a file with such a list. "
                     "See `litex_setup.py --config-list-repos` for the list of valid repos."
                 )
                 raise SetupError
+
         config = "custom"
         install_configs[config] = list(custom_config)
 
