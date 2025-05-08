@@ -430,7 +430,8 @@ def main():
     parser.add_argument("--update",    action="store_true", help="Update Git repositories.")
     parser.add_argument("--install",   action="store_true", help="Install Git repositories.")
     parser.add_argument("--user",      action="store_true", help="Install in User-Mode.")
-    parser.add_argument("--config",    default="standard",  help="Install config (minimal, standard, full).")
+    parser.add_argument("--config",    default="standard",  help="Install config (minimal, standard, full, comma-separated repo list).")
+    parser.add_argument("--config-list-repos", action="store_true", help="List available repos to include in a custom config.")
     parser.add_argument("--tag",       default=None,        help="Use version from release tag.")
 
     # GCC toolchains.
@@ -453,6 +454,30 @@ def main():
             if arg in ["gcc"]:
                 args.gcc = "riscv"
 
+    # List repos and exit.
+    if args.config_list_repos:
+        print_status("Available repositories to inclue in a custom config:", True)
+        for repo in git_repos.keys():
+            print_status(f"  {repo}")
+        return
+
+    # Handle custom config.
+    config = args.config
+    if config not in install_configs:
+        custom_config = set(minimal_repos)
+        for line in args.config.split(","):
+            if line in git_repos.keys():
+                custom_config.add(line)
+            else:
+                print_error(
+                    f"Unknown repository: {line}. "
+                    "Custom config should be a comma-separated list of repositories. "
+                    "See `litex_setup.py --config-list-repos` for the list of valid repos."
+                )
+                raise SetupError
+        config = "custom"
+        install_configs[config] = list(custom_config)
+
     # Location/Auto-Update.
     litex_setup_location_check()
     if not args.dev:
@@ -462,19 +487,19 @@ def main():
     if args.init:
         ci_run   = (os.environ.get("GITHUB_ACTIONS") == "true")
         dev_mode = args.dev and (not ci_run)
-        litex_setup_init_repos(config=args.config, tag=args.tag, dev_mode=dev_mode)
+        litex_setup_init_repos(config=config, tag=args.tag, dev_mode=dev_mode)
 
     # Update.
     if args.update:
-        litex_setup_update_repos(config=args.config, tag=args.tag)
+        litex_setup_update_repos(config=config, tag=args.tag)
 
     # Install.
     if args.install:
-        litex_setup_install_repos(config=args.config, user_mode=args.user)
+        litex_setup_install_repos(config=config, user_mode=args.user)
 
     # Freeze.
     if args.freeze:
-        litex_setup_freeze_repos(config=args.config)
+        litex_setup_freeze_repos(config=config)
 
     # Release.
     if args.release:
