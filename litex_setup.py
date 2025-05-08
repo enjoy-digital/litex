@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 
+import argparse
+import hashlib
 import os
+import subprocess
 import sys
 import time
-import subprocess
-import shutil
-import hashlib
-import argparse
-
-import urllib.request
 
 start_time   = time.time()
 current_path = os.path.abspath(os.curdir)
@@ -188,8 +185,8 @@ def litex_setup_auto_update():
                 os.execl(python3, python3, *sys.argv)
             else:
                 print_status("LiteX Setup is up to date.")
-    except:
-        pass
+    except Exception as ex:
+        print_error(f"Exception during auto-update: {ex}")
 
 # Git helpers --------------------------------------------------------------------------------------
 
@@ -205,7 +202,7 @@ def git_checkout(sha1=None, tag=None):
 def git_tag(tag=None):
     assert tag is not None
     os.system(f"git tag {tag}")
-    os.system(f"git push --tags")
+    os.system("git push --tags")
 
 # Git repositories initialization ------------------------------------------------------------------
 
@@ -330,13 +327,12 @@ def litex_setup_release_repos(tag):
         for name in install_configs["full"]:
             if name in ["migen"]:
                 continue
-            repo = git_repos[name]
             os.chdir(os.path.join(current_path, name))
             # Tag Repo.
             print_status(f"Tagging {name} Git repository as {tag}...")
             git_tag(tag=tag)
     else:
-        print_status(f"Not confirmed, exiting.")
+        print_status("Not confirmed, exiting.")
 
 # GCC toolchains install ---------------------------------------------------------------------------
 
@@ -495,4 +491,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
