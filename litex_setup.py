@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 
+import argparse
+import hashlib
 import os
+import pathlib
+import subprocess
 import sys
 import time
-import subprocess
-import shutil
-import hashlib
-import argparse
-
-import urllib.request
 
 start_time   = time.time()
 current_path = os.path.abspath(os.curdir)
@@ -188,8 +186,8 @@ def litex_setup_auto_update():
                 os.execl(python3, python3, *sys.argv)
             else:
                 print_status("LiteX Setup is up to date.")
-    except:
-        pass
+    except Exception as ex:
+        print_error(f"Exception during auto-update: {ex}")
 
 # Git helpers --------------------------------------------------------------------------------------
 
@@ -205,7 +203,7 @@ def git_checkout(sha1=None, tag=None):
 def git_tag(tag=None):
     assert tag is not None
     os.system(f"git tag {tag}")
-    os.system(f"git push --tags")
+    os.system("git push --tags")
 
 # Git repositories initialization ------------------------------------------------------------------
 
@@ -330,13 +328,12 @@ def litex_setup_release_repos(tag):
         for name in install_configs["full"]:
             if name in ["migen"]:
                 continue
-            repo = git_repos[name]
             os.chdir(os.path.join(current_path, name))
             # Tag Repo.
             print_status(f"Tagging {name} Git repository as {tag}...")
             git_tag(tag=tag)
     else:
-        print_status(f"Not confirmed, exiting.")
+        print_status("Not confirmed, exiting.")
 
 # GCC toolchains install ---------------------------------------------------------------------------
 
@@ -434,7 +431,8 @@ def main():
     parser.add_argument("--update",    action="store_true", help="Update Git repositories.")
     parser.add_argument("--install",   action="store_true", help="Install Git repositories.")
     parser.add_argument("--user",      action="store_true", help="Install in User-Mode.")
-    parser.add_argument("--config",    default="standard",  help="Install config (minimal, standard, full).")
+    parser.add_argument("--config",    default="standard",  help="Install config (minimal, standard, full, comma-separated repo list or a file with a list).")
+    parser.add_argument("--config-list-repos", action="store_true", help="List available repos to include in a custom config.")
     parser.add_argument("--tag",       default=None,        help="Use version from release tag.")
 
     # GCC toolchains.
@@ -457,6 +455,37 @@ def main():
             if arg in ["gcc"]:
                 args.gcc = "riscv"
 
+    # List repos and exit.
+    if args.config_list_repos:
+        print_status("Available repositories to inclue in a custom config:", True)
+        for repo in git_repos.keys():
+            print_status(f"  {repo}")
+        return
+
+    # Handle custom config.
+    config = args.config
+    if config not in install_configs:
+        config_file = pathlib.Path(config)
+        custom_config = set(minimal_repos) | set(
+            (line.strip() for line in config_file.read_text("utf-8").splitlines())
+            if config_file.exists()
+            else args.config.split(",")
+        )
+        custom_config.discard("")
+
+        for repo in custom_config:
+            if repo not in git_repos.keys():
+                print_error(
+                    f'Unknown repository: "{repo}". '
+                    "For a custom config, the `--config` argument should be a "
+                    "comma-separated list of repositories or a file with such a list. "
+                    "See `litex_setup.py --config-list-repos` for the list of valid repos."
+                )
+                raise SetupError
+
+        config = "custom"
+        install_configs[config] = list(custom_config)
+
     # Location/Auto-Update.
     litex_setup_location_check()
     if not args.dev:
@@ -466,19 +495,19 @@ def main():
     if args.init:
         ci_run   = (os.environ.get("GITHUB_ACTIONS") == "true")
         dev_mode = args.dev and (not ci_run)
-        litex_setup_init_repos(config=args.config, tag=args.tag, dev_mode=dev_mode)
+        litex_setup_init_repos(config=config, tag=args.tag, dev_mode=dev_mode)
 
     # Update.
     if args.update:
-        litex_setup_update_repos(config=args.config, tag=args.tag)
+        litex_setup_update_repos(config=config, tag=args.tag)
 
     # Install.
     if args.install:
-        litex_setup_install_repos(config=args.config, user_mode=args.user)
+        litex_setup_install_repos(config=config, user_mode=args.user)
 
     # Freeze.
     if args.freeze:
-        litex_setup_freeze_repos(config=args.config)
+        litex_setup_freeze_repos(config=config)
 
     # Release.
     if args.release:
@@ -495,4 +524,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
