@@ -53,6 +53,18 @@ def add_mac_address_constants(soc, name, mac_address):
     for n in range(6):
         soc.add_constant(f"{name}{n+1}", (mac_address >> ((5 - n) * 8)) & 0xff)
 
+def flat_regions(regions):
+    return {
+        name: region
+        for name, region in regions.items()
+        if not isinstance(region, SoCRegionGroup)
+    } | {
+        f"{name}_{i}": region
+        for name, region_group in regions.items()
+        if isinstance(region_group, SoCRegionGroup)
+        for i, region in enumerate(region_group.regions)
+    }
+
 # SoCError -----------------------------------------------------------------------------------------
 
 class SoCError(Exception):
@@ -108,6 +120,25 @@ class SoCRegion:
         return r
 
 class SoCIORegion(SoCRegion): pass
+
+# SoCRegionGroup -------------------------------------------------------------------------------------
+
+class SoCRegionGroup:
+    def __init__(self, regions):
+        self.regions = regions
+        self.mode      = regions[0].mode
+        self.cached    = regions[0].cached
+        self.linker    = regions[0].linker
+        self.decode = True
+        # FIXME: prob faulty
+        self.size = sum([r.size for r in regions])
+
+    def decoder(self, bus):
+        fs = [r.decoder(bus) for r in self.regions]
+        return lambda a: Cat(*[f(a) for f in fs]) != 0
+
+    def __str__(self):
+        return "; ".join([str(r) for r in self.regions])
 
 # SoCCSRRegion -------------------------------------------------------------------------------------
 
@@ -256,6 +287,14 @@ class SoCBusHandler(LiteXModule):
                 colorer(name, color="underline"),
                 colorer("allocated" if allocated else "added", color="cyan" if allocated else "green"),
                 str(region)))
+        elif isinstance(region, list) and all([isinstance(r, SoCRegion) for r in region]):
+            # FIXME: Assume all allocated
+            region_group = SoCRegionGroup(region)
+            self.regions[name] = region_group
+            self.logger.info("{} Region Group {} at {}.".format(
+                colorer(name, color="underline"),
+                colorer("added", "green"),
+                str(region_group)))
         else:
             self.logger.error("{} is not a supported Region.".format(colorer(name, color="red")))
             raise SoCError()
@@ -297,6 +336,7 @@ class SoCBusHandler(LiteXModule):
         raise SoCError()
 
     def check_regions_overlap(self, regions, check_linker=False):
+        regions = flat_regions(regions)
         i = 0
         while i < len(regions):
             n0 =  list(regions.keys())[i]
@@ -622,7 +662,7 @@ class SoCBusHandler(LiteXModule):
         for name, region in io_regions.items():
            r += colorer(name, color="underline") + " "*(20-len(name)) + ": " + str(region) + "\n"
         r += "Bus Regions: ({})\n".format(len(self.regions.keys())) if len(self.regions.keys()) else ""
-        regions = {k: v for k, v in sorted(self.regions.items(), key=lambda item: item[1].origin)}
+        regions = {k: v for k, v in sorted(flat_regions(self.regions.items()), key=lambda item: item[1].origin)}
         for name, region in regions.items():
            r += colorer(name, color="underline") + " "*(20-len(name)) + ": " + str(region) + "\n"
         r += "Bus Masters: ({})\n".format(len(self.masters.keys())) if len(self.masters.keys()) else ""
@@ -1425,13 +1465,25 @@ class SoC(LiteXModule, SoCCoreCompat):
         # Check if CPU Reset Address is in a defined Region.
         cpu_reset_address_valid = False
         for name, container in self.bus.regions.items():
-            if self.bus.check_region_is_in(
-                region    = SoCRegion(origin=self.cpu.reset_address, size=self.bus.data_width//8),
-                container = container):
-                cpu_reset_address_valid = True
-                # If we have a ROM, make the CPU use it.
-                if name == "rom":
-                    self.cpu.use_rom = True
+            if isinstance(container, SoCRegionGroup):
+                if any([
+                        self.bus.check_region_is_in(
+                            region    = SoCRegion(origin=self.cpu.reset_address, size=self.bus.data_width//8),
+                            container = c)
+                        for c in container.regions
+                ]):
+                    cpu_reset_address_valid = True
+                    # If we have a ROM, make the CPU use it.
+                    if name == "rom":
+                        self.cpu.use_rom = True
+            else:
+                if self.bus.check_region_is_in(
+                        region    = SoCRegion(origin=self.cpu.reset_address, size=self.bus.data_width//8),
+                        container = container):
+                    cpu_reset_address_valid = True
+                    # If we have a ROM, make the CPU use it.
+                    if name == "rom":
+                        self.cpu.use_rom = True
 
         # If CPU Reset Address Check is enabled and Reset Address is invalid, raise SoCError.
         if self.cpu.reset_address_check and (not cpu_reset_address_valid):
