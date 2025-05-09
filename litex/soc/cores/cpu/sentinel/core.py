@@ -47,7 +47,7 @@ class Sentinel(CPU):
     # GCC Flags.
     @property
     def gcc_flags(self):
-        flags =  "-march=rv32i "
+        flags =  "-march=rv32i2p0 "
         flags += "-mabi=ilp32 "
         flags += "-D__sentinel__ "
         return flags
