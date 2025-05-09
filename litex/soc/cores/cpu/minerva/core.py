@@ -40,7 +40,7 @@ class Minerva(CPU):
     # GCC Flags.
     @property
     def gcc_flags(self):
-        flags =  "-march=rv32im "
+        flags =  "-march=rv32i2p0_m "
         flags += "-mabi=ilp32 "
         flags += "-D__minerva__ "
         return flags
