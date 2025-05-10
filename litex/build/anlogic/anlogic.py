@@ -180,6 +180,7 @@ class TangDynastyToolchain(GenericToolchain):
         tcl.append("place")
         tcl.append("route")
         tcl.append(f"bitgen -bit \"{self._build_name}.bit\" -version 0X00 -g ucode:000000000000000000000000")
+        tcl.append("exit")
 
         # Generate .tcl.
         tools.write_to_file("run.tcl", "\n".join(tcl))
