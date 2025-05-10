@@ -127,7 +127,8 @@ git_repos = {
     "pythondata-cpu-naxriscv":     GitRepo(url="https://github.com/litex-hub/", branch="smp"),
     "pythondata-cpu-openc906":     GitRepo(url="https://github.com/litex-hub/"),
     "pythondata-cpu-picorv32":     GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-rocket":       GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-cpu-rocket":       GitRepo(url="https://github.com/MooreNtu/"),
+    # change to modifiled rocket-chip source code 
     "pythondata-cpu-sentinel":     GitRepo(url="https://github.com/litex-hub/", branch="main"),
     "pythondata-cpu-serv":         GitRepo(url="https://github.com/litex-hub/"),
     "pythondata-cpu-vexiiriscv":   GitRepo(url="https://github.com/litex-hub/", branch="main"),
