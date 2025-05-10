@@ -58,7 +58,7 @@ class Rocket(CPU):
     gcc_triple           = CPU_GCC_TRIPLE_RISCV64
     linker_output_format = "elf64-littleriscv"
     nop                  = "nop"
-    io_regions           = {0x1200_0000: 0x7000_0000} # Origin, Length.
+    io_regions           = {0x1200_0000: 0x6000_0000} # Origin, Length. # frank change size from 0x7000_0000 to 0x6000_0000 to meet the requirement of address mapping 
 
     # Default parameters.
     cpu_num_cores = 1
@@ -331,7 +331,8 @@ class Rocket(CPU):
 
     def add_soc_components(self, soc):
         # Add OpenSBI/PLIC/CLINT regions.
-        soc.bus.add_region("opensbi", SoCRegion(origin=self.mem_map["main_ram"] + 0x0000_0000, size=0x20_0000, cached=False, linker=True))
+        # soc.bus.add_region("opensbi", SoCRegion(origin=self.mem_map["main_ram"] + 0x0000_0000, size=0x20_0000, cached=False, linker=True))
+        # frank commit
         soc.bus.add_region("plic",    SoCRegion(origin=soc.mem_map.get("plic"),                size=0x40_0000, cached=True,  linker=True))
         soc.bus.add_region("clint",   SoCRegion(origin=soc.mem_map.get("clint"),               size= 0x1_0000, cached=True,  linker=True))
 
