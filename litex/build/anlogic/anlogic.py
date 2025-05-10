@@ -193,6 +193,13 @@ class TangDynastyToolchain(GenericToolchain):
                 msg += "- Add  Tang Dinasty toolchain to your $PATH."
                 raise OSError(msg)
 
+            if self._architecture == "dr1_90":
+                td_version = subprocess.check_output(["td", "-v"],
+                    stderr=subprocess.STDOUT).decode("utf-8")
+                if "5.9" not in td_version:
+                    msg = "dr1_90 architecture is only supported in Tang Dinasty 5.9."
+                    raise OSError(msg)
+
             if subprocess.call(["td", script]) != 0:
                 raise OSError("Error occured during Tang Dinasty's script execution.")
 
@@ -200,6 +207,7 @@ class TangDynastyToolchain(GenericToolchain):
         device = self.platform.device
 
         devices = {
+            "DR1V90MEG484" :[ "dr1_90", "DR1", "DR1V90MEG484" ],
             "EG4S20BG256" :[ "eagle_s20", "EG4", "BG256" ],
         }
 
