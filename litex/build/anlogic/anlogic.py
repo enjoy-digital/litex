@@ -17,9 +17,9 @@ from litex.build.generic_platform import *
 from litex.build.generic_toolchain import GenericToolchain
 from litex.build import tools
 
-# TangDinastyToolchain -----------------------------------------------------------------------------
+# TangDynastyToolchain -----------------------------------------------------------------------------
 
-class TangDinastyToolchain(GenericToolchain):
+class TangDynastyToolchain(GenericToolchain):
     attr_translate = {}
 
     def __init__(self):
