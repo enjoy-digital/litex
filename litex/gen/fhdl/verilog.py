@@ -528,6 +528,9 @@ def convert(f, ios=set(), name="top", platform=None,
             s.platform = platform
     f, lowered_specials = lower_specials(special_overrides, f)
 
+    # Lower complex slices (for complex slices included in specials).
+    f = lower_complex_slices(f)
+
     # Lower basics (for basics included in specials).
     f = lower_basics(f)
 
