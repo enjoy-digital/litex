@@ -182,6 +182,26 @@ class Remapper(Module):
                 If(active, slave.adr.eq(dst_adr >> adr_shift))
             ]
 
+# Wishbone Offset --------------------------------------------------------------------------------
+
+class Offset(Module):
+    """Removes offset from Wishbone addresses."""
+    def __init__(self, master, slave, offset=0x00000000):
+        # Parameters.
+        # -----------
+        assert master.addressing == slave.addressing
+
+        # Master to Slave.
+        # ----------------
+        self.comb += master.connect(slave)
+
+        # Origin Remapping.
+        # -----------------
+        if master.addressing == "word":
+            offset    >>= int(log2(len(master.dat_w)//8))
+        # Apply Address Origin/Mask Remapping.
+        self.comb += slave.adr.eq(master.adr - offset)
+
 # Wishbone Timeout ---------------------------------------------------------------------------------
 
 class Timeout(LiteXModule):

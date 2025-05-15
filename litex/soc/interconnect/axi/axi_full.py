@@ -154,6 +154,17 @@ class AXIRemapper(LiteXModule):
         self.comb += slave.aw.addr.eq(origin | master.aw.addr & mask)
         self.comb += slave.ar.addr.eq(origin | master.ar.addr & mask)
 
+# AXI Offset ---------------------------------------------------------------------------------------
+
+class AXIOffset(LiteXModule):
+    """Removes offset from AXI addresses."""
+    def __init__(self, master, slave, offset=0x00000000):
+
+        # Address Mask and Shift.
+        self.comb += master.connect(slave)
+        self.comb += slave.aw.addr.eq(master.aw.addr - offset)
+        self.comb += slave.ar.addr.eq(master.ar.addr - offset)
+
 # AXI Bursts to Beats ------------------------------------------------------------------------------
 
 class AXIBurst2Beat(LiteXModule):
