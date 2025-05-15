@@ -442,10 +442,17 @@ def _lower_slice_replicate(node, start, length):
             break
     return node, start
 
+def _lower_slice_invert(node, inv):
+    while isinstance(node, _Operator) and node.op == "~":
+        node = node.operands[0]
+        inv = not inv
+    return node, inv
+
 class _ComplexSliceLowerer(_Lowerer):
     def visit_Slice(self, node):
         length = len(node)
         start = 0
+        inv = False
         while isinstance(node, _Slice):
             start += node.start
             node = node.value
@@ -453,11 +460,12 @@ class _ComplexSliceLowerer(_Lowerer):
                 node, start = _lower_slice_cat(node, start, length)
                 former_node = node
                 node, start = _lower_slice_replicate(node, start, length)
+                node, inv   = _lower_slice_invert(node, inv)
                 if node is former_node:
                     break
         if start == 0 and len(node) == length:
-            return NodeTransformer.visit(self, node)
-        if isinstance(node, Signal):
+            pass
+        elif isinstance(node, Signal):
             node = _Slice(node, start, start + length)
         else:
             slice_proxy = Signal(value_bits_sign(node))
@@ -467,7 +475,12 @@ class _ComplexSliceLowerer(_Lowerer):
                 a = _Assign(slice_proxy, node)
             self.comb.append(self.visit_Assign(a))
             node = _Slice(slice_proxy, start, start + length)
-        return NodeTransformer.visit_Slice(self, node)
+        if inv:
+            node = ~node
+        if isinstance(node, _Slice):
+            return NodeTransformer.visit_Slice(self, node)
+        else:
+            return NodeTransformer.visit(self, node)
 
 def lower_complex_slices(f):
     return _apply_lowerer(_ComplexSliceLowerer(), f)
@@ -527,6 +540,9 @@ def convert(f, ios=set(), name="top", platform=None,
         for s in f.specials:
             s.platform = platform
     f, lowered_specials = lower_specials(special_overrides, f)
+
+    # Lower complex slices (for complex slices included in specials).
+    f = lower_complex_slices(f)
 
     # Lower basics (for basics included in specials).
     f = lower_basics(f)
