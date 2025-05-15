@@ -562,7 +562,7 @@ class SoCBusHandler(LiteXModule):
             self.logger.error(self)
             raise SoCError()
         if strip_origin:
-            slave = self.add_offset(name, slave, region.origin)
+            slave = self.add_offset(name, slave, self.regions[name].origin)
         slave = self.add_adapter(name, slave, "s2m")
         self.slaves[name] = slave
         self.logger.info("{} {} as Bus Slave.".format(
