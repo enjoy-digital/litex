@@ -206,7 +206,7 @@ define_command(sdram_init, sdram_init, "Initialize SDRAM (Init + Calibration)", 
  */
 static void sdram_test_handler(int nb_params, char **params)
 {
-	memtest((unsigned int *)MAIN_RAM_BASE, MAIN_RAM_SIZE/32);
+	memtest((unsigned int *)MAIN_RAM_BASE_VA, MAIN_RAM_SIZE/32);
 }
 define_command(sdram_test, sdram_test_handler, "Test SDRAM", LITEDRAM_CMDS);
 
