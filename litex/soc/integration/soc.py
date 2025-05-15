@@ -535,7 +535,7 @@ class SoCBusHandler(LiteXModule):
     def add_controller(self, name=None, controller=None):
         self.add_master(name=name, master=controller)
 
-    def add_slave(self, name=None, slave=None, region=None, offset_base=False):
+    def add_slave(self, name=None, slave=None, region=None, strip_origin=False):
         no_name   = name   is None
         no_region = region is None
         if no_name and no_region:
@@ -561,7 +561,7 @@ class SoCBusHandler(LiteXModule):
                 colorer("already declared", color="red")))
             self.logger.error(self)
             raise SoCError()
-        if offset_base:
+        if strip_origin:
             slave = self.add_offset(name, slave, region.origin)
         slave = self.add_adapter(name, slave, "s2m")
         self.slaves[name] = slave
@@ -2137,7 +2137,7 @@ class LiteXSoC(SoC):
         spiflash_core = LiteSPI(spiflash_phy, mmap_endianness=self.cpu.endianness, **kwargs)
         self.add_module(name=f"{name}_core", module=spiflash_core)
         spiflash_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size)
-        self.bus.add_slave(name=name, slave=spiflash_core.bus, region=spiflash_region, offset_base=True)
+        self.bus.add_slave(name=name, slave=spiflash_core.bus, region=spiflash_region, strip_origin=True)
 
         # Constants.
         self.add_constant(f"{name}_PHY_FREQUENCY",     clk_freq)
@@ -2184,7 +2184,7 @@ class LiteXSoC(SoC):
         
         # Create Wishbone Slave.
         wb_spiram = wishbone.Interface(data_width=32, address_width=32, addressing="word")
-        self.bus.add_slave(name=name, slave=wb_spiram, region=spiram_region, offset_base=True)
+        self.bus.add_slave(name=name, slave=wb_spiram, region=spiram_region, strip_origin=True)
         
         # L2 Cache
         if l2_cache_size != 0:
