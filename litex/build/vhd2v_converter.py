@@ -45,33 +45,37 @@ class VHD2VConverter(Module):
         add if True an Instance()
     _force_convert: bool
         force use of GHDL even if the platform supports VHDL
+    _flatten_source: bool
+        flatten source with yosys after GHDL's convert (Only used when GHDL is used and yosys present).
     _ghdl_opts: str
         options to pass to ghdl
     _libraries: list of str or tuple
         list of libraries (library_name, library_path) to compile before conversion.
     """
     def __init__(self, platform, top_entity=None, build_dir=None,
-        work_package  = None,
-        force_convert = False,
-        add_instance  = False,
-        params        = None,
-        instance      = None,
-        files         = list(),
-        libraries     = list()):
+        work_package   = None,
+        force_convert  = False,
+        flatten_source = True,
+        add_instance   = False,
+        params         = None,
+        instance       = None,
+        files          = list(),
+        libraries      = list()):
         """
         constructor (see class attributes)
         """
-        self._top_entity    = top_entity
-        self._build_dir     = build_dir
-        self._work_package  = work_package 
-        self._platform      = platform
-        self._sources       = files
-        self._params        = params
-        self._instance      = instance
-        self._force_convert = force_convert
-        self._add_instance  = add_instance
-        self._work_package  = work_package
-        self._libraries     = list()
+        self._top_entity     = top_entity
+        self._build_dir      = build_dir
+        self._work_package   = work_package
+        self._platform       = platform
+        self._sources        = files
+        self._params         = params
+        self._instance       = instance
+        self._force_convert  = force_convert
+        self._flatten_source = flatten_source
+        self._add_instance   = add_instance
+        self._work_package   = work_package
+        self._libraries      = list()
 
         # Params and instance can't be provided at the same time.
         assert not ((self._params is not None) and (self._instance is not None))
@@ -207,7 +211,7 @@ class VHD2VConverter(Module):
                     raise OSError(f"Unable to convert {inst_name} to verilog, please check your GHDL install")
 
             flatten_source = False
-            if which("yosys") is not None:
+            if which("yosys") is not None and self._flatten_source:
                 s = subprocess.run(["yosys", "-V"], capture_output=True)
                 if not s.returncode:
                     # yosys version is the second word in the answer
