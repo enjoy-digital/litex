@@ -284,7 +284,9 @@ class EfinityToolchain(GenericToolchain):
         et.SubElement(device_info, "efx:timing_model", name=self.platform.timing_model)
 
         # Add Design Info.
-        design_info = et.SubElement(root, "efx:design_info")
+        design_info = et.SubElement(root, "efx:design_info", {
+                                    "def_veri_version": "verilog_2k",
+                                    "def_vhdl_version": "vhdl_2008"})
         et.SubElement(design_info, "efx:top_module", name=self._build_name)
 
         # Add Design Sources.
@@ -306,6 +308,78 @@ class EfinityToolchain(GenericToolchain):
 
         # Add IP Info.
         ip_info  = et.SubElement(root, "efx:ip_info")
+
+        efx_map  = et.SubElement(root, "efx:synthesis", {"tool_name": "efx_map"})
+        et.SubElement(efx_map, "efx:param", {
+            "name" : "mode",
+            "value": self._synth_mode,
+            "value_type": "e_option",
+        })
+        et.SubElement(efx_map, "efx:param", {
+            "name" : "infer-clk-enable",
+            "value": self._infer_clk_enable,
+            "value_type": "e_option",
+        })
+        et.SubElement(efx_map, "efx:param", {
+            "name" : "bram_output_regs_packing",
+            "value": self._bram_output_regs_packing,
+            "value_type": "e_option",
+        })
+        et.SubElement(efx_map, "efx:param", {
+            "name" : "retiming",
+            "value": self._retiming,
+            "value_type": "e_option",
+        })
+        et.SubElement(efx_map, "efx:param", {
+            "name" : "seq_opt",
+            "value": self._seq_opt,
+            "value_type": "e_option",
+        })
+        et.SubElement(efx_map, "efx:param", {
+            "name" : "infer-sync-set-reset",
+            "value": "1",
+            "value_type": "e_option",
+        })
+
+        if self.platform.family == "Trion":
+            et.SubElement(efx_map, "efx:param", {
+                "name" : "mult_input_regs_packing",
+                "value": self._mult_input_regs_packing,
+                "value_type": "e_option",
+            })
+            et.SubElement(efx_map, "efx:param", {
+                "name" : "mult_output_regs_packing",
+                "value": self._mult_output_regs_packing,
+                "value_type": "e_option",
+            })
+
+        efx_pnr = et.SubElement(root, "efx:place_and_route", {"tool_name": "efx_pnr"})
+
+        efx_pgm = et.SubElement(root, "efx:bitstream_generation", {"tool_name": "efx_pgm"})
+        et.SubElement(efx_pgm, "efx:param", {
+            "name" : "mode",
+            "value": self.platform.spi_mode,
+            "value_type": "e_option",
+        })
+        et.SubElement(efx_pgm, "efx:param", {
+            "name" : "width",
+            "value": self.platform.spi_width,
+            "value_type": "e_option",
+        })
+        et.SubElement(efx_pgm, "efx:param", {
+            "name" : "spi_low_power_mode",
+            "value": "off",
+            "value_type": "e_bool",
+        })
+        et.SubElement(efx_pgm, "efx:param", {
+            "name" : "enable_crc_check",
+            "value": "on",
+            "value_type": "e_bool",
+        })
+
+        efx_dbg = et.SubElement(root, "efx:debugger")
+
+        efx_security = et.SubElement(root, "efx:security")
 
         # Generate .xml
         xml_str = et.tostring(root, "utf-8")
