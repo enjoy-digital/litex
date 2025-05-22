@@ -44,10 +44,7 @@ from pathlib import Path
 
 home = "{0}"
 
-os.environ["EFXIPM_HOME"] = home + "/ipm"
-
 sys.path.append(home + "/ipm/bin")
-sys.path.append(home + "/lib/python3.11/site-packages")
 
 from ipm_api_service.design import IPMDesignAPI
 from ipm_api_service.projectxml import ProjectXML

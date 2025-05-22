@@ -12,6 +12,7 @@ import sys
 import site
 import inspect
 import datetime
+import subprocess
 
 from xml.dom import expatbuilder
 import xml.etree.ElementTree as et
@@ -312,16 +313,31 @@ class EfinityToolchain(GenericToolchain):
         xml_str = xml_str.toprettyxml(indent="  ")
         tools.write_to_file("{}.xml".format(self._build_name), xml_str)
 
+        # get environment variables from the efinity setup.sh
+        pipe = subprocess.Popen(". %s && env -0" % (self.efinity_path + "/bin/setup.sh"),
+                                stdout=subprocess.PIPE, shell=True, cwd=self.efinity_path, executable='/bin/bash')
+        output = pipe.communicate()[0].decode('utf-8')
+        output = output[:-1] # fix for index out for range in 'env[ line[0] ] = line[1]'
+
+        env = {}
+        # split using null char
+        for line in output.split('\x00'):
+            line = line.split( '=', 1)
+            # print(line)
+            env[line[0]] = line[1]
+
+        self.env = env
+
         if len(self.ipmwriter.blocks) > 0:
             ipm_header = self.ipmwriter.header(self._build_name, self.platform.device, self.platform.family)
             ipm    = self.ipmwriter.generate(self.platform.device)
 
             tools.write_to_file("ipm.py", ipm_header + ipm )
 
-            if tools.subprocess_call_filtered([self.efinity_path + "/bin/python3", "ipm.py"], common.colors) != 0:
+            if tools.subprocess_call_filtered([self.efinity_path + "/bin/python3", "ipm.py"], common.colors, env=self.env) != 0:
                 raise OSError("Error occurred during Efinity ip script execution.")
 
-        if tools.subprocess_call_filtered([self.efinity_path + "/bin/python3", "iface.py"], common.colors) != 0:
+        if tools.subprocess_call_filtered([self.efinity_path + "/bin/python3", "iface.py"], common.colors, env=self.env) != 0:
             raise OSError("Error occurred during Efinity peri script execution.")
 
         # Some IO blocks don't have Python API so we need to configure them
@@ -347,7 +363,7 @@ class EfinityToolchain(GenericToolchain):
             f"{self._build_name}",
             self.platform.family,
             self.platform.device
-        ], common.colors)
+        ], common.colors, env=self.env)
         if r != 0:
            raise OSError("Error occurred during efx_run_pt execution.")
 
@@ -387,7 +403,7 @@ class EfinityToolchain(GenericToolchain):
             "--output-dir",                 "outflow",
             "--project-xml",                f"{self._build_name}.xml",
             "--I",                          "./"
-        ], common.colors)
+        ], common.colors, env=self.env)
         if r != 0:
             raise OSError("Error occurred during efx_map execution.")
 
@@ -414,7 +430,7 @@ class EfinityToolchain(GenericToolchain):
             "--output_dir",           "outflow",
             "--timing_analysis",      "on",
             "--load_delay_matrix"
-        ], common.colors)
+        ], common.colors, env=self.env)
         if r != 0:
             raise OSError("Error occurred during efx_pnr execution.")
 
@@ -432,18 +448,17 @@ class EfinityToolchain(GenericToolchain):
             "--mode",                     self.platform.spi_mode,
             "--width",                    self.platform.spi_width,
             "--enable_crc_check",         "on"
-        ], common.colors)
+        ], common.colors, env=self.env)
         if r != 0:
             raise OSError("Error occurred during efx_pgm execution.")
 
         # BINARY
-        os.environ['EFXPGM_HOME'] = self.efinity_path + "/pgm"
         r = tools.subprocess_call_filtered([self.efinity_path + "/bin/python3",
             self.efinity_path + "/pgm/bin/efx_pgm/export_bitstream.py",
             "hex_to_bin",
             f"{self._build_name}.hex",
             f"{self._build_name}.bin"
-        ], common.colors)
+        ], common.colors, env=self.env)
         if r != 0:
            raise OSError("Error occurred during export_bitstream execution.")
 
