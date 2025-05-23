@@ -215,6 +215,9 @@ class Builder:
         self.soc.constants.update(  self._get_json_constants())
         self.soc.csr_regions.update(self._get_json_csr_regions())
 
+        # exclude Devicetree syntax specific constants ("_DTS_" in name)
+        filtered_constants = {k: v for k, v in self.soc.constants.items() if "_DTS_" not in k}
+
         # Generate BIOS files when the SoC uses it.
         if with_bios:
             # Generate Variables to variables.mak.
@@ -246,13 +249,13 @@ class Builder:
             write_to_file(os.path.realpath(self.memory_x), memory_x_contents)
 
         # Generate SoC Config/Constants to soc.h.
-        soc_contents = export.get_soc_header(self.soc.constants)
+        soc_contents = export.get_soc_header(filtered_constants)
         write_to_file(os.path.join(self.generated_dir, "soc.h"), soc_contents)
 
         # Generate CSR registers definitions/access functions to csr.h.
         csr_contents = export.get_csr_header(
             regions   = self.soc.csr_regions,
-            constants = self.soc.constants,
+            constants = filtered_constants,
             csr_base  = self.soc.mem_regions["csr"].origin,
             with_access_functions        = True,
             with_fields_access_functions = False,
@@ -283,9 +286,11 @@ class Builder:
 
         # CSV Export.
         if self.csr_csv is not None:
+            # exclude dts-specific constants ("_DTS_" in name)
+            filtered_constants = {k: v for k, v in self.soc.constants.items() if "_DTS_" not in k}
             csr_csv_contents = export.get_csr_csv(
                 csr_regions = self.soc.csr_regions,
-                constants   = self.soc.constants,
+                constants   = filtered_constants,
                 mem_regions = self.soc.mem_regions)
             write_to_file(os.path.realpath(self.csr_csv), csr_csv_contents)
 
