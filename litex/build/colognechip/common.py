@@ -111,17 +111,78 @@ class CologneChipDifferentialOutput:
 # CologneChip SDR Input ----------------------------------------------------------------------------
 
 class CologneChipSDRInputImpl(Module):
-    def __init__(self, i, o):
+    def __init__(self, i, o, clk):
         for j in range(len(i)):
-            self.specials += Instance("CC_IBUF",
-                i_I  = i[j],
-                o_O = o[j],
-            )
+            self.specials += [
+                Instance("CC_DFF",
+                    p_CLK_INV = 0,
+                    p_EN_INV  = 0,
+                    p_SR_INV  = 0,
+                    p_SR_VAL  = 0,
+                    i_D       = i[j],
+                    i_CLK     = clk,
+                    i_EN      = 1,
+                    i_SR      = 0,
+                    o_Q       = o[j],
+                )
+            ]
 
 class CologneChipSDRInput:
     @staticmethod
     def lower(dr):
-        return CologneChipSDRInput(dr.i, dr.o)
+        return CologneChipSDRInputImpl(dr.i, dr.o, dr.clk)
+
+# CologneChip SDR Output ----------------------------------------------------------------------------
+
+class CologneChipSDROutputImpl(Module):
+    def __init__(self, i, o, clk):
+        for j in range(len(i)):
+            self.specials += [
+                Instance("CC_DFF",
+                    p_CLK_INV = 0,
+                    p_EN_INV  = 0,
+                    p_SR_INV  = 0,
+                    p_SR_VAL  = 0,
+                    i_D       = i[j],
+                    i_CLK     = clk,
+                    i_EN      = 1,
+                    i_SR      = 0,
+                    o_Q       = o[j],
+                )
+            ]
+
+class CologneChipSDROutput:
+    @staticmethod
+    def lower(dr):
+        return CologneChipSDROutputImpl(dr.i, dr.o, dr.clk)
+    
+# CologneChip SDRTristate ---------------------------------------------------------------------------------
+
+class CologneChipSDRTristateImpl(Module):
+    def __init__(self, io, o, oe, i, clk):
+        _o    = Signal().like(o)
+        _oe_n = Signal().like(oe)
+        _i    = Signal().like(i)
+        self.specials += [
+            SDROutput(o, _o, clk),
+            SDROutput(~oe, _oe_n, clk),
+            SDRInput(_i, i, clk),
+        ]
+        for j in range(len(io)):
+            self.specials += Instance("CC_IOBUF",
+                    p_FF_OBF = 1,
+                    p_FF_IBF = 1,
+                    io_IO = io[j],
+                    o_Y   = _i[j],
+                    i_A   = _o[j],
+                    i_T   = _oe_n[j],
+                )
+
+class CologneChipSDRTristate:
+    @staticmethod
+    def lower(dr):
+        return CologneChipSDRTristateImpl(dr.io, dr.o, dr.oe, dr.i, dr.clk)
+
 
 # CologneChip Tristate -----------------------------------------------------------------------------
 
@@ -150,5 +211,7 @@ colognechip_special_overrides = {
     DifferentialInput:      CologneChipDifferentialInput,
     DifferentialOutput:     CologneChipDifferentialOutput,
     SDRInput:               CologneChipSDRInput,
+    SDROutput:              CologneChipSDROutput,
+    SDRTristate:            CologneChipSDRTristate,
     Tristate:               CologneChipTristate,
 }

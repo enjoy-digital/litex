@@ -44,6 +44,13 @@ class CologneChipPlatform(GenericPlatform):
         if clk is None: return
         self.toolchain.add_period_constraint(self, clk, period)
 
+    def add_false_path_constraint(self, from_, to):
+        if hasattr(from_, "p"):
+            from_ = from_.p
+        if hasattr(to, "p"):
+            to = to.p
+        self.toolchain.add_false_path_constraint(self, from_, to)
+
     @classmethod
     def fill_args(cls, toolchain, parser):
         """
