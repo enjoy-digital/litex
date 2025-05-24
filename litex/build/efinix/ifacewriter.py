@@ -95,13 +95,7 @@ import pprint
 
 home = "{0}"
 
-os.environ["EFXPT_HOME"]  = home + "/pt"
-os.environ["EFXPGM_HOME"] = home + "/pgm"
-os.environ["EFXDBG_HOME"] = home + "/debugger"
-os.environ["EFXIPM_HOME"] = home + "/ipm"
-
 sys.path.append(home + "/pt/bin")
-sys.path.append(home + "/lib/python3.8/site-packages")
 
 from api_service.design import DesignAPI
 from api_service.device import DeviceAPI
