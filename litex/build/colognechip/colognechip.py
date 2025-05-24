@@ -45,6 +45,14 @@ def _build_ccf(named_sc, named_pc):
 
     return ccf
 
+# check if CFG IO pins are used
+def _check_cfg_io_used(named_sc):
+    for _, pins, _, _ in named_sc:
+        for p in pins:
+            if p.startswith("IO_WA_"):
+                return True
+    return False
+
 # CologneChipToolchain -----------------------------------------------------------------------------
 
 class CologneChipToolchain(GenericToolchain):
@@ -110,9 +118,11 @@ class CologneChipToolchain(GenericToolchain):
 
         # yosys call
         script_contents += self._yosys.get_yosys_call("script") + fail_stmt
+        # use CFG IOs as user GPIOs
+        cfg_io = "+uCIO" if _check_cfg_io_used(self.named_sc) else ""
         # p_r call
-        script_contents += "p_r -ccf {build_name}.ccf -cCP -A 1 -i {build_name}_synth.v -o {build_name} -lib ccag\n".format(
-            build_name = self._build_name)
+        script_contents += "p_r -ccf {build_name}.ccf -cCP {cfg_io} -A 1 -i {build_name}_synth.v -o {build_name} -lib ccag\n".format(
+            build_name = self._build_name, cfg_io = cfg_io)
 
         script_file = "build_" + self._build_name + script_ext
         tools.write_to_file(script_file, script_contents, force_unix=False)
