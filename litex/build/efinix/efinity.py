@@ -13,6 +13,8 @@ import site
 import inspect
 import datetime
 import subprocess
+import shutil
+import glob
 
 from xml.dom import expatbuilder
 import xml.etree.ElementTree as et
@@ -419,6 +421,13 @@ class EfinityToolchain(GenericToolchain):
         ], common.colors, env=self.env)
         if r != 0:
            raise OSError("Error occurred during efx_run execution.")
+
+        files = glob.glob('outflow/*.bin')
+        files.extend(glob.glob('outflow/*.bit'))
+        files.extend(glob.glob('outflow/*.hex'))
+        for file in files:
+            print(file)
+            shutil.copy(file, self._build_dir)
 
 def build_args(parser):
     toolchain = parser.add_argument_group(title="Efinity toolchain options")
