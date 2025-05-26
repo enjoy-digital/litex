@@ -30,6 +30,22 @@ from litex.build.efinix import common
 from litex.build.efinix import InterfaceWriter
 from litex.build.efinix import IPMWriter
 
+def _add_custom_params(parent, params):
+    for key, value in params.items():
+        if isinstance(value, bool):
+            value_type = "e_bool"
+            value = "on" if value else "off"
+        elif isinstance(value, list):
+            value_type = value[1]
+            value = value[0]
+        else:
+            value_type = "e_string"
+        et.SubElement(parent, "efx:param", {
+            "name" : key,
+            "value": str(value),
+            "value_type": value_type,
+        })
+
 
 # Efinity Toolchain --------------------------------------------------------------------------------
 
@@ -54,22 +70,22 @@ class EfinityToolchain(GenericToolchain):
             self.options["includ_path"] = "{" + ";".join(self.platform.verilog_include_paths) + "}"
 
     def build(self, platform, fragment,
-        synth_mode               = "speed",
-        infer_clk_enable         = "3",
-        bram_output_regs_packing = "1",
-        retiming                 = "1",
-        seq_opt                  = "1",
-        mult_input_regs_packing  = "1",
-        mult_output_regs_packing = "1",
+        efx_map_params           = None,
+        efx_pnr_params           = None,
+        efx_pgm_params           = None,
+        efx_security_params      = None,
+        efx_debugger_params      = None,
         **kwargs):
 
-        self._synth_mode               = synth_mode
-        self._infer_clk_enable         = infer_clk_enable
-        self._bram_output_regs_packing = bram_output_regs_packing
-        self._retiming                 = retiming
-        self._seq_opt                  = seq_opt
-        self._mult_input_regs_packing  = mult_input_regs_packing
-        self._mult_output_regs_packing = mult_output_regs_packing
+        self._efx_map_params           = efx_map_params if efx_map_params is not None else {}
+        self._efx_pnr_params           = efx_pnr_params if efx_pnr_params is not None else {}
+        self._efx_pgm_params           = efx_pgm_params if efx_pgm_params is not None else {}
+        self._efx_security_params      = efx_security_params if efx_security_params is not None else {}
+        self._efx_debugger_params      = efx_debugger_params if efx_debugger_params is not None else {}
+
+        if platform.family != "Trion":
+            self._efx_map_params.pop("mult_input_regs_packing", None)
+            self._efx_map_params.pop("mult_output_regs_packing", None)
 
         # Apply FullMemoryWE on Design (Efiniy does not infer memories correctly otherwise).
         FullMemoryWE()(fragment)
@@ -309,53 +325,14 @@ class EfinityToolchain(GenericToolchain):
         # Add IP Info.
         ip_info  = et.SubElement(root, "efx:ip_info")
 
-        efx_map  = et.SubElement(root, "efx:synthesis", {"tool_name": "efx_map"})
-        et.SubElement(efx_map, "efx:param", {
-            "name" : "mode",
-            "value": self._synth_mode,
-            "value_type": "e_option",
-        })
-        et.SubElement(efx_map, "efx:param", {
-            "name" : "infer-clk-enable",
-            "value": self._infer_clk_enable,
-            "value_type": "e_option",
-        })
-        et.SubElement(efx_map, "efx:param", {
-            "name" : "bram_output_regs_packing",
-            "value": self._bram_output_regs_packing,
-            "value_type": "e_option",
-        })
-        et.SubElement(efx_map, "efx:param", {
-            "name" : "retiming",
-            "value": self._retiming,
-            "value_type": "e_option",
-        })
-        et.SubElement(efx_map, "efx:param", {
-            "name" : "seq_opt",
-            "value": self._seq_opt,
-            "value_type": "e_option",
-        })
-        et.SubElement(efx_map, "efx:param", {
-            "name" : "infer-sync-set-reset",
-            "value": "1",
-            "value_type": "e_option",
-        })
-
-        if self.platform.family == "Trion":
-            et.SubElement(efx_map, "efx:param", {
-                "name" : "mult_input_regs_packing",
-                "value": self._mult_input_regs_packing,
-                "value_type": "e_option",
-            })
-            et.SubElement(efx_map, "efx:param", {
-                "name" : "mult_output_regs_packing",
-                "value": self._mult_output_regs_packing,
-                "value_type": "e_option",
-            })
+        efx_map  = et.SubElement(root, "efx:synthesis", {"tool_name": "efx_map"})      
+        _add_custom_params(efx_map, self._efx_map_params)
 
         efx_pnr = et.SubElement(root, "efx:place_and_route", {"tool_name": "efx_pnr"})
+        _add_custom_params(efx_pnr, self._efx_pnr_params)
 
         efx_pgm = et.SubElement(root, "efx:bitstream_generation", {"tool_name": "efx_pgm"})
+
         et.SubElement(efx_pgm, "efx:param", {
             "name" : "mode",
             "value": self.platform.spi_mode,
@@ -366,20 +343,14 @@ class EfinityToolchain(GenericToolchain):
             "value": self.platform.spi_width,
             "value_type": "e_option",
         })
-        et.SubElement(efx_pgm, "efx:param", {
-            "name" : "spi_low_power_mode",
-            "value": "off",
-            "value_type": "e_bool",
-        })
-        et.SubElement(efx_pgm, "efx:param", {
-            "name" : "enable_crc_check",
-            "value": "on",
-            "value_type": "e_bool",
-        })
+        
+        _add_custom_params(efx_pgm, self._efx_pgm_params)
 
         efx_dbg = et.SubElement(root, "efx:debugger")
+        _add_custom_params(efx_dbg, self._efx_debugger_params)
 
         efx_security = et.SubElement(root, "efx:security")
+        _add_custom_params(efx_security, self._efx_security_params)
 
         # Generate .xml
         xml_str = et.tostring(root, "utf-8")
@@ -431,16 +402,6 @@ class EfinityToolchain(GenericToolchain):
         return "" # not used
 
     def run_script(self, script):
-        # Place and Route.
-        r = tools.subprocess_call_filtered([self.efinity_path + "/bin/python3",
-            self.efinity_path + "/scripts/efx_run_pt.py",
-            f"{self._build_name}",
-            self.platform.family,
-            self.platform.device
-        ], common.colors, env=self.env)
-        if r != 0:
-           raise OSError("Error occurred during efx_run_pt execution.")
-
         # Merge SDC
         with open(f"{self._build_name}_merged.sdc", 'w') as outfile:
             with open(f"outflow/{self._build_name}.pt.sdc") as infile:
@@ -451,90 +412,13 @@ class EfinityToolchain(GenericToolchain):
             with open(f"{self._build_name}.sdc") as infile:
                 outfile.write(infile.read())
 
-        # Synthesis/Mapping.
-        r = tools.subprocess_call_filtered([self.efinity_path + "/bin/efx_map",
-            "--project",                    f"{self._build_name}",
-            "--root",                       f"{self._build_name}",
-            "--write-efx-verilog",          f"outflow/{self._build_name}.map.v",
-            "--write-premap-module",        f"outflow/{self._build_name}.elab.vdb",
-            "--binary-db",                  f"{self._build_name}.vdb",
-            "--family",                     self.platform.family,
-            "--device",                     self.platform.device,
-            "--mode",                       self._synth_mode,
-            "--max_ram",                    "-1",
-            "--max_mult",                   "-1",
-            "--infer-clk-enable",           self._infer_clk_enable,
-            "--infer-sync-set-reset",       "1",
-            "--fanout-limit",               "0",
-            "--bram_output_regs_packing",   self._bram_output_regs_packing,
-            "--retiming",                   self._retiming,
-            "--seq_opt",                    self._seq_opt,
-            "--blast_const_operand_adders", "1",
-            "--mult_input_regs_packing",    self._mult_input_regs_packing,
-            "--mult_output_regs_packing",   self._mult_output_regs_packing,
-            "--veri_option",                "verilog_mode=verilog_2k,vhdl_mode=vhdl_2008",
-            "--work-dir",                   "work_syn",
-            "--output-dir",                 "outflow",
-            "--project-xml",                f"{self._build_name}.xml",
-            "--I",                          "./"
-        ], common.colors, env=self.env)
-        if r != 0:
-            raise OSError("Error occurred during efx_map execution.")
-
-        vdbfile = f"work_syn/{self._build_name}.vdb"
-        if not os.path.exists(vdbfile):
-            vdbfile = f"outflow/{self._build_name}.vdb"
-
-        r = tools.subprocess_call_filtered([self.efinity_path + "/bin/efx_pnr",
-            "--circuit",              f"{self._build_name}",
-            "--family",               self.platform.family,
-            "--device",               self.platform.device,
-            "--operating_conditions", self.platform.timing_model,
-            "--pack",
-            "--place",
-            "--route",
-            "--vdb_file",             vdbfile,
-            "--use_vdb_file",         "on",
-            "--place_file",           f"outflow/{self._build_name}.place",
-            "--route_file",           f"outflow/{self._build_name}.route",
-            "--sdc_file",             f"{self._build_name}_merged.sdc",
-            "--sync_file",            f"outflow/{self._build_name}.interface.csv",
-            "--seed",                 "1",
-            "--work_dir",             "work_pnr",
-            "--output_dir",           "outflow",
-            "--timing_analysis",      "on",
-            "--load_delay_matrix"
-        ], common.colors, env=self.env)
-        if r != 0:
-            raise OSError("Error occurred during efx_pnr execution.")
-
-        # Bitstream.
-        r = tools.subprocess_call_filtered([self.efinity_path + "/bin/efx_pgm",
-            "--source",                   f"work_pnr/{self._build_name}.lbf",
-            "--dest",                     f"{self._build_name}.hex",
-            "--device",                   self.platform.device,
-            "--family",                   self.platform.family,
-            "--periph",                   f"outflow/{self._build_name}.lpf",
-            "--oscillator_clock_divider", "DIV8",
-            "--spi_low_power_mode",       "off",
-            "--io_weak_pullup",           "on",
-            "--enable_roms",              "on",
-            "--mode",                     self.platform.spi_mode,
-            "--width",                    self.platform.spi_width,
-            "--enable_crc_check",         "on"
-        ], common.colors, env=self.env)
-        if r != 0:
-            raise OSError("Error occurred during efx_pgm execution.")
-
-        # BINARY
         r = tools.subprocess_call_filtered([self.efinity_path + "/bin/python3",
-            self.efinity_path + "/pgm/bin/efx_pgm/export_bitstream.py",
-            "hex_to_bin",
-            f"{self._build_name}.hex",
-            f"{self._build_name}.bin"
+            self.efinity_path + "/scripts/efx_run.py",
+            f"{self._build_name}.xml",
+            "--flow", "compile",
         ], common.colors, env=self.env)
         if r != 0:
-           raise OSError("Error occurred during export_bitstream execution.")
+           raise OSError("Error occurred during efx_run execution.")
 
 def build_args(parser):
     toolchain = parser.add_argument_group(title="Efinity toolchain options")
@@ -546,14 +430,28 @@ def build_args(parser):
     toolchain.add_argument("--seq-opt",                  default="1",     help="Turn on sequential optimization.",              choices=["0", "1"])
     toolchain.add_argument("--mult-input-regs-packing",  default="1",     help="Allow packing of multiplier input registers.",  choices=["0", "1"]),
     toolchain.add_argument("--mult-output-regs-packing", default="1",     help="Allow packing of multiplier output registers.", choices=["0", "1"])
+    toolchain.add_argument("--generate-bitbin",          action="store_true", help="Generate bitbin file (default: False).")
+    toolchain.add_argument("--generate-hexbin",          action="store_true", help="Generate hexbin file (default: False).")
 
 def build_argdict(args):
-    return {
-        "synth_mode"               : args.synth_mode,
-        "infer_clk_enable"         : args.infer_clk_enable,
-        "bram_output_regs_packing" : args.bram_output_regs_packing,
-        "retiming"                 : args.retiming,
-        "seq_opt"                  : args.seq_opt,
-        "mult_input_regs_packing"  : args.mult_input_regs_packing,
-        "mult_output_regs_packing" : args.mult_output_regs_packing,
+    return{
+        "efx_map_params"           : {
+            "mode"                      : [args.synth_mode, "e_option"],
+            "infer-clk-enable"          : [args.infer_clk_enable, "e_option"],
+            "bram_output_regs_packing"  : [args.bram_output_regs_packing, "e_option"],
+            "retiming"                  : [args.retiming, "e_option"],
+            "seq_opt"                   : [args.seq_opt, "e_option"],
+            "mult_input_regs_packing"   : [args.mult_input_regs_packing, "e_option"],
+            "mult_output_regs_packing"  : [args.mult_output_regs_packing, "e_option"],
+        },
+        "efx_pgm_params"           : {
+            "generate_bitbin"           : args.generate_bitbin,
+            "generate_hexbin"           : args.generate_hexbin,
+            "oscillator_clock_divider"  : ["DIV8", "e_option"],
+            "spi_low_power_mode"        : False,
+            "io_weak_pullup"            : True,
+            "enable_roms"               : True,
+            "enable_crc_check"          : True,
+
+        },
     }
