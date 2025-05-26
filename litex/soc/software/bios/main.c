@@ -112,7 +112,7 @@ __attribute__((__used__)) int main(int i, char **c)
 	printf("\e[1m     /____/_/\\__/\\__/_/|_|\e[0m\n");
 	printf("\e[1m   Build your hardware, easily!\e[0m\n");
 	printf("\n");
-	printf(" (c) Copyright 2012-2024 Enjoy-Digital\n");
+	printf(" (c) Copyright 2012-2025 Enjoy-Digital\n");
 	printf(" (c) Copyright 2007-2015 M-Labs\n");
 	printf("\n");
 #ifndef CONFIG_BIOS_NO_BUILD_TIME

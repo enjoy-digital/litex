@@ -4,7 +4,7 @@ The LiteX framework provides a convenient and efficient infrastructure to create
 FPGA Cores/SoCs, to explore various digital design architectures and create full
 FPGA based systems.
 
-Unless otherwise noted, LiteX is copyright (C) 2012-2024 Enjoy-Digital & LiteX developers.
+Unless otherwise noted, LiteX is copyright (C) 2012-2025 Enjoy-Digital & LiteX developers.
 Unless otherwise noted, MiSoC is copyright (C) 2012-2015 Enjoy-Digital.
 Unless otherwise noted, MiSoC is copyright (C) 2007-2015 M-Labs Ltd.
 All rights reserved.

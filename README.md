@@ -1,7 +1,7 @@
 <p align="center"><img src="https://raw.githubusercontent.com/enjoy-digital/litex/master/doc/litex.png"></p>
 
 ```
-             Copyright 2012-2024 / Enjoy-Digital & LiteX developers
+             Copyright 2012-2025 / Enjoy-Digital & LiteX developers
 ```
 [![](https://github.com/enjoy-digital/litex/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litex/actions)
 ![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)
