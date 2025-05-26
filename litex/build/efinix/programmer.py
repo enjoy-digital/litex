@@ -25,9 +25,22 @@ class EfinixProgrammer(GenericProgrammer):
             raise OSError(msg)
 
         self.efinity_path = os.environ["LITEX_ENV_EFINITY"].rstrip('/')
-        os.environ["EFINITY_HOME"] = self.efinity_path
-        os.environ['EFXPGM_HOME'] = self.efinity_path + "/pgm"
-        os.environ["EFXDBG_HOME"] = self.efinity_path + "/debugger"
+
+        # get environment variables from the efinity setup.sh
+        pipe = subprocess.Popen(". %s && env -0" % (self.efinity_path + "/bin/setup.sh"),
+                                stdout=subprocess.PIPE, shell=True, cwd=self.efinity_path, executable='/bin/bash')
+        output = pipe.communicate()[0].decode('utf-8')
+        output = output[:-1] # fix for index out for range in 'env[ line[0] ] = line[1]'
+
+        env = {}
+        # split using null char
+        for line in output.split('\x00'):
+            line = line.split( '=', 1)
+            # print(line)
+            env[line[0]] = line[1]
+
+        self.env = env
+
         if family is None:
             from litex.gen.context import LiteXContext
             family = LiteXContext.platform.family
@@ -36,7 +49,7 @@ class EfinixProgrammer(GenericProgrammer):
     def load_bitstream(self, bitstream_file, cable_suffix=""):
         if (subprocess.call([self.efinity_path + '/bin/python3', self.efinity_path +
                    '/pgm/bin/efx_pgm/ftdi_program.py', bitstream_file,
-                   "-m", "jtag"], env=os.environ.copy()) != 0):
+                   "-m", "jtag"], env=self.env) != 0):
             msg = f"Error occured during {self.__class__.__name__}'s call, please check:\n"
             msg += f"- {self.__class__.__name__} installation.\n"
             msg += f"- Access permissions.\n"
@@ -44,8 +57,8 @@ class EfinixProgrammer(GenericProgrammer):
             msg += f"- Bitstream presence."
             raise OSError(msg)
 
-    def flash(self, address, data_file, mode="jtag_bridge_new", device_id=None, bridge_image_name=None):
-        assert mode in ["jtag_bridge_new"]
+    def flash(self, address, data_file, mode="jtag_bridge", device_id=None, bridge_image_name=None):
+        assert mode in ["jtag_bridge"]
         if device_id is not None or bridge_image_name is not None:
             if bridge_image_name is None:
                 assert self.family != "Trion", "Trion devices require a bridge image name"
@@ -65,7 +78,7 @@ class EfinixProgrammer(GenericProgrammer):
 
         if (subprocess.call([self.efinity_path + '/bin/python3', self.efinity_path +
                    '/pgm/bin/efx_pgm/ftdi_program.py', data_file,
-                   "-m", "jtag_bridge_new", "--address", hex(address)], env=os.environ.copy()) != 0):
+                   "-m", "jtag_bridge", "--address", hex(address)], env=self.env) != 0):
             msg = f"Error occured during {self.__class__.__name__}'s call, please check:\n"
             msg += f"- {self.__class__.__name__} installation.\n"
             msg += f"- Access permissions.\n"
