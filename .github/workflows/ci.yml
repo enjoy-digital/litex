@@ -47,18 +47,18 @@ jobs:
       - name: Install OSS CAD Suite
         uses: YosysHQ/setup-oss-cad-suite@v3
         with:
-          version: '2025-04-17'
+          version: '2025-05-30'
 
-      # Build / Install GHDL
-      - name: Build GHDL
-        run: |
-          sudo apt-get install gnat llvm
-          git clone https://github.com/ghdl/ghdl.git
-          cd ghdl
-          git checkout 1fc1bccd1a7c256c531bdd6dc8f9641f90eb8ea0
-          ./configure --with-llvm-config
-          make
-          sudo make install
+#      # Build / Install GHDL
+#      - name: Build GHDL
+#        run: |
+#          sudo apt-get install gnat llvm
+#          git clone https://github.com/ghdl/ghdl.git
+#          cd ghdl
+#          git checkout 1fc1bccd1a7c256c531bdd6dc8f9641f90eb8ea0
+#          ./configure --with-llvm-config
+#          make
+#          sudo make install
 
       # Build / Install Verilator
       - name: Build Verilator
