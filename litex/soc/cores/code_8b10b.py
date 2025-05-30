@@ -286,6 +286,7 @@ class Encoder(LiteXModule):
 class Decoder(LiteXModule):
     def __init__(self, lsb_first=False):
         self.ce      = Signal(reset=1)
+        self.valid   = Signal() # Valid output, only based on ce
         self.input   = Signal(10)
         self.d       = Signal(8)
         self.k       = Signal()
@@ -331,6 +332,7 @@ class Decoder(LiteXModule):
                 code3b.eq(Array(table_4b3b)[code4b])
             ),
         )
+        self.sync += self.valid.eq(self.ce)
         self.comb += code5b.eq(port_6b5b.dat_r)
         self.comb += self.d.eq(Cat(code5b, code3b))
 
