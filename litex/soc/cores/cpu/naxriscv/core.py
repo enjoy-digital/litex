@@ -141,11 +141,11 @@ class NaxRiscv(CPU):
             NaxRiscv.gcc_triple           = CPU_GCC_TRIPLE_RISCV64 if xlen == 64 else CPU_GCC_TRIPLE_RISCV32
             NaxRiscv.linker_output_format = f"elf{xlen}-littleriscv"
         if args.cpu_count:
-            NaxRiscv.cpu_count = args.cpu_count
+            NaxRiscv.cpu_count = int(args.cpu_count)
         if args.l2_bytes:
-            NaxRiscv.l2_bytes = args.l2_bytes
+            NaxRiscv.l2_bytes = int(args.l2_bytes)
         if args.l2_ways:
-            NaxRiscv.l2_ways = args.l2_ways
+            NaxRiscv.l2_ways = int(args.l2_ways)
 
 
     def __init__(self, platform, variant):
@@ -398,6 +398,18 @@ class NaxRiscv(CPU):
         soc.add_config("CPU_COUNT", NaxRiscv.cpu_count)
         soc.add_config("CPU_ISA", NaxRiscv.get_arch())
         soc.add_config("CPU_MMU", {32 : "sv32", 64 : "sv39"}[NaxRiscv.xlen])
+
+        # Constants for cache so we can add them in the DTS.
+        soc.add_config("CPU_DCACHE_SIZE", 16384)
+        soc.add_config("CPU_DCACHE_WAYS", 4)
+        soc.add_config("CPU_DCACHE_BLOCK_SIZE", 64) # hardwired?
+        soc.add_config("CPU_ICACHE_SIZE", 16384)
+        soc.add_config("CPU_ICACHE_WAYS", 4)
+        soc.add_config("CPU_ICACHE_BLOCK_SIZE", 64) # hardwired?
+        if NaxRiscv.l2_bytes > 0:
+            soc.add_config("CPU_L2CACHE_SIZE", NaxRiscv.l2_bytes)
+            soc.add_config("CPU_L2CACHE_WAYS", NaxRiscv.l2_ways)
+            soc.add_config("CPU_L2CACHE_BLOCK_SIZE", 64) # hardwired?
 
         soc.bus.add_region("plic",  SoCRegion(origin=soc.mem_map.get("plic"),  size=0x40_0000, cached=False,  linker=True))
         soc.bus.add_region("clint", SoCRegion(origin=soc.mem_map.get("clint"), size= 0x1_0000, cached=False,  linker=True))
