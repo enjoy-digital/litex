@@ -140,22 +140,28 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         # Cache description.
         cache_desc = ""
         if "config_cpu_dcache_size" in d["constants"]:
+            dcache_sets = int(d["constants"]["config_cpu_dcache_size"] /
+                              d["constants"]["config_cpu_dcache_block_size"] /
+                              d["constants"]["config_cpu_dcache_ways"])
             cache_desc += """
                 d-cache-size = <{d_cache_size}>;
-                d-cache-sets = <{d_cache_ways}>;
+                d-cache-sets = <{d_cache_sets}>;
                 d-cache-block-size = <{d_cache_block_size}>;
 """.format(
     d_cache_size       = d["constants"]["config_cpu_dcache_size"],
-    d_cache_ways       = d["constants"]["config_cpu_dcache_ways"],
+    d_cache_sets       = dcache_sets,
     d_cache_block_size = d["constants"]["config_cpu_dcache_block_size"])
         if "config_cpu_icache_size" in d["constants"]:
+            icache_sets = int(d["constants"]["config_cpu_icache_size"] /
+                              d["constants"]["config_cpu_icache_block_size"] /
+                              d["constants"]["config_cpu_icache_ways"])
             cache_desc += """
                 i-cache-size = <{i_cache_size}>;
-                i-cache-sets = <{i_cache_ways}>;
+                i-cache-sets = <{i_cache_sets}>;
                 i-cache-block-size = <{i_cache_block_size}>;
 """.format(
     i_cache_size       = d["constants"]["config_cpu_icache_size"],
-    i_cache_ways       = d["constants"]["config_cpu_icache_ways"],
+    i_cache_sets       = icache_sets,
     i_cache_block_size = d["constants"]["config_cpu_icache_block_size"])
 
         # TLB description.
