@@ -456,7 +456,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     if "usb_ohci_ctrl" in d["memories"]:
         dts += """
-            usb0: mac@{usb_ohci_mem_base:x} {{
+            usb0: usb@{usb_ohci_mem_base:x} {{
                 compatible = "generic-ohci";
                 reg = <0x{usb_ohci_mem_base:x} 0x1000>;
                 {usb_ohci_interrupt}
