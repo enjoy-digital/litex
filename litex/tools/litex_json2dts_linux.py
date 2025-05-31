@@ -140,23 +140,33 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         # Cache description.
         cache_desc = ""
         if "config_cpu_dcache_size" in d["constants"]:
+            dcache_sets = int(d["constants"]["config_cpu_dcache_size"] /
+                              d["constants"]["config_cpu_dcache_block_size"] /
+                              d["constants"]["config_cpu_dcache_ways"])
             cache_desc += """
                 d-cache-size = <{d_cache_size}>;
-                d-cache-sets = <{d_cache_ways}>;
+                d-cache-sets = <{d_cache_sets}>;
                 d-cache-block-size = <{d_cache_block_size}>;
 """.format(
     d_cache_size       = d["constants"]["config_cpu_dcache_size"],
-    d_cache_ways       = d["constants"]["config_cpu_dcache_ways"],
+    d_cache_sets       = dcache_sets,
     d_cache_block_size = d["constants"]["config_cpu_dcache_block_size"])
         if "config_cpu_icache_size" in d["constants"]:
+            icache_sets = int(d["constants"]["config_cpu_icache_size"] /
+                              d["constants"]["config_cpu_icache_block_size"] /
+                              d["constants"]["config_cpu_icache_ways"])
             cache_desc += """
                 i-cache-size = <{i_cache_size}>;
-                i-cache-sets = <{i_cache_ways}>;
+                i-cache-sets = <{i_cache_sets}>;
                 i-cache-block-size = <{i_cache_block_size}>;
 """.format(
     i_cache_size       = d["constants"]["config_cpu_icache_size"],
-    i_cache_ways       = d["constants"]["config_cpu_icache_ways"],
+    i_cache_sets       = icache_sets,
     i_cache_block_size = d["constants"]["config_cpu_icache_block_size"])
+        if "config_cpu_l2cache_size" in d["constants"]:
+            cache_desc += """
+                next-level-cache = <&cluster0_l2_cache>;
+"""
 
         # TLB description.
         tlb_desc = ""
@@ -202,6 +212,22 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 };
             };"""
 
+        l2cache = ""
+        if "config_cpu_l2cache_size" in d["constants"]:
+            l2_size=d["constants"]["config_cpu_l2cache_size"]
+            l2_ways=d["constants"]["config_cpu_l2cache_ways"]
+            l2_block_size = d["constants"]["config_cpu_l2cache_block_size"]
+            l2_sets = int(l2_size / l2_block_size / l2_ways)
+            l2cache += """
+	    cluster0_l2_cache: l2-cache0 {{
+		compatible = "cache";
+		cache-block-size = <{l2block}>;
+		cache-level = <2>;
+		cache-size = <{l2size}>;
+		cache-sets = <{l2sets}>;
+		cache-unified;
+	    }};""".format(l2size=l2_size, l2block=l2_block_size, l2sets=l2_sets)
+
         dts += """
         cpus {{
             #address-cells = <1>;
@@ -241,8 +267,9 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     extra_attr         = extra_attr)
         dts += """
             {cpu_map}
+            {l2cache}
         }};
-""".format(cpu_map=cpu_map)
+""".format(cpu_map=cpu_map, l2cache=l2cache)
 
     # Or1k
     # ----
@@ -439,6 +466,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 litex,tx-slots = <{ethmac_tx_slots}>;
                 litex,slot-size = <{ethmac_slot_size}>;
                 {ethmac_interrupt}
+                {local_mac_addr}
                 status = "okay";
             }};
 """.format(
@@ -450,13 +478,21 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     ethmac_rx_slots  = d["constants"][ethmac_name + "_rx_slots"],
     ethmac_tx_slots  = d["constants"][ethmac_name + "_tx_slots"],
     ethmac_slot_size = d["constants"][ethmac_name + "_slot_size"],
-    ethmac_interrupt = "" if polling else "interrupts = <{}>;".format(int(d["constants"][ethmac_name + "_interrupt"]) + it_incr))
+    ethmac_interrupt = "" if polling else "interrupts = <{}>;".format(int(d["constants"][ethmac_name + "_interrupt"]) + it_incr),
+    local_mac_addr   = "" if not "macaddr1" in d["constants"] else "local-mac-address = [{mac_addr}];".format(
+        mac_addr     = "{a1:02X} {a2:02X} {a3:02X} {a4:02X} {a5:02X} {a6:02X}".format(
+            a1       = d["constants"]["macaddr1"],
+            a2       = d["constants"]["macaddr2"],
+            a3       = d["constants"]["macaddr3"],
+            a4       = d["constants"]["macaddr4"],
+            a5       = d["constants"]["macaddr5"],
+            a6       = d["constants"]["macaddr6"])))
 
     # USB OHCI -------------------------------------------------------------------------------------
 
     if "usb_ohci_ctrl" in d["memories"]:
         dts += """
-            usb0: mac@{usb_ohci_mem_base:x} {{
+            usb0: usb@{usb_ohci_mem_base:x} {{
                 compatible = "generic-ohci";
                 reg = <0x{usb_ohci_mem_base:x} 0x1000>;
                 {usb_ohci_interrupt}
