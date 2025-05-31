@@ -163,6 +163,10 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     i_cache_size       = d["constants"]["config_cpu_icache_size"],
     i_cache_sets       = icache_sets,
     i_cache_block_size = d["constants"]["config_cpu_icache_block_size"])
+        if "config_cpu_l2cache_size" in d["constants"]:
+            cache_desc += """
+                next-level-cache = <&cluster0_l2_cache>;
+"""
 
         # TLB description.
         tlb_desc = ""
@@ -208,6 +212,22 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 };
             };"""
 
+        l2cache = ""
+        if "config_cpu_l2cache_size" in d["constants"]:
+            l2_size=d["constants"]["config_cpu_l2cache_size"]
+            l2_ways=d["constants"]["config_cpu_l2cache_ways"]
+            l2_block_size = d["constants"]["config_cpu_l2cache_block_size"]
+            l2_sets = int(l2_size / l2_block_size / l2_ways)
+            l2cache += """
+	    cluster0_l2_cache: l2-cache0 {{
+		compatible = "cache";
+		cache-block-size = <{l2block}>;
+		cache-level = <2>;
+		cache-size = <{l2size}>;
+		cache-sets = <{l2sets}>;
+		cache-unified;
+	    }};""".format(l2size=l2_size, l2block=l2_block_size, l2sets=l2_sets)
+
         dts += """
         cpus {{
             #address-cells = <1>;
@@ -247,8 +267,9 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     extra_attr         = extra_attr)
         dts += """
             {cpu_map}
+            {l2cache}
         }};
-""".format(cpu_map=cpu_map)
+""".format(cpu_map=cpu_map, l2cache=l2cache)
 
     # Or1k
     # ----
