@@ -466,6 +466,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 litex,tx-slots = <{ethmac_tx_slots}>;
                 litex,slot-size = <{ethmac_slot_size}>;
                 {ethmac_interrupt}
+                {local_mac_addr}
                 status = "okay";
             }};
 """.format(
@@ -477,7 +478,15 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     ethmac_rx_slots  = d["constants"][ethmac_name + "_rx_slots"],
     ethmac_tx_slots  = d["constants"][ethmac_name + "_tx_slots"],
     ethmac_slot_size = d["constants"][ethmac_name + "_slot_size"],
-    ethmac_interrupt = "" if polling else "interrupts = <{}>;".format(int(d["constants"][ethmac_name + "_interrupt"]) + it_incr))
+    ethmac_interrupt = "" if polling else "interrupts = <{}>;".format(int(d["constants"][ethmac_name + "_interrupt"]) + it_incr),
+    local_mac_addr   = "" if not "macaddr1" in d["constants"] else "local-mac-address = [{mac_addr}];".format(
+        mac_addr     = "{a1:02X} {a2:02X} {a3:02X} {a4:02X} {a5:02X} {a6:02X}".format(
+            a1       = d["constants"]["macaddr1"],
+            a2       = d["constants"]["macaddr2"],
+            a3       = d["constants"]["macaddr3"],
+            a4       = d["constants"]["macaddr4"],
+            a5       = d["constants"]["macaddr5"],
+            a6       = d["constants"]["macaddr6"])))
 
     # USB OHCI -------------------------------------------------------------------------------------
 
