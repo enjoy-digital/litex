@@ -85,6 +85,11 @@ class PeppercornToolchain(YosysNextPNRToolchain):
 
     def build(self, platform, fragment, **kwargs):
         self.platform = platform
+        # CologneChip does not have distributed RAM
+        self._yosys_cmds = [
+            "hierarchy -top {build_name}",
+            "setattr -unset ram_style a:ram_style=distributed",
+        ]
 
         return YosysNextPNRToolchain.build(self, platform, fragment, **kwargs)
 

@@ -62,7 +62,11 @@ class CologneChipToolchain(GenericToolchain):
     def __init__(self):
         super().__init__()
         self._yosys      = None
-        self._yosys_cmds = []
+        # CologneChip does not have distributed RAM
+        self._yosys_cmds = [
+            "hierarchy -top {build_name}",
+            "setattr -unset ram_style a:ram_style=distributed",
+        ]
         self._synth_opts = "-nomx8 "
 
     def finalize(self):
