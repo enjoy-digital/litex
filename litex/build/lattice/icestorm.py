@@ -53,11 +53,16 @@ class LatticeIceStormToolchain(YosysNextPNRToolchain):
     def build_io_constraints(self):
         r = ""
         for sig, pins, others, resname in self.named_sc:
+            options = ""
+            for o in others:
+                if isinstance(o, Misc):
+                    if o.misc == "PULLUP":
+                        options += "-pullup yes"
             if len(pins) > 1:
                 for bit, pin in enumerate(pins):
-                    r += "set_io {}[{}] {}\n".format(sig, bit, pin)
+                    r += f"set_io {options} {sig}[{bit}] {pin}\n"
             else:
-                r += "set_io {} {}\n".format(sig, pins[0])
+                r += f"set_io {options} {sig} {pins[0]}\n"
         if self.named_pc:
             r += "\n" + "\n\n".join(self.named_pc)
         tools.write_to_file(self._build_name + ".pcf", r)
