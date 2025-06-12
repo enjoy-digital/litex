@@ -16,7 +16,7 @@
 
 //#define SPIFLASH_DEBUG
 
-#if defined(CSR_SPIFLASH_CORE_BASE)
+#if defined(CSR_SPIFLASH_BASE)
 
 int spiflash_freq_init(void)
 {

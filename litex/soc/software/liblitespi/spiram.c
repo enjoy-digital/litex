@@ -17,7 +17,7 @@
 
 //#define SPIRAM_DEBUG
 
-#if defined(CSR_SPIRAM_CORE_BASE)
+#if defined(CSR_SPIRAM_BASE)
 
 int spiram_freq_init(void)
 {
