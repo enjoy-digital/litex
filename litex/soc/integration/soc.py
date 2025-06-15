@@ -41,17 +41,17 @@ def build_time(with_time=True):
     fmt = "%Y-%m-%d %H:%M:%S" if with_time else "%Y-%m-%d"
     return datetime.datetime.fromtimestamp(time.time()).strftime(fmt)
 
-def add_ip_address_constants(soc, name, ip_address):
+def add_ip_address_constants(soc, name, ip_address, check_duplicate=True):
     _ip_address = ip_address.split(".")
     assert len(_ip_address) == 4
     for n in range(4):
         assert int(_ip_address[n]) < 256
-        soc.add_constant(f"{name}{n+1}", int(_ip_address[n]))
+        soc.add_constant(f"{name}{n+1}", int(_ip_address[n]), check_duplicate=check_duplicate)
 
-def add_mac_address_constants(soc, name, mac_address):
+def add_mac_address_constants(soc, name, mac_address, check_duplicate=True):
     assert mac_address < 2**48
     for n in range(6):
-        soc.add_constant(f"{name}{n+1}", (mac_address >> ((5 - n) * 8)) & 0xff)
+        soc.add_constant(f"{name}{n+1}", (mac_address >> ((5 - n) * 8)) & 0xff, check_duplicate=check_duplicate)
 
 # SoCError -----------------------------------------------------------------------------------------
 
