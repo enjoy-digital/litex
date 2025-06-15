@@ -720,6 +720,20 @@ class SoCLocHandler(LiteXModule):
         self.logger.error(self)
         raise SoCError()
 
+    # Remove ---------------------------------------------------------------------------------------
+    def remove(self, name):
+        if name not in self.locs.keys():
+            self.logger.error("{} {} {}.".format(
+                colorer(name), self.name, colorer("not found", color="red")))
+            return
+        n = self.locs[name]
+        del self.locs[name]
+        self.logger.info("{} {} {} from Location {}.".format(
+            colorer(name, color="underline"),
+            self.name,
+            colorer("removed", color="red"),
+            colorer(n)))
+
     # Str ------------------------------------------------------------------------------------------
     def __str__(self):
         r = "{} Locations: ({})\n".format(self.name, len(self.locs.keys())) if len(self.locs.keys()) else ""
@@ -1362,6 +1376,40 @@ class SoC(LiteXModule, SoCCoreCompat):
 
         if self.irq.enabled:
             self.irq.add(name, use_loc_if_exists=True)
+
+    # Add CLINT ------------------------------------------------------------------------------------
+    def add_clint(self, name="clint", num_harts=1, base_addr=0x02000000):
+        from litex.soc.cores.clint import CLINT
+        self.check_if_exists(name)
+        clint = CLINT(num_harts=num_harts) 
+        self.add_module(name=name, module=clint)
+        
+        # Add CLINT to CSR map (makes it accessible via CPU load/store)
+        self.add_csr(name)
+        
+        # Connect interrupts to CPU if it has timer/software interrupt inputs
+        if hasattr(self, "cpu"):
+            if hasattr(self.cpu, "timer_interrupt"):
+                self.comb += self.cpu.timer_interrupt.eq(clint.timer_interrupts[0])
+            if hasattr(self.cpu, "software_interrupt"):
+                self.comb += self.cpu.software_interrupt.eq(clint.sw_interrupts[0])
+
+    # Add CLIC -------------------------------------------------------------------------------------
+    def add_clic(self, name="clic", num_interrupts=64, num_harts=1, ipriolen=8, base_addr=0x0C000000):
+        from litex.soc.cores.clic import CLIC
+        self.check_if_exists(name)
+        clic = CLIC(num_interrupts=num_interrupts, num_harts=num_harts, ipriolen=ipriolen)
+        self.add_module(name=name, module=clic)
+        
+        # Add CLIC to CSR map
+        clic.add_to_soc(self, name=name, base_addr=base_addr)
+        
+        # Connect external interrupt sources if IRQ system is enabled
+        if hasattr(self, "irq") and self.irq.enabled:
+            # Map IRQ sources to CLIC interrupt inputs
+            for i, (name, loc) in enumerate(self.irq.locs.items()):
+                if i < num_interrupts and hasattr(self.irq, name):
+                    self.comb += clic.interrupt_inputs[i].eq(getattr(self.irq, name))
 
     # SoC finalization -----------------------------------------------------------------------------
     def finalize(self):
