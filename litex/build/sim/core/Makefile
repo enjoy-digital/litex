@@ -60,7 +60,9 @@ sim: $(OBJS_SIM) | mkdir
 		-Wno-WIDTH \
 		-Wno-COMBDLY \
 		-Wno-CASEINCOMPLETE \
-		--relative-includes
+		--relative-includes \
+		--trace-structs \
+		--savable
 	make -j$(JOBS) -C $(OBJ_DIR) -f Vsim.mk Vsim
 
 .PHONY: modules

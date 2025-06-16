@@ -20,10 +20,25 @@ VerilatedVcdC* tfp;
 uint64_t tfp_start;
 uint64_t tfp_end;
 uint64_t main_time = 0;
+uint64_t save_time = -1;
+int save = 0;
 Vsim *g_sim = nullptr;
+
+static void litex_sim_save_state(void *vsim,const char* filename);
+static void litex_sim_restore_state(void *vsim,const char* filename);
+
+
 
 extern "C" void litex_sim_eval(void *vsim, uint64_t time_ps)
 {
+  if (main_time == 0 && save) {
+    printf("MDEBUG: Restoring state at time %ld\n", save_time);
+    litex_sim_restore_state(vsim,"sim_default.vlt");
+  }
+  if (main_time == save_time) {
+    printf("MDEBUG: Saving state at time %ld\n", save_time);
+    litex_sim_save_state(vsim,"sim_default.vlt");
+  }
   Vsim *sim = (Vsim*)vsim;
   sim->eval();
   main_time = time_ps;
@@ -34,8 +49,11 @@ extern "C" void litex_sim_init_cmdargs(int argc, char *argv[])
   Verilated::commandArgs(argc, argv);
 }
 
-extern "C" void litex_sim_init_tracer(void *vsim, long start, long end)
+extern "C" void litex_sim_init_tracer(void *vsim, long start, long end,long load_start, long save_start)
 {
+  save_time = save_start;
+  save = (load_start >= 1);
+  printf("MDEBUG: Save time: %ld, Save: %d\n", save_time, save);
   Vsim *sim = (Vsim*)vsim;
   tfp_start = start;
   tfp_end = end >= 0 ? end : UINT64_MAX;
@@ -53,6 +71,28 @@ extern "C" void litex_sim_init_tracer(void *vsim, long start, long end)
   tfp->set_time_resolution("1ps");
   g_sim = sim;
 }
+
+// --- Save Function ---
+static void litex_sim_save_state(void *vsim,const char* filename) {
+    Vsim *sim = (Vsim*)vsim;
+    VerilatedSave vs;
+    vs.open(filename);
+    vs << main_time;
+    vs << *sim;
+    vs.close();
+}
+
+// --- Restore Function ---
+static void litex_sim_restore_state(void *vsim,const char* filename) {
+    Vsim *sim = (Vsim*)vsim;
+    VerilatedRestore vr;
+    vr.open(filename);
+    vr >> main_time;
+    vr >> *sim;
+    vr.close();
+}
+
+
 
 extern "C" void litex_sim_tracer_dump()
 {

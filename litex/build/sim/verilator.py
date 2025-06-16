@@ -65,7 +65,7 @@ def _generate_sim_cpp_struct(name, index, siglist):
     return content
 
 
-def _generate_sim_cpp(platform, trace=False, trace_start=0, trace_end=-1):
+def _generate_sim_cpp(platform, trace=False, trace_start=0, trace_end=-1, load_start=0, save_start=-1):
     content = """\
 #include <stdio.h>
 #include <stdlib.h>
@@ -74,7 +74,7 @@ def _generate_sim_cpp(platform, trace=False, trace_start=0, trace_end=-1):
 #include <verilated.h>
 #include "sim_header.h"
 
-extern "C" void litex_sim_init_tracer(void *vsim, long start, long end);
+extern "C" void litex_sim_init_tracer(void *vsim, long start, long end,long load_start, long save_start);
 extern "C" void litex_sim_tracer_dump();
 
 extern "C" void litex_sim_dump()
@@ -93,9 +93,9 @@ extern "C" void litex_sim_init(void **out)
 
     sim = new Vsim;
 
-    litex_sim_init_tracer(sim, {}, {});
+    litex_sim_init_tracer(sim, {}, {}, {}, {});
 
-""".format(trace_start, trace_end)
+""".format(trace_start, trace_end,load_start, save_start)
     for args in platform.sim_requested:
         content += _generate_sim_cpp_struct(*args)
 
@@ -212,7 +212,9 @@ class SimVerilatorToolchain:
             interactive      = True,
             pre_run_callback = None,
             extra_mods       = None,
-            extra_mods_path  = ""):
+            extra_mods_path  = "",
+            load_start      = 0,
+            save_start      = -1):
 
         # Create build directory
         os.makedirs(build_dir, exist_ok=True)
@@ -237,7 +239,7 @@ class SimVerilatorToolchain:
 
             # Generate cpp header/main/variables
             _generate_sim_h(platform)
-            _generate_sim_cpp(platform, trace, trace_start, trace_end)
+            _generate_sim_cpp(platform, trace, trace_start, trace_end,load_start, save_start)
 
             _generate_sim_variables(platform.verilog_include_paths,
                                     extra_mods,
@@ -291,6 +293,8 @@ def verilator_build_args(parser):
     toolchain_group.add_argument("--trace-start",  default="0",         help="Time to start tracing (ps).")
     toolchain_group.add_argument("--trace-end",    default="-1",        help="Time to end tracing (ps).")
     toolchain_group.add_argument("--opt-level",    default="O3",        help="Compilation optimization level.")
+    toolchain_group.add_argument("--load-start",    default="0",        help="Time to load s(ps).")
+    toolchain_group.add_argument("--save-start",    default="-1",        help="Time to save s(ps).")
 
 def verilator_build_argdict(args):
     return {
@@ -300,5 +304,7 @@ def verilator_build_argdict(args):
         "trace_fst"   : args.trace_fst,
         "trace_start" : int(float(args.trace_start)),
         "trace_end"   : int(float(args.trace_end)),
-        "opt_level"   : args.opt_level
+        "opt_level"   : args.opt_level,
+        "load_start" : int(float(args.load_start)),
+        "save_start" : int(float(args.save_start))
     }
