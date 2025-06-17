@@ -143,7 +143,7 @@ def _build_sim(build_name, sources, jobs, threads, coverage, opt_level="O3", tra
 
     build_script_contents = """\
 rm -rf obj_dir/
-make -C . -f {} {} {} {} {} {} {}
+make -C . -f {} {} {} {} {} {} {} {} {}
 """.format(makefile,
     "CC_SRCS=\"{}\"".format("".join(cc_srcs)),
     "JOBS={}".format(jobs) if jobs else "",
@@ -152,7 +152,7 @@ make -C . -f {} {} {} {} {} {} {}
     "OPT_LEVEL={}".format(opt_level),
     "TRACE_FST=1" if trace_fst else "",
     "VIDEO=1" if video else "",
-    "SAVABLE=1" if SAVABLE else "",
+    "SAVABLE=1" if SAVABLE else ""
     )
     build_script_file = "build_" + build_name + ".sh"
     tools.write_to_file(build_script_file, build_script_contents, force_unix=True)

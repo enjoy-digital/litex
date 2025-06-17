@@ -50,6 +50,7 @@ sim: $(OBJS_SIM) | mkdir
 		-LDFLAGS "$(LDFLAGS)" \
 		--trace \
 		$(if $(TRACE_FST), --trace-fst,) \
+		$(if $(TRACE_FST), --trace-structs,) \
 		$(if $(COVERAGE), --coverage,) \
 		--unroll-count 256 \
 		--output-split 5000 \
@@ -60,9 +61,8 @@ sim: $(OBJS_SIM) | mkdir
 		-Wno-WIDTH \
 		-Wno-COMBDLY \
 		-Wno-CASEINCOMPLETE \
-		--relative-includes \
-		$(if $(TRACE_FST), --trace-structs,) \
-		$(if $(SAVABLE), --savable,)
+		$(if $(SAVABLE), --savable,) \
+		--relative-includes 
 	make -j$(JOBS) -C $(OBJ_DIR) -f Vsim.mk Vsim
 
 .PHONY: modules
