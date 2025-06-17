@@ -10,6 +10,7 @@
 import os
 import struct
 import re
+import threading
 import subprocess
 import sys
 import ctypes
@@ -60,16 +61,70 @@ def sub_rules(line, rules, max_matches=1):
             break
     return line
 
+def _tail_file(path, proc, rules, max_matches=1, poll=0.1):
+    """
+    Very small 'tail -f' clone:
+      • waits until *path* exists,
+      • echoes new lines while *proc* is alive,
+      • flushes the remainder when *proc* ends.
+    """
+    # Wait for the file to appear (efx_run.py creates it lazily)
+    while proc.poll() is None and not os.path.exists(path):
+        time.sleep(poll)
 
-def subprocess_call_filtered(command, rules, *, max_matches=1, **kwargs):
-    with subprocess.Popen(command, stdout=subprocess.PIPE,
-                          universal_newlines=True, bufsize=1,
+    try:
+        with open(path, "r", errors="ignore") as f:
+            # show full content, not just the end
+            while proc.poll() is None:
+                where = f.tell()
+                line  = f.readline()
+                if line:
+                    print(sub_rules(line, rules, max_matches), end="")
+                else:
+                    time.sleep(poll)
+                    f.seek(where)
+            # grab what is still pending
+            for line in f:
+                print(sub_rules(line, rules, max_matches), end="")
+    except FileNotFoundError:
+        # wrong path → nothing to tail, but the main process may still fail normally
+        pass
+
+def subprocess_call_filtered(command, rules, *, max_matches=1, tail_log=None, tail_poll=0.25, **kwargs):
+    """
+    Spawn *command* and stream its stdout/stderr through `sub_rules(...)`
+    exactly as before.
+
+    Extra feature:
+        tail_log="path/to/file"
+            → while the command runs, also stream every new line written
+              to that file (works like `tail -f`).
+    """
+    with subprocess.Popen(command,
+                          stdout=subprocess.PIPE,
+                          stderr=subprocess.STDOUT,
+                          universal_newlines=True,
+                          bufsize=1,
                           **kwargs) as proc:
+
+        # launch the background tail (non-blocking)
+        tail_thread = None
+        if tail_log:
+            tail_thread = threading.Thread(
+                target=_tail_file,
+                args=(tail_log, proc, rules, max_matches, tail_poll),
+                daemon=True)
+            tail_thread.start()
+
+        # forward the real stdout
         with open(proc.stdout.fileno(), errors="ignore", closefd=False) as stdout:
             for line in stdout:
                 print(sub_rules(line, rules, max_matches), end="")
-        return proc.wait()
 
+        rc = proc.wait()
+        if tail_thread:
+            tail_thread.join()
+        return rc
 
 if sys.platform == "cygwin":
     cygwin1 = ctypes.CDLL("/usr/bin/cygwin1.dll")
