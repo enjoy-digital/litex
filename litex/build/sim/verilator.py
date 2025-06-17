@@ -133,7 +133,7 @@ def _generate_sim_config(config):
     tools.write_to_file("sim_config.js", content)
 
 
-def _build_sim(build_name, sources, jobs, threads, coverage, opt_level="O3", trace_fst=False, video=False):
+def _build_sim(build_name, sources, jobs, threads, coverage, opt_level="O3", trace_fst=False, video=False, SAVABLE=False):
     makefile = os.path.join(core_directory, 'Makefile')
 
     cc_srcs = []
@@ -152,6 +152,7 @@ make -C . -f {} {} {} {} {} {} {}
     "OPT_LEVEL={}".format(opt_level),
     "TRACE_FST=1" if trace_fst else "",
     "VIDEO=1" if video else "",
+    "SAVABLE=1" if SAVABLE else "",
     )
     build_script_file = "build_" + build_name + ".sh"
     tools.write_to_file(build_script_file, build_script_contents, force_unix=True)
@@ -251,6 +252,8 @@ class SimVerilatorToolchain:
                 _generate_sim_config(sim_config)
 
             # Build
+            # Set SAVABLE=1 if load_start != 0 and save_start != -1
+            savable = (load_start != 0 and save_start != -1)
             _build_sim(
                 build_name = build_name,
                 sources    = platform.sources,
@@ -260,6 +263,7 @@ class SimVerilatorToolchain:
                 opt_level  = opt_level,
                 trace_fst  = trace_fst,
                 video      = video,
+                SAVABLE    = savable
             )
 
         # Run

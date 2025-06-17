@@ -61,8 +61,8 @@ sim: $(OBJS_SIM) | mkdir
 		-Wno-COMBDLY \
 		-Wno-CASEINCOMPLETE \
 		--relative-includes \
-		--trace-structs \
-		--savable
+		$(if $(TRACE_FST), --trace-structs,) \
+		$(if $(SAVABLE), --savable,)
 	make -j$(JOBS) -C $(OBJ_DIR) -f Vsim.mk Vsim
 
 .PHONY: modules

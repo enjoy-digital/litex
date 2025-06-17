@@ -21,24 +21,28 @@ uint64_t tfp_start;
 uint64_t tfp_end;
 uint64_t main_time = 0;
 uint64_t save_time = -1;
-int save = 0;
+uint64_t load_time = 0;
 Vsim *g_sim = nullptr;
 
+
+#ifdef SAVABLE
 static void litex_sim_save_state(void *vsim,const char* filename);
 static void litex_sim_restore_state(void *vsim,const char* filename);
-
+#endif
 
 
 extern "C" void litex_sim_eval(void *vsim, uint64_t time_ps)
 {
-  if (main_time == 0 && save) {
-    printf("MDEBUG: Restoring state at time %ld\n", save_time);
+  #ifdef SAVABLE
+  if (main_time == load_time && load_time > 0) {
+    printf("MDEBUG: Restoring state at time %ld\n", load_time);
     litex_sim_restore_state(vsim,"sim_default.vlt");
   }
   if (main_time == save_time) {
     printf("MDEBUG: Saving state at time %ld\n", save_time);
     litex_sim_save_state(vsim,"sim_default.vlt");
   }
+  #endif
   Vsim *sim = (Vsim*)vsim;
   sim->eval();
   main_time = time_ps;
@@ -52,8 +56,8 @@ extern "C" void litex_sim_init_cmdargs(int argc, char *argv[])
 extern "C" void litex_sim_init_tracer(void *vsim, long start, long end,long load_start, long save_start)
 {
   save_time = save_start;
-  save = (load_start >= 1);
-  printf("MDEBUG: Save time: %ld, Save: %d\n", save_time, save);
+  load_time = load_start;
+  printf("MDEBUG: Save time: %ld, load_time: %ld\n", save_time, load_time);
   Vsim *sim = (Vsim*)vsim;
   tfp_start = start;
   tfp_end = end >= 0 ? end : UINT64_MAX;
@@ -72,6 +76,8 @@ extern "C" void litex_sim_init_tracer(void *vsim, long start, long end,long load
   g_sim = sim;
 }
 
+
+#ifdef SAVABLE
 // --- Save Function ---
 static void litex_sim_save_state(void *vsim,const char* filename) {
     Vsim *sim = (Vsim*)vsim;
@@ -91,7 +97,7 @@ static void litex_sim_restore_state(void *vsim,const char* filename) {
     vr >> *sim;
     vr.close();
 }
-
+#endif
 
 
 extern "C" void litex_sim_tracer_dump()
