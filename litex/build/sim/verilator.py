@@ -253,7 +253,7 @@ class SimVerilatorToolchain:
 
             # Build
             # Set SAVABLE=1 if load_start != 0 and save_start != -1
-            savable = (load_start != 0 and save_start != -1)
+            savable = (load_start != 0 or save_start != -1)
             _build_sim(
                 build_name = build_name,
                 sources    = platform.sources,
