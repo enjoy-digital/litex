@@ -17,7 +17,7 @@ else
 	LDFLAGS += -lpthread -Wl,--no-as-needed -ljson-c -lz -lm -lstdc++ -Wl,--no-as-needed -ldl -levent $(if $(VIDEO), -lSDL2)
 endif
 
-CFLAGS += -Wall -$(OPT_LEVEL) $(if $(COVERAGE), -DVM_COVERAGE) $(if $(TRACE_FST), -DTRACE_FST) $(if $(SAVABLE), -SAVABLE)
+CFLAGS += -Wall -$(OPT_LEVEL) $(if $(COVERAGE), -DVM_COVERAGE) $(if $(TRACE_FST), -DTRACE_FST) $(if $(SAVABLE), -DSAVABLE)
 
 CC_SRCS ?= "--cc sim.v"
 
