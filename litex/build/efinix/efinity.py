@@ -404,7 +404,7 @@ class EfinityToolchain(GenericToolchain):
         return "" # not used
 
     def run_script(self, script):
-        # Merge SDC
+        # Merge SDC.
         with open(f"{self._build_name}_merged.sdc", 'w') as outfile:
             with open(f"outflow/{self._build_name}.pt.sdc") as infile:
                 outfile.write(infile.read())
@@ -414,14 +414,21 @@ class EfinityToolchain(GenericToolchain):
             with open(f"{self._build_name}.sdc") as infile:
                 outfile.write(infile.read())
 
+        # Define / Remove .log file.
+        log_file = f"outflow/{self._build_name}.log"
+        if os.path.exists(log_file):
+            os.remove(log_file)
+
+        # Call efx_run script.
         r = tools.subprocess_call_filtered([self.efinity_path + "/bin/python3",
             self.efinity_path + "/scripts/efx_run.py",
             f"{self._build_name}.xml",
             "--flow", "compile",
-        ], common.colors, env=self.env)
+        ], common.colors, env=self.env, tail_log=log_file)
         if r != 0:
            raise OSError("Error occurred during efx_run execution.")
 
+        # Copy Bistream to build directory.
         files = glob.glob('outflow/*.bin')
         files.extend(glob.glob('outflow/*.bit'))
         files.extend(glob.glob('outflow/*.hex'))
