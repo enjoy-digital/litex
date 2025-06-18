@@ -50,6 +50,7 @@ class TestIntegration(unittest.TestCase):
             "marocchino",   # (or1k    / softcore)
             "naxriscv",     # (riscv   / softcore)
             "serv",         # (riscv   / softcore)
+            "vexiiriscv",   # (riscv   / softcore)
             "vexriscv",     # (riscv   / softcore)
             "vexriscv_smp", # (riscv   / softcore)
             #"microwatt",    # (ppc64   / softcore)
