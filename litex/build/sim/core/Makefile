@@ -17,7 +17,7 @@ else
 	LDFLAGS += -lpthread -Wl,--no-as-needed -ljson-c -lz -lm -lstdc++ -Wl,--no-as-needed -ldl -levent $(if $(VIDEO), -lSDL2)
 endif
 
-CFLAGS += -Wall -$(OPT_LEVEL) $(if $(COVERAGE), -DVM_COVERAGE) $(if $(TRACE_FST), -DTRACE_FST)
+CFLAGS += -Wall -$(OPT_LEVEL) $(if $(COVERAGE), -DVM_COVERAGE) $(if $(TRACE_FST), -DTRACE_FST) $(if $(SAVABLE), -DSAVABLE)
 
 CC_SRCS ?= "--cc sim.v"
 
@@ -50,6 +50,7 @@ sim: $(OBJS_SIM) | mkdir
 		-LDFLAGS "$(LDFLAGS)" \
 		--trace \
 		$(if $(TRACE_FST), --trace-fst,) \
+		$(if $(TRACE_FST), --trace-structs,) \
 		$(if $(COVERAGE), --coverage,) \
 		--unroll-count 256 \
 		--output-split 5000 \
@@ -60,7 +61,8 @@ sim: $(OBJS_SIM) | mkdir
 		-Wno-WIDTH \
 		-Wno-COMBDLY \
 		-Wno-CASEINCOMPLETE \
-		--relative-includes
+		$(if $(SAVABLE), --savable,) \
+		--relative-includes 
 	make -j$(JOBS) -C $(OBJ_DIR) -f Vsim.mk Vsim
 
 .PHONY: modules

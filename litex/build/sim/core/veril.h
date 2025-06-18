@@ -8,7 +8,7 @@
 #ifdef __cplusplus
 extern "C" void litex_sim_init_cmdargs(int argc, char *argv[]);
 extern "C" void litex_sim_eval(void *vsim, uint64_t time_ps);
-extern "C" void litex_sim_init_tracer(void *vsim, long start, long end);
+extern "C" void litex_sim_init_tracer(void *vsim, long start, long end,long load_start, long save_start);
 extern "C" void litex_sim_tracer_dump();
 extern "C" int litex_sim_got_finish();
 #if VM_COVERAGE
