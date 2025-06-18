@@ -17,7 +17,7 @@ class TestIntegration(unittest.TestCase):
         litex_prompt = [r'\033\[[0-9;]+mlitex\033\[[0-9;]+m>']
         is_success = True
 
-        with tempfile.TemporaryFile(mode='w', prefix="litex_test") as log_file:
+        with tempfile.TemporaryFile(mode='w+', prefix="litex_test") as log_file:
             log_file.writelines(f"Command: {cmd}")
             log_file.flush()
 
@@ -50,6 +50,7 @@ class TestIntegration(unittest.TestCase):
             "marocchino",   # (or1k    / softcore)
             "naxriscv",     # (riscv   / softcore)
             "serv",         # (riscv   / softcore)
+            "vexiiriscv",   # (riscv   / softcore)
             "vexriscv",     # (riscv   / softcore)
             "vexriscv_smp", # (riscv   / softcore)
             #"microwatt",    # (ppc64   / softcore)
