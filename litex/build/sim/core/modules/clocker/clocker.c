@@ -85,7 +85,7 @@ out:
   return ret;
 }
 
-static int clocker_start()
+static int clocker_start(void *b, void *sh)
 {
   printf("[clocker] loaded\n");
   return RC_OK;
@@ -164,7 +164,8 @@ static struct ext_module_s ext_mod = {
   clocker_new,
   clocker_add_pads,
   NULL,
-  clocker_tick
+  clocker_tick,
+  NULL,
 };
 
 int litex_sim_ext_module_init(int (*register_module)(struct ext_module_s *))

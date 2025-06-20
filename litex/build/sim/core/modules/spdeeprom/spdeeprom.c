@@ -62,7 +62,7 @@ struct session_s {
 };
 
 // Module interface
-static int spdeeprom_start();
+static int spdeeprom_start(void *b, void *sh);
 static int spdeeprom_new(void **sess, char *args);
 static int spdeeprom_add_pads(void *sess, struct pad_list_s *plist);
 static int spdeeprom_tick(void *sess, uint64_t time_ps);
@@ -81,7 +81,8 @@ static struct ext_module_s ext_mod = {
   spdeeprom_new,
   spdeeprom_add_pads,
   NULL,
-  spdeeprom_tick
+  spdeeprom_tick,
+  NULL,
 };
 
 int litex_sim_ext_module_init(int (*register_module)(struct ext_module_s *))
@@ -91,7 +92,7 @@ int litex_sim_ext_module_init(int (*register_module)(struct ext_module_s *))
   return ret;
 }
 
-static int spdeeprom_start()
+static int spdeeprom_start(void *b, void *sh)
 {
   printf("[spdeeprom] loaded (addr = 0x%01x)\n", SPD_EEPROM_ADDR);
   return RC_OK;

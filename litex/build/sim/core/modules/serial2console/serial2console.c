@@ -59,7 +59,7 @@ void set_conio_terminal_mode(void)
   tcsetattr(0, TCSANOW, &new_termios);
 }
 
-static int serial2console_start(void *b)
+static int serial2console_start(void *b, void *sh)
 {
   base = (struct event_base *)b;
   set_conio_terminal_mode();
@@ -173,7 +173,8 @@ static struct ext_module_s ext_mod = {
   serial2console_new,
   serial2console_add_pads,
   NULL,
-  serial2console_tick
+  serial2console_tick,
+  NULL,
 };
 
 int litex_sim_ext_module_init(int (*register_module) (struct ext_module_s *))
