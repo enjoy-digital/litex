@@ -256,7 +256,13 @@ class Ibex(CPU):
                 if line.startswith("//") or not line.strip():
                     continue
                 platform.add_source(os.path.join(rtl_base, line.strip()))
-
+        # Add additional ibex files that are missing in ibex_core.f:
+        platform.add_sources(rtl_base,
+            "ibex_wb_stage.sv",
+            "ibex_csr.sv",
+            "ibex_top.sv"
+            )
+        platform.add_source(os.path.join(ibexdir, "dv", "uvm", "core_ibex", "common", "prim", "prim_buf.sv"))
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
         self.cpu_params.update(i_boot_addr_i=Signal(32, reset=reset_address))
