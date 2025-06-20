@@ -226,7 +226,7 @@ class Builder:
             write_to_file(os.path.join(self.generated_dir, "output_format.ld"), output_format_contents)
 
             # Generate Memory Regions to regions.ld.
-            regions_contents = export.get_linker_regions(self.soc.mem_regions)
+            regions_contents = export.get_linker_regions(self.soc)
             write_to_file(os.path.join(self.generated_dir, "regions.ld"), regions_contents)
 
         # Collect / Generate I2C config and init table.
@@ -237,7 +237,7 @@ class Builder:
             write_to_file(os.path.join(self.generated_dir, "i2c.h"), i2c_info)
 
         # Generate Memory Regions to mem.h.
-        mem_contents = export.get_mem_header(self.soc.mem_regions)
+        mem_contents = export.get_mem_header(self.soc)
         write_to_file(os.path.join(self.generated_dir, "mem.h"), mem_contents)
 
         # Generate Memory Regions to memory.x if specified.
@@ -251,8 +251,7 @@ class Builder:
 
         # Generate CSR registers definitions/access functions to csr.h.
         csr_contents = export.get_csr_header(
-            regions   = self.soc.csr_regions,
-            constants = self.soc.constants,
+            soc       = self.soc,
             csr_base  = self.soc.mem_regions["csr"].origin,
             with_access_functions        = True,
             with_fields_access_functions = False,

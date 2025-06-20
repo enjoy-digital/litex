@@ -373,6 +373,28 @@ def riscv_gcc_install():
     else:
         NotImplementedError(f"RISC-V GCC requires manual installation on {sys.platform}.")
 
+# MIPS toolchain.
+# -----------------
+
+def mips_gcc_install():
+    # Linux.
+    # ------
+    if sys.platform.startswith("linux"):
+        os_release = (open("/etc/os-release").read()).lower()
+        # Fedora.
+        if "fedora" in os_release:
+            os.system("dnf install gcc-mips64-linux-gnu")
+        # Arch (AUR repository).
+        elif "arch" in os_release:
+            os.system("yay -S mips64el-linux-gnu-gcc")
+        # Ubuntu.
+        else:
+            os.system("apt install gcc-mips64el-linux-gnuabi64")
+    # Manual installation.
+    # --------------------
+    else:
+        NotImplementedError(f"MIPS GCC requires manual installation on {sys.platform}.")
+
 # PowerPC toolchain.
 # -----------------
 
@@ -440,7 +462,7 @@ def main():
     parser.add_argument("--tag",       default=None,        help="Use version from release tag.")
 
     # GCC toolchains.
-    parser.add_argument("--gcc", default=None, help="Install GCC Toolchain (riscv, powerpc or openrisc).")
+    parser.add_argument("--gcc", default=None, help="Install GCC Toolchain (riscv, mips, powerpc or openrisc).")
 
     # Development mode.
     parser.add_argument("--dev",     action="store_true", help="Development-Mode (no Auto-Update of litex_setup.py / Switch to git@github.com URLs).")
@@ -490,6 +512,8 @@ def main():
     os.chdir(os.path.join(current_path))
     if args.gcc == "riscv":
         riscv_gcc_install()
+    if args.gcc == "mips":
+        mips_gcc_install()
     if args.gcc == "powerpc":
         powerpc_gcc_install()
     if args.gcc == "openrisc":
