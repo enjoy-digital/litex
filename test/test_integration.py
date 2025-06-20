@@ -55,6 +55,7 @@ class TestIntegration(unittest.TestCase):
             "vexriscv_smp", # (riscv   / softcore)
             #"microwatt",    # (ppc64   / softcore)
             "neorv32",      # (riscv   / softcore)
+            "ibex",         # (riscv   / softcore)
         ]
         untested_cpus = [
             "blackparrot",  # (riscv   / softcore) -> Broken install?
@@ -65,7 +66,6 @@ class TestIntegration(unittest.TestCase):
             "cva6",         # (riscv   / softcore) -> Needs to be tested.
             "eos_s3",       # (arm     / hardcore) -> Hardcore.
             "gowin_emcu",   # (arm     / hardcore) -> Hardcore.
-            "ibex",         # (riscv   / softcore) -> Broken since 2022.11.12.
             "lm32",         # (lm32    / softcore) -> Requires LM32 toolchain.
             "minerva",      # (riscv   / softcore) -> Broken install? (Amaranth?)
             "mor1kx",       # (or1k    / softcore) -> Verilator compilation issue.
