@@ -2113,10 +2113,9 @@ class LiteXSoC(SoC):
         self.add_constant(f"{name}_MAX_CS",    len(pads.cs_n))
 
     # Add SPI Flash --------------------------------------------------------------------------------
-    def add_spi_flash(self, name="spiflash", mode="4x", clk_freq=20e6, module=None, phy=None, rate="1:1", software_debug=False, **kwargs):
+    def add_spi_flash(self, name="spiflash", mode="4x", clk_freq=20e6, module=None, phy=None, software_debug=False, **kwargs):
         # Imports.
-        from litespi import LiteSPI
-        from litespi.phy.generic import LiteSPIPHY
+        from litespi import LiteSPIWrapper
         from litespi.opcodes import SpiNorFlashOpCodes
 
         # Checks/Parameters.
@@ -2124,20 +2123,27 @@ class LiteXSoC(SoC):
         default_divisor = math.ceil(self.sys_clk_freq/(2*clk_freq)) - 1
         clk_freq        = int(self.sys_clk_freq/(2*(default_divisor + 1)))
 
-        # PHY.
-        spiflash_phy = phy
-        if spiflash_phy is None:
-            self.check_if_exists(f"{name}_phy")
-            spiflash_pads = self.platform.request(name if mode == "1x" else name + mode)
-            spiflash_phy = LiteSPIPHY(spiflash_pads, module, device=self.platform.device, default_divisor=default_divisor, rate=rate)
-            self.add_module(name=f"{name}_phy", module=spiflash_phy)
+        if "master_with_irq" not in kwargs and self.irq.enabled and name in self.irq.locs.keys():
+            # If IRQ is enabled, use master_with_irq.
+            kwargs["master_with_irq"] = True
 
-        # Core.
-        self.check_if_exists(f"{name}_mmap")
-        spiflash_core = LiteSPI(spiflash_phy, mmap_endianness=self.cpu.endianness, **kwargs)
-        self.add_module(name=f"{name}_core", module=spiflash_core)
+        spiflash_pads = self.platform.request(name if mode == "1x" else name + mode) if phy is None else None
+
+        self.check_if_exists(name)
+        spiflash = LiteSPIWrapper(spiflash_pads,
+                                    module=module,
+                                    device=self.platform.device,
+                                    default_divisor=default_divisor,
+                                    mmap_endianness=self.cpu.endianness,
+                                    phy=phy,
+                                    **kwargs)
+
+        self.add_module(name=name, module=spiflash)
         spiflash_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size)
-        self.bus.add_slave(name=name, slave=spiflash_core.bus, region=spiflash_region, strip_origin=True)
+        self.bus.add_slave(name=name, slave=spiflash.bus, region=spiflash_region, strip_origin=True)
+
+        if hasattr(spiflash, "ev") and self.irq.enabled:
+            self.irq.add(name, use_loc_if_exists=True)
 
         # Constants.
         self.add_constant(f"{name}_PHY_FREQUENCY",     clk_freq)
@@ -2153,14 +2159,13 @@ class LiteXSoC(SoC):
             self.add_constant(f"{name}_DEBUG")
 
     # Add SPI RAM --------------------------------------------------------------------------------
-    def add_spi_ram(self, name="spiram", mode="4x", clk_freq=20e6, module=None, phy=None, rate="1:1", software_debug=False,
+    def add_spi_ram(self, name="spiram", mode="4x", clk_freq=20e6, module=None, phy=None, software_debug=False,
         l2_cache_size           = 8192,
         l2_cache_reverse        = False,
         l2_cache_full_memory_we = True,
         **kwargs):
         # Imports.
-        from litespi import LiteSPI
-        from litespi.phy.generic import LiteSPIPHY
+        from litespi import LiteSPIWrapper
         from litespi.opcodes import SpiNorFlashOpCodes
 
         # Checks/Parameters.
@@ -2169,17 +2174,19 @@ class LiteXSoC(SoC):
         clk_freq        = int(self.sys_clk_freq/(2*(default_divisor + 1)))
 
         # PHY.
-        spiram_phy = phy
-        if spiram_phy is None:
-            self.check_if_exists(f"{name}_phy")
-            spiram_pads = self.platform.request(name if mode == "1x" else name + mode)
-            spiram_phy = LiteSPIPHY(spiram_pads, module, device=self.platform.device, default_divisor=default_divisor, rate=rate)
-            self.add_module(name=f"{name}_phy", module=spiram_phy)
+        spiram_pads = self.platform.request(name if mode == "1x" else name + mode) if phy is None else None
 
-        # Core.
-        self.check_if_exists(f"{name}_mmap")
-        spiram_core = LiteSPI(spiram_phy, mmap_endianness=self.cpu.endianness, with_mmap_write=True, **kwargs)
-        self.add_module(name=f"{name}_core", module=spiram_core)
+        self.check_if_exists(name)
+        spiram = LiteSPIWrapper(spiram_pads,
+                                module=module,
+                                device=self.platform.device,
+                                default_divisor=default_divisor,
+                                mmap_endianness=self.cpu.endianness,
+                                with_mmap_write=True,
+                                phy=phy,
+                                **kwargs)
+
+        self.add_module(name=name, module=spiram)
         spiram_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size)
         
         # Create Wishbone Slave.
@@ -2194,14 +2201,17 @@ class LiteXSoC(SoC):
             l2_cache = wishbone.Cache(
                 cachesize = l2_cache_size//4,
                 master    = wb_spiram,
-                slave     = spiram_core.bus,
+                slave     = spiram.bus,
                 reverse   = l2_cache_reverse)
             if l2_cache_full_memory_we:
                 l2_cache = FullMemoryWE()(l2_cache)
             self.l2_cache = l2_cache
             self.add_config("L2_SIZE", l2_cache_size)
         else:
-            self.submodules += wishbone.Converter(wb_spiram, spiram_core.bus)
+            self.submodules += wishbone.Converter(wb_spiram, spiram.bus)
+        
+        if hasattr(spiram, "ev") and self.irq.enabled:
+            self.irq.add(name, use_loc_if_exists=True)
 
         # Constants.
         self.add_constant(f"{name}_PHY_FREQUENCY",     clk_freq)
