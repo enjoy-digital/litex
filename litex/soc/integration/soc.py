@@ -2082,12 +2082,19 @@ class LiteXSoC(SoC):
         # Imports.
         from litei2c import LiteI2C
 
+        if "with_irq" not in kwargs and self.irq.enabled and name in self.irq.locs.keys():
+            # If IRQ is enabled, use with_irq.
+            kwargs["with_irq"] = True
+
         # Core.
         self.check_if_exists(name)
         if pads is None:
             pads = self.platform.request(name)
         i2c = LiteI2C(self.sys_clk_freq, pads=pads, **kwargs)
         self.add_module(name=name, module=i2c)
+
+        if hasattr(i2c, "ev") and self.irq.enabled:
+            self.irq.add(name, use_loc_if_exists=True)
 
     # Add SPI Master --------------------------------------------------------------------------------
     def add_spi_master(self, name="spimaster", pads=None, data_width=8, spi_clk_freq=1e6, with_clk_divider=True, **kwargs):
