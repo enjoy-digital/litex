@@ -199,7 +199,7 @@ class DocumentedCSRRegion:
             i      = nwords - offset - 1
         else:
             i      = offset
-        nbits  = min(csr.size - i*self.busword, self.busword) - 1
+        nbits  = min(csr.size - i*self.busword, self.busword)
         name   = (csr.name + str(i) if nwords > 1 else csr.name).upper()
         origin = i*self.busword
         return (origin, nbits, name)
@@ -215,9 +215,9 @@ class DocumentedCSRRegion:
         """
         split_f = []
         for field in fields:
-            if field.offset > end:
+            if field.offset >= end:
                 continue
-            if field.offset + field.size < start:
+            if field.offset + field.size <= start:
                 continue
             new_field = DocumentedCSRField(field)
 
@@ -348,7 +348,7 @@ class DocumentedCSRRegion:
             for i in range(len(csr.simple_csrs)):
                 (start, length, name) = self.sub_csr_bit_range(csr, i)
                 sub_name = self.name.upper() + "_" + name
-                bits_str = "Bits {}-{} of `{}`.".format(start, start+length, full_name)
+                bits_str = "Bits {}-{} of `{}`.".format(start, start+length-1, full_name)
                 if atomic_write:
                     if i == (len(csr.simple_csrs)-1):
                         bits_str += " Writing this register triggers an update of `" + full_name + "`."
