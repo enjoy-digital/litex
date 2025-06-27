@@ -17,7 +17,7 @@
 
 //#define SPIRAM_DEBUG
 
-#if defined(CSR_SPIRAM_CORE_BASE)
+#if defined(CSR_SPIRAM_BASE)
 
 int spiram_freq_init(void)
 {
@@ -57,51 +57,51 @@ int spiram_freq_init(void)
 
 void spiram_dummy_bits_setup(unsigned int dummy_bits)
 {
-	spiram_core_mmap_dummy_bits_write((uint32_t)dummy_bits);
+	spiram_mmap_dummy_bits_write((uint32_t)dummy_bits);
 #ifdef SPIRAM_DEBUG
-	printf("Dummy bits set to: %" PRIx32 "\n\r", spiram_core_mmap_dummy_bits_read());
+	printf("Dummy bits set to: %" PRIx32 "\n\r", spiram_mmap_dummy_bits_read());
 #endif
 }
 
-#ifdef CSR_SPIRAM_CORE_MASTER_CS_ADDR
+#ifdef CSR_SPIRAM_MASTER_CS_ADDR
 
 static void spiram_len_mask_width_write(uint32_t len, uint32_t width, uint32_t mask)
 {
-	uint32_t tmp = len & ((1 <<  CSR_SPIRAM_CORE_MASTER_PHYCONFIG_LEN_SIZE) - 1);
-	uint32_t word = tmp << CSR_SPIRAM_CORE_MASTER_PHYCONFIG_LEN_OFFSET;
-	tmp = width & ((1 << CSR_SPIRAM_CORE_MASTER_PHYCONFIG_WIDTH_SIZE) - 1);
-	word |= tmp << CSR_SPIRAM_CORE_MASTER_PHYCONFIG_WIDTH_OFFSET;
-	tmp = mask & ((1 <<  CSR_SPIRAM_CORE_MASTER_PHYCONFIG_MASK_SIZE) - 1);
-	word |= tmp << CSR_SPIRAM_CORE_MASTER_PHYCONFIG_MASK_OFFSET;
-	spiram_core_master_phyconfig_write(word);
+	uint32_t tmp = len & ((1 <<  CSR_SPIRAM_MASTER_PHYCONFIG_LEN_SIZE) - 1);
+	uint32_t word = tmp << CSR_SPIRAM_MASTER_PHYCONFIG_LEN_OFFSET;
+	tmp = width & ((1 << CSR_SPIRAM_MASTER_PHYCONFIG_WIDTH_SIZE) - 1);
+	word |= tmp << CSR_SPIRAM_MASTER_PHYCONFIG_WIDTH_OFFSET;
+	tmp = mask & ((1 <<  CSR_SPIRAM_MASTER_PHYCONFIG_MASK_SIZE) - 1);
+	word |= tmp << CSR_SPIRAM_MASTER_PHYCONFIG_MASK_OFFSET;
+	spiram_master_phyconfig_write(word);
 }
 
 static bool spiram_rx_ready(void)
 {
-	return (spiram_core_master_status_read() >> CSR_SPIRAM_CORE_MASTER_STATUS_RX_READY_OFFSET) & 1;
+	return (spiram_master_status_read() >> CSR_SPIRAM_MASTER_STATUS_RX_READY_OFFSET) & 1;
 }
 
 static void spiram_master_write(uint32_t val, size_t len, size_t width, uint32_t mask)
 {
 	/* Be sure to empty RX queue before doing Xfer. */
 	while (spiram_rx_ready())
-		spiram_core_master_rxtx_read();
+		spiram_master_rxtx_read();
 
 	/* Configure Master */
 	spiram_len_mask_width_write(8*len, width, mask);
 
 	/* Set CS. */
-	spiram_core_master_cs_write(1);
+	spiram_master_cs_write(1);
 
 	/* Do Xfer. */
-	spiram_core_master_rxtx_write(val);
+	spiram_master_rxtx_write(val);
 	while (!spiram_rx_ready());
 
 	/* Clear RX queue. */
-	spiram_core_master_rxtx_read();
+	spiram_master_rxtx_read();
 
 	/* Clear CS. */
-	spiram_core_master_cs_write(0);
+	spiram_master_cs_write(0);
 }
 
 #endif
@@ -122,7 +122,7 @@ void spiram_init(void)
 	spiram_dummy_bits_setup(SPIRAM_MODULE_DUMMY_BITS);
 #endif
 
-#ifdef CSR_SPIRAM_CORE_MASTER_CS_ADDR
+#ifdef CSR_SPIRAM_MASTER_CS_ADDR
 
 	/* Quad / QPI Configuration. */
 #ifdef SPIRAM_MODULE_QUAD_CAPABLE
