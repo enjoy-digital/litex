@@ -2127,15 +2127,14 @@ class LiteXSoC(SoC):
         # PHY.
         spiflash_phy = phy
         if spiflash_phy is None:
-            self.check_if_exists(f"{name}_phy")
             spiflash_pads = self.platform.request(name if mode == "1x" else name + mode)
             spiflash_phy = LiteSPIPHY(spiflash_pads, module, device=self.platform.device, default_divisor=default_divisor, rate=rate)
-            self.add_module(name=f"{name}_phy", module=spiflash_phy)
 
         # Core.
-        self.check_if_exists(f"{name}_mmap")
+        self.check_if_exists(f"{name}")
         spiflash_core = LiteSPI(spiflash_phy, mmap_endianness=self.cpu.endianness, **kwargs)
-        self.add_module(name=f"{name}_core", module=spiflash_core)
+        spiflash_core.add_module(name="phy", module=spiflash_phy)
+        self.add_module(name=f"{name}", module=spiflash_core)
         spiflash_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size)
         self.bus.add_slave(name=name, slave=spiflash_core.bus, region=spiflash_region, strip_origin=True)
 
