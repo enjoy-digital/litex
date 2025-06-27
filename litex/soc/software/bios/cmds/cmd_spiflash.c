@@ -18,7 +18,7 @@
  * Write data from a memory buffer to SPI flash
  *
  */
-#if (defined CSR_SPIFLASH_CORE_MASTER_CS_ADDR)
+#if (defined CSR_SPIFLASH_MASTER_CS_ADDR)
 static void flash_write_handler(int nb_params, char **params)
 {
 	char *c;

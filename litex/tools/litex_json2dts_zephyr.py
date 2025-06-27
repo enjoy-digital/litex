@@ -236,6 +236,11 @@ def spiflash_handler(name, parm, csr):
     dtsi += indent("clock-frequency = <{}>;\n".format(
         csr['constants'][name + '_phy_frequency']))
 
+    try:
+        dtsi += dts_intr(name + '_core', csr)
+    except KeyError as e:
+        print('  dtsi key', e, 'not found, no interrupt override')
+
     return dtsi
 
 

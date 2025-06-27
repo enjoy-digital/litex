@@ -149,7 +149,7 @@ __attribute__((__used__)) int main(int i, char **c)
 	print_size(CONFIG_L2_SIZE);
 	printf("\n");
 #endif
-#ifdef CSR_SPIFLASH_CORE_BASE
+#ifdef SPIFLASH_MODULE_TOTAL_SIZE
 	printf("\e[1mFLASH\e[0m:\t\t");
 	print_size(SPIFLASH_MODULE_TOTAL_SIZE);
 	printf("\n");
@@ -181,14 +181,14 @@ __attribute__((__used__)) int main(int i, char **c)
     hyperram_init();
 #endif
 
-#if defined(CSR_ETHMAC_BASE) || defined(MAIN_RAM_BASE) || defined(CSR_SPIFLASH_CORE_BASE)
+#if defined(CSR_ETHMAC_BASE) || defined(MAIN_RAM_BASE) || defined(CSR_SPIFLASH_BASE)
     printf("--========== \e[1mInitialization\e[0m ============--\n");
 #ifdef CSR_ETHMAC_BASE
 	eth_init();
 #endif
 
 	/* Initialize and test SPIRAM */
-#ifdef CSR_SPIRAM_CORE_BASE
+#ifdef CSR_SPIRAM_BASE
 	spiram_init();
 #endif
 	printf("\n");
@@ -210,7 +210,7 @@ __attribute__((__used__)) int main(int i, char **c)
 #endif
 
 	/* Initialize and test SPIFLASH */
-#ifdef CSR_SPIFLASH_CORE_BASE
+#ifdef CSR_SPIFLASH_BASE
 	spiflash_init();
 #endif
 	printf("\n");
