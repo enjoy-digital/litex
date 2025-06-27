@@ -78,12 +78,17 @@ class CLIC(LiteXModule):
         # External interrupt inputs
         self.interrupt_inputs = Signal(num_interrupts, name="interrupt_inputs")
 
-        # Interrupt outputs to CPU (per HART)
-        self.interrupt_request = Signal(num_harts, name="interrupt_request")
-        self.interrupt_id = Array([Signal(max=num_interrupts, name=f"interrupt_id_hart{i}")
-                                  for i in range(num_harts)])
-        self.interrupt_priority = Array([Signal(ipriolen, name=f"interrupt_priority_hart{i}")
-                                        for i in range(num_harts)])
+        # Interrupt outputs to CPU (per HART) - VexRiscv compatible names
+        self.clicInterrupt = Signal(num_harts, name="clicInterrupt")
+        self.clicInterruptId = Array([Signal(12, name=f"clicInterruptId_hart{i}")
+                                     for i in range(num_harts)])
+        self.clicInterruptPriority = Array([Signal(8, name=f"clicInterruptPriority_hart{i}")
+                                           for i in range(num_harts)])
+        
+        # Interrupt acknowledge inputs from CPU (per HART)
+        self.clicClaim = Signal(num_harts, name="clicClaim")
+        self.clicThreshold = Array([Signal(8, name=f"clicThreshold_hart{i}")
+                                   for i in range(num_harts)])
 
         # Per-interrupt configuration registers
         # These would normally be accessed via indirect CSR access mechanism
@@ -105,9 +110,8 @@ class CLIC(LiteXModule):
         self.clicintie = Array([Signal(name=f"clicintie_{i}")
                                for i in range(num_interrupts)])
 
-        # Control registers (per HART)
-        self.mithreshold = Array([Signal(ipriolen, name=f"mithreshold_hart{i}")
-                                 for i in range(num_harts)])
+        # Control registers (per HART) - Now comes from CPU
+        # Remove internal mithreshold as it comes from clicThreshold input
 
         # Internal signals
         interrupt_pending = Array([Signal(name=f"int_pending_{i}")
@@ -180,8 +184,8 @@ class CLIC(LiteXModule):
 
                 self.comb += [
                     # Check if this interrupt should preempt
-                    If(interrupt_active[i] & (prio < highest_priority) &
-                       (prio < self.mithreshold[hart]),
+                    # Note: VexRiscv expects priority > threshold (not <)
+                    If(interrupt_active[i] & (prio < highest_priority),
                         highest_priority.eq(prio),
                         highest_id.eq(i),
                         active_interrupt.eq(1)
@@ -190,9 +194,9 @@ class CLIC(LiteXModule):
 
             # Output highest priority interrupt
             self.comb += [
-                self.interrupt_request[hart].eq(active_interrupt),
-                self.interrupt_id[hart].eq(highest_id),
-                self.interrupt_priority[hart].eq(highest_priority)
+                self.clicInterrupt[hart].eq(active_interrupt),
+                self.clicInterruptId[hart].eq(highest_id),
+                self.clicInterruptPriority[hart].eq(highest_priority)
             ]
 
     def add_csr_interface(self, soc, base_addr=None):
@@ -201,12 +205,8 @@ class CLIC(LiteXModule):
         This would normally use the indirect CSR access mechanism.
         For now, we'll create a simplified direct CSR mapping.
         """
-        # Add threshold registers
-        for i in range(self.num_harts):
-            setattr(self, f"_mithreshold{i}",
-                    CSRStorage(self.ipriolen, name=f"mithreshold{i}",
-                              description=f"Interrupt threshold for HART {i}"))
-            self.comb += self.mithreshold[i].eq(getattr(self, f"_mithreshold{i}").storage)
+        # Note: mithreshold is now provided by the CPU via clicThreshold signal
+        # so we don't create CSRs for it here
 
         # For demonstration, add CSRs for first few interrupts
         # In a full implementation, this would use indirect CSR access
@@ -257,8 +257,13 @@ class CLIC(LiteXModule):
         # Connect to CPU if it has CLIC support
         if hasattr(soc, "cpu"):
             if hasattr(soc.cpu, "clic_interrupt"):
-                soc.comb += soc.cpu.clic_interrupt.eq(self.interrupt_request[0])
+                soc.comb += soc.cpu.clic_interrupt.eq(self.clicInterrupt[0])
             if hasattr(soc.cpu, "clic_interrupt_id"):
-                soc.comb += soc.cpu.clic_interrupt_id.eq(self.interrupt_id[0])
+                soc.comb += soc.cpu.clic_interrupt_id.eq(self.clicInterruptId[0])
             if hasattr(soc.cpu, "clic_interrupt_priority"):
-                soc.comb += soc.cpu.clic_interrupt_priority.eq(self.interrupt_priority[0])
+                soc.comb += soc.cpu.clic_interrupt_priority.eq(self.clicInterruptPriority[0])
+            # Connect CPU outputs to CLIC inputs
+            if hasattr(soc.cpu, "clic_claim"):
+                soc.comb += self.clicClaim[0].eq(soc.cpu.clic_claim)
+            if hasattr(soc.cpu, "clic_threshold"):
+                soc.comb += self.clicThreshold[0].eq(soc.cpu.clic_threshold)

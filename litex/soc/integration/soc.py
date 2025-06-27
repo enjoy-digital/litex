@@ -1431,11 +1431,24 @@ class SoC(LiteXModule, SoCCoreCompat):
         if hasattr(self, "cpu"):
             if hasattr(self.cpu, "clic_interrupt"):
                 # VexRiscv is always single-hart - connect directly
-                self.comb += [
-                    self.cpu.clic_interrupt.eq(clic.interrupt_request),
-                    self.cpu.clic_interrupt_id.eq(clic.interrupt_id[0]),
-                    self.cpu.clic_interrupt_priority.eq(clic.interrupt_priority[0])
-                ]
+                if num_harts == 1:
+                    # Single-hart system - simpler connections
+                    self.comb += [
+                        self.cpu.clic_interrupt.eq(clic.clicInterrupt),
+                        self.cpu.clic_interrupt_id.eq(clic.clicInterruptId[0]),
+                        self.cpu.clic_interrupt_priority.eq(clic.clicInterruptPriority[0]),
+                        clic.clicClaim.eq(self.cpu.clic_claim),
+                        clic.clicThreshold[0].eq(self.cpu.clic_threshold)
+                    ]
+                else:
+                    # Multi-hart system - use hart 0
+                    self.comb += [
+                        self.cpu.clic_interrupt.eq(clic.clicInterrupt[0]),
+                        self.cpu.clic_interrupt_id.eq(clic.clicInterruptId[0]),
+                        self.cpu.clic_interrupt_priority.eq(clic.clicInterruptPriority[0]),
+                        clic.clicClaim[0].eq(self.cpu.clic_claim),
+                        clic.clicThreshold[0].eq(self.cpu.clic_threshold)
+                    ]
                 
                 # Map CLIC interrupt to CPU's external interrupt array
                 # Use appropriate bit position based on CPU type and interrupt array size
