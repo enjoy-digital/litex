@@ -67,7 +67,7 @@ class CologneChipDDROutputImpl(Module):
             self.specials += Instance("CC_ODDR",
                 p_CLK_INV = 0,
                 i_CLK     = clk,
-                i_DDR     = ~clk,
+                i_DDR     = clk,
                 i_D0      = i1[j],
                 i_D1      = i2[j],
                 o_Q       = o[j],
