@@ -33,6 +33,8 @@
 #define SDCARD_CLK_FREQ 25000000
 #endif
 
+#define DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
+
 /*-----------------------------------------------------------------------*/
 /* SDCard command helpers                                                */
 /*-----------------------------------------------------------------------*/
@@ -87,29 +89,16 @@ int sdcard_wait_data_done(void) {
 /* SDCard clocker functions                                              */
 /*-----------------------------------------------------------------------*/
 
-/* round up to closest power-of-two */
-static inline uint32_t pow2_round_up(uint32_t r) {
-	r--;
-	r |= r >>  1;
-	r |= r >>  2;
-	r |= r >>  4;
-	r |= r >>  8;
-	r |= r >> 16;
-	r++;
-	return r;
-}
-
 void sdcard_set_clk_freq(unsigned long clk_freq, int show) {
 	uint32_t divider;
-	divider = clk_freq ? CONFIG_CLOCK_FREQUENCY/clk_freq : 256;
-	divider = pow2_round_up(divider);
+	divider = clk_freq ? DIV_ROUND_UP(CONFIG_CLOCK_FREQUENCY, clk_freq) : 256;
 	divider = min(max(divider, 2), 256);
 #ifdef SDCARD_DEBUG
 	show = 1;
 #endif
 	if (show) {
 		/* this is the *effective* new clk_freq */
-		clk_freq = CONFIG_CLOCK_FREQUENCY/divider;
+		clk_freq = CONFIG_CLOCK_FREQUENCY/ ((divider + 1) & ~1);
 		printf("Setting SDCard clk freq to ");
 		if (clk_freq > 1000000)
 			printf("%ld MHz\n", clk_freq/1000000);
