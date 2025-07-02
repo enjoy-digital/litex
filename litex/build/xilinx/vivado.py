@@ -97,7 +97,7 @@ class XilinxVivadoToolchain(GenericToolchain):
         "no_shreg_extract": None
     }
 
-    def __init__(self):
+    def __init__(self, device_image_arch=None):
         super().__init__()
         self.bitstream_commands         = []
         self.additional_commands        = []
@@ -109,6 +109,7 @@ class XilinxVivadoToolchain(GenericToolchain):
         self.incremental_implementation = False
         self._synth_mode                = "vivado"
         self._enable_xpm                = False
+        self._device_image_arch         = device_image_arch
 
     def finalize(self):
         # Convert clocks and false path to platform commands
@@ -386,6 +387,8 @@ class XilinxVivadoToolchain(GenericToolchain):
             tcl.append(bitstream_command.format(build_name=self._build_name))
         tcl.append("\n# Bitstream generation\n")
         tcl.append(f"write_bitstream -force {self._build_name}.bit ")
+        if self._device_image_arch is not None:
+            tcl.append(f"exec bootgen -arch {self._device_image_arch} -image {self._build_name}.bif -w -o {self._build_name}.pdi")
 
         # Additional commands
         for additional_command in self.additional_commands:
