@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
 
 #include <generated/csr.h>
 #include <generated/mem.h>
@@ -53,7 +54,7 @@ int sdcard_wait_cmd_done(void) {
 	printf("cmdevt: %08x\n", event);
 	csr_rd_buf_uint32(CSR_SDCARD_CORE_CMD_RESPONSE_ADDR,
 			  r, SD_CMD_RESPONSE_SIZE/4);
-	printf("%08x %08x %08x %08x\n", r[0], r[1], r[2], r[3]);
+	printf("%08" PRIx32 " %08" PRIx32 " %08" PRIx32 " %08" PRIx32 "\n", r[0], r[1], r[2], r[3]);
 #endif
 	if (event & 0x4)
 		return SD_TIMEOUT;
@@ -140,7 +141,7 @@ int sdcard_go_idle(void) {
 int sdcard_send_ext_csd(void) {
 	uint32_t arg = 0x000001aa;
 #ifdef SDCARD_DEBUG
-	printf("CMD8: SEND_EXT_CSD, arg: 0x%08x\n", arg);
+	printf("CMD8: SEND_EXT_CSD, arg: 0x%08" PRIx32 "\n", arg);
 #endif
 	return sdcard_send_command(arg, 8, SDCARD_CTRL_RESPONSE_SHORT);
 }
@@ -157,7 +158,7 @@ int sdcard_app_send_op_cond(int hcs) {
 	if (hcs)
 		arg |= 0x60000000;
 #ifdef SDCARD_DEBUG
-	printf("ACMD41: APP_SEND_OP_COND, arg: %08x\n", arg);
+	printf("ACMD41: APP_SEND_OP_COND, arg: %08" PRIx32 "\n", arg);
 #endif
 	return sdcard_send_command(arg, 41, SDCARD_CTRL_RESPONSE_SHORT_BUSY);
 }
@@ -321,31 +322,31 @@ void sdcard_decode_cid(void) {
 	csr_rd_buf_uint32(CSR_SDCARD_CORE_CMD_RESPONSE_ADDR,
 			  r, SD_CMD_RESPONSE_SIZE/4);
 	printf(
-		"CID Register: 0x%08x%08x%08x%08x\n"
-		"Manufacturer ID: 0x%x\n"
-		"Application ID 0x%x\n"
+		"CID Register: 0x%08" PRIx32 "%08" PRIx32 "%08" PRIx32 "%08" PRIx32 "\n"
+		"Manufacturer ID: 0x%" PRIx16 "\n"
+		"Application ID 0x%" PRIx16 "\n"
 		"Product name: %c%c%c%c%c\n"
-		"CRC: %02x\n"
-		"Production date(m/yy): %d/%d\n"
-		"PSN: %08x\n"
+		"CRC: %02" PRIx8 "\n"
+		"Production date(m/yy): %" PRIu8 "/%" PRIu8 "\n"
+		"PSN: %08" PRIx32 "\n"
 		"OID: %c%c\n",
 
 		r[0], r[1], r[2], r[3],
 
-		(r[0] >> 16) & 0xffff,
+		(uint16_t)((r[0] >> 16) & 0xffff),
 
-		r[0] & 0xffff,
+		(uint16_t)(r[0] & 0xffff),
 
-		(r[1] >> 24) & 0xff, (r[1] >> 16) & 0xff,
-		(r[1] >>  8) & 0xff, (r[1] >>  0) & 0xff, (r[2] >> 24) & 0xff,
+		(char)((r[1] >> 24) & 0xff), (char)((r[1] >> 16) & 0xff),
+		(char)((r[1] >>  8) & 0xff), (char)((r[1] >>  0) & 0xff), (char)((r[2] >> 24) & 0xff),
 
-		r[3] & 0xff,
+		(uint8_t)(r[3] & 0xff),
 
-		(r[3] >>  8) & 0x0f, (r[3] >> 12) & 0xff,
+		(uint8_t)((r[3] >>  8) & 0x0f), (uint8_t)((r[3] >> 12) & 0xff),
 
 		(r[3] >> 24) | (r[2] <<  8),
 
-		(r[0] >> 16) & 0xff, (r[0] >>  8) & 0xff
+		(char)((r[0] >> 16)) & 0xff, (char)((r[0] >>  8) & 0xff)
 	);
 }
 
@@ -355,18 +356,18 @@ void sdcard_decode_csd(void) {
 			  r, SD_CMD_RESPONSE_SIZE/4);
 	/* FIXME: only support CSR structure version 2.0 */
 	printf(
-		"CSD Register: 0x%08x%08x%08x%08x\n"
-		"Max data transfer rate: %d MB/s\n"
-		"Max read block length: %d bytes\n"
-		"Device size: %d GB\n",
+		"CSD Register: 0x%08" PRIx32 "%08" PRIx32 "%08" PRIx32 "%08" PRIx32 "\n"
+		"Max data transfer rate: %" PRIu8 " MB/s\n"
+		"Max read block length: %" PRIu32 " bytes\n"
+		"Device size: %" PRIu32 " GB\n",
 
 		r[0], r[1], r[2], r[3],
 
-		(r[0] >> 24) & 0xff,
+		(uint8_t)((r[0] >> 24) & 0xff),
 
-		(1 << ((r[1] >> 16) & 0xf)),
+		(uint32_t)(1 << ((r[1] >> 16) & 0xf)),
 
-		((r[2] >> 16) + ((r[1] & 0xff) << 16) + 1) * 512 / (1024 * 1024)
+		(uint32_t)(((r[2] >> 16) + ((r[1] & 0xff) << 16) + 1) * 512 / (1024 * 1024))
 	);
 }
 #endif
