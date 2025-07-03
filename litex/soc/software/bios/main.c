@@ -136,8 +136,13 @@ __attribute__((__used__)) int main(int i, char **c)
 		CONFIG_BUS_STANDARD,
 		CONFIG_BUS_DATA_WIDTH,
 		(1 << (CONFIG_BUS_ADDRESS_WIDTH - 30)));
-	printf("\e[1mCSR\e[0m:\t\t%d-bit data\n",
+	printf("\e[1mCSR\e[0m:\t\t%d-bit data ",
 		CONFIG_CSR_DATA_WIDTH);
+#ifdef CONFIG_CSR_ORDERING_BIG
+	printf("big ordering\n");
+#else
+	printf("little ordering\n");
+#endif
 	printf("\e[1mROM\e[0m:\t\t");
 	print_size(ROM_SIZE);
 	printf("\n");
