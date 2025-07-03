@@ -379,15 +379,15 @@ static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int
 		mask = 1 << dq_line;
 #endif // SDRAM_DELAY_PER_DQ
 
-		/* Values written into CSR are Big Endian */
+		/* Values written into CSR are Little Endian */
 		/* SDRAM_PHY_XDR is define 1 if SDR and 2 if DDR*/
-		nebo = (DFII_PIX_DATA_BYTES / SDRAM_PHY_XDR) - 1 - (module * SDRAM_PHY_DQ_DQS_RATIO)/8;
-		pebo = nebo + DFII_PIX_DATA_BYTES / SDRAM_PHY_XDR;
+		nebo = (module * SDRAM_PHY_DQ_DQS_RATIO)/8 + DFII_PIX_DATA_BYTES - (DFII_PIX_DATA_BYTES / SDRAM_PHY_XDR);
+		pebo = nebo - DFII_PIX_DATA_BYTES / SDRAM_PHY_XDR;
 		/* When DFII_PIX_DATA_BYTES is 1 and SDRAM_PHY_XDR is 2, pebo and nebo are both -1s,
 		* but only correct value is 0. This can happen when single x4 IC is used */
 		if ((DFII_PIX_DATA_BYTES/SDRAM_PHY_XDR) == 0) {
-			pebo = 0;
-			nebo = 0;
+			pebo = DFII_PIX_DATA_BYTES - 1;
+			nebo = DFII_PIX_DATA_BYTES - 1;
 		}
 
 		ibo = (module * SDRAM_PHY_DQ_DQS_RATIO)%8; // Non zero only if x4 ICs are used
@@ -395,8 +395,8 @@ static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int
 		errors += popcount(((prs[p][pebo] >> ibo) & mask) ^
 		                   ((tst[pebo] >> ibo) & mask));
 		if (SDRAM_PHY_DQ_DQS_RATIO == 16)
-			errors += popcount(((prs[p][pebo+1] >> ibo) & mask) ^
-			                   ((tst[pebo+1] >> ibo) & mask));
+			errors += popcount(((prs[p][pebo-1] >> ibo) & mask) ^
+			                   ((tst[pebo-1] >> ibo) & mask));
 
 
 #if SDRAM_PHY_XDR == 2
@@ -405,8 +405,8 @@ static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int
 		errors += popcount(((prs[p][nebo] >> ibo) & mask) ^
 		                   ((tst[nebo] >> ibo) & mask));
 		if (SDRAM_PHY_DQ_DQS_RATIO == 16)
-			errors += popcount(((prs[p][nebo+1] >> ibo) & mask) ^
-			                   ((tst[nebo+1] >> ibo) & mask));
+			errors += popcount(((prs[p][nebo-1] >> ibo) & mask) ^
+			                   ((tst[nebo-1] >> ibo) & mask));
 #endif // SDRAM_PHY_XDR == 2
 	}
 
@@ -636,13 +636,13 @@ static int sdram_write_leveling_scan(int *delays, int loops, int show) {
 					/* For x4 memories, we need to test individual nibbles, not bytes */
 
 					/* Extract the byte containing the nibble from the tested module */
-					int module_byte = buf[SDRAM_PHY_MODULES-1-(i/2)];
+					int module_byte = buf[DFII_PIX_DATA_BYTES-1-(SDRAM_PHY_MODULES-1-(i/2))];
 					/* Shift the byte by 4 bits right if the module number is odd */
 					module_byte >>= 4 * (i % 2);
 					/* Extract the nibble from the tested module */
 					if ((module_byte & 0xf) != 0)
 #else // SDRAM_PHY_DQ_DQS_RATIO != 4
-					if (buf[SDRAM_PHY_MODULES-1-i] != 0)
+					if (buf[DFII_PIX_DATA_BYTES-1-(SDRAM_PHY_MODULES-1-i)] != 0)
 #endif // SDRAM_PHY_DQ_DQS_RATIO == 4
 						one_count++;
 					else

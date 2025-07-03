@@ -87,9 +87,13 @@ static inline uint64_t _csr_rd(unsigned long a, int csr_bytes)
 {
 	uint64_t r = csr_read_simple(a);
 	for (int i = 1; i < num_subregs(csr_bytes); i++) {
-		r <<= CONFIG_CSR_DATA_WIDTH;
 		a += CSR_OFFSET_BYTES;
+#ifdef CONFIG_CSR_ORDERING_BIG
+		r <<= CONFIG_CSR_DATA_WIDTH;
 		r |= csr_read_simple(a);
+#else /* CONFIG_CSR_ORDERING_BIG */
+		r |= (uint64_t)csr_read_simple(a) << (CONFIG_CSR_DATA_WIDTH * i);
+#endif /* CONFIG_CSR_ORDERING_BIG */
 	}
 	return r;
 }
@@ -99,7 +103,11 @@ static inline void _csr_wr(unsigned long a, uint64_t v, int csr_bytes)
 {
 	int ns = num_subregs(csr_bytes);
 	for (int i = 0; i < ns; i++) {
+#ifdef CONFIG_CSR_ORDERING_BIG
 		csr_write_simple(v >> (CONFIG_CSR_DATA_WIDTH * (ns - 1 - i)), a);
+#else /* CONFIG_CSR_ORDERING_BIG */
+		csr_write_simple(v >> (CONFIG_CSR_DATA_WIDTH * i), a);
+#endif /* CONFIG_CSR_ORDERING_BIG */
 		a += CSR_OFFSET_BYTES;
 	}
 }
@@ -146,6 +154,14 @@ static inline void csr_wr_uint64(uint64_t v, unsigned long a)
 	_csr_wr(a, v, sizeof(uint64_t));
 }
 
+#ifdef CONFIG_CSR_ORDERING_BIG
+#define _csr_buf_idx (cnt - 1 - i)
+#define _csr_buf_else_idx (nsubregs - 1 - i)
+#else /* CONFIG_CSR_ORDERING_BIG */
+#define _csr_buf_idx (i)
+#define _csr_buf_else_idx (i)
+#endif /* CONFIG_CSR_ORDERING_BIG */
+
 /* Read a CSR located at address 'a' into an array 'buf' of 'cnt' elements.
  *
  * NOTE: Since CSR_DW_BYTES is a constant here, we might be tempted to further
@@ -160,28 +176,26 @@ static inline void csr_wr_uint64(uint64_t v, unsigned long a)
  * of the if() branches! */
 #define _csr_rd_buf(a, buf, cnt) \
 { \
-	int i, j, offset, nsubregs, nsubelems; \
+	int i, j, nsubregs, nsubelems; \
 	uint64_t r; \
 	if (sizeof(buf[0]) >= CSR_DW_BYTES) { \
 		/* One or more subregisters per element */ \
 		for (i=0; i<cnt; i++) { \
-			buf[i] = _csr_rd(a, sizeof(buf[0])); \
+			buf[_csr_buf_idx] = _csr_rd(a, sizeof(buf[0])); \
 			a += CSR_OFFSET_BYTES * num_subregs(sizeof(buf[0])); \
 		} \
 	} else { \
 		/* Multiple elements per subregister (2, 4, or 8) */ \
 		nsubregs  = num_subregs(sizeof(buf[0]) * cnt); \
 		nsubelems = CSR_DW_BYTES / sizeof(buf[0]); \
-		offset    = nsubregs*nsubelems - cnt; \
 		for (i=0; i<nsubregs; i++) { \
-			r = csr_read_simple(a);	\
-			for (j= nsubelems - 1; j >= 0; j--) { \
-				if ((i * nsubelems + j - offset) >= 0) { \
-					buf[i * nsubelems + j - offset] = r; \
+			r = csr_read_simple(a + (_csr_buf_else_idx * CSR_OFFSET_BYTES));	\
+			for (j= 0; j < nsubelems; j++) { \
+				if ((i * nsubelems + j) < cnt) { \
+					buf[i * nsubelems + j] = r; \
 					r >>= sizeof(buf[0]) * 8; \
 				} \
 			} \
-			a += CSR_OFFSET_BYTES;	\
 		} \
 	} \
 }
@@ -193,29 +207,26 @@ static inline void csr_wr_uint64(uint64_t v, unsigned long a)
  */
 #define _csr_wr_buf(a, buf, cnt) \
 { \
-	int i, j, offset, nsubregs, nsubelems; \
-	uint64_t v; \
+	int i, j, nsubregs, nsubelems; \
+	uint32_t v; \
 	if (sizeof(buf[0]) >= CSR_DW_BYTES) { \
 		/* One or more subregisters per element */ \
 		for (i = 0; i < cnt; i++) { \
-			_csr_wr(a, buf[i], sizeof(buf[0])); \
+			_csr_wr(a, buf[_csr_buf_idx], sizeof(buf[0])); \
 			a += CSR_OFFSET_BYTES * num_subregs(sizeof(buf[0])); \
 		} \
 	} else { \
 		/* Multiple elements per subregister (2, 4, or 8) */ \
 		nsubregs  = num_subregs(sizeof(buf[0]) * cnt); \
 		nsubelems = CSR_DW_BYTES / sizeof(buf[0]); \
-		offset    = nsubregs*nsubelems - cnt; \
 		for (i = 0; i < nsubregs; i++) { \
 			v = 0; \
 			for (j= 0; j < nsubelems; j++) { \
-				if ((i * nsubelems + j - offset) >= 0) { \
-					v <<= sizeof(buf[0]) * 8; \
-					v |= buf[i * nsubelems + j - offset]; \
+				if ((i * nsubelems + j) < cnt) { \
+					v |= (uint32_t)(buf[i * nsubelems + j]) << (j * sizeof(buf[0]) * 8); \
 				} \
 			} \
-			csr_write_simple(v, a); \
-			a += CSR_OFFSET_BYTES;	\
+			csr_write_simple(v, a + (_csr_buf_else_idx * CSR_OFFSET_BYTES)); \
 		} \
 	} \
 }
