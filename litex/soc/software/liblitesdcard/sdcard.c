@@ -312,7 +312,7 @@ uint16_t sdcard_decode_rca(void) {
 	uint32_t r[SD_CMD_RESPONSE_SIZE/4];
 	csr_rd_buf_uint32(CSR_SDCARD_CORE_CMD_RESPONSE_ADDR,
 			  r, SD_CMD_RESPONSE_SIZE/4);
-	return (r[3] >> 16) & 0xffff;
+	return (r[0] >> 16) & 0xffff;
 }
 
 #ifdef SDCARD_DEBUG
@@ -332,20 +332,20 @@ void sdcard_decode_cid(void) {
 
 		r[0], r[1], r[2], r[3],
 
-		(r[0] >> 16) & 0xffff,
+		(r[3] >> 16) & 0xffff,
 
-		r[0] & 0xffff,
+		r[3] & 0xffff,
 
-		(r[1] >> 24) & 0xff, (r[1] >> 16) & 0xff,
-		(r[1] >>  8) & 0xff, (r[1] >>  0) & 0xff, (r[2] >> 24) & 0xff,
+		(r[2] >> 24) & 0xff, (r[2] >> 16) & 0xff,
+		(r[2] >>  8) & 0xff, (r[2] >>  0) & 0xff, (r[1] >> 24) & 0xff,
 
-		r[3] & 0xff,
+		r[0] & 0xff,
 
-		(r[3] >>  8) & 0x0f, (r[3] >> 12) & 0xff,
+		(r[0] >>  8) & 0x0f, (r[0] >> 12) & 0xff,
 
-		(r[3] >> 24) | (r[2] <<  8),
+		(r[0] >> 24) | (r[0] <<  8),
 
-		(r[0] >> 16) & 0xff, (r[0] >>  8) & 0xff
+		(r[3] >> 16) & 0xff, (r[3] >>  8) & 0xff
 	);
 }
 
@@ -362,11 +362,11 @@ void sdcard_decode_csd(void) {
 
 		r[0], r[1], r[2], r[3],
 
-		(r[0] >> 24) & 0xff,
+		(r[3] >> 24) & 0xff,
 
-		(1 << ((r[1] >> 16) & 0xf)),
+		(1 << ((r[2] >> 16) & 0xf)),
 
-		((r[2] >> 16) + ((r[1] & 0xff) << 16) + 1) * 512 / (1024 * 1024)
+		((r[1] >> 16) + ((r[2] & 0xff) << 16) + 1) * 512 / (1024 * 1024)
 	);
 }
 #endif
@@ -411,7 +411,7 @@ int sdcard_init(void) {
 			csr_rd_buf_uint32(CSR_SDCARD_CORE_CMD_RESPONSE_ADDR,
 			  r, SD_CMD_RESPONSE_SIZE/4);
 
-			if (r[3] & 0x80000000) /* Busy bit, set when init is complete */
+			if (r[0] & 0x80000000) /* Busy bit, set when init is complete */
 				break;
 		}
 		busy_wait(1);

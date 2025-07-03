@@ -253,6 +253,7 @@ class Builder:
         csr_contents = export.get_csr_header(
             regions   = self.soc.csr_regions,
             constants = self.soc.constants,
+            csr_ordering = self.soc.csr.ordering,
             csr_base  = self.soc.mem_regions["csr"].origin,
             with_access_functions        = True,
             with_fields_access_functions = False,
