@@ -32,6 +32,10 @@ extern "C" {
 #define SD_SPEED_SDR104 3
 #define SD_SPEED_DDR50  4
 
+#define SD_PHY_SPEED_1X 0b00
+#define SD_PHY_SPEED_4X 0b01
+#define SD_PHY_SPEED_8X 0b10
+
 #define SD_DRIVER_STRENGTH_B 0
 #define SD_DRIVER_STRENGTH_A 1
 #define SD_DRIVER_STRENGTH_C 2
