@@ -114,6 +114,8 @@ class VexRiscv(CPU, AutoCSR):
     linker_output_format = "elf32-littleriscv"
     nop                  = "nop"
     io_regions           = {0x8000_0000: 0x8000_0000} # Origin, Length
+    clint_addr           = 0x0200_0000
+    clic_addr            = 0x0C00_0000
 
     # Memory Mapping.
     @property
@@ -140,6 +142,12 @@ class VexRiscv(CPU, AutoCSR):
         self.external_variant = None
         self.reset            = Signal()
         self.interrupt        = Signal(32)
+        self.timer_interrupt    = Signal(reset=0)    # Timer interrupt from CLINT
+        self.software_interrupt = Signal(reset=0) # Software interrupt from CLINT
+        # CLIC interrupt signals
+        self.clic_interrupt = Signal()     # CLIC interrupt request
+        self.clic_interrupt_id = Signal(12)  # CLIC interrupt ID (up to 4096 interrupts)
+        self.clic_interrupt_priority = Signal(8)  # CLIC interrupt priority
         self.ibus             = ibus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.dbus             = dbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.periph_buses     = [ibus, dbus] # Peripheral buses (Connected to main SoC's bus).
@@ -153,8 +161,8 @@ class VexRiscv(CPU, AutoCSR):
             i_reset                  = ResetSignal("sys") | self.reset,
 
             i_externalInterruptArray = self.interrupt,
-            i_timerInterrupt         = 0,
-            i_softwareInterrupt      = 0,
+            i_timerInterrupt         = self.timer_interrupt,
+            i_softwareInterrupt      = self.software_interrupt,
 
             o_iBusWishbone_ADR      = ibus.adr,
             o_iBusWishbone_DAT_MOSI = ibus.dat_w,
@@ -195,7 +203,10 @@ class VexRiscv(CPU, AutoCSR):
 
     def add_timer(self):
         self.timer = VexRiscvTimer()
-        self.cpu_params.update(i_timerInterrupt=self.timer.interrupt)
+        # Connect VexRiscvTimer to timer_interrupt signal
+        # This will be overridden if CLINT is later connected by SoC
+        self.comb += self.timer_interrupt.eq(self.timer.interrupt)
+
 
     def add_debug(self):
         debug_reset = Signal()
@@ -354,6 +365,31 @@ class VexRiscv(CPU, AutoCSR):
                     cached = False
                 )
             )
+
+        # Handle CLIC vs CLINT mutual exclusivity
+        if hasattr(soc, "clic"):
+            # CLIC is present - tie CLINT interrupts to 0 and set up CLIC CSRs
+            self.comb += [
+                self.timer_interrupt.eq(0),
+                self.software_interrupt.eq(0)
+            ]
+            
+            # Add CSRs for CLIC interrupt information access from software
+            self._clic_interrupt_id = CSRStatus(12, name="clic_interrupt_id",
+                description="Current CLIC interrupt ID")
+            self._clic_interrupt_priority = CSRStatus(8, name="clic_interrupt_priority", 
+                description="Current CLIC interrupt priority")
+            self._clic_interrupt_active = CSRStatus(1, name="clic_interrupt_active",
+                description="CLIC interrupt active status")
+            
+            # Connect CLIC signals to CSRs for software access
+            self.comb += [
+                self._clic_interrupt_id.status.eq(self.clic_interrupt_id),
+                self._clic_interrupt_priority.status.eq(self.clic_interrupt_priority),
+                self._clic_interrupt_active.status.eq(self.clic_interrupt)
+            ]
+        # Note: When neither CLIC nor CLINT are present, interrupt signals 
+        # default to 0 due to their reset values
 
         # Pass I/D Caches info to software.
         base_variant = str(self.variant.split('+')[0])
