@@ -381,8 +381,8 @@ static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int
 
 		/* Values written into CSR are Little Endian */
 		/* SDRAM_PHY_XDR is define 1 if SDR and 2 if DDR*/
-		nebo = (module * SDRAM_PHY_DQ_DQS_RATIO)/8 + DFII_PIX_DATA_BYTES - (DFII_PIX_DATA_BYTES / SDRAM_PHY_XDR);
-		pebo = nebo - DFII_PIX_DATA_BYTES / SDRAM_PHY_XDR;
+		nebo = (module * SDRAM_PHY_DQ_DQS_RATIO)/8 + (DFII_PIX_DATA_BYTES / SDRAM_PHY_XDR);
+		pebo = (module * SDRAM_PHY_DQ_DQS_RATIO)/8;
 		/* When DFII_PIX_DATA_BYTES is 1 and SDRAM_PHY_XDR is 2, pebo and nebo are both -1s,
 		* but only correct value is 0. This can happen when single x4 IC is used */
 		if ((DFII_PIX_DATA_BYTES/SDRAM_PHY_XDR) == 0) {
