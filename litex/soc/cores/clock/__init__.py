@@ -17,3 +17,6 @@ from litex.soc.cores.clock.lattice_nx    import NXOSCA, NXPLL
 
 # Efinix
 from litex.soc.cores.clock.efinix import TRIONPLL, TITANIUMPLL
+
+# CologneChip
+from litex.soc.cores.clock.colognechip import GateMatePLL
