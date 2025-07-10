@@ -2328,26 +2328,26 @@ class LiteXSoC(SoC):
             dma_bus.add_master(name=f"{name}_mem2block", master=bus)
 
         # Interrupts.
-        self.check_if_exists(f"{name}_irq")
-        sdcard_irq  = EventManager()
-        self.add_module(name=f"{name}_irq", module=sdcard_irq)
-        sdcard_irq.card_detect = EventSourcePulse(description="SDCard has been ejected/inserted.")
+        self.check_if_exists(f"{name}_ev")
+        ev  = EventManager()
+        self.add_module(name=f"{name}_ev", module=ev)
+        ev.card_detect = EventSourcePulse(description="SDCard has been ejected/inserted.")
         if "read" in mode:
-            sdcard_irq.block2mem_dma = EventSourcePulse(description="Block2Mem DMA terminated.")
+            ev.block2mem_dma = EventSourcePulse(description="Block2Mem DMA terminated.")
         if "write" in mode:
-            sdcard_irq.mem2block_dma = EventSourcePulse(description="Mem2Block DMA terminated.")
-        sdcard_irq.cmd_done  = EventSourceLevel(description="Command completed.")
-        sdcard_irq.finalize()
+            ev.mem2block_dma = EventSourcePulse(description="Mem2Block DMA terminated.")
+        ev.cmd_done  = EventSourceLevel(description="Command completed.")
+        ev.finalize()
         if "read" in mode:
-            self.comb += sdcard_irq.block2mem_dma.trigger.eq(sdcard_block2mem.irq)
+            self.comb += ev.block2mem_dma.trigger.eq(sdcard_block2mem.irq)
         if "write" in mode:
-            self.comb += sdcard_irq.mem2block_dma.trigger.eq(sdcard_mem2block.irq)
+            self.comb += ev.mem2block_dma.trigger.eq(sdcard_mem2block.irq)
         self.comb += [
-            sdcard_irq.card_detect.trigger.eq(sdcard_phy.card_detect_irq),
-            sdcard_irq.cmd_done.trigger.eq(sdcard_core.cmd_event.fields.done)
+            ev.card_detect.trigger.eq(sdcard_phy.card_detect_irq),
+            ev.cmd_done.trigger.eq(sdcard_core.cmd_event.fields.done)
         ]
         if self.irq.enabled:
-            self.irq.add(f"{name}_irq", use_loc_if_exists=True)
+            self.irq.add(f"{name}_ev", use_loc_if_exists=True)
 
         # Debug.
         if software_debug:
