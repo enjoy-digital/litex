@@ -549,14 +549,14 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     # SDCard ---------------------------------------------------------------------------------------
 
-    if "sdcard_core" in d["csr_bases"]:
+    if "sdcard" in d["csr_bases"]:
         dts += """
             mmc0: mmc@{mmc_csr_base:x} {{
                 compatible = "litex,mmc";
-                reg = <0x{sdcard_phy_csr_base:x} 0x100>,
-                      <0x{sdcard_core_csr_base:x} 0x100>,
-                      <0x{sdcard_block2mem:x} 0x100>,
-                      <0x{sdcard_mem2block:x} 0x100>,
+                reg = <0x{sdcard_phy_csr_base:x} 0x{sdcard_phy_csr_size:x}>,
+                      <0x{sdcard_core_csr_base:x} 0x{sdcard_core_csr_size:x}>,
+                      <0x{sdcard_block2mem:x} 0x{sdcard_block2mem_size:x}>,
+                      <0x{sdcard_mem2block:x} 0x{sdcard_mem2block_size:x}>,
                       <0x{sdcard_irq:x} 0x100>;
                 reg-names = "phy", "core", "reader", "writer", "irq";
                 clocks = <&sys_clk>;
@@ -566,12 +566,16 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 status = "okay";
             }};
 """.format(
-        mmc_csr_base         = d["csr_bases"]["sdcard_phy"],
-        sdcard_phy_csr_base  = d["csr_bases"]["sdcard_phy"],
-        sdcard_core_csr_base = d["csr_bases"]["sdcard_core"],
-        sdcard_block2mem     = d["csr_bases"]["sdcard_block2mem"],
-        sdcard_mem2block     = d["csr_bases"]["sdcard_mem2block"],
-        sdcard_irq           = d["csr_bases"]["sdcard_irq"],
+        mmc_csr_base         = d["csr_bases"]["sdcard"],
+        sdcard_phy_csr_base  = d["csr_registers"]["sdcard_phy_card_detect"],
+        sdcard_phy_csr_size  = d["csr_registers"]["sdcard_core_cmd_argument"] - d["csr_registers"]["sdcard_phy_card_detect"],
+        sdcard_core_csr_base = d["csr_registers"]["sdcard_core_cmd_argument"],
+        sdcard_core_csr_size = d["csr_registers"]["sdcard_block2mem_dma_base"] - d["csr_registers"]["sdcard_core_cmd_argument"],
+        sdcard_block2mem     = d["csr_registers"]["sdcard_block2mem_dma_base"],
+        sdcard_block2mem_size = d["csr_registers"]["sdcard_mem2block_dma_base"] - d["csr_registers"]["sdcard_block2mem_dma_base"],
+        sdcard_mem2block     = d["csr_registers"]["sdcard_mem2block_dma_base"],
+        sdcard_mem2block_size = d["csr_registers"]["sdcard_ev_status"] - d["csr_registers"]["sdcard_mem2block_dma_base"],
+        sdcard_irq           = d["csr_registers"]["sdcard_ev_status"],
         sdcard_irq_interrupt = "" if polling else "interrupts = <{}>;".format(d["constants"]["sdcard_irq_interrupt"])
 )
     # Leds -----------------------------------------------------------------------------------------
