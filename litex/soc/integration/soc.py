@@ -2273,81 +2273,16 @@ class LiteXSoC(SoC):
             self.add_constant("SPISDCARD_DEBUG")
 
     # Add SDCard -----------------------------------------------------------------------------------
-    def add_sdcard(self, name="sdcard", sdcard_name="sdcard", mode="read+write", use_emulator=False, software_debug=False):
+    def add_sdcard(self, name="sdcard", sdcard_name="sdcard", software_debug=False, **kwargs):
         # Imports.
-        from litesdcard.emulator import SDEmulator
-        from litesdcard.phy import SDPHY
-        from litesdcard.core import SDCore
-        from litesdcard.frontend.dma import SDBlock2MemDMA, SDMem2BlockDMA
+        from litesdcard import LiteSDCard
 
-        # Checks.
-        assert mode in ["read", "write", "read+write"]
+        self.check_if_exists(name)
+        sdcard = LiteSDCard(self, name=sdcard_name, **kwargs)
+        self.add_module(name=name, module=sdcard)
 
-        # Emulator / Pads.
-        if use_emulator:
-            sdemulator = SDEmulator(self.platform)
-            self.submodules += sdemulator
-            sdcard_pads = sdemulator.pads
-        else:
-            sdcard_pads = self.platform.request(sdcard_name)
-
-        # Core.
-        self.check_if_exists(f"{name}_phy")
-        self.check_if_exists(f"{name}_core")
-        sdcard_phy  = SDPHY(sdcard_pads, self.platform.device, self.clk_freq, cmd_timeout=10e-1, data_timeout=10e-1)
-        sdcard_core = SDCore(sdcard_phy)
-        self.add_module(name=f"{name}_phy",  module=sdcard_phy)
-        self.add_module(name=f"{name}_core", module=sdcard_core)
-
-        # Block2Mem DMA.
-        if "read" in mode:
-            self.check_if_exists(f"{name}_block2mem")
-            bus = wishbone.Interface(
-                data_width = self.bus.data_width,
-                adr_width  = self.bus.get_address_width(standard="wishbone"),
-                addressing = "word",
-            )
-            sdcard_block2mem = SDBlock2MemDMA(bus=bus, endianness=self.cpu.endianness)
-            self.add_module(name=f"{name}_block2mem", module=sdcard_block2mem)
-            self.comb += sdcard_core.source.connect(sdcard_block2mem.sink)
-            dma_bus = getattr(self, "dma_bus", self.bus)
-            dma_bus.add_master(name=f"{name}_block2mem", master=bus)
-
-        # Mem2Block DMA.
-        if "write" in mode:
-            self.check_if_exists(f"{name}_mem2block")
-            bus = wishbone.Interface(
-                data_width = self.bus.data_width,
-                adr_width  = self.bus.get_address_width(standard="wishbone"),
-                addressing = "word",
-            )
-            sdcard_mem2block = SDMem2BlockDMA(bus=bus, endianness=self.cpu.endianness)
-            self.add_module(name=f"{name}_mem2block", module=sdcard_mem2block)
-            self.comb += sdcard_mem2block.source.connect(sdcard_core.sink)
-            dma_bus = getattr(self, "dma_bus", self.bus)
-            dma_bus.add_master(name=f"{name}_mem2block", master=bus)
-
-        # Interrupts.
-        self.check_if_exists(f"{name}_irq")
-        sdcard_irq  = EventManager()
-        self.add_module(name=f"{name}_irq", module=sdcard_irq)
-        sdcard_irq.card_detect = EventSourcePulse(description="SDCard has been ejected/inserted.")
-        if "read" in mode:
-            sdcard_irq.block2mem_dma = EventSourcePulse(description="Block2Mem DMA terminated.")
-        if "write" in mode:
-            sdcard_irq.mem2block_dma = EventSourcePulse(description="Mem2Block DMA terminated.")
-        sdcard_irq.cmd_done  = EventSourceLevel(description="Command completed.")
-        sdcard_irq.finalize()
-        if "read" in mode:
-            self.comb += sdcard_irq.block2mem_dma.trigger.eq(sdcard_block2mem.irq)
-        if "write" in mode:
-            self.comb += sdcard_irq.mem2block_dma.trigger.eq(sdcard_mem2block.irq)
-        self.comb += [
-            sdcard_irq.card_detect.trigger.eq(sdcard_phy.card_detect_irq),
-            sdcard_irq.cmd_done.trigger.eq(sdcard_core.cmd_event.fields.done)
-        ]
         if self.irq.enabled:
-            self.irq.add(f"{name}_irq", use_loc_if_exists=True)
+            self.irq.add(name, use_loc_if_exists=True)
 
         # Debug.
         if software_debug:
