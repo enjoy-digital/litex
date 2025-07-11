@@ -291,34 +291,9 @@ _overlay_handlers = {
         'handler': spiflash_handler,
         'alias': 'spi1',
     },
-    'sdcard_block2mem': {
+    'sdcard': {
         'handler': peripheral_handler,
-        'alias': 'sdcard_block2mem',
-        'size': 0x18,
-        'disable_handler': False,
-    },
-    'sdcard_core': {
-        'handler': peripheral_handler,
-        'alias': 'sdcard_core',
-        'size': 0x2C,
-        'disable_handler': False,
-    },
-    'sdcard_irq': {
-        'handler': peripheral_handler,
-        'alias': 'sdcard_irq',
-        'size': 0x0C,
-        'disable_handler': False,
-    },
-    'sdcard_mem2block': {
-        'handler': peripheral_handler,
-        'alias': 'sdcard_mem2block',
-        'size': 0x18,
-        'disable_handler': False,
-    },
-    'sdcard_phy': {
-        'handler': peripheral_handler,
-        'alias': 'sdcard_phy',
-        'size': 0x10,
+        'alias': 'sdhc0',
         'disable_handler': False,
     },
     'i2c0' : {
