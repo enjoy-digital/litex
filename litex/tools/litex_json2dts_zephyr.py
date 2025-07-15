@@ -68,7 +68,7 @@ def dts_close():
 
 def dts_intr(name, csr, levels=1):
     irq = csr['constants'].get(name + '_interrupt', None)
-    return indent(f"interrupts = <{irq} 0>;\n" if irq is not None else "", levels)
+    return indent(f"interrupts = <{irq} 1>;\n" if irq is not None else "", levels)
 
 
 def dts_reg(regs, levels=1):
