@@ -438,11 +438,12 @@ int sdcard_init(void) {
 	if (sdcard_select_card(rca) != SD_OK)
 		return 0;
 
-	/* Set bus width */
+	/* Set 4-bit bus width */
 	if (sdcard_app_cmd(rca) != SD_OK)
 		return 0;
 	if(sdcard_app_set_bus_width() != SD_OK)
 		return 0;
+	sdcard_phy_settings_write(SD_PHY_SPEED_4X);
 
 	/* Switch speed */
 	if (sdcard_switch(SD_SWITCH_SWITCH, SD_GROUP_ACCESSMODE, SD_SPEED_SDR25) != SD_OK)
