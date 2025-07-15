@@ -126,7 +126,14 @@ class Coreblocks(CPU):
         data_mod = get_data_mod("cpu", "coreblocks")
         sdir = data_mod.data_location
 
-        command = ["python3", os.path.join(sdir, "scripts", "gen_verilog.py")] if data_mod.RUN_NATIVE else ["pipx", "run", f"--python=3.{data_mod.PYTHON3_VERSION}", "--fetch-missing-python", os.path.join(sdir, "..", "gen_verilog_wrapper.py")]
+        env = os.environ.copy()
+        env.setdefault("PIPX_STANDALONE_PYTHON_RELEASE", "20250604")
+
+        if data_mod.RUN_NATIVE:
+            command = ["python3", os.path.join(sdir, "scripts", "gen_verilog.py")]
+        else:
+            command = ["pipx", "run", f"--python=3.{data_mod.PYTHON3_VERSION}", "--fetch-missing-python", os.path.join(sdir, "..", "gen_verilog_wrapper.py")]
+
         command += cli_params
 
         print(command)
