@@ -43,7 +43,6 @@ class TestIntegration(unittest.TestCase):
 
     def test_cpu(self):
         tested_cpus = [
-            "coreblocks",   # (riscv   / softcore)
             #"cv32e40p",     # (riscv   / softcore)
             "femtorv",      # (riscv   / softcore)
             "firev",        # (riscv   / softcore)
@@ -58,6 +57,7 @@ class TestIntegration(unittest.TestCase):
             "ibex",         # (riscv   / softcore)
         ]
         untested_cpus = [
+            "coreblocks",   # (riscv   / softcore) -> pipx issue.
             "blackparrot",  # (riscv   / softcore) -> Broken install?
             "cortex_m1",    # (arm     / softcore) -> Proprietary code.
             "cortex_m3",    # (arm     / softcore) -> Proprieraty code.
