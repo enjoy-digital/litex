@@ -474,7 +474,7 @@ class VexiiRiscv(CPU):
 
     def add_soc_components(self, soc):
         # Set Human-name.
-        self.human_name = f"{self.human_name} {self.xlen}-bit"
+        self.human_name = f"{self.human_name} ({VexiiRiscv.get_arch()})"
 
         if VexiiRiscv.with_opensbi:
             # Set UART/Timer0 CSRs to the ones used by OpenSBI.
