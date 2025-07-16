@@ -195,6 +195,7 @@ class VexiiRiscv(CPU):
         if VexiiRiscv.no_netlist_cache or not os.path.exists(ppath):
             cmd = f"""cd {ndir} && sbt "runMain vexiiriscv.soc.litex.PythonArgsGen {VexiiRiscv.vexii_args} --python-file={str(ppath)}\""""
             subprocess.check_call(cmd, shell=True)
+        # Loads variables like VexiiRiscv.with_rvm, that set the RISC-V extensions.
         with open(ppath) as file:
             exec(file.read())
 
