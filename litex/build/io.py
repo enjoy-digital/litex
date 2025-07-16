@@ -201,6 +201,11 @@ class DDRTristate(Special):
         self.o1      = o1
         self.o2      = o2
         self.oe1     = oe1
+        try:
+            if oe2 == oe1:
+                oe2 = None
+        except TypeError:
+            pass
         self.oe2     = oe2
         self.i1      = i1      if      i1 is not None else Signal()
         self.i2      = i2      if      i2 is not None else Signal()
