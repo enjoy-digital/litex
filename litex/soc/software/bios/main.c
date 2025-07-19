@@ -185,6 +185,8 @@ __attribute__((__used__)) int main(int i, char **c)
     printf("--========== \e[1mInitialization\e[0m ============--\n");
 #ifdef CSR_ETHMAC_BASE
 	eth_init();
+	net_init();
+	set_idle_hook(udp_service);
 #endif
 
 	/* Initialize and test SPIRAM */

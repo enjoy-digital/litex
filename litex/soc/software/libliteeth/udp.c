@@ -83,6 +83,7 @@ struct arp_frame {
 #define IP_DONT_FRAGMENT	0x4000
 #define IP_TTL			64
 #define IP_PROTO_UDP		0x11
+#define IP_PROTO_ICMP		0x01
 
 struct ip_header {
 	uint8_t version;
@@ -110,11 +111,28 @@ struct udp_frame {
 	char payload[];
 } __attribute__((packed));
 
+#define ICMP_ECHO_REPLY 0x00
+#define ICMP_ECHO 0x08
+
+struct icmp_header {
+	unsigned char type;
+	unsigned char code;
+	unsigned short checksum;
+} __attribute__((packed));
+
+struct icmp_frame {
+	struct ip_header ip;
+	struct icmp_header icmp;
+	char payload[];
+} __attribute__((packed));
+
 struct ethernet_frame {
 	struct ethernet_header eth_header;
 	union {
 		struct arp_frame arp;
 		struct udp_frame udp;
+		struct icmp_frame icmp;
+		struct ip_header ip;
 	} contents;
 } __attribute__((packed));
 
@@ -380,17 +398,64 @@ int udp_send(uint16_t src_port, uint16_t dst_port, uint32_t length)
 	return 1;
 }
 
+static void process_icmp(void)
+{
+	if (rxlen < (sizeof(struct ethernet_header) + sizeof(struct icmp_frame)))
+		return;
+
+	struct icmp_frame *frm = &rxbuffer->frame.contents.icmp;
+
+	if(ntohs(frm->ip.total_length) < sizeof(struct icmp_frame))
+		return;
+
+	unsigned short length = ntohs(frm->ip.total_length) - sizeof(struct icmp_frame);
+
+	if(frm->icmp.type == ICMP_ECHO) {
+		txbuffer->frame.eth_header.ethertype = htons(ETHERTYPE_IP);
+
+		txbuffer->frame.contents.ip.version = IP_IPV4;
+		txbuffer->frame.contents.ip.diff_services = 0;
+		txbuffer->frame.contents.ip.total_length = htons(length + sizeof(struct icmp_frame));
+		txbuffer->frame.contents.ip.identification = htons(0);
+		txbuffer->frame.contents.ip.fragment_offset = htons(IP_DONT_FRAGMENT);
+		txbuffer->frame.contents.ip.ttl = IP_TTL;
+		txbuffer->frame.contents.ip.proto = IP_PROTO_ICMP;
+		txbuffer->frame.contents.ip.checksum = 0;
+		txbuffer->frame.contents.ip.src_ip = htonl(my_ip);
+		txbuffer->frame.contents.ip.dst_ip = rxbuffer->frame.contents.udp.ip.src_ip;
+		txbuffer->frame.contents.ip.checksum = htons(ip_checksum(
+			0, &txbuffer->frame.contents.ip, sizeof(struct ip_header), 1
+		));
+
+		txbuffer->frame.contents.icmp.icmp.type = ICMP_ECHO_REPLY;
+		txbuffer->frame.contents.icmp.icmp.code = 0;
+		for (unsigned i=0; i<length; i++)
+			txbuffer->frame.contents.icmp.payload[i] = rxbuffer->frame.contents.icmp.payload[i];
+
+		txbuffer->frame.contents.icmp.icmp.checksum = 0;
+		unsigned short r = ip_checksum(
+			0,
+			&txbuffer->frame.contents.icmp.icmp,
+			length + sizeof(struct icmp_header),
+			1
+		);
+		txbuffer->frame.contents.icmp.icmp.checksum = htons(r);
+
+		txlen = length + sizeof(struct ethernet_header) + sizeof(struct icmp_frame);
+		send_packet();
+	}
+}
+
 static udp_callback rx_callback;
 #ifdef ETH_UDP_BROADCAST
 static udp_callback bx_callback;
 #endif /* ETH_UDP_BROADCAST */
 
-static void process_ip(void)
+static void process_udp(void)
 {
 	if(rxlen < (sizeof(struct ethernet_header)+sizeof(struct udp_frame))) return;
 	struct udp_frame *udp_ip = &rxbuffer->frame.contents.udp;
 	/* We don't verify UDP and IP checksums and rely on the Ethernet checksum solely */
-	if(udp_ip->ip.version != IP_IPV4) return;
 	// check disabled for QEMU compatibility
 	//if(rxbuffer->frame.contents.udp.ip.diff_services != 0) return;
 	if(ntohs(udp_ip->ip.total_length) < sizeof(struct udp_frame)) return;
@@ -464,8 +529,19 @@ static void process_frame(void)
 	rxlen -= 4; /* strip CRC here to be consistent with TX */
 #endif
 
-	if(ntohs(rxbuffer->frame.eth_header.ethertype) == ETHERTYPE_ARP) process_arp();
-	else if(ntohs(rxbuffer->frame.eth_header.ethertype) == ETHERTYPE_IP) process_ip();
+	if (ntohs(rxbuffer->frame.eth_header.ethertype) == ETHERTYPE_ARP) {
+		process_arp();
+	} else if (ntohs(rxbuffer->frame.eth_header.ethertype) == ETHERTYPE_IP) {
+		struct ip_header *hdr = &rxbuffer->frame.contents.ip;
+		if(hdr->version != IP_IPV4)
+			return;
+		if(ntohl(hdr->dst_ip) != my_ip)
+			return;
+		if (hdr->proto == IP_PROTO_UDP)
+			process_udp();
+		else if (hdr->proto == IP_PROTO_ICMP)
+			process_icmp();
+	}
 }
 
 void udp_start(const uint8_t *macaddr, uint32_t ip)

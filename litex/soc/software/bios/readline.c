@@ -16,6 +16,8 @@
 #include "readline.h"
 #include "complete.h"
 
+#include <libbase/uart.h>
+
 #ifndef BIOS_CONSOLE_NO_HISTORY
 static int hist_max = 0;
 static int hist_add_idx = 0;
@@ -23,6 +25,8 @@ static int hist_cur = 0;
 static int hist_num = 0;
 static char hist_lines[HIST_MAX][CMD_LINE_BUFFER_SIZE];
 #endif
+
+static void (*idle_hook_ptr)(void) = NULL;
 
 #define ARRAY_SIZE(array)  (sizeof(array) / sizeof(array[0]))
 
@@ -47,10 +51,21 @@ static const struct esc_cmds esccmds[] = {
 	{"[6~", KEY_PAGEDOWN},// Cursor Key Page Down
 };
 
+void set_idle_hook(void (*fptr)(void)) {
+	idle_hook_ptr = fptr;
+}
+
 static int read_key(void)
 {
 	char c;
 	char esc[5];
+
+	if (idle_hook_ptr != NULL) {
+		while (!uart_read_nonblock()) {
+			idle_hook_ptr();
+		}
+	}
+
 	c = getchar();
 
 	if (c == 27) {
@@ -243,7 +258,7 @@ int readline(char *buf, int len)
 		case KEY_LEFT:
 			if (num) {
 				getcmd_putch(CTL_BACKSPACE);
-			 	num--;
+				num--;
 			}
 			break;
 		case CTL_CH('d'):
@@ -309,9 +324,9 @@ int readline(char *buf, int len)
 #ifndef BIOS_CONSOLE_NO_HISTORY
 			char * hline;
 			if (ichar == KEY_UP)
-			 	hline = hist_prev();
+				hline = hist_prev();
 			else
-			 	hline = hist_next();
+				hline = hist_next();
 
 			if (!hline) {
 				getcmd_cbeep();
@@ -344,7 +359,7 @@ int readline(char *buf, int len)
 	buf[eol_num] = '\0';
 
 #ifndef BIOS_CONSOLE_NO_HISTORY
-	if (buf[0] && buf[0] != CREAD_HIST_CHAR) 
+	if (buf[0] && buf[0] != CREAD_HIST_CHAR)
 		cread_add_to_hist(buf);
 	hist_cur = hist_add_idx;
 #endif
