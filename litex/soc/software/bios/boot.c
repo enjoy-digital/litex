@@ -538,6 +538,12 @@ static void netboot_from_bin(const char * filename, unsigned int ip, unsigned sh
 }
 #endif
 
+void net_init(void) {
+  printf("Local IP: %d.%d.%d.%d\n", local_ip[0], local_ip[1], local_ip[2], local_ip[3]);
+  printf("Remote IP: %d.%d.%d.%d\n", remote_ip[0], remote_ip[1], remote_ip[2], remote_ip[3]);
+  udp_start(macadr, IPTOINT(local_ip[0], local_ip[1], local_ip[2], local_ip[3]));
+}
+
 void netboot(int nb_params, char **params)
 {
 	unsigned int ip;
@@ -548,11 +554,8 @@ void netboot(int nb_params, char **params)
 
 	printf("Booting from network...\n");
 
-	printf("Local IP: %d.%d.%d.%d\n", local_ip[0], local_ip[1], local_ip[2], local_ip[3]);
-	printf("Remote IP: %d.%d.%d.%d\n", remote_ip[0], remote_ip[1], remote_ip[2], remote_ip[3]);
-
+  net_init();
 	ip = IPTOINT(remote_ip[0], remote_ip[1], remote_ip[2], remote_ip[3]);
-	udp_start(macadr, IPTOINT(local_ip[0], local_ip[1], local_ip[2], local_ip[3]));
 
 	if (filename) {
 		printf("Booting from %s (JSON)...\n", filename);

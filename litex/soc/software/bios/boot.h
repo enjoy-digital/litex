@@ -13,4 +13,5 @@ void romboot(void);
 void sdcardboot(void);
 void sataboot(void);
 
+void net_init(void);
 #endif /* __BOOT_H */
