@@ -77,6 +77,7 @@ struct esc_cmds {
 	}					\
 }
 
+void set_idle_hook(void (*fptr)(void));
 int readline(char *buf, int len);
 void hist_init(void);
 
