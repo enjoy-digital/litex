@@ -413,42 +413,42 @@ int send_ping(uint32_t ip, unsigned short payload_length)
 		my_mac,
 		ETHERTYPE_IP);
 
-	struct icmp_frame *frm = &txbuffer->frame.contents.icmp;
+	struct icmp_frame *tx_icmp = &txbuffer->frame.contents.icmp;
 
-	frm->ip.version = IP_IPV4;
-	frm->ip.diff_services = 0;
-	frm->ip.total_length = htons(payload_length + sizeof(struct icmp_frame));
-	frm->ip.identification = htons(0);
-	frm->ip.fragment_offset = htons(IP_DONT_FRAGMENT);
-	frm->ip.ttl = IP_TTL;
-	frm->ip.proto = IP_PROTO_ICMP;
-	frm->ip.checksum = 0;
-	frm->ip.src_ip = htonl(my_ip);
-	frm->ip.dst_ip = htonl(ip);
-	frm->ip.checksum = htons(ip_checksum(
-		0, &frm->ip, sizeof(struct ip_header), 1
+	tx_icmp->ip.version = IP_IPV4;
+	tx_icmp->ip.diff_services = 0;
+	tx_icmp->ip.total_length = htons(payload_length + sizeof(struct icmp_frame));
+	tx_icmp->ip.identification = htons(0);
+	tx_icmp->ip.fragment_offset = htons(IP_DONT_FRAGMENT);
+	tx_icmp->ip.ttl = IP_TTL;
+	tx_icmp->ip.proto = IP_PROTO_ICMP;
+	tx_icmp->ip.checksum = 0;
+	tx_icmp->ip.src_ip = htonl(my_ip);
+	tx_icmp->ip.dst_ip = htonl(ip);
+	tx_icmp->ip.checksum = htons(ip_checksum(
+		0, &tx_icmp->ip, sizeof(struct ip_header), 1
 	));
 
-	frm->icmp.type = ICMP_ECHO;
-	frm->icmp.code = 0;
-	frm->icmp.identifier = 0xbe7c;
-	frm->icmp.sequence_number = ping_seq_number++;
+	tx_icmp->icmp.type = ICMP_ECHO;
+	tx_icmp->icmp.code = 0;
+	tx_icmp->icmp.identifier = 0xbe7c;
+	tx_icmp->icmp.sequence_number = ping_seq_number++;
 	for (unsigned i=0; i<payload_length; i++)
-		frm->payload[i] = i;
+		tx_icmp->payload[i] = i;
 
-	frm->icmp.checksum = 0;
+	tx_icmp->icmp.checksum = 0;
 	unsigned short r = ip_checksum(
 		0,
-		&frm->icmp,
+		&tx_icmp->icmp,
 		payload_length + sizeof(struct icmp_header),
 		1
 	);
-	frm->icmp.checksum = htons(r);
+	tx_icmp->icmp.checksum = htons(r);
 
 	txlen = payload_length + sizeof(struct ethernet_header) + sizeof(struct icmp_frame);
 	send_packet();
 
-	printf(" icmp_seq=%d", frm->icmp.sequence_number);
+	printf(" icmp_seq=%d", tx_icmp->icmp.sequence_number);
 }
 
 static void process_icmp(void)
