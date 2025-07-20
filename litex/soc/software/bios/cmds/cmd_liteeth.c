@@ -195,6 +195,7 @@ static void eth_mac_addr_handler(int nb_params, char **params)
 define_command(eth_mac_addr, eth_mac_addr_handler, "Set the mac address", LITEETH_CMDS);
 #endif
 
+#ifdef ETH_DYNAMIC_IP
 static void eth_ping_handler(int nb_params, char **params)
 {
     if (nb_params != 1) {
@@ -211,3 +212,4 @@ static void eth_ping_handler(int nb_params, char **params)
     send_ping(ip, 32);
 }
 define_command(ping, eth_ping_handler, "Ping the given ip address", LITEETH_CMDS);
+#endif
