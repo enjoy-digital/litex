@@ -280,7 +280,7 @@ int udp_arp_resolve(uint32_t ip)
 	for(i=0;i<6;i++)
 		cached_mac[i] = 0;
 
-	for(tries=0;tries<3;tries++) {
+	for(tries=0;tries<8;tries++) {
 		/* Send an ARP request */
 		fill_eth_header(&txbuffer->frame.eth_header,
 				broadcast,
@@ -399,7 +399,7 @@ int udp_send(uint16_t src_port, uint16_t dst_port, uint32_t length)
 	return 1;
 }
 
-static int ping_seq_number = 0;
+static unsigned ping_seq_number = 0;
 
 int send_ping(uint32_t ip, unsigned short payload_length)
 {
@@ -408,10 +408,12 @@ int send_ping(uint32_t ip, unsigned short payload_length)
 		return -1;
 	}
 
-	fill_eth_header(&txbuffer->frame.eth_header,
+	fill_eth_header(
+		&txbuffer->frame.eth_header,
 		cached_mac,
 		my_mac,
-		ETHERTYPE_IP);
+		ETHERTYPE_IP
+	);
 
 	struct icmp_frame *tx_icmp = &txbuffer->frame.contents.icmp;
 
@@ -449,6 +451,7 @@ int send_ping(uint32_t ip, unsigned short payload_length)
 	send_packet();
 
 	printf(" icmp_seq=%d", tx_icmp->icmp.sequence_number);
+	return 0;
 }
 
 static void process_icmp(void)

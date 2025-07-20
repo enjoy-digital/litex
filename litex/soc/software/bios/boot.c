@@ -334,6 +334,8 @@ const char *filename, char *buffer)
 	return size;
 }
 
+#ifdef ETH_DYNAMIC_IP
+
 uint8_t parse_ip(const char * ip_address, unsigned int * ip_to_change)
 {
 	uint8_t n = 0;
@@ -377,8 +379,6 @@ uint8_t parse_ip(const char * ip_address, unsigned int * ip_to_change)
 	}
 	return 0;
 }
-
-#ifdef ETH_DYNAMIC_IP
 
 void set_local_ip(const char * ip_address)
 {
@@ -555,8 +555,9 @@ void netboot(int nb_params, char **params)
 	printf("Booting from network...\n");
 
 	net_init();
-	ip = IPTOINT(remote_ip[0], remote_ip[1], remote_ip[2], remote_ip[3]);
 	printf("Remote IP: %d.%d.%d.%d\n", remote_ip[0], remote_ip[1], remote_ip[2], remote_ip[3]);
+
+	ip = IPTOINT(remote_ip[0], remote_ip[1], remote_ip[2], remote_ip[3]);
 
 	if (filename) {
 		printf("Booting from %s (JSON)...\n", filename);
