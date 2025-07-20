@@ -5,6 +5,7 @@
 void set_local_ip(const char * ip_address);
 void set_remote_ip(const char * ip_address);
 void set_mac_addr(const char * mac_address);
+unsigned char parse_ip(const char * ip_address, unsigned int * ip_to_change);
 
 // Apply local IP and MAC-address to UDP driver
 void net_init(void);

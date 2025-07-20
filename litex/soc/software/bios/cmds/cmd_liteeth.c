@@ -7,6 +7,7 @@
 #include <generated/soc.h>
 
 #include <libliteeth/mdio.h>
+#include <libliteeth/udp.h>
 
 #include "../command.h"
 #include "../helpers.h"
@@ -193,3 +194,20 @@ static void eth_mac_addr_handler(int nb_params, char **params)
 }
 define_command(eth_mac_addr, eth_mac_addr_handler, "Set the mac address", LITEETH_CMDS);
 #endif
+
+static void eth_ping_handler(int nb_params, char **params)
+{
+    if (nb_params != 1) {
+	printf("ping <address>");
+	return;
+    }
+
+	// FIXME!!!
+    unsigned ip_[4];
+    unsigned ip = 0;
+    parse_ip(params[0], ip_);
+    ip = IPTOINT(ip_[0], ip_[1], ip_[2], ip_[3]);
+
+    send_ping(ip, 32);
+}
+define_command(ping, eth_ping_handler, "Ping the given ip address", LITEETH_CMDS);

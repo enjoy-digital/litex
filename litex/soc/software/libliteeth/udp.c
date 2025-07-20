@@ -118,6 +118,8 @@ struct icmp_header {
 	unsigned char type;
 	unsigned char code;
 	unsigned short checksum;
+	unsigned short identifier;
+	unsigned short sequence_number;
 } __attribute__((packed));
 
 struct icmp_frame {
@@ -132,7 +134,6 @@ struct ethernet_frame {
 		struct arp_frame arp;
 		struct udp_frame udp;
 		struct icmp_frame icmp;
-		struct ip_header ip;
 	} contents;
 } __attribute__((packed));
 
@@ -279,7 +280,7 @@ int udp_arp_resolve(uint32_t ip)
 	for(i=0;i<6;i++)
 		cached_mac[i] = 0;
 
-	for(tries=0;tries<100;tries++) {
+	for(tries=0;tries<3;tries++) {
 		/* Send an ARP request */
 		fill_eth_header(&txbuffer->frame.eth_header,
 				broadcast,
@@ -398,51 +399,112 @@ int udp_send(uint16_t src_port, uint16_t dst_port, uint32_t length)
 	return 1;
 }
 
+static int ping_seq_number = 0;
+
+int send_ping(uint32_t ip, unsigned short payload_length)
+{
+	if(!udp_arp_resolve(ip)) {
+		printf("ARP failed");
+		return -1;
+	}
+
+	fill_eth_header(&txbuffer->frame.eth_header,
+		cached_mac,
+		my_mac,
+		ETHERTYPE_IP);
+
+	struct icmp_frame *frm = &txbuffer->frame.contents.icmp;
+
+	frm->ip.version = IP_IPV4;
+	frm->ip.diff_services = 0;
+	frm->ip.total_length = htons(payload_length + sizeof(struct icmp_frame));
+	frm->ip.identification = htons(0);
+	frm->ip.fragment_offset = htons(IP_DONT_FRAGMENT);
+	frm->ip.ttl = IP_TTL;
+	frm->ip.proto = IP_PROTO_ICMP;
+	frm->ip.checksum = 0;
+	frm->ip.src_ip = htonl(my_ip);
+	frm->ip.dst_ip = htonl(ip);
+	frm->ip.checksum = htons(ip_checksum(
+		0, &frm->ip, sizeof(struct ip_header), 1
+	));
+
+	frm->icmp.type = ICMP_ECHO;
+	frm->icmp.code = 0;
+	frm->icmp.identifier = 0xbe7c;
+	frm->icmp.sequence_number = ping_seq_number++;
+	for (unsigned i=0; i<payload_length; i++)
+		frm->payload[i] = i;
+
+	frm->icmp.checksum = 0;
+	unsigned short r = ip_checksum(
+		0,
+		&frm->icmp,
+		payload_length + sizeof(struct icmp_header),
+		1
+	);
+	frm->icmp.checksum = htons(r);
+
+	txlen = payload_length + sizeof(struct ethernet_header) + sizeof(struct icmp_frame);
+	send_packet();
+
+	printf(" icmp_seq=%d", frm->icmp.sequence_number);
+}
+
 static void process_icmp(void)
 {
 	if (rxlen < (sizeof(struct ethernet_header) + sizeof(struct icmp_frame)))
 		return;
 
-	struct icmp_frame *frm = &rxbuffer->frame.contents.icmp;
+	const struct icmp_frame *rx_icmp = &rxbuffer->frame.contents.icmp;
+	struct icmp_frame *tx_icmp = &txbuffer->frame.contents.icmp;
 
-	if(ntohs(frm->ip.total_length) < sizeof(struct icmp_frame))
+	if(ntohs(rx_icmp->ip.total_length) < sizeof(struct icmp_frame))
 		return;
 
-	unsigned short length = ntohs(frm->ip.total_length) - sizeof(struct icmp_frame);
+	unsigned short length = ntohs(rx_icmp->ip.total_length) - sizeof(struct icmp_frame);
 
-	if(frm->icmp.type == ICMP_ECHO) {
+	if(rx_icmp->icmp.type == ICMP_ECHO) {
 		txbuffer->frame.eth_header.ethertype = htons(ETHERTYPE_IP);
 
-		txbuffer->frame.contents.ip.version = IP_IPV4;
-		txbuffer->frame.contents.ip.diff_services = 0;
-		txbuffer->frame.contents.ip.total_length = htons(length + sizeof(struct icmp_frame));
-		txbuffer->frame.contents.ip.identification = htons(0);
-		txbuffer->frame.contents.ip.fragment_offset = htons(IP_DONT_FRAGMENT);
-		txbuffer->frame.contents.ip.ttl = IP_TTL;
-		txbuffer->frame.contents.ip.proto = IP_PROTO_ICMP;
-		txbuffer->frame.contents.ip.checksum = 0;
-		txbuffer->frame.contents.ip.src_ip = htonl(my_ip);
-		txbuffer->frame.contents.ip.dst_ip = rxbuffer->frame.contents.udp.ip.src_ip;
-		txbuffer->frame.contents.ip.checksum = htons(ip_checksum(
-			0, &txbuffer->frame.contents.ip, sizeof(struct ip_header), 1
+		tx_icmp->ip.version = IP_IPV4;
+		tx_icmp->ip.diff_services = 0;
+		tx_icmp->ip.total_length = htons(length + sizeof(struct icmp_frame));
+		tx_icmp->ip.identification = htons(0);
+		tx_icmp->ip.fragment_offset = htons(IP_DONT_FRAGMENT);
+		tx_icmp->ip.ttl = IP_TTL;
+		tx_icmp->ip.proto = IP_PROTO_ICMP;
+		tx_icmp->ip.checksum = 0;
+		tx_icmp->ip.src_ip = htonl(my_ip);
+		tx_icmp->ip.dst_ip = rxbuffer->frame.contents.icmp.ip.src_ip;
+		tx_icmp->ip.checksum = htons(ip_checksum(
+			0, &tx_icmp->ip, sizeof(struct ip_header), 1
 		));
 
-		txbuffer->frame.contents.icmp.icmp.type = ICMP_ECHO_REPLY;
-		txbuffer->frame.contents.icmp.icmp.code = 0;
+		tx_icmp->icmp.type = ICMP_ECHO_REPLY;
+		tx_icmp->icmp.code = 0;
+		tx_icmp->icmp.identifier = rx_icmp->icmp.identifier;
+		tx_icmp->icmp.sequence_number = rx_icmp->icmp.sequence_number;
 		for (unsigned i=0; i<length; i++)
-			txbuffer->frame.contents.icmp.payload[i] = rxbuffer->frame.contents.icmp.payload[i];
+			tx_icmp->payload[i] = rx_icmp->payload[i];
 
-		txbuffer->frame.contents.icmp.icmp.checksum = 0;
+		tx_icmp->icmp.checksum = 0;
 		unsigned short r = ip_checksum(
 			0,
-			&txbuffer->frame.contents.icmp.icmp,
+			&tx_icmp->icmp,
 			length + sizeof(struct icmp_header),
 			1
 		);
-		txbuffer->frame.contents.icmp.icmp.checksum = htons(r);
+		tx_icmp->icmp.checksum = htons(r);
 
 		txlen = length + sizeof(struct ethernet_header) + sizeof(struct icmp_frame);
 		send_packet();
+	} else if (rx_icmp->icmp.type == ICMP_ECHO_REPLY) {
+		uint8_t *tmp = (uint8_t *)(&rx_icmp->ip.src_ip);
+		printf(
+			"reply from %d.%d.%d.%d: identifier=0x%04x icmp_seq=%d\n",
+			tmp[3], tmp[2], tmp[1], tmp[0], rx_icmp->icmp.identifier, rx_icmp->icmp.sequence_number
+		);
 	}
 }
 
@@ -532,7 +594,7 @@ static void process_frame(void)
 	if (ntohs(rxbuffer->frame.eth_header.ethertype) == ETHERTYPE_ARP) {
 		process_arp();
 	} else if (ntohs(rxbuffer->frame.eth_header.ethertype) == ETHERTYPE_IP) {
-		struct ip_header *hdr = &rxbuffer->frame.contents.ip;
+		struct ip_header *hdr = &rxbuffer->frame.contents.udp.ip;
 		if(hdr->version != IP_IPV4)
 			return;
 		if(ntohl(hdr->dst_ip) != my_ip)

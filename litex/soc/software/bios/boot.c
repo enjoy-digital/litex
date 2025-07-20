@@ -334,9 +334,7 @@ const char *filename, char *buffer)
 	return size;
 }
 
-#ifdef ETH_DYNAMIC_IP
-
-static uint8_t parse_ip(const char * ip_address, unsigned int * ip_to_change)
+uint8_t parse_ip(const char * ip_address, unsigned int * ip_to_change)
 {
 	uint8_t n = 0;
 	uint8_t k = 0;
@@ -379,6 +377,8 @@ static uint8_t parse_ip(const char * ip_address, unsigned int * ip_to_change)
 	}
 	return 0;
 }
+
+#ifdef ETH_DYNAMIC_IP
 
 void set_local_ip(const char * ip_address)
 {
