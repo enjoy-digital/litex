@@ -217,6 +217,7 @@ class SyncFIFO(_FIFOWrapper):
                 depth      = depth)
             self.depth = self.fifo.depth
             self.level = self.fifo.level
+            self.writable = self.fifo.writable
         elif depth == 1:
             buf = Buffer(layout)
             self.submodules += buf
