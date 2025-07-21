@@ -252,6 +252,8 @@ static void process_arp(void)
 			tx_arp->protosize = 4;
 			tx_arp->opcode = htons(ARP_OPCODE_REPLY);
 			tx_arp->sender_ip = htonl(my_ip);
+			for (int i = 0; i < sizeof(tx_arp->padding); i++)
+				tx_arp->padding[i] = 0;
 			for(i=0;i<6;i++)
 				tx_arp->sender_mac[i] = my_mac[i];
 			tx_arp->target_ip = htonl(ntohl(rx_arp->sender_ip));
@@ -294,6 +296,8 @@ int udp_arp_resolve(uint32_t ip)
 		arp->protosize = 4;
 		arp->opcode = htons(ARP_OPCODE_REQUEST);
 		arp->sender_ip = htonl(my_ip);
+		for (int i = 0; i < sizeof(arp->padding); i++)
+			arp->padding[i] = 0;
 		for(i=0;i<6;i++)
 			arp->sender_mac[i] = my_mac[i];
 		arp->target_ip = htonl(ip);
@@ -400,6 +404,7 @@ int udp_send(uint16_t src_port, uint16_t dst_port, uint32_t length)
 }
 
 static unsigned ping_seq_number = 0;
+static uint64_t ping_ts_send = 0;
 
 int send_ping(uint32_t ip, unsigned short payload_length)
 {
@@ -434,7 +439,7 @@ int send_ping(uint32_t ip, unsigned short payload_length)
 	tx_icmp->icmp.type = ICMP_ECHO;
 	tx_icmp->icmp.code = 0;
 	tx_icmp->icmp.identifier = 0xbe7c;
-	tx_icmp->icmp.sequence_number = ping_seq_number++;
+	tx_icmp->icmp.sequence_number = ++ping_seq_number;
 	for (unsigned i=0; i<payload_length; i++)
 		tx_icmp->payload[i] = i;
 
@@ -450,8 +455,20 @@ int send_ping(uint32_t ip, unsigned short payload_length)
 	txlen = payload_length + sizeof(struct ethernet_header) + sizeof(struct icmp_frame);
 	send_packet();
 
-	printf(" icmp_seq=%d", tx_icmp->icmp.sequence_number);
-	return 0;
+	ping_ts_send = 1;
+#ifdef CSR_TIMER0_UPTIME_CYCLES_ADDR
+	timer0_uptime_latch_write(1);
+	ping_ts_send = timer0_uptime_cycles_read();
+#endif
+
+	// Do we get a reply ?
+	for(unsigned timeout = 0; timeout < 10000; timeout++) {
+		udp_service();
+		if(ping_ts_send == 0)
+			return 0;
+	}
+
+	return -2;
 }
 
 static void process_icmp(void)
@@ -468,7 +485,12 @@ static void process_icmp(void)
 	unsigned short length = ntohs(rx_icmp->ip.total_length) - sizeof(struct icmp_frame);
 
 	if(rx_icmp->icmp.type == ICMP_ECHO) {
-		txbuffer->frame.eth_header.ethertype = htons(ETHERTYPE_IP);
+		fill_eth_header(
+			&txbuffer->frame.eth_header,
+			rxbuffer->frame.eth_header.srcmac,
+			my_mac,
+			ETHERTYPE_IP
+		);
 
 		tx_icmp->ip.version = IP_IPV4;
 		tx_icmp->ip.diff_services = 0;
@@ -504,10 +526,33 @@ static void process_icmp(void)
 		send_packet();
 	} else if (rx_icmp->icmp.type == ICMP_ECHO_REPLY) {
 		uint8_t *tmp = (uint8_t *)(&rx_icmp->ip.src_ip);
-		printf(
-			"reply from %d.%d.%d.%d: identifier=0x%04x icmp_seq=%d\n",
-			tmp[3], tmp[2], tmp[1], tmp[0], rx_icmp->icmp.identifier, rx_icmp->icmp.sequence_number
-		);
+		printf("%d bytes from %d.%d.%d.%d: ", length, tmp[0], tmp[1], tmp[2], tmp[3]);
+
+		if (rx_icmp->icmp.sequence_number != ping_seq_number) {
+			printf("invalid sequence number %d", rx_icmp->icmp.sequence_number);
+			return;
+		}
+		if (rx_icmp->icmp.identifier != 0xbe7c) {
+			printf("invalid identifier %d", rx_icmp->icmp.identifier);
+			return;
+		}
+
+		printf("icmp_seq=%d", rx_icmp->icmp.sequence_number);
+
+		#ifdef CSR_TIMER0_UPTIME_CYCLES_ADDR
+			uint64_t ping_ts_receive = 0;
+			timer0_uptime_latch_write(1);
+			ping_ts_receive = timer0_uptime_cycles_read();
+			int dt_us = ping_ts_receive - ping_ts_send;
+			dt_us /= (CONFIG_CLOCK_FREQUENCY / 1000 / 1000);
+			if (dt_us >= 10000)
+				printf(" time=%d ms", dt_us / 1000);
+			else
+				printf(" time=%d us", dt_us);
+		#endif
+
+		ping_ts_send = 0;
+		printf("\n");
 	}
 }
 
