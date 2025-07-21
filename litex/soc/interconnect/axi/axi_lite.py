@@ -222,11 +222,18 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_re=
         )
     ),
     fsm.act("LATCH-READ-RESPONSE",
-        NextValue(port_dat_r_latched, port_dat_r),
-        NextState("SEND-READ-RESPONSE")
+        NextValue(last_was_read, 1),
+        axi_lite.r.data.eq(port_dat_r),
+        axi_lite.r.resp.eq(RESP_OKAY),
+        axi_lite.r.valid.eq(1),
+        If(axi_lite.r.ready,
+            NextState("START-TRANSACTION")
+        ).Else(
+            NextValue(port_dat_r_latched, port_dat_r),
+            NextState("SEND-READ-RESPONSE")
+        )
     ),
     fsm.act("SEND-READ-RESPONSE",
-        NextValue(last_was_read, 1),
         # As long as we have correct address port.dat_r will be valid.
         axi_lite.r.data.eq(port_dat_r_latched),
         axi_lite.r.resp.eq(RESP_OKAY),
