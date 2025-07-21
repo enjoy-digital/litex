@@ -160,7 +160,7 @@ class AXILiteOffset(LiteXModule):
 
 # AXI-Lite to Simple Bus ---------------------------------------------------------------------------
 
-def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_re=None, port_we=None):
+def axi_lite_to_simple(axi_lite, port_adr, port_dat_r=None, port_dat_w=None, port_re=None, port_we=None):
     """Connection of AXILite to simple bus with 1-cycle latency, such as CSR bus or Memory port"""
     bus_data_width = axi_lite.data_width
     adr_shift      = log2_int(bus_data_width//8)
@@ -168,7 +168,12 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_re=
     do_write       = Signal()
     last_was_read  = Signal()
 
+    assert (port_dat_w is not None) or (port_dat_r is not None)
+
     port_dat_r_latched = Signal(axi_lite.data_width)
+
+    _aw_valid = axi_lite.aw.valid if port_dat_w is not None else C(0)
+    _ar_valid = axi_lite.ar.valid if port_dat_r is not None else C(0)
 
     comb = []
     if port_dat_w is not None:
@@ -188,75 +193,84 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r, port_dat_w=None, port_re=
     fsm = FSM()
     fsm.act("START-TRANSACTION",
         # If the last access was a read, do a write, and vice versa.
-        If(axi_lite.aw.valid & axi_lite.ar.valid,
+        If(_aw_valid & _ar_valid,
             do_write.eq(last_was_read),
             do_read.eq(~last_was_read),
         ).Else(
-            do_write.eq(axi_lite.aw.valid),
-            do_read.eq(axi_lite.ar.valid),
+            do_write.eq(_aw_valid),
+            do_read.eq(_ar_valid),
         ),
         # Start reading/writing immediately not to waste a cycle.
-        axi_lite.aw.ready.eq(last_was_read  | ~axi_lite.ar.valid),
-        axi_lite.ar.ready.eq(~last_was_read | ~axi_lite.aw.valid),
-        If(do_write,
-            port_adr.eq(axi_lite.aw.addr[adr_shift:]),
+        axi_lite.aw.ready.eq(last_was_read  | ~_ar_valid),
+        axi_lite.ar.ready.eq(~last_was_read | ~_aw_valid),
+    )
+
+    if port_dat_r is not None:
+        fsm.act("START-TRANSACTION",
+            If(do_read,
+                port_adr.eq(axi_lite.ar.addr[adr_shift:]),
+                NextState("LATCH-READ-RESPONSE"),
+            )
+        )
+        fsm.act("LATCH-READ-RESPONSE",
+            NextValue(last_was_read, 1),
+            axi_lite.r.data.eq(port_dat_r),
+            axi_lite.r.resp.eq(RESP_OKAY),
+            axi_lite.r.valid.eq(1),
+            If(axi_lite.r.ready,
+                NextState("START-TRANSACTION")
+            ).Else(
+                NextValue(port_dat_r_latched, port_dat_r),
+                NextState("SEND-READ-RESPONSE")
+            )
+        )
+        fsm.act("SEND-READ-RESPONSE",
+            # As long as we have correct address port.dat_r will be valid.
+            axi_lite.r.data.eq(port_dat_r_latched),
+            axi_lite.r.resp.eq(RESP_OKAY),
+            axi_lite.r.valid.eq(1),
+            If(axi_lite.r.ready,
+                NextState("START-TRANSACTION")
+            )
+        )
+
+    if port_dat_w is not None:
+        fsm.act("START-TRANSACTION",
+            If(do_write,
+                port_adr.eq(axi_lite.aw.addr[adr_shift:]),
+                If(axi_lite.w.valid,
+                    axi_lite.w.ready.eq(1),
+                    NextState("SEND-WRITE-RESPONSE")
+                ).Else(
+                    # write data is not yet available - register the address
+                    # and wait until the master provides the data
+                    NextValue(port_adr_reg, port_adr),
+                    NextState("WAIT-FOR-WRITE-DATA")
+                )
+            )
+        )
+        fsm.act("WAIT-FOR-WRITE-DATA",
+            port_adr.eq(port_adr_reg),
             If(axi_lite.w.valid,
                 axi_lite.w.ready.eq(1),
                 NextState("SEND-WRITE-RESPONSE")
-            ).Else(
-                # write data is not yet available - register the address
-                # and wait until the master provides the data
-                NextValue(port_adr_reg, port_adr),
-                NextState("WAIT-FOR-WRITE-DATA")
             )
-        ).Elif(do_read,
-            port_adr.eq(axi_lite.ar.addr[adr_shift:]),
-            NextState("LATCH-READ-RESPONSE"),
         )
-    )
-    fsm.act("WAIT-FOR-WRITE-DATA",
-        port_adr.eq(port_adr_reg),
-        If(axi_lite.w.valid,
-            axi_lite.w.ready.eq(1),
-            NextState("SEND-WRITE-RESPONSE")
+        fsm.act("SEND-WRITE-RESPONSE",
+            NextValue(last_was_read, 0),
+            axi_lite.b.valid.eq(1),
+            axi_lite.b.resp.eq(RESP_OKAY),
+            If(axi_lite.b.ready,
+                NextState("START-TRANSACTION")
+            )
         )
-    ),
-    fsm.act("LATCH-READ-RESPONSE",
-        NextValue(last_was_read, 1),
-        axi_lite.r.data.eq(port_dat_r),
-        axi_lite.r.resp.eq(RESP_OKAY),
-        axi_lite.r.valid.eq(1),
-        If(axi_lite.r.ready,
-            NextState("START-TRANSACTION")
-        ).Else(
-            NextValue(port_dat_r_latched, port_dat_r),
-            NextState("SEND-READ-RESPONSE")
-        )
-    ),
-    fsm.act("SEND-READ-RESPONSE",
-        # As long as we have correct address port.dat_r will be valid.
-        axi_lite.r.data.eq(port_dat_r_latched),
-        axi_lite.r.resp.eq(RESP_OKAY),
-        axi_lite.r.valid.eq(1),
-        If(axi_lite.r.ready,
-            NextState("START-TRANSACTION")
-        )
-    )
-    fsm.act("SEND-WRITE-RESPONSE",
-        NextValue(last_was_read, 0),
-        axi_lite.b.valid.eq(1),
-        axi_lite.b.resp.eq(RESP_OKAY),
-        If(axi_lite.b.ready,
-            NextState("START-TRANSACTION")
-        )
-    )
     return fsm, comb
 
 # AXI-Lite SRAM ------------------------------------------------------------------------------------
 
 class AXILiteSRAM(LiteXModule):
     autocsr_exclude = {"mem"}
-    def __init__(self, mem_or_size, read_only=None, init=None, bus=None, name=None):
+    def __init__(self, mem_or_size, read_only=None, write_only=None, init=None, bus=None, name=None):
         if bus is None:
             bus = AXILiteInterface()
         self.bus = bus
@@ -294,7 +308,7 @@ class AXILiteSRAM(LiteXModule):
         fsm, comb = axi_lite_to_simple(
             axi_lite   = self.bus,
             port_adr   = port.adr,
-            port_dat_r = port.dat_r,
+            port_dat_r = port.dat_r if not write_only else None,
             port_dat_w = port.dat_w if not read_only else None,
             port_we    = port.we if not read_only else None)
         self.submodules.fsm = fsm
