@@ -134,10 +134,10 @@ class AXIInterface:
         return ios
 
     def connect(self, slave, **kwargs):
-        return connect_axi(self, slave, **kwargs)
+        return connect_axi(self, slave, axi_full=True, **kwargs)
 
     def layout_flat(self):
-        return list(axi_layout_flat(self))
+        return list(axi_layout_flat(self, axi_full=True))
 
 # AXI Remapper -------------------------------------------------------------------------------------
 
