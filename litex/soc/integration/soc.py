@@ -419,6 +419,7 @@ class SoCBusHandler(LiteXModule):
                     data_width    = self.data_width,
                     address_width = self.address_width,
                     addressing    = self.addressing,
+                    mode          = interface.mode,
                 )
                 if direction == "m2s":
                     master, slave = interface, adapted_interface
@@ -475,6 +476,7 @@ class SoCBusHandler(LiteXModule):
             data_width    = interface.data_width,
             address_width = interface.address_width,
             addressing    = interface.addressing,
+            mode          = interface.mode,
         )
 
         self.submodules += remapper_cls(interface, adapted_interface, origin, size)
@@ -502,6 +504,7 @@ class SoCBusHandler(LiteXModule):
             data_width    = interface.data_width,
             address_width = interface.address_width,
             addressing    = interface.addressing,
+            mode          = interface.mode,
         )
 
         self.submodules += offset_cls(adapted_interface, interface, offset)
@@ -2161,7 +2164,7 @@ class LiteXSoC(SoC):
         spiflash = LiteSPI(spiflash_phy, mmap_endianness=self.cpu.endianness, **kwargs)
         spiflash.add_module(name="phy", module=spiflash_phy)
         self.add_module(name=name, module=spiflash)
-        spiflash_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size)
+        spiflash_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size, mode=spiflash.bus.mode + "x")
         self.bus.add_slave(name=name, slave=spiflash.bus, region=spiflash_region, strip_origin=True)
 
         if hasattr(spiflash, "ev") and self.irq.enabled:
@@ -2213,7 +2216,7 @@ class LiteXSoC(SoC):
         spiram = LiteSPI(spiram_phy, mmap_endianness=self.cpu.endianness, with_mmap_write=True, **kwargs)
         spiram.add_module(name="phy", module=spiram_phy)
         self.add_module(name=name, module=spiram)
-        spiram_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size)
+        spiram_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size, mode="rwx")
         
         # Create Wishbone Slave.
         wb_spiram = wishbone.Interface(data_width=32, address_width=32, addressing="word")

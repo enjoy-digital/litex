@@ -45,7 +45,7 @@ CTI_BURST_END          = 0b111
 
 
 class Interface(Record):
-    def __init__(self, data_width=32, adr_width=30, bursting=False, addressing="word", **kwargs):
+    def __init__(self, data_width=32, adr_width=30, bursting=False, addressing="word", mode="rw", **kwargs):
         self.data_width = data_width
         if kwargs.get("address_width", False):
             # FIXME: Improve or switch Wishbone to byte addressing instead of word addressing.
@@ -55,6 +55,8 @@ class Interface(Record):
         self.bursting      = bursting
         assert addressing in ["word", "byte"]
         self.addressing    = addressing
+        assert mode in ["rw", "r", "w"]
+        self.mode          = mode
         Record.__init__(self, set_layout_parameters(_layout,
             adr_width  = self.adr_width,
             data_width = self.data_width,
@@ -67,7 +69,7 @@ class Interface(Record):
 
     @staticmethod
     def like(other):
-        return Interface(data_width=other.data_width, address_width=other.address_width, addressing=other.addressing)
+        return Interface(data_width=other.data_width, address_width=other.address_width, addressing=other.addressing, mode=other.mode)
 
     def _do_transaction(self):
         yield self.cyc.eq(1)
@@ -473,9 +475,17 @@ class Converter(LiteXModule):
 class SRAM(LiteXModule):
     autocsr_exclude = {"mem"}
     def __init__(self, mem_or_size, read_only=None, write_only=None, init=None, bus=None, name=None):
+        if read_only:
+            mode = "r"
+        elif write_only:
+            mode = "w"
+        else:
+            mode = "rw"
         if bus is None:
-            bus = Interface(data_width=32, address_width=32, addressing="word")
-        assert bus.addressing == "word" # FIXME: Test/Remove byte addressing limitation.
+            bus = Interface(data_width=32, address_width=32, addressing="word", mode=mode)
+        else:
+            bus.mode = mode
+            assert bus.addressing == "word" # FIXME: Test/Remove byte addressing limitation.
         self.bus = bus
         bus_data_width = len(self.bus.dat_r)
         if isinstance(mem_or_size, Memory):

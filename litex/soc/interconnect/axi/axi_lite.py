@@ -46,12 +46,13 @@ def r_lite_description(data_width):
     ]
 
 class AXILiteInterface:
-    def __init__(self, data_width=32, address_width=32, addressing="byte", clock_domain="sys", name=None, bursting=False):
+    def __init__(self, data_width=32, address_width=32, addressing="byte", clock_domain="sys", name=None, bursting=False, mode="rw"):
         # Parameters checks.
         # ------------------
         assert addressing == "byte"
         if bursting is not False:
             raise NotImplementedError("AXI-Lite does not support bursting")
+        assert mode in ["rw", "r", "w"]
 
         # Parameters.
         # -----------
@@ -60,6 +61,7 @@ class AXILiteInterface:
         self.bursting      = bursting
         self.addressing    = addressing
         self.clock_domain  = clock_domain
+        self.mode          = mode
 
         # Channels.
         # ---------
@@ -271,8 +273,16 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r=None, port_dat_w=None, por
 class AXILiteSRAM(LiteXModule):
     autocsr_exclude = {"mem"}
     def __init__(self, mem_or_size, read_only=None, write_only=None, init=None, bus=None, name=None):
+        if read_only:
+            mode = "r"
+        elif write_only:
+            mode = "w"
+        else:
+            mode = "rw"
         if bus is None:
-            bus = AXILiteInterface()
+            bus = AXILiteInterface(mode=mode)
+        else:
+            bus.mode = mode
         self.bus = bus
 
         bus_data_width = len(self.bus.r.data)
@@ -787,10 +797,10 @@ class AXILiteDecoder(LiteXModule):
 
         # Decode slave addresses.
         for i, (decoder, bus) in enumerate(slaves):
-            self.comb += [
-                slave_sel_dec["write"][i].eq(decoder(master.aw.addr[addr_shift:])),
-                slave_sel_dec["read"][i].eq(decoder(master.ar.addr[addr_shift:])),
-            ]
+            if "w" in bus.mode:
+                self.comb += slave_sel_dec["write"][i].eq(decoder(master.aw.addr[addr_shift:]))
+            if "r" in bus.mode:
+                self.comb += slave_sel_dec["read"][i].eq(decoder(master.ar.addr[addr_shift:]))
 
         # Change the current selection only when we've got all responses.
         for channel in locks.keys():
@@ -808,6 +818,9 @@ class AXILiteDecoder(LiteXModule):
         # Connect master->slaves signals except valid/ready.
         for i, (_, slave) in enumerate(slaves):
             for channel, name, direction in master.layout_flat():
+                # directions[channel][0] will be "w" or "r".
+                if directions[channel][0] not in slave.mode:
+                    continue
                 if direction == DIR_M_TO_S:
                     src = get_sig(master, channel, name)
                     dst = get_sig(slave, channel, name)
@@ -822,11 +835,14 @@ class AXILiteDecoder(LiteXModule):
                 dst = get_sig(master, channel, name)
                 masked = []
                 for i, (_, slave) in enumerate(slaves):
+                    if directions[channel][0] not in slave.mode:
+                        continue
                     src = get_sig(slave, channel, name)
                     # Mask depending on channel.
                     mask = Replicate(slave_sel[directions[channel]][i], len(dst))
                     masked.append(src & mask)
-                self.comb += dst.eq(reduce(or_, masked))
+                if len(masked) > 0:
+                    self.comb += dst.eq(reduce(or_, masked))
 
 # AXI-Lite Interconnect ----------------------------------------------------------------------------
 
