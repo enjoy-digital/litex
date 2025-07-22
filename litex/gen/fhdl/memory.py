@@ -47,7 +47,9 @@ def _memory_generate_verilog(name, memory, namespace, add_data_file):
     r += "//" + "-"*78 + "\n"
     for n, port in enumerate(memory.ports):
         r += f"// Port {n} | "
-        if port.async_read:
+        if port.dat_r is None:
+            r += "Read: ----  | "
+        elif port.async_read:
             r += "Read: Async | "
         else:
             r += "Read: Sync  | "
@@ -84,7 +86,7 @@ def _memory_generate_verilog(name, memory, namespace, add_data_file):
     # --------------------------
     for n, port in enumerate(memory.ports):
         # No Intermediate Signal for Async Read.
-        if port.async_read:
+        if port.dat_r is None or port.async_read:
             continue
 
         # Create Address Register in Write-First mode.
@@ -121,7 +123,7 @@ def _memory_generate_verilog(name, memory, namespace, add_data_file):
                 r += f"\t\t{_get_name(memory)}[{_get_name(port.adr)}] <= {_get_name(port.dat_w)};\n"
 
         # Read Logic.
-        if not port.async_read:
+        if port.dat_r is not None and not port.async_read:
             # In Write-First mode, Read from Address Register.
             if port.mode in [WRITE_FIRST]:
                 rd = f"\t{_get_name(adr_regs[n])} <= {_get_name(port.adr)};\n"
@@ -146,6 +148,9 @@ def _memory_generate_verilog(name, memory, namespace, add_data_file):
     # Ports Read Mapping.
     # -------------------
     for n, port in enumerate(memory.ports):
+        if port.dat_r is None:
+            continue
+
         # Direct (Asynchronous) Read on Async-Read mode.
         if port.async_read:
             r += f"assign {_get_name(port.dat_r)} = {_get_name(memory)}[{_get_name(port.adr)}];\n"
