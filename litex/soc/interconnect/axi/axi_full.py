@@ -62,13 +62,15 @@ class AXIInterface:
         w_user_width  = 0,
         b_user_width  = 0,
         ar_user_width = 0,
-        r_user_width  = 0
+        r_user_width  = 0,
+        mode          = "rw"
     ):
         # Parameters checks.
         # ------------------
         assert data_width in [8, 16, 32, 64, 128, 256, 512, 1024]
         assert addressing in ["byte"]
         assert version    in ["axi3", "axi4"]
+        assert mode in ["rw", "r", "w"]
 
         # Parameters.
         # -----------
@@ -79,6 +81,7 @@ class AXIInterface:
         self.version       = version
         self.clock_domain  = clock_domain
         self.bursting      = bursting # FIXME: Use or add check.
+        self.mode          = mode
 
         # Write Channels.
         # ---------------

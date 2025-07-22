@@ -65,6 +65,14 @@ def connect_axi(master, slave, keep=None, omit=None, axi_full=False):
         "ar": "master",
         "r" : "slave",
     }
+    if "r" not in master.mode or "r" not in slave.mode:
+        channel_modes.pop("r")
+        channel_modes.pop("ar")
+    if "w"  not in master.mode or "w" not in slave.mode:
+        channel_modes.pop("w")
+        channel_modes.pop("aw")
+        channel_modes.pop("b")
+    assert len(channel_modes) > 0, "No AXI channels to connect."
     r = []
     if omit is None:
         omit = set()
@@ -111,6 +119,13 @@ def connect_to_pads(bus, pads, mode="master", axi_full=False):
         "ar": mode,
         "r" : swap_mode(mode),
     }
+    if "r" not in bus.mode:
+        channel_modes.pop("r")
+        channel_modes.pop("ar")
+    if "w" not in bus.mode:
+        channel_modes.pop("w")
+        channel_modes.pop("aw")
+        channel_modes.pop("b")
     # Loop to connect each channel.
     for channel, mode in channel_modes.items():
         ch = getattr(bus, channel)
@@ -160,9 +175,18 @@ def axi_layout_flat(axi, axi_full=False):
         if channel in ["b", "r"]:
             return {DIR_M_TO_S: DIR_S_TO_M, DIR_S_TO_M: DIR_M_TO_S}[direction]
         return direction
+    
+    channels = []
+    if "r" in axi.mode:
+        channels.append("ar")
+        channels.append("r")
+    if "w" in axi.mode:
+        channels.append("aw")
+        channels.append("w")
+        channels.append("b")
 
     # Iterate over each channel.
-    for ch in ["aw", "w", "b", "ar", "r"]:
+    for ch in channels:
         channel = getattr(axi, ch)
 
         # Iterate over each group in the channel's layout.

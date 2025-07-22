@@ -419,6 +419,7 @@ class SoCBusHandler(LiteXModule):
                     data_width    = self.data_width,
                     address_width = self.address_width,
                     addressing    = self.addressing,
+                    mode          = interface.mode,
                 )
                 if direction == "m2s":
                     master, slave = interface, adapted_interface
@@ -2149,7 +2150,7 @@ class LiteXSoC(SoC):
         spiflash = LiteSPI(spiflash_phy, mmap_endianness=self.cpu.endianness, **kwargs)
         spiflash.add_module(name="phy", module=spiflash_phy)
         self.add_module(name=name, module=spiflash)
-        spiflash_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size)
+        spiflash_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size, mode=spiflash.bus.mode + "x")
         self.bus.add_slave(name=name, slave=spiflash.bus, region=spiflash_region, strip_origin=True)
 
         if hasattr(spiflash, "ev") and self.irq.enabled:
