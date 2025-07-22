@@ -42,7 +42,7 @@ AXSIZE = {
 
 # AXI Connection Helpers ---------------------------------------------------------------------------
 
-def connect_axi(master, slave, keep=None, omit=None):
+def connect_axi(master, slave, keep=None, omit=None, axi_full=False):
     """
     Connect AXI master to slave channels.
 
@@ -66,12 +66,23 @@ def connect_axi(master, slave, keep=None, omit=None):
         "r" : "slave",
     }
     r = []
+    if omit is None:
+        omit = set()
+    elif isinstance(omit, list):
+        omit = set(omit)
+    omit.add("first")
+    omit.add("last")
+
     for channel, mode in channel_modes.items():
+        if axi_full and (channel in ["w", "r"]):
+            new_omit = omit - {"last"}
+        else:
+            new_omit = omit 
         if mode == "master":
             m, s = getattr(master, channel), getattr(slave, channel)
         else:
             s, m = getattr(master, channel), getattr(slave, channel)
-        r.extend(m.connect(s, keep=keep, omit=omit))
+        r.extend(m.connect(s, keep=keep, omit=new_omit))
     return r
 
 def connect_to_pads(bus, pads, mode="master", axi_full=False):
@@ -127,7 +138,7 @@ def connect_to_pads(bus, pads, mode="master", axi_full=False):
                 r.append(pad.eq(sig))
     return r
 
-def axi_layout_flat(axi):
+def axi_layout_flat(axi, axi_full=False):
     """
     Generator that yields a flat layout of each AXI signal's channel, name, and direction.
 
@@ -156,12 +167,21 @@ def axi_layout_flat(axi):
 
         # Iterate over each group in the channel's layout.
         for group in channel.layout:
+            if (ch not in ["w", "r"]) or not axi_full:
+                omit_names = ["first", "last"]
+            else:
+                omit_names = ["first"]
+
             if len(group) == 3:
                 name, _, direction = group
+                if name in omit_names:
+                    continue
                 yield ch, name, get_dir(ch, direction)
             else:
                 _, subgroups = group
                 # Iterate over each subgroup in the group.
                 for subgroup in subgroups:
                     name, _, direction = subgroup
+                    if name in omit_names:
+                        continue
                     yield ch, name, get_dir(ch, direction)
