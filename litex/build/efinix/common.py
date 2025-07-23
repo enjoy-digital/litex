@@ -91,9 +91,7 @@ class EfinixClkInputImpl(LiteXModule):
         self.name = f"clk_input{self.n}"
         if isinstance(o, Signal):
             clk_out_name = f"{o.name_override}{self.name}_clk"
-            platform.add_extension([(clk_out_name, 0, Pins(1))])
-            platform.toolchain.excluded_ios.append(clk_out_name)
-            clk_out                        = platform.request(clk_out_name)
+            clk_out = platform.add_iface_io(clk_out_name)
             platform.clks[o.name_override] = clk_out_name
         else:
             clk_out      = platform.add_iface_io(o) # FIXME.
@@ -207,8 +205,7 @@ class EfinixDifferentialOutputImpl(LiteXModule):
             # lvds block needs TXYY
             io_pad = io_pad.replace("TXP", "TX")
 
-        platform.add_extension([(io_name, 0, Pins(1))])
-        i_data = platform.request(io_name)
+        i_data = platform.add_iface_io(io_name)
 
         self.comb += i_data.eq(i)
         block = {
@@ -223,7 +220,6 @@ class EfinixDifferentialOutputImpl(LiteXModule):
         platform.toolchain.ifacewriter.blocks.append(block)
         platform.toolchain.excluded_ios.append(platform.get_pin(o_p))
         platform.toolchain.excluded_ios.append(platform.get_pin(o_n))
-        platform.toolchain.excluded_ios.append(i_data)
 
 class EfinixDifferentialOutput:
     @staticmethod
@@ -252,14 +248,9 @@ class EfinixDifferentialInputImpl(LiteXModule):
             # lvds block needs RXYY
             io_pad = io_pad.replace("RXP", "RX")
 
-        platform.add_extension([
-            (io_name,           0, Pins(1)),
-            (f"{io_name}_ena",  0, Pins(1)),
-            (f"{io_name}_term", 0, Pins(1)),
-        ])
-        o_data = platform.request(io_name)
-        i_ena  = platform.request(io_name + "_ena")
-        i_term = platform.request(io_name + "_term")
+        o_data = platform.add_iface_io(io_name)
+        i_ena  = platform.add_iface_io(io_name + "_ena")
+        i_term = platform.add_iface_io(io_name + "_term")
 
         self.comb += [
            o.eq(o_data),
@@ -281,9 +272,6 @@ class EfinixDifferentialInputImpl(LiteXModule):
         platform.toolchain.ifacewriter.blocks.append(block)
         platform.toolchain.excluded_ios.append(platform.get_pin(i_p))
         platform.toolchain.excluded_ios.append(platform.get_pin(i_n))
-        platform.toolchain.excluded_ios.append(o_data)
-        platform.toolchain.excluded_ios.append(i_term)
-        platform.toolchain.excluded_ios.append(i_ena)
 
 class EfinixDifferentialInput:
     @staticmethod
