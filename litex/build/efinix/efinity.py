@@ -52,7 +52,10 @@ def _add_custom_params(parent, params):
 # Efinity Toolchain --------------------------------------------------------------------------------
 
 class EfinityToolchain(GenericToolchain):
-    attr_translate = {}
+    attr_translate = {
+        "keep":             ("syn_keep", "true"),
+        "no_retiming":      ("async_reg", "true"),
+    }
 
     def __init__(self, efinity_path):
         super().__init__()
