@@ -99,6 +99,8 @@ class EfinityToolchain(GenericToolchain):
         if efx_full_memory_we or platform.family == "Trion":
             FullMemoryWE()(fragment)
 
+        platform.constraint_manager.hide = self.excluded_ios
+
         return GenericToolchain.build(self, platform, fragment, **kwargs)
 
     # Timing Constraints (.sdc) --------------------------------------------------------------------
@@ -139,21 +141,6 @@ class EfinityToolchain(GenericToolchain):
         return (self._build_name + ".sdc", "SDC")
 
     # Peripheral configuration (.xml) --------------------------------------------------------------
-
-    def get_pin_direction(self, pinname):
-        pins = self.platform.constraint_manager.get_io_signals()
-        for pin in sorted(pins, key=lambda x: x.duid):
-            # Better idea ???
-            if (pinname.split("[")[0] == pin.name):
-                return pin.direction
-        return "Unknown"
-
-    def _create_gpio_instance(self, sig, pins):
-        l = ""
-        if len(pins) > 1:
-            l = ",{},0".format(len(pins) - 1)
-        d = self.get_pin_direction(sig)
-        return 'design.create_{d}_gpio("{name}"{len})'.format(d=d, name=sig, len=l)
 
     def _format_constraint(self, c, signame, fmt_r):
         # IO location constraints
@@ -227,17 +214,8 @@ class EfinityToolchain(GenericToolchain):
 
         # GPIO
         for sig, pins, others, resname in self.named_sc:
-            excluded = False
-            for excluded_io in self.excluded_ios:
-                if isinstance(excluded_io, str):
-                    if sig == excluded_io:
-                        excluded = True
-                elif isinstance(excluded_io, Signal):
-                    if sig == excluded_io.name:
-                        excluded = True
-            if excluded:
+            if pins[0] == 'X':
                 continue
-            inst.append(self._create_gpio_instance(sig, pins))
             if len(pins) > 1:
                 for i, p in enumerate(pins):
                     conf.append(self._format_conf_constraint("{}[{}]".format(sig, i), p, others, resname))
@@ -285,7 +263,9 @@ class EfinityToolchain(GenericToolchain):
         add    = "\n".join(self.additional_iface_commands)
         footer = self.ifacewriter.footer()
 
-        tools.write_to_file("iface.py", header + iobank + gen + gpio + add + footer)
+        tools.write_to_file(f"{self._build_name}.isf", gpio)
+
+        tools.write_to_file("iface.py", header + iobank + gen + add + footer)
 
     # Project configuration (.xml) -----------------------------------------------------------------
 
@@ -311,7 +291,8 @@ class EfinityToolchain(GenericToolchain):
         # Add Design Info.
         design_info = et.SubElement(root, "efx:design_info", {
                                     "def_veri_version": "verilog_2k",
-                                    "def_vhdl_version": "vhdl_2008"})
+                                    "def_vhdl_version": "vhdl_2008",
+                                    "unified_flow"    : "true"})
         et.SubElement(design_info, "efx:top_module", name=self._build_name)
 
         # Add Design Sources.
@@ -327,6 +308,8 @@ class EfinityToolchain(GenericToolchain):
         # Add Timing Constraints.
         constraint_info  = et.SubElement(root, "efx:constraint_info")
         et.SubElement(constraint_info, "efx:sdc_file", name=f"{self._build_name}_merged.sdc")
+        et.SubElement(constraint_info, "efx:inter_file", name="")
+        et.SubElement(constraint_info, "efx:isf_file", name=f"{self._build_name}.isf")
 
         # Add Misc Info.
         misc_info  = et.SubElement(root, "efx:misc_info")
@@ -430,7 +413,7 @@ class EfinityToolchain(GenericToolchain):
         r = tools.subprocess_call_filtered([self.efinity_path + "/bin/python3",
             self.efinity_path + "/scripts/efx_run.py",
             f"{self._build_name}.xml",
-            "--flow", "compile",
+            "--flow", "compile", "--un_flow",
         ], common.colors, env=self.env, tail_log=log_file)
         if r != 0:
            raise OSError("Error occurred during efx_run execution.")
@@ -466,6 +449,8 @@ def build_argdict(args):
             "seq_opt"                   : [args.seq_opt, "e_option"],
             "mult_input_regs_packing"   : [args.mult_input_regs_packing, "e_option"],
             "mult_output_regs_packing"  : [args.mult_output_regs_packing, "e_option"],
+            "peri-syn-inference"        : ["1", "e_option"],
+            "peri-syn-instantiation"    : ["1", "e_option"],
         },
         "efx_pgm_params"           : {
             "generate_bitbin"           : args.generate_bitbin,
