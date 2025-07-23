@@ -77,6 +77,9 @@ struct esc_cmds {
 	}					\
 }
 
+// set a function which is called repeatedly as long as there are no new characters to process
+void set_idle_hook(void (*fptr)(void));
+
 int readline(char *buf, int len);
 void hist_init(void);
 

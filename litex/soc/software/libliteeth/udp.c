@@ -83,6 +83,7 @@ struct arp_frame {
 #define IP_DONT_FRAGMENT	0x4000
 #define IP_TTL			64
 #define IP_PROTO_UDP		0x11
+#define IP_PROTO_ICMP		0x01
 
 struct ip_header {
 	uint8_t version;
@@ -110,11 +111,29 @@ struct udp_frame {
 	char payload[];
 } __attribute__((packed));
 
+#define ICMP_ECHO_REPLY 0x00
+#define ICMP_ECHO 0x08
+
+struct icmp_header {
+	unsigned char type;
+	unsigned char code;
+	unsigned short checksum;
+	unsigned short identifier;
+	unsigned short sequence_number;
+} __attribute__((packed));
+
+struct icmp_frame {
+	struct ip_header ip;
+	struct icmp_header icmp;
+	char payload[];
+} __attribute__((packed));
+
 struct ethernet_frame {
 	struct ethernet_header eth_header;
 	union {
 		struct arp_frame arp;
 		struct udp_frame udp;
+		struct icmp_frame icmp;
 	} contents;
 } __attribute__((packed));
 
@@ -233,6 +252,8 @@ static void process_arp(void)
 			tx_arp->protosize = 4;
 			tx_arp->opcode = htons(ARP_OPCODE_REPLY);
 			tx_arp->sender_ip = htonl(my_ip);
+			for (int i = 0; i < sizeof(tx_arp->padding); i++)
+				tx_arp->padding[i] = 0;
 			for(i=0;i<6;i++)
 				tx_arp->sender_mac[i] = my_mac[i];
 			tx_arp->target_ip = htonl(ntohl(rx_arp->sender_ip));
@@ -261,7 +282,7 @@ int udp_arp_resolve(uint32_t ip)
 	for(i=0;i<6;i++)
 		cached_mac[i] = 0;
 
-	for(tries=0;tries<100;tries++) {
+	for(tries=0;tries<8;tries++) {
 		/* Send an ARP request */
 		fill_eth_header(&txbuffer->frame.eth_header,
 				broadcast,
@@ -275,6 +296,8 @@ int udp_arp_resolve(uint32_t ip)
 		arp->protosize = 4;
 		arp->opcode = htons(ARP_OPCODE_REQUEST);
 		arp->sender_ip = htonl(my_ip);
+		for (int i = 0; i < sizeof(arp->padding); i++)
+			arp->padding[i] = 0;
 		for(i=0;i<6;i++)
 			arp->sender_mac[i] = my_mac[i];
 		arp->target_ip = htonl(ip);
@@ -380,17 +403,169 @@ int udp_send(uint16_t src_port, uint16_t dst_port, uint32_t length)
 	return 1;
 }
 
+static unsigned ping_seq_number = 0;
+static uint64_t ping_ts_send = 0;
+
+int send_ping(uint32_t ip, unsigned short payload_length)
+{
+	if(!udp_arp_resolve(ip)) {
+		printf("ARP failed");
+		return -1;
+	}
+
+	fill_eth_header(
+		&txbuffer->frame.eth_header,
+		cached_mac,
+		my_mac,
+		ETHERTYPE_IP
+	);
+
+	struct icmp_frame *tx_icmp = &txbuffer->frame.contents.icmp;
+
+	tx_icmp->ip.version = IP_IPV4;
+	tx_icmp->ip.diff_services = 0;
+	tx_icmp->ip.total_length = htons(payload_length + sizeof(struct icmp_frame));
+	tx_icmp->ip.identification = htons(0);
+	tx_icmp->ip.fragment_offset = htons(IP_DONT_FRAGMENT);
+	tx_icmp->ip.ttl = IP_TTL;
+	tx_icmp->ip.proto = IP_PROTO_ICMP;
+	tx_icmp->ip.checksum = 0;
+	tx_icmp->ip.src_ip = htonl(my_ip);
+	tx_icmp->ip.dst_ip = htonl(ip);
+	tx_icmp->ip.checksum = htons(ip_checksum(
+		0, &tx_icmp->ip, sizeof(struct ip_header), 1
+	));
+
+	tx_icmp->icmp.type = ICMP_ECHO;
+	tx_icmp->icmp.code = 0;
+	tx_icmp->icmp.identifier = 0xbe7c;
+	tx_icmp->icmp.sequence_number = ++ping_seq_number;
+	for (unsigned i=0; i<payload_length; i++)
+		tx_icmp->payload[i] = i;
+
+	tx_icmp->icmp.checksum = 0;
+	unsigned short r = ip_checksum(
+		0,
+		&tx_icmp->icmp,
+		payload_length + sizeof(struct icmp_header),
+		1
+	);
+	tx_icmp->icmp.checksum = htons(r);
+
+	txlen = payload_length + sizeof(struct ethernet_header) + sizeof(struct icmp_frame);
+	send_packet();
+
+	ping_ts_send = 1;
+#ifdef CSR_TIMER0_UPTIME_CYCLES_ADDR
+	timer0_uptime_latch_write(1);
+	ping_ts_send = timer0_uptime_cycles_read();
+#endif
+
+	// Do we get a reply ?
+	for(unsigned timeout = 0; timeout < 10000; timeout++) {
+		udp_service();
+		if(ping_ts_send == 0)
+			return 0;
+	}
+
+	return -2;
+}
+
+static void process_icmp(void)
+{
+	if (rxlen < (sizeof(struct ethernet_header) + sizeof(struct icmp_frame)))
+		return;
+
+	const struct icmp_frame *rx_icmp = &rxbuffer->frame.contents.icmp;
+	struct icmp_frame *tx_icmp = &txbuffer->frame.contents.icmp;
+
+	if(ntohs(rx_icmp->ip.total_length) < sizeof(struct icmp_frame))
+		return;
+
+	unsigned short length = ntohs(rx_icmp->ip.total_length) - sizeof(struct icmp_frame);
+
+	if(rx_icmp->icmp.type == ICMP_ECHO) {
+		fill_eth_header(
+			&txbuffer->frame.eth_header,
+			rxbuffer->frame.eth_header.srcmac,
+			my_mac,
+			ETHERTYPE_IP
+		);
+
+		tx_icmp->ip.version = IP_IPV4;
+		tx_icmp->ip.diff_services = 0;
+		tx_icmp->ip.total_length = htons(length + sizeof(struct icmp_frame));
+		tx_icmp->ip.identification = htons(0);
+		tx_icmp->ip.fragment_offset = htons(IP_DONT_FRAGMENT);
+		tx_icmp->ip.ttl = IP_TTL;
+		tx_icmp->ip.proto = IP_PROTO_ICMP;
+		tx_icmp->ip.checksum = 0;
+		tx_icmp->ip.src_ip = htonl(my_ip);
+		tx_icmp->ip.dst_ip = rxbuffer->frame.contents.icmp.ip.src_ip;
+		tx_icmp->ip.checksum = htons(ip_checksum(
+			0, &tx_icmp->ip, sizeof(struct ip_header), 1
+		));
+
+		tx_icmp->icmp.type = ICMP_ECHO_REPLY;
+		tx_icmp->icmp.code = 0;
+		tx_icmp->icmp.identifier = rx_icmp->icmp.identifier;
+		tx_icmp->icmp.sequence_number = rx_icmp->icmp.sequence_number;
+		for (unsigned i=0; i<length; i++)
+			tx_icmp->payload[i] = rx_icmp->payload[i];
+
+		tx_icmp->icmp.checksum = 0;
+		unsigned short r = ip_checksum(
+			0,
+			&tx_icmp->icmp,
+			length + sizeof(struct icmp_header),
+			1
+		);
+		tx_icmp->icmp.checksum = htons(r);
+
+		txlen = length + sizeof(struct ethernet_header) + sizeof(struct icmp_frame);
+		send_packet();
+	} else if (rx_icmp->icmp.type == ICMP_ECHO_REPLY) {
+		uint8_t *tmp = (uint8_t *)(&rx_icmp->ip.src_ip);
+		printf("%d bytes from %d.%d.%d.%d: ", length, tmp[0], tmp[1], tmp[2], tmp[3]);
+
+		if (rx_icmp->icmp.sequence_number != ping_seq_number) {
+			printf("invalid sequence number %d", rx_icmp->icmp.sequence_number);
+			return;
+		}
+		if (rx_icmp->icmp.identifier != 0xbe7c) {
+			printf("invalid identifier %d", rx_icmp->icmp.identifier);
+			return;
+		}
+
+		printf("icmp_seq=%d", rx_icmp->icmp.sequence_number);
+
+		#ifdef CSR_TIMER0_UPTIME_CYCLES_ADDR
+			uint64_t ping_ts_receive = 0;
+			timer0_uptime_latch_write(1);
+			ping_ts_receive = timer0_uptime_cycles_read();
+			int dt_us = ping_ts_receive - ping_ts_send;
+			dt_us /= (CONFIG_CLOCK_FREQUENCY / 1000 / 1000);
+			if (dt_us >= 10000)
+				printf(" time=%d ms", dt_us / 1000);
+			else
+				printf(" time=%d us", dt_us);
+		#endif
+
+		ping_ts_send = 0;
+		printf("\n");
+	}
+}
+
 static udp_callback rx_callback;
 #ifdef ETH_UDP_BROADCAST
 static udp_callback bx_callback;
 #endif /* ETH_UDP_BROADCAST */
 
-static void process_ip(void)
+static void process_udp(void)
 {
 	if(rxlen < (sizeof(struct ethernet_header)+sizeof(struct udp_frame))) return;
 	struct udp_frame *udp_ip = &rxbuffer->frame.contents.udp;
 	/* We don't verify UDP and IP checksums and rely on the Ethernet checksum solely */
-	if(udp_ip->ip.version != IP_IPV4) return;
 	// check disabled for QEMU compatibility
 	//if(rxbuffer->frame.contents.udp.ip.diff_services != 0) return;
 	if(ntohs(udp_ip->ip.total_length) < sizeof(struct udp_frame)) return;
@@ -464,8 +639,19 @@ static void process_frame(void)
 	rxlen -= 4; /* strip CRC here to be consistent with TX */
 #endif
 
-	if(ntohs(rxbuffer->frame.eth_header.ethertype) == ETHERTYPE_ARP) process_arp();
-	else if(ntohs(rxbuffer->frame.eth_header.ethertype) == ETHERTYPE_IP) process_ip();
+	if (ntohs(rxbuffer->frame.eth_header.ethertype) == ETHERTYPE_ARP) {
+		process_arp();
+	} else if (ntohs(rxbuffer->frame.eth_header.ethertype) == ETHERTYPE_IP) {
+		struct ip_header *hdr = &rxbuffer->frame.contents.udp.ip;
+		if(hdr->version != IP_IPV4)
+			return;
+		if(ntohl(hdr->dst_ip) != my_ip)
+			return;
+		if (hdr->proto == IP_PROTO_UDP)
+			process_udp();
+		else if (hdr->proto == IP_PROTO_ICMP)
+			process_icmp();
+	}
 }
 
 void udp_start(const uint8_t *macaddr, uint32_t ip)

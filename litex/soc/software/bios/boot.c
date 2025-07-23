@@ -336,7 +336,7 @@ const char *filename, char *buffer)
 
 #ifdef ETH_DYNAMIC_IP
 
-static uint8_t parse_ip(const char * ip_address, unsigned int * ip_to_change)
+uint8_t parse_ip(const char * ip_address, unsigned int * ip_to_change)
 {
 	uint8_t n = 0;
 	uint8_t k = 0;
@@ -384,7 +384,7 @@ void set_local_ip(const char * ip_address)
 {
 	if (parse_ip(ip_address, local_ip) == 0) {
 		udp_set_ip(IPTOINT(local_ip[0], local_ip[1], local_ip[2], local_ip[3]));
-		printf("Local IP: %d.%d.%d.%d", local_ip[0], local_ip[1], local_ip[2], local_ip[3]);
+		net_init();
 	}
 }
 
@@ -446,6 +446,7 @@ void set_mac_addr(const char * mac_address)
 	if (parse_mac_addr(mac_address) == 0) {
 		udp_set_mac(macadr);
 		printf("MAC address : %x:%x:%x:%x:%x:%x", macadr[0], macadr[1], macadr[2], macadr[3], macadr[4], macadr[5]);
+		net_init();
 	}
 }
 
@@ -538,6 +539,11 @@ static void netboot_from_bin(const char * filename, unsigned int ip, unsigned sh
 }
 #endif
 
+void net_init(void) {
+	printf("Local IP: %d.%d.%d.%d\n", local_ip[0], local_ip[1], local_ip[2], local_ip[3]);
+	udp_start(macadr, IPTOINT(local_ip[0], local_ip[1], local_ip[2], local_ip[3]));
+}
+
 void netboot(int nb_params, char **params)
 {
 	unsigned int ip;
@@ -548,11 +554,10 @@ void netboot(int nb_params, char **params)
 
 	printf("Booting from network...\n");
 
-	printf("Local IP: %d.%d.%d.%d\n", local_ip[0], local_ip[1], local_ip[2], local_ip[3]);
+	net_init();
 	printf("Remote IP: %d.%d.%d.%d\n", remote_ip[0], remote_ip[1], remote_ip[2], remote_ip[3]);
 
 	ip = IPTOINT(remote_ip[0], remote_ip[1], remote_ip[2], remote_ip[3]);
-	udp_start(macadr, IPTOINT(local_ip[0], local_ip[1], local_ip[2], local_ip[3]));
 
 	if (filename) {
 		printf("Booting from %s (JSON)...\n", filename);
