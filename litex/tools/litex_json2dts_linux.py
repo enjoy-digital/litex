@@ -567,16 +567,16 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
             }};
 """.format(
         mmc_csr_base         = d["csr_bases"]["sdcard"],
-        sdcard_phy_csr_base  = d["csr_registers"]["sdcard_phy_card_detect"],
-        sdcard_phy_csr_size  = d["csr_registers"]["sdcard_core_cmd_argument"] - d["csr_registers"]["sdcard_phy_card_detect"],
-        sdcard_core_csr_base = d["csr_registers"]["sdcard_core_cmd_argument"],
-        sdcard_core_csr_size = d["csr_registers"]["sdcard_block2mem_dma_base"] - d["csr_registers"]["sdcard_core_cmd_argument"],
-        sdcard_block2mem     = d["csr_registers"]["sdcard_block2mem_dma_base"],
-        sdcard_block2mem_size = d["csr_registers"]["sdcard_mem2block_dma_base"] - d["csr_registers"]["sdcard_block2mem_dma_base"],
-        sdcard_mem2block     = d["csr_registers"]["sdcard_mem2block_dma_base"],
-        sdcard_mem2block_size = d["csr_registers"]["sdcard_ev_status"] - d["csr_registers"]["sdcard_mem2block_dma_base"],
-        sdcard_irq           = d["csr_registers"]["sdcard_ev_status"],
-        sdcard_irq_interrupt = "" if polling else "interrupts = <{}>;".format(d["constants"]["sdcard_irq_interrupt"])
+        sdcard_phy_csr_base  = d["csr_registers"]["sdcard_phy_card_detect"]['addr'],
+        sdcard_phy_csr_size  = d["csr_registers"]["sdcard_core_cmd_argument"]['addr'] - d["csr_registers"]["sdcard_phy_card_detect"]['addr'],
+        sdcard_core_csr_base = d["csr_registers"]["sdcard_core_cmd_argument"]['addr'],
+        sdcard_core_csr_size = d["csr_registers"]["sdcard_block2mem_dma_base"]['addr'] - d["csr_registers"]["sdcard_core_cmd_argument"]['addr'],
+        sdcard_block2mem     = d["csr_registers"]["sdcard_block2mem_dma_base"]['addr'],
+        sdcard_block2mem_size = d["csr_registers"]["sdcard_mem2block_dma_base"]['addr'] - d["csr_registers"]["sdcard_block2mem_dma_base"]['addr'],
+        sdcard_mem2block     = d["csr_registers"]["sdcard_mem2block_dma_base"]['addr'],
+        sdcard_mem2block_size = d["csr_registers"]["sdcard_ev_status"]['addr'] - d["csr_registers"]["sdcard_mem2block_dma_base"]['addr'],
+        sdcard_irq           = d["csr_registers"]["sdcard_ev_status"]['addr'],
+        sdcard_irq_interrupt = "" if polling else "interrupts = <{}>;".format(d["constants"]["sdcard_interrupt"])
 )
     # Leds -----------------------------------------------------------------------------------------
 
