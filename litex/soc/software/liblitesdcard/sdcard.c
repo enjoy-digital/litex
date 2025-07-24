@@ -19,7 +19,7 @@
 #include <libfatfs/diskio.h>
 #include "sdcard.h"
 
-#ifdef CSR_SDCARD_CORE_BASE
+#ifdef CSR_SDCARD_BASE
 
 //#define SDCARD_DEBUG
 //#define SDCARD_CMD23_SUPPORT /* SET_BLOCK_COUNT */
@@ -463,7 +463,7 @@ int sdcard_init(void) {
 	return 1;
 }
 
-#ifdef CSR_SDCARD_BLOCK2MEM_BASE
+#ifdef CSR_SDCARD_BLOCK2MEM_DMA_BASE_ADDR
 
 void sdcard_read(uint32_t block, uint32_t count, uint8_t* buf)
 {
@@ -511,7 +511,7 @@ void sdcard_read(uint32_t block, uint32_t count, uint8_t* buf)
 
 #endif
 
-#ifdef CSR_SDCARD_MEM2BLOCK_BASE
+#ifdef CSR_SDCARD_MEM2BLOCK_DMA_BASE_ADDR
 
 void sdcard_write(uint32_t block, uint32_t count, uint8_t* buf)
 {
@@ -585,4 +585,4 @@ void fatfs_set_ops_sdcard(void) {
 	FfDiskOps = &SdCardDiskOps;
 }
 
-#endif /* CSR_SDCARD_CORE_BASE */
+#endif /* CSR_SDCARD_BASE */
