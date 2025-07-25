@@ -1,3 +1,70 @@
+[> Changes since 2025.04 release
+--------------------------------
+
+[> Fixed
+--------
+- **tools/json2dts**                               : Fixed sdcard support in device tree generation ([PR #2292](https://github.com/enjoy-digital/litex/pull/2292), [29a8c3cdb](https://github.com/enjoy-digital/litex/commit/29a8c3cdb)).
+- **software/litesdcard**                          : Fixed warnings in litesdcard software ([PR #2273](https://github.com/enjoy-digital/litex/pull/2273)).
+- **cpu/ibex**                                     : Fixed missing add_sources calls ([PR #2268](https://github.com/enjoy-digital/litex/pull/2268)).
+- **tests/test_integration**                       : Fixed file mode to allow reading logs on boot failure ([PR #2264](https://github.com/enjoy-digital/litex/pull/2264)).
+- **build/efinix**                                 : Fixed programmer compatibility and bitstream file copying, added CLKOUT_DYNPHASE_EN support ([PR #2247](https://github.com/enjoy-digital/litex/pull/2247)).
+- **tools/litex_json2dts_linux**                   : Fixed USB OHCI DT naming (mac->usb) and L1 cache size reporting ([PR #2251](https://github.com/enjoy-digital/litex/pull/2251)).
+- **build/colognechip**                            : Fixed DDR inversion issue ([PR #2274](https://github.com/enjoy-digital/litex/pull/2274)).
+- **tests/test_integration**                       : Temporarily disabled coreblocks due to pipx issue ([bc25ed7fd](https://github.com/enjoy-digital/litex/commit/bc25ed7fd)).
+- **platforms/xilinx_zcu106**                      : Fixed user button pin according to user guide ([PR #681](https://github.com/litex-hub/litex-boards/pull/681)).
+- **targets/hyvision_pcie_opt01_revf**             : Fixed J9 pinout for correct board edge alignment ([PR #682](https://github.com/litex-hub/litex-boards/pull/682)).
+- **platforms/berkeleylab_marble**                 : Removed IOSTANDARD from mgtrefclk pins to resolve Vivado warnings ([3e77bc6](https://github.com/litex-hub/litex-boards/commit/3e77bc6)).
+- **litepcie/frontend/dma**                        : Added FIFO resets to LitePCIeDMABuffering to prevent incorrect behavior ([PR #148](https://github.com/enjoy-digital/litepcie/pull/148)).
+- **litesdcard/phy/SDPHYClocker**                  : Fixed clock divider logic for div 0,1,2,3,4,5,8 cases ([PR #40](https://github.com/enjoy-digital/litesdcard/pull/40)).
+
+[> Added
+--------
+- **sim/verilator**                                : Added state save and load functions for Verilator simulation ([PR #2261](https://github.com/enjoy-digital/litex/pull/2261)).
+- **build/xilinx/vivado**                          : Added Device Image (pdi) generation support for Vivado builds ([PR #2272](https://github.com/enjoy-digital/litex/pull/2272)).
+- **software/bios/liteeth**                        : Added ping command and BIOS support for responding to ping requests ([PR #2287](https://github.com/enjoy-digital/litex/pull/2287)).
+- **cores/cpu/vexiiriscv**                         : Added architecture details in human-readable name ([PR #2286](https://github.com/enjoy-digital/litex/pull/2286)).
+- **tools/json2dts_zephyr**                        : Added default IRQ priority of 1 for PLIC ([PR #2285](https://github.com/enjoy-digital/litex/pull/2285)).
+- **software/litesdcard**                          : Added support for changing PHY modes (x1, x4, x8) ([PR #2275](https://github.com/enjoy-digital/litex/pull/2275)).
+- **soc/cores/prbs**                               : Added errors_width parameter to improve timing in some designs ([bc6a6f015](https://github.com/enjoy-digital/litex/commit/bc6a6f015)).
+- **software/bios/liteeth/udp**                    : Added broadcast support ([PR #2263](https://github.com/enjoy-digital/litex/pull/2263)).
+- **tools/json2dts_zephyr**                        : Updated interrupt naming for SPI flash core ([PR #2271](https://github.com/enjoy-digital/litex/pull/2271)).
+- **soc/cores/spi**                                : Added interrupt support for LiteSPI and moved PHY to core for single CSR slot usage ([2438c558e](https://github.com/enjoy-digital/litex/commit/2438c558e), [befcbbc9b](https://github.com/enjoy-digital/litex/commit/befcbbc9b)).
+- **soc/cores/i2c**                                : Added interrupt support for LiteI2C ([3b4708db4](https://github.com/enjoy-digital/litex/commit/3b4708db4)).
+- **tests/test_integration**                       : Added ibex and vexiiriscv CPUs to boot tests ([d170f08dd](https://github.com/enjoy-digital/litex/commit/d170f08dd), [e3b8bf653](https://github.com/enjoy-digital/litex/commit/e3b8bf653)).
+- **build/tools**                                  : Added _tail_file function and tail_log parameter to subprocess_call_filtered for colored build log output ([f5e5514b3](https://github.com/enjoy-digital/litex/commit/f5e5514b3)).
+- **soc/integration**                              : Exposed check_duplicate argument in add_ip_address_constants and add_mac_address_constants ([PR #2259](https://github.com/enjoy-digital/litex/pull/2259)).
+- **build/lattice/icestorm**                       : Added support for pin pull-up configuration ([PR #2256](https://github.com/enjoy-digital/litex/pull/2256)).
+- **cores/usb_ohci**                               : Added InterruptPin class for standard IRQ allocation ([PR #2252](https://github.com/enjoy-digital/litex/pull/2252)).
+- **tools/litex_json2dts_linux**                   : Added local MAC address to ethernet device tree and L2 cache topology support ([a3b36c125](https://github.com/enjoy-digital/litex/commit/a3b36c125), [2781b0124](https://github.com/enjoy-digital/litex/commit/2781b0124)).
+- **cpu/naxriscv**                                 : Added support for generating cache sections in DTS ([e1986d554](https://github.com/enjoy-digital/litex/commit/e1986d554)).
+- **soc/cores/clock**                              : Added CologneChip GateMatePLL import ([eda4e49b7](https://github.com/enjoy-digital/litex/commit/eda4e49b7)).
+- **litesdcard/phy**                               : Added support for changing modes (x1, x4, x8) ([PR #38](https://github.com/enjoy-digital/litesdcard/pull/38)).
+- **liteiclink/serdes/gtp_7series**                : Added rx_prbs_errors_width parameter to add_prbs_control and add_controls ([ef9c295](https://github.com/enjoy-digital/liteiclink/commit/ef9c295)).
+- **litei2c/master**                               : Added interrupt option ([ad7ec63](https://github.com/enjoy-digital/litei2c/commit/ad7ec63)).
+- **litepcie/gen**                                 : Added support for specifying DMA data_width in .yml configuration ([2682042](https://github.com/enjoy-digital/litepcie/commit/2682042)).
+- **litepcie/frontend/ptm**                        : Added named Time Clock Domain to avoid conflicts in larger designs ([029a578](https://github.com/enjoy-digital/litepcie/commit/029a578)).
+- **Boards/targets**                               : Added support for **Machdyne Kolsch** ([PR #679](https://github.com/litex-hub/litex-boards/pull/679)).
+- **Boards/targets**                               : Added support for **Alinx AX7203** with platform and target ([PR #678](https://github.com/litex-hub/litex-boards/pull/678)).
+- **Boards/targets**                               : Added HDMI support for Alinx AX7203 ([PR #680](https://github.com/litex-hub/litex-boards/pull/680)).
+- **Boards/targets**                               : Added USB option using PMOD connector JB for Digilent Nexys Video (2 USB-OHCI ports) ([PR #672](https://github.com/litex-hub/litex-boards/pull/672)).
+- **Boards/targets**                               : Added SD card support for CologneChip GateMate EVB ([PR #673](https://github.com/litex-hub/litex-boards/pull/673)).
+- **Boards/targets**                               : Added HyperRAM support for CologneChip GateMate EVB ([PR #670](https://github.com/litex-hub/litex-boards/pull/670)).
+- **Boards/targets**                               : Added missing enable pin for 20 MHz VCXO on BerkeleyLab Marble ([PR #676](https://github.com/litex-hub/litex-boards/pull/676)).
+
+[> Changed
+----------
+- **soc/litesdcard**                               : Moved litesdcard modules to a parent class for add_sdcard(), renamed irq to ev ([PR #2281](https://github.com/enjoy-digital/litex/pull/2281), [b46e06182](https://github.com/enjoy-digital/litex/commit/b46e06182)).
+- **software/litesdcard**                          : Removed limitations for clock divider ([PR #2276](https://github.com/enjoy-digital/litex/pull/2276)).
+- **cpu/vexiiriscv**                               : Updated recommended commit to latest dev ([ee6c3102b](https://github.com/enjoy-digital/litex/commit/ee6c3102b)).
+- **build/efinix/efinity**                         : Updated to use efx_run for builds, added tail_log parameter for log redirection, and set CLKOUT_DYNPHASE_EN ([PR #2247](https://github.com/enjoy-digital/litex/pull/2247), [83a14dd64](https://github.com/enjoy-digital/litex/commit/83a14dd64)).
+- **build/colognechip**                            : Removed forced ram_style=distributed ([PR #2254](https://github.com/enjoy-digital/litex/pull/2254)).
+- **ci/tooling**                                   : Updated to use GHDL from OSS CAD Suite and bumped to latest version ([5e58ab1ba](https://github.com/enjoy-digital/litex/commit/5e58ab1ba)).
+- **platforms/digilent_nexys_video**               : Added PMOD connectors ([6bbca0e](https://github.com/litex-hub/litex-boards/commit/6bbca0e)).
+- **targets/berkeleylab_marble**                   : Made max I2C interface optional ([74cd48d](https://github.com/litex-hub/litex-boards/commit/74cd48d)).
+- **platforms/berkeleylab_marble/marblemini**      : Removed redundant files ([PR #675](https://github.com/litex-hub/litex-boards/pull/675)).
+- **litesdcard/phy/SDPHYClocker**                  : Reworked clock divider to use down-counter, simplified logic, and ensured frequency <= configured ([PR #40](https://github.com/enjoy-digital/litesdcard/pull/40)).
+- **litesdcard/phy**                               : Set default data_width to 4x ([PR #38](https://github.com/enjoy-digital/litesdcard/pull/38)).
+
 [> 2025.04, released on May 26th 2025
 -------------------------------------
 
