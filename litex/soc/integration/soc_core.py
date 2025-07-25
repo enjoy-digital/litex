@@ -200,7 +200,7 @@ class SoCCore(LiteXSoC):
                     colorer("please use --uart-name=\"crossover\" --with-uartbone", color="red")))
                 time.sleep(2)
                 # Already configured.
-                self._uartbone = True
+                self.with_uartbone = True
                 uart_name      = "crossover"
 
             # JTAGBone and jtag_uart can't be used at the same time.
