@@ -116,8 +116,7 @@ class EFINIXPLL(LiteXModule):
         if cd is not None:
             clk_name = f"{cd.name}_{self.name}_clk"
             clk_out_name = clk_name # To unify constraints names
-            self.platform.add_extension([(clk_out_name, 0, Pins(1))])
-            clk_out = self.platform.request(clk_out_name)
+            clk_out = self.platform.add_iface_io(clk_out_name)
             self.comb += cd.clk.eq(clk_out)
             # Efinity will generate xxx.pt.sdc constraints automaticaly,
             # so, the user realy need to use the toplevel pin from the pll instead of an intermediate signal
@@ -126,7 +125,6 @@ class EFINIXPLL(LiteXModule):
             self.platform.clks[cd.name] = clk_out_name
             if with_reset:
                 self.specials += AsyncResetSynchronizer(cd, ~self.locked)
-            self.platform.toolchain.excluded_ios.append(clk_out_name)
 
         create_clkout_log(self.logger, clk_out_name, freq, margin, self.nclkouts)
 
