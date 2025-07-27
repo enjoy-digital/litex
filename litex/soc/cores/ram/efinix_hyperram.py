@@ -24,7 +24,7 @@ from litex.soc.cores.hyperbus import HyperRAM
 class EfinixHyperRAM(HyperRAM):
     """ HyperRAM wrapper for efinix F100 (internal)
     """
-    def __init__(self, platform, latency=6, clock_domain="sys", sys_clk_freq=None):
+    def __init__(self, platform, latency=6, latency_mode="fixed", clock_domain="sys", sys_clk_freq=None, with_bursting=True, with_csr=True):
 
         # # #
 
@@ -135,4 +135,13 @@ class EfinixHyperRAM(HyperRAM):
         platform.toolchain.excluded_ios.append(_io_pads.csn)
         platform.toolchain.excluded_ios.append(_io_pads.rstn)
 
-        HyperRAM.__init__(self, _hp_pads, latency, sys_clk_freq)
+        HyperRAM.__init__(self,
+            pads          = _hp_pads,
+            latency       = latency,
+            latency_mode  = latency_mode,
+            sys_clk_freq  = sys_clk_freq,
+            clk_ratio     = "4:1",
+            with_bursting = with_bursting,
+            with_csr      = with_csr,
+            dq_i_cd       = None,
+        )
