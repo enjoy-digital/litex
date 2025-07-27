@@ -285,6 +285,10 @@ class XilinxVivadoToolchain(GenericToolchain):
                     tcl.append(f"set_property library {library} [get_files {filename_tcl}]")
                 else:
                     tcl.append("add_files " + filename_tcl)
+                    # Set all verilog .h files as global
+                    tcl.append("if {[string equal [file extension " + filename + "] \".h\"]} {")
+                    tcl.append(f"set_property is_global_include true [get_files {filename_tcl}]")
+                    tcl.append("}")
 
         # Add EDIFs
         tcl.append("\n# Add EDIFs\n")
