@@ -24,7 +24,7 @@ from litex.soc.cores.hyperbus import HyperRAM
 class EfinixHyperRAM(HyperRAM):
     """ HyperRAM wrapper for efinix F100 (internal)
     """
-    def __init__(self, platform, latency=6, clock_domain="sys", sys_clk_freq=None):
+    def __init__(self, platform, latency=6, latency_mode="fixed", clock_domain="sys", sys_clk_freq=None, with_bursting=True, with_csr=True):
 
         # # #
 
@@ -68,12 +68,15 @@ class EfinixHyperRAM(HyperRAM):
         platform.toolchain.excluded_ios.append(_dps_pads["shift"])
 
         # PLL.
+        self.cd_hp = ClockDomain()
+        self.cd_hp90 = ClockDomain()
+        self.cd_hpcal = ClockDomain()
         self.pll = pll = TITANIUMPLL(platform, dyn_phase_shift_pads=_dps_pads)
-        pll.register_clkin(ClockDomain(clock_domain).clk, sys_clk_freq, clock_domain)
-        pll.create_clkout(None, sys_clk_freq)
-        pll.create_clkout(None, sys_clk_freq*2, name="hp_clk", with_reset=True)
-        pll.create_clkout(None, sys_clk_freq*2, phase=90, name="hp90_clk", with_reset=True)
-        pll.create_clkout(None, sys_clk_freq*2, name="hpcal_clk", with_reset=True, dyn_phase=True)
+        pll.register_clkin(None, sys_clk_freq, name=f"{clock_domain}_pll0_clk") # FIXME: fix clkin name
+        pll.create_clkout(None,              sys_clk_freq)
+        pll.create_clkout(self.cd_hp,    2 * sys_clk_freq,           with_reset=True)
+        pll.create_clkout(self.cd_hp90,  2 * sys_clk_freq, phase=90, with_reset=True)
+        pll.create_clkout(self.cd_hpcal, 2 * sys_clk_freq,           with_reset=True, dyn_phase=True)
 
 
         # connect HyperRAM to interface designer block
@@ -111,9 +114,9 @@ class EfinixHyperRAM(HyperRAM):
             "name"      : "hp_inst",
             "location"  : "HYPER_RAM0",
             "pads"      : _io_pads,
-            "ctl_clk"   : ClockDomain("hp").clk,
-            "cal_clk"   : ClockDomain("hpcal").clk,
-            "clk90_clk" : ClockDomain("hp90").clk,
+            "ctl_clk"   : self.cd_hp.clk,
+            "cal_clk"   : self.cd_hpcal.clk,
+            "clk90_clk" : self.cd_hp90.clk,
         }
 
         platform.toolchain.ifacewriter.blocks.append(block)
@@ -134,5 +137,16 @@ class EfinixHyperRAM(HyperRAM):
         platform.toolchain.excluded_ios.append(_io_pads.rwds_oe)
         platform.toolchain.excluded_ios.append(_io_pads.csn)
         platform.toolchain.excluded_ios.append(_io_pads.rstn)
+        platform.toolchain.excluded_ios.append(self.cd_hp.clk)
+        platform.toolchain.excluded_ios.append(self.cd_hp90.clk)
 
-        HyperRAM.__init__(self, _hp_pads, latency, sys_clk_freq)
+        HyperRAM.__init__(self,
+            pads          = _hp_pads,
+            latency       = latency,
+            latency_mode  = latency_mode,
+            sys_clk_freq  = sys_clk_freq,
+            clk_ratio     = "4:1",
+            with_bursting = with_bursting,
+            with_csr      = with_csr,
+            dq_i_cd       = None,
+        )
