@@ -147,6 +147,12 @@ class EfinixClkOutput(LiteXModule):
 class EfinixTristateImpl(LiteXModule):
     def __init__(self, io, o, oe, i=None):
         platform = LiteXContext.platform
+
+        # FIXME: TSTriple is not supported and only used by EfinixHyperRAM to connect HyperRAM core
+        # HYPERRAM block
+        from migen.fhdl.specials import TSTriple
+        if isinstance(io, TSTriple):
+            return
         if len(io) == 1:
             io_name = platform.get_pin_name(io)
             io_pad  = platform.get_pin_location(io)
