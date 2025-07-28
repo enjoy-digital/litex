@@ -254,7 +254,7 @@ class XilinxVivadoToolchain(GenericToolchain):
 
         # Create project
         tcl.append("\n# Create Project\n")
-        tcl.append(f"create_project -force -name {self._build_name} -part {self.platform.device}")
+        tcl.append(f"set_part {self.platform.device}")
         tcl.append("set_msg_config -id {Common 17-55} -new_severity {Warning}")
 
         if self.vivado_max_threads:
@@ -285,6 +285,10 @@ class XilinxVivadoToolchain(GenericToolchain):
                     tcl.append(f"set_property library {library} [get_files {filename_tcl}]")
                 else:
                     tcl.append("add_files " + filename_tcl)
+                    # Set all verilog .h files as global
+                    tcl.append("if {[string equal [file extension " + filename + "] \".h\"]} {")
+                    tcl.append(f"set_property is_global_include true [get_files {filename_tcl}]")
+                    tcl.append("}")
 
         # Add EDIFs
         tcl.append("\n# Add EDIFs\n")
