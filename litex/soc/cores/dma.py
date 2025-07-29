@@ -260,11 +260,8 @@ class WishboneDMAReaderWriter(LiteXModule):
     we : Signal()
         Write Enable. If set, it will write to the bus, otherwise it will read.
 
-    w_sink : Record("address", "data")
-        Sink for MMAP addresses/datas to be written.
-
-    r_sink : Record("address")
-        Sink for MMAP addresses to be read.
+    rw_sink : Record("address", "data")
+        Sink for MMAP addresses/datas to be written and MMAP addresses to be read.
 
     source : Record("data")
         Source for MMAP word results from reading.
@@ -274,10 +271,9 @@ class WishboneDMAReaderWriter(LiteXModule):
     """
     def __init__(self, bus, endianness="little", fifo_depth=16, with_csr=False):
         assert isinstance(bus, wishbone.Interface)
-        self.bus    = bus
-        self.r_sink = r_sink = stream.Endpoint([("address", bus.adr_width)])
-        self.source = source = stream.Endpoint([("data",    bus.data_width)])
-        self.w_sink = w_sink = stream.Endpoint([("address", bus.adr_width), ("data", bus.data_width)])
+        self.bus     = bus
+        self.source  = source  = stream.Endpoint([("data",    bus.data_width)])
+        self.rw_sink = rw_sink = stream.Endpoint([("address", bus.adr_width), ("data", bus.data_width)])
 
         self.we = we = Signal()
 
@@ -289,23 +285,22 @@ class WishboneDMAReaderWriter(LiteXModule):
         # Reads -> FIFO.
         self.comb += [
             If(we,
-                bus.stb.eq(w_sink.valid),
-                bus.adr.eq(w_sink.address),
-                bus.dat_w.eq(format_bytes(w_sink.data, endianness)),
-                w_sink.ready.eq(bus.ack),
+                bus.stb.eq(rw_sink.valid),
+                rw_sink.ready.eq(bus.ack),
             ).Else(
-                bus.stb.eq(r_sink.valid & fifo.sink.ready),
-                bus.adr.eq(r_sink.address),
-                fifo.sink.last.eq(r_sink.last),
-                fifo.sink.data.eq(format_bytes(bus.dat_r, endianness)),
+                bus.stb.eq(rw_sink.valid & fifo.sink.ready),
                 If(bus.stb & bus.ack,
-                    r_sink.ready.eq(1),
+                    rw_sink.ready.eq(1),
                     fifo.sink.valid.eq(1),
                 ),
-            ),  
+            ),
+            bus.adr.eq(rw_sink.address),
+            bus.dat_w.eq(format_bytes(rw_sink.data, endianness)),
             bus.we.eq(we),
             bus.sel.eq(2**(bus.data_width//8)-1),
             bus.cyc.eq(bus.stb),
+            fifo.sink.data.eq(format_bytes(bus.dat_r, endianness)),
+            fifo.sink.last.eq(rw_sink.last),
         ]
 
         # FIFO -> Output.
@@ -336,6 +331,8 @@ class WishboneDMAReaderWriter(LiteXModule):
 
         self.comb += self.offset.eq(offset)
 
+        ready = Signal()
+
         self.fsm = fsm = ResetInserter()(FSM(reset_state="IDLE"))
         self.comb += fsm.reset.eq(~self.enable)
         if ready_on_idle:
@@ -346,34 +343,25 @@ class WishboneDMAReaderWriter(LiteXModule):
             NextState("RUN"),
         )
         fsm.act("RUN",
+            self.rw_sink.address.eq(base + offset),
+            self.rw_sink.data.eq(self.sink.data),
             If(self.we,
-                self.w_sink.valid.eq(self.sink.valid),
-                self.w_sink.last.eq(self.sink.last | (offset + 1 == length)),
-                self.w_sink.address.eq(base + offset),
-                self.w_sink.data.eq(self.sink.data),
-                self.sink.ready.eq(self.w_sink.ready),
-                If(self.sink.valid & self.sink.ready,
-                    NextValue(offset, offset + 1),
-                    If(self.w_sink.last,
-                        If(self.loop,
-                            NextValue(offset, 0)
-                        ).Else(
-                            NextState("DONE")
-                        )
-                    )
-                )
+                self.rw_sink.valid.eq(self.sink.valid),
+                self.rw_sink.last.eq(self.sink.last | (offset + 1 == length)),
+                self.sink.ready.eq(self.rw_sink.ready),
+                ready.eq(self.sink.valid & self.sink.ready),
             ).Else(
-                self.r_sink.valid.eq(1),
-                self.r_sink.last.eq(offset == (length - 1)),
-                self.r_sink.address.eq(base + offset),
-                If(self.r_sink.ready,
-                    NextValue(offset, offset + 1),
-                    If(self.r_sink.last,
-                        If(self.loop,
-                            NextValue(offset, 0)
-                        ).Else(
-                            NextState("DONE")
-                        )
+                self.rw_sink.valid.eq(1),
+                self.rw_sink.last.eq(offset == (length - 1)),
+                ready.eq(self.rw_sink.ready),
+            ),
+            If(ready,
+                NextValue(offset, offset + 1),
+                If(self.rw_sink.last,
+                    If(self.loop,
+                        NextValue(offset, 0)
+                    ).Else(
+                        NextState("DONE")
                     )
                 )
             )
