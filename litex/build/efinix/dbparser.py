@@ -36,8 +36,16 @@ class EfinixDbParser:
 
         return None
 
-    def get_package_file_name(self, dmap):
-        return dmap[2].split('_', 1)[1]
+    def get_package_file_path(self, dmap):
+        packetname = dmap[2].split('_', 1)[1]
+        filepath = self.efinity_db_path + 'package/' + packetname
+        while not os.path.isfile(filepath):
+            if not '_' in packetname:
+                return None
+            packetname = packetname.rsplit('_', 1)[0]
+            filepath = self.efinity_db_path + 'package/' + packetname + '.xml'
+
+        return filepath
 
     def get_die_file_path(self, dmap):
         diename = dmap[1]
@@ -51,8 +59,8 @@ class EfinixDbParser:
         return filepath
 
     def get_pad_name_xml(self, dmap, pin):
-        package_file = self.get_package_file_name(dmap)
-        tree = et.parse(self.efinity_db_path + 'package/' + package_file)
+        package = self.get_package_file_path(dmap)
+        tree = et.parse(package)
         root = tree.getroot()
 
         pm = root.findall('efxpt:package_map', namespaces)
