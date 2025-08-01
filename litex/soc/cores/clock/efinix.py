@@ -31,7 +31,6 @@ class EFINIXPLL(LiteXModule):
 
         self.logger.info("Creating {}".format(colorer(self.type, color="green")))
         self.platform   = platform
-        self.nclkouts   = 0
         self.reset      = Signal()
         self.locked     = Signal()
         self.name       = f"pll{self.n}"
@@ -41,7 +40,7 @@ class EFINIXPLL(LiteXModule):
         block = {}
         block["type"]    = "PLL"
         block["name"]    = self.name
-        block["clk_out"] = []
+        block["clk_out"] = [None] * self.nclkouts_max
         block["locked"]  = self.name + "_locked"
         block["rstn"]    = self.name + "_rstn"
         block["version"] = version
@@ -108,10 +107,22 @@ class EFINIXPLL(LiteXModule):
 
         self.logger.info("Use {}".format(colorer(block["resource"], "green")))
 
-    def create_clkout(self, cd, freq, phase=0, margin=0, name="", with_reset=True, dyn_phase=False, is_feedback=False):
-        assert self.nclkouts < self.nclkouts_max
+    def create_clkout(self, cd, freq, phase=0, margin=0, name="", with_reset=True, dyn_phase=False, is_feedback=False, nclkout=None):
+        block = self.platform.toolchain.ifacewriter.get_block(self.name)
 
-        clk_out_name = f"{self.name}_clkout{self.nclkouts}" if name == "" else name
+        if nclkout is not None:
+            assert not self.platform.family == "Trion", "nclkout for now not supported for Trion PLLs"
+            assert nclkout >= 0, "nclkout must be >= 0"
+            assert nclkout < self.nclkouts_max
+            assert block["clk_out"][nclkout] is None, "Clock output {} already used".format(nclkout)
+        else:
+            for i, clock in enumerate(block["clk_out"]):
+                if clock is None:
+                    nclkout = i
+                    break
+            assert nclkout is not None, "No free clock output found"
+
+        clk_out_name = f"{self.name}_clkout{nclkout}" if name == "" else name
 
         if cd is not None:
             clk_name = f"{cd.name}_{self.name}_clk"
@@ -126,17 +137,13 @@ class EFINIXPLL(LiteXModule):
             if with_reset:
                 self.specials += AsyncResetSynchronizer(cd, ~self.locked)
 
-        create_clkout_log(self.logger, clk_out_name, freq, margin, self.nclkouts)
-
-        block = self.platform.toolchain.ifacewriter.get_block(self.name)
+        create_clkout_log(self.logger, clk_out_name, freq, margin, nclkout)
 
         if is_feedback:
             assert block["feedback"] == -1
-            block["feedback"] = self.nclkouts
+            block["feedback"] = nclkout
 
-        self.nclkouts += 1
-
-        block["clk_out"].append([clk_out_name, freq, phase, margin, dyn_phase])
+        block["clk_out"][nclkout] = [clk_out_name, freq, phase, margin, dyn_phase]
 
     def extra(self, extra):
         block = self.platform.toolchain.ifacewriter.get_block(self.name)
@@ -148,11 +155,12 @@ class EFINIXPLL(LiteXModule):
         block = self.platform.toolchain.ifacewriter.get_block(self.name)
         if block["feedback"] == -1:
             return
+        block["clk_out"] = [c for c in block["clk_out"] if c is not None]
         clks_out = {}
         for clk_id, clk in enumerate(block["clk_out"]):
             clks_out[clk_id] = {"freq": clk[1], "phase": clk[2]}
 
-        n_out       = self.nclkouts
+        n_out       = len(block["clk_out"])
         clk_in_freq = block["input_freq"]
         clk_fb_id   = block["feedback"]
         device      = self.platform.device
@@ -299,7 +307,7 @@ class EFINIXPLL(LiteXModule):
         block["N"]        = final_list["N"]
         block["O"]        = final_list["O"]
         block["VCO_FREQ"] = final_list["fvco"]
-        for i in range(self.nclkouts):
+        for i, _ in enumerate(block["clk_out"]):
             block[f"CLKOUT{i}_DIV"] = final_list[f"c{i}"]
 
     def set_configuration(self):
