@@ -92,6 +92,7 @@ class InterfaceWriter:
 import os
 import sys
 import pprint
+import math
 
 home = "{0}"
 
@@ -366,7 +367,7 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
             if block["version"] == "V3" or (block["version"] == "V1_V2" and block["feedback"] == -1):
                 for i, clock in enumerate(block["clk_out"]):
                     cmd += '\nfreq = float(prop_map["CLKOUT{}_FREQ"])\n'.format(i)
-                    cmd += 'if freq != {}:\n'.format(clock[1]/1e6)
+                    cmd += 'if not math.isclose(freq, {}, rel_tol={}):\n'.format(clock[1]/1e6, clock[3])
                     cmd += '    print("ERROR: CLKOUT{} configured for {}MHz is {{}}MHz".format(freq))\n'.format(i, clock[1]/1e6)
                     cmd += '    exit("PLL ERROR")\n'
 
