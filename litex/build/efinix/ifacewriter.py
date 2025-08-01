@@ -309,16 +309,6 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
 
             cmd += 'design.set_property("{}", pll_config, block_type="PLL")\n\n'.format(name)
 
-        for i, clock in enumerate(block["clk_out"]):
-            if clock is None:
-                continue
-            if block["version"] == "V1_V2":
-                cmd += 'design.set_property("{}", "CLKOUT{}_PHASE", "{}", "PLL")\n'.format(name, i, clock[2])
-            else:
-                cmd += 'design.set_property("{}", "CLKOUT{}_PHASE_SETTING", "{}", "PLL")\n'.format(name, i, clock[2] // 45)
-                if clock[4] == 1:
-                    cmd += 'design.set_property("{}", "CLKOUT{}_DYNPHASE_EN", "1", "PLL")\n'.format(name, i)
-
         # Titanium/Topaz has always a feedback (local: CLK0, CORE: any output)
         if block["version"] == "V3":
             feedback_clk = block["feedback"]
