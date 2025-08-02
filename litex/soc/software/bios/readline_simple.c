@@ -8,7 +8,16 @@
 #include <string.h>
 #include <ctype.h>
 
+#include <libbase/uart.h>
+
 #include "readline.h"
+
+static void (*idle_hook_ptr)(void) = NULL;
+
+void set_idle_hook(void (*fptr)(void))
+{
+	idle_hook_ptr = fptr;
+}
 
 int readline(char *s, int size)
 {
@@ -19,6 +28,12 @@ int readline(char *s, int size)
 	c[1] = 0;
 	ptr = 0;
 	while(1) {
+		if (idle_hook_ptr != NULL) {
+			while (!uart_read_nonblock()) {
+				idle_hook_ptr();
+			}
+		}
+
 		c[0] = getchar();
 		if (c[0] == skip)
 			continue;
