@@ -28,7 +28,7 @@ class EfinixHyperRAM(HyperRAM):
 
         # # #
 
-        assert sys_clk_freq is not None and sys_clk_freq * 2 < 250e6
+        assert sys_clk_freq is not None and sys_clk_freq * 4 < 250e6
 
         _io = [
             ("hyperram", 0,
@@ -74,9 +74,9 @@ class EfinixHyperRAM(HyperRAM):
         self.pll = pll = TITANIUMPLL(platform, dyn_phase_shift_pads=_dps_pads)
         pll.register_clkin(None, sys_clk_freq, name=f"{clock_domain}_pll0_clk") # FIXME: fix clkin name
         pll.create_clkout(None,              sys_clk_freq)
-        pll.create_clkout(self.cd_hp,    2 * sys_clk_freq,           with_reset=True)
-        pll.create_clkout(self.cd_hp90,  2 * sys_clk_freq, phase=90, with_reset=True)
-        pll.create_clkout(self.cd_hpcal, 2 * sys_clk_freq,           with_reset=True, dyn_phase=True)
+        pll.create_clkout(self.cd_hp,    4 * sys_clk_freq,           with_reset=True)
+        pll.create_clkout(self.cd_hp90,  4 * sys_clk_freq, phase=90, with_reset=True)
+        pll.create_clkout(self.cd_hpcal, 4 * sys_clk_freq,           with_reset=True, dyn_phase=True)
 
 
         # connect HyperRAM to interface designer block
