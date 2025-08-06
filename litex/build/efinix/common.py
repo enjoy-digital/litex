@@ -13,6 +13,8 @@ from litex.build.io import *
 from litex.build.generic_platform import Pins
 from litex.build.efinix.efinity   import EfinityToolchain
 
+from migen.fhdl.structure import _Operator
+
 # Colorama -----------------------------------------------------------------------------------------
 
 try:
@@ -34,6 +36,12 @@ if _have_colorama:
     ]
 
 # Helpers ------------------------------------------------------------------------------------------
+
+def check_clk_inverted(obj):
+    if isinstance(obj, _Operator):
+        if obj.op == "~":
+            return (obj.operands[0]), 1
+    return obj, 0
 
 def assert_is_signal_or_clocksignal(obj):
     assert isinstance(obj, (ClockSignal, Signal)), f"Object {obj} is not a ClockSignal or Signal"
@@ -122,6 +130,7 @@ class EfinixClkInput(LiteXModule):
 
 class EfinixClkOutputImpl(LiteXModule):
     def __init__(self, i, o):
+        i, out_clk_inv = check_clk_inverted(i)
         assert_is_signal_or_clocksignal(i)
         platform = LiteXContext.platform
         block = {
@@ -131,6 +140,7 @@ class EfinixClkOutputImpl(LiteXModule):
             "properties" : platform.get_pin_properties(o),
             "name"       : i,
             "mode"       : "OUTPUT_CLK",
+            "out_clk_inv": out_clk_inv,
         }
         platform.toolchain.ifacewriter.blocks.append(block)
         platform.toolchain.excluded_ios.append(o)
@@ -294,8 +304,10 @@ class EfinixDifferentialInput:
 # Efinix DDRTristate -------------------------------------------------------------------------------
 
 class EfinixDDRTristateImpl(LiteXModule):
-    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk):
+    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk, in_clk):
         assert oe2 is None
+        clk, out_clk_inv = check_clk_inverted(clk)
+        in_clk, in_clk_inv = check_clk_inverted(in_clk)
         assert_is_signal_or_clocksignal(clk)
         platform     = LiteXContext.platform
         if len(io) == 1:
@@ -325,12 +337,12 @@ class EfinixDDRTristateImpl(LiteXModule):
             "properties"     : io_prop,
             "size"           : len(io),
             "in_reg"         : "DDIO_RESYNC",
-            "in_clk_pin"     : clk,
+            "in_clk_pin"     : in_clk,
             "out_reg"        : "DDIO_RESYNC",
             "out_clk_pin"    : clk,
             "oe_reg"         : "REG",
-            "in_clk_inv"     : 0,
-            "out_clk_inv"    : 0,
+            "in_clk_inv"     : in_clk_inv,
+            "out_clk_inv"    : out_clk_inv,
             "drive_strength" : io_prop_dict.get("DRIVE_STRENGTH", "4")
         }
         platform.toolchain.ifacewriter.blocks.append(block)
@@ -339,12 +351,14 @@ class EfinixDDRTristateImpl(LiteXModule):
 class EfinixDDRTristate:
     @staticmethod
     def lower(dr):
-        return EfinixDDRTristateImpl(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk)
+        return EfinixDDRTristateImpl(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk, dr.in_clk)
 
 # Efinix SDRTristate -------------------------------------------------------------------------------
 
 class EfinixSDRTristateImpl(LiteXModule):
-    def __init__(self, io, o, oe, i, clk):
+    def __init__(self, io, o, oe, i, clk, in_clk):
+        clk, out_clk_inv = check_clk_inverted(clk)
+        in_clk, in_clk_inv = check_clk_inverted(in_clk)
         assert_is_signal_or_clocksignal(clk)
         platform     = LiteXContext.platform
         if len(io) == 1:
@@ -374,13 +388,13 @@ class EfinixSDRTristateImpl(LiteXModule):
             "properties"     : io_prop,
             "size"           : len(io),
             "in_reg"         : "REG",
-            "in_clk_pin"     : clk,
+            "in_clk_pin"     : in_clk,
             "out_reg"        : "REG",
             "out_clk_pin"    : clk,
             "const_output"   : const_output,
             "oe_reg"         : "REG",
-            "in_clk_inv"     : 0,
-            "out_clk_inv"    : 0,
+            "in_clk_inv"     : in_clk_inv,
+            "out_clk_inv"    : out_clk_inv,
             "drive_strength" : io_prop_dict.get("DRIVE_STRENGTH", "4")
         }
         platform.toolchain.ifacewriter.blocks.append(block)
@@ -390,12 +404,13 @@ class EfinixSDRTristateImpl(LiteXModule):
 class EfinixSDRTristate(LiteXModule):
     @staticmethod
     def lower(dr):
-        return EfinixSDRTristateImpl(dr.io, dr.o, dr.oe, dr.i, dr.clk)
+        return EfinixSDRTristateImpl(dr.io, dr.o, dr.oe, dr.i, dr.clk, dr.in_clk)
 
 # Efinix SDROutput ---------------------------------------------------------------------------------
 
 class EfinixSDROutputImpl(LiteXModule):
     def __init__(self, i, o, clk):
+        clk, out_clk_inv = check_clk_inverted(clk)
         assert_is_signal_or_clocksignal(clk)
         platform     = LiteXContext.platform
         if len(o) == 1:
@@ -423,7 +438,7 @@ class EfinixSDROutputImpl(LiteXModule):
             "out_reg"        : "REG",
             "out_clk_pin"    : clk,
             "const_output"   : const_output,
-            "out_clk_inv"    : 0,
+            "out_clk_inv"    : out_clk_inv,
             "drive_strength" : io_prop_dict.get("DRIVE_STRENGTH", "4")
         }
         platform.toolchain.ifacewriter.blocks.append(block)
@@ -439,6 +454,7 @@ class EfinixSDROutput(LiteXModule):
 
 class EfinixDDROutputImpl(LiteXModule):
     def __init__(self, i1, i2, o, clk):
+        clk, out_clk_inv = check_clk_inverted(clk)
         assert_is_signal_or_clocksignal(clk)
         platform     = LiteXContext.platform
         if len(o) == 1:
@@ -463,7 +479,7 @@ class EfinixDDROutputImpl(LiteXModule):
             "size"              : len(o),
             "out_reg"           : "DDIO_RESYNC",
             "out_clk_pin"       : clk,
-            "out_clk_inv"       : 0,
+            "out_clk_inv"       : out_clk_inv,
             "drive_strength"    : io_prop_dict.get("DRIVE_STRENGTH", "4")
         }
         platform.toolchain.ifacewriter.blocks.append(block)
@@ -478,6 +494,7 @@ class EfinixDDROutput:
 
 class EfinixSDRInputImpl(LiteXModule):
     def __init__(self, i, o, clk):
+        clk, in_clk_inv = check_clk_inverted(clk)
         assert_is_signal_or_clocksignal(clk)
         platform = LiteXContext.platform
         if len(i) == 1:
@@ -499,7 +516,7 @@ class EfinixSDRInputImpl(LiteXModule):
             "size"              : len(i),
             "in_reg"            : "REG",
             "in_clk_pin"        : clk,
-            "in_clk_inv"        : 0
+            "in_clk_inv"        : in_clk_inv,
         }
         platform.toolchain.ifacewriter.blocks.append(block)
         platform.toolchain.excluded_ios.append(platform.get_pin(i))
@@ -513,6 +530,7 @@ class EfinixSDRInput:
 
 class EfinixDDRInputImpl(LiteXModule):
     def __init__(self, i, o1, o2, clk):
+        clk, in_clk_inv = check_clk_inverted(clk)
         assert_is_signal_or_clocksignal(clk)
         platform  = LiteXContext.platform
         if len(i) == 1:
@@ -536,7 +554,7 @@ class EfinixDDRInputImpl(LiteXModule):
             "size"              : len(i),
             "in_reg"            : "DDIO_RESYNC",
             "in_clk_pin"        : clk,
-            "in_clk_inv"        : 0
+            "in_clk_inv"        : in_clk_inv,
         }
         platform.toolchain.ifacewriter.blocks.append(block)
         platform.toolchain.excluded_ios.append(platform.get_pin(i))
