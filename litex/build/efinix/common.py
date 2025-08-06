@@ -150,6 +150,13 @@ class EfinixTristateImpl(LiteXModule):
         # HYPERRAM block
         from migen.fhdl.specials import TSTriple
         if isinstance(io, TSTriple):
+            # Simply connect the TSTriple signals to o, oe, and i.
+            self.comb += [
+                io.oe.eq(oe),
+                io.o.eq(o),
+            ]
+            if i is not None:
+                self.comb += i.eq(io.i)
             return
         if len(io) == 1:
             io_name = platform.get_pin_name(io)
