@@ -2278,10 +2278,10 @@ class LiteXSoC(SoC):
         from litesdcard.emulator import SDEmulator
         from litesdcard.phy import SDPHY
         from litesdcard.core import SDCore
-        from litesdcard.frontend.dma import SDBlock2MemDMA, SDMem2BlockDMA
+        from litesdcard.frontend.dma import SDBlock2MemDMA, SDMem2BlockDMA, SDMem2Block2WayDMA
 
         class LiteSDCard(LiteXModule):
-            def __init__(self, soc, name="sdcard", mode="read+write", use_emulator=False):
+            def __init__(self, soc, name="sdcard", mode="read+write", use_emulator=False, new_style=True):
                 # Checks.
                 assert mode in ["read", "write", "read+write"]
 
@@ -2296,47 +2296,73 @@ class LiteXSoC(SoC):
                 self.phy = phy = SDPHY(pads, soc.platform.device, soc.sys_clk_freq, cmd_timeout=10e-1, data_timeout=10e-1)
                 self.core = core = SDCore(phy)
 
-                # Block2Mem DMA.
-                if "read" in mode:
+                if new_style:
+                    assert mode == "read+write"
                     bus = wishbone.Interface(
-                        data_width = soc.bus.data_width,
-                        adr_width  = soc.bus.get_address_width(standard="wishbone"),
-                        addressing = "word",
-                    )
-                    self.block2mem = block2mem = SDBlock2MemDMA(bus=bus, endianness=soc.cpu.endianness)
-                    self.comb += core.source.connect(block2mem.sink)
-                    dma_bus = getattr(soc, "dma_bus", soc.bus)
-                    dma_bus.add_master(master=bus)
-
-                # Mem2Block DMA.
-                if "write" in mode:
-                    bus = wishbone.Interface(
-                        data_width = soc.bus.data_width,
-                        adr_width  = soc.bus.get_address_width(standard="wishbone"),
-                        addressing = "word",
-                    )
-                    self.mem2block = mem2block = SDMem2BlockDMA(bus=bus, endianness=soc.cpu.endianness)
+                            data_width = soc.bus.data_width,
+                            adr_width  = soc.bus.get_address_width(standard="wishbone"),
+                            addressing = "word",
+                        )
+                    self.mem2block = mem2block = SDMem2Block2WayDMA(bus=bus, endianness=soc.cpu.endianness)
+                    self.comb += core.source.connect(mem2block.sink)
                     self.comb += mem2block.source.connect(core.sink)
                     dma_bus = getattr(soc, "dma_bus", soc.bus)
                     dma_bus.add_master(master=bus)
 
-                # Interrupts.
-                self.ev = ev = EventManager()
-                ev.card_detect = EventSourcePulse(description="SDCard has been ejected/inserted.")
-                if "read" in mode:
-                    ev.block2mem_dma = EventSourcePulse(description="Block2Mem DMA terminated.")
-                if "write" in mode:
-                    ev.mem2block_dma = EventSourcePulse(description="Mem2Block DMA terminated.")
-                ev.cmd_done  = EventSourceLevel(description="Command completed.")
-                ev.finalize()
-                if "read" in mode:
-                    self.comb += ev.block2mem_dma.trigger.eq(block2mem.irq)
-                if "write" in mode:
-                    self.comb += ev.mem2block_dma.trigger.eq(mem2block.irq)
-                self.comb += [
-                    ev.card_detect.trigger.eq(phy.card_detect_irq),
-                    ev.cmd_done.trigger.eq(core.cmd_event.fields.done)
-                ]
+                    # Interrupts.
+                    self.ev = ev = EventManager()
+                    ev.card_detect = EventSourceProcess(description="SDCard has been ejected/inserted.", edge="any")
+                    ev.cmd_done  = EventSourceProcess(description="Command completed.", edge="rising")
+                    ev.mem2block_dma = EventSourceProcess(description="Mem2Block DMA terminated.", edge="rising")
+                    ev.finalize()
+
+                    self.comb += [
+                        ev.card_detect.trigger.eq(phy.card_detect.status),
+                        ev.cmd_done.trigger.eq(core.cmd_event.fields.done),
+                        ev.mem2block_dma.trigger.eq(mem2block.dma.done)
+                    ]
+                else:
+                    # Block2Mem DMA.
+                    if "read" in mode:
+                        bus = wishbone.Interface(
+                            data_width = soc.bus.data_width,
+                            adr_width  = soc.bus.get_address_width(standard="wishbone"),
+                            addressing = "word",
+                        )
+                        self.block2mem = block2mem = SDBlock2MemDMA(bus=bus, endianness=soc.cpu.endianness)
+                        self.comb += core.source.connect(block2mem.sink)
+                        dma_bus = getattr(soc, "dma_bus", soc.bus)
+                        dma_bus.add_master(master=bus)
+
+                    # Mem2Block DMA.
+                    if "write" in mode:
+                        bus = wishbone.Interface(
+                            data_width = soc.bus.data_width,
+                            adr_width  = soc.bus.get_address_width(standard="wishbone"),
+                            addressing = "word",
+                        )
+                        self.mem2block = mem2block = SDMem2BlockDMA(bus=bus, endianness=soc.cpu.endianness)
+                        self.comb += mem2block.source.connect(core.sink)
+                        dma_bus = getattr(soc, "dma_bus", soc.bus)
+                        dma_bus.add_master(master=bus)
+
+                    # Interrupts.
+                    self.ev = ev = EventManager()
+                    ev.card_detect = EventSourceProcess(description="SDCard has been ejected/inserted.", edge="any")
+                    if "read" in mode:
+                        ev.block2mem_dma = EventSourceProcess(description="Block2Mem DMA terminated.", edge="rising")
+                    if "write" in mode:
+                        ev.mem2block_dma = EventSourceProcess(description="Mem2Block DMA terminated.", edge="rising")
+                    ev.cmd_done  = EventSourceLevel(description="Command completed.")
+                    ev.finalize()
+                    if "read" in mode:
+                        self.comb += ev.block2mem_dma.trigger.eq(block2mem.dma.done)
+                    if "write" in mode:
+                        self.comb += ev.mem2block_dma.trigger.eq(mem2block.dma.done)
+                    self.comb += [
+                        ev.card_detect.trigger.eq(phy.card_detect.status),
+                        ev.cmd_done.trigger.eq(core.cmd_event.fields.done)
+                    ]
 
         self.check_if_exists(name)
         sdcard = LiteSDCard(self, name=sdcard_name, **kwargs)
