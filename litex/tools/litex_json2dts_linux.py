@@ -23,6 +23,14 @@ def generate_dts_interrupt(d, intr, polling):
     else:
         return "interrupts = <{}>;".format(intr)
 
+def generate_dts_intc(d):
+    if "aplic_s" in d["memories"]:
+        return "intc_s"
+    elif "aplic_s" in d["memories"]:
+        return "intc_m"
+    else:
+        return "intc0"
+
 def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_device=None, polling=False):
     aliases = {}
 
@@ -389,9 +397,9 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
             #address-cells = <1>;
             #size-cells    = <1>;
             compatible = "simple-bus";
-            interrupt-parent = <&intc0>;
+            interrupt-parent = <&{intc}>;
             ranges;
-""".format()
+""".format(intc=generate_dts_intc(d))
 
     # SoC Controller -------------------------------------------------------------------------------
 
@@ -419,17 +427,57 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 """.format(
         clint_base  = d["memories"]["clint"]["base"],
         cpu_mapping = ("\n" + " "*20).join(["&L{} 3 &L{} 7".format(cpu, cpu) for cpu in range(cpu_count)]))
+
     if cpu_family == "riscv":
-        # if "plic" in d["memories"]
-        if cpu_name == "rocket":
-            extra_attr = """
+        if "aplic_m" in d["memories"]:
+            extra_attr_m = ""
+
+            if "aplic_s" in d["memories"]:
+                extra_attr_m += """
+                riscv,children = <&intc_s>;
+                riscv,delegation = <&intc_s 1 31>;
+"""
+
+            dts += """
+            intc_m: interrupt-controller@{aplic_base:x} {{
+                compatible = "riscv,aplic";
+                reg = <0x{aplic_base:x} 0x200000>;
+                #interrupt-cells = <2>;
+                interrupt-controller;
+                interrupts-extended = <
+                    {cpu_mapping}>;
+                {extra_attr}
+                riscv,num-sources = <31>;
+            }};
+""".format(
+        aplic_base   = d["memories"]["aplic_m"]["base"],
+        cpu_mapping = ("\n" + " "*20).join(["&L{} 11".format(cpu, cpu) for cpu in range(cpu_count)]),
+        extra_attr  = extra_attr_m)
+
+            if "aplic_s" in d["memories"]:
+                dts += """
+            intc_s: interrupt-controller@{aplic_base:x} {{
+                compatible = "riscv,aplic";
+                reg = <0x{aplic_base:x} 0x200000>;
+                #interrupt-cells = <2>;
+                interrupt-controller;
+                interrupts-extended = <
+                    {cpu_mapping}>;
+                riscv,num-sources = <31>;
+            }};
+""".format(
+        aplic_base   = d["memories"]["aplic_s"]["base"],
+        cpu_mapping = ("\n" + " "*20).join(["&L{} 9".format(cpu, cpu) for cpu in range(cpu_count)]))
+        elif "plic" in d["memories"]:
+            if cpu_name == "rocket":
+                extra_attr = """
                 reg-names = "control";
                 riscv,max-priority = <7>;
 """
-        else:
-            extra_attr = ""
+            else:
+                extra_attr = ""
 
-        dts += """
+            dts += """
             intc0: interrupt-controller@{plic_base:x} {{
                 compatible = "sifive,fu540-c000-plic", "sifive,plic-1.0.0";
                 reg = <0x{plic_base:x} 0x400000>;
@@ -445,6 +493,8 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         plic_base   = d["memories"]["plic"]["base"],
         cpu_mapping = ("\n" + " "*20).join(["&L{} 11 &L{} 9".format(cpu, cpu) for cpu in range(cpu_count)]),
         extra_attr  = extra_attr)
+        else:
+            raise NotImplementedError("No interrupt controller found")
 
     elif cpu_family == "or1k":
         dts += """
