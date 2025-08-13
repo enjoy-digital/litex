@@ -15,6 +15,14 @@ import re
 
 from litex.gen.common import KILOBYTE, MEGABYTE
 
+def generate_dts_interrupt(d, intr, polling):
+    if polling:
+        return ""
+    elif ("aplic_m" in d["memories"]) or ("aplic_s" in d["memories"]):
+        return "interrupts = <{} 0x4>;".format(intr)
+    else:
+        return "interrupts = <{}>;".format(intr)
+
 def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_device=None, polling=False):
     aliases = {}
 
@@ -412,6 +420,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         clint_base  = d["memories"]["clint"]["base"],
         cpu_mapping = ("\n" + " "*20).join(["&L{} 3 &L{} 7".format(cpu, cpu) for cpu in range(cpu_count)]))
     if cpu_family == "riscv":
+        # if "plic" in d["memories"]
         if cpu_name == "rocket":
             extra_attr = """
                 reg-names = "control";
@@ -483,7 +492,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
             }};
 """.format(
     uart_csr_base  = d["csr_bases"]["uart"],
-    uart_interrupt = "" if polling else "interrupts = <{}>;".format(int(d["constants"]["uart_interrupt"]) + it_incr))
+    uart_interrupt = generate_dts_interrupt(d, int(d["constants"]["uart_interrupt"]) + it_incr, polling))
 
     # Ethernet -------------------------------------------------------------------------------------
     for i in [''] + list(range(0, 10)):
@@ -515,7 +524,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     ethmac_rx_slots  = d["constants"][ethmac_name + "_rx_slots"],
     ethmac_tx_slots  = d["constants"][ethmac_name + "_tx_slots"],
     ethmac_slot_size = d["constants"][ethmac_name + "_slot_size"],
-    ethmac_interrupt = "" if polling else "interrupts = <{}>;".format(int(d["constants"][ethmac_name + "_interrupt"]) + it_incr),
+    ethmac_interrupt = generate_dts_interrupt(d, int(d["constants"][ethmac_name + "_interrupt"]) + it_incr, polling),
     local_mac_addr   = "" if not "macaddr1" in d["constants"] else "local-mac-address = [{mac_addr}];".format(
         mac_addr     = "{a1:02X} {a2:02X} {a3:02X} {a4:02X} {a5:02X} {a6:02X}".format(
             a1       = d["constants"]["macaddr1"],
@@ -537,7 +546,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
             }};
 """.format(
     usb_ohci_mem_base  = d["memories"]["usb_ohci_ctrl"]["base"],
-    usb_ohci_interrupt = "" if polling else "interrupts = <{}>;".format(16)) # FIXME
+    usb_ohci_interrupt = generate_dts_interrupt(d, 16, polling)) # FIXME
 
     # SPI Flash ------------------------------------------------------------------------------------
 
@@ -613,7 +622,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         sdcard_mem2block     = d["csr_registers"]["sdcard_mem2block_dma_base"]['addr'],
         sdcard_mem2block_size = d["csr_registers"]["sdcard_ev_status"]['addr'] - d["csr_registers"]["sdcard_mem2block_dma_base"]['addr'],
         sdcard_irq           = d["csr_registers"]["sdcard_ev_status"]['addr'],
-        sdcard_irq_interrupt = "" if polling else "interrupts = <{}>;".format(d["constants"]["sdcard_interrupt"])
+        sdcard_irq_interrupt = generate_dts_interrupt(d, d["constants"]["sdcard_interrupt"], polling)
 )
     # Leds -----------------------------------------------------------------------------------------
 
@@ -658,7 +667,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
             }};
 """.format(
     switches_csr_base  = d["csr_bases"]["switches"],
-	switches_interrupt = "" if polling else "interrupts = <{}>;".format(d["constants"]["switches_interrupt"]))
+	switches_interrupt = generate_dts_interrupt(d, d["constants"]["switches_interrupt"], polling))
 
     # SPI ------------------------------------------------------------------------------------------
 
