@@ -720,6 +720,20 @@ class SoCLocHandler(LiteXModule):
         self.logger.error(self)
         raise SoCError()
 
+    # Remove ---------------------------------------------------------------------------------------
+    def remove(self, name):
+        if name not in self.locs.keys():
+            self.logger.error("{} {} {}.".format(
+                colorer(name), self.name, colorer("not found", color="red")))
+            return
+        n = self.locs[name]
+        del self.locs[name]
+        self.logger.info("{} {} {} from Location {}.".format(
+            colorer(name, color="underline"),
+            self.name,
+            colorer("removed", color="red"),
+            colorer(n)))
+
     # Str ------------------------------------------------------------------------------------------
     def __str__(self):
         r = "{} Locations: ({})\n".format(self.name, len(self.locs.keys())) if len(self.locs.keys()) else ""
@@ -1193,7 +1207,7 @@ class SoC(LiteXModule, SoCCoreCompat):
         self.add_config("CSR_ALIGNMENT",  self.csr.alignment)
 
     # Add CPU --------------------------------------------------------------------------------------
-    def add_cpu(self, name="vexriscv", variant="standard", reset_address=None, cfu=None):
+    def add_cpu(self, name="vexriscv", variant="standard", reset_address=None, cfu=None, **kwargs):
         from litex.soc.cores import cpu
 
         # Check that CPU is supported.
@@ -1222,7 +1236,7 @@ class SoC(LiteXModule, SoCCoreCompat):
         if cpu_cls is cpu.CPUNone:
             self.cpu = cpu_cls(self.bus.data_width, self.bus.address_width)
         else:
-            self.cpu = cpu_cls(self.platform, variant)
+            self.cpu = cpu_cls(self.platform, variant, **kwargs)
         self.logger.info("CPU {} {}.".format(
             colorer(name, color="underline"),
             colorer("added", color="green")))
@@ -1362,6 +1376,100 @@ class SoC(LiteXModule, SoCCoreCompat):
 
         if self.irq.enabled:
             self.irq.add(name, use_loc_if_exists=True)
+
+    # Add CLINT ------------------------------------------------------------------------------------
+    def add_clint(self, name="clint", num_harts=1, base_addr=0x02000000):
+        from litex.soc.cores.clint import CLINT
+        self.check_if_exists(name)
+        
+        # CLINT and CLIC are mutually exclusive - check multiple ways CLIC could be present
+        if (hasattr(self, "clic") or 
+            (hasattr(self, "_modules") and "clic" in self._modules) or
+            (hasattr(self, "submodules") and hasattr(self.submodules, "clic"))):
+            raise ValueError("CLINT and CLIC are mutually exclusive. Cannot add both to the same SoC.")
+        
+        clint = CLINT(num_harts=num_harts) 
+        self.add_module(name=name, module=clint)
+        
+        # Add CLINT to CSR map (makes it accessible via CPU load/store)
+        self.add_csr(name)
+        
+        # Connect interrupts to CPU if it has timer/software interrupt inputs
+        if hasattr(self, "cpu"):
+            if hasattr(self.cpu, "timer_interrupt"):
+                # Connect bit 0 of the interrupt signals (single-hart)
+                self.comb += self.cpu.timer_interrupt.eq(clint.timer_interrupts[0])
+            if hasattr(self.cpu, "software_interrupt"):
+                # Connect bit 0 of the interrupt signals (single-hart)
+                self.comb += self.cpu.software_interrupt.eq(clint.sw_interrupts[0])
+
+    # Add CLIC -------------------------------------------------------------------------------------
+    def add_clic(self, name="clic", num_interrupts=64, num_harts=1, ipriolen=8, base_addr=0x0C000000):
+        from litex.soc.cores.clic import CLIC
+        self.check_if_exists(name)
+        
+        # CLIC and CLINT are mutually exclusive - check multiple ways CLINT could be present
+        if (hasattr(self, "clint") or 
+            (hasattr(self, "_modules") and "clint" in self._modules) or
+            (hasattr(self, "submodules") and hasattr(self.submodules, "clint"))):
+            raise ValueError("CLIC and CLINT are mutually exclusive. Cannot add both to the same SoC.")
+        
+        clic = CLIC(num_interrupts=num_interrupts, num_harts=num_harts, ipriolen=ipriolen)
+        self.add_module(name=name, module=clic)
+        
+        # Add CLIC to CSR map
+        clic.add_to_soc(self, name=name, base_addr=base_addr)
+        
+        # Connect external interrupt sources if IRQ system is enabled
+        if hasattr(self, "irq") and self.irq.enabled:
+            # Map IRQ sources to CLIC interrupt inputs
+            for i, (name, loc) in enumerate(self.irq.locs.items()):
+                if i < num_interrupts and hasattr(self.irq, name):
+                    self.comb += clic.interrupt_inputs[i].eq(getattr(self.irq, name))
+        
+        # Connect CLIC outputs to CPU if it supports CLIC
+        if hasattr(self, "cpu"):
+            if hasattr(self.cpu, "clic_interrupt"):
+                # VexRiscv is always single-hart - connect directly
+                if num_harts == 1:
+                    # Single-hart system - simpler connections
+                    self.comb += [
+                        self.cpu.clic_interrupt.eq(clic.clicInterrupt),
+                        self.cpu.clic_interrupt_id.eq(clic.clicInterruptId[0]),
+                        self.cpu.clic_interrupt_priority.eq(clic.clicInterruptPriority[0]),
+                        clic.clicClaim.eq(self.cpu.clic_claim),
+                        clic.clicThreshold[0].eq(self.cpu.clic_threshold)
+                    ]
+                else:
+                    # Multi-hart system - use hart 0
+                    self.comb += [
+                        self.cpu.clic_interrupt.eq(clic.clicInterrupt[0]),
+                        self.cpu.clic_interrupt_id.eq(clic.clicInterruptId[0]),
+                        self.cpu.clic_interrupt_priority.eq(clic.clicInterruptPriority[0]),
+                        clic.clicClaim[0].eq(self.cpu.clic_claim),
+                        clic.clicThreshold[0].eq(self.cpu.clic_threshold)
+                    ]
+                
+                # Map CLIC interrupt to CPU's external interrupt array
+                # Use appropriate bit position based on CPU type and interrupt array size
+                if hasattr(self.cpu, "interrupt"):
+                    interrupt_array_size = len(self.cpu.interrupt)
+                    
+                    # Choose interrupt bit based on CPU type and array size
+                    if self.cpu.name == "vexriscv" and interrupt_array_size >= 32:
+                        # VexRiscv: Use bit 31 (highest bit in 32-bit array)
+                        clic_interrupt_bit = 31
+                    elif self.cpu.name == "minerva" and interrupt_array_size >= 16:
+                        # Minerva: Use bit 15 (highest bit in 16-bit array)
+                        clic_interrupt_bit = 15
+                    elif self.cpu.name == "ibex" and interrupt_array_size >= 15:
+                        # Ibex: Use bit 14 (highest bit in 15-bit array)
+                        clic_interrupt_bit = 14
+                    else:
+                        # Fallback: Use highest available bit
+                        clic_interrupt_bit = interrupt_array_size - 1
+                    
+                    self.comb += self.cpu.interrupt[clic_interrupt_bit].eq(self.cpu.clic_interrupt)
 
     # SoC finalization -----------------------------------------------------------------------------
     def finalize(self):
