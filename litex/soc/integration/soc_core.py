@@ -107,6 +107,14 @@ class SoCCore(LiteXSoC):
         with_timer               = True,
         timer_uptime             = False,
 
+        # CLINT parameters.
+        with_clint               = False,
+
+        # CLIC parameters.
+        with_clic                = False,
+        clic_num_interrupts      = 64,
+        clic_ipriolen            = 8,
+
         # Controller parameters.
         with_ctrl                = True,
 
@@ -220,7 +228,8 @@ class SoCCore(LiteXSoC):
             name          = str(cpu_type),
             variant       = "standard" if cpu_variant is None else cpu_variant,
             reset_address = None if integrated_rom_size else cpu_reset_address,
-            cfu           = cpu_cfu)
+            cfu           = cpu_cfu,
+            with_clic     = with_clic)
 
         # Add User's interrupts.
         if self.irq.enabled:
@@ -272,6 +281,28 @@ class SoCCore(LiteXSoC):
             self.add_timer(name="timer0")
             if timer_uptime:
                 self.timer0.add_uptime()
+
+        # Add CLINT or CLIC for RISC-V CPUs (mutually exclusive)
+        # CLIC is a replacement for CLINT as per RISC-V CLIC specification
+        if with_clic and with_clint:
+            raise ValueError("CLIC and CLINT are mutually exclusive. CLIC replaces CLINT functionality.")
+        
+        if with_clint:
+            # Only add CLINT for RISC-V CPUs that support it
+            if hasattr(self.cpu, "timer_interrupt") and hasattr(self.cpu, "software_interrupt"):
+                self.add_clint()
+                # Disable regular timer IRQ when using CLINT
+                if with_timer and hasattr(self, "timer0") and self.irq.enabled:
+                    self.irq.remove("timer0")
+
+        elif with_clic:
+            # Only add CLIC for RISC-V CPUs that support it
+            if hasattr(self.cpu, "clic_interrupt") and hasattr(self.cpu, "clic_interrupt_id"):
+                self.add_clic(num_interrupts=clic_num_interrupts, ipriolen=clic_ipriolen)
+                # CLIC replaces both CLINT functionality and standard interrupt handling
+                # Disable regular timer IRQ when using CLIC
+                if with_timer and hasattr(self, "timer0") and self.irq.enabled:
+                    self.irq.remove("timer0")
 
         # Add Watchdog.
         if with_watchdog:
@@ -348,6 +379,14 @@ def soc_core_args(parser):
     # Timer parameters.
     soc_group.add_argument("--no-timer",        action="store_true", help="Disable Timer.")
     soc_group.add_argument("--timer-uptime",    action="store_true", help="Add an uptime capability to Timer.")
+
+    # CLINT parameters.
+    soc_group.add_argument("--with-clint",      action="store_true", help="Enable CLINT (Core Local Interruptor) for RISC-V CPUs.")
+
+    # CLIC parameters.
+    soc_group.add_argument("--with-clic",            action="store_true",         help="Enable CLIC (Core Local Interrupt Controller) for RISC-V CPUs.")
+    soc_group.add_argument("--clic-num-interrupts",  default=64,   type=auto_int, help="Number of CLIC interrupts.")
+    soc_group.add_argument("--clic-ipriolen",        default=8,    type=auto_int, help="CLIC interrupt priority bits.")
 
     # Watchdog parameters.
     soc_group.add_argument("--with-watchdog",        action="store_true",         help="Enable Watchdog.")
