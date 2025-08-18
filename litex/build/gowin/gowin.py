@@ -173,7 +173,8 @@ class GowinToolchain(GenericToolchain):
         gw_sh = "gw_sh"
         if sys.platform.find("linux") >= 0:
             if os.uname().release.find("WSL") > 0:
-                gw_sh += ".exe"
+                # gw_sh += ".exe"
+                print("#WSL-fixed")
         if which(gw_sh) is None:
             msg = "Unable to find Gowin toolchain, please:\n"
             msg += "- Add Gowin toolchain to your $PATH."
