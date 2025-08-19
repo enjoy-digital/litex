@@ -171,10 +171,7 @@ class GowinToolchain(GenericToolchain):
         # Some python distros for windows (e.g, oss-cad-suite)
         # which does not have 'os.uname' support, we should check 'sys.platform' firstly.
         gw_sh = "gw_sh"
-        if sys.platform.find("linux") >= 0:
-            if os.uname().release.find("WSL") > 0:
-                # gw_sh += ".exe"
-                print("#WSL-fixed")
+        
         if which(gw_sh) is None:
             msg = "Unable to find Gowin toolchain, please:\n"
             msg += "- Add Gowin toolchain to your $PATH."
