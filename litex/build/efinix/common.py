@@ -309,14 +309,20 @@ class EfinixDDRTristateImpl(LiteXModule):
         io_prop_dict = dict(io_prop)
         io_data_i_h  = platform.add_iface_io(io_name + "_OUT_HI", len(io))
         io_data_i_l  = platform.add_iface_io(io_name + "_OUT_LO", len(io))
-        io_data_o_h  = platform.add_iface_io(io_name + "_IN_HI", len(io))
-        io_data_o_l  = platform.add_iface_io(io_name + "_IN_LO", len(io))
         io_data_e    = platform.add_iface_io(io_name + "_OE", len(io))
         self.comb += io_data_i_h.eq(o1)
         self.comb += io_data_i_l.eq(o2)
         self.comb += io_data_e.eq(oe1)
-        self.comb += i1.eq(io_data_o_h)
-        self.comb += i2.eq(io_data_o_l)
+        if i1 is not None:
+            io_data_o_h  = platform.add_iface_io(io_name + "_IN_HI", len(io))
+            self.comb += i1.eq(io_data_o_h)
+        else:
+            io_prop.append(("IN_HI_PIN", ""))
+        if i2 is not None:
+            io_data_o_l  = platform.add_iface_io(io_name + "_IN_LO", len(io))
+            self.comb += i2.eq(io_data_o_l)
+        else:
+            io_prop.append(("IN_LO_PIN", ""))
         block = {
             "type"           : "GPIO",
             "mode"           : "INOUT",
@@ -333,6 +339,8 @@ class EfinixDDRTristateImpl(LiteXModule):
             "out_clk_inv"    : 0,
             "drive_strength" : io_prop_dict.get("DRIVE_STRENGTH", "4")
         }
+        if i1 is None and i2 is None:
+            block.pop("in_reg")
         platform.toolchain.ifacewriter.blocks.append(block)
         platform.toolchain.excluded_ios.append(platform.get_pin(io))
 

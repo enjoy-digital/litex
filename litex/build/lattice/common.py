@@ -340,10 +340,11 @@ class LatticeNXDDRTristateImpl(Module):
         assert oe2 is None
         _o  = Signal().like(o1)
         _oe = Signal().like(oe1)
-        _i  = Signal().like(i1)
+        _i  = Signal().like(_o) if i1 is not None and i2 is not None else None
         self.specials += DDROutput(o1, o2, _o, clk)
         self.specials += SDROutput(oe1, _oe, clk)
-        self.specials += DDRInput(_i, i1, i2, clk)
+        if _i is not None:
+            self.specials += DDRInput(_i, i1, i2, clk)
         self.specials += Tristate(io, _o, _oe, _i)
         _oe.attr.add("syn_useioff")
 

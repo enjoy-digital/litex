@@ -164,10 +164,11 @@ class XilinxDDRTristateImpl(Module):
     def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk, i_async):
         _o    = Signal().like(o1)
         _oe_n = Signal().like(oe1)
-        _i    = Signal().like(i1)
+        _i    = Signal().like(_o)
         self.specials += DDROutput(o1, o2, _o, clk)
         self.specials += DDROutput(~oe1, ~oe2, _oe_n, clk) if oe2 is not None else SDROutput(~oe1, _oe_n, clk)
-        self.specials += DDRInput(_i, i1, i2, clk)
+        if i1 is not None and i2 is not None:
+            self.specials += DDRInput(_i, i1, i2, clk)
         for j in range(len(io)):
             self.specials += Instance("IOBUF",
                 io_IO = io[j],
@@ -175,7 +176,8 @@ class XilinxDDRTristateImpl(Module):
                 i_I   = _o[j],
                 i_T   = _oe_n[j],
             )
-        self.comb += i_async.eq(_i)
+        if i_async is not None:
+            self.comb += i_async.eq(_i)
 
 class XilinxDDRTristate:
     @staticmethod
