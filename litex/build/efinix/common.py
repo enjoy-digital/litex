@@ -178,6 +178,8 @@ class EfinixTristateImpl(LiteXModule):
         if i is not None:
             io_data_o  = platform.add_iface_io(io_name + "_IN", len(io))
             self.comb += i.eq(io_data_o)
+        else:
+            io_prop.append(("IN_PIN", ""))
         block = {
             "type"           : "GPIO",
             "mode"           : "INOUT",
