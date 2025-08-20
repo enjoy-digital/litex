@@ -146,6 +146,8 @@ class LatticeECP5DifferentialOutput:
 class LatticeECP5TristateImpl(Module):
     def __init__(self, io, o, oe, i):
         nbits, sign = value_bits_sign(io)
+        if i is None:
+            i = Signal().like(o)
         for bit in range(nbits):
             self.specials += Instance("BB",
                 io_B  = io[bit] if nbits > 1 else io,
@@ -177,6 +179,8 @@ lattice_ecp5_special_overrides = {
 class LatticeECP5TrellisTristateImpl(Module):
     def __init__(self, io, o, oe, i):
         nbits, sign = value_bits_sign(io)
+        if i is None:
+            i = Signal().like(o)
         for bit in range(nbits):
             self.specials += Instance("TRELLIS_IO",
                 p_DIR = "BIDIR",
@@ -396,6 +400,8 @@ class LatticeiCE40AsyncResetSynchronizer:
 class LatticeiCE40TristateImpl(Module):
     def __init__(self, io, o, oe, i):
         nbits, sign = value_bits_sign(io)
+        if i is None:
+            i = Signal().like(o)
         for bit in range(nbits):
             self.specials += Instance("SB_IO",
                 p_PIN_TYPE      = C(0b101001, 6), # PIN_OUTPUT_TRISTATE + PIN_INPUT

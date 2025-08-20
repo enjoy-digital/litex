@@ -115,6 +115,8 @@ gowin_special_overrides = {
 class Gw5ATristateImpl(Module):
     def __init__(self, io, o, oe, i):
         nbits, _ = value_bits_sign(io)
+        if i is None:
+            i = Signal().like(o)
         for bit in range(nbits):
             self.specials += Instance("IOBUF",
                 io_IO = io[bit] if nbits > 1 else io,
