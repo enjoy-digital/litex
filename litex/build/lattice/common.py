@@ -540,6 +540,8 @@ class LatticeiCE40SDRInput:
 
 class LatticeiCE40SDRTristateImpl(Module):
     def __init__(self, io, o, oe, i, clk):
+        if i is None:
+            i = Signal().like(o)
         for j in range(len(io)):
             self.specials += Instance("SB_IO",
                 p_PIN_TYPE      = C(0b110100, 6), # PIN_OUTPUT_REGISTERED_ENABLE_REGISTERED + PIN_INPUT_REGISTERED

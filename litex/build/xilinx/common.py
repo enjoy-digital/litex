@@ -140,10 +140,11 @@ class XilinxSDRTristateImpl(Module):
     def __init__(self, io, o, oe, i, clk):
         _o    = Signal().like(o)
         _oe_n = Signal().like(oe)
-        _i    = Signal().like(i)
+        _i    = Signal().like(i if i is not None else o)
         self.specials += SDROutput(o, _o, clk)
         self.specials += SDROutput(~oe, _oe_n, clk)
-        self.specials += SDRInput(_i, i, clk)
+        if i is not None:
+            self.specials += SDRInput(_i, i, clk)
         for j in range(len(io)):
             self.specials += Instance("IOBUF",
                 io_IO = io[j],

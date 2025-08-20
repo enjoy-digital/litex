@@ -362,10 +362,13 @@ class EfinixSDRTristateImpl(LiteXModule):
             const_output = "NONE"
             io_data_i = platform.add_iface_io(io_name + "_OUT", len(io))
             self.comb += io_data_i.eq(o)                
-        io_data_o    = platform.add_iface_io(io_name + "_IN", len(io))
         io_data_e    = platform.add_iface_io(io_name + "_OE", len(io))
         self.comb += io_data_e.eq(oe)
-        self.comb += i.eq(io_data_o)
+        if i is not None:
+            io_data_o    = platform.add_iface_io(io_name + "_IN", len(io))
+            self.comb += i.eq(io_data_o)
+        else:
+            io_prop.append(("IN_PIN", ""))
         block = {
             "type"           : "GPIO",
             "mode"           : "INOUT",
@@ -383,6 +386,8 @@ class EfinixSDRTristateImpl(LiteXModule):
             "out_clk_inv"    : 0,
             "drive_strength" : io_prop_dict.get("DRIVE_STRENGTH", "4")
         }
+        if i is None:
+            block.pop("in_reg")
         platform.toolchain.ifacewriter.blocks.append(block)
         platform.toolchain.excluded_ios.append(platform.get_pin(io))
 

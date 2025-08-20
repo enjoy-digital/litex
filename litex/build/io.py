@@ -111,27 +111,32 @@ class InferedSDRTristate(Module):
     def __init__(self, io, o, oe, i, clk):
         _o  = Signal().like(o)
         _oe = Signal().like(oe)
-        _i  = Signal().like(i)
+        _i  = Signal().like(i) if i is not None else None
         self.specials   += SDROutput(o, _o, clk)
-        self.specials   += SDRInput(_i, i, clk)
+        if _i is not None:
+            self.specials   += SDRInput(_i, i, clk)
         self.submodules += InferedSDRIO(oe, _oe, clk)
         self.specials   += Tristate(io, _o, _oe, _i)
 
 class SDRTristate(Special):
-    def __init__(self, io, o, oe, i, clk=None):
+    def __init__(self, io, o, oe, i=None, clk=None):
         Special.__init__(self)
         self.io  = wrap(io)
         self.o   = wrap(o)
         self.oe  = wrap(oe)
-        self.i   = wrap(i)
+        self.i   = wrap(i) if i is not None else None
         self.clk = wrap(clk) if clk is not None else ClockSignal()
-        assert len(self.i) == len(self.o) == len(self.oe)
+        if self.i is not None:
+            assert len(self.i) == len(self.o) == len(self.oe)
+        else:
+            assert len(self.o) == len(self.oe)
 
     def iter_expressions(self):
         yield self, "io" , SPECIAL_INOUT
         yield self, "o"  , SPECIAL_INPUT
         yield self, "oe" , SPECIAL_INPUT
-        yield self, "i"  , SPECIAL_OUTPUT
+        if self.i is not None:
+            yield self, "i"  , SPECIAL_OUTPUT
         yield self, "clk", SPECIAL_INPUT
 
     @staticmethod

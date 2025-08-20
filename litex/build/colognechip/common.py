@@ -162,12 +162,13 @@ class CologneChipSDRTristateImpl(Module):
     def __init__(self, io, o, oe, i, clk):
         _o    = Signal().like(o)
         _oe_n = Signal().like(oe)
-        _i    = Signal().like(i)
+        _i    = Signal().like(i if i is not None else o)
         self.specials += [
             SDROutput(o, _o, clk),
             SDROutput(~oe, _oe_n, clk),
-            SDRInput(_i, i, clk),
         ]
+        if i is not None:
+            self.specials += SDRInput(i, _i, clk)
         for j in range(len(io)):
             self.specials += Instance("CC_IOBUF",
                     p_FF_OBF = 1,
