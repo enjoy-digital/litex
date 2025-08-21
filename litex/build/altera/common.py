@@ -231,29 +231,30 @@ class Agilex5SDRInput:
 
 class Agilex5SDRTristateImpl(Module):
     def __init__(self, io, o, oe, i, clk):
-        _i  = Signal().like(i)
+        _i  = Signal().like(i) if i is not None else None
         _o  = Signal().like(o)
         _oe = Signal().like(oe)
         self.specials += [
             SDRIO(o, _o, clk),
-            SDRIO(oe, _oe, clk),
-            SDRIO(_i, i, clk)
+            SDRIO(oe, _oe, clk)
         ]
-        
+        if _i is not None:
+            self.specials += SDRIO(_i, i, clk)
+
         for j in range(len(io)):
-            self.specials += [
-                Instance("tennm_ph2_io_ibuf",
-                    p_bus_hold = "BUS_HOLD_OFF",
-                    io_i       = io[j], # FIXME: its an input but io is needed to have correct dir at top module
-                    o_o        = _i[j],
-                ),
-                Instance("tennm_ph2_io_obuf",
-                    p_open_drain = "OPEN_DRAIN_OFF",
-                    i_i          = _o[j],
-                    i_oe         = _oe[j],
-                    io_o         = io[j], # FIXME: its an output but io is needed to have correct dir at top module
-                ),
-            ]
+            if _i is not None:
+                self.specials += Instance("tennm_ph2_io_ibuf",
+                        p_bus_hold = "BUS_HOLD_OFF",
+                        io_i       = io[j], # FIXME: its an input but io is needed to have correct dir at top module
+                        o_o        = _i[j],
+                )
+
+            self.specials += Instance("tennm_ph2_io_obuf",
+                p_open_drain = "OPEN_DRAIN_OFF",
+                i_i          = _o[j],
+                i_oe         = _oe[j],
+                io_o         = io[j], # FIXME: its an output but io is needed to have correct dir at top module
+            )
 
 class Agilex5SDRTristate(Module):
     @staticmethod
