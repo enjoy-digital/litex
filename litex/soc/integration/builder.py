@@ -27,6 +27,7 @@ from litex.build.tools import write_to_file
 
 from litex.soc.cores import cpu
 from litex.soc.integration import export, soc_core
+from litex.soc.integration.soc import flat_regions
 
 # Helpers ------------------------------------------------------------------------------------------
 
@@ -226,7 +227,7 @@ class Builder:
             write_to_file(os.path.join(self.generated_dir, "output_format.ld"), output_format_contents)
 
             # Generate Memory Regions to regions.ld.
-            regions_contents = export.get_linker_regions(self.soc.mem_regions)
+            regions_contents = export.get_linker_regions(flat_regions(self.soc.mem_regions))
             write_to_file(os.path.join(self.generated_dir, "regions.ld"), regions_contents)
 
         # Collect / Generate I2C config and init table.
@@ -237,7 +238,7 @@ class Builder:
             write_to_file(os.path.join(self.generated_dir, "i2c.h"), i2c_info)
 
         # Generate Memory Regions to mem.h.
-        mem_contents = export.get_mem_header(self.soc.mem_regions)
+        mem_contents = export.get_mem_header(flat_regions(self.soc.mem_regions))
         write_to_file(os.path.join(self.generated_dir, "mem.h"), mem_contents)
 
         # Generate Memory Regions to memory.x if specified.
@@ -251,7 +252,7 @@ class Builder:
 
         # Generate CSR registers definitions/access functions to csr.h.
         csr_contents = export.get_csr_header(
-            regions   = self.soc.csr_regions,
+            regions   = flat_regions(self.soc.csr_regions),
             constants = self.soc.constants,
             csr_base  = self.soc.mem_regions["csr"].origin,
             with_access_functions        = True,
@@ -276,17 +277,17 @@ class Builder:
         # JSON Export.
         if self.csr_json is not None:
             csr_json_contents = export.get_csr_json(
-                csr_regions = self.soc.csr_regions,
+                csr_regions = flat_regions(self.soc.csr_regions),
                 constants   = self.soc.constants,
-                mem_regions = self.soc.mem_regions)
+                mem_regions = flat_regions(self.soc.mem_regions))
             write_to_file(os.path.realpath(self.csr_json), csr_json_contents)
 
         # CSV Export.
         if self.csr_csv is not None:
             csr_csv_contents = export.get_csr_csv(
-                csr_regions = self.soc.csr_regions,
+                csr_regions = flat_regions(self.soc.csr_regions),
                 constants   = self.soc.constants,
-                mem_regions = self.soc.mem_regions)
+                mem_regions = flat_regions(self.soc.mem_regions))
             write_to_file(os.path.realpath(self.csr_csv), csr_csv_contents)
 
         # SVD Export.
