@@ -1052,6 +1052,15 @@ class SoC(LiteXModule, SoCCoreCompat):
         name = "CONFIG_" + name
         self.add_constant(name, value, check_duplicate=check_duplicate)
 
+    def add_dts_node(self, name: str, module) -> None:
+        """Adds device tree information to generate entries for a core / module."""
+        prefix = name + "_dts_"
+        self.add_constant(prefix + "compatible", module.dts_compatible)
+        if hasattr(module, "dts_node"):
+            self.add_constant(prefix + "node", module.dts_node)
+        if hasattr(module, "dts_properties"):
+            self.add_constant(prefix + "properties", module.dts_properties)
+
     def check_bios_requirements(self):
         # Check for required Peripherals.
         for periph in [ "timer0"]:
@@ -1344,6 +1353,7 @@ class SoC(LiteXModule, SoCCoreCompat):
         self.add_module(name=name, module=Timer())
         if self.irq.enabled:
             self.irq.add(name, use_loc_if_exists=True)
+        self.add_dts_node(name, self.get_module(name))
 
     # Add Watchdog ---------------------------------------------------------------------------------
     def add_watchdog(self, name="watchdog0", width=32, crg_rst=None, reset_delay=None):
