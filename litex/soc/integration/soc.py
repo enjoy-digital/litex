@@ -2139,7 +2139,7 @@ class LiteXSoC(SoC):
         spiflash_phy = phy
         if spiflash_phy is None:
             spiflash_pads = self.platform.request(name if mode == "1x" else name + mode, number=number)
-            spiflash_phy = LiteSPIPHY(spiflash_pads, module, device=self.platform.device, default_divisor=default_divisor, rate=rate)
+            spiflash_phy = LiteSPIPHY(spiflash_pads, module, device=self.platform.device, default_divisor=default_divisor, rate=rate, **kwargs)
 
         # Core.
         self.check_if_exists(name)
@@ -2191,7 +2191,7 @@ class LiteXSoC(SoC):
         if spiram_phy is None:
             self.check_if_exists(f"{name}_phy")
             spiram_pads = self.platform.request(name if mode == "1x" else name + mode, number=number)
-            spiram_phy = LiteSPIPHY(spiram_pads, module, device=self.platform.device, default_divisor=default_divisor, rate=rate)
+            spiram_phy = LiteSPIPHY(spiram_pads, module, device=self.platform.device, default_divisor=default_divisor, rate=rate, **kwargs)
 
         # Core.
         self.check_if_exists(f"{name}_mmap")
