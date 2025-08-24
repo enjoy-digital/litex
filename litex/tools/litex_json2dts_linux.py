@@ -11,6 +11,7 @@ import os
 import sys
 import json
 import argparse
+import re
 
 from litex.gen.common import KILOBYTE, MEGABYTE
 
@@ -121,14 +122,50 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         def get_riscv_cpu_isa_base(cpu_isa):
             return cpu_isa[:5]
 
-        def get_riscv_cpu_isa_extensions(cpu_isa, cpu_name):
-            isa_extensions = set(["i"])
+        def get_riscv_cpu_isa_extensions_by_string(isa):
+            VERSION_PATTERN = re.compile(r"\d+p\d+$")
 
-            # Collect common extensions.
-            common_extensions = {'i', 'm', 'a', 'f', 'd', 'c'}
-            for extension in cpu_isa[5:]:
-                if extension in common_extensions:
-                    isa_extensions.update({extension})
+            extensions = set()
+            length = len(isa)
+
+            isa = isa.lower()
+
+            if not (isa.startswith("rv64") or isa.startswith("rv32")):
+                raise ValueError("ISA string must start with rv32|rv64")
+
+            slices = isa[4:].lower().split('_')
+
+            for slice in slices:
+                if not slice.isalnum():
+                    raise ValueError(f"Extension ${slice} can not be parsed: invalid character")
+
+                if len(slice) == 1 or (slice[0] == 's') or (slice[0] == 'z'):
+                    match = VERSION_PATTERN.search(slice)
+                    if not match is None:
+                        slice = slice[:match.span()[0]]
+
+                    extensions.add(slice)
+
+                    continue
+
+                match = VERSION_PATTERN.search(slice)
+                if not match is None:
+                    if len(slice[:match.span()[0]]) > 1:
+                        raise ValueError(f"Invalid extension string ${slice}: version can only be used separately")
+
+                    slice = slice[:match.span()[0]]
+
+                if not slice.isalpha():
+                    raise ValueError(f"Single letter extension string ${slice} should not contain other characters")
+
+                for extension in slice:
+                    extensions.add(extension)
+
+            return extensions
+
+
+        def get_riscv_cpu_isa_extensions(cpu_isa, cpu_name):
+            isa_extensions = get_riscv_cpu_isa_extensions_by_string(cpu_isa)
 
             # Add rocket-specific extensions.
             if cpu_name == "rocket":
