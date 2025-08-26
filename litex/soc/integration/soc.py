@@ -2120,7 +2120,7 @@ class LiteXSoC(SoC):
         self.add_constant(f"{name}_MAX_CS",    len(pads.cs_n))
 
     # Add SPI Flash --------------------------------------------------------------------------------
-    def add_spi_flash(self, name="spiflash", mode="4x", clk_freq=20e6, module=None, phy=None, rate="1:1", software_debug=False, **kwargs):
+    def add_spi_flash(self, name="spiflash", mode="4x", clk_freq=20e6, module=None, phy=None, rate="1:1", software_debug=False, number=None, **kwargs):
         # Imports.
         from litespi import LiteSPI
         from litespi.phy.generic import LiteSPIPHY
@@ -2138,8 +2138,8 @@ class LiteXSoC(SoC):
         # PHY.
         spiflash_phy = phy
         if spiflash_phy is None:
-            spiflash_pads = self.platform.request(name if mode == "1x" else name + mode)
-            spiflash_phy = LiteSPIPHY(spiflash_pads, module, device=self.platform.device, default_divisor=default_divisor, rate=rate)
+            spiflash_pads = self.platform.request(name if mode == "1x" else name + mode, number=number)
+            spiflash_phy = LiteSPIPHY(spiflash_pads, module, device=self.platform.device, default_divisor=default_divisor, rate=rate, **kwargs)
 
         # Core.
         self.check_if_exists(name)
@@ -2158,15 +2158,16 @@ class LiteXSoC(SoC):
         self.add_constant(f"{name}_MODULE_TOTAL_SIZE", module.total_size)
         self.add_constant(f"{name}_MODULE_PAGE_SIZE",  module.page_size)
         if mode in [ "4x" ]:
-            if SpiNorFlashOpCodes.READ_1_1_4 in module.supported_opcodes:
+            if module.bus_width >= 4 and SpiNorFlashOpCodes.READ_1_1_4 in module.supported_opcodes:
                 self.add_constant(f"{name}_MODULE_QUAD_CAPABLE")
-            if SpiNorFlashOpCodes.READ_4_4_4 in module.supported_opcodes:
+            if module.cmd_width >= 4 and SpiNorFlashOpCodes.READ_4_4_4 in module.supported_opcodes:
                 self.add_constant(f"{name}_MODULE_QPI_CAPABLE")
         if software_debug:
             self.add_constant(f"{name}_DEBUG")
 
     # Add SPI RAM --------------------------------------------------------------------------------
     def add_spi_ram(self, name="spiram", mode="4x", clk_freq=20e6, module=None, phy=None, rate="1:1", software_debug=False,
+        number=None,
         l2_cache_size           = 8192,
         l2_cache_reverse        = False,
         l2_cache_full_memory_we = True,
@@ -2189,8 +2190,8 @@ class LiteXSoC(SoC):
         spiram_phy = phy
         if spiram_phy is None:
             self.check_if_exists(f"{name}_phy")
-            spiram_pads = self.platform.request(name if mode == "1x" else name + mode)
-            spiram_phy = LiteSPIPHY(spiram_pads, module, device=self.platform.device, default_divisor=default_divisor, rate=rate)
+            spiram_pads = self.platform.request(name if mode == "1x" else name + mode, number=number)
+            spiram_phy = LiteSPIPHY(spiram_pads, module, device=self.platform.device, default_divisor=default_divisor, rate=rate, **kwargs)
 
         # Core.
         self.check_if_exists(f"{name}_mmap")
@@ -2229,9 +2230,9 @@ class LiteXSoC(SoC):
         self.add_constant(f"{name}_MODULE_TOTAL_SIZE", module.total_size)
         self.add_constant(f"{name}_MODULE_PAGE_SIZE",  module.page_size)
         if mode in [ "4x" ]:
-            if SpiNorFlashOpCodes.READ_1_1_4 in module.supported_opcodes:
+            if module.bus_width >= 4 and SpiNorFlashOpCodes.READ_1_1_4 in module.supported_opcodes:
                 self.add_constant(f"{name}_MODULE_QUAD_CAPABLE")
-            if SpiNorFlashOpCodes.READ_4_4_4 in module.supported_opcodes:
+            if module.cmd_width >= 4 and SpiNorFlashOpCodes.READ_4_4_4 in module.supported_opcodes:
                 self.add_constant(f"{name}_MODULE_QPI_CAPABLE")
         if software_debug:
             self.add_constant(f"{name}_DEBUG")

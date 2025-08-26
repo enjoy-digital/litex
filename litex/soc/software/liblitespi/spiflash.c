@@ -313,6 +313,13 @@ void spiflash_init(void)
 	spiflash_master_write(0x00000006, 1, 1, 0x1);
 	spiflash_master_write(0x00014307, 3, 1, 0x1);
 
+	/* Wait for the flash to finish writing the configuration */
+	while(spiflash_read_status_register() & 1) {
+#ifdef SPIFLASH_DEBUG
+		printf(".");
+#endif
+	}
+
 #ifdef SPIFLASH_MODULE_QPI_CAPABLE
 	printf("Switching to QPI mode...\n");
 	spiflash_master_write(0x00000035, 1, 1, 0x1);
