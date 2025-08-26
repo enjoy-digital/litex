@@ -178,17 +178,8 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
         
         if mode == "INPUT" or mode == "INOUT":
             if "in_reg" in block:
-                in_clk_pin = block["in_clk_pin"]
-                if isinstance(in_clk_pin, ClockSignal):
-                    # Try to find cd name
-                    in_clk_pin_name = self.platform.clks.get(in_clk_pin.cd, None)
-                    # If not found cd name has been updated with "_clk" as suffix.
-                    if in_clk_pin_name is None:
-                        in_clk_pin_name = self.platform.clks.get(in_clk_pin.cd + "_clk")
-                    in_clk_pin = in_clk_pin_name
-
                 cmd += f'design.set_property("{name}","IN_REG","{block["in_reg"]}")\n'
-                cmd += f'design.set_property("{name}","IN_CLK_PIN","{in_clk_pin}")\n'
+                cmd += f'design.set_property("{name}","IN_CLK_PIN","{block["in_clk_pin"]}")\n'
                 if "in_delay" in block:
                     cmd += f'design.set_property("{name}","INDELAY","{block["in_delay"]}")\n'
             if "in_clk_inv" in block:
