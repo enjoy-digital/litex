@@ -117,6 +117,7 @@ class XilinxVivadoToolchain(GenericToolchain):
         self._build_false_path_constraints()
 
     def build(self, platform, fragment,
+        project_mode                         = True,
         synth_mode                           = "vivado",
         enable_xpm                           = False,
         vivado_synth_directive               = "default",
@@ -128,8 +129,9 @@ class XilinxVivadoToolchain(GenericToolchain):
         vivado_max_threads                   = None,
         **kwargs):
 
-        self._synth_mode = synth_mode
-        self._enable_xpm = enable_xpm
+        self._project_mode = project_mode
+        self._synth_mode   = synth_mode
+        self._enable_xpm   = enable_xpm
 
         self.vivado_synth_directive               = vivado_synth_directive
         self.vivado_opt_directive                 = vivado_opt_directive
@@ -254,7 +256,10 @@ class XilinxVivadoToolchain(GenericToolchain):
 
         # Create project
         tcl.append("\n# Create Project\n")
-        tcl.append(f"set_part {self.platform.device}")
+        if self._project_mode:
+            tcl.append(f"create_project -force -name {self._build_name} -part {self.platform.device}")
+        else:
+            tcl.append(f"set_part {self.platform.device}")
         tcl.append("set_msg_config -id {Common 17-55} -new_severity {Warning}")
 
         if self.vivado_max_threads:
@@ -440,7 +445,16 @@ class XilinxVivadoToolchain(GenericToolchain):
             raise OSError("Error occured during Vivado's script execution.")
 
 def vivado_build_args(parser):
+
+    def boolean(v):
+        if v.lower() in ('true', '1', 'yes'):
+            return True
+        elif v.lower() in ('false', '0', 'no'):
+            return False
+        raise ValueError(f"Invalid boolean: '{v}'")
+
     toolchain_group = parser.add_argument_group(title="Vivado toolchain options")
+    toolchain_group.add_argument("--project-mode",           type=boolean, default=True,      help="Project Mode.")
     toolchain_group.add_argument("--synth-mode",                           default="vivado",  help="Synthesis mode (vivado or yosys).")
     toolchain_group.add_argument("--vivado-synth-directive",               default="default", help="Specify synthesis directive.")
     toolchain_group.add_argument("--vivado-opt-directive",                 default="default", help="Specify opt directive.")
@@ -452,6 +466,7 @@ def vivado_build_args(parser):
 
 def vivado_build_argdict(args):
     return {
+        "project_mode"                         : args.project_mode,
         "synth_mode"                           : args.synth_mode,
         "vivado_synth_directive"               : args.vivado_synth_directive,
         "vivado_opt_directive"                 : args.vivado_opt_directive,
