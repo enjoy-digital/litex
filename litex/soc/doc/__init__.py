@@ -101,7 +101,8 @@ def generate_docs(soc, base_dir,
             region         = region,
             module         = module,
             submodules     = submodules,
-            csr_data_width = soc.csr.data_width)
+            csr_data_width = soc.csr.data_width,
+            csr_ordering   = soc.csr.ordering)
         if documented_region.name in interrupts:
             documented_region.document_interrupt(
                 soc, submodules, interrupts[documented_region.name])
