@@ -432,6 +432,16 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         if "aplic_m" in d["memories"]:
             extra_attr_m = ""
 
+            if "imsic_m" in d["memories"]:
+                extra_attr_m += """
+                msi-parent = <&imsic_m>;
+"""
+            else:
+                extra_attr_m += """
+                interrupts-extended = <
+                    {cpu_mapping}>;
+""".format(cpu_mapping = ("\n" + " "*20).join(["&L{} 11".format(cpu) for cpu in range(cpu_count)]))
+
             if "aplic_s" in d["memories"]:
                 extra_attr_m += """
                 riscv,children = <&intc_s>;
@@ -444,30 +454,39 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 reg = <0x{aplic_base:x} 0x200000>;
                 #interrupt-cells = <2>;
                 interrupt-controller;
-                interrupts-extended = <
-                    {cpu_mapping}>;
                 {extra_attr}
                 riscv,num-sources = <31>;
             }};
 """.format(
         aplic_base   = d["memories"]["aplic_m"]["base"],
-        cpu_mapping = ("\n" + " "*20).join(["&L{} 11".format(cpu, cpu) for cpu in range(cpu_count)]),
         extra_attr  = extra_attr_m)
 
             if "aplic_s" in d["memories"]:
+                extra_attr_s = ""
+
+                if "imsic_s" in d["memories"]:
+                    extra_attr_s += """
+                msi-parent = <&imsic_s>;
+"""
+                else:
+                    extra_attr_s += """
+                    interrupts-extended = <
+                        {cpu_mapping}>;
+""".format(cpu_mapping = ("\n" + " "*20).join(["&L{} 9".format(cpu) for cpu in range(cpu_count)]))
+
                 dts += """
             intc_s: interrupt-controller@{aplic_base:x} {{
                 compatible = "riscv,aplic";
                 reg = <0x{aplic_base:x} 0x200000>;
                 #interrupt-cells = <2>;
                 interrupt-controller;
-                interrupts-extended = <
-                    {cpu_mapping}>;
+                {extra_attr}
                 riscv,num-sources = <31>;
             }};
 """.format(
         aplic_base   = d["memories"]["aplic_s"]["base"],
-        cpu_mapping = ("\n" + " "*20).join(["&L{} 9".format(cpu, cpu) for cpu in range(cpu_count)]))
+        extra_attr  = extra_attr_s)
+
         elif "plic" in d["memories"]:
             if cpu_name == "rocket":
                 extra_attr = """
@@ -495,6 +514,42 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         extra_attr  = extra_attr)
         else:
             raise NotImplementedError("No interrupt controller found")
+
+        if "imsic_m" in d["memories"]:
+            dts += """
+            imsic_m: interrupt-controller@{imsic_base:x} {{
+                compatible = "riscv,imsics";
+                reg = <0x{imsic_base:x} 0x{imsic_size:x}>;
+                #interrupt-cells = <0>;
+                #msi-cells = <0>;
+                interrupt-controller;
+                interrupts-extended = <
+                    {cpu_mapping}>;
+                msi-controller;
+                riscv,num-ids = <63>;
+            }};
+""".format(
+        imsic_base = d["memories"]["imsic_m"]["base"],
+        imsic_size = d["memories"]["imsic_m"]["size"],
+        cpu_mapping = ("\n" + " "*20).join(["&L{} 11".format(cpu) for cpu in range(cpu_count)]))
+
+        if "imsic_s" in d["memories"]:
+            dts += """
+            imsic_s: interrupt-controller@{imsic_base:x} {{
+                compatible = "riscv,imsics";
+                reg = <0x{imsic_base:x} 0x{imsic_size:x}>;
+                #interrupt-cells = <0>;
+                #msi-cells = <0>;
+                interrupt-controller;
+                interrupts-extended = <
+                    {cpu_mapping}>;
+                msi-controller;
+                riscv,num-ids = <63>;
+            }};
+""".format(
+        imsic_base = d["memories"]["imsic_s"]["base"],
+        imsic_size = d["memories"]["imsic_s"]["size"],
+        cpu_mapping = ("\n" + " "*20).join(["&L{} 9".format(cpu) for cpu in range(cpu_count)]))
 
     elif cpu_family == "or1k":
         dts += """
