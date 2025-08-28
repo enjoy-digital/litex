@@ -32,7 +32,7 @@ void uart_isr(void)
 {
 	unsigned int stat, rx_produce_next;
 
-	stat = uart_ev_pending_read();
+	stat = uart_ev_pending_read() & uart_ev_enable_read();
 
 	if(stat & UART_EV_RX) {
 		while(!uart_rxempty_read()) {
@@ -49,10 +49,13 @@ void uart_isr(void)
 	}
 
 	if(stat & UART_EV_TX) {
-		uart_ev_pending_write(UART_EV_TX);
 		while((tx_consume != tx_produce) && !uart_txfull_read()) {
 			uart_rxtx_write(tx_buf[tx_consume]);
 			tx_consume = (tx_consume + 1) & UART_RINGBUFFER_MASK_TX;
+		}
+
+		if(tx_consume == tx_produce) {
+			uart_ev_enable_write(UART_EV_RX); /* Disable TX interrupt */
 		}
 	}
 }
@@ -94,6 +97,7 @@ void uart_write(char c)
 	if((tx_consume != tx_produce) || uart_txfull_read()) {
 		tx_buf[tx_produce] = c;
 		tx_produce = tx_produce_next;
+		uart_ev_enable_write(UART_EV_TX | UART_EV_RX); /* Enable TX interrupt */
 	} else {
 		uart_rxtx_write(c);
 	}
@@ -108,8 +112,7 @@ void uart_init(void)
 	tx_produce = 0;
 	tx_consume = 0;
 
-	uart_ev_pending_write(uart_ev_pending_read());
-	uart_ev_enable_write(UART_EV_TX | UART_EV_RX);
+	uart_ev_enable_write(UART_EV_RX); /* TX will be enabled when needed */
 	if (irq_attach)
 		irq_attach(UART_INTERRUPT, uart_isr);
 	irq_setmask(irq_getmask() | (1 << UART_INTERRUPT));
@@ -144,13 +147,10 @@ void uart_write(char c)
 {
 	while (uart_txfull_read());
 	uart_rxtx_write(c);
-	uart_ev_pending_write(UART_EV_TX);
 }
 
 void uart_init(void)
 {
-	uart_ev_pending_write(uart_ev_pending_read());
-	uart_ev_enable_write(UART_EV_TX | UART_EV_RX);
 }
 
 void uart_sync(void)
