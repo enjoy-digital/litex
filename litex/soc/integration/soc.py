@@ -1540,7 +1540,7 @@ class LiteXSoC(SoC):
         self.add_config(name, identifier)
 
     # Add UART -------------------------------------------------------------------------------------
-    def add_uart(self, name="uart", uart_name="serial", uart_pads=None, baudrate=115200, fifo_depth=16, with_dynamic_baudrate=False):
+    def add_uart(self, name="uart", uart_name="serial", uart_pads=None, baudrate=115200, fifo_depth=16, with_dynamic_baudrate=False, rx_fifo_rx_we=False):
         # Imports.
         from litex.soc.cores.uart import UART, UARTCrossover
 
@@ -1565,6 +1565,7 @@ class LiteXSoC(SoC):
         uart_kwargs    = {
             "tx_fifo_depth": fifo_depth,
             "rx_fifo_depth": fifo_depth,
+            "rx_fifo_rx_we": rx_fifo_rx_we,
         }
         if (uart_pads is None) and (uart_name not in supported_uarts):
             self.logger.error("{} UART {}, supported are: \n{}.".format(
@@ -1625,6 +1626,9 @@ class LiteXSoC(SoC):
             self.add_module(name=f"{name}_phy", module=uart_phy)
         if uart is not None:
             self.add_module(name=name, module=uart)
+
+        if rx_fifo_rx_we:
+            self.add_config(f"{name}_RX_FIFO_RX_WE", 1)
 
         # IRQ.
         if self.irq.enabled:

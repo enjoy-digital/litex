@@ -31,17 +31,21 @@ static volatile unsigned int tx_consume;
 void uart_isr(void)
 {
 	unsigned int stat, rx_produce_next;
+	char c;
 
 	stat = uart_ev_pending_read() & uart_ev_enable_read();
 
 	if(stat & UART_EV_RX) {
 		while(!uart_rxempty_read()) {
+			c = uart_rxtx_read();
 			rx_produce_next = (rx_produce + 1) & UART_RINGBUFFER_MASK_RX;
 			if(rx_produce_next != rx_consume) {
-				rx_buf[rx_produce] = uart_rxtx_read();
+				rx_buf[rx_produce] = c;
 				rx_produce = rx_produce_next;
 			}
+#ifndef CONFIG_UART_RX_FIFO_RX_WE
 			uart_ev_pending_write(UART_EV_RX);
+#endif
 			#if defined(__cva6__)
 				asm volatile("fence\n");
 			#endif
@@ -134,7 +138,9 @@ char uart_read(void)
 	char c;
 	while (uart_rxempty_read());
 	c = uart_rxtx_read();
+#ifndef CONFIG_UART_RX_FIFO_RX_WE
 	uart_ev_pending_write(UART_EV_RX);
+#endif
 	return c;
 }
 
