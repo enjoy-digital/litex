@@ -241,6 +241,8 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
             cmd += 'design.create_clockout_gpio("{}")\n'.format(name)
             cmd += 'design.set_property("{}","OUT_CLK_PIN","{}")\n'.format(name, name)
             cmd += 'design.assign_pkg_pin("{}","{}")\n\n'.format(name, block["location"])
+            if "out_clk_inv" in block:
+                cmd += f'design.set_property("{name}","IS_OUTCLK_INVERTED","{block["out_clk_inv"]}")\n'
             if prop:
                 for p, val in prop:
                     cmd += 'design.set_property("{}","{}","{}")\n'.format(name, p, val)
