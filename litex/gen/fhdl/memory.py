@@ -40,11 +40,6 @@ def _memory_generate_verilog(name, memory, namespace, add_data_file):
         for port in memory.ports:
             port.mode = READ_FIRST
 
-    # Set Port Granularity when 0.
-    for port in memory.ports:
-        if port.we_granularity == 0:
-            port.we_granularity = memory.width
-
     # Memory Description.
     # -------------------
     r += "//" + "-"*78 + "\n"
@@ -52,7 +47,9 @@ def _memory_generate_verilog(name, memory, namespace, add_data_file):
     r += "//" + "-"*78 + "\n"
     for n, port in enumerate(memory.ports):
         r += f"// Port {n} | "
-        if port.async_read:
+        if port.dat_r is None:
+            r += "Read: ----  | "
+        elif port.async_read:
             r += "Read: Async | "
         else:
             r += "Read: Sync  | "
@@ -62,12 +59,13 @@ def _memory_generate_verilog(name, memory, namespace, add_data_file):
             r += "Write: Sync | "
             r += "Mode: "
             if port.mode == WRITE_FIRST:
-                r += "Write-First | "
+                r += "Write-First"
             elif port.mode == READ_FIRST:
-                r += "Read-First  | "
+                r += "Read-First "
             elif port.mode == NO_CHANGE:
-                r += "No-Change | "
-            r += f"Write-Granularity: {port.we_granularity} "
+                r += "No-Change"
+            if port.we_granularity != 0:
+                r += f" | Write-Granularity: {port.we_granularity}"
         r += "\n"
 
     # Memory Logic Declaration/Initialization.
@@ -88,7 +86,7 @@ def _memory_generate_verilog(name, memory, namespace, add_data_file):
     # --------------------------
     for n, port in enumerate(memory.ports):
         # No Intermediate Signal for Async Read.
-        if port.async_read:
+        if port.dat_r is None or port.async_read:
             continue
 
         # Create Address Register in Write-First mode.
@@ -104,20 +102,28 @@ def _memory_generate_verilog(name, memory, namespace, add_data_file):
     # Ports Write/Read Logic.
     # -----------------------
     for n, port in enumerate(memory.ports):
-        r += f"always @(posedge {_get_name(port.clock)}) begin\n"
+        # This block has to be named to use a integer variable in it.
+        rd = f" : {_get_name(Signal(name_override='mem_write_block'))}" if port.we is not None and port.we_granularity != 0 else ""
+        r += f"always @(posedge {_get_name(port.clock)}) begin{rd}\n"
+
         # Write Logic.
         if port.we is not None:
             # Split Write Logic.
-            for i in range(memory.width//port.we_granularity):
-                wbit = f"[{i}]" if memory.width != port.we_granularity else ""
-                r += f"\tif ({_get_name(port.we)}{wbit})\n"
-                lbit =     i*port.we_granularity
-                hbit = (i+1)*port.we_granularity-1
-                dslc = f"[{hbit}:{lbit}]" if (memory.width != port.we_granularity) else ""
-                r += f"\t\t{_get_name(memory)}[{_get_name(port.adr)}]{dslc} <= {_get_name(port.dat_w)}{dslc};\n"
+            if port.we_granularity != 0:
+                m = memory.width//port.we_granularity
+                we_index = Signal(name_override="we_index")
+
+                r += f"\tinteger {_get_name(we_index)};\n"
+                sl = f"[{_get_name(we_index)}*{port.we_granularity} +: {port.we_granularity}]"
+                r += f"\tfor({_get_name(we_index)} = 0; {_get_name(we_index)} < {m}; {_get_name(we_index)}={_get_name(we_index)}+1)\n"
+                r += f"\t\tif ({_get_name(port.we)}[{_get_name(we_index)}])\n"
+                r += f"\t\t\t{_get_name(memory)}[{_get_name(port.adr)}]{sl} <= {_get_name(port.dat_w)}{sl};\n"
+            else:
+                r += f"\tif ({_get_name(port.we)})\n"
+                r += f"\t\t{_get_name(memory)}[{_get_name(port.adr)}] <= {_get_name(port.dat_w)};\n"
 
         # Read Logic.
-        if not port.async_read:
+        if port.dat_r is not None and not port.async_read:
             # In Write-First mode, Read from Address Register.
             if port.mode in [WRITE_FIRST]:
                 rd = f"\t{_get_name(adr_regs[n])} <= {_get_name(port.adr)};\n"
@@ -142,6 +148,9 @@ def _memory_generate_verilog(name, memory, namespace, add_data_file):
     # Ports Read Mapping.
     # -------------------
     for n, port in enumerate(memory.ports):
+        if port.dat_r is None:
+            continue
+
         # Direct (Asynchronous) Read on Async-Read mode.
         if port.async_read:
             r += f"assign {_get_name(port.dat_r)} = {_get_name(memory)}[{_get_name(port.adr)}];\n"
