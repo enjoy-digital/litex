@@ -30,15 +30,18 @@ class AlteraQuartusToolchain(GenericToolchain):
     def __init__(self):
         super().__init__()
         self._synth_tool             = "quartus_map"
+        self._conv_tool              = "quartus_cpf"
         self.additional_sdc_commands = []
         self.additional_qsf_commands = []
         self.cst                     = []
 
     def build(self, platform, fragment,
         synth_tool = "quartus_map",
+        conv_tool  = "quartus_cpf",
         **kwargs):
 
         self._synth_tool = synth_tool
+        self._conv_tool  = conv_tool
 
         if not platform.device.startswith("10M"):
             # Apply FullMemoryWE on Design (Quartus does not infer memories correctly otherwise).
@@ -203,14 +206,14 @@ quartus_sta {build_name} -c {build_name}"""
             if sys.platform in ["win32", "cygwin"]:
               script_contents += """
 if exist "{build_name}.sof" (
-    quartus_cpf -c {build_name}.sof {build_name}.rbf
+    {conv_tool} -c {build_name}.sof {build_name}.rbf
 )
 """
             else:
               script_contents += """
 if [ -f "{build_name}.sof" ]
 then
-    quartus_cpf -c {build_name}.sof {build_name}.rbf
+    {conv_tool} -c {build_name}.sof {build_name}.rbf
 fi
 """
         # Create .svf.
@@ -218,17 +221,17 @@ fi
             if sys.platform in ["win32", "cygwin"]:
               script_contents += """
 if exist "{build_name}.sof" (
-    quartus_cpf -c -q \"12.0MHz\" -g 3.3 -n p {build_name}.sof {build_name}.svf
+    {conv_tool} -c -q \"12.0MHz\" -g 3.3 -n p {build_name}.sof {build_name}.svf
 )
 """
             else:
               script_contents += """
 if [ -f "{build_name}.sof" ]
 then
-    quartus_cpf -c -q \"12.0MHz\" -g 3.3 -n p {build_name}.sof {build_name}.svf
+    {conv_tool} -c -q \"12.0MHz\" -g 3.3 -n p {build_name}.sof {build_name}.svf
 fi
 """
-        script_contents = script_contents.format(build_name=build_name, synth_tool=self._synth_tool)
+        script_contents = script_contents.format(build_name=build_name, synth_tool=self._synth_tool, conv_tool=self._conv_tool)
         tools.write_to_file(script_file, script_contents, force_unix=True)
 
         return script_file
@@ -250,8 +253,10 @@ fi
 def fill_args(parser):
     toolchain_group = parser.add_argument_group(title="Quartus toolchain options")
     toolchain_group.add_argument("--synth-tool", default="quartus_map", help="Synthesis mode (quartus_map or quartus_syn).")
+    toolchain_group.add_argument("--conv-tool",  default="quartus_cpf", help="Quartus Prime Convert_programming_file (quartus_cpf or quartus_pfg).")
 
 def get_argdict(args):
     return {
         "synth_tool" : args.synth_tool,
+        "conv_tool"  : args.conv_tool,
     }
