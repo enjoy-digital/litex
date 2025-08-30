@@ -109,7 +109,9 @@ class Ibex(CPU):
     linker_output_format = "elf32-littleriscv"
     nop                  = "nop"
     io_regions           = {0x8000_0000: 0x8000_0000} # Origin, Length.
-
+    clint_addr           = 0x0200_0000
+    clic_addr            = 0x0C00_0000
+    
     # GCC Flags.
     @property
     def gcc_flags(self):
@@ -126,6 +128,14 @@ class Ibex(CPU):
         self.periph_buses = [self.ibus, self.dbus]
         self.memory_buses = []
         self.interrupt    = Signal(15)
+        self.timer_interrupt = Signal()    # Timer interrupt from CLINT
+        self.software_interrupt = Signal() # Software interrupt from CLINT
+        # CLIC interrupt signals
+        self.clic_interrupt = Signal()     # CLIC interrupt request
+        self.clic_interrupt_id = Signal(12)  # CLIC interrupt ID (up to 4096 interrupts)
+        self.clic_interrupt_priority = Signal(8)  # CLIC interrupt priority
+        self.clic_claim = Signal()         # CLIC claim output
+        self.clic_threshold = Signal(8)    # CLIC threshold output
 
         ibus = Record(obi_layout)
         dbus = Record(obi_layout)
@@ -170,11 +180,18 @@ class Ibex(CPU):
             i_data_err_i     = 0,
 
             # Interrupts.
-            i_irq_software_i = 0,
-            i_irq_timer_i    = 0,
+            i_irq_software_i = self.software_interrupt,
+            i_irq_timer_i    = self.timer_interrupt,
             i_irq_external_i = 0,
             i_irq_fast_i     = self.interrupt,
             i_irq_nm_i       = 0,
+
+            # CLIC Interface.
+            i_clic_irq_i          = self.clic_interrupt,
+            i_clic_irq_id_i       = self.clic_interrupt_id,
+            i_clic_irq_priority_i = self.clic_interrupt_priority,
+            o_clic_claim_o        = self.clic_claim,
+            o_clic_threshold_o    = self.clic_threshold,
 
             # Debug.
             i_debug_req_i    = 0,
@@ -189,6 +206,17 @@ class Ibex(CPU):
 
         # Add Verilog sources
         self.add_sources(platform)
+
+    def add_soc_components(self, soc):
+        # Handle CLIC vs CLINT mutual exclusivity
+        if hasattr(soc, "clic"):
+            # CLIC is present - tie CLINT interrupts to 0
+            self.comb += [
+                self.timer_interrupt.eq(0),
+                self.software_interrupt.eq(0)
+            ]
+        # Note: When neither CLIC nor CLINT are present, interrupt signals 
+        # default to 0 due to their reset values
 
     @staticmethod
     def add_sources(platform):
@@ -260,9 +288,11 @@ class Ibex(CPU):
         platform.add_sources(rtl_base,
             "ibex_wb_stage.sv",
             "ibex_csr.sv",
+            "ibex_clic_wrapper.sv",
             "ibex_top.sv"
             )
         platform.add_source(os.path.join(ibexdir, "dv", "uvm", "core_ibex", "common", "prim", "prim_buf.sv"))
+
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
         self.cpu_params.update(i_boot_addr_i=Signal(32, reset=reset_address))

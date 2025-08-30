@@ -114,6 +114,8 @@ class VexRiscv(CPU, AutoCSR):
     linker_output_format = "elf32-littleriscv"
     nop                  = "nop"
     io_regions           = {0x8000_0000: 0x8000_0000} # Origin, Length
+    clint_addr           = 0x0200_0000
+    clic_addr            = 0x0C00_0000
 
     # Memory Mapping.
     @property
@@ -133,13 +135,31 @@ class VexRiscv(CPU, AutoCSR):
         flags += " -D__vexriscv__"
         return flags
 
-    def __init__(self, platform, variant="standard", with_timer=False):
+    def __init__(self, platform, variant="standard", with_timer=False, with_clic=False):
         self.platform         = platform
         self.variant          = variant
         self.human_name       = CPU_VARIANTS.get(variant, "VexRiscv")
         self.external_variant = None
+        self.with_clic        = with_clic  # Store CLIC configuration
         self.reset            = Signal()
         self.interrupt        = Signal(32)
+        self.timer_interrupt    = Signal(reset=0)    # Timer interrupt from CLINT
+        self.software_interrupt = Signal(reset=0) # Software interrupt from CLINT
+        
+        # Only create CLIC interrupt signals if CLIC is enabled
+        if with_clic:
+            self.clic_interrupt = Signal()     # CLIC interrupt request
+            self.clic_interrupt_id = Signal(12)  # CLIC interrupt ID (up to 4096 interrupts)
+            self.clic_interrupt_priority = Signal(8)  # CLIC interrupt priority
+            self.clic_claim = Signal()         # CLIC claim output
+            self.clic_threshold = Signal(8)    # CLIC threshold output
+        else:
+            # Create dummy signals for compatibility but they won't be used
+            self.clic_interrupt = None
+            self.clic_interrupt_id = None
+            self.clic_interrupt_priority = None
+            self.clic_claim = None
+            self.clic_threshold = None
         self.ibus             = ibus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.dbus             = dbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.periph_buses     = [ibus, dbus] # Peripheral buses (Connected to main SoC's bus).
@@ -153,8 +173,8 @@ class VexRiscv(CPU, AutoCSR):
             i_reset                  = ResetSignal("sys") | self.reset,
 
             i_externalInterruptArray = self.interrupt,
-            i_timerInterrupt         = 0,
-            i_softwareInterrupt      = 0,
+            i_timerInterrupt         = self.timer_interrupt,
+            i_softwareInterrupt      = self.software_interrupt,
 
             o_iBusWishbone_ADR      = ibus.adr,
             o_iBusWishbone_DAT_MOSI = ibus.dat_w,
@@ -180,6 +200,18 @@ class VexRiscv(CPU, AutoCSR):
             i_dBusWishbone_ACK      = dbus.ack,
             i_dBusWishbone_ERR      = dbus.err
         )
+        
+        # Store CLIC params separately - will be added conditionally in do_finalize
+        if with_clic:
+            self.clic_params = dict(
+                i_clicInterrupt         = self.clic_interrupt,
+                i_clicInterruptId       = self.clic_interrupt_id,
+                i_clicInterruptPriority = self.clic_interrupt_priority,
+                o_clicClaim             = self.clic_claim,
+                o_clicThreshold         = self.clic_threshold
+            )
+        else:
+            self.clic_params = None
 
         # Add Timer (Optional).
         if with_timer:
@@ -195,7 +227,10 @@ class VexRiscv(CPU, AutoCSR):
 
     def add_timer(self):
         self.timer = VexRiscvTimer()
-        self.cpu_params.update(i_timerInterrupt=self.timer.interrupt)
+        # Connect VexRiscvTimer to timer_interrupt signal
+        # This will be overridden if CLINT is later connected by SoC
+        self.comb += self.timer_interrupt.eq(self.timer.interrupt)
+
 
     def add_debug(self):
         debug_reset = Signal()
@@ -339,8 +374,12 @@ class VexRiscv(CPU, AutoCSR):
         )
 
     @staticmethod
-    def add_sources(platform, variant="standard"):
-        cpu_filename = CPU_VARIANTS[variant] + ".v"
+    def add_sources(platform, variant="standard", with_clic=False):
+        # If CLIC is enabled, use the CLIC variant of VexRiscv
+        if with_clic:
+            cpu_filename = "VexRiscv_Clic.v"
+        else:
+            cpu_filename = CPU_VARIANTS[variant] + ".v"
         vdir = get_data_mod("cpu", "vexriscv").data_location
         platform.add_source(os.path.join(vdir, cpu_filename))
 
@@ -354,6 +393,52 @@ class VexRiscv(CPU, AutoCSR):
                     cached = False
                 )
             )
+
+        # Handle CLIC vs CLINT mutual exclusivity
+        if hasattr(soc, "clic"):
+            # CLIC is present - tie CLINT interrupts to 0 and set up CLIC CSRs
+            self.comb += [
+                self.timer_interrupt.eq(0),
+                self.software_interrupt.eq(0)
+            ]
+            
+            # Mark that CLIC is present for do_finalize
+            self.clic_present = True
+            # Mark that we need to use CLIC variant of VexRiscv
+            self.use_clic_variant = True
+            
+            # Create CLIC signals if they don't exist (runtime CLIC addition)
+            if self.clic_interrupt is None:
+                self.clic_interrupt = Signal()
+                self.clic_interrupt_id = Signal(12)
+                self.clic_interrupt_priority = Signal(8)
+                self.clic_claim = Signal()
+                self.clic_threshold = Signal(8)
+            
+            # Add CSRs for CLIC interrupt information access from software
+            self._clic_interrupt_id = CSRStatus(12, name="clic_interrupt_id",
+                description="Current CLIC interrupt ID")
+            self._clic_interrupt_priority = CSRStatus(8, name="clic_interrupt_priority", 
+                description="Current CLIC interrupt priority")
+            self._clic_interrupt_active = CSRStatus(1, name="clic_interrupt_active",
+                description="CLIC interrupt active status")
+            self._clic_claim = CSRStatus(1, name="clic_claim",
+                description="CLIC claim signal from CPU")
+            self._clic_threshold = CSRStatus(8, name="clic_threshold",
+                description="CLIC threshold from CPU")
+            
+            # Connect CLIC signals to CSRs for software access
+            self.comb += [
+                self._clic_interrupt_id.status.eq(self.clic_interrupt_id),
+                self._clic_interrupt_priority.status.eq(self.clic_interrupt_priority),
+                self._clic_interrupt_active.status.eq(self.clic_interrupt),
+                self._clic_claim.status.eq(self.clic_claim),
+                self._clic_threshold.status.eq(self.clic_threshold)
+            ]
+        else:
+            # Mark that CLIC is not present for do_finalize
+            self.clic_present = False
+            self.use_clic_variant = False
 
         # Pass I/D Caches info to software.
         base_variant = str(self.variant.split('+')[0])
@@ -371,7 +456,26 @@ class VexRiscv(CPU, AutoCSR):
     def do_finalize(self):
         assert hasattr(self, "reset_address")
         if not self.external_variant:
-            self.add_sources(self.platform, self.variant)
+            # Use CLIC variant if CLIC is enabled (either from constructor or from add_soc_components)
+            with_clic = self.with_clic or (hasattr(self, "use_clic_variant") and self.use_clic_variant)
+            self.add_sources(self.platform, self.variant, with_clic=with_clic)
+        
+        # Add CLIC params only if CLIC is actually being used
+        # Check both the constructor flag and the runtime flag
+        if self.with_clic or (hasattr(self, "clic_present") and self.clic_present):
+            # If CLIC was enabled at runtime but not in constructor, create the params now
+            if self.clic_params is None and hasattr(self, "clic_present") and self.clic_present:
+                self.clic_params = dict(
+                    i_clicInterrupt         = self.clic_interrupt,
+                    i_clicInterruptId       = self.clic_interrupt_id,
+                    i_clicInterruptPriority = self.clic_interrupt_priority,
+                    o_clicClaim             = self.clic_claim,
+                    o_clicThreshold         = self.clic_threshold
+                )
+            if self.clic_params is not None:
+                self.cpu_params.update(self.clic_params)
+        # When CLIC is not present, don't add CLIC signals at all since standard VexRiscv.v doesn't have them
+        
         self.specials += Instance("VexRiscv", **self.cpu_params)
         if hasattr(self, "cfu_params"):
             self.specials += Instance("Cfu", **self.cfu_params)
