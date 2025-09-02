@@ -56,6 +56,7 @@ class VexiiRiscv(CPU):
     with_rvf         = False
     with_rvd         = False
     with_rva         = False
+    with_rvcbom      = False
     with_dma         = False
     with_axi3        = False
     with_opensbi     = False
@@ -91,6 +92,8 @@ class VexiiRiscv(CPU):
             arch += "d"
         if VexiiRiscv.with_rvc:
             arch += "c"
+        if VexiiRiscv.with_rvcbom:
+            arch += "zicbom"
         # arch += "zicntr"
         # arch += "zicsr"
         # arch += "zifencei"
@@ -116,6 +119,8 @@ class VexiiRiscv(CPU):
         flags =  f" -march={VexiiRiscv.get_arch()} -mabi={VexiiRiscv.get_abi()}"
         flags += f" -D__VexiiRiscv__"
         flags += f" -D__riscv_plic__"
+        if VexiiRiscv.with_rvcbom:
+            flags += f" -D__riscv_zicbom__"
         return flags
 
     # Reserved Interrupts.
@@ -156,7 +161,7 @@ class VexiiRiscv(CPU):
         vdir = get_data_mod("cpu", "vexiiriscv").data_location
         ndir = os.path.join(vdir, "ext", "VexiiRiscv")
 
-        NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "dev", "0d32e85", args.update_repo)
+        NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "dev", "f71ef3bd", args.update_repo)
 
         if not args.cpu_variant:
             args.cpu_variant = "standard"
