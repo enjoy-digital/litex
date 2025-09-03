@@ -220,7 +220,7 @@ class SoCBusHandler(LiteXModule):
             # If no Origin specified, allocate Region.
             if region.origin is None:
                 allocated = True
-                region    = self.alloc_region(name, region.size, region.cached)
+                region    = self.alloc_region(name, region.size, region.cached, linker=region.linker, mode=region.mode)
                 self.regions[name] = region
             # Else add Region.
             else:
@@ -260,7 +260,7 @@ class SoCBusHandler(LiteXModule):
             self.logger.error("{} is not a supported Region.".format(colorer(name, color="red")))
             raise SoCError()
 
-    def alloc_region(self, name, size, cached=True):
+    def alloc_region(self, name, size, cached=True, linker=False, mode="rw"):
         self.logger.info("Allocating {} Region of size {}...".format(
             colorer("Cached" if cached else "IO"),
             colorer("0x{:08x}".format(size))))
@@ -281,7 +281,7 @@ class SoCBusHandler(LiteXModule):
                     origin += (size_pow2 - origin%size_pow2)
                     continue
                 # Create a Candidate.
-                candidate = SoCRegion(origin=origin, size=size, cached=cached)
+                candidate = SoCRegion(origin=origin, size=size, mode=mode, cached=cached, linker=linker)
                 overlap   = False
                 # Check Candidate does not overlap with allocated existing regions.
                 for _, allocated in self.regions.items():
@@ -419,6 +419,7 @@ class SoCBusHandler(LiteXModule):
                     data_width    = self.data_width,
                     address_width = self.address_width,
                     addressing    = self.addressing,
+                    mode          = interface.mode,
                 )
                 if direction == "m2s":
                     master, slave = interface, adapted_interface
@@ -475,6 +476,7 @@ class SoCBusHandler(LiteXModule):
             data_width    = interface.data_width,
             address_width = interface.address_width,
             addressing    = interface.addressing,
+            mode          = interface.mode,
         )
 
         self.submodules += remapper_cls(interface, adapted_interface, origin, size)
@@ -502,6 +504,7 @@ class SoCBusHandler(LiteXModule):
             data_width    = interface.data_width,
             address_width = interface.address_width,
             addressing    = interface.addressing,
+            mode          = interface.mode,
         )
 
         self.submodules += offset_cls(adapted_interface, interface, offset)
@@ -1923,14 +1926,16 @@ class LiteXSoC(SoC):
         ethmac_rx_region = SoCRegion(
             origin = self.bus.regions[name].origin + 0,
             size   = ethmac_rx_region_size,
-            linker = True,
+            mode= "r" if rxslots_read_only else "rw",
+            linker = False,
             cached = False,
         )
         self.bus.add_slave(name=f"{name}_rx", slave=ethmac.bus_rx, region=ethmac_rx_region)
         ethmac_tx_region = SoCRegion(
             origin = self.bus.regions[name].origin + ethmac_rx_region_size,
             size   = ethmac_tx_region_size,
-            linker = True,
+            mode   = "w" if txslots_write_only else "rw",
+            linker = False,
             cached = False,
         )
         self.bus.add_slave(name=f"{name}_tx", slave=ethmac.bus_tx, region=ethmac_tx_region)
@@ -2067,14 +2072,15 @@ class LiteXSoC(SoC):
             ethmac_rx_region = SoCRegion(
                 origin = self.bus.regions["ethmac"].origin + 0,
                 size   = ethmac_rx_region_size,
-                linker = True,
+                mode   = "r",
+                linker = False,
                 cached = False,
             )
             self.bus.add_slave(name=f"ethmac_rx", slave=ethmac.bus_rx, region=ethmac_rx_region)
             ethmac_tx_region = SoCRegion(
                 origin = self.bus.regions["ethmac"].origin + ethmac_rx_region_size,
                 size   = ethmac_tx_region_size,
-                linker = True,
+                linker = False,
                 cached = False,
             )
             self.bus.add_slave(name=f"ethmac_tx", slave=ethmac.bus_tx, region=ethmac_tx_region)
@@ -2158,7 +2164,7 @@ class LiteXSoC(SoC):
         spiflash = LiteSPI(spiflash_phy, mmap_endianness=self.cpu.endianness, **kwargs)
         spiflash.add_module(name="phy", module=spiflash_phy)
         self.add_module(name=name, module=spiflash)
-        spiflash_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size)
+        spiflash_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size, mode=spiflash.bus.mode + "x")
         self.bus.add_slave(name=name, slave=spiflash.bus, region=spiflash_region, strip_origin=True)
 
         if hasattr(spiflash, "ev") and self.irq.enabled:
@@ -2210,7 +2216,7 @@ class LiteXSoC(SoC):
         spiram = LiteSPI(spiram_phy, mmap_endianness=self.cpu.endianness, with_mmap_write=True, **kwargs)
         spiram.add_module(name="phy", module=spiram_phy)
         self.add_module(name=name, module=spiram)
-        spiram_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size)
+        spiram_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size, mode="rwx")
         
         # Create Wishbone Slave.
         wb_spiram = wishbone.Interface(data_width=32, address_width=32, addressing="word")

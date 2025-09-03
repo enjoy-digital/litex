@@ -42,7 +42,7 @@ AXSIZE = {
 
 # AXI Connection Helpers ---------------------------------------------------------------------------
 
-def connect_axi(master, slave, keep=None, omit=None):
+def connect_axi(master, slave, keep=None, omit=None, axi_full=False):
     """
     Connect AXI master to slave channels.
 
@@ -65,13 +65,32 @@ def connect_axi(master, slave, keep=None, omit=None):
         "ar": "master",
         "r" : "slave",
     }
+    if "r" not in master.mode or "r" not in slave.mode:
+        channel_modes.pop("r")
+        channel_modes.pop("ar")
+    if "w"  not in master.mode or "w" not in slave.mode:
+        channel_modes.pop("w")
+        channel_modes.pop("aw")
+        channel_modes.pop("b")
+    assert len(channel_modes) > 0, "No AXI channels to connect."
     r = []
+    if omit is None:
+        omit = set()
+    elif isinstance(omit, list):
+        omit = set(omit)
+    omit.add("first")
+    omit.add("last")
+
     for channel, mode in channel_modes.items():
+        if axi_full and (channel in ["w", "r"]):
+            new_omit = omit - {"last"}
+        else:
+            new_omit = omit 
         if mode == "master":
             m, s = getattr(master, channel), getattr(slave, channel)
         else:
             s, m = getattr(master, channel), getattr(slave, channel)
-        r.extend(m.connect(s, keep=keep, omit=omit))
+        r.extend(m.connect(s, keep=keep, omit=new_omit))
     return r
 
 def connect_to_pads(bus, pads, mode="master", axi_full=False):
@@ -100,6 +119,13 @@ def connect_to_pads(bus, pads, mode="master", axi_full=False):
         "ar": mode,
         "r" : swap_mode(mode),
     }
+    if "r" not in bus.mode:
+        channel_modes.pop("r")
+        channel_modes.pop("ar")
+    if "w" not in bus.mode:
+        channel_modes.pop("w")
+        channel_modes.pop("aw")
+        channel_modes.pop("b")
     # Loop to connect each channel.
     for channel, mode in channel_modes.items():
         ch = getattr(bus, channel)
@@ -127,7 +153,7 @@ def connect_to_pads(bus, pads, mode="master", axi_full=False):
                 r.append(pad.eq(sig))
     return r
 
-def axi_layout_flat(axi):
+def axi_layout_flat(axi, axi_full=False):
     """
     Generator that yields a flat layout of each AXI signal's channel, name, and direction.
 
@@ -149,19 +175,37 @@ def axi_layout_flat(axi):
         if channel in ["b", "r"]:
             return {DIR_M_TO_S: DIR_S_TO_M, DIR_S_TO_M: DIR_M_TO_S}[direction]
         return direction
+    
+    channels = []
+    if "r" in axi.mode:
+        channels.append("ar")
+        channels.append("r")
+    if "w" in axi.mode:
+        channels.append("aw")
+        channels.append("w")
+        channels.append("b")
 
     # Iterate over each channel.
-    for ch in ["aw", "w", "b", "ar", "r"]:
+    for ch in channels:
         channel = getattr(axi, ch)
 
         # Iterate over each group in the channel's layout.
         for group in channel.layout:
+            if (ch not in ["w", "r"]) or not axi_full:
+                omit_names = ["first", "last"]
+            else:
+                omit_names = ["first"]
+
             if len(group) == 3:
                 name, _, direction = group
+                if name in omit_names:
+                    continue
                 yield ch, name, get_dir(ch, direction)
             else:
                 _, subgroups = group
                 # Iterate over each subgroup in the group.
                 for subgroup in subgroups:
                     name, _, direction = subgroup
+                    if name in omit_names:
+                        continue
                     yield ch, name, get_dir(ch, direction)
