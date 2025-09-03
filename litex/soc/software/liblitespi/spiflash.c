@@ -16,6 +16,10 @@
 
 //#define SPIFLASH_DEBUG
 
+#ifdef SPIFLASH_DEBUG
+#include "../bios/helpers.h"
+#endif
+
 #if defined(CSR_SPIFLASH_BASE)
 
 int spiflash_freq_init(void)
@@ -33,6 +37,7 @@ int spiflash_freq_init(void)
 
 #ifdef SPIFLASH_DEBUG
 	printf("Testing against CRC32: %08x\n\r", crc);
+	dump_bytes((unsigned int *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE, 0);
 #endif
 
 	/* Check if block is erased (filled with 0xFF) */
@@ -51,6 +56,7 @@ int spiflash_freq_init(void)
 		crc_test = crc32((unsigned char *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE);
 #ifdef SPIFLASH_DEBUG
 		printf("[DIV: %d] %08x\n\r", lowest_div, crc_test);
+		dump_bytes((unsigned int *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE, 0);
 #endif
 	}
 #if defined(SPIFLASH_PHY_MIN_DIVISOR) && SPIFLASH_PHY_MIN_DIVISOR == 1
