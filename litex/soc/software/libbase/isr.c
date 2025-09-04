@@ -94,6 +94,63 @@ void isr(void)
     }
 }
 
+#elif defined(__riscv_aplic__)
+
+void aplic_init(void)
+{
+    int i;
+
+    /* Disable irq delivery */
+    *((unsigned int *)(APLIC_DOMAINCFG)) = 0x80000000L;
+
+    for (int i = 0; i < 31; i++) {
+        *((unsigned int *)(APLIC_SOURCECFG) + i) = 0x6; // Level 1
+        *((unsigned int *)(APLIC_TARGET) + i) = 0x0;
+    }
+    *((unsigned int *)(APLIC_IDC_IDELIVERY)) = 0x1;
+    *((unsigned int *)(APLIC_IDC_ITHRESHOLD)) = 0x0;
+    *((unsigned int *)(APLIC_SETIP)) = 0x0;
+
+    /* Set priorities for the first 8 external interrupts to 1. */
+    for (i = 0; i < 8; i++) {
+        *((unsigned int *)APLIC_TARGET + i) = 0x1;
+    }
+
+    /* Enable the first 8 external interrupts. */
+    *((unsigned int *)APLIC_SETIE) = 0x1fe;
+
+    /* Enable irq delivery */
+    *((unsigned int *)APLIC_DOMAINCFG) = 0x80000100;
+
+    /* Set priority threshold to 0 (any priority > 0 triggers an interrupt). */
+}
+
+/* Interrupt Service Routine. */
+void isr(void)
+{
+    unsigned int claim;
+
+    /* Claim and handle pending interrupts. */
+    while ((claim = *((unsigned int *)APLIC_IDC_CLAIMI))) {
+        unsigned int irq = claim >> 16 & ((1 << 10) - 1);
+        if (irq < CONFIG_CPU_INTERRUPTS && irq_table[irq].isr) {
+            irq_table[irq].isr();
+        } else {
+            /* Unhandled interrupt source, print diagnostic information. */
+            printf("## APLIC: Unhandled claim: %d\n", claim);
+            printf("# aplic_enabled:    %08x\n", irq_getmask());
+            printf("# aplic_pending:    %08x\n", irq_pending());
+            printf("# mepc:    %016lx\n", csrr(mepc));
+            printf("# mcause:  %016lx\n", csrr(mcause));
+            printf("# mtval:   %016lx\n", csrr(mtval));
+            printf("# mie:     %016lx\n", csrr(mie));
+            printf("# mip:     %016lx\n", csrr(mip));
+            printf("###########################\n\n");
+        }
+    }
+}
+
+
 /************************************************/
 /* ISR Handling for CV32E40P and CV32E41P CPUs. */
 /************************************************/
@@ -283,4 +340,3 @@ void isr(void) {};
 #endif
 
 #endif
-
