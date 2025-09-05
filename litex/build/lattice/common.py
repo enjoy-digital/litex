@@ -195,6 +195,32 @@ class LatticeECP5TrellisTristate(Module):
     def lower(dr):
         return LatticeECP5TrellisTristateImpl(dr.target, dr.o, dr.oe, dr.i)
 
+# ECP5 Trellis SDR Tristate ----------------------------------------------------------------------------
+
+class LatticeECP5TrellisSDRTristateImpl(Module):
+    def __init__(self, io, o, oe, i, clk):
+        _o    = Signal().like(o)
+        _oe_n = Signal().like(oe)
+        _i    = Signal().like(i if i is not None else o)
+        self.specials += SDROutput(o, _o, clk)
+        self.specials += SDROutput(~oe, _oe_n, clk)
+        if i is not None:
+            self.specials += SDRInput(_i, i, clk)
+        for j in range(len(io)):
+            self.specials += Instance("TRELLIS_IO",
+                p_DIR = "BIDIR",
+                i_B   = io[j],
+                i_I   = _o[j],
+                o_O   = _i[j],
+                i_T   = _oe_n[j],
+            )
+
+class LatticeECP5TrellisSDRTristate:
+    @staticmethod
+    def lower(dr):
+        return LatticeECP5TrellisSDRTristateImpl(dr.io, dr.o, dr.oe, dr.i, dr.clk)
+
+
 # ECP5 Trellis Special Overrides -------------------------------------------------------------------
 
 lattice_ecp5_trellis_special_overrides = {
@@ -202,6 +228,7 @@ lattice_ecp5_trellis_special_overrides = {
     Tristate:               LatticeECP5TrellisTristate,
     SDRInput:               LatticeECP5SDRInput,
     SDROutput:              LatticeECP5SDROutput,
+    SDRTristate:            LatticeECP5TrellisSDRTristate,
     DDRInput:               LatticeECP5DDRInput,
     DDROutput:              LatticeECP5DDROutput,
     DifferentialInput:      LatticeECP5DifferentialInput,
