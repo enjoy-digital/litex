@@ -1194,6 +1194,7 @@ class SoC(LiteXModule, SoCCoreCompat):
         self.csr.add_master(name=name, master=csr_bridge.csr)
         self.add_config("CSR_DATA_WIDTH", self.csr.data_width)
         self.add_config("CSR_ALIGNMENT",  self.csr.alignment)
+        self.add_config(f"CSR_ORDERING_{self.csr.ordering.upper()}")
 
     # Add CPU --------------------------------------------------------------------------------------
     def add_cpu(self, name="vexriscv", variant="standard", reset_address=None, cfu=None):
