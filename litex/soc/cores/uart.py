@@ -222,8 +222,8 @@ class UART(LiteXModule, UARTInterface):
         self._rxempty = CSRStatus(description="RX FIFO Empty.")
 
         self.ev    = EventManager()
-        self.ev.tx = EventSourceProcess(edge="rising")
-        self.ev.rx = EventSourceProcess(edge="rising")
+        self.ev.tx = EventSourceLevel()
+        self.ev.rx = EventSourceLevel()
         self.ev.finalize()
 
         self._txempty = CSRStatus(description="TX FIFO Empty.")
