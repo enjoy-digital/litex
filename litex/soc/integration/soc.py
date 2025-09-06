@@ -2146,8 +2146,10 @@ class LiteXSoC(SoC):
 
         # Checks/Parameters.
         assert mode in ["1x", "4x"]
-        default_divisor = math.ceil(self.sys_clk_freq/(2*clk_freq)) - 1
-        clk_freq        = int(self.sys_clk_freq/(2*(default_divisor + 1)))
+        default_divisor = math.ceil(self.sys_clk_freq/clk_freq)
+        if rate == "1:1":
+            default_divisor += default_divisor % 2 # Round up to nearest even number.
+        clk_freq        = int(self.sys_clk_freq/default_divisor)
 
         if "master_with_irq" not in kwargs and self.irq.enabled and name in self.irq.locs.keys():
             # If IRQ is enabled, use master_with_irq.
@@ -2172,6 +2174,7 @@ class LiteXSoC(SoC):
 
         # Constants.
         self.add_constant(f"{name}_PHY_FREQUENCY",     clk_freq)
+        self.add_constant(f"{name}_PHY_MIN_DIVISOR",   2 if rate == "1:1" else 1)
         self.add_constant(f"{name}_MODULE_NAME",       module.name)
         self.add_constant(f"{name}_MODULE_TOTAL_SIZE", module.total_size)
         self.add_constant(f"{name}_MODULE_PAGE_SIZE",  module.page_size)
@@ -2197,8 +2200,10 @@ class LiteXSoC(SoC):
 
         # Checks/Parameters.
         assert mode in ["1x", "4x"]
-        default_divisor = math.ceil(self.sys_clk_freq/(2*clk_freq)) - 1
-        clk_freq        = int(self.sys_clk_freq/(2*(default_divisor + 1)))
+        default_divisor = math.ceil(self.sys_clk_freq/clk_freq)
+        if rate == "1:1":
+            default_divisor += default_divisor % 2 # Round up to nearest even number.
+        clk_freq        = int(self.sys_clk_freq/default_divisor)
 
         if "master_with_irq" not in kwargs and self.irq.enabled and name in self.irq.locs.keys():
             # If IRQ is enabled, use master_with_irq.
@@ -2244,6 +2249,7 @@ class LiteXSoC(SoC):
 
         # Constants.
         self.add_constant(f"{name}_PHY_FREQUENCY",     clk_freq)
+        self.add_constant(f"{name}_PHY_MIN_DIVISOR",   2 if rate == "1:1" else 1)
         self.add_constant(f"{name}_MODULE_NAME",       module.name)
         self.add_constant(f"{name}_MODULE_TOTAL_SIZE", module.total_size)
         self.add_constant(f"{name}_MODULE_PAGE_SIZE",  module.page_size)
