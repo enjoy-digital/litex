@@ -29,12 +29,12 @@ int spiram_freq_init(void)
 
 	lowest_div = spiram_phy_clk_divisor_read();
 
-	flush_cpu_dcache();
+	invd_cpu_dcache_range((void *)SPIRAM_BASE, SPIRAM_BLOCK_SIZE);
 	flush_l2_cache();
 
 	while((data_errors == 0) && (lowest_div-- > 0)) {
 		spiram_phy_clk_divisor_write((uint32_t)lowest_div);
-		flush_cpu_dcache();
+		invd_cpu_dcache_range((void *)SPIRAM_BASE, SPIRAM_BLOCK_SIZE);
 		flush_l2_cache();
 		data_errors = memtest_data((unsigned int *) SPIRAM_BASE, min(SPIRAM_SIZE, MEMTEST_DATA_SIZE), 1, NULL);
 #ifdef SPIRAM_DEBUG
