@@ -59,11 +59,15 @@ class VHD2VConverter(Module):
         add_instance   = False,
         params         = None,
         instance       = None,
-        files          = list(),
-        libraries      = list()):
+        files          = None,
+        libraries      = None):
         """
         constructor (see class attributes)
         """
+        if files is None:
+            files = []
+        if libraries is None:
+            libraries = []
         self._top_entity     = top_entity
         self._build_dir      = build_dir
         self._work_package   = work_package
@@ -204,6 +208,7 @@ class VHD2VConverter(Module):
             cmd += generics
             cmd += self._sources
             cmd += ["-e", self._top_entity]
+            print(cmd)
 
             with open(verilog_out, 'w') as output:
                 s = subprocess.run(cmd, stdout=output)
