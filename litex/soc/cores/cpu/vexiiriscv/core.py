@@ -57,6 +57,7 @@ class VexiiRiscv(CPU):
     with_rvd         = False
     with_rva         = False
     with_rvcbom      = False
+    with_supervisor  = False
     with_dma         = False
     with_axi3        = False
     with_opensbi     = False
@@ -93,7 +94,12 @@ class VexiiRiscv(CPU):
         if VexiiRiscv.with_rvc:
             arch += "c"
         if VexiiRiscv.with_rvcbom:
-            arch += "zicbom"
+            arch += "_zicbom"
+        if not VexiiRiscv.with_supervisor:
+            arch += "_smaia"
+        if VexiiRiscv.with_supervisor:
+            arch += "_ssaia"
+
         # arch += "zicntr"
         # arch += "zicsr"
         # arch += "zifencei"
@@ -173,6 +179,7 @@ class VexiiRiscv(CPU):
 
         if args.cpu_variant in ["linux", "debian"]:
             VexiiRiscv.with_opensbi = True
+            VexiiRiscv.with_supervisor = True
             VexiiRiscv.vexii_args += " --with-rva --with-supervisor"
             VexiiRiscv.vexii_args += " --fetch-l1-ways=4 --fetch-l1-mem-data-width-min=64"
             VexiiRiscv.vexii_args += " --lsu-l1-ways=4 --lsu-l1-mem-data-width-min=64"
@@ -404,6 +411,7 @@ class VexiiRiscv(CPU):
         md5_hash.update(str(VexiiRiscv.vexii_video).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.vexii_macsg).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.with_opensbi).encode('utf-8'))
+        md5_hash.update(str(VexiiRiscv.with_supervisor).encode('utf-8'))
 
         # md5_hash.update(str(VexiiRiscv.internal_bus_width).encode('utf-8'))
 
