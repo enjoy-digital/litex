@@ -65,6 +65,7 @@ class VexiiRiscv(CPU):
     jtag_tap         = False
     jtag_instruction = False
     with_cpu_clk     = False
+    imsic_interrupts = 0
     vexii_video      = []
     vexii_macsg      = []
     vexii_args       = ""
@@ -125,6 +126,10 @@ class VexiiRiscv(CPU):
         else:
             mapping["plic"] = 0xf0c0_0000
 
+        if VexiiRiscv.imsic_interrupts > 0:
+            mapping["imsic_m"] = 0xf100_0000
+            mapping["imsic_s"] = 0xf120_0000
+
         return mapping
 
     # GCC Flags.
@@ -165,6 +170,7 @@ class VexiiRiscv(CPU):
         cpu_group.add_argument("--l2-ways",               default=0,             help="VexiiRiscv L2 ways, default 8.")
         cpu_group.add_argument("--l2-self-flush",         default=None,          help="VexiiRiscv L2 ways will self flush on from,to,cycles")
         cpu_group.add_argument("--with-aplic",            action="store_true",   help="Enable APLIC.")
+        cpu_group.add_argument("--imsic-interrupts",      default=0, type=int,   help="VexiiRiscv IMSIC interrupts, default is 0 (disabled)")
         cpu_group.add_argument("--with-axi3",             action="store_true",   help="mbus will be axi3 instead of axi4")
         cpu_group.add_argument("--vexii-video",           action="append",  default=[], help="Add the memory coherent video controller")
         cpu_group.add_argument("--vexii-macsg",           action="append",  default=[], help="Add the memory coherent ethernet mac")
@@ -208,6 +214,7 @@ class VexiiRiscv(CPU):
         VexiiRiscv.with_dma         = args.with_coherent_dma
         VexiiRiscv.with_axi3        = args.with_axi3
         VexiiRiscv.with_aplic       = args.with_aplic
+        VexiiRiscv.imsic_interrupts = args.imsic_interrupts
         VexiiRiscv.update_repo      = args.update_repo
         VexiiRiscv.no_netlist_cache = args.no_netlist_cache
         VexiiRiscv.vexii_args      += " " + args.vexii_args
@@ -419,6 +426,7 @@ class VexiiRiscv(CPU):
         md5_hash.update(str(VexiiRiscv.with_dma).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.with_axi3).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.with_aplic).encode('utf-8'))
+        md5_hash.update(str(VexiiRiscv.imsic_interrupts).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.memory_regions).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.vexii_args).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.vexii_video).encode('utf-8'))
@@ -464,6 +472,8 @@ class VexiiRiscv(CPU):
             gen_args.append(f"--with-axi3")
         if(VexiiRiscv.with_aplic) :
             gen_args.append(f"--with-aplic")
+        if(VexiiRiscv.imsic_interrupts > 0) :
+            gen_args.append(f"--imsic-interrupt-number={VexiiRiscv.imsic_interrupts}")
         for arg in VexiiRiscv.vexii_video:
             gen_args.append(f"--video {arg}")
         for arg in VexiiRiscv.vexii_macsg:
@@ -523,6 +533,10 @@ class VexiiRiscv(CPU):
             soc.bus.add_region("aplic_s",  SoCRegion(origin=soc.mem_map.get("aplic_s"),  size=0x20_0000, cached=False,  linker=True))
         else:
             soc.bus.add_region("plic",  SoCRegion(origin=soc.mem_map.get("plic"),  size=0x40_0000, cached=False,  linker=True))
+
+        if VexiiRiscv.imsic_interrupts > 0:
+            soc.bus.add_region("imsic_m",  SoCRegion(origin=soc.mem_map.get("imsic_m"),  size=0x20_0000, cached=False,  linker=True))
+            soc.bus.add_region("imsic_s",  SoCRegion(origin=soc.mem_map.get("imsic_s"),  size=0x20_0000, cached=False,  linker=True))
 
         soc.bus.add_region("clint", SoCRegion(origin=soc.mem_map.get("clint"), size= 0x1_0000, cached=False,  linker=True))
 
