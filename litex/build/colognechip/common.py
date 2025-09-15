@@ -168,7 +168,7 @@ class CologneChipSDRTristateImpl(Module):
             SDROutput(~oe, _oe_n, clk),
         ]
         if i is not None:
-            self.specials += SDRInput(i, _i, clk)
+            self.specials += SDRInput(_i, i, clk)
         for j in range(len(io)):
             self.specials += Instance("CC_IOBUF",
                     p_FF_OBF = 1,
