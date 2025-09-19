@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+#include <stdbool.h>
 
 #include <generated/csr.h>
 #include <generated/mem.h>
@@ -463,10 +464,63 @@ int sdcard_init(void) {
 	return 1;
 }
 
-#ifdef CSR_SDCARD_BLOCK2MEM_DMA_BASE_ADDR
+#ifdef CSR_SDCARD_MEM2BLOCK_DMA_BASE_ADDR
+
+static inline void sdcard_xfer(bool write, uint32_t block, uint32_t count, uint8_t* buf)
+{
+	while (count) {
+		uint32_t nblocks;
+#ifdef SDCARD_CMD25_SUPPORT
+		nblocks = count;
+#else
+		nblocks = 1;
+#endif
+		/* Initialize DMA Writer/Reader */
+		sdcard_mem2block_dma_enable_write(0);
+		sdcard_mem2block_dma_base_write((uint64_t)(uintptr_t) buf);
+		sdcard_mem2block_dma_length_write(512*nblocks);
+#ifdef CSR_SDCARD_MEM2BLOCK_DMA_WE_ADDR
+		sdcard_mem2block_dma_we_write(write ? 0 : 1);
+#endif
+		sdcard_mem2block_dma_enable_write(1);
+
+		/* Write/Read Block(s) to SDCard */
+#ifdef SDCARD_CMD23_SUPPORT
+		sdcard_set_block_count(nblocks);
+#endif
+
+		if (nblocks > 1) {
+			if (write)
+				sdcard_write_multiple_block(block, nblocks);
+			else
+				sdcard_read_multiple_block(block, nblocks);
+		} else {
+			if (write)
+				sdcard_write_single_block(block);
+			else
+				sdcard_read_single_block(block);
+		}
+
+		/* Stop transmission (Only for multiple block writes/reads) */
+		if (nblocks > 1)
+			sdcard_stop_transmission();
+
+		/* Wait for DMA Reader/Writer to complete */
+		while ((sdcard_mem2block_dma_done_read() & 0x1) == 0);
+
+		sdcard_mem2block_dma_enable_write(0);
+
+		/* Update Block/Buffer/Count */
+		block += nblocks;
+		buf   += 512*nblocks;
+		count -= nblocks;
+	}
+}
+#endif /* CSR_SDCARD_MEM2BLOCK_DMA_BASE_ADDR */
 
 void sdcard_read(uint32_t block, uint32_t count, uint8_t* buf)
 {
+#ifdef CSR_SDCARD_BLOCK2MEM_DMA_BASE_ADDR
 	while (count) {
 		uint32_t nblocks;
 #ifdef SDCARD_CMD18_SUPPORT
@@ -501,6 +555,9 @@ void sdcard_read(uint32_t block, uint32_t count, uint8_t* buf)
 		buf   += 512*nblocks;
 		count -= nblocks;
 	}
+#elif defined(CSR_SDCARD_MEM2BLOCK_DMA_WE_ADDR)
+	sdcard_xfer(false, block, count, buf);
+#endif
 
 #ifndef CONFIG_CPU_HAS_DMA_BUS
 	/* Flush caches */
@@ -509,46 +566,11 @@ void sdcard_read(uint32_t block, uint32_t count, uint8_t* buf)
 #endif
 }
 
-#endif
-
 #ifdef CSR_SDCARD_MEM2BLOCK_DMA_BASE_ADDR
 
 void sdcard_write(uint32_t block, uint32_t count, uint8_t* buf)
 {
-	while (count) {
-		uint32_t nblocks;
-#ifdef SDCARD_CMD25_SUPPORT
-		nblocks = count;
-#else
-		nblocks = 1;
-#endif
-		/* Initialize DMA Reader */
-		sdcard_mem2block_dma_enable_write(0);
-		sdcard_mem2block_dma_base_write((uint64_t)(uintptr_t) buf);
-		sdcard_mem2block_dma_length_write(512*nblocks);
-		sdcard_mem2block_dma_enable_write(1);
-
-		/* Write Block(s) to SDCard */
-#ifdef SDCARD_CMD23_SUPPORT
-		sdcard_set_block_count(nblocks);
-#endif
-		if (nblocks > 1)
-			sdcard_write_multiple_block(block, nblocks);
-		else
-			sdcard_write_single_block(block);
-
-		/* Stop transmission (Only for multiple block writes) */
-		if (nblocks > 1)
-			sdcard_stop_transmission();
-
-		/* Wait for DMA Reader to complete */
-		while ((sdcard_mem2block_dma_done_read() & 0x1) == 0);
-
-		/* Update Block/Buffer/Count */
-		block += nblocks;
-		buf   += 512*nblocks;
-		count -= nblocks;
-	}
+	sdcard_xfer(true, block, count, buf);
 }
 #endif
 
