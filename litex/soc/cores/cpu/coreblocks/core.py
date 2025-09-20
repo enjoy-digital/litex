@@ -11,19 +11,27 @@ from migen import *
 
 from litex import get_data_mod
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
+from litex.soc.integration.soc import SoCRegion
 from litex.soc.interconnect import wishbone
 
 # Variants -----------------------------------------------------------------------------------------
 
 CPU_VARIANTS = {
-    "standard": "basic",
-    "full":     "full",
+    "standard":     "basic",
+    "small_linux":  "small_linux",
+    "full":         "full",
 }
+
+LINUX_CAPABLE_VARIANTS = [
+    "small_linux",
+    "full",
+]
 
 # GCC Flags ----------------------------------------------------------------------------------------
 
 GCC_FLAGS = {
     "standard":         "-march=rv32i2p0_m                                    -mabi=ilp32 ",
+    "small_linux":      "-march=rv32i2p0_ma                                   -mabi=ilp32 ",
     "full":             "-march=rv32i2p0_mac_zba_zbb_zbc_zbs                  -mabi=ilp32 ",
 }
 
@@ -105,13 +113,23 @@ class Coreblocks(CPU):
         # In Coreblocks MMIO region is set to 0xe000_0000 - 0xffff_fffff by default configuration.
         # It can be changed with coreblocks `CoreConfiguration` dataclass.
         # Remaps `csr` to that region. Other segements can be arbitraily overwritten.
-        return {
-            "rom":      0x0000_0000,
-            "sram":     0x0100_0000,
-            "main_ram": 0x4000_0000,
-            "csr":      0xe000_0000,
+        mem_map = {
+            "rom":          0x0000_0000,
+            "sram":         0x0100_0000,
+            "main_ram":     0x4000_0000,
+            "csr":          0xe000_0000,
         }
 
+        if self.variant in LINUX_CAPABLE_VARIANTS:
+            mem_map |= {
+                "clint":    0xe100_0000,
+            }
+
+        return mem_map
+
+    def add_soc_components(self, soc):
+        if "clint" in soc.mem_map:
+            soc.bus.add_region("clint", SoCRegion(origin=soc.mem_map.get("clint"), size=0xC_0000, cached=False, linker=False))
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
@@ -123,10 +141,16 @@ class Coreblocks(CPU):
         cli_params.append("--config={}".format(CPU_VARIANTS[variant]))
         cli_params.append("--reset-pc=0x{:x}".format(reset_address))
 
+        if variant in LINUX_CAPABLE_VARIANTS:
+            # Adds CoreSoCks wrapper around the core that adds extra peripherals (like CLINT) for full OS support
+            cli_params.append("--with-socks")
+
         data_mod = get_data_mod("cpu", "coreblocks")
         sdir = data_mod.data_location
 
-        command = ["python3", os.path.join(sdir, "scripts", "gen_verilog.py")] if data_mod.RUN_NATIVE else ["pipx", "run", f"--python=3.{data_mod.PYTHON3_VERSION}", "--fetch-missing-python", os.path.join(sdir, "..", "gen_verilog_wrapper.py")]
+        command = (["python3", os.path.join(sdir, "scripts", "gen_verilog.py")] if data_mod.RUN_NATIVE else
+            ["pipx", "run", f"--python=3.{data_mod.PYTHON3_VERSION}", "--fetch-missing-python", os.path.join(sdir, "..", "gen_verilog_wrapper.py")])
+
         command += cli_params
 
         print(command)
