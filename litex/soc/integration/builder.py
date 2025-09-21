@@ -189,8 +189,13 @@ class Builder:
         picolibc_directory    = get_data_mod("software", "picolibc").data_location
         compiler_rt_directory = get_data_mod("software", "compiler_rt").data_location
 
+        # copy picolibc to build folder, as it gets modified while building
+        picolibc_directory_build = f"{self.output_dir}/software/src/picolibc"
+        os.makedirs(picolibc_directory_build, exist_ok=True)
+        shutil.copytree(picolibc_directory, picolibc_directory_build, dirs_exist_ok=True, copy_function=shutil.copyfile)
+
         define("SOC_DIRECTORY",         soc_directory)
-        define("PICOLIBC_DIRECTORY",    picolibc_directory)
+        define("PICOLIBC_DIRECTORY",    picolibc_directory_build)
         define("PICOLIBC_FORMAT",       self.bios_format)
         define("COMPILER_RT_DIRECTORY", compiler_rt_directory)
         variables_contents.append("export BUILDINC_DIRECTORY")
