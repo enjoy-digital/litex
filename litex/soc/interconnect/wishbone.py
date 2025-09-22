@@ -14,6 +14,7 @@ from math import log2
 from migen import *
 from migen.genlib import roundrobin
 from migen.genlib.record import *
+from migen.genlib.cdc import PulseSynchronizer, MultiReg
 
 from litex.gen import *
 from litex.gen.genlib.misc import split, displacer, chooser, WaitTimer
@@ -837,3 +838,122 @@ class Cache(LiteXModule):
                 )
             )
         )
+
+# Wishbone CDC -------------------------------------------------------------------------------------
+
+class ClockDomainCrossing(LiteXModule):
+    """Wishbone Clock Domain Crossing"""
+
+    def __init__(self, master, slave, cd_from="sys", cd_to="sys"):
+        self.master = master
+        self.slave = slave
+
+        # Same Clock Domain, direct connection.
+        if cd_from == cd_to:
+            self.comb += master.connect(slave)
+        else:
+            # Generate Signals for input/output from cdc, leave out cyc & stb which will be generate on the slave side again
+            mtos_layout = [
+                (name, size, direction)
+                for name, size, direction in master.layout
+                if direction == DIR_M_TO_S and name not in ["cyc", "stb"]
+            ]
+
+            stom_layout = [
+                (name, size, direction)
+                for name, size, direction in master.layout
+                if direction == DIR_S_TO_M
+            ]
+
+            mtos_i_r = Record(mtos_layout)
+            mtos_o_r = Record(mtos_layout)
+            self.comb += self.master.connect(
+                mtos_i_r, keep=[f[0] for f in mtos_i_r.layout]
+            )
+            self.comb += mtos_o_r.connect(self.slave)
+
+            stom_i_r = Record(stom_layout)
+            stom_o_r = Record(stom_layout)
+            stom_len = layout_len(stom_i_r.layout)
+            self.comb += self.master.connect(
+                stom_o_r, keep=[f[0] for f in stom_o_r.layout]
+            )
+            self.comb += stom_i_r.connect(self.slave)
+
+            stom_i_bus = Signal(stom_len)
+            self.comb += stom_i_bus.eq(stom_i_r.raw_bits())
+            stom_o_bus = Signal(stom_len)
+            self.comb += stom_o_r.raw_bits().eq(stom_o_bus)
+
+            # The pulse synchronizer marks either the beginning of a request
+            # cycle from the master or the ack/err from the slave
+            self.ping = PulseSynchronizer(cd_from, cd_to)
+            self.pong = PulseSynchronizer(cd_to, cd_from)
+
+            # Transmit all wb signals (excluding stb & cyc) via multireg
+            self.mr_mtos = MultiReg(mtos_i_r.raw_bits(), mtos_o_r.raw_bits(), cd_to)
+            self.mr_stom = MultiReg(Signal().like(stom_i_bus), Signal().like(stom_o_bus), cd_from)
+
+            # State machines at both ends
+            self.m_fsm = m_fsm = ClockDomainsRenamer(cd_from)(
+                FSM(reset_state="IDLE")
+            )
+            m_fsm.act(
+                "IDLE",
+                If(
+                    self.master.cyc & self.master.stb,
+                    self.ping.i.eq(1),
+                    NextState("IN_TRANSACTION"),
+                ),
+            )
+            m_fsm.act(
+                "IN_TRANSACTION",
+                If(
+                    ~(self.master.cyc & self.master.stb),
+                    # Should rarely not happen, but if it does (due to e.g. timeout), swallow pong and return
+                    NextState("CANCELLED"),
+                ).Elif(
+                    self.pong.o,
+                    # Deliberately use an extra cycle, refer to comment in BusSynchronizer
+                    # https://github.com/m-labs/nmigen/pull/40#issuecomment-484166790
+                    NextState("ACK"),
+                ),
+            )
+            m_fsm.act(
+                "ACK",
+                # Only present data for one cycle
+                stom_o_bus.eq(self.mr_stom.o),
+                NextState("IDLE"),
+            )
+
+            m_fsm.act("CANCELLED", If(self.pong.o, NextState("IDLE")))
+
+            self.s_fsm = s_fsm = ClockDomainsRenamer(cd_to)(FSM(reset_state="IDLE"))
+
+            s_fsm.act(
+                "IDLE",
+                If(
+                    self.ping.o,
+                    # Deliberately use an extra cycle, refer to comment in BusSynchronizer
+                    # https://github.com/m-labs/nmigen/pull/40#issuecomment-484166790
+                    NextState("OUT_TRANSACTION"),
+                ),
+            )
+
+            stom_i_latch = Signal().like(stom_i_bus)
+
+            s_fsm.act(
+                "OUT_TRANSACTION",
+                self.slave.cyc.eq(1),
+                self.slave.stb.eq(1),
+                If(
+                    self.slave.ack | self.slave.err,
+                    self.pong.i.eq(1),
+                    NextValue(stom_i_latch, stom_i_bus),
+                    NextState("IDLE"),
+                ),
+            )
+
+            self.comb += self.mr_stom.i.eq(
+                Mux(s_fsm.ongoing("OUT_TRANSACTION"), stom_i_bus, stom_i_latch)
+            )
