@@ -102,6 +102,7 @@ class SoCCore(LiteXSoC):
         uart_fifo_depth          = 16,
         uart_pads                = None,
         uart_with_dynamic_baudrate = False,
+        uart_rx_fifo_rx_we       = False,
 
         # Timer parameters.
         with_timer               = True,
@@ -261,7 +262,7 @@ class SoCCore(LiteXSoC):
 
         # Add UART.
         if with_uart:
-            self.add_uart(name="uart", uart_name=uart_name, uart_pads=uart_pads, baudrate=uart_baudrate, fifo_depth=uart_fifo_depth, with_dynamic_baudrate=uart_with_dynamic_baudrate)
+            self.add_uart(name="uart", uart_name=uart_name, uart_pads=uart_pads, baudrate=uart_baudrate, fifo_depth=uart_fifo_depth, with_dynamic_baudrate=uart_with_dynamic_baudrate, rx_fifo_rx_we=uart_rx_fifo_rx_we)
 
         # Add JTAGBone.
         if with_jtagbone:
