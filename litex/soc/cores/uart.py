@@ -267,7 +267,7 @@ class UART(LiteXModule, UARTInterface):
 
             # FIFO --> CSR.
             self._rxtx.w.eq(rx_fifo.source.data),
-            rx_fifo.source.ready.eq(self.ev.rx.clear | (rx_fifo_rx_we & self._rxtx.we)),
+            rx_fifo.source.ready.eq(self._rxtx.we if rx_fifo_rx_we else self.ev.rx.clear),
 
             # Status.
             self._rxempty.status.eq(~rx_fifo.source.valid),
