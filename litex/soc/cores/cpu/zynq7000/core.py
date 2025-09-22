@@ -11,6 +11,8 @@ import os
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
+from litex.build.xilinx.vivado import XilinxVivadoToolchain
+
 from litex.gen import *
 
 from litex.soc.interconnect import axi
@@ -77,15 +79,46 @@ class Zynq7000(CPU):
             "PCW_NUM_F2P_INTR_INPUTS"  : 16,
         }
         ps7_rst_n       = Signal()
-        ps7_ddram_pads  = platform.request("ps7_ddram")
+        # Unlike Vivado yosys/nextPNR refuses 'X' -> uses Signal() instead
+        # FIXME: is it really required to add these pins?
+        if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
+            ps7_ddram_pads  = platform.request("ps7_ddram")
+            ps7_clk         = platform.request("ps7_clk")
+            ps7_porb        = platform.request("ps7_porb")
+            ps7_srstb       = platform.request("ps7_srstb")
+            ps7_mio         = platform.request("ps7_mio")
+        else:
+            ps7_ddram_pads = Record([
+                ("addr",   16), # FIXME: Size?
+                ("ba",      3), # FIXME: Size?
+                ("cas_n",   1),
+                ("ck_n",    1),
+                ("ck_p",    1),
+                ("cke",     1),
+                ("cs_n",    1),
+                ("dm",      4),
+                ("dq",     32), # FIXME: Size?
+                ("dqs_n",   4), # FIXME: Size?
+                ("dqs_p",   4), # FIXME: Size?
+                ("odt",     1),
+                ("ras_n",   1),
+                ("reset_n", 1),
+                ("we_n",    1),
+                ("vrn",     1),
+                ("vrp",     1),
+            ])
+            ps7_clk         = Signal()
+            ps7_porb        = Signal()
+            ps7_srstb       = Signal()
+            ps7_mio         = Signal(54)
         self.cpu_params = dict(
             # Clk / Rst.
-            io_PS_CLK   = platform.request("ps7_clk"),
-            io_PS_PORB  = platform.request("ps7_porb"),
-            io_PS_SRSTB = platform.request("ps7_srstb"),
+            io_PS_CLK   = ps7_clk,
+            io_PS_PORB  = ps7_porb,
+            io_PS_SRSTB = ps7_srstb,
 
             # MIO.
-            io_MIO = platform.request("ps7_mio"),
+            io_MIO = ps7_mio,
 
             # DDRAM.
             io_DDR_Addr     = ps7_ddram_pads.addr,
@@ -489,9 +522,9 @@ class Zynq7000(CPU):
         })
 
     def do_finalize(self):
-        if self.ps7_name is None:
-            raise Exception("PS7 must be set with set_ps7 or set_ps7_xci methods.")
-        if len(self.ps7_tcl):
+        if len(self.ps7_tcl) and isinstance(self.platform.toolchain, XilinxVivadoToolchain):
+            if self.ps7_name is None:
+                raise Exception("PS7 must be set with set_ps7 or set_ps7_xci methods.")
             # Add configs to PS7.
             if len(self.config):
                 self.ps7_tcl.append("set_property -dict [list \\")
@@ -506,4 +539,33 @@ class Zynq7000(CPU):
                 f"synth_ip [get_ips {self.ps7_name}]"
             ]
             self.platform.toolchain.pre_synthesis_commands += self.ps7_tcl
+        else:
+            # With openXC7 ps7_name is imposed by the toolchain
+            self.ps7_name = "PS7"
+
+            # No '_' in I/O names
+            cpu_params = {}
+            for k,v in self.cpu_params.items():
+                direction, *name = k.split("_")
+                name = ''.join(name)
+                # Some I/Os have differents name
+                name = {
+                    "DDRRASn"          : "DDRRASB",
+                    "DDRDQSn"          : "DDRDQSN",
+                    "DDRDQS"           : "DDRDQSP",
+                    "DDRClkn"          : "DDRCKN",
+                    "DDRClk"           : "DDRCKP",
+                    "DDRCSn"           : "DDRCSB",
+                    "DDRCASn"          : "DDRCASB",
+                    "DDRBankAddr"      : "DDRBA",
+                    "DDRAddr"          : "DDRA",
+                    "FCLKRESET0N"      : "FCLKRESETN",
+                    "FCLKCLK0"         : "FCLKCLK",
+                    "USB0VBUSPWRFAULT" : "EMIOUSB0VBUSPWRFAULT",
+                    "USB1VBUSPWRFAULT" : "EMIOUSB1VBUSPWRFAULT",
+                }.get(name, name)
+                key = direction + "_" + name
+                cpu_params[key] = v
+            # Rewrite cpu_params with corrected pins name.
+            self.cpu_params = cpu_params
         self.specials += Instance(self.ps7_name, **self.cpu_params)
