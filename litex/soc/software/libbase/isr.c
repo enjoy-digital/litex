@@ -50,6 +50,8 @@ int irq_detach(unsigned int irq)
 /***********************************************************/
 #if defined(__riscv_plic__)
 
+void plic_init(void);
+
 /* PLIC initialization. */
 void plic_init(void)
 {
