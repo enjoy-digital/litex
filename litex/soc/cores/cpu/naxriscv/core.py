@@ -311,8 +311,8 @@ class NaxRiscv(CPU):
         cwd = os.getcwd()
         os.chdir(os.path.join(dir))
         wipe_cmd = "&& git clean --force -d -x && git reset --hard" if "wipe" in update else ""
-        checkout_cmd = f"&& git checkout {hash}" if hash is not None else ""
-        subprocess.check_call(f"cd {dir} {wipe_cmd} && git checkout {branch} && git submodule init && git pull --recurse-submodules {checkout_cmd}", shell=True)
+        checkout_cmd = f"&& git checkout {hash} && git submodule update --init --recursive" if hash is not None else ""
+        subprocess.check_call(f"cd {dir} {wipe_cmd} && git checkout {branch} && git pull --recurse-submodules {checkout_cmd}", shell=True)
         os.chdir(cwd)
 
     # Netlist Generation.
