@@ -25,12 +25,21 @@ class AgilexPLL(IntelClocking):
     c_div_range           = (1, 510+1)
     clkin_pfd_freq_range  = (10e6, 325e6)
 
-    def __init__(self, speedgrade="-6S"):
+    def __init__(self, platform, speedgrade="-6S"):
         self.logger = logging.getLogger("AgilexPLL")
+        self.platform = platform
+        self.clkin_name = None
         self.logger.info("Creating AgilexPLL, {}.".format(colorer("speedgrade {}".format(speedgrade))))
         IntelClocking.__init__(self)
 
         self.clko = Signal(self.nclkouts_max)
+
+    def register_clkin(self, clkin, freq):
+        if isinstance(clkin, Signal):
+            self.clkin_name = clkin.name_override
+        elif isinstance(clkin, ClockSignal):
+            self.clkin_name = clkin.cd
+        super().register_clkin(clkin, freq)
 
     def compute_config(self):
         valid_configs = []
@@ -43,7 +52,7 @@ class AgilexPLL(IntelClocking):
 
         if min_n > max_n:
             raise ValueError("No valid N divider found for PFD frequency constraints")
-        
+
         # Loop over n possible values.
         for n_factor in range(min_n, max_n):
             pfd_freq = self.clkin_freq / n_factor
@@ -71,15 +80,15 @@ class AgilexPLL(IntelClocking):
                     'pfd_freq': int(pfd_freq),
                     'vco_freq': int(vco_freq),
                 }
-                
+
                 # Try to find valid C dividers for all outputs.
                 c_dividers        = {}
                 c_phase_ps        = {}
-                c_phase_shifts_ps = {}
+                c_phase_shifts    = {}
                 config_valid      = True
                 total_error       = 0.0
                 max_error         = 0.0
-                
+
                 for i in range(len(self.clkouts)):
                     (_, target_freq, phase, margin) = self.clkouts[i]
                     # Calculate ideal C divider.
@@ -106,18 +115,18 @@ class AgilexPLL(IntelClocking):
                         # Check if output frequency is within range.
                         if not (self.clko_freq_range[0] <= actual_freq <= self.clko_freq_range[1]):
                             continue
-                        
+
                         error = abs(actual_freq - target_freq)
                         if error < best_error:
                             best_error       = error
                             best_c           = test_c
                             best_actual_freq = actual_freq
-                    
+
                     # Check if we found a valid C divider within margin.
                     if best_c is None or best_error > margin: # FIXME: check margin compare.
                         config_valid = False
                         break
-                    
+
                     error_pct    = best_error / target_freq
                     total_error += error_pct
                     max_error    = max(max_error, error_pct)
@@ -126,27 +135,28 @@ class AgilexPLL(IntelClocking):
                     clk_freq                            = vco_freq / best_c
                     clk_phase_step_ps                   = (1e12 / clk_freq) / 360
                     clk_phase_ps                        = clk_phase_step_ps * phase
+                    clk_phase_shifts                    = clk_phase_ps / vco_phase_step_ps
                     # Update config
                     config[f"clk{i}_freq"]              = clk_freq
                     config[f"clk{i}_divide"]            = best_c
-                    config[f"clk{i}_phase_ps"]          = int(clk_phase_ps)
-                    config[f"clk{i}_phase_shifts_ps"]   = int(clk_phase_ps / vco_phase_step_ps)
+                    config[f"clk{i}_phase_ps"]          = round(clk_phase_ps)     # NB: need to use round() not int() to get proper rounding
+                    config[f"clk{i}_phase_shifts"]      = round(clk_phase_shifts) # NB: need to use round() not int() to get proper rounding
                     config[f"clk{i}_dutycycle_den"]     = 2 * best_c
                     config[f"clk{i}_dutycycle_num"]     = best_c
                     config[f"clk{i}_dutycycle_percent"] = 50
-                    
+
                 if config_valid:
                     # FIXME: check if this config already exists.
                     config["total_error"] = total_error
                     config["max_error"]   = max_error
                     valid_configs.append(config)
-        
+
         if not valid_configs:
             raise ValueError("No valid PLL configuration found")
-        
+
         # Sort by VCO frequency (highest first), then by total error (lowest first).
         valid_configs.sort(key=lambda x: (-x['vco_freq'], x['total_error']))
-        
+
         best_config = valid_configs[0]
 
         # Pad remaining entries with the first divider value (matching original code behavior).
@@ -156,7 +166,7 @@ class AgilexPLL(IntelClocking):
                 best_config[f"clk{i}_freq"]              = {True: 0, False: best_config["vco_freq"]}[i == 1]
                 best_config[f"clk{i}_divide"]            = {True: self.c_div_range[1] - 1, False: 1}[i == 1]
                 best_config[f"clk{i}_phase_ps"]          = 0
-                best_config[f"clk{i}_phase_shifts_ps"]   = 0
+                best_config[f"clk{i}_phase_shifts"]      = 0
                 best_config[f"clk{i}_dutycycle_den"]     = {True: def_dt_den, False: 4}[i == 1]
                 best_config[f"clk{i}_dutycycle_num"]     = {True: self.c_div_range[1] - 1, False: 2}[i == 1]
                 best_config[f"clk{i}_dutycycle_percent"] = 50
@@ -200,7 +210,7 @@ class AgilexPLL(IntelClocking):
             p_set_fractional              = "SET_FRACTIONAL_FRACTION",
             p_set_freq                    = "SET_FREQ_DIVISION_VERIFY",
             p_set_phase                   = "SET_PHASE_NUM_SHIFTS_VERIFY",
-            p_vco_clk_freq                = Constant(config["vco_freq"], 36),            
+            p_vco_clk_freq                = Constant(config["vco_freq"], 36),
         )
 
         # Output Clocks configuration.
@@ -213,7 +223,7 @@ class AgilexPLL(IntelClocking):
             self.params[f"p_out_clk_{i}_dutycycle_percent"] = config[f"clk{i}_dutycycle_percent"]
             self.params[f"p_out_clk_{i}_freq"]              = Constant(config[f"clk{i}_freq"], 36)
             self.params[f"p_out_clk_{i}_phase_ps"]          = config[f"clk{i}_phase_ps"]
-            self.params[f"p_out_clk_{i}_phase_shifts"]      = config[f"clk{i}_phase_shifts_ps"]
+            self.params[f"p_out_clk_{i}_phase_shifts"]      = config[f"clk{i}_phase_shifts"]
 
         # Signals.
         self.params.update(
@@ -259,12 +269,66 @@ class AgilexPLL(IntelClocking):
         for c in range(self.nclkouts):
             self.comb += self.clkouts[c][0].eq(self.clko[c])
 
-        self.specials += Instance("tennm_ph2_iopll", **self.params)
+        inst = self.clkin_name+"_pll"
+        self.specials += Instance("tennm_ph2_iopll", name=inst, **self.params)
+
+        ## Add timing constraints
+        # First, generate the internal PLL reference clock
+        sdc = self.platform.toolchain.additional_sdc_commands
+        sdc.append("# ------------------------ #")
+        sdc.append("# -                      - #")
+        sdc.append("# ---REFERENCE CLOCK(s)--- #")
+        sdc.append("# -                      - #")
+        sdc.append("# ------------------------ #")
+
+        refname = f"{inst}|ref_clk0"
+        sdc.append(f"create_generated_clock -add -name {refname} -divide_by 1 -multiply_by 1 \\")
+        sdc.append(f"    -master {self.clkin_name} -source {self.clkin_name} [get_nodes {{{refname}}}]")
+
+        sdc.append("# ------------------------ #")
+        sdc.append("# -                      - #")
+        sdc.append("# --- N/M COUNTERS(s)  --- #")
+        sdc.append("# -                      - #")
+        sdc.append("# ------------------------ #")
+
+        # N counter
+        nname   = f"{inst}_n_cnt_clk"
+        ntarget = f"{inst}|~ncntr_reg"
+        ndiv    = config["n"]
+        sdc.append(f"create_generated_clock -add -name {nname} -divide_by {ndiv} -multiply_by 1 \\")
+        sdc.append(f"    -master {refname} -source {refname} [get_nodes {{{ntarget}}}]")
+        # M counter
+        mname   = f"{inst}_m_cnt_clk"
+        mtarget = f"{inst}|~mcntr_reg"
+        mmaster = nname if ndiv > 1 else refname
+        msource = ntarget if ndiv > 1 else refname
+        sdc.append(f"create_generated_clock -add -name {mname} -divide_by 1 -multiply_by 1 \\")
+        sdc.append(f"    -master {mmaster} -source {msource} [get_nodes {{{mtarget}}}]")
+
+        sdc.append("# ------------------------- #")
+        sdc.append("# -                       - #")
+        sdc.append("# --- OUTPUT PLL CLOCKS --- #")
+        sdc.append("# -                       - #")
+        sdc.append("# ------------------------- #")
+        for i in range(len(self.clkouts)):
+            (_, target_freq, phase, margin) = self.clkouts[i]
+            name   = f"{inst}_outclk{i}"
+            master = nname if ndiv > 1 else refname
+            source = ntarget if ndiv > 1 else refname
+            target = f"{inst}|out_clk[{i}]"
+            div    = config[f"clk{i}_divide"]
+            mult   = config["m"]
+            sdc.append(f"create_generated_clock -add -name {name} \\")
+            sdc.append(f"    -duty_cycle 50 -divide_by {div} -multiply_by {mult} -phase {phase} \\")
+            sdc.append(f"    -master {master} -source {source} [get_nodes {{{target}}}]")
 
 # Altera Agilex3 -----------------------------------------------------------------------------------
 
 class Agilex3PLL(AgilexPLL):
-    def __init__(self, speedgrade="-6S"):
+    def __init__(self, platform, speedgrade=None):
+        if speedgrade is None:
+            # Speedgrade is the last two characters of the device
+            speedgrade = "-" + platform.device[-2:]
         self.clkin_freq_range = {
             "-6S" : (10e6,  900e6),
             "-7S" : (10e6,  625e6),
@@ -280,12 +344,12 @@ class Agilex3PLL(AgilexPLL):
             "-7S" : (0e6,  780e6),
         }[speedgrade]
 
-        AgilexPLL.__init__(self)
+        AgilexPLL.__init__(self, platform, speedgrade)
 
 # Altera Agilex5 -----------------------------------------------------------------------------------
 
 class Agilex5PLL(AgilexPLL):
-    def __init__(self, speedgrade="-6S"):
+    def __init__(self, platform, speedgrade="-6S"):
         self.clkin_freq_range = {
             "-1V" : (10e6, 1100e6),
             "-2E" : (10e6,  900e6),
@@ -319,12 +383,12 @@ class Agilex5PLL(AgilexPLL):
             "-6X" : (0e6,  780e6),
         }[speedgrade]
 
-        AgilexPLL.__init__(self)
+        AgilexPLL.__init__(self, platform, speedgrade)
 
 # Altera Agilex7 -----------------------------------------------------------------------------------
 
 class Agilex7PLL(AgilexPLL):
-    def __init__(self, speedgrade="-6S"):
+    def __init__(self, platform, speedgrade="-6S"):
         self.clkin_freq_range = {
             "-1V" : (10e6,  1100e6),
             "-2V" : (10e6,  1000e6),
@@ -346,4 +410,4 @@ class Agilex7PLL(AgilexPLL):
             "-3E" : (0e6,  780e6),
         }[speedgrade]
 
-        AgilexPLL.__init__(self)
+        AgilexPLL.__init__(self, platform, speedgrade)
