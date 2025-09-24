@@ -10,6 +10,7 @@ import subprocess
 from migen import *
 
 from litex import get_data_mod
+from litex.build.xilinx.vivado import XilinxVivadoToolchain
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 from litex.soc.integration.soc import SoCRegion
 from litex.soc.interconnect import wishbone
@@ -135,7 +136,7 @@ class Coreblocks(CPU):
         self.reset_address = reset_address
 
     @staticmethod
-    def elaborate(variant, reset_address, verilog_filename):
+    def elaborate(platform, variant, reset_address, verilog_filename):
         cli_params = []
         cli_params.append("--output={}".format(verilog_filename))
         cli_params.append("--config={}".format(CPU_VARIANTS[variant]))
@@ -144,6 +145,9 @@ class Coreblocks(CPU):
         if variant in LINUX_CAPABLE_VARIANTS:
             # Adds CoreSoCks wrapper around the core that adds extra peripherals (like CLINT) for full OS support
             cli_params.append("--with-socks")
+
+        if isinstance(platform.toolchain, XilinxVivadoToolchain):
+            cli_params.append("--enable-vivado-hacks")
 
         data_mod = get_data_mod("cpu", "coreblocks")
         sdir = data_mod.data_location
@@ -162,6 +166,7 @@ class Coreblocks(CPU):
 
         verilog_filename = os.path.join(self.platform.output_dir, "gateware", "core.v")
         self.elaborate(
+            platform         = self.platform,
             variant          = self.variant,
             reset_address    = self.reset_address,
             verilog_filename = verilog_filename)
