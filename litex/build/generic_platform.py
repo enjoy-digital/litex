@@ -18,6 +18,7 @@ from litex.gen.fhdl import verilog
 
 from litex.build.io import CRG
 from litex.build import tools
+from litex.build.generic_toolchain import GenericToolchain
 
 # --------------------------------------------------------------------------------------------------
 
@@ -338,7 +339,7 @@ class GenericPlatform:
                           # flash. A dict must be provided otherwise
 
     def __init__(self, device, io, connectors=[], name=None):
-        self.toolchain          = None
+        self.toolchain          = GenericToolchain()
         self.device             = device
         self.constraint_manager = ConstraintManager(io, connectors)
         if name is None:
