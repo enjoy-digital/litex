@@ -149,6 +149,23 @@ altera_special_overrides = {
     SDRInput:               AlteraSDRInput,
 }
 
+# Agilex5 AsyncResetSynchronizer -------------------------------------------------------------------
+
+class Agilex5AsyncResetSynchronizerImpl(Module):
+    def __init__(self, cd, async_reset):
+        self.specials += Instance("ipm_cdc_async_rst", name=f"ars_cd_{cd.name}_ff0",
+            p_NUM_STAGES = 3,
+            p_RST_TYPE   = "ACTIVE_HIGH",
+            i_clk        = cd.clk,
+            i_arst_in    = async_reset,
+            o_srst_out   = cd.rst,
+        )
+
+class Agilex5AsyncResetSynchronizer:
+    @staticmethod
+    def lower(dr):
+        return Agilex5AsyncResetSynchronizerImpl(dr.cd, dr.async_reset)
+
 # Agilex5 DDROutput --------------------------------------------------------------------------------
 
 class Agilex5DDROutputImpl(Module):
@@ -310,7 +327,7 @@ class Agilex5Tristate:
 # Agilex5 Special Overrides ------------------------------------------------------------------------
 
 agilex5_special_overrides = {
-    AsyncResetSynchronizer: AlteraAsyncResetSynchronizer,
+    AsyncResetSynchronizer: Agilex5AsyncResetSynchronizer,
     DifferentialInput:      AlteraDifferentialInput,
     DifferentialOutput:     AlteraDifferentialOutput,
     DDROutput:              Agilex5DDROutput,
