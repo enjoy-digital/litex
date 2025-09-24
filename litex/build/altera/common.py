@@ -95,8 +95,8 @@ class AlteraDDROutputImpl(Module):
             self.specials += Instance("ALTDDIO_OUT",
                 p_WIDTH    = 1,
                 i_outclock = clk,
-                i_datain_h = i1[j],
-                i_datain_l = i2[j],
+                i_datain_h = i1[j], # rising edge
+                i_datain_l = i2[j], # falling edge
                 o_dataout  = o[j],
             )
 
@@ -114,8 +114,8 @@ class AlteraDDRInputImpl(Module):
                 p_WIDTH     = 1,
                 i_inclock   = clk,
                 i_datain    = i[j],
-                o_dataout_h = o1[j],
-                o_dataout_l = o2[j],
+                o_dataout_h = o1[j], # rising edge
+                o_dataout_l = o2[j], # falling edge
             )
 
 class AlteraDDRInput:
@@ -236,8 +236,8 @@ class Agilex5DDROutputImpl(Module):
                 p_asclr_ena = "ASCLR_ENA_NONE",
                 p_sclr_ena  = "SCLR_ENA_NONE",
                 o_dataout   = o[j],
-                i_datainlo  = i2[j],
-                i_datainhi  = i1[j],
+                i_datainlo  = i1[j], # rising edge
+                i_datainhi  = i2[j], # falling edge
                 i_clk       = clk,
                 i_ena       = Constant(1, 1),
                 i_areset    = Constant(1, 1),
@@ -260,8 +260,8 @@ class Agilex5DDRInputImpl(Module):
                 p_sclr_ena  = "SCLR_ENA_NONE",
                 i_clk       = clk,
                 i_datain    = i[j],
-                o_regouthi  = o1[j],
-                o_regoutlo  = o2[j],
+                o_regoutlo  = o1[j], # rising edge
+                o_regouthi  = o2[j], # falling edge
                 i_ena       = Constant(1, 1),
                 i_areset    = Constant(1, 1),
                 i_sreset    = Constant(1, 1),
