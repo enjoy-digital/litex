@@ -215,6 +215,12 @@ class VHD2VConverter(Module):
                 if s.returncode:
                     raise OSError(f"Unable to convert {inst_name} to verilog, please check your GHDL install")
 
+            # Prepend `default_nettype wire`
+            with open(verilog_out, 'r') as f:
+                content = f.read()
+            with open(verilog_out, 'w') as f:
+                f.write("`default_nettype wire\n" + content)
+
             flatten_source = False
             if which("yosys") is not None and self._flatten_source:
                 s = subprocess.run(["yosys", "-V"], capture_output=True)
