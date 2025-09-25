@@ -226,6 +226,54 @@ class Agilex5OBufBase(Module):
             i_oe=oe_signal    # Output enable
         )
 
+# Agilex DifferentialInput ------------------------------------------------------------------------
+
+class Agilex5DifferentialInputImpl(Agilex5IBufBase):
+    def __init__(self, i_p, i_n, o):
+        self.specials += [
+	    Instance("tennm_ph2_io_ibuf",
+                **self._get_ibuf_params(),
+		i_i    = i_p,
+		i_ibar = i_n,
+		o_o    = o,
+            )
+        ]
+
+class Agilex5DifferentialInput:
+    @staticmethod
+    def lower(dr):
+        return Agilex5DifferentialInputImpl(dr.i_p, dr.i_n, dr.o)
+
+# Agilex DifferentialOutput -----------------------------------------------------------------------
+
+class Agilex5DifferentialOutputImpl(Agilex5OBufBase):
+    def __init__(self, i, o_p, o_n):
+        _i_b = Signal().like(i)
+        _p_n = Signal().like(i)
+        self.specials += [
+            Instance("tennm_ph2_pseudo_diff_out",
+                i_i    = i,
+                o_obar = _i_b,
+            ),
+            Instance("tennm_ph2_io_obuf",
+                **self._get_obuf_params(),
+                i_i          = i,
+                o_o          = o_p,
+                o_posbuf_out = _p_n, # to neg buf
+            ),
+            Instance("tennm_ph2_io_obuf",
+                **self._get_obuf_params(),
+                i_i          = _i_b,
+                o_o          = o_n,
+                i_negbuf_in  = _p_n, # from pos buf
+            ),
+        ]
+
+class Agilex5DifferentialOutput:
+    @staticmethod
+    def lower(dr):
+        return Agilex5DifferentialOutputImpl(dr.i, dr.o_p, dr.o_n)
+
 # Agilex5 DDROutput --------------------------------------------------------------------------------
 
 class Agilex5DDROutputImpl(Module):
@@ -352,8 +400,8 @@ class Agilex5Tristate:
 
 agilex5_special_overrides = {
     AsyncResetSynchronizer: Agilex5AsyncResetSynchronizer,
-    DifferentialInput:      AlteraDifferentialInput,
-    DifferentialOutput:     AlteraDifferentialOutput,
+    DifferentialInput:      Agilex5DifferentialInput,
+    DifferentialOutput:     Agilex5DifferentialOutput,
     DDROutput:              Agilex5DDROutput,
     DDRInput:               Agilex5DDRInput,
     SDROutput:              Agilex5SDROutput,
