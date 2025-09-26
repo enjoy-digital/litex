@@ -31,6 +31,7 @@ class AlteraQuartusToolchain(GenericToolchain):
         super().__init__()
         self._synth_tool             = "quartus_map"
         self._conv_tool              = "quartus_cpf"
+        self.clock_constraints       = []
         self.additional_sdc_commands = []
         self.additional_qsf_commands = []
         self.cst                     = []
@@ -123,6 +124,9 @@ class AlteraQuartusToolchain(GenericToolchain):
 
         # Enable automatical constraint generation for PLLs
         sdc.append("derive_pll_clocks -use_net_name")
+
+        # Any additional clock constraints like "create_generated_clock" etc.
+        sdc += self.clock_constraints
 
         # False path constraints
         for from_, to in sorted(self.false_paths, key=lambda x: (x[0].duid, x[1].duid)):
