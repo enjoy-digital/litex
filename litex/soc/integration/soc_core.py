@@ -161,22 +161,6 @@ class SoCCore(LiteXSoC):
         self.cpu_type     = cpu_type
         self.cpu_variant  = cpu_variant
 
-        # ROM.
-        # Initialize ROM from binary file when provided.
-        if isinstance(integrated_rom_init, str):
-            integrated_rom_init = get_mem_data(integrated_rom_init,
-                endianness = "little", # FIXME: Depends on CPU.
-                data_width = bus_data_width
-            )
-            integrated_rom_size = (bus_data_width // 8) * len(integrated_rom_init)
-
-        # Disable ROM when no CPU/hard-CPU.
-        if cpu_type in [None, "zynq7000", "zynqmp", "eos_s3"]:
-            integrated_rom_init = []
-            integrated_rom_size = 0
-        self.integrated_rom_size        = integrated_rom_size
-        self.integrated_rom_initialized = integrated_rom_init != []
-
         # SRAM.
         self.integrated_sram_size = integrated_sram_size
 
@@ -227,6 +211,22 @@ class SoCCore(LiteXSoC):
         if self.irq.enabled:
             for name, loc in self.interrupt_map.items():
                 self.irq.add(name, loc)
+
+        # ROM.
+        # Initialize ROM from binary file when provided.
+        if isinstance(integrated_rom_init, str):
+            integrated_rom_init = get_mem_data(integrated_rom_init,
+                endianness = self.cpu.endianness,
+                data_width = bus_data_width
+            )
+            integrated_rom_size = (bus_data_width // 8) * len(integrated_rom_init)
+
+        # Disable ROM when no CPU/hard-CPU.
+        if cpu_type in [None, "zynq7000", "zynqmp", "eos_s3"]:
+            integrated_rom_init = []
+            integrated_rom_size = 0
+        self.integrated_rom_size        = integrated_rom_size
+        self.integrated_rom_initialized = integrated_rom_init != []
 
         # Add integrated ROM.
         if integrated_rom_size:
