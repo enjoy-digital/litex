@@ -91,6 +91,12 @@ static void help(void)
 #ifdef WITH_CXX
 	puts("hellocpp           - Hello C++");
 #endif
+#ifdef CSR_CLINT_BASE
+	puts("clint              - CLINT software interrupt demo");
+#endif
+#ifdef CSR_CLIC_BASE
+	puts("clic               - CLIC interrupt controller demo");
+#endif
 }
 
 /*-----------------------------------------------------------------------*/
@@ -150,6 +156,26 @@ static void helloc_cmd(void)
 	helloc();
 }
 
+#ifdef CSR_CLINT_BASE
+extern void clint_demo(void);
+
+static void clint_cmd(void)
+{
+	printf("CLINT demo...\n");
+	clint_demo();
+}
+#endif
+
+#ifdef CSR_CLIC_BASE
+extern void clic_demo(void);
+
+static void clic_cmd(void)
+{
+	printf("CLIC demo...\n");
+	clic_demo();
+}
+#endif
+
 #ifdef WITH_CXX
 extern void hellocpp(void);
 
@@ -187,6 +213,14 @@ static void console_service(void)
 #ifdef WITH_CXX
 	else if(strcmp(token, "hellocpp") == 0)
 		hellocpp_cmd();
+#endif
+#ifdef CSR_CLINT_BASE
+	else if(strcmp(token, "clint") == 0)
+		clint_cmd();
+#endif
+#ifdef CSR_CLIC_BASE
+	else if(strcmp(token, "clic") == 0)
+		clic_cmd();
 #endif
 	prompt();
 }
