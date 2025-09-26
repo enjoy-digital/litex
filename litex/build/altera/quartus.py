@@ -123,7 +123,8 @@ class AlteraQuartusToolchain(GenericToolchain):
                 sdc.append(tpl.format(name=name, clk=clk_sig, period=str(period)))
 
         # Enable automatical constraint generation for PLLs
-        sdc.append("derive_pll_clocks -use_net_name")
+        if not self.platform.device[:3] in ["A5E", "A3C"]:
+            sdc.append("derive_pll_clocks -use_net_name")
 
         # Any additional clock constraints like "create_generated_clock" etc.
         sdc += self.clock_constraints
