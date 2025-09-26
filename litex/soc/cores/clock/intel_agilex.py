@@ -41,6 +41,18 @@ class AgilexPLL(IntelClocking):
             self.clkin_name = clkin.cd
         super().register_clkin(clkin, freq)
 
+    def create_clkout(self, cd, freq, phase=0, margin=1e-2, with_reset=True):
+        assert self.nclkouts < self.nclkouts_max
+        clkout = Signal()
+        self.clkouts[self.nclkouts] = (clkout, freq, phase, margin, cd.clk.name_override)
+        if with_reset:
+            self.specials += AsyncResetSynchronizer(cd, ~self.locked)
+        if not hasattr(cd.clk, "keep"):
+            cd.clk.attr.add("keep")
+        self.comb += cd.clk.eq(clkout)
+        create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
+        self.nclkouts += 1
+
     def compute_config(self):
         valid_configs = []
 
@@ -90,7 +102,7 @@ class AgilexPLL(IntelClocking):
                 max_error         = 0.0
 
                 for i in range(len(self.clkouts)):
-                    (_, target_freq, phase, margin) = self.clkouts[i]
+                    (_, target_freq, phase, margin, name) = self.clkouts[i]
                     # Calculate ideal C divider.
                     ideal_c = vco_freq / target_freq
 
@@ -274,7 +286,7 @@ class AgilexPLL(IntelClocking):
 
         ## Add timing constraints
         # First, generate the internal PLL reference clock
-        sdc = self.platform.toolchain.additional_sdc_commands
+        sdc = self.platform.toolchain.clock_constraints
         sdc.append("# ------------------------ #")
         sdc.append("# -                      - #")
         sdc.append("# ---REFERENCE CLOCK(s)--- #")
@@ -311,8 +323,9 @@ class AgilexPLL(IntelClocking):
         sdc.append("# -                       - #")
         sdc.append("# ------------------------- #")
         for i in range(len(self.clkouts)):
-            (_, target_freq, phase, margin) = self.clkouts[i]
-            name   = f"{inst}_outclk{i}"
+            (_, target_freq, phase, margin, name) = self.clkouts[i]
+            if not name:
+                name = f"{inst}_outclk{i}"
             master = nname if ndiv > 1 else refname
             source = ntarget if ndiv > 1 else refname
             target = f"{inst}|out_clk[{i}]"
