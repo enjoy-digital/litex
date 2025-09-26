@@ -24,7 +24,8 @@ from litex.build import tools
 
 class AlteraQuartusToolchain(GenericToolchain):
     attr_translate = {
-        "keep": ("keep", 1),
+        "keep":    ("keep", 1),
+        "noprune": ("noprune", 1),
     }
 
     def __init__(self):
