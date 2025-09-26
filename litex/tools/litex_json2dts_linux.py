@@ -360,7 +360,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     # Interrupt Controller -------------------------------------------------------------------------
 
-    if (cpu_family == "riscv") and (cpu_name in ["rocket",  "vexiiriscv"]):
+    if (cpu_family == "riscv") and "clint" in d["memories"]:
         # FIXME  : L4 definitiion?
         # CHECKME: interrupts-extended.
         dts += """
