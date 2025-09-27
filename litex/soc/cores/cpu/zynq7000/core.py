@@ -60,6 +60,7 @@ class Zynq7000(CPU):
         self.can_use        = []
         self.i2c_use        = []
         self.spi_use        = []
+        self.uart_use       = []
 
         # PS7 EMIO GPIOs (starts at 54).
         self._emio_use      = 0          # EMIO/GPIOs reserved/used.
@@ -505,6 +506,51 @@ class Zynq7000(CPU):
             f"i_CAN{n}_PHY_RX": pads.rx,
             f"o_CAN{n}_PHY_TX": pads.tx,
         })
+
+    """
+    Connect and Enables UARTn controler (may be via PS7 MIO or PL EMIO).
+    Attributes
+    ==========
+    n: int
+        controler ID 0/1
+    pads_or_mio_group: Record or str:
+        When pads_or_mio_group is:
+        - a Record, UARTn controler is configured to uses EMIO
+        - a str, UARTn controler is configured to uses PS7 MIO. str must
+        be the name of the MIO group: "MIO xx .. yy"
+    """
+    def add_uart(self, n, pads_or_mio_group):
+        assert n < 2 and not n in self.uart_use
+        assert pads_or_mio_group is not None
+
+        # Mark as used.
+        self.uart_use.append(n)
+
+        # When UART is used via PS7 MIO pads_or_mio_group is a string
+        # otherwise a resource.
+        io_type = {True: pads_or_mio_group, False: "EMIO"}[isinstance(pads_or_mio_group, str)]
+
+        # MIO IOs must be "MIO xx .. yy"
+        assert not (io_type != "EMIO" and re.match("MIO \d\d .. \d\d", io_type) is None)
+
+        # PS7 configuration.
+        self.add_ps7_config({
+            f"PCW_UART{n}_PERIPHERAL_ENABLE" : 1,
+            f"PCW_UART{n}_GRP_FULL_ENABLE"   : 0, # FIXME: adds control signals
+            f"PCW_UART{n}_UART{n}_IO"        : io_type,
+        })
+
+        # Inject UARTn configuration to use it via csv/json
+        LiteXContext.top.add_constant(f"CONFIG_PS7_UART{n}_ENABLE", 1)
+        LiteXContext.top.add_constant(f"CONFIG_PS7_UART{n}_IO",     io_type)
+
+        # UARTn interface is only exposed when controler is set to EMIO.
+        if io_type == "EMIO":
+            # PS7 connections.
+            self.cpu_params.update({
+                f"o_UART{n}_TX" : pads_or_mio_group.tx,
+                f"i_UART{n}_RX" : pads_or_mio_group.rx,
+            })
 
     """
     Connect and Enables SPIn controler (may be via PS7 MIO or PL EMIO).
