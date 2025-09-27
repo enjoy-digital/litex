@@ -7,6 +7,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
+import re
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
@@ -57,6 +58,7 @@ class Zynq7000(CPU):
 
         # PS7 peripherals.
         self.can_use        = []
+        self.i2c_use        = []
 
         # PS7 EMIO GPIOs (starts at 54).
         self._emio_use      = 0          # EMIO/GPIOs reserved/used.
@@ -502,6 +504,73 @@ class Zynq7000(CPU):
             f"i_CAN{n}_PHY_RX": pads.rx,
             f"o_CAN{n}_PHY_TX": pads.tx,
         })
+
+    """
+    Connect and Enables I2C controler (may be via PS7 MIO or PL EMIO).
+    Attributes
+    ==========
+    n: int
+        controler ID 0/1
+    pads_or_mio_group: Record or str:
+        When pads is a Record, I2Cn controler is configured to uses EMIO
+        When pads is a str, I2Cn controler is configured to uses PS7 MIO. str must
+        be "MIO xx .. yy"
+    """
+    def add_i2c(self, n, pads_or_mio_group):
+        assert n < 2 and not n in self.i2c_use
+        assert pads_or_mio_group is not None
+
+        # Mark as used.
+        self.i2c_use.append(n)
+
+        # When I2C is used via PS7 MIO pads_or_mio_group is a string
+        # otherwise a resource.
+        io_type = {True: pads_or_mio_group, False: "EMIO"}[isinstance(pads_or_mio_group, str)]
+
+        # MIO IOs must be "MIO xx .. yy"
+        assert not (io_type != "EMIO" and re.match("MIO \d\d .. \d\d", io_type) is None)
+
+        # PS7 configuration.
+        self.add_ps7_config({
+            f"PCW_I2C{n}_PERIPHERAL_ENABLE" : 1,
+            f"PCW_I2C{n}_I2C{n}_IO"         : io_type,
+        })
+
+        # Inject I2Cn configuration to use it via csv/json
+        LiteXContext.top.add_constant(f"CONFIG_PS7_I2C{n}_ENABLE", 1)
+        LiteXContext.top.add_constant(f"CONFIG_PS7_I2C{n}_IO",     io_type)
+
+        # I2Cn interface is only exposed when controler is set to EMIO.
+        if io_type == "EMIO":
+            # Signals.
+            scl = TSTriple()
+            sda = TSTriple()
+
+            # Physical connections.
+            self.specials += [
+                Instance("IOBUF",
+                    i_I   = sda.o,
+                    o_O   = sda.i,
+                    i_T   = sda.oe,
+                    io_IO = pads_or_mio_group.sda
+                ),
+                Instance("IOBUF",
+                    i_I   = scl.o,
+                    o_O   = scl.i,
+                    i_T   = scl.oe,
+                    io_IO = pads_or_mio_group.scl
+                ),
+            ]
+
+            # PS7 connections.
+            self.cpu_params.update({
+                f"i_I2C{n}_SCL_I" : scl.i,
+                f"o_I2C{n}_SCL_O" : scl.o,
+                f"o_I2C{n}_SCL_T" : scl.oe,
+                f"i_I2C{n}_SDA_I" : sda.i,
+                f"o_I2C{n}_SDA_O" : sda.o,
+                f"o_I2C{n}_SDA_T" : sda.oe,
+            })
 
     """
     Connect Signal,TSTriple or pads to the EMIO interface.
