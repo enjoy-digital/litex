@@ -166,7 +166,7 @@ class SoCCore(LiteXSoC):
         hard_cpus_list = ["zynq7000", "zynqmp", "eos_s3"]
         integrated_rom_disabled = (cpu_type is None) or (cpu_type in hard_cpus_list)
         # Check if a ROM binary file was provided and that it is not empty.
-        integrated_rom_region = get_mem_regions(integrated_rom_init) if isinstance(integrated_rom_init, str) else None
+        integrated_rom_region = get_mem_regions(integrated_rom_init, offset=0) if isinstance(integrated_rom_init, str) else None
         integrated_rom_region_valid = integrated_rom_region and get_mem_region_size(integrated_rom_region)
         # Check if ROM exists.
         integrated_rom_exists = (integrated_rom_region_valid or integrated_rom_size) and not integrated_rom_disabled
