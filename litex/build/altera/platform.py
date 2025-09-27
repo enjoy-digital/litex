@@ -35,7 +35,7 @@ class AlteraPlatform(GenericPlatform):
 
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
         so = dict(common.altera_special_overrides)
-        if self.device[:3] == "A5E":
+        if self.device[:3] in ["A5E", "A3C"]:
             so.update(common.agilex5_special_overrides)
         so.update(special_overrides)
         return GenericPlatform.get_verilog(self, *args,
