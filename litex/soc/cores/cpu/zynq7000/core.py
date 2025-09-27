@@ -58,6 +58,12 @@ class Zynq7000(CPU):
         # PS7 peripherals.
         self.can_use        = []
 
+        # PS7 EMIO GPIOs (starts at 54).
+        self._emio_use      = 0          # EMIO/GPIOs reserved/used.
+        self._emio_pads_i   = Signal(64)
+        self._emio_pads_o   = Signal(64)
+        self._emio_pads_t   = Signal(64)
+
         # [ 7: 0]: SPI Numbers [68:61]
         # [15: 8]: SPI Numbers [91:84]
         self.interrupt      = Signal(16)
@@ -72,9 +78,13 @@ class Zynq7000(CPU):
         self.ps7_tcl    = []
         self.config     = {
             # Enable interrupts by default
-            "PCW_USE_FABRIC_INTERRUPT" : 1,
-            "PCW_IRQ_F2P_INTR"         : 1,
-            "PCW_NUM_F2P_INTR_INPUTS"  : 16,
+            "PCW_USE_FABRIC_INTERRUPT"  : 1,
+            "PCW_IRQ_F2P_INTR"          : 1,
+            "PCW_NUM_F2P_INTR_INPUTS"   : 16,
+
+            # Enable EMIO GPIO by default
+            "PCW_GPIO_EMIO_GPIO_ENABLE" :  1,
+            "PCW_GPIO_EMIO_GPIO_IO"     : 64,
         }
         ps7_rst_n       = Signal()
         ps7_ddram_pads  = platform.request("ps7_ddram")
@@ -86,6 +96,11 @@ class Zynq7000(CPU):
 
             # MIO.
             io_MIO = platform.request("ps7_mio"),
+
+            # EMIO.
+            i_GPIO_I = self._emio_pads_i,
+            o_GPIO_O = self._emio_pads_o,
+            o_GPIO_T = self._emio_pads_t,
 
             # DDRAM.
             io_DDR_Addr     = ps7_ddram_pads.addr,
@@ -487,6 +502,69 @@ class Zynq7000(CPU):
             f"i_CAN{n}_PHY_RX": pads.rx,
             f"o_CAN{n}_PHY_TX": pads.tx,
         })
+
+    """
+    Connect Signal,TSTriple or pads to the EMIO interface.
+    Attributes
+    ==========
+    pads: physical pads (request/request_all), Signal(x), TSTriple or list of TSTriple.
+    pads_type: str (signal, pads)
+        pads means a physical signal, signal means any Signals internally
+        defined (may be connected to a physical pad or a Core).
+    pads_dir: str (in, out, inout)
+        pads direction, only used for signals.
+    """
+    def add_gpios(self, pads, pads_type="signal", pads_dir="inout"):
+        assert pads_type in ["signal", "pads"]
+        assert pads_dir  in ["in", "out", "inout"]
+        assert len(pads) + self._emio_use <= len(self._emio_pads_i)
+
+        def _connect_ios(p=None, p_i=None, p_o=None, p_t=None):
+            if p is not None:
+                assert p_i is None and p_o is None and p_t is None
+                assert self._emio_use < len(self._emio_pads_i)
+
+                # Uses intermediate signals for IOBUF -> Zynq7000
+                # to avoid conflicts wire vs reg for the same signal.
+                p_i = Signal()
+                self.specials += Instance("IOBUF",
+                    i_I   = self._emio_pads_o[self._emio_use],
+                    o_O   = p_i,
+                    i_T   = self._emio_pads_t[self._emio_use],
+                    io_IO = p,
+                )
+
+            if p_i is not None:
+                self.comb += self._emio_pads_i[self._emio_use].eq(p_i)
+            if p_o is not None:
+                self.comb += p_o.eq(self._emio_pads_o[self._emio_use])
+            if p_t is not None:
+                self.comb += p_t.eq(self._emio_pads_t[self._emio_use])
+            self._emio_use += 1
+
+        # TSTriple is not iterable.
+        # Directly connects _I/_O/_T and return.
+        if type(pads) == TSTriple:
+            _connect_ios(p_i=pads.i, p_o=pads.o, p_t=pads.oe)
+            return # Nothing to do
+
+        # When pads is type Cat (from request_all)
+        # convert it to a list to have a clean verilog.
+        if pads_type == "pads" and isinstance(pads, Cat):
+            pads = [p for p in pads.l]
+
+        for (i, p) in enumerate(pads):
+            if type(p) == TSTriple: # bypass direction check
+                                    # In this mode .o/.i are considered having
+                                    # a size == 1
+                _connect_ios(p_i=p.i, p_o=p.o, p_t=p.oe)
+            elif pads_type == "pads": # Direct connection
+                _connect_ios(p=p)
+            else: # internal signal
+                _connect_ios(
+                    p_i = p,
+                    p_o = {True: p, False: None}[pads_dir in ["inout", "out"]],
+                )
 
     def do_finalize(self):
         if self.ps7_name is None:
