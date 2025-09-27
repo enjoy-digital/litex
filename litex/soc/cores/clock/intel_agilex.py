@@ -38,7 +38,9 @@ class AgilexPLL(IntelClocking):
         if isinstance(clkin, Signal):
             self.clkin_name = clkin.name_override
         elif isinstance(clkin, ClockSignal):
-            self.clkin_name = clkin.cd
+            self.clkin_name = f"{clkin.cd}_clk"
+        else:
+            raise ValueError
         super().register_clkin(clkin, freq)
 
     def create_clkout(self, cd, freq, phase=0, margin=1e-2, with_reset=True):
