@@ -170,18 +170,17 @@ class PRBSRX(LiteXModule):
         ]
 
         # Errors count (with optional saturation).
+        error = Signal()
         self.sync += [
+            Case(config, {
+                PRBS_CONFIG_OFF    : error.eq(0),
+                PRBS_CONFIG_PRBS7  : error.eq(prbs7.errors  != 0),
+                PRBS_CONFIG_PRBS15 : error.eq(prbs15.errors != 0),
+                PRBS_CONFIG_PRBS31 : error.eq(prbs31.errors != 0),
+            }),
             If(config == PRBS_CONFIG_OFF,
                 errors.eq(0)
             ).Elif(~self.pause & (~with_errors_saturation | (errors != (2**errors_width-1))),
-                If(config == PRBS_CONFIG_PRBS7,
-                    errors.eq(errors + (prbs7.errors != 0))
-                ),
-                If(config == PRBS_CONFIG_PRBS15,
-                    errors.eq(errors + (prbs15.errors != 0))
-                ),
-                If(config == PRBS_CONFIG_PRBS31,
-                    errors.eq(errors + (prbs31.errors != 0))
-                )
+                errors.eq(errors + error)
             )
         ]
