@@ -24,13 +24,15 @@ from litex.build import tools
 
 class AlteraQuartusToolchain(GenericToolchain):
     attr_translate = {
-        "keep": ("keep", 1),
+        "keep":    ("keep", 1),
+        "noprune": ("noprune", 1),
     }
 
     def __init__(self):
         super().__init__()
         self._synth_tool             = "quartus_map"
         self._conv_tool              = "quartus_cpf"
+        self.clock_constraints       = []
         self.additional_sdc_commands = []
         self.additional_qsf_commands = []
         self.cst                     = []
@@ -122,7 +124,11 @@ class AlteraQuartusToolchain(GenericToolchain):
                 sdc.append(tpl.format(name=name, clk=clk_sig, period=str(period)))
 
         # Enable automatical constraint generation for PLLs
-        sdc.append("derive_pll_clocks -use_net_name")
+        if not self.platform.device[:3] in ["A5E", "A3C"]:
+            sdc.append("derive_pll_clocks -use_net_name")
+
+        # Any additional clock constraints like "create_generated_clock" etc.
+        sdc += self.clock_constraints
 
         # False path constraints
         for from_, to in sorted(self.false_paths, key=lambda x: (x[0].duid, x[1].duid)):
