@@ -362,7 +362,7 @@ def litex_setup_release_check_repos():
         print(f"{name:<35} {last_tag:<15} {setup_version}")
 
 def litex_setup_release_repos(tag):
-    litex_setup_check_repos()
+    litex_setup_release_check_repos()
     print_status(f"Making release {tag}...", underline=True)
     confirm = input("Please confirm by pressing Y:")
     if confirm.upper() != "Y":
