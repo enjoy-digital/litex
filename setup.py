@@ -10,7 +10,7 @@ with open("README.md", "r", encoding="utf-8") as fp:
 
 setup(
     name                          = "litex",
-    version                       = "2025.04",
+    version = "2025.08",
     description                   = "Python SoC/Core builder for building FPGA based systems.",
     long_description              = long_description,
     long_description_content_type = "text/markdown",
