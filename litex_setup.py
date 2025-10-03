@@ -381,7 +381,9 @@ def litex_setup_release_repos(tag):
         bumped     = False
         if os.path.exists(setup_path):
             current_version = get_setup_version(setup_path)
-            if current_version != tag:
+            if current_version == "No version found":
+                print_status(f"No version in {name} setup.py, skipping bump.")
+            elif current_version != tag:
                 print_status(f"Bumping version in {name} setup.py from {current_version} to {tag}...")
                 with open(setup_path, "r", encoding="utf-8") as f:
                     content = f.read()
