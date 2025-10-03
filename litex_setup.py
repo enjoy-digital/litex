@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import re
 import sys
 import time
 import subprocess
@@ -325,20 +326,78 @@ def litex_setup_freeze_repos(config="standard"):
 
 # Git repositories release -------------------------------------------------------------------------
 
+def get_current_tag(repo_path):
+    try:
+        cmd = ["git", "describe", "--tags", "--abbrev=0"]
+        result = subprocess.check_output(cmd, cwd=repo_path).decode("UTF-8").strip()
+        return result
+    except subprocess.CalledProcessError:
+        return "No tags"
+
+def get_setup_version(setup_path):
+    try:
+        with open(setup_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        match = re.search(r'version\s*=\s*["\']([^"\']+)["\']', content)
+        if match:
+            return match.group(1)
+        return "No version found"
+    except FileNotFoundError:
+        return "No setup.py"
+
+def litex_setup_release_check_repos():
+    print_status("Checking repositories for release...", underline=True)
+    print(colorer("Repo".ljust(35) + "Last Tag".ljust(17) + "Setup Version"))
+    print("-" * 80)
+    for name in install_configs["full"]:
+        if name in ["migen"]:
+            continue
+        repo_path = os.path.join(current_path, name)
+        if not os.path.exists(repo_path):
+            last_tag = "Not initialized"
+            setup_version = "Not initialized"
+        else:
+            last_tag = get_current_tag(repo_path)
+            setup_version = get_setup_version(os.path.join(repo_path, "setup.py"))
+        print(f"{name:<35} {last_tag:<15} {setup_version}")
+
 def litex_setup_release_repos(tag):
+    litex_setup_check_repos()
     print_status(f"Making release {tag}...", underline=True)
     confirm = input("Please confirm by pressing Y:")
-    if confirm.upper() == "Y":
-        for name in install_configs["full"]:
-            if name in ["migen"]:
-                continue
-            repo = git_repos[name]
-            os.chdir(os.path.join(current_path, name))
-            # Tag Repo.
-            print_status(f"Tagging {name} Git repository as {tag}...")
-            git_tag(tag=tag)
-    else:
-        print_status(f"Not confirmed, exiting.")
+    if confirm.upper() != "Y":
+        print_status("Not confirmed, exiting.")
+        return
+    for name in install_configs["full"]:
+        if name in ["migen"]:
+            continue
+        repo      = git_repos[name]
+        repo_path = os.path.join(current_path, name)
+        if not os.path.exists(repo_path):
+            print_error(f"{name} Git repository is not initialized.")
+            continue
+        os.chdir(repo_path)
+        setup_path = os.path.join(repo_path, "setup.py")
+        bumped     = False
+        if os.path.exists(setup_path):
+            current_version = get_setup_version(setup_path)
+            if current_version != tag:
+                print_status(f"Bumping version in {name} setup.py from {current_version} to {tag}...")
+                with open(setup_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                new_content = re.sub(r'version\s*=\s*["\'][^"\']+["\']', f'version = "{tag}"', content)
+                with open(setup_path, "w", encoding="utf-8") as f:
+                    f.write(new_content)
+                subprocess.check_call(f'git add {setup_path}', shell=True)
+                commit_msg = f'Bump to version {tag}'
+                subprocess.check_call(f'git commit -m "{commit_msg}"', shell=True)
+                subprocess.check_call('git push', shell=True)
+                bumped = True
+            else:
+                print_status(f"Version in {name} already at {tag}, skipping bump.")
+        # Tag Repo.
+        print_status(f"Tagging {name} Git repository as {tag}...")
+        git_tag(tag=tag)
 
 # GCC toolchains install ---------------------------------------------------------------------------
 
@@ -443,9 +502,10 @@ def main():
     parser.add_argument("--gcc", default=None, help="Install GCC Toolchain (riscv, powerpc or openrisc).")
 
     # Development mode.
-    parser.add_argument("--dev",     action="store_true", help="Development-Mode (no Auto-Update of litex_setup.py / Switch to git@github.com URLs).")
-    parser.add_argument("--freeze",  action="store_true", help="Freeze and display current config.")
-    parser.add_argument("--release", default=None,        help="Make release.")
+    parser.add_argument("--dev",            action="store_true", help="Development-Mode (no Auto-Update of litex_setup.py / Switch to git@github.com URLs).")
+    parser.add_argument("--freeze",         action="store_true", help="Freeze and display current config.")
+    parser.add_argument("--release-check",  action="store_true", help="Check repositories before release.")
+    parser.add_argument("--release",        default=None,        help="Make release.")
 
     # Retro-compatibility.
     parser.add_argument("compat_args", nargs="*", help="Retro-Compatibility arguments (init, update, install or gcc).")
@@ -481,6 +541,10 @@ def main():
     # Freeze.
     if args.freeze:
         litex_setup_freeze_repos(config=args.config)
+
+    # Release Check.
+    if args.release_check:
+        litex_setup_release_check_repos()
 
     # Release.
     if args.release:
