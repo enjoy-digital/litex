@@ -881,17 +881,22 @@ class VideoHDMIPHY(LiteXModule):
 # HDMI (Gowin).
 
 class VideoGowinHDMIPHY(LiteXModule):
-    def __init__(self, pads, clock_domain="sys", pn_swap=[]):
+    def __init__(self, pads, clock_domain="sys", pn_swap=[], true_lvds=False):
         self.sink = sink = stream.Endpoint(video_data_layout)
 
         # # #
+
+        # Select OBUF primitive:
+        # TLVDS_OBUF: for true LVDS pairs
+        # ELVDS_OBUF: for emulated LVDS pairs
+        obuf_type = {True: "TLVDS_OBUF", False:"ELVDS_OBUF"}[true_lvds]
 
         # Always ack Sink, no backpressure.
         self.comb += sink.ready.eq(1)
 
         # Clocking + Differential Signaling.
         pix_clk = ClockSignal(clock_domain)
-        self.specials += Instance("ELVDS_OBUF",
+        self.specials += Instance(obuf_type,
             i_I  = pix_clk if "clk" not in pn_swap else ~pix_clk,
             o_O  = pads.clk_p,
             o_OB = pads.clk_n,
@@ -916,7 +921,7 @@ class VideoGowinHDMIPHY(LiteXModule):
                 o_Q     = pad_o,
             )
 
-            self.specials += Instance("ELVDS_OBUF",
+            self.specials += Instance(obuf_type,
                 i_I  = pad_o,
                 o_O  = getattr(pads, f"data{channel}_p"),
                 o_OB = getattr(pads, f"data{channel}_n"),
