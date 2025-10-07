@@ -47,12 +47,31 @@ class CologneChipAsyncResetSynchronizer:
 class CologneChipDDRInputImpl(Module):
     def __init__(self, i, o1, o2, clk):
         for j in range(len(i)):
-            self.specials += Instance("CC_IDDR",
-                i_CLK = clk,
-                i_D   = i[j],
-                o_Q0  = o1[j],
-                o_Q1  = o2[j],
-            )
+            q1_d = Signal()
+            # CC_IDDR:
+            # Q0 is updated on clk rising edge
+            # Q1 is updated on clk falling edge
+            # To have something similar to SAME_EDGE or RESYNC
+            # a CC_DFF is placed between Q1 and o2.
+            self.specials += [
+                Instance("CC_IDDR",
+                    i_CLK = clk,
+                    i_D   = i[j],
+                    o_Q0  = o1[j],
+                    o_Q1  = q1_d,
+                ),
+                Instance("CC_DFF",
+                    p_CLK_INV = 0,
+                    p_EN_INV  = 0,
+                    p_SR_INV  = 0,
+                    p_SR_VAL  = 0,
+                    i_D       = q1_d,
+                    i_CLK     = clk,
+                    i_EN      = 1,
+                    i_SR      = 0,
+                    o_Q       = o2[j],
+                ),
+            ]
 
 class CologneChipDDRInput:
     @staticmethod
@@ -64,14 +83,34 @@ class CologneChipDDRInput:
 class CologneChipDDROutputImpl(Module):
     def __init__(self, i1, i2, o, clk):
         for j in range(len(o)):
-            self.specials += Instance("CC_ODDR",
-                p_CLK_INV = 0,
-                i_CLK     = clk,
-                i_DDR     = clk,
-                i_D0      = i1[j],
-                i_D1      = i2[j],
-                o_Q       = o[j],
-            )
+            d1_d = Signal()
+            # CC_ODDR:
+            # D0 is updated on clk rising edge
+            # D1 is updated on clk falling edge
+            # To keep D1 stable between rising and falling edge,
+            # and to have something similar to SAME_EDGE
+            # a CC_DFF if placed between o2 and D1.
+            self.specials += [
+                Instance("CC_DFF",
+                    p_CLK_INV = 0,
+                    p_EN_INV  = 0,
+                    p_SR_INV  = 0,
+                    p_SR_VAL  = 0,
+                    i_D       = i2[j],
+                    i_CLK     = clk,
+                    i_EN      = 1,
+                    i_SR      = 0,
+                    o_Q       = d1_d,
+                ),
+                Instance("CC_ODDR",
+                    p_CLK_INV = 0,
+                    i_CLK     = clk,
+                    i_DDR     = clk,
+                    i_D0      = i1[j],
+                    i_D1      = d1_d,
+                    o_Q       = o[j],
+                )
+            ]
 
 class CologneChipDDROutput:
     @staticmethod
