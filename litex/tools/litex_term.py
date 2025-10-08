@@ -333,8 +333,8 @@ class LiteXTerm:
         if hasattr(self, "port"):
             self.port.write(b"\x03")
         sigint_time_current = time.time()
-        # Exit term if 2 CTRL-C pressed in less than 0.5s.
-        if (sigint_time_current - self.sigint_time_last < 0.5):
+        # Exit term if 2 CTRL-C pressed in less than 0.5s or if the writer is not alive anymore.
+        if not self.writer_alive or (sigint_time_current - self.sigint_time_last < 0.5):
             self.console.unconfigure()
             self.close()
             sys.exit()
@@ -547,8 +547,11 @@ class LiteXTerm:
                         self.answer_magic()
 
         except serial.SerialException:
-            self.reader_alive = False
+            self.stop()
             self.console.unconfigure()
+            self.close()
+            print("[LITEX-TERM] Lost connection to the device, exiting.")
+            signal.pthread_kill(threading.main_thread().ident, signal.SIGTERM)
             raise
 
     def start_reader(self):
