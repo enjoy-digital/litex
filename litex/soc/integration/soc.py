@@ -846,7 +846,7 @@ class SoCCSRHandler(SoCLocHandler):
         self.regions[name] = region
 
     # Address map ----------------------------------------------------------------------------------
-    def address_map(self, name, memory=None):
+    def address_map(self, name, memory=None, origin=False):
         # Append memory name_override to base name if provided.
         if memory is not None:
             name = name + "_" + memory.name_override
@@ -855,8 +855,12 @@ class SoCCSRHandler(SoCLocHandler):
         if self.locs.get(name, None) is None:
             self.add(name, use_loc_if_exists=True)
 
-        # Return the assigned CSR address offset.
-        return self.locs[name]
+        # If origin=True, return origin address (location * paging).
+        if origin:
+            return self.locs[name] * self.paging
+        # Else, return location.
+        else:
+            return self.locs[name]
 
     # Str ------------------------------------------------------------------------------------------
     def __str__(self):
