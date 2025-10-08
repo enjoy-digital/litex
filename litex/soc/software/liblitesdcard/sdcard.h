@@ -60,6 +60,7 @@ extern "C" {
 #define SDCARD_CTRL_RESPONSE_SHORT      1
 #define SDCARD_CTRL_RESPONSE_LONG       2
 #define SDCARD_CTRL_RESPONSE_SHORT_BUSY 3
+#define SDCARD_CTRL_RESPONSE_CRC        4
 
 /*-----------------------------------------------------------------------*/
 /* SDCard command helpers                                                */
