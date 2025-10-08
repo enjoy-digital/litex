@@ -28,11 +28,6 @@ from litex.soc.cores.gpio    import GPIOTristate
 from litex.soc.cores.cpu     import CPUS
 from litex.soc.cores.video   import VideoGenericPHY
 
-from litedram           import modules as litedram_modules
-from litedram.modules   import parse_spd_hexdump
-from litedram.phy.model import sdram_module_nphases, get_sdram_phy_settings
-from litedram.phy.model import SDRAMPHYModel
-
 from liteeth.common             import *
 from liteeth.phy.gmii           import LiteEthPHYGMII
 from liteeth.phy.xgmii          import LiteEthPHYXGMII
@@ -44,8 +39,6 @@ from liteeth.core.udp           import LiteEthUDP
 from liteeth.core.icmp          import LiteEthICMP
 from liteeth.core               import LiteEthUDPIPCore
 from liteeth.frontend.etherbone import LiteEthEtherbone
-
-from litescope import LiteScopeAnalyzer
 
 # IOs ----------------------------------------------------------------------------------------------
 
@@ -208,6 +201,10 @@ class SimSoC(SoCCore):
 
         # SDRAM ------------------------------------------------------------------------------------
         if not self.integrated_main_ram_size and with_sdram:
+            from litedram           import modules as litedram_modules
+            from litedram.phy.model import sdram_module_nphases
+            from litedram.phy.model import SDRAMPHYModel
+
             sdram_clk_freq = int(100e6) # FIXME: use 100MHz timings
             if sdram_spd_data is None:
                 sdram_module_cls = getattr(litedram_modules, sdram_module)
@@ -356,6 +353,8 @@ class SimSoC(SoCCore):
 
         # Analyzer ---------------------------------------------------------------------------------
         if with_analyzer:
+            from litescope import LiteScopeAnalyzer
+
             analyzer_signals = [
                 # IBus (could also just added as self.cpu.ibus)
                 self.cpu.ibus.stb,
@@ -513,6 +512,8 @@ def main():
             )
             ram_boot_address = get_boot_address(args.ram_init)
     elif args.with_sdram:
+        from litedram.modules   import parse_spd_hexdump
+
         assert args.ram_init is None
         soc_kwargs["sdram_module"]     = args.sdram_module
         soc_kwargs["sdram_data_width"] = int(args.sdram_data_width)
