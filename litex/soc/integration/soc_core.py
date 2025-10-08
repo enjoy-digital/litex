@@ -161,21 +161,15 @@ class SoCCore(LiteXSoC):
         self.cpu_type     = cpu_type
         self.cpu_variant  = cpu_variant
 
-        # ROM.
-        # Initialize ROM from binary file when provided.
-        if isinstance(integrated_rom_init, str):
-            integrated_rom_init = get_mem_data(integrated_rom_init,
-                endianness = "little", # FIXME: Depends on CPU.
-                data_width = bus_data_width
-            )
-            integrated_rom_size = 4*len(integrated_rom_init)
-
-        # Disable ROM when no CPU/hard-CPU.
-        if cpu_type in [None, "zynq7000", "zynqmp", "eos_s3"]:
-            integrated_rom_init = []
-            integrated_rom_size = 0
-        self.integrated_rom_size        = integrated_rom_size
-        self.integrated_rom_initialized = integrated_rom_init != []
+        # ROM
+        # Check if CPU can support ROM.
+        hard_cpus_list = ["zynq7000", "zynqmp", "eos_s3"]
+        integrated_rom_disabled = (cpu_type is None) or (cpu_type in hard_cpus_list)
+        # Check if a ROM binary file was provided and that it is not empty.
+        integrated_rom_region = get_mem_regions(integrated_rom_init, offset=0) if isinstance(integrated_rom_init, str) else None
+        integrated_rom_region_valid = integrated_rom_region and get_mem_region_size(integrated_rom_region)
+        # Check if ROM exists.
+        integrated_rom_exists = (integrated_rom_region_valid or integrated_rom_size) and not integrated_rom_disabled
 
         # SRAM.
         self.integrated_sram_size = integrated_sram_size
@@ -220,7 +214,7 @@ class SoCCore(LiteXSoC):
         self.add_cpu(
             name          = str(cpu_type),
             variant       = "standard" if cpu_variant is None else cpu_variant,
-            reset_address = None if integrated_rom_size else cpu_reset_address,
+            reset_address = None if integrated_rom_exists else cpu_reset_address,
             cfu           = cpu_cfu)
 
         # Add User's interrupts.
@@ -228,8 +222,22 @@ class SoCCore(LiteXSoC):
             for name, loc in self.interrupt_map.items():
                 self.irq.add(name, loc)
 
+        # Disable ROM when no CPU/hard-CPU.
+        if integrated_rom_disabled:
+            integrated_rom_init = []
+            integrated_rom_size = 0
+        # Initialize ROM from binary file when provided.
+        elif integrated_rom_region_valid:
+            integrated_rom_init = get_mem_data(integrated_rom_region,
+                endianness = self.cpu.endianness,
+                data_width = bus_data_width
+            )
+            integrated_rom_size = (bus_data_width // 8) * len(integrated_rom_init)
+        self.integrated_rom_size        = integrated_rom_size
+        self.integrated_rom_initialized = integrated_rom_init != []
+
         # Add integrated ROM.
-        if integrated_rom_size:
+        if integrated_rom_exists:
             self.add_rom("rom",
                 origin   = self.cpu.reset_address,
                 size     = integrated_rom_size,
