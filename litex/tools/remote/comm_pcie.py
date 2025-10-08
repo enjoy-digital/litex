@@ -5,8 +5,9 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
-import ctypes
 import mmap
+import ctypes
+import subprocess
 
 from litex.tools.remote.csr_builder import CSRBuilder
 
@@ -17,14 +18,23 @@ class CommPCIe(CSRBuilder):
         CSRBuilder.__init__(self, comm=self, csr_csv=csr_csv)
         if "/sys/bus/pci/devices" not in bar:
             bar = f"/sys/bus/pci/devices/0000:{bar}/resource0"
-        self.bar   = bar
-        self.debug = debug
+        self.bar         = bar
+        self.enable_path = self.bar.replace("resource0", "enable")
+        self.debug       = debug
+        self._make_accessible(self.enable_path)
+        self._make_accessible(self.bar)
 
         self.enable()
 
+    def _make_accessible(self, path):
+        cmd = ["chmod", "666", path]
+        if os.geteuid() != 0:
+            cmd = ["sudo"] + cmd
+        subprocess.check_call(cmd, stderr=subprocess.DEVNULL)
+
     def enable(self):
         # Enable PCIe device is not already enabled.
-        enable = open(self.bar.replace("resource0", "enable"), "r+")
+        enable = open(self.enable_path, "r+")
         if enable.read(1) == "0":
             enable.seek(0)
             enable.write("1")
