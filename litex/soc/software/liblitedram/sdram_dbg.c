@@ -28,15 +28,15 @@ void error_stats_update(struct error_stats *stats, struct memory_error err) {
 
 void error_stats_print(struct error_stats *stats) {
 	printf("        DQ:");
-	for (int bit = 0; bit < 16; ++bit) {
+	for (int bit = 0; bit < SDRAM_PHY_DATABITS; ++bit) {
 		printf(" %5d", bit);
 	}
 	printf("\n");
-	for (int phase = 0; phase < 8; ++phase) {
-		for (int edge = 0; edge < 2; ++edge) {
+	for (int phase = 0; phase < SDRAM_PHY_PHASES; ++phase) {
+		for (int edge = 0; edge < SDRAM_PHY_XDR; ++edge) {
 			unsigned int beat = 2*phase + edge;
 			printf("  beat[%2d]:", beat);
-			for (int bit = 0; bit < 16; ++bit) {
+			for (int bit = 0; bit < SDRAM_PHY_DATABITS; ++bit) {
 				unsigned int dq_errors = stats->phase[phase].edge[edge].dq[bit];
 				printf(" %5d", dq_errors);
 			}
