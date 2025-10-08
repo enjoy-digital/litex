@@ -846,11 +846,16 @@ class SoCCSRHandler(SoCLocHandler):
         self.regions[name] = region
 
     # Address map ----------------------------------------------------------------------------------
-    def address_map(self, name, memory):
+    def address_map(self, name, memory=None):
+        # Append memory name_override to base name if provided.
         if memory is not None:
             name = name + "_" + memory.name_override
+
+        # Add name if not already in self.locs; reuse existing if possible.
         if self.locs.get(name, None) is None:
             self.add(name, use_loc_if_exists=True)
+
+        # Return the assigned CSR address offset.
         return self.locs[name]
 
     # Str ------------------------------------------------------------------------------------------
