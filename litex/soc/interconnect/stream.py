@@ -472,7 +472,12 @@ class _IdentityConverter(LiteXModule):
         # # #
 
         self.comb += [
-            sink.connect(source),
+            # evaluate reverse for conversion of byte endianness
+            source.data.eq({True : reverse_bytes(sink.data), False: sink.data}[reverse]),
+            source.valid.eq(sink.valid),
+            source.first.eq(sink.first),
+            source.last.eq(sink.last),
+            sink.ready.eq(source.ready),
             source.valid_token_count.eq(1)
         ]
 
