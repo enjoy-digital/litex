@@ -107,23 +107,20 @@ class Coreblocks(CPU):
             i_wb_data__dat_r = dbus.dat_r,
         )
 
-    # Memory Mapping.
+    # Memory Mapping constraints.
     @property
     def mem_map(self):
-        # Default Memory Map.
         # In Coreblocks MMIO region is set to 0xe000_0000 - 0xffff_fffff by default configuration.
         # It can be changed with coreblocks `CoreConfiguration` dataclass.
-        # Remaps `csr` to that region. Other segements can be arbitraily overwritten.
+        # Maps `csr` to that region, with offset left at start for automatic I/O space allocations.
+        # Other segments can be arbitrarily chosen.
         mem_map = {
-            "rom":          0x0000_0000,
-            "sram":         0x0100_0000,
-            "main_ram":     0x4000_0000,
-            "csr":          0xe000_0000,
+            "csr":          0xe800_0000, # fixed address required by LiteX
         }
 
         if self.variant in LINUX_CAPABLE_VARIANTS:
             mem_map |= {
-                "clint":    0xe100_0000,
+                "clint":    0xe100_0000, # fixed in CoreSoCks
             }
 
         return mem_map
