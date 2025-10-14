@@ -1634,9 +1634,7 @@ class LiteXSoC(SoC):
             uart_phy  = UARTPHY(uart_pads, clk_freq=self.sys_clk_freq, baudrate=baudrate, with_dynamic_baudrate=with_dynamic_baudrate)
             uart      = UART(uart_phy, **uart_kwargs)
 
-        # Add PHY/UART.
-        if uart_phy is not None:
-            self.add_module(name=f"{name}_phy", module=uart_phy)
+        # Add UART.
         if uart is not None:
             self.add_module(name=name, module=uart)
 
@@ -1664,7 +1662,6 @@ class LiteXSoC(SoC):
             clk_freq      = clk_freq,
             cd            = cd,
             address_width = self.bus.address_width)
-        self.add_module(name=f"{name}_phy", module=uartbone_phy)
         self.add_module(name=name,          module=uartbone)
         self.bus.add_master(name=name, master=uartbone.wishbone)
 
@@ -1691,7 +1688,6 @@ class LiteXSoC(SoC):
             clk_freq      = self.sys_clk_freq,
             address_width = self.bus.address_width
         )
-        self.add_module(name=f"{name}_phy", module=jtagbone_phy)
         self.add_module(name=name,          module=jtagbone)
         self.bus.add_master(name=name, master=jtagbone.wishbone)
 

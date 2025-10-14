@@ -236,6 +236,7 @@ class UART(LiteXModule, UARTInterface):
         # PHY
         # ---
         if phy is not None:
+            self.phy = phy
             self.comb += phy.source.connect(self.sink)
             self.comb += self.source.connect(phy.sink)
 
