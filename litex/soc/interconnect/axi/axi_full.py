@@ -580,10 +580,10 @@ class AXIDecoder(LiteXModule):
 
         # Decode slave addresses.
         for i, (decoder, bus) in enumerate(slaves):
-            self.comb += [
-                slave_sel_dec["write"][i].eq(decoder(master.aw.addr[addr_shift:])),
-                slave_sel_dec["read"][i].eq(decoder(master.ar.addr[addr_shift:])),
-            ]
+            if "w" in bus.mode:
+                self.comb += slave_sel_dec["write"][i].eq(decoder(master.aw.addr[addr_shift:]))
+            if "r" in bus.mode:
+                self.comb += slave_sel_dec["read"][i].eq(decoder(master.ar.addr[addr_shift:]))
 
         # Change the current selection only when we've got all responses.
         for channel in locks.keys():
@@ -601,6 +601,9 @@ class AXIDecoder(LiteXModule):
         # Connect master->slaves signals except valid/ready.
         for i, (_, slave) in enumerate(slaves):
             for channel, name, direction in master.layout_flat():
+                # directions[channel][0] will be "w" or "r".
+                if directions[channel][0] not in slave.mode:
+                    continue
                 if direction == DIR_M_TO_S:
                     src = get_sig(master, channel, name)
                     dst = get_sig(slave, channel, name)
@@ -615,11 +618,14 @@ class AXIDecoder(LiteXModule):
                 dst = get_sig(master, channel, name)
                 masked = []
                 for i, (_, slave) in enumerate(slaves):
+                    if directions[channel][0] not in slave.mode:
+                        continue
                     src = get_sig(slave, channel, name)
                     # Mask depending on channel.
                     mask = Replicate(slave_sel[directions[channel]][i], len(dst))
                     masked.append(src & mask)
-                self.comb += dst.eq(reduce(or_, masked))
+                if len(masked) > 0:
+                    self.comb += dst.eq(reduce(or_, masked))
 
 # AXI Interconnect ---------------------------------------------------------------------------------
 
