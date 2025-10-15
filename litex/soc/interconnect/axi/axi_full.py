@@ -484,25 +484,33 @@ class AXIArbiter(LiteXModule):
     done separately.
     """
     def __init__(self, masters, target):
-        self.rr_write = roundrobin.RoundRobin(len(masters), roundrobin.SP_CE)
-        self.rr_read  = roundrobin.RoundRobin(len(masters), roundrobin.SP_CE)
+        write_masters = [m for m in masters if "w" in m.mode]
+        read_masters  = [m for m in masters if "r" in m.mode]
+        self.rr_write = roundrobin.RoundRobin(len(write_masters), roundrobin.SP_CE)
+        self.rr_read  = roundrobin.RoundRobin(len(read_masters), roundrobin.SP_CE)
 
         def get_sig(interface, channel, name):
             return getattr(getattr(interface, channel), name)
 
         # Mux master->slave signals
         for channel, name, direction in target.layout_flat():
-            rr = self.rr_write if channel in ["aw", "w", "b"] else self.rr_read
+            write = channel in ["aw", "w", "b"]
+            rr = self.rr_write if write else self.rr_read
+            m_masters = write_masters if write else read_masters
+            if len(m_masters) == 0:
+                continue
             if direction == DIR_M_TO_S:
-                choices = Array(get_sig(m, channel, name) for m in masters)
+                choices = Array(get_sig(m, channel, name) for m in m_masters)
                 self.comb += get_sig(target, channel, name).eq(choices[rr.grant])
 
         # Connect slave->master signals
         for channel, name, direction in target.layout_flat():
-            rr = self.rr_write if channel in ["aw", "w", "b"] else self.rr_read
+            write = channel in ["aw", "w", "b"]
+            rr = self.rr_write if write else self.rr_read
+            m_masters = write_masters if write else read_masters
             if direction == DIR_S_TO_M:
                 source = get_sig(target, channel, name)
-                for i, m in enumerate(masters):
+                for i, m in enumerate(m_masters):
                     dest = get_sig(m, channel, name)
                     if name in ["valid", "ready"]:
                         self.comb += If(rr.grant == i, dest.eq(source))
@@ -510,26 +518,29 @@ class AXIArbiter(LiteXModule):
                         self.comb += dest.eq(source)
 
         # Allow to change rr.grant only after all requests from a master have been responded to.
-        self.wr_lock = wr_lock = _AXIRequestCounter(
-            request  = target.aw.valid & target.aw.ready,
-            response = target.b.valid  & target.b.ready
-        )
-        self.rd_lock = rd_lock = _AXIRequestCounter(
-            request  = target.ar.valid & target.ar.ready,
-            response = target.r.valid  & target.r.ready & target.r.last
-        )
+        if len(write_masters):
+            self.wr_lock = wr_lock = _AXIRequestCounter(
+                request  = target.aw.valid & target.aw.ready,
+                response = target.b.valid  & target.b.ready
+            )
+        if len(read_masters):
+            self.rd_lock = rd_lock = _AXIRequestCounter(
+                request  = target.ar.valid & target.ar.ready,
+                response = target.r.valid  & target.r.ready & target.r.last
+            )
 
         # Switch to next request only if there are no responses pending.
-        self.comb += [
-            self.rr_write.ce.eq(~(target.aw.valid | target.w.valid | target.b.valid) & wr_lock.ready),
-            self.rr_read.ce.eq(~(target.ar.valid | target.r.valid) & rd_lock.ready),
-        ]
+        if len(write_masters):
+            self.comb += self.rr_write.ce.eq(~(target.aw.valid | target.w.valid | target.b.valid) & wr_lock.ready),
+        if len(read_masters):
+            self.comb += self.rr_read.ce.eq(~(target.ar.valid | target.r.valid) & rd_lock.ready)
+        
 
         # Connect bus requests to round-robin selectors.
-        self.comb += [
-            self.rr_write.request.eq(Cat(*[m.aw.valid | m.w.valid | m.b.valid for m in masters])),
-            self.rr_read.request.eq(Cat(*[m.ar.valid | m.r.valid for m in masters])),
-        ]
+        if len(write_masters):
+            self.comb += self.rr_write.request.eq(Cat(*[m.aw.valid | m.w.valid | m.b.valid for m in write_masters]))
+        if len(read_masters):
+            self.comb += self.rr_read.request.eq(Cat(*[m.ar.valid | m.r.valid for m in read_masters]))
 
 class AXIDecoder(LiteXModule):
     """AXI decoder
