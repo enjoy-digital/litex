@@ -2337,6 +2337,7 @@ class LiteXSoC(SoC):
                         data_width = soc.bus.data_width,
                         adr_width  = soc.bus.get_address_width(standard="wishbone"),
                         addressing = "word",
+                        mode = "w",
                     )
                     self.block2mem = block2mem = SDBlock2MemDMA(bus=bus, endianness=soc.cpu.endianness)
                     self.comb += core.source.connect(block2mem.sink)
@@ -2349,6 +2350,7 @@ class LiteXSoC(SoC):
                         data_width = soc.bus.data_width,
                         adr_width  = soc.bus.get_address_width(standard="wishbone"),
                         addressing = "word",
+                        mode = "r",
                     )
                     self.mem2block = mem2block = SDMem2BlockDMA(bus=bus, endianness=soc.cpu.endianness)
                     self.comb += mem2block.source.connect(core.sink)
@@ -2432,6 +2434,7 @@ class LiteXSoC(SoC):
                 data_width = self.bus.data_width,
                 adr_width  = self.bus.get_address_width(standard="wishbone"),
                 addressing = "word",
+                mode       = "w",
             )
             sata_sector2mem = LiteSATASector2MemDMA(
                port       = sata_crossbar.get_port(),
@@ -2449,6 +2452,7 @@ class LiteXSoC(SoC):
                 data_width = self.bus.data_width,
                 adr_width  = self.bus.get_address_width(standard="wishbone"),
                 addressing = "word",
+                mode       = "r",
             )
             sata_mem2sector = LiteSATAMem2SectorDMA(
                bus        = bus,
