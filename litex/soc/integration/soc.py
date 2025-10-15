@@ -659,11 +659,11 @@ class SoCBusHandler(LiteXModule):
         for name, region in regions.items():
            r += colorer(name, color="underline") + " "*(20-len(name)) + ": " + str(region) + "\n"
         r += "Bus Masters: ({})\n".format(len(self.masters.keys())) if len(self.masters.keys()) else ""
-        for name in self.masters.keys():
-           r += "- {}\n".format(colorer(name, color="underline"))
+        for name, m in self.masters.items():
+           r += "- {} : {}\n".format(colorer(name, color="underline").ljust(25), colorer(m.mode))
         r += "Bus Slaves: ({})\n".format(len(self.slaves.keys())) if len(self.slaves.keys()) else ""
-        for name in self.slaves.keys():
-           r += "- {}\n".format(colorer(name, color="underline"))
+        for name, s in self.slaves.items():
+           r += "- {} : {}\n".format(colorer(name, color="underline").ljust(25), colorer(s.mode))
         r = r[:-1]
         return r
 
