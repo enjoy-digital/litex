@@ -351,6 +351,7 @@ class SoCBusHandler(LiteXModule):
                     "address_width" : self.address_width,
                     "addressing"    : interface.addressing,
                     "bursting"      : interface.bursting,
+                    "mode"          : interface.mode,
                 }
                 if isinstance(interface, axi.AXIInterface):
                     args.update({
@@ -387,6 +388,7 @@ class SoCBusHandler(LiteXModule):
                     data_width    = self.data_width,
                     address_width = self.address_width,
                     addressing    = self.addressing,
+                    mode          = interface.mode,
                 )
                 address_shift = log2_int(interface.data_width//8)
                 if direction == "m2s":
