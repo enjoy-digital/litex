@@ -351,6 +351,7 @@ class SoCBusHandler(LiteXModule):
                     "address_width" : self.address_width,
                     "addressing"    : interface.addressing,
                     "bursting"      : interface.bursting,
+                    "mode"          : interface.mode,
                 }
                 if isinstance(interface, axi.AXIInterface):
                     args.update({
@@ -387,6 +388,7 @@ class SoCBusHandler(LiteXModule):
                     data_width    = self.data_width,
                     address_width = self.address_width,
                     addressing    = self.addressing,
+                    mode          = interface.mode,
                 )
                 address_shift = log2_int(interface.data_width//8)
                 if direction == "m2s":
@@ -657,11 +659,11 @@ class SoCBusHandler(LiteXModule):
         for name, region in regions.items():
            r += colorer(name, color="underline") + " "*(20-len(name)) + ": " + str(region) + "\n"
         r += "Bus Masters: ({})\n".format(len(self.masters.keys())) if len(self.masters.keys()) else ""
-        for name in self.masters.keys():
-           r += "- {}\n".format(colorer(name, color="underline"))
+        for name, m in self.masters.items():
+           r += "- {} : {}\n".format(colorer(name, color="underline").ljust(25), colorer(m.mode))
         r += "Bus Slaves: ({})\n".format(len(self.slaves.keys())) if len(self.slaves.keys()) else ""
-        for name in self.slaves.keys():
-           r += "- {}\n".format(colorer(name, color="underline"))
+        for name, s in self.slaves.items():
+           r += "- {} : {}\n".format(colorer(name, color="underline").ljust(25), colorer(s.mode))
         r = r[:-1]
         return r
 
@@ -2331,6 +2333,7 @@ class LiteXSoC(SoC):
                         data_width = soc.bus.data_width,
                         adr_width  = soc.bus.get_address_width(standard="wishbone"),
                         addressing = "word",
+                        mode = "w",
                     )
                     self.block2mem = block2mem = SDBlock2MemDMA(bus=bus, endianness=soc.cpu.endianness)
                     self.comb += core.source.connect(block2mem.sink)
@@ -2343,6 +2346,7 @@ class LiteXSoC(SoC):
                         data_width = soc.bus.data_width,
                         adr_width  = soc.bus.get_address_width(standard="wishbone"),
                         addressing = "word",
+                        mode = "r",
                     )
                     self.mem2block = mem2block = SDMem2BlockDMA(bus=bus, endianness=soc.cpu.endianness)
                     self.comb += mem2block.source.connect(core.sink)
@@ -2426,6 +2430,7 @@ class LiteXSoC(SoC):
                 data_width = self.bus.data_width,
                 adr_width  = self.bus.get_address_width(standard="wishbone"),
                 addressing = "word",
+                mode       = "w",
             )
             sata_sector2mem = LiteSATASector2MemDMA(
                port       = sata_crossbar.get_port(),
@@ -2443,6 +2448,7 @@ class LiteXSoC(SoC):
                 data_width = self.bus.data_width,
                 adr_width  = self.bus.get_address_width(standard="wishbone"),
                 addressing = "word",
+                mode       = "r",
             )
             sata_mem2sector = LiteSATAMem2SectorDMA(
                bus        = bus,
