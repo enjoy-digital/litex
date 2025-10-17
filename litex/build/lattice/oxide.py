@@ -58,7 +58,7 @@ class LatticeOxideToolchain(YosysNextPNRToolchain):
     # Constraints (.ldc) ---------------------------------------------------------------------------
 
     def build_io_constraints(self):
-        _build_pdc(self.named_sc, self.named_pc, self.clocks, self._vns, self._build_name)
+        _build_pdc(self.named_sc, self.named_pc, self.clocks, self._vns, self.false_paths, self._build_name)
         return (self._build_name + ".pdc", "PDC")
 
 def oxide_args(parser):
