@@ -1554,6 +1554,19 @@ class LiteXSoC(SoC):
         self.add_module(name=name, module=Identifier(identifier))
         self.add_config(name, identifier)
 
+    # Add _phy -> .phy compatibility ---------------------------------------------------------------
+    def __getattr__(self, name):
+        if name.endswith("_phy"):
+            base = name[:-4]
+            try:
+                obj = object.__getattribute__(self, base)
+            except AttributeError:
+                pass
+            else:
+                if hasattr(obj, "phy"):
+                    return obj.phy
+        return super().__getattr__(name)
+
     # Add UART -------------------------------------------------------------------------------------
     def add_uart(self, name="uart", uart_name="serial", uart_pads=None, baudrate=115200, fifo_depth=16, with_dynamic_baudrate=False, rx_fifo_rx_we=False):
         # Imports.
@@ -2493,8 +2506,7 @@ class LiteXSoC(SoC):
         with_dma_status       = False, status_width=32,
         with_dma_table        = True,
         with_msi              = True, msi_type="msi", msi_width=32, msis={},
-        with_ptm              = False,
-):
+        with_ptm              = False):
         # Imports
         from litepcie.phy.uspciephy import USPCIEPHY
         from litepcie.phy.usppciephy import USPPCIEPHY
