@@ -1379,14 +1379,19 @@ class SoC(LiteXModule, SoCCoreCompat):
 
     # Add CLINT ------------------------------------------------------------------------------------
     def add_clint(self, name="clint", num_harts=1, base_addr=0x02000000):
+        # Check if CPU already has built-in CLINT (e.g., VexRiscv SMP)
+        if hasattr(self, "cpu") and hasattr(self.cpu, "clintbus"):
+            # CPU has built-in CLINT, log message and skip standalone CLINT
+            self.logger.info("CPU has built-in CLINT, skipping standalone CLINT module.")
+            return
+        
+        # Check if CLINT bus slave already exists (e.g., added by CPU)
+        if "clint" in self.bus.slaves:
+            self.logger.info("CLINT bus slave already exists, skipping standalone CLINT module.")
+            return
+        
         from litex.soc.cores.clint import CLINT
         self.check_if_exists(name)
-        
-        # CLINT and CLIC are mutually exclusive - check multiple ways CLIC could be present
-        if (hasattr(self, "clic") or 
-            (hasattr(self, "_modules") and "clic" in self._modules) or
-            (hasattr(self, "submodules") and hasattr(self.submodules, "clic"))):
-            raise ValueError("CLINT and CLIC are mutually exclusive. Cannot add both to the same SoC.")
         
         clint = CLINT(num_harts=num_harts) 
         self.add_module(name=name, module=clint)
@@ -1407,12 +1412,6 @@ class SoC(LiteXModule, SoCCoreCompat):
     def add_clic(self, name="clic", num_interrupts=64, num_harts=1, ipriolen=8, base_addr=0x0C000000):
         from litex.soc.cores.clic import CLIC
         self.check_if_exists(name)
-        
-        # CLIC and CLINT are mutually exclusive - check multiple ways CLINT could be present
-        if (hasattr(self, "clint") or 
-            (hasattr(self, "_modules") and "clint" in self._modules) or
-            (hasattr(self, "submodules") and hasattr(self.submodules, "clint"))):
-            raise ValueError("CLIC and CLINT are mutually exclusive. Cannot add both to the same SoC.")
         
         clic = CLIC(num_interrupts=num_interrupts, num_harts=num_harts, ipriolen=ipriolen)
         self.add_module(name=name, module=clic)

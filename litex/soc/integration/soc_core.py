@@ -282,26 +282,24 @@ class SoCCore(LiteXSoC):
             if timer_uptime:
                 self.timer0.add_uptime()
 
-        # Add CLINT or CLIC for RISC-V CPUs (mutually exclusive)
-        # CLIC is a replacement for CLINT as per RISC-V CLIC specification
-        if with_clic and with_clint:
-            raise ValueError("CLIC and CLINT are mutually exclusive. CLIC replaces CLINT functionality.")
-        
+        # When both CLINT and CLIC are present, active mode is determined by mtvec.mode
+
         if with_clint:
             # Only add CLINT for RISC-V CPUs that support it
+            # Note: Some CPUs like VexRiscv SMP have built-in CLINT that will be detected
+            # and the standalone CLINT module will be skipped in add_clint()
             if hasattr(self.cpu, "timer_interrupt") and hasattr(self.cpu, "software_interrupt"):
                 self.add_clint()
                 # Disable regular timer IRQ when using CLINT
                 if with_timer and hasattr(self, "timer0") and self.irq.enabled:
                     self.irq.remove("timer0")
 
-        elif with_clic:
+        if with_clic:
             # Only add CLIC for RISC-V CPUs that support it
             if hasattr(self.cpu, "clic_interrupt") and hasattr(self.cpu, "clic_interrupt_id"):
                 self.add_clic(num_interrupts=clic_num_interrupts, ipriolen=clic_ipriolen)
-                # CLIC replaces both CLINT functionality and standard interrupt handling
-                # Disable regular timer IRQ when using CLIC
-                if with_timer and hasattr(self, "timer0") and self.irq.enabled:
+                # Note: Timer IRQ already removed if CLINT was added first
+                if with_timer and hasattr(self, "timer0") and self.irq.enabled and not with_clint:
                     self.irq.remove("timer0")
 
         # Add Watchdog.
