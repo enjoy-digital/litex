@@ -150,6 +150,9 @@ def ethphy_mdio_handler(name, parm, csr):
     if len(registers) == 0:
         raise KeyError
 
+    for reg in registers:
+        reg["name"] = "mdio_" + reg["name"]
+
     dtsi = dts_reg(registers)
     dtsi += dts_reg_names(registers)
     return dtsi
