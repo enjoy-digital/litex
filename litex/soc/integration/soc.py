@@ -1557,14 +1557,10 @@ class LiteXSoC(SoC):
     # Add _phy -> .phy compatibility ---------------------------------------------------------------
     def __getattr__(self, name):
         if name.endswith("_phy"):
-            base = name[:-4]
             try:
-                obj = object.__getattribute__(self, base)
+                return object.__getattribute__(self, name[:-4]).phy
             except AttributeError:
                 pass
-            else:
-                if hasattr(obj, "phy"):
-                    return obj.phy
         return super().__getattr__(name)
 
     # Add UART -------------------------------------------------------------------------------------
