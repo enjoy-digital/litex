@@ -47,7 +47,8 @@ class CommPCIe(CSRBuilder):
         if hasattr(self, "file"):
             return
         self.file = os.open(self.bar, os.O_RDWR | os.O_SYNC)
-        self.mmap = mmap.mmap(self.file, 0)
+        self.size = os.fstat(self.file).st_size
+        self.mmap = mmap.mmap(self.file, self.size, flags=mmap.MAP_SHARED, prot=mmap.PROT_READ | mmap.PROT_WRITE)
 
     def close(self):
         # Close the file and mmap.
