@@ -56,6 +56,8 @@ def _format_xdc(signame, resname, *constraints):
 def _build_xdc(named_sc, named_pc):
     r = _xdc_separator("IO constraints")
     for sig, pins, others, resname in named_sc:
+        if "X" in pins:
+            continue
         if len(pins) > 1:
             for i, p in enumerate(pins):
                 r += _format_xdc(sig + "[" + str(i) + "]", resname, Pins(p), *others)
@@ -67,6 +69,50 @@ def _build_xdc(named_sc, named_pc):
         r += _xdc_separator("Design constraints")
         r += "\n" + "\n\n".join(named_pc)
     return r
+
+# Signed bitstream script (only for Zynq7000/ZynqMP) -----------------------------------------------
+
+def signed_bitstream_script(platform, build_name):
+    if sys.platform in ["win32", "cygwin"]:
+        rm_cmd     = "del /f"
+        test_open  = " ("
+        test_close = ") "
+    else:
+        rm_cmd     = "rm -f"
+        test_open  = ""
+        test_close = ""
+
+    arch = {True: "zynq", False: "zynqmp"}[platform.device.startswith("xc7z")]
+
+    # 1. Removes existing file before creation.
+    script_contents  = "\n"
+    script_contents += f"{rm_cmd} {build_name}.bit.bin\n"
+
+    # 2. Create a bif file
+    bif_file = build_name + ".bif"
+    bif_contents = [
+        "all:",
+        "{",
+        f"    {build_name}.bit",
+        "}",
+    ]
+    tools.write_to_file(bif_file, "\n".join(bif_contents))
+
+    # 3. Add bootgen detect and command line to create .bit.bin
+    if sys.platform in ["win32", "cygwin"]:
+        script_contents += "where bootgen >nul 2>nul\n"
+        script_contents += "if errorlevel 1 (\n"
+
+    else:
+        script_contents += 'if [ "$(which bootgen)" = "" ]; then\n'
+    script_contents += '    echo "Unable to find bootgen, please either:"\n'
+    script_contents += '    echo "- install it with Vitis"\n'
+    script_contents += '    echo "- Or with https://github.com/Xilinx/bootgen"\n'
+    script_contents += f"{test_close}else{test_open}\n"
+    script_contents += f"    bootgen -w -image {bif_file} -arch {arch} -process_bitstream bin\n"
+    script_contents += {True: ")\n", False: "fi\n"}[sys.platform in ["win32", "cygwin"]]
+
+    return script_contents
 
 # XilinxVivadoToolchain ----------------------------------------------------------------------------
 
@@ -434,35 +480,7 @@ class XilinxVivadoToolchain(GenericToolchain):
 
         # Zynq7000/ZynqMP specific (signed bitstream).
         if self.platform.device[0:4] in ["xc7z", "xczu"]:
-            arch = {True: "zynq", False: "zynqmp"}[self.platform.device.startswith("xc7z")]
-
-            # 1. Removes existing file before creation.
-            script_contents += "\n"
-            script_contents += f"{rm_cmd} {self._build_name}.bit.bin\n"
-
-            # 2. Create a bif file
-            bif_file = self._build_name + ".bif"
-            bif_contents = [
-                "all:",
-                "{",
-                f"    {self._build_name}.bit",
-                "}",
-            ]
-            tools.write_to_file(bif_file, "\n".join(bif_contents))
-
-            # 3. Add bootgen detect and command line to create .bit.bin
-            if sys.platform in ["win32", "cygwin"]:
-                script_contents += "where bootgen >nul 2>nul\n"
-                script_contents += "if errorlevel 1 (\n"
-
-            else:
-                script_contents += 'if [ "$(which bootgen)" = "" ]; then\n'
-            script_contents += '    echo "Unable to find bootgen, please either:"\n'
-            script_contents += '    echo "- install it with Vitis"\n'
-            script_contents += '    echo "- Or with https://github.com/Xilinx/bootgen"\n'
-            script_contents += f"{test_close}else{test_open}\n"
-            script_contents += f"    bootgen -w -image {self._build_name}.bif -arch {arch} -process_bitstream bin\n"
-            script_contents += {True: ")\n", False: "fi\n"}[sys.platform in ["win32", "cygwin"]]
+            script_contents += signed_bitstream_script(self.platform, self._build_name)
 
         tools.write_to_file(script_file, script_contents)
         return script_file

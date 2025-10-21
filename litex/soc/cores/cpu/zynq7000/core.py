@@ -12,6 +12,8 @@ import re
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
+from litex.build.xilinx.vivado import XilinxVivadoToolchain
+
 from litex.gen import *
 
 from litex.soc.interconnect import axi
@@ -48,6 +50,7 @@ class Zynq7000(CPU):
     def __init__(self, platform, variant, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.platform       = platform
+        self.reserve_pads   = isinstance(platform.toolchain, XilinxVivadoToolchain)
         self.reset          = Signal()
         self.periph_buses   = []    # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses   = []    # Memory buses (Connected directly to LiteDRAM).
@@ -91,15 +94,15 @@ class Zynq7000(CPU):
             "PCW_GPIO_EMIO_GPIO_IO"     : 64,
         }
         ps7_rst_n       = Signal()
-        ps7_ddram_pads  = platform.request("ps7_ddram")
+        ps7_ddram_pads  = platform.request("ps7_ddram", reserve=self.reserve_pads)
         self.cpu_params = dict(
             # Clk / Rst.
-            io_PS_CLK   = platform.request("ps7_clk"),
-            io_PS_PORB  = platform.request("ps7_porb"),
-            io_PS_SRSTB = platform.request("ps7_srstb"),
+            io_PS_CLK   = platform.request("ps7_clk", reserve=self.reserve_pads),
+            io_PS_PORB  = platform.request("ps7_porb", reserve=self.reserve_pads),
+            io_PS_SRSTB = platform.request("ps7_srstb", reserve=self.reserve_pads),
 
             # MIO.
-            io_MIO = platform.request("ps7_mio"),
+            io_MIO = platform.request("ps7_mio", reserve=self.reserve_pads),
 
             # EMIO.
             i_GPIO_I = self._emio_pads_i,
@@ -138,7 +141,7 @@ class Zynq7000(CPU):
         self.specials += AsyncResetSynchronizer(self.cd_ps7, ~ps7_rst_n)
 
         # Enet0 mdio -------------------------------------------------------------------------------
-        ps7_enet0_mdio_pads = platform.request("ps7_enet0_mdio", loose=True)
+        ps7_enet0_mdio_pads = platform.request("ps7_enet0_mdio", loose=True, reserve=self.reserve_pads)
         if ps7_enet0_mdio_pads is not None:
             self.cpu_params.update(
                 o_ENET0_MDIO_MDC = ps7_enet0_mdio_pads.mdc,
@@ -148,7 +151,7 @@ class Zynq7000(CPU):
             )
 
         # Enet0 ------------------------------------------------------------------------------------
-        ps7_enet0_pads = platform.request("ps7_enet0", loose=True)
+        ps7_enet0_pads = platform.request("ps7_enet0", loose=True, reserve=self.reserve_pads)
         if ps7_enet0_pads is not None:
             self.cpu_params.update(
                     o_ENET0_GMII_TX_EN  = ps7_enet0_pads.tx_en,
@@ -164,7 +167,7 @@ class Zynq7000(CPU):
                 )
 
         # SDIO0 ------------------------------------------------------------------------------------
-        ps7_sdio0_pads = platform.request("ps7_sdio0", loose=True)
+        ps7_sdio0_pads = platform.request("ps7_sdio0", loose=True, reserve=self.reserve_pads)
         if ps7_sdio0_pads is not None:
             self.cpu_params.update(
                 o_SDIO0_CLK     = ps7_sdio0_pads.clk,
@@ -181,12 +184,12 @@ class Zynq7000(CPU):
             )
 
         # SDIO0_CD ---------------------------------------------------------------------------------
-        ps7_sdio0_cd_pads = platform.request("ps7_sdio0_cd", loose=True)
+        ps7_sdio0_cd_pads = platform.request("ps7_sdio0_cd", loose=True, reserve=self.reserve_pads)
         if ps7_sdio0_cd_pads is not None:
             self.cpu_params.update(i_SDIO0_CDN = ps7_sdio0_cd_pads.cdn)
 
         # SDIO0_WP ---------------------------------------------------------------------------------
-        ps7_sdio0_wp_pads = platform.request("ps7_sdio0_wp", loose=True)
+        ps7_sdio0_wp_pads = platform.request("ps7_sdio0_wp", loose=True, reserve=self.reserve_pads)
         if ps7_sdio0_wp_pads is not None:
             self.cpu_params.update(i_SDIO0_WP = ps7_sdio0_wp_pads.wp)
 
@@ -604,19 +607,22 @@ class Zynq7000(CPU):
             ss   = TSTriple()
 
             # Physical connections.
-            self.specials += [
-                Instance("IOBUF",
+            if hasattr(pads_or_mio_group, "mosi"):
+                self.specials += Instance("IOBUF",
                     i_I   = mosi.o,
                     o_O   = mosi.i,
                     i_T   = mosi.oe,
                     io_IO = pads_or_mio_group.mosi
-                ),
-                Instance("IOBUF",
+                )
+
+            if hasattr(pads_or_mio_group, "miso"):
+                self.specials += Instance("IOBUF",
                     i_I   = miso.o,
                     o_O   = miso.i,
                     i_T   = miso.oe,
                     io_IO = pads_or_mio_group.miso
-                ),
+                )
+            self.specials += [
                 Instance("IOBUF",
                     i_I   = sclk.o,
                     o_O   = sclk.i,
@@ -784,9 +790,9 @@ class Zynq7000(CPU):
                 )
 
     def do_finalize(self):
-        if self.ps7_name is None:
-            raise Exception("PS7 must be set with set_ps7 or set_ps7_xci methods.")
-        if len(self.ps7_tcl):
+        if len(self.ps7_tcl) and isinstance(self.platform.toolchain, XilinxVivadoToolchain):
+            if self.ps7_name is None:
+                raise Exception("PS7 must be set with set_ps7 or set_ps7_xci methods.")
             # Add configs to PS7.
             if len(self.config):
                 self.ps7_tcl.append("set_property -dict [list \\")
@@ -801,4 +807,41 @@ class Zynq7000(CPU):
                 f"synth_ip [get_ips {self.ps7_name}]"
             ]
             self.platform.toolchain.pre_synthesis_commands += self.ps7_tcl
+        else:
+            # With openXC7 ps7_name is imposed by the toolchain
+            self.ps7_name = "PS7"
+
+            # No '_' in I/O names
+            cpu_params = {}
+            for k,v in self.cpu_params.items():
+                direction, *name = k.split("_")
+                name = ''.join(name)
+                # Some I/Os have differents name
+                # a dict is used when naming differs really
+                # between Vivado and Yosys
+                name = {
+                    "DDRRASn"          : "DDRRASB",
+                    "DDRDQSn"          : "DDRDQSN",
+                    "DDRDQS"           : "DDRDQSP",
+                    "DDRClkn"          : "DDRCKN",
+                    "DDRClk"           : "DDRCKP",
+                    "DDRCSn"           : "DDRCSB",
+                    "DDRCASn"          : "DDRCASB",
+                    "DDRBankAddr"      : "DDRBA",
+                    "DDRAddr"          : "DDRA",
+                    "FCLKRESET0N"      : "FCLKRESETN",
+                    "FCLKCLK0"         : "FCLKCLK",
+                    "USB0VBUSPWRFAULT" : "EMIOUSB0VBUSPWRFAULT",
+                    "USB1VBUSPWRFAULT" : "EMIOUSB1VBUSPWRFAULT",
+                }.get(name, name)
+
+                # Most peripherals when used via EMIO keep the
+                # same name but with EMIO before and T -> TN
+                if name.startswith(("GPIO", "I2C")):
+                    name = f"EMIO{name}" + {True: "N", False: ""}[name[-1] == "T"]
+
+                key = direction + "_" + name
+                cpu_params[key] = v
+            # Rewrite cpu_params with corrected pins name.
+            self.cpu_params = cpu_params
         self.specials += Instance(self.ps7_name, **self.cpu_params)
