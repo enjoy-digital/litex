@@ -20,7 +20,7 @@ from migen.fhdl.specials import Instance
 
 from litex.build.yosys_nextpnr_toolchain import YosysNextPNRToolchain
 from litex.build.generic_platform import *
-from litex.build.xilinx.vivado import _xdc_separator, _format_xdc, _build_xdc
+from litex.build.xilinx.vivado import _xdc_separator, _format_xdc, _build_xdc, signed_bitstream_script
 from litex.build import tools
 from litex.build.xilinx import common
 
@@ -176,6 +176,16 @@ class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
         )
 
         return YosysNextPNRToolchain.finalize(self)
+
+    def build_script(self):
+        build_filename = YosysNextPNRToolchain.build_script(self)
+        # Zynq7000/ZynqMP specific (signed bitstream).
+        if self.platform.device[0:4] in ["xc7z", "xczu"]:
+            with open(build_filename, "a") as fd:
+                script_contents = signed_bitstream_script(self.platform, self._build_name)
+                fd.write(script_contents)
+
+        return build_filename
 
     def build(self, platform, fragment,
         enable_xpm = False,
