@@ -56,6 +56,8 @@ def _format_xdc(signame, resname, *constraints):
 def _build_xdc(named_sc, named_pc):
     r = _xdc_separator("IO constraints")
     for sig, pins, others, resname in named_sc:
+        if "X" in pins:
+            continue
         if len(pins) > 1:
             for i, p in enumerate(pins):
                 r += _format_xdc(sig + "[" + str(i) + "]", resname, Pins(p), *others)
