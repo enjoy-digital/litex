@@ -215,7 +215,7 @@ class ConstraintManager:
     def add_connector(self, connectors):
         self.connector_manager.add_connector(connectors)
 
-    def request(self, name, number=None, loose=False):
+    def request(self, name, number=None, loose=False, reserve=True):
         resource = _lookup(self.available, name, number, loose)
         if resource is None:
             return None
@@ -240,8 +240,9 @@ class ConstraintManager:
                 obj.platform_info = element.info
                 break
 
-        self.available.remove(resource)
-        self.matched.append((resource, obj))
+        if reserve:
+            self.available.remove(resource)
+            self.matched.append((resource, obj))
         return obj
 
     def request_all(self, name):
