@@ -607,19 +607,22 @@ class Zynq7000(CPU):
             ss   = TSTriple()
 
             # Physical connections.
-            self.specials += [
-                Instance("IOBUF",
+            if hasattr(pads_or_mio_group, "mosi"):
+                self.specials += Instance("IOBUF",
                     i_I   = mosi.o,
                     o_O   = mosi.i,
                     i_T   = mosi.oe,
                     io_IO = pads_or_mio_group.mosi
-                ),
-                Instance("IOBUF",
+                )
+
+            if hasattr(pads_or_mio_group, "miso"):
+                self.specials += Instance("IOBUF",
                     i_I   = miso.o,
                     o_O   = miso.i,
                     i_T   = miso.oe,
                     io_IO = pads_or_mio_group.miso
-                ),
+                )
+            self.specials += [
                 Instance("IOBUF",
                     i_I   = sclk.o,
                     o_O   = sclk.i,
