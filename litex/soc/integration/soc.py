@@ -2392,7 +2392,7 @@ class LiteXSoC(SoC):
             self.add_constant(f"{name}_DEBUG")
 
     # Add SATA -------------------------------------------------------------------------------------
-    def add_sata(self, name="sata", phy=None, mode="read+write", with_identify=True, with_bist=False):
+    def add_sata(self, name="sata", phy=None, mode="read+write", with_identify=True, with_bist=False, with_irq=True):
         # Imports.
         from litesata.core                 import LiteSATACore
         from litesata.frontend.arbitration import LiteSATACrossbar
@@ -2469,20 +2469,21 @@ class LiteXSoC(SoC):
             dma_bus.add_master(name=f"{name}_mem2sector", master=bus)
 
         # Interrupts.
-        self.check_if_exists(f"{name}_irq")
-        sata_irq = EventManager()
-        self.add_module(name=f"{name}_irq", module=sata_irq)
-        if "read" in mode:
-            sata_irq.sector2mem_dma = EventSourcePulse(description="Sector2Mem DMA terminated.")
-        if "write" in mode:
-            sata_irq.mem2sector_dma = EventSourcePulse(description="Mem2Sector DMA terminated.")
-        sata_irq.finalize()
-        if "read" in mode:
-            self.comb += sata_irq.sector2mem_dma.trigger.eq(sata_sector2mem.irq)
-        if "write" in mode:
-            self.comb += sata_irq.mem2sector_dma.trigger.eq(sata_mem2sector.irq)
-        if self.irq.enabled:
-            self.irq.add(f"{name}_irq", use_loc_if_exists=True)
+        if with_irq:
+            self.check_if_exists(f"{name}_irq")
+            sata_irq = EventManager()
+            self.add_module(name=f"{name}_irq", module=sata_irq)
+            if "read" in mode:
+                sata_irq.sector2mem_dma = EventSourcePulse(description="Sector2Mem DMA terminated.")
+            if "write" in mode:
+                sata_irq.mem2sector_dma = EventSourcePulse(description="Mem2Sector DMA terminated.")
+            sata_irq.finalize()
+            if "read" in mode:
+                self.comb += sata_irq.sector2mem_dma.trigger.eq(sata_sector2mem.irq)
+            if "write" in mode:
+                self.comb += sata_irq.mem2sector_dma.trigger.eq(sata_mem2sector.irq)
+            if self.irq.enabled:
+                self.irq.add(f"{name}_irq", use_loc_if_exists=True)
 
         # Timing constraints.
         self.platform.add_period_constraint(phy.crg.cd_sata_tx.clk, 1e9/sata_clk_freq)
