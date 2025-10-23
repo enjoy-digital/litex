@@ -126,7 +126,7 @@ extern "C" int litex_sim_got_finish()
 {
   int finished;
   tfp->flush();
-  if(finished = Verilated::gotFinish()) {
+  if((finished = Verilated::gotFinish())) {
     tfp->close();
   }
   return Verilated::gotFinish();
