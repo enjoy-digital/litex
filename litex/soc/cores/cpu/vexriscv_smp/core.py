@@ -34,6 +34,7 @@ class VexRiscvSMP(CPU):
     linker_output_format = "elf32-littleriscv"
     nop                  = "nop"
     io_regions           = {0x8000_0000: 0x8000_0000} # Origin, Length.
+    clic_addr            = 0x0C00_0000
 
     # Default parameters.
     cpu_count            = 1
@@ -55,6 +56,7 @@ class VexRiscvSMP(CPU):
     with_fpu             = False
     cpu_per_fpu          = 4
     with_rvc             = False
+    with_clic            = False
     jtag_tap             = False
     dtlb_size            = 4
     itlb_size            = 4
@@ -92,6 +94,7 @@ class VexRiscvSMP(CPU):
         cpu_group.add_argument("--clint-base",                   default="0xf0010000", help="CLINT base address.")
         cpu_group.add_argument("--plic-base",                    default="0xf0c00000", help="PLIC base address.")
         cpu_group.add_argument("--jtag-tap",                     action="store_true", help="Add the jtag tap instead of jtag instruction interface")
+        cpu_group.add_argument("--with-clic",                    action="store_true",  help="Enable CLIC (Core-Local Interrupt Controller) support")
 
     @staticmethod
     def args_read(args):
@@ -133,6 +136,8 @@ class VexRiscvSMP(CPU):
         if(args.clint_base): VexRiscvSMP.clint_base = int(args.clint_base, 16)
         if(args.plic_base):  VexRiscvSMP.plic_base  = int(args.plic_base, 16)
         if(args.jtag_tap):  VexRiscvSMP.jtag_tap = int(args.jtag_tap)
+        # Always set with_clic based on args, not just when True
+        VexRiscvSMP.with_clic = bool(args.with_clic) if hasattr(args, 'with_clic') else False
 
     # ABI.
     @staticmethod
@@ -206,6 +211,7 @@ class VexRiscvSMP(CPU):
         f"{'_Pd'   if VexRiscvSMP.privileged_debug else ''}" \
         f"{'_Hb' + str(VexRiscvSMP.hardware_breakpoints) if VexRiscvSMP.hardware_breakpoints > 0 else ''}" \
         f"{'_Rvc'  if VexRiscvSMP.with_rvc else ''}" \
+        f"{'_CLIC'  if VexRiscvSMP.with_clic else ''}" \
         f"{'_JtagT'  if VexRiscvSMP.jtag_tap else ''}"
 
     # Default Configs Generation.
@@ -215,6 +221,7 @@ class VexRiscvSMP(CPU):
         VexRiscvSMP.wishbone_memory = False
         VexRiscvSMP.hardware_breakpoints = 1
         VexRiscvSMP.coherent_dma = False
+        VexRiscvSMP.with_clic = True
         VexRiscvSMP.generate_cluster_name()
         VexRiscvSMP.generate_netlist()
 
@@ -263,7 +270,7 @@ class VexRiscvSMP(CPU):
             VexRiscvSMP.generate_cluster_name()
             VexRiscvSMP.generate_netlist()
 
-            # With DMA.
+            # With DMA.with_clic
             VexRiscvSMP.coherent_dma = True
             VexRiscvSMP.generate_cluster_name()
             VexRiscvSMP.generate_netlist()
@@ -314,16 +321,38 @@ class VexRiscvSMP(CPU):
         gen_args.append(f"--dtlb-size={VexRiscvSMP.dtlb_size}")
         gen_args.append(f"--itlb-size={VexRiscvSMP.itlb_size}")
         gen_args.append(f"--jtag-tap={VexRiscvSMP.jtag_tap}")
+        # CLIC support has been added to VexRiscv SMP hardware generator
+        if VexRiscvSMP.with_clic:
+            gen_args.append(f"--with-clic=true")
 
         cmd = 'cd {path} && sbt "runMain vexriscv.demo.smp.VexRiscvLitexSmpClusterCmdGen {args}"'.format(path=os.path.join(vdir, "ext", "VexRiscv"), args=" ".join(gen_args))
         subprocess.check_call(cmd, shell=True)
 
 
-    def __init__(self, platform, variant):
+    def __init__(self, platform, variant, with_clic=None):
         self.platform         = platform
         self.variant          = variant
         self.human_name       = self.human_name + "-" + self.variant.upper()
         self.reset            = Signal()
+        # Allow with_clic to be passed as parameter, otherwise use class variable
+        if with_clic is not None:
+            VexRiscvSMP.with_clic = with_clic
+        self.with_clic        = VexRiscvSMP.with_clic  # Store CLIC configuration
+
+        # Create CLIC interrupt signals if CLIC is enabled
+        if VexRiscvSMP.with_clic:
+            self.clic_interrupt = Signal()     # CLIC interrupt request
+            self.clic_interrupt_id = Signal(12)  # CLIC interrupt ID (up to 4096 interrupts)
+            self.clic_interrupt_priority = Signal(8)  # CLIC interrupt priority
+            self.clic_claim = Signal()         # CLIC claim output
+            self.clic_threshold = Signal(8)    # CLIC threshold output
+        else:
+            # Create dummy signals for compatibility but they won't be used
+            self.clic_interrupt = None
+            self.clic_interrupt_id = None
+            self.clic_interrupt_priority = None
+            self.clic_claim = None
+            self.clic_threshold = None
 
         if VexRiscvSMP.jtag_tap:
             self.jtag_clk = Signal()
@@ -373,6 +402,29 @@ class VexRiscvSMP(CPU):
             o_peripheral_CTI      = pbus.cti,
             o_peripheral_BTE      = pbus.bte
         )
+        
+        # Store CLIC params separately - will be added in do_finalize
+        if VexRiscvSMP.with_clic:
+            # For single CPU, signals are indexed with _0
+            if VexRiscvSMP.cpu_count == 1:
+                self.clic_params = dict(
+                    i_clicInterrupt         = self.clic_interrupt,
+                    i_clicInterruptId_0     = self.clic_interrupt_id,
+                    i_clicInterruptPriority_0 = self.clic_interrupt_priority,
+                    o_clicClaim             = self.clic_claim,
+                    o_clicThreshold_0       = self.clic_threshold
+                )
+            else:
+                # For multi-CPU, need to handle differently (not implemented yet)
+                self.clic_params = dict(
+                    i_clicInterrupt         = self.clic_interrupt,
+                    i_clicInterruptId       = self.clic_interrupt_id,
+                    i_clicInterruptPriority = self.clic_interrupt_priority,
+                    o_clicClaim             = self.clic_claim,
+                    o_clicThreshold         = self.clic_threshold
+                )
+        else:
+            self.clic_params = None
 
         if VexRiscvSMP.jtag_tap:
             self.cpu_params.update(
@@ -489,6 +541,45 @@ class VexRiscvSMP(CPU):
             # Add OpenSBI region.
             soc.bus.add_region("opensbi", SoCRegion(origin=self.mem_map["main_ram"] + 0x00f0_0000, size=0x8_0000, cached=True, linker=True))
 
+        if hasattr(soc, "clic"):
+            # CLIC is present - mark that for do_finalize
+            self.clic_present = True
+            self.use_clic_variant = True
+            
+            # Create CLIC signals if they don't exist (runtime CLIC addition)
+            if self.clic_interrupt is None:
+                self.clic_interrupt = Signal()
+                self.clic_interrupt_id = Signal(12)
+                self.clic_interrupt_priority = Signal(8)
+                self.clic_claim = Signal()
+                self.clic_threshold = Signal(8)
+            
+            # Add CSRs for CLIC interrupt information access from software
+            from litex.soc.interconnect.csr import CSRStatus
+            self._clic_interrupt_id = CSRStatus(12, name="clic_interrupt_id",
+                description="Current CLIC interrupt ID")
+            self._clic_interrupt_priority = CSRStatus(8, name="clic_interrupt_priority", 
+                description="Current CLIC interrupt priority")
+            self._clic_interrupt_active = CSRStatus(1, name="clic_interrupt_active",
+                description="CLIC interrupt active status")
+            self._clic_claim = CSRStatus(1, name="clic_claim",
+                description="CLIC claim signal from CPU")
+            self._clic_threshold = CSRStatus(8, name="clic_threshold",
+                description="CLIC threshold from CPU")
+            
+            # Connect CLIC signals to CSRs for software access
+            self.comb += [
+                self._clic_interrupt_id.status.eq(self.clic_interrupt_id),
+                self._clic_interrupt_priority.status.eq(self.clic_interrupt_priority),
+                self._clic_interrupt_active.status.eq(self.clic_interrupt),
+                self._clic_claim.status.eq(self.clic_claim),
+                self._clic_threshold.status.eq(self.clic_threshold)
+            ]
+        else:
+            # Mark that CLIC is not present for do_finalize
+            self.clic_present = False
+            self.use_clic_variant = False
+
         # Define number of CPUs
         soc.add_config("CPU_COUNT", VexRiscvSMP.cpu_count)
         soc.add_config("CPU_ISA",   VexRiscvSMP.get_arch())
@@ -584,6 +675,30 @@ class VexRiscvSMP(CPU):
                 raise ValueError("No Direct Memory Bus found, please add --with-wishbone-memory or --wishbone-force-32b to your build command.")
             else:
                 VexRiscvSMP.wishbone_memory = True
+
+        # Add CLIC params if CLIC is being used
+        if VexRiscvSMP.with_clic or (hasattr(self, "clic_present") and self.clic_present):
+            # Create CLIC params if not already created
+            if not hasattr(self, "clic_params"):
+                # For single CPU, signals are indexed with _0
+                if VexRiscvSMP.cpu_count == 1:
+                    self.clic_params = dict(
+                        i_clicInterrupt         = self.clic_interrupt,
+                        i_clicInterruptId_0     = self.clic_interrupt_id,
+                        i_clicInterruptPriority_0 = self.clic_interrupt_priority,
+                        o_clicClaim             = self.clic_claim,
+                        o_clicThreshold_0       = self.clic_threshold
+                    )
+                else:
+                    # For multi-CPU, need to handle differently (not implemented yet)
+                    self.clic_params = dict(
+                        i_clicInterrupt         = self.clic_interrupt,
+                        i_clicInterruptId       = self.clic_interrupt_id,
+                        i_clicInterruptPriority = self.clic_interrupt_priority,
+                        o_clicClaim             = self.clic_claim,
+                        o_clicThreshold         = self.clic_threshold
+                    )
+            self.cpu_params.update(self.clic_params)
 
         # Generate cluster name.
         VexRiscvSMP.generate_cluster_name()

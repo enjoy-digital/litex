@@ -36,6 +36,8 @@ class Minerva(CPU):
     linker_output_format = "elf32-littleriscv"
     nop                  = "nop"
     io_regions           = {0x8000_0000: 0x8000_0000} # Origin, Length.
+    clint_addr           = 0x0200_0000
+    clic_addr            = 0x0C00_0000
 
     # GCC Flags.
     @property
@@ -50,6 +52,14 @@ class Minerva(CPU):
         self.variant      = variant
         self.reset        = Signal()
         self.interrupt    = Signal(16)
+        self.timer_interrupt = Signal()    # Timer interrupt from CLINT
+        self.software_interrupt = Signal() # Software interrupt from CLINT
+        # CLIC interrupt signals
+        self.clic_interrupt = Signal()     # CLIC interrupt request
+        self.clic_interrupt_id = Signal(12)  # CLIC interrupt ID (up to 4096 interrupts)
+        self.clic_interrupt_priority = Signal(8)  # CLIC interrupt priority
+        self.clic_claim = Signal()         # CLIC claim output
+        self.clic_threshold = Signal(8)    # CLIC threshold output
         self.ibus         = ibus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.dbus         = dbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.periph_buses = [self.ibus, self.dbus] # Peripheral buses (Connected to main SoC's bus).
@@ -63,10 +73,15 @@ class Minerva(CPU):
             i_rst = ResetSignal("sys") | self.reset,
 
             # IRQ.
-            i_timer_interrupt    = 0,
-            i_software_interrupt = 0,
+            i_timer_interrupt    = self.timer_interrupt,
+            i_software_interrupt = self.software_interrupt,
             i_external_interrupt = 0,
             i_fast_interrupt = self.interrupt,
+            
+            # CLIC.
+            i_clic_interrupt          = self.clic_interrupt,
+            i_clic_interrupt_id       = self.clic_interrupt_id,
+            i_clic_interrupt_priority = self.clic_interrupt_priority,
 
             # Ibus.
             o_ibus__stb   = ibus.stb,
@@ -94,6 +109,12 @@ class Minerva(CPU):
             i_dbus__err   = dbus.err,
             i_dbus__dat_r = dbus.dat_r,
         )
+
+    def add_soc_components(self, soc):
+        # CLIC and CLINT are mutually exclusive
+        # Only add when explicitly requested via command line flags
+        # When no flags are specified, nothing should be added
+        pass
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address

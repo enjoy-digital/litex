@@ -94,6 +94,52 @@ void isr(void)
     }
 }
 
+/***********************************/
+/* ISR Handling for Ibex CPU. */
+/***********************************/
+#elif defined(__ibex__)
+
+/* External handler defined in demo code */
+extern void software_interrupt_handler(void) __attribute__((weak));
+
+/* Ibex interrupt handler */
+void isr(void)
+{
+    unsigned int cause = csrr(mcause);
+    
+    /* Check if this is an interrupt (MSB set) */
+    if (cause & 0x80000000) {
+        unsigned int irq_cause = cause & 0x7FFFFFFF;
+        
+        /* Handle machine software interrupt (MSIP) - Ibex receives this as a standard RISC-V interrupt */
+        if (irq_cause == 3) {
+            /* Call the software interrupt handler if available */
+            if (software_interrupt_handler) {
+                software_interrupt_handler();
+            }
+        }
+        /* Handle machine timer interrupt (MTIP) */
+        else if (irq_cause == 7) {
+            /* Timer interrupts would be handled here */
+            /* For now, just acknowledge */
+        }
+        /* Handle fast interrupts (Ibex-specific) */
+        else {
+            unsigned int irqs = irq_pending() & irq_getmask();
+            while (irqs) {
+                const unsigned int irq = __builtin_ctz(irqs);
+                if ((irq < CONFIG_CPU_INTERRUPTS) && irq_table[irq].isr)
+                    irq_table[irq].isr();
+                else {
+                    irq_setmask(irq_getmask() & ~(1 << irq));
+                    printf("\n*** disabled spurious irq %d ***\n", irq);
+                }
+                irqs &= irqs - 1;
+            }
+        }
+    }
+}
+
 /************************************************/
 /* ISR Handling for CV32E40P and CV32E41P CPUs. */
 /************************************************/
@@ -198,6 +244,119 @@ void isr_dec(void)
 {
     /* Set DEC back to a large enough value to slow the flood of DEC-initiated timer interrupts. */
     mtdec(0x000000000ffffff);
+}
+
+/***********************************/
+/* ISR Handling for RISC-V CPUs with CLINT. */
+/***********************************/
+#elif defined(CSR_CLINT_BASE)
+
+/* External handler defined in demo code */
+extern void software_interrupt_handler(void) __attribute__((weak));
+
+/* CLINT interrupt handler for software and timer interrupts */
+void isr(void)
+{
+    unsigned int cause = csrr(mcause);
+    
+    /* Check if this is an interrupt (MSB set) */
+    if (cause & 0x80000000) {
+        unsigned int irq_cause = cause & 0x7FFFFFFF;
+        
+        /* Handle machine software interrupt (MSIP) */
+        if (irq_cause == 3) {
+            /* Call the software interrupt handler if available */
+            if (software_interrupt_handler) {
+                software_interrupt_handler();
+            }
+        }
+        /* Handle machine timer interrupt (MTIP) */
+        else if (irq_cause == 7) {
+            /* Timer interrupts would be handled here */
+            /* Clear timer interrupt by setting MTIMECMP to max value */
+            #ifdef CSR_CLINT_MTIMECMP0_LOW_ADDR
+            *(volatile uint32_t *)(CSR_CLINT_MTIMECMP0_HIGH_ADDR) = 0xFFFFFFFF;
+            *(volatile uint32_t *)(CSR_CLINT_MTIMECMP0_LOW_ADDR) = 0xFFFFFFFF;
+            #endif
+        }
+        /* Handle other interrupts through the standard mechanism */
+        else {
+            unsigned int irqs = irq_pending() & irq_getmask();
+            while (irqs) {
+                const unsigned int irq = __builtin_ctz(irqs);
+                if ((irq < CONFIG_CPU_INTERRUPTS) && irq_table[irq].isr)
+                    irq_table[irq].isr();
+                else {
+                    irq_setmask(irq_getmask() & ~(1 << irq));
+                    printf("\n*** disabled spurious irq %d ***\n", irq);
+                }
+                irqs &= irqs - 1;
+            }
+        }
+    }
+}
+
+/***********************************/
+/* ISR Handling for RISC-V CPUs with CLIC. */
+/***********************************/
+#elif defined(CSR_CLIC_BASE)
+
+#include <clic.h>
+
+/* External handler defined in demo code */
+extern void clic_interrupt_handler(unsigned int id, unsigned int priority) __attribute__((weak));
+
+/* CLIC interrupt handler */
+void isr(void)
+{
+    unsigned int cause = csrr(mcause);
+    
+    /* Check if this is an interrupt (MSB set) */
+    if (cause & 0x80000000) {
+        /* For CLIC, the interrupt ID is provided by the hardware */
+        /* The CPU should have provided the interrupt ID through its clic_interrupt_id signal */
+        /* Since we can't directly read the hardware signals from software, we need to:
+         * 1. Check which interrupt is pending with highest priority
+         * 2. Handle that interrupt
+         */
+        
+        /* Find the highest priority pending interrupt */
+        unsigned int highest_priority = 255;  /* Lowest priority */
+        int highest_priority_irq = -1;
+        unsigned int i;
+        
+        /* Scan all interrupts to find the highest priority pending one */
+        /* Use CLIC_NUM_INTERRUPTS to avoid accessing invalid registers */
+        unsigned int max_interrupts = CLIC_NUM_INTERRUPTS;
+        if (max_interrupts > CONFIG_CPU_INTERRUPTS) {
+            max_interrupts = CONFIG_CPU_INTERRUPTS;
+        }
+        for (i = 0; i < max_interrupts; i++) {
+            if (clic_is_pending(i) && (clic_get_intie(i) != 0)) {
+                unsigned int priority = clic_get_intprio(i);
+                if (priority < highest_priority) {
+                    highest_priority = priority;
+                    highest_priority_irq = i;
+                }
+            }
+        }
+        
+        /* Handle the highest priority interrupt */
+        if (highest_priority_irq >= 0) {
+            /* Call the CLIC-specific handler if available */
+            if (clic_interrupt_handler) {
+                clic_interrupt_handler(highest_priority_irq, highest_priority);
+            }
+            /* Otherwise use the standard interrupt table */
+            else if (irq_table[highest_priority_irq].isr) {
+                irq_table[highest_priority_irq].isr();
+                /* Clear the interrupt if it's edge-triggered */
+                if (clic_get_intattr(highest_priority_irq) & CLIC_ATTR_TRIG_EDGE) {
+                    clic_clear_pending(highest_priority_irq);
+                }
+            }
+        }
+    }
 }
 
 /***********************************/
