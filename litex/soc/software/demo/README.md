@@ -70,6 +70,9 @@ You should see the minimal demo app running and should be able to interact with 
                                       .--~~::::~:~~--,.
     litex-demo-app>
 
+
+
+
 [> Replace the LiteX BIOS with the Demo App
 -------------------------------------------
 In some cases, we'll just want to replace the LiteX BIOS with our custom app. This demo can be used as a basis to create a such custom app.
@@ -93,9 +96,12 @@ When loading the bitstream, you should then directly see the demo app executed:
     reboot             - Reboot CPU
     led                - Led demo
     donut              - Spinning Donut demo
+    helloc             - Hello C
+    clint              - CLINT interrupt demo
+    clic               - CLIC interrupt demo
     litex-demo-app>
 ```
-
+At the prompt, running `clint` invokes the CLINT demo, running `clic` invokes the CLIC demo to showcase the use of respective interrupt controllers.  
 
 [> Going further
 ----------------
