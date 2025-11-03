@@ -63,6 +63,7 @@ class VexRiscvSMP(CPU):
     csr_base             = 0xf000_0000
     clint_base           = 0xf001_0000
     plic_base            = 0xf0c0_0000
+    clic_base            = 0xf200_0000
     reset_vector         = 0
 
     # Command line configuration arguments.
@@ -93,6 +94,7 @@ class VexRiscvSMP(CPU):
         cpu_group.add_argument("--csr-base",                     default="0xf0000000", help="CSR base address.")
         cpu_group.add_argument("--clint-base",                   default="0xf0010000", help="CLINT base address.")
         cpu_group.add_argument("--plic-base",                    default="0xf0c00000", help="PLIC base address.")
+        cpu_group.add_argument("--clic-base",                    default="0xf2000000", help="CLIC base address.")
         cpu_group.add_argument("--jtag-tap",                     action="store_true", help="Add the jtag tap instead of jtag instruction interface")
         cpu_group.add_argument("--with-clic",                    action="store_true",  help="Enable CLIC (Core-Local Interrupt Controller) support")
 
@@ -135,6 +137,7 @@ class VexRiscvSMP(CPU):
         if(args.csr_base):   VexRiscvSMP.csr_base   = int(args.csr_base, 16)
         if(args.clint_base): VexRiscvSMP.clint_base = int(args.clint_base, 16)
         if(args.plic_base):  VexRiscvSMP.plic_base  = int(args.plic_base, 16)
+        if(args.clic_base):  VexRiscvSMP.clic_base  = int(args.clic_base, 16)
         if(args.jtag_tap):  VexRiscvSMP.jtag_tap = int(args.jtag_tap)
         # Always set with_clic based on args, not just when True
         VexRiscvSMP.with_clic = bool(args.with_clic) if hasattr(args, 'with_clic') else False
@@ -160,7 +163,7 @@ class VexRiscvSMP(CPU):
     # Memory Mapping.
     @property
     def mem_map(self):
-        return {
+        mem_map = {
             "rom":      0x0000_0000,
             "sram":     0x1000_0000,
             "main_ram": 0x4000_0000,
@@ -168,6 +171,10 @@ class VexRiscvSMP(CPU):
             "clint":    VexRiscvSMP.clint_base,
             "plic":     VexRiscvSMP.plic_base,
         }
+        # Add CLIC to memory map if enabled
+        if VexRiscvSMP.with_clic:
+            mem_map["clic"] = VexRiscvSMP.clic_base
+        return mem_map
 
     # GCC Flags.
     @property
@@ -603,7 +610,7 @@ class VexRiscvSMP(CPU):
             soc.add_config("CPU_ITLB_SIZE", VexRiscvSMP.itlb_size)
             soc.add_config("CPU_ITLB_WAYS", VexRiscvSMP.itlb_size)
 
-        # Add PLIC as Bus Slave
+        # Add PLIC as Bus Slave)
         self.plicbus = plicbus  = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.cpu_params.update(
             i_plicWishbone_CYC       = plicbus.cyc,
@@ -616,7 +623,7 @@ class VexRiscvSMP(CPU):
         )
         soc.bus.add_slave("plic", self.plicbus, region=SoCRegion(origin=soc.mem_map.get("plic"), size=0x40_0000, cached=False))
 
-        # Add CLINT as Bus Slave
+        # Add CLINT as Bus Slave (always needed for timer and software interrupts)
         self.clintbus = clintbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.cpu_params.update(
             i_clintWishbone_CYC      = clintbus.cyc,

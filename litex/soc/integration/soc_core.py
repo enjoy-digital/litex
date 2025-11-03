@@ -297,7 +297,9 @@ class SoCCore(LiteXSoC):
         if with_clic:
             # Only add CLIC for RISC-V CPUs that support it
             if hasattr(self.cpu, "clic_interrupt") and hasattr(self.cpu, "clic_interrupt_id"):
-                self.add_clic(num_interrupts=clic_num_interrupts, ipriolen=clic_ipriolen)
+                # Use CPU's CLIC base address if available in memory map
+                clic_base = self.mem_map.get("clic", 0xf0d00000)
+                self.add_clic(num_interrupts=clic_num_interrupts, ipriolen=clic_ipriolen, base_addr=clic_base)
                 # Note: Timer IRQ already removed if CLINT was added first
                 if with_timer and hasattr(self, "timer0") and self.irq.enabled and not with_clint:
                     self.irq.remove("timer0")

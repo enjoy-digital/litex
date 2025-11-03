@@ -1419,6 +1419,11 @@ class SoC(LiteXModule, SoCCoreCompat):
         # Add CLIC to CSR map
         clic.add_to_soc(self, name=name, base_addr=base_addr)
         
+        # Add CLIC memory region
+        if not self.bus.regions.get("clic"):
+            # CLIC memory region is typically 16MB (0x1000000) to accommodate all interrupt registers
+            self.bus.add_region("clic", SoCRegion(origin=base_addr, size=0x100_0000, cached=False))
+        
         # Connect external interrupt sources if IRQ system is enabled
         if hasattr(self, "irq") and self.irq.enabled:
             # Map IRQ sources to CLIC interrupt inputs

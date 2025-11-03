@@ -23,6 +23,19 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     cpu_family = d["constants"].get("config_cpu_family")
     cpu_isa    = d["constants"].get("config_cpu_isa", None)
     cpu_mmu    = d["constants"].get("config_cpu_mmu", None)
+    
+    # Helper function for interrupt formatting
+    def format_interrupt(irq_num, has_clic=False):
+        """Format interrupt based on interrupt controller type.
+        CLIC uses 2 cells: <irq_num priority>
+        PLIC uses 1 cell: <irq_num>
+        """
+        if has_clic:
+            # CLIC: interrupt number and priority (default priority 128)
+            return "{} 128".format(irq_num)
+        else:
+            # PLIC: just interrupt number
+            return "{}".format(irq_num)
 
     # Header ---------------------------------------------------------------------------------------
     platform = d["constants"]["config_platform_name"]
@@ -339,14 +352,18 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     # SoC ------------------------------------------------------------------------------------------
 
+    # Determine interrupt controller type
+    has_clic = "clic" in d["memories"]
+    intc_name = "clic0" if has_clic else "intc0"
+
     dts += """
         soc {{
             #address-cells = <1>;
             #size-cells    = <1>;
             compatible = "simple-bus";
-            interrupt-parent = <&intc0>;
+            interrupt-parent = <&{intc_name}>;
             ranges;
-""".format()
+""".format(intc_name=intc_name)
 
     # SoC Controller -------------------------------------------------------------------------------
 
@@ -360,10 +377,32 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     # Interrupt Controller -------------------------------------------------------------------------
 
+    # Check if CLIC is present (for VexRiscv SMP with CLIC support)
+    if has_clic:
+        # CLIC Device Tree Entry
+        dts += """
+            clic0: interrupt-controller@{clic_base:x} {{
+                compatible = "riscv,clic0";
+                reg = <0x{clic_base:x} 0x1000000>;
+                interrupt-controller;
+                #interrupt-cells = <2>;
+                interrupts-extended = <
+                    {cpu_mapping}>;
+                riscv,num-interrupts = <{num_interrupts}>;
+                riscv,max-priority = <255>;
+                riscv,num-priority-bits = <8>;
+            }};
+""".format(
+            clic_base = d["memories"]["clic"]["base"],
+            cpu_mapping = ("\n" + " "*20).join(["&L{} 11 &L{} 9".format(cpu, cpu) for cpu in range(cpu_count)]),
+            num_interrupts = d["constants"].get("config_cpu_clic_interrupts", 64))
+    
     if (cpu_family == "riscv") and (cpu_name in ["rocket",  "vexiiriscv"]):
         # FIXME  : L4 definitiion?
         # CHECKME: interrupts-extended.
-        dts += """
+        # Only add CLINT if CLIC is not present
+        if "clic" not in d["memories"]:
+            dts += """
             lintc0: clint@{clint_base:x} {{
                 compatible = "riscv,clint0";
                 interrupts-extended = <
@@ -372,18 +411,21 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 reg-names = "control";
             }};
 """.format(
-        clint_base  = d["memories"]["clint"]["base"],
-        cpu_mapping = ("\n" + " "*20).join(["&L{} 3 &L{} 7".format(cpu, cpu) for cpu in range(cpu_count)]))
+            clint_base  = d["memories"]["clint"]["base"],
+            cpu_mapping = ("\n" + " "*20).join(["&L{} 3 &L{} 7".format(cpu, cpu) for cpu in range(cpu_count)]))
+    
     if cpu_family == "riscv":
-        if cpu_name == "rocket":
-            extra_attr = """
+        # Only add PLIC if CLIC is not present
+        if "clic" not in d["memories"]:
+            if cpu_name == "rocket":
+                extra_attr = """
                 reg-names = "control";
                 riscv,max-priority = <7>;
 """
-        else:
-            extra_attr = ""
+            else:
+                extra_attr = ""
 
-        dts += """
+            dts += """
             intc0: interrupt-controller@{plic_base:x} {{
                 compatible = "sifive,fu540-c000-plic", "sifive,plic-1.0.0";
                 reg = <0x{plic_base:x} 0x400000>;
@@ -396,9 +438,9 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 {extra_attr}
             }};
 """.format(
-        plic_base   = d["memories"]["plic"]["base"],
-        cpu_mapping = ("\n" + " "*20).join(["&L{} 11 &L{} 9".format(cpu, cpu) for cpu in range(cpu_count)]),
-        extra_attr  = extra_attr)
+            plic_base   = d["memories"]["plic"]["base"],
+            cpu_mapping = ("\n" + " "*20).join(["&L{} 11 &L{} 9".format(cpu, cpu) for cpu in range(cpu_count)]),
+            extra_attr  = extra_attr)
 
     elif cpu_family == "or1k":
         dts += """
@@ -437,6 +479,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     if "uart" in d["csr_bases"]:
         aliases["serial0"] = "liteuart0"
         it_incr = {True: 1, False: 0}[cpu_name == "rocket"]
+        irq_num = int(d["constants"]["uart_interrupt"]) + it_incr
         dts += """
             liteuart0: serial@{uart_csr_base:x} {{
                 compatible = "litex,liteuart";
@@ -446,7 +489,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
             }};
 """.format(
     uart_csr_base  = d["csr_bases"]["uart"],
-    uart_interrupt = "" if polling else "interrupts = <{}>;".format(int(d["constants"]["uart_interrupt"]) + it_incr))
+    uart_interrupt = "" if polling else "interrupts = <{}>;".format(format_interrupt(irq_num, has_clic)))
 
     # Ethernet -------------------------------------------------------------------------------------
     for i in [''] + list(range(0, 10)):
@@ -455,6 +498,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         ethmac_name = "ethmac" + str(i)
         it_incr = {True: 1, False: 0}[cpu_name == "rocket"]
         if ethphy_name in d["csr_bases"] and ethmac_name in d["csr_bases"]:
+            irq_num = int(d["constants"][ethmac_name + "_interrupt"]) + it_incr
             dts += """
             mac{idx}: mac@{ethmac_csr_base:x} {{
                 compatible = "litex,liteeth";
@@ -478,7 +522,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     ethmac_rx_slots  = d["constants"][ethmac_name + "_rx_slots"],
     ethmac_tx_slots  = d["constants"][ethmac_name + "_tx_slots"],
     ethmac_slot_size = d["constants"][ethmac_name + "_slot_size"],
-    ethmac_interrupt = "" if polling else "interrupts = <{}>;".format(int(d["constants"][ethmac_name + "_interrupt"]) + it_incr),
+    ethmac_interrupt = "" if polling else "interrupts = <{}>;".format(format_interrupt(irq_num, has_clic)),
     local_mac_addr   = "" if not "macaddr1" in d["constants"] else "local-mac-address = [{mac_addr}];".format(
         mac_addr     = "{a1:02X} {a2:02X} {a3:02X} {a4:02X} {a5:02X} {a6:02X}".format(
             a1       = d["constants"]["macaddr1"],
