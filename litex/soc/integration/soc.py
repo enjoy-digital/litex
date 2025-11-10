@@ -2369,6 +2369,7 @@ class LiteXSoC(SoC):
                     ev.block2mem_dma = EventSourcePulse(description="Block2Mem DMA terminated.")
                 if "write" in mode:
                     ev.mem2block_dma = EventSourcePulse(description="Mem2Block DMA terminated.")
+                ev.data_done = EventSourceLevel(description="Transfer completed  (cmd and data).")
                 ev.cmd_done  = EventSourceLevel(description="Command completed.")
                 ev.finalize()
                 if "read" in mode:
@@ -2377,6 +2378,7 @@ class LiteXSoC(SoC):
                     self.comb += ev.mem2block_dma.trigger.eq(mem2block.irq)
                 self.comb += [
                     ev.card_detect.trigger.eq(phy.card_detect_irq),
+                    ev.data_done.trigger.eq(core.data_event.fields.done),
                     ev.cmd_done.trigger.eq(core.cmd_event.fields.done)
                 ]
 
