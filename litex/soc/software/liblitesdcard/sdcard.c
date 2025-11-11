@@ -238,7 +238,7 @@ int sdcard_write_single_block(unsigned int blockaddr) {
 	while (sdcard_send_command(blockaddr, 24,
 	    (SDCARD_CTRL_DATA_TRANSFER_WRITE << 5) |
 	    SDCARD_CTRL_RESPONSE_SHORT | SDCARD_CTRL_RESPONSE_CRC) != SD_OK);
-	return SD_OK;
+	return sdcard_wait_data_done();
 }
 
 int sdcard_write_multiple_block(unsigned int blockaddr, unsigned int blockcnt) {
@@ -250,7 +250,7 @@ int sdcard_write_multiple_block(unsigned int blockaddr, unsigned int blockcnt) {
 	while (sdcard_send_command(blockaddr, 25,
 	    (SDCARD_CTRL_DATA_TRANSFER_WRITE << 5) |
 	    SDCARD_CTRL_RESPONSE_SHORT | SDCARD_CTRL_RESPONSE_CRC) != SD_OK);
-	return SD_OK;
+	return sdcard_wait_data_done();
 }
 
 int sdcard_read_single_block(unsigned int blockaddr) {
