@@ -17,6 +17,7 @@ from litex.build.xilinx.vivado import XilinxVivadoToolchain
 from litex.gen import *
 
 from litex.soc.interconnect import axi
+from litex.soc.interconnect.csr import CSRStatus, CSRField
 
 from litex.soc.cores.cpu import CPU
 
@@ -62,6 +63,7 @@ class Zynq7000(CPU):
         # PS7 peripherals.
         self.can_use        = []
         self.i2c_use        = []
+        self.gem_mac        = {}          # GEM MAC reserved ports.
         self.spi_use        = []
         self.uart_use       = []
 
@@ -139,32 +141,6 @@ class Zynq7000(CPU):
             o_FCLK_RESET0_N = ps7_rst_n
         )
         self.specials += AsyncResetSynchronizer(self.cd_ps7, ~ps7_rst_n)
-
-        # Enet0 mdio -------------------------------------------------------------------------------
-        ps7_enet0_mdio_pads = platform.request("ps7_enet0_mdio", loose=True, reserve=self.reserve_pads)
-        if ps7_enet0_mdio_pads is not None:
-            self.cpu_params.update(
-                o_ENET0_MDIO_MDC = ps7_enet0_mdio_pads.mdc,
-                i_ENET0_MDIO_I   = ps7_enet0_mdio_pads.i,
-                o_ENET0_MDIO_O   = ps7_enet0_mdio_pads.o,
-                o_ENET0_MDIO_T   = ps7_enet0_mdio_pads.t
-            )
-
-        # Enet0 ------------------------------------------------------------------------------------
-        ps7_enet0_pads = platform.request("ps7_enet0", loose=True, reserve=self.reserve_pads)
-        if ps7_enet0_pads is not None:
-            self.cpu_params.update(
-                    o_ENET0_GMII_TX_EN  = ps7_enet0_pads.tx_en,
-                    o_ENET0_GMII_TX_ER  = ps7_enet0_pads.tx_er,
-                    o_ENET0_GMII_TXD    = ps7_enet0_pads.txd,
-                    i_ENET0_GMII_COL    = ps7_enet0_pads.col,
-                    i_ENET0_GMII_CRS    = ps7_enet0_pads.crs,
-                    i_ENET0_GMII_RX_CLK = ps7_enet0_pads.rx_clk,
-                    i_ENET0_GMII_RX_DV  = ps7_enet0_pads.rx_dv,
-                    i_ENET0_GMII_RX_ER  = ps7_enet0_pads.rx_er,
-                    i_ENET0_GMII_TX_CLK = ps7_enet0_pads.tx_clk,
-                    i_ENET0_GMII_RXD    = ps7_enet0_pads.rxd
-                )
 
         # SDIO0 ------------------------------------------------------------------------------------
         ps7_sdio0_pads = platform.request("ps7_sdio0", loose=True, reserve=self.reserve_pads)
@@ -788,6 +764,253 @@ class Zynq7000(CPU):
                     p_i = p,
                     p_o = {True: p, False: None}[pads_dir in ["inout", "out"]],
                 )
+    """
+    Enable GEMx peripheral.
+        - when if_type == rgmii, a ClockDomain called rgmii is required
+        - when external_clk, a ClockDomain called gmii is required
+        - when external_clk and txc_skew == 2, two ClockDomain are required: gmii and gmii_ps
+        - rgmii ClockDomain must be feeded by a 200MHz signal
+        - gmii and gmii_ps must be feeded by a 125MHz, 25MHz or 2.5MHz depending on ethernet speed
+    ==========
+    n: int
+        GEM id (0, 1)
+    eth_pads_or_mio_group:
+        Physicals pads when EMIO or MIO xx .. yy when MIO.
+    mdio_pads_or_mio_group:
+        mdio/mdc pads when EMIO or MIO xx .. yy when MIO.
+    clock_pads:
+        Physicals tx/rx clock pads.
+    if_type: str
+        Physical ethernet interface (gmii, rgmii).
+    internal_phyaddr: int
+        gmii_to_rgmii MDIO addr (rgmii only)
+    external_phyaddr: int
+        external PHY MDIO addr
+    external_clk: bool
+        125MHz, 25MHz or 2.5MHz are applied externally or internally with an MMCM
+    txc_skew: int
+        tx clk edge aligned (0) or delayed by 2ns (2)
+    use_idelay_ctrl: bool
+        Instantiate IDELAYCTRL in design
+    """
+    def add_ethernet(self, n=0,
+        eth_pads_or_mio_group  = None,
+        mdio_pads_or_mio_group = None,
+        clock_pads             = None,
+        if_type                = "gmii",
+        external_phyaddr       = 0,     # external PHY address
+
+        # RGMII only.
+        internal_phyaddr       = 8,     # gmii_to_rgmii address
+        external_clk           = False, # When True cd_domain gmii and gmii_ps (when txc_skew = 2)
+        txc_skew               = 2,     # 0: 2ns added by PHY, 2: 2ns added by MMCM
+        use_idelay_ctrl        = True,
+        ):
+        assert n < 2 and not n in self.gem_mac
+        assert eth_pads_or_mio_group is not None
+        assert not (if_type == "rgmii" and clock_pads is None)
+        assert if_type in ["gmii", "rgmii"]
+
+        eth_io_type  = {True: eth_pads_or_mio_group,  False: "EMIO"}[isinstance(eth_pads_or_mio_group, str)]
+        mdio_io_type = {True: mdio_pads_or_mio_group, False: "EMIO"}[isinstance(mdio_pads_or_mio_group, str)]
+
+        eth_pads  = eth_pads_or_mio_group
+        mdio_pads = mdio_pads_or_mio_group
+
+        # ps7 configuration
+        self.add_ps7_config({
+            f"PCW_ENET{n}_PERIPHERAL_ENABLE"      : 1,
+            f"PCW_ACT_ENET{n}_PERIPHERAL_FREQMHZ" : "125.000000",
+            f"PCW_ENET{n}_ENET{n}_IO"             : eth_io_type,
+        })
+        if mdio_pads_or_mio_group is None:
+            self.add_ps7_config({
+                f"PCW_ENET{n}_GRP_MDIO_ENABLE" : 0,
+            })
+        else:
+            self.add_ps7_config({
+                f"PCW_ENET{n}_GRP_MDIO_ENABLE" : 1,
+                f"PCW_ENET{n}_GRP_MDIO_IO"     : mdio_io_type,
+            })
+
+        # Inject GEMn configuration to use it via csv/json
+        LiteXContext.top.add_constant(f"CONFIG_PS7_GEM{n}_ENABLE",      1)
+        LiteXContext.top.add_constant(f"CONFIG_PS7_GEM{n}_TYPE",        if_type)
+        LiteXContext.top.add_constant(f"CONFIG_PS7_GEM{n}_INT_PHYADDR", internal_phyaddr)
+        LiteXContext.top.add_constant(f"CONFIG_PS7_GEM{n}_EXT_PHYADDR", external_phyaddr)
+        LiteXContext.top.add_constant(f"CONFIG_PS7_GEM{n}_IO",          eth_io_type)
+        LiteXContext.top.add_constant(f"CONFIG_PS7_GEM{n}_MDIO_ENABLE", mdio_pads_or_mio_group is not None)
+        LiteXContext.top.add_constant(f"CONFIG_PS7_GEM{n}_MDIO_IO",     mdio_io_type)
+
+        mac_params = dict()
+
+        # ps7 MDIO connection
+        if mdio_pads_or_mio_group is not None and mdio_io_type == "EMIO":
+            mdio_mdc = Signal()
+            mdio_i   = Signal()
+            mdio_o   = Signal()
+            mdio_t   = Signal()
+            self.cpu_params.update({
+                f"o_ENET{n}_MDIO_MDC" : mdio_mdc,
+                f"i_ENET{n}_MDIO_I"   : mdio_i,
+                f"o_ENET{n}_MDIO_O"   : mdio_o,
+                f"o_ENET{n}_MDIO_T"   : mdio_t,
+            })
+
+            if if_type == "gmii":
+                # MDIO
+                self.comb += mdio_pads.mdc.eq(mdio_mdc)
+
+                self.specials += Instance("IOBUF",
+                    i_I   = mdio_o,
+                    o_O   = mdio_i,
+                    i_T   = mdio_t,
+                    io_IO = mdio_pads.mdio
+                )
+            elif if_type == "rgmii":
+                # PHY pads
+                phys_mdio_i = Signal()
+                phys_mdio_o = Signal()
+                phys_mdio_t = Signal()
+
+                self.specials += Instance("IOBUF",
+                    i_I   = phys_mdio_o,
+                    o_O   = phys_mdio_i,
+                    i_T   = phys_mdio_t,
+                    io_IO = mdio_pads.mdio
+                )
+
+                # PS -> gmii2rgmii -> PHY
+                mac_params.update({
+                    # PS GEM: MDIO
+                    "i_mdio_gem_mdc" : mdio_mdc,
+                    "o_mdio_gem_i"   : mdio_i,
+                    "i_mdio_gem_o"   : mdio_o,
+                    "i_mdio_gem_t"   : mdio_t,
+                    # PHY: MDIO
+                    "o_mdio_phy_mdc" : mdio_pads.mdc,
+                    "i_mdio_phy_i"   : phys_mdio_i,
+                    "o_mdio_phy_o"   : phys_mdio_o,
+                    "o_mdio_phy_t"   : phys_mdio_t,
+                })
+
+        # MMIO interface: nothing to do here
+        if eth_io_type != "EMIO":
+            return
+
+        if if_type == "gmii":
+            self.cpu_params.update({
+                # Clk/Rst
+                f"i_ENET{n}_GMII_RX_CLK" : clock_pads.rx,
+                f"i_ENET{n}_GMII_TX_CLK" : clock_pads.tx,
+
+                # PS GEM -> PHY
+                f"i_ENET{n}_GMII_CRS"    : eth_pads.crs,
+                f"i_ENET{n}_GMII_COL"    : eth_pads.col,
+                f"i_ENET{n}_GMII_RXD"    : eth_pads.rx_data,
+                f"i_ENET{n}_GMII_RX_ER"  : eth_pads.rx_er,
+                f"i_ENET{n}_GMII_RX_DV"  : eth_pads.rx_dv,
+                f"o_ENET{n}_GMII_TXD"    : eth_pads.tx_data,
+                f"o_ENET{n}_GMII_TX_EN"  : eth_pads.tx_en,
+                f"o_ENET{n}_GMII_TX_ER"  : eth_pads.tx_er,
+            })
+        elif if_type == "rgmii":
+            # Status.
+            self.rgmii_status = CSRStatus(fields=[
+                CSRField("link_status",   size=1, offset=0),
+                CSRField("clock_speed",   size=2, offset=1),
+                CSRField("duplex_status", size=1, offset=3),
+                CSRField("speed_mode",    size=2, offset=4),
+            ])
+
+            # ps7 GMII connection
+            gmii_rx_clk = Signal()
+            gmii_crs    = Signal()
+            gmii_col    = Signal()
+            gmii_rxd    = Signal(8)
+            gmii_rx_er  = Signal()
+            gmii_rx_dv  = Signal()
+            gmii_tx_clk = Signal()
+            gmii_txd    = Signal(8)
+            gmii_tx_en  = Signal()
+            gmii_tx_er  = Signal()
+
+            self.cpu_params.update({
+                # Clk/Rst
+                f"i_ENET{n}_GMII_RX_CLK" : gmii_rx_clk,
+                f"i_ENET{n}_GMII_TX_CLK" : gmii_tx_clk,
+
+                f"i_ENET{n}_GMII_CRS"    : gmii_crs,
+                f"i_ENET{n}_GMII_COL"    : gmii_col,
+                f"i_ENET{n}_GMII_RXD"    : gmii_rxd,
+                f"i_ENET{n}_GMII_RX_ER"  : gmii_rx_er,
+                f"i_ENET{n}_GMII_RX_DV"  : gmii_rx_dv,
+                f"o_ENET{n}_GMII_TXD"    : gmii_txd,
+                f"o_ENET{n}_GMII_TX_EN"  : gmii_tx_en,
+                f"o_ENET{n}_GMII_TX_ER"  : gmii_tx_er,
+            })
+
+            if hasattr(eth_pads, "rst_n"):
+                self.comb += eth_pads.rst_n.eq(~ResetSignal("sys"))
+
+            mac_params.update({
+                # Clk/Rst
+                "i_tx_reset"      : ResetSignal("sys"),
+                "i_rx_reset"      : ResetSignal("sys"),
+                "i_clkin"         : ClockSignal("rgmii"),
+                "o_ref_clk_out"   : Open(),
+
+                # PS GEM: GMII
+                "o_gmii_tx_clk"   : gmii_tx_clk,
+                "i_gmii_tx_en"    : gmii_tx_en,
+                "i_gmii_txd"      : gmii_txd,
+                "i_gmii_tx_er"    : gmii_tx_er,
+                "o_gmii_crs"      : gmii_crs,
+                "o_gmii_col"      : gmii_col,
+                "o_gmii_rx_clk"   : gmii_rx_clk,
+                "o_gmii_rx_dv"    : gmii_rx_dv,
+                "o_gmii_rxd"      : gmii_rxd,
+                "o_gmii_rx_er"    : gmii_rx_er,
+                # PHY: RGMII
+                "o_rgmii_txd"     : eth_pads.tx_data,
+                "o_rgmii_tx_ctl"  : eth_pads.tx_ctl,
+                "o_rgmii_txc"     : clock_pads.tx,
+                "i_rgmii_rxd"     : eth_pads.rx_data,
+                "i_rgmii_rx_ctl"  : eth_pads.rx_ctl,
+                "i_rgmii_rxc"     : clock_pads.rx,
+                # Status
+                "o_link_status"   : self.rgmii_status.fields.link_status,
+                "o_clock_speed"   : self.rgmii_status.fields.clock_speed,
+                "o_duplex_status" : self.rgmii_status.fields.duplex_status,
+                "o_speed_mode"    : self.rgmii_status.fields.speed_mode,
+            })
+
+            if external_clk:
+                mac_params.update({
+                    "i_gmii_clk"     : ClockSignal("gmii"),
+                    "o_gmii_clk_out" : Open(),
+                })
+
+                if txc_skew == 2:
+                    mac_params.update({
+                        "i_gmii_clk_90"     : ClockSignal("gmii_ps"),
+                        "o_gmii_clk_90_out" : Open(),
+                    })
+            else:
+                mac_params.update({
+                    "o_mmcm_locked_out"   : Open(),
+                    "o_gmii_clk_125m_out" : Open(),
+                    "o_gmii_clk_25m_out"  : Open(),
+                    "o_gmii_clk_2_5m_out" : Open(),
+                })
+                if txc_skew == 2:
+                    mac_params.update({
+                        "o_gmii_clk_125m_90_out" : Open(),
+                        "o_gmii_clk_25m_90_out"  : Open(),
+                        "o_gmii_clk_2_5m_90_out" : Open(),
+                    })
+            self.specials += Instance(f"gem{n}", **mac_params)
+        self.gem_mac[n] = (if_type, internal_phyaddr, txc_skew, external_clk, use_idelay_ctrl)
 
     def do_finalize(self):
         if len(self.ps7_tcl) and isinstance(self.platform.toolchain, XilinxVivadoToolchain):
@@ -845,3 +1068,29 @@ class Zynq7000(CPU):
             # Rewrite cpu_params with corrected pins name.
             self.cpu_params = cpu_params
         self.specials += Instance(self.ps7_name, **self.cpu_params)
+
+        # Ethernet
+
+        if len(self.gem_mac):
+            mac_tcl = []
+            for i, (if_type, phyaddr, txc_skew, external_clk, use_idelay_ctrl) in self.gem_mac.items():
+                if if_type == "rgmii":
+                    ip_name         = "gmii_to_rgmii"
+                    external_clk    = {True:"true", False:"false"}[external_clk]
+                    use_idelay_ctrl = {True:"true", False:"false"}[use_idelay_ctrl]
+
+                    mac_tcl.append(f"set gem{i} [create_ip -vendor xilinx.com -name {ip_name} -module_name gem{i}]")
+                    mac_tcl.append("set_property -dict [ list \\")
+                    # FIXME: when more this sequence differs for the first and others
+                    mac_tcl += [
+                        "CONFIG.{} {} \\".format("C_EXTERNAL_CLOCK",  '{{' + external_clk    + '}}'),
+                        "CONFIG.{} {} \\".format("C_USE_IDELAY_CTRL", '{{' + use_idelay_ctrl + '}}'),
+                        "CONFIG.{} {} \\".format("C_PHYADDR",         '{{' + str(phyaddr)    + '}}'),
+                        "CONFIG.{} {} \\".format("RGMII_TXC_SKEW",    '{{' + str(txc_skew)   + '}}'),
+                        "CONFIG.{} {} \\".format("SupportLevel",      '{{Include_Shared_Logic_in_Core}}'),
+                        f"] [get_ips gem{i}]",
+                        f"generate_target all [get_ips gem{i}]",
+                        f"synth_ip [get_ips gem{i}]"
+                    ]
+
+            self.platform.toolchain.pre_synthesis_commands += mac_tcl
