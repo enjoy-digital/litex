@@ -64,6 +64,7 @@ class Zynq7000(CPU):
         self.can_use        = []
         self.i2c_use        = []
         self.gem_mac        = {}          # GEM MAC reserved ports.
+        self.sdio_use       = []          # SDx reserved ports.
         self.spi_use        = []
         self.uart_use       = []
 
@@ -530,6 +531,137 @@ class Zynq7000(CPU):
                 f"o_UART{n}_TX" : pads_or_mio_group.tx,
                 f"i_UART{n}_RX" : pads_or_mio_group.rx,
             })
+
+    """
+    Connect and Enables SDn controler (may be via PS7 MIO or PL EMIO).
+    Attributes
+    ==========
+    n: int
+        controler ID 0/1
+    pads_or_mio_group: Record or str:
+        When pads_or_mio_group is:
+        - a Record, SDn controler is configured to uses EMIO
+        - a str, SDn controler is configured to uses PS7 MIO. str must
+        be the name of the MIO group: "MIO xx .. yy"
+    card_detect: str or Signal
+        card detect signal (MIO mode only)
+    write_protect: str or Signal
+        write protect signal (MIO mode only)
+    power_control: str
+        power control signal must always be a MIO x string
+    """
+    def add_sdio(self, n, pads_or_mio_group, card_detect=None, write_protect=None, power_control=None):
+        assert n < 2 and not n in self.sdio_use
+        assert pads_or_mio_group is not None
+
+        """ Note for devicetree
+        &sdhci1 {
+            status = "okay";
+            max-frequency = <25000000>;
+            sdhci-caps-mask = <0x0 0x00200000>; /* turn off HISPD mode because we're using EMIO (see drivers/mmc/host/sdhci.h for list of capabilities mask values) */
+        };
+        """
+
+        # Mark as used.
+        self.sdio_use.append(n)
+
+        # When SPI is used via PS7 MIO pads_or_mio_group is a string
+        # otherwise a resource.
+        io_type = {True: pads_or_mio_group, False: "EMIO"}[isinstance(pads_or_mio_group, str)]
+
+        # Power Control signal may be left unused or connected via MIO but never EMIO
+        assert power_control is None or isinstance(power_control, str)
+
+        # EMIO mode: card_detect and write_protect must be searched in platform pads_or_mio_group
+        if io_type == "EMIO":
+            assert card_detect is None and write_protect is None
+
+        # PS7 configuration.
+        self.add_ps7_config({
+            f"PCW_SD{n}_PERIPHERAL_ENABLE" : 1,
+            f"PCW_SD{n}_SD{n}_IO"          : io_type,
+        })
+
+        # When SDx is configured in MIO mode CD/WP may be enabled/disabled
+        # in EMIO mode these signals are always enabled and not configurables.
+        if io_type != "EMIO":
+            if card_detect is not None:
+                cd_type = {True: card_detect, False: "EMIO"}[isinstance(card_detect, str)]
+                self.add_ps7_config({
+                    f"PCW_SD{n}_GRP_CD_ENABLE" : 1,
+                    f"PCW_SD{n}_GRP_CD_IO"     : cd_type,
+                })
+                if cd_type == "EMIO":
+                    self.cpu_params[f"i_SDIO{n}_CDN"] = card_detect
+
+            if write_protect is not None:
+                wp_type = {True: write_protect, False: "EMIO"}[isinstance(write_protect, str)]
+                self.add_ps7_config({
+                    f"PCW_SD{n}_GRP_WP_ENABLE" : 1,
+                    f"PCW_SD{n}_GRP_WP_IO"     : wp_type,
+                })
+                if wp_type == "EMIO":
+                    self.cpu_params[f"i_SDIO{n}_WP"] = write_protect
+
+        # For both MIO and EMIO PW may be enabled/disabled but it is
+        # always connected to an MIO pin (PS).
+        if power_control is not None:
+            self.add_ps7_config({
+                f"PCW_SD{n}_GRP_POW_ENABLE" : 1,
+                f"PCW_SD{n}_GRP_POW_IO"     : power_control,
+            })
+
+        # Inject SDn configuration to use it via csv/json
+        LiteXContext.top.add_constant(f"CONFIG_PS7_SD{n}_ENABLE", 1)
+        LiteXContext.top.add_constant(f"CONFIG_PS7_SD{n}_IO",     io_type)
+
+        # when MIO mode: No more task with SDx configuration
+        if io_type != "EMIO":
+            return
+
+        sd_data_o = Signal(4)
+        sd_data_i = Signal(4)
+        sd_data_t = Signal(4)
+        sd_cmd    = TSTriple()
+
+        for i in range(4):
+            self.specials += Instance("IOBUF",
+                i_I   = sd_data_o[i],
+                o_O   = sd_data_i[i],
+                i_T   = sd_data_t[i],
+                io_IO = pads_or_mio_group.data[i],
+            )
+        self.specials += Instance("IOBUF",
+            i_I   = sd_cmd.o,
+            o_O   = sd_cmd.i,
+            i_T   = sd_cmd.oe,
+            io_IO = pads_or_mio_group.cmd,
+        )
+
+        # PS7 connectios.
+        self.cpu_params.update({
+            # CLK
+            f"o_SDIO{n}_CLK"     : pads_or_mio_group.clk,
+            f"i_SDIO{n}_CLK_FB"  : pads_or_mio_group.clk, # feedback clock (required?)
+            # CMD
+            f"o_SDIO{n}_CMD_O"   : sd_cmd.o,
+            f"i_SDIO{n}_CMD_I"   : sd_cmd.i,
+            f"o_SDIO{n}_CMD_T"   : sd_cmd.oe,
+            # DATA
+            f"o_SDIO{n}_DATA_O"  : sd_data_o,
+            f"i_SDIO{n}_DATA_I"  : sd_data_i,
+            f"o_SDIO{n}_DATA_T"  : sd_data_t,
+            # LED
+            f"o_SDIO{n}_LED"     : pads_or_mio_group.led if hasattr(pads_or_mio_group, "led") else Open(),
+            # Card Detect
+            f"i_SDIO{n}_CDN"     : pads_or_mio_group.cd if hasattr(pads_or_mio_group, "cd") else Constant(1, 1),
+            # Write Protect
+            f"i_SDIO{n}_WP"      : pads_or_mio_group.wp if hasattr(pads_or_mio_group, "wp") else Constant(0, 1),
+            # Bus Power
+            f"o_SDIO{n}_BUSPOW"  : pads_or_mio_group.pow if hasattr(pads_or_mio_group, "pow") else Open(),
+            # Bus volt
+            f"o_SDIO{n}_BUSVOLT" : pads_or_mio_group.bus_volt if hasattr(pads_or_mio_group, "bus_volt") else Open(3),
+        })
 
     """
     Connect and Enables SPIn controler (may be via PS7 MIO or PL EMIO).
