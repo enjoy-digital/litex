@@ -143,33 +143,6 @@ class Zynq7000(CPU):
         )
         self.specials += AsyncResetSynchronizer(self.cd_ps7, ~ps7_rst_n)
 
-        # SDIO0 ------------------------------------------------------------------------------------
-        ps7_sdio0_pads = platform.request("ps7_sdio0", loose=True, reserve=self.reserve_pads)
-        if ps7_sdio0_pads is not None:
-            self.cpu_params.update(
-                o_SDIO0_CLK     = ps7_sdio0_pads.clk,
-                i_SDIO0_CLK_FB  = ps7_sdio0_pads.clk_fb,
-                o_SDIO0_CMD_O   = ps7_sdio0_pads.cmd_o,
-                i_SDIO0_CMD_I   = ps7_sdio0_pads.cmd_i,
-                o_SDIO0_CMD_T   = ps7_sdio0_pads.cmd_t,
-                o_SDIO0_DATA_O  = ps7_sdio0_pads.data_o,
-                i_SDIO0_DATA_I  = ps7_sdio0_pads.data_i,
-                o_SDIO0_DATA_T  = ps7_sdio0_pads.data_t,
-                o_SDIO0_LED     = ps7_sdio0_pads.led,
-                o_SDIO0_BUSPOW  = ps7_sdio0_pads.buspow,
-                o_SDIO0_BUSVOLT = ps7_sdio0_pads.busvolt,
-            )
-
-        # SDIO0_CD ---------------------------------------------------------------------------------
-        ps7_sdio0_cd_pads = platform.request("ps7_sdio0_cd", loose=True, reserve=self.reserve_pads)
-        if ps7_sdio0_cd_pads is not None:
-            self.cpu_params.update(i_SDIO0_CDN = ps7_sdio0_cd_pads.cdn)
-
-        # SDIO0_WP ---------------------------------------------------------------------------------
-        ps7_sdio0_wp_pads = platform.request("ps7_sdio0_wp", loose=True, reserve=self.reserve_pads)
-        if ps7_sdio0_wp_pads is not None:
-            self.cpu_params.update(i_SDIO0_WP = ps7_sdio0_wp_pads.wp)
-
         # GP0 as Bus master ------------------------------------------------------------------------
         self.pbus = self.add_axi_gp_master()
         self.periph_buses.append(self.pbus)
