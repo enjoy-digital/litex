@@ -16,6 +16,10 @@
 
 //#define SPIFLASH_DEBUG
 
+#ifdef SPIFLASH_DEBUG
+#include "../bios/helpers.h"
+#endif
+
 #if defined(CSR_SPIFLASH_BASE)
 
 int spiflash_freq_init(void)
@@ -33,6 +37,7 @@ int spiflash_freq_init(void)
 
 #ifdef SPIFLASH_DEBUG
 	printf("Testing against CRC32: %08x\n\r", crc);
+	dump_bytes((unsigned int *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE, 0);
 #endif
 
 	/* Check if block is erased (filled with 0xFF) */
@@ -40,20 +45,29 @@ int spiflash_freq_init(void)
 		printf("First SPI Flash block erased, unable to perform freq test.\n\r");
 		return -1;
 	}
-
-	while((crc == crc_test) && (lowest_div-- > 0)) {
+#if defined(SPIFLASH_PHY_MIN_DIVISOR) && SPIFLASH_PHY_MIN_DIVISOR == 1
+	while((crc == crc_test) && (lowest_div-- > 1)) {
+#else
+	while((crc == crc_test) && ((lowest_div -= 2) >= 2)) {
+#endif
 		spiflash_phy_clk_divisor_write((uint32_t)lowest_div);
 		invd_cpu_dcache_range((void *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE);
 		flush_l2_cache();
 		crc_test = crc32((unsigned char *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE);
 #ifdef SPIFLASH_DEBUG
 		printf("[DIV: %d] %08x\n\r", lowest_div, crc_test);
+		dump_bytes((unsigned int *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE, 0);
 #endif
 	}
+#if defined(SPIFLASH_PHY_MIN_DIVISOR) && SPIFLASH_PHY_MIN_DIVISOR == 1
 	lowest_div++;
-	printf("SPI Flash clk configured to %d MHz\n", CONFIG_CLOCK_FREQUENCY/(2*(1+lowest_div)*1000000));
+#else
+	lowest_div += 2;
+#endif
+	printf("SPI Flash clk configured to %d MHz (div: %d)\n", CONFIG_CLOCK_FREQUENCY/(lowest_div*1000000), lowest_div);
 
 	spiflash_phy_clk_divisor_write(lowest_div);
+	spiflash_mmap_clk_divisor_write(lowest_div);
 
 #else
 
