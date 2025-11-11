@@ -2185,22 +2185,25 @@ class LiteXSoC(SoC):
         spiflash = LiteSPI(spiflash_phy, mmap_endianness=self.cpu.endianness, **kwargs)
         spiflash.add_module(name="phy", module=spiflash_phy)
         self.add_module(name=name, module=spiflash)
-        spiflash_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size, mode=spiflash.bus.mode + "x")
-        self.bus.add_slave(name=name, slave=spiflash.bus, region=spiflash_region, strip_origin=True)
+
+        if hasattr(spiflash, "mmap"):
+            spiflash_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size, mode=spiflash.bus.mode + "x")
+            self.bus.add_slave(name=name, slave=spiflash.bus, region=spiflash_region, strip_origin=True)
 
         if hasattr(spiflash, "ev") and self.irq.enabled:
             self.irq.add(name, use_loc_if_exists=True)
 
         # Constants.
         self.add_constant(f"{name}_PHY_FREQUENCY",     clk_freq)
-        self.add_constant(f"{name}_MODULE_NAME",       module.name)
-        self.add_constant(f"{name}_MODULE_TOTAL_SIZE", module.total_size)
-        self.add_constant(f"{name}_MODULE_PAGE_SIZE",  module.page_size)
-        if mode in [ "4x" ]:
-            if module.bus_width >= 4 and SpiNorFlashOpCodes.READ_1_1_4 in module.supported_opcodes:
-                self.add_constant(f"{name}_MODULE_QUAD_CAPABLE")
-            if module.cmd_width >= 4 and SpiNorFlashOpCodes.READ_4_4_4 in module.supported_opcodes:
-                self.add_constant(f"{name}_MODULE_QPI_CAPABLE")
+        if module is not None:
+            self.add_constant(f"{name}_MODULE_NAME",       module.name)
+            self.add_constant(f"{name}_MODULE_TOTAL_SIZE", module.total_size)
+            self.add_constant(f"{name}_MODULE_PAGE_SIZE",  module.page_size)
+            if mode in [ "4x" ]:
+                if module.bus_width >= 4 and SpiNorFlashOpCodes.READ_1_1_4 in module.supported_opcodes:
+                    self.add_constant(f"{name}_MODULE_QUAD_CAPABLE")
+                if module.cmd_width >= 4 and SpiNorFlashOpCodes.READ_4_4_4 in module.supported_opcodes:
+                    self.add_constant(f"{name}_MODULE_QPI_CAPABLE")
         if software_debug:
             self.add_constant(f"{name}_DEBUG")
 
