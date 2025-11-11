@@ -142,32 +142,6 @@ class Zynq7000(CPU):
         )
         self.specials += AsyncResetSynchronizer(self.cd_ps7, ~ps7_rst_n)
 
-        # Enet0 mdio -------------------------------------------------------------------------------
-        ps7_enet0_mdio_pads = platform.request("ps7_enet0_mdio", loose=True, reserve=self.reserve_pads)
-        if ps7_enet0_mdio_pads is not None:
-            self.cpu_params.update(
-                o_ENET0_MDIO_MDC = ps7_enet0_mdio_pads.mdc,
-                i_ENET0_MDIO_I   = ps7_enet0_mdio_pads.i,
-                o_ENET0_MDIO_O   = ps7_enet0_mdio_pads.o,
-                o_ENET0_MDIO_T   = ps7_enet0_mdio_pads.t
-            )
-
-        # Enet0 ------------------------------------------------------------------------------------
-        ps7_enet0_pads = platform.request("ps7_enet0", loose=True, reserve=self.reserve_pads)
-        if ps7_enet0_pads is not None:
-            self.cpu_params.update(
-                    o_ENET0_GMII_TX_EN  = ps7_enet0_pads.tx_en,
-                    o_ENET0_GMII_TX_ER  = ps7_enet0_pads.tx_er,
-                    o_ENET0_GMII_TXD    = ps7_enet0_pads.txd,
-                    i_ENET0_GMII_COL    = ps7_enet0_pads.col,
-                    i_ENET0_GMII_CRS    = ps7_enet0_pads.crs,
-                    i_ENET0_GMII_RX_CLK = ps7_enet0_pads.rx_clk,
-                    i_ENET0_GMII_RX_DV  = ps7_enet0_pads.rx_dv,
-                    i_ENET0_GMII_RX_ER  = ps7_enet0_pads.rx_er,
-                    i_ENET0_GMII_TX_CLK = ps7_enet0_pads.tx_clk,
-                    i_ENET0_GMII_RXD    = ps7_enet0_pads.rxd
-                )
-
         # SDIO0 ------------------------------------------------------------------------------------
         ps7_sdio0_pads = platform.request("ps7_sdio0", loose=True, reserve=self.reserve_pads)
         if ps7_sdio0_pads is not None:
