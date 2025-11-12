@@ -13,7 +13,7 @@ from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
 
 from litex.soc.interconnect.csr import *
-from litex.soc.interconnect import wishbone
+from litex.soc.interconnect import axi, wishbone
 
 # Led Chaser ---------------------------------------------------------------------------------------
 
@@ -132,23 +132,35 @@ class WS2812(LiteXModule):
      sys_clk_freq: int, in
          System Clk Frequency.
     """
-    def __init__(self, pad, nleds, sys_clk_freq, bus_mastering=False, bus_base=None, revision="new", init=None):
+    def __init__(self, pad, nleds, sys_clk_freq, bus_mastering=False, bus_base=None, revision="new", init=None, bus_standard="wishbone"):
         if bus_mastering:
             self.bus  = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         else:
             # Memory.
             mem_depth = max(nleds, 2)
-            mem = Memory(32, mem_depth, init=init)
-            port = mem.get_port()
-            self.specials += mem, port
+            self.mem  = mem  = Memory(24, mem_depth, init=init, name="ws2812_mem")
+            self.port = port = mem.get_port()
+            if "csr" not in bus_standard:
+                self.autocsr_exclude = {"mem"}
 
-            # Wishone Memory.
-            self.wb_mem = wishbone.SRAM(
-                mem_or_size = mem,
-                read_only   = False,
-                bus         = wishbone.Interface(data_width=32, address_width=32, addressing="word")
-            )
-            self.bus = self.wb_mem.bus
+                ram_cls = {
+                    "wishbone": wishbone.SRAM,
+                    "axi-lite": axi.AXILiteSRAM,
+                    "axi"     : axi.AXILiteSRAM, # FIXME: Use AXI-Lite for now, create AXISRAM.
+                }[bus_standard]
+                interface_cls = {
+                    "wishbone": wishbone.Interface,
+                    "axi-lite": axi.AXILiteInterface,
+                    "axi"     : axi.AXILiteInterface, # FIXME: Use AXI-Lite for now, create AXISRAM.
+                }[bus_standard]
+
+                # Wishbone Memory.
+                self.bus_mem = ram_cls(
+                    mem_or_size = mem,
+                    read_only   = False,
+                    bus         = interface_cls(data_width=32, address_width=32)
+                )
+                self.bus = self.bus_mem.bus
 
 
         # Internal Signals.

@@ -182,7 +182,7 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r=None, port_dat_w=None, por
         comb.append(port_dat_w.eq(axi_lite.w.data))
     if port_we is not None:
         if len(port_we) > 1:
-            for i in range(bus_data_width//8):
+            for i in range(len(port_we)):
                 comb.append(port_we[i].eq(axi_lite.w.valid & axi_lite.w.ready & axi_lite.w.strb[i]))
         else:
             comb.append(port_we.eq(axi_lite.w.valid & axi_lite.w.ready & (axi_lite.w.strb != 0)))
@@ -312,7 +312,7 @@ class AXILiteSRAM(LiteXModule):
         if not read_only:
             self.comb += port.dat_w.eq(self.bus.w.data),
             self.comb += [port.we[i].eq(self.bus.w.valid & self.bus.w.ready & self.bus.w.strb[i])
-                for i in range(bus_data_width//8)]
+                for i in range(self.mem.width//8)]
 
         # Transaction logic
         fsm, comb = axi_lite_to_simple(
