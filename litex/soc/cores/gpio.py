@@ -9,6 +9,7 @@ from migen import *
 from migen.genlib.cdc import MultiReg
 
 from litex.gen import *
+from litex.build.io import SDRTristate
 
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect.csr_eventmanager import *
@@ -88,13 +89,17 @@ class GPIOTristate(_GPIOIRQ):
         if internal:
             if isinstance(pads, Record):
                 pads = pads.flatten()
-            # Proper inout IOs.
-            for i in range(nbits):
-                t = TSTriple()
-                self.specials += t.get_tristate(pads[i])
-                self.comb += t.oe.eq(self._oe.storage[i])
-                self.comb += t.o.eq(self._out.storage[i])
-                self.specials += MultiReg(t.i, self._in.status[i])
+            if isinstance(pads, list):
+                start = 0
+                for pad in pads:
+                    _out = self._out.storage[start:start+len(pad)]
+                    _oe  = self._oe.storage[start:start+len(pad)]
+                    _in  = self._in.status[start:start+len(pad)]
+
+                    self.specials += SDRTristate(pad, _out, _oe, _in)
+                    start += len(pad)
+            else:
+                self.specials += SDRTristate(pads, self._out.storage, self._oe.storage, self._in.status)
 
         # External Tristate.
         else:
