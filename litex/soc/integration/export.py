@@ -23,6 +23,7 @@ import json
 import time
 import datetime
 import inspect
+import re
 from shutil import which
 from sysconfig import get_platform
 
@@ -503,6 +504,33 @@ def get_i2c_header(i2c_init_values):
             r += "\t\t.addr_len   = {},\n".format(addr_len)
             r += "\t},\n"
         r += "};\n"
+
+            # Create alias for device with suffix zero
+            if re.fullmatch(".*[^\d]0", name):
+                alias = name[:-1]
+                r += "/* "+alias+" aliases */\n"
+                r += "#define CSR_{}_BASE CSR_{}_BASE\n".format(alias.upper(), name.upper())
+                for csr in region.obj:
+                    reg_name = name + "_" + csr.name
+                    alias_reg_name = alias + "_" + csr.name
+                    r += "#define CSR_{}_ADDR CSR_{}_ADDR\n".format(alias_reg_name.upper(), reg_name.upper())
+                    r += "#define CSR_{}_SIZE CSR_{}_SIZE\n".format(alias_reg_name.upper(), reg_name.upper())
+                    if with_access_functions:
+                        r += "#define {}_read {}_read\n".format(alias_reg_name, reg_name)
+                        if not getattr(csr, "read_only", False):
+                            r += "#define {}_write {}_write\n".format(alias_reg_name, reg_name)
+                    if hasattr(csr, "fields"):
+                        for field in csr.fields.fields:
+                            field_name = name + "_" + csr.name + "_" + field.name
+                            alias_field_name = alias + "_" + csr.name + "_" + field.name
+                            r += "#define CSR_{}_OFFSET CSR_{}_OFFSET\n".format(alias_field_name.upper(), field_name.upper())
+                            r += "#define CSR_{}_SIZE CSR_{}_SIZE\n".format(alias_field_name.upper(), field_name.upper())
+                            if with_access_functions:
+                                r += "#define {}_extract {}_extract\n".format(alias_field_name, field_name)
+                                r += "#define {}_read {}_read\n".format(alias_field_name, field_name)
+                                if not getattr(csr, "read_only", False):
+                                    r += "#define {}_replace {}_replace\n".format(alias_field_name, field_name)
+                                    r += "#define {}_write {}_write\n".format(alias_field_name, field_name)
 
     r += "\n#endif\n"
     return r
