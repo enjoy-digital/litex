@@ -49,9 +49,15 @@ def add_ip_address_constants(soc, name, ip_address, check_duplicate=True):
         soc.add_constant(f"{name}{n+1}", int(_ip_address[n]), check_duplicate=check_duplicate)
 
 def add_mac_address_constants(soc, name, mac_address, check_duplicate=True):
-    assert mac_address < 2**48
-    for n in range(6):
-        soc.add_constant(f"{name}{n+1}", (mac_address >> ((5 - n) * 8)) & 0xff, check_duplicate=check_duplicate)
+    if isinstance(mac_address, str):
+        _mac_address = mac_address.split(":")
+        assert len(_mac_address) == 6
+        for n in range(6):
+            soc.add_constant(f"{name}{n+1}", int(_mac_address[n], 16), check_duplicate=check_duplicate)
+    else:
+        assert mac_address < 2**48
+        for n in range(6):
+            soc.add_constant(f"{name}{n+1}", (mac_address >> ((5 - n) * 8)) & 0xff, check_duplicate=check_duplicate)
 
 # SoCError -----------------------------------------------------------------------------------------
 
