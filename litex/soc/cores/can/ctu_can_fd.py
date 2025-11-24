@@ -24,7 +24,7 @@ from litex.soc.interconnect.csr_eventmanager import *
 # CTU CAN-FD ---------------------------------------------------------------------------------------
 
 class CTUCANFD(LiteXModule, EventManager):
-    def __init__(self, platform, pads, timestamp=0, force_convert=False):
+    def __init__(self, platform, pads, timestamp=0, force_convert=False, active_timestamp_bits=63, test_registers=True, txt_buffer_count=4, rx_buffer_size=32):
         # Parameters.
         self.platform       = platform
         self.pads           = pads
@@ -86,8 +86,8 @@ class CTUCANFD(LiteXModule, EventManager):
             #p_target_technology = C_TECH_FPGA
 
             # TX/RX Buffers.
-            p_txt_buffer_count      = 4,  # Number of TX Buffers.
-            p_rx_buffer_size        = 32, # RX Buffer size (in 32-bit words).
+            p_txt_buffer_count      = txt_buffer_count, # Number of TX Buffers.
+            p_rx_buffer_size        = rx_buffer_size,   # RX Buffer size (in 32-bit words).
 
             # Filter A-C.
             p_sup_filtA             = False,
@@ -101,7 +101,7 @@ class CTUCANFD(LiteXModule, EventManager):
             p_sup_range             = False,
 
             # Test registers.
-            p_sup_test_registers = True, # True to have access to 0x9XX Tests registers
+            p_sup_test_registers    = test_registers, # True to have access to 0x9XX Tests registers
 
             # Traffic counters.
             p_sup_traffic_ctrs      = False,
@@ -110,7 +110,7 @@ class CTUCANFD(LiteXModule, EventManager):
             p_sup_parity            = False,
 
             # Number of active timestamp bits
-            p_active_timestamp_bits = 63,
+            p_active_timestamp_bits = active_timestamp_bits,
 
             # Reset TXT / RX Buffer RAMs
             p_reset_buffer_rams     = False,
