@@ -509,7 +509,7 @@ def get_i2c_header(i2c_init_values):
 
 # JSON Export / Import  ----------------------------------------------------------------------------
 
-def get_csr_json(csr_regions={}, constants={}, mem_regions={}):
+def get_csr_json(soc=None, csr_regions={}, constants={}, mem_regions={}):
     alignment = constants.get("CONFIG_CSR_ALIGNMENT", 32)
 
     d = {
@@ -517,10 +517,17 @@ def get_csr_json(csr_regions={}, constants={}, mem_regions={}):
         "csr_registers": {},
         "constants":     {},
         "memories":      {},
+        "cores":         {},
     }
 
     # Get CSR Regions.
     for name, region in csr_regions.items():
+        if soc is not None:
+            try:
+                core_inst = getattr(soc, name)
+                d["cores"][name] = core_inst.__class__.__name__
+            except AttributeError as e:
+                pass
         d["csr_bases"][name] = region.origin
         region_origin = region.origin
         if not isinstance(region.obj, Memory):
@@ -597,8 +604,8 @@ def load_csr_json(filename, origin=0, name=""):
 
 # CSV Export --------------------------------------------------------------------------------------
 
-def get_csr_csv(csr_regions={}, constants={}, mem_regions={}):
-    d = json.loads(get_csr_json(csr_regions, constants, mem_regions))
+def get_csr_csv(soc=None, csr_regions={}, constants={}, mem_regions={}):
+    d = json.loads(get_csr_json(soc, csr_regions, constants, mem_regions))
     r = generated_banner("#")
     for name, value in d["csr_bases"].items():
         r += "csr_base,{},0x{:08x},,\n".format(name, value)

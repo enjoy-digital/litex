@@ -277,6 +277,7 @@ class Builder:
         # JSON Export.
         if self.csr_json is not None:
             csr_json_contents = export.get_csr_json(
+                soc         = self.soc,
                 csr_regions = self.soc.csr_regions,
                 constants   = self.soc.constants,
                 mem_regions = self.soc.mem_regions)
@@ -285,6 +286,7 @@ class Builder:
         # CSV Export.
         if self.csr_csv is not None:
             csr_csv_contents = export.get_csr_csv(
+                soc         = self.soc,
                 csr_regions = self.soc.csr_regions,
                 constants   = self.soc.constants,
                 mem_regions = self.soc.mem_regions)
