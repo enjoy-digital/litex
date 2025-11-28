@@ -12,6 +12,8 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.build.io import *
 
+from litex.gen import *
+
 # Common JTAG --------------------------------------------------------------------------------------
 
 altera_reserved_jtag_pads = [
@@ -329,10 +331,24 @@ class Agilex5SDROutput:
 
 # Agilex5 SDRInput ---------------------------------------------------------------------------------
 
+class Agilex5SDRInputImpl(LiteXModule):
+    n = 0 # FIXME
+    def __init__(self, i, o, clk):
+        # Create a local ClockDomain with a unique name.
+        self.cd_sdrinput = ClockDomain(f"sdrinput{self.n}")
+        self.comb += self.cd_sdrinput.clk.eq(clk)
+
+        # Get Clk as sync.
+        sync = getattr(self.sync, self.cd_sdrinput.name)
+        sync += o.eq(i)
+
+        # Update class attribute.
+        Agilex5SDRInputImpl.n += 1
+
 class Agilex5SDRInput:
     @staticmethod
     def lower(dr):
-        return Agilex5DDRInputImpl(dr.i, dr.o, Signal(len(dr.o)), dr.clk)
+        return Agilex5SDRInputImpl(dr.i, dr.o, dr.clk)
 
 # Agilex5 SDRTristate ------------------------------------------------------------------------------
 
