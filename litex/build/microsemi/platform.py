@@ -13,12 +13,12 @@ class MicrosemiPlatform(GenericPlatform):
     _bitstream_ext = ".bit"
     _jtag_support  = False
 
-    _supported_toolchains = ["libero_soc_polarfire"]
+    _supported_toolchains = ["libero_soc"]
 
-    def __init__(self, *args, toolchain="libero_soc_polarfire", **kwargs):
+    def __init__(self, *args, toolchain="libero_soc", **kwargs):
         GenericPlatform.__init__(self, *args, **kwargs)
-        if toolchain == "libero_soc_polarfire":
-            self.toolchain = libero_soc.MicrosemiLiberoSoCPolarfireToolchain()
+        if toolchain == "libero_soc":
+            self.toolchain = libero_soc.MicrosemiLiberoSoCToolchain()
         else:
             raise ValueError(f"Unknown toolchain {toolchain}")
 

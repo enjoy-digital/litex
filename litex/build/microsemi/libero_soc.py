@@ -18,18 +18,37 @@ from litex.build.generic_toolchain import GenericToolchain
 from litex.build.microsemi import common
 
 
-# MicrosemiLiberoSoCPolarfireToolchain -------------------------------------------------------------
+# MicrosemiLiberoSoCToolchain ----------------------------------------------------------------------
 
-class MicrosemiLiberoSoCPolarfireToolchain(GenericToolchain):
+class MicrosemiLiberoSoCToolchain(GenericToolchain):
     attr_translate = {}
 
     special_overrides = common.microsemi_polarfire_special_overrides
 
     def __init__(self):
         super().__init__()
+        self.die                           = None
+        self.family                        = None
+        self.package                       = None
         self.additional_io_constraints     = []
         self.additional_fp_constraints     = []
         self.additional_timing_constraints = []
+
+    # Prepare family here because pdc differs between devices...
+    def finalize(self):
+        # Device Format: die-XYYYZ
+        # where X in [-1, -2, None]
+        # YYY package
+        # Z None for COM, I for IND, T1 for TGrade1, T2 for TGrade2, M for MIL
+        self.die, self.package = self.platform.device.split("-")
+
+        if self.die.startswith("M2GL"):
+            self.family = "IGLOO2"
+        elif self.die.startswith("MPF"):
+            self.family = "PolarFire"
+        else:
+            raise error(f"unknown family for die: {self.die}")
+
 
     # Helpers --------------------------------------------------------------------------------------
 
@@ -39,12 +58,17 @@ class MicrosemiLiberoSoCPolarfireToolchain(GenericToolchain):
 
     # IO Constraints (.pdc) ------------------------------------------------------------------------
 
-    @classmethod
-    def _format_io_constraint(cls, c):
+    def _format_io_constraint(self, c):
         if isinstance(c, Pins):
-            return "-pin_name {} ".format(c.identifiers[0])
+            if self.family in ["PolarFire"]:
+                return "-pin_name {} ".format(c.identifiers[0])
+            else:
+                return "-pinname {} ".format(c.identifiers[0])
         elif isinstance(c, IOStandard):
-            return "-io_std {} ".format(c.name)
+            if self.family in ["PolarFire"]:
+                return "-io_std {} ".format(c.name)
+            else:
+                return "-iostd {} ".format(c.name)
         elif isinstance(c, Misc):
             return "-RES_PULL {} ".format(c.misc)
         else:
@@ -53,10 +77,13 @@ class MicrosemiLiberoSoCPolarfireToolchain(GenericToolchain):
     def _format_io_pdc(self, signame, pin, others):
         fmt_c = [self._format_io_constraint(c) for c in ([Pins(pin)] + others)]
         r = "set_io "
-        r += "-port_name {} ".format(self.tcl_name(signame))
+        if self.family in ["PolarFire"]:
+            r += "-port_name {} ".format(self.tcl_name(signame))
+        else:
+            r += f"{signame} "
         for c in  ([Pins(pin)] + others):
             r += self._format_io_constraint(c)
-        r += "-fixed true "
+        r += "-fixed {} ".format({True: "true", False: "yes"}[self.family in ["PolarFire"]])
         r += "\n"
         return r
 
@@ -84,7 +111,34 @@ class MicrosemiLiberoSoCPolarfireToolchain(GenericToolchain):
     def build_project(self):
         tcl = []
 
-        die, package, speed = self.platform.device.split("-")
+        # when package starts with 1/2 it's the speed grade
+        # otherwise speed grade is STD
+        if self.package[0].isdecimal():
+            speed        = "-" + self.package[0]
+            self.package = self.package[1:]
+        else:
+            speed = "STD"
+
+        # when package ends with a non decimal char it's the range
+        if self.package.endswith("I"):
+            part_range = "IND"
+        elif self.package.endswith("T1"):
+            part_range = "TGrade1"
+        elif self.package.endswith("T2"):
+            part_range = "TGrade2"
+        elif self.package.endswith("M"):
+            part_range = "MIL"
+        else:
+            part_range = "COM"
+        if part_range in ["TGrade1", "TGrade2"]:
+            self.package = self.package[:-2]
+        elif part_range not in ["COM"]:
+            self.package = self.package[:-1]
+
+        voltage = "1.0"
+        if self.family == "IGLOO2":
+            voltage = "1.2"
+
         # Create project
         tcl.append(" ".join([
             "new_project",
@@ -97,18 +151,20 @@ class MicrosemiLiberoSoCPolarfireToolchain(GenericToolchain):
             "-ondemand_build_dh 0",
             "-use_enhanced_constraint_flow 1",
             "-hdl {VERILOG}",
-            "-family {PolarFire}",
-            "-die {}".format(self.tcl_name(die)),
-            "-package {}".format(self.tcl_name(package)),
-            "-speed {}".format(self.tcl_name("-" + speed)),
-            "-die_voltage {1.0}",
-            "-part_range {IND}",
-            "-adv_options {VCCI_1.2_VOLTR:IND}",
-            "-adv_options {VCCI_1.5_VOLTR:IND}",
-            "-adv_options {VCCI_1.8_VOLTR:IND}",
-            "-adv_options {VCCI_2.5_VOLTR:IND}",
-            "-adv_options {VCCI_3.3_VOLTR:IND}"
-            ]))
+            "-family {}".format(self.tcl_name(self.family)),
+            "-die {}".format(self.tcl_name(self.die)),
+            "-package {}".format(self.tcl_name(self.package)),
+            "-speed {}".format(self.tcl_name(speed)),
+            "-die_voltage {}".format(self.tcl_name(voltage)),
+            "-part_range {}".format(self.tcl_name(part_range)),
+            "-adv_options {{TEMPR:{}}}".format(part_range),
+            "-adv_options {VCCI_1.2_VOLTR:COM}",
+            "-adv_options {VCCI_1.5_VOLTR:COM}",
+            "-adv_options {VCCI_1.8_VOLTR:COM}",
+            "-adv_options {VCCI_2.5_VOLTR:COM}",
+            "-adv_options {VCCI_3.3_VOLTR:COM}",
+            "-adv_options {{VOLTR:{}}}".format(part_range),
+        ]))
 
         # Add sources
         for filename, language, library, *copy in self.platform.sources:
@@ -165,21 +221,28 @@ class MicrosemiLiberoSoCPolarfireToolchain(GenericToolchain):
         tcl.append("run_tool -name {GENERATEPROGRAMMINGFILE}")
         
         # Export the FPExpress programming file to Libero SoC default location
-        tcl.append(" export_prog_job \
-         -job_file_name {top} \
-         -export_dir {./impl/designer/top/export} \
-         -bitstream_file_type {TRUSTED_FACILITY} \
-         -bitstream_file_components {FABRIC SNVM} \
-         -zeroization_likenew_action 0 \
-         -zeroization_unrecoverable_action 0 \
-         -program_design 1 \
-         -program_spi_flash 0 \
-         -include_plaintext_passkey 0 \
-         -design_bitstream_format {PPD} \
-         -prog_optional_procedures {} \
-         -skip_recommended_procedures {} \
-         -sanitize_snvm 0 ")
+        export_prog_job = [
+            "export_prog_job",
+            "-job_file_name {}".format(self.tcl_name(self._build_name)),
+            "-export_dir {{./impl/designer/{}/export}}".format(self._build_name),
+            "-bitstream_file_type {TRUSTED_FACILITY}",
+            "-bitstream_file_components {{FABRIC {}}}".format({True: "SNVM", False: ""}[self.family in ["PolarFire"]]),
+        ]
+
+        if self.family in ["PolarFire"]:
+            export_prog_job.append([
+                "-zeroization_likenew_action 0",
+                "-zeroization_unrecoverable_action 0",
+                "-program_design 1",
+                "-program_spi_flash 0",
+                "-include_plaintext_passkey 0",
+                "-design_bitstream_format {PPD}",
+                "-prog_optional_procedures {}",
+                "-skip_recommended_procedures {}",
+                "-sanitize_snvm 0",
+            ])
         
+        tcl.append(" ".join(export_prog_job))
 
         # Generate tcl
         tools.write_to_file(self._build_name + ".tcl", "\n".join(tcl))
