@@ -230,7 +230,7 @@ class MicrosemiLiberoSoCToolchain(GenericToolchain):
         ]
 
         if self.family in ["PolarFire"]:
-            export_prog_job.append([
+            export_prog_job += [
                 "-zeroization_likenew_action 0",
                 "-zeroization_unrecoverable_action 0",
                 "-program_design 1",
@@ -240,7 +240,7 @@ class MicrosemiLiberoSoCToolchain(GenericToolchain):
                 "-prog_optional_procedures {}",
                 "-skip_recommended_procedures {}",
                 "-sanitize_snvm 0",
-            ])
+            ]
         
         tcl.append(" ".join(export_prog_job))
 
