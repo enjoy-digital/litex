@@ -97,10 +97,10 @@ class VexiiRiscv(CPU):
             arch += "c"
         if VexiiRiscv.with_rvcbom:
             arch += "_zicbom"
-        if not VexiiRiscv.with_supervisor:
+        if VexiiRiscv.with_aia:
             arch += "_smaia"
-        if VexiiRiscv.with_supervisor:
-            arch += "_ssaia"
+            if VexiiRiscv.with_supervisor:
+                arch += "_ssaia"
 
         # arch += "zicntr"
         # arch += "zicsr"
@@ -169,6 +169,7 @@ class VexiiRiscv(CPU):
         cpu_group.add_argument("--l2-bytes",              default=0,             help="VexiiRiscv L2 bytes, default 128 KB.")
         cpu_group.add_argument("--l2-ways",               default=0,             help="VexiiRiscv L2 ways, default 8.")
         cpu_group.add_argument("--l2-self-flush",         default=None,          help="VexiiRiscv L2 ways will self flush on from,to,cycles")
+        cpu_group.add_argument("--with-aia",            action="store_true",   help="Enable AIA support.")
         cpu_group.add_argument("--with-aplic",            action="store_true",   help="Enable APLIC.")
         cpu_group.add_argument("--imsic-interrupts",      default=0, type=int,   help="VexiiRiscv IMSIC interrupts, default is 0 (disabled)")
         cpu_group.add_argument("--with-axi3",             action="store_true",   help="mbus will be axi3 instead of axi4")
@@ -214,6 +215,7 @@ class VexiiRiscv(CPU):
         VexiiRiscv.with_dma         = args.with_coherent_dma
         VexiiRiscv.with_axi3        = args.with_axi3
         VexiiRiscv.with_aplic       = args.with_aplic
+        VexiiRiscv.with_aia         = args.with_aia or args.imsic_interrupts > 0
         VexiiRiscv.imsic_interrupts = args.imsic_interrupts
         VexiiRiscv.update_repo      = args.update_repo
         VexiiRiscv.no_netlist_cache = args.no_netlist_cache
@@ -425,6 +427,7 @@ class VexiiRiscv(CPU):
         md5_hash.update(str(VexiiRiscv.jtag_instruction).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.with_dma).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.with_axi3).encode('utf-8'))
+        md5_hash.update(str(VexiiRiscv.with_aia).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.with_aplic).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.imsic_interrupts).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.memory_regions).encode('utf-8'))
@@ -470,6 +473,8 @@ class VexiiRiscv(CPU):
             gen_args.append(f"--with-dma")
         if(VexiiRiscv.with_axi3) :
             gen_args.append(f"--with-axi3")
+        if(VexiiRiscv.with_aia) :
+            gen_args.append(f"--with-sxaia")
         if(VexiiRiscv.with_aplic) :
             gen_args.append(f"--with-aplic")
         if(VexiiRiscv.imsic_interrupts > 0) :
