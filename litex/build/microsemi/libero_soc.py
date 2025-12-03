@@ -166,6 +166,9 @@ class MicrosemiLiberoSoCToolchain(GenericToolchain):
             "-adv_options {{VOLTR:{}}}".format(part_range),
         ]))
 
+        # Add include path (required by readmemxx).
+        tcl.append(f"set_global_include_path_order -paths {{\"{os.getcwd()}\"}}")
+
         # Add sources
         for filename, language, library, *copy in self.platform.sources:
             filename_tcl = "{" + filename + "}"
