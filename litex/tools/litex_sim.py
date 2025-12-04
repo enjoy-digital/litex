@@ -10,6 +10,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import sys
+import subprocess
 import argparse
 
 from migen import *
@@ -424,6 +425,13 @@ def sim_args(parser):
     parser.add_argument("--rom-init",             default=None,            help="ROM init file (.bin or .json).")
     parser.add_argument("--ram-init",             default=None,            help="RAM init file (.bin or .json).")
 
+
+    # UART.
+    parser.add_argument("--uart-tcp",      action="store_true",            help="Use serial2tcp external module for UART.")
+    parser.add_argument("--uart-tcp-port", type=int, default=1234,         help="TCP port for serial2tcp (default: 1234).")
+    parser.add_argument("--uart-pty",      action="store_true",            help="Create a PTY bridged to the UART TCP port (requires socat).")
+    parser.add_argument("--uart-pty-path", default="/tmp/litex_pty0",      help="Path for UART PTY (default: /tmp/litex_pty0).")
+
     # DRAM.
     parser.add_argument("--with-sdram",           action="store_true",     help="Enable SDRAM support.")
     parser.add_argument("--with-sdram-bist",      action="store_true",     help="Enable SDRAM BIST Generator/Checker modules.")
@@ -488,7 +496,25 @@ def main():
     # UART.
     if soc_kwargs["uart_name"] == "serial":
         soc_kwargs["uart_name"] = "sim"
-        sim_config.add_module("serial2console", "serial")
+        # TCP-based UART bridge (serial2tcp).
+        if args.uart_tcp or args.uart_pty:
+            port = args.uart_tcp_port
+            sim_config.add_module("serial2tcp", "serial", args={"port": port})
+            # PTY.
+            if args.uart_pty:
+                port     = args.uart_tcp_port
+                pty_path = args.uart_pty_path
+                cmd = ["socat", f"pty,link={pty_path},raw,echo=0", f"tcp:127.0.0.1:{port},forever,interval=0.1"]
+                try:
+                    socat_proc = subprocess.Popen(cmd)
+                    print(f"[litex_sim] UART PTY created at: {pty_path}")
+                except FileNotFoundError:
+                    print("[litex_sim] ERROR: 'socat' not found. Install socat or disable --uart-pty.")
+                except Exception as e:
+                    print(f"[litex_sim] ERROR: Failed to start socat for UART PTY: {e}")
+        # Console (stdin/stdout) UART bridge (serial2console).
+        else:
+            sim_config.add_module("serial2console", "serial")
 
     # Create config SoC that will be used to prepare/configure real one.
     conf_soc = SimSoC(**soc_kwargs)
