@@ -30,9 +30,23 @@ class MicrosemiLiberoSoCToolchain(GenericToolchain):
         self.die                           = None
         self.family                        = None
         self.package                       = None
+        self._tool_version                 = 0.0
         self.additional_io_constraints     = []
         self.additional_fp_constraints     = []
         self.additional_timing_constraints = []
+
+        # Detect Libero SoC presence and version
+        libero_bin_dir = which("libero")
+        if libero_bin_dir is None:
+           msg = "Unable to find or source Libero SoC toolchain, please make sure libero has been installed corectly.\n"
+           raise OSError(msg)
+
+        libero_verinfo_dir = os.path.abspath(os.path.join(os.path.dirname(libero_bin_dir), "../adm/verinfo"))
+        # read the first line.
+        with open(libero_verinfo_dir, "r") as fd:
+            raw_version        = fd.readline()
+            # version format xx.yy.zz.aa: only keep xx.yy
+            self._tool_version = float(".".join(raw_version.split(".")[0:2]))
 
     # Prepare family here because pdc differs between devices...
     def finalize(self):
@@ -140,7 +154,7 @@ class MicrosemiLiberoSoCToolchain(GenericToolchain):
             voltage = "1.2"
 
         # Create project
-        tcl.append(" ".join([
+        create_proj_instr = [
             "new_project",
             "-location {./impl}",
             "-name {}".format(self.tcl_name(self._build_name)),
@@ -148,7 +162,6 @@ class MicrosemiLiberoSoCToolchain(GenericToolchain):
             "-block_mode 0",
             "-standalone_peripheral_initialization 0",
             "-instantiate_in_smartdesign 1",
-            "-ondemand_build_dh 0",
             "-use_enhanced_constraint_flow 1",
             "-hdl {VERILOG}",
             "-family {}".format(self.tcl_name(self.family)),
@@ -164,26 +177,34 @@ class MicrosemiLiberoSoCToolchain(GenericToolchain):
             "-adv_options {VCCI_2.5_VOLTR:COM}",
             "-adv_options {VCCI_3.3_VOLTR:COM}",
             "-adv_options {{VOLTR:{}}}".format(part_range),
-        ]))
+        ]
+
+        if self._tool_version > 11.9:
+            create_proj_instr.append("-ondemand_build_dh 0")
+
+        tcl.append(" ".join(create_proj_instr))
 
         # Add include path (required by readmemxx).
-        tcl.append(f"set_global_include_path_order -paths {{\"{os.getcwd()}\"}}")
+        if self._tool_version > 11.9:
+            tcl.append(f"set_global_include_path_order -paths {{\"{os.getcwd()}\"}}")
+        else:
+            # Copy init files.
+            for file in os.listdir(self._build_dir):
+                if file.endswith(".init"):
+                    tcl.append("file copy -- {} impl/synthesis".format(file))
+
 
         # Add sources
         for filename, language, library, *copy in self.platform.sources:
             filename_tcl = "{" + filename + "}"
             tcl.append("import_files -hdl_source " + filename_tcl)
 
-        # Building the design Hierarchy
-        tcl.append("build_design_hierarchy")
+        # Building the design Hierarchy (not supported by 11.9)
+        if self._tool_version > 11.9:
+            tcl.append("build_design_hierarchy")
+
         # Set top level
         tcl.append("set_root -module {}".format(self.tcl_name(self._build_name + "::work")))
-
-        # Copy init files FIXME: support for include path on LiberoSoC?
-        # Commenting out copy init file as this breaks the LiberoSoC flow.
-        #for file in os.listdir(self._build_dir):
-        #    if file.endswith(".init"):
-        #        tcl.append("file copy -- {} impl/synthesis".format(file))
 
         # Import io constraints
         tcl.append("import_files -io_pdc {}".format(self.tcl_name(self._build_name + "_io.pdc")))
@@ -244,7 +265,7 @@ class MicrosemiLiberoSoCToolchain(GenericToolchain):
                 "-skip_recommended_procedures {}",
                 "-sanitize_snvm 0",
             ]
-        
+
         tcl.append(" ".join(export_prog_job))
 
         # Generate tcl
@@ -305,10 +326,6 @@ class MicrosemiLiberoSoCToolchain(GenericToolchain):
             shell = ["cmd", "/c"]
         else:
             shell = ["bash"]
-
-        if which("libero") is None:
-           msg = "Unable to find or source Libero SoC toolchain, please make sure libero has been installed corectly.\n"
-           raise OSError(msg)
 
         if subprocess.call(shell + [script]) != 0:
            raise OSError("Subprocess failed")
