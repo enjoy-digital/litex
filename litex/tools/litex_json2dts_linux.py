@@ -11,8 +11,25 @@ import os
 import sys
 import json
 import argparse
+import re
 
 from litex.gen.common import KILOBYTE, MEGABYTE
+
+def generate_dts_interrupt(d, intr, polling):
+    if polling:
+        return ""
+    elif ("aplic_m" in d["memories"]) or ("aplic_s" in d["memories"]):
+        return "interrupts = <{} 0x4>;".format(intr)
+    else:
+        return "interrupts = <{}>;".format(intr)
+
+def generate_dts_intc(d):
+    if "aplic_s" in d["memories"]:
+        return "intc_s"
+    elif "aplic_s" in d["memories"]:
+        return "intc_m"
+    else:
+        return "intc0"
 
 def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_device=None, polling=False):
     aliases = {}
@@ -121,14 +138,50 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         def get_riscv_cpu_isa_base(cpu_isa):
             return cpu_isa[:5]
 
-        def get_riscv_cpu_isa_extensions(cpu_isa, cpu_name):
-            isa_extensions = set(["i"])
+        def get_riscv_cpu_isa_extensions_by_string(isa):
+            VERSION_PATTERN = re.compile(r"\d+p\d+$")
 
-            # Collect common extensions.
-            common_extensions = {'i', 'm', 'a', 'f', 'd', 'c'}
-            for extension in cpu_isa[5:]:
-                if extension in common_extensions:
-                    isa_extensions.update({extension})
+            extensions = set()
+            length = len(isa)
+
+            isa = isa.lower()
+
+            if not (isa.startswith("rv64") or isa.startswith("rv32")):
+                raise ValueError("ISA string must start with rv32|rv64")
+
+            slices = isa[4:].lower().split('_')
+
+            for slice in slices:
+                if not slice.isalnum():
+                    raise ValueError(f"Extension ${slice} can not be parsed: invalid character")
+
+                if len(slice) == 1 or (slice[0] == 's') or (slice[0] == 'z'):
+                    match = VERSION_PATTERN.search(slice)
+                    if not match is None:
+                        slice = slice[:match.span()[0]]
+
+                    extensions.add(slice)
+
+                    continue
+
+                match = VERSION_PATTERN.search(slice)
+                if not match is None:
+                    if len(slice[:match.span()[0]]) > 1:
+                        raise ValueError(f"Invalid extension string ${slice}: version can only be used separately")
+
+                    slice = slice[:match.span()[0]]
+
+                if not slice.isalpha():
+                    raise ValueError(f"Single letter extension string ${slice} should not contain other characters")
+
+                for extension in slice:
+                    extensions.add(extension)
+
+            return extensions
+
+
+        def get_riscv_cpu_isa_extensions(cpu_isa, cpu_name):
+            isa_extensions = get_riscv_cpu_isa_extensions_by_string(cpu_isa)
 
             # Add rocket-specific extensions.
             if cpu_name == "rocket":
@@ -344,9 +397,9 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
             #address-cells = <1>;
             #size-cells    = <1>;
             compatible = "simple-bus";
-            interrupt-parent = <&intc0>;
+            interrupt-parent = <&{intc}>;
             ranges;
-""".format()
+""".format(intc=generate_dts_intc(d))
 
     # SoC Controller -------------------------------------------------------------------------------
 
@@ -374,16 +427,76 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 """.format(
         clint_base  = d["memories"]["clint"]["base"],
         cpu_mapping = ("\n" + " "*20).join(["&L{} 3 &L{} 7".format(cpu, cpu) for cpu in range(cpu_count)]))
+
     if cpu_family == "riscv":
-        if cpu_name == "rocket":
-            extra_attr = """
+        if "aplic_m" in d["memories"]:
+            extra_attr_m = ""
+
+            if "imsic_m" in d["memories"]:
+                extra_attr_m += """
+                msi-parent = <&imsic_m>;
+"""
+            else:
+                extra_attr_m += """
+                interrupts-extended = <
+                    {cpu_mapping}>;
+""".format(cpu_mapping = ("\n" + " "*20).join(["&L{} 11".format(cpu) for cpu in range(cpu_count)]))
+
+            if "aplic_s" in d["memories"]:
+                extra_attr_m += """
+                riscv,children = <&intc_s>;
+                riscv,delegation = <&intc_s 1 31>;
+"""
+
+            dts += """
+            intc_m: interrupt-controller@{aplic_base:x} {{
+                compatible = "riscv,aplic";
+                reg = <0x{aplic_base:x} 0x200000>;
+                #interrupt-cells = <2>;
+                interrupt-controller;
+                {extra_attr}
+                riscv,num-sources = <31>;
+            }};
+""".format(
+        aplic_base   = d["memories"]["aplic_m"]["base"],
+        extra_attr  = extra_attr_m)
+
+            if "aplic_s" in d["memories"]:
+                extra_attr_s = ""
+
+                if "imsic_s" in d["memories"]:
+                    extra_attr_s += """
+                msi-parent = <&imsic_s>;
+"""
+                else:
+                    extra_attr_s += """
+                    interrupts-extended = <
+                        {cpu_mapping}>;
+""".format(cpu_mapping = ("\n" + " "*20).join(["&L{} 9".format(cpu) for cpu in range(cpu_count)]))
+
+                dts += """
+            intc_s: interrupt-controller@{aplic_base:x} {{
+                compatible = "riscv,aplic";
+                reg = <0x{aplic_base:x} 0x200000>;
+                #interrupt-cells = <2>;
+                interrupt-controller;
+                {extra_attr}
+                riscv,num-sources = <31>;
+            }};
+""".format(
+        aplic_base   = d["memories"]["aplic_s"]["base"],
+        extra_attr  = extra_attr_s)
+
+        elif "plic" in d["memories"]:
+            if cpu_name == "rocket":
+                extra_attr = """
                 reg-names = "control";
                 riscv,max-priority = <7>;
 """
-        else:
-            extra_attr = ""
+            else:
+                extra_attr = ""
 
-        dts += """
+            dts += """
             intc0: interrupt-controller@{plic_base:x} {{
                 compatible = "sifive,fu540-c000-plic", "sifive,plic-1.0.0";
                 reg = <0x{plic_base:x} 0x400000>;
@@ -399,6 +512,44 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         plic_base   = d["memories"]["plic"]["base"],
         cpu_mapping = ("\n" + " "*20).join(["&L{} 11 &L{} 9".format(cpu, cpu) for cpu in range(cpu_count)]),
         extra_attr  = extra_attr)
+        else:
+            raise NotImplementedError("No interrupt controller found")
+
+        if "imsic_m" in d["memories"]:
+            dts += """
+            imsic_m: interrupt-controller@{imsic_base:x} {{
+                compatible = "riscv,imsics";
+                reg = <0x{imsic_base:x} 0x{imsic_size:x}>;
+                #interrupt-cells = <0>;
+                #msi-cells = <0>;
+                interrupt-controller;
+                interrupts-extended = <
+                    {cpu_mapping}>;
+                msi-controller;
+                riscv,num-ids = <63>;
+            }};
+""".format(
+        imsic_base = d["memories"]["imsic_m"]["base"],
+        imsic_size = d["memories"]["imsic_m"]["size"],
+        cpu_mapping = ("\n" + " "*20).join(["&L{} 11".format(cpu) for cpu in range(cpu_count)]))
+
+        if "imsic_s" in d["memories"]:
+            dts += """
+            imsic_s: interrupt-controller@{imsic_base:x} {{
+                compatible = "riscv,imsics";
+                reg = <0x{imsic_base:x} 0x{imsic_size:x}>;
+                #interrupt-cells = <0>;
+                #msi-cells = <0>;
+                interrupt-controller;
+                interrupts-extended = <
+                    {cpu_mapping}>;
+                msi-controller;
+                riscv,num-ids = <63>;
+            }};
+""".format(
+        imsic_base = d["memories"]["imsic_s"]["base"],
+        imsic_size = d["memories"]["imsic_s"]["size"],
+        cpu_mapping = ("\n" + " "*20).join(["&L{} 9".format(cpu) for cpu in range(cpu_count)]))
 
     elif cpu_family == "or1k":
         dts += """
@@ -446,7 +597,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
             }};
 """.format(
     uart_csr_base  = d["csr_bases"]["uart"],
-    uart_interrupt = "" if polling else "interrupts = <{}>;".format(int(d["constants"]["uart_interrupt"]) + it_incr))
+    uart_interrupt = generate_dts_interrupt(d, int(d["constants"]["uart_interrupt"]) + it_incr, polling))
 
     # Ethernet -------------------------------------------------------------------------------------
     for i in [''] + list(range(0, 10)):
@@ -478,7 +629,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     ethmac_rx_slots  = d["constants"][ethmac_name + "_rx_slots"],
     ethmac_tx_slots  = d["constants"][ethmac_name + "_tx_slots"],
     ethmac_slot_size = d["constants"][ethmac_name + "_slot_size"],
-    ethmac_interrupt = "" if polling else "interrupts = <{}>;".format(int(d["constants"][ethmac_name + "_interrupt"]) + it_incr),
+    ethmac_interrupt = generate_dts_interrupt(d, int(d["constants"][ethmac_name + "_interrupt"]) + it_incr, polling),
     local_mac_addr   = "" if not "macaddr1" in d["constants"] else "local-mac-address = [{mac_addr}];".format(
         mac_addr     = "{a1:02X} {a2:02X} {a3:02X} {a4:02X} {a5:02X} {a6:02X}".format(
             a1       = d["constants"]["macaddr1"],
@@ -500,7 +651,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
             }};
 """.format(
     usb_ohci_mem_base  = d["memories"]["usb_ohci_ctrl"]["base"],
-    usb_ohci_interrupt = "" if polling else "interrupts = <{}>;".format(16)) # FIXME
+    usb_ohci_interrupt = generate_dts_interrupt(d, 16, polling)) # FIXME
 
     # SPI Flash ------------------------------------------------------------------------------------
 
@@ -576,7 +727,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         sdcard_mem2block     = d["csr_registers"]["sdcard_mem2block_dma_base"]['addr'],
         sdcard_mem2block_size = d["csr_registers"]["sdcard_ev_status"]['addr'] - d["csr_registers"]["sdcard_mem2block_dma_base"]['addr'],
         sdcard_irq           = d["csr_registers"]["sdcard_ev_status"]['addr'],
-        sdcard_irq_interrupt = "" if polling else "interrupts = <{}>;".format(d["constants"]["sdcard_interrupt"])
+        sdcard_irq_interrupt = generate_dts_interrupt(d, d["constants"]["sdcard_interrupt"], polling)
 )
     # Leds -----------------------------------------------------------------------------------------
 
@@ -621,7 +772,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
             }};
 """.format(
     switches_csr_base  = d["csr_bases"]["switches"],
-	switches_interrupt = "" if polling else "interrupts = <{}>;".format(d["constants"]["switches_interrupt"]))
+	switches_interrupt = generate_dts_interrupt(d, d["constants"]["switches_interrupt"], polling))
 
     # SPI ------------------------------------------------------------------------------------------
 
