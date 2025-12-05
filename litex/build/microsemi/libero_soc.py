@@ -30,9 +30,23 @@ class MicrosemiLiberoSoCToolchain(GenericToolchain):
         self.die                           = None
         self.family                        = None
         self.package                       = None
+        self._tool_version                 = 0.0
         self.additional_io_constraints     = []
         self.additional_fp_constraints     = []
         self.additional_timing_constraints = []
+
+        # Detect Libero SoC presence and version
+        libero_bin_dir = which("libero")
+        if libero_bin_dir is None:
+           msg = "Unable to find or source Libero SoC toolchain, please make sure libero has been installed corectly.\n"
+           raise OSError(msg)
+
+        libero_verinfo_dir = os.path.abspath(os.path.join(os.path.dirname(libero_bin_dir), "../adm/verinfo"))
+        # read the first line.
+        with open(libero_verinfo_dir, "r") as fd:
+            raw_version        = fd.readline()
+            # version format xx.yy.zz.aa: only keep xx.yy
+            self._tool_version = float(".".join(raw_version.split(".")[0:2]))
 
     # Prepare family here because pdc differs between devices...
     def finalize(self):
@@ -46,8 +60,22 @@ class MicrosemiLiberoSoCToolchain(GenericToolchain):
             self.family = "IGLOO2"
         elif self.die.startswith("MPF"):
             self.family = "PolarFire"
+        elif self.die.startswith("A3PE") or self.die.startswith("M1A3PE"):
+            if self.die.endswith("L"):
+                self.family = "ProASIC3L"
+            else:
+                self.family = "ProASIC3E"
+        elif self.die.startswith("A3P") or self.die.startswith("M1A3P") or self.die.startswith("M7A3P"):
+            if self.die.endswith("L"):
+                self.family = "ProASIC3L"
+            else:
+                self.family = "ProASIC3"
         else:
             raise error(f"unknown family for die: {self.die}")
+
+        # proASCI3 support has been dropped after Release 11.9
+        if self.family.startswith("ProASIC3"):
+            assert self._tool_version <= 11.9
 
 
     # Helpers --------------------------------------------------------------------------------------
@@ -138,9 +166,11 @@ class MicrosemiLiberoSoCToolchain(GenericToolchain):
         voltage = "1.0"
         if self.family == "IGLOO2":
             voltage = "1.2"
+        elif self.family.startswith("ProASIC3"): # ProASIC3L may be 1.2~1.5, 1.2, 1.5
+            voltage = "1.5"
 
         # Create project
-        tcl.append(" ".join([
+        create_proj_instr = [
             "new_project",
             "-location {./impl}",
             "-name {}".format(self.tcl_name(self._build_name)),
@@ -148,7 +178,6 @@ class MicrosemiLiberoSoCToolchain(GenericToolchain):
             "-block_mode 0",
             "-standalone_peripheral_initialization 0",
             "-instantiate_in_smartdesign 1",
-            "-ondemand_build_dh 0",
             "-use_enhanced_constraint_flow 1",
             "-hdl {VERILOG}",
             "-family {}".format(self.tcl_name(self.family)),
@@ -158,38 +187,51 @@ class MicrosemiLiberoSoCToolchain(GenericToolchain):
             "-die_voltage {}".format(self.tcl_name(voltage)),
             "-part_range {}".format(self.tcl_name(part_range)),
             "-adv_options {{TEMPR:{}}}".format(part_range),
-            "-adv_options {VCCI_1.2_VOLTR:COM}",
             "-adv_options {VCCI_1.5_VOLTR:COM}",
             "-adv_options {VCCI_1.8_VOLTR:COM}",
             "-adv_options {VCCI_2.5_VOLTR:COM}",
             "-adv_options {VCCI_3.3_VOLTR:COM}",
             "-adv_options {{VOLTR:{}}}".format(part_range),
-        ]))
+        ]
+        if not self.family.startswith("ProASIC3"):
+            create_proj_instr.append("-adv_options {VCCI_1.2_VOLTR:COM}")
+
+        if self._tool_version > 11.9:
+            create_proj_instr.append("-ondemand_build_dh 0")
+
+        tcl.append(" ".join(create_proj_instr))
 
         # Add include path (required by readmemxx).
-        tcl.append(f"set_global_include_path_order -paths {{\"{os.getcwd()}\"}}")
+        if self._tool_version > 11.9:
+            tcl.append(f"set_global_include_path_order -paths {{\"{os.getcwd()}\"}}")
+        else:
+            # Copy init files.
+            for file in os.listdir(self._build_dir):
+                if file.endswith(".init"):
+                    tcl.append("file copy -- {} impl/synthesis".format(file))
+
 
         # Add sources
         for filename, language, library, *copy in self.platform.sources:
             filename_tcl = "{" + filename + "}"
             tcl.append("import_files -hdl_source " + filename_tcl)
 
-        # Building the design Hierarchy
-        tcl.append("build_design_hierarchy")
+        # Building the design Hierarchy (not supported by 11.9)
+        if self._tool_version > 11.9:
+            tcl.append("build_design_hierarchy")
+
         # Set top level
         tcl.append("set_root -module {}".format(self.tcl_name(self._build_name + "::work")))
 
-        # Copy init files FIXME: support for include path on LiberoSoC?
-        # Commenting out copy init file as this breaks the LiberoSoC flow.
-        #for file in os.listdir(self._build_dir):
-        #    if file.endswith(".init"):
-        #        tcl.append("file copy -- {} impl/synthesis".format(file))
-
         # Import io constraints
-        tcl.append("import_files -io_pdc {}".format(self.tcl_name(self._build_name + "_io.pdc")))
+        tcl.append("import_files -{}pdc {}".format(
+            {True: "", False: "io_"}[self.family.startswith("ProASIC3")],
+            self.tcl_name(self._build_name + "_io.pdc")
+        ))
 
         # Import floorplanner constraints
-        tcl.append("import_files -fp_pdc {}".format(self.tcl_name(self._build_name + "_fp.pdc")))
+        if not self.family.startswith("ProASIC3"):
+            tcl.append("import_files -fp_pdc {}".format(self.tcl_name(self._build_name + "_fp.pdc")))
 
         # Import timing constraints
         tcl.append("import_files -convert_EDN_to_HDL 0 -sdc {}".format(self.tcl_name(self._build_name + ".sdc")))
@@ -201,14 +243,15 @@ class MicrosemiLiberoSoCToolchain(GenericToolchain):
             "-module {}".format(self._build_name),
             "-input_type {constraint}"
         ]))
-        tcl.append(" ".join(["organize_tool_files",
-            "-tool {PLACEROUTE}",
-            "-file impl/constraint/io/{}_io.pdc".format(self._build_name),
-            "-file impl/constraint/fp/{}_fp.pdc".format(self._build_name),
-            "-file impl/constraint/{}.sdc".format(self._build_name),
-            "-module {}".format(self._build_name),
-            "-input_type {constraint}"
-        ]))
+        if not self.family.startswith("ProASIC3"):
+            tcl.append(" ".join(["organize_tool_files",
+                "-tool {PLACEROUTE}",
+                "-file impl/constraint/io/{}_io.pdc".format(self._build_name),
+                "-file impl/constraint/fp/{}_fp.pdc".format(self._build_name),
+                "-file impl/constraint/{}.sdc".format(self._build_name),
+                "-module {}".format(self._build_name),
+                "-input_type {constraint}"
+            ]))
         tcl.append(" ".join(["organize_tool_files",
             "-tool {VERIFYTIMING}",
             "-file impl/constraint/{}.sdc".format(self._build_name),
@@ -217,35 +260,38 @@ class MicrosemiLiberoSoCToolchain(GenericToolchain):
         ]))
 
         # Build flow
-        tcl.append("run_tool -name {CONSTRAINT_MANAGEMENT}")
+        if not self.family.startswith("ProASIC3"):
+            tcl.append("run_tool -name {CONSTRAINT_MANAGEMENT}")
         tcl.append("run_tool -name {SYNTHESIZE}")
         tcl.append("run_tool -name {PLACEROUTE}")
         tcl.append("run_tool -name {GENERATEPROGRAMMINGDATA}")
-        tcl.append("run_tool -name {GENERATEPROGRAMMINGFILE}")
+        if self.family not in ["ProASIC3"]:
+            tcl.append("run_tool -name {GENERATEPROGRAMMINGFILE}")
         
         # Export the FPExpress programming file to Libero SoC default location
-        export_prog_job = [
-            "export_prog_job",
-            "-job_file_name {}".format(self.tcl_name(self._build_name)),
-            "-export_dir {{./impl/designer/{}/export}}".format(self._build_name),
-            "-bitstream_file_type {TRUSTED_FACILITY}",
-            "-bitstream_file_components {{FABRIC {}}}".format({True: "SNVM", False: ""}[self.family in ["PolarFire"]]),
-        ]
-
-        if self.family in ["PolarFire"]:
-            export_prog_job += [
-                "-zeroization_likenew_action 0",
-                "-zeroization_unrecoverable_action 0",
-                "-program_design 1",
-                "-program_spi_flash 0",
-                "-include_plaintext_passkey 0",
-                "-design_bitstream_format {PPD}",
-                "-prog_optional_procedures {}",
-                "-skip_recommended_procedures {}",
-                "-sanitize_snvm 0",
+        if not self.family.startswith("ProASIC3"):
+            export_prog_job = [
+                "export_prog_job",
+                "-job_file_name {}".format(self.tcl_name(self._build_name)),
+                "-export_dir {{./impl/designer/{}/export}}".format(self._build_name),
+                "-bitstream_file_type {TRUSTED_FACILITY}",
+                "-bitstream_file_components {{FABRIC {}}}".format({True: "SNVM", False: ""}[self.family in ["PolarFire"]]),
             ]
-        
-        tcl.append(" ".join(export_prog_job))
+
+            if self.family in ["PolarFire"]:
+                export_prog_job += [
+                    "-zeroization_likenew_action 0",
+                    "-zeroization_unrecoverable_action 0",
+                    "-program_design 1",
+                    "-program_spi_flash 0",
+                    "-include_plaintext_passkey 0",
+                    "-design_bitstream_format {PPD}",
+                    "-prog_optional_procedures {}",
+                    "-skip_recommended_procedures {}",
+                    "-sanitize_snvm 0",
+                ]
+            
+            tcl.append(" ".join(export_prog_job))
 
         # Generate tcl
         tools.write_to_file(self._build_name + ".tcl", "\n".join(tcl))
@@ -305,10 +351,6 @@ class MicrosemiLiberoSoCToolchain(GenericToolchain):
             shell = ["cmd", "/c"]
         else:
             shell = ["bash"]
-
-        if which("libero") is None:
-           msg = "Unable to find or source Libero SoC toolchain, please make sure libero has been installed corectly.\n"
-           raise OSError(msg)
 
         if subprocess.call(shell + [script]) != 0:
            raise OSError("Subprocess failed")
