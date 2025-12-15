@@ -39,6 +39,17 @@ def get_mem_regions(filename_or_regions, offset):
             regions = {filename: f"{offset:08x}"}
     return regions
 
+def get_mem_region_size(regions, offset=0):
+    # Determine memory region data size.
+    data_size = 0
+    for filename, base in regions.items():
+        if not os.path.isfile(filename):
+            raise OSError(f"Unable to find {filename} memory content file.")
+        data_size = max(int(base, 16) + os.path.getsize(filename) - offset, data_size)
+
+    assert data_size > 0
+    return data_size
+
 def get_mem_data(filename_or_regions, data_width=32, endianness="big", mem_size=None, offset=0):
     assert data_width % 32 == 0
     assert endianness in ["big", "little"]
@@ -50,13 +61,9 @@ def get_mem_data(filename_or_regions, data_width=32, endianness="big", mem_size=
     # Create memory regions.
     regions = get_mem_regions(filename_or_regions, offset)
 
-    # Determine data_size.
-    data_size = 0
-    for filename, base in regions.items():
-        if not os.path.isfile(filename):
-            raise OSError(f"Unable to find {filename} memory content file.")
-        data_size = max(int(base, 16) + os.path.getsize(filename) - offset, data_size)
-    assert data_size > 0
+    # Get data_size.
+    data_size = get_mem_region_size(regions, offset)
+
     if mem_size is not None:
         assert data_size < mem_size, (
             "file is too big: {}/{} bytes".format(
