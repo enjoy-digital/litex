@@ -484,7 +484,7 @@ class Zynq7000(CPU):
         io_type = {True: pads_or_mio_group, False: "EMIO"}[isinstance(pads_or_mio_group, str)]
 
         # MIO IOs must be "MIO xx .. yy"
-        assert not (io_type != "EMIO" and re.match("MIO \d\d .. \d\d", io_type) is None)
+        assert not (io_type != "EMIO" and re.match(r"MIO \d\d .. \d\d", io_type) is None)
 
         # PS7 configuration.
         self.add_ps7_config({
@@ -660,7 +660,7 @@ class Zynq7000(CPU):
         io_type = {True: pads_or_mio_group, False: "EMIO"}[isinstance(pads_or_mio_group, str)]
 
         # MIO IOs must be "MIO xx .. yy"
-        assert not (io_type != "EMIO" and re.match("MIO \d\d .. \d\d", io_type) is None)
+        assert not (io_type != "EMIO" and re.match(r"MIO \d\d .. \d\d", io_type) is None)
 
         # In EMIO check if Record contains cs1_n/cs2_n
         if io_type == "EMIO":
@@ -763,7 +763,7 @@ class Zynq7000(CPU):
         io_type = {True: pads_or_mio_group, False: "EMIO"}[isinstance(pads_or_mio_group, str)]
 
         # MIO IOs must be "MIO xx .. yy"
-        assert not (io_type != "EMIO" and re.match("MIO \d\d .. \d\d", io_type) is None)
+        assert not (io_type != "EMIO" and re.match(r"MIO \d\d .. \d\d", io_type) is None)
 
         # PS7 configuration.
         self.add_ps7_config({
