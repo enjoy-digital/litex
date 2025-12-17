@@ -182,6 +182,9 @@ class AlteraQuartusToolchain(GenericToolchain):
         # Set timing constraints
         qsf.append("set_global_assignment -name SDC_FILE {}.sdc".format(self._build_name))
 
+        # Define SYNTHESIS macro
+        qsf.append('set_global_assignment -name VERILOG_MACRO "SYNTHESIS=1"')
+
         # Add additional commands
         qsf += self.additional_qsf_commands
 
