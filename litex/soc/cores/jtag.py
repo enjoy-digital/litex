@@ -521,7 +521,7 @@ class JTAGPHY(LiteXModule):
 
 class EfinixJTAG(LiteXModule):
     # id refer to the JTAG_USER{id}
-    def __init__(self, platform, id=1):
+    def __init__(self, platform, id=1, jtag_clk_freq=10e6):
         self.reset   = Signal()
         self.capture = Signal()
         self.shift   = Signal()
@@ -532,61 +532,47 @@ class EfinixJTAG(LiteXModule):
         self.tdi = Signal()
         self.tdo = Signal()
 
-        self.name     = f"jtag_{id}"
+        self.sel = Signal()
+
+        self.name     = name = f"jtag_{id}"
         self.platform = platform
         self.id       = id
 
-        _io = [
-            (self.name, 0,
-                Subsignal("CAPTURE", Pins(1)),
-                Subsignal("DRCK",    Pins(1)),
-                Subsignal("RESET",   Pins(1)),
-                Subsignal("RUNTEST", Pins(1)),
-                Subsignal("SEL",     Pins(1)),
-                Subsignal("SHIFT",   Pins(1)),
-                Subsignal("TCK",     Pins(1)),
-                Subsignal("TDI",     Pins(1)),
-                Subsignal("TMS",     Pins(1)),
-                Subsignal("UPDATE",  Pins(1)),
-                Subsignal("TDO",     Pins(1)),
-            ),
-        ]
-        platform.add_extension(_io)
+        sdc = []
+        tpl = "create_clock -name {name} -period {period} [get_ports {{{clk}}}]"
+        sdc.append(tpl.format(name=name + "_TCK", clk=self.name + "~TCK" , period=str(1e9 / jtag_clk_freq)))
+        tpl = "set_clock_groups -exclusive -group {{{name}}}"
+        sdc.append(tpl.format(name=name + "_TCK"))
+        platform.toolchain.additional_sdc_commands.extend(sdc)
 
-        self.pins = pins = platform.request(self.name)
-        for pin in pins.flatten():
-            self.platform.toolchain.excluded_ios.append(pin.backtrace[-1][0])
+        self.params = dict(
+            p_RESOURCE=f"JTAG_USER{id}",
+            o_CAPTURE=self.capture,
+            o_DRCK=Signal(),
+            o_RESET=self.reset,
+            o_RUNTEST=Signal(),
+            o_SEL=self.sel,
+            o_SHIFT=self.shift,
+            o_TCK=self.tck,
+            o_TDI=self.tdi,
+            o_TMS=self.tms,
+            o_UPDATE=self.update,
+            i_TDO=self.tdo,
+        )
 
-        block = {}
-        block["type"] = "JTAG"
-        block["name"] = self.name
-        block["id"]   = self.id
-        block["pins"] = pins
-        self.platform.toolchain.ifacewriter.blocks.append(block)
-
-        self.comb += [
-            self.reset.eq(pins.RESET),
-            self.capture.eq(pins.CAPTURE),
-            self.shift.eq(pins.SHIFT),
-            self.update.eq(pins.UPDATE),
-
-            self.tck.eq(pins.TCK),
-            self.tms.eq(pins.TMS),
-            self.tdi.eq(pins.TDI),
-            pins.TDO.eq(self.tdo),
-        ]
+        self.specials += Instance("EFX_JTAG_V1", **self.params, name=self.name)
 
     def bind_vexriscv_smp(self, cpu):
         self.comb += [
             # JTAG -> CPU.
-            cpu.jtag_clk.eq(     self.pins.TCK),
-            cpu.jtag_enable.eq(  self.pins.SEL),
-            cpu.jtag_capture.eq( self.pins.CAPTURE),
-            cpu.jtag_shift.eq(   self.pins.SHIFT),
-            cpu.jtag_update.eq(  self.pins.UPDATE),
-            cpu.jtag_reset.eq(   self.pins.RESET),
-            cpu.jtag_tdi.eq(     self.pins.TDI),
+            cpu.jtag_clk.eq(     self.tck),
+            cpu.jtag_enable.eq(  self.sel),
+            cpu.jtag_capture.eq( self.capture),
+            cpu.jtag_shift.eq(   self.shift),
+            cpu.jtag_update.eq(  self.update),
+            cpu.jtag_reset.eq(   self.reset),
+            cpu.jtag_tdi.eq(     self.tdi),
 
             # CPU -> JTAG.
-            self.pins.TDO.eq(cpu.jtag_tdo),
+            self.tdo.eq(cpu.jtag_tdo),
         ]
