@@ -1,7 +1,8 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2018-2025 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2025 Gwenhael Goavec-Merou <gwenhael.goavec-merou@trabucayre.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
@@ -35,19 +36,6 @@ class MicrosemiLiberoSoCToolchain(GenericToolchain):
         self.additional_fp_constraints     = []
         self.additional_timing_constraints = []
 
-        # Detect Libero SoC presence and version
-        libero_bin_dir = which("libero")
-        if libero_bin_dir is None:
-           msg = "Unable to find or source Libero SoC toolchain, please make sure libero has been installed corectly.\n"
-           raise OSError(msg)
-
-        libero_verinfo_dir = os.path.abspath(os.path.join(os.path.dirname(libero_bin_dir), "../adm/verinfo"))
-        # read the first line.
-        with open(libero_verinfo_dir, "r") as fd:
-            raw_version        = fd.readline()
-            # version format xx.yy.zz.aa: only keep xx.yy
-            self._tool_version = float(".".join(raw_version.split(".")[0:2]))
-
     # Prepare family here because pdc differs between devices...
     def finalize(self):
         # Device Format: die-XYYYZ
@@ -73,10 +61,25 @@ class MicrosemiLiberoSoCToolchain(GenericToolchain):
         else:
             raise error(f"unknown family for die: {self.die}")
 
-        # proASCI3 support has been dropped after Release 11.9
-        if self.family.startswith("ProASIC3"):
-            assert self._tool_version <= 11.9
+    def _check_libero(self, strict=True):
+        # Detect Libero SoC presence/version.
+        if self._tool_version != 0.0:
+            return
 
+        libero_bin_dir = which("libero")
+        if libero_bin_dir is None:
+            if strict:
+                msg = ("Unable to find or source Libero SoC toolchain, please make sure libero "
+                       "has been installed corectly.\n")
+                raise OSError(msg)
+            return
+
+        libero_verinfo_dir = os.path.abspath(os.path.join(os.path.dirname(libero_bin_dir), "../adm/verinfo"))
+        # Read the first line.
+        with open(libero_verinfo_dir, "r") as fd:
+            raw_version        = fd.readline().strip()
+            # Version format xx.yy.zz.aa: only keep xx.yy.
+            self._tool_version = float(".".join(raw_version.split(".")[0:2]))
 
     # Helpers --------------------------------------------------------------------------------------
 
@@ -137,6 +140,7 @@ class MicrosemiLiberoSoCToolchain(GenericToolchain):
     # Project (.tcl) -------------------------------------------------------------------------------
 
     def build_project(self):
+        self._check_libero(strict=False) # best-effort
         tcl = []
 
         # when package starts with 1/2 it's the speed grade
@@ -343,6 +347,12 @@ class MicrosemiLiberoSoCToolchain(GenericToolchain):
         return script_file
 
     def run_script(self, script):
+        self._check_libero(strict=True) # strict
+
+        # ProASIC3 support has been dropped after Release 11.9.
+        if self.family.startswith("ProASIC3"):
+            assert self._tool_version <= 11.9
+
         # Delete previous impl
         if os.path.exists("impl"):
             shutil.rmtree("impl")
