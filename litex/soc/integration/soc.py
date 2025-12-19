@@ -706,7 +706,7 @@ class SoCLocHandler(LiteXModule):
                         self.name,
                         colorer("positive", color="red")))
                     raise SoCError()
-                if n > self.n_locs:
+                if n >= self.n_locs:
                     self.logger.error("{} {} Location {} than maximum: {}.".format(
                         colorer(n),
                         self.name,
