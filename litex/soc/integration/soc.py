@@ -1315,7 +1315,7 @@ class SoC(LiteXModule, SoCCoreCompat):
                 if isinstance(self.cpu.dma_bus, wishbone.Interface):
                     dma_bus_standard = "wishbone"
                 elif isinstance(self.cpu.dma_bus, axi.AXILiteInterface):
-                    dma_bus_standard = "axi_lite"
+                    dma_bus_standard = "axi-lite"
                 elif isinstance(self.cpu.dma_bus, axi.AXIInterface):
                     dma_bus_standard = "axi"
                 else:
