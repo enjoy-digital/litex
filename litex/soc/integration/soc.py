@@ -275,7 +275,7 @@ class SoCBusHandler(LiteXModule):
         if cached == False:
             search_regions = self.io_regions
         else:
-            search_regions = {"main": SoCRegion(origin=0x00000000, size=2**self.address_width-1)}
+            search_regions = {"main": SoCRegion(origin=0x00000000, size=2**self.address_width)}
 
         # Iterate on Search_Regions to find a Candidate.
         size_pow2 = 2**log2_int(size, False)
