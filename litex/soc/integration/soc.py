@@ -565,7 +565,7 @@ class SoCBusHandler(LiteXModule):
                     colorer("not found", color="red")))
                 raise SoCError()
         else:
-             self.add_region(name, region)
+            self.add_region(name, region)
         if name in self.slaves.keys():
             self.logger.error("{} {} as Bus Slave:".format(
                 colorer(name),
