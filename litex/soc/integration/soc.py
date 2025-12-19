@@ -799,7 +799,7 @@ class SoCCSRHandler(SoCLocHandler):
         if ordering not in self.supported_ordering:
             self.logger.error("Unsupported {} {}, supported are: {:s}".format(
                 colorer("Ordering", color="red"),
-                colorer("{}".format(paging)),
+                colorer("{}".format(ordering)),
                 colorer(", ".join("{}".format(x) for x in self.supported_ordering))))
             raise SoCError()
 
@@ -839,7 +839,7 @@ class SoCCSRHandler(SoCLocHandler):
         if master.data_width != self.data_width:
             self.logger.error("{} Master/Handler Data Width {} ({} vs {}).".format(
                 colorer(name),
-                colorer("missmatch", color="red"),
+                colorer("mismatch", color="red"),
                 colorer(master.data_width),
                 colorer(self.data_width)))
             raise SoCError()
@@ -941,7 +941,7 @@ class SoCController(LiteXModule):
         if with_scratch:
             self._scratch = CSRStorage(32, reset=0x12345678, description="""
                 Use this register as a scratch space to verify that software read/write accesses
-                to the Wishbone/CSR bus are working correctly. The initial reset value of 0x1234578
+                to the Wishbone/CSR bus are working correctly. The initial reset value of 0x12345678
                 can be used to verify endianness.""")
         if with_errors:
             self._bus_errors = CSRStatus(32, description="Total number of Wishbone bus errors (timeouts) since start.")
