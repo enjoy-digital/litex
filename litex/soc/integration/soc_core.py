@@ -11,7 +11,7 @@
 # This file is Copyright (c) 2015 Robert Jordens <jordens@gmail.com>
 # This file is Copyright (c) 2018 Sean Cross <sean@xobs.io>
 # This file is Copyright (c) 2018 Stafford Horne <shorne@gmail.com>
-# This file is Copyright (c) 2018-2017 Tim 'mithro' Ansell <me@mith.ro>
+# This file is Copyright (c) 2017-2018 Tim 'mithro' Ansell <me@mith.ro>
 # This file is Copyright (c) 2015 whitequark <whitequark@whitequark.org>
 # This file is Copyright (c) 2014 Yann Sionneau <ys@m-labs.hk>
 # SPDX-License-Identifier: BSD-2-Clause
@@ -353,7 +353,7 @@ def soc_core_args(parser):
     # Watchdog parameters.
     soc_group.add_argument("--with-watchdog",        action="store_true",         help="Enable Watchdog.")
     soc_group.add_argument("--watchdog-width",       default=32,   type=auto_int, help="Watchdog width.")
-    soc_group.add_argument("--watchdog-reset-delay", default=None, type=auto_int, help="Watchdog width.")
+    soc_group.add_argument("--watchdog-reset-delay", default=None, type=auto_int, help="Watchdog reset delay.")
 
     # L2 Cache.
     soc_group.add_argument("--l2-size", default=8192, type=auto_int, help="L2 cache size.")
@@ -384,7 +384,7 @@ def soc_core_argdict(args):
 # SoCMini ------------------------------------------------------------------------------------------
 
 class SoCMini(SoCCore):
-     def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         if "cpu_type" not in kwargs.keys():
             kwargs["cpu_type"] = "None"
         if "integrated_sram_size" not in kwargs.keys():
