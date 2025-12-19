@@ -517,11 +517,11 @@ class SoCBusHandler(LiteXModule):
 
         self.submodules += offset_cls(adapted_interface, interface, offset)
 
-        fmt = "{name} Bus {offseted} by {offset}."
+        fmt = "{name} Bus {action} by {offset}."
         self.logger.info(fmt.format(
-            name     = colorer(name),
-            offseted = colorer("offseted", color="cyan"),
-            offset   = colorer(f"0x{offset:08x}"),
+            name   = colorer(name),
+            action = colorer("offset", color="cyan"),
+            offset = colorer(f"0x{offset:08x}"),
         ))
 
         return adapted_interface
