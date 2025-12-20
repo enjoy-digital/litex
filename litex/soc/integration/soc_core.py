@@ -46,82 +46,82 @@ class SoCCore(LiteXSoC):
     csr_map       = {}
     interrupt_map = {}
     mem_map       = {
-        "rom":      0x00000000,
-        "sram":     0x01000000,
-        "main_ram": 0x40000000,
+        "rom"      : 0x00000000,
+        "sram"     : 0x01000000,
+        "main_ram" : 0x40000000,
     }
 
     def __init__(self, platform, clk_freq,
         # Bus parameters.
         bus_standard             = "wishbone",
-        bus_data_width           = 32,
-        bus_address_width        = 32,
-        bus_timeout              = 1e6,
-        bus_bursting             = False,
-        bus_interconnect         = "shared",
+        bus_data_width             = 32,
+        bus_address_width          = 32,
+        bus_timeout                = 1e6,
+        bus_bursting               = False,
+        bus_interconnect           = "shared",
 
         # CPU parameters.
-        cpu_type                 = "vexriscv",
-        cpu_reset_address        = None,
-        cpu_variant              = None,
-        cpu_cfu                  = None,
+        cpu_type                   = "vexriscv",
+        cpu_reset_address          = None,
+        cpu_variant                = None,
+        cpu_cfu                    = None,
 
         # CFU parameters.
-        cfu_filename             = None,
+        cfu_filename               = None,
 
         # ROM parameters.
-        integrated_rom_size      = 0,
-        integrated_rom_mode      = "rx",
-        integrated_rom_init      = [],
+        integrated_rom_size        = 0,
+        integrated_rom_mode        = "rx",
+        integrated_rom_init        = [],
 
         # SRAM parameters.
-        integrated_sram_size     = 0x2000,
-        integrated_sram_init     = [],
+        integrated_sram_size       = 0x2000,
+        integrated_sram_init       = [],
 
         # MAIN_RAM parameters.
-        integrated_main_ram_size = 0,
-        integrated_main_ram_init = [],
+        integrated_main_ram_size   = 0,
+        integrated_main_ram_init   = [],
 
         # CSR parameters.
-        csr_data_width           = 32,
-        csr_address_width        = 14,
-        csr_paging               = 0x800,
-        csr_ordering             = "big",
+        csr_data_width             = 32,
+        csr_address_width          = 14,
+        csr_paging                 = 0x800,
+        csr_ordering               = "big",
 
         # Interrupt parameters.
-        irq_n_irqs               = 32,
+        irq_n_irqs                 = 32,
 
         # Identifier parameters.
-        ident                    = "",
-        ident_version            = False,
+        ident                      = "",
+        ident_version              = False,
 
         # UART parameters.
-        with_uart                = True,
-        uart_name                = "serial",
-        uart_baudrate            = 115200,
-        uart_fifo_depth          = 16,
-        uart_pads                = None,
+        with_uart                  = True,
+        uart_name                  = "serial",
+        uart_baudrate              = 115200,
+        uart_fifo_depth            = 16,
+        uart_pads                  = None,
         uart_with_dynamic_baudrate = False,
-        uart_rx_fifo_rx_we       = False,
+        uart_rx_fifo_rx_we         = False,
 
         # Timer parameters.
-        with_timer               = True,
-        timer_uptime             = False,
+        with_timer                 = True,
+        timer_uptime               = False,
 
         # Controller parameters.
-        with_ctrl                = True,
+        with_ctrl                  = True,
 
         # JTAGBone.
-        with_jtagbone            = False,
-        jtagbone_chain           = 1,
+        with_jtagbone              = False,
+        jtagbone_chain             = 1,
 
         # UARTBone.
-        with_uartbone            = False,
+        with_uartbone              = False,
 
         # Watchdog.
-        with_watchdog            = False,
-        watchdog_width           = 32,
-        watchdog_reset_delay     = None,
+        with_watchdog              = False,
+        watchdog_width             = 32,
+        watchdog_reset_delay       = None,
 
         # Others.
         **kwargs):
@@ -214,11 +214,10 @@ class SoCCore(LiteXSoC):
 
         # Add SoCController.
         if with_ctrl:
-            self.add_controller("ctrl")
+            self.add_controller(name="ctrl")
 
         # Add CPU.
-        self.add_cpu(
-            name          = str(cpu_type),
+        self.add_cpu(name=str(cpu_type),
             variant       = "standard" if cpu_variant is None else cpu_variant,
             reset_address = None if integrated_rom_size else cpu_reset_address,
             cfu           = cpu_cfu)
@@ -230,7 +229,7 @@ class SoCCore(LiteXSoC):
 
         # Add integrated ROM.
         if integrated_rom_size:
-            self.add_rom("rom",
+            self.add_rom(name="rom",
                 origin   = self.cpu.reset_address,
                 size     = integrated_rom_size,
                 contents = integrated_rom_init,
@@ -239,14 +238,14 @@ class SoCCore(LiteXSoC):
 
         # Add integrated SRAM.
         if integrated_sram_size:
-            self.add_ram("sram",
+            self.add_ram(name="sram",
                 origin = self.mem_map["sram"],
                 size   = integrated_sram_size,
             )
 
         # Add integrated MAIN_RAM (only useful when no external SRAM/SDRAM is available).
         if integrated_main_ram_size:
-            self.add_ram("main_ram",
+            self.add_ram(name="main_ram",
                 origin   = self.mem_map["main_ram"],
                 size     = integrated_main_ram_size,
                 contents = integrated_main_ram_init,
@@ -254,19 +253,32 @@ class SoCCore(LiteXSoC):
 
         # Add Identifier.
         if ident != "":
-            self.add_identifier("identifier", identifier=ident, with_build_time=ident_version)
+            self.add_identifier(name="identifier",
+                identifier      = ident,
+                with_build_time = ident_version,
+            )
 
         # Add UARTBone.
         if with_uartbone:
-            self.add_uartbone(baudrate=uart_baudrate, with_dynamic_baudrate=uart_with_dynamic_baudrate)
+            self.add_uartbone(name="uartbone",
+                baudrate              = uart_baudrate,
+                with_dynamic_baudrate = uart_with_dynamic_baudrate,
+            )
 
         # Add UART.
         if with_uart:
-            self.add_uart(name="uart", uart_name=uart_name, uart_pads=uart_pads, baudrate=uart_baudrate, fifo_depth=uart_fifo_depth, with_dynamic_baudrate=uart_with_dynamic_baudrate, rx_fifo_rx_we=uart_rx_fifo_rx_we)
+            self.add_uart(name="uart",
+                uart_name             = uart_name,
+                uart_pads             = uart_pads,
+                baudrate              = uart_baudrate,
+                fifo_depth            = uart_fifo_depth,
+                with_dynamic_baudrate = uart_with_dynamic_baudrate,
+                rx_fifo_rx_we         = uart_rx_fifo_rx_we,
+            )
 
         # Add JTAGBone.
         if with_jtagbone:
-            self.add_jtagbone(chain=jtagbone_chain)
+            self.add_jtagbone(name="jtagbone", chain=jtagbone_chain)
 
         # Add Timer.
         if with_timer:
@@ -276,7 +288,8 @@ class SoCCore(LiteXSoC):
 
         # Add Watchdog.
         if with_watchdog:
-            self.add_watchdog(name="watchdog0" ,width=watchdog_width, reset_delay=watchdog_reset_delay)
+            self.add_watchdog(name="watchdog0",
+                width=watchdog_width, reset_delay=watchdog_reset_delay)
 
     # Methods --------------------------------------------------------------------------------------
 
@@ -285,8 +298,8 @@ class SoCCore(LiteXSoC):
 
     def add_memory_region(self, name, origin, length, type="cached"):
         self.bus.add_region(name, SoCRegion(origin=origin, size=length,
-            cached="cached" in type,
-            linker="linker" in type)
+            cached = "cached" in type,
+            linker = "linker" in type)
         )
 
     def add_csr_region(self, name, origin, busword, obj):
@@ -297,66 +310,66 @@ class SoCCore(LiteXSoC):
 def soc_core_args(parser):
     soc_group = parser.add_argument_group(title="SoC options")
     # Bus parameters.
-    soc_group.add_argument("--bus-standard",      default="wishbone",                help="Select bus standard: {}.".format(", ".join(SoCBusHandler.supported_standard)))
-    soc_group.add_argument("--bus-data-width",    default=32,         type=auto_int, help="Bus data-width.")
-    soc_group.add_argument("--bus-address-width", default=32,         type=auto_int, help="Bus address-width.")
-    soc_group.add_argument("--bus-timeout",       default=int(1e6),   type=float,    help="Bus timeout in cycles.")
-    soc_group.add_argument("--bus-bursting",      action="store_true",               help="Enable burst cycles on the bus if supported.")
-    soc_group.add_argument("--bus-interconnect",  default="shared",                  help="Select bus interconnect: shared (default) or crossbar.")
+    soc_group.add_argument("--bus-standard",             default="wishbone",                 help="Select bus standard: {}.".format(", ".join(SoCBusHandler.supported_standard)))
+    soc_group.add_argument("--bus-data-width",           default=32,         type=auto_int,  help="Bus data-width.")
+    soc_group.add_argument("--bus-address-width",        default=32,         type=auto_int,  help="Bus address-width.")
+    soc_group.add_argument("--bus-timeout",              default=int(1e6),   type=float,     help="Bus timeout in cycles.")
+    soc_group.add_argument("--bus-bursting",             action="store_true",                help="Enable burst cycles on the bus if supported.")
+    soc_group.add_argument("--bus-interconnect",         default="shared",                   help="Select bus interconnect: shared (default) or crossbar.")
 
     # CPU parameters.
-    soc_group.add_argument("--cpu-type",          default="vexriscv",               help="Select CPU: {}.".format(", ".join(iter(cpu.CPUS.keys()))))
-    soc_group.add_argument("--cpu-variant",       default=None,                     help="CPU variant.")
-    soc_group.add_argument("--cpu-reset-address", default=None,      type=auto_int, help="CPU reset address (Boot from Integrated ROM by default).")
-    soc_group.add_argument("--cpu-cfu",           default=None,                     help="Optional CPU CFU file/instance to add to the CPU.")
+    soc_group.add_argument("--cpu-type",                 default="vexriscv",                 help="Select CPU: {}.".format(", ".join(iter(cpu.CPUS.keys()))))
+    soc_group.add_argument("--cpu-variant",              default=None,                       help="CPU variant.")
+    soc_group.add_argument("--cpu-reset-address",        default=None,       type=auto_int,  help="CPU reset address (Boot from Integrated ROM by default).")
+    soc_group.add_argument("--cpu-cfu",                  default=None,                       help="Optional CPU CFU file/instance to add to the CPU.")
 
     # Controller parameters.
-    soc_group.add_argument("--no-ctrl", action="store_true", help="Disable Controller.")
+    soc_group.add_argument("--no-ctrl",                  action="store_true",                help="Disable Controller.")
 
     # ROM parameters.
-    soc_group.add_argument("--integrated-rom-size", default=0x20000, type=auto_int, help="Size/Enable the integrated (BIOS) ROM (Automatically resized to BIOS size when smaller).")
-    soc_group.add_argument("--integrated-rom-init", default=None,    type=str,      help="Integrated ROM binary initialization file (override the BIOS when specified).")
+    soc_group.add_argument("--integrated-rom-size",      default=0x20000,     type=auto_int, help="Size/Enable the integrated (BIOS) ROM (Automatically resized to BIOS size when smaller).")
+    soc_group.add_argument("--integrated-rom-init",      default=None,        type=str,      help="Integrated ROM binary initialization file (override the BIOS when specified).")
 
     # SRAM parameters.
-    soc_group.add_argument("--integrated-sram-size", default=0x2000, type=auto_int, help="Size/Enable the integrated SRAM.")
+    soc_group.add_argument("--integrated-sram-size",     default=0x2000,      type=auto_int, help="Size/Enable the integrated SRAM.")
 
     # MAIN_RAM parameters.
-    soc_group.add_argument("--integrated-main-ram-size", default=None, type=auto_int, help="size/enable the integrated main RAM.")
+    soc_group.add_argument("--integrated-main-ram-size", default=None,        type=auto_int, help="size/enable the integrated main RAM.")
 
     # CSR parameters.
-    soc_group.add_argument("--csr-data-width",    default=32  ,  type=auto_int, help="CSR bus data-width (8 or 32).")
-    soc_group.add_argument("--csr-address-width", default=14,    type=auto_int, help="CSR bus address-width.")
-    soc_group.add_argument("--csr-paging",        default=0x800, type=auto_int, help="CSR bus paging.")
-    soc_group.add_argument("--csr-ordering",      default="big",                help="CSR registers ordering (big or little).")
+    soc_group.add_argument("--csr-data-width",           default=32,          type=auto_int, help="CSR bus data-width (8 or 32).")
+    soc_group.add_argument("--csr-address-width",        default=14,          type=auto_int, help="CSR bus address-width.")
+    soc_group.add_argument("--csr-paging",               default=0x800,       type=auto_int, help="CSR bus paging.")
+    soc_group.add_argument("--csr-ordering",             default="big",                      help="CSR registers ordering (big or little).")
 
     # Identifier parameters.
-    soc_group.add_argument("--ident",             default=None,  type=str, help="SoC identifier.")
-    soc_group.add_argument("--no-ident-version",  action="store_true",     help="Disable date/time in SoC identifier.")
+    soc_group.add_argument("--ident",                    default=None,        type=str,      help="SoC identifier.")
+    soc_group.add_argument("--no-ident-version",         action="store_true",                help="Disable date/time in SoC identifier.")
 
     # UART parameters.
-    soc_group.add_argument("--no-uart",         action="store_true",                help="Disable UART.")
-    soc_group.add_argument("--uart-name",       default="serial",    type=str,      help="UART type/name.")
-    soc_group.add_argument("--uart-baudrate",   default=115200,      type=auto_int, help="UART baudrate.")
-    soc_group.add_argument("--uart-fifo-depth", default=16,          type=auto_int, help="UART FIFO depth.")
+    soc_group.add_argument("--no-uart",                  action="store_true",                help="Disable UART.")
+    soc_group.add_argument("--uart-name",                default="serial",    type=str,      help="UART type/name.")
+    soc_group.add_argument("--uart-baudrate",            default=115200,      type=auto_int, help="UART baudrate.")
+    soc_group.add_argument("--uart-fifo-depth",          default=16,          type=auto_int, help="UART FIFO depth.")
 
     # UARTBone parameters.
-    soc_group.add_argument("--with-uartbone",   action="store_true",                help="Enable UARTbone.")
+    soc_group.add_argument("--with-uartbone",            action="store_true",                help="Enable UARTbone.")
 
     # JTAGBone parameters.
-    soc_group.add_argument("--with-jtagbone",  action="store_true", help="Enable Jtagbone support.")
-    soc_group.add_argument("--jtagbone-chain", default=1, type=int, help="Jtagbone chain index.")
+    soc_group.add_argument("--with-jtagbone",            action="store_true",                help="Enable Jtagbone support.")
+    soc_group.add_argument("--jtagbone-chain",           default=1, type=int,                help="Jtagbone chain index.")
 
     # Timer parameters.
-    soc_group.add_argument("--no-timer",        action="store_true", help="Disable Timer.")
-    soc_group.add_argument("--timer-uptime",    action="store_true", help="Add an uptime capability to Timer.")
+    soc_group.add_argument("--no-timer",                 action="store_true",                help="Disable Timer.")
+    soc_group.add_argument("--timer-uptime",             action="store_true",                help="Add an uptime capability to Timer.")
 
     # Watchdog parameters.
-    soc_group.add_argument("--with-watchdog",        action="store_true",         help="Enable Watchdog.")
-    soc_group.add_argument("--watchdog-width",       default=32,   type=auto_int, help="Watchdog width.")
-    soc_group.add_argument("--watchdog-reset-delay", default=None, type=auto_int, help="Watchdog reset delay.")
+    soc_group.add_argument("--with-watchdog",            action="store_true",                help="Enable Watchdog.")
+    soc_group.add_argument("--watchdog-width",           default=32,   type=auto_int,        help="Watchdog width.")
+    soc_group.add_argument("--watchdog-reset-delay",     default=None, type=auto_int,        help="Watchdog reset delay.")
 
     # L2 Cache.
-    soc_group.add_argument("--l2-size", default=8192, type=auto_int, help="L2 cache size.")
+    soc_group.add_argument("--l2-size",                  default=8192, type=auto_int,        help="L2 cache size.")
 
 def soc_core_argdict(args):
     r = dict()
