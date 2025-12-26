@@ -24,20 +24,21 @@ from litex.soc.cores.cpu import CPU
 # Zynq 7000 ----------------------------------------------------------------------------------------
 
 class Zynq7000(CPU):
-    variants             = ["standard"]
-    category             = "hardcore"
-    family               = "arm"
-    name                 = "zynq7000"
-    human_name           = "Zynq7000"
-    data_width           = 32
-    endianness           = "little"
-    reset_address        = 0xfc00_0000
-    gcc_triple           = "arm-none-eabi"
-    gcc_flags            = "-mcpu=cortex-a9 -mfpu=vfpv3 -mfloat-abi=hard"
-    linker_output_format = "elf32-littlearm"
-    nop                  = "nop"
-    io_regions           = {0x4000_0000: 0xbc00_0000} # Origin, Length.
-    csr_decode           = True # AXI address is decoded in AXI2Wishbone, offset needs to be added in Software.
+    variants                 = ["standard"]
+    category                 = "hardcore"
+    family                   = "arm"
+    name                     = "zynq7000"
+    human_name               = "Zynq7000"
+    data_width               = 32
+    endianness               = "little"
+    reset_address            = 0xfc00_0000
+    gcc_triple               = "arm-none-eabi"
+    gcc_flags                = "-mcpu=cortex-a9 -mfpu=vfpv3 -mfloat-abi=hard"
+    linker_output_format     = "elf32-littlearm"
+    nop                      = "nop"
+    io_regions               = {0x4000_0000: 0xbc00_0000} # Origin, Length.
+    csr_decode               = True # AXI address is decoded in AXI2Wishbone, offset needs to be added in Software.
+    integrated_rom_supported = False
 
     # Memory Mapping.
     @property

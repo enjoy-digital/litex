@@ -17,22 +17,23 @@ from litex.gen import *
 # CPU (Generic) ------------------------------------------------------------------------------------
 
 class CPU(LiteXModule):
-    category             = None
-    family               = None
-    name                 = None
-    data_width           = None
-    endianness           = None
-    gcc_triple           = None
-    gcc_flags            = None
-    clang_triple         = None
-    clang_flags          = None
-    linker_output_format = None
-    interrupts           = {}
-    mem_map              = {"csr": 0x82000000}
-    io_regions           = {}
-    use_rom              = False
-    csr_decode           = True
-    reset_address_check  = True
+    category                 = None
+    family                   = None
+    name                     = None
+    data_width               = None
+    endianness               = None
+    gcc_triple               = None
+    gcc_flags                = None
+    clang_triple             = None
+    clang_flags              = None
+    linker_output_format     = None
+    interrupts               = {}
+    mem_map                  = {"csr": 0x82000000}
+    io_regions               = {}
+    use_rom                  = False
+    csr_decode               = True
+    reset_address_check      = True
+    integrated_rom_supported = True
 
     def __init__(self, *args, **kwargs):
         pass
@@ -49,17 +50,18 @@ class CPU(LiteXModule):
 # CPU None (Used for SoC without a CPU) ------------------------------------------------------------
 
 class CPUNone(CPU):
-    variants            = ["standard"]
-    endianness          = "little"
-    reset_address       = 0x00000000
-    reset_address_check = False
-    periph_buses        = []
-    memory_buses        = []
-    mem_map             = {
+    variants                 = ["standard"]
+    endianness               = "little"
+    reset_address            = 0x00000000
+    reset_address_check      = False
+    periph_buses             = []
+    memory_buses             = []
+    mem_map                  = {
         "csr"      : 0x0000_0000,
         "ethmac"   : 0x0002_0000, # FIXME: Remove.
         "spiflash" : 0x1000_0000, # FIXME: Remove.
     }
+    integrated_rom_supported = False
 
     def __init__(self, data_width=32, addr_width=32):
         self.io_regions = {0: int(2**float(addr_width))} # origin, length

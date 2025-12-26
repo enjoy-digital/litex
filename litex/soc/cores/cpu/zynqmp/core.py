@@ -18,23 +18,24 @@ from litex.soc.interconnect.csr import *
 # Zynq MP ------------------------------------------------------------------------------------------
 
 class ZynqMP(CPU):
-    variants             = ["standard"]
-    category             = "hardcore"
-    family               = "aarch64"
-    name                 = "zynqmp"
-    human_name           = "Zynq Ultrascale+ MPSoC"
-    data_width           = 64
-    endianness           = "little"
-    reset_address        = 0xc000_0000
-    gcc_triple           = "aarch64-none-elf"
-    gcc_flags            = ""
-    linker_output_format = "elf64-littleaarch64"
-    nop                  = "nop"
-    io_regions           = {  # Origin, Length.
+    variants                 = ["standard"]
+    category                 = "hardcore"
+    family                   = "aarch64"
+    name                     = "zynqmp"
+    human_name               = "Zynq Ultrascale+ MPSoC"
+    data_width               = 64
+    endianness               = "little"
+    reset_address            = 0xc000_0000
+    gcc_triple               = "aarch64-none-elf"
+    gcc_flags                = ""
+    linker_output_format     = "elf64-littleaarch64"
+    nop                      = "nop"
+    io_regions               = {  # Origin, Length.
         0x8000_0000: 0x00_4000_0000,
         0xe000_0000: 0xff_2000_0000  # TODO: there are more details here
     }
-    csr_decode           = True # AXI address is decoded in AXI2Wishbone, offset needs to be added in Software.
+    csr_decode               = True # AXI address is decoded in AXI2Wishbone, offset needs to be added in Software.
+    integrated_rom_supported = False
 
     @property
     def mem_map(self):

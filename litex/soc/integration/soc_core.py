@@ -163,18 +163,17 @@ class SoCCore(LiteXSoC):
         self.cpu_variant  = cpu_variant
 
         # ROM.
-        # Initialize ROM from binary file when provided.
-        if isinstance(integrated_rom_init, str):
-            integrated_rom_init = get_mem_data(integrated_rom_init,
-                endianness = cpu_cls.endianness,
-                data_width = bus_data_width
-            )
-            integrated_rom_size = len(integrated_rom_init)*(bus_data_width//8)
-
-        # Disable ROM when no CPU/hard-CPU.
-        if cpu_type in [None, "zynq7000", "zynqmp", "eos_s3"]:
-            integrated_rom_init = []
+        # Initialize ROM from binary file when supported and provided.
+        if cpu_cls.integrated_rom_supported:
+            if isinstance(integrated_rom_init, str):
+                integrated_rom_init = get_mem_data(integrated_rom_init,
+                    endianness = cpu_cls.endianness,
+                    data_width = bus_data_width
+                )
+                integrated_rom_size = len(integrated_rom_init)*(bus_data_width//8)
+        else:
             integrated_rom_size = 0
+            integrated_rom_init = []
         self.integrated_rom_size        = integrated_rom_size
         self.integrated_rom_initialized = integrated_rom_init != []
 
