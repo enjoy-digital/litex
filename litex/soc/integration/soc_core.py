@@ -197,7 +197,7 @@ class SoCCore(LiteXSoC):
             self.add_controller(name="ctrl")
 
         # Add CPU.
-        self.add_cpu(name=str(cpu_type),
+        self.add_cpu(name=cpu_cls.name,
             variant       = "standard" if cpu_variant is None else cpu_variant,
             reset_address = None if integrated_rom_size else cpu_reset_address,
             cfu           = cpu_cfu)
