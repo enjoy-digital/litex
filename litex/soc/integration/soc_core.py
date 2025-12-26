@@ -155,8 +155,9 @@ class SoCCore(LiteXSoC):
         # Parameters management --------------------------------------------------------------------
 
         # CPU.
-        cpu_type          = None if cpu_type == "None" else cpu_type
+        cpu_type          = None if cpu_type          == "None" else cpu_type
         cpu_reset_address = None if cpu_reset_address == "None" else cpu_reset_address
+        cpu_cls           = cpu.CPUS.get(cpu_type)
 
         self.cpu_type     = cpu_type
         self.cpu_variant  = cpu_variant
@@ -165,7 +166,7 @@ class SoCCore(LiteXSoC):
         # Initialize ROM from binary file when provided.
         if isinstance(integrated_rom_init, str):
             integrated_rom_init = get_mem_data(integrated_rom_init,
-                endianness = "little", # FIXME: Depends on CPU.
+                endianness = cpu_cls.endianness,
                 data_width = bus_data_width
             )
             integrated_rom_size = 4*len(integrated_rom_init)
