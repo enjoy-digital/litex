@@ -169,7 +169,7 @@ class SoCCore(LiteXSoC):
                 endianness = cpu_cls.endianness,
                 data_width = bus_data_width
             )
-            integrated_rom_size = 4*len(integrated_rom_init)
+            integrated_rom_size = len(integrated_rom_init)*(bus_data_width//8)
 
         # Disable ROM when no CPU/hard-CPU.
         if cpu_type in [None, "zynq7000", "zynqmp", "eos_s3"]:
