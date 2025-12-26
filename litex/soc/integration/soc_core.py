@@ -189,17 +189,6 @@ class SoCCore(LiteXSoC):
         # Wishbone Slaves.
         self.wb_slaves = {}
 
-        # Parameters check validity ----------------------------------------------------------------
-
-        # FIXME: Move to soc.py?
-
-        if with_uart:
-            # JTAGBone and jtag_uart can't be used at the same time.
-            assert not (with_jtagbone and uart_name == "jtag_uart")
-
-            # UARTBone and serial can't be used at the same time.
-            assert not (with_uartbone and uart_name == "serial")
-
         # Modules instances ------------------------------------------------------------------------
 
         # Add SoCController.
@@ -250,6 +239,7 @@ class SoCCore(LiteXSoC):
 
         # Add UARTBone.
         if with_uartbone:
+            assert not (uart_name == "serial") # Mutually exclusive with default serial UART.
             self.add_uartbone(name="uartbone",
                 baudrate              = uart_baudrate,
                 with_dynamic_baudrate = uart_with_dynamic_baudrate,
@@ -268,6 +258,7 @@ class SoCCore(LiteXSoC):
 
         # Add JTAGBone.
         if with_jtagbone:
+            assert not (uart_name == "jtag_uart") # Mutually exclusive with jtag_uart.
             self.add_jtagbone(name="jtagbone", chain=jtagbone_chain)
 
         # Add Timer.
