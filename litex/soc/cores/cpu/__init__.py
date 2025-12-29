@@ -19,7 +19,7 @@ from litex.gen import *
 class CPU(LiteXModule):
     category                 = None
     family                   = None
-    name                     = None
+    name                     = "None"
     data_width               = None
     endianness               = None
     gcc_triple               = None
@@ -95,7 +95,7 @@ CPU_GCC_TRIPLE_RISCV32 = CPU_GCC_TRIPLE_RISCV64 + (
 # CPUs Collection ----------------------------------------------------------------------------------
 
 def collect_cpus():
-    cpus  = {"None" : CPUNone, None : CPUNone}
+    cpus  = {"None" : CPUNone}
     paths = [
         # Add litex.soc.cores.cpu path.
         os.path.dirname(__file__),
