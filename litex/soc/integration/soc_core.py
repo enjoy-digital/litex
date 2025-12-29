@@ -155,17 +155,17 @@ class SoCCore(LiteXSoC):
         # Parameters management --------------------------------------------------------------------
 
         # CPU.
-        cpu_cls           = cpu.CPUS.get(cpu_type)
         cpu_type          = None if cpu_type          == "None" else cpu_type
         cpu_reset_address = None if cpu_reset_address == "None" else cpu_reset_address
+        cpu_cls           = cpu.CPUS.get(cpu_type)
 
         self.cpu_type     = cpu_type
         self.cpu_variant  = cpu_variant
 
         # ROM.
         # Initialize ROM from binary file when supported and provided.
-        if cpu_cls.integrated_rom_supported:
-            if isinstance(integrated_rom_init, str):
+        if cpu_cls is not None:
+            if cpu_cls.integrated_rom_supported and isinstance(integrated_rom_init, str):
                 integrated_rom_init = get_mem_data(integrated_rom_init,
                     endianness = cpu_cls.endianness,
                     data_width = bus_data_width
@@ -196,7 +196,7 @@ class SoCCore(LiteXSoC):
             self.add_controller(name="ctrl")
 
         # Add CPU.
-        self.add_cpu(name=cpu_cls.name,
+        self.add_cpu(name=cpu_type,
             variant       = "standard" if cpu_variant is None else cpu_variant,
             reset_address = None if integrated_rom_size else cpu_reset_address,
             cfu           = cpu_cfu)
@@ -299,7 +299,7 @@ def soc_core_args(parser):
     soc_group.add_argument("--bus-interconnect",         default="shared",                   help="Select bus interconnect: shared (default) or crossbar.")
 
     # CPU parameters.
-    soc_group.add_argument("--cpu-type",                 default="vexriscv",                 help="Select CPU: {}.".format(", ".join(iter(cpu.CPUS.keys()))))
+    soc_group.add_argument("--cpu-type",                 default="vexriscv",                 help="Select CPU: {}.".format(", ".join(map(str, cpu.CPUS.keys()))))
     soc_group.add_argument("--cpu-variant",              default=None,                       help="CPU variant.")
     soc_group.add_argument("--cpu-reset-address",        default=None,       type=auto_int,  help="CPU reset address (Boot from Integrated ROM by default).")
     soc_group.add_argument("--cpu-cfu",                  default=None,                       help="Optional CPU CFU file/instance to add to the CPU.")

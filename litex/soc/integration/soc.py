@@ -1220,8 +1220,8 @@ class SoC(LiteXModule, SoCCoreCompat):
         # Check that CPU is supported.
         if name not in cpu.CPUS.keys():
             supported_cpus = []
-            cpu_name_length = max([len(cpu_name) for cpu_name in cpu.CPUS.keys()])
-            for cpu_name in sorted(cpu.CPUS.keys()):
+            cpu_name_length = max([len(cpu_name) for cpu_name in map(str, cpu.CPUS.keys())])
+            for cpu_name in sorted(map(str, cpu.CPUS.keys())):
                 cpu_cls  = cpu.CPUS[cpu_name]
                 cpu_desc = f"{cpu_cls.family}\t/ {cpu_cls.category}"
                 supported_cpus += [f"- {cpu_name}{' '*(cpu_name_length - len(cpu_name))} ({cpu_desc})"]
