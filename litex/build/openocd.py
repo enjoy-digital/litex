@@ -55,6 +55,9 @@ class OpenOCD(GenericProgrammer):
         # Intel Max10.
         elif "10m50" in cfg_str:
             chain = 0xc
+        # Intel Arria10.
+        elif "10ax" in cfg_str:
+            chain = 0xc
         # Xilinx ZynqMP.
         elif "zynqmp" in cfg_str:
             chain = {
