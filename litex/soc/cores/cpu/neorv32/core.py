@@ -114,7 +114,7 @@ class NEORV32(CPU):
                 i_jtag_tms_i  = 0,
 
                 # Interrupt.
-                i_mext_irq_i  = 0,
+                i_irq_mei_i  = 0,
 
                 # I/D Wishbone Bus.
                 o_wb_adr_o = self.periph_buses[i].adr,
@@ -140,7 +140,6 @@ class NEORV32(CPU):
                     "numa+debug"     : 4,
                 }[self.variant],
                 p_DEBUG = "debug" in self.variant,
-                p_HART_ID = i,
             )
 
             # TODO
@@ -203,7 +202,6 @@ class NEORV32(CPU):
                 "neorv32_cache.vhd",
                 "neorv32_cfs.vhd",
                 "neorv32_clint.vhd",
-                "neorv32_clockgate.vhd",
                 "neorv32_cpu_alu.vhd",
                 "neorv32_cpu_control.vhd",
                 "neorv32_cpu_counters.vhd",
@@ -216,24 +214,24 @@ class NEORV32(CPU):
                 "neorv32_cpu_cp_shifter.vhd",
                 "neorv32_cpu_decompressor.vhd",
                 "neorv32_cpu_frontend.vhd",
-                "neorv32_cpu_icc.vhd",
+                "neorv32_cpu_hwtrig.vhd",
                 "neorv32_cpu_lsu.vhd",
                 "neorv32_cpu_pmp.vhd",
                 "neorv32_cpu_regfile.vhd",
+                "neorv32_cpu_trace.vhd",
                 "neorv32_cpu.vhd",
-                "neorv32_crc.vhd",
                 "neorv32_debug_auth.vhd",
                 "neorv32_debug_dm.vhd",
                 "neorv32_debug_dtm.vhd",
                 "neorv32_dma.vhd",
                 "neorv32_dmem.vhd",
-                "neorv32_fifo.vhd",
                 "neorv32_gpio.vhd",
                 "neorv32_gptmr.vhd",
                 "neorv32_imem.vhd",
                 "neorv32_neoled.vhd",
                 "neorv32_onewire.vhd",
                 "neorv32_package.vhd",
+                "neorv32_prim.vhd",
                 "neorv32_pwm.vhd",
                 "neorv32_sdi.vhd",
                 "neorv32_slink.vhd",
@@ -241,6 +239,7 @@ class NEORV32(CPU):
                 "neorv32_sysinfo.vhd",
                 "neorv32_sys.vhd",
                 "neorv32_top.vhd",
+                "neorv32_tracer.vhd",
                 "neorv32_trng.vhd",
                 "neorv32_twd.vhd",
                 "neorv32_twi.vhd",
@@ -255,8 +254,8 @@ class NEORV32(CPU):
         }
 
         # Download VHDL sources (if not already present).
-        # Version 1.11.2
-        sha1 = "d7b97527997d1d16a4d1207713425b92d7d69271"
+        # Version 1.12.6.2
+        sha1 = "e8a44708ee07d396ab4c4495a1638f25e2d6e9b0"
         for directory, vhds in sources.items():
             for vhd in vhds:
                 vhd2v_converter.add_source(os.path.join(cdir, vhd))
