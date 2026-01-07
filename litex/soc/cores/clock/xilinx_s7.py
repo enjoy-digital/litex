@@ -4,6 +4,8 @@
 # Copyright (c) 2018-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+from math import ceil
+
 from migen import *
 
 from litex.gen import *
@@ -58,9 +60,8 @@ class S7PLL(XilinxClocking):
 
 class S7MMCM(XilinxClocking):
     nclkouts_max         = 7
-    clkout0_divide_range = (1, (128 + 1/8), 1/8) # Fractional Divide available on CLKOUT0
 
-    def __init__(self, speedgrade=-1):
+    def __init__(self, speedgrade=-1, fractional=True):
         self.logger = logging.getLogger("S7MMCM")
         self.logger.info("Creating S7MMCM, {}.".format(colorer("speedgrade {}".format(speedgrade))))
         XilinxClocking.__init__(self)
@@ -76,6 +77,14 @@ class S7MMCM(XilinxClocking):
             -2: (600e6, 1440e6),
             -3: (600e6, 1600e6),
         }[speedgrade]
+        
+        self.clkout0_divide_range = (1, (128 + 1/8), 1/8) # Fractional Divide available on CLKOUT0
+        self.clkfbout_mult_frange = (2,  64+1/8, 1/8) # Fractional multiply
+
+        if not fractional:
+            # Fractionnal opperation is incompatible with fine phase shift, this constrains the configuration to integers only
+            self.clkout0_divide_range = (self.clkout0_divide_range[0], ceil(self.clkout0_divide_range[1]))  
+            self.clkfbout_mult_frange = (self.clkfbout_mult_frange[0], ceil(self.clkfbout_mult_frange[1]))  
 
     def do_finalize(self):
         XilinxClocking.do_finalize(self)

@@ -18,10 +18,10 @@ from litex.soc.cores.clock.common import *
 # Xilinx / Generic ---------------------------------------------------------------------------------
 
 class XilinxClocking(LiteXModule):
-    clkfbout_mult_frange = (2,  64+1)
-    clkout_divide_range  = (1, 128+1)
 
     def __init__(self, vco_margin=0):
+        self.clkfbout_mult_frange = (2,  64+1)
+        self.clkout_divide_range  = (1, 128+1)
         self.vco_margin = vco_margin
         self.reset      = Signal()
         self.power_down = Signal()
@@ -79,7 +79,7 @@ class XilinxClocking(LiteXModule):
         config = {}
         for divclk_divide in range(*self.divclk_divide_range):
             config["divclk_divide"] = divclk_divide
-            for clkfbout_mult in reversed(range(*self.clkfbout_mult_frange)):
+            for clkfbout_mult in clkdiv_range(*self.clkfbout_mult_frange): # reverse to use highest vco frequency ?
                 all_valid = True
                 vco_freq = self.clkin_freq*clkfbout_mult/divclk_divide
                 (vco_freq_min, vco_freq_max) = self.vco_freq_range
