@@ -41,7 +41,6 @@ def boot_test(cpu_type="vexriscv", cpu_variant="standard", args=""):
     return is_success
 
 TESTED_CPUS = [
-    "coreblocks",   # (riscv   / softcore)
     #"cv32e40p",     # (riscv   / softcore)
     "femtorv",      # (riscv   / softcore)
     "firev",        # (riscv   / softcore)
@@ -56,6 +55,7 @@ TESTED_CPUS = [
     "ibex",         # (riscv   / softcore)
 ]
 UNTESTED_CPUS = [
+    "coreblocks",   # (riscv   / softcore) -> Broken install?
     "blackparrot",  # (riscv   / softcore) -> Broken install?
     "cortex_m1",    # (arm     / softcore) -> Proprietary code.
     "cortex_m3",    # (arm     / softcore) -> Proprieraty code.
