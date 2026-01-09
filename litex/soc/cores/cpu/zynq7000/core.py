@@ -945,7 +945,7 @@ class Zynq7000(CPU):
         LiteXContext.top.add_constant(f"CONFIG_PS7_GEM{n}_INT_PHYADDR", internal_phyaddr)
         LiteXContext.top.add_constant(f"CONFIG_PS7_GEM{n}_EXT_PHYADDR", external_phyaddr)
         LiteXContext.top.add_constant(f"CONFIG_PS7_GEM{n}_IO",          eth_io_type)
-        LiteXContext.top.add_constant(f"CONFIG_PS7_GEM{n}_MDIO_ENABLE", mdio_pads_or_mio_group is not None)
+        LiteXContext.top.add_constant(f"CONFIG_PS7_GEM{n}_MDIO_ENABLE", {True: 1, False: 0}[mdio_pads_or_mio_group is not None])
         LiteXContext.top.add_constant(f"CONFIG_PS7_GEM{n}_MDIO_IO",     mdio_io_type)
 
         mac_params = dict()
