@@ -88,6 +88,7 @@ class Builder:
         bios_lto         = False,
         bios_format      = "integer",
         bios_console     = "full",
+        bios_selftest    = "full",
 
         # Documentation.
         generate_doc     = False):
@@ -118,6 +119,7 @@ class Builder:
         self.bios_lto     = bios_lto
         self.bios_format  = bios_format
         self.bios_console = bios_console
+        self.bios_selftest= bios_selftest
 
         # Documentation.
         self.generate_doc = generate_doc
@@ -202,7 +204,8 @@ class Builder:
         define("LTO", f"{self.bios_lto:d}")
         assert self.bios_console in ["full", "no-history", "no-autocomplete", "lite", "disable"]
         define(f"BIOS_CONSOLE_{self.bios_console.upper()}", "1")
-
+        assert self.bios_selftest in ["full", "crc", "ram","disable"]
+        define("CONFIG_BIOS_SELFTEST", self.bios_selftest)
         return "\n".join(variables_contents)
 
     def _generate_includes(self, with_bios=True):
@@ -459,6 +462,7 @@ def builder_args(parser):
     bios_group.add_argument("--bios-lto",     action="store_true", help="Enable BIOS LTO (Link Time Optimization) compilation.")
     bios_group.add_argument("--bios-format",  default="integer",   help="Select BIOS printf format.",  choices=["integer", "float", "double"])
     bios_group.add_argument("--bios-console", default="full"  ,    help="Select BIOS console config.", choices=["full", "no-history", "no-autocomplete", "lite", "disable"])
+    bios_group.add_argument("--bios-selftest", default="full",     help="Enable BIOS boot tests. 'crc' enables ROM CRC verification. 'ram' runs RAM memtest and memspeed.", choices=["full", "crc", "ram","disable"])
 
 def builder_argdict(args):
     return {
@@ -478,4 +482,5 @@ def builder_argdict(args):
         "bios_lto"         : args.bios_lto,
         "bios_format"      : args.bios_format,
         "bios_console"     : args.bios_console,
+        "bios_selftest"    : args.bios_selftest
     }
