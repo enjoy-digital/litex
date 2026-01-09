@@ -164,16 +164,15 @@ class SoCCore(LiteXSoC):
 
         # ROM.
         # Initialize ROM from binary file when supported and provided.
-        if cpu_cls is not None:
-            if cpu_cls.integrated_rom_supported and isinstance(integrated_rom_init, str):
-                integrated_rom_init = get_mem_data(integrated_rom_init,
-                    endianness = cpu_cls.endianness,
-                    data_width = bus_data_width
-                )
-                integrated_rom_size = len(integrated_rom_init)*(bus_data_width//8)
-        else:
+        if cpu_cls is None or not cpu_cls.integrated_rom_supported:
             integrated_rom_size = 0
             integrated_rom_init = []
+        elif isinstance(integrated_rom_init, str):
+            integrated_rom_init = get_mem_data(integrated_rom_init,
+                endianness = cpu_cls.endianness,
+                data_width = bus_data_width
+            )
+            integrated_rom_size = len(integrated_rom_init)*(bus_data_width//8)
         self.integrated_rom_size        = integrated_rom_size
         self.integrated_rom_initialized = integrated_rom_init != []
 
