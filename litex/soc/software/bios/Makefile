@@ -43,6 +43,19 @@ else
 OBJECTS += readline.o
 endif
 
+ifeq ($(CONFIG_BIOS_SELFTEST),full)
+# intentionally empty (nothing turned off)
+else ifeq ($(CONFIG_BIOS_SELFTEST),crc)
+CFLAGS += -DCONFIG_MAIN_RAM_INIT
+else ifeq ($(CONFIG_BIOS_SELFTEST),ram)
+CFLAGS += -DCONFIG_BIOS_NO_CRC
+else ifeq ($(CONFIG_BIOS_SELFTEST),disable)
+CFLAGS += -DCONFIG_MAIN_RAM_INIT
+CFLAGS += -DCONFIG_BIOS_NO_CRC
+else
+$(error unknown CONFIG_BIOS_SELFTEST value)
+endif
+
 ifeq ($(CPU), zynq7000)
 LSCRIPT = linker-zynq.ld
 else ifeq ($(CPU), zynqmp)
