@@ -421,8 +421,8 @@ class JTAGPHY(LiteXModule):
 
 
         # JTAG TAP ---------------------------------------------------------------------------------
+        jtag_tdi_delay = 0
         if jtag is None:
-            jtag_tdi_delay = 0
             # Xilinx.
             if XilinxJTAG.get_primitive(device) is not None:
                 jtag = XilinxJTAG(primitive=XilinxJTAG.get_primitive(device), chain=chain)
