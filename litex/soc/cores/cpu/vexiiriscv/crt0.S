@@ -17,10 +17,12 @@
 #define STORE sd
 #define LOAD ld
 #define WORD 8
+#define LOADW lwu
 #else
 #define STORE sw
 #define LOAD lw
 #define WORD 4
+#define LOADW lw
 #endif
 
 _start:
@@ -94,10 +96,10 @@ smp_slave:
   fence r, r
 
   .word(0x100F) //i$ flush
-  lw x10, smp_lottery_args
-  lw x11, smp_lottery_args+4
-  lw x12, smp_lottery_args+8
-  lw x13, smp_lottery_target
+  LOADW x10, smp_lottery_args
+  LOADW x11, smp_lottery_args+4
+  LOADW x12, smp_lottery_args+8
+  LOADW x13, smp_lottery_target
   jr x13
 
 
