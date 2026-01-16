@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+#include <stdbool.h>
 
 #include <generated/csr.h>
 #include <generated/mem.h>
@@ -22,7 +23,7 @@
 #ifdef CSR_SDCARD_BASE
 
 //#define SDCARD_DEBUG
-//#define SDCARD_CMD23_SUPPORT /* SET_BLOCK_COUNT */
+#define SDCARD_CMD23_SUPPORT /* SET_BLOCK_COUNT */
 #define SDCARD_CMD18_SUPPORT /* READ_MULTIPLE_BLOCK */
 #define SDCARD_CMD25_SUPPORT /* WRITE_MULTIPLE_BLOCK */
 
@@ -35,6 +36,18 @@
 #endif
 
 #define DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
+
+#define BSWAP_32(x) ((uint32_t)((((x) >> 24) & 0xff) |  \
+				(((x) >> 8) & 0xff00) | \
+				(((x) & 0xff00) << 8) | \
+				(((x) & 0xff) << 24)))
+
+#ifdef SDCARD_CMD23_SUPPORT
+/* has to be a int, using bool didn't work on vexiiriscv */
+static unsigned int support_cmd23;
+#else
+#define support_cmd23 0
+#endif
 
 /*-----------------------------------------------------------------------*/
 /* SDCard command helpers                                                */
@@ -149,7 +162,7 @@ int sdcard_app_send_op_cond(int hcs) {
 #ifdef SDCARD_DEBUG
 	printf("ACMD41: APP_SEND_OP_COND, arg: %08" PRIx32 "\n", arg);
 #endif
-	return sdcard_send_command(arg, 41, SDCARD_CTRL_RESPONSE_SHORT_BUSY);
+	return sdcard_send_command(arg, 41, SDCARD_CTRL_RESPONSE_SHORT);
 }
 
 int sdcard_all_send_cid(void) {
@@ -361,6 +374,77 @@ void sdcard_decode_csd(void) {
 }
 #endif
 
+static void sdcard_decode_scr(const uint32_t *scr, bool *support_4bit)
+{
+	uint32_t raw_scr[2];
+
+	raw_scr[0] = BSWAP_32(scr[0]);
+	raw_scr[1] = BSWAP_32(scr[1]);
+
+	*support_4bit = (raw_scr[0] >> 18) & 0x1;
+
+#ifdef SDCARD_CMD23_SUPPORT
+	support_cmd23 = (raw_scr[0] >> 1) & 0x1;
+#endif
+
+#ifdef SDCARD_DEBUG
+	printf("SCR Register: 0x%08" PRIx32 "%08" PRIx32 "\n"
+
+	       "1-bit support: %" PRIu8 "\n"
+	       "4-bit support: %" PRIu8 "\n"
+
+	       "CMD20 support: %" PRIu8 "\n"
+	       "CMD23 support: %" PRIu8 "\n"
+	       "CMD48/49 support: %" PRIu8 "\n"
+	       "CMD58/59 support: %" PRIu8 "\n"
+	       "ACMD53/54 support: %" PRIu8 "\n",
+
+	       raw_scr[0], raw_scr[1],
+
+	       (uint8_t)((raw_scr[0] >> 16) & 0x1),
+	       (uint8_t)((raw_scr[0] >> 18) & 0x1),
+
+	       (uint8_t)(raw_scr[0] & 0x1),
+	       (uint8_t)((raw_scr[0] >> 1) & 0x1),
+	       (uint8_t)((raw_scr[0] >> 2) & 0x1),
+	       (uint8_t)((raw_scr[0] >> 3) & 0x1),
+	       (uint8_t)((raw_scr[0] >> 4) & 0x1));
+#endif
+}
+
+static int sdcard_get_scr(uint32_t *buf, uint16_t rca)
+{
+#ifdef CSR_SDCARD_BLOCK2MEM_DMA_BASE_ADDR
+	sdcard_block2mem_dma_enable_write(0);
+	sdcard_block2mem_dma_base_write((uint64_t)(uintptr_t)buf);
+	sdcard_block2mem_dma_length_write(8);
+	sdcard_block2mem_dma_enable_write(1);
+#endif
+
+	if (sdcard_app_cmd(rca) != SD_OK){
+		return 0;
+	}
+	if (sdcard_app_send_scr() != SD_OK){
+		return 0;
+	}
+
+#ifdef CSR_SDCARD_BLOCK2MEM_DMA_BASE_ADDR
+	/* Wait for DMA Writer to complete */
+	while ((sdcard_block2mem_dma_done_read() & 0x1) == 0);
+
+#ifndef CONFIG_CPU_HAS_DMA_BUS
+	/* Flush caches */
+	flush_cpu_dcache();
+	flush_l2_cache();
+#endif
+
+	/* Compiler barrier */
+	__asm__ __volatile__("" ::: "memory");
+
+#endif
+	return 1;
+}
+
 /*-----------------------------------------------------------------------*/
 /* SDCard user functions                                                 */
 /*-----------------------------------------------------------------------*/
@@ -368,6 +452,10 @@ void sdcard_decode_csd(void) {
 int sdcard_init(void) {
 	uint16_t rca, timeout;
 	uint32_t r[SD_CMD_RESPONSE_SIZE/4];
+	uint32_t scr_buf[2];
+	bool support_4bit;
+
+	sdcard_phy_settings_write(SD_PHY_SPEED_1X);
 
 	/* Set SD clk freq to Initialization frequency */
 	sdcard_set_clk_freq(SDCARD_CLK_FREQ_INIT, 0);
@@ -438,23 +526,24 @@ int sdcard_init(void) {
 	if (sdcard_select_card(rca) != SD_OK)
 		return 0;
 
-	/* Set 4-bit bus width */
-	if (sdcard_app_cmd(rca) != SD_OK)
-		return 0;
-	if(sdcard_app_set_bus_width() != SD_OK)
-		return 0;
-	sdcard_phy_settings_write(SD_PHY_SPEED_4X);
-
 	/* Switch speed */
 	if (sdcard_switch(SD_SWITCH_SWITCH, SD_GROUP_ACCESSMODE, SD_SPEED_SDR25) != SD_OK)
 		return 0;
 
-	/* Send SCR */
-	/* FIXME: add scr decoding (optional) */
-	if (sdcard_app_cmd(rca) != SD_OK)
+	/* Get SCR */
+	if (sdcard_get_scr(scr_buf, rca) == 0)
 		return 0;
-	if (sdcard_app_send_scr() != SD_OK)
-		return 0;
+
+	sdcard_decode_scr(scr_buf, &support_4bit);
+
+	if (support_4bit) {
+		/* Set 4-bit bus width */
+		if (sdcard_app_cmd(rca) != SD_OK)
+			return 0;
+		if (sdcard_app_set_bus_width() != SD_OK)
+			return 0;
+		sdcard_phy_settings_write(SD_PHY_SPEED_4X);
+	}
 
 	/* Set block length */
 	if (sdcard_app_set_blocklen(512) != SD_OK)
@@ -481,20 +570,23 @@ void sdcard_read(uint32_t block, uint32_t count, uint8_t* buf)
 		sdcard_block2mem_dma_enable_write(1);
 
 		/* Read Block(s) from SDCard */
-#ifdef SDCARD_CMD23_SUPPORT
-		sdcard_set_block_count(nblocks);
-#endif
-		if (nblocks > 1)
+		if (nblocks > 1) {
+			if (support_cmd23 != 0) {
+				sdcard_set_block_count(nblocks);
+			}
+
 			sdcard_read_multiple_block(block, nblocks);
-		else
+
+			if (support_cmd23 == 0) {
+				sdcard_stop_transmission();
+			}
+		}
+		else {
 			sdcard_read_single_block(block);
+		}
 
 		/* Wait for DMA Writer to complete */
 		while ((sdcard_block2mem_dma_done_read() & 0x1) == 0);
-
-		/* Stop transmission (Only for multiple block reads) */
-		if (nblocks > 1)
-			sdcard_stop_transmission();
 
 		/* Update Block/Buffer/Count */
 		block += nblocks;
@@ -529,17 +621,19 @@ void sdcard_write(uint32_t block, uint32_t count, uint8_t* buf)
 		sdcard_mem2block_dma_enable_write(1);
 
 		/* Write Block(s) to SDCard */
-#ifdef SDCARD_CMD23_SUPPORT
-		sdcard_set_block_count(nblocks);
-#endif
-		if (nblocks > 1)
-			sdcard_write_multiple_block(block, nblocks);
-		else
-			sdcard_write_single_block(block);
+		if (nblocks > 1) {
+			if (support_cmd23 != 0) {
+				sdcard_set_block_count(nblocks);
+			}
 
-		/* Stop transmission (Only for multiple block writes) */
-		if (nblocks > 1)
-			sdcard_stop_transmission();
+			sdcard_write_multiple_block(block, nblocks);
+
+			if (support_cmd23 == 0) {
+				sdcard_stop_transmission();
+			}
+		} else {
+			sdcard_write_single_block(block);
+		}
 
 		/* Wait for DMA Reader to complete */
 		while ((sdcard_mem2block_dma_done_read() & 0x1) == 0);
