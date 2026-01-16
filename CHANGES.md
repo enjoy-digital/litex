@@ -1,5 +1,5 @@
-[> Changes since 2025.08 release
---------------------------------
+[> 2025.12, released on January 16th 2026
+-----------------------------------------
 
 [> Fixed
 --------
@@ -54,6 +54,7 @@
 * **Boards/targets**                                : Added support for **Puzhi Artix-7 A7xxT Development Board** ([PR #697](https://github.com/litex-hub/litex-boards/pull/697)).
 * **Boards/targets**                                : Added support for **OpenSourceSDRLab Kintex-7 FPGA board** ([PR #698](https://github.com/litex-hub/litex-boards/pull/698)).
 * **Boards/targets**                                : Added support for **microphase_a7_lite xc7a200T** ([PR #706](https://github.com/litex-hub/litex-boards/pull/706)).
+* **Boards/targets**                                : Added support for **puzhi_p7_starlite** ([PR #721](https://github.com/litex-hub/litex-boards/pull/721)).
 
 [> Changed
 ----------
