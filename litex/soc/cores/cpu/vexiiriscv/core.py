@@ -8,7 +8,6 @@
 import os
 import hashlib
 import subprocess
-import re
 
 from migen import *
 
@@ -36,12 +35,12 @@ class VexiiRiscv(CPU):
     name                 = "vexiiriscv"
     human_name           = "VexiiRiscv"
     variants             = CPU_VARIANTS
-    data_width           = 32
     endianness           = "little"
-    gcc_triple           = CPU_GCC_TRIPLE_RISCV32
-    linker_output_format = "elf32-littleriscv"
     nop                  = "nop"
     io_regions           = {0x8000_0000: 0x8000_0000} # Origin, Length.
+    data_width           = None
+    gcc_triple           = None
+    linker_output_format = None
 
     # Default parameters.
     netlist_name     = None
@@ -156,7 +155,6 @@ class VexiiRiscv(CPU):
         cpu_group = parser.add_argument_group(title="CPU options")
 
         cpu_group.add_argument("--vexii-args",            default="",            help="Specify the CPU configuration")
-        # cpu_group.add_argument("--xlen",                  default=32,            help="Specify the RISC-V data width.")
         cpu_group.add_argument("--cpu-count",             default=1,             help="How many VexiiRiscv CPU.")
         cpu_group.add_argument("--with-coherent-dma",     action="store_true",   help="Enable coherent DMA accesses.")
         cpu_group.add_argument("--with-jtag-tap",         action="store_true",   help="Add a embedded JTAG tap for debugging.")
@@ -164,8 +162,6 @@ class VexiiRiscv(CPU):
         cpu_group.add_argument("--update-repo",           default="recommended", choices=["latest","wipe+latest","recommended","wipe+recommended","no"], help="Specify how the VexiiRiscv & SpinalHDL repo should be updated (latest: update to HEAD, recommended: Update to known compatible version, no: Don't update, wipe+*: Do clean&reset before checkout)")
         cpu_group.add_argument("--no-netlist-cache",      action="store_true",   help="Always (re-)build the netlist.")
         cpu_group.add_argument("--with-cpu-clk",          action="store_true",   help="The CPUs will use a decoupled clock")
-        # cpu_group.add_argument("--with-fpu",              action="store_true",   help="Enable the F32/F64 FPU.")
-        # cpu_group.add_argument("--with-rvc",              action="store_true",   help="Enable the Compress ISA extension.")
         cpu_group.add_argument("--l2-bytes",              default=0,             help="VexiiRiscv L2 bytes, default 128 KB.")
         cpu_group.add_argument("--l2-ways",               default=0,             help="VexiiRiscv L2 ways, default 8.")
         cpu_group.add_argument("--l2-self-flush",         default=None,          help="VexiiRiscv L2 ways will self flush on from,to,cycles")
@@ -232,8 +228,7 @@ class VexiiRiscv(CPU):
         with open(ppath) as file:
             exec(file.read())
 
-        if VexiiRiscv.xlen == 64:
-            VexiiRiscv.gcc_triple           = CPU_GCC_TRIPLE_RISCV64
+        VexiiRiscv.gcc_triple = CPU_GCC_TRIPLE_RISCV32 if VexiiRiscv.xlen==32 else CPU_GCC_TRIPLE_RISCV64
         VexiiRiscv.linker_output_format = f"elf{VexiiRiscv.xlen}-littleriscv"
         if args.cpu_count:
             VexiiRiscv.cpu_count = args.cpu_count
