@@ -42,33 +42,33 @@ class VexiiRiscv(CPU):
     gcc_triple           = None
     linker_output_format = None
 
-    # Default parameters.
     netlist_name     = None
-    xlen             = 32
-    internal_bus_width = 32
-    litedram_width   = 32
-    l2_bytes         = 0
-    l2_ways          = 4
+    # vexii params controlled by litex:
+    litedram_width   = None
+    l2_bytes         = None
+    l2_ways          = None
     l2_self_flush    = None
-    with_rvc         = False
-    with_rvm         = False
-    with_rvf         = False
-    with_rvd         = False
-    with_rva         = False
-    with_rvcbom      = False
     with_supervisor  = False
-    with_dma         = False
-    with_axi3        = False
+    with_dma         = None
+    with_axi3        = None
     with_opensbi     = False
-    with_aplic       = False
-    jtag_tap         = False
-    jtag_instruction = False
-    with_cpu_clk     = False
-    imsic_interrupts = 0
+    with_aplic       = None
+    jtag_tap         = None
+    jtag_instruction = None
+    with_cpu_clk     = None
+    imsic_interrupts = None
     vexii_video      = []
     vexii_macsg      = []
     vexii_args       = ""
-
+    # vexii params received from vexii:
+    xlen               = None
+    internal_bus_width = None
+    with_rvc           = None
+    with_rvm           = None
+    with_rvf           = None
+    with_rvd           = None
+    with_rva           = None
+    with_rvcbom        = None
 
     # ABI.
     @staticmethod
@@ -155,19 +155,19 @@ class VexiiRiscv(CPU):
         cpu_group = parser.add_argument_group(title="CPU options")
 
         cpu_group.add_argument("--vexii-args",            default="",            help="Specify the CPU configuration")
-        cpu_group.add_argument("--cpu-count",             default=1,             help="How many VexiiRiscv CPU.")
+        cpu_group.add_argument("--cpu-count",             default=1, type=int,   help="How many VexiiRiscv CPU.")
         cpu_group.add_argument("--with-coherent-dma",     action="store_true",   help="Enable coherent DMA accesses.")
         cpu_group.add_argument("--with-jtag-tap",         action="store_true",   help="Add a embedded JTAG tap for debugging.")
         cpu_group.add_argument("--with-jtag-instruction", action="store_true",   help="Add a JTAG instruction port which implement tunneling for debugging (TAP not included).")
         cpu_group.add_argument("--update-repo",           default="recommended", choices=["latest","wipe+latest","recommended","wipe+recommended","no"], help="Specify how the VexiiRiscv & SpinalHDL repo should be updated (latest: update to HEAD, recommended: Update to known compatible version, no: Don't update, wipe+*: Do clean&reset before checkout)")
         cpu_group.add_argument("--no-netlist-cache",      action="store_true",   help="Always (re-)build the netlist.")
         cpu_group.add_argument("--with-cpu-clk",          action="store_true",   help="The CPUs will use a decoupled clock")
-        cpu_group.add_argument("--l2-bytes",              default=0,             help="VexiiRiscv L2 bytes, default 128 KB.")
-        cpu_group.add_argument("--l2-ways",               default=0,             help="VexiiRiscv L2 ways, default 8.")
+        cpu_group.add_argument("--l2-bytes",              default=0, type=int,   help="VexiiRiscv L2 bytes, 0 disables the feature.")
+        cpu_group.add_argument("--l2-ways",               default=4, type=int,   help="VexiiRiscv L2 ways.")
         cpu_group.add_argument("--l2-self-flush",         default=None,          help="VexiiRiscv L2 ways will self flush on from,to,cycles")
-        cpu_group.add_argument("--with-aia",            action="store_true",   help="Enable AIA support.")
+        cpu_group.add_argument("--with-aia",              action="store_true",   help="Enable AIA support.")
         cpu_group.add_argument("--with-aplic",            action="store_true",   help="Enable APLIC.")
-        cpu_group.add_argument("--imsic-interrupts",      default=0, type=int,   help="VexiiRiscv IMSIC interrupts, default is 0 (disabled)")
+        cpu_group.add_argument("--imsic-interrupts",      default=0, type=int,   help="VexiiRiscv IMSIC interrupts, 0 disables this feature.")
         cpu_group.add_argument("--with-axi3",             action="store_true",   help="mbus will be axi3 instead of axi4")
         cpu_group.add_argument("--vexii-video",           action="append",  default=[], help="Add the memory coherent video controller")
         cpu_group.add_argument("--vexii-macsg",           action="append",  default=[], help="Add the memory coherent ethernet mac")
@@ -230,22 +230,17 @@ class VexiiRiscv(CPU):
 
         VexiiRiscv.gcc_triple = CPU_GCC_TRIPLE_RISCV32 if VexiiRiscv.xlen==32 else CPU_GCC_TRIPLE_RISCV64
         VexiiRiscv.linker_output_format = f"elf{VexiiRiscv.xlen}-littleriscv"
-        if args.cpu_count:
-            VexiiRiscv.cpu_count = args.cpu_count
-        if args.l2_bytes:
-            VexiiRiscv.l2_bytes = args.l2_bytes
+        VexiiRiscv.cpu_count = args.cpu_count
+        VexiiRiscv.l2_bytes = args.l2_bytes
         VexiiRiscv.with_cpu_clk = args.with_cpu_clk
-        if args.l2_ways:
-            VexiiRiscv.l2_ways = args.l2_ways
-        if args.l2_self_flush:
-            VexiiRiscv.l2_self_flush = args.l2_self_flush
+        VexiiRiscv.l2_ways = args.l2_ways
+        VexiiRiscv.l2_self_flush = args.l2_self_flush
         VexiiRiscv.vexii_video = args.vexii_video
         VexiiRiscv.vexii_macsg = args.vexii_macsg
 
 
     def __init__(self, platform, variant):
         self.platform         = platform
-        self.variant          = "standard"
         self.reset            = Signal()
         self.interrupt        = Signal(32)
         self.pbus             = pbus = axi.AXILiteInterface(address_width=32, data_width=32)
@@ -456,7 +451,8 @@ class VexiiRiscv(CPU):
         gen_args.append(f"--l2-ways={VexiiRiscv.l2_ways}")
         if VexiiRiscv.l2_self_flush:
             gen_args.append(f"--l2-self-flush={VexiiRiscv.l2_self_flush}")
-        gen_args.append(f"--litedram-width={VexiiRiscv.litedram_width}")
+        if VexiiRiscv.litedram_width:
+            gen_args.append(f"--litedram-width={VexiiRiscv.litedram_width}")
         # gen_args.append(f"--internal_bus_width={VexiiRiscv.internal_bus_width}")
         for region in VexiiRiscv.memory_regions:
             gen_args.append(f"--memory-region={region[0]},{region[1]},{region[2]},{region[3]}")
