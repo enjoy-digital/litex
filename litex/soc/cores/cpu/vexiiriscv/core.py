@@ -8,6 +8,7 @@
 import os
 import hashlib
 import subprocess
+from types import SimpleNamespace
 
 from migen import *
 
@@ -45,20 +46,8 @@ class VexiiRiscv(CPU):
     netlist_name     = None
     # vexii params controlled by litex:
     litedram_width   = None
-    l2_bytes         = None
-    l2_ways          = None
-    l2_self_flush    = None
     with_supervisor  = False
-    with_dma         = None
-    with_axi3        = None
     with_opensbi     = False
-    with_aplic       = None
-    jtag_tap         = None
-    jtag_instruction = None
-    with_cpu_clk     = None
-    imsic_interrupts = None
-    vexii_video      = []
-    vexii_macsg      = []
     vexii_args       = ""
     # vexii params received from vexii:
     xlen               = None
@@ -96,7 +85,7 @@ class VexiiRiscv(CPU):
             arch += "c"
         if VexiiRiscv.with_rvcbom:
             arch += "_zicbom"
-        if VexiiRiscv.with_aia:
+        if VexiiRiscv.soc_args.with_sxaia:
             arch += "_smaia"
             if VexiiRiscv.with_supervisor:
                 arch += "_ssaia"
@@ -119,13 +108,13 @@ class VexiiRiscv(CPU):
             "clint":    0xf001_0000,
         }
 
-        if VexiiRiscv.with_aplic:
+        if VexiiRiscv.soc_args.with_aplic:
             mapping["aplic_m"] = 0xf0c0_0000
             mapping["aplic_s"] = 0xf0e0_0000
         else:
             mapping["plic"] = 0xf0c0_0000
 
-        if VexiiRiscv.imsic_interrupts > 0:
+        if VexiiRiscv.soc_args.imsic_interrupt_number > 0:
             mapping["imsic_m"] = 0xf100_0000
             mapping["imsic_s"] = 0xf120_0000
 
@@ -138,7 +127,7 @@ class VexiiRiscv(CPU):
         flags += f" -D__VexiiRiscv__"
         if VexiiRiscv.with_rvcbom:
             flags += f" -D__riscv_zicbom__"
-        if VexiiRiscv.with_aplic:
+        if VexiiRiscv.soc_args.with_aplic:
             flags += f" -D__riscv_aplic__"
         else:
             flags += f" -D__riscv_plic__"
@@ -153,26 +142,42 @@ class VexiiRiscv(CPU):
     @staticmethod
     def args_fill(parser):
         cpu_group = parser.add_argument_group(title="CPU options")
+        VexiiRiscv.soc_keys = []
+        
+        def add_soc_arg(*names, **kwargs):
+            # SoCGen forwarding policy:
+            # - add_soc_arg() registers options that will be forwarded to SocGen and will affect the netlist md5
+            # - Forwarded flag names are derived from argparse 'dest' (underscores -> dashes)
+            #   Use 'dest=' to map a user-facing CLI option to a different SocGen flag name
+            # - store_true options are forwarded only if enabled
+            # - scalar options (int/str) are forwarded unconditionally as --flag=value
+            # - append options are forwarded once per entry: --flag <entry>
+            action = cpu_group.add_argument(*names, **kwargs)
+            VexiiRiscv.soc_keys.append(action.dest)
+            return action
 
-        cpu_group.add_argument("--vexii-args",            default="",            help="Specify the CPU configuration")
-        cpu_group.add_argument("--cpu-count",             default=1, type=int,   help="How many VexiiRiscv CPU.")
-        cpu_group.add_argument("--with-coherent-dma",     action="store_true",   help="Enable coherent DMA accesses.")
-        cpu_group.add_argument("--with-jtag-tap",         action="store_true",   help="Add a embedded JTAG tap for debugging.")
-        cpu_group.add_argument("--with-jtag-instruction", action="store_true",   help="Add a JTAG instruction port which implement tunneling for debugging (TAP not included).")
-        cpu_group.add_argument("--update-repo",           default="recommended", choices=["latest","wipe+latest","recommended","wipe+recommended","no"], help="Specify how the VexiiRiscv & SpinalHDL repo should be updated (latest: update to HEAD, recommended: Update to known compatible version, no: Don't update, wipe+*: Do clean&reset before checkout)")
-        cpu_group.add_argument("--no-netlist-cache",      action="store_true",   help="Always (re-)build the netlist.")
-        cpu_group.add_argument("--with-cpu-clk",          action="store_true",   help="The CPUs will use a decoupled clock")
-        cpu_group.add_argument("--l2-bytes",              default=0, type=int,   help="VexiiRiscv L2 bytes, 0 disables the feature.")
-        cpu_group.add_argument("--l2-ways",               default=4, type=int,   help="VexiiRiscv L2 ways.")
-        cpu_group.add_argument("--l2-self-flush",         default=None,          help="VexiiRiscv L2 ways will self flush on from,to,cycles")
-        cpu_group.add_argument("--with-aia",              action="store_true",   help="Enable AIA support.")
-        cpu_group.add_argument("--with-aplic",            action="store_true",   help="Enable APLIC.")
-        cpu_group.add_argument("--imsic-interrupts",      default=0, type=int,   help="VexiiRiscv IMSIC interrupts, 0 disables this feature.")
-        cpu_group.add_argument("--with-axi3",             action="store_true",   help="mbus will be axi3 instead of axi4")
-        cpu_group.add_argument("--vexii-video",           action="append",  default=[], help="Add the memory coherent video controller")
-        cpu_group.add_argument("--vexii-macsg",           action="append",  default=[], help="Add the memory coherent ethernet mac")
-
-
+        cpu_group.add_argument("--update-repo",      default="recommended", choices=["latest","wipe+latest","recommended","wipe+recommended","no"], help="Specify how the VexiiRiscv & SpinalHDL repo should be updated (latest: update to HEAD, recommended: Update to known compatible version, no: Don't update, wipe+*: Do clean&reset before checkout)")
+        cpu_group.add_argument("--no-netlist-cache", action="store_true", help="Always (re-)build the netlist.")
+        cpu_group.add_argument("--vexii-args",       default="",          help="Specify the CPU configuration")
+        # Vexii: topology / bus / clock / coherency
+        add_soc_arg("--cpu-count", default=1, type=int,                          help="How many VexiiRiscv CPU.")
+        add_soc_arg("--with-cpu-clk",                       action="store_true", help="The CPUs will use a decoupled clock")
+        add_soc_arg("--with-axi3",                          action="store_true", help="mbus will be axi3 instead of axi4")
+        add_soc_arg("--with-coherent-dma", dest="with_dma", action="store_true", help="Enable coherent DMA accesses.")
+        # Vexii: debug
+        add_soc_arg("--with-jtag-tap",         action="store_true", help="Add a embedded JTAG tap for debugging.")
+        add_soc_arg("--with-jtag-instruction", action="store_true", help="Add a JTAG instruction port which implement tunneling for debugging (TAP not included).")
+        # Vexii: cache
+        add_soc_arg("--l2-bytes",      default=0, type=int, help="VexiiRiscv L2 bytes, 0 disables the feature.")
+        add_soc_arg("--l2-ways",       default=4, type=int, help="VexiiRiscv L2 ways.")
+        add_soc_arg("--l2-self-flush", default=None,        help="VexiiRiscv L2 ways will self flush on from,to,cycles")
+        # Vexii: interrupts
+        add_soc_arg("--with-aia", dest="with_sxaia", action="store_true",   help="Enable AIA support.")
+        add_soc_arg("--with-aplic",                  action="store_true",   help="Enable APLIC.")
+        add_soc_arg("--imsic-interrupts", dest="imsic_interrupt_number", default=0, type=int, help="VexiiRiscv IMSIC interrupts, 0 disables this feature.")
+        # Vexii: peripherals
+        add_soc_arg("--vexii-video", dest="video",  action="append", default=[], help="Add the memory coherent video controller")
+        add_soc_arg("--vexii-macsg", dest="mac_sg", action="append", default=[], help="Add the memory coherent ethernet mac")
 
     @staticmethod
     def args_read(args):
@@ -204,18 +209,11 @@ class VexiiRiscv(CPU):
         if args.cpu_variant in ["linux", "debian"]:
             VexiiRiscv.vexii_args += " --with-btb --with-ras --with-gshare"
 
-
-
-        VexiiRiscv.jtag_tap         = args.with_jtag_tap
-        VexiiRiscv.jtag_instruction = args.with_jtag_instruction
-        VexiiRiscv.with_dma         = args.with_coherent_dma
-        VexiiRiscv.with_axi3        = args.with_axi3
-        VexiiRiscv.with_aplic       = args.with_aplic
-        VexiiRiscv.with_aia         = args.with_aia or args.imsic_interrupts > 0
-        VexiiRiscv.imsic_interrupts = args.imsic_interrupts
-        VexiiRiscv.update_repo      = args.update_repo
+        VexiiRiscv.soc_args = SimpleNamespace(**{k:getattr(args,k) for k in VexiiRiscv.soc_keys})
+        VexiiRiscv.soc_args.with_sxaia = args.with_sxaia or args.imsic_interrupt_number > 0
         VexiiRiscv.no_netlist_cache = args.no_netlist_cache
         VexiiRiscv.vexii_args      += " " + args.vexii_args
+        VexiiRiscv.update_repo      = args.update_repo
 
         md5_hash = hashlib.md5()
         md5_hash.update(VexiiRiscv.vexii_args.encode('utf-8'))
@@ -230,13 +228,6 @@ class VexiiRiscv(CPU):
 
         VexiiRiscv.gcc_triple = CPU_GCC_TRIPLE_RISCV32 if VexiiRiscv.xlen==32 else CPU_GCC_TRIPLE_RISCV64
         VexiiRiscv.linker_output_format = f"elf{VexiiRiscv.xlen}-littleriscv"
-        VexiiRiscv.cpu_count = args.cpu_count
-        VexiiRiscv.l2_bytes = args.l2_bytes
-        VexiiRiscv.with_cpu_clk = args.with_cpu_clk
-        VexiiRiscv.l2_ways = args.l2_ways
-        VexiiRiscv.l2_self_flush = args.l2_self_flush
-        VexiiRiscv.vexii_video = args.vexii_video
-        VexiiRiscv.vexii_macsg = args.vexii_macsg
 
 
     def __init__(self, platform, variant):
@@ -290,13 +281,13 @@ class VexiiRiscv(CPU):
             i_pBus_rresp   = pbus.r.resp,
         )
 
-        if VexiiRiscv.with_cpu_clk:
+        if VexiiRiscv.soc_args.with_cpu_clk:
             self.cpu_clk = Signal()
             self.cpu_params.update(
                 i_cpu_clk = self.cpu_clk
             )
 
-        if VexiiRiscv.with_dma:
+        if VexiiRiscv.soc_args.with_dma:
             self.dma_bus = dma_bus = axi.AXIInterface(data_width=VexiiRiscv.internal_bus_width, address_width=32, id_width=4)
 
             self.cpu_params.update(
@@ -350,7 +341,7 @@ class VexiiRiscv(CPU):
                 o_dma_bus_rlast   = dma_bus.r.last,
             )
 
-        for video in VexiiRiscv.vexii_video:
+        for video in VexiiRiscv.soc_args.video:
             args = {}
             for i, val in enumerate(video.split(",")):
                 name, value = val.split("=")
@@ -378,7 +369,7 @@ class VexiiRiscv(CPU):
             setattr(self, composed, sig)
             self.cpu_params[direction + "_" + composed] = sig
 
-        for macsg in VexiiRiscv.vexii_macsg:
+        for macsg in VexiiRiscv.soc_args.mac_sg:
             args = {}
             for i, val in enumerate(macsg.split(",")):
                 name, value = val.split("=")
@@ -393,10 +384,6 @@ class VexiiRiscv(CPU):
             add_io("i", name, "rx_d", 8)
             add_io("i", name, "rx_clk", 1)
 
-
-
-
-
     def set_reset_address(self, reset_address):
         VexiiRiscv.reset_address = reset_address
         VexiiRiscv.vexii_args += f" --reset-vector {reset_address}"
@@ -405,25 +392,13 @@ class VexiiRiscv(CPU):
     @staticmethod
     def generate_netlist_name():
         md5_hash = hashlib.md5()
+        for k,v in vars(VexiiRiscv.soc_args).items():
+            md5_hash.update(str(v).encode('utf-8'))    
         md5_hash.update(str(VexiiRiscv.reset_address).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.litedram_width).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.xlen).encode('utf-8'))
-        md5_hash.update(str(VexiiRiscv.cpu_count).encode('utf-8'))
-        md5_hash.update(str(VexiiRiscv.l2_bytes).encode('utf-8'))
-        md5_hash.update(str(VexiiRiscv.with_cpu_clk).encode('utf-8'))
-        md5_hash.update(str(VexiiRiscv.l2_ways).encode('utf-8'))
-        md5_hash.update(str(VexiiRiscv.l2_self_flush).encode('utf-8'))
-        md5_hash.update(str(VexiiRiscv.jtag_tap).encode('utf-8'))
-        md5_hash.update(str(VexiiRiscv.jtag_instruction).encode('utf-8'))
-        md5_hash.update(str(VexiiRiscv.with_dma).encode('utf-8'))
-        md5_hash.update(str(VexiiRiscv.with_axi3).encode('utf-8'))
-        md5_hash.update(str(VexiiRiscv.with_aia).encode('utf-8'))
-        md5_hash.update(str(VexiiRiscv.with_aplic).encode('utf-8'))
-        md5_hash.update(str(VexiiRiscv.imsic_interrupts).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.memory_regions).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.vexii_args).encode('utf-8'))
-        md5_hash.update(str(VexiiRiscv.vexii_video).encode('utf-8'))
-        md5_hash.update(str(VexiiRiscv.vexii_macsg).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.with_opensbi).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.with_supervisor).encode('utf-8'))
 
@@ -444,37 +419,24 @@ class VexiiRiscv(CPU):
         gen_args.append(f"--netlist-name={VexiiRiscv.netlist_name}")
         gen_args.append(f"--netlist-directory={vdir}")
         gen_args.append(VexiiRiscv.vexii_args)
-        gen_args.append(f"--cpu-count={VexiiRiscv.cpu_count}")
-        gen_args.append(f"--l2-bytes={VexiiRiscv.l2_bytes}")
-        if VexiiRiscv.with_cpu_clk:
-            gen_args.append("--with-cpu-clk")
-        gen_args.append(f"--l2-ways={VexiiRiscv.l2_ways}")
-        if VexiiRiscv.l2_self_flush:
-            gen_args.append(f"--l2-self-flush={VexiiRiscv.l2_self_flush}")
         if VexiiRiscv.litedram_width:
             gen_args.append(f"--litedram-width={VexiiRiscv.litedram_width}")
         # gen_args.append(f"--internal_bus_width={VexiiRiscv.internal_bus_width}")
         for region in VexiiRiscv.memory_regions:
             gen_args.append(f"--memory-region={region[0]},{region[1]},{region[2]},{region[3]}")
-        if(VexiiRiscv.jtag_tap) :
-            gen_args.append(f"--with-jtag-tap")
-        if(VexiiRiscv.jtag_instruction) :
-            gen_args.append(f"--with-jtag-instruction")
-        if(VexiiRiscv.with_dma) :
-            gen_args.append(f"--with-dma")
-        if(VexiiRiscv.with_axi3) :
-            gen_args.append(f"--with-axi3")
-        if(VexiiRiscv.with_aia) :
-            gen_args.append(f"--with-sxaia")
-        if(VexiiRiscv.with_aplic) :
-            gen_args.append(f"--with-aplic")
-        if(VexiiRiscv.imsic_interrupts > 0) :
-            gen_args.append(f"--imsic-interrupt-number={VexiiRiscv.imsic_interrupts}")
-        for arg in VexiiRiscv.vexii_video:
-            gen_args.append(f"--video {arg}")
-        for arg in VexiiRiscv.vexii_macsg:
-            gen_args.append(f"--mac-sg {arg}")
-
+        for k,v in vars(VexiiRiscv.soc_args).items():
+            if isinstance(v, bool):
+                if v:
+                    gen_args.append(f"--{k.replace('_','-')}")
+            elif isinstance(v, int) or isinstance(v, str):
+                gen_args.append(f"--{k.replace('_', '-')}={v}")
+            elif isinstance(v, list):
+                for arg_value in v:
+                    gen_args.append(f"--{k.replace('_', '-')} {arg_value}")
+            elif v == None:
+                pass
+            else:
+                raise Exception(f"unimplemented: {type(v)}")
 
         cmd = f"""cd {ndir} && sbt "runMain vexiiriscv.soc.litex.SocGen {" ".join(gen_args)}\""""
         print("VexiiRiscv generation command :")
@@ -520,23 +482,23 @@ class VexiiRiscv(CPU):
             soc.bus.add_region("opensbi", SoCRegion(origin=self.mem_map["main_ram"] + 0x00f0_0000, size=0x8_0000, cached=True, linker=True))
 
         # Define ISA.
-        soc.add_config("CPU_COUNT", VexiiRiscv.cpu_count)
+        soc.add_config("CPU_COUNT", VexiiRiscv.soc_args.cpu_count)
         soc.add_config("CPU_ISA", VexiiRiscv.get_arch())
         soc.add_config("CPU_MMU", {32 : "sv32", 64 : "sv39"}[VexiiRiscv.xlen])
 
-        if VexiiRiscv.with_aplic:
+        if VexiiRiscv.soc_args.with_aplic:
             soc.bus.add_region("aplic_m",  SoCRegion(origin=soc.mem_map.get("aplic_m"),  size=0x20_0000, cached=False,  linker=True))
             soc.bus.add_region("aplic_s",  SoCRegion(origin=soc.mem_map.get("aplic_s"),  size=0x20_0000, cached=False,  linker=True))
         else:
             soc.bus.add_region("plic",  SoCRegion(origin=soc.mem_map.get("plic"),  size=0x40_0000, cached=False,  linker=True))
 
-        if VexiiRiscv.imsic_interrupts > 0:
+        if VexiiRiscv.soc_args.imsic_interrupt_number > 0:
             soc.bus.add_region("imsic_m",  SoCRegion(origin=soc.mem_map.get("imsic_m"),  size=0x20_0000, cached=False,  linker=True))
             soc.bus.add_region("imsic_s",  SoCRegion(origin=soc.mem_map.get("imsic_s"),  size=0x20_0000, cached=False,  linker=True))
 
         soc.bus.add_region("clint", SoCRegion(origin=soc.mem_map.get("clint"), size= 0x1_0000, cached=False,  linker=True))
 
-        if VexiiRiscv.jtag_tap:
+        if VexiiRiscv.soc_args.with_jtag_tap:
             self.jtag_tms = Signal()
             self.jtag_clk = Signal()
             self.jtag_tdi = Signal()
@@ -549,7 +511,7 @@ class VexiiRiscv(CPU):
                 o_debug_tap_jtag_tdo = self.jtag_tdo,
             )
 
-        if VexiiRiscv.jtag_instruction:
+        if VexiiRiscv.soc_args.with_jtag_instruction:
             self.jtag_clk     = Signal()
             self.jtag_enable  = Signal()
             self.jtag_capture = Signal()
@@ -569,7 +531,7 @@ class VexiiRiscv(CPU):
                 o_debug_instruction_instruction_tdo     = self.jtag_tdo,
             )
 
-        if VexiiRiscv.jtag_instruction or VexiiRiscv.jtag_tap:
+        if VexiiRiscv.soc_args.with_jtag_instruction or VexiiRiscv.soc_args.with_jtag_tap:
             # Create PoR Clk Domain for debug_reset.
             self.cd_debug_por = ClockDomain()
             self.comb += self.cd_debug_por.clk.eq(ClockSignal("sys"))
@@ -609,7 +571,7 @@ class VexiiRiscv(CPU):
             data_width    = VexiiRiscv.litedram_width,
             address_width = 32,
             id_width      = 8,
-            version       = "axi3" if VexiiRiscv.with_axi3 else "axi4"
+            version       = "axi3" if VexiiRiscv.soc_args.with_axi3 else "axi4"
         )
         self.mBus_awallStrb = Signal()
         self.memory_buses.append(mbus)
@@ -666,7 +628,7 @@ class VexiiRiscv(CPU):
             i_mBus_rlast     = mbus.r.last,
         )
 
-        if VexiiRiscv.with_axi3:
+        if VexiiRiscv.soc_args.with_axi3:
             self.cpu_params.update(
                 o_mBus_wid=mbus.w.id
             )
