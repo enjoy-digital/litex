@@ -341,33 +341,30 @@ class VexiiRiscv(CPU):
                 o_dma_bus_rlast   = dma_bus.r.last,
             )
 
+        def add_io(direction, prefix, name, width, socgen_name=None):
+            # direction: "i" or "o"
+            # prefix: instance name (e.g. "mac0", "video0")
+            # name: python/signal suffix (e.g. "tx_d", "hsync", "color_en")
+            # socgen_name: optional override for the CPU param name (e.g. "hSync", "colorEn")
+            composed = f"{prefix}_{name}"
+            sig = Signal(width, name=composed)
+            setattr(self, composed, sig)
+            if socgen_name is None:
+                socgen_name = name
+            self.cpu_params[f"{direction}_{prefix}_{socgen_name}"] = sig
+            return sig
+
         for video in VexiiRiscv.soc_args.video:
             args = {}
             for i, val in enumerate(video.split(",")):
                 name, value = val.split("=")
                 args.update({name: value})
             name = args["name"]
-            clk = Signal()
-            hsync = Signal()
-            vsync = Signal()
-            color_en = Signal()
-            color = Signal(16)
-            setattr(self, name + "_clk", clk)
-            setattr(self, name + "_hsync", hsync)
-            setattr(self, name + "_vsync", vsync)
-            setattr(self, name + "_color_en", color_en)
-            setattr(self, name + "_color", color)
-            self.cpu_params["o_" + name + "_clk"] = clk
-            self.cpu_params["o_" + name + "_hSync"] = hsync
-            self.cpu_params["o_" + name + "_vSync"] = vsync
-            self.cpu_params["o_" + name + "_colorEn"] = color_en
-            self.cpu_params["o_" + name + "_color"] = color
-
-        def add_io(direction, prefix, name, width):
-            composed = prefix + "_" + name
-            sig = Signal(width, name = composed)
-            setattr(self, composed, sig)
-            self.cpu_params[direction + "_" + composed] = sig
+            add_io("o", name, "clk",      1, socgen_name="clk")
+            add_io("o", name, "hsync",    1, socgen_name="hSync")
+            add_io("o", name, "vsync",    1, socgen_name="vSync")
+            add_io("o", name, "color_en", 1, socgen_name="colorEn")
+            add_io("o", name, "color",   16, socgen_name="color")
 
         for macsg in VexiiRiscv.soc_args.mac_sg:
             args = {}
@@ -469,6 +466,12 @@ class VexiiRiscv(CPU):
         # Add Cluster.
         platform.add_source(os.path.join(vdir,  self.netlist_name + ".v"), "verilog")
 
+    def _add_instance_port(self, param_key, attr_name, width=1):
+        sig = Signal(width, name=attr_name)
+        setattr(self, attr_name, sig)
+        self.cpu_params[param_key] = sig
+        return sig
+
     def add_soc_components(self, soc):
         # Set Human-name.
         self.human_name = f"{self.human_name} ({VexiiRiscv.get_arch()})"
@@ -499,37 +502,20 @@ class VexiiRiscv(CPU):
         soc.bus.add_region("clint", SoCRegion(origin=soc.mem_map.get("clint"), size= 0x1_0000, cached=False,  linker=True))
 
         if VexiiRiscv.soc_args.with_jtag_tap:
-            self.jtag_tms = Signal()
-            self.jtag_clk = Signal()
-            self.jtag_tdi = Signal()
-            self.jtag_tdo = Signal()
-
-            self.cpu_params.update(
-                i_debug_tap_jtag_tms = self.jtag_tms,
-                i_debug_tap_jtag_tck = self.jtag_clk,
-                i_debug_tap_jtag_tdi = self.jtag_tdi,
-                o_debug_tap_jtag_tdo = self.jtag_tdo,
-            )
+            self._add_instance_port("i_debug_tap_jtag_tms", "jtag_tms")
+            self._add_instance_port("i_debug_tap_jtag_tck", "jtag_clk")
+            self._add_instance_port("i_debug_tap_jtag_tdi", "jtag_tdi")
+            self._add_instance_port("o_debug_tap_jtag_tdo", "jtag_tdo")
 
         if VexiiRiscv.soc_args.with_jtag_instruction:
-            self.jtag_clk     = Signal()
-            self.jtag_enable  = Signal()
-            self.jtag_capture = Signal()
-            self.jtag_shift   = Signal()
-            self.jtag_update  = Signal()
-            self.jtag_reset   = Signal()
-            self.jtag_tdo     = Signal()
-            self.jtag_tdi     = Signal()
-            self.cpu_params.update(
-                i_debug_tck                             = self.jtag_clk,
-                i_debug_instruction_instruction_enable  = self.jtag_enable,
-                i_debug_instruction_instruction_capture = self.jtag_capture,
-                i_debug_instruction_instruction_shift   = self.jtag_shift,
-                i_debug_instruction_instruction_update  = self.jtag_update,
-                i_debug_instruction_instruction_reset   = self.jtag_reset,
-                i_debug_instruction_instruction_tdi     = self.jtag_tdi,
-                o_debug_instruction_instruction_tdo     = self.jtag_tdo,
-            )
+            self._add_instance_port("i_debug_tck",                             "jtag_clk")
+            self._add_instance_port("i_debug_instruction_instruction_enable",  "jtag_enable")
+            self._add_instance_port("i_debug_instruction_instruction_capture", "jtag_capture")
+            self._add_instance_port("i_debug_instruction_instruction_shift",   "jtag_shift")
+            self._add_instance_port("i_debug_instruction_instruction_update",  "jtag_update")
+            self._add_instance_port("i_debug_instruction_instruction_reset",   "jtag_reset")
+            self._add_instance_port("i_debug_instruction_instruction_tdi",     "jtag_tdi")
+            self._add_instance_port("o_debug_instruction_instruction_tdo",     "jtag_tdo")
 
         if VexiiRiscv.soc_args.with_jtag_instruction or VexiiRiscv.soc_args.with_jtag_tap:
             # Create PoR Clk Domain for debug_reset.
