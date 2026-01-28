@@ -153,7 +153,7 @@ class RS232PHY(LiteXModule):
     def __init__(self, pads, clk_freq, baudrate=115200, with_dynamic_baudrate=False):
         tuning_word = int((baudrate/clk_freq)*2**32)
         if with_dynamic_baudrate:
-            self._tuning_word  = CSRStorage(32, reset=tuning_word)
+            self._tuning_word  = CSRStorage(32, reset=tuning_word, name="tuning_word")
             tuning_word = self._tuning_word.storage
         self.tx = RS232PHYTX(pads, tuning_word)
         self.rx = RS232PHYRX(pads, tuning_word)
@@ -217,17 +217,17 @@ class UART(LiteXModule, UARTInterface):
             rx_fifo_depth = 16,
             rx_fifo_rx_we = False,
             phy_cd        = "sys"):
-        self._rxtx    = CSR(8) # RX/TX Data.
-        self._txfull  = CSRStatus(description="TX FIFO Full.")
-        self._rxempty = CSRStatus(description="RX FIFO Empty.")
+        self._rxtx    = CSR(8, name="rxtx") # RX/TX Data.
+        self._txfull  = CSRStatus(description="TX FIFO Full.", name="txfull")
+        self._rxempty = CSRStatus(description="RX FIFO Empty.", name="rxempty")
 
         self.ev    = EventManager()
         self.ev.tx = EventSourceLevel()
         self.ev.rx = EventSourceLevel()
         self.ev.finalize()
 
-        self._txempty = CSRStatus(description="TX FIFO Empty.")
-        self._rxfull  = CSRStatus(description="RX FIFO Full.")
+        self._txempty = CSRStatus(description="TX FIFO Empty.", name="txempty")
+        self._rxfull  = CSRStatus(description="RX FIFO Full.", name="rxfull")
 
         # # #
 
