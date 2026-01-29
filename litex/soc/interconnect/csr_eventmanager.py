@@ -182,7 +182,7 @@ class EventManager(Module, AutoCSR):
                 desc = "This register contains the current raw level of the {} event trigger.  Writes to this register have no effect.".format(str(name))
             # Add CSRField
             fields.append(CSRField(name=name, size=1, description=f"Level of the ``{name}`` event"))
-        self.status = CSRStatus(n, description=desc, fields=fields)
+        self.status = CSRStatus(n, description=desc, fields=fields, name="status")
 
         # Pending Register
         fields = []
@@ -195,7 +195,7 @@ class EventManager(Module, AutoCSR):
                 desc = "When a  {} event occurs, the corresponding bit will be set in this register.  To clear the Event, set the corresponding bit in this register.".format(str(name))
             # Add CSRField
             fields.append(CSRField(name=name, size=1, description=get_pending_source_description(source)))
-        self.pending = CSRStatus(n, description=desc, fields=fields, read_only=False)
+        self.pending = CSRStatus(n, description=desc, fields=fields, read_only=False, name="pending")
 
         # Enable Register
         fields = []
@@ -208,7 +208,7 @@ class EventManager(Module, AutoCSR):
                 desc = "This register enables the corresponding {} events.  Write a ``0`` to this register to disable individual events.".format(str(name))
             # Add CSRField
             fields.append(CSRField(name=name, offset=i, description=f"Write a ``1`` to enable the ``{name}`` Event"))
-        self.enable = CSRStorage(n, description=desc, fields=fields)
+        self.enable = CSRStorage(n, description=desc, fields=fields, name="enable")
 
         # Connect Events/Fields
         for i, source in enumerate(sources):
