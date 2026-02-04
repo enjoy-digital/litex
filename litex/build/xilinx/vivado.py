@@ -264,11 +264,11 @@ class XilinxVivadoToolchain(GenericToolchain):
         )
 
         # Add false paths between asynchronous clock domains.
+        io_signals = self.platform.constraint_manager.get_io_signals()
         def get_clk_type(clk):
-            return {
-                False: "nets",
-                True: "ports",
-            }[hasattr(clk, "port")]
+            if clk in io_signals:
+                return "ports"
+            return "nets"
 
         for _from, _to in sorted(self.false_paths, key=lambda x: (str(x[0]), str(x[1]))):
             if isinstance(_from, str):

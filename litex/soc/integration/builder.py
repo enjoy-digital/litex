@@ -90,7 +90,10 @@ class Builder:
         bios_console     = "full",
 
         # Documentation.
-        generate_doc     = False):
+        generate_doc     = False,
+
+        # Verilog.
+        hierarchical     = False):
 
         # SoC/Builder Attach.
         self.soc         = soc   # Attach SoC to Builder.
@@ -121,6 +124,9 @@ class Builder:
 
         # Documentation.
         self.generate_doc = generate_doc
+
+        # Verilog.
+        self.hierarchical = hierarchical
 
         # Software packages and libraries.
         self.software_packages  = []
@@ -412,6 +418,9 @@ class Builder:
         if "run" not in kwargs:
             kwargs["run"] = self.compile_gateware
 
+        if "hierarchical" not in kwargs:
+            kwargs["hierarchical"] = self.hierarchical
+
         kwargs["build_backend"] = self.build_backend
 
         # Build SoC and pass Verilog Name Space to do_exit.
@@ -455,6 +464,7 @@ def builder_args(parser):
     builder_group.add_argument("--soc-svd", "--csr-svd",  default=None,        help="Write SoC mapping to the specified SVD file.")
     builder_group.add_argument("--memory-x",              default=None,        help="Write SoC Memory Regions to the specified Memory-X file.")
     builder_group.add_argument("--doc",                   action="store_true", help="Generate SoC Documentation.")
+    builder_group.add_argument("--hierarchical-verilog",  action="store_true", help="Enable hierarchical Verilog generation.")
     bios_group = parser.add_argument_group(title="BIOS options") # FIXME: Move?
     bios_group.add_argument("--bios-lto",     action="store_true", help="Enable BIOS LTO (Link Time Optimization) compilation.")
     bios_group.add_argument("--bios-format",  default="integer",   help="Select BIOS printf format.",  choices=["integer", "float", "double"])
@@ -478,4 +488,5 @@ def builder_argdict(args):
         "bios_lto"         : args.bios_lto,
         "bios_format"      : args.bios_format,
         "bios_console"     : args.bios_console,
+        "hierarchical"     : args.hierarchical_verilog,
     }
