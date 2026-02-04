@@ -22,7 +22,7 @@ from enum import IntEnum
 from operator import itemgetter
 
 from migen.fhdl.structure   import *
-from migen.fhdl.structure   import _Operator, _Slice, _Assign, _Fragment
+from migen.fhdl.structure   import _Operator, _Slice, _Assign, _Fragment, _ClockDomainList
 from migen.fhdl.tools       import *
 from migen.fhdl.tools       import _apply_lowerer, _Lowerer
 from migen.fhdl.conv_output import ConvOutput
@@ -142,10 +142,31 @@ class _ModuleNode:
 
 
 def _build_module_tree(top):
-    def _walk(module, parent=None, inst_name=None, path=None):
+    def _walk(module, parent=None, inst_name=None, path=None, seen=None):
+        if seen is None:
+            seen = {}
         node = _ModuleNode(module=module, parent=parent, inst_name=inst_name, path=path)
+        seen[id(module)] = node
         used_names = set()
         for name, mod in module._submodules:
+            # Avoid emitting shared submodules multiple times. This mirrors
+            # Migen's get_fragment_called behavior for shared instances.
+            if id(mod) in seen:
+                if name is None:
+                    base = mod.__class__.__name__.lower()
+                    n = 0
+                    candidate = f"{base}_{n}"
+                    while candidate in used_names:
+                        n += 1
+                        candidate = f"{base}_{n}"
+                    name = candidate
+                used_names.add(name)
+                alias = _ModuleNode(module=mod, parent=node, inst_name=name,
+                                    path=(path or []) + [name])
+                alias.shared_alias = True
+                alias.shared_owner = seen[id(mod)]
+                node.children.append(alias)
+                continue
             if name is None:
                 base = mod.__class__.__name__.lower()
                 n = 0
@@ -155,11 +176,11 @@ def _build_module_tree(top):
                     candidate = f"{base}_{n}"
                 name = candidate
             used_names.add(name)
-            child = _walk(mod, parent=node, inst_name=name, path=(path or []) + [name])
+            child = _walk(mod, parent=node, inst_name=name, path=(path or []) + [name], seen=seen)
             node.children.append(child)
         return node
 
-    return _walk(top, parent=None, inst_name=None, path=[])
+    return _walk(top, parent=None, inst_name=None, path=[], seen={})
 
 # ------------------------------------------------------------------------------------------------ #
 #                                    RESERVED KEYWORDS                                             #
@@ -610,9 +631,26 @@ def _prepare_fragment(f, platform, special_overrides, global_clock_domains=None)
 
     # Ensure clock domains are available (hierarchical mode may require global domains).
     if global_clock_domains is not None:
-        f.clock_domains = global_clock_domains
+        # Merge global and local clock domains so submodules can use their
+        # locally-defined domains (e.g. renamed/derived CDC domains).
+        merged = {}
+        for cd in global_clock_domains:
+            merged[cd.name] = cd
+        for cd in f.clock_domains:
+            merged[cd.name] = cd
+        merged_list = _ClockDomainList()
+        for cd in merged.values():
+            merged_list.append(cd)
+        f.clock_domains = merged_list
 
     # Verify/Create Clock Domains.
+    if global_clock_domains is not None:
+        # Some wrapped submodules rely on implicit clock domains (e.g. renamed
+        # AsyncFIFO write/read). Create missing domains locally to keep ports.
+        for cd_name in sorted(list_clock_domains(f)):
+            if cd_name not in f.clock_domains:
+                f.clock_domains.append(ClockDomain(cd_name))
+
     for cd_name in sorted(list_clock_domains(f)):
         try:
             f.clock_domains[cd_name]
@@ -684,9 +722,31 @@ def convert(f, ios=set(), name="top", platform=None,
             assert platform is not None
             ios = platform.constraint_manager.get_io_signals()
 
+        def _get_node_fragment(node):
+            frag = node.module._fragment
+            missing = [cd for cd in list_clock_domains(frag)
+                       if cd not in global_clock_domains]
+            if missing and not node.module.get_fragment_called:
+                return node.module.get_fragment()
+            return frag
+
         # Collect raw specials per module (pre-lowering).
         def _collect_raw_specials(node):
-            node.raw_specials = set(node.module._fragment.specials)
+            if getattr(node, "shared_alias", False):
+                owner = node.shared_owner
+                if hasattr(owner, "raw_subtree_specials"):
+                    node.source_fragment = owner.source_fragment
+                    node.raw_specials = set()
+                    node.raw_subtree_specials = set(owner.raw_subtree_specials)
+                else:
+                    owner_fragment = _get_node_fragment(owner)
+                    node.source_fragment = owner_fragment
+                    node.raw_specials = set()
+                    node.raw_subtree_specials = set(owner_fragment.specials)
+                node.raw_local_specials = set()
+                return
+            node.source_fragment = _get_node_fragment(node)
+            node.raw_specials = set(node.source_fragment.specials)
             node.raw_subtree_specials = set(node.raw_specials)
             for child in node.children:
                 _collect_raw_specials(child)
@@ -708,10 +768,10 @@ def convert(f, ios=set(), name="top", platform=None,
 
         def _collect_owner_overrides(node):
             node_path = _normalize_path(node.path)
-            raw_signals = list_signals(node.module._fragment) | list_special_ios(
-                node.module._fragment, ins=True, outs=True, inouts=True
+            raw_signals = list_signals(node.source_fragment) | list_special_ios(
+                node.source_fragment, ins=True, outs=True, inouts=True
             )
-            for special in node.module._fragment.specials:
+            for special in node.source_fragment.specials:
                 if isinstance(special, Memory):
                     for port in special.ports:
                         for attr in ["adr", "dat_r", "dat_w", "we", "re", "clk", "rst"]:
@@ -734,9 +794,21 @@ def convert(f, ios=set(), name="top", platform=None,
             return [name for name, _ in sig.backtrace[:-1] if name is not None]
 
         def _collect_raw_statements(node):
-            node.raw_comb = list(node.module._fragment.comb)
+            if getattr(node, "shared_alias", False):
+                owner = node.shared_owner
+                node.raw_comb = []
+                node.raw_sync = {}
+                node.raw_targets = set()
+                node.raw_special_targets = set()
+                node.raw_desc_comb_ids = set(getattr(owner, "raw_desc_comb_ids", set()))
+                node.raw_desc_sync_ids = collections.defaultdict(set)
+                for cd_name, ids in getattr(owner, "raw_desc_sync_ids", {}).items():
+                    node.raw_desc_sync_ids[cd_name] |= set(ids)
+                node.raw_self_targets = set()
+                return
+            node.raw_comb = list(node.source_fragment.comb)
             node.raw_sync = {}
-            for cd_name, stmts in node.module._fragment.sync.items():
+            for cd_name, stmts in node.source_fragment.sync.items():
                 node.raw_sync[cd_name] = list(stmts)
 
             node.raw_targets = set()
@@ -745,6 +817,11 @@ def convert(f, ios=set(), name="top", platform=None,
             for stmts in node.raw_sync.values():
                 for stmt in stmts:
                     node.raw_targets |= set(list_targets(stmt))
+            # Treat special outputs/inouts as driven targets for conflict detection.
+            node.raw_special_targets = set()
+            for special in node.source_fragment.specials:
+                node.raw_special_targets |= special.list_ios(False, True, True)
+            node.raw_targets |= node.raw_special_targets
 
             node.raw_desc_comb_ids = {id(stmt) for stmt in node.raw_comb}
             node.raw_desc_sync_ids = collections.defaultdict(set)
@@ -757,18 +834,53 @@ def convert(f, ios=set(), name="top", platform=None,
                 for cd_name, ids in child.raw_desc_sync_ids.items():
                     node.raw_desc_sync_ids[cd_name] |= ids
 
+            # Targets driven by this module only (exclude descendants).
+            child_desc_comb_ids = set()
+            child_desc_sync_ids = set()
+            for child in node.children:
+                child_desc_comb_ids |= child.raw_desc_comb_ids
+                for ids in child.raw_desc_sync_ids.values():
+                    child_desc_sync_ids |= ids
+            raw_self_comb = [stmt for stmt in node.raw_comb
+                             if id(stmt) not in child_desc_comb_ids]
+            raw_self_sync = collections.defaultdict(list)
+            for cd_name, stmts in node.raw_sync.items():
+                raw_self_sync[cd_name] = [stmt for stmt in stmts
+                                          if id(stmt) not in child_desc_sync_ids]
+            node.raw_self_targets = set()
+            for stmt in raw_self_comb:
+                node.raw_self_targets |= set(list_targets(stmt))
+            for stmts in raw_self_sync.values():
+                for stmt in stmts:
+                    node.raw_self_targets |= set(list_targets(stmt))
+            # Include specials that belong to this module (exclude descendants).
+            if hasattr(node, "raw_local_specials"):
+                for special in node.raw_local_specials:
+                    node.raw_self_targets |= special.list_ios(False, True, True)
+
         _collect_raw_statements(root)
 
-        # Mark children to inline when they drive parent-owned signals (or shared drivers).
+        # Mark children to inline when they drive shared drivers.
         def _mark_inline(node):
             parent_path = _normalize_path(node.path)
             for child in node.children:
                 child.inline = False
 
-            # Parent-owned targets driven in child.
+            # Parent and child (including child's subtree) both drive the same signal -> inline child.
+            parent_drivers = set(getattr(node, "raw_self_targets", node.raw_targets))
             for child in node.children:
-                for sig in child.raw_targets:
-                    if _normalize_path(_signal_owner_path(sig)) == parent_path:
+                child_drivers = set(child.raw_targets)
+                if parent_drivers & child_drivers:
+                    child.inline = True
+
+            # Parent drives a signal owned by a child -> inline that child.
+            for sig in parent_drivers:
+                owner_path = _normalize_path(_signal_owner_path(sig, default_path=parent_path))
+                if owner_path == parent_path:
+                    continue
+                for child in node.children:
+                    child_path = _normalize_path(child.path)
+                    if owner_path[:len(child_path)] == child_path:
                         child.inline = True
                         break
 
@@ -782,16 +894,6 @@ def convert(f, ios=set(), name="top", platform=None,
                     for child in kids:
                         child.inline = True
 
-            # Sibling conflicts on parent-owned targets.
-            drivers = {}
-            for child in node.children:
-                for sig in child.raw_targets:
-                    if _normalize_path(_signal_owner_path(sig)) == parent_path:
-                        drivers.setdefault(sig, []).append(child)
-            for sig, kids in drivers.items():
-                if len(kids) > 1:
-                    for child in kids:
-                        child.inline = True
 
             for child in node.children:
                 if child.inline:
@@ -805,12 +907,16 @@ def convert(f, ios=set(), name="top", platform=None,
         _mark_inline(root)
 
         def _set_hier_children(node):
-            node.hier_children = list(node.children)
+            node.hier_children = [c for c in node.children
+                                  if not getattr(c, "shared_alias", False)]
             for child in node.hier_children:
                 _set_hier_children(child)
 
         def _set_inline_children(node):
-            node.hier_children = [c for c in node.children if not getattr(c, "inline", False)]
+            node.filter_children = [c for c in node.children if not getattr(c, "inline", False)]
+            node.hier_children = [c for c in node.children
+                                  if not getattr(c, "inline", False)
+                                  and not getattr(c, "shared_alias", False)]
             node.inline_children = [c for c in node.children if getattr(c, "inline", False)]
             for child in node.children:
                 _set_inline_children(child)
@@ -840,17 +946,21 @@ def convert(f, ios=set(), name="top", platform=None,
             # Filter out statements owned by non-inline children.
             child_desc_comb_ids = set()
             child_desc_sync_ids = collections.defaultdict(set)
-            for child in node.hier_children:
+            child_desc_sync_ids_all = set()
+            for child in node.filter_children:
                 child_desc_comb_ids |= child.raw_desc_comb_ids
                 for cd_name, ids in child.raw_desc_sync_ids.items():
                     child_desc_sync_ids[cd_name] |= ids
+                    child_desc_sync_ids_all |= ids
 
             filtered_comb = [stmt for stmt in node.inline_raw_comb
                              if id(stmt) not in child_desc_comb_ids]
             filtered_sync = collections.defaultdict(list)
             for cd_name, stmts in node.inline_raw_sync.items():
+                # Remove any statements that originate from non-inline children,
+                # regardless of clock domain renaming in the parent.
                 filtered = [stmt for stmt in stmts
-                            if id(stmt) not in child_desc_sync_ids.get(cd_name, set())]
+                            if id(stmt) not in child_desc_sync_ids_all]
                 if filtered:
                     filtered_sync[cd_name] = filtered
 
@@ -859,14 +969,14 @@ def convert(f, ios=set(), name="top", platform=None,
             for cd_name, stmts in filtered_sync.items():
                 local_sync[cd_name] = list(stmts)
             child_specials = set()
-            for child in node.hier_children:
+            for child in node.filter_children:
                 child_specials |= child.raw_subtree_specials
             local_specials = node.raw_specials - child_specials
             local_fragment = _Fragment(
                 comb=list(filtered_comb),
                 sync=local_sync,
                 specials=set(local_specials),
-                clock_domains=node.module._fragment.clock_domains
+                clock_domains=node.source_fragment.clock_domains
             )
             node.fragment, node.lowered_specials = _prepare_fragment(
                 local_fragment,
