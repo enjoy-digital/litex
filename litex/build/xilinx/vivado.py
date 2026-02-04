@@ -10,7 +10,8 @@ import sys
 import math
 from shutil import which
 
-from migen.fhdl.structure import _Fragment
+from migen.fhdl.structure import ClockSignal, Signal, _Fragment
+from migen.fhdl.specials import Instance
 
 from litex.build.generic_platform import *
 from litex.build import tools
@@ -216,6 +217,18 @@ class XilinxVivadoToolchain(GenericToolchain):
         # Add clock constraints to the XDC file.
         self.platform.add_platform_command(_xdc_separator("Clock constraints"))
 
+        # Vivado may not keep net names during synthesis, so try to bind clocks
+        # to instance output pins when the clock is driven by a known Instance.
+        instance_driver_map = {}
+        for instance in filter(lambda s: isinstance(s, Instance), self.fragment.specials):
+            for output in filter(lambda i: isinstance(i, Instance.Output), instance.items):
+                if isinstance(output.expr, Signal):
+                    instance_driver_map[output.expr] = (instance, output.name)
+                elif isinstance(output.expr, ClockSignal):
+                    clk_sig = self.fragment.clock_domains[output.expr.cd].clk
+                    instance_driver_map[clk_sig] = (instance, output.name)
+        self._clock_driver_map = instance_driver_map
+
         # Determine whether a clock is defined as a net or a port.
         def get_clk_type(clk):
             return {
@@ -227,9 +240,19 @@ class XilinxVivadoToolchain(GenericToolchain):
         for clk, [period, name] in sorted(self.clocks.items(), key=lambda x: x[0].duid):
             if name is None:
                 name = clk
-            self.platform.add_platform_command(
-                "create_clock -name {name} -period " + str(period) +
-                " [get_" + get_clk_type(clk) + " {clk}]", name=name, clk=clk)
+            clk_sig = self.fragment.clock_domains[clk.cd].clk if isinstance(clk, ClockSignal) else clk
+            driver = instance_driver_map.get(clk_sig)
+            if driver is not None:
+                instance, pin = driver
+                self.platform.add_platform_command(
+                    "create_clock -name {name} -period " + str(period) +
+                    " [get_pins {instance}/" + pin + "]",
+                    name=name, instance=instance)
+            else:
+                self.platform.add_platform_command(
+                    "create_clock -name {name} -period " + str(period) +
+                    " [get_" + get_clk_type(clk) + " {clk}]",
+                    name=name, clk=clk)
 
         # Clear clock constraints after generation.
         self.clocks.clear()
@@ -268,23 +291,41 @@ class XilinxVivadoToolchain(GenericToolchain):
             }[hasattr(clk, "port")]
 
         for _from, _to in sorted(self.false_paths, key=lambda x: (str(x[0]), str(x[1]))):
+            _from_args = {}
+            _to_args   = {}
+
             if isinstance(_from, str):
                 _from_cmd = f"[get_clocks {_from}]"
             else:
-                _from_cmd = f"[get_clocks -include_generated_clocks -of [get_{get_clk_type(_from)} {{_from}}]]"
+                from_sig = self.fragment.clock_domains[_from.cd].clk if isinstance(_from, ClockSignal) else _from
+                from_driver = self._clock_driver_map.get(from_sig, None)
+                if from_driver is not None:
+                    from_inst, from_pin = from_driver
+                    _from_cmd = "[get_clocks -include_generated_clocks -of [get_pins {from_inst}/" + from_pin + "]]"
+                    _from_args["from_inst"] = from_inst
+                else:
+                    _from_cmd = f"[get_clocks -include_generated_clocks -of [get_{get_clk_type(_from)} {{_from}}]]"
+                    _from_args["_from"] = _from
 
             if isinstance(_to, str):
                 _to_cmd = f"[get_clocks {_to}]"
             else:
-                _to_cmd = f"[get_clocks -include_generated_clocks -of [get_{get_clk_type(_to)} {{_to}}]]"
+                to_sig = self.fragment.clock_domains[_to.cd].clk if isinstance(_to, ClockSignal) else _to
+                to_driver = self._clock_driver_map.get(to_sig, None)
+                if to_driver is not None:
+                    to_inst, to_pin = to_driver
+                    _to_cmd = "[get_clocks -include_generated_clocks -of [get_pins {to_inst}/" + to_pin + "]]"
+                    _to_args["to_inst"] = to_inst
+                else:
+                    _to_cmd = f"[get_clocks -include_generated_clocks -of [get_{get_clk_type(_to)} {{_to}}]]"
+                    _to_args["_to"] = _to
 
             self.platform.add_platform_command(
                 "set_clock_groups "
                 f"-group {_from_cmd} "
                 f"-group {_to_cmd} "
                 "-asynchronous",
-                _from = _from if not isinstance(_from, str) else None,
-                _to   = _to   if not isinstance(_to, str)   else None,
+                **_from_args, **_to_args
             )
 
         # Clear false path constraints after generation.
