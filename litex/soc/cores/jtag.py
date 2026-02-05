@@ -478,29 +478,54 @@ class JTAGPHY(LiteXModule):
 
         # JTAG Xfer FSM ----------------------------------------------------------------------------
         valid = Signal()
-        ready = Signal()
         data  = Signal(data_width)
         count = Signal(max=data_width)
+
+        # Ready signal - updated outside FSM to survive FSM resets.
+        # This is critical: the JTAG TAP goes through Test-Logic-Reset between drscans,
+        # which would clear NextValue registers via ResetInserter. By updating 'ready'
+        # via sync.jtag outside the FSM, it only resets on the clock domain reset.
+        ready        = Signal()
+        update_ready = Signal()
+        ready_value  = Signal()
+
+        # TDO timing fix: The JTAGG primitive samples JTDO1 on the FALLING edge of TCK,
+        # but the FSM state changes on the RISING edge. By the falling edge, the FSM
+        # has already transitioned to the next state, so the wrong TDO value would be
+        # sampled. We use a registered TDO output that captures the value on the rising
+        # edge, so it's stable when sampled on the falling edge.
+        tdo_reg = Signal(reset=1)  # Start with ready=1 assumption
+        self.comb += jtag_tdo.eq(tdo_reg)
 
         fsm = FSM(reset_state="XFER-READY")
         fsm = ClockDomainsRenamer("jtag")(fsm)
         fsm = ResetInserter()(fsm)
         self.submodules += fsm
-        self.comb += fsm.reset.eq(jtag.reset | jtag.capture)
+
+        # Only reset FSM on jtag.reset, NOT jtag.capture.
+        # Resetting on capture clears 'ready' before it can be shifted out.
+        self.comb += fsm.reset.eq(jtag.reset)
+
         fsm.act("XFER-READY",
-            jtag_tdo.eq(ready),
+            If(jtag.capture,
+                # On capture, prepare to output ready on next shift
+                NextValue(tdo_reg, ready),
+            ),
             If(jtag.shift,
                 sink.ready.eq(jtag_tdi),
                 NextValue(valid, sink.valid),
                 NextValue(data,  sink.data),
                 NextValue(count, 0),
+                # Update tdo_reg to output ready (will be sampled on falling edge)
+                NextValue(tdo_reg, ready),
                 NextState("XFER-DATA")
             )
         )
         fsm.act("XFER-DATA",
-            jtag_tdo.eq(data),
             If(jtag.shift,
                 NextValue(count, count + 1),
+                # Update tdo_reg to output current data bit BEFORE shifting
+                NextValue(tdo_reg, data[0]),
                 NextValue(data, Cat(data[1:], jtag_tdi)),
                 If(count == (data_width - 1),
                     NextState("XFER-VALID")
@@ -508,14 +533,21 @@ class JTAGPHY(LiteXModule):
             )
         )
         fsm.act("XFER-VALID",
-            jtag_tdo.eq(valid),
             If(jtag.shift,
                 source.valid.eq(jtag_tdi),
                 source.data.eq(data),
-                NextValue(ready, source.ready),
+                # Update tdo_reg to output valid
+                NextValue(tdo_reg, valid),
+                update_ready.eq(1),  # Trigger ready update (outside FSM)
                 NextState("XFER-READY")
             )
         )
+
+        # Update ready via sync.jtag, NOT NextValue inside FSM.
+        # This register is only reset by the jtag clock domain reset,
+        # not by jtag.reset or FSM reset.
+        self.comb += ready_value.eq(source.ready)
+        self.sync.jtag += If(update_ready, ready.eq(ready_value))
 
 # Efinix / TRION -----------------------------------------------------------------------------------
 
