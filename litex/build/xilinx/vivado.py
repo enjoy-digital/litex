@@ -438,7 +438,7 @@ class XilinxVivadoToolchain(GenericToolchain):
         tcl.append(f"report_route_status -file {self._build_name}_route_status.rpt")
         tcl.append(f"report_drc -file {self._build_name}_drc.rpt")
         if self.vivado_extra_reports:
-            tcl.append(f"report_methodology -file {self._build_name}_timming_methodology.rpt")
+            tcl.append(f"report_methodology -file {self._build_name}_timing_methodology.rpt")
         tcl.append(f"report_timing_summary -datasheet -max_paths 10 -file {self._build_name}_timing.rpt")
         if self.vivado_extra_reports:
             tcl.append(f"report_timing_summary -report_unconstrained -file {self._build_name}_timing_unconstrained_path.rpt")
