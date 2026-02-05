@@ -23,6 +23,11 @@ class MicrosemiPlatform(GenericPlatform):
             raise ValueError(f"Unknown toolchain {toolchain}")
 
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
+        # ProASIC3 family does not support register init in Verilog.
+        if self.toolchain.family is None:
+            self.toolchain.finalize()
+        if self.toolchain.family.startswith("ProASIC3"):
+            kwargs["regs_init"] = False
         so = dict()
         so.update(self.toolchain.special_overrides)
         so.update(special_overrides)
