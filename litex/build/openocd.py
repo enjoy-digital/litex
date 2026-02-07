@@ -6,10 +6,16 @@
 # Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import os
+
 from litex.build.tools import write_to_file
 from litex.build.generic_programmer import GenericProgrammer
 
 # OpenOCD ------------------------------------------------------------------------------------------
+
+def get_openocd_cmd():
+    """Get OpenOCD command, respecting OPENOCD environment variable."""
+    return os.environ.get("OPENOCD", "openocd")
 
 class OpenOCD(GenericProgrammer):
     needs_bitreverse = False
@@ -25,7 +31,7 @@ class OpenOCD(GenericProgrammer):
             "pld load 0 {{{}}}".format(bitstream),
             "exit",
         ])
-        self.call(["openocd", "-f", config, "-c", script])
+        self.call([get_openocd_cmd(), "-f", config, "-c", script])
 
     def flash(self, address, data, set_qe=False, init_commands=[]):
         config      = self.find_config()
@@ -39,7 +45,7 @@ class OpenOCD(GenericProgrammer):
             "fpga_program",
             "exit"
         ])
-        self.call(["openocd", "-f", config, "-c", script])
+        self.call([get_openocd_cmd(), "-f", config, "-c", script])
 
     def get_tap_name(self, config):
         cfg_str = open(config).read()
@@ -96,16 +102,21 @@ class OpenOCD(GenericProgrammer):
         """
         Create a TCP server to stream data to/from the internal JTAG TAP of the FPGA
 
-        Wire format: 10 bits LSB first
+        Wire format: 11 bits LSB first (11 shift cycles for 10 bits of data)
+        Due to JTAG timing, we need N+1 shift cycles to capture N bits because
+        the last falling edge is in Exit1-DR state (doesn't capture TDO).
+
         Host to Target:
           - TX ready : bit 0
-          - RX data: : bit 1 to 8
+          - RX data  : bit 1 to 8
           - RX valid : bit 9
+          - Padding  : bit 10 (ignored)
 
         Target to Host:
           - RX ready : bit 0
           - TX data  : bit 1 to 8
           - TX valid : bit 9
+          - Padding  : bit 10 (repeat of valid)
         """
         config   = self.find_config()
         tap_name = self.get_tap_name(config)
@@ -115,9 +126,14 @@ class OpenOCD(GenericProgrammer):
 proc jtagstream_poll {tap tx n} {
     set m [string length $tx]
     set n [expr ($m>$n)?$m:$n]
-    set txi [lrepeat $n {10 0x001}]
+    # 11 bits per word: bit0=ready, bits1-8=data, bit9=valid, bit10=padding
+    # We need 11 shift cycles to capture all 10 bits because JTAGG only
+    # captures TDO on falling edge in Shift-DR, and the last falling edge
+    # is in Exit1-DR (doesn't capture).
+    set txi [lrepeat $n {11 0x001}]
     set i 0
     foreach txj [split $tx ""] {
+        # 0x401 = ready(1) + valid(1) = bit0 + bit9
         lset txi $i 1 [format 0x%4.4X [expr { 0x201 | ([scan $txj %c] << 1) }]]
         incr i
         #echo tx[scan $txj %c]
@@ -125,7 +141,10 @@ proc jtagstream_poll {tap tx n} {
     set txi [concat {*}$txi]
 """
         cfg += f"""
-    set rxi [split [drscan $tap {{*}}$txi {endstate}] " "]
+    # drscan returns newline-separated values in newer OpenOCD versions
+    # Convert newlines to spaces and then split
+    set raw_result [drscan $tap {{*}}$txi {endstate}]
+    set rxi [split [string map {{"\n" " "}} $raw_result]]
 """
         cfg += """
     #echo $txi:$rxi
@@ -181,14 +200,13 @@ proc jtagstream_client {tap sock} {
 }
 
 proc jtagstream_exit {sock} {
-    stdin readable {}
     $sock readable {}
 }
 
 proc jtagstream_serve {tap port} {
     set sock [socket stream.server $port]
     $sock readable [list jtagstream_client $tap $sock]
-    stdin readable [list jtagstream_exit $sock]
+    # Note: Don't use stdin readable - it causes issues when running in background
     vwait forever
     $sock close
 }
@@ -201,4 +219,4 @@ proc jtagstream_serve {tap port} {
             "jtagstream_serve {} {:d}".format(tap_name, port),
             "exit",
         ])
-        self.call(["openocd", "-f", config, "-f", "stream.cfg", "-c", script])
+        self.call([get_openocd_cmd(), "-f", config, "-f", "stream.cfg", "-c", script])

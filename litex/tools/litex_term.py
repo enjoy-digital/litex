@@ -147,34 +147,66 @@ class JTAGUART:
         self.pty2tcp_thread  = threading.Thread(target=self.pty2tcp, daemon=True)
         self.tcp2pty_thread  = threading.Thread(target=self.tcp2pty, daemon=True)
         self.tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        connected = False
         for _ in range(0, 50):
             try:
                 self.tcp.connect(("localhost", self.port))
+                connected = True
                 break
             except ConnectionRefusedError:
                 time.sleep(0.1)
+        if not connected:
+            raise ConnectionError(f"Failed to connect to OpenOCD jtagstream on port {self.port}")
         self.pty2tcp_thread.start()
         self.tcp2pty_thread.start()
 
     def close(self):
         self.alive = False
-        self.jtag2tcp_thread.join(timeout=0.1)
-        self.pty2tcp_thread.join(timeout=0.1)
-        self.tcp2pty_thread.join(timeout=0.1)
+        # Close TCP socket to unblock recv/send
+        try:
+            self.tcp.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
+        try:
+            self.tcp.close()
+        except OSError:
+            pass
+        # Close PTY to unblock os.read
+        try:
+            os.close(self.file)
+        except OSError:
+            pass
+        self.jtag2tcp_thread.join(timeout=0.5)
+        self.pty2tcp_thread.join(timeout=0.5)
+        self.tcp2pty_thread.join(timeout=0.5)
 
     def jtag2tcp(self):
         prog = OpenOCD(self.config)
         prog.stream(self.port, self.chain)
 
     def pty2tcp(self):
-        while self.alive:
-            r = os.read(self.file, 1)
-            self.tcp.send(r)
+        try:
+            while self.alive:
+                r = os.read(self.file, 1)
+                if not r:
+                    break
+                self.tcp.send(r)
+        except (ConnectionResetError, BrokenPipeError, OSError):
+            pass
+        finally:
+            self.alive = False
 
     def tcp2pty(self):
-        while self.alive:
-            r = self.tcp.recv(1)
-            os.write(self.file, bytes(r))
+        try:
+            while self.alive:
+                r = self.tcp.recv(1)
+                if not r:
+                    break
+                os.write(self.file, bytes(r))
+        except (ConnectionResetError, BrokenPipeError, OSError):
+            pass
+        finally:
+            self.alive = False
 
 # Intel/Altera JTAG UART via nios2-terminal
 class Nios2Terminal():
