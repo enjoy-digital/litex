@@ -183,6 +183,8 @@ class VexiiRiscv(CPU):
         add_soc_arg("--vexii-macsg", dest="mac_sg", action="append", default=[], help="Add the memory coherent ethernet mac")
         cpu_group.add_argument("--internal-device-mapping", dest="mem_map", action="append", nargs=2, default=[],
                                 help="Set the memory mapping for internal peripheral device", metavar=("DEVICE", "ADDRESS")),
+        cpu_group.add_argument("--io-region-mapping",       dest="io_map",  action="store",  nargs=2, default=None,
+                                help="Set the io region mapping for peripheral device", metavar=("ADDRESS", "LENGTH")),
 
     @staticmethod
     def args_read(args):
@@ -196,6 +198,8 @@ class VexiiRiscv(CPU):
         if not args.cpu_variant:
             args.cpu_variant = "standard"
 
+        if not args.io_map is None:
+            VexiiRiscv.io_regions = {int(args.io_map[0], 0): int(args.io_map[1], 0)}
         VexiiRiscv.internal_mem_map.update({devinfo[0]: int(devinfo[1], 0) for devinfo in args.mem_map})
 
         VexiiRiscv.isa_map.update(args.isa)
