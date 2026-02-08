@@ -50,6 +50,7 @@ class VexiiRiscv(CPU):
     with_opensbi     = False
     vexii_args       = ""
     isa_map            = {'i', 'zicsr', 'zifencei'}
+    internal_mem_map   = dict()
     # vexii params received from vexii:
     xlen               = None
     internal_bus_width = None
@@ -116,6 +117,7 @@ class VexiiRiscv(CPU):
             mapping["imsic_m"] = 0xf100_0000
             mapping["imsic_s"] = 0xf120_0000
 
+        mapping.update(VexiiRiscv.internal_mem_map)
         return mapping
 
     # GCC Flags.
@@ -179,6 +181,8 @@ class VexiiRiscv(CPU):
         # Vexii: peripherals
         add_soc_arg("--vexii-video", dest="video",  action="append", default=[], help="Add the memory coherent video controller")
         add_soc_arg("--vexii-macsg", dest="mac_sg", action="append", default=[], help="Add the memory coherent ethernet mac")
+        cpu_group.add_argument("--internal-device-mapping", dest="mem_map", action="append", nargs=2, default=[],
+                                help="Set the memory mapping for internal peripheral device", metavar=("DEVICE", "ADDRESS")),
 
     @staticmethod
     def args_read(args):
@@ -191,6 +195,8 @@ class VexiiRiscv(CPU):
 
         if not args.cpu_variant:
             args.cpu_variant = "standard"
+
+        VexiiRiscv.internal_mem_map.update({devinfo[0]: int(devinfo[1], 0) for devinfo in args.mem_map})
 
         VexiiRiscv.isa_map.update(args.isa)
         VexiiRiscv.isa_map.update(["m", "zihpm", "zicntr"])
@@ -431,6 +437,8 @@ class VexiiRiscv(CPU):
         # gen_args.append(f"--internal_bus_width={VexiiRiscv.internal_bus_width}")
         for region in VexiiRiscv.memory_regions:
             gen_args.append(f"--memory-region={region[0]},{region[1]},{region[2]},{region[3]}")
+        for device, address in VexiiRiscv.internal_mem_map.items():
+            gen_args.append(" --device-region:{}={}".format(device, address))
         for k,v in vars(VexiiRiscv.soc_args).items():
             if isinstance(v, bool):
                 if v:
