@@ -28,17 +28,22 @@ class _GPIOIRQ(LiteXModule):
         # # #
 
         self.ev = EventManager()
+
+        in_pads_n_d = Signal(len(in_pads))
+        self.sync += in_pads_n_d.eq(in_pads)
+
         for n in range(len(in_pads)):
-            in_pads_n_d = Signal()
-            self.sync += in_pads_n_d.eq(in_pads[n])
-            esp = EventSourceProcess(name=f"i{n}", edge="rising")
+            esp = EventSourcePulse(name=f"i{n}")
             self.comb += [
                 # Change mode.
                 If(self._mode.storage[n],
-                    esp.trigger.eq(in_pads[n] ^ in_pads_n_d)
-                # Edge mode.
+                    esp.trigger.eq(in_pads[n] ^ in_pads_n_d[n])
+                # Falling edge.
+                ).Elif(self._edge.storage[n],
+                    esp.trigger.eq(~in_pads[n] & in_pads_n_d[n])
+                # Rising edge.
                 ).Else(
-                    esp.trigger.eq(in_pads[n] ^ self._edge.storage[n])
+                    esp.trigger.eq(in_pads[n] & ~in_pads_n_d[n])
                 )
             ]
             setattr(self.ev, f"i{n}", esp)
