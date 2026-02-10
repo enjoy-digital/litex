@@ -11,6 +11,7 @@
 
 from migen import *
 from migen.genlib.cdc import AsyncResetSynchronizer, MultiReg
+from migen.genlib.fifo import AsyncFIFO
 
 from litex.gen import *
 
@@ -586,30 +587,99 @@ class JTAGPHY(LiteXModule):
             )
         )
 
-        # Connect registered RX signals to source (rx_cdc.sink)
-        # rx_valid is held until source.ready acknowledges
+# ECP5 JTAG PHY (Verilog + AsyncFIFO) -----------------------------------------------------------------
+
+class ECP5JTAGPHY(LiteXModule):
+    """ECP5-specific JTAG PHY using Verilog shift register and AsyncFIFO CDC.
+
+    This implementation handles the ECP5 JTAGG primitive's timing quirks:
+    - JTDI is registered (1 TCK cycle late)
+    - TDO is sampled on falling edge of TCK
+    - Supports continuous multi-word Shift-DR scans (modulo-11 counter)
+
+    Uses a Verilog module for timing-critical shift register logic and
+    Migen AsyncFIFOs for clock domain crossing.
+
+    Wire format: 11 bits LSB first (data_width + 3 for data_width=8).
+      Host -> Target: [padding:10][rx_valid:9][rx_data:8-1][tx_ready:0]
+      Target -> Host: [padding:10][tx_valid:9][tx_data:8-1][rx_ready:0]
+    """
+    def __init__(self, platform, data_width=8, clock_domain="sys", fifo_depth=8):
+        self.sink   = sink   = stream.Endpoint([("data", data_width)])
+        self.source = source = stream.Endpoint([("data", data_width)])
+
+        # # #
+
+        # Add Verilog source for JTAG shift register.
+        import os
+        platform.add_source(os.path.join(os.path.dirname(__file__), "jtagphy_shift.v"))
+
+        # JTAG clock domain.
+        self.cd_jtag = ClockDomain("jtag")
+
+        # Signals from Verilog module.
+        jtag_clk = Signal()
+        jtag_rst = Signal()
+
+        # RX path (JTAG -> sys): data from host.
+        rx_data_jtag  = Signal(data_width)
+        rx_valid_jtag = Signal()
+        rx_ready_jtag = Signal()
+
+        # TX path (sys -> JTAG): data to host.
+        tx_data_jtag  = Signal(data_width)
+        tx_valid_jtag = Signal()
+        tx_ready_jtag = Signal()
+
+        # Connect JTAG clock domain.
         self.comb += [
-            source.valid.eq(rx_valid),
-            source.data.eq(rx_data),
+            self.cd_jtag.clk.eq(jtag_clk),
+            self.cd_jtag.rst.eq(jtag_rst),
         ]
 
-        # Update rx_valid/rx_data via sync.jtag, NOT NextValue inside FSM.
-        # This ensures they only reset on clock domain reset, not on FSM reset.
-        # Priority: update_rx (set) > source handshake (clear)
-        self.sync.jtag += [
-            If(update_rx,
-                rx_valid.eq(rx_valid_in),
-                rx_data.eq(data),
-            ).Elif(source.valid & source.ready,
-                rx_valid.eq(0),
-            )
+        # Instantiate Verilog shift register.
+        self.specials += Instance("jtagphy_shift",
+            o_jtag_clk = jtag_clk,
+            o_jtag_rst = jtag_rst,
+            o_rx_data  = rx_data_jtag,
+            o_rx_valid = rx_valid_jtag,
+            i_rx_ready = rx_ready_jtag,
+            i_tx_data  = tx_data_jtag,
+            i_tx_valid = tx_valid_jtag,
+            o_tx_ready = tx_ready_jtag,
+        )
+
+        # RX AsyncFIFO (JTAG -> sys).
+        self.submodules.rx_fifo = rx_fifo = ClockDomainsRenamer({
+            "write": "jtag", "read": clock_domain
+        })(AsyncFIFO(width=data_width, depth=fifo_depth))
+
+        self.comb += [
+            rx_fifo.din.eq(rx_data_jtag),
+            rx_fifo.we.eq(rx_valid_jtag & rx_fifo.writable),
+            rx_ready_jtag.eq(rx_fifo.writable),
+        ]
+        self.comb += [
+            source.valid.eq(rx_fifo.readable),
+            source.data.eq(rx_fifo.dout),
+            rx_fifo.re.eq(source.ready & rx_fifo.readable),
         ]
 
-        # Update ready via sync.jtag, NOT NextValue inside FSM.
-        # This register is only reset by the jtag clock domain reset,
-        # not by jtag.reset or FSM reset.
-        self.comb += ready_value.eq(source.ready)
-        self.sync.jtag += If(update_ready, ready.eq(ready_value))
+        # TX AsyncFIFO (sys -> JTAG).
+        self.submodules.tx_fifo = tx_fifo = ClockDomainsRenamer({
+            "write": clock_domain, "read": "jtag"
+        })(AsyncFIFO(width=data_width, depth=fifo_depth))
+
+        self.comb += [
+            tx_fifo.din.eq(sink.data),
+            tx_fifo.we.eq(sink.valid & tx_fifo.writable),
+            sink.ready.eq(tx_fifo.writable),
+        ]
+        self.comb += [
+            tx_valid_jtag.eq(tx_fifo.readable),
+            tx_data_jtag.eq(tx_fifo.dout),
+            tx_fifo.re.eq(tx_ready_jtag & tx_fifo.readable),
+        ]
 
 # Efinix / TRION -----------------------------------------------------------------------------------
 
