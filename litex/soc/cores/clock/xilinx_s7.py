@@ -78,7 +78,7 @@ class S7MMCM(XilinxClocking):
             -3: (600e6, 1600e6),
         }[speedgrade]
         
-        self.clkout0_divide_range = (1, (128 + 1/8), 1/8) # Fractional Divide available on CLKOUT0
+        self.clkout0_divide_range = (2, (128 + 1/8), 1/8) # Fractional Divide available on CLKOUT0
         self.clkfbout_mult_frange = (2,  64+1/8, 1/8) # Fractional multiply
 
         if not fractional:
