@@ -79,7 +79,7 @@ class XilinxClocking(LiteXModule):
         config = {}
         for divclk_divide in range(*self.divclk_divide_range):
             config["divclk_divide"] = divclk_divide
-            for clkfbout_mult in clkdiv_range(*self.clkfbout_mult_frange): # reverse to use highest vco frequency ?
+            for clkfbout_mult in reversed(list(clkdiv_range(*self.clkfbout_mult_frange))): # Reverse to use highest VCO frequency.
                 all_valid = True
                 vco_freq = self.clkin_freq*clkfbout_mult/divclk_divide
                 (vco_freq_min, vco_freq_max) = self.vco_freq_range
