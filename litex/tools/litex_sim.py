@@ -575,6 +575,9 @@ def main():
     if args.with_jtagremote:
         sim_config.add_module("jtagremote", "jtag", args={'port': 44853})
 
+    if args.with_jtagbone:
+        sim_config.add_module("jtagremote", "jtag", args={'port': 44853})
+
     # Video.
     if args.with_video_framebuffer or args.with_video_terminal or args.with_video_colorbars:
         sim_config.add_module("video", "vga", args={"render_on_vsync": args.video_vsync})
