@@ -29,8 +29,6 @@ from litex.soc.cores.gpio    import GPIOTristate
 from litex.soc.cores.cpu     import CPUS
 from litex.soc.cores.video   import VideoGenericPHY
 
-from litedram.phy.model import get_sdram_phy_settings
-
 from liteeth.common             import *
 from liteeth.phy.gmii           import LiteEthPHYGMII
 from liteeth.phy.xgmii          import LiteEthPHYXGMII
