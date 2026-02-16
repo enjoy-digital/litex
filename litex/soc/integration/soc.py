@@ -1585,6 +1585,7 @@ class LiteXSoC(SoC):
             "stream",
             "uartbone",
             "usb_acm",
+            "luna_acm",
             "serial(x)",
         ]
         if uart_pads is None:
@@ -1644,6 +1645,14 @@ class LiteXSoC(SoC):
             self.cd_sys_usb = ClockDomain()
             self.comb += self.cd_sys_usb.clk.eq(ClockSignal("sys"))
             uart = ClockDomainsRenamer("sys_usb")(cdc_eptri.CDCUsb(usb_iobuf))
+
+        # Luna USB ACM (with LUNA ACM core).
+        elif uart_name in ["luna_acm"]:
+            from litex.soc.cores.luna_cdc_acm import LunaCDCACM
+            usb_pads = self.platform.request("usb")
+            uart_phy = LunaCDCACM(self.platform, usb_pads)
+            self.comb += uart_phy.connect.eq(1)
+            uart     = UART(uart_phy, **uart_kwargs)
 
         # Regular UART.
         else:
