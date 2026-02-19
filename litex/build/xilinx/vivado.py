@@ -244,7 +244,7 @@ class XilinxVivadoToolchain(GenericToolchain):
         # Mark asynchronous inputs to MultiReg as false paths.
         self.platform.add_platform_command(
             "set_false_path -quiet "
-            "-through [get_nets -hierarchical -filter {{mr_ff == TRUE}}]"
+            "-to [get_nets -filter {{mr_ff == TRUE}}]"
         )
 
         # Mark asynchronous reset inputs to AsyncResetSynchronizer as false paths.
@@ -257,7 +257,7 @@ class XilinxVivadoToolchain(GenericToolchain):
         # Set a maximum delay for metastability resolution in AsyncResetSynchronizer.
         self.platform.add_platform_command(
             "set_max_delay 2 -quiet "
-            "-from [get_pins -filter {{REF_PIN_NAME == C}} "
+            "-from [get_pins -filter {{REF_PIN_NAME == Q}} "
             "-of_objects [get_cells -hierarchical -filter {{ars_ff1 == TRUE}}]] "
             "-to [get_pins -filter {{REF_PIN_NAME == D}} "
             "-of_objects [get_cells -hierarchical -filter {{ars_ff2 == TRUE}}]]"
