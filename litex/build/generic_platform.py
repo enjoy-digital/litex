@@ -384,6 +384,12 @@ class GenericPlatform:
                 if a is not b:
                     self.add_false_path_constraint(a, b)
 
+    def add_false_path_constraints_by_name(self, *clock_names):
+        for a in clock_names:
+            for b in clock_names:
+                if a != b:
+                    self.add_false_path_constraint(a, b)
+
     def add_platform_command(self, *args, **kwargs):
         return self.constraint_manager.add_platform_command(*args, **kwargs)
 

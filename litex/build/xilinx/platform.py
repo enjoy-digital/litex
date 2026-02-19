@@ -108,6 +108,29 @@ class XilinxPlatform(GenericPlatform):
             to = to.p
         self.toolchain.add_false_path_constraint(self, from_, to)
 
+    def add_generated_clock_from_divider_reg(self, name, reg_basename, divide_by):
+        self.add_platform_command(
+            f"create_generated_clock -name {name} -divide_by {divide_by} "
+            + "-source [get_pins -hierarchical -filter {{NAME =~ *" + reg_basename + "/C}}] "
+            + "[get_pins -hierarchical -filter {{NAME =~ *" + reg_basename + "/Q}}]"
+        )
+
+
+    def add_false_path_constraints_by_name(self, *clock_names):
+        # On Vivado, some generated/internal clocks are only resolvable after synthesis.
+        # Emit explicit set_clock_groups in pre-placement commands for robust resolution.
+        if hasattr(self.toolchain, "pre_placement_commands"):
+            for i, a in enumerate(clock_names):
+                for b in clock_names[i+1:]:
+                    self.toolchain.pre_placement_commands.append(
+                        f"set_clock_groups -asynchronous -group [get_clocks {a}] -group [get_clocks {b}]"
+                    )
+        else:
+            for a in clock_names:
+                for b in clock_names:
+                    if a != b:
+                        self.add_false_path_constraint(a, b)
+
     @classmethod
     def fill_args(cls, toolchain, parser):
         """
