@@ -2011,6 +2011,57 @@ class LiteXSoC(SoC):
                 else:
                     self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk)
 
+    # Add Ethernet with DMA ------------------------------------------------------------------------
+    def add_ethernet_with_dma(self, name="ethmac", phy=None, phy_cd="eth", dynamic_ip=False, software_debug=False,
+        dma_offset              = 1 * 1024 * 1024,
+        nrxslots                = 2,
+        ntxslots                = 2,
+        with_sys_datapath       = False,
+        with_timing_constraints = True):
+        # Imports
+        from liteeth.mac import LiteEthMACDMA
+        from liteeth.phy.model import LiteEthPHYModel
+
+        # MAC.
+        self.check_if_exists(name)
+        ethmac = LiteEthMACDMA(
+            phy            = phy,
+            dma_write_port = self.sdram.crossbar.get_port("write"),
+            dma_read_port  = self.sdram.crossbar.get_port("read"),
+            dma_offset     = dma_offset,
+            nrxslots       = nrxslots,
+            ntxslots       = ntxslots,
+            with_preamble_crc = not software_debug,
+            with_sys_datapath = with_sys_datapath)
+        if not with_sys_datapath:
+            # Use PHY's eth_tx/eth_rx clock domains.
+            ethmac = ClockDomainsRenamer({
+                "eth_tx": phy_cd + "_tx",
+                "eth_rx": phy_cd + "_rx"})(ethmac)
+        setattr(self.submodules, name, ethmac)
+
+        # Add IRQs (if enabled).
+        if self.irq.enabled:
+            self.irq.add(name, use_loc_if_exists=True)
+
+        # Dynamic IP (if enabled).
+        if dynamic_ip:
+            self.add_constant("ETH_DYNAMIC_IP")
+
+        # Software Debug
+        if software_debug:
+            self.add_constant("ETH_UDP_TX_DEBUG")
+            self.add_constant("ETH_UDP_RX_DEBUG")
+
+        # Timing constraints
+        if with_timing_constraints:
+            eth_rx_clk = getattr(phy, "crg", phy).cd_eth_rx.clk
+            eth_tx_clk = getattr(phy, "crg", phy).cd_eth_tx.clk
+            if not isinstance(phy, LiteEthPHYModel) and not getattr(phy, "model", False):
+                self.platform.add_period_constraint(eth_rx_clk, 1e9/phy.rx_clk_freq)
+                self.platform.add_period_constraint(eth_tx_clk, 1e9/phy.tx_clk_freq)
+                self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk, eth_tx_clk)
+
     # Add Etherbone --------------------------------------------------------------------------------
     def add_etherbone(self, name="etherbone", phy=None, phy_cd=None, data_width=8,
         mac_address             = 0x10e2d5000000,
