@@ -149,6 +149,10 @@ class GowinToolchain(GenericToolchain):
             # Support windows/powershell
             if sys.platform == "win32":
                 f = f.replace("\\", "\\\\")
+            # replace /mnt/c/ to C:/ for WSL and detecting letter drive
+            elif "linux" in sys.platform and "WSL" in os.uname().release and f.startswith("/mnt/") and len(f) > 6:
+                f = f"{f[5].upper()}:\\\\" + f[7:]
+                f = f.replace("/", "\\\\")
             tcl.append(f"add_file {f}")
 
         # Set Options.
