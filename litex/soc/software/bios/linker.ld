@@ -51,6 +51,15 @@ SECTIONS
 		PROVIDE_HIDDEN (__bios_init_end = .);
 	} > rom
 
+	.init_array :
+	{
+		. = ALIGN(4);
+		__init_array_start = .;
+		KEEP(*(SORT(.init_array.*)))
+		KEEP(*(.init_array))
+		__init_array_end = .;
+	} > rom
+
 	.data :
 	{
 		. = ALIGN(8);
