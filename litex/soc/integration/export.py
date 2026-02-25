@@ -657,6 +657,28 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
                 svd.append('                            <lsb>{}</lsb>'.format(field.offset))
                 svd.append('                            <description><![CDATA[{}]]></description>'.format(
                     reflow(field.description)))
+
+                if field.values is not None:
+                    svd_v = []
+                    for value in field.values:
+                        if len(value) == 3:
+                            name, description, value = value[1], value[2], value[0]
+                        else:
+                            name, description, value = value[1].split()[0], value[1], value[0]
+                        name = re.search("[_A-Za-z0-9]+", name).group(0)
+                        matches = re.findall("[+]?(0[xX][0-9a-fA-F]+|(#|0b)[01xX]+|[0-9]+)", value)
+                        if len(matches) != 1 or len(name) == 0:
+                            continue
+                        value = matches[0][0]
+                        svd_v.append('                                <enumeratedValue>')
+                        svd_v.append('                                    <name>{}</name>'.format(name))
+                        svd_v.append('                                    <description>{}</description>'.format(description))
+                        svd_v.append('                                    <value>{}</value>'.format(value))
+                        svd_v.append('                                </enumeratedValue>')
+                    if len(svd_v) != 0:
+                        svd.append('                            <enumeratedValues>')
+                        svd += svd_v
+                        svd.append('                            </enumeratedValues>')
                 svd.append('                        </field>')
         else:
             field_size = csr.size
