@@ -166,8 +166,10 @@ $ ./litex_setup.py --update
 
 3. Install a RISC-V toolchain (Only if you want to test/create a SoC with a CPU):
 ```sh
-$ pip3 install meson ninja
-$ ./litex_setup.py --gcc=riscv
+$ git clone --recursive https://github.com/riscv/riscv-gnu-toolchain
+$ cd riscv-gnu-toolchain
+$ ./configure --prefix=$HOME/RISCV --enable-multilib
+$ make newlib linux
 ```
 
 4. Build the target of your board...:
