@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-
 #
 # This file is part of LiteX.
 #
 # Copyright (c) 2022 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2023 Joseph Faye <josephwfaye@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 """
@@ -15,6 +15,8 @@ Think of it as a mini Nios SOPC Builder/ Zynq or Microblaze Subsystem generator 
 possibility to reuse any of CPU supported by LiteX :)
 """
 
+import os
+import json
 import argparse
 
 from migen import *
@@ -62,7 +64,7 @@ class Platform(GenericPlatform):
 # LiteX SoC Generator ------------------------------------------------------------------------------
 
 class LiteXSoCGenerator(SoCMini):
-    def __init__(self, name="litex_soc", sys_clk_freq=int(50e6), **kwargs):
+    def __init__(self, name="litex_soc", mmap_config=None, sys_clk_freq=int(50e6), **kwargs):
         # Platform ---------------------------------------------------------------------------------
         platform = Platform(device="", io=get_common_ios())
         platform.name = name
@@ -79,29 +81,28 @@ class LiteXSoCGenerator(SoCMini):
             kwargs["uart_name"] = "uart"
         SoCCore.__init__(self, platform, clk_freq=sys_clk_freq, ident=f"LiteX standalone SoC - {name}", **kwargs)
 
-        # MMAP Slave Interface ---------------------------------------------------------------------
-        s_bus = {
-            "wishbone" : wishbone.Interface(),
-            "axi-lite" : axi.AXILiteInterface(),
+        # MMAP Master Interface -------------------------------------------------------------------
+        for master in mmap_config.get("masters", []):
+            m_bus = {
+                "wishbone": wishbone.Interface(),
+                "axi-lite": axi.AXILiteInterface(),
+            }[kwargs["bus_standard"]]
+            wb_region = SoCRegion(origin=int(master["base"], 16), size=int(master["size"], 16), cached=False)
+            self.bus.add_slave(name=master["name"], slave=m_bus, region=wb_region)
+            platform.add_extension(m_bus.get_ios(master["name"]))
+            wb_pads = platform.request(master["name"])
+            self.comb += m_bus.connect_to_pads(wb_pads, mode="master")
 
-        }[kwargs["bus_standard"]]
-        self.bus.add_master(name="mmap_s", master=s_bus)
-        platform.add_extension(s_bus.get_ios("mmap_s"))
-        wb_pads = platform.request("mmap_s")
-        self.comb += s_bus.connect_to_pads(wb_pads, mode="slave")
-
-        # MMAP Master Interface --------------------------------------------------------------------
-        # FIXME: Allow Region configuration.
-        m_bus = {
-            "wishbone" : wishbone.Interface(),
-            "axi-lite" : axi.AXILiteInterface(),
-
-        }[kwargs["bus_standard"]]
-        wb_region = SoCRegion(origin=0xa000_0000, size=0x1000_0000, cached=False) # FIXME.
-        self.bus.add_slave(name="mmap_m", slave=m_bus, region=wb_region)
-        platform.add_extension(m_bus.get_ios("mmap_m"))
-        wb_pads = platform.request("mmap_m")
-        self.comb += m_bus.connect_to_pads(wb_pads, mode="master")
+        # MMAP Slave Interface -----------------------------------------------------------------------
+        for slave in mmap_config.get("slaves", []):
+            s_bus = {
+                "wishbone": wishbone.Interface(),
+                "axi-lite": axi.AXILiteInterface(),
+            }[kwargs["bus_standard"]]
+            self.bus.add_master(name=slave["name"], master=s_bus)
+            platform.add_extension(s_bus.get_ios(slave["name"]))
+            wb_pads = platform.request(slave["name"])
+            self.comb += s_bus.connect_to_pads(wb_pads, mode="slave")
 
         # Debug ------------------------------------------------------------------------------------
         platform.add_extension(get_debug_ios())
@@ -120,16 +121,27 @@ def main():
     parser = LiteXSoCArgumentParser(description="LiteX standalone SoC generator")
     target_group = parser.add_argument_group(title="Generator options")
     target_group.add_argument("--name",          default="litex_soc", help="SoC Name.")
+    target_group.add_argument("--mmap-config",   help="Dictionnary or path to the JSON file with mmap configuration.")
     target_group.add_argument("--build",         action="store_true", help="Build SoC.")
     target_group.add_argument("--sys-clk-freq",  default=int(50e6),   help="System clock frequency.")
     builder_args(parser)
     soc_core_args(parser)
     args = parser.parse_args()
 
+    # MMAP config
+    if args.mmap_config is not None:
+        if not os.path.exists(args.mmap_config):
+            raise FileNotFoundError(f"The specified mmap configuration file '{args.mmap_config}' does not exist.")
+        with open(args.mmap_config, 'r') as f:
+            mmap_config = json.load(f)
+    elif args.mmap_config is None:
+        mmap_config = {"masters": [], "slaves": []}
+
     # SoC.
     soc = LiteXSoCGenerator(
-        name         = args.name,
-        sys_clk_freq = int(float(args.sys_clk_freq)),
+        name=args.name,
+        sys_clk_freq=int(float(args.sys_clk_freq)),
+        mmap_config=mmap_config,
         **soc_core_argdict(args)
     )
 

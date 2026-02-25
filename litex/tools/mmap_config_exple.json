@@ -1,0 +1,10 @@
+{
+    "masters": [
+        {"name": "mmap_m1", "base": "0xa0000000", "size": "0x10000000"},
+        {"name": "mmap_m2", "base": "0xb0000000", "size": "0x10000000"}
+    ],
+    "slaves": [
+        {"name": "mmap_s1", "base": "0xc0000000", "size": "0x10000000"},
+        {"name": "mmap_s2", "base": "0xd0000000", "size": "0x10000000"}
+    ]
+}
