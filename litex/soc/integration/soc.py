@@ -2516,14 +2516,24 @@ class LiteXSoC(SoC):
 
     # Add PCIe -------------------------------------------------------------------------------------
     def add_pcie(self, name="pcie", phy=None, ndmas=0, max_pending_requests=8, address_width=32, data_width=None,
-        with_dma_buffering    = True, dma_buffering_depth=1024,
-        with_dma_loopback     = True,
-        with_dma_synchronizer = False,
-        with_dma_monitor      = False,
-        with_dma_status       = False, status_width=32,
-        with_dma_table        = True,
-        with_msi              = True, msi_type="msi", msi_width=32, msis={},
-        with_ptm              = False):
+        cmp_bufs_buffered             = True,
+        with_dma_buffering            = True, dma_buffering_depth=1024,
+        dma_writer_buffering_depth    = None,
+        dma_reader_buffering_depth    = None,
+        dma_buffering_depths          = None,
+        dma_writer_buffering_depths   = None,
+        dma_reader_buffering_depths   = None,
+        with_dma_loopback             = True,
+        with_dma_synchronizer         = False,
+        with_dma_monitor              = False,
+        with_dma_status               = False, status_width=32,
+        with_dma_table                = True,
+        with_msi                      = True, msi_type="msi", msi_width=32, msis={},
+        dma_name_prefix               = None,
+        msi_name                      = None,
+        map_dma_irqs                  = True,
+        auto_map_msi_irqs             = True,
+        with_ptm                      = False):
         # Imports
         from litepcie.phy.uspciephy import USPCIEPHY
         from litepcie.phy.usppciephy import USPPCIEPHY
@@ -2534,12 +2544,19 @@ class LiteXSoC(SoC):
         # Checks.
         assert self.csr.data_width == 32
 
+        # PCIe submodule naming (allows projects to keep legacy CSR names for DMA/MSI).
+        if dma_name_prefix is None:
+            dma_name_prefix = f"{name}_dma"
+        if msi_name is None:
+            msi_name = f"{name}_msi"
+
         # Endpoint.
         self.check_if_exists(f"{name}_endpoint")
         endpoint = LitePCIeEndpoint(phy,
             max_pending_requests = max_pending_requests,
             endianness           = phy.endianness,
             address_width        = address_width,
+            cmp_bufs_buffered    = cmp_bufs_buffered,
             with_ptm             = with_ptm,
         )
         self.add_module(name=f"{name}_endpoint", module=endpoint)
@@ -2553,41 +2570,54 @@ class LiteXSoC(SoC):
         # MSI.
         if with_msi:
             assert msi_type in ["msi", "msi-multi-vector", "msi-x"]
-            self.check_if_exists(f"{name}_msi")
+            self.check_if_exists(msi_name)
             if msi_type == "msi":
                 msi = LitePCIeMSI(width=msi_width)
             if msi_type == "msi-multi-vector":
                 msi = LitePCIeMSIMultiVector(width=msi_width)
             if msi_type == "msi-x":
                 msi = LitePCIeMSIX(endpoint=self.pcie_endpoint, width=msi_width)
-            self.add_module(name=f"{name}_msi", module=msi)
+            self.add_module(name=msi_name, module=msi)
             if msi_type in ["msi", "msi-multi-vector"]:
                 self.comb += msi.source.connect(phy.msi)
             self.msis = msis
 
         # DMAs.
+        def _pcie_dma_depth(depth, index, default=None):
+            if depth is None:
+                return default
+            if isinstance(depth, dict):
+                return depth[index]
+            if isinstance(depth, (list, tuple)):
+                return depth[index]
+            return depth
+
         for i in range(ndmas):
             assert with_msi
-            self.check_if_exists(f"{name}_dma{i}")
+            dma_name = f"{dma_name_prefix}{i}"
+            self.check_if_exists(dma_name)
             dma = LitePCIeDMA(phy, endpoint,
-                with_buffering    = with_dma_buffering, buffering_depth=dma_buffering_depth,
-                with_loopback     = with_dma_loopback,
-                with_synchronizer = with_dma_synchronizer,
-                with_monitor      = with_dma_monitor,
-                with_status       = with_dma_status, status_width=status_width,
-                with_table        = with_dma_table,
-                address_width     = address_width,
-                data_width        = data_width,
+                with_buffering         = with_dma_buffering,
+                buffering_depth        = _pcie_dma_depth(dma_buffering_depths,        i, dma_buffering_depth),
+                writer_buffering_depth = _pcie_dma_depth(dma_writer_buffering_depths, i, dma_writer_buffering_depth),
+                reader_buffering_depth = _pcie_dma_depth(dma_reader_buffering_depths, i, dma_reader_buffering_depth),
+                with_loopback          = with_dma_loopback,
+                with_synchronizer      = with_dma_synchronizer,
+                with_monitor           = with_dma_monitor,
+                with_status            = with_dma_status, status_width=status_width,
+                with_table             = with_dma_table,
+                address_width          = address_width,
+                data_width             = data_width,
             )
-            self.add_module(name=f"{name}_dma{i}", module=dma)
-            if with_dma_table:
+            self.add_module(name=dma_name, module=dma)
+            if with_dma_table and map_dma_irqs:
                 self.msis[f"{name.upper()}_DMA{i}_WRITER"] = dma.writer.irq
                 self.msis[f"{name.upper()}_DMA{i}_READER"] = dma.reader.irq
         self.add_constant("DMA_CHANNELS",   ndmas)
         self.add_constant("DMA_ADDR_WIDTH", address_width)
 
         # Map/Connect MSI IRQs.
-        if with_msi:
+        if with_msi and auto_map_msi_irqs:
             for i, (k, v) in enumerate(sorted(self.msis.items())):
                 self.comb += msi.irqs[i].eq(v)
                 self.add_constant(k + "_INTERRUPT", i)
