@@ -2666,14 +2666,31 @@ class LiteXSoC(SoC):
         timings = timings if isinstance(timings, str) else timings[0]
         base = self.mem_map.get(name, None)
         if base is None:
+            base = 0x40c00000
+            size = 0x800000
+            # If the intended region isn't contained in the main_ram region, adjust it to fit.
+            main_ram_region = self.bus.regions.get("main_ram", None)
+            if main_ram_region is None:
+                self.logger.error("Video framebuffer requires SDRAM")
+                raise SoCError()
+            contained_in_main_ram = (
+                main_ram_region.origin < base
+                and base + size < main_ram_region.origin + main_ram_region.size
+            )
+            if not contained_in_main_ram:
+                size = min(size, main_ram_region.size // 2)
+                base = main_ram_region.origin + main_ram_region.size - size
             self.bus.add_region(name, SoCRegion(
-                origin = 0x40c00000,
-                size   = 0x800000,
+                origin = base,
+                size   = size,
                 linker = True)
             )
             base = self.bus.regions[name].origin
         hres = int(timings.split("@")[0].split("x")[0])
         vres = int(timings.split("@")[0].split("x")[1])
+        if not hasattr(self, "sdram"):
+            self.logger.error("Video framebuffer requires SDRAM")
+            raise SoCError()
         vfb = VideoFrameBuffer(self.sdram.crossbar.get_port(),
             hres                  = hres,
             vres                  = vres,
