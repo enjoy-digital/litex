@@ -280,12 +280,145 @@ def _list_comb_wires(f):
             r |= g[0]
     return r
 
+def _analyze_all_signal_usage(f):
+    """Analyze ALL signals to determine correct wire/reg classification"""
+    wire_assigned_signals = set()  # Signals only in assign statements
+    proc_assigned_signals = set()  # Signals assigned in procedural blocks
+    
+    # Analyze all combinatorial assignments
+    groups = group_by_targets(f.comb)
+    for g in groups:
+        if _use_wire(g[1]):
+            wire_assigned_signals |= g[0]
+        else:
+            proc_assigned_signals |= g[0]
+    
+    # Analyze synchronous assignments
+    for domain_stmts in f.sync.values():
+        proc_assigned_signals |= list_targets(domain_stmts)
+    
+    return wire_assigned_signals, proc_assigned_signals
+
+def _list_comb_regs(f):
+    """Returns set of signals that need to be declared as reg because they're assigned in always blocks."""
+    _, proc_assigned_signals = _analyze_all_signal_usage(f)
+    return proc_assigned_signals & set(list_targets(f))
+
+def _classify_all_signals(f, ios):
+    """Classify ALL signals (both internal and output ports) based on actual usage patterns"""
+    wire_signals, proc_signals = _analyze_all_signal_usage(f)
+    
+    # Find ALL signals that need reg treatment (both internal and output ports)
+    all_signals = list_signals(f) | list_special_ios(f, ins=True, outs=True, inouts=True)
+    all_proc_signals = all_signals & proc_signals  # ALL signals assigned procedurally
+    
+    # Separate internal vs output port signals
+    output_ports = {sig for sig in ios if sig in list_targets(f)}
+    output_proc_signals = output_ports & proc_signals  # Output ports needing reg treatment
+    internal_proc_signals = all_proc_signals - output_ports  # Internal signals needing reg treatment
+    
+    return all_proc_signals, output_proc_signals, internal_proc_signals, wire_signals, proc_signals
+
+def _pre_generate_intermediate_signals(f, ios, ns):
+    """Generate ALL intermediate signals BEFORE any other code generation"""
+    all_proc_signals, output_proc_signals, internal_proc_signals, wire_signals, proc_signals = _classify_all_signals(f, ios)
+    
+    # Store comprehensive mappings in namespace for use by ALL subsequent generation phases
+    ns._reg_signal_mappings = {}
+    ns._slice_wire_mappings = {}
+    ns._intermediate_wires = {}
+    
+    # Handle output ports (need wire bridges)
+    for sig in output_proc_signals:
+        internal_name = ns.get_name(sig) + "_reg"
+        ns._reg_signal_mappings[sig] = internal_name
+        ns._intermediate_wires[sig] = {
+            'reg_name': internal_name,
+            'slice_wires': {}  # Will be populated as needed
+        }
+    
+    # Handle internal signals (will be declared as reg directly, no bridge needed)
+    for sig in internal_proc_signals:
+        # For internal signals, namespace wrapper will redirect to same name, but we mark them for reg declaration
+        ns._reg_signal_mappings[sig] = ns.get_name(sig)  # Same name, but will be declared as reg
+        ns._intermediate_wires[sig] = {
+            'reg_name': ns.get_name(sig),
+            'slice_wires': {},
+            'internal_signal': True  # Mark as internal signal
+        }
+    
+    return all_proc_signals, output_proc_signals, internal_proc_signals
+
+def _pre_allocate_slice_wires(ns, all_specials):
+    """Pre-analyze ALL instance connections to identify needed slice wires"""
+    from migen.fhdl.specials import Instance
+    from migen.fhdl.structure import _Slice
+    
+    for special in all_specials:
+        if isinstance(special, Instance):
+            for io in special.items:
+                if hasattr(io, 'expr') and isinstance(io.expr, _Slice):
+                    base_signal = io.expr.value
+                    if hasattr(ns, '_reg_signal_mappings') and base_signal in ns._reg_signal_mappings:
+                        # Pre-allocate slice wire
+                        slice_key = (base_signal, io.expr.start, io.expr.stop)
+                        if slice_key not in ns._slice_wire_mappings:
+                            wire_name = ns.get_name(base_signal) + "_out"
+                            ns._slice_wire_mappings[slice_key] = {
+                                'wire_name': wire_name,
+                                'slice_width': io.expr.stop - io.expr.start,
+                                'original_name': ns.get_name(base_signal)
+                            }
+
+def _generate_signal_declaration(sig, name):
+    """Generate signal declaration with custom name."""
+    if len(sig) == 1:
+        return name
+    else:
+        return f"[{len(sig)-1}:0] {name}"
+
+def _get_signal_name_for_assignment(ns, sig):
+    """Get the appropriate signal name for assignment (use reg version if available)."""
+    if hasattr(ns, '_reg_signal_mappings') and sig in ns._reg_signal_mappings:
+        return ns._reg_signal_mappings[sig]
+    else:
+        return ns.get_name(sig)
+
+class _NamespaceWrapper:
+    """Wrapper that redirects certain signals to their reg versions."""
+    def __init__(self, ns):
+        self.ns = ns
+        
+    def get_name(self, sig):
+        if hasattr(self.ns, '_reg_signal_mappings') and sig in self.ns._reg_signal_mappings:
+            return self.ns._reg_signal_mappings[sig]
+        else:
+            return self.ns.get_name(sig)
+    
+    def __getattr__(self, name):
+        return getattr(self.ns, name)
+
+def _resolve_instance_expression(ns, expr):
+    """Resolve instance expressions with guaranteed wire availability"""
+    from migen.fhdl.structure import _Slice
+    from litex.gen.fhdl.expression import _generate_expression
+    
+    # By this point, ALL intermediate wires are already pre-allocated
+    if isinstance(expr, _Slice) and hasattr(ns, '_slice_wire_mappings'):
+        slice_key = (expr.value, expr.start, expr.stop)
+        if slice_key in ns._slice_wire_mappings:
+            return ns._slice_wire_mappings[slice_key]['wire_name'], False
+    
+    # Use namespace wrapper for other cases
+    return _generate_expression(_NamespaceWrapper(ns), expr)
+
 def _generate_module(f, ios, name, ns, attr_translate):
     sigs         = list_signals(f) | list_special_ios(f, ins=True, outs=True, inouts=True)
     special_outs = list_special_ios(f, ins=False, outs=True,  inouts=True)
     inouts       = list_special_ios(f, ins=False, outs=False, inouts=True)
     targets      = list_targets(f) | special_outs
-    wires        = _list_comb_wires(f) | special_outs
+    comb_regs    = _list_comb_regs(f)
+    wires        = (_list_comb_wires(f) | special_outs) - comb_regs
 
     r = f"module {name} (\n"
     firstp = True
@@ -304,11 +437,8 @@ def _generate_module(f, ios, name, ns, attr_translate):
             r += _tab + "inout  wire " + _generate_signal(ns, sig)
         elif sig in targets:
             sig.direction = "output"
-            if sig in wires:
-                r += _tab + "output wire " + _generate_signal(ns, sig)
-            else:
-                sig.type = "reg"
-                r += _tab + "output reg  " + _generate_signal(ns, sig)
+            sig.type = "wire"  # All output ports should be wire
+            r += _tab + "output wire " + _generate_signal(ns, sig)
         else:
             sig.direction = "input"
             r += _tab + "input  wire " + _generate_signal(ns, sig)
@@ -316,23 +446,98 @@ def _generate_module(f, ios, name, ns, attr_translate):
 
     return r
 
+def _generate_all_intermediate_signals(ns, output_proc_signals, attr_translate, regs_init):
+    """Generate intermediate signals for output ports only (internal signals handled separately)"""
+    r = ""
+    
+    # Generate internal reg signals for output ports needing reg treatment (not internal signals)
+    for sig in sorted(output_proc_signals, key=lambda x: ns.get_name(x)):
+        # Skip internal signals - they're handled in main signal generation
+        if (hasattr(ns, '_intermediate_wires') and sig in ns._intermediate_wires and 
+            ns._intermediate_wires[sig].get('internal_signal', False)):
+            continue
+            
+        r += _generate_attribute(sig.attr, attr_translate)
+        internal_name = ns._reg_signal_mappings[sig]
+        r += f"reg {_generate_signal_declaration(sig, internal_name)}"
+        if regs_init:
+            r += " = " + _generate_expression(ns, sig.reset)[0]
+        r += ";\n"
+    
+    # Generate ALL slice wires (pre-allocated during instance analysis)
+    if hasattr(ns, '_slice_wire_mappings') and ns._slice_wire_mappings:
+        r += "\n// Intermediate wires for sliced instance connections\n"
+        for slice_key, mapping in ns._slice_wire_mappings.items():
+            wire_name = mapping['wire_name']
+            slice_width = mapping['slice_width']
+            
+            # Generate wire declaration
+            if slice_width > 1:
+                r += f"wire [{slice_width-1}:0] {wire_name};\n"
+            else:
+                r += f"wire {wire_name};\n"
+        r += "\n"
+    
+    # Generate assign statements for output ports only (internal signals don't need bridges)
+    for sig in sorted(output_proc_signals, key=lambda x: ns.get_name(x)):
+        # Skip internal signals - they don't need assign bridges
+        if (hasattr(ns, '_intermediate_wires') and sig in ns._intermediate_wires and 
+            ns._intermediate_wires[sig].get('internal_signal', False)):
+            continue
+            
+        original_name = ns.get_name(sig)
+        internal_name = ns._reg_signal_mappings[sig]
+        r += f"assign {original_name} = {internal_name};\n"
+    
+    # Generate slice assign statements
+    if hasattr(ns, '_slice_wire_mappings') and ns._slice_wire_mappings:
+        for slice_key, mapping in ns._slice_wire_mappings.items():
+            base_signal, start, stop = slice_key
+            original_name = mapping['original_name']
+            wire_name = mapping['wire_name']
+            if stop - start > 1:
+                slice_expr = f"{original_name}[{stop-1}:{start}]"
+            else:
+                slice_expr = f"{original_name}[{start}]"
+            r += f"assign {wire_name} = {slice_expr};\n"
+    
+    return r
+
 def _generate_signals(f, ios, name, ns, attr_translate, regs_init):
     sigs = list_signals(f) | list_special_ios(f, ins=True, outs=True, inouts=True)
     special_outs = list_special_ios(f, ins=False, outs=True,  inouts=True)
     inouts       = list_special_ios(f, ins=False, outs=False, inouts=True)
     targets      = list_targets(f) | special_outs
-    wires        = _list_comb_wires(f) | special_outs
-
+    comb_regs    = _list_comb_regs(f)
+    wires        = (_list_comb_wires(f) | special_outs) - comb_regs
+    
     r = ""
+    
+    # Generate internal signals (excluding IOs)
     for sig in sorted(sigs - ios, key=lambda x: ns.get_name(x)):
         r += _generate_attribute(sig.attr, attr_translate)
-        if sig in wires:
+        
+        # Check if this signal is marked for reg treatment (internal procedural signal)
+        if (hasattr(ns, '_intermediate_wires') and sig in ns._intermediate_wires and 
+            ns._intermediate_wires[sig].get('internal_signal', False)):
+            # This internal signal needs reg declaration
+            r += "reg  " + _generate_signal(ns, sig)
+            if regs_init:
+                r += " = " + _generate_expression(ns, sig.reset)[0]
+            r += ";\n"
+        elif sig in wires:
             r += "wire " + _generate_signal(ns, sig) + ";\n"
         else:
             r += "reg  " + _generate_signal(ns, sig)
             if regs_init:
                 r += " = " + _generate_expression(ns, sig.reset)[0]
             r += ";\n"
+    
+    # Generate ALL intermediate signals (already pre-calculated in namespace)
+    if hasattr(ns, '_reg_signal_mappings') and ns._reg_signal_mappings:
+        output_proc_signals = set(ns._reg_signal_mappings.keys())
+        r += _generate_all_intermediate_signals(ns, output_proc_signals, attr_translate, regs_init)
+    
     return r
 
 # ------------------------------------------------------------------------------------------------ #
@@ -372,10 +577,13 @@ def _generate_combinatorial_logic_synth(f, ns):
             if _use_wire(g[1]):
                 r += "assign " + _generate_node(ns, AssignType.BLOCKING, 0, g[1][0])
             else:
+                # Use wrapper namespace for procedural assignments to redirect to reg versions
+                ns_wrapper = _NamespaceWrapper(ns)
                 r += "always @(*) begin\n"
                 for t in sorted(g[0], key=lambda x: ns.get_name(x)):
-                    r += _tab + ns.get_name(t) + " <= " + _generate_expression(ns, t.reset)[0] + ";\n"
-                r += _generate_node(ns, AssignType.NON_BLOCKING, 1, g[1])
+                    signal_name = _get_signal_name_for_assignment(ns, t)
+                    r += _tab + signal_name + " <= " + _generate_expression(ns_wrapper, t.reset)[0] + ";\n"
+                r += _generate_node(ns_wrapper, AssignType.NON_BLOCKING, 1, g[1])
                 r += "end\n"
     r += "\n"
     return r
@@ -388,7 +596,9 @@ def _generate_synchronous_logic(f, ns):
     r = ""
     for k, v in sorted(f.sync.items(), key=itemgetter(0)):
         r += "always @(posedge " + ns.get_name(f.clock_domains[k].clk) + ") begin\n"
-        r += _generate_node(ns, AssignType.SIGNAL, 1, v)
+        # Use namespace wrapper for consistent signal redirection
+        ns_wrapper = _NamespaceWrapper(ns)
+        r += _generate_node(ns_wrapper, AssignType.SIGNAL, 1, v)
         r += "end\n\n"
     return r
 
@@ -570,6 +780,11 @@ def convert(f, ios=set(), name="top", platform=None,
         reserved_keywords = _ieee_1800_2017_verilog_reserved_keywords
     )
     ns.clock_domains = f.clock_domains
+
+    # Pre-Generation Phase: Analyze and Pre-Allocate ALL Intermediate Signals
+    # ------------------------------------------------------------------------
+    all_proc_signals, output_proc_signals, internal_proc_signals = _pre_generate_intermediate_signals(f, ios, ns)
+    _pre_allocate_slice_wires(ns, f.specials)
 
     # Build Verilog.
     # --------------

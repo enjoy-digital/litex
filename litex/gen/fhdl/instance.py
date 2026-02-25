@@ -85,7 +85,12 @@ def _instance_generate_verilog(instance, ns, add_data_file):
         if len(inouts) and (io is inouts[0]):
             r += "\n\t// InOuts.\n"
         name_inst   = io.name
-        name_design = _generate_expression(ns, io.expr)[0]
+        # Check if we need special handling for sliced signals with _reg mappings
+        if hasattr(ns, '_reg_signal_mappings'):
+            from litex.gen.fhdl.verilog import _resolve_instance_expression
+            name_design = _resolve_instance_expression(ns, io.expr)[0]
+        else:
+            name_design = _generate_expression(ns, io.expr)[0]
         first = False
         r += f"\t.{name_inst}{' '*(ident-len(name_inst))} ({name_design})"
     if not first:
