@@ -465,15 +465,26 @@ class _DownConverter(LiteXModule):
 
 class _IdentityConverter(LiteXModule):
     def __init__(self, nbits_from, nbits_to, ratio, reverse):
+        # nbits_from = nbits_to, ratio = 1
         self.sink   = sink   = Endpoint([("data", nbits_from)])
         self.source = source = Endpoint([("data", nbits_to), ("valid_token_count", 1)])
         self.latency = 0
 
         # # #
 
+        if reverse:
+            # reverse order/endianness of bytes
+            if nbits_from % 8:
+                raise ValueError("When reversing ratio=1 streams, data width must be a multiple of 8 bits")
+            self.comb += source.data.eq(reverse_bytes(sink.data)),
+        else:
+            self.comb += source.data.eq(sink.data)
         self.comb += [
-            sink.connect(source),
-            source.valid_token_count.eq(1)
+                source.valid.eq(sink.valid),
+                source.first.eq(sink.first),
+                source.last.eq(sink.last),
+                sink.ready.eq(source.ready),
+                source.valid_token_count.eq(1)
         ]
 
 
