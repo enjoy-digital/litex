@@ -155,7 +155,8 @@ class EfinixPlatform(GenericPlatform):
                 name = resource[0] + (f"{resource[1]}" if resource[1] is not None else "")
                 if resource[2]:
                     name = name + "_" + resource[2]
-                name = name + f"{idx}"
+                if hasattr(sig, "nbits") and sig.nbits > 1:
+                    name = name + f"{idx}"
                 return name
         return None
 
@@ -168,7 +169,6 @@ class EfinixPlatform(GenericPlatform):
                 name = resource[0] + (f"{resource[1]}" if resource[1] is not None else "")
                 if resource[2]:
                     name = name + "_" + resource[2]
-                name = name + "_gen" # Avoids to define a new signal with the same name
                 return name
         return None
 
@@ -194,14 +194,15 @@ class EfinixPlatform(GenericPlatform):
 
     def add_iface_io(self, name, size=1):
         self.add_extension([(name, 0, Pins(size))])
-        self.toolchain.excluded_ios.append(name)
-        return self.request(name)
+        tmp = self.request(name)
+        tmp.attr.add(("syn_peri_port", 0))
+        return tmp
 
     def add_iface_ios(self, io):
         self.add_extension(io)
         tmp = self.request(io[0][0])
         for s in tmp.flatten():
-            self.toolchain.excluded_ios.append(s)
+            s.attr.add(("syn_peri_port", 0))
         return tmp
 
     def get_pll_resource(self, name):

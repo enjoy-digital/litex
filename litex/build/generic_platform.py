@@ -203,6 +203,7 @@ class ConstraintManager:
     def __init__(self, io, connectors):
         self.available         = list(io)
         self.matched           = []
+        self.hide              = []
         self.platform_commands = []
         self.connector_manager = ConnectorManager(connectors)
 
@@ -294,6 +295,8 @@ class ConstraintManager:
             else:
                 r.update(obj.flatten())
 
+        r.difference_update(self.hide)
+
         return r
 
     def get_sig_constraints(self):
@@ -325,7 +328,7 @@ class ConstraintManager:
                 pins = self.connector_manager.resolve_identifiers(pins)
                 r.append((obj, pins, others, (name, number, None)))
 
-        return r
+        return [x for x in r if x[0] not in self.hide]
 
     def get_platform_commands(self):
         return self.platform_commands
