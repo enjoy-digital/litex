@@ -459,23 +459,22 @@ int sdcard_init(void) {
 
 	/* Set SD clk freq to Initialization frequency */
 	sdcard_set_clk_freq(SDCARD_CLK_FREQ_INIT, 0);
-	busy_wait(1);
 
 	for (timeout=1000; timeout>0; timeout--) {
+		busy_wait(1);
 		/* Set SDCard in SPI Mode (generate 80 dummy clocks) */
 		sdcard_phy_init_initialize_write(1);
 		busy_wait(1);
 
 		/* Set SDCard in Idle state */
-		if (sdcard_go_idle() == SD_OK)
-			break;
+		(void)sdcard_go_idle(); /* Can't fail, because it's without a response */
 		busy_wait(1);
+
+		/* Set SDCard voltages, only supported by ver2.00+ SDCards */
+		if (sdcard_send_ext_csd() == SD_OK)
+			break;
 	}
 	if (timeout == 0)
-		return 0;
-
-	/* Set SDCard voltages, only supported by ver2.00+ SDCards */
-	if (sdcard_send_ext_csd() != SD_OK)
 		return 0;
 
 	/* Set SD clk freq to Operational frequency */
