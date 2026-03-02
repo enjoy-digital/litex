@@ -68,11 +68,7 @@ class VHD2VConverter(Module):
         libraries      = None,
         # Compatibility aliases to make usage closer to Amaranth2VConverter.
         name           = None,
-        core_params    = None,
-        output_dir     = None,
-        module         = None,
-        clock_domains  = None,
-        blackboxes     = None):
+        output_dir     = None):
         """
         constructor (see class attributes)
         """
@@ -83,23 +79,13 @@ class VHD2VConverter(Module):
         if libraries is None:
             libraries = []
 
-        # Amaranth2VConverter-like aliases.
-        if module is not None:
-            raise ValueError("VHD2VConverter does not support 'module'; use VHDL 'files' instead.")
-        if clock_domains is not None:
-            raise ValueError("VHD2VConverter does not support 'clock_domains'.")
-        if blackboxes is not None:
-            raise ValueError("VHD2VConverter does not support 'blackboxes'.")
+        # API aliases.
         if (name is not None) and (top_entity is not None) and (name != top_entity):
             raise ValueError(f"Conflicting top entity names: name={name} and top_entity={top_entity}.")
         if (output_dir is not None) and (build_dir is not None) and (output_dir != build_dir):
             raise ValueError(f"Conflicting output directories: output_dir={output_dir} and build_dir={build_dir}.")
-        if (core_params is not None) and (params is not None):
-            raise ValueError("Provide only one of 'core_params' or 'params'.")
         if (ports is not None) and (params is not None):
             raise ValueError("Provide only one of 'ports' or 'params'.")
-        if (ports is not None) and (core_params is not None):
-            raise ValueError("Provide only one of 'ports' or 'core_params'.")
         if (sources is not None) and (files is not None) and (len(sources) != 0) and (len(files) != 0):
             raise ValueError("Provide only one of 'sources' or 'files'.")
         if (library is not None) and (work_package is not None) and (library != work_package):
@@ -112,8 +98,6 @@ class VHD2VConverter(Module):
             files = sources
         if work_package is None:
             work_package = library
-        if params is None:
-            params = core_params
         if params is None:
             params = ports
         if (params is not None) and (instance is None):

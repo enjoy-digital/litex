@@ -55,24 +55,7 @@ def test_constructor_alias_conflicts_are_rejected():
         VHD2VConverter(platform, files=["a.vhd"], sources=["b.vhd"])
 
     with pytest.raises(ValueError):
-        VHD2VConverter(platform, params={"i_a": 1}, core_params={"i_b": 2})
-
-    with pytest.raises(ValueError):
         VHD2VConverter(platform, params={"i_a": 1}, ports={"i_b": 2})
-
-    with pytest.raises(ValueError):
-        VHD2VConverter(platform, core_params={"i_a": 1}, ports={"i_b": 2})
-
-
-def test_constructor_unsupported_amaranth_only_args():
-    platform = _DummyPlatform()
-
-    with pytest.raises(ValueError):
-        VHD2VConverter(platform, module=object())
-    with pytest.raises(ValueError):
-        VHD2VConverter(platform, clock_domains=["sys"])
-    with pytest.raises(ValueError):
-        VHD2VConverter(platform, blackboxes=["x"])
 
 
 def test_normalize_instance_ports_valid_and_generic_passthrough():
@@ -114,7 +97,7 @@ def test_normalize_instance_ports_distinguishes_escaped_names():
     assert set(params.keys()) == {"i_data", "i__data"}
 
 
-def test_do_finalize_mixed_language_with_core_params():
+def test_do_finalize_mixed_language_with_ports():
     platform = _DummyPlatform()
     sig = migen.Signal()
     dut = VHD2VConverter(
