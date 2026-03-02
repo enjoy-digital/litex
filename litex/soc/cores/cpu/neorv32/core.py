@@ -114,7 +114,7 @@ class NEORV32(CPU):
                 i_jtag_tms_i  = 0,
 
                 # Interrupt.
-                i_irq_mei_i  = 0,
+                i_mext_irq_i = 0,
 
                 # I/D Wishbone Bus.
                 o_wb_adr_o = self.periph_buses[i].adr,
