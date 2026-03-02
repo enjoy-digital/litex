@@ -12,6 +12,7 @@ from amaranth.back import verilog
 import migen
 from litex.gen.fhdl.module import LiteXModule
 from litex.build.converter_common import (
+    apply_aliases_with_conflict_checks,
     format_unresolved_port_error,
     parse_port_keyword,
     resolve_output_paths,
@@ -167,6 +168,19 @@ class Amaranth2VConverter(LiteXModule):
         self.name        = name
         self.output_dir  = output_dir
 
+        normalized = apply_aliases_with_conflict_checks(
+            {
+                "ports": ports,
+                "core_params": core_params,
+                "domains": domains,
+                "clock_domains": clock_domains,
+            },
+            alias_map={
+                "ports": ("ports", "core_params"),
+                "domains": ("domains", "clock_domains"),
+            },
+        )
+
         # Internal Amaranth wrapper module
         self.m           = amaranth.Module()
 
@@ -174,19 +188,13 @@ class Amaranth2VConverter(LiteXModule):
         self.conn_list   = []
 
         # Port aliases.
-        if ports is not None and core_params is not None:
-            raise ValueError("Provide only one of 'ports' or 'core_params'.")
-        if ports is None:
-            ports = core_params
+        ports = normalized["ports"]
         self.ports = ports or dict()
         # Backward-compatible public attribute.
         self.core_params = self.ports
 
         # Domain aliases.
-        if domains is not None and clock_domains is not None:
-            raise ValueError("Provide only one of 'domains' or 'clock_domains'.")
-        if domains is None:
-            domains = clock_domains
+        domains = normalized["domains"]
         domains = domains or list()
 
         # Add provided Amaranth module as submodules

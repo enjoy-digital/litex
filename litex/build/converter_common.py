@@ -65,6 +65,34 @@ def resolve_output_paths(platform, output_dir, name):
     return src_dir, v_file
 
 
+def apply_aliases_with_conflict_checks(values, *, alias_map):
+    """
+    Normalize named arguments through alias groups while checking conflicts.
+
+    Parameters
+    ----------
+    values : dict
+        Current argument values.
+    alias_map : dict[str, tuple[str, ...]]
+        Mapping canonical_name -> accepted names (including canonical).
+    """
+    result = dict(values)
+    for canonical, names in alias_map.items():
+        provided = [n for n in names if result.get(n) is not None]
+        if len(provided) <= 1:
+            if len(provided) == 1 and provided[0] != canonical and result.get(canonical) is None:
+                result[canonical] = result[provided[0]]
+            continue
+        ref = result[provided[0]]
+        for p in provided[1:]:
+            if result[p] != ref:
+                raise ValueError(
+                    f"Conflicting values for '{canonical}': "
+                    + ", ".join([f"{n}={result[n]!r}" for n in provided]))
+        result[canonical] = ref
+    return result
+
+
 def write_text_if_different(path, content):
     old = None
     if os.path.exists(path):
