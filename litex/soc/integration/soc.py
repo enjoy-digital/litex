@@ -1585,7 +1585,6 @@ class LiteXSoC(SoC):
             "stream",
             "uartbone",
             "usb_acm",
-            "luna_acm",
             "serial(x)",
         ]
         if uart_pads is None:
@@ -1636,7 +1635,7 @@ class LiteXSoC(SoC):
             self.add_uartbone(baudrate=baudrate)
 
         # USB ACM (with LUNA ACM core).
-        elif uart_name in ["usb_acm", "luna_acm"]:
+        elif uart_name in ["usb_acm"]:
             from litex.soc.cores.luna_cdc_acm import LunaCDCACM
             usb_pads = self.platform.request("usb")
             uart_phy = LunaCDCACM(self.platform, usb_pads)

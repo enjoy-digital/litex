@@ -291,7 +291,7 @@ def litex_setup_install_repos(config="standard", user_mode=False):
                 editable = "--editable" if repo.editable else "",
                 options  = "--user"     if user_mode else "",
                 ), shell=True)
-    # Install optional Python dependencies needed by --uart-name=luna_acm by default
+    # Install Python dependencies needed by LUNA-backed USB ACM (uart_name=usb_acm)
     # on standard/full configs.
     if config in ["standard", "full"]:
         print_status("Installing LUNA ACM Python dependencies...")
