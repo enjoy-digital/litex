@@ -19,13 +19,6 @@ from litex.build.converter_common import (
     write_text_if_different,
 )
 
-# FIXME/CHECKME:
-# --------------
-# - Ideally, sources should still be added to the platform (and not to VHD2VConverter). The sources
-# for the conversion could probably be collected from the LiteX's Module during the finalize.
-# - Check parameter names (ex: top_entity->top/top_level?, work_package->work_library?).
-# - Check if adding instance will be useful.
-
 # VHD2V Converter ----------------------------------------------------------------------------------
 
 class VHD2VConverter(Module):
@@ -74,7 +67,10 @@ class VHD2VConverter(Module):
         libraries      = None,
         # Compatibility aliases to make usage closer to Amaranth2VConverter.
         name           = None,
-        output_dir     = None):
+        output_dir     = None,
+        top            = None,
+        top_level      = None,
+        work_library   = None):
         """
         constructor (see class attributes)
         """
@@ -84,6 +80,8 @@ class VHD2VConverter(Module):
         normalized = apply_aliases_with_conflict_checks(
             {
                 "name"        : name,
+                "top"         : top,
+                "top_level"   : top_level,
                 "top_entity"  : top_entity,
                 "output_dir"  : output_dir,
                 "build_dir"   : build_dir,
@@ -92,14 +90,15 @@ class VHD2VConverter(Module):
                 "sources"     : sources,
                 "files"       : files,
                 "library"     : library,
+                "work_library": work_library,
                 "work_package": work_package,
             },
             alias_map={
-                "top_entity"  : ("top_entity", "name"),
+                "top_entity"  : ("top_entity", "top", "top_level", "name"),
                 "build_dir"   : ("build_dir", "output_dir"),
                 "params"      : ("params", "ports"),
                 "files"       : ("files", "sources"),
-                "work_package": ("work_package", "library"),
+                "work_package": ("work_package", "work_library", "library"),
             },
         )
         top_entity   = normalized["top_entity"]
@@ -193,6 +192,30 @@ class VHD2VConverter(Module):
         # with a stable prefix. Keep the terminating whitespace untouched.
         return re.sub(r"\\([^ \t\r\n]+)([ \t\r\n])", r"ghdl_\1\2", content)
 
+    @staticmethod
+    def _is_vhdl_source(filename, language):
+        if language == "vhdl":
+            return True
+        if language is not None:
+            return False
+        return os.path.splitext(filename)[1].lower() in [".vhd", ".vhdl"]
+
+    def _get_effective_sources(self):
+        if self._sources:
+            return self._sources
+        sources = []
+        for source in getattr(self._platform, "sources", []):
+            filename = source[0]
+            language = source[1] if len(source) >= 2 else None
+            library  = source[2] if len(source) >= 3 else None
+            if not self._is_vhdl_source(filename, language):
+                continue
+            if (self._work_package is not None) and (library != self._work_package):
+                continue
+            if filename not in sources:
+                sources.append(filename)
+        return sources
+
     def do_finalize(self):
         """
         - convert vhdl to verilog when toolchain can't deal with VHDL or
@@ -202,6 +225,10 @@ class VHD2VConverter(Module):
         - add an Instance for this core
         """
         inst_name = self._top_entity
+        sources   = self._get_effective_sources()
+
+        if len(sources) == 0:
+            raise OSError("No VHDL sources found. Provide `sources`/`files` or add VHDL files to platform.sources.")
 
         if self._build_dir is None:
             self._build_dir = os.path.join(os.path.abspath(self._platform.output_dir), "vhd2v")
@@ -212,7 +239,7 @@ class VHD2VConverter(Module):
                 ip_params = self._normalize_instance_ports(self._params)
             elif self._instance:
                 ip_params = self._instance.items
-            for file in self._sources:
+            for file in sources:
                 self._platform.add_source(file, library=self._work_package)
         else: # platform is only able to synthesis verilog -> convert vhdl to verilog
             import subprocess
@@ -258,7 +285,7 @@ class VHD2VConverter(Module):
             cmd = ["ghdl", "--synth", "--out=verilog"]
             cmd += self._ghdl_opts
             cmd += generics
-            cmd += self._sources
+            cmd += sources
             cmd += ["-e", self._top_entity]
             print(cmd)
 

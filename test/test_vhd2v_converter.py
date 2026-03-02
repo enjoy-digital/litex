@@ -57,6 +57,12 @@ def test_constructor_alias_conflicts_are_rejected():
     with pytest.raises(ValueError):
         VHD2VConverter(platform, params={"i_a": 1}, ports={"i_b": 2})
 
+    with pytest.raises(ValueError):
+        VHD2VConverter(platform, top="a", top_level="b")
+
+    with pytest.raises(ValueError):
+        VHD2VConverter(platform, work_library="a", library="b")
+
 
 def test_normalize_instance_ports_valid_and_generic_passthrough():
     platform = _DummyPlatform()
@@ -119,3 +125,34 @@ def test_sanitize_ghdl_escaped_identifiers():
     assert "\\baz$1" not in out
     assert "ghdl_foo.bar " in out
     assert "ghdl_baz$1\t" in out
+
+
+def test_collect_sources_from_platform_when_not_provided():
+    platform = _DummyPlatform()
+    platform.sources = [
+        ("/tmp/one.vhd",   "vhdl",    "worklib"),
+        ("/tmp/two.vhdl",  None,      "worklib"),
+        ("/tmp/three.v",   "verilog", "worklib"),
+        ("/tmp/four.vhd",  "vhdl",    "otherlib"),
+    ]
+
+    dut = VHD2VConverter(
+        platform = platform,
+        top      = "core_top",
+        library  = "worklib",
+        ports    = {"i_data": migen.Signal()},
+    )
+    dut.do_finalize()
+
+    assert ("/tmp/one.vhd", "worklib") in platform.sources
+    assert ("/tmp/two.vhdl", "worklib") in platform.sources
+    assert ("/tmp/four.vhd", "worklib") not in platform.sources
+
+
+def test_do_finalize_without_any_vhdl_sources_raises():
+    platform = _DummyPlatform()
+    dut = VHD2VConverter(platform=platform, name="core_top")
+
+    with pytest.raises(OSError) as e:
+        dut.do_finalize()
+    assert "No VHDL sources found" in str(e.value)
