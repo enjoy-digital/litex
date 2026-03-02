@@ -10,7 +10,6 @@ import logging
 
 from migen import *
 
-from litex.build.amaranth2v_converter import Amaranth2VConverter
 from litex.gen import *
 
 from litex.soc.cores.cpu.amaranth import check_required_modules, import_from_pythondata
@@ -86,6 +85,7 @@ class Sentinel(CPU):
             "amaranth": "pip3 install --user amaranth==0.5.8",
             "amaranth_soc": "pip3 install --user git+https://github.com/amaranth-lang/amaranth-soc.git",
         })
+        from litex.build.amaranth2v_converter import Amaranth2VConverter
 
         sentinel_top = import_from_pythondata("cpu", "sentinel", "src.sentinel.top")
         amaranth_cpu = sentinel_top.Top(formal=False)

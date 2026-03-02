@@ -12,7 +12,6 @@ import logging
 from migen import *
 
 from litex import get_data_mod
-from litex.build.amaranth2v_converter import Amaranth2VConverter
 from litex.build.xilinx.vivado import XilinxVivadoToolchain
 from litex.soc.cores.cpu.amaranth import import_from_pythondata
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
@@ -182,6 +181,7 @@ class Coreblocks(CPU):
 
     def _do_finalize_with_converter(self):
         try:
+            from litex.build.amaranth2v_converter import Amaranth2VConverter
             coreblocks_gen = import_from_pythondata("cpu", "coreblocks", "scripts.gen_verilog")
             with coreblocks_gen.DependencyContext(coreblocks_gen.DependencyManager()):
                 core_config = coreblocks_gen.str_to_coreconfig[CPU_VARIANTS[self.variant]]

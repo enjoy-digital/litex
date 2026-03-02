@@ -9,6 +9,7 @@ import os
 import sys
 import inspect
 import importlib
+import logging
 
 from migen import *
 
@@ -95,6 +96,7 @@ CPU_GCC_TRIPLE_RISCV32 = CPU_GCC_TRIPLE_RISCV64 + (
 # CPUs Collection ----------------------------------------------------------------------------------
 
 def collect_cpus():
+    logger = logging.getLogger("CPU")
     cpus  = {"None" : CPUNone, None: CPUNone}
     paths = [
         # Add litex.soc.cores.cpu path.
@@ -122,7 +124,12 @@ def collect_cpus():
             # OK, it seems to be a CPU; now get the class and add it to dict.
             cpu = file
             sys.path.append(path)
-            for cpu_name, cpu_cls in inspect.getmembers(importlib.import_module(cpu), inspect.isclass):
+            try:
+                cpu_module = importlib.import_module(cpu)
+            except Exception as e:
+                logger.warning("Skipping CPU '%s' (import failed): %s", cpu, e)
+                continue
+            for cpu_name, cpu_cls in inspect.getmembers(cpu_module, inspect.isclass):
                 if cpu_name.lower() in [cpu, cpu.replace("_", "")]:
                     cpus[cpu] = cpu_cls
 

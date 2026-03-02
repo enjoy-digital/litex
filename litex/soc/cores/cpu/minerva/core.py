@@ -9,7 +9,6 @@ from migen import *
 
 from litex.gen import *
 
-from litex.build.amaranth2v_converter import Amaranth2VConverter
 from litex.soc.cores.cpu.amaranth import check_required_modules, import_from_pythondata
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
@@ -60,6 +59,7 @@ class Minerva(CPU):
             "amaranth": "pip3 install --user amaranth==0.5.8",
             "amaranth_soc": "pip3 install --user git+https://github.com/amaranth-lang/amaranth-soc.git",
         })
+        from litex.build.amaranth2v_converter import Amaranth2VConverter
 
         minerva_core = import_from_pythondata("cpu", "minerva", "minerva.core")
         amaranth_cpu = minerva_core.Minerva(
