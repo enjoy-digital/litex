@@ -198,7 +198,7 @@ class LunaCDCACM(LiteXModule):
         self.converter = Amaranth2VConverter(self.platform,
             name          = "usb_cdc_acm",
             module        = self.usb,
-            core_params   = self.core_params,
-            clock_domains = self.cd_list,
+            ports         = self.core_params,
+            domains       = self.cd_list,
             output_dir    = None,
         )

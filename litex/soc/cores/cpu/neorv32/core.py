@@ -149,9 +149,9 @@ class NEORV32(CPU):
             vhd2v_converter = VHD2VConverter(self.platform,
                 name          = "neorv32_litex_core_complex",
                 output_dir    = os.path.abspath(os.path.dirname(__file__)),
-                work_package  = "neorv32",
+                library       = "neorv32",
                 force_convert = True,
-                core_params   = cpu_params,
+                ports         = cpu_params,
             )
             self.add_sources(vhd2v_converter)
 

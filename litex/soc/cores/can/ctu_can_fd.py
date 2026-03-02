@@ -165,9 +165,9 @@ class CTUCANFD(LiteXModule, EventManager):
         self.vhd2v_converter = VHD2VConverter(self.platform,
             name          = "can_top_level",
             output_dir    = os.path.abspath(os.path.dirname(__file__)),
-            work_package  = "ctu_can_fd_rtl",
+            library       = "ctu_can_fd_rtl",
             force_convert = self._force_convert,
-            core_params   = self.core_params,
+            ports         = self.core_params,
         )
 
         # Add Sources.

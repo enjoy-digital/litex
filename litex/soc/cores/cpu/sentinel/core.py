@@ -93,7 +93,7 @@ class Sentinel(CPU):
         self.converter = Amaranth2VConverter(self.platform,
             name        = "sentinel_cpu",
             module      = amaranth_cpu,
-            core_params = dict(
+            ports       = dict(
                 # Clk / Rst.
                 i_sync_clk = ClockSignal("sys"),
                 i_sync_rst = ResetSignal("sys") | self.reset,
