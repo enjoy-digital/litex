@@ -291,21 +291,33 @@ def litex_setup_install_repos(config="standard", user_mode=False):
                 editable = "--editable" if repo.editable else "",
                 options  = "--user"     if user_mode else "",
                 ), shell=True)
-    # Install Python dependencies needed by LUNA-backed USB ACM (uart_name=usb_acm)
-    # on standard/full configs.
+    # Install optional Python dependencies for LUNA-backed USB ACM and Amaranth-based CPUs
+    # on standard/full configs. These are not required for non-Amaranth use-cases.
     if config in ["standard", "full"]:
-        print_status("Installing LUNA ACM Python dependencies...")
-        subprocess.check_call("\"{python3}\" -m pip install {packages} {options}".format(
-            python3  = sys.executable,
-            packages = "luna-usb==0.2.3 amaranth==0.5.8",
-            options  = "--user" if user_mode else "",
-            ), shell=True)
-        print_status("Installing Amaranth CPU Python dependencies...")
-        subprocess.check_call("\"{python3}\" -m pip install {packages} {options}".format(
-            python3  = sys.executable,
-            packages = "git+https://github.com/amaranth-lang/amaranth-soc.git m5pre m5meta dataclasses-json==0.6.3",
-            options  = "--user" if user_mode else "",
-            ), shell=True)
+        print_status("Installing optional LUNA ACM Python dependencies...")
+        try:
+            subprocess.check_call("\"{python3}\" -m pip install {packages} {options}".format(
+                python3  = sys.executable,
+                packages = "luna-usb==0.2.3 amaranth==0.5.8",
+                options  = "--user" if user_mode else "",
+                ), shell=True)
+        except subprocess.CalledProcessError:
+            print_error("Optional LUNA ACM dependencies could not be installed.")
+            print_status("USB ACM via LUNA may not be usable until dependencies are installed manually.")
+            print_status("Try:")
+            print_status("  pip3 install --user luna-usb==0.2.3 amaranth==0.5.8")
+        print_status("Installing optional Amaranth CPU Python dependencies...")
+        try:
+            subprocess.check_call("\"{python3}\" -m pip install {packages} {options}".format(
+                python3  = sys.executable,
+                packages = "git+https://github.com/amaranth-lang/amaranth-soc.git m5pre m5meta dataclasses-json==0.6.3",
+                options  = "--user" if user_mode else "",
+                ), shell=True)
+        except subprocess.CalledProcessError:
+            print_error("Optional Amaranth CPU dependencies could not be installed.")
+            print_status("Amaranth-based CPUs (ex: Minerva/Sentinel) may not be usable until dependencies are installed manually.")
+            print_status("Try:")
+            print_status("  pip3 install --user git+https://github.com/amaranth-lang/amaranth-soc.git m5pre m5meta dataclasses-json==0.6.3")
     if user_mode:
         if ".local/bin" not in os.environ.get("PATH", ""):
             print_status("Make sure that ~/.local/bin is in your PATH")
