@@ -23,12 +23,12 @@ class _DummyPlatform:
 def test_constructor_aliases_map_to_legacy_fields():
     platform = _DummyPlatform()
     dut = VHD2VConverter(
-        platform    = platform,
-        name        = "core_top",
-        output_dir  = "/tmp/build",
-        ports       = {"i_data": migen.Signal()},
-        sources     = ["core.vhd"],
-        library     = "worklib",
+        platform   = platform,
+        name       = "core_top",
+        output_dir = "/tmp/build",
+        ports      = {"i_data": migen.Signal()},
+        sources    = ["core.vhd"],
+        library    = "worklib",
     )
 
     assert dut._top_entity == "core_top"
@@ -63,10 +63,10 @@ def test_normalize_instance_ports_valid_and_generic_passthrough():
     dut = VHD2VConverter(platform, top_entity="top")
 
     params = {
-        "i_data":      migen.Signal(),
+        "i_data"     : migen.Signal(),
         "o__bus_pull": migen.Signal(),
-        "io_pad":      migen.Signal(),
-        "p_WIDTH":     32,
+        "io_pad"     : migen.Signal(),
+        "p_WIDTH"    : 32,
     }
     normalized = dut._normalize_instance_ports(params)
     assert set(normalized.keys()) == {"i_data", "o__bus_pull", "io_pad"}
@@ -101,10 +101,10 @@ def test_do_finalize_mixed_language_with_ports():
     platform = _DummyPlatform()
     sig = migen.Signal()
     dut = VHD2VConverter(
-        platform    = platform,
-        name        = "core_top",
-        ports       = {"i_data": sig},
-        sources     = ["core.vhd"],
+        platform = platform,
+        name     = "core_top",
+        ports    = {"i_data": sig},
+        sources  = ["core.vhd"],
     )
 
     dut.do_finalize()

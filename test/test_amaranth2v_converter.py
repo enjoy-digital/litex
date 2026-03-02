@@ -31,10 +31,10 @@ def test_constructor_aliases_map_to_canonical_fields():
 
     dut = Amaranth2VConverter(
         platform=_DummyPlatform(),
-        module=amaranth.Module(),
+        module  = amaranth.Module(),
         core_params={"i_data": sig},
         clock_domains=["usb"],
-        output_dir="/tmp",
+        output_dir = "/tmp",
     )
 
     assert dut.ports["i_data"] is sig

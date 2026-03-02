@@ -170,13 +170,13 @@ class Amaranth2VConverter(LiteXModule):
 
         normalized = apply_aliases_with_conflict_checks(
             {
-                "ports": ports,
+                "ports"        : ports,
                 "core_params": core_params,
-                "domains": domains,
+                "domains"      : domains,
                 "clock_domains": clock_domains,
             },
             alias_map={
-                "ports": ("ports", "core_params"),
+                "ports"  : ("ports", "core_params"),
                 "domains": ("domains", "clock_domains"),
             },
         )
