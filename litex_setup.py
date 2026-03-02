@@ -295,6 +295,15 @@ def litex_setup_install_repos(config="standard", user_mode=False):
                 editable = "--editable" if repo.editable else "",
                 options  = "--user"     if user_mode else "",
                 ), shell=True)
+    # Install optional Python dependencies needed by --uart-name=luna_acm by default
+    # on standard/full configs.
+    if config in ["standard", "full"]:
+        print_status("Installing LUNA ACM Python dependencies...")
+        subprocess.check_call("\"{python3}\" -m pip install {packages} {options}".format(
+            python3  = sys.executable,
+            packages = "luna-usb==0.2.3 amaranth==0.5.8",
+            options  = "--user" if user_mode else "",
+            ), shell=True)
     if user_mode:
         if ".local/bin" not in os.environ.get("PATH", ""):
             print_status("Make sure that ~/.local/bin is in your PATH")
@@ -563,4 +572,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
