@@ -26,12 +26,15 @@ def test_constructor_aliases_map_to_legacy_fields():
         platform    = platform,
         name        = "core_top",
         output_dir  = "/tmp/build",
-        core_params = {"i_data": migen.Signal()},
-        files       = ["core.vhd"],
+        ports       = {"i_data": migen.Signal()},
+        sources     = ["core.vhd"],
+        library     = "worklib",
     )
 
     assert dut._top_entity == "core_top"
     assert dut._build_dir == "/tmp/build"
+    assert dut._work_package == "worklib"
+    assert dut._sources == ["core.vhd"]
     assert "i_data" in dut._params
     assert dut._add_instance is True
 
@@ -46,7 +49,19 @@ def test_constructor_alias_conflicts_are_rejected():
         VHD2VConverter(platform, build_dir="/tmp/a", output_dir="/tmp/b")
 
     with pytest.raises(ValueError):
+        VHD2VConverter(platform, work_package="a", library="b")
+
+    with pytest.raises(ValueError):
+        VHD2VConverter(platform, files=["a.vhd"], sources=["b.vhd"])
+
+    with pytest.raises(ValueError):
         VHD2VConverter(platform, params={"i_a": 1}, core_params={"i_b": 2})
+
+    with pytest.raises(ValueError):
+        VHD2VConverter(platform, params={"i_a": 1}, ports={"i_b": 2})
+
+    with pytest.raises(ValueError):
+        VHD2VConverter(platform, core_params={"i_a": 1}, ports={"i_b": 2})
 
 
 def test_constructor_unsupported_amaranth_only_args():
@@ -105,8 +120,8 @@ def test_do_finalize_mixed_language_with_core_params():
     dut = VHD2VConverter(
         platform    = platform,
         name        = "core_top",
-        core_params = {"i_data": sig},
-        files       = ["core.vhd"],
+        ports       = {"i_data": sig},
+        sources     = ["core.vhd"],
     )
 
     dut.do_finalize()

@@ -21,9 +21,42 @@ def _converter(core_params=None, module=None):
     return Amaranth2VConverter(
         platform=_DummyPlatform(),
         module=module,
-        core_params=core_params or {},
+        ports=core_params or {},
         output_dir="/tmp",
     )
+
+
+def test_constructor_aliases_map_to_canonical_fields():
+    sig = migen.Signal()
+
+    dut = Amaranth2VConverter(
+        platform=_DummyPlatform(),
+        module=amaranth.Module(),
+        core_params={"i_data": sig},
+        clock_domains=["usb"],
+        output_dir="/tmp",
+    )
+
+    assert dut.ports["i_data"] is sig
+    assert dut.core_params["i_data"] is sig
+    assert "sync" in dut.m._domains
+    assert "usb" in dut.m._domains
+
+
+def test_constructor_alias_conflicts_are_rejected():
+    with pytest.raises(ValueError):
+        Amaranth2VConverter(
+            platform=_DummyPlatform(),
+            ports={"i_a": migen.Signal()},
+            core_params={"i_b": migen.Signal()},
+        )
+
+    with pytest.raises(ValueError):
+        Amaranth2VConverter(
+            platform=_DummyPlatform(),
+            domains=["sys"],
+            clock_domains=["usb"],
+        )
 
 
 def test_parse_port_keyword_valid():
@@ -81,7 +114,7 @@ def test_duplicate_resolution_is_rejected():
     with pytest.raises(ValueError) as e:
         dut.connect_wrapper()
 
-    assert "Ambiguous core_params" in str(e.value)
+    assert "Ambiguous ports" in str(e.value)
     assert "'i_sig'" in str(e.value)
     assert "'i_alias'" in str(e.value)
 
