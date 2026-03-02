@@ -47,12 +47,14 @@ TESTED_CPUS = [
     "marocchino",   # (or1k    / softcore)
     "naxriscv",     # (riscv   / softcore)
     "serv",         # (riscv   / softcore)
+    "sentinel",     # (riscv   / softcore)
     "vexiiriscv",   # (riscv   / softcore)
     "vexriscv",     # (riscv   / softcore)
     "vexriscv_smp", # (riscv   / softcore)
     #"microwatt",    # (ppc64   / softcore)
     "neorv32",      # (riscv   / softcore)
     "ibex",         # (riscv   / softcore)
+    "minerva",      # (riscv   / softcore)
 ]
 UNTESTED_CPUS = [
     "coreblocks",   # (riscv   / softcore) -> Broken install?
@@ -65,7 +67,6 @@ UNTESTED_CPUS = [
     "eos_s3",       # (arm     / hardcore) -> Hardcore.
     "gowin_emcu",   # (arm     / hardcore) -> Hardcore.
     "lm32",         # (lm32    / softcore) -> Requires LM32 toolchain.
-    "minerva",      # (riscv   / softcore) -> Broken install? (Amaranth?)
     "mor1kx",       # (or1k    / softcore) -> Verilator compilation issue.
     "picorv32",     # (riscv   / softcore) -> Verilator compilation issue.
     "rocket",       # (riscv   / softcore) -> Not enough RAM in CI.
