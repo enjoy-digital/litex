@@ -15,6 +15,7 @@ from litex.build.converter_common import (
     apply_aliases_with_conflict_checks,
     extract_prefixed_generics,
     normalize_instance_ports,
+    write_text_if_different,
 )
 
 # FIXME/CHECKME:
@@ -208,7 +209,6 @@ class VHD2VConverter(Module):
                 self._platform.add_source(file, library=self._work_package)
         else: # platform is only able to synthesis verilog -> convert vhdl to verilog
             import subprocess
-            from litex.build import tools
 
             # First: compile external libraries (if requested)
             for lib in self._libraries:
@@ -263,8 +263,7 @@ class VHD2VConverter(Module):
             # Prepend `default_nettype wire`
             with open(verilog_out, 'r') as f:
                 content = f.read()
-            with open(verilog_out, 'w') as f:
-                f.write("`default_nettype wire\n" + content)
+            write_text_if_different(verilog_out, "`default_nettype wire\n" + content)
 
             flatten_source = False
             if which("yosys") is not None and self._flatten_source:
@@ -287,10 +286,14 @@ class VHD2VConverter(Module):
                 if s.returncode:
                     raise OSError(f"Unable to flatten {inst_name}, please check your yosys install")
             else:
-                # more than one instance of this core? rename top entity to avoid conflict
+                # more than one instance of this core? rename top entity to avoid conflict.
+                # Also replace backslash-escaped names from GHDL output.
+                with open(verilog_out, "r") as f:
+                    content = f.read()
                 if inst_name != self._top_entity:
-                    tools.replace_in_file(verilog_out, f"module {self._top_entity}", f"module {inst_name}")
-                tools.replace_in_file(verilog_out, f"\\", f"ghdl_") # FIXME: GHDL synth workaround, improve.
+                    content = content.replace(f"module {self._top_entity}", f"module {inst_name}")
+                content = content.replace("\\", "ghdl_") # FIXME: GHDL synth workaround, improve.
+                write_text_if_different(verilog_out, content)
 
             self._platform.add_source(verilog_out)
 
