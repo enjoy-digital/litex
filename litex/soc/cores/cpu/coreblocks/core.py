@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
+import shutil
 import subprocess
 import logging
 
@@ -136,8 +137,7 @@ class Coreblocks(CPU):
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
 
-    @staticmethod
-    def elaborate(platform, variant, reset_address, verilog_filename):
+    def elaborate(self, platform, variant, reset_address, verilog_filename):
         cli_params = []
         cli_params.append("--output={}".format(verilog_filename))
         cli_params.append("--config={}".format(CPU_VARIANTS[variant]))
@@ -153,12 +153,30 @@ class Coreblocks(CPU):
         data_mod = get_data_mod("cpu", "coreblocks")
         sdir = data_mod.data_location
 
-        command = (["python3", os.path.join(sdir, "scripts", "gen_verilog.py")] if data_mod.RUN_NATIVE else
-            ["pipx", "run", f"--python=3.{data_mod.PYTHON3_VERSION}", "--fetch-missing-python", os.path.join(sdir, "..", "gen_verilog_wrapper.py")])
+        if data_mod.RUN_NATIVE:
+            command = ["python3", os.path.join(sdir, "scripts", "gen_verilog.py")]
+        else:
+            # Deterministic external helper path: use a configured Python interpreter
+            # (defaults to python3.<required>) to execute pythondata's wrapper script.
+            helper_python = os.getenv("LITEX_COREBLOCKS_HELPER_PYTHON", f"python3.{data_mod.PYTHON3_VERSION}")
+            helper_script = os.path.join(sdir, "..", "gen_verilog_wrapper.py")
+            if shutil.which(helper_python):
+                command = [helper_python, helper_script]
+            elif shutil.which("pipx"):
+                self.logger.warning(
+                    "Coreblocks helper interpreter '%s' was not found, falling back to pipx.",
+                    helper_python)
+                command = ["pipx", "run", f"--python=3.{data_mod.PYTHON3_VERSION}",
+                           "--fetch-missing-python", helper_script]
+            else:
+                raise OSError(
+                    f"Coreblocks external elaboration requires '{helper_python}' "
+                    "or pipx. Install one of them or set "
+                    "LITEX_COREBLOCKS_HELPER_PYTHON to a valid Python executable.")
 
         command += cli_params
 
-        print(command)
+        self.logger.info("Coreblocks external elaboration command: %s", " ".join(command))
         if subprocess.call(command):
             raise OSError("Unable to elaborate Coreblocks CPU, please check your coreblocks, Amaranth/Yosys, and requirements install")
 
@@ -215,6 +233,7 @@ class Coreblocks(CPU):
                 i_wb_data_dat_r = self.dbus.dat_r,
             ),
         )
+        self.logger.info("Using Coreblocks native Amaranth2VConverter integration.")
         return True
 
     def do_finalize(self):
