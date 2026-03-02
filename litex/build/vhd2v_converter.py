@@ -11,6 +11,8 @@ from shutil import which
 
 from migen import *
 
+from litex.build.converter_common import parse_port_keyword
+
 # FIXME/CHECKME:
 # --------------
 # - Ideally, sources should still be added to the platform (and not to VHD2VConverter). The sources
@@ -166,6 +168,28 @@ class VHD2VConverter(Module):
                 raise OSError(f"{lib} must a string or a set")
             self._libraries.append(lib)
 
+    def _normalize_instance_ports(self, params):
+        ip_params = dict()
+        mapped    = dict()
+        for k, v in params.items():
+            if k.startswith("p_"):
+                continue
+            try:
+                d, parts = parse_port_keyword(k)
+            except ValueError as e:
+                raise ValueError(f"Invalid VHD2V port '{k}' for top '{self._top_entity}': {e}") from e
+            normalized = f"{d}_{'_'.join(parts)}"
+            if normalized in mapped:
+                raise ValueError(
+                    f"Ambiguous VHD2V params: both '{mapped[normalized]}' and '{k}' map to '{normalized}'.")
+            mapped[normalized] = k
+            ip_params[normalized] = v
+        return ip_params
+
+    @staticmethod
+    def _extract_generics(params):
+        return ["-g" + k[2:] + "=" + str(v) for k, v in params.items() if k.startswith("p_")]
+
     def do_finalize(self):
         """
         - convert vhdl to verilog when toolchain can't deal with VHDL or
@@ -182,7 +206,7 @@ class VHD2VConverter(Module):
         # platform able to synthesis verilog and vhdl -> no conversion
         if self._platform.support_mixed_language and not self._force_convert:
             if self._params:
-                ip_params = self._params
+                ip_params = self._normalize_instance_ports(self._params)
             elif self._instance:
                 ip_params = self._instance.items
             for file in self._sources:
@@ -219,12 +243,8 @@ class VHD2VConverter(Module):
 
             generics = []
             if self._params:
-                ip_params = dict()
-                for k, v in self._params.items():
-                    if k.startswith("p_"):
-                        generics.append("-g" + k[2:] + "=" + str(v))
-                    else:
-                        ip_params[k] = v
+                generics = self._extract_generics(self._params)
+                ip_params = self._normalize_instance_ports(self._params)
             elif self._instance:
                 ip_params = list()
                 for item in self._instance.items:
