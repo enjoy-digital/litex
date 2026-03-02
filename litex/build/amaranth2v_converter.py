@@ -262,6 +262,8 @@ class Amaranth2VConverter(LiteXModule):
         ValueError
             If a signal cannot be resolved.
         """
+        resolved = _ast.SignalDict()
+
         for kw, v in self.core_params.items():
             d, parts = self._parse_port_keyword(kw)
 
@@ -297,6 +299,12 @@ class Amaranth2VConverter(LiteXModule):
                     lines.append(f"- Tried clock-domain signal: domain='{cd_name}', signal='{parts[-1]}'")
                 lines.append(f"- Available clock domains: {available_domains}")
                 raise ValueError("\n".join(lines))
+
+            previous_kw = resolved.get(am_sig, None)
+            if previous_kw is not None:
+                raise ValueError(
+                    f"Ambiguous core_params: both '{previous_kw}' and '{kw}' resolve to the same Amaranth signal.")
+            resolved[am_sig] = kw
 
             self.conn_list.append((d, am_sig, v))
 
