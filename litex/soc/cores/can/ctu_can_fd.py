@@ -163,12 +163,11 @@ class CTUCANFD(LiteXModule, EventManager):
     def do_finalize(self):
         # CAN Core instance
         self.vhd2v_converter = VHD2VConverter(self.platform,
-            top_entity    = "can_top_level",
-            build_dir     = os.path.abspath(os.path.dirname(__file__)),
+            name          = "can_top_level",
+            output_dir    = os.path.abspath(os.path.dirname(__file__)),
             work_package  = "ctu_can_fd_rtl",
             force_convert = self._force_convert,
-            params        = self.core_params,
-            add_instance  = True,
+            core_params   = self.core_params,
         )
 
         # Add Sources.

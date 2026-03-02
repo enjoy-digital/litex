@@ -147,12 +147,11 @@ class NEORV32(CPU):
                 self.add_debug(cpu_params)
 
             vhd2v_converter = VHD2VConverter(self.platform,
-                top_entity    = f"neorv32_litex_core_complex",
-                build_dir     = os.path.abspath(os.path.dirname(__file__)),
+                name          = "neorv32_litex_core_complex",
+                output_dir    = os.path.abspath(os.path.dirname(__file__)),
                 work_package  = "neorv32",
                 force_convert = True,
-                add_instance  = True,
-                params = cpu_params
+                core_params   = cpu_params,
             )
             self.add_sources(vhd2v_converter)
 

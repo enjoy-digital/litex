@@ -133,8 +133,8 @@ class Microwatt(CPU):
 
         # VHDL to Verilog Converter.
         self.cpu_vhd2v_converter = VHD2VConverter(platform,
-            top_entity    = "microwatt_wrapper",
-            build_dir     = os.path.abspath(os.path.dirname(__file__)),
+            name          = "microwatt_wrapper",
+            output_dir    = os.path.abspath(os.path.dirname(__file__)),
             force_convert = ("ghdl" in self.variant),
         )
 
@@ -294,13 +294,13 @@ class XICSSlave(LiteXModule):
 
         # VHDL to Verilog Converter.
         self.icp_vhd2v_converter = VHD2VConverter(platform,
-            top_entity    = "xics_icp_wrapper",
-            build_dir     = os.path.abspath(os.path.dirname(__file__)),
+            name          = "xics_icp_wrapper",
+            output_dir    = os.path.abspath(os.path.dirname(__file__)),
             force_convert = ("ghdl" in self.variant),
         )
         self.ics_vhd2v_converter = VHD2VConverter(platform,
-            top_entity    = "xics_ics_wrapper",
-            build_dir     = os.path.abspath(os.path.dirname(__file__)),
+            name          = "xics_ics_wrapper",
+            output_dir    = os.path.abspath(os.path.dirname(__file__)),
             force_convert = ("ghdl" in self.variant),
         )
 
