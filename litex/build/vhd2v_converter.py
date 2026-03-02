@@ -6,6 +6,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
+import re
 
 from shutil import which
 
@@ -186,6 +187,12 @@ class VHD2VConverter(Module):
     def _extract_generics(params):
         return extract_prefixed_generics(params, prefix="p_")
 
+    @staticmethod
+    def _sanitize_ghdl_escaped_identifiers(content):
+        # Convert Verilog escaped identifiers (\name<ws>) to plain identifiers
+        # with a stable prefix. Keep the terminating whitespace untouched.
+        return re.sub(r"\\([^ \t\r\n]+)([ \t\r\n])", r"ghdl_\1\2", content)
+
     def do_finalize(self):
         """
         - convert vhdl to verilog when toolchain can't deal with VHDL or
@@ -292,7 +299,7 @@ class VHD2VConverter(Module):
                     content = f.read()
                 if inst_name != self._top_entity:
                     content = content.replace(f"module {self._top_entity}", f"module {inst_name}")
-                content = content.replace("\\", "ghdl_") # FIXME: GHDL synth workaround, improve.
+                content = self._sanitize_ghdl_escaped_identifiers(content)
                 write_text_if_different(verilog_out, content)
 
             self._platform.add_source(verilog_out)

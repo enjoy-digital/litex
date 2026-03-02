@@ -110,3 +110,12 @@ def test_do_finalize_mixed_language_with_ports():
     dut.do_finalize()
 
     assert ("core.vhd", None) in platform.sources
+
+
+def test_sanitize_ghdl_escaped_identifiers():
+    text = "module top; wire \\foo.bar ; wire \\baz$1\t; endmodule\n"
+    out = VHD2VConverter._sanitize_ghdl_escaped_identifiers(text)
+    assert "\\foo.bar" not in out
+    assert "\\baz$1" not in out
+    assert "ghdl_foo.bar " in out
+    assert "ghdl_baz$1\t" in out
