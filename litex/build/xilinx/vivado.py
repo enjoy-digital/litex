@@ -156,7 +156,7 @@ class XilinxVivadoToolchain(GenericToolchain):
         self._synth_mode                = "vivado"
         self._enable_xpm                = False
         self._device_image_arch         = device_image_arch
-        self.vivado_extra_reports       = False
+        self.vivado_report_level        = "basic"
 
     def finalize(self):
         # Convert clocks and false path to platform commands
@@ -173,7 +173,7 @@ class XilinxVivadoToolchain(GenericToolchain):
         vivado_post_place_phys_opt_directive = None,
         vivado_route_directive               = "default",
         vivado_post_route_phys_opt_directive = "default",
-        vivado_extra_reports                 = False,
+        vivado_report_level                 = "basic",
         vivado_max_threads                   = None,
         **kwargs):
 
@@ -187,8 +187,11 @@ class XilinxVivadoToolchain(GenericToolchain):
         self.vivado_post_place_phys_opt_directive = vivado_post_place_phys_opt_directive
         self.vivado_route_directive               = vivado_route_directive
         self.vivado_post_route_phys_opt_directive = vivado_post_route_phys_opt_directive
-        self.vivado_extra_reports                 = vivado_extra_reports
+        self.vivado_report_level                 = vivado_report_level
         self.vivado_max_threads                   = vivado_max_threads
+
+        if self.vivado_report_level not in ["basic", "signoff"]:
+            raise ValueError(f"Unsupported Vivado report level: {self.vivado_report_level}")
 
         return GenericToolchain.build(self, platform, fragment, **kwargs)
 
@@ -437,10 +440,10 @@ class XilinxVivadoToolchain(GenericToolchain):
         tcl.append("report_timing_summary -no_header -no_detailed_paths")
         tcl.append(f"report_route_status -file {self._build_name}_route_status.rpt")
         tcl.append(f"report_drc -file {self._build_name}_drc.rpt")
-        if self.vivado_extra_reports:
+        if self.vivado_report_level == "signoff":
             tcl.append(f"report_methodology -file {self._build_name}_timing_methodology.rpt")
         tcl.append(f"report_timing_summary -datasheet -max_paths 10 -file {self._build_name}_timing.rpt")
-        if self.vivado_extra_reports:
+        if self.vivado_report_level == "signoff":
             tcl.append(f"report_timing_summary -report_unconstrained -file {self._build_name}_timing_unconstrained_path.rpt")
             tcl.append(f"report_exceptions -file {self._build_name}_timing_exceptions.rpt")
         tcl.append(f"report_power -file {self._build_name}_power.rpt")
@@ -527,7 +530,7 @@ def vivado_build_args(parser):
     toolchain_group.add_argument("--vivado-post-place-phys-opt-directive", default=None,      help="Specify phys opt directive.")
     toolchain_group.add_argument("--vivado-route-directive",               default="default", help="Specify route directive.")
     toolchain_group.add_argument("--vivado-post-route-phys-opt-directive", default="default", help="Specify phys opt directive.")
-    toolchain_group.add_argument("--vivado-extra-reports",                 type=boolean, default=False, help="Enable extra timing/methodology reports.")
+    toolchain_group.add_argument("--vivado-report-level",                  default="basic", choices=["basic", "signoff"], help="Report level (basic or signoff).")
     toolchain_group.add_argument("--vivado-max-threads",                   default=None,      help="Limit the max threads vivado is allowed to use.")
 
 def vivado_build_argdict(args):
@@ -540,6 +543,6 @@ def vivado_build_argdict(args):
         "vivado_post_place_phys_opt_directive" : args.vivado_post_place_phys_opt_directive,
         "vivado_route_directive"               : args.vivado_route_directive,
         "vivado_post_route_phys_opt_directive" : args.vivado_post_route_phys_opt_directive,
-        "vivado_extra_reports"                 : args.vivado_extra_reports,
+        "vivado_report_level"                 : args.vivado_report_level,
         "vivado_max_threads"                   : args.vivado_max_threads
     }
