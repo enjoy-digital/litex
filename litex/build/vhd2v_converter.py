@@ -175,7 +175,7 @@ class VHD2VConverter(Module):
             self._libraries.append(lib)
 
     def _normalize_instance_ports(self, params):
-        return normalize_instance_ports(params, top_entity=self._top_entity)
+        return normalize_instance_ports(params, top_entity=self._top_entity, target="VHD2V")
 
     @staticmethod
     def _extract_generics(params):

@@ -78,7 +78,7 @@ def write_text_if_different(path, content):
     return True
 
 
-def normalize_instance_ports(params, *, top_entity, generic_prefixes=("p_",)):
+def normalize_instance_ports(params, *, top_entity, target="converter", generic_prefixes=("p_",)):
     ip_params = dict()
     mapped    = dict()
     for k, v in params.items():
@@ -87,11 +87,11 @@ def normalize_instance_ports(params, *, top_entity, generic_prefixes=("p_",)):
         try:
             d, parts = parse_port_keyword(k)
         except ValueError as e:
-            raise ValueError(f"Invalid VHD2V port '{k}' for top '{top_entity}': {e}") from e
+            raise ValueError(f"Invalid {target} port '{k}' for top '{top_entity}': {e}") from e
         normalized = f"{d}_{'_'.join(parts)}"
         if normalized in mapped:
             raise ValueError(
-                f"Ambiguous VHD2V params: both '{mapped[normalized]}' and '{k}' map to '{normalized}'.")
+                f"Ambiguous {target} params: both '{mapped[normalized]}' and '{k}' map to '{normalized}'.")
         mapped[normalized] = k
         ip_params[normalized] = v
     return ip_params
