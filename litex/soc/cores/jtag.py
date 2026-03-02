@@ -394,6 +394,136 @@ class ECP5JTAG(LiteXModule):
             tck = new_tck
         self.comb += self.tck.eq(tck)
 
+class GenericTAP(LiteXModule):
+    """Minimal TAP implementation for simulation or soft-TAP use.
+
+    Features:
+    - Configurable IR length (default 4).
+    - Implements IDCODE, BYPASS and one USER instruction.
+    - IDCODE is provided as a 32-bit value.
+    - TMS/TDI sampled on rising TCK, TDO updated on falling TCK
+      (via inverted 'jtag_inv' clock domain).
+    - Intended to work with OpenOCD remote_bitbang and daisy-chained TAPs.
+
+    Not implemented (so not fully compliant):
+    - Boundary scan register and mandatory EXTEST / SAMPLE / PRELOAD instructions.
+    - TRST* pin and detailed Run-Test/Idle timing behavior.
+    - Multiple USER instructions
+    """
+
+    def __init__(self, pads,
+                 idcode      = 0x1C0DE001, # mfr=0, part=0xC0DE, version=1
+                 ir_length   = 4,
+                 user_ir_val = 0b0010):
+        assert (idcode & 0x1) == 0x1, "IDCODE LSB (bit 0) must be 1 (according to spec)"
+        self.reset   = Signal()
+        self.capture = Signal()
+        self.shift   = Signal()
+        self.update  = Signal()
+        self.tck = Signal()
+        self.tms = Signal()
+        self.tdi = Signal()
+        self.tdo = Signal()
+
+        self.comb += [
+            self.tck.eq(pads.tck),
+            self.tms.eq(pads.tms),
+            self.tdi.eq(pads.tdi),
+        ]
+
+        # TDO that goes out to the JTAG chain
+        tdo_pre  = Signal() # before registering (comb)
+        tdo_reg  = Signal()
+        self.comb += pads.tdo.eq(tdo_reg)
+
+        # TAP state machine runs in "jtag" clock domain (posedge TCK)
+        self.submodules.tap = tap = ClockDomainsRenamer("jtag")(JTAGTAPFSM(self.tms))
+
+        # Inverted clock domain to register TDO on falling TCK
+        self.cd_jtag_inv = ClockDomain("jtag_inv")
+        self.comb += [
+            ClockSignal("jtag_inv").eq(~ClockSignal("jtag")),
+            ResetSignal("jtag_inv").eq(ResetSignal("jtag")),
+        ]
+        self.sync.jtag_inv += tdo_reg.eq(tdo_pre)
+
+        # Instruction register (IR) path
+        ir_shift   = Signal(ir_length, reset=0b0001)  # IR shift register
+        ir_latched = Signal(ir_length, reset=0b0001)  # current instruction (IDCODE after reset)
+        self.sync.jtag += [
+            If(tap.TEST_LOGIC_RESET,
+                # After reset, default to IDCODE instruction
+                ir_latched.eq(1),
+            ).Elif(tap.CAPTURE_IR,
+                # IR capture pattern: LSBs must be 01
+                ir_shift.eq(1),
+            ).Elif(tap.SHIFT_IR,
+                # Shift right: bit 0 -> TDO, new TDI enters MSB
+                ir_shift.eq(Cat(ir_shift[1:], self.tdi)),
+            ).Elif(tap.UPDATE_IR,
+                ir_latched.eq(ir_shift),
+            )
+        ]
+
+        # Data register (DR) path: BYPASS, IDCODE, USER
+        instr_bypass = (1 << ir_length) - 1   # all ones
+        instr_idcode = 0b0001
+        bypass_bit   = Signal(reset=0)        # 1-bit BYPASS register
+        idcode_shift = Signal(32, reset=idcode)
+
+        self.sync.jtag += [
+            # Capture-DR: load DRs based on current instruction
+            If(tap.CAPTURE_DR,
+                If(ir_latched == instr_bypass,
+                    # BYPASS must capture 0 in Capture-DR
+                    bypass_bit.eq(0),
+                ).Elif(ir_latched == instr_idcode,
+                    idcode_shift.eq(idcode),
+                )
+            ),
+            # Shift-DR: shift BYPASS/IDCODE if selected
+            If(tap.SHIFT_DR,
+                If(ir_latched == instr_bypass,
+                    bypass_bit.eq(self.tdi),
+                ).Elif(ir_latched == instr_idcode,
+                    idcode_shift.eq(Cat(idcode_shift[1:], self.tdi)),
+                )
+            )
+        ]
+
+        # USER instruction: Interface to JTAGPHY
+        user_selected = Signal()
+        self.comb += user_selected.eq(ir_latched == user_ir_val)
+        self.comb += [
+            self.reset.eq(tap.TEST_LOGIC_RESET),
+            self.capture.eq(tap.CAPTURE_DR & user_selected),
+            self.shift.eq(tap.SHIFT_DR   & user_selected),
+            self.update.eq(tap.UPDATE_DR & user_selected),
+        ]
+
+        # TDO mux: IR shift, DR (BYPASS/IDCODE/USER), or 0 when idle
+        tdo_comb = Signal()
+        self.comb += [
+            If(tap.SHIFT_IR, # During IR shift, drive IR LSB
+                tdo_comb.eq(ir_shift[0]),
+            ).Elif(tap.SHIFT_DR,
+                If(ir_latched == instr_bypass,
+                    tdo_comb.eq(bypass_bit),
+                ).Elif(ir_latched == instr_idcode,
+                    tdo_comb.eq(idcode_shift[0]),
+                ).Elif(user_selected, # USER data register is driven by JTAGPHY
+                    tdo_comb.eq(self.tdo),
+                ).Else( # Unknown instruction: drive 0 in DR shift
+                    tdo_comb.eq(0),
+                )
+            ).Else( # Outside of shift states, TDO is don't-care
+                tdo_comb.eq(0),
+            ),
+            # This value is then registered on falling TCK in jtag_inv domain
+            tdo_pre.eq(tdo_comb),
+        ]
+
+
 # JTAG PHY -----------------------------------------------------------------------------------------
 
 class JTAGPHY(LiteXModule):
@@ -428,8 +558,8 @@ class JTAGPHY(LiteXModule):
 
 
         # JTAG TAP ---------------------------------------------------------------------------------
+        jtag_tdi_delay = 0
         if jtag is None:
-            jtag_tdi_delay = 0
             # Xilinx.
             if XilinxJTAG.get_primitive(device) is not None:
                 jtag = XilinxJTAG(primitive=XilinxJTAG.get_primitive(device), chain=chain)
@@ -447,6 +577,8 @@ class JTAGPHY(LiteXModule):
                     primitive = AlteraJTAG.get_primitive(device),
                     pads      = platform.get_reserved_jtag_pads()
                 )
+            elif device == 'SIM':
+                jtag = GenericTAP(pads=platform.request("jtag"))
             else:
                 print(device)
                 raise NotImplementedError
