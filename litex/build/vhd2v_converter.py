@@ -60,7 +60,14 @@ class VHD2VConverter(Module):
         params         = None,
         instance       = None,
         files          = None,
-        libraries      = None):
+        libraries      = None,
+        # Compatibility aliases to make usage closer to Amaranth2VConverter.
+        name           = None,
+        core_params    = None,
+        output_dir     = None,
+        module         = None,
+        clock_domains  = None,
+        blackboxes     = None):
         """
         constructor (see class attributes)
         """
@@ -68,6 +75,29 @@ class VHD2VConverter(Module):
             files = []
         if libraries is None:
             libraries = []
+
+        # Amaranth2VConverter-like aliases.
+        if module is not None:
+            raise ValueError("VHD2VConverter does not support 'module'; use VHDL 'files' instead.")
+        if clock_domains is not None:
+            raise ValueError("VHD2VConverter does not support 'clock_domains'.")
+        if blackboxes is not None:
+            raise ValueError("VHD2VConverter does not support 'blackboxes'.")
+        if (name is not None) and (top_entity is not None) and (name != top_entity):
+            raise ValueError(f"Conflicting top entity names: name={name} and top_entity={top_entity}.")
+        if (output_dir is not None) and (build_dir is not None) and (output_dir != build_dir):
+            raise ValueError(f"Conflicting output directories: output_dir={output_dir} and build_dir={build_dir}.")
+        if (core_params is not None) and (params is not None):
+            raise ValueError("Provide only one of 'core_params' or 'params'.")
+        if top_entity is None:
+            top_entity = name
+        if build_dir is None:
+            build_dir = output_dir
+        if params is None:
+            params = core_params
+        if (core_params is not None) and (instance is None):
+            add_instance = True
+
         self._top_entity     = top_entity
         self._build_dir      = build_dir
         self._work_package   = work_package
