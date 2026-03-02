@@ -114,6 +114,8 @@ class Amaranth2VConverter(LiteXModule):
     def __init__(self, platform,
         name          = "amaranth2v_converter",
         module        = None,
+        ports         = None,
+        domains       = None,
         core_params   = None,
         clock_domains = None,
         output_dir    = None,
@@ -132,7 +134,7 @@ class Amaranth2VConverter(LiteXModule):
             Optional Amaranth module to be added as a submodule of the
             internal wrapper module.
 
-        core_params : dict[str, migen.Signal]
+        ports : dict[str, migen.Signal]
             Mapping between string-encoded port names and LiteX/Migen signals.
 
             Format: <dir>_<path>
@@ -147,9 +149,15 @@ class Amaranth2VConverter(LiteXModule):
               with a pullup sub Record containing only a sub sub Record o
             - Clock And Reset signals must be <dir>_cdname_[clk|rst]
 
-        clock_domains : list[str] or None
+        domains : list[str] or None
             List of clock domain names to create in the Amaranth wrapper.
             The 'sync' domain is always added if missing.
+
+        core_params : dict[str, migen.Signal] or None
+            Deprecated alias for `ports`.
+
+        clock_domains : list[str] or None
+            Deprecated alias for `domains`.
 
         output_dir : str or None
             Optional override for the Verilog output directory.
@@ -164,11 +172,21 @@ class Amaranth2VConverter(LiteXModule):
         # List of LiteX <-> Amaranth signal connections (direction, amaranth_signal, migen_signal)
         self.conn_list   = []
 
-        # Core parameters
-        self.core_params = {True: core_params, False: dict()}[core_params is not None]
+        # Port aliases.
+        if ports is not None and core_params is not None:
+            raise ValueError("Provide only one of 'ports' or 'core_params'.")
+        if ports is None:
+            ports = core_params
+        self.ports = ports or dict()
+        # Backward-compatible public attribute.
+        self.core_params = self.ports
 
-        # Clock domains
-        clock_domains    = {True: clock_domains, False: list()}[clock_domains is not None]
+        # Domain aliases.
+        if domains is not None and clock_domains is not None:
+            raise ValueError("Provide only one of 'domains' or 'clock_domains'.")
+        if domains is None:
+            domains = clock_domains
+        domains = domains or list()
 
         # Add provided Amaranth module as submodules
         if module is not None:
@@ -176,10 +194,10 @@ class Amaranth2VConverter(LiteXModule):
             self._module = module
 
         # Ensure sync domain exists
-        if "sync" not in clock_domains:
-            clock_domains.append("sync")
+        if "sync" not in domains:
+            domains.append("sync")
 
-        for cd in clock_domains:
+        for cd in domains:
             self.add_clock_domain(cd)
 
     def add_clock_domain(self, name):
@@ -334,7 +352,7 @@ class Amaranth2VConverter(LiteXModule):
         """
         resolved = _new_signal_dict()
 
-        for kw, v in self.core_params.items():
+        for kw, v in self.ports.items():
             d, parts = self._parse_port_keyword(kw)
 
             # Wrapper-level resolution.
@@ -368,7 +386,7 @@ class Amaranth2VConverter(LiteXModule):
             previous_kw = resolved.get(am_sig, None)
             if previous_kw is not None:
                 raise ValueError(
-                    f"Ambiguous core_params: both '{previous_kw}' and '{kw}' resolve to the same Amaranth signal.")
+                    f"Ambiguous ports: both '{previous_kw}' and '{kw}' resolve to the same Amaranth signal.")
             resolved[am_sig] = kw
 
             self.conn_list.append((d, am_sig, v))

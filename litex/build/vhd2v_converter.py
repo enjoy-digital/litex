@@ -59,6 +59,9 @@ class VHD2VConverter(Module):
         force_convert  = False,
         flatten_source = True,
         add_instance   = False,
+        ports          = None,
+        sources        = None,
+        library        = None,
         params         = None,
         instance       = None,
         files          = None,
@@ -75,6 +78,8 @@ class VHD2VConverter(Module):
         """
         if files is None:
             files = []
+        if sources is None:
+            sources = []
         if libraries is None:
             libraries = []
 
@@ -91,13 +96,27 @@ class VHD2VConverter(Module):
             raise ValueError(f"Conflicting output directories: output_dir={output_dir} and build_dir={build_dir}.")
         if (core_params is not None) and (params is not None):
             raise ValueError("Provide only one of 'core_params' or 'params'.")
+        if (ports is not None) and (params is not None):
+            raise ValueError("Provide only one of 'ports' or 'params'.")
+        if (ports is not None) and (core_params is not None):
+            raise ValueError("Provide only one of 'ports' or 'core_params'.")
+        if (sources is not None) and (files is not None) and (len(sources) != 0) and (len(files) != 0):
+            raise ValueError("Provide only one of 'sources' or 'files'.")
+        if (library is not None) and (work_package is not None) and (library != work_package):
+            raise ValueError(f"Conflicting work library names: library={library} and work_package={work_package}.")
         if top_entity is None:
             top_entity = name
         if build_dir is None:
             build_dir = output_dir
+        if len(sources) != 0:
+            files = sources
+        if work_package is None:
+            work_package = library
         if params is None:
             params = core_params
-        if (core_params is not None) and (instance is None):
+        if params is None:
+            params = ports
+        if (params is not None) and (instance is None):
             add_instance = True
 
         self._top_entity     = top_entity
