@@ -1635,19 +1635,8 @@ class LiteXSoC(SoC):
         elif uart_name in ["uartbone"]:
             self.add_uartbone(baudrate=baudrate)
 
-        # USB ACM (with ValentyUSB core).
-        elif uart_name in ["usb_acm"]:
-            import valentyusb.usbcore.io as usbio
-            import valentyusb.usbcore.cpu.cdc_eptri as cdc_eptri
-            usb_pads  = self.platform.request("usb")
-            usb_iobuf = usbio.IoBuf(usb_pads.d_p, usb_pads.d_n, usb_pads.pullup)
-            # Run USB-ACM in sys_usb clock domain similar to sys_clk domain but without sys_rst.
-            self.cd_sys_usb = ClockDomain()
-            self.comb += self.cd_sys_usb.clk.eq(ClockSignal("sys"))
-            uart = ClockDomainsRenamer("sys_usb")(cdc_eptri.CDCUsb(usb_iobuf))
-
-        # Luna USB ACM (with LUNA ACM core).
-        elif uart_name in ["luna_acm"]:
+        # USB ACM (with LUNA ACM core).
+        elif uart_name in ["usb_acm", "luna_acm"]:
             from litex.soc.cores.luna_cdc_acm import LunaCDCACM
             usb_pads = self.platform.request("usb")
             uart_phy = LunaCDCACM(self.platform, usb_pads)

@@ -93,10 +93,6 @@ git_repos = {
     "litespi":      GitRepo(url="https://github.com/litex-hub/",     tag=True),
     "litei2c":      GitRepo(url="https://github.com/litex-hub/",     tag=True, branch="main"),
 
-    # LiteX Misc Cores.
-    # -----------------
-    "valentyusb":         GitRepo(url="https://github.com/litex-hub/", branch="hw_cdc_eptri"),
-
     # LiteX Boards.
     # -------------
     "litex-boards": GitRepo(url="https://github.com/litex-hub/", clone="regular", tag=True),
