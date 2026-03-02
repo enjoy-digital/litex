@@ -172,9 +172,22 @@ class Amaranth2VConverter(LiteXModule):
         v, _name_map = verilog.convert_fragment(fragment, name=self.name)
         netlist      = _ir.build_netlist(fragment, name=self.name)
 
+        ports_i  = set(getattr(netlist.top, "ports_i", ()))
+        ports_o  = set(getattr(netlist.top, "ports_o", ()))
+        ports_io = set(getattr(netlist.top, "ports_io", ()))
+
+        def get_direction(name):
+            if name in ports_o:
+                return "o"
+            if name in ports_i:
+                return "i"
+            if name in ports_io:
+                return "io"
+            raise ValueError(f"Unable to infer direction for generated port '{name}'")
+
         # Map Amaranth signals to Verilog port names and directions
         self.amaranth_name_map = _ast.SignalDict(
-            (sig, (name, "o" if name in netlist.top.ports_o else "i"))
+            (sig, (name, get_direction(name)))
             for name, sig, _ in fragment.ports
         )
 
@@ -212,7 +225,7 @@ class Amaranth2VConverter(LiteXModule):
         if obj is None:
             return None
         # it's a Signal -> it's the solution
-        if type(obj) is amaranth.Signal:
+        if isinstance(obj, _ast.Signal):
             return obj
 
         sig = None
@@ -250,20 +263,11 @@ class Amaranth2VConverter(LiteXModule):
             If a signal cannot be resolved.
         """
         for kw, v in self.core_params.items():
-            # Direction prefix.
-            # Extract direction and signals hierarchy.
-            parts = re.findall(r'(?:^|_)(_[a-z]+|[a-z]+)', kw)
-            if len(parts) == 0:
-                raise ValueError(f"Cannot parse port name {kw}")
-
-            d     = parts[0]
-            parts = parts[1:]
-
-            if d not in ("i", "o", "io"):
-                raise ValueError(f"Invalid port '{kw}': must start with i_, o_ or io_")
+            d, parts = self._parse_port_keyword(kw)
 
             # Wrapper-level resolution.
-            am_sig = getattr(self.m, parts[0], None)
+            wrapper_head = parts[0]
+            am_sig       = getattr(self.m, wrapper_head, None)
 
             # Recursive submodule resolution
             if am_sig is None and hasattr(self, "_module"):
@@ -279,7 +283,20 @@ class Amaranth2VConverter(LiteXModule):
                     am_sig = getattr(cd, candr, None)
 
             if am_sig is None:
-                raise ValueError(f"Cannot resolve '{kw}' on Amaranth module.")
+                available_domains = list(self.m._domains.keys())
+                lines = [
+                    f"Cannot resolve '{kw}' on Amaranth module.",
+                    f"- Parsed direction: {d}",
+                    f"- Parsed path: {'/'.join(parts)}",
+                    f"- Tried wrapper attribute: '{wrapper_head}'",
+                ]
+                if hasattr(self, "_module"):
+                    lines.append(f"- Tried recursive lookup on submodule path: {'/'.join(parts)}")
+                if len(parts) >= 2:
+                    cd_name = "_".join(parts[:-1])
+                    lines.append(f"- Tried clock-domain signal: domain='{cd_name}', signal='{parts[-1]}'")
+                lines.append(f"- Available clock domains: {available_domains}")
+                raise ValueError("\n".join(lines))
 
             self.conn_list.append((d, am_sig, v))
 
@@ -312,3 +329,32 @@ class Amaranth2VConverter(LiteXModule):
 
         # Add an Instance to map verilog in the LiteX gateware
         self.specials += self.get_instance()
+
+    @staticmethod
+    def _parse_port_keyword(kw):
+        if "_" not in kw:
+            raise ValueError(f"Invalid port '{kw}': expected '<dir>_<path>'")
+
+        d, tail = kw.split("_", 1)
+        if d not in ("i", "o", "io"):
+            raise ValueError(f"Invalid port '{kw}': must start with i_, o_ or io_")
+        if tail == "":
+            raise ValueError(f"Invalid port '{kw}': missing path after direction prefix")
+
+        raw_parts = tail.split("_")
+        parts = []
+        i = 0
+        while i < len(raw_parts):
+            token = raw_parts[i]
+            if token == "":
+                if i + 1 >= len(raw_parts) or raw_parts[i + 1] == "":
+                    raise ValueError(f"Invalid port '{kw}': malformed escaped '_' in path")
+                token = "_" + raw_parts[i + 1]
+                i += 2
+            else:
+                i += 1
+            if not re.fullmatch(r"_?[A-Za-z][A-Za-z0-9]*", token):
+                raise ValueError(f"Invalid port '{kw}': bad path token '{token}'")
+            parts.append(token)
+
+        return d, parts
