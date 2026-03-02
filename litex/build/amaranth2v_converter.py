@@ -15,6 +15,7 @@ from litex.build.converter_common import (
     format_unresolved_port_error,
     parse_port_keyword,
     resolve_output_paths,
+    write_text_if_different,
 )
 
 # Amaranth Compatibility ---------------------------------------------------------------------------
@@ -406,14 +407,11 @@ class Amaranth2VConverter(LiteXModule):
             output_dir = self.output_dir,
             name       = self.name)
 
-        os.makedirs(src_dir, exist_ok=True)
-
         # Resolve connections
         self.connect_wrapper()
 
         # Generate and write Verilog
-        with open(v_file, "w") as f:
-            f.write(self.generate_verilog())
+        write_text_if_different(v_file, self.generate_verilog())
 
         # Register generated source
         self.platform.add_source(v_file)

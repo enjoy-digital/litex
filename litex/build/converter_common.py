@@ -63,3 +63,39 @@ def resolve_output_paths(platform, output_dir, name):
     src_dir  = os.path.join(base_dir, name)
     v_file   = os.path.join(src_dir, f"{name}.v")
     return src_dir, v_file
+
+
+def write_text_if_different(path, content):
+    old = None
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            old = f.read()
+    if old == content:
+        return False
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        f.write(content)
+    return True
+
+
+def normalize_instance_ports(params, *, top_entity, generic_prefixes=("p_",)):
+    ip_params = dict()
+    mapped    = dict()
+    for k, v in params.items():
+        if any(k.startswith(prefix) for prefix in generic_prefixes):
+            continue
+        try:
+            d, parts = parse_port_keyword(k)
+        except ValueError as e:
+            raise ValueError(f"Invalid VHD2V port '{k}' for top '{top_entity}': {e}") from e
+        normalized = f"{d}_{'_'.join(parts)}"
+        if normalized in mapped:
+            raise ValueError(
+                f"Ambiguous VHD2V params: both '{mapped[normalized]}' and '{k}' map to '{normalized}'.")
+        mapped[normalized] = k
+        ip_params[normalized] = v
+    return ip_params
+
+
+def extract_prefixed_generics(params, *, prefix="p_"):
+    return ["-g" + k[len(prefix):] + "=" + str(v) for k, v in params.items() if k.startswith(prefix)]

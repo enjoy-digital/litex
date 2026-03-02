@@ -11,7 +11,10 @@ from shutil import which
 
 from migen import *
 
-from litex.build.converter_common import parse_port_keyword
+from litex.build.converter_common import (
+    extract_prefixed_generics,
+    normalize_instance_ports,
+)
 
 # FIXME/CHECKME:
 # --------------
@@ -172,26 +175,11 @@ class VHD2VConverter(Module):
             self._libraries.append(lib)
 
     def _normalize_instance_ports(self, params):
-        ip_params = dict()
-        mapped    = dict()
-        for k, v in params.items():
-            if k.startswith("p_"):
-                continue
-            try:
-                d, parts = parse_port_keyword(k)
-            except ValueError as e:
-                raise ValueError(f"Invalid VHD2V port '{k}' for top '{self._top_entity}': {e}") from e
-            normalized = f"{d}_{'_'.join(parts)}"
-            if normalized in mapped:
-                raise ValueError(
-                    f"Ambiguous VHD2V params: both '{mapped[normalized]}' and '{k}' map to '{normalized}'.")
-            mapped[normalized] = k
-            ip_params[normalized] = v
-        return ip_params
+        return normalize_instance_ports(params, top_entity=self._top_entity)
 
     @staticmethod
     def _extract_generics(params):
-        return ["-g" + k[2:] + "=" + str(v) for k, v in params.items() if k.startswith("p_")]
+        return extract_prefixed_generics(params, prefix="p_")
 
     def do_finalize(self):
         """
