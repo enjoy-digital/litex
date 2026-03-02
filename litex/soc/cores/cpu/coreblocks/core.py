@@ -6,11 +6,14 @@
 
 import os
 import subprocess
+import logging
 
 from migen import *
 
 from litex import get_data_mod
+from litex.build.amaranth2v_converter import Amaranth2VConverter
 from litex.build.xilinx.vivado import XilinxVivadoToolchain
+from litex.soc.cores.cpu.amaranth import import_from_pythondata
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 from litex.soc.integration.soc import SoCRegion
 from litex.soc.interconnect import wishbone
@@ -62,6 +65,7 @@ class Coreblocks(CPU):
         self.platform     = platform
         self.variant      = variant
         self.human_name   = f"Coreblocks-{CPU_VARIANTS[variant]}"
+        self.logger       = logging.getLogger("Coreblocks")
         self.reset        = Signal()
         self.interrupt    = Signal(16) # hart-local 16 platform interrupts - ids 16+n
 
@@ -158,8 +162,68 @@ class Coreblocks(CPU):
         if subprocess.call(command):
             raise OSError("Unable to elaborate Coreblocks CPU, please check your coreblocks, Amaranth/Yosys, and requirements install")
 
+    def _do_finalize_with_converter(self):
+        try:
+            coreblocks_gen = import_from_pythondata("cpu", "coreblocks", "scripts.gen_verilog")
+            with coreblocks_gen.DependencyContext(coreblocks_gen.DependencyManager()):
+                core_config = coreblocks_gen.str_to_coreconfig[CPU_VARIANTS[self.variant]]
+                core_config = core_config.replace(start_pc=self.reset_address)
+                core_genp   = coreblocks_gen.GenParams(core_config)
+                amaranth_cpu = coreblocks_gen.Core(gen_params=core_genp)
+
+                if self.variant in LINUX_CAPABLE_VARIANTS:
+                    # Adds CoreSoCks wrapper around the core that adds extra peripherals for full OS support.
+                    amaranth_cpu = coreblocks_gen.Socks(amaranth_cpu, core_gen_params=core_genp)
+
+                amaranth_cpu = coreblocks_gen.TransactronContextComponent(
+                    amaranth_cpu, dependency_manager=coreblocks_gen.DependencyContext.get())
+        except Exception as e:
+            self.logger.warning("Coreblocks native Amaranth conversion unavailable: %s", str(e))
+            return False
+
+        self.converter = Amaranth2VConverter(self.platform,
+            name        = "top",
+            module      = amaranth_cpu,
+            core_params = dict(
+                # Clk / Rst.
+                i_sync_clk = ClockSignal("sys"),
+                i_sync_rst = ResetSignal("sys") | self.reset,
+
+                # IRQ.
+                i_interrupts = self.interrupts_full,
+
+                # Ibus.
+                o_wb_instr_stb   = self.ibus.stb,
+                o_wb_instr_cyc   = self.ibus.cyc,
+                o_wb_instr_we    = self.ibus.we,
+                o_wb_instr_adr   = self.ibus.adr,
+                o_wb_instr_dat_w = self.ibus.dat_w,
+                o_wb_instr_sel   = self.ibus.sel,
+                i_wb_instr_ack   = self.ibus.ack,
+                i_wb_instr_err   = self.ibus.err,
+                i_wb_instr_dat_r = self.ibus.dat_r,
+
+                # Dbus.
+                o_wb_data_stb   = self.dbus.stb,
+                o_wb_data_cyc   = self.dbus.cyc,
+                o_wb_data_we    = self.dbus.we,
+                o_wb_data_adr   = self.dbus.adr,
+                o_wb_data_dat_w = self.dbus.dat_w,
+                o_wb_data_sel   = self.dbus.sel,
+                i_wb_data_ack   = self.dbus.ack,
+                i_wb_data_err   = self.dbus.err,
+                i_wb_data_dat_r = self.dbus.dat_r,
+            ),
+        )
+        return True
+
     def do_finalize(self):
         assert hasattr(self, "reset_address")
+
+        # Prefer native Amaranth conversion when dependencies are available.
+        # Fallback to external elaboration wrapper otherwise.
+        if self._do_finalize_with_converter():
+            return
 
         verilog_filename = os.path.join(self.platform.output_dir, "gateware", "core.v")
         self.elaborate(
