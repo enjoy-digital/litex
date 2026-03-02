@@ -36,9 +36,9 @@ def parse_port_keyword(kw):
     return d, parts
 
 
-def format_unresolved_port_error(kw, d, parts, wrapper_head, has_submodule, domains):
+def format_unresolved_port_error(kw, d, parts, wrapper_head, has_submodule, domains, target="converter/module"):
     lines = [
-        f"Cannot resolve '{kw}' on converter/module.",
+        f"Cannot resolve '{kw}' on {target}.",
         f"- Parsed direction: {d}",
         f"- Parsed path: {'/'.join(parts)}",
         f"- Tried wrapper attribute: '{wrapper_head}'",

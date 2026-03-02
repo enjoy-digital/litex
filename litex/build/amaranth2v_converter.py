@@ -5,13 +5,17 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
-import re
 
 import amaranth
 from amaranth.back import verilog
 
 import migen
 from litex.gen.fhdl.module import LiteXModule
+from litex.build.converter_common import (
+    format_unresolved_port_error,
+    parse_port_keyword,
+    resolve_output_paths,
+)
 
 # Amaranth Compatibility ---------------------------------------------------------------------------
 
@@ -351,20 +355,15 @@ class Amaranth2VConverter(LiteXModule):
                     am_sig = getattr(cd, candr, None)
 
             if am_sig is None:
-                available_domains = list(self.m._domains.keys())
-                lines = [
-                    f"Cannot resolve '{kw}' on Amaranth module.",
-                    f"- Parsed direction: {d}",
-                    f"- Parsed path: {'/'.join(parts)}",
-                    f"- Tried wrapper attribute: '{wrapper_head}'",
-                ]
-                if hasattr(self, "_module"):
-                    lines.append(f"- Tried recursive lookup on submodule path: {'/'.join(parts)}")
-                if len(parts) >= 2:
-                    cd_name = "_".join(parts[:-1])
-                    lines.append(f"- Tried clock-domain signal: domain='{cd_name}', signal='{parts[-1]}'")
-                lines.append(f"- Available clock domains: {available_domains}")
-                raise ValueError("\n".join(lines))
+                raise ValueError(format_unresolved_port_error(
+                    kw            = kw,
+                    d             = d,
+                    parts         = parts,
+                    wrapper_head  = wrapper_head,
+                    has_submodule = hasattr(self, "_module"),
+                    domains       = self.m._domains.keys(),
+                    target        = "Amaranth module",
+                ))
 
             previous_kw = resolved.get(am_sig, None)
             if previous_kw is not None:
@@ -384,10 +383,10 @@ class Amaranth2VConverter(LiteXModule):
         - Registers the Verilog file as a platform source
         - Instantiates the generated module
         """
-        output_dir = {True:  self.platform.output_dir, False: self.output_dir}[self.output_dir is None]
-
-        src_dir = os.path.join(output_dir, self.name)
-        v_file  = os.path.join(src_dir, f"{self.name}.v")
+        src_dir, v_file = resolve_output_paths(
+            platform   = self.platform,
+            output_dir = self.output_dir,
+            name       = self.name)
 
         os.makedirs(src_dir, exist_ok=True)
 
@@ -406,29 +405,4 @@ class Amaranth2VConverter(LiteXModule):
 
     @staticmethod
     def _parse_port_keyword(kw):
-        if "_" not in kw:
-            raise ValueError(f"Invalid port '{kw}': expected '<dir>_<path>'")
-
-        d, tail = kw.split("_", 1)
-        if d not in ("i", "o", "io"):
-            raise ValueError(f"Invalid port '{kw}': must start with i_, o_ or io_")
-        if tail == "":
-            raise ValueError(f"Invalid port '{kw}': missing path after direction prefix")
-
-        raw_parts = tail.split("_")
-        parts = []
-        i = 0
-        while i < len(raw_parts):
-            token = raw_parts[i]
-            if token == "":
-                if i + 1 >= len(raw_parts) or raw_parts[i + 1] == "":
-                    raise ValueError(f"Invalid port '{kw}': malformed escaped '_' in path")
-                token = "_" + raw_parts[i + 1]
-                i += 2
-            else:
-                i += 1
-            if not re.fullmatch(r"_?[A-Za-z][A-Za-z0-9]*", token):
-                raise ValueError(f"Invalid port '{kw}': bad path token '{token}'")
-            parts.append(token)
-
-        return d, parts
+        return parse_port_keyword(kw)
