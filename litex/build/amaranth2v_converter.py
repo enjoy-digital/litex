@@ -8,11 +8,80 @@ import os
 import re
 
 import amaranth
-from amaranth.hdl import _ast, _ir
 from amaranth.back import verilog
 
 import migen
 from litex.gen.fhdl.module import LiteXModule
+
+# Amaranth Compatibility ---------------------------------------------------------------------------
+
+try:
+    from amaranth.hdl import _ast as _am_ast
+except ImportError:
+    _am_ast = None
+
+try:
+    from amaranth.hdl import _ir as _am_ir
+except ImportError:
+    _am_ir = None
+
+
+class _CompatSignalDict:
+    """Identity-keyed dictionary fallback when Amaranth SignalDict is unavailable."""
+    def __init__(self):
+        self._data = {}
+
+    def __setitem__(self, key, value):
+        self._data[id(key)] = (key, value)
+
+    def __getitem__(self, key):
+        return self._data[id(key)][1]
+
+    def get(self, key, default=None):
+        item = self._data.get(id(key), None)
+        return default if item is None else item[1]
+
+    def __contains__(self, key):
+        return id(key) in self._data
+
+
+def _new_signal_dict(items=None):
+    signal_dict_cls = getattr(_am_ast, "SignalDict", None) if _am_ast is not None else None
+    if signal_dict_cls is not None:
+        return signal_dict_cls(items or [])
+
+    d = _CompatSignalDict()
+    for k, v in (items or []):
+        d[k] = v
+    return d
+
+
+def _prepare_fragment(module, ports, hierarchy):
+    fragment_cls = getattr(_am_ir, "Fragment", None) if _am_ir is not None else None
+    if fragment_cls is None or not hasattr(fragment_cls, "get"):
+        raise RuntimeError("Amaranth Fragment API is unavailable in this version.")
+
+    return fragment_cls.get(module, None).prepare(
+        ports     = ports,
+        hierarchy = hierarchy,
+    )
+
+
+def _build_netlist(fragment, name):
+    builder = getattr(_am_ir, "build_netlist", None) if _am_ir is not None else None
+    if builder is None:
+        raise RuntimeError("Amaranth netlist builder API is unavailable in this version.")
+    return builder(fragment, name=name)
+
+
+def _convert_fragment(fragment, name):
+    converter = getattr(verilog, "convert_fragment", None)
+    if converter is None:
+        raise RuntimeError("Amaranth Verilog convert_fragment API is unavailable in this version.")
+    return converter(fragment, name=name)
+
+
+_SIGNAL_TYPE = getattr(_am_ast, "Signal", None) if _am_ast is not None else None
 
 # Amaranth2VConverter ------------------------------------------------------------------------------
 
@@ -164,13 +233,10 @@ class Amaranth2VConverter(LiteXModule):
         """
         ports = [n for _, n, _ in self.conn_list]
 
-        fragment = _ir.Fragment.get(self.m, None).prepare(
-            ports     = ports,
-            hierarchy = (self.name,)
-        )
+        fragment = _prepare_fragment(self.m, ports=ports, hierarchy=(self.name,))
 
-        v, _name_map = verilog.convert_fragment(fragment, name=self.name)
-        netlist      = _ir.build_netlist(fragment, name=self.name)
+        v, _name_map = _convert_fragment(fragment, name=self.name)
+        netlist      = _build_netlist(fragment, name=self.name)
 
         ports_i  = set(getattr(netlist.top, "ports_i", ()))
         ports_o  = set(getattr(netlist.top, "ports_o", ()))
@@ -186,7 +252,7 @@ class Amaranth2VConverter(LiteXModule):
             raise ValueError(f"Unable to infer direction for generated port '{name}'")
 
         # Map Amaranth signals to Verilog port names and directions
-        self.amaranth_name_map = _ast.SignalDict(
+        self.amaranth_name_map = _new_signal_dict(
             (sig, (name, get_direction(name)))
             for name, sig, _ in fragment.ports
         )
@@ -225,7 +291,7 @@ class Amaranth2VConverter(LiteXModule):
         if obj is None:
             return None
         # it's a Signal -> it's the solution
-        if isinstance(obj, _ast.Signal):
+        if _SIGNAL_TYPE is not None and isinstance(obj, _SIGNAL_TYPE):
             return obj
 
         sig = None
@@ -262,7 +328,7 @@ class Amaranth2VConverter(LiteXModule):
         ValueError
             If a signal cannot be resolved.
         """
-        resolved = _ast.SignalDict()
+        resolved = _new_signal_dict()
 
         for kw, v in self.core_params.items():
             d, parts = self._parse_port_keyword(kw)
