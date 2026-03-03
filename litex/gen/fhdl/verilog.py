@@ -99,14 +99,11 @@ def _generate_timescale(time_unit="1ns", time_precision="1ps"):
 def _generate_hierarchy(top):
     if top is None:
         return ""
-    else:
-        hierarchy_explorer = LiteXHierarchyExplorer(top=top, depth=None, with_colors=False)
-        r = "/*\n"
-        for l in hierarchy_explorer.get_hierarchy().split("\n"):
-            r += l + "\n"
-        r = r[:-1]
-        r += "*/\n"
-        return r
+
+    # Emit hierarchy as a Verilog block comment to keep output self-contained.
+    hierarchy_explorer = LiteXHierarchyExplorer(top=top, depth=None, with_colors=False)
+    lines = hierarchy_explorer.get_hierarchy().split("\n")
+    return "/*\n" + "\n".join(lines) + "\n*/\n"
 
 def _sanitize_identifier(name, reserved_keywords=None):
     # Ensure valid Verilog identifiers for module/instance names.
@@ -123,13 +120,15 @@ def _sanitize_identifier(name, reserved_keywords=None):
 
 
 class _ModuleNode:
+    """Bookkeeping node used while partitioning/serializing hierarchical Verilog."""
+
     def __init__(self, module, parent=None, inst_name=None, path=None):
         self.module          = module
         self.parent          = parent
-        self.inst_name        = inst_name
+        self.inst_name       = inst_name
         self.path            = [] if path is None else path
-        self.children         = []
-        self.fragment         = None
+        self.children        = []
+        self.fragment        = None
         self.lowered_specials = set()
         self.local_specials   = set()
         self.subtree_specials = set()
@@ -145,7 +144,20 @@ class _ModuleNode:
         self.module_name      = None
 
 
+def _allocate_generated_submodule_name(mod, used_names):
+    """Return a deterministic synthetic name for unnamed submodules."""
+    base = mod.__class__.__name__.lower()
+    idx  = 0
+    name = f"{base}_{idx}"
+    while name in used_names:
+        idx += 1
+        name = f"{base}_{idx}"
+    return name
+
+
 def _build_module_tree(top):
+    """Build a module ownership tree from LiteX `_submodules`."""
+
     def _walk(module, parent=None, inst_name=None, path=None, seen=None):
         if seen is None:
             seen = {}
@@ -157,13 +169,7 @@ def _build_module_tree(top):
             # Migen's get_fragment_called behavior for shared instances.
             if id(mod) in seen:
                 if name is None:
-                    base = mod.__class__.__name__.lower()
-                    n = 0
-                    candidate = f"{base}_{n}"
-                    while candidate in used_names:
-                        n += 1
-                        candidate = f"{base}_{n}"
-                    name = candidate
+                    name = _allocate_generated_submodule_name(mod, used_names)
                 used_names.add(name)
                 alias = _ModuleNode(module=mod, parent=node, inst_name=name,
                                     path=(path or []) + [name])
@@ -172,13 +178,7 @@ def _build_module_tree(top):
                 node.children.append(alias)
                 continue
             if name is None:
-                base = mod.__class__.__name__.lower()
-                n = 0
-                candidate = f"{base}_{n}"
-                while candidate in used_names:
-                    n += 1
-                    candidate = f"{base}_{n}"
-                name = candidate
+                name = _allocate_generated_submodule_name(mod, used_names)
             used_names.add(name)
             child = _walk(mod, parent=node, inst_name=name, path=(path or []) + [name], seen=seen)
             node.children.append(child)

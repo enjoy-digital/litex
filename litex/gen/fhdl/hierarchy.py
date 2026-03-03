@@ -30,6 +30,16 @@ class LiteXHierarchyExplorer:
     def _colorer(self, s, color="bright"):
         return colorer(s=s, color=color, enable=self.with_colors)
 
+    def _allocate_generated_name(self, module, used_names):
+        """Generate a stable synthetic instance name for unnamed submodules."""
+        base = module.__class__.__name__.lower()
+        idx  = 0
+        name = f"{base}_{idx}"
+        while name in used_names:
+            idx += 1
+            name = f"{base}_{idx}"
+        return name
+
     def _collect_entries(self, module, with_modules=True, with_instances=True):
         entries = []
         used_names = set([None])
@@ -38,13 +48,7 @@ class LiteXHierarchyExplorer:
             for name, mod in module._submodules:
                 gen_name = False
                 if name is None:
-                    base = mod.__class__.__name__.lower()
-                    n = 0
-                    candidate = f"{base}_{n}"
-                    while candidate in used_names:
-                        n += 1
-                        candidate = f"{base}_{n}"
-                    name = candidate
+                    name = self._allocate_generated_name(mod, used_names)
                     gen_name = True
                 used_names.add(name)
                 entries.append(("module", name, mod, gen_name))
@@ -62,6 +66,7 @@ class LiteXHierarchyExplorer:
         return entries
 
     def get_tree(self, module, prefix="", ident=0, with_modules=True, with_instances=True):
+        # Keep depth limiting local to rendering so tree collection remains reusable.
         r = ""
         if (self.depth is not None) and (ident > self.depth):
             return r
@@ -77,6 +82,7 @@ class LiteXHierarchyExplorer:
                 label = f"{self._colorer(name, 'cyan')} ({mod.__class__.__name__}){tag}"
                 r += f"{prefix}{branch}{label}\n"
                 if (self.depth is None) or (ident < self.depth):
+                    # Extend the visual prefix to preserve tree continuation bars.
                     child_prefix = prefix + ("     " if is_last else self.tree_vert)
                     r += self.get_tree(mod, prefix=child_prefix, ident=ident + 1)
             else:
