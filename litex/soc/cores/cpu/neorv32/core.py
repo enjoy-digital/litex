@@ -114,7 +114,7 @@ class NEORV32(CPU):
                 i_jtag_tms_i  = 0,
 
                 # Interrupt.
-                i_mext_irq_i = 0,
+                i_irq_mei_i = 0,
 
                 # I/D Wishbone Bus.
                 o_wb_adr_o = self.periph_buses[i].adr,
@@ -199,9 +199,7 @@ class NEORV32(CPU):
                 "neorv32_bus.vhd",
                 "neorv32_cache.vhd",
                 "neorv32_cfs.vhd",
-                "neorv32_clockgate.vhd",
                 "neorv32_clint.vhd",
-                "neorv32_crc.vhd",
                 "neorv32_cpu_alu.vhd",
                 "neorv32_cpu_control.vhd",
                 "neorv32_cpu_counters.vhd",
@@ -210,7 +208,6 @@ class NEORV32(CPU):
                 "neorv32_cpu_cp_cond.vhd",
                 "neorv32_cpu_cp_crypto.vhd",
                 "neorv32_cpu_cp_fpu.vhd",
-                "neorv32_cpu_icc.vhd",
                 "neorv32_cpu_cp_muldiv.vhd",
                 "neorv32_cpu_cp_shifter.vhd",
                 "neorv32_cpu_decompressor.vhd",
@@ -226,7 +223,6 @@ class NEORV32(CPU):
                 "neorv32_debug_dtm.vhd",
                 "neorv32_dma.vhd",
                 "neorv32_dmem.vhd",
-                "neorv32_fifo.vhd",
                 "neorv32_gpio.vhd",
                 "neorv32_gptmr.vhd",
                 "neorv32_imem.vhd",
