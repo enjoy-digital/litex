@@ -32,6 +32,7 @@ from litex.gen import LiteXContext
 from litex.gen.fhdl.expression import _generate_expression, _generate_signal
 from litex.gen.fhdl.namer      import build_signal_namespace
 from litex.gen.fhdl.hierarchy  import LiteXHierarchyExplorer
+from litex.gen.fhdl.utils      import allocate_generated_name
 
 from litex.build.tools import get_litex_git_revision
 
@@ -144,17 +145,6 @@ class _ModuleNode:
         self.module_name      = None
 
 
-def _allocate_generated_submodule_name(mod, used_names):
-    """Return a deterministic synthetic name for unnamed submodules."""
-    base = mod.__class__.__name__.lower()
-    idx  = 0
-    name = f"{base}_{idx}"
-    while name in used_names:
-        idx += 1
-        name = f"{base}_{idx}"
-    return name
-
-
 def _build_module_tree(top):
     """Build a module ownership tree from LiteX `_submodules`."""
 
@@ -169,7 +159,7 @@ def _build_module_tree(top):
             # Migen's get_fragment_called behavior for shared instances.
             if id(mod) in seen:
                 if name is None:
-                    name = _allocate_generated_submodule_name(mod, used_names)
+                    name = allocate_generated_name(mod, used_names)
                 used_names.add(name)
                 alias = _ModuleNode(module=mod, parent=node, inst_name=name,
                                     path=(path or []) + [name])
@@ -178,7 +168,7 @@ def _build_module_tree(top):
                 node.children.append(alias)
                 continue
             if name is None:
-                name = _allocate_generated_submodule_name(mod, used_names)
+                name = allocate_generated_name(mod, used_names)
             used_names.add(name)
             child = _walk(mod, parent=node, inst_name=name, path=(path or []) + [name], seen=seen)
             node.children.append(child)

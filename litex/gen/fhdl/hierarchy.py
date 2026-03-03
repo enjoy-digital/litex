@@ -9,6 +9,7 @@ import sys
 from migen import *
 
 from litex.gen import *
+from litex.gen.fhdl.utils import allocate_generated_name
 
 # LiteX Hierarchy Explorer -------------------------------------------------------------------------
 
@@ -30,16 +31,6 @@ class LiteXHierarchyExplorer:
     def _colorer(self, s, color="bright"):
         return colorer(s=s, color=color, enable=self.with_colors)
 
-    def _allocate_generated_name(self, module, used_names):
-        """Generate a stable synthetic instance name for unnamed submodules."""
-        base = module.__class__.__name__.lower()
-        idx  = 0
-        name = f"{base}_{idx}"
-        while name in used_names:
-            idx += 1
-            name = f"{base}_{idx}"
-        return name
-
     def _collect_entries(self, module, with_modules=True, with_instances=True):
         entries = []
         used_names = set([None])
@@ -48,7 +39,7 @@ class LiteXHierarchyExplorer:
             for name, mod in module._submodules:
                 gen_name = False
                 if name is None:
-                    name = self._allocate_generated_name(mod, used_names)
+                    name = allocate_generated_name(mod, used_names)
                     gen_name = True
                 used_names.add(name)
                 entries.append(("module", name, mod, gen_name))
