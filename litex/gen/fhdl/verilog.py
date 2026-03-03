@@ -18,6 +18,7 @@ import datetime
 import collections
 import re
 
+from dataclasses import dataclass, field
 from enum import IntEnum
 from operator import itemgetter
 
@@ -678,6 +679,502 @@ def _prepare_fragment(f, platform, special_overrides, global_clock_domains=None)
     return f, lowered_specials
 
 
+def _resolve_ios(ios, platform):
+    """Resolve top-level IOs when not provided explicitly."""
+    if len(ios) == 0:
+        assert platform is not None
+        return platform.constraint_manager.get_io_signals()
+    return ios
+
+
+def _apply_io_name_overrides(ios):
+    """Stabilize IO naming from backtrace when no explicit override is set."""
+    for io in sorted(ios, key=lambda x: x.duid):
+        if io.name_override is None:
+            io_name = io.backtrace[-1][0]
+            if io_name:
+                io.name_override = io_name
+
+
+def _normalize_hier_path(path):
+    """Normalize generated instance names from hierarchy traces."""
+    return [p[:-1] if p.endswith("*") else p for p in path]
+
+
+def _collect_memory_port_signals(specials, clock_domains=None):
+    """Collect Memory port interface signals.
+
+    `list_special_ios` does not always include all memory port endpoints.
+    This helper gathers them consistently and resolves ClockSignal aliases.
+    """
+    signals = set()
+    targets = set()
+    wires   = set()
+    for special in specials:
+        if not isinstance(special, Memory):
+            continue
+        for port in special.ports:
+            for attr in ["adr", "dat_r", "dat_w", "we", "re", "clk", "rst"]:
+                sig = getattr(port, attr, None)
+                if isinstance(sig, ClockSignal) and (clock_domains is not None):
+                    sig = clock_domains[sig.cd].clk
+                if isinstance(sig, Signal):
+                    signals.add(sig)
+            # Memory read data is always driven by the memory.
+            sig = getattr(port, "dat_r", None)
+            if isinstance(sig, ClockSignal) and (clock_domains is not None):
+                sig = clock_domains[sig.cd].clk
+            if isinstance(sig, Signal):
+                targets.add(sig)
+                wires.add(sig)
+    return signals, targets, wires
+
+
+@dataclass
+class _HierarchicalBuildContext:
+    """Shared state for hierarchical Verilog preparation/emission."""
+
+    top: object
+    name: str
+    platform: object
+    special_overrides: dict
+    attr_translate: object
+    regular_comb: bool
+    regs_init: bool
+    time_unit: str
+    time_precision: str
+    ios: set
+    conv_output: ConvOutput = field(default_factory=ConvOutput)
+    root: object = None
+    global_clock_domains: object = None
+    all_signals: set = field(default_factory=set)
+    signal_owner_override: dict = field(default_factory=dict)
+    ns: object = None
+
+
+def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_translate, regular_comb, regs_init, time_unit, time_precision):
+    if LiteXContext.top is None:
+        raise ValueError("Hierarchical Verilog generation requires LiteXContext.top to be set.")
+
+    # NOTE: These attributes describe analysis "layers" on each `_ModuleNode`:
+    # - raw_*      : pre-lowering statements/specials extracted from source fragments
+    # - local_*    : lowered data owned by the module body itself
+    # - subtree_*  : transitive union of local_* over hierarchy descendants
+    # - inline_*   : statements inherited from children selected for inlining
+    ctx = _HierarchicalBuildContext(
+        top               = LiteXContext.top,
+        name              = name,
+        platform          = platform,
+        special_overrides = special_overrides,
+        attr_translate    = attr_translate,
+        regular_comb      = regular_comb,
+        regs_init         = regs_init,
+        time_unit         = time_unit,
+        time_precision    = time_precision,
+        ios               = _resolve_ios(ios, platform),
+    )
+    _apply_io_name_overrides(ctx.ios)
+
+    # Prepare global clock domains from the full fragment and build hierarchy.
+    ctx.global_clock_domains = f.clock_domains
+    ctx.root = _build_module_tree(ctx.top)
+
+    def _get_node_fragment(node):
+        frag = node.module._fragment
+        missing = [cd for cd in list_clock_domains(frag) if cd not in ctx.global_clock_domains]
+        if missing and not node.module.get_fragment_called:
+            return node.module.get_fragment()
+        return frag
+
+    # Collect raw specials per module (pre-lowering) while keeping shared aliases coherent.
+    def _collect_raw_specials(node):
+        if getattr(node, "shared_alias", False):
+            owner = node.shared_owner
+            if hasattr(owner, "raw_subtree_specials"):
+                node.source_fragment = owner.source_fragment
+                node.raw_specials = set()
+                node.raw_subtree_specials = set(owner.raw_subtree_specials)
+            else:
+                owner_fragment = _get_node_fragment(owner)
+                node.source_fragment = owner_fragment
+                node.raw_specials = set()
+                node.raw_subtree_specials = set(owner_fragment.specials)
+            node.raw_local_specials = set()
+            return
+        node.source_fragment = _get_node_fragment(node)
+        node.raw_specials = set(node.source_fragment.specials)
+        node.raw_subtree_specials = set(node.raw_specials)
+        for child in node.children:
+            _collect_raw_specials(child)
+            node.raw_subtree_specials |= child.raw_subtree_specials
+        child_specials = set()
+        for child in node.children:
+            child_specials |= child.raw_subtree_specials
+        node.raw_local_specials = node.raw_specials - child_specials
+
+    _collect_raw_specials(ctx.root)
+
+    def _collect_owner_overrides(node):
+        node_path = _normalize_hier_path(node.path)
+        raw_signals = list_signals(node.source_fragment) | list_special_ios(node.source_fragment, ins=True, outs=True, inouts=True)
+        mem_signals, _, _ = _collect_memory_port_signals(node.source_fragment.specials)
+        raw_signals |= {s for s in mem_signals if not getattr(s, "backtrace", None)}
+        for sig in raw_signals:
+            if not getattr(sig, "backtrace", None) and sig not in ctx.signal_owner_override:
+                ctx.signal_owner_override[sig] = node_path
+        for child in node.children:
+            _collect_owner_overrides(child)
+
+    _collect_owner_overrides(ctx.root)
+
+    def _signal_owner_path(sig, default_path=None):
+        if not getattr(sig, "backtrace", None):
+            if sig in ctx.signal_owner_override:
+                return list(ctx.signal_owner_override[sig])
+            return list(default_path or [])
+        return [n for n, _ in sig.backtrace[:-1] if n is not None]
+
+    def _collect_raw_statements(node):
+        if getattr(node, "shared_alias", False):
+            owner = node.shared_owner
+            node.raw_comb = []
+            node.raw_sync = {}
+            node.raw_targets = set()
+            node.raw_special_targets = set()
+            node.raw_desc_comb_ids = set(getattr(owner, "raw_desc_comb_ids", set()))
+            node.raw_desc_sync_ids = collections.defaultdict(set)
+            for cd_name, ids in getattr(owner, "raw_desc_sync_ids", {}).items():
+                node.raw_desc_sync_ids[cd_name] |= set(ids)
+            node.raw_self_targets = set()
+            return
+        node.raw_comb = list(node.source_fragment.comb)
+        node.raw_sync = {}
+        for cd_name, stmts in node.source_fragment.sync.items():
+            node.raw_sync[cd_name] = list(stmts)
+        node.raw_targets = set()
+        for stmt in node.raw_comb:
+            node.raw_targets |= set(list_targets(stmt))
+        for stmts in node.raw_sync.values():
+            for stmt in stmts:
+                node.raw_targets |= set(list_targets(stmt))
+        node.raw_special_targets = set()
+        for special in node.source_fragment.specials:
+            node.raw_special_targets |= special.list_ios(False, True, True)
+        node.raw_targets |= node.raw_special_targets
+        node.raw_desc_comb_ids = {id(stmt) for stmt in node.raw_comb}
+        node.raw_desc_sync_ids = collections.defaultdict(set)
+        for cd_name, stmts in node.raw_sync.items():
+            node.raw_desc_sync_ids[cd_name].update(id(stmt) for stmt in stmts)
+        for child in node.children:
+            _collect_raw_statements(child)
+            node.raw_desc_comb_ids |= child.raw_desc_comb_ids
+            for cd_name, ids in child.raw_desc_sync_ids.items():
+                node.raw_desc_sync_ids[cd_name] |= ids
+        child_desc_comb_ids = set()
+        child_desc_sync_ids = set()
+        for child in node.children:
+            child_desc_comb_ids |= child.raw_desc_comb_ids
+            for ids in child.raw_desc_sync_ids.values():
+                child_desc_sync_ids |= ids
+        raw_self_comb = [stmt for stmt in node.raw_comb if id(stmt) not in child_desc_comb_ids]
+        raw_self_sync = collections.defaultdict(list)
+        for cd_name, stmts in node.raw_sync.items():
+            raw_self_sync[cd_name] = [stmt for stmt in stmts if id(stmt) not in child_desc_sync_ids]
+        node.raw_self_targets = set()
+        for stmt in raw_self_comb:
+            node.raw_self_targets |= set(list_targets(stmt))
+        for stmts in raw_self_sync.values():
+            for stmt in stmts:
+                node.raw_self_targets |= set(list_targets(stmt))
+        if hasattr(node, "raw_local_specials"):
+            for special in node.raw_local_specials:
+                node.raw_self_targets |= special.list_ios(False, True, True)
+
+    _collect_raw_statements(ctx.root)
+
+    def _mark_inline(node):
+        parent_path = _normalize_hier_path(node.path)
+        for child in node.children:
+            child.inline = False
+        parent_drivers = set(getattr(node, "raw_self_targets", node.raw_targets))
+
+        # Policy 1: parent and child both drive same signal object -> inline child.
+        for child in node.children:
+            if parent_drivers & set(child.raw_targets):
+                child.inline = True
+
+        # Policy 2: parent drives a signal owned under a child path -> inline child.
+        for sig in parent_drivers:
+            owner_path = _normalize_hier_path(_signal_owner_path(sig, default_path=parent_path))
+            if owner_path == parent_path:
+                continue
+            for child in node.children:
+                child_path = _normalize_hier_path(child.path)
+                if owner_path[:len(child_path)] == child_path:
+                    child.inline = True
+                    break
+
+        # Policy 3: siblings drive same signal object -> inline all conflicting siblings.
+        drivers = {}
+        for child in node.children:
+            for sig in child.raw_targets:
+                drivers.setdefault(sig, []).append(child)
+        for _, kids in drivers.items():
+            if len(kids) > 1:
+                for child in kids:
+                    child.inline = True
+
+        for child in node.children:
+            if child.inline:
+                def _inline_subtree(n):
+                    n.inline = True
+                    for g in n.children:
+                        _inline_subtree(g)
+                _inline_subtree(child)
+            _mark_inline(child)
+
+    _mark_inline(ctx.root)
+
+    def _set_hier_children(node):
+        node.hier_children = [c for c in node.children if not getattr(c, "shared_alias", False)]
+        for child in node.hier_children:
+            _set_hier_children(child)
+
+    def _set_inline_children(node):
+        node.filter_children = [c for c in node.children if not getattr(c, "inline", False)]
+        node.hier_children = [c for c in node.children if not getattr(c, "inline", False) and not getattr(c, "shared_alias", False)]
+        node.inline_children = [c for c in node.children if getattr(c, "inline", False)]
+        for child in node.children:
+            _set_inline_children(child)
+
+    _set_hier_children(ctx.root)
+    _set_inline_children(ctx.root)
+
+    def _gather_inline_statements(node):
+        comb = list(node.raw_comb)
+        sync = collections.defaultdict(list)
+        for cd_name, stmts in node.raw_sync.items():
+            sync[cd_name] = list(stmts)
+        for child in node.inline_children:
+            _gather_inline_statements(child)
+            comb += child.inline_raw_comb
+            for cd_name, stmts in child.inline_raw_sync.items():
+                sync[cd_name] += list(stmts)
+        node.inline_raw_comb = comb
+        node.inline_raw_sync = sync
+        for child in node.hier_children:
+            _gather_inline_statements(child)
+
+    _gather_inline_statements(ctx.root)
+
+    def _lower_tree(node):
+        child_desc_comb_ids = set()
+        child_desc_sync_ids_all = set()
+        for child in node.filter_children:
+            child_desc_comb_ids |= child.raw_desc_comb_ids
+            for ids in child.raw_desc_sync_ids.values():
+                child_desc_sync_ids_all |= ids
+        filtered_comb = [stmt for stmt in node.inline_raw_comb if id(stmt) not in child_desc_comb_ids]
+        filtered_sync = collections.defaultdict(list)
+        for cd_name, stmts in node.inline_raw_sync.items():
+            filtered = [stmt for stmt in stmts if id(stmt) not in child_desc_sync_ids_all]
+            if filtered:
+                filtered_sync[cd_name] = filtered
+        local_sync = collections.defaultdict(list)
+        for cd_name, stmts in filtered_sync.items():
+            local_sync[cd_name] = list(stmts)
+        child_specials = set()
+        for child in node.filter_children:
+            child_specials |= child.raw_subtree_specials
+        local_specials = node.raw_specials - child_specials
+        local_fragment = _Fragment(
+            comb=list(filtered_comb),
+            sync=local_sync,
+            specials=set(local_specials),
+            clock_domains=node.source_fragment.clock_domains,
+        )
+        node.fragment, node.lowered_specials = _prepare_fragment(
+            local_fragment,
+            platform=ctx.platform,
+            special_overrides=ctx.special_overrides,
+            global_clock_domains=ctx.global_clock_domains,
+        )
+        node.local_specials = set(node.fragment.specials)
+        for special in node.fragment.specials:
+            if isinstance(special, Memory):
+                for port in special.ports:
+                    if isinstance(port.clock, ClockSignal):
+                        port.clock = node.fragment.clock_domains[port.clock.cd].clk
+        node.local_signals = list_signals(node.fragment) | list_special_ios(node.fragment, ins=True, outs=True, inouts=True)
+        special_outs = list_special_ios(node.fragment, ins=False, outs=True, inouts=True)
+        node.local_inouts = list_special_ios(node.fragment, ins=False, outs=False, inouts=True)
+        node.local_targets = list_targets(node.fragment) | special_outs
+        node.local_wires = _list_comb_wires(node.fragment) | special_outs
+        mem_signals, mem_targets, mem_wires = _collect_memory_port_signals(node.fragment.specials, node.fragment.clock_domains)
+        node.local_signals |= mem_signals
+        node.local_targets |= mem_targets
+        node.local_wires   |= mem_wires
+        for cd in node.fragment.clock_domains:
+            node.local_signals.add(cd.clk)
+            if cd.rst is not None:
+                node.local_signals.add(cd.rst)
+        ctx.all_signals.update(node.local_signals)
+        for child in node.hier_children:
+            _lower_tree(child)
+
+    _lower_tree(ctx.root)
+
+    def _aggregate(node):
+        node.subtree_signals = set(node.local_signals)
+        node.subtree_targets = set(node.local_targets)
+        node.subtree_inouts  = set(node.local_inouts)
+        node.subtree_nodes   = {node}
+        node.subtree_specials = set(node.local_specials)
+        for child in node.hier_children:
+            _aggregate(child)
+            node.subtree_signals |= child.subtree_signals
+            node.subtree_targets |= child.subtree_targets
+            node.subtree_inouts  |= child.subtree_inouts
+            node.subtree_nodes   |= child.subtree_nodes
+            node.subtree_specials |= child.subtree_specials
+
+    _aggregate(ctx.root)
+    ctx.all_signals |= set(ctx.ios)
+    ctx.ns = build_signal_namespace(
+        signals=ctx.all_signals,
+        reserved_keywords=_ieee_1800_2017_verilog_reserved_keywords,
+    )
+    ctx.ns.clock_domains = ctx.global_clock_domains
+
+    def _compute_external(node):
+        for child in node.hier_children:
+            _compute_external(child)
+        if node.parent is None:
+            node.external_signals = set(ctx.ios)
+            node.module_name = ctx.name
+        else:
+            node.external_signals = set()
+            node_path = _normalize_hier_path(node.path)
+            for sig in node.local_signals:
+                owner_path = _normalize_hier_path(_signal_owner_path(sig, default_path=node_path))
+                if owner_path != node_path:
+                    node.external_signals.add(sig)
+            for child in node.hier_children:
+                for sig in child.external_signals:
+                    owner_path = _normalize_hier_path(_signal_owner_path(sig, default_path=node_path))
+                    if owner_path != node_path:
+                        node.external_signals.add(sig)
+            node.module_name = _sanitize_identifier("__".join([ctx.name] + node.path))
+
+    _compute_external(ctx.root)
+
+    def _check_multiple_drivers(node):
+        if node.parent is not None:
+            parent_outside_targets = node.parent.subtree_targets - node.subtree_targets
+            for sig in node.external_signals:
+                if (sig in node.subtree_targets) and (sig in parent_outside_targets) and (sig not in node.subtree_inouts):
+                    raise ValueError(f"Multiple drivers for signal {ctx.ns.get_name(sig)} across hierarchy.")
+        for child in node.hier_children:
+            _check_multiple_drivers(child)
+
+    _check_multiple_drivers(ctx.root)
+
+    def _compute_ports(node):
+        port_directions = {}
+        port_wires = set()
+        for sig in node.external_signals:
+            if sig in node.subtree_inouts:
+                port_directions[sig] = "inout"
+            elif sig in node.subtree_targets:
+                port_directions[sig] = "output"
+                if sig not in node.local_targets:
+                    port_wires.add(sig)
+                elif sig in node.local_wires:
+                    port_wires.add(sig)
+            else:
+                port_directions[sig] = "input"
+        node.port_directions = port_directions
+        node.port_wires = port_wires
+        for child in node.hier_children:
+            _compute_ports(child)
+
+    _compute_ports(ctx.root)
+
+    verilog = ""
+    verilog += _generate_banner(
+        filename=ctx.name,
+        device=getattr(ctx.platform, "device", "Unknown"),
+        top=ctx.top.__class__.__name__ if ctx.top is not None else "Unknown",
+        hierarchical=True,
+    )
+    verilog += _generate_timescale(time_unit=ctx.time_unit, time_precision=ctx.time_precision)
+    verilog += _generate_separator("Hierarchy")
+    verilog += _generate_hierarchy(top=ctx.top)
+
+    def _emit(node):
+        nonlocal verilog
+        for child in node.hier_children:
+            _emit(child)
+        interconnect_signals = set()
+        for child in node.hier_children:
+            interconnect_signals |= child.external_signals
+        declared_signals = node.local_signals | interconnect_signals
+        child_output_signals = set()
+        for child in node.hier_children:
+            for sig, direction in child.port_directions.items():
+                if direction == "output":
+                    child_output_signals.add(sig)
+        force_wires = {s for s in interconnect_signals if s not in node.local_targets}
+        force_wires |= child_output_signals
+        parts = []
+        parts.append(_generate_separator(f"Module: {node.module_name}"))
+        parts.append(_generate_module_with_ports(
+            ios=sorted(node.external_signals, key=lambda x: ctx.ns.get_name(x)),
+            name=node.module_name,
+            ns=ctx.ns,
+            attr_translate=ctx.attr_translate,
+            port_directions=node.port_directions,
+            port_wires=node.port_wires,
+        ))
+        parts.append(_generate_separator("Signals"))
+        parts.append(_generate_signals(
+            f=node.fragment,
+            ios=set(node.external_signals),
+            name=node.module_name,
+            ns=ctx.ns,
+            attr_translate=ctx.attr_translate,
+            regs_init=ctx.regs_init,
+            signals_override=declared_signals,
+            force_wires=force_wires,
+        ))
+        parts.append(_generate_separator("Submodules"))
+        parts.append(_generate_submodule_instances(node, ctx.ns))
+        parts.append(_generate_separator("Combinatorial Logic"))
+        if ctx.regular_comb:
+            parts.append(_generate_combinatorial_logic_synth(node.fragment, ctx.ns))
+        else:
+            parts.append(_generate_combinatorial_logic_sim(node.fragment, ctx.ns))
+        parts.append(_generate_separator("Synchronous Logic"))
+        parts.append(_generate_synchronous_logic(node.fragment, ctx.ns))
+        parts.append(_generate_separator("Specialized Logic"))
+        parts.append(_generate_specials(
+            name=node.module_name,
+            overrides=ctx.special_overrides,
+            specials=node.fragment.specials - node.lowered_specials,
+            namespace=ctx.ns,
+            add_data_file=ctx.conv_output.add_data_file,
+            attr_translate=ctx.attr_translate,
+        ))
+        parts.append("endmodule\n")
+        verilog += "".join(parts)
+
+    _emit(ctx.root)
+    verilog += _generate_trailer()
+    ctx.conv_output.set_main_source(verilog)
+    ctx.conv_output.ns = ctx.ns
+    return ctx.conv_output
+
+
 def convert(f, ios=set(), name="top", platform=None,
     # Verilog parameters.
     special_overrides = dict(),
@@ -693,515 +1190,27 @@ def convert(f, ios=set(), name="top", platform=None,
     # Build Logic.
     # ------------
 
-    # Create ConvOutput.
-    r = ConvOutput()
-
-    # Convert to FHDL's fragments if not already done.
+    # Convert to FHDL fragment if needed (used by both flat and hierarchical paths).
     if not isinstance(f, _Fragment):
         f = f.get_fragment()
 
-    # Hierarchical Verilog generation.
+    # Hierarchical Verilog generation (opt-in path).
     if hierarchical:
-        if LiteXContext.top is None:
-            raise ValueError("Hierarchical Verilog generation requires LiteXContext.top to be set.")
-
-        # Prepare global clock domains from the full fragment.
-        global_clock_domains = f.clock_domains
-
-        # Build module tree.
-        root = _build_module_tree(LiteXContext.top)
-
-        # IOs collection (when not specified).
-        if len(ios) == 0:
-            assert platform is not None
-            ios = platform.constraint_manager.get_io_signals()
-
-        def _get_node_fragment(node):
-            frag = node.module._fragment
-            missing = [cd for cd in list_clock_domains(frag)
-                       if cd not in global_clock_domains]
-            if missing and not node.module.get_fragment_called:
-                return node.module.get_fragment()
-            return frag
-
-        # Collect raw specials per module (pre-lowering).
-        def _collect_raw_specials(node):
-            if getattr(node, "shared_alias", False):
-                owner = node.shared_owner
-                if hasattr(owner, "raw_subtree_specials"):
-                    node.source_fragment = owner.source_fragment
-                    node.raw_specials = set()
-                    node.raw_subtree_specials = set(owner.raw_subtree_specials)
-                else:
-                    owner_fragment = _get_node_fragment(owner)
-                    node.source_fragment = owner_fragment
-                    node.raw_specials = set()
-                    node.raw_subtree_specials = set(owner_fragment.specials)
-                node.raw_local_specials = set()
-                return
-            node.source_fragment = _get_node_fragment(node)
-            node.raw_specials = set(node.source_fragment.specials)
-            node.raw_subtree_specials = set(node.raw_specials)
-            for child in node.children:
-                _collect_raw_specials(child)
-                node.raw_subtree_specials |= child.raw_subtree_specials
-            child_specials = set()
-            for child in node.children:
-                child_specials |= child.raw_subtree_specials
-            node.raw_local_specials = node.raw_specials - child_specials
-
-        _collect_raw_specials(root)
-
-        # Lower fragments per module and collect signals/targets.
-        all_signals    = set()
-
-        def _normalize_path(path):
-            return [p[:-1] if p.endswith("*") else p for p in path]
-
-        signal_owner_override = {}
-
-        def _collect_owner_overrides(node):
-            node_path = _normalize_path(node.path)
-            raw_signals = list_signals(node.source_fragment) | list_special_ios(
-                node.source_fragment, ins=True, outs=True, inouts=True
-            )
-            for special in node.source_fragment.specials:
-                if isinstance(special, Memory):
-                    for port in special.ports:
-                        for attr in ["adr", "dat_r", "dat_w", "we", "re", "clk", "rst"]:
-                            sig = getattr(port, attr, None)
-                            if isinstance(sig, Signal) and not getattr(sig, "backtrace", None):
-                                raw_signals.add(sig)
-            for sig in raw_signals:
-                if not getattr(sig, "backtrace", None) and sig not in signal_owner_override:
-                    signal_owner_override[sig] = node_path
-            for child in node.children:
-                _collect_owner_overrides(child)
-
-        _collect_owner_overrides(root)
-
-        def _signal_owner_path(sig, default_path=None):
-            if not getattr(sig, "backtrace", None):
-                if sig in signal_owner_override:
-                    return list(signal_owner_override[sig])
-                return list(default_path or [])
-            return [name for name, _ in sig.backtrace[:-1] if name is not None]
-
-        def _collect_raw_statements(node):
-            if getattr(node, "shared_alias", False):
-                owner = node.shared_owner
-                node.raw_comb = []
-                node.raw_sync = {}
-                node.raw_targets = set()
-                node.raw_special_targets = set()
-                node.raw_desc_comb_ids = set(getattr(owner, "raw_desc_comb_ids", set()))
-                node.raw_desc_sync_ids = collections.defaultdict(set)
-                for cd_name, ids in getattr(owner, "raw_desc_sync_ids", {}).items():
-                    node.raw_desc_sync_ids[cd_name] |= set(ids)
-                node.raw_self_targets = set()
-                return
-            node.raw_comb = list(node.source_fragment.comb)
-            node.raw_sync = {}
-            for cd_name, stmts in node.source_fragment.sync.items():
-                node.raw_sync[cd_name] = list(stmts)
-
-            node.raw_targets = set()
-            for stmt in node.raw_comb:
-                node.raw_targets |= set(list_targets(stmt))
-            for stmts in node.raw_sync.values():
-                for stmt in stmts:
-                    node.raw_targets |= set(list_targets(stmt))
-            # Treat special outputs/inouts as driven targets for conflict detection.
-            node.raw_special_targets = set()
-            for special in node.source_fragment.specials:
-                node.raw_special_targets |= special.list_ios(False, True, True)
-            node.raw_targets |= node.raw_special_targets
-
-            node.raw_desc_comb_ids = {id(stmt) for stmt in node.raw_comb}
-            node.raw_desc_sync_ids = collections.defaultdict(set)
-            for cd_name, stmts in node.raw_sync.items():
-                node.raw_desc_sync_ids[cd_name].update(id(stmt) for stmt in stmts)
-
-            for child in node.children:
-                _collect_raw_statements(child)
-                node.raw_desc_comb_ids |= child.raw_desc_comb_ids
-                for cd_name, ids in child.raw_desc_sync_ids.items():
-                    node.raw_desc_sync_ids[cd_name] |= ids
-
-            # Targets driven by this module only (exclude descendants).
-            child_desc_comb_ids = set()
-            child_desc_sync_ids = set()
-            for child in node.children:
-                child_desc_comb_ids |= child.raw_desc_comb_ids
-                for ids in child.raw_desc_sync_ids.values():
-                    child_desc_sync_ids |= ids
-            raw_self_comb = [stmt for stmt in node.raw_comb
-                             if id(stmt) not in child_desc_comb_ids]
-            raw_self_sync = collections.defaultdict(list)
-            for cd_name, stmts in node.raw_sync.items():
-                raw_self_sync[cd_name] = [stmt for stmt in stmts
-                                          if id(stmt) not in child_desc_sync_ids]
-            node.raw_self_targets = set()
-            for stmt in raw_self_comb:
-                node.raw_self_targets |= set(list_targets(stmt))
-            for stmts in raw_self_sync.values():
-                for stmt in stmts:
-                    node.raw_self_targets |= set(list_targets(stmt))
-            # Include specials that belong to this module (exclude descendants).
-            if hasattr(node, "raw_local_specials"):
-                for special in node.raw_local_specials:
-                    node.raw_self_targets |= special.list_ios(False, True, True)
-
-        _collect_raw_statements(root)
-
-        # Mark children to inline when they drive shared drivers.
-        def _mark_inline(node):
-            parent_path = _normalize_path(node.path)
-            for child in node.children:
-                child.inline = False
-
-            # Parent and child (including child's subtree) both drive the same signal -> inline child.
-            parent_drivers = set(getattr(node, "raw_self_targets", node.raw_targets))
-            for child in node.children:
-                child_drivers = set(child.raw_targets)
-                if parent_drivers & child_drivers:
-                    child.inline = True
-
-            # Parent drives a signal owned by a child -> inline that child.
-            for sig in parent_drivers:
-                owner_path = _normalize_path(_signal_owner_path(sig, default_path=parent_path))
-                if owner_path == parent_path:
-                    continue
-                for child in node.children:
-                    child_path = _normalize_path(child.path)
-                    if owner_path[:len(child_path)] == child_path:
-                        child.inline = True
-                        break
-
-            # Sibling conflicts on the same Signal object.
-            drivers = {}
-            for child in node.children:
-                for sig in child.raw_targets:
-                    drivers.setdefault(sig, []).append(child)
-            for sig, kids in drivers.items():
-                if len(kids) > 1:
-                    for child in kids:
-                        child.inline = True
-
-
-            for child in node.children:
-                if child.inline:
-                    def _inline_subtree(n):
-                        n.inline = True
-                        for g in n.children:
-                            _inline_subtree(g)
-                    _inline_subtree(child)
-                _mark_inline(child)
-
-        _mark_inline(root)
-
-        def _set_hier_children(node):
-            node.hier_children = [c for c in node.children
-                                  if not getattr(c, "shared_alias", False)]
-            for child in node.hier_children:
-                _set_hier_children(child)
-
-        def _set_inline_children(node):
-            node.filter_children = [c for c in node.children if not getattr(c, "inline", False)]
-            node.hier_children = [c for c in node.children
-                                  if not getattr(c, "inline", False)
-                                  and not getattr(c, "shared_alias", False)]
-            node.inline_children = [c for c in node.children if getattr(c, "inline", False)]
-            for child in node.children:
-                _set_inline_children(child)
-
-        _set_hier_children(root)
-        _set_inline_children(root)
-
-        def _gather_inline_statements(node):
-            comb = list(node.raw_comb)
-            sync = collections.defaultdict(list)
-            for cd_name, stmts in node.raw_sync.items():
-                sync[cd_name] = list(stmts)
-            for child in node.inline_children:
-                _gather_inline_statements(child)
-                comb += child.inline_raw_comb
-                for cd_name, stmts in child.inline_raw_sync.items():
-                    sync[cd_name] += list(stmts)
-            node.inline_raw_comb = comb
-            node.inline_raw_sync = sync
-            for child in node.hier_children:
-                _gather_inline_statements(child)
-
-        _gather_inline_statements(root)
-
-
-        def _lower_tree(node):
-            # Filter out statements owned by non-inline children.
-            child_desc_comb_ids = set()
-            child_desc_sync_ids = collections.defaultdict(set)
-            child_desc_sync_ids_all = set()
-            for child in node.filter_children:
-                child_desc_comb_ids |= child.raw_desc_comb_ids
-                for cd_name, ids in child.raw_desc_sync_ids.items():
-                    child_desc_sync_ids[cd_name] |= ids
-                    child_desc_sync_ids_all |= ids
-
-            filtered_comb = [stmt for stmt in node.inline_raw_comb
-                             if id(stmt) not in child_desc_comb_ids]
-            filtered_sync = collections.defaultdict(list)
-            for cd_name, stmts in node.inline_raw_sync.items():
-                # Remove any statements that originate from non-inline children,
-                # regardless of clock domain renaming in the parent.
-                filtered = [stmt for stmt in stmts
-                            if id(stmt) not in child_desc_sync_ids_all]
-                if filtered:
-                    filtered_sync[cd_name] = filtered
-
-            # Use a local fragment with child specials removed before lowering.
-            local_sync = collections.defaultdict(list)
-            for cd_name, stmts in filtered_sync.items():
-                local_sync[cd_name] = list(stmts)
-            child_specials = set()
-            for child in node.filter_children:
-                child_specials |= child.raw_subtree_specials
-            local_specials = node.raw_specials - child_specials
-            local_fragment = _Fragment(
-                comb=list(filtered_comb),
-                sync=local_sync,
-                specials=set(local_specials),
-                clock_domains=node.source_fragment.clock_domains
-            )
-            node.fragment, node.lowered_specials = _prepare_fragment(
-                local_fragment,
-                platform=platform,
-                special_overrides=special_overrides,
-                global_clock_domains=global_clock_domains
-            )
-
-            node.local_specials = set(node.fragment.specials)
-
-            # Resolve Memory port clock signals to real signals.
-            for special in node.fragment.specials:
-                if isinstance(special, Memory):
-                    for port in special.ports:
-                        if isinstance(port.clock, ClockSignal):
-                            port.clock = node.fragment.clock_domains[port.clock.cd].clk
-
-            node.local_signals = list_signals(node.fragment) | list_special_ios(node.fragment, ins=True, outs=True, inouts=True)
-            special_outs = list_special_ios(node.fragment, ins=False, outs=True, inouts=True)
-            node.local_inouts = list_special_ios(node.fragment, ins=False, outs=False, inouts=True)
-            node.local_targets = list_targets(node.fragment) | special_outs
-            node.local_wires = _list_comb_wires(node.fragment) | special_outs
-
-            # Add Memory port signals (not always covered by list_special_ios).
-            for special in node.fragment.specials:
-                if isinstance(special, Memory):
-                    for port in special.ports:
-                        for attr in ["adr", "dat_r", "dat_w", "we", "re", "clk", "rst"]:
-                            sig = getattr(port, attr, None)
-                            if isinstance(sig, ClockSignal):
-                                sig = node.fragment.clock_domains[sig.cd].clk
-                            if isinstance(sig, Signal):
-                                node.local_signals.add(sig)
-                        # Memory read data is driven by the memory.
-                        sig = getattr(port, "dat_r", None)
-                        if isinstance(sig, ClockSignal):
-                            sig = node.fragment.clock_domains[sig.cd].clk
-                        if isinstance(sig, Signal):
-                            node.local_targets.add(sig)
-                            node.local_wires.add(sig)
-
-            # Ensure clock/reset signals are captured as inputs.
-            for cd in node.fragment.clock_domains:
-                node.local_signals.add(cd.clk)
-                if cd.rst is not None:
-                    node.local_signals.add(cd.rst)
-
-            all_signals.update(node.local_signals)
-
-            for child in node.hier_children:
-                _lower_tree(child)
-
-        _lower_tree(root)
-
-        # Build subtree aggregates.
-        def _aggregate(node):
-            node.subtree_signals = set(node.local_signals)
-            node.subtree_targets = set(node.local_targets)
-            node.subtree_inouts  = set(node.local_inouts)
-            node.subtree_nodes   = {node}
-            node.subtree_specials = set(node.local_specials)
-            for child in node.hier_children:
-                _aggregate(child)
-                node.subtree_signals |= child.subtree_signals
-                node.subtree_targets |= child.subtree_targets
-                node.subtree_inouts  |= child.subtree_inouts
-                node.subtree_nodes   |= child.subtree_nodes
-                node.subtree_specials |= child.subtree_specials
-
-        _aggregate(root)
-
-        # IOs backtrace/naming.
-        for io in sorted(ios, key=lambda x: x.duid):
-            if io.name_override is None:
-                io_name = io.backtrace[-1][0]
-                if io_name:
-                    io.name_override = io_name
-
-        all_signals |= set(ios)
-
-        # Build global Signal Namespace.
-        ns = build_signal_namespace(
-            signals = all_signals,
-            reserved_keywords = _ieee_1800_2017_verilog_reserved_keywords
+        return _convert_hierarchical(
+            f                 = f,
+            ios               = ios,
+            name              = name,
+            platform          = platform,
+            special_overrides = special_overrides,
+            attr_translate    = attr_translate,
+            regular_comb      = regular_comb,
+            regs_init         = regs_init,
+            time_unit         = time_unit,
+            time_precision    = time_precision,
         )
-        ns.clock_domains = global_clock_domains
 
-        # Determine external signals and module names.
-        def _compute_external(node):
-            for child in node.hier_children:
-                _compute_external(child)
-            if node.parent is None:
-                node.external_signals = set(ios)
-                node.module_name = name
-            else:
-                node.external_signals = set()
-                node_path = _normalize_path(node.path)
-                for sig in node.local_signals:
-                    owner_path = _normalize_path(_signal_owner_path(sig, default_path=node_path))
-                    if owner_path != node_path:
-                        node.external_signals.add(sig)
-                # Propagate child-owned signals that are not owned by this node.
-                for child in node.hier_children:
-                    for sig in child.external_signals:
-                        owner_path = _normalize_path(_signal_owner_path(sig, default_path=node_path))
-                        if owner_path != node_path:
-                            node.external_signals.add(sig)
-                path_name = "__".join([name] + node.path)
-                node.module_name = _sanitize_identifier(path_name)
-
-        _compute_external(root)
-
-        # Check for multiple drivers across hierarchy.
-        def _check_multiple_drivers(node):
-            if node.parent is not None:
-                parent_outside_targets = node.parent.subtree_targets - node.subtree_targets
-                for sig in node.external_signals:
-                    if (sig in node.subtree_targets) and (sig in parent_outside_targets) and (sig not in node.subtree_inouts):
-                        raise ValueError(f"Multiple drivers for signal {ns.get_name(sig)} across hierarchy.")
-            for child in node.hier_children:
-                _check_multiple_drivers(child)
-
-        _check_multiple_drivers(root)
-
-        # Precompute port directions/wires for each node.
-        def _compute_ports(node):
-            port_directions = {}
-            port_wires = set()
-            for sig in node.external_signals:
-                if sig in node.subtree_inouts:
-                    port_directions[sig] = "inout"
-                elif sig in node.subtree_targets:
-                    port_directions[sig] = "output"
-                    if sig not in node.local_targets:
-                        port_wires.add(sig)
-                    elif sig in node.local_wires:
-                        port_wires.add(sig)
-                else:
-                    port_directions[sig] = "input"
-            node.port_directions = port_directions
-            node.port_wires = port_wires
-            for child in node.hier_children:
-                _compute_ports(child)
-
-        _compute_ports(root)
-
-        # Build Verilog.
-        verilog = ""
-        verilog += _generate_banner(
-            filename     = name,
-            device       = getattr(platform, "device", "Unknown"),
-            top          = LiteXContext.top.__class__.__name__ if LiteXContext.top is not None else "Unknown",
-            hierarchical = True
-        )
-        verilog += _generate_timescale(
-            time_unit      = time_unit,
-            time_precision = time_precision
-        )
-        verilog += _generate_separator("Hierarchy")
-        verilog += _generate_hierarchy(top=LiteXContext.top)
-
-        # Emit modules (children before parents).
-        def _emit(node):
-            nonlocal verilog
-            for child in node.hier_children:
-                _emit(child)
-
-            # Signals to declare in the module.
-            interconnect_signals = set()
-            for child in node.hier_children:
-                interconnect_signals |= child.external_signals
-            declared_signals = node.local_signals | interconnect_signals
-
-            # Force wires for interconnect signals driven by child outputs or not driven locally.
-            child_output_signals = set()
-            for child in node.hier_children:
-                for sig, direction in child.port_directions.items():
-                    if direction == "output":
-                        child_output_signals.add(sig)
-            force_wires = {s for s in interconnect_signals if s not in node.local_targets}
-            force_wires |= child_output_signals
-
-            # Module body.
-            verilog_parts = []
-            verilog_parts.append(_generate_separator(f"Module: {node.module_name}"))
-            verilog_parts.append(_generate_module_with_ports(
-                ios=sorted(node.external_signals, key=lambda x: ns.get_name(x)),
-                name=node.module_name,
-                ns=ns,
-                attr_translate=attr_translate,
-                port_directions=node.port_directions,
-                port_wires=node.port_wires
-            ))
-            verilog_parts.append(_generate_separator("Signals"))
-            verilog_parts.append(_generate_signals(
-                f=node.fragment,
-                ios=set(node.external_signals),
-                name=node.module_name,
-                ns=ns,
-                attr_translate=attr_translate,
-                regs_init=regs_init,
-                signals_override=declared_signals,
-                force_wires=force_wires
-            ))
-            verilog_parts.append(_generate_separator("Submodules"))
-            verilog_parts.append(_generate_submodule_instances(node, ns))
-            verilog_parts.append(_generate_separator("Combinatorial Logic"))
-            if regular_comb:
-                verilog_parts.append(_generate_combinatorial_logic_synth(node.fragment, ns))
-            else:
-                verilog_parts.append(_generate_combinatorial_logic_sim(node.fragment, ns))
-            verilog_parts.append(_generate_separator("Synchronous Logic"))
-            verilog_parts.append(_generate_synchronous_logic(node.fragment, ns))
-            verilog_parts.append(_generate_separator("Specialized Logic"))
-            verilog_parts.append(_generate_specials(
-                name           = node.module_name,
-                overrides      = special_overrides,
-                specials       = node.fragment.specials - node.lowered_specials,
-                namespace      = ns,
-                add_data_file  = r.add_data_file,
-                attr_translate = attr_translate
-            ))
-            verilog_parts.append("endmodule\n")
-            verilog += "".join(verilog_parts)
-
-        _emit(root)
-
-        verilog += _generate_trailer()
-        r.set_main_source(verilog)
-        r.ns = ns
-        return r
+    # Create ConvOutput for flat path.
+    r = ConvOutput()
 
     # Flat Verilog generation.
     f, lowered_specials = _prepare_fragment(
@@ -1211,17 +1220,9 @@ def convert(f, ios=set(), name="top", platform=None,
         global_clock_domains=None
     )
 
-    # IOs collection (when not specified).
-    if len(ios) == 0:
-        assert platform is not None
-        ios = platform.constraint_manager.get_io_signals()
-
-    # IOs backtrace/naming.
-    for io in sorted(ios, key=lambda x: x.duid):
-        if io.name_override is None:
-            io_name = io.backtrace[-1][0]
-            if io_name:
-                io.name_override = io_name
+    # IOs collection (when not specified) and naming stabilization.
+    ios = _resolve_ios(ios, platform)
+    _apply_io_name_overrides(ios)
 
     # Build Signal Namespace.
     # ----------------------
