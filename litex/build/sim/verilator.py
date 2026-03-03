@@ -210,12 +210,14 @@ class SimVerilatorToolchain:
             trace_start      = 0,
             trace_end        = -1,
             regular_comb     = False,
+            hierarchical     = False,
             interactive      = True,
             pre_run_callback = None,
             extra_mods       = None,
             extra_mods_path  = "",
             load_start      = 0,
-            save_start      = -1):
+            save_start      = -1,
+            **kwargs):
 
         # Create build directory
         os.makedirs(build_dir, exist_ok=True)
@@ -232,6 +234,7 @@ class SimVerilatorToolchain:
             v_output = platform.get_verilog(fragment,
                 name         = build_name,
                 regular_comb = regular_comb,
+                hierarchical = hierarchical,
             )
             named_sc, named_pc = platform.resolve_signals(v_output.ns)
             v_file = build_name + ".v"
