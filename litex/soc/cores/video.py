@@ -1002,8 +1002,8 @@ class VideoS7HDMI10to1Serializer(LiteXModule):
                 # Master/Slave shift in/out.
                 i_SHIFTIN1  = shift[0] if serdes == "master" else 0,
                 i_SHIFTIN2  = shift[1] if serdes == "master" else 0,
-                o_SHIFTOUT1 = shift[0] if serdes == "slave"  else 0,
-                o_SHIFTOUT2 = shift[1] if serdes == "slave"  else 0,
+                o_SHIFTOUT1 = shift[0] if serdes == "slave"  else Open(),
+                o_SHIFTOUT2 = shift[1] if serdes == "slave"  else Open(),
 
                 # Output
                 o_OQ = data_o if serdes == "master" else Open(),
