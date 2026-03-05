@@ -45,7 +45,7 @@ __libc.a: cross.txt
 		cp $(LIBC_DIRECTORY)/$(CPUFAMILY)/* $(BUILDINC_DIRECTORY)/../picolibc_src/newlib/libc/machine/$(CPUFAMILY)/ ;\
 	fi
 
-	meson $(BUILDINC_DIRECTORY)/../picolibc_src \
+	meson setup $(BUILDINC_DIRECTORY)/../picolibc_src \
 		-Dmultilib=false \
 		-Dpicocrt=false \
 		-Datomic-ungetc=false \
@@ -57,7 +57,7 @@ __libc.a: cross.txt
 		--cross-file cross.txt
 
 	meson compile
-	cp newlib/libc.a __libc.a
+	cp libc.a __libc.a
 
 _libc.a: $(LIBC_DIRECTORY)/stdio.c __libc.a
 	$(compile)
