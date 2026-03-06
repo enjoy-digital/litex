@@ -89,6 +89,7 @@ FORMAT_DEFAULT_DEFINE = -DFORMAT_DEFAULT_$(shell echo $(PICOLIBC_FORMAT) | tr a-
 MINIMAL_PICOLIBC_CFLAGS = \
 	$(filter-out $(DEPFLAGS),$(CFLAGS)) \
 	-Wpragmas \
+	-I$(PICOLIBC_SRC_DIR)/newlib/libm/common \
 	-I$(PICOLIBC_SRC_DIR)/newlib/libc/machine/$(CPUFAMILY) \
 	-I$(PICOLIBC_SRC_DIR)/newlib/libc/tinystdio \
 	-I$(PICOLIBC_SRC_DIR)/newlib/libc/include \
@@ -125,13 +126,26 @@ MINIMAL_PICOLIBC_SRCS = \
 	$(PICOLIBC_SRC_DIR)/newlib/libc/tinystdio/printf.c \
 	$(PICOLIBC_SRC_DIR)/newlib/libc/tinystdio/puts.c \
 	$(PICOLIBC_SRC_DIR)/newlib/libc/tinystdio/strtoul.c \
-	$(PICOLIBC_SRC_DIR)/newlib/libc/tinystdio/vfiprintf.c \
 	$(PICOLIBC_SRC_DIR)/newlib/libc/machine/riscv/memcpy-asm.S \
 	$(PICOLIBC_SRC_DIR)/newlib/libc/machine/riscv/memmove.S \
 	$(PICOLIBC_SRC_DIR)/newlib/libc/machine/riscv/memset.S \
 	$(PICOLIBC_SRC_DIR)/newlib/libc/machine/riscv/strcmp.S \
 	$(PICOLIBC_SRC_DIR)/newlib/libc/machine/riscv/strcpy.c \
 	$(PICOLIBC_SRC_DIR)/newlib/libc/machine/riscv/strlen.c
+
+ifeq ($(PICOLIBC_FORMAT),integer)
+MINIMAL_PICOLIBC_SRCS += $(PICOLIBC_SRC_DIR)/newlib/libc/tinystdio/vfiprintf.c
+else ifeq ($(PICOLIBC_FORMAT),float)
+MINIMAL_PICOLIBC_SRCS += \
+	$(PICOLIBC_SRC_DIR)/newlib/libc/tinystdio/vfprintff.c \
+	$(PICOLIBC_SRC_DIR)/newlib/libc/tinystdio/ftoa_engine.c
+else
+MINIMAL_PICOLIBC_SRCS += \
+	$(PICOLIBC_SRC_DIR)/newlib/libc/tinystdio/vfprintf.c \
+	$(PICOLIBC_SRC_DIR)/newlib/libc/tinystdio/dtoa_engine.c \
+	$(PICOLIBC_SRC_DIR)/newlib/libc/tinystdio/dtoa_data.c \
+	$(PICOLIBC_SRC_DIR)/newlib/libm/machine/riscv/s_fpclassify.c
+endif
 
 define minimal_obj
 minimal_$(subst /,_,$(basename $(1))).o
