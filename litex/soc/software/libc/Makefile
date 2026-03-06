@@ -57,10 +57,8 @@ PICO_MESON_FLAGS = \
 	-Dmultilib=false \
 	-Dpicocrt=false \
 	-Datomic-ungetc=false \
+	-Dsingle-thread=true \
 	-Dthread-local-storage=false \
-	-Dnewlib-multithread=false \
-	-Dnewlib-retargetable-locking=false \
-	-Dnewlib-iconv-encodings=none \
 	-Dio-long-long=true \
 	-Dformat-default=$(PICOLIBC_FORMAT) \
 	-Dincludedir=picolibc/$(TRIPLE)/include \
@@ -71,12 +69,13 @@ $(PICOLIBC_SRC_DIR): $(MESON_CROSS_FILE)
 	cp -a $(PICOLIBC_DIRECTORY) $(BUILDINC_DIRECTORY)/../picolibc_src
 
 	if [ -d "$(LIBC_DIRECTORY)/$(CPUFAMILY)" ]; then \
-		cp $(LIBC_DIRECTORY)/$(CPUFAMILY)/* $(BUILDINC_DIRECTORY)/../picolibc_src/newlib/libc/machine/$(CPUFAMILY)/ ;\
+		cp $(LIBC_DIRECTORY)/$(CPUFAMILY)/* $(BUILDINC_DIRECTORY)/../picolibc_src/libc/machine/$(CPUFAMILY)/ ;\
 	fi
 
-$(CURDIR)/picolibc.h: $(LIBC_DIRECTORY)/picolibc-minimal.h
+$(CURDIR)/picolibc.h: $(LIBC_DIRECTORY)/picolibc-minimal.h $(LIBC_DIRECTORY)/Makefile
 	cp $< $@
 	printf "#define FORMAT_DEFAULT_%s\n" "$(shell echo $(PICOLIBC_FORMAT) | tr a-z A-Z)" >> $@
+	printf "#define __IO_DEFAULT '%s'\n" "$(shell printf '%s' "$(PICOLIBC_FORMAT)" | cut -c1)" >> $@
 
 configure-picolibc: $(PICOLIBC_SRC_DIR)
 	if [ -f build.ninja ]; then \
@@ -91,11 +90,14 @@ __libc.a: configure-picolibc
 
 MINIMAL_PICOLIBC_CFLAGS = \
 	$(filter-out $(DEPFLAGS),$(CFLAGS)) \
-	-Wpragmas \
-	-I$(PICOLIBC_SRC_DIR)/newlib/libm/common \
-	-I$(PICOLIBC_SRC_DIR)/newlib/libc/machine/$(CPUFAMILY) \
-	-I$(PICOLIBC_SRC_DIR)/newlib/libc/tinystdio \
-	-I$(PICOLIBC_SRC_DIR)/newlib/libc/include \
+	-I$(PICOLIBC_SRC_DIR)/libm/common \
+	-I$(PICOLIBC_SRC_DIR)/libc/ctype \
+	-I$(PICOLIBC_SRC_DIR)/libc/locale \
+	-I$(PICOLIBC_SRC_DIR)/libc/machine/$(CPUFAMILY) \
+	-I$(PICOLIBC_SRC_DIR)/libc/stdio \
+	-I$(PICOLIBC_SRC_DIR)/libc/stdlib \
+	-I$(PICOLIBC_SRC_DIR)/libc/string \
+	-I$(PICOLIBC_SRC_DIR)/libc/include \
 	-I$(PICOLIBC_SRC_DIR)/semihost \
 	-include $(CURDIR)/picolibc.h \
 	-nostdlib \
@@ -116,37 +118,36 @@ MINIMAL_PICOLIBC_CFLAGS = \
 	-D_LIBC
 
 MINIMAL_PICOLIBC_SRCS = \
-	$(PICOLIBC_SRC_DIR)/newlib/libc/ctype/ctype_.c \
-	$(PICOLIBC_SRC_DIR)/newlib/libc/errno/errno.c \
-	$(PICOLIBC_SRC_DIR)/newlib/libc/string/strchr.c \
-	$(PICOLIBC_SRC_DIR)/newlib/libc/string/strncpy.c \
-	$(PICOLIBC_SRC_DIR)/newlib/libc/string/strncmp.c \
-	$(PICOLIBC_SRC_DIR)/newlib/libc/string/strnlen.c \
-	$(PICOLIBC_SRC_DIR)/newlib/libc/tinystdio/fgetc.c \
-	$(PICOLIBC_SRC_DIR)/newlib/libc/tinystdio/fputc.c \
-	$(PICOLIBC_SRC_DIR)/newlib/libc/tinystdio/fputs.c \
-	$(PICOLIBC_SRC_DIR)/newlib/libc/tinystdio/printf.c \
-	$(PICOLIBC_SRC_DIR)/newlib/libc/tinystdio/puts.c \
-	$(PICOLIBC_SRC_DIR)/newlib/libc/tinystdio/strtoul.c \
-	$(PICOLIBC_SRC_DIR)/newlib/libc/machine/riscv/memcpy-asm.S \
-	$(PICOLIBC_SRC_DIR)/newlib/libc/machine/riscv/memmove.S \
-	$(PICOLIBC_SRC_DIR)/newlib/libc/machine/riscv/memset.S \
-	$(PICOLIBC_SRC_DIR)/newlib/libc/machine/riscv/strcmp.S \
-	$(PICOLIBC_SRC_DIR)/newlib/libc/machine/riscv/strcpy.c \
-	$(PICOLIBC_SRC_DIR)/newlib/libc/machine/riscv/strlen.c
+	$(PICOLIBC_SRC_DIR)/libc/ctype/ctype_.c \
+	$(PICOLIBC_SRC_DIR)/libc/errno/errno.c \
+	$(PICOLIBC_SRC_DIR)/libc/string/strchr.c \
+	$(PICOLIBC_SRC_DIR)/libc/string/strncpy.c \
+	$(PICOLIBC_SRC_DIR)/libc/string/strncmp.c \
+	$(PICOLIBC_SRC_DIR)/libc/string/strnlen.c \
+	$(PICOLIBC_SRC_DIR)/libc/stdio/fgetc.c \
+	$(PICOLIBC_SRC_DIR)/libc/stdio/fputc.c \
+	$(PICOLIBC_SRC_DIR)/libc/stdio/fputs.c \
+	$(PICOLIBC_SRC_DIR)/libc/stdio/printf.c \
+	$(PICOLIBC_SRC_DIR)/libc/stdio/puts.c \
+	$(PICOLIBC_SRC_DIR)/libc/stdio/strtoul.c \
+	$(PICOLIBC_SRC_DIR)/libc/machine/riscv/memcpy-asm.S \
+	$(PICOLIBC_SRC_DIR)/libc/machine/riscv/memmove.S \
+	$(PICOLIBC_SRC_DIR)/libc/machine/riscv/memset.S \
+	$(PICOLIBC_SRC_DIR)/libc/machine/riscv/strcmp.S \
+	$(PICOLIBC_SRC_DIR)/libc/machine/riscv/strcpy.c \
+	$(PICOLIBC_SRC_DIR)/libc/machine/riscv/strlen.c
 
 ifeq ($(PICOLIBC_FORMAT),integer)
-MINIMAL_PICOLIBC_SRCS += $(PICOLIBC_SRC_DIR)/newlib/libc/tinystdio/vfiprintf.c
+MINIMAL_PICOLIBC_SRCS += $(PICOLIBC_SRC_DIR)/libc/stdio/vfiprintf.c
 else ifeq ($(PICOLIBC_FORMAT),float)
 MINIMAL_PICOLIBC_SRCS += \
-	$(PICOLIBC_SRC_DIR)/newlib/libc/tinystdio/vfprintff.c \
-	$(PICOLIBC_SRC_DIR)/newlib/libc/tinystdio/ftoa_engine.c
+	$(PICOLIBC_SRC_DIR)/libc/stdio/vffprintf.c \
+	$(PICOLIBC_SRC_DIR)/libc/stdio/ftoa_engine.c
 else
 MINIMAL_PICOLIBC_SRCS += \
-	$(PICOLIBC_SRC_DIR)/newlib/libc/tinystdio/vfprintf.c \
-	$(PICOLIBC_SRC_DIR)/newlib/libc/tinystdio/dtoa_engine.c \
-	$(PICOLIBC_SRC_DIR)/newlib/libc/tinystdio/dtoa_data.c \
-	$(PICOLIBC_SRC_DIR)/newlib/libm/machine/riscv/s_fpclassify.c
+	$(PICOLIBC_SRC_DIR)/libc/stdio/vfprintf.c \
+	$(PICOLIBC_SRC_DIR)/libc/stdio/dtoa_engine.c \
+	$(PICOLIBC_SRC_DIR)/libm/machine/riscv/s_fpclassify.c
 endif
 
 define minimal_obj
