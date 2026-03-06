@@ -16,11 +16,12 @@ from litex.soc.cores.clock.common import *
 class GW5APLL(LiteXModule):
     nclkouts_max = 7
 
-    def __init__(self, devicename, device, vco_margin=0):
+    def __init__(self, devicename, device, vco_margin=0, name=None):
         self.logger = logging.getLogger("GW5APLL")
         self.logger.info("Creating GW5APLL.".format())
         self.device     = device
         self.devicename = devicename
+        self.name       = name
         self.vco_margin = vco_margin
         self.reset      = Signal()
         self.locked     = Signal()
@@ -235,7 +236,7 @@ class GW5APLL(LiteXModule):
         )
 
         if self.device.startswith('GW5A-') or self.device.startswith("GW5AT-"): # GW5A(T), uses PLLA
-            instance_name = 'PLLA'
+            primitive_name = 'PLLA'
             self.params.update(
                 i_MDCLK  = 0,
                 i_MDOPC  = Constant(0, 2),
@@ -243,7 +244,7 @@ class GW5APLL(LiteXModule):
                 i_MDWDI  = Constant(0, 8),
             )
         else: # GW5A{,S}T, uses PLL
-            instance_name = 'PLL'
+            primitive_name = 'PLL'
             self.params.update(
                 p_DYN_IDIV_SEL     = "FALSE", # Disable dynamic IDIV.
                 p_DYN_FBDIV_SEL    = "FALSE", # Disable dynamic FBDIV.
@@ -299,4 +300,4 @@ class GW5APLL(LiteXModule):
             self.params["p_CLKOUT%d_PE_COARSE" % i] = config["pe%d" % i]
             self.params["p_CLKOUT%d_PE_FINE" % i] = config["pe%d_fine" % i]
 
-        self.specials += Instance(instance_name, **self.params)
+        self.specials += Instance(primitive_name, name=self.name or "", **self.params)

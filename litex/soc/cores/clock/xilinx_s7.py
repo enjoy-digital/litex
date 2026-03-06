@@ -19,10 +19,11 @@ class S7PLL(XilinxClocking):
     nclkouts_max = 6
     clkin_freq_range = (19e6, 800e6)
 
-    def __init__(self, speedgrade=-1):
+    def __init__(self, speedgrade=-1, name=None):
         self.logger = logging.getLogger("S7PLL")
         self.logger.info("Creating S7PLL, {}.".format(colorer("speedgrade {}".format(speedgrade))))
         XilinxClocking.__init__(self)
+        self.name = name
         self.divclk_divide_range = (1, 56+1)
         self.vco_freq_range = {
             -1: (800e6, 1600e6),
@@ -54,17 +55,18 @@ class S7PLL(XilinxClocking):
             self.params["p_CLKOUT{}_DIVIDE".format(n)] = config["clkout{}_divide".format(n)]
             self.params["p_CLKOUT{}_PHASE".format(n)] = config["clkout{}_phase".format(n)]
             self.params["o_CLKOUT{}".format(n)] = clk
-        self.specials += Instance("PLLE2_ADV", **self.params)
+        self.specials += Instance("PLLE2_ADV", name=self.name or "", **self.params)
 
 # Xilinx / 7-Series MMCM ---------------------------------------------------------------------------
 
 class S7MMCM(XilinxClocking):
     nclkouts_max         = 7
 
-    def __init__(self, speedgrade=-1, fractional=True):
+    def __init__(self, speedgrade=-1, fractional=True, name=None):
         self.logger = logging.getLogger("S7MMCM")
         self.logger.info("Creating S7MMCM, {}.".format(colorer("speedgrade {}".format(speedgrade))))
         XilinxClocking.__init__(self)
+        self.name = name
         self.divclk_divide_range = (1, 106+1)
         self.clkin_freq_range = {
             -1: (10e6,  800e6),
@@ -113,7 +115,7 @@ class S7MMCM(XilinxClocking):
                 self.params["p_CLKOUT{}_DIVIDE".format(n)] = config["clkout{}_divide".format(n)]
             self.params["p_CLKOUT{}_PHASE".format(n)] = config["clkout{}_phase".format(n)]
             self.params["o_CLKOUT{}".format(n)]       = clk
-        self.specials += Instance("MMCME2_ADV", **self.params)
+        self.specials += Instance("MMCME2_ADV", name=self.name or "", **self.params)
 
 # Xilinx / 7-Series IDELAY CTRL --------------------------------------------------------------------
 

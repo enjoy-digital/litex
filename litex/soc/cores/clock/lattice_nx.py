@@ -126,7 +126,7 @@ class NXPLL(LiteXModule):
     vco_out_freq_range  = ( 800e6,  1600e6)
     instance_num        = 0
 
-    def __init__(self, platform = None, create_output_port_clocks=False):
+    def __init__(self, platform = None, create_output_port_clocks=False, name=None):
         self.logger = logging.getLogger("NXPLL")
         self.logger.info("Creating NXPLL.")
         self.params     = {}
@@ -138,8 +138,11 @@ class NXPLL(LiteXModule):
         self.nclkouts   = 0
         self.clkouts    = {}
         self.config     = {}
-        self.name       = 'PLL_' + str(NXPLL.instance_num)
-        NXPLL.instance_num += 1
+        if name is None:
+            self.name = 'PLL_' + str(NXPLL.instance_num)
+            NXPLL.instance_num += 1
+        else:
+            self.name = name
         self.platform   = platform
         self.create_output_port_clocks = create_output_port_clocks
 

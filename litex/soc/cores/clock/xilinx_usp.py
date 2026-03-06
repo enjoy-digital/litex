@@ -19,10 +19,11 @@ import math
 class USPPLL(XilinxClocking):
     nclkouts_max = 6
 
-    def __init__(self, speedgrade=-1):
+    def __init__(self, speedgrade=-1, name=None):
         self.logger = logging.getLogger("USPPLL")
         self.logger.info("Creating USPPLL, {}.".format(colorer("speedgrade {}".format(speedgrade))))
         XilinxClocking.__init__(self)
+        self.name = name
         self.divclk_divide_range = (1, 56+1)
         self.clkin_freq_range = {
             -1: (70e6,  800e6),
@@ -59,17 +60,18 @@ class USPPLL(XilinxClocking):
             self.params["p_CLKOUT{}_DIVIDE".format(n)] = config["clkout{}_divide".format(n)]
             self.params["p_CLKOUT{}_PHASE".format(n)]  = config["clkout{}_phase".format(n)]
             self.params["o_CLKOUT{}".format(n)]        = clk
-        self.specials += Instance("PLLE2_ADV", **self.params)
+        self.specials += Instance("PLLE2_ADV", name=self.name or "", **self.params)
 
 # Xilinx / Ultrascale Plus MMCM --------------------------------------------------------------------
 
 class USPMMCM(XilinxClocking):
     nclkouts_max = 7
 
-    def __init__(self, speedgrade=-1):
+    def __init__(self, speedgrade=-1, name=None):
         self.logger = logging.getLogger("USPMMCM")
         self.logger.info("Creating USPMMCM, {}.".format(colorer("speedgrade {}".format(speedgrade))))
         XilinxClocking.__init__(self)
+        self.name = name
         self.divclk_divide_range = (1, 106+1)
         self.clkin_freq_range = {
             -1: (10e6,  800e6),
@@ -109,7 +111,7 @@ class USPMMCM(XilinxClocking):
                 self.params["p_CLKOUT{}_DIVIDE".format(n)] = config["clkout{}_divide".format(n)]
             self.params["p_CLKOUT{}_PHASE".format(n)] = config["clkout{}_phase".format(n)]
             self.params["o_CLKOUT{}".format(n)]       = clk
-        self.specials += Instance("MMCME4_ADV", **self.params)
+        self.specials += Instance("MMCME4_ADV", name=self.name or "", **self.params)
 
     def compute_config(self) -> Dict[str, Any]:
         """

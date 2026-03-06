@@ -17,10 +17,11 @@ from litex.soc.cores.clock.xilinx_common import *
 class USPLL(XilinxClocking):
     nclkouts_max = 6
 
-    def __init__(self, speedgrade=-1):
+    def __init__(self, speedgrade=-1, name=None):
         self.logger = logging.getLogger("USPLL")
         self.logger.info("Creating USPLL, {}.".format(colorer("speedgrade {}".format(speedgrade))))
         XilinxClocking.__init__(self)
+        self.name = name
         self.divclk_divide_range = (1, 56+1)
         self.clkin_freq_range = {
             -1: (70e6,  800e6),
@@ -57,7 +58,7 @@ class USPLL(XilinxClocking):
             self.params["p_CLKOUT{}_DIVIDE".format(n)] = config["clkout{}_divide".format(n)]
             self.params["p_CLKOUT{}_PHASE".format(n)]  = config["clkout{}_phase".format(n)]
             self.params["o_CLKOUT{}".format(n)]        = clk
-        self.specials += Instance("PLLE2_ADV", **self.params)
+        self.specials += Instance("PLLE2_ADV", name=self.name or "", **self.params)
 
 
 # Xilinx / Ultrascale MMCM -------------------------------------------------------------------------
@@ -65,10 +66,11 @@ class USPLL(XilinxClocking):
 class USMMCM(XilinxClocking):
     nclkouts_max = 7
 
-    def __init__(self, speedgrade=-1):
+    def __init__(self, speedgrade=-1, name=None):
         self.logger = logging.getLogger("USMMCM")
         self.logger.info("Creating USMMCM, {}.".format(colorer("speedgrade {}".format(speedgrade))))
         XilinxClocking.__init__(self)
+        self.name = name
         self.divclk_divide_range = (1, 106+1)
         self.clkin_freq_range = {
             -1: (10e6,  800e6),
@@ -108,7 +110,7 @@ class USMMCM(XilinxClocking):
                 self.params["p_CLKOUT{}_DIVIDE".format(n)] = config["clkout{}_divide".format(n)]
             self.params["p_CLKOUT{}_PHASE".format(n)] = config["clkout{}_phase".format(n)]
             self.params["o_CLKOUT{}".format(n)]       = clk
-        self.specials += Instance("MMCME2_ADV", **self.params)
+        self.specials += Instance("MMCME2_ADV", name=self.name or "", **self.params)
 
 # Xilinx / Ultrascale IDELAY CTRL ------------------------------------------------------------------
 

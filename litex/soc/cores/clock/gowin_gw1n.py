@@ -50,11 +50,12 @@ class GW1NOSC(LiteXModule):
 class GW1NPLL(LiteXModule):
     nclkouts_max = 4
 
-    def __init__(self, devicename, device, vco_margin=0):
+    def __init__(self, devicename, device, vco_margin=0, name=None):
         self.logger = logging.getLogger("GW1NPLL")
         self.logger.info("Creating GW1NPLL.".format())
         self.device     = device
         self.devicename = devicename
+        self.name       = name
         self.vco_margin = vco_margin
         self.reset      = Signal()
         self.locked     = Signal()
@@ -252,14 +253,14 @@ class GW1NPLL(LiteXModule):
             self.params.update(i_FDLY=Constant(0xf, 4))
 
         if self.device.startswith('GW1NS'):
-            instance_name = 'PLLVR'
+            primitive_name = 'PLLVR'
             self.params.update(i_VREN=1)
         else:
-            instance_name = 'rPLL'
+            primitive_name = 'rPLL'
         for clk_name in ["CLKOUT", "CLKOUTP", "CLKOUTD", "CLKOUTD3"]:
             self.params[f"o_{clk_name}"] = config.get(clk_name, Open()) # Clock output.
             if clk_name in ["CLKOUTD", "CLKOUTD3"]: # Recopy CLKOUTx to CLKOUTDx
                 self.params[f"p_{clk_name}_SRC"] = config.get(f"{clk_name}_SRC", "CLKOUT")
 
         self.params.update(o_LOCK=self.locked) # PLL lock status.
-        self.specials += Instance(instance_name, **self.params)
+        self.specials += Instance(primitive_name, name=self.name or "", **self.params)
