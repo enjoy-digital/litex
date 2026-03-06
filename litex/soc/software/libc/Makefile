@@ -74,6 +74,10 @@ $(PICOLIBC_SRC_DIR): $(MESON_CROSS_FILE)
 		cp $(LIBC_DIRECTORY)/$(CPUFAMILY)/* $(BUILDINC_DIRECTORY)/../picolibc_src/newlib/libc/machine/$(CPUFAMILY)/ ;\
 	fi
 
+$(CURDIR)/picolibc.h: $(LIBC_DIRECTORY)/picolibc-minimal.h
+	cp $< $@
+	printf "#define FORMAT_DEFAULT_%s\n" "$(shell echo $(PICOLIBC_FORMAT) | tr a-z A-Z)" >> $@
+
 configure-picolibc: $(PICOLIBC_SRC_DIR)
 	if [ -f build.ninja ]; then \
 		meson setup . $(PICOLIBC_SRC_DIR) $(PICO_MESON_FLAGS) --cross-file $(MESON_CROSS_FILE) --wipe; \
@@ -85,7 +89,6 @@ __libc.a: configure-picolibc
 	meson compile
 	cp newlib/libc.a __libc.a
 
-FORMAT_DEFAULT_DEFINE = -DFORMAT_DEFAULT_$(shell echo $(PICOLIBC_FORMAT) | tr a-z A-Z)
 MINIMAL_PICOLIBC_CFLAGS = \
 	$(filter-out $(DEPFLAGS),$(CFLAGS)) \
 	-Wpragmas \
@@ -102,7 +105,6 @@ MINIMAL_PICOLIBC_CFLAGS = \
 	-fno-stack-protector \
 	-fno-builtin-copysignl \
 	-U_FORTIFY_SOURCE \
-	$(FORMAT_DEFAULT_DEFINE) \
 	-Werror=implicit-function-declaration \
 	-Werror=vla \
 	-Warray-bounds \
@@ -166,7 +168,7 @@ $(CC) -c $(MINIMAL_PICOLIBC_CFLAGS) $< -o $@
 endef
 
 define add_minimal_rule
-$(call minimal_obj,$(1)): $(1) configure-picolibc
+$(call minimal_obj,$(1)): $(1) $(CURDIR)/picolibc.h
 	$$(if $$(filter .S,$$(suffix $(1))),$$(compile_minimal_s),$$(call compile_minimal_c,))
 endef
 
