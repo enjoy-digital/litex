@@ -8,19 +8,23 @@ extern "C" {
 #include <system.h>
 #include <generated/csr.h>
 #include <generated/soc.h>
+#include <generated/mem.h>
 
 // VexiiRiscv uses a Platform-Level Interrupt Controller (PLIC) which
 // is programmed and queried via a set of MMIO registerss
 
 // PLIC
-#define PLIC_BASE    0xf0c00000L // Base address and per-pin priority array
-#define PLIC_PENDING 0xf0c01000L // Bit field matching currently pending pins
-#define PLIC_ENABLED 0xf0c02000L // Bit field corresponding to the current mask
-#define PLIC_THRSHLD 0xf0e00000L // Per-pin priority must be >= this to trigger
-#define PLIC_CLAIM   0xf0e00004L // Claim & completion register address
+#if defined(__riscv_plic__)
+
+#define PLIC_PENDING (PLIC_BASE + 0x001000L) // Bit field matching currently pending pins
+#define PLIC_ENABLED (PLIC_BASE + 0x002000L) // Bit field corresponding to the current mask
+#define PLIC_THRSHLD (PLIC_BASE + 0x200000L) // Per-pin priority must be >= this to trigger
+#define PLIC_CLAIM   (PLIC_BASE + 0x200004L) // Claim & completion register address
+
+#else
 
 // APLIC
-#define APLIC_BASE           0xf0c00000L
+#define APLIC_BASE           APLIC_M_BASE
 #define APLIC_DOMAINCFG      (APLIC_BASE + 0x0000L)
 #define APLIC_SOURCECFG      (APLIC_BASE + 0x0004L)
 #define APLIC_SETIP          (APLIC_BASE + 0x1c00L)
@@ -41,6 +45,8 @@ extern "C" {
 #define APLIC_IDC_ITHRESHOLD (APLIC_IDC + 0x08L)
 #define APLIC_IDC_TOPI       (APLIC_IDC + 0x18L)
 #define APLIC_IDC_CLAIMI     (APLIC_IDC + 0x1cL)
+
+#endif
 
 #define PLIC_EXT_IRQ_BASE 0
 
