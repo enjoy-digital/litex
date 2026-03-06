@@ -2,6 +2,7 @@
 # This file is part of LiteX.
 #
 # Copyright (c) 2020 David Corrigan <davidcorrigan714@gmail.com>
+# Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from collections import namedtuple

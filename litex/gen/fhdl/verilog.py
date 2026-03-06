@@ -2,7 +2,7 @@
 # This file is part of LiteX (Adapted from Migen for LiteX usage).
 #
 # This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2013-2023 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2013-2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2013-2017 Robert Jordens <jordens@gmail.com>
 # This file is Copyright (c) 2016-2018 whitequark <whitequark@whitequark.org>
 # This file is Copyright (c) 2017 Adam Greig <adam@adamgreig.com>

@@ -2,7 +2,7 @@
 # CTU CAN-FD Core Wrapper for LiteX.
 #
 # Copyright (c) 2021      Andrew Dennison <andrew@motec.com.au>
-# Copyright (c) 2021-2024 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2021-2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2024      Gwenhael Goavec-Merou <gwenhael@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 

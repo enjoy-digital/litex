@@ -7,6 +7,7 @@
 # Copyright (c) 2020 Antmicro <www.antmicro.com>
 # Copyright (c) 2017 Pierre-Olivier Vauboin <po@lambdaconcept>
 # Copyright (c) 2023 Victor Suarez Rovere <suarezvictor@gmail.com>
+# Copyright (c) 2026 Aoba Fujino <41146f@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import sys

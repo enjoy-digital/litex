@@ -1,7 +1,8 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2018-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2018-2026 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2026 edecoux <emilien.decoux@edu.univ-fcomte.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from math import ceil

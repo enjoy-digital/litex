@@ -3,6 +3,8 @@
 #
 # Copyright (c) 2020-2022 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2020-2022 Dolu1990 <charles.papon.90@gmail.com>
+# Copyright (c) 2026 Christian Klarhorst <cklarhor@techfak.uni-bielefeld.de>
+# Copyright (c) 2026 Inochi Amaoto <inochiama@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os

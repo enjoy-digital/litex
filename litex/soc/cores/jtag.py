@@ -1,7 +1,8 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2019-2022 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2019-2026 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2026 chiralitie <chiralitie@gmail.com>
 # Copyright (c) 2019 Antti Lukats <antti.lukats@gmail.com>
 # Copyright (c) 2017 Robert Jordens <jordens@gmail.com>
 # Copyright (c) 2021 Gregory Davill <greg.davill@gmail.com>

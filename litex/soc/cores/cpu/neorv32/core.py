@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2022 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2022-2026 Florent Kermarrec <florent@enjoy-digital.fr>
 #               2023 Protech Engineering <m.marzaro@protechgoup.it>
 # SPDX-License-Identifier: BSD-2-Clause
 

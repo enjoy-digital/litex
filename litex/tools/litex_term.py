@@ -6,6 +6,7 @@
 # Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
 # Copyright (c) 2016 whitequark <whitequark@whitequark.org>
+# Copyright (c) 2026 chiralitie <chiralitie@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import sys

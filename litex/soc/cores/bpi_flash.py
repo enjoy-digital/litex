@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2025 blurbdust
+# Copyright (c) 2025-2026 blurbdust
 # SPDX-License-Identifier: BSD-2-Clause
 
 # BPI (Parallel NOR) Flash core for Xilinx 7-Series FPGAs.

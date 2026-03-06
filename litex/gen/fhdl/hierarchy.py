@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX.
 #
-# This file is Copyright (c) 2022 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2022-2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import sys
