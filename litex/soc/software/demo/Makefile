@@ -25,10 +25,11 @@ demo.elf: $(OBJECTS)
 	$(CC) $(LDFLAGS) -T linker.ld -N -o $@ \
 		$(OBJECTS) \
 		$(PACKAGES:%=-L$(BUILD_DIR)/software/%) \
-		-Wl,--whole-archive \
+		-Wl,--start-group \
+		$(LIBS:lib%=-l%) \
+		-Wl,--end-group \
 		-Wl,--gc-sections \
-		-Wl,-Map,$@.map \
-		$(LIBS:lib%=-l%)
+		-Wl,-Map,$@.map
 
 ifneq ($(OS),Windows_NT)
 	chmod -x $@

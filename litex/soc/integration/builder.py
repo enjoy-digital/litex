@@ -88,6 +88,7 @@ class Builder:
         bios_lto         = False,
         bios_format      = "integer",
         bios_console     = "full",
+        libc_mode        = "minimal",
 
         # Documentation.
         generate_doc     = False,
@@ -121,6 +122,7 @@ class Builder:
         self.bios_lto     = bios_lto
         self.bios_format  = bios_format
         self.bios_console = bios_console
+        self.libc_mode    = libc_mode
 
         # Documentation.
         self.generate_doc = generate_doc
@@ -198,6 +200,7 @@ class Builder:
         define("SOC_DIRECTORY",         soc_directory)
         define("PICOLIBC_DIRECTORY",    picolibc_directory)
         define("PICOLIBC_FORMAT",       self.bios_format)
+        define("LIBC_MODE",             self.libc_mode)
         define("COMPILER_RT_DIRECTORY", compiler_rt_directory)
         variables_contents.append("export BUILDINC_DIRECTORY")
         define("BUILDINC_DIRECTORY", self.include_dir)
@@ -469,6 +472,7 @@ def builder_args(parser):
     bios_group.add_argument("--bios-lto",     action="store_true", help="Enable BIOS LTO (Link Time Optimization) compilation.")
     bios_group.add_argument("--bios-format",  default="integer",   help="Select BIOS printf format.",  choices=["integer", "float", "double"])
     bios_group.add_argument("--bios-console", default="full"  ,    help="Select BIOS console config.", choices=["full", "no-history", "no-autocomplete", "lite", "disable"])
+    bios_group.add_argument("--libc-mode",    default="minimal",   help="Select LiteX libc build mode.", choices=["full", "minimal"])
 
 def builder_argdict(args):
     return {
@@ -488,5 +492,6 @@ def builder_argdict(args):
         "bios_lto"         : args.bios_lto,
         "bios_format"      : args.bios_format,
         "bios_console"     : args.bios_console,
+        "libc_mode"        : args.libc_mode,
         "hierarchical"     : args.hierarchical_verilog,
     }
