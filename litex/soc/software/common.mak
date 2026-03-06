@@ -46,8 +46,7 @@ DEPFLAGS += -MD -MP
 
 # Toolchain options
 #
-INCLUDES = -I$(PICOLIBC_DIRECTORY)/newlib/libc/tinystdio \
-           -I$(PICOLIBC_DIRECTORY)/newlib/libc/include \
+INCLUDES = -I$(PICOLIBC_DIRECTORY)/libc/include \
            -I$(LIBBASE_DIRECTORY) \
            -I$(SOC_DIRECTORY)/software/include \
            -I$(SOC_DIRECTORY)/software \

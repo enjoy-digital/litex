@@ -2,6 +2,7 @@
 // License: BSD
 
 #include <stdio.h>
+#include <inttypes.h>
 
 #include <liblitedram/utils.h>
 #include <liblitedram/sdram_spd.h>

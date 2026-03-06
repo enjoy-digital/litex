@@ -87,7 +87,7 @@ configure-picolibc: $(PICOLIBC_SRC_DIR)
 
 __libc.a: configure-picolibc
 	meson compile
-	cp newlib/libc.a __libc.a
+	cp libc.a __libc.a
 
 MINIMAL_PICOLIBC_CFLAGS = \
 	$(filter-out $(DEPFLAGS),$(CFLAGS)) \
