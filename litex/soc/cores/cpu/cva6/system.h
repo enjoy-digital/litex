@@ -5,8 +5,9 @@
 extern "C" {
 #endif
 
-__attribute__((unused)) static void flush_cpu_icache(void){}  /* FIXME: do something useful here! */
-__attribute__((unused)) static void flush_cpu_dcache(void){}; /* FIXME: do something useful here! */
+/* CVA6's fence.i flushes both D-Cache and I-Cache */
+__attribute__((unused)) static void flush_cpu_icache(void){ asm volatile("fence.i"); }
+__attribute__((unused)) static void flush_cpu_dcache(void){ asm volatile("fence.i"); }
 void flush_l2_cache(void);
 
 void busy_wait(unsigned int ms);

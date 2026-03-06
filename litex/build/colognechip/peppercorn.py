@@ -20,7 +20,6 @@ class PeppercornToolchain(YosysNextPNRToolchain):
     def __init__(self):
         super().__init__()
         self._synth_opts = "-luttree -nomx8"
-        self._synth_opts += " -nomult" # Temporary: currently no supports for CC_MULT.
 
     # Timing Constraints (.sdc) --------------------------------------------------------------------
 

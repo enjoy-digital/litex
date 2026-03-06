@@ -29,7 +29,7 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          python3 -m pip install setuptools requests pexpect meson
+          python3 -m pip install setuptools requests pexpect meson pytest
 
       # Install (n)Migen / LiteX / Cores
       - name: Install LiteX
@@ -80,4 +80,4 @@ jobs:
       # Test
       - name: Run Tests
         run: |
-          python3 setup.py test
+          python3 -m pytest -v

@@ -1,7 +1,8 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2019-2022 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2019-2026 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2026 chiralitie <chiralitie@gmail.com>
 # Copyright (c) 2019 Antti Lukats <antti.lukats@gmail.com>
 # Copyright (c) 2017 Robert Jordens <jordens@gmail.com>
 # Copyright (c) 2021 Gregory Davill <greg.davill@gmail.com>
@@ -11,6 +12,7 @@
 
 from migen import *
 from migen.genlib.cdc import AsyncResetSynchronizer, MultiReg
+from migen.genlib.fifo import AsyncFIFO
 
 from litex.gen import *
 
@@ -402,17 +404,23 @@ class JTAGPHY(LiteXModule):
         Provides a simple JTAG to LiteX stream module to easily stream data to/from the FPGA
         over JTAG.
 
-        Wire format: data_width + 2 bits, LSB first.
+        Wire format: data_width + 3 bits, LSB first.
+
+        Due to JTAG timing constraints (the JTAGG primitive only captures TDO on falling
+        edge in Shift-DR, and the last shift's falling edge is in Exit1-DR), we need
+        data_width + 3 shift cycles to transfer data_width + 2 bits of information.
 
         Host to Target:
           - TX ready : bit 0
-          - RX data: : bit 1 to data_width
+          - RX data  : bit 1 to data_width
           - RX valid : bit data_width + 1
+          - Padding  : bit data_width + 2 (ignored)
 
         Target to Host:
           - RX ready : bit 0
           - TX data  : bit 1 to data_width
           - TX valid : bit data_width + 1
+          - Padding  : bit data_width + 2 (repeat of valid)
         """
         self.sink   =   sink = stream.Endpoint([("data", data_width)])
         self.source = source = stream.Endpoint([("data", data_width)])
@@ -478,44 +486,201 @@ class JTAGPHY(LiteXModule):
 
         # JTAG Xfer FSM ----------------------------------------------------------------------------
         valid = Signal()
-        ready = Signal()
         data  = Signal(data_width)
         count = Signal(max=data_width)
+
+        # RX valid/data - registered to hold for CDC transfer.
+        # These are updated via sync.jtag OUTSIDE the FSM to survive FSM resets.
+        # The JTAG TAP goes through Test-Logic-Reset between scans, which would
+        # clear NextValue registers via ResetInserter.
+        rx_valid    = Signal()
+        rx_data     = Signal(data_width)
+        update_rx   = Signal()  # Trigger to capture RX data
+        rx_valid_in = Signal()  # The valid bit to store
+
+        # Ready signal - updated outside FSM to survive FSM resets.
+        # This is critical: the JTAG TAP goes through Test-Logic-Reset between drscans,
+        # which would clear NextValue registers via ResetInserter. By updating 'ready'
+        # via sync.jtag outside the FSM, it only resets on the clock domain reset.
+        ready        = Signal()
+        update_ready = Signal()
+        ready_value  = Signal()
+
+        # TDO timing fix: The JTAGG primitive samples JTDO1 on the FALLING edge of TCK,
+        # but the FSM state changes on the RISING edge. By the falling edge, the FSM
+        # has already transitioned to the next state, so the wrong TDO value would be
+        # sampled. We use a registered TDO output that captures the value on the rising
+        # edge, so it's stable when sampled on the falling edge.
+        tdo_reg = Signal(reset=1)  # Start with ready=1 assumption
+        self.comb += jtag_tdo.eq(tdo_reg)
+
+        # Detect shift falling edge (transition from Shift-DR to Exit1-DR)
+        # This is when the valid bit (bit9) is available but jtag.shift is already 0
+        shift_d = Signal()
+        self.sync.jtag += shift_d.eq(jtag.shift)
+        shift_falling = Signal()
+        self.comb += shift_falling.eq(shift_d & ~jtag.shift)
 
         fsm = FSM(reset_state="XFER-READY")
         fsm = ClockDomainsRenamer("jtag")(fsm)
         fsm = ResetInserter()(fsm)
         self.submodules += fsm
-        self.comb += fsm.reset.eq(jtag.reset | jtag.capture)
+
+        # Only reset FSM on jtag.reset, NOT jtag.capture.
+        # Resetting on capture clears 'ready' before it can be shifted out.
+        self.comb += fsm.reset.eq(jtag.reset)
+
         fsm.act("XFER-READY",
-            jtag_tdo.eq(ready),
+            If(jtag.capture,
+                # On capture, prepare to output ready on next shift
+                NextValue(tdo_reg, ready),
+            ),
             If(jtag.shift,
                 sink.ready.eq(jtag_tdi),
                 NextValue(valid, sink.valid),
                 NextValue(data,  sink.data),
                 NextValue(count, 0),
+                # Update tdo_reg to output ready (will be sampled on falling edge)
+                NextValue(tdo_reg, ready),
                 NextState("XFER-DATA")
             )
         )
         fsm.act("XFER-DATA",
-            jtag_tdo.eq(data),
             If(jtag.shift,
                 NextValue(count, count + 1),
+                # Update tdo_reg to output current data bit BEFORE shifting
+                NextValue(tdo_reg, data[0]),
                 NextValue(data, Cat(data[1:], jtag_tdi)),
-                If(count == (data_width - 1),
+                If(count == data_width,
+                    # After outputting all data bits, transition to XFER-VALID.
+                    # The valid bit is output on the NEXT shift cycle.
+                    # NOTE: We need data_width + 3 shift cycles total for the
+                    # data_width + 2 bit wire format because the JTAGG primitive
+                    # only captures TDO on falling edge in Shift-DR, and the last
+                    # falling edge is in Exit1-DR (doesn't capture).
+                    NextValue(tdo_reg, valid),
                     NextState("XFER-VALID")
                 )
             )
         )
         fsm.act("XFER-VALID",
-            jtag_tdo.eq(valid),
+            # Stay in this state for one shift cycle to output valid bit.
+            # Then on the next shift, output padding bit (repeat of valid).
+            # The actual valid bit from host arrives on shift_falling when TAP exits Shift-DR.
             If(jtag.shift,
-                source.valid.eq(jtag_tdi),
-                source.data.eq(data),
-                NextValue(ready, source.ready),
+                # We're still in Shift-DR, output padding (valid repeated)
+                NextValue(tdo_reg, valid),
+                NextState("XFER-PADDING")
+            )
+        )
+        fsm.act("XFER-PADDING",
+            # The valid bit arrives when jtag.shift goes low (TAP exits Shift-DR).
+            # We use the falling edge of shift to capture the valid bit from jtag_tdi.
+            If(shift_falling,
+                # Capture RX valid bit for update_rx trigger (combinatorial)
+                rx_valid_in.eq(jtag_tdi),
+                # Trigger rx_valid/rx_data update (handled outside FSM)
+                update_rx.eq(1),
+                # Update tdo_reg to output valid
+                NextValue(tdo_reg, valid),
+                update_ready.eq(1),  # Trigger ready update (outside FSM)
                 NextState("XFER-READY")
             )
         )
+
+# ECP5 JTAG PHY (Verilog + AsyncFIFO) -----------------------------------------------------------------
+
+class ECP5JTAGPHY(LiteXModule):
+    """ECP5-specific JTAG PHY using Verilog shift register and AsyncFIFO CDC.
+
+    This implementation handles the ECP5 JTAGG primitive's timing quirks:
+    - JTDI is registered (1 TCK cycle late)
+    - TDO is sampled on falling edge of TCK
+    - Supports continuous multi-word Shift-DR scans (modulo-11 counter)
+
+    Uses a Verilog module for timing-critical shift register logic and
+    Migen AsyncFIFOs for clock domain crossing.
+
+    Wire format: 11 bits LSB first (data_width + 3 for data_width=8).
+      Host -> Target: [padding:10][rx_valid:9][rx_data:8-1][tx_ready:0]
+      Target -> Host: [padding:10][tx_valid:9][tx_data:8-1][rx_ready:0]
+    """
+    def __init__(self, platform, data_width=8, clock_domain="sys", fifo_depth=8):
+        self.sink   = sink   = stream.Endpoint([("data", data_width)])
+        self.source = source = stream.Endpoint([("data", data_width)])
+
+        # # #
+
+        # Add Verilog source for JTAG shift register.
+        import os
+        platform.add_source(os.path.join(os.path.dirname(__file__), "jtagphy_shift.v"))
+
+        # JTAG clock domain.
+        self.cd_jtag = ClockDomain("jtag")
+
+        # Signals from Verilog module.
+        jtag_clk = Signal()
+        jtag_rst = Signal()
+
+        # RX path (JTAG -> sys): data from host.
+        rx_data_jtag  = Signal(data_width)
+        rx_valid_jtag = Signal()
+        rx_ready_jtag = Signal()
+
+        # TX path (sys -> JTAG): data to host.
+        tx_data_jtag  = Signal(data_width)
+        tx_valid_jtag = Signal()
+        tx_ready_jtag = Signal()
+
+        # Connect JTAG clock domain.
+        self.comb += [
+            self.cd_jtag.clk.eq(jtag_clk),
+            self.cd_jtag.rst.eq(jtag_rst),
+        ]
+
+        # Instantiate Verilog shift register.
+        self.specials += Instance("jtagphy_shift",
+            o_jtag_clk = jtag_clk,
+            o_jtag_rst = jtag_rst,
+            o_rx_data  = rx_data_jtag,
+            o_rx_valid = rx_valid_jtag,
+            i_rx_ready = rx_ready_jtag,
+            i_tx_data  = tx_data_jtag,
+            i_tx_valid = tx_valid_jtag,
+            o_tx_ready = tx_ready_jtag,
+        )
+
+        # RX AsyncFIFO (JTAG -> sys).
+        self.submodules.rx_fifo = rx_fifo = ClockDomainsRenamer({
+            "write": "jtag", "read": clock_domain
+        })(AsyncFIFO(width=data_width, depth=fifo_depth))
+
+        self.comb += [
+            rx_fifo.din.eq(rx_data_jtag),
+            rx_fifo.we.eq(rx_valid_jtag & rx_fifo.writable),
+            rx_ready_jtag.eq(rx_fifo.writable),
+        ]
+        self.comb += [
+            source.valid.eq(rx_fifo.readable),
+            source.data.eq(rx_fifo.dout),
+            rx_fifo.re.eq(source.ready & rx_fifo.readable),
+        ]
+
+        # TX AsyncFIFO (sys -> JTAG).
+        self.submodules.tx_fifo = tx_fifo = ClockDomainsRenamer({
+            "write": clock_domain, "read": "jtag"
+        })(AsyncFIFO(width=data_width, depth=fifo_depth))
+
+        self.comb += [
+            tx_fifo.din.eq(sink.data),
+            tx_fifo.we.eq(sink.valid & tx_fifo.writable),
+            sink.ready.eq(tx_fifo.writable),
+        ]
+        self.comb += [
+            tx_valid_jtag.eq(tx_fifo.readable),
+            tx_data_jtag.eq(tx_fifo.dout),
+            tx_fifo.re.eq(tx_ready_jtag & tx_fifo.readable),
+        ]
 
 # Efinix / TRION -----------------------------------------------------------------------------------
 

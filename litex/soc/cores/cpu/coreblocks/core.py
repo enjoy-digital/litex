@@ -5,25 +5,37 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
+import shutil
 import subprocess
+import logging
 
 from migen import *
 
 from litex import get_data_mod
+from litex.build.xilinx.vivado import XilinxVivadoToolchain
+from litex.soc.cores.cpu.amaranth import import_from_pythondata
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
+from litex.soc.integration.soc import SoCRegion
 from litex.soc.interconnect import wishbone
 
 # Variants -----------------------------------------------------------------------------------------
 
 CPU_VARIANTS = {
-    "standard": "basic",
-    "full":     "full",
+    "standard":     "basic",
+    "small_linux":  "small_linux",
+    "full":         "full",
 }
+
+LINUX_CAPABLE_VARIANTS = [
+    "small_linux",
+    "full",
+]
 
 # GCC Flags ----------------------------------------------------------------------------------------
 
 GCC_FLAGS = {
     "standard":         "-march=rv32i2p0_m                                    -mabi=ilp32 ",
+    "small_linux":      "-march=rv32i2p0_ma                                   -mabi=ilp32 ",
     "full":             "-march=rv32i2p0_mac_zba_zbb_zbc_zbs                  -mabi=ilp32 ",
 }
 
@@ -53,6 +65,7 @@ class Coreblocks(CPU):
         self.platform     = platform
         self.variant      = variant
         self.human_name   = f"Coreblocks-{CPU_VARIANTS[variant]}"
+        self.logger       = logging.getLogger("Coreblocks")
         self.reset        = Signal()
         self.interrupt    = Signal(16) # hart-local 16 platform interrupts - ids 16+n
 
@@ -98,46 +111,142 @@ class Coreblocks(CPU):
             i_wb_data__dat_r = dbus.dat_r,
         )
 
-    # Memory Mapping.
+    # Memory Mapping constraints.
     @property
     def mem_map(self):
-        # Default Memory Map.
         # In Coreblocks MMIO region is set to 0xe000_0000 - 0xffff_fffff by default configuration.
         # It can be changed with coreblocks `CoreConfiguration` dataclass.
-        # Remaps `csr` to that region. Other segements can be arbitraily overwritten.
-        return {
-            "rom":      0x0000_0000,
-            "sram":     0x0100_0000,
-            "main_ram": 0x4000_0000,
-            "csr":      0xe000_0000,
+        # Maps `csr` to that region, with offset left at start for automatic I/O space allocations.
+        # Other segments can be arbitrarily chosen.
+        mem_map = {
+            "csr":          0xe800_0000, # fixed address required by LiteX
         }
 
+        if self.variant in LINUX_CAPABLE_VARIANTS:
+            mem_map |= {
+                "clint":    0xe100_0000, # fixed in CoreSoCks
+            }
+
+        return mem_map
+
+    def add_soc_components(self, soc):
+        if "clint" in soc.mem_map:
+            soc.bus.add_region("clint", SoCRegion(origin=soc.mem_map.get("clint"), size=0xC_0000, cached=False, linker=False))
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
 
-    @staticmethod
-    def elaborate(variant, reset_address, verilog_filename):
+    def elaborate(self, platform, variant, reset_address, verilog_filename):
         cli_params = []
         cli_params.append("--output={}".format(verilog_filename))
         cli_params.append("--config={}".format(CPU_VARIANTS[variant]))
         cli_params.append("--reset-pc=0x{:x}".format(reset_address))
 
+        if variant in LINUX_CAPABLE_VARIANTS:
+            # Adds CoreSoCks wrapper around the core that adds extra peripherals (like CLINT) for full OS support
+            cli_params.append("--with-socks")
+
+        if isinstance(platform.toolchain, XilinxVivadoToolchain):
+            cli_params.append("--enable-vivado-hacks")
+
         data_mod = get_data_mod("cpu", "coreblocks")
         sdir = data_mod.data_location
 
-        command = ["python3", os.path.join(sdir, "scripts", "gen_verilog.py")] if data_mod.RUN_NATIVE else ["pipx", "run", f"--python=3.{data_mod.PYTHON3_VERSION}", "--fetch-missing-python", os.path.join(sdir, "..", "gen_verilog_wrapper.py")]
+        if data_mod.RUN_NATIVE:
+            command = ["python3", os.path.join(sdir, "scripts", "gen_verilog.py")]
+        else:
+            # Deterministic external helper path: use a configured Python interpreter
+            # (defaults to python3.<required>) to execute pythondata's wrapper script.
+            helper_python = os.getenv("LITEX_COREBLOCKS_HELPER_PYTHON", f"python3.{data_mod.PYTHON3_VERSION}")
+            helper_script = os.path.join(sdir, "..", "gen_verilog_wrapper.py")
+            if shutil.which(helper_python):
+                command = [helper_python, helper_script]
+            elif shutil.which("pipx"):
+                self.logger.warning(
+                    "Coreblocks helper interpreter '%s' was not found, falling back to pipx.",
+                    helper_python)
+                command = ["pipx", "run", f"--python=3.{data_mod.PYTHON3_VERSION}",
+                           "--fetch-missing-python", helper_script]
+            else:
+                raise OSError(
+                    f"Coreblocks external elaboration requires '{helper_python}' "
+                    "or pipx. Install one of them or set "
+                    "LITEX_COREBLOCKS_HELPER_PYTHON to a valid Python executable.")
+
         command += cli_params
 
-        print(command)
+        self.logger.info("Coreblocks external elaboration command: %s", " ".join(command))
         if subprocess.call(command):
             raise OSError("Unable to elaborate Coreblocks CPU, please check your coreblocks, Amaranth/Yosys, and requirements install")
+
+    def _do_finalize_with_converter(self):
+        try:
+            from litex.build.amaranth2v_converter import Amaranth2VConverter
+            coreblocks_gen = import_from_pythondata("cpu", "coreblocks", "scripts.gen_verilog")
+            with coreblocks_gen.DependencyContext(coreblocks_gen.DependencyManager()):
+                core_config = coreblocks_gen.str_to_coreconfig[CPU_VARIANTS[self.variant]]
+                core_config = core_config.replace(start_pc=self.reset_address)
+                core_genp   = coreblocks_gen.GenParams(core_config)
+                amaranth_cpu = coreblocks_gen.Core(gen_params=core_genp)
+
+                if self.variant in LINUX_CAPABLE_VARIANTS:
+                    # Adds CoreSoCks wrapper around the core that adds extra peripherals for full OS support.
+                    amaranth_cpu = coreblocks_gen.Socks(amaranth_cpu, core_gen_params=core_genp)
+
+                amaranth_cpu = coreblocks_gen.TransactronContextComponent(
+                    amaranth_cpu, dependency_manager=coreblocks_gen.DependencyContext.get())
+        except Exception as e:
+            self.logger.warning("Coreblocks native Amaranth conversion unavailable: %s", str(e))
+            return False
+
+        self.converter = Amaranth2VConverter(self.platform,
+            name        = "top",
+            module      = amaranth_cpu,
+            ports       = dict(
+                # Clk / Rst.
+                i_sync_clk = ClockSignal("sys"),
+                i_sync_rst = ResetSignal("sys") | self.reset,
+
+                # IRQ.
+                i_interrupts = self.interrupts_full,
+
+                # Ibus.
+                o_wb_instr_stb   = self.ibus.stb,
+                o_wb_instr_cyc   = self.ibus.cyc,
+                o_wb_instr_we    = self.ibus.we,
+                o_wb_instr_adr   = self.ibus.adr,
+                o_wb_instr_dat_w = self.ibus.dat_w,
+                o_wb_instr_sel   = self.ibus.sel,
+                i_wb_instr_ack   = self.ibus.ack,
+                i_wb_instr_err   = self.ibus.err,
+                i_wb_instr_dat_r = self.ibus.dat_r,
+
+                # Dbus.
+                o_wb_data_stb   = self.dbus.stb,
+                o_wb_data_cyc   = self.dbus.cyc,
+                o_wb_data_we    = self.dbus.we,
+                o_wb_data_adr   = self.dbus.adr,
+                o_wb_data_dat_w = self.dbus.dat_w,
+                o_wb_data_sel   = self.dbus.sel,
+                i_wb_data_ack   = self.dbus.ack,
+                i_wb_data_err   = self.dbus.err,
+                i_wb_data_dat_r = self.dbus.dat_r,
+            ),
+        )
+        self.logger.info("Using Coreblocks native Amaranth2VConverter integration.")
+        return True
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
 
+        # Prefer native Amaranth conversion when dependencies are available.
+        # Fallback to external elaboration wrapper otherwise.
+        if self._do_finalize_with_converter():
+            return
+
         verilog_filename = os.path.join(self.platform.output_dir, "gateware", "core.v")
         self.elaborate(
+            platform         = self.platform,
             variant          = self.variant,
             reset_address    = self.reset_address,
             verilog_filename = verilog_filename)

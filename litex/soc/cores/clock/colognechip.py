@@ -2,6 +2,7 @@
 # This file is part of LiteX.
 #
 # Copyright (c) 2023 Gwenhael Goavec-merou<gwenhael.goavec-merou@trabucayre.com>
+# Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
@@ -34,7 +35,8 @@ class GateMatePLL(LiteXModule):
     def __init__(self,
         perf_mode  = "undefined",
         low_jitter = 1,
-        lock_req   = 1):
+        lock_req   = 1,
+        name       = None):
 
         assert perf_mode.lower() in ["undefined", "lowpower", "economy", "speed"]
         assert low_jitter in [0, 1]
@@ -48,6 +50,7 @@ class GateMatePLL(LiteXModule):
         self._perf_mode  = perf_mode.upper()
         self._low_jitter = low_jitter
         self._lock_req   = lock_req
+        self.name        = name
 
         self._max_freq   = {
             "undefined" : 250e6,
@@ -132,7 +135,7 @@ class GateMatePLL(LiteXModule):
 
         locked_s1 = Signal()
 
-        self.specials += Instance("CC_PLL",
+        self.specials += Instance("CC_PLL", name=self.name or "",
             p_REF_CLK             = str(freqInMHz),   # reference input in MHz
             p_OUT_CLK             = str(freqOutMHz),  # pll output frequency in MHz
             p_LOW_JITTER          = self._low_jitter, # 0: disable, 1: enable low jitter mode

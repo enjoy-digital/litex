@@ -43,7 +43,7 @@ def _format_ldc(signame, pin, others, resname):
     return "\n".join(ldc)
 
 
-def _build_pdc(named_sc, named_pc, clocks, vns, build_name):
+def _build_pdc(named_sc, named_pc, clocks, vns, false_paths, build_name):
     pdc = []
 
     for sig, pins, others, resname in named_sc:
@@ -66,6 +66,12 @@ def _build_pdc(named_sc, named_pc, clocks, vns, build_name):
             "get_ports" if clk_sig in [name for name, _, _, _ in named_sc] else "get_nets",
             clk_sig
             ))
+
+    for (from_, to) in false_paths:
+        from_name = vns.get_name(from_)
+        to_name = vns.get_name(to)
+
+        pdc.append(f"set_clock_groups -asynchronous -group [get_clocks {from_name}] -group [get_clocks {to_name}]")
 
     tools.write_to_file(build_name + ".pdc", "\n".join(pdc))
 
@@ -132,7 +138,7 @@ class LatticeRadiantToolchain(GenericToolchain):
     # Constraints (.ldc) ---------------------------------------------------------------------------
 
     def build_io_constraints(self):
-        _build_pdc(self.named_sc, self.named_pc, self.clocks, self._vns, self._build_name)
+        _build_pdc(self.named_sc, self.named_pc, self.clocks, self._vns, self.false_paths, self._build_name)
         return (self._build_name + ".pdc", "PDC")
 
     # Project (.tcl) -------------------------------------------------------------------------------

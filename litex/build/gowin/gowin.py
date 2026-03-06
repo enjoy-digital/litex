@@ -171,15 +171,18 @@ class GowinToolchain(GenericToolchain):
         # Some python distros for windows (e.g, oss-cad-suite)
         # which does not have 'os.uname' support, we should check 'sys.platform' firstly.
         gw_sh = "gw_sh"
-        if sys.platform.find("linux") >= 0:
-            if os.uname().release.find("WSL") > 0:
-                gw_sh += ".exe"
+        
         if which(gw_sh) is None:
             msg = "Unable to find Gowin toolchain, please:\n"
             msg += "- Add Gowin toolchain to your $PATH."
             raise OSError(msg)
 
-        if subprocess.call([gw_sh, "run.tcl"]) != 0:
+        # Prefer Gowin's bundled libs (avoids Qt/libstdc++ version mismatches).
+        env       = os.environ.copy()
+        gowin_lib = "/opt/gowin/IDE/lib"
+        if os.path.isdir(gowin_lib):
+            env["LD_LIBRARY_PATH"] = gowin_lib + ((":" + env["LD_LIBRARY_PATH"]) if env.get("LD_LIBRARY_PATH") else "")
+        if subprocess.call([gw_sh, "run.tcl"], env=env) != 0:
             raise OSError("Error occured during Gowin's script execution.")
 
         # Copy Bitstream to from impl to gateware directory.

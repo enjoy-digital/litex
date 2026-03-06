@@ -77,6 +77,7 @@ class EfinityToolchain(GenericToolchain):
         efx_pgm_params           = None,
         efx_security_params      = None,
         efx_debugger_params      = None,
+        efx_full_memory_we       = True,
         **kwargs):
 
         self._efx_map_params           = efx_map_params if efx_map_params is not None else {}
@@ -90,7 +91,10 @@ class EfinityToolchain(GenericToolchain):
             self._efx_map_params.pop("mult_output_regs_packing", None)
 
         # Apply FullMemoryWE on Design (Efiniy does not infer memories correctly otherwise).
-        FullMemoryWE()(fragment)
+        # On Titanium/Topaz it is not always needed, as EFX_RAM10 supports write enable signals,
+        # but for EFX_DPRAM10 it is still required. Trion devices always require it.
+        if efx_full_memory_we or platform.family == "Trion":
+            FullMemoryWE()(fragment)
 
         return GenericToolchain.build(self, platform, fragment, **kwargs)
 

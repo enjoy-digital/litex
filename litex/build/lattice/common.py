@@ -146,6 +146,8 @@ class LatticeECP5DifferentialOutput:
 class LatticeECP5TristateImpl(Module):
     def __init__(self, io, o, oe, i):
         nbits, sign = value_bits_sign(io)
+        if i is None:
+            i = Signal().like(o)
         for bit in range(nbits):
             self.specials += Instance("BB",
                 io_B  = io[bit] if nbits > 1 else io,
@@ -177,6 +179,8 @@ lattice_ecp5_special_overrides = {
 class LatticeECP5TrellisTristateImpl(Module):
     def __init__(self, io, o, oe, i):
         nbits, sign = value_bits_sign(io)
+        if i is None:
+            i = Signal().like(o)
         for bit in range(nbits):
             self.specials += Instance("TRELLIS_IO",
                 p_DIR = "BIDIR",
@@ -191,6 +195,32 @@ class LatticeECP5TrellisTristate(Module):
     def lower(dr):
         return LatticeECP5TrellisTristateImpl(dr.target, dr.o, dr.oe, dr.i)
 
+# ECP5 Trellis SDR Tristate ----------------------------------------------------------------------------
+
+class LatticeECP5TrellisSDRTristateImpl(Module):
+    def __init__(self, io, o, oe, i, clk):
+        _o    = Signal().like(o)
+        _oe_n = Signal().like(oe)
+        _i    = Signal().like(i if i is not None else o)
+        self.specials += SDROutput(o, _o, clk)
+        self.specials += SDROutput(~oe, _oe_n, clk)
+        if i is not None:
+            self.specials += SDRInput(_i, i, clk)
+        for j in range(len(io)):
+            self.specials += Instance("TRELLIS_IO",
+                p_DIR = "BIDIR",
+                i_B   = io[j],
+                i_I   = _o[j],
+                o_O   = _i[j],
+                i_T   = _oe_n[j],
+            )
+
+class LatticeECP5TrellisSDRTristate:
+    @staticmethod
+    def lower(dr):
+        return LatticeECP5TrellisSDRTristateImpl(dr.io, dr.o, dr.oe, dr.i, dr.clk)
+
+
 # ECP5 Trellis Special Overrides -------------------------------------------------------------------
 
 lattice_ecp5_trellis_special_overrides = {
@@ -198,6 +228,7 @@ lattice_ecp5_trellis_special_overrides = {
     Tristate:               LatticeECP5TrellisTristate,
     SDRInput:               LatticeECP5SDRInput,
     SDROutput:              LatticeECP5SDROutput,
+    SDRTristate:            LatticeECP5TrellisSDRTristate,
     DDRInput:               LatticeECP5DDRInput,
     DDROutput:              LatticeECP5DDROutput,
     DifferentialInput:      LatticeECP5DifferentialInput,
@@ -336,10 +367,11 @@ class LatticeNXDDRTristateImpl(Module):
         assert oe2 is None
         _o  = Signal().like(o1)
         _oe = Signal().like(oe1)
-        _i  = Signal().like(i1)
+        _i  = Signal().like(_o) if i1 is not None and i2 is not None else None
         self.specials += DDROutput(o1, o2, _o, clk)
         self.specials += SDROutput(oe1, _oe, clk)
-        self.specials += DDRInput(_i, i1, i2, clk)
+        if _i is not None:
+            self.specials += DDRInput(_i, i1, i2, clk)
         self.specials += Tristate(io, _o, _oe, _i)
         _oe.attr.add("syn_useioff")
 
@@ -396,6 +428,8 @@ class LatticeiCE40AsyncResetSynchronizer:
 class LatticeiCE40TristateImpl(Module):
     def __init__(self, io, o, oe, i):
         nbits, sign = value_bits_sign(io)
+        if i is None:
+            i = Signal().like(o)
         for bit in range(nbits):
             self.specials += Instance("SB_IO",
                 p_PIN_TYPE      = C(0b101001, 6), # PIN_OUTPUT_TRISTATE + PIN_INPUT
@@ -534,6 +568,8 @@ class LatticeiCE40SDRInput:
 
 class LatticeiCE40SDRTristateImpl(Module):
     def __init__(self, io, o, oe, i, clk):
+        if i is None:
+            i = Signal().like(o)
         for j in range(len(io)):
             self.specials += Instance("SB_IO",
                 p_PIN_TYPE      = C(0b110100, 6), # PIN_OUTPUT_REGISTERED_ENABLE_REGISTERED + PIN_INPUT_REGISTERED

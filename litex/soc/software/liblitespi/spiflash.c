@@ -26,7 +26,7 @@ int spiflash_freq_init(void)
 	unsigned int lowest_div, crc, crc_test;
 
 	lowest_div = spiflash_phy_clk_divisor_read();
-	flush_cpu_dcache();
+	invd_cpu_dcache_range((void *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE);
 	flush_l2_cache();
 	crc        = crc32((unsigned char *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE);
 	crc_test   = crc;
@@ -43,7 +43,7 @@ int spiflash_freq_init(void)
 
 	while((crc == crc_test) && (lowest_div-- > 0)) {
 		spiflash_phy_clk_divisor_write((uint32_t)lowest_div);
-		flush_cpu_dcache();
+		invd_cpu_dcache_range((void *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE);
 		flush_l2_cache();
 		crc_test = crc32((unsigned char *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE);
 #ifdef SPIFLASH_DEBUG
@@ -139,13 +139,11 @@ static void transfer_cmd(volatile uint8_t *bs, volatile uint8_t *resp, int len)
 	spiflash_len_mask_width_write(8, 1, 1);
 	spiflash_master_cs_write(1);
 
-	flush_cpu_dcache();
 	for (int i=0; i < len; i++) {
 		resp[i] = transfer_byte(bs[i]);
 	}
 
 	spiflash_master_cs_write(0);
-	flush_cpu_dcache();
 }
 
 static uint32_t spiflash_read_id_register(void)
@@ -228,6 +226,8 @@ void spiflash_erase_range(uint32_t addr, uint32_t len)
 		}
 		printf("\n");
 
+		invd_cpu_dcache_range((void *)SPIFLASH_BASE + addr + i, SPI_FLASH_ERASE_SIZE);
+
 		/* check if region was really erased */
 		for (j = 0; j < SPI_FLASH_ERASE_SIZE; j++) {
 			uint8_t* peek = (((uint8_t*)SPIFLASH_BASE)+addr+i+j);
@@ -267,6 +267,8 @@ int spiflash_write_stream(uint32_t addr, uint8_t *stream, uint32_t len)
 			printf(".");
 #endif
 		}
+
+		invd_cpu_dcache_range((void *)SPIFLASH_BASE + addr + offset, w_len);
 
 		for (j = 0; j < w_len; j++) {
 			uint8_t* peek = (((uint8_t*)SPIFLASH_BASE)+addr+offset+j);
@@ -312,6 +314,13 @@ void spiflash_init(void)
 	printf("Enabling Quad mode...\n");
 	spiflash_master_write(0x00000006, 1, 1, 0x1);
 	spiflash_master_write(0x00014307, 3, 1, 0x1);
+
+	/* Wait for the flash to finish writing the configuration */
+	while(spiflash_read_status_register() & 1) {
+#ifdef SPIFLASH_DEBUG
+		printf(".");
+#endif
+	}
 
 #ifdef SPIFLASH_MODULE_QPI_CAPABLE
 	printf("Switching to QPI mode...\n");

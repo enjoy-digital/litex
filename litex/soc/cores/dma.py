@@ -42,6 +42,7 @@ class WishboneDMAReader(LiteXModule):
     """
     def __init__(self, bus, endianness="little", fifo_depth=16, with_csr=False):
         assert isinstance(bus, wishbone.Interface)
+        assert "r" in bus.mode
         self.bus    = bus
         self.sink   = sink   = stream.Endpoint([("address", bus.adr_width, ("last", 1))])
         self.source = source = stream.Endpoint([("data",    bus.data_width)])
@@ -155,6 +156,7 @@ class WishboneDMAWriter(LiteXModule):
     """
     def __init__(self, bus, endianness="little", with_csr=False):
         assert isinstance(bus, wishbone.Interface)
+        assert "w" in bus.mode
         self.bus  = bus
         self.sink = sink = stream.Endpoint([("address", bus.adr_width), ("data", bus.data_width)])
 

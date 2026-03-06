@@ -41,6 +41,7 @@ class LatticeTrellisToolchain(YosysNextPNRToolchain):
         bootaddr       = 0,
         spimode        = None,
         freq           = None,
+        idcode         = None,
         compress       = True,
         **kwargs):
 
@@ -57,10 +58,11 @@ class LatticeTrellisToolchain(YosysNextPNRToolchain):
             assert freq in ecp5_mclk_freqs, "Invalid MCLK frequency. Valid frequencies: " + str(ecp5_mclk_freqs)
 
         # prepare ecppack opts
-        self._packer_opts += " --bootaddr {bootaddr} {spimode} {freq} {compress} ".format(
+        self._packer_opts += " --bootaddr {bootaddr} {spimode} {freq} {idcode} {compress} ".format(
             bootaddr = bootaddr,
             spimode  = "" if spimode is None else f"--spimode {spimode}",
             freq     = "" if freq is None else "--freq {}".format(freq),
+            idcode   = "" if idcode is None else f"--idcode {idcode}",
             compress = "" if not compress else "--compress"
         )
 
@@ -161,6 +163,7 @@ def trellis_args(parser):
     toolchain_group.add_argument("--ecppack-bootaddr",     default=0,           help="Set boot address for next image.")
     toolchain_group.add_argument("--ecppack-spimode",      default=None,        help="Set slave SPI programming mode.")
     toolchain_group.add_argument("--ecppack-freq",         default=None,        help="Set SPI MCLK frequency.")
+    toolchain_group.add_argument("--ecppack-idcode",       default=None,        help="IDCODE to override in bitstream.")
     toolchain_group.add_argument("--ecppack-compress",     action="store_true", help="Use Bitstream compression.")
 
 def trellis_argdict(args):
@@ -169,5 +172,6 @@ def trellis_argdict(args):
         "bootaddr":     args.ecppack_bootaddr,
         "spimode":      args.ecppack_spimode,
         "freq":         float(args.ecppack_freq) if args.ecppack_freq is not None else None,
+        "idcode":       args.ecppack_idcode,
         "compress":     args.ecppack_compress,
     }

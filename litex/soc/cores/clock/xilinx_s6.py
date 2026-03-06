@@ -2,7 +2,7 @@
 # This file is part of LiteX.
 #
 # Copyright (c) 2019 Michael Betz <michibetz@gmail.com>
-# Copyright (c) 2019-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2019-2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
@@ -16,10 +16,11 @@ class S6PLL(XilinxClocking):
     nclkouts_max = 6
     clkin_freq_range = (19e6, 540e6)
 
-    def __init__(self, speedgrade=-1):
+    def __init__(self, speedgrade=-1, name=None):
         self.logger = logging.getLogger("S6PLL")
         self.logger.info("Creating S6PLL, {}.".format(colorer("speedgrade {}".format(speedgrade))))
         XilinxClocking.__init__(self)
+        self.name = name
         self.divclk_divide_range = (1, 52 + 1)
         self.vco_freq_range      = {
             -1: (400e6, 1000e6),
@@ -56,7 +57,7 @@ class S6PLL(XilinxClocking):
             self.params["p_CLKOUT{}_PHASE".format(n)]      = float(config["clkout{}_phase".format(n)])
             self.params["p_CLKOUT{}_DUTY_CYCLE".format(n)] = 0.5
             self.params["o_CLKOUT{}".format(n)]            = clk
-        self.specials += Instance("PLL_ADV", **self.params)
+        self.specials += Instance("PLL_ADV", name=self.name or "", **self.params)
 
 # Xilinx / Spartan6 DCM ----------------------------------------------------------------------------
 
@@ -66,10 +67,11 @@ class S6DCM(XilinxClocking):
     clkfbout_mult_frange = (2, 256 + 1)
     clkout_divide_range  = (1, 256 + 1)
 
-    def __init__(self, speedgrade=-1):
+    def __init__(self, speedgrade=-1, name=None):
         self.logger = logging.getLogger("S6DCM")
         self.logger.info("Creating S6DCM, {}.".format(colorer("speedgrade {}".format(speedgrade))))
         XilinxClocking.__init__(self)
+        self.name = name
         self.divclk_divide_range = (1, 2) # FIXME
         self.clkin_freq_range = {
             -1: (0.5e6, 200e6),
@@ -98,7 +100,7 @@ class S6DCM(XilinxClocking):
             o_CLKFX           = clk,
             o_LOCKED          = self.locked,
         )
-        self.specials += Instance("DCM_CLKGEN", **self.params)
+        self.specials += Instance("DCM_CLKGEN", name=self.name or "", **self.params)
 
     def expose_drp(self):
         self._cmd_data      = CSRStorage(10)

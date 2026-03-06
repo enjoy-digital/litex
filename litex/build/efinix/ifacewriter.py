@@ -92,6 +92,7 @@ class InterfaceWriter:
 import os
 import sys
 import pprint
+import math
 
 home = "{0}"
 
@@ -177,17 +178,8 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
         
         if mode == "INPUT" or mode == "INOUT":
             if "in_reg" in block:
-                in_clk_pin = block["in_clk_pin"]
-                if isinstance(in_clk_pin, ClockSignal):
-                    # Try to find cd name
-                    in_clk_pin_name = self.platform.clks.get(in_clk_pin.cd, None)
-                    # If not found cd name has been updated with "_clk" as suffix.
-                    if in_clk_pin_name is None:
-                        in_clk_pin_name = self.platform.clks.get(in_clk_pin.cd + "_clk")
-                    in_clk_pin = in_clk_pin_name
-
                 cmd += f'design.set_property("{name}","IN_REG","{block["in_reg"]}")\n'
-                cmd += f'design.set_property("{name}","IN_CLK_PIN","{in_clk_pin}")\n'
+                cmd += f'design.set_property("{name}","IN_CLK_PIN","{block["in_clk_pin"]}")\n'
                 if "in_delay" in block:
                     cmd += f'design.set_property("{name}","INDELAY","{block["in_delay"]}")\n'
             if "in_clk_inv" in block:
@@ -300,20 +292,14 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
 
          # Output clock 0 is enabled by default
         for i, clock in enumerate(block["clk_out"]):
+            if clock is None:
+                continue
             if i > 0:
                 cmd += 'pll_config = {{ "CLKOUT{}_EN":"1", "CLKOUT{}_PIN":"{}" }}\n'.format(i, i, clock[0])
             else:
                 cmd += 'pll_config = {{ "CLKOUT{}_PIN":"{}" }}\n'.format(i, clock[0])
 
             cmd += 'design.set_property("{}", pll_config, block_type="PLL")\n\n'.format(name)
-
-        for i, clock in enumerate(block["clk_out"]):
-            if block["version"] == "V1_V2":
-                cmd += 'design.set_property("{}", "CLKOUT{}_PHASE", "{}", "PLL")\n'.format(name, i, clock[2])
-            else:
-                cmd += 'design.set_property("{}", "CLKOUT{}_PHASE_SETTING", "{}", "PLL")\n'.format(name, i, clock[2] // 45)
-                if clock[4] == 1:
-                    cmd += 'design.set_property("{}", "CLKOUT{}_DYNPHASE_EN", "1", "PLL")\n'.format(name, i)
 
         # Titanium/Topaz has always a feedback (local: CLK0, CORE: any output)
         if block["version"] == "V3":
@@ -325,6 +311,8 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
         if block["feedback"] == -1 or block["version"] == "V3":
             cmd += "target_freq = {\n"
             for i, clock in enumerate(block["clk_out"]):
+                if clock is None:
+                    continue
                 cmd += '    "CLKOUT{}_FREQ": "{}",\n'.format(i, clock[1] / 1e6)
                 cmd += '    "CLKOUT{}_PHASE": "{}",\n'.format(i, clock[2])
                 if clock[4] == 1:
@@ -342,6 +330,8 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
             cmd += 'design.set_property("{}","N","{}","PLL")\n'.format(name, block["N"])
             cmd += 'design.set_property("{}","O","{}","PLL")\n'.format(name, block["O"])
             for i, clock in enumerate(block["clk_out"]):
+                if clock is None:
+                    continue
                 cmd += 'design.set_property("{}","CLKOUT{}_PHASE","{}","PLL")\n'.format(name, i, clock[2])
                 #cmd += 'design.set_property("{}","CLKOUT{}_FREQ","{}","PLL")\n'.format(name, i, clock[2])
                 cmd += 'design.set_property("{}","CLKOUT{}_DIV","{}","PLL")\n'.format(name, i, block[f"CLKOUT{i}_DIV"])
@@ -358,6 +348,8 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
             cmd += 'pprint.pprint(clksrc_info)\n'
             cmd += 'clock_source_prop = ["REFCLK_SOURCE", "CORE_CLK_PIN", "EXT_CLK", "REFCLK_FREQ", "RESOURCE", "FEEDBACK_MODE", "FEEDBACK_CLK"]\n'
             for i, clock in enumerate(block["clk_out"]):
+                if clock is None:
+                    continue
                 cmd += 'clock_source_prop += ["CLKOUT{}_FREQ", "CLKOUT{}_PHASE", "CLKOUT{}_EN"]\n'.format(i, i, i)
             cmd += 'prop_map = design.get_property("{}", clock_source_prop, block_type="PLL")\n'.format(name)
             cmd += 'pprint.pprint(prop_map)\n'
@@ -365,8 +357,10 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
             # Efinix python API is buggy for Trion devices when a feedback is defined...
             if block["version"] == "V3" or (block["version"] == "V1_V2" and block["feedback"] == -1):
                 for i, clock in enumerate(block["clk_out"]):
+                    if clock is None:
+                        continue
                     cmd += '\nfreq = float(prop_map["CLKOUT{}_FREQ"])\n'.format(i)
-                    cmd += 'if freq != {}:\n'.format(clock[1]/1e6)
+                    cmd += 'if not math.isclose(freq, {}, rel_tol={}):\n'.format(clock[1]/1e6, clock[3])
                     cmd += '    print("ERROR: CLKOUT{} configured for {}MHz is {{}}MHz".format(freq))\n'.format(i, clock[1]/1e6)
                     cmd += '    exit("PLL ERROR")\n'
 

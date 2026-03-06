@@ -6,19 +6,13 @@
 # Copyright (c) 2025 William D. Jones <thor0505@comcast.net>
 # SPDX-License-Identifier: BSD-2-Clause
 
-import os
-from pathlib import Path
-import shutil
-import sys
-import subprocess
 import logging
 
 from migen import *
 
-from litex.build.generic_platform import Pins, IOStandard
 from litex.gen import *
 
-from litex import get_data_mod
+from litex.soc.cores.cpu.amaranth import check_required_modules, import_from_pythondata
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 
@@ -79,48 +73,45 @@ class Sentinel(CPU):
 
         self.comb += bridge.litex_interrupts.eq(self.interrupt)
 
-        self.cpu_params = dict(
-            # Clk / Rst
-            i_clk   = ClockSignal("sys"),
-            i_rst = ResetSignal("sys") | self.reset,
-
-            i_irq = bridge.sentinel_irq,
-
-            o_bus__adr = bridge.sentinel_bus.adr,
-            o_bus__cyc = bridge.sentinel_bus.cyc,
-            o_bus__stb = bridge.sentinel_bus.stb,
-            o_bus__sel = bridge.sentinel_bus.sel,
-            o_bus__we = bridge.sentinel_bus.we,
-            o_bus__dat_w = bridge.sentinel_bus.dat_w,
-            i_bus__dat_r = bridge.sentinel_bus.dat_r,
-            i_bus__ack = bridge.sentinel_bus.ack,
-        )
-
     def set_reset_address(self, reset_address):
         self.logger.info(f"Reset Address is hardcoded to 0. Generating trampoline to {reset_address:#08x}")
         self.reset_address = reset_address
         self.bridge.reset_vector = reset_address
 
-    @staticmethod
-    def elaborate(verilog_filename):
-        pipx_or_pdm = shutil.which("pipx") or shutil.which("pdm")
-
-        if not pipx_or_pdm:
-            raise OSError("Unable to elaborate Sentinel CPU. Make sure \"pipx\" or \"pdm\" is installed.")
-
-        this_dir = Path(__file__).resolve().parent
-        sdir = get_data_mod("cpu", "sentinel").data_location
-
-        if subprocess.call([pipx_or_pdm, "run", this_dir / "sentinel-pep-723.py", "-n", "sentinel_cpu"],
-                            stdout=open(verilog_filename, "w"),
-                            cwd=sdir):
-            raise OSError("Unable to elaborate Sentinel CPU, please check your Amaranth/Yosys install")
-
     def do_finalize(self):
-        verilog_filename = os.path.join(self.platform.output_dir, "gateware", "sentinel.v")
-        self.elaborate(verilog_filename = verilog_filename)
-        self.platform.add_source(verilog_filename)
-        self.specials += Instance("sentinel_cpu", **self.cpu_params)
+        check_required_modules({
+            "m5pre": "pip3 install --user m5pre",
+            "m5meta": "pip3 install --user m5meta",
+            "amaranth": "pip3 install --user amaranth==0.5.8",
+            "amaranth_soc": "pip3 install --user git+https://github.com/amaranth-lang/amaranth-soc.git",
+        })
+        from litex.build.amaranth2v_converter import Amaranth2VConverter
+
+        sentinel_top = import_from_pythondata("cpu", "sentinel", "src.sentinel.top")
+        amaranth_cpu = sentinel_top.Top(formal=False)
+
+        self.converter = Amaranth2VConverter(self.platform,
+            name        = "sentinel_cpu",
+            module      = amaranth_cpu,
+            ports       = dict(
+                # Clk / Rst.
+                i_sync_clk = ClockSignal("sys"),
+                i_sync_rst = ResetSignal("sys") | self.reset,
+
+                # IRQ.
+                i_irq = self.bridge.sentinel_irq,
+
+                # Wishbone.
+                o_bus_adr   = self.bridge.sentinel_bus.adr,
+                o_bus_cyc   = self.bridge.sentinel_bus.cyc,
+                o_bus_stb   = self.bridge.sentinel_bus.stb,
+                o_bus_sel   = self.bridge.sentinel_bus.sel,
+                o_bus_we    = self.bridge.sentinel_bus.we,
+                o_bus_dat_w = self.bridge.sentinel_bus.dat_w,
+                i_bus_dat_r = self.bridge.sentinel_bus.dat_r,
+                i_bus_ack   = self.bridge.sentinel_bus.ack,
+            ),
+        )
 
 
 class SentinelLitexBridge(LiteXModule):

@@ -2,21 +2,22 @@
 # This file is part of LiteX.
 #
 # Copyright (c) 2022 Gwenhael Goavec-Merou <gwenhael.goavec-merou@trabucayre.com>
-# Copyright (c) 2022 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2022-2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
+import re
 
 from shutil import which
 
 from migen import *
 
-# FIXME/CHECKME:
-# --------------
-# - Ideally, sources should still be added to the platform (and not to VHD2VConverter). The sources
-# for the conversion could probably be collected from the LiteX's Module during the finalize.
-# - Check parameter names (ex: top_entity->top/top_level?, work_package->work_library?).
-# - Check if adding instance will be useful.
+from litex.build.converter_common import (
+    apply_aliases_with_conflict_checks,
+    extract_prefixed_generics,
+    normalize_instance_ports,
+    write_text_if_different,
+)
 
 # VHD2V Converter ----------------------------------------------------------------------------------
 
@@ -57,13 +58,59 @@ class VHD2VConverter(Module):
         force_convert  = False,
         flatten_source = True,
         add_instance   = False,
+        ports          = None,
+        sources        = None,
+        library        = None,
         params         = None,
         instance       = None,
-        files          = list(),
-        libraries      = list()):
+        files          = None,
+        libraries      = None,
+        # Compatibility aliases to make usage closer to Amaranth2VConverter.
+        name           = None,
+        output_dir     = None,
+        top            = None,
+        top_level      = None,
+        work_library   = None):
         """
         constructor (see class attributes)
         """
+        if libraries is None:
+            libraries = []
+
+        normalized = apply_aliases_with_conflict_checks(
+            {
+                "name"        : name,
+                "top"         : top,
+                "top_level"   : top_level,
+                "top_entity"  : top_entity,
+                "output_dir"  : output_dir,
+                "build_dir"   : build_dir,
+                "ports"       : ports,
+                "params"      : params,
+                "sources"     : sources,
+                "files"       : files,
+                "library"     : library,
+                "work_library": work_library,
+                "work_package": work_package,
+            },
+            alias_map={
+                "top_entity"  : ("top_entity", "top", "top_level", "name"),
+                "build_dir"   : ("build_dir", "output_dir"),
+                "params"      : ("params", "ports"),
+                "files"       : ("files", "sources"),
+                "work_package": ("work_package", "work_library", "library"),
+            },
+        )
+        top_entity   = normalized["top_entity"]
+        build_dir    = normalized["build_dir"]
+        params       = normalized["params"]
+        files        = normalized["files"]
+        work_package = normalized["work_package"]
+        if files is None:
+            files = []
+        if (params is not None) and (instance is None):
+            add_instance = True
+
         self._top_entity     = top_entity
         self._build_dir      = build_dir
         self._work_package   = work_package
@@ -132,6 +179,43 @@ class VHD2VConverter(Module):
                 raise OSError(f"{lib} must a string or a set")
             self._libraries.append(lib)
 
+    def _normalize_instance_ports(self, params):
+        return normalize_instance_ports(params, top_entity=self._top_entity, target="VHD2V")
+
+    @staticmethod
+    def _extract_generics(params):
+        return extract_prefixed_generics(params, prefix="p_")
+
+    @staticmethod
+    def _sanitize_ghdl_escaped_identifiers(content):
+        # Convert Verilog escaped identifiers (\name<ws>) to plain identifiers
+        # with a stable prefix. Keep the terminating whitespace untouched.
+        return re.sub(r"\\([^ \t\r\n]+)([ \t\r\n])", r"ghdl_\1\2", content)
+
+    @staticmethod
+    def _is_vhdl_source(filename, language):
+        if language == "vhdl":
+            return True
+        if language is not None:
+            return False
+        return os.path.splitext(filename)[1].lower() in [".vhd", ".vhdl"]
+
+    def _get_effective_sources(self):
+        if self._sources:
+            return self._sources
+        sources = []
+        for source in getattr(self._platform, "sources", []):
+            filename = source[0]
+            language = source[1] if len(source) >= 2 else None
+            library  = source[2] if len(source) >= 3 else None
+            if not self._is_vhdl_source(filename, language):
+                continue
+            if (self._work_package is not None) and (library != self._work_package):
+                continue
+            if filename not in sources:
+                sources.append(filename)
+        return sources
+
     def do_finalize(self):
         """
         - convert vhdl to verilog when toolchain can't deal with VHDL or
@@ -141,6 +225,10 @@ class VHD2VConverter(Module):
         - add an Instance for this core
         """
         inst_name = self._top_entity
+        sources   = self._get_effective_sources()
+
+        if len(sources) == 0:
+            raise OSError("No VHDL sources found. Provide `sources`/`files` or add VHDL files to platform.sources.")
 
         if self._build_dir is None:
             self._build_dir = os.path.join(os.path.abspath(self._platform.output_dir), "vhd2v")
@@ -148,14 +236,13 @@ class VHD2VConverter(Module):
         # platform able to synthesis verilog and vhdl -> no conversion
         if self._platform.support_mixed_language and not self._force_convert:
             if self._params:
-                ip_params = self._params
+                ip_params = self._normalize_instance_ports(self._params)
             elif self._instance:
                 ip_params = self._instance.items
-            for file in self._sources:
+            for file in sources:
                 self._platform.add_source(file, library=self._work_package)
         else: # platform is only able to synthesis verilog -> convert vhdl to verilog
             import subprocess
-            from litex.build import tools
 
             # First: compile external libraries (if requested)
             for lib in self._libraries:
@@ -185,12 +272,8 @@ class VHD2VConverter(Module):
 
             generics = []
             if self._params:
-                ip_params = dict()
-                for k, v in self._params.items():
-                    if k.startswith("p_"):
-                        generics.append("-g" + k[2:] + "=" + str(v))
-                    else:
-                        ip_params[k] = v
+                generics = self._extract_generics(self._params)
+                ip_params = self._normalize_instance_ports(self._params)
             elif self._instance:
                 ip_params = list()
                 for item in self._instance.items:
@@ -202,13 +285,19 @@ class VHD2VConverter(Module):
             cmd = ["ghdl", "--synth", "--out=verilog"]
             cmd += self._ghdl_opts
             cmd += generics
-            cmd += self._sources
+            cmd += sources
             cmd += ["-e", self._top_entity]
+            print(cmd)
 
             with open(verilog_out, 'w') as output:
                 s = subprocess.run(cmd, stdout=output)
                 if s.returncode:
                     raise OSError(f"Unable to convert {inst_name} to verilog, please check your GHDL install")
+
+            # Prepend `default_nettype wire`
+            with open(verilog_out, 'r') as f:
+                content = f.read()
+            write_text_if_different(verilog_out, "`default_nettype wire\n" + content)
 
             flatten_source = False
             if which("yosys") is not None and self._flatten_source:
@@ -231,10 +320,14 @@ class VHD2VConverter(Module):
                 if s.returncode:
                     raise OSError(f"Unable to flatten {inst_name}, please check your yosys install")
             else:
-                # more than one instance of this core? rename top entity to avoid conflict
+                # more than one instance of this core? rename top entity to avoid conflict.
+                # Also replace backslash-escaped names from GHDL output.
+                with open(verilog_out, "r") as f:
+                    content = f.read()
                 if inst_name != self._top_entity:
-                    tools.replace_in_file(verilog_out, f"module {self._top_entity}", f"module {inst_name}")
-                tools.replace_in_file(verilog_out, f"\\", f"ghdl_") # FIXME: GHDL synth workaround, improve.
+                    content = content.replace(f"module {self._top_entity}", f"module {inst_name}")
+                content = self._sanitize_ghdl_escaped_identifiers(content)
+                write_text_if_different(verilog_out, content)
 
             self._platform.add_source(verilog_out)
 

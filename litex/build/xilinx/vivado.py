@@ -56,6 +56,8 @@ def _format_xdc(signame, resname, *constraints):
 def _build_xdc(named_sc, named_pc):
     r = _xdc_separator("IO constraints")
     for sig, pins, others, resname in named_sc:
+        if "X" in pins:
+            continue
         if len(pins) > 1:
             for i, p in enumerate(pins):
                 r += _format_xdc(sig + "[" + str(i) + "]", resname, Pins(p), *others)
@@ -67,6 +69,50 @@ def _build_xdc(named_sc, named_pc):
         r += _xdc_separator("Design constraints")
         r += "\n" + "\n\n".join(named_pc)
     return r
+
+# Signed bitstream script (only for Zynq7000/ZynqMP) -----------------------------------------------
+
+def signed_bitstream_script(platform, build_name):
+    if sys.platform in ["win32", "cygwin"]:
+        rm_cmd     = "del /f"
+        test_open  = " ("
+        test_close = ") "
+    else:
+        rm_cmd     = "rm -f"
+        test_open  = ""
+        test_close = ""
+
+    arch = {True: "zynq", False: "zynqmp"}[platform.device.startswith("xc7z")]
+
+    # 1. Removes existing file before creation.
+    script_contents  = "\n"
+    script_contents += f"{rm_cmd} {build_name}.bit.bin\n"
+
+    # 2. Create a bif file
+    bif_file = build_name + ".bif"
+    bif_contents = [
+        "all:",
+        "{",
+        f"    {build_name}.bit",
+        "}",
+    ]
+    tools.write_to_file(bif_file, "\n".join(bif_contents))
+
+    # 3. Add bootgen detect and command line to create .bit.bin
+    if sys.platform in ["win32", "cygwin"]:
+        script_contents += "where bootgen >nul 2>nul\n"
+        script_contents += "if errorlevel 1 (\n"
+
+    else:
+        script_contents += 'if [ "$(which bootgen)" = "" ]; then\n'
+    script_contents += '    echo "Unable to find bootgen, please either:"\n'
+    script_contents += '    echo "- install it with Vitis"\n'
+    script_contents += '    echo "- Or with https://github.com/Xilinx/bootgen"\n'
+    script_contents += f"{test_close}else{test_open}\n"
+    script_contents += f"    bootgen -w -image {bif_file} -arch {arch} -process_bitstream bin\n"
+    script_contents += {True: ")\n", False: "fi\n"}[sys.platform in ["win32", "cygwin"]]
+
+    return script_contents
 
 # XilinxVivadoToolchain ----------------------------------------------------------------------------
 
@@ -97,7 +143,7 @@ class XilinxVivadoToolchain(GenericToolchain):
         "no_shreg_extract": None
     }
 
-    def __init__(self):
+    def __init__(self, device_image_arch=None):
         super().__init__()
         self.bitstream_commands         = []
         self.additional_commands        = []
@@ -109,6 +155,8 @@ class XilinxVivadoToolchain(GenericToolchain):
         self.incremental_implementation = False
         self._synth_mode                = "vivado"
         self._enable_xpm                = False
+        self._device_image_arch         = device_image_arch
+        self.vivado_report_level        = "basic"
 
     def finalize(self):
         # Convert clocks and false path to platform commands
@@ -116,6 +164,7 @@ class XilinxVivadoToolchain(GenericToolchain):
         self._build_false_path_constraints()
 
     def build(self, platform, fragment,
+        project_mode                         = True,
         synth_mode                           = "vivado",
         enable_xpm                           = False,
         vivado_synth_directive               = "default",
@@ -124,11 +173,13 @@ class XilinxVivadoToolchain(GenericToolchain):
         vivado_post_place_phys_opt_directive = None,
         vivado_route_directive               = "default",
         vivado_post_route_phys_opt_directive = "default",
+        vivado_report_level                 = "basic",
         vivado_max_threads                   = None,
         **kwargs):
 
-        self._synth_mode = synth_mode
-        self._enable_xpm = enable_xpm
+        self._project_mode = project_mode
+        self._synth_mode   = synth_mode
+        self._enable_xpm   = enable_xpm
 
         self.vivado_synth_directive               = vivado_synth_directive
         self.vivado_opt_directive                 = vivado_opt_directive
@@ -136,7 +187,11 @@ class XilinxVivadoToolchain(GenericToolchain):
         self.vivado_post_place_phys_opt_directive = vivado_post_place_phys_opt_directive
         self.vivado_route_directive               = vivado_route_directive
         self.vivado_post_route_phys_opt_directive = vivado_post_route_phys_opt_directive
+        self.vivado_report_level                 = vivado_report_level
         self.vivado_max_threads                   = vivado_max_threads
+
+        if self.vivado_report_level not in ["basic", "signoff"]:
+            raise ValueError(f"Unsupported Vivado report level: {self.vivado_report_level}")
 
         return GenericToolchain.build(self, platform, fragment, **kwargs)
 
@@ -192,7 +247,7 @@ class XilinxVivadoToolchain(GenericToolchain):
         # Mark asynchronous inputs to MultiReg as false paths.
         self.platform.add_platform_command(
             "set_false_path -quiet "
-            "-through [get_nets -hierarchical -filter {{mr_ff == TRUE}}]"
+            "-to [get_nets -filter {{mr_ff == TRUE}}]"
         )
 
         # Mark asynchronous reset inputs to AsyncResetSynchronizer as false paths.
@@ -205,18 +260,18 @@ class XilinxVivadoToolchain(GenericToolchain):
         # Set a maximum delay for metastability resolution in AsyncResetSynchronizer.
         self.platform.add_platform_command(
             "set_max_delay 2 -quiet "
-            "-from [get_pins -filter {{REF_PIN_NAME == C}} "
+            "-from [get_pins -filter {{REF_PIN_NAME == Q}} "
             "-of_objects [get_cells -hierarchical -filter {{ars_ff1 == TRUE}}]] "
             "-to [get_pins -filter {{REF_PIN_NAME == D}} "
             "-of_objects [get_cells -hierarchical -filter {{ars_ff2 == TRUE}}]]"
         )
 
         # Add false paths between asynchronous clock domains.
+        io_signals = self.platform.constraint_manager.get_io_signals()
         def get_clk_type(clk):
-            return {
-                False: "nets",
-                True: "ports",
-            }[hasattr(clk, "port")]
+            if clk in io_signals:
+                return "ports"
+            return "nets"
 
         for _from, _to in sorted(self.false_paths, key=lambda x: (str(x[0]), str(x[1]))):
             if isinstance(_from, str):
@@ -253,7 +308,10 @@ class XilinxVivadoToolchain(GenericToolchain):
 
         # Create project
         tcl.append("\n# Create Project\n")
-        tcl.append(f"create_project -force -name {self._build_name} -part {self.platform.device}")
+        if self._project_mode:
+            tcl.append(f"create_project -force -name {self._build_name} -part {self.platform.device}")
+        else:
+            tcl.append(f"set_part {self.platform.device}")
         tcl.append("set_msg_config -id {Common 17-55} -new_severity {Warning}")
 
         if self.vivado_max_threads:
@@ -284,6 +342,10 @@ class XilinxVivadoToolchain(GenericToolchain):
                     tcl.append(f"set_property library {library} [get_files {filename_tcl}]")
                 else:
                     tcl.append("add_files " + filename_tcl)
+                    # Set all verilog .h files as global
+                    tcl.append("if {[string equal [file extension " + filename + "] \".h\"]} {")
+                    tcl.append(f"set_property is_global_include true [get_files {filename_tcl}]")
+                    tcl.append("}")
 
         # Add EDIFs
         tcl.append("\n# Add EDIFs\n")
@@ -378,7 +440,12 @@ class XilinxVivadoToolchain(GenericToolchain):
         tcl.append("report_timing_summary -no_header -no_detailed_paths")
         tcl.append(f"report_route_status -file {self._build_name}_route_status.rpt")
         tcl.append(f"report_drc -file {self._build_name}_drc.rpt")
+        if self.vivado_report_level == "signoff":
+            tcl.append(f"report_methodology -file {self._build_name}_timing_methodology.rpt")
         tcl.append(f"report_timing_summary -datasheet -max_paths 10 -file {self._build_name}_timing.rpt")
+        if self.vivado_report_level == "signoff":
+            tcl.append(f"report_timing_summary -report_unconstrained -file {self._build_name}_timing_unconstrained_path.rpt")
+            tcl.append(f"report_exceptions -file {self._build_name}_timing_exceptions.rpt")
         tcl.append(f"report_power -file {self._build_name}_power.rpt")
 
         # Bitstream generation
@@ -386,6 +453,8 @@ class XilinxVivadoToolchain(GenericToolchain):
             tcl.append(bitstream_command.format(build_name=self._build_name))
         tcl.append("\n# Bitstream generation\n")
         tcl.append(f"write_bitstream -force {self._build_name}.bit ")
+        if self._device_image_arch is not None:
+            tcl.append(f"exec bootgen -arch {self._device_image_arch} -image {self._build_name}.bif -w -o {self._build_name}.pdi")
 
         # Additional commands
         for additional_command in self.additional_commands:
@@ -402,17 +471,28 @@ class XilinxVivadoToolchain(GenericToolchain):
         if sys.platform in ["win32", "cygwin"]:
             script_contents = "REM Autogenerated by LiteX / git: " + tools.get_litex_git_revision() + "\n"
             script_ext = "bat"
+            rm_cmd     = "del /f"
+            test_open  = " ("
+            test_close = ") "
         else:
             script_contents = "# Autogenerated by LiteX / git: " + tools.get_litex_git_revision() + "\nset -e\n"
             if os.getenv("LITEX_ENV_VIVADO", False):
                 script_contents += "source " + os.path.join(os.getenv("LITEX_ENV_VIVADO"), "settings64.sh\n")
             script_ext = "sh"
+            rm_cmd     = "rm -f"
+            test_open  = ""
+            test_close = ""
 
         if self._synth_mode == "yosys":
             script_contents += common._build_yosys_project(platform=self.platform, build_name=self._build_name)
 
         script_contents += "vivado -mode batch -source " + self._build_name + ".tcl\n"
         script_file     = "build_" + self._build_name + "." + script_ext
+
+        # Zynq7000/ZynqMP specific (signed bitstream).
+        if self.platform.device[0:4] in ["xc7z", "xczu"]:
+            script_contents += signed_bitstream_script(self.platform, self._build_name)
+
         tools.write_to_file(script_file, script_contents)
         return script_file
 
@@ -433,7 +513,16 @@ class XilinxVivadoToolchain(GenericToolchain):
             raise OSError("Error occured during Vivado's script execution.")
 
 def vivado_build_args(parser):
+
+    def boolean(v):
+        if v.lower() in ('true', '1', 'yes'):
+            return True
+        elif v.lower() in ('false', '0', 'no'):
+            return False
+        raise ValueError(f"Invalid boolean: '{v}'")
+
     toolchain_group = parser.add_argument_group(title="Vivado toolchain options")
+    toolchain_group.add_argument("--project-mode",           type=boolean, default=True,      help="Project Mode.")
     toolchain_group.add_argument("--synth-mode",                           default="vivado",  help="Synthesis mode (vivado or yosys).")
     toolchain_group.add_argument("--vivado-synth-directive",               default="default", help="Specify synthesis directive.")
     toolchain_group.add_argument("--vivado-opt-directive",                 default="default", help="Specify opt directive.")
@@ -441,10 +530,12 @@ def vivado_build_args(parser):
     toolchain_group.add_argument("--vivado-post-place-phys-opt-directive", default=None,      help="Specify phys opt directive.")
     toolchain_group.add_argument("--vivado-route-directive",               default="default", help="Specify route directive.")
     toolchain_group.add_argument("--vivado-post-route-phys-opt-directive", default="default", help="Specify phys opt directive.")
+    toolchain_group.add_argument("--vivado-report-level",                  default="basic", choices=["basic", "signoff"], help="Report level (basic or signoff).")
     toolchain_group.add_argument("--vivado-max-threads",                   default=None,      help="Limit the max threads vivado is allowed to use.")
 
 def vivado_build_argdict(args):
     return {
+        "project_mode"                         : args.project_mode,
         "synth_mode"                           : args.synth_mode,
         "vivado_synth_directive"               : args.vivado_synth_directive,
         "vivado_opt_directive"                 : args.vivado_opt_directive,
@@ -452,5 +543,6 @@ def vivado_build_argdict(args):
         "vivado_post_place_phys_opt_directive" : args.vivado_post_place_phys_opt_directive,
         "vivado_route_directive"               : args.vivado_route_directive,
         "vivado_post_route_phys_opt_directive" : args.vivado_post_route_phys_opt_directive,
+        "vivado_report_level"                 : args.vivado_report_level,
         "vivado_max_threads"                   : args.vivado_max_threads
     }

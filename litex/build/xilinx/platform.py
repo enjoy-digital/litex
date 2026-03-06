@@ -32,7 +32,7 @@ class XilinxPlatform(GenericPlatform):
         "xcau", "xcku", "xcvu", "xczu"
     ]
 
-    def __init__(self, *args, toolchain="ise", **kwargs):
+    def __init__(self, *args, toolchain="ise", device_image_arch=None, **kwargs):
         GenericPlatform.__init__(self, *args, **kwargs)
         self.edifs = set()
         self.ips   = {}
@@ -41,7 +41,7 @@ class XilinxPlatform(GenericPlatform):
             self.toolchain = ise.XilinxISEToolchain()
         elif toolchain == "vivado":
             from litex.build.xilinx import vivado
-            self.toolchain = vivado.XilinxVivadoToolchain()
+            self.toolchain = vivado.XilinxVivadoToolchain(device_image_arch=device_image_arch)
         elif toolchain == "symbiflow" or toolchain == "f4pga":
             from litex.build.xilinx import f4pga
             self.toolchain = f4pga.F4PGAToolchain()
@@ -50,6 +50,8 @@ class XilinxPlatform(GenericPlatform):
             self.toolchain = yosys_nextpnr.XilinxYosysNextpnrToolchain(toolchain)
         else:
             raise ValueError(f"Unknown toolchain {toolchain}")
+        if device_image_arch is not None:
+            self._bitstream_ext["sram"] = ".pdi"
 
     def add_edif(self, filename):
         self.edifs.add((os.path.abspath(filename)))
@@ -105,6 +107,29 @@ class XilinxPlatform(GenericPlatform):
         if hasattr(to, "p"):
             to = to.p
         self.toolchain.add_false_path_constraint(self, from_, to)
+
+    def add_generated_clock_from_divider_reg(self, name, reg_basename, divide_by):
+        self.add_platform_command(
+            f"create_generated_clock -name {name} -divide_by {divide_by} "
+            + "-source [get_pins -hierarchical -filter {{NAME =~ *" + reg_basename + "/C}}] "
+            + "[get_pins -hierarchical -filter {{NAME =~ *" + reg_basename + "/Q}}]"
+        )
+
+
+    def add_false_path_constraints_by_name(self, *clock_names):
+        # On Vivado, some generated/internal clocks are only resolvable after synthesis.
+        # Emit explicit set_clock_groups in pre-placement commands for robust resolution.
+        if hasattr(self.toolchain, "pre_placement_commands"):
+            for i, a in enumerate(clock_names):
+                for b in clock_names[i+1:]:
+                    self.toolchain.pre_placement_commands.append(
+                        f"set_clock_groups -asynchronous -group [get_clocks {a}] -group [get_clocks {b}]"
+                    )
+        else:
+            for a in clock_names:
+                for b in clock_names:
+                    if a != b:
+                        self.add_false_path_constraint(a, b)
 
     @classmethod
     def fill_args(cls, toolchain, parser):

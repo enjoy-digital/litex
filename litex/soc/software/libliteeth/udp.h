@@ -30,6 +30,8 @@ void udp_set_broadcast(void);
 #endif /* ETH_UDP_BROADCAST */
 void udp_service(void);
 
+int send_ping(uint32_t ip, unsigned short payload_length);
+
 void eth_init(void);
 void eth_mode(void);
 

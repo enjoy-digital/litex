@@ -7,6 +7,7 @@
 import os
 import sys
 from shutil import which
+from contextlib import contextmanager
 
 from litex.build.generic_programmer import GenericProgrammer
 
@@ -29,10 +30,19 @@ GOWIN_CABLE_FT2CH = 1
 # for all other options, please run 'programmer_cli -h' for details
 # feel free to add any options for your purpose.
 
+@contextmanager
+def _pushd(path):
+    old = os.getcwd()
+    os.chdir(path)
+    try:
+        yield
+    finally:
+        os.chdir(old)
+
 class GowinProgrammer(GenericProgrammer):
     needs_bitreverse = False
 
-    def __init__(self, devname, cable = GOWIN_CABLE_FT2CH):
+    def __init__(self, devname, cable=GOWIN_CABLE_FT2CH):
         self.device = str(devname)
         self.cable = cable
 
@@ -48,15 +58,24 @@ class GowinProgrammer(GenericProgrammer):
 
         self.programmer = "programmer_cli"
 
-        # note for WSL:
-        # gowin programmer_cli not working out of it's directory
         if self.is_wsl or self.is_win32:
             self.programmer += ".exe"
 
-            gw_dir = which(self.programmer)
-            if gw_dir is not None:
-                gw_dir = os.path.dirname(gw_dir)
-                os.chdir(gw_dir)
+        # NOTE:
+        # gowin programmer_cli often does not work out of its directory (e.g. "MAINCMD not found"),
+        # so we always try to resolve its full path and run it from its install directory.
+        self._programmer_path = which(self.programmer)
+        self._programmer_dir  = None
+        if self._programmer_path is not None:
+            self._programmer_dir = os.path.dirname(self._programmer_path)
+
+    def _call(self, cmd_line):
+        print(' '.join(cmd_line))
+        if self._programmer_dir is not None:
+            with _pushd(self._programmer_dir):
+                self.call(cmd_line)
+        else:
+            self.call(cmd_line)
 
     # follow the help information:
     #  1. Gowin programmer does not support start address for embflash!
@@ -104,8 +123,7 @@ class GowinProgrammer(GenericProgrammer):
             cmd_line += ["--mcuFile", str(mcufile)]
 
         cmd_line += ["--cable-index", str(self.cable), "--operation_index", str(pmode)]
-        print(' '.join(cmd_line))
-        self.call(cmd_line)
+        self._call(cmd_line)
 
     def load_bitstream(self, bitstream_file):
         pmode = GOWIN_PMODE_SRAM
@@ -118,4 +136,4 @@ class GowinProgrammer(GenericProgrammer):
             "--fsFile", str(bitfile),
             "--cable-index", str(self.cable),
             "--operation_index", str(pmode)]
-        self.call(cmd_line)
+        self._call(cmd_line)

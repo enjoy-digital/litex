@@ -73,10 +73,11 @@ vpath %.a $(PACKAGES:%=../%)
 	$(CC) $(LDFLAGS) -T $(BIOS_DIRECTORY)/$(LSCRIPT) -N -o $@ \
 		$(OBJECTS) \
 		$(PACKAGES:%=-L../%) \
-		-Wl,--whole-archive \
+		-Wl,--start-group \
+		$(LIBS:lib%=-l%) \
+		-Wl,--end-group \
 		-Wl,--gc-sections \
-		-Wl,-Map,$@.map \
-		$(LIBS:lib%=-l%)
+		-Wl,-Map,$@.map
 
 ifneq ($(OS),Windows_NT)
 	chmod -x $@

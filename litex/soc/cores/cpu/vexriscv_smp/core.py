@@ -445,10 +445,6 @@ class VexRiscvSMP(CPU):
         from litex.build.altera import AlteraPlatform
         if isinstance(platform, AlteraPlatform):
             ram_filename = "Ram_1w_1rs_Intel.v"
-            # define SYNTHESIS verilog name to avoid issues with unsupported
-            # functions
-            platform.toolchain.additional_qsf_commands.append(
-                'set_global_assignment -name VERILOG_MACRO "SYNTHESIS=1"')
         # On Efinix platforms, use specific implementation.
         from litex.build.efinix import EfinixPlatform
         if isinstance(platform, EfinixPlatform):

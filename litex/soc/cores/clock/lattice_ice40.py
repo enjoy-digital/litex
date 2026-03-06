@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2018-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2018-2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
@@ -26,11 +26,12 @@ class iCE40PLL(LiteXModule):
     clko_freq_range = ( 16e6,  275e9)
     vco_freq_range  = (533e6, 1066e6)
 
-    def __init__(self, primitive="SB_PLL40_CORE"):
+    def __init__(self, primitive="SB_PLL40_CORE", name=None):
         assert primitive in ["SB_PLL40_CORE", "SB_PLL40_PAD"]
         self.logger = logging.getLogger("iCE40PLL")
         self.logger.info("Creating iCE40PLL, {} primitive.".format(colorer(primitive)))
         self.primitive  = primitive
+        self.name       = name
         self.reset      = Signal()
         self.locked     = Signal()
         self.clkin_freq = None
@@ -117,4 +118,4 @@ class iCE40PLL(LiteXModule):
             self.params["p_DIVF"]         = config["divf"]
             self.params["p_DIVQ"]         = config["divq"]
             self.params["o_PLLOUTGLOBAL"] = clk
-        self.specials += Instance(self.primitive, **self.params)
+        self.specials += Instance(self.primitive, name=self.name or "", **self.params)

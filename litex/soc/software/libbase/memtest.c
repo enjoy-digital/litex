@@ -85,7 +85,7 @@ int memtest_bus(unsigned int *addr, unsigned long size)
 	}
 
 	/* Flush caches */
-	flush_cpu_dcache();
+	flush_cpu_dcache_range(addr, size);
 	flush_l2_cache();
 
 	/* Read/Verify One/Zero pattern */
@@ -106,7 +106,7 @@ int memtest_bus(unsigned int *addr, unsigned long size)
 	}
 
 	/* Flush caches */
-	flush_cpu_dcache();
+	flush_cpu_dcache_range(addr, size);
 	flush_l2_cache();
 
 	/* Read/Verify One/Zero pattern */
@@ -145,7 +145,7 @@ int memtest_addr(unsigned int *addr, unsigned long size, int random)
 	}
 
 	/* Flush caches */
-	flush_cpu_dcache();
+	flush_cpu_dcache_range(addr, size);
 	flush_l2_cache();
 
 	/* Read/Verify datas */
@@ -214,7 +214,7 @@ int memtest_data(unsigned int *addr, unsigned long size, int random, struct memt
 	}
 
 	/* Flush caches */
-	flush_cpu_dcache();
+	flush_cpu_dcache_range(addr, size);
 	flush_l2_cache();
 
 	/* Read/Verify datas */
@@ -309,7 +309,7 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only, bool rando
 	}
 
 	/* flush caches */
-	flush_cpu_dcache();
+	flush_cpu_dcache_range(addr, size);
 	flush_l2_cache();
 
 	/* Measure Read speed */

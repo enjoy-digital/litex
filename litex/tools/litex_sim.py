@@ -7,9 +7,11 @@
 # Copyright (c) 2020 Antmicro <www.antmicro.com>
 # Copyright (c) 2017 Pierre-Olivier Vauboin <po@lambdaconcept>
 # Copyright (c) 2023 Victor Suarez Rovere <suarezvictor@gmail.com>
+# Copyright (c) 2026 Aoba Fujino <41146f@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import sys
+import subprocess
 import argparse
 
 from migen import *
@@ -28,11 +30,6 @@ from litex.soc.cores.gpio    import GPIOTristate
 from litex.soc.cores.cpu     import CPUS
 from litex.soc.cores.video   import VideoGenericPHY
 
-from litedram           import modules as litedram_modules
-from litedram.modules   import parse_spd_hexdump
-from litedram.phy.model import sdram_module_nphases, get_sdram_phy_settings
-from litedram.phy.model import SDRAMPHYModel
-
 from liteeth.common             import *
 from liteeth.phy.gmii           import LiteEthPHYGMII
 from liteeth.phy.xgmii          import LiteEthPHYXGMII
@@ -44,8 +41,6 @@ from liteeth.core.udp           import LiteEthUDP
 from liteeth.core.icmp          import LiteEthICMP
 from liteeth.core               import LiteEthUDPIPCore
 from liteeth.frontend.etherbone import LiteEthEtherbone
-
-from litescope import LiteScopeAnalyzer
 
 # IOs ----------------------------------------------------------------------------------------------
 
@@ -208,6 +203,10 @@ class SimSoC(SoCCore):
 
         # SDRAM ------------------------------------------------------------------------------------
         if not self.integrated_main_ram_size and with_sdram:
+            from litedram           import modules as litedram_modules
+            from litedram.phy.model import sdram_module_nphases
+            from litedram.phy.model import SDRAMPHYModel
+
             sdram_clk_freq = int(100e6) # FIXME: use 100MHz timings
             if sdram_spd_data is None:
                 sdram_module_cls = getattr(litedram_modules, sdram_module)
@@ -356,6 +355,8 @@ class SimSoC(SoCCore):
 
         # Analyzer ---------------------------------------------------------------------------------
         if with_analyzer:
+            from litescope import LiteScopeAnalyzer
+
             analyzer_signals = [
                 # IBus (could also just added as self.cpu.ibus)
                 self.cpu.ibus.stb,
@@ -425,6 +426,13 @@ def sim_args(parser):
     parser.add_argument("--rom-init",             default=None,            help="ROM init file (.bin or .json).")
     parser.add_argument("--ram-init",             default=None,            help="RAM init file (.bin or .json).")
 
+
+    # UART.
+    parser.add_argument("--uart-tcp",      action="store_true",            help="Use serial2tcp external module for UART.")
+    parser.add_argument("--uart-tcp-port", type=int, default=1234,         help="TCP port for serial2tcp (default: 1234).")
+    parser.add_argument("--uart-pty",      action="store_true",            help="Create a PTY bridged to the UART TCP port (requires socat).")
+    parser.add_argument("--uart-pty-path", default="/tmp/litex_pty0",      help="Path for UART PTY (default: /tmp/litex_pty0).")
+
     # DRAM.
     parser.add_argument("--with-sdram",           action="store_true",     help="Enable SDRAM support.")
     parser.add_argument("--with-sdram-bist",      action="store_true",     help="Enable SDRAM BIST Generator/Checker modules.")
@@ -489,7 +497,25 @@ def main():
     # UART.
     if soc_kwargs["uart_name"] == "serial":
         soc_kwargs["uart_name"] = "sim"
-        sim_config.add_module("serial2console", "serial")
+        # TCP-based UART bridge (serial2tcp).
+        if args.uart_tcp or args.uart_pty:
+            port = args.uart_tcp_port
+            sim_config.add_module("serial2tcp", "serial", args={"port": port})
+            # PTY.
+            if args.uart_pty:
+                port     = args.uart_tcp_port
+                pty_path = args.uart_pty_path
+                cmd = ["socat", f"pty,link={pty_path},raw,echo=0", f"tcp:127.0.0.1:{port},forever,interval=0.1"]
+                try:
+                    socat_proc = subprocess.Popen(cmd)
+                    print(f"[litex_sim] UART PTY created at: {pty_path}")
+                except FileNotFoundError:
+                    print("[litex_sim] ERROR: 'socat' not found. Install socat or disable --uart-pty.")
+                except Exception as e:
+                    print(f"[litex_sim] ERROR: Failed to start socat for UART PTY: {e}")
+        # Console (stdin/stdout) UART bridge (serial2console).
+        else:
+            sim_config.add_module("serial2console", "serial")
 
     # Create config SoC that will be used to prepare/configure real one.
     conf_soc = SimSoC(**soc_kwargs)
@@ -513,6 +539,8 @@ def main():
             )
             ram_boot_address = get_boot_address(args.ram_init)
     elif args.with_sdram:
+        from litedram.modules   import parse_spd_hexdump
+
         assert args.ram_init is None
         soc_kwargs["sdram_module"]     = args.sdram_module
         soc_kwargs["sdram_data_width"] = int(args.sdram_data_width)

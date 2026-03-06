@@ -182,5 +182,5 @@ class GenericToolchain:
                 from_.attr.add("keep")
             if isinstance(to, Signal):
                 to.attr.add("keep")
-        if (to, from_) not in self.false_paths:
+        if (from_, to) not in self.false_paths:
             self.false_paths.add((from_, to))

@@ -88,9 +88,13 @@ class Builder:
         bios_lto         = False,
         bios_format      = "integer",
         bios_console     = "full",
+        libc_mode        = "minimal",
 
         # Documentation.
-        generate_doc     = False):
+        generate_doc     = False,
+
+        # Verilog.
+        hierarchical     = False):
 
         # SoC/Builder Attach.
         self.soc         = soc   # Attach SoC to Builder.
@@ -118,9 +122,13 @@ class Builder:
         self.bios_lto     = bios_lto
         self.bios_format  = bios_format
         self.bios_console = bios_console
+        self.libc_mode    = libc_mode
 
         # Documentation.
         self.generate_doc = generate_doc
+
+        # Verilog.
+        self.hierarchical = hierarchical
 
         # Software packages and libraries.
         self.software_packages  = []
@@ -192,6 +200,7 @@ class Builder:
         define("SOC_DIRECTORY",         soc_directory)
         define("PICOLIBC_DIRECTORY",    picolibc_directory)
         define("PICOLIBC_FORMAT",       self.bios_format)
+        define("LIBC_MODE",             self.libc_mode)
         define("COMPILER_RT_DIRECTORY", compiler_rt_directory)
         variables_contents.append("export BUILDINC_DIRECTORY")
         define("BUILDINC_DIRECTORY", self.include_dir)
@@ -253,6 +262,7 @@ class Builder:
         csr_contents = export.get_csr_header(
             regions   = self.soc.csr_regions,
             constants = self.soc.constants,
+            csr_ordering = self.soc.csr.ordering,
             csr_base  = self.soc.mem_regions["csr"].origin,
             with_access_functions        = True,
             with_fields_access_functions = False,
@@ -276,6 +286,7 @@ class Builder:
         # JSON Export.
         if self.csr_json is not None:
             csr_json_contents = export.get_csr_json(
+                soc         = self.soc,
                 csr_regions = self.soc.csr_regions,
                 constants   = self.soc.constants,
                 mem_regions = self.soc.mem_regions)
@@ -284,6 +295,7 @@ class Builder:
         # CSV Export.
         if self.csr_csv is not None:
             csr_csv_contents = export.get_csr_csv(
+                soc         = self.soc,
                 csr_regions = self.soc.csr_regions,
                 constants   = self.soc.constants,
                 mem_regions = self.soc.mem_regions)
@@ -409,6 +421,9 @@ class Builder:
         if "run" not in kwargs:
             kwargs["run"] = self.compile_gateware
 
+        if "hierarchical" not in kwargs:
+            kwargs["hierarchical"] = self.hierarchical
+
         kwargs["build_backend"] = self.build_backend
 
         # Build SoC and pass Verilog Name Space to do_exit.
@@ -452,10 +467,12 @@ def builder_args(parser):
     builder_group.add_argument("--soc-svd", "--csr-svd",  default=None,        help="Write SoC mapping to the specified SVD file.")
     builder_group.add_argument("--memory-x",              default=None,        help="Write SoC Memory Regions to the specified Memory-X file.")
     builder_group.add_argument("--doc",                   action="store_true", help="Generate SoC Documentation.")
+    builder_group.add_argument("--hierarchical-verilog",  action="store_true", help="Enable hierarchical Verilog generation.")
     bios_group = parser.add_argument_group(title="BIOS options") # FIXME: Move?
     bios_group.add_argument("--bios-lto",     action="store_true", help="Enable BIOS LTO (Link Time Optimization) compilation.")
     bios_group.add_argument("--bios-format",  default="integer",   help="Select BIOS printf format.",  choices=["integer", "float", "double"])
     bios_group.add_argument("--bios-console", default="full"  ,    help="Select BIOS console config.", choices=["full", "no-history", "no-autocomplete", "lite", "disable"])
+    bios_group.add_argument("--libc-mode",    default="minimal",   help="Select LiteX libc build mode.", choices=["full", "minimal"])
 
 def builder_argdict(args):
     return {
@@ -475,4 +492,6 @@ def builder_argdict(args):
         "bios_lto"         : args.bios_lto,
         "bios_format"      : args.bios_format,
         "bios_console"     : args.bios_console,
+        "libc_mode"        : args.libc_mode,
+        "hierarchical"     : args.hierarchical_verilog,
     }

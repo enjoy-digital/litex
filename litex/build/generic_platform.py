@@ -18,6 +18,7 @@ from litex.gen.fhdl import verilog
 
 from litex.build.io import CRG
 from litex.build import tools
+from litex.build.generic_toolchain import GenericToolchain
 
 # --------------------------------------------------------------------------------------------------
 
@@ -214,7 +215,7 @@ class ConstraintManager:
     def add_connector(self, connectors):
         self.connector_manager.add_connector(connectors)
 
-    def request(self, name, number=None, loose=False):
+    def request(self, name, number=None, loose=False, reserve=True):
         resource = _lookup(self.available, name, number, loose)
         if resource is None:
             return None
@@ -239,8 +240,9 @@ class ConstraintManager:
                 obj.platform_info = element.info
                 break
 
-        self.available.remove(resource)
-        self.matched.append((resource, obj))
+        if reserve:
+            self.available.remove(resource)
+            self.matched.append((resource, obj))
         return obj
 
     def request_all(self, name):
@@ -338,7 +340,7 @@ class GenericPlatform:
                           # flash. A dict must be provided otherwise
 
     def __init__(self, device, io, connectors=[], name=None):
-        self.toolchain          = None
+        self.toolchain          = GenericToolchain()
         self.device             = device
         self.constraint_manager = ConstraintManager(io, connectors)
         if name is None:
@@ -380,6 +382,12 @@ class GenericPlatform:
         for a in clk:
             for b in clk:
                 if a is not b:
+                    self.add_false_path_constraint(a, b)
+
+    def add_false_path_constraints_by_name(self, *clock_names):
+        for a in clock_names:
+            for b in clock_names:
+                if a != b:
                     self.add_false_path_constraint(a, b)
 
     def add_platform_command(self, *args, **kwargs):

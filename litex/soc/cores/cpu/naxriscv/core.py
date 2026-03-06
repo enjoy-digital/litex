@@ -311,8 +311,8 @@ class NaxRiscv(CPU):
         cwd = os.getcwd()
         os.chdir(os.path.join(dir))
         wipe_cmd = "&& git clean --force -d -x && git reset --hard" if "wipe" in update else ""
-        checkout_cmd = f"&& git checkout {hash}" if hash is not None else ""
-        subprocess.check_call(f"cd {dir} {wipe_cmd} && git checkout {branch} && git submodule init && git pull --recurse-submodules {checkout_cmd}", shell=True)
+        checkout_cmd = f"&& git checkout {hash} && git submodule update --init --recursive" if hash is not None else ""
+        subprocess.check_call(f"cd {dir} {wipe_cmd} && git checkout {branch} && git pull --recurse-submodules {checkout_cmd}", shell=True)
         os.chdir(cwd)
 
     # Netlist Generation.
@@ -321,7 +321,7 @@ class NaxRiscv(CPU):
         vdir = get_data_mod("cpu", "naxriscv").data_location
         ndir = os.path.join(vdir, "ext", "NaxRiscv")
 
-        NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git", "main", "ba63ee6d", NaxRiscv.update_repo)
+        NaxRiscv.git_setup("NaxRiscv", ndir, "https://github.com/SpinalHDL/NaxRiscv.git", "main", "9f452d5", NaxRiscv.update_repo)
 
         gen_args = []
         gen_args.append(f"--netlist-name={NaxRiscv.netlist_name}")

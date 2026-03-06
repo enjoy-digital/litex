@@ -2,6 +2,7 @@
 # This file is part of LiteX.
 #
 # Copyright (c) 2020 David Corrigan <davidcorrigan714@gmail.com>
+# Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from collections import namedtuple
@@ -126,7 +127,7 @@ class NXPLL(LiteXModule):
     vco_out_freq_range  = ( 800e6,  1600e6)
     instance_num        = 0
 
-    def __init__(self, platform = None, create_output_port_clocks=False):
+    def __init__(self, platform = None, create_output_port_clocks=False, name=None):
         self.logger = logging.getLogger("NXPLL")
         self.logger.info("Creating NXPLL.")
         self.params     = {}
@@ -138,8 +139,11 @@ class NXPLL(LiteXModule):
         self.nclkouts   = 0
         self.clkouts    = {}
         self.config     = {}
-        self.name       = 'PLL_' + str(NXPLL.instance_num)
-        NXPLL.instance_num += 1
+        if name is None:
+            self.name = 'PLL_' + str(NXPLL.instance_num)
+            NXPLL.instance_num += 1
+        else:
+            self.name = name
         self.platform   = platform
         self.create_output_port_clocks = create_output_port_clocks
 
