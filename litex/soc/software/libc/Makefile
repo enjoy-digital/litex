@@ -130,6 +130,7 @@ MINIMAL_PICOLIBC_SRCS = \
 	$(PICOLIBC_SRC_DIR)/libc/stdio/printf.c \
 	$(PICOLIBC_SRC_DIR)/libc/stdio/puts.c \
 	$(PICOLIBC_SRC_DIR)/libc/stdio/strtoul.c \
+	$(PICOLIBC_SRC_DIR)/libc/stdlib/lldiv.c \
 	$(PICOLIBC_SRC_DIR)/libc/machine/riscv/memcpy-asm.S \
 	$(PICOLIBC_SRC_DIR)/libc/machine/riscv/memmove.S \
 	$(PICOLIBC_SRC_DIR)/libc/machine/riscv/memset.S \
