@@ -297,7 +297,6 @@ _overlay_handlers = {
     'sdcard': {
         'handler': peripheral_handler,
         'alias': 'sdhc0',
-        'disable_handler': False,
     },
     'i2c0' : {
         'handler': i2c_handler,
