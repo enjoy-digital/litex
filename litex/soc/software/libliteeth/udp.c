@@ -20,6 +20,10 @@
 #include <libliteeth/inet.h>
 #include <libliteeth/udp.h>
 
+#ifdef ETHMAC_WITH_DMA
+#define ETHMAC_BASE (MAIN_RAM_BASE + ETHMAC_DMA_OFFSET)
+#endif
+
 //#define ETH_UDP_TX_DEBUG
 //#define ETH_UDP_RX_DEBUG
 
@@ -172,6 +176,11 @@ static void send_packet(void)
 	for(j=0;j<txlen;j++)
 		printf("%02x",txbuffer->raw[j]);
 	printf("\n");
+#endif
+
+#ifdef ETHMAC_WITH_DMA
+	flush_cpu_dcache();
+	flush_l2_cache();
 #endif
 
 	/* fill slot, length and send */
@@ -610,6 +619,9 @@ void udp_set_broadcast_callback(udp_callback callback)
 static void process_frame(void)
 {
 	flush_cpu_dcache();
+#ifdef ETHMAC_WITH_DMA
+	flush_l2_cache();
+#endif
 
 #ifdef ETH_UDP_RX_DEBUG
 	int j;
