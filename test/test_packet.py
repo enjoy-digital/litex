@@ -362,6 +362,31 @@ class TestPacket(unittest.TestCase):
             })
         self.packet_fifo_test(layout, packets, payload_depth=9, param_depth=1, buffered=True)
 
+    def test_packet_fifo_param_rollover(self):
+        layout = EndpointDescription(
+            payload_layout=[("data", 8)],
+            param_layout=[("tag", 8), ("kind", 2)],
+        )
+        packets = [
+            {"tag": 0x10 + i, "kind": i % 4, "datas": [0x80 + i]}
+            for i in range(12)
+        ]
+        self.packet_fifo_test(layout, packets, payload_depth=4, param_depth=0, buffered=False)
+
+    def test_packet_fifo_alternating_sizes_buffered(self):
+        layout = EndpointDescription(
+            payload_layout=[("data", 8)],
+            param_layout=[("tag", 8), ("kind", 2)],
+        )
+        packets = []
+        for packet_index in range(10):
+            packets.append({
+                "tag": 0x40 + packet_index,
+                "kind": packet_index % 4,
+                "datas": [(0x20 * (packet_index + 1) + beat) & 0xff for beat in range(1 + (packet_index % 4))],
+            })
+        self.packet_fifo_test(layout, packets, payload_depth=5, param_depth=1, buffered=True)
+
     def test_packetizer_depacketizer_single_byte_payload_with_error(self):
         packets = [
             {
