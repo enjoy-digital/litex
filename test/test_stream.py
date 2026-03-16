@@ -817,3 +817,39 @@ class TestStream(unittest.TestCase):
             param_layout=[("tag", 4)],
         ), cd_from="sys", cd_to="sys", buffered=True)
         self.packetized_flow_test(dut, packets)
+
+    def test_shifter(self):
+        dut = Shifter(8)
+        received = []
+
+        def generator():
+            yield dut.shift.eq(4)
+            for index, data in enumerate([0x12, 0x34, 0x56]):
+                yield dut.sink.valid.eq(1)
+                yield dut.sink.first.eq(index == 0)
+                yield dut.sink.last.eq(index == 2)
+                yield dut.sink.data.eq(data)
+                yield
+                while (yield dut.sink.ready) == 0:
+                    yield
+            yield dut.sink.valid.eq(0)
+            yield dut.sink.first.eq(0)
+            yield dut.sink.last.eq(0)
+
+        def checker():
+            yield dut.source.ready.eq(1)
+            for _ in range(8):
+                if (yield dut.source.valid):
+                    received.append((
+                        (yield dut.source.data),
+                        (yield dut.source.first),
+                        (yield dut.source.last),
+                    ))
+                yield
+
+        run_simulation(dut, [generator(), checker()])
+        self.assertEqual(received, [
+            (0x41, 1, 0),
+            (0x63, 0, 0),
+            (0x65, 0, 1),
+        ])
