@@ -952,3 +952,78 @@ class TestStream(unittest.TestCase):
             (0x63, 0, 0),
             (0x65, 0, 1),
         ])
+
+    def test_monitor(self):
+        endpoint = Endpoint([("data", 8)])
+
+        class DUT(Module):
+            def __init__(self):
+                self.endpoint = endpoint
+                self.submodules.monitor = Monitor(
+                    endpoint,
+                    with_tokens=True,
+                    with_overflows=True,
+                    with_underflows=True,
+                    with_packets=True,
+                )
+
+        dut = DUT()
+        observations = {}
+
+        def stimulus():
+            yield dut.endpoint.valid.eq(1)
+            yield dut.endpoint.ready.eq(1)
+            yield dut.endpoint.first.eq(1)
+            yield dut.endpoint.last.eq(0)
+            yield
+
+            yield dut.endpoint.first.eq(0)
+            yield dut.endpoint.last.eq(1)
+            yield
+
+            yield dut.endpoint.valid.eq(1)
+            yield dut.endpoint.ready.eq(0)
+            yield dut.endpoint.last.eq(0)
+            yield
+
+            yield dut.endpoint.valid.eq(0)
+            yield dut.endpoint.ready.eq(1)
+            yield
+
+            yield dut.monitor.latch.eq(1)
+            yield
+            yield dut.monitor.latch.eq(0)
+            for _ in range(4):
+                yield
+            observations["tokens"] = (yield dut.monitor._tokens.status)
+            observations["overflows"] = (yield dut.monitor._overflows.status)
+            observations["underflows"] = (yield dut.monitor._underflows.status)
+            observations["packets"] = (yield dut.monitor._packets.status)
+
+            yield dut.endpoint.ready.eq(0)
+            yield
+            yield dut.monitor.reset.eq(1)
+            yield
+            yield dut.monitor.reset.eq(0)
+            yield
+            yield dut.monitor.latch.eq(1)
+            yield
+            yield dut.monitor.latch.eq(0)
+            for _ in range(4):
+                yield
+            observations["tokens_after_reset"] = (yield dut.monitor._tokens.status)
+            observations["overflows_after_reset"] = (yield dut.monitor._overflows.status)
+            observations["underflows_after_reset"] = (yield dut.monitor._underflows.status)
+            observations["packets_after_reset"] = (yield dut.monitor._packets.status)
+
+        run_simulation(dut, stimulus())
+        self.assertEqual(observations, {
+            "tokens": 2,
+            "overflows": 1,
+            "underflows": 1,
+            "packets": 1,
+            "tokens_after_reset": 0,
+            "overflows_after_reset": 0,
+            "underflows_after_reset": 0,
+            "packets_after_reset": 0,
+        })
