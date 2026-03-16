@@ -192,6 +192,7 @@ class Packetizer(LiteXModule):
             If(sink.valid,
                 sink.ready.eq(0),
                 source.valid.eq(1),
+                source.first.eq(1),
                 source.last.eq(0),
                 source.data.eq(self.header[:data_width]),
                 If(source.valid & source.ready,
@@ -207,6 +208,7 @@ class Packetizer(LiteXModule):
         )
         fsm.act("HEADER-SEND",
             source.valid.eq(1),
+            source.first.eq(0),
             source.last.eq(0),
             source.data.eq(sr[min(data_width, len(sr)-1):]),
             If(source.valid & source.ready,
@@ -222,6 +224,7 @@ class Packetizer(LiteXModule):
         )
         fsm.act("ALIGNED-DATA-COPY",
             source.valid.eq(sink.valid),
+            source.first.eq(0),
             source.last.eq(sink.last),
             source.data.eq(sink.data),
             If(source.valid & source.ready,
@@ -236,6 +239,7 @@ class Packetizer(LiteXModule):
             self.sync += If(source.ready, sink_d.eq(sink))
             fsm.act("UNALIGNED-DATA-COPY",
                 source.valid.eq(sink.valid | sink_d.last),
+                source.first.eq(0),
                 source.last.eq(sink_d.last),
                 If(fsm_from_idle,
                     source.data[:max(header_leftover*8, 1)].eq(sr[min(header_offset_multiplier*data_width, len(sr)-1):])
@@ -279,6 +283,7 @@ class Depacketizer(LiteXModule):
         sr_shift_leftover = Signal()
         count             = Signal(max=max(header_words, 2))
         sink_d            = stream.Endpoint(sink_description)
+        data_copy_first   = Signal()
 
         # Header Shift/Decode.
         if (header_words) == 1 and (header_leftover == 0):
@@ -300,6 +305,7 @@ class Depacketizer(LiteXModule):
             If(sink.valid,
                 sr_shift.eq(1),
                 NextValue(fsm_from_idle, 1),
+                NextValue(data_copy_first, 1),
                 If(header_words == 1,
                     NextState("ALIGNED-DATA-COPY" if aligned else "UNALIGNED-DATA-COPY"),
                 ).Else(
@@ -313,6 +319,7 @@ class Depacketizer(LiteXModule):
                 NextValue(count, count + 1),
                 sr_shift.eq(1),
                 If(count == (header_words - 1),
+                    NextValue(data_copy_first, 1),
                     NextState("ALIGNED-DATA-COPY" if aligned else "UNALIGNED-DATA-COPY"),
                     NextValue(count, count + 1),
                 )
@@ -320,10 +327,13 @@ class Depacketizer(LiteXModule):
         )
         fsm.act("ALIGNED-DATA-COPY",
             source.valid.eq(sink.valid | sink_d.last),
+            source.first.eq(data_copy_first),
             source.last.eq(sink.last | sink_d.last),
             sink.ready.eq(source.ready),
             source.data.eq(sink.data),
             If(source.valid & source.ready,
+               NextValue(data_copy_first, 0),
+               NextValue(fsm_from_idle, 0),
                If(source.last,
                   NextState("IDLE")
                )
@@ -334,6 +344,7 @@ class Depacketizer(LiteXModule):
             self.sync += If(sink.valid & sink.ready, sink_d.eq(sink))
             fsm.act("UNALIGNED-DATA-COPY",
                 source.valid.eq(sink.valid | sink_d.last),
+                source.first.eq(data_copy_first & source.valid),
                 source.last.eq(sink.last | sink_d.last),
                 sink.ready.eq(source.ready),
                 source.data.eq(sink_d.data[header_leftover*8:]),
@@ -347,6 +358,8 @@ class Depacketizer(LiteXModule):
                     )
                 ),
                 If(source.valid & source.ready,
+                    NextValue(data_copy_first, 0),
+                    NextValue(fsm_from_idle, 0),
                     If(source.last,
                         NextState("IDLE")
                     )

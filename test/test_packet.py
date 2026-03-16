@@ -221,6 +221,7 @@ class TestPacket(unittest.TestCase):
         def checker(dut, ready_rand=50):
             dut.header_errors = 0
             dut.data_errors   = 0
+            dut.first_errors  = 0
             dut.last_errors   = 0
             # Receive and check packets
             for packet in packets:
@@ -231,16 +232,18 @@ class TestPacket(unittest.TestCase):
                         yield
                     while prng.randrange(100) < ready_rand:
                         yield
-                    yield dut.source.ready.eq(1)
-                    yield
                     for field in ["field_8b", "field_16b", "field_32b", "field_64b", "field_128b"]:
                         if (yield getattr(dut.source, field)) != packet.header[field]:
                             dut.header_errors += 1
                     #print("{:x} vs {:x}".format((yield dut.source.data), data))
                     if ((yield dut.source.data) != data):
                         dut.data_errors += 1
+                    if ((yield dut.source.first) != (n == 0)):
+                        dut.first_errors += 1
                     if ((yield dut.source.last) != (n == (len(packet.datas) - 1))):
                         dut.last_errors += 1
+                    yield dut.source.ready.eq(1)
+                    yield
             yield
 
         class DUT(Module):
@@ -255,6 +258,7 @@ class TestPacket(unittest.TestCase):
         run_simulation(dut, [generator(dut), checker(dut)])
         self.assertEqual(dut.header_errors, 0)
         self.assertEqual(dut.data_errors,   0)
+        self.assertEqual(dut.first_errors,  0)
         self.assertEqual(dut.last_errors,   0)
 
     def test_8bit_loopback(self):
@@ -428,14 +432,52 @@ class TestPacket(unittest.TestCase):
             {
                 "field_8b": 0x12, "field_16b": 0x3456, "field_32b": 0x789abcde,
                 "field_64b": 0x0123456789abcdef, "field_128b": 0x112233445566778899aabbccddeeff00,
-                "error": 0, "data": 0xab, "first": 0, "last": 1,
+                "error": 0, "data": 0xab, "first": 1, "last": 1,
             },
             {
                 "field_8b": 0x9a, "field_16b": 0xbcde, "field_32b": 0xfedcba98,
                 "field_64b": 0x0fedcba987654321, "field_128b": 0xffeeddccbbaa99887766554433221100,
-                "error": 1, "data": 0xcd, "first": 0, "last": 1,
+                "error": 1, "data": 0xcd, "first": 1, "last": 1,
             },
         ])
+
+    def test_packetizer_sets_first_on_header(self):
+        class DUT(Module):
+            def __init__(self):
+                self.submodules.packetizer = Packetizer(packet_description(32), raw_description(32), packet_header)
+                self.sink = self.packetizer.sink
+                self.source = self.packetizer.source
+
+        dut = DUT()
+        observed = []
+
+        def generator():
+            yield dut.source.ready.eq(1)
+            yield dut.sink.field_8b.eq(0x12)
+            yield dut.sink.field_16b.eq(0x3456)
+            yield dut.sink.field_32b.eq(0x789abcde)
+            yield dut.sink.field_64b.eq(0x0123456789abcdef)
+            yield dut.sink.field_128b.eq(0x112233445566778899aabbccddeeff00)
+            for index, data in enumerate([0x11, 0x22]):
+                yield dut.sink.valid.eq(1)
+                yield dut.sink.first.eq(index == 0)
+                yield dut.sink.last.eq(index == 1)
+                yield dut.sink.data.eq(data)
+                yield
+                while (yield dut.sink.ready) == 0:
+                    if (yield dut.source.valid):
+                        observed.append(((yield dut.source.first), (yield dut.source.last)))
+                    yield
+            yield dut.sink.valid.eq(0)
+            for _ in range(12):
+                if (yield dut.source.valid):
+                    observed.append(((yield dut.source.first), (yield dut.source.last)))
+                yield
+
+        run_simulation(dut, generator())
+        self.assertGreater(len(observed), 0)
+        self.assertEqual(observed[0][0], 1)
+        self.assertTrue(all(first == 0 for first, _ in observed[1:]))
 
     def test_arbiter_packet_lock(self):
         layout = EndpointDescription(payload_layout=[("data", 8)], param_layout=[("tag", 4)])
