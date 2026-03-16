@@ -127,3 +127,76 @@ class TestPacket(unittest.TestCase):
 
     def test_128bit_loopback(self):
         self.loopback_test(dw=128)
+
+    def packet_fifo_test(self, layout, packets, payload_depth, param_depth=None, buffered=False):
+        prng = random.Random(42)
+
+        def generator(dut, valid_rand=60):
+            for packet in packets:
+                for index, data in enumerate(packet["datas"]):
+                    yield dut.sink.valid.eq(1)
+                    yield dut.sink.first.eq(index == 0)
+                    yield dut.sink.last.eq(index == (len(packet["datas"]) - 1))
+                    yield dut.sink.data.eq(data)
+                    if "tag" in packet:
+                        yield dut.sink.tag.eq(packet["tag"])
+                    if "kind" in packet:
+                        yield dut.sink.kind.eq(packet["kind"])
+                    yield
+                    while (yield dut.sink.ready) == 0:
+                        yield
+                    yield dut.sink.valid.eq(0)
+                    yield dut.sink.first.eq(0)
+                    yield dut.sink.last.eq(0)
+                    while prng.randrange(100) < valid_rand:
+                        yield
+
+        def checker(dut, ready_rand=60):
+            dut.errors = 0
+            for packet in packets:
+                for index, data in enumerate(packet["datas"]):
+                    yield dut.source.ready.eq(0)
+                    yield
+                    while (yield dut.source.valid) == 0:
+                        yield
+                    while prng.randrange(100) < ready_rand:
+                        yield
+                    if (yield dut.source.data) != data:
+                        dut.errors += 1
+                    if (yield dut.source.first) != (index == 0):
+                        dut.errors += 1
+                    if (yield dut.source.last) != (index == (len(packet["datas"]) - 1)):
+                        dut.errors += 1
+                    if "tag" in packet and (yield dut.source.tag) != packet["tag"]:
+                        dut.errors += 1
+                    if "kind" in packet and (yield dut.source.kind) != packet["kind"]:
+                        dut.errors += 1
+                    yield dut.source.ready.eq(1)
+                    yield
+            yield
+
+        dut = PacketFIFO(layout, payload_depth=payload_depth, param_depth=param_depth, buffered=buffered)
+        run_simulation(dut, [generator(dut), checker(dut)])
+        self.assertEqual(dut.errors, 0)
+
+    def test_packet_fifo_with_params(self):
+        layout = EndpointDescription(
+            payload_layout=[("data", 8)],
+            param_layout=[("tag", 8), ("kind", 2)],
+        )
+        packets = [
+            {"tag": 0x11, "kind": 0, "datas": [0x10]},
+            {"tag": 0x22, "kind": 1, "datas": [0x20, 0x21, 0x22]},
+            {"tag": 0x33, "kind": 2, "datas": [0x30, 0x31]},
+            {"tag": 0x44, "kind": 3, "datas": [0x40, 0x41, 0x42, 0x43]},
+        ]
+        self.packet_fifo_test(layout, packets, payload_depth=8, param_depth=2, buffered=True)
+
+    def test_packet_fifo_without_params(self):
+        layout = EndpointDescription(payload_layout=[("data", 8)])
+        packets = [
+            {"datas": [0x01]},
+            {"datas": [0x10, 0x11]},
+            {"datas": [0x20, 0x21, 0x22]},
+        ]
+        self.packet_fifo_test(layout, packets, payload_depth=6, buffered=False)
