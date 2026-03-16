@@ -41,6 +41,45 @@ class Packet:
 
 
 class TestPacket(unittest.TestCase):
+    def test_status_transitions(self):
+        endpoint = Endpoint([("data", 8)])
+
+        class DUT(Module):
+            def __init__(self):
+                self.endpoint = endpoint
+                self.submodules.status = Status(endpoint)
+
+        dut = DUT()
+        observations = []
+
+        def stimulus(dut):
+            observations.append(((yield dut.status.first), (yield dut.status.last), (yield dut.status.ongoing)))
+
+            yield dut.endpoint.valid.eq(1)
+            yield dut.endpoint.first.eq(1)
+            yield dut.endpoint.last.eq(0)
+            yield dut.endpoint.ready.eq(1)
+            yield
+            observations.append(((yield dut.status.first), (yield dut.status.last), (yield dut.status.ongoing)))
+
+            yield dut.endpoint.first.eq(0)
+            yield dut.endpoint.last.eq(1)
+            yield
+            observations.append(((yield dut.status.first), (yield dut.status.last), (yield dut.status.ongoing)))
+
+            yield dut.endpoint.valid.eq(0)
+            yield dut.endpoint.last.eq(0)
+            yield
+            observations.append(((yield dut.status.first), (yield dut.status.last), (yield dut.status.ongoing)))
+
+        run_simulation(dut, stimulus(dut))
+        self.assertEqual(observations, [
+            (1, 0, 0),
+            (1, 0, 1),
+            (0, 1, 0),
+            (1, 0, 0),
+        ])
+
     def loopback_test(self, dw):
         prng = random.Random(42)
         # Prepare packets
@@ -200,3 +239,155 @@ class TestPacket(unittest.TestCase):
             {"datas": [0x20, 0x21, 0x22]},
         ]
         self.packet_fifo_test(layout, packets, payload_depth=6, buffered=False)
+
+    def test_arbiter_packet_lock(self):
+        layout = EndpointDescription(payload_layout=[("data", 8)], param_layout=[("tag", 4)])
+
+        class DUT(Module):
+            def __init__(self):
+                self.sink0 = Endpoint(layout)
+                self.sink1 = Endpoint(layout)
+                self.source = Endpoint(layout)
+                self.submodules.arbiter = Arbiter([self.sink0, self.sink1], self.source)
+
+        dut = DUT()
+        received = []
+
+        def sink0_gen():
+            yield dut.sink0.tag.eq(0)
+            yield dut.sink0.valid.eq(1)
+            yield dut.sink0.first.eq(1)
+            yield dut.sink0.data.eq(0x10)
+            yield
+            while (yield dut.sink0.ready) == 0:
+                yield
+            yield dut.sink0.first.eq(0)
+            yield dut.sink0.last.eq(1)
+            yield dut.sink0.data.eq(0x11)
+            yield
+            while (yield dut.sink0.ready) == 0:
+                yield
+            yield dut.sink0.valid.eq(0)
+            yield dut.sink0.last.eq(0)
+
+        def sink1_gen():
+            yield
+            yield dut.sink1.tag.eq(1)
+            yield dut.sink1.valid.eq(1)
+            yield dut.sink1.first.eq(1)
+            yield dut.sink1.data.eq(0x20)
+            yield
+            while (yield dut.sink1.ready) == 0:
+                yield
+            yield dut.sink1.first.eq(0)
+            yield dut.sink1.last.eq(1)
+            yield dut.sink1.data.eq(0x21)
+            yield
+            while (yield dut.sink1.ready) == 0:
+                yield
+            yield dut.sink1.valid.eq(0)
+            yield dut.sink1.last.eq(0)
+
+        def source_check():
+            for _ in range(4):
+                while (yield dut.source.valid) == 0:
+                    yield dut.source.ready.eq(1)
+                    yield
+                received.append({
+                    "data":  (yield dut.source.data),
+                    "tag":   (yield dut.source.tag),
+                    "first": (yield dut.source.first),
+                    "last":  (yield dut.source.last),
+                })
+                yield dut.source.ready.eq(1)
+                yield
+            yield dut.source.ready.eq(0)
+
+        run_simulation(dut, [sink0_gen(), sink1_gen(), source_check()])
+        self.assertEqual(received, [
+            {"data": 0x10, "tag": 0, "first": 1, "last": 0},
+            {"data": 0x11, "tag": 0, "first": 0, "last": 1},
+            {"data": 0x20, "tag": 1, "first": 1, "last": 0},
+            {"data": 0x21, "tag": 1, "first": 0, "last": 1},
+        ])
+
+    def dispatcher_hold_sel_test(self, one_hot):
+        layout = EndpointDescription(payload_layout=[("data", 8)], param_layout=[("tag", 4)])
+
+        class DUT(Module):
+            def __init__(self):
+                self.sink = Endpoint(layout)
+                self.source0 = Endpoint(layout)
+                self.source1 = Endpoint(layout)
+                self.submodules.dispatcher = Dispatcher(self.sink, [self.source0, self.source1], one_hot=one_hot)
+
+        dut = DUT()
+        received0 = []
+        received1 = []
+
+        def generator():
+            yield dut.dispatcher.sel.eq(1 if one_hot else 0)
+            yield dut.sink.tag.eq(0xA)
+            yield dut.sink.valid.eq(1)
+            yield dut.sink.first.eq(1)
+            yield dut.sink.data.eq(0x30)
+            yield
+            while (yield dut.sink.ready) == 0:
+                yield
+
+            yield dut.dispatcher.sel.eq(2 if one_hot else 1)
+            yield dut.sink.first.eq(0)
+            yield dut.sink.data.eq(0x31)
+            yield
+            while (yield dut.sink.ready) == 0:
+                yield
+
+            yield dut.sink.last.eq(1)
+            yield dut.sink.data.eq(0x32)
+            yield
+            while (yield dut.sink.ready) == 0:
+                yield
+
+            yield dut.sink.valid.eq(0)
+            yield dut.sink.last.eq(0)
+            yield
+
+            yield dut.sink.tag.eq(0xB)
+            yield dut.sink.valid.eq(1)
+            yield dut.sink.first.eq(1)
+            yield dut.sink.last.eq(1)
+            yield dut.sink.data.eq(0x40)
+            yield
+            while (yield dut.sink.ready) == 0:
+                yield
+            yield dut.sink.valid.eq(0)
+            yield dut.sink.first.eq(0)
+            yield dut.sink.last.eq(0)
+
+        def source_collector(source, received):
+            yield source.ready.eq(1)
+            for _ in range(8):
+                if (yield source.valid):
+                    received.append({
+                        "data":  (yield source.data),
+                        "tag":   (yield source.tag),
+                        "first": (yield source.first),
+                        "last":  (yield source.last),
+                    })
+                yield
+
+        run_simulation(dut, [generator(), source_collector(dut.source0, received0), source_collector(dut.source1, received1)])
+        self.assertEqual(received0, [
+            {"data": 0x30, "tag": 0xA, "first": 1, "last": 0},
+            {"data": 0x31, "tag": 0xA, "first": 0, "last": 0},
+            {"data": 0x32, "tag": 0xA, "first": 0, "last": 1},
+        ])
+        self.assertEqual(received1, [
+            {"data": 0x40, "tag": 0xB, "first": 1, "last": 1},
+        ])
+
+    def test_dispatcher_hold_sel(self):
+        self.dispatcher_hold_sel_test(one_hot=False)
+
+    def test_dispatcher_hold_sel_one_hot(self):
+        self.dispatcher_hold_sel_test(one_hot=True)
