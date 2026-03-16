@@ -23,6 +23,7 @@ class Status(LiteXModule):
         self.ongoing = Signal()
 
         ongoing = Signal()
+        # Derive packet state from accepted beats.
         self.comb += self.last.eq(endpoint.valid & endpoint.last & endpoint.ready)
         self.comb += self.ongoing.eq((endpoint.valid | ongoing) & ~self.last)
         self.sync += [
@@ -77,6 +78,7 @@ class Dispatcher(LiteXModule):
             sel = Signal.like(self.sel)
             sel_ongoing = Signal.like(self.sel)
             sel_locked = Signal()
+            # Hold the route from first beat to packet completion.
             self.sync += [
                 If(status.last,
                     sel_locked.eq(0)
@@ -240,6 +242,7 @@ class Packetizer(LiteXModule):
         )
         if not aligned:
             header_offset_multiplier = 1 if header_words == 1 else 2
+            # Keep the previous beat for the unaligned boundary.
             self.sync += If(source.ready, sink_d.eq(sink))
             fsm.act("UNALIGNED-DATA-COPY",
                 source.valid.eq(sink.valid | sink_d.last),
@@ -348,6 +351,7 @@ class Depacketizer(LiteXModule):
         )
 
         if not aligned:
+            # Keep the previous raw word for the unaligned boundary.
             self.sync += If(sink.valid & sink.ready, sink_d.eq(sink))
             fsm.act("UNALIGNED-DATA-COPY",
                 source.valid.eq(sink.valid | sink_d.last),
@@ -400,6 +404,7 @@ class PacketFIFO(LiteXModule):
         # Create the FIFOs.
         payload_description = stream.EndpointDescription(payload_layout=payload_layout)
         param_description   = stream.EndpointDescription(param_layout=param_layout)
+        # Allow param dequeue/enqueue overlap on packet boundaries.
         param_depth         = param_depth + 1 # +1 to allow dequeuing current while enqueuing next.
         self.payload_fifo = payload_fifo = stream.SyncFIFO(payload_description, payload_depth, buffered)
         self.param_fifo   = param_fifo   = stream.SyncFIFO(param_description,   param_depth,   buffered)

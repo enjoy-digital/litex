@@ -354,6 +354,7 @@ class Crossbar(LiteXModule):
 
         # # #
 
+        # Re-export the per-port endpoints.
         for i in range(n):
             setattr(self, f"sink{i}", getattr(self.mux,   f"sink{i}"))
             setattr(self, f"source{i}", getattr(self.demux, f"source{i}"))
@@ -400,6 +401,7 @@ class _UpConverter(LiteXModule):
         demux_last = ((demux == (ratio - 1)) | sink.last)
 
         self.sync += [
+            # Accumulate until full width or packet termination.
             If(source.ready, strobe_all.eq(0)),
             If(load_part,
                 If(demux_last,
@@ -581,6 +583,7 @@ class StrideConverter(LiteXModule):
         if converter.latency == 0:
             self.comb += source.param.eq(sink.param)
         elif converter.latency == 1:
+            # Sample params with the buffered output word.
             self.sync += If(converter.sink.valid & converter.sink.ready, source.param.eq(sink.param))
         else:
             raise ValueError
@@ -674,6 +677,7 @@ class Shifter(PipelinedActor):
             r[dw:].eq(sink.data)
         )
 
+        # Keep shift aligned with the pipelined data path.
         shift_pipe = self.shift
         for _ in range(self.latency):
             shift_n = Signal.like(self.shift, reset_less=True)
