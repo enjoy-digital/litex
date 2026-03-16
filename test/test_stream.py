@@ -63,11 +63,17 @@ class TestStream(unittest.TestCase):
         def generator(dut, valid_rand=90):
             for data in range(128):
                 yield dut.sink.valid.eq(1)
+                yield dut.sink.first.eq((data % 7) == 0)
+                yield dut.sink.last.eq((data % 7) == 6)
                 yield dut.sink.data.eq(data)
+                if hasattr(dut.sink, "tag"):
+                    yield dut.sink.tag.eq(data % 16)
                 yield
                 while (yield dut.sink.ready) == 0:
                     yield
                 yield dut.sink.valid.eq(0)
+                yield dut.sink.first.eq(0)
+                yield dut.sink.last.eq(0)
                 while prng.randrange(100) < valid_rand:
                     yield
 
@@ -84,28 +90,49 @@ class TestStream(unittest.TestCase):
                 yield
                 if ((yield dut.source.data) != data):
                     dut.errors += 1
+                if ((yield dut.source.first) != ((data % 7) == 0)):
+                    dut.errors += 1
+                if ((yield dut.source.last) != ((data % 7) == 6)):
+                    dut.errors += 1
+                if hasattr(dut.source, "tag") and ((yield dut.source.tag) != (data % 16)):
+                    dut.errors += 1
             yield
         run_simulation(dut, [generator(dut), checker(dut)])
         self.assertEqual(dut.errors, 0)
 
     def test_pipe_valid(self):
-        dut = PipeValid([("data", 8)])
+        dut = PipeValid(EndpointDescription(
+            payload_layout=[("data", 8)],
+            param_layout=[("tag", 4)],
+        ))
         self.pipe_test(dut)
 
     def test_pipe_ready(self):
-        dut = PipeReady([("data", 8)])
+        dut = PipeReady(EndpointDescription(
+            payload_layout=[("data", 8)],
+            param_layout=[("tag", 4)],
+        ))
         self.pipe_test(dut)
 
     def test_buffer_valid(self):
-        dut = Buffer([("data", 8)], pipe_valid=True, pipe_ready=False)
+        dut = Buffer(EndpointDescription(
+            payload_layout=[("data", 8)],
+            param_layout=[("tag", 4)],
+        ), pipe_valid=True, pipe_ready=False)
         self.pipe_test(dut)
 
     def test_buffer_ready(self):
-        dut = Buffer([("data", 8)], pipe_valid=False, pipe_ready=True)
+        dut = Buffer(EndpointDescription(
+            payload_layout=[("data", 8)],
+            param_layout=[("tag", 4)],
+        ), pipe_valid=False, pipe_ready=True)
         self.pipe_test(dut)
 
     def test_buffer_valid_ready(self):
-        dut = Buffer([("data", 8)], pipe_valid=True, pipe_ready=True)
+        dut = Buffer(EndpointDescription(
+            payload_layout=[("data", 8)],
+            param_layout=[("tag", 4)],
+        ), pipe_valid=True, pipe_ready=True)
         self.pipe_test(dut)
 
     def test_syncfifo_depth0(self):
