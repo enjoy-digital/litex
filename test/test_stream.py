@@ -1174,6 +1174,85 @@ class TestStream(unittest.TestCase):
         run_simulation(dut, generators, clocks)
         self.assertEqual(dut.errors, 0)
 
+    def async_fifo_test(self, buffered):
+        class DUT(Module):
+            def __init__(self):
+                self.clock_domains.cd_write = ClockDomain("write")
+                self.clock_domains.cd_read  = ClockDomain("read")
+                self.submodules.fifo = ClockDomainsRenamer({"write": "write", "read": "read"})(AsyncFIFO(
+                    EndpointDescription(
+                        payload_layout=[("data", 8)],
+                        param_layout=[("tag", 4)],
+                    ),
+                    depth=8,
+                    buffered=buffered,
+                ))
+                self.sink = self.fifo.sink
+                self.source = self.fifo.source
+
+        dut = DUT()
+        packets = [
+            {"tag": 0x1, "datas": [0x10, 0x11, 0x12]},
+            {"tag": 0x2, "datas": [0x20]},
+            {"tag": 0x3, "datas": [0x30, 0x31]},
+        ]
+        dut.errors = 0
+
+        def generator():
+            for packet in packets:
+                for index, data in enumerate(packet["datas"]):
+                    yield dut.sink.valid.eq(1)
+                    yield dut.sink.first.eq(index == 0)
+                    yield dut.sink.last.eq(index == (len(packet["datas"]) - 1))
+                    yield dut.sink.data.eq(data)
+                    yield dut.sink.tag.eq(packet["tag"])
+                    yield
+                    while (yield dut.sink.ready) == 0:
+                        yield
+                yield dut.sink.valid.eq(0)
+                yield dut.sink.first.eq(0)
+                yield dut.sink.last.eq(0)
+                for _ in range(2):
+                    yield
+
+        def checker():
+            prng = random.Random(5 if buffered else 4)
+            for packet in packets:
+                for index, data in enumerate(packet["datas"]):
+                    yield dut.source.ready.eq(0)
+                    yield
+                    while (yield dut.source.valid) == 0:
+                        yield
+                    while prng.randrange(100) < 40:
+                        yield
+                    if (yield dut.source.data) != data:
+                        dut.errors += 1
+                    if (yield dut.source.tag) != packet["tag"]:
+                        dut.errors += 1
+                    if (yield dut.source.first) != (index == 0):
+                        dut.errors += 1
+                    if (yield dut.source.last) != (index == (len(packet["datas"]) - 1)):
+                        dut.errors += 1
+                    yield dut.source.ready.eq(1)
+                    yield
+
+        clocks = {
+            "write": 10,
+            "read":  7,
+        }
+        generators = {
+            "write": [generator()],
+            "read":  [checker()],
+        }
+        run_simulation(dut, generators, clocks)
+        self.assertEqual(dut.errors, 0)
+
+    def test_asyncfifo(self):
+        self.async_fifo_test(buffered=False)
+
+    def test_asyncfifo_buffered(self):
+        self.async_fifo_test(buffered=True)
+
     def test_shifter(self):
         dut = Shifter(8)
         received = []
