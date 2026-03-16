@@ -397,6 +397,44 @@ class TestStream(unittest.TestCase):
             (0x33, 0x22, 9, 0, 1),
         ])
 
+    def test_pack_reverse(self):
+        dut = Pack(EndpointDescription(
+            payload_layout=[("data", 8)],
+            param_layout=[("tag", 4)],
+        ), n=2, reverse=True)
+        received = []
+
+        def generator():
+            for index, data in enumerate([0x11, 0x22]):
+                yield dut.sink.valid.eq(1)
+                yield dut.sink.first.eq(index == 0)
+                yield dut.sink.last.eq(index == 1)
+                yield dut.sink.data.eq(data)
+                yield dut.sink.tag.eq(3)
+                yield
+                while (yield dut.sink.ready) == 0:
+                    yield
+            yield dut.sink.valid.eq(0)
+            yield dut.sink.last.eq(0)
+
+        def checker():
+            yield dut.source.ready.eq(1)
+            for _ in range(4):
+                if (yield dut.source.valid):
+                    received.append((
+                        (yield dut.source.chunk0.data),
+                        (yield dut.source.chunk1.data),
+                        (yield dut.source.tag),
+                        (yield dut.source.first),
+                        (yield dut.source.last),
+                    ))
+                yield
+
+        run_simulation(dut, [generator(), checker()])
+        self.assertEqual(received, [
+            (0x22, 0x11, 3, 1, 1),
+        ])
+
     def test_unpack(self):
         dut = Unpack(2, EndpointDescription(
             payload_layout=[("data", 8)],
@@ -432,6 +470,43 @@ class TestStream(unittest.TestCase):
         self.assertEqual(received, [
             (0x44, 10, 1, 0),
             (0x55, 10, 0, 1),
+        ])
+
+    def test_unpack_reverse(self):
+        dut = Unpack(2, EndpointDescription(
+            payload_layout=[("data", 8)],
+            param_layout=[("tag", 4)],
+        ), reverse=True)
+        received = []
+
+        def generator():
+            yield dut.sink.valid.eq(1)
+            yield dut.sink.first.eq(1)
+            yield dut.sink.last.eq(1)
+            yield dut.sink.chunk0.data.eq(0x44)
+            yield dut.sink.chunk1.data.eq(0x55)
+            yield dut.sink.tag.eq(7)
+            yield
+            while (yield dut.sink.ready) == 0:
+                yield
+            yield dut.sink.valid.eq(0)
+
+        def checker():
+            yield dut.source.ready.eq(1)
+            for _ in range(4):
+                if (yield dut.source.valid):
+                    received.append((
+                        (yield dut.source.data),
+                        (yield dut.source.tag),
+                        (yield dut.source.first),
+                        (yield dut.source.last),
+                    ))
+                yield
+
+        run_simulation(dut, [generator(), checker()])
+        self.assertEqual(received, [
+            (0x55, 7, 1, 0),
+            (0x44, 7, 0, 1),
         ])
 
     def test_converter_up_valid_token_count(self):
@@ -499,6 +574,97 @@ class TestStream(unittest.TestCase):
             (0x33, 0, 0),
             (0x44, 0, 1),
         ])
+
+    def test_converter_up_reverse(self):
+        dut = Converter(8, 16, reverse=True, report_valid_token_count=True)
+        received = []
+
+        def generator():
+            for index, data in enumerate([0x11, 0x22]):
+                yield dut.sink.valid.eq(1)
+                yield dut.sink.first.eq(index == 0)
+                yield dut.sink.last.eq(index == 1)
+                yield dut.sink.data.eq(data)
+                yield
+                while (yield dut.sink.ready) == 0:
+                    yield
+            yield dut.sink.valid.eq(0)
+            yield dut.sink.last.eq(0)
+
+        def checker():
+            yield dut.source.ready.eq(1)
+            for _ in range(4):
+                if (yield dut.source.valid):
+                    received.append((
+                        (yield dut.source.data),
+                        (yield dut.source.valid_token_count),
+                        (yield dut.source.first),
+                        (yield dut.source.last),
+                    ))
+                yield
+
+        run_simulation(dut, [generator(), checker()])
+        self.assertEqual(received, [
+            (0x1122, 2, 1, 1),
+        ])
+
+    def test_converter_down_reverse(self):
+        dut = Converter(16, 8, reverse=True)
+        received = []
+
+        def generator():
+            yield dut.sink.valid.eq(1)
+            yield dut.sink.first.eq(1)
+            yield dut.sink.last.eq(1)
+            yield dut.sink.data.eq(0x1122)
+            yield
+            while (yield dut.sink.ready) == 0:
+                yield
+            yield dut.sink.valid.eq(0)
+
+        def checker():
+            yield dut.source.ready.eq(1)
+            for _ in range(4):
+                if (yield dut.source.valid):
+                    received.append((
+                        (yield dut.source.data),
+                        (yield dut.source.first),
+                        (yield dut.source.last),
+                    ))
+                yield
+
+        run_simulation(dut, [generator(), checker()])
+        self.assertEqual(received, [
+            (0x11, 1, 0),
+            (0x22, 0, 1),
+        ])
+
+    def test_cast_reverse_from(self):
+        dut = Cast([("a", 4), ("b", 4)], [("c", 4), ("d", 4)], reverse_from=True)
+        observations = {}
+
+        def stimulus():
+            yield dut.sink.valid.eq(1)
+            yield dut.sink.first.eq(1)
+            yield dut.sink.last.eq(1)
+            yield dut.sink.a.eq(0x1)
+            yield dut.sink.b.eq(0x2)
+            yield dut.source.ready.eq(1)
+            yield
+            observations["valid"] = (yield dut.source.valid)
+            observations["first"] = (yield dut.source.first)
+            observations["last"] = (yield dut.source.last)
+            observations["c"] = (yield dut.source.c)
+            observations["d"] = (yield dut.source.d)
+
+        run_simulation(dut, stimulus())
+        self.assertEqual(observations, {
+            "valid": 1,
+            "first": 1,
+            "last": 1,
+            "c": 0x2,
+            "d": 0x1,
+        })
 
     def test_stride_converter_up(self):
         dut = StrideConverter(
