@@ -917,6 +917,71 @@ class TestStream(unittest.TestCase):
         run_simulation(dut, generators, clocks)
         self.assertEqual(dut.errors, 0)
 
+    def test_clock_domain_crossing_async_common_reset(self):
+        class DUT(Module):
+            def __init__(self):
+                self.clock_domains.cd_write = ClockDomain("write")
+                self.clock_domains.cd_read  = ClockDomain("read")
+                self.submodules.cdc = ClockDomainCrossing(EndpointDescription(
+                    payload_layout=[("data", 8)],
+                    param_layout=[("tag", 4)],
+                ), cd_from="write", cd_to="read", depth=8, buffered=True, with_common_rst=True)
+                self.sink = self.cdc.sink
+                self.source = self.cdc.source
+
+        dut = DUT()
+        packets = [
+            {"tag": 0x7, "datas": [0x70, 0x71]},
+            {"tag": 0x8, "datas": [0x80]},
+        ]
+        dut.errors = 0
+
+        def generator():
+            for packet in packets:
+                for index, data in enumerate(packet["datas"]):
+                    yield dut.sink.valid.eq(1)
+                    yield dut.sink.first.eq(index == 0)
+                    yield dut.sink.last.eq(index == (len(packet["datas"]) - 1))
+                    yield dut.sink.data.eq(data)
+                    yield dut.sink.tag.eq(packet["tag"])
+                    yield
+                    while (yield dut.sink.ready) == 0:
+                        yield
+                yield dut.sink.valid.eq(0)
+                yield dut.sink.first.eq(0)
+                yield dut.sink.last.eq(0)
+                yield
+
+        def checker():
+            for packet in packets:
+                for index, data in enumerate(packet["datas"]):
+                    yield dut.source.ready.eq(1)
+                    yield
+                    while (yield dut.source.valid) == 0:
+                        yield
+                    if (yield dut.source.data) != data:
+                        dut.errors += 1
+                    if (yield dut.source.tag) != packet["tag"]:
+                        dut.errors += 1
+                    if (yield dut.source.first) != (index == 0):
+                        dut.errors += 1
+                    if (yield dut.source.last) != (index == (len(packet["datas"]) - 1)):
+                        dut.errors += 1
+                yield dut.source.ready.eq(0)
+
+        clocks = {
+            "write": 10,
+            "read":  7,
+            f"from{dut.cdc.duid}": 10,
+            f"to{dut.cdc.duid}":   7,
+        }
+        generators = {
+            "write": [generator()],
+            "read":  [checker()],
+        }
+        run_simulation(dut, generators, clocks)
+        self.assertEqual(dut.errors, 0)
+
     def test_shifter(self):
         dut = Shifter(8)
         received = []
