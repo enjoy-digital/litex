@@ -270,7 +270,8 @@ class TestPacket(unittest.TestCase):
         self.loopback_test(dw=128)
 
     def packet_fifo_test(self, layout, packets, payload_depth, param_depth=None, buffered=False):
-        prng = random.Random(42)
+        generator_prng = random.Random(42)
+        checker_prng   = random.Random(42)
 
         def generator(dut, valid_rand=60):
             for packet in packets:
@@ -289,7 +290,7 @@ class TestPacket(unittest.TestCase):
                     yield dut.sink.valid.eq(0)
                     yield dut.sink.first.eq(0)
                     yield dut.sink.last.eq(0)
-                    while prng.randrange(100) < valid_rand:
+                    while generator_prng.randrange(100) < valid_rand:
                         yield
 
         def checker(dut, ready_rand=60):
@@ -300,7 +301,7 @@ class TestPacket(unittest.TestCase):
                     yield
                     while (yield dut.source.valid) == 0:
                         yield
-                    while prng.randrange(100) < ready_rand:
+                    while checker_prng.randrange(100) < ready_rand:
                         yield
                     if (yield dut.source.data) != data:
                         dut.errors += 1
@@ -341,6 +342,21 @@ class TestPacket(unittest.TestCase):
             {"datas": [0x20, 0x21, 0x22]},
         ]
         self.packet_fifo_test(layout, packets, payload_depth=6, buffered=False)
+
+    def test_packet_fifo_stress(self):
+        prng = random.Random(123)
+        layout = EndpointDescription(
+            payload_layout=[("data", 8)],
+            param_layout=[("tag", 8), ("kind", 2)],
+        )
+        packets = []
+        for packet_index in range(24):
+            packets.append({
+                "tag": packet_index,
+                "kind": packet_index % 4,
+                "datas": [prng.randrange(256) for _ in range(1 + (packet_index % 5))],
+            })
+        self.packet_fifo_test(layout, packets, payload_depth=9, param_depth=1, buffered=True)
 
     def test_packetizer_depacketizer_single_byte_payload_with_error(self):
         packets = [
