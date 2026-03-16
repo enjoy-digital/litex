@@ -262,7 +262,10 @@ class Packetizer(LiteXModule):
 
         # Error.
         if hasattr(sink, "error") and hasattr(source, "error"):
-            self.comb += source.error.eq(sink.error)
+            if aligned:
+                self.comb += source.error.eq(sink.error)
+            else:
+                self.comb += source.error.eq(Mux(sink_d.last, sink_d.error, sink.error))
 
 # Depacketizer -------------------------------------------------------------------------------------
 
@@ -372,7 +375,10 @@ class Depacketizer(LiteXModule):
 
         # Error.
         if hasattr(sink, "error") and hasattr(source, "error"):
-            self.comb += source.error.eq(sink.error)
+            if aligned:
+                self.comb += source.error.eq(sink.error)
+            else:
+                self.comb += source.error.eq(Mux(sink_d.last, sink_d.error, sink.error))
 
 # PacketFIFO ---------------------------------------------------------------------------------------
 

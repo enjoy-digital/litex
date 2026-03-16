@@ -441,6 +441,148 @@ class TestPacket(unittest.TestCase):
             },
         ])
 
+    def test_packetizer_holds_error_on_buffered_last_beat(self):
+        class DUT(Module):
+            def __init__(self):
+                self.submodules.packetizer = Packetizer(
+                    packet_description_with_error(32),
+                    raw_description_with_error(32),
+                    packet_header,
+                )
+                self.sink = self.packetizer.sink
+                self.source = self.packetizer.source
+
+        dut = DUT()
+        observed = []
+
+        def generator():
+            yield dut.sink.field_8b.eq(0x12)
+            yield dut.sink.field_16b.eq(0x3456)
+            yield dut.sink.field_32b.eq(0x789abcde)
+            yield dut.sink.field_64b.eq(0x0123456789abcdef)
+            yield dut.sink.field_128b.eq(0x112233445566778899aabbccddeeff00)
+            yield
+            for index, data in enumerate([0x11111111, 0x22222222]):
+                yield dut.sink.valid.eq(1)
+                yield dut.sink.first.eq(index == 0)
+                yield dut.sink.last.eq(index == 1)
+                yield dut.sink.error.eq(1)
+                yield dut.sink.data.eq(data)
+                yield
+                while (yield dut.sink.ready) == 0:
+                    yield
+            yield dut.sink.valid.eq(0)
+            yield dut.sink.first.eq(0)
+            yield dut.sink.last.eq(0)
+            yield dut.sink.error.eq(0)
+            for _ in range(16):
+                yield
+
+        def checker():
+            yield dut.source.ready.eq(1)
+            for _ in range(40):
+                if (yield dut.source.valid):
+                    observed.append({
+                        "last":  (yield dut.source.last),
+                        "error": (yield dut.source.error),
+                    })
+                yield
+
+        run_simulation(dut, [generator(), checker()])
+        self.assertGreater(len(observed), 0)
+        self.assertTrue(any(beat["last"] for beat in observed))
+        self.assertTrue(all(beat["error"] == 1 for beat in observed))
+
+    def test_packetizer_depacketizer_multiword_payload_with_error(self):
+        packets = [
+            {
+                "field_8b": 0x12, "field_16b": 0x3456, "field_32b": 0x789abcde,
+                "field_64b": 0x0123456789abcdef, "field_128b": 0x112233445566778899aabbccddeeff00,
+                "error": 1, "datas": [0x11111111, 0x22222222],
+            },
+            {
+                "field_8b": 0x9a, "field_16b": 0xbcde, "field_32b": 0xfedcba98,
+                "field_64b": 0x0fedcba987654321, "field_128b": 0xffeeddccbbaa99887766554433221100,
+                "error": 0, "datas": [0x33333333, 0x44444444, 0x55555555],
+            },
+        ]
+
+        class DUT(Module):
+            def __init__(self):
+                packetizer = Packetizer(packet_description_with_error(32), raw_description_with_error(32), packet_header)
+                depacketizer = Depacketizer(raw_description_with_error(32), packet_description_with_error(32), packet_header)
+                self.submodules += packetizer, depacketizer
+                self.comb += packetizer.source.connect(depacketizer.sink)
+                self.sink = packetizer.sink
+                self.source = depacketizer.source
+
+        dut = DUT()
+        received = []
+
+        def generator():
+            for packet in packets:
+                yield dut.sink.field_8b.eq(packet["field_8b"])
+                yield dut.sink.field_16b.eq(packet["field_16b"])
+                yield dut.sink.field_32b.eq(packet["field_32b"])
+                yield dut.sink.field_64b.eq(packet["field_64b"])
+                yield dut.sink.field_128b.eq(packet["field_128b"])
+                yield
+                for index, data in enumerate(packet["datas"]):
+                    yield dut.sink.valid.eq(1)
+                    yield dut.sink.first.eq(index == 0)
+                    yield dut.sink.last.eq(index == (len(packet["datas"]) - 1))
+                    yield dut.sink.error.eq(packet["error"])
+                    yield dut.sink.data.eq(data)
+                    yield
+                    while (yield dut.sink.ready) == 0:
+                        yield
+                yield dut.sink.valid.eq(0)
+                yield dut.sink.first.eq(0)
+                yield dut.sink.last.eq(0)
+                yield dut.sink.error.eq(~packet["error"] & 0x1)
+                yield
+
+        def checker():
+            prng = random.Random(7)
+            for packet in packets:
+                for index, data in enumerate(packet["datas"]):
+                    yield dut.source.ready.eq(0)
+                    yield
+                    while (yield dut.source.valid) == 0:
+                        yield
+                    while prng.randrange(100) < 40:
+                        yield
+                    received.append({
+                        "field_8b":  (yield dut.source.field_8b),
+                        "field_16b": (yield dut.source.field_16b),
+                        "field_32b": (yield dut.source.field_32b),
+                        "field_64b": (yield dut.source.field_64b),
+                        "field_128b": (yield dut.source.field_128b),
+                        "error":     (yield dut.source.error),
+                        "data":      (yield dut.source.data),
+                        "first":     (yield dut.source.first),
+                        "last":      (yield dut.source.last),
+                    })
+                    yield dut.source.ready.eq(1)
+                    yield
+
+        run_simulation(dut, [generator(), checker()])
+        expected = []
+        for packet in packets:
+            for index, data in enumerate(packet["datas"]):
+                expected.append({
+                    "field_8b": packet["field_8b"],
+                    "field_16b": packet["field_16b"],
+                    "field_32b": packet["field_32b"],
+                    "field_64b": packet["field_64b"],
+                    "field_128b": packet["field_128b"],
+                    "error": packet["error"],
+                    "data": data,
+                    "first": index == 0,
+                    "last": index == (len(packet["datas"]) - 1),
+                })
+        self.assertEqual(received, expected)
+
     def test_packetizer_sets_first_on_header(self):
         class DUT(Module):
             def __init__(self):
