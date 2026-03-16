@@ -549,3 +549,54 @@ class TestStream(unittest.TestCase):
             (0x11, 0x22, 0xD, 1, 0),
             (0x33, 0x44, 0xD, 0, 1),
         ])
+
+    def test_syncfifo_level(self):
+        levels = {"depth0": [], "depth1": [], "depth4": []}
+
+        class DUT(Module):
+            def __init__(self):
+                self.depth0 = SyncFIFO([("data", 8)], depth=0)
+                self.depth1 = SyncFIFO([("data", 8)], depth=1)
+                self.depth4 = SyncFIFO([("data", 8)], depth=4)
+                self.submodules += self.depth0, self.depth1, self.depth4
+
+        dut = DUT()
+
+        def sample():
+            levels["depth0"].append((yield dut.depth0.level))
+            levels["depth1"].append((yield dut.depth1.level))
+            levels["depth4"].append((yield dut.depth4.level))
+
+        def stimulus():
+            yield dut.depth0.source.ready.eq(0)
+            yield dut.depth1.source.ready.eq(0)
+            yield dut.depth4.source.ready.eq(0)
+            yield from sample()
+
+            yield dut.depth0.sink.valid.eq(1)
+            yield dut.depth0.sink.data.eq(0x10)
+            yield dut.depth1.sink.valid.eq(1)
+            yield dut.depth1.sink.data.eq(0x11)
+            yield dut.depth4.sink.valid.eq(1)
+            yield dut.depth4.sink.data.eq(0x12)
+            yield
+            yield from sample()
+
+            yield dut.depth0.sink.valid.eq(0)
+            yield dut.depth1.sink.valid.eq(0)
+            yield dut.depth4.sink.valid.eq(0)
+            yield
+            yield from sample()
+
+            yield dut.depth1.source.ready.eq(1)
+            yield dut.depth4.source.ready.eq(1)
+            yield
+            yield from sample()
+
+            yield
+            yield from sample()
+
+        run_simulation(dut, stimulus())
+        self.assertEqual(levels["depth0"], [0, 0, 0, 0, 0])
+        self.assertEqual(levels["depth1"], [0, 0, 1, 1, 0])
+        self.assertEqual(levels["depth4"], [0, 0, 1, 1, 0])

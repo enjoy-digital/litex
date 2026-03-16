@@ -223,13 +223,15 @@ class SyncFIFO(_FIFOWrapper):
             self.sink   = buf.sink
             self.source = buf.source
             self.depth  = 1
-            self.level  = Signal()
+            self.level  = Signal(max=2)
+            self.comb += self.level.eq(self.source.valid)
         elif depth == 0:
             self.sink   = Endpoint(layout)
             self.source = Endpoint(layout)
             self.comb += self.sink.connect(self.source)
             self.depth = 0
             self.level = Signal()
+            self.comb += self.level.eq(0)
 
 
 class AsyncFIFO(_FIFOWrapper):

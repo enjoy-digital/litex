@@ -34,6 +34,13 @@ def raw_description(dw):
     payload_layout = [("data", dw)]
     return EndpointDescription(payload_layout)
 
+def packet_description_with_error(dw):
+    param_layout = packet_header.get_layout() + [("error", 1)]
+    return EndpointDescription([("data", dw)], param_layout)
+
+def raw_description_with_error(dw):
+    return EndpointDescription([("data", dw)], [("error", 1)])
+
 class Packet:
     def __init__(self, header, datas):
         self.header = header
@@ -239,6 +246,85 @@ class TestPacket(unittest.TestCase):
             {"datas": [0x20, 0x21, 0x22]},
         ]
         self.packet_fifo_test(layout, packets, payload_depth=6, buffered=False)
+
+    def test_packetizer_depacketizer_single_byte_payload_with_error(self):
+        packets = [
+            {
+                "field_8b": 0x12, "field_16b": 0x3456, "field_32b": 0x789abcde,
+                "field_64b": 0x0123456789abcdef, "field_128b": 0x112233445566778899aabbccddeeff00,
+                "error": 0, "data": 0xab,
+            },
+            {
+                "field_8b": 0x9a, "field_16b": 0xbcde, "field_32b": 0xfedcba98,
+                "field_64b": 0x0fedcba987654321, "field_128b": 0xffeeddccbbaa99887766554433221100,
+                "error": 1, "data": 0xcd,
+            },
+        ]
+
+        class DUT(Module):
+            def __init__(self):
+                packetizer = Packetizer(packet_description_with_error(8), raw_description_with_error(8), packet_header)
+                depacketizer = Depacketizer(raw_description_with_error(8), packet_description_with_error(8), packet_header)
+                self.submodules += packetizer, depacketizer
+                self.comb += packetizer.source.connect(depacketizer.sink)
+                self.sink = packetizer.sink
+                self.source = depacketizer.source
+
+        dut = DUT()
+        received = []
+
+        def generator():
+            for packet in packets:
+                yield dut.sink.field_8b.eq(packet["field_8b"])
+                yield dut.sink.field_16b.eq(packet["field_16b"])
+                yield dut.sink.field_32b.eq(packet["field_32b"])
+                yield dut.sink.field_64b.eq(packet["field_64b"])
+                yield dut.sink.field_128b.eq(packet["field_128b"])
+                yield dut.sink.error.eq(packet["error"])
+                yield dut.sink.valid.eq(1)
+                yield dut.sink.first.eq(1)
+                yield dut.sink.last.eq(1)
+                yield dut.sink.data.eq(packet["data"])
+                yield
+                while (yield dut.sink.ready) == 0:
+                    yield
+                yield dut.sink.valid.eq(0)
+                yield dut.sink.first.eq(0)
+                yield dut.sink.last.eq(0)
+                yield
+
+        def checker():
+            yield dut.source.ready.eq(1)
+            for _ in range(96):
+                if (yield dut.source.valid):
+                    received.append({
+                        "field_8b":  (yield dut.source.field_8b),
+                        "field_16b": (yield dut.source.field_16b),
+                        "field_32b": (yield dut.source.field_32b),
+                        "field_64b": (yield dut.source.field_64b),
+                        "field_128b": (yield dut.source.field_128b),
+                        "error":     (yield dut.source.error),
+                        "data":      (yield dut.source.data),
+                        "first":     (yield dut.source.first),
+                        "last":      (yield dut.source.last),
+                    })
+                    if len(received) == len(packets):
+                        break
+                yield
+
+        run_simulation(dut, [generator(), checker()])
+        self.assertEqual(received, [
+            {
+                "field_8b": 0x12, "field_16b": 0x3456, "field_32b": 0x789abcde,
+                "field_64b": 0x0123456789abcdef, "field_128b": 0x112233445566778899aabbccddeeff00,
+                "error": 0, "data": 0xab, "first": 0, "last": 1,
+            },
+            {
+                "field_8b": 0x9a, "field_16b": 0xbcde, "field_32b": 0xfedcba98,
+                "field_64b": 0x0fedcba987654321, "field_128b": 0xffeeddccbbaa99887766554433221100,
+                "error": 1, "data": 0xcd, "first": 0, "last": 1,
+            },
+        ])
 
     def test_arbiter_packet_lock(self):
         layout = EndpointDescription(payload_layout=[("data", 8)], param_layout=[("tag", 4)])
