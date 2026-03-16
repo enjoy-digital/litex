@@ -804,6 +804,56 @@ class TestStream(unittest.TestCase):
             (0x1122, 2, 1, 1),
         ])
 
+    def converter_up_stall_test(self, reverse, expected_data):
+        dut = Converter(8, 32, reverse=reverse, report_valid_token_count=True)
+        received = []
+
+        def generator():
+            for index, data in enumerate([0x10, 0x11, 0x12]):
+                yield dut.sink.valid.eq(1)
+                yield dut.sink.first.eq(index == 0)
+                yield dut.sink.last.eq(index == 2)
+                yield dut.sink.data.eq(data)
+                yield
+                while (yield dut.sink.ready) == 0:
+                    yield
+            yield dut.sink.valid.eq(0)
+            yield dut.sink.last.eq(0)
+            for _ in range(4):
+                yield
+
+        def checker():
+            yield dut.source.ready.eq(0)
+            for _ in range(4):
+                if (yield dut.source.valid):
+                    received.append((
+                        (yield dut.source.data),
+                        (yield dut.source.valid_token_count),
+                        (yield dut.source.first),
+                        (yield dut.source.last),
+                    ))
+                yield
+            yield dut.source.ready.eq(1)
+            for _ in range(2):
+                if (yield dut.source.valid):
+                    received.append((
+                        (yield dut.source.data),
+                        (yield dut.source.valid_token_count),
+                        (yield dut.source.first),
+                        (yield dut.source.last),
+                    ))
+                yield
+
+        run_simulation(dut, [generator(), checker()])
+        self.assertGreaterEqual(len(received), 2)
+        self.assertTrue(all(sample == (expected_data, 3, 1, 1) for sample in received))
+
+    def test_converter_up_holds_partial_output_when_stalled(self):
+        self.converter_up_stall_test(reverse=False, expected_data=0x00121110)
+
+    def test_converter_up_reverse_holds_partial_output_when_stalled(self):
+        self.converter_up_stall_test(reverse=True, expected_data=0x10111200)
+
     def test_converter_down_reverse(self):
         dut = Converter(16, 8, reverse=True)
         received = []
@@ -834,6 +884,58 @@ class TestStream(unittest.TestCase):
             (0x11, 1, 0),
             (0x22, 0, 1),
         ])
+
+    def converter_down_stall_test(self, reverse):
+        dut = Converter(32, 8, reverse=reverse)
+        received = []
+
+        def generator():
+            yield dut.sink.valid.eq(1)
+            yield dut.sink.first.eq(1)
+            yield dut.sink.last.eq(1)
+            yield dut.sink.data.eq(0x44332211 if not reverse else 0x11223344)
+            yield
+            while (yield dut.sink.ready) == 0:
+                yield
+            yield dut.sink.valid.eq(0)
+            for _ in range(4):
+                yield
+
+        def checker():
+            yield dut.source.ready.eq(0)
+            for _ in range(4):
+                if (yield dut.source.valid):
+                    received.append((
+                        (yield dut.source.data),
+                        (yield dut.source.first),
+                        (yield dut.source.last),
+                    ))
+                yield
+            yield dut.source.ready.eq(1)
+            for _ in range(6):
+                if (yield dut.source.valid):
+                    received.append((
+                        (yield dut.source.data),
+                        (yield dut.source.first),
+                        (yield dut.source.last),
+                    ))
+                yield
+
+        run_simulation(dut, [generator(), checker()])
+        self.assertGreaterEqual(len(received), 4)
+        self.assertTrue(all(sample == (0x11, 1, 0) for sample in received[:4]))
+        self.assertGreaterEqual(received.count((0x11, 1, 0)), 4)
+        self.assertEqual(received[-3:], [
+            (0x22, 0, 0),
+            (0x33, 0, 0),
+            (0x44, 0, 1),
+        ])
+
+    def test_converter_down_holds_slice_when_stalled(self):
+        self.converter_down_stall_test(reverse=False)
+
+    def test_converter_down_reverse_holds_slice_when_stalled(self):
+        self.converter_down_stall_test(reverse=True)
 
     def test_cast_reverse_from(self):
         dut = Cast([("a", 4), ("b", 4)], [("c", 4), ("d", 4)], reverse_from=True)
