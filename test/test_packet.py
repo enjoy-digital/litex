@@ -48,6 +48,16 @@ class Packet:
 
 
 class TestPacket(unittest.TestCase):
+    def test_header_get_field_width_mismatch(self):
+        header = Header(
+            fields={"field_8b": HeaderField(0, 0, 16)},
+            length=2,
+            swap_field_bytes=False,
+        )
+        obj = Record([("field_8b", 8)])
+        with self.assertRaises(ValueError):
+            header.get_field(obj, "field_8b", 16)
+
     def test_header_encode_decode_no_swap(self):
         header = Header(
             fields={

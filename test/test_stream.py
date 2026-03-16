@@ -13,6 +13,48 @@ from litex.soc.interconnect.stream import *
 
 
 class TestStream(unittest.TestCase):
+    def test_endpoint_description_duplicate_field(self):
+        description = EndpointDescription(
+            payload_layout=[("data", 8)],
+            param_layout=[("data", 4)],
+        )
+        with self.assertRaises(ValueError):
+            description.get_full_layout()
+
+    def test_endpoint_description_reserved_field(self):
+        description = EndpointDescription(payload_layout=[("valid", 8)])
+        with self.assertRaises(ValueError):
+            description.get_full_layout()
+
+    def test_get_endpoints(self):
+        class DUT(Module):
+            def __init__(self):
+                self.sink = Endpoint([("data", 8)])
+                self.source = Endpoint([("data", 8)])
+                self.value = Signal(8)
+
+        dut = DUT()
+        endpoints = get_endpoints(dut)
+        self.assertEqual(set(endpoints.keys()), {"sink", "source"})
+
+    def test_get_single_ep(self):
+        class SingleEP(Module):
+            def __init__(self):
+                self.source = Endpoint([("data", 8)])
+
+        name, endpoint = get_single_ep(SingleEP(), Endpoint)
+        self.assertEqual(name, "source")
+        self.assertIsInstance(endpoint, Endpoint)
+
+    def test_get_single_ep_raises_on_multiple(self):
+        class MultiEP(Module):
+            def __init__(self):
+                self.sink = Endpoint([("data", 8)])
+                self.source = Endpoint([("data", 8)])
+
+        with self.assertRaises(ValueError):
+            get_single_ep(MultiEP(), Endpoint)
+
     def packetized_flow_test(self, dut, packets):
         prng = random.Random(42)
 
