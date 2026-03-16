@@ -397,6 +397,49 @@ class TestPacket(unittest.TestCase):
             {"data": 0x21, "tag": 1, "first": 0, "last": 1},
         ])
 
+    def test_arbiter_multi_packet_alternation(self):
+        layout = EndpointDescription(payload_layout=[("data", 8)], param_layout=[("tag", 4)])
+
+        class DUT(Module):
+            def __init__(self):
+                self.sink0 = Endpoint(layout)
+                self.sink1 = Endpoint(layout)
+                self.source = Endpoint(layout)
+                self.submodules.arbiter = Arbiter([self.sink0, self.sink1], self.source)
+
+        dut = DUT()
+        received_tags = []
+
+        def packet_sender(sink, tag, base):
+            for packet_index in range(2):
+                for beat in range(2):
+                    yield sink.tag.eq(tag)
+                    yield sink.valid.eq(1)
+                    yield sink.first.eq(beat == 0)
+                    yield sink.last.eq(beat == 1)
+                    yield sink.data.eq(base + packet_index*0x10 + beat)
+                    yield
+                    while (yield sink.ready) == 0:
+                        yield
+                yield sink.valid.eq(0)
+                yield sink.first.eq(0)
+                yield sink.last.eq(0)
+                yield
+
+        def checker():
+            yield dut.source.ready.eq(1)
+            for _ in range(16):
+                if (yield dut.source.valid) and (yield dut.source.last):
+                    received_tags.append((yield dut.source.tag))
+                yield
+
+        run_simulation(dut, [
+            packet_sender(dut.sink0, tag=0, base=0x40),
+            packet_sender(dut.sink1, tag=1, base=0x80),
+            checker(),
+        ])
+        self.assertEqual(received_tags, [0, 1, 0, 1])
+
     def dispatcher_hold_sel_test(self, one_hot):
         layout = EndpointDescription(payload_layout=[("data", 8)], param_layout=[("tag", 4)])
 
@@ -477,3 +520,41 @@ class TestPacket(unittest.TestCase):
 
     def test_dispatcher_hold_sel_one_hot(self):
         self.dispatcher_hold_sel_test(one_hot=True)
+
+    def test_dispatcher_invalid_sel_drops_packet(self):
+        layout = EndpointDescription(payload_layout=[("data", 8)], param_layout=[("tag", 4)])
+
+        class DUT(Module):
+            def __init__(self):
+                self.sink = Endpoint(layout)
+                self.source0 = Endpoint(layout)
+                self.source1 = Endpoint(layout)
+                self.source2 = Endpoint(layout)
+                self.submodules.dispatcher = Dispatcher(self.sink, [self.source0, self.source1, self.source2])
+
+        dut = DUT()
+        observations = {}
+
+        def stimulus():
+            yield dut.dispatcher.sel.eq(3)
+            yield dut.sink.valid.eq(1)
+            yield dut.sink.first.eq(1)
+            yield dut.sink.last.eq(1)
+            yield dut.sink.data.eq(0x55)
+            yield dut.sink.tag.eq(5)
+            yield dut.source0.ready.eq(1)
+            yield dut.source1.ready.eq(1)
+            yield dut.source2.ready.eq(1)
+            yield
+            observations["sink_ready"] = (yield dut.sink.ready)
+            observations["source0_valid"] = (yield dut.source0.valid)
+            observations["source1_valid"] = (yield dut.source1.valid)
+            observations["source2_valid"] = (yield dut.source2.valid)
+
+        run_simulation(dut, stimulus())
+        self.assertEqual(observations, {
+            "sink_ready": 1,
+            "source0_valid": 0,
+            "source1_valid": 0,
+            "source2_valid": 0,
+        })
