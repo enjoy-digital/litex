@@ -1120,6 +1120,42 @@ class TestStream(unittest.TestCase):
             (0x65, 0, 1),
         ])
 
+    def test_shifter_pipelines_shift_control(self):
+        dut = Shifter(8)
+        received = []
+
+        def generator():
+            yield dut.shift.eq(0)
+            yield dut.sink.valid.eq(1)
+            yield dut.sink.first.eq(1)
+            yield dut.sink.last.eq(1)
+            yield dut.sink.data.eq(0x12)
+            yield
+            while (yield dut.sink.ready) == 0:
+                yield
+            yield dut.sink.valid.eq(0)
+            yield dut.sink.first.eq(0)
+            yield dut.sink.last.eq(0)
+            yield dut.shift.eq(4)
+            for _ in range(4):
+                yield
+
+        def checker():
+            yield dut.source.ready.eq(1)
+            for _ in range(8):
+                if (yield dut.source.valid):
+                    received.append((
+                        (yield dut.source.data),
+                        (yield dut.source.first),
+                        (yield dut.source.last),
+                    ))
+                yield
+
+        run_simulation(dut, [generator(), checker()])
+        self.assertEqual(received, [
+            (0x12, 1, 1),
+        ])
+
     def test_monitor(self):
         endpoint = Endpoint([("data", 8)])
 

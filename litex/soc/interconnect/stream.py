@@ -667,11 +667,17 @@ class Shifter(PipelinedActor):
             r[dw:].eq(sink.data)
         )
 
+        shift_pipe = self.shift
+        for _ in range(self.latency):
+            shift_n = Signal.like(self.shift, reset_less=True)
+            self.sync += If(self.pipe_ce, shift_n.eq(shift_pipe))
+            shift_pipe = shift_n
+
         # Select output data based on shift.
         cases = {}
         for i in range(dw):
             cases[i] = self.source.data.eq(r[i:dw+i])
-        self.comb += Case(self.shift, cases)
+        self.comb += Case(shift_pipe, cases)
 
 # Monitor ------------------------------------------------------------------------------------------
 
