@@ -793,3 +793,27 @@ class TestStream(unittest.TestCase):
         self.assertEqual(levels["depth0"], [0, 0, 0, 0, 0])
         self.assertEqual(levels["depth1"], [0, 0, 1, 1, 0])
         self.assertEqual(levels["depth4"], [0, 0, 1, 1, 0])
+
+    def test_clock_domain_crossing_same_domain(self):
+        packets = [
+            {"tag": 0x1, "datas": [0x10, 0x11]},
+            {"tag": 0x2, "datas": [0x20]},
+            {"tag": 0x3, "datas": [0x30, 0x31, 0x32]},
+        ]
+        dut = ClockDomainCrossing(EndpointDescription(
+            payload_layout=[("data", 8)],
+            param_layout=[("tag", 4)],
+        ), cd_from="sys", cd_to="sys", buffered=False)
+        self.packetized_flow_test(dut, packets)
+
+    def test_clock_domain_crossing_same_domain_buffered(self):
+        packets = [
+            {"tag": 0x4, "datas": [0x40]},
+            {"tag": 0x5, "datas": [0x50, 0x51]},
+            {"tag": 0x6, "datas": [0x60, 0x61, 0x62]},
+        ]
+        dut = ClockDomainCrossing(EndpointDescription(
+            payload_layout=[("data", 8)],
+            param_layout=[("tag", 4)],
+        ), cd_from="sys", cd_to="sys", buffered=True)
+        self.packetized_flow_test(dut, packets)
