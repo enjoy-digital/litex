@@ -316,6 +316,7 @@ class Multiplexer(LiteXModule):
         cases = {}
         for i, sink in enumerate(sinks):
             cases[i] = sink.connect(self.source)
+        cases["default"] = [self.source.valid.eq(0)] + [sink.ready.eq(0) for sink in sinks]
         self.comb += Case(self.sel, cases)
 
     def add_csr(self, sel_default=0):
@@ -339,6 +340,7 @@ class Demultiplexer(LiteXModule):
         cases = {}
         for i, source in enumerate(sources):
             cases[i] = self.sink.connect(source)
+        cases["default"] = [self.sink.ready.eq(0)] + [source.valid.eq(0) for source in sources]
         self.comb += Case(self.sel, cases)
 
     def add_csr(self, sel_default=0):

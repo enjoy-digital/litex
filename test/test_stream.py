@@ -262,6 +262,37 @@ class TestStream(unittest.TestCase):
             (0x22, 2, 1, 1),
         ])
 
+    def test_multiplexer_invalid_sel_blocks_inputs(self):
+        dut = Multiplexer(EndpointDescription(
+            payload_layout=[("data", 8)],
+            param_layout=[("tag", 4)],
+        ), n=3)
+        observations = {}
+
+        def stimulus():
+            yield dut.source.ready.eq(1)
+            yield dut.sel.eq(0)
+            yield dut.sink0.valid.eq(1)
+            yield dut.sink0.first.eq(1)
+            yield dut.sink0.last.eq(1)
+            yield dut.sink0.data.eq(0x11)
+            yield dut.sink0.tag.eq(1)
+            yield
+            yield dut.sel.eq(3)
+            yield
+            observations["source_valid"] = (yield dut.source.valid)
+            observations["sink0_ready"] = (yield dut.sink0.ready)
+            observations["sink1_ready"] = (yield dut.sink1.ready)
+            observations["sink2_ready"] = (yield dut.sink2.ready)
+
+        run_simulation(dut, stimulus())
+        self.assertEqual(observations, {
+            "source_valid": 0,
+            "sink0_ready": 0,
+            "sink1_ready": 0,
+            "sink2_ready": 0,
+        })
+
     def test_demultiplexer(self):
         dut = Demultiplexer(EndpointDescription(
             payload_layout=[("data", 8)],
@@ -309,6 +340,39 @@ class TestStream(unittest.TestCase):
         run_simulation(dut, [generator(), collector(dut.source0, received0), collector(dut.source1, received1)])
         self.assertEqual(received0, [(0x31, 3, 1, 1)])
         self.assertEqual(received1, [(0x42, 4, 1, 1)])
+
+    def test_demultiplexer_invalid_sel_blocks_input(self):
+        dut = Demultiplexer(EndpointDescription(
+            payload_layout=[("data", 8)],
+            param_layout=[("tag", 4)],
+        ), n=3)
+        observations = {}
+
+        def stimulus():
+            yield dut.source0.ready.eq(1)
+            yield dut.source1.ready.eq(1)
+            yield dut.source2.ready.eq(1)
+            yield dut.sel.eq(0)
+            yield dut.sink.valid.eq(1)
+            yield dut.sink.first.eq(1)
+            yield dut.sink.last.eq(1)
+            yield dut.sink.data.eq(0x22)
+            yield dut.sink.tag.eq(2)
+            yield
+            yield dut.sel.eq(3)
+            yield
+            observations["sink_ready"] = (yield dut.sink.ready)
+            observations["source0_valid"] = (yield dut.source0.valid)
+            observations["source1_valid"] = (yield dut.source1.valid)
+            observations["source2_valid"] = (yield dut.source2.valid)
+
+        run_simulation(dut, stimulus())
+        self.assertEqual(observations, {
+            "sink_ready": 0,
+            "source0_valid": 0,
+            "source1_valid": 0,
+            "source2_valid": 0,
+        })
 
     def gate_disable_test(self, sink_ready_when_disabled, expected_ready):
         dut = Gate([("data", 8)], sink_ready_when_disabled=sink_ready_when_disabled)
