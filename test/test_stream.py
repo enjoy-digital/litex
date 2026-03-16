@@ -811,6 +811,44 @@ class TestStream(unittest.TestCase):
             (0x3311, 0x4422, 0xC, 1, 1),
         ])
 
+    def test_stride_converter_up_holds_param_when_stalled(self):
+        dut = StrideConverter(
+            EndpointDescription(payload_layout=[("data", 8)], param_layout=[("tag", 4)]),
+            EndpointDescription(payload_layout=[("data", 16)], param_layout=[("tag", 4)]),
+        )
+        observations = []
+
+        def stimulus():
+            yield dut.source.ready.eq(0)
+            for index, data in enumerate([0x11, 0x22]):
+                yield dut.sink.valid.eq(1)
+                yield dut.sink.first.eq(index == 0)
+                yield dut.sink.last.eq(index == 1)
+                yield dut.sink.data.eq(data)
+                yield dut.sink.tag.eq(1)
+                yield
+                while (yield dut.sink.ready) == 0:
+                    yield
+
+            yield dut.sink.valid.eq(0)
+            for tag in [7, 9]:
+                yield dut.sink.tag.eq(tag)
+                yield
+                if (yield dut.source.valid):
+                    observations.append(((yield dut.source.tag), (yield dut.source.data)))
+
+            yield dut.source.ready.eq(1)
+            yield
+            if (yield dut.source.valid):
+                observations.append(((yield dut.source.tag), (yield dut.source.data)))
+
+        run_simulation(dut, stimulus())
+        self.assertEqual(observations, [
+            (1, 0x2211),
+            (1, 0x2211),
+            (1, 0x2211),
+        ])
+
     def test_stride_converter_down(self):
         dut = StrideConverter(
             EndpointDescription(payload_layout=[("a", 16), ("b", 16)], param_layout=[("tag", 4)]),

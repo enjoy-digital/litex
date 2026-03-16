@@ -574,7 +574,7 @@ class StrideConverter(LiteXModule):
         if converter.latency == 0:
             self.comb += source.param.eq(sink.param)
         elif converter.latency == 1:
-            self.sync += source.param.eq(sink.param)
+            self.sync += If(converter.sink.valid & converter.sink.ready, source.param.eq(sink.param))
         else:
             raise ValueError
 
