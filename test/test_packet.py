@@ -674,6 +674,42 @@ class TestPacket(unittest.TestCase):
     def test_dispatcher_hold_sel_one_hot(self):
         self.dispatcher_hold_sel_test(one_hot=True)
 
+    def test_dispatcher_holds_sel_before_first_handshake(self):
+        layout = EndpointDescription(payload_layout=[("data", 8)], param_layout=[("tag", 4)])
+
+        class DUT(Module):
+            def __init__(self):
+                self.sink = Endpoint(layout)
+                self.source0 = Endpoint(layout)
+                self.source1 = Endpoint(layout)
+                self.submodules.dispatcher = Dispatcher(self.sink, [self.source0, self.source1])
+
+        dut = DUT()
+        observations = {}
+
+        def stimulus():
+            yield dut.source0.ready.eq(0)
+            yield dut.source1.ready.eq(0)
+            yield dut.dispatcher.sel.eq(0)
+            yield dut.sink.valid.eq(1)
+            yield dut.sink.first.eq(1)
+            yield dut.sink.last.eq(1)
+            yield dut.sink.data.eq(0x55)
+            yield dut.sink.tag.eq(9)
+            yield
+            yield dut.dispatcher.sel.eq(1)
+            yield
+            observations["sink_ready"] = (yield dut.sink.ready)
+            observations["source0_valid"] = (yield dut.source0.valid)
+            observations["source1_valid"] = (yield dut.source1.valid)
+
+        run_simulation(dut, stimulus())
+        self.assertEqual(observations, {
+            "sink_ready": 0,
+            "source0_valid": 1,
+            "source1_valid": 0,
+        })
+
     def test_dispatcher_invalid_sel_drops_packet(self):
         layout = EndpointDescription(payload_layout=[("data", 8)], param_layout=[("tag", 4)])
 

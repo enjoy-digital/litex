@@ -76,13 +76,17 @@ class Dispatcher(LiteXModule):
 
             sel = Signal.like(self.sel)
             sel_ongoing = Signal.like(self.sel)
+            sel_locked = Signal()
             self.sync += [
-                If(status.first,
-                    sel_ongoing.eq(self.sel)
+                If(status.last,
+                    sel_locked.eq(0)
+                ).Elif(status.first & master.valid & ~sel_locked,
+                    sel_ongoing.eq(self.sel),
+                    sel_locked.eq(1)
                 )
             ]
             self.comb += [
-                If(status.first,
+                If(~sel_locked,
                     sel.eq(self.sel)
                 ).Else(
                     sel.eq(sel_ongoing)
