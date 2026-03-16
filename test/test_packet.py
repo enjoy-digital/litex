@@ -48,6 +48,91 @@ class Packet:
 
 
 class TestPacket(unittest.TestCase):
+    def test_header_encode_decode_no_swap(self):
+        header = Header(
+            fields={
+                "field_8b":  HeaderField(0, 0, 8),
+                "field_16b": HeaderField(1, 0, 16),
+            },
+            length=3,
+            swap_field_bytes=False,
+        )
+
+        class EncodedHeader(Module):
+            def __init__(self):
+                self.obj = Record(header.get_layout())
+                self.signal = Signal(header.length*8)
+                self.comb += header.encode(self.obj, self.signal)
+
+        class DecodedHeader(Module):
+            def __init__(self):
+                self.obj = Record(header.get_layout())
+                self.signal = Signal(header.length*8)
+                self.comb += header.decode(self.signal, self.obj)
+
+        encoder = EncodedHeader()
+        decoder = DecodedHeader()
+        observations = {}
+
+        def encode_stimulus():
+            yield encoder.obj.field_8b.eq(0x12)
+            yield encoder.obj.field_16b.eq(0x3456)
+            yield
+            observations["encoded"] = (yield encoder.signal)
+
+        def decode_stimulus():
+            yield decoder.signal.eq(0x345612)
+            yield
+            observations["decoded_8b"] = (yield decoder.obj.field_8b)
+            observations["decoded_16b"] = (yield decoder.obj.field_16b)
+
+        run_simulation(encoder, encode_stimulus())
+        run_simulation(decoder, decode_stimulus())
+        self.assertEqual(observations["encoded"], 0x345612)
+        self.assertEqual(observations["decoded_8b"], 0x12)
+        self.assertEqual(observations["decoded_16b"], 0x3456)
+
+    def test_header_encode_decode_split_fields_with_swap(self):
+        header = Header(
+            fields={
+                "field_lsb": HeaderField(0, 0, 16),
+                "field_msb": HeaderField(2, 0, 16),
+            },
+            length=4,
+            swap_field_bytes=True,
+        )
+
+        class EncodedHeader(Module):
+            def __init__(self):
+                self.obj = Record([("field", 32)])
+                self.signal = Signal(header.length*8)
+                self.comb += header.encode(self.obj, self.signal)
+
+        class DecodedHeader(Module):
+            def __init__(self):
+                self.obj = Record([("field", 32)])
+                self.signal = Signal(header.length*8)
+                self.comb += header.decode(self.signal, self.obj)
+
+        encoder = EncodedHeader()
+        decoder = DecodedHeader()
+        observations = {}
+
+        def encode_stimulus():
+            yield encoder.obj.field.eq(0x11223344)
+            yield
+            observations["encoded"] = (yield encoder.signal)
+
+        def decode_stimulus():
+            yield decoder.signal.eq(0x22114433)
+            yield
+            observations["decoded"] = (yield decoder.obj.field)
+
+        run_simulation(encoder, encode_stimulus())
+        run_simulation(decoder, decode_stimulus())
+        self.assertEqual(observations["encoded"], 0x22114433)
+        self.assertEqual(observations["decoded"], 0x11223344)
+
     def test_status_transitions(self):
         endpoint = Endpoint([("data", 8)])
 
