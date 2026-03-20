@@ -351,15 +351,6 @@ class Crossbar(LiteXModule):
     def __init__(self, layout, n, with_csr=False):
         self.mux   = Multiplexer(  layout, n, with_csr)
         self.demux = Demultiplexer(layout, n, with_csr)
-
-        # # #
-
-        # Re-export the per-port endpoints.
-        for i in range(n):
-            setattr(self, f"sink{i}", getattr(self.mux,   f"sink{i}"))
-            setattr(self, f"source{i}", getattr(self.demux, f"source{i}"))
-        self.comb += self.mux.source.connect(self.demux.sink)
-
 # Gate ---------------------------------------------------------------------------------------------
 
 class Gate(LiteXModule):
