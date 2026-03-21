@@ -7,7 +7,7 @@
 from migen import *
 
 from functools import reduce
-from operator import and_, or_, not_, xor, add
+from operator import and_, or_, xor, add
 
 # Reduction ----------------------------------------------------------------------------------------
 
@@ -16,7 +16,7 @@ def Reduce(operator, value):
     operators = {
         "AND"  : and_,
         "OR"   : or_,
-        "NOR"  : not_,
+        "NOR"  : or_,
         "XOR"  : xor,
         "ADD"  : add,
     }
@@ -29,5 +29,7 @@ def Reduce(operator, value):
         supported = ", ".join(operators.keys())
         raise ValueError(f"Reduce does not support {operator} operator; supported: {supported}.")
 
-    # Return Python's reduction.
+    # NOR is a 1-bit predicate over the OR reduction, not a bitwise inversion.
+    if operator == "NOR":
+        return reduce(operators[operator], value) == 0
     return reduce(operators[operator], value)
