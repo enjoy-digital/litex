@@ -310,274 +310,281 @@ def addr_list(entries):
     return [entry[0] for entry in entries]
 
 # TestAXILite --------------------------------------------------------------------------------------
+def run_axilite2csr_case():
+    @passive
+    def csr_mem_handler(csr, mem):
+        while True:
+            adr = (yield csr.adr)
+            yield csr.dat_r.eq(mem[adr])
+            if (yield csr.we):
+                mem[adr] = (yield csr.dat_w)
+            yield
 
-class TestAXILite(unittest.TestCase):
-    def test_wishbone2axilite2wishbone(self, data_width=32, address_width=32):
-        run_wishbone2axilite2wishbone_case(data_width=data_width, address_width=address_width)
+    class DUT(Module):
+        def __init__(self):
+            self.axi_lite = AXILiteInterface(data_width=32)
+            self.csr = csr_bus.Interface(data_width=32)
+            self.submodules.axilite2csr = AXILite2CSR(self.axi_lite, self.csr)
+            self.errors = 0
 
-    def test_wishbone2axilite2wishbone_dw64(self):
-        return self.test_wishbone2axilite2wishbone(data_width=64)
+    prng = seeded_prng()
+    mem_ref = [prng.randrange(255) for _ in range(100)]
 
-    def test_axilite2axi2mem(self, data_width=32, address_width=32):
-        for mem_bus in ["wishbone", "axi_lite"]:
-            with self.subTest(mem_bus=mem_bus):
-                run_axilite2axi2mem_case(data_width=data_width, address_width=address_width, mem_bus=mem_bus)
+    def generator(dut):
+        dut.errors = 0
 
-    def test_axilite2axi2mem_dw64(self):
-        return self.test_axilite2axi2mem(data_width=64)
+        for adr, ref in enumerate(mem_ref):
+            adr = adr << 2
+            data, resp = (yield from dut.axi_lite.read(adr))
+            assert resp == 0b00
+            if data != ref:
+                dut.errors += 1
 
-    def test_axilite2csr(self):
-        @passive
-        def csr_mem_handler(csr, mem):
-            while True:
-                adr = (yield csr.adr)
-                yield csr.dat_r.eq(mem[adr])
-                if (yield csr.we):
-                    mem[adr] = (yield csr.dat_w)
-                yield
+        write_data = [prng.randrange(255) for _ in mem_ref]
 
-        class DUT(Module):
-            def __init__(self):
-                self.axi_lite = AXILiteInterface(data_width=32)
-                self.csr = csr_bus.Interface(data_width=32)
-                self.submodules.axilite2csr = AXILite2CSR(self.axi_lite, self.csr)
-                self.errors = 0
+        for adr, wdata in enumerate(write_data):
+            adr = adr << 2
+            resp = (yield from dut.axi_lite.write(adr, wdata))
+            assert resp == 0b00
+            rdata, resp = (yield from dut.axi_lite.read(adr))
+            assert resp == 0b00
+            if rdata != wdata:
+                dut.errors += 1
 
-        prng = seeded_prng()
-        mem_ref = [prng.randrange(255) for i in range(100)]
+    dut = DUT()
+    mem = [v for v in mem_ref]
+    run_simulation_case(dut, [generator(dut), csr_mem_handler(dut.csr, mem)])
+    assert dut.errors == 0
 
-        def generator(dut):
-            dut.errors = 0
 
-            for adr, ref in enumerate(mem_ref):
-                adr = adr << 2
-                data, resp = (yield from dut.axi_lite.read(adr))
-                self.assertEqual(resp, 0b00)
-                if data != ref:
-                    dut.errors += 1
+def run_axilite_sram_case():
+    class DUT(Module):
+        def __init__(self, size, init):
+            self.axi_lite = AXILiteInterface()
+            self.submodules.sram = AXILiteSRAM(size, init=init, bus=self.axi_lite)
+            self.errors = 0
 
-            write_data = [prng.randrange(255) for _ in mem_ref]
+    def generator(dut, ref_init):
+        for adr, ref in enumerate(ref_init):
+            adr = adr << 2
+            data, resp = (yield from dut.axi_lite.read(adr))
+            assert resp == 0b00
+            if data != ref:
+                dut.errors += 1
 
-            for adr, wdata in enumerate(write_data):
-                adr = adr << 2
-                resp = (yield from dut.axi_lite.write(adr, wdata))
-                self.assertEqual(resp, 0b00)
-                rdata, resp = (yield from dut.axi_lite.read(adr))
-                self.assertEqual(resp, 0b00)
-                if rdata != wdata:
-                    dut.errors += 1
+        write_data = [prng.randrange(255) for _ in ref_init]
 
-        dut = DUT()
-        mem = [v for v in mem_ref]
-        run_simulation_case(dut, [generator(dut), csr_mem_handler(dut.csr, mem)])
-        self.assertEqual(dut.errors, 0)
+        for adr, wdata in enumerate(write_data):
+            adr = adr << 2
+            resp = (yield from dut.axi_lite.write(adr, wdata))
+            assert resp == 0b00
+            rdata, resp = (yield from dut.axi_lite.read(adr))
+            assert resp == 0b00
+            if rdata != wdata:
+                dut.errors += 1
 
-    def test_axilite_sram(self):
-        class DUT(Module):
-            def __init__(self, size, init):
-                self.axi_lite = AXILiteInterface()
-                self.submodules.sram = AXILiteSRAM(size, init=init, bus=self.axi_lite)
-                self.errors = 0
+    prng = seeded_prng()
+    init = [prng.randrange(2**32) for _ in range(100)]
 
-        def generator(dut, ref_init):
-            for adr, ref in enumerate(ref_init):
-                adr = adr << 2
-                data, resp = (yield from dut.axi_lite.read(adr))
-                self.assertEqual(resp, 0b00)
-                if data != ref:
-                    dut.errors += 1
+    dut = DUT(size=len(init)*4, init=[v for v in init])
+    run_simulation_case(dut, [generator(dut, init)])
+    assert dut.errors == 0
 
-            write_data = [prng.randrange(255) for _ in ref_init]
 
-            for adr, wdata in enumerate(write_data):
-                adr = adr << 2
-                resp = (yield from dut.axi_lite.write(adr, wdata))
-                self.assertEqual(resp, 0b00)
-                rdata, resp = (yield from dut.axi_lite.read(adr))
-                self.assertEqual(resp, 0b00)
-                if rdata != wdata:
-                    dut.errors += 1
+@pytest.mark.parametrize("data_width", [32, 64], ids=["dw32", "dw64"])
+def test_wishbone2axilite2wishbone(data_width):
+    run_wishbone2axilite2wishbone_case(data_width=data_width, address_width=32)
 
-        prng = seeded_prng()
-        init = [prng.randrange(2**32) for i in range(100)]
 
-        dut = DUT(size=len(init)*4, init=[v for v in init])
-        run_simulation_case(dut, [generator(dut, init)])
-        self.assertEqual(dut.errors, 0)
+@pytest.mark.parametrize("data_width", [32, 64], ids=["dw32", "dw64"])
+@pytest.mark.parametrize("mem_bus", ["wishbone", "axi_lite"], ids=["wishbone", "axi_lite"])
+def test_axilite2axi2mem(data_width, mem_bus):
+    run_axilite2axi2mem_case(data_width=data_width, address_width=32, mem_bus=mem_bus)
 
-    def converter_test(self, width_from, width_to, parallel_rw=False,
-                       write_pattern=None, write_expected=None,
-                       read_pattern=None, read_expected=None):
-        run_axilite_converter_case(
-            width_from=width_from,
-            width_to=width_to,
-            parallel_rw=parallel_rw,
-            write_pattern=write_pattern,
-            write_expected=write_expected,
-            read_pattern=read_pattern,
-            read_expected=read_expected,
-        )
 
-    def test_axilite_down_converter_32to16(self):
-        write_pattern = [
-            (0x00000000, 0x22221111),
-            (0x00000004, 0x44443333),
-            (0x00000008, 0x66665555),
-            (0x00000100, 0x88887777),
-        ]
-        write_expected = [
-            (0x00000000, 0x1111, 0b11),
-            (0x00000002, 0x2222, 0b11),
-            (0x00000004, 0x3333, 0b11),
-            (0x00000006, 0x4444, 0b11),
-            (0x00000008, 0x5555, 0b11),
-            (0x0000000a, 0x6666, 0b11),
-            (0x00000100, 0x7777, 0b11),
-            (0x00000102, 0x8888, 0b11),
-        ]
-        read_pattern = write_pattern
-        read_expected = [(adr, data) for (adr, data, _) in write_expected]
-        for parallel in [False, True]:
-            with self.subTest(parallel=parallel):
-                self.converter_test(width_from=32, width_to=16, parallel_rw=parallel,
-                                    write_pattern=write_pattern, write_expected=write_expected,
-                                    read_pattern=read_pattern, read_expected=read_expected)
+def test_axilite2csr():
+    run_axilite2csr_case()
 
-    def test_axilite_down_converter_32to8(self):
-        write_pattern = [
-            (0x00000000, 0x44332211),
-            (0x00000004, 0x88776655),
-        ]
-        write_expected = [
-            (0x00000000, 0x11, 0b1),
-            (0x00000001, 0x22, 0b1),
-            (0x00000002, 0x33, 0b1),
-            (0x00000003, 0x44, 0b1),
-            (0x00000004, 0x55, 0b1),
-            (0x00000005, 0x66, 0b1),
-            (0x00000006, 0x77, 0b1),
-            (0x00000007, 0x88, 0b1),
-        ]
-        read_pattern = write_pattern
-        read_expected = [(adr, data) for (adr, data, _) in write_expected]
-        for parallel in [False, True]:
-            with self.subTest(parallel=parallel):
-                self.converter_test(width_from=32, width_to=8, parallel_rw=parallel,
-                                    write_pattern=write_pattern, write_expected=write_expected,
-                                    read_pattern=read_pattern, read_expected=read_expected)
 
-    def test_axilite_down_converter_64to32(self):
-        write_pattern = [
-            (0x00000000, 0x2222222211111111),
-            (0x00000008, 0x4444444433333333),
-        ]
-        write_expected = [
-            (0x00000000, 0x11111111, 0b1111),
-            (0x00000004, 0x22222222, 0b1111),
-            (0x00000008, 0x33333333, 0b1111),
-            (0x0000000c, 0x44444444, 0b1111),
-        ]
-        read_pattern = write_pattern
-        read_expected = [(adr, data) for (adr, data, _) in write_expected]
-        for parallel in [False, True]:
-            with self.subTest(parallel=parallel):
-                self.converter_test(width_from=64, width_to=32, parallel_rw=parallel,
-                                    write_pattern=write_pattern, write_expected=write_expected,
-                                    read_pattern=read_pattern, read_expected=read_expected)
+def test_axilite_sram():
+    run_axilite_sram_case()
 
-    def test_axilite_down_converter_strb(self):
-        write_pattern = [
-            (0x00000000, 0x22221111, 0b1100),
-            (0x00000004, 0x44443333, 0b1111),
-            (0x00000008, 0x66665555, 0b1011),
-            (0x00000100, 0x88887777, 0b0011),
-        ]
-        write_expected = [
-            (0x00000002, 0x2222, 0b11),
-            (0x00000004, 0x3333, 0b11),
-            (0x00000006, 0x4444, 0b11),
-            (0x00000008, 0x5555, 0b11),
-            (0x0000000a, 0x6666, 0b10),
-            (0x00000100, 0x7777, 0b11),
-        ]
-        self.converter_test(width_from=32, width_to=16,
-                            write_pattern=write_pattern, write_expected=write_expected)
 
-    def test_axilite_up_converter_16to32(self):
-        write_pattern = [
-            (0x00000000, 0x1111),
-            (0x00000002, 0x2222),
-            (0x00000006, 0x3333),
-            (0x00000004, 0x4444),
-            (0x00000102, 0x5555),
-        ]
-        write_expected = [
-            (0x00000000, 0x00001111, 0b0011),
-            (0x00000000, 0x22220000, 0b1100),
-            (0x00000004, 0x33330000, 0b1100),
-            (0x00000004, 0x00004444, 0b0011),
-            (0x00000100, 0x55550000, 0b1100),
-        ]
-        read_pattern = write_pattern
-        read_expected = [
-            (0x00000000, 0x22221111),
-            (0x00000000, 0x22221111),
-            (0x00000004, 0x33334444),
-            (0x00000004, 0x33334444),
-            (0x00000100, 0x55550000),
-        ]
-        for parallel in [False, True]:
-            with self.subTest(parallel=parallel):
-                self.converter_test(width_from=16, width_to=32, parallel_rw=parallel,
-                                    write_pattern=write_pattern, write_expected=write_expected,
-                                    read_pattern=read_pattern, read_expected=read_expected)
+@pytest.mark.parametrize("parallel_rw", [False, True], ids=["sequential", "parallel"])
+def test_axilite_down_converter_32to16(parallel_rw):
+    write_pattern = [
+        (0x00000000, 0x22221111),
+        (0x00000004, 0x44443333),
+        (0x00000008, 0x66665555),
+        (0x00000100, 0x88887777),
+    ]
+    write_expected = [
+        (0x00000000, 0x1111, 0b11),
+        (0x00000002, 0x2222, 0b11),
+        (0x00000004, 0x3333, 0b11),
+        (0x00000006, 0x4444, 0b11),
+        (0x00000008, 0x5555, 0b11),
+        (0x0000000a, 0x6666, 0b11),
+        (0x00000100, 0x7777, 0b11),
+        (0x00000102, 0x8888, 0b11),
+    ]
+    read_pattern = write_pattern
+    read_expected = [(adr, data) for (adr, data, _) in write_expected]
+    run_axilite_converter_case(
+        width_from=32, width_to=16, parallel_rw=parallel_rw,
+        write_pattern=write_pattern, write_expected=write_expected,
+        read_pattern=read_pattern, read_expected=read_expected,
+    )
 
-    def test_axilite_up_converter_8to32(self):
-        write_pattern = [
-            (0x00000000, 0x11),
-            (0x00000001, 0x22),
-            (0x00000003, 0x33),
-            (0x00000002, 0x44),
-            (0x00000101, 0x55),
-        ]
-        write_expected = [
-            (0x00000000, 0x00000011, 0b0001),
-            (0x00000000, 0x00002200, 0b0010),
-            (0x00000000, 0x33000000, 0b1000),
-            (0x00000000, 0x00440000, 0b0100),
-            (0x00000100, 0x00005500, 0b0010),
-        ]
-        read_pattern = write_pattern
-        read_expected = [
-            (0x00000000, 0x33442211),
-            (0x00000000, 0x33442211),
-            (0x00000000, 0x33442211),
-            (0x00000000, 0x33442211),
-            (0x00000100, 0x00005500),
-        ]
-        for parallel in [False, True]:
-            with self.subTest(parallel=parallel):
-                self.converter_test(width_from=8, width_to=32, parallel_rw=parallel,
-                                    write_pattern=write_pattern, write_expected=write_expected,
-                                    read_pattern=read_pattern, read_expected=read_expected)
 
-    def test_axilite_up_converter_strb(self):
-        write_pattern = [
-            (0x00000000, 0x1111, 0b10),
-            (0x00000002, 0x2222, 0b11),
-            (0x00000006, 0x3333, 0b11),
-            (0x00000004, 0x4444, 0b01),
-            (0x00000102, 0x5555, 0b01),
-        ]
-        write_expected = [
-            (0x00000000, 0x00001111, 0b0010),
-            (0x00000000, 0x22220000, 0b1100),
-            (0x00000004, 0x33330000, 0b1100),
-            (0x00000004, 0x00004444, 0b0001),
-            (0x00000100, 0x55550000, 0b0100),
-        ]
-        self.converter_test(width_from=16, width_to=32,
-                            write_pattern=write_pattern, write_expected=write_expected)
+@pytest.mark.parametrize("parallel_rw", [False, True], ids=["sequential", "parallel"])
+def test_axilite_down_converter_32to8(parallel_rw):
+    write_pattern = [
+        (0x00000000, 0x44332211),
+        (0x00000004, 0x88776655),
+    ]
+    write_expected = [
+        (0x00000000, 0x11, 0b1),
+        (0x00000001, 0x22, 0b1),
+        (0x00000002, 0x33, 0b1),
+        (0x00000003, 0x44, 0b1),
+        (0x00000004, 0x55, 0b1),
+        (0x00000005, 0x66, 0b1),
+        (0x00000006, 0x77, 0b1),
+        (0x00000007, 0x88, 0b1),
+    ]
+    read_pattern = write_pattern
+    read_expected = [(adr, data) for (adr, data, _) in write_expected]
+    run_axilite_converter_case(
+        width_from=32, width_to=8, parallel_rw=parallel_rw,
+        write_pattern=write_pattern, write_expected=write_expected,
+        read_pattern=read_pattern, read_expected=read_expected,
+    )
+
+
+@pytest.mark.parametrize("parallel_rw", [False, True], ids=["sequential", "parallel"])
+def test_axilite_down_converter_64to32(parallel_rw):
+    write_pattern = [
+        (0x00000000, 0x2222222211111111),
+        (0x00000008, 0x4444444433333333),
+    ]
+    write_expected = [
+        (0x00000000, 0x11111111, 0b1111),
+        (0x00000004, 0x22222222, 0b1111),
+        (0x00000008, 0x33333333, 0b1111),
+        (0x0000000c, 0x44444444, 0b1111),
+    ]
+    read_pattern = write_pattern
+    read_expected = [(adr, data) for (adr, data, _) in write_expected]
+    run_axilite_converter_case(
+        width_from=64, width_to=32, parallel_rw=parallel_rw,
+        write_pattern=write_pattern, write_expected=write_expected,
+        read_pattern=read_pattern, read_expected=read_expected,
+    )
+
+
+def test_axilite_down_converter_strb():
+    write_pattern = [
+        (0x00000000, 0x22221111, 0b1100),
+        (0x00000004, 0x44443333, 0b1111),
+        (0x00000008, 0x66665555, 0b1011),
+        (0x00000100, 0x88887777, 0b0011),
+    ]
+    write_expected = [
+        (0x00000002, 0x2222, 0b11),
+        (0x00000004, 0x3333, 0b11),
+        (0x00000006, 0x4444, 0b11),
+        (0x00000008, 0x5555, 0b11),
+        (0x0000000a, 0x6666, 0b10),
+        (0x00000100, 0x7777, 0b11),
+    ]
+    run_axilite_converter_case(
+        width_from=32, width_to=16,
+        write_pattern=write_pattern, write_expected=write_expected,
+    )
+
+
+@pytest.mark.parametrize("parallel_rw", [False, True], ids=["sequential", "parallel"])
+def test_axilite_up_converter_16to32(parallel_rw):
+    write_pattern = [
+        (0x00000000, 0x1111),
+        (0x00000002, 0x2222),
+        (0x00000006, 0x3333),
+        (0x00000004, 0x4444),
+        (0x00000102, 0x5555),
+    ]
+    write_expected = [
+        (0x00000000, 0x00001111, 0b0011),
+        (0x00000000, 0x22220000, 0b1100),
+        (0x00000004, 0x33330000, 0b1100),
+        (0x00000004, 0x00004444, 0b0011),
+        (0x00000100, 0x55550000, 0b1100),
+    ]
+    read_pattern = write_pattern
+    read_expected = [
+        (0x00000000, 0x22221111),
+        (0x00000000, 0x22221111),
+        (0x00000004, 0x33334444),
+        (0x00000004, 0x33334444),
+        (0x00000100, 0x55550000),
+    ]
+    run_axilite_converter_case(
+        width_from=16, width_to=32, parallel_rw=parallel_rw,
+        write_pattern=write_pattern, write_expected=write_expected,
+        read_pattern=read_pattern, read_expected=read_expected,
+    )
+
+
+@pytest.mark.parametrize("parallel_rw", [False, True], ids=["sequential", "parallel"])
+def test_axilite_up_converter_8to32(parallel_rw):
+    write_pattern = [
+        (0x00000000, 0x11),
+        (0x00000001, 0x22),
+        (0x00000003, 0x33),
+        (0x00000002, 0x44),
+        (0x00000101, 0x55),
+    ]
+    write_expected = [
+        (0x00000000, 0x00000011, 0b0001),
+        (0x00000000, 0x00002200, 0b0010),
+        (0x00000000, 0x33000000, 0b1000),
+        (0x00000000, 0x00440000, 0b0100),
+        (0x00000100, 0x00005500, 0b0010),
+    ]
+    read_pattern = write_pattern
+    read_expected = [
+        (0x00000000, 0x33442211),
+        (0x00000000, 0x33442211),
+        (0x00000000, 0x33442211),
+        (0x00000000, 0x33442211),
+        (0x00000100, 0x00005500),
+    ]
+    run_axilite_converter_case(
+        width_from=8, width_to=32, parallel_rw=parallel_rw,
+        write_pattern=write_pattern, write_expected=write_expected,
+        read_pattern=read_pattern, read_expected=read_expected,
+    )
+
+
+def test_axilite_up_converter_strb():
+    write_pattern = [
+        (0x00000000, 0x1111, 0b10),
+        (0x00000002, 0x2222, 0b11),
+        (0x00000006, 0x3333, 0b11),
+        (0x00000004, 0x4444, 0b01),
+        (0x00000102, 0x5555, 0b01),
+    ]
+    write_expected = [
+        (0x00000000, 0x00001111, 0b0010),
+        (0x00000000, 0x22220000, 0b1100),
+        (0x00000004, 0x33330000, 0b1100),
+        (0x00000004, 0x00004444, 0b0001),
+        (0x00000100, 0x55550000, 0b0100),
+    ]
+    run_axilite_converter_case(
+        width_from=16, width_to=32,
+        write_pattern=write_pattern, write_expected=write_expected,
+    )
 
 # TestAXILiteInterconnet ---------------------------------------------------------------------------
 
