@@ -3,6 +3,7 @@ import unittest
 from migen import *
 
 from litex.soc.cores.timer import Timer
+from .common import run_simulation_case
 
 class TestTimer(unittest.TestCase):
     def test_one_shot_software_polling(self):
@@ -21,7 +22,7 @@ class TestTimer(unittest.TestCase):
             self.assertEqual((yield timer._value.status), 0)
 
         timer = Timer()
-        run_simulation(timer, generator(timer))
+        run_simulation_case(timer, generator(timer))
 
     def test_periodic_timer_software_polling(self):
         def generator(timer):
@@ -40,7 +41,7 @@ class TestTimer(unittest.TestCase):
             self.assertEqual((yield timer._value.status), clock_cycles)
 
         timer = Timer()
-        run_simulation(timer, generator(timer))
+        run_simulation_case(timer, generator(timer))
 
     def test_one_shot_timer_interrupts(self):
         def generator(timer):
@@ -60,4 +61,4 @@ class TestTimer(unittest.TestCase):
             self.assertEqual(1, (yield timer.ev.zero.trigger))
 
         timer = Timer()
-        run_simulation(timer, generator(timer))
+        run_simulation_case(timer, generator(timer))

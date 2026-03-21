@@ -9,6 +9,7 @@ import unittest
 from migen import *
 
 from litex.soc.cores.spi import SPIMaster, SPISlave
+from .common import run_simulation_case
 
 
 class TestSPI(unittest.TestCase):
@@ -32,7 +33,7 @@ class TestSPI(unittest.TestCase):
             self.assertEqual(hex((yield dut.miso)), hex(0xdeadbeef))
 
         dut = SPIMaster(pads=None, data_width=32, sys_clk_freq=100e6, spi_clk_freq=5e6, with_csr=False)
-        run_simulation(dut, generator(dut))
+        run_simulation_case(dut, generator(dut))
 
     def test_spi_master_xfer_loopback_32b_16b(self):
         def generator(dut):
@@ -49,7 +50,7 @@ class TestSPI(unittest.TestCase):
             self.assertEqual(hex((yield dut.miso)), hex(0xbeef))
 
         dut = SPIMaster(pads=None, data_width=32, sys_clk_freq=100e6, spi_clk_freq=5e6, with_csr=False, mode="aligned")
-        run_simulation(dut, generator(dut))
+        run_simulation_case(dut, generator(dut))
 
     def test_spi_slave_syntax(self):
         spi_slave = SPISlave(pads=None, data_width=32)
@@ -91,4 +92,4 @@ class TestSPI(unittest.TestCase):
             self.assertEqual((yield dut.slave.length), 32)
 
         dut = DUT()
-        run_simulation(dut, [master_generator(dut), slave_generator(dut)])
+        run_simulation_case(dut, [master_generator(dut), slave_generator(dut)])

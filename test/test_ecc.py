@@ -5,7 +5,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import unittest
-import random
 
 from migen import *
 
@@ -13,6 +12,7 @@ from litedram.common import *
 from litedram.frontend.ecc import *
 
 from litex.gen.sim import *
+from .common import run_simulation_case, seeded_prng
 
 
 class TestECC(unittest.TestCase):
@@ -58,7 +58,7 @@ class TestECC(unittest.TestCase):
 
         def generator(dut, k, nvalues, nerrors):
             dut.errors = 0
-            prng = random.Random(42)
+            prng = seeded_prng()
             yield dut.decoder.enable.eq(1)
             for i in range(nvalues):
                 data = prng.randrange(2**k-1)
@@ -99,5 +99,5 @@ class TestECC(unittest.TestCase):
 
         for i in range(3):
             dut = DUT(k)
-            run_simulation(dut, generator(dut, k, 128, i))
+            run_simulation_case(dut, generator(dut, k, 128, i))
             self.assertEqual(dut.errors, 0)

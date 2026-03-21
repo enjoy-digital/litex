@@ -5,15 +5,16 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import unittest
-import random
 
 from migen import *
 
 from litex.soc.interconnect.stream import Gearbox
 
+from .common import run_simulation_case, seeded_prng
+
 
 def data_generator(dut, gearbox, datas):
-    prng = random.Random(42)
+    prng = seeded_prng()
     for i, data in enumerate(datas):
         while prng.randrange(4):
             yield
@@ -26,7 +27,7 @@ def data_generator(dut, gearbox, datas):
 
 
 def data_checker(dut, gearbox, datas):
-        prng = random.Random(42)
+        prng = seeded_prng()
         dut.errors = 0
         for i, reference in enumerate(datas):
             yield gearbox.source.ready.eq(1)
@@ -50,14 +51,14 @@ class GearboxDUT(Module):
 
 class TestGearbox(unittest.TestCase):
     def gearbox_test(self, dw0, dw1, msb_first=True):
-        prng = random.Random(42)
+        prng = seeded_prng()
         dut = GearboxDUT(dw0, dw1, msb_first=msb_first)
         datas = [prng.randrange(2**dw0) for i in range(128)]
         generators = [
             data_generator(dut, dut.gearbox0, datas),
             data_checker(dut, dut.gearbox1, datas)
         ]
-        run_simulation(dut, generators)
+        run_simulation_case(dut, generators)
         self.assertEqual(dut.errors, 0)
 
     def test_gearbox_20_32(self):
