@@ -10,8 +10,6 @@ import inspect
 
 from migen import Record
 
-from litex.gen.sim import run_simulation
-
 from litex.soc.cores.spi.spi_mmap import (
     SPIMaster,
     SPIMMAP,
@@ -24,6 +22,7 @@ from litex.soc.cores.spi.spi_mmap import (
     SPI_SLOT_MODE_0,
     SPI_SLOT_MODE_3,
 )
+from .common import run_simulation_case
 
 verbose = None
 
@@ -145,7 +144,7 @@ class TestSPIMMAP(unittest.TestCase):
                 yield
             print(f"mosi_data : {(yield dut.miso):08x}")
 
-        run_simulation(dut, generator(dut), vcd_name="sim.vcd")
+        run_simulation_case(dut, generator(dut), vcd_name="sim.vcd")
 
     def mmap_test(self, length, bitorder, data, vcd_name=None, sel_override=None, wait=0):
         pads = Record([("clk", 1), ("cs_n", 4), ("mosi", 1), ("miso", 1)])
@@ -237,7 +236,7 @@ class TestSPIMMAP(unittest.TestCase):
                 read = yield from dut.rx_mmap.bus.read(slot)
                 self.assertEqual(read, d, f"read({slot}) {read:0{width}x} expect: {d:0{width}x}")
 
-        run_simulation(dut, generator(dut), vcd_name=vcd_name)
+        run_simulation_case(dut, generator(dut), vcd_name=vcd_name)
 
     # 32 bit write to 32bit slot
     def test_spi_mmap_32_lsb(self):
