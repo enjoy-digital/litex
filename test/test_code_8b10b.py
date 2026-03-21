@@ -6,12 +6,12 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import unittest
-import random
 from collections import namedtuple
 
 from migen import *
 
 from litex.soc.cores import code_8b10b
+from .common import run_simulation_case, seeded_prng
 
 
 Control = namedtuple("Control", "value")
@@ -256,7 +256,7 @@ def encode_sequence(seq):
         for _ in range(2):
             yield
             output.append((yield dut.output[0]))
-    run_simulation(dut, pump())
+    run_simulation_case(dut, pump())
 
     return output[2:]
 
@@ -278,14 +278,14 @@ def decode_sequence(seq):
             output.append(Control((yield dut.d)))
         else:
             output.append((yield dut.d))
-    run_simulation(dut, pump())
+    run_simulation_case(dut, pump())
     return output[1:]
 
 
 class TestCode8B10B(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        prng = random.Random(42)
+        prng = seeded_prng()
         cls.input_sequence = []
         for i in 23, 27, 29, 30:
             cls.input_sequence += [Control((7 << 5) | i)]*2
@@ -340,7 +340,7 @@ class TestCode8B10B(unittest.TestCase):
 
     def test_stream(self):
         def data_generator(dut, endpoint, datas, commas, rand=True):
-            prng = random.Random(42)
+            prng = seeded_prng()
             for i, (data, comma) in enumerate(zip(datas, commas)):
                 if rand:
                     while prng.randrange(4):
@@ -354,7 +354,7 @@ class TestCode8B10B(unittest.TestCase):
                 yield endpoint.valid.eq(0)
 
         def data_checker(dut, endpoint, datas, commas, rand=True):
-                prng = random.Random(42)
+                prng = seeded_prng()
                 dut.errors = 0
                 for i, (data_ref, comma_ref) in enumerate(zip(datas, commas)):
                     yield endpoint.ready.eq(1)
@@ -382,7 +382,7 @@ class TestCode8B10B(unittest.TestCase):
                 self.comb += self.encoder.source.connect(self.decoder.sink)
 
 
-        prng   = random.Random(42)
+        prng   = seeded_prng()
         dut    = DUT()
         datas  = [prng.randrange(2**32) for i in range(128)]
         commas = [0 for i in range(128)]
@@ -390,5 +390,5 @@ class TestCode8B10B(unittest.TestCase):
             data_generator(dut, dut.encoder.sink, datas, commas),
             data_checker(dut, dut.decoder.source, datas, commas)
         ]
-        run_simulation(dut, generators)
+        run_simulation_case(dut, generators)
         self.assertEqual(dut.errors, 0)
