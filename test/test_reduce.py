@@ -5,11 +5,11 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import unittest
-import random
 
 from migen import *
 
 from litex.gen import *
+from .common import run_simulation_case
 
 class TestReduce(unittest.TestCase):
     def reduce_test(self, operator, value, reduced):
@@ -24,7 +24,7 @@ class TestReduce(unittest.TestCase):
                     self.errors += 1
 
         dut = DUT()
-        run_simulation(dut, [dut.checker()])
+        run_simulation_case(dut, [dut.checker()])
         self.assertEqual(dut.errors, 0)
 
     def test_reduced_and(self):
@@ -45,7 +45,7 @@ class TestReduce(unittest.TestCase):
         self.reduce_test(operator="NOR", value=Constant(0b10, 2), reduced=0b0)
         self.reduce_test(operator="NOR", value=Constant(0b11, 2), reduced=0b0)
 
-    def test_reduced_nor(self):
+    def test_reduced_xor(self):
         self.reduce_test(operator="XOR", value=Constant(0b00, 2), reduced=0b0)
         self.reduce_test(operator="XOR", value=Constant(0b01, 2), reduced=0b1)
         self.reduce_test(operator="XOR", value=Constant(0b10, 2), reduced=0b1)

@@ -9,6 +9,7 @@ import unittest
 from migen import *
 
 from litex.soc.cores.prbs import *
+from .common import run_simulation_case
 
 
 class PRBSModel:
@@ -71,7 +72,7 @@ class TestPRBS(unittest.TestCase):
                     if (yield dut.o) != model.getbits(len(dut.o)):
                         dut._errors += 1
                     yield
-            run_simulation(dut, checker(dut, 1024))
+            run_simulation_case(dut, checker(dut, 1024))
             self.assertEqual(dut._errors, 0)
 
     def test_prbs_checker(self):
@@ -105,5 +106,5 @@ class TestPRBS(unittest.TestCase):
                     if (yield dut.errors) != 0:
                         dut._errors += 1
                     yield
-            run_simulation(dut, [generator(dut), checker(dut, 1024)])
+            run_simulation_case(dut, [generator(dut), checker(dut, 1024)])
             self.assertEqual(dut._errors, 0)
