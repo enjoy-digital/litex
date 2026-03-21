@@ -16,6 +16,7 @@ from migen import *
 from migen.fhdl.specials import Tristate
 
 from litex.soc.cores.i2c import *
+from .common import run_simulation_case
 
 
 class _MockPads:
@@ -220,7 +221,13 @@ class TestI2C(unittest.TestCase):
                 check(),
             ],
         }
-        run_simulation(dut, generators, clocks, special_overrides={Tristate: _MockTristate}, vcd_name="i2c.vcd")
+        run_simulation_case(
+            dut,
+            generators,
+            clocks=clocks,
+            special_overrides={Tristate: _MockTristate},
+            vcd_name="i2c.vcd",
+        )
 
 if __name__ == "__main__":
     unittest.main()
