@@ -122,7 +122,7 @@ class TestWishbone(unittest.TestCase):
         dut = DUT()
         run_simulation(dut, generator(dut))
 
-    def test_origin_remap_byte(self):
+    def test_origin_remap_byte_legacy(self):
         def generator(dut):
             yield from dut.master.write(0x0000_0000, 0)
             yield from dut.master.write(0x0000_0004, 0)
