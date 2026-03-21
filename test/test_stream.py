@@ -7,7 +7,6 @@
 import unittest
 
 import pytest
-import random
 
 from migen import *
 
@@ -108,6 +107,233 @@ def pipe_test(dut):
 
     run_simulation_case(dut, [generator(dut), checker(dut)])
     assert dut.errors == 0
+
+
+def gate_disable_test(sink_ready_when_disabled, expected_ready):
+    dut = Gate([("data", 8)], sink_ready_when_disabled=sink_ready_when_disabled)
+    observations = {}
+
+    def stimulus():
+        yield dut.enable.eq(0)
+        yield dut.sink.valid.eq(1)
+        yield dut.sink.first.eq(1)
+        yield dut.sink.last.eq(1)
+        yield dut.sink.data.eq(0x55)
+        yield dut.source.ready.eq(1)
+        yield
+        observations["disabled_ready"] = (yield dut.sink.ready)
+        observations["disabled_valid"] = (yield dut.source.valid)
+
+        yield dut.enable.eq(1)
+        yield
+        observations["enabled_ready"] = (yield dut.sink.ready)
+        observations["enabled_valid"] = (yield dut.source.valid)
+        observations["enabled_data"] = (yield dut.source.data)
+
+    run_simulation_case(dut, stimulus())
+    assert observations["disabled_ready"] == expected_ready
+    assert observations["disabled_valid"] == 0
+    assert observations["enabled_ready"] == 1
+    assert observations["enabled_valid"] == 1
+    assert observations["enabled_data"] == 0x55
+
+
+def converter_up_stall_test(reverse, expected_data):
+    dut = Converter(8, 32, reverse=reverse, report_valid_token_count=True)
+    received = []
+
+    def generator():
+        for index, data in enumerate([0x10, 0x11, 0x12]):
+            yield dut.sink.valid.eq(1)
+            yield dut.sink.first.eq(index == 0)
+            yield dut.sink.last.eq(index == 2)
+            yield dut.sink.data.eq(data)
+            yield
+            while (yield dut.sink.ready) == 0:
+                yield
+        yield dut.sink.valid.eq(0)
+        yield dut.sink.last.eq(0)
+        for _ in range(4):
+            yield
+
+    def checker():
+        yield dut.source.ready.eq(0)
+        for _ in range(4):
+            if (yield dut.source.valid):
+                received.append((
+                    (yield dut.source.data),
+                    (yield dut.source.valid_token_count),
+                    (yield dut.source.first),
+                    (yield dut.source.last),
+                ))
+            yield
+        yield dut.source.ready.eq(1)
+        for _ in range(2):
+            if (yield dut.source.valid):
+                received.append((
+                    (yield dut.source.data),
+                    (yield dut.source.valid_token_count),
+                    (yield dut.source.first),
+                    (yield dut.source.last),
+                ))
+            yield
+
+    run_simulation_case(dut, [generator(), checker()])
+    assert len(received) >= 2
+    assert all(sample == (expected_data, 3, 1, 1) for sample in received)
+
+
+def converter_down_stall_test(reverse):
+    dut = Converter(32, 8, reverse=reverse)
+    received = []
+
+    def generator():
+        yield dut.sink.valid.eq(1)
+        yield dut.sink.first.eq(1)
+        yield dut.sink.last.eq(1)
+        yield dut.sink.data.eq(0x44332211 if not reverse else 0x11223344)
+        yield
+        while (yield dut.sink.ready) == 0:
+            yield
+        yield dut.sink.valid.eq(0)
+        for _ in range(4):
+            yield
+
+    def checker():
+        yield dut.source.ready.eq(0)
+        for _ in range(4):
+            if (yield dut.source.valid):
+                received.append((
+                    (yield dut.source.data),
+                    (yield dut.source.first),
+                    (yield dut.source.last),
+                ))
+            yield
+        yield dut.source.ready.eq(1)
+        for _ in range(6):
+            if (yield dut.source.valid):
+                received.append((
+                    (yield dut.source.data),
+                    (yield dut.source.first),
+                    (yield dut.source.last),
+                ))
+            yield
+
+    run_simulation_case(dut, [generator(), checker()])
+    assert len(received) >= 4
+    assert all(sample == (0x11, 1, 0) for sample in received[:4])
+    assert received.count((0x11, 1, 0)) >= 4
+    assert received[-3:] == [
+        (0x22, 0, 0),
+        (0x33, 0, 0),
+        (0x44, 0, 1),
+    ]
+
+
+def async_fifo_test(buffered):
+    class DUT(Module):
+        def __init__(self):
+            self.clock_domains.cd_write = ClockDomain("write")
+            self.clock_domains.cd_read  = ClockDomain("read")
+            self.submodules.fifo = ClockDomainsRenamer({"write": "write", "read": "read"})(AsyncFIFO(
+                EndpointDescription(
+                    payload_layout=[("data", 8)],
+                    param_layout=[("tag", 4)],
+                ),
+                depth=8,
+                buffered=buffered,
+            ))
+            self.sink = self.fifo.sink
+            self.source = self.fifo.source
+
+    dut = DUT()
+    packets = [
+        {"tag": 0x1, "datas": [0x10, 0x11, 0x12]},
+        {"tag": 0x2, "datas": [0x20]},
+        {"tag": 0x3, "datas": [0x30, 0x31]},
+    ]
+    dut.errors = 0
+
+    def generator():
+        for packet in packets:
+            for index, data in enumerate(packet["datas"]):
+                yield dut.sink.valid.eq(1)
+                yield dut.sink.first.eq(index == 0)
+                yield dut.sink.last.eq(index == (len(packet["datas"]) - 1))
+                yield dut.sink.data.eq(data)
+                yield dut.sink.tag.eq(packet["tag"])
+                yield
+                while (yield dut.sink.ready) == 0:
+                    yield
+            yield dut.sink.valid.eq(0)
+            yield dut.sink.first.eq(0)
+            yield dut.sink.last.eq(0)
+            for _ in range(2):
+                yield
+
+    def checker():
+        prng = seeded_prng(5 if buffered else 4)
+        for packet in packets:
+            for index, data in enumerate(packet["datas"]):
+                yield dut.source.ready.eq(0)
+                yield
+                while (yield dut.source.valid) == 0:
+                    yield
+                while prng.randrange(100) < 40:
+                    yield
+                if (yield dut.source.data) != data:
+                    dut.errors += 1
+                if (yield dut.source.tag) != packet["tag"]:
+                    dut.errors += 1
+                if (yield dut.source.first) != (index == 0):
+                    dut.errors += 1
+                if (yield dut.source.last) != (index == (len(packet["datas"]) - 1)):
+                    dut.errors += 1
+                yield dut.source.ready.eq(1)
+                yield
+
+    clocks = {
+        "write": 10,
+        "read":  7,
+    }
+    generators = {
+        "write": [generator()],
+        "read":  [checker()],
+    }
+    run_simulation_case(dut, generators, clocks=clocks)
+    assert dut.errors == 0
+
+
+@pytest.mark.parametrize(
+    ("sink_ready_when_disabled", "expected_ready"),
+    [
+        pytest.param(False, 0, id="backpressure"),
+        pytest.param(True, 1, id="absorb"),
+    ],
+)
+def test_gate_disable_modes(sink_ready_when_disabled, expected_ready):
+    gate_disable_test(sink_ready_when_disabled=sink_ready_when_disabled, expected_ready=expected_ready)
+
+
+@pytest.mark.parametrize(
+    ("reverse", "expected_data"),
+    [
+        pytest.param(False, 0x00121110, id="forward"),
+        pytest.param(True, 0x10111200, id="reverse"),
+    ],
+)
+def test_converter_up_holds_partial_output_when_stalled(reverse, expected_data):
+    converter_up_stall_test(reverse=reverse, expected_data=expected_data)
+
+
+@pytest.mark.parametrize("reverse", [False, True], ids=["forward", "reverse"])
+def test_converter_down_holds_slice_when_stalled(reverse):
+    converter_down_stall_test(reverse=reverse)
+
+
+@pytest.mark.parametrize("buffered", [False, True], ids=["unbuffered", "buffered"])
+def test_asyncfifo_variants(buffered):
+    async_fifo_test(buffered=buffered)
 
 
 @pytest.mark.parametrize(
@@ -429,40 +655,6 @@ class TestStream(unittest.TestCase):
             "source2_valid": 0,
         })
 
-    def gate_disable_test(self, sink_ready_when_disabled, expected_ready):
-        dut = Gate([("data", 8)], sink_ready_when_disabled=sink_ready_when_disabled)
-        observations = {}
-
-        def stimulus():
-            yield dut.enable.eq(0)
-            yield dut.sink.valid.eq(1)
-            yield dut.sink.first.eq(1)
-            yield dut.sink.last.eq(1)
-            yield dut.sink.data.eq(0x55)
-            yield dut.source.ready.eq(1)
-            yield
-            observations["disabled_ready"] = (yield dut.sink.ready)
-            observations["disabled_valid"] = (yield dut.source.valid)
-
-            yield dut.enable.eq(1)
-            yield
-            observations["enabled_ready"] = (yield dut.sink.ready)
-            observations["enabled_valid"] = (yield dut.source.valid)
-            observations["enabled_data"] = (yield dut.source.data)
-
-        run_simulation(dut, stimulus())
-        self.assertEqual(observations["disabled_ready"], expected_ready)
-        self.assertEqual(observations["disabled_valid"], 0)
-        self.assertEqual(observations["enabled_ready"], 1)
-        self.assertEqual(observations["enabled_valid"], 1)
-        self.assertEqual(observations["enabled_data"], 0x55)
-
-    def test_gate_disable_backpressure(self):
-        self.gate_disable_test(sink_ready_when_disabled=False, expected_ready=0)
-
-    def test_gate_disable_absorb(self):
-        self.gate_disable_test(sink_ready_when_disabled=True, expected_ready=1)
-
     def test_delay(self):
         dut = Delay(EndpointDescription(
             payload_layout=[("data", 8)],
@@ -769,56 +961,6 @@ class TestStream(unittest.TestCase):
             (0x1122, 2, 1, 1),
         ])
 
-    def converter_up_stall_test(self, reverse, expected_data):
-        dut = Converter(8, 32, reverse=reverse, report_valid_token_count=True)
-        received = []
-
-        def generator():
-            for index, data in enumerate([0x10, 0x11, 0x12]):
-                yield dut.sink.valid.eq(1)
-                yield dut.sink.first.eq(index == 0)
-                yield dut.sink.last.eq(index == 2)
-                yield dut.sink.data.eq(data)
-                yield
-                while (yield dut.sink.ready) == 0:
-                    yield
-            yield dut.sink.valid.eq(0)
-            yield dut.sink.last.eq(0)
-            for _ in range(4):
-                yield
-
-        def checker():
-            yield dut.source.ready.eq(0)
-            for _ in range(4):
-                if (yield dut.source.valid):
-                    received.append((
-                        (yield dut.source.data),
-                        (yield dut.source.valid_token_count),
-                        (yield dut.source.first),
-                        (yield dut.source.last),
-                    ))
-                yield
-            yield dut.source.ready.eq(1)
-            for _ in range(2):
-                if (yield dut.source.valid):
-                    received.append((
-                        (yield dut.source.data),
-                        (yield dut.source.valid_token_count),
-                        (yield dut.source.first),
-                        (yield dut.source.last),
-                    ))
-                yield
-
-        run_simulation(dut, [generator(), checker()])
-        self.assertGreaterEqual(len(received), 2)
-        self.assertTrue(all(sample == (expected_data, 3, 1, 1) for sample in received))
-
-    def test_converter_up_holds_partial_output_when_stalled(self):
-        self.converter_up_stall_test(reverse=False, expected_data=0x00121110)
-
-    def test_converter_up_reverse_holds_partial_output_when_stalled(self):
-        self.converter_up_stall_test(reverse=True, expected_data=0x10111200)
-
     def test_converter_down_reverse(self):
         dut = Converter(16, 8, reverse=True)
         received = []
@@ -849,58 +991,6 @@ class TestStream(unittest.TestCase):
             (0x11, 1, 0),
             (0x22, 0, 1),
         ])
-
-    def converter_down_stall_test(self, reverse):
-        dut = Converter(32, 8, reverse=reverse)
-        received = []
-
-        def generator():
-            yield dut.sink.valid.eq(1)
-            yield dut.sink.first.eq(1)
-            yield dut.sink.last.eq(1)
-            yield dut.sink.data.eq(0x44332211 if not reverse else 0x11223344)
-            yield
-            while (yield dut.sink.ready) == 0:
-                yield
-            yield dut.sink.valid.eq(0)
-            for _ in range(4):
-                yield
-
-        def checker():
-            yield dut.source.ready.eq(0)
-            for _ in range(4):
-                if (yield dut.source.valid):
-                    received.append((
-                        (yield dut.source.data),
-                        (yield dut.source.first),
-                        (yield dut.source.last),
-                    ))
-                yield
-            yield dut.source.ready.eq(1)
-            for _ in range(6):
-                if (yield dut.source.valid):
-                    received.append((
-                        (yield dut.source.data),
-                        (yield dut.source.first),
-                        (yield dut.source.last),
-                    ))
-                yield
-
-        run_simulation(dut, [generator(), checker()])
-        self.assertGreaterEqual(len(received), 4)
-        self.assertTrue(all(sample == (0x11, 1, 0) for sample in received[:4]))
-        self.assertGreaterEqual(received.count((0x11, 1, 0)), 4)
-        self.assertEqual(received[-3:], [
-            (0x22, 0, 0),
-            (0x33, 0, 0),
-            (0x44, 0, 1),
-        ])
-
-    def test_converter_down_holds_slice_when_stalled(self):
-        self.converter_down_stall_test(reverse=False)
-
-    def test_converter_down_reverse_holds_slice_when_stalled(self):
-        self.converter_down_stall_test(reverse=True)
 
     def test_cast_reverse_from(self):
         dut = Cast([("a", 4), ("b", 4)], [("c", 4), ("d", 4)], reverse_from=True)
@@ -1216,85 +1306,6 @@ class TestStream(unittest.TestCase):
         }
         run_simulation(dut, generators, clocks)
         self.assertEqual(dut.errors, 0)
-
-    def async_fifo_test(self, buffered):
-        class DUT(Module):
-            def __init__(self):
-                self.clock_domains.cd_write = ClockDomain("write")
-                self.clock_domains.cd_read  = ClockDomain("read")
-                self.submodules.fifo = ClockDomainsRenamer({"write": "write", "read": "read"})(AsyncFIFO(
-                    EndpointDescription(
-                        payload_layout=[("data", 8)],
-                        param_layout=[("tag", 4)],
-                    ),
-                    depth=8,
-                    buffered=buffered,
-                ))
-                self.sink = self.fifo.sink
-                self.source = self.fifo.source
-
-        dut = DUT()
-        packets = [
-            {"tag": 0x1, "datas": [0x10, 0x11, 0x12]},
-            {"tag": 0x2, "datas": [0x20]},
-            {"tag": 0x3, "datas": [0x30, 0x31]},
-        ]
-        dut.errors = 0
-
-        def generator():
-            for packet in packets:
-                for index, data in enumerate(packet["datas"]):
-                    yield dut.sink.valid.eq(1)
-                    yield dut.sink.first.eq(index == 0)
-                    yield dut.sink.last.eq(index == (len(packet["datas"]) - 1))
-                    yield dut.sink.data.eq(data)
-                    yield dut.sink.tag.eq(packet["tag"])
-                    yield
-                    while (yield dut.sink.ready) == 0:
-                        yield
-                yield dut.sink.valid.eq(0)
-                yield dut.sink.first.eq(0)
-                yield dut.sink.last.eq(0)
-                for _ in range(2):
-                    yield
-
-        def checker():
-            prng = random.Random(5 if buffered else 4)
-            for packet in packets:
-                for index, data in enumerate(packet["datas"]):
-                    yield dut.source.ready.eq(0)
-                    yield
-                    while (yield dut.source.valid) == 0:
-                        yield
-                    while prng.randrange(100) < 40:
-                        yield
-                    if (yield dut.source.data) != data:
-                        dut.errors += 1
-                    if (yield dut.source.tag) != packet["tag"]:
-                        dut.errors += 1
-                    if (yield dut.source.first) != (index == 0):
-                        dut.errors += 1
-                    if (yield dut.source.last) != (index == (len(packet["datas"]) - 1)):
-                        dut.errors += 1
-                    yield dut.source.ready.eq(1)
-                    yield
-
-        clocks = {
-            "write": 10,
-            "read":  7,
-        }
-        generators = {
-            "write": [generator()],
-            "read":  [checker()],
-        }
-        run_simulation(dut, generators, clocks)
-        self.assertEqual(dut.errors, 0)
-
-    def test_asyncfifo(self):
-        self.async_fifo_test(buffered=False)
-
-    def test_asyncfifo_buffered(self):
-        self.async_fifo_test(buffered=True)
 
     def test_shifter(self):
         dut = Shifter(8)
