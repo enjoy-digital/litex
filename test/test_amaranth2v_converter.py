@@ -3,9 +3,12 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 
-import amaranth
-import migen
 import pytest
+import migen
+
+amaranth = pytest.importorskip("amaranth")
+
+pytestmark = [pytest.mark.unit, pytest.mark.optional]
 
 from litex.build.amaranth2v_converter import Amaranth2VConverter
 

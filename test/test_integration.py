@@ -5,12 +5,15 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-import pexpect
 import os
 import sys
 import tempfile
 import itertools
 import pytest
+
+pexpect = pytest.importorskip("pexpect")
+
+pytestmark = [pytest.mark.integration, pytest.mark.slow, pytest.mark.toolchain]
 
 def boot_test(cpu_type="vexriscv", cpu_variant="standard", args=""):
     cmd = f'litex_sim --cpu-type={cpu_type} --cpu-variant={cpu_variant} {args} --opt-level=O0 --jobs {os.cpu_count()}'
