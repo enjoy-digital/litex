@@ -11,6 +11,7 @@ from migen import *
 from litex.soc.interconnect import wishbone
 
 from litex.soc.cores.emif import EMIF
+from .common import run_simulation_case
 
 
 class EMIFPads:
@@ -91,4 +92,4 @@ class TestEMIF(unittest.TestCase):
                 mem = wishbone.SRAM(16, bus=emif.bus)
                 self.submodules += mem
         dut = DUT(pads)
-        run_simulation(dut, [generator(dut)])
+        run_simulation_case(dut, [generator(dut)])

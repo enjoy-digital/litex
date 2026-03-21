@@ -9,6 +9,7 @@ import unittest
 from migen import *
 
 from litex.soc.interconnect import wishbone, avalon
+from .common import run_simulation_case
 
 # TestWishbone -------------------------------------------------------------------------------------
 
@@ -37,7 +38,7 @@ class TestAvalon2Wishbone(unittest.TestCase):
                 self.submodules += wishbone_mem
 
         dut = DUT()
-        run_simulation(dut, generator(dut)) #, vcd_name="avalon.vcd")
+        run_simulation_case(dut, generator(dut))
 
     def test_sram_burst(self):
         def generator(dut):
@@ -73,4 +74,4 @@ class TestAvalon2Wishbone(unittest.TestCase):
                 self.submodules += wishbone_mem
 
         dut = DUT()
-        run_simulation(dut, generator(dut)) #, vcd_name="avalon_burst.vcd")
+        run_simulation_case(dut, generator(dut))

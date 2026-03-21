@@ -10,6 +10,7 @@ from migen import *
 
 from litex.soc.cores.clock import *
 from litex.soc.cores.ram.xilinx_fifo_sync_macro import FIFOSyncMacro
+from .common import run_simulation_case
 
 class TestFIFOSyncMacro(unittest.TestCase):
     def testWriteRead(self):
@@ -59,7 +60,7 @@ class TestFIFOSyncMacro(unittest.TestCase):
         dut = FIFOSyncMacro("18Kb", data_width=32, almost_empty_offset=128,
                             almost_full_offset=128, toolchain="f4pga")
 
-        run_simulation(dut, generator(dut))
+        run_simulation_case(dut, generator(dut))
 
     def testWrRdErrors(self):
         def generator(dut):
@@ -163,4 +164,4 @@ class TestFIFOSyncMacro(unittest.TestCase):
         dut = FIFOSyncMacro("18Kb", data_width=32, almost_empty_offset=128,
                             almost_full_offset=128, toolchain="f4pga")
 
-        run_simulation(dut, generator(dut))
+        run_simulation_case(dut, generator(dut))

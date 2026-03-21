@@ -10,6 +10,7 @@ from migen import *
 
 from litex.soc.interconnect import csr
 from litex.soc.interconnect import csr_bus
+from .common import run_simulation_case
 
 
 def csr32_write(dut, adr, dat):
@@ -71,7 +72,7 @@ class TestCSR(unittest.TestCase):
             self.assertEqual(hex((yield from dut.csrmodule._constant.read())), hex(0x12345678))
 
         dut = CSRDUT()
-        run_simulation(dut, generator(dut))
+        run_simulation_case(dut, generator(dut))
 
     def test_csr_storage(self):
         def generator(dut):
@@ -89,7 +90,7 @@ class TestCSR(unittest.TestCase):
             self.assertEqual(hex((yield from csr32_read(dut, 1))), hex(0xdeadbeef))
 
         dut = CSRDUT()
-        run_simulation(dut, generator(dut))
+        run_simulation_case(dut, generator(dut))
 
     def test_csr_status(self):
         def generator(dut):
@@ -108,7 +109,7 @@ class TestCSR(unittest.TestCase):
             self.assertEqual(hex((yield from csr32_read(dut, 5))), hex(0xdeadbeef))
 
         dut = CSRDUT()
-        run_simulation(dut, generator(dut))
+        run_simulation_case(dut, generator(dut))
 
     def test_csr_fields(self):
         def generator(dut):
@@ -143,4 +144,4 @@ class TestCSR(unittest.TestCase):
                     self._status.fields.bar.eq(self._storage.fields.bar),
                 ]
         dut = DUT()
-        run_simulation(dut, generator(dut))
+        run_simulation_case(dut, generator(dut))
