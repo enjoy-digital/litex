@@ -305,6 +305,10 @@ def run_axilite_converter_case(width_from, width_to, parallel_rw=False,
     assert checker.writes == write_expected
     assert checker.reads == read_expected
 
+
+def addr_list(entries):
+    return [entry[0] for entry in entries]
+
 # TestAXILite --------------------------------------------------------------------------------------
 
 class TestAXILite(unittest.TestCase):
@@ -578,6 +582,41 @@ class TestAXILite(unittest.TestCase):
 # TestAXILiteInterconnet ---------------------------------------------------------------------------
 
 class TestAXILiteInterconnect(unittest.TestCase):
+    def arbiter_test(self, delay=0, response_latency=0):
+        class DUT(Module):
+            def __init__(self, n_masters):
+                self.masters = [AXILiteInterface() for _ in range(n_masters)]
+                self.slave   = AXILiteInterface()
+                self.submodules.arbiter = AXILiteArbiter(self.masters, self.slave)
+
+        def generator(n, axi_lite, delay=0):
+            def gen(i):
+                return 100*n + i
+
+            for i in range(4):
+                resp = (yield from axi_lite.write(gen(i), gen(i)))
+                self.assertEqual(resp, RESP_OKAY)
+                for _ in range(delay):
+                    yield
+            for i in range(4):
+                data, resp = (yield from axi_lite.read(gen(i)))
+                self.assertEqual(resp, RESP_OKAY)
+                for _ in range(delay):
+                    yield
+            for _ in range(8):
+                yield
+
+        n_masters = 3
+        dut = DUT(n_masters)
+        checker_kwargs = {}
+        if response_latency:
+            checker_kwargs["response_latency"] = lambda: response_latency
+        checker = AXILiteChecker(**checker_kwargs)
+        generators = [generator(i, master, delay=delay) for i, master in enumerate(dut.masters)]
+        generators += [timeout_generator(300), checker.handler(dut.slave)]
+        run_simulation_case(dut, generators)
+        return checker
+
     def test_interconnect_p2p(self):
         class DUT(Module):
             def __init__(self):
@@ -604,7 +643,7 @@ class TestAXILiteInterconnect(unittest.TestCase):
             AXILitePatternGenerator(dut.master, pattern).handler(),
             checker.handler(dut.slave),
         ]
-        run_simulation(dut, generators)
+        run_simulation_case(dut, generators)
         self.assertEqual(checker.writes, [(addr, data, 0b1111) for rw, addr, data in pattern if rw == "w"])
         self.assertEqual(checker.reads, [(addr, data) for rw, addr, data in pattern if rw == "r"])
 
@@ -646,103 +685,29 @@ class TestAXILiteInterconnect(unittest.TestCase):
             checker(dut.slave),
             timeout_generator(300),
         ]
-        run_simulation(dut, generators)
+        run_simulation_case(dut, generators)
 
     def test_arbiter_order(self):
-        class DUT(Module):
-            def __init__(self, n_masters):
-                self.masters = [AXILiteInterface() for _ in range(n_masters)]
-                self.slave   = AXILiteInterface()
-                self.submodules.arbiter = AXILiteArbiter(self.masters, self.slave)
+        checker = self.arbiter_test(delay=0)
+        order = [0, 1, 2, 3, 100, 101, 102, 103, 200, 201, 202, 203]
+        self.assertEqual(addr_list(checker.writes), order)
+        self.assertEqual(addr_list(checker.reads), order)
 
-        def generator(n, axi_lite, delay=0):
-            def gen(i):
-                return 100*n + i
-
-            for i in range(4):
-                resp = (yield from axi_lite.write(gen(i), gen(i)))
-                self.assertEqual(resp, RESP_OKAY)
-                for _ in range(delay):
-                    yield
-            for i in range(4):
-                data, resp = (yield from axi_lite.read(gen(i)))
-                self.assertEqual(resp, RESP_OKAY)
-                for _ in range(delay):
-                    yield
-            for _ in range(8):
-                yield
-
-        n_masters = 3
-
-        # with no delay each master will do all transfers at once
-        with self.subTest(delay=0):
-            dut = DUT(n_masters)
-            checker = AXILiteChecker()
-            generators = [generator(i, master, delay=0) for i, master in enumerate(dut.masters)]
-            generators += [timeout_generator(300), checker.handler(dut.slave)]
-            run_simulation(dut, generators)
-            order = [0, 1, 2, 3, 100, 101, 102, 103, 200, 201, 202, 203]
-            self.assertEqual([addr for addr, data, strb in checker.writes], order)
-            self.assertEqual([addr for addr, data in checker.reads], order)
-
-        # with some delay, the round-robin arbiter will iterate over masters
-        with self.subTest(delay=1):
-            dut = DUT(n_masters)
-            checker = AXILiteChecker()
-            generators = [generator(i, master, delay=1) for i, master in enumerate(dut.masters)]
-            generators += [timeout_generator(300), checker.handler(dut.slave)]
-            run_simulation(dut, generators)
-            order = [0, 100, 200, 1, 101, 201, 2, 102, 202, 3, 103, 203]
-            self.assertEqual([addr for addr, data, strb in checker.writes], order)
-            self.assertEqual([addr for addr, data in checker.reads], order)
+        checker = self.arbiter_test(delay=1)
+        order = [0, 100, 200, 1, 101, 201, 2, 102, 202, 3, 103, 203]
+        self.assertEqual(addr_list(checker.writes), order)
+        self.assertEqual(addr_list(checker.reads), order)
 
     def test_arbiter_holds_grant_until_response(self):
-        class DUT(Module):
-            def __init__(self, n_masters):
-                self.masters = [AXILiteInterface() for _ in range(n_masters)]
-                self.slave   = AXILiteInterface()
-                self.submodules.arbiter = AXILiteArbiter(self.masters, self.slave)
+        checker = self.arbiter_test(delay=0, response_latency=3)
+        order = [0, 1, 2, 3, 100, 101, 102, 103, 200, 201, 202, 203]
+        self.assertEqual(addr_list(checker.writes), order)
+        self.assertEqual(addr_list(checker.reads), order)
 
-        def generator(n, axi_lite, delay=0):
-            def gen(i):
-                return 100*n + i
-
-            for i in range(4):
-                resp = (yield from axi_lite.write(gen(i), gen(i)))
-                self.assertEqual(resp, RESP_OKAY)
-                for _ in range(delay):
-                    yield
-            for i in range(4):
-                data, resp = (yield from axi_lite.read(gen(i)))
-                self.assertEqual(resp, RESP_OKAY)
-                for _ in range(delay):
-                    yield
-            for _ in range(8):
-                yield
-
-        n_masters = 3
-
-        # with no delay each master will do all transfers at once
-        with self.subTest(delay=0):
-            dut = DUT(n_masters)
-            checker = AXILiteChecker(response_latency=lambda: 3)
-            generators = [generator(i, master, delay=0) for i, master in enumerate(dut.masters)]
-            generators += [timeout_generator(300), checker.handler(dut.slave)]
-            run_simulation(dut, generators)
-            order = [0, 1, 2, 3, 100, 101, 102, 103, 200, 201, 202, 203]
-            self.assertEqual([addr for addr, data, strb in checker.writes], order)
-            self.assertEqual([addr for addr, data in checker.reads], order)
-
-        # with some delay, the round-robin arbiter will iterate over masters
-        with self.subTest(delay=1):
-            dut = DUT(n_masters)
-            checker = AXILiteChecker(response_latency=lambda: 3)
-            generators = [generator(i, master, delay=1) for i, master in enumerate(dut.masters)]
-            generators += [timeout_generator(300), checker.handler(dut.slave)]
-            run_simulation(dut, generators)
-            order = [0, 100, 200, 1, 101, 201, 2, 102, 202, 3, 103, 203]
-            self.assertEqual([addr for addr, data, strb in checker.writes], order)
-            self.assertEqual([addr for addr, data in checker.reads], order)
+        checker = self.arbiter_test(delay=1, response_latency=3)
+        order = [0, 100, 200, 1, 101, 201, 2, 102, 202, 3, 103, 203]
+        self.assertEqual(addr_list(checker.writes), order)
+        self.assertEqual(addr_list(checker.reads), order)
 
     def address_decoder(self, i, size=0x100, python=False):
         # bytes to 32-bit words aligned
@@ -774,7 +739,7 @@ class TestAXILiteInterconnect(unittest.TestCase):
         generators = [AXILitePatternGenerator(dut.master, pattern, delay=generator_delay).handler()]
         generators += [checker.handler(slave) for (slave, checker) in zip(dut.slaves, checkers)]
         generators += [timeout_generator(300)]
-        run_simulation(dut, generators)
+        run_simulation_case(dut, generators)
 
         return checkers
 
@@ -793,12 +758,9 @@ class TestAXILiteInterconnect(unittest.TestCase):
                     ("w", 0x212, 3),
                 ], generator_delay=delay)
 
-                def addr(checker_list):
-                    return [entry[0] for entry in checker_list]
-
-                self.assertEqual(addr(slaves[0].writes), [0x010, 0x011, 0x012])
-                self.assertEqual(addr(slaves[1].writes), [0x110, 0x111, 0x112])
-                self.assertEqual(addr(slaves[2].writes), [0x210, 0x211, 0x212])
+                self.assertEqual(addr_list(slaves[0].writes), [0x010, 0x011, 0x012])
+                self.assertEqual(addr_list(slaves[1].writes), [0x110, 0x111, 0x112])
+                self.assertEqual(addr_list(slaves[2].writes), [0x210, 0x211, 0x212])
                 for slave in slaves:
                     self.assertEqual(slave.reads, [])
 
@@ -817,12 +779,9 @@ class TestAXILiteInterconnect(unittest.TestCase):
                     ("r", 0x212, 3),
                 ], generator_delay=delay)
 
-                def addr(checker_list):
-                    return [entry[0] for entry in checker_list]
-
-                self.assertEqual(addr(slaves[0].reads), [0x010, 0x011, 0x012])
-                self.assertEqual(addr(slaves[1].reads), [0x110, 0x111, 0x112])
-                self.assertEqual(addr(slaves[2].reads), [0x210, 0x211, 0x212])
+                self.assertEqual(addr_list(slaves[0].reads), [0x010, 0x011, 0x012])
+                self.assertEqual(addr_list(slaves[1].reads), [0x110, 0x111, 0x112])
+                self.assertEqual(addr_list(slaves[2].reads), [0x210, 0x211, 0x212])
                 for slave in slaves:
                     self.assertEqual(slave.writes, [])
 
@@ -838,15 +797,12 @@ class TestAXILiteInterconnect(unittest.TestCase):
                     ("w", 0x210, 3),
                 ], generator_delay=delay)
 
-                def addr(checker_list):
-                    return [entry[0] for entry in checker_list]
-
-                self.assertEqual(addr(slaves[0].writes), [0x010])
-                self.assertEqual(addr(slaves[0].reads),  [0x011])
-                self.assertEqual(addr(slaves[1].writes), [0x110])
-                self.assertEqual(addr(slaves[1].reads),  [0x111])
-                self.assertEqual(addr(slaves[2].writes), [0x210])
-                self.assertEqual(addr(slaves[2].reads),  [0x211])
+                self.assertEqual(addr_list(slaves[0].writes), [0x010])
+                self.assertEqual(addr_list(slaves[0].reads),  [0x011])
+                self.assertEqual(addr_list(slaves[1].writes), [0x110])
+                self.assertEqual(addr_list(slaves[1].reads),  [0x111])
+                self.assertEqual(addr_list(slaves[2].writes), [0x210])
+                self.assertEqual(addr_list(slaves[2].reads),  [0x211])
 
     def test_decoder_stall(self):
         with self.assertRaises(TimeoutError):
@@ -906,7 +862,7 @@ class TestAXILiteInterconnect(unittest.TestCase):
                        for i, (slave, checker) in enumerate(zip(dut.slaves, checkers))
                        if i not in (disconnected_slaves or [])]
         generators += [timeout_generator(timeout)]
-        run_simulation(dut, generators)
+        run_simulation_case(dut, generators)
 
         return pattern_generators, checkers
 
@@ -935,7 +891,7 @@ class TestAXILiteInterconnect(unittest.TestCase):
         self.assertEqual(addr(checkers[2].reads), [])
 
     def interconnect_stress_test(self, timeout=1000, **kwargs):
-        prng = random.Random(42)
+        prng = seeded_prng()
 
         n_masters = 3
         n_slaves = 3
@@ -984,7 +940,7 @@ class TestAXILiteInterconnect(unittest.TestCase):
                                       slave_response_latency=0)
 
     def test_interconnect_shared_stress_rand_short(self):
-        prng = random.Random(42)
+        prng = seeded_prng()
         rand = lambda: prng.randrange(4)
         self.interconnect_stress_test(timeout=2000,
                                       master_delay=rand,
@@ -992,7 +948,7 @@ class TestAXILiteInterconnect(unittest.TestCase):
                                       slave_response_latency=rand)
 
     def test_interconnect_shared_stress_rand_long(self):
-        prng = random.Random(42)
+        prng = seeded_prng()
         rand = lambda: prng.randrange(16)
         self.interconnect_stress_test(timeout=4000,
                                       master_delay=rand,
@@ -1012,7 +968,7 @@ class TestAXILiteInterconnect(unittest.TestCase):
                                       interconnect=AXILiteCrossbar)
 
     def test_crossbar_stress_rand(self):
-        prng = random.Random(42)
+        prng = seeded_prng()
         rand = lambda: prng.randrange(4)
         self.interconnect_stress_test(timeout=2000,
                                       master_delay=rand,
