@@ -5,11 +5,224 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import unittest
+
+import pytest
 import random
 
 from migen import *
 
 from litex.soc.interconnect.stream import *
+
+from .common import run_simulation_case, seeded_prng
+
+
+pytestmark = pytest.mark.unit
+
+
+def packetized_flow_test(dut, packets):
+    prng = seeded_prng()
+
+    def generator(dut, valid_rand=75):
+        for packet in packets:
+            for index, data in enumerate(packet["datas"]):
+                yield dut.sink.valid.eq(1)
+                yield dut.sink.first.eq(index == 0)
+                yield dut.sink.last.eq(index == (len(packet["datas"]) - 1))
+                yield dut.sink.data.eq(data)
+                yield dut.sink.tag.eq(packet["tag"])
+                yield
+                while (yield dut.sink.ready) == 0:
+                    yield
+                yield dut.sink.valid.eq(0)
+                yield dut.sink.first.eq(0)
+                yield dut.sink.last.eq(0)
+                while prng.randrange(100) < valid_rand:
+                    yield
+
+    def checker(dut, ready_rand=75):
+        dut.errors = 0
+        for packet in packets:
+            for index, data in enumerate(packet["datas"]):
+                yield dut.source.ready.eq(0)
+                yield
+                while (yield dut.source.valid) == 0:
+                    yield
+                while prng.randrange(100) < ready_rand:
+                    yield
+                yield dut.source.ready.eq(1)
+                yield
+                if (yield dut.source.data) != data:
+                    dut.errors += 1
+                if (yield dut.source.tag) != packet["tag"]:
+                    dut.errors += 1
+                if (yield dut.source.first) != (index == 0):
+                    dut.errors += 1
+                if (yield dut.source.last) != (index == (len(packet["datas"]) - 1)):
+                    dut.errors += 1
+        yield
+
+    run_simulation_case(dut, [generator(dut), checker(dut)])
+    assert dut.errors == 0
+
+
+def pipe_test(dut):
+    prng = seeded_prng()
+
+    def generator(dut, valid_rand=90):
+        for data in range(128):
+            yield dut.sink.valid.eq(1)
+            yield dut.sink.first.eq((data % 7) == 0)
+            yield dut.sink.last.eq((data % 7) == 6)
+            yield dut.sink.data.eq(data)
+            if hasattr(dut.sink, "tag"):
+                yield dut.sink.tag.eq(data % 16)
+            yield
+            while (yield dut.sink.ready) == 0:
+                yield
+            yield dut.sink.valid.eq(0)
+            yield dut.sink.first.eq(0)
+            yield dut.sink.last.eq(0)
+            while prng.randrange(100) < valid_rand:
+                yield
+
+    def checker(dut, ready_rand=90):
+        dut.errors = 0
+        for data in range(128):
+            yield dut.source.ready.eq(0)
+            yield
+            while (yield dut.source.valid) == 0:
+                yield
+            while prng.randrange(100) < ready_rand:
+                yield
+            yield dut.source.ready.eq(1)
+            yield
+            if (yield dut.source.data) != data:
+                dut.errors += 1
+            if (yield dut.source.first) != ((data % 7) == 0):
+                dut.errors += 1
+            if (yield dut.source.last) != ((data % 7) == 6):
+                dut.errors += 1
+            if hasattr(dut.source, "tag") and ((yield dut.source.tag) != (data % 16)):
+                dut.errors += 1
+        yield
+
+    run_simulation_case(dut, [generator(dut), checker(dut)])
+    assert dut.errors == 0
+
+
+@pytest.mark.parametrize(
+    "dut",
+    [
+        pytest.param(
+            PipeValid(EndpointDescription(
+                payload_layout=[("data", 8)],
+                param_layout=[("tag", 4)],
+            )),
+            id="pipe-valid",
+        ),
+        pytest.param(
+            PipeReady(EndpointDescription(
+                payload_layout=[("data", 8)],
+                param_layout=[("tag", 4)],
+            )),
+            id="pipe-ready",
+        ),
+        pytest.param(
+            Buffer(EndpointDescription(
+                payload_layout=[("data", 8)],
+                param_layout=[("tag", 4)],
+            ), pipe_valid=True, pipe_ready=False),
+            id="buffer-valid",
+        ),
+        pytest.param(
+            Buffer(EndpointDescription(
+                payload_layout=[("data", 8)],
+                param_layout=[("tag", 4)],
+            ), pipe_valid=False, pipe_ready=True),
+            id="buffer-ready",
+        ),
+        pytest.param(
+            Buffer(EndpointDescription(
+                payload_layout=[("data", 8)],
+                param_layout=[("tag", 4)],
+            ), pipe_valid=True, pipe_ready=True),
+            id="buffer-valid-ready",
+        ),
+    ],
+)
+def test_pipe_variants(dut):
+    pipe_test(dut)
+
+
+@pytest.mark.parametrize(
+    ("depth", "buffered", "packets"),
+    [
+        (
+            0,
+            False,
+            [
+                {"tag": 0x1, "datas": [0x10, 0x11]},
+                {"tag": 0x2, "datas": [0x20]},
+                {"tag": 0x3, "datas": [0x30, 0x31, 0x32]},
+            ],
+        ),
+        (
+            1,
+            False,
+            [
+                {"tag": 0x4, "datas": [0x40]},
+                {"tag": 0x5, "datas": [0x50, 0x51]},
+                {"tag": 0x6, "datas": [0x60, 0x61, 0x62]},
+            ],
+        ),
+        (
+            4,
+            True,
+            [
+                {"tag": 0x7, "datas": [0x70, 0x71, 0x72]},
+                {"tag": 0x8, "datas": [0x80]},
+                {"tag": 0x9, "datas": [0x90, 0x91]},
+            ],
+        ),
+    ],
+    ids=["depth0", "depth1", "depth4-buffered"],
+)
+def test_syncfifo_variants(depth, buffered, packets):
+    dut = SyncFIFO(EndpointDescription(
+        payload_layout=[("data", 8)],
+        param_layout=[("tag", 4)],
+    ), depth=depth, buffered=buffered)
+    packetized_flow_test(dut, packets)
+
+
+@pytest.mark.parametrize(
+    ("buffered", "packets"),
+    [
+        (
+            False,
+            [
+                {"tag": 0x1, "datas": [0x10, 0x11]},
+                {"tag": 0x2, "datas": [0x20]},
+                {"tag": 0x3, "datas": [0x30, 0x31, 0x32]},
+            ],
+        ),
+        (
+            True,
+            [
+                {"tag": 0x4, "datas": [0x40]},
+                {"tag": 0x5, "datas": [0x50, 0x51]},
+                {"tag": 0x6, "datas": [0x60, 0x61, 0x62]},
+            ],
+        ),
+    ],
+    ids=["same-domain", "same-domain-buffered"],
+)
+def test_clock_domain_crossing_same_domain_variants(buffered, packets):
+    dut = ClockDomainCrossing(EndpointDescription(
+        payload_layout=[("data", 8)],
+        param_layout=[("tag", 4)],
+    ), cd_from="sys", cd_to="sys", buffered=buffered)
+    packetized_flow_test(dut, packets)
 
 
 class TestStream(unittest.TestCase):
@@ -54,164 +267,6 @@ class TestStream(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             get_single_ep(MultiEP(), Endpoint)
-
-    def packetized_flow_test(self, dut, packets):
-        prng = random.Random(42)
-
-        def generator(dut, valid_rand=75):
-            for packet in packets:
-                for index, data in enumerate(packet["datas"]):
-                    yield dut.sink.valid.eq(1)
-                    yield dut.sink.first.eq(index == 0)
-                    yield dut.sink.last.eq(index == (len(packet["datas"]) - 1))
-                    yield dut.sink.data.eq(data)
-                    yield dut.sink.tag.eq(packet["tag"])
-                    yield
-                    while (yield dut.sink.ready) == 0:
-                        yield
-                    yield dut.sink.valid.eq(0)
-                    yield dut.sink.first.eq(0)
-                    yield dut.sink.last.eq(0)
-                    while prng.randrange(100) < valid_rand:
-                        yield
-
-        def checker(dut, ready_rand=75):
-            dut.errors = 0
-            for packet in packets:
-                for index, data in enumerate(packet["datas"]):
-                    yield dut.source.ready.eq(0)
-                    yield
-                    while (yield dut.source.valid) == 0:
-                        yield
-                    while prng.randrange(100) < ready_rand:
-                        yield
-                    yield dut.source.ready.eq(1)
-                    yield
-                    if (yield dut.source.data) != data:
-                        dut.errors += 1
-                    if (yield dut.source.tag) != packet["tag"]:
-                        dut.errors += 1
-                    if (yield dut.source.first) != (index == 0):
-                        dut.errors += 1
-                    if (yield dut.source.last) != (index == (len(packet["datas"]) - 1)):
-                        dut.errors += 1
-            yield
-
-        run_simulation(dut, [generator(dut), checker(dut)])
-        self.assertEqual(dut.errors, 0)
-
-    def pipe_test(self, dut):
-        prng = random.Random(42)
-        def generator(dut, valid_rand=90):
-            for data in range(128):
-                yield dut.sink.valid.eq(1)
-                yield dut.sink.first.eq((data % 7) == 0)
-                yield dut.sink.last.eq((data % 7) == 6)
-                yield dut.sink.data.eq(data)
-                if hasattr(dut.sink, "tag"):
-                    yield dut.sink.tag.eq(data % 16)
-                yield
-                while (yield dut.sink.ready) == 0:
-                    yield
-                yield dut.sink.valid.eq(0)
-                yield dut.sink.first.eq(0)
-                yield dut.sink.last.eq(0)
-                while prng.randrange(100) < valid_rand:
-                    yield
-
-        def checker(dut, ready_rand=90):
-            dut.errors = 0
-            for data in range(128):
-                yield dut.source.ready.eq(0)
-                yield
-                while (yield dut.source.valid) == 0:
-                    yield
-                while prng.randrange(100) < ready_rand:
-                    yield
-                yield dut.source.ready.eq(1)
-                yield
-                if ((yield dut.source.data) != data):
-                    dut.errors += 1
-                if ((yield dut.source.first) != ((data % 7) == 0)):
-                    dut.errors += 1
-                if ((yield dut.source.last) != ((data % 7) == 6)):
-                    dut.errors += 1
-                if hasattr(dut.source, "tag") and ((yield dut.source.tag) != (data % 16)):
-                    dut.errors += 1
-            yield
-        run_simulation(dut, [generator(dut), checker(dut)])
-        self.assertEqual(dut.errors, 0)
-
-    def test_pipe_valid(self):
-        dut = PipeValid(EndpointDescription(
-            payload_layout=[("data", 8)],
-            param_layout=[("tag", 4)],
-        ))
-        self.pipe_test(dut)
-
-    def test_pipe_ready(self):
-        dut = PipeReady(EndpointDescription(
-            payload_layout=[("data", 8)],
-            param_layout=[("tag", 4)],
-        ))
-        self.pipe_test(dut)
-
-    def test_buffer_valid(self):
-        dut = Buffer(EndpointDescription(
-            payload_layout=[("data", 8)],
-            param_layout=[("tag", 4)],
-        ), pipe_valid=True, pipe_ready=False)
-        self.pipe_test(dut)
-
-    def test_buffer_ready(self):
-        dut = Buffer(EndpointDescription(
-            payload_layout=[("data", 8)],
-            param_layout=[("tag", 4)],
-        ), pipe_valid=False, pipe_ready=True)
-        self.pipe_test(dut)
-
-    def test_buffer_valid_ready(self):
-        dut = Buffer(EndpointDescription(
-            payload_layout=[("data", 8)],
-            param_layout=[("tag", 4)],
-        ), pipe_valid=True, pipe_ready=True)
-        self.pipe_test(dut)
-
-    def test_syncfifo_depth0(self):
-        packets = [
-            {"tag": 0x1, "datas": [0x10, 0x11]},
-            {"tag": 0x2, "datas": [0x20]},
-            {"tag": 0x3, "datas": [0x30, 0x31, 0x32]},
-        ]
-        dut = SyncFIFO(EndpointDescription(
-            payload_layout=[("data", 8)],
-            param_layout=[("tag", 4)],
-        ), depth=0)
-        self.packetized_flow_test(dut, packets)
-
-    def test_syncfifo_depth1(self):
-        packets = [
-            {"tag": 0x4, "datas": [0x40]},
-            {"tag": 0x5, "datas": [0x50, 0x51]},
-            {"tag": 0x6, "datas": [0x60, 0x61, 0x62]},
-        ]
-        dut = SyncFIFO(EndpointDescription(
-            payload_layout=[("data", 8)],
-            param_layout=[("tag", 4)],
-        ), depth=1)
-        self.packetized_flow_test(dut, packets)
-
-    def test_syncfifo_depth4_buffered(self):
-        packets = [
-            {"tag": 0x7, "datas": [0x70, 0x71, 0x72]},
-            {"tag": 0x8, "datas": [0x80]},
-            {"tag": 0x9, "datas": [0x90, 0x91]},
-        ]
-        dut = SyncFIFO(EndpointDescription(
-            payload_layout=[("data", 8)],
-            param_layout=[("tag", 4)],
-        ), depth=4, buffered=True)
-        self.packetized_flow_test(dut, packets)
 
     def test_multiplexer(self):
         dut = Multiplexer(EndpointDescription(
@@ -1039,30 +1094,6 @@ class TestStream(unittest.TestCase):
         self.assertEqual(levels["depth0"], [0, 0, 0, 0, 0])
         self.assertEqual(levels["depth1"], [0, 0, 1, 1, 0])
         self.assertEqual(levels["depth4"], [0, 0, 1, 1, 0])
-
-    def test_clock_domain_crossing_same_domain(self):
-        packets = [
-            {"tag": 0x1, "datas": [0x10, 0x11]},
-            {"tag": 0x2, "datas": [0x20]},
-            {"tag": 0x3, "datas": [0x30, 0x31, 0x32]},
-        ]
-        dut = ClockDomainCrossing(EndpointDescription(
-            payload_layout=[("data", 8)],
-            param_layout=[("tag", 4)],
-        ), cd_from="sys", cd_to="sys", buffered=False)
-        self.packetized_flow_test(dut, packets)
-
-    def test_clock_domain_crossing_same_domain_buffered(self):
-        packets = [
-            {"tag": 0x4, "datas": [0x40]},
-            {"tag": 0x5, "datas": [0x50, 0x51]},
-            {"tag": 0x6, "datas": [0x60, 0x61, 0x62]},
-        ]
-        dut = ClockDomainCrossing(EndpointDescription(
-            payload_layout=[("data", 8)],
-            param_layout=[("tag", 4)],
-        ), cd_from="sys", cd_to="sys", buffered=True)
-        self.packetized_flow_test(dut, packets)
 
     def test_clock_domain_crossing_async(self):
         dut = ClockDomainCrossing(EndpointDescription(
