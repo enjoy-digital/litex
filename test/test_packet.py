@@ -5,12 +5,13 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import unittest
-import random
 
 from migen import *
 
 from litex.soc.interconnect.stream import *
 from litex.soc.interconnect.packet import *
+
+from .common import run_simulation_case, seeded_prng
 
 packet_header_length = 31
 packet_header_fields = {
@@ -96,8 +97,8 @@ class TestPacket(unittest.TestCase):
             observations["decoded_8b"] = (yield decoder.obj.field_8b)
             observations["decoded_16b"] = (yield decoder.obj.field_16b)
 
-        run_simulation(encoder, encode_stimulus())
-        run_simulation(decoder, decode_stimulus())
+        run_simulation_case(encoder, encode_stimulus())
+        run_simulation_case(decoder, decode_stimulus())
         self.assertEqual(observations["encoded"], 0x345612)
         self.assertEqual(observations["decoded_8b"], 0x12)
         self.assertEqual(observations["decoded_16b"], 0x3456)
@@ -138,8 +139,8 @@ class TestPacket(unittest.TestCase):
             yield
             observations["decoded"] = (yield decoder.obj.field)
 
-        run_simulation(encoder, encode_stimulus())
-        run_simulation(decoder, decode_stimulus())
+        run_simulation_case(encoder, encode_stimulus())
+        run_simulation_case(decoder, decode_stimulus())
         self.assertEqual(observations["encoded"], 0x22114433)
         self.assertEqual(observations["decoded"], 0x11223344)
 
@@ -174,7 +175,7 @@ class TestPacket(unittest.TestCase):
             yield
             observations.append(((yield dut.status.first), (yield dut.status.last), (yield dut.status.ongoing)))
 
-        run_simulation(dut, stimulus(dut))
+        run_simulation_case(dut, stimulus(dut))
         self.assertEqual(observations, [
             (1, 0, 0),
             (1, 0, 1),
@@ -183,7 +184,7 @@ class TestPacket(unittest.TestCase):
         ])
 
     def loopback_test(self, dw):
-        prng = random.Random(42)
+        prng = seeded_prng()
         # Prepare packets
         npackets = 8
         packets  = []
@@ -255,7 +256,7 @@ class TestPacket(unittest.TestCase):
                 self.sink, self.source = packetizer.sink, depacketizer.source
 
         dut = DUT()
-        run_simulation(dut, [generator(dut), checker(dut)])
+        run_simulation_case(dut, [generator(dut), checker(dut)])
         self.assertEqual(dut.header_errors, 0)
         self.assertEqual(dut.data_errors,   0)
         self.assertEqual(dut.first_errors,  0)
@@ -274,8 +275,8 @@ class TestPacket(unittest.TestCase):
         self.loopback_test(dw=128)
 
     def packet_fifo_test(self, layout, packets, payload_depth, param_depth=None, buffered=False):
-        generator_prng = random.Random(42)
-        checker_prng   = random.Random(42)
+        generator_prng = seeded_prng()
+        checker_prng   = seeded_prng()
 
         def generator(dut, valid_rand=60):
             for packet in packets:
@@ -322,7 +323,7 @@ class TestPacket(unittest.TestCase):
             yield
 
         dut = PacketFIFO(layout, payload_depth=payload_depth, param_depth=param_depth, buffered=buffered)
-        run_simulation(dut, [generator(dut), checker(dut)])
+        run_simulation_case(dut, [generator(dut), checker(dut)])
         self.assertEqual(dut.errors, 0)
 
     def test_packet_fifo_with_params(self):
@@ -348,7 +349,7 @@ class TestPacket(unittest.TestCase):
         self.packet_fifo_test(layout, packets, payload_depth=6, buffered=False)
 
     def test_packet_fifo_stress(self):
-        prng = random.Random(123)
+        prng = seeded_prng(123)
         layout = EndpointDescription(
             payload_layout=[("data", 8)],
             param_layout=[("tag", 8), ("kind", 2)],
@@ -452,7 +453,7 @@ class TestPacket(unittest.TestCase):
                         break
                 yield
 
-        run_simulation(dut, [generator(), checker()])
+        run_simulation_case(dut, [generator(), checker()])
         self.assertEqual(received, [
             {
                 "field_8b": 0x12, "field_16b": 0x3456, "field_32b": 0x789abcde,
@@ -513,7 +514,7 @@ class TestPacket(unittest.TestCase):
                     })
                 yield
 
-        run_simulation(dut, [generator(), checker()])
+        run_simulation_case(dut, [generator(), checker()])
         self.assertGreater(len(observed), 0)
         self.assertTrue(any(beat["last"] for beat in observed))
         self.assertTrue(all(beat["error"] == 1 for beat in observed))
@@ -568,7 +569,7 @@ class TestPacket(unittest.TestCase):
                 yield
 
         def checker():
-            prng = random.Random(7)
+            prng = seeded_prng(7)
             for packet in packets:
                 for index, data in enumerate(packet["datas"]):
                     yield dut.source.ready.eq(0)
@@ -591,7 +592,7 @@ class TestPacket(unittest.TestCase):
                     yield dut.source.ready.eq(1)
                     yield
 
-        run_simulation(dut, [generator(), checker()])
+        run_simulation_case(dut, [generator(), checker()])
         expected = []
         for packet in packets:
             for index, data in enumerate(packet["datas"]):
@@ -641,7 +642,7 @@ class TestPacket(unittest.TestCase):
                     observed.append(((yield dut.source.first), (yield dut.source.last)))
                 yield
 
-        run_simulation(dut, generator())
+        run_simulation_case(dut, generator())
         self.assertGreater(len(observed), 0)
         self.assertEqual(observed[0][0], 1)
         self.assertTrue(all(first == 0 for first, _ in observed[1:]))
@@ -709,7 +710,7 @@ class TestPacket(unittest.TestCase):
                 yield
             yield dut.source.ready.eq(0)
 
-        run_simulation(dut, [sink0_gen(), sink1_gen(), source_check()])
+        run_simulation_case(dut, [sink0_gen(), sink1_gen(), source_check()])
         self.assertEqual(received, [
             {"data": 0x10, "tag": 0, "first": 1, "last": 0},
             {"data": 0x11, "tag": 0, "first": 0, "last": 1},
@@ -753,7 +754,7 @@ class TestPacket(unittest.TestCase):
                     received_tags.append((yield dut.source.tag))
                 yield
 
-        run_simulation(dut, [
+        run_simulation_case(dut, [
             packet_sender(dut.sink0, tag=0, base=0x40),
             packet_sender(dut.sink1, tag=1, base=0x80),
             checker(),
@@ -825,7 +826,7 @@ class TestPacket(unittest.TestCase):
                     })
                 yield
 
-        run_simulation(dut, [generator(), source_collector(dut.source0, received0), source_collector(dut.source1, received1)])
+        run_simulation_case(dut, [generator(), source_collector(dut.source0, received0), source_collector(dut.source1, received1)])
         self.assertEqual(received0, [
             {"data": 0x30, "tag": 0xA, "first": 1, "last": 0},
             {"data": 0x31, "tag": 0xA, "first": 0, "last": 0},
@@ -870,7 +871,7 @@ class TestPacket(unittest.TestCase):
             observations["source0_valid"] = (yield dut.source0.valid)
             observations["source1_valid"] = (yield dut.source1.valid)
 
-        run_simulation(dut, stimulus())
+        run_simulation_case(dut, stimulus())
         self.assertEqual(observations, {
             "sink_ready": 0,
             "source0_valid": 1,
@@ -907,7 +908,7 @@ class TestPacket(unittest.TestCase):
             observations["source1_valid"] = (yield dut.source1.valid)
             observations["source2_valid"] = (yield dut.source2.valid)
 
-        run_simulation(dut, stimulus())
+        run_simulation_case(dut, stimulus())
         self.assertEqual(observations, {
             "sink_ready": 1,
             "source0_valid": 0,
