@@ -10,6 +10,7 @@ import unittest
 from migen import *
 
 from litex.soc.cores.hyperbus import HyperRAM
+from .common import run_simulation_case
 
 def c2bool(c):
     return {"-": 1, "_": 0}[c]
@@ -57,7 +58,7 @@ class TestHyperRAM(unittest.TestCase):
                 yield
 
         dut = HyperRAM(HyperRamPads(dw=8), latency=5, latency_mode="fixed")
-        run_simulation(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
+        run_simulation_case(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
 
     def test_hyperram_write_latency_5_2x_sys2x(self):
         def fpga_gen(dut):
@@ -92,7 +93,7 @@ class TestHyperRAM(unittest.TestCase):
             "sys"   : 4,
             "sys2x" : 2,
         }
-        run_simulation(dut, generators, clocks, vcd_name="sim.vcd")
+        run_simulation_case(dut, generators, clocks=clocks, vcd_name="sim.vcd")
 
     def test_hyperram_write_latency_6_2x(self):
         def fpga_gen(dut):
@@ -118,7 +119,7 @@ class TestHyperRAM(unittest.TestCase):
                 yield
 
         dut = HyperRAM(HyperRamPads(), latency=6, latency_mode="fixed")
-        run_simulation(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
+        run_simulation_case(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
 
     def test_hyperram_write_latency_7_2x(self):
         def fpga_gen(dut):
@@ -144,7 +145,7 @@ class TestHyperRAM(unittest.TestCase):
                 yield
 
         dut = HyperRAM(HyperRamPads(), latency=7, latency_mode="fixed")
-        run_simulation(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
+        run_simulation_case(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
 
     def test_hyperram_write_latency_7_1x(self):
         def fpga_gen(dut):
@@ -170,7 +171,7 @@ class TestHyperRAM(unittest.TestCase):
                 yield
 
         dut = HyperRAM(HyperRamPads(), latency=7, latency_mode="variable")
-        run_simulation(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
+        run_simulation_case(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
 
     def test_hyperram_read_latency_5_2x(self):
         def fpga_gen(dut):
@@ -198,7 +199,7 @@ class TestHyperRAM(unittest.TestCase):
                 yield
 
         dut = HyperRAM(HyperRamPads(), latency=5, latency_mode="fixed")
-        run_simulation(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
+        run_simulation_case(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
 
     def test_hyperram_read_latency_6_2x(self):
         def fpga_gen(dut):
@@ -226,7 +227,7 @@ class TestHyperRAM(unittest.TestCase):
                 yield
 
         dut = HyperRAM(HyperRamPads(), latency=6, latency_mode="fixed")
-        run_simulation(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
+        run_simulation_case(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
 
     def test_hyperram_read_latency_7_2x(self):
         def fpga_gen(dut):
@@ -255,7 +256,7 @@ class TestHyperRAM(unittest.TestCase):
                 yield
 
         dut = HyperRAM(HyperRamPads(), latency=7, latency_mode="fixed")
-        run_simulation(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
+        run_simulation_case(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
 
     def test_hyperram_read_latency_7_1x(self):
         def fpga_gen(dut):
@@ -283,7 +284,7 @@ class TestHyperRAM(unittest.TestCase):
                 yield
 
         dut = HyperRAM(HyperRamPads(), latency=7, latency_mode="variable")
-        run_simulation(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
+        run_simulation_case(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
 
     def test_hyperram_reg_write(self):
         def fpga_gen(dut):
@@ -315,4 +316,4 @@ class TestHyperRAM(unittest.TestCase):
                 yield
 
         dut = HyperRAM(HyperRamPads(), with_csr=False)
-        run_simulation(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")#
+        run_simulation_case(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
