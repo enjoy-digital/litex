@@ -6,11 +6,17 @@
 
 import unittest
 import random
+import pytest
 
 from migen import *
 
 from litex.soc.interconnect.axi import *
 from litex.soc.interconnect import wishbone, csr_bus
+
+from .common import run_simulation_case, seeded_prng
+
+
+pytestmark = pytest.mark.unit
 
 # Helpers ------------------------------------------------------------------------------------------
 
@@ -143,105 +149,175 @@ class AXILitePatternGenerator:
         for _ in range(16):
             yield
 
+
+def run_wishbone2axilite2wishbone_case(data_width=32, address_width=32):
+    class DUT(Module):
+        def __init__(self):
+            self.wishbone = wishbone.Interface(
+                data_width = data_width,
+                adr_width  = address_width - log2_int(data_width // 8),
+                addressing = "word",
+            )
+
+            axi_lite = AXILiteInterface(data_width=data_width, address_width=address_width)
+            wb = wishbone.Interface(
+                data_width = data_width,
+                adr_width  = address_width - log2_int(data_width // 8),
+                addressing = "word",
+            )
+
+            self.submodules += Wishbone2AXILite(self.wishbone, axi_lite)
+            self.submodules += AXILite2Wishbone(axi_lite, wb)
+
+            sram = wishbone.SRAM(1024, init=[0x12345678, 0xa55aa55a])
+            self.submodules += sram
+            self.comb += wb.connect(sram.bus)
+
+    def generator(dut):
+        dut.errors = 0
+        if (yield from dut.wishbone.read(0)) != 0x12345678:
+            dut.errors += 1
+        if (yield from dut.wishbone.read(1)) != 0xa55aa55a:
+            dut.errors += 1
+        for i in range(32):
+            yield from dut.wishbone.write(i, i)
+        for i in range(32):
+            if (yield from dut.wishbone.read(i)) != i:
+                dut.errors += 1
+
+    dut = DUT()
+    run_simulation_case(dut, [generator(dut)])
+    assert dut.errors == 0
+
+
+def run_axilite2axi2mem_case(data_width=32, address_width=32, mem_bus="wishbone"):
+    class DUT(Module):
+        def __init__(self):
+            self.axi_lite = AXILiteInterface(data_width=data_width, address_width=address_width)
+
+            axi = AXIInterface(data_width=data_width, address_width=address_width)
+            self.submodules.axil2axi = AXILite2AXI(self.axi_lite, axi)
+
+            interface_cls, converter_cls, sram_cls = {
+                "wishbone": (wishbone.Interface, AXI2Wishbone, wishbone.SRAM),
+                "axi_lite": (AXILiteInterface,   AXI2AXILite,  AXILiteSRAM),
+            }[mem_bus]
+
+            bus_kwargs = {"data_width": data_width}
+            if mem_bus == "wishbone":
+                bus_kwargs["adr_width"] = address_width - log2_int(data_width // 8)
+            bus = interface_cls(**bus_kwargs)
+            self.submodules += converter_cls(axi, bus)
+            self.submodules += sram_cls(1024, init=[0x12345678, 0xa55aa55a], bus=bus)
+
+    def generator(axi_lite, datas, resps):
+        dw_bytes = data_width // 8
+        data, resp = (yield from axi_lite.read(0x00))
+        resps.append((resp, RESP_OKAY))
+        datas.append((data, 0x12345678))
+        data, resp = (yield from axi_lite.read(dw_bytes * 1))
+        resps.append((resp, RESP_OKAY))
+        datas.append((data, 0xa55aa55a))
+        for i in range(32):
+            resp = (yield from axi_lite.write(dw_bytes * i, i))
+            resps.append((resp, RESP_OKAY))
+        for i in range(32):
+            data, resp = (yield from axi_lite.read(dw_bytes * i))
+            resps.append((resp, RESP_OKAY))
+            datas.append((data, i))
+
+    dut = DUT()
+    datas = []
+    resps = []
+    run_simulation_case(dut, [generator(dut.axi_lite, datas, resps)])
+    expected_resps = [(RESP_OKAY, RESP_OKAY)] * len(resps)
+    expected_datas = [(0x12345678, 0x12345678), (0xa55aa55a, 0xa55aa55a)] + [(i, i) for i in range(32)]
+    assert list(zip(*resps)) == list(zip(*expected_resps))
+    msg = "\n".join("0x{:08x} vs 0x{:08x}".format(actual, expected) for actual, expected in datas)
+    assert list(zip(*datas)) == list(zip(*expected_datas)), msg
+
+
+def run_axilite_converter_case(width_from, width_to, parallel_rw=False,
+                               write_pattern=None, write_expected=None,
+                               read_pattern=None, read_expected=None):
+    assert not (write_pattern is None and read_pattern is None)
+
+    if write_pattern is None:
+        write_pattern = []
+        write_expected = []
+    elif len(write_pattern[0]) == 2:
+        write_pattern = [(adr, data, 2**(width_from//8)-1) for adr, data in write_pattern]
+
+    if read_pattern is None:
+        read_pattern = []
+        read_expected = []
+
+    class DUT(Module):
+        def __init__(self, width_from, width_to):
+            self.master = AXILiteInterface(data_width=width_from)
+            self.slave = AXILiteInterface(data_width=width_to)
+            self.submodules.converter = AXILiteConverter(self.master, self.slave)
+
+    prng = seeded_prng()
+
+    def write_generator(axi_lite):
+        for addr, data, strb in write_pattern or []:
+            resp = (yield from axi_lite.write(addr, data, strb))
+            assert resp == RESP_OKAY
+            for _ in range(prng.randrange(3)):
+                yield
+        for _ in range(16):
+            yield
+
+    def read_generator(axi_lite):
+        for addr, refdata in read_pattern or []:
+            data, resp = (yield from axi_lite.read(addr))
+            assert resp == RESP_OKAY
+            assert data == refdata
+            for _ in range(prng.randrange(3)):
+                yield
+        for _ in range(4):
+            yield
+
+    def sequential_generator(axi_lite):
+        yield from write_generator(axi_lite)
+        yield from read_generator(axi_lite)
+
+    def rdata_generator(adr):
+        for a, v in read_expected:
+            if a == adr:
+                return v
+        return 0xbaadc0de
+
+    latency_value = {"value": 0}
+    def latency():
+        latency_value["value"] = (latency_value["value"] + 1) % 3
+        return latency_value["value"]
+
+    dut = DUT(width_from=width_from, width_to=width_to)
+    checker = AXILiteChecker(ready_latency=latency, rdata_generator=rdata_generator)
+    if parallel_rw:
+        generators = [write_generator(dut.master), read_generator(dut.master)]
+    else:
+        generators = [sequential_generator(dut.master)]
+    generators += checker.parallel_handlers(dut.slave)
+    run_simulation_case(dut, generators)
+    assert checker.writes == write_expected
+    assert checker.reads == read_expected
+
 # TestAXILite --------------------------------------------------------------------------------------
 
 class TestAXILite(unittest.TestCase):
     def test_wishbone2axilite2wishbone(self, data_width=32, address_width=32):
-        class DUT(Module):
-            def __init__(self):
-                self.wishbone = wishbone.Interface(
-                    data_width = data_width,
-                    adr_width  = address_width - log2_int(data_width // 8),
-                    addressing = "word",
-                )
-
-                # # #
-
-                axi_lite = AXILiteInterface(data_width=data_width, address_width=address_width)
-                wb  = wishbone.Interface(
-                    data_width = data_width,
-                    adr_width  = address_width - log2_int(data_width // 8),
-                    addressing = "word",
-                )
-
-                wishbone2axi = Wishbone2AXILite(self.wishbone, axi_lite)
-                axi2wishbone = AXILite2Wishbone(axi_lite, wb)
-                self.submodules += wishbone2axi, axi2wishbone
-
-                sram = wishbone.SRAM(1024, init=[0x12345678, 0xa55aa55a])
-                self.submodules += sram
-                self.comb += wb.connect(sram.bus)
-
-        def generator(dut):
-            dut.errors = 0
-            if (yield from dut.wishbone.read(0)) != 0x12345678:
-                dut.errors += 1
-            if (yield from dut.wishbone.read(1)) != 0xa55aa55a:
-                dut.errors += 1
-            for i in range(32):
-                yield from dut.wishbone.write(i, i)
-            for i in range(32):
-                if (yield from dut.wishbone.read(i)) != i:
-                    dut.errors += 1
-
-        dut = DUT()
-        run_simulation(dut, [generator(dut)])
-        self.assertEqual(dut.errors, 0)
+        run_wishbone2axilite2wishbone_case(data_width=data_width, address_width=address_width)
 
     def test_wishbone2axilite2wishbone_dw64(self):
         return self.test_wishbone2axilite2wishbone(data_width=64)
 
     def test_axilite2axi2mem(self, data_width=32, address_width=32):
-        class DUT(Module):
-            def __init__(self, mem_bus="wishbone"):
-                self.axi_lite = AXILiteInterface(data_width=data_width, address_width=address_width)
-
-                axi = AXIInterface(data_width=data_width, address_width=address_width)
-                self.submodules.axil2axi = AXILite2AXI(self.axi_lite, axi)
-
-                interface_cls, converter_cls, sram_cls = {
-                    "wishbone": (wishbone.Interface, AXI2Wishbone, wishbone.SRAM),
-                    "axi_lite": (AXILiteInterface,   AXI2AXILite,  AXILiteSRAM),
-                }[mem_bus]
-
-                bus_kwargs = {"data_width": data_width}
-                if mem_bus == "wishbone":
-                    bus_kwargs["adr_width"] = address_width - log2_int(data_width // 8)
-                bus = interface_cls(**bus_kwargs)
-                self.submodules += converter_cls(axi, bus)
-                sram = sram_cls(1024, init=[0x12345678, 0xa55aa55a], bus=bus)
-                self.submodules += sram
-
-        def generator(axi_lite, datas, resps):
-            dw_bytes = data_width // 8
-            data, resp = (yield from axi_lite.read(0x00))
-            resps.append((resp, RESP_OKAY))
-            datas.append((data, 0x12345678))
-            data, resp = (yield from axi_lite.read(dw_bytes * 1))
-            resps.append((resp, RESP_OKAY))
-            datas.append((data, 0xa55aa55a))
-            for i in range(32):
-                resp = (yield from axi_lite.write(dw_bytes * i, i))
-                resps.append((resp, RESP_OKAY))
-            for i in range(32):
-                data, resp = (yield from axi_lite.read(dw_bytes * i))
-                resps.append((resp, RESP_OKAY))
-                datas.append((data, i))
-
         for mem_bus in ["wishbone", "axi_lite"]:
             with self.subTest(mem_bus=mem_bus):
-                # to have more verbose error messages store errors in list((actual, expected))
-                datas = []
-                resps = []
-
-                def actual_expected(results):  # split into (list(actual), list(expected))
-                    return list(zip(*results))
-
-                dut = DUT(mem_bus)
-                run_simulation(dut, [generator(dut.axi_lite, datas, resps)])
-                self.assertEqual(*actual_expected(resps))
-                msg = "\n".join("0x{:08x} vs 0x{:08x}".format(actual, expected) for actual, expected in datas)
-                self.assertEqual(*actual_expected(datas), msg="actual vs expected:\n" + msg)
+                run_axilite2axi2mem_case(data_width=data_width, address_width=address_width, mem_bus=mem_bus)
 
     def test_axilite2axi2mem_dw64(self):
         return self.test_axilite2axi2mem(data_width=64)
@@ -263,7 +339,7 @@ class TestAXILite(unittest.TestCase):
                 self.submodules.axilite2csr = AXILite2CSR(self.axi_lite, self.csr)
                 self.errors = 0
 
-        prng = random.Random(42)
+        prng = seeded_prng()
         mem_ref = [prng.randrange(255) for i in range(100)]
 
         def generator(dut):
@@ -289,7 +365,7 @@ class TestAXILite(unittest.TestCase):
 
         dut = DUT()
         mem = [v for v in mem_ref]
-        run_simulation(dut, [generator(dut), csr_mem_handler(dut.csr, mem)])
+        run_simulation_case(dut, [generator(dut), csr_mem_handler(dut.csr, mem)])
         self.assertEqual(dut.errors, 0)
 
     def test_axilite_sram(self):
@@ -318,82 +394,25 @@ class TestAXILite(unittest.TestCase):
                 if rdata != wdata:
                     dut.errors += 1
 
-        prng = random.Random(42)
+        prng = seeded_prng()
         init = [prng.randrange(2**32) for i in range(100)]
 
         dut = DUT(size=len(init)*4, init=[v for v in init])
-        run_simulation(dut, [generator(dut, init)])
+        run_simulation_case(dut, [generator(dut, init)])
         self.assertEqual(dut.errors, 0)
 
     def converter_test(self, width_from, width_to, parallel_rw=False,
                        write_pattern=None, write_expected=None,
                        read_pattern=None, read_expected=None):
-        assert not (write_pattern is None and read_pattern is None)
-
-        if write_pattern is None:
-            write_pattern = []
-            write_expected = []
-        elif len(write_pattern[0]) == 2:
-            # add w.strb
-            write_pattern = [(adr, data, 2**(width_from//8)-1) for adr, data in write_pattern]
-
-        if read_pattern is None:
-            read_pattern = []
-            read_expected = []
-
-        class DUT(Module):
-            def __init__(self, width_from, width_to):
-                self.master = AXILiteInterface(data_width=width_from)
-                self.slave = AXILiteInterface(data_width=width_to)
-                self.submodules.converter = AXILiteConverter(self.master, self.slave)
-
-        prng = random.Random(42)
-
-        def write_generator(axi_lite):
-            for addr, data, strb in write_pattern or []:
-                resp = (yield from axi_lite.write(addr, data, strb))
-                self.assertEqual(resp, RESP_OKAY)
-                for _ in range(prng.randrange(3)):
-                    yield
-            for _ in range(16):
-                yield
-
-        def read_generator(axi_lite):
-            for addr, refdata in read_pattern or []:
-                data, resp = (yield from axi_lite.read(addr))
-                self.assertEqual(resp, RESP_OKAY)
-                self.assertEqual(data, refdata)
-                for _ in range(prng.randrange(3)):
-                    yield
-            for _ in range(4):
-                yield
-
-        def sequential_generator(axi_lite):
-            yield from write_generator(axi_lite)
-            yield from read_generator(axi_lite)
-
-        def rdata_generator(adr):
-            for a, v in read_expected:
-                if a == adr:
-                    return v
-            return 0xbaadc0de
-
-        _latency = 0
-        def latency():
-            nonlocal _latency
-            _latency = (_latency + 1) % 3
-            return _latency
-
-        dut = DUT(width_from=width_from, width_to=width_to)
-        checker = AXILiteChecker(ready_latency=latency, rdata_generator=rdata_generator)
-        if parallel_rw:
-            generators = [write_generator(dut.master), read_generator(dut.master)]
-        else:
-            generators = [sequential_generator(dut.master)]
-        generators += checker.parallel_handlers(dut.slave)
-        run_simulation(dut, generators)
-        self.assertEqual(checker.writes, write_expected)
-        self.assertEqual(checker.reads, read_expected)
+        run_axilite_converter_case(
+            width_from=width_from,
+            width_to=width_to,
+            parallel_rw=parallel_rw,
+            write_pattern=write_pattern,
+            write_expected=write_expected,
+            read_pattern=read_pattern,
+            read_expected=read_expected,
+        )
 
     def test_axilite_down_converter_32to16(self):
         write_pattern = [
