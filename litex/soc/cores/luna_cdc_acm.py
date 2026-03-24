@@ -123,7 +123,19 @@ class LunaCDCACM(LiteXModule):
 
         if is_ulpi:
             ulpi_rst    = Signal()
-            self.cd_usb = ClockDomain("usb", reset_less=True)
+            self.cd_usb = ClockDomain("usb")
+
+            # Power on reset
+            self.cd_usb_por = ClockDomain()
+            por_count       = Signal(16, reset=(2**16-1) // 4)
+            por_done        = Signal()
+            self.comb += [
+                self.cd_usb_por.clk.eq(ClockSignal("usb")),
+                self.cd_usb_por.rst.eq(ResetSignal("sys")),
+                por_done.eq(por_count == 0)
+            ]
+            self.sync.usb_por += If(~por_done, por_count.eq(por_count - 1))
+            self.comb += ResetSignal("usb").eq(~por_done)
 
             if hasattr(pads, 'clk'):
                 self.core_params.update({
@@ -137,7 +149,10 @@ class LunaCDCACM(LiteXModule):
                     "i_usb_clk"    : ClockSignal("usb"),
                 })
 
-            self.core_params["i_usb_rst"] = Constant(0, 1)
+            self.core_params.update({
+                "i_usb_rst"    : ResetSignal("usb"),
+                "o__bus_rst_o" : ulpi_rst,
+            })
 
             if hasattr(pads, 'rst'):
                 self.comb += pads.rst.eq(ulpi_rst)
@@ -173,7 +188,6 @@ class LunaCDCACM(LiteXModule):
                 "o__bus_stp_o"   : pads.stp,
                 "i__bus_nxt_i"   : pads.nxt,
                 "i__bus_dir_i"   : pads.dir,
-                "o__bus_rst_o"   : ulpi_rst,
             })
         else:
             ulpi_d_p = TSTriple()
