@@ -9,14 +9,24 @@ endpoints in the ``sys`` domain:
 - ``sink``   : TX bytes from LiteX to USB host.
 - ``source`` : RX bytes from USB host to LiteX.
 
-Data is transferred through CDC shims between ``sys`` and ``usb_12`` domains,
-while USB I/O runs from ``usb_48``.
+Data is transferred through CDC shims between ``sys`` and:
+- ``usb_12`` for raw USB full-speed D+/D- pads.
+- ``usb`` for ULPI pads.
 
-Clock requirements:
-- ``usb_12`` must run at 12 MHz (USB full-speed protocol clock).
-- ``usb_48`` must run at 48 MHz (USB PHY I/O clock).
-- ``usb_48`` should be generated from the same PLL/source as ``usb_12``
-  (exact 4x relationship) to avoid long-term drift between protocol and I/O.
+Clock requirements depend on the selected bus type:
+- Raw USB full-speed mode:
+  - ``usb_12`` must run at 12 MHz (USB full-speed protocol clock).
+  - ``usb_48`` must run at 48 MHz (USB PHY I/O clock).
+  - ``usb_48`` should be generated from the same PLL/source as ``usb_12``
+    (exact 4x relationship) to avoid long-term drift between protocol and I/O.
+- ULPI mode:
+  - external ``usb_12``/``usb_48`` domains are not required.
+  - ULPI clock direction depends on PHY integration:
+    - ``clk``: PHY drives the clock, core consumes it.
+    - ``clk_o``: core drives the clock, PHY consumes it.
+  - This core creates the ``usb`` clock domain around LUNA USB IP.
+  - With ``clk``, LUNA drives ``ClockSignal("usb")`` from the ULPI PHY clock.
+  - With ``clk_o``, LUNA consumes ``ClockSignal("usb")``, which must be driven by the SoC.
 """
 
 import os
@@ -44,7 +54,10 @@ class LunaCDCACM(LiteXModule):
 
     Parameters:
         platform: LiteX platform used by :class:`Amaranth2VConverter`.
-        pads: USB full-speed pads object with ``d_p``, ``d_n`` and ``pullup``.
+        pads: USB bus pads. Supported variants:
+            - Raw USB full-speed: ``d_p``, ``d_n``, ``pullup``.
+            - ULPI: ``data``, ``stp``, ``nxt``, ``dir`` and clock (``clk`` input or ``clk_o`` output),
+              with optional ``rst``/``rst_n``.
         vid: USB vendor ID (default: ``0x1209``).
         pid: USB product ID (default: ``0x0001``).
 
@@ -55,13 +68,19 @@ class LunaCDCACM(LiteXModule):
 
     Clock domains expected in the SoC:
         - ``sys``    : LiteX logic side.
-        - ``usb_12`` : USB protocol domain, required at 12 MHz.
-        - ``usb_48`` : USB I/O domain, required at 48 MHz.
+        - Raw USB full-speed mode only:
+          - ``usb_12`` : USB protocol domain, required at 12 MHz.
+          - ``usb_48`` : USB I/O domain, required at 48 MHz.
+        - ULPI mode:
+          - no externally provided ``usb_12``/``usb_48`` domains are required.
+          - this core creates ``usb`` clock domain for LUNA.
+          - with ``clk``: LUNA drives ``usb`` from ULPI PHY clock.
+          - with ``clk_o``: LUNA consumes ``usb`` clock provided by the SoC.
 
     Notes:
-        ``usb_12`` and ``usb_48`` are both consumed by the LUNA core.
-        Keep them frequency-locked (``usb_48 = 4 * usb_12``), ideally from a
-        single PLL/MMCM, so packet timing remains stable.
+        In raw USB full-speed mode, ``usb_12`` and ``usb_48`` are consumed by
+        the LUNA core. Keep them frequency-locked (``usb_48 = 4 * usb_12``),
+        ideally from a single PLL/MMCM, so packet timing remains stable.
     """
     def __init__(self, platform, pads=None, vid=0x1209, pid=0x0001):
         self.source  = source = stream.Endpoint([("data", 8)])
@@ -70,21 +89,23 @@ class LunaCDCACM(LiteXModule):
         self.connect = Signal()
 
         assert pads is not None
-        assert hasattr(pads, "d_p")
+        assert hasattr(pads, "d_p") or hasattr(pads, "data")
 
         # # #
 
         self.platform    = platform
         self.core_params = {}
-        self.cd_list     = ["usb", "usb_io"]
+        self.cd_list     = ["usb"]
+        is_ulpi          = hasattr(pads, "data") # ULPI or IO
+        cd_sync          = {True: "usb", False: "usb_12"}[is_ulpi]
 
         # CDC ACM clock domain converter -----------------------------------------------------------
         self.tx_cdc = tx_cdc = stream.ClockDomainCrossing([("data", 8)],
             cd_from = "sys",
-            cd_to   = "usb_12",
+            cd_to   = cd_sync,
         )
         self.rx_cdc = rx_cdc = stream.ClockDomainCrossing([("data", 8)],
-            cd_from = "usb_12",
+            cd_from = cd_sync,
             cd_to   = "sys",
         )
         self.comb += [
@@ -96,37 +117,87 @@ class LunaCDCACM(LiteXModule):
         # Clk/Rst ----------------------------------------------------------------------------------
 
         self.core_params.update({
-            "i_sync_clk"   : ClockSignal("usb_12"),
-            "i_sync_rst"   : ResetSignal("usb_12"),
-            "i_usb_clk"    : ClockSignal("usb_12"),
-            "i_usb_io_clk" : ClockSignal("usb_48"),
-            "i_usb_io_rst" : ResetSignal("usb_48"),
+            "i_sync_clk" : ClockSignal(cd_sync),
+            "i_sync_rst" : ResetSignal(cd_sync),
         })
+
+        if is_ulpi:
+            ulpi_rst    = Signal()
+            self.cd_usb = ClockDomain("usb", reset_less=True)
+
+            if hasattr(pads, 'clk'):
+                self.core_params.update({
+                    "i__bus_clk_i" : ~pads.clk,
+                    "o_usb_clk"    : ClockSignal("usb"),
+                })
+                platform.add_period_constraint(pads.clk, 1e9/60e6)
+            else:
+                self.core_params.update({
+                    "o__bus_clk_o" : pads.clk_o,
+                    "i_usb_clk"    : ClockSignal("usb"),
+                })
+
+            self.core_params["i_usb_rst"] = Constant(0, 1)
+
+            if hasattr(pads, 'rst'):
+                self.comb += pads.rst.eq(ulpi_rst)
+            elif hasattr(pads, 'rst_n'):
+                self.comb += pads.rst_n.eq(~(ulpi_rst))
+        else:
+            self.core_params.update({
+                "i_usb_clk"    : ClockSignal("usb_12"),
+                "i_usb_io_clk" : ClockSignal("usb_48"),
+                "i_usb_io_rst" : ResetSignal("usb_48"),
+            })
+            self.cd_list.append("usb_io")
 
         # Signals ----------------------------------------------------------------------------------
 
-        ulpi_d_p = TSTriple()
-        ulpi_d_n = TSTriple()
-        self.specials += [
-            ulpi_d_p.get_tristate(pads.d_p),
-            ulpi_d_n.get_tristate(pads.d_n),
-        ]
+        if is_ulpi:
+            ulpi_data = TSTriple(8)
+            self.specials += ulpi_data.get_tristate(pads.data)
 
-        ulpi = aRecord([
-            ('d_p',    [('i', 1, DIR_FANIN), ('o', 1, DIR_FANOUT), ('oe', 1, DIR_FANOUT)]),
-            ('d_n',    [('i', 1, DIR_FANIN), ('o', 1, DIR_FANOUT), ('oe', 1, DIR_FANOUT)]),
-            ("pullup", [('o', 1, DIR_FANOUT)]),
-        ])
+            ulpi = aRecord([
+                ('data', [('i', 8, DIR_FANIN), ('o', 8, DIR_FANOUT), ('oe', 1, DIR_FANOUT)]),
+                ('clk',  [('i', 1, DIR_FANIN)] if hasattr(pads, 'clk') else [('o', 1, DIR_FANOUT)]),
+                ('stp',  [('o', 1, DIR_FANOUT)]),
+                ('nxt',  [('i', 1, DIR_FANIN)]),
+                ('dir',  [('i', 1, DIR_FANIN)]),
+                ('rst',  [('o', 1, DIR_FANOUT)]),
+            ])
 
-        self.core_params.update({
-            "i__bus_d_p_i"    : ulpi_d_p.i,
-            "o__bus_d_p_o"    : ulpi_d_p.o,
-            "o__bus_d_p_oe"   : ulpi_d_p.oe,
-            "i__bus_d_n_i"    : ulpi_d_n.i,
-            "o__bus_d_n_o"    : ulpi_d_n.o,
-            "o__bus_d_n_oe"   : ulpi_d_n.oe,
-            "o__bus_pullup_o" : pads.pullup,
-        })
+            self.core_params.update({
+                "i__bus_data_i"  : ulpi_data.i,
+                "o__bus_data_o"  : ulpi_data.o,
+                "o__bus_data_oe" : ulpi_data.oe,
+                "o__bus_stp_o"   : pads.stp,
+                "i__bus_nxt_i"   : pads.nxt,
+                "i__bus_dir_i"   : pads.dir,
+                "o__bus_rst_o"   : ulpi_rst,
+            })
+        else:
+            ulpi_d_p = TSTriple()
+            ulpi_d_n = TSTriple()
+            self.specials += [
+                ulpi_d_p.get_tristate(pads.d_p),
+                ulpi_d_n.get_tristate(pads.d_n),
+            ]
+
+            ulpi = aRecord([
+                ('d_p',    [('i', 1, DIR_FANIN), ('o', 1, DIR_FANOUT), ('oe', 1, DIR_FANOUT)]),
+                ('d_n',    [('i', 1, DIR_FANIN), ('o', 1, DIR_FANOUT), ('oe', 1, DIR_FANOUT)]),
+                ("pullup", [('o', 1, DIR_FANOUT)]),
+            ])
+
+            self.core_params.update({
+                "i__bus_d_p_i"    : ulpi_d_p.i,
+                "o__bus_d_p_o"    : ulpi_d_p.o,
+                "o__bus_d_p_oe"   : ulpi_d_p.oe,
+                "i__bus_d_n_i"    : ulpi_d_n.i,
+                "o__bus_d_n_o"    : ulpi_d_n.o,
+                "o__bus_d_n_oe"   : ulpi_d_n.oe,
+                "o__bus_pullup_o" : pads.pullup,
+            })
 
         # Connections ------------------------------------------------------------------------------
 
