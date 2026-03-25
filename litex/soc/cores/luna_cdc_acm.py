@@ -22,10 +22,13 @@ Clock requirements depend on the selected bus type:
 - ULPI mode:
   - external ``usb_12``/``usb_48`` domains are not required.
   - ULPI clock direction depends on PHY integration:
-    - ``clk``: PHY drives the clock, core consumes it.
+    - ``clk``: PHY drives the clock, core consumes it directly.
+    - ``clk_n``: PHY drives the inverted form of the same clock, and the core
+      internally uses ``~clk_n`` as the ULPI clock input.
     - ``clk_o``: core drives the clock, PHY consumes it.
   - This core creates the ``usb`` clock domain around LUNA USB IP.
-  - With ``clk``, LUNA drives ``ClockSignal("usb")`` from the ULPI PHY clock.
+  - With ``clk`` or ``clk_n``, LUNA drives ``ClockSignal("usb")`` from the
+    ULPI PHY clock.
   - With ``clk_o``, LUNA consumes ``ClockSignal("usb")``, which must be driven by the SoC.
 """
 
@@ -56,7 +59,8 @@ class LunaCDCACM(LiteXModule):
         platform: LiteX platform used by :class:`Amaranth2VConverter`.
         pads: USB bus pads. Supported variants:
             - Raw USB full-speed: ``d_p``, ``d_n``, ``pullup``.
-            - ULPI: ``data``, ``stp``, ``nxt``, ``dir`` and clock (``clk`` input or ``clk_o`` output),
+            - ULPI: ``data``, ``stp``, ``nxt``, ``dir`` and clock
+              (``clk`` input, ``clk_n`` inverted input, or ``clk_o`` output),
               with optional ``rst``/``rst_n``.
         vid: USB vendor ID (default: ``0x1209``).
         pid: USB product ID (default: ``0x0001``).
@@ -74,13 +78,21 @@ class LunaCDCACM(LiteXModule):
         - ULPI mode:
           - no externally provided ``usb_12``/``usb_48`` domains are required.
           - this core creates ``usb`` clock domain for LUNA.
-          - with ``clk``: LUNA drives ``usb`` from ULPI PHY clock.
+          - with ``clk``: LUNA drives ``usb`` from the direct ULPI PHY clock.
+          - with ``clk_n``: LUNA drives ``usb`` from the inverted ULPI PHY
+            clock input by internally using ``~clk_n``.
           - with ``clk_o``: LUNA consumes ``usb`` clock provided by the SoC.
 
     Notes:
         In raw USB full-speed mode, ``usb_12`` and ``usb_48`` are consumed by
         the LUNA core. Keep them frequency-locked (``usb_48 = 4 * usb_12``),
         ideally from a single PLL/MMCM, so packet timing remains stable.
+
+        In ULPI input-clock mode, ``clk`` and ``clk_n`` describe the same
+        external clock with opposite polarity:
+        - use ``clk`` when the pad already carries the non-inverted ULPI clock;
+        - use ``clk_n`` when the available pad is the inverted clock
+        - do not provide both at the same time.
     """
     def __init__(self, platform, pads=None, vid=0x1209, pid=0x0001):
         self.source  = source = stream.Endpoint([("data", 8)])
@@ -122,6 +134,7 @@ class LunaCDCACM(LiteXModule):
         })
 
         if is_ulpi:
+            is_clk_in   = hasattr(pads, 'clk') or hasattr(pads, 'clk_n')
             ulpi_rst    = Signal()
             self.cd_usb = ClockDomain("usb")
 
@@ -137,12 +150,18 @@ class LunaCDCACM(LiteXModule):
             self.sync.usb_por += If(~por_done, por_count.eq(por_count - 1))
             self.comb += ResetSignal("usb").eq(~por_done)
 
-            if hasattr(pads, 'clk'):
+            if is_clk_in:
+                pads_clk = Signal(reset_less=True)
+
+                if hasattr(pads, 'clk'):
+                    self.comb += pads_clk.eq(pads.clk)
+                else:
+                    self.comb += pads_clk.eq(~pads.clk_n)
                 self.core_params.update({
-                    "i__bus_clk_i" : ~pads.clk,
+                    "i__bus_clk_i" : pads_clk,
                     "o_usb_clk"    : ClockSignal("usb"),
                 })
-                platform.add_period_constraint(pads.clk, 1e9/60e6)
+                platform.add_period_constraint(pads_clk, 1e9/60e6)
             else:
                 self.core_params.update({
                     "o__bus_clk_o" : pads.clk_o,
@@ -174,7 +193,7 @@ class LunaCDCACM(LiteXModule):
 
             ulpi = aRecord([
                 ('data', [('i', 8, DIR_FANIN), ('o', 8, DIR_FANOUT), ('oe', 1, DIR_FANOUT)]),
-                ('clk',  [('i', 1, DIR_FANIN)] if hasattr(pads, 'clk') else [('o', 1, DIR_FANOUT)]),
+                ('clk',  [('i', 1, DIR_FANIN)] if is_clk_in else [('o', 1, DIR_FANOUT)]),
                 ('stp',  [('o', 1, DIR_FANOUT)]),
                 ('nxt',  [('i', 1, DIR_FANIN)]),
                 ('dir',  [('i', 1, DIR_FANIN)]),
