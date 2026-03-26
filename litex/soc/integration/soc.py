@@ -1637,8 +1637,9 @@ class LiteXSoC(SoC):
         # USB ACM (with LUNA ACM core).
         elif uart_name in ["usb_acm"]:
             from litex.soc.cores.luna_cdc_acm import LunaCDCACM
-            usb_pads = self.platform.request("usb")
-            uart_phy = LunaCDCACM(self.platform, usb_pads)
+            if uart_pads is None:
+                uart_pads = self.platform.request("usb")
+            uart_phy = LunaCDCACM(self.platform, uart_pads)
             self.comb += uart_phy.connect.eq(1)
             uart     = UART(uart_phy, **uart_kwargs)
 
