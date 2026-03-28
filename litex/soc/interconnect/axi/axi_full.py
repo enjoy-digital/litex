@@ -400,6 +400,10 @@ class AXITimeout(LiteXModule):
         rd_error   = Signal()
         wr_id      = Signal.like(master.b.id)
         rd_id      = Signal.like(master.r.id)
+        wr_aw_done = Signal()
+        wr_w_done  = Signal()
+        wr_pending = Signal()
+        rd_pending = Signal()
 
         # # #
 
@@ -433,7 +437,11 @@ class AXITimeout(LiteXModule):
 
         self.wr_fsm = channel_fsm(
             timer     = wr_timer,
-            wait_cond = (master.aw.valid & ~master.aw.ready) | (master.w.valid & ~master.w.ready),
+            wait_cond = (
+                (master.aw.valid & ~master.aw.ready) |
+                (master.w.valid & ~master.w.ready)  |
+                (wr_pending & ~master.b.valid)
+            ),
             error     = wr_error,
             response  = [
                 master.aw.ready.eq(master.aw.valid),
@@ -448,7 +456,7 @@ class AXITimeout(LiteXModule):
 
         self.rd_fsm = channel_fsm(
             timer     = rd_timer,
-            wait_cond = master.ar.valid & ~master.ar.ready,
+            wait_cond = (master.ar.valid & ~master.ar.ready) | (rd_pending & ~master.r.valid),
             error     = rd_error,
             response  = [
                 master.ar.ready.eq(master.ar.valid),
@@ -461,6 +469,45 @@ class AXITimeout(LiteXModule):
                     NextState("WAIT")
                 )
             ])
+
+        wr_done = master.w.valid & master.w.ready & master.w.last
+        rd_done = master.r.valid & master.r.ready & master.r.last
+        self.sync += [
+            If(self.wr_fsm.ongoing("RESPOND"),
+                If(master.b.valid & master.b.ready,
+                    wr_aw_done.eq(0),
+                    wr_w_done.eq(0),
+                    wr_pending.eq(0),
+                )
+            ).Else(
+                If(master.aw.valid & master.aw.ready,
+                    wr_aw_done.eq(1)
+                ),
+                If(wr_done,
+                    wr_w_done.eq(1)
+                ),
+                If(
+                    (master.aw.valid & master.aw.ready & (wr_w_done | wr_done)) |
+                    (wr_done & wr_aw_done),
+                    wr_aw_done.eq(0),
+                    wr_w_done.eq(0),
+                    wr_pending.eq(1),
+                ).Elif(master.b.valid & master.b.ready,
+                    wr_pending.eq(0)
+                )
+            ),
+            If(self.rd_fsm.ongoing("RESPOND"),
+                If(master.r.valid & master.r.ready,
+                    rd_pending.eq(0),
+                )
+            ).Else(
+                If(master.ar.valid & master.ar.ready,
+                    rd_pending.eq(1)
+                ).Elif(rd_done,
+                    rd_pending.eq(0)
+                )
+            )
+        ]
 
 # AXI Interconnect Components ----------------------------------------------------------------------
 

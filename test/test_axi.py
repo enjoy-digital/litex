@@ -648,6 +648,52 @@ class TestAXI(unittest.TestCase):
         ]
         run_simulation(dut, generators)
 
+    def test_timeout_missing_response(self):
+        class DUT(Module):
+            def __init__(self):
+                self.master = master = AXIInterface(id_width=8)
+                self.slave  = slave  = AXIInterface(id_width=8)
+                self.submodules.interconnect = AXIInterconnectPointToPoint(master, slave)
+                self.submodules.timeout = AXITimeout(master, 16)
+
+        def generator(axi):
+            pattern = AXIPatternGenerator(axi, [])
+
+            resp, rsp_id = (yield from pattern.write(0x00001000, 0x11111111, req_id=0x56))
+            self.assertEqual(resp, RESP_SLVERR)
+            self.assertEqual(rsp_id, 0x56)
+
+            data, resp, rsp_id, last = (yield from pattern.read(0x00002000, req_id=0x78))
+            self.assertEqual(resp, RESP_SLVERR)
+            self.assertEqual(rsp_id, 0x78)
+            self.assertEqual(last, 1)
+            self.assertEqual(data, 0xffffffff)
+
+        @passive
+        def checker(axi):
+            while True:
+                if (yield axi.aw.valid):
+                    yield axi.aw.ready.eq(1)
+                    yield
+                    yield axi.aw.ready.eq(0)
+                if (yield axi.w.valid):
+                    yield axi.w.ready.eq(1)
+                    yield
+                    yield axi.w.ready.eq(0)
+                if (yield axi.ar.valid):
+                    yield axi.ar.ready.eq(1)
+                    yield
+                    yield axi.ar.ready.eq(0)
+                yield
+
+        dut = DUT()
+        generators = [
+            generator(dut.master),
+            checker(dut.slave),
+            timeout_generator(300),
+        ]
+        run_simulation(dut, generators)
+
     def address_decoder(self, i, size=0x100, python=False):
         # bytes to 32-bit words aligned
         _size   = (size) >> 2

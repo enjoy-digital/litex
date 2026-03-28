@@ -629,6 +629,46 @@ class TestAXILiteInterconnect(unittest.TestCase):
         ]
         run_simulation(dut, generators)
 
+    def test_timeout_missing_response(self):
+        class DUT(Module):
+            def __init__(self):
+                self.master = master = AXILiteInterface()
+                self.slave  = slave  = AXILiteInterface()
+                self.submodules.interconnect = AXILiteInterconnectPointToPoint(master, slave)
+                self.submodules.timeout = AXILiteTimeout(master, 16)
+
+        def generator(axi_lite):
+            resp = (yield from axi_lite.write(0x00001000, 0x11111111))
+            self.assertEqual(resp, RESP_SLVERR)
+            data, resp = (yield from axi_lite.read(0x00002000))
+            self.assertEqual(resp, RESP_SLVERR)
+            self.assertEqual(data, 0xffffffff)
+
+        @passive
+        def checker(axi_lite):
+            while True:
+                if (yield axi_lite.aw.valid):
+                    yield axi_lite.aw.ready.eq(1)
+                    yield
+                    yield axi_lite.aw.ready.eq(0)
+                if (yield axi_lite.w.valid):
+                    yield axi_lite.w.ready.eq(1)
+                    yield
+                    yield axi_lite.w.ready.eq(0)
+                if (yield axi_lite.ar.valid):
+                    yield axi_lite.ar.ready.eq(1)
+                    yield
+                    yield axi_lite.ar.ready.eq(0)
+                yield
+
+        dut = DUT()
+        generators = [
+            generator(dut.master),
+            checker(dut.slave),
+            timeout_generator(300),
+        ]
+        run_simulation(dut, generators)
+
     def test_arbiter_order(self):
         class DUT(Module):
             def __init__(self, n_masters):
