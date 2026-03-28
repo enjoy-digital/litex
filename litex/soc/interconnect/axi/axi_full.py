@@ -10,7 +10,7 @@
 from math import log2
 
 from migen import *
-from migen.genlib import roundrobin
+from migen.genlib import roundrobin, fifo
 
 from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
@@ -398,28 +398,63 @@ class AXITimeout(LiteXModule):
         self.error = Signal()
         wr_error   = Signal()
         rd_error   = Signal()
-        wr_id      = Signal.like(master.b.id)
-        rd_id      = Signal.like(master.r.id)
-        wr_aw_done = Signal()
-        wr_w_done  = Signal()
-        wr_pending = Signal()
-        rd_pending = Signal()
+        wr_timeout_id = Signal.like(master.b.id)
+        rd_timeout_id = Signal.like(master.r.id)
+        wr_w_pending  = Signal(max=257)
+
+        wr_aw_fifo   = fifo.SyncFIFO(len(master.aw.id), 256)
+        wr_resp_fifo = fifo.SyncFIFO(len(master.b.id),  256)
+        rd_resp_fifo = fifo.SyncFIFO(len(master.r.id),  256)
+        self.submodules += wr_aw_fifo, wr_resp_fifo, rd_resp_fifo
 
         # # #
 
         self.comb += self.error.eq(wr_error | rd_error)
-        self.sync += [
-            If(master.aw.valid,
-                wr_id.eq(master.aw.id)
-            ),
-            If(master.ar.valid,
-                rd_id.eq(master.ar.id)
-            ),
-        ]
 
         wr_timer = WaitTimer(cycles)
         rd_timer = WaitTimer(cycles)
         self.submodules += wr_timer, rd_timer
+
+        aw_done = master.aw.valid & master.aw.ready
+        w_done  = master.w.valid  & master.w.ready  & master.w.last
+        b_done  = master.b.valid  & master.b.ready
+        ar_done = master.ar.valid & master.ar.ready
+        r_done  = master.r.valid  & master.r.ready  & master.r.last
+
+        # Track write addresses separately from completed writes so timeout responses preserve the
+        # original ordering when AW/W are accepted independently.
+        aw_matches_pending_w = aw_done & (wr_w_pending != 0)
+        w_matches_pending_aw = w_done & wr_aw_fifo.readable
+        aw_matches_current_w = aw_done & w_done & ~wr_aw_fifo.readable & (wr_w_pending == 0)
+        w_pending_inc        = w_done & ~wr_aw_fifo.readable & ~(aw_done & (wr_w_pending == 0))
+        w_pending_dec        = aw_matches_pending_w
+
+        self.comb += [
+            If(wr_resp_fifo.readable,
+                wr_timeout_id.eq(wr_resp_fifo.dout)
+            ).Elif(wr_aw_fifo.readable,
+                wr_timeout_id.eq(wr_aw_fifo.dout)
+            ).Else(
+                wr_timeout_id.eq(master.aw.id)
+            ),
+            If(rd_resp_fifo.readable,
+                rd_timeout_id.eq(rd_resp_fifo.dout)
+            ).Else(
+                rd_timeout_id.eq(master.ar.id)
+            ),
+
+            wr_aw_fifo.din.eq(master.aw.id),
+            wr_aw_fifo.we.eq(aw_done & ~aw_matches_pending_w & ~aw_matches_current_w),
+            wr_aw_fifo.re.eq(w_matches_pending_aw),
+
+            wr_resp_fifo.din.eq(Mux(w_matches_pending_aw, wr_aw_fifo.dout, master.aw.id)),
+            wr_resp_fifo.we.eq(w_matches_pending_aw | aw_matches_pending_w | aw_matches_current_w),
+            wr_resp_fifo.re.eq(b_done & wr_resp_fifo.readable),
+
+            rd_resp_fifo.din.eq(master.ar.id),
+            rd_resp_fifo.we.eq(ar_done),
+            rd_resp_fifo.re.eq(r_done & rd_resp_fifo.readable),
+        ]
 
         def channel_fsm(timer, wait_cond, error, response):
             fsm = FSM(reset_state="WAIT")
@@ -440,14 +475,14 @@ class AXITimeout(LiteXModule):
             wait_cond = (
                 (master.aw.valid & ~master.aw.ready) |
                 (master.w.valid & ~master.w.ready)  |
-                (wr_pending & ~master.b.valid)
+                (wr_resp_fifo.readable & ~master.b.valid)
             ),
             error     = wr_error,
             response  = [
                 master.aw.ready.eq(master.aw.valid),
                 master.w.ready.eq(master.w.valid),
                 master.b.valid.eq(~master.aw.valid & ~master.w.valid),
-                master.b.id.eq(wr_id),
+                master.b.id.eq(wr_timeout_id),
                 master.b.resp.eq(RESP_SLVERR),
                 If(master.b.valid & master.b.ready,
                     NextState("WAIT")
@@ -456,12 +491,12 @@ class AXITimeout(LiteXModule):
 
         self.rd_fsm = channel_fsm(
             timer     = rd_timer,
-            wait_cond = (master.ar.valid & ~master.ar.ready) | (rd_pending & ~master.r.valid),
+            wait_cond = (master.ar.valid & ~master.ar.ready) | (rd_resp_fifo.readable & ~master.r.valid),
             error     = rd_error,
             response  = [
                 master.ar.ready.eq(master.ar.valid),
                 master.r.valid.eq(~master.ar.valid),
-                master.r.id.eq(rd_id),
+                master.r.id.eq(rd_timeout_id),
                 master.r.last.eq(1),
                 master.r.resp.eq(RESP_SLVERR),
                 master.r.data.eq(2**len(master.r.data) - 1),
@@ -470,42 +505,11 @@ class AXITimeout(LiteXModule):
                 )
             ])
 
-        wr_done = master.w.valid & master.w.ready & master.w.last
-        rd_done = master.r.valid & master.r.ready & master.r.last
         self.sync += [
-            If(self.wr_fsm.ongoing("RESPOND"),
-                If(master.b.valid & master.b.ready,
-                    wr_aw_done.eq(0),
-                    wr_w_done.eq(0),
-                    wr_pending.eq(0),
-                )
-            ).Else(
-                If(master.aw.valid & master.aw.ready,
-                    wr_aw_done.eq(1)
-                ),
-                If(wr_done,
-                    wr_w_done.eq(1)
-                ),
-                If(
-                    (master.aw.valid & master.aw.ready & (wr_w_done | wr_done)) |
-                    (wr_done & wr_aw_done),
-                    wr_aw_done.eq(0),
-                    wr_w_done.eq(0),
-                    wr_pending.eq(1),
-                ).Elif(master.b.valid & master.b.ready,
-                    wr_pending.eq(0)
-                )
-            ),
-            If(self.rd_fsm.ongoing("RESPOND"),
-                If(master.r.valid & master.r.ready,
-                    rd_pending.eq(0),
-                )
-            ).Else(
-                If(master.ar.valid & master.ar.ready,
-                    rd_pending.eq(1)
-                ).Elif(rd_done,
-                    rd_pending.eq(0)
-                )
+            If(w_pending_inc & ~w_pending_dec,
+                wr_w_pending.eq(wr_w_pending + 1)
+            ).Elif(w_pending_dec & ~w_pending_inc,
+                wr_w_pending.eq(wr_w_pending - 1)
             )
         ]
 

@@ -694,6 +694,118 @@ class TestAXI(unittest.TestCase):
         ]
         run_simulation(dut, generators)
 
+    def test_timeout_multiple_missing_responses(self):
+        class DUT(Module):
+            def __init__(self):
+                self.master = master = AXIInterface(id_width=8)
+                self.slave  = slave  = AXIInterface(id_width=8)
+                self.submodules.interconnect = AXIInterconnectPointToPoint(master, slave)
+                self.submodules.timeout = AXITimeout(master, 16)
+
+        def send_write(axi, addr, data, req_id):
+            yield axi.aw.valid.eq(1)
+            yield axi.aw.addr.eq(addr)
+            yield axi.aw.burst.eq(BURST_INCR)
+            yield axi.aw.len.eq(0)
+            yield axi.aw.size.eq(log2_int(axi.data_width//8))
+            yield axi.aw.id.eq(req_id)
+            yield
+            while (yield axi.aw.ready) == 0:
+                yield
+            yield axi.aw.valid.eq(0)
+
+            yield axi.w.valid.eq(1)
+            yield axi.w.data.eq(data)
+            yield axi.w.strb.eq(2**len(axi.w.strb) - 1)
+            yield axi.w.last.eq(1)
+            yield
+            while (yield axi.w.ready) == 0:
+                yield
+            yield axi.w.valid.eq(0)
+
+        def recv_write(axi, req_id):
+            yield axi.b.ready.eq(0)
+            yield
+            while (yield axi.b.valid) == 0:
+                yield
+            self.assertEqual((yield axi.b.id), req_id)
+            self.assertEqual((yield axi.b.resp), RESP_SLVERR)
+            yield axi.b.ready.eq(1)
+            yield
+            yield axi.b.ready.eq(0)
+
+        def send_read(axi, addr, req_id):
+            yield axi.ar.valid.eq(1)
+            yield axi.ar.addr.eq(addr)
+            yield axi.ar.burst.eq(BURST_INCR)
+            yield axi.ar.len.eq(0)
+            yield axi.ar.size.eq(log2_int(axi.data_width//8))
+            yield axi.ar.id.eq(req_id)
+            yield
+            while (yield axi.ar.ready) == 0:
+                yield
+            yield axi.ar.valid.eq(0)
+
+        def recv_read(axi, req_id):
+            yield axi.r.ready.eq(0)
+            yield
+            while (yield axi.r.valid) == 0:
+                yield
+            self.assertEqual((yield axi.r.id), req_id)
+            self.assertEqual((yield axi.r.resp), RESP_SLVERR)
+            self.assertEqual((yield axi.r.last), 1)
+            self.assertEqual((yield axi.r.data), 0xffffffff)
+            yield axi.r.ready.eq(1)
+            yield
+            yield axi.r.ready.eq(0)
+
+        def generator(axi):
+            writes = [
+                (0x00001000, 0x11111111, 0x11),
+                (0x00002000, 0x22222222, 0x22),
+                (0x00003000, 0x33333333, 0x33),
+            ]
+            reads = [
+                (0x00004000, 0x44),
+                (0x00005000, 0x55),
+                (0x00006000, 0x66),
+            ]
+
+            for addr, data, req_id in writes:
+                yield from send_write(axi, addr, data, req_id)
+            for _, _, req_id in writes:
+                yield from recv_write(axi, req_id)
+
+            for addr, req_id in reads:
+                yield from send_read(axi, addr, req_id)
+            for _, req_id in reads:
+                yield from recv_read(axi, req_id)
+
+        @passive
+        def checker(axi):
+            while True:
+                if (yield axi.aw.valid):
+                    yield axi.aw.ready.eq(1)
+                    yield
+                    yield axi.aw.ready.eq(0)
+                if (yield axi.w.valid):
+                    yield axi.w.ready.eq(1)
+                    yield
+                    yield axi.w.ready.eq(0)
+                if (yield axi.ar.valid):
+                    yield axi.ar.ready.eq(1)
+                    yield
+                    yield axi.ar.ready.eq(0)
+                yield
+
+        dut = DUT()
+        generators = [
+            generator(dut.master),
+            checker(dut.slave),
+            timeout_generator(600),
+        ]
+        run_simulation(dut, generators)
+
     def address_decoder(self, i, size=0x100, python=False):
         # bytes to 32-bit words aligned
         _size   = (size) >> 2
