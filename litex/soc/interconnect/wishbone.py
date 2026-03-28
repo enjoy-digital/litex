@@ -69,7 +69,13 @@ class Interface(Record):
 
     @staticmethod
     def like(other):
-        return Interface(data_width=other.data_width, address_width=other.address_width, addressing=other.addressing, mode=other.mode)
+        return Interface(
+            data_width    = other.data_width,
+            address_width = other.address_width,
+            bursting      = other.bursting,
+            addressing    = other.addressing,
+            mode          = other.mode,
+        )
 
     def _do_transaction(self):
         yield self.cyc.eq(1)
@@ -428,7 +434,14 @@ class UpConverter(LiteXModule):
 
         # # #
 
-        self.comb += master.connect(slave, omit={"adr", "sel", "dat_w", "dat_r"})
+        # A narrow master burst can span multiple lanes of a single wider slave word.
+        # Forwarding CTI/BTE as a native wide burst would make bursting slaves advance
+        # the address too early, so collapse the widened side to classic cycles.
+        self.comb += master.connect(slave, omit={"adr", "sel", "dat_w", "dat_r", "cti", "bte"})
+        self.comb += [
+            slave.cti.eq(CTI_BURST_NONE),
+            slave.bte.eq(0),
+        ]
         cases = {}
         for i in range(ratio):
             cases[i] = [
