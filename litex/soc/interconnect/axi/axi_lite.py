@@ -894,7 +894,14 @@ class AXILiteCrossbar(LiteXModule):
         adr_width = max([m.address_width for m in masters])
         matches, busses = zip(*slaves)
         access_m_s = [[AXILiteInterface(data_width=data_width, address_width=adr_width) for j in slaves] for i in masters]  # a[master][slave]
-        access_s_m = list(zip(*access_m_s))  # a[slave][master]
+        arbiters_m_s = access_m_s
+        if timeout_cycles is not None:
+            arbiters_m_s = [[AXILiteInterface(data_width=data_width, address_width=adr_width) for j in slaves] for i in masters]
+            for access_buses, arbiter_buses in zip(access_m_s, arbiters_m_s):
+                for access_bus, arbiter_bus in zip(access_buses, arbiter_buses):
+                    self.comb += access_bus.connect(arbiter_bus)
+                    self.submodules += AXILiteTimeout(access_bus, timeout_cycles)
+        access_s_m = list(zip(*arbiters_m_s))  # a[slave][master]
         # Decode each master into its access row.
         for slaves, master in zip(access_m_s, masters):
             slaves = list(zip(matches, slaves))

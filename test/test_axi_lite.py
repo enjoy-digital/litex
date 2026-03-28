@@ -1000,3 +1000,9 @@ class TestAXILiteInterconnect(unittest.TestCase):
                                       slave_ready_latency=rand,
                                       slave_response_latency=rand,
                                       interconnect=AXILiteCrossbar)
+
+    def test_crossbar_stress_timeout(self):
+        self.interconnect_stress_test(timeout=4000,
+                                      disconnected_slaves=[1],
+                                      interconnect=AXILiteCrossbar,
+                                      timeout_cycles=50)

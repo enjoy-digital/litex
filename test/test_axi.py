@@ -14,6 +14,220 @@ from litex.gen import *
 from litex.soc.interconnect.axi import *
 from litex.soc.interconnect import wishbone
 
+# Helpers ------------------------------------------------------------------------------------------
+
+def _int_or_call(int_or_func):
+    if callable(int_or_func):
+        return int_or_func()
+    return int_or_func
+
+@passive
+def timeout_generator(ticks):
+    import os
+    for i in range(ticks):
+        if os.environ.get("TIMEOUT_DEBUG", "") == "1":
+            print("tick {}".format(i))
+        yield
+    raise TimeoutError("Timeout after %d ticks" % ticks)
+
+class AXIChecker:
+    def __init__(self, ready_latency=0, response_latency=0, rdata_generator=None):
+        self.ready_latency    = ready_latency
+        self.response_latency = response_latency
+        self.rdata_generator  = rdata_generator or (lambda addr: 0xbaadc0de)
+        self.writes           = [] # (addr, data, strb, id)
+        self.reads            = [] # (addr, data, id)
+
+    def delay(self, latency):
+        for _ in range(_int_or_call(latency)):
+            yield
+
+    def handle_write(self, axi):
+        while not (yield axi.aw.valid):
+            yield
+        yield from self.delay(self.ready_latency)
+        addr       = (yield axi.aw.addr)
+        burst_type = (yield axi.aw.burst)
+        burst_len  = (yield axi.aw.len)
+        burst_size = (yield axi.aw.size)
+        write_id   = (yield axi.aw.id)
+        yield axi.aw.ready.eq(1)
+        yield
+        yield axi.aw.ready.eq(0)
+
+        payloads = []
+        while len(payloads) < (burst_len + 1):
+            while not (yield axi.w.valid):
+                yield
+            yield from self.delay(self.ready_latency)
+            payloads.append(((yield axi.w.data), (yield axi.w.strb)))
+            last = (yield axi.w.last)
+            yield axi.w.ready.eq(1)
+            yield
+            yield axi.w.ready.eq(0)
+            if last:
+                break
+
+        assert len(payloads) == burst_len + 1
+        for beat, (data, strb) in zip(Burst(addr, burst_type, burst_len, burst_size).to_beats(), payloads):
+            self.writes.append((beat.addr, data, strb, write_id))
+
+        yield from self.delay(self.response_latency)
+        yield axi.b.valid.eq(1)
+        yield axi.b.id.eq(write_id)
+        yield axi.b.resp.eq(RESP_OKAY)
+        yield
+        while not (yield axi.b.ready):
+            yield
+        yield axi.b.valid.eq(0)
+        yield axi.b.id.eq(0)
+
+    def handle_read(self, axi):
+        while not (yield axi.ar.valid):
+            yield
+        yield from self.delay(self.ready_latency)
+        addr       = (yield axi.ar.addr)
+        burst_type = (yield axi.ar.burst)
+        burst_len  = (yield axi.ar.len)
+        burst_size = (yield axi.ar.size)
+        read_id    = (yield axi.ar.id)
+        yield axi.ar.ready.eq(1)
+        yield
+        yield axi.ar.ready.eq(0)
+
+        yield from self.delay(self.response_latency)
+        beats = Burst(addr, burst_type, burst_len, burst_size).to_beats()
+        for i, beat in enumerate(beats):
+            yield axi.r.valid.eq(1)
+            yield axi.r.id.eq(read_id)
+            yield axi.r.resp.eq(RESP_OKAY)
+            yield axi.r.data.eq(self.rdata_generator(beat.addr))
+            yield axi.r.last.eq(i == (len(beats) - 1))
+            yield
+            while not (yield axi.r.ready):
+                yield
+            self.reads.append((beat.addr, self.rdata_generator(beat.addr), read_id))
+
+        yield axi.r.valid.eq(0)
+        yield axi.r.id.eq(0)
+        yield axi.r.data.eq(0)
+        yield axi.r.last.eq(0)
+
+    @passive
+    def _write_handler(self, axi):
+        while True:
+            yield from self.handle_write(axi)
+            yield
+
+    @passive
+    def _read_handler(self, axi):
+        while True:
+            yield from self.handle_read(axi)
+            yield
+
+    def parallel_handlers(self, axi):
+        return self._write_handler(axi), self._read_handler(axi)
+
+class AXIPatternGenerator:
+    def __init__(self, axi, pattern, delay=0, id_base=0):
+        # pattern: (rw, addr, data[, id])
+        self.axi         = axi
+        self.pattern     = pattern
+        self.delay       = delay
+        self.id_base     = id_base
+        self.errors      = 0
+        self.id_errors   = 0
+        self.last_errors = 0
+        self.read_errors = []
+        self.resp_errors = {"w": 0, "r": 0}
+
+    def write(self, addr, data, req_id, strb=None):
+        axi = self.axi
+        if strb is None:
+            strb = 2**len(axi.w.strb) - 1
+
+        yield axi.aw.valid.eq(1)
+        yield axi.aw.addr.eq(addr)
+        yield axi.aw.burst.eq(BURST_INCR)
+        yield axi.aw.len.eq(0)
+        yield axi.aw.size.eq(log2_int(axi.data_width//8))
+        yield axi.aw.id.eq(req_id)
+        yield
+        while (yield axi.aw.ready) == 0:
+            yield
+        yield axi.aw.valid.eq(0)
+
+        yield axi.w.valid.eq(1)
+        yield axi.w.data.eq(data)
+        yield axi.w.strb.eq(strb)
+        yield axi.w.last.eq(1)
+        yield
+        while (yield axi.w.ready) == 0:
+            yield
+        yield axi.w.valid.eq(0)
+
+        yield axi.b.ready.eq(1)
+        yield
+        while (yield axi.b.valid) == 0:
+            yield
+        resp = (yield axi.b.resp)
+        bid  = (yield axi.b.id)
+        yield axi.b.ready.eq(0)
+        yield
+        return resp, bid
+
+    def read(self, addr, req_id):
+        axi = self.axi
+
+        yield axi.ar.valid.eq(1)
+        yield axi.ar.addr.eq(addr)
+        yield axi.ar.burst.eq(BURST_INCR)
+        yield axi.ar.len.eq(0)
+        yield axi.ar.size.eq(log2_int(axi.data_width//8))
+        yield axi.ar.id.eq(req_id)
+        yield
+        while (yield axi.ar.ready) == 0:
+            yield
+        yield axi.ar.valid.eq(0)
+
+        yield axi.r.ready.eq(1)
+        yield
+        while (yield axi.r.valid) == 0:
+            yield
+        data = (yield axi.r.data)
+        resp = (yield axi.r.resp)
+        rid  = (yield axi.r.id)
+        last = (yield axi.r.last)
+        yield axi.r.ready.eq(0)
+        yield
+        return data, resp, rid, last
+
+    def handler(self):
+        for i, entry in enumerate(self.pattern):
+            rw, addr, data = entry[:3]
+            req_id = entry[3] if len(entry) > 3 else (self.id_base + i)
+            assert rw in ["w", "r"]
+            if rw == "w":
+                resp, rsp_id = (yield from self.write(addr, data, req_id))
+            else:
+                rdata, resp, rsp_id, last = (yield from self.read(addr, req_id))
+                if rdata != data:
+                    self.read_errors.append((rdata, data))
+                    self.errors += 1
+                if last != 1:
+                    self.last_errors += 1
+                    self.errors += 1
+            if resp != RESP_OKAY:
+                self.resp_errors[rw] += 1
+                self.errors += 1
+            if rsp_id != req_id:
+                self.id_errors += 1
+                self.errors += 1
+            for _ in range(_int_or_call(self.delay)):
+                yield
+        for _ in range(16):
+            yield
+
 # Software Models ----------------------------------------------------------------------------------
 
 class Burst:
@@ -405,3 +619,160 @@ class TestAXI(unittest.TestCase):
 
         dut = DUT(64, 32)
         run_simulation(dut, [read_generator(dut), write_generator(dut)], vcd_name="sim.vcd")
+
+    def test_timeout(self):
+        class DUT(Module):
+            def __init__(self):
+                self.master = master = AXIInterface(id_width=8)
+                self.slave  = slave  = AXIInterface(id_width=8)
+                self.submodules.interconnect = AXIInterconnectPointToPoint(master, slave)
+                self.submodules.timeout = AXITimeout(master, 16)
+
+        def generator(axi):
+            pattern = AXIPatternGenerator(axi, [])
+
+            resp, rsp_id = (yield from pattern.write(0x00001000, 0x11111111, req_id=0x12))
+            self.assertEqual(resp, RESP_SLVERR)
+            self.assertEqual(rsp_id, 0x12)
+
+            data, resp, rsp_id, last = (yield from pattern.read(0x00002000, req_id=0x34))
+            self.assertEqual(resp, RESP_SLVERR)
+            self.assertEqual(rsp_id, 0x34)
+            self.assertEqual(last, 1)
+            self.assertEqual(data, 0xffffffff)
+
+        dut = DUT()
+        generators = [
+            generator(dut.master),
+            timeout_generator(300),
+        ]
+        run_simulation(dut, generators)
+
+    def address_decoder(self, i, size=0x100, python=False):
+        # bytes to 32-bit words aligned
+        _size   = (size) >> 2
+        _origin = (size * i) >> 2
+        if python:
+            shift = log2_int(_size)
+            return lambda a: ((a >> shift) == (_origin >> shift))
+        return lambda a: (a[log2_int(_size):] == (_origin >> log2_int(_size)))
+
+    def interconnect_test(self, master_patterns, slave_decoders,
+                                master_delay=0, slave_ready_latency=0, slave_response_latency=0,
+                                disconnected_slaves=None, timeout=300, interconnect=AXIInterconnectShared,
+                                **kwargs):
+        class DUT(Module):
+            def __init__(self, n_masters, decoders, **kwargs):
+                self.masters = [AXIInterface(id_width=8, name="master") for _ in range(n_masters)]
+                self.slaves  = [AXIInterface(id_width=8, name="slave")  for _ in range(len(decoders))]
+                slaves = list(zip(decoders, self.slaves))
+                self.submodules.interconnect = interconnect(self.masters, slaves, **kwargs)
+
+        class ReadDataGenerator:
+            def __init__(self, patterns):
+                self.mem = {}
+                for pattern in patterns:
+                    for rw, addr, val, *rest in pattern:
+                        if rw == "r":
+                            assert addr not in self.mem
+                            self.mem[addr] = val
+
+            def getter(self, n):
+                return lambda addr: self.mem.get(addr, 0xbaad0000 + n)
+
+        def new_checker(rdata_generator):
+            return AXIChecker(
+                ready_latency    = slave_ready_latency,
+                response_latency = slave_response_latency,
+                rdata_generator  = rdata_generator,
+            )
+
+        dut = DUT(len(master_patterns), slave_decoders, **kwargs)
+        rdata_generator = ReadDataGenerator(master_patterns)
+        checkers = [new_checker(rdata_generator.getter(i)) for i, _ in enumerate(dut.slaves)]
+        pattern_generators = [
+            AXIPatternGenerator(dut.masters[i], pattern, delay=master_delay, id_base=i << 4)
+            for i, pattern in enumerate(master_patterns)
+        ]
+
+        generators  = [gen.handler() for gen in pattern_generators]
+        for i, (slave, checker) in enumerate(zip(dut.slaves, checkers)):
+            if i in (disconnected_slaves or []):
+                continue
+            generators += list(checker.parallel_handlers(slave))
+        generators += [timeout_generator(timeout)]
+        run_simulation(dut, generators)
+        return pattern_generators, checkers
+
+    def test_interconnect_shared_stress_rand(self):
+        prng = random.Random(42)
+
+        n_masters = 3
+        n_slaves = 3
+        pattern_length = 32
+        slave_region_size = 0x1000
+        master_region_size = 0x100
+        assert n_masters * master_region_size < slave_region_size
+
+        def gen_pattern(n, length):
+            assert 4*length <= master_region_size
+            for i_access in range(length):
+                rw = "w" if prng.randint(0, 1) == 0 else "r"
+                i_slave = prng.randrange(n_slaves)
+                addr = i_slave*slave_region_size + n*master_region_size + 4*i_access
+                data = addr
+                yield rw, addr, data
+
+        master_patterns   = [list(gen_pattern(i, pattern_length)) for i in range(n_masters)]
+        slave_decoders    = [self.address_decoder(i, size=slave_region_size) for i in range(n_slaves)]
+        slave_decoders_py = [self.address_decoder(i, size=slave_region_size, python=True)
+                             for i in range(n_slaves)]
+
+        generators, checkers = self.interconnect_test(master_patterns, slave_decoders,
+                                                      timeout=2000,
+                                                      master_delay=1,
+                                                      slave_ready_latency=lambda: prng.randrange(3),
+                                                      slave_response_latency=lambda: prng.randrange(3))
+
+        for gen in generators:
+            read_errors = ["  0x{:08x} vs 0x{:08x}".format(v, ref) for v, ref in gen.read_errors]
+            msg = "\n".join([
+                "gen.resp_errors = {}".format(gen.resp_errors),
+                "gen.id_errors   = {}".format(gen.id_errors),
+                "gen.last_errors = {}".format(gen.last_errors),
+                "gen.read_errors = ",
+                "\n".join(read_errors),
+            ])
+            self.assertEqual(gen.errors, 0, msg=msg)
+
+        for checker, decoder in zip(checkers, slave_decoders_py):
+            for addr in [entry[0] for entry in checker.writes + checker.reads]:
+                self.assertNotEqual(decoder(addr >> 2), 0)
+
+    def test_crossbar_timeout(self):
+        slave_region_size = 0x100
+        master_patterns = [
+            [("w", 0x000, 0x10), ("w", 0x100, 0x11), ("r", 0x200, 0x200)],
+            [("r", 0x004, 0x004), ("r", 0x104, 0x104), ("w", 0x204, 0x204)],
+            [("w", 0x008, 0x008), ("r", 0x108, 0x108), ("w", 0x208, 0x208)],
+        ]
+        slave_decoders    = [self.address_decoder(i, size=slave_region_size) for i in range(3)]
+        slave_decoders_py = [self.address_decoder(i, size=slave_region_size, python=True) for i in range(3)]
+
+        generators, checkers = self.interconnect_test(master_patterns, slave_decoders,
+                                                      disconnected_slaves=[1],
+                                                      timeout=1000,
+                                                      interconnect=AXICrossbar,
+                                                      timeout_cycles=128)
+
+        for gen in generators:
+            self.assertEqual(gen.resp_errors["w"] + gen.resp_errors["r"], 1)
+            self.assertEqual(gen.id_errors, 0)
+
+        for i, (checker, decoder) in enumerate(zip(checkers, slave_decoders_py)):
+            if i == 1:
+                self.assertEqual(checker.writes, [])
+                self.assertEqual(checker.reads, [])
+                continue
+            for addr in [entry[0] for entry in checker.writes + checker.reads]:
+                self.assertNotEqual(decoder(addr >> 2), 0)

@@ -398,10 +398,20 @@ class AXITimeout(LiteXModule):
         self.error = Signal()
         wr_error   = Signal()
         rd_error   = Signal()
+        wr_id      = Signal.like(master.b.id)
+        rd_id      = Signal.like(master.r.id)
 
         # # #
 
         self.comb += self.error.eq(wr_error | rd_error)
+        self.sync += [
+            If(master.aw.valid,
+                wr_id.eq(master.aw.id)
+            ),
+            If(master.ar.valid,
+                rd_id.eq(master.ar.id)
+            ),
+        ]
 
         wr_timer = WaitTimer(cycles)
         rd_timer = WaitTimer(cycles)
@@ -429,6 +439,7 @@ class AXITimeout(LiteXModule):
                 master.aw.ready.eq(master.aw.valid),
                 master.w.ready.eq(master.w.valid),
                 master.b.valid.eq(~master.aw.valid & ~master.w.valid),
+                master.b.id.eq(wr_id),
                 master.b.resp.eq(RESP_SLVERR),
                 If(master.b.valid & master.b.ready,
                     NextState("WAIT")
@@ -442,6 +453,7 @@ class AXITimeout(LiteXModule):
             response  = [
                 master.ar.ready.eq(master.ar.valid),
                 master.r.valid.eq(~master.ar.valid),
+                master.r.id.eq(rd_id),
                 master.r.last.eq(1),
                 master.r.resp.eq(RESP_SLVERR),
                 master.r.data.eq(2**len(master.r.data) - 1),
@@ -679,7 +691,14 @@ class AXICrossbar(LiteXModule):
         id_width = max([m.id_width for m in masters])
         matches, busses = zip(*slaves)
         access_m_s = [[AXIInterface(data_width=data_width, address_width=adr_width, id_width=id_width) for j in slaves] for i in masters]  # a[master][slave]
-        access_s_m = list(zip(*access_m_s))  # a[slave][master]
+        arbiters_m_s = access_m_s
+        if timeout_cycles is not None:
+            arbiters_m_s = [[AXIInterface(data_width=data_width, address_width=adr_width, id_width=id_width) for j in slaves] for i in masters]
+            for access_buses, arbiter_buses in zip(access_m_s, arbiters_m_s):
+                for access_bus, arbiter_bus in zip(access_buses, arbiter_buses):
+                    self.comb += access_bus.connect(arbiter_bus)
+                    self.submodules += AXITimeout(access_bus, timeout_cycles)
+        access_s_m = list(zip(*arbiters_m_s))  # a[slave][master]
         # Decode each master into its access row.
         for slaves, master in zip(access_m_s, masters):
             slaves = list(zip(matches, slaves))
