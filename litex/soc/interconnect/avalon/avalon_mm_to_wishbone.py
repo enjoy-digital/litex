@@ -37,12 +37,15 @@ class AvalonMM2Wishbone(Module):
         if avoid_combinatorial_loop:
             self.sync += [
                 If(wb.ack | wb.err,
-                    read_access.eq(0)
+                    read_access.eq(0),
+                    readdata.eq(wb.dat_r),
+                    readdatavalid.eq(read_access | burst_cycle),
                 ).Elif(avl.read,
-                    read_access.eq(1)
+                    read_access.eq(1),
+                    readdatavalid.eq(0),
+                ).Else(
+                    readdatavalid.eq(0),
                 ),
-                readdata.eq(wb.dat_r),
-                readdatavalid.eq((wb.ack | wb.err) & read_access),
             ]
         else:
             self.comb += [
@@ -110,7 +113,7 @@ class AvalonMM2Wishbone(Module):
             )
         )
         fsm.act("BURST-READ",
-            avl.readdatavalid.eq(0),
+            avl.readdatavalid.eq(readdatavalid if avoid_combinatorial_loop else 0),
             burst_cycle.eq(1),
             burst_read.eq(1),
             wb.stb.eq(1),
@@ -120,12 +123,14 @@ class AvalonMM2Wishbone(Module):
                 wb.cti.eq(wishbone.CTI_BURST_END)
             ),
             If(wb.ack,
-                avl.readdatavalid.eq(1),
+                If(not avoid_combinatorial_loop,
+                    avl.readdatavalid.eq(1),
+                ),
                 NextValue(burst_address, burst_address + burst_increment),
                 NextValue(burst_count, burst_count - 1)
             ),
             If(burst_count == 0,
-                avl.readdatavalid.eq(int(avoid_combinatorial_loop)),
+                avl.readdatavalid.eq(readdatavalid if avoid_combinatorial_loop else 0),
                 wb.cyc.eq(0),
                 wb.stb.eq(0),
                 NextState("SINGLE"))
