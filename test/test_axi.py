@@ -228,6 +228,68 @@ class AXIPatternGenerator:
         for _ in range(16):
             yield
 
+def axi_issue_write(axi, addr, data, req_id, strb=None):
+    if strb is None:
+        strb = 2**len(axi.w.strb) - 1
+
+    yield axi.aw.valid.eq(1)
+    yield axi.aw.addr.eq(addr)
+    yield axi.aw.burst.eq(BURST_INCR)
+    yield axi.aw.len.eq(0)
+    yield axi.aw.size.eq(log2_int(axi.data_width//8))
+    yield axi.aw.id.eq(req_id)
+    yield
+    while (yield axi.aw.ready) == 0:
+        yield
+    yield axi.aw.valid.eq(0)
+
+    yield axi.w.valid.eq(1)
+    yield axi.w.data.eq(data)
+    yield axi.w.strb.eq(strb)
+    yield axi.w.last.eq(1)
+    yield
+    while (yield axi.w.ready) == 0:
+        yield
+    yield axi.w.valid.eq(0)
+    yield
+
+def axi_collect_b(axi):
+    yield axi.b.ready.eq(1)
+    yield
+    while (yield axi.b.valid) == 0:
+        yield
+    resp = (yield axi.b.resp)
+    rsp_id = (yield axi.b.id)
+    yield axi.b.ready.eq(0)
+    yield
+    return resp, rsp_id
+
+def axi_issue_read(axi, addr, req_id):
+    yield axi.ar.valid.eq(1)
+    yield axi.ar.addr.eq(addr)
+    yield axi.ar.burst.eq(BURST_INCR)
+    yield axi.ar.len.eq(0)
+    yield axi.ar.size.eq(log2_int(axi.data_width//8))
+    yield axi.ar.id.eq(req_id)
+    yield
+    while (yield axi.ar.ready) == 0:
+        yield
+    yield axi.ar.valid.eq(0)
+    yield
+
+def axi_collect_r(axi):
+    yield axi.r.ready.eq(1)
+    yield
+    while (yield axi.r.valid) == 0:
+        yield
+    data = (yield axi.r.data)
+    resp = (yield axi.r.resp)
+    rsp_id = (yield axi.r.id)
+    last = (yield axi.r.last)
+    yield axi.r.ready.eq(0)
+    yield
+    return data, resp, rsp_id, last
+
 # Software Models ----------------------------------------------------------------------------------
 
 class Burst:
@@ -803,6 +865,268 @@ class TestAXI(unittest.TestCase):
             generator(dut.master),
             checker(dut.slave),
             timeout_generator(600),
+        ]
+        run_simulation(dut, generators)
+
+    def test_interconnect_shared_timeout_late_response(self):
+        class DUT(Module):
+            def __init__(self):
+                self.master = AXIInterface(id_width=8)
+                self.slave  = AXIInterface(id_width=8)
+                self.submodules.interconnect = AXIInterconnectShared(
+                    [self.master],
+                    [(lambda a: 1, self.slave)],
+                    timeout_cycles=16,
+                )
+
+        def generator(axi):
+            pattern = AXIPatternGenerator(axi, [])
+
+            resp, rsp_id = (yield from pattern.write(0x00001000, 0x11111111, req_id=0x12))
+            self.assertEqual(resp, RESP_SLVERR)
+            self.assertEqual(rsp_id, 0x12)
+            for _ in range(32):
+                self.assertEqual((yield axi.b.valid), 0)
+                yield
+
+            data, resp, rsp_id, last = (yield from pattern.read(0x00002000, req_id=0x34))
+            self.assertEqual(resp, RESP_SLVERR)
+            self.assertEqual(rsp_id, 0x34)
+            self.assertEqual(last, 1)
+            self.assertEqual(data, 0xffffffff)
+            for _ in range(32):
+                self.assertEqual((yield axi.r.valid), 0)
+                yield
+
+        @passive
+        def checker(axi):
+            while True:
+                while not (yield axi.aw.valid):
+                    yield
+                write_id = (yield axi.aw.id)
+                yield axi.aw.ready.eq(1)
+                yield
+                yield axi.aw.ready.eq(0)
+
+                while not (yield axi.w.valid):
+                    yield
+                yield axi.w.ready.eq(1)
+                yield
+                yield axi.w.ready.eq(0)
+
+                for _ in range(24):
+                    yield
+                yield axi.b.valid.eq(1)
+                yield axi.b.id.eq(write_id)
+                yield axi.b.resp.eq(RESP_OKAY)
+                yield
+                while not (yield axi.b.ready):
+                    yield
+                yield axi.b.valid.eq(0)
+
+                while not (yield axi.ar.valid):
+                    yield
+                read_id = (yield axi.ar.id)
+                yield axi.ar.ready.eq(1)
+                yield
+                yield axi.ar.ready.eq(0)
+
+                for _ in range(24):
+                    yield
+                yield axi.r.valid.eq(1)
+                yield axi.r.id.eq(read_id)
+                yield axi.r.resp.eq(RESP_OKAY)
+                yield axi.r.data.eq(0x12345678)
+                yield axi.r.last.eq(1)
+                yield
+                while not (yield axi.r.ready):
+                    yield
+                yield axi.r.valid.eq(0)
+                yield axi.r.last.eq(0)
+
+        dut = DUT()
+        generators = [
+            generator(dut.master),
+            checker(dut.slave),
+            timeout_generator(400),
+        ]
+        run_simulation(dut, generators)
+
+    def test_timeout_multiple_outstanding(self):
+        class DUT(Module):
+            def __init__(self):
+                self.master = master = AXIInterface(id_width=8)
+                self.slave  = slave  = AXIInterface(id_width=8)
+                self.submodules.interconnect = AXIInterconnectPointToPoint(master, slave)
+                self.submodules.timeout = AXITimeout(master, 16)
+
+        def generator(axi):
+            yield from axi_issue_write(axi, 0x00001000, 0x11111111, req_id=0x10)
+            yield from axi_issue_write(axi, 0x00002000, 0x22222222, req_id=0x11)
+            self.assertEqual((yield from axi_collect_b(axi)), (RESP_SLVERR, 0x10))
+            self.assertEqual((yield from axi_collect_b(axi)), (RESP_SLVERR, 0x11))
+
+            yield from axi_issue_read(axi, 0x00003000, req_id=0x20)
+            yield from axi_issue_read(axi, 0x00004000, req_id=0x21)
+            self.assertEqual((yield from axi_collect_r(axi)), (0xffffffff, RESP_SLVERR, 0x20, 1))
+            self.assertEqual((yield from axi_collect_r(axi)), (0xffffffff, RESP_SLVERR, 0x21, 1))
+
+        @passive
+        def checker(axi):
+            while True:
+                if (yield axi.aw.valid):
+                    yield axi.aw.ready.eq(1)
+                    yield
+                    yield axi.aw.ready.eq(0)
+                if (yield axi.w.valid):
+                    yield axi.w.ready.eq(1)
+                    yield
+                    yield axi.w.ready.eq(0)
+                if (yield axi.ar.valid):
+                    yield axi.ar.ready.eq(1)
+                    yield
+                    yield axi.ar.ready.eq(0)
+                yield
+
+        dut = DUT()
+        generators = [
+            generator(dut.master),
+            checker(dut.slave),
+            timeout_generator(600),
+        ]
+        run_simulation(dut, generators)
+
+    def test_interconnect_shared_timeout_multiple_outstanding(self):
+        class DUT(Module):
+            def __init__(self):
+                self.master = master = AXIInterface(id_width=8)
+                self.slave  = slave  = AXIInterface(id_width=8)
+                self.submodules.interconnect = AXIInterconnectShared([master], [(lambda a: 1, slave)], timeout_cycles=16)
+
+        def generator(axi):
+            yield from axi_issue_write(axi, 0x00001000, 0x11111111, req_id=0x30)
+            yield from axi_issue_write(axi, 0x00002000, 0x22222222, req_id=0x31)
+            self.assertEqual((yield from axi_collect_b(axi)), (RESP_SLVERR, 0x30))
+            self.assertEqual((yield from axi_collect_b(axi)), (RESP_SLVERR, 0x31))
+
+            yield from axi_issue_read(axi, 0x00003000, req_id=0x40)
+            yield from axi_issue_read(axi, 0x00004000, req_id=0x41)
+            self.assertEqual((yield from axi_collect_r(axi)), (0xffffffff, RESP_SLVERR, 0x40, 1))
+            self.assertEqual((yield from axi_collect_r(axi)), (0xffffffff, RESP_SLVERR, 0x41, 1))
+
+        @passive
+        def checker(axi):
+            while True:
+                if (yield axi.aw.valid):
+                    yield axi.aw.ready.eq(1)
+                    yield
+                    yield axi.aw.ready.eq(0)
+                if (yield axi.w.valid):
+                    yield axi.w.ready.eq(1)
+                    yield
+                    yield axi.w.ready.eq(0)
+                if (yield axi.ar.valid):
+                    yield axi.ar.ready.eq(1)
+                    yield
+                    yield axi.ar.ready.eq(0)
+                yield
+
+        dut = DUT()
+        generators = [
+            generator(dut.master),
+            checker(dut.slave),
+            timeout_generator(600),
+        ]
+        run_simulation(dut, generators)
+
+    def test_interconnect_shared_timeout_drops_late_responses(self):
+        class DUT(Module):
+            def __init__(self):
+                self.master = master = AXIInterface(id_width=8)
+                self.slave  = slave  = AXIInterface(id_width=8)
+                self.submodules.interconnect = AXIInterconnectShared([master], [(lambda a: 1, slave)], timeout_cycles=16)
+
+        def generator(axi):
+            yield from axi_issue_write(axi, 0x00001000, 0x11111111, req_id=0x60)
+            self.assertEqual((yield from axi_collect_b(axi)), (RESP_SLVERR, 0x60))
+            for _ in range(96):
+                yield
+            yield from axi_issue_write(axi, 0x00002000, 0x22222222, req_id=0x62)
+            self.assertEqual((yield from axi_collect_b(axi)), (RESP_OKAY, 0x62))
+
+            yield from axi_issue_read(axi, 0x00003000, req_id=0x70)
+            self.assertEqual((yield from axi_collect_r(axi)), (0xffffffff, RESP_SLVERR, 0x70, 1))
+            for _ in range(96):
+                yield
+            yield from axi_issue_read(axi, 0x00004000, req_id=0x72)
+            self.assertEqual((yield from axi_collect_r(axi)), (0x33333333, RESP_OKAY, 0x72, 1))
+
+        @passive
+        def checker(axi):
+            def accept_write():
+                while not (yield axi.aw.valid):
+                    yield
+                write_id = (yield axi.aw.id)
+                yield axi.aw.ready.eq(1)
+                yield
+                yield axi.aw.ready.eq(0)
+                while not (yield axi.w.valid):
+                    yield
+                yield axi.w.ready.eq(1)
+                yield
+                yield axi.w.ready.eq(0)
+                return write_id
+
+            def send_b(resp_id):
+                yield axi.b.valid.eq(1)
+                yield axi.b.id.eq(resp_id)
+                yield axi.b.resp.eq(RESP_OKAY)
+                yield
+                while not (yield axi.b.ready):
+                    yield
+                yield axi.b.valid.eq(0)
+                yield axi.b.id.eq(0)
+
+            def accept_read():
+                while not (yield axi.ar.valid):
+                    yield
+                read_id = (yield axi.ar.id)
+                yield axi.ar.ready.eq(1)
+                yield
+                yield axi.ar.ready.eq(0)
+                return read_id
+
+            def send_r(resp_id, data):
+                yield axi.r.valid.eq(1)
+                yield axi.r.id.eq(resp_id)
+                yield axi.r.resp.eq(RESP_OKAY)
+                yield axi.r.data.eq(data)
+                yield axi.r.last.eq(1)
+                yield
+                while not (yield axi.r.ready):
+                    yield
+                yield axi.r.valid.eq(0)
+                yield axi.r.id.eq(0)
+                yield axi.r.data.eq(0)
+                yield axi.r.last.eq(0)
+
+            write_id = (yield from accept_write())
+            for _ in range(96):
+                yield
+            yield from send_b(write_id)
+            yield from send_b((yield from accept_write()))
+
+            read_id = (yield from accept_read())
+            for _ in range(96):
+                yield
+            yield from send_r(read_id, 0xaaa00000)
+            yield from send_r((yield from accept_read()), 0x33333333)
+
+        dut = DUT()
+        generators = [
+            generator(dut.master),
+            checker(dut.slave),
+            timeout_generator(1200),
         ]
         run_simulation(dut, generators)
 

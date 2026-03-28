@@ -712,6 +712,166 @@ class AXILiteTimeout(LiteXModule):
             )
         ]
 
+class _AXILiteTimeoutBridge(LiteXModule):
+    def __init__(self, master, slave, cycles):
+        self.error = Signal()
+        wr_error   = Signal()
+        rd_error   = Signal()
+
+        wr_aw_pending   = Signal(max=257)
+        wr_w_pending    = Signal(max=257)
+        wr_resp_pending = Signal(max=257)
+        rd_resp_pending = Signal(max=257)
+        wr_drop_pending = Signal(max=257)
+        rd_drop_pending = Signal(max=257)
+
+        # # #
+
+        self.comb += self.error.eq(wr_error | rd_error)
+
+        wr_timer = WaitTimer(cycles)
+        rd_timer = WaitTimer(cycles)
+        self.submodules += wr_timer, rd_timer
+        self.wr_fsm = FSM(reset_state="WAIT")
+        self.rd_fsm = FSM(reset_state="WAIT")
+        wr_responding = self.wr_fsm.ongoing("RESPOND")
+        rd_responding = self.rd_fsm.ongoing("RESPOND")
+
+        aw_done = slave.aw.valid & slave.aw.ready
+        w_done  = slave.w.valid  & slave.w.ready
+        ar_done = slave.ar.valid & slave.ar.ready
+
+        aw_matches_pending_w = aw_done & (wr_w_pending != 0)
+        w_matches_pending_aw = w_done & (wr_aw_pending != 0)
+        aw_matches_current_w = aw_done & w_done & (wr_aw_pending == 0) & (wr_w_pending == 0)
+
+        aw_pending_inc = aw_done & ~aw_matches_pending_w & ~aw_matches_current_w
+        aw_pending_dec = w_matches_pending_aw
+        w_pending_inc  = w_done  & ~w_matches_pending_aw & ~aw_matches_current_w
+        w_pending_dec  = aw_matches_pending_w
+        wr_resp_inc    = aw_matches_pending_w + w_matches_pending_aw + aw_matches_current_w
+
+        self.comb += [
+            master.aw.connect(slave.aw, omit={"valid", "ready"}),
+            slave.aw.valid.eq(master.aw.valid & ~wr_responding),
+            master.aw.ready.eq(Mux(wr_responding, master.aw.valid, slave.aw.ready)),
+
+            master.w.connect(slave.w, omit={"valid", "ready"}),
+            slave.w.valid.eq(master.w.valid & ~wr_responding),
+            master.w.ready.eq(Mux(wr_responding, master.w.valid, slave.w.ready)),
+
+            master.ar.connect(slave.ar, omit={"valid", "ready"}),
+            slave.ar.valid.eq(master.ar.valid & ~rd_responding),
+            master.ar.ready.eq(Mux(rd_responding, master.ar.valid, slave.ar.ready)),
+        ]
+
+        synthetic_b_done = wr_responding & ~master.aw.valid & ~master.w.valid & master.b.ready
+        synthetic_r_done = rd_responding & ~master.ar.valid & master.r.ready
+        real_b_done      = ~wr_responding & (wr_drop_pending == 0) & slave.b.valid & master.b.ready
+        real_r_done      = ~rd_responding & (rd_drop_pending == 0) & slave.r.valid & master.r.ready
+        drop_b_done      = ~wr_responding & (wr_drop_pending != 0) & slave.b.valid
+        drop_r_done      = ~rd_responding & (rd_drop_pending != 0) & slave.r.valid
+        synthetic_b_pop  = synthetic_b_done & (wr_resp_pending != 0)
+        synthetic_r_pop  = synthetic_r_done & (rd_resp_pending != 0)
+
+        self.comb += [
+            If(wr_responding,
+                master.b.valid.eq(~master.aw.valid & ~master.w.valid),
+                master.b.resp.eq(RESP_SLVERR),
+                slave.b.ready.eq(0),
+            ).Else(
+                master.b.valid.eq(slave.b.valid & (wr_drop_pending == 0)),
+                master.b.resp.eq(slave.b.resp),
+                If(wr_drop_pending != 0,
+                    slave.b.ready.eq(1)
+                ).Else(
+                    slave.b.ready.eq(master.b.ready)
+                )
+            ),
+
+            If(rd_responding,
+                master.r.valid.eq(~master.ar.valid),
+                master.r.resp.eq(RESP_SLVERR),
+                master.r.data.eq(2**len(master.r.data) - 1),
+                slave.r.ready.eq(0),
+            ).Else(
+                master.r.valid.eq(slave.r.valid & (rd_drop_pending == 0)),
+                master.r.resp.eq(slave.r.resp),
+                master.r.data.eq(slave.r.data),
+                If(rd_drop_pending != 0,
+                    slave.r.ready.eq(1)
+                ).Else(
+                    slave.r.ready.eq(master.r.ready)
+                )
+            ),
+        ]
+
+        self.wr_fsm.act("WAIT",
+            wr_timer.wait.eq(
+                (master.aw.valid & ~slave.aw.ready) |
+                (master.w.valid  & ~slave.w.ready)  |
+                ((wr_resp_pending != 0) & ~(slave.b.valid & (wr_drop_pending == 0)))
+            ),
+            If(wr_timer.done & wr_timer.wait,
+                wr_error.eq(1),
+                NextState("RESPOND")
+            )
+        )
+        self.wr_fsm.act("RESPOND",
+            If(synthetic_b_done,
+                NextState("WAIT")
+            )
+        )
+
+        self.rd_fsm.act("WAIT",
+            rd_timer.wait.eq(
+                (master.ar.valid & ~slave.ar.ready) |
+                ((rd_resp_pending != 0) & ~(slave.r.valid & (rd_drop_pending == 0)))
+            ),
+            If(rd_timer.done & rd_timer.wait,
+                rd_error.eq(1),
+                NextState("RESPOND")
+            )
+        )
+        self.rd_fsm.act("RESPOND",
+            If(synthetic_r_done,
+                NextState("WAIT")
+            )
+        )
+
+        self.sync += [
+            If(aw_pending_inc & ~aw_pending_dec,
+                wr_aw_pending.eq(wr_aw_pending + 1)
+            ).Elif(aw_pending_dec & ~aw_pending_inc,
+                wr_aw_pending.eq(wr_aw_pending - 1)
+            ),
+            If(w_pending_inc & ~w_pending_dec,
+                wr_w_pending.eq(wr_w_pending + 1)
+            ).Elif(w_pending_dec & ~w_pending_inc,
+                wr_w_pending.eq(wr_w_pending - 1)
+            ),
+            If(wr_resp_inc & ~(real_b_done | synthetic_b_pop),
+                wr_resp_pending.eq(wr_resp_pending + 1)
+            ).Elif((real_b_done | synthetic_b_pop) & ~wr_resp_inc,
+                wr_resp_pending.eq(wr_resp_pending - 1)
+            ),
+            If(ar_done & ~(real_r_done | synthetic_r_pop),
+                rd_resp_pending.eq(rd_resp_pending + 1)
+            ).Elif((real_r_done | synthetic_r_pop) & ~ar_done,
+                rd_resp_pending.eq(rd_resp_pending - 1)
+            ),
+            If(synthetic_b_pop & ~drop_b_done,
+                wr_drop_pending.eq(wr_drop_pending + 1)
+            ).Elif(drop_b_done & ~synthetic_b_pop,
+                wr_drop_pending.eq(wr_drop_pending - 1)
+            ),
+            If(synthetic_r_pop & ~drop_r_done,
+                rd_drop_pending.eq(rd_drop_pending + 1)
+            ).Elif(drop_r_done & ~synthetic_r_pop,
+                rd_drop_pending.eq(rd_drop_pending - 1)
+            ),
+        ]
+
 # AXI-Lite Interconnect Components -----------------------------------------------------------------
 
 class _AXILiteRequestCounter(LiteXModule):
@@ -924,10 +1084,13 @@ class AXILiteInterconnectShared(LiteXModule):
         data_width = get_check_parameters(ports=masters + [s for _, s in slaves])
         adr_width = max([m.address_width for m in masters])
         shared = AXILiteInterface(data_width=data_width, address_width=adr_width)
-        self.arbiter = AXILiteArbiter(masters, shared)
-        self.decoder = AXILiteDecoder(shared, slaves)
+        decoder_bus = shared
         if timeout_cycles is not None:
-            self.timeout = AXILiteTimeout(shared, timeout_cycles)
+            decoder_bus = AXILiteInterface(data_width=data_width, address_width=adr_width)
+        self.arbiter = AXILiteArbiter(masters, shared)
+        if timeout_cycles is not None:
+            self.timeout = _AXILiteTimeoutBridge(shared, decoder_bus, timeout_cycles)
+        self.decoder = AXILiteDecoder(decoder_bus, slaves)
 
 class AXILiteCrossbar(LiteXModule):
     """AXI Lite crossbar
@@ -944,8 +1107,7 @@ class AXILiteCrossbar(LiteXModule):
             arbiters_m_s = [[AXILiteInterface(data_width=data_width, address_width=adr_width) for j in slaves] for i in masters]
             for access_buses, arbiter_buses in zip(access_m_s, arbiters_m_s):
                 for access_bus, arbiter_bus in zip(access_buses, arbiter_buses):
-                    self.comb += access_bus.connect(arbiter_bus)
-                    self.submodules += AXILiteTimeout(access_bus, timeout_cycles)
+                    self.submodules += _AXILiteTimeoutBridge(access_bus, arbiter_bus, timeout_cycles)
         access_s_m = list(zip(*arbiters_m_s))  # a[slave][master]
         # Decode each master into its access row.
         for slaves, master in zip(access_m_s, masters):

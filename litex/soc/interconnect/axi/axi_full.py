@@ -513,6 +513,183 @@ class AXITimeout(LiteXModule):
             )
         ]
 
+class _AXITimeoutBridge(LiteXModule):
+    def __init__(self, master, slave, cycles):
+        self.error = Signal()
+        wr_error   = Signal()
+        rd_error   = Signal()
+        wr_timeout_id  = Signal.like(master.b.id)
+        rd_timeout_id  = Signal.like(master.r.id)
+        wr_w_pending   = Signal(max=257)
+        wr_drop_pending = Signal(max=257)
+        rd_drop_pending = Signal(max=257)
+
+        wr_aw_fifo   = fifo.SyncFIFO(len(master.aw.id), 256)
+        wr_resp_fifo = fifo.SyncFIFO(len(master.b.id),  256)
+        rd_resp_fifo = fifo.SyncFIFO(len(master.r.id),  256)
+        self.submodules += wr_aw_fifo, wr_resp_fifo, rd_resp_fifo
+
+        # # #
+
+        self.comb += self.error.eq(wr_error | rd_error)
+
+        wr_timer = WaitTimer(cycles)
+        rd_timer = WaitTimer(cycles)
+        self.submodules += wr_timer, rd_timer
+        self.wr_fsm = FSM(reset_state="WAIT")
+        self.rd_fsm = FSM(reset_state="WAIT")
+        wr_responding = self.wr_fsm.ongoing("RESPOND")
+        rd_responding = self.rd_fsm.ongoing("RESPOND")
+
+        aw_done = slave.aw.valid & slave.aw.ready
+        w_done  = slave.w.valid  & slave.w.ready  & slave.w.last
+        ar_done = slave.ar.valid & slave.ar.ready
+
+        # Track write addresses separately from completed writes so timeout responses preserve the
+        # original ordering when AW/W are accepted independently.
+        aw_matches_pending_w = aw_done & (wr_w_pending != 0)
+        w_matches_pending_aw = w_done & wr_aw_fifo.readable
+        aw_matches_current_w = aw_done & w_done & ~wr_aw_fifo.readable & (wr_w_pending == 0)
+        w_pending_inc        = w_done & ~wr_aw_fifo.readable & ~(aw_done & (wr_w_pending == 0))
+        w_pending_dec        = aw_matches_pending_w
+
+        self.comb += [
+            If(wr_resp_fifo.readable,
+                wr_timeout_id.eq(wr_resp_fifo.dout)
+            ).Elif(wr_aw_fifo.readable,
+                wr_timeout_id.eq(wr_aw_fifo.dout)
+            ).Else(
+                wr_timeout_id.eq(master.aw.id)
+            ),
+            If(rd_resp_fifo.readable,
+                rd_timeout_id.eq(rd_resp_fifo.dout)
+            ).Else(
+                rd_timeout_id.eq(master.ar.id)
+            ),
+
+            master.aw.connect(slave.aw, omit={"valid", "ready"}),
+            slave.aw.valid.eq(master.aw.valid & ~wr_responding),
+            master.aw.ready.eq(Mux(wr_responding, master.aw.valid, slave.aw.ready)),
+
+            master.w.connect(slave.w, omit={"valid", "ready"}),
+            slave.w.valid.eq(master.w.valid & ~wr_responding),
+            master.w.ready.eq(Mux(wr_responding, master.w.valid, slave.w.ready)),
+
+            master.ar.connect(slave.ar, omit={"valid", "ready"}),
+            slave.ar.valid.eq(master.ar.valid & ~rd_responding),
+            master.ar.ready.eq(Mux(rd_responding, master.ar.valid, slave.ar.ready)),
+
+            wr_aw_fifo.din.eq(slave.aw.id),
+            wr_aw_fifo.we.eq(aw_done & ~aw_matches_pending_w & ~aw_matches_current_w),
+            wr_aw_fifo.re.eq(w_matches_pending_aw),
+
+            wr_resp_fifo.din.eq(Mux(w_matches_pending_aw, wr_aw_fifo.dout, slave.aw.id)),
+            rd_resp_fifo.din.eq(slave.ar.id),
+            rd_resp_fifo.we.eq(ar_done),
+        ]
+
+        synthetic_b_done = wr_responding & ~master.aw.valid & ~master.w.valid & master.b.ready
+        synthetic_r_done = rd_responding & ~master.ar.valid & master.r.ready
+        real_b_done      = ~wr_responding & (wr_drop_pending == 0) & slave.b.valid & master.b.ready
+        real_r_done      = ~rd_responding & (rd_drop_pending == 0) & slave.r.valid & slave.r.last & master.r.ready
+        drop_b_done      = ~wr_responding & (wr_drop_pending != 0) & slave.b.valid
+        drop_r_last_done = ~rd_responding & (rd_drop_pending != 0) & slave.r.valid & slave.r.last
+        synthetic_b_pop  = synthetic_b_done & wr_resp_fifo.readable
+        synthetic_r_pop  = synthetic_r_done & rd_resp_fifo.readable
+
+        self.comb += [
+            wr_resp_fifo.we.eq(w_matches_pending_aw | aw_matches_pending_w | aw_matches_current_w),
+            wr_resp_fifo.re.eq(real_b_done | synthetic_b_pop),
+            rd_resp_fifo.re.eq(real_r_done | synthetic_r_pop),
+
+            If(wr_responding,
+                master.b.valid.eq(~master.aw.valid & ~master.w.valid),
+                master.b.id.eq(wr_timeout_id),
+                master.b.resp.eq(RESP_SLVERR),
+                slave.b.ready.eq(0),
+            ).Else(
+                master.b.valid.eq(slave.b.valid & (wr_drop_pending == 0)),
+                master.b.id.eq(slave.b.id),
+                master.b.resp.eq(slave.b.resp),
+                If(wr_drop_pending != 0,
+                    slave.b.ready.eq(1)
+                ).Else(
+                    slave.b.ready.eq(master.b.ready)
+                )
+            ),
+
+            If(rd_responding,
+                master.r.valid.eq(~master.ar.valid),
+                master.r.id.eq(rd_timeout_id),
+                master.r.last.eq(1),
+                master.r.resp.eq(RESP_SLVERR),
+                master.r.data.eq(2**len(master.r.data) - 1),
+                slave.r.ready.eq(0),
+            ).Else(
+                master.r.valid.eq(slave.r.valid & (rd_drop_pending == 0)),
+                master.r.id.eq(slave.r.id),
+                master.r.last.eq(slave.r.last),
+                master.r.resp.eq(slave.r.resp),
+                master.r.data.eq(slave.r.data),
+                If(rd_drop_pending != 0,
+                    slave.r.ready.eq(1)
+                ).Else(
+                    slave.r.ready.eq(master.r.ready)
+                )
+            ),
+        ]
+
+        self.wr_fsm.act("WAIT",
+            wr_timer.wait.eq(
+                (master.aw.valid & ~slave.aw.ready) |
+                (master.w.valid  & ~slave.w.ready)  |
+                (wr_resp_fifo.readable & ~(slave.b.valid & (wr_drop_pending == 0)))
+            ),
+            If(wr_timer.done & wr_timer.wait,
+                wr_error.eq(1),
+                NextState("RESPOND")
+            )
+        )
+        self.wr_fsm.act("RESPOND",
+            If(synthetic_b_done,
+                NextState("WAIT")
+            )
+        )
+
+        self.rd_fsm.act("WAIT",
+            rd_timer.wait.eq(
+                (master.ar.valid & ~slave.ar.ready) |
+                (rd_resp_fifo.readable & ~(slave.r.valid & (rd_drop_pending == 0)))
+            ),
+            If(rd_timer.done & rd_timer.wait,
+                rd_error.eq(1),
+                NextState("RESPOND")
+            )
+        )
+        self.rd_fsm.act("RESPOND",
+            If(synthetic_r_done,
+                NextState("WAIT")
+            )
+        )
+
+        self.sync += [
+            If(w_pending_inc & ~w_pending_dec,
+                wr_w_pending.eq(wr_w_pending + 1)
+            ).Elif(w_pending_dec & ~w_pending_inc,
+                wr_w_pending.eq(wr_w_pending - 1)
+            ),
+            If(synthetic_b_pop & ~drop_b_done,
+                wr_drop_pending.eq(wr_drop_pending + 1)
+            ).Elif(drop_b_done & ~synthetic_b_pop,
+                wr_drop_pending.eq(wr_drop_pending - 1)
+            ),
+            If(synthetic_r_pop & ~drop_r_last_done,
+                rd_drop_pending.eq(rd_drop_pending + 1)
+            ).Elif(drop_r_last_done & ~synthetic_r_pop,
+                rd_drop_pending.eq(rd_drop_pending - 1)
+            ),
+        ]
+
 # AXI Interconnect Components ----------------------------------------------------------------------
 
 class _AXIRequestCounter(LiteXModule):
@@ -726,10 +903,13 @@ class AXIInterconnectShared(LiteXModule):
         adr_width = max([m.address_width for m in masters])
         id_width = max([m.id_width for m in masters])
         shared = AXIInterface(data_width=data_width, address_width=adr_width, id_width=id_width)
-        self.arbiter = AXIArbiter(masters, shared)
-        self.decoder = AXIDecoder(shared, slaves)
+        decoder_bus = shared
         if timeout_cycles is not None:
-            self.timeout = AXITimeout(shared, timeout_cycles)
+            decoder_bus = AXIInterface(data_width=data_width, address_width=adr_width, id_width=id_width)
+        self.arbiter = AXIArbiter(masters, shared)
+        if timeout_cycles is not None:
+            self.timeout = _AXITimeoutBridge(shared, decoder_bus, timeout_cycles)
+        self.decoder = AXIDecoder(decoder_bus, slaves)
 
 class AXICrossbar(LiteXModule):
     """AXI crossbar
@@ -747,8 +927,7 @@ class AXICrossbar(LiteXModule):
             arbiters_m_s = [[AXIInterface(data_width=data_width, address_width=adr_width, id_width=id_width) for j in slaves] for i in masters]
             for access_buses, arbiter_buses in zip(access_m_s, arbiters_m_s):
                 for access_bus, arbiter_bus in zip(access_buses, arbiter_buses):
-                    self.comb += access_bus.connect(arbiter_bus)
-                    self.submodules += AXITimeout(access_bus, timeout_cycles)
+                    self.submodules += _AXITimeoutBridge(access_bus, arbiter_bus, timeout_cycles)
         access_s_m = list(zip(*arbiters_m_s))  # a[slave][master]
         # Decode each master into its access row.
         for slaves, master in zip(access_m_s, masters):
