@@ -504,15 +504,6 @@ class JTAGPHY(LiteXModule):
         # via sync.jtag outside the FSM, it only resets on the clock domain reset.
         ready        = Signal()
         update_ready = Signal()
-        ready_value  = Signal()
-
-        # TDO timing fix: The JTAGG primitive samples JTDO1 on the FALLING edge of TCK,
-        # but the FSM state changes on the RISING edge. By the falling edge, the FSM
-        # has already transitioned to the next state, so the wrong TDO value would be
-        # sampled. We use a registered TDO output that captures the value on the rising
-        # edge, so it's stable when sampled on the falling edge.
-        tdo_reg = Signal(reset=1)  # Start with ready=1 assumption
-        self.comb += jtag_tdo.eq(tdo_reg)
 
         # Detect shift falling edge (transition from Shift-DR to Exit1-DR)
         # This is when the valid bit (bit9) is available but jtag.shift is already 0
@@ -526,49 +517,36 @@ class JTAGPHY(LiteXModule):
         fsm = ResetInserter()(fsm)
         self.submodules += fsm
 
-        # Only reset FSM on jtag.reset, NOT jtag.capture.
-        # Resetting on capture clears 'ready' before it can be shifted out.
-        self.comb += fsm.reset.eq(jtag.reset)
+        # Reset FSM on both jtag.reset and jtag.capture to ensure the FSM
+        # starts in XFER-READY at the beginning of each DR scan. The 'ready'
+        # signal is updated outside the FSM (via sync.jtag), so it survives
+        # FSM resets and is correctly output via combinational TDO.
+        self.comb += fsm.reset.eq(jtag.reset | jtag.capture)
 
         fsm.act("XFER-READY",
-            If(jtag.capture,
-                # On capture, prepare to output ready on next shift
-                NextValue(tdo_reg, ready),
-            ),
+            jtag_tdo.eq(ready),
             If(jtag.shift,
                 sink.ready.eq(jtag_tdi),
                 NextValue(valid, sink.valid),
                 NextValue(data,  sink.data),
                 NextValue(count, 0),
-                # Update tdo_reg to output ready (will be sampled on falling edge)
-                NextValue(tdo_reg, ready),
                 NextState("XFER-DATA")
             )
         )
         fsm.act("XFER-DATA",
+            jtag_tdo.eq(data[0]),
             If(jtag.shift,
                 NextValue(count, count + 1),
-                # Update tdo_reg to output current data bit BEFORE shifting
-                NextValue(tdo_reg, data[0]),
                 NextValue(data, Cat(data[1:], jtag_tdi)),
                 If(count == (data_width - 1),
-                    # After outputting all data bits, transition to XFER-VALID.
-                    # The valid bit is output on the NEXT shift cycle.
-                    # NOTE: We need data_width + 3 shift cycles total for the
-                    # data_width + 2 bit wire format because the JTAGG primitive
-                    # only captures TDO on falling edge in Shift-DR, and the last
-                    # falling edge is in Exit1-DR (doesn't capture).
-                    NextValue(tdo_reg, valid),
                     NextState("XFER-VALID")
                 )
             )
         )
         fsm.act("XFER-VALID",
-            # Output the valid bit on TDO. The host's rx_valid arrives on TDI
-            # during this cycle (bit 9), so register it for use in XFER-PADDING.
+            jtag_tdo.eq(valid),
             If(jtag.shift,
                 NextValue(rx_valid_in, jtag_tdi),
-                NextValue(tdo_reg, valid),
                 NextState("XFER-PADDING")
             )
         )
@@ -580,7 +558,6 @@ class JTAGPHY(LiteXModule):
             If(jtag.shift,
                 update_rx.eq(1),
                 update_ready.eq(1),
-                NextValue(tdo_reg, ready),
                 NextState("XFER-READY")
             ),
             If(shift_falling,
