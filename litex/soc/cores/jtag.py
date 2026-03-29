@@ -564,26 +564,28 @@ class JTAGPHY(LiteXModule):
             )
         )
         fsm.act("XFER-VALID",
-            # Stay in this state for one shift cycle to output valid bit.
-            # Then on the next shift, output padding bit (repeat of valid).
-            # The actual valid bit from host arrives on shift_falling when TAP exits Shift-DR.
+            # Output the valid bit on TDO. The host's rx_valid arrives on TDI
+            # during this cycle (bit 9), so register it for use in XFER-PADDING.
             If(jtag.shift,
-                # We're still in Shift-DR, output padding (valid repeated)
+                NextValue(rx_valid_in, jtag_tdi),
                 NextValue(tdo_reg, valid),
                 NextState("XFER-PADDING")
             )
         )
         fsm.act("XFER-PADDING",
-            # The valid bit arrives when jtag.shift goes low (TAP exits Shift-DR).
-            # We use the falling edge of shift to capture the valid bit from jtag_tdi.
-            If(shift_falling,
-                # Capture RX valid bit for update_rx trigger (combinatorial)
-                rx_valid_in.eq(jtag_tdi),
-                # Trigger rx_valid/rx_data update (handled outside FSM)
+            # Padding cycle: finalize the current word and return to XFER-READY.
+            # rx_valid_in was registered in XFER-VALID; data holds the 8 RX bits.
+            # Handle both concatenated scans (jtag.shift stays high) and individual
+            # scans (shift_falling fires when TAP exits Shift-DR).
+            If(jtag.shift,
                 update_rx.eq(1),
-                # Update tdo_reg to output valid
-                NextValue(tdo_reg, valid),
-                update_ready.eq(1),  # Trigger ready update (outside FSM)
+                update_ready.eq(1),
+                NextValue(tdo_reg, ready),
+                NextState("XFER-READY")
+            ),
+            If(shift_falling,
+                update_rx.eq(1),
+                update_ready.eq(1),
                 NextState("XFER-READY")
             )
         )
