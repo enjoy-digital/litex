@@ -551,7 +551,7 @@ class JTAGPHY(LiteXModule):
                 # Update tdo_reg to output current data bit BEFORE shifting
                 NextValue(tdo_reg, data[0]),
                 NextValue(data, Cat(data[1:], jtag_tdi)),
-                If(count == data_width,
+                If(count == (data_width - 1),
                     # After outputting all data bits, transition to XFER-VALID.
                     # The valid bit is output on the NEXT shift cycle.
                     # NOTE: We need data_width + 3 shift cycles total for the
@@ -587,6 +587,26 @@ class JTAGPHY(LiteXModule):
                 NextState("XFER-READY")
             )
         )
+
+        # RX path - connect to CDC FIFO write side.
+        self.comb += [
+            source.valid.eq(rx_valid),
+            source.data.eq(rx_data),
+        ]
+
+        # Update ready from FIFO writable (outside FSM, survives resets).
+        self.sync.jtag += If(update_ready, ready.eq(source.ready))
+
+        # Update RX registers (outside FSM, survives resets).
+        # Clear rx_valid after FIFO accepts the data to prevent duplicates.
+        self.sync.jtag += [
+            If(update_rx,
+                rx_valid.eq(rx_valid_in),
+                rx_data.eq(data),
+            ).Elif(source.valid & source.ready,
+                rx_valid.eq(0),
+            )
+        ]
 
 # ECP5 JTAG PHY (Verilog + AsyncFIFO) -----------------------------------------------------------------
 
