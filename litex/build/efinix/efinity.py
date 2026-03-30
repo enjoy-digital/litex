@@ -456,6 +456,7 @@ def build_args(parser):
 def build_argdict(args):
     return{
         "efx_map_params"           : {
+            "work_dir"                  : "work_syn",
             "mode"                      : [args.synth_mode, "e_option"],
             "infer-clk-enable"          : [args.infer_clk_enable, "e_option"],
             "bram_output_regs_packing"  : [args.bram_output_regs_packing, "e_option"],
@@ -463,6 +464,9 @@ def build_argdict(args):
             "seq_opt"                   : [args.seq_opt, "e_option"],
             "mult_input_regs_packing"   : [args.mult_input_regs_packing, "e_option"],
             "mult_output_regs_packing"  : [args.mult_output_regs_packing, "e_option"],
+        },
+        "efx_pnr_params"           : {
+            "work_dir"                  : "work_pnr",
         },
         "efx_pgm_params"           : {
             "generate_bitbin"           : args.generate_bitbin,
