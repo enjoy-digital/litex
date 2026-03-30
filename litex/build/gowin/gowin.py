@@ -82,6 +82,7 @@ class GowinToolchain(GenericToolchain):
         super().__init__()
         self.options = {}
         self.additional_cst_commands = []
+        self.additional_tcl_commands = []
 
     def finalize(self):
         if self.platform.verilog_include_paths:
@@ -154,6 +155,10 @@ class GowinToolchain(GenericToolchain):
         # Set Options.
         for opt, val in self.options.items():
             tcl.append(f"set_option -{opt} {val}")
+
+        # Additionals Commands.
+        for additional_tcl_command in self.additional_tcl_commands:
+            tcl.append(additional_tcl_command)
 
         # Run.
         tcl.append("run all")
