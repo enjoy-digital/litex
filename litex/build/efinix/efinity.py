@@ -32,6 +32,44 @@ from litex.build.efinix import common
 from litex.build.efinix import InterfaceWriter
 from litex.build.efinix import IPMWriter
 
+def _default_efx_map_params(
+    synth_mode="speed",
+    infer_clk_enable="3",
+    infer_sync_set_reset="1",
+    bram_output_regs_packing="1",
+    retiming="1",
+    seq_opt="1",
+    mult_input_regs_packing="1",
+    mult_output_regs_packing="1",
+):
+    return {
+        "work_dir"                 : "work_syn",
+        "mode"                     : [synth_mode, "e_option"],
+        "infer-clk-enable"         : [infer_clk_enable, "e_option"],
+        "infer-sync-set-reset"     : [infer_sync_set_reset, "e_option"],
+        "bram_output_regs_packing" : [bram_output_regs_packing, "e_option"],
+        "retiming"                 : [retiming, "e_option"],
+        "seq_opt"                  : [seq_opt, "e_option"],
+        "mult_input_regs_packing"  : [mult_input_regs_packing, "e_option"],
+        "mult_output_regs_packing" : [mult_output_regs_packing, "e_option"],
+    }
+
+def _default_efx_pnr_params():
+    return {
+        "work_dir" : "work_pnr",
+    }
+
+def _default_efx_pgm_params(generate_bitbin=False, generate_hexbin=False):
+    return {
+        "generate_bitbin"          : generate_bitbin,
+        "generate_hexbin"          : generate_hexbin,
+        "oscillator_clock_divider" : ["DIV8", "e_option"],
+        "spi_low_power_mode"       : False,
+        "io_weak_pullup"           : True,
+        "enable_roms"              : True,
+        "enable_crc_check"         : True,
+    }
+
 def _add_custom_params(parent, params):
     for key, value in params.items():
         if isinstance(value, bool):
@@ -80,11 +118,17 @@ class EfinityToolchain(GenericToolchain):
         efx_full_memory_we       = True,
         **kwargs):
 
-        self._efx_map_params           = efx_map_params if efx_map_params is not None else {}
-        self._efx_pnr_params           = efx_pnr_params if efx_pnr_params is not None else {}
-        self._efx_pgm_params           = efx_pgm_params if efx_pgm_params is not None else {}
+        self._efx_map_params           = _default_efx_map_params()
+        self._efx_pnr_params           = _default_efx_pnr_params()
+        self._efx_pgm_params           = _default_efx_pgm_params()
         self._efx_security_params      = efx_security_params if efx_security_params is not None else {}
         self._efx_debugger_params      = efx_debugger_params if efx_debugger_params is not None else {}
+        if efx_map_params is not None:
+            self._efx_map_params.update(efx_map_params)
+        if efx_pnr_params is not None:
+            self._efx_pnr_params.update(efx_pnr_params)
+        if efx_pgm_params is not None:
+            self._efx_pgm_params.update(efx_pgm_params)
 
         if platform.family != "Trion":
             self._efx_map_params.pop("mult_input_regs_packing", None)
@@ -455,27 +499,19 @@ def build_args(parser):
 
 def build_argdict(args):
     return{
-        "efx_map_params"           : {
-            "work_dir"                  : "work_syn",
-            "mode"                      : [args.synth_mode, "e_option"],
-            "infer-clk-enable"          : [args.infer_clk_enable, "e_option"],
-            "bram_output_regs_packing"  : [args.bram_output_regs_packing, "e_option"],
-            "retiming"                  : [args.retiming, "e_option"],
-            "seq_opt"                   : [args.seq_opt, "e_option"],
-            "mult_input_regs_packing"   : [args.mult_input_regs_packing, "e_option"],
-            "mult_output_regs_packing"  : [args.mult_output_regs_packing, "e_option"],
-        },
-        "efx_pnr_params"           : {
-            "work_dir"                  : "work_pnr",
-        },
-        "efx_pgm_params"           : {
-            "generate_bitbin"           : args.generate_bitbin,
-            "generate_hexbin"           : args.generate_hexbin,
-            "oscillator_clock_divider"  : ["DIV8", "e_option"],
-            "spi_low_power_mode"        : False,
-            "io_weak_pullup"            : True,
-            "enable_roms"               : True,
-            "enable_crc_check"          : True,
-
-        },
+        "efx_map_params"           : _default_efx_map_params(
+            synth_mode               = args.synth_mode,
+            infer_clk_enable         = args.infer_clk_enable,
+            infer_sync_set_reset     = args.infer_sync_set_reset,
+            bram_output_regs_packing = args.bram_output_regs_packing,
+            retiming                 = args.retiming,
+            seq_opt                  = args.seq_opt,
+            mult_input_regs_packing  = args.mult_input_regs_packing,
+            mult_output_regs_packing = args.mult_output_regs_packing,
+        ),
+        "efx_pnr_params"           : _default_efx_pnr_params(),
+        "efx_pgm_params"           : _default_efx_pgm_params(
+            generate_bitbin = args.generate_bitbin,
+            generate_hexbin = args.generate_hexbin,
+        ),
     }
