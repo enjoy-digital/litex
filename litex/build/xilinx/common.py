@@ -134,6 +134,26 @@ class XilinxDifferentialOutput:
     def lower(dr):
         return XilinxDifferentialOutputImpl(dr.i, dr.o_p, dr.o_n)
 
+# Common Tristate ----------------------------------------------------------------------------------
+
+class XilinxTristateImpl(Module):
+    def __init__(self, io, o, oe, i):
+        nbits, _ = value_bits_sign(io)
+        if i is None:
+            i = Signal().like(o)
+        for bit in range(nbits):
+            self.specials += Instance("IOBUF",
+                io_IO = io[bit] if nbits > 1 else io,
+                o_O   = i[bit]  if nbits > 1 else i,
+                i_I   = o[bit]  if nbits > 1 else o,
+                i_T   = ~oe[bit] if len(oe) == nbits > 1 else ~oe,
+            )
+
+class XilinxTristate:
+    @staticmethod
+    def lower(dr):
+        return XilinxTristateImpl(dr.target, dr.o, dr.oe, dr.i)
+
 # Common SDRTristate -------------------------------------------------------------------------------
 
 class XilinxSDRTristateImpl(Module):
@@ -191,6 +211,7 @@ xilinx_special_overrides = {
     AsyncResetSynchronizer: XilinxAsyncResetSynchronizer,
     DifferentialInput:      XilinxDifferentialInput,
     DifferentialOutput:     XilinxDifferentialOutput,
+    Tristate:               XilinxTristate,
     SDRTristate:            XilinxSDRTristate,
     DDRTristate:            XilinxDDRTristate,
 }
