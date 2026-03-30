@@ -7,7 +7,8 @@ from types import SimpleNamespace
 
 import migen
 
-from litex.build.efinix.efinity import EfinityToolchain, build_argdict
+from litex.build.efinix.efinity import EfinityToolchain, _get_design_file_library, build_argdict
+from litex.build.efinix.ifacewriter import InterfaceWriter
 from litex.build.generic_toolchain import GenericToolchain
 
 
@@ -63,3 +64,36 @@ def test_build_merges_default_efinity_params(monkeypatch):
     assert toolchain._efx_pnr_params["work_dir"] == "work_pnr"
     assert toolchain._efx_pgm_params["generate_bitbin"] is True
     assert toolchain._efx_pgm_params["generate_hexbin"] is False
+
+
+def test_design_file_library_preserves_non_header_libraries():
+    assert _get_design_file_library("core.vhd", "worklib") == "worklib"
+    assert _get_design_file_library("rtl/top.v", "mylib") == "mylib"
+    assert _get_design_file_library("rtl/header.vh", "mylib") == "default"
+    assert _get_design_file_library("rtl/header.svh", "mylib") == "default"
+
+
+def test_generate_seu_emits_wait_interval_for_auto_mode():
+    def pin(name):
+        return SimpleNamespace(backtrace=[(name, None)])
+
+    writer = InterfaceWriter("/tmp/efinity")
+    pins = SimpleNamespace(
+        CONFIG       = pin("config"),
+        DONE         = pin("done"),
+        ERROR        = pin("error"),
+        INJECT_ERROR = pin("inject_error"),
+        RST          = pin("rst"),
+    )
+    block = {
+        "name"          : "seu",
+        "pins"          : pins,
+        "enable"        : True,
+        "mode"          : "auto",
+        "wait_interval" : "42",
+    }
+
+    cmds = writer.generate_seu(block)
+
+    assert 'MODE", "AUTO"' in cmds
+    assert 'WAIT_INTERVAL", "42"' in cmds

@@ -70,6 +70,9 @@ def _default_efx_pgm_params(generate_bitbin=False, generate_hexbin=False):
         "enable_crc_check"         : True,
     }
 
+def _get_design_file_library(filename, library):
+    return "default" if filename.endswith((".vh", ".svh")) else library
+
 def _add_custom_params(parent, params):
     for key, value in params.items():
         if isinstance(value, bool):
@@ -362,7 +365,7 @@ class EfinityToolchain(GenericToolchain):
             et.SubElement(design_info, "efx:design_file", {
                 "name"    : filename,
                 "version" : "default",
-                "library" : "default" if ".vh" not in filename else library,
+                "library" : _get_design_file_library(filename, library),
             })
 
         # Add Timing Constraints.
