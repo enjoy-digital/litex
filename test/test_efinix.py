@@ -9,6 +9,7 @@ import migen
 
 from litex.build.efinix.efinity import EfinityToolchain, _get_design_file_library, build_argdict
 from litex.build.efinix.ifacewriter import InterfaceWriter
+from litex.build.efinix.toolchain import find_efinity_path, load_efinity_env
 from litex.build.generic_toolchain import GenericToolchain
 
 
@@ -97,3 +98,36 @@ def test_generate_seu_emits_wait_interval_for_auto_mode():
 
     assert 'MODE", "AUTO"' in cmds
     assert 'WAIT_INTERVAL", "42"' in cmds
+
+
+def test_find_efinity_path_prefers_env(monkeypatch, tmp_path):
+    efinity_root = tmp_path / "efinity"
+    monkeypatch.setenv("LITEX_ENV_EFINITY", str(efinity_root) + "/")
+
+    assert find_efinity_path() == str(efinity_root)
+
+
+def test_find_efinity_path_falls_back_to_path(monkeypatch, tmp_path):
+    efinity_root = tmp_path / "efinity"
+    bin_dir = efinity_root / "bin"
+    bin_dir.mkdir(parents=True)
+    (bin_dir / "setup.sh").write_text("export TEST_EFINITY_ENV=from_path\n")
+    tool = bin_dir / "efx_map"
+    tool.write_text("#!/bin/sh\n")
+    tool.chmod(0o755)
+
+    monkeypatch.delenv("LITEX_ENV_EFINITY", raising=False)
+    monkeypatch.setenv("PATH", str(bin_dir))
+
+    assert find_efinity_path() == str(efinity_root)
+
+
+def test_load_efinity_env_sources_setup(tmp_path):
+    efinity_root = tmp_path / "efinity"
+    bin_dir = efinity_root / "bin"
+    bin_dir.mkdir(parents=True)
+    (bin_dir / "setup.sh").write_text("export TEST_EFINITY_ENV=loaded\n")
+
+    env = load_efinity_env(str(efinity_root))
+
+    assert env["TEST_EFINITY_ENV"] == "loaded"

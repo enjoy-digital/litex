@@ -12,7 +12,6 @@ import sys
 import site
 import inspect
 import datetime
-import subprocess
 import shutil
 import glob
 
@@ -31,6 +30,7 @@ from litex.build.generic_toolchain import GenericToolchain
 from litex.build.efinix import common
 from litex.build.efinix import InterfaceWriter
 from litex.build.efinix import IPMWriter
+from litex.build.efinix.toolchain import load_efinity_env
 
 def _default_efx_map_params(
     synth_mode="speed",
@@ -411,20 +411,7 @@ class EfinityToolchain(GenericToolchain):
         xml_str = xml_str.toprettyxml(indent="  ")
         tools.write_to_file("{}.xml".format(self._build_name), xml_str)
 
-        # get environment variables from the efinity setup.sh
-        pipe = subprocess.Popen(". %s && env -0" % (self.efinity_path + "/bin/setup.sh"),
-                                stdout=subprocess.PIPE, shell=True, cwd=self.efinity_path, executable='/bin/bash')
-        output = pipe.communicate()[0].decode('utf-8')
-        output = output[:-1] # fix for index out for range in 'env[ line[0] ] = line[1]'
-
-        env = {}
-        # split using null char
-        for line in output.split('\x00'):
-            line = line.split( '=', 1)
-            # print(line)
-            env[line[0]] = line[1]
-
-        self.env = env
+        self.env = load_efinity_env(self.efinity_path)
 
         if len(self.ipmwriter.blocks) > 0:
             ipm_header = self.ipmwriter.header(self._build_name, self.platform.device, self.platform.family)
