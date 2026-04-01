@@ -2043,11 +2043,15 @@ class LiteXSoC(SoC):
             else:
                 eth_tx_clk_name = phy_cd + "_tx"
                 eth_rx_clk_name = phy_cd + "_rx"
+            ethcore_cd = {True: "sys", False: eth_rx_clk_name}[with_ethmac]
             ethcore = ClockDomainsRenamer({
                 "eth_tx": eth_tx_clk_name,
                 "eth_rx": eth_rx_clk_name,
-                "sys"   : {True: "sys", False: eth_rx_clk_name}[with_ethmac],
+                "sys"   : ethcore_cd,
             })(ethcore)
+        else:
+            ethcore_cd = "sys"
+        ethcore.cd = ethcore_cd
         self.add_module(name=f"ethcore_{name}", module=ethcore)
 
         etherbone_cd = "sys"
