@@ -136,10 +136,10 @@ class Header:
             raise ValueError("Width mismatch on " + name + " field")
         return field
 
-    def encode(self, obj, signal):
+    def encode(self, obj, signal, shift=0):
         r = []
         for k, v in sorted(self.fields.items()):
-            start = v.byte*8 + v.offset
+            start = shift*8 + v.byte*8 + v.offset
             end = start + v.width
             field = self.get_field(obj, k, v.width)
             if self.swap_field_bytes:
@@ -147,10 +147,10 @@ class Header:
             r.append(signal[start:end].eq(field))
         return r
 
-    def decode(self, signal, obj):
+    def decode(self, signal, obj, shift=0):
         r = []
         for k, v in sorted(self.fields.items()):
-            start = v.byte*8 + v.offset
+            start = shift*8 + v.byte*8 + v.offset
             end = start + v.width
             field = self.get_field(obj, k, v.width)
             if self.swap_field_bytes:
