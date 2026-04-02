@@ -20,6 +20,8 @@ class PeppercornToolchain(YosysNextPNRToolchain):
     def __init__(self):
         super().__init__()
         self._synth_opts = "-luttree -nomx8"
+        self._force_die  = None
+        self._strategy   = "full"
 
     # Timing Constraints (.sdc) --------------------------------------------------------------------
 
@@ -70,6 +72,16 @@ class PeppercornToolchain(YosysNextPNRToolchain):
     def finalize(self):
         pnr_opts = "--device {device}" + \
             " --vopt ccf={top}.ccf --router router2"
+
+        # A2/A4 variants have extra parameters to
+        # force only one Die
+        # or clocking strategy
+        if not self.platform.device.endswith("A1"):
+            if self._force_die is not None:
+                pnr_opts += f" --vopt force_die={self._force_die}"
+            else:
+                pnr_opts += f" --vopt strategy={self._strategy}"
+
         #pnr_opts += " --sdc {top}.sdc"
         self._pnr_opts += pnr_opts.format(
             device     = self.platform.device,
@@ -82,8 +94,15 @@ class PeppercornToolchain(YosysNextPNRToolchain):
 
         YosysNextPNRToolchain.finalize(self)
 
-    def build(self, platform, fragment, **kwargs):
-        self.platform = platform
+    def build(self, platform, fragment,
+        strategy  = "full",
+        force_die = None,
+        **kwargs):
+
+        self.platform   = platform
+        self._force_die = force_die
+        self._strategy  = strategy
+
         # CologneChip does not have distributed RAM
         self._yosys_cmds = [
             "hierarchy -top {build_name}",
@@ -93,7 +112,20 @@ class PeppercornToolchain(YosysNextPNRToolchain):
         return YosysNextPNRToolchain.build(self, platform, fragment, **kwargs)
 
 def peppercorn_args(parser):
-    pass
+    toolchain_group = parser.add_argument_group(title="Peppercorn toolchain options")
+    toolchain_group.add_argument("--force-die",
+        default = None,
+        help    = "force specific die (example 1A,1B...) (A2/A4 variants).",
+        choices = [None, "1A", "1B"]
+    )
+    toolchain_group.add_argument("--strategy",
+        default = "full",
+        help    = "multi-die clock placement strategy (mirror, full or clk1) (A2/A4 variants).",
+        choices = ["mirror", "clk1", "full"]
+    )
 
 def peppercorn_argdict(args):
-    return {}
+    return {
+        "force_die" : args.force_die,
+        "strategy"  :  args.strategy,
+    }
