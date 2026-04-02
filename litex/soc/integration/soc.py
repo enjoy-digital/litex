@@ -2012,7 +2012,10 @@ class LiteXSoC(SoC):
         with_ethmac             = False,
         ethmac_address          = 0x10e2d5000001,
         ethmac_local_ip         = "192.168.1.51",
-        ethmac_remote_ip        = "192.168.1.100"):
+        ethmac_remote_ip        = "192.168.1.100",
+        with_igmp               = False,
+        igmp_groups             = None,
+        igmp_interval           = 10):
 
         # Imports
         from liteeth.core import LiteEthUDPIPCore
@@ -2032,6 +2035,9 @@ class LiteXSoC(SoC):
             dw          = data_width,
             with_ip_broadcast = with_ip_broadcast,
             with_sys_datapath = with_sys_datapath,
+            with_igmp     = with_igmp,
+            igmp_groups   = igmp_groups,
+            igmp_interval = igmp_interval,
             interface   = {True :            "hybrid", False: "crossbar"}[with_ethmac],
             endianness  = {True : self.cpu.endianness, False:      "big"}[with_ethmac],
         )
