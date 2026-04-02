@@ -15,7 +15,7 @@ class CologneChipPlatform(GenericPlatform):
     _bitstream_ext = "_00.cfg.bit"
     _jtag_support  = False
 
-    _supported_toolchains = ["colognechip", "peppercorn"]
+    _supported_toolchains = ["peppercorn", "colognechip"]
 
     def __init__(self, device, *args, toolchain="colognechip", devicename=None, **kwargs):
         GenericPlatform.__init__(self, device, *args, **kwargs)
