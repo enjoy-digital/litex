@@ -70,8 +70,17 @@ def _default_efx_pgm_params(generate_bitbin=False, generate_hexbin=False):
         "enable_crc_check"         : True,
     }
 
-def _get_design_file_library(filename, language, library):
+def _get_design_file_library(filename, language_or_library, library=None):
+    # Keep backward compatibility with older two-argument helper usage.
+    if library is None:
+        language = None
+        library = language_or_library
+    else:
+        language = language_or_library
+
     if language in ("verilog", "systemverilog"):
+        return "default"
+    if filename.endswith((".vh", ".svh")):
         return "default"
     return library
 

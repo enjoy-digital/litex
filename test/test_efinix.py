@@ -74,6 +74,13 @@ def test_design_file_library_preserves_non_header_libraries():
     assert _get_design_file_library("rtl/header.svh", "mylib") == "default"
 
 
+def test_design_file_library_uses_default_library_for_verilog_languages():
+    assert _get_design_file_library("rtl/top.v", "verilog", "mylib") == "default"
+    assert _get_design_file_library("rtl/header.vh", "verilog", "mylib") == "default"
+    assert _get_design_file_library("rtl/header.svh", "systemverilog", "mylib") == "default"
+    assert _get_design_file_library("core.vhd", "vhdl", "worklib") == "worklib"
+
+
 def test_generate_seu_emits_wait_interval_for_auto_mode():
     def pin(name):
         return SimpleNamespace(backtrace=[(name, None)])
