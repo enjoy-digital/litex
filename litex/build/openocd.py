@@ -154,7 +154,7 @@ proc jtagstream_poll {tap tx n} {
         set readable [expr { "0x${rxj}" & 0x200 }]
         set writable [expr { "0x${rxj}" & $writable }]
         if {$readable} {
-            append rx [format %c [expr { ("0x${rxj}" >> 1) & 0xff }]]
+            append rx [binary format c [expr { ("0x${rxj}" >> 1) & 0xff }]]
         }
     }
     return [list $rx $readable $writable]

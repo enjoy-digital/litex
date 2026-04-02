@@ -429,8 +429,8 @@ class JTAGPHY(LiteXModule):
 
 
         # JTAG TAP ---------------------------------------------------------------------------------
+        jtag_tdi_delay = 0
         if jtag is None:
-            jtag_tdi_delay = 0
             # Xilinx.
             if XilinxJTAG.get_primitive(device) is not None:
                 jtag = XilinxJTAG(primitive=XilinxJTAG.get_primitive(device), chain=chain)
@@ -504,15 +504,6 @@ class JTAGPHY(LiteXModule):
         # via sync.jtag outside the FSM, it only resets on the clock domain reset.
         ready        = Signal()
         update_ready = Signal()
-        ready_value  = Signal()
-
-        # TDO timing fix: The JTAGG primitive samples JTDO1 on the FALLING edge of TCK,
-        # but the FSM state changes on the RISING edge. By the falling edge, the FSM
-        # has already transitioned to the next state, so the wrong TDO value would be
-        # sampled. We use a registered TDO output that captures the value on the rising
-        # edge, so it's stable when sampled on the falling edge.
-        tdo_reg = Signal(reset=1)  # Start with ready=1 assumption
-        self.comb += jtag_tdo.eq(tdo_reg)
 
         # Detect shift falling edge (transition from Shift-DR to Exit1-DR)
         # This is when the valid bit (bit9) is available but jtag.shift is already 0
@@ -526,67 +517,75 @@ class JTAGPHY(LiteXModule):
         fsm = ResetInserter()(fsm)
         self.submodules += fsm
 
-        # Only reset FSM on jtag.reset, NOT jtag.capture.
-        # Resetting on capture clears 'ready' before it can be shifted out.
-        self.comb += fsm.reset.eq(jtag.reset)
+        # Reset FSM on both jtag.reset and jtag.capture to ensure the FSM
+        # starts in XFER-READY at the beginning of each DR scan. The 'ready'
+        # signal is updated outside the FSM (via sync.jtag), so it survives
+        # FSM resets and is correctly output via combinational TDO.
+        self.comb += fsm.reset.eq(jtag.reset | jtag.capture)
 
         fsm.act("XFER-READY",
-            If(jtag.capture,
-                # On capture, prepare to output ready on next shift
-                NextValue(tdo_reg, ready),
-            ),
+            jtag_tdo.eq(ready),
             If(jtag.shift,
                 sink.ready.eq(jtag_tdi),
                 NextValue(valid, sink.valid),
                 NextValue(data,  sink.data),
                 NextValue(count, 0),
-                # Update tdo_reg to output ready (will be sampled on falling edge)
-                NextValue(tdo_reg, ready),
                 NextState("XFER-DATA")
             )
         )
         fsm.act("XFER-DATA",
+            jtag_tdo.eq(data[0]),
             If(jtag.shift,
                 NextValue(count, count + 1),
-                # Update tdo_reg to output current data bit BEFORE shifting
-                NextValue(tdo_reg, data[0]),
                 NextValue(data, Cat(data[1:], jtag_tdi)),
-                If(count == data_width,
-                    # After outputting all data bits, transition to XFER-VALID.
-                    # The valid bit is output on the NEXT shift cycle.
-                    # NOTE: We need data_width + 3 shift cycles total for the
-                    # data_width + 2 bit wire format because the JTAGG primitive
-                    # only captures TDO on falling edge in Shift-DR, and the last
-                    # falling edge is in Exit1-DR (doesn't capture).
-                    NextValue(tdo_reg, valid),
+                If(count == (data_width - 1),
                     NextState("XFER-VALID")
                 )
             )
         )
         fsm.act("XFER-VALID",
-            # Stay in this state for one shift cycle to output valid bit.
-            # Then on the next shift, output padding bit (repeat of valid).
-            # The actual valid bit from host arrives on shift_falling when TAP exits Shift-DR.
+            jtag_tdo.eq(valid),
             If(jtag.shift,
-                # We're still in Shift-DR, output padding (valid repeated)
-                NextValue(tdo_reg, valid),
+                NextValue(rx_valid_in, jtag_tdi),
                 NextState("XFER-PADDING")
             )
         )
         fsm.act("XFER-PADDING",
-            # The valid bit arrives when jtag.shift goes low (TAP exits Shift-DR).
-            # We use the falling edge of shift to capture the valid bit from jtag_tdi.
-            If(shift_falling,
-                # Capture RX valid bit for update_rx trigger (combinatorial)
-                rx_valid_in.eq(jtag_tdi),
-                # Trigger rx_valid/rx_data update (handled outside FSM)
+            # Padding cycle: finalize the current word and return to XFER-READY.
+            # rx_valid_in was registered in XFER-VALID; data holds the 8 RX bits.
+            # Handle both concatenated scans (jtag.shift stays high) and individual
+            # scans (shift_falling fires when TAP exits Shift-DR).
+            If(jtag.shift,
                 update_rx.eq(1),
-                # Update tdo_reg to output valid
-                NextValue(tdo_reg, valid),
-                update_ready.eq(1),  # Trigger ready update (outside FSM)
+                update_ready.eq(1),
+                NextState("XFER-READY")
+            ),
+            If(shift_falling,
+                update_rx.eq(1),
+                update_ready.eq(1),
                 NextState("XFER-READY")
             )
         )
+
+        # RX path - connect to CDC FIFO write side.
+        self.comb += [
+            source.valid.eq(rx_valid),
+            source.data.eq(rx_data),
+        ]
+
+        # Update ready from FIFO writable (outside FSM, survives resets).
+        self.sync.jtag += If(update_ready, ready.eq(source.ready))
+
+        # Update RX registers (outside FSM, survives resets).
+        # Clear rx_valid after FIFO accepts the data to prevent duplicates.
+        self.sync.jtag += [
+            If(update_rx,
+                rx_valid.eq(rx_valid_in),
+                rx_data.eq(data),
+            ).Elif(source.valid & source.ready,
+                rx_valid.eq(0),
+            )
+        ]
 
 # ECP5 JTAG PHY (Verilog + AsyncFIFO) -----------------------------------------------------------------
 
