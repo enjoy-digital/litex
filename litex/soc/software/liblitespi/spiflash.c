@@ -40,8 +40,11 @@ int spiflash_freq_init(void)
 		printf("First SPI Flash block erased, unable to perform freq test.\n\r");
 		return -1;
 	}
-
-	while((crc == crc_test) && (lowest_div-- > 0)) {
+#if defined(SPIFLASH_PHY_MIN_DIVISOR) && SPIFLASH_PHY_MIN_DIVISOR == 1
+	while((crc == crc_test) && (lowest_div-- > 1)) {
+#else
+	while((crc == crc_test) && ((lowest_div -= 2) >= 2)) {
+#endif
 		spiflash_phy_clk_divisor_write((uint32_t)lowest_div);
 		invd_cpu_dcache_range((void *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE);
 		flush_l2_cache();
@@ -50,10 +53,15 @@ int spiflash_freq_init(void)
 		printf("[DIV: %d] %08x\n\r", lowest_div, crc_test);
 #endif
 	}
+#if defined(SPIFLASH_PHY_MIN_DIVISOR) && SPIFLASH_PHY_MIN_DIVISOR == 1
 	lowest_div++;
-	printf("SPI Flash clk configured to %d MHz\n", CONFIG_CLOCK_FREQUENCY/(2*(1+lowest_div)*1000000));
+#else
+	lowest_div += 2;
+#endif
+	printf("SPI Flash clk configured to %d MHz (div: %d)\n", CONFIG_CLOCK_FREQUENCY/(lowest_div*1000000), lowest_div);
 
 	spiflash_phy_clk_divisor_write(lowest_div);
+	spiflash_mmap_clk_divisor_write(lowest_div);
 
 #else
 
