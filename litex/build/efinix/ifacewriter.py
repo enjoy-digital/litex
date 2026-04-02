@@ -659,7 +659,7 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
             if mode == "MANUAL":
                 cmds.append(f'design.set_device_property("seu", "START_PIN", "{get_pin_name(pins.START)}", "SEU")')
             cmds.append(f'design.set_device_property("seu", "MODE", "{mode}", "SEU")')
-            if mode == "AUTO" and hasattr(block, "wait_interval"):
+            if mode == "AUTO" and "wait_interval" in block:
                 cmds.append(f'design.set_device_property("seu", "WAIT_INTERVAL", "{block["wait_interval"]}", "SEU")')
         cmds.append(f"# ---------- END SINGLE-EVENT UPSET ---------\n")
         return "\n".join(cmds)

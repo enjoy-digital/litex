@@ -11,6 +11,7 @@ import time
 import subprocess
 
 from litex.build.generic_programmer import GenericProgrammer
+from litex.build.efinix.toolchain import find_efinity_path, load_efinity_env
 
 # EfinixProgrammer ---------------------------------------------------------------------------------
 
@@ -18,28 +19,8 @@ class EfinixProgrammer(GenericProgrammer):
 
     def __init__(self, cable_name="", family=None):
         self.cable_name = cable_name
-        if os.getenv("LITEX_ENV_EFINITY", False) == False:
-            msg = "Unable to find or source Efinity toolchain, please either:\n"
-            msg += "- Set LITEX_ENV_EFINITY environment variant to Efinity path.\n"
-            msg += "- Or add Efinity toolchain to your $PATH."
-            raise OSError(msg)
-
-        self.efinity_path = os.environ["LITEX_ENV_EFINITY"].rstrip('/')
-
-        # get environment variables from the efinity setup.sh
-        pipe = subprocess.Popen(". %s && env -0" % (self.efinity_path + "/bin/setup.sh"),
-                                stdout=subprocess.PIPE, shell=True, cwd=self.efinity_path, executable='/bin/bash')
-        output = pipe.communicate()[0].decode('utf-8')
-        output = output[:-1] # fix for index out for range in 'env[ line[0] ] = line[1]'
-
-        env = {}
-        # split using null char
-        for line in output.split('\x00'):
-            line = line.split( '=', 1)
-            # print(line)
-            env[line[0]] = line[1]
-
-        self.env = env
+        self.efinity_path = find_efinity_path()
+        self.env = load_efinity_env(self.efinity_path)
 
         if family is None:
             from litex.gen.context import LiteXContext
@@ -64,7 +45,7 @@ class EfinixProgrammer(GenericProgrammer):
                 assert self.family != "Trion", "Trion devices require a bridge image name"
                 device_id_str = '%08X' % int(device_id)
                 bridge_image_name = f'u{device_id_str}.bit'
-            fli_dir = os.path.join(os.environ['EFINITY_HOME'], 'pgm', 'fli')
+            fli_dir = os.path.join(self.efinity_path, 'pgm', 'fli')
             if self.family == "Titanium":
                 fli_dir = os.path.join(fli_dir, 'titanium')
             elif self.family == "Topaz":

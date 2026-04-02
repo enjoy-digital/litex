@@ -12,6 +12,7 @@ from migen.fhdl.structure import _Slice
 from litex.build.generic_platform import *
 from litex.build.efinix import common, efinity
 from litex.build.efinix import EfinixDbParser
+from litex.build.efinix.toolchain import find_efinity_path
 
 # EfinixPlatform -----------------------------------------------------------------------------------
 
@@ -39,13 +40,7 @@ class EfinixPlatform(GenericPlatform):
         else:
             self.family = "Trion"
 
-        if os.getenv("LITEX_ENV_EFINITY", False) == False:
-            msg = "Unable to find or source Efinity toolchain, please either:\n"
-            msg += "- Set LITEX_ENV_EFINITY environment variant to Efinity path.\n"
-            msg += "- Or add Efinity toolchain to your $PATH."
-            raise OSError(msg)
-
-        self.efinity_path = os.environ["LITEX_ENV_EFINITY"].rstrip('/')
+        self.efinity_path = find_efinity_path()
         os.environ["EFINITY_HOME"] = self.efinity_path
 
         if toolchain == "efinity":
