@@ -9,6 +9,7 @@ import os
 import sys
 import math
 import subprocess
+import platform
 from shutil import which, copyfile
 
 from migen.fhdl.structure import _Fragment
@@ -175,18 +176,29 @@ class GowinToolchain(GenericToolchain):
         # Support Powershell/WSL platform
         # Some python distros for windows (e.g, oss-cad-suite)
         # which does not have 'os.uname' support, we should check 'sys.platform' firstly.
-        gw_sh = "gw_sh"
+        gw_sh      = "gw_sh"
+        gw_sh_path = which(gw_sh)
         
-        if which(gw_sh) is None:
+        if gw_sh_path is None:
             msg = "Unable to find Gowin toolchain, please:\n"
             msg += "- Add Gowin toolchain to your $PATH."
             raise OSError(msg)
 
         # Prefer Gowin's bundled libs (avoids Qt/libstdc++ version mismatches).
-        env       = os.environ.copy()
-        gowin_lib = "/opt/gowin/IDE/lib"
+        env           = os.environ.copy()
+        export_values = {
+            True:  ["DYLD_LIBRARY_PATH", "DYLD_FRAMEWORK_PATH"],
+            False: ["LD_LIBRARY_PATH"]
+        }[platform.system() == "Darwin"]
+
+        # Based on gw_sh path gowin_lib is 1 directory before
+        # So split path, removes binary name and bin directory
+        # Before rebuilding the path
+        gowin_lib = os.path.join("/".join(gw_sh_path.split("/")[:-2]), "lib")
+
         if os.path.isdir(gowin_lib):
-            env["LD_LIBRARY_PATH"] = gowin_lib + ((":" + env["LD_LIBRARY_PATH"]) if env.get("LD_LIBRARY_PATH") else "")
+            for value in export_values:
+                env[value] = gowin_lib + ((":" + env[value]) if env.get(value) else "")
         if subprocess.call([gw_sh, "run.tcl"], env=env) != 0:
             raise OSError("Error occured during Gowin's script execution.")
 
