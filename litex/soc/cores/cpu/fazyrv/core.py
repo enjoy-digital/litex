@@ -21,19 +21,6 @@ CPU_VARIANTS = {
     "standard": "fazyrv",
 }
 
-# GCC Flags ----------------------------------------------------------------------------------------
-
-GCC_FLAGS = {
-    #                       /------------ Base ISA
-    #                       |    /------- Hardware Multiply + Divide
-    #                       |    |/----- Atomics
-    #                       |    ||/---- Compressed ISA
-    #                       |    |||/--- Single-Precision Floating-Point
-    #                       |    ||||/-- Double-Precision Floating-Point
-    #                       i    macfd
-    "standard": "-march=rv32i2p0   -mabi=ilp32",
-}
-
 # FazyRV ------------------------------------------------------------------------------------------
 
 class FazyRV(CPU):
@@ -53,6 +40,7 @@ class FazyRV(CPU):
     chunksize = 8
     conf      = "MIN"
     rftype    = "BRAM_DP_BP"
+    rvc       = "NONE"
 
     # Command line configuration arguments.
     @staticmethod
@@ -61,17 +49,32 @@ class FazyRV(CPU):
         cpu_group.add_argument("--cpu-chunksize", default=8,            help="Size of the chunks, i.e., the data path.", type=int,  choices=[1, 2, 4, 8])
         cpu_group.add_argument("--cpu-conf",      default="MIN",        help="Configuration of the processor.",          type=str,  choices=["MIN", "INT", "CSR"])
         cpu_group.add_argument("--cpu-rftype",    default="BRAM_DP_BP", help="Implementation of the register file.",     type=str,  choices=["LOGIC", "BRAM", "BRAM_BP", "BRAM_DP", "BRAM_DP_BP"])
+        cpu_group.add_argument("--cpu-rvc",       default="NONE",       help="Support for compressed instructions.",     type=str,  choices=["NONE", "COMB", "REG"]) # Does not include experimental options
 
     @staticmethod
     def args_read(args):
         if(args.cpu_chunksize): FazyRV.chunksize = args.cpu_chunksize
         if(args.cpu_conf)     : FazyRV.conf      = args.cpu_conf
         if(args.cpu_rftype)   : FazyRV.rftype    = args.cpu_rftype
+        if(args.cpu_rvc)      : FazyRV.rvc       = args.cpu_rvc
+
+    # ABI.
+    @staticmethod
+    def get_abi():
+        return "ilp32"
+    
+    # Arch.
+    @staticmethod
+    def get_arch():
+        abi = "rv32i2p0"
+        if FazyRV.rvc != "NONE":
+            abi += "_c"
+        return abi
 
     # GCC Flags.
     @property
     def gcc_flags(self):
-        flags =  GCC_FLAGS[self.variant]
+        flags = f" -march={FazyRV.get_arch()} -mabi={FazyRV.get_abi()}"
         flags += " -D__fazyrv__ "
         return flags
 
@@ -91,6 +94,7 @@ class FazyRV(CPU):
             # Parameters.
             p_CHUNKSIZE = FazyRV.chunksize,
             p_CONF      = FazyRV.conf,
+            p_RVC       = FazyRV.rvc,
             p_MTVAL     = 0,
             p_BOOTADR   = 0,
             p_RFTYPE    = FazyRV.rftype,
