@@ -102,17 +102,37 @@ jobs:
 #          make
 #          sudo make install
 
-      # Build / Install Verilator
+      # Cache Verilator install (keyed on the pinned commit SHA — cache hit
+      # means a fully pre-built install tree is restored into /tmp, skipping
+      # the ~5 min configure+build+install below). Bumping the SHA naturally
+      # invalidates the key and forces a rebuild on the next run.
+      - name: Cache Verilator install
+        id: verilator-cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/verilator-install
+          key: verilator-ubuntu22-7d2d32420a630befa4097170ecbf227e04e32522
+
+      # Build / Install Verilator (only on cache miss). `--prefix` redirects
+      # the install under /tmp so the resulting tree is self-contained and
+      # cacheable as a single directory.
       - name: Build Verilator
+        if: steps.verilator-cache.outputs.cache-hit != 'true'
         run: |
           export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
           git clone https://github.com/verilator/verilator
           cd verilator
           git checkout 7d2d32420a630befa4097170ecbf227e04e32522
           autoconf
-          ./configure
+          ./configure --prefix=/tmp/verilator-install
           make -j$(nproc)
-          sudo make install
+          make install
+
+      # Copy the cached (or freshly built) install into /usr/local so the
+      # rest of the pipeline (pack-env + test jobs) sees it at the standard
+      # location.
+      - name: Install Verilator into /usr/local
+        run: sudo cp -a /tmp/verilator-install/. /usr/local/
 
       # Install Project
       - name: Install Project
@@ -123,16 +143,26 @@ jobs:
         run: |
           # pip --user site-packages + console scripts (litex_sim, etc.).
           tar czf /tmp/home.tgz --ignore-failed-read -C "$HOME" .local
-          # Verilator lands in /usr/local via `sudo make install`. Pack the
-          # whole tree — /usr/local on a fresh runner is effectively empty,
-          # so this captures every verilator file (bin, share/verilator,
-          # include, etc.) without having to enumerate them.
+          # Verilator lands in /usr/local via the install step above. Pack
+          # the whole tree — /usr/local on a fresh runner is effectively
+          # empty, so this captures every verilator file (bin,
+          # share/verilator, include, etc.) without having to enumerate.
           sudo tar czf /tmp/usr-local.tgz -C /usr/local .
           # Sibling repos cloned by litex_setup --init (migen, litex-boards,
           # pythondata-*). Exclude the litex checkout itself so the test job's
           # fresh checkout is not overwritten.
           tar czf /tmp/clones.tgz --exclude=litex -C "$RUNNER_WORKSPACE" .
-          ls -lh /tmp/home.tgz /tmp/usr-local.tgz /tmp/clones.tgz
+          # OSS CAD Suite: pack the install tree so downstream shards can
+          # restore it from this workflow's artifact instead of each one
+          # re-downloading ~500 MB from GitHub releases (which eats into
+          # bandwidth quotas). Locate the install via `yosys` on PATH —
+          # robust to whatever prefix the YosysHQ action picked.
+          OSS_BIN="$(command -v yosys)"
+          OSS_ROOT="$(dirname "$(dirname "$OSS_BIN")")"
+          echo "OSS CAD Suite at: $OSS_ROOT"
+          tar czf /tmp/oss-cad-suite.tgz \
+              -C "$(dirname "$OSS_ROOT")" "$(basename "$OSS_ROOT")"
+          ls -lh /tmp/home.tgz /tmp/usr-local.tgz /tmp/clones.tgz /tmp/oss-cad-suite.tgz
 
       # Upload Environment Artifact
       - name: Upload environment artifact
@@ -143,6 +173,7 @@ jobs:
             /tmp/home.tgz
             /tmp/usr-local.tgz
             /tmp/clones.tgz
+            /tmp/oss-cad-suite.tgz
           retention-days: 1
 
   # Run Boot Tests (one matrix shard per parametrized boot test — each GitHub
@@ -181,13 +212,9 @@ jobs:
         run: |
           python3 -m pip install setuptools requests pexpect meson pytest pytest-xdist
 
-      # Install OSS CAD Suite (same pinned version as setup).
-      - name: Install OSS CAD Suite
-        uses: YosysHQ/setup-oss-cad-suite@v3
-        with:
-          version: '2025-05-30'
-
-      # Download / Restore Environment
+      # Download / Restore Environment (OSS CAD Suite comes from the setup
+      # artifact too — avoids each of the 30+ boot shards re-downloading
+      # ~500 MB from the YosysHQ release bucket).
       - name: Download environment
         uses: actions/download-artifact@v4
         with:
@@ -198,6 +225,19 @@ jobs:
           tar xzf /tmp/home.tgz           -C "$HOME"
           sudo tar xzf /tmp/usr-local.tgz -C /usr/local
           tar xzf /tmp/clones.tgz         -C "$RUNNER_WORKSPACE"
+          tar xzf /tmp/oss-cad-suite.tgz  -C "$HOME"
+          # Source the bundled environment script to get PATH /
+          # LD_LIBRARY_PATH / GHDL_PREFIX / etc., then forward those vars to
+          # subsequent steps via $GITHUB_ENV.
+          source "$HOME/oss-cad-suite/environment"
+          {
+            echo "PATH=$PATH"
+            for v in LD_LIBRARY_PATH PKG_CONFIG_PATH GHDL_PREFIX PY_VCD_PATH YOSYSHQ_ROOT; do
+              if [ -n "${!v:-}" ]; then
+                echo "$v=${!v}"
+              fi
+            done
+          } >> "$GITHUB_ENV"
 
       # Install Project (re-registers the egg-link against this runner's
       # fresh checkout; cheap because deps are already in ~/.local).
@@ -238,11 +278,6 @@ jobs:
         run: |
           python3 -m pip install setuptools requests pexpect meson pytest pytest-xdist
 
-      - name: Install OSS CAD Suite
-        uses: YosysHQ/setup-oss-cad-suite@v3
-        with:
-          version: '2025-05-30'
-
       - name: Download environment
         uses: actions/download-artifact@v4
         with:
@@ -253,6 +288,16 @@ jobs:
           tar xzf /tmp/home.tgz           -C "$HOME"
           sudo tar xzf /tmp/usr-local.tgz -C /usr/local
           tar xzf /tmp/clones.tgz         -C "$RUNNER_WORKSPACE"
+          tar xzf /tmp/oss-cad-suite.tgz  -C "$HOME"
+          source "$HOME/oss-cad-suite/environment"
+          {
+            echo "PATH=$PATH"
+            for v in LD_LIBRARY_PATH PKG_CONFIG_PATH GHDL_PREFIX PY_VCD_PATH YOSYSHQ_ROOT; do
+              if [ -n "${!v:-}" ]; then
+                echo "$v=${!v}"
+              fi
+            done
+          } >> "$GITHUB_ENV"
 
       - name: Install Project
         run: python3 setup.py develop --user
