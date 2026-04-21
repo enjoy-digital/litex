@@ -3,6 +3,45 @@ name: ci
 on: [push, pull_request]
 
 jobs:
+  # Discover Boot Tests (collect pytest IDs from test_integration.py into a
+  # JSON matrix so every parametrized CPU / bus-config boot test becomes its
+  # own matrix shard — one GitHub runner per boot test, mirroring the
+  # "one board per runner" pattern used in linux-on-litex-vexriscv's CI).
+  discover:
+    runs-on: ubuntu-22.04
+    outputs:
+      boot_tests: ${{ steps.collect.outputs.boot_tests }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      # Minimal deps — `pytest --collect-only` only needs to import the test
+      # module. test_integration.py touches `pexpect`/`pytest` at import,
+      # nothing LiteX-specific (boot_test only runs during the test itself).
+      - name: Install collection deps
+        run: python3 -m pip install pytest pexpect
+
+      - name: Collect boot test IDs
+        id: collect
+        run: |
+          python3 - >> "$GITHUB_OUTPUT" <<'PY'
+          import json, subprocess
+          out = subprocess.check_output([
+              "python3", "-m", "pytest", "--collect-only", "-q",
+              "test/test_integration.py",
+          ]).decode()
+          ids = [
+              line for line in out.splitlines()
+              if line.startswith("test/test_integration.py::")
+          ]
+          print("boot_tests=" + json.dumps(ids))
+          PY
+
   # Setup Environment (install LiteX + toolchains + build Verilator once, then
   # upload the result as an artifact so each test shard restores it in ~20s
   # instead of repeating the ~10 min install from scratch).
@@ -32,7 +71,7 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          python3 -m pip install setuptools requests pexpect meson pytest pytest-xdist pytest-split
+          python3 -m pip install setuptools requests pexpect meson pytest pytest-xdist
 
       # Install (n)Migen / LiteX / Cores
       - name: Install LiteX
@@ -106,16 +145,16 @@ jobs:
             /tmp/clones.tgz
           retention-days: 1
 
-  # Run Tests (matrix shards — each restores the setup artifact and runs its
-  # subset of the pytest suite via pytest-split; fail-fast disabled so one
-  # broken shard does not cancel the others).
-  test:
-    needs: setup
+  # Run Boot Tests (one matrix shard per parametrized boot test — each GitHub
+  # runner boots exactly one CPU/bus configuration; fail-fast disabled so one
+  # broken boot does not cancel the rest).
+  test-boot:
+    needs: [discover, setup]
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        boot_test: ${{ fromJson(needs.discover.outputs.boot_tests) }}
     steps:
       # Checkout Repository
       - name: Checkout
@@ -140,7 +179,7 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          python3 -m pip install setuptools requests pexpect meson pytest pytest-xdist pytest-split
+          python3 -m pip install setuptools requests pexpect meson pytest pytest-xdist
 
       # Install OSS CAD Suite (same pinned version as setup).
       - name: Install OSS CAD Suite
@@ -165,9 +204,59 @@ jobs:
       - name: Install Project
         run: python3 setup.py develop --user
 
-      # Test (this shard's slice of the suite; -n auto uses the runner's
-      # cores inside the shard, --splits/--group spreads across runners).
-      - name: Run Tests (shard ${{ matrix.shard }}/4)
+      # Boot this shard's single test — it has the whole runner to itself,
+      # so litex_sim's verilator build can use all cores (_sim_jobs() falls
+      # back to os.cpu_count() when PYTEST_XDIST_WORKER_COUNT is unset).
+      - name: Run ${{ matrix.boot_test }}
         run: |
-          python3 -m pytest -v -n auto \
-            --splits 4 --group ${{ matrix.shard }}
+          python3 -m pytest -v "${{ matrix.boot_test }}"
+
+  # Run Unit Tests (everything except test_integration.py, in a single runner
+  # with pytest-xdist for intra-runner parallelism — these are fast in-process
+  # simulations, not worth one-shard-per-test).
+  test-unit:
+    needs: setup
+    runs-on: ubuntu-22.04
+    steps:
+      # Checkout Repository
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Tools
+        run: |
+          sudo apt-get install -y --no-install-recommends \
+            build-essential ninja-build libevent-dev libjson-c-dev zlib1g-dev \
+            gcc-riscv64-unknown-elf gcc-or1k-elf \
+            gcc-powerpc64le-linux-gnu binutils-multiarch
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install setuptools requests pexpect meson pytest pytest-xdist
+
+      - name: Install OSS CAD Suite
+        uses: YosysHQ/setup-oss-cad-suite@v3
+        with:
+          version: '2025-05-30'
+
+      - name: Download environment
+        uses: actions/download-artifact@v4
+        with:
+          name: env
+          path: /tmp
+      - name: Restore environment
+        run: |
+          tar xzf /tmp/home.tgz           -C "$HOME"
+          sudo tar xzf /tmp/usr-local.tgz -C /usr/local
+          tar xzf /tmp/clones.tgz         -C "$RUNNER_WORKSPACE"
+
+      - name: Install Project
+        run: python3 setup.py develop --user
+
+      - name: Run Unit Tests
+        run: |
+          python3 -m pytest -v -n auto --ignore=test/test_integration.py
