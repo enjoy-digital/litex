@@ -3,12 +3,15 @@ name: ci
 on: [push, pull_request]
 
 jobs:
-  build:
+  # Setup Environment (install LiteX + toolchains + build Verilator once, then
+  # upload the result as an artifact so each test shard restores it in ~20s
+  # instead of repeating the ~10 min install from scratch).
+  setup:
     runs-on: ubuntu-22.04
     steps:
       # Checkout Repository
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup CCache
         uses: hendrikmuhs/ccache-action@v1.2
@@ -16,11 +19,11 @@ jobs:
       # Install Tools
       - name: Install Tools
         run: |
-          sudo apt-get install wget build-essential ninja-build
+          sudo apt-get install wget build-essential ninja-build help2man
           sudo apt-get install libevent-dev libjson-c-dev flex bison
           sudo apt-get install libfl-dev libfl2 zlib1g-dev
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.9"
@@ -29,7 +32,7 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          python3 -m pip install setuptools requests pexpect meson pytest pytest-xdist
+          python3 -m pip install setuptools requests pexpect meson pytest pytest-xdist pytest-split
 
       # Install (n)Migen / LiteX / Cores
       - name: Install LiteX
@@ -63,7 +66,6 @@ jobs:
       # Build / Install Verilator
       - name: Build Verilator
         run: |
-          sudo apt-get install help2man
           export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
           git clone https://github.com/verilator/verilator
           cd verilator
@@ -77,7 +79,95 @@ jobs:
       - name: Install Project
         run: python3 setup.py develop --user
 
-      # Test
-      - name: Run Tests
+      # Pack Environment (the paths each consumer must restore).
+      - name: Pack environment
         run: |
-          python3 -m pytest -v -n auto
+          # pip --user site-packages + console scripts (litex_sim, etc.).
+          tar czf /tmp/home.tgz --ignore-failed-read -C "$HOME" .local
+          # Verilator lands in /usr/local via `sudo make install`. Pack the
+          # whole tree — /usr/local on a fresh runner is effectively empty,
+          # so this captures every verilator file (bin, share/verilator,
+          # include, etc.) without having to enumerate them.
+          sudo tar czf /tmp/usr-local.tgz -C /usr/local .
+          # Sibling repos cloned by litex_setup --init (migen, litex-boards,
+          # pythondata-*). Exclude the litex checkout itself so the test job's
+          # fresh checkout is not overwritten.
+          tar czf /tmp/clones.tgz --exclude=litex -C "$RUNNER_WORKSPACE" .
+          ls -lh /tmp/home.tgz /tmp/usr-local.tgz /tmp/clones.tgz
+
+      # Upload Environment Artifact
+      - name: Upload environment artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: env
+          path: |
+            /tmp/home.tgz
+            /tmp/usr-local.tgz
+            /tmp/clones.tgz
+          retention-days: 1
+
+  # Run Tests (matrix shards — each restores the setup artifact and runs its
+  # subset of the pytest suite via pytest-split; fail-fast disabled so one
+  # broken shard does not cancel the others).
+  test:
+    needs: setup
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      # Checkout Repository
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Install Tools (slim — only what is needed at test time; the heavy
+      # pieces, LiteX / Verilator / cloned sibling repos, ride along in the
+      # setup artifact. GCC cross-toolchains are installed via apt here
+      # because the setup job installed them system-wide under /usr and we
+      # deliberately do not ship /usr in the artifact).
+      - name: Install Tools
+        run: |
+          sudo apt-get install -y --no-install-recommends \
+            build-essential ninja-build libevent-dev libjson-c-dev zlib1g-dev \
+            gcc-riscv64-unknown-elf gcc-or1k-elf \
+            gcc-powerpc64le-linux-gnu binutils-multiarch
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install setuptools requests pexpect meson pytest pytest-xdist pytest-split
+
+      # Install OSS CAD Suite (same pinned version as setup).
+      - name: Install OSS CAD Suite
+        uses: YosysHQ/setup-oss-cad-suite@v3
+        with:
+          version: '2025-05-30'
+
+      # Download / Restore Environment
+      - name: Download environment
+        uses: actions/download-artifact@v4
+        with:
+          name: env
+          path: /tmp
+      - name: Restore environment
+        run: |
+          tar xzf /tmp/home.tgz           -C "$HOME"
+          sudo tar xzf /tmp/usr-local.tgz -C /usr/local
+          tar xzf /tmp/clones.tgz         -C "$RUNNER_WORKSPACE"
+
+      # Install Project (re-registers the egg-link against this runner's
+      # fresh checkout; cheap because deps are already in ~/.local).
+      - name: Install Project
+        run: python3 setup.py develop --user
+
+      # Test (this shard's slice of the suite; -n auto uses the runner's
+      # cores inside the shard, --splits/--group spreads across runners).
+      - name: Run Tests (shard ${{ matrix.shard }}/4)
+        run: |
+          python3 -m pytest -v -n auto \
+            --splits 4 --group ${{ matrix.shard }}
