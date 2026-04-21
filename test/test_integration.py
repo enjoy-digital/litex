@@ -12,8 +12,18 @@ import tempfile
 import itertools
 import pytest
 
-def boot_test(cpu_type="vexriscv", cpu_variant="standard", args=""):
-    cmd = f'litex_sim --cpu-type={cpu_type} --cpu-variant={cpu_variant} {args} --opt-level=O0 --jobs {os.cpu_count()}'
+def _sim_jobs():
+    # When pytest-xdist is running several tests in parallel, divide the
+    # available cores between workers to avoid oversubscribing the build.
+    workers = int(os.environ.get("PYTEST_XDIST_WORKER_COUNT", "1") or "1")
+    return max(1, (os.cpu_count() or 1) // max(1, workers))
+
+def boot_test(cpu_type="vexriscv", cpu_variant="standard", args="", output_dir=None):
+    output_arg = f' --output-dir={output_dir}' if output_dir else ''
+    cmd = (
+        f'litex_sim --cpu-type={cpu_type} --cpu-variant={cpu_variant} {args}'
+        f'{output_arg} --opt-level=O0 --jobs {_sim_jobs()}'
+    )
     litex_prompt = [r'\033\[[0-9;]+mlitex\033\[[0-9;]+m>']
     is_success = True
 
@@ -76,8 +86,8 @@ UNTESTED_CPUS = [
 ]
 
 @pytest.mark.parametrize("cpu", TESTED_CPUS)
-def test_cpu(cpu, request):
-    assert boot_test(cpu_type=cpu)
+def test_cpu(cpu, request, tmp_path):
+    assert boot_test(cpu_type=cpu, output_dir=str(tmp_path))
 
 BUS_OPTIONS = [
     ("--bus-standard", ["wishbone", "axi-lite", "axi"]),
@@ -127,5 +137,5 @@ def _build_bus_cases():
 BUS_CASES = _build_bus_cases()
 
 @pytest.mark.parametrize("args", BUS_CASES)
-def test_buses(args, request):
-    assert boot_test(args=args)
+def test_buses(args, request, tmp_path):
+    assert boot_test(args=args, output_dir=str(tmp_path))
