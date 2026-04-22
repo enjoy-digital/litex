@@ -3,49 +3,7 @@ name: ci
 on: [push, pull_request]
 
 jobs:
-  # Discover Boot Tests (collect pytest IDs from test_integration.py into a
-  # JSON matrix so every parametrized CPU / bus-config boot test becomes its
-  # own matrix shard — one GitHub runner per boot test, mirroring the
-  # "one board per runner" pattern used in linux-on-litex-vexriscv's CI).
-  discover:
-    runs-on: ubuntu-22.04
-    outputs:
-      boot_tests: ${{ steps.collect.outputs.boot_tests }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.9"
-
-      # Minimal deps — `pytest --collect-only` only needs to import the test
-      # module. test_integration.py touches `pexpect`/`pytest` at import,
-      # nothing LiteX-specific (boot_test only runs during the test itself).
-      - name: Install collection deps
-        run: python3 -m pip install pytest pexpect
-
-      - name: Collect boot test IDs
-        id: collect
-        run: |
-          python3 - >> "$GITHUB_OUTPUT" <<'PY'
-          import json, subprocess
-          out = subprocess.check_output([
-              "python3", "-m", "pytest", "--collect-only", "-q",
-              "test/test_integration.py",
-          ]).decode()
-          ids = [
-              line for line in out.splitlines()
-              if line.startswith("test/test_integration.py::")
-          ]
-          print("boot_tests=" + json.dumps(ids))
-          PY
-
-  # Setup Environment (install LiteX + toolchains + build Verilator once, then
-  # upload the result as an artifact so each test shard restores it in ~20s
-  # instead of repeating the ~10 min install from scratch).
-  setup:
+  build:
     runs-on: ubuntu-22.04
     steps:
       # Checkout Repository
@@ -73,27 +31,20 @@ jobs:
         run: |
           python3 -m pip install setuptools requests pexpect meson pytest pytest-xdist
 
-      # Install (n)Migen / LiteX / Cores. Not cached: most sibling repos
-      # (pythondata-cpu-*, lite*, etc.) are unpinned in litex_setup.py and
-      # track upstream HEAD, so a hashFiles('litex_setup.py') cache key
-      # would stick on a stale snapshot whenever upstream moved. Re-cloning
-      # each run is the price of staying current.
+      # Install (n)Migen / LiteX / Cores
       - name: Install LiteX
         run: |
           python3 litex_setup.py --config=full --init --install --user --dev
 
-      # Install GCC Toolchains (apt — fast, always runs because the
-      # toolchains land under /usr which we do not cache).
+      # Install GCC Toolchains
       - name: Install GCC Toolchains
         run: |
           sudo python3 litex_setup.py --gcc=riscv
           sudo python3 litex_setup.py --gcc=openrisc
           sudo python3 litex_setup.py --gcc=powerpc
 
-      # Cache OSS CAD Suite (keyed on the pinned release version — cache hit
-      # means every consumer (setup + test shards) restores from GitHub's
-      # cache infrastructure rather than pulling ~500 MB from the YosysHQ
-      # release bucket, avoiding external bandwidth usage).
+      # Cache OSS CAD Suite (keyed on pinned release version — cache hit
+      # skips the ~500 MB download from the YosysHQ release bucket).
       - name: Cache OSS CAD Suite
         id: oss-cache
         uses: actions/cache@v4
@@ -101,19 +52,16 @@ jobs:
           path: ~/oss-cad-suite
           key: oss-cad-suite-2025-05-30-ubuntu22
 
-      # Install OSS CAD Suite (only on cache miss). Download the release
-      # tarball directly to $HOME — skips the YosysHQ action because it
-      # extracts into an internal tool-cache path that is awkward to
-      # relocate; curl + tar gives a deterministic $HOME/oss-cad-suite.
+      # Install OSS CAD Suite (only on cache miss). Direct curl to $HOME —
+      # deterministic install path, no tool-cache indirection.
       - name: Install OSS CAD Suite
         if: steps.oss-cache.outputs.cache-hit != 'true'
         run: |
           URL="https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2025-05-30/oss-cad-suite-linux-x64-20250530.tgz"
           curl -fsSL "$URL" | tar xz -C "$HOME"
 
-      # Forward OSS CAD Suite env (PATH / LD_LIBRARY_PATH / GHDL_PREFIX /
-      # etc.) to subsequent steps — runs on both cache-hit and cache-miss
-      # paths so $GITHUB_ENV always gets populated.
+      # Forward OSS CAD Suite env (PATH / LD_LIBRARY_PATH / GHDL_PREFIX / etc.)
+      # to subsequent steps. Runs whether cache hit or miss.
       - name: Export OSS CAD Suite env
         run: |
           source "$HOME/oss-cad-suite/environment"
@@ -137,10 +85,8 @@ jobs:
 #          make
 #          sudo make install
 
-      # Cache Verilator install (keyed on the pinned commit SHA — cache hit
-      # means a fully pre-built install tree is restored into /tmp, skipping
-      # the ~5 min configure+build+install below). Bumping the SHA naturally
-      # invalidates the key and forces a rebuild on the next run.
+      # Cache Verilator install (keyed on pinned commit SHA — cache hit
+      # skips the ~15 min build. Bumping the SHA invalidates the cache).
       - name: Cache Verilator install
         id: verilator-cache
         uses: actions/cache@v4
@@ -148,9 +94,8 @@ jobs:
           path: /tmp/verilator-install
           key: verilator-ubuntu22-7d2d32420a630befa4097170ecbf227e04e32522
 
-      # Build / Install Verilator (only on cache miss). `--prefix` redirects
-      # the install under /tmp so the resulting tree is self-contained and
-      # cacheable as a single directory.
+      # Build / Install Verilator (only on cache miss). `--prefix` under /tmp
+      # so the install tree is a self-contained cacheable directory.
       - name: Build Verilator
         if: steps.verilator-cache.outputs.cache-hit != 'true'
         run: |
@@ -163,193 +108,15 @@ jobs:
           make -j$(nproc)
           make install
 
-      # Install Verilator into /usr/local so setup.py develop + any local
-      # verification can see it. Test jobs repeat this copy against their
-      # own cache restore.
+      # Copy verilator (cached or freshly built) into the standard location.
       - name: Install Verilator into /usr/local
         run: sudo cp -a /tmp/verilator-install/. /usr/local/
 
-      # Install Project (registers the litex egg-link against this runner's
-      # checkout; idempotent and cheap).
+      # Install Project
       - name: Install Project
         run: python3 setup.py develop --user
 
-  # Run Boot Tests (one matrix shard per parametrized boot test — each GitHub
-  # runner boots exactly one CPU/bus configuration; fail-fast disabled so one
-  # broken boot does not cancel the rest).
-  test-boot:
-    needs: [discover, setup]
-    runs-on: ubuntu-22.04
-    strategy:
-      fail-fast: false
-      matrix:
-        boot_test: ${{ fromJson(needs.discover.outputs.boot_tests) }}
-    steps:
-      # Checkout Repository
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      # Install Tools (slim — host build deps + GCC cross-toolchains. The
-      # heavy pieces all come from caches populated by `setup`.)
-      - name: Install Tools
+      # Test (pytest-xdist runs tests in parallel across the runner's cores).
+      - name: Run Tests
         run: |
-          sudo apt-get install -y --no-install-recommends \
-            build-essential ninja-build libevent-dev libjson-c-dev zlib1g-dev \
-            gcc-riscv64-unknown-elf gcc-or1k-elf \
-            gcc-powerpc64le-linux-gnu binutils-multiarch
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.9"
-
-      - name: Install Python dependencies
-        run: |
-          python3 -m pip install setuptools requests pexpect meson pytest pytest-xdist
-
-      # Restore caches populated by `setup` (same keys). With `needs: setup`
-      # the post-step writes are already committed to the GH cache tier by
-      # the time this job starts. Fallbacks only fire if the cache somehow
-      # missed.
-      # Install LiteX (not cached — see setup job for rationale).
-      - name: Install LiteX
-        run: python3 litex_setup.py --config=full --init --install --user --dev
-
-      - name: Cache OSS CAD Suite
-        id: oss-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/oss-cad-suite
-          key: oss-cad-suite-2025-05-30-ubuntu22
-      - name: Install OSS CAD Suite (fallback)
-        if: steps.oss-cache.outputs.cache-hit != 'true'
-        run: |
-          URL="https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2025-05-30/oss-cad-suite-linux-x64-20250530.tgz"
-          curl -fsSL "$URL" | tar xz -C "$HOME"
-
-      - name: Cache Verilator install
-        id: verilator-cache
-        uses: actions/cache@v4
-        with:
-          path: /tmp/verilator-install
-          key: verilator-ubuntu22-7d2d32420a630befa4097170ecbf227e04e32522
-      - name: Build Verilator (fallback)
-        if: steps.verilator-cache.outputs.cache-hit != 'true'
-        run: |
-          export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
-          sudo apt-get install -y --no-install-recommends help2man flex bison libfl-dev libfl2
-          git clone https://github.com/verilator/verilator
-          cd verilator
-          git checkout 7d2d32420a630befa4097170ecbf227e04e32522
-          autoconf
-          ./configure --prefix=/tmp/verilator-install
-          make -j$(nproc)
-          make install
-
-      # Place verilator at the standard path and wire up OSS CAD Suite env.
-      - name: Finalize environment
-        run: |
-          sudo cp -a /tmp/verilator-install/. /usr/local/
-          source "$HOME/oss-cad-suite/environment"
-          {
-            echo "PATH=$PATH"
-            for v in LD_LIBRARY_PATH PKG_CONFIG_PATH GHDL_PREFIX PY_VCD_PATH YOSYSHQ_ROOT; do
-              if [ -n "${!v:-}" ]; then
-                echo "$v=${!v}"
-              fi
-            done
-          } >> "$GITHUB_ENV"
-
-      # Install Project (re-registers the egg-link against this runner's
-      # fresh checkout; cheap because deps are already in ~/.local).
-      - name: Install Project
-        run: python3 setup.py develop --user
-
-      # Boot this shard's single test — it has the whole runner to itself,
-      # so litex_sim's verilator build can use all cores (_sim_jobs() falls
-      # back to os.cpu_count() when PYTEST_XDIST_WORKER_COUNT is unset).
-      - name: Run ${{ matrix.boot_test }}
-        run: |
-          python3 -m pytest -v "${{ matrix.boot_test }}"
-
-  # Run Unit Tests (everything except test_integration.py, in a single runner
-  # with pytest-xdist for intra-runner parallelism — these are fast in-process
-  # simulations, not worth one-shard-per-test).
-  test-unit:
-    needs: setup
-    runs-on: ubuntu-22.04
-    steps:
-      # Checkout Repository
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install Tools
-        run: |
-          sudo apt-get install -y --no-install-recommends \
-            build-essential ninja-build libevent-dev libjson-c-dev zlib1g-dev \
-            gcc-riscv64-unknown-elf gcc-or1k-elf \
-            gcc-powerpc64le-linux-gnu binutils-multiarch
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.9"
-
-      - name: Install Python dependencies
-        run: |
-          python3 -m pip install setuptools requests pexpect meson pytest pytest-xdist
-
-      # Install LiteX (not cached — see setup job for rationale).
-      - name: Install LiteX
-        run: python3 litex_setup.py --config=full --init --install --user --dev
-
-      - name: Cache OSS CAD Suite
-        id: oss-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/oss-cad-suite
-          key: oss-cad-suite-2025-05-30-ubuntu22
-      - name: Install OSS CAD Suite (fallback)
-        if: steps.oss-cache.outputs.cache-hit != 'true'
-        run: |
-          URL="https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2025-05-30/oss-cad-suite-linux-x64-20250530.tgz"
-          curl -fsSL "$URL" | tar xz -C "$HOME"
-
-      - name: Cache Verilator install
-        id: verilator-cache
-        uses: actions/cache@v4
-        with:
-          path: /tmp/verilator-install
-          key: verilator-ubuntu22-7d2d32420a630befa4097170ecbf227e04e32522
-      - name: Build Verilator (fallback)
-        if: steps.verilator-cache.outputs.cache-hit != 'true'
-        run: |
-          export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
-          sudo apt-get install -y --no-install-recommends help2man flex bison libfl-dev libfl2
-          git clone https://github.com/verilator/verilator
-          cd verilator
-          git checkout 7d2d32420a630befa4097170ecbf227e04e32522
-          autoconf
-          ./configure --prefix=/tmp/verilator-install
-          make -j$(nproc)
-          make install
-
-      - name: Finalize environment
-        run: |
-          sudo cp -a /tmp/verilator-install/. /usr/local/
-          source "$HOME/oss-cad-suite/environment"
-          {
-            echo "PATH=$PATH"
-            for v in LD_LIBRARY_PATH PKG_CONFIG_PATH GHDL_PREFIX PY_VCD_PATH YOSYSHQ_ROOT; do
-              if [ -n "${!v:-}" ]; then
-                echo "$v=${!v}"
-              fi
-            done
-          } >> "$GITHUB_ENV"
-
-      - name: Install Project
-        run: python3 setup.py develop --user
-
-      - name: Run Unit Tests
-        run: |
-          python3 -m pytest -v -n auto --ignore=test/test_integration.py
+          python3 -m pytest -v -n auto
