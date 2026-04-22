@@ -47,12 +47,16 @@ jobs:
         run: |
           python3 litex_setup.py --config=full --init --install --user --dev
 
-      # Install GCC Toolchains
+      # Install GCC Toolchains (cached). The four packages below are what
+      # `litex_setup.py --gcc={riscv,openrisc,powerpc}` resolves to on
+      # Ubuntu — bypass litex_setup here so the cache action can see the
+      # concrete package list and handle restore. On cache hit the .debs
+      # are replayed from cache; on miss apt install runs and repopulates.
       - name: Install GCC Toolchains
-        run: |
-          sudo python3 litex_setup.py --gcc=riscv
-          sudo python3 litex_setup.py --gcc=openrisc
-          sudo python3 litex_setup.py --gcc=powerpc
+        uses: awalsh128/cache-apt-pkgs-action@v1
+        with:
+          packages: gcc-riscv64-unknown-elf gcc-or1k-elf gcc-powerpc64le-linux-gnu binutils-multiarch
+          version: 1.0
 
       # Cache OSS CAD Suite (keyed on pinned release version — cache hit
       # skips the ~500 MB download from the YosysHQ release bucket).
