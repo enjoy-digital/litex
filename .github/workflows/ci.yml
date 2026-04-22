@@ -129,11 +129,20 @@ jobs:
 
       # Test: pytest-xdist `-n auto` distributes across the runner's 4
       # cores inside each shard; pytest-split `--splits 4 --group N`
-      # distributes across the four matrix shards. `--durations=0` logs
-      # every test's runtime so we can see which boot tests dominate
-      # (useful for later committing a .test_durations file for balanced
-      # splitting — without it, pytest-split distributes by test count).
+      # distributes across the four matrix shards.
+      #
+      # `--splitting-algorithm least_duration` is important: its sibling
+      # `duration_based_chunks` (the default) makes contiguous slices of
+      # the test collection order, so with no .test_durations file all
+      # the slow test_cpu[*] parametrizations cluster on the first
+      # shard(s). least_duration falls back to round-robin assignment
+      # without a durations file, spreading the expensive boot tests
+      # evenly across the matrix.
+      #
+      # `--durations=0` logs every test's runtime so you can later
+      # commit a .test_durations file for even more precise balance.
       - name: Run Tests (shard ${{ matrix.group }}/4)
         run: |
           python3 -m pytest -v -n auto --durations=0 \
-            --splits 4 --group ${{ matrix.group }}
+            --splits 4 --group ${{ matrix.group }} \
+            --splitting-algorithm least_duration
