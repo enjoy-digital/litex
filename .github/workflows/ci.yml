@@ -73,12 +73,33 @@ jobs:
         run: |
           python3 -m pip install setuptools requests pexpect meson pytest pytest-xdist
 
-      # Install (n)Migen / LiteX / Cores
+      # Cache LiteX install: ~/.local (pip --user site-packages + console
+      # scripts + egg-links registered by `pip install -e`) plus the sibling
+      # clones produced by `litex_setup --init`. Key on the litex_setup.py
+      # content so any pin bump naturally invalidates. Cache hit means the
+      # setup job and every test shard skip the multi-GB clone + install —
+      # this replaces the previous pack+artifact pipeline whose pack step
+      # alone was ~20 min.
+      - name: Cache LiteX install
+        id: litex-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local
+            /home/runner/work/litex/migen
+            /home/runner/work/litex/lite*
+            /home/runner/work/litex/pythondata-*
+            !/home/runner/work/litex/litex
+          key: litex-install-ubuntu22-${{ hashFiles('litex_setup.py') }}
+
+      # Install (n)Migen / LiteX / Cores (only on cache miss).
       - name: Install LiteX
+        if: steps.litex-cache.outputs.cache-hit != 'true'
         run: |
           python3 litex_setup.py --config=full --init --install --user --dev
 
-      # Install GCC Toolchains
+      # Install GCC Toolchains (apt — fast, always runs because the
+      # toolchains land under /usr which we do not cache).
       - name: Install GCC Toolchains
         run: |
           sudo python3 litex_setup.py --gcc=riscv
@@ -158,69 +179,16 @@ jobs:
           make -j$(nproc)
           make install
 
-      # Copy the cached (or freshly built) install into /usr/local so the
-      # rest of the pipeline (pack-env + test jobs) sees it at the standard
-      # location.
+      # Install Verilator into /usr/local so setup.py develop + any local
+      # verification can see it. Test jobs repeat this copy against their
+      # own cache restore.
       - name: Install Verilator into /usr/local
         run: sudo cp -a /tmp/verilator-install/. /usr/local/
 
-      # Install Project
+      # Install Project (registers the litex egg-link against this runner's
+      # checkout; idempotent and cheap).
       - name: Install Project
         run: python3 setup.py develop --user
-
-      # Pack Environment (the paths each consumer must restore). Use zstd
-      # instead of gzip — gzip is single-threaded and turned the multi-GB
-      # clones tarball into a ~29 min bottleneck; zstd is several times
-      # faster at similar compression.
-      - name: Pack environment
-        run: |
-          # Strip .git from sibling clones — the working tree is what the
-          # test shards run from, histories are dead weight and account for
-          # a large fraction of the payload. KEEP .git for SpinalHDL-based
-          # pythondata wrappers (vexriscv, vexriscv-smp, naxriscv, vexiiriscv)
-          # as a safety hedge: their sbt-driven netlist regeneration clones
-          # SpinalHDL into nested ext/X/ subdirs, and sbt build.sbt shells
-          # out to `git rev-parse HEAD`.
-          KEEP_GIT='pythondata-cpu-vexriscv pythondata-cpu-vexriscv-smp pythondata-cpu-naxriscv pythondata-cpu-vexiiriscv'
-          for dir in "$RUNNER_WORKSPACE"/*/; do
-            name="$(basename "$dir")"
-            [ "$name" = "litex" ] && continue
-            keep=false
-            for k in $KEEP_GIT; do
-              [ "$name" = "$k" ] && keep=true && break
-            done
-            if ! $keep && [ -d "$dir/.git" ]; then
-              rm -rf "$dir/.git"
-            fi
-          done
-          # pip --user site-packages + console scripts (litex_sim, etc.).
-          tar --zstd -cf /tmp/home.tar.zst --ignore-failed-read -C "$HOME" .local
-          # Verilator lands in /usr/local via the install step above. Pack
-          # the whole tree — /usr/local on a fresh runner is effectively
-          # empty, so this captures every verilator file (bin,
-          # share/verilator, include, etc.) without having to enumerate.
-          sudo tar --zstd -cf /tmp/usr-local.tar.zst -C /usr/local .
-          # Sibling repos cloned by litex_setup --init (migen, litex-boards,
-          # pythondata-*). Exclude the litex checkout itself so the test
-          # job's fresh checkout is not overwritten.
-          tar --zstd -cf /tmp/clones.tar.zst \
-              --exclude=litex \
-              -C "$RUNNER_WORKSPACE" .
-          ls -lh /tmp/home.tar.zst /tmp/usr-local.tar.zst /tmp/clones.tar.zst
-
-      # Upload Environment Artifact. The tarballs are already zstd-compressed,
-      # so disable upload-artifact's own zip pass (compression-level: 0) — it
-      # would only waste CPU re-compressing incompressible data.
-      - name: Upload environment artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: env
-          path: |
-            /tmp/home.tar.zst
-            /tmp/usr-local.tar.zst
-            /tmp/clones.tar.zst
-          compression-level: 0
-          retention-days: 1
 
   # Run Boot Tests (one matrix shard per parametrized boot test — each GitHub
   # runner boots exactly one CPU/bus configuration; fail-fast disabled so one
@@ -237,11 +205,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Install Tools (slim — only what is needed at test time; the heavy
-      # pieces, LiteX / Verilator / cloned sibling repos, ride along in the
-      # setup artifact. GCC cross-toolchains are installed via apt here
-      # because the setup job installed them system-wide under /usr and we
-      # deliberately do not ship /usr in the artifact).
+      # Install Tools (slim — host build deps + GCC cross-toolchains. The
+      # heavy pieces all come from caches populated by `setup`.)
       - name: Install Tools
         run: |
           sudo apt-get install -y --no-install-recommends \
@@ -258,9 +223,25 @@ jobs:
         run: |
           python3 -m pip install setuptools requests pexpect meson pytest pytest-xdist
 
-      # Restore OSS CAD Suite from the cross-run cache populated by `setup`
-      # (same key). Fallback to a direct download only if the cache somehow
-      # missed — normally setup's post-step has written it by now.
+      # Restore caches populated by `setup` (same keys). With `needs: setup`
+      # the post-step writes are already committed to the GH cache tier by
+      # the time this job starts. Fallbacks only fire if the cache somehow
+      # missed.
+      - name: Cache LiteX install
+        id: litex-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local
+            /home/runner/work/litex/migen
+            /home/runner/work/litex/lite*
+            /home/runner/work/litex/pythondata-*
+            !/home/runner/work/litex/litex
+          key: litex-install-ubuntu22-${{ hashFiles('litex_setup.py') }}
+      - name: Install LiteX (fallback)
+        if: steps.litex-cache.outputs.cache-hit != 'true'
+        run: python3 litex_setup.py --config=full --init --install --user --dev
+
       - name: Cache OSS CAD Suite
         id: oss-cache
         uses: actions/cache@v4
@@ -273,19 +254,29 @@ jobs:
           URL="https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2025-05-30/oss-cad-suite-linux-x64-20250530.tgz"
           curl -fsSL "$URL" | tar xz -C "$HOME"
 
-      # Download / Restore Environment
-      - name: Download environment
-        uses: actions/download-artifact@v4
+      - name: Cache Verilator install
+        id: verilator-cache
+        uses: actions/cache@v4
         with:
-          name: env
-          path: /tmp
-      - name: Restore environment
+          path: /tmp/verilator-install
+          key: verilator-ubuntu22-7d2d32420a630befa4097170ecbf227e04e32522
+      - name: Build Verilator (fallback)
+        if: steps.verilator-cache.outputs.cache-hit != 'true'
         run: |
-          tar --zstd -xf /tmp/home.tar.zst           -C "$HOME"
-          sudo tar --zstd -xf /tmp/usr-local.tar.zst -C /usr/local
-          tar --zstd -xf /tmp/clones.tar.zst         -C "$RUNNER_WORKSPACE"
-          # Source the OSS CAD Suite environment script and forward its vars
-          # to subsequent steps via $GITHUB_ENV.
+          export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
+          sudo apt-get install -y --no-install-recommends help2man flex bison libfl-dev libfl2
+          git clone https://github.com/verilator/verilator
+          cd verilator
+          git checkout 7d2d32420a630befa4097170ecbf227e04e32522
+          autoconf
+          ./configure --prefix=/tmp/verilator-install
+          make -j$(nproc)
+          make install
+
+      # Place verilator at the standard path and wire up OSS CAD Suite env.
+      - name: Finalize environment
+        run: |
+          sudo cp -a /tmp/verilator-install/. /usr/local/
           source "$HOME/oss-cad-suite/environment"
           {
             echo "PATH=$PATH"
@@ -335,6 +326,21 @@ jobs:
         run: |
           python3 -m pip install setuptools requests pexpect meson pytest pytest-xdist
 
+      - name: Cache LiteX install
+        id: litex-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local
+            /home/runner/work/litex/migen
+            /home/runner/work/litex/lite*
+            /home/runner/work/litex/pythondata-*
+            !/home/runner/work/litex/litex
+          key: litex-install-ubuntu22-${{ hashFiles('litex_setup.py') }}
+      - name: Install LiteX (fallback)
+        if: steps.litex-cache.outputs.cache-hit != 'true'
+        run: python3 litex_setup.py --config=full --init --install --user --dev
+
       - name: Cache OSS CAD Suite
         id: oss-cache
         uses: actions/cache@v4
@@ -347,16 +353,28 @@ jobs:
           URL="https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2025-05-30/oss-cad-suite-linux-x64-20250530.tgz"
           curl -fsSL "$URL" | tar xz -C "$HOME"
 
-      - name: Download environment
-        uses: actions/download-artifact@v4
+      - name: Cache Verilator install
+        id: verilator-cache
+        uses: actions/cache@v4
         with:
-          name: env
-          path: /tmp
-      - name: Restore environment
+          path: /tmp/verilator-install
+          key: verilator-ubuntu22-7d2d32420a630befa4097170ecbf227e04e32522
+      - name: Build Verilator (fallback)
+        if: steps.verilator-cache.outputs.cache-hit != 'true'
         run: |
-          tar --zstd -xf /tmp/home.tar.zst           -C "$HOME"
-          sudo tar --zstd -xf /tmp/usr-local.tar.zst -C /usr/local
-          tar --zstd -xf /tmp/clones.tar.zst         -C "$RUNNER_WORKSPACE"
+          export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
+          sudo apt-get install -y --no-install-recommends help2man flex bison libfl-dev libfl2
+          git clone https://github.com/verilator/verilator
+          cd verilator
+          git checkout 7d2d32420a630befa4097170ecbf227e04e32522
+          autoconf
+          ./configure --prefix=/tmp/verilator-install
+          make -j$(nproc)
+          make install
+
+      - name: Finalize environment
+        run: |
+          sudo cp -a /tmp/verilator-install/. /usr/local/
           source "$HOME/oss-cad-suite/environment"
           {
             echo "PATH=$PATH"
