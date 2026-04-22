@@ -85,11 +85,49 @@ jobs:
           sudo python3 litex_setup.py --gcc=openrisc
           sudo python3 litex_setup.py --gcc=powerpc
 
-      # Install OSS CAD Suite (Fixed version to avoid issue with GHDL)
+      # Cache OSS CAD Suite (keyed on the pinned release version — cache hit
+      # means every test shard restores the suite from GitHub's cache
+      # infrastructure rather than downloading it from the YosysHQ release
+      # bucket, avoiding external bandwidth usage entirely).
+      - name: Cache OSS CAD Suite
+        id: oss-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/oss-cad-suite
+          key: oss-cad-suite-2025-05-30-ubuntu22
+
+      # Install OSS CAD Suite (only on cache miss). The YosysHQ action
+      # extracts to $GITHUB_WORKSPACE/oss-cad-suite; move to $HOME so the
+      # cache path is stable across jobs.
       - name: Install OSS CAD Suite
+        if: steps.oss-cache.outputs.cache-hit != 'true'
         uses: YosysHQ/setup-oss-cad-suite@v3
         with:
           version: '2025-05-30'
+
+      - name: Stash OSS CAD Suite to $HOME
+        if: steps.oss-cache.outputs.cache-hit != 'true'
+        run: |
+          if [ -d "$GITHUB_WORKSPACE/oss-cad-suite" ] && [ ! -d "$HOME/oss-cad-suite" ]; then
+            mv "$GITHUB_WORKSPACE/oss-cad-suite" "$HOME/oss-cad-suite"
+          fi
+
+      # Forward OSS CAD Suite env (PATH / LD_LIBRARY_PATH / GHDL_PREFIX /
+      # etc.) to subsequent steps — this covers both the cache-hit path
+      # (action never ran, so $GITHUB_ENV was never populated) and the
+      # cache-miss path (where the mv above invalidated whatever the action
+      # had set).
+      - name: Export OSS CAD Suite env
+        run: |
+          source "$HOME/oss-cad-suite/environment"
+          {
+            echo "PATH=$PATH"
+            for v in LD_LIBRARY_PATH PKG_CONFIG_PATH GHDL_PREFIX PY_VCD_PATH YOSYSHQ_ROOT; do
+              if [ -n "${!v:-}" ]; then
+                echo "$v=${!v}"
+              fi
+            done
+          } >> "$GITHUB_ENV"
 
 #      # Build / Install GHDL
 #      - name: Build GHDL
@@ -141,10 +179,28 @@ jobs:
       # Pack Environment (the paths each consumer must restore). Use zstd
       # instead of gzip — gzip is single-threaded and turned the multi-GB
       # clones tarball into a ~29 min bottleneck; zstd is several times
-      # faster at similar compression. `.git` directories are stripped from
-      # the clones because test shards never need the history.
+      # faster at similar compression.
       - name: Pack environment
         run: |
+          # Strip .git from sibling clones — the working tree is what the
+          # test shards run from, histories are dead weight and account for
+          # a large fraction of the payload. KEEP .git for SpinalHDL-based
+          # pythondata wrappers (vexriscv, vexriscv-smp, naxriscv, vexiiriscv)
+          # as a safety hedge: their sbt-driven netlist regeneration clones
+          # SpinalHDL into nested ext/X/ subdirs, and sbt build.sbt shells
+          # out to `git rev-parse HEAD`.
+          KEEP_GIT='pythondata-cpu-vexriscv pythondata-cpu-vexriscv-smp pythondata-cpu-naxriscv pythondata-cpu-vexiiriscv'
+          for dir in "$RUNNER_WORKSPACE"/*/; do
+            name="$(basename "$dir")"
+            [ "$name" = "litex" ] && continue
+            keep=false
+            for k in $KEEP_GIT; do
+              [ "$name" = "$k" ] && keep=true && break
+            done
+            if ! $keep && [ -d "$dir/.git" ]; then
+              rm -rf "$dir/.git"
+            fi
+          done
           # pip --user site-packages + console scripts (litex_sim, etc.).
           tar --zstd -cf /tmp/home.tar.zst --ignore-failed-read -C "$HOME" .local
           # Verilator lands in /usr/local via the install step above. Pack
@@ -153,24 +209,12 @@ jobs:
           # share/verilator, include, etc.) without having to enumerate.
           sudo tar --zstd -cf /tmp/usr-local.tar.zst -C /usr/local .
           # Sibling repos cloned by litex_setup --init (migen, litex-boards,
-          # pythondata-*). Exclude the litex checkout itself so the test job's
-          # fresh checkout is not overwritten, and skip .git directories
-          # (checked out at pinned SHAs — histories are dead weight for the
-          # test shards and account for a large fraction of the tarball).
+          # pythondata-*). Exclude the litex checkout itself so the test
+          # job's fresh checkout is not overwritten.
           tar --zstd -cf /tmp/clones.tar.zst \
-              --exclude=litex --exclude='.git' \
+              --exclude=litex \
               -C "$RUNNER_WORKSPACE" .
-          # OSS CAD Suite: pack the install tree so downstream shards can
-          # restore it from this workflow's artifact instead of each one
-          # re-downloading ~500 MB from GitHub releases (which eats into
-          # bandwidth quotas). Locate the install via `yosys` on PATH —
-          # robust to whatever prefix the YosysHQ action picked.
-          OSS_BIN="$(command -v yosys)"
-          OSS_ROOT="$(dirname "$(dirname "$OSS_BIN")")"
-          echo "OSS CAD Suite at: $OSS_ROOT"
-          tar --zstd -cf /tmp/oss-cad-suite.tar.zst \
-              -C "$(dirname "$OSS_ROOT")" "$(basename "$OSS_ROOT")"
-          ls -lh /tmp/home.tar.zst /tmp/usr-local.tar.zst /tmp/clones.tar.zst /tmp/oss-cad-suite.tar.zst
+          ls -lh /tmp/home.tar.zst /tmp/usr-local.tar.zst /tmp/clones.tar.zst
 
       # Upload Environment Artifact. The tarballs are already zstd-compressed,
       # so disable upload-artifact's own zip pass (compression-level: 0) — it
@@ -183,7 +227,6 @@ jobs:
             /tmp/home.tar.zst
             /tmp/usr-local.tar.zst
             /tmp/clones.tar.zst
-            /tmp/oss-cad-suite.tar.zst
           compression-level: 0
           retention-days: 1
 
@@ -223,9 +266,28 @@ jobs:
         run: |
           python3 -m pip install setuptools requests pexpect meson pytest pytest-xdist
 
-      # Download / Restore Environment (OSS CAD Suite comes from the setup
-      # artifact too — avoids each of the 30+ boot shards re-downloading
-      # ~500 MB from the YosysHQ release bucket).
+      # Restore OSS CAD Suite from the cross-run cache populated by `setup`
+      # (same key). Fallback to the YosysHQ action only if the cache
+      # somehow missed — normally setup's post-step has written it by now.
+      - name: Cache OSS CAD Suite
+        id: oss-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/oss-cad-suite
+          key: oss-cad-suite-2025-05-30-ubuntu22
+      - name: Install OSS CAD Suite (fallback)
+        if: steps.oss-cache.outputs.cache-hit != 'true'
+        uses: YosysHQ/setup-oss-cad-suite@v3
+        with:
+          version: '2025-05-30'
+      - name: Stash OSS CAD Suite to $HOME (fallback)
+        if: steps.oss-cache.outputs.cache-hit != 'true'
+        run: |
+          if [ -d "$GITHUB_WORKSPACE/oss-cad-suite" ] && [ ! -d "$HOME/oss-cad-suite" ]; then
+            mv "$GITHUB_WORKSPACE/oss-cad-suite" "$HOME/oss-cad-suite"
+          fi
+
+      # Download / Restore Environment
       - name: Download environment
         uses: actions/download-artifact@v4
         with:
@@ -236,10 +298,8 @@ jobs:
           tar --zstd -xf /tmp/home.tar.zst           -C "$HOME"
           sudo tar --zstd -xf /tmp/usr-local.tar.zst -C /usr/local
           tar --zstd -xf /tmp/clones.tar.zst         -C "$RUNNER_WORKSPACE"
-          tar --zstd -xf /tmp/oss-cad-suite.tar.zst  -C "$HOME"
-          # Source the bundled environment script to get PATH /
-          # LD_LIBRARY_PATH / GHDL_PREFIX / etc., then forward those vars to
-          # subsequent steps via $GITHUB_ENV.
+          # Source the OSS CAD Suite environment script and forward its vars
+          # to subsequent steps via $GITHUB_ENV.
           source "$HOME/oss-cad-suite/environment"
           {
             echo "PATH=$PATH"
@@ -289,6 +349,24 @@ jobs:
         run: |
           python3 -m pip install setuptools requests pexpect meson pytest pytest-xdist
 
+      - name: Cache OSS CAD Suite
+        id: oss-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/oss-cad-suite
+          key: oss-cad-suite-2025-05-30-ubuntu22
+      - name: Install OSS CAD Suite (fallback)
+        if: steps.oss-cache.outputs.cache-hit != 'true'
+        uses: YosysHQ/setup-oss-cad-suite@v3
+        with:
+          version: '2025-05-30'
+      - name: Stash OSS CAD Suite to $HOME (fallback)
+        if: steps.oss-cache.outputs.cache-hit != 'true'
+        run: |
+          if [ -d "$GITHUB_WORKSPACE/oss-cad-suite" ] && [ ! -d "$HOME/oss-cad-suite" ]; then
+            mv "$GITHUB_WORKSPACE/oss-cad-suite" "$HOME/oss-cad-suite"
+          fi
+
       - name: Download environment
         uses: actions/download-artifact@v4
         with:
@@ -299,7 +377,6 @@ jobs:
           tar --zstd -xf /tmp/home.tar.zst           -C "$HOME"
           sudo tar --zstd -xf /tmp/usr-local.tar.zst -C /usr/local
           tar --zstd -xf /tmp/clones.tar.zst         -C "$RUNNER_WORKSPACE"
-          tar --zstd -xf /tmp/oss-cad-suite.tar.zst  -C "$HOME"
           source "$HOME/oss-cad-suite/environment"
           {
             echo "PATH=$PATH"
