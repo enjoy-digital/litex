@@ -131,20 +131,51 @@ jobs:
       - name: Install Project
         run: python3 setup.py develop --user
 
+      # Generate .test_durations so pytest-split's least_duration algorithm
+      # can pack shards optimally (longest tests first, fill remaining
+      # capacity with small tests). The alternative was a committed JSON
+      # with one entry per test — it would rot every time a test was added
+      # or renamed. Instead we emit it fresh each run from a tiny per-CPU
+      # duration table. Unknown CPUs default to a medium cost so new
+      # additions to TESTED_CPUS don't break balancing — they just aren't
+      # optimally placed until added here.
+      - name: Generate .test_durations
+        run: |
+          python3 - <<'PY'
+          import json, subprocess
+          out = subprocess.check_output(
+              ["python3", "-m", "pytest", "--collect-only", "-q"]
+          ).decode()
+          tests = [l.strip() for l in out.splitlines()
+                   if l.startswith("test/") and "::" in l]
+          # Rough per-CPU boot-time estimates (seconds). Order of magnitude
+          # matters more than precision — least_duration only uses these
+          # to rank. Refine from `--durations=0` log output if desired.
+          BOOT_TIMES = {
+              "femtorv":      60, "firev":        60, "serv":         45,
+              "sentinel":    120, "minerva":     120, "marocchino":  120,
+              "vexriscv":    120, "neorv32":     150, "ibex":        150,
+              "naxriscv":    240, "vexiiriscv":  240, "vexriscv_smp":360,
+          }
+          d = {}
+          for t in tests:
+              if "::test_cpu[" in t:
+                  cpu = t.split("[", 1)[1].rstrip("]")
+                  d[t] = float(BOOT_TIMES.get(cpu, 120))
+              elif "::test_buses[" in t:
+                  d[t] = 100.0  # same default CPU, different bus cfg
+              else:
+                  d[t] = 1.0    # in-process Migen sims are near-instant
+          with open(".test_durations", "w") as f:
+              json.dump(d, f, indent=2, sort_keys=True)
+          print(f"generated .test_durations for {len(d)} tests")
+          PY
+
       # Test: pytest-xdist `-n auto` distributes across the runner's 4
       # cores inside each shard; pytest-split `--splits 4 --group N`
-      # distributes across the four matrix shards.
-      #
-      # `--splitting-algorithm least_duration` is important: its sibling
-      # `duration_based_chunks` (the default) makes contiguous slices of
-      # the test collection order, so with no .test_durations file all
-      # the slow test_cpu[*] parametrizations cluster on the first
-      # shard(s). least_duration falls back to round-robin assignment
-      # without a durations file, spreading the expensive boot tests
-      # evenly across the matrix.
-      #
-      # `--durations=0` logs every test's runtime so you can later
-      # commit a .test_durations file for even more precise balance.
+      # distributes across the four matrix shards using the .test_durations
+      # generated above. `--durations=0` logs every test's runtime — use
+      # it to refine the BOOT_TIMES table above if the shards are uneven.
       - name: Run Tests (shard ${{ matrix.group }}/4)
         run: |
           python3 -m pytest -v -n auto --durations=0 \
