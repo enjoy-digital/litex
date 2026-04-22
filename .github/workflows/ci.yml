@@ -138,20 +138,28 @@ jobs:
       - name: Install Project
         run: python3 setup.py develop --user
 
-      # Pack Environment (the paths each consumer must restore).
+      # Pack Environment (the paths each consumer must restore). Use zstd
+      # instead of gzip — gzip is single-threaded and turned the multi-GB
+      # clones tarball into a ~29 min bottleneck; zstd is several times
+      # faster at similar compression. `.git` directories are stripped from
+      # the clones because test shards never need the history.
       - name: Pack environment
         run: |
           # pip --user site-packages + console scripts (litex_sim, etc.).
-          tar czf /tmp/home.tgz --ignore-failed-read -C "$HOME" .local
+          tar --zstd -cf /tmp/home.tar.zst --ignore-failed-read -C "$HOME" .local
           # Verilator lands in /usr/local via the install step above. Pack
           # the whole tree — /usr/local on a fresh runner is effectively
           # empty, so this captures every verilator file (bin,
           # share/verilator, include, etc.) without having to enumerate.
-          sudo tar czf /tmp/usr-local.tgz -C /usr/local .
+          sudo tar --zstd -cf /tmp/usr-local.tar.zst -C /usr/local .
           # Sibling repos cloned by litex_setup --init (migen, litex-boards,
           # pythondata-*). Exclude the litex checkout itself so the test job's
-          # fresh checkout is not overwritten.
-          tar czf /tmp/clones.tgz --exclude=litex -C "$RUNNER_WORKSPACE" .
+          # fresh checkout is not overwritten, and skip .git directories
+          # (checked out at pinned SHAs — histories are dead weight for the
+          # test shards and account for a large fraction of the tarball).
+          tar --zstd -cf /tmp/clones.tar.zst \
+              --exclude=litex --exclude='.git' \
+              -C "$RUNNER_WORKSPACE" .
           # OSS CAD Suite: pack the install tree so downstream shards can
           # restore it from this workflow's artifact instead of each one
           # re-downloading ~500 MB from GitHub releases (which eats into
@@ -160,20 +168,23 @@ jobs:
           OSS_BIN="$(command -v yosys)"
           OSS_ROOT="$(dirname "$(dirname "$OSS_BIN")")"
           echo "OSS CAD Suite at: $OSS_ROOT"
-          tar czf /tmp/oss-cad-suite.tgz \
+          tar --zstd -cf /tmp/oss-cad-suite.tar.zst \
               -C "$(dirname "$OSS_ROOT")" "$(basename "$OSS_ROOT")"
-          ls -lh /tmp/home.tgz /tmp/usr-local.tgz /tmp/clones.tgz /tmp/oss-cad-suite.tgz
+          ls -lh /tmp/home.tar.zst /tmp/usr-local.tar.zst /tmp/clones.tar.zst /tmp/oss-cad-suite.tar.zst
 
-      # Upload Environment Artifact
+      # Upload Environment Artifact. The tarballs are already zstd-compressed,
+      # so disable upload-artifact's own zip pass (compression-level: 0) — it
+      # would only waste CPU re-compressing incompressible data.
       - name: Upload environment artifact
         uses: actions/upload-artifact@v4
         with:
           name: env
           path: |
-            /tmp/home.tgz
-            /tmp/usr-local.tgz
-            /tmp/clones.tgz
-            /tmp/oss-cad-suite.tgz
+            /tmp/home.tar.zst
+            /tmp/usr-local.tar.zst
+            /tmp/clones.tar.zst
+            /tmp/oss-cad-suite.tar.zst
+          compression-level: 0
           retention-days: 1
 
   # Run Boot Tests (one matrix shard per parametrized boot test — each GitHub
@@ -222,10 +233,10 @@ jobs:
           path: /tmp
       - name: Restore environment
         run: |
-          tar xzf /tmp/home.tgz           -C "$HOME"
-          sudo tar xzf /tmp/usr-local.tgz -C /usr/local
-          tar xzf /tmp/clones.tgz         -C "$RUNNER_WORKSPACE"
-          tar xzf /tmp/oss-cad-suite.tgz  -C "$HOME"
+          tar --zstd -xf /tmp/home.tar.zst           -C "$HOME"
+          sudo tar --zstd -xf /tmp/usr-local.tar.zst -C /usr/local
+          tar --zstd -xf /tmp/clones.tar.zst         -C "$RUNNER_WORKSPACE"
+          tar --zstd -xf /tmp/oss-cad-suite.tar.zst  -C "$HOME"
           # Source the bundled environment script to get PATH /
           # LD_LIBRARY_PATH / GHDL_PREFIX / etc., then forward those vars to
           # subsequent steps via $GITHUB_ENV.
@@ -285,10 +296,10 @@ jobs:
           path: /tmp
       - name: Restore environment
         run: |
-          tar xzf /tmp/home.tgz           -C "$HOME"
-          sudo tar xzf /tmp/usr-local.tgz -C /usr/local
-          tar xzf /tmp/clones.tgz         -C "$RUNNER_WORKSPACE"
-          tar xzf /tmp/oss-cad-suite.tgz  -C "$HOME"
+          tar --zstd -xf /tmp/home.tar.zst           -C "$HOME"
+          sudo tar --zstd -xf /tmp/usr-local.tar.zst -C /usr/local
+          tar --zstd -xf /tmp/clones.tar.zst         -C "$RUNNER_WORKSPACE"
+          tar --zstd -xf /tmp/oss-cad-suite.tar.zst  -C "$HOME"
           source "$HOME/oss-cad-suite/environment"
           {
             echo "PATH=$PATH"
