@@ -86,9 +86,9 @@ jobs:
           sudo python3 litex_setup.py --gcc=powerpc
 
       # Cache OSS CAD Suite (keyed on the pinned release version — cache hit
-      # means every test shard restores the suite from GitHub's cache
-      # infrastructure rather than downloading it from the YosysHQ release
-      # bucket, avoiding external bandwidth usage entirely).
+      # means every consumer (setup + test shards) restores from GitHub's
+      # cache infrastructure rather than pulling ~500 MB from the YosysHQ
+      # release bucket, avoiding external bandwidth usage).
       - name: Cache OSS CAD Suite
         id: oss-cache
         uses: actions/cache@v4
@@ -96,27 +96,19 @@ jobs:
           path: ~/oss-cad-suite
           key: oss-cad-suite-2025-05-30-ubuntu22
 
-      # Install OSS CAD Suite (only on cache miss). The YosysHQ action
-      # extracts to $GITHUB_WORKSPACE/oss-cad-suite; move to $HOME so the
-      # cache path is stable across jobs.
+      # Install OSS CAD Suite (only on cache miss). Download the release
+      # tarball directly to $HOME — skips the YosysHQ action because it
+      # extracts into an internal tool-cache path that is awkward to
+      # relocate; curl + tar gives a deterministic $HOME/oss-cad-suite.
       - name: Install OSS CAD Suite
         if: steps.oss-cache.outputs.cache-hit != 'true'
-        uses: YosysHQ/setup-oss-cad-suite@v3
-        with:
-          version: '2025-05-30'
-
-      - name: Stash OSS CAD Suite to $HOME
-        if: steps.oss-cache.outputs.cache-hit != 'true'
         run: |
-          if [ -d "$GITHUB_WORKSPACE/oss-cad-suite" ] && [ ! -d "$HOME/oss-cad-suite" ]; then
-            mv "$GITHUB_WORKSPACE/oss-cad-suite" "$HOME/oss-cad-suite"
-          fi
+          URL="https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2025-05-30/oss-cad-suite-linux-x64-20250530.tgz"
+          curl -fsSL "$URL" | tar xz -C "$HOME"
 
       # Forward OSS CAD Suite env (PATH / LD_LIBRARY_PATH / GHDL_PREFIX /
-      # etc.) to subsequent steps — this covers both the cache-hit path
-      # (action never ran, so $GITHUB_ENV was never populated) and the
-      # cache-miss path (where the mv above invalidated whatever the action
-      # had set).
+      # etc.) to subsequent steps — runs on both cache-hit and cache-miss
+      # paths so $GITHUB_ENV always gets populated.
       - name: Export OSS CAD Suite env
         run: |
           source "$HOME/oss-cad-suite/environment"
@@ -267,8 +259,8 @@ jobs:
           python3 -m pip install setuptools requests pexpect meson pytest pytest-xdist
 
       # Restore OSS CAD Suite from the cross-run cache populated by `setup`
-      # (same key). Fallback to the YosysHQ action only if the cache
-      # somehow missed — normally setup's post-step has written it by now.
+      # (same key). Fallback to a direct download only if the cache somehow
+      # missed — normally setup's post-step has written it by now.
       - name: Cache OSS CAD Suite
         id: oss-cache
         uses: actions/cache@v4
@@ -277,15 +269,9 @@ jobs:
           key: oss-cad-suite-2025-05-30-ubuntu22
       - name: Install OSS CAD Suite (fallback)
         if: steps.oss-cache.outputs.cache-hit != 'true'
-        uses: YosysHQ/setup-oss-cad-suite@v3
-        with:
-          version: '2025-05-30'
-      - name: Stash OSS CAD Suite to $HOME (fallback)
-        if: steps.oss-cache.outputs.cache-hit != 'true'
         run: |
-          if [ -d "$GITHUB_WORKSPACE/oss-cad-suite" ] && [ ! -d "$HOME/oss-cad-suite" ]; then
-            mv "$GITHUB_WORKSPACE/oss-cad-suite" "$HOME/oss-cad-suite"
-          fi
+          URL="https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2025-05-30/oss-cad-suite-linux-x64-20250530.tgz"
+          curl -fsSL "$URL" | tar xz -C "$HOME"
 
       # Download / Restore Environment
       - name: Download environment
@@ -357,15 +343,9 @@ jobs:
           key: oss-cad-suite-2025-05-30-ubuntu22
       - name: Install OSS CAD Suite (fallback)
         if: steps.oss-cache.outputs.cache-hit != 'true'
-        uses: YosysHQ/setup-oss-cad-suite@v3
-        with:
-          version: '2025-05-30'
-      - name: Stash OSS CAD Suite to $HOME (fallback)
-        if: steps.oss-cache.outputs.cache-hit != 'true'
         run: |
-          if [ -d "$GITHUB_WORKSPACE/oss-cad-suite" ] && [ ! -d "$HOME/oss-cad-suite" ]; then
-            mv "$GITHUB_WORKSPACE/oss-cad-suite" "$HOME/oss-cad-suite"
-          fi
+          URL="https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2025-05-30/oss-cad-suite-linux-x64-20250530.tgz"
+          curl -fsSL "$URL" | tar xz -C "$HOME"
 
       - name: Download environment
         uses: actions/download-artifact@v4
