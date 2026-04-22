@@ -5,15 +5,17 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-22.04
-    # Two-way test split: each shard installs LiteX once and runs half of
-    # the test suite with pytest-xdist `-n auto` on top. On a 4-core runner
-    # that means 8 effective workers across the two shards — nearly halving
-    # the ~23 min test phase without any cross-job orchestration (no
-    # artifact, no shared cache beyond Verilator / OSS CAD Suite).
+    # Four-way test split: each shard installs LiteX once and runs a
+    # quarter of the test suite with pytest-xdist `-n auto` on top. On a
+    # 4-core runner that means 16 effective workers across the four shards.
+    # test_integration's ~30 parametrized boot tests — which dominate
+    # wall-clock — end up ~7-8 per shard instead of ~30, roughly quartering
+    # the test phase. No cross-job orchestration needed (no artifact,
+    # shared state only via the Verilator / OSS CAD Suite caches).
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2]
+        group: [1, 2, 3, 4]
     steps:
       # Checkout Repository
       - name: Checkout
@@ -126,12 +128,12 @@ jobs:
         run: python3 setup.py develop --user
 
       # Test: pytest-xdist `-n auto` distributes across the runner's 4
-      # cores inside each shard; pytest-split `--splits 2 --group N`
-      # distributes across the two matrix shards. `--durations=0` logs
+      # cores inside each shard; pytest-split `--splits 4 --group N`
+      # distributes across the four matrix shards. `--durations=0` logs
       # every test's runtime so we can see which boot tests dominate
       # (useful for later committing a .test_durations file for balanced
-      # splitting).
-      - name: Run Tests (shard ${{ matrix.group }}/2)
+      # splitting — without it, pytest-split distributes by test count).
+      - name: Run Tests (shard ${{ matrix.group }}/4)
         run: |
           python3 -m pytest -v -n auto --durations=0 \
-            --splits 2 --group ${{ matrix.group }}
+            --splits 4 --group ${{ matrix.group }}
