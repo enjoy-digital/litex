@@ -73,28 +73,12 @@ jobs:
         run: |
           python3 -m pip install setuptools requests pexpect meson pytest pytest-xdist
 
-      # Cache LiteX install: ~/.local (pip --user site-packages + console
-      # scripts + egg-links registered by `pip install -e`) plus the sibling
-      # clones produced by `litex_setup --init`. Key on the litex_setup.py
-      # content so any pin bump naturally invalidates. Cache hit means the
-      # setup job and every test shard skip the multi-GB clone + install —
-      # this replaces the previous pack+artifact pipeline whose pack step
-      # alone was ~20 min.
-      - name: Cache LiteX install
-        id: litex-cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.local
-            /home/runner/work/litex/migen
-            /home/runner/work/litex/lite*
-            /home/runner/work/litex/pythondata-*
-            !/home/runner/work/litex/litex
-          key: litex-install-ubuntu22-${{ hashFiles('litex_setup.py') }}
-
-      # Install (n)Migen / LiteX / Cores (only on cache miss).
+      # Install (n)Migen / LiteX / Cores. Not cached: most sibling repos
+      # (pythondata-cpu-*, lite*, etc.) are unpinned in litex_setup.py and
+      # track upstream HEAD, so a hashFiles('litex_setup.py') cache key
+      # would stick on a stale snapshot whenever upstream moved. Re-cloning
+      # each run is the price of staying current.
       - name: Install LiteX
-        if: steps.litex-cache.outputs.cache-hit != 'true'
         run: |
           python3 litex_setup.py --config=full --init --install --user --dev
 
@@ -227,19 +211,8 @@ jobs:
       # the post-step writes are already committed to the GH cache tier by
       # the time this job starts. Fallbacks only fire if the cache somehow
       # missed.
-      - name: Cache LiteX install
-        id: litex-cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.local
-            /home/runner/work/litex/migen
-            /home/runner/work/litex/lite*
-            /home/runner/work/litex/pythondata-*
-            !/home/runner/work/litex/litex
-          key: litex-install-ubuntu22-${{ hashFiles('litex_setup.py') }}
-      - name: Install LiteX (fallback)
-        if: steps.litex-cache.outputs.cache-hit != 'true'
+      # Install LiteX (not cached — see setup job for rationale).
+      - name: Install LiteX
         run: python3 litex_setup.py --config=full --init --install --user --dev
 
       - name: Cache OSS CAD Suite
@@ -326,19 +299,8 @@ jobs:
         run: |
           python3 -m pip install setuptools requests pexpect meson pytest pytest-xdist
 
-      - name: Cache LiteX install
-        id: litex-cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.local
-            /home/runner/work/litex/migen
-            /home/runner/work/litex/lite*
-            /home/runner/work/litex/pythondata-*
-            !/home/runner/work/litex/litex
-          key: litex-install-ubuntu22-${{ hashFiles('litex_setup.py') }}
-      - name: Install LiteX (fallback)
-        if: steps.litex-cache.outputs.cache-hit != 'true'
+      # Install LiteX (not cached — see setup job for rationale).
+      - name: Install LiteX
         run: python3 litex_setup.py --config=full --init --install --user --dev
 
       - name: Cache OSS CAD Suite
