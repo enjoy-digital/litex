@@ -637,7 +637,7 @@ class CSIInterpreter(LiteXModule):
 
 class VideoTerminal(LiteXModule):
     def __init__(self, hres=800, vres=600, with_csi_interpreter=True, with_extended_csi=False,
-                 visible_cols=None, font=None):
+                 visible_cols=None, font=None, destructive_cr=True):
         self.enable    = Signal(reset=1)
         self.vtg_sink  = vtg_sink   = stream.Endpoint(video_timing_layout)
         self.uart_sink = uart_sink  = stream.Endpoint([("data", 8)])
@@ -758,10 +758,13 @@ class VideoTerminal(LiteXModule):
                 If(uart_sink.data == 0x0a,
                     uart_sink.ready.eq(1),
                     NextState("INCR-Y")
-                # Carriage return (CR): reset x to 0; clears current line.
+                # Carriage return (CR).  In destructive mode (the historical
+                # behavior) this also erases the current line — go through
+                # RST-X which kicks CLEAR-X.  In non-destructive mode, just
+                # move the cursor back to column 0, matching ANSI terminals.
                 ).Elif(uart_sink.data == 0x0d,
                     uart_sink.ready.eq(1),
-                    NextState("RST-X")
+                    *([NextState("RST-X")] if destructive_cr else [NextValue(x_term, 0)])
                 # Horizontal tab (HT): move cursor to the next 8-column stop.
                 ).Elif(uart_sink.data == 0x09,
                     uart_sink.ready.eq(1),

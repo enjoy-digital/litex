@@ -43,12 +43,13 @@ class _Harness(Module):
     """
 
     def __init__(self, hres=80, vres=64, with_csi_interpreter=True, with_extended_csi=False,
-                 visible_cols=None, font=None):
+                 visible_cols=None, destructive_cr=True, font=None):
         if font is None:
             font = _blank_font()
         kwargs = dict(
             hres=hres, vres=vres, with_csi_interpreter=with_csi_interpreter,
             with_extended_csi=with_extended_csi, font=font,
+            destructive_cr=destructive_cr,
         )
         if visible_cols is not None:
             kwargs["visible_cols"] = visible_cols
@@ -376,6 +377,26 @@ class TestWrapAtVisibleColumns(unittest.TestCase):
             for i in range(5):
                 c = yield from _peek_char(dut, i, 1)
                 self.assertEqual(c, ord("X"), f"row 1 col {i} = {c:#x}")
+
+        _run(dut, gen(dut))
+
+
+class TestNonDestructiveCR(unittest.TestCase):
+    """With destructive_cr=False, CR must move the cursor back to col 0
+    without wiping the rest of the current row.  The historical destructive
+    behavior is still covered by TestVideoTerminalLinefeed.test_cr_lf_sequence.
+    """
+
+    def test_cr_preserves_line(self):
+        dut = _Harness(hres=80, vres=32, destructive_cr=False)
+
+        def gen(dut):
+            yield from _uart_send(dut, bytes([ord("A"), ord("B"), ord("C"), CR, ord("X")]))
+            yield from _wait_uart_idle(dut)
+            # 'A' and 'B' and 'C' should still be present; 'X' overwrites 'A'.
+            self.assertEqual((yield from _peek_char(dut, 0, 0)), ord("X"))
+            self.assertEqual((yield from _peek_char(dut, 1, 0)), ord("B"))
+            self.assertEqual((yield from _peek_char(dut, 2, 0)), ord("C"))
 
         _run(dut, gen(dut))
 
