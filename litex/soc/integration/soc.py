@@ -2653,7 +2653,8 @@ class LiteXSoC(SoC):
         ]
 
     # Add Video Terminal ---------------------------------------------------------------------------
-    def add_video_terminal(self, name="video_terminal", phy=None, timings="800x600@60Hz", clock_domain="sys"):
+    def add_video_terminal(self, name="video_terminal", phy=None, timings="800x600@60Hz", clock_domain="sys",
+                           with_extended_csi=False, visible_cols=None):
         # Imports.
         from litex.soc.cores.video import VideoTimingGenerator, VideoTerminal
 
@@ -2668,6 +2669,8 @@ class LiteXSoC(SoC):
         vt = VideoTerminal(
             hres = int(timings.split("@")[0].split("x")[0]),
             vres = int(timings.split("@")[0].split("x")[1]),
+            with_extended_csi = with_extended_csi,
+            visible_cols      = visible_cols,
         )
         vt = ClockDomainsRenamer(clock_domain)(vt)
         self.add_module(name=name, module=vt)
