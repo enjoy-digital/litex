@@ -636,8 +636,27 @@ class CSIInterpreter(LiteXModule):
         )
 
 class VideoTerminal(LiteXModule):
+    # Historical palette (white + accent green) used by every existing board
+    # support package; kept as the default so a plain `VideoTerminal(...)`
+    # still produces the same pixels as before.
+    default_palette = [0xffffff, 0x89e234]
+
+    # When the caller opts into `with_extended_csi=True` but does not supply
+    # a palette, this 8-entry ANSI-ish table is used.  Index 0 stays at the
+    # historical white so non-coloured text still looks unchanged.
+    default_extended_palette = [
+        0xffffff,  # 0 default (white)
+        0xe01b24,  # 1 red       — ESC[91m
+        0x89e234,  # 2 green     — ESC[92m
+        0xf6d32d,  # 3 yellow    — ESC[93m
+        0x1c71d8,  # 4 blue      — ESC[94m
+        0x9141ac,  # 5 magenta   — ESC[95m
+        0x2aa198,  # 6 cyan      — ESC[96m
+        0xffffff,  # 7 bright    — ESC[97m
+    ]
+
     def __init__(self, hres=800, vres=600, with_csi_interpreter=True, with_extended_csi=False,
-                 visible_cols=None, font=None, destructive_cr=True):
+                 visible_cols=None, font=None, palette=None, destructive_cr=True):
         self.enable    = Signal(reset=1)
         self.vtg_sink  = vtg_sink   = stream.Endpoint(video_timing_layout)
         self.uart_sink = uart_sink  = stream.Endpoint([("data", 8)])
@@ -654,6 +673,13 @@ class VideoTerminal(LiteXModule):
         # preserves the historical behavior of this module.
         if visible_cols is None:
             visible_cols = 80
+
+        # Palette: index → 24-bit RGB.  Defaults differ based on whether the
+        # extended CSI interpreter is in use (which can address up to 8
+        # palette entries); both defaults keep index 0 at the historical
+        # white so existing hardware renders the same as before.
+        if palette is None:
+            palette = self.default_extended_palette if with_extended_csi else self.default_palette
 
         # Font Mem.
         # ---------
@@ -951,13 +977,18 @@ class VideoTerminal(LiteXModule):
         for i in range(font_width):
             cases[i] = [bit.eq(font_rdport.dat_r[font_width-1-i])]
         self.comb += Case(timing_bufs[1].source.hcount[:int(math.log2(font_width))], cases)
-        # FIXME: Add Palette.
+        # Palette lookup: the `csi_width` high bits of the memory word index
+        # into the user-supplied palette.  Out-of-range indices fall back to
+        # palette[0] (the default foreground) rather than producing random
+        # colours.
+        palette_cases = {
+            i: [Cat(source.r, source.g, source.b).eq(rgb)]
+            for i, rgb in enumerate(palette)
+        }
+        palette_cases["default"] = [Cat(source.r, source.g, source.b).eq(palette[0])]
         self.comb += [
             If(bit,
-                Case(term_rdport.dat_r[font_width:], {
-                    0: [Cat(source.r, source.g, source.b).eq(0xffffff)],
-                    1: [Cat(source.r, source.g, source.b).eq(0x89e234)],
-                })
+                Case(term_rdport.dat_r[font_width:], palette_cases)
             ).Else(
                 Cat(source.r, source.g, source.b).eq(0x000000),
             )

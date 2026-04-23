@@ -43,7 +43,7 @@ class _Harness(Module):
     """
 
     def __init__(self, hres=80, vres=64, with_csi_interpreter=True, with_extended_csi=False,
-                 visible_cols=None, destructive_cr=True, font=None):
+                 visible_cols=None, destructive_cr=True, palette=None, font=None):
         if font is None:
             font = _blank_font()
         kwargs = dict(
@@ -53,6 +53,8 @@ class _Harness(Module):
         )
         if visible_cols is not None:
             kwargs["visible_cols"] = visible_cols
+        if palette is not None:
+            kwargs["palette"] = palette
         self.submodules.terminal = terminal = VideoTerminal(**kwargs)
         self.peek = terminal.term_mem.get_port(has_re=True)
         self.specials += self.peek
@@ -472,6 +474,121 @@ class TestExtendedCSI(unittest.TestCase):
             yield from _wait_uart_idle(dut)
             self.assertEqual((yield from _peek_char(dut, 0, 0)), ord("A"))
             self.assertEqual((yield from _peek_char(dut, 1, 2)), ord("B"))
+
+        _run(dut, gen(dut))
+
+
+# Pixel-path harness -------------------------------------------------------------------------------
+#
+# The palette test needs to observe the actual pixel output, which means
+# driving the Video Timing Generator side of the module.  A tiny synthetic
+# VTG is easier than pulling in the full VideoTimingGenerator for a test.
+
+class _PixelHarness(Module):
+    """Like `_Harness`, but also drives VTG and captures pixel output.
+
+    `_sample_pixel` tells the harness to advance the VTG counters to a
+    specific pixel position and read back the RGB triple presented on the
+    source endpoint.
+    """
+
+    def __init__(self, hres=40, vres=32, palette=None, font=None):
+        if font is None:
+            font = _blank_font()
+        kwargs = dict(hres=hres, vres=vres, font=font)
+        if palette is not None:
+            kwargs["palette"] = palette
+        self.submodules.terminal = terminal = VideoTerminal(**kwargs)
+        # VTG sink driven directly; expose the inputs so tests can step it.
+        self.vtg_sink    = terminal.vtg_sink
+        self.source      = terminal.source
+        self.uart_sink   = terminal.uart_sink
+        self.fsm_idle_sig   = terminal.uart_fsm.ongoing("IDLE")
+        self.csi_recopy_sig = terminal.csi_interpreter.fsm.ongoing("RECOPY")
+        self.fifo_valid  = terminal.uart_fifo.source.valid
+        self.term_colums = terminal.term_colums
+        self.csi_enabled = True
+        self.peek = terminal.term_mem.get_port(has_re=True)
+        self.specials += self.peek
+        # Source must be ready for the 2-stage pipeline to advance.
+        self.comb += terminal.source.ready.eq(1)
+
+
+def _sample_pixel(dut, hcount, vcount, hres, vres):
+    """Drive the VTG to produce a pixel read at (hcount, vcount); return (r, g, b).
+
+    Note: the RTL drives Cat(source.r, source.g, source.b), which is
+    little-endian, so a palette entry of 0x89e234 lands as r=0x34, g=0xe2,
+    b=0x89 (low byte of the constant is assigned to `r`).  Callers should
+    compare channel-by-channel rather than guessing a byte order.
+    """
+    yield dut.vtg_sink.hcount.eq(hcount)
+    yield dut.vtg_sink.vcount.eq(vcount)
+    yield dut.vtg_sink.hres.eq(hres)
+    yield dut.vtg_sink.vres.eq(vres)
+    yield dut.vtg_sink.de.eq(1)
+    yield dut.vtg_sink.valid.eq(1)
+    yield
+    yield
+    yield
+    r = (yield dut.source.r)
+    g = (yield dut.source.g)
+    b = (yield dut.source.b)
+    return (r, g, b)
+
+
+def _expected_rgb(palette_entry):
+    """Return the (r, g, b) bytes that `Cat(r, g, b).eq(palette_entry)` yields."""
+    return (palette_entry & 0xff, (palette_entry >> 8) & 0xff, (palette_entry >> 16) & 0xff)
+
+
+class TestPalette(unittest.TestCase):
+    """The pixel path honours the `palette` parameter.
+
+    Each cell is 8x16 pixels.  We put a character with a specific colour
+    index at (0, 0), arrange for the font to be all-ones at the row we
+    sample (so the pixel is the foreground colour, not the background
+    black), and read the RGB triple out of the pixel pipeline.
+    """
+
+    def _build_font_with_solid_char(self, ch, row):
+        """Return a 4 KiB font table in which `ch` has row `row` = 0xff."""
+        font = [0] * 4096
+        font[ch * 16 + row] = 0xff
+        return font
+
+    def test_default_palette_matches_historical(self):
+        font = self._build_font_with_solid_char(ord("A"), 0)
+        # Default palette (minimal interpreter): [white, green-accent].
+        dut = _PixelHarness(hres=40, vres=32, font=font)
+
+        def gen(dut):
+            for _ in range(40 * 32 // 8 + 64):
+                yield
+            yield from _uart_send(dut, b"\x1b[92mA")
+            for _ in range(64):
+                yield
+            rgb = yield from _sample_pixel(dut, hcount=0, vcount=0, hres=40, vres=32)
+            self.assertEqual(rgb, _expected_rgb(0x89e234),
+                "ESC[92m should pick palette[1] = 0x89e234")
+
+        _run(dut, gen(dut))
+
+    def test_custom_palette_is_honoured(self):
+        font = self._build_font_with_solid_char(ord("A"), 0)
+        custom = [0x111111, 0x222222]
+        dut = _PixelHarness(hres=40, vres=32, font=font, palette=custom)
+
+        def gen(dut):
+            for _ in range(40 * 32 // 8 + 64):
+                yield
+            # Default colour index (0) → palette[0] = 0x111111.
+            yield from _uart_send(dut, b"A")
+            for _ in range(64):
+                yield
+            rgb = yield from _sample_pixel(dut, hcount=0, vcount=0, hres=40, vres=32)
+            self.assertEqual(rgb, _expected_rgb(0x111111),
+                "default colour should resolve to palette[0]")
 
         _run(dut, gen(dut))
 
