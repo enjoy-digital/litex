@@ -482,3 +482,133 @@ class TestWishbone(unittest.TestCase):
 
     def test_origin_region_remap_word(self):
         self.origin_region_remap_test(addressing="word")
+
+
+# Arbiter ------------------------------------------------------------------------------------------
+
+class TestWishboneArbiter(unittest.TestCase):
+    def test_two_masters_one_slave(self):
+        # Two masters share a single SRAM slave via a round-robin Arbiter. Each master does a
+        # write followed by a read at its own address and must see its own value.
+        class DUT(LiteXModule):
+            def __init__(self):
+                self.m0     = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                self.m1     = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                self.target = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                self.submodules.arbiter = wishbone.Arbiter(masters=[self.m0, self.m1], target=self.target)
+                self.submodules.sram    = wishbone.SRAM(64, bus=self.target)
+
+        dut = DUT()
+        results = {}
+
+        def master0():
+            yield from dut.m0.write(0x00, 0xaaaa_0000)
+            yield from dut.m0.write(0x01, 0xaaaa_0001)
+            results["m0_0"] = yield from dut.m0.read(0x00)
+            results["m0_1"] = yield from dut.m0.read(0x01)
+
+        def master1():
+            yield from dut.m1.write(0x08, 0xbbbb_0008)
+            yield from dut.m1.write(0x09, 0xbbbb_0009)
+            results["m1_0"] = yield from dut.m1.read(0x08)
+            results["m1_1"] = yield from dut.m1.read(0x09)
+
+        run_simulation(dut, [master0(), master1()])
+        self.assertEqual(results["m0_0"], 0xaaaa_0000)
+        self.assertEqual(results["m0_1"], 0xaaaa_0001)
+        self.assertEqual(results["m1_0"], 0xbbbb_0008)
+        self.assertEqual(results["m1_1"], 0xbbbb_0009)
+
+    def test_arbitration_fairness(self):
+        # Both masters continuously raise cyc; count how often each one is granted over a window
+        # long enough to see both served.
+        class DUT(LiteXModule):
+            def __init__(self):
+                self.m0     = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                self.m1     = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                self.target = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                self.submodules.arbiter = wishbone.Arbiter(masters=[self.m0, self.m1], target=self.target)
+                self.submodules.sram    = wishbone.SRAM(64, bus=self.target)
+
+        dut = DUT()
+        m0_served = 0
+        m1_served = 0
+
+        def master0():
+            nonlocal m0_served
+            for i in range(8):
+                yield from dut.m0.write(i, 0xA0 + i)
+                m0_served += 1
+
+        def master1():
+            nonlocal m1_served
+            for i in range(8):
+                yield from dut.m1.write(16 + i, 0xB0 + i)
+                m1_served += 1
+
+        run_simulation(dut, [master0(), master1()])
+        # Round-robin must serve both masters.
+        self.assertEqual(m0_served, 8)
+        self.assertEqual(m1_served, 8)
+
+
+# Decoder ------------------------------------------------------------------------------------------
+
+class TestWishboneDecoder(unittest.TestCase):
+    def test_routes_to_correct_slave(self):
+        # One master routed to two SRAMs at different base regions via a Decoder.
+        class DUT(LiteXModule):
+            def __init__(self):
+                self.master = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                s0          = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                s1          = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                self.submodules.sram0 = wishbone.SRAM(32, bus=s0)
+                self.submodules.sram1 = wishbone.SRAM(32, bus=s1)
+                # Route low 4 word-addresses to sram0; higher ones to sram1.
+                self.submodules.decoder = wishbone.Decoder(self.master, [
+                    (lambda a: a[3] == 0, s0),
+                    (lambda a: a[3] == 1, s1),
+                ])
+
+        dut = DUT()
+
+        def gen():
+            yield from dut.master.write(0x00, 0xDEAD_0000)  # → s0
+            yield from dut.master.write(0x02, 0xDEAD_0002)  # → s0
+            yield from dut.master.write(0x08, 0xBEEF_0008)  # → s1
+            yield from dut.master.write(0x0A, 0xBEEF_000A)  # → s1
+
+            self.assertEqual((yield from dut.master.read(0x00)), 0xDEAD_0000)
+            self.assertEqual((yield from dut.master.read(0x02)), 0xDEAD_0002)
+            self.assertEqual((yield from dut.master.read(0x08)), 0xBEEF_0008)
+            self.assertEqual((yield from dut.master.read(0x0A)), 0xBEEF_000A)
+
+        run_simulation(dut, gen())
+
+    def test_no_crosstalk_between_slaves(self):
+        # Writing to one region must not disturb the other region.
+        class DUT(LiteXModule):
+            def __init__(self):
+                self.master = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                s0          = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                s1          = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                self.submodules.sram0 = wishbone.SRAM(32, bus=s0)
+                self.submodules.sram1 = wishbone.SRAM(32, bus=s1)
+                self.submodules.decoder = wishbone.Decoder(self.master, [
+                    (lambda a: a[3] == 0, s0),
+                    (lambda a: a[3] == 1, s1),
+                ])
+
+        dut = DUT()
+
+        def gen():
+            yield from dut.master.write(0x00, 0x11111111)   # s0
+            yield from dut.master.write(0x08, 0x22222222)   # s1
+            self.assertEqual((yield from dut.master.read(0x00)), 0x11111111)
+            self.assertEqual((yield from dut.master.read(0x08)), 0x22222222)
+            # Reads from the unwritten address in each region must be 0, not the other slave's
+            # data.
+            self.assertEqual((yield from dut.master.read(0x01)), 0x00000000)
+            self.assertEqual((yield from dut.master.read(0x09)), 0x00000000)
+
+        run_simulation(dut, gen())
