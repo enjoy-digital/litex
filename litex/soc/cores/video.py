@@ -381,12 +381,24 @@ def import_bdf_font(filename):
     return font
 
 class CSIInterpreter(LiteXModule):
-    # FIXME: Very basic/minimal implementation for now.
+    """Parses ANSI CSI (`ESC [ ... <final>`) sequences from an 8-bit stream.
+
+    Two modes:
+    - minimal (default): recognises only ESC[92m (green) and a quirky ESC[A
+      that is wired as a full-screen clear.  Preserved for backward
+      compatibility with the original implementation.
+    - extended (opt-in via `extended=True`): proper multi-digit parameter
+      parsing with ';' separators, and emission of command signals for CUP
+      (ESC[row;colH), ED (ESC[2J), EL (ESC[K), cursor moves (ESC[nA/B/C/D)
+      and SGR colour (ESC[91..97m).  The extended mode costs extra logic and
+      a small parameter array; it is therefore off by default.
+    """
     esc_start     = 0x1b
     csi_start     = ord("[")
     csi_param_min = 0x30
     csi_param_max = 0x3f
-    def __init__(self, enable=True):
+
+    def __init__(self, enable=True, extended=False):
         # The source endpoint tags every forwarded byte with the current
         # colour so the downstream FIFO preserves the tag — without this,
         # colour changes could silently reorder with the characters that
@@ -394,19 +406,46 @@ class CSIInterpreter(LiteXModule):
         self.sink   = sink   = stream.Endpoint([("data", 8)])
         self.source = source = stream.Endpoint([("data", 8), ("color", 4)])
 
+        # Command outputs.  `color` and `clear_xy` are always present so the
+        # rest of VideoTerminal does not need to care about the mode.
         self.color    = Signal(4)
         self.clear_xy = Signal()
+        # Extended-mode outputs.  These stay asserted while the interpreter
+        # sits in DECODE-CSI, and are cleared when the consumer (uart_fsm)
+        # pulses `cmd_ack` — this avoids losing a 1-cycle pulse when the
+        # consumer happens to be busy.
+        self.clear_line = Signal()
+        self.set_xy     = Signal()
+        self.set_col    = Signal(8)
+        self.set_row    = Signal(8)
+        self.move_up    = Signal()
+        self.move_down  = Signal()
+        self.move_left  = Signal()
+        self.move_right = Signal()
+        self.move_count = Signal(8)
+        self.cmd_ack    = Signal()
 
         # # #
 
-        # Every byte the interpreter forwards (CSI disabled or enabled)
-        # carries the colour it was emitted under.
+        # `source.color` is always driven by the latched colour register, so
+        # every byte the interpreter forwards (CSI disabled, minimal or
+        # extended mode) carries the colour it was emitted under.
         self.comb += source.color.eq(self.color)
 
         if not enable:
             self.comb += self.sink.connect(self.source, omit={"color"})
             return
 
+        if not extended:
+            self._build_minimal_fsm(sink, source)
+        else:
+            self._build_extended_fsm(sink, source)
+
+    # ----------------------------------------------------------------- minimal
+    def _build_minimal_fsm(self, sink, source):
+        # Preserved verbatim (modulo comments) from the original
+        # implementation — known-quirky, but matches what existing hardware
+        # already runs.
         csi_count = Signal(3)
         csi_bytes = Array([Signal(8) for _ in range(8)])
         csi_final = Signal(8)
@@ -449,20 +488,156 @@ class CSIInterpreter(LiteXModule):
         )
         fsm.act("DECODE-CSI",
             If(csi_final == ord("m"),
+                # NB: the inner test uses Python `and`, which collapses the
+                # two-byte comparison to just `bytes[1] == '2'`.  Kept for
+                # bit-compatibility with existing hardware.
                 If((csi_bytes[0] == ord("9")) and (csi_bytes[1] == ord("2")),
-                    NextValue(self.color, 1), # FIXME: Add Palette.
+                    NextValue(self.color, 1),
                 ).Else(
-                    NextValue(self.color, 0), # FIXME: Add Palette.
+                    NextValue(self.color, 0),
                 ),
             ),
-            If(csi_final == ord("A"), # FIXME: Move Up.
+            If(csi_final == ord("A"), # Historically wired as full-clear.
                 self.clear_xy.eq(1)
             ),
             NextState("RECOPY")
         )
 
+    # ---------------------------------------------------------------- extended
+    def _build_extended_fsm(self, sink, source):
+        # Up to four numeric parameters are parsed into `params`.
+        # `params_count` tracks how many have been seen (0..3); `cur_param`
+        # is the accumulator for the digit currently under parse.
+        n_params     = 4
+        params       = Array([Signal(8) for _ in range(n_params)])
+        params_count = Signal(max=n_params + 1)
+        cur_param    = Signal(8)
+        cur_dirty    = Signal()  # True if any digit has been pushed into cur_param
+        csi_final    = Signal(8)
+
+        def param_or_default(idx, default):
+            # Returns the parsed param if present, else `default`.
+            # `params_count > idx` tells us param `idx` was set.
+            return Mux(params_count > idx, params[idx], default)
+
+        self.fsm = fsm = FSM(reset_state="RECOPY")
+        fsm.act("RECOPY",
+            sink.connect(source, omit={"color"}),
+            If(sink.valid & (sink.data == self.esc_start),
+                source.valid.eq(0),
+                sink.ready.eq(1),
+                NextState("GET-CSI-START")
+            )
+        )
+        fsm.act("GET-CSI-START",
+            sink.ready.eq(1),
+            If(sink.valid,
+                If(sink.data == self.csi_start,
+                    NextValue(params_count, 0),
+                    NextValue(cur_param, 0),
+                    NextValue(cur_dirty, 0),
+                    # Zero the param array so previous sequences don't leak in.
+                    *[NextValue(params[i], 0) for i in range(n_params)],
+                    NextState("GET-CSI-PARAMETERS")
+                ).Else(
+                    NextState("RECOPY")
+                )
+            )
+        )
+        fsm.act("GET-CSI-PARAMETERS",
+            If(sink.valid,
+                # ASCII digit: accumulate into cur_param (decimal).
+                If((sink.data >= ord("0")) & (sink.data <= ord("9")),
+                    sink.ready.eq(1),
+                    NextValue(cur_param, cur_param * 10 + (sink.data - ord("0"))),
+                    NextValue(cur_dirty, 1),
+                # Separator: push current accumulator if any digits were seen
+                # (an empty slot keeps the default via param_or_default).
+                ).Elif(sink.data == ord(";"),
+                    sink.ready.eq(1),
+                    If(cur_dirty & (params_count < n_params),
+                        NextValue(params[params_count], cur_param),
+                        NextValue(params_count, params_count + 1),
+                    ),
+                    NextValue(cur_param, 0),
+                    NextValue(cur_dirty, 0),
+                # Any other byte → final (not consumed here).
+                ).Else(
+                    # Commit the pending param before moving on.
+                    If(cur_dirty & (params_count < n_params),
+                        NextValue(params[params_count], cur_param),
+                        NextValue(params_count, params_count + 1),
+                    ),
+                    NextState("GET-CSI-FINAL")
+                )
+            )
+        )
+        fsm.act("GET-CSI-FINAL",
+            If(sink.valid,
+                sink.ready.eq(1),
+                NextValue(csi_final, sink.data),
+                NextState("DECODE-CSI")
+            )
+        )
+        # In DECODE-CSI we drive the command signals combinationally and
+        # stall here until uart_fsm acknowledges them (cmd_ack).  SGR (color)
+        # and unknown finals need no downstream action, so we flow through
+        # without waiting.
+        needs_ack = Signal()
+        self.comb += [
+            self.move_count.eq(param_or_default(0, 1)),
+            self.set_row.eq(param_or_default(0, 1) - 1),
+            self.set_col.eq(param_or_default(1, 1) - 1),
+        ]
+        fsm.act("DECODE-CSI",
+            # SGR: ESC[<n>m — colour set.  N=0 or missing → default (0).
+            # N in 91..97 mapped to palette indices 1..7.  Everything else
+            # resets to 0 so malformed sequences don't linger.
+            If(csi_final == ord("m"),
+                If((params[0] >= 91) & (params[0] <= 97),
+                    NextValue(self.color, params[0] - 90),
+                ).Else(
+                    NextValue(self.color, 0),
+                ),
+            # CUP: ESC[<row>;<col>H (and ESC[H variant `f`) — absolute
+            # cursor position (1-indexed in ANSI, 0-indexed internally).
+            ).Elif((csi_final == ord("H")) | (csi_final == ord("f")),
+                self.set_xy.eq(1),
+                needs_ack.eq(1),
+            # ED: ESC[<n>J — erase display.  Only n=2 (whole screen) is
+            # honoured here; partial clears would need extra uart_fsm
+            # states and aren't worth the cost for typical use.
+            ).Elif(csi_final == ord("J"),
+                If(params[0] == 2,
+                    self.clear_xy.eq(1),
+                    needs_ack.eq(1),
+                ),
+            # EL: ESC[K — erase from cursor to end of line.
+            ).Elif(csi_final == ord("K"),
+                self.clear_line.eq(1),
+                needs_ack.eq(1),
+            # Cursor moves.  Default count is 1 (handled in param_or_default).
+            ).Elif(csi_final == ord("A"),
+                self.move_up.eq(1),
+                needs_ack.eq(1),
+            ).Elif(csi_final == ord("B"),
+                self.move_down.eq(1),
+                needs_ack.eq(1),
+            ).Elif(csi_final == ord("C"),
+                self.move_right.eq(1),
+                needs_ack.eq(1),
+            ).Elif(csi_final == ord("D"),
+                self.move_left.eq(1),
+                needs_ack.eq(1),
+            ),
+            If(~needs_ack | self.cmd_ack,
+                NextState("RECOPY")
+            )
+        )
+
 class VideoTerminal(LiteXModule):
-    def __init__(self, hres=800, vres=600, with_csi_interpreter=True, visible_cols=None, font=None):
+    def __init__(self, hres=800, vres=600, with_csi_interpreter=True, with_extended_csi=False,
+                 visible_cols=None, font=None):
         self.enable    = Signal(reset=1)
         self.vtg_sink  = vtg_sink   = stream.Endpoint(video_timing_layout)
         self.uart_sink = uart_sink  = stream.Endpoint([("data", 8)])
@@ -522,7 +697,7 @@ class VideoTerminal(LiteXModule):
         # -------------------
 
         # Optional CSI Interpreter.
-        self.csi_interpreter = CSIInterpreter(enable=with_csi_interpreter)
+        self.csi_interpreter = CSIInterpreter(enable=with_csi_interpreter, extended=with_extended_csi)
         self.comb += uart_sink.connect(self.csi_interpreter.sink)
         uart_sink = self.csi_interpreter.source
 
@@ -567,6 +742,16 @@ class VideoTerminal(LiteXModule):
         # does not push the cursor off-screen.
         tab_next = Signal(8)
         self.comb += tab_next.eq(Cat(Signal(3, reset=0), x_term[3:] + 1))
+        # Aggregate extended-CSI command flags so the IDLE state can serve
+        # them as one branch.  All of these are asserted by the interpreter
+        # while it stalls in DECODE-CSI waiting for cmd_ack.
+        csi_cmd_pending = Signal()
+        if with_extended_csi:
+            csi = self.csi_interpreter
+            self.comb += csi_cmd_pending.eq(
+                csi.set_xy | csi.clear_line | csi.move_up |
+                csi.move_down | csi.move_left | csi.move_right
+            )
         uart_fsm.act("IDLE",
             If(uart_sink.valid,
                 # Line-feed (LF): advance to next row.
@@ -596,10 +781,58 @@ class VideoTerminal(LiteXModule):
                     NextState("WRITE")
                 )
             ),
-            # CSI-requested full-screen clear.
-            If(self.csi_interpreter.clear_xy,
+            # CSI-requested full-screen clear (available in both modes —
+            # minimal uses it for ESC[A, extended for ESC[2J).  Only ack
+            # once the FIFO has drained so that any bytes queued before the
+            # clear have already been applied.
+            If(self.csi_interpreter.clear_xy & ~uart_sink.valid,
+                self.csi_interpreter.cmd_ack.eq(1),
                 NextState("RST-XY")
-            )
+            ),
+            # Extended cursor/line commands.  Like the full-clear above,
+            # only acted upon once the FIFO is empty.  The CSI interpreter
+            # stalls in DECODE-CSI while any command signal is held, so it's
+            # safe to poll these and ack with a single pulse.
+            *([
+                If(csi_cmd_pending & ~uart_sink.valid,
+                    self.csi_interpreter.cmd_ack.eq(1),
+                    If(self.csi_interpreter.set_xy,
+                        NextValue(x_term, self.csi_interpreter.set_col),
+                        NextValue(y_term, self.csi_interpreter.set_row),
+                    ),
+                    If(self.csi_interpreter.clear_line,
+                        NextState("CLEAR-X")
+                    ),
+                    If(self.csi_interpreter.move_up,
+                        If(self.csi_interpreter.move_count >= y_term,
+                            NextValue(y_term, 0)
+                        ).Else(
+                            NextValue(y_term, y_term - self.csi_interpreter.move_count)
+                        ),
+                    ),
+                    If(self.csi_interpreter.move_down,
+                        If(y_term + self.csi_interpreter.move_count >= term_lines,
+                            NextValue(y_term, term_lines - 1)
+                        ).Else(
+                            NextValue(y_term, y_term + self.csi_interpreter.move_count)
+                        ),
+                    ),
+                    If(self.csi_interpreter.move_left,
+                        If(self.csi_interpreter.move_count >= x_term,
+                            NextValue(x_term, 0)
+                        ).Else(
+                            NextValue(x_term, x_term - self.csi_interpreter.move_count)
+                        ),
+                    ),
+                    If(self.csi_interpreter.move_right,
+                        If(x_term + self.csi_interpreter.move_count >= visible_cols,
+                            NextValue(x_term, visible_cols - 1)
+                        ).Else(
+                            NextValue(x_term, x_term + self.csi_interpreter.move_count)
+                        ),
+                    ),
+                )
+            ] if with_extended_csi else []),
         )
         uart_fsm.act("WRITE",
             uart_sink.ready.eq(1),

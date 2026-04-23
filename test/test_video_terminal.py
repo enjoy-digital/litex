@@ -42,11 +42,13 @@ class _Harness(Module):
     read: drive adr + re one cycle, latch dat_r two cycles later.
     """
 
-    def __init__(self, hres=80, vres=64, with_csi_interpreter=True, visible_cols=None, font=None):
+    def __init__(self, hres=80, vres=64, with_csi_interpreter=True, with_extended_csi=False,
+                 visible_cols=None, font=None):
         if font is None:
             font = _blank_font()
         kwargs = dict(
-            hres=hres, vres=vres, with_csi_interpreter=with_csi_interpreter, font=font,
+            hres=hres, vres=vres, with_csi_interpreter=with_csi_interpreter,
+            with_extended_csi=with_extended_csi, font=font,
         )
         if visible_cols is not None:
             kwargs["visible_cols"] = visible_cols
@@ -374,6 +376,81 @@ class TestWrapAtVisibleColumns(unittest.TestCase):
             for i in range(5):
                 c = yield from _peek_char(dut, i, 1)
                 self.assertEqual(c, ord("X"), f"row 1 col {i} = {c:#x}")
+
+        _run(dut, gen(dut))
+
+
+class TestExtendedCSI(unittest.TestCase):
+    """Extended CSI parser (multi-digit params and CUP/ED/EL/cursor-moves).
+
+    These tests instantiate the terminal with `with_extended_csi=True`; the
+    default remains the minimal interpreter for backward compatibility."""
+
+    def test_cup_moves_cursor(self):
+        dut = _Harness(hres=80, vres=64, with_extended_csi=True)
+
+        def gen(dut):
+            # ESC[2;5H — row 2, col 5 (1-indexed in ANSI → row 1, col 4).
+            yield from _uart_send(dut, b"\x1b[2;5HX")
+            yield from _wait_uart_idle(dut)
+            c = yield from _peek_char(dut, 4, 1)
+            self.assertEqual(c, ord("X"))
+
+        _run(dut, gen(dut))
+
+    def test_ed_clears_screen(self):
+        dut = _Harness(hres=80, vres=32, with_extended_csi=True)
+
+        def gen(dut):
+            yield from _uart_send(dut, b"HELLO\x1b[2J")
+            yield from _wait_uart_idle(dut)
+            for i in range(5):
+                c = yield from _peek_char(dut, i, 0)
+                self.assertEqual(c, ord(" "), f"col {i} not cleared: {c:#x}")
+
+        _run(dut, gen(dut))
+
+    def test_multidigit_color_param(self):
+        """The extended interpreter parses numeric params; ESC[91m and ESC[92m
+        must produce different palette indices.  The minimal interpreter gets
+        this wrong because it only inspects the literal bytes '9','2'."""
+        dut = _Harness(hres=80, vres=32, with_extended_csi=True)
+
+        def gen(dut):
+            yield from _uart_send(dut, b"\x1b[91mA\x1b[92mB")
+            yield from _wait_uart_idle(dut)
+            _, attr_a = yield from _peek(dut, 0, 0)
+            _, attr_b = yield from _peek(dut, 1, 0)
+            # ESC[91m → palette 1 (red), ESC[92m → palette 2 (green).
+            self.assertEqual(attr_a & 0xf, 1)
+            self.assertEqual(attr_b & 0xf, 2)
+
+        _run(dut, gen(dut))
+
+    def test_color_reset_after_set(self):
+        """ESC[m after ESC[92m must restore the default color.  The minimal
+        interpreter can't do this because csi_bytes are never cleared."""
+        dut = _Harness(hres=80, vres=32, with_extended_csi=True)
+
+        def gen(dut):
+            yield from _uart_send(dut, b"\x1b[92mA\x1b[mB")
+            yield from _wait_uart_idle(dut)
+            _, attr_a = yield from _peek(dut, 0, 0)
+            _, attr_b = yield from _peek(dut, 1, 0)
+            self.assertEqual(attr_a & 0xf, 2, "ESC[92m → green (palette 2)")
+            self.assertEqual(attr_b & 0xf, 0, "ESC[m → default color")
+
+        _run(dut, gen(dut))
+
+    def test_cursor_up_down(self):
+        dut = _Harness(hres=80, vres=64, with_extended_csi=True)
+
+        def gen(dut):
+            # Write 'A' at (0,0), cursor down 2, write 'B' → (1, 2).
+            yield from _uart_send(dut, b"A\x1b[2BB")
+            yield from _wait_uart_idle(dut)
+            self.assertEqual((yield from _peek_char(dut, 0, 0)), ord("A"))
+            self.assertEqual((yield from _peek_char(dut, 1, 2)), ord("B"))
 
         _run(dut, gen(dut))
 
