@@ -547,20 +547,43 @@ class VideoTerminal(LiteXModule):
                 )
             )
         )
+        # Next-tab-stop for HT: round x_term up to the next multiple of 8,
+        # then clamp to the last visible column so TAB near the right margin
+        # does not push the cursor off-screen.
+        tab_next = Signal(8)
+        self.comb += tab_next.eq(Cat(Signal(3, reset=0), x_term[3:] + 1))
         uart_fsm.act("IDLE",
             If(uart_sink.valid,
-                If(uart_sink.data == ord("\n"),
-                    uart_sink.ready.eq(1), # Ack sink.
+                # Line-feed (LF): advance to next row.
+                If(uart_sink.data == 0x0a,
+                    uart_sink.ready.eq(1),
                     NextState("INCR-Y")
-                ).Elif(uart_sink.data == ord("\r"),
-                    uart_sink.ready.eq(1), # Ack sink.
+                # Carriage return (CR): reset x to 0; clears current line.
+                ).Elif(uart_sink.data == 0x0d,
+                    uart_sink.ready.eq(1),
                     NextState("RST-X")
+                # Horizontal tab (HT): move cursor to the next 8-column stop.
+                ).Elif(uart_sink.data == 0x09,
+                    uart_sink.ready.eq(1),
+                    NextState("TAB-X")
+                # Backspace (BS): move cursor one column left (no erase).
+                ).Elif(uart_sink.data == 0x08,
+                    uart_sink.ready.eq(1),
+                    NextState("DECR-X")
+                # Bell (BEL): silently consume.
+                ).Elif(uart_sink.data == 0x07,
+                    uart_sink.ready.eq(1)
+                # Form-feed (FF): clear the whole screen.
+                ).Elif(uart_sink.data == 0x0c,
+                    uart_sink.ready.eq(1),
+                    NextState("RST-XY")
                 ).Else(
                     NextState("WRITE")
                 )
             ),
+            # CSI-requested full-screen clear.
             If(self.csi_interpreter.clear_xy,
-                NextState("CLEAR-XY")
+                NextState("RST-XY")
             )
         )
         uart_fsm.act("WRITE",
@@ -572,6 +595,27 @@ class VideoTerminal(LiteXModule):
         uart_fsm.act("RST-X",
             NextValue(x_term, 0),
             NextState("CLEAR-X")
+        )
+        uart_fsm.act("RST-XY",
+            # Rewind (x, y) to (0, 0) before running CLEAR-XY so the clear
+            # visits every cell regardless of where the cursor was.
+            NextValue(x_term, 0),
+            NextValue(y_term, 0),
+            NextState("CLEAR-XY")
+        )
+        uart_fsm.act("DECR-X",
+            If(x_term != 0,
+                NextValue(x_term, x_term - 1)
+            ),
+            NextState("IDLE")
+        )
+        uart_fsm.act("TAB-X",
+            If(tab_next >= visible_cols,
+                NextValue(x_term, visible_cols - 1)
+            ).Else(
+                NextValue(x_term, tab_next)
+            ),
+            NextState("IDLE")
         )
         uart_fsm.act("INCR-X",
             NextValue(x_term, x_term + 1),

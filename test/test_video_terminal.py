@@ -141,7 +141,11 @@ def _run(dut, gens, vcd_name=None):
 
 
 # Control-character codepoints used in later tests.
+BEL = 0x07
+BS  = 0x08
+HT  = 0x09  # TAB
 LF  = 0x0a
+FF  = 0x0c
 CR  = 0x0d
 ESC = 0x1b
 
@@ -288,6 +292,62 @@ class TestCSIInterpreterDisable(unittest.TestCase):
             # ESC is printed as a glyph at (0,0).
             c = yield from _peek_char(dut, 0, 0)
             self.assertEqual(c, ESC)
+
+        _run(dut, gen(dut))
+
+
+class TestControlCharacters(unittest.TestCase):
+    """TAB/BS/BEL/FF must behave as proper control characters, not glyphs."""
+
+    def test_tab_moves_to_next_tab_stop(self):
+        dut = _Harness(hres=80, vres=32)
+
+        def gen(dut):
+            # Write 'A', then TAB, then 'B'.  With 8-column tab stops 'B'
+            # should land at column 8.
+            yield from _uart_send(dut, bytes([ord("A"), HT, ord("B")]))
+            yield from _wait_uart_idle(dut)
+            self.assertEqual((yield from _peek_char(dut, 0, 0)), ord("A"))
+            self.assertEqual((yield from _peek_char(dut, 8, 0)), ord("B"))
+            # The cell between must still be a space.
+            self.assertEqual((yield from _peek_char(dut, 1, 0)), ord(" "))
+
+        _run(dut, gen(dut))
+
+    def test_backspace_moves_cursor_left(self):
+        dut = _Harness(hres=80, vres=32)
+
+        def gen(dut):
+            # 'A', 'B', BS, 'C' → col 0 = 'A', col 1 = 'C' (B overwritten).
+            yield from _uart_send(dut, bytes([ord("A"), ord("B"), BS, ord("C")]))
+            yield from _wait_uart_idle(dut)
+            self.assertEqual((yield from _peek_char(dut, 0, 0)), ord("A"))
+            self.assertEqual((yield from _peek_char(dut, 1, 0)), ord("C"))
+
+        _run(dut, gen(dut))
+
+    def test_bel_is_ignored(self):
+        dut = _Harness(hres=80, vres=32)
+
+        def gen(dut):
+            yield from _uart_send(dut, bytes([ord("A"), BEL, ord("B")]))
+            yield from _wait_uart_idle(dut)
+            self.assertEqual((yield from _peek_char(dut, 0, 0)), ord("A"))
+            self.assertEqual((yield from _peek_char(dut, 1, 0)), ord("B"))
+
+        _run(dut, gen(dut))
+
+    def test_form_feed_clears_screen(self):
+        dut = _Harness(hres=80, vres=32)
+
+        def gen(dut):
+            yield from _uart_send(dut, b"HELLO")
+            yield from _wait_uart_idle(dut)
+            yield from _uart_send(dut, bytes([FF]))
+            yield from _wait_uart_idle(dut)
+            for i in range(5):
+                c = yield from _peek_char(dut, i, 0)
+                self.assertEqual(c, ord(" "), f"col {i} not cleared: {c:#x}")
 
         _run(dut, gen(dut))
 
