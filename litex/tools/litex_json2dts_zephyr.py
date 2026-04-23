@@ -246,6 +246,22 @@ def spiflash_handler(name, parm, csr):
 
     return dtsi
 
+def uart_handler(name, parm, csr):
+    registers = get_registers_of(name, csr)
+    if len(registers) == 0:
+        raise KeyError
+
+    dtsi = dts_reg(registers)
+    dtsi += dts_reg_names(registers)
+
+    if csr['constants'].get('config_' + name + '_rx_fifo_rx_we', False):
+        dtsi += indent("rx-fifo-rx-we;\n")
+
+    try:
+        dtsi += dts_intr(name, csr)
+    except KeyError as e:
+        print('  dtsi key', e, 'not found, no interrupt override')
+    return dtsi
 
 def peripheral_handler(name, parm, csr):
     registers = get_registers_of(name, csr)
@@ -272,7 +288,7 @@ _overlay_handlers = {
         'alias': 'ctrl0',
     },
     'uart': {
-        'handler': peripheral_handler,
+        'handler': uart_handler,
         'alias': 'uart0',
     },
     'timer0': {
