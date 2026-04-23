@@ -454,7 +454,7 @@ class CSIInterpreter(LiteXModule):
         )
 
 class VideoTerminal(LiteXModule):
-    def __init__(self, hres=800, vres=600, with_csi_interpreter=True):
+    def __init__(self, hres=800, vres=600, with_csi_interpreter=True, font=None):
         self.enable    = Signal(reset=1)
         self.vtg_sink  = vtg_sink   = stream.Endpoint(video_timing_layout)
         self.uart_sink = uart_sink  = stream.Endpoint([("data", 8)])
@@ -467,10 +467,11 @@ class VideoTerminal(LiteXModule):
         # Font Mem.
         # ---------
         # FIXME: Store Font in LiteX?
-        if not os.path.exists("ter-u16b.bdf"):
-            os.system("wget https://github.com/enjoy-digital/litex/files/6076336/ter-u16b.txt")
-            os.system("mv ter-u16b.txt ter-u16b.bdf")
-        font        = import_bdf_font("ter-u16b.bdf")
+        if font is None:
+            if not os.path.exists("ter-u16b.bdf"):
+                os.system("wget https://github.com/enjoy-digital/litex/files/6076336/ter-u16b.txt")
+                os.system("mv ter-u16b.txt ter-u16b.bdf")
+            font = import_bdf_font("ter-u16b.bdf")
         font_width  = 8
         font_heigth = 16
         font_mem    = Memory(width=8, depth=4096, init=font)
@@ -488,6 +489,18 @@ class VideoTerminal(LiteXModule):
         term_rdport = term_mem.get_port(has_re=True)
         self.specials += term_mem, term_wrport, term_rdport
 
+        # Expose parameters/memories for testbenches and external introspection.
+        # The memories are excluded from AutoCSR's `get_memories` scan —
+        # otherwise LiteX would synthesise a CSR-banked third port on them
+        # and dual-port BRAMs (e.g. ECP5 DP16KD) can't satisfy that.
+        self.term_mem    = term_mem
+        self.font_mem    = font_mem
+        self.autocsr_exclude = {"term_mem", "font_mem"}
+        self.term_colums = term_colums
+        self.term_lines  = term_lines
+        self.font_width  = font_width
+        self.font_heigth = font_heigth
+
         # UART Terminal Fill.
         # -------------------
 
@@ -504,7 +517,7 @@ class VideoTerminal(LiteXModule):
         # UART Reception and Terminal Fill.
         x_term = term_wrport.adr[:7]
         y_term = term_wrport.adr[7:]
-        y_term_rollover = Signal()
+        self.y_term_rollover = y_term_rollover = Signal()
         self.uart_fsm = uart_fsm = FSM(reset_state="RESET")
         uart_fsm.act("RESET",
             NextValue(x_term, 0),
