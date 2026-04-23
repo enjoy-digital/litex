@@ -17,61 +17,13 @@ from migen.fhdl.specials import Tristate
 
 from litex.soc.cores.i2c import *
 
+from test.common import MockTristate
+
 
 class _MockPads:
     def __init__(self):
         self.scl = Signal()
         self.sda = Signal()
-
-
-class _MockTristateImpl(Module):
-    def __init__(self, t):
-        t.i_mock = Signal(reset=True)
-        self.comb += [
-            If(t.oe,
-                t.target.eq(t.o),
-                t.i.eq(t.o),
-            ).Else(
-                t.target.eq(t.i_mock),
-                t.i.eq(t.i_mock),
-            ),
-        ]
-
-
-class _MockTristate:
-    """A mock `Tristate` for simulation
-
-    This simulation ensures the TriState input (_i) tracks the output (_o) when output enable
-    (_oe) = 1. A new i_mock `Signal` is added  - this can be written to in the simulation to represent
-    input from the external device.
-
-    Example usage:
-
-    class TestMyModule(unittest.TestCase):
-        def test_mymodule(self):
-            dut = MyModule()
-            io = Signal()
-            dut.io_t = TSTriple()
-            self.io_tristate = self.io_t.get_tristate(io)
-
-            dut.comb += [
-                dut.io_t.oe.eq(signal_for_oe),
-                dut.io_t.o.eq(signal_for_o),
-                signal_for_i.eq(dut.io_t.i),
-            ]
-
-    def generator()
-        yield dut.io_tristate.i_mock.eq(some_value)
-        if (yield dut.io_t.oe):
-            self.assertEqual((yield dut.scl_t.i), (yield dut.io_t.o))
-        else:
-            self.assertEqual((yield dut.scl_t.i), some_value)
-
-    """
-
-    @staticmethod
-    def lower(t):
-        return _MockTristateImpl(t)
 
 
 class TestI2C(unittest.TestCase):
@@ -220,7 +172,7 @@ class TestI2C(unittest.TestCase):
                 check(),
             ],
         }
-        run_simulation(dut, generators, clocks, special_overrides={Tristate: _MockTristate}, vcd_name="i2c.vcd")
+        run_simulation(dut, generators, clocks, special_overrides={Tristate: MockTristate}, vcd_name="i2c.vcd")
 
 if __name__ == "__main__":
     unittest.main()

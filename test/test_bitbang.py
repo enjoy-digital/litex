@@ -11,34 +11,7 @@ from migen.fhdl.specials import Tristate
 
 from litex.soc.cores.bitbang import I2CMaster, I2CMasterSim, SPIMaster
 
-
-# Tristate mock (lifted from test_i2c.py) --------------------------------------------------------
-#
-# Reproduced locally rather than imported to keep test files independent. If another test grows
-# a need for it, a shared test/common.py becomes worth extracting.
-
-class _MockTristateImpl(Module):
-    def __init__(self, t):
-        t.i_mock = Signal(reset=True)
-        # Always drive the pad; only drive `i` if the consumer requested one (I2CMaster's SCL
-        # tristate, for instance, passes no `i`).
-        self.comb += If(t.oe,
-            t.target.eq(t.o),
-        ).Else(
-            t.target.eq(t.i_mock),
-        )
-        if t.i is not None:
-            self.comb += If(t.oe,
-                t.i.eq(t.o),
-            ).Else(
-                t.i.eq(t.i_mock),
-            )
-
-
-class _MockTristate:
-    @staticmethod
-    def lower(t):
-        return _MockTristateImpl(t)
+from test.common import MockTristate
 
 
 # Bit-field offsets in I2CMaster._w / SPIMaster._w (copied from the CSRField definitions).
@@ -85,7 +58,7 @@ class TestBitBangI2C(unittest.TestCase):
             yield
             self.assertEqual((yield dut.pads.sda), 1)
 
-        run_simulation(dut, gen(), special_overrides={Tristate: _MockTristate})
+        run_simulation(dut, gen(), special_overrides={Tristate: MockTristate})
 
     def test_start_then_stop_sequence(self):
         # Drive a textbook START (SDA falls while SCL high) followed by STOP (SDA rises while
@@ -118,7 +91,7 @@ class TestBitBangI2C(unittest.TestCase):
             yield
             self.assertEqual(((yield dut.pads.scl), (yield dut.pads.sda)), (1, 1))
 
-        run_simulation(dut, gen(), special_overrides={Tristate: _MockTristate})
+        run_simulation(dut, gen(), special_overrides={Tristate: MockTristate})
 
     def test_sda_readback_sim_variant(self):
         # I2CMasterSim exposes the SDA input as its own pad, avoiding tristate mocking. This is
@@ -173,7 +146,7 @@ class TestBitBangSPI(unittest.TestCase):
             yield
             self.assertEqual((yield dut.pads.clk), 0)
 
-        run_simulation(dut, gen(), special_overrides={Tristate: _MockTristate})
+        run_simulation(dut, gen(), special_overrides={Tristate: MockTristate})
 
     def test_mosi_drive_and_release(self):
         dut = SPIMaster()
@@ -194,7 +167,7 @@ class TestBitBangSPI(unittest.TestCase):
             yield
             self.assertEqual((yield dut.pads.mosi), 1)
 
-        run_simulation(dut, gen(), special_overrides={Tristate: _MockTristate})
+        run_simulation(dut, gen(), special_overrides={Tristate: MockTristate})
 
     def test_clocked_shift(self):
         # Drive a short 4-bit pattern on MOSI in lock-step with CLK and verify the waveform.
@@ -219,7 +192,7 @@ class TestBitBangSPI(unittest.TestCase):
                 yield from dut._w.write(w)
                 yield
 
-        run_simulation(dut, gen(), special_overrides={Tristate: _MockTristate})
+        run_simulation(dut, gen(), special_overrides={Tristate: MockTristate})
         self.assertEqual(samples, bits)
 
 
