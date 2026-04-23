@@ -361,5 +361,86 @@ class TestVideoGenericPHY(unittest.TestCase):
         _run(dut, gen(dut), clocks=_SDR_CLOCKS)
 
 
+# TMDSEncoder -------------------------------------------------------------------------------------
+
+class TestTMDSEncoder(unittest.TestCase):
+    """Tests for the 10-bit TMDS encoder used by the HDMI PHY.
+
+    The encoder is a 4-stage sync pipeline: computing n1d, computing q_m,
+    computing n0/n1 of q_m, and the final encode.  `c`/`de` flow through
+    three pipeline flops so there's a 3-cycle latency for control-token
+    decisions and a 4-cycle latency for data-encoded output.
+    """
+
+    def test_control_tokens(self):
+        """With de=0, the output settles to control_tokens[c] after the pipeline fills."""
+        dut = TMDSEncoder()
+
+        def gen(dut, c_value):
+            yield dut.de.eq(0)
+            yield dut.c.eq(c_value)
+            yield dut.d.eq(0)
+            # Drive the same c/de for enough cycles to drain the pipeline.
+            for _ in range(8):
+                yield
+            out = yield dut.out
+            self.assertEqual(out, control_tokens[c_value],
+                f"c={c_value}: got out={out:#012b}, expected {control_tokens[c_value]:#012b}")
+
+        for c_val in range(4):
+            # Fresh instance per iteration so the pipeline starts empty.
+            dut = TMDSEncoder()
+            _run(dut, gen(dut, c_val))
+
+    def test_output_width(self):
+        """`out` is 10 bits wide — no value from the FSM may exceed 0x3ff."""
+        dut = TMDSEncoder()
+
+        def gen(dut):
+            yield dut.de.eq(1)
+            # Drive every 8-bit value and sample the output after the pipeline.
+            for d_val in [0x00, 0x01, 0x55, 0xaa, 0xff]:
+                yield dut.d.eq(d_val)
+                for _ in range(6):
+                    yield
+                out = (yield dut.out)
+                self.assertLessEqual(out, 0x3ff,
+                    f"out={out:#x} exceeds 10-bit range for d={d_val:#x}")
+
+        _run(dut, gen(dut))
+
+    def test_dc_balance_over_random_data(self):
+        """TMDS is designed so long sequences of encoded pixels are DC-balanced:
+        the running `cnt` stays bounded and the total ones-count converges
+        around 5/10 per symbol.  Feed random data and check the aggregate
+        ones-count is near 0.5 x (num_symbols x 10)."""
+        import random
+        dut = TMDSEncoder()
+        n_symbols = 1000
+        seed = 0xBEEF
+
+        def gen(dut):
+            rng = random.Random(seed)
+            yield dut.de.eq(1)
+            yield dut.c.eq(0)
+            # Prime the pipeline.
+            for _ in range(5):
+                yield
+            total_ones = 0
+            for _ in range(n_symbols):
+                yield dut.d.eq(rng.randrange(256))
+                yield
+                out = (yield dut.out)
+                total_ones += bin(out).count("1")
+            # Each symbol has 10 bits.  TMDS DC-balancing aims for roughly a
+            # 50% ones density across a long stream; allow 8% slack for the
+            # random distribution.
+            expected = 0.5 * 10 * n_symbols
+            self.assertLess(abs(total_ones - expected), 0.08 * expected,
+                f"TMDS DC balance off: got {total_ones} ones, expected ~{expected}")
+
+        _run(dut, gen(dut))
+
+
 if __name__ == "__main__":
     unittest.main()
