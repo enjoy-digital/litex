@@ -22,10 +22,21 @@ from litex.soc.cores.code_tmds import TMDSEncoder, control_tokens
 
 # Helpers ------------------------------------------------------------------------------------------
 
-def _run(dut, gens, vcd_name=None):
+def _run(dut, gens, vcd_name=None, clocks=None):
     if not isinstance(gens, list):
         gens = [gens]
-    run_simulation(dut, gens, vcd_name=vcd_name)
+    kwargs = dict(vcd_name=vcd_name)
+    if clocks is not None:
+        kwargs["clocks"] = clocks
+    run_simulation(dut, gens, **kwargs)
+
+
+# SDR outputs lower to an `InferedSDRIO` submodule which defines its own
+# `cd_sdrio` clock domain.  migen's simulator only ticks the clocks listed in
+# the `clocks` argument, so tests that instantiate SDROutput-based specials
+# must tell the sim about it — otherwise the output register never clocks and
+# pad signals stay at their reset value (0).
+_SDR_CLOCKS = {"sys": 10, "sdrio": 10}
 
 
 # A compact synthetic timings dictionary used throughout.  Picked so each line
@@ -230,6 +241,124 @@ class TestColorBarsPattern(unittest.TestCase):
                 f"first active row didn't match bar table: {pixels[:HRES]}")
 
         _run(dut, gen(dut))
+
+
+# VideoGenericPHY ----------------------------------------------------------------------------------
+
+class _PHYPads:
+    """Minimal object-style pads exposing whichever signals a test cares about.
+
+    VideoGenericPHY probes `hasattr(pads, ...)` to decide which outputs to
+    drive, so tests pick the subset they want by omitting attributes.
+    """
+    def __init__(self, cbits=8, pos_sync=True, with_de=True, with_clk=False):
+        self.r = Signal(cbits)
+        self.g = Signal(cbits)
+        self.b = Signal(cbits)
+        if with_de:
+            self.de = Signal()
+        if pos_sync:
+            self.hsync = Signal()
+            self.vsync = Signal()
+        else:
+            self.hsync_n = Signal()
+            self.vsync_n = Signal()
+        if with_clk:
+            self.clk = Signal()
+
+
+class _PHYHarness(Module):
+    """PHY + synthetic sink.  The PHY always asserts ready on its sink so we
+    can ignore back-pressure and simply step pixel values in."""
+    def __init__(self, **pad_kwargs):
+        self.pads = _PHYPads(**pad_kwargs)
+        # VideoGenericPHY uses `with_clk_ddr_output=True` by default, but the
+        # DDROutput lowering pulls in an extra clock domain we don't need — so
+        # turn it off when the test provides `clk` explicitly.  When the test
+        # omits `clk`, the PHY simply skips the clock output logic.
+        self.submodules.phy = VideoGenericPHY(self.pads, with_clk_ddr_output=False)
+        self.sink = self.phy.sink
+
+
+class TestVideoGenericPHY(unittest.TestCase):
+    """VideoGenericPHY is a thin SDR wrapper: every pixel field of the sink
+    lands on the matching pad one cycle later (InferedSDRIO adds one flop),
+    with r/g/b zeroed when `de` is low and with optional polarity inversion
+    on hsync_n / vsync_n pads."""
+
+    def _drive(self, dut, r, g, b, de, hsync, vsync):
+        yield dut.sink.valid.eq(1)
+        yield dut.sink.r.eq(r)
+        yield dut.sink.g.eq(g)
+        yield dut.sink.b.eq(b)
+        yield dut.sink.de.eq(de)
+        yield dut.sink.hsync.eq(hsync)
+        yield dut.sink.vsync.eq(vsync)
+
+    def test_positive_sync_and_de_passthrough(self):
+        dut = _PHYHarness(pos_sync=True, with_de=True)
+
+        def gen(dut):
+            yield from self._drive(dut, r=0xaa, g=0xbb, b=0xcc, de=1, hsync=1, vsync=0)
+            yield                              # InferedSDRIO samples on the edge.
+            yield                              # Pads now reflect what we drove.
+            self.assertEqual((yield dut.pads.r), 0xaa)
+            self.assertEqual((yield dut.pads.g), 0xbb)
+            self.assertEqual((yield dut.pads.b), 0xcc)
+            self.assertEqual((yield dut.pads.de), 1)
+            self.assertEqual((yield dut.pads.hsync), 1)
+            self.assertEqual((yield dut.pads.vsync), 0)
+
+        _run(dut, gen(dut), clocks=_SDR_CLOCKS)
+
+    def test_rgb_forced_to_zero_during_blanking(self):
+        """The PHY AND-masks r/g/b with `de` so VGA monitors see black during
+        blanking even if the upstream data signals happen to be non-zero."""
+        dut = _PHYHarness(pos_sync=True, with_de=True)
+
+        def gen(dut):
+            yield from self._drive(dut, r=0xff, g=0xff, b=0xff, de=0, hsync=1, vsync=1)
+            yield
+            yield
+            self.assertEqual((yield dut.pads.r),  0x00)
+            self.assertEqual((yield dut.pads.g),  0x00)
+            self.assertEqual((yield dut.pads.b),  0x00)
+            self.assertEqual((yield dut.pads.de), 0)
+            # HSync/VSync are NOT masked by DE — they're needed during blanking.
+            self.assertEqual((yield dut.pads.hsync), 1)
+            self.assertEqual((yield dut.pads.vsync), 1)
+
+        _run(dut, gen(dut), clocks=_SDR_CLOCKS)
+
+    def test_negative_sync_inverts(self):
+        """With hsync_n/vsync_n pads the PHY inverts the polarity so an asserted
+        sync on the stream lands as a 0 on the pad (active-low)."""
+        dut = _PHYHarness(pos_sync=False, with_de=False)
+
+        def gen(dut):
+            yield from self._drive(dut, r=0, g=0, b=0, de=1, hsync=1, vsync=0)
+            yield
+            yield
+            self.assertEqual((yield dut.pads.hsync_n), 0)
+            self.assertEqual((yield dut.pads.vsync_n), 1)
+
+        _run(dut, gen(dut), clocks=_SDR_CLOCKS)
+
+    def test_narrow_channel_takes_msbs(self):
+        """When the pad bus is narrower than 8 bits the PHY selects the MSBs
+        (cshift = 8 - cbits), throwing away LSBs — standard VGA truncation."""
+        dut = _PHYHarness(cbits=4, pos_sync=True, with_de=True)
+
+        def gen(dut):
+            # 0xa5 = 0b10100101 — MSB nibble is 0xa, LSB nibble is 0x5.
+            yield from self._drive(dut, r=0xa5, g=0x5a, b=0x0f, de=1, hsync=0, vsync=0)
+            yield
+            yield
+            self.assertEqual((yield dut.pads.r), 0xa)  # top nibble of 0xa5
+            self.assertEqual((yield dut.pads.g), 0x5)  # top nibble of 0x5a
+            self.assertEqual((yield dut.pads.b), 0x0)  # top nibble of 0x0f
+
+        _run(dut, gen(dut), clocks=_SDR_CLOCKS)
 
 
 if __name__ == "__main__":
