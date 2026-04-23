@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2019-2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import unittest
@@ -144,3 +144,67 @@ class TestCSR(unittest.TestCase):
                 ]
         dut = DUT()
         run_simulation(dut, generator(dut))
+
+    # Additional focused tests on the CSRStorage / CSR* primitives themselves, without the CSR
+    # bus plumbing of CSRDUT. These exercise behaviour that is directly observable via the
+    # simulation-friendly `read()` / `write()` generators on each primitive.
+
+    def test_csr_storage_reset_value(self):
+        class DUT(Module):
+            def __init__(self):
+                self._r = csr.CSRStorage(32, reset=0xcafe_babe)
+        dut = DUT()
+
+        def gen():
+            self.assertEqual((yield from dut._r.read()), 0xcafe_babe)
+            yield from dut._r.write(0x1234_5678)
+            self.assertEqual((yield from dut._r.read()), 0x1234_5678)
+        run_simulation(dut, gen())
+
+    def test_csr_storage_pulse_field(self):
+        # A pulse field is only 1 for the cycle of the CSR write, then back to 0.
+        class DUT(Module):
+            def __init__(self):
+                self._r = csr.CSRStorage(fields=[
+                    csr.CSRField("trig", size=1, offset=0, pulse=True, description="trig"),
+                    csr.CSRField("keep", size=1, offset=1, description="kept"),
+                ])
+        dut = DUT()
+
+        def gen():
+            # Write both bits high. `trig` pulses during the write cycle; `keep` latches.
+            yield from dut._r.write(0b11)
+            # Give one more cycle so the pulse reset in write()'s tail propagates.
+            yield
+            self.assertEqual((yield dut._r.fields.trig), 0)
+            self.assertEqual((yield dut._r.fields.keep), 1)
+        run_simulation(dut, gen())
+
+    def test_csrstatus_read_reflects_driver(self):
+        # CSRStatus.read() returns the current value of `.status` (async read).
+        class DUT(Module):
+            def __init__(self):
+                self.src    = Signal(8)
+                self._s     = csr.CSRStatus(8)
+                self.comb  += self._s.status.eq(self.src)
+        dut = DUT()
+
+        def gen():
+            yield dut.src.eq(0xA5)
+            yield
+            self.assertEqual((yield from dut._s.read()), 0xA5)
+            yield dut.src.eq(0x42)
+            yield
+            self.assertEqual((yield from dut._s.read()), 0x42)
+        run_simulation(dut, gen())
+
+    def test_csr_storage_write_out_of_range_rejected(self):
+        class DUT(Module):
+            def __init__(self):
+                self._r = csr.CSRStorage(4)
+        dut = DUT()
+
+        def gen():
+            with self.assertRaises(ValueError):
+                yield from dut._r.write(0x100)  # 9-bit value into 4-bit storage.
+        run_simulation(dut, gen())
