@@ -42,12 +42,15 @@ class _Harness(Module):
     read: drive adr + re one cycle, latch dat_r two cycles later.
     """
 
-    def __init__(self, hres=80, vres=64, with_csi_interpreter=True, font=None):
+    def __init__(self, hres=80, vres=64, with_csi_interpreter=True, visible_cols=None, font=None):
         if font is None:
             font = _blank_font()
-        self.submodules.terminal = terminal = VideoTerminal(
+        kwargs = dict(
             hres=hres, vres=vres, with_csi_interpreter=with_csi_interpreter, font=font,
         )
+        if visible_cols is not None:
+            kwargs["visible_cols"] = visible_cols
+        self.submodules.terminal = terminal = VideoTerminal(**kwargs)
         self.peek = terminal.term_mem.get_port(has_re=True)
         self.specials += self.peek
         # Hold VTG sink idle (white-box tests don't exercise the pixel path).
@@ -285,6 +288,32 @@ class TestCSIInterpreterDisable(unittest.TestCase):
             # ESC is printed as a glyph at (0,0).
             c = yield from _peek_char(dut, 0, 0)
             self.assertEqual(c, ESC)
+
+        _run(dut, gen(dut))
+
+
+class TestWrapAtVisibleColumns(unittest.TestCase):
+    """End-of-line wrap must honour `visible_cols`, not a hardcoded 80."""
+
+    def test_visible_cols_40_wraps_at_40(self):
+        dut = _Harness(hres=80, vres=32, visible_cols=40)
+
+        def gen(dut):
+            # Send 45 non-space chars so we can tell where the wrap happened.
+            data = bytes([ord("X")] * 45)
+            yield from _uart_send(dut, data)
+            yield from _wait_uart_idle(dut)
+            # First 40 'X' on row 0.
+            for i in range(40):
+                c = yield from _peek_char(dut, i, 0)
+                self.assertEqual(c, ord("X"), f"row 0 col {i} = {c:#x}")
+            # Col 40 on row 0 must NOT be an 'X' (wrapped before there).
+            c = yield from _peek_char(dut, 40, 0)
+            self.assertNotEqual(c, ord("X"))
+            # Remaining 5 'X' on row 1.
+            for i in range(5):
+                c = yield from _peek_char(dut, i, 1)
+                self.assertEqual(c, ord("X"), f"row 1 col {i} = {c:#x}")
 
         _run(dut, gen(dut))
 

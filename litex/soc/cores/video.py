@@ -454,7 +454,7 @@ class CSIInterpreter(LiteXModule):
         )
 
 class VideoTerminal(LiteXModule):
-    def __init__(self, hres=800, vres=600, with_csi_interpreter=True, font=None):
+    def __init__(self, hres=800, vres=600, with_csi_interpreter=True, visible_cols=None, font=None):
         self.enable    = Signal(reset=1)
         self.vtg_sink  = vtg_sink   = stream.Endpoint(video_timing_layout)
         self.uart_sink = uart_sink  = stream.Endpoint([("data", 8)])
@@ -463,6 +463,14 @@ class VideoTerminal(LiteXModule):
         # # #
 
         csi_width = 8 if with_csi_interpreter else 0
+
+        # `visible_cols` is the number of character columns that are actually
+        # displayed (and at which the cursor wraps to the next line).  The
+        # underlying buffer is always sized to `term_colums` (128, next power
+        # of two) so a single Y multiplication addresses it.  Defaulting to 80
+        # preserves the historical behavior of this module.
+        if visible_cols is None:
+            visible_cols = 80
 
         # Font Mem.
         # ---------
@@ -496,10 +504,11 @@ class VideoTerminal(LiteXModule):
         self.term_mem    = term_mem
         self.font_mem    = font_mem
         self.autocsr_exclude = {"term_mem", "font_mem"}
-        self.term_colums = term_colums
-        self.term_lines  = term_lines
-        self.font_width  = font_width
-        self.font_heigth = font_heigth
+        self.term_colums  = term_colums
+        self.term_lines   = term_lines
+        self.visible_cols = visible_cols
+        self.font_width   = font_width
+        self.font_heigth  = font_heigth
 
         # UART Terminal Fill.
         # -------------------
@@ -567,7 +576,7 @@ class VideoTerminal(LiteXModule):
         uart_fsm.act("INCR-X",
             NextValue(x_term, x_term + 1),
             NextState("IDLE"),
-            If(x_term == (80 - 1),
+            If(x_term == (visible_cols - 1),
                 NextValue(x_term, 0),
                 NextState("INCR-Y")
             )
@@ -630,7 +639,7 @@ class VideoTerminal(LiteXModule):
         self.comb += term_rdport.adr.eq(x + y_rollover*term_colums)
         self.comb += [
             term_dat_r.eq(term_rdport.dat_r[:font_width]),
-            If((x >= 80) | (y >= term_lines),
+            If((x >= visible_cols) | (y >= term_lines),
                 term_dat_r.eq(ord(" ")), # Out of range, generate space.
             )
         ]
