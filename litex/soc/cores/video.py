@@ -387,16 +387,24 @@ class CSIInterpreter(LiteXModule):
     csi_param_min = 0x30
     csi_param_max = 0x3f
     def __init__(self, enable=True):
+        # The source endpoint tags every forwarded byte with the current
+        # colour so the downstream FIFO preserves the tag — without this,
+        # colour changes could silently reorder with the characters that
+        # were already buffered downstream.
         self.sink   = sink   = stream.Endpoint([("data", 8)])
-        self.source = source = stream.Endpoint([("data", 8)])
+        self.source = source = stream.Endpoint([("data", 8), ("color", 4)])
 
         self.color    = Signal(4)
         self.clear_xy = Signal()
 
         # # #
 
+        # Every byte the interpreter forwards (CSI disabled or enabled)
+        # carries the colour it was emitted under.
+        self.comb += source.color.eq(self.color)
+
         if not enable:
-            self.comb += self.sink.connect(self.source)
+            self.comb += self.sink.connect(self.source, omit={"color"})
             return
 
         csi_count = Signal(3)
@@ -405,7 +413,7 @@ class CSIInterpreter(LiteXModule):
 
         self.fsm = fsm = FSM(reset_state="RECOPY")
         fsm.act("RECOPY",
-            sink.connect(source),
+            sink.connect(source, omit={"color"}),
             If(sink.valid & (sink.data == self.esc_start),
                 source.valid.eq(0),
                 sink.ready.eq(1),
@@ -517,10 +525,17 @@ class VideoTerminal(LiteXModule):
         self.csi_interpreter = CSIInterpreter(enable=with_csi_interpreter)
         self.comb += uart_sink.connect(self.csi_interpreter.sink)
         uart_sink = self.csi_interpreter.source
-        self.comb += term_wrport.dat_w[font_width:].eq(self.csi_interpreter.color)
 
-        self.uart_fifo = stream.SyncFIFO([("data", 8)], 8)
-        self.comb += uart_sink.connect(self.uart_fifo.sink)
+        # The FIFO carries colour alongside the character so the attribute
+        # used at WRITE-time matches the colour that was latched when this
+        # particular byte left the CSI interpreter.  Without this, any bytes
+        # queued in the FIFO would be re-coloured by later ESC[ sequences.
+        fifo_layout = [("data", 8), ("color", 4)] if csi_width else [("data", 8)]
+        self.uart_fifo = stream.SyncFIFO(fifo_layout, 8)
+        if csi_width:
+            self.comb += uart_sink.connect(self.uart_fifo.sink)
+        else:
+            self.comb += uart_sink.connect(self.uart_fifo.sink, omit={"color"})
         uart_sink = self.uart_fifo.source
 
         # UART Reception and Terminal Fill.
@@ -590,6 +605,10 @@ class VideoTerminal(LiteXModule):
             uart_sink.ready.eq(1),
             term_wrport.we.eq(1),
             term_wrport.dat_w[:font_width].eq(uart_sink.data),
+            # The character's colour travels alongside its data in the FIFO
+            # (see `fifo_layout` above), so it lines up with the glyph even
+            # if the CSI interpreter has since moved on to another colour.
+            *([term_wrport.dat_w[font_width:].eq(uart_sink.color)] if csi_width else []),
             NextState("INCR-X")
         )
         uart_fsm.act("RST-X",
