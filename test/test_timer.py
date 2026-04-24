@@ -61,3 +61,29 @@ class TestTimer(unittest.TestCase):
 
         timer = Timer()
         run_simulation(timer, generator(timer))
+
+    def test_periodic_timer_interrupts(self):
+        # Counterpart to test_one_shot_timer_interrupts: with reload != 0 the timer must keep
+        # firing the zero event on every reload cycle, not just once. Counts at least two
+        # distinct zero events within a window long enough for several periods.
+        def generator(timer):
+            period = 10
+            yield from timer._en.write(0)
+            yield from timer._load.write(0)
+            yield from timer._reload.write(period)
+            yield from timer.ev.enable.write(1)
+            yield from timer._en.write(1)
+
+            firings = 0
+            prev    = 0
+            for _ in range(8*period):
+                cur = (yield timer.ev.zero.trigger)
+                if prev == 0 and cur == 1:
+                    firings += 1
+                prev = cur
+                yield
+            self.assertGreaterEqual(firings, 2,
+                f"periodic zero event fired only {firings} times in 8 periods")
+
+        timer = Timer()
+        run_simulation(timer, generator(timer))
