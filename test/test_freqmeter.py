@@ -78,6 +78,33 @@ class TestFreqMeterSampler(unittest.TestCase):
             self.assertEqual((yield dut.o), nticks*stride)
         run_simulation(dut, gen())
 
+    def test_periodic_latch(self):
+        # Pulse `latch` repeatedly with a known number of ticks between pulses; each latch
+        # window must report the count of increments in that window (and reset to 0 for the
+        # next window).
+        dut          = _Sampler(width=8)
+        per_window   = 12
+        nwindows     = 4
+        seen         = []
+
+        def gen():
+            tick = 0
+            for w in range(nwindows):
+                for _ in range(per_window):
+                    tick = (tick + 1) & 0xff
+                    yield dut.i.eq(tick)
+                    yield
+                # Latch and read back.
+                yield dut.latch.eq(1)
+                yield
+                yield dut.latch.eq(0)
+                yield
+                seen.append((yield dut.o))
+        run_simulation(dut, gen())
+
+        # Each window must report exactly `per_window` ticks.
+        self.assertEqual(seen, [per_window]*nwindows)
+
 
 class TestFreqMeter(unittest.TestCase):
     def test_instantiation(self):
