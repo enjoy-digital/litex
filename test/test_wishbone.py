@@ -652,6 +652,42 @@ class TestWishboneInterconnectShared(unittest.TestCase):
 
         run_simulation(dut, [m0_workflow(), m1_workflow()])
 
+    def test_crossbar_full_n_by_m(self):
+        # wishbone.Crossbar is distinct from InterconnectShared: it instantiates a Decoder per
+        # master and an Arbiter per slave (so any master can independently reach any slave),
+        # rather than funnelling through a single shared bus.
+        class DUT(LiteXModule):
+            def __init__(self):
+                self.m0 = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                self.m1 = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                s0      = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                s1      = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                self.submodules.sram0 = wishbone.SRAM(32, bus=s0)
+                self.submodules.sram1 = wishbone.SRAM(32, bus=s1)
+                self.submodules.crossbar = wishbone.Crossbar(
+                    masters = [self.m0, self.m1],
+                    slaves  = [
+                        (lambda a: a[3] == 0, s0),
+                        (lambda a: a[3] == 1, s1),
+                    ],
+                )
+
+        dut = DUT()
+
+        def m0_workflow():
+            yield from dut.m0.write(0x00, 0xAA00)  # → s0
+            yield from dut.m0.write(0x09, 0xAA09)  # → s1
+            self.assertEqual((yield from dut.m0.read(0x00)), 0xAA00)
+            self.assertEqual((yield from dut.m0.read(0x09)), 0xAA09)
+
+        def m1_workflow():
+            yield from dut.m1.write(0x01, 0xBB01)  # → s0
+            yield from dut.m1.write(0x0A, 0xBB0A)  # → s1
+            self.assertEqual((yield from dut.m1.read(0x01)), 0xBB01)
+            self.assertEqual((yield from dut.m1.read(0x0A)), 0xBB0A)
+
+        run_simulation(dut, [m0_workflow(), m1_workflow()])
+
     def test_timeout_acks_stuck_slave(self):
         # A master targeting a region where no slave answers must see the Timeout fake an ack
         # within `timeout_cycles` (with all-1s data, per the wishbone.Timeout implementation).
