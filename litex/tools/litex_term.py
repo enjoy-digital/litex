@@ -486,13 +486,17 @@ class LiteXTerm:
         start           = time.time()
         remaining       = length
         outstanding     = 0
+        last_progress_update = 0.0
         while remaining:
-            # Show progress
-            sys.stdout.write("|{}>{}| {}%\r".format(
-                "=" * (20*position//length),
-                " " * (20-20*position//length),
-                100*position//length))
-            sys.stdout.flush()
+            # Show progress (throttled to 10 Hz to avoid overloading terminal/X11)
+            now = time.time()
+            if now - last_progress_update >= 0.1:
+                sys.stdout.write("|{}>{}| {}%\r".format(
+                    "=" * (20*position//length),
+                    " " * (20-20*position//length),
+                    100*position//length))
+                sys.stdout.flush()
+                last_progress_update = now
 
             # Send frame if max outstanding not reached.
             if outstanding <= self.outstanding:
@@ -515,12 +519,16 @@ class LiteXTerm:
                 # Inter-frame delay.
                 time.sleep(self.delay)
 
-            # Read response if available.
-            while self.port.in_waiting:
-                ack = self.receive_upload_response()
-                if ack:
-                    outstanding -= 1
-                    break
+            # Read response if available, else yield CPU briefly.
+            if self.port.in_waiting:
+                while self.port.in_waiting:
+                    ack = self.receive_upload_response()
+                    if ack:
+                        outstanding -= 1
+                        break
+            elif outstanding > self.outstanding:
+                # yield 1/10th of frame transmission time to avoids busy-wait (minimum is 0.1ms)
+                time.sleep(max(0.0001, (self.length * 10) / self.port.baudrate / 10))
 
         # Get remaining responses.
         for _ in range(outstanding):
