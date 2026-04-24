@@ -63,6 +63,38 @@ class TestUART(unittest.TestCase):
                 self.assertEqual((yield dut.phy.source.valid), 0)
         run_simulation(dut, gen(dut))
 
+    def test_long_burst_stable(self):
+        # A 16-byte burst exercises the TX backpressure path: the producer holds
+        # `sink.valid=1` for each byte and waits for `sink.ready` to pulse, which only happens
+        # when the TX FSM finishes its current 10-bit frame. Any reordering or drop would
+        # show up as a mismatch.
+        dut      = _LoopbackDUT(clk_freq=1_000_000, baudrate=100_000)
+        payload  = list(range(0x40, 0x40 + 16))
+        received = []
+
+        def tx_driver(dut):
+            for byte in payload:
+                yield dut.phy.sink.data.eq(byte)
+                yield dut.phy.sink.valid.eq(1)
+                yield
+                while not (yield dut.phy.sink.ready):
+                    yield
+                yield dut.phy.sink.valid.eq(0)
+                yield
+
+        def rx_driver(dut):
+            yield dut.phy.source.ready.eq(1)
+            timeout = 0
+            while len(received) < len(payload):
+                if (yield dut.phy.source.valid) and (yield dut.phy.source.ready):
+                    received.append((yield dut.phy.source.data))
+                yield
+                timeout += 1
+                self.assertLess(timeout, 100_000, "long burst stalled")
+
+        run_simulation(dut, [tx_driver(dut), rx_driver(dut)])
+        self.assertEqual(received, payload)
+
 
 if __name__ == "__main__":
     unittest.main()
