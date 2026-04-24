@@ -208,3 +208,50 @@ class TestCSR(unittest.TestCase):
             with self.assertRaises(ValueError):
                 yield from dut._r.write(0x100)  # 9-bit value into 4-bit storage.
         run_simulation(dut, gen())
+
+    def test_csr_storage_atomic_write(self):
+        # A 32-bit CSRStorage(atomic_write=True) on an 8-bit bus splits into 4 simple CSRs.
+        # With ordering="big" (default), the highest-index word lives at the lowest bus
+        # address. The atomic-write protocol holds writes to the upper words in a backstore
+        # signal and only commits to `storage` when the lowest word is written. We exercise
+        # that explicitly here.
+        class CSRModule(Module, csr.AutoCSR):
+            def __init__(self):
+                self._r = csr.CSRStorage(32, reset=0xDEAD_BEEF, atomic_write=True)
+
+        class CSRDUT2(Module):
+            def address_map(self, name, memory):
+                return {"mod": 0}[name]
+
+            def __init__(self):
+                self.csr = csr_bus.Interface(data_width=8)
+                self.submodules.mod = CSRModule()
+                self.submodules.bankarray = csr_bus.CSRBankArray(
+                    source      = self,
+                    address_map = self.address_map,
+                    data_width  = 8,
+                )
+                self.submodules.con = csr_bus.Interconnect(
+                    master = self.csr,
+                    slaves = self.bankarray.get_buses(),
+                )
+
+        dut = CSRDUT2()
+
+        def gen():
+            # Storage starts at the reset value.
+            self.assertEqual((yield dut.mod._r.storage), 0xDEAD_BEEF)
+            # Write the three upper bytes (addr 0..2 with ordering="big"). Storage must NOT
+            # update yet — it stays at the reset value while backstore fills.
+            yield from dut.csr.write(0, 0xCA)
+            yield from dut.csr.write(1, 0xFE)
+            yield from dut.csr.write(2, 0xBA)
+            yield
+            self.assertEqual((yield dut.mod._r.storage), 0xDEAD_BEEF)
+            # Writing the lowest-address word last commits everything atomically.
+            yield from dut.csr.write(3, 0xBE)
+            yield
+            yield
+            self.assertEqual((yield dut.mod._r.storage), 0xCAFE_BABE)
+
+        run_simulation(dut, gen())
