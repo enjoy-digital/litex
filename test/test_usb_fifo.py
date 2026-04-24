@@ -44,6 +44,63 @@ class TestFT245PHYAsynchronous(unittest.TestCase):
         self.assertEqual(dut.sink.data.nbits,   8)
         self.assertEqual(dut.source.data.nbits, 8)
 
+    def test_read_byte_arrives_on_source(self):
+        # FTDI-side mock: hold rxf_n=0 to signal "data available", and drive `i_mock` of the
+        # data tristate so the PHY's read FSM samples our chosen byte. Verify it shows up on
+        # the SoC-side stream source.
+        #
+        # The local `rxf_n` Signal in the PHY (after MultiReg) defaults to 0, so the read FSM
+        # has already armed by the time the pad's reset value (1) propagates through the
+        # synchroniser. To get a deterministic byte on the source, override the i_mock reset
+        # value to our wanted byte — that way the very first capture carries it instead of the
+        # MockTristate default of 1.
+        pads = _FT245Pads()
+        wanted = 0xC3
+
+        class _PrimedMockTristateImpl(Module):
+            def __init__(self, t):
+                # Same as common.MockTristate, but i_mock starts at `wanted` rather than 1.
+                t.i_mock = Signal(8, reset=wanted)
+                self.comb += If(t.oe,
+                    t.target.eq(t.o),
+                ).Else(
+                    t.target.eq(t.i_mock),
+                )
+                if t.i is not None:
+                    self.comb += If(t.oe,
+                        t.i.eq(t.o),
+                    ).Else(
+                        t.i.eq(t.i_mock),
+                    )
+
+        class _PrimedMockTristate:
+            @staticmethod
+            def lower(t):
+                return _PrimedMockTristateImpl(t)
+
+        dut = FT245PHYAsynchronous(pads, CLK_FREQ)
+        captured = []
+
+        @passive
+        def ftdi_side():
+            yield pads.txe_n.eq(1)
+            # rxf_n is already low by virtue of the MultiReg default, so the read FSM is
+            # already armed at cycle 0 — no need to drive rxf_n explicitly here.
+            while True:
+                yield
+
+        def consumer():
+            yield dut.source.ready.eq(1)
+            timeout = 0
+            while not ((yield dut.source.valid) and (yield dut.source.ready)):
+                yield
+                timeout += 1
+                self.assertLess(timeout, 200, "source never delivered a byte")
+            captured.append((yield dut.source.data))
+
+        run_simulation(dut, [consumer(), ftdi_side()], special_overrides={Tristate: _PrimedMockTristate})
+        self.assertEqual(captured, [wanted])
+
     def test_write_byte_reaches_pads(self):
         # Push a byte into the SoC-side sink and verify the PHY drives it out on `pads.data` with
         # `wr_n` pulsed low. Uses a passive "FTDI" generator that keeps `txe_n` low (FIFO has
