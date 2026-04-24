@@ -99,6 +99,37 @@ class TestPWM(unittest.TestCase):
             self.assertEqual(high, width*nperiods)
         run_simulation(dut, gen())
 
+    def test_dynamic_duty_change(self):
+        # Width updates while the PWM is enabled must take effect — count high cycles in a
+        # window before the change and another after the change, and assert each window matches
+        # its own configured duty.
+        dut = PWM(with_csr=False)
+        period = 8
+
+        def gen():
+            yield dut.period.eq(period)
+            yield dut.enable.eq(1)
+            yield dut.width.eq(2)
+            for _ in range(4):
+                yield  # let things settle
+            high1 = 0
+            for _ in range(period*4):
+                yield
+                if (yield dut.pwm):
+                    high1 += 1
+            self.assertEqual(high1, 2*4)
+
+            yield dut.width.eq(6)
+            for _ in range(4):
+                yield  # settle the width change
+            high2 = 0
+            for _ in range(period*4):
+                yield
+                if (yield dut.pwm):
+                    high2 += 1
+            self.assertEqual(high2, 6*4)
+        run_simulation(dut, gen())
+
     def test_reset_holds_counter(self):
         # Asserting `reset` freezes the counter at 0 so the duty cycle no longer scans; the
         # pwm output then becomes a constant combinational function of (enable, 0 < width).
