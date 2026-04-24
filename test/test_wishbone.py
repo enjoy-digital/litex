@@ -612,3 +612,66 @@ class TestWishboneDecoder(unittest.TestCase):
             self.assertEqual((yield from dut.master.read(0x09)), 0x00000000)
 
         run_simulation(dut, gen())
+
+
+# InterconnectShared -------------------------------------------------------------------------------
+
+class TestWishboneInterconnectShared(unittest.TestCase):
+    def test_two_masters_route_to_two_slaves(self):
+        # m0 and m1 both reach both s0 and s1 through one InterconnectShared.
+        class DUT(LiteXModule):
+            def __init__(self):
+                self.m0 = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                self.m1 = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                s0      = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                s1      = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                self.submodules.sram0 = wishbone.SRAM(32, bus=s0)
+                self.submodules.sram1 = wishbone.SRAM(32, bus=s1)
+                self.submodules.shared = wishbone.InterconnectShared(
+                    masters = [self.m0, self.m1],
+                    slaves  = [
+                        (lambda a: a[3] == 0, s0),
+                        (lambda a: a[3] == 1, s1),
+                    ],
+                    timeout_cycles = 1024,
+                )
+
+        dut = DUT()
+
+        def m0_workflow():
+            yield from dut.m0.write(0x00, 0xAA00_AA00)  # s0
+            yield from dut.m0.write(0x08, 0xAA11_AA11)  # s1
+            self.assertEqual((yield from dut.m0.read(0x00)), 0xAA00_AA00)
+            self.assertEqual((yield from dut.m0.read(0x08)), 0xAA11_AA11)
+
+        def m1_workflow():
+            yield from dut.m1.write(0x04, 0xBB00_BB00)  # s0
+            yield from dut.m1.write(0x0C, 0xBB11_BB11)  # s1
+            self.assertEqual((yield from dut.m1.read(0x04)), 0xBB00_BB00)
+            self.assertEqual((yield from dut.m1.read(0x0C)), 0xBB11_BB11)
+
+        run_simulation(dut, [m0_workflow(), m1_workflow()])
+
+    def test_timeout_acks_stuck_slave(self):
+        # A master targeting a region where no slave answers must see the Timeout fake an ack
+        # within `timeout_cycles` (with all-1s data, per the wishbone.Timeout implementation).
+        class DUT(LiteXModule):
+            def __init__(self):
+                self.m  = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                # A "dead" slave whose ack is never asserted (default reset).
+                self.dead = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                self.submodules.shared = wishbone.InterconnectShared(
+                    masters = [self.m],
+                    slaves  = [(lambda a: 1, self.dead)],   # always-match
+                    timeout_cycles = 64,
+                )
+
+        dut = DUT()
+
+        def gen():
+            value = yield from dut.m.read(0x00)
+            # Timeout returns all-ones on the data bus.
+            self.assertEqual(value, 0xFFFF_FFFF)
+            self.assertEqual((yield dut.shared.timeout.error), 1)
+
+        run_simulation(dut, gen())
