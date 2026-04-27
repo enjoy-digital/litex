@@ -154,10 +154,7 @@ class SoCCore(LiteXSoC):
         )
 
         # Attributes.
-        self.mem_regions = self.bus.regions
-        self.clk_freq    = self.sys_clk_freq
-        self.mem_map     = self.mem_map
-        self.config      = {}
+        self.config = {}
 
         # Parameters management --------------------------------------------------------------------
 
@@ -188,9 +185,6 @@ class SoCCore(LiteXSoC):
 
         # MAIN RAM.
         self.integrated_main_ram_size = integrated_main_ram_size
-
-        # CSRs.
-        self.csr_data_width = csr_data_width
 
         # Modules instances ------------------------------------------------------------------------
 
@@ -274,6 +268,22 @@ class SoCCore(LiteXSoC):
         if with_watchdog:
             self.add_watchdog(name="watchdog0",
                 width=watchdog_width, reset_delay=watchdog_reset_delay)
+
+    # Methods --------------------------------------------------------------------------------------
+
+    # Aliases (for back-compat with code that read these as plain attributes) ----------------------
+
+    @property
+    def mem_regions(self):
+        return self.bus.regions
+
+    @property
+    def clk_freq(self):
+        return self.sys_clk_freq
+
+    @property
+    def csr_data_width(self):
+        return self.csr.data_width
 
     # Methods --------------------------------------------------------------------------------------
 
