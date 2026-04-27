@@ -20,9 +20,6 @@ def compat_notice(name, date, info=""):
     print("thanks :)")
 
 def add_compat(location):
-    # Integration.
-    if location == "litex.soc.integration":
-        pass
     # Interconnect.
     if location == "litex.soc.interconnect":
         class compat_stream_sim:
