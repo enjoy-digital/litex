@@ -60,6 +60,88 @@ class Write(Access): pass
 
 class Read(Access): pass
 
+# AXI4 driver helpers (used by AXISRAM tests) ------------------------------------------------------
+
+def axi_aw_send(axi, addr, burst_len=0, burst_type=BURST_INCR, size=2, id=0):
+    yield axi.aw.valid.eq(1)
+    yield axi.aw.addr.eq(addr)
+    yield axi.aw.burst.eq(burst_type)
+    yield axi.aw.len.eq(burst_len)
+    yield axi.aw.size.eq(size)
+    yield axi.aw.id.eq(id)
+    yield
+    while (yield axi.aw.ready) == 0:
+        yield
+    yield axi.aw.valid.eq(0)
+
+def axi_w_send(axi, data, last):
+    yield axi.w.valid.eq(1)
+    yield axi.w.data.eq(data)
+    yield axi.w.strb.eq(2**(axi.data_width//8) - 1)
+    yield axi.w.last.eq(int(last))
+    yield
+    while (yield axi.w.ready) == 0:
+        yield
+    yield axi.w.valid.eq(0)
+
+def axi_b_recv(axi):
+    yield axi.b.ready.eq(1)
+    while (yield axi.b.valid) == 0:
+        yield
+    resp = (yield axi.b.resp)
+    yield axi.b.ready.eq(0)
+    yield
+    return resp
+
+def axi_ar_send(axi, addr, burst_len=0, burst_type=BURST_INCR, size=2, id=0):
+    yield axi.ar.valid.eq(1)
+    yield axi.ar.addr.eq(addr)
+    yield axi.ar.burst.eq(burst_type)
+    yield axi.ar.len.eq(burst_len)
+    yield axi.ar.size.eq(size)
+    yield axi.ar.id.eq(id)
+    yield
+    while (yield axi.ar.ready) == 0:
+        yield
+    yield axi.ar.valid.eq(0)
+
+def axi_r_recv_one(axi):
+    yield axi.r.ready.eq(1)
+    while (yield axi.r.valid) == 0:
+        yield
+    data = (yield axi.r.data)
+    resp = (yield axi.r.resp)
+    last = (yield axi.r.last)
+    yield axi.r.ready.eq(0)
+    yield
+    return data, resp, last
+
+def axi_write_single(axi, addr, data, size=2):
+    yield from axi_aw_send(axi, addr, size=size)
+    yield from axi_w_send(axi, data, last=True)
+    return (yield from axi_b_recv(axi))
+
+def axi_read_single(axi, addr, size=2):
+    yield from axi_ar_send(axi, addr, size=size)
+    data, resp, _ = yield from axi_r_recv_one(axi)
+    return data, resp
+
+def axi_write_burst(axi, addr, beats, burst_type=BURST_INCR, size=2):
+    yield from axi_aw_send(axi, addr, burst_len=len(beats) - 1, burst_type=burst_type, size=size)
+    for i, beat in enumerate(beats):
+        yield from axi_w_send(axi, beat, last=(i == len(beats) - 1))
+    return (yield from axi_b_recv(axi))
+
+def axi_read_burst(axi, addr, length, burst_type=BURST_INCR, size=2):
+    yield from axi_ar_send(axi, addr, burst_len=length - 1, burst_type=burst_type, size=size)
+    datas = []
+    for _ in range(length):
+        data, resp, _last = yield from axi_r_recv_one(axi)
+        if resp != RESP_OKAY:
+            return None
+        datas.append(data)
+    return datas
+
 # TestAXI ------------------------------------------------------------------------------------------
 
 class TestAXI(unittest.TestCase):
@@ -406,108 +488,30 @@ class TestAXI(unittest.TestCase):
         dut = DUT(64, 32)
         run_simulation(dut, [read_generator(dut), write_generator(dut)], vcd_name="sim.vcd")
 
-    def test_axi_sram(self):
-        # Exercises AXISRAM both as a single-beat AXI-Lite-shaped bus user (one address per
-        # transaction) and with real AXI4 incrementing bursts. Verifies that what we write is what
-        # we read back.
-
+    # AXISRAM helper: builds a DUT with a 32-bit AXI bus and runs the supplied generator.
+    def _axisram_run(self, generator, size=64*4, init=None, data_width=32):
         class DUT(LiteXModule):
             def __init__(self, size, init):
-                self.axi  = AXIInterface(data_width=32, address_width=32, id_width=4)
+                self.axi  = AXIInterface(data_width=data_width, address_width=32, id_width=4)
                 self.sram = AXISRAM(size, init=init, bus=self.axi)
                 self.errors = 0
+        prng = random.Random(0)
+        if init is None:
+            init = [prng.randrange(2**data_width) for _ in range(size//(data_width//8))]
+        dut = DUT(size=size, init=init)
+        run_simulation(dut, [generator(dut, init)])
+        return dut
 
-        def aw_send(axi, addr, burst_len=0, burst_type=BURST_INCR, size=2, id=0):
-            yield axi.aw.valid.eq(1)
-            yield axi.aw.addr.eq(addr)
-            yield axi.aw.burst.eq(burst_type)
-            yield axi.aw.len.eq(burst_len)
-            yield axi.aw.size.eq(size)
-            yield axi.aw.id.eq(id)
-            yield
-            while (yield axi.aw.ready) == 0:
-                yield
-            yield axi.aw.valid.eq(0)
-
-        def w_send(axi, data, last):
-            yield axi.w.valid.eq(1)
-            yield axi.w.data.eq(data)
-            yield axi.w.strb.eq(2**(axi.data_width//8) - 1)
-            yield axi.w.last.eq(int(last))
-            yield
-            while (yield axi.w.ready) == 0:
-                yield
-            yield axi.w.valid.eq(0)
-
-        def b_recv(axi):
-            yield axi.b.ready.eq(1)
-            while (yield axi.b.valid) == 0:
-                yield
-            resp = (yield axi.b.resp)
-            yield axi.b.ready.eq(0)
-            yield
-            return resp
-
-        def ar_send(axi, addr, burst_len=0, burst_type=BURST_INCR, size=2, id=0):
-            yield axi.ar.valid.eq(1)
-            yield axi.ar.addr.eq(addr)
-            yield axi.ar.burst.eq(burst_type)
-            yield axi.ar.len.eq(burst_len)
-            yield axi.ar.size.eq(size)
-            yield axi.ar.id.eq(id)
-            yield
-            while (yield axi.ar.ready) == 0:
-                yield
-            yield axi.ar.valid.eq(0)
-
-        def r_recv_one(axi):
-            yield axi.r.ready.eq(1)
-            while (yield axi.r.valid) == 0:
-                yield
-            data = (yield axi.r.data)
-            resp = (yield axi.r.resp)
-            last = (yield axi.r.last)
-            yield axi.r.ready.eq(0)
-            yield
-            return data, resp, last
-
-        def axi_write_single(axi, addr, data):
-            yield from aw_send(axi, addr)
-            yield from w_send(axi, data, last=True)
-            return (yield from b_recv(axi))
-
-        def axi_read_single(axi, addr):
-            yield from ar_send(axi, addr)
-            data, resp, _ = yield from r_recv_one(axi)
-            return data, resp
-
-        def axi_write_burst(axi, addr, beats):
-            yield from aw_send(axi, addr, burst_len=len(beats) - 1, burst_type=BURST_INCR, size=2)
-            for i, beat in enumerate(beats):
-                yield from w_send(axi, beat, last=(i == len(beats) - 1))
-            return (yield from b_recv(axi))
-
-        def axi_read_burst(axi, addr, length):
-            yield from ar_send(axi, addr, burst_len=length - 1, burst_type=BURST_INCR, size=2)
-            datas = []
-            for _ in range(length):
-                data, resp, _last = yield from r_recv_one(axi)
-                if resp != RESP_OKAY:
-                    return None
-                datas.append(data)
-            return datas
-
-        # Single-beat write/read covering the whole memory.
-        def single_beat_test(dut, ref_init):
+    def test_axi_sram(self):
+        # Smoke test: single-beat init readback, single-beat writes, then one INCR-16 burst.
+        def gen(dut, ref_init):
             prng = random.Random(42)
-
-            # Read each cell back via single-beat AXI reads and verify init values.
+            # Read each init cell back single-beat.
             for word_addr, ref in enumerate(ref_init):
                 data, resp = yield from axi_read_single(dut.axi, word_addr * 4)
                 if resp != RESP_OKAY or data != ref:
                     dut.errors += 1
-
-            # Single-beat writes covering the same range, then reads to verify.
+            # Single-beat overwrite, single-beat readback.
             new_values = [prng.randrange(2**32) for _ in ref_init]
             for word_addr, value in enumerate(new_values):
                 resp = yield from axi_write_single(dut.axi, word_addr * 4, value)
@@ -517,27 +521,134 @@ class TestAXI(unittest.TestCase):
                 data, resp = yield from axi_read_single(dut.axi, word_addr * 4)
                 if resp != RESP_OKAY or data != value:
                     dut.errors += 1
-
-        # Burst write/read of 16 beats at a known address range.
-        def burst_test(dut):
-            prng = random.Random(7)
-            base = 0x80                          # word-aligned, away from single-beat range
-            length = 16
-            beats  = [prng.randrange(2**32) for _ in range(length)]
-
-            resp = yield from axi_write_burst(dut.axi, base, beats)
+            # 16-beat INCR burst at a clean address.
+            base   = 0x80
+            beats  = [prng.randrange(2**32) for _ in range(16)]
+            resp   = yield from axi_write_burst(dut.axi, base, beats)
             if resp != RESP_OKAY:
                 dut.errors += 1
-
-            datas = yield from axi_read_burst(dut.axi, base, length)
-            if datas is None or datas != beats:
+            datas  = yield from axi_read_burst(dut.axi, base, 16)
+            if datas != beats:
                 dut.errors += 1
 
-        prng = random.Random(0)
-        init = [prng.randrange(2**32) for _ in range(64)]
+        dut = self._axisram_run(gen, size=64*4)
+        self.assertEqual(dut.errors, 0)
 
-        dut = DUT(size=len(init) * 4, init=[v for v in init])
-        run_simulation(dut, [
-            (lambda: (yield from single_beat_test(dut, init)) or (yield from burst_test(dut)))()
-        ])
+    def test_axi_sram_burst_lengths(self):
+        # Sweep INCR burst length across all supported sizes.  AXI4 allows len=0..255 (1..256 beats);
+        # cache controllers and DMAs typically use lengths matching their cache-line / payload size,
+        # so the interesting points are 1, 2, 4, 8, 16, 32, 64, 128, 256.
+        lengths = [1, 2, 4, 8, 16, 32, 64, 128, 256]
+        size_words = max(lengths) * 2  # leave headroom past the longest burst
+
+        def gen(dut, _ref_init):
+            prng = random.Random(123)
+            base = 0
+            for n in lengths:
+                beats = [prng.randrange(2**32) for _ in range(n)]
+                resp  = yield from axi_write_burst(dut.axi, base, beats)
+                if resp != RESP_OKAY:
+                    dut.errors += 1
+                read = yield from axi_read_burst(dut.axi, base, n)
+                if read != beats:
+                    dut.errors += 1
+                base += n * 4
+
+        dut = self._axisram_run(gen, size=size_words * 4)
+        self.assertEqual(dut.errors, 0)
+
+    def test_axi_sram_wrap_burst(self):
+        # WRAP bursts are how cache-line refills are typically issued (AXI4-allowed lengths: 2/4/8/16,
+        # start address aligned to size).  After issuing a WRAP-N burst at addr X, the data must land
+        # at the wrapped physical addresses.  We verify by writing in WRAP order then reading back
+        # single-beat from each unwrapped address.
+        def gen(dut, _ref_init):
+            prng = random.Random(7)
+            for wrap_len in [2, 4, 8, 16]:
+                # 4 bytes per beat, total burst block = wrap_len * 4 bytes.
+                block_bytes = wrap_len * 4
+                # Pick a start that's not at the bottom of the wrap block to actually exercise wrap.
+                base_block  = wrap_len * 4 * 4   # well-spaced per length
+                start_off   = (wrap_len // 2) * 4
+                start_addr  = base_block + start_off
+
+                beats = [prng.randrange(2**32) for _ in range(wrap_len)]
+                resp  = yield from axi_write_burst(dut.axi, start_addr, beats, burst_type=BURST_WRAP)
+                if resp != RESP_OKAY:
+                    dut.errors += 1
+
+                # Compute expected memory contents: WRAP start + i, modulo block_bytes within the block.
+                expected = [None] * wrap_len
+                for i, beat in enumerate(beats):
+                    off_within_block = (start_off + i*4) % block_bytes
+                    expected[off_within_block // 4] = beat
+
+                # Verify by single-beat reads from each block address.
+                for i, want in enumerate(expected):
+                    addr = base_block + i*4
+                    data, resp = yield from axi_read_single(dut.axi, addr)
+                    if resp != RESP_OKAY or data != want:
+                        dut.errors += 1
+
+                # Also verify a WRAP read returns the same beats we wrote, in WRAP order.
+                read = yield from axi_read_burst(dut.axi, start_addr, wrap_len, burst_type=BURST_WRAP)
+                if read != beats:
+                    dut.errors += 1
+
+        dut = self._axisram_run(gen, size=4096)
+        self.assertEqual(dut.errors, 0)
+
+    def test_axi_sram_back_to_back(self):
+        # Run many alternating writes and reads of varied burst types and lengths to flush out FSM
+        # bugs in the AXI2AXILite bridge (state not reset between bursts, AW/AR contention, etc.).
+        def gen(dut, _ref_init):
+            prng     = random.Random(31337)
+            mem_size = 1024  # bytes
+            # Software model of the SRAM that we keep in sync with each write so reads can be checked.
+            model    = [0] * (mem_size // 4)
+
+            for _ in range(40):
+                op_is_write = prng.randrange(2)
+                length      = prng.choice([1, 2, 4, 8, 16])
+                base_word   = prng.randrange((mem_size // 4) - length + 1)
+                base_addr   = base_word * 4
+
+                if op_is_write:
+                    beats = [prng.randrange(2**32) for _ in range(length)]
+                    resp  = yield from axi_write_burst(dut.axi, base_addr, beats)
+                    if resp != RESP_OKAY:
+                        dut.errors += 1
+                    for i, beat in enumerate(beats):
+                        model[base_word + i] = beat
+                else:
+                    read = yield from axi_read_burst(dut.axi, base_addr, length)
+                    expect = model[base_word:base_word + length]
+                    if read != expect:
+                        dut.errors += 1
+
+        # Pre-fill the SRAM with zeros so the model matches.
+        dut = self._axisram_run(gen, size=1024, init=[0] * 256)
+        self.assertEqual(dut.errors, 0)
+
+    def test_axi_sram_64bit(self):
+        # Same shape as the basic test but on a 64-bit AXI bus; exercises wider data, wider strobe,
+        # and the AXILiteSRAM internal port being instantiated at width 64.
+        def gen(dut, ref_init):
+            prng = random.Random(8)
+            # Single-beat readback of init.
+            for word_addr, ref in enumerate(ref_init):
+                data, resp = yield from axi_read_single(dut.axi, word_addr * 8, size=3)
+                if resp != RESP_OKAY or data != ref:
+                    dut.errors += 1
+            # 8-beat INCR burst at a clean address.
+            base  = 0x80
+            beats = [prng.randrange(2**64) for _ in range(8)]
+            resp  = yield from axi_write_burst(dut.axi, base, beats, size=3)
+            if resp != RESP_OKAY:
+                dut.errors += 1
+            read  = yield from axi_read_burst(dut.axi, base, 8, size=3)
+            if read != beats:
+                dut.errors += 1
+
+        dut = self._axisram_run(gen, size=64 * 8, data_width=64)
         self.assertEqual(dut.errors, 0)
