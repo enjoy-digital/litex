@@ -51,7 +51,7 @@ class LiteXArgumentParser(argparse.ArgumentParser):
         kwargs: dict
             all arguments passed to argparse.ArgumentParser CTOR
         """
-        argparse.ArgumentParser.__init__(self, kwargs)
+        argparse.ArgumentParser.__init__(self, **kwargs)
         self._platform          = None
         self._device            = None
         self.toolchains         = None
