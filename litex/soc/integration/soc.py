@@ -87,6 +87,10 @@ class SoCRegion:
         self.linker    = linker
         self.type      = ""
 
+    @property
+    def is_rom(self):
+        return "w" not in self.mode
+
     def decoder(self, bus):
         origin = self.origin
         size   = self.size_pow2
@@ -1135,10 +1139,7 @@ class SoC(LiteXModule):
         # RAM Parameters.
         ram        = getattr(self, name)
         ram_region = self.bus.regions[name]
-        ram_type   = {
-            True  : "ROM",
-            False : "RAM",
-        }["w" not in ram_region.mode]
+        ram_type   = "ROM" if ram_region.is_rom else "RAM"
         contents_size = 4*len(contents) # FIXME.
 
         # Size Check.
@@ -1159,7 +1160,7 @@ class SoC(LiteXModule):
         ram.mem.init = contents
 
         # RAM Auto-Resize (Optional).
-        if auto_size and ("w" not in ram_region.mode):
+        if auto_size and ram_region.is_rom:
             self.logger.info("Auto-Resizing {} {} from {} to {}.".format(
                 ram_type,
                 colorer(name),
