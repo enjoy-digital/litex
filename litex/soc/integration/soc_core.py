@@ -60,9 +60,10 @@ class SoCCore(LiteXSoC):
 
     def __init__(self, platform, clk_freq,
         # Bus parameters.
-        bus_standard             = "wishbone",
+        bus_standard               = "wishbone",
         bus_data_width             = 32,
         bus_address_width          = 32,
+        bus_addressing             = None,
         bus_timeout                = 1e6,
         bus_bursting               = False,
         bus_interconnect           = "shared",
@@ -138,6 +139,7 @@ class SoCCore(LiteXSoC):
             bus_standard         = bus_standard,
             bus_data_width       = bus_data_width,
             bus_address_width    = bus_address_width,
+            bus_addressing       = bus_addressing,
             bus_timeout          = bus_timeout,
             bus_bursting         = bus_bursting,
             bus_interconnect     = bus_interconnect,
@@ -293,6 +295,7 @@ def soc_core_args(parser):
     soc_group.add_argument("--bus-standard",             default="wishbone",                 help="Select bus standard: {}.".format(", ".join(SoCBusHandler.supported_standard)))
     soc_group.add_argument("--bus-data-width",           default=32,         type=auto_int,  help="Bus data-width.")
     soc_group.add_argument("--bus-address-width",        default=32,         type=auto_int,  help="Bus address-width.")
+    soc_group.add_argument("--bus-addressing",           default=None,                       help="Bus addressing: word, byte (default: word for wishbone, byte for axi/axi-lite).")
     soc_group.add_argument("--bus-timeout",              default=int(1e6),   type=float,     help="Bus timeout in cycles.")
     soc_group.add_argument("--bus-bursting",             action="store_true",                help="Enable burst cycles on the bus if supported.")
     soc_group.add_argument("--bus-interconnect",         default="shared",                   help="Select bus interconnect: shared (default) or crossbar.")

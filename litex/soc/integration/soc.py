@@ -133,12 +133,14 @@ class SoCBusHandler(LiteXModule):
     supported_standard      = ["wishbone", "axi-lite", "axi"]
     supported_data_width    = [32, 64, 128, 256, 512]
     supported_address_width = [32, 64]
+    supported_addressing    = ["word", "byte"]
 
     # Creation -------------------------------------------------------------------------------------
     def __init__(self, name="SoCBusHandler",
         standard         = "wishbone",
         data_width       = 32,
         address_width    = 32,
+        addressing       = None,
         timeout          = 1e6,
         bursting         = False,
         interconnect     = "shared", interconnect_register=True,
@@ -171,15 +173,30 @@ class SoCBusHandler(LiteXModule):
                 colorer(", ".join(str(x) for x in self.supported_address_width))))
             raise SoCError()
 
+        # Resolve Addressing.
+        # AXI / AXI-Lite are byte-addressed by spec — selecting "word" makes no sense there.
+        # Wishbone defaults to "word" (the historical LiteX default) but "byte" is allowed for
+        # designs that prefer byte-addressed peripherals. The bus handler's adapter logic already
+        # crosses word/byte boundaries when masters and slaves disagree, so mixing is supported.
+        default_addressing = {"wishbone": "word", "axi-lite": "byte", "axi": "byte"}[standard]
+        if addressing is None:
+            addressing = default_addressing
+        if addressing not in self.supported_addressing:
+            self.logger.error("Unsupported {} {}, supported are: {:s}".format(
+                colorer("Addressing", color="red"),
+                colorer(addressing),
+                colorer(", ".join(self.supported_addressing))))
+            raise SoCError()
+        if standard in ["axi-lite", "axi"] and addressing != "byte":
+            self.logger.error("{} addressing must be {} (got {}).".format(
+                colorer(standard), colorer("byte"), colorer(addressing, color="red")))
+            raise SoCError()
+
         # Create Bus
         self.standard              = standard
         self.data_width            = data_width
         self.address_width         = address_width
-        self.addressing            = {
-            "wishbone" : "word", # FIXME: Allow selection for Wishbone.
-            "axi-lite" : "byte",
-            "axi"      : "byte",
-        }[standard]
+        self.addressing            = addressing
         self.bursting              = bursting
         self.interconnect          = interconnect
         self.interconnect_register = interconnect_register
@@ -976,6 +993,7 @@ class SoC(LiteXModule):
         bus_standard         = "wishbone",
         bus_data_width       = 32,
         bus_address_width    = 32,
+        bus_addressing       = None,
         bus_timeout          = 1e6,
         bus_bursting         = False,
         bus_interconnect     = "shared",
@@ -1020,6 +1038,7 @@ class SoC(LiteXModule):
             standard         = bus_standard,
             data_width       = bus_data_width,
             address_width    = bus_address_width,
+            addressing       = bus_addressing,
             timeout          = bus_timeout,
             bursting         = bus_bursting,
             interconnect     = bus_interconnect,
