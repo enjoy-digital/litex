@@ -146,14 +146,18 @@ def axi_read_burst(axi, addr, length, burst_type=BURST_INCR, size=2):
 
 class TestAXI(unittest.TestCase):
     def test_burst2beat(self):
+        # Each burst is given a distinct id and the expected beats for each burst carry that id +
+        # an `is_last` flag asserted on the final beat. The checker verifies all three fields.
+
         def bursts_generator(ax, bursts, valid_rand=50):
             prng = random.Random(42)
-            for burst in bursts:
+            for burst, burst_id in bursts:
                 yield ax.valid.eq(1)
                 yield ax.addr.eq(burst.addr)
                 yield ax.burst.eq(burst.type)
                 yield ax.len.eq(burst.len)
                 yield ax.size.eq(burst.size)
+                yield ax.id.eq(burst_id)
                 while (yield ax.ready) == 0:
                     yield
                 yield ax.valid.eq(0)
@@ -162,20 +166,22 @@ class TestAXI(unittest.TestCase):
                 yield
 
         @passive
-        def beats_checker(ax, beats, ready_rand=50):
+        def beats_checker(ax, expected_beats, ready_rand=50):
             self.errors = 0
             yield ax.ready.eq(0)
             prng = random.Random(42)
-            for beat in beats:
+            for beat_addr, beat_id, beat_last in expected_beats:
                 while ((yield ax.valid) and (yield ax.ready)) == 0:
                     if prng.randrange(100) > ready_rand:
                         yield ax.ready.eq(1)
                     else:
                         yield ax.ready.eq(0)
                     yield
-                ax_addr = (yield ax.addr)
-                #print("0x{:08x}".format(ax_addr))
-                if ax_addr != beat.addr:
+                if (yield ax.addr) != beat_addr:
+                    self.errors += 1
+                if (yield ax.id) != beat_id:
+                    self.errors += 1
+                if bool((yield ax.last)) != beat_last:
                     self.errors += 1
                 yield
 
@@ -184,27 +190,149 @@ class TestAXI(unittest.TestCase):
         ax_beat  = AXIStreamInterface(layout=ax_description(32), id_width=32)
         dut      =  AXIBurst2Beat(ax_burst, ax_beat)
 
-        # Generate DUT input (bursts).
+        # Generate DUT input (bursts) — random FIXED/INCR plus hand-crafted WRAP.
         prng = random.Random(42)
         bursts = []
         for i in range(32):
-            bursts.append(Burst(prng.randrange(2**32), BURST_FIXED, prng.randrange(255), log2_int(32//8)))
-            bursts.append(Burst(prng.randrange(2**32), BURST_INCR, prng.randrange(255), log2_int(32//8)))
-        bursts.append(Burst(4, BURST_WRAP, 4-1, log2_int(2)))
-        bursts.append(Burst(0x80000160, BURST_WRAP, 0x3, 0b100))
+            bursts.append((Burst(prng.randrange(2**32), BURST_FIXED, prng.randrange(255), log2_int(32//8)), prng.randrange(2**32)))
+            bursts.append((Burst(prng.randrange(2**32), BURST_INCR,  prng.randrange(255), log2_int(32//8)), prng.randrange(2**32)))
+        bursts.append((Burst(4,          BURST_WRAP, 4-1, log2_int(2)), 0xa5a5a5a5))
+        bursts.append((Burst(0x80000160, BURST_WRAP, 0x3, 0b100),       0xdeadbeef))
+        # Edge cases: 1-beat (degenerate) and max-length (256) INCR bursts.
+        bursts.append((Burst(0x1000, BURST_INCR, 0,   log2_int(32//8)), 0x1111))
+        bursts.append((Burst(0x2000, BURST_INCR, 255, log2_int(32//8)), 0x2222))
 
-        # Generate expected DUT output (beats for reference).
-        beats = []
-        for burst in bursts:
-            beats += burst.to_beats()
+        # Build expected beats with id + last carried through.
+        expected_beats = []
+        for burst, burst_id in bursts:
+            beats = burst.to_beats()
+            for i, beat in enumerate(beats):
+                expected_beats.append((beat.addr, burst_id, i == len(beats) - 1))
 
         # Simulation
         generators = [
             bursts_generator(ax_burst, bursts),
-            beats_checker(ax_beat, beats)
+            beats_checker(ax_beat, expected_beats)
         ]
         run_simulation(dut, generators)
         self.assertEqual(self.errors, 0)
+
+    def test_axi2axilite_bridge(self):
+        # Focused AXI2AXILite test. We instantiate the bridge alone (its slave side feeds an
+        # AXILiteSRAM that we trust from the AXI-Lite tests) and verify that:
+        #   - each AXI4 burst on the master side decomposes into the expected sequence of
+        #     single-beat AXI-Lite transactions on the slave side,
+        #   - the data returned for read bursts reassembles correctly,
+        #   - response codes propagate (RESP_OKAY).
+        # We catch the AXI-Lite ar.addr / aw.addr per-beat with a passive observer so we can check
+        # the address pattern produced by the bridge for INCR / FIXED / WRAP bursts.
+
+        class DUT(LiteXModule):
+            def __init__(self, mem_bytes=4096, init=None):
+                self.axi      = AXIInterface(data_width=32, address_width=32, id_width=4)
+                self.axi_lite = AXILiteInterface(data_width=32, address_width=32)
+                self.bridge   = AXI2AXILite(self.axi, self.axi_lite)
+                self.sram     = AXILiteSRAM(mem_bytes, init=init or [], bus=self.axi_lite)
+                self.errors   = 0
+
+        @passive
+        def ar_addr_observer(axi_lite, log):
+            # Captures (addr) for each AR handshake.
+            while True:
+                if (yield axi_lite.ar.valid) and (yield axi_lite.ar.ready):
+                    log.append((yield axi_lite.ar.addr))
+                yield
+
+        @passive
+        def aw_addr_observer(axi_lite, log):
+            # Captures (addr) for each AW handshake.
+            while True:
+                if (yield axi_lite.aw.valid) and (yield axi_lite.aw.ready):
+                    log.append((yield axi_lite.aw.addr))
+                yield
+
+        # Compute expected AXI-Lite addresses produced by the bridge for a given AXI burst.
+        def _expected_axil_addrs(addr, length, burst_type, size_log2):
+            beats = []
+            size_bytes = 2**size_log2
+            burst_size_bytes = length * size_bytes
+            for i in range(length):
+                if burst_type == BURST_INCR:
+                    beats.append(addr + i*size_bytes)
+                elif burst_type == BURST_FIXED:
+                    beats.append(addr)
+                elif burst_type == BURST_WRAP:
+                    base = addr - addr % burst_size_bytes
+                    off  = (addr % burst_size_bytes + i*size_bytes) % burst_size_bytes
+                    beats.append(base + off)
+            return beats
+
+        def gen(dut, ar_log, aw_log):
+            prng = random.Random(0xb007)
+
+            scenarios = [
+                # (label, addr, len, burst_type, size_log2)
+                ("INCR-1",          0x000, 1,  BURST_INCR,  2),
+                ("INCR-4",          0x010, 4,  BURST_INCR,  2),
+                ("INCR-16",         0x020, 16, BURST_INCR,  2),
+                ("FIXED-4",         0x080, 4,  BURST_FIXED, 2),
+                ("FIXED-8",         0x080, 8,  BURST_FIXED, 2),
+                ("WRAP-4 mid-blk",  0x108, 4,  BURST_WRAP,  2),  # block 0x100..0x10F, start at +8
+                ("WRAP-8 mid-blk",  0x214, 8,  BURST_WRAP,  2),
+            ]
+
+            for label, addr, length, burst_type, size_log2 in scenarios:
+                expected = _expected_axil_addrs(addr, length, burst_type, size_log2)
+
+                # WRITE burst: snapshot aw_log boundary, drive write, check log.
+                aw_before = len(aw_log)
+                beats     = [prng.randrange(2**32) for _ in range(length)]
+                resp = yield from axi_write_burst(dut.axi, addr, beats,
+                    burst_type=burst_type, size=size_log2)
+                if resp != RESP_OKAY:
+                    dut.errors += 1
+                # Allow a few cycles for the bridge to fully drain.
+                for _ in range(8):
+                    yield
+                got_aw = aw_log[aw_before:]
+                if got_aw != expected:
+                    dut.errors += 1
+
+                # READ burst: snapshot ar_log boundary, drive read, check log + data.
+                ar_before = len(ar_log)
+                read = yield from axi_read_burst(dut.axi, addr, length,
+                    burst_type=burst_type, size=size_log2)
+                for _ in range(8):
+                    yield
+                got_ar = ar_log[ar_before:]
+                if got_ar != expected:
+                    dut.errors += 1
+
+                # FIXED bursts re-write the same address each beat → memory holds beats[-1].
+                # INCR / WRAP write distinct cells → reads should return whatever was last written
+                # at each cell. We compute the model accordingly.
+                if read is None:
+                    dut.errors += 1
+                else:
+                    if burst_type == BURST_FIXED:
+                        # All beats target the same address; only beats[-1] survives.
+                        # The burst read also targets the same address each beat; the read
+                        # model returns the same value back from the sram each beat.
+                        if any(r != beats[-1] for r in read):
+                            dut.errors += 1
+                    else:
+                        # INCR / WRAP: same physical addresses, same order — data must round-trip.
+                        if read != beats:
+                            dut.errors += 1
+
+        dut = DUT(mem_bytes=4096)
+        ar_log, aw_log = [], []
+        run_simulation(dut, [
+            gen(dut, ar_log, aw_log),
+            ar_addr_observer(dut.axi_lite, ar_log),
+            aw_addr_observer(dut.axi_lite, aw_log),
+        ])
+        self.assertEqual(dut.errors, 0)
 
 
     def _test_axi2wishbone(self,
