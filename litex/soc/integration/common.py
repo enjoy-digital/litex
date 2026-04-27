@@ -15,10 +15,6 @@ from migen import *
 
 # Helpers ----------------------------------------------------------------------------------------
 
-def get_version(with_time=True):
-    fmt = "%Y-%m-%d %H:%M:%S" if with_time else "%Y-%m-%d"
-    return datetime.datetime.fromtimestamp(time.time()).strftime(fmt)
-
 def get_mem_regions(filename_or_regions, offset):
     if isinstance(filename_or_regions, dict):
         regions = filename_or_regions
