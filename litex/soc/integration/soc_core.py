@@ -285,20 +285,6 @@ class SoCCore(LiteXSoC):
     def csr_data_width(self):
         return self.csr.data_width
 
-    # Methods --------------------------------------------------------------------------------------
-
-    def add_csr(self, csr_name, csr_id=None, use_loc_if_exists=False):
-        self.csr.add(csr_name, csr_id, use_loc_if_exists=use_loc_if_exists)
-
-    def add_memory_region(self, name, origin, length, type="cached"):
-        self.bus.add_region(name, SoCRegion(origin=origin, size=length,
-            cached = "cached" in type,
-            linker = "linker" in type)
-        )
-
-    def add_csr_region(self, name, origin, busword, obj):
-        self.csr_regions[name] = SoCCSRRegion(origin, busword, obj)
-
 # SoCCore arguments --------------------------------------------------------------------------------
 
 def soc_core_args(parser):
