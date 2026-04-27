@@ -405,3 +405,139 @@ class TestAXI(unittest.TestCase):
 
         dut = DUT(64, 32)
         run_simulation(dut, [read_generator(dut), write_generator(dut)], vcd_name="sim.vcd")
+
+    def test_axi_sram(self):
+        # Exercises AXISRAM both as a single-beat AXI-Lite-shaped bus user (one address per
+        # transaction) and with real AXI4 incrementing bursts. Verifies that what we write is what
+        # we read back.
+
+        class DUT(LiteXModule):
+            def __init__(self, size, init):
+                self.axi  = AXIInterface(data_width=32, address_width=32, id_width=4)
+                self.sram = AXISRAM(size, init=init, bus=self.axi)
+                self.errors = 0
+
+        def aw_send(axi, addr, burst_len=0, burst_type=BURST_INCR, size=2, id=0):
+            yield axi.aw.valid.eq(1)
+            yield axi.aw.addr.eq(addr)
+            yield axi.aw.burst.eq(burst_type)
+            yield axi.aw.len.eq(burst_len)
+            yield axi.aw.size.eq(size)
+            yield axi.aw.id.eq(id)
+            yield
+            while (yield axi.aw.ready) == 0:
+                yield
+            yield axi.aw.valid.eq(0)
+
+        def w_send(axi, data, last):
+            yield axi.w.valid.eq(1)
+            yield axi.w.data.eq(data)
+            yield axi.w.strb.eq(2**(axi.data_width//8) - 1)
+            yield axi.w.last.eq(int(last))
+            yield
+            while (yield axi.w.ready) == 0:
+                yield
+            yield axi.w.valid.eq(0)
+
+        def b_recv(axi):
+            yield axi.b.ready.eq(1)
+            while (yield axi.b.valid) == 0:
+                yield
+            resp = (yield axi.b.resp)
+            yield axi.b.ready.eq(0)
+            yield
+            return resp
+
+        def ar_send(axi, addr, burst_len=0, burst_type=BURST_INCR, size=2, id=0):
+            yield axi.ar.valid.eq(1)
+            yield axi.ar.addr.eq(addr)
+            yield axi.ar.burst.eq(burst_type)
+            yield axi.ar.len.eq(burst_len)
+            yield axi.ar.size.eq(size)
+            yield axi.ar.id.eq(id)
+            yield
+            while (yield axi.ar.ready) == 0:
+                yield
+            yield axi.ar.valid.eq(0)
+
+        def r_recv_one(axi):
+            yield axi.r.ready.eq(1)
+            while (yield axi.r.valid) == 0:
+                yield
+            data = (yield axi.r.data)
+            resp = (yield axi.r.resp)
+            last = (yield axi.r.last)
+            yield axi.r.ready.eq(0)
+            yield
+            return data, resp, last
+
+        def axi_write_single(axi, addr, data):
+            yield from aw_send(axi, addr)
+            yield from w_send(axi, data, last=True)
+            return (yield from b_recv(axi))
+
+        def axi_read_single(axi, addr):
+            yield from ar_send(axi, addr)
+            data, resp, _ = yield from r_recv_one(axi)
+            return data, resp
+
+        def axi_write_burst(axi, addr, beats):
+            yield from aw_send(axi, addr, burst_len=len(beats) - 1, burst_type=BURST_INCR, size=2)
+            for i, beat in enumerate(beats):
+                yield from w_send(axi, beat, last=(i == len(beats) - 1))
+            return (yield from b_recv(axi))
+
+        def axi_read_burst(axi, addr, length):
+            yield from ar_send(axi, addr, burst_len=length - 1, burst_type=BURST_INCR, size=2)
+            datas = []
+            for _ in range(length):
+                data, resp, _last = yield from r_recv_one(axi)
+                if resp != RESP_OKAY:
+                    return None
+                datas.append(data)
+            return datas
+
+        # Single-beat write/read covering the whole memory.
+        def single_beat_test(dut, ref_init):
+            prng = random.Random(42)
+
+            # Read each cell back via single-beat AXI reads and verify init values.
+            for word_addr, ref in enumerate(ref_init):
+                data, resp = yield from axi_read_single(dut.axi, word_addr * 4)
+                if resp != RESP_OKAY or data != ref:
+                    dut.errors += 1
+
+            # Single-beat writes covering the same range, then reads to verify.
+            new_values = [prng.randrange(2**32) for _ in ref_init]
+            for word_addr, value in enumerate(new_values):
+                resp = yield from axi_write_single(dut.axi, word_addr * 4, value)
+                if resp != RESP_OKAY:
+                    dut.errors += 1
+            for word_addr, value in enumerate(new_values):
+                data, resp = yield from axi_read_single(dut.axi, word_addr * 4)
+                if resp != RESP_OKAY or data != value:
+                    dut.errors += 1
+
+        # Burst write/read of 16 beats at a known address range.
+        def burst_test(dut):
+            prng = random.Random(7)
+            base = 0x80                          # word-aligned, away from single-beat range
+            length = 16
+            beats  = [prng.randrange(2**32) for _ in range(length)]
+
+            resp = yield from axi_write_burst(dut.axi, base, beats)
+            if resp != RESP_OKAY:
+                dut.errors += 1
+
+            datas = yield from axi_read_burst(dut.axi, base, length)
+            if datas is None or datas != beats:
+                dut.errors += 1
+
+        prng = random.Random(0)
+        init = [prng.randrange(2**32) for _ in range(64)]
+
+        dut = DUT(size=len(init) * 4, init=[v for v in init])
+        run_simulation(dut, [
+            (lambda: (yield from single_beat_test(dut, init)) or (yield from burst_test(dut)))()
+        ])
+        self.assertEqual(dut.errors, 0)
