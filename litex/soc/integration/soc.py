@@ -1870,24 +1870,21 @@ class LiteXSoC(SoC):
                             port         = port,
                             base_address = self.bus.regions["main_ram"].origin
                         )
-                    # DownConvert. FIXME: Pass through Wishbone for now, create/use native AXI converter.
+                    # DownConvert.
                     else:
-                        mem_wb  = wishbone.Interface(
-                            data_width = self.cpu.mem_axi.data_width,
-                            adr_width  = 32-log2_int(mem_bus.data_width//8),
-                            addressing = "word",
+                        axi_port = axi.AXIInterface(
+                            data_width = port.data_width,
+                            id_width   = len(mem_bus.aw.id),
                         )
-                        mem_a2w = axi.AXI2Wishbone(
-                            axi          = mem_bus,
-                            wishbone     = mem_wb,
-                            base_address = 0)
-                        self.submodules += mem_a2w
-                        litedram_wb = wishbone.Interface(port.data_width)
-                        self.submodules += LiteDRAMWishbone2Native(
-                            wishbone     = litedram_wb,
+                        self.submodules += axi.AXIDownConverter(
+                            axi_from = mem_bus,
+                            axi_to   = axi_port,
+                        )
+                        self.submodules += LiteDRAMAXI2Native(
+                            axi          = axi_port,
                             port         = port,
-                            base_address = self.bus.regions["main_ram"].origin)
-                        self.submodules += wishbone.Converter(mem_wb, litedram_wb)
+                            base_address = self.bus.regions["main_ram"].origin
+                        )
 
                 # Check if bus is a Native bus and connect it.
                 if isinstance(mem_bus, LiteDRAMNativePort):

@@ -616,6 +616,82 @@ class TestAXI(unittest.TestCase):
         dut = DUT(64, 32)
         run_simulation(dut, [read_generator(dut), write_generator(dut)], vcd_name="sim.vcd")
 
+    def test_axi_down_converter_burst(self):
+        # Exercises AXIDownConverter (now also used by SoC.add_sdram for the
+        # CPU.mem_axi.data_width > LiteDRAM.port.data_width case) on real bursts:
+        # a wide-side AXI master writes/reads bursts of various lengths and types,
+        # the converter forwards them onto a narrower AXI bus, and an AXISRAM at
+        # the narrow side serves the actual storage. We check both that the
+        # bridge generates the right narrow-side request count (each wide beat
+        # turns into `ratio` narrow beats), and that the data round-trips correctly.
+
+        class DUT(LiteXModule):
+            def __init__(self, dw_wide=64, dw_narrow=32, mem_bytes=4096):
+                self.axi_wide   = AXIInterface(data_width=dw_wide,   address_width=32, id_width=4)
+                self.axi_narrow = AXIInterface(data_width=dw_narrow, address_width=32, id_width=4)
+                self.converter  = AXIDownConverter(self.axi_wide, self.axi_narrow)
+                self.sram       = AXISRAM(mem_bytes, bus=self.axi_narrow, init=[0]*(mem_bytes//(dw_narrow//8)))
+                self.errors     = 0
+
+        @passive
+        def narrow_w_beats(axi_narrow, counter):
+            while True:
+                if (yield axi_narrow.w.valid) and (yield axi_narrow.w.ready):
+                    counter[0] += 1
+                yield
+
+        @passive
+        def narrow_r_beats(axi_narrow, counter):
+            while True:
+                if (yield axi_narrow.r.valid) and (yield axi_narrow.r.ready):
+                    counter[0] += 1
+                yield
+
+        def gen(dut, dw_wide, dw_narrow, w_counter, r_counter):
+            prng        = random.Random(0xd06e)
+            ratio       = dw_wide // dw_narrow
+            wide_size   = log2_int(dw_wide  // 8)  # bytes-per-beat encoded as log2.
+            wide_bytes  = dw_wide // 8
+
+            # Sweep INCR burst lengths.  After each wide-side burst of `length` beats we expect
+            # exactly `length * ratio` narrow-side data beats (the converter issues one narrow
+            # AW/AR per wide burst with len*ratio extension; the multiplication shows up on the
+            # W and R channels). Combined with the data round-trip check this verifies both the
+            # length expansion and the data ordering through the StrideConverters.
+            for length in [1, 2, 4, 8, 16]:
+                base    = (length * wide_bytes * 8)            # spaced base address per length
+                beats   = [prng.randrange(2**dw_wide) for _ in range(length)]
+
+                w_before = w_counter[0]
+                resp = yield from axi_write_burst(dut.axi_wide, base, beats, size=wide_size)
+                if resp != RESP_OKAY:
+                    dut.errors += 1
+                for _ in range(16):
+                    yield
+                if w_counter[0] - w_before != length * ratio:
+                    dut.errors += 1
+
+                r_before = r_counter[0]
+                read = yield from axi_read_burst(dut.axi_wide, base, length, size=wide_size)
+                for _ in range(16):
+                    yield
+                if r_counter[0] - r_before != length * ratio:
+                    dut.errors += 1
+                if read != beats:
+                    dut.errors += 1
+
+        for dw_wide, dw_narrow in [(64, 32), (128, 32), (128, 64), (64, 16)]:
+            with self.subTest(dw_wide=dw_wide, dw_narrow=dw_narrow):
+                dut = DUT(dw_wide=dw_wide, dw_narrow=dw_narrow, mem_bytes=4096)
+                w_counter = [0]
+                r_counter = [0]
+                run_simulation(dut, [
+                    gen(dut, dw_wide, dw_narrow, w_counter, r_counter),
+                    narrow_w_beats(dut.axi_narrow, w_counter),
+                    narrow_r_beats(dut.axi_narrow, r_counter),
+                ])
+                self.assertEqual(dut.errors, 0)
+
     # AXISRAM helper: builds a DUT with a 32-bit AXI bus and runs the supplied generator.
     def _axisram_run(self, generator, size=64*4, init=None, data_width=32):
         class DUT(LiteXModule):
