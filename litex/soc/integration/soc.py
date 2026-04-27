@@ -115,7 +115,9 @@ class SoCRegion:
         r += "Linker: {:>13}".format(colorer(self.linker))
         return r
 
-class SoCIORegion(SoCRegion): pass
+class SoCIORegion(SoCRegion):
+    def __init__(self, origin=None, size=None, mode="rw", cached=False, linker=False, decode=True):
+        SoCRegion.__init__(self, origin=origin, size=size, mode=mode, cached=cached, linker=linker, decode=decode)
 
 # SoCCSRRegion -------------------------------------------------------------------------------------
 
