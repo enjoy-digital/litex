@@ -1921,7 +1921,10 @@ class LiteXSoC(SoC):
         from liteeth.phy.model import LiteEthPHYModel
 
         # MAC.
-        assert data_width in [8, 32, 64]
+        if data_width not in [8, 32, 64]:
+            self.logger.error("Ethernet {} {}: must be 8, 32 or 64.".format(
+                colorer("data_width"), colorer(data_width, color="red")))
+            raise SoCError()
         with_sys_datapath = (data_width == 32)
         self.check_if_exists(name)
         if with_timestamp:
@@ -1983,7 +1986,10 @@ class LiteXSoC(SoC):
 
         # Dynamic IP (if enabled).
         if dynamic_ip:
-            assert local_ip is None
+            if local_ip is not None:
+                self.logger.error("Ethernet {} cannot be used with {}.".format(
+                    colorer("local_ip"), colorer("dynamic_ip", color="red")))
+                raise SoCError()
             self.add_constant("ETH_DYNAMIC_IP")
 
         # Local/Remote IP Configuration (optional).
@@ -2035,7 +2041,10 @@ class LiteXSoC(SoC):
         from liteeth.phy.model import LiteEthPHYModel
 
         # Core
-        assert data_width in [8, 32, 64]
+        if data_width not in [8, 32, 64]:
+            self.logger.error("Etherbone {} {}: must be 8, 32 or 64.".format(
+                colorer("data_width"), colorer(data_width, color="red")))
+            raise SoCError()
         with_sys_datapath = (data_width == 32)
         self.check_if_exists(name + "_ethcore")
         ethcore = LiteEthUDPIPCore(
@@ -2100,8 +2109,14 @@ class LiteXSoC(SoC):
 
         # Ethernet MAC (CPU).
         if with_ethmac:
-            assert mac_address != ethmac_address
-            assert ip_address  != ethmac_local_ip
+            if mac_address == ethmac_address:
+                self.logger.error("Etherbone {} and {} must differ.".format(
+                    colorer("mac_address"), colorer("ethmac_address", color="red")))
+                raise SoCError()
+            if ip_address == ethmac_local_ip:
+                self.logger.error("Etherbone {} and {} must differ.".format(
+                    colorer("ip_address"), colorer("ethmac_local_ip", color="red")))
+                raise SoCError()
 
             self.check_if_exists("ethmac")
             ethcore.autocsr_exclude = {"mac"}
@@ -2192,7 +2207,10 @@ class LiteXSoC(SoC):
         from litespi.opcodes import SpiNorFlashOpCodes
 
         # Checks/Parameters.
-        assert mode in ["1x", "4x"]
+        if mode not in ["1x", "4x"]:
+            self.logger.error("SPI {} {}: must be \"1x\" or \"4x\".".format(
+                colorer("mode"), colorer(mode, color="red")))
+            raise SoCError()
         default_divisor = math.ceil(self.sys_clk_freq/clk_freq)
         if rate == "1:1":
             default_divisor += default_divisor % 2 # Round up to nearest even number.
@@ -2249,7 +2267,10 @@ class LiteXSoC(SoC):
         from litespi.opcodes import SpiNorFlashOpCodes
 
         # Checks/Parameters.
-        assert mode in ["1x", "4x"]
+        if mode not in ["1x", "4x"]:
+            self.logger.error("SPI {} {}: must be \"1x\" or \"4x\".".format(
+                colorer("mode"), colorer(mode, color="red")))
+            raise SoCError()
         default_divisor = math.ceil(self.sys_clk_freq/clk_freq)
         if rate == "1:1":
             default_divisor += default_divisor % 2 # Round up to nearest even number.
@@ -2438,14 +2459,21 @@ class LiteXSoC(SoC):
         from litesata.frontend.dma         import LiteSATASector2MemDMA, LiteSATAMem2SectorDMA
 
         # Checks.
-        assert mode in ["read", "write", "read+write"]
+        if mode not in ["read", "write", "read+write"]:
+            self.logger.error("SATA {} {}: must be \"read\", \"write\" or \"read+write\".".format(
+                colorer("mode"), colorer(mode, color="red")))
+            raise SoCError()
         sata_clk_freqs = {
             "gen1":  75e6,
             "gen2": 150e6,
             "gen3": 300e6,
         }
         sata_clk_freq = sata_clk_freqs[phy.gen]
-        assert self.clk_freq >= sata_clk_freq/2 # FIXME: /2 for 16-bit data-width, add support for 32-bit.
+        # FIXME: /2 for 16-bit data-width, add support for 32-bit.
+        if self.clk_freq < sata_clk_freq/2:
+            self.logger.error("SATA requires sys_clk_freq ({:.1f}MHz) >= {}/2 ({:.1f}MHz).".format(
+                self.clk_freq/1e6, phy.gen, sata_clk_freq/2/1e6))
+            raise SoCError()
 
         # Core.
         self.check_if_exists(f"{name}_core")
@@ -2560,7 +2588,10 @@ class LiteXSoC(SoC):
 
         # Checks.
         self.check_if_exists(name)
-        assert self.csr.data_width == 32
+        if self.csr.data_width != 32:
+            self.logger.error("PCIe requires {} == 32, got {}.".format(
+                colorer("csr_data_width"), colorer(self.csr.data_width, color="red")))
+            raise SoCError()
 
         # PCIe submodule naming (allows projects to keep legacy CSR names for DMA/MSI).
         if dma_name_prefix is None:
@@ -2587,7 +2618,10 @@ class LiteXSoC(SoC):
 
         # MSI.
         if with_msi:
-            assert msi_type in ["msi", "msi-multi-vector", "msi-x"]
+            if msi_type not in ["msi", "msi-multi-vector", "msi-x"]:
+                self.logger.error("PCIe {} {}: must be \"msi\", \"msi-multi-vector\" or \"msi-x\".".format(
+                    colorer("msi_type"), colorer(msi_type, color="red")))
+                raise SoCError()
             self.check_if_exists(msi_name)
             if msi_type == "msi":
                 msi = LitePCIeMSI(width=msi_width)
@@ -2611,7 +2645,10 @@ class LiteXSoC(SoC):
             return depth
 
         for i in range(ndmas):
-            assert with_msi
+            if not with_msi:
+                self.logger.error("PCIe {} requires {}.".format(
+                    colorer("ndmas > 0"), colorer("with_msi=True", color="red")))
+                raise SoCError()
             dma_name = f"{dma_name_prefix}{i}"
             self.check_if_exists(dma_name)
             dma = LitePCIeDMA(phy, endpoint,
