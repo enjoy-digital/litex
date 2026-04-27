@@ -1150,12 +1150,12 @@ class SoC(LiteXModule):
         ram_cls = {
             "wishbone": wishbone.SRAM,
             "axi-lite": axi.AXILiteSRAM,
-            "axi"     : axi.AXILiteSRAM, # FIXME: Use AXI-Lite for now, create AXISRAM.
+            "axi"     : axi.AXISRAM,
         }[self.bus.standard]
         interface_cls = {
             "wishbone": wishbone.Interface,
             "axi-lite": axi.AXILiteInterface,
-            "axi"     : axi.AXILiteInterface, # FIXME: Use AXI-Lite for now, create AXISRAM.
+            "axi"     : axi.AXIInterface,
         }[self.bus.standard]
         ram_bus = interface_cls(
             data_width    = self.bus.data_width,

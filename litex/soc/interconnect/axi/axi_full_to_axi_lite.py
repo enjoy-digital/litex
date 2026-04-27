@@ -185,3 +185,55 @@ class AXILite2AXI(LiteXModule):
             axi_lite.r.data.eq(axi.r.data),
             axi.r.ready.eq(axi_lite.r.ready),
         ]
+
+# AXI-Full SRAM ------------------------------------------------------------------------------------
+
+class AXISRAM(LiteXModule):
+    """AXI4-Full SRAM.
+
+    Exposes the full AXI4 protocol on the master side (including bursts, IDs and response routing)
+    and serves it from a regular memory by:
+
+      - decomposing AXI bursts into single beats with `AXI2AXILite` (which internally uses
+        `AXIBurst2Beat`),
+      - routing each beat through an `AXILiteSRAM` that does the actual memory access.
+
+    This keeps the SoC main bus on full AXI when it has AXI-burst-aware masters (e.g. CPUs that
+    issue cache-line refills as INCR4 / INCR8 / INCR16 bursts) without paying for a duplicate
+    burst-aware SRAM implementation.
+    """
+    autocsr_exclude = {"mem"}
+    def __init__(self, mem_or_size, read_only=None, write_only=None, init=None, bus=None, name=None):
+        if read_only:
+            mode = "r"
+        elif write_only:
+            mode = "w"
+        else:
+            mode = "rw"
+        if bus is None:
+            bus = AXIInterface(mode=mode)
+        else:
+            bus.mode = mode
+        self.bus = bus
+
+        # AXI-Lite intermediate bus (SRAM is fed beat-by-beat).
+        axi_lite = AXILiteInterface(
+            data_width    = bus.data_width,
+            address_width = bus.address_width,
+        )
+
+        # AXI -> AXI-Lite (decomposes bursts into individual beats).
+        self.bridge = AXI2AXILite(bus, axi_lite)
+
+        # AXI-Lite SRAM (the actual memory).
+        self.sram = AXILiteSRAM(mem_or_size,
+            read_only  = read_only,
+            write_only = write_only,
+            init       = init,
+            bus        = axi_lite,
+            name       = name,
+        )
+
+        # Expose the underlying memory at the same attribute name `AXILiteSRAM` and `wishbone.SRAM`
+        # use, so callers (BIOS init, hierarchy printers, ...) see one consistent shape.
+        self.mem = self.sram.mem
