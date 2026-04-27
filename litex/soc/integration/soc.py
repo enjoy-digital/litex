@@ -1175,7 +1175,10 @@ class SoC(LiteXModule):
         self.init_ram(name, contents, auto_size)
 
     # Add CSR Bridge -------------------------------------------------------------------------------
-    def add_csr_bridge(self, name="csr", origin=None, register=False):
+    def add_csr_bridge(self, name="csr", origin=None, with_register=False, register=None):
+        # `register` is the legacy kwarg name, kept as an alias for back-compat.
+        if register is not None:
+            with_register = register
         csr_bridge_cls = {
             "wishbone": wishbone.Wishbone2CSR,
             "axi-lite": axi.AXILite2CSR,
@@ -1196,7 +1199,7 @@ class SoC(LiteXModule):
             bus_csr = csr_bus.Interface(
                 address_width = self.csr.address_width,
                 data_width    = data_width),
-            register = register)
+            register = with_register)
         self.logger.info("CSR Bridge {} {}.".format(
             colorer(name, color="underline"),
             colorer("added", color="green")))
@@ -1399,9 +1402,9 @@ class SoC(LiteXModule):
 
         # SoC CSR bridge ---------------------------------------------------------------------------
         self.add_csr_bridge(
-            name     = "csr",
-            origin   = self.mem_map["csr"],
-            register = hasattr(self, "sdram"),
+            name          = "csr",
+            origin        = self.mem_map["csr"],
+            with_register = hasattr(self, "sdram"),
         )
 
         # SoC Bus Interconnect ---------------------------------------------------------------------
