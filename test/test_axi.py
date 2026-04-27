@@ -922,6 +922,157 @@ class TestAXI(unittest.TestCase):
         self.assertEqual(results["at_X"], results["beats_last"],
             "AXIDownConverter FIXED-8: only the last beat must survive at X.")
 
+    def test_axi_down_converter_fixed_lengths(self):
+        # Sweep FIXED-N for N = 1..32, write N distinct values to address X, then read X back
+        # single-beat. The expected memory contents at X is always the *last* beat written
+        # (every beat targets the same address, second overwrites first, etc).
+        # Each iteration uses a fresh address so we can also confirm neighbouring slots are
+        # untouched.
+
+        def gen(dut, results):
+            for n_beats in [1, 2, 3, 4, 5, 8, 16, 32]:
+                base = n_beats * 256                # plenty of headroom per length
+                beats = [(i + 1) * 0x0101010101010101 for i in range(n_beats)]
+                yield from axi_aw_send(dut.axi_wide, base,
+                    burst_len=n_beats - 1, burst_type=BURST_FIXED, size=3)
+                for i, beat in enumerate(beats):
+                    yield from axi_w_send(dut.axi_wide, beat, last=(i == n_beats - 1))
+                resp = yield from axi_b_recv(dut.axi_wide)
+                # Read back: only the last beat must survive at base; base+8 must be untouched (0).
+                at_X,  _ = yield from axi_read_single(dut.axi_wide, base,     size=3)
+                at_X8, _ = yield from axi_read_single(dut.axi_wide, base + 8, size=3)
+                results.append((n_beats, resp, at_X, beats[-1], at_X8))
+
+        dut = self._DownConvDUT(dw_wide=64, dw_narrow=32, mem_bytes=8192*2)
+        results = []
+        run_simulation(dut, [gen(dut, results)])
+        for n_beats, resp, at_X, want, at_X8 in results:
+            self.assertEqual(resp, RESP_OKAY,
+                f"FIXED-{n_beats}: B response should be RESP_OKAY")
+            self.assertEqual(at_X, want,
+                f"FIXED-{n_beats}: address X should hold beats[-1]")
+            self.assertEqual(at_X8, 0,
+                f"FIXED-{n_beats}: address X+8 must be untouched (got {at_X8:#x})")
+
+    def test_axi_down_converter_fixed_ratios(self):
+        # FIXED-4 across 4 width-pair ratios. Same expected outcome (only last beat survives at
+        # X) regardless of how many narrow beats we issue per wide beat (ratio 2, 4, or 8).
+
+        def gen(dut, dw_wide, results):
+            base = 0x80
+            beats = [(i + 1) * 0x1111111111111111 & ((1 << dw_wide) - 1) for i in range(4)]
+            wide_size = log2_int(dw_wide // 8)
+            yield from axi_aw_send(dut.axi_wide, base,
+                burst_len=3, burst_type=BURST_FIXED, size=wide_size)
+            for i, beat in enumerate(beats):
+                yield from axi_w_send(dut.axi_wide, beat, last=(i == 3))
+            resp = yield from axi_b_recv(dut.axi_wide)
+            at_X, _ = yield from axi_read_single(dut.axi_wide, base, size=wide_size)
+            results["resp"]      = resp
+            results["at_X"]      = at_X
+            results["beats_last"] = beats[-1]
+
+        for dw_wide, dw_narrow in [(64, 32), (128, 32), (128, 64), (256, 32)]:
+            with self.subTest(dw_wide=dw_wide, dw_narrow=dw_narrow):
+                dut = self._DownConvDUT(dw_wide=dw_wide, dw_narrow=dw_narrow, mem_bytes=4096)
+                results = {}
+                run_simulation(dut, [gen(dut, dw_wide, results)])
+                self.assertEqual(results["resp"], RESP_OKAY)
+                self.assertEqual(results["at_X"], results["beats_last"],
+                    f"FIXED-4 at {dw_wide}->{dw_narrow}: X should hold beats[-1]")
+
+    def test_axi_down_converter_mixed_bursts(self):
+        # Alternate FIXED and INCR transactions to verify the FSM cleanly transitions back to
+        # the combinational fast path after every FIXED, and vice versa.  The address space is
+        # split into independent slots (one per transaction) so we can validate each one
+        # independently afterwards via single-beat reads.
+
+        def gen(dut, log):
+            # Layout: 4 slots of 32 bytes each = 128 bytes total starting at 0x200.
+            slots = [0x200 + i*32 for i in range(8)]
+            # Transaction script: (op, slot_idx, burst_type, length).
+            script = [
+                ("write_burst", 0, BURST_INCR,  4),  # INCR-4 at slot 0
+                ("write_fixed", 1, BURST_FIXED, 4),  # FIXED-4 at slot 1
+                ("write_burst", 2, BURST_INCR,  2),  # INCR-2 at slot 2
+                ("write_fixed", 3, BURST_FIXED, 8),  # FIXED-8 at slot 3
+                ("write_burst", 4, BURST_INCR,  1),  # INCR-1 at slot 4
+                ("write_fixed", 5, BURST_FIXED, 2),  # FIXED-2 at slot 5
+                ("write_fixed", 6, BURST_FIXED, 1),  # FIXED-1 at slot 6 (fast path)
+                ("write_burst", 7, BURST_INCR,  4),  # INCR-4 at slot 7 (sanity after FIXED-1)
+            ]
+
+            for kind, idx, btype, length in script:
+                base  = slots[idx]
+                beats = [(idx + 1) * 0x0123456789abcdef + i for i in range(length)]
+                if kind == "write_burst":
+                    resp = yield from axi_write_burst(dut.axi_wide, base, beats,
+                        burst_type=btype, size=3)
+                    log.append((kind, idx, btype, length, resp, list(beats)))
+                else:
+                    yield from axi_aw_send(dut.axi_wide, base,
+                        burst_len=length - 1, burst_type=btype, size=3)
+                    for i, beat in enumerate(beats):
+                        yield from axi_w_send(dut.axi_wide, beat, last=(i == length - 1))
+                    resp = yield from axi_b_recv(dut.axi_wide)
+                    log.append((kind, idx, btype, length, resp, list(beats)))
+
+        slot_bases = [0x200 + i*32 for i in range(8)]
+
+        def gen_full(dut, log, results):
+            yield from gen(dut, log)
+            for base in slot_bases:
+                cells = []
+                for off in [0, 8, 16, 24]:
+                    data, _ = yield from axi_read_single(dut.axi_wide, base + off, size=3)
+                    cells.append(data)
+                results.append(cells)
+
+        dut = self._DownConvDUT(dw_wide=64, dw_narrow=32, mem_bytes=8192)
+        log = []
+        results = []
+        run_simulation(dut, [gen_full(dut, log, results)])
+
+        # Slot 0: INCR-4 → all 4 cells distinct.
+        for i, b in enumerate(log[0][5]):
+            self.assertEqual(results[0][i], b, "slot 0 INCR-4 cell mismatch")
+
+        # Slot 1: FIXED-4 → only last beat at +0; +8/+16/+24 untouched (0).
+        self.assertEqual(results[1][0], log[1][5][-1], "slot 1 FIXED-4 base")
+        self.assertEqual(results[1][1], 0, "slot 1 FIXED-4 +8 must be 0")
+        self.assertEqual(results[1][2], 0, "slot 1 FIXED-4 +16 must be 0")
+        self.assertEqual(results[1][3], 0, "slot 1 FIXED-4 +24 must be 0")
+
+        # Slot 2: INCR-2 → 2 distinct cells, +16/+24 untouched.
+        for i, b in enumerate(log[2][5]):
+            self.assertEqual(results[2][i], b, "slot 2 INCR-2 cell mismatch")
+        self.assertEqual(results[2][2], 0, "slot 2 +16 must be 0")
+        self.assertEqual(results[2][3], 0, "slot 2 +24 must be 0")
+
+        # Slot 3: FIXED-8 → only last beat at +0; rest 0.
+        self.assertEqual(results[3][0], log[3][5][-1], "slot 3 FIXED-8 base")
+        for i in range(1, 4):
+            self.assertEqual(results[3][i], 0, f"slot 3 FIXED-8 +{i*8} must be 0")
+
+        # Slot 4: INCR-1 → only +0 written, rest 0.
+        self.assertEqual(results[4][0], log[4][5][0], "slot 4 INCR-1 base")
+        for i in range(1, 4):
+            self.assertEqual(results[4][i], 0, f"slot 4 INCR-1 +{i*8} must be 0")
+
+        # Slot 5: FIXED-2 → only beats[1] at +0, rest 0.
+        self.assertEqual(results[5][0], log[5][5][-1], "slot 5 FIXED-2 base")
+        for i in range(1, 4):
+            self.assertEqual(results[5][i], 0, f"slot 5 FIXED-2 +{i*8} must be 0")
+
+        # Slot 6: FIXED-1 fast path → single beat at +0.
+        self.assertEqual(results[6][0], log[6][5][0], "slot 6 FIXED-1 base")
+        for i in range(1, 4):
+            self.assertEqual(results[6][i], 0, f"slot 6 FIXED-1 +{i*8} must be 0")
+
+        # Slot 7: INCR-4 after FIXED — verify FSM cleanly returned to fast path.
+        for i, b in enumerate(log[7][5]):
+            self.assertEqual(results[7][i], b, "slot 7 INCR-4 (after FIXED) cell mismatch")
+
     # AXISRAM helper: builds a DUT with a 32-bit AXI bus and runs the supplied generator.
     def _axisram_run(self, generator, size=64*4, init=None, data_width=32):
         class DUT(LiteXModule):
