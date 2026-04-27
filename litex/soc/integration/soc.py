@@ -1100,7 +1100,9 @@ class SoC(LiteXModule):
         self.add_module(name=name, module=SoCController(**kwargs))
 
     # Add/Init RAM ---------------------------------------------------------------------------------
-    def add_ram(self, name, origin, size, contents=[], mode="rwx"):
+    def add_ram(self, name, origin, size, contents=None, mode="rwx"):
+        if contents is None:
+            contents = []
         ram_cls = {
             "wishbone": wishbone.SRAM,
             "axi-lite": axi.AXILiteSRAM,
@@ -1124,10 +1126,12 @@ class SoC(LiteXModule):
             colorer("added", color="green"),
             self.bus.regions[name]))
         self.add_module(name=name, module=ram)
-        if contents != []:
+        if contents:
             self.add_config(f"{name}_INIT", 1)
 
-    def init_ram(self, name, contents=[], auto_size=False):
+    def init_ram(self, name, contents=None, auto_size=False):
+        if contents is None:
+            contents = []
         # RAM Parameters.
         ram        = getattr(self, name)
         ram_region = self.bus.regions[name]
@@ -1164,10 +1168,10 @@ class SoC(LiteXModule):
             ram.mem.depth = len(contents)
 
     # Add/Init ROM ---------------------------------------------------------------------------------
-    def add_rom(self, name, origin, size, contents=[], mode="rx"):
+    def add_rom(self, name, origin, size, contents=None, mode="rx"):
         self.add_ram(name, origin, size, contents, mode=mode)
 
-    def init_rom(self, name, contents=[], auto_size=True):
+    def init_rom(self, name, contents=None, auto_size=True):
         self.init_ram(name, contents, auto_size)
 
     # Add CSR Bridge -------------------------------------------------------------------------------
