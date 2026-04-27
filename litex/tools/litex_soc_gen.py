@@ -116,8 +116,8 @@ class LiteXSoCGenerator(SoCMini):
 # Build --------------------------------------------------------------------------------------------
 def main():
     # Arguments.
-    from litex.soc.integration.soc import LiteXSoCArgumentParser
-    parser = LiteXSoCArgumentParser(description="LiteX standalone SoC generator")
+    from litex.build.parser import LiteXArgumentParser
+    parser = LiteXArgumentParser(description="LiteX standalone SoC generator")
     target_group = parser.add_argument_group(title="Generator options")
     target_group.add_argument("--name",          default="litex_soc", help="SoC Name.")
     target_group.add_argument("--build",         action="store_true", help="Build SoC.")

@@ -21,8 +21,6 @@ from litex.gen                import LiteXModule, LiteXContext
 from litex.gen.genlib.misc    import WaitTimer
 from litex.gen.fhdl.hierarchy import LiteXHierarchyExplorer
 
-from litex.compat.soc_core import *
-
 from litex.soc.interconnect.csr              import *
 from litex.soc.interconnect.csr_eventmanager import *
 from litex.soc.interconnect                  import csr_bus
@@ -966,7 +964,7 @@ class SoCController(LiteXModule):
 
 # SoC ----------------------------------------------------------------------------------------------
 
-class SoC(LiteXModule, SoCCoreCompat):
+class SoC(LiteXModule):
     mem_map = {}
     def __init__(self, platform, sys_clk_freq,
         bus_standard         = "wishbone",
@@ -1388,9 +1386,6 @@ class SoC(LiteXModule, SoCCoreCompat):
     def finalize(self):
         if self.finalized:
             return
-        # Compat -----------------------------------------------------------------------------------
-        SoCCoreCompat.finalize_wb_slaves(self) # FIXME: Deprecate compat and remove.
-
         # SoC Reset --------------------------------------------------------------------------------
         # Connect soc_rst to CRG's rst if present.
         if hasattr(self, "ctrl") and hasattr(self, "crg"):
@@ -1525,8 +1520,15 @@ class SoC(LiteXModule, SoCCoreCompat):
         # Finalize submodules ----------------------------------------------------------------------
         Module.finalize(self)
 
-        # Compat -----------------------------------------------------------------------------------
-        SoCCoreCompat.finalize_csr_regions(self) # FIXME: Deprecate compat and remove.
+        # Bus Region metadata for export ---------------------------------------------------------
+        for region in self.bus.regions.values():
+            region.length = region.size
+            region.type   = "cached" if region.cached else "io"
+            if region.linker:
+                region.type += "+linker"
+        self.csr_regions = self.csr.regions
+        for name, value in self.config.items():
+            self.add_config(name, value)
 
         # SoC Hierarchy ----------------------------------------------------------------------------
         self.logger.info(colorer("-"*80, color="bright"))
@@ -2734,9 +2736,3 @@ class LiteXSoC(SoC):
         self.add_constant("VIDEO_FRAMEBUFFER_HRES", hres)
         self.add_constant("VIDEO_FRAMEBUFFER_VRES", vres)
         self.add_constant("VIDEO_FRAMEBUFFER_DEPTH", vfb.depth)
-
-# LiteXSoCArgumentParser ---------------------------------------------------------------------------
-
-from litex.build.parser import LiteXArgumentParser
-
-class LiteXSoCArgumentParser(LiteXArgumentParser): pass # FIXME: Add compat and remove.
