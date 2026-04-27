@@ -871,7 +871,26 @@ class SoCCSRHandler(SoCLocHandler):
 
     # Add Region -----------------------------------------------------------------------------------
     def add_region(self, name, region):
-        # FIXME: add checks
+        # Type check.
+        if not isinstance(region, SoCCSRRegion):
+            self.logger.error("{} is not a {}.".format(
+                colorer(name, color="red"),
+                colorer("SoCCSRRegion")))
+            raise SoCError()
+        # Duplicate-name check.
+        if name in self.regions:
+            self.logger.error("CSR Region {} {}.".format(
+                colorer(name, color="red"),
+                colorer("already declared")))
+            raise SoCError()
+        # Origin alignment check (origin must land on a paging boundary).
+        if (region.origin % self.paging) != 0:
+            self.logger.error("CSR Region {} origin 0x{:08x} {} CSR paging 0x{:x}.".format(
+                colorer(name, color="red"),
+                region.origin,
+                colorer("not aligned on", color="red"),
+                self.paging))
+            raise SoCError()
         self.regions[name] = region
 
     # Address map ----------------------------------------------------------------------------------
