@@ -1142,7 +1142,7 @@ class SoC(LiteXModule):
         ram        = getattr(self, name)
         ram_region = self.bus.regions[name]
         ram_type   = "ROM" if ram_region.is_rom else "RAM"
-        contents_size = 4*len(contents) # FIXME.
+        contents_size = (self.bus.data_width // 8) * len(contents)
 
         # Size Check.
         if ram_region.size < contents_size:
