@@ -1377,7 +1377,12 @@ class SoC(LiteXModule):
                     address_width    = self.cpu.dma_bus.address_width,
                     bursting         = self.cpu.dma_bus.bursting
                 )
-                self.dma_bus.add_slave(name="dma", slave=self.cpu.dma_bus, region=SoCRegion(origin=0x00000000, size=0x100000000)) # FIXME: covers lower 4GB only
+                # The DMA bus has a single slave (the CPU's DMA port) covering the entire address
+                # space — size the region to the bus's address_width so the decoder generates the
+                # always-match lambda regardless of whether the CPU exposes a 32-bit or 64-bit
+                # DMA bus.
+                self.dma_bus.add_slave(name="dma", slave=self.cpu.dma_bus,
+                    region=SoCRegion(origin=0x00000000, size=2**self.cpu.dma_bus.address_width))
 
             # Connect SoCController's reset to CPU reset.
             if hasattr(self, "ctrl"):
