@@ -2556,6 +2556,7 @@ class LiteXSoC(SoC):
         from litepcie.frontend.wishbone import LitePCIeWishboneMaster
 
         # Checks.
+        self.check_if_exists(name)
         assert self.csr.data_width == 32
 
         # PCIe submodule naming (allows projects to keep legacy CSR names for DMA/MSI).
