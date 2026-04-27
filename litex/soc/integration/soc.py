@@ -2503,16 +2503,20 @@ class LiteXSoC(SoC):
             self.logger.error("SATA {} {}: must be \"read\", \"write\" or \"read+write\".".format(
                 colorer("mode"), colorer(mode, color="red")))
             raise SoCError()
+        # required sys_clk = line_rate / bus.data_width; line_rate = sata_clk_freq * 16
+        # (sata_clk_freqs entries are 16-bit phy clocks). At bus.data_width=32 this is
+        # sata_clk_freq/2, matching the prior hardcoded check.
         sata_clk_freqs = {
             "gen1":  75e6,
             "gen2": 150e6,
             "gen3": 300e6,
         }
-        sata_clk_freq = sata_clk_freqs[phy.gen]
-        # FIXME: /2 for 16-bit data-width, add support for 32-bit.
-        if self.clk_freq < sata_clk_freq/2:
-            self.logger.error("SATA requires sys_clk_freq ({:.1f}MHz) >= {}/2 ({:.1f}MHz).".format(
-                self.clk_freq/1e6, phy.gen, sata_clk_freq/2/1e6))
+        sata_clk_freq    = sata_clk_freqs[phy.gen]
+        required_sys_clk = sata_clk_freq * 16 / self.bus.data_width
+        if self.clk_freq < required_sys_clk:
+            self.logger.error("SATA {} requires sys_clk_freq ({:.1f}MHz) >= {:.1f}MHz on a {}-bit bus.".format(
+                colorer(phy.gen, color="red"), self.clk_freq/1e6, required_sys_clk/1e6,
+                self.bus.data_width))
             raise SoCError()
 
         # Core.
