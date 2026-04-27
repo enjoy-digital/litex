@@ -835,21 +835,19 @@ class TestAXI(unittest.TestCase):
         self.assertEqual(dut.errors, 0)
 
     def test_axi_down_converter_fixed_burst(self):
-        # FIXED bursts on a wide master have weird semantics: every beat targets the same address
-        # (think: pushing N items into a memory-mapped FIFO on the same register).  After
-        # data-width reduction they should still resolve to repeated writes/reads at the same
-        # wide-beat-sized window.
+        # FIXED bursts on a wide master target the same address every beat (think: pushing N
+        # items into a memory-mapped FIFO on the same register). After data-width reduction
+        # they must still resolve to repeated writes/reads at the same wide-beat-sized window.
         #
-        # Today AXIDownConverter does `BURST_FIXED -> BURST_INCR`, which means the narrow side
-        # marches forward (length*ratio narrow beats stepping by narrow_size each) instead of
-        # repeating per wide beat.  A FIXED-1 still works (single wide beat = ratio narrow beats,
-        # all within the wide-beat window — equivalent to INCR). FIXED with length > 1 is broken.
-        #
-        # We document and pin both behaviors.  When the converter learns to emit `ratio` narrow
-        # beats per wide beat with reset-per-wide-beat addressing, the second sub-test should
-        # become a positive check.
+        # AXIDownConverter handles this via a per-FIXED-burst FSM that issues `len + 1`
+        # independent narrow INCR-`ratio` bursts back-to-back, all at the captured wide
+        # address (since AXI4 has no native "increment within a wide-beat window then reset"
+        # burst type). The W stream's `last` is overridden to fire every ratio-th narrow
+        # beat so each narrow burst terminates correctly, the R stream's `last` is overridden
+        # to fire only on the final wide beat, and the L narrow B responses are coalesced
+        # into a single wide B with the worst response winning.
 
-        # Sub-test 1: FIXED-1 burst is equivalent to a single-beat INCR — must work.
+        # Sub-test 1: FIXED-1 — equivalent to single-beat INCR, takes the fast path.
         def gen_len1(dut):
             data = 0xdeadbeefcafebabe
             yield from axi_aw_send(dut.axi_wide, 0x40,
@@ -866,11 +864,9 @@ class TestAXI(unittest.TestCase):
         run_simulation(dut, [gen_len1(dut)])
         self.assertEqual(dut.errors, 0)
 
-        # Sub-test 2: FIXED-2 burst writes two wide beats to the same address.  In a correct
-        # converter the second beat would overwrite the first, leaving mem[X] = beats[1].
-        # In the current converter the narrow side marches forward, so the second wide beat
-        # lands at X+8 instead of X.  We *verify* the broken behavior so a future fix to the
-        # converter shows up as a test failure here, prompting us to flip this assertion.
+        # Sub-test 2: FIXED-2 — two wide beats, both at address X. After conversion, the
+        # second beat must overwrite the first at X (since both target the same wide
+        # address), and X+8 must be untouched (initial value).
         def gen_len2(dut, results):
             beats = [0xaaaaaaaaaaaaaaaa, 0xbbbbbbbbbbbbbbbb]
             yield from axi_aw_send(dut.axi_wide, 0x80,
@@ -879,23 +875,52 @@ class TestAXI(unittest.TestCase):
                 yield from axi_w_send(dut.axi_wide, beat, last=(i == 1))
             resp = yield from axi_b_recv(dut.axi_wide)
             results["b_resp"] = resp
-            # Read back at the original address and at X+8.
             results["at_X"],  _ = yield from axi_read_single(dut.axi_wide, 0x80, size=3)
             results["at_X8"], _ = yield from axi_read_single(dut.axi_wide, 0x88, size=3)
 
         dut = self._DownConvDUT(dw_wide=64, dw_narrow=32, mem_bytes=4096)
         results = {}
         run_simulation(dut, [gen_len2(dut, results)])
-        # Document the current (buggy) behavior: beats[0] sits at X, beats[1] at X+8.
         self.assertEqual(results["b_resp"], RESP_OKAY)
-        self.assertEqual(results["at_X"],  0xaaaaaaaaaaaaaaaa,
-            "AXIDownConverter FIXED-2: beat[0] expected at X — if this fails, recheck "
-            "convert_burst().")
-        self.assertEqual(results["at_X8"], 0xbbbbbbbbbbbbbbbb,
-            "AXIDownConverter FIXED-2: beat[1] currently lands at X+8 (broken — converter "
-            "translates FIXED to INCR). When a real FIXED implementation lands, both reads "
-            "should return beats[1] and this assertion should be flipped to expect 0 (the "
-            "initial mem value at X+8) and at_X = beats[1].")
+        self.assertEqual(results["at_X"],  0xbbbbbbbbbbbbbbbb,
+            "AXIDownConverter FIXED-2: beat[1] should overwrite beat[0] at X.")
+        self.assertEqual(results["at_X8"], 0,
+            "AXIDownConverter FIXED-2: X+8 must be untouched (FIXED stays at X).")
+
+        # Sub-test 3: FIXED with read-back via FIXED-N read.  The wide master issues a
+        # FIXED-4 read at X; all 4 wide R beats should return the same value (the last
+        # value written to X).
+        def gen_fixed_read(dut, results):
+            # Pre-write a known value to X.
+            yield from axi_write_single(dut.axi_wide, 0xc0, 0x1122334455667788, size=3)
+            # FIXED-4 read.
+            results["read"] = yield from axi_read_burst(dut.axi_wide, 0xc0, 4,
+                burst_type=BURST_FIXED, size=3)
+
+        dut = self._DownConvDUT(dw_wide=64, dw_narrow=32, mem_bytes=4096)
+        results = {}
+        run_simulation(dut, [gen_fixed_read(dut, results)])
+        self.assertEqual(results["read"], [0x1122334455667788] * 4,
+            "AXIDownConverter FIXED-4 read: every wide beat must return the value at X.")
+
+        # Sub-test 4: longer FIXED — 8 wide beats, alternating values, only beats[7] survives.
+        def gen_fixed_8(dut, results):
+            beats = [(i + 1) * 0x1111111111111111 for i in range(8)]
+            yield from axi_aw_send(dut.axi_wide, 0x100,
+                burst_len=7, burst_type=BURST_FIXED, size=3)
+            for i, beat in enumerate(beats):
+                yield from axi_w_send(dut.axi_wide, beat, last=(i == 7))
+            resp = yield from axi_b_recv(dut.axi_wide)
+            results["b_resp"] = resp
+            results["at_X"], _ = yield from axi_read_single(dut.axi_wide, 0x100, size=3)
+            results["beats_last"] = beats[-1]
+
+        dut = self._DownConvDUT(dw_wide=64, dw_narrow=32, mem_bytes=4096)
+        results = {}
+        run_simulation(dut, [gen_fixed_8(dut, results)])
+        self.assertEqual(results["b_resp"], RESP_OKAY)
+        self.assertEqual(results["at_X"], results["beats_last"],
+            "AXIDownConverter FIXED-8: only the last beat must survive at X.")
 
     # AXISRAM helper: builds a DUT with a 32-bit AXI bus and runs the supplied generator.
     def _axisram_run(self, generator, size=64*4, init=None, data_width=32):

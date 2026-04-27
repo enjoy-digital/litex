@@ -280,92 +280,336 @@ class AXIUpConverter(LiteXModule):
         self.comb += axi_from.r.dest.eq(axi_to.r.dest)
 
 class AXIDownConverter(LiteXModule):
+    """AXI4-Full data-width down-converter.
+
+    Reduces the data width of an AXI4 master from `dw_from` to `dw_to` (with `dw_from > dw_to`,
+    integer multiple). The master sees full AXI4 semantics including bursts of any type
+    (FIXED, INCR, WRAP).
+
+    INCR/WRAP/FIXED-1 take the cheap combinational fast path: 1 wide AW becomes 1 narrow AW with
+    `len*ratio - 1`, and the W/R streams use a `StrideConverter` to split/merge data ratio:1.
+
+    FIXED bursts of length > 1 (every wide beat targets the same address X) cannot be expressed
+    as a single narrow AXI4 burst — neither narrow-INCR (marches forward) nor narrow-FIXED
+    (would only write the bottom bytes) preserves the semantics. So they take a slower FSM path
+    that issues `len + 1` separate narrow INCR-`ratio` bursts back-to-back, all at the captured
+    wide address. The W stream's `last` is overridden to fire every ratio-th narrow beat, the
+    R stream's `last` is overridden to fire only on the final wide beat, and the L narrow B
+    responses are coalesced into a single wide B (worst-resp wins).
+    """
     def __init__(self, axi_from, axi_to):
         dw_from  = len(axi_from.r.data)
         dw_to    = len(axi_to.r.data)
         ratio    = int(dw_from//dw_to)
         assert dw_from == dw_to*ratio
 
-        # # #
+        wide_size_log2   = log2_int(dw_from // 8)
+        narrow_size_log2 = log2_int(dw_to   // 8)
 
-        # Helpers ----------------------------------------------------------------------------------
+        # ==========================================================================================
+        # Write path: AW / W / B
+        # ==========================================================================================
 
+        # Captures (FIXED-multi-beat path).
+        cap_aw_addr   = Signal.like(axi_from.aw.addr)
+        cap_aw_len    = Signal.like(axi_from.aw.len)
+        cap_aw_size   = Signal.like(axi_from.aw.size)
+        cap_aw_id     = Signal.like(axi_from.aw.id)
+        cap_aw_lock   = Signal.like(axi_from.aw.lock)
+        cap_aw_prot   = Signal.like(axi_from.aw.prot)
+        cap_aw_cache  = Signal.like(axi_from.aw.cache)
+        cap_aw_qos    = Signal.like(axi_from.aw.qos)
+        cap_aw_region = Signal.like(axi_from.aw.region)
 
-        # Addr Conversion: Clear MSBs to align accesses.
-        def convert_addr(ax_from, ax_to):
-            return [
-                ax_to.addr.eq(ax_from.addr),
-                ax_to.addr[:log2_int(dw_from//8)].eq(0)
-            ]
+        aw_emit_count    = Signal.like(axi_from.aw.len)
+        b_collect_count  = Signal.like(axi_from.aw.len)
+        b_collected_resp = Signal(2)
+        w_subbeat_count  = Signal(max=max(ratio, 2))
 
-        # Burst Conversion: Convert FIXED burst to Incr.
-        def convert_burst(ax_from, ax_to):
-            return Case(ax_from.burst, {
-                BURST_FIXED     : ax_to.burst.eq(BURST_INCR),
-                BURST_INCR      : ax_to.burst.eq(BURST_INCR),
-                BURST_WRAP      : ax_to.burst.eq(BURST_WRAP),
-                BURST_RESERVED  : ax_to.burst.eq(BURST_RESERVED),
-            })
+        fixed_aw_active = Signal()  # asserted while AW FSM is in any FIXED-* state.
 
-        # Len Conversion: X ratio.
-        def convert_len(ax_from, ax_to):
-            return ax_to.len.eq(((ax_from.len + 1) << log2_int(ratio)) - 1)
+        is_aw_fixed = (axi_from.aw.burst == BURST_FIXED) & (axi_from.aw.len != 0)
 
-        # Size Conversion: max(ax_from.size, log2_int(dw_to//8)).
-        def convert_size(ax_from, ax_to):
-            return If(ax_from.size <= log2_int(dw_to//8),
-                ax_to.size.eq(ax_from.size)
+        aw_fsm = FSM(reset_state="IDLE")
+        self.aw_fsm = aw_fsm
+
+        aw_fsm.act("IDLE",
+            If(~is_aw_fixed,
+                # Fast path: combinational forward with len/size/burst conversion.
+                axi_to.aw.valid.eq(axi_from.aw.valid),
+                axi_to.aw.addr.eq(axi_from.aw.addr),
+                axi_to.aw.addr[:wide_size_log2].eq(0),
+                axi_to.aw.len.eq(((axi_from.aw.len + 1) << log2_int(ratio)) - 1),
+                If(axi_from.aw.size <= narrow_size_log2,
+                    axi_to.aw.size.eq(axi_from.aw.size),
+                ).Else(
+                    axi_to.aw.size.eq(narrow_size_log2),
+                ),
+                Case(axi_from.aw.burst, {
+                    BURST_FIXED:    axi_to.aw.burst.eq(BURST_INCR),  # FIXED-1 = single beat = INCR.
+                    BURST_INCR:     axi_to.aw.burst.eq(BURST_INCR),
+                    BURST_WRAP:     axi_to.aw.burst.eq(BURST_WRAP),
+                    BURST_RESERVED: axi_to.aw.burst.eq(BURST_RESERVED),
+                }),
+                axi_to.aw.id.eq(axi_from.aw.id),
+                axi_to.aw.lock.eq(axi_from.aw.lock),
+                axi_to.aw.prot.eq(axi_from.aw.prot),
+                axi_to.aw.cache.eq(axi_from.aw.cache),
+                axi_to.aw.qos.eq(axi_from.aw.qos),
+                axi_to.aw.region.eq(axi_from.aw.region),
+                axi_to.aw.dest.eq(axi_from.aw.dest),
+                axi_to.aw.user.eq(axi_from.aw.user),
+                axi_from.aw.ready.eq(axi_to.aw.ready),
             ).Else(
-                ax_to.size.eq(log2_int(dw_to//8))
+                # Slow path: capture wide AW and switch to FIXED handling.
+                axi_from.aw.ready.eq(1),
+                If(axi_from.aw.valid,
+                    NextValue(cap_aw_addr,   axi_from.aw.addr),
+                    NextValue(cap_aw_len,    axi_from.aw.len),
+                    NextValue(cap_aw_size,   axi_from.aw.size),
+                    NextValue(cap_aw_id,     axi_from.aw.id),
+                    NextValue(cap_aw_lock,   axi_from.aw.lock),
+                    NextValue(cap_aw_prot,   axi_from.aw.prot),
+                    NextValue(cap_aw_cache,  axi_from.aw.cache),
+                    NextValue(cap_aw_qos,    axi_from.aw.qos),
+                    NextValue(cap_aw_region, axi_from.aw.region),
+                    NextValue(aw_emit_count,    0),
+                    NextValue(b_collect_count,  0),
+                    NextValue(b_collected_resp, RESP_OKAY),
+                    NextState("FIXED-EMIT-AW"),
+                )
             )
+        )
+        aw_fsm.act("FIXED-EMIT-AW",
+            fixed_aw_active.eq(1),
+            axi_to.aw.valid.eq(1),
+            axi_to.aw.addr.eq(cap_aw_addr),
+            axi_to.aw.addr[:wide_size_log2].eq(0),
+            axi_to.aw.len.eq(ratio - 1),
+            axi_to.aw.burst.eq(BURST_INCR),
+            If(cap_aw_size <= narrow_size_log2,
+                axi_to.aw.size.eq(cap_aw_size),
+            ).Else(
+                axi_to.aw.size.eq(narrow_size_log2),
+            ),
+            axi_to.aw.id.eq(cap_aw_id),
+            axi_to.aw.lock.eq(cap_aw_lock),
+            axi_to.aw.prot.eq(cap_aw_prot),
+            axi_to.aw.cache.eq(cap_aw_cache),
+            axi_to.aw.qos.eq(cap_aw_qos),
+            axi_to.aw.region.eq(cap_aw_region),
+            # Drive b.ready so the previous burst's response is drained while we (re-)emit AW.
+            If(axi_to.aw.ready,
+                NextState("FIXED-WAIT-B"),
+            )
+        )
+        aw_fsm.act("FIXED-WAIT-B",
+            fixed_aw_active.eq(1),
+            axi_to.b.ready.eq(1),
+            If(axi_to.b.valid,
+                If(axi_to.b.resp > b_collected_resp,
+                    NextValue(b_collected_resp, axi_to.b.resp),
+                ),
+                If(aw_emit_count == cap_aw_len,
+                    NextState("FIXED-EMIT-B"),
+                ).Else(
+                    NextValue(aw_emit_count, aw_emit_count + 1),
+                    NextState("FIXED-EMIT-AW"),
+                )
+            )
+        )
+        aw_fsm.act("FIXED-EMIT-B",
+            fixed_aw_active.eq(1),
+            axi_from.b.valid.eq(1),
+            axi_from.b.id.eq(cap_aw_id),
+            axi_from.b.resp.eq(b_collected_resp),
+            If(axi_from.b.ready,
+                NextState("IDLE"),
+            )
+        )
 
-        # Write path -------------------------------------------------------------------------------
-
-        # AW Channel.
-        self.comb += [
-            axi_from.aw.connect(axi_to.aw, omit={"addr", "len", "size", "burst"}),
-            *convert_addr( axi_from.aw, axi_to.aw),
-            convert_len(   axi_from.aw, axi_to.aw),
-            convert_size(  axi_from.aw, axi_to.aw),
-            convert_burst( axi_from.aw, axi_to.aw),
-        ]
-
-        # W Channel.
+        # W Channel: StrideConverter for data/strb, with `last` overridden in FIXED mode so each
+        # ratio-block of narrow beats looks like an independent narrow burst.
         w_converter = stream.StrideConverter(
-            description_from = [("data", dw_from), ("strb", dw_from//8)],
-            description_to   = [("data",   dw_to), ("strb",   dw_to//8)],
+            description_from = [("data", dw_from), ("strb", dw_from // 8)],
+            description_to   = [("data",   dw_to), ("strb",   dw_to // 8)],
         )
         self.submodules += w_converter
         self.comb += axi_from.w.connect(w_converter.sink, omit={"id", "dest", "user"})
-        self.comb += w_converter.source.connect(axi_to.w)
-        # ID/Dest/User (self.comb since no latency in StrideConverter).
-        self.comb += axi_to.w.id.eq(axi_from.w.id)
-        self.comb += axi_to.w.dest.eq(axi_from.w.dest)
-        self.comb += axi_to.w.user.eq(axi_from.w.user)
-
-        # B Channel.
-        self.comb += axi_to.b.connect(axi_from.b)
-
-        # Read path --------------------------------------------------------------------------------
-
-        # AR Channel.
         self.comb += [
-            axi_from.ar.connect(axi_to.ar, omit={"addr", "len", "size", "burst"}),
-            *convert_addr( axi_from.ar, axi_to.ar),
-            convert_len(   axi_from.ar, axi_to.ar),
-            convert_size(  axi_from.ar, axi_to.ar),
-            convert_burst( axi_from.ar, axi_to.ar),
+            axi_to.w.valid.eq(w_converter.source.valid),
+            axi_to.w.data.eq(w_converter.source.data),
+            axi_to.w.strb.eq(w_converter.source.strb),
+            w_converter.source.ready.eq(axi_to.w.ready),
+            axi_to.w.id.eq(axi_from.w.id),
+            axi_to.w.dest.eq(axi_from.w.dest),
+            axi_to.w.user.eq(axi_from.w.user),
+            If(fixed_aw_active,
+                axi_to.w.last.eq(w_subbeat_count == ratio - 1),
+            ).Else(
+                axi_to.w.last.eq(w_converter.source.last),
+            )
+        ]
+        self.sync += [
+            If(axi_to.w.valid & axi_to.w.ready,
+                If(w_subbeat_count == ratio - 1,
+                    w_subbeat_count.eq(0),
+                ).Else(
+                    w_subbeat_count.eq(w_subbeat_count + 1),
+                )
+            )
         ]
 
-        # R Channel.
+        # B Channel: pass-through for non-FIXED. The FSM drives wide-side b.valid/id/resp and
+        # narrow-side b.ready in FIXED mode.
+        self.comb += If(~fixed_aw_active,
+            axi_from.b.valid.eq(axi_to.b.valid),
+            axi_to.b.ready.eq(axi_from.b.ready),
+            axi_from.b.id.eq(axi_to.b.id),
+            axi_from.b.resp.eq(axi_to.b.resp),
+            axi_from.b.user.eq(axi_to.b.user),
+            axi_from.b.dest.eq(axi_to.b.dest),
+        )
+
+        # ==========================================================================================
+        # Read path: AR / R   (mirror of write path)
+        # ==========================================================================================
+
+        cap_ar_addr   = Signal.like(axi_from.ar.addr)
+        cap_ar_len    = Signal.like(axi_from.ar.len)
+        cap_ar_size   = Signal.like(axi_from.ar.size)
+        cap_ar_id     = Signal.like(axi_from.ar.id)
+        cap_ar_lock   = Signal.like(axi_from.ar.lock)
+        cap_ar_prot   = Signal.like(axi_from.ar.prot)
+        cap_ar_cache  = Signal.like(axi_from.ar.cache)
+        cap_ar_qos    = Signal.like(axi_from.ar.qos)
+        cap_ar_region = Signal.like(axi_from.ar.region)
+
+        ar_emit_count = Signal.like(axi_from.ar.len)
+        r_wide_count  = Signal.like(axi_from.ar.len)
+
+        fixed_ar_active = Signal()
+
+        is_ar_fixed = (axi_from.ar.burst == BURST_FIXED) & (axi_from.ar.len != 0)
+
+        ar_fsm = FSM(reset_state="IDLE")
+        self.ar_fsm = ar_fsm
+
+        ar_fsm.act("IDLE",
+            If(~is_ar_fixed,
+                # Fast path.
+                axi_to.ar.valid.eq(axi_from.ar.valid),
+                axi_to.ar.addr.eq(axi_from.ar.addr),
+                axi_to.ar.addr[:wide_size_log2].eq(0),
+                axi_to.ar.len.eq(((axi_from.ar.len + 1) << log2_int(ratio)) - 1),
+                If(axi_from.ar.size <= narrow_size_log2,
+                    axi_to.ar.size.eq(axi_from.ar.size),
+                ).Else(
+                    axi_to.ar.size.eq(narrow_size_log2),
+                ),
+                Case(axi_from.ar.burst, {
+                    BURST_FIXED:    axi_to.ar.burst.eq(BURST_INCR),
+                    BURST_INCR:     axi_to.ar.burst.eq(BURST_INCR),
+                    BURST_WRAP:     axi_to.ar.burst.eq(BURST_WRAP),
+                    BURST_RESERVED: axi_to.ar.burst.eq(BURST_RESERVED),
+                }),
+                axi_to.ar.id.eq(axi_from.ar.id),
+                axi_to.ar.lock.eq(axi_from.ar.lock),
+                axi_to.ar.prot.eq(axi_from.ar.prot),
+                axi_to.ar.cache.eq(axi_from.ar.cache),
+                axi_to.ar.qos.eq(axi_from.ar.qos),
+                axi_to.ar.region.eq(axi_from.ar.region),
+                axi_to.ar.dest.eq(axi_from.ar.dest),
+                axi_to.ar.user.eq(axi_from.ar.user),
+                axi_from.ar.ready.eq(axi_to.ar.ready),
+            ).Else(
+                axi_from.ar.ready.eq(1),
+                If(axi_from.ar.valid,
+                    NextValue(cap_ar_addr,   axi_from.ar.addr),
+                    NextValue(cap_ar_len,    axi_from.ar.len),
+                    NextValue(cap_ar_size,   axi_from.ar.size),
+                    NextValue(cap_ar_id,     axi_from.ar.id),
+                    NextValue(cap_ar_lock,   axi_from.ar.lock),
+                    NextValue(cap_ar_prot,   axi_from.ar.prot),
+                    NextValue(cap_ar_cache,  axi_from.ar.cache),
+                    NextValue(cap_ar_qos,    axi_from.ar.qos),
+                    NextValue(cap_ar_region, axi_from.ar.region),
+                    NextValue(ar_emit_count, 0),
+                    NextValue(r_wide_count,  0),
+                    NextState("FIXED-EMIT-AR"),
+                )
+            )
+        )
+        ar_fsm.act("FIXED-EMIT-AR",
+            fixed_ar_active.eq(1),
+            axi_to.ar.valid.eq(1),
+            axi_to.ar.addr.eq(cap_ar_addr),
+            axi_to.ar.addr[:wide_size_log2].eq(0),
+            axi_to.ar.len.eq(ratio - 1),
+            axi_to.ar.burst.eq(BURST_INCR),
+            If(cap_ar_size <= narrow_size_log2,
+                axi_to.ar.size.eq(cap_ar_size),
+            ).Else(
+                axi_to.ar.size.eq(narrow_size_log2),
+            ),
+            axi_to.ar.id.eq(cap_ar_id),
+            axi_to.ar.lock.eq(cap_ar_lock),
+            axi_to.ar.prot.eq(cap_ar_prot),
+            axi_to.ar.cache.eq(cap_ar_cache),
+            axi_to.ar.qos.eq(cap_ar_qos),
+            axi_to.ar.region.eq(cap_ar_region),
+            If(axi_to.ar.ready,
+                NextState("FIXED-DRAIN-R"),
+            )
+        )
+        ar_fsm.act("FIXED-DRAIN-R",
+            # Wait for the wide master to consume the wide R beat that this narrow burst feeds
+            # via the StrideConverter. Then issue next AR (or finish).
+            fixed_ar_active.eq(1),
+            If(axi_from.r.valid & axi_from.r.ready,
+                If(ar_emit_count == cap_ar_len,
+                    NextState("IDLE"),
+                ).Else(
+                    NextValue(ar_emit_count, ar_emit_count + 1),
+                    NextState("FIXED-EMIT-AR"),
+                )
+            )
+        )
+
+        # R Channel: StrideConverter merges narrow:ratio -> 1 wide. last is overridden in FIXED
+        # mode (we want exactly one wide last on the final wide beat).
         r_converter = stream.StrideConverter(
             description_from = [("data",   dw_to)],
             description_to   = [("data", dw_from)],
         )
         self.submodules += r_converter
-        self.comb += axi_to.r.connect(r_converter.sink, omit={"id", "dest", "user", "resp"})
-        self.comb += r_converter.source.connect(axi_from.r)
-        # ID/Dest/User (self.sync since +1 cycle latency in StrideConverter).
+        self.comb += axi_to.r.connect(r_converter.sink, omit={"id", "dest", "user", "resp", "last"})
+        self.comb += r_converter.sink.last.eq(axi_to.r.last)
+        self.comb += [
+            axi_from.r.valid.eq(r_converter.source.valid),
+            axi_from.r.data.eq(r_converter.source.data),
+            r_converter.source.ready.eq(axi_from.r.ready),
+            If(fixed_ar_active,
+                axi_from.r.last.eq(r_wide_count == cap_ar_len),
+            ).Else(
+                axi_from.r.last.eq(r_converter.source.last),
+            )
+        ]
+        self.sync += [
+            If(axi_from.r.valid & axi_from.r.ready,
+                If(fixed_ar_active,
+                    If(r_wide_count == cap_ar_len,
+                        r_wide_count.eq(0),
+                    ).Else(
+                        r_wide_count.eq(r_wide_count + 1),
+                    )
+                )
+            )
+        ]
+
+        # ID/Resp/User from narrow side: clocked-through (matches the existing 1-cycle
+        # StrideConverter latency). Tracks the most recent narrow beat — same id within a burst,
+        # so the wide value is correct when r.valid fires.
         self.sync += axi_from.r.resp.eq(axi_to.r.resp)
         self.sync += axi_from.r.user.eq(axi_to.r.user)
         self.sync += axi_from.r.dest.eq(axi_to.r.dest)
