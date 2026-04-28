@@ -33,7 +33,7 @@ __attribute__((unused)) static void flush_cpu_dcache(void)
 {
 }
 
-#ifdef __riscv_zicbom__
+#ifdef __riscv_zicbom
 
 static inline void clean_cpu_dcache_range(void *start_addr, size_t size)
 {
@@ -56,7 +56,7 @@ static inline void invd_cpu_dcache_range(void *start_addr, size_t size)
 
 #define HAS_INVD_CPU_DCACHE_RANGE 1
 
-#endif /* __riscv_zicbom__ */
+#endif /* __riscv_zicbom */
 
 void flush_l2_cache(void);
 

@@ -127,8 +127,6 @@ class VexiiRiscv(CPU):
     def gcc_flags(self):
         flags =  f" -march={VexiiRiscv.get_gcc_arch()} -mabi={VexiiRiscv.get_abi()}"
         flags += f" -D__VexiiRiscv__"
-        if VexiiRiscv.with_rvcbom:
-            flags += f" -D__riscv_zicbom__"
         if VexiiRiscv.soc_args.with_aplic:
             flags += f" -D__riscv_aplic__"
         else:
