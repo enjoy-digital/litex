@@ -5,14 +5,18 @@ import sys
 import time
 import subprocess
 import shutil
-import hashlib
 import argparse
+import importlib
 
 import urllib.request
 
 start_time   = time.time()
 current_path = os.path.abspath(os.curdir)
 python3      = sys.executable
+git_repos    = None
+install_configs = None
+litex_setup_url = "https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py"
+litex_repos_url = "https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_repos.py"
 
 # Helpers ------------------------------------------------------------------------------------------
 
@@ -52,116 +56,6 @@ class SetupError(Exception):
     def __init__(self):
         sys.stderr = None # Error already described, avoid traceback/exception.
 
-# Git repositories ---------------------------------------------------------------------------------
-
-# Get SHA1: git rev-parse --short=7 HEAD
-
-class GitRepo:
-    def __init__(self, url, clone="regular", develop=True, editable=True, sha1=None, branch="master", tag=None):
-        assert clone in ["regular", "recursive"]
-        self.url      = url
-        self.clone    = clone
-        self.develop  = develop
-        self.editable = editable
-        self.sha1     = sha1
-        self.branch   = branch
-        self.tag      = tag
-
-
-git_repos = {
-    # HDL.
-    # ----
-    "migen":    GitRepo(url="https://git.m-labs.hk/M-Labs/", clone="recursive", editable=False, sha1=0x4c2ae8dfeea37f235b52acb8166f12acaaae4f7c),
-
-    # LiteX SoC builder.
-    # ------------------
-    "pythondata-software-picolibc":    GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
-    "pythondata-software-compiler_rt": GitRepo(url="https://github.com/litex-hub/"),
-    "litex":                           GitRepo(url="https://github.com/enjoy-digital/", tag=True),
-
-    # LiteX Cores Ecosystem.
-    # ----------------------
-    "liteiclink":   GitRepo(url="https://github.com/enjoy-digital/", tag=True),
-    "liteeth":      GitRepo(url="https://github.com/enjoy-digital/", tag=True),
-    "litedram":     GitRepo(url="https://github.com/enjoy-digital/", tag=True),
-    "litepcie":     GitRepo(url="https://github.com/enjoy-digital/", tag=True),
-    "litesata":     GitRepo(url="https://github.com/enjoy-digital/", tag=True),
-    "litesdcard":   GitRepo(url="https://github.com/enjoy-digital/", tag=True),
-    "litescope":    GitRepo(url="https://github.com/enjoy-digital/", tag=True),
-    "litejesd204b": GitRepo(url="https://github.com/enjoy-digital/", tag=True),
-    "litespi":      GitRepo(url="https://github.com/litex-hub/",     tag=True),
-    "litei2c":      GitRepo(url="https://github.com/litex-hub/",     tag=True, branch="main"),
-
-    # LiteX Boards.
-    # -------------
-    "litex-boards": GitRepo(url="https://github.com/litex-hub/", clone="regular", tag=True),
-
-    # LiteX pythondata.
-    # -----------------
-    # Generic.
-    "pythondata-misc-tapcfg":      GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-misc-usb_ohci":    GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
-
-    # LM32 CPU(s).
-    "pythondata-cpu-lm32":         GitRepo(url="https://github.com/litex-hub/"),
-
-    # OpenRISC CPU(s).
-    "pythondata-cpu-mor1kx":       GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-marocchino":   GitRepo(url="https://github.com/litex-hub/"),
-
-    # OpenPower CPU(s).
-    "pythondata-cpu-microwatt":    GitRepo(url="https://github.com/litex-hub/", sha1=0xc69953aff92),
-
-    # RISC-V CPU(s).
-    "pythondata-cpu-blackparrot":  GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-coreblocks":   GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
-    "pythondata-cpu-cv32e40p":     GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
-    "pythondata-cpu-cv32e41p":     GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
-    "pythondata-cpu-cva5":         GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-cva6":         GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
-    "pythondata-cpu-ibex":         GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
-    "pythondata-cpu-minerva":      GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-naxriscv":     GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-openc906":     GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-picorv32":     GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-rocket":       GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-sentinel":     GitRepo(url="https://github.com/litex-hub/", branch="main"),
-    "pythondata-cpu-serv":         GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-vexiiriscv":   GitRepo(url="https://github.com/litex-hub/", branch="main"),
-    "pythondata-cpu-vexriscv":     GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-vexriscv-smp": GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
-}
-
-# Installs -----------------------------------------------------------------------------------------
-
-# Minimal: Only Migen + LiteX.
-minimal_repos = ["migen", "litex"]
-
-# Standard: Migen + LiteX + Cores + Software + Popular CPUs (LM32, Mor1kx, SERV, VexRiscv).
-standard_repos = list(git_repos.keys())
-standard_repos.remove("pythondata-cpu-blackparrot")
-standard_repos.remove("pythondata-cpu-coreblocks")
-standard_repos.remove("pythondata-cpu-cv32e40p")
-standard_repos.remove("pythondata-cpu-cv32e41p")
-standard_repos.remove("pythondata-cpu-cva5")
-standard_repos.remove("pythondata-cpu-cva6")
-standard_repos.remove("pythondata-cpu-ibex")
-standard_repos.remove("pythondata-cpu-openc906")
-standard_repos.remove("pythondata-cpu-marocchino")
-standard_repos.remove("pythondata-cpu-microwatt")
-standard_repos.remove("pythondata-cpu-picorv32")
-standard_repos.remove("pythondata-cpu-rocket")
-
-# Full: Migen + LiteX + Cores + Software + All CPUs.
-full_repos = list(git_repos.keys())
-
-# Installs:
-install_configs = {
-    "minimal"  : minimal_repos,
-    "standard" : standard_repos,
-    "full"     : full_repos,
-}
-
 # Script location / auto-update --------------------------------------------------------------------
 
 def litex_setup_location_check():
@@ -170,22 +64,71 @@ def litex_setup_location_check():
         global current_path
         current_path = os.path.join(current_path, "../")
 
+def litex_setup_repos_path():
+    return os.path.join(os.path.dirname(os.path.realpath(__file__)), "litex_repos.py")
+
+def litex_setup_download(url):
+    with urllib.request.urlopen(url, timeout=10) as r:
+        return r.read()
+
+def litex_setup_update_file(url, path, name, restart=False):
+    content = litex_setup_download(url)
+    if os.path.exists(path):
+        current = open(path, "rb").read()
+    else:
+        current = None
+    if current == content:
+        print_status(f"{name} is up to date.")
+        return False
+    print_status(f"{name} is obsolete or missing, updating.")
+    with open(path, "wb") as f:
+        f.write(content)
+    if restart:
+        os.execl(python3, python3, *sys.argv)
+    return True
+
+def litex_setup_update_repos_file():
+    try:
+        litex_setup_update_file(
+            url  = litex_repos_url,
+            path = litex_setup_repos_path(),
+            name = "LiteX repository definitions",
+        )
+    except Exception as e:
+        print_error(f"Could not download litex_repos.py: {e}")
+        raise SetupError
+
+def litex_setup_download_repos():
+    print_status("LiteX repository definitions are missing, downloading.")
+    litex_setup_update_repos_file()
+
+def litex_setup_import_repos(download=False):
+    global git_repos
+    global install_configs
+    try:
+        repos = importlib.import_module("litex_repos")
+    except ModuleNotFoundError as e:
+        if e.name != "litex_repos":
+            raise
+        if not download:
+            print_error("litex_repos.py is missing.")
+            print_status("Run without --dev to download it automatically, or download it next to litex_setup.py.")
+            raise SetupError
+        litex_setup_download_repos()
+        importlib.invalidate_caches()
+        repos = importlib.import_module("litex_repos")
+    git_repos       = repos.git_repos
+    install_configs = repos.install_configs
+
 def litex_setup_auto_update():
-    litex_setup_url = "https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py"
-    current_sha1 = hashlib.sha1(open(os.path.realpath(__file__)).read().encode("utf-8")).hexdigest()
     print_status("LiteX Setup auto-update...")
     try:
-        import requests
-        r = requests.get(litex_setup_url)
-        if r.status_code != 404:
-            upstream_sha1 = hashlib.sha1(r.content).hexdigest()
-            if current_sha1 != upstream_sha1:
-                print_status("LiteX Setup is obsolete, updating.")
-                with open(os.path.realpath(__file__), "wb") as f:
-                    f.write(r.content)
-                os.execl(python3, python3, *sys.argv)
-            else:
-                print_status("LiteX Setup is up to date.")
+        litex_setup_update_file(
+            url     = litex_setup_url,
+            path    = os.path.realpath(__file__),
+            name    = "LiteX Setup",
+            restart = True,
+        )
     except:
         pass
 
@@ -471,6 +414,10 @@ def main():
     litex_setup_location_check()
     if not args.dev:
         litex_setup_auto_update()
+    if args.init or args.update or args.install or args.freeze:
+        if not args.dev:
+            litex_setup_update_repos_file()
+        litex_setup_import_repos(download=not args.dev)
 
     # Init.
     if args.init:

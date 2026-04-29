@@ -155,6 +155,7 @@ $ wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.
 $ chmod +x litex_setup.py
 $ ./litex_setup.py --init --install --user (--user to install to user directory) --config=(minimal, standard, full)
 ```
+  `litex_setup.py` downloads the repository definitions it needs automatically.
   Later, if you need to update all repositories:
 ```sh
 $ ./litex_setup.py --update

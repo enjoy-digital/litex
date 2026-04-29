@@ -5,6 +5,7 @@ import re
 import subprocess
 import argparse
 
+import litex_repos
 import litex_setup as setup
 
 
@@ -54,15 +55,15 @@ def release_repo_names(repos=None, with_pythondata=False):
         names = [name.strip() for name in repos.split(",") if name.strip()]
     else:
         names = [
-            name for name in setup.install_configs["full"]
-            if (name != "migen") and (setup.git_repos[name].tag is not None)
+            name for name in litex_repos.install_configs["full"]
+            if (name != "migen") and (litex_repos.git_repos[name].tag is not None)
         ]
         if with_pythondata:
-            for name in setup.install_configs["full"]:
+            for name in litex_repos.install_configs["full"]:
                 if (name != "migen") and name.startswith("pythondata-") and name not in names:
                     names.append(name)
     for name in names:
-        if name not in setup.git_repos:
+        if name not in litex_repos.git_repos:
             setup.print_error(f"{name} is not a known repository.")
             raise setup.SetupError
         if name == "migen":
@@ -99,7 +100,7 @@ def release_repo_state(name, tag):
         "last_tag"                : "Not initialized",
         "setup_version"           : "Not initialized",
         "branch"                  : "Not initialized",
-        "expected"                : setup.git_repos[name].branch,
+        "expected"                : litex_repos.git_repos[name].branch,
         "upstream"                : None,
         "ahead"                   : None,
         "behind"                  : None,
@@ -197,7 +198,7 @@ def check_release_state(states, tag, phases, allow_dirty=False, allow_branch_mis
                 errors.append(f"{name}: local tag {tag} is missing.")
         if "bump" in phases:
             setup_path = os.path.join(state["repo_path"], "setup.py")
-            if os.path.exists(setup_path) and state["setup_version"] == "No version found" and setup.git_repos[name].tag is not None:
+            if os.path.exists(setup_path) and state["setup_version"] == "No version found" and litex_repos.git_repos[name].tag is not None:
                 errors.append(f"{name}: setup.py has no parseable version.")
 
     if errors:
