@@ -15,6 +15,7 @@ from litex.tools.litex_term import (
     sfl_ack_error,
     sfl_ack_success,
     sfl_cmd_abort,
+    sfl_cmd_load,
     sfl_magic_ack,
 )
 
@@ -128,7 +129,7 @@ class TestLiteXTermSFL(unittest.TestCase):
         self.assertTrue(port.written)
 
     def test_upload_calibration_requires_all_acks(self):
-        port = FakePort(read_data=sfl_ack_success * 15)
+        port = FakePort(read_data=sfl_ack_success * 3)
         term = make_term(port)
         term.safe = False
         term.outstanding = 128
@@ -139,6 +140,48 @@ class TestLiteXTermSFL(unittest.TestCase):
         self.assertEqual(term.delay, 0)
         self.assertEqual(term.length, 64)
         self.assertEqual(term.outstanding, 1)
+
+    def test_upload_retries_crc_error_in_stop_and_wait_mode(self):
+        port = FakePort(read_data=sfl_ack_crcerror + sfl_ack_success)
+        term = make_term(port)
+
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            f.write(b"LiteX")
+            filename = f.name
+        try:
+            with redirect_stdout(io.StringIO()):
+                term.upload(filename, 0x40000000)
+        finally:
+            os.unlink(filename)
+
+        frame = SFLFrame()
+        frame.cmd = sfl_cmd_load
+        frame.payload = (0x40000000).to_bytes(4, "big") + b"LiteX"
+        self.assertEqual(port.written, frame.encode() * 2)
+
+    def test_upload_retries_with_smaller_window_after_optimized_error(self):
+        port = FakePort(
+            read_data=sfl_ack_success + sfl_ack_error,
+            write_replies=[b"", b"", sfl_ack_success, sfl_ack_success],
+        )
+        term = make_term(port)
+        term.safe = False
+        term.length = 4
+        term.outstanding = 2
+
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            f.write(b"LiteXSoC")
+            filename = f.name
+        try:
+            output = io.StringIO()
+            with mock.patch.object(term, "upload_calibration", return_value=True), \
+                 mock.patch.object(litex_term.time, "sleep"), \
+                 redirect_stdout(output):
+                term.upload(filename, 0x40000000)
+        finally:
+            os.unlink(filename)
+
+        self.assertIn("Retrying with length 4, window 1", output.getvalue())
 
 
 if __name__ == "__main__":
