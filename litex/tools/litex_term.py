@@ -258,6 +258,10 @@ sfl_ack_unknown  = b"U"
 sfl_ack_error    = b"E"
 
 
+class SFLUploadError(Exception):
+    pass
+
+
 class SFLFrame:
     def __init__(self):
         self.cmd = bytes()
@@ -349,7 +353,7 @@ class LiteXTerm:
         self.safe        = safe
         self.delay       = 0
         self.length      = 64
-        self.outstanding = 0 if safe else 128
+        self.outstanding = 1 if safe else 128
 
     def open(self, port, baudrate):
         if hasattr(self, "port"):
@@ -374,30 +378,59 @@ class LiteXTerm:
         else:
             self.sigint_time_last = sigint_time_current
 
-    def send_frame(self, frame):
-        retry = 1
-        while retry:
+    def read_sfl_reply(self, timeout=1.0):
+        if not hasattr(self.port, "timeout"):
+            reply = self.port.read()
+            if reply == b"":
+                raise SFLUploadError("timed out waiting for device reply")
+            return reply
+
+        previous_timeout = self.port.timeout
+        self.port.timeout = timeout
+        try:
+            reply = self.port.read()
+        finally:
+            self.port.timeout = previous_timeout
+
+        if reply == b"":
+            raise SFLUploadError("timed out waiting for device reply")
+        return reply
+
+    def drain(self):
+        while self.port.in_waiting:
+            self.port.read(self.port.in_waiting)
+
+    def send_frame(self, frame, timeout=1.0, retries=16):
+        for _ in range(retries):
             self.port.write(frame.encode())
             # Get the reply from the device
-            reply = self.port.read()
+            try:
+                reply = self.read_sfl_reply(timeout=timeout)
+            except SFLUploadError as e:
+                print(f"[LITEX-TERM] {e}, aborting.")
+                return 0
             if reply == sfl_ack_success:
-                retry = 0
+                return 1
             elif reply == sfl_ack_crcerror:
-                retry = 1
+                continue
             else:
                 print("[LITEX-TERM] Got unknown reply '{}' from the device, aborting.".format(reply))
                 return 0
-        return 1
+        print("[LITEX-TERM] Too many CRC errors from the device, aborting.")
+        return 0
 
     def receive_upload_response(self):
-        reply = self.port.read()
+        reply = self.read_sfl_reply()
         if reply == sfl_ack_success:
             return True
         elif reply == sfl_ack_crcerror:
-            print("[LITEX-TERM] Upload to device failed due to data corruption (CRC error)")
+            raise SFLUploadError("upload failed due to data corruption (CRC error)")
+        elif reply == sfl_ack_error:
+            raise SFLUploadError("device reported a serial frame error")
+        elif reply == sfl_ack_unknown:
+            raise SFLUploadError("device reported an unknown serial command")
         else:
-            print(f"[LITEX-TERM] Got unexpected response from device '{reply}'")
-        sys.exit(1)
+            raise SFLUploadError(f"got unexpected response from device '{reply}'")
 
     def upload_calibration(self, address):
 
@@ -425,19 +458,35 @@ class LiteXTerm:
                 frame.payload += frame_data
                 frame = frame.encode()
 
+                # Drain stale replies from previous attempts.
+                self.drain()
+
                 # Send N consecutive frames.
                 for i in range(nframes):
                     self.port.write(frame)
                     time.sleep(delay)
 
-                # Wait and get acks.
+                # Wait and get all expected ACKs.
                 working = True
-                time.sleep(0.2)
-                while self.port.in_waiting:
-                    ack = self.port.read()
-                    #print(ack)
-                    if ack in [sfl_ack_error, sfl_ack_crcerror]:
+                ack_count = 0
+                baudrate = getattr(self.port, "baudrate", 115200) or 115200
+                frame_time = (len(frame) * 10) / baudrate
+                deadline = time.time() + max(0.5, frame_time * nframes * 4)
+                while ack_count < nframes and time.time() < deadline:
+                    try:
+                        ack = self.read_sfl_reply(timeout=max(0, deadline - time.time()))
+                    except SFLUploadError:
+                        break
+                    ack_count += 1
+                    if ack != sfl_ack_success:
                         working = False
+
+                if ack_count != nframes:
+                    working = False
+
+                if not working:
+                    time.sleep(0.35)
+                    self.drain()
 
                 if working:
                     # Save working delay/length and exit.
@@ -461,92 +510,115 @@ class LiteXTerm:
             print("failed, switching to --safe mode.")
             self.delay       = 0
             self.length      = 64
-            self.outstanding = 0
+            self.outstanding = 1
 
     def upload(self, filename, address):
-        f = open(filename, "rb")
-        f.seek(0, 2)
-        length = f.tell()
-        f.seek(0, 0)
+        with open(filename, "rb") as f:
+            f.seek(0, 2)
+            length = f.tell()
+            f.seek(0, 0)
 
-        print(f"[LITEX-TERM] Uploading {filename} to 0x{address:08x} ({length} bytes)...")
+            print(f"[LITEX-TERM] Uploading {filename} to 0x{address:08x} ({length} bytes)...")
 
-        # Upload calibration
-        if not self.safe:
-            self.upload_calibration(address)
-            # Force safe mode settings when calibration fails.
-            if self.delay is None:
-                self.delay       = 0
-                self.length      = 64
-                self.outstanding = 0
+            # Upload calibration
+            if not self.safe:
+                self.upload_calibration(address)
+                # Force safe mode settings when calibration fails.
+                if self.delay is None:
+                    self.delay       = 0
+                    self.length      = 64
+                    self.outstanding = 1
 
-        # Prepare parameters
-        current_address = address
-        position        = 0
-        start           = time.time()
-        remaining       = length
-        outstanding     = 0
-        last_progress_update = 0.0
-        while remaining:
-            # Show progress (throttled to 10 Hz to avoid overloading terminal/X11)
-            now = time.time()
-            if now - last_progress_update >= 0.1:
-                sys.stdout.write("|{}>{}| {}%\r".format(
-                    "=" * (20*position//length),
-                    " " * (20-20*position//length),
-                    100*position//length))
-                sys.stdout.flush()
-                last_progress_update = now
+            # Prepare parameters
+            current_address = address
+            position        = 0
+            start           = time.time()
+            remaining       = length
+            outstanding     = 0
+            last_progress_update = 0.0
+            while remaining:
+                # Show progress (throttled to 10 Hz to avoid overloading terminal/X11)
+                now = time.time()
+                if now - last_progress_update >= 0.1:
+                    sys.stdout.write("|{}>{}| {}%\r".format(
+                        "=" * (20*position//length),
+                        " " * (20-20*position//length),
+                        100*position//length))
+                    sys.stdout.flush()
+                    last_progress_update = now
 
-            # Send frame if max outstanding not reached.
-            if outstanding <= self.outstanding:
-                # Prepare frame.
-                frame      = SFLFrame()
-                frame.cmd  = sfl_cmd_load
-                frame_data = f.read(min(remaining, self.length-4))
-                frame.payload = current_address.to_bytes(4, "big")
-                frame.payload += frame_data
+                # Send frame if max outstanding not reached.
+                if outstanding < self.outstanding:
+                    # Prepare frame.
+                    frame      = SFLFrame()
+                    frame.cmd  = sfl_cmd_load
+                    frame_data = f.read(min(remaining, self.length-4))
+                    frame.payload = current_address.to_bytes(4, "big")
+                    frame.payload += frame_data
 
-                # Encode frame and send it.
-                self.port.write(frame.encode())
+                    # Encode frame and send it.
+                    self.port.write(frame.encode())
 
-                # Update parameters
-                current_address += len(frame_data)
-                position        += len(frame_data)
-                remaining       -= len(frame_data)
-                outstanding     += 1
+                    # Update parameters
+                    current_address += len(frame_data)
+                    position        += len(frame_data)
+                    remaining       -= len(frame_data)
+                    outstanding     += 1
 
-                # Inter-frame delay.
-                time.sleep(self.delay)
+                    # Inter-frame delay.
+                    time.sleep(self.delay)
 
-            # Read response if available, else yield CPU briefly.
-            if self.port.in_waiting:
-                while self.port.in_waiting:
-                    ack = self.receive_upload_response()
-                    if ack:
-                        outstanding -= 1
-                        break
-            elif outstanding > self.outstanding:
-                # yield 1/10th of frame transmission time to avoids busy-wait (minimum is 0.1ms)
-                time.sleep(max(0.0001, (self.length * 10) / self.port.baudrate / 10))
+                # Read response if available, else yield CPU briefly.
+                if self.port.in_waiting:
+                    while self.port.in_waiting:
+                        ack = self.receive_upload_response()
+                        if ack:
+                            outstanding -= 1
+                            break
+                elif outstanding >= self.outstanding:
+                    # yield 1/10th of frame transmission time to avoids busy-wait (minimum is 0.1ms)
+                    baudrate = getattr(self.port, "baudrate", 115200) or 115200
+                    time.sleep(max(0.0001, (self.length * 10) / baudrate / 10))
 
-        # Get remaining responses.
-        for _ in range(outstanding):
-            self.receive_upload_response()
+            # Get remaining responses.
+            for _ in range(outstanding):
+                self.receive_upload_response()
 
-        # Compute speed.
-        end     = time.time()
-        elapsed = end - start
-        print("[LITEX-TERM] Upload complete ({0:.1f}KB/s).".format(length/(elapsed*1024)))
-        f.close()
-        return length
+            # Compute speed.
+            end     = time.time()
+            elapsed = end - start
+            print("[LITEX-TERM] Upload complete ({0:.1f}KB/s).".format(length/(elapsed*1024)))
+            return length
 
     def boot(self):
         print("[LITEX-TERM] Booting the device.")
         frame = SFLFrame()
         frame.cmd = sfl_cmd_jump
         frame.payload = int(self.boot_address, 16).to_bytes(4, "big")
-        self.send_frame(frame)
+        if not self.send_frame(frame):
+            raise SFLUploadError("could not send boot command")
+
+    def abort_serialboot(self):
+        print("[LITEX-TERM] Aborting serial boot.")
+        time.sleep(0.35)
+        self.drain()
+
+        frame = SFLFrame()
+        frame.cmd = sfl_cmd_abort
+        self.port.write(frame.encode())
+
+        try:
+            reply = self.read_sfl_reply(timeout=1.0)
+        except SFLUploadError as e:
+            print(f"[LITEX-TERM] Serial boot abort failed: {e}.")
+            return False
+
+        if reply == sfl_ack_success:
+            print("[LITEX-TERM] Serial boot aborted.")
+            return True
+
+        print(f"[LITEX-TERM] Serial boot abort got unexpected response '{reply}'.")
+        return False
 
     def detect_prompt(self, data):
         if len(data):
@@ -570,10 +642,14 @@ class LiteXTerm:
         print("[LITEX-TERM] Received firmware download request from the device.")
         if(len(self.mem_regions)):
             self.port.write(sfl_magic_ack)
-        for filename, base in self.mem_regions.items():
-            self.upload(filename, int(base, 16))
-        self.boot()
-        print("[LITEX-TERM] Done.")
+        try:
+            for filename, base in self.mem_regions.items():
+                self.upload(filename, int(base, 16))
+            self.boot()
+            print("[LITEX-TERM] Done.")
+        except SFLUploadError as e:
+            print(f"\n[LITEX-TERM] Serial boot failed: {e}.")
+            self.abort_serialboot()
 
     def reader(self):
         try:
