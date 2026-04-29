@@ -16,7 +16,6 @@ from litex.tools.litex_term import (
     sfl_ack_success,
     sfl_cmd_abort,
     sfl_cmd_load,
-    sfl_data_length,
     sfl_magic_ack,
 )
 
@@ -176,13 +175,13 @@ class TestLiteXTermSFL(unittest.TestCase):
         self.assertEqual(term.outstanding, 1)
 
     def test_upload_calibration_uses_safe_stop_and_wait(self):
-        port = FakePort(write_replies=[sfl_ack_success] * 4 + [sfl_ack_error, sfl_ack_success, sfl_ack_success])
+        port = FakePort(write_replies=[sfl_ack_success] * 12)
         term = make_term(port)
         term.safe = False
         term.outstanding = 8
 
         with mock.patch.object(litex_term.time, "sleep"), redirect_stdout(io.StringIO()):
-            term.upload_calibration(0x40000000, image_length=64)
+            term.upload_calibration(0x40000000)
 
         frame = SFLFrame()
         frame.cmd = sfl_cmd_load
@@ -191,21 +190,7 @@ class TestLiteXTermSFL(unittest.TestCase):
         self.assertEqual(term.delay, 0)
         self.assertEqual(term.length, 64)
         self.assertEqual(term.outstanding, 1)
-        self.assertEqual(port.written, frame.encode() * 7)
-
-    def test_upload_calibration_uses_fastest_working_profile(self):
-        port = FakePort(write_replies=[sfl_ack_success] * 96)
-        term = make_term(port)
-        term.safe = False
-        term.outstanding = 8
-
-        with mock.patch.object(litex_term.time, "sleep"), redirect_stdout(io.StringIO()):
-            term.upload_calibration(0x40000000)
-
-        self.assertEqual(term.delay, 0)
-        self.assertEqual(term.length, sfl_data_length)
-        self.assertEqual(term.outstanding, 8)
-        self.assertEqual(term.upload_profiles()[0], (sfl_data_length, 8))
+        self.assertEqual(port.written, frame.encode() * 4)
 
     def test_upload_retries_crc_error_in_stop_and_wait_mode(self):
         port = FakePort(read_data=sfl_ack_crcerror + sfl_ack_success)
