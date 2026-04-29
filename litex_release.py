@@ -2,6 +2,7 @@
 
 import os
 import re
+import json
 import subprocess
 import argparse
 
@@ -87,6 +88,61 @@ def git_output(repo_path, *args, check=True):
 def git_call(repo_path, *args):
     cmd = ["git"] + list(args)
     subprocess.check_call(cmd, cwd=repo_path)
+
+def release_state_filename(tag):
+    safe_tag = tag.replace("/", "_").replace("\\", "_")
+    return f".litex_release_{safe_tag}.json"
+
+def init_release_state(tag, phases, states):
+    repos = []
+    for state in states:
+        repo = {
+            "name"          : state["name"],
+            "path"          : state["repo_path"],
+            "branch"        : state["branch"],
+            "upstream"      : state["upstream"],
+            "last_tag"      : state["last_tag"],
+            "setup_version" : state["setup_version"],
+            "head_before"   : None,
+        }
+        if state["exists"]:
+            repo["head_before"] = git_output(state["repo_path"], "rev-parse", "HEAD", check=False)
+        repos.append(repo)
+    return {
+        "tag"              : tag,
+        "phases"           : phases,
+        "completed_phases" : [],
+        "repositories"     : repos,
+        "events"           : [],
+    }
+
+def save_release_state(state_file, release_state):
+    if state_file is None:
+        return
+    with open(state_file, "w", encoding="utf-8") as f:
+        json.dump(release_state, f, indent=2, sort_keys=True)
+        f.write("\n")
+
+def add_release_event(release_state, state_file, phase, repo, commit=None, tag=None):
+    if release_state is None:
+        return
+    event = {
+        "phase" : phase,
+        "repo"  : repo,
+    }
+    if commit is not None:
+        event["commit"] = commit
+    if tag is not None:
+        event["tag"] = tag
+    release_state["events"].append(event)
+    save_release_state(state_file, release_state)
+
+def complete_release_phase(release_state, state_file, phase):
+    if release_state is None:
+        return
+    if phase not in release_state["completed_phases"]:
+        release_state["completed_phases"].append(phase)
+    save_release_state(state_file, release_state)
 
 
 # Release ------------------------------------------------------------------------------------------
@@ -230,7 +286,7 @@ def release_list_repos(repos=None, with_pythondata=False):
 
 def release_repos(tag, repos=None, with_pythondata=False, dry_run=False, phases=None,
     no_push=False, allow_dirty=False, allow_branch_mismatch=False, allow_unpushed=False,
-    allow_invalid_tag=False):
+    allow_invalid_tag=False, state_file=None):
 
     check_release_tag(tag, allow_invalid_tag=allow_invalid_tag)
     phases = phases or ["bump", "tag", "push"]
@@ -259,6 +315,12 @@ def release_repos(tag, repos=None, with_pythondata=False, dry_run=False, phases=
         setup.print_status("Not confirmed, exiting.")
         return
 
+    release_state = None
+    if state_file is not None:
+        release_state = init_release_state(tag, phases, states)
+        save_release_state(state_file, release_state)
+        setup.print_status(f"Release state file: {state_file}")
+
     if "bump" in phases:
         for state in states:
             name      = state["name"]
@@ -284,6 +346,14 @@ def release_repos(tag, repos=None, with_pythondata=False, dry_run=False, phases=
                 f.write(new_content)
             git_call(repo_path, "add", "setup.py")
             git_call(repo_path, "commit", "-m", f"Bump to version {tag}")
+            add_release_event(
+                release_state,
+                state_file,
+                "bump",
+                name,
+                commit=git_output(repo_path, "rev-parse", "HEAD"),
+            )
+        complete_release_phase(release_state, state_file, "bump")
 
     if "tag" in phases:
         for state in states:
@@ -291,6 +361,8 @@ def release_repos(tag, repos=None, with_pythondata=False, dry_run=False, phases=
             repo_path = state["repo_path"]
             setup.print_status(f"Tagging {name} Git repository as {tag}...")
             git_call(repo_path, "tag", tag)
+            add_release_event(release_state, state_file, "tag", name, tag=tag)
+        complete_release_phase(release_state, state_file, "tag")
 
     if "push" in phases:
         for state in states:
@@ -299,6 +371,15 @@ def release_repos(tag, repos=None, with_pythondata=False, dry_run=False, phases=
             setup.print_status(f"Pushing {name} Git repository...")
             git_call(repo_path, "push")
             git_call(repo_path, "push", "origin", tag)
+            add_release_event(
+                release_state,
+                state_file,
+                "push",
+                name,
+                commit=git_output(repo_path, "rev-parse", "HEAD"),
+                tag=tag,
+            )
+        complete_release_phase(release_state, state_file, "push")
 
 def release_phases(args):
     phases = []
@@ -338,6 +419,7 @@ def main():
     parser.add_argument("--allow-dirty",           action="store_true", help="Allow dirty working trees during release.")
     parser.add_argument("--allow-branch-mismatch", action="store_true", help="Allow repositories to be on branches different from litex_setup.py defaults.")
     parser.add_argument("--allow-unpushed",        action="store_true", help="Allow repositories without clean upstream synchronization.")
+    parser.add_argument("--state-file",            default=None,        help="Release state file path.")
     parser.add_argument("--dev", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
 
@@ -356,6 +438,9 @@ def main():
         )
 
     if args.release:
+        state_file = args.state_file
+        if (state_file is None) and (not args.dry_run):
+            state_file = os.path.abspath(release_state_filename(args.release))
         release_repos(
             tag=args.release,
             repos=args.repos,
@@ -367,6 +452,7 @@ def main():
             allow_branch_mismatch=args.allow_branch_mismatch,
             allow_unpushed=args.allow_unpushed,
             allow_invalid_tag=args.allow_invalid_tag,
+            state_file=state_file,
         )
     elif args.dry_run or args.bump or args.tag or args.push or args.no_push:
         setup.print_error("--release is required with release action options.")

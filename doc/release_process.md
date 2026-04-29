@@ -115,7 +115,9 @@ Run the release:
 
 After confirmation, the helper bumps versioned `setup.py` files, commits
 `Bump to version 2026.04`, creates lightweight tags, pushes branches and pushes
-the release tags.
+the release tags. Non-dry-run releases write `.litex_release_2026.04.json` in
+the LiteX repository root with initial repository heads, created commits/tags
+and completed phases.
 
 To split local preparation from pushing:
 

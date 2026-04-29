@@ -49,6 +49,9 @@ coverage.xml
 *,cover
 .hypothesis/
 
+# LiteX release state
+.litex_release_*.json
+
 # Translations
 *.mo
 *.pot
