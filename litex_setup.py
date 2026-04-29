@@ -213,13 +213,14 @@ def litex_setup_init_repos(config="standard", tag=None, dev_mode=False):
             repo_url = repo.url
             if dev_mode:
                 repo_url = repo_url.replace("https://github.com/", "git@github.com:")
-            subprocess.check_call("git clone {url} {options}".format(
-                url     = repo_url + name + ".git",
-                options = "--recursive" if repo.clone == "recursive" else ""
-                ), shell=True)
+            clone_cmd = ["git", "clone"]
+            if repo.clone == "recursive":
+                clone_cmd.append("--recursive")
+            clone_cmd.append(repo_url + name + ".git")
+            subprocess.check_call(clone_cmd)
             os.chdir(os.path.join(current_path, name))
             # Use specific Branch.
-            subprocess.check_call("git checkout " + repo.branch, shell=True)
+            subprocess.check_call(["git", "checkout", repo.branch])
             # Use specific Tag (Optional).
             if repo.tag is not None:
                 # Priority to passed tag (if specified).
@@ -228,7 +229,7 @@ def litex_setup_init_repos(config="standard", tag=None, dev_mode=False):
                     continue
                 # Else fallback to repo tag (if specified).
                 if isinstance(repo.tag, str):
-                    git_checkout(tag=tag)
+                    git_checkout(tag=repo.tag)
                     continue
             # Use specific SHA1 (Optional).
             if repo.sha1 is not None:
@@ -250,11 +251,11 @@ def litex_setup_update_repos(config="standard", tag=None):
         # Update Repo.
         print_status(f"Updating {name} Git repository...")
         os.chdir(os.path.join(current_path, name))
-        subprocess.check_call("git checkout " + repo.branch, shell=True)
-        subprocess.check_call("git pull --ff-only", shell=True)
+        subprocess.check_call(["git", "checkout", repo.branch])
+        subprocess.check_call(["git", "pull", "--ff-only"])
         # Recursive Update (Optional).
         if repo.clone == "recursive":
-            subprocess.check_call("git submodule update --init --recursive", shell=True)
+            subprocess.check_call(["git", "submodule", "update", "--init", "--recursive"])
         # Use specific Tag (Optional).
         if repo.tag is not None:
             # Priority to passed tag (if specified).
@@ -263,7 +264,7 @@ def litex_setup_update_repos(config="standard", tag=None):
                 continue
             # Else fallback to repo tag (if specified).
             if isinstance(repo.tag, str):
-                git_checkout(tag=tag)
+                git_checkout(tag=repo.tag)
                 continue
         # Use specific SHA1 (Optional).
         if repo.sha1 is not None:
@@ -280,21 +281,22 @@ def litex_setup_install_repos(config="standard", user_mode=False):
         if repo.develop:
             print_status(f"Installing {name} Git repository...")
             os.chdir(os.path.join(current_path, name))
-            subprocess.check_call("\"{python3}\" -m pip install {editable} . {options}".format(
-                python3  = sys.executable,
-                editable = "--editable" if repo.editable else "",
-                options  = "--user"     if user_mode else "",
-                ), shell=True)
+            pip_cmd = [sys.executable, "-m", "pip", "install"]
+            if repo.editable:
+                pip_cmd.append("--editable")
+            pip_cmd.append(".")
+            if user_mode:
+                pip_cmd.append("--user")
+            subprocess.check_call(pip_cmd)
     # Install optional Python dependencies for LUNA-backed USB ACM and Amaranth-based CPUs
     # on standard/full configs. These are not required for non-Amaranth use-cases.
     if config in ["standard", "full"]:
         print_status("Installing optional LUNA ACM Python dependencies...")
         try:
-            subprocess.check_call("\"{python3}\" -m pip install {packages} {options}".format(
-                python3  = sys.executable,
-                packages = "luna-usb==0.2.3 amaranth==0.5.8",
-                options  = "--user" if user_mode else "",
-                ), shell=True)
+            pip_cmd = [sys.executable, "-m", "pip", "install", "luna-usb==0.2.3", "amaranth==0.5.8"]
+            if user_mode:
+                pip_cmd.append("--user")
+            subprocess.check_call(pip_cmd)
         except subprocess.CalledProcessError:
             print_error("Optional LUNA ACM dependencies could not be installed.")
             print_status("USB ACM via LUNA may not be usable until dependencies are installed manually.")
@@ -302,11 +304,17 @@ def litex_setup_install_repos(config="standard", user_mode=False):
             print_status("  pip3 install --user luna-usb==0.2.3 amaranth==0.5.8")
         print_status("Installing optional Amaranth CPU Python dependencies...")
         try:
-            subprocess.check_call("\"{python3}\" -m pip install {packages} {options}".format(
-                python3  = sys.executable,
-                packages = "git+https://github.com/amaranth-lang/amaranth-soc.git m5pre m5meta dataclasses-json==0.6.3",
-                options  = "--user" if user_mode else "",
-                ), shell=True)
+            pip_cmd = [
+                sys.executable,
+                "-m", "pip", "install",
+                "git+https://github.com/amaranth-lang/amaranth-soc.git",
+                "m5pre",
+                "m5meta",
+                "dataclasses-json==0.6.3",
+            ]
+            if user_mode:
+                pip_cmd.append("--user")
+            subprocess.check_call(pip_cmd)
         except subprocess.CalledProcessError:
             print_error("Optional Amaranth CPU dependencies could not be installed.")
             print_status("Amaranth-based CPUs (ex: Minerva/Sentinel) may not be usable until dependencies are installed manually.")
@@ -353,26 +361,26 @@ def riscv_gcc_install():
         os_release = (open("/etc/os-release").read()).lower()
         # Fedora.
         if "fedora" in os_release:
-            os.system("dnf install gcc-riscv64-linux-gnu")
+            subprocess.check_call(["dnf", "install", "gcc-riscv64-linux-gnu"])
         # Arch.
         elif "arch" in os_release:
-            os.system("pacman -S riscv64-linux-gnu-gcc")
+            subprocess.check_call(["pacman", "-S", "riscv64-linux-gnu-gcc"])
         # Alpine.
         elif "alpine" in os_release:
-            os.system("apk add gcc-cross-embedded")
+            subprocess.check_call(["apk", "add", "gcc-cross-embedded"])
         # Ubuntu.
         else:
-            os.system("apt install gcc-riscv64-unknown-elf")
+            subprocess.check_call(["apt", "install", "gcc-riscv64-unknown-elf"])
 
     # Mac OS.
     # -------
     elif sys.platform.startswith("darwin"):
-        os.system("brew install riscv-tools")
+        subprocess.check_call(["brew", "install", "riscv-tools"])
 
     # Manual installation.
     # --------------------
     else:
-        NotImplementedError(f"RISC-V GCC requires manual installation on {sys.platform}.")
+        raise NotImplementedError(f"RISC-V GCC requires manual installation on {sys.platform}.")
 
 # PowerPC toolchain.
 # -----------------
@@ -384,21 +392,21 @@ def powerpc_gcc_install():
         os_release = (open("/etc/os-release").read()).lower()
         # Fedora.
         if "fedora" in os_release:
-            os.system("dnf install gcc-powerpc64le-linux-gnu") # FIXME: binutils-multiarch?
+            subprocess.check_call(["dnf", "install", "gcc-powerpc64le-linux-gnu"]) # FIXME: binutils-multiarch?
         # Arch (AUR repository).
         elif "arch" in os_release:
-            os.system("yay -S powerpc64le-linux-gnu-gcc")
+            subprocess.check_call(["yay", "-S", "powerpc64le-linux-gnu-gcc"])
         # Alpine.
         elif "alpine" in os_release:
-            os.system("apk add gcc binutils-ppc64le")
+            subprocess.check_call(["apk", "add", "gcc", "binutils-ppc64le"])
         # Ubuntu.
         else:
-            os.system("apt install gcc-powerpc64le-linux-gnu binutils-multiarch")
+            subprocess.check_call(["apt", "install", "gcc-powerpc64le-linux-gnu", "binutils-multiarch"])
 
     # Manual installation.
     # --------------------
     else:
-        NotImplementedError(f"PowerPC GCC requires manual installation on {sys.platform}.")
+        raise NotImplementedError(f"PowerPC GCC requires manual installation on {sys.platform}.")
 
 # OpenRISC toolchain.
 # -------------------
@@ -410,21 +418,21 @@ def openrisc_gcc_install():
         os_release = (open("/etc/os-release").read()).lower()
         # Fedora.
         if "fedora" in os_release:
-            os.system("dnf install gcc-or1k-elf")
+            subprocess.check_call(["dnf", "install", "gcc-or1k-elf"])
         # Arch.
         elif "arch" in os_release:
-            os.system("pacman -S or1k-elf-gcc")
+            subprocess.check_call(["pacman", "-S", "or1k-elf-gcc"])
         # Alpine.
         elif "alpine" in os_release:
-            os.system("apk add gcc-cross-embedded")
+            subprocess.check_call(["apk", "add", "gcc-cross-embedded"])
         # Ubuntu.
         else:
-            os.system("apt install gcc-or1k-elf")
+            subprocess.check_call(["apt", "install", "gcc-or1k-elf"])
 
     # Manual installation.
     # --------------------
     else:
-        NotImplementedError(f"OpenRISC GCC requires manual installation on {sys.platform}.")
+        raise NotImplementedError(f"OpenRISC GCC requires manual installation on {sys.platform}.")
 
 # Run ----------------------------------------------------------------------------------------------
 
