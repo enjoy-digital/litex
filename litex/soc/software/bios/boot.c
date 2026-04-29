@@ -152,6 +152,16 @@ static uint32_t get_uint32(unsigned char* data)
 
 #define MAX_FAILURES 256
 
+static int serialboot_fail(int *failures)
+{
+	(*failures)++;
+	if(*failures >= MAX_FAILURES) {
+		printf("Too many consecutive errors, aborting\n");
+		return 1;
+	}
+	return 0;
+}
+
 /* Returns 1 if other boot methods should be tried */
 int serialboot(void)
 {
@@ -191,21 +201,24 @@ int serialboot(void)
 		/* Get one Frame */
 		i = 0;
 		timeout = 1;
-		while((i == 0) || timer0_value_read()) {
+		timer0_load(CMD_TIMEOUT_DELAY);
+		while(timer0_value_read()) {
 			if (uart_read_nonblock()) {
+				unsigned char data;
+				data = uart_read();
 				if (i == 0) {
 					timer0_load(CMD_TIMEOUT_DELAY);
-					frame.payload_length = uart_read();
+					frame.payload_length = data;
 				}
-				if (i == 1) frame.crc[0] = uart_read();
-				if (i == 2) frame.crc[1] = uart_read();
-				if (i == 3) frame.cmd    = uart_read();
+				if (i == 1) frame.crc[0] = data;
+				if (i == 2) frame.crc[1] = data;
+				if (i == 3) frame.cmd    = data;
 				if (i >= 4) {
-					frame.payload[i-4] = uart_read();
-					if (i == (frame.payload_length + 4 - 1)) {
-						timeout = 0;
-						break;
-					}
+					frame.payload[i-4] = data;
+				}
+				if (i == (frame.payload_length + 4 - 1)) {
+					timeout = 0;
+					break;
 				}
 				i++;
 			}
@@ -216,6 +229,8 @@ int serialboot(void)
 		if (timeout) {
 			/* Acknowledge the Timeout and continue with a new frame */
 			uart_write(SFL_ACK_ERROR);
+			if(serialboot_fail(&failures))
+				return 1;
 			continue;
 		}
 
@@ -227,11 +242,8 @@ int serialboot(void)
 			uart_write(SFL_ACK_CRCERROR);
 
 			/* Increment failures and exit when max is reached */
-			failures++;
-			if(failures == MAX_FAILURES) {
-				printf("Too many consecutive errors, aborting");
+			if(serialboot_fail(&failures))
 				return 1;
-			}
 			continue;
 		}
 
@@ -249,6 +261,13 @@ int serialboot(void)
 			case SFL_CMD_LOAD: {
 				char *load_addr;
 
+				if(frame.payload_length < 4) {
+					uart_write(SFL_ACK_ERROR);
+					if(serialboot_fail(&failures))
+						return 1;
+					break;
+				}
+
 				/* Reset failures */
 				failures = 0;
 
@@ -264,6 +283,13 @@ int serialboot(void)
 			case SFL_CMD_JUMP: {
 				uint32_t jump_addr;
 
+				if(frame.payload_length < 4) {
+					uart_write(SFL_ACK_ERROR);
+					if(serialboot_fail(&failures))
+						return 1;
+					break;
+				}
+
 				/* Reset failures */
 				failures = 0;
 
@@ -274,17 +300,12 @@ int serialboot(void)
 				break;
 			}
 			default:
-				/* Increment failures */
-				failures++;
-
 				/* Acknowledge the UNKNOWN cmd */
 				uart_write(SFL_ACK_UNKNOWN);
 
 				/* Increment failures and exit when max is reached */
-				if(failures == MAX_FAILURES) {
-					printf("Too many consecutive errors, aborting");
+				if(serialboot_fail(&failures))
 					return 1;
-				}
 
 				break;
 		}
