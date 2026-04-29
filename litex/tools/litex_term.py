@@ -361,6 +361,7 @@ class LiteXTerm:
         self.delay       = 0
         self.length      = sfl_safe_data_length if safe else sfl_data_length
         self.outstanding = 1 if safe else sfl_default_outstanding
+        self.calibrated_upload_profiles = []
 
     def open(self, port, baudrate):
         if hasattr(self, "port"):
@@ -375,7 +376,10 @@ class LiteXTerm:
 
     def sigint(self, sig, frame):
         if hasattr(self, "port"):
-            self.port.write(b"\x03")
+            try:
+                self.write_sfl_data(b"\x03", timeout=0.1)
+            except SFLUploadError:
+                pass
         sigint_time_current = time.time()
         # Exit term if 2 CTRL-C pressed in less than 0.5s or if the writer is not alive anymore.
         if not self.writer_alive or (sigint_time_current - self.sigint_time_last < 0.5):
@@ -403,15 +407,32 @@ class LiteXTerm:
             raise SFLUploadError("timed out waiting for device reply")
         return reply
 
+    def write_sfl_data(self, data, timeout=1.0):
+        if not hasattr(self.port, "write_timeout"):
+            return self.port.write(data)
+
+        previous_timeout = self.port.write_timeout
+        self.port.write_timeout = timeout
+        try:
+            written = self.port.write(data)
+        except serial.SerialTimeoutException as e:
+            raise SFLUploadError("timed out writing device frame") from e
+        finally:
+            self.port.write_timeout = previous_timeout
+
+        if written is not None and written != len(data):
+            raise SFLUploadError(f"short write to device ({written}/{len(data)} bytes)")
+        return written
+
     def drain(self):
         while self.port.in_waiting:
             self.port.read(self.port.in_waiting)
 
     def send_frame(self, frame, timeout=1.0, retries=16):
+        encoded_frame = frame.encode()
         for _ in range(retries):
-            self.port.write(frame.encode())
-            # Get the reply from the device
             try:
+                self.write_sfl_data(encoded_frame, timeout=timeout)
                 reply = self.read_sfl_reply(timeout=timeout)
             except SFLUploadError as e:
                 print(f"[LITEX-TERM] {e}, aborting.")
@@ -459,6 +480,40 @@ class LiteXTerm:
         time.sleep(max(0.35, self.frame_time(data_length) * max(1, outstanding) + 0.35))
         self.drain()
 
+    def probe_upload_profile(self, address, data_length, outstanding, nframes=None):
+        data_length  = max(1, min(data_length, sfl_data_length))
+        outstanding  = max(1, outstanding)
+        nframes      = max(nframes or 0, outstanding, 1)
+        frame        = self.make_load_frame(address, bytes(data_length))
+        encoded_frame = frame.encode()
+        pending      = 0
+        sent         = 0
+        write_timeout = max(1.0, self.frame_time(data_length) + 0.5)
+        ack_timeout   = max(1.0, self.frame_time(data_length) * (outstanding + 1) + 0.5)
+
+        self.drain()
+        try:
+            while sent < nframes or pending:
+                while sent < nframes and pending < outstanding:
+                    self.write_sfl_data(encoded_frame, timeout=write_timeout)
+                    sent    += 1
+                    pending += 1
+                    time.sleep(self.delay)
+
+                if pending:
+                    self.receive_upload_response(timeout=ack_timeout)
+                    pending -= 1
+        except SFLUploadError:
+            self.settle_upload(data_length=data_length, outstanding=outstanding)
+            return False
+
+        return True
+
+    def recover_upload_link(self, address, data_length=None):
+        data_length = min(sfl_safe_data_length, data_length or sfl_safe_data_length)
+        self.settle_upload(data_length=data_length, outstanding=1)
+        return self.probe_upload_profile(address, data_length, 1, nframes=1)
+
     def upload_calibration(self, address, image_length=None):
 
         print("[LITEX-TERM] Upload calibration... ", end="")
@@ -471,37 +526,62 @@ class LiteXTerm:
             print("skipped.")
             return True
 
-        nframes = 4
-        length_range = []
-        for length in [sfl_data_length, 128, sfl_safe_data_length]:
+        best_length      = min(sfl_safe_data_length, max_probe_length)
+        best_outstanding = 1
+        best_score       = best_length * best_outstanding
+        tested_lengths   = []
+        successful_profiles = [(best_length, best_outstanding)]
+        calibration_alive = True
+
+        if not self.probe_upload_profile(address, best_length, best_outstanding, nframes=4):
+            print("failed, switching to --safe mode.")
+            self.delay       = 0
+            self.length      = best_length
+            self.outstanding = 1
+            self.calibrated_upload_profiles = [(best_length, 1)]
+            return False
+
+        for length in [best_length, 128, sfl_data_length]:
+            if not calibration_alive:
+                break
             length = min(length, max_probe_length)
-            if length > 0 and length not in length_range:
-                length_range.append(length)
+            if length <= 0 or length in tested_lengths:
+                continue
+            tested_lengths.append(length)
 
-        for length in length_range:
-            frame = self.make_load_frame(address, bytes(length))
-            self.drain()
+            if length != best_length:
+                if not self.probe_upload_profile(address, length, 1, nframes=4):
+                    self.recover_upload_link(address, best_length)
+                    break
+                successful_profiles.append((length, 1))
+                score = length
+                if score > best_score:
+                    best_length      = length
+                    best_outstanding = 1
+                    best_score       = score
 
-            working = True
-            for _ in range(nframes):
-                if not self.send_frame(frame, timeout=max(1.0, self.frame_time(length) + 0.5), retries=2):
-                    working = False
+            for outstanding in [2, 4, sfl_default_outstanding]:
+                if not self.probe_upload_profile(address, length, outstanding, nframes=outstanding * 2):
+                    calibration_alive = self.recover_upload_link(address, best_length)
                     break
 
-            if working:
-                self.delay       = 0
-                self.length      = length
-                self.outstanding = min(self.outstanding, sfl_default_outstanding)
-                print(f"(inter-frame: {self.delay*1e6:5.2f}us, length: {self.length}, window: {self.outstanding})")
-                return True
+                successful_profiles.append((length, outstanding))
+                score = length * outstanding
+                if score > best_score:
+                    best_length      = length
+                    best_outstanding = outstanding
+                    best_score       = score
 
-            self.settle_upload(data_length=length, outstanding=1)
-
-        print("failed, switching to --safe mode.")
         self.delay       = 0
-        self.length      = min(sfl_safe_data_length, max(1, max_probe_length))
-        self.outstanding = 1
-        return False
+        self.length      = best_length
+        self.outstanding = best_outstanding
+        self.calibrated_upload_profiles = sorted(
+            set(successful_profiles),
+            key=lambda profile: (profile[0] * profile[1], profile[0], profile[1]),
+            reverse=True,
+        )
+        print(f"(inter-frame: {self.delay*1e6:5.2f}us, length: {self.length}, window: {self.outstanding})")
+        return True
 
     def upload(self, filename, address):
         length = os.path.getsize(filename)
@@ -544,17 +624,24 @@ class LiteXTerm:
             return [(self.length, 1)]
 
         profiles = []
-        for data_length, outstanding in [
-            (self.length, self.outstanding),
-            (self.length, min(4, self.outstanding)),
-            (self.length, 1),
-            (min(sfl_safe_data_length, self.length), 1),
-        ]:
+        for data_length, outstanding in getattr(self, "calibrated_upload_profiles", []):
             data_length = max(1, min(data_length, sfl_data_length))
             outstanding = max(1, outstanding)
             profile = (data_length, outstanding)
             if profile not in profiles:
                 profiles.append(profile)
+
+        if not profiles:
+            outstanding = max(1, self.outstanding)
+            while outstanding > 1:
+                profiles.append((max(1, min(self.length, sfl_data_length)), outstanding))
+                outstanding = max(1, outstanding // 2)
+            profiles.append((max(1, min(self.length, sfl_data_length)), 1))
+
+        safe_profile = (min(sfl_safe_data_length, max(1, self.length)), 1)
+        if safe_profile not in profiles:
+            profiles.append(safe_profile)
+
         return profiles
 
     def upload_once(self, filename, address, length, data_length, max_outstanding):
@@ -586,7 +673,8 @@ class LiteXTerm:
                     encoded_frame = frame.encode()
 
                     # Encode frame and send it.
-                    self.port.write(encoded_frame)
+                    write_timeout = max(1.0, self.frame_time(data_length) + 0.5)
+                    self.write_sfl_data(encoded_frame, timeout=write_timeout)
 
                     # Update parameters
                     current_address += len(frame_data)
@@ -611,7 +699,8 @@ class LiteXTerm:
                         outstanding[0]["retries"] < 16
                     ):
                         outstanding[0]["retries"] += 1
-                        self.port.write(outstanding[0]["frame"])
+                        write_timeout = max(1.0, self.frame_time(data_length) + 0.5)
+                        self.write_sfl_data(outstanding[0]["frame"], timeout=write_timeout)
                         current_window = 1
                         window_successes = 0
                         continue
@@ -646,9 +735,9 @@ class LiteXTerm:
 
         frame = SFLFrame()
         frame.cmd = sfl_cmd_abort
-        self.port.write(frame.encode())
 
         try:
+            self.write_sfl_data(frame.encode(), timeout=1.0)
             reply = self.read_sfl_reply(timeout=1.0)
         except SFLUploadError as e:
             print(f"[LITEX-TERM] Serial boot abort failed: {e}.")

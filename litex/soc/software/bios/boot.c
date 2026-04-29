@@ -100,6 +100,7 @@ void romboot(void)
 
 #define ACK_TIMEOUT_DELAY CONFIG_CLOCK_FREQUENCY/4
 #define CMD_TIMEOUT_DELAY CONFIG_CLOCK_FREQUENCY/4
+#define CMD_RECOVERY_DELAY CONFIG_CLOCK_FREQUENCY/64
 
 static void timer0_load(unsigned int value) {
 	timer0_en_write(0);
@@ -140,6 +141,18 @@ static int check_ack(void)
 		timer0_update_value_write(1);
 	}
 	return ACK_TIMEOUT;
+}
+
+static void serialboot_flush_input(void)
+{
+	timer0_load(CMD_RECOVERY_DELAY);
+	while(timer0_value_read()) {
+		if(uart_read_nonblock()) {
+			uart_read();
+			timer0_load(CMD_RECOVERY_DELAY);
+		}
+		timer0_update_value_write(1);
+	}
 }
 
 static uint32_t get_uint32(unsigned char* data)
@@ -228,6 +241,7 @@ int serialboot(void)
 		/* Check Timeout */
 		if (timeout) {
 			/* Acknowledge the Timeout and continue with a new frame */
+			serialboot_flush_input();
 			uart_write(SFL_ACK_ERROR);
 			if(serialboot_fail(&failures))
 				return 1;

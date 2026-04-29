@@ -16,6 +16,7 @@ from litex.tools.litex_term import (
     sfl_ack_success,
     sfl_cmd_abort,
     sfl_cmd_load,
+    sfl_data_length,
     sfl_magic_ack,
 )
 
@@ -26,6 +27,7 @@ class FakePort:
         self._write_replies = list(write_replies or [])
         self.written = bytearray()
         self.timeout = None
+        self.write_timeout = None
         self.baudrate = baudrate
 
     @property
@@ -96,6 +98,38 @@ class TestLiteXTermSFL(unittest.TestCase):
         frame.cmd = sfl_cmd_abort
         self.assertEqual(port.written, frame.encode())
 
+    def test_send_frame_times_out_blocked_write(self):
+        class TimeoutWritePort(FakePort):
+            def write(self, data):
+                raise litex_term.serial.SerialTimeoutException("blocked")
+
+        port = TimeoutWritePort()
+        term = make_term(port)
+        frame = SFLFrame()
+        frame.cmd = sfl_cmd_abort
+
+        output = io.StringIO()
+        with redirect_stdout(output):
+            self.assertEqual(term.send_frame(frame, timeout=0.01), 0)
+
+        self.assertIn("timed out writing device frame", output.getvalue())
+        self.assertIsNone(port.write_timeout)
+
+    def test_sigint_uses_bounded_write(self):
+        class TimeoutWritePort(FakePort):
+            def write(self, data):
+                raise litex_term.serial.SerialTimeoutException("blocked")
+
+        port = TimeoutWritePort()
+        term = make_term(port)
+        term.writer_alive = True
+        term.sigint_time_last = 0
+
+        term.sigint(None, None)
+
+        self.assertIsNone(port.write_timeout)
+        self.assertGreater(term.sigint_time_last, 0)
+
     def test_answer_magic_aborts_on_upload_error(self):
         port = FakePort()
         term = make_term(port)
@@ -140,6 +174,38 @@ class TestLiteXTermSFL(unittest.TestCase):
         self.assertEqual(term.delay, 0)
         self.assertEqual(term.length, 64)
         self.assertEqual(term.outstanding, 1)
+
+    def test_upload_calibration_uses_safe_stop_and_wait(self):
+        port = FakePort(write_replies=[sfl_ack_success] * 4 + [sfl_ack_error, sfl_ack_success, sfl_ack_success])
+        term = make_term(port)
+        term.safe = False
+        term.outstanding = 8
+
+        with mock.patch.object(litex_term.time, "sleep"), redirect_stdout(io.StringIO()):
+            term.upload_calibration(0x40000000, image_length=64)
+
+        frame = SFLFrame()
+        frame.cmd = sfl_cmd_load
+        frame.payload = (0x40000000).to_bytes(4, "big") + bytes(64)
+
+        self.assertEqual(term.delay, 0)
+        self.assertEqual(term.length, 64)
+        self.assertEqual(term.outstanding, 1)
+        self.assertEqual(port.written, frame.encode() * 7)
+
+    def test_upload_calibration_uses_fastest_working_profile(self):
+        port = FakePort(write_replies=[sfl_ack_success] * 96)
+        term = make_term(port)
+        term.safe = False
+        term.outstanding = 8
+
+        with mock.patch.object(litex_term.time, "sleep"), redirect_stdout(io.StringIO()):
+            term.upload_calibration(0x40000000)
+
+        self.assertEqual(term.delay, 0)
+        self.assertEqual(term.length, sfl_data_length)
+        self.assertEqual(term.outstanding, 8)
+        self.assertEqual(term.upload_profiles()[0], (sfl_data_length, 8))
 
     def test_upload_retries_crc_error_in_stop_and_wait_mode(self):
         port = FakePort(read_data=sfl_ack_crcerror + sfl_ack_success)
