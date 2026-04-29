@@ -85,10 +85,11 @@ class Builder:
         memory_x         = None,
 
         # BIOS.
-        bios_lto         = False,
-        bios_format      = "integer",
-        bios_console     = "full",
-        libc_mode        = "minimal",
+        bios_lto                 = False,
+        bios_format              = "integer",
+        bios_console             = "full",
+        libc_mode                = "minimal",
+        integrated_rom_auto_size = True,
 
         # Documentation.
         generate_doc     = False,
@@ -119,10 +120,11 @@ class Builder:
         self.memory_x = memory_x
 
         # BIOS.
-        self.bios_lto     = bios_lto
-        self.bios_format  = bios_format
-        self.bios_console = bios_console
-        self.libc_mode    = libc_mode
+        self.bios_lto                 = bios_lto
+        self.bios_format              = bios_format
+        self.bios_console             = bios_console
+        self.libc_mode                = libc_mode
+        self.integrated_rom_auto_size = integrated_rom_auto_size
 
         # Documentation.
         self.generate_doc = generate_doc
@@ -348,8 +350,20 @@ class Builder:
             endianness = self.soc.cpu.endianness,
         )
 
-        # Initialize SoC with with BIOS data.
-        self.soc.init_rom(name="rom", contents=bios_data)
+        # Initialize SoC with BIOS data.
+        if not self.integrated_rom_auto_size:
+            # Keep the integrated ROM at the region size selected during SoC
+            # construction. Pad the unused tail so the ROM window and backing
+            # memory remain consistent and deterministic.
+            rom_region = self.soc.bus.regions["rom"]
+            word_bytes = self.soc.bus.data_width // 8
+            rom_depth  = rom_region.size // word_bytes
+            if len(bios_data) < rom_depth:
+                bios_data = bios_data + [0] * (rom_depth - len(bios_data))
+        self.soc.init_rom(
+            name      = "rom",
+            contents  = bios_data,
+            auto_size = self.integrated_rom_auto_size)
 
     def build(self, **kwargs):
         # Pass Output Directory to Platform.
@@ -473,25 +487,27 @@ def builder_args(parser):
     bios_group.add_argument("--bios-format",  default="integer",   help="Select BIOS printf format.",  choices=["integer", "float", "double"])
     bios_group.add_argument("--bios-console", default="full"  ,    help="Select BIOS console config.", choices=["full", "no-history", "no-autocomplete", "lite", "disable"])
     bios_group.add_argument("--libc-mode",    default="minimal",   help="Select LiteX libc build mode.", choices=["full", "minimal"])
+    bios_group.add_argument("--no-integrated-rom-auto-size", action="store_true", help="Keep integrated ROM at requested size instead of auto-resizing it to the BIOS size.")
 
 def builder_argdict(args):
     return {
-        "output_dir"       : args.output_dir,
-        "gateware_dir"     : args.gateware_dir,
-        "software_dir"     : args.software_dir,
-        "include_dir"      : args.include_dir,
-        "generated_dir"    : args.generated_dir,
-        "build_backend"    : args.build_backend,
-        "compile_software" : (not args.no_compile) and (not args.no_compile_software),
-        "compile_gateware" : (not args.no_compile) and (not args.no_compile_gateware),
-        "csr_csv"          : args.soc_csv,
-        "csr_json"         : args.soc_json,
-        "csr_svd"          : args.soc_svd,
-        "memory_x"         : args.memory_x,
-        "generate_doc"     : args.doc,
-        "bios_lto"         : args.bios_lto,
-        "bios_format"      : args.bios_format,
-        "bios_console"     : args.bios_console,
-        "libc_mode"        : args.libc_mode,
-        "hierarchical"     : args.hierarchical_verilog,
+        "output_dir"               : args.output_dir,
+        "gateware_dir"             : args.gateware_dir,
+        "software_dir"             : args.software_dir,
+        "include_dir"              : args.include_dir,
+        "generated_dir"            : args.generated_dir,
+        "build_backend"            : args.build_backend,
+        "compile_software"         : (not args.no_compile) and (not args.no_compile_software),
+        "compile_gateware"         : (not args.no_compile) and (not args.no_compile_gateware),
+        "csr_csv"                  : args.soc_csv,
+        "csr_json"                 : args.soc_json,
+        "csr_svd"                  : args.soc_svd,
+        "memory_x"                 : args.memory_x,
+        "generate_doc"             : args.doc,
+        "bios_lto"                 : args.bios_lto,
+        "bios_format"              : args.bios_format,
+        "bios_console"             : args.bios_console,
+        "libc_mode"                : args.libc_mode,
+        "integrated_rom_auto_size" : not args.no_integrated_rom_auto_size,
+        "hierarchical"             : args.hierarchical_verilog,
     }
