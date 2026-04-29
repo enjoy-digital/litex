@@ -7,16 +7,69 @@
 
 import pexpect
 import os
+import socket
 import sys
 import tempfile
+import time
 import itertools
 import pytest
+
+from litex.tools.litex_term import (
+    SFLFrame,
+    sfl_ack_error,
+    sfl_ack_success,
+    sfl_cmd_abort,
+    sfl_magic_ack,
+    sfl_magic_req,
+)
 
 def _sim_jobs():
     # When pytest-xdist is running several tests in parallel, divide the
     # available cores between workers to avoid oversubscribing the build.
     workers = int(os.environ.get("PYTEST_XDIST_WORKER_COUNT", "1") or "1")
     return max(1, (os.cpu_count() or 1) // max(1, workers))
+
+def _get_free_tcp_port():
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    except OSError as e:
+        pytest.skip(f"local TCP sockets are unavailable: {e}")
+
+    try:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
+    except OSError as e:
+        pytest.skip(f"local TCP bind is unavailable: {e}")
+    finally:
+        sock.close()
+
+def _connect_tcp_uart(port, timeout=10):
+    deadline = time.time() + timeout
+    last_error = None
+    while time.time() < deadline:
+        try:
+            sock = socket.create_connection(("127.0.0.1", port), timeout=1)
+            sock.settimeout(0.1)
+            return sock
+        except OSError as e:
+            last_error = e
+            time.sleep(0.1)
+    raise TimeoutError(f"could not connect to litex_sim UART on port {port}: {last_error}")
+
+def _recv_until(sock, needle, timeout=10):
+    deadline = time.time() + timeout
+    data = b""
+    while time.time() < deadline:
+        try:
+            chunk = sock.recv(1)
+            if not chunk:
+                break
+            data += chunk
+            if needle in data:
+                return data
+        except socket.timeout:
+            pass
+    raise TimeoutError(f"did not receive {needle!r}; last data: {data[-200:]!r}")
 
 def boot_test(cpu_type="vexriscv", cpu_variant="standard", args="", output_dir=None):
     output_arg = f' --output-dir={output_dir}' if output_dir else ''
@@ -50,6 +103,51 @@ def boot_test(cpu_type="vexriscv", cpu_variant="standard", args="", output_dir=N
             print(f'*** Boot Success: {cmd}')
 
     return is_success
+
+def test_serialboot_abort_recovers(tmp_path):
+    port = _get_free_tcp_port()
+    cmd = (
+        "litex_sim --cpu-type=vexriscv --cpu-variant=standard "
+        f"--uart-tcp --uart-tcp-port={port} "
+        "--integrated-main-ram-size=65536 "
+        f"--output-dir={tmp_path} --opt-level=O0 --jobs {_sim_jobs()} --non-interactive"
+    )
+    litex_prompt = b"litex"
+    abort = SFLFrame()
+    abort.cmd = sfl_cmd_abort
+    sock = None
+    is_success = True
+
+    with tempfile.TemporaryFile(mode="w+", prefix="litex_test") as log_file:
+        log_file.writelines(f"Command: {cmd}\n")
+        log_file.flush()
+        p = pexpect.spawn(cmd, timeout=None, encoding=sys.getdefaultencoding(), logfile=log_file)
+        try:
+            p.expect(f"Found port {port}", timeout=1200)
+            sock = _connect_tcp_uart(port)
+
+            _recv_until(sock, litex_prompt, timeout=20)
+            sock.sendall(b"serialboot\n")
+            _recv_until(sock, sfl_magic_req, timeout=10)
+
+            sock.sendall(sfl_magic_ack)
+            sock.sendall(b"\x10")
+            _recv_until(sock, sfl_ack_error, timeout=10)
+
+            sock.sendall(abort.encode())
+            _recv_until(sock, sfl_ack_success, timeout=10)
+            _recv_until(sock, litex_prompt, timeout=10)
+        except (OSError, pexpect.EOF, pexpect.TIMEOUT, TimeoutError):
+            is_success = False
+            print(f"*** Serialboot abort recovery failure: {cmd}")
+            log_file.seek(0)
+            print(log_file.read())
+        finally:
+            if sock is not None:
+                sock.close()
+            p.terminate(force=True)
+
+    assert is_success
 
 TESTED_CPUS = [
     #"cv32e40p",     # (riscv   / softcore)
