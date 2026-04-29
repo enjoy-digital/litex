@@ -10,6 +10,7 @@ import os
 import socket
 import sys
 import tempfile
+import threading
 import time
 import itertools
 import pytest
@@ -19,6 +20,7 @@ from litex.tools.litex_term import (
     sfl_ack_error,
     sfl_ack_success,
     sfl_cmd_abort,
+    sfl_cmd_load,
     sfl_magic_ack,
     sfl_magic_req,
 )
@@ -140,6 +142,65 @@ def test_serialboot_abort_recovers(tmp_path):
         except (OSError, pexpect.EOF, pexpect.TIMEOUT, TimeoutError):
             is_success = False
             print(f"*** Serialboot abort recovery failure: {cmd}")
+            log_file.seek(0)
+            print(log_file.read())
+        finally:
+            if sock is not None:
+                sock.close()
+            p.terminate(force=True)
+
+    assert is_success
+
+def test_serialboot_bad_probe_recovers_to_load(tmp_path):
+    port = _get_free_tcp_port()
+    cmd = (
+        "litex_sim --cpu-type=vexriscv --cpu-variant=standard "
+        f"--uart-tcp --uart-tcp-port={port} "
+        "--integrated-main-ram-size=65536 "
+        f"--output-dir={tmp_path} --opt-level=O0 --jobs {_sim_jobs()} --non-interactive"
+    )
+    litex_prompt = b"litex"
+    load = SFLFrame()
+    load.cmd = sfl_cmd_load
+    load.payload = (0x40000000).to_bytes(4, "big") + bytes(64)
+    abort = SFLFrame()
+    abort.cmd = sfl_cmd_abort
+    sock = None
+    is_success = True
+
+    def send_bad_probe(sock):
+        deadline = time.time() + 0.5
+        while time.time() < deadline:
+            sock.sendall(b"\xff")
+            time.sleep(0.005)
+
+    with tempfile.TemporaryFile(mode="w+", prefix="litex_test") as log_file:
+        log_file.writelines(f"Command: {cmd}\n")
+        log_file.flush()
+        p = pexpect.spawn(cmd, timeout=None, encoding=sys.getdefaultencoding(), logfile=log_file)
+        try:
+            p.expect(f"Found port {port}", timeout=1200)
+            sock = _connect_tcp_uart(port)
+
+            _recv_until(sock, litex_prompt, timeout=20)
+            sock.sendall(b"serialboot\n")
+            _recv_until(sock, sfl_magic_req, timeout=10)
+
+            sock.sendall(sfl_magic_ack)
+            sender = threading.Thread(target=send_bad_probe, args=(sock,))
+            sender.start()
+            sender.join(timeout=2)
+            _recv_until(sock, sfl_ack_error, timeout=10)
+
+            sock.sendall(load.encode())
+            _recv_until(sock, sfl_ack_success, timeout=10)
+
+            sock.sendall(abort.encode())
+            _recv_until(sock, sfl_ack_success, timeout=10)
+            _recv_until(sock, litex_prompt, timeout=10)
+        except (OSError, pexpect.EOF, pexpect.TIMEOUT, TimeoutError):
+            is_success = False
+            print(f"*** Serialboot bad-probe recovery failure: {cmd}")
             log_file.seek(0)
             print(log_file.read())
         finally:
