@@ -271,26 +271,90 @@ def litex_setup_install_repos(config="standard", user_mode=False):
 
 # Git repositories freeze --------------------------------------------------------------------------
 
-def litex_setup_freeze_repos(config="standard"):
+def litex_setup_freeze_repo(name):
+    repo      = git_repos[name]
+    repo_path = os.path.join(current_path, name)
+    if not os.path.exists(repo_path):
+        print_error(f"{name} Git repository is not initialized.")
+        raise SetupError
+    git_sha1_cmd = ["git", "rev-parse", "HEAD"]
+    git_sha1     = subprocess.check_output(git_sha1_cmd, cwd=repo_path).decode("UTF-8")[:-1]
+    git_url_cmd  = ["git", "remote", "get-url", "origin"]
+    git_url      = subprocess.check_output(git_url_cmd, cwd=repo_path).decode("UTF-8")[:-1]
+    git_url      = git_url.replace(f"{name}.git", "")
+    return repo, git_url, git_sha1
+
+def litex_setup_format_frozen_repo(name, repo, git_url, git_sha1):
+    args = [f'url="{git_url}"']
+    if repo.clone != "regular":
+        args.append(f'clone="{repo.clone}"')
+    if repo.develop is not True:
+        args.append(f"develop={repo.develop}")
+    if repo.editable is not True:
+        args.append(f"editable={repo.editable}")
+    args.append(f"sha1=0x{git_sha1}")
+    if repo.branch != "master":
+        args.append(f'branch="{repo.branch}"')
+    if repo.tag is not None:
+        args.append(f"tag={repr(repo.tag)}")
+    return f'    "{name}": GitRepo({", ".join(args)}),'
+
+def litex_setup_format_frozen_repos(config="standard"):
+    names = install_configs[config]
+    r = [
+        "#!/usr/bin/env python3",
+        "",
+        "# Git repositories ---------------------------------------------------------------------------------",
+        "",
+        "# Get SHA1: git rev-parse HEAD",
+        "",
+        "class GitRepo:",
+        '    def __init__(self, url, clone="regular", develop=True, editable=True, sha1=None, branch="master", tag=None):',
+        '        assert clone in ["regular", "recursive"]',
+        "        self.url      = url",
+        "        self.clone    = clone",
+        "        self.develop  = develop",
+        "        self.editable = editable",
+        "        self.sha1     = sha1",
+        "        self.branch   = branch",
+        "        self.tag      = tag",
+        "",
+        "",
+        "git_repos = {",
+    ]
+    for name in names:
+        repo, git_url, git_sha1 = litex_setup_freeze_repo(name)
+        r.append(litex_setup_format_frozen_repo(name, repo, git_url, git_sha1))
+    r += [
+        "}",
+        "",
+        "# Installs -----------------------------------------------------------------------------------------",
+        "",
+        f"frozen_repos = {names!r}",
+        "",
+        "# Reuse the frozen set for every install config.",
+        "minimal_repos  = frozen_repos",
+        "standard_repos = frozen_repos",
+        "full_repos     = frozen_repos",
+        "",
+        "install_configs = {",
+        '    "minimal"  : minimal_repos,',
+        '    "standard" : standard_repos,',
+        '    "full"     : full_repos,',
+        "}",
+        "",
+    ]
+    return "\n".join(r)
+
+def litex_setup_freeze_repos(config="standard", output=None):
     print_status("Freezing config of Git repositories...", underline=True)
-    r = "git_repos = {\n"
-    for name in install_configs[config]:
-        repo = git_repos[name]
-        os.chdir(os.path.join(current_path, name))
-        git_sha1_cmd = ["git", "rev-parse", "--short=7", "HEAD"]
-        git_sha1     = subprocess.check_output(git_sha1_cmd).decode("UTF-8")[:-1]
-        git_url_cmd  = ["git", "remote", "get-url", "origin"]
-        git_url      = subprocess.check_output(git_url_cmd).decode("UTF-8")[:-1]
-        git_url      = git_url.replace(f"{name}.git", "")
-        r += " "*4
-        r += f'"{name}" : GitRepo(url="{git_url}",\n'
-        r += f'{" "*8}clone   = "{repo.clone}",\n'
-        r += f'{" "*8}develop = {repo.develop},\n'
-        r += f'{" "*8}sha1    = 0x{git_sha1},\n'
-        r += f'{" "*8}branch  = "{repo.branch}"'
-        r += f'\n{" "*4}),\n'
-    r += "}\n"
-    print(r)
+    r = litex_setup_format_frozen_repos(config=config)
+    if output is None:
+        print(r)
+    else:
+        with open(output, "w", encoding="utf-8") as f:
+            f.write(r)
+        print_status(f"Frozen repository definitions written to {output}.")
 
 # GCC toolchains install ---------------------------------------------------------------------------
 
@@ -397,6 +461,7 @@ def main():
     # Development mode.
     parser.add_argument("--dev",            action="store_true", help="Development-Mode (no Auto-Update of litex_setup.py / Switch to git@github.com URLs).")
     parser.add_argument("--freeze",         action="store_true", help="Freeze and display current config.")
+    parser.add_argument("--freeze-output",  default=None,        help="Write frozen repository definitions to file.")
 
     # Retro-compatibility.
     parser.add_argument("compat_args", nargs="*", help="Retro-Compatibility arguments (init, update, install or gcc).")
@@ -435,7 +500,7 @@ def main():
 
     # Freeze.
     if args.freeze:
-        litex_setup_freeze_repos(config=args.config)
+        litex_setup_freeze_repos(config=args.config, output=args.freeze_output)
 
     # GCC.
     os.chdir(os.path.join(current_path))
