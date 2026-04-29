@@ -57,6 +57,7 @@ released sibling repositories one directory above the LiteX checkout.
 Check the current release versions and last tags:
 
 ```sh
+./litex_release.py --list-repos
 ./litex_release.py --check
 ```
 
@@ -68,7 +69,8 @@ Run the full release preflight without modifying repositories:
 
 The dry-run enforces initialized repositories, clean working trees, the expected
 branch, upstream synchronization for pushed releases, push URLs, parseable
-`setup.py` versions and local/remote tag collision checks.
+`setup.py` versions, local/remote tag collision checks and the LiteX release
+tag format (`YYYY.04`, `YYYY.08` or `YYYY.12`).
 
 Useful scoping options:
 
@@ -78,7 +80,8 @@ Useful scoping options:
 ```
 
 Override flags exist for deliberate exceptions after manual review:
-`--allow-dirty`, `--allow-branch-mismatch` and `--allow-unpushed`.
+`--allow-dirty`, `--allow-branch-mismatch`, `--allow-unpushed` and
+`--allow-invalid-tag`.
 
 ## Finalize CHANGES.md
 

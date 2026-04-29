@@ -40,6 +40,15 @@ def get_setup_version(setup_path):
     except FileNotFoundError:
         return "No setup.py"
 
+def check_release_tag(tag, allow_invalid_tag=False):
+    if re.match(r"^\d{4}\.(04|08|12)$", tag):
+        return
+    if allow_invalid_tag:
+        return
+    setup.print_error(f"{tag} is not a valid LiteX release tag.")
+    print("Expected YYYY.04, YYYY.08 or YYYY.12.")
+    raise setup.SetupError
+
 def release_repo_names(repos=None, with_pythondata=False):
     if repos:
         names = [name.strip() for name in repos.split(",") if name.strip()]
@@ -212,9 +221,17 @@ def release_check_repos(repos=None, with_pythondata=False):
             setup_version = get_setup_version(os.path.join(repo_path, "setup.py"))
         print(f"{name:<35} {last_tag:<15} {setup_version}")
 
-def release_repos(tag, repos=None, with_pythondata=False, dry_run=False, phases=None,
-    no_push=False, allow_dirty=False, allow_branch_mismatch=False, allow_unpushed=False):
+def release_list_repos(repos=None, with_pythondata=False):
+    names = release_repo_names(repos=repos, with_pythondata=with_pythondata)
+    setup.print_status("Release repositories...", underline=True)
+    for name in names:
+        print(name)
 
+def release_repos(tag, repos=None, with_pythondata=False, dry_run=False, phases=None,
+    no_push=False, allow_dirty=False, allow_branch_mismatch=False, allow_unpushed=False,
+    allow_invalid_tag=False):
+
+    check_release_tag(tag, allow_invalid_tag=allow_invalid_tag)
     phases = phases or ["bump", "tag", "push"]
     if no_push and "push" in phases:
         phases.remove("push")
@@ -306,6 +323,7 @@ def main():
     print_banner()
     parser = argparse.ArgumentParser()
 
+    parser.add_argument("--list-repos",    action="store_true", help="List repositories selected for release.")
     parser.add_argument("--check",         action="store_true", help="Check repositories before release.")
     parser.add_argument("--release",       default=None,        help="Make release.")
     parser.add_argument("--dry-run",       action="store_true", help="Print release plan and checks without modifying repositories.")
@@ -315,6 +333,7 @@ def main():
     parser.add_argument("--push",          action="store_true", help="Run release push phase.")
     parser.add_argument("--repos",         default=None,        help="Comma-separated release repository allow-list.")
     parser.add_argument("--with-pythondata",       action="store_true", help="Also include pythondata repositories in the release set.")
+    parser.add_argument("--allow-invalid-tag",     action="store_true", help="Allow release tags outside YYYY.04/YYYY.08/YYYY.12.")
     parser.add_argument("--allow-dirty",           action="store_true", help="Allow dirty working trees during release.")
     parser.add_argument("--allow-branch-mismatch", action="store_true", help="Allow repositories to be on branches different from litex_setup.py defaults.")
     parser.add_argument("--allow-unpushed",        action="store_true", help="Allow repositories without clean upstream synchronization.")
@@ -322,6 +341,12 @@ def main():
     args = parser.parse_args()
 
     setup.litex_setup_location_check()
+
+    if args.list_repos:
+        release_list_repos(
+            repos=args.repos,
+            with_pythondata=args.with_pythondata,
+        )
 
     if args.check:
         release_check_repos(
@@ -340,6 +365,7 @@ def main():
             allow_dirty=args.allow_dirty,
             allow_branch_mismatch=args.allow_branch_mismatch,
             allow_unpushed=args.allow_unpushed,
+            allow_invalid_tag=args.allow_invalid_tag,
         )
     elif args.dry_run or args.bump or args.tag or args.push or args.no_push:
         setup.print_error("--release is required with release action options.")
