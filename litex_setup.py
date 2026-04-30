@@ -152,6 +152,9 @@ def subprocess_check_output(cmd, cwd=None):
         raise subprocess.CalledProcessError(r.returncode, cmd, output=r.stdout, stderr=r.stderr)
     return r.stdout.decode("UTF-8")
 
+def print_indented(output, indent="    "):
+    print("\n".join(indent + line for line in output.splitlines()))
+
 def git_checkout(sha1=None, tag=None, quiet=False):
     assert not ((sha1 is None) and (tag is None))
     checkout_cmd = ["git", "-c", "advice.detachedHead=false", "checkout"]
@@ -170,7 +173,7 @@ def git_pull(repo_path):
     if output in ["Already up to date.", "Already up-to-date."]:
         return
     if output:
-        print(output)
+        print_indented(output)
 
 # Git repositories initialization ------------------------------------------------------------------
 
