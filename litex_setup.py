@@ -140,14 +140,37 @@ def litex_setup_auto_update():
 
 # Git helpers --------------------------------------------------------------------------------------
 
-def git_checkout(sha1=None, tag=None):
+def subprocess_check_output(cmd, cwd=None):
+    r = subprocess.run(cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if r.returncode != 0:
+        output = r.stdout.decode("UTF-8", errors="ignore")
+        error  = r.stderr.decode("UTF-8", errors="ignore")
+        if output:
+            print(output, end="")
+        if error:
+            print(error, end="")
+        raise subprocess.CalledProcessError(r.returncode, cmd, output=r.stdout, stderr=r.stderr)
+    return r.stdout.decode("UTF-8")
+
+def git_checkout(sha1=None, tag=None, quiet=False):
     assert not ((sha1 is None) and (tag is None))
+    checkout_cmd = ["git", "-c", "advice.detachedHead=false", "checkout"]
+    if quiet:
+        checkout_cmd.append("--quiet")
     if sha1 is not None:
-        subprocess.check_call(["git", "checkout", f"{sha1:07x}"])
+        subprocess.check_call(checkout_cmd + [f"{sha1:07x}"])
     if tag is not None:
         sha1_tag_cmd = ["git", "rev-list", "-n 1", tag]
         sha1_tag     = subprocess.check_output(sha1_tag_cmd).decode("UTF-8")[:-1]
-        subprocess.check_call(["git", "checkout", sha1_tag])
+        subprocess.check_call(checkout_cmd + [sha1_tag])
+
+def git_pull(repo_path):
+    color  = "always" if sys.stdout.isatty() else "never"
+    output = subprocess_check_output(["git", "-c", f"color.ui={color}", "pull", "--ff-only", "--stat"], cwd=repo_path).strip()
+    if output in ["Already up to date.", "Already up-to-date."]:
+        return
+    if output:
+        print(output)
 
 # Git repositories initialization ------------------------------------------------------------------
 
@@ -169,7 +192,7 @@ def litex_setup_init_repos(config="standard", tag=None, dev_mode=False):
             subprocess.check_call(clone_cmd)
             os.chdir(os.path.join(current_path, name))
             # Use specific Branch.
-            subprocess.check_call(["git", "checkout", repo.branch])
+            subprocess.check_call(["git", "checkout", "--quiet", repo.branch])
             # Use specific Tag (Optional).
             if repo.tag is not None:
                 # Priority to passed tag (if specified).
@@ -200,24 +223,27 @@ def litex_setup_update_repos(config="standard", tag=None):
         # Update Repo.
         print_status(f"Updating {name} Git repository...")
         os.chdir(os.path.join(current_path, name))
-        subprocess.check_call(["git", "checkout", repo.branch])
-        subprocess.check_call(["git", "pull", "--ff-only"])
+        repo_path = os.path.join(current_path, name)
+        subprocess.check_call(["git", "checkout", "--quiet", repo.branch])
+        git_pull(repo_path)
         # Recursive Update (Optional).
         if repo.clone == "recursive":
-            subprocess.check_call(["git", "submodule", "update", "--init", "--recursive"])
+            output = subprocess_check_output(["git", "submodule", "update", "--init", "--recursive"], cwd=repo_path).strip()
+            if output:
+                print(output)
         # Use specific Tag (Optional).
         if repo.tag is not None:
             # Priority to passed tag (if specified).
             if tag is not None:
-                git_checkout(tag=tag)
+                git_checkout(tag=tag, quiet=True)
                 continue
             # Else fallback to repo tag (if specified).
             if isinstance(repo.tag, str):
-                git_checkout(tag=repo.tag)
+                git_checkout(tag=repo.tag, quiet=True)
                 continue
         # Use specific SHA1 (Optional).
         if repo.sha1 is not None:
-            git_checkout(sha1=repo.sha1)
+            git_checkout(sha1=repo.sha1, quiet=True)
 
 # Git repositories install -------------------------------------------------------------------------
 
