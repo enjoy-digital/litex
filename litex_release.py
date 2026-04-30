@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
 
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
+
 import os
 import re
 import json
@@ -8,7 +14,6 @@ import argparse
 
 import litex_repos
 import litex_setup as setup
-
 
 # Helpers ------------------------------------------------------------------------------------------
 
@@ -25,7 +30,7 @@ def print_banner():
 
 def get_current_tag(repo_path):
     try:
-        cmd = ["git", "describe", "--tags", "--abbrev=0"]
+        cmd    = ["git", "describe", "--tags", "--abbrev=0"]
         result = subprocess.check_output(cmd, cwd=repo_path).decode("UTF-8").strip()
         return result
     except subprocess.CalledProcessError:
@@ -89,6 +94,8 @@ def git_call(repo_path, *args):
     cmd = ["git"] + list(args)
     subprocess.check_call(cmd, cwd=repo_path)
 
+# Release State ------------------------------------------------------------------------------------
+
 def release_state_filename(tag):
     safe_tag = tag.replace("/", "_").replace("\\", "_")
     return f".litex_release_{safe_tag}.json"
@@ -145,7 +152,7 @@ def complete_release_phase(release_state, state_file, phase):
     save_release_state(state_file, release_state)
 
 
-# Release ------------------------------------------------------------------------------------------
+# Release Checks -----------------------------------------------------------------------------------
 
 def release_repo_state(name, tag):
     repo_path = os.path.join(setup.current_path, name)
@@ -271,10 +278,10 @@ def release_check_repos(repos=None, with_pythondata=False):
     for name in names:
         repo_path = os.path.join(setup.current_path, name)
         if not os.path.exists(repo_path):
-            last_tag = "Not initialized"
+            last_tag      = "Not initialized"
             setup_version = "Not initialized"
         else:
-            last_tag = get_current_tag(repo_path)
+            last_tag      = get_current_tag(repo_path)
             setup_version = get_setup_version(os.path.join(repo_path, "setup.py"))
         print(f"{name:<35} {last_tag:<15} {setup_version}")
 
@@ -283,6 +290,8 @@ def release_list_repos(repos=None, with_pythondata=False):
     setup.print_status("Release repositories...", underline=True)
     for name in names:
         print(name)
+
+# Release ------------------------------------------------------------------------------------------
 
 def release_repos(tag, repos=None, with_pythondata=False, dry_run=False, phases=None,
     no_push=False, allow_dirty=False, allow_branch_mismatch=False, allow_unpushed=False,
@@ -300,9 +309,9 @@ def release_repos(tag, repos=None, with_pythondata=False, dry_run=False, phases=
         states,
         tag,
         phases,
-        allow_dirty=allow_dirty,
-        allow_branch_mismatch=allow_branch_mismatch,
-        allow_unpushed=allow_unpushed,
+        allow_dirty            = allow_dirty,
+        allow_branch_mismatch = allow_branch_mismatch,
+        allow_unpushed         = allow_unpushed,
     )
 
     if dry_run:
@@ -351,7 +360,7 @@ def release_repos(tag, repos=None, with_pythondata=False, dry_run=False, phases=
                 state_file,
                 "bump",
                 name,
-                commit=git_output(repo_path, "rev-parse", "HEAD"),
+                commit = git_output(repo_path, "rev-parse", "HEAD"),
             )
         complete_release_phase(release_state, state_file, "bump")
 
@@ -376,8 +385,8 @@ def release_repos(tag, repos=None, with_pythondata=False, dry_run=False, phases=
                 state_file,
                 "push",
                 name,
-                commit=git_output(repo_path, "rev-parse", "HEAD"),
-                tag=tag,
+                commit = git_output(repo_path, "rev-parse", "HEAD"),
+                tag    = tag,
             )
         complete_release_phase(release_state, state_file, "push")
 
@@ -405,54 +414,65 @@ def main():
     print_banner()
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--list-repos",    action="store_true", help="List repositories selected for release.")
-    parser.add_argument("--check",         action="store_true", help="Check repositories before release.")
+    # Release repositories.
+    parser.add_argument("--list-repos",      action="store_true", help="List repositories selected for release.")
+    parser.add_argument("--check",           action="store_true", help="Check repositories before release.")
+    parser.add_argument("--repos",           default=None,        help="Comma-separated release repository allow-list.")
+    parser.add_argument("--with-pythondata", action="store_true", help="Also include pythondata repositories in the release set.")
+
+    # Release flow.
     parser.add_argument("--release",       default=None,        help="Make release.")
     parser.add_argument("--dry-run",       action="store_true", help="Print release plan and checks without modifying repositories.")
     parser.add_argument("--no-push",       action="store_true", help="Create local release commits/tags without pushing.")
     parser.add_argument("--bump",          action="store_true", help="Run release version-bump phase.")
     parser.add_argument("--tag",           action="store_true", help="Run release tag phase.")
     parser.add_argument("--push",          action="store_true", help="Run release push phase.")
-    parser.add_argument("--repos",         default=None,        help="Comma-separated release repository allow-list.")
-    parser.add_argument("--with-pythondata",       action="store_true", help="Also include pythondata repositories in the release set.")
+
+    # Release checks.
     parser.add_argument("--allow-invalid-tag",     action="store_true", help="Allow release tags outside YYYY.04/YYYY.08/YYYY.12.")
     parser.add_argument("--allow-dirty",           action="store_true", help="Allow dirty working trees during release.")
     parser.add_argument("--allow-branch-mismatch", action="store_true", help="Allow repositories to be on branches different from litex_setup.py defaults.")
     parser.add_argument("--allow-unpushed",        action="store_true", help="Allow repositories without clean upstream synchronization.")
     parser.add_argument("--state-file",            default=None,        help="Release state file path.")
+
+    # Development mode.
     parser.add_argument("--dev", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
 
+    # Location.
     setup.litex_setup_location_check()
 
+    # List.
     if args.list_repos:
         release_list_repos(
             repos=args.repos,
             with_pythondata=args.with_pythondata,
         )
 
+    # Check.
     if args.check:
         release_check_repos(
             repos=args.repos,
             with_pythondata=args.with_pythondata,
         )
 
+    # Release.
     if args.release:
         state_file = args.state_file
         if (state_file is None) and (not args.dry_run):
             state_file = os.path.abspath(release_state_filename(args.release))
         release_repos(
-            tag=args.release,
-            repos=args.repos,
-            with_pythondata=args.with_pythondata,
-            dry_run=args.dry_run,
-            phases=release_phases(args),
-            no_push=args.no_push,
-            allow_dirty=args.allow_dirty,
-            allow_branch_mismatch=args.allow_branch_mismatch,
-            allow_unpushed=args.allow_unpushed,
-            allow_invalid_tag=args.allow_invalid_tag,
-            state_file=state_file,
+            tag                   = args.release,
+            repos                 = args.repos,
+            with_pythondata       = args.with_pythondata,
+            dry_run               = args.dry_run,
+            phases                = release_phases(args),
+            no_push               = args.no_push,
+            allow_dirty            = args.allow_dirty,
+            allow_branch_mismatch = args.allow_branch_mismatch,
+            allow_unpushed         = args.allow_unpushed,
+            allow_invalid_tag      = args.allow_invalid_tag,
+            state_file             = state_file,
         )
     elif args.dry_run or args.bump or args.tag or args.push or args.no_push:
         setup.print_error("--release is required with release action options.")
