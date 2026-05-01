@@ -54,9 +54,11 @@ class CommPCIe(CSRBuilder):
         # Close the file and mmap.
         if not hasattr(self, "file"):
             return
-        self.file.close()
+        if hasattr(self, "mmap"):
+            self.mmap.close()
+            del self.mmap
+        os.close(self.file)
         del self.file
-        self.mmap.close()
 
     def read(self, addr, length=None, burst="incr"):
         # Read data from mmap (incr burst only).

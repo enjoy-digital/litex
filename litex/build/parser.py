@@ -9,6 +9,7 @@ import sys
 import logging
 import argparse
 import importlib
+import importlib.util
 
 from litex.soc.cores import cpu
 from litex.soc.integration import soc_core
@@ -196,11 +197,12 @@ class LiteXArgumentParser(argparse.ArgumentParser):
                 platform = self.get_default_value_from_actions("platform", None)
             if platform is not None:
                 try:
-                    platform_cls = importlib.import_module(platform).Platform
-                except ModuleNotFoundError as e:
-                    # platform not found: try litex-boards package
+                    platform_spec = importlib.util.find_spec(platform)
+                except ModuleNotFoundError:
+                    platform_spec = None
+                if platform_spec is None and "." not in platform:
                     platform = "litex_boards.platforms." + platform
-                    platform_cls = importlib.import_module(platform).Platform
+                platform_cls = importlib.import_module(platform).Platform
                 self.set_platform(platform_cls)
 
                 self.add_target_group()

@@ -6,6 +6,7 @@
 
 import os
 import sys
+import subprocess
 from shutil import which
 from contextlib import contextmanager
 
@@ -38,6 +39,9 @@ def _pushd(path):
         yield
     finally:
         os.chdir(old)
+
+def _wslpath(path):
+    return subprocess.check_output(["wslpath", "-w", path], universal_newlines=True).strip()
 
 class GowinProgrammer(GenericProgrammer):
     needs_bitreverse = False
@@ -96,13 +100,13 @@ class GowinProgrammer(GenericProgrammer):
             exit(1)
 
         if self.is_wsl is True and bitstream_file is not None:
-            bitstream_file = os.popen("wslpath -w {}".format(bitstream_file)).read().strip("\n")
+            bitstream_file = _wslpath(bitstream_file)
 
         if self.is_wsl is True and fifile is not None:
-            fifile = os.popen("wslpath -w {}".format(fifile)).read().strip("\n")
+            fifile = _wslpath(fifile)
 
         if self.is_wsl is True and mcufile is not None:
-            mcufile = os.popen("wslpath -w {}".format(mcufile)).read().strip("\n")
+            mcufile = _wslpath(mcufile)
 
         cmd_line = [
             self.programmer,
@@ -129,7 +133,7 @@ class GowinProgrammer(GenericProgrammer):
         pmode = GOWIN_PMODE_SRAM
         bitfile = bitstream_file
         if self.is_wsl is True:
-            bitfile = os.popen("wslpath -w {}".format(bitstream_file)).read().strip("\n")
+            bitfile = _wslpath(bitstream_file)
 
         cmd_line = [self.programmer,
             "--device", str(self.device),

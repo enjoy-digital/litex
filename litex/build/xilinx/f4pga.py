@@ -123,10 +123,8 @@ class F4PGAToolchain(GenericToolchain):
 
         try:
             self._flow.execute()
-        except Exception as e:
-            print(e)
-
-        self._flow.f4cache.save()
+        finally:
+            self._flow.f4cache.save()
 
     def add_false_path_constraint(self, platform, from_, to):
         # FIXME: false path constraints are currently not supported by the F4PGA toolchain

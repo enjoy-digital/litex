@@ -333,7 +333,8 @@ def crc16(l):
 class LiteXTerm:
     def __init__(self, serial_boot, kernel_image, kernel_address, json_images, safe):
         self.serial_boot = serial_boot
-        assert not (kernel_image is not None and json_images is not None)
+        if kernel_image is not None and json_images is not None:
+            raise ValueError("LiteXTerm cannot use both kernel_image and json_images.")
         self.mem_regions = {}
         if kernel_image is not None:
             self.mem_regions = {kernel_image: kernel_address}

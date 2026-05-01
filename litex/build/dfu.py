@@ -4,9 +4,9 @@
 # Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import shutil
 import subprocess
 
-from litex.build.tools import write_to_file
 from litex.build.generic_programmer import GenericProgrammer
 
 # DFUProg ------------------------------------------------------------------------------------------
@@ -20,12 +20,13 @@ class DFUProg(GenericProgrammer):
         self.alt = alt
 
     def load_bitstream(self, bitstream_file, reset=True):
-        subprocess.call(["cp", bitstream_file, bitstream_file + ".dfu"])
-        subprocess.call(["dfu-suffix", "-v", self.vid, "-p", self.pid, "-a", bitstream_file + ".dfu"])
+        dfu_file = bitstream_file + ".dfu"
+        shutil.copyfile(bitstream_file, dfu_file)
+        subprocess.check_call(["dfu-suffix", "-v", self.vid, "-p", self.pid, "-a", dfu_file])
 
-        flash_cmd = ["dfu-util", "--download", bitstream_file + ".dfu"]
+        flash_cmd = ["dfu-util", "--download", dfu_file]
         if reset:
             flash_cmd.append("-R")
         if self.alt is not None:
             flash_cmd.extend(["-a", str(self.alt)])
-        subprocess.call(flash_cmd)
+        subprocess.check_call(flash_cmd)

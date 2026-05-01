@@ -46,7 +46,7 @@ class OpenOCDJTAGProgrammer(GenericProgrammer):
     def flash(self, address, data, verify=True):
         config      = self.find_config()
         flash_proxy = self.find_flash_proxy()
-        script = "; ".join([
+        commands = [
             "transport select jtag",
             "target create ecp5.spi0.proxy testee -chain-position ecp5.tap",
             "flash bank spi0 jtagspi 0 0 0 0 ecp5.spi0.proxy 0x32",
@@ -55,9 +55,11 @@ class OpenOCDJTAGProgrammer(GenericProgrammer):
             "reset halt",
             "flash probe spi0",
             "flash write_image erase \"{0}\" 0x{1:x}".format(data, address),
-            "flash verify_bank spi0 \"{0}\" 0x{1:x}" if verify else "".format(data, address),
             "exit"
-        ])
+        ]
+        if verify:
+            commands.insert(-1, "flash verify_bank spi0 \"{0}\" 0x{1:x}".format(data, address))
+        script = "; ".join(commands)
         self.call(["openocd", "-f", config, "-c", script])
 
 # IceStormProgrammer -------------------------------------------------------------------------------
