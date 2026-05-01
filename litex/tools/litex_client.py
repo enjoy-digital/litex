@@ -227,6 +227,17 @@ def run_gui(host, csr_csv, port):
     with_buttons    = hasattr(bus.regs, "buttons_in")
     with_xadc       = hasattr(bus.regs, "xadc_temperature")
 
+    def get_constant(names, default):
+        constants = getattr(getattr(bus, "constants", None), "d", {})
+        for name in names:
+            if name in constants:
+                value = constants[name]
+                return int(value, 0) if isinstance(value, str) else int(value)
+        return default
+
+    leds_count    = get_constant(["leds_ngpio",    "leds_count"],    8) if with_leds    else 0
+    buttons_count = get_constant(["buttons_ngpio", "buttons_count"], 8) if with_buttons else 0
+
     # Board functions.
     # ----------------
     def reboot():
@@ -388,19 +399,19 @@ def run_gui(host, csr_csv, port):
         if with_identifier:
             dpg.add_text(f"Identifier: {get_identifier()}")
         if with_leds:
-           dpg.add_text("Leds")
-           with dpg.group(horizontal=True):
+            dpg.add_text("Leds")
+            with dpg.group(horizontal=True):
                 def led_callback(sender):
-                    for i in range(8): # FIXME: Get num.
+                    for i in range(leds_count):
                         if sender == f"led{i}":
                             val = get_leds(i)
                             set_leds(i, ~val)
-                for i in range(8): # FIXME: Get num.
-                   dpg.add_checkbox(id=f"led{i}", callback=led_callback)
+                for i in range(leds_count):
+                    dpg.add_checkbox(id=f"led{i}", callback=led_callback)
         if with_buttons:
             dpg.add_text("Buttons")
             with dpg.group(horizontal=True):
-                for i in range(8): # FIXME: Get num.
+                for i in range(buttons_count):
                     dpg.add_checkbox(id=f"btn{i}")
 
     # Create Memory Window.
@@ -584,11 +595,11 @@ def run_gui(host, csr_csv, port):
 
             # Peripherals.
             if with_leds:
-                for i in range(8): # FIXME; Get num.
+                for i in range(leds_count):
                     dpg.set_value(f"led{i}", bool(get_leds(i)))
 
             if with_buttons:
-                for i in range(8): # FIXME; Get num.
+                for i in range(buttons_count):
                     dpg.set_value(f"btn{i}", bool(get_buttons(i)))
 
             # Mem Read Auto-Refresh.
