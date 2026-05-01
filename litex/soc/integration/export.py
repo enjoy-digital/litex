@@ -17,12 +17,14 @@
 # This file is Copyright (c) 2022 Franck Jullien <franck.jullien@collshade.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import io
 import os
 import re
+import csv
 import json
 import time
-import datetime
 import inspect
+import datetime
 from shutil import which
 from sysconfig import get_platform
 
@@ -573,7 +575,7 @@ def get_csr_json(soc=None, csr_regions=None, constants=None, mem_regions=None):
 
     # Get Constants.
     for name, value in constants.items():
-        d["constants"][name.lower()] = value.lower() if isinstance(value, str) else value
+        d["constants"][name.lower()] = value
 
     # Get Mem Regions.
     for name, region in mem_regions.items():
@@ -684,22 +686,29 @@ def get_csr_csv(soc=None, csr_regions=None, constants=None, mem_regions=None):
         mem_regions = {}
     d = json.loads(get_csr_json(soc, csr_regions, constants, mem_regions))
     r = generated_banner("#")
+    f = io.StringIO()
+    writer = csv.writer(f, lineterminator="\n")
     for name, value in d["csr_bases"].items():
-        r += "csr_base,{},0x{:08x},,\n".format(name, value)
+        writer.writerow(["csr_base", name, "0x{:08x}".format(value), "", ""])
     for name in d["csr_registers"].keys():
-        r += "csr_register,{},0x{:08x},{},{}\n".format(name,
-            d["csr_registers"][name]["addr"],
-            d["csr_registers"][name]["size"],
-            d["csr_registers"][name]["type"])
+        writer.writerow([
+            "csr_register",
+            name,
+            "0x{:08x}".format(d["csr_registers"][name]["addr"]),
+            str(d["csr_registers"][name]["size"]),
+            d["csr_registers"][name]["type"],
+        ])
     for name, value in d["constants"].items():
-        r += "constant,{},{},,\n".format(name, value)
+        writer.writerow(["constant", name, str(value), "", ""])
     for name in d["memories"].keys():
-        r += "memory_region,{},0x{:08x},{:d},{:s}\n".format(name,
-            d["memories"][name]["base"],
-            d["memories"][name]["size"],
+        writer.writerow([
+            "memory_region",
+            name,
+            "0x{:08x}".format(d["memories"][name]["base"]),
+            "{:d}".format(d["memories"][name]["size"]),
             d["memories"][name]["type"],
-            )
-    return r
+        ])
+    return r + f.getvalue()
 
 # SVD Export --------------------------------------------------------------------------------------
 
