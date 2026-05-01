@@ -429,11 +429,12 @@ class Builder:
                 self._prepare_rom_software()
                 self._generate_rom_software(compile_bios=use_bios)
 
-                # Initialize Memories.
-                # Allow User Design to optionally initialize Memories through SoC.init_ram/init_rom.
-                if hasattr(self.soc, "init_mems"):
-                    self.soc.init_mems(**kwargs)
+            # Initialize Memories.
+            # Allow User Design to optionally initialize Memories through SoC.init_ram/init_rom.
+            if hasattr(self.soc, "init_mems"):
+                self.soc.init_mems(**kwargs)
 
+            if self.soc.cpu.use_rom:
                 # Initialize ROM.
                 if use_bios and self.soc.integrated_rom_size:
                     # Only initialize if not already initialized.
