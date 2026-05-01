@@ -638,21 +638,31 @@ def load_csr_json(filename, origin=0, name=""):
         csr_ordering = "little"
     if _has_json_constant(config_data, "config_csr_ordering_big"):
         csr_ordering = "big"
-    csr_names     = {region_name: [] for region_name in csr_bases}
-    region_names  = sorted(csr_bases, key=len, reverse=True)
+    csr_names      = {region_name: [] for region_name in csr_bases}
+    region_names   = sorted(csr_bases, key=len, reverse=True)
+    unmatched_csrs = []
     for csr_name, info in csr_registers.items():
+        if "size" not in info:
+            raise ValueError("CSR JSON {} register {} is missing size.".format(filename, csr_name))
+        matched = False
         for region_name in region_names:
             prefix = region_name + "_"
             if csr_name.startswith(prefix):
+                matched = True
                 csr_origin = origin + _parse_json_int(info["addr"]) if "addr" in info else None
                 csr_names[region_name].append(MockCSR(
                     name    = csr_name[len(prefix):],
-                    nwords  = info["size"],
+                    nwords  = _parse_json_int(info["size"]),
                     type    = info.get("type", "rw"),
                     busword = csr_busword,
                     origin  = csr_origin,
                 ))
                 break
+        if not matched:
+            unmatched_csrs.append(csr_name)
+    if unmatched_csrs:
+        raise ValueError("CSR JSON {} register(s) do not match any CSR base: {}.".format(
+            filename, ", ".join(sorted(unmatched_csrs))))
 
     csr_regions = {}
     for region_name, addr in csr_bases.items():
@@ -669,8 +679,11 @@ def load_csr_json(filename, origin=0, name=""):
     # Load Memory Regions.
     mem_regions = {}
     for mem_name, info in config_data.get("memories", {}).items():
+        for key in ["base", "size", "type"]:
+            if key not in info:
+                raise ValueError("CSR JSON {} memory {} is missing {}.".format(filename, mem_name, key))
         mem_regions[name + mem_name.lower()] = SoCRegion(
-            origin + _parse_json_int(info["base"]), info["size"], info["type"])
+            origin + _parse_json_int(info["base"]), _parse_json_int(info["size"]), info["type"])
 
     # Return CSR Regions, Constants, Mem Regions.
     return csr_regions, constants, mem_regions
