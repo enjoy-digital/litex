@@ -1592,10 +1592,14 @@ class SoC(LiteXModule):
 
         # SoC IRQ Interconnect ---------------------------------------------------------------------
         if hasattr(self, "cpu") and hasattr(self.cpu, "interrupt"):
-            self.add_config("CPU_INTERRUPTS", max(self.irq.locs.values()) + 1)
+            self.add_config("CPU_INTERRUPTS", max(self.irq.locs.values(), default=-1) + 1)
             for name, loc in sorted(self.irq.locs.items()):
                 if name in self.cpu.interrupts.keys():
                     continue
+                if loc >= len(self.cpu.interrupt):
+                    self.logger.error("{} IRQ Location {} exceeds CPU interrupt width {}.".format(
+                        colorer(name, color="red"), colorer(loc), colorer(len(self.cpu.interrupt))))
+                    raise SoCError()
                 if hasattr(self, name):
                     module = getattr(self, name)
                     ev = None
@@ -2772,6 +2776,10 @@ class LiteXSoC(SoC):
 
         # Map/Connect MSI IRQs.
         if with_msi and auto_map_msi_irqs:
+            if len(self.msis) > msi_width:
+                self.logger.error("PCIe MSI mapping has {} IRQs but MSI width is {}.".format(
+                    colorer(len(self.msis), color="red"), colorer(msi_width)))
+                raise SoCError()
             for i, (k, v) in enumerate(sorted(self.msis.items())):
                 self.comb += msi.irqs[i].eq(v)
                 self.add_constant(k + "_INTERRUPT", i)
