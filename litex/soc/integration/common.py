@@ -13,6 +13,11 @@ from migen import *
 
 # Helpers ----------------------------------------------------------------------------------------
 
+def _get_region_base(base):
+    if isinstance(base, str):
+        return int(base, 16)
+    return int(base)
+
 def get_mem_regions(filename_or_regions, offset):
     if isinstance(filename_or_regions, dict):
         regions = filename_or_regions
@@ -48,7 +53,10 @@ def get_mem_data(filename_or_regions, data_width=32, endianness="big", mem_size=
     for filename, base in regions.items():
         if not os.path.isfile(filename):
             raise OSError(f"Unable to find {filename} memory content file.")
-        data_size = max(int(base, 16) + os.path.getsize(filename) - offset, data_size)
+        base = _get_region_base(base)
+        if base < offset:
+            raise ValueError("file base address is below offset: 0x{:08x} < 0x{:08x}".format(base, offset))
+        data_size = max(base + os.path.getsize(filename) - offset, data_size)
     assert data_size > 0
     if mem_size is not None:
         if data_size > mem_size:
@@ -58,7 +66,7 @@ def get_mem_data(filename_or_regions, data_width=32, endianness="big", mem_size=
     bytes_per_data = data_width//8
     data           = [0]*math.ceil(data_size/bytes_per_data)
     for filename, base in regions.items():
-        base = int(base, 16)
+        base = _get_region_base(base)
         with open(filename, "rb") as f:
             i = 0
             while True:
@@ -85,4 +93,4 @@ def get_boot_address(filename_or_regions, offset=0):
 
     # Boot on last region.
     filename, base = regions.popitem()
-    return int(base, 0)
+    return _get_region_base(base)

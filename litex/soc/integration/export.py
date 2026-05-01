@@ -158,10 +158,11 @@ def get_mem_header(regions):
 
     r += "#ifndef MEM_REGIONS\n"
     r += "#define MEM_REGIONS \""
-    name_length = max([len(name) for name in regions.keys()])
-    for name, region in regions.items():
-        r += f"{name.upper()} {' '*(name_length-len(name))} 0x{region.origin:08x} 0x{region.size:x} \\n"
-    r = r[:-2]
+    if len(regions):
+        name_length = max([len(name) for name in regions.keys()])
+        for name, region in regions.items():
+            r += f"{name.upper()} {' '*(name_length-len(name))} 0x{region.origin:08x} 0x{region.size:x} \\n"
+        r = r[:-2]
     r += "\"\n"
     r += "#endif\n"
 
@@ -243,14 +244,15 @@ def _generate_csr_region_definitions_c(name, region, origin, alignment, csr_base
     if not isinstance(region.obj, Memory):
         for csr in region.obj:
             nr = (csr.size + region.busword - 1) // region.busword
+            csr_origin = _get_csr_origin(csr, origin)
             region_defs += _generate_csr_definitions_c(
                 reg_name              = name + "_" + csr.name,
-                reg_base              = origin,
+                reg_base              = csr_origin,
                 nwords                = nr,
                 csr_base              = base,
                 with_csr_base_define  = base_define,
             )
-            origin += alignment // 8 * nr
+            origin = csr_origin + alignment // 8 * nr
 
     region_defs += f"\n/* {name.upper()} Fields */\n"
     if not isinstance(region.obj, Memory):
@@ -316,23 +318,25 @@ def _get_csr_read_write_access_functions_c(reg_name, reg_base, nwords, busword, 
 
 def _generate_csr_region_access_functions_c(name, region, origin, alignment, csr_ordering, csr_base, with_csr_base_define):
     base_define = with_csr_base_define and not isinstance(region, MockCSRRegion)
+    base = csr_base if not isinstance(region, MockCSRRegion) else 0
     region_defs = f"\n/* {name.upper()} Access Functions */\n"
 
     if not isinstance(region.obj, Memory):
         for csr in region.obj:
             nr = (csr.size + region.busword - 1) // region.busword
+            csr_origin = _get_csr_origin(csr, origin)
             region_defs += _get_csr_read_write_access_functions_c(
                 reg_name              = name + "_" + csr.name,
-                reg_base              = origin,
+                reg_base              = csr_origin,
                 nwords                = nr,
                 busword               = region.busword,
                 alignment             = alignment,
                 read_only             = getattr(csr, "read_only", False),
                 csr_ordering          = csr_ordering,
-                csr_base              = csr_base,
+                csr_base              = base,
                 with_csr_base_define  = base_define,
             )
-            origin += alignment // 8 * nr
+            origin = csr_origin + alignment // 8 * nr
     return region_defs
 
 # CSR Fields.
@@ -389,6 +393,11 @@ def _generate_csr_fields_access_functions_c(name, region, origin, alignment, csr
 
 # CSR Header.
 
+def _get_csr_region_origin(region, csr_base):
+    if isinstance(region, MockCSRRegion):
+        return region.origin
+    return region.origin - csr_base
+
 def get_csr_header(regions, constants, csr_ordering="big", csr_base=None, with_csr_base_define=True, with_access_functions=True, with_fields_access_functions=False):
     """
     Generate the CSR header file content.
@@ -402,7 +411,7 @@ def get_csr_header(regions, constants, csr_ordering="big", csr_base=None, with_c
     r += generated_separator("//", "CSR Includes.")
     r += "\n"
     r += _generate_csr_header_includes_c(with_access_functions)
-    _csr_base = regions[next(iter(regions))].origin
+    _csr_base = regions[next(iter(regions))].origin if len(regions) else csr_base or 0
     csr_base  = csr_base if csr_base is not None else _csr_base
     r += _generate_csr_base_define_c(csr_base, with_csr_base_define)
 
@@ -410,7 +419,7 @@ def get_csr_header(regions, constants, csr_ordering="big", csr_base=None, with_c
     r += "\n"
     r += generated_separator("//", "CSR Registers/Fields Definition.")
     for name, region in regions.items():
-        origin = region.origin - _csr_base
+        origin = _get_csr_region_origin(region, _csr_base)
         r += _generate_csr_region_definitions_c(name, region, origin, alignment, csr_base, with_csr_base_define)
 
     # CSR Registers Access Functions.
@@ -424,7 +433,7 @@ def get_csr_header(regions, constants, csr_ordering="big", csr_base=None, with_c
         r += "\n"
         r += "#if LITEX_CSR_ACCESS_FUNCTIONS\n"
         for name, region in regions.items():
-            origin = region.origin - _csr_base
+            origin = _get_csr_region_origin(region, _csr_base)
             r += _generate_csr_region_access_functions_c(name, region, origin, alignment, csr_ordering, csr_base, with_csr_base_define)
         r += "#endif /* LITEX_CSR_ACCESS_FUNCTIONS */\n"
 
@@ -439,7 +448,7 @@ def get_csr_header(regions, constants, csr_ordering="big", csr_base=None, with_c
         r += "\n"
         r += "#if LITEX_CSR_FIELDS_ACCESS_FUNCTIONS\n"
         for name, region in regions.items():
-            origin = region.origin - _csr_base
+            origin = _get_csr_region_origin(region, _csr_base)
             r += _generate_csr_fields_access_functions_c(name, region, origin, alignment, csr_base, with_csr_base_define)
         r += "#endif /* LITEX_CSR_FIELDS_ACCESS_FUNCTIONS */\n"
 
@@ -559,16 +568,26 @@ def get_csr_json(soc=None, csr_regions={}, constants={}, mem_regions={}):
     return json.dumps(d, indent=4)
 
 class MockCSR:
-    def __init__(self, name, size, type):
-        self.name = name
-        self.size = size
-        self.type = type
+    def __init__(self, name, nwords, type, busword=32, origin=None):
+        self.name      = name
+        self.size      = nwords * busword
+        self.type      = type
+        self.read_only = type == "ro"
+        self.origin    = origin
 
 class MockCSRRegion:
     def __init__(self, origin, obj):
         self.origin  = origin
         self.obj     = obj
         self.busword = 32
+
+def _parse_json_int(value):
+    if isinstance(value, str):
+        return int(value, 0)
+    return int(value)
+
+def _get_csr_origin(csr, origin):
+    return origin if getattr(csr, "origin", None) is None else csr.origin
 
 def load_csr_json(filename, origin=0, name=""):
     if len(name):
@@ -578,18 +597,27 @@ def load_csr_json(filename, origin=0, name=""):
         config_data = json.load(json_file)
 
     # Load CSR Regions.
+    csr_bases     = config_data.get("csr_bases", {})
+    csr_registers = config_data.get("csr_registers", {})
+    csr_names     = {region_name: [] for region_name in csr_bases}
+    region_names  = sorted(csr_bases, key=len, reverse=True)
+    for csr_name, info in csr_registers.items():
+        for region_name in region_names:
+            prefix = region_name + "_"
+            if csr_name.startswith(prefix):
+                csr_origin = origin + _parse_json_int(info["addr"]) if "addr" in info else None
+                csr_names[region_name].append(MockCSR(
+                    name   = csr_name[len(prefix):],
+                    nwords = info["size"],
+                    type   = info.get("type", "rw"),
+                    origin = csr_origin,
+                ))
+                break
+
     csr_regions = {}
-    for region_name, addr in config_data.get("csr_bases", {}).items():
-        csrs = []
-        for csr_name, info in config_data.get("csr_registers", {}).items():
-            region_prefix, _, csr_suffix = csr_name.rpartition("_")
-            if region_prefix.startswith(region_name):
-                if region_prefix == region_name:
-                    final_name = csr_suffix
-                else:
-                    final_name = f"{region_prefix[len(region_name) + 1:]}_{csr_suffix}"
-                csrs.append(MockCSR(final_name, info["size"], info["type"]))
-        csr_regions[name + region_name] = MockCSRRegion(origin + addr, csrs)
+    for region_name, addr in csr_bases.items():
+        csr_names[region_name].sort(key=lambda csr: _get_csr_origin(csr, 0))
+        csr_regions[name + region_name] = MockCSRRegion(origin + _parse_json_int(addr), csr_names[region_name])
 
     # Load Constants.
     constants = {(name + const_name).upper(): value for const_name, value in config_data.get("constants", {}).items()}
@@ -597,7 +625,8 @@ def load_csr_json(filename, origin=0, name=""):
     # Load Memory Regions.
     mem_regions = {}
     for mem_name, info in config_data.get("memories", {}).items():
-        mem_regions[name + mem_name.lower()] = SoCRegion(origin + info["base"], info["size"], info["type"])
+        mem_regions[name + mem_name.lower()] = SoCRegion(
+            origin + _parse_json_int(info["base"]), info["size"], info["type"])
 
     # Return CSR Regions, Constants, Mem Regions.
     return csr_regions, constants, mem_regions

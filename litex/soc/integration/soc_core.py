@@ -167,6 +167,8 @@ class SoCCore(LiteXSoC):
 
         self.cpu_type     = cpu_type
         self.cpu_variant  = cpu_variant
+        if cpu_cfu is None:
+            cpu_cfu = cfu_filename
 
         # ROM.
         # Initialize ROM from binary file when supported and provided.
@@ -217,8 +219,9 @@ class SoCCore(LiteXSoC):
         # Add integrated SRAM.
         if integrated_sram_size:
             self.add_ram(name="sram",
-                origin = self.mem_map["sram"],
-                size   = integrated_sram_size,
+                origin   = self.mem_map["sram"],
+                size     = integrated_sram_size,
+                contents = integrated_sram_init,
             )
 
         # Add integrated MAIN_RAM (only useful when no external SRAM/SDRAM is available).

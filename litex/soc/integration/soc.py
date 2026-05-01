@@ -252,7 +252,16 @@ class SoCBusHandler(LiteXModule):
             # Else add Region.
             else:
                 if self.io_regions_check:
-                    if self.check_region_is_io(region):
+                    io_region_name = self.check_region_overlap(region, self.io_regions)
+                    if io_region_name is not None:
+                        io_region = self.io_regions[io_region_name]
+                        if not self.check_region_is_in(region, io_region):
+                            self.logger.error("{} {}".format(
+                                colorer(name + " Region overlaps IO region:", color="red"),
+                                str(region)))
+                            self.logger.error(str(io_region))
+                            self.logger.error(self)
+                            raise SoCError()
                         # If Region is an IO Region it is not cached.
                         if region.cached:
                             self.logger.error("{} {}".format(
@@ -302,7 +311,7 @@ class SoCBusHandler(LiteXModule):
         size_pow2 = 2**log2_int(size, False)
         for _, search_region in search_regions.items():
             origin = search_region.origin
-            while (origin + size) < (search_region.origin + search_region.size_pow2):
+            while (origin + size) <= (search_region.origin + search_region.size_pow2):
                 # Align Origin on Size.
                 if (origin%size_pow2):
                     origin += (size_pow2 - origin%size_pow2)
@@ -310,6 +319,9 @@ class SoCBusHandler(LiteXModule):
                 # Create a Candidate.
                 candidate = SoCRegion(origin=origin, size=size, mode=mode, cached=cached, linker=linker)
                 overlap   = False
+                if cached and self.io_regions_check and self.check_region_overlap(candidate, self.io_regions):
+                    origin += size
+                    continue
                 # Check Candidate does not overlap with allocated existing regions.
                 for _, allocated in self.regions.items():
                     if self.check_regions_overlap({"0": allocated, "1": candidate}) is not None:
@@ -339,6 +351,12 @@ class SoCBusHandler(LiteXModule):
                     continue
                 return (n0, n1)
             i += 1
+        return None
+
+    def check_region_overlap(self, region, regions):
+        for name, _region in regions.items():
+            if self.check_regions_overlap({"region": region, name: _region}) is not None:
+                return name
         return None
 
     def check_region_is_in(self, region, container):
@@ -638,10 +656,11 @@ class SoCBusHandler(LiteXModule):
 
         self._interconnect = None
         if len(self.masters) and len(self.slaves):
+            slave_name = next(iter(self.slaves))
             # If 1 bus_master, 1 bus_slave and no address translation, use InterconnectPointToPoint.
             if ((len(self.masters) == 1)  and
                 (len(self.slaves)  == 1)  and
-                (next(iter(self.regions.values())).origin == 0)):
+                (self.regions[slave_name].origin == 0)):
                 self._interconnect = interconnect_p2p_cls(
                     master = next(iter(self.masters.values())),
                     slave  = next(iter(self.slaves.values())))
@@ -945,7 +964,7 @@ class SoCIRQHandler(SoCLocHandler):
         # Adding reserved IRQs.
         self.logger.info("Adding {} IRQs...".format(colorer("reserved", color="cyan")))
         for name, n in reserved_irqs.items():
-            self.add(name, n)
+            SoCLocHandler.add(self, name, n)
 
         self.logger.info("IRQ Handler {}.".format(colorer("created", color="green")))
 
@@ -1350,6 +1369,7 @@ class SoC(LiteXModule):
                     colorer(name, color="underline"),
                     colorer("adding", color="cyan")))
                 self.irq.enable()
+                self.cpu.interrupts = dict(self.cpu.interrupts)
                 if hasattr(self.cpu, "reserved_interrupts"):
                     self.cpu.interrupts.update(self.cpu.reserved_interrupts)
                 for irq_name, loc in self.cpu.interrupts.items():
