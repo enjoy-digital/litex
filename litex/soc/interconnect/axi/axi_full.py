@@ -67,10 +67,14 @@ class AXIInterface:
     ):
         # Parameters checks.
         # ------------------
-        assert data_width in [8, 16, 32, 64, 128, 256, 512, 1024]
-        assert addressing in ["byte"]
-        assert version    in ["axi3", "axi4"]
-        assert mode in ["rw", "r", "w"]
+        if data_width not in [8, 16, 32, 64, 128, 256, 512, 1024]:
+            raise ValueError("Unsupported AXI data-width: {}.".format(data_width))
+        if addressing != "byte":
+            raise ValueError("AXI only supports byte addressing.")
+        if version not in ["axi3", "axi4"]:
+            raise ValueError("Unsupported AXI version: {}.".format(version))
+        if mode not in ["rw", "r", "w"]:
+            raise ValueError("Unsupported AXI mode: {}.".format(mode))
 
         # Parameters.
         # -----------

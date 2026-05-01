@@ -78,7 +78,7 @@ class Endpoint(Record):
     def __getattr__(self, name):
         try:
             return getattr(object.__getattribute__(self, "payload"), name)
-        except:
+        except AttributeError:
             return getattr(object.__getattribute__(self, "param"), name)
 
 # Actor --------------------------------------------------------------------------------------------

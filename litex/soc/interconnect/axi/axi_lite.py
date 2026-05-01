@@ -49,10 +49,12 @@ class AXILiteInterface:
     def __init__(self, data_width=32, address_width=32, addressing="byte", clock_domain="sys", name=None, bursting=False, mode="rw"):
         # Parameters checks.
         # ------------------
-        assert addressing == "byte"
+        if addressing != "byte":
+            raise ValueError("AXI-Lite only supports byte addressing.")
         if bursting is not False:
             raise NotImplementedError("AXI-Lite does not support bursting")
-        assert mode in ["rw", "r", "w"]
+        if mode not in ["rw", "r", "w"]:
+            raise ValueError("Unsupported AXI-Lite mode: {}.".format(mode))
 
         # Parameters.
         # -----------

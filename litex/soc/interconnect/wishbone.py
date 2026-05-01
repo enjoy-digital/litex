@@ -4,7 +4,7 @@
 # Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
 # Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2018 Tim 'mithro' Ansell <me@mith.ro>
-# Copytight (c) 2022 Antmicro <www.antmicro.com>
+# Copyright (c) 2022 Antmicro <www.antmicro.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 """Wishbone Classic support for LiteX (Standard HandShaking/Synchronous Feedback)"""
@@ -46,6 +46,10 @@ CTI_BURST_END          = 0b111
 
 class Interface(Record):
     def __init__(self, data_width=32, adr_width=30, bursting=False, addressing="word", mode="rw", **kwargs):
+        if addressing not in ["word", "byte"]:
+            raise ValueError("Unsupported Wishbone addressing: {}.".format(addressing))
+        if mode not in ["rw", "r", "w"]:
+            raise ValueError("Unsupported Wishbone mode: {}.".format(mode))
         self.data_width = data_width
         if kwargs.get("address_width", False):
             # FIXME: Improve or switch Wishbone to byte addressing instead of word addressing.
@@ -53,9 +57,7 @@ class Interface(Record):
         self.adr_width     = adr_width + (int(log2(data_width//8)) if (addressing == "byte") else 0)
         self.address_width = adr_width + (0 if (addressing == "byte") else int(log2(data_width//8)))
         self.bursting      = bursting
-        assert addressing in ["word", "byte"]
         self.addressing    = addressing
-        assert mode in ["rw", "r", "w"]
         self.mode          = mode
         Record.__init__(self, set_layout_parameters(_layout,
             adr_width  = self.adr_width,
@@ -121,7 +123,8 @@ class Interface(Record):
         return ios
 
     def connect_to_pads(self, pads, mode="master"):
-        assert mode in ["slave", "master"]
+        if mode not in ["slave", "master"]:
+            raise ValueError("Unsupported Wishbone pads mode: {}.".format(mode))
         r = []
         for name, width, direction in self.layout:
             sig  = getattr(self, name)
@@ -150,8 +153,10 @@ class Remapper(Module):
     def __init__(self, master, slave, origin=0, size=None, src_regions=[], dst_regions=[]):
         # Parameters.
         # -----------
-        assert master.addressing == slave.addressing
-        assert len(src_regions)  == len(dst_regions)
+        if master.addressing != slave.addressing:
+            raise ValueError("Wishbone master/slave addressing mismatch.")
+        if len(src_regions) != len(dst_regions):
+            raise ValueError("Wishbone remapper source/destination region count mismatch.")
 
         # Master to Slave.
         # ----------------
@@ -197,7 +202,8 @@ class Offset(Module):
     def __init__(self, master, slave, offset=0x00000000):
         # Parameters.
         # -----------
-        assert master.addressing == slave.addressing
+        if master.addressing != slave.addressing:
+            raise ValueError("Wishbone master/slave addressing mismatch.")
 
         # Master to Slave.
         # ----------------

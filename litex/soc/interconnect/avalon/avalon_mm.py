@@ -57,7 +57,8 @@ class AvalonMMInterface(Record):
         return ios
 
     def connect_to_pads(self, pads, mode="master"):
-        assert mode in ["slave", "master"]
+        if mode not in ["slave", "master"]:
+            raise ValueError("Unsupported Avalon-MM pads mode: {}.".format(mode))
         r = []
         for name, width, direction in self.layout:
             sig  = getattr(self, name)

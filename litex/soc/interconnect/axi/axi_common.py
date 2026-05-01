@@ -109,7 +109,8 @@ def connect_to_pads(bus, pads, mode="master", axi_full=False):
     Returns:
         list: List of statements to create the necessary connections.
     """
-    assert mode in ["slave", "master"]
+    if mode not in ["slave", "master"]:
+        raise ValueError("Unsupported AXI pads mode: {}.".format(mode))
     r = []
     def swap_mode(mode): return "master" if mode == "slave" else "slave"
     channel_modes = {

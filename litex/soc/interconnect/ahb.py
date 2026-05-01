@@ -42,12 +42,14 @@ def ahb_description(data_width, address_width):
 
 class AHBInterface(Record):
     def __init__(self, data_width=32, address_width=32, addressing="byte", mode="rw"):
-        assert addressing == "byte"
+        if addressing != "byte":
+            raise ValueError("AHB only supports byte addressing.")
+        if mode not in ["rw", "r", "w"]:
+            raise ValueError("Unsupported AHB mode: {}.".format(mode))
         Record.__init__(self, ahb_description(data_width, address_width))
         self.data_width    = data_width
         self.address_width = address_width
         self.addressing    = addressing
-        assert mode in ["rw", "r", "w"]
         self.mode          = mode
 
 # AHB to Wishbone  ---------------------------------------------------------------------------------
