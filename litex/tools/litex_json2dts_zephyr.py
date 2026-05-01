@@ -24,6 +24,11 @@ import json
 
 def get_registers_of(name, csr):
     registers = csr['csr_registers']
+    prefix    = name + "_"
+    aliases   = [
+        alias + "_" for alias in csr.get('csr_bases', {})
+        if alias != name and alias.startswith(prefix)
+    ]
 
     return [
         {
@@ -32,7 +37,8 @@ def get_registers_of(name, csr):
             'size': params['size'] * 4,
             'name': r[len(name) + 1:],
         }
-        for r, params in registers.items() if r.startswith(name)
+        for r, params in registers.items()
+        if r.startswith(prefix) and not any(r.startswith(alias) for alias in aliases)
     ]
 
 

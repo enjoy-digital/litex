@@ -27,6 +27,7 @@ import inspect
 import datetime
 from shutil import which
 from sysconfig import get_platform
+from xml.sax.saxutils import quoteattr
 
 from migen import *
 
@@ -423,8 +424,11 @@ def get_csr_header(regions, constants, csr_ordering="big", csr_base=None, with_c
     r += generated_separator("//", "CSR Includes.")
     r += "\n"
     r += _generate_csr_header_includes_c(with_access_functions)
-    _csr_base = regions[next(iter(regions))].origin if len(regions) else csr_base or 0
-    csr_base  = csr_base if csr_base is not None else _csr_base
+    if csr_base is None:
+        _csr_base = regions[next(iter(regions))].origin if len(regions) else 0
+    else:
+        _csr_base = csr_base
+    csr_base  = _csr_base
     r += _generate_csr_base_define_c(csr_base, with_csr_base_define)
 
     # CSR Registers/Fields Definition.
@@ -882,7 +886,10 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
 
     svd.append('        <constants>')
     for name, value in soc.constants.items():
-        svd.append('            <constant name="{}" value="{}" />'.format(name, value))
+        svd.append('            <constant name={} value={} />'.format(
+            quoteattr(str(name)),
+            quoteattr(str(value)),
+        ))
     svd.append('        </constants>')
 
     svd.append('    </vendorExtensions>')

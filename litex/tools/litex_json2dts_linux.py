@@ -26,7 +26,7 @@ def generate_dts_interrupt(d, intr, polling):
 def generate_dts_intc(d):
     if "aplic_s" in d["memories"]:
         return "intc_s"
-    elif "aplic_s" in d["memories"]:
+    elif "aplic_m" in d["memories"]:
         return "intc_m"
     else:
         return "intc0"
@@ -828,19 +828,22 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     for mem in d["memories"]:
         if "can" in mem:
+            can_interrupt = int(d["constants"][f"{mem}_interrupt"])
             dts += """
             {name}: can@{can_mem_base:x} {{
                 compatible = "ctu,ctucanfd";
                 reg = <0x{can_mem_base:x} 0x{can_mem_size:x}>;
-                interrupt-parent = <&intc0>;
-                interrupts = <{can_interrupt}>;
+                interrupt-parent = <&{interrupt_parent}>;
+                {interrupt}
                 clocks = <&sys_clk>;
                 status = "okay";
             }};
-""".format(name=mem,
-                can_mem_base=d["memories"][mem]["base"],
-                can_mem_size=d["memories"][mem]["size"],
-                can_interrupt = int(d["constants"][f"{mem}_interrupt"]),
+""".format(
+                name             = mem,
+                can_mem_base     = d["memories"][mem]["base"],
+                can_mem_size     = d["memories"][mem]["size"],
+                interrupt_parent = generate_dts_intc(d),
+                interrupt        = generate_dts_interrupt(d, can_interrupt, polling),
             )
 
     # Framebuffer ----------------------------------------------------------------------------------
