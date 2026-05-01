@@ -141,7 +141,8 @@ class HyperRAMSDRPHY(LiteXModule):
 
         # Parameters.
         # -----------
-        assert data_width in [8, 16]
+        if data_width not in [8, 16]:
+            raise ValueError("HyperRAM PHY only supports 8-bit or 16-bit data buses.")
 
         # Clk Gen.
         # --------

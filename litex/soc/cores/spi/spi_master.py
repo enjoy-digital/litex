@@ -41,13 +41,15 @@ class SPIMaster(LiteXModule):
     """
     pads_layout = [("clk", 1), ("cs_n", 1), ("mosi", 1), ("miso", 1)]
     def __init__(self, pads, data_width, sys_clk_freq, spi_clk_freq, with_csr=True, mode="raw"):
-        assert mode in ["raw", "aligned"]
+        if mode not in ["raw", "aligned"]:
+            raise ValueError("Unsupported SPI master mode: {}.".format(mode))
         self.mode = mode
         if pads is None:
             pads = Record(self.pads_layout)
         if not hasattr(pads, "cs_n"):
             pads.cs_n = Signal()
-        assert len(pads.cs_n) <= 16
+        if len(pads.cs_n) > 16:
+            raise ValueError("SPI master supports up to 16 chip-selects.")
         self.pads       = pads
         self.data_width = data_width
 

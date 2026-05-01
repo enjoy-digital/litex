@@ -31,7 +31,7 @@ class EfinixProgrammer(GenericProgrammer):
         if (subprocess.call([self.efinity_path + '/bin/python3', self.efinity_path +
                    '/pgm/bin/efx_pgm/ftdi_program.py', bitstream_file,
                    "-m", "jtag"], env=self.env) != 0):
-            msg = f"Error occured during {self.__class__.__name__}'s call, please check:\n"
+            msg = f"Error occurred during {self.__class__.__name__}'s call, please check:\n"
             msg += f"- {self.__class__.__name__} installation.\n"
             msg += f"- Access permissions.\n"
             msg += f"- Hardware and cable.\n"
@@ -39,10 +39,12 @@ class EfinixProgrammer(GenericProgrammer):
             raise OSError(msg)
 
     def flash(self, address, data_file, mode="jtag_bridge", device_id=None, bridge_image_name=None):
-        assert mode in ["jtag_bridge"]
+        if mode not in ["jtag_bridge"]:
+            raise ValueError("Unsupported Efinix flash mode: {}.".format(mode))
         if device_id is not None or bridge_image_name is not None:
             if bridge_image_name is None:
-                assert self.family != "Trion", "Trion devices require a bridge image name"
+                if self.family == "Trion":
+                    raise ValueError("Trion devices require a bridge image name.")
                 device_id_str = '%08X' % int(device_id)
                 bridge_image_name = f'u{device_id_str}.bit'
             fli_dir = os.path.join(self.efinity_path, 'pgm', 'fli')
@@ -60,7 +62,7 @@ class EfinixProgrammer(GenericProgrammer):
         if (subprocess.call([self.efinity_path + '/bin/python3', self.efinity_path +
                    '/pgm/bin/efx_pgm/ftdi_program.py', data_file,
                    "-m", "jtag_bridge", "--address", hex(address)], env=self.env) != 0):
-            msg = f"Error occured during {self.__class__.__name__}'s call, please check:\n"
+            msg = f"Error occurred during {self.__class__.__name__}'s call, please check:\n"
             msg += f"- {self.__class__.__name__} installation.\n"
             msg += f"- Access permissions.\n"
             msg += f"- Hardware and cable.\n"
@@ -102,7 +104,8 @@ class EfinixAtmelProgrammer:
             print(f"WARNING: potential overwrite of payload len={length} offset={offset}")
 
     def _usb_w(self, data):
-        assert len(data) <= 64
+        if len(data) > 64:
+            raise ValueError("Atmel USB programmer packet must be <= 64 bytes.")
         self.out_ep.write(data)
 
     def _prep_flash(self):
@@ -135,7 +138,8 @@ class EfinixAtmelProgrammer:
 
     def _send_packet(self, packet, flash=False):
         """send 63 bytes of data"""
-        assert len(packet) <= 63
+        if len(packet) > 63:
+            raise ValueError("Atmel USB programmer payload packet must be <= 63 bytes.")
         self._usb_w([0x03 if flash else 0x01] + packet)
 
     def _send_payload(self, flash=False):

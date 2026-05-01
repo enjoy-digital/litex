@@ -20,8 +20,10 @@ class FIFOSyncMacro(LiteXModule, Record):
     https://docs.xilinx.com/r/2021.2-English/ug953-vivado-7series-libraries/FIFO_SYNC_MACRO
     """
     def __init__(self, fifo_size="18Kb", data_width=32, almost_empty_offset=0, almost_full_offset=0, do_reg=0, toolchain="vivado"):
-        assert data_width <= 72
-        assert fifo_size in ["18Kb", "36Kb"]
+        if data_width > 72:
+            raise ValueError("FIFOSyncMacro data-width must be <= 72.")
+        if fifo_size not in ["18Kb", "36Kb"]:
+            raise ValueError("Unsupported FIFOSyncMacro FIFO size: {}.".format(fifo_size))
         if do_reg and toolchain != "vivado":
             raise NotImplementedError("FIFOSyncMacro: DO_REG==1 is supported only for Vivado toolchain")
 

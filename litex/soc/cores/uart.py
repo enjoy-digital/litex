@@ -42,7 +42,8 @@ class RS232PHYInterface(UARTInterface): pass
 
 class RS232ClkPhaseAccum(LiteXModule):
     def __init__(self, tuning_word, mode="tx"):
-        assert mode in ["tx", "rx"]
+        if mode not in ["tx", "rx"]:
+            raise ValueError("Unsupported RS232 clock phase accumulator mode: {}.".format(mode))
         self.enable = Signal()
         self.tick   = Signal()
 
@@ -311,13 +312,15 @@ CMD_READ_BURST_FIXED  = 0x04
 
 class Stream2Wishbone(LiteXModule):
     def __init__(self, phy=None, clk_freq=None, data_width=32, address_width=32):
+        if data_width not in [8, 16, 32]:
+            raise ValueError("Unsupported UARTBone data-width: {}.".format(data_width))
+        if address_width not in [8, 16, 32, 64]:
+            raise ValueError("Unsupported UARTBone address-width: {}.".format(address_width))
         self.sink     = sink   = stream.Endpoint([("data", 8)]) if phy is None else phy.source
         self.source   = source = stream.Endpoint([("data", 8)]) if phy is None else phy.sink
         self.wishbone = wishbone.Interface(data_width=data_width, address_width=address_width, addressing="word")
 
         # # #
-        assert data_width    in [8, 16, 32]
-        assert address_width in [8, 16, 32, 64]
 
         cmd              = Signal(8,                           reset_less=True)
         incr             = Signal()
