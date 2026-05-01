@@ -206,7 +206,7 @@ class SoCCore(LiteXSoC):
         # Add CPU.
         self.add_cpu(name=cpu_type,
             variant       = "standard" if cpu_variant is None else cpu_variant,
-            reset_address = None if integrated_rom_size else cpu_reset_address,
+            reset_address = cpu_reset_address,
             cfu           = cpu_cfu)
 
         # Add User's interrupts.
