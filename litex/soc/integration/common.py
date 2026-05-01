@@ -51,14 +51,28 @@ def get_mem_data(filename_or_regions, data_width=32, endianness="big", mem_size=
     regions = get_mem_regions(filename_or_regions, offset)
 
     # Determine data_size.
-    data_size = 0
+    bytes_per_data = data_width//8
+    data_size      = 0
+    data_regions   = []
     for filename, base in regions.items():
         if not os.path.isfile(filename):
             raise OSError(f"Unable to find {filename} memory content file.")
         base = _get_region_base(base)
+        size = os.path.getsize(filename)
         if base < offset:
             raise ValueError("file base address is below offset: 0x{:08x} < 0x{:08x}".format(base, offset))
-        data_size = max(base + os.path.getsize(filename) - offset, data_size)
+        if (base - offset) % bytes_per_data:
+            raise ValueError(
+                "file base address is not aligned to data width: {} at 0x{:08x} ({}-byte alignment).".format(
+                    filename, base, bytes_per_data))
+        for other_filename, other_base, other_size in data_regions:
+            if base < (other_base + other_size) and other_base < (base + size):
+                raise ValueError(
+                    "memory data files overlap: {} at 0x{:08x}-0x{:08x} and {} at 0x{:08x}-0x{:08x}.".format(
+                        other_filename, other_base, other_base + other_size,
+                        filename,       base,       base + size))
+        data_regions.append((filename, base, size))
+        data_size = max(base + size - offset, data_size)
     if data_size <= 0:
         raise ValueError("memory data is empty.")
     if mem_size is not None:
@@ -66,10 +80,8 @@ def get_mem_data(filename_or_regions, data_width=32, endianness="big", mem_size=
             raise ValueError("file is too big: {}/{} bytes".format(data_size, mem_size))
 
     # Fill data.
-    bytes_per_data = data_width//8
-    data           = [0]*math.ceil(data_size/bytes_per_data)
-    for filename, base in regions.items():
-        base = _get_region_base(base)
+    data = [0]*math.ceil(data_size/bytes_per_data)
+    for filename, base, _ in data_regions:
         with open(filename, "rb") as f:
             i = 0
             while True:
